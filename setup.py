@@ -12,11 +12,11 @@ setup(
   license = "Apache 2.0",
   keywords = ["PSS", "Portable Stimulus", "Accellera"],
   url = "https://github.com/psstools/py-pss-parser",
-#  entry_points={
-#    'console_scripts': [
-#      'vsc = vsc.__main__:main'
-#    ]
-#  },
+  entry_points={
+    'console_scripts': [
+      'pssc = pssparser.__main__:main'
+    ]
+  },
   setup_requires=[
     'setuptools_scm',
   ],
