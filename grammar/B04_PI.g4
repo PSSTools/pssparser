@@ -47,16 +47,12 @@ method_qualifiers:
 ;
 
 target_template_function:
-	'function' method_prototype '=' string ';'
+	'target' language_identifier 'function' method_prototype '=' string ';'
 	;
 
 // TODO: method_parameter_list appears unused	
 method_parameter_list: 
-	'('
-	(
-		expression (',' expression)*
-	)?
-	')'
+	'(' (expression (',' expression)*)? ')'
 ;
 
 	

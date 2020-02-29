@@ -8,6 +8,7 @@ import pss_spec_examples
 import sys
 from pssparser.cu_parser import CUParser
 from antlr4.InputStream import InputStream
+from _io import StringIO
 
 class TestSpecExamples(TestCase):
     
@@ -15,6 +16,18 @@ class TestSpecExamples(TestCase):
         input_stream = InputStream(text)
         parser = CUParser(input_stream, name)
         cu = parser.parse()
+        
+        if len(cu.markers) > 0:
+            print("Test Failed:")
+            in_reader = StringIO(text)
+            i=1
+            while True:
+                line = in_reader.readline()
+                if line == "":
+                    break
+                line = line[:-1]
+                print("%3d: %s" % (i, line))
+                i+=1
         
         self.assertEqual(len(cu.markers), 0, "Errors")
         

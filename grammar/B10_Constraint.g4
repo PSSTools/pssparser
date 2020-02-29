@@ -3,8 +3,10 @@ grammar Constraint;
 
 constraint_declaration:
 	(
-		((is_dynamic='dynamic')? 'constraint' identifier '{' constraint_body_item* '}') 
-		| ('constraint' '{' constraint_body_item* '}') 
+		// Note: 1.0 doesn't allow a semicolon after the block constraint forms,
+		// despite examples showing this
+		((is_dynamic='dynamic')? 'constraint' identifier '{' constraint_body_item* '}' (';')? ) 
+		| ('constraint' '{' constraint_body_item* '}' (';')? ) 
 		| ('constraint' single_stmt_constraint)
 	)
 ;

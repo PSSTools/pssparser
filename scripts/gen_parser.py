@@ -53,7 +53,7 @@ pssparser_gen = os.path.join(root_dir, "gen-src", "pssparser_gen")
 grammar = os.path.join(root_dir, "gen-src", "grammar")
 
 if not os.path.isdir(grammar):
-    os.mkdir(grammar)
+    os.makedirs(grammar)
 
 cmd = [jre, "-jar", antlr_jar, "-Dlanguage=Python3", "-visitor"]
 cmd.append(os.path.join(root_dir, "grammar", "PSS.g4"))
@@ -64,6 +64,9 @@ subprocess.call(cmd)
 
 # Ensure the __init__.py file exists
 
+if not os.path.isdir(pssparser_gen):
+    os.makedirs(pssparser_gen)
+    
 with open(os.path.join(pssparser_gen, "__init__.py"), "w"):
     pass
 

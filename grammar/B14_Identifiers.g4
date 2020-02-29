@@ -20,7 +20,7 @@ hierarchical_id:
 ;
 
 hierarchical_id_elem:
-	identifier ('[' expression ']')
+	identifier ('[' expression ']')?
 	;
 	
 action_type_identifier: type_identifier;

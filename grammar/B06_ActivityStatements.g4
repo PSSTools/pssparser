@@ -38,7 +38,8 @@ activity_repeat_stmt:
 ;
 
 activity_sequence_block_stmt:
-	('sequence')? '{'  activity_stmt* '}'
+	('sequence')? '{'  activity_stmt* '}' 
+	(';')? // Note: 1.0 spec does not include this, despite examples using it
 ;
 
 activity_constraint_stmt:

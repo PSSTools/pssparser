@@ -40,15 +40,17 @@ object_bind_stmt:
 ;
 
 object_bind_item_or_list:
-	component_path | '{' component_path (',' component_path)* '}'
+	component_path 
+	| ('{' component_path (',' component_path)* '}')
 ;
 
 component_path:
-	 (component_identifier ('.' component_path_elem)*) |
-	is_wildcard='*'
+	 (component_identifier ('.' component_path_elem)*) 
+	 | is_wildcard='*'
 ; 
 
 component_path_elem:
-	component_action_identifier|is_wildcard='*'
+	component_action_identifier
+	| is_wildcard='*'
 ;
 

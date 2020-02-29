@@ -2212,7 +2212,9 @@ spec_ex_164_object_pools_affect_inferencing='''
 
 component pss_top {
  buffer data_buff_s {/* ... */};
- pool data_buff_s data_mem1, data_mem2;
+ // Note: PSS 1.0 only allows one pool per declaration
+ pool data_buff_s data_mem1;
+ pool data_buff_s data_mem2;
  bind data_mem1 {A_a.dout, C_a.din};
  bind data_mem2 {B_a.dout, D_a.din};
  action A_a {output data_buff_s dout;};

@@ -34,7 +34,6 @@ action_body_item:
 	| covergroup_instantiation
 	| action_body_compile_if
 	| inline_covergroup
-	//TODO: | null_stmt
 ;
 
 activity_declaration: 'activity' '{' activity_stmt* '}' (';')?
@@ -97,7 +96,7 @@ activity_data_field:
 // TODO: BNF has hierarchical_id
 action_scheduling_constraint:
 	'constraint' (is_parallel='parallel' | is_sequence='sequence') '{'
-		variable_ref_path ',' variable_ref_path (',' variable_ref_path)* '}'
+		variable_ref_path ',' variable_ref_path (',' variable_ref_path)* '}' ';'
 	;
 
 // Exec
