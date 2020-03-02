@@ -20,7 +20,8 @@
 grammar PSS;
 import B01_Package, B02_Action, B03_Struct, B04_PI,
 	B05_Component, B06_ActivityStatements, B07_Overrides,
-	B08_DataDeclarations, B09_DataTypes, B10_Constraint,
+	B08_DataDeclarations, B09_DataTypes, B09_TemplateTypes,
+	B10_Constraint,
 	B11_Coverage, B12_ConditionalCompile, B13_Expressions,
 	B14_Identifiers, B15_Numbers, B16_LexicalRules,
 	ImportClass, ExportAction

@@ -1,7 +1,8 @@
 
 grammar Struct;
 
-struct_declaration: struct_kind identifier (struct_super_spec)? '{'
+// == PSS-1.1
+struct_declaration: struct_kind identifier template_param_decl_list? (struct_super_spec)? '{'
 		struct_body_item*
 	'}' (';')?
 ;

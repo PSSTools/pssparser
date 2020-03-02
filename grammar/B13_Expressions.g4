@@ -109,7 +109,11 @@ function_id:
 
 
 static_ref_path:
-	identifier '::' identifier ('::' identifier)*
+	'::'? static_ref_path_elem ('::' static_ref_path_elem)*
+	;
+	
+static_ref_path_elem: 
+	identifier template_param_value_list?
 	;
 
 mul_div_mod_op: '*' | '/' | '%';

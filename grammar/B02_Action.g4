@@ -2,14 +2,14 @@
 grammar Action;
 
 action_declaration:
-	'action' action_identifier (action_super_spec)? 
+	'action' action_identifier template_param_decl_list? (action_super_spec)? 
 	'{'
 		action_body_item*
 	'}' (';')?
 ;
 
 abstract_action_declaration :
-	'abstract' 'action' action_identifier (action_super_spec)?
+	'abstract' 'action' action_identifier template_param_decl_list? (action_super_spec)?
 	'{'
 		action_body_item*
 	'}' (';')?

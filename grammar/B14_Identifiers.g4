@@ -25,9 +25,16 @@ hierarchical_id_elem:
 	
 action_type_identifier: type_identifier;
 
+// == PSS 1.1
 type_identifier: 
-	(explicit_global='::')? ID ('::' ID)* 
+	(explicit_global='::')? type_identifier_elem ('::' type_identifier_elem)* 
 	;
+	
+// >>= PSS 1.1
+type_identifier_elem:
+	identifier template_param_value_list?
+	;
+// <<= PSS 1.1 
 	
 package_identifier: type_identifier ;
 

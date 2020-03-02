@@ -1,9 +1,11 @@
 
 grammar Component;
 
+// == PSS-1.1
 component_declaration:
-	'component' component_identifier (component_super_spec)? '{'
-	component_body_item*
+	'component' component_identifier template_param_decl_list? 
+	(component_super_spec)? '{'
+		component_body_item*
 	'}' (';')?
 ;
 

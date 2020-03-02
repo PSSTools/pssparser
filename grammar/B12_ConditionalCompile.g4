@@ -41,12 +41,9 @@ struct_body_compile_if_item:
 	| ('{' struct_body_item* '}')
 ;
 
+// == PSS 1.1 -- replace static_ref with static_ref_path
 compile_has_expr:
-	'compile' 'has' '(' static_ref ')'
-	;
-	
-static_ref:
-	(is_global='::')? identifier ('::' identifier)*
+	'compile' 'has' '(' static_ref_path ')'
 	;
 	
 compile_assert_stmt :
