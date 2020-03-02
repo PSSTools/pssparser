@@ -120,6 +120,10 @@ exec_kind_identifier:
 	| 'run_start' 
 	| 'run_end' 
 	| 'init'
+// >>= PSS 1.1
+	| 'init_up'
+	| 'init_down'
+// <<= PSS 1.1
 ;	
 
 exec_body_stmt:
