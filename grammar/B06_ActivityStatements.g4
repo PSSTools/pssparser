@@ -45,10 +45,7 @@ activity_sequence_block_stmt:
 ;
 
 activity_constraint_stmt:
-	 (
-		('constraint' ('{' constraint_body_item* '}' )) | 
-		('constraint' single_stmt_constraint)
-	)
+	'constraint' constraint_set 
 ;
 
 activity_foreach_stmt:
@@ -57,15 +54,10 @@ activity_foreach_stmt:
 ;
 
 activity_action_traversal_stmt:
-	(identifier inline_with_constraint? ';' )
-	| (is_do='do' type_identifier inline_with_constraint? ';' )
-;
-
-inline_with_constraint:
-	 (
-		('with' '{' constraint_body_item* '}') | 
-		('with' single_stmt_constraint)
-	)
+	(identifier ';')
+	| (identifier 'with' constraint_set)
+	| (is_do='do' type_identifier ';')
+	| (is_do='do' type_identifier 'with' constraint_set)
 ;
 
 activity_select_stmt:
