@@ -5,8 +5,8 @@ constraint_declaration:
 	(
 		// Note: 1.0 doesn't allow a semicolon after the block constraint forms,
 		// despite examples showing this
-		((is_dynamic='dynamic')? 'constraint' identifier '{' constraint_body_item* '}' (';')? ) 
-		| ('constraint' '{' constraint_body_item* '}' (';')? ) 
+		((is_dynamic='dynamic')? 'constraint' identifier '{' constraint_body_item* '}' ) 
+		| ('constraint' '{' constraint_body_item* '}' ) 
 		| ('constraint' single_stmt_constraint)
 	)
 ;
@@ -16,6 +16,9 @@ constraint_body_item:
 	| foreach_constraint_item
 	| if_constraint_item
 	| unique_constraint_item
+// >>= PSS 1.1
+	| ';'
+// <<= PSS 1.1
 ;
 
 expression_constraint_item:

@@ -6,7 +6,7 @@ component_declaration:
 	'component' component_identifier template_param_decl_list? 
 	(component_super_spec)? '{'
 		component_body_item*
-	'}' (';')?
+	'}' 
 ;
 
 component_super_spec :

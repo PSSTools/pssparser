@@ -4,7 +4,7 @@ grammar Struct;
 // == PSS-1.1
 struct_declaration: struct_kind identifier template_param_decl_list? (struct_super_spec)? '{'
 		struct_body_item*
-	'}' (';')?
+	'}' 
 ;
 
 struct_kind:
@@ -33,4 +33,7 @@ struct_body_item:
 	| compile_assert_stmt
 	| covergroup_instantiation
 	| struct_body_compile_if
+// >>= PSS 1.1
+    | ';'
+// <<= PSS 1.1
 ;

@@ -6,10 +6,8 @@ grammar Package;
 package_declaration:
 	'package' name=package_identifier '{'
 		package_body_item*
-	'}'	(';')?
+	'}'
 ;	
-
-null_stmt: ';';
 
 package_body_item:
 	abstract_action_declaration
@@ -28,6 +26,7 @@ package_body_item:
 	| static_const_field_declaration	
 	| compile_assert_stmt
 	| package_body_compile_if
+	| ';'
 	;
 
 import_stmt:
@@ -42,19 +41,19 @@ extend_stmt:
 		(
 			('extend' ext_type='action' type_identifier '{'
 				action_body_item*
-				'}' (';')? 
+				'}'
 			) | 
 			('extend' ext_type='component' type_identifier '{'
 				component_body_item*
-				'}' (';')?
+				'}'
 			) |
 			('extend' struct_kind type_identifier '{'
 				struct_body_item*
-				'}' (';')?
+				'}'
 			) |
 			('extend' ext_type='enum' type_identifier '{'
 				(enum_item (',' enum_item)*)?
-				'}' (';')?
+				'}'
 			)
 		)
 ;

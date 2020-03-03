@@ -52,7 +52,7 @@ user_defined_datatype:
 enum_declaration:
   	'enum' enum_identifier '{' 
   		(enum_item (',' enum_item)*)?
-  		'}' (';')?
+  		'}' 
   ;
   
 enum_item:

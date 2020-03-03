@@ -5,14 +5,14 @@ action_declaration:
 	'action' action_identifier template_param_decl_list? (action_super_spec)? 
 	'{'
 		action_body_item*
-	'}' (';')?
+	'}' 
 ;
 
 abstract_action_declaration :
 	'abstract' 'action' action_identifier template_param_decl_list? (action_super_spec)?
 	'{'
 		action_body_item*
-	'}' (';')?
+	'}' 
 ;
 
 action_super_spec:
@@ -34,9 +34,12 @@ action_body_item:
 	| covergroup_instantiation
 	| action_body_compile_if
 	| inline_covergroup
+// >>= PSS 1.1
+	| ';'
+// <<= PSS 1.1
 ;
 
-activity_declaration: 'activity' '{' activity_stmt* '}' (';')?
+activity_declaration: 'activity' '{' activity_stmt* '}' 
 	;
 
 action_field_declaration:
@@ -102,13 +105,16 @@ action_scheduling_constraint:
 // Exec
 
 exec_block_stmt:
-	exec_block |
-	target_code_exec_block |
-	target_file_exec_block
+	exec_block 
+	| target_code_exec_block 
+	| target_file_exec_block
+// >>= PSS 1.1
+    | ';'
+// <<= PSS 1.1
 	;
 	
 exec_block:
-	'exec' exec_kind_identifier '{' exec_body_stmt* '}' (';')?
+	'exec' exec_kind_identifier '{' exec_body_stmt* '}' 
 ;
 
 exec_kind_identifier:

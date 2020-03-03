@@ -5,7 +5,7 @@ grammar Coverage;
 covergroup_declaration:
 	'covergroup' name=covergroup_identifier ('(' covergroup_port (',' covergroup_port)* ')')? '{'
 		covergroup_body_item*
-	'}' (';')?
+	'}' 
 ;
 
 covergroup_port:
@@ -16,6 +16,9 @@ covergroup_body_item:
 	covergroup_option
 	| covergroup_coverpoint
 	| covergroup_cross
+// >>= PSS 1.1
+	| ';'
+// <<= PSS 1.1
 ;
 
 covergroup_option:
@@ -55,7 +58,7 @@ covergroup_coverpoint:
 ;
 
 bins_or_empty:
-		('{' covergroup_coverpoint_body_item* '}' (';')? ) 
+		('{' covergroup_coverpoint_body_item* '}' ) 
 		| ';'
 ;
 
@@ -99,7 +102,7 @@ covergroup_cross:
 ;
 
 cross_item_or_null:
-	('{' covergroup_cross_body_item* '}' (';')?)
+	('{' covergroup_cross_body_item* '}' )
 	| ';'
 ;
 

@@ -8,6 +8,9 @@ overrides_declaration:
 override_stmt:
 	type_override 
 	| instance_override
+// >>= PSS 1.1
+	| ';'
+// <<= PSS 1.1
 ;
 
 type_override:

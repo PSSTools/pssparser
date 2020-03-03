@@ -8,6 +8,9 @@ activity_stmt:
 	| action_handle_declaration
 	| activity_constraint_stmt
 	| action_scheduling_constraint
+// >>= PSS 1.1
+	| ';'
+// <<= PSS 1.1
 ;
 
 labeled_activity_stmt:
@@ -39,7 +42,6 @@ activity_repeat_stmt:
 
 activity_sequence_block_stmt:
 	('sequence')? '{'  activity_stmt* '}' 
-	(';')? // Note: 1.0 spec does not include this, despite examples using it
 ;
 
 activity_constraint_stmt:
@@ -55,11 +57,8 @@ activity_foreach_stmt:
 ;
 
 activity_action_traversal_stmt:
-	(
-		(identifier inline_with_constraint?)
-		| (is_do='do' type_identifier inline_with_constraint?)
-	)
-	';'
+	(identifier inline_with_constraint? ';' )
+	| (is_do='do' type_identifier inline_with_constraint? ';' )
 ;
 
 inline_with_constraint:
@@ -100,13 +99,13 @@ match_choice:
 activity_parallel_stmt:
 	 'parallel' '{'
 		activity_stmt*
-	'}' (';')?
+	'}' 
 ;
 
 activity_schedule_stmt:
 	 'schedule' '{'
 		activity_stmt*
-	'}' (';')?
+	'}' 
 ;
 
 activity_bind_stmt:
