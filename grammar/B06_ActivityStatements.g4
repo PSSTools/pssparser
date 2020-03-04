@@ -54,8 +54,8 @@ activity_foreach_stmt:
 ;
 
 activity_action_traversal_stmt:
-	(identifier ';')
-	| (identifier 'with' constraint_set)
+	(identifier ('[' expression ']')? ';')
+	| (identifier ('[' expression ']')? 'with' constraint_set)
 	| (is_do='do' type_identifier ';')
 	| (is_do='do' type_identifier 'with' constraint_set)
 ;
