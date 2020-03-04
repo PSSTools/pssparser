@@ -22,6 +22,7 @@ jobs:
     displayName: 'Install wheel+twine'
   - script: |
       export PYTHONPATH=$(Build.Repository.LocalPath)/src
+      python3 setup.py antlr
       python3  -m pytest unit --doctest-modules --junitxml=junit/test-results.xml
     displayName: 'Run Unit Tests'
 
