@@ -42,9 +42,6 @@ jobs:
   - script: |
       # Only deploy from master
       if test "$(Build.SourceBranchName)" = "master"; then
-          python -m twine --version
-          echo "Calling twine"
-          python -m twine upload -r pssparser --config-file $(PYPIRC_PATH) dist/*.whl
-          echo "Calling twine complete"
+          python3 -m twine upload -r pssparser --config-file $(PYPIRC_PATH) dist/*.whl
       fi
     displayName: 'Upload to PyPi'
