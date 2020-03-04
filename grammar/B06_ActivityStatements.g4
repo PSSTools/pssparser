@@ -89,16 +89,42 @@ match_choice:
 	;
 	
 activity_parallel_stmt:
-	 'parallel' '{'
+	 'parallel' activity_join_spec? '{'
 		activity_stmt*
 	'}' 
 ;
 
 activity_schedule_stmt:
-	 'schedule' '{'
+	 'schedule' activity_join_spec? '{'
 		activity_stmt*
 	'}' 
 ;
+
+// >>= PSS 1.1
+activity_join_spec:
+	activity_join_branch_spec
+	| activity_join_select_spec
+	| activity_join_none_spec
+	| activity_join_first_spec
+	;
+	
+activity_join_branch_spec:
+	'join_branch' '(' label_identifier (',' label_identifier)* ')'
+	;
+	
+activity_join_select_spec:
+	'join_select' '(' expression ')'
+	;
+	
+activity_join_none_spec:
+	'join_none'
+	;
+	
+activity_join_first_spec:
+	'join_first' '(' expression ')'
+	;
+	
+// <<= PSS 1.1
 
 activity_bind_stmt:
 	'bind' hierarchical_id activity_bind_item_or_list ';'

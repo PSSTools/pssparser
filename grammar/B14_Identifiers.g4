@@ -59,6 +59,10 @@ enum_identifier: identifier;
 
 import_class_identifier: identifier;
 
+// >>= PSS 1.1
+label_identifier: identifier;
+// <<= PSS 1.1
+
 language_identifier: identifier;
 
 method_identifier: identifier;
