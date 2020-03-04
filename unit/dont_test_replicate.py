@@ -136,4 +136,6 @@ class TestReplicate(TestCase):
 #         }
 #         //</example>
 #         """
-#         self._runTest(text, "test_example_4")        
+#         self._runTest(text, "test_example_4")
+
+
