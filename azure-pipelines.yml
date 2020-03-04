@@ -21,16 +21,16 @@ jobs:
   - script: |
       python setup.py antlr bdist_wheel --universal
     displayName: 'Build Wheel'
-  - task: TwineAuthenticate@1
-    condition: eq(variables['Build.SourceBranchName'], 'master')
-    inputs:
-      pythonUploadServiceConnection: pypi
-  - script: |
-      # Only deploy from master
-      if test "$(Build.SourceBranchName)" = "master"; then
-          python -m twine --version
-          echo "Calling twine"
-          python -m twine upload -r pssparser --config-file $(PYPIRC_PATH) dist/*.whl
-          echo "Calling twine complete"
-      fi
-    displayName: 'Upload to PyPi'
+#  - task: TwineAuthenticate@1
+#    condition: eq(variables['Build.SourceBranchName'], 'master')
+#    inputs:
+#      pythonUploadServiceConnection: pypi
+#  - script: |
+#      # Only deploy from master
+#      if test "$(Build.SourceBranchName)" = "master"; then
+#          python -m twine --version
+#          echo "Calling twine"
+#          python -m twine upload -r pssparser --config-file $(PYPIRC_PATH) dist/*.whl
+#          echo "Calling twine complete"
+#      fi
+#    displayName: 'Upload to PyPi'
