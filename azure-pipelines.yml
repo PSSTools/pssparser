@@ -12,7 +12,7 @@ jobs:
 
   steps:
   - script: |
-      apt-get install default-jdk
+      sudo apt-get install default-jdk
     displayName: 'Install JDK'
   - script: |
       python -m pip install wheel twine setuptools-antlr antlr4-python3-runtime
