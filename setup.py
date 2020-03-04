@@ -4,8 +4,8 @@ from setuptools import setup
 
 setup(
   name = "pssparser",
-  packages=['pssparser','pssparser-gen'],
-  package_dir = {'' : 'src', '' : 'src-gen'},
+  packages=['pssparser'],
+  package_dir = {'' : 'src'},
   author = "Matthew Ballance",
   author_email = "matt.ballance@gmail.com",
   description = ("pssparser provides an Accellera PSS parser implemented with ANTLR and Python"),
