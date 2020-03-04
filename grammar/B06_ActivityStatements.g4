@@ -9,7 +9,7 @@ activity_stmt:
 	| activity_constraint_stmt
 	| action_scheduling_constraint
 // >>= PSS 1.1
-	| ';'
+	| activity_replicate_stmt
 // <<= PSS 1.1
 ;
 
@@ -25,6 +25,10 @@ labeled_activity_stmt:
 	| activity_schedule_stmt
 	| activity_super_stmt
 	| function_symbol_call
+// >>= PSS 1.1
+	// TODO: need to change align-semicolon spec 
+	| ';'
+// <<= PSS 1.1
 ;
 
 activity_if_else_stmt:
@@ -39,6 +43,11 @@ activity_repeat_stmt:
 		(is_do_while='repeat' activity_stmt is_do_while='while' '(' expression ')' ';')
 		)
 ;
+
+activity_replicate_stmt:
+	'replicate' '(' (index_identifier ':')? expression ')' ( identifier '[' ']' ':')? 
+		labeled_activity_stmt
+	;
 
 activity_sequence_block_stmt:
 	('sequence')? '{'  activity_stmt* '}' 
