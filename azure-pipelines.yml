@@ -1,0 +1,36 @@
+variables:
+  build_num: $(Build.BuildNumber)
+  
+jobs:
+- job: PyPi_Linux
+  pool:
+   vmImage: 'ubuntu-18.04'
+
+  variables:
+  - name: build_num
+    value: $(Build.BuildNumber)
+
+  steps:
+  - script: |
+      apt install default-jdk
+    displayName: 'Install JDK'
+  - script: |
+      python -m pip install wheel twine setuptools-antlr antlr4-python3-runtime
+    displayName: 'Install wheel+twine'
+    
+  - script: |
+      python setup.py antlr bdist_wheel --universal
+    displayName: 'Build Wheel'
+  - task: TwineAuthenticate@1
+    condition: eq(variables['Build.SourceBranchName'], 'master')
+    inputs:
+      pythonUploadServiceConnection: pypi
+  - script: |
+      # Only deploy from master
+      if test "$(Build.SourceBranchName)" = "master"; then
+          python -m twine --version
+          echo "Calling twine"
+          python -m twine upload -r pssparser --config-file $(PYPIRC_PATH) dist/*.whl
+          echo "Calling twine complete"
+      fi
+    displayName: 'Upload to PyPi'

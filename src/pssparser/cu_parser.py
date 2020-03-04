@@ -4,11 +4,11 @@ Created on Feb 17, 2020
 @author: ballance
 '''
 from antlr4.BufferedTokenStream import TokenStream
-from pssparser_gen.PSSLexer import PSSLexer
+from pssparser.antlr_gen.PSSLexer import PSSLexer
 from antlr4.CommonTokenStream import CommonTokenStream
-from pssparser_gen.PSSParser import PSSParser
+from pssparser.antlr_gen.PSSParser import PSSParser
 from pssparser.model.compilation_unit import CompilationUnit
-from pssparser_gen.PSSVisitor import PSSVisitor
+from pssparser.antlr_gen.PSSVisitor import PSSVisitor
 from antlr4.error.ErrorListener import ErrorListener
 from pssparser.model.marker import Marker
 from pssparser.model.component_type import ComponentType
