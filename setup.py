@@ -2,8 +2,14 @@
 import os
 from setuptools import setup
 
+version="0.0.1"
+
+if "BUILD_NUM" in os.environ.keys():
+    version += "." + os.environ["BUILD_NUM"]
+
 setup(
   name = "pssparser",
+  version = version,
   packages=['pssparser'],
   package_dir = {'' : 'src'},
   author = "Matthew Ballance",
