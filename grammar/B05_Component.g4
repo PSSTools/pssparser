@@ -46,13 +46,15 @@ object_bind_item_or_list:
 	| ('{' component_path (',' component_path)* '}')
 ;
 
+// TODO: I believe component_identifier should allow array
 component_path:
 	 (component_identifier ('.' component_path_elem)*) 
 	 | is_wildcard='*'
 ; 
 
+// TODO: Arrayed flow-object references require arrayed access
 component_path_elem:
-	component_action_identifier
+	component_action_identifier ('[' constant_expression ']')?
 	| is_wildcard='*'
 ;
 

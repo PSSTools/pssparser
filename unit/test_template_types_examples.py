@@ -57,13 +57,14 @@ class TestTemplateTypesExamples(TestCase):
 
     # Note: will fail until arrayed flow objects are supported
     def test_example_2(self):
+        # TODO: no resource type/identifier specified for the lock
         text = """
         //<example>
         component container {
         //</example>
         action my_consumer_action <int n_locks = 4> {
            compile assert (n_locks in [1..16]);
-           lock                 my_resource[n_locks];
+           lock my_resource_t  my_resource[n_locks];
         }
         //<example>
         }

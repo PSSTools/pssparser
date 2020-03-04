@@ -43,7 +43,9 @@ activity_declaration: 'activity' '{' activity_stmt* '}'
 	;
 
 action_field_declaration:
-	object_ref_field
+// >>= PSS 1.1
+	object_ref_declaration
+// <<= PSS 1.1
 	| attr_field
 	| activity_data_field
 	| attr_group
@@ -51,18 +53,26 @@ action_field_declaration:
 	| activity_data_field
 ;
 
+// >>= PSS 1.1
+object_ref_declaration:
+	flow_ref_declaration
+	| resource_ref_declaration
+	;
+// <<= PSS 1.1
+	
+// >>= PSS 1.1
+flow_ref_declaration:
+	(is_input='input' | is_output='output') flow_object_type object_ref_field (',' object_ref_field)* ';'
+	;
+	
+resource_ref_declaration:
+	(lock='lock' | share='share') resource_object_type object_ref_field (',' object_ref_field)* ';'
+	;
+	
 object_ref_field:
-	flow_ref_field
-	| resource_ref_field
+	identifier array_dim?
 	;
-	
-flow_ref_field:
-	(is_input='input' | is_output='output') flow_object_type identifier (',' identifier)* ';'
-	;
-	
-resource_ref_field:
-	(lock='lock' | share='share') resource_object_type identifier (',' identifier)* ';'
-	;
+// <<= PSS 1.1
 	
 flow_object_type:
 	type_identifier
