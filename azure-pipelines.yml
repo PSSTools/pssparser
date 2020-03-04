@@ -33,7 +33,7 @@ jobs:
       testRunTitle: 'Unit Tests'
     
   - script: |
-      python setup.py antlr bdist_wheel --universal
+      python3 setup.py antlr bdist_wheel --universal
     displayName: 'Build Wheel'
 #  - task: TwineAuthenticate@1
 #    condition: eq(variables['Build.SourceBranchName'], 'master')
