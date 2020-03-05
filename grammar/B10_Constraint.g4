@@ -22,6 +22,7 @@ constraint_body_item:
 	| unique_constraint_item
 // >>= PSS 1.1
 	| default_constraint_item
+	| forall_constraint_item
 	| ';'
 // <<= PSS 1.1
 ;
@@ -39,6 +40,10 @@ default_constraint:
 default_disable_constraint:
 	'default' 'disable' hierarchical_id ';'
 	;	
+	
+forall_constraint_item:
+	'forall' '(' identifier ':' type_identifier ('in' variable_ref_path)? ')' constraint_set
+	;
 // <<= PSS 1.1
 
 expression_constraint_item:
