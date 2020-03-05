@@ -124,7 +124,7 @@ exec_block_stmt:
 	;
 	
 exec_block:
-	'exec' exec_kind_identifier '{' exec_body_stmt* '}' 
+	'exec' exec_kind_identifier '{' exec_stmt* '}' 
 ;
 
 exec_kind_identifier:
@@ -142,24 +142,14 @@ exec_kind_identifier:
 // <<= PSS 1.1
 ;	
 
-exec_body_stmt:
-	exec_body_method_call_stmt
-	| exec_body_super_stmt
-	| exec_body_assign_stmt
+exec_stmt:
+	procedural_stmt
+	| exec_super_stmt
 	;
 	
-exec_body_method_call_stmt:
-	method_function_symbol_call ';'
-	;
-	
-exec_body_super_stmt:
+exec_super_stmt:
 	'super' ';'
 	;
-
-exec_body_assign_stmt:
-	variable_ref_path assign_op expression ';'
-	;
-	
 
 assign_op:
 	'=' | '+=' | '-=' | '<<=' | '>>=' | '|=' | '&='

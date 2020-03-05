@@ -16,6 +16,7 @@ package_body_item:
 	| covergroup_declaration
 	| function_decl
 	| import_class_decl
+	| pss_function_defn
 	| function_qualifiers
 	| target_template_function
 	| export_action

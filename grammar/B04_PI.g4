@@ -33,7 +33,8 @@ method_parameter_dir:
 ;
 
 function_qualifiers:
-	'import' (import_function_qualifiers)? 'function' type_identifier ';'
+	('import' import_function_qualifiers? 'function' type_identifier ';')
+	| ('import' import_function_qualifiers? 'function' method_prototype ';')
 	;
 	
 import_function_qualifiers:
@@ -54,5 +55,74 @@ target_template_function:
 method_parameter_list: 
 	'(' (expression (',' expression)*)? ')'
 ;
+
+// >>= PSS 1.1
+pss_function_defn:
+	method_qualifiers? 'function' method_prototype '{' procedural_stmt* '}'
+	;
+	
+procedural_stmt:
+	procedural_block_stmt
+	procedural_var_decl_stmt
+	| procedural_expr_stmt
+	| procedural_return_stmt
+	| procedural_if_else_stmt
+	| procedural_match_stmt
+	| procedural_repeat_stmt
+	| procedural_foreach_stmt
+	| procedural_break_stmt
+	| procedural_continue_stmt
+	| ';' // TODO: need to incorporate
+	;
+	
+procedural_block_stmt:
+	('sequence')? '{' procedural_stmt* '}'
+	;
+	
+procedural_var_decl_stmt:
+	data_declaration
+	;
+	
+procedural_expr_stmt:
+	(expression ';')
+	| (variable_ref_path assign_op expression ';')
+	;
+	
+procedural_return_stmt:
+	'return' expression? ';'
+	;
+	
+procedural_if_else_stmt:
+	'if' '(' expression ')' procedural_stmt ( 'else' procedural_stmt )?
+	;
+	
+procedural_match_stmt:
+	'match' '(' expression ')' '{' procedural_match_choice procedural_match_choice* '}'
+	;
+
+procedural_match_choice:
+	('[' open_range_list ']' ':' procedural_stmt)
+	| ('default' ':' procedural_stmt)
+	;
+
+procedural_repeat_stmt:
+	('while' '(' expression ')' procedural_stmt)
+	| ('repeat' '(' (identifier ':')? expression ')' procedural_stmt)
+	| ('repeat' procedural_stmt 'while' '(' expression ')' ';')
+	;
+	
+procedural_foreach_stmt:
+	'foreach' '(' (iterator_identifier ':')? expression ('[' index_identifier ']')? ')' procedural_stmt
+	;
+	
+procedural_break_stmt:
+	'break' ';'
+	;
+
+procedural_continue_stmt:
+	'continue' ';'
+	;
+	
+// <<= PSS 1.1
 
 	
