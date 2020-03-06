@@ -27,6 +27,9 @@ package_body_item:
 	| static_const_field_declaration	
 	| compile_assert_stmt
 	| package_body_compile_if
+// >>= PSS 1.1
+	| component_declaration
+// <<= PSS 1.1
 	| ';'
 	;
 

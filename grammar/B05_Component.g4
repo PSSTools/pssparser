@@ -19,9 +19,29 @@ component_body_item:
 	| action_declaration
 	| object_bind_stmt
 	| exec_block
-	| package_body_item
+// >>= PSS 1.1 -- replace package_body_item
+	| abstract_action_declaration
+	| struct_declaration
+	| enum_declaration
+	| covergroup_declaration
+	| function_decl
+	| import_class_decl
+	| pss_function_defn
+	| function_qualifiers
+	| target_template_function
+	| export_action
+	| typedef_declaration
+	| import_stmt
+	| extend_stmt
+	| const_field_declaration
+	| static_const_field_declaration	
+	| compile_assert_stmt
+// <<= PSS 1.1
 	| attr_group
 	| component_body_compile_if
+// >>= PSS 1.1
+ 	| ';'
+// <<= PSS 1.1
 ;
 
 component_field_declaration:
