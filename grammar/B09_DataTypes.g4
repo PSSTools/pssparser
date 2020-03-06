@@ -2,9 +2,36 @@
 grammar DataTypes;
 
 data_type:
-	scalar_data_type |
-	user_defined_datatype
+	scalar_data_type 
+// >>= PSS 1.1
+	| container_type
+// <<= PSS 1.1
+	| user_defined_datatype
 ;
+
+// >>= PSS 1.1
+container_type:
+	| ('array' '<' container_elem_type ',' array_size_expression '>')
+	| ('list' '<' container_elem_type '>')
+	| ('map' '<' container_key_type ',' container_elem_type '>')
+	| ('set' '<' container_key_type '>')
+	;
+	
+array_size_expression:
+	constant_expression
+	;
+	
+container_elem_type:
+	container_type
+	| scalar_data_type
+	| type_identifier
+	;
+	
+container_key_type:
+	scalar_data_type
+	| enum_identifier
+	;
+// <<= PSS 1.1
 
 scalar_data_type:
 	chandle_type 	|
