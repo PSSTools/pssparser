@@ -1,9 +1,25 @@
- 
+/****************************************************************************
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ ****************************************************************************/
+
 grammar Expressions;
 
 constant_expression: expression;
-
-
 
 
 expression:
@@ -89,13 +105,15 @@ method_function_symbol_call:
 	method_call
 	| function_symbol_call
 	;
-	
+
+// TODO: trailing ';' is incorrect
 method_call:
-	hierarchical_id method_parameter_list ';'
+	hierarchical_id method_parameter_list /*';'*/
 	;
 
+// TODO: trailing ';' is incorrect
 function_symbol_call:
-	function_symbol_id method_parameter_list ';'
+	function_symbol_id method_parameter_list /*';'*/
 	;
 	
 function_symbol_id:

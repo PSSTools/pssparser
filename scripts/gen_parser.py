@@ -39,7 +39,9 @@ def find_jre_windows():
 scripts_dir=os.path.dirname(os.path.realpath(__file__))
 root_dir=os.path.dirname(scripts_dir)
 
-antlr_jar_name="antlr-4.8-complete.jar"
+#antlr_jar_name="antlr-4.8-complete.jar"
+antlr_jar_name="antlr-runtime-4.7.1.jar"
+antlr_jar_name="antlr-runtime-4.8.jar"
 antlr_jar_url="https://www.antlr.org/download/" + antlr_jar_name
 
 antlr_jar=os.path.join(scripts_dir, antlr_jar_name)
