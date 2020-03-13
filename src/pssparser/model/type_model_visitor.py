@@ -8,8 +8,7 @@ class TypeModelVisitor(object):
     pass
 
     def visit_type_scope(self, t):
-        for t in t.types:
-            t.accept(self)
+        pass
             
     def visit_composite_type(self, t):
         if t.super_type is not None:
@@ -35,4 +34,19 @@ class TypeModelVisitor(object):
     
     def visit_component(self, c):
         self.visit_composite_type(c)
+        
+    def visit_composite_stmt(self, c):
+        for ch in c.children:
+            ch.accept(self)
+        
+    def visit_extend_stmt(self, e):
+        e.target.accept(self)
+        self.visit_composite_stmt(e)
+        
+        
+    def visit_import_stmt(self, i):
+        i.ref.accept(self)
+        
+    def visit_reference(self, r):
+        pass
     

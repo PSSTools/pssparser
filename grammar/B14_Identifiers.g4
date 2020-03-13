@@ -45,7 +45,7 @@ action_type_identifier: type_identifier;
 
 // == PSS 1.1
 type_identifier: 
-	(explicit_global='::')? type_identifier_elem ('::' type_identifier_elem)* 
+	(is_global='::')? type_identifier_elem ('::' type_identifier_elem)* 
 	;
 	
 // >>= PSS 1.1

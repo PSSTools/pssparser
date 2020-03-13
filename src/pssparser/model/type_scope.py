@@ -3,23 +3,21 @@ Created on Feb 17, 2020
 
 @author: ballance
 '''
+from typing import Tuple
 
 class TypeScope(object):
     """Base for types in which types are declared"""
     
-    def __init__(self, name):
+    def __init__(self, name : Tuple[str]):
         self.parent = None
         self.name = name
-        self.types = []
         self.imports = []
         
-    def add_type(self, c):
-        if c is not None:
-            c.parent = self
-            c.types.append(c)
-            
     def add_import(self, imp):
         self.imports.append(imp)
+        
+    def qname(self) -> str:
+        return "::".join(self.name)
         
     def get_cu(self) -> 'CompilationUnit':
         """Returns the containing compilation unit for this typescope"""
