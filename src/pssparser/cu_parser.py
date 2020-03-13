@@ -24,6 +24,7 @@ from pssparser.model.marker import Marker
 from pssparser.model.package_type import PackageType
 from pssparser.model.reference import Reference
 from pssparser.model.source_info import SourceInfo
+from pssparser.model.attr_decl_stmt import AttrFlags
 
 
 class CUParser(PSSVisitor, ErrorListener):
@@ -50,6 +51,7 @@ class CUParser(PSSVisitor, ErrorListener):
         self._scope_s : List['CompositeType'] = []
         self._namespace_s : List[str] = []
         self._package_m : Dict[str, PackageType] = {}
+        self._attr_flags_s : List[AttrFlags] = []
         
         cu = CUType(filename)
         self._scope_s.append(cu)
@@ -134,6 +136,22 @@ class CUParser(PSSVisitor, ErrorListener):
                 ret.add_child(c_elem)
 
         return ret
+   
+    def visitConst_data_declaration(self, ctx:PSSParser.Const_data_declarationContext):
+        pass
+
+    def visitConst_field_declaration(self, ctx:PSSParser.Const_field_declarationContext):
+        self._attr_flags_s.append(AttrFlags.Const)
+        ctx.const_data_declaration().accept(self)
+        self._attr_flags_s.pop()
+        
+    def visitStatic_const_field_declaration(self, ctx:PSSParser.Static_const_field_declarationContext):
+        self._attr_flags_s.append(AttrFlags.Static)
+        self._attr_flags_s.append(AttrFlags.Const)
+        ctx.const_data_declaration().accept(self)
+        self._attr_flags_s.pop()
+        self._attr_flags_s.pop()
+        
     
     def visitExtend_stmt(self, ctx:PSSParser.Extend_stmtContext):
 
@@ -262,4 +280,12 @@ class CUParser(PSSVisitor, ErrorListener):
         self._set_srcinfo(ret, ti.start)
             
         return ret
+    
+    def _get_attr_flags(self):
+        
+        flags = AttrFlags.Default
+        
+        # TODO: move back through the stack and aggregate flags
+        
+        return flags
         

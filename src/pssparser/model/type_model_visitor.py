@@ -3,6 +3,7 @@ Created on Mar 9, 2020
 
 @author: ballance
 '''
+from pssparser.model.attr_decl_stmt import AttrDeclStmt
 
 class TypeModelVisitor(object):
     pass
@@ -25,6 +26,9 @@ class TypeModelVisitor(object):
     def visit_action(self, a):
         self.visit_composite_type(a)
         pass
+    
+    def visit_attr_decl_stmt(self, a : AttrDeclStmt):
+        a.typeref.accept(self)
     
     def visit_compilation_unit(self, cu):
 #        for n,p in cu.package_m.items():

@@ -8,11 +8,14 @@ from pssparser.model.source_info import SourceInfo
 from enum import Flag, auto
 
 class AttrFlags(Flag):
+    Default = auto() # no qualifiers
     Rand = auto()
+    Const = auto()
+    Static = auto()
     Protected = auto()
     Private = auto()
 
-class AttrType(object):
+class AttrDeclStmt(object):
     
     def __init__(self, name, typeref : Reference, flags : AttrFlags):
         self.name = name
@@ -21,4 +24,4 @@ class AttrType(object):
         self.srcinfo : SourceInfo = None
 
     def accept(self, v):
-        v.visit_attr(self)
+        v.visit_attr_decl_stmt(self)
