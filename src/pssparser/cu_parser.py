@@ -9,7 +9,6 @@ from antlr4.BufferedTokenStream import TokenStream
 from antlr4.CommonTokenStream import CommonTokenStream
 from antlr4.error.ErrorListener import ErrorListener
 from antlr4.tree.Tree import TerminalNodeImpl
-from pip._vendor.msgpack import ExtType
 
 from pssparser.antlr_gen.PSSLexer import PSSLexer
 from pssparser.antlr_gen.PSSParser import PSSParser
