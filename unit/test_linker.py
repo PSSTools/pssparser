@@ -4,7 +4,6 @@ Created on Mar 13, 2020
 @author: ballance
 '''
 from _io import StringIO
-from ctypes.test.test_pickling import name
 from unittest.case import TestCase
 
 from antlr4 import InputStream
@@ -12,6 +11,7 @@ from antlr4 import InputStream
 from pssparser.cu_parser import CUParser
 from pssparser.visitors.link_visitor import LinkVisitor
 from pssparser.model.type_model_visitor import TypeModelVisitor
+import unittest
 
 
 class TestLinker(TestCase):
@@ -28,7 +28,7 @@ class TestLinker(TestCase):
     
     def _runTest(self, text):
         input_stream = InputStream(text)
-        parser = CUParser(input_stream, name)
+        parser = CUParser(input_stream, unittest.TestCase.id)
         cu = parser.parse()
         
         if len(cu.markers) > 0:
