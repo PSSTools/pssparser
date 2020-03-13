@@ -1,6 +1,6 @@
-variables:
-  build_num: $(Build.BuildNumber)
-  
+trigger:
+- master
+
 jobs:
 - job: PyPi_Linux
   pool:
