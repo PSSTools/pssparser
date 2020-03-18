@@ -4,6 +4,8 @@ Created on Mar 9, 2020
 @author: ballance
 '''
 from pssparser.model.attr_decl_stmt import AttrDeclStmt
+from pssparser.model.expr_open_range_list import ExprOpenRangeList
+from pssparser.model.expr_open_range_value import ExprOpenRangeValue
 
 class TypeModelVisitor(object):
     pass
@@ -42,11 +44,79 @@ class TypeModelVisitor(object):
     def visit_composite_stmt(self, c):
         for ch in c.children:
             ch.accept(self)
+            
+    def visit_expr_bin(self, e):
+        e.lhs.accept(self)
+        e.rhs.accept(self)
+        
+    def visit_expr_bool(self, e):
+        pass
+    
+    def visit_expr_compile_has(self, c):
+        c.ref.accept(self)
+        
+    def visit_expr_cond(self, c):
+        c.cond_e.accept(self)
+        c.true_e.accept(self)
+        c.false_e.accept(self)
+        
+    def visit_expr_hierarchical_id(self, e):
+        for p in e.path_l:
+            p.accept(self)
+        
+    def visit_expr_hierarchical_id_elem(self, e):
+        e.name.accept(self)
+        if e.lhs is not None:
+            e.lhs.accept(self)
+            
+    def visit_expr_hierarchical_id_list(self, hid_l):
+        for hid in hid_l.hid_l:
+            hid.accept(self)
+            
+    def visit_expr_id(self, i):
+        pass
+        
+    def visit_expr_in(self, i):
+        i.lhs.accept(self)
+        i.open_range_l.accept(self)
+        
+    def visit_expr_open_range_list(self, r : ExprOpenRangeList):
+        for v in r.val_l:
+            v.accept(self)
+            
+    def visit_expr_open_range_value(self, rv : ExprOpenRangeValue):
+        rv.lhs.accept(self)
+        if rv.rhs is not None:
+            rv.rhs.accept(self)
+            
+    def visit_expr_str_literal(self, s):
+        pass
+    
+    def visit_expr_super_ref(self, r):
+        r.ref.accept(self)
+    
+    def visit_expr_template_param_value_list(self, pl):
+        # TODO:
+        pass
+    
+    def visit_expr_template_value(self, pv):
+        # TODO:
+        pass
+    
+    def visit_expr_var_ref_path(self, r):
+        r.hid.accept(self)
+        if r.lhs is not None:
+            r.lhs.accept(self)
+            if r.rhs is not None:
+                r.rhs.accept(self)
+        
+    def visit_expr_unary(self, e):
+        e.expr.accept(self)
         
     def visit_extend_stmt(self, e):
         e.target.accept(self)
         self.visit_composite_stmt(e)
-        
+
         
     def visit_import_stmt(self, i):
         i.ref.accept(self)

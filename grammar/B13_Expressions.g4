@@ -79,7 +79,7 @@ primary:
 	| variable_ref_path
 	| method_function_symbol_call
 	| static_ref_path
-	| 'super' '.' variable_ref_path
+	| is_super='super' '.' variable_ref_path
 	| compile_has_expr
 	| cast_expression // TODO: File Jama issue
 	;
@@ -127,7 +127,7 @@ function_id:
 
 
 static_ref_path:
-	'::'? static_ref_path_elem ('::' static_ref_path_elem)*
+	is_global='::'? static_ref_path_elem ('::' static_ref_path_elem)*
 	;
 	
 static_ref_path_elem: 
