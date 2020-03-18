@@ -12,6 +12,7 @@ class ExprStaticRefPath(ExprType):
     def __init__(self, is_rooted:bool, path : List[ExprStaticRefPathElem]=None):
         self.is_rooted = is_rooted
         self.path = path if path is not None else []
+        self.ref = None
 
     def accept(self, v):
         v.visit_expr_static_ref_path(self)

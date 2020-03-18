@@ -4,14 +4,16 @@ Created on Mar 13, 2020
 @author: ballance
 '''
 from _io import StringIO
+import unittest
 from unittest.case import TestCase
 
 from antlr4 import InputStream
 
 from pssparser.cu_parser import CUParser
-from pssparser.visitors.link_visitor import LinkVisitor
+from pssparser.model.type_identifier import TypeIdentifier
 from pssparser.model.type_model_visitor import TypeModelVisitor
-import unittest
+from pssparser.visitors.link_visitor import LinkVisitor
+from pssparser.model.expr_var_ref_path import ExprVarRefPath
 
 
 class TestLinker(TestCase):
@@ -21,9 +23,13 @@ class TestLinker(TestCase):
         def __init__(self):
             super().__init__()
             
-        def visit_reference(self, r):
-            if r.get_target() is None:
-                raise Exception("Failed to find reference \"" + r.get_ref() + "\"")
+        def visit_type_identifier(self, tid:TypeIdentifier):
+            if tid.target is None:
+                raise Exception("Failed to find reference \"" + str(tid) + "\"")
+            
+        def visit_expr_var_ref_path(self, r:ExprVarRefPath):
+            if r.target is None:
+                raise Exception("Failed to find reference \"" + str(r) + "\"")
             
     
     def _runTest(self, text):
@@ -88,3 +94,15 @@ class TestLinker(TestCase):
         }
         """
         self._runTest(text)        
+        
+    def test_link_action_field(self):
+        text = """
+        component pss_top {
+            action base {
+              rand bit       f;
+              
+              constraint f == 0;
+            }
+        }
+        """
+        self._runTest(text)                

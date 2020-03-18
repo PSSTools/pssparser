@@ -43,6 +43,8 @@ from pssparser.model.expr_template_param_value_list import ExprTemplateParamValu
 from pssparser.model.expr_static_ref_path import ExprStaticRefPath
 from pssparser.model.expr_static_ref_path_elem import ExprStaticRefPathElem
 from pssparser.model.expr_compile_has import ExprCompileHas
+from pssparser.model.type_identifier_elem import TypeIdentifierElem
+from pssparser.model.type_identifier import TypeIdentifier
 
 
 class CUParser(PSSVisitor, ErrorListener):
@@ -109,8 +111,7 @@ class CUParser(PSSVisitor, ErrorListener):
     def visitAction_declaration(self, ctx:PSSParser.Action_declarationContext):
         
         if ctx.action_super_spec() is not None:
-            super_spec = ctx.action_super_spec()
-            super_type = self._typeid2reference(super_spec.type_identifier())
+            super_type = ctx.action_super_spec().accept(self)
         else:
             super_type = None
 
@@ -155,8 +156,7 @@ class CUParser(PSSVisitor, ErrorListener):
         print("visitComponent_declaration")
         
         if ctx.component_super_spec() is not None:
-            super_spec = ctx.component_super_spec()
-            super_type = self._typeid2reference(super_spec.type_identifier())
+            super_type = ctx.component_super_spec().accept(self)
         else:
             super_type = None
 
@@ -191,6 +191,22 @@ class CUParser(PSSVisitor, ErrorListener):
         ctx.const_data_declaration().accept(self)
         self._attr_flags_s.pop()
         self._attr_flags_s.pop()
+        
+    def visitType_identifier(self, ctx:PSSParser.Type_identifierContext):
+        ret = TypeIdentifier(ctx.is_global is not None)
+        
+        for tie in ctx.type_identifier_elem():
+            ret.path.append(tie.accept(self))
+            
+        return ret
+        
+    def visitType_identifier_elem(self, ctx:PSSParser.Type_identifier_elemContext):
+        ret = TypeIdentifierElem(ctx.identifier().accept(self))
+        
+        if ctx.template_param_value_list() is not None:
+            ret.templ_pvl = ctx.template_param_value_list().accept(self)
+            
+        return ret
         
     def visitExpression(self, ctx:PSSParser.ExpressionContext):
         ret = None

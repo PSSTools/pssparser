@@ -12,6 +12,7 @@ class ExprVarRefPath(ExprType):
         self.hid = hid
         self.lhs : ExprType = None
         self.rhs : ExprType = None
+        self.target = None
         
     def accept(self, v):
         v.visit_expr_var_ref_path(self)

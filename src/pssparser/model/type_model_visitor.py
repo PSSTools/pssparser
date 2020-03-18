@@ -6,6 +6,10 @@ Created on Mar 9, 2020
 from pssparser.model.attr_decl_stmt import AttrDeclStmt
 from pssparser.model.expr_open_range_list import ExprOpenRangeList
 from pssparser.model.expr_open_range_value import ExprOpenRangeValue
+from pssparser.model.expr_template_param_value_list import ExprTemplateParamValueList
+from pssparser.model.expr_static_ref_path import ExprStaticRefPath
+from pssparser.model.type_identifier import TypeIdentifier
+from pssparser.model.type_identifier_elem import TypeIdentifierElem
 
 class TypeModelVisitor(object):
     pass
@@ -40,6 +44,7 @@ class TypeModelVisitor(object):
     
     def visit_component(self, c):
         self.visit_composite_type(c)
+        
         
     def visit_composite_stmt(self, c):
         for ch in c.children:
@@ -92,12 +97,17 @@ class TypeModelVisitor(object):
     def visit_expr_str_literal(self, s):
         pass
     
+    def visit_expr_static_ref_path(self, r:ExprStaticRefPath):
+        for p in r.path:
+            p.accept(self)
+        
+    
     def visit_expr_super_ref(self, r):
         r.ref.accept(self)
     
-    def visit_expr_template_param_value_list(self, pl):
-        # TODO:
-        pass
+    def visit_expr_template_param_value_list(self, pl:ExprTemplateParamValueList):
+        for pv in pl.param_l:
+            pv.accept(self)
     
     def visit_expr_template_value(self, pv):
         # TODO:
@@ -116,6 +126,15 @@ class TypeModelVisitor(object):
     def visit_extend_stmt(self, e):
         e.target.accept(self)
         self.visit_composite_stmt(e)
+        
+    def visit_type_identifier(self, tid:TypeIdentifier):
+        for p in tid.path:
+            p.accept(self)
+            
+    def visit_type_identifier_elem(self, tie:TypeIdentifierElem):
+        tie.ref.accept(self)
+        if tie.templ_pvl is not None:
+            tie.templ_pvl.accept(self)
 
         
     def visit_import_stmt(self, i):

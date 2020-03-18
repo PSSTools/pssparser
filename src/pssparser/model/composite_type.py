@@ -5,11 +5,11 @@ Created on Mar 9, 2020
 '''
 from typing import Tuple
 from pssparser.model.type_scope import TypeScope
-from pssparser.model.reference import Reference
+from pssparser.model.type_identifier import TypeIdentifier
 
 class CompositeType(TypeScope):
     
-    def __init__(self, name : Tuple[str], super_type : Reference):
+    def __init__(self, name : Tuple[str], super_type:TypeIdentifier):
         super().__init__(name)
         self.super_type = super_type
         self.children = []

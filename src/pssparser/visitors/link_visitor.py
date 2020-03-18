@@ -3,11 +3,15 @@ Created on Mar 13, 2020
 
 @author: ballance
 '''
-from pssparser.model.type_model_visitor import TypeModelVisitor
 from enum import Enum, auto
 from typing import Dict, List
-from pssparser.model.reference import Reference
+
 from pssparser.model.cu_type import CUType
+from pssparser.model.expr_static_ref_path import ExprStaticRefPath
+from pssparser.model.reference import Reference
+from pssparser.model.type_identifier import TypeIdentifier
+from pssparser.model.type_model_visitor import TypeModelVisitor
+
 
 class LinkPhase(Enum):
     GlobalDecls = auto()
@@ -51,13 +55,13 @@ class LinkVisitor(TypeModelVisitor):
         
         pass
     
-    def visit_composite_type(self, t):
-        # If the composite type has a base type, try to resolve now
-        
-        if t.super_type is not None:
-            target = self._resolve_type(t.super_type)
-            
-        super().visit_composite_type(t)
+#     def visit_composite_type(self, t):
+#         # If the composite type has a base type, try to resolve now
+#         
+#         if t.super_type is not None:
+#             target = self._resolve_type(t.super_type)
+#             
+#         super().visit_composite_type(t)
    
     def visit_component(self, c):
         # Add an entry to the active declaration scope
@@ -68,6 +72,7 @@ class LinkVisitor(TypeModelVisitor):
             return
         
         super().visit_component(c)
+        
     
     def visit_action(self, a):
         # Add an entry to the active declaration scope
@@ -77,22 +82,34 @@ class LinkVisitor(TypeModelVisitor):
         
     def visit_reference(self, r):
         pass
+    
+    def visit_expr_var_ref_path(self, r):
+        print("TODO: visit_var_ref_path")
+        # TODO: resolve hierarchical reference
+        TypeModelVisitor.visit_expr_var_ref_path(self, r)
         
-    def _resolve_type(self, ref : Reference):
+    def visit_expr_static_ref_path(self, r:ExprStaticRefPath):
+        print("TODO: visit_static_ref_path")
+        TypeModelVisitor.visit_expr_static_ref_path(self, r)
+        
+    def visit_type_identifier(self, tid:TypeIdentifier):
+        self._resolve_type(tid)
+        
+    def _resolve_type(self, ref : TypeIdentifier):
         target = None
 
         ref_i = 0
         
         # First, find the root of the reference
         if ref.is_global:
-            if ref.ref[ref_i] in self.scope_s[0].decl_m.keys():
-                target = self.scope_s[0].decl_m[ref.ref[ref_i]]
+            if ref.path[ref_i].ref.id in self.scope_s[0].decl_m.keys():
+                target = self.scope_s[0].decl_m[ref.path[ref_i].ref.id]
         else:
             # Work up the scope stack searching.
             for si in range(1,len(self.scope_s)+1):
-                if ref.ref[ref_i] in self.scope_s[-si].decl_m.keys():
+                if ref.path[ref_i].ref.id in self.scope_s[-si].decl_m.keys():
                     # Found it!
-                    target = self.scope_s[-si].decl_m[ref.ref[ref_i]]
+                    target = self.scope_s[-si].decl_m[ref.path[ref_i].ref.id]
                     break
             
         if target is None:
@@ -102,12 +119,12 @@ class LinkVisitor(TypeModelVisitor):
                 raise Exception("Exceeded error limit")
             return None
             
-        if target is not None and len(ref.ref) > 1:
+        if target is not None and len(ref.path) > 1:
             ref_i += 1
             
-            while ref_i < len(ref.ref):
+            while ref_i < len(ref.path):
                 new_target = None
-                ref_name = ref.ref[ref_i]
+                ref_name = ref.path[ref_i].ref.id
                 
                 for c in target.children:
                     if hasattr(c, "name") and c.name[-1] == ref_name:
