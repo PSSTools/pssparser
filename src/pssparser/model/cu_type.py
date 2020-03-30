@@ -10,7 +10,7 @@ from pssparser.model.composite_type import CompositeType
 class CUType(CompositeType):
     
     def __init__(self, filename):
-        super().__init__(None, None)
+        super().__init__(None, None, None)
         self.filename = filename
         
         self.type_decl_m : Dict[Tuple[str], 'TypeDecl'] = {}

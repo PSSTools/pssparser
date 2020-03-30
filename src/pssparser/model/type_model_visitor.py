@@ -10,6 +10,12 @@ from pssparser.model.expr_template_param_value_list import ExprTemplateParamValu
 from pssparser.model.expr_static_ref_path import ExprStaticRefPath
 from pssparser.model.type_identifier import TypeIdentifier
 from pssparser.model.type_identifier_elem import TypeIdentifierElem
+from pssparser.model.expr_template_param_value import ExprTemplateParamValue
+from pssparser.model.template_param_decl_list import TemplateParamDeclList
+from pssparser.model.template_category_type_param_decl import TemplateCategoryTypeParamDecl
+from pssparser.model.template_generic_type_param_decl import TemplateGenericTypeParamDecl
+from pssparser.model.template_value_param_decl import TemplateValueParamDecl
+from pssparser.model.typedef import Typedef
 
 class TypeModelVisitor(object):
     pass
@@ -18,6 +24,9 @@ class TypeModelVisitor(object):
         pass
             
     def visit_composite_type(self, t):
+        if t.template_params is not None:
+            t.template_params.accept(self)
+            
         if t.super_type is not None:
             t.super_type.accept(self)
             
@@ -49,6 +58,29 @@ class TypeModelVisitor(object):
     def visit_composite_stmt(self, c):
         for ch in c.children:
             ch.accept(self)
+            
+    def visit_data_type_enum(self, e):
+        e.identifier.accept(self)
+        if e.rangelist is not None:
+            e.rangelist.accept(self)
+            
+    def visit_data_type_scalar(self, t):
+        if t.lhs is not None:
+            t.lhs.accept(self)
+        if t.rhs is not None:
+            t.rhs.accept(self)
+        if t.in_range is not None:
+            t.in_range.accept(self)
+            
+    def visit_enum_declaration(self, e):
+        e.name.accept(self)
+        for en in e.enumerators:
+            en.accept(self)
+            
+    def visit_enum_item(self, e):
+        e.name.accept(self)
+        if e.value is not None:
+            e.value.accept(self)
             
     def visit_expr_bin(self, e):
         e.lhs.accept(self)
@@ -109,9 +141,8 @@ class TypeModelVisitor(object):
         for pv in pl.param_l:
             pv.accept(self)
     
-    def visit_expr_template_value(self, pv):
-        # TODO:
-        pass
+    def visit_expr_template_value(self, pv:ExprTemplateParamValue):
+        pv.expr.accept(self)
     
     def visit_expr_var_ref_path(self, r):
         r.hid.accept(self)
@@ -127,6 +158,28 @@ class TypeModelVisitor(object):
         e.target.accept(self)
         self.visit_composite_stmt(e)
         
+    def visit_template_param_decl_list(self, t : TemplateParamDeclList):
+        for p in t.params:
+            p.accept(self)
+            
+    def visit_template_generic_type_param_decl(self, t : TemplateGenericTypeParamDecl):
+        t.name.accept(self)
+        if t.default_type is not None:
+            t.default_type.accept(self)
+            
+    def visit_template_category_type_param_decl(self, t : TemplateCategoryTypeParamDecl):
+        t.name.accept(self)
+        if t.type_restriction is not None:
+            t.type_restriction.accept(self)
+        if t.default_type is not None:
+            t.default_type.accept(self)
+            
+    def visit_template_value_param_decl(self, t : TemplateValueParamDecl):
+        t.name.accept(self)
+        t.data_type.accept(self)
+        if t.default_value is not None:
+            t.default_value.accept(self)
+        
     def visit_type_identifier(self, tid:TypeIdentifier):
         for p in tid.path:
             p.accept(self)
@@ -135,6 +188,10 @@ class TypeModelVisitor(object):
         tie.ref.accept(self)
         if tie.templ_pvl is not None:
             tie.templ_pvl.accept(self)
+            
+    def visit_typedef(self, t : Typedef):
+        t.data_type.accept(self)
+        t.identifier.accept(self)
 
         
     def visit_import_stmt(self, i):

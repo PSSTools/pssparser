@@ -9,8 +9,9 @@ from pssparser.model.type_identifier import TypeIdentifier
 
 class CompositeType(TypeScope):
     
-    def __init__(self, name : Tuple[str], super_type:TypeIdentifier):
+    def __init__(self, name : Tuple[str], template_params, super_type:TypeIdentifier):
         super().__init__(name)
+        self.template_params = template_params
         self.super_type = super_type
         self.children = []
         self.srcinfo = None

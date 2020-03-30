@@ -18,8 +18,10 @@ from pssparser.model.attr_decl_stmt import AttrFlags
 from pssparser.model.compilation_unit import CompilationUnit
 from pssparser.model.component_type import ComponentType
 from pssparser.model.cu_type import CUType
+from pssparser.model.data_type_scalar import DataTypeScalar, ScalarType
 from pssparser.model.expr_bin_type import ExprBinType, ExprBinOp
 from pssparser.model.expr_bool_literal import ExprBoolLiteral
+from pssparser.model.expr_compile_has import ExprCompileHas
 from pssparser.model.expr_cond_type import ExprCondType
 from pssparser.model.expr_hierarchical_id import ExprHierarchicalId
 from pssparser.model.expr_hierarchical_id_elem import ExprHierarchicalIdElem
@@ -29,22 +31,30 @@ from pssparser.model.expr_in import ExprIn
 from pssparser.model.expr_num_literal import ExprNumLiteral
 from pssparser.model.expr_open_range_list import ExprOpenRangeList
 from pssparser.model.expr_open_range_value import ExprOpenRangeValue
+from pssparser.model.expr_static_ref_path import ExprStaticRefPath
+from pssparser.model.expr_static_ref_path_elem import ExprStaticRefPathElem
 from pssparser.model.expr_str_literal import ExprStrLiteral
+from pssparser.model.expr_template_param_value import ExprTemplateParamValue
+from pssparser.model.expr_template_param_value_list import ExprTemplateParamValueList
 from pssparser.model.expr_unary import UnaryOp, ExprUnary
+from pssparser.model.expr_var_ref_path import ExprVarRefPath
 from pssparser.model.extend_stmt import ExtendStmt, ExtendTarget
 from pssparser.model.import_stmt import ImportStmt
 from pssparser.model.marker import Marker
 from pssparser.model.package_type import PackageType
 from pssparser.model.reference import Reference
 from pssparser.model.source_info import SourceInfo
-from pssparser.model.expr_var_ref_path import ExprVarRefPath
-from pssparser.model.expr_template_param_value import ExprTemplateParamValue
-from pssparser.model.expr_template_param_value_list import ExprTemplateParamValueList
-from pssparser.model.expr_static_ref_path import ExprStaticRefPath
-from pssparser.model.expr_static_ref_path_elem import ExprStaticRefPathElem
-from pssparser.model.expr_compile_has import ExprCompileHas
-from pssparser.model.type_identifier_elem import TypeIdentifierElem
+from pssparser.model.template_category_type_param_decl import TemplateCategoryTypeParamDecl, \
+    TemplateTypeCategory
+from pssparser.model.template_generic_type_param_decl import TemplateGenericTypeParamDecl
+from pssparser.model.template_param_decl_list import TemplateParamDeclList
+from pssparser.model.template_value_param_decl import TemplateValueParamDecl
 from pssparser.model.type_identifier import TypeIdentifier
+from pssparser.model.type_identifier_elem import TypeIdentifierElem
+from pssparser.model.typedef import Typedef
+from pssparser.model.enum_declaration import EnumDeclaration
+from pssparser.model.enum_item import EnumItem
+from pssparser.model.data_type_enum import DataTypeEnum
 
 
 class CUParser(PSSVisitor, ErrorListener):
@@ -110,15 +120,12 @@ class CUParser(PSSVisitor, ErrorListener):
     
     def visitAction_declaration(self, ctx:PSSParser.Action_declarationContext):
         
-        if ctx.action_super_spec() is not None:
-            super_type = ctx.action_super_spec().accept(self)
-        else:
-            super_type = None
-
         name = ctx.action_identifier()
         ret = ActionType(
             self._get_type_qname(name),
-            super_type)
+            False,
+            None if ctx.template_param_decl_list() is None else ctx.template_param_decl_list().accept(self),
+            None if ctx.action_super_spec() is None else ctx.action_super_spec().accept(self))
         self._set_srcinfo(ret, ctx.start)
         
         with self._typescope(name, ret):
@@ -131,16 +138,12 @@ class CUParser(PSSVisitor, ErrorListener):
         return ret
     
     def visitAbstract_action_declaration(self, ctx:PSSParser.Abstract_action_declarationContext):
-        if ctx.action_super_spec() is not None:
-            super_spec = ctx.action_super_spec()
-            super_type = self._typeid2reference(super_spec.type_identifier())
-        else:
-            super_type = None
-
         name = ctx.action_identifier()
         ret = ActionType(
             self._get_type_qname(name),
-            super_type, True)
+            True,
+            None if ctx.template_param_decl_list() is None else ctx.template_param_decl_list().accept(self),
+            None if ctx.action_super_spec() is None else ctx.action_super_spec().accept(self))
         self._set_srcinfo(ret, ctx.start)
         
         with self._typescope(name, ret):
@@ -153,17 +156,13 @@ class CUParser(PSSVisitor, ErrorListener):
         return ret        
     
     def visitComponent_declaration(self, ctx:PSSParser.Component_declarationContext):
-        print("visitComponent_declaration")
         
-        if ctx.component_super_spec() is not None:
-            super_type = ctx.component_super_spec().accept(self)
-        else:
-            super_type = None
-
         name = ctx.component_identifier()        
         ret = ComponentType(
             self._get_type_qname(name),
-            super_type)
+            None if ctx.template_param_decl_list() is None else ctx.template_param_decl_list().accept(self),
+            None if ctx.component_super_spec() is None else ctx.component_super_spec().accept(self)
+            )
 
         self._set_srcinfo(ret, ctx.start)
         
@@ -514,7 +513,102 @@ class CUParser(PSSVisitor, ErrorListener):
         with self._typescope(ctx.name, pkg):
             for c in ctx.package_body_item():
                 c.accept(self)
+                
+    def visitTemplate_param_decl_list(self, ctx:PSSParser.Template_param_decl_listContext):
+        params = []
+        for p in ctx.template_param_decl():
+            params.append(p.accept(self))
             
+        return TemplateParamDeclList(params)
+    
+    def visitGeneric_type_param_decl(self, ctx:PSSParser.Generic_type_param_declContext):
+        ret = TemplateGenericTypeParamDecl(
+            ctx.identifier().accept(self),
+            None if ctx.type_identifier() is None else ctx.type_identifier().accept(self)
+            )
+        
+        return ret
+    
+    def visitCategory_type_param_decl(self, ctx:PSSParser.Category_type_param_declContext):
+        category = {
+            "action" : TemplateTypeCategory.Action,
+            "component" : TemplateTypeCategory.Component,
+            "struct" : TemplateTypeCategory.Struct,
+            "buffer" : TemplateTypeCategory.Buffer,
+            "stream" : TemplateTypeCategory.Stream,
+            "state" : TemplateTypeCategory.State,
+            "resource" : TemplateTypeCategory.Resource}[ctx.type_category().getText()]
+        
+        ret = TemplateCategoryTypeParamDecl(
+            ctx.identifier().accept(self),
+            category,
+            None if ctx.type_restriction() is None else ctx.type_restriction().accept(self),
+            None if ctx.type_identifier() is None else ctx.type_identifier().accept(self)
+            )
+        
+        return ret
+    
+    def visitValue_param_decl(self, ctx:PSSParser.Value_param_declContext):
+        ret = TemplateValueParamDecl(
+            ctx.identifier().accept(self),
+            ctx.data_type().accept(self),
+            None if ctx.constant_expression() is None else ctx.constant_expression().accept(self))
+        
+        return ret
+    
+    # B09_DataTypes
+
+    def visitBool_type(self, ctx:PSSParser.Bool_typeContext):
+        return DataTypeScalar(ScalarType.Bool, None, None, None)
+
+    def visitChandle_type(self, ctx:PSSParser.Chandle_typeContext):
+        return DataTypeScalar(ScalarType.Chandle, None, None, None)
+    
+    def visitInteger_type(self, ctx:PSSParser.Integer_typeContext):
+        if ctx.integer_atom_type().getText() == "int":
+            scalar_type = ScalarType.Integer
+        else:
+            scalar_type = ScalarType.Bit
+
+        ret = DataTypeScalar(
+            scalar_type,
+            None if ctx.lhs is None else ctx.lhs.accept(self),
+            None if ctx.rhs is None else ctx.rhs.accept(self),
+            None if ctx.domain_open_range_list() is None else ctx.domain_open_range_list().accept(self))
+        
+        return ret
+    
+    def visitEnum_declaration(self, ctx:PSSParser.Enum_declarationContext):
+        enumerators = []
+        for ei in ctx.enum_item():
+            enumerators.append(ei.accept(self))
+            
+        ret = EnumDeclaration(
+            ctx.enum_identifier().accept(self),
+            enumerators)
+        
+        return ret
+    
+    def visitEnum_item(self, ctx:PSSParser.Enum_itemContext):
+        ret = EnumItem(
+            ctx.identifier().accept(self),
+            None if ctx.constant_expression() is None else ctx.constant_expression().accept(self))
+        
+        return ret
+    
+    def visitEnum_type(self, ctx:PSSParser.Enum_typeContext):
+        ret = DataTypeEnum(
+            ctx.enum_type_identifier().accept(self),
+            None if ctx.open_range_list() is None else ctx.open_range_list().accept(self))
+       
+        return ret         
+    
+    def visitTypedef_declaration(self, ctx:PSSParser.Typedef_declarationContext):
+        ret = Typedef(
+            ctx.data_type().accept(self),
+            ctx.type_identifier().accept(self))
+        
+        return ret
         
     def check_elem(self, e, t):
         pass

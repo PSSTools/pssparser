@@ -10,7 +10,7 @@ from pssparser.model.composite_type import CompositeType
 class PackageType(CompositeType):
     
     def __init__(self, name : Tuple[str]):
-        super().__init__(name, None)
+        super().__init__(name, None, None)
         
     def accept(self, v):
         v.visit_package(self)

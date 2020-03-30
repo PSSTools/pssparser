@@ -12,9 +12,10 @@ class ActionType(CompositeType):
     def __init__(
             self, 
             name : Tuple[str], 
-            super_type : 'TypeRef',
-            is_abstract = False):
-        super().__init__(name, super_type)
+            is_abstract,
+            template_params,
+            super_type):
+        super().__init__(name, template_params, super_type)
         self.is_abstract = is_abstract
         
     def accept(self, v):
