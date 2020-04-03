@@ -1,3 +1,9 @@
+resources:
+  repositories:
+  - repository: portable-stimulus
+    type: github
+    endpoint: PSSTools
+    name: mballance/portable-stimulus
 trigger:
 - master
 
@@ -11,7 +17,12 @@ jobs:
     value: $(Build.BuildNumber)
 
   steps:
+  - checkout: self
+  - checkout: portable-stimulus
+    path: sys/portable-stimulus
   - script: |
+      ls sys
+      ls sys/portable-stimulus
       sudo apt-get install default-jdk
     displayName: 'Install JDK'
   - script: |
