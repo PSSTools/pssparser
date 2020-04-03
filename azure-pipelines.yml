@@ -40,6 +40,11 @@ jobs:
       python3  -m pytest unit --doctest-modules --junitxml=junit/test-results.xml
     displayName: 'Run Unit Tests'
 
+  - script: |
+      export PYTHONPATH=$(Build.Repository.LocalPath)/src
+      python3 sys/runtest.py
+    displayName: 'Run Sys Tests'
+
   - task: PublishTestResults@2
     condition: succeededOrFailed()
     inputs:
