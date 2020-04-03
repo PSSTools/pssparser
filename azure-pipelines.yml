@@ -1,9 +1,9 @@
-resources:
-  repositories:
-  - repository: portable-stimulus
-    type: github
-    endpoint: PSSTools
-    name: mballance/portable-stimulus
+#resources:
+#  repositories:
+#  - repository: portable-stimulus
+#    type: github
+#    endpoint: PSSTools
+#    name: mballance/portable-stimulus
 trigger:
 - master
 
@@ -17,9 +17,12 @@ jobs:
     value: $(Build.BuildNumber)
 
   steps:
-  - checkout: self
-  - checkout: portable-stimulus
-    path: sys/portable-stimulus
+#  - checkout: self
+#  - checkout: portable-stimulus
+#    path: sys/portable-stimulus
+  - script: |
+    git -c http.https://github.com/mballance/portable-stimulus.extraheader="AUTHORIZATION: basic $(GITAUTH)" clone https://github.com/mballance/portable-stimulus sys/portable-stimulus
+    displayName: 'Checkout examples'
   - script: |
       ls sys
       ls sys/portable-stimulus
