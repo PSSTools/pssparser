@@ -1,6 +1,6 @@
 
 import os
-from setuptools import setup, find_namespace_packages
+from setuptools import setup
 
 version="0.0.1"
 
@@ -10,7 +10,10 @@ if "BUILD_NUM" in os.environ.keys():
 setup(
   name = "pssparser",
   version = version,
-  packages=find_namespace_packages(),
+  packages=['pssparser', 
+            'pssparser.antlr_gen',
+            'pssparser.model',
+            'pssparser.visitors'],
   package_dir = {'' : 'src'},
   author = "Matthew Ballance",
   author_email = "matt.ballance@gmail.com",
