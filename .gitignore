@@ -134,3 +134,4 @@ src/pssparser/antlr_gen
 
 .pytype/
 
+sys/portable-stimulus/
