@@ -72,7 +72,7 @@ component_data_declaration:
 ;
 
 component_pool_declaration:
-	'pool' ('[' expression ']')? type_identifier identifier ';'
+	'pool' ('[' expression ']')? type_identifier identifier (',' identifier)* ';'
 ;
 
 object_bind_stmt:
