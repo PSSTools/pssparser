@@ -35,6 +35,7 @@ constraint_declaration:
 
 constraint_body_item:
 	expression_constraint_item
+	| implication_constraint_item
 	| foreach_constraint_item
 	| if_constraint_item
 	| unique_constraint_item
@@ -65,12 +66,11 @@ forall_constraint_item:
 // <<= PSS 1.1
 
 expression_constraint_item:
-	expression implicand_constraint_item 
-	| expression ';'
+	expression ';'
 ;
 
-implicand_constraint_item:
-	'->' constraint_set
+implication_constraint_item:
+	expression '->' constraint_set
 ;
 
 constraint_set:

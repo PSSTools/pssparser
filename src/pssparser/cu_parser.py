@@ -15,10 +15,18 @@ from pssparser.antlr_gen.PSSParser import PSSParser
 from pssparser.antlr_gen.PSSVisitor import PSSVisitor
 from pssparser.model.action_type import ActionType
 from pssparser.model.attr_decl_stmt import AttrFlags
+from pssparser.model.buffer_type import BufferType
 from pssparser.model.compilation_unit import CompilationUnit
 from pssparser.model.component_type import ComponentType
+from pssparser.model.constraint_block import ConstraintBlock
+from pssparser.model.constraint_declaration import ConstraintDeclaration
+from pssparser.model.constraint_expression import ConstraintExpression
+from pssparser.model.constraint_implies import ConstraintImplies
 from pssparser.model.cu_type import CUType
+from pssparser.model.data_type_enum import DataTypeEnum
 from pssparser.model.data_type_scalar import DataTypeScalar, ScalarType
+from pssparser.model.enum_declaration import EnumDeclaration
+from pssparser.model.enum_item import EnumItem
 from pssparser.model.expr_bin_type import ExprBinType, ExprBinOp
 from pssparser.model.expr_bool_literal import ExprBoolLiteral
 from pssparser.model.expr_compile_has import ExprCompileHas
@@ -43,7 +51,11 @@ from pssparser.model.import_stmt import ImportStmt
 from pssparser.model.marker import Marker
 from pssparser.model.package_type import PackageType
 from pssparser.model.reference import Reference
+from pssparser.model.resource_type import ResourceType
 from pssparser.model.source_info import SourceInfo
+from pssparser.model.state_type import StateType
+from pssparser.model.stream_type import StreamType
+from pssparser.model.struct_type import StructType
 from pssparser.model.template_category_type_param_decl import TemplateCategoryTypeParamDecl, \
     TemplateTypeCategory
 from pssparser.model.template_generic_type_param_decl import TemplateGenericTypeParamDecl
@@ -52,9 +64,28 @@ from pssparser.model.template_value_param_decl import TemplateValueParamDecl
 from pssparser.model.type_identifier import TypeIdentifier
 from pssparser.model.type_identifier_elem import TypeIdentifierElem
 from pssparser.model.typedef import Typedef
-from pssparser.model.enum_declaration import EnumDeclaration
-from pssparser.model.enum_item import EnumItem
-from pssparser.model.data_type_enum import DataTypeEnum
+from pssparser.model.constraint_default import ConstraintDefault
+from pssparser.model.constraint_default_disable import ConstraintDefaultDisable
+from pssparser.model.constraint_forall import ConstraintForall
+from pssparser.model.constraint_if_else import ConstraintIfElse
+from pssparser.model.constraint_unique import ConstraintUnique
+from pssparser.model.constraint_foreach import ConstraintForeach
+from pssparser.model.activity_stmt_if_else import ActivityStmtIfElse
+from pssparser.model.activity_stmt_while import ActivityStmtWhile
+from pssparser.model.activity_stmt_repeat import ActivityStmtRepeat
+from pssparser.model.activity_stmt_do_while import ActivityStmtDoWhile
+from pssparser.model.activity_stmt_replicate import ActivityStmtReplicate
+from pssparser.model.activity_stmt_sequence import ActivityStmtSequence
+from pssparser.model.activity_stmt_constraint import ActivityStmtConstraint
+from pssparser.model.activity_stmt_foreach import ActivityStmtForeach
+from pssparser.model.activity_stmt_parallel import ActivityStmtParallel
+from pssparser.model.activity_stmt_schedule import ActivityStmtSchedule
+from pssparser.model.activity_stmt_select import ActivityStmtSelect
+from pssparser.model.activity_stmt_select_branch import ActivityStmtSelectBranch
+from pssparser.model.activity_join_branch import ActivityJoinBranch
+from pssparser.model.activity_join_select import ActivityJoinSelect
+from pssparser.model.activity_join_none import ActivityJoinNone
+from pssparser.model.activity_join_first import ActivityJoinFirst
 
 
 class CUParser(PSSVisitor, ErrorListener):
@@ -155,6 +186,34 @@ class CUParser(PSSVisitor, ErrorListener):
         
         return ret        
     
+    #****************************************************************
+    #* B03 Struct
+    #****************************************************************
+    
+    def visitStruct_declaration(self, ctx:PSSParser.Struct_declarationContext):
+        s_ctor = {
+            "struct" : StructType,
+            "buffer" : BufferType,
+            "stream" : StreamType,
+            "state" :  StateType,
+            "resource" : ResourceType}[ctx.struct_kind().getText()]
+             
+        name = self._get_type_qname(ctx.identifier())
+        ret = s_ctor(
+            name,
+            None if ctx.template_param_decl_list() is None else ctx.template_param_decl_list().accept(self),
+            None if ctx.struct_super_spec() is None else ctx.struct_super_spec().accept(self)
+            )
+        
+        with self._typescope(name, ret):
+            for i in ctx.struct_body_item():
+                s_elem = i.accept(self)
+                if s_elem is not None:
+                    ret.add_child(s_elem)
+
+            
+        return ret
+    
     def visitComponent_declaration(self, ctx:PSSParser.Component_declarationContext):
         
         name = ctx.component_identifier()        
@@ -248,6 +307,7 @@ class CUParser(PSSVisitor, ErrorListener):
                 op,
                 rhs_e)
         elif ctx.shift_op() is not None:
+            # TODO: the op might show up as ">" ... ">"
             op = {
                 "<<" : ExprBinOp.Sll,
                 ">>" : ExprBinOp.Srl}[ctx.shift_op().getText()]
@@ -401,6 +461,239 @@ class CUParser(PSSVisitor, ErrorListener):
             ret.param_l.append(pv.accept(self))
         
         return ret
+    
+    #****************************************************************
+    #* B06 Activity Statements
+    #****************************************************************
+    def visitActivity_stmt(self, ctx:PSSParser.Activity_stmtContext):
+        s = PSSVisitor.visitActivity_stmt(self, ctx)
+
+        # Note: null statement returns None        
+        if ctx.identifier() is not None and s is not None:
+            s.label = ctx.identifier().accept(self)
+            
+        return s
+
+    def visitActivity_constraint_stmt(self, ctx:PSSParser.Activity_constraint_stmtContext):
+        ret = ActivityStmtConstraint(ctx.constraint_set().accept(self))
+        
+        return ret
+    
+    def visitForeach_constraint_item(self, ctx:PSSParser.Foreach_constraint_itemContext):
+        ret = ActivityStmtForeach(
+            None if ctx.iterator_identifier() is None else ctx.iterator_identifier().accept(self),
+            ctx.expression().accept(self),
+            None if ctx.index_identifier() is None else ctx.index_identifier().accept(self),
+            ctx.activity_stmt().accept(self)
+            )
+        
+        return ret
+    
+    def visitActivity_if_else_stmt(self, ctx:PSSParser.Activity_if_else_stmtContext):
+        ret = ActivityStmtIfElse(
+            ctx.expression().accept(self),
+            ctx.activity_stmt(0).accept(self),
+            None if len(ctx.activity_stmt()) == 1 else ctx.activity_stmt(1).accept(self))
+        
+        return ret
+    
+    def visitActivity_join_branch_spec(self, ctx:PSSParser.Activity_join_branch_specContext):
+        ret = ActivityJoinBranch()
+        
+        for l in ctx.label_identifier():
+            ret.label_identifiers.append(l.accept(self))
+        
+        return ret
+    
+    def visitActivity_join_first_spec(self, ctx:PSSParser.Activity_join_first_specContext):
+        ret = ActivityJoinFirst(ctx.expression().accept(self))
+        
+        return ret
+    
+    def visitActivity_join_none_spec(self, ctx:PSSParser.Activity_join_none_specContext):
+        ret = ActivityJoinNone()
+        
+        return ret
+    
+    def visitActivity_join_select_spec(self, ctx:PSSParser.Activity_join_select_specContext):
+        ret = ActivityJoinSelect(ctx.expression().accept(self))
+        
+        return ret
+    
+    def visitActivity_parallel_stmt(self, ctx:PSSParser.Activity_parallel_stmtContext):
+        ret = ActivityStmtParallel(
+            None if ctx.activity_join_spec() is None else ctx.activity_join_spec().accept(self)
+            )
+        
+        for stmt in ctx.activity_stmt():
+            s = stmt.accept(self)
+            if s is not None:
+                ret.statements.append(s)
+        
+        return ret
+    
+    def visitActivity_repeat_stmt(self, ctx:PSSParser.Activity_repeat_stmtContext):
+        if ctx.is_while is not None:
+            ret = ActivityStmtWhile(
+                ctx.expression().accept(self),
+                ctx.activity_stmt().accept(self))
+            
+        elif ctx.is_repeat is not None:
+            ret = ActivityStmtRepeat(
+                None if ctx.identifier() is None else ctx.identifier().accept(self),
+                ctx.expression().accept(self),
+                ctx.activity_stmt().accept(self))
+        else:
+            ret = ActivityStmtDoWhile(
+                ctx.expression().accept(self),
+                ctx.activity_stmt().accept(self))
+            
+            
+        return ret
+    
+    def visitActivity_replicate_stmt(self, ctx:PSSParser.Activity_replicate_stmtContext):
+        ret = ActivityStmtReplicate(
+            None if ctx.index_identifier() is None else ctx.index_identifier().accept(self),
+            ctx.expression().accept(self),
+            None if ctx.identifier() is None else ctx.identifier().accept(self),
+            ctx.labeled_activity_stmt().accept(self))
+        
+        return ret
+    
+    def visitActivity_schedule_stmt(self, ctx:PSSParser.Activity_schedule_stmtContext):
+        ret = ActivityStmtSchedule(
+            None if ctx.activity_join_spec() is None else ctx.activity_join_spec().accept(self)
+            )
+        
+        return ret
+    
+    def visitActivity_select_stmt(self, ctx:PSSParser.Activity_select_stmtContext):
+        ret = ActivityStmtSelect()
+        
+        for b in ctx.select_branch():
+            ret.statements.append(b)
+        
+        return ret
+    
+    def visitSelect_branch(self, ctx:PSSParser.Select_branchContext):
+        ret = ActivityStmtSelectBranch(
+            None if ctx.guard is None else ctx.guard.accept(self),
+            None if ctx.weight is None else ctx.weight.accept(self),
+            ctx.activity_stmt().accept(self)
+            )
+        
+        return ret
+    
+    def visitActivity_sequence_block_stmt(self, ctx:PSSParser.Activity_sequence_block_stmtContext):
+        ret = ActivityStmtSequence()
+        
+        for stmt in ctx.activity_stmt():
+            s = stmt.accept(self)
+            if s is not None:
+                ret.statements.append(s)
+                
+        return ret
+    
+    #****************************************************************
+    #* B10 Constraints
+    #****************************************************************
+    
+    def visitConstraint_declaration(self, ctx:PSSParser.Constraint_declarationContext):
+        ret = ConstraintDeclaration(
+            None if ctx.identifier() is None else ctx.identifier().accept(self),
+            ctx.is_dynamic is not None)
+        
+        if ctx.constraint_set() is not None:
+            if ctx.constraint_set().constraint_body_item() is not None:
+                # Single constraint
+                c = ctx.constraint_set().constraint_body_item().accept(self)
+                if c is not None:
+                    ret.add_constraint(c)
+            else:
+                # Block of constraints
+                for ci in ctx.constraint_set().constraint_block().constraint_body_item():
+                    c = ci.accept(self)
+                    if c is not None:
+                        ret.add_constraint(c)
+        else:
+            for ci in ctx.constraint_body_item():
+                c = ci.accept(self)
+                if c is not None:
+                    ret.add_constraint(c)
+                    
+        return ret
+    
+    def visitDefault_constraint(self, ctx:PSSParser.Default_constraintContext):
+        ret = ConstraintDefault(
+            ctx.hierarchical_id().accept(self),
+            ctx.constant_expression().accept(self)
+            )
+        
+        return ret
+    
+    def visitDefault_disable_constraint(self, ctx:PSSParser.Default_disable_constraintContext):
+        ret = ConstraintDefaultDisable(
+            ctx.hierarchical_id().accept(self))
+        
+        return ret
+    
+    def visitForall_constraint_item(self, ctx:PSSParser.Forall_constraint_itemContext):
+        ret = ConstraintForall(
+            ctx.identifier().accept(self),
+            ctx.type_identifier().accept(self),
+            None if ctx.variable_ref_path() is None else ctx.variable_ref_path().accept(self),
+            ctx.constraint_set())
+        
+        return ret;
+    
+    def visitForeach_constraint_item(self, ctx:PSSParser.Foreach_constraint_itemContext):
+        ret = ConstraintForeach(
+            None if ctx.iterator_identifier() is None else ctx.iterator_identifier().accept(self),
+            ctx.expression().accept(self),
+            None if ctx.index_identifier() is None else ctx.index_identifier().accept(self),
+            ctx.constraint_set().accept(self))
+        
+        return ret
+    
+    def visitIf_constraint_item(self, ctx:PSSParser.If_constraint_itemContext):
+        ret = ConstraintIfElse(
+            ctx.expression().accept(self),
+            ctx.constraint_set(0).accept(self),
+            None if len(ctx.constraint_set()) == 1 else ctx.constraint_set(1).accept(self)
+            )
+        
+        return ret
+    
+    def visitConstraint_set(self, ctx:PSSParser.Constraint_setContext):
+        ret = ConstraintBlock()
+
+        if ctx.constraint_body_item() is not None:
+            # Single constraint
+            c = ctx.constraint_body_item().accept(self)
+            if c is not None:
+                ret.add_constraint(c)
+        else:
+            # Block of constraints
+            for ci in ctx.constraint_block().constraint_body_item():
+                c = ci.accept(self)
+                if c is not None:
+                    ret.add_constraint(c)        
+        
+        return ret
+    
+    def visitUnique_constraint_item(self, ctx:PSSParser.Unique_constraint_itemContext):
+        ret = ConstraintUnique(
+            ctx.hierarchical_id_list().accept(self))
+        
+        return ret
+    
+    def visitExpression_constraint_item(self, ctx:PSSParser.Expression_constraint_itemContext):
+        return ConstraintExpression(ctx.expression().accept(self))
+        
+    def visitImplication_constraint_item(self, ctx:PSSParser.Implication_constraint_itemContext):
+        return ConstraintImplies(
+            ctx.expression().accept(self),
+            ctx.constraint_set().accept(self))
     
     def visitMethod_function_symbol_call(self, ctx:PSSParser.Method_function_symbol_callContext):
         # TODO:

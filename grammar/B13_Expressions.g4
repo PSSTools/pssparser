@@ -138,7 +138,9 @@ mul_div_mod_op: '*' | '/' | '%';
 
 add_sub_op: '+' | '-';
 
-shift_op: '<<' | '>>';
+// Note: Implementation difference vs spec
+// shift_op: '<<' | '>>';
+shift_op: '<<' | '>' '>';
 
 eq_neq_op: '==' | '!=';
 

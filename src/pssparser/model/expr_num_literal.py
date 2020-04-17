@@ -11,4 +11,7 @@ class ExprNumLiteral(ExprType):
         super().__init__()
         self.val = val
         self.img = img
+        
+    def accept(self, v):
+        v.visit_expr_num_literal(self)
     

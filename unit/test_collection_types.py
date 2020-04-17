@@ -71,8 +71,8 @@ class TestCollectionTypes(TestCase):
         # TODO: current parser requires a space: '> >'
         text = """
         struct my_s {
-            list<map<string, int> >                 m_list_of_map;
-            map<string, list<int> >                 m_map_of_list;
+            list<map<string, int>>                 m_list_of_map;
+            map<string, list<int>>                 m_map_of_list;
         }
         """
         self._runTest(text, "test_example_5")
