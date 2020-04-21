@@ -20,9 +20,11 @@ jobs:
 #  - checkout: self
 #  - checkout: portable-stimulus
 #    path: sys/portable-stimulus
-  - script: |
-      git -c http.https://github.com/mballance/portable-stimulus.extraheader="AUTHORIZATION: basic $(GITAUTH)" clone https://github.com/mballance/portable-stimulus sys/portable-stimulus
-    displayName: 'Checkout examples'
+#
+#  - script: |
+#      git -c http.https://github.com/mballance/portable-stimulus.extraheader="AUTHORIZATION: basic $(GITAUTH)" clone https://github.com/mballance/portable-stimulus sys/portable-stimulus
+#    displayName: 'Checkout examples'
+
   - script: |
       ls sys
       ls sys/portable-stimulus
@@ -40,10 +42,10 @@ jobs:
       python3  -m pytest unit --doctest-modules --junitxml=junit/test-results.xml
     displayName: 'Run Unit Tests'
 
-  - script: |
-      export PYTHONPATH=$(Build.Repository.LocalPath)/src
-      python3 sys/runtest.py
-    displayName: 'Run Sys Tests'
+#  - script: |
+    #  export PYTHONPATH=$(Build.Repository.LocalPath)/src
+    #  python3 sys/runtest.py
+    #displayName: 'Run Sys Tests'
 
   - task: PublishTestResults@2
     condition: succeededOrFailed()
