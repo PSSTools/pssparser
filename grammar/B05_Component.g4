@@ -68,7 +68,7 @@ component_field_declaration:
 ;
 
 component_data_declaration:
-	('static' 'const')? data_declaration
+	(is_static='static' is_const='const')? data_declaration
 ;
 
 component_pool_declaration:

@@ -362,7 +362,14 @@ class TypeModelVisitor(object):
             
         if f.init_expr is not None:
             f.init_expr.accept(self)
-        pass
+            
+    def visit_field_pool(self, p):
+        self.visit_field(p)
+        
+        p.typeid.accept(self)
+        
+        if p.size is not None:
+            p.size.accept(self)
     
     def visit_override_block(self, o):
         for s in o.statements:

@@ -1,3 +1,4 @@
+from pssparser.model.field_pool import FieldPool
 
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -264,8 +265,11 @@ class CUParser(PSSVisitor, ErrorListener):
             
         return ret
     
+    #****************************************************************
+    #* B04 Component
+    #****************************************************************
+    
     def visitComponent_declaration(self, ctx:PSSParser.Component_declarationContext):
-        
         name = ctx.component_identifier()        
         ret = ComponentType(
             self._get_type_qname(name),
@@ -288,6 +292,32 @@ class CUParser(PSSVisitor, ErrorListener):
                         ret.add_child(c_elem)
 
         return ret
+    
+    def visitComponent_data_declaration(self, ctx:PSSParser.Component_data_declarationContext):
+        field_l = ctx.data_declaration().accept(self)
+
+        for f in field_l:
+            if ctx.is_static is not None:
+                f.flags |= FieldAttrFlags.Static
+                
+            if ctx.is_const is not None:
+                f.flags |= FieldAttrFlags.Const
+        
+        return field_l
+    
+    def visitComponent_pool_declaration(self, ctx:PSSParser.Component_pool_declarationContext):
+        field_l = []
+        size = None if ctx.expression() is None else ctx.expression().accept(self)
+        typeid = ctx.type_identifier().accept(self)
+        
+        for id in ctx.identifier():
+            field_l.append(FieldPool(
+                id,
+                typeid,
+                size))
+                
+        return field_l
+
    
     def visitType_identifier(self, ctx:PSSParser.Type_identifierContext):
         ret = TypeIdentifier(ctx.is_global is not None)
