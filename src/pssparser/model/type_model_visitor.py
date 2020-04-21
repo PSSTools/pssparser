@@ -206,6 +206,18 @@ class TypeModelVisitor(object):
 #            p.accept(self)
 
         self.visit_composite_type(cu)
+        
+    def visit_compile_assert(self, c):
+        c.cond.accept(self)
+        
+    def visit_compile_if(self, ci):
+        ci.cond.accept(self)
+        
+        for s in ci.statements_true:
+            s.accept(self)
+            
+        for s in ci.statements_false:
+            s.accept(self)
     
     def visit_component(self, c):
         self.visit_composite_type(c)
@@ -333,6 +345,18 @@ class TypeModelVisitor(object):
         if f.init_expr is not None:
             f.init_expr.accept(self)
         pass
+    
+    def visit_override_block(self, o):
+        for s in o.statements:
+            s.accept(self)
+            
+    def visit_override_stmt_type(self, o):
+        o.target.accept(self)
+        o.override.accept(self)
+        
+    def visit_override_stmt_inst(self, o):
+        o.target.accept(self)
+        o.override.accept(self)
         
     def visit_struct_type(self, s):
         self.visit_composite_type(s)

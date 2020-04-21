@@ -88,6 +88,11 @@ from pssparser.model.activity_join_none import ActivityJoinNone
 from pssparser.model.activity_join_first import ActivityJoinFirst
 from pssparser.model.data_type_user import DataTypeUser
 from pssparser.model.field_attr import FieldAttr
+from pssparser.model.override_block import OverrideBlock
+from pssparser.model.override_stmt_type import OverrideStmtType
+from pssparser.model.override_stmt_inst import OverrideStmtInst
+from pssparser.model.compile_if import CompileIf
+from pssparser.model.compile_assert import CompileAssert
 
 
 class CUParser(PSSVisitor, ErrorListener):
@@ -626,6 +631,33 @@ class CUParser(PSSVisitor, ErrorListener):
         return ret
     
     #****************************************************************
+    #* B07 Activity Statements
+    #****************************************************************
+    def visitOverrides_declaration(self, ctx:PSSParser.Overrides_declarationContext):
+        ret = OverrideBlock()
+        
+        for sm in ctx.override_stmt():
+            s = sm.accept(self)
+            if s is not None:
+                ret.statements.append(s)
+        
+        return ret
+    
+    def visitType_override(self, ctx:PSSParser.Type_overrideContext):
+        ret = OverrideStmtType(
+            ctx.type_identifier(0).accept(self),
+            ctx.type_identifier(1).accept(self))
+
+        return ret
+    
+    def visitInstance_override(self, ctx:PSSParser.Instance_overrideContext):
+        ret = OverrideStmtInst(
+            ctx.hierarchical_id().accept(self),
+            ctx.type_identifier().accept(self))
+        
+        return ret
+    
+    #****************************************************************
     #* B10 Constraints
     #****************************************************************
     
@@ -725,6 +757,97 @@ class CUParser(PSSVisitor, ErrorListener):
         return ConstraintImplies(
             ctx.expression().accept(self),
             ctx.constraint_set().accept(self))
+        
+    #****************************************************************
+    #* B12 Conditional Compile
+    #****************************************************************
+    
+    def visitPackage_body_compile_if(self, ctx:PSSParser.Package_body_compile_ifContext):
+        ret = CompileIf(ctx.constant_expression().accept(self))
+        
+        for elem in map(lambda e:e.accept(self), ctx.package_body_compile_if_item(0).package_body_item()):
+            if isinstance(elem, list):
+                for e in elem:
+                    ret.statements_true.append(e)
+            else:
+                ret.statements_true.append(elem)
+
+        if ctx.package_body_compile_if_item(1) is not None:
+            for elem in map(lambda e:e.accept(self), ctx.package_body_compile_if_item(1).package_body_item()):
+                if isinstance(elem, list):
+                    for e in elem:
+                        ret.statements_false.append(e)
+                else:
+                    ret.statements_false.append(elem)
+                
+        return ret
+    
+    def visitAction_body_compile_if(self, ctx:PSSParser.Action_body_compile_ifContext):
+        ret = CompileIf(ctx.constant_expression().accept(self))
+        
+        for elem in map(lambda e:e.accept(self), ctx.action_body_compile_if_item(0).action_body_item()):
+            if isinstance(elem, list):
+                for e in elem:
+                    ret.statements_true.append(e)
+            else:
+                ret.statements_true.append(elem)
+
+        if ctx.action_body_compile_if_item(1) is not None:
+            for elem in map(lambda e:e.accept(self), ctx.action_body_compile_if_item(1).action_body_item()):
+                if isinstance(elem, list):
+                    for e in elem:
+                        ret.statements_false.append(e)
+                else:
+                    ret.statements_false.append(elem)
+                
+        return ret        
+    
+    def visitComponent_body_compile_if(self, ctx:PSSParser.Component_body_compile_ifContext):
+        ret = CompileIf(ctx.constant_expression().accept(self))
+        
+        for elem in map(lambda e:e.accept(self), ctx.component_body_compile_if_item(0).component_body_item()):
+            if isinstance(elem, list):
+                for e in elem:
+                    ret.statements_true.append(e)
+            else:
+                ret.statements_true.append(elem)
+
+        if ctx.component_body_compile_if_item(1) is not None:
+            for elem in map(lambda e:e.accept(self), ctx.component_body_compile_if_item(1).component_body_item()):
+                if isinstance(elem, list):
+                    for e in elem:
+                        ret.statements_false.append(e)
+                else:
+                    ret.statements_false.append(elem)
+                
+        return ret        
+    
+    def visitStruct_body_compile_if(self, ctx:PSSParser.Struct_body_compile_ifContext):
+        ret = CompileIf(ctx.constant_expression().accept(self))
+        
+        for elem in map(lambda e:e.accept(self), ctx.struct_body_compile_if_item(0).struct_body_item()):
+            if isinstance(elem, list):
+                for e in elem:
+                    ret.statements_true.append(e)
+            else:
+                ret.statements_true.append(elem)
+
+        if ctx.struct_body_compile_if_item(1) is not None:
+            for elem in map(lambda e:e.accept(self), ctx.struct_body_compile_if_item(1).struct_body_item()):
+                if isinstance(elem, list):
+                    for e in elem:
+                        ret.statements_false.append(e)
+                else:
+                    ret.statements_false.append(elem)
+                
+        return ret        
+    
+    def visitCompile_assert_stmt(self, ctx:PSSParser.Compile_assert_stmtContext):
+        ret = CompileAssert(
+            ctx.constant_expression().accept(self),
+            None if ctx.msg is None else ctx.msg.getText())
+        
+        return ret
     
     def visitMethod_function_symbol_call(self, ctx:PSSParser.Method_function_symbol_callContext):
         # TODO:
