@@ -1,4 +1,52 @@
+
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#  http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
 from pssparser.model.field_pool import FieldPool
+from pssparser.model.activity import Activity
+from pssparser.model.exec_block_target_template import ExecBlockTargetTemplate
+from pssparser.model.exec_kind import ExecKind
+from pssparser.model.exec_block_file import ExecBlockFile
+from pssparser.model.exec_block_procedural_interface import ExecBlockProceduralInterface
+from pssparser.model.exec_stmt_super import ExecStmtSuper
+from pssparser.model.method_prototype import MethodPrototype
+from pssparser.model.method_parameter_dir import MethodParameterDir
+from pssparser.model.method_parameter import MethodParameter
+from pssparser.model.function_qualifier_spec import FunctionQualifierSpec
+from pssparser.model.function_import import FunctionImport
+from pssparser.model.function_qualifiers import FunctionQualifiers
+from pssparser.model.method_qualifiers import MethodQualifiers
+from pssparser.model.function_target_template import FunctionTargetTemplate
+from _ast import FunctionDef
+from pssparser.model.function_definition import FunctionDefinition
+from pssparser.model.exec_block_stmt import ExecBlockStmt
+from pssparser.model.exec_stmt_return import ExecStmtReturn
+from pssparser.model.exec_stmt_expr import ExecStmtExpr
+from pssparser.model.exec_stmt_assign import ExecStmtAssign
+from pssparser.model.exec_assign_op import ExecAssignOp
+from pssparser.model.exec_stmt_if_else import ExecStmtIfElse
+from pssparser.model.exec_stmt_match_choice import ExecStmtMatchChoice
+from pssparser.model.exec_stmt_match import ExecStmtMatch
+from pssparser.model.exec_stmt_while import ExecStmtWhile
+from pssparser.model.exec_stmt_repeat import ExecStmtRepeat
+from pssparser.model.exec_stmt_repeat_while import ExecStmtRepeatWhile
+from pssparser.model.exec_stmt_break import ExecStmtBreak
+from pssparser.model.exec_stmt_continue import ExecStmtContinue
+from pssparser.model.exec_stmt_foreach import ExecStmtForeach
 
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -224,6 +272,58 @@ class CUParser(PSSVisitor, ErrorListener):
         
         return ret        
     
+    def visitActivity_declaration(self, ctx:PSSParser.Activity_declarationContext):
+        ret = Activity()
+        
+        for s in ctx.activity_stmt():
+            stmt = s.accept(self)
+            
+            if stmt is not None:
+                if isinstance(stmt, list):
+                    ret.statements.extend(stmt)
+                else:
+                    ret.statements.append(stmt)
+        
+        return ret
+    
+    def visitExec_block(self, ctx:PSSParser.Exec_blockContext):
+        ret = ExecBlockProceduralInterface(
+            ExecKind[ctx.exec_kind_identifier().getText()])
+        
+        for s in ctx.exec_stmt():
+            stmt = s.accept(self)
+            
+            if stmt is not None:
+                if isinstance(stmt, list):
+                    ret.statements.extend(stmt)
+                else:
+                    ret.statements.append(stmt)
+        
+        return ret
+    
+    def visitExec_super_stmt(self, ctx:PSSParser.Exec_super_stmtContext):
+        ret = ExecStmtSuper()
+        
+        return ret
+    
+    def visitTarget_code_exec_block(self, ctx:PSSParser.Target_code_exec_blockContext):
+        # TODO: do we need to massage the content string?
+        ret = ExecBlockTargetTemplate(
+            ExecKind[ctx.exec_kind_identifier().getText()], 
+            ctx.language_identifier().getText(),
+            ctx.string())
+        
+        return ret
+    
+    def visitTarget_file_exec_block(self, ctx:PSSParser.Target_file_exec_blockContext):
+        # TODO: do we need to massage the content string?
+        ret = ExecBlockFile(
+            ctx.filename_string().getText(),
+            ctx.string().getText()
+            )
+
+        return ret
+    
     
     def visitAttr_field(self, ctx:PSSParser.Attr_fieldContext):
         ret = ctx.data_declaration().accept(self)
@@ -263,6 +363,182 @@ class CUParser(PSSVisitor, ErrorListener):
                         ret.add_child(s_elem)
 
             
+        return ret
+    
+    #****************************************************************
+    #* B04 PI
+    #****************************************************************
+    
+    def visitMethod_prototype(self, ctx:PSSParser.Method_prototypeContext):
+        ret = MethodPrototype(
+            ctx.method_identifier().accept(self),
+            None if ctx.method_return_type().getText() == "void" else ctx.method_return_type().accept(self))
+
+        last_dir = MethodParameterDir.input        
+        for p in ctx.method_parameter_list_prototype().method_parameter():
+            p_t = p.accept(self)
+            if p_t.direction is None:
+                p_t.direction = last_dir
+            else:
+                last_dir = p_t.direction
+            ret.parameters.append(p_t)
+        
+        return ret
+    
+    def visitMethod_parameter(self, ctx:PSSParser.Method_parameterContext):
+        direction = None if ctx.method_parameter_dir() is None else MethodParameterDir[ctx.method_parameter_dir().getText()]
+        ret = MethodParameter(
+            ctx.identifier().accept(self),
+            direction,
+            ctx.data_type().accept(self))
+
+        return ret
+    
+    def visitFunction_qualifiers(self, ctx:PSSParser.Function_qualifiersContext):
+        if ctx.type_identifier() is not None:
+            # Specification on an existing function
+            ret = FunctionQualifierSpec(
+                ctx.type_identifier().accept(self),
+                None if ctx.import_function_qualifiers() is None else ctx.import_function_qualifiers().accept(self))
+        else:
+            # Standalone import of an external function
+            ret = FunctionImport(
+                ctx.method_prototype().accept(self),
+                None if ctx.import_function_qualifiers() is None else ctx.import_function_qualifiers().accept(self))
+            
+        return ret
+
+    def visitImport_function_qualifiers(self, ctx:PSSParser.Import_function_qualifiersContext):
+        phase = None if ctx.method_qualifiers() is None else MethodQualifiers[ctx.method_qualifiers().getText()]
+        language = None if ctx.language_identifier() is None else ctx.language_identifier().getText()
+
+        ret = FunctionQualifiers(phase, language)
+        
+        return ret
+    
+    def visitTarget_template_function(self, ctx:PSSParser.Target_template_functionContext):
+        ret = FunctionTargetTemplate(
+            ctx.method_prototype().accept(self),
+            ctx.language_identifier().getText(),
+            ctx.string().getText())
+
+        return ret        
+    
+    def visitPss_function_defn(self, ctx:PSSParser.Pss_function_defnContext):
+        ret = FunctionDefinition(
+            ctx.method_prototype().accept(self),
+            None if ctx.method_qualifiers() is None else ctx.method_qualifiers().accept(self))
+        
+        for s in ctx.procedural_stmt():
+            stmt = s.accept(self)
+            
+            if stmt is not None:
+                if isinstance(stmt, list):
+                    ret.statements.extend(stmt)
+                else:
+                    ret.statements.append(stmt)
+        
+        return ret
+    
+    def visitProcedural_block_stmt(self, ctx:PSSParser.Procedural_block_stmtContext):
+        ret = ExecBlockStmt()
+        
+        for s in ctx.procedural_stmt():
+            stmt = s.accept(self)
+            if stmt is not None:
+                if isinstance(stmt, list):
+                    ret.statements.extend(stmt)
+                else:
+                    ret.statements.append(stmt)
+        
+        return ret
+    
+    def visitProcedural_var_decl_stmt(self, ctx:PSSParser.Procedural_var_decl_stmtContext):
+        var_l = ctx.data_declaration().accept(self)
+        return var_l
+    
+    def visitProcedural_expr_stmt(self, ctx:PSSParser.Procedural_expr_stmtContext):
+        if ctx.variable_ref_path() is not None:
+            op = {
+                "=" : ExecAssignOp.Eq,
+                "+=" : ExecAssignOp.PlusEq,
+                "-=" : ExecAssignOp.MinusEq,
+                "<<=" : ExecAssignOp.SllEq,
+                ">>=" : ExecAssignOp.SrlEq,
+                "|=" : ExecAssignOp.OrEq,
+                "&=" : ExecAssignOp.AndEq
+                 }[ctx.assign_op().getText()]
+            ret = ExecStmtAssign(
+                ctx.variable_ref_path().accept(self),
+                op,
+                ctx.expression().accept(self))
+        else:
+            ret = ExecStmtExpr(ctx.expression().accept(self))
+
+        return ret   
+    
+    def visitProcedural_if_else_stmt(self, ctx:PSSParser.Procedural_if_else_stmtContext):
+        ret = ExecStmtIfElse(
+            ctx.expression().accept(self),
+            ctx.procedural_stmt(0).accept(),
+            None if ctx.procedural_stmt(1) is None else ctx.procedural_stmt(1).accept(self))
+        
+        return ret
+    
+    def visitProcedural_return_stmt(self, ctx:PSSParser.Procedural_return_stmtContext):
+        ret = ExecStmtReturn(
+            None if ctx.expression() is None else ctx.expression().accept(self))
+        
+        return ret
+    
+    def visitProcedural_match_stmt(self, ctx:PSSParser.Procedural_match_stmtContext):
+        ret = ExecStmtMatch(ctx.expression().accept(self))
+        
+        for c in ctx.procedural_match_choice():
+            ret.choices.append(c.accept(self))
+
+        return ret            
+    
+    def visitProcedural_match_choice(self, ctx:PSSParser.Procedural_match_choiceContext):
+        ret = ExecStmtMatchChoice(
+            None if ctx.open_range_list() is None else ctx.open_range_list().accept(self),
+            ctx.procedural_stmt().accept(self))
+        
+        return ret
+    
+    def visitProcedural_repeat_stmt(self, ctx:PSSParser.Procedural_repeat_stmtContext):
+        if ctx.is_while is not None:
+            ret = ExecStmtWhile(
+                ctx.expression().accept(self),
+                ctx.procedural_stmt().accept(self))
+        elif ctx.is_repeat is not None:
+            ret = ExecStmtRepeat(
+                ctx.expression().accept(self),
+                None if ctx.identifier() is None else ctx.identifier().accept(self),
+                ctx.procedural_stmt().accept(self))
+        else:
+            ret = ExecStmtRepeatWhile(
+                ctx.expression().accept(self),
+                ctx.procedural_stmt().accept(self))
+            
+        return ret
+    
+    def visitProcedural_foreach_stmt(self, ctx:PSSParser.Procedural_foreach_stmtContext):
+        ret = ExecStmtForeach(
+            None if ctx.iterator_identifier() is None else ctx.iterator_identifier().accept(self),
+            ctx.expression().accept(self),
+            None if ctx.index_identifier() is None else ctx.index_identifier().accelt(self))
+        
+        return ret
+    
+    def visitProcedural_break_stmt(self, ctx:PSSParser.Procedural_break_stmtContext):
+        ret = ExecStmtBreak()
+        
+        return ret
+
+    def visitProcedural_continue_stmt(self, ctx:PSSParser.Procedural_continue_stmtContext):
+        ret = ExecStmtContinue()
+        
         return ret
     
     #****************************************************************

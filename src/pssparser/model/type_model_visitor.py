@@ -54,6 +54,9 @@ class TypeModelVisitor(object):
         for stmt in s.statements:
             stmt.accept(self)
             
+    def visit_activity(self, a):
+        self.visit_activity_stmt_sequence(a)
+            
     def visit_activity_join_branch(self, s):
         for l in s.label_identifiers:
             l.accept(self)
@@ -271,6 +274,90 @@ class TypeModelVisitor(object):
         if e.value is not None:
             e.value.accept(self)
             
+    def visit_exec(self, e):
+        pass
+            
+    def visit_exec_block_target_template(self, e):
+        self.visit_exec(e)
+    
+    def visit_exec_block_file(self, e):
+        pass
+    
+    def visit_exec_block_procedural_interface(self, e):
+        self.visit_exec(e)
+        for s in e.statements:
+            s.accept(self)
+            
+    def visit_exec_stmt_assign(self, a):
+        a.lhs.accept(self)
+        a.rhs.accept(self)
+        
+    def visit_exec_stmt_break(self, s):
+        pass
+    
+    def visit_exec_stmt_continue(self, s):
+        pass
+            
+    def visit_exec_stmt_expr(self, e):
+        e.expr.accept(self)
+        
+    def visit_exec_stmt_foreach(self, s):
+        if s.it_id is not None:
+            s.it_id.accept(self)
+            
+        if s.idx_id is not None:
+            s.idx_id.accept(self)
+            
+        s.expr.accept(self)
+        
+    def visit_exec_stmt_if_else(self, s):
+        s.cond.accept(self)
+        if s.true_stmt is not None:
+            s.true_stmt.accept(self)
+            
+        if s.false_stmt is not None:
+            s.false_stmt.accept(self)
+            
+    def visit_exec_stmt_match(self, m):
+        m.cond.accept(self)
+        
+        for c in m.choices:
+            c.accept(self)
+            
+    def visit_exec_stmt_match_choice(self, c):
+        if c.rangelist is not None:
+            c.rangelist.accept(self)
+            
+        if c.stmt is not None:
+            c.stmt.accept(self)
+            
+    def visit_exec_stmt_repeat(self, r):
+        r.cond.accept(self)
+        
+        if r.it_id is not None:
+            r.it_id.accept(self)
+        if r.stmt is not None:
+            r.stmt.accept(self)
+            
+    def visit_exec_stmt_repeat_while(self, r):
+        r.cond.accept(self)
+        
+        if r.stmt is not None:
+            r.stmt.accept(self)
+            
+    def visit_exec_stmt_return(self, r):
+        if r.expr is not None:
+            r.expr.accept(self)
+            
+    def visit_exec_stmt_super(self, s):
+        pass
+    
+    def visit_exec_stmt_while(self, s):
+        s.cond.accept(self)
+        
+        if s.stmt is not None:
+            s.stmt.accept(self)
+    
     def visit_expr_bin(self, e):
         e.lhs.accept(self)
         e.rhs.accept(self)
@@ -370,6 +457,31 @@ class TypeModelVisitor(object):
         
         if p.size is not None:
             p.size.accept(self)
+            
+    def visit_function_definition(self, f):
+        f.prototype.accept(self)
+        for s in f.statements:
+            s.accept(self)
+            
+    def visit_function_import(self, f):
+        f.prototype.accept(self)
+        
+    def visit_function_qualifier_spec(self, s):
+        s.function_type.accept(self)
+        
+    def visit_function_target_template(self, f):
+        f.prototype.accept(self)
+
+    def visit_method_parameter(self, p):
+        p.name.accept(self)
+        p.data_type.accept(self)
+            
+    def visit_method_prototype(self, p):
+        if p.return_t is not None:
+            p.return_t.accept(self)
+            
+        for p in self.parameters:
+            p.accept(self)
     
     def visit_override_block(self, o):
         for s in o.statements:

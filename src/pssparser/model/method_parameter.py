@@ -21,21 +21,15 @@ Created on Apr 21, 2020
 
 @author: ballance
 '''
-from pssparser.model.field import Field
-from pssparser.model.expr_id import ExprId
-from pssparser.model.type_identifier import TypeIdentifier
-from pssparser.model.expr_type import ExprType
 
-class FieldPool(Field):
+class MethodParameter(object):
     
-    def __init__(self, 
-                name : ExprId, 
-                typeid : TypeIdentifier,
-                size : ExprType):
-        super().__init__(name)
-        self.typeid = typeid
-        self.size = size
+    def __init__(self, name, direction, data_type):
+        self.name = name
+        self.direction = direction
+        self.data_type = data_type
         
     def accept(self, v):
-        v.visit_field_pool(self)
+        v.visit_method_parameter(self)
+        
         

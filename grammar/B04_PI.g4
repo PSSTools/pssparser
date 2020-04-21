@@ -124,9 +124,9 @@ procedural_match_choice:
 	;
 
 procedural_repeat_stmt:
-	('while' '(' expression ')' procedural_stmt)
-	| ('repeat' '(' (identifier ':')? expression ')' procedural_stmt)
-	| ('repeat' procedural_stmt 'while' '(' expression ')' ';')
+	(is_while='while' '(' expression ')' procedural_stmt)
+	| (is_repeat='repeat' '(' (identifier ':')? expression ')' procedural_stmt)
+	| (is_repeat_while='repeat' procedural_stmt 'while' '(' expression ')' ';')
 	;
 	
 procedural_foreach_stmt:

@@ -21,21 +21,14 @@ Created on Apr 21, 2020
 
 @author: ballance
 '''
-from pssparser.model.field import Field
-from pssparser.model.expr_id import ExprId
-from pssparser.model.type_identifier import TypeIdentifier
-from pssparser.model.expr_type import ExprType
+from pssparser.model.exec_stmt import ExecStmt
 
-class FieldPool(Field):
+class ExecStmtForeach(ExecStmt):
     
-    def __init__(self, 
-                name : ExprId, 
-                typeid : TypeIdentifier,
-                size : ExprType):
-        super().__init__(name)
-        self.typeid = typeid
-        self.size = size
+    def __init__(self, it_id, expr, idx_id):
+        self.it_id = it_id
+        self.expr = expr
+        self.idx_id = idx_id
         
     def accept(self, v):
-        v.visit_field_pool(self)
-        
+        v.visit_exec_stmt_foreach(self)
