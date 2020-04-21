@@ -87,7 +87,7 @@ from pssparser.model.activity_join_select import ActivityJoinSelect
 from pssparser.model.activity_join_none import ActivityJoinNone
 from pssparser.model.activity_join_first import ActivityJoinFirst
 from pssparser.model.data_type_user import DataTypeUser
-from pssparser.model.field_attr import FieldAttr
+from pssparser.model.field_attr import FieldAttr, FieldAttrFlags
 from pssparser.model.override_block import OverrideBlock
 from pssparser.model.override_stmt_type import OverrideStmtType
 from pssparser.model.override_stmt_inst import OverrideStmtInst
@@ -271,21 +271,6 @@ class CUParser(PSSVisitor, ErrorListener):
 
         return ret
    
-    def visitConst_data_declaration(self, ctx:PSSParser.Const_data_declarationContext):
-        pass
-
-    def visitConst_field_declaration(self, ctx:PSSParser.Const_field_declarationContext):
-        self._attr_flags_s.append(AttrFlags.Const)
-        ctx.const_data_declaration().accept(self)
-        self._attr_flags_s.pop()
-        
-    def visitStatic_const_field_declaration(self, ctx:PSSParser.Static_const_field_declarationContext):
-        self._attr_flags_s.append(AttrFlags.Static)
-        self._attr_flags_s.append(AttrFlags.Const)
-        ctx.const_data_declaration().accept(self)
-        self._attr_flags_s.pop()
-        self._attr_flags_s.pop()
-        
     def visitType_identifier(self, ctx:PSSParser.Type_identifierContext):
         ret = TypeIdentifier(ctx.is_global is not None)
         
@@ -931,6 +916,10 @@ class CUParser(PSSVisitor, ErrorListener):
         
         return ext
     
+    #****************************************************************
+    #* B01 Package
+    #****************************************************************
+    
     def visitImport_stmt(self, ctx:PSSParser.Import_stmtContext):
         
         imp = ImportStmt(
@@ -961,6 +950,45 @@ class CUParser(PSSVisitor, ErrorListener):
             for c in ctx.package_body_item():
                 c.accept(self)
                 
+    def visitConst_field_declaration(self, ctx:PSSParser.Const_field_declarationContext):
+        field_l = ctx.const_data_declaration().accept(self)
+        
+        for f in field_l:
+            f.flags |= FieldAttrFlags.Const
+            
+        return field_l
+    
+    def visitConst_data_declaration(self, ctx:PSSParser.Const_data_declarationContext):
+        data_type = ctx.scalar_data_type().accept(self)
+        
+        field_l = map(lambda e:e.accept(self), ctx.const_data_instantiation())
+        
+        for f in field_l:
+            f.ftype = data_type
+            
+        return field_l
+    
+    def visitConst_data_instantiation(self, ctx:PSSParser.Const_data_instantiationContext):
+        ret = FieldAttr(
+            ctx.identifier().accept(self),
+            0, # Flags
+            False, # is_rand
+            None, # field-type
+            None, # array-dim
+            ctx.constant_expression().accept(self)
+            )
+        
+        return ret
+    
+    def visitStatic_const_field_declaration(self, ctx:PSSParser.Static_const_field_declarationContext):
+        field_l = ctx.const_data_declaration().accept(self)
+        
+        for f in field_l:
+            f.flags |= FieldAttrFlags.Static
+            f.flags |= FieldAttrFlags.Const
+            
+        return field_l
+        
     def visitTemplate_param_decl_list(self, ctx:PSSParser.Template_param_decl_listContext):
         params = []
         for p in ctx.template_param_decl():
