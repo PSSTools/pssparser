@@ -228,6 +228,9 @@ class TypeModelVisitor(object):
         if t.in_range is not None:
             t.in_range.accept(self)
             
+    def visit_data_type_user(self, t):
+        t.typeid.accept(self)
+
     def visit_enum_declaration(self, e):
         e.name.accept(self)
         for en in e.enumerators:
@@ -316,6 +319,20 @@ class TypeModelVisitor(object):
     def visit_extend_stmt(self, e):
         e.target.accept(self)
         self.visit_composite_stmt(e)
+        
+    def visit_field(self, f):
+        f.name.accept(self)
+        
+    def visit_field_attr(self, f):
+        self.visit_field(f)
+        f.ftype.accept(self)
+        
+        if f.array_dim is not None:
+            f.array_dim.accept(self)
+            
+        if f.init_expr is not None:
+            f.init_expr.accept(self)
+        pass
         
     def visit_struct_type(self, s):
         self.visit_composite_type(s)

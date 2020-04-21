@@ -13,6 +13,10 @@ class ExprHierarchicalId(ExprType):
         super().__init__()
         self.path_l = p if p is not None else []
         
+    def __str__(self):
+        return ".".join(map(lambda e:str(e), self.path_l))
+        
+        
     def accept(self, v):
         v.visit_expr_hierarchical_id(self)
         

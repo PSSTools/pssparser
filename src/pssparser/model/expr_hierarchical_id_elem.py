@@ -13,5 +13,14 @@ class ExprHierarchicalIdElem(ExprType):
         self.name = name
         self.lhs = lhs
         
+    def __str__(self):
+        ret = str(self.name)
+        
+        if self.lhs is not None:
+            ret += "[" + str(self.lhs) + "]"
+            
+        return ret
+        
+        
     def accept(self, v):
         v.visit_expr_hierarchical_id_elem(self)

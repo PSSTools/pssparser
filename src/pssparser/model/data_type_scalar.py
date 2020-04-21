@@ -4,6 +4,7 @@ Created on Mar 30, 2020
 @author: ballance
 '''
 from enum import Enum, auto
+from pssparser.model.data_type import DataType
 
 
 class ScalarType(Enum):
@@ -14,13 +15,14 @@ class ScalarType(Enum):
     String = auto()
     
     
-class DataTypeScalar(object):
+class DataTypeScalar(DataType):
     
     def __init__(self, 
         scalar_type : ScalarType, 
         lhs,
         rhs,
         in_range):
+        super().__init__()
         self.scalar_type = scalar_type
         self.lhs = lhs
         self.rhs = rhs

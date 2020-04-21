@@ -86,6 +86,8 @@ from pssparser.model.activity_join_branch import ActivityJoinBranch
 from pssparser.model.activity_join_select import ActivityJoinSelect
 from pssparser.model.activity_join_none import ActivityJoinNone
 from pssparser.model.activity_join_first import ActivityJoinFirst
+from pssparser.model.data_type_user import DataTypeUser
+from pssparser.model.field_attr import FieldAttr
 
 
 class CUParser(PSSVisitor, ErrorListener):
@@ -148,7 +150,11 @@ class CUParser(PSSVisitor, ErrorListener):
     
     def _get_typescope(self):
         return self._typescope_s[-1] if len(self._typescope_s) > 0 else None
-    
+
+    #****************************************************************
+    #* B02 Action
+    #****************************************************************
+        
     def visitAction_declaration(self, ctx:PSSParser.Action_declarationContext):
         
         name = ctx.action_identifier()
@@ -164,7 +170,11 @@ class CUParser(PSSVisitor, ErrorListener):
                 a_elem = i.accept(self)
                 
                 if a_elem is not None:
-                    ret.add_child(a_elem)
+                    if isinstance(a_elem, list):
+                        for a in a_elem:
+                            ret.add_child(a)
+                    else:
+                        ret.add_child(a_elem)
         
         return ret
     
@@ -182,9 +192,22 @@ class CUParser(PSSVisitor, ErrorListener):
                 a_elem = i.accept(self)
                 
                 if a_elem is not None:
-                    ret.add_child(a_elem)
+                    if isinstance(a_elem, list):
+                        for e in a_elem:
+                            ret.add_child(e)
+                    else:
+                        ret.add_child(a_elem)
         
         return ret        
+    
+    
+    def visitAttr_field(self, ctx:PSSParser.Attr_fieldContext):
+        ret = ctx.data_declaration().accept(self)
+        
+        for a in ret:
+            a.is_rand = ctx.rand is not None
+            
+        return ret
     
     #****************************************************************
     #* B03 Struct
@@ -209,7 +232,11 @@ class CUParser(PSSVisitor, ErrorListener):
             for i in ctx.struct_body_item():
                 s_elem = i.accept(self)
                 if s_elem is not None:
-                    ret.add_child(s_elem)
+                    if isinstance(s_elem, list):
+                        for e in s_elem:
+                            ret.add_child(e)
+                    else:
+                        ret.add_child(s_elem)
 
             
         return ret
@@ -230,8 +257,12 @@ class CUParser(PSSVisitor, ErrorListener):
         with self._typescope(name, ret):
             for c in ctx.component_body_item():
                 c_elem = c.accept(self)
-                self.check_elem(c_elem, c)
-                ret.add_child(c_elem)
+                if c_elem is not None:
+                    if isinstance(c_elem, list):
+                        for e in c_elem:
+                            ret.add_child(e)
+                    else:
+                        ret.add_child(c_elem)
 
         return ret
    
@@ -902,7 +933,40 @@ class CUParser(PSSVisitor, ErrorListener):
             ctx.type_identifier().accept(self))
         
         return ret
+    
+    def visitUser_defined_datatype(self, ctx:PSSParser.User_defined_datatypeContext):
+        ret = DataTypeUser(
+            ctx.type_identifier())
         
+        return ret
+
+    #****************************************************************    
+    #* B08 Data Declarations
+    #****************************************************************    
+    def visitData_declaration(self, ctx:PSSParser.Data_declarationContext):
+        ret = []
+        
+        ftype = ctx.data_type().accept(self)
+        
+        for decl in ctx.data_instantiation():
+            decl_i = decl.accept(self)
+            decl_i.ftype = ftype
+            ret.append(decl_i)
+            
+        return ret
+
+    def visitData_instantiation(self, ctx:PSSParser.Data_instantiationContext):
+        ret = FieldAttr(
+            ctx.identifier().accept(self),
+            0, # No flags for now
+            False,
+            None, # Type gets filled in later
+            None if ctx.array_dim() is None else ctx.array_dim().accept(self),
+            None if ctx.constant_expression() is None else ctx.constant_expression().accept(self)
+            )
+        
+        return ret
+    
     def check_elem(self, e, t):
         pass
 #        if e is None:

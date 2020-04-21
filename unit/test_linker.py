@@ -105,4 +105,5 @@ class TestLinker(TestCase):
             }
         }
         """
-        self._runTest(text)                
+        self._runTest(text)
+        
