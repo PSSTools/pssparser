@@ -13,6 +13,6 @@
 <stringAttribute key="org.eclipse.ui.externaltools.ATTR_OTHER_WORKING_DIRECTORY" value=""/>
 <stringAttribute key="org.python.pydev.debug.ATTR_INTERPRETER" value="__default"/>
 <stringAttribute key="org.python.pydev.debug.ATTR_PROJECT" value="py-pss-parser"/>
-<stringAttribute key="org.python.pydev.debug.ATTR_UNITTEST_CONFIGURATION_FILE" value="C:/usr1/work/pssparser/unit/test_linker.py|TestLinker.test_link_action_field&#10;"/>
+<stringAttribute key="org.python.pydev.debug.ATTR_UNITTEST_CONFIGURATION_FILE" value="C:/usr1/work/pssparser/unit/test_spec_examples.py|TestSpecExamples.test_240_conditional_processing_static_if&#10;"/>
 <stringAttribute key="process_factory_id" value="org.python.pydev.debug.processfactory.PyProcessFactory"/>
 </launchConfiguration>
