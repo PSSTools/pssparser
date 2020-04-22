@@ -303,6 +303,19 @@ class TypeModelVisitor(object):
             
     def visit_data_type_user(self, t):
         t.typeid.accept(self)
+        
+    def visit_domain_open_range_list(self, rl):
+        for e in rl.rangelist:
+            e.accept(self)
+            
+    def visit_domain_open_range_value(self, v):
+        if v.lhs is not None:
+            v.lhs.accept(self)
+            
+        if v.rhs is not None:
+            v.rhs.accept(self)
+            
+        
 
     def visit_enum_declaration(self, e):
         e.name.accept(self)

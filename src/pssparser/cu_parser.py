@@ -55,6 +55,8 @@ from pssparser.model.pool_bind_stmt import PoolBindStmt
 from pssparser.model.activity_stmt_traverse_handle import ActivityStmtTraverseHandle
 from pssparser.model.activity_stmt_traverse_type import ActivityStmtTraverseType
 from pssparser.model.data_type_string import DataTypeString
+from pssparser.model.domain_open_range_list import DomainOpenRangeList
+from pssparser.model.domain_open_range_value import DomainOpenRangeValue
 
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -1430,6 +1432,26 @@ class CUParser(PSSVisitor, ErrorListener):
         return ret
     
     # B09_DataTypes
+    
+    def visitDomain_open_range_list(self, ctx:PSSParser.Domain_open_range_listContext):
+        ret = DomainOpenRangeList()
+        
+        for e in ctx.domain_open_range_value():
+            ret.rangelist.append(e.accept(self))
+
+        return ret            
+    
+    def visitDomain_open_range_value(self, ctx:PSSParser.Domain_open_range_valueContext):
+        
+        if ctx.limit_low is not None or ctx.limit_high is not None:
+            # 
+            ret = DomainOpenRangeValue(
+                None if ctx.lhs is None else ctx.lhs.accept(self),
+                None if ctx.rhs is None else ctx.rhs.accept(self))
+        else:
+            ret = ctx.lhs.accept(self)
+
+        return ret        
     
     def visitString_type(self, ctx:PSSParser.String_typeContext):
         if ctx.DOUBLE_QUOTED_STRING(0) is not None:
