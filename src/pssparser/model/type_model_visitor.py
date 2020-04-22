@@ -69,6 +69,10 @@ class TypeModelVisitor(object):
         
     def visit_activity_join_select(self, s):
         s.e.accept(self)
+        
+    def visit_activity_stmt_bind(self, b):
+        for t in b.targets:
+            t.accept(self)
             
     def visit_activity_stmt_constraint(self, s):
         self.visit_activity_stmt_base(s)
@@ -98,6 +102,17 @@ class TypeModelVisitor(object):
         s.true_s.accept(self)
         if s.false_s is not None:
             self.false_s.accept(self)
+            
+    def visit_activity_stmt_match(self, m):
+        m.cond.accept(self)
+        for b in m.branches:
+            b.accept(self)
+            
+    def visit_activity_stmt_match_branch(self, b):
+        if b.rangelist is not None:
+            b.rangelist.accept(self)
+        b.stmt.accept(self)
+        
             
     def visit_activity_stmt_parallel(self, s):
         if s.join_spec is not None:
@@ -140,6 +155,21 @@ class TypeModelVisitor(object):
         self.visit_activity_stmt_base(s)
         for stmt in s.statements:
             stmt.accept(self)
+            
+    def visit_activity_stmt_super(self, s):
+        pass
+    
+    def visit_activity_stmt_traverse_handle(self, h):
+        h.path.accept(self)
+        
+        if h.constraint is not None:
+            h.constraint.accept(self)
+    
+    def visit_activity_stmt_traverse_type(self, t):
+        t.tid.accept(self)
+        
+        if t.constraint is not None:
+            t.constraint.accept(self)
         
             
     def visit_activity_stmt_while(self, s):
@@ -243,6 +273,13 @@ class TypeModelVisitor(object):
     def visit_component(self, c):
         self.visit_composite_type(c)
         
+    def visit_component_path(self, p):
+        for elem in p.path_elements:
+            elem.accept(self)
+            
+    def visit_component_path_elem(self, e):
+        pass
+        
         
     def visit_composite_stmt(self, c):
         for ch in c.children:
@@ -260,6 +297,9 @@ class TypeModelVisitor(object):
             t.rhs.accept(self)
         if t.in_range is not None:
             t.in_range.accept(self)
+            
+    def visit_data_type_string(self, t):
+        pass
             
     def visit_data_type_user(self, t):
         t.typeid.accept(self)

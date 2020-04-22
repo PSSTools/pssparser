@@ -47,6 +47,14 @@ from pssparser.model.exec_stmt_repeat_while import ExecStmtRepeatWhile
 from pssparser.model.exec_stmt_break import ExecStmtBreak
 from pssparser.model.exec_stmt_continue import ExecStmtContinue
 from pssparser.model.exec_stmt_foreach import ExecStmtForeach
+from pssparser.model.activity_stmt_match import ActivityStmtMatch
+from pssparser.model.activity_stmt_match_branch import ActivityStmtMatchBranch
+from pssparser.model.activity_stmt_bind import ActivityStmtBind
+from pssparser.model.activity_stmt_super import ActivityStmtSuper
+from pssparser.model.pool_bind_stmt import PoolBindStmt
+from pssparser.model.activity_stmt_traverse_handle import ActivityStmtTraverseHandle
+from pssparser.model.activity_stmt_traverse_type import ActivityStmtTraverseType
+from pssparser.model.data_type_string import DataTypeString
 
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -593,6 +601,15 @@ class CUParser(PSSVisitor, ErrorListener):
                 size))
                 
         return field_l
+    
+    def visitObject_bind_stmt(self, ctx:PSSParser.Object_bind_stmtContext):
+        ret = PoolBindStmt(
+            ctx.hierarchical_id().accept(self))
+        
+        for p in ctx.object_bind_item_or_list().component_path():
+            ret.bindlist.append(p.accept(self))
+            
+        return ret
 
    
     def visitType_identifier(self, ctx:PSSParser.Type_identifierContext):
@@ -865,6 +882,22 @@ class CUParser(PSSVisitor, ErrorListener):
         
         return ret
     
+    def visitActivity_match_stmt(self, ctx:PSSParser.Activity_match_stmtContext):
+        ret = ActivityStmtMatch(
+            ctx.expression().accept(self))
+        
+        for c in ctx.match_choice():
+            ret.branches.append(c.accept(self))
+            
+        return ret
+    
+    def visitMatch_choice(self, ctx:PSSParser.Match_choiceContext):
+        ret = ActivityStmtMatchBranch(
+            None if ctx.is_default is not None else ctx.open_range_list().accept(self),
+            ctx.activity_stmt().accept(self))
+        
+        return ret
+    
     def visitActivity_parallel_stmt(self, ctx:PSSParser.Activity_parallel_stmtContext):
         ret = ActivityStmtParallel(
             None if ctx.activity_join_spec() is None else ctx.activity_join_spec().accept(self)
@@ -912,6 +945,32 @@ class CUParser(PSSVisitor, ErrorListener):
         
         return ret
     
+    def visitActivity_foreach_stmt(self, ctx:PSSParser.Activity_foreach_stmtContext):
+        ret = ActivityStmtForeach(
+            None if ctx.iterator_identifier() is None else ctx.iterator_identifier().accept(self),
+            ctx.expression().accept(self),
+            None if ctx.index_identifier() is None else ctx.index_identifier().accept(self),
+            ctx.activity_stmt().accept(self))
+
+        return ret
+    
+    def visitActivity_action_traversal_stmt(self, ctx:PSSParser.Activity_action_traversal_stmtContext):
+        if ctx.is_do is not None:
+            ret = ActivityStmtTraverseType(
+                ctx.type_identifier().accept(self),
+                None if ctx.constraint_set() is None else ctx.constraint_set().accept(self))
+        else:
+            path = ExprVarRefPath(ExprHierarchicalId([ctx.identifier()]))
+            
+            if ctx.expression() is not None:
+                path.lhs = ctx.expression().accept(self)
+            
+            ret = ActivityStmtTraverseHandle(
+                path,
+                None if ctx.constraint_set() is None else ctx.constraint_set().accept(self))
+            
+        return ret
+    
     def visitActivity_select_stmt(self, ctx:PSSParser.Activity_select_stmtContext):
         ret = ActivityStmtSelect()
         
@@ -937,6 +996,21 @@ class CUParser(PSSVisitor, ErrorListener):
             if s is not None:
                 ret.statements.append(s)
                 
+        return ret
+    
+    def visitActivity_bind_stmt(self, ctx:PSSParser.Activity_bind_stmtContext):
+        ret = ActivityStmtBind()
+        
+        ret.targets.append(ctx.hierarchical_id().accept(self))
+        
+        for hid in ctx.activity_bind_item_or_list().hierarchical_id():
+            ret.targets.append(hid.accept(self))
+        
+        return ret
+    
+    def visitActivity_super_stmt(self, ctx:PSSParser.Activity_super_stmtContext):
+        ret = ActivityStmtSuper()
+        
         return ret
     
     #****************************************************************
@@ -1356,6 +1430,18 @@ class CUParser(PSSVisitor, ErrorListener):
         return ret
     
     # B09_DataTypes
+    
+    def visitString_type(self, ctx:PSSParser.String_typeContext):
+        if ctx.DOUBLE_QUOTED_STRING(0) is not None:
+            in_spec = []
+            for s in ctx.DOUBLE_QUOTED_STRING():
+                in_spec.append(s.getText())
+        else:
+            in_spec = None
+            
+        ret = DataTypeString(in_spec)
+        
+        return ret
 
     def visitBool_type(self, ctx:PSSParser.Bool_typeContext):
         return DataTypeScalar(ScalarType.Bool, None, None, None)
