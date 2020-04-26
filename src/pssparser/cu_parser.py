@@ -57,6 +57,9 @@ from pssparser.model.activity_stmt_traverse_type import ActivityStmtTraverseType
 from pssparser.model.data_type_string import DataTypeString
 from pssparser.model.domain_open_range_list import DomainOpenRangeList
 from pssparser.model.domain_open_range_value import DomainOpenRangeValue
+from pssparser.model.expr_function_call import ExprFunctionCall
+from pssparser.model.expr_cast import ExprCast
+from pssparser.model.expr_method_call import ExprMethodCall
 
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -241,7 +244,7 @@ class CUParser(PSSVisitor, ErrorListener):
         
         name = ctx.action_identifier()
         ret = ActionType(
-            self._get_type_qname(name),
+            ctx.action_identifier().accept(self),
             False,
             None if ctx.template_param_decl_list() is None else ctx.template_param_decl_list().accept(self),
             None if ctx.action_super_spec() is None else ctx.action_super_spec().accept(self))
@@ -404,6 +407,13 @@ class CUParser(PSSVisitor, ErrorListener):
 
         return ret
     
+    def visitMethod_parameter_list(self, ctx:PSSParser.Method_parameter_listContext):
+        ret = []
+        for e in ctx.expression():
+            ret.append(e.accept(self))
+            
+        return ret
+    
     def visitFunction_qualifiers(self, ctx:PSSParser.Function_qualifiersContext):
         if ctx.type_identifier() is not None:
             # Specification on an existing function
@@ -558,7 +568,7 @@ class CUParser(PSSVisitor, ErrorListener):
     def visitComponent_declaration(self, ctx:PSSParser.Component_declarationContext):
         name = ctx.component_identifier()        
         ret = ComponentType(
-            self._get_type_qname(name),
+            ctx.component_identifier().accept(self),
             None if ctx.template_param_decl_list() is None else ctx.template_param_decl_list().accept(self),
             None if ctx.component_super_spec() is None else ctx.component_super_spec().accept(self)
             )
@@ -761,6 +771,13 @@ class CUParser(PSSVisitor, ErrorListener):
             return ExprStrLiteral(ctx.DOUBLE_QUOTED_STRING().getText())
         else:
             return ExprStrLiteral(ctx.TRIPLE_DOUBLE_QUOTED_STRING().getText())
+        
+    def visitCast_expression(self, ctx:PSSParser.Cast_expressionContext):
+        ret = ExprCast(
+            ctx.casting_type().accept(self),
+            ctx.expression().accept(self))
+        
+        return ret
     
     def visitVariable_ref_path(self, ctx:PSSParser.Variable_ref_pathContext):
         hid = ctx.hierarchical_id().accept(self)
@@ -774,6 +791,26 @@ class CUParser(PSSVisitor, ErrorListener):
                 ret.rhs = ctx.expression(1).accept(self)
             
             
+        return ret
+    
+    def visitFunction_symbol_call(self, ctx:PSSParser.Function_symbol_callContext):
+        hid = ExprHierarchicalId()
+        if ctx.function_symbol_id().function_id() is not None:
+            for id in ctx.function_symbol_id().function_id().identifier():
+                hid.path_l.append(ExprHierarchicalIdElem(id.accept(self)))
+        else:
+            hid.path_l.append(ExprHierarchicalIdElem(ctx.function_symbol_id().symbol_identifier().accept(self)))
+        ret = ExprFunctionCall(
+            hid,
+            ctx.method_parameter_list().accept(self))
+        
+        return ret
+    
+    def visitMethod_call(self, ctx:PSSParser.Method_callContext):
+        ret = ExprMethodCall(
+            ctx.hierarchical_id().accept(self),
+            ctx.method_parameter_list().accept(self))
+        
         return ret
     
     def visitHierarchical_id(self, ctx:PSSParser.Hierarchical_idContext):
@@ -1233,10 +1270,6 @@ class CUParser(PSSVisitor, ErrorListener):
             None if ctx.msg is None else ctx.msg.getText())
         
         return ret
-    
-    def visitMethod_function_symbol_call(self, ctx:PSSParser.Method_function_symbol_callContext):
-        # TODO:
-        return PSSVisitor.visitMethod_function_symbol_call(self, ctx)
     
     def visitStatic_ref_path(self, ctx:PSSParser.Static_ref_pathContext):
 

@@ -48,7 +48,7 @@ class DeclScope(object):
         if isinstance(d, Field):
             self.decl_m[str(d.name)] = d
         else:
-            self.decl_m[d.name[-1]] = d
+            self.decl_m[d.name.toString()] = d
         
         
 class LinkVisitor(TypeModelVisitor):

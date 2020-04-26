@@ -21,7 +21,7 @@ Created on Apr 20, 2020
 
 @author: ballance
 '''
-from enum import Flag, auto
+from enum import Flag, auto, IntFlag
 
 from pssparser.model.data_type import DataType
 from pssparser.model.expr_id import ExprId
@@ -29,7 +29,7 @@ from pssparser.model.expr_type import ExprType
 from pssparser.model.field import Field
 
 
-class FieldAttrFlags(Flag):
+class FieldAttrFlags(IntFlag):
     Static = auto()
     Const = auto()
     Rand = auto()

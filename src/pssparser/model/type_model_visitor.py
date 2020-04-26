@@ -418,6 +418,10 @@ class TypeModelVisitor(object):
     def visit_expr_bool(self, e):
         pass
     
+    def visit_expr_cast(self, c):
+        c.casting_type.accept(self)
+        c.expr.accept(self)
+    
     def visit_expr_compile_has(self, c):
         c.ref.accept(self)
         
@@ -425,6 +429,11 @@ class TypeModelVisitor(object):
         c.cond_e.accept(self)
         c.true_e.accept(self)
         c.false_e.accept(self)
+        
+    def visit_expr_function_call(self, c):
+        c.name.accept(self)
+        for p in c.params:
+            p.accept(self)
         
     def visit_expr_hierarchical_id(self, e):
         for p in e.path_l:
@@ -445,6 +454,11 @@ class TypeModelVisitor(object):
     def visit_expr_in(self, i):
         i.lhs.accept(self)
         i.open_range_l.accept(self)
+        
+    def visit_expr_method_call(self, c):
+        c.hid.accept(self)
+        for p in c.params:
+            p.accept(self)
         
     def visit_expr_num_literal(self, e):
         pass

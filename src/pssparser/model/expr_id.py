@@ -29,6 +29,9 @@ class ExprId(ExprType):
         super().__init__()
         self.id = id
         
+    def toString(self):
+        return self.id
+        
     def __str__(self):
         return self.id
         
