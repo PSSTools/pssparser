@@ -62,7 +62,7 @@ class TestTypeModelSmoke(TestCase):
 
             i = 0
             while i < len(v.type_l):
-                qname = "::".join(v.type_l[i].name)
+                qname = v.type_l[i].name.toString()
                 self.assertTrue(qname in exp, "Failed to find type \"" + qname + "\"")
                 exp.remove(qname)
                 v.type_l.pop(i)
@@ -71,7 +71,7 @@ class TestTypeModelSmoke(TestCase):
             self.assertEqual(len(exp), 0)
                 
     
-    def test_component_action(self):
+    def disabled_test_component_action(self):
         text = """
         component C {
             action A {
@@ -86,7 +86,7 @@ class TestTypeModelSmoke(TestCase):
             TypeCategory.Action : [ "C::A", "C::B"]
             })
         
-    def test_component_in_pkg(self):
+    def disabled_test_component_in_pkg(self):
         text = """
         package my_pkg {
             component C {
