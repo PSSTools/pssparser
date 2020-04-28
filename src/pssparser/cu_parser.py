@@ -60,6 +60,7 @@ from pssparser.model.domain_open_range_value import DomainOpenRangeValue
 from pssparser.model.expr_function_call import ExprFunctionCall
 from pssparser.model.expr_cast import ExprCast
 from pssparser.model.expr_method_call import ExprMethodCall
+import traceback
 
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -215,8 +216,29 @@ class CUParser(PSSVisitor, ErrorListener):
         if len(cu.markers) > 0:
             # Don't try to process with errors
             return cu
-        
-        cu_model.accept(self)
+
+        for c in cu_model.portable_stimulus_description():
+            if c.package_body_item() is not None:
+                print("package_body_item: " + str(c.package_body_item()))
+                it = c.package_body_item().accept(self)
+            elif c.package_declaration() is not None:
+                print("package_declaration")
+                it = c.package_declaration().accept(self)
+            elif c.component_declaration() is not None:
+                print("component_declaration")
+                it = c.component_declaration().accept(self)
+            else:
+                print("None of the above")
+                it = None
+                
+            print("it=" + str(it))
+            if it is not None:
+                if isinstance(it, list):
+                    for ii in it:
+                        cu.add_child(ii)
+                else:
+                    cu.add_child(it)
+                    
 #         for c in cu_model.portable_stimulus_description():
 #             cu_elem = c.accept(self)
 #             
@@ -382,6 +404,10 @@ class CUParser(PSSVisitor, ErrorListener):
     #* B04 PI
     #****************************************************************
     
+    def visitFunction_decl(self, ctx:PSSParser.Function_declContext):
+        ret = ctx.method_prototype().accept(self)
+        return ret
+    
     def visitMethod_prototype(self, ctx:PSSParser.Method_prototypeContext):
         ret = MethodPrototype(
             ctx.method_identifier().accept(self),
@@ -395,7 +421,7 @@ class CUParser(PSSVisitor, ErrorListener):
             else:
                 last_dir = p_t.direction
             ret.parameters.append(p_t)
-        
+
         return ret
     
     def visitMethod_parameter(self, ctx:PSSParser.Method_parameterContext):
@@ -575,7 +601,7 @@ class CUParser(PSSVisitor, ErrorListener):
 
         self._set_srcinfo(ret, ctx.start)
         
-        self._scope_s[-1].add_child(ret)
+#        self._scope_s[-1].add_child(ret)
         
         with self._typescope(name, ret):
             for c in ctx.component_body_item():
@@ -800,6 +826,8 @@ class CUParser(PSSVisitor, ErrorListener):
                 hid.path_l.append(ExprHierarchicalIdElem(id.accept(self)))
         else:
             hid.path_l.append(ExprHierarchicalIdElem(ctx.function_symbol_id().symbol_identifier().accept(self)))
+            
+        print("Create ExprFunctionCall")
         ret = ExprFunctionCall(
             hid,
             ctx.method_parameter_list().accept(self))
@@ -807,9 +835,17 @@ class CUParser(PSSVisitor, ErrorListener):
         return ret
     
     def visitMethod_call(self, ctx:PSSParser.Method_callContext):
-        ret = ExprMethodCall(
-            ctx.hierarchical_id().accept(self),
-            ctx.method_parameter_list().accept(self))
+        hid = ctx.hierarchical_id().accept(self)
+        
+        if len(hid.path_l) == 1:
+            # This is really a function call
+            ret = ExprFunctionCall(
+                hid,
+                ctx.method_parameter_list().accept(self))
+        else:
+            ret = ExprMethodCall(
+                hid,
+                ctx.method_parameter_list().accept(self))
         
         return ret
     
@@ -1381,7 +1417,13 @@ class CUParser(PSSVisitor, ErrorListener):
         
         with self._typescope(ctx.name, pkg):
             for c in ctx.package_body_item():
-                c.accept(self)
+                it = c.accept(self)
+                print("package it=" + str(it))
+                
+    def visitPackage_body_item(self, ctx:PSSParser.Package_body_itemContext):
+        ret = PSSVisitor.visitPackage_body_item(self, ctx)
+        
+        return ret
                 
     def visitConst_field_declaration(self, ctx:PSSParser.Const_field_declarationContext):
         field_l = ctx.const_data_declaration().accept(self)

@@ -547,8 +547,8 @@ class TypeModelVisitor(object):
         if p.return_t is not None:
             p.return_t.accept(self)
             
-        for p in self.parameters:
-            p.accept(self)
+        for pm in p.parameters:
+            pm.accept(self)
     
     def visit_override_block(self, o):
         for s in o.statements:
