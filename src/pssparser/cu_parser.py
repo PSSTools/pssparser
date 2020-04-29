@@ -362,9 +362,10 @@ class CUParser(PSSVisitor, ErrorListener):
     
     def visitAttr_field(self, ctx:PSSParser.Attr_fieldContext):
         ret = ctx.data_declaration().accept(self)
-        
-        for a in ret:
-            a.is_rand = ctx.rand is not None
+
+        if ctx.rand is not None:        
+            for a in ret:
+                a.flags |= FieldAttrFlags.Rand
             
         return ret
     
@@ -1447,7 +1448,6 @@ class CUParser(PSSVisitor, ErrorListener):
         ret = FieldAttr(
             ctx.identifier().accept(self),
             0, # Flags
-            False, # is_rand
             None, # field-type
             None, # array-dim
             ctx.constant_expression().accept(self)
@@ -1617,7 +1617,6 @@ class CUParser(PSSVisitor, ErrorListener):
         ret = FieldAttr(
             ctx.identifier().accept(self),
             0, # No flags for now
-            False,
             None, # Type gets filled in later
             None if ctx.array_dim() is None else ctx.array_dim().accept(self),
             None if ctx.constant_expression() is None else ctx.constant_expression().accept(self)
