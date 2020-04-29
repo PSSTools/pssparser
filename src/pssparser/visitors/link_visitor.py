@@ -48,7 +48,7 @@ class DeclScope(object):
         if isinstance(d, Field):
             self.decl_m[str(d.name)] = d
         else:
-            self.decl_m[d.name[-1]] = d
+            self.decl_m[d.name.toString()] = d
         
         
 class LinkVisitor(TypeModelVisitor):
@@ -195,7 +195,7 @@ class LinkVisitor(TypeModelVisitor):
                 ref_name = ref.path[ref_i].ref.id
                 
                 for c in target.children:
-                    if hasattr(c, "name") and c.name[-1] == ref_name:
+                    if hasattr(c, "name") and c.name.toString() == ref_name:
                         new_target = c
                         break
                 if new_target is None:
