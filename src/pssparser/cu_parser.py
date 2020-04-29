@@ -783,9 +783,72 @@ class CUParser(PSSVisitor, ErrorListener):
         else:
             return super().visitPrimary(ctx)
 
-    def visitNumber(self, ctx:PSSParser.NumberContext):
-        # TODO:
-        return ExprNumLiteral(0, "todo")
+    def visitBased_hex_number(self, ctx:PSSParser.Based_hex_numberContext):
+        # TODO: deal with width
+        hex = ctx.BASED_HEX_LITERAL().getText()
+        if hex[0] == "'":
+            hex = hex[1:]
+        if hex[0] == "s" or hex[0] == "S":
+            hex = hex[1:]
+        if hex == "h" or hex == "H":
+            hex = hex[1:]
+            
+        ret = ExprNumLiteral(
+            int(hex.replace("_",""), 16),
+            ctx.getText())
+        
+        return ret
+    
+    def visitBased_dec_number(self, ctx:PSSParser.Based_dec_numberContext):
+        dec = ctx.BASED_HEX_LITERAL().getText()
+        if dec[0] == "'":
+            dec = dec[1:]
+        if dec[0] == "s" or dec[0] == "S":
+            dec = dec[1:]
+        if dec == "d" or dec == "D":
+            dec = dec[1:]
+        ret = ExprNumLiteral(
+            int(dec.replace("_",""), 10),
+            ctx.getText())
+        
+        return ret
+    
+    def visitBased_oct_number(self, ctx:PSSParser.Based_oct_numberContext):
+        oct = ctx.BASED_HEX_LITERAL().getText()
+        if oct[0] == "'":
+            oct = oct[1:]
+        if oct[0] == "s" or oct[0] == "S":
+            oct = oct[1:]
+        if oct == "o" or oct == "O":
+            oct = oct[1:]
+        ret = ExprNumLiteral(
+            int(oct.replace("_",""), 8),
+            ctx.getText())
+        
+        return ret
+    
+    def visitDec_number(self, ctx:PSSParser.Dec_numberContext):
+        ret = ExprNumLiteral(
+            int(ctx.getText().replace("_",""), 10),
+            ctx.getText())
+        return ret
+    
+    def visitOct_number(self, ctx:PSSParser.Oct_numberContext):
+        val = ctx.getText()
+        if len(val) > 1:
+            val = val[1:].replace("_","")
+        ret = ExprNumLiteral(
+            int(val, 8),
+            ctx.getText())
+        
+        return ret
+    
+    def visitHex_number(self, ctx:PSSParser.Oct_numberContext):
+        ret = ExprNumLiteral(
+            int(ctx.getText()[2:].replace("_",""), 8),
+            ctx.getText())
+        
+        return ret
     
     def visitBool_literal(self, ctx:PSSParser.Bool_literalContext):
         return ExprBoolLiteral(ctx.getText() == "true")
@@ -816,7 +879,6 @@ class CUParser(PSSVisitor, ErrorListener):
             
             if ctx.expression(1) is not None:
                 ret.rhs = ctx.expression(1).accept(self)
-            
             
         return ret
     
