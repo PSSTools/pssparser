@@ -105,7 +105,8 @@ state_type_identifier: type_identifier;
 
 stream_type_identifier: type_identifier;
 
-filename_string: DOUBLE_QUOTED_STRING;
+// Move to LexicalRules
+//filename_string: DOUBLE_QUOTED_STRING;
 
 
 bool_literal:

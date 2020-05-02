@@ -55,6 +55,7 @@ class LinkVisitor(TypeModelVisitor):
     """Implements linking from references to relevant declarations"""
     
     def __init__(self, cu_l):
+        super().__init__()
         self.phase = LinkPhase.GlobalDecls
         self.scope_s : List[DeclScope] = [DeclScope(self)]
         self.cu_l = cu_l

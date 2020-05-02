@@ -61,6 +61,17 @@ from pssparser.model.expr_function_call import ExprFunctionCall
 from pssparser.model.expr_cast import ExprCast
 from pssparser.model.expr_method_call import ExprMethodCall
 import traceback
+from pssparser.model.field_flow_object_claim import FieldFlowObjectClaim
+from pssparser.model.field_resource_claim import FieldResourceClaim
+from pssparser.model.field_action_handle import FieldActionHandle
+from pssparser.model.covergroup import Covergroup
+from pssparser.model.covergroup_port import CovergroupPort
+from pssparser.model.covergroup_option import CovergroupOption
+from pssparser.model.covergroup_coverpoint import CovergroupCoverpoint
+from pssparser.model.covergroup_inline import CovergroupInline
+from _io import StringIO
+from antlr4.InputStream import InputStream
+from pssparser.model.exec_target_template_ref import ExecTargetTemplateRef
 
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -219,19 +230,15 @@ class CUParser(PSSVisitor, ErrorListener):
 
         for c in cu_model.portable_stimulus_description():
             if c.package_body_item() is not None:
-                print("package_body_item: " + str(c.package_body_item()))
                 it = c.package_body_item().accept(self)
             elif c.package_declaration() is not None:
-                print("package_declaration")
                 it = c.package_declaration().accept(self)
             elif c.component_declaration() is not None:
-                print("component_declaration")
                 it = c.component_declaration().accept(self)
             else:
                 print("None of the above")
                 it = None
                 
-            print("it=" + str(it))
             if it is not None:
                 if isinstance(it, list):
                     for ii in it:
@@ -239,20 +246,6 @@ class CUParser(PSSVisitor, ErrorListener):
                 else:
                     cu.add_child(it)
                     
-#         for c in cu_model.portable_stimulus_description():
-#             cu_elem = c.accept(self)
-#             
-#             self.check_elem(cu_elem, c)
-# 
-#             # Don't add packages now
-#             if isinstance(cu_elem, PackageType):
-#                 # Add a package to the compilation unit the first we see it`
-#                 if not cu_elem.name in self._package_m.keys():
-#                     self._package_m[cu_elem.name] = cu_elem
-#                     cu.add_child(cu_elem)
-#             else:
-#                 cu.add_elem(cu_elem)
-        
         return cu
     
     def _get_typescope(self):
@@ -321,6 +314,54 @@ class CUParser(PSSVisitor, ErrorListener):
         
         return ret
     
+    def visitFlow_ref_declaration(self, ctx:PSSParser.Flow_ref_declarationContext):
+        ret = []
+        is_input = ctx.is_input is not None
+        flow_object_type = ctx.flow_object_type().accept(self)
+        
+        for r in ctx.object_ref_field():
+            ret.append(FieldFlowObjectClaim(
+                r.identifier().accept(self),
+                is_input,
+                flow_object_type,
+                None if r.array_dim() is None else r.array_dim().accept(self)))
+        
+        return ret
+    
+    def visitResource_ref_declaration(self, ctx:PSSParser.Resource_ref_declarationContext):
+        ret = []
+        is_lock = ctx.lock is not None
+        resource_object_type = ctx.resource_object_type().accept(self)
+        
+        for r in ctx.object_ref_field():
+            ret.append(FieldResourceClaim(
+                r.identifier().accept(self),
+                is_lock,
+                resource_object_type,
+                None if r.array_dim() is None else r.array_dim().accept(self)))
+        
+        return ret
+    
+    def visitAction_handle_declaration(self, ctx:PSSParser.Action_handle_declarationContext):
+        ret = []
+        action_type = ctx.action_type_identifier().accept(self)
+        
+        for ai in ctx.action_instantiation():
+            ret.append(FieldActionHandle(
+                ai.action_identifier().accept(self),
+                action_type,
+                None if ai.array_dim() is None else ai.array_dim().accept(self)))
+
+        return ret
+    
+    def visitActivity_data_field(self, ctx:PSSParser.Activity_data_fieldContext):
+        ret = ctx.data_declaration().accept(self)
+        
+        for f in ret:
+            f.flags |= FieldAttrFlags.Action
+        
+        return ret
+    
     def visitExec_block(self, ctx:PSSParser.Exec_blockContext):
         ret = ExecBlockProceduralInterface(
             ExecKind[ctx.exec_kind_identifier().getText()])
@@ -342,21 +383,86 @@ class CUParser(PSSVisitor, ErrorListener):
         return ret
     
     def visitTarget_code_exec_block(self, ctx:PSSParser.Target_code_exec_blockContext):
-        # TODO: do we need to massage the content string?
+        content = ctx.string().getText()
+        
+        if content.startswith("\"\"\""):
+            content = content[3:]
+            content = content[:-3]
+        elif content.startsWith("\""):
+            content = content[1:]
+            content = content[:-1]
+        
         ret = ExecBlockTargetTemplate(
             ExecKind[ctx.exec_kind_identifier().getText()], 
             ctx.language_identifier().getText(),
-            ctx.string())
-        
+            content)
+
+        # Parse the target-template exec string to extract
+        # out mustache references        
+        i=0
+        while i < len(content):
+            ref_start_idx = content.find("{{", i)
+            
+            if ref_start_idx != -1:
+                ref_end_idx = content.find("}}", ref_start_idx)
+                ref = content[ref_start_idx+2:ref_end_idx]
+                lexer = PSSLexer(InputStream(ref))
+                stream = CommonTokenStream(lexer)
+                parser = PSSParser(stream)
+                expr_ast = parser.expression()
+                expr = expr_ast.accept(self)
+                
+                ret.refs.append(ExecTargetTemplateRef(
+                    ref_start_idx,
+                    ref_end_idx+1,
+                    expr))
+                
+            else:
+                break
+            
+            i = ref_start_idx+1
+            
         return ret
     
     def visitTarget_file_exec_block(self, ctx:PSSParser.Target_file_exec_blockContext):
-        # TODO: do we need to massage the content string?
+        content = ctx.string().getText()
+        
+        if content.startswith("\"\"\""):
+            content = content[3:]
+            content = content[:-3]
+        elif content.startsWith("\""):
+            content = content[1:]
+            content = content[:-1]
+            
         ret = ExecBlockFile(
             ctx.filename_string().getText(),
             ctx.string().getText()
             )
-
+        # Parse the target-template exec string to extract
+        # out mustache references        
+        i=0
+        while i < len(content):
+            ref_start_idx = content.find("{{", i)
+            
+            if ref_start_idx != -1:
+                ref_end_idx = content.find("}}", ref_start_idx)
+                ref = content[ref_start_idx+2:ref_end_idx]
+                lexer = PSSLexer(InputStream(ref))
+                stream = CommonTokenStream(lexer)
+                parser = PSSParser(stream)
+                expr_ast = parser.expression()
+                expr = expr_ast.accept(self)
+                
+                ret.refs.append(ExecTargetTemplateRef(
+                    ref_start_idx,
+                    ref_end_idx+1,
+                    expr))
+                
+            else:
+                break
+            
+            i = ref_start_idx+1
+            
         return ret
     
     
@@ -674,6 +780,7 @@ class CUParser(PSSVisitor, ErrorListener):
         rhs_e = None if ctx.rhs is None else ctx.rhs.accept(self)
 
         if ctx.unary_op() is not None:
+            print("UnaryExpr")
             op = {
                 "+" : UnaryOp.Plus,
                 "-" : UnaryOp.Minus,
@@ -776,6 +883,14 @@ class CUParser(PSSVisitor, ErrorListener):
         
         return ret
     
+    def visitInside_expr_term(self, ctx:PSSParser.Inside_expr_termContext):
+        ret = ExprOpenRangeList()
+        
+        for r in ctx.open_range_list().open_range_value():
+            ret.val_l.append(r.accept(self))
+        
+        return ret
+    
     def visitPrimary(self, ctx:PSSParser.PrimaryContext):
         if ctx.is_super is not None:
             # TODO:
@@ -845,7 +960,7 @@ class CUParser(PSSVisitor, ErrorListener):
     
     def visitHex_number(self, ctx:PSSParser.Oct_numberContext):
         ret = ExprNumLiteral(
-            int(ctx.getText()[2:].replace("_",""), 8),
+            int(ctx.getText()[2:].replace("_",""), 16),
             ctx.getText())
         
         return ret
@@ -1265,6 +1380,7 @@ class CUParser(PSSVisitor, ErrorListener):
         
         return ret
     
+    
     def visitUnique_constraint_item(self, ctx:PSSParser.Unique_constraint_itemContext):
         ret = ConstraintUnique(
             ctx.hierarchical_id_list().accept(self))
@@ -1278,6 +1394,58 @@ class CUParser(PSSVisitor, ErrorListener):
         return ConstraintImplies(
             ctx.expression().accept(self),
             ctx.constraint_set().accept(self))
+        
+    #****************************************************************
+    #* B11 Coverage
+    #****************************************************************
+    
+    def visitCovergroup_declaration(self, ctx:PSSParser.Covergroup_declarationContext):
+        ret = Covergroup(
+            ctx.covergroup_identifier().accept(self))
+        
+        for p in ctx.covergroup_port():
+            ret.ports.append(CovergroupPort(
+                p.identifier().accept(self),
+                p.data_type().accept(self)))
+            
+        for i in ctx.covergroup_body_item():
+            it = i.accept(self)
+            
+            if it is not None:
+                ret.body_items.append(it)
+        
+        return ret
+    
+    def visitCovergroup_option(self, ctx:PSSParser.Covergroup_optionContext):
+        ret = CovergroupOption(
+            ctx.identifier().accept(self),
+            ctx.constant_expression().accept(self))
+        
+        return ret
+    
+    def visitInline_covergroup(self, ctx:PSSParser.Inline_covergroupContext):
+        ret = CovergroupInline(ctx.identifier().accept(self))
+        
+        for i in ctx.covergroup_body_item():
+            it = i.accept(self)
+            if it is not None:
+                ret.body_items.append(it)
+        
+        return ret
+    
+    def visitCovergroup_coverpoint(self, ctx:PSSParser.Covergroup_coverpointContext):
+        ret = CovergroupCoverpoint(
+            None if ctx.data_type() is None else ctx.data_type().accept(self),
+            None if ctx.coverpoint_identifier() is None else ctx.coverpoint_identifier().accept(self),
+            ctx.expression(0).accept(self), # target
+            None if ctx.expression(1) is None else ctx.expression(1).accept(self))
+
+        for b in ctx.bins_or_empty().covergroup_coverpoint_body_item():
+            bi = b.accept(self)
+            if bi is not None:
+                ret.bins.append(bi)
+        
+        return ret
         
     #****************************************************************
     #* B12 Conditional Compile
@@ -1392,9 +1560,6 @@ class CUParser(PSSVisitor, ErrorListener):
         
         return ret;
     
-    def visitCast_expression(self, ctx:PSSParser.Cast_expressionContext):
-        # TODO:
-        return PSSVisitor.visitCast_expression(self, ctx)
     
     def visitOpen_range_list(self, ctx:PSSParser.Open_range_listContext):
         ret = ExprOpenRangeList()

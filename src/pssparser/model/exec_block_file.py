@@ -28,6 +28,7 @@ class ExecBlockFile(object):
     def __init__(self, filename, content):
         self.filename = filename
         self.content = content
+        self.refs = []
         
     def accept(self, v):
         v.visit_exec_block_file(self)

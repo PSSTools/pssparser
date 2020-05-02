@@ -111,14 +111,20 @@ access_modifier:
 attr_group:
 	access_modifier ':'
 	;
-	
+
+// NOTE: refactored grammar
 action_handle_declaration:
-	action_type_identifier action_instantiation ';'
+	action_type_identifier action_instantiation (',' action_instantiation)* ';'
 	;
 	
 action_instantiation:
-	ids+=action_identifier (array_dim)? (',' ids+=action_identifier (array_dim)? )*
+	action_identifier array_dim?
 	;
+	
+//action_instantiation:
+//	ids+=action_identifier (array_dim)? (',' ids+=action_identifier (array_dim)? )*
+//	;
+
 
 activity_data_field:
 	'action' data_declaration
@@ -134,8 +140,8 @@ action_scheduling_constraint:
 
 exec_block_stmt:
 	exec_block 
-	| target_code_exec_block 
 	| target_file_exec_block
+	| target_code_exec_block 
 // >>= PSS 1.1
     | ';'
 // <<= PSS 1.1
@@ -178,7 +184,7 @@ target_code_exec_block:
 ;
 
 target_file_exec_block:
-	'exec' 'file' filename_string '=' string ';'
+	'exec' 'file' filename_string /*'=' string */';'
 ;
 
 	

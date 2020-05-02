@@ -33,6 +33,8 @@ ML_COMMENT	: '/*' .*? '*/' -> channel (HIDDEN) ;
  
 string: DOUBLE_QUOTED_STRING | TRIPLE_DOUBLE_QUOTED_STRING;
 
+filename_string: DOUBLE_QUOTED_STRING;
+
 DOUBLE_QUOTED_STRING	: '"' (~ [\n\r])* '"' ;
 
 // TODO: unescaped_character, escaped_character

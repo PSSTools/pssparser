@@ -32,7 +32,7 @@ class TypeIdentifier(object):
         self.path : List[TypeIdentifierElem] = []
         self.target = None
         
-    def __str__(self):
+    def toString(self):
         return "::".join(map(lambda e:e.ref.id, self.path))
         
     def accept(self, v):

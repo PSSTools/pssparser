@@ -33,6 +33,7 @@ class FieldAttrFlags(IntFlag):
     Static = auto()
     Const = auto()
     Rand = auto()
+    Action = auto()
     
 
 class FieldAttr(Field):
@@ -40,13 +41,11 @@ class FieldAttr(Field):
     def __init__(self,
                 name : ExprId,
                 flags : FieldAttrFlags,
-                is_rand : bool,
                 ftype : DataType,
                 array_dim : ExprType,
                 init_expr : ExprType):
         super().__init__(name)
         self.flags = flags
-        self.is_rand = is_rand
         self.ftype = ftype
         self.array_dim = array_dim
         self.init_expr = init_expr

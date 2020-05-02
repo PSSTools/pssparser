@@ -31,4 +31,4 @@ class ExprHierarchicalIdList(ExprType):
         self.hid_l = hid_l if hid_l is not None else []
         
     def accept(self, v):
-        v.visit_expr_hierarchial_id_list(self)
+        v.visit_expr_hierarchical_id_list(self)

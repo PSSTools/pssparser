@@ -29,6 +29,7 @@ class ExecBlockTargetTemplate(ExecBlock):
         super().__init__(kind)
         self.language = language
         self.content = content
+        self.refs = []
         
 
     def accept(self, v):

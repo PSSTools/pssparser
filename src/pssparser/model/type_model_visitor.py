@@ -1,4 +1,3 @@
-
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from pssparser.model.expr_unary import ExprUnary
 
 '''
 Created on Mar 9, 2020
@@ -240,7 +240,44 @@ class TypeModelVisitor(object):
         
     def visit_constraint_unique(self, c):
         c.hid_l.accept(self)
+
+    def visit_covergroup(self, c):
+        c.name.accept(self)
+        for p in c.ports:
+            p.accept(self)
+            
+        for it in c.body_items:
+            it.accept(self)
+            
+    def visit_covergroup_coverpoint(self, p):
+        if p.data_type is not None:
+            p.data_type.accept(self)
+        if p.name is not None:
+            p.name.accept(self)
+        p.target.accept(self)
+        if p.iff is not None:
+            p.iff.accept(self)
         
+        for b in p.bins:
+            b.accept(self)
+            
+    def visit_covergroup_coverpoint_binspec(self, b):
+        self.name.accept(self)
+        if b.array_spec is not None:
+            b.array_spec.accept(self)
+            
+    def visit_covergroup_inline(self, c):
+        c.name.accept(self)
+        for i in c.body_items:
+            i.accept(self)
+            
+    def visit_covergroup_option(self, o):
+        o.name.accept(self)
+        o.value.accept(self)
+            
+    def visit_covergroup_port(self, p):
+        p.name.accept(self)
+        p.data_type.accept(self)
 
     def visit_package(self, p):
         self.visit_composite_type(p)
@@ -332,9 +369,12 @@ class TypeModelVisitor(object):
             
     def visit_exec_block_target_template(self, e):
         self.visit_exec(e)
+        for r in e.refs:
+            r.accept(self)
     
     def visit_exec_block_file(self, e):
-        pass
+        for r in e.refs:
+            r.accept(self)
     
     def visit_exec_block_procedural_interface(self, e):
         self.visit_exec(e)
@@ -410,6 +450,9 @@ class TypeModelVisitor(object):
         
         if s.stmt is not None:
             s.stmt.accept(self)
+            
+    def visit_exec_target_template_ref(self, r):
+        r.expr.accept(self)
     
     def visit_expr_bin(self, e):
         e.lhs.accept(self)
@@ -497,7 +540,7 @@ class TypeModelVisitor(object):
             if r.rhs is not None:
                 r.rhs.accept(self)
         
-    def visit_expr_unary(self, e):
+    def visit_expr_unary(self, e : ExprUnary):
         e.expr.accept(self)
         
     def visit_extend_stmt(self, e):
@@ -507,6 +550,12 @@ class TypeModelVisitor(object):
     def visit_field(self, f):
         f.name.accept(self)
         
+    def visit_field_action_handle(self, f):
+        self.visit_field(f)
+        f.action_type.accept(self)
+        if f.array_dim is not None:
+            f.array_dim.accept(self)
+            
     def visit_field_attr(self, f):
         self.visit_field(f)
         f.ftype.accept(self)
@@ -517,6 +566,12 @@ class TypeModelVisitor(object):
         if f.init_expr is not None:
             f.init_expr.accept(self)
             
+    def visit_field_flow_object_claim(self, f):
+        self.field_field(f)
+        f.flow_object_type.accept(self)
+        if f.array_dim is not None:
+            f.array_dim.accept(self)
+            
     def visit_field_pool(self, p):
         self.visit_field(p)
         
@@ -524,6 +579,12 @@ class TypeModelVisitor(object):
         
         if p.size is not None:
             p.size.accept(self)
+    
+    def visit_field_resource_claim(self, c):
+        self.field_field(c)
+        c.resource_object_type.accept(self)
+        if c.array_dim is not None:
+            c.array_dim.accept(self)
             
     def visit_function_definition(self, f):
         f.prototype.accept(self)
