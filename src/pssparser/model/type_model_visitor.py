@@ -339,7 +339,8 @@ class TypeModelVisitor(object):
         pass
             
     def visit_data_type_user(self, t):
-        t.typeid.accept(self)
+        print("t=" + str(t) + " tid=" + str(t.tid))
+        t.tid.accept(self)
         
     def visit_domain_open_range_list(self, rl):
         for e in rl.rangelist:
@@ -581,7 +582,7 @@ class TypeModelVisitor(object):
             p.size.accept(self)
     
     def visit_field_resource_claim(self, c):
-        self.field_field(c)
+        self.visit_field(c)
         c.resource_object_type.accept(self)
         if c.array_dim is not None:
             c.array_dim.accept(self)
@@ -622,6 +623,11 @@ class TypeModelVisitor(object):
     def visit_override_stmt_inst(self, o):
         o.target.accept(self)
         o.override.accept(self)
+        
+    def visit_pool_bind_stmt(self, b):
+        b.pool.accept(self)
+        for bind in b.bindlist:
+            bind.accept(self)
         
     def visit_struct_type(self, s):
         self.visit_composite_type(s)

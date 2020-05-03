@@ -31,8 +31,7 @@ class TestExecBlocks(TestCase):
         text = '''
         component pss_top {
             action entry_a {
-                exec file "foo" = """content""";
-                
+                exec file "foo" = "content"
                 ;
             }
         }

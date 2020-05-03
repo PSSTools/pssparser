@@ -18,6 +18,14 @@
  ****************************************************************************/
 
 grammar Action;
+import B01_Package, B03_Struct, B04_PI,
+	B05_Component, B06_ActivityStatements, B07_Overrides,
+	B08_DataDeclarations, B09_DataTypes, B09_TemplateTypes,
+	B10_Constraint,
+	B11_Coverage, B12_ConditionalCompile, B13_Expressions,
+	B14_Identifiers, B15_Numbers, B16_LexicalRules,
+	ImportClass, ExportAction
+	;
 
 action_declaration:
 	'action' action_identifier template_param_decl_list? (action_super_spec)? 
@@ -139,12 +147,9 @@ action_scheduling_constraint:
 // Exec
 
 exec_block_stmt:
-	exec_block 
-	| target_file_exec_block
+	target_file_exec_block
+	| exec_block 
 	| target_code_exec_block 
-// >>= PSS 1.1
-    | ';'
-// <<= PSS 1.1
 	;
 	
 exec_block:
@@ -184,7 +189,7 @@ target_code_exec_block:
 ;
 
 target_file_exec_block:
-	'exec' 'file' filename_string /*'=' string */';'
+	'exec' 'file' filename_string '=' string ';'
 ;
 
 	

@@ -6,7 +6,8 @@ Created on Apr 22, 2020
 
 class ComponentPath(object):
     
-    def __init__(self):
+    def __init__(self, is_wildcard):
+        self.is_wildcard = is_wildcard
         self.path_elements = []
         
     def accept(self, v):

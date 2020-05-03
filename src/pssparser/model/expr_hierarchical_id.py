@@ -31,7 +31,7 @@ class ExprHierarchicalId(ExprType):
         super().__init__()
         self.path_l = p if p is not None else []
         
-    def __str__(self):
+    def toString(self):
         return ".".join(map(lambda e:str(e), self.path_l))
         
         

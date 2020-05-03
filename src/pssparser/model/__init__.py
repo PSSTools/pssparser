@@ -17,7 +17,12 @@
 
 from .action_type import ActionType
 from .activity import Activity
+
+from .activity_stmt_parallel import ActivityStmtParallel
+from .activity_stmt_sequence import ActivityStmtSequence
 from .activity_stmt_traverse_type import ActivityStmtTraverseType
+from .activity_stmt_traverse_handle import ActivityStmtTraverseHandle
+
 from .component_type import ComponentType
 from .field import Field
 from .field_attr import FieldAttr
@@ -27,7 +32,9 @@ from .constraint_expression import ConstraintExpression
 from .constraint_if_else import ConstraintIfElse
 from .constraint_implies import ConstraintImplies
 from .constraint_unique import ConstraintUnique
+
 from .data_type_scalar import DataTypeScalar
+from .data_type_user import DataTypeUser
 
 from .exec_kind import ExecKind
 from .exec_block_procedural_interface import ExecBlockProceduralInterface
@@ -42,6 +49,7 @@ from .expr_bool_literal import ExprBoolLiteral
 from .expr_cast import ExprCast
 from .expr_cond_type import ExprCondType
 from .expr_hierarchical_id import ExprHierarchicalId
+from .expr_id import ExprId
 from .expr_in import ExprIn
 from .expr_function_call import ExprFunctionCall
 from .expr_method_call import ExprMethodCall
@@ -51,6 +59,15 @@ from .expr_num_literal import ExprNumLiteral
 from .expr_unary import ExprUnary
 from .expr_unary import UnaryOp
 
+from .field_pool import FieldPool
+from .field_resource_claim import FieldResourceClaim
+
 from .type_identifier import TypeIdentifier
 
 from .method_prototype import MethodPrototype
+
+from .pool_bind_stmt import PoolBindStmt
+
+from .resource_type import ResourceType
+from .struct_type import StructType
+

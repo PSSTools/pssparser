@@ -72,6 +72,8 @@ from pssparser.model.covergroup_inline import CovergroupInline
 from _io import StringIO
 from antlr4.InputStream import InputStream
 from pssparser.model.exec_target_template_ref import ExecTargetTemplateRef
+from pssparser.model.component_path import ComponentPath
+from pssparser.model.component_path_elem import ComponentPathElem
 
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -190,6 +192,7 @@ from pssparser.model.compile_assert import CompileAssert
 class CUParser(PSSVisitor, ErrorListener):
     
     class ScopeTracker(object):
+
         def __init__(self, parser, name, scope):
             self.parser = parser
             self.name = name
@@ -252,7 +255,7 @@ class CUParser(PSSVisitor, ErrorListener):
         return self._typescope_s[-1] if len(self._typescope_s) > 0 else None
 
     #****************************************************************
-    #* B02 Action
+    # * B02 Action
     #****************************************************************
         
     def visitAction_declaration(self, ctx:PSSParser.Action_declarationContext):
@@ -393,19 +396,19 @@ class CUParser(PSSVisitor, ErrorListener):
             content = content[:-1]
         
         ret = ExecBlockTargetTemplate(
-            ExecKind[ctx.exec_kind_identifier().getText()], 
+            ExecKind[ctx.exec_kind_identifier().getText()],
             ctx.language_identifier().getText(),
             content)
 
         # Parse the target-template exec string to extract
         # out mustache references        
-        i=0
+        i = 0
         while i < len(content):
             ref_start_idx = content.find("{{", i)
             
             if ref_start_idx != -1:
                 ref_end_idx = content.find("}}", ref_start_idx)
-                ref = content[ref_start_idx+2:ref_end_idx]
+                ref = content[ref_start_idx + 2:ref_end_idx]
                 lexer = PSSLexer(InputStream(ref))
                 stream = CommonTokenStream(lexer)
                 parser = PSSParser(stream)
@@ -414,13 +417,13 @@ class CUParser(PSSVisitor, ErrorListener):
                 
                 ret.refs.append(ExecTargetTemplateRef(
                     ref_start_idx,
-                    ref_end_idx+1,
+                    ref_end_idx + 1,
                     expr))
                 
             else:
                 break
             
-            i = ref_start_idx+1
+            i = ref_start_idx + 1
             
         return ret
     
@@ -440,13 +443,13 @@ class CUParser(PSSVisitor, ErrorListener):
             )
         # Parse the target-template exec string to extract
         # out mustache references        
-        i=0
+        i = 0
         while i < len(content):
             ref_start_idx = content.find("{{", i)
             
             if ref_start_idx != -1:
                 ref_end_idx = content.find("}}", ref_start_idx)
-                ref = content[ref_start_idx+2:ref_end_idx]
+                ref = content[ref_start_idx + 2:ref_end_idx]
                 lexer = PSSLexer(InputStream(ref))
                 stream = CommonTokenStream(lexer)
                 parser = PSSParser(stream)
@@ -455,16 +458,15 @@ class CUParser(PSSVisitor, ErrorListener):
                 
                 ret.refs.append(ExecTargetTemplateRef(
                     ref_start_idx,
-                    ref_end_idx+1,
+                    ref_end_idx + 1,
                     expr))
                 
             else:
                 break
             
-            i = ref_start_idx+1
+            i = ref_start_idx + 1
             
         return ret
-    
     
     def visitAttr_field(self, ctx:PSSParser.Attr_fieldContext):
         ret = ctx.data_declaration().accept(self)
@@ -476,7 +478,7 @@ class CUParser(PSSVisitor, ErrorListener):
         return ret
     
     #****************************************************************
-    #* B03 Struct
+    # * B03 Struct
     #****************************************************************
     
     def visitStruct_declaration(self, ctx:PSSParser.Struct_declarationContext):
@@ -487,14 +489,13 @@ class CUParser(PSSVisitor, ErrorListener):
             "state" :  StateType,
             "resource" : ResourceType}[ctx.struct_kind().getText()]
              
-        name = self._get_type_qname(ctx.identifier())
         ret = s_ctor(
-            name,
+            ctx.identifier().accept(self),
             None if ctx.template_param_decl_list() is None else ctx.template_param_decl_list().accept(self),
             None if ctx.struct_super_spec() is None else ctx.struct_super_spec().accept(self)
             )
         
-        with self._typescope(name, ret):
+        with self._typescope(ret.name, ret):
             for i in ctx.struct_body_item():
                 s_elem = i.accept(self)
                 if s_elem is not None:
@@ -503,12 +504,11 @@ class CUParser(PSSVisitor, ErrorListener):
                             ret.add_child(e)
                     else:
                         ret.add_child(s_elem)
-
             
         return ret
     
     #****************************************************************
-    #* B04 PI
+    # * B04 PI
     #****************************************************************
     
     def visitFunction_decl(self, ctx:PSSParser.Function_declContext):
@@ -695,7 +695,7 @@ class CUParser(PSSVisitor, ErrorListener):
         return ret
     
     #****************************************************************
-    #* B04 Component
+    # * B04 Component
     #****************************************************************
     
     def visitComponent_declaration(self, ctx:PSSParser.Component_declarationContext):
@@ -741,7 +741,7 @@ class CUParser(PSSVisitor, ErrorListener):
         
         for id in ctx.identifier():
             field_l.append(FieldPool(
-                id,
+                id.accept(self),
                 typeid,
                 size))
                 
@@ -755,7 +755,30 @@ class CUParser(PSSVisitor, ErrorListener):
             ret.bindlist.append(p.accept(self))
             
         return ret
-
+    
+    def visitComponent_path(self, ctx:PSSParser.Component_pathContext):
+        if ctx.is_wildcard is not None:
+            ret = ComponentPath(True)
+        else:
+            ret = ComponentPath(False)
+            ret.path_elements.append(ComponentPathElem(
+                False, ctx.component_identifier().accept(self)))
+            
+            for e in ctx.component_path_elem():
+                ret.path_elements.append(e.accept(self))
+                
+        return ret
+    
+    def visitComponent_path_elem(self, ctx:PSSParser.Component_path_elemContext):
+        if ctx.is_wildcard is not None:
+            ret = ComponentPathElem(True, None, None)
+        else:
+            ret = ComponentPathElem(
+                False,
+                ctx.component_action_identifier().accept(self),
+                None if ctx.constant_expression() is None else ctx.constant_expression().accept(self))
+            
+        return ret
    
     def visitType_identifier(self, ctx:PSSParser.Type_identifierContext):
         ret = TypeIdentifier(ctx.is_global is not None)
@@ -879,7 +902,6 @@ class CUParser(PSSVisitor, ErrorListener):
             ret = ctx.primary().accept(self)
         else:
             print("Unknown expression op")
-            
         
         return ret
     
@@ -909,7 +931,7 @@ class CUParser(PSSVisitor, ErrorListener):
             hex = hex[1:]
             
         ret = ExprNumLiteral(
-            int(hex.replace("_",""), 16),
+            int(hex.replace("_", ""), 16),
             ctx.getText())
         
         return ret
@@ -923,7 +945,7 @@ class CUParser(PSSVisitor, ErrorListener):
         if dec == "d" or dec == "D":
             dec = dec[1:]
         ret = ExprNumLiteral(
-            int(dec.replace("_",""), 10),
+            int(dec.replace("_", ""), 10),
             ctx.getText())
         
         return ret
@@ -937,21 +959,21 @@ class CUParser(PSSVisitor, ErrorListener):
         if oct == "o" or oct == "O":
             oct = oct[1:]
         ret = ExprNumLiteral(
-            int(oct.replace("_",""), 8),
+            int(oct.replace("_", ""), 8),
             ctx.getText())
         
         return ret
     
     def visitDec_number(self, ctx:PSSParser.Dec_numberContext):
         ret = ExprNumLiteral(
-            int(ctx.getText().replace("_",""), 10),
+            int(ctx.getText().replace("_", ""), 10),
             ctx.getText())
         return ret
     
     def visitOct_number(self, ctx:PSSParser.Oct_numberContext):
         val = ctx.getText()
         if len(val) > 1:
-            val = val[1:].replace("_","")
+            val = val[1:].replace("_", "")
         ret = ExprNumLiteral(
             int(val, 8),
             ctx.getText())
@@ -960,7 +982,7 @@ class CUParser(PSSVisitor, ErrorListener):
     
     def visitHex_number(self, ctx:PSSParser.Oct_numberContext):
         ret = ExprNumLiteral(
-            int(ctx.getText()[2:].replace("_",""), 16),
+            int(ctx.getText()[2:].replace("_", ""), 16),
             ctx.getText())
         
         return ret
@@ -1078,7 +1100,7 @@ class CUParser(PSSVisitor, ErrorListener):
         return ret
     
     #****************************************************************
-    #* B06 Activity Statements
+    # * B06 Activity Statements
     #****************************************************************
     def visitActivity_stmt(self, ctx:PSSParser.Activity_stmtContext):
         s = PSSVisitor.visitActivity_stmt(self, ctx)
@@ -1179,7 +1201,6 @@ class CUParser(PSSVisitor, ErrorListener):
                 ctx.expression().accept(self),
                 ctx.activity_stmt().accept(self))
             
-            
         return ret
     
     def visitActivity_replicate_stmt(self, ctx:PSSParser.Activity_replicate_stmtContext):
@@ -1213,7 +1234,9 @@ class CUParser(PSSVisitor, ErrorListener):
                 ctx.type_identifier().accept(self),
                 None if ctx.constraint_set() is None else ctx.constraint_set().accept(self))
         else:
-            path = ExprVarRefPath(ExprHierarchicalId([ctx.identifier()]))
+            path = ExprVarRefPath(ExprHierarchicalId([
+                ExprHierarchicalIdElem(ctx.identifier().accept(self))
+                ]))
             
             if ctx.expression() is not None:
                 path.lhs = ctx.expression().accept(self)
@@ -1267,7 +1290,7 @@ class CUParser(PSSVisitor, ErrorListener):
         return ret
     
     #****************************************************************
-    #* B07 Activity Statements
+    # * B07 Activity Statements
     #****************************************************************
     def visitOverrides_declaration(self, ctx:PSSParser.Overrides_declarationContext):
         ret = OverrideBlock()
@@ -1294,7 +1317,7 @@ class CUParser(PSSVisitor, ErrorListener):
         return ret
     
     #****************************************************************
-    #* B10 Constraints
+    # * B10 Constraints
     #****************************************************************
     
     def visitConstraint_declaration(self, ctx:PSSParser.Constraint_declarationContext):
@@ -1380,7 +1403,6 @@ class CUParser(PSSVisitor, ErrorListener):
         
         return ret
     
-    
     def visitUnique_constraint_item(self, ctx:PSSParser.Unique_constraint_itemContext):
         ret = ConstraintUnique(
             ctx.hierarchical_id_list().accept(self))
@@ -1396,7 +1418,7 @@ class CUParser(PSSVisitor, ErrorListener):
             ctx.constraint_set().accept(self))
         
     #****************************************************************
-    #* B11 Coverage
+    # * B11 Coverage
     #****************************************************************
     
     def visitCovergroup_declaration(self, ctx:PSSParser.Covergroup_declarationContext):
@@ -1437,7 +1459,7 @@ class CUParser(PSSVisitor, ErrorListener):
         ret = CovergroupCoverpoint(
             None if ctx.data_type() is None else ctx.data_type().accept(self),
             None if ctx.coverpoint_identifier() is None else ctx.coverpoint_identifier().accept(self),
-            ctx.expression(0).accept(self), # target
+            ctx.expression(0).accept(self),  # target
             None if ctx.expression(1) is None else ctx.expression(1).accept(self))
 
         for b in ctx.bins_or_empty().covergroup_coverpoint_body_item():
@@ -1448,7 +1470,7 @@ class CUParser(PSSVisitor, ErrorListener):
         return ret
         
     #****************************************************************
-    #* B12 Conditional Compile
+    # * B12 Conditional Compile
     #****************************************************************
     
     def visitPackage_body_compile_if(self, ctx:PSSParser.Package_body_compile_ifContext):
@@ -1560,7 +1582,6 @@ class CUParser(PSSVisitor, ErrorListener):
         
         return ret;
     
-    
     def visitOpen_range_list(self, ctx:PSSParser.Open_range_listContext):
         ret = ExprOpenRangeList()
         
@@ -1576,7 +1597,6 @@ class CUParser(PSSVisitor, ErrorListener):
         ret = ExprOpenRangeValue(lhs, rhs)
         
         return ret
-    
     
     def visitExtend_stmt(self, ctx:PSSParser.Extend_stmtContext):
 
@@ -1614,7 +1634,7 @@ class CUParser(PSSVisitor, ErrorListener):
         return ext
     
     #****************************************************************
-    #* B01 Package
+    # * B01 Package
     #****************************************************************
     
     def visitImport_stmt(self, ctx:PSSParser.Import_stmtContext):
@@ -1674,9 +1694,9 @@ class CUParser(PSSVisitor, ErrorListener):
     def visitConst_data_instantiation(self, ctx:PSSParser.Const_data_instantiationContext):
         ret = FieldAttr(
             ctx.identifier().accept(self),
-            0, # Flags
-            None, # field-type
-            None, # array-dim
+            0,  # Flags
+            None,  # field-type
+            None,  # array-dim
             ctx.constant_expression().accept(self)
             )
         
@@ -1821,12 +1841,12 @@ class CUParser(PSSVisitor, ErrorListener):
     
     def visitUser_defined_datatype(self, ctx:PSSParser.User_defined_datatypeContext):
         ret = DataTypeUser(
-            ctx.type_identifier())
+            ctx.type_identifier().accept(self))
         
         return ret
 
     #****************************************************************    
-    #* B08 Data Declarations
+    # * B08 Data Declarations
     #****************************************************************    
     def visitData_declaration(self, ctx:PSSParser.Data_declarationContext):
         ret = []
@@ -1843,8 +1863,8 @@ class CUParser(PSSVisitor, ErrorListener):
     def visitData_instantiation(self, ctx:PSSParser.Data_instantiationContext):
         ret = FieldAttr(
             ctx.identifier().accept(self),
-            0, # No flags for now
-            None, # Type gets filled in later
+            0,  # No flags for now
+            None,  # Type gets filled in later
             None if ctx.array_dim() is None else ctx.array_dim().accept(self),
             None if ctx.constant_expression() is None else ctx.constant_expression().accept(self)
             )

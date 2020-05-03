@@ -25,9 +25,10 @@ from pssparser.model.data_type import DataType
 
 class DataTypeUser(DataType):
     
-    def __init__(self, typeid):
+    def __init__(self, tid):
         super().__init__()
-        self.typeid = typeid
+        self.tid = tid
         
     def accept(self, v):
+        print("DataTypeUser: self=" + str(self) + " v=" + str(v))
         v.visit_data_type_user(self)

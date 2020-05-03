@@ -155,7 +155,7 @@ class LinkVisitor(TypeModelVisitor):
         target = None
         
         for id in ref.hid.path_l:
-            if str(id.name) in scope.decl_m.keys():
+            if id.name.toString() in scope.decl_m.keys():
                 target = scope.decl_m[str(id.name)]
             else:
                 target = None
