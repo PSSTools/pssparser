@@ -10,7 +10,7 @@ trigger:
 jobs:
 - job: PyPi_Linux
   pool:
-   vmImage: 'ubuntu-18.04'
+   vmImage: 'ubuntu-latest'
 
   variables:
   - name: build_num
@@ -28,6 +28,7 @@ jobs:
   - script: |
       ls sys
       ls sys/portable-stimulus
+      sudo apt-get update
       sudo apt-get install default-jdk
     displayName: 'Install JDK'
   - script: |
