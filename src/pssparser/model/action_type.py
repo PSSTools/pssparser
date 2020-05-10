@@ -15,6 +15,13 @@
 # specific language governing permissions and limitations
 # under the License.
 from pssparser.model.expr_id import ExprId
+from pssparser.model.field_attr import FieldAttr, FieldAttrFlags
+from pssparser.model.data_type_user import DataTypeUser
+from pssparser.model.type_identifier import TypeIdentifier
+from pssparser.model.data_type_scalar import DataTypeScalar, ScalarType
+from portaskela.expr.expr_literalint_type import ExprLiteralIntType
+from pssparser.model.expr_num_literal import ExprNumLiteral
+from portaskela.pss.component import component
 
 '''
 Created on Feb 24, 2020
@@ -30,11 +37,33 @@ class ActionType(CompositeType):
     def __init__(
             self, 
             name : ExprId,
-            is_abstract,
+            component_type, # 
             template_params,
             super_type):
         super().__init__(name, template_params, super_type)
-        self.is_abstract = is_abstract
+        self.is_abstract = component_type is None
+        
+        if component_type is not None and super_type is None:
+            # Populate core fields
+            self.comp = FieldAttr(
+                ExprId("comp"),
+                FieldAttrFlags.CompHndl|FieldAttrFlags.Builtin,
+                DataTypeUser(component_type.getTypeIdentifier()),
+                None,
+                None)
+            self.add_child(self.comp)
+            self.comp_id = FieldAttr(
+                ExprId("comp_id"),
+                FieldAttrFlags.Rand|FieldAttrFlags.Builtin,
+                DataTypeScalar(
+                    ScalarType.Bit, 
+                    ExprNumLiteral(32, "32"), None, None),
+                None,
+                None)
+            self.add_child(self.comp_id)
+        else:
+            self.comp = None
+            self.comp_id = None
         
     def accept(self, v):
         v.visit_action(self)

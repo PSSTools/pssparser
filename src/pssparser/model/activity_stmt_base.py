@@ -26,5 +26,6 @@ class ActivityStmtBase(object):
     
     def __init__(self):
         self.label = None
+        self.data = None
         
         

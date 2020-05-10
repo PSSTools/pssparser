@@ -263,7 +263,7 @@ class CUParser(PSSVisitor, ErrorListener):
         name = ctx.action_identifier()
         ret = ActionType(
             ctx.action_identifier().accept(self),
-            False,
+            self._scope_s[-1],
             None if ctx.template_param_decl_list() is None else ctx.template_param_decl_list().accept(self),
             None if ctx.action_super_spec() is None else ctx.action_super_spec().accept(self))
         self._set_srcinfo(ret, ctx.start)
@@ -285,7 +285,7 @@ class CUParser(PSSVisitor, ErrorListener):
         name = ctx.action_identifier()
         ret = ActionType(
             self._get_type_qname(name),
-            True,
+            None,
             None if ctx.template_param_decl_list() is None else ctx.template_param_decl_list().accept(self),
             None if ctx.action_super_spec() is None else ctx.action_super_spec().accept(self))
         self._set_srcinfo(ret, ctx.start)
@@ -368,9 +368,11 @@ class CUParser(PSSVisitor, ErrorListener):
     def visitExec_block(self, ctx:PSSParser.Exec_blockContext):
         ret = ExecBlockProceduralInterface(
             ExecKind[ctx.exec_kind_identifier().getText()])
-        
+
+        print("visitExec_block")        
         for s in ctx.exec_stmt():
             stmt = s.accept(self)
+            print("  s=" + str(s) + " stmt=" + str(stmt))
             
             if stmt is not None:
                 if isinstance(stmt, list):
@@ -611,6 +613,7 @@ class CUParser(PSSVisitor, ErrorListener):
         return var_l
     
     def visitProcedural_expr_stmt(self, ctx:PSSParser.Procedural_expr_stmtContext):
+        print("--> visitProcedural_expr_stmt")
         if ctx.variable_ref_path() is not None:
             op = {
                 "=" : ExecAssignOp.Eq,
@@ -628,6 +631,7 @@ class CUParser(PSSVisitor, ErrorListener):
         else:
             ret = ExecStmtExpr(ctx.expression().accept(self))
 
+        print("<-- visitProcedural_expr_stmt")
         return ret   
     
     def visitProcedural_if_else_stmt(self, ctx:PSSParser.Procedural_if_else_stmtContext):
@@ -1009,13 +1013,14 @@ class CUParser(PSSVisitor, ErrorListener):
     def visitVariable_ref_path(self, ctx:PSSParser.Variable_ref_pathContext):
         hid = ctx.hierarchical_id().accept(self)
         
-        ret = ExprVarRefPath(hid)
-        
         if ctx.expression(0) is not None:
+            ret = ExprVarRefPath(hid)
             ret.lhs = ctx.expression(0).accept(self)
             
             if ctx.expression(1) is not None:
                 ret.rhs = ctx.expression(1).accept(self)
+        else:
+            ret = hid
             
         return ret
     
@@ -1861,6 +1866,7 @@ class CUParser(PSSVisitor, ErrorListener):
         return ret
 
     def visitData_instantiation(self, ctx:PSSParser.Data_instantiationContext):
+        print("--> visitData_instantiation " + ctx.identifier().accept(self).toString())
         ret = FieldAttr(
             ctx.identifier().accept(self),
             0,  # No flags for now
@@ -1869,6 +1875,7 @@ class CUParser(PSSVisitor, ErrorListener):
             None if ctx.constant_expression() is None else ctx.constant_expression().accept(self)
             )
         
+        print("<-- visitData_instantiation")
         return ret
     
     def check_elem(self, e, t):
