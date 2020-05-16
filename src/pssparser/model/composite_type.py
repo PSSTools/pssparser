@@ -40,9 +40,11 @@ class CompositeType(TypeScope):
         if c is not None:
             c.parent = self
             self.children.append(c)
+        return c
             
     def add_type(self, c):
         self.add_child(c)
+        return c
         
     def getTypeIdentifier(self):
         ret = TypeIdentifier(False)

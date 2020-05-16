@@ -19,9 +19,7 @@ from pssparser.model.field_attr import FieldAttr, FieldAttrFlags
 from pssparser.model.data_type_user import DataTypeUser
 from pssparser.model.type_identifier import TypeIdentifier
 from pssparser.model.data_type_scalar import DataTypeScalar, ScalarType
-from portaskela.expr.expr_literalint_type import ExprLiteralIntType
 from pssparser.model.expr_num_literal import ExprNumLiteral
-from portaskela.pss.component import component
 
 '''
 Created on Feb 24, 2020

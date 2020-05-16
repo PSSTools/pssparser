@@ -74,6 +74,8 @@ from antlr4.InputStream import InputStream
 from pssparser.model.exec_target_template_ref import ExecTargetTemplateRef
 from pssparser.model.component_path import ComponentPath
 from pssparser.model.component_path_elem import ComponentPathElem
+from antlr4.error.DiagnosticErrorListener import DiagnosticErrorListener
+from antlr4.Token import CommonToken
 
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -208,7 +210,8 @@ class CUParser(PSSVisitor, ErrorListener):
         lexer = PSSLexer(input_stream)
         stream = CommonTokenStream(lexer)
         self._parser = PSSParser(stream)
-#        self._parser.removeErrorListeners()
+        self._parser.removeErrorListeners()
+#        self._parser.addErrorListener(DiagnosticErrorListener())
         self._parser.addErrorListener(self)
 
         self._scope_s : List['CompositeType'] = []
@@ -259,11 +262,19 @@ class CUParser(PSSVisitor, ErrorListener):
     #****************************************************************
         
     def visitAction_declaration(self, ctx:PSSParser.Action_declarationContext):
+
+        # TODO: action can be inside a component, package, or extension
+        scope = self._scope_s[-1]
+        
+        if isinstance(scope, ComponentType):
+            component = scope
+        else:
+            component = None
         
         name = ctx.action_identifier()
         ret = ActionType(
             ctx.action_identifier().accept(self),
-            self._scope_s[-1],
+            component,
             None if ctx.template_param_decl_list() is None else ctx.template_param_decl_list().accept(self),
             None if ctx.action_super_spec() is None else ctx.action_super_spec().accept(self))
         self._set_srcinfo(ret, ctx.start)
@@ -766,7 +777,10 @@ class CUParser(PSSVisitor, ErrorListener):
         else:
             ret = ComponentPath(False)
             ret.path_elements.append(ComponentPathElem(
-                False, ctx.component_identifier().accept(self)))
+                False, 
+                ctx.component_identifier().accept(self),
+                None # TODO: do we need index?
+                ))
             
             for e in ctx.component_path_elem():
                 ret.path_elements.append(e.accept(self))
@@ -1885,7 +1899,17 @@ class CUParser(PSSVisitor, ErrorListener):
 #            print("Note: Failed to elaborate a \"" + str(type(t)) + "\" " + t.getText())
 #            raise Exception("Failed to elaborate a \"" + str(type(t)) + "\" " + t.getText())
     
-    def syntaxError(self, recognizer, offendingSymbol, line, column, msg, e):
+    def syntaxError(self, recognizer : PSSParser, offendingSymbol : CommonToken, line, column, msg, e):
+        print("syntaxError: " + offendingSymbol.text + " @ " + str(line) + ":" + str(column) + " " + msg)
+        expected = recognizer.getExpectedTokensWithinCurrentRule()
+        stack = recognizer.getRuleInvocationStack()
+        print("stack=" + str(stack))
+        for exp in expected:
+            print("    exp: " + str(exp))
+            if exp < len(recognizer.literalNames):
+                print("        Literal: " + str(recognizer.literalNames[exp]))
+            elif exp < len(recognizer.symbolicNames):
+                print("        Symbol: " + str(recognizer.symbolicNames[exp]))
         self._scope_s[-1].add_marker(Marker(line, column, msg))
         super().syntaxError(recognizer, offendingSymbol, line, column, msg, e)
         # TODO: Add error to CU output

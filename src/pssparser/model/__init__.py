@@ -64,6 +64,7 @@ from .expr_unary import ExprUnary
 from .expr_unary import UnaryOp
 from .expr_var_ref_path import ExprVarRefPath
 
+from .field_flow_object_claim import FieldFlowObjectClaim
 from .field_pool import FieldPool
 from .field_resource_claim import FieldResourceClaim
 

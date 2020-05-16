@@ -7,8 +7,9 @@ from pssparser.model.field import Field
 from pssparser.model.type_identifier import TypeIdentifier
 from pssparser.model.expr_id import ExprId
 from pssparser.model.expr_type import ExprType
+from pssparser.model.field_composite import FieldComposite
 
-class FieldFlowObjectClaim(Field):
+class FieldFlowObjectClaim(FieldComposite):
     
     def __init__(
             self,
@@ -17,10 +18,9 @@ class FieldFlowObjectClaim(Field):
             flow_object_type : TypeIdentifier,
             array_dim : ExprType
             ):
-        super().__init__(name)
+        super().__init__(name, flow_object_type)
         self.is_input = is_input
-        self.flow_object_type = flow_object_type
         self.array_dim = array_dim
-    
+        
     def accept(self, v):
         v.visit_field_flow_object_claim(self)

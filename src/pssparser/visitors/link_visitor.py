@@ -2,8 +2,11 @@ from pssparser.model.component_type import ComponentType
 from pssparser.model.action_type import ActionType
 from pssparser.model.struct_type import StructType
 from pssparser.model.expr_hierarchical_id import ExprHierarchicalId
-from pssparser.model.field_attr import FieldAttrFlags
+from pssparser.model.field_attr import FieldAttrFlags, FieldAttr
 from pssparser.model.data_type_user import DataTypeUser
+from pssparser.model.activity_stmt_traverse_handle import ActivityStmtTraverseHandle
+from pssparser.model.activity_stmt_traverse_type import ActivityStmtTraverseType
+from pssparser.model.expr_hierarchical_id_elem import ExprHierarchicalIdElem
 
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -95,6 +98,26 @@ class LinkVisitor(TypeModelVisitor):
             ch.accept(self)
         self.pop_scope()
         
+    def visit_activity_stmt_traverse_handle(self, h : ActivityStmtTraverseHandle):
+        # Get things resolved first
+        h.path.accept(self)
+        if h.constraint is not None:
+            field = h.path.hid.path_l[-1].target
+            if field is None:
+                raise Exception("Failed to resolve ref")
+#            ftype = field.ftype.tid.target
+            self.push_scope(field)
+            h.constraint.accept(self)
+            self.pop_scope()
+            
+    def visit_activity_stmt_traverse_type(self, t : ActivityStmtTraverseType):
+        t.tid.accept(self)
+
+        if t.constraint is not None:
+            self.push_scope(t.tid.target)
+            t.constraint.accept(self)
+            self.pop_scope()        
+        
     def visit_component(self, c : ComponentType):
         if c.super_type is not None:
             c.super_type.accept(self)
@@ -110,36 +133,55 @@ class LinkVisitor(TypeModelVisitor):
 
         root_s = None        
         root_n = e.path_l[0].name.toString()
-        while s is not None:
+#         while s is not None:
+#             print("s=" + str(s))
+#             for c in s.children:
+#                 print("c=" + str(c) + " root_n=" + root_n)
+#                 if hasattr(c, "name") and c.name is not None and c.name.toString() == root_n:
+#                     root_s = c
+#                     break
+#             if root_s is not None:
+#                 e.path_l[0].target = root_s
+#                 break
+#             s = s.parent
+        i = len(self.scope_s)-1
+        while i>=0:
             print("s=" + str(s))
+            s = self.scope_s[i]
             for c in s.children:
                 print("c=" + str(c) + " root_n=" + root_n)
-                if hasattr(c, "name") and c.name.toString() == root_n:
+                if hasattr(c, "name") and c.name is not None and c.name.toString() == root_n:
+                    print("    name=" + c.name.toString())
                     root_s = c
+                    e.path_l[0].target = root_s
+                    
+                    if isinstance(s, FieldAttr):
+                        # We're relative to a field, and need to 
+                        # resolve this to be relative to a scope
+                        e.path_l.insert(0, ExprHierarchicalIdElem(
+                            s.name, None))
+                        e.path_l[0].target = s
                     break
             if root_s is not None:
                 break
-            s = s.parent
+            i-=1
+            
             
         if root_s is None:
             raise Exception("Failed to find root " + root_n)
 
         # Now, search down
         for elem in e.path_l[1:]:
-            n = None
-
             name = elem.name.toString()            
             for c in root_s.children:
                 if hasattr(c, "name") and c.name.toString() == name:
-                    n = c
+                    elem.target = c
                     break
             
-            if n is None:
+            if elem.target is None:
                 raise Exception("Failed to find element " + name)
-            
-            root_s = n
 
-        e.target = root_s
+            root_s = elem.target
     
     def visit_expr_var_ref_path(self, r):
         
@@ -195,11 +237,15 @@ class LinkVisitor(TypeModelVisitor):
         pass
     
         
-    def find_type_in_scope(self, s, name):
+    def find_type_in_scope(self, s, name : str):
         scope = None
         for c in s.children:
             # TODO: need to search imports
-            if hasattr(c, "name"):
+            if hasattr(c, "name") and c.name is not None:
+                if isinstance(c.name, str):
+                    print("Error: c.name is string (" + c.name + ")")
+                if c.name is None:
+                    print("Name is None for " + str(c))
                 print("name: " + c.name.toString())
                 if hasattr(c, "name") and c.name.toString() == name:
                     scope = c
