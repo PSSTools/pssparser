@@ -762,7 +762,9 @@ class CUParser(PSSVisitor, ErrorListener):
         else:
             ret = ComponentPath(False)
             ret.path_elements.append(ComponentPathElem(
-                False, ctx.component_identifier().accept(self)))
+                False, 
+                ctx.component_identifier().accept(self),
+                None))
             
             for e in ctx.component_path_elem():
                 ret.path_elements.append(e.accept(self))
