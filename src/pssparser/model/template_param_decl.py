@@ -27,4 +27,7 @@ class TemplateParamDecl(object):
     
     def __init__(self, name : ExprId):
         self.name = name
+
+    def accept(self, v):
+        raise NotImplementedError("TemplateParamDecl::accept not implemented")
         

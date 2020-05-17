@@ -380,10 +380,8 @@ class CUParser(PSSVisitor, ErrorListener):
         ret = ExecBlockProceduralInterface(
             ExecKind[ctx.exec_kind_identifier().getText()])
 
-        print("visitExec_block")        
         for s in ctx.exec_stmt():
             stmt = s.accept(self)
-            print("  s=" + str(s) + " stmt=" + str(stmt))
             
             if stmt is not None:
                 if isinstance(stmt, list):
@@ -624,7 +622,6 @@ class CUParser(PSSVisitor, ErrorListener):
         return var_l
     
     def visitProcedural_expr_stmt(self, ctx:PSSParser.Procedural_expr_stmtContext):
-        print("--> visitProcedural_expr_stmt")
         if ctx.variable_ref_path() is not None:
             op = {
                 "=" : ExecAssignOp.Eq,
@@ -642,7 +639,6 @@ class CUParser(PSSVisitor, ErrorListener):
         else:
             ret = ExecStmtExpr(ctx.expression().accept(self))
 
-        print("<-- visitProcedural_expr_stmt")
         return ret   
     
     def visitProcedural_if_else_stmt(self, ctx:PSSParser.Procedural_if_else_stmtContext):
@@ -821,7 +817,6 @@ class CUParser(PSSVisitor, ErrorListener):
         rhs_e = None if ctx.rhs is None else ctx.rhs.accept(self)
 
         if ctx.unary_op() is not None:
-            print("UnaryExpr")
             op = {
                 "+" : UnaryOp.Plus,
                 "-" : UnaryOp.Minus,
@@ -1046,7 +1041,6 @@ class CUParser(PSSVisitor, ErrorListener):
         else:
             hid.path_l.append(ExprHierarchicalIdElem(ctx.function_symbol_id().symbol_identifier().accept(self)))
             
-        print("Create ExprFunctionCall")
         ret = ExprFunctionCall(
             hid,
             ctx.method_parameter_list().accept(self))
@@ -1685,7 +1679,6 @@ class CUParser(PSSVisitor, ErrorListener):
         with self._typescope(ctx.name, pkg):
             for c in ctx.package_body_item():
                 it = c.accept(self)
-                print("package it=" + str(it))
                 
     def visitPackage_body_item(self, ctx:PSSParser.Package_body_itemContext):
         ret = PSSVisitor.visitPackage_body_item(self, ctx)
@@ -1880,7 +1873,6 @@ class CUParser(PSSVisitor, ErrorListener):
         return ret
 
     def visitData_instantiation(self, ctx:PSSParser.Data_instantiationContext):
-        print("--> visitData_instantiation " + ctx.identifier().accept(self).toString())
         ret = FieldAttr(
             ctx.identifier().accept(self),
             0,  # No flags for now
@@ -1889,7 +1881,6 @@ class CUParser(PSSVisitor, ErrorListener):
             None if ctx.constant_expression() is None else ctx.constant_expression().accept(self)
             )
         
-        print("<-- visitData_instantiation")
         return ret
     
     def check_elem(self, e, t):
