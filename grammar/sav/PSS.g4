@@ -16,41 +16,30 @@
  * specific language governing permissions and limitations
  * under the License.
  ****************************************************************************/
+grammar PSS;
 
-grammar LexicalRules;
+import B01_Package, B02_Action, B03_Struct, B04_PI,
+	B05_Component, B06_ActivityStatements, B07_Overrides,
+	B08_DataDeclarations, B09_DataTypes, B09_TemplateTypes,
+	B10_Constraint,
+	B11_Coverage, B12_ConditionalCompile, B13_Expressions,
+	B14_Identifiers, B15_Numbers, B16_LexicalRules,
+	ImportClass, ExportAction
+	;
+	
+compilation_unit : 
+	portable_stimulus_description* EOF
+	;
 
-WS : [ \t\n\r]+ -> channel (HIDDEN) ;
+portable_stimulus_description : 
+	package_body_item
+	| package_declaration
+	| component_declaration
+	;
 
-/**
- * BNF: SL_COMMENT ::= <kw>//</kw>\n 
- */
-SL_COMMENT 	: '//' .*? '\r'? ('\n'|EOF) -> channel (HIDDEN) ;
 
-/*
- * BNF: ML_COMMENT ::= <kw>/*</kw><kw>*\057</kw>
- */
-ML_COMMENT	: '/*' .*? '*/' -> channel (HIDDEN) ;
- 
-string: DOUBLE_QUOTED_STRING | TRIPLE_DOUBLE_QUOTED_STRING;
 
-filename_string: DOUBLE_QUOTED_STRING;
 
-DOUBLE_QUOTED_STRING	: '"' (~ [\n\r])* '"' ;
 
-// TODO: unescaped_character, escaped_character
 
-/**
- * BNF: TRIPLE_DOUBLE_QUOTED_STRING ::= <kw>"""</kw><kw>"""</kw>
- */
-TRIPLE_DOUBLE_QUOTED_STRING:
-			'"""' TripleQuotedStringPart*? '"""'
-		; 
-		
-fragment TripleQuotedStringPart : EscapedTripleQuote | SourceCharacter;
-fragment EscapedTripleQuote: '\\"""';
-fragment SourceCharacter :[\u0009\u000A\u000D\u0020-\uFFFF];
-		
-// TODO: move to LexicalRules
-ID : [a-zA-Z_] [a-zA-Z0-9_]* ;
 
-ESCAPED_ID : '\\' ('\u0021'..'\u007E')+ ~ [ \r\t\n]* ;

@@ -32,7 +32,7 @@ class ExprHierarchicalId(ExprType):
         self.path_l = p if p is not None else []
         
     def toString(self):
-        return ".".join(map(lambda e:str(e), self.path_l))
+        return ".".join(map(lambda e:e.toString(), self.path_l))
         
         
     def accept(self, v):

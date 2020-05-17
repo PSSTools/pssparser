@@ -1,4 +1,3 @@
-
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -30,13 +29,16 @@ class ExprVarRefPath(ExprType):
         self.hid = hid
         self.lhs : ExprType = None
         self.rhs : ExprType = None
-        self.target = None
+        
+    @property
+    def target(self):
+        return self.hid.target
         
     def accept(self, v):
         v.visit_expr_var_ref_path(self)
         
-    def __str__(self):
-        ret = str(self.hid)
+    def toString(self):
+        ret = self.hid.toString()
         
         if self.lhs is not None:
             ret += "." + str(self.rhs)

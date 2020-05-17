@@ -1,3 +1,4 @@
+from pssparser.model.e_data import EData
 
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -22,9 +23,10 @@ Created on Apr 13, 2020
 @author: ballance
 '''
 
-class ConstraintBlock(object):
+class ConstraintBlock(EData):
     
     def __init__(self):
+        super().__init__()
         self.constraints = []
         
     def add_constraint(self, c):

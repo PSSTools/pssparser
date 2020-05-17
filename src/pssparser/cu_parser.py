@@ -74,6 +74,8 @@ from antlr4.InputStream import InputStream
 from pssparser.model.exec_target_template_ref import ExecTargetTemplateRef
 from pssparser.model.component_path import ComponentPath
 from pssparser.model.component_path_elem import ComponentPathElem
+from antlr4.error.DiagnosticErrorListener import DiagnosticErrorListener
+from antlr4.Token import CommonToken
 
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -208,7 +210,8 @@ class CUParser(PSSVisitor, ErrorListener):
         lexer = PSSLexer(input_stream)
         stream = CommonTokenStream(lexer)
         self._parser = PSSParser(stream)
-#        self._parser.removeErrorListeners()
+        self._parser.removeErrorListeners()
+#        self._parser.addErrorListener(DiagnosticErrorListener())
         self._parser.addErrorListener(self)
 
         self._scope_s : List['CompositeType'] = []
@@ -259,11 +262,19 @@ class CUParser(PSSVisitor, ErrorListener):
     #****************************************************************
         
     def visitAction_declaration(self, ctx:PSSParser.Action_declarationContext):
+
+        # TODO: action can be inside a component, package, or extension
+        scope = self._scope_s[-1]
+        
+        if isinstance(scope, ComponentType):
+            component = scope
+        else:
+            component = None
         
         name = ctx.action_identifier()
         ret = ActionType(
             ctx.action_identifier().accept(self),
-            False,
+            component,
             None if ctx.template_param_decl_list() is None else ctx.template_param_decl_list().accept(self),
             None if ctx.action_super_spec() is None else ctx.action_super_spec().accept(self))
         self._set_srcinfo(ret, ctx.start)
@@ -285,7 +296,7 @@ class CUParser(PSSVisitor, ErrorListener):
         name = ctx.action_identifier()
         ret = ActionType(
             self._get_type_qname(name),
-            True,
+            None,
             None if ctx.template_param_decl_list() is None else ctx.template_param_decl_list().accept(self),
             None if ctx.action_super_spec() is None else ctx.action_super_spec().accept(self))
         self._set_srcinfo(ret, ctx.start)
@@ -368,9 +379,11 @@ class CUParser(PSSVisitor, ErrorListener):
     def visitExec_block(self, ctx:PSSParser.Exec_blockContext):
         ret = ExecBlockProceduralInterface(
             ExecKind[ctx.exec_kind_identifier().getText()])
-        
+
+        print("visitExec_block")        
         for s in ctx.exec_stmt():
             stmt = s.accept(self)
+            print("  s=" + str(s) + " stmt=" + str(stmt))
             
             if stmt is not None:
                 if isinstance(stmt, list):
@@ -611,6 +624,7 @@ class CUParser(PSSVisitor, ErrorListener):
         return var_l
     
     def visitProcedural_expr_stmt(self, ctx:PSSParser.Procedural_expr_stmtContext):
+        print("--> visitProcedural_expr_stmt")
         if ctx.variable_ref_path() is not None:
             op = {
                 "=" : ExecAssignOp.Eq,
@@ -628,6 +642,7 @@ class CUParser(PSSVisitor, ErrorListener):
         else:
             ret = ExecStmtExpr(ctx.expression().accept(self))
 
+        print("<-- visitProcedural_expr_stmt")
         return ret   
     
     def visitProcedural_if_else_stmt(self, ctx:PSSParser.Procedural_if_else_stmtContext):
@@ -764,7 +779,8 @@ class CUParser(PSSVisitor, ErrorListener):
             ret.path_elements.append(ComponentPathElem(
                 False, 
                 ctx.component_identifier().accept(self),
-                None))
+                None # TODO: do we need index?
+                ))
             
             for e in ctx.component_path_elem():
                 ret.path_elements.append(e.accept(self))
@@ -1011,13 +1027,14 @@ class CUParser(PSSVisitor, ErrorListener):
     def visitVariable_ref_path(self, ctx:PSSParser.Variable_ref_pathContext):
         hid = ctx.hierarchical_id().accept(self)
         
-        ret = ExprVarRefPath(hid)
-        
         if ctx.expression(0) is not None:
+            ret = ExprVarRefPath(hid)
             ret.lhs = ctx.expression(0).accept(self)
             
             if ctx.expression(1) is not None:
                 ret.rhs = ctx.expression(1).accept(self)
+        else:
+            ret = hid
             
         return ret
     
@@ -1863,6 +1880,7 @@ class CUParser(PSSVisitor, ErrorListener):
         return ret
 
     def visitData_instantiation(self, ctx:PSSParser.Data_instantiationContext):
+        print("--> visitData_instantiation " + ctx.identifier().accept(self).toString())
         ret = FieldAttr(
             ctx.identifier().accept(self),
             0,  # No flags for now
@@ -1871,6 +1889,7 @@ class CUParser(PSSVisitor, ErrorListener):
             None if ctx.constant_expression() is None else ctx.constant_expression().accept(self)
             )
         
+        print("<-- visitData_instantiation")
         return ret
     
     def check_elem(self, e, t):
@@ -1880,7 +1899,17 @@ class CUParser(PSSVisitor, ErrorListener):
 #            print("Note: Failed to elaborate a \"" + str(type(t)) + "\" " + t.getText())
 #            raise Exception("Failed to elaborate a \"" + str(type(t)) + "\" " + t.getText())
     
-    def syntaxError(self, recognizer, offendingSymbol, line, column, msg, e):
+    def syntaxError(self, recognizer : PSSParser, offendingSymbol : CommonToken, line, column, msg, e):
+        print("syntaxError: " + offendingSymbol.text + " @ " + str(line) + ":" + str(column) + " " + msg)
+        expected = recognizer.getExpectedTokensWithinCurrentRule()
+        stack = recognizer.getRuleInvocationStack()
+        print("stack=" + str(stack))
+        for exp in expected:
+            print("    exp: " + str(exp))
+            if exp < len(recognizer.literalNames):
+                print("        Literal: " + str(recognizer.literalNames[exp]))
+            elif exp < len(recognizer.symbolicNames):
+                print("        Symbol: " + str(recognizer.symbolicNames[exp]))
         self._scope_s[-1].add_marker(Marker(line, column, msg))
         super().syntaxError(recognizer, offendingSymbol, line, column, msg, e)
         # TODO: Add error to CU output

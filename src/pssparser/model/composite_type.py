@@ -1,3 +1,5 @@
+from pssparser.model.type_identifier_elem import TypeIdentifierElem
+from pssparser.model.expr_id import ExprId
 
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -27,7 +29,7 @@ from pssparser.model.type_identifier import TypeIdentifier
 
 class CompositeType(TypeScope):
     
-    def __init__(self, name : Tuple[str], template_params, super_type:TypeIdentifier):
+    def __init__(self, name : ExprId, template_params, super_type:TypeIdentifier):
         super().__init__(name)
         self.template_params = template_params
         self.super_type = super_type
@@ -38,8 +40,17 @@ class CompositeType(TypeScope):
         if c is not None:
             c.parent = self
             self.children.append(c)
+        return c
             
     def add_type(self, c):
         self.add_child(c)
+        return c
+        
+    def getTypeIdentifier(self):
+        ret = TypeIdentifier(False)
+        ret.target = self
+        # TODO: Should probably form a qualified identifier
+        ret.path.append(TypeIdentifierElem(self.name, None))
+        return ret
             
         
