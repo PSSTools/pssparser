@@ -1,4 +1,3 @@
-
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import List
 
 '''
 Created on Apr 17, 2020
@@ -22,10 +22,12 @@ Created on Apr 17, 2020
 @author: ballance
 '''
 
+from pssparser.model.expr_id import ExprId
+
 class ActivityJoinBranch(object):
     
     def __init__(self):
-        self.label_identifiers = []
+        self.label_identifiers : List[ExprId] = []
         
     def accept(self, v):
         v.visit_activity_join_branch(self)

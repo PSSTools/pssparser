@@ -1,3 +1,5 @@
+from pssparser.model.data_type_user import DataTypeUser
+from pssparser.model.component_type import ComponentType
 
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -30,10 +32,13 @@ from pssparser.model.field import Field
 
 
 class FieldAttrFlags(IntFlag):
+    Builtin = auto()
     Static = auto()
     Const = auto()
     Rand = auto()
     Action = auto()
+    Component = auto()
+    CompHndl = auto()
     
 
 class FieldAttr(Field):
@@ -49,6 +54,13 @@ class FieldAttr(Field):
         self.ftype = ftype
         self.array_dim = array_dim
         self.init_expr = init_expr
+
+    @property        
+    def children(self):
+        if isinstance(self.ftype, DataTypeUser):
+            return self.ftype.tid.target.children 
+        else:
+            return []
 
     def accept(self, v):
         v.visit_field_attr(self)

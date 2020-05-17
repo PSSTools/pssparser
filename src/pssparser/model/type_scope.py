@@ -30,6 +30,8 @@ class TypeScope(object):
         self.parent = None
         self.name = name
         self.imports = []
+        # Handle for processing-specific data
+        self.data = None
         
     def add_import(self, imp):
         self.imports.append(imp)

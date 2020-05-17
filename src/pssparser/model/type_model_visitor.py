@@ -567,9 +567,12 @@ class TypeModelVisitor(object):
         if f.init_expr is not None:
             f.init_expr.accept(self)
             
+    def visit_field_composite(self, f):
+        self.visit_field(f)
+        f.tid.accept(self)
+            
     def visit_field_flow_object_claim(self, f):
-        self.field_field(f)
-        f.flow_object_type.accept(self)
+        self.visit_field_composite(f)
         if f.array_dim is not None:
             f.array_dim.accept(self)
             
@@ -582,8 +585,7 @@ class TypeModelVisitor(object):
             p.size.accept(self)
     
     def visit_field_resource_claim(self, c):
-        self.visit_field(c)
-        c.resource_object_type.accept(self)
+        self.visit_field_composite(c)
         if c.array_dim is not None:
             c.array_dim.accept(self)
             

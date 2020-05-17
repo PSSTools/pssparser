@@ -1,4 +1,3 @@
-
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,16 +14,19 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 '''
 Created on Apr 21, 2020
 
 @author: ballance
 '''
 
-class MethodPrototype(object):
+from pssparser.model.e_data import EData
+
+
+class MethodPrototype(EData):
     
     def __init__(self, name, return_t):
+        super().__init__()
         self.name = name
         self.return_t = return_t
         self.parameters = []

@@ -33,5 +33,6 @@ class Field(object):
     def __init__(self,
                 name  : ExprId):
         self.name = name
+        self.data = None
         
     

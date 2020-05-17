@@ -25,10 +25,10 @@ from pssparser.model.expr_type import ExprType
 
 class ExprNumLiteral(ExprType):
     
-    def __init__(self, val, img):
+    def __init__(self, val, img=None):
         super().__init__()
         self.val = val
-        self.img = img
+        self.img = img if img is not None else str(val)
         
     def accept(self, v):
         v.visit_expr_num_literal(self)
