@@ -135,6 +135,7 @@ src/pssparser/antlr_gen
 .pytype/
 
 sys/portable-stimulus/
-ts/antlr_gen/
+src/ts/src/antlr_gen/
+src/ts/out/
 node_modules/
 

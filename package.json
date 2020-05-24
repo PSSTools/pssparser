@@ -1,6 +1,6 @@
 {
     "scripts": {
-        "antlr4ts-selectitems": "antlr4ts -visitor grammar/PSS.g4 -o src/ts/antlr_gen"
+        "antlr4ts-selectitems": "antlr4ts -visitor grammar/PSS.g4 -o src/ts/src/antlr_gen"
     },
     "dependencies": {
         "antlr4": "^4.8.0",
