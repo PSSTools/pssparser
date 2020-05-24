@@ -74,6 +74,8 @@ from antlr4.InputStream import InputStream
 from pssparser.model.exec_target_template_ref import ExecTargetTemplateRef
 from pssparser.model.component_path import ComponentPath
 from pssparser.model.component_path_elem import ComponentPathElem
+from antlr4.error.DiagnosticErrorListener import DiagnosticErrorListener
+from antlr4.Token import CommonToken
 
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -208,7 +210,8 @@ class CUParser(PSSVisitor, ErrorListener):
         lexer = PSSLexer(input_stream)
         stream = CommonTokenStream(lexer)
         self._parser = PSSParser(stream)
-#        self._parser.removeErrorListeners()
+        self._parser.removeErrorListeners()
+#        self._parser.addErrorListener(DiagnosticErrorListener())
         self._parser.addErrorListener(self)
 
         self._scope_s : List['CompositeType'] = []
@@ -259,11 +262,19 @@ class CUParser(PSSVisitor, ErrorListener):
     #****************************************************************
         
     def visitAction_declaration(self, ctx:PSSParser.Action_declarationContext):
+
+        # TODO: action can be inside a component, package, or extension
+        scope = self._scope_s[-1]
+        
+        if isinstance(scope, ComponentType):
+            component = scope
+        else:
+            component = None
         
         name = ctx.action_identifier()
         ret = ActionType(
             ctx.action_identifier().accept(self),
-            False,
+            component,
             None if ctx.template_param_decl_list() is None else ctx.template_param_decl_list().accept(self),
             None if ctx.action_super_spec() is None else ctx.action_super_spec().accept(self))
         self._set_srcinfo(ret, ctx.start)
@@ -285,7 +296,7 @@ class CUParser(PSSVisitor, ErrorListener):
         name = ctx.action_identifier()
         ret = ActionType(
             self._get_type_qname(name),
-            True,
+            None,
             None if ctx.template_param_decl_list() is None else ctx.template_param_decl_list().accept(self),
             None if ctx.action_super_spec() is None else ctx.action_super_spec().accept(self))
         self._set_srcinfo(ret, ctx.start)
@@ -368,7 +379,7 @@ class CUParser(PSSVisitor, ErrorListener):
     def visitExec_block(self, ctx:PSSParser.Exec_blockContext):
         ret = ExecBlockProceduralInterface(
             ExecKind[ctx.exec_kind_identifier().getText()])
-        
+
         for s in ctx.exec_stmt():
             stmt = s.accept(self)
             
@@ -762,7 +773,10 @@ class CUParser(PSSVisitor, ErrorListener):
         else:
             ret = ComponentPath(False)
             ret.path_elements.append(ComponentPathElem(
-                False, ctx.component_identifier().accept(self)))
+                False, 
+                ctx.component_identifier().accept(self),
+                None # TODO: do we need index?
+                ))
             
             for e in ctx.component_path_elem():
                 ret.path_elements.append(e.accept(self))
@@ -803,7 +817,6 @@ class CUParser(PSSVisitor, ErrorListener):
         rhs_e = None if ctx.rhs is None else ctx.rhs.accept(self)
 
         if ctx.unary_op() is not None:
-            print("UnaryExpr")
             op = {
                 "+" : UnaryOp.Plus,
                 "-" : UnaryOp.Minus,
@@ -1009,13 +1022,14 @@ class CUParser(PSSVisitor, ErrorListener):
     def visitVariable_ref_path(self, ctx:PSSParser.Variable_ref_pathContext):
         hid = ctx.hierarchical_id().accept(self)
         
-        ret = ExprVarRefPath(hid)
-        
         if ctx.expression(0) is not None:
+            ret = ExprVarRefPath(hid)
             ret.lhs = ctx.expression(0).accept(self)
             
             if ctx.expression(1) is not None:
                 ret.rhs = ctx.expression(1).accept(self)
+        else:
+            ret = hid
             
         return ret
     
@@ -1027,7 +1041,6 @@ class CUParser(PSSVisitor, ErrorListener):
         else:
             hid.path_l.append(ExprHierarchicalIdElem(ctx.function_symbol_id().symbol_identifier().accept(self)))
             
-        print("Create ExprFunctionCall")
         ret = ExprFunctionCall(
             hid,
             ctx.method_parameter_list().accept(self))
@@ -1666,7 +1679,6 @@ class CUParser(PSSVisitor, ErrorListener):
         with self._typescope(ctx.name, pkg):
             for c in ctx.package_body_item():
                 it = c.accept(self)
-                print("package it=" + str(it))
                 
     def visitPackage_body_item(self, ctx:PSSParser.Package_body_itemContext):
         ret = PSSVisitor.visitPackage_body_item(self, ctx)
@@ -1878,7 +1890,17 @@ class CUParser(PSSVisitor, ErrorListener):
 #            print("Note: Failed to elaborate a \"" + str(type(t)) + "\" " + t.getText())
 #            raise Exception("Failed to elaborate a \"" + str(type(t)) + "\" " + t.getText())
     
-    def syntaxError(self, recognizer, offendingSymbol, line, column, msg, e):
+    def syntaxError(self, recognizer : PSSParser, offendingSymbol : CommonToken, line, column, msg, e):
+        print("syntaxError: " + offendingSymbol.text + " @ " + str(line) + ":" + str(column) + " " + msg)
+        expected = recognizer.getExpectedTokensWithinCurrentRule()
+        stack = recognizer.getRuleInvocationStack()
+        print("stack=" + str(stack))
+        for exp in expected:
+            print("    exp: " + str(exp))
+            if exp < len(recognizer.literalNames):
+                print("        Literal: " + str(recognizer.literalNames[exp]))
+            elif exp < len(recognizer.symbolicNames):
+                print("        Symbol: " + str(recognizer.symbolicNames[exp]))
         self._scope_s[-1].add_marker(Marker(line, column, msg))
         super().syntaxError(recognizer, offendingSymbol, line, column, msg, e)
         # TODO: Add error to CU output

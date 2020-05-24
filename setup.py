@@ -2,6 +2,22 @@
 import os
 from setuptools import setup
 
+try:
+    from setuptools_antlr.command import AntlrCommand
+    import pathlib
+
+    class MyAntlrCommand(AntlrCommand):
+
+        def _find_antlr(self):
+            pssparser_dir = os.path.dirname(os.path.abspath(__file__))
+            return pathlib.Path(
+                os.path.join(pssparser_dir, "scripts"),
+                "antlr-4.8-complete.jar")
+
+except:
+    print("Failed to import setuptools")
+    pass
+
 version="0.0.1"
 
 if "BUILD_NUM" in os.environ.keys():
@@ -33,5 +49,6 @@ setup(
   install_requires=[
     'antlr4-python3-runtime'
   ],
+  cmdclass={'antlr' : MyAntlrCommand},
 )
 

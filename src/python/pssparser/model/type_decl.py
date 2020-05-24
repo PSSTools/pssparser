@@ -1,4 +1,3 @@
-
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -22,11 +21,13 @@ Created on Mar 9, 2020
 @author: ballance
 '''
 
+from pssparser.model.expr_id import ExprId
+
 class TypeDecl(object):
     """Stores a reference to a type declared in a CU"""
     
     def __init__(self, 
-                 name : [str], 
+                 name : ExprId, 
                  ref):
         self.name = name
         self.ref = ref

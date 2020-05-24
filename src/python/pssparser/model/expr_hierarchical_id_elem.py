@@ -30,9 +30,10 @@ class ExprHierarchicalIdElem(ExprType):
         super().__init__()
         self.name = name
         self.lhs = lhs
+        self.target = None
         
-    def __str__(self):
-        ret = str(self.name)
+    def toString(self):
+        ret = self.name.toString()
         
         if self.lhs is not None:
             ret += "[" + str(self.lhs) + "]"

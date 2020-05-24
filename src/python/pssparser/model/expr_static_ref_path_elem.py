@@ -30,3 +30,7 @@ class ExprStaticRefPathElem(ExprType):
     def __init__(self, id : ExprId, templ:ExprTemplateParamValueList=None):
         self.id = id
         self.templ_param_values = templ
+        
+    def accept(self, v):
+        v.visit_expr_static_ref_path_elem(self)
+        

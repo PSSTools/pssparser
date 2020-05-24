@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 from pssparser.model.expr_unary import ExprUnary
+from pssparser.model.expr_static_ref_path_elem import ExprStaticRefPathElem
 
 '''
 Created on Mar 9, 2020
@@ -101,7 +102,7 @@ class TypeModelVisitor(object):
         
         s.true_s.accept(self)
         if s.false_s is not None:
-            self.false_s.accept(self)
+            s.false_s.accept(self)
             
     def visit_activity_stmt_match(self, m):
         m.cond.accept(self)
@@ -130,7 +131,7 @@ class TypeModelVisitor(object):
     def visit_activity_stmt_replicate(self, s : ActivityStmtReplicate):
         self.visit_activity_stmt_base(s)
         if s.idx_id is not None:
-            self.idx_id.accept(self)
+            s.idx_id.accept(self)
         if s.arr_label is not None:
             s.arr_label.accept(self)
         s.e.accept(self)
@@ -226,7 +227,7 @@ class TypeModelVisitor(object):
         if c.idx_id is not None:
             c.idx_id.accept(self)
             
-        self.cs.accept(self)
+        c.cs.accept(self)
         
     def visit_constraint_if_else(self, c):
         c.e.accept(self)
@@ -522,6 +523,12 @@ class TypeModelVisitor(object):
     def visit_expr_static_ref_path(self, r:ExprStaticRefPath):
         for p in r.path:
             p.accept(self)
+            
+    def visit_expr_static_ref_path_elem(self, e:ExprStaticRefPathElem):
+        e.id.accept(self)
+        
+        if e.templ_param_values is not None:
+            e.templ_param_values.accept(self)
         
     
     def visit_expr_super_ref(self, r):
@@ -567,9 +574,12 @@ class TypeModelVisitor(object):
         if f.init_expr is not None:
             f.init_expr.accept(self)
             
+    def visit_field_composite(self, f):
+        self.visit_field(f)
+        f.tid.accept(self)
+            
     def visit_field_flow_object_claim(self, f):
-        self.field_field(f)
-        f.flow_object_type.accept(self)
+        self.visit_field_composite(f)
         if f.array_dim is not None:
             f.array_dim.accept(self)
             
@@ -582,8 +592,7 @@ class TypeModelVisitor(object):
             p.size.accept(self)
     
     def visit_field_resource_claim(self, c):
-        self.visit_field(c)
-        c.resource_object_type.accept(self)
+        self.visit_field_composite(c)
         if c.array_dim is not None:
             c.array_dim.accept(self)
             
@@ -643,7 +652,6 @@ class TypeModelVisitor(object):
         
     def visit_resource_type(self, r):
         self.visit_composite_type(r)
-        
         
     def visit_template_param_decl_list(self, t : TemplateParamDeclList):
         for p in t.params:

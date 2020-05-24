@@ -26,7 +26,7 @@ from pssparser.model.type_scope import TypeScope
 class CompilationUnit(TypeScope):
     
     def __init__(self, filename):
-        super().__init__()
+        super().__init__(None)
         self.filename = filename
         self.elements = []
         self.markers = []

@@ -81,7 +81,6 @@ pss_function_defn:
 	
 procedural_stmt:
 	procedural_block_stmt
-	| procedural_var_decl_stmt
 	| procedural_expr_stmt
 	| procedural_return_stmt
 	| procedural_if_else_stmt
@@ -90,6 +89,7 @@ procedural_stmt:
 	| procedural_foreach_stmt
 	| procedural_break_stmt
 	| procedural_continue_stmt
+	| procedural_var_decl_stmt // TODO: positioning this first causes assign to be incorrectly recognized as data_declaration
 	| ';' // TODO: need to incorporate
 	;
 	

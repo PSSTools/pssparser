@@ -1,3 +1,4 @@
+from pssparser.model.e_data import EData
 
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -22,7 +23,8 @@ Created on Apr 21, 2020
 @author: ballance
 '''
 
-class ExecBlock(object):
+class ExecBlock(EData):
     
     def __init__(self, kind):
+        super().__init__()
         self.kind = kind

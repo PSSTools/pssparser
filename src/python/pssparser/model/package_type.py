@@ -22,12 +22,12 @@ Created on Feb 17, 2020
 @author: ballance
 '''
 from pssparser.model.type_scope import TypeScope
-from typing import Tuple
+from pssparser.model.expr_id import ExprId
 from pssparser.model.composite_type import CompositeType
 
 class PackageType(CompositeType):
     
-    def __init__(self, name : Tuple[str]):
+    def __init__(self, name : ExprId):
         super().__init__(name, None, None)
         
     def accept(self, v):
