@@ -1,4 +1,3 @@
-
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,24 +14,23 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 '''
 Created on Mar 9, 2020
 
 @author: ballance
 '''
 
-from pssparser.model.reference import Reference
 from pssparser.model.StmtBase import StmtBase
+from pssparser.model.type_identifier import TypeIdentifier
 
 
 class ImportStmt(StmtBase):
     
     def __init__(self, 
-                 ref : Reference,
+                 tid : TypeIdentifier,
                  is_wildcard : bool):
         super().__init__()
-        self.ref = ref
+        self.tid = tid
         self.is_wildcard = is_wildcard
 
     def accept(self, v):

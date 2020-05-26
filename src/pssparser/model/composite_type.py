@@ -1,5 +1,6 @@
 from pssparser.model.type_identifier_elem import TypeIdentifierElem
 from pssparser.model.expr_id import ExprId
+import pickle
 
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file

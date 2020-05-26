@@ -76,6 +76,7 @@ from pssparser.model.component_path import ComponentPath
 from pssparser.model.component_path_elem import ComponentPathElem
 from antlr4.error.DiagnosticErrorListener import DiagnosticErrorListener
 from antlr4.Token import CommonToken
+import pickle
 
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -800,6 +801,12 @@ class CUParser(PSSVisitor, ErrorListener):
         for tie in ctx.type_identifier_elem():
             ret.path.append(tie.accept(self))
             
+        try:
+            pickle.dumps(ret)
+        except Exception as e:
+            print("Error dumping type identifier")
+            raise e
+            
         return ret
         
     def visitType_identifier_elem(self, ctx:PSSParser.Type_identifier_elemContext):
@@ -1264,7 +1271,7 @@ class CUParser(PSSVisitor, ErrorListener):
         ret = ActivityStmtSelect()
         
         for b in ctx.select_branch():
-            ret.statements.append(b)
+            ret.statements.append(b.accept(self))
         
         return ret
     
@@ -1377,7 +1384,7 @@ class CUParser(PSSVisitor, ErrorListener):
             ctx.identifier().accept(self),
             ctx.type_identifier().accept(self),
             None if ctx.variable_ref_path() is None else ctx.variable_ref_path().accept(self),
-            ctx.constraint_set())
+            ctx.constraint_set().accept(self))
         
         return ret;
     
@@ -1653,12 +1660,11 @@ class CUParser(PSSVisitor, ErrorListener):
     def visitImport_stmt(self, ctx:PSSParser.Import_stmtContext):
         
         imp = ImportStmt(
-            self._typeid2reference(
-                ctx.package_import_pattern().type_identifier()),
-            ctx.package_import_pattern().wildcard
+            ctx.package_import_pattern().type_identifier().accept(self),
+            ctx.package_import_pattern().wildcard is not None
             )
-        self._set_srcinfo(imp, ctx.start)
-        
+#        self._set_srcinfo(imp, ctx.start)
+
         self._scope_s[-1].add_child(imp)
 
         return PSSVisitor.visitImport_stmt(self, ctx)
@@ -1696,7 +1702,7 @@ class CUParser(PSSVisitor, ErrorListener):
     def visitConst_data_declaration(self, ctx:PSSParser.Const_data_declarationContext):
         data_type = ctx.scalar_data_type().accept(self)
         
-        field_l = map(lambda e:e.accept(self), ctx.const_data_instantiation())
+        field_l = list(map(lambda e:e.accept(self), ctx.const_data_instantiation()))
         
         for f in field_l:
             f.ftype = data_type

@@ -690,7 +690,7 @@ class TypeModelVisitor(object):
 
         
     def visit_import_stmt(self, i):
-        i.ref.accept(self)
+        i.tid.accept(self)
         
     def visit_reference(self, r):
         pass
