@@ -1,3 +1,5 @@
 
 antlr4-python3-runtime
+-e git+https://github.com/fvutils/pyucis.git#egg=pyucis
+-e git+https://github.com/mballance/pyastbuilder.git#egg=pyastbuilder
 

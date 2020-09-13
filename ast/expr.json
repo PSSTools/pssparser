@@ -136,22 +136,17 @@
 			"id" : "UP<ExprId>",
 			"params": "UP<MethodParameterList>",
 			"subscript": "UP<Expr>",
-			"target": "int32_t"
+			"target": {
+				"type": "int32_t",
+				"is_ctor": false,
+				"init": -1
+			}
 		}
 	},
 	{
 		"name": "ExprAggregateLiteral",
 		"super": "Expr",
 		"data": {
-		}
-	},
-	{
-		"name": "ExprNumber",
-		"super": "Expr",
-		"data": {
-			"image": "string",
-			"width": "uint32_t",
-			"is_signed": "bool"
 		}
 	},
 	{
@@ -192,8 +187,10 @@
 	},
 	{
 		"name": "ExprSignedNumber",
-		"super": "ExprNumber",
+		"super": "Expr",
 		"data": {
+			"image": "string",
+			"width": "uint32_t",
 			"value": "int64_t"
 		}
 	},
@@ -232,8 +229,10 @@
 	},
 	{
 		"name": "ExprUnsignedNumber",
-		"super": "ExprNumber",
+		"super": "Expr",
 		"data": {
+			"image": "string",
+			"width": "uint32_t",
 			"value": "uint64_t"
 		}
 	},

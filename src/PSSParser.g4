@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  ****************************************************************************/
-grammar PSS;
+grammar PSSParser;
 
 compilation_unit : 
 	portable_stimulus_description* EOF
