@@ -1,0 +1,264 @@
+{
+"enums" : [
+	{
+		"name": "ExprBinOp",
+		"values": {
+			"BinOp_LogOr" : null,
+			"BinOp_LogAnd" : null,
+			"BinOp_BitOr" : null,
+			"BinOp_BitXor" : null,
+			"BinOp_BitAnd" : null,
+			"BinOp_Lt" : null,
+			"BinOp_Le" : null,
+			"BinOp_Gt" : null,
+			"BinOp_Ge" : null,
+			"BinOp_Exp" : null,
+			"BinOp_Mul" : null,
+			"BinOp_Div" : null,
+			"BinOp_Mod" : null,
+			"BinOp_Add" : null,
+			"BinOp_Sub" : null,
+			"BinOp_Shl" : null,
+			"BinOp_Shr" : null,
+			"BinOp_Eq" : null,
+			"BinOp_Ne" : null
+		}
+	},
+	{
+		"name": "ExprUnaryOp",
+		"values": {
+			"UnaryOp_Plus" : null,
+			"UnaryOp_Minus" : null,
+			"UnaryOp_LogNot": null,
+			"UnaryOp_BitNeg": null,
+			"UnaryOp_BitAnd": null,
+			"UnaryOp_BitOr": null,
+			"UnaryOp_BitXor" : null		
+		}
+	}
+],
+"classes": [
+	{
+		"name": "Expr"
+	},
+	{
+		"name": "ExprCast",
+		"super": "Expr",
+		"data": {
+			"casting_type": "UP<Expr>",
+			"expr": "UP<Expr>"
+		}
+	},
+	{
+		"name": "ExprBin",
+		"super" : "Expr",
+		"data": {
+			"lhs" : "UP<Expr>",
+			"op" : "ExprBinOp",
+			"rhs" : "UP<Expr>"
+		}
+	},
+	{
+		"name": "ExprBitSlice",
+		"super" : "Expr",
+		"data": {
+			"expr" : "UP<Expr>",
+			"lhs": "UP<Expr>",
+			"rhs": "UP<Expr>"
+		}
+	},
+	{
+		"name": "ExprBool",
+		"super": "Expr",
+		"data": {
+			"value" : "bool"
+		}
+	},
+	{
+		"name": "ExprCompileHas",
+		"super": "Expr",
+		"data": {
+			"ref" : "UP<ExprRefPathStatic>"
+		}
+	},
+	{
+		"name": "ExprCond",
+		"super": "Expr",
+		"data": {
+			"cond_e" : "UP<Expr>",
+			"true_e" : "UP<Expr>",
+			"false_e" : "UP<Expr>"
+		}
+	},
+	{
+		"name": "ExprDomainOpenRangeList",
+		"super": "Expr",
+		"data": {
+			"values": "list<UP<ExprDomainOpenRangeValue>>"
+		}
+	},
+	{	
+		"name": "ExprDomainOpenRangeValue",
+		"super": "Expr",
+		"data": {
+			"single": "bool",
+			"lhs": "UP<Expr>",
+			"rhs": "UP<Expr>"
+		}
+	},
+	{
+		"name": "ExprHierarchicalId",
+		"super": "Expr",
+		"data": {
+			"elems" : "list<UP<ExprMemberPathElem>>"
+		}
+	},
+	{
+		"name": "ExprId",
+		"super": "Expr",
+		"data": {
+			"id": "string",
+			"is_escaped": "bool"
+		}
+	},
+	{
+		"name": "ExprIn",
+		"super": "Expr",
+		"data": {
+			"lhs" : "UP<Expr>",
+			"rhs" : "UP<ExprOpenRangeList>"
+		}
+	},
+	{
+		"name": "ExprMemberPathElem",
+		"super": "Expr",
+		"data": {
+			"id" : "UP<ExprId>",
+			"params": "UP<MethodParameterList>",
+			"subscript": "UP<Expr>",
+			"target": "int32_t"
+		}
+	},
+	{
+		"name": "ExprAggregateLiteral",
+		"super": "Expr",
+		"data": {
+		}
+	},
+	{
+		"name": "ExprNumber",
+		"super": "Expr",
+		"data": {
+			"image": "string",
+			"width": "uint32_t",
+			"is_signed": "bool"
+		}
+	},
+	{
+		"name": "ExprOpenRangeList",
+		"super": "Expr",
+		"data": {
+			"values": "list<UP<ExprOpenRangeValue>>"
+		}
+	},
+	{
+		"name": "ExprOpenRangeValue",
+		"super": "Expr",
+		"data": {
+			"lhs" : "UP<Expr>",
+			"rhs": "UP<Expr>"
+		}
+	},
+	{
+		"name": "ExprRefPath",
+		"super": "Expr",
+		"data": {
+		}
+	},
+	{
+		"name": "ExprRefPathContext",
+		"super": "ExprRefPath",
+		"data": {
+			"hier_id" : "UP<ExprHierarchicalId>"
+		}
+	},
+	{
+		"name": "ExprRefPathStatic",
+		"super": "ExprRefPath",
+		"data": {
+			"is_global": "bool",
+			"base": "list<UP<TypeIdentifierElem>>"
+		}
+	},
+	{
+		"name": "ExprSignedNumber",
+		"super": "ExprNumber",
+		"data": {
+			"value": "int64_t"
+		}
+	},
+	{
+		"name": "ExprStaticRefPath",
+		"super": "Expr",
+		"data": {
+			"is_global": "bool",
+			"base": "list<UP<TypeIdentifierElem>>",
+			"leaf": "UP<ExprMemberPathElem>"
+		}
+	},
+	{
+		"name": "ExprString",
+		"super": "Expr",
+		"data": {
+			"value": "string",
+			"is_raw": "bool"
+		}
+	},
+	{
+		"name": "ExprSubscript",
+		"super": "Expr",
+		"data": {
+			"expr": "UP<Expr>",
+			"subscript": "UP<Expr>"
+		}
+	},
+	{
+		"name": "ExprUnary",
+		"super": "Expr",
+		"data": {
+			"op" : "ExprUnaryOp",
+			"rhs": "UP<Expr>"
+		}
+	},
+	{
+		"name": "ExprUnsignedNumber",
+		"super": "ExprNumber",
+		"data": {
+			"value": "uint64_t"
+		}
+	},
+	{
+		"name": "MethodParameterList",
+		"super": "Expr",
+		"data": {
+		}
+	},
+	{
+		"name": "TemplateParamValue",
+		"super": "Expr",
+		"data": {
+			"value": "UP<Expr>"
+		}
+	},
+	{
+		"name": "TypeIdentifierElem",
+		"super": "Expr",
+		"data": {
+			"id": "UP<ExprId>",
+			"params": "list<UP<TemplateParamValue>>"
+		}
+	}
+]
+} 
+
+ 
