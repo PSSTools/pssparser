@@ -6,8 +6,9 @@ include(ExternalProject)
 
 list(APPEND CMAKE_MODULE_PATH 
 	${CMAKE_CURRENT_SOURCE_DIR}/packages/antlr4-cpp-runtime/cmake)
-	
-include_directories(${CMAKE_CURRENT_BINARY_DIR}/antlr4/include/antlr4-runtime)
+
+# Some include	
+include_directories(${CMAKE_BINARY_DIR}/pss_ast/include/project_ast)
 
 set(ANTLR_EXECUTABLE ${CMAKE_CURRENT_SOURCE_DIR}/packages/antlr4-tools.jar)
 set(ANTLR4_JAR_LOCATION ${CMAKE_CURRENT_SOURCE_DIR}/packages/antlr4-tools.jar)

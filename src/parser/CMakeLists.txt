@@ -6,6 +6,7 @@ project(parser)
 include(ExternalAntlr4Cpp)
 
 add_compile_options(-Wno-attributes)
+include_directories(${CMAKE_BINARY_DIR}/antlr4/include/antlr4-runtime)
 
 file(GLOB parser_SRC
 	"*.h"
