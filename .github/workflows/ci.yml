@@ -3,7 +3,7 @@ on:
   - push
   - pull_request
 jobs:
-  ci:
+  ci-linux:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v1
@@ -28,6 +28,7 @@ jobs:
         cmake ..
         make
 
+  ci-osx:
     runs-on: macos-latest
     steps:
     steps:
