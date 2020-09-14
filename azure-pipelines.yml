@@ -34,7 +34,7 @@ jobs:
       python3 -m pip install ivpm
     displayName: 'Install Python tools'
   - script: |
-      ivpm update
+      python3 -m ivpm update
     displayName: 'Fetch dependencies'
   - script: |
       mkdir build
