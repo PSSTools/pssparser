@@ -27,7 +27,6 @@ jobs:
         cd build
         cmake ..
         make
-
   ci-osx:
     runs-on: macos-latest
     steps:
