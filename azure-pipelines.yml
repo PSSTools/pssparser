@@ -27,8 +27,8 @@ jobs:
 
   - script: |
       sudo apt-get update
-      sudo apt-get install default-jdk uuid-dev
-    displayName: 'Install JDK'
+      sudo apt-get install default-jdk uuid-dev python3-venv
+    displayName: 'Install JDK+Python'
   - script: |
       python3 -m pip install wheel twine
       python3 -m pip install ivpm
