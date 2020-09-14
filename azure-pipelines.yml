@@ -8,7 +8,7 @@ trigger:
 - master
 
 jobs:
-- job: PyPi_Linux
+- job: Linux
   pool:
    vmImage: 'ubuntu-latest'
 
@@ -26,51 +26,22 @@ jobs:
 #    displayName: 'Checkout examples'
 
   - script: |
-      ls sys
-      ls sys/portable-stimulus
       sudo apt-get update
       sudo apt-get install default-jdk
     displayName: 'Install JDK'
   - script: |
-      python3 -m pip install wheel twine 
-      python3 -m pip install setuptools-antlr 
-      python3 -m pip install antlr4-python3-runtime
-      python3 -m pip install pytest pytest-cov
-    displayName: 'Install wheel+twine'
+      python3 -m pip install wheel twine
+      python3 -m pip install ivpm
+    displayName: 'Install Python tools'
   - script: |
-      export PYTHONPATH=$(Build.Repository.LocalPath)/src
-      python3 setup.py antlr
-      python3 -m pytest unit --cov=./src --cov-report=xml --cov-report=html --doctest-modules --junitxml=junit/test-results.xml      
-    displayName: 'Run Unit Tests'
+      ivpm update
+    displayName: 'Fetch dependencies'
+  - script: |
+      mkdir build
+      cd build
+      cmake ..
+      make -j`nproc`
+    displayName: 'Build'
 
-#  - script: |
-    #  export PYTHONPATH=$(Build.Repository.LocalPath)/src
-    #  python3 sys/runtest.py
-    #displayName: 'Run Sys Tests'
 
-  - task: PublishTestResults@2
-    condition: succeededOrFailed()
-    inputs:
-      testResultsFiles: '**/test-*.xml'
-      testRunTitle: 'Unit Tests'
-      
-  - task: PublishCodeCoverageResults@1
-    inputs:
-        codeCoverageTool: Cobertura
-        summaryFileLocation: '$(System.DefaultWorkingDirectory)/**/coverage.xml'
-        reportDirectory: '$(System.DefaultWorkingDirectory)/**/htmlcov'
-      
     
-  - script: |
-      python3 setup.py antlr bdist_wheel --universal
-    displayName: 'Build Wheel'
-  - task: TwineAuthenticate@1
-    condition: eq(variables['Build.SourceBranchName'], 'master')
-    inputs:
-      pythonUploadServiceConnection: pypi-pssparser
-  - script: |
-      # Only deploy from master
-      if test "$(Build.SourceBranchName)" = "master"; then
-          python3 -m twine upload -r pssparser --config-file $(PYPIRC_PATH) dist/*.whl
-      fi
-    displayName: 'Upload to PyPi'
