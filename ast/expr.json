@@ -250,6 +250,13 @@
 		}
 	},
 	{
+		"name": "TypeIdentifier",
+		"super": "Expr",
+		"data": {
+			"elems" : "list<UP<TypeIdentifierElem>>"
+		}
+	},
+	{
 		"name": "TypeIdentifierElem",
 		"super": "Expr",
 		"data": {

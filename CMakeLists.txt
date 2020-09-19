@@ -4,26 +4,29 @@ project(pssparser)
 
 include(ExternalProject)
 
-list(APPEND CMAKE_MODULE_PATH 
-	${CMAKE_CURRENT_SOURCE_DIR}/packages/antlr4-cpp-runtime/cmake)
+if (NOT PACKAGES_DIR)
+  set(PACKAGES_DIR ${CMAKE_SOURCE_DIR}/packages)
+endif()
+
+list(APPEND CMAKE_MODULE_PATH ${PACKAGES_DIR}/antlr4-cpp-runtime/cmake)
 
 # Some include	
 include_directories(${CMAKE_BINARY_DIR}/pss_ast/include/project_ast)
 
-set(ANTLR_EXECUTABLE ${CMAKE_CURRENT_SOURCE_DIR}/packages/antlr4-tools.jar)
-set(ANTLR4_JAR_LOCATION ${CMAKE_CURRENT_SOURCE_DIR}/packages/antlr4-tools.jar)
+set(ANTLR_EXECUTABLE ${PACKAGES_DIR}/antlr4-tools.jar)
+set(ANTLR4_JAR_LOCATION ${PACKAGES_DIR}/antlr4-tools.jar)
 
 if (WIN32)
-  set(PYTHON ${CMAKE_CURRENT_SOURCE_DIR}/packages/python/Scripts/python.exe)
+  set(PYTHON ${PACKAGES_DIR}/python/Scripts/python.exe)
 else()
-  set(PYTHON ${CMAKE_CURRENT_SOURCE_DIR}/packages/python/bin/python)
+  set(PYTHON ${PACKAGES_DIR}/python/bin/python)
 endif()
 
 find_package(ANTLR REQUIRED)
 
 ExternalProject_Add(LIBANTLR4
     PREFIX antlr4
-    SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/packages/antlr4-cpp-runtime"
+    SOURCE_DIR "${PACKAGES_DIR}/antlr4-cpp-runtime"
     CMAKE_CACHE_ARGS
         -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_CURRENT_BINARY_DIR}/antlr4
 	-DCMAKE_CXX_FLAGS:STRING=-Wno-attributes
