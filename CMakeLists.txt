@@ -13,6 +13,10 @@ list(APPEND CMAKE_MODULE_PATH ${PACKAGES_DIR}/antlr4-cpp-runtime/cmake)
 # Some include	
 include_directories(${CMAKE_BINARY_DIR}/pss_ast/include/project_ast)
 
+link_directories(
+	${CMAKE_BINARY_DIR}/antlr4/lib
+	)
+
 set(ANTLR_EXECUTABLE ${PACKAGES_DIR}/antlr4-tools.jar)
 set(ANTLR4_JAR_LOCATION ${PACKAGES_DIR}/antlr4-tools.jar)
 
@@ -30,6 +34,11 @@ ExternalProject_Add(LIBANTLR4
     CMAKE_CACHE_ARGS
         -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_CURRENT_BINARY_DIR}/antlr4
 	-DCMAKE_CXX_FLAGS:STRING=-Wno-attributes
+	-DCMAKE_C_COMPILER:STRING=${CMAKE_C_COMPILER}
+	-DCMAKE_CXX_COMPILER:STRING=${CMAKE_CXX_COMPILER}
+	-DCMAKE_C_COMPILER_ID:STRING=${CMAKE_C_COMPILER_ID}
+	-DCMAKE_CXX_COMPILER_ID:STRING=${CMAKE_CXX_COMPILER_ID}
+	-DCMAKE_SYSTEM_NAME:STRING=${CMAKE_SYSTEM_NAME}
     )
     
 ExternalProject_Add(pss_ast
@@ -40,5 +49,6 @@ ExternalProject_Add(pss_ast
         -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_CURRENT_BINARY_DIR}/pss_ast
 	)
 
-add_subdirectory(src/parser)
+add_subdirectory(src)
+
 
