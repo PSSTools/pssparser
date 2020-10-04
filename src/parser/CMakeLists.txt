@@ -22,9 +22,15 @@ antlr_target(PSS PSS.g4 LEXER PARSER VISITOR
 #    gen_pss_parser
 #    DEPENDS ${ANTLR_PSS_OUTPUTS})
 
-add_library(parser
+add_library(pssparser
 	${parser_SRC}
 	${ANTLR_PSS_OUTPUTS})
 
-#add_dependencies(parser gen_pss_parser)
-		
+add_dependencies(pssparser 
+	libantlr4
+	pss_ast)
+
+install(TARGETS pssparser
+    DESTINATION lib
+    EXPORT pssparser-targets)
+    

@@ -24,7 +24,7 @@ endif()
 
 find_package(ANTLR REQUIRED)
 
-ExternalProject_Add(LIBANTLR4
+ExternalProject_Add(libantlr4
     PREFIX antlr4
     SOURCE_DIR "${PACKAGES_DIR}/antlr4-cpp-runtime"
     CMAKE_CACHE_ARGS
