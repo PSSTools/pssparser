@@ -28,8 +28,8 @@ ExternalProject_Add(libantlr4
     PREFIX antlr4
     SOURCE_DIR "${PACKAGES_DIR}/antlr4-cpp-runtime"
     CMAKE_CACHE_ARGS
-        -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_CURRENT_BINARY_DIR}/antlr4
-	-DCMAKE_CXX_FLAGS:STRING=-Wno-attributes
+      -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_BINARY_DIR}/antlr4
+      -DCMAKE_CXX_FLAGS:STRING=-Wno-attributes
     )
     
 ExternalProject_Add(pss_ast

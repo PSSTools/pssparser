@@ -6,13 +6,25 @@
  */
 
 #pragma once
+#include <memory>
+#include <istream>
+#include "IMarkerListener.h"
 #include "PSSBaseVisitor.h"
+#include "BaseErrorListener.h"
 
-class AstBuilderInt : public PSSBaseVisitor {
+using namespace antlr4;
+
+namespace pssp {
+
+class AstBuilderInt :
+		public PSSBaseVisitor,
+		public BaseErrorListener {
 public:
-	AstBuilderInt();
+	AstBuilderInt(IMarkerListener *marker_l);
 
 	virtual ~AstBuilderInt();
+
+	void build(std::istream *in);
 
     virtual antlrcpp::Any visitCompilation_unit(PSSParser::Compilation_unitContext *context) override;
 
@@ -536,5 +548,18 @@ public:
 
     virtual antlrcpp::Any visitImport_class_method_decl(PSSParser::Import_class_method_declContext *context) override;
 
+    virtual void syntaxError(
+    		Recognizer *recognizer,
+			Token * offendingSymbol,
+			size_t line,
+			size_t charPositionInLine,
+			const std::string &msg,
+			std::exception_ptr e) override;
+
+private:
+    IMarkerListener						*m_marker_l;
+
 };
+
+}
 
