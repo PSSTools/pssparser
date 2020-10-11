@@ -27,6 +27,8 @@ public:
 
 	MarkerSeverityE severity() const { return m_severity; }
 
+	const Location &loc() const { return m_loc; }
+
 private:
 	std::string			m_msg;
 	MarkerSeverityE		m_severity;

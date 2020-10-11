@@ -6,6 +6,7 @@
  */
 
 #include "AstBuilderInt.h"
+#include "PSSLexer.h"
 
 namespace pssp {
 
@@ -19,7 +20,15 @@ AstBuilderInt::~AstBuilderInt() {
 }
 
 void AstBuilderInt::build(std::istream *in) {
-	;
+	ANTLRInputStream input(*in);
+	PSSLexer lexer(&input);
+	CommonTokenStream tokens(&lexer);
+	PSSParser parser(&tokens);
+
+	parser.removeErrorListeners();
+	parser.addErrorListener(this);
+
+	parser.compilation_unit();
 }
 
 antlrcpp::Any AstBuilderInt::visitCompilation_unit(PSSParser::Compilation_unitContext *context) { return 0; }
@@ -552,7 +561,13 @@ void AstBuilderInt::syntaxError(
 			const std::string &msg,
 			std::exception_ptr e) {
 	if (m_marker_l) {
-
+		m_marker_l->marker(Marker(
+				msg,
+				Severity_Error,
+				Location(
+						0,
+						line,
+						charPositionInLine)));
 	}
 }
 
