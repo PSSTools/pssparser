@@ -6,14 +6,29 @@
  */
 
 #include "AstBuilderInt.h"
+#include "PSSLexer.h"
 
-AstBuilderInt::AstBuilderInt() {
+namespace pssp {
+
+AstBuilderInt::AstBuilderInt(IMarkerListener *marker_l) : m_marker_l(marker_l) {
 	// TODO Auto-generated constructor stub
 
 }
 
 AstBuilderInt::~AstBuilderInt() {
 	// TODO Auto-generated destructor stub
+}
+
+void AstBuilderInt::build(std::istream *in) {
+	ANTLRInputStream input(*in);
+	PSSLexer lexer(&input);
+	CommonTokenStream tokens(&lexer);
+	PSSParser parser(&tokens);
+
+	parser.removeErrorListeners();
+	parser.addErrorListener(this);
+
+	parser.compilation_unit();
 }
 
 antlrcpp::Any AstBuilderInt::visitCompilation_unit(PSSParser::Compilation_unitContext *context) { return 0; }
@@ -538,4 +553,22 @@ antlrcpp::Any AstBuilderInt::visitImport_class_extends(PSSParser::Import_class_e
 
 antlrcpp::Any AstBuilderInt::visitImport_class_method_decl(PSSParser::Import_class_method_declContext *context) { return 0; }
 
+void AstBuilderInt::syntaxError(
+    		Recognizer *recognizer,
+			Token * offendingSymbol,
+			size_t line,
+			size_t charPositionInLine,
+			const std::string &msg,
+			std::exception_ptr e) {
+	if (m_marker_l) {
+		m_marker_l->marker(Marker(
+				msg,
+				Severity_Error,
+				Location(
+						0,
+						line,
+						charPositionInLine)));
+	}
+}
 
+}

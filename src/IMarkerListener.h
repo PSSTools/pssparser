@@ -6,10 +6,16 @@
  */
 
 #pragma once
+#include "Marker.h"
+
+namespace pssp {
 
 class IMarkerListener {
 public:
 	virtual ~IMarkerListener() { }
 
+	virtual void marker(const Marker &m) = 0;
 
 };
+
+}
