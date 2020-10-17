@@ -5,7 +5,12 @@ project(parser)
 
 include(ExternalAntlr4Cpp)
 
-add_compile_options(-Wno-attributes)
+if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+  add_compile_options(-Wno-attributes)
+else()
+  add_compile_options(-DANTLR4CPP_STATIC)
+endif()
+
 include_directories(
     ${CMAKE_BINARY_DIR}/antlr4/include/antlr4-runtime
     ${CMAKE_CURRENT_BINARY_DIR}/antlr4cpp_generated_src/PSS)
