@@ -32,6 +32,8 @@ file(GLOB pssparser_SRC
 add_library(pssparser
 	${pssparser_SRC}
 	${ANTLR_PSS_OUTPUTS})
+
+add_dependencies(pssparser pss_ast libantlr4)
 	
 add_library(formatter
 	${parser_SRC}
@@ -46,7 +48,7 @@ target_link_libraries(pssformat
 	
 	
 add_dependencies(pssformat
-	LIBANTLR4)
+	libantlr4)
   
 #add_dependencies(parser gen_pss_parser)
 		

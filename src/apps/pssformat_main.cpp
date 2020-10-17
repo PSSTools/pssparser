@@ -20,7 +20,7 @@ int main(int argc, char **argv) {
 		exit(1);
 	}
 
-	Formatter f;
+	pss::Formatter f;
 
 
 

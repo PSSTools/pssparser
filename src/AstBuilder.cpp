@@ -6,6 +6,7 @@
  */
 
 #include "AstBuilder.h"
+
 #include "AstBuilderInt.h"
 
 namespace pssp {
@@ -21,8 +22,9 @@ AstBuilder::~AstBuilder() {
 }
 
 void AstBuilder::build(
-			std::istream		*in) {
-	m_builder_int->build(in);
+		GlobalScope			*global,
+		std::istream		*in) {
+	m_builder_int->build(global, in);
 }
 
 } /* namespace pssp */

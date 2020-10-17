@@ -6,6 +6,7 @@
  */
 
 #pragma once
+#include <vector>
 #include "IMarkerListener.h"
 
 namespace pssp {
@@ -15,6 +16,14 @@ public:
 	MarkerCollector();
 
 	virtual ~MarkerCollector();
+
+	virtual void marker(const Marker &m) override;
+
+	virtual bool hasSeverity(MarkerSeverityE s) override;
+
+private:
+	uint32_t					m_count[Severity_NumLevels];
+	std::vector<Marker>			m_markers;
 
 
 };

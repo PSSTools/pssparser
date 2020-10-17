@@ -11,6 +11,8 @@
 #include "IMarkerListener.h"
 #include "PSSBaseVisitor.h"
 #include "BaseErrorListener.h"
+#include "GlobalScope.h"
+#include "Scope.h"
 
 using namespace antlr4;
 
@@ -24,15 +26,11 @@ public:
 
 	virtual ~AstBuilderInt();
 
-	void build(std::istream *in);
-
-    virtual antlrcpp::Any visitCompilation_unit(PSSParser::Compilation_unitContext *context) override;
-
-    virtual antlrcpp::Any visitPortable_stimulus_description(PSSParser::Portable_stimulus_descriptionContext *context) override;
+	void build(
+			GlobalScope		*global,
+			std::istream 	*in);
 
     virtual antlrcpp::Any visitPackage_declaration(PSSParser::Package_declarationContext *context) override;
-
-    virtual antlrcpp::Any visitPackage_body_item(PSSParser::Package_body_itemContext *context) override;
 
     virtual antlrcpp::Any visitImport_stmt(PSSParser::Import_stmtContext *context) override;
 
@@ -557,7 +555,15 @@ public:
 			std::exception_ptr e) override;
 
 private:
+    Scope *scope() const { return m_scopes.back(); }
+
+    void push_scope(Scope *s) { m_scopes.push_back(s); }
+
+    void pop_scope() { m_scopes.pop_back(); }
+
+private:
     IMarkerListener						*m_marker_l;
+    std::vector<Scope *>				m_scopes;
 
 };
 

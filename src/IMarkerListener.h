@@ -7,6 +7,7 @@
 
 #pragma once
 #include "Marker.h"
+#include "MarkerSeverityE.h"
 
 namespace pssp {
 
@@ -15,6 +16,8 @@ public:
 	virtual ~IMarkerListener() { }
 
 	virtual void marker(const Marker &m) = 0;
+
+	virtual bool hasSeverity(MarkerSeverityE s) = 0;
 
 };
 

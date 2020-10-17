@@ -8,6 +8,7 @@
 #pragma once
 #include <memory>
 #include <iostream>
+#include "GlobalScope.h"
 #include "IMarkerListener.h"
 
 namespace pssp {
@@ -22,6 +23,7 @@ public:
 	virtual ~AstBuilder();
 
 	void build(
+			GlobalScope			*global,
 			std::istream		*in);
 
 private:
