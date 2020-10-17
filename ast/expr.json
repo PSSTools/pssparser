@@ -42,14 +42,6 @@
 		"name": "Expr"
 	},
 	{
-		"name": "ExprCast",
-		"super": "Expr",
-		"data": {
-			"casting_type": "UP<Expr>",
-			"expr": "UP<Expr>"
-		}
-	},
-	{
 		"name": "ExprBin",
 		"super" : "Expr",
 		"data": {
@@ -60,9 +52,9 @@
 	},
 	{
 		"name": "ExprBitSlice",
-		"super" : "Expr",
+		"super": "Expr",
 		"data": {
-			"expr" : "UP<Expr>",
+			"expr": "UP<Expr>",
 			"lhs": "UP<Expr>",
 			"rhs": "UP<Expr>"
 		}
@@ -72,6 +64,14 @@
 		"super": "Expr",
 		"data": {
 			"value" : "bool"
+		}
+	},
+	{
+		"name": "ExprCast",
+		"super": "Expr",
+		"data": {
+			"casting_type": "UP<Expr>",
+			"expr": "UP<Expr>"
 		}
 	},
 	{
@@ -144,6 +144,10 @@
 		}
 	},
 	{
+		"name": "ExprNumber",
+		"super": "Expr"
+	},
+	{
 		"name": "ExprAggregateLiteral",
 		"super": "Expr",
 		"data": {
@@ -178,6 +182,10 @@
 		}
 	},
 	{
+		"name": "ExprRefPathElem",
+		"super": "Expr"
+	},
+	{
 		"name": "ExprRefPathStatic",
 		"super": "ExprRefPath",
 		"data": {
@@ -186,8 +194,27 @@
 		}
 	},
 	{
-		"name": "ExprSignedNumber",
+		"name": "ExprRefPathStaticFunc",
+		"super": "ExprRefPathStatic",
+		"data": {
+			"params": "UP<MethodParameterList>"
+		}
+	},
+	{
+		"name": "ExprRefPathStaticRooted",
 		"super": "Expr",
+		"data": {
+			"root": "UP<ExprRefPathStatic>",
+			"leaf": "UP<ExprRefPathContext>"
+		}
+	},
+	{
+		"name": "ExprRefPathSuper",
+		"super": "ExprRefPathContext"
+	},
+	{
+		"name": "ExprSignedNumber",
+		"super": "ExprNumber",
 		"data": {
 			"image": "string",
 			"width": "uint32_t",
@@ -229,7 +256,7 @@
 	},
 	{
 		"name": "ExprUnsignedNumber",
-		"super": "Expr",
+		"super": "ExprNumber",
 		"data": {
 			"image": "string",
 			"width": "uint32_t",

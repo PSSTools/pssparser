@@ -1,0 +1,67 @@
+{
+	"classes": [
+		{
+			"name": "DataType",
+			"super": "ScopeChild"
+		},
+		{
+			"name": "DataTypeArray",
+			"super": "DataType",
+			"data": {
+				"type": "UP<DataType>",
+				"size": "UP<Expr>"
+			}
+		},
+		{
+			"name": "DataTypeBool",
+			"super": "DataType"
+		},
+		{
+			"name": "DataTypeChandle",
+			"super": "DataType"
+		},
+		{
+			"name": "DataTypeEnum",
+			"super": "DataType",
+			"data": {
+				"tid": "UP<DataTypeUserDefined>",
+				"in_rangelist": "UP<ExprOpenRangeList>"
+			}
+		},
+		{
+			"name": "DataTypeInt",
+			"super": "DataType",
+			"data": {
+				"is_signed": "bool",
+				"width_lhs": "UP<Expr>",
+				"width_rhs": "UP<Expr>",
+				"in_range": "UP<ExprDomainOpenRangeList>"
+			}
+		},
+		{
+			"name": "DataTypeString",
+			"super": "DataType",
+			"data": {
+				"has_range": "bool",
+				"in_range": "list<string>"
+			}
+		},
+		{
+			"name": "DataTypeUserDefined",
+			"super": "DataType",
+			"data": {
+				"is_global": "bool",
+				"elems": "list<UP<TypeIdentifierElem>>",
+				"target": {
+					"is_ctor": false,
+					"type": "SP<RefExpr>"
+				},
+				"target_p": {
+					"is_ctor": false,
+					"type": "P<ScopeChild>",
+					"init": 0
+				}
+			}
+		}
+	]
+}
