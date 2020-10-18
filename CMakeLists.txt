@@ -65,7 +65,17 @@ ExternalProject_Add(pss_ast
         -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_CURRENT_BINARY_DIR}/pss_ast
         -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
 	)
+	
+enable_testing()
+
+ExternalProject_Add(googletest
+        PREFIX googletest
+        SOURCE_DIR "${PACKAGES_DIR}/googletest"
+    CMAKE_CACHE_ARGS
+    -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_BINARY_DIR}/googletest
+    )
 
 add_subdirectory(src)
+add_subdirectory(tests)
 
 

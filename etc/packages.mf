@@ -2,4 +2,7 @@
 antlr4-tools@https://www.antlr.org/download/antlr-4.8-complete.jar
 antlr4-cpp-runtime@https://www.antlr.org/download/antlr4-cpp-runtime-4.8-source.zip
 
+googletest@https://github.com/google/googletest/archive/release-1.10.0.tar.gz
+# googletest@https://github.com/google/googletest/archive/master.zip
+
 

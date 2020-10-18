@@ -1,5 +1,5 @@
 #****************************************************************************
-#* pssparser/src CMakeLists.txt
+#* CMakeLists.txt
 #****************************************************************************
 cmake_minimum_required (VERSION 2.8)
 
@@ -12,19 +12,11 @@ include_directories(
     ${CMAKE_CURRENT_BINARY_DIR}/antlr4cpp_generated_src/PSS
     ${CMAKE_CURRENT_SOURCE_DIR}
     )
-    
 
-
-antlr_target(PSS PSS.g4 LEXER PARSER VISITOR LISTENER
-	)
-
-# Wrap generation of ANTLR code in a custom target	
-#add_custom_target(
-#    gen_pss_parser
-#    DEPENDS ${ANTLR_PSS_OUTPUTS})
+antlr_target(PSS PSS.g4 LEXER PARSER VISITOR LISTENER)
 
 #********************************************************************
-#* libpssparser
+#* pssparser
 #********************************************************************
 file(GLOB pssparser_SRC
 	"*.h"
@@ -35,7 +27,7 @@ add_library(pssparser
 
 add_dependencies(pssparser pss_ast libantlr4)
 	
-add_library(formatter
+add_library(pssformatter
 	${parser_SRC}
 	${ANTLR_PSS_OUTPUTS})
 	

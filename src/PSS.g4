@@ -23,8 +23,8 @@ compilation_unit :
 	;
 
 portable_stimulus_description : 
-/*	package_body_item 
-	|*/ package_declaration
+	package_body_item 
+	| package_declaration
 	| component_declaration
 	;
 

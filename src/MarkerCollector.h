@@ -21,6 +21,10 @@ public:
 
 	virtual bool hasSeverity(MarkerSeverityE s) override;
 
+	const std::vector<Marker> &markers() const {
+		return m_markers;
+	}
+
 private:
 	uint32_t					m_count[Severity_NumLevels];
 	std::vector<Marker>			m_markers;

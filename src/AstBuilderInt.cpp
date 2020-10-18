@@ -9,6 +9,7 @@
 #include "PSSLexer.h"
 #include "Action.h"
 #include "Component.h"
+#include "NamedScopeChild.h"
 
 namespace pssp {
 
@@ -43,6 +44,7 @@ void AstBuilderInt::build(
 }
 
 antlrcpp::Any AstBuilderInt::visitPackage_declaration(PSSParser::Package_declarationContext *ctx) {
+	PSSBaseVisitor::visitPackage_declaration(ctx);
 	return 0;
 }
 
@@ -65,8 +67,7 @@ antlrcpp::Any AstBuilderInt::visitStatic_const_field_declaration(PSSParser::Stat
 antlrcpp::Any AstBuilderInt::visitAction_declaration(PSSParser::Action_declarationContext *ctx) {
 	Action *a = new Action(0, 0);
 
-	scope()->children().push_back(ScopeChildUP(a));
-
+	addChild(a, ctx->start);
 	push_scope(a);
 	for (uint32_t i=0; i<ctx->action_body_item().size(); i++) {
 		ctx->action_body_item(i)->accept(this);
@@ -187,7 +188,20 @@ antlrcpp::Any AstBuilderInt::visitProcedural_break_stmt(PSSParser::Procedural_br
 antlrcpp::Any AstBuilderInt::visitProcedural_continue_stmt(PSSParser::Procedural_continue_stmtContext *ctx) { return 0; }
 
 antlrcpp::Any AstBuilderInt::visitComponent_declaration(PSSParser::Component_declarationContext *ctx) {
-	Component *comp = new Component(0, 0);
+	Component *c = new Component(0, 0);
+
+	addChild(c, ctx->start);
+
+	fprintf(stdout, "visitComponent_declaration: %s\n",
+			ctx->component_identifier()->getText().c_str());
+
+	push_scope(c);
+	for (uint32_t i=0; i<ctx->component_body_item().size(); i++) {
+		ctx->component_body_item(i)->accept(this);
+	}
+
+	pop_scope();
+
 
 	return 0;
 }
@@ -594,6 +608,18 @@ void AstBuilderInt::syntaxError(
 						line,
 						charPositionInLine)));
 	}
+}
+
+void AstBuilderInt::addChild(ScopeChild *c, Token *t) {
+	scope()->children().push_back(ScopeChildUP(c));
+}
+
+void AstBuilderInt::addChild(NamedScopeChild *c, Token *t) {
+	scope()->children().push_back(ScopeChildUP(c));
+}
+
+void AstBuilderInt::addChild(NamedScope *c, Token *t) {
+	scope()->children().push_back(ScopeChildUP(c));
 }
 
 }

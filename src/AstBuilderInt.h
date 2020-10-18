@@ -555,6 +555,12 @@ public:
 			std::exception_ptr e) override;
 
 private:
+    void addChild(ScopeChild *c, Token *t);
+
+    void addChild(NamedScopeChild *c, Token *t);
+
+    void addChild(NamedScope *c, Token *t);
+
     Scope *scope() const { return m_scopes.back(); }
 
     void push_scope(Scope *s) { m_scopes.push_back(s); }
