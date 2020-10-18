@@ -6,6 +6,7 @@ file(GLOB TEST_SRCS
 	"src/*.h")
 
 link_directories(
+	${CMAKE_BINARY_DIR}/googletest/lib
 	${CMAKE_BINARY_DIR}/googletest/lib64
 	${CMAKE_BINARY_DIR}/antlr/lib
 	${CMAKE_BINARY_DIR}/pssparser
