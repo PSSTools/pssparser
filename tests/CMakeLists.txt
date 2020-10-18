@@ -26,7 +26,7 @@ target_link_libraries(pssparser_testmain
 	gtest 
 	gtest_main 
 	pssparser
-	project_ast
+	pssast
 	antlr4-runtime
 	pthread)
 

@@ -25,7 +25,7 @@ add_library(pssparser
 	${pssparser_SRC}
 	${ANTLR_PSS_OUTPUTS})
 
-add_dependencies(pssparser pss_ast libantlr4)
+add_dependencies(pssparser AST libantlr4)
 	
 add_library(pssformatter
 	${parser_SRC}

@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 2.8)
+cmake_minimum_required (VERSION 3.11)
 
 project(pssparser)
 
@@ -13,10 +13,11 @@ message("PSSParser: PACKAGES_DIR=${PACKAGES_DIR}")
 list(APPEND CMAKE_MODULE_PATH ${PACKAGES_DIR}/antlr4-cpp-runtime/cmake)
 
 # Some include	
-include_directories(${CMAKE_BINARY_DIR}/pss_ast/include/project_ast)
+include_directories(${CMAKE_BINARY_DIR}/pssast/include/pssast)
 
 link_directories(
 	${CMAKE_BINARY_DIR}/antlr4/lib
+	${CMAKE_BINARY_DIR}/pssast/lib
 	)
 
 set(ANTLR_EXECUTABLE ${PACKAGES_DIR}/antlr4-tools.jar)
@@ -57,12 +58,12 @@ ExternalProject_Add(libantlr4
       -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
     )
     
-ExternalProject_Add(pss_ast
-	PREFIX pss_ast
-	SOURCE_DIR "${CMAKE_CURRENT_BINARY_DIR}/pss_ast/src"
-	DOWNLOAD_COMMAND ${PYTHON} -m astbuilder -astdir ${CMAKE_CURRENT_SOURCE_DIR}/ast -license ${CMAKE_CURRENT_SOURCE_DIR}/scripts/copyright.cpp
+ExternalProject_Add(AST
+	PREFIX pssast
+	SOURCE_DIR "${CMAKE_CURRENT_BINARY_DIR}/pssast/src"
+	DOWNLOAD_COMMAND ${PYTHON} -m astbuilder -name pssast -namespace pssp -astdir ${CMAKE_CURRENT_SOURCE_DIR}/ast -license ${CMAKE_CURRENT_SOURCE_DIR}/scripts/copyright.cpp
     CMAKE_CACHE_ARGS
-        -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_CURRENT_BINARY_DIR}/pss_ast
+        -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_CURRENT_BINARY_DIR}/pssast
         -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
 	)
 	
