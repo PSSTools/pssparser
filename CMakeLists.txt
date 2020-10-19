@@ -10,6 +10,7 @@ endif()
 
 message("PSSParser: PACKAGES_DIR=${PACKAGES_DIR}")
 
+
 list(APPEND CMAKE_MODULE_PATH ${PACKAGES_DIR}/antlr4-cpp-runtime/cmake)
 
 # Some include	
@@ -30,6 +31,9 @@ else()
 endif()
 
 find_package(ANTLR REQUIRED)
+
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
   set(ANTLR_CXXFLAGS -Wno-attributes)
