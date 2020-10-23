@@ -51,6 +51,7 @@ set(CompilerFlags
         )
 foreach(CompilerFlag ${CompilerFlags})
   string(REPLACE "/MD" "/MT" ${CompilerFlag} "${${CompilerFlag}}")
+  string(REPLACE "/MDd" "/MTd" ${CompilerFlag} "${${CompilerFlag}}")
 endforeach()
 
 ExternalProject_Add(libantlr4
@@ -60,15 +61,17 @@ ExternalProject_Add(libantlr4
       -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_BINARY_DIR}/antlr4
       -DCMAKE_CXX_FLAGS:STRING=${ANTLR_CXXFLAGS}
       -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
+      -DBUILD_SHARED_LIBS:BOOL=${BUILD_SHARED_LIBS}
     )
     
 ExternalProject_Add(AST
 	PREFIX pssast
 	SOURCE_DIR "${CMAKE_CURRENT_BINARY_DIR}/pssast/src"
 	DOWNLOAD_COMMAND ${PYTHON} -m astbuilder -name pssast -namespace pssp -astdir ${CMAKE_CURRENT_SOURCE_DIR}/ast -license ${CMAKE_CURRENT_SOURCE_DIR}/scripts/copyright.cpp
-    CMAKE_CACHE_ARGS
-        -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_CURRENT_BINARY_DIR}/pssast
-        -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
+        CMAKE_CACHE_ARGS
+          -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_CURRENT_BINARY_DIR}/pssast
+          -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
+          -DBUILD_SHARED_LIBS:BOOL=${BUILD_SHARED_LIBS}
 	)
 	
 enable_testing()
@@ -76,8 +79,10 @@ enable_testing()
 ExternalProject_Add(googletest
         PREFIX googletest
         SOURCE_DIR "${PACKAGES_DIR}/googletest"
-    CMAKE_CACHE_ARGS
-    -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_BINARY_DIR}/googletest
+        CMAKE_CACHE_ARGS
+          -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_BINARY_DIR}/googletest
+	  -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
+	  -DBUILD_SHARED_LIBS:BOOL=${BUILD_SHARED_LIBS}
     )
 
 add_subdirectory(src)

@@ -5,7 +5,12 @@ cmake_minimum_required (VERSION 2.8)
 
 include(ExternalAntlr4Cpp)
 
-add_compile_options(-Wno-attributes)
+if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+  add_compile_options(-Wno-attributes)
+else()
+  add_compile_options(-DANTLR4CPP_STATIC)
+endif()
+
 include_directories(
     ${CMAKE_BINARY_DIR}/antlr4/include/antlr4-runtime
     ${PACKAGES_DIR}/antlr4-cpp-runtime/runtime/src
