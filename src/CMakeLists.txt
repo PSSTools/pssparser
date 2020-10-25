@@ -30,6 +30,10 @@ add_library(pssparser
 	${pssparser_SRC}
 	${ANTLR_PSS_OUTPUTS})
 
+install(TARGETS pssparser
+    DESTINATION lib
+    EXPORT pssparser-targets)
+    
 add_dependencies(pssparser AST libantlr4)
 	
 add_library(pssformatter
