@@ -40,12 +40,21 @@ target_include_directories(pssparser_testmain PRIVATE
 	${PACKAGES_DIR}/googletest/googletest/include
 	${CMAKE_CURRENT_SOURCE_DIR}/../src)
 
-target_link_libraries(pssparser_testmain 
-	gtest
-	gtest_main
-	pssparser
-	pssast
-	antlr4-runtime-static)
+list(APPEND PSSPARSER_TESTMAIN_LIBS gtest gtest_main pssparser pssast)
+
+if (WIN32)
+	if (BUILD_SHARED_LIBS)
+		list(APPEND PSSPARSER_TESTMAIN_LIBS antlr4-runtime)
+	else()
+		list(APPEND PSSPARSER_TESTMAIN_LIBS antlr4-runtime-static)
+	endif()
+else()
+	list(APPEND PSSPARSER_TESTMAIN_LIBS antlr4-runtime pthread)
+endif()
+
+
+
+target_link_libraries(pssparser_testmain ${PSSPARSER_TESTMAIN_LIBS})
 
 add_test(
 	NAME unit
