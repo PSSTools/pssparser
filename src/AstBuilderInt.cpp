@@ -10,6 +10,7 @@
 #include "Action.h"
 #include "Component.h"
 #include "NamedScopeChild.h"
+#include "ScopeUtil.h"
 
 namespace pssp {
 
@@ -611,11 +612,11 @@ void AstBuilderInt::syntaxError(
 }
 
 void AstBuilderInt::addChild(ScopeChild *c, Token *t) {
-	scope()->children().push_back(ScopeChildUP(c));
+	ScopeUtil::addChild(scope(), c);
 }
 
 void AstBuilderInt::addChild(NamedScopeChild *c, Token *t) {
-	scope()->children().push_back(ScopeChildUP(c));
+	ScopeUtil::addChild(scope(), c);
 }
 
 void AstBuilderInt::addChild(NamedScope *c, Token *t) {

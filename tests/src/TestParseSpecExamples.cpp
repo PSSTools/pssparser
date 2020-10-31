@@ -25,7 +25,7 @@ void TestParseSpecExamples::runTest(
 		const std::string &name) {
 	std::stringstream s(content);
 
-	pssp::GlobalScopeUP global(new pssp::GlobalScope());
+	pssp::GlobalScopeUP global(new pssp::GlobalScope(0));
 
 	pssp::MarkerCollector marker_c;
 	pssp::AstBuilder ast_builder(&marker_c);

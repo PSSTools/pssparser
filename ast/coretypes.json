@@ -1,6 +1,14 @@
 {
 	"classes": [
 		{
+			"name": "Location",
+			"data": {
+				"fileid": "int32_t",
+				"lineno": "int32_t",
+				"linepos": "int32_t"
+			}
+		},
+		{
 			"name": "Scope",
 			"super": "ScopeChild",
 			"data": {
@@ -18,12 +26,20 @@
 					"type": "P<Scope>",
 					"is_ctor": false,
 					"init": 0
+				},
+				"index": {
+					"type": "int32_t",
+					"is_ctor": false,
+					"init": -1
 				}
 			}
 		},
 		{
 			"name": "GlobalScope",
-			"super": "Scope"
+			"super": "Scope",
+			"data": {
+				"fileid": "int32_t"
+			}
 		},
 		{
 			"name": "NamedScope",
