@@ -1,0 +1,65 @@
+
+classes:
+    - ConstraintBlock:
+        - super: ConstraintStmt
+        - data:
+            - name: string
+            - is_dynamic: bool
+    - ConstraintScope:
+        - super: ConstraintStmt
+        - data:
+            - symtab:
+                - type: map<string, P<NamedScopeChild>>
+                - is_ctor: false
+    - ConstraintStmt:
+        - super: ScopeChild
+    - ConstraintStmtDefault:
+        - super: ConstraintStmt
+        - data:
+            - hid: UP<ExprHierarchicalId>
+            - expr: UP<Expr>
+    - ConstraintStmtDefaultDisable:
+        - super: ConstraintStmt
+        - data:
+            - hid: UP<ExprHierarchicalId>
+    - ConstraintStmtExpr:
+        - super: ConstraintStmt
+        - data:
+            - expr: UP<Expr>
+    - ConstraintStmtField:
+        - super: ConstraintStmt
+        - data:
+            - name: UP<ExprId>
+            - type: UP<DataType>
+    - ConstraintStmtForall:
+        - super: ConstraintScope
+        - data:
+            - iterator_id: UP<ExprId>
+            - type_id: UP<DataTypeUserDefined>
+            - ref_path: UP<ExprRefPath>
+    - ConstraintStmtForeach:
+        - super: ConstraintScope
+        - data:
+            - it:
+                - type: P<ConstraintStmtField>
+                - is_ctor: false
+            - idx:
+                - type: P<ConstraintStmtField>
+                - is_ctor: false
+            - expr: UP<Expr>
+    - ConstraintStmtIf:
+        - super: ConstraintStmt
+        - data:
+            - cond: UP<Expr>
+            - true_c: UP<ConstraintScope>
+            - false_c: UP<ConstraintScope>
+    - ConstraintStmtImplication:
+        - super: ConstraintScope
+        - data:
+            - cond: UP<Expr>
+    - ConstraintStmtUnique:
+        - super: ConstraintStmt
+        - data:
+            - list: list<UP<ExprRefPathContext>>
+            
+            

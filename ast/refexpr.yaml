@@ -1,0 +1,17 @@
+classes:
+    - RefExpr:
+    - RefExprTypeScopeGlobal:
+        - super: RefExpr
+        - data: 
+            - fileid: int32_t
+    - RefExprTypeScopeContext:
+        - super: RefExpr
+        - data: 
+            - base: "SP<RefExpr>"
+            - offset: int32_t
+    - RefExprScopeIndex:
+        - super: RefExpr
+        - data: 
+            - base: "SP<RefExpr>"
+            - offset: "int32_t"
+            

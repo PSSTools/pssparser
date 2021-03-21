@@ -1,0 +1,188 @@
+enums: 
+    - ExprBinOp:
+        - BinOp_LogOr
+        - BinOp_LogAnd
+        - BinOp_BitOr
+        - BinOp_BitXor
+        - BinOp_BitAnd
+        - BinOp_Lt
+        - BinOp_Le
+        - BinOp_Gt
+        - BinOp_Ge
+        - BinOp_Exp
+        - BinOp_Mul
+        - BinOp_Div
+        - BinOp_Mod
+        - BinOp_Add
+        - BinOp_Sub
+        - BinOp_Shl
+        - BinOp_Shr
+        - BinOp_Eq"
+        - BinOp_Ne
+    - ExprUnaryOp:
+        - UnaryOp_Plus
+        - UnaryOp_Minus
+        - UnaryOp_LogNot
+        - UnaryOp_BitNeg
+        - UnaryOp_BitAnd
+        - UnaryOp_BitOr
+        - UnaryOp_BitXor
+
+classes: 
+    - Expr:
+    - ExprBin:
+        - super: Expr
+        - data: 
+            - lhs: "UP<Expr>"
+            - op:  "ExprBinOp"
+            - rhs: "UP<Expr>"
+            
+    - ExprBitSlice:
+        - super: Expr
+        - data: 
+            - expr: "UP<Expr>"
+            - lhs:  "UP<Expr>"
+            - rhs:  "UP<Expr>"
+    - ExprBool:
+        - super: Expr
+        - data: 
+            - value : bool
+    - ExprCast:
+        - super: Expr
+        - data: 
+            - casting_type: "UP<Expr>"
+            - expr: "UP<Expr>"
+    - ExprCompileHas:
+        - super: Expr
+        - data: 
+            - ref: "UP<ExprRefPathStatic>"
+    - ExprCond:
+        - super: Expr
+        - data: 
+            - cond_e: "UP<Expr>"
+            - true_e: "UP<Expr>"
+            - false_e: "UP<Expr>"
+    - ExprDomainOpenRangeList:
+        - super: Expr
+        - data:
+            - values: "list<UP<ExprDomainOpenRangeValue>>"
+    - ExprDomainOpenRangeValue:
+        - super: Expr
+        - data: 
+            - single: bool
+            - lhs: "UP<Expr>"
+            - rhs: "UP<Expr>"
+    - ExprHierarchicalId:
+        - super: Expr
+        - data: 
+            - elems : "list<UP<ExprMemberPathElem>>"
+    - ExprId:
+        - super: Expr
+        - data: 
+            - id: string
+            - is_escaped: bool
+    - ExprIn:
+        - super: Expr
+        - data: 
+            - lhs : "UP<Expr>"
+            - rhs : "UP<ExprOpenRangeList>"
+    - ExprMemberPathElem:
+        - super: Expr
+        - data: 
+            - id : "UP<ExprId>"
+            - params: "UP<MethodParameterList>"
+            - subscript: "UP<Expr>"
+            - target: 
+                - type: int32_t
+                - is_ctor: false
+                - init: -1
+    - ExprNumber:
+        - super: Expr
+    - ExprAggregateLiteral:
+        - super: Expr
+#        - data:
+    - ExprOpenRangeList:
+        - super: Expr
+        - data: 
+            - values: "list<UP<ExprOpenRangeValue>>"
+    - ExprOpenRangeValue:
+        - super: Expr
+        - data: 
+            - lhs: "UP<Expr>"
+            - rhs: "UP<Expr>"
+    - ExprRefPath:
+        - super: Expr
+#        - data: 
+    - ExprRefPathContext:
+        - super: ExprRefPath
+        - data: 
+            - hier_id : "UP<ExprHierarchicalId>"
+    - ExprRefPathElem:
+        - super: Expr
+    - ExprRefPathStatic:
+        - super: ExprRefPath
+        - data:
+            - is_global: bool
+            - base: "list<UP<TypeIdentifierElem>>"
+    - ExprRefPathStaticFunc:
+        - super: ExprRefPathStatic
+        - data:
+            - params: "UP<MethodParameterList>"
+    - ExprRefPathStaticRooted:
+        - super: Expr
+        - data: 
+            - root: "UP<ExprRefPathStatic>"
+            - leaf: "UP<ExprRefPathContext>"
+    - ExprRefPathSuper:
+        - super: ExprRefPathContext
+    - ExprSignedNumber:
+        - super: ExprNumber
+        - data: 
+            - image: string
+            - width: uint32_t
+            - value: int64_t
+    - ExprStaticRefPath:
+        - super: Expr
+        - data: 
+            - is_global: bool
+            - base: "list<UP<TypeIdentifierElem>>"
+            - leaf: "UP<ExprMemberPathElem>"
+    - ExprString:
+        - super: Expr
+        - data:
+            - value: string
+            - is_raw: bool
+    - ExprSubscript:
+        - super: Expr
+        - data: 
+            - expr: "UP<Expr>"
+            - subscript: "UP<Expr>"
+    - ExprUnary:
+        - super: Expr
+        - data: 
+            - op: ExprUnaryOp
+            - rhs: "UP<Expr>"
+    - ExprUnsignedNumber:
+        - super: ExprNumber
+        - data: 
+            - image: string
+            - width: uint32_t
+            - value: uint64_t
+    - MethodParameterList:
+        - super: Expr
+#        - data: 
+    - TemplateParamValue:
+        - super: Expr
+        - data: 
+            - value: "UP<Expr>"
+    - TypeIdentifier:
+        - super: Expr
+        - data: 
+            - elems : "list<UP<TypeIdentifierElem>>"
+    - TypeIdentifierElem:
+        - super: Expr
+        - data:
+            - id: "UP<ExprId>"
+            - params: "list<UP<TemplateParamValue>>"
+
+ 

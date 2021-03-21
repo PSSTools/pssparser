@@ -1,0 +1,67 @@
+
+classes:
+    - Location:
+        - data:
+            - fileid: int32_t
+            - lineno: int32_t
+            - linepos: int32_t
+    - Scope:
+        - super: ScopeChild
+        - data:
+            - children: list<UP<ScopeChild>>
+            - symtab:
+                - type: map<string,P<NamedScopeChild>>
+                - is_ctor: false
+    - ScopeChild:
+        - data:
+            - parent:
+                - type: P<Scope>
+                - is_ctor: false
+                - init: 0
+            - index:
+                - type: int32_t
+                - is_ctor: false,
+                - init: -1
+    - GlobalScope:
+        - super: Scope
+        - data:
+            - fileid: int32_t
+    - NamedScope:
+        - super: Scope
+        - data:
+            - name : UP<ExprId>
+    - NamedScopeChild:
+        - super: ScopeChild
+        - data:
+            - name: UP<ExprId>
+    - PackageScope:
+        - super: NamedScope
+        - data:
+            - sibling:
+                - type: P<PackageScope>
+                - is_ctor: false
+                - init: 0
+    - TypeScope:
+        - super: NamedScope
+        - data:
+            - super_t : UP<TypeIdentifier>
+    - Action:
+        - super: TypeScope
+    - Component:
+        - super: TypeScope
+    - Struct:
+        - super: TypeScope
+    - Buffer:
+        - super: Struct
+    - Resource:
+        - super: Struct
+    - State:
+        - super: Struct
+    - Stream:
+        - super: Struct
+flags:
+    - FieldAttr:
+        - values:
+            - FieldAttr_Builtin
+
+            
