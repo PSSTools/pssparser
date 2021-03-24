@@ -21,7 +21,7 @@ ScopeUtil::~ScopeUtil() {
 NamedScopeChild *ScopeUtil::findChild(Scope *s, const std::string &name) {
 	std::map<std::string,NamedScopeChild *>::iterator it;
 
-	if ((it=s->symtab().find(name)) != s->symtab().end()) {
+	if ((it=s->get_symtab().find(name)) != s->get_symtab().end()) {
 		return it->second;
 	} else {
 		return 0;
@@ -31,10 +31,10 @@ NamedScopeChild *ScopeUtil::findChild(Scope *s, const std::string &name) {
 bool ScopeUtil::addChild(Scope *s, NamedScopeChild *c) {
 	std::map<std::string,NamedScopeChild*>::iterator it;
 
-	if ((it=s->symtab().find(c->name()->id())) == s->symtab().end()) {
-		s->children().push_back(ScopeChildUP(c));
-		s->symtab().insert({c->name()->id(), c});
-		c->parent(s);
+	if ((it=s->get_symtab().find(c->get_name()->get_id())) == s->get_symtab().end()) {
+		s->get_children().push_back(ScopeChildUP(c));
+		s->get_symtab().insert({c->get_name()->get_id(), c});
+		c->set_parent(s);
 		return true;
 	} else {
 		return false;
@@ -42,8 +42,8 @@ bool ScopeUtil::addChild(Scope *s, NamedScopeChild *c) {
 }
 
 void ScopeUtil::addChild(Scope *s, ScopeChild *c) {
-	s->children().push_back(ScopeChildUP(c));
-	c->parent(s);
+	s->get_children().push_back(ScopeChildUP(c));
+	c->set_parent(s);
 }
 
 } /* namespace pssp */

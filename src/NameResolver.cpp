@@ -42,15 +42,15 @@ void NameResolver::visitDataTypeUserDefined(DataTypeUserDefined *i) {
 	RefExprSP 			ref;
 
 	// First, find the root
-	TypeIdentifierElem *elem = i->elems().at(0).get();
-	if (i->is_global()) {
+	TypeIdentifierElem *elem = i->get_elems().at(0).get();
+	if (i->get_is_global()) {
 		// Search for the root element across the context
 		for (std::vector<GlobalScope *>::const_iterator
 				it=m_context.begin(); it!=m_context.end(); it++) {
-			if ((root=ScopeUtil::findChild(*it, elem->id()->id()))) {
+			if ((root=ScopeUtil::findChild(*it, elem->get_id()->get_id()))) {
 				ref = RefExprUtil::mkScopeIndex(
-						RefExprUtil::mkTypeScopeGlobal((*it)->fileid()),
-						root->index());
+						RefExprUtil::mkTypeScopeGlobal((*it)->get_fileid()),
+						root->get_index());
 				break;
 			}
 		}
@@ -59,7 +59,7 @@ void NameResolver::visitDataTypeUserDefined(DataTypeUserDefined *i) {
 		for (int32_t i=m_scopes.size()-1; i>=0; i--) {
 			Scope *s = m_scopes.at(i);
 
-			if ((root=ScopeUtil::findChild(s, elem->id()->id()))) {
+			if ((root=ScopeUtil::findChild(s, elem->get_id()->get_id()))) {
 
 			}
 		}
@@ -72,7 +72,7 @@ void NameResolver::visitDataTypeUserDefined(DataTypeUserDefined *i) {
 
 	// Now, continue resolving relative to root if there are
 	// additional elements
-	if (i->elems().size() > 1) {
+	if (i->get_elems().size() > 1) {
 
 	} else {
 		// Done

@@ -20,7 +20,7 @@ classes:
                 - init: 0
             - index:
                 - type: int32_t
-                - is_ctor: false,
+                - is_ctor: false
                 - init: -1
     - GlobalScope:
         - super: Scope

@@ -48,6 +48,7 @@ set(CompilerFlags
         CMAKE_C_FLAGS
         CMAKE_C_FLAGS_DEBUG
         CMAKE_C_FLAGS_RELEASE
+        "-fPIC"
         )
 foreach(CompilerFlag ${CompilerFlags})
   string(REPLACE "/MD" "/MT" ${CompilerFlag} "${${CompilerFlag}}")
@@ -67,7 +68,7 @@ ExternalProject_Add(libantlr4
 ExternalProject_Add(AST
 	PREFIX pssast
 	SOURCE_DIR "${CMAKE_CURRENT_BINARY_DIR}/pssast/src"
-	DOWNLOAD_COMMAND ${PYTHON} -m astbuilder -name pssast -namespace pssp -astdir ${CMAKE_CURRENT_SOURCE_DIR}/ast -license ${CMAKE_CURRENT_SOURCE_DIR}/scripts/copyright.cpp
+	DOWNLOAD_COMMAND ${PYTHON} -m astbuilder gen-cpp -name pssast -namespace pssp -astdir ${CMAKE_CURRENT_SOURCE_DIR}/ast -license ${CMAKE_CURRENT_SOURCE_DIR}/scripts/copyright.cpp
         CMAKE_CACHE_ARGS
           -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_CURRENT_BINARY_DIR}/pssast
           -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
@@ -85,6 +86,7 @@ ExternalProject_Add(googletest
 	  -DBUILD_SHARED_LIBS:BOOL=${BUILD_SHARED_LIBS}
     )
 
+add_subdirectory(ext)
 add_subdirectory(src)
 add_subdirectory(tests)
 

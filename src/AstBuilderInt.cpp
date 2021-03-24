@@ -620,7 +620,7 @@ void AstBuilderInt::addChild(NamedScopeChild *c, Token *t) {
 }
 
 void AstBuilderInt::addChild(NamedScope *c, Token *t) {
-	scope()->children().push_back(ScopeChildUP(c));
+	scope()->get_children().push_back(ScopeChildUP(c));
 }
 
 }

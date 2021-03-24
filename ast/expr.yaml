@@ -17,7 +17,7 @@ enums:
         - BinOp_Sub
         - BinOp_Shl
         - BinOp_Shr
-        - BinOp_Eq"
+        - BinOp_Eq
         - BinOp_Ne
     - ExprUnaryOp:
         - UnaryOp_Plus

@@ -7,6 +7,7 @@ include(ExternalAntlr4Cpp)
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
   add_compile_options(-Wno-attributes)
+  add_compile_options(-fPIC)
 else()
   add_compile_options(-DANTLR4CPP_STATIC)
 endif()
