@@ -5,29 +5,20 @@ on:
   - workflow_dispatch
 jobs:
   ci-linux:
+    runs:
+        using: 'docker'
+        image: 'pypi/Dockerfile'
+        args:
+
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v1
-    - name: Setup java
-      uses: actions/setup-java@v1
-      with:
-        java-version: '11.0.x'
-    - name: Set up Python 3.8
-      uses: actions/setup-python@v2
-      with:
-        python-version: '3.8'
-    - name: Install uuid
-      run: sudo apt-get install uuid-dev python3-venv
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade ivpm
-        python -m ivpm update
-    - name: Build
-      run: |
-        mkdir build
-        cd build
-        cmake ..
-        make
+    - name: Install docker
+      run: sudo apt-get install docker
+    - name: Build image
+      run: docker build -t pssparser pypi
+    - name: Run build
+      run: docker run -v `pwd`:/pssparser pssparser
   ci-osx:
     runs-on: macos-latest
     steps:
