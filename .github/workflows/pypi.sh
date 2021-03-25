@@ -1,11 +1,6 @@
 #!/usr/bin/env bash
 set -e -o pipefail
 
-echo "Root:"
-ls /
-echo "/github/workspace:"
-ls /github/workspace
-
 yum install -y libuuid-devel
 
 # Install a JRE
@@ -38,4 +33,7 @@ for py in cp35-cp35m cp36-cp36m cp37-cp37m cp38-cp38 cp39-cp39; do
     cmake ..
     make
 done
+
+# Copy the dist results back
+cp -r ext/dist /github/workspace
 
