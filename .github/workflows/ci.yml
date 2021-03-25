@@ -8,12 +8,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v1
-    - name: Install docker
-      run: sudo apt-get install docker
-    - name: Build image
-      run: docker build -t pssparser pypi
-    - name: Run build
-      run: docker run -v `pwd`:/pssparser pssparser
+    - name: Run docker
+      uses: docker://quay.io/pypa/manylinux2010_x86_64
+      with:
+        entrypoint: /github/workspace/.github/workflows/pypi.sh
+
   ci-osx:
     runs-on: macos-latest
     steps:
