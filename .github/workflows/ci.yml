@@ -9,8 +9,8 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - name: Build 
-    run: |
-      cd "c:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise"
-      dir
+      run: |
+        cd "c:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise"
+        dir
 
 
