@@ -1,6 +1,17 @@
 #!/usr/bin/env bash
 set -e -o pipefail
 
+yum install -y libuuid-devel
+
+# Install a JRE
+yum install -y java-1.8.0-openjdk-devel
+
+/opt/python/cp35-cp35m/bin/pip install cython wheel twine
+/opt/python/cp36-cp36m/bin/pip install cython wheel twine
+/opt/python/cp37-cp37m/bin/pip install cython wheel twine
+/opt/python/cp38-cp38/bin/pip install cython wheel twine
+/opt/python/cp39-cp39/bin/pip install cython wheel twine ivpm
+
 export PATH=/opt/python/cp39-cp39/bin:${PATH}
 
 mkdir /build
