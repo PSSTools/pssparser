@@ -36,7 +36,7 @@ set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-  set(ANTLR_CXXFLAGS -Wno-attributes)
+  set(ANTLR_CXXFLAGS "-Wno-attributes -fPIC")
 else()
   set(ANTLR_CXXFLAGS -DANTLR4CPP_STATIC)
 endif()
@@ -68,7 +68,9 @@ ExternalProject_Add(libantlr4
 ExternalProject_Add(AST
 	PREFIX pssast
 	SOURCE_DIR "${CMAKE_CURRENT_BINARY_DIR}/pssast/src"
-	DOWNLOAD_COMMAND ${PYTHON} -m astbuilder gen-cpp -name pssast -namespace pssp -astdir ${CMAKE_CURRENT_SOURCE_DIR}/ast -license ${CMAKE_CURRENT_SOURCE_DIR}/scripts/copyright.cpp
+	DOWNLOAD_COMMAND 
+		${PYTHON} -m astbuilder gen-cpp -name pssast -namespace pssp -astdir ${CMAKE_CURRENT_SOURCE_DIR}/ast -license ${CMAKE_CURRENT_SOURCE_DIR}/scripts/copyright.cpp &&
+		${PYTHON} -m astbuilder gen-pyext -name pssast -namespace pssp -astdir ${CMAKE_CURRENT_SOURCE_DIR}/ast -o ../ext
         CMAKE_CACHE_ARGS
           -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_CURRENT_BINARY_DIR}/pssast
           -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}

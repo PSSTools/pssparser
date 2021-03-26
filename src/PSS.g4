@@ -28,7 +28,26 @@ portable_stimulus_description :
 	| component_declaration
 	;
 
+/**
+ * Annotations allow meta-data to be associated with model elements
+ */	
+annotation:
+	'@' identifier ('('
+		annotation_values?
+	')')?
+	;
+	
+annotation_values:
+	annotation_value (',' annotation_value)*
+	;
+	
+annotation_value:
+	identifier '=' expression
+	;
+
+
 package_declaration:
+	annotation*
 	'package' name=package_identifier '{'
 		package_body_item*
 	'}'
@@ -104,6 +123,7 @@ static_const_field_declaration :
 ;
 
 action_declaration:
+	annotation*
 	'action' action_identifier template_param_decl_list? (action_super_spec)? 
 	'{'
 		action_body_item*
@@ -111,6 +131,7 @@ action_declaration:
 ;
 
 abstract_action_declaration :
+	annotation*
 	'abstract' 'action' action_identifier template_param_decl_list? (action_super_spec)?
 	'{'
 		action_body_item*
@@ -269,7 +290,9 @@ target_file_exec_block:
 ;
 
 // == PSS-1.1
-struct_declaration: struct_kind identifier template_param_decl_list? (struct_super_spec)? '{'
+struct_declaration: 
+	annotation*
+	struct_kind identifier template_param_decl_list? (struct_super_spec)? '{'
 		struct_body_item*
 	'}' 
 ;
@@ -362,6 +385,7 @@ method_parameter_list:
 
 // >>= PSS 1.1
 pss_function_defn:
+	annotation*
 	method_qualifiers? 'function' method_prototype '{' procedural_stmt* '}'
 	;
 	
@@ -380,7 +404,7 @@ procedural_stmt:
 	;
 	
 procedural_block_stmt:
-	('sequence')? '{' procedural_stmt* '}'
+	(annotation* 'sequence')? '{' procedural_stmt* '}'
 	;
 	
 procedural_var_decl_stmt:

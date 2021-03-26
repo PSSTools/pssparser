@@ -14,6 +14,7 @@ endif()
 #add_custom_target(build_ext ALL
 #	COMMAND ${PYTHON} ${CMAKE_CURRENT_SOURCE_DIR}/setup.py sdist bdist_wheel build_ext
 #	)
+	
 add_custom_target(build_ext ALL
 	COMMAND $ENV{EXT_PYTHON} ${CMAKE_CURRENT_SOURCE_DIR}/setup.py build_ext --inplace
 	COMMAND $ENV{EXT_PYTHON} ${CMAKE_CURRENT_SOURCE_DIR}/setup.py bdist_wheel

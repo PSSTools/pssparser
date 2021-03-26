@@ -6,6 +6,13 @@ yum install -y libuuid-devel
 # Install a JRE
 yum install -y java-1.8.0-openjdk-devel
 
+# Install PyPy
+wget https://downloads.python.org/pypy/pypy3.7-v7.3.3-linux64.tar.bz2
+tar xvjf pypy3.7-v7.3.3-linux64.tar.bz2
+
+cwd=`pwd`
+#$cwd/
+
 /opt/python/cp35-cp35m/bin/pip install cython wheel twine
 /opt/python/cp36-cp36m/bin/pip install cython wheel twine
 /opt/python/cp37-cp37m/bin/pip install cython wheel twine
