@@ -8,10 +8,17 @@ jobs:
     runs-on: windows-latest
     steps:
     - uses: actions/checkout@v1
+    - uses: ilammy/msvc-dev-cmd@v1
+    - uses: actions/setup-python@v2
+      with:
+        python-version: '3.9'
     - name: Build 
       run: |
-        "c:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
-        set
-        dir
+        python -m pip install ivpm
+        mkdir build
+        cd build
+        python -m ivpm update -r requirements_ci.txt
+        cmake .. -GNinja
+        ninja
 
 
