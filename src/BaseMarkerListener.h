@@ -18,7 +18,9 @@ public:
 
 	virtual void marker(const Marker &m) override { }
 
-	virtual bool hasSeverity(MarkerSeverityE s) override { }
+	virtual bool hasSeverity(MarkerSeverityE s) override {
+		return false;
+	}
 
 };
 

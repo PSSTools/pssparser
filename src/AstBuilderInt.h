@@ -561,6 +561,16 @@ private:
 
     void addChild(NamedScope *c, Token *t);
 
+    void addDocstring(ScopeChild *c, Token *t);
+
+    std::string processDocStringMultiLineComment(
+    		const std::vector<Token *>		&mlc_tokens,
+			const std::vector<Token *>		&ws_tokens);
+
+    std::string processDocStringSingleLineComment(
+    		const std::vector<Token *>		&slc_tokens,
+			const std::vector<Token *>		&ws_tokens);
+
     Scope *scope() const { return m_scopes.back(); }
 
     void push_scope(Scope *s) { m_scopes.push_back(s); }
@@ -570,6 +580,7 @@ private:
 private:
     IMarkerListener						*m_marker_l;
     std::vector<Scope *>				m_scopes;
+    std::unique_ptr<CommonTokenStream>	m_tokens;
 
 };
 

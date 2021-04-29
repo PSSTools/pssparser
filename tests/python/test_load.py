@@ -25,6 +25,25 @@ class TestLoad(TestCase):
              */
              component pss_top {
              }
+            
+            // Before
+            // Before
+             
+             /**
+              * Free-standing comment
+              */
+              
+              
+              
+              component pss_top2 {
+              }
+             
+              // SLC1
+              // SLC2
+              // SLC3
+              //
+              component pss_top3 {
+              }
             """)
         print("--> parse")
         parser.parse(glbl, input)
@@ -37,6 +56,7 @@ class TestLoad(TestCase):
                 
             def visitComponent(self, c):
                 print("visitComponent")
+                print("Comment: " + str(c.get_docstring().decode()))
                 
         v = MyVisitor()
         print("glbl=" + str(glbl))

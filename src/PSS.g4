@@ -18,6 +18,7 @@
  ****************************************************************************/
 grammar PSS;
 
+
 compilation_unit : 
 	portable_stimulus_description* EOF
 	;
@@ -1390,19 +1391,19 @@ hex_number: HEX_LITERAL;
 HEX_LITERAL: '0x' ('0'..'9'|'a'..'f'|'A'..'F') ('0'..'9'|'a'..'f'|'A'..'F'|'_')*;
 
 
-WS : [ \t\n\r]+ -> channel (HIDDEN) ;
+WS : [ \t\n\r]+ -> channel (10) ;
 //WS : [ \t\n\r]+ -> skip;
 
 /**
  * BNF: SL_COMMENT ::= <kw>//</kw>\n 
  */
-SL_COMMENT 	: '//' .*? '\r'? ('\n'|EOF) -> channel (HIDDEN) ;
+SL_COMMENT 	: '//' .*? '\r'? ('\n'|EOF) -> channel (11) ;
 //SL_COMMENT 	: '//' .*? '\r'? ('\n'|EOF) -> skip;
 
 /*
  * BNF: ML_COMMENT ::= <kw>/*</kw><kw>*\057</kw>
  */
-ML_COMMENT	: '/*' .*? '*/' -> channel (HIDDEN) ;
+ML_COMMENT	: '/*' .*? '*/' -> channel (12) ;
 //ML_COMMENT	: '/*' .*? '*/' -> skip;
  
 string: DOUBLE_QUOTED_STRING | TRIPLE_DOUBLE_QUOTED_STRING;
