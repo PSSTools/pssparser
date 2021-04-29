@@ -136,3 +136,6 @@ src/pssparser/antlr_gen
 
 sys/portable-stimulus/
 ext/pssparser.cpp
+ext/pssparser.h
+ext/pssparser_api.h
+

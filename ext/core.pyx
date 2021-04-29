@@ -5,6 +5,7 @@
 #****************************************************************************
 cimport pssparser_decl
 cimport cpython.ref as cpy_ref
+cimport iostream
 
 cpdef doit(int a):
     print("doit: " + str(a))
@@ -22,13 +23,24 @@ cdef class AstBuilder(object):
     def __cinit__(self, BaseMarkerListener marker_l):
         self.thisptr = new pssparser_decl.AstBuilder(marker_l.thisptr)
         pass
-
-cdef class PyStreamBuf(object):
-    cdef pssparser_decl.PyStreamBuf     *thisptr
     
-    def __cinit__(self, istream):
-        self.thisptr = new pssparser_decl.PyStreamBuf(<cpy_ref.PyObject *>(istream))
+    cpdef parse(self, GlobalScope glbl, in_s):
+        cdef iostream.istream *is_w
+        is_w = new iostream.istream(<cpy_ref.PyObject *>(in_s)) 
+
+   #     print("thisptr %p" % str(self.thisptr))
+   #     print("glbl.thisptr %p" % str(glbl.thisptr))        
+        self.thisptr.build(
+            <pssast_decl.GlobalScope *>(glbl.thisptr), 
+            is_w)
         
-cdef public api void cy_cls_call_my_method1(object self, int a):
-    self.my_method1(a)
+        del is_w
+        
+cpdef GlobalScope mkGlobalScope(int fileid):
+    """Create a new GlobalScope object"""
+    ret = GlobalScope()
+    ret.owned = True
+    ret.thisptr = new pssast_decl.GlobalScope(fileid)
+    return ret
+
 

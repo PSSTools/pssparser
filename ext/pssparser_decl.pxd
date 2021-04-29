@@ -2,6 +2,8 @@
 #* 
 #*****************************************************************************
 cimport cpython.ref as cpy_ref
+cimport iostream
+cimport pssast_decl
 
 cdef extern from 'IMarkerListener.h' namespace 'pssp':
     cpdef cppclass IMarkerListener:
@@ -16,11 +18,10 @@ cdef extern from "BaseMarkerListener.h" namespace "pssp":
 cdef extern from 'AstBuilder.h' namespace 'pssp':
     cpdef cppclass AstBuilder:
         AstBuilder(IMarkerListener *marker_l)
-#        void build(GlobalScope *global, )
+        
+        void build(
+            pssast_decl.GlobalScope *glbl, 
+            iostream.istream *i)
 
-cdef extern from 'PyStreamBuf.h' namespace 'pssp':
-
-    cpdef cppclass PyStreamBuf:
-        PyStreamBuf(cpy_ref.PyObject *istream)
     
         
