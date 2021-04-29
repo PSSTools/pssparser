@@ -2,6 +2,7 @@
 set -e -o pipefail
 
 yum install -y libuuid-devel
+yum install -y wget
 
 # Install a JRE
 yum install -y java-1.8.0-openjdk-devel

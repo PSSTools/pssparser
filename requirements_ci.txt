@@ -1,5 +1,6 @@
 
 cython
+toposort
 
 -e git+https://github.com/mballance/pyastbuilder.git#egg=pyastbuilder
 
