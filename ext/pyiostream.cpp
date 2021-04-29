@@ -23,7 +23,7 @@ std::streambuf::int_type streambuf::underflow() {
     char *str = 0;
 
     if (PyUnicode_Check(m_str)) {
-        str = PyUnicode_AsUTF8AndSize(m_str, &sz);
+        str = (char *)PyUnicode_AsUTF8AndSize(m_str, &sz);
     } else if (PyBytes_Check(m_str)) {
         PyBytes_AsStringAndSize(m_str, &str, &sz);
     } else {
