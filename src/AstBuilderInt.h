@@ -8,18 +8,19 @@
 #pragma once
 #include <memory>
 #include <istream>
-#include "IMarkerListener.h"
-#include "PSSBaseVisitor.h"
+#include "pssp/IMarkerListener.h"
+#include "PSSParserBaseVisitor.h"
 #include "BaseErrorListener.h"
 #include "GlobalScope.h"
 #include "Scope.h"
 
 using namespace antlr4;
+using namespace antlrcpp;
 
 namespace pssp {
 
 class AstBuilderInt :
-		public PSSBaseVisitor,
+		public PSSParserBaseVisitor,
 		public BaseErrorListener {
 public:
 	AstBuilderInt(IMarkerListener *marker_l);

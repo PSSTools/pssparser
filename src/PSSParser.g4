@@ -16,7 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  ****************************************************************************/
-grammar PSS;
+parser grammar PSSParser;
+
+options {tokenVocab=PSSLexer;}
 
 
 compilation_unit : 
@@ -33,25 +35,25 @@ portable_stimulus_description :
  * Annotations allow meta-data to be associated with model elements
  */	
 annotation:
-	'@' identifier ('('
+	TOK_AT identifier (TOK_LPAREN
 		annotation_values?
-	')')?
+	TOK_RPAREN)?
 	;
 	
 annotation_values:
-	annotation_value (',' annotation_value)*
+	annotation_value (TOK_COMMA annotation_value)*
 	;
 	
 annotation_value:
-	identifier '=' expression
+	identifier TOK_SINGLE_EQ expression
 	;
 
 
 package_declaration:
 	annotation*
-	'package' name=package_identifier '{'
+	TOK_PACKAGE name=package_identifier TOK_LCBRACE
 		package_body_item*
-	'}'
+	TOK_RCBRACE
 ;	
 
 package_body_item:
@@ -75,72 +77,72 @@ package_body_item:
 // >>= PSS 1.1
 	| component_declaration
 // <<= PSS 1.1
-	| ';'
+	| TOK_SEMICOLON
 	;
 
 import_stmt:
-	'import' package_import_pattern ';'
+	TOK_IMPORT package_import_pattern TOK_SEMICOLON
 ;
 
 package_import_pattern:
-	type_identifier ('::' wildcard='*')?
+	type_identifier (TOK_DOUBLE_COLON wildcard=TOK_ASTERISK)?
 ;
 
 extend_stmt:
 		(
-			('extend' ext_type='action' type_identifier '{'
+			(TOK_EXTEND ext_type=TOK_ACTION type_identifier TOK_LCBRACE
 				action_body_item*
-				'}'
+				TOK_RCBRACE
 			) | 
-			('extend' ext_type='component' type_identifier '{'
+			(TOK_EXTEND ext_type=TOK_COMPONENT type_identifier TOK_LCBRACE
 				component_body_item*
-				'}'
+				TOK_RCBRACE
 			) |
-			('extend' struct_kind type_identifier '{'
+			(TOK_EXTEND struct_kind type_identifier TOK_LCBRACE
 				struct_body_item*
-				'}'
+				TOK_RCBRACE
 			) |
-			('extend' ext_type='enum' type_identifier '{'
-				(enum_item (',' enum_item)*)?
-				'}'
+			(TOK_EXTEND ext_type=TOK_ENUM type_identifier TOK_LCBRACE
+				(enum_item (TOK_COMMA enum_item)*)?
+				TOK_RCBRACE
 			)
 		)
 ;
 
 const_field_declaration :
-	'const' const_data_declaration
+	TOK_CONST const_data_declaration
 ;
 
 const_data_declaration:
-	scalar_data_type const_data_instantiation (',' const_data_instantiation)* ';' 
+	scalar_data_type const_data_instantiation (TOK_COMMA const_data_instantiation)* TOK_SEMICOLON 
 ;
 
 const_data_instantiation:	
-	identifier '=' init=constant_expression
+	identifier TOK_SINGLE_EQ init=constant_expression
 ;
 
 static_const_field_declaration :
-	'static' 'const' const_data_declaration
+	TOK_STATIC TOK_CONST const_data_declaration
 ;
 
 action_declaration:
 	annotation*
-	'action' action_identifier template_param_decl_list? (action_super_spec)? 
-	'{'
+	TOK_ACTION action_identifier template_param_decl_list? (action_super_spec)? 
+	TOK_LCBRACE
 		action_body_item*
-	'}' 
+	TOK_RCBRACE 
 ;
 
 abstract_action_declaration :
 	annotation*
-	'abstract' 'action' action_identifier template_param_decl_list? (action_super_spec)?
-	'{'
+	TOK_ABSTRACT TOK_ACTION action_identifier template_param_decl_list? (action_super_spec)?
+	TOK_LCBRACE
 		action_body_item*
-	'}' 
+	TOK_RCBRACE 
 ;
 
 action_super_spec:
-	':' type_identifier
+	TOK_COLON type_identifier
 ;
 
 action_body_item:
@@ -159,11 +161,11 @@ action_body_item:
 	| action_body_compile_if
 	| inline_covergroup
 // >>= PSS 1.1
-	| ';'
+	| TOK_SEMICOLON
 // <<= PSS 1.1
 ;
 
-activity_declaration: 'activity' '{' activity_stmt* '}' 
+activity_declaration: TOK_ACTIVITY TOK_LCBRACE activity_stmt* TOK_RCBRACE 
 	;
 
 action_field_declaration:
@@ -186,11 +188,11 @@ object_ref_declaration:
 	
 // >>= PSS 1.1
 flow_ref_declaration:
-	(is_input='input' | is_output='output') flow_object_type object_ref_field (',' object_ref_field)* ';'
+	(is_input=TOK_INPUT | is_output=TOK_OUTPUT) flow_object_type object_ref_field (TOK_COMMA object_ref_field)* TOK_SEMICOLON
 	;
 	
 resource_ref_declaration:
-	(lock='lock' | share='share') resource_object_type object_ref_field (',' object_ref_field)* ';'
+	(lock=TOK_LOCK | share=TOK_SHARE) resource_object_type object_ref_field (TOK_COMMA object_ref_field)* TOK_SEMICOLON
 	;
 	
 object_ref_field:
@@ -207,20 +209,20 @@ resource_object_type:
 	;
 	
 attr_field:
-	access_modifier? rand='rand'? declaration=data_declaration
+	access_modifier? rand=TOK_RAND? declaration=data_declaration
 ;
 
 access_modifier:
-	'public' | 'protected' | 'private'
+	TOK_PUBLIC | TOK_PROTECTED | TOK_PRIVATE
 	;
 	
 attr_group:
-	access_modifier ':'
+	access_modifier TOK_COLON
 	;
 
 // NOTE: refactored grammar
 action_handle_declaration:
-	action_type_identifier action_instantiation (',' action_instantiation)* ';'
+	action_type_identifier action_instantiation (TOK_COMMA action_instantiation)* TOK_SEMICOLON
 	;
 	
 action_instantiation:
@@ -228,18 +230,18 @@ action_instantiation:
 	;
 	
 //action_instantiation:
-//	ids+=action_identifier (array_dim)? (',' ids+=action_identifier (array_dim)? )*
+//	ids+=action_identifier (array_dim)? (TOK_COMMA ids+=action_identifier (array_dim)? )*
 //	;
 
 
 activity_data_field:
-	'action' data_declaration
+	TOK_ACTION data_declaration
 ;
 
 // TODO: BNF has hierarchical_id
 action_scheduling_constraint:
-	'constraint' (is_parallel='parallel' | is_sequence='sequence') '{'
-		variable_ref_path ',' variable_ref_path (',' variable_ref_path)* '}' ';'
+	TOK_CONSTRAINT (is_parallel=TOK_PARALLEL | is_sequence=TOK_SEQUENCE) TOK_LCBRACE
+		variable_ref_path TOK_COMMA variable_ref_path (TOK_COMMA variable_ref_path)* TOK_RCBRACE TOK_SEMICOLON
 	;
 
 // Exec
@@ -251,21 +253,21 @@ exec_block_stmt:
 	;
 	
 exec_block:
-	'exec' exec_kind_identifier '{' exec_stmt* '}' 
+	TOK_EXEC exec_kind_identifier TOK_LCBRACE exec_stmt* TOK_RCBRACE 
 ;
 
 exec_kind_identifier:
-	'pre_solve' 
-	| 'post_solve' 
-	| 'body' 
-	| 'header' 
-	| 'declaration' 
-	| 'run_start' 
-	| 'run_end' 
-	| 'init'
+	TOK_PRE_SOLVE 
+	| TOK_POST_SOLVE 
+	| TOK_BODY
+	| TOK_HEADER
+	| TOK_DECLARATION 
+	| TOK_RUN_START
+	| TOK_RUN_END
+	| TOK_INIT
 // >>= PSS 1.1
-	| 'init_up'
-	| 'init_down'
+	| TOK_INIT_UP
+	| TOK_INIT_DOWN
 // <<= PSS 1.1
 ;	
 
@@ -275,42 +277,42 @@ exec_stmt:
 	;
 	
 exec_super_stmt:
-	'super' ';'
+	TOK_SUPER TOK_SEMICOLON
 	;
 
 assign_op:
-	'=' | '+=' | '-=' | '<<=' | '>>=' | '|=' | '&='
+	TOK_SINGLE_EQ | TOK_PLUS_EQ | TOK_MINUS_EQ | TOK_SHL_EQ | TOK_SHR_EQ | TOK_OR_EQ | TOK_AND_EQ
 ;
 
 target_code_exec_block:
-	'exec' exec_kind_identifier language_identifier '=' string ';'
+	TOK_EXEC exec_kind_identifier language_identifier TOK_SINGLE_EQ string TOK_SEMICOLON
 ;
 
 target_file_exec_block:
-	'exec' 'file' filename_string '=' string ';'
+	TOK_EXEC TOK_FILE filename_string TOK_SINGLE_EQ string TOK_SEMICOLON
 ;
 
 // == PSS-1.1
 struct_declaration: 
 	annotation*
-	struct_kind identifier template_param_decl_list? (struct_super_spec)? '{'
+	struct_kind identifier template_param_decl_list? (struct_super_spec)? TOK_LCBRACE
 		struct_body_item*
-	'}' 
+	TOK_RCBRACE 
 ;
 
 struct_kind:
-	img='struct' 
+	img=TOK_STRUCT 
 	| object_kind
 ;
 
 object_kind:
-	img='buffer' 
-	| img='stream' 
-	| img='state' 
-	| img='resource'
+	img=TOK_BUFFER 
+	| img=TOK_STREAM 
+	| img=TOK_STATE 
+	| img=TOK_RESOURCE
 	;
 
-struct_super_spec : ':' type_identifier
+struct_super_spec : TOK_COLON type_identifier
 ;
 
 struct_body_item:
@@ -325,12 +327,12 @@ struct_body_item:
 	| covergroup_instantiation
 	| struct_body_compile_if
 // >>= PSS 1.1
-    | ';'
+    | TOK_SEMICOLON
 // <<= PSS 1.1
 ;
 
 function_decl:
-	'function' method_prototype ';'
+	TOK_FUNCTION method_prototype TOK_SEMICOLON
 ;
 
 method_prototype:
@@ -338,16 +340,16 @@ method_prototype:
 ;
 
 method_return_type:
-	'void'
+	TOK_VOID
 	| data_type
 ;
 
 method_parameter_list_prototype: 
-	'('
+	TOK_LPAREN
 		(
-			method_parameter (',' method_parameter)*
+			method_parameter (TOK_COMMA method_parameter)*
 		)?
-	')'
+	TOK_RPAREN
 ;
 
 method_parameter:
@@ -355,14 +357,14 @@ method_parameter:
 ;
 
 method_parameter_dir:
-	'input'
-	|'output'
-	|'inout'
+	TOK_INPUT
+	|TOK_OUTPUT
+	|TOK_INOUT
 ;
 
 function_qualifiers:
-	('import' import_function_qualifiers? 'function' type_identifier ';')
-	| ('import' import_function_qualifiers? 'function' method_prototype ';')
+	(TOK_IMPORT import_function_qualifiers? TOK_FUNCTION type_identifier TOK_SEMICOLON)
+	| (TOK_IMPORT import_function_qualifiers? TOK_FUNCTION method_prototype TOK_SEMICOLON)
 	;
 	
 import_function_qualifiers:
@@ -371,23 +373,23 @@ import_function_qualifiers:
 ;
 
 method_qualifiers: 
-	'target'
-	| 'solve'
+	TOK_TARGET
+	| TOK_SOLVE
 ;
 
 target_template_function:
-	'target' language_identifier 'function' method_prototype '=' string ';'
+	TOK_TARGET language_identifier TOK_FUNCTION method_prototype TOK_SINGLE_EQ string TOK_SEMICOLON
 	;
 
 // TODO: method_parameter_list appears unused	
 method_parameter_list: 
-	'(' (expression (',' expression)*)? ')'
+	TOK_LPAREN (expression (TOK_COMMA expression)*)? TOK_RPAREN
 ;
 
 // >>= PSS 1.1
 pss_function_defn:
 	annotation*
-	method_qualifiers? 'function' method_prototype '{' procedural_stmt* '}'
+	method_qualifiers? TOK_FUNCTION method_prototype TOK_LCBRACE procedural_stmt* TOK_RCBRACE
 	;
 	
 procedural_stmt:
@@ -401,11 +403,11 @@ procedural_stmt:
 	| procedural_break_stmt
 	| procedural_continue_stmt
 	| procedural_var_decl_stmt // TODO: positioning this first causes assign to be incorrectly recognized as data_declaration
-	| ';' // TODO: need to incorporate
+	| TOK_SEMICOLON // TODO: need to incorporate
 	;
 	
 procedural_block_stmt:
-	(annotation* 'sequence')? '{' procedural_stmt* '}'
+	(annotation* TOK_SEQUENCE)? TOK_LCBRACE procedural_stmt* TOK_RCBRACE
 	;
 	
 procedural_var_decl_stmt:
@@ -413,57 +415,57 @@ procedural_var_decl_stmt:
 	;
 	
 procedural_expr_stmt:
-	(expression ';')
-	| (variable_ref_path assign_op expression ';')
+	(expression TOK_SEMICOLON)
+	| (variable_ref_path assign_op expression TOK_SEMICOLON)
 	;
 	
 procedural_return_stmt:
-	'return' expression? ';'
+	TOK_RETURN expression? TOK_SEMICOLON
 	;
 	
 procedural_if_else_stmt:
-	'if' '(' expression ')' procedural_stmt ( 'else' procedural_stmt )?
+	TOK_IF TOK_LPAREN expression TOK_RPAREN procedural_stmt ( TOK_ELSE procedural_stmt )?
 	;
 	
 procedural_match_stmt:
-	'match' '(' expression ')' '{' procedural_match_choice procedural_match_choice* '}'
+	TOK_MATCH TOK_LPAREN expression TOK_RPAREN TOK_LCBRACE procedural_match_choice procedural_match_choice* TOK_RCBRACE
 	;
 
 procedural_match_choice:
-	('[' open_range_list ']' ':' procedural_stmt)
-	| ('default' ':' procedural_stmt)
+	(TOK_LSBRACE open_range_list TOK_RSBRACE TOK_COLON procedural_stmt)
+	| (TOK_DEFAULT TOK_COLON procedural_stmt)
 	;
 
 procedural_repeat_stmt:
-	(is_while='while' '(' expression ')' procedural_stmt)
-	| (is_repeat='repeat' '(' (identifier ':')? expression ')' procedural_stmt)
-	| (is_repeat_while='repeat' procedural_stmt 'while' '(' expression ')' ';')
+	(is_while=TOK_WHILE TOK_LPAREN expression TOK_RPAREN procedural_stmt)
+	| (is_repeat=TOK_REPEAT TOK_LPAREN (identifier TOK_COLON)? expression TOK_RPAREN procedural_stmt)
+	| (is_repeat_while=TOK_REPEAT procedural_stmt TOK_WHILE TOK_LPAREN expression TOK_RPAREN TOK_SEMICOLON)
 	;
 	
 procedural_foreach_stmt:
-	'foreach' '(' (iterator_identifier ':')? expression ('[' index_identifier ']')? ')' procedural_stmt
+	TOK_FOREACH TOK_LPAREN (iterator_identifier TOK_COLON)? expression (TOK_LSBRACE index_identifier TOK_RSBRACE)? TOK_RPAREN procedural_stmt
 	;
 	
 procedural_break_stmt:
-	'break' ';'
+	TOK_BREAK TOK_SEMICOLON
 	;
 
 procedural_continue_stmt:
-	'continue' ';'
+	TOK_CONTINUE TOK_SEMICOLON
 	;
 	
 // <<= PSS 1.1
 
 // == PSS-1.1
 component_declaration:
-	'component' component_identifier template_param_decl_list? 
-	(component_super_spec)? '{'
+	TOK_COMPONENT component_identifier template_param_decl_list? 
+	(component_super_spec)? TOK_LCBRACE
 		component_body_item*
-	'}' 
+	TOK_RCBRACE 
 ;
 
 component_super_spec :
-	':' type_identifier
+	TOK_COLON type_identifier
 ;
 
 component_body_item:
@@ -493,7 +495,7 @@ component_body_item:
 	| attr_group
 	| component_body_compile_if
 // >>= PSS 1.1
- 	| ';'
+ 	| TOK_SEMICOLON
 // <<= PSS 1.1
 ;
 
@@ -503,36 +505,36 @@ component_field_declaration:
 ;
 
 component_data_declaration:
-	(is_static='static' is_const='const')? data_declaration
+	(is_static=TOK_STATIC is_const=TOK_CONST)? data_declaration
 ;
 
 component_pool_declaration:
-	'pool' ('[' expression ']')? type_identifier identifier (',' identifier)* ';'
+	TOK_POOL (TOK_LSBRACE expression TOK_RSBRACE)? type_identifier identifier (TOK_COMMA identifier)* TOK_SEMICOLON
 ;
 
 object_bind_stmt:
-	'bind' hierarchical_id object_bind_item_or_list ';'
+	TOK_BIND hierarchical_id object_bind_item_or_list TOK_SEMICOLON
 ;
 
 object_bind_item_or_list:
 	component_path 
-	| ('{' component_path (',' component_path)* '}')
+	| (TOK_LCBRACE component_path (TOK_COMMA component_path)* TOK_RCBRACE)
 ;
 
 // TODO: I believe component_identifier should allow array
 component_path:
-	 (component_identifier ('.' component_path_elem)*) 
-	 | is_wildcard='*'
+	 (component_identifier (TOK_DOT component_path_elem)*) 
+	 | is_wildcard=TOK_ASTERISK
 ; 
 
 // TODO: Arrayed flow-object references require arrayed access
 component_path_elem:
-	component_action_identifier ('[' constant_expression ']')?
-	| is_wildcard='*'
+	component_action_identifier (TOK_LSBRACE constant_expression TOK_RSBRACE)?
+	| is_wildcard=TOK_ASTERISK
 ;
 
 activity_stmt: 
-	(identifier ':')? labeled_activity_stmt
+	(identifier TOK_COLON)? labeled_activity_stmt
 	| activity_data_field
 	| activity_bind_stmt
 	| action_handle_declaration
@@ -557,86 +559,86 @@ labeled_activity_stmt:
 	| function_symbol_call
 // >>= PSS 1.1
 	// TODO: need to change align-semicolon spec 
-	| ';'
+	| TOK_SEMICOLON
 // <<= PSS 1.1
 ;
 
 activity_if_else_stmt:
-	'if' '(' expression ')' activity_stmt 
-	('else' activity_stmt)?
+	TOK_IF TOK_LPAREN expression TOK_RPAREN activity_stmt 
+	(TOK_ELSE activity_stmt)?
 ;
 
 activity_repeat_stmt:
 	 (
-		(is_while='while' '(' expression ')' activity_stmt) |
-		(is_repeat='repeat' '(' (loop_var=identifier ':')? expression ')' activity_stmt) |
-		(is_do_while='repeat' activity_stmt is_do_while='while' '(' expression ')' ';')
+		(is_while=TOK_WHILE TOK_LPAREN expression TOK_RPAREN activity_stmt) |
+		(is_repeat=TOK_REPEAT TOK_LPAREN (loop_var=identifier TOK_COLON)? expression TOK_RPAREN activity_stmt) |
+		(is_do_while=TOK_REPEAT activity_stmt is_do_while=TOK_WHILE TOK_LPAREN expression TOK_RPAREN TOK_SEMICOLON)
 		)
 ;
 
 activity_replicate_stmt:
-	'replicate' '(' (index_identifier ':')? expression ')' ( identifier '[' ']' ':')? 
+	TOK_REPLICATE TOK_LPAREN (index_identifier TOK_COLON)? expression TOK_RPAREN ( identifier TOK_LSBRACE TOK_RSBRACE TOK_COLON)? 
 		labeled_activity_stmt
 	;
 
 activity_sequence_block_stmt:
-	('sequence')? '{'  activity_stmt* '}' 
+	(TOK_SEQUENCE)? TOK_LCBRACE  activity_stmt* TOK_RCBRACE 
 ;
 
 activity_constraint_stmt:
-	'constraint' constraint_set 
+	TOK_CONSTRAINT constraint_set 
 ;
 
 activity_foreach_stmt:
-	'foreach' '(' (it_id=iterator_identifier)? expression ('[' idx_id=index_identifier ']')? ')'
+	TOK_FOREACH TOK_LPAREN (it_id=iterator_identifier)? expression (TOK_LSBRACE idx_id=index_identifier TOK_RSBRACE)? TOK_RPAREN
 		activity_stmt
 ;
 
 activity_action_traversal_stmt:
-	(identifier ('[' expression ']')? ';')
-	| (identifier ('[' expression ']')? 'with' constraint_set)
-	| (is_do='do' type_identifier ';')
-	| (is_do='do' type_identifier 'with' constraint_set)
+	(identifier (TOK_LSBRACE expression TOK_RSBRACE)? TOK_SEMICOLON)
+	| (identifier (TOK_LSBRACE expression TOK_RSBRACE)? TOK_WITH constraint_set)
+	| (is_do=TOK_DO type_identifier TOK_SEMICOLON)
+	| (is_do=TOK_DO type_identifier TOK_WITH constraint_set)
 ;
 
 activity_select_stmt:
-	'select' '{'
+	TOK_SELECT TOK_LCBRACE
 		select_branch
 		select_branch
 		select_branch*
-	'}'
+	TOK_RCBRACE
 ;
 
 select_branch:
 	(
-		('(' guard=expression ')' ('[' weight=expression ']')? ':') 
-		| ('[' weight=expression ']' ':')
+		(TOK_LPAREN guard=expression TOK_RPAREN (TOK_LSBRACE weight=expression TOK_RSBRACE)? TOK_COLON) 
+		| (TOK_LSBRACE weight=expression TOK_RSBRACE TOK_COLON)
 	)? activity_stmt
 	;
 
 activity_match_stmt:
-	'match' '(' expression ')' '{'
+	TOK_MATCH TOK_LPAREN expression TOK_RPAREN TOK_LCBRACE
 		match_choice
 		match_choice
 		match_choice*
-	'}'
+	TOK_RCBRACE
 	;
 	
 match_choice:
-	('[' open_range_list ']' ':' activity_stmt)
-	| (is_default='default' ':' activity_stmt)
+	(TOK_LSBRACE open_range_list TOK_RSBRACE TOK_COLON activity_stmt)
+	| (is_default=TOK_DEFAULT TOK_COLON activity_stmt)
 	;
 	
 activity_parallel_stmt:
-	 'parallel' activity_join_spec? '{'
+	 TOK_PARALLEL activity_join_spec? TOK_LCBRACE
 		activity_stmt*
-	'}' 
+	TOK_RCBRACE 
 ;
 
 activity_schedule_stmt:
-	 'schedule' activity_join_spec? '{'
+	 TOK_SCHEDULE activity_join_spec? TOK_LCBRACE
 		activity_stmt*
-	'}' 
+	TOK_RCBRACE 
 ;
 
 // >>= PSS 1.1
@@ -648,38 +650,38 @@ activity_join_spec:
 	;
 	
 activity_join_branch_spec:
-	'join_branch' '(' label_identifier (',' label_identifier)* ')'
+	TOK_JOIN_BRANCH TOK_LPAREN label_identifier (TOK_COMMA label_identifier)* TOK_RPAREN
 	;
 	
 activity_join_select_spec:
-	'join_select' '(' expression ')'
+	TOK_JOIN_SELECT TOK_LPAREN expression TOK_RPAREN
 	;
 	
 activity_join_none_spec:
-	'join_none'
+	TOK_JOIN_NONE
 	;
 	
 activity_join_first_spec:
-	'join_first' '(' expression ')'
+	TOK_JOIN_FIRST TOK_LPAREN expression TOK_RPAREN
 	;
 	
 // <<= PSS 1.1
 
 activity_bind_stmt:
-	'bind' hierarchical_id activity_bind_item_or_list ';'
+	TOK_BIND hierarchical_id activity_bind_item_or_list TOK_SEMICOLON
 ;
 
 activity_bind_item_or_list:
 	hierarchical_id 
-	| ('{' hierarchical_id (',' hierarchical_id)* '}')
+	| (TOK_LCBRACE hierarchical_id (TOK_COMMA hierarchical_id)* TOK_RCBRACE)
 ;
 
 symbol_declaration:
-	'symbol' identifier ('(' symbol_paramlist ')')? '{' activity_stmt* '}'
+	TOK_SYMBOL identifier (TOK_LPAREN symbol_paramlist TOK_RPAREN)? TOK_LCBRACE activity_stmt* TOK_RCBRACE
 ;
 
 symbol_paramlist:
-	 (symbol_param (',' symbol_param)*)?
+	 (symbol_param (TOK_COMMA symbol_param)*)?
 ;
 
 symbol_param:
@@ -687,56 +689,56 @@ symbol_param:
 ;
 
 activity_super_stmt:
-	'super' ';'
+	TOK_SUPER TOK_SEMICOLON
 	;
 
 overrides_declaration:
-	 'override' '{' override_stmt* '}'
+	 TOK_OVERRIDE TOK_LCBRACE override_stmt* TOK_RCBRACE
 ;
 
 override_stmt:
 	type_override 
 	| instance_override
 // >>= PSS 1.1
-	| ';'
+	| TOK_SEMICOLON
 // <<= PSS 1.1
 ;
 
 type_override:
-	'type' target=type_identifier 'with' override=type_identifier ';'
+	TOK_TYPE target=type_identifier TOK_WITH override=type_identifier TOK_SEMICOLON
 ;
 
 
 instance_override:
-	'instance' target=hierarchical_id 'with' override=type_identifier ';'
+	TOK_INSTANCE target=hierarchical_id TOK_WITH override=type_identifier TOK_SEMICOLON
 ;
 
 
 data_declaration:
-	data_type data_instantiation (',' data_instantiation)* ';' 
+	data_type data_instantiation (TOK_COMMA data_instantiation)* TOK_SEMICOLON 
 ;
 
 data_instantiation:
-	identifier (array_dim)? ('=' constant_expression)?
+	identifier (array_dim)? (TOK_SINGLE_EQ constant_expression)?
 	;
 
 /*	
 covergroup_portmap_list:
 	(
 		// Name-mapped port binding
-		(covergroup_portmap (',' covergroup_portmap)*) 
+		(covergroup_portmap (TOK_COMMA covergroup_portmap)*) 
 		// Positional port binding
-		| (hierarchical_id (',' hierarchical_id)*)
+		| (hierarchical_id (TOK_COMMA hierarchical_id)*)
 	)?
 ;
 
 covergroup_portmap:
-	'.' identifier '(' hierarchical_id ')'
+	TOK_DOT identifier TOK_LPAREN hierarchical_id TOK_RPAREN
 ;
  */
 
 array_dim:
-	 '[' constant_expression ']'
+	 TOK_LSBRACE constant_expression TOK_RSBRACE
 ;
 
 
@@ -750,10 +752,10 @@ data_type:
 
 // >>= PSS 1.1
 container_type:
-	| ('array' '<' container_elem_type ',' array_size_expression '>')
-	| ('list' '<' container_elem_type '>')
-	| ('map' '<' container_key_type ',' container_elem_type '>')
-	| ('set' '<' container_key_type '>')
+	| (TOK_ARRAY TOK_LT container_elem_type TOK_COMMA array_size_expression TOK_GT)
+	| (TOK_LIST TOK_LT container_elem_type TOK_GT)
+	| (TOK_MAP TOK_LT container_key_type TOK_COMMA container_elem_type TOK_GT)
+	| (TOK_SET TOK_LT container_key_type TOK_GT)
 	;
 	
 array_size_expression:
@@ -780,35 +782,35 @@ scalar_data_type:
 ;
 
 chandle_type:
-	 'chandle'
+	 TOK_CHANDLE
 ;
 
 integer_type:
-	integer_atom_type ('[' lhs=expression (':' rhs=expression)? ']')?
-		(is_in='in' '[' domain=domain_open_range_list ']')?
+	integer_atom_type (TOK_LSBRACE lhs=expression (TOK_COLON rhs=expression)? TOK_RSBRACE)?
+		(is_in=TOK_IN TOK_LSBRACE domain=domain_open_range_list TOK_RSBRACE)?
 ;
 
 integer_atom_type:
-	'int'
-	| 'bit'
+	TOK_INT
+	| TOK_BIT
 ;
 
 domain_open_range_list:
-	domain_open_range_value (',' domain_open_range_value)*
+	domain_open_range_value (TOK_COMMA domain_open_range_value)*
 ;
 
 domain_open_range_value:
-	lhs=expression (limit_high='..' (rhs=expression)?)?
-	| lhs=expression limit_high='..'
-	| (limit_low='..' rhs=expression)
+	lhs=expression (limit_high=TOK_ELIPSIS (rhs=expression)?)?
+	| lhs=expression limit_high=TOK_ELIPSIS
+	| (limit_low=TOK_ELIPSIS rhs=expression)
 	| lhs=expression
 ;
 
-string_type: 'string' ( 'in' '[' DOUBLE_QUOTED_STRING (',' DOUBLE_QUOTED_STRING)* ']')? 
+string_type: TOK_STRING ( TOK_IN TOK_LSBRACE DOUBLE_QUOTED_STRING (TOK_COMMA DOUBLE_QUOTED_STRING)* TOK_RSBRACE)? 
 ;  
 
 bool_type:
-	 'bool'
+	 TOK_BOOL
 ;
 
 user_defined_datatype:
@@ -816,17 +818,17 @@ user_defined_datatype:
 ;
 
 enum_declaration:
-  	'enum' enum_identifier '{' 
-  		(enum_item (',' enum_item)*)?
-  		'}' 
+  	TOK_ENUM enum_identifier TOK_LCBRACE 
+  		(enum_item (TOK_COMMA enum_item)*)?
+  		TOK_RCBRACE 
   ;
   
 enum_item:
-	identifier ('=' constant_expression)?
+	identifier (TOK_SINGLE_EQ constant_expression)?
 ;
 
 enum_type:
-	enum_type_identifier ('in' '[' open_range_list ']')?
+	enum_type_identifier (TOK_IN TOK_LSBRACE open_range_list TOK_RSBRACE)?
 ;
 
 enum_type_identifier:
@@ -834,13 +836,13 @@ enum_type_identifier:
 	;
 	
 typedef_declaration:
- 	'typedef' data_type type_identifier ';' 
+ 	TOK_TYPEDEF data_type type_identifier TOK_SEMICOLON 
 ;
 
 // >>= PSS-1.1
 
 template_param_decl_list: 
-	'<' template_param_decl ( ',' template_param_decl )* '>'
+	TOK_LT template_param_decl ( TOK_COMMA template_param_decl )* TOK_GT
 	;
 
 template_param_decl:
@@ -854,29 +856,29 @@ type_param_decl:
 	;
 
 generic_type_param_decl: 
-	'type' identifier ( '=' type_identifier )?
+	TOK_TYPE identifier ( TOK_SINGLE_EQ type_identifier )?
 	;
 
 category_type_param_decl: 
-	type_category identifier ( type_restriction )? ( '=' type_identifier )?
+	type_category identifier ( type_restriction )? ( TOK_SINGLE_EQ type_identifier )?
 	;
 
 type_restriction: 
-	':' type_identifier
+	TOK_COLON type_identifier
 	;
 
 type_category:
-    'action'
-  | 'component'
+    TOK_ACTION
+  | TOK_COMPONENT
   | struct_kind
   ;
 
 value_param_decl: 
-	data_type identifier ( '=' constant_expression )?
+	data_type identifier ( TOK_SINGLE_EQ constant_expression )?
 	;
 
 template_param_value_list: 
-	'<' ( template_param_value ( ',' template_param_value )* )? '>'
+	TOK_LT ( template_param_value ( TOK_COMMA template_param_value )* )? TOK_GT
 	;
 
 template_param_value: 
@@ -890,8 +892,8 @@ constraint_declaration:
 	(
 		// Note: 1.0 doesn't allow a semicolon after the block constraint forms,
 		// despite examples showing this
-		((is_dynamic='dynamic')? 'constraint' identifier '{' constraint_body_item* '}' ) 
-		| ('constraint' constraint_set )
+		((is_dynamic=TOK_DYNAMIC)? TOK_CONSTRAINT identifier TOK_LCBRACE constraint_body_item* TOK_RCBRACE ) 
+		| (TOK_CONSTRAINT constraint_set )
 	)
 ;
 
@@ -909,7 +911,7 @@ constraint_body_item:
 // >>= PSS 1.1
 	| default_constraint_item
 	| forall_constraint_item
-	| ';'
+	| TOK_SEMICOLON
 // <<= PSS 1.1
 ;
 
@@ -920,24 +922,24 @@ default_constraint_item:
 	;
 	
 default_constraint:
-	'default' hierarchical_id '==' constant_expression ';'
+	TOK_DEFAULT hierarchical_id TOK_DOUBLE_EQ constant_expression TOK_SEMICOLON
 	;
 
 default_disable_constraint:
-	'default' 'disable' hierarchical_id ';'
+	TOK_DEFAULT TOK_DISABLE hierarchical_id TOK_SEMICOLON
 	;	
 	
 forall_constraint_item:
-	'forall' '(' identifier ':' type_identifier ('in' variable_ref_path)? ')' constraint_set
+	TOK_FORALL TOK_LPAREN identifier TOK_COLON type_identifier (TOK_IN variable_ref_path)? TOK_RPAREN constraint_set
 	;
 // <<= PSS 1.1
 
 expression_constraint_item:
-	expression ';'
+	expression TOK_SEMICOLON
 ;
 
 implication_constraint_item:
-	expression '->' constraint_set
+	expression TOK_IMPLIES constraint_set
 ;
 
 constraint_set:
@@ -946,19 +948,19 @@ constraint_set:
 ;
 
 constraint_block:
-	 '{' constraint_body_item* '}'
+	 TOK_LCBRACE constraint_body_item* TOK_RCBRACE
 ;
 
 foreach_constraint_item:
-	'foreach' '(' (it_id=iterator_identifier ':')? expression ('[' idx_id=index_identifier ']')? ')' constraint_set
+	TOK_FOREACH TOK_LPAREN (it_id=iterator_identifier TOK_COLON)? expression (TOK_LSBRACE idx_id=index_identifier TOK_RSBRACE)? TOK_RPAREN constraint_set
 ;
 
 if_constraint_item:
-	'if' '(' expression ')' constraint_set ('else' constraint_set )? 
+	TOK_IF TOK_LPAREN expression TOK_RPAREN constraint_set (TOK_ELSE constraint_set )? 
 ;
 
 unique_constraint_item:
-	'unique' '{' hierarchical_id_list '}' ';'
+	TOK_UNIQUE TOK_LCBRACE hierarchical_id_list TOK_RCBRACE TOK_SEMICOLON
 ;
 
 single_stmt_constraint:
@@ -968,9 +970,9 @@ single_stmt_constraint:
 
 
 covergroup_declaration:
-	'covergroup' name=covergroup_identifier ('(' covergroup_port (',' covergroup_port)* ')')? '{'
+	TOK_COVERGROUP name=covergroup_identifier (TOK_LPAREN covergroup_port (TOK_COMMA covergroup_port)* TOK_RPAREN)? TOK_LCBRACE
 		covergroup_body_item*
-	'}' 
+	TOK_RCBRACE 
 ;
 
 covergroup_port:
@@ -982,12 +984,12 @@ covergroup_body_item:
 	| covergroup_coverpoint
 	| covergroup_cross
 // >>= PSS 1.1
-	| ';'
+	| TOK_SEMICOLON
 // <<= PSS 1.1
 ;
 
 covergroup_option:
-	'option' '.' identifier '=' constant_expression ';'
+	TOK_OPTION TOK_DOT identifier TOK_SINGLE_EQ constant_expression TOK_SEMICOLON
 ;
 
 covergroup_instantiation:
@@ -996,35 +998,35 @@ covergroup_instantiation:
 	;
 	
 inline_covergroup:
-	'covergroup' '{'
+	TOK_COVERGROUP TOK_LCBRACE
 		covergroup_body_item*
-	'}' identifier ';'
+	TOK_RCBRACE identifier TOK_SEMICOLON
 ;
 
 covergroup_type_instantiation:
 	covergroup_type_identifier covergroup_identifier
-	'(' covergroup_portmap_list ')' ('with' '{' (covergroup_option)? '}')? ';'
+	TOK_LPAREN covergroup_portmap_list TOK_RPAREN (TOK_WITH TOK_LCBRACE (covergroup_option)? TOK_RCBRACE)? TOK_SEMICOLON
 	;
 	
 covergroup_portmap_list:
 	(
-		(covergroup_portmap (',' covergroup_portmap)?)
+		(covergroup_portmap (TOK_COMMA covergroup_portmap)?)
 		| hierarchical_id_list
 	)
 	;
 	
 covergroup_portmap:
-	'.' identifier '(' hierarchical_id ')'
+	TOK_DOT identifier TOK_LPAREN hierarchical_id TOK_RPAREN
 	;
 		
 covergroup_coverpoint: 
-		(data_type? coverpoint_identifier ':')? 'coverpoint' target=expression ('iff' '(' iff=expression ')')?
+		(data_type? coverpoint_identifier TOK_COLON)? TOK_COVERPOINT target=expression (TOK_IFF TOK_LPAREN iff=expression TOK_RPAREN)?
 			bins_or_empty
 ;
 
 bins_or_empty:
-		('{' covergroup_coverpoint_body_item* '}' ) 
-		| ';'
+		(TOK_LCBRACE covergroup_coverpoint_body_item* TOK_RCBRACE ) 
+		| TOK_SEMICOLON
 ;
 
 covergroup_coverpoint_body_item:
@@ -1033,42 +1035,42 @@ covergroup_coverpoint_body_item:
 ;
 
 covergroup_coverpoint_binspec: (
-		(bins_keyword identifier (is_array='['constant_expression? ']')? '=' coverpoint_bins)
+		(bins_keyword identifier (is_array=TOK_LSBRACE constant_expression? TOK_RSBRACE)? TOK_SINGLE_EQ coverpoint_bins)
 	)
 ;
 
 coverpoint_bins:
 	(
-		('[' covergroup_range_list ']' ('with' '(' covergroup_expression ')')? ';')
-		| (coverpoint_identifier 'with' '(' covergroup_expression ')' ';')
-		| is_default='default' ';'
+		(TOK_LSBRACE covergroup_range_list TOK_RSBRACE (TOK_WITH TOK_LPAREN covergroup_expression TOK_RPAREN)? TOK_SEMICOLON)
+		| (coverpoint_identifier TOK_WITH TOK_LPAREN covergroup_expression TOK_RPAREN TOK_SEMICOLON)
+		| is_default=TOK_DEFAULT TOK_SEMICOLON
 	)
 ;
 
 covergroup_range_list:
-	covergroup_value_range (',' covergroup_value_range)*
+	covergroup_value_range (TOK_COMMA covergroup_value_range)*
 	;
 
 covergroup_value_range:
 	expression
-	| (expression '..' expression?)
-	| (expression?	'..' expression)
+	| (expression TOK_ELIPSIS expression?)
+	| (expression?	TOK_ELIPSIS expression)
 	;
 
 bins_keyword:
-	'bins' 
-	| 'illegal_bins' 
-	| 'ignore_bins' 
+	TOK_BINS
+	| TOK_ILLEGAL_BINS
+	| TOK_IGNORE_BINS 
 ;
 
 covergroup_cross: 
-	identifier ':' 'cross' coverpoint_identifier (',' coverpoint_identifier)*
-		('iff' '(' iff=expression ')')? cross_item_or_null
+	identifier TOK_COLON TOK_CROSS coverpoint_identifier (TOK_COMMA coverpoint_identifier)*
+		(TOK_IFF TOK_LPAREN iff=expression TOK_RPAREN)? cross_item_or_null
 ;
 
 cross_item_or_null:
-	('{' covergroup_cross_body_item* '}' )
-	| ';'
+	(TOK_LCBRACE covergroup_cross_body_item* TOK_RCBRACE )
+	| TOK_SEMICOLON
 ;
 
 covergroup_cross_body_item:
@@ -1079,7 +1081,7 @@ covergroup_cross_body_item:
 
 covergroup_cross_binspec:
 	bins_type=bins_keyword name=identifier  
-		'=' covercross_identifier 'with' '(' expr=covergroup_expression ')' ';'
+		TOK_SINGLE_EQ covercross_identifier TOK_WITH TOK_LPAREN expr=covergroup_expression TOK_RPAREN TOK_SEMICOLON
 	;
 
 // TODO: no definition in the BNF	
@@ -1089,52 +1091,52 @@ covergroup_expression:
 	
 	
 package_body_compile_if:
-	'compile' 'if' '(' cond=constant_expression ')' true_body=package_body_compile_if_item
-	('else' false_body=package_body_compile_if_item)?
+	TOK_COMPILE TOK_IF TOK_LPAREN cond=constant_expression TOK_RPAREN true_body=package_body_compile_if_item
+	(TOK_ELSE false_body=package_body_compile_if_item)?
 ;
 
 package_body_compile_if_item:
 	package_body_item
-	| ('{' package_body_item* '}')
+	| (TOK_LCBRACE package_body_item* TOK_RCBRACE)
 ;
 
 action_body_compile_if:
-	'compile' 'if' '(' cond=constant_expression ')' true_body=action_body_compile_if_item
-	('else' false_body=action_body_compile_if_item)?
+	TOK_COMPILE TOK_IF TOK_LPAREN cond=constant_expression TOK_RPAREN true_body=action_body_compile_if_item
+	(TOK_ELSE false_body=action_body_compile_if_item)?
 ;
 
 action_body_compile_if_item:
 	action_body_item
-	| ('{' action_body_item* '}')
+	| (TOK_LCBRACE action_body_item* TOK_RCBRACE)
 ;
 
 component_body_compile_if:
-	'compile' 'if' '(' cond=constant_expression ')' true_body=component_body_compile_if_item
-	('else' false_body=component_body_compile_if_item)?
+	TOK_COMPILE TOK_IF TOK_LPAREN cond=constant_expression TOK_RPAREN true_body=component_body_compile_if_item
+	(TOK_ELSE false_body=component_body_compile_if_item)?
 ;
 
 component_body_compile_if_item:
 	component_body_item
-	| ('{' component_body_item* '}')
+	| (TOK_LCBRACE component_body_item* TOK_RCBRACE)
 	;
 	
 struct_body_compile_if:
-	'compile' 'if' '(' cond=constant_expression ')' true_body=struct_body_compile_if_item
-	('else' false_body=struct_body_compile_if_item)?
+	TOK_COMPILE TOK_IF TOK_LPAREN cond=constant_expression TOK_RPAREN true_body=struct_body_compile_if_item
+	(TOK_ELSE false_body=struct_body_compile_if_item)?
 ;
 
 struct_body_compile_if_item:
 	struct_body_item
-	| ('{' struct_body_item* '}')
+	| (TOK_LCBRACE struct_body_item* TOK_RCBRACE)
 ;
 
 // == PSS 1.1 -- replace static_ref with static_ref_path
 compile_has_expr:
-	'compile' 'has' '(' static_ref_path ')'
+	TOK_COMPILE TOK_HAS TOK_LPAREN static_ref_path TOK_RPAREN
 	;
 	
 compile_assert_stmt :
-	'compile' 'assert' '(' cond=constant_expression (',' msg=string)? ')' ';'
+	TOK_COMPILE TOK_ASSERT TOK_LPAREN cond=constant_expression (TOK_COMMA msg=string)? TOK_RPAREN TOK_SEMICOLON
 ;
 
 constant_expression: expression;
@@ -1159,34 +1161,34 @@ expression:
 	;
 
 conditional_expr :
-	'?' true_expr=expression ':' false_expr=expression
+	TOK_COND true_expr=expression TOK_COLON false_expr=expression
 	; 
 
-logical_or_op : '||';
-logical_and_op : '&&';
-binary_or_op : '|';
-binary_xor_op : '^';
-binary_and_op : '&';
+logical_or_op : TOK_DOUBLE_OR;
+logical_and_op : TOK_DOUBLE_AND;
+binary_or_op : TOK_SINGLE_OR;
+binary_xor_op : TOK_CARET;
+binary_and_op : TOK_SINGLE_AND;
 
 inside_expr_term :
-	'in' '[' open_range_list ']'
+	TOK_IN TOK_LSBRACE open_range_list TOK_RSBRACE
 ;
 
 open_range_list:
-	open_range_value (',' open_range_value)*
+	open_range_value (TOK_COMMA open_range_value)*
 ;
 
 open_range_value:
-	lhs=expression ('..' rhs=expression)?
+	lhs=expression (TOK_ELIPSIS rhs=expression)?
 ;
 
 logical_inequality_op:
-	'<'|'<='|'>'|'>='
+	TOK_LT|TOK_LTE|TOK_GT|TOK_GTE
 ;
 
-unary_op: '+' | '-' | '!' | '~' | '&' | '|' | '^';
+unary_op: TOK_PLUS | TOK_MINUS | TOK_NOT | TOK_NEG | TOK_SINGLE_AND | TOK_SINGLE_OR | TOK_CARET;
 
-exp_op: '**';
+exp_op: TOK_EXP;
 
 
 primary: 
@@ -1197,18 +1199,18 @@ primary:
 	| variable_ref_path
 	| method_function_symbol_call
 	| static_ref_path
-	| is_super='super' '.' variable_ref_path
+	| is_super=TOK_SUPER TOK_DOT variable_ref_path
 	| compile_has_expr
 	| cast_expression // TODO: File Jama issue
 	;
 	
 paren_expr:
-	'(' expression ')'
+	TOK_LPAREN expression TOK_RPAREN
 ;
 
 // TODO: casting_type is undefined
 cast_expression:
-	'(' casting_type ')' expression
+	TOK_LPAREN casting_type TOK_RPAREN expression
 	;
 	
 casting_type:
@@ -1216,7 +1218,7 @@ casting_type:
 	;
 	
 variable_ref_path:
-	hierarchical_id ('[' expression (':' expression)? ']')?
+	hierarchical_id (TOK_LSBRACE expression (TOK_COLON expression)? TOK_RSBRACE)?
 ;
 
 method_function_symbol_call:
@@ -1224,14 +1226,14 @@ method_function_symbol_call:
 	| function_symbol_call
 	;
 
-// TODO: trailing ';' is incorrect
+// TODO: trailing TOK_SEMICOLON is incorrect
 method_call:
-	hierarchical_id method_parameter_list /*';'*/
+	hierarchical_id method_parameter_list /*TOK_SEMICOLON*/
 	;
 
-// TODO: trailing ';' is incorrect
+// TODO: trailing TOK_SEMICOLON is incorrect
 function_symbol_call:
-	function_symbol_id method_parameter_list /*';'*/
+	function_symbol_id method_parameter_list /*TOK_SEMICOLON*/
 	;
 	
 function_symbol_id:
@@ -1240,27 +1242,27 @@ function_symbol_id:
 	;
 
 function_id:
-	identifier ('::' identifier)*
+	identifier (TOK_DOUBLE_COLON identifier)*
 	;	
 
 
 static_ref_path:
-	is_global='::'? static_ref_path_elem ('::' static_ref_path_elem)*
+	is_global=TOK_DOUBLE_COLON? static_ref_path_elem (TOK_DOUBLE_COLON static_ref_path_elem)*
 	;
 	
 static_ref_path_elem: 
 	identifier template_param_value_list?
 	;
 
-mul_div_mod_op: '*' | '/' | '%';
+mul_div_mod_op: TOK_ASTERISK | TOK_DIV | TOK_MOD;
 
-add_sub_op: '+' | '-';
+add_sub_op: TOK_PLUS | TOK_MINUS;
 
 // Note: Implementation difference vs spec
 // shift_op: '<<' | '>>';
-shift_op: '<<' | '>' '>';
+shift_op: TOK_DOUBLE_LT | TOK_GT TOK_GT;
 
-eq_neq_op: '==' | '!=';
+eq_neq_op: TOK_DOUBLE_EQ | TOK_NE;
 
 
 constant: 
@@ -1274,22 +1276,22 @@ identifier:
 	;
 	
 hierarchical_id_list:
-	hierarchical_id (',' hierarchical_id)*
+	hierarchical_id (TOK_COMMA hierarchical_id)*
 	;
 	
 hierarchical_id:
-	hierarchical_id_elem ('.' hierarchical_id_elem)*
+	hierarchical_id_elem (TOK_DOT hierarchical_id_elem)*
 ;
 
 hierarchical_id_elem:
-	identifier ('[' expression ']')?
+	identifier (TOK_LSBRACE expression TOK_RSBRACE)?
 	;
 	
 action_type_identifier: type_identifier;
 
 // == PSS 1.1
 type_identifier: 
-	(is_global='::')? type_identifier_elem ('::' type_identifier_elem)* 
+	(is_global=TOK_DOUBLE_COLON)? type_identifier_elem (TOK_DOUBLE_COLON type_identifier_elem)* 
 	;
 	
 // >>= PSS 1.1
@@ -1354,7 +1356,7 @@ stream_type_identifier: type_identifier;
 
 
 bool_literal:
-	'true'|'false'
+	TOK_TRUE|TOK_FALSE
 ;
 
 
@@ -1368,84 +1370,41 @@ number:
 	| hex_number
 ;
 
-based_hex_number: DEC_LITERAL? BASED_HEX_LITERAL;
-BASED_HEX_LITERAL: '\'' ('s'|'S')? ('h'|'H') ('0'..'9'|'a'..'f'|'A'..'F') ('0'..'9'|'a'..'f'|'A'..'F'|'_')*;
-
-based_dec_number: DEC_LITERAL? BASED_DEC_LITERAL;
-BASED_DEC_LITERAL: '\'' ('s'|'S')? ('d'|'D') ('0'..'9') ('0'..'9'|'_')*;
-
-dec_number: DEC_LITERAL;
-DEC_LITERAL: ('1'..'9') ('0'..'9'|'_')*;
-
-based_bin_number: DEC_LITERAL? BASED_BIN_LITERAL;
-BASED_BIN_LITERAL: '\'' ('s'|'S')? ('b'|'B') (('0'..'1') ('0'..'1'|'_')*);
-
-based_oct_number: DEC_LITERAL? BASED_OCT_LITERAL;
-BASED_OCT_LITERAL: '\'' ('s'|'S')? ('o'|'O') (('0'..'7') ('0'..'7'|'_')*);
-
-
-oct_number: OCT_LITERAL;
-OCT_LITERAL: '0' ('0'..'7')*;
-
-hex_number: HEX_LITERAL;
-HEX_LITERAL: '0x' ('0'..'9'|'a'..'f'|'A'..'F') ('0'..'9'|'a'..'f'|'A'..'F'|'_')*;
-
-
-WS : [ \t\n\r]+ -> channel (10) ;
-//WS : [ \t\n\r]+ -> skip;
-
-/**
- * BNF: SL_COMMENT ::= <kw>//</kw>\n 
- */
-SL_COMMENT 	: '//' .*? '\r'? ('\n'|EOF) -> channel (11) ;
-//SL_COMMENT 	: '//' .*? '\r'? ('\n'|EOF) -> skip;
-
-/*
- * BNF: ML_COMMENT ::= <kw>/*</kw><kw>*\057</kw>
- */
-ML_COMMENT	: '/*' .*? '*/' -> channel (12) ;
-//ML_COMMENT	: '/*' .*? '*/' -> skip;
- 
 string: DOUBLE_QUOTED_STRING | TRIPLE_DOUBLE_QUOTED_STRING;
 
 filename_string: DOUBLE_QUOTED_STRING;
 
-DOUBLE_QUOTED_STRING	: '"' (~ [\n\r])* '"' ;
+based_hex_number: DEC_LITERAL? BASED_HEX_LITERAL;
 
-// TODO: unescaped_character, escaped_character
+based_dec_number: DEC_LITERAL? BASED_DEC_LITERAL;
 
-/**
- * BNF: TRIPLE_DOUBLE_QUOTED_STRING ::= <kw>"""</kw><kw>"""</kw>
- */
-TRIPLE_DOUBLE_QUOTED_STRING:
-			'"""' TripleQuotedStringPart*? '"""'
-		; 
-		
-fragment TripleQuotedStringPart : EscapedTripleQuote | SourceCharacter;
-fragment EscapedTripleQuote: '\\"""';
-fragment SourceCharacter :[\u0009\u000A\u000D\u0020-\uFFFF];
-		
-// TODO: move to LexicalRules
-ID : [a-zA-Z_] [a-zA-Z0-9_]* ;
+dec_number: DEC_LITERAL;
 
-ESCAPED_ID : '\\' ('\u0021'..'\u007E')+ ~ [ \r\t\n]* ;
+based_bin_number: DEC_LITERAL? BASED_BIN_LITERAL;
+
+based_oct_number: DEC_LITERAL? BASED_OCT_LITERAL;
+
+
+oct_number: OCT_LITERAL;
+
+hex_number: HEX_LITERAL;
 
 
 export_action:
-	'export' (method_qualifiers)? action_type_identifier method_parameter_list_prototype ';'
+	TOK_EXPORT (method_qualifiers)? action_type_identifier method_parameter_list_prototype TOK_SEMICOLON
 ;
 
 import_class_decl:
-	'import' 'class' import_class_identifier (import_class_extends)? '{'
+	TOK_IMPORT TOK_CLASS import_class_identifier (import_class_extends)? TOK_LCBRACE
 		import_class_method_decl*
-	'}' 
+	TOK_RCBRACE 
 	;
 
 import_class_extends:
-	':' type_identifier (',' type_identifier)*
+	TOK_COLON type_identifier (TOK_COMMA type_identifier)*
 ;
 	
 import_class_method_decl:
-	method_prototype ';'
+	method_prototype TOK_SEMICOLON
 ;
 

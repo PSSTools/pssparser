@@ -69,8 +69,8 @@ ExternalProject_Add(AST
 	PREFIX pssast
 	SOURCE_DIR "${CMAKE_CURRENT_BINARY_DIR}/pssast/src"
 	DOWNLOAD_COMMAND 
-		${PYTHON} -m astbuilder gen-cpp -name pssast -namespace pssp -astdir ${CMAKE_CURRENT_SOURCE_DIR}/ast -license ${CMAKE_CURRENT_SOURCE_DIR}/scripts/copyright.cpp &&
-		${PYTHON} -m astbuilder gen-pyext -name pssast -namespace pssp -package pssparser.core -astdir ${CMAKE_CURRENT_SOURCE_DIR}/ast -o ../ext
+		${PYTHON} -m astbuilder gen-cpp -name pssast -namespace pssp::ast -astdir ${CMAKE_CURRENT_SOURCE_DIR}/ast -license ${CMAKE_CURRENT_SOURCE_DIR}/scripts/copyright.cpp &&
+		${PYTHON} -m astbuilder gen-pyext -name pssast -namespace pssp::ast -package pssparser.core -astdir ${CMAKE_CURRENT_SOURCE_DIR}/ast -o ../ext
         CMAKE_CACHE_ARGS
           -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_CURRENT_BINARY_DIR}/pssast
           -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}

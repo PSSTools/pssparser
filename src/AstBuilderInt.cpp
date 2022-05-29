@@ -45,7 +45,7 @@ void AstBuilderInt::build(
 }
 
 antlrcpp::Any AstBuilderInt::visitPackage_declaration(PSSParser::Package_declarationContext *ctx) {
-	PSSBaseVisitor::visitPackage_declaration(ctx);
+	PSSParserBaseVisitor::visitPackage_declaration(ctx);
 	return 0;
 }
 
