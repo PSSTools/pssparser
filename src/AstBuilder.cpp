@@ -23,10 +23,10 @@ AstBuilder::~AstBuilder() {
 }
 
 void AstBuilder::build(
-		GlobalScope			*global,
+		ast::IGlobalScope	*global,
 		std::istream		*in) {
 	fprintf(stdout, "AstBuilder::build: this=%p\n", this);
-	fprintf(stdout, "AstBuilder::build: global=%p %p\n", global, dynamic_cast<GlobalScope *>(global));
+	fprintf(stdout, "AstBuilder::build: global=%p %p\n", global, dynamic_cast<ast::IGlobalScope *>(global));
 	fprintf(stdout, "AstBuilder::build: in=%p %p\n", in, dynamic_cast<std::istream *>(in));
 	m_builder_int->build(global, in);
 }

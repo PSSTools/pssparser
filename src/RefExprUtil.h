@@ -5,10 +5,10 @@
  *      Author: ballance
  */
 
-#include "RefExpr.h"
-#include "RefExprTypeScopeGlobal.h"
-#include "RefExprTypeScopeContext.h"
-#include "RefExprScopeIndex.h"
+#include "pssp/ast/IRefExpr.h"
+#include "pssp/ast/IRefExprTypeScopeGlobal.h"
+#include "pssp/ast/IRefExprTypeScopeContext.h"
+#include "pssp/ast/IRefExprScopeIndex.h"
 
 namespace pssp {
 
@@ -18,9 +18,9 @@ public:
 
 	virtual ~RefExprUtil();
 
-	static RefExprTypeScopeGlobalSP mkTypeScopeGlobal(int32_t fileid);
+	static ast::IRefExprTypeScopeGlobalSP mkTypeScopeGlobal(int32_t fileid);
 
-	static RefExprScopeIndexSP mkScopeIndex(RefExprSP base, int32_t index);
+	static ast::IRefExprScopeIndexSP mkScopeIndex(ast::IRefExprSP base, int32_t index);
 };
 
 } /* namespace pssp */

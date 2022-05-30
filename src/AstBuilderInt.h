@@ -11,8 +11,8 @@
 #include "pssp/IMarkerListener.h"
 #include "PSSParserBaseVisitor.h"
 #include "BaseErrorListener.h"
-#include "GlobalScope.h"
-#include "Scope.h"
+#include "pssp/ast/IGlobalScope.h"
+#include "pssp/ast/IScope.h"
 
 using namespace antlr4;
 using namespace antlrcpp;
@@ -28,8 +28,8 @@ public:
 	virtual ~AstBuilderInt();
 
 	void build(
-			GlobalScope		*global,
-			std::istream 	*in);
+			ast::IGlobalScope	*global,
+			std::istream 		*in);
 
     virtual antlrcpp::Any visitPackage_declaration(PSSParser::Package_declarationContext *context) override;
 
@@ -556,13 +556,13 @@ public:
 			std::exception_ptr e) override;
 
 private:
-    void addChild(ScopeChild *c, Token *t);
+    void addChild(ast::IScopeChild *c, Token *t);
 
-    void addChild(NamedScopeChild *c, Token *t);
+    void addChild(ast::INamedScopeChild *c, Token *t);
 
-    void addChild(NamedScope *c, Token *t);
+    void addChild(ast::INamedScope *c, Token *t);
 
-    void addDocstring(ScopeChild *c, Token *t);
+    void addDocstring(ast::IScopeChild *c, Token *t);
 
     std::string processDocStringMultiLineComment(
     		const std::vector<Token *>		&mlc_tokens,
@@ -572,15 +572,15 @@ private:
     		const std::vector<Token *>		&slc_tokens,
 			const std::vector<Token *>		&ws_tokens);
 
-    Scope *scope() const { return m_scopes.back(); }
+    ast::IScope *scope() const { return m_scopes.back(); }
 
-    void push_scope(Scope *s) { m_scopes.push_back(s); }
+    void push_scope(ast::IScope *s) { m_scopes.push_back(s); }
 
     void pop_scope() { m_scopes.pop_back(); }
 
 private:
     IMarkerListener						*m_marker_l;
-    std::vector<Scope *>				m_scopes;
+    std::vector<ast::IScope *>			m_scopes;
     std::unique_ptr<CommonTokenStream>	m_tokens;
 
 };

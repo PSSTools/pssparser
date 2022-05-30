@@ -7,6 +7,7 @@
 
 #include "AstBuilderInt.h"
 #include "PSSLexer.h"
+#include "pssp/ast/IFactory.h"
 #include "Action.h"
 #include "Component.h"
 #include "NamedScopeChild.h"
@@ -24,8 +25,8 @@ AstBuilderInt::~AstBuilderInt() {
 }
 
 void AstBuilderInt::build(
-			GlobalScope		*global,
-			std::istream 	*in) {
+			ast::IGlobalScope		*global,
+			std::istream 			*in) {
 	ANTLRInputStream input(*in);
 	PSSLexer lexer(&input);
 	m_tokens = std::unique_ptr<CommonTokenStream>(new CommonTokenStream(&lexer));
@@ -66,7 +67,7 @@ antlrcpp::Any AstBuilderInt::visitStatic_const_field_declaration(PSSParser::Stat
 /********************************************************************
  ********************************************************************/
 antlrcpp::Any AstBuilderInt::visitAction_declaration(PSSParser::Action_declarationContext *ctx) {
-	Action *a = new Action(0, 0);
+	ast::Action *a = new ast::Action(0, 0);
 
 	addChild(a, ctx->start);
 	push_scope(a);
@@ -189,7 +190,7 @@ antlrcpp::Any AstBuilderInt::visitProcedural_break_stmt(PSSParser::Procedural_br
 antlrcpp::Any AstBuilderInt::visitProcedural_continue_stmt(PSSParser::Procedural_continue_stmtContext *ctx) { return 0; }
 
 antlrcpp::Any AstBuilderInt::visitComponent_declaration(PSSParser::Component_declarationContext *ctx) {
-	Component *c = new Component(0, 0);
+	ast::IComponent *c = new ast::Component(0, 0);
 
 
 //	tokens.getHiddenTokensToLeft(
@@ -615,19 +616,19 @@ void AstBuilderInt::syntaxError(
 	}
 }
 
-void AstBuilderInt::addChild(ScopeChild *c, Token *t) {
+void AstBuilderInt::addChild(ast::IScopeChild *c, Token *t) {
 	ScopeUtil::addChild(scope(), c);
 }
 
-void AstBuilderInt::addChild(NamedScopeChild *c, Token *t) {
+void AstBuilderInt::addChild(ast::INamedScopeChild *c, Token *t) {
 	ScopeUtil::addChild(scope(), c);
 }
 
-void AstBuilderInt::addChild(NamedScope *c, Token *t) {
-	scope()->get_children().push_back(ScopeChildUP(c));
+void AstBuilderInt::addChild(ast::INamedScope *c, Token *t) {
+	scope()->getChildren().push_back(ast::IScopeChildUP(c));
 }
 
-void AstBuilderInt::addDocstring(ScopeChild *c, Token *t) {
+void AstBuilderInt::addDocstring(ast::IScopeChild *c, Token *t) {
 	std::vector<Token *> ws_tokens = m_tokens->getHiddenTokensToLeft(
 			t->getTokenIndex(), 10);
 	std::vector<Token *> slc_tokens = m_tokens->getHiddenTokensToLeft(
@@ -674,7 +675,7 @@ void AstBuilderInt::addDocstring(ScopeChild *c, Token *t) {
 	}
 
 	if (docstring != "") {
-		c->set_docstring(docstring);
+		c->setDocstring(docstring);
 	}
 
 	/*

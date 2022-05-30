@@ -5,30 +5,41 @@
 #****************************************************************************
 classes:
     - Location:
-        - data:
-            - fileid: int32_t
-            - lineno: int32_t
-            - linepos: int32_t
+      - data:
+        - fileid: 
+          - type: int32_t
+          - init: -1
+        - lineno: 
+          - type: int32_t
+          - init: -1
+        - linepos: 
+          - type: int32_t
+          - init: -1
+        
     - Scope:
-        - super: ScopeChild
-        - data:
-            - children: list<UP<ScopeChild>>
-            - symtab:
-                - type: map<string,P<NamedScopeChild>>
-                - is_ctor: false
+      - super: ScopeChild
+      - data:
+        - children: list<UP<ScopeChild>>
+        - symtab:
+          - type: map<string,P<NamedScopeChild>>
+          - is_ctor: false
+
     - ScopeChild:
-        - data:
-            - docstring:
-                - type: string
-                - is_ctor: false
-            - parent:
-                - type: P<Scope>
-                - is_ctor: false
-                - init: 0
-            - index:
-                - type: int32_t
-                - is_ctor: false
-                - init: -1
+      - data:
+        - docstring:
+          - type: string
+          - is_ctor: false
+            #        - location:
+            #          - type: Location
+        - parent:
+          - type: P<Scope>
+          - is_ctor: false
+          - init: 0
+        - index:
+          - type: int32_t
+          - is_ctor: false
+          - init: -1
+            
     - GlobalScope:
         - super: Scope
         - data:

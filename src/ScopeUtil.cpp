@@ -18,32 +18,32 @@ ScopeUtil::~ScopeUtil() {
 	// TODO Auto-generated destructor stub
 }
 
-NamedScopeChild *ScopeUtil::findChild(Scope *s, const std::string &name) {
-	std::map<std::string,NamedScopeChild *>::iterator it;
+ast::INamedScopeChild *ScopeUtil::findChild(ast::IScope *s, const std::string &name) {
+	std::map<std::string,ast::INamedScopeChild *>::iterator it;
 
-	if ((it=s->get_symtab().find(name)) != s->get_symtab().end()) {
+	if ((it=s->getSymtab().find(name)) != s->getSymtab().end()) {
 		return it->second;
 	} else {
 		return 0;
 	}
 }
 
-bool ScopeUtil::addChild(Scope *s, NamedScopeChild *c) {
-	std::map<std::string,NamedScopeChild*>::iterator it;
+bool ScopeUtil::addChild(ast::IScope *s, ast::INamedScopeChild *c) {
+	std::map<std::string,ast::INamedScopeChild*>::iterator it;
 
-	if ((it=s->get_symtab().find(c->get_name()->get_id())) == s->get_symtab().end()) {
-		s->get_children().push_back(ScopeChildUP(c));
-		s->get_symtab().insert({c->get_name()->get_id(), c});
-		c->set_parent(s);
+	if ((it=s->getSymtab().find(c->getName()->getId())) == s->getSymtab().end()) {
+		s->getChildren().push_back(ast::IScopeChildUP(c));
+		s->getSymtab().insert({c->getName()->getId(), c});
+		c->setParent(s);
 		return true;
 	} else {
 		return false;
 	}
 }
 
-void ScopeUtil::addChild(Scope *s, ScopeChild *c) {
-	s->get_children().push_back(ScopeChildUP(c));
-	c->set_parent(s);
+void ScopeUtil::addChild(ast::IScope *s, ast::IScopeChild *c) {
+	s->getChildren().push_back(ast::IScopeChildUP(c));
+	c->setParent(s);
 }
 
 } /* namespace pssp */

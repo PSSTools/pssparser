@@ -7,9 +7,9 @@
 
 #pragma once
 #include "ExprId.h"
-#include "NamedScopeChild.h"
-#include "Scope.h"
-#include "ScopeChild.h"
+#include "pssp/ast/INamedScopeChild.h"
+#include "pssp/ast/IScope.h"
+#include "pssp/ast/IScopeChild.h"
 
 namespace pssp {
 
@@ -19,11 +19,11 @@ public:
 
 	virtual ~ScopeUtil();
 
-	static NamedScopeChild *findChild(Scope *s, const std::string &name);
+	static ast::INamedScopeChild *findChild(ast::IScope *s, const std::string &name);
 
-	static bool addChild(Scope *s, NamedScopeChild *c);
+	static bool addChild(ast::IScope *s, ast::INamedScopeChild *c);
 
-	static void addChild(Scope *s, ScopeChild *c);
+	static void addChild(ast::IScope *s, ast::IScopeChild *c);
 };
 
 } /* namespace pssp */

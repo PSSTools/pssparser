@@ -12,8 +12,8 @@
 namespace pssp {
 
 NameResolver::NameResolver(
-		IMarkerListener						*marker_l,
-		const std::vector<GlobalScope *>	&context) :
+		IMarkerListener							*marker_l,
+		const std::vector<ast::IGlobalScope *>	&context) :
 			m_marker_l(marker_l), m_context(context), m_phase(0) {
 	// TODO Auto-generated constructor stub
 
@@ -23,43 +23,43 @@ NameResolver::~NameResolver() {
 	// TODO Auto-generated destructor stub
 }
 
-void NameResolver::resolve(const std::vector<GlobalScope *> &target) {
+void NameResolver::resolve(const std::vector<ast::IGlobalScope *> &target) {
 	m_phase = 0;
-	for (std::vector<GlobalScope *>::const_iterator
+	for (std::vector<ast::IGlobalScope *>::const_iterator
 			it=target.begin(); it!=target.end(); it++) {
 		(*it)->accept(this);
 	}
 
 	m_phase = 1;
-	for (std::vector<GlobalScope *>::const_iterator
+	for (std::vector<ast::IGlobalScope *>::const_iterator
 			it=target.begin(); it!=target.end(); it++) {
 		(*it)->accept(this);
 	}
 }
 
-void NameResolver::visitDataTypeUserDefined(DataTypeUserDefined *i) {
-	NamedScopeChild 	*root;
-	RefExprSP 			ref;
+void NameResolver::visitDataTypeUserDefined(ast::IDataTypeUserDefined *i) {
+	ast::INamedScopeChild 	*root;
+	ast::IRefExprSP 			ref;
 
 	// First, find the root
-	TypeIdentifierElem *elem = i->get_elems().at(0).get();
-	if (i->get_is_global()) {
+	ast::ITypeIdentifierElem *elem = i->getElems().at(0).get();
+	if (i->getIs_global()) {
 		// Search for the root element across the context
-		for (std::vector<GlobalScope *>::const_iterator
+		for (std::vector<ast::IGlobalScope *>::const_iterator
 				it=m_context.begin(); it!=m_context.end(); it++) {
-			if ((root=ScopeUtil::findChild(*it, elem->get_id()->get_id()))) {
+			if ((root=ScopeUtil::findChild(*it, elem->getId()->getId()))) {
 				ref = RefExprUtil::mkScopeIndex(
-						RefExprUtil::mkTypeScopeGlobal((*it)->get_fileid()),
-						root->get_index());
+						RefExprUtil::mkTypeScopeGlobal((*it)->getFileid()),
+						root->getIndex());
 				break;
 			}
 		}
 	} else {
 		// Search for the root element up the type-scope stack
 		for (int32_t i=m_scopes.size()-1; i>=0; i--) {
-			Scope *s = m_scopes.at(i);
+			ast::IScope *s = m_scopes.at(i);
 
-			if ((root=ScopeUtil::findChild(s, elem->get_id()->get_id()))) {
+			if ((root=ScopeUtil::findChild(s, elem->getId()->getId()))) {
 
 			}
 		}
@@ -72,7 +72,7 @@ void NameResolver::visitDataTypeUserDefined(DataTypeUserDefined *i) {
 
 	// Now, continue resolving relative to root if there are
 	// additional elements
-	if (i->get_elems().size() > 1) {
+	if (i->getElems().size() > 1) {
 
 	} else {
 		// Done

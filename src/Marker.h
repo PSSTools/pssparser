@@ -9,10 +9,18 @@
 #include <memory>
 #include <string>
 
-#include "Location.h"
+//#include "Location.h"
 #include "MarkerSeverityE.h"
 
 namespace pssp {
+
+struct Location {
+	int32_t		file = -1;
+	int32_t		line = -1;
+	int32_t		pos = -1;
+
+	Location(int32_t f, int32_t l, int32_t p) : file(f), line(l), pos(p) {}
+};
 
 class Marker {
 public:

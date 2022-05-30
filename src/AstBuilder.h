@@ -23,7 +23,7 @@ public:
 	virtual ~AstBuilder();
 
 	void build(
-			IGlobalScope			*global,
+			ast::IGlobalScope	*global,
 			std::istream		*in);
 
 private:

@@ -18,12 +18,16 @@ RefExprUtil::~RefExprUtil() {
 	// TODO Auto-generated destructor stub
 }
 
-RefExprTypeScopeGlobalSP RefExprUtil::mkTypeScopeGlobal(int32_t fileid) {
-	return RefExprTypeScopeGlobalSP(new RefExprTypeScopeGlobal(fileid));
+ast::IRefExprTypeScopeGlobalSP RefExprUtil::mkTypeScopeGlobal(int32_t fileid) {
+	/*
+	return ast::IRefExprTypeScopeGlobalSP(new ast::IRefExprTypeScopeGlobal(fileid));
+	 */
+	return ast::IRefExprTypeScopeGlobalSP(0);
 }
 
-RefExprScopeIndexSP RefExprUtil::mkScopeIndex(RefExprSP base, int32_t index) {
-	return RefExprScopeIndexSP(new RefExprScopeIndex(base, index));
+ast::IRefExprScopeIndexSP RefExprUtil::mkScopeIndex(ast::IRefExprSP base, int32_t index) {
+//	return ast::IRefExprScopeIndexSP(new ast::IRefExprScopeIndex(base, index));
+	return ast::IRefExprScopeIndexSP(0);
 }
 
 } /* namespace pssp */
