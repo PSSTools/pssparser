@@ -70,7 +70,7 @@ ExternalProject_Add(AST
 	SOURCE_DIR "${CMAKE_CURRENT_BINARY_DIR}/pssast/src"
 	DOWNLOAD_COMMAND 
 		${PYTHON} -m astbuilder gen-cpp -name pssast -namespace pssp::ast -astdir ${CMAKE_CURRENT_SOURCE_DIR}/ast -license ${CMAKE_CURRENT_SOURCE_DIR}/scripts/copyright.cpp &&
-		${PYTHON} -m astbuilder gen-pyext -name pssast -namespace pssp::ast -package pssparser.core -astdir ${CMAKE_CURRENT_SOURCE_DIR}/ast -o ../ext
+		${PYTHON} -m astbuilder gen-pyext -name pssast -namespace pssp::ast -package pssparser.pssast -astdir ${CMAKE_CURRENT_SOURCE_DIR}/ast -o ../ext
         CMAKE_CACHE_ARGS
           -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_CURRENT_BINARY_DIR}/pssast
           -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
@@ -88,8 +88,21 @@ ExternalProject_Add(googletest
 	  -DBUILD_SHARED_LIBS:BOOL=${BUILD_SHARED_LIBS}
     )
 
-add_subdirectory(ext)
+#add_subdirectory(ext)
 add_subdirectory(src)
 add_subdirectory(tests)
 
+if (NOT DEFINED ENV{EXT_PYTHON})
+   set(ENV{EXT_PYTHON} ${PYTHON})
+endif()
 
+add_custom_target(build_ext ALL
+	COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_BINARY_DIR}/pssast/ext/pssast_decl.pxd ${CMAKE_CURRENT_SOURCE_DIR}/python/pssparser/pssast_decl.pxd
+	COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_BINARY_DIR}/pssast/ext/pssast.pxd ${CMAKE_CURRENT_SOURCE_DIR}/python/pssparser/pssast.pxd
+	COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_BINARY_DIR}/pssast/ext/pssast.pyx ${CMAKE_CURRENT_SOURCE_DIR}/python/pssast.pyx
+	COMMAND ${CMAKE_COMMAND} -E env CMAKE_BINARY_DIR=${CMAKE_BINARY_DIR} $ENV{EXT_PYTHON} ${CMAKE_CURRENT_SOURCE_DIR}/setup.py build_ext --inplace
+	COMMAND $ENV{EXT_PYTHON} ${CMAKE_CURRENT_SOURCE_DIR}/setup.py bdist_wheel
+	)
+
+#add_dependencies(build_ext pssparser gen_ast_ext)
+add_dependencies(build_ext pssparser)

@@ -6,6 +6,7 @@
 cimport pssparser_decl
 cimport cpython.ref as cpy_ref
 cimport iostream
+from .ast cimport GlobalScope
 
 cpdef doit(int a):
     print("doit: " + str(a))
@@ -30,17 +31,17 @@ cdef class AstBuilder(object):
 
    #     print("thisptr %p" % str(self.thisptr))
    #     print("glbl.thisptr %p" % str(glbl.thisptr))        
-        self.thisptr.build(
-            <pssast_decl.GlobalScope *>(glbl.thisptr), 
-            is_w)
+#        self.thisptr.build(
+#            <pssast_decl.GlobalScope *>(glbl.thisptr), 
+#            is_w)
         
         del is_w
         
-cpdef GlobalScope mkGlobalScope(int fileid):
-    """Create a new GlobalScope object"""
-    ret = GlobalScope()
-    ret.owned = True
-    ret.thisptr = new pssast_decl.GlobalScope(fileid)
-    return ret
+#cpdef GlobalScope mkGlobalScope(int fileid):
+#    """Create a new GlobalScope object"""
+#    ret = GlobalScope()
+#    ret.owned = True
+#    ret.thisptr = new pssast_decl.GlobalScope(fileid)
+#    return ret
 
 

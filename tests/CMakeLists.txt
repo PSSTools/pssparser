@@ -38,7 +38,10 @@ add_dependencies(pssparser_testmain googletest)
 target_include_directories(pssparser_testmain PRIVATE
 	${CMAKE_BINARY_DIR}/googletest/include
 	${PACKAGES_DIR}/googletest/googletest/include
-	${CMAKE_CURRENT_SOURCE_DIR}/../src)
+	${CMAKE_BINARY_DIR}/pssast/src/include
+	${CMAKE_CURRENT_SOURCE_DIR}/../src
+	${CMAKE_CURRENT_SOURCE_DIR}/../src/include
+)
 
 list(APPEND PSSPARSER_TESTMAIN_LIBS gtest gtest_main pssparser pssast)
 

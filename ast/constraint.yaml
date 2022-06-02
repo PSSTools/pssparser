@@ -7,10 +7,10 @@ classes:
             - is_dynamic: bool
     - ConstraintScope:
         - super: ConstraintStmt
-        - data:
-            - symtab:
-                - type: map<string, P<NamedScopeChild>>
-                - is_ctor: false
+          #        - data:
+                #            - symtab:
+                #                - type: map<string, P<NamedScopeChild>>
+                #                - is_ctor: false
     - ConstraintStmt:
         - super: ScopeChild
     - ConstraintStmtDefault:
