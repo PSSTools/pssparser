@@ -43,8 +43,14 @@ target_include_directories(pssparser_testmain PRIVATE
 	${CMAKE_CURRENT_SOURCE_DIR}/../src/include
 )
 
-#list(APPEND PSSPARSER_TESTMAIN_LIBS gtest gtest_main pssparser pssast)
-list(APPEND PSSPARSER_TESTMAIN_LIBS gtestd gtest_maind pssparser pssast)
+message(STATUS "CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    message(STATUS "Taking debug libs")
+    list(APPEND PSSPARSER_TESTMAIN_LIBS gtestd gtest_maind pssparser pssast)
+else()
+    message(STATUS "Taking release libs")
+    list(APPEND PSSPARSER_TESTMAIN_LIBS gtest gtest_main pssparser pssast)
+endif()
 
 if (WIN32)
 	if (BUILD_SHARED_LIBS)
