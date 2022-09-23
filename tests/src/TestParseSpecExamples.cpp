@@ -46,15 +46,14 @@ void TestParseSpecExamples::runTest(
 
 TEST_F(TestParseSpecExamples, test_003_enum_data_type) {
     const char *text = R"(
-
-enum config_modes_e {UNKNOWN, MODE_A=10, MODE_B=20, MODE_C=35,
-MODE_D=40};
-component uart_c {
- action configure {
-   rand config_modes_e mode;
-   constraint {mode != UNKNOWN; }
- }
-};
+        enum config_modes_e {UNKNOWN, MODE_A=10, MODE_B=20, MODE_C=35,
+            MODE_D=40};
+        component uart_c {
+            action configure {
+                rand config_modes_e mode;
+                constraint {mode != UNKNOWN; }
+            }
+        };
     )";
     runTest(text, "003_enum_data_type.pss");
 }

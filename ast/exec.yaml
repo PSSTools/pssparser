@@ -4,4 +4,16 @@
 #* AST structures for exec constructs
 #****************************************************************************
 classes:
+  - ExecStmt:
+    - data: []
+  - ExecScope:
+    - super: ExecStmt
+    - data:
+      - children: list<UP<ExecStmt>>
+  - ProceduralStmtDataDeclaration:
+    - super: ExecStmt
+    - data:
+      - datatype: UP<DataType>
+      - name: UP<ExprId>
+
 

@@ -33,9 +33,9 @@ classes:
         - data: 
             - is_global: bool
             - elems: list<UP<TypeIdentifierElem>>
-            - target:
-                - is_ctor: false
-                - type: SP<RefExpr>
+              #            - target:
+              #  - is_ctor: false
+              #  - type: SP<RefExpr>
             - target_p:
                 - is_ctor: false
                 - type: P<ScopeChild>

@@ -7,11 +7,11 @@ classes:
     - RefExprTypeScopeContext:
         - super: RefExpr
         - data: 
-            - base: "SP<RefExpr>"
+            - base: "UP<RefExpr>"
             - offset: int32_t
     - RefExprScopeIndex:
         - super: RefExpr
         - data: 
-            - base: "SP<RefExpr>"
+            - base: "UP<RefExpr>"
             - offset: "int32_t"
             

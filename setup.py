@@ -27,7 +27,9 @@ include_dirs=[]
 if "CMAKE_BINARY_DIR" in os.environ.keys():
     cmake_binary_dir=os.environ["CMAKE_BINARY_DIR"]
     include_dirs.append(os.path.join(cmake_binary_dir, "pssast/ext"))
+    include_dirs.append(os.path.join(cmake_binary_dir, "pssast/ext/"))
     include_dirs.append(os.path.join(cmake_binary_dir, "pssast/src/include"))
+    include_dirs.append(os.path.join(pythondir))
 #include_dirs.append(extdir)
 #include_dirs.append(os.path.join(pssparserdir, "src"))
 #include_dirs.append(os.path.join(os.getcwd(), "../pssast/include/pssast"))
@@ -62,7 +64,7 @@ for f in os.listdir(pythondir):
         if path_s[1] == ".pyx":
             print("Add " + f)
 #            sources.append(os.path.join(extdir, f))
-        elif path_s[1] == ".cpp":
+        elif path_s[1] == ".cpp" and not f.endswith("core.cpp"):
             print("Add " + f)
             sources.append(os.path.join(pythondir, f))
 

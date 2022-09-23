@@ -142,5 +142,7 @@ ext/pssparser_api.h
 python/core.cpp 
 python/pssast.cpp 
 python/pssast.pyx 
+python/pssast.h 
+python/pssast_api.h 
 python/pssparser/pssast.pxd 
 python/pssparser/pssast_decl.pxd
