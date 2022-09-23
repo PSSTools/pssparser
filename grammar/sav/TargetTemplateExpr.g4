@@ -1,6 +1,0 @@
-
-/*	
-entry : 
-	expression EOF
-	;
- */
