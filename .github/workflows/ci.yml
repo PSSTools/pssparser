@@ -83,7 +83,7 @@ jobs:
         python-version: '3.9'
     - name: Install Packages
       run: |
-        python -m pip install ivpm
+        python -m pip install ivpm twine cython ninja wheel
         python -m ivpm update -a
     - name: Build 
       run: |
