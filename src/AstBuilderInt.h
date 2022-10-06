@@ -39,6 +39,8 @@ public:
 
 	virtual antlrcpp::Any visitImport_stmt(PSSParser::Import_stmtContext *ctx) override;
 
+//	virtual antlrcpp::Any visitAction_declaration(PSSParser::Action_declarationContext *ctx) override;
+
     virtual void syntaxError(
     		Recognizer *recognizer,
 			Token * offendingSymbol,

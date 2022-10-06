@@ -34,7 +34,7 @@ antlr_target(PSSParser PSSParser.g4 PARSER
 file(GLOB pssparser_SRC
 	"*.h"
 	"*.cpp")
-add_library(pssparser
+add_library(pssparser SHARED
 	${pssparser_SRC}
 	${ANTLR_PSSParser_OUTPUTS}
 	${ANTLR_PSSLexer_OUTPUTS})
@@ -44,6 +44,13 @@ install(TARGETS pssparser
     EXPORT pssparser-targets)
     
 add_dependencies(pssparser AST libantlr4)
+
+add_library(pssparser_static STATIC
+	${pssparser_SRC}
+	${ANTLR_PSSParser_OUTPUTS}
+	${ANTLR_PSSLexer_OUTPUTS})
+
+add_dependencies(pssparser_static AST libantlr4)
 	
 #add_library(pssformatter
 #	${parser_SRC}

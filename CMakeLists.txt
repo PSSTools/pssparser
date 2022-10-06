@@ -6,6 +6,9 @@ include(ExternalProject)
 
 if (NOT PACKAGES_DIR)
   set(PACKAGES_DIR ${CMAKE_SOURCE_DIR}/packages)
+
+  enable_testing()
+  add_subdirectory(tests)
 endif()
 
 message("PSSParser: PACKAGES_DIR=${PACKAGES_DIR}")
@@ -76,35 +79,24 @@ ExternalProject_Add(AST
           -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
           -DBUILD_SHARED_LIBS:BOOL=${BUILD_SHARED_LIBS}
 	)
-	
-enable_testing()
 
-ExternalProject_Add(GTEST
-	PREFIX gtest
-        SOURCE_DIR "${PACKAGES_DIR}/gtest"
-        CMAKE_CACHE_ARGS
-          -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_BINARY_DIR}/gtest
-	  -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
-	  -DBUILD_SHARED_LIBS:BOOL=${BUILD_SHARED_LIBS}
-    )
 
 #add_subdirectory(ext)
 add_subdirectory(src)
-add_subdirectory(tests)
 
-if (NOT DEFINED ENV{EXT_PYTHON})
-   set(ENV{EXT_PYTHON} ${PYTHON})
-endif()
+#if (NOT DEFINED ENV{EXT_PYTHON})
+#   set(ENV{EXT_PYTHON} ${PYTHON})
+#endif()
 
-add_custom_target(build_ext ALL
-	COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_BINARY_DIR}/pssast/ext/pssast_decl.pxd ${CMAKE_CURRENT_SOURCE_DIR}/python/pssparser/pssast_decl.pxd
-	COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_BINARY_DIR}/pssast/ext/pssast.pxd ${CMAKE_CURRENT_SOURCE_DIR}/python/pssparser/pssast.pxd
-	COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_BINARY_DIR}/pssast/ext/pssast.pyx ${CMAKE_CURRENT_SOURCE_DIR}/python/pssast.pyx
-	COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_BINARY_DIR}/pssast/ext/PyBaseVisitor.cpp ${CMAKE_CURRENT_SOURCE_DIR}/python/PyBaseVisitor.cpp
-	COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_BINARY_DIR}/pssast/ext/PyBaseVisitor.h ${CMAKE_CURRENT_SOURCE_DIR}/python/PyBaseVisitor.h
-	COMMAND ${CMAKE_COMMAND} -E env CMAKE_BINARY_DIR=${CMAKE_BINARY_DIR} $ENV{EXT_PYTHON} ${CMAKE_CURRENT_SOURCE_DIR}/setup.py build_ext --inplace
-	COMMAND $ENV{EXT_PYTHON} ${CMAKE_CURRENT_SOURCE_DIR}/setup.py bdist_wheel
-	)
+#add_custom_target(build_ext ALL
+#	COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_BINARY_DIR}/pssast/ext/pssast_decl.pxd ${CMAKE_CURRENT_SOURCE_DIR}/python/pssparser/pssast_decl.pxd
+#	COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_BINARY_DIR}/pssast/ext/pssast.pxd ${CMAKE_CURRENT_SOURCE_DIR}/python/pssparser/pssast.pxd
+#	COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_BINARY_DIR}/pssast/ext/pssast.pyx ${CMAKE_CURRENT_SOURCE_DIR}/python/pssast.pyx
+#	COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_BINARY_DIR}/pssast/ext/PyBaseVisitor.cpp ${CMAKE_CURRENT_SOURCE_DIR}/python/PyBaseVisitor.cpp
+#	COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_BINARY_DIR}/pssast/ext/PyBaseVisitor.h ${CMAKE_CURRENT_SOURCE_DIR}/python/PyBaseVisitor.h
+#	COMMAND ${CMAKE_COMMAND} -E env CMAKE_BINARY_DIR=${CMAKE_BINARY_DIR} $ENV{EXT_PYTHON} ${CMAKE_CURRENT_SOURCE_DIR}/setup.py build_ext --inplace
+#	COMMAND $ENV{EXT_PYTHON} ${CMAKE_CURRENT_SOURCE_DIR}/setup.py bdist_wheel
+#	)
 
 #add_dependencies(build_ext pssparser gen_ast_ext)
-add_dependencies(build_ext pssparser)
+#add_dependencies(build_ext pssparser)

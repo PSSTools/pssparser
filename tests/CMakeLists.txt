@@ -1,6 +1,15 @@
 
 cmake_minimum_required(VERSION 2.8.8)
 
+ExternalProject_Add(GTEST
+	PREFIX gtest
+        SOURCE_DIR "${PACKAGES_DIR}/gtest"
+        CMAKE_CACHE_ARGS
+          -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_BINARY_DIR}/gtest
+	  -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
+	  -DBUILD_SHARED_LIBS:BOOL=${BUILD_SHARED_LIBS}
+    )
+
 file(GLOB TEST_SRCS 
 	"src/*.cpp" 
 	"src/*.h")
@@ -8,9 +17,9 @@ file(GLOB TEST_SRCS
 link_directories(
 	${CMAKE_BINARY_DIR}/gtest/lib
 	${CMAKE_BINARY_DIR}/gtest/lib64
-	${CMAKE_BINARY_DIR}/antlr/lib
+	${CMAKE_BINARY_DIR}/antlr4/lib
 	${CMAKE_BINARY_DIR}/pssparser
-	${CMAKE_BINARY_DIR}/pss_ast/lib
+	${CMAKE_BINARY_DIR}/pssast/lib
 	)
 
 set(CompilerFlags
@@ -34,7 +43,7 @@ add_executable(pssparser_testmain ${TEST_SRCS})
 set_property(TARGET pssparser_testmain PROPERTY
   MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
-add_dependencies(pssparser_testmain GTEST)
+add_dependencies(pssparser_testmain GTEST AST libantlr4)
 target_include_directories(pssparser_testmain PRIVATE
 	${CMAKE_BINARY_DIR}
 	${CMAKE_BINARY_DIR}/gtest/include
