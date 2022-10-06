@@ -23,7 +23,7 @@ jobs:
         ${IVPM_PYTHON} -m ivpm update -a
     - name: Build packages
       run: |
-        make build
+        mkdir build
         cd build
         cmake ..
         make
