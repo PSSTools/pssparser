@@ -3,80 +3,100 @@
 #*
 #* Defines base types used by other segments of the AST
 #****************************************************************************
+structs:
+- Location:
+    data:
+    - fileid: 
+        type: int32_t
+        init: -1
+    - lineno: 
+        type: int32_t
+        init: -1
+    - linepos: 
+        type: int32_t
+        init: -1
+
 classes:
-    - Location:
-      - data:
-        - fileid: 
-          - type: int32_t
-          - init: -1
-        - lineno: 
-          - type: int32_t
-          - init: -1
-        - linepos: 
-          - type: int32_t
-          - init: -1
-        
     - Scope:
-      - super: ScopeChild
-      - data:
+        super: ScopeChild
+        data:
         - children: list<UP<ScopeChild>>
         - symtab:
-          - type: map<string,P<NamedScopeChild>>
-          - is_ctor: false
+            type: map<string,P<NamedScopeChild>>
+            is_ctor: false
 
     - ScopeChild:
-      - data:
+        data:
         - docstring:
           - type: string
           - is_ctor: false
-            #        - location:
-            #          - type: Location
+        - location:
+            type: Location
+            is_ctor: false
         - parent:
-          - type: P<Scope>
-          - is_ctor: false
-          - init: 0
+            type: P<Scope>
+            is_ctor: false
+            init: 0
         - index:
-          - type: int32_t
-          - is_ctor: false
-          - init: -1
+            type: int32_t
+            is_ctor: false
+            init: -1
             
     - GlobalScope:
-        - super: Scope
-        - data:
-            - fileid: int32_t
+        super: Scope
+        data:
+        - fileid: int32_t
     - NamedScope:
-        - super: Scope
-        - data:
-            - name : UP<ExprId>
+        super: Scope
+        data:
+        - name : UP<ExprId>
+
     - NamedScopeChild:
-        - super: ScopeChild
-        - data:
-            - name: UP<ExprId>
+        super: ScopeChild
+        data:
+        - name: UP<ExprId>
+
     - PackageScope:
-        - super: NamedScope
-        - data:
-            - sibling:
-                - type: P<PackageScope>
-                - is_ctor: false
-                - init: 0
-    - TypeScope:
-        - super: NamedScope
-        - data:
-            - super_t : UP<TypeIdentifier>
+        super: Scope
+        data:
+        - id: 
+            type: list<UP<ExprId>>
+            is_ctor: false
+        - sibling:
+            type: P<PackageScope>
+            is_ctor: false
+            init: 0
+
+    - PackageImportStmt:
+        super: ScopeChild
+        data:
+        - path: list<UP<ExprId>>
+        - wildcard: bool
+        - alias: UP<ExprId>
+
     - Action:
-        - super: TypeScope
+        super: TypeScope
+        data:
+        - is_abstract: bool
+
     - Component:
-        - super: TypeScope
+        super: TypeScope
+
     - Struct:
-        - super: TypeScope
+        super: TypeScope
+
     - Buffer:
-        - super: Struct
+        super: Struct
+
     - Resource:
-        - super: Struct
+        super: Struct
+
     - State:
-        - super: Struct
+        super: Struct
+
     - Stream:
-        - super: Struct
+        super: Struct
+
 flags:
     - FieldAttr:
         - values:

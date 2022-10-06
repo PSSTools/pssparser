@@ -8,14 +8,22 @@
 #include "AstBuilderInt.h"
 #include "PSSLexer.h"
 #include "pssp/ast/IFactory.h"
-#include "Action.h"
-#include "Component.h"
-#include "NamedScopeChild.h"
+#include "pssp/ast/IAction.h"
+#include "pssp/ast/IComponent.h"
+#include "pssp/ast/IExprId.h"
+#include "pssp/ast/INamedScope.h"
+#include "pssp/ast/IPackageImportStmt.h"
+#include "pssp/ast/Location.h"
 #include "ScopeUtil.h"
+#include "Marker.h"
 
 namespace pssp {
 
-AstBuilderInt::AstBuilderInt(IMarkerListener *marker_l) : m_marker_l(marker_l) {
+using namespace ast;
+
+AstBuilderInt::AstBuilderInt(
+	ast::IFactory		*factory,
+	IMarkerListener 	*marker_l) : m_factory(factory), m_marker_l(marker_l) {
 	// TODO Auto-generated constructor stub
 
 }
@@ -38,11 +46,60 @@ void AstBuilderInt::build(
 	PSSParser::Compilation_unitContext *ctx = parser.compilation_unit();
 
 	// Only proceed to build out the AST if there are no syntax errors
-	if (!m_marker_l->hasSeverity(Severity_Error)) {
+	if (!m_marker_l->hasSeverity(MarkerSeverityE::Error)) {
 		push_scope(global);
 		ctx->accept(this);
 		pop_scope();
 	}
+}
+
+antlrcpp::Any AstBuilderInt::visitPackage_declaration(
+	PSSParser::Package_declarationContext *ctx) {
+	IPackageScope *pkg = m_factory->mkPackageScope();
+
+	// TODO: populate Id list
+	for (std::vector<PSSParser::Package_identifierContext *>::const_iterator
+		it=ctx->package_id_path()->package_identifier().begin();
+		it!=ctx->package_id_path()->package_identifier().end(); it++) {
+		pkg->getId().push_back(IExprIdUP(mkId((*it)->identifier())));
+	}
+
+	addChild(pkg);
+	push_scope(pkg);
+	for (std::vector<PSSParser::Package_body_itemContext *>::const_iterator
+		it=ctx->package_body_item().begin();
+		it!=ctx->package_body_item().end(); it++) {
+		(*it)->accept(this);
+	}
+	pop_scope();
+
+	return 0;
+}
+
+antlrcpp::Any AstBuilderInt::visitImport_stmt(PSSParser::Import_stmtContext *ctx) {
+	bool is_wildcard = false;
+	IExprId *alias = 0;
+	
+	if (ctx->package_import_pattern()->package_import_qualifier()) {
+		if (ctx->package_import_pattern()->package_import_qualifier()->package_import_wildcard()) {
+			is_wildcard = true;
+		} else {
+			alias = mkId(ctx->package_import_pattern()->package_import_qualifier()->
+				package_import_alias()->package_identifier()->identifier());
+		}
+	}
+
+	IPackageImportStmt *imp = m_factory->mkPackageImportStmt(is_wildcard, alias);
+
+	for (std::vector<PSSParser::Type_identifier_elemContext *>::const_iterator
+		it=ctx->package_import_pattern()->type_identifier()->type_identifier_elem().begin();
+		it!=ctx->package_import_pattern()->type_identifier()->type_identifier_elem().end(); it++) {
+		imp->getPath().push_back(IExprIdUP(mkId((*it)->identifier())));
+	}
+	addChild(imp);
+
+
+	return 0;
 }
 
 void AstBuilderInt::syntaxError(
@@ -53,25 +110,30 @@ void AstBuilderInt::syntaxError(
 			const std::string &msg,
 			std::exception_ptr e) {
 	if (m_marker_l) {
-		m_marker_l->marker(Marker(
+		ast::Location loc;
+		loc.fileid = 0;
+		loc.lineno = line;
+		loc.linepos = charPositionInLine;
+
+		Marker m(
 				msg,
-				Severity_Error,
-				Location(
-						0,
-						line,
-						charPositionInLine)));
+				MarkerSeverityE::Error,
+				loc);
+		m_marker_l->marker(&m);
 	}
 }
 
-void AstBuilderInt::addChild(ast::IScopeChild *c, Token *t) {
-	ScopeUtil::addChild(scope(), c);
+void AstBuilderInt::addChild(ast::IScopeChild *c) {
+	scope()->getChildren().push_back(ast::IScopeChildUP(c));
+//	ScopeUtil::addChild(scope(), c);
 }
 
-void AstBuilderInt::addChild(ast::INamedScopeChild *c, Token *t) {
-	ScopeUtil::addChild(scope(), c);
+void AstBuilderInt::addChild(ast::INamedScopeChild *c) {
+	scope()->getChildren().push_back(ast::IScopeChildUP(c));
+//	ScopeUtil::addChild(scope(), c);
 }
 
-void AstBuilderInt::addChild(ast::INamedScope *c, Token *t) {
+void AstBuilderInt::addChild(ast::INamedScope *c) {
 	scope()->getChildren().push_back(ast::IScopeChildUP(c));
 }
 
@@ -215,6 +277,26 @@ std::string AstBuilderInt::processDocStringSingleLineComment(
     		const std::vector<Token *>		&slc_tokens,
 			const std::vector<Token *>		&ws_tokens) {
 	return "";
+}
+
+IExprId *AstBuilderInt::mkId(PSSParser::IdentifierContext *ctx) {
+	IExprId *id;
+	
+	if (ctx->ESCAPED_ID()) {
+		id = m_factory->mkExprId(ctx->ESCAPED_ID()->toString(), true);
+	} else {
+		id = m_factory->mkExprId(ctx->ID()->toString(), false);
+	}
+
+	Location loc = id->getLocation();
+	loc.lineno = ctx->start->getLine();
+	loc.linepos = ctx->start->getCharPositionInLine();
+	id->setLocation(loc);
+
+
+	// TODO: Fill in location info
+
+	return id;
 }
 
 }

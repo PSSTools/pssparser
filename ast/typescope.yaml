@@ -1,0 +1,12 @@
+
+classes:
+  - TypeScope:
+      super: NamedScope
+      data:
+      - super_t : UP<TypeIdentifier>
+      - params:
+          type: UP<TemplateParamDeclList>
+          is_ctor: false
+  
+
+

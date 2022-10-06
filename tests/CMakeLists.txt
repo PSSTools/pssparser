@@ -6,8 +6,8 @@ file(GLOB TEST_SRCS
 	"src/*.h")
 
 link_directories(
-	${CMAKE_BINARY_DIR}/googletest/lib
-	${CMAKE_BINARY_DIR}/googletest/lib64
+	${CMAKE_BINARY_DIR}/gtest/lib
+	${CMAKE_BINARY_DIR}/gtest/lib64
 	${CMAKE_BINARY_DIR}/antlr/lib
 	${CMAKE_BINARY_DIR}/pssparser
 	${CMAKE_BINARY_DIR}/pss_ast/lib
@@ -34,10 +34,11 @@ add_executable(pssparser_testmain ${TEST_SRCS})
 set_property(TARGET pssparser_testmain PROPERTY
   MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
-add_dependencies(pssparser_testmain googletest)
+add_dependencies(pssparser_testmain GTEST)
 target_include_directories(pssparser_testmain PRIVATE
-	${CMAKE_BINARY_DIR}/googletest/include
-	${PACKAGES_DIR}/googletest/googletest/include
+	${CMAKE_BINARY_DIR}
+	${CMAKE_BINARY_DIR}/gtest/include
+	${PACKAGES_DIR}/gtest/googletest/include
 	${CMAKE_BINARY_DIR}/pssast/src/include
 	${CMAKE_CURRENT_SOURCE_DIR}/../src
 	${CMAKE_CURRENT_SOURCE_DIR}/../src/include

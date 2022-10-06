@@ -11,6 +11,8 @@
 #include "pssp/IMarkerListener.h"
 #include "PSSParserBaseVisitor.h"
 #include "BaseErrorListener.h"
+#include "pssp/ast/IExprId.h"
+#include "pssp/ast/IFactory.h"
 #include "pssp/ast/IGlobalScope.h"
 #include "pssp/ast/IScope.h"
 
@@ -23,13 +25,19 @@ class AstBuilderInt :
 		public PSSParserBaseVisitor,
 		public BaseErrorListener {
 public:
-	AstBuilderInt(IMarkerListener *marker_l);
+	AstBuilderInt(
+		ast::IFactory			*factory,
+		IMarkerListener 		*marker_l);
 
 	virtual ~AstBuilderInt();
 
 	void build(
 			ast::IGlobalScope	*global,
 			std::istream 		*in);
+
+	virtual antlrcpp::Any visitPackage_declaration(PSSParser::Package_declarationContext *ctx) override;
+
+	virtual antlrcpp::Any visitImport_stmt(PSSParser::Import_stmtContext *ctx) override;
 
     virtual void syntaxError(
     		Recognizer *recognizer,
@@ -39,12 +47,13 @@ public:
 			const std::string &msg,
 			std::exception_ptr e) override;
 
+
 private:
-    void addChild(ast::IScopeChild *c, Token *t);
+    void addChild(ast::IScopeChild *c);
 
-    void addChild(ast::INamedScopeChild *c, Token *t);
+    void addChild(ast::INamedScopeChild *c);
 
-    void addChild(ast::INamedScope *c, Token *t);
+    void addChild(ast::INamedScope *c);
 
     void addDocstring(ast::IScopeChild *c, Token *t);
 
@@ -62,8 +71,11 @@ private:
 
     void pop_scope() { m_scopes.pop_back(); }
 
+	ast::IExprId *mkId(PSSParser::IdentifierContext *ctx);
+
 private:
     IMarkerListener						*m_marker_l;
+	ast::IFactory						*m_factory;
     std::vector<ast::IScope *>			m_scopes;
     std::unique_ptr<CommonTokenStream>	m_tokens;
 

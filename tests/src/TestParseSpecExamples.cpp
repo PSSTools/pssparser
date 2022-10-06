@@ -9,7 +9,9 @@
 #include <sstream>
 #include "AstBuilder.h"
 #include "MarkerCollector.h"
-#include "GlobalScope.h"
+#include "pssast/src/GlobalScope.h"
+#include "pssast/src/Factory.h"
+#include "pssp/IMarker.h"
 
 TestParseSpecExamples::TestParseSpecExamples() {
 	// TODO Auto-generated constructor stub
@@ -23,24 +25,23 @@ TestParseSpecExamples::~TestParseSpecExamples() {
 void TestParseSpecExamples::runTest(
 		const std::string &content,
 		const std::string &name) {
-	/*
 	std::stringstream s(content);
+    pssp::ast::Factory factory;
 
-	pssp::GlobalScopeUP global(new pssp::GlobalScope(0));
+	pssp::ast::IGlobalScopeUP global(new pssp::ast::GlobalScope(0));
 
 	pssp::MarkerCollector marker_c;
-	pssp::AstBuilder ast_builder(&marker_c);
+	pssp::AstBuilder ast_builder(&factory, &marker_c);
 
 	ast_builder.build(global.get(), &s);
 
-	for (std::vector<pssp::Marker>::const_iterator
+	for (std::vector<pssp::IMarkerUP>::const_iterator
 			it=marker_c.markers().begin();
 			it!=marker_c.markers().end(); it++) {
-		fprintf(stdout, "Marker: %s\n", it->msg().c_str());
+		fprintf(stdout, "Marker: %s\n", (*it)->msg().c_str());
 	}
 
-	ASSERT_FALSE(marker_c.hasSeverity(pssp::Severity_Error));
-	 */
+	ASSERT_FALSE(marker_c.hasSeverity(pssp::MarkerSeverityE::Error));
 }
 
 

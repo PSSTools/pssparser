@@ -8,6 +8,7 @@
 #pragma once
 #include <memory>
 #include <iostream>
+#include "pssp/ast/IFactory.h"
 #include "pssp/ast/IGlobalScope.h"
 #include "pssp/IMarkerListener.h"
 
@@ -18,7 +19,9 @@ typedef std::unique_ptr<AstBuilderInt> AstBuilderIntUP;
 
 class AstBuilder {
 public:
-	AstBuilder(IMarkerListener *marker_l);
+	AstBuilder(
+		ast::IFactory		*factory,
+		IMarkerListener 	*marker_l);
 
 	virtual ~AstBuilder();
 

@@ -6,7 +6,7 @@
  */
 
 #pragma once
-#include "ExprId.h"
+#include "pssp/ast/IExprId.h"
 #include "pssp/ast/INamedScopeChild.h"
 #include "pssp/ast/IScope.h"
 #include "pssp/ast/IScopeChild.h"

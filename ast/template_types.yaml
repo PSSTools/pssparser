@@ -1,0 +1,53 @@
+
+enums:
+  - TypeCategory:
+    - Action
+    - Component
+    - Buffer
+    - Resource
+    - State
+    - Stream
+
+classes:
+
+  - TemplateParamDeclList:
+      data:
+      - params: list<UP<TemplateParamDecl>>
+  
+  - TemplateParamDecl:
+      data:
+      - name: UP<ExprId>
+
+  - TemplateGenericTypeParamDecl:
+      super: TemplateParamDecl
+      data:
+      - dflt: UP<TypeIdentifier>
+
+  - TemplateCategoryTypeParamDecl:
+      super: TemplateParamDecl
+      data:
+      - category: TypeCategory
+      - restriction: UP<TypeIdentifier>
+      - dflt: UP<TypeIdentifier>
+
+  - TemplateValueParamDecl:
+      super: TemplateParamDecl
+      data:
+      - dflt: UP<Expr>
+
+  - TemplateParamValueList:
+      data:
+      - values: list<UP<TemplateParamValue>>
+  
+  - TemplateParamValue:
+
+  - TemplateParamTypeValue:
+      data:
+      - value: UP<TypeIdentifier>
+
+  - TemplateParamExprValue:
+      data:
+      - value: UP<Expr>
+
+
+        

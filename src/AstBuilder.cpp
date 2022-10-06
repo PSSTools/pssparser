@@ -12,8 +12,10 @@
 
 namespace pssp {
 
-AstBuilder::AstBuilder(IMarkerListener *marker_l) :
-	m_builder_int(new AstBuilderInt(marker_l)) {
+AstBuilder::AstBuilder(
+	ast::IFactory		*factory,
+	IMarkerListener 	*marker_l) :
+	m_builder_int(new AstBuilderInt(factory, marker_l)) {
 	// TODO Auto-generated constructor stub
 
 }

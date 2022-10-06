@@ -8,39 +8,39 @@
 #pragma once
 #include <memory>
 #include <string>
-
-//#include "Location.h"
-#include "MarkerSeverityE.h"
+#include "pssp/IMarker.h"
+#include "pssp/ast/Location.h"
 
 namespace pssp {
 
-struct Location {
-	int32_t		file = -1;
-	int32_t		line = -1;
-	int32_t		pos = -1;
-
-	Location(int32_t f, int32_t l, int32_t p) : file(f), line(l), pos(p) {}
-};
-
-class Marker {
+class Marker : public IMarker {
 public:
 	Marker(
 			const std::string	&msg,
 			MarkerSeverityE		severity,
-			const Location		&loc);
+			const ast::Location	&loc);
 
 	virtual ~Marker();
 
-	const std::string &msg() const { return m_msg; }
+	virtual const std::string &msg() const override { 
+		return m_msg; 
+	}
 
-	MarkerSeverityE severity() const { return m_severity; }
+	virtual MarkerSeverityE severity() const override { 
+		return m_severity; 
+	}
 
-	const Location &loc() const { return m_loc; }
+	virtual const ast::Location &loc() const override { 
+		return m_loc; 
+	}
+
+	virtual IMarker *clone() const override;
+	
 
 private:
 	std::string			m_msg;
 	MarkerSeverityE		m_severity;
-	Location			m_loc;
+	ast::Location		m_loc;
 
 };
 

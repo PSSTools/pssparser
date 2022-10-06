@@ -17,17 +17,17 @@ public:
 
 	virtual ~MarkerCollector();
 
-	virtual void marker(const Marker &m) override;
+	virtual void marker(const IMarker *m) override;
 
 	virtual bool hasSeverity(MarkerSeverityE s) override;
 
-	const std::vector<Marker> &markers() const {
+	const std::vector<IMarkerUP> &markers() const {
 		return m_markers;
 	}
 
 private:
-	uint32_t					m_count[Severity_NumLevels];
-	std::vector<Marker>			m_markers;
+	uint32_t					m_count[static_cast<uint32_t>(MarkerSeverityE::NumLevels)];
+	std::vector<IMarkerUP>		m_markers;
 
 
 };

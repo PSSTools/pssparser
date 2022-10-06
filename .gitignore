@@ -146,3 +146,6 @@ python/pssast.h
 python/pssast_api.h 
 python/pssparser/pssast.pxd 
 python/pssparser/pssast_decl.pxd
+python/PyBaseVisitor.*
+
+gen/

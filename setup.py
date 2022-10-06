@@ -18,11 +18,13 @@ from Cython.Build import cythonize
 #print("pss_ext_spec: " + str(pss_ext_spec))
 
 
-pythondir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "python")
+pssparser_dir = os.path.dirname(os.path.abspath(__file__))
+pythondir = os.path.join(pssparser_dir, "python")
 #sys.path.insert(0, extdir)
 
-#pssparserdir = os.path.dirname(extdir)
 include_dirs=[]
+
+include_dirs.append(os.path.join(pssparser_dir, "src/include"))
 
 if "CMAKE_BINARY_DIR" in os.environ.keys():
     cmake_binary_dir=os.environ["CMAKE_BINARY_DIR"]
@@ -30,21 +32,10 @@ if "CMAKE_BINARY_DIR" in os.environ.keys():
     include_dirs.append(os.path.join(cmake_binary_dir, "pssast/ext/"))
     include_dirs.append(os.path.join(cmake_binary_dir, "pssast/src/include"))
     include_dirs.append(os.path.join(pythondir))
-#include_dirs.append(extdir)
-#include_dirs.append(os.path.join(pssparserdir, "src"))
-#include_dirs.append(os.path.join(os.getcwd(), "../pssast/include/pssast"))
-#include_dirs.append(os.path.join(os.getcwd(), "../pssast/ext"))
-#include_dirs.append(os.getcwd())
 
 library_dirs = [] 
-#library_dirs.append(os.path.join(os.getcwd(), "../src"))
-#library_dirs.append(os.path.join(os.getcwd(), "../pssast/lib"))
-#library_dirs.append(os.path.join(os.getcwd(), "../antlr4/lib"))
 
 libraries = []
-#libraries.append("pssparser")
-#libraries.append("pssast")
-#libraries.append("antlr4-runtime")
 
 # Create a composite core.pyx file 
 
@@ -58,15 +49,15 @@ sources = []
 
 sources.append(os.path.join(pythondir, "core.pyx"))
 
-for f in os.listdir(pythondir):
-    if os.path.isfile(os.path.join(pythondir, f)):
-        path_s = os.path.splitext(f)
-        if path_s[1] == ".pyx":
-            print("Add " + f)
-#            sources.append(os.path.join(extdir, f))
-        elif path_s[1] == ".cpp" and not f.endswith("core.cpp"):
-            print("Add " + f)
-            sources.append(os.path.join(pythondir, f))
+# for f in os.listdir(pythondir):
+#     if os.path.isfile(os.path.join(pythondir, f)):
+#         path_s = os.path.splitext(f)
+#         if path_s[1] == ".pyx":
+#             print("Add " + f)
+# #            sources.append(os.path.join(extdir, f))
+#         elif path_s[1] == ".cpp" and not f.endswith("core.cpp"):
+#             print("Add " + f)
+#             sources.append(os.path.join(pythondir, f))
 
 #for src in pss_ext_spec.sources:
 #    path_s = os.path.splitext(src)
@@ -79,9 +70,13 @@ print("sources=" + str(sources))
 extra_link_args=[]
 #extra_link_args.append(os.path.join(os.getcwd(), "../antlr4/lib/libantlr4-runtime.a"))
 
+ast_ext_srcs = [os.path.join(pythondir, "pssast.pyx")],
 ast_ext = Extension(
     "pssparser.pssast", 
-    [os.path.join(pythondir, "pssast.pyx")],
+    [
+        os.path.join(pythondir, "pssast.pyx"),
+        os.path.join(pythondir, "PyBaseVisitor.cpp")
+    ],
     include_dirs=include_dirs,
     library_dirs=library_dirs,
     libraries=libraries,

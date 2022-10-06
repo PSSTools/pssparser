@@ -32,10 +32,14 @@ portable_stimulus_description :
 	;
 
 package_declaration:
-	TOK_PACKAGE package_identifier TOK_LCBRACE
+	TOK_PACKAGE package_id_path TOK_LCBRACE
 		package_body_item*
 	TOK_RCBRACE
-;	
+;
+
+package_id_path:
+	package_identifier ( TOK_DOUBLE_COLON package_identifier )*
+	;
 
 package_body_item:
 	abstract_action_declaration
@@ -793,7 +797,7 @@ attr_group:
 	;
 
 /********************************************************************
- * B.12 Template types
+ * B.12 Template types (AST)
  ********************************************************************/
 
 template_param_decl_list: 

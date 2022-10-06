@@ -1,0 +1,41 @@
+{
+    "configurations": [
+        {
+            "name": "Default",
+            "includePath": [
+                "src",
+                "src/include",
+                "test",
+                "packages/antlr4-cpp-runtime/runtime/src",
+                "packages/gtest/googletest/include",
+                "build/pssast/include/pssast/include",
+                "build/src/antlr4cpp_generated_src/PSSLexer",
+                "build/src/antlr4cpp_generated_src/PSSParser"
+            ],
+            "defines": [
+                "${default}"
+            ],
+            "macFrameworkPath": [
+                "${default}"
+            ],
+            "forcedInclude": [
+                "${default}"
+            ],
+            "compileCommands": "${default}",
+            "browse": {
+                "limitSymbolsToIncludedHeaders": true,
+                "databaseFilename": "${default}",
+                "path": [
+                    "${default}",
+                    "src",
+                    "build/pssast/src"
+                ]
+            },
+            "intelliSenseMode": "${default}",
+            "cStandard": "${default}",
+            "cppStandard": "${default}",
+            "compilerPath": "${default}"
+        }
+    ],
+    "version": 4
+}

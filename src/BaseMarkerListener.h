@@ -16,7 +16,7 @@ public:
 
 	virtual ~BaseMarkerListener();
 
-	virtual void marker(const Marker &m) override { }
+	virtual void marker(const IMarker *m) override { }
 
 	virtual bool hasSeverity(MarkerSeverityE s) override {
 		return false;
