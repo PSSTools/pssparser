@@ -3,6 +3,10 @@ package:
   name: pssparser
   version: 0.0.1
 
+  setup-deps:
+  - ninja
+  - cython
+
   dep-sets:
   - name: default-dev
     deps: 
@@ -14,11 +18,13 @@ package:
       url: https://github.com/google/googletest/archive/release-1.10.0.tar.gz
     - name: pyastbuilder
       url: https://github.com/mballance/pyastbuilder.git
-    - name: cython
-      src: pypi
     - name: toposort
       src: pypi
     - name: ciostream
+      src: pypi
+    - name: ninja
+      src: pypi
+    - name: cython
       src: pypi
   - name: default
     deps: []
