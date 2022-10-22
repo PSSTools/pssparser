@@ -17,7 +17,6 @@ from Cython.Build import cythonize
 
 version="0.0.1"
 
-
 # Bring in the Python file with settings for the Python extension
 #sys.path.insert(0, os.path.join(os.getcwd(), "../pssast/ext"))
 #import pssast_ext
