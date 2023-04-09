@@ -99,10 +99,12 @@ TOK_OVERRIDE: 'override';
 TOK_TYPE: 'type';
 TOK_INSTANCE: 'instance';
 TOK_CHANDLE: 'chandle';
+/* This parser treats collection types as parameterized classes
 TOK_ARRAY: 'array';
 TOK_LIST: 'list';
 TOK_MAP: 'map';
 TOK_SET: 'set';
+ */
 TOK_LT: '<';
 TOK_LTE: '<=';
 TOK_GT: '>';
@@ -138,7 +140,7 @@ TOK_NOT: '!';
 TOK_NEG: '~';
 TOK_NULL: 'null';
 TOK_SINGLE_AND: '&';
-TOK_DOUBLE_AND: '&';
+TOK_DOUBLE_AND: '&&';
 TOK_SINGLE_OR: '|';
 TOK_DOUBLE_OR: '||';
 TOK_CARET: '^';

@@ -27,7 +27,7 @@ compilation_unit :
 
 portable_stimulus_description : 
 	package_body_item 
-	| package_declaration
+//	| package_declaration // Note: package_declaration is a package_body_item
 //	| component_declaration // Note: ambiguous, since 'component' is also a package body item
 	;
 
