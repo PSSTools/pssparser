@@ -62,8 +62,6 @@ package_body_item:
 	| package_body_compile_if
 	| TOK_SEMICOLON // stmt_terminator
 //	| static_const_field_declaration	
-//	| pss_function_defn
-//	| function_qualifiers
 	;
 
 import_stmt:
@@ -89,11 +87,11 @@ package_import_alias:
 
 extend_stmt:
 		(
-			(TOK_EXTEND ext_type=TOK_ACTION type_identifier TOK_LCBRACE
+			(TOK_EXTEND is_action=TOK_ACTION type_identifier TOK_LCBRACE
 				action_body_item*
 				TOK_RCBRACE
 			) | 
-			(TOK_EXTEND ext_type=TOK_COMPONENT type_identifier TOK_LCBRACE
+			(TOK_EXTEND is_component=TOK_COMPONENT type_identifier TOK_LCBRACE
 				component_body_item*
 				TOK_RCBRACE
 			) |
@@ -101,7 +99,7 @@ extend_stmt:
 				struct_body_item*
 				TOK_RCBRACE
 			) |
-			(TOK_EXTEND ext_type=TOK_ENUM type_identifier TOK_LCBRACE
+			(TOK_EXTEND is_enum=TOK_ENUM type_identifier TOK_LCBRACE
 				(enum_item (TOK_COMMA enum_item)*)?
 				TOK_RCBRACE
 			)
@@ -137,7 +135,7 @@ action_declaration:
 	TOK_RCBRACE 
 ;
 
-/* TODO:
+/* Note: replace with a simpler form for improved performance
 abstract_action_declaration :
 	TOK_ABSTRACT TOK_ACTION action_identifier template_param_decl_list? action_super_spec?
 	TOK_LCBRACE
@@ -179,7 +177,8 @@ activity_declaration:
 action_field_declaration:
 	attr_field
 	| activity_data_field
-	| action_handle_declaration
+	// Note: This and attr_field can only be distinguished by the actual type
+//	| action_handle_declaration
 	| object_ref_field_declaration
 ;
 
@@ -197,9 +196,14 @@ resource_ref_field_declaration:
 	;
 
 flow_object_type:
+/* Note: refactored. All flow-object type identifiers
+   are syntactically type_identifiers. Removing
+   ambiguity increases performance.
 	buffer_type_identifier
 	| state_type_identifier
 	| stream_type_identifier
+ */
+    type_identifier
 	;
 
 resource_object_type:
@@ -215,9 +219,9 @@ object_ref_field:
 // 	action_type_identifier action_instantiation TOK_SEMICOLON
 // 	;
 
-// action_instantiation:
-// 	action_identifier array_dim? (TOK_COMMA action_identifier array_dim?)* 
-// 	;
+//action_instantiation:
+//	action_identifier array_dim? (TOK_COMMA action_identifier array_dim?)* 
+//	;
 
 action_handle_declaration:
 	action_type_identifier action_instantiation (TOK_COMMA action_instantiation)* TOK_SEMICOLON
@@ -332,7 +336,7 @@ target_file_exec_block:
 procedural_function:
 	platform_qualifier? TOK_PURE? TOK_FUNCTION function_prototype
 	TOK_LCBRACE
-//EMTPTYSTR		procedural_stmt*
+	procedural_stmt*
 	TOK_RCBRACE
 	;
 
@@ -349,13 +353,14 @@ function_return_type:
 	| data_type
 	;
 
+
 // TODO: refactor for performance
 function_parameter_list_prototype:
 	(
 		(
 			TOK_LPAREN (function_parameter (TOK_COMMA function_parameter)*)? TOK_RPAREN
 		) | (
-			TOK_LPAREN (function_parameter TOK_COMMA)* varargs_parameter TOK_RPAREN
+			is_varargs=TOK_LPAREN (function_parameter TOK_COMMA)* varargs_parameter TOK_RPAREN
 		)
 	)
 	;
@@ -364,7 +369,7 @@ function_parameter:
 	(
 		function_parameter_dir? data_type identifier (TOK_SINGLE_EQ constant_expression)? 
 	) | (
-		(TOK_TYPE | TOK_REF type_category | TOK_STRUCT) identifier
+		(is_type=TOK_TYPE | is_ref=TOK_REF type_category | is_struct=TOK_STRUCT) identifier
 	)
 	;
 
@@ -375,7 +380,7 @@ function_parameter_dir:
 	;
 
 varargs_parameter:
-	(data_type | TOK_TYPE | TOK_REF type_category | TOK_STRUCT) TOK_TRIPLE_ELIPSIS identifier
+	(data_type | is_type=TOK_TYPE | is_ref=TOK_REF type_category | is_struct=TOK_STRUCT) TOK_TRIPLE_ELIPSIS identifier
 	;
 
 /********************************************************************
@@ -581,13 +586,19 @@ object_bind_item:
  ********************************************************************/
 
 activity_stmt: 
-	(identifier TOK_COLON)? labeled_activity_stmt
+	activity_labeled_stmt
 	| activity_data_field
 	| activity_bind_stmt
 	| action_handle_declaration
 	| activity_constraint_stmt
 	| activity_scheduling_constraint
 	| TOK_SEMICOLON
+	;
+
+// Note: this deviates from LRM BNF in order to provide
+// a good intercept point for adding labels
+activity_labeled_stmt:
+	(identifier TOK_COLON)? labeled_activity_stmt
 	;
 
 labeled_activity_stmt:
@@ -605,6 +616,7 @@ labeled_activity_stmt:
 	| symbol_call
 	;
 
+// PSS Extension: inline value initialization
 activity_action_traversal_stmt:
 	(identifier ( TOK_LSBRACE expression TOK_RSBRACE )? inline_constraints_or_empty)
 	| (is_do=TOK_DO type_identifier inline_constraints_or_empty)
@@ -674,10 +686,11 @@ activity_foreach_stmt:
 		activity_stmt
 	;
 
-// TODO: Select should accept 1+ branches to account for replicate
+// TODO: Select should accept 1+ user-specified
+// branches to account for replicate
 activity_select_stmt:
 	TOK_SELECT TOK_LCBRACE
-		select_branch
+//		select_branch
 		select_branch
 		select_branch*
 	TOK_RCBRACE
@@ -815,7 +828,9 @@ type_param_decl:
 	;
 
 generic_type_param_decl: 
-	TOK_TYPE identifier ( TOK_SINGLE_EQ type_identifier )?
+// Note: type_identifier doesn't cover primitive types (eg bit, int, bool)
+//	TOK_TYPE identifier ( TOK_SINGLE_EQ type_identifier )?
+	TOK_TYPE identifier ( TOK_SINGLE_EQ data_type )?
 	;
 
 category_type_param_decl: 
@@ -827,8 +842,8 @@ type_restriction:
 	;
 
 type_category:
-    TOK_ACTION
-	| TOK_COMPONENT
+    img=TOK_ACTION
+	| img=TOK_COMPONENT
 	| struct_kind
 	;
 
@@ -840,9 +855,18 @@ template_param_value_list:
 	TOK_LT ( template_param_value ( TOK_COMMA template_param_value )* )? TOK_GT
 	;
 
+// Note: Added to provide a non-terminal matching a templated non-global type identifier
+type_identifier_templ_elem:
+	identifier template_param_value_list
+	;
+
 template_param_value: 
-	constant_expression 
-	| type_identifier
+    data_type
+    | constant_expression // Note: both expression and data_type cover 'identifier'
+//	scalar_data_type
+//	| (is_global=TOK_DOUBLE_COLON type_identifier_elem)
+//	| type_identifier_templ_elem (TOK_DOUBLE_COLON type_identifier_elem)*
+//	| constant_expression
 	;
 
 /********************************************************************
@@ -850,7 +874,7 @@ template_param_value:
  ********************************************************************/
 data_type:
 	scalar_data_type 
-	| collection_type
+//	| collection_type // Note: this parser treats collection types as parameterized classes
 	| reference_type
 	| type_identifier
 	;
@@ -874,8 +898,9 @@ chandle_type:
 	TOK_CHANDLE
 	;
 
+// Note: this parser considers dual-interval widths to be unsupported
 integer_type:
-	integer_atom_type (TOK_LSBRACE lhs=expression (TOK_COLON rhs=expression)? TOK_RSBRACE)?
+	integer_atom_type (TOK_LSBRACE lhs=expression /*(TOK_COLON rhs=expression)?*/ TOK_RSBRACE)?
 		(is_in=TOK_IN TOK_LSBRACE domain=domain_open_range_list TOK_RSBRACE)?
 	;
 
@@ -890,14 +915,14 @@ domain_open_range_list:
 
 // Note: this is slightly different from the spec to simplify parsing
 domain_open_range_value:
-	lhs=expression (limit_high=TOK_ELIPSIS (rhs=expression)?)?
+	lhs=expression limit_mid=TOK_ELIPSIS rhs=expression
 	| lhs=expression limit_high=TOK_ELIPSIS
 	| (limit_low=TOK_ELIPSIS rhs=expression)
 	| lhs=expression
 	;
 
 string_type: 
-	TOK_STRING ( TOK_IN TOK_LSBRACE DOUBLE_QUOTED_STRING (TOK_COMMA DOUBLE_QUOTED_STRING)* TOK_RSBRACE)? 
+	TOK_STRING ( has_range=TOK_IN TOK_LSBRACE DOUBLE_QUOTED_STRING (TOK_COMMA DOUBLE_QUOTED_STRING)* TOK_RSBRACE)? 
 	;
 
 bool_type:
@@ -915,16 +940,23 @@ enum_item:
 	identifier (TOK_SINGLE_EQ constant_expression)?
 	;
 
+// Note: from a parse perspective, there is ambiguity between
+// any user-defined type (enum_type_identifier) and a user-defined
+// enum type
+// This parser changes the BNF to only consider an enum_type to
+// require the range restriction
 enum_type:
-	enum_type_identifier (TOK_IN TOK_LSBRACE open_range_list TOK_RSBRACE)?
+//	enum_type_identifier (TOK_IN TOK_LSBRACE open_range_list TOK_RSBRACE)?
+	enum_type_identifier TOK_IN TOK_LSBRACE open_range_list TOK_RSBRACE
 	;
 
-collection_type:
-	| (TOK_ARRAY TOK_LT data_type TOK_COMMA array_size_expression TOK_GT)
-	| (TOK_LIST TOK_LT data_type TOK_GT)
-	| (TOK_MAP TOK_LT data_type TOK_COMMA data_type TOK_GT)
-	| (TOK_SET TOK_LT data_type TOK_GT)
-	;
+// Note: this parser treats collection types as parameterized classes
+// collection_type:
+// 	| (TOK_ARRAY TOK_LT data_type TOK_COMMA array_size_expression TOK_GT)
+// 	| (TOK_LIST TOK_LT data_type TOK_GT)
+// 	| (TOK_MAP TOK_LT data_type TOK_COMMA data_type TOK_GT)
+// 	| (TOK_SET TOK_LT data_type TOK_GT)
+//  ;
 
 array_size_expression:
 	constant_expression
@@ -1182,7 +1214,9 @@ struct_body_compile_if_item:
 	;
 
 compile_has_expr:
-	TOK_COMPILE TOK_HAS TOK_LPAREN static_ref_path TOK_RPAREN
+    // Note: replace static_ref_path with ref_path
+//	TOK_COMPILE TOK_HAS TOK_LPAREN static_ref_path TOK_RPAREN
+	TOK_COMPILE TOK_HAS TOK_LPAREN ref_path TOK_RPAREN
 	;
 	
 compile_assert_stmt :
@@ -1199,6 +1233,7 @@ constant_expression: expression;
 // capture operator precedence within the grammar
 
 expression:
+	primary                                             | 
 	unary_op lhs=expression								|
 	lhs=expression exp_op rhs=expression 				|
 	lhs=expression mul_div_mod_op rhs=expression 		|
@@ -1212,8 +1247,7 @@ expression:
     lhs=expression binary_or_op rhs=expression			|
     lhs=expression logical_and_op rhs=expression		|
     lhs=expression logical_or_op rhs=expression			|
-    lhs=expression conditional_expr						|
-	primary
+    lhs=expression conditional_expr
 	;
 
 // Replaced: unary_operator
@@ -1302,13 +1336,13 @@ collection_expression:
 
 primary: 
 	number 					
+	| ref_path
 	| aggregate_literal
 	| bool_literal
 	| string_literal
 	| null_ref
 	| paren_expr
 	| cast_expression
-	| ref_path
 	| compile_has_expr
 	;
 
@@ -1326,14 +1360,43 @@ cast_expression:
 	TOK_LPAREN casting_type TOK_RPAREN expression
 	;
 	
-ref_path:
-	(static_ref_path (TOK_DOT hierarchical_id)? bit_slice?)
-	| ( (TOK_SUPER TOK_DOT)? hierarchical_id bit_slice?)
-	;
+//ref_path:
+////	(static_ref_path (TOK_DOT hierarchical_id)? bit_slice?)
+////	| ( (TOK_SUPER TOK_DOT)? hierarchical_id bit_slice?)
+//    (static_ref_path bit_slice?)
+//    | (TOK_SUPER TOK_DOT hierarchical_id bit_slice?)
+//	;
+
+//hierarchical_id:
+//	member_path_elem (TOK_DOT member_path_elem)*
+//	;
+//type_identifier_elem:
+//	identifier template_param_value_list?
+//	;
+//member_path_elem:
+//	identifier function_parameter_list? ( TOK_LSBRACE expression TOK_RSBRACE )?
+//	;
+
+// At minimum, this is an identifier
+
+static_ref_path_prefix:
+        (type_identifier_elem TOK_DOUBLE_COLON)
+        | is_global=TOK_DOUBLE_COLON
+        ;
 
 static_ref_path:
-	is_global=TOK_DOUBLE_COLON? (type_identifier_elem TOK_DOUBLE_COLON)* member_path_elem
-	;
+        static_ref_path_prefix (type_identifier_elem TOK_DOUBLE_COLON )* member_path_elem
+        ;
+
+ref_path:
+        static_ref_path ( TOK_DOT hierarchical_id )? bit_slice?
+        | (is_super=TOK_SUPER TOK_DOT)? hierarchical_id bit_slice?
+        ;
+
+//static_ref_path:
+////	is_global=TOK_DOUBLE_COLON? (type_identifier_elem TOK_DOUBLE_COLON)* member_path_elem
+//	is_global=TOK_DOUBLE_COLON? (type_identifier_elem TOK_DOUBLE_COLON)* hierarchical_id
+//	;
 
 bit_slice:
 	TOK_LSBRACE constant_expression TOK_COLON constant_expression TOK_RSBRACE
@@ -1496,24 +1559,4 @@ string_literal:
 
 filename_string: DOUBLE_QUOTED_STRING;
 
-	
-// == PSS-1.1
 
-
-/**
- * Annotations allow meta-data to be associated with model elements
- * TODO: post-3.1 feature
- */	
-annotation:
-	TOK_AT identifier (TOK_LPAREN
-		annotation_values?
-	TOK_RPAREN)?
-	;
-	
-annotation_values:
-	annotation_value (TOK_COMMA annotation_value)*
-	;
-	
-annotation_value:
-	identifier TOK_SINGLE_EQ expression
-	;
