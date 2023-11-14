@@ -1533,7 +1533,7 @@ map_literal_item:
 	;
 
 struct_literal:
-	TOK_LCBRACE struct_literal_item (TOK_COMMA struct_literal_item) TOK_RCBRACE
+	TOK_LCBRACE struct_literal_item (TOK_COMMA struct_literal_item)* TOK_RCBRACE
 	;
 
 struct_literal_item:
