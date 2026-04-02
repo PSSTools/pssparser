@@ -14,6 +14,8 @@ file(GLOB TEST_SRCS
 	"src/*.cpp"
 	"src/*.h")
 
+if(TEST_SRCS)
+
 set(CMAKE_INSTALL_RPATH $ORIGIN/../lib)
 
 link_directories(
@@ -88,3 +90,7 @@ target_link_libraries(pssparser_testmain ${PSSPARSER_TESTMAIN_LIBS})
 add_test(
 	NAME unit
 	COMMAND ${CMAKE_BINARY_DIR}/tests/pssparser_testmain)
+
+else()
+    message(STATUS "No C++ test sources found in tests/src/, skipping test target")
+endif()
