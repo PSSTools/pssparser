@@ -1,0 +1,1128 @@
+
+classes:
+
+- ActivityDecl:
+    super: SymbolScope
+    doc: |
+        Declares an activity block within an action.
+        
+        ActivityDecl represents the declaration of an activity block that defines
+        the behavioral execution flow of an action. It serves as a symbol scope
+        containing activity statements that specify sequences, parallelism, 
+        scheduling, and control flow.
+        
+        PSS Example::
+        
+            action my_action {
+                activity {
+                    do comp1.child_action;
+                    do comp2.child_action;
+                }
+            }
+        
+        Attributes:
+            (inherits symbol scope capabilities)
+        
+        See Also:
+            ActivityStmt, Action, SymbolScope
+
+- ActivityStmt:
+    super: ScopeChild
+    doc: |
+        Base class for all activity statements.
+        
+        ActivityStmt is the abstract base class for all statements that can appear
+        within an activity block. Activity statements define the execution behavior
+        of actions, including action traversals, control flow, parallelism, and
+        scheduling constraints.
+        
+        PSS Example::
+        
+            action my_action {
+                activity {
+                    // Various ActivityStmt subclasses
+                    do comp.sub_action;        // Traversal
+                    sequence { }                // Sequence
+                    parallel { }                // Parallel
+                    if (condition) { }          // IfElse
+                }
+            }
+        
+        Attributes:
+            (base class - no specific attributes)
+        
+        See Also:
+            ActivityDecl, ActivitySequence, ActivityParallel, ActivityActionHandleTraversal
+
+- ActivitySchedulingConstraint:
+    super: ScopeChild
+    doc: |
+        Defines ordering constraints between scheduled activities.
+        
+        ActivitySchedulingConstraint specifies sequential or parallel execution
+        ordering relationships between activities in a schedule block. It allows
+        explicit control over the relative timing of activities.
+        
+        PSS Example::
+        
+            action my_action {
+                activity {
+                    schedule {
+                        do comp1.action_a;
+                        do comp2.action_b;
+                        do comp3.action_c;
+                        
+                        // Sequential ordering
+                        action_a before action_b;
+                        
+                        // Parallel execution
+                        parallel(action_a, action_b);
+                    }
+                }
+            }
+        
+        Attributes:
+            is_parallel: True if this is a parallel constraint, False for sequential
+            targets: List of hierarchical IDs identifying the constrained activities
+        
+        See Also:
+            ActivitySchedule
+    data:
+    - is_parallel: bool
+    - targets: list<UP<ExprHierarchicalId>>
+
+- ActivityBindStmt:
+    super: ActivityStmt
+    doc: |
+        Binds resource references between actions.
+        
+        ActivityBindStmt creates a binding between resource references, allowing
+        an action to use resources from another action's scope. This enables
+        resource sharing and coordination between actions in a behavior tree.
+        
+        PSS Example::
+        
+            action producer {
+                output mydata_s data_out;
+                activity { }
+            }
+            
+            action consumer {
+                input mydata_s data_in;
+                activity { }
+            }
+            
+            action top {
+                producer prod;
+                consumer cons;
+                
+                activity {
+                    do prod;
+                    do cons;
+                    bind cons.data_in prod.data_out;
+                }
+            }
+        
+        Attributes:
+            lhs: Left-hand side hierarchical ID (the reference being bound)
+            rhs: List of right-hand side hierarchical IDs (source references)
+        
+        See Also:
+            FieldRef, FieldCompRef
+    data: 
+    - lhs: UP<ExprHierarchicalId>
+    - rhs: list<UP<ExprHierarchicalId>>
+
+- ActivityConstraint:
+    super: ActivityStmt
+    doc: |
+        Adds constraints within an activity block.
+        
+        ActivityConstraint allows constraint statements to be embedded within
+        activity blocks to further constrain the behavior or data of actions
+        being executed. These constraints are evaluated during scenario generation.
+        
+        PSS Example::
+        
+            action my_action {
+                rand bit[16] addr;
+                rand bit[8] data;
+                
+                activity {
+                    do comp.sub_action with {
+                        addr == 0x1000;
+                    }
+                    
+                    constraint {
+                        data inside [0..100];
+                    }
+                }
+            }
+        
+        Attributes:
+            constraint: The constraint statement to be applied
+        
+        See Also:
+            ConstraintStmt, ConstraintBlock
+    data:
+    - constraint : UP<ConstraintStmt>
+
+- ActivityLabeledStmt:
+    super: ActivityStmt
+    doc: |
+        Base class for activity statements that can have a label.
+        
+        ActivityLabeledStmt provides the ability to attach an optional label to
+        an activity statement. Labels can be used to reference activities in
+        scheduling constraints or for identification purposes.
+        
+        PSS Example::
+        
+            action my_action {
+                activity {
+                    my_label: do comp.sub_action;
+                    
+                    another_label: sequence {
+                        do comp.action1;
+                        do comp.action2;
+                    }
+                }
+            }
+        
+        Attributes:
+            label: Optional identifier expression for the label
+        
+        See Also:
+            ActivityActionHandleTraversal, ActivitySequence, ActivityRepeatCount
+    data:
+    - label: 
+        - type: UP<ExprId>
+        - is_ctor: false
+
+- ActivityActionHandleTraversal:
+    super: ActivityLabeledStmt
+    doc: |
+        Traverses a specific action instance (handle).
+        
+        ActivityActionHandleTraversal represents the execution of a specific action
+        instance referenced by a handle (component field). It can include inline
+        constraints to further refine the action's random variables.
+        
+        PSS Example::
+        
+            component my_comp {
+                action sub_action {
+                    rand bit[16] addr;
+                }
+            }
+            
+            action top_action {
+                my_comp comp;
+                
+                activity {
+                    // Basic traversal
+                    do comp.sub_action;
+                    
+                    // Traversal with inline constraint
+                    do comp.sub_action with {
+                        addr == 0x1000;
+                    }
+                    
+                    // Labeled traversal
+                    label1: do comp.sub_action;
+                }
+            }
+        
+        Attributes:
+            target: Reference path to the action instance
+            with_c: Optional constraint statement applied to the traversal
+        
+        See Also:
+            ActivityActionTypeTraversal, ExprRefPathContext
+    data:
+    - target: UP<ExprRefPathContext>
+    - with_c: UP<ConstraintStmt>
+    - initializers:
+        type: list<UP<ActionFieldInitializer>>
+        is_ctor: false
+
+- ActivityActionTypeTraversal:
+    super: ActivityLabeledStmt
+    doc: |
+        Traverses an action by type rather than specific instance.
+        
+        ActivityActionTypeTraversal allows execution of any action of a given type,
+        with the specific instance selected at elaboration or runtime. This provides
+        flexibility in action selection and can include inline constraints.
+        
+        PSS Example::
+        
+            action base_action {
+                rand bit[16] addr;
+            }
+            
+            action derived_action : base_action {
+                rand bit[8] data;
+            }
+            
+            action top_action {
+                activity {
+                    // Traverse by type
+                    do base_action;
+                    
+                    // Traverse with constraint
+                    do base_action with {
+                        addr inside [0..255];
+                    }
+                    
+                    // Labeled type traversal
+                    my_label: do derived_action;
+                }
+            }
+        
+        Attributes:
+            target: User-defined data type specifying the action type
+            with_c: Optional constraint statement applied to the traversal
+        
+        See Also:
+            ActivityActionHandleTraversal, DataTypeUserDefined
+    data:
+    - target: UP<DataTypeUserDefined>
+    - with_c: UP<ConstraintStmt>
+    - initializers:
+        type: list<UP<ActionFieldInitializer>>
+        is_ctor: false
+
+- ActionFieldInitializer:
+    super: ScopeChild
+    doc: |
+        Single field assignment in a PSS 3.1 action initializer list.
+
+        Represents entries such as ``.x = 1`` or ``.cfg.mode = FAST`` used in
+        action-handle declarations and action traversal statements.
+    data:
+    - path: UP<ExprHierarchicalId>
+    - value: UP<Expr>
+
+- ActivityLabeledScope:
+    super: SymbolScope
+    doc: |
+        Base class for labeled activity scopes.
+        
+        ActivityLabeledScope represents activity constructs that introduce a new
+        scope and can be labeled. This includes sequences, parallel blocks, and
+        schedule blocks. The label can be used for referencing in scheduling
+        constraints.
+        
+        PSS Example::
+        
+            action my_action {
+                activity {
+                    my_seq: sequence {
+                        do comp.action1;
+                        do comp.action2;
+                    }
+                    
+                    my_par: parallel {
+                        do comp.action3;
+                        do comp.action4;
+                    }
+                }
+            }
+        
+        Attributes:
+            label: Optional identifier expression for the label
+        
+        See Also:
+            ActivitySequence, ActivityParallel, ActivitySchedule
+    data:
+    - label: 
+        - type: UP<ExprId>
+        - is_ctor: false
+
+- ActivitySequence:
+    super: ActivityLabeledScope
+    doc: |
+        Defines a sequential execution block.
+        
+        ActivitySequence specifies that its contained activities execute in strict
+        sequential order, one after another. Each activity completes before the next
+        begins. This is the default execution model and can be explicitly specified
+        with the 'sequence' keyword.
+        
+        PSS Example::
+        
+            action my_action {
+                activity {
+                    // Explicit sequence
+                    sequence {
+                        do comp.init_action;
+                        do comp.process_action;
+                        do comp.cleanup_action;
+                    }
+                    
+                    // Labeled sequence
+                    setup_phase: sequence {
+                        do comp.config;
+                        do comp.verify;
+                    }
+                    
+                    // Nested sequences
+                    sequence {
+                        sequence {
+                            do comp.step1;
+                            do comp.step2;
+                        }
+                        do comp.step3;
+                    }
+                }
+            }
+        
+        Attributes:
+            (inherits from ActivityLabeledScope)
+        
+        See Also:
+            ActivityParallel, ActivitySchedule, ActivityLabeledScope
+
+- ActivityJoinSpec:
+    super: ScopeChild
+    doc: |
+        Base class for specifying join semantics in parallel and schedule blocks.
+        
+        ActivityJoinSpec defines how parallel or scheduled activities synchronize
+        and when the containing block completes. Different join specifications
+        provide flexibility in modeling concurrent execution patterns.
+        
+        PSS Example::
+        
+            action my_action {
+                activity {
+                    // Various join specifications
+                    parallel join_none { }      // No synchronization
+                    parallel join_first(2) { }  // Wait for first 2
+                    parallel join_select(1) { } // Select 1 to complete
+                    parallel join_branch { }    // Explicit branches
+                }
+            }
+        
+        Attributes:
+            (base class - no specific attributes)
+        
+        See Also:
+            ActivityJoinSpecNone, ActivityJoinSpecFirst, ActivityJoinSpecSelect, ActivityJoinSpecBranch
+    data: []
+
+- ActivityJoinSpecBranch:
+    super: ActivityJoinSpec
+    doc: |
+        Join specification with explicit branch identification.
+        
+        ActivityJoinSpecBranch allows explicit specification of which branches
+        must complete for the parallel or schedule block to complete. This provides
+        fine-grained control over synchronization points.
+        
+        PSS Example::
+        
+            action my_action {
+                activity {
+                    parallel join_branch (branch1, branch2) {
+                        branch1: do comp.action1;
+                        branch2: do comp.action2;
+                        branch3: do comp.action3;
+                        // Block completes when branch1 and branch2 complete
+                        // branch3 may still be running
+                    }
+                }
+            }
+        
+        Attributes:
+            branches: List of reference paths identifying branches that must complete
+        
+        See Also:
+            ActivityJoinSpec, ActivityParallel, ActivitySchedule
+    data:
+    - branches: list<UP<ExprRefPathContext>>
+
+- ActivityJoinSpecSelect:
+    super: ActivityJoinSpec
+    doc: |
+        Join specification that randomly selects branches to complete.
+        
+        ActivityJoinSpecSelect causes the parallel or schedule block to complete
+        when a specified number of branches have completed. The selection of which
+        branches complete is typically random and can be constrained.
+        
+        PSS Example::
+        
+            action my_action {
+                activity {
+                    // Select 2 branches to complete
+                    parallel join_select(2) {
+                        do comp.action1;
+                        do comp.action2;
+                        do comp.action3;
+                        do comp.action4;
+                    }
+                    // Block completes when any 2 actions complete
+                    
+                    // Select 1 (like a race condition)
+                    parallel join_select(1) {
+                        do comp.fast_path;
+                        do comp.slow_path;
+                    }
+                }
+            }
+        
+        Attributes:
+            count: Expression specifying how many branches must complete
+        
+        See Also:
+            ActivityJoinSpec, ActivityJoinSpecFirst, ActivityParallel
+    data:
+    - count : UP<Expr>
+
+- ActivityJoinSpecNone:
+    super: ActivityJoinSpec
+    doc: |
+        Join specification with no synchronization.
+        
+        ActivityJoinSpecNone indicates that the parallel or schedule block completes
+        immediately without waiting for any branches to complete. The branches continue
+        executing asynchronously in the background. This is useful for fire-and-forget
+        concurrent operations.
+        
+        PSS Example::
+        
+            action my_action {
+                activity {
+                    // No waiting for completion
+                    parallel join_none {
+                        do comp.background_task1;
+                        do comp.background_task2;
+                        do comp.background_task3;
+                    }
+                    // Execution continues immediately
+                    do comp.foreground_task;
+                }
+            }
+        
+        Attributes:
+            (no specific attributes)
+        
+        See Also:
+            ActivityJoinSpec, ActivityJoinSpecFirst, ActivityParallel
+
+- ActivityJoinSpecFirst:
+    super: ActivityJoinSpec
+    doc: |
+        Join specification that waits for the first N branches to complete.
+        
+        ActivityJoinSpecFirst causes the parallel or schedule block to complete
+        when the first specified number of branches have completed. Unlike join_select,
+        this waits for the actual first branches to finish rather than randomly
+        selecting which ones complete.
+        
+        PSS Example::
+        
+            action my_action {
+                activity {
+                    // Wait for first 2 to complete
+                    parallel join_first(2) {
+                        do comp.action1;
+                        do comp.action2;
+                        do comp.action3;
+                        do comp.action4;
+                    }
+                    // Block completes as soon as any 2 finish
+                    
+                    // Wait for first one
+                    parallel join_first(1) {
+                        do comp.option_a;
+                        do comp.option_b;
+                    }
+                }
+            }
+        
+        Attributes:
+            count: Expression specifying how many branches to wait for
+        
+        See Also:
+            ActivityJoinSpec, ActivityJoinSpecSelect, ActivityParallel
+    data:
+    - count: UP<Expr>
+
+- ActivityParallel:
+    super: ActivityLabeledScope
+    doc: |
+        Defines a parallel execution block with join semantics.
+        
+        ActivityParallel specifies that its contained activities may execute
+        concurrently. The join specification determines when the parallel block
+        completes relative to its branches. By default, all branches must complete.
+        
+        PSS Example::
+        
+            action my_action {
+                activity {
+                    // Default parallel (wait for all)
+                    parallel {
+                        do comp.action1;
+                        do comp.action2;
+                        do comp.action3;
+                    }
+                    
+                    // Parallel with join_first
+                    parallel join_first(2) {
+                        do comp.fast_action;
+                        do comp.medium_action;
+                        do comp.slow_action;
+                    }
+                    
+                    // Parallel with join_none (fire and forget)
+                    parallel join_none {
+                        do comp.background1;
+                        do comp.background2;
+                    }
+                }
+            }
+        
+        Attributes:
+            join_spec: Specification of join behavior for the parallel block
+        
+        See Also:
+            ActivitySequence, ActivitySchedule, ActivityJoinSpec
+    data:
+    - join_spec: UP<ActivityJoinSpec>
+
+- ActivitySchedule:
+    super: ActivityLabeledScope
+    doc: |
+        Defines a scheduled execution block with explicit ordering constraints.
+        
+        ActivitySchedule allows activities to execute with explicit scheduling
+        constraints that define relative ordering. Unlike parallel blocks where
+        all actions start together, schedule blocks allow fine-grained control
+        over when each activity begins and ends relative to others.
+        
+        PSS Example::
+        
+            action my_action {
+                activity {
+                    schedule {
+                        a: do comp.action_a;
+                        b: do comp.action_b;
+                        c: do comp.action_c;
+                        d: do comp.action_d;
+                        
+                        // Scheduling constraints
+                        a before b;           // Sequential
+                        a before c;           // Sequential
+                        parallel(b, c);       // Parallel
+                        b before d;
+                        c before d;
+                    }
+                }
+            }
+        
+        Attributes:
+            join_spec: Specification of join behavior for the schedule block
+        
+        See Also:
+            ActivitySchedulingConstraint, ActivityParallel, ActivitySequence
+    data:
+    - join_spec: UP<ActivityJoinSpec>
+
+- ActivityRepeatCount:
+    super: ActivityLabeledStmt
+    doc: |
+        Repeats an activity body a fixed number of times.
+        
+        ActivityRepeatCount executes its body a specified number of iterations,
+        with an optional loop variable that tracks the current iteration. Each
+        iteration executes sequentially.
+        
+        PSS Example::
+        
+            action my_action {
+                activity {
+                    // Basic repeat
+                    repeat (10) {
+                        do comp.sub_action;
+                    }
+                    
+                    // Repeat with loop variable
+                    repeat (i : 5) {
+                        do comp.sub_action with {
+                            index == i;
+                        }
+                    }
+                    
+                    // Repeat with expression
+                    repeat (num_iterations) {
+                        do comp.action;
+                    }
+                }
+            }
+        
+        Attributes:
+            loop_var: Optional loop variable identifier
+            count: Expression specifying the number of iterations
+            body: Activity statement body to execute each iteration
+        
+        See Also:
+            ActivityRepeatWhile, ActivityForeach, ActivityReplicate
+    data:
+    - loop_var: UP<ExprId>
+    - count: UP<Expr>
+    - body: UP<ScopeChild>
+
+- ActivityRepeatWhile:
+    super: ActivityLabeledStmt
+    doc: |
+        Repeats an activity body while a condition is true.
+        
+        ActivityRepeatWhile executes its body repeatedly as long as the specified
+        condition evaluates to true. The condition is checked before each iteration,
+        including the first one.
+        
+        PSS Example::
+        
+            action my_action {
+                rand bit[8] counter;
+                
+                activity {
+                    // Basic while loop
+                    repeat while (counter < 10) {
+                        do comp.increment_action;
+                    }
+                    
+                    // Conditional processing
+                    repeat while (has_more_data()) {
+                        do comp.process_data;
+                    }
+                    
+                    // Complex condition
+                    repeat while (status == ACTIVE && count > 0) {
+                        do comp.work_action;
+                    }
+                }
+            }
+        
+        Attributes:
+            cond: Boolean expression evaluated before each iteration
+            body: Activity statement body to execute while condition is true
+        
+        See Also:
+            ActivityRepeatCount, ActivityForeach
+    data:
+    - cond: UP<Expr>
+    - body: UP<ScopeChild>
+
+- ActivityForeach:
+    super: ActivityLabeledStmt
+    doc: |
+        Iterates over elements in a collection.
+        
+        ActivityForeach executes its body once for each element in a collection,
+        providing access to the current element through an iterator variable and
+        optionally the current index.
+        
+        PSS Example::
+        
+            action my_action {
+                rand bit[8] data[10];
+                
+                activity {
+                    // Foreach with iterator
+                    foreach (d : data) {
+                        do comp.process with {
+                            value == d;
+                        }
+                    }
+                    
+                    // Foreach with iterator and index
+                    foreach (d[i] : data) {
+                        do comp.process with {
+                            value == d;
+                            index == i;
+                        }
+                    }
+                }
+            }
+        
+        Attributes:
+            it_id: Iterator identifier for the current element
+            idx_id: Optional index identifier for the current position
+            target: Reference path to the collection being iterated
+            body: Activity statement body executed for each element
+        
+        See Also:
+            ActivityRepeatCount, ActivityRepeatWhile
+    data:
+    - it_id: UP<ExprId>
+    - idx_id: UP<ExprId>
+    - target: UP<ExprRefPathContext>
+    - body: UP<ScopeChild>
+
+- ActivitySelect:
+    super: ActivityLabeledStmt
+    doc: |
+        Randomly selects and executes one branch from alternatives.
+        
+        ActivitySelect provides a weighted random choice between multiple branches.
+        Each branch can have a guard condition and a weight expression to control
+        selection probability. Only one branch is executed per select statement.
+        
+        PSS Example::
+        
+            action my_action {
+                rand bit[8] mode;
+                
+                activity {
+                    // Basic select (equal probability)
+                    select {
+                        1: { do comp.option_a; }
+                        1: { do comp.option_b; }
+                        1: { do comp.option_c; }
+                    }
+                    
+                    // Weighted select
+                    select {
+                        70: { do comp.common_case; }
+                        20: { do comp.rare_case; }
+                        10: { do comp.very_rare_case; }
+                    }
+                    
+                    // Select with guards
+                    select {
+                        [mode == 0] 1: { do comp.mode0_action; }
+                        [mode == 1] 1: { do comp.mode1_action; }
+                        [mode == 2] 1: { do comp.mode2_action; }
+                    }
+                }
+            }
+        
+        Attributes:
+            branches: List of select branches with guards, weights, and bodies
+        
+        See Also:
+            ActivitySelectBranch, ActivityMatch, ActivityIfElse
+    data:
+    - branches: list<UP<ActivitySelectBranch>>
+
+- ActivitySelectBranch:
+    doc: |
+        Represents one branch in an activity select statement.
+        
+        ActivitySelectBranch encapsulates a single alternative in a select statement,
+        including its optional guard condition, weight expression, and body. The
+        guard determines if the branch is eligible for selection, and the weight
+        influences the selection probability among eligible branches.
+        
+        PSS Example::
+        
+            action my_action {
+                rand bit[8] value;
+                
+                activity {
+                    select {
+                        // Branch with guard and weight
+                        [value < 50] 70: {
+                            do comp.low_value_action;
+                        }
+                        
+                        // Branch with only weight
+                        20: {
+                            do comp.medium_value_action;
+                        }
+                        
+                        // Branch with guard only (implicit weight 1)
+                        [value > 200]: {
+                            do comp.high_value_action;
+                        }
+                    }
+                }
+            }
+        
+        Attributes:
+            guard: Optional condition that must be true for branch to be eligible
+            weight: Expression determining relative selection probability
+            body: Activity statement executed if this branch is selected
+        
+        See Also:
+            ActivitySelect, ActivityMatchChoice
+    data:
+    - guard: UP<Expr>
+    - weight: UP<Expr>
+    - body: UP<ScopeChild>
+
+- ActivityIfElse:
+    super: ActivityLabeledStmt
+    doc: |
+        Conditional execution of activity branches.
+        
+        ActivityIfElse provides conditional branching in activity blocks, executing
+        one of two branches based on a boolean condition. Unlike select, the choice
+        is deterministic based on the condition value.
+        
+        PSS Example::
+        
+            action my_action {
+                rand bit[8] mode;
+                rand bit enable;
+                
+                activity {
+                    // Simple if-else
+                    if (enable) {
+                        do comp.enabled_action;
+                    } else {
+                        do comp.disabled_action;
+                    }
+                    
+                    // If without else
+                    if (mode > 5) {
+                        do comp.high_mode_action;
+                    }
+                    
+                    // Nested if-else
+                    if (mode == 0) {
+                        do comp.mode0;
+                    } else if (mode == 1) {
+                        do comp.mode1;
+                    } else {
+                        do comp.default_mode;
+                    }
+                }
+            }
+        
+        Attributes:
+            cond: Boolean expression determining which branch executes
+            true_s: Activity statement executed when condition is true
+            false_s: Optional activity statement executed when condition is false
+        
+        See Also:
+            ActivitySelect, ActivityMatch
+    data:
+    - cond: UP<Expr>
+    - true_s: UP<ActivityStmt>
+    - false_s: UP<ActivityStmt>
+
+- ActivityMatch:
+    super: ActivityLabeledStmt
+    doc: |
+        Pattern matching on expression values.
+        
+        ActivityMatch provides multi-way branching based on pattern matching against
+        an expression value. It's similar to a switch statement, allowing matching
+        against specific values, ranges, or a default case.
+        
+        PSS Example::
+        
+            action my_action {
+                rand bit[8] opcode;
+                
+                activity {
+                    match (opcode) {
+                        // Single value
+                        [0x00]: { do comp.nop_action; }
+                        
+                        // Multiple values
+                        [0x01, 0x02, 0x03]: { do comp.arithmetic; }
+                        
+                        // Range
+                        [0x10..0x1F]: { do comp.memory_ops; }
+                        
+                        // Multiple ranges
+                        [0x20..0x2F, 0x40..0x4F]: { do comp.control; }
+                        
+                        // Default case
+                        default: { do comp.illegal_opcode; }
+                    }
+                }
+            }
+        
+        Attributes:
+            cond: Expression whose value is matched against the choices
+            choices: List of match choices with patterns and bodies
+        
+        See Also:
+            ActivityMatchChoice, ActivitySelect, ActivityIfElse
+    data:
+    - cond: UP<Expr>
+    - choices: list<UP<ActivityMatchChoice>>
+
+- ActivityMatchChoice:
+    doc: |
+        Represents one case in an activity match statement.
+        
+        ActivityMatchChoice encapsulates a single pattern-matching case, including
+        the pattern (values or ranges to match), whether it's the default case,
+        and the body to execute when matched.
+        
+        PSS Example::
+        
+            action my_action {
+                rand bit[4] cmd;
+                
+                activity {
+                    match (cmd) {
+                        // Single value choice
+                        [0]: {
+                            do comp.reset;
+                        }
+                        
+                        // Range choice
+                        [1..5]: {
+                            do comp.low_range;
+                        }
+                        
+                        // Multiple values and ranges
+                        [6, 8, 10..12]: {
+                            do comp.special_cases;
+                        }
+                        
+                        // Default choice
+                        default: {
+                            do comp.default_handler;
+                        }
+                    }
+                }
+            }
+        
+        Attributes:
+            is_default: True if this is the default case
+            cond: Open range list specifying values/ranges to match (null for default)
+            body: Activity statement executed when this case matches
+        
+        See Also:
+            ActivityMatch, ExprOpenRangeList
+    data:
+    - is_default: bool
+    - cond: UP<ExprOpenRangeList>
+    - body: UP<ScopeChild>
+
+- ActivityReplicate:
+    super: ActivityLabeledStmt
+    doc: |
+        Replicates an activity N times with concurrent execution.
+        
+        ActivityReplicate creates N concurrent instances of the body activity,
+        potentially with different constraint values for each instance. Unlike
+        repeat, which executes sequentially, replicate creates parallel instances
+        that may execute concurrently.
+        
+        PSS Example::
+        
+            action my_action {
+                activity {
+                    // Replicate 4 times
+                    replicate (4) {
+                        do comp.worker_action;
+                    }
+                    
+                    // Replicate with index variable
+                    replicate (i : 8) {
+                        do comp.indexed_action with {
+                            id == i;
+                        }
+                    }
+                    
+                    // Replicate with iterator label
+                    replicate (i : 3) it_label {
+                        do comp.action;
+                    }
+                }
+            }
+        
+        Attributes:
+            idx_id: Optional index variable identifier (0 to count-1)
+            it_label: Optional label for the iterator instance
+            body: Activity statement body replicated N times
+        
+        See Also:
+            ActivityRepeatCount, ActivityParallel
+    data:
+    - idx_id : UP<ExprId>
+    - it_label: UP<ExprId>
+    - body: UP<ScopeChild>
+
+- ActivitySuper:
+    super: ActivityLabeledStmt
+    doc: |
+        Invokes the super-class activity implementation.
+        
+        ActivitySuper allows a derived action to call the activity block defined
+        in its parent action class. This enables activity inheritance and extension
+        similar to method overriding in object-oriented programming.
+        
+        PSS Example::
+        
+            action base_action {
+                activity {
+                    do comp.init;
+                    do comp.process;
+                }
+            }
+            
+            action derived_action : base_action {
+                activity {
+                    do comp.setup;
+                    super;              // Execute base_action's activity
+                    do comp.cleanup;
+                }
+            }
+            
+            action extended_action : base_action {
+                activity {
+                    super;              // Just execute parent activity
+                }
+            }
+        
+        Attributes:
+            (inherits from ActivityLabeledStmt)
+        
+        See Also:
+            ActivityDecl, Action
+
+- ActivityAtomicBlock:
+    super: ActivityLabeledStmt
+    doc: |
+        Marks a block of activities as atomic for scheduling.
+        
+        ActivityAtomicBlock ensures that the contained activities execute as an
+        indivisible unit with respect to other concurrent activities. This provides
+        atomicity guarantees for critical sections of activity execution.
+        
+        PSS Example::
+        
+            action my_action {
+                activity {
+                    parallel {
+                        sequence {
+                            atomic {
+                                do comp.read_resource;
+                                do comp.modify_resource;
+                                do comp.write_resource;
+                            }
+                        }
+                        sequence {
+                            atomic {
+                                do comp.read_resource;
+                                do comp.modify_resource;
+                                do comp.write_resource;
+                            }
+                        }
+                    }
+                }
+            }
+        
+        Attributes:
+            body: Activity statement body that executes atomically
+        
+        See Also:
+            ActivitySequence, ActivityParallel
+    data:
+    - body: UP<ScopeChild>
+
+
+

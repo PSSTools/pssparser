@@ -5,9 +5,11 @@
 lexer grammar PSSLexer;
 
 TOK_AT: '@';
+TOK_HASH: '#';
 TOK_LPAREN: '(';
 TOK_RPAREN: ')';
 TOK_COMMA: ',';
+TOK_COVER: 'cover';
 TOK_DOUBLE_EQ: '==';
 TOK_SINGLE_EQ: '=';
 TOK_NE: '!=';
@@ -16,13 +18,16 @@ TOK_LCBRACE: '{';
 TOK_RCBRACE: '}';
 TOK_SEMICOLON: ';';
 TOK_IMPORT: 'import';
+TOK_PYIMPORT: 'pyimport';
 TOK_DOUBLE_COLON: '::';
 TOK_AS: 'as';
 TOK_ASTERISK: '*';
 TOK_EXTEND: 'extend';
 TOK_ACTION: 'action';
+TOK_ANNOTATION: 'annotation';
 TOK_COMPONENT: 'component';
 TOK_ENUM: 'enum';
+TOK_FROM: 'from';
 TOK_CONST: 'const';
 TOK_STATIC: 'static';
 TOK_ABSTRACT: 'abstract';
@@ -35,6 +40,7 @@ TOK_INOUT: 'inout';
 TOK_LOCK: 'lock';
 TOK_SHARE: 'share';
 TOK_RAND: 'rand';
+TOK_RANDOMIZE: 'randomize';
 TOK_PUBLIC: 'public';
 TOK_PROTECTED: 'protected';
 TOK_PRIVATE: 'private';
@@ -42,12 +48,18 @@ TOK_CONSTRAINT: 'constraint';
 TOK_PARALLEL: 'parallel';
 TOK_SEQUENCE: 'sequence';
 TOK_EXEC: 'exec';
+TOK_PYOBJ: 'pyobj';
 TOK_STRUCT: 'struct';
 TOK_BUFFER: 'buffer';
 TOK_STREAM: 'stream';
 TOK_STATE: 'state';
 TOK_REF: 'ref';
 TOK_RESOURCE: 'resource';
+TOK_YIELD: 'yield';
+TOK_ATOMIC: 'atomic';
+
+/* Make exec-block kinds local instead
+   of global keywords
 TOK_PRE_SOLVE: 'pre_solve';
 TOK_POST_SOLVE: 'post_solve';
 TOK_BODY: 'body';
@@ -58,6 +70,8 @@ TOK_RUN_END: 'run_end';
 TOK_INIT: 'init';
 TOK_INIT_UP: 'init_up';
 TOK_INIT_DOWN: 'init_down';
+ */ 
+
 TOK_SUPER: 'super';
 TOK_PLUS_EQ: '+=';
 TOK_MINUS_EQ: '-=';
@@ -112,6 +126,9 @@ TOK_GTE: '>=';
 TOK_IN: 'in';
 TOK_INT: 'int';
 TOK_BIT: 'bit';
+TOK_NUMERIC: 'numeric';
+TOK_FLOAT32: 'float32';
+TOK_FLOAT64: 'float64';
 TOK_ELIPSIS: '..';
 TOK_TRIPLE_ELIPSIS: '...';
 TOK_STRING: 'string';
@@ -119,6 +136,9 @@ TOK_BOOL: 'bool';
 TOK_TYPEDEF: 'typedef';
 TOK_DYNAMIC: 'dynamic';
 TOK_DISABLE: 'disable';
+TOK_DIST: 'dist';
+TOK_COLON_EQ: ':=';
+TOK_COLON_DIV: ':/';
 TOK_FORALL: 'forall';
 TOK_IMPLIES: '->';
 TOK_UNIQUE: 'unique';
@@ -129,6 +149,10 @@ TOK_ILLEGAL_BINS: 'illegal_bins';
 TOK_IGNORE_BINS: 'ignore_bins';
 TOK_CROSS: 'cross';
 TOK_IFF: 'iff';
+TOK_MONITOR: 'monitor';
+TOK_CONCAT: 'concat';
+TOK_EVENTUALLY: 'eventually';
+TOK_OVERLAP: 'overlap';
 TOK_COMPILE: 'compile';
 TOK_ASSERT: 'assert';
 TOK_HAS: 'has';
@@ -156,6 +180,8 @@ TOK_CLASS: 'class';
 WS : [ \t\n\r]+ -> channel (10) ;
 //WS : [ \t\n\r]+ -> skip;
 
+TOK_COMMENT_AT: '//@';
+
 /**
  * BNF: SL_COMMENT ::= <kw>//</kw>\n 
  */
@@ -169,7 +195,24 @@ ML_COMMENT	: '/*' .*? '*/' -> channel (12) ;
 //ML_COMMENT	: '/*' .*? '*/' -> skip;
  
 
-DOUBLE_QUOTED_STRING	: '"' (~ [\n\r])* '"' ;
+//DOUBLE_QUOTED_STRING	: '"' (~ [\n\r])* '"' ;
+DOUBLE_QUOTED_STRING	: '"' SCharSequence? '"' ;
+
+fragment SCharSequence: SChar+ ;
+
+fragment SChar:
+    ~["\\\r\n]
+    | EscapeSequence
+    | '\\\n'
+    | '\\\r\n'
+    ;
+
+fragment EscapeSequence:
+    SimpleEscapeSequence
+
+    ;
+
+fragment SimpleEscapeSequence: '\\' ['"?abfnrtv\\];
 
 // TODO: unescaped_character, escaped_character
 
@@ -183,6 +226,30 @@ TRIPLE_DOUBLE_QUOTED_STRING:
 fragment TripleQuotedStringPart : EscapedTripleQuote | SourceCharacter;
 fragment EscapedTripleQuote: '\\"""';
 fragment SourceCharacter :[\u0009\u000A\u000D\u0020-\uFFFF];
+
+// fragment FloatingPointLiteral:
+//     FractionalConstant ExponentPart?
+//     | DigitSequence ExponentPart
+//     ;
+
+// fragment FractionalConstant
+//     : DigitSequence? '.' DigitSequence
+//     | DigitSequence '.'
+//     ;
+
+// fragment ExponentPart
+//     : [eE] Sign? DigitSequence
+//     ;
+
+// fragment Sign
+//     : [+-]
+//     ;
+
+// DigitSequence
+//     : Digit+
+//     ;
+
+// fragment Digit: [0-9];
 		
 // TODO: move to LexicalRules
 ID : [a-zA-Z_] [a-zA-Z0-9_]* ;
@@ -196,6 +263,4 @@ BASED_BIN_LITERAL: '\'' ('s'|'S')? ('b'|'B') (('0'..'1') ('0'..'1'|'_')*);
 BASED_OCT_LITERAL: '\'' ('s'|'S')? ('o'|'O') (('0'..'7') ('0'..'7'|'_')*);
 OCT_LITERAL: '0' ('0'..'7')*;
 HEX_LITERAL: '0x' ('0'..'9'|'a'..'f'|'A'..'F') ('0'..'9'|'a'..'f'|'A'..'F'|'_')*;
-
-
 

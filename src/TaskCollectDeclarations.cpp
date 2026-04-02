@@ -21,11 +21,30 @@
 #include "SymbolScope.h"
 #include "TaskCollectDeclarations.h"
 
+#define DEBUG_ENTER(fmt, ...) \
+	fprintf(stdout, "--> TaskCollectDeclarations::"); \
+	fprintf(stdout, fmt, ##__VA_ARGS__); \
+	fprintf(stdout, "\n");
+
+#define DEBUG(fmt, ...) \
+	fprintf(stdout, "TaskCollectDeclarations: "); \
+	fprintf(stdout, fmt, ##__VA_ARGS__); \
+	fprintf(stdout, "\n");
+
+#define DEBUG_LEAVE(fmt, ...) \
+	fprintf(stdout, "<-- TaskCollectDeclarations::"); \
+	fprintf(stdout, fmt, ##__VA_ARGS__); \
+	fprintf(stdout, "\n");
+
+#include "Marker.h"
 
 namespace pssp {
 
-TaskCollectDeclarations::TaskCollectDeclarations(IMarkerListener *listener) 
-    : m_listener(listener) {
+
+
+TaskCollectDeclarations::TaskCollectDeclarations(
+    IMarkerListener     *listener,
+    ISymbolTable        *symtab) : m_listener(listener), m_symtab(symtab) {
 
 }
 
@@ -33,42 +52,121 @@ TaskCollectDeclarations::~TaskCollectDeclarations() {
 
 }
 
-void TaskCollectDeclarations::collect(
-        ISymbolScope            *root,
-        ast::IScope             *ast) {
-    m_scope_s.clear();
-    m_scope_s.push_back(root);
-    ast->accept(m_this);
-    m_scope_s.pop_back();
+void TaskCollectDeclarations::collect(ast::IGlobalScope *root) {
+    root->accept(m_this);
 }
 
 void TaskCollectDeclarations::visitPackageScope(ast::IPackageScope *i) {
+    DEBUG_ENTER("visitPackageScope %s", i->getId().at(0)->getId().c_str());
+    m_symtab->defineSymbolScope(
+        i->getId().at(0)->getId(),
+        i);
 
-    // TODO: Check for existing namespace
-    // TODO: handle a declared-nested namespace
+    for (std::vector<ast::IScopeChildUP>::const_iterator
+        it=i->getChildren().begin();
+        it!=i->getChildren().end(); it++) {
+        (*it)->accept(this);
+    }
 
-    /** TODO: 
-    ISymbolScope *scope = new SymbolScope(
-        i->getName()->getId(),
-        SymbolScopeKind::Namespace);
-    m_scope_s.push_back(scope);
-    scope->addDeclScope(i);
-    m_scope_s.back()->addSubscope(scope);
-    VisitorBase::visitPackageScope(i);
-    m_scope_s.pop_back();
-     */
+    m_symtab->leaveSymbolScope();
+    DEBUG_LEAVE("visitPackageScope %s", i->getId().at(0)->getId().c_str());
+}
+
+void TaskCollectDeclarations::visitAction(ast::IAction *i) {
+    DEBUG_ENTER("visitAction %s", i->getName()->getId().c_str());
+    ast::IScopeChild *dup = m_symtab->defineSymbolScope(i->getName()->getId(), i);
+    if (dup) {
+        duplicateSymbolDeclError(i, dup);
+    } else {
+        VisitorBase::visitAction(i);
+        m_symtab->leaveSymbolScope();
+    }
+    DEBUG_LEAVE("visitAction %s", i->getName()->getId().c_str());
+}
+
+void TaskCollectDeclarations::visitComponent(ast::IComponent *i) {
+    DEBUG_ENTER("visitComponent %s", i->getName()->getId().c_str());
+    ast::IScopeChild *dup = m_symtab->defineSymbolScope(i->getName()->getId(), i);
+    if (dup) {
+        duplicateSymbolDeclError(i, dup);
+    } else {
+        VisitorBase::visitComponent(i);
+        m_symtab->leaveSymbolScope();
+    }
+    DEBUG_LEAVE("visitComponent %s", i->getName()->getId().c_str());
+}
+
+void TaskCollectDeclarations::visitEnumDecl(ast::IEnumDecl *i) {
+    DEBUG_ENTER("visitEnumDecl %s", i->getName()->getId().c_str());
+
+    ast::IScopeChild *dup = m_symtab->defineSymbolScope(i->getName()->getId(), i);
+
+    if (dup) {
+        duplicateSymbolDeclError(i, dup);
+    } else {
+        VisitorBase::visitEnumDecl(i);
+        m_symtab->leaveSymbolScope();
+    }
+
+    DEBUG_LEAVE("visitEnumDecl %s", i->getName()->getId().c_str());
+}
+
+void TaskCollectDeclarations::visitField(ast::IField *i) {
+    DEBUG_ENTER("visitField %s", i->getName()->getId().c_str());
+    ast::IScopeChild *dup = m_symtab->defineSymbol(i->getName()->getId(), i);
+    if (dup) {
+        duplicateSymbolDeclError(i, dup);
+    }
+    DEBUG_LEAVE("visitField %s", i->getName()->getId().c_str());
+}
+
+void TaskCollectDeclarations::visitScopeChildRef(ast::IScopeChildRef *i) {
+    DEBUG_ENTER("visitScopeChildRef");
+    i->getTarget()->accept(this);
+    DEBUG_LEAVE("visitScopeChildRef");
+}
+
+void TaskCollectDeclarations::visitStruct(ast::IStruct *i) {
+    DEBUG_ENTER("visitStruct %s", i->getName()->getId().c_str());
+    ast::IScopeChild *dup = m_symtab->defineSymbolScope(i->getName()->getId(), i);
+    if (dup) {
+        duplicateSymbolDeclError(i, dup);
+    } else {
+        VisitorBase::visitStruct(i);
+        m_symtab->leaveSymbolScope();
+    }
+    DEBUG_LEAVE("visitStruct %s", i->getName()->getId().c_str());
 }
 
 void TaskCollectDeclarations::visitTypeScope(ast::ITypeScope *i) {
-    ISymbolScope *scope = new SymbolScope(
-        i->getName()->getId(),
-        SymbolScopeKind::Type);
-    scope->addDeclScope(i);
+    DEBUG_ENTER("visitTypeScope %s", i->getName()->getId().c_str());
+    // How do we handle scoping wrt optional scopes?
+    // - Always have an anonymous scope for parameters?
+    // - Only create if needed?
+    // - What about 'super'?
 
-    m_scope_s.push_back(scope);
-    VisitorBase::visitTypeScope(i);
-    m_scope_s.pop_back();
+    m_symtab->enterParamsScope();
+    if (i->getParams()) {
+        i->getParams()->accept(this);
+    }
+    m_symtab->leaveParamsScope();
 
+    for (std::vector<ast::IScopeChildUP>::const_iterator
+        it=i->getChildren().begin();
+        it!=i->getChildren().end(); it++) {
+        (*it)->accept(this);
+    }
+    DEBUG_LEAVE("visitTypeScope %s", i->getName()->getId().c_str());
+}
+
+void TaskCollectDeclarations::duplicateSymbolDeclError(
+        ast::IScopeChild            *new_sym,
+        ast::IScopeChild            *ex_sym) {
+    Marker m(
+        "duplicate symbol declaration",
+        MarkerSeverityE::Error,
+        new_sym->getLocation());
+    m_listener->marker(&m);
 }
 
 }

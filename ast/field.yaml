@@ -1,0 +1,138 @@
+
+flags:
+  - FieldAttr:
+    - Action      # Action instance field
+    - Builtin     # Built-in field
+    - Rand        # Random field (subject to constraints)
+    - Const       # Constant field
+    - Static      # Static field (shared across instances)
+    - Instance    # Component instance-qualified field
+    - Private     # Private field (not visible outside)
+    - Protected   # Protected field (visible in subclasses)
+
+classes:
+  - Field:
+      super: NamedScopeChild
+      doc: |
+          Data field declaration within actions, components, or structs.
+          
+          Represents variable declarations with optional type, attributes,
+          and initialization. Fields can be randomized ('rand'), constant
+          ('const'), static ('static'), or have visibility modifiers.
+          
+          PSS Example::
+          
+              action my_action {
+                  rand int<32> addr;           // Random field
+                  const int timeout = 100;     // Constant field
+                  static int counter;          // Static field
+                  private bool flag;           // Private field
+              }
+          
+          Attributes:
+              name: Field identifier (inherited from NamedScopeChild)
+              type: Data type of the field
+              attr: Attribute flags (FieldAttr)
+              init: Optional initializer expression
+          
+          See Also:
+              FieldAttr, DataType, NamedScopeChild
+      data:
+      - type : UP<DataType>
+      - attr : FieldAttr
+      - init : UP<Expr>
+  - FieldCompRef:
+      super: NamedScopeChild
+      doc: |
+          Component reference field for hierarchical composition.
+          
+          Declares a reference to a component instance. Used for building
+          the structural hierarchy of components within other components.
+          
+          PSS Example::
+          
+              component sub_comp { }
+              
+              component top_comp {
+                  sub_comp sc1;    // Component reference field
+                  sub_comp sc2;
+              }
+          
+          Attributes:
+              name: Field name (inherited from NamedScopeChild)
+              type: User-defined component type
+          
+          See Also:
+              FieldRef, Component, DataTypeUserDefined
+      data:
+      - type: UP<DataTypeUserDefined>
+  - FieldRef:
+      super: NamedScopeChild
+      doc: |
+          Reference field pointing to action/component instances.
+          
+          Declares a reference (pointer) to an action or component instance.
+          References can be inputs (passed in) or outputs (assigned internally).
+          Used for action composition and resource sharing.
+          
+          PSS Example::
+          
+              action producer { }
+              
+              action consumer {
+                  input producer p_ref;    // Input reference
+                  ref producer p_local;    // Local reference
+              }
+          
+          Attributes:
+              name: Reference name (inherited from NamedScopeChild)
+              type: User-defined type being referenced
+              is_input: True if declared as 'input'
+          
+          See Also:
+              FieldCompRef, FieldClaim, DataTypeRef
+      data:
+      - type: UP<DataTypeUserDefined>
+      - is_input: bool
+
+  - FieldClaim:
+      super: NamedScopeChild
+      doc: |
+          Claim or lock on a resource instance.
+          
+          Declares exclusive access to a resource for the duration of an
+          action. Claims can be locks (exclusive) or shares (non-exclusive).
+          Used for resource management and synchronization.
+          
+          PSS Example::
+          
+              resource bus_t { }
+              
+              action my_action {
+                  lock bus_t my_bus;     // Exclusive lock
+                  share bus_t my_bus2;   // Shared access
+              }
+          
+          Attributes:
+              name: Claim identifier (inherited from NamedScopeChild)
+              type: Resource type to claim
+              is_lock: True for 'lock', false for 'share'
+          
+          See Also:
+              Struct (with kind=Resource), FieldRef
+      data:
+      - type: UP<DataTypeUserDefined>
+      - is_lock: bool
+  - ActionHandleField:
+      super: NamedScopeChild
+      doc: |
+          Action handle field declaration.
+
+          Represents an action instance field declared in an action or monitor
+          body, including optional PSS 3.1 initializer assignments and support
+          for array-typed handles.
+      data:
+      - type: UP<DataType>
+      - initializers:
+          type: list<UP<ActionFieldInitializer>>
+          is_ctor: false

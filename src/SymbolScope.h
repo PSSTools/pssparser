@@ -25,6 +25,8 @@
 namespace pssp {
 
 
+
+
 class SymbolScope : public virtual ISymbolScope {
 public:
     SymbolScope(
@@ -84,4 +86,3 @@ private:
 };
 
 }
-

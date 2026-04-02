@@ -2,44 +2,250 @@
 classes: 
 - DataType:
     super: ScopeChild
-- DataTypeArray:
-    super: DataType
-    data: 
-    - type: "UP<DataType>"
-    - size: "UP<Expr>"
+    doc: |
+        Base class for all PSS data types.
+        
+        Represents the type system in PSS. All type expressions (int, bool,
+        user-defined types, etc.) derive from this base class. Used in field
+        declarations, expressions, and function signatures.
+        
+        See Also:
+            DataTypeInt, DataTypeBool, DataTypeUserDefined, Field
     
 - DataTypeBool:
     super: DataType
+    doc: |
+        Boolean data type.
+        
+        Represents the 'bool' type in PSS. Boolean values are true or false.
+        
+        PSS Example::
+        
+            bool flag;
+            rand bool enable;
+            
+            constraint {
+                enable == true;
+            }
+        
+        See Also:
+            DataType, DataTypeInt
 
 - DataTypeChandle:
     super: DataType
+    doc: |
+        Opaque handle type for referencing external objects.
+        
+        Represents the 'chandle' type - an opaque pointer to data managed
+        outside PSS (typically C/C++ objects). Used for interfacing with
+        external code and APIs.
+        
+        PSS Example::
+        
+            function void use_object(chandle obj);
+        
+        See Also:
+            DataType, DataTypePyObj
 
 - DataTypeEnum:
     super: DataType
+    doc: |
+        Enum type reference with optional range restriction.
+        
+        Represents a reference to an enum type, optionally restricted to
+        a subset of enum values using an 'in' range expression.
+        
+        PSS Example::
+        
+            enum my_enum { A, B, C, D };
+            
+            rand my_enum value in [A, B];    // Only A or B allowed
+        
+        Attributes:
+            tid: Reference to the user-defined enum type
+            in_rangelist: Optional range restriction expression
+        
+        See Also:
+            EnumDecl, DataTypeUserDefined, ExprOpenRangeList
     data: 
     - tid: UP<DataTypeUserDefined>
     - in_rangelist: UP<ExprOpenRangeList>
+
+- EnumItem:
+    super: NamedScopeChild
+    doc: |
+        Single enumerator value within an enum declaration.
+        
+        Represents one named value in an enum. Can have an explicit value
+        expression or be auto-assigned sequentially.
+        
+        PSS Example::
+        
+            enum status {
+                OK = 0,          // Explicit value
+                ERROR,           // Auto-assigned value (1)
+                PENDING = 100    // Explicit value
+            };
+        
+        Attributes:
+            name: Enumerator identifier (inherited from NamedScopeChild)
+            value: Optional value expression
+            upper: Back-reference to containing enum scope
+        
+        See Also:
+            EnumDecl, NamedScopeChild
+    data:
+    - value: UP<Expr>
+    - upper:
+        type: P<SymbolEnumScope>
+        is_ctor: false
+        init: 0
+        visit: false
+
+- EnumDecl:
+    super: NamedScopeChild
+    doc: |
+        Enum type declaration with named values.
+        
+        Declares an enumerated type with a set of named constant values.
+        Enums can be used as field types and in constraints.
+        
+        PSS Example::
+        
+            enum direction {
+                NORTH, SOUTH, EAST, WEST
+            };
+            
+            enum error_code {
+                SUCCESS = 0,
+                ERR_INVALID = 1,
+                ERR_TIMEOUT = 2
+            };
+        
+        Attributes:
+            name: Enum type name (inherited from NamedScopeChild)
+            items: List of enumerator values
+        
+        See Also:
+            EnumItem, DataTypeEnum
+    data:
+    - items: list<UP<EnumItem>>
+
 - DataTypeInt:
     super: DataType
+    doc: |
+        Integer data type with signedness, width, and optional range.
+        
+        Represents integer types in PSS. Can be signed/unsigned, have
+        explicit or inferred bit-width, and include value constraints.
+        
+        PSS Example::
+        
+            int<8> byte_val;                    // 8-bit signed
+            bit<16> word_val;                   // 16-bit unsigned
+            rand int addr in [0x1000..0x2000];  // With range constraint
+            int value;                          // Implementation-defined width
+        
+        Attributes:
+            is_signed: True for 'int', false for 'bit'
+            width: Bit-width expression (optional)
+            in_range: Optional domain range constraint
+        
+        See Also:
+            DataType, ExprDomainOpenRangeList
     data:
     - is_signed: bool
-    - width_lhs: UP<Expr>
-    - width_rhs: UP<Expr>
+    - width: UP<Expr>
     - in_range: UP<ExprDomainOpenRangeList>
+
+- DataTypePyObj:
+    super: DataType
+    doc: |
+        Python object type for embedded Python integration.
+        
+        Represents Python objects accessible within PSS. Used for
+        interfacing with embedded Python code and libraries.
+        
+        See Also:
+            DataTypeChandle, PyImportStmt
+    data: {}
+
+- DataTypeRef:
+    super: DataType
+    doc: |
+        Reference type to another type instance.
+        
+        Represents a reference (pointer) to an instance of a user-defined
+        type. Used for creating references to action or component instances.
+        
+        PSS Example::
+        
+            action A { }
+            
+            action B {
+                ref A a_ref;    // Reference to action A instance
+            }
+        
+        Attributes:
+            type: The user-defined type being referenced
+        
+        See Also:
+            DataTypeUserDefined, FieldRef
+    data:
+      - type : UP<DataTypeUserDefined>
+
 - DataTypeString:
     super: DataType
+    doc: |
+        String data type with optional value constraint.
+        
+        Represents string literals and variables in PSS. Can be constrained
+        to a specific set of allowed string values.
+        
+        PSS Example::
+        
+            string message;
+            rand string mode in ["read", "write", "execute"];
+        
+        Attributes:
+            has_range: True if 'in' constraint is present
+            in_range: List of allowed string values
+        
+        See Also:
+            DataType, ExprString
     data:
     - has_range: bool
     - in_range: list<string>
+
 - DataTypeUserDefined:
     super: DataType
+    doc: |
+        Reference to a user-defined type (action, component, struct, enum).
+        
+        Represents a type reference using a type identifier. The identifier
+        may be simple or hierarchical (package-qualified). Resolution to the
+        actual type occurs during linking phase.
+        
+        PSS Example::
+        
+            my_pkg::my_action a1;        // Qualified type reference
+            my_struct s1;                // Simple type reference
+        
+        Attributes:
+            is_global: True if type reference starts with '::'
+            type_id: Hierarchical type identifier
+        
+        See Also:
+            TypeIdentifier, DataType, Action, Component, Struct
     data: 
     - is_global: bool
-    - elems: list<UP<TypeIdentifierElem>>
+    - type_id: UP<TypeIdentifier>
       #            - target:
       #  - is_ctor: false
       #  - type: SP<RefExpr>
-    - target_p:
-        is_ctor: false
-        type: P<ScopeChild>
-        init: 0
+
+- TypedefDeclaration:
+    super: ScopeChild
+    data:
+    - name: UP<ExprId>
+    - type: UP<DataType>

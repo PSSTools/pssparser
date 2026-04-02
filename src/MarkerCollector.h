@@ -7,11 +7,13 @@
 
 #pragma once
 #include <vector>
-#include "pssp/IMarkerListener.h"
+#include "pssp/IMarkerCollector.h"
 
 namespace pssp {
 
-class MarkerCollector : public virtual IMarkerListener {
+
+
+class MarkerCollector : public virtual IMarkerCollector {
 public:
 	MarkerCollector();
 
@@ -32,5 +34,4 @@ private:
 
 };
 
-} /* namespace pssp */
-
+}

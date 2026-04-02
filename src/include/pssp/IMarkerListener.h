@@ -10,6 +10,7 @@
 
 namespace pssp {
 
+
 class IMarkerListener {
 public:
 	virtual ~IMarkerListener() { }

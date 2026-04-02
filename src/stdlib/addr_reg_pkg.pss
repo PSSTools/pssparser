@@ -1,0 +1,167 @@
+
+package addr_reg_pkg {
+    import executor_pkg::* ;
+    import std_pkg::*;
+
+    component addr_space_base_c {};
+
+    component addr_space_group_c {
+        function void add_addr_space(ref addr_space_base_c address_space);
+    };
+
+    struct addr_trait_s {};
+
+    struct empty_addr_trait_s : addr_trait_s {};
+
+//    typedef chandle addr_handle_t;
+    struct addr_handle_t { }
+
+    component contiguous_addr_space_c<
+            struct TRAIT : addr_trait_s = empty_addr_trait_s> : addr_space_base_c {
+        function addr_handle_t add_region(addr_region_s <TRAIT> r);
+        function addr_handle_t add_nonallocatable_region(addr_region_s <TRAIT> r);
+        bool byte_addressable = true;
+    };
+
+    component transparent_addr_space_c<
+            struct TRAIT: addr_trait_s = empty_addr_trait_s> : contiguous_addr_space_c<TRAIT> {};
+
+    struct addr_region_base_s {
+        bit[64] size;
+    };
+
+    struct addr_region_s <struct TRAIT : addr_trait_s = empty_addr_trait_s>
+        : addr_region_base_s {
+        TRAIT trait;
+    };
+
+    struct transparent_addr_region_s<
+            struct TRAIT : addr_trait_s = empty_addr_trait_s> : addr_region_s<TRAIT> {
+        bit[64] addr;
+    };
+
+    struct addr_claim_base_s {
+        rand bit[64] size;
+        rand bool permanent;
+
+        constraint default permanent == false;
+    };
+
+    struct addr_claim_s <struct TRAIT : addr_trait_s = empty_addr_trait_s> : addr_claim_base_s {
+        rand TRAIT trait;
+        rand bit[64] in [64'd2**0, 64'd2**1, 64'd2**2, 64'd2**3 , 64'd2**4 ,
+            64'd2**5 , 64'd2**6 , 64'd2**7 , 64'd2**8 , 64'd2**9 , 64'd2**10,
+            64'd2**11, 64'd2**12, 64'd2**13, 64'd2**14, 64'd2**15, 64'd2**16,
+            64'd2**17, 64'd2**18, 64'd2**19, 64'd2**20, 64'd2**21, 64'd2**22,
+            64'd2**23, 64'd2**24, 64'd2**25, 64'd2**26, 64'd2**27, 64'd2**28,
+            64'd2**29, 64'd2**30, 64'd2**31, 64'd2**32, 64'd2**33, 64'd2**34,
+            64'd2**35, 64'd2**36, 64'd2**37, 64'd2**38, 64'd2**39, 64'd2**40,
+            64'd2**41, 64'd2**42, 64'd2**43, 64'd2**44, 64'd2**45, 64'd2**46,
+            64'd2**47, 64'd2**48, 64'd2**49, 64'd2**50, 64'd2**51, 64'd2**52,
+            64'd2**53, 64'd2**54, 64'd2**55, 64'd2**56, 64'd2**57, 64'd2**58,
+            64'd2**59, 64'd2**60, 64'd2**61, 64'd2**62, 64'd2**63] alignment;
+    };
+
+    struct transparent_addr_claim_s<
+            struct TRAIT : addr_trait_s = empty_addr_trait_s> : addr_claim_s<TRAIT> {
+        rand bit[64] addr;
+    };
+
+    struct sizeof_s<type T> {
+        static const int nbytes = /* implementation-specific */ -1;
+        static const int nbits = /* implementation-specific */ -1;
+    };
+
+    const addr_handle_t nullhandle = /* implementation-specific */ null;
+
+    struct sized_addr_handle_s < int SZ, // in bits
+ int lsb = 0,
+ endianness_e e = LITTLE_ENDIAN >
+ : packed_s<e> {
+ addr_handle_t hndl;
+};
+function addr_handle_t make_handle_from_claim (addr_claim_base_s claim,
+ bit[64] offset = 0);
+function addr_handle_t make_handle_from_handle (addr_handle_t handle,
+ bit[64] offset);
+
+// import target function bit[64] addr_value(addr_handle_t hndl);
+// import target function bit[8] read8(addr_handle_t hndl);
+// import target function bit[16] read16(addr_handle_t hndl);
+// import target function bit[32] read32(addr_handle_t hndl);
+// import target function bit[64] read64(addr_handle_t hndl);
+// import target function void write8 (addr_handle_t hndl, bit[8] data);
+// import target function void write16(addr_handle_t hndl, bit[16] data);
+// import target function void write32(addr_handle_t hndl, bit[32] data);
+// import target function void write64(addr_handle_t hndl, bit[64] data);
+
+function bit[64] addr_value(addr_handle_t hndl);
+function bit[8] read8(addr_handle_t hndl);
+function bit[16] read16(addr_handle_t hndl);
+function bit[32] read32(addr_handle_t hndl);
+function bit[64] read64(addr_handle_t hndl);
+function void write8 (addr_handle_t hndl, bit[8] data);
+function void write16(addr_handle_t hndl, bit[16] data);
+function void write32(addr_handle_t hndl, bit[32] data);
+function void write64(addr_handle_t hndl, bit[64] data);
+
+
+/* TODO: generic type
+function void read_bytes (addr_handle_t hndl, list<bit[8]> data,
+ int size);
+function void write_bytes(addr_handle_t hndl, list<bit[8]> data);
+function void read_struct (addr_handle_t hndl, struct packed_struct);
+function void write_struct(addr_handle_t hndl, struct packed_struct);
+ */
+// extend component executor_base_c {
+//     function bit[8] read8(addr_handle_t hndl);
+//     function bit[16] read16(addr_handle_t hndl);
+//     function bit[32] read32(addr_handle_t hndl);
+//     function bit[64] read64(addr_handle_t hndl);
+//     function void write8 (addr_handle_t hndl, bit[8] data);
+//     function void write16(addr_handle_t hndl, bit[16] data);
+//     function void write32(addr_handle_t hndl, bit[32] data);
+//     function void write64(addr_handle_t hndl, bit[64] data);
+//  /** TODO: list
+//  function void read_bytes (addr_handle_t hndl, list<bit[8]> data,
+//  int size);
+//  function void write_bytes(addr_handle_t hndl, list<bit[8]> data);
+//   */
+//  };
+
+enum reg_access {READWRITE, READONLY, WRITEONLY};
+
+pure component reg_c < type R, reg_access ACC = READWRITE, int SZ2 = (8*sizeof_s<R>::nbytes)> {
+    function R read();
+    import target function read;
+
+    function void write(R r);
+    import target function write;
+
+    function bit[SZ2] read_val();
+    import target function read_val;
+
+    function void write_val(bit[SZ2] r);
+    import target function write_val;
+
+    // Zuspec extenion, as of PSS 3.0
+    function addr_handle_t get_handle();
+};
+
+/*
+struct node_s {
+ string name;
+ int index;
+};
+ */
+pure component reg_group_c {
+    pure function bit[64] get_offset_of_instance(string name);
+    pure function bit[64] get_offset_of_instance_array(string name, int index);
+    /** TODO: list
+    pure function bit[64] get_offset_of_path(list<node_s> path);
+     */
+    function void set_handle(addr_handle_t addr);
+//    import solve function set_handle;
+};
+
+}

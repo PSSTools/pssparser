@@ -5,6 +5,17 @@
 #****************************************************************************
 structs:
 - Location:
+    doc: |
+        Source code location information for AST nodes.
+        
+        Stores file position data for error reporting and debugging.
+        Each AST node can track where it was defined in the source code.
+        
+        Attributes:
+            fileid: Unique identifier for the source file (-1 if unknown)
+            lineno: Line number in source file (1-indexed, -1 if unknown)
+            linepos: Character position within line (0-indexed, -1 if unknown)
+            extent: Length of the source construct in characters
     data:
     - fileid: 
         type: int32_t
@@ -15,17 +26,57 @@ structs:
     - linepos: 
         type: int32_t
         init: -1
+    - extent:
+        type: int32_t
+        init: -1
 
 classes:
+    - AssocData:
+        doc: |
+            Base class for user-defined associated data attached to AST nodes.
+            
+            Allows users to attach custom metadata to any AST node without
+            modifying the core AST structure. Used for annotations, analysis
+            results, or custom transformations.
+            
+            See Also:
+                ScopeChild.assocData attribute
+        data: []
+
     - Scope:
         super: ScopeChild
+        doc: |
+            Container for child AST nodes forming a hierarchical scope.
+            
+            Base class for all AST nodes that can contain other nodes. Provides
+            the fundamental tree structure of the AST. Most PSS constructs that
+            use braces create a Scope.
+            
+            PSS Example::
+            
+                component my_comp {      // Creates Scope
+                    action a1 { }        // Nested Scope
+                    struct s1 { }        // Nested Scope
+                }
+            
+            Attributes:
+                endLocation: Source location of closing brace
+                children: List of child nodes in this scope
+                parent: Parent scope (inherited from ScopeChild)
+            
+            See Also:
+                ScopeChild, NamedScope, GlobalScope
         data:
-        - children: list<UP<ScopeChild>>
-        - symtab:
-            type: map<string,P<NamedScopeChild>>
+        - endLocation:
+            type: Location
             is_ctor: false
+        - children: list<UP<ScopeChild>>
 
     - ScopeChild:
+        doc: |
+            Base class for most of the AST classes related to types
+            and structture. 
+
         data:
         - docstring:
           - type: string
@@ -37,27 +88,131 @@ classes:
             type: P<Scope>
             is_ctor: false
             init: 0
+            visit: false
         - index:
             type: int32_t
             is_ctor: false
             init: -1
+        - assocData:
+            type: UP<AssocData>
+            is_ctor: false
+        - annotations:
+            type: list<UP<Annotation>>
+            is_ctor: false
+
+    - ScopeChildRef:
+        super: ScopeChild
+        doc: |
+            Reference to another AST node, used for type aliases and forwards.
+            
+            Represents a symbolic reference that will be resolved during linking.
+            Used when one AST node needs to reference another without creating
+            a direct pointer.
+            
+            Attributes:
+                target: The referenced AST node
+            
+            See Also:
+                ScopeChild, FieldRef
+        data:
+        - target: P<ScopeChild>
             
     - GlobalScope:
         super: Scope
+        doc: |
+            Root scope representing a single source file.
+            
+            The top-level container for all PSS declarations in one compilation
+            unit. Each source file parsed creates one GlobalScope containing all
+            package declarations, imports, and top-level definitions.
+            
+            Attributes:
+                fileid: Unique identifier for this source file
+                filename: Path to the source file
+                children: All top-level declarations (inherited from Scope)
+            
+            See Also:
+                Scope, PackageScope
         data:
         - fileid: int32_t
+        - filename: 
+          - type: string
+          - is_ctor: false
+
     - NamedScope:
         super: Scope
+        doc: |
+            A scope with an identifier name.
+            
+            Base class for scopes that have a name, such as components, actions,
+            structs, and other named type declarations. The name is used for
+            symbol resolution and type references.
+            
+            PSS Example::
+            
+                component pss_top {    // NamedScope with name="pss_top"
+                    // ...
+                }
+            
+            Attributes:
+                name: Identifier expression containing the name
+            
+            See Also:
+                Scope, NamedScopeChild, TypeScope
         data:
         - name : UP<ExprId>
 
     - NamedScopeChild:
         super: ScopeChild
+        doc: |
+            An AST node with an identifier name that is a child of a scope.
+            
+            Base class for named declarations that aren't scopes themselves,
+            such as fields, enum items, and function parameters. The name is
+            used for symbol lookup within the parent scope.
+            
+            PSS Example::
+            
+                struct my_struct {
+                    int field1;        // NamedScopeChild with name="field1"
+                    bool field2;       // NamedScopeChild with name="field2"
+                }
+            
+            Attributes:
+                name: Identifier expression containing the name
+            
+            See Also:
+                ScopeChild, NamedScope, Field
         data:
         - name: UP<ExprId>
 
     - PackageScope:
         super: Scope
+        doc: |
+            PSS package scope for organizing and namespacing declarations.
+            
+            Represents a package declaration in PSS. Packages provide namespace
+            management and can be split across multiple files. Multiple package
+            declarations with the same name are merged together.
+            
+            PSS Example::
+            
+                package my_pkg {
+                    component C1 { }
+                    action A1 { }
+                }
+                
+                package my_pkg {       // Same package, merged with above
+                    action A2 { }
+                }
+            
+            Attributes:
+                id: Hierarchical package identifier (e.g., ["my", "pkg"])
+                sibling: Next package scope with the same name (for merging)
+                children: Package members (inherited from Scope)
+            
+            See Also:
+                Scope, PackageImportStmt
         data:
         - id: 
             type: list<UP<ExprId>>
@@ -69,37 +224,149 @@ classes:
 
     - PackageImportStmt:
         super: ScopeChild
+        doc: |
+            Import statement bringing package symbols into current scope.
+            
+            Imports types and declarations from another package. Can import
+            all symbols with wildcard or create an alias for qualified access.
+            
+            PSS Example::
+            
+                import other_pkg::*;              // Wildcard import
+                import other_pkg::MyAction;       // Single import
+                import other_pkg as op;           // Aliased import
+            
+            Attributes:
+                wildcard: True if using wildcard (::*)
+                alias: Optional alias name for the import
+                path: Type identifier for the imported package/symbol
+            
+            See Also:
+                PackageScope, TypeIdentifier
         data:
-        - path: list<UP<ExprId>>
         - wildcard: bool
         - alias: UP<ExprId>
+        - path: 
+          - type: UP<TypeIdentifier>
+          - is_ctor: false
+
+    - PyImportStmt:
+        super: ScopeChild
+        doc: |
+            Python import statement for embedded Python integration.
+            
+            Imports Python modules into PSS context. Allows PSS code to
+            access Python libraries and functions.
+            
+            PSS Example::
+            
+                python import os;
+                python import numpy as np;
+            
+            Attributes:
+                path: List of identifiers forming module path (e.g., ["os", "path"])
+                alias: Optional alias for the import
+            
+            See Also:
+                PyImportFromStmt
+        data:
+        - path: 
+            type: list<UP<ExprId>>
+            is_ctor: false
+        - alias:
+            type: UP<ExprId>
+            is_ctor: false
+    - PyImportFromStmt:
+        super: ScopeChild
+        doc: |
+            Python 'from...import' statement for selective imports.
+            
+            Imports specific symbols from a Python module into PSS context.
+            
+            PSS Example::
+            
+                python from os import path, environ;
+                python from numpy import array, matrix;
+            
+            Attributes:
+                path: Module path (e.g., ["os"])
+                targets: List of symbols to import (e.g., ["path", "environ"])
+            
+            See Also:
+                PyImportStmt
+        data:
+        - path: 
+            type: list<UP<ExprId>>
+            is_ctor: false
+        - targets:
+            type: list<UP<ExprId>>
+            is_ctor: false
 
     - Action:
         super: TypeScope
+        doc: |
+            Action declaration defining reusable behavior blocks.
+            
+            Actions are the fundamental unit of behavior in PSS. They encapsulate
+            data (fields), constraints, and activities (control flow). Actions can
+            be composed hierarchically and randomized according to constraints.
+            
+            PSS Example::
+            
+                action my_action {
+                    rand int addr;
+                    
+                    constraint {
+                        addr >= 0x1000;
+                        addr < 0x2000;
+                    }
+                    
+                    activity {
+                        do_read(addr);
+                    }
+                }
+            
+            Attributes:
+                is_abstract: True if declared as 'abstract action'
+                name: Action name (inherited from NamedScope)
+                super_t: Optional base action type (inherited from TypeScope)
+                children: Fields, constraints, activities (inherited from Scope)
+            
+            See Also:
+                Component, TypeScope, ActivityStmt
         data:
         - is_abstract: bool
+        - is_override:
+            type: bool
+            is_ctor: false
+            init: false
 
     - Component:
         super: TypeScope
+        doc: |
+            Component declaration defining test environment structure.
+            
+            Components represent the static structure of the test environment.
+            They contain actions, pools of resources, constraints, and other
+            components. Components form the containment hierarchy for actions.
+            
+            PSS Example::
+            
+                component pss_top {
+                    action my_action { }
+                    pool [16] my_action actions;
+                    
+                    bind actions *;
+                }
+            
+            Attributes:
+                name: Component name (inherited from NamedScope)
+                super_t: Optional base component type (inherited from TypeScope)
+                children: Actions, resources, pools, etc (inherited from Scope)
+            
+            See Also:
+                Action, TypeScope, Field
+        data: []
 
-    - Struct:
-        super: TypeScope
-
-    - Buffer:
-        super: Struct
-
-    - Resource:
-        super: Struct
-
-    - State:
-        super: Struct
-
-    - Stream:
-        super: Struct
-
-flags:
-    - FieldAttr:
-        - values:
-            - FieldAttr_Builtin
 
             

@@ -1,0 +1,47 @@
+classes:
+  - Annotation:
+      super: ScopeChild
+      doc: |
+          Applied annotation attached to a model element.
+
+          Represents an annotation use such as ``@desc("hello")`` or
+          ``@meta(name="foo")``. The annotation type is referenced by name and
+          the parameters preserve both positional and name-mapped arguments.
+
+          See Also:
+              AnnotationDecl, AnnotationParam
+      data:
+      - type:
+          type: UP<TypeIdentifier>
+      - parameters:
+          type: list<UP<AnnotationParam>>
+          is_ctor: false
+
+  - AnnotationParam:
+      super: ScopeChild
+      doc: |
+          Parameter to an applied annotation.
+
+          Positional parameters leave ``name`` unset. Name-mapped parameters set
+          ``name`` to the mapped field identifier.
+
+          See Also:
+              Annotation
+      data:
+      - name:
+          type: UP<ExprId>
+          is_ctor: false
+      - value:
+          type: UP<Expr>
+
+  - AnnotationDecl:
+      super: TypeScope
+      doc: |
+          Annotation type declaration.
+
+          Represents a PSS 3.1 ``annotation`` declaration, including optional
+          template parameters, inheritance, and body fields.
+
+          See Also:
+              Annotation, ExtendType
+      data: []

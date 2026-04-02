@@ -1,53 +1,362 @@
 
 enums:
   - TypeCategory:
-    - Action
-    - Component
-    - Buffer
-    - Resource
-    - State
-    - Stream
+    - Action      # Action type category for action-related templates
+    - Component   # Component type category for component-related templates
+    - Buffer      # Buffer type category for buffer-related templates
+    - Resource    # Resource type category for resource-related templates
+    - State       # State type category for state-related templates
+    - Stream      # Stream type category for stream-related templates
+    - Struct      # Struct type category for struct-related templates
 
 classes:
 
   - TemplateParamDeclList:
+      doc: |
+        Container for a list of template parameter declarations.
+        
+        This class holds all template parameters for a parameterized type or function
+        declaration. Template parameters can be type parameters (generic or category-
+        constrained) or value parameters. The specialized flag indicates whether this
+        is a specialized instantiation of a template.
+        
+        PSS Example::
+        
+            // Template with multiple parameters
+            action multi_param<T, int N, U: resource> {
+                rand T value;
+                int array[N];
+                U resource_inst;
+            }
+            
+            // The parameter list contains: T (generic), N (value), U (category)
+        
+        Attributes:
+            params: List of template parameter declarations
+            specialized: True if this represents a specialized template instantiation
+        
+        See Also:
+            TemplateParamDecl, TemplateGenericTypeParamDecl, TemplateCategoryTypeParamDecl,
+            TemplateValueParamDecl
       data:
       - params: list<UP<TemplateParamDecl>>
+      - specialized:
+          type: bool
+          init: false
+          is_ctor: false
   
   - TemplateParamDecl:
+      super: ScopeChild
+      doc: |
+        Base class for template parameter declarations.
+        
+        Template parameters allow types and functions to be parameterized, enabling
+        generic programming in PSS. This abstract base class provides the common name
+        field shared by all template parameter types (generic type, category-constrained
+        type, and value parameters).
+        
+        PSS Example::
+        
+            // Generic type parameter T
+            action generic<T> {
+                rand T value;
+            }
+            
+            // Value parameter N
+            action sized<int N> {
+                int array[N];
+            }
+            
+            // Category-constrained parameter T
+            component container<T: action> {
+                T inst;
+            }
+        
+        Attributes:
+            name: Identifier for the template parameter
+        
+        See Also:
+            TemplateGenericTypeParamDecl, TemplateCategoryTypeParamDecl,
+            TemplateValueParamDecl, TemplateParamDeclList
       data:
       - name: UP<ExprId>
 
   - TemplateGenericTypeParamDecl:
       super: TemplateParamDecl
+      doc: |
+        Generic type template parameter declaration.
+        
+        Declares a template type parameter without category constraints. The parameter
+        can be instantiated with any data type (built-in types, user-defined types,
+        etc.). An optional default type can be specified for cases where the template
+        is instantiated without explicit type arguments.
+        
+        PSS Example::
+        
+            // Generic type parameter without default
+            action generic_action<T> {
+                rand T value;
+                
+                exec body {
+                    // T can be any type
+                }
+            }
+            
+            // Generic type parameter with default
+            struct generic_struct<T = bit<32>> {
+                T data;
+            }
+            
+            // Instantiation examples
+            generic_action<bit<8>> byte_action;
+            generic_action<int<32>> int_action;
+            generic_struct<> default_struct;  // Uses bit<32>
+        
+        Attributes:
+            name: Identifier for the type parameter (inherited)
+            dflt: Optional default type if not specified during instantiation
+        
+        See Also:
+            TemplateCategoryTypeParamDecl, TemplateParamDecl, DataType
       data:
-      - dflt: UP<TypeIdentifier>
+      - dflt: UP<DataType>
 
   - TemplateCategoryTypeParamDecl:
       super: TemplateParamDecl
+      doc: |
+        Category-constrained type template parameter declaration.
+        
+        Declares a template type parameter constrained to a specific type category
+        (action, component, buffer, resource, state, stream, or struct). This ensures
+        type safety by restricting template instantiation to compatible types. An
+        optional restriction can further narrow the accepted types to a specific base
+        type or interface, and a default type can be provided.
+        
+        PSS Example::
+        
+            // Action category constraint
+            component action_container<T: action> {
+                T action_inst;
+                
+                activity {
+                    do action_inst;
+                }
+            }
+            
+            // Resource category constraint with default
+            action resource_user<R: resource = my_resource_t> {
+                lock R resource_lock;
+            }
+            
+            // Component category constraint
+            component comp_wrapper<C: component> {
+                C wrapped_comp;
+            }
+            
+            // Instantiation examples
+            action_container<my_action_t> container;
+            resource_user<custom_resource_t> user;
+            resource_user<> default_user;  // Uses my_resource_t
+        
+        Attributes:
+            name: Identifier for the type parameter (inherited)
+            category: Required type category (Action, Component, etc.)
+            restriction: Optional base type or interface that must be satisfied
+            dflt: Optional default type if not specified during instantiation
+        
+        See Also:
+            TemplateGenericTypeParamDecl, TypeCategory, TypeIdentifier
       data:
       - category: TypeCategory
       - restriction: UP<TypeIdentifier>
-      - dflt: UP<TypeIdentifier>
+      - dflt: UP<DataType>
 
   - TemplateValueParamDecl:
       super: TemplateParamDecl
+      doc: |
+        Value template parameter declaration.
+        
+        Declares a template parameter that accepts a compile-time constant value rather
+        than a type. Value parameters must have a specific data type (typically integer
+        types) and can have optional default values. These are commonly used for array
+        sizes, repetition counts, and other compile-time configuration values.
+        
+        PSS Example::
+        
+            // Value parameter for array size
+            struct fixed_array<int N> {
+                bit<8> data[N];
+            }
+            
+            // Multiple value parameters with defaults
+            action repeated<int COUNT = 10, int WIDTH = 32> {
+                bit<WIDTH> values[COUNT];
+                
+                exec body {
+                    repeat (COUNT) {
+                        // Process each value
+                    }
+                }
+            }
+            
+            // Mixed type and value parameters
+            action generic_sized<T, int SIZE> {
+                T array[SIZE];
+            }
+            
+            // Instantiation examples
+            fixed_array<16> arr16;
+            repeated<5, 64> custom;
+            repeated<> default_repeated;  // Uses COUNT=10, WIDTH=32
+            generic_sized<bit<8>, 32> byte_array;
+        
+        Attributes:
+            name: Identifier for the value parameter (inherited)
+            type: Data type of the parameter (e.g., int, bool)
+            dflt: Optional default value expression
+        
+        See Also:
+            TemplateGenericTypeParamDecl, TemplateParamExprValue, DataType
       data:
+      - type: UP<DataType>
       - dflt: UP<Expr>
 
   - TemplateParamValueList:
+      doc: |
+        Container for a list of template parameter values for instantiation.
+        
+        This class holds the actual arguments provided when instantiating a template.
+        The values correspond to the template parameters declared in the template
+        definition and can be either type values or expression values.
+        
+        PSS Example::
+        
+            // Template declaration
+            action multi_param<T, int N, U: resource> {
+                rand T value;
+                int array[N];
+                lock U resource_inst;
+            }
+            
+            // Template instantiation
+            multi_param<bit<16>, 8, my_resource_t> inst;
+            // Value list contains: bit<16> (type), 8 (expr), my_resource_t (type)
+        
+        Attributes:
+            values: List of template parameter values (types and expressions)
+        
+        See Also:
+            TemplateParamValue, TemplateParamTypeValue, TemplateParamExprValue,
+            TemplateParamDeclList
       data:
       - values: list<UP<TemplateParamValue>>
   
   - TemplateParamValue:
+      doc: |
+        Base class for template parameter values used in instantiation.
+        
+        This abstract base class represents a value provided when instantiating a
+        template. Template parameter values can be either types (for type parameters)
+        or expressions (for value parameters). The concrete subclasses specify which
+        kind of value is being provided.
+        
+        PSS Example::
+        
+            // Template with multiple parameter types
+            action example<T, int N> {
+                T value;
+                int array[N];
+            }
+            
+            // Instantiation provides parameter values
+            example<bit<32>, 10> inst;
+            // First value: bit<32> (TemplateParamTypeValue)
+            // Second value: 10 (TemplateParamExprValue)
+        
+        See Also:
+            TemplateParamTypeValue, TemplateParamExprValue, TemplateParamValueList
 
   - TemplateParamTypeValue:
+      super: TemplateParamValue
+      doc: |
+        Type value for template instantiation.
+        
+        Represents a type argument provided when instantiating a template. This is used
+        to fill in type parameters (both generic and category-constrained) with concrete
+        types. The value must be a valid data type expression that satisfies any
+        constraints specified in the template parameter declaration.
+        
+        PSS Example::
+        
+            // Template with type parameters
+            action generic<T, U: action> {
+                rand T data;
+                U action_inst;
+            }
+            
+            // Instantiation with type values
+            generic<bit<16>, my_action_t> inst;
+            // First parameter value: bit<16> (built-in type)
+            // Second parameter value: my_action_t (user-defined action type)
+            
+            // Complex type as parameter value
+            struct nested_struct<T> {
+                T value;
+            }
+            generic<nested_struct<int<32>>, other_action_t> complex_inst;
+        
+        Attributes:
+            value: The type being provided as the template argument
+        
+        See Also:
+            TemplateParamValue, TemplateParamExprValue, DataType,
+            TemplateGenericTypeParamDecl, TemplateCategoryTypeParamDecl
       data:
-      - value: UP<TypeIdentifier>
+        - value: UP<DataType>
 
   - TemplateParamExprValue:
+      super: TemplateParamValue
+      doc: |
+        Expression value for template instantiation.
+        
+        Represents a compile-time constant expression provided when instantiating a
+        template. This is used to fill in value parameters with concrete values. The
+        expression must be evaluable at compile time and must match the type specified
+        in the corresponding value parameter declaration.
+        
+        PSS Example::
+        
+            // Template with value parameters
+            action sized<int N, int WIDTH> {
+                bit<WIDTH> array[N];
+            }
+            
+            // Instantiation with expression values
+            sized<16, 8> inst1;  // Literal expressions
+            
+            // Using constants as expression values
+            const int BUFFER_SIZE = 32;
+            const int DATA_WIDTH = 64;
+            sized<BUFFER_SIZE, DATA_WIDTH> inst2;
+            
+            // Expressions can be computed
+            sized<8*4, 2+6> inst3;  // 32 elements, 8 bits wide
+            
+            // Mixed type and expression values
+            action mixed<T, int COUNT> {
+                T values[COUNT];
+            }
+            mixed<bit<32>, 10> mixed_inst;
+            // First value: bit<32> (TemplateParamTypeValue)
+            // Second value: 10 (TemplateParamExprValue)
+        
+        Attributes:
+            value: The compile-time constant expression
+        
+        See Also:
+            TemplateParamValue, TemplateParamTypeValue, Expr, TemplateValueParamDecl
       data:
-      - value: UP<Expr>
+        - value: UP<Expr>
 
 
         

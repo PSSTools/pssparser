@@ -12,16 +12,17 @@
 
 namespace pssp {
 
+
+
 class RefExprUtil {
 public:
 	RefExprUtil();
 
 	virtual ~RefExprUtil();
 
-	static ast::IRefExprTypeScopeGlobalSP mkTypeScopeGlobal(int32_t fileid);
+//	static ast::IRefExprTypeScopeGlobalSP mkTypeScopeGlobal(int32_t fileid);
 
-	static ast::IRefExprScopeIndexSP mkScopeIndex(ast::IRefExprSP base, int32_t index);
+//	static ast::IRefExprScopeIndexSP mkScopeIndex(ast::IRefExprSP base, int32_t index);
 };
 
-} /* namespace pssp */
-
+}

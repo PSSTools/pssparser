@@ -1,0 +1,34 @@
+
+package executor_pkg {
+    import addr_reg_pkg::*;
+    
+    struct executor_trait_s {};
+
+    struct empty_executor_trait_s : executor_trait_s {};
+
+    component executor_base_c {};
+
+    component executor_c<
+        struct TRAIT : executor_trait_s = empty_executor_trait_s> : executor_base_c {
+        TRAIT trait;
+    };
+
+    component executor_group_c<
+        struct TRAIT : executor_trait_s = empty_executor_trait_s> {
+
+// TODO:       function void add_executor(ref executor_c<TRAIT> exe);
+        function void add_executor(executor_base_c exe);
+    };
+
+    component executor_group_default_c {
+        function void add_executor(executor_base_c exe);
+    }
+
+    struct executor_claim_s<
+        struct TRAIT : executor_trait_s = empty_executor_trait_s> {
+        rand TRAIT trait;
+    };
+
+    function ref executor_base_c executor();
+
+}

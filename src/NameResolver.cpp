@@ -4,18 +4,20 @@
  *  Created on: Oct 29, 2020
  *      Author: ballance
  */
-
+#include "dmgr/impl/DebugMacros.h"
 #include "NameResolver.h"
 #include "RefExprUtil.h"
-#include "ScopeUtil.h"
+#include "TaskCollectDeclarations.h"
 
 namespace pssp {
 
+
+
 NameResolver::NameResolver(
-		IMarkerListener							*marker_l,
-		const std::vector<ast::IGlobalScope *>	&context) :
-			m_marker_l(marker_l), m_context(context), m_phase(0) {
-	// TODO Auto-generated constructor stub
+		IFactory								*factory,
+		IMarkerListener							*marker_l) :
+			m_factory(factory), m_marker_l(marker_l), m_phase(0) {
+    DEBUG_INIT("NameResolver", factory->getDebugMgr());
 
 }
 
@@ -23,7 +25,20 @@ NameResolver::~NameResolver() {
 	// TODO Auto-generated destructor stub
 }
 
-void NameResolver::resolve(const std::vector<ast::IGlobalScope *> &target) {
+void NameResolver::resolve(ast::ISymbolScope *root) {
+	DEBUG_ENTER("resolve");
+
+	// First, collect the declarations
+//	TaskCollectDeclarations(m_marker_l, m_symtab).collect(root);
+
+	m_sym_it_s.push_back(ISymbolTableIteratorUP(
+		m_factory->mkAstSymbolTableIterator(root)));
+
+	root->accept(this);
+
+	m_sym_it_s.pop_back();
+
+	/*
 	m_phase = 0;
 	for (std::vector<ast::IGlobalScope *>::const_iterator
 			it=target.begin(); it!=target.end(); it++) {
@@ -35,48 +50,160 @@ void NameResolver::resolve(const std::vector<ast::IGlobalScope *> &target) {
 			it=target.begin(); it!=target.end(); it++) {
 		(*it)->accept(this);
 	}
+	 */
+	DEBUG_LEAVE("resolve");
+}
+
+void NameResolver::visitPackageScope(ast::IPackageScope *i) {
+	DEBUG_ENTER("visitPackage %s", i->getId().at(0)->getId().c_str());
+	// A
+	if (!sym_it()->pushNamedScope(i->getId().at(0)->getId())) {
+		// TODO: internal error
+		fprintf(stdout, "Error: Failed to find package scope %s\n",
+			i->getId().at(0)->getId().c_str());
+	}
+
+	for (std::vector<ast::IScopeChildUP>::const_iterator
+		it=i->getChildren().begin();
+		it!=i->getChildren().end(); it++) {
+		(*it)->accept(this);
+	}
+
+	sym_it()->popScope();
+
+	DEBUG_LEAVE("visitPackage %s", i->getId().at(0)->getId().c_str());
+}
+
+void NameResolver::visitComponent(ast::IComponent *i) {
+	DEBUG_ENTER("visitComponent %s", i->getName()->getId().c_str());
+	if (!sym_it()->pushNamedScope(i->getName()->getId())) {
+		// TODO: internal error
+		fprintf(stdout, "Error: Failed to find component scope %s\n",
+			i->getName()->getId().c_str());
+	}
+
+	for (std::vector<ast::IScopeChildUP>::const_iterator
+		it=i->getChildren().begin();
+		it!=i->getChildren().end(); it++) {
+		(*it)->accept(this);
+	}
+
+	sym_it()->popScope();
+	DEBUG_LEAVE("visitComponent %s", i->getName()->getId().c_str());
+}
+
+void NameResolver::visitExprRefPathId(ast::IExprRefPathId *i) {
+    DEBUG_ENTER("visitExprRefPathId");
+
+    DEBUG_LEAVE("visitExprRefPathId");
+}
+
+void NameResolver::visitEnumDecl(ast::IEnumDecl *i) {
+	if (!sym_it()->pushNamedScope(i->getName()->getId())) {
+		// TODO: internal error
+		fprintf(stdout, "Error: Failed to find enum scope %s\n",
+			i->getName()->getId().c_str());
+	}
+
+	for (std::vector<ast::IEnumItemUP>::const_iterator
+		it=i->getItems().begin();
+		it!=i->getItems().end(); it++) {
+		(*it)->accept(this);
+	}
+
+	sym_it()->popScope();
+}
+
+void NameResolver::visitStruct(ast::IStruct *i) {
+	if (!sym_it()->pushNamedScope(i->getName()->getId())) {
+		// TODO: internal error
+		fprintf(stdout, "Error");
+	}
+
+	for (std::vector<ast::IScopeChildUP>::const_iterator
+		it=i->getChildren().begin();
+		it!=i->getChildren().end(); it++) {
+		(*it)->accept(this);
+	}
+
+	sym_it()->popScope();
+}
+
+void NameResolver::visitSymbolScope(ast::ISymbolScope *i) {
+	DEBUG_ENTER("visitSymbolScope");
+
+	m_sym_it_s.back()->pushNamedScope(i->getName());
+	for (std::vector<ast::IScopeChildUP>::const_iterator
+		it=i->getChildren().begin();
+		it!=i->getChildren().end(); it++) {
+		it->get()->accept(this);
+	}
+	m_sym_it_s.back()->popScope();
+
+	DEBUG_LEAVE("visitSymbolScope");
+}
+
+void NameResolver::visitSymbolTypeScope(ast::ISymbolTypeScope *i) {
+	DEBUG_ENTER("visitSymbolTypeScope");
+
+	m_sym_it_s.back()->pushNamedScope(i->getName());
+	for (std::vector<ast::IScopeChildUP>::const_iterator
+		it=i->getChildren().begin();
+		it!=i->getChildren().end(); it++) {
+		it->get()->accept(this);
+	}
+	m_sym_it_s.back()->popScope();
+
+	DEBUG_LEAVE("visitSymbolTypeScope");
 }
 
 void NameResolver::visitDataTypeUserDefined(ast::IDataTypeUserDefined *i) {
-	ast::INamedScopeChild 	*root;
-	ast::IRefExprSP 			ref;
+	DEBUG_ENTER("visitDataTypeUserDefined");
+	// ISymbolTableIteratorUP it(sym_it()->clone());
 
-	// First, find the root
-	ast::ITypeIdentifierElem *elem = i->getElems().at(0).get();
-	if (i->getIs_global()) {
-		// Search for the root element across the context
-		for (std::vector<ast::IGlobalScope *>::const_iterator
-				it=m_context.begin(); it!=m_context.end(); it++) {
-			if ((root=ScopeUtil::findChild(*it, elem->getId()->getId()))) {
-				ref = RefExprUtil::mkScopeIndex(
-						RefExprUtil::mkTypeScopeGlobal((*it)->getFileid()),
-						root->getIndex());
-				break;
-			}
-		}
-	} else {
-		// Search for the root element up the type-scope stack
-		for (int32_t i=m_scopes.size()-1; i>=0; i--) {
-			ast::IScope *s = m_scopes.at(i);
+	// // Find the first element
 
-			if ((root=ScopeUtil::findChild(s, elem->getId()->getId()))) {
+	// fprintf(stdout, "Searching for %s\n", i->getElems().at(0)->getId()->getId().c_str());
+	// for (std::vector<ast::ITypeIdentifierElemUP>::const_iterator
+	// 	ti_it=i->getElems().begin();
+	// 	ti_it!=i->getElems().end(); ti_it++) {
 
-			}
-		}
-	}
+	// 	if (ti_it == i->getElems().begin()) {
+	// 		bool found = false;
 
-	if (!root) {
-		// TODO: error
-		return;
-	}
+	// 		while (it->hasScopes()) {
+	// 			if (it->pushNamedScope((*ti_it)->getId()->getId())) {
+	// 				fprintf(stdout, "Found!\n");
+	// 				found = true;
+	// 				break;
+	// 			} else {
+	// 				fprintf(stdout, "Uplevel\n");
+	// 				it->popScope();
+	// 			}
+	// 		}
 
-	// Now, continue resolving relative to root if there are
-	// additional elements
-	if (i->getElems().size() > 1) {
+	// 		if (!found) {
+	// 			fprintf(stdout, "Error: Failed to find first type elem %s\n",
+	// 				i->getElems().at(0)->getId()->getId().c_str());
+	// 			return;
+	// 		}
+	// 	} else {
+	// 		if (it->pushNamedScope((*ti_it)->getId()->getId())) {
+	// 			fprintf(stdout, "... found\n");
+	// 		} else {
+	// 			fprintf(stdout, "... failed to find subsequent element\n");
+	// 			break;
+	// 		}
+	// 	}
+	// }
 
-	} else {
-		// Done
-	}
+	DEBUG_LEAVE("visitDataTypeUserDefined");
 }
 
-} /* namespace pssp */
+ISymbolTableIterator *NameResolver::sym_it() const {
+	return (m_sym_it_s.size() > 0)?m_sym_it_s.back().get():0;
+}
+
+dmgr::IDebug *NameResolver::m_dbg = 0;
+
+}

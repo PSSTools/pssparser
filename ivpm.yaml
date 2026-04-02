@@ -9,25 +9,35 @@ package:
 
   dep-sets:
   - name: default-dev
-    deps: 
+    deps:
     - name: antlr4-tools.jar
-      url: https://www.antlr.org/download/antlr-4.8-complete.jar
+      url: https://www.antlr.org/download/antlr-4.13.2-complete.jar
     - name: antlr4-cpp-runtime
-      url: https://www.antlr.org/download/antlr4-cpp-runtime-4.8-source.zip
-    - name: gtest
-      url: https://github.com/google/googletest/archive/release-1.10.0.tar.gz
+      url: https://www.antlr.org/download/antlr4-cpp-runtime-4.13.2-source.zip
     - name: pyastbuilder
       url: https://github.com/mballance/pyastbuilder.git
-    - name: toposort
-      src: pypi
     - name: ciostream
+      src: pypi
+    - name: debug-mgr
+      src: pypi
+    - name: pytest
+      src: pypi
+    - name: toposort
       src: pypi
     - name: ninja
       src: pypi
     - name: cython
       src: pypi
+
   - name: default
-    deps: []
-
-
-
+    deps:
+    - name: ciostream
+      url: https://github.com/mballance-utils/ciostream.git
+    - name: pyastbuilder
+      url: https://github.com/mballance/pyastbuilder.git
+    - name: antlr4-tools.jar
+      url: https://www.antlr.org/download/antlr-4.13.2-complete.jar
+    - name: antlr4-cpp-runtime
+      url: https://www.antlr.org/download/antlr4-cpp-runtime-4.13.2-source.zip
+    - name: debug-mgr
+      src: pypi

@@ -10,16 +10,20 @@ ExternalProject_Add(GTEST
 	  -DBUILD_SHARED_LIBS:BOOL=${BUILD_SHARED_LIBS}
     )
 
-file(GLOB TEST_SRCS 
-	"src/*.cpp" 
+file(GLOB TEST_SRCS
+	"src/*.cpp"
 	"src/*.h")
+
+set(CMAKE_INSTALL_RPATH $ORIGIN/../lib)
 
 link_directories(
 	${CMAKE_BINARY_DIR}/gtest/lib
 	${CMAKE_BINARY_DIR}/gtest/lib64
-	${CMAKE_BINARY_DIR}/antlr4/lib
-	${CMAKE_BINARY_DIR}/pssparser
-	${CMAKE_BINARY_DIR}/pssast/lib
+	${CMAKE_BINARY_DIR}/lib
+	${CMAKE_BINARY_DIR}/lib64
+	${CMAKE_BINARY_DIR}/src
+	${CMAKE_BINARY_DIR}/pssparser_ast/lib
+    "${debug_mgr_LIBDIR}"
 	)
 
 set(CompilerFlags
@@ -48,19 +52,26 @@ target_include_directories(pssparser_testmain PRIVATE
 	${CMAKE_BINARY_DIR}
 	${CMAKE_BINARY_DIR}/gtest/include
 	${PACKAGES_DIR}/gtest/googletest/include
-	${CMAKE_BINARY_DIR}/pssast/src/include
+	${CMAKE_BINARY_DIR}/pssparser_ast/src/include
 	${CMAKE_CURRENT_SOURCE_DIR}/../src
 	${CMAKE_CURRENT_SOURCE_DIR}/../src/include
+    "${debug_mgr_INCDIR}"
 )
 
 message(STATUS "CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     message(STATUS "Taking debug libs")
-    list(APPEND PSSPARSER_TESTMAIN_LIBS gtestd gtest_maind pssparser pssast)
+    if (WIN32)
+        list(APPEND PSSPARSER_TESTMAIN_LIBS gtestd gtest_maind)
+    else()
+        list(APPEND PSSPARSER_TESTMAIN_LIBS gtest gtest_main)
+    endif()
 else()
     message(STATUS "Taking release libs")
-    list(APPEND PSSPARSER_TESTMAIN_LIBS gtest gtest_main pssparser pssast)
+    list(APPEND PSSPARSER_TESTMAIN_LIBS gtest gtest_main)
 endif()
+
+list(APPEND PSSPARSER_TESTMAIN_LIBS pssparser ast debug-mgr)
 
 if (WIN32)
 	if (BUILD_SHARED_LIBS)
@@ -72,12 +83,8 @@ else()
 	list(APPEND PSSPARSER_TESTMAIN_LIBS antlr4-runtime pthread)
 endif()
 
-
-
 target_link_libraries(pssparser_testmain ${PSSPARSER_TESTMAIN_LIBS})
 
 add_test(
 	NAME unit
 	COMMAND ${CMAKE_BINARY_DIR}/tests/pssparser_testmain)
-
-

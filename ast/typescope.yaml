@@ -2,11 +2,41 @@
 classes:
   - TypeScope:
       super: NamedScope
+      doc: |
+          Base class for named type declarations (actions, components, structs).
+          
+          Represents PSS types that can be parameterized with templates,
+          extended through inheritance, and used in type references. Provides
+          common infrastructure for type system features.
+          
+          PSS Example::
+          
+              component my_comp : base_comp {     // TypeScope with super_t
+                  // ...
+              }
+              
+              action my_action<T> {               // TypeScope with params
+                  // ...
+              }
+          
+          Attributes:
+              name: Type name (inherited from NamedScope)
+              super_t: Optional base type for inheritance
+              params: Template parameter declarations
+              opaque: True if type body is hidden (forward declaration)
+          
+          See Also:
+              Action, Component, Struct, NamedScope
       data:
       - super_t : UP<TypeIdentifier>
       - params:
           type: UP<TemplateParamDeclList>
           is_ctor: false
+      - opaque:
+          type: bool
+          is_ctor: false
+          init: false
+
   
 
 
