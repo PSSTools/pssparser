@@ -14,6 +14,8 @@ package:
       url: https://www.antlr.org/download/antlr-4.13.2-complete.jar
     - name: antlr4-cpp-runtime
       url: https://www.antlr.org/download/antlr4-cpp-runtime-4.13.2-source.zip
+    - name: gtest
+      url: https://github.com/google/googletest/archive/release-1.10.0.tar.gz
     - name: pyastbuilder
       url: https://github.com/mballance/pyastbuilder.git
     - name: ciostream
