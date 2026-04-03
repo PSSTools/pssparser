@@ -106,6 +106,13 @@ cdef class Factory(object):
             if not os.path.isfile(core_lib):
                 raise Exception("Extension library core \"%s\" doesn't exist" % core_lib)
 
+            # On macOS, preload antlr4 runtime from the same directory so that
+            # libpssparser.dylib and libast.dylib can find it (RPATH $ORIGIN is Linux-only).
+            if sys.platform == 'darwin':
+                import glob as _glob
+                for _al in _glob.glob(os.path.join(os.path.dirname(core_lib), 'libantlr4-runtime*.dylib')):
+                    ctypes.cdll.LoadLibrary(_al)
+
             # Workaround: debug_mgr.core.Factory.inst() looks for 'libdebug-mgr.so'
             # but some platform wheels (e.g. Windows) ship 'debug-mgr.dll' instead.
             # Create an alias so the load succeeds.
