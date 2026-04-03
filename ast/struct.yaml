@@ -1,0 +1,52 @@
+
+enums:
+- StructKind:
+  - Buffer     # Memory buffer (PSS 2.1+)
+  - Struct     # Data structure
+  - Resource   # Shared resource
+  - Stream     # Data stream (PSS 2.1+)
+  - State      # State object (PSS 2.1+)
+
+classes:
+- Struct:
+    super: TypeScope
+    doc: |
+        Structured data type declaration (struct/buffer/stream/state/resource).
+        
+        Represents various structured data containers in PSS. The 'kind' field
+        determines the specific semantics: plain data struct, memory buffer,
+        data stream, state object, or shared resource.
+        
+        PSS Example::
+        
+            struct packet_s {
+                int<8> header;
+                int<32> payload;
+            }
+            
+            buffer dma_buf_t {
+                int<8> data[1024];
+            }
+            
+            resource bus_t {
+                int bandwidth;
+            }
+            
+            stream data_stream_t {
+                int<16> samples;
+            }
+            
+            state session_state_t {
+                bool connected;
+            }
+        
+        Attributes:
+            name: Type name (inherited from NamedScope via TypeScope)
+            kind: Structure kind (StructKind enum)
+            super_t: Optional base type (inherited from TypeScope)
+            children: Field declarations (inherited from Scope)
+        
+        See Also:
+            StructKind, TypeScope, Field
+    data:
+    - kind: StructKind

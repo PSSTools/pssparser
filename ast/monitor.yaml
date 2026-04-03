@@ -1,0 +1,962 @@
+#****************************************************************************
+#* monitor.yaml
+#*
+#* AST structures for PSS 3.0 monitor constructs
+#****************************************************************************
+
+classes:
+  # Monitor type declaration (similar to Action/Component/Struct)
+  - Monitor:
+      super: TypeScope
+      doc: |
+          Declares a PSS 3.0 monitor type for temporal property verification.
+          
+          Monitor represents a PSS 3.0 monitor type declaration that defines temporal
+          properties and sequences to be verified during execution. Monitors contain
+          activity blocks that specify sequences of events, temporal operators, and
+          coverage collection. Unlike actions, monitors observe behavior without
+          affecting execution flow. Note these are PSS 3.0 features.
+          
+          PSS Example::
+          
+              monitor protocol_check {
+                  activity {
+                      req ##1 ack;              // Request followed by ack
+                      eventually gnt;           // Grant must occur
+                  }
+              }
+              
+              monitor bus_monitor {
+                  activity {
+                      sequence {
+                          addr_phase;
+                          data_phase;
+                      }
+                  }
+              }
+              
+              abstract monitor base_monitor {
+                  // Can be extended
+              }
+          
+          Attributes:
+              is_abstract: True if this is an abstract monitor declaration
+          
+          See Also:
+              MonitorActivityDecl, MonitorActivityStmt, Action
+      data:
+      - is_abstract:
+          type: bool
+          is_ctor: false
+          init: false
+
+  # Base class for monitor activity statements
+  - MonitorActivityStmt:
+      super: ScopeChild
+      doc: |
+          Base class for all monitor activity statements.
+          
+          MonitorActivityStmt is the abstract base class for all statements that can
+          appear within a monitor's activity block. Monitor activity statements define
+          temporal sequences, property assertions, and coverage collection patterns.
+          They use temporal operators like concatenation (##), eventually, and overlap
+          to specify time-based relationships. Note these are PSS 3.0 features.
+          
+          PSS Example::
+          
+              monitor protocol_monitor {
+                  activity {
+                      // Various MonitorActivityStmt subclasses
+                      req ##1 ack;                  // Concat
+                      eventually grant;             // Eventually
+                      repeat(3) data_phase;         // Repeat
+                      sequence { start; end; }      // Sequence
+                      if (mode == 0) fast; else slow;  // IfElse
+                  }
+              }
+          
+          Attributes:
+              (base class - no specific attributes)
+          
+          See Also:
+              MonitorActivityDecl, MonitorActivityConcat, MonitorActivityEventually,
+              MonitorActivitySequence
+
+  # Monitor activity declarations (similar to ActivityDecl)
+  - MonitorActivityDecl:
+      super: SymbolScope
+      doc: |
+          Declares an activity block within a monitor.
+          
+          MonitorActivityDecl represents the declaration of an activity block that
+          defines the temporal behavior to be monitored. It serves as a symbol scope
+          containing monitor activity statements that specify temporal sequences,
+          properties, and coverage. Unlike action activities, monitor activities
+          observe execution patterns. Note these are PSS 3.0 features.
+          
+          PSS Example::
+          
+              monitor handshake_check {
+                  activity {
+                      // Temporal sequence monitoring
+                      req ##1 ack;
+                      eventually done;
+                      
+                      // Coverage collection
+                      cover { req ##1 ack; }
+                  }
+              }
+              
+              monitor bus_protocol {
+                  activity {
+                      sequence {
+                          addr_valid;
+                          ##[1:3] data_valid;
+                      }
+                  }
+              }
+          
+          Attributes:
+              (inherits symbol scope capabilities)
+          
+          See Also:
+              MonitorActivityStmt, Monitor, ActivityDecl
+
+  # Sequence block for monitor activities
+  - MonitorActivitySequence:
+      super: SymbolScope
+      doc: |
+          Defines a sequential monitoring block.
+          
+          MonitorActivitySequence specifies that its contained monitor activities
+          execute in strict sequential order. Each monitored event or property must
+          be observed before the next is checked. This is used to group temporal
+          patterns that must occur in sequence. Note these are PSS 3.0 features.
+          
+          PSS Example::
+          
+              monitor transaction_check {
+                  activity {
+                      // Explicit sequence
+                      sequence {
+                          start_phase;
+                          data_phase;
+                          end_phase;
+                      }
+                      
+                      // Labeled sequence for reference
+                      setup: sequence {
+                          config_valid;
+                          ##1 config_ack;
+                      }
+                      
+                      // Nested sequences
+                      sequence {
+                          init;
+                          sequence {
+                              req ##1 ack;
+                              eventually done;
+                          }
+                      }
+                  }
+              }
+          
+          Attributes:
+              label: Optional identifier expression for the sequence label
+          
+          See Also:
+              MonitorActivityStmt, MonitorActivitySchedule, ActivitySequence
+      data:
+      - label:
+          type: UP<ExprId>
+          is_ctor: false
+
+  # Temporal concatenation operator (##)
+  - MonitorActivityConcat:
+      super: MonitorActivityStmt
+      doc: |
+          Temporal concatenation operator for sequential event monitoring.
+          
+          MonitorActivityConcat represents the temporal concatenation operator (##)
+          that specifies two monitor activities must occur in sequence, with optional
+          cycle delay between them. The left-hand side must complete before the
+          right-hand side is checked. This is the fundamental temporal operator for
+          building time-based sequences. Note these are PSS 3.0 features.
+          
+          PSS Example::
+          
+              monitor protocol_monitor {
+                  activity {
+                      // Immediate concatenation
+                      req ##0 ack;              // req and ack in same cycle
+                      
+                      // Fixed delay
+                      start ##1 data;           // start, then 1 cycle, then data
+                      req ##3 grant;            // req, then 3 cycles, then grant
+                      
+                      // Chained concatenation
+                      phase1 ##1 phase2 ##1 phase3;
+                      
+                      // Complex expressions
+                      (a || b) ##2 (c && d);
+                  }
+              }
+          
+          Attributes:
+              lhs: Left-hand side monitor activity (occurs first)
+              rhs: Right-hand side monitor activity (occurs after delay)
+          
+          See Also:
+              MonitorActivityOverlap, MonitorActivitySequence, MonitorActivityEventually
+      data:
+      - lhs: UP<MonitorActivityStmt>
+      - rhs: UP<MonitorActivityStmt>
+
+  # Eventually construct
+  - MonitorActivityEventually:
+      super: MonitorActivityStmt
+      doc: |
+          Eventually operator for temporal property checking.
+          
+          MonitorActivityEventually specifies that a condition or monitor activity
+          must eventually become true at some point in the future. Unlike concatenation
+          which requires fixed timing, eventually allows any amount of time to pass
+          before the property holds. This is used for liveness properties and
+          non-deterministic timing. Note these are PSS 3.0 features.
+          
+          PSS Example::
+          
+              monitor liveness_check {
+                  activity {
+                      // Basic eventually
+                      eventually grant;         // grant must occur sometime
+                      
+                      // Eventually with condition
+                      eventually (status == DONE);
+                      
+                      // Combined with sequences
+                      sequence {
+                          request;
+                          eventually response;
+                      }
+                      
+                      // Multiple eventuallys
+                      req ##1 eventually ack ##1 eventually done;
+                      
+                      // Eventually with complex condition
+                      eventually (counter > 100 && valid);
+                  }
+              }
+          
+          Attributes:
+              condition: Optional expression that must eventually be true
+              body: Monitor activity statement that must eventually occur
+          
+          See Also:
+              MonitorActivityConcat, MonitorConstraint, MonitorActivityIfElse
+      data:
+      - condition: UP<Expr>
+      - body: UP<MonitorActivityStmt>
+
+  # Overlap operator
+  - MonitorActivityOverlap:
+      super: MonitorActivityStmt
+      doc: |
+          Overlap operator for concurrent sequence monitoring.
+          
+          MonitorActivityOverlap specifies that two monitor activities can overlap
+          in time, allowing concurrent or interleaved execution patterns to be
+          monitored. Unlike concatenation which requires strict sequencing, overlap
+          permits the activities to occur simultaneously or with interleaving.
+          Note these are PSS 3.0 features.
+          
+          PSS Example::
+          
+              monitor concurrent_check {
+                  activity {
+                      // Overlapping sequences
+                      sequence { req1; data1; } overlap sequence { req2; data2; }
+                      
+                      // Concurrent protocol phases
+                      addr_phase overlap data_phase;
+                      
+                      // Multiple overlaps
+                      stream_a overlap stream_b overlap stream_c;
+                      
+                      // Complex overlap patterns
+                      (start ##1 process ##1 end) overlap (monitor_signal);
+                  }
+              }
+          
+          Attributes:
+              lhs: Left-hand side monitor activity
+              rhs: Right-hand side monitor activity (can overlap with lhs)
+          
+          See Also:
+              MonitorActivityConcat, MonitorActivitySequence, MonitorActivitySchedule
+      data:
+      - lhs: UP<MonitorActivityStmt>
+      - rhs: UP<MonitorActivityStmt>
+
+  # Schedule construct (for monitors)
+  - MonitorActivitySchedule:
+      super: SymbolScope
+      doc: |
+          Defines a scheduled monitoring block with flexible ordering.
+          
+          MonitorActivitySchedule represents a schedule block within monitor activities
+          that allows monitor activities to be observed in a flexible order, subject
+          to explicit ordering constraints. Unlike sequences which enforce strict
+          ordering, schedules permit concurrent or reordered observation unless
+          constrained otherwise. Note these are PSS 3.0 features.
+          
+          PSS Example::
+          
+              monitor flexible_protocol {
+                  activity {
+                      schedule {
+                          phase_a;
+                          phase_b;
+                          phase_c;
+                          
+                          // Ordering constraints
+                          phase_a before phase_c;
+                      }
+                      
+                      // Labeled schedule
+                      main_check: schedule {
+                          monitor_addr;
+                          monitor_data;
+                          monitor_response;
+                          
+                          // Can occur in any order
+                      }
+                  }
+              }
+          
+          Attributes:
+              label: Optional identifier expression for the schedule label
+          
+          See Also:
+              MonitorActivitySequence, ActivitySchedule, MonitorActivityStmt
+      data:
+      - label:
+          type: UP<ExprId>
+          is_ctor: false
+
+  # Select construct (for monitors)
+  - MonitorActivitySelect:
+      super: MonitorActivityStmt
+      doc: |
+          Branch selection for alternative monitoring paths.
+          
+          MonitorActivitySelect represents a select construct that specifies multiple
+          alternative monitoring paths. One branch is chosen based on guard conditions
+          or non-deterministically. This allows monitoring of different protocol
+          variants or alternative sequences. Note these are PSS 3.0 features.
+          
+          PSS Example::
+          
+              monitor protocol_variants {
+                  activity {
+                      // Non-deterministic choice
+                      select {
+                          fast_path;
+                          slow_path;
+                      }
+                      
+                      // Guarded selection
+                      select {
+                          (mode == 0): basic_protocol;
+                          (mode == 1): extended_protocol;
+                          (mode == 2): burst_protocol;
+                      }
+                      
+                      // Labeled select
+                      protocol_choice: select {
+                          short_transaction;
+                          long_transaction;
+                      }
+                  }
+              }
+          
+          Attributes:
+              label: Optional identifier expression for the select label
+              branches: List of select branches with guards and bodies
+          
+          See Also:
+              MonitorActivitySelectBranch, ActivitySelect, MonitorActivityIfElse
+      data:
+      - label:
+          type: UP<ExprId>
+          is_ctor: false
+      - branches: list<UP<MonitorActivitySelectBranch>>
+
+  # Select branch
+  - MonitorActivitySelectBranch:
+      doc: |
+          Individual branch within a monitor select construct.
+          
+          MonitorActivitySelectBranch represents one alternative path in a select
+          statement. Each branch can have an optional guard expression that determines
+          when the branch is eligible for selection, and a body containing the monitor
+          activity to execute if the branch is chosen. Note these are PSS 3.0 features.
+          
+          PSS Example::
+          
+              monitor multi_mode {
+                  rand bit[2] mode;
+                  
+                  activity {
+                      select {
+                          // Guarded branch
+                          (mode == 0): {
+                              mode0_init;
+                              mode0_transfer;
+                          }
+                          
+                          // Another guarded branch
+                          (mode == 1): {
+                              mode1_setup ##1 mode1_data;
+                          }
+                          
+                          // Unguarded branch (always eligible)
+                          default_mode;
+                      }
+                  }
+              }
+          
+          Attributes:
+              guard: Optional expression determining branch eligibility
+              body: Monitor activity body to execute if branch is selected
+          
+          See Also:
+              MonitorActivitySelect, ActivitySelectBranch
+      data:
+      - guard: UP<Expr>
+      - body: UP<ScopeChild>
+
+  # Traversal of action handle in monitor
+  - MonitorActivityActionTraversal:
+      super: MonitorActivityStmt
+      doc: |
+          Monitors the execution of a specific action instance.
+          
+          MonitorActivityActionTraversal allows a monitor to observe the execution
+          of a specific action instance referenced by a handle. This enables monitoring
+          action behavior, timing, and completion. The action reference can include
+          inline constraints to refine monitoring scope. Note these are PSS 3.0 features.
+          
+          PSS Example::
+          
+              component my_comp {
+                  action transfer_action {
+                      rand bit[16] addr;
+                  }
+              }
+              
+              monitor transfer_monitor {
+                  my_comp comp;
+                  
+                  activity {
+                      // Monitor specific action execution
+                      monitor comp.transfer_action;
+                      
+                      // Monitor with constraint
+                      monitor comp.transfer_action with {
+                          addr < 0x1000;
+                      }
+                      
+                      // Combined with temporal operators
+                      start ##1 monitor comp.transfer_action ##1 end;
+                  }
+              }
+          
+          Attributes:
+              target: Reference path to the action instance to monitor
+              with_c: Optional constraint statement applied to monitoring
+          
+          See Also:
+              MonitorActivityMonitorTraversal, ActivityActionHandleTraversal,
+              ExprRefPath
+      data:
+      - target: UP<ExprRefPath>
+      - with_c: UP<ConstraintStmt>
+
+  # Traversal of monitor handle in monitor
+  - MonitorActivityMonitorTraversal:
+      super: MonitorActivityStmt
+      doc: |
+          Invokes a nested monitor instance.
+          
+          MonitorActivityMonitorTraversal allows hierarchical composition of monitors
+          by invoking another monitor instance. This enables reuse of monitor
+          specifications and building complex monitoring patterns from simpler ones.
+          The monitor reference can include inline constraints. Note these are PSS 3.0
+          features.
+          
+          PSS Example::
+          
+              monitor handshake_monitor {
+                  activity {
+                      req ##1 ack;
+                  }
+              }
+              
+              monitor data_phase_monitor {
+                  activity {
+                      valid ##0 ready;
+                      eventually done;
+                  }
+              }
+              
+              monitor protocol_monitor {
+                  handshake_monitor hshake;
+                  data_phase_monitor dphase;
+                  
+                  activity {
+                      // Invoke nested monitors
+                      monitor hshake;
+                      monitor dphase;
+                      
+                      // With constraints
+                      monitor hshake with {
+                          // constraint expressions
+                      }
+                      
+                      // In temporal sequences
+                      start ##1 monitor hshake ##1 monitor dphase;
+                  }
+              }
+          
+          Attributes:
+              target: Reference path to the monitor instance to invoke
+              with_c: Optional constraint statement applied to monitoring
+          
+          See Also:
+              MonitorActivityActionTraversal, Monitor, ExprRefPath
+      data:
+      - target: UP<ExprRefPath>
+      - with_c: UP<ConstraintStmt>
+
+  # Constraint in monitor activity
+  - MonitorConstraint:
+      super: MonitorActivityStmt
+      doc: |
+          Inline constraint within monitor activity.
+          
+          MonitorConstraint allows constraint statements to be embedded within monitor
+          activity blocks to assert properties or relationships that must hold during
+          monitoring. These constraints can reference monitor fields and express
+          temporal invariants. Note these are PSS 3.0 features.
+          
+          PSS Example::
+          
+              monitor protocol_monitor {
+                  rand bit[8] priority;
+                  rand bit[16] addr;
+                  
+                  activity {
+                      // Inline constraints
+                      constraint {
+                          priority inside [1..8];
+                          addr % 4 == 0;
+                      }
+                      
+                      // Combined with temporal operators
+                      sequence {
+                          start;
+                          constraint { addr < 0x1000; }
+                          data_transfer;
+                      }
+                      
+                      // Multiple constraints
+                      req ##1 {
+                          constraint { priority > 0; }
+                          ack;
+                      }
+                  }
+              }
+          
+          Attributes:
+              constraint: Constraint statement to be evaluated
+          
+          See Also:
+              ConstraintStmt, MonitorActivityStmt, ActivityConstraint
+      data:
+      - constraint: UP<ConstraintStmt>
+
+  # Repeat count for monitor activities
+  - MonitorActivityRepeatCount:
+      super: MonitorActivityStmt
+      doc: |
+          Fixed repetition of monitor activity.
+          
+          MonitorActivityRepeatCount specifies that a monitor activity must be observed
+          a fixed number of times. The count can be a constant or expression, and an
+          optional loop variable tracks the iteration index. This is used for monitoring
+          repeated sequences or patterns. Note these are PSS 3.0 features.
+          
+          PSS Example::
+          
+              monitor burst_monitor {
+                  rand bit[4] burst_len;
+                  
+                  activity {
+                      // Fixed count
+                      repeat(4) data_beat;
+                      
+                      // Expression-based count
+                      repeat(burst_len) data_transfer;
+                      
+                      // With loop variable
+                      repeat(i: 8) {
+                          beat[i] ##1 ack[i];
+                      }
+                      
+                      // Nested repeats
+                      repeat(4) {
+                          start ##1 repeat(8) data ##1 end;
+                      }
+                      
+                      // Combined with temporal operators
+                      init ##1 repeat(burst_len) transfer ##1 done;
+                  }
+              }
+          
+          Attributes:
+              loop_var: Optional loop variable identifier for iteration index
+              count: Expression specifying number of repetitions
+              body: Monitor activity body to repeat
+          
+          See Also:
+              MonitorActivityRepeatWhile, ActivityRepeatCount, MonitorActivityStmt
+      data:
+      - loop_var: UP<ExprId>
+      - count: UP<Expr>
+      - body: UP<ScopeChild>
+
+  # Repeat while for monitor activities
+  - MonitorActivityRepeatWhile:
+      super: MonitorActivityStmt
+      doc: |
+          Conditional repetition of monitor activity.
+          
+          MonitorActivityRepeatWhile specifies that a monitor activity should be
+          repeatedly observed as long as a condition remains true. The condition is
+          evaluated before each iteration. This is used for monitoring variable-length
+          sequences or data-dependent patterns. Note these are PSS 3.0 features.
+          
+          PSS Example::
+          
+              monitor variable_length {
+                  rand bit more_data;
+                  rand bit[8] count;
+                  
+                  activity {
+                      // Simple condition
+                      repeat while (more_data) {
+                          data_phase;
+                      }
+                      
+                      // Expression-based condition
+                      repeat while (count > 0) {
+                          transfer;
+                          count = count - 1;
+                      }
+                      
+                      // Complex temporal pattern
+                      init ##1 repeat while (active) {
+                          req ##1 ack;
+                      } ##1 done;
+                      
+                      // Nested with other constructs
+                      repeat while (state == RUNNING) {
+                          sequence {
+                              cmd_valid;
+                              ##[1:3] response;
+                          }
+                      }
+                  }
+              }
+          
+          Attributes:
+              cond: Boolean expression evaluated before each iteration
+              body: Monitor activity body to repeat while condition is true
+          
+          See Also:
+              MonitorActivityRepeatCount, ActivityRepeatWhile, MonitorActivityStmt
+      data:
+      - cond: UP<Expr>
+      - body: UP<ScopeChild>
+
+  # If-else in monitor activities
+  - MonitorActivityIfElse:
+      super: MonitorActivityStmt
+      doc: |
+          Conditional branching in monitor activities.
+          
+          MonitorActivityIfElse provides conditional execution of monitor activities
+          based on a boolean expression. If the condition is true, the true branch
+          is monitored; otherwise, the optional false branch is monitored. This allows
+          mode-dependent or data-dependent monitoring patterns. Note these are PSS 3.0
+          features.
+          
+          PSS Example::
+          
+              monitor conditional_protocol {
+                  rand bit[2] mode;
+                  rand bit fast_mode;
+                  
+                  activity {
+                      // Basic if-else
+                      if (mode == 0) {
+                          basic_sequence;
+                      } else {
+                          extended_sequence;
+                      }
+                      
+                      // If without else
+                      if (fast_mode) {
+                          quick_check;
+                      }
+                      
+                      // Nested conditions
+                      if (mode == 0) {
+                          protocol_a;
+                      } else if (mode == 1) {
+                          protocol_b;
+                      } else {
+                          protocol_default;
+                      }
+                      
+                      // Combined with temporal operators
+                      start ##1 if (error) error_handler else normal_path ##1 done;
+                  }
+              }
+          
+          Attributes:
+              cond: Boolean expression determining which branch to monitor
+              true_s: Monitor activity for true condition
+              false_s: Optional monitor activity for false condition
+          
+          See Also:
+              MonitorActivitySelect, ActivityIfElse, MonitorActivityMatch
+      data:
+      - cond: UP<Expr>
+      - true_s: UP<MonitorActivityStmt>
+      - false_s: UP<MonitorActivityStmt>
+
+  # Match in monitor activities
+  - MonitorActivityMatch:
+      super: MonitorActivityStmt
+      doc: |
+          Multi-way pattern matching for monitor activities.
+          
+          MonitorActivityMatch provides multi-way branching based on matching an
+          expression against multiple value ranges or patterns. Each choice specifies
+          a pattern and corresponding monitor activity. A default choice can handle
+          unmatched cases. Note these are PSS 3.0 features.
+          
+          PSS Example::
+          
+              monitor state_based {
+                  rand bit[3] state;
+                  
+                  activity {
+                      // Match on state value
+                      match (state) {
+                          0: idle_protocol;
+                          [1..3]: active_protocol;
+                          4: suspend_protocol;
+                          default: error_protocol;
+                      }
+                      
+                      // Complex patterns
+                      match (opcode) {
+                          READ: read_sequence;
+                          WRITE: write_sequence;
+                          [BURST_READ, BURST_WRITE]: burst_sequence;
+                          default: unknown_op;
+                      }
+                      
+                      // Combined with temporal operators
+                      init ##1 match (mode) {
+                          0: fast_path ##1 done;
+                          1: slow_path ##1 done;
+                      }
+                  }
+              }
+          
+          Attributes:
+              cond: Expression to match against choice patterns
+              choices: List of match choices with patterns and bodies
+          
+          See Also:
+              MonitorActivityMatchChoice, MonitorActivityIfElse, ActivityMatch
+      data:
+      - cond: UP<Expr>
+      - choices: list<UP<MonitorActivityMatchChoice>>
+
+  # Match choice
+  - MonitorActivityMatchChoice:
+      doc: |
+          Individual case within a monitor match construct.
+          
+          MonitorActivityMatchChoice represents one case in a match statement, 
+          specifying a value pattern or range to match against and the corresponding
+          monitor activity to execute. A choice can be marked as the default case
+          which matches any value not covered by other cases. Note these are PSS 3.0
+          features.
+          
+          PSS Example::
+          
+              monitor command_monitor {
+                  rand bit[4] cmd;
+                  
+                  activity {
+                      match (cmd) {
+                          // Single value match
+                          0: {
+                              idle_check;
+                          }
+                          
+                          // Range match
+                          [1..7]: {
+                              active_check;
+                          }
+                          
+                          // Multiple value match
+                          [8, 10, 12]: {
+                              special_check;
+                          }
+                          
+                          // Default case
+                          default: {
+                              error_check;
+                          }
+                      }
+                  }
+              }
+          
+          Attributes:
+              is_default: True if this is the default case
+              cond: Open range list specifying values/ranges to match
+              body: Monitor activity body to execute on match
+          
+          See Also:
+              MonitorActivityMatch, ExprOpenRangeList, ActivityMatchChoice
+      data:
+      - is_default: bool
+      - cond: UP<ExprOpenRangeList>
+      - body: UP<ScopeChild>
+
+  # Cover statement - inline form (cover { monitor_activity })
+  - CoverStmtInline:
+      super: ScopeChild
+      doc: |
+          Inline coverage statement within monitor or action.
+          
+          CoverStmtInline represents an inline form of coverage collection where the
+          coverage body is specified directly within the cover statement. The body
+          contains monitor activities or sequences that define coverage points to be
+          tracked during execution. Note these are PSS 3.0 features.
+          
+          PSS Example::
+          
+              monitor protocol_coverage {
+                  activity {
+                      // Inline coverage of sequence
+                      cover {
+                          req ##1 ack;
+                      }
+                      
+                      // Coverage of temporal pattern
+                      cover {
+                          start ##1 data_phase ##1 end;
+                      }
+                      
+                      // Multiple coverage points
+                      cover {
+                          fast_path;
+                      }
+                      
+                      cover {
+                          slow_path;
+                      }
+                      
+                      // Complex patterns
+                      cover {
+                          sequence {
+                              init;
+                              repeat(4) transfer;
+                              done;
+                          }
+                      }
+                  }
+              }
+          
+          Attributes:
+              body: Scope containing monitor activities to cover
+          
+          See Also:
+              CoverStmtReference, MonitorActivityStmt, Monitor
+      data:
+      - body: UP<ScopeChild>
+
+  # Cover statement - reference form (cover monitor_instance)
+  - CoverStmtReference:
+      super: ScopeChild
+      doc: |
+          Reference coverage statement for monitor instance.
+          
+          CoverStmtReference represents a reference form of coverage collection that
+          specifies coverage should be collected for a previously declared monitor
+          instance. This allows reusing monitor definitions for coverage without
+          duplicating the monitor activity specification. Note these are PSS 3.0
+          features.
+          
+          PSS Example::
+          
+              monitor handshake_mon {
+                  activity {
+                      req ##1 ack;
+                  }
+              }
+              
+              monitor data_transfer_mon {
+                  activity {
+                      valid ##0 ready ##1 data;
+                  }
+              }
+              
+              action transaction {
+                  handshake_mon hshake;
+                  data_transfer_mon dtrans;
+                  
+                  activity {
+                      // Reference-based coverage
+                      cover hshake;
+                      cover dtrans;
+                      
+                      // Monitor execution
+                      monitor hshake;
+                      monitor dtrans;
+                  }
+              }
+              
+              component top {
+                  handshake_mon global_monitor;
+                  
+                  activity {
+                      cover global_monitor;
+                  }
+              }
+          
+          Attributes:
+              target: Reference path to the monitor instance to cover
+          
+          See Also:
+              CoverStmtInline, Monitor, ExprRefPath
+      data:
+      - target: UP<ExprRefPath>

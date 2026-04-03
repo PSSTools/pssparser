@@ -1,17 +1,65 @@
 classes:
     - RefExpr:
+        doc: |
+            Base class for reference expressions in the linked symbol tree.
+            
+            RefExpr represents resolved references to symbols during the linking
+            phase. These are internal representations used to navigate the symbol
+            tree efficiently after name resolution is complete.
+            
+            See Also:
+                RefExprTypeScopeGlobal, RefExprTypeScopeContext, RefExprScopeIndex
+        data: []
     - RefExprTypeScopeGlobal:
-        - super: RefExpr
-        - data: 
+        super: RefExpr
+        doc: |
+            Reference to a type scope at the global (file) level.
+            
+            Represents a resolved reference to a type defined at the global scope
+            of a specific file. Used during linking to track cross-file type
+            references and maintain file boundaries in the symbol tree.
+            
+            Attributes:
+                fileid: File identifier where the type scope is defined
+            
+            See Also:
+                RefExpr, GlobalScope, SymbolTypeScope
+        data: 
             - fileid: int32_t
     - RefExprTypeScopeContext:
-        - super: RefExpr
-        - data: 
+        super: RefExpr
+        doc: |
+            Reference to a type scope relative to a context.
+            
+            Represents a resolved reference to a type scope relative to another
+            reference expression. Used for navigating hierarchical type structures
+            during linking (e.g., nested types, inner classes).
+            
+            Attributes:
+                base: Base reference expression providing context
+                offset: Offset from base to target type scope
+            
+            See Also:
+                RefExpr, RefExprTypeScopeGlobal, SymbolTypeScope
+        data: 
             - base: "UP<RefExpr>"
             - offset: int32_t
     - RefExprScopeIndex:
-        - super: RefExpr
-        - data: 
+        super: RefExpr
+        doc: |
+            Reference to a scope using indexed access.
+            
+            Represents a resolved reference to a scope accessed via an index
+            relative to a base reference. Used for efficient symbol lookup in
+            the linked tree structure.
+            
+            Attributes:
+                base: Base reference expression
+                offset: Index offset from base to target scope
+            
+            See Also:
+                RefExpr, SymbolScope
+        data: 
             - base: "UP<RefExpr>"
             - offset: "int32_t"
             

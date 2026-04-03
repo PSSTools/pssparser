@@ -1,0 +1,15 @@
+import std_pkg::*;
+
+package sync_pkg {
+
+    component channel_c<type Te, int DEPTH=1> {
+        action put_a {
+            Te          data;
+        }
+
+        action get_a {
+            Te          data;
+        }
+    }
+
+}

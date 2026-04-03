@@ -10,6 +10,8 @@
 
 namespace pssp {
 
+
+
 class BaseMarkerListener : public IMarkerListener {
 public:
 	BaseMarkerListener();
@@ -24,5 +26,4 @@ public:
 
 };
 
-} /* namespace pssp */
-
+}

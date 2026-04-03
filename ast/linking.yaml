@@ -1,0 +1,395 @@
+
+#enums:
+#- SymbolScopeKindE
+#  - TopDown
+#  - BottomUp
+enums:
+- SymbolRefPathElemKind:
+  - ElemKind_ChildIdx    # Direct child by index in children list
+  - ElemKind_ArgIdx      # Template/function argument by index
+  - ElemKind_Inline      # Inline element (embedded definition)
+  - ElemKind_ParamIdx    # Parameter by index
+  - ElemKind_Super       # Reference to super/parent scope
+  - ElemKind_TypeSpec    # Type specialization/instantiation
+structs:
+- SymbolRefPathElem:
+    doc: |
+        Single element in a symbol reference path.
+        
+        Represents one step in navigating from a symbol to another through
+        the linked symbol tree structure. Used during name resolution to
+        encode resolved references as structured paths.
+        
+        Attributes:
+            kind: Type of path element (child, argument, parameter, etc.)
+            idx: Index value specific to the kind (e.g., child index, arg position)
+        
+        See Also:
+            SymbolRefPath, SymbolRefPathElemKind
+    data:
+    - kind: SymbolRefPathElemKind
+    - idx: int32_t
+
+classes:
+- SymbolChild:
+    doc: |
+        Base class for all symbols in the fully-linked symbol tree.
+        
+        Represents a node in the post-linking symbol resolution tree, distinct from
+        the physical AST. Extends ScopeChild with linking-specific metadata including
+        a unique identifier and parent scope reference.
+        
+        The symbol tree is constructed during the linking phase after parsing, providing
+        a logical view of declarations with resolved imports and type references.
+        
+        Attributes:
+            id: Unique identifier for this symbol within the tree (-1 if unassigned)
+            upper: Parent symbol scope in the linked tree hierarchy
+        
+        See Also:
+            SymbolScope, SymbolChildrenScope, ScopeChild
+    super: ScopeChild
+    data: 
+    - id:
+      - type: int32_t
+      - is_ctor: false
+      - init: -1
+    - upper:
+      - type: P<SymbolScope>
+      - is_ctor: false
+      - init: 0
+      - visit: false
+
+- SymbolChildrenScope:
+    doc: |
+        Symbol node that contains child scopes and declarations.
+        
+        Extends SymbolChild to support hierarchical symbol structures with named
+        scopes containing child elements. Forms the basis for namespaces, types,
+        and other container-like constructs in the linked symbol tree.
+        
+        During linking, this class manages the collection of child declarations
+        and provides the structure for symbol table lookups within a named scope.
+        
+        Attributes:
+            name: Identifier for this scope (package, type, function name)
+            children: List of child declarations and sub-scopes
+            target: Reference to the original physical AST node being wrapped
+        
+        See Also:
+            SymbolChild, SymbolScope, ScopeChild
+    super: SymbolChild
+    data:
+    - name:
+      - type: string
+      - is_ctor: true
+    - children: 
+      - type: list<UP<ScopeChild>>
+      - is_ctor: false
+    - target: 
+      - type: P<ScopeChild>
+      - is_ctor: false
+      - init: 0
+      - visit: true
+
+# Used to reference
+- SymbolScopeRef:
+    doc: |
+        Lightweight reference to a symbol scope by name.
+        
+        Provides a named reference mechanism for symbols without duplicating
+        the full scope structure. Used during linking to create references
+        between scopes before full resolution is complete.
+        
+        Attributes:
+            name: Identifier of the referenced scope
+        
+        See Also:
+            SymbolScope, ScopeChild
+    super: ScopeChild
+    data:
+    - name: string
+
+- SymbolScope:
+    doc: |
+        Base class for a node in the fully-linked tree.
+        
+        Core infrastructure for the linked symbol tree, providing symbol table
+        management, import resolution, and scope hierarchy. Extends SymbolChildrenScope
+        with linking-specific features including name-to-index mappings and import chains.
+        
+        The symbol tree is constructed during the linking phase to merge declarations
+        across compilation units, resolve imports, and create a unified namespace view.
+        This is distinct from the physical AST which preserves source file structure.
+        
+        Attributes:
+            symtab: Maps local identifiers to child indices for fast name lookup
+            imports: Import specification linking this scope to other packages/symbols
+            synthetic: True if this scope was compiler-generated (not in source)
+            opaque: True if scope contents should be hidden from external access
+        
+        See Also:
+            SymbolChildrenScope, RootSymbolScope, SymbolTypeScope, SymbolImportSpec
+    super: SymbolChildrenScope
+    data:
+    - symtab: 
+      - doc: |
+          Maps between local item identifier and item child index
+      - type: map<string,int32_t>
+      - is_ctor: false
+    - imports: 
+      - type: UP<SymbolImportSpec>
+      - is_ctor: false
+    - synthetic:
+      - type: bool
+      - is_ctor: false
+      - init: false
+    - opaque:
+      - type: bool
+      - is_ctor: false
+      - init: false
+
+- RootSymbolScope:
+    doc: |
+        Root of a resolved symbol tree. Holds references to 
+        the physical linked-together files in addition to the
+        merged contents within the symbol tree.
+        
+        Serves as the top-level entry point for the fully-linked symbol database,
+        managing the collection of compilation units and their cross-file dependencies.
+        Maintains bidirectional reference tracking between files for incremental
+        compilation and dependency analysis.
+        
+        The root scope bridges the physical file-based AST representation with the
+        logical merged symbol namespace, enabling efficient multi-file symbol resolution.
+        
+        Attributes:
+            units: List of compilation units (GlobalScope) linked into this tree
+            filenames: Maps file IDs to their filesystem paths
+            id2idx: Maps file IDs to their index in the units list
+            fileOutRef: Outbound references from each unit (dependencies)
+            fileInRef: Inbound references to each unit (dependents)
+        
+        See Also:
+            SymbolScope, GlobalScope, SymbolImportSpec
+    super: SymbolScope
+    data:
+      - units:
+        - doc: |
+            List of compilation units linked together in this symbol tree.
+        - type: list<UP<GlobalScope>>
+        - is_ctor: false
+      - filenames:
+        - doc: |
+            Map of fileId (as specified by the file) to corresponding file path
+            to the 
+        - type: map<int32_t,string>
+        - is_ctor: false
+      - id2idx:
+        - doc: |
+            Map from fileId (as specified by the file) to index in the units list
+        - type: map<int32_t,int32_t>
+        - is_ctor: false
+      - fileOutRef:
+        - doc: |
+            List of outbound refs from each unit
+        - type: list<list<int32_t>>
+        - is_ctor: false
+      - fileInRef:
+        - doc: |
+            List of inbound refs to each unit
+        - type: list<list<int32_t>>
+        - is_ctor: false
+
+- SymbolEnumScope:
+    doc: |
+        Symbol scope for enumeration type declarations.
+        
+        Represents an enum definition in the linked symbol tree, managing the
+        namespace for enum items and their associated values. Provides symbol
+        resolution for enum member access during type checking.
+        
+        The scope contains the enum's items as children, enabling qualified
+        name lookup (e.g., MyEnum::ItemName) during compilation.
+        
+        See Also:
+            SymbolScope, EnumDecl, EnumItem
+    super: SymbolScope
+    data: {}
+
+# - SymbolExecScope:
+#     super: SymbolScope
+#     data: 
+#     - locals: 
+#       - type: list<UP<ScopeChild>>
+#       - is_ctor: false
+
+# - SymbolStmtScope:
+#     super: SymbolScope
+#     data: {}
+
+- SymbolExtendScope:
+    doc: |
+        Symbol scope for PSS extend statements.
+        
+        Represents an extend declaration in the linked symbol tree, which adds
+        new members to an existing type. Manages the namespace for extension
+        members and links them back to the base type being extended.
+        
+        During linking, multiple extend declarations targeting the same type
+        are merged into the type's symbol scope, allowing type augmentation
+        across compilation units.
+        
+        Attributes:
+            (inherits from SymbolScope - children contain extension members)
+        
+        See Also:
+            SymbolScope, ExtendType, ExtendEnum
+    super: SymbolScope
+    data: {}
+
+# - SymbolCondConnector:
+#     super: SymbolChild
+#     data:
+#     - cond: P<Expr>
+#     - stmt: P<ScopeChild>
+
+# - SymbolStmtConnector:
+#     super: SymbolChild
+#     data:
+#     - target: P<ScopeChild>
+#     - body: UP<ScopeChild>
+
+- SymbolImportSpec:
+    doc: |
+        Import specification with fully resolved symbol references.
+        
+        Manages import statements and their resolved symbol paths for a scope.
+        During linking, import statements are analyzed and their target symbols
+        are resolved into structured paths, enabling efficient name lookup.
+        
+        Each imported identifier is mapped to its SymbolRefPath, which encodes
+        the navigation steps from the current scope to the imported symbol.
+        This allows the compiler to quickly resolve qualified names without
+        repeated symbol searches.
+        
+        Attributes:
+            imports: List of import statements from the source (physical AST)
+            symtab: Maps imported names to their resolved symbol paths
+        
+        See Also:
+            SymbolRefPath, PackageImportStmt, SymbolScope
+    data:
+    - imports:
+      - type: list<P<PackageImportStmt>>
+    - symtab:
+      - type: map<string,UP<SymbolRefPath>>
+      - is_ctor: false
+
+#- SymbolAggregateScope:
+#    super: SymbolScope
+#    data:
+
+- SymbolTypeScope:
+    doc: |
+        Symbol scope for type declarations (actions, components, structs).
+        
+        Represents a user-defined type in the linked symbol tree, managing its
+        members, methods, and constraints. Supports template specialization by
+        tracking parameter lists and specialized type instantiations.
+        
+        During linking, type declarations from multiple files can be merged
+        (for extend statements) and specialized instances are tracked separately.
+        The plist holds template parameters, while spec_types contains any
+        specialized/instantiated versions of this generic type.
+        
+        Attributes:
+            plist: Template parameter list scope (if this is a generic type)
+            spec_types: List of specialized/instantiated versions of this type
+        
+        See Also:
+            SymbolScope, Action, Component, Struct, SymbolExtendScope
+    super: SymbolScope
+    data:
+      - plist:
+        - type: UP<SymbolScope>
+      - spec_types: list<UP<SymbolTypeScope>>
+
+- SymbolFunctionScope:
+    doc: |
+        Symbol scope for functions with overload resolution support.
+        
+        Represents a function in the linked symbol tree, managing multiple
+        declarations (prototypes, imports, definition) for the same function name.
+        Supports function overloading by tracking all signatures and selecting
+        the appropriate one during call resolution.
+        
+        During linking, function prototypes from different files are collected,
+        import specifications are resolved, and the definition (if present) is
+        linked. The plist handles template parameters for generic functions.
+        
+        Attributes:
+            prototypes: All declared function signatures (forward declarations)
+            import_specs: Imported function specifications (DPI/foreign functions)
+            definition: The function implementation (null if only prototype/import)
+            plist: Template parameter list scope (if this is a generic function)
+            body: Function body scope containing local variables and statements
+        
+        See Also:
+            SymbolScope, FunctionPrototype, FunctionDefinition, FunctionImport
+    super: SymbolScope
+    data:
+      - prototypes: 
+        - type: list<P<FunctionPrototype>>
+        - is_ctor: false
+      - import_specs:
+        - type: list<UP<FunctionImport>>
+        - is_ctor: false
+      - definition:
+        - type: P<FunctionDefinition>
+        - is_ctor: false
+        - init: 0
+      - plist:
+        - type: UP<SymbolScope>
+        - is_ctor: false
+      - body:
+        - type: P<ExecScope>
+        - is_ctor: false
+        - init: 0
+
+- SymbolRefPath: 
+    doc: |
+        Structured path for navigating between symbols during linking.
+        
+        Encodes a resolved reference as a sequence of navigation steps through
+        the linked symbol tree. Used to represent imports, type references, and
+        cross-scope identifiers after name resolution is complete.
+        
+        Rather than storing string-based qualified names, SymbolRefPath provides
+        an efficient index-based navigation structure. This enables fast symbol
+        lookup during compilation without repeated name searches.
+        
+        The path elements specify how to navigate from a starting scope to the
+        target symbol (e.g., "child 0, child 2, type specialization 1").
+        
+        Attributes:
+            path: Sequence of navigation steps to reach the target symbol
+            pyref_idx: Python reference index for language bindings (-1 if unused)
+        
+        See Also:
+            SymbolRefPathElem, SymbolImportSpec, SymbolScope
+    data:
+    - path: 
+      - type: list<SymbolRefPathElem>
+      - is_ctor: false
+      - visit: false
+    - pyref_idx:
+      - type: int32_t
+      - is_ctor: false
+      - init: -1
+
+#- AggregateTypeScope:
+#    super: ScopeChild
+#    data:
+#    - 
+

@@ -26,14 +26,14 @@ compilation_unit :
 	;
 
 portable_stimulus_description : 
-	package_body_item 
+	package_body_item_ann
 //	| package_declaration // Note: package_declaration is a package_body_item
 //	| component_declaration // Note: ambiguous, since 'component' is also a package body item
 	;
 
 package_declaration:
 	TOK_PACKAGE package_id_path TOK_LCBRACE
-		package_body_item*
+		package_body_item_ann*
 	TOK_RCBRACE
 ;
 
@@ -41,25 +41,35 @@ package_id_path:
 	package_identifier ( TOK_DOUBLE_COLON package_identifier )*
 	;
 
+
+package_body_item_ann:
+    /*annotation* */ package_body_item
+    ;
+
 package_body_item:
 	abstract_action_declaration
 	| struct_declaration
 	| enum_declaration
 	| covergroup_declaration
+	| annotation_declaration
+    | generic_constraint_declaration
 	| function_decl
 	| import_class_decl
 	| procedural_function // FIXME
 	| import_function
 	| target_template_function
 	| export_action
+	| export_function
 	| typedef_declaration
 	| import_stmt
+    | pyimport_stmt // zuspec extension
 	| extend_stmt
 	| const_field_declaration
 	| component_declaration
 	| package_declaration
 	| compile_assert_stmt
 	| package_body_compile_if
+	| annotation
 	| TOK_SEMICOLON // stmt_terminator
 //	| static_const_field_declaration	
 	;
@@ -85,14 +95,35 @@ package_import_alias:
 	TOK_AS package_identifier
 	;
 
+pyimport_stmt:
+    pyimport_single_module
+    | pyimport_from_module
+    ;
+
+pyimport_single_module:
+    TOK_PYIMPORT pyimport_mod_path (TOK_AS identifier)? TOK_SEMICOLON
+    ;
+
+pyimport_from_module:
+    TOK_FROM pyimport_mod_path TOK_PYIMPORT pyimport_elem_list TOK_SEMICOLON
+    ;
+
+pyimport_mod_path:
+    identifier (TOK_DOUBLE_COLON identifier)*
+    ;
+
+pyimport_elem_list:
+    identifier (TOK_COMMA identifier)*
+    ;
+
 extend_stmt:
 		(
 			(TOK_EXTEND is_action=TOK_ACTION type_identifier TOK_LCBRACE
-				action_body_item*
+				action_body_item_ann*
 				TOK_RCBRACE
 			) | 
 			(TOK_EXTEND is_component=TOK_COMPONENT type_identifier TOK_LCBRACE
-				component_body_item*
+				component_body_item_ann*
 				TOK_RCBRACE
 			) |
 			(TOK_EXTEND struct_kind type_identifier TOK_LCBRACE
@@ -102,8 +133,34 @@ extend_stmt:
 			(TOK_EXTEND is_enum=TOK_ENUM type_identifier TOK_LCBRACE
 				(enum_item (TOK_COMMA enum_item)*)?
 				TOK_RCBRACE
+			) |
+			(TOK_EXTEND is_annotation=TOK_ANNOTATION type_identifier TOK_LCBRACE
+				annotation_body_item*
+				TOK_RCBRACE
 			)
 		)
+;
+
+annotation_declaration:
+	TOK_ANNOTATION annotation_identifier template_param_decl_list? annotation_super_spec?
+	TOK_LCBRACE
+		annotation_body_item*
+	TOK_RCBRACE
+;
+
+annotation_super_spec:
+	TOK_COLON type_identifier
+;
+
+annotation_body_item:
+	annotation_attr_field
+	| compile_assert_stmt
+	| annotation_body_compile_if
+	| TOK_SEMICOLON
+;
+
+annotation_attr_field:
+	(TOK_STATIC TOK_CONST)? data_declaration
 ;
 
 const_field_declaration :
@@ -131,7 +188,7 @@ static_const_field_declaration :
 action_declaration:
 	TOK_ACTION action_identifier template_param_decl_list? action_super_spec? 
 	TOK_LCBRACE
-		action_body_item*
+		action_body_item_ann*
 	TOK_RCBRACE 
 ;
 
@@ -139,7 +196,7 @@ action_declaration:
 abstract_action_declaration :
 	TOK_ABSTRACT TOK_ACTION action_identifier template_param_decl_list? action_super_spec?
 	TOK_LCBRACE
-		action_body_item*
+		action_body_item_ann*
 	TOK_RCBRACE 
 ;
  */
@@ -147,9 +204,20 @@ abstract_action_declaration:
 	TOK_ABSTRACT action_declaration
 	;
 
+override_action_declaration:
+    TOK_OVERRIDE TOK_ACTION action_identifier
+    TOK_LCBRACE
+        action_body_item_ann*
+    TOK_RCBRACE
+    ;
+
 action_super_spec:
 	TOK_COLON type_identifier
 ;
+
+action_body_item_ann:
+    annotation* action_body_item
+    ;
 
 action_body_item:
 	activity_declaration
@@ -158,6 +226,7 @@ action_body_item:
 	| action_field_declaration
 	| symbol_declaration
 	| covergroup_declaration
+    | generic_constraint_declaration
 	| exec_block_stmt
 	| activity_scheduling_constraint
 	| attr_group
@@ -170,7 +239,7 @@ action_body_item:
 activity_declaration: 
 	TOK_ACTIVITY 
 	TOK_LCBRACE 
-		activity_stmt* 
+		activity_stmt_ann* 
 	TOK_RCBRACE 
 	;
 
@@ -223,13 +292,31 @@ object_ref_field:
 //	action_identifier array_dim? (TOK_COMMA action_identifier array_dim?)* 
 //	;
 
+// Note: grammar refactor for efficiency
 action_handle_declaration:
 	action_type_identifier action_instantiation (TOK_COMMA action_instantiation)* TOK_SEMICOLON
 	;
 
 action_instantiation:
-	action_identifier array_dim?
+    action_handle_array_instance
+    | action_handle_single_instance
+    ;
+
+action_handle_array_instance:
+	action_identifier array_dim+
 	;
+
+action_handle_single_instance:
+    action_identifier action_initializer_list?
+    ;
+
+action_initializer_list:
+    TOK_LCBRACE action_initializer (TOK_COMMA action_initializer )* TOK_RCBRACE
+    ;
+
+action_initializer:
+    TOK_DOT hierarchical_id TOK_SINGLE_EQ expression
+    ;
 
 activity_data_field:
 	TOK_ACTION data_declaration
@@ -244,7 +331,7 @@ activity_scheduling_constraint:
 	;
 
 /********************************************************************
- * B.3 Struct declarations
+ **B.3 Struct declarations
  ********************************************************************/
 struct_declaration:
 	struct_kind identifier template_param_decl_list? struct_super_spec? 
@@ -273,6 +360,7 @@ struct_body_item:
 	constraint_declaration
 	| attr_field
 	| typedef_declaration
+	| generic_constraint_declaration
 	| exec_block_stmt
 	| attr_group
 	| compile_assert_stmt
@@ -299,7 +387,11 @@ exec_block:
 	TOK_RCBRACE 
 	;
 
-exec_kind:
+exec_kind: 
+    identifier
+    ;
+    /* Make exec-block kinds local instead
+       of global keywords
 	TOK_PRE_SOLVE 
 	| TOK_POST_SOLVE 
 	| TOK_BODY
@@ -311,6 +403,7 @@ exec_kind:
 	| TOK_INIT_DOWN
 	| TOK_INIT
 	;	
+     */
 
 exec_stmt:
 	procedural_stmt
@@ -334,14 +427,19 @@ target_file_exec_block:
  ********************************************************************/
 
 procedural_function:
-	platform_qualifier? TOK_PURE? TOK_FUNCTION function_prototype
+	platform_qualifier? TOK_PURE? TOK_STATIC? TOK_FUNCTION function_prototype
 	TOK_LCBRACE
 	procedural_stmt*
 	TOK_RCBRACE
 	;
 
 function_decl:
-	TOK_PURE? TOK_FUNCTION function_prototype TOK_SEMICOLON
+	TOK_PURE? TOK_STATIC? TOK_FUNCTION function_prototype TOK_SEMICOLON
+	;
+
+platform_qualifier: 
+	TOK_TARGET TOK_SOLVE?
+	| TOK_SOLVE
 	;
 
 function_prototype:
@@ -367,9 +465,9 @@ function_parameter_list_prototype:
 
 function_parameter:
 	(
-		function_parameter_dir? data_type identifier (TOK_SINGLE_EQ constant_expression)? 
+		function_parameter_dir? TOK_CONST? data_type identifier (TOK_SINGLE_EQ constant_expression)?
 	) | (
-		(is_type=TOK_TYPE | is_ref=TOK_REF type_category | is_struct=TOK_STRUCT) identifier
+		TOK_CONST? (is_type=TOK_TYPE | is_ref=TOK_REF type_category | is_struct=TOK_STRUCT) identifier
 	)
 	;
 
@@ -393,18 +491,14 @@ import_function:
 		(
 			TOK_IMPORT platform_qualifier? language_identifier? TOK_FUNCTION type_identifier TOK_SEMICOLON
 		) | (
-			TOK_IMPORT platform_qualifier? language_identifier? TOK_FUNCTION function_prototype TOK_SEMICOLON
+			TOK_IMPORT platform_qualifier? language_identifier? TOK_STATIC? TOK_FUNCTION function_prototype TOK_SEMICOLON
 		)
 	)
 	;
 
-platform_qualifier: 
-	TOK_TARGET
-	| TOK_SOLVE
-	;
 
 target_template_function:
-	TOK_TARGET language_identifier TOK_FUNCTION function_prototype TOK_SINGLE_EQ string_literal TOK_SEMICOLON
+	TOK_TARGET language_identifier TOK_STATIC? TOK_FUNCTION function_prototype TOK_SINGLE_EQ string_literal TOK_SEMICOLON
 	;
 
 import_class_decl:
@@ -426,6 +520,10 @@ export_action:
 	TOK_EXPORT (platform_qualifier)? action_type_identifier function_parameter_list_prototype TOK_SEMICOLON
 ;
 
+export_function:
+	TOK_EXPORT TOK_TARGET TOK_FUNCTION function_identifier TOK_SEMICOLON
+;
+
 
 /********************************************************************
  * B.7 Procedural statements
@@ -443,8 +541,11 @@ procedural_stmt:
 	| procedural_break_stmt
 	| procedural_continue_stmt
 	| procedural_data_declaration // TODO: positioning this first causes assign to be incorrectly recognized as data_declaration
+    | procedural_yield_stmt
+	| procedural_randomization_stmt
 	| TOK_SEMICOLON
 	;
+
 	
 procedural_sequence_block_stmt:
 	TOK_SEQUENCE? 
@@ -508,6 +609,23 @@ procedural_break_stmt:
 procedural_continue_stmt:
 	TOK_CONTINUE TOK_SEMICOLON
 	;
+
+procedural_yield_stmt:
+    TOK_YIELD TOK_SEMICOLON
+    ;
+
+procedural_randomization_stmt:
+	TOK_RANDOMIZE procedural_randomization_target procedural_randomization_term
+	;
+
+procedural_randomization_target:
+	hierarchical_id (TOK_COMMA hierarchical_id)*
+	;
+
+procedural_randomization_term:
+	(TOK_WITH constraint_set)
+	| TOK_SEMICOLON
+	;
 	
 /********************************************************************
  * B.8 Component declarations
@@ -515,7 +633,7 @@ procedural_continue_stmt:
 component_declaration:
 	TOK_PURE? TOK_COMPONENT component_identifier template_param_decl_list?  (component_super_spec)?
 	TOK_LCBRACE
-		component_body_item*
+		component_body_item_ann*
 	TOK_RCBRACE 
 	;
 
@@ -523,34 +641,45 @@ component_super_spec :
 	TOK_COLON type_identifier
 	;
 
+component_body_item_ann:
+    annotation* component_body_item
+    ;
+
 component_body_item:
 	override_declaration
 	| component_data_declaration
 	| component_pool_declaration
 	| action_declaration
 	| abstract_action_declaration
+    | override_action_declaration
 	| object_bind_stmt
 	| exec_block
 	| struct_declaration
 	| enum_declaration
 	| covergroup_declaration
+    | generic_constraint_declaration
 	| function_decl
 	| import_class_decl
 	| procedural_function
 	| import_function
 	| target_template_function
 	| export_action
+	| export_function
 	| typedef_declaration
 	| import_stmt
 	| extend_stmt
 	| compile_assert_stmt
 	| attr_group
 	| component_body_compile_if
+    | monitor_declaration
+    | abstract_monitor_declaration
+    | cover_stmt
+    | activity_declaration /* zuspec extension */
  	| TOK_SEMICOLON
 	;
 
 component_data_declaration:
-	access_modifier? (is_static=TOK_STATIC is_const=TOK_CONST)? data_declaration
+	access_modifier? ((is_static=TOK_STATIC is_const=TOK_CONST) | is_instance=TOK_INSTANCE)? data_declaration
 	;
 
 // Note: LRM only supports a single pool per declaration
@@ -573,17 +702,21 @@ object_bind_item_path:
 	;
 
 component_path_elem:
-	component_identifier ( TOK_LSBRACE constant_expression TOK_RSBRACE )?
+	component_identifier ( TOK_LSBRACE domain_open_range_list TOK_RSBRACE )?
 	;
 
 object_bind_item:
-	(action_type_identifier TOK_DOT identifier ( TOK_LSBRACE constant_expression TOK_RSBRACE )?)
+	(action_type_identifier TOK_DOT identifier ( TOK_LSBRACE domain_open_range_list TOK_RSBRACE )?)
 	| TOK_ASTERISK
 	;
 
 /********************************************************************
  * B.9 Activity statements
  ********************************************************************/
+
+activity_stmt_ann:
+    annotation* activity_stmt
+    ;
 
 activity_stmt: 
 	activity_labeled_stmt
@@ -613,13 +746,21 @@ labeled_activity_stmt:
 	| activity_match_stmt
 	| activity_replicate_stmt
 	| activity_super_stmt
+	| activity_atomic_block_stmt
 	| symbol_call
 	;
 
-// PSS Extension: inline value initialization
 activity_action_traversal_stmt:
-	(identifier ( TOK_LSBRACE expression TOK_RSBRACE )? inline_constraints_or_empty)
-	| (is_do=TOK_DO type_identifier inline_constraints_or_empty)
+    action_handle_traversal_stmt
+    | action_type_traversal_stmt
+    ;
+
+action_handle_traversal_stmt:
+	identifier ( TOK_LSBRACE expression TOK_RSBRACE )* action_initializer_list? inline_constraints_or_empty
+    ;
+
+action_type_traversal_stmt:
+	is_do=TOK_DO type_identifier action_initializer_list? inline_constraints_or_empty
 	;
 
 inline_constraints_or_empty:
@@ -630,22 +771,29 @@ inline_constraints_or_empty:
 activity_sequence_block_stmt:
 	(TOK_SEQUENCE)? 
 	TOK_LCBRACE  
-		activity_stmt* 
+		activity_stmt_ann* 
 	TOK_RCBRACE 
 	;
 
 activity_parallel_stmt:
 	TOK_PARALLEL activity_join_spec? 
 	TOK_LCBRACE
-		activity_stmt*
+		activity_stmt_ann*
 	TOK_RCBRACE 
 	;
 
 activity_schedule_stmt:
 	TOK_SCHEDULE activity_join_spec? 
 	TOK_LCBRACE
-		activity_stmt*
+		activity_stmt_ann*
 	TOK_RCBRACE 
+	;
+
+activity_atomic_block_stmt:
+	TOK_ATOMIC
+	TOK_LCBRACE
+		activity_stmt_ann*
+	TOK_RCBRACE
 	;
 
 activity_join_spec:
@@ -673,8 +821,8 @@ activity_join_first_spec:
 
 activity_repeat_stmt:
 	(
-		(is_repeat=TOK_REPEAT TOK_LPAREN (loop_var=identifier TOK_COLON)? expression TOK_RPAREN activity_stmt) 
-		| (is_do_while=TOK_REPEAT activity_stmt is_do_while=TOK_WHILE TOK_LPAREN expression TOK_RPAREN TOK_SEMICOLON)
+		(is_repeat=TOK_REPEAT TOK_LPAREN (loop_var=identifier TOK_COLON)? expression TOK_RPAREN activity_stmt_ann) 
+		| (is_do_while=TOK_REPEAT activity_stmt_ann is_do_while=TOK_WHILE TOK_LPAREN expression TOK_RPAREN TOK_SEMICOLON)
 	)
 	;	
 
@@ -683,7 +831,7 @@ activity_foreach_stmt:
 		TOK_LPAREN 
 			(it_id=iterator_identifier)? expression (TOK_LSBRACE idx_id=index_identifier TOK_RSBRACE)? 
 		TOK_RPAREN
-		activity_stmt
+		activity_stmt_ann
 	;
 
 // TODO: Select should accept 1+ user-specified
@@ -700,12 +848,12 @@ select_branch:
 	(
 		(TOK_LPAREN guard=expression TOK_RPAREN (TOK_LSBRACE weight=expression TOK_RSBRACE)? TOK_COLON) 
 		| (TOK_LSBRACE weight=expression TOK_RSBRACE TOK_COLON)
-	)? activity_stmt
+	)? activity_stmt_ann
 	;
 
 activity_if_else_stmt:
-	TOK_IF TOK_LPAREN expression TOK_RPAREN activity_stmt 
-	(TOK_ELSE activity_stmt)?
+	TOK_IF TOK_LPAREN expression TOK_RPAREN activity_stmt_ann 
+	(TOK_ELSE activity_stmt_ann)?
 	;
 
 activity_match_stmt:
@@ -717,8 +865,8 @@ activity_match_stmt:
 	;
 
 match_choice:
-	(TOK_LSBRACE open_range_list TOK_RSBRACE TOK_COLON activity_stmt)
-	| (is_default=TOK_DEFAULT TOK_COLON activity_stmt)
+	(TOK_LSBRACE open_range_list TOK_RSBRACE TOK_COLON activity_stmt_ann)
+	| (is_default=TOK_DEFAULT TOK_COLON activity_stmt_ann)
 	;
 
 activity_replicate_stmt:
@@ -745,7 +893,7 @@ activity_constraint_stmt:
 	;
 
 symbol_declaration:
-	TOK_SYMBOL identifier (TOK_LPAREN symbol_paramlist TOK_RPAREN)? TOK_LCBRACE activity_stmt* TOK_RCBRACE
+	TOK_SYMBOL identifier (TOK_LPAREN symbol_paramlist TOK_RPAREN)? TOK_LCBRACE activity_stmt_ann* TOK_RCBRACE
 	;
 
 symbol_paramlist:
@@ -767,6 +915,7 @@ override_declaration:
 override_stmt:
 	type_override 
 	| instance_override
+    | override_compile_if
 	| TOK_SEMICOLON
 	;
 
@@ -788,7 +937,7 @@ data_declaration:
 	;
 
 data_instantiation:
-	identifier (array_dim)? (TOK_SINGLE_EQ constant_expression)?
+	identifier (array_dim)* (TOK_SINGLE_EQ constant_expression)? action_initializer_list?
 	;
 
 array_dim:
@@ -810,7 +959,141 @@ attr_group:
 	;
 
 /********************************************************************
- * B.12 Template types (AST)
+ * B.12 Behavioral coverage specification
+ ********************************************************************/
+cover_stmt:
+ (label_identifier TOK_COLON)? TOK_COVER type_identifier TOK_SEMICOLON
+| (label_identifier TOK_COLON)? TOK_COVER TOK_LCBRACE monitor_body_item* TOK_RCBRACE
+;
+
+monitor_declaration:
+    TOK_MONITOR monitor_identifier template_param_decl_list? monitor_super_spec? 
+        TOK_LCBRACE monitor_body_item* TOK_RCBRACE
+    ;
+
+abstract_monitor_declaration:
+    TOK_ABSTRACT monitor_declaration
+    ;
+
+monitor_super_spec: 
+    TOK_COLON type_identifier
+    ;
+
+monitor_body_item:
+    monitor_activity_declaration
+    | override_declaration
+    | monitor_constraint_declaration
+    | monitor_field_declaration
+    | covergroup_declaration
+    | attr_group
+    | compile_assert_stmt
+    | covergroup_instantiation
+    | monitor_body_compile_if
+    | TOK_SEMICOLON
+    ;
+
+monitor_field_declaration:
+    const_field_declaration
+    | action_handle_declaration
+    | monitor_handle_declaration
+    ;
+
+monitor_activity_declaration:
+    TOK_ACTIVITY TOK_LCBRACE monitor_activity_stmt* TOK_RCBRACE
+    ;
+
+monitor_activity_stmt:
+    (label_identifier TOK_COLON)? labeled_monitor_activity_stmt
+    | activity_action_traversal_stmt
+    | monitor_activity_monitor_traversal_stmt
+    | action_handle_declaration
+    | monitor_handle_declaration
+    | monitor_activity_constraint_stmt
+    | TOK_SEMICOLON
+    ;
+
+labeled_monitor_activity_stmt:
+    monitor_activity_sequence_block_stmt
+    | monitor_activity_concat_stmt
+    | monitor_activity_eventually_stmt
+    | monitor_activity_overlap_stmt
+    | monitor_activity_schedule_stmt
+    ;
+
+monitor_handle_declaration: 
+    monitor_type_identifier monitor_instantiation TOK_SEMICOLON
+    ;
+
+monitor_instantiation:
+    monitor_identifier array_dim?  (TOK_COMMA monitor_identifier array_dim?)*
+    ;
+
+monitor_activity_sequence_block_stmt: 
+    TOK_SEQUENCE?  TOK_LCBRACE monitor_activity_stmt* TOK_RCBRACE
+    ;
+
+monitor_activity_concat_stmt: 
+    TOK_CONCAT TOK_LCBRACE monitor_activity_stmt* TOK_RCBRACE
+    ;
+
+monitor_activity_eventually_stmt: 
+    TOK_EVENTUALLY labeled_monitor_activity_stmt
+    ;
+
+monitor_activity_overlap_stmt: 
+    TOK_OVERLAP TOK_LCBRACE monitor_activity_stmt* TOK_RCBRACE
+    ;
+
+monitor_activity_select_stmt: 
+    TOK_SELECT TOK_LCBRACE monitor_activity_stmt monitor_activity_stmt ( monitor_activity_stmt )* TOK_RCBRACE
+    ;
+
+monitor_activity_schedule_stmt: 
+    TOK_SCHEDULE TOK_LCBRACE monitor_activity_stmt* TOK_RCBRACE
+    ;
+
+monitor_activity_monitor_traversal_stmt:
+   monitor_identifier (TOK_LSBRACE expression? TOK_RSBRACE)? inline_constraints_or_empty
+   | ( label_identifier TOK_COLON )? TOK_DO monitor_type_identifier
+        inline_constraints_or_empty
+    ;
+
+monitor_inline_constraints_or_empty:
+    TOK_WITH monitor_constraint_set
+    | TOK_SEMICOLON
+    ;
+
+monitor_activity_constraint_stmt: 
+    TOK_CONSTRAINT monitor_constraint_set
+    ;
+
+monitor_constraint_declaration:
+    TOK_CONSTRAINT monitor_constraint_set
+    | TOK_CONSTRAINT identifier monitor_constraint_block
+    ;
+
+monitor_constraint_set:
+    monitor_constraint_body_item
+    | monitor_constraint_block
+    ;
+
+monitor_constraint_block: 
+    TOK_LCBRACE monitor_constraint_body_item* TOK_RCBRACE
+    ;
+
+monitor_constraint_body_item:
+    expression_constraint_item
+    | foreach_constraint_item
+    | forall_constraint_item
+    | if_constraint_item
+    | implication_constraint_item
+    | unique_constraint_item
+    | constraint_body_compile_if
+    | TOK_SEMICOLON
+    ;
+
+/********************************************************************
+ * B.13 Template types
  ********************************************************************/
 
 template_param_decl_list: 
@@ -860,7 +1143,7 @@ type_identifier_templ_elem:
 	identifier template_param_value_list
 	;
 
-template_param_value: 
+template_param_value:
     data_type
     | constant_expression // Note: both expression and data_type cover 'identifier'
 //	scalar_data_type
@@ -879,18 +1162,23 @@ data_type:
 	| type_identifier
 	;
 
+
 scalar_data_type:
 	chandle_type
 	| integer_type 	
 	| string_type  	
 	| bool_type
 	| enum_type
+    | float_type
+    | pyobj_type // zuspec extension
 	;
 
 casting_type:
 	integer_type
 	| bool_type
 	| enum_type
+    | float_type
+    | reference_type
 	| type_identifier
 	;
 
@@ -950,13 +1238,22 @@ enum_type:
 	enum_type_identifier TOK_IN TOK_LSBRACE open_range_list TOK_RSBRACE
 	;
 
+float_type:
+    TOK_FLOAT32
+    | TOK_FLOAT64
+    ;
+
+pyobj_type: // zuspec extension
+    TOK_PYOBJ
+    ;
+
 // Note: this parser treats collection types as parameterized classes
 // collection_type:
 // 	| (TOK_ARRAY TOK_LT data_type TOK_COMMA array_size_expression TOK_GT)
 // 	| (TOK_LIST TOK_LT data_type TOK_GT)
 // 	| (TOK_MAP TOK_LT data_type TOK_COMMA data_type TOK_GT)
 // 	| (TOK_SET TOK_LT data_type TOK_GT)
-//  ;
+//	;
 
 array_size_expression:
 	constant_expression
@@ -980,6 +1277,33 @@ constraint_declaration:
 	)
 	;
 
+generic_constraint_declaration:
+    generic_constraint_bool
+    | generic_constraint_value
+    ;
+
+generic_constraint_bool:
+    is_static=TOK_STATIC? TOK_CONSTRAINT identifier generic_constraint_params constraint_set
+    ;
+
+generic_constraint_value:
+    is_static=TOK_STATIC? TOK_CONSTRAINT generic_constraint_data_type identifier
+        generic_constraint_params expression_constraint_item
+    ;
+
+generic_constraint_params:
+    TOK_LPAREN (generic_constraint_param (TOK_COMMA generic_constraint_param)*)? TOK_RPAREN
+    ;
+
+generic_constraint_param:
+    is_const=TOK_CONST? generic_constraint_data_type identifier
+    ;
+
+generic_constraint_data_type:
+    is_numeric=TOK_NUMERIC
+    | data_type
+    ;
+
 constraint_set:
 	constraint_body_item
 	| constraint_block
@@ -999,6 +1323,8 @@ constraint_body_item:
 	| implication_constraint_item
 	| unique_constraint_item
 	| default_constraint_item
+    | dist_directive
+    | constraint_body_compile_if
 	| TOK_SEMICOLON
 ;
 
@@ -1043,6 +1369,23 @@ unique_constraint_item:
 	TOK_UNIQUE TOK_LCBRACE hierarchical_id_list TOK_RCBRACE TOK_SEMICOLON
 	;
 
+dist_directive: 
+    TOK_DIST expression TOK_IN TOK_LSBRACE dist_list TOK_RSBRACE TOK_SEMICOLON
+    ;
+
+dist_list: 
+    dist_item ( TOK_COMMA dist_item )*
+    ;
+
+dist_item: 
+    open_range_value TOK_LSBRACE dist_weight TOK_RSBRACE
+    ;
+
+dist_weight:
+    TOK_COLON_EQ expression
+    | TOK_COLON_DIV expression
+    ;
+
 /********************************************************************
  * B.15 Coverage specification
  ********************************************************************/
@@ -1062,6 +1405,7 @@ covergroup_body_item:
 	covergroup_option
 	| covergroup_coverpoint
 	| covergroup_cross
+    | covergroup_body_compile_if
 	| TOK_SEMICOLON
 	;
 
@@ -1178,19 +1522,19 @@ package_body_compile_if:
 	(TOK_ELSE false_body=package_body_compile_if_item)?
 	;
 
-package_body_compile_if_item:
-	package_body_item
-	| (TOK_LCBRACE package_body_item* TOK_RCBRACE)
+annotation_body_compile_if:
+	TOK_COMPILE TOK_IF TOK_LPAREN cond=constant_expression TOK_RPAREN true_body=annotation_body_compile_if_item
+	(TOK_ELSE false_body=annotation_body_compile_if_item)?
 	;
+
+monitor_body_compile_if:
+    TOK_COMPILE TOK_IF TOK_LPAREN constant_expression TOK_RPAREN monitor_body_compile_if_item 
+    (TOK_ELSE monitor_body_compile_if_item )?
+    ;
 
 action_body_compile_if:
 	TOK_COMPILE TOK_IF TOK_LPAREN cond=constant_expression TOK_RPAREN true_body=action_body_compile_if_item
 	(TOK_ELSE false_body=action_body_compile_if_item)?
-	;
-
-action_body_compile_if_item:
-	action_body_item
-	| (TOK_LCBRACE action_body_item* TOK_RCBRACE)
 	;
 
 component_body_compile_if:
@@ -1198,20 +1542,75 @@ component_body_compile_if:
 	(TOK_ELSE false_body=component_body_compile_if_item)?
 	;
 
-component_body_compile_if_item:
-	component_body_item
-	| (TOK_LCBRACE component_body_item* TOK_RCBRACE)
-	;
-	
 struct_body_compile_if:
 	TOK_COMPILE TOK_IF TOK_LPAREN cond=constant_expression TOK_RPAREN true_body=struct_body_compile_if_item
 	(TOK_ELSE false_body=struct_body_compile_if_item)?
+	;
+
+procedural_compile_if: 
+    TOK_COMPILE TOK_IF TOK_LPAREN constant_expression TOK_RPAREN procedural_compile_if_stmt 
+    ( TOK_ELSE procedural_compile_if_stmt )?
+    ;
+
+constraint_body_compile_if: 
+    TOK_COMPILE TOK_IF TOK_LPAREN constant_expression TOK_RPAREN constraint_body_compile_if_item 
+    ( TOK_ELSE constraint_body_compile_if_item )?
+    ;
+
+covergroup_body_compile_if: 
+    TOK_COMPILE TOK_IF TOK_LPAREN constant_expression TOK_RPAREN covergroup_body_compile_if_item 
+    ( TOK_ELSE covergroup_body_compile_if_item )?
+    ;
+
+override_compile_if: 
+    TOK_COMPILE TOK_IF TOK_LPAREN constant_expression TOK_RPAREN override_compile_if_stmt 
+    ( TOK_ELSE override_compile_if_stmt )?
+    ;
+
+package_body_compile_if_item:
+	package_body_item
+	| (TOK_LCBRACE package_body_item* TOK_RCBRACE)
+	;
+
+annotation_body_compile_if_item:
+	annotation_body_item
+	| (TOK_LCBRACE annotation_body_item* TOK_RCBRACE)
+	;
+
+action_body_compile_if_item:
+	action_body_item_ann
+	| (TOK_LCBRACE action_body_item_ann* TOK_RCBRACE)
+	;
+
+monitor_body_compile_if_item: 
+    TOK_LSBRACE monitor_body_item* TOK_RSBRACE
+    ;
+
+component_body_compile_if_item:
+	component_body_item_ann
+	| (TOK_LCBRACE component_body_item_ann* TOK_RCBRACE)
 	;
 
 struct_body_compile_if_item:
 	struct_body_item
 	| (TOK_LCBRACE struct_body_item* TOK_RCBRACE)
 	;
+
+procedural_compile_if_stmt: 
+    TOK_LSBRACE procedural_stmt* TOK_RSBRACE
+    ;
+
+constraint_body_compile_if_item: 
+    TOK_LSBRACE constraint_body_item TOK_RSBRACE
+    ;
+
+covergroup_body_compile_if_item: 
+    TOK_LSBRACE covergroup_body_item TOK_RSBRACE
+    ;
+
+override_compile_if_stmt: 
+    TOK_LSBRACE override_stmt TOK_RSBRACE
+    ;
 
 compile_has_expr:
     // Note: replace static_ref_path with ref_path
@@ -1233,7 +1632,7 @@ constant_expression: expression;
 // capture operator precedence within the grammar
 
 expression:
-	primary                                             | 
+	primary                                             |
 	unary_op lhs=expression								|
 	lhs=expression exp_op rhs=expression 				|
 	lhs=expression mul_div_mod_op rhs=expression 		|
@@ -1359,7 +1758,7 @@ paren_expr:
 cast_expression:
 	TOK_LPAREN casting_type TOK_RPAREN expression
 	;
-	
+
 //ref_path:
 ////	(static_ref_path (TOK_DOT hierarchical_id)? bit_slice?)
 ////	| ( (TOK_SUPER TOK_DOT)? hierarchical_id bit_slice?)
@@ -1437,11 +1836,16 @@ hierarchical_id:
 	;
 
 member_path_elem:
-	identifier function_parameter_list? ( TOK_LSBRACE expression TOK_RSBRACE )?
+	identifier function_parameter_list? member_path_elem_index*
+	;
+
+member_path_elem_index:
+	TOK_LSBRACE expression (TOK_ELIPSIS expression?)? TOK_RSBRACE
 	;
 
 
 action_identifier: identifier;
+annotation_identifier: identifier;
 component_identifier: identifier;
 covercross_identifier: identifier;
 covergroup_identifier: identifier;
@@ -1453,6 +1857,7 @@ index_identifier: identifier;
 iterator_identifier: identifier;
 label_identifier: identifier;
 language_identifier: identifier;
+monitor_identifier: identifier;
 package_identifier: identifier;
 struct_identifier: identifier;
 symbol_identifier: identifier;
@@ -1470,6 +1875,7 @@ buffer_type_identifier: type_identifier;
 component_type_identifier: type_identifier; // Note: unused
 covergroup_type_identifier: type_identifier;
 enum_type_identifier: type_identifier;
+monitor_type_identifier: type_identifier;
 resource_type_identifier: type_identifier;
 state_type_identifier: type_identifier;
 stream_type_identifier: type_identifier;
@@ -1486,6 +1892,11 @@ entity_type_identifier:
  ********************************************************************/
 
 number:
+    integer_number
+    | floating_point_number
+    ;
+
+integer_number:
 	based_hex_number
 	| based_dec_number
 	| based_bin_number
@@ -1508,6 +1919,11 @@ based_oct_number: DEC_LITERAL? BASED_OCT_LITERAL;
 based_dec_number: DEC_LITERAL? BASED_DEC_LITERAL;
 
 based_hex_number: DEC_LITERAL? BASED_HEX_LITERAL;
+
+floating_point_number:
+    TOK_ACTION
+//    FloatingPointLiteral
+    ;
 
 aggregate_literal:
 	empty_aggregate_literal
@@ -1559,4 +1975,36 @@ string_literal:
 
 filename_string: DOUBLE_QUOTED_STRING;
 
+	
+/**
+ * Annotations allow meta-data to be associated with model elements
+ * PSS 3.1 feature
+ *
+ * annotate <path> <type_identifier>();
+ */	
+annotation:
+    (TOK_AT|TOK_COMMENT_AT) type_identifier annotation_parameter_list?
+    ;
 
+annotation_parameter_list:
+	annotation_positional_parameter_list
+	| annotation_namemapped_parameter_list
+	| annotation_mixed_parameter_list
+	;
+
+annotation_positional_parameter_list:
+	TOK_LPAREN ( expression ( TOK_COMMA expression )* )? TOK_RPAREN
+    ;
+
+annotation_namemapped_parameter_list:
+	TOK_LPAREN annotation_namemapped_parameter_elem ( TOK_COMMA annotation_namemapped_parameter_elem )* TOK_RPAREN
+    ;
+
+annotation_mixed_parameter_list:
+	TOK_LPAREN expression ( TOK_COMMA expression )* TOK_COMMA annotation_namemapped_parameter_elem ( TOK_COMMA annotation_namemapped_parameter_elem )* TOK_RPAREN
+    ;
+
+annotation_namemapped_parameter_elem:
+	identifier TOK_SINGLE_EQ expression
+	;
+	

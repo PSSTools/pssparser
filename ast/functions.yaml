@@ -1,0 +1,294 @@
+
+enums:
+  - ParamDir:
+      - ParamDir_Default   # No explicit direction (typically input)
+      - ParamDir_In        # Input parameter (read-only)
+      - ParamDir_Out       # Output parameter (write-only)
+      - ParamDir_InOut     # Input/output parameter (read-write)
+  - PlatQual:
+      - PlatQual_None      # No platform qualification
+      - PlatQual_Target    # Target platform execution
+      - PlatQual_Solve     # Solve-time platform execution
+  - FunctionParamDeclKind:
+      - ParamKind_DataType      # Regular data type parameter (int, bool, etc.)
+      - ParamKind_Type          # Type parameter (generic type)
+      - ParamKind_RefAction     # Reference to action type
+      - ParamKind_RefComponent  # Reference to component type
+      - ParamKind_RefBuffer     # Reference to buffer type
+      - ParamKind_RefResource   # Reference to resource type
+      - ParamKind_RefState      # Reference to state type
+      - ParamKind_RefStream     # Reference to stream type
+      - ParamKind_RefStruct     # Reference to struct type
+      - ParamKind_Struct        # Struct value parameter
+
+classes:
+  - FunctionDefinition:
+      super: ScopeChild
+      doc: |
+          Complete function definition with implementation body.
+          
+          Represents a function declaration with a complete implementation,
+          including prototype (signature) and execution body. Functions can
+          be qualified for target or solve-time execution using platform
+          qualifiers.
+          
+          PSS Example::
+          
+              // Simple function
+              function int add(int a, int b) {
+                  return a + b;
+              }
+              
+              // Target function with output parameter
+              function void process(input int x, output int result) = target {
+                  result = x * 2;
+              }
+              
+              // Solve-time function
+              function int calculate(int value) = solve {
+                  return value + 100;
+              }
+          
+          Attributes:
+              endLocation: Location of function closing brace
+              proto: Function prototype (signature)
+              body: Execution scope containing statements
+              plat: Platform qualifier (None, Target, or Solve)
+          
+          See Also:
+              FunctionPrototype, ExecScope, PlatQual, FunctionImport
+      data:
+        - endLocation: 
+            type: Location
+            is_ctor: false
+        - proto: UP<FunctionPrototype>
+        - body: UP<ExecScope>
+        - plat: PlatQual
+  - FunctionParamDecl:
+      super: ScopeChild
+      doc: |
+          Function parameter declaration with type and direction.
+          
+          Represents a single parameter in a function signature. Parameters
+          can have direction qualifiers (input, output, inout), default values,
+          and various kinds (data types, type parameters, or references).
+          Supports variadic parameters for variable-length argument lists.
+          
+          PSS Example::
+          
+              // Function with multiple parameter types
+              function void my_func(
+                  input int x,              // Input parameter
+                  output int result,        // Output parameter
+                  inout int counter,        // Input/output parameter
+                  int default_val = 10      // Parameter with default value
+              );
+              
+              // Type parameter
+              function void generic<type T>(T value);
+              
+              // Reference parameters
+              function void process_action(ref my_action act);
+              
+              // Variadic function
+              function void log(string fmt, ...);
+          
+          Attributes:
+              kind: Parameter kind (data type, type, reference, etc.)
+              name: Parameter identifier
+              type: Parameter data type
+              dir: Parameter direction (Default, In, Out, InOut)
+              dflt: Optional default value expression
+              is_varargs: True if this is a variadic parameter (...)
+          
+          See Also:
+              FunctionPrototype, FunctionParamDeclKind, ParamDir, DataType
+      data:
+        - kind: FunctionParamDeclKind
+        - name: UP<ExprId>
+        - type: UP<DataType>
+        - dir: ParamDir
+        - dflt: UP<Expr>
+        - is_varargs: 
+            - type: bool
+            - is_ctor: false
+            - init: false
+  - FunctionPrototype:
+      super: NamedScopeChild
+      doc: |
+          Function signature without implementation.
+          
+          Represents a function's interface: return type, name, and parameter
+          list. Used both in complete function definitions and standalone
+          prototypes. Can be marked as pure virtual, and qualified for
+          target or solve-time execution. Core functions are built-in library
+          functions.
+          
+          PSS Example::
+          
+              // Pure virtual method in action
+              action base_action {
+                  pure virtual function void execute();
+              }
+              
+              // Function prototype with parameters
+              function int multiply(int a, int b);
+              
+              // Target function prototype
+              function void hw_write(int addr, int data) = target;
+              
+              // Solve-time function prototype
+              function int compute_size() = solve;
+          
+          Attributes:
+              name: Function name (inherited from NamedScopeChild)
+              rtype: Return type (void if no return)
+              parameters: List of parameter declarations
+              is_pure: True if declared as 'pure virtual'
+              is_target: True if qualified with '= target'
+              is_solve: True if qualified with '= solve'
+              is_core: True for built-in library functions
+          
+          See Also:
+              FunctionDefinition, FunctionParamDecl, FunctionImportProto
+      data:
+        - rtype: UP<DataType>
+        - parameters: 
+            type: list<UP<FunctionParamDecl>>
+            is_ctor: false
+        - is_pure:
+            type: bool
+            is_ctor: false
+            init: false
+        - is_target:
+            type: bool
+        - is_solve:
+            type: bool
+        - is_core:
+            type: bool
+            is_ctor: false
+            init: false
+
+  - FunctionImport:
+      super: ScopeChild
+      doc: |
+          Base class for importing external functions.
+          
+          Represents an import statement that brings external functions into
+          PSS scope. External functions can be qualified for target or
+          solve-time execution and can specify the implementation language.
+          This is an abstract base; concrete imports use FunctionImportType
+          or FunctionImportProto.
+          
+          PSS Example::
+          
+              // Import by type name
+              import class my_pkg::util_funcs = target "cpp";
+              
+              // Import function prototype
+              import function int extern_func(int x) = solve "python";
+          
+          Attributes:
+              plat: Platform qualifier (None, Target, or Solve)
+              lang: Implementation language identifier (e.g., "cpp", "python")
+          
+          See Also:
+              FunctionImportType, FunctionImportProto, PlatQual
+      data:
+        - plat: PlatQual
+        - lang: string
+
+  - FunctionImportType:
+      super: FunctionImport
+      doc: |
+          Import all functions from an external type/class.
+          
+          Imports all methods from a specified external type by referencing
+          its type identifier. Used when importing entire classes or packages
+          of utility functions from foreign implementations.
+          
+          PSS Example::
+          
+              // Import all methods from a C++ class
+              import class my_pkg::MathUtils = target "cpp";
+              
+              // Import Python utility package for solve-time
+              import class algorithms::Optimizer = solve "python";
+              
+              component my_comp {
+                  // Can now use imported functions
+                  exec init {
+                      int result = MathUtils::square(5);
+                  }
+              }
+          
+          Attributes:
+              plat: Platform qualifier (inherited from FunctionImport)
+              lang: Implementation language (inherited from FunctionImport)
+              type: Type identifier of the class/package to import
+          
+          See Also:
+              FunctionImport, FunctionImportProto, TypeIdentifier
+      data:
+        - type: UP<TypeIdentifier>
+
+  - FunctionImportProto:
+      super: FunctionImport
+      doc: |
+          Import a single external function by prototype.
+          
+          Imports a specific external function by declaring its complete
+          prototype (signature). The function is implemented externally in
+          the specified language and platform. Used for integrating individual
+          foreign functions into PSS.
+          
+          PSS Example::
+          
+              // Import C++ target function
+              import function void write_reg(
+                  int addr, 
+                  int data
+              ) = target "cpp";
+              
+              // Import Python solve-time function
+              import function int optimize(
+                  input int constraints[], 
+                  output int solution[]
+              ) = solve "python";
+              
+              // Import with various parameter types
+              import function string format_message(
+                  string fmt,
+                  input int value,
+                  ...
+              ) = target;
+              
+              action my_action {
+                  exec body {
+                      write_reg(0x1000, 0x42);
+                      string msg = format_message("Value: %d", 42);
+                  }
+              }
+          
+          Attributes:
+              plat: Platform qualifier (inherited from FunctionImport)
+              lang: Implementation language (inherited from FunctionImport)
+              proto: Complete function prototype with signature
+          
+          See Also:
+              FunctionImport, FunctionImportType, FunctionPrototype
+      data:
+        - proto: UP<FunctionPrototype>
+
+  - ExportFunction:
+      super: ScopeChild
+      doc: |
+          Exported target function declaration.
+
+          Represents a PSS 3.1 ``export target function name;`` declaration.
+      data:
+        - plat: PlatQual
+        - name: UP<ExprId>
+
+
+

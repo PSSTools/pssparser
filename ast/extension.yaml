@@ -1,0 +1,92 @@
+
+enums:
+  - ExtendTargetE:
+    - Action     # Extend action type
+    - Annotation # Extend annotation type
+    - Buffer     # Extend buffer type
+    - Component  # Extend component type
+    - Enum       # Extend enum type
+    - Resource   # Extend resource type
+    - State      # Extend state type
+    - Stream     # Extend stream type
+    - Struct     # Extend struct type
+
+classes:
+  - ExtendType:
+      super: Scope
+      doc: |
+          Type extension declaration for adding members to existing types.
+          
+          Represents an 'extend' statement that adds new fields, constraints,
+          or methods to an existing type (action, component, struct, etc.).
+          Extensions are merged with the base type during linking, allowing
+          modular enhancement of types without modifying their original definition.
+          
+          PSS Example::
+          
+              component my_comp {
+                  action base_action { }
+              }
+              
+              extend component my_comp {
+                  action extended_action { }
+              }
+              
+              extend action base_action {
+                  rand int new_field;
+                  constraint new_constraint {
+                      new_field > 0;
+                  }
+              }
+          
+          Attributes:
+              kind: Type being extended (Action, Component, Struct, etc.)
+              target: Type identifier of the type to extend
+              symtab: Symbol table for extended members
+              imports: Import specifications for this extension
+              children: New members being added (inherited from Scope)
+          
+          See Also:
+              ExtendEnum, ExtendTargetE, TypeIdentifier
+      data:
+      - kind: ExtendTargetE
+      - target: UP<TypeIdentifier>
+      - symtab: 
+        - doc: |
+            Maps between local item identifier and item child index
+        - type: map<string,int32_t>
+        - is_ctor: false
+      - imports: 
+        - type: UP<SymbolImportSpec>
+        - is_ctor: false
+
+  - ExtendEnum:
+      super: ScopeChild
+      doc: |
+          Enum extension declaration for adding values to existing enums.
+          
+          Represents an 'extend' statement that adds new enumerator values
+          to an existing enum type. Enum extensions allow adding values
+          without modifying the original enum definition.
+          
+          PSS Example::
+          
+              enum status {
+                  OK,
+                  ERROR
+              };
+              
+              extend enum status {
+                  WARNING,
+                  INFO
+              };
+          
+          Attributes:
+              target: Type identifier of the enum to extend
+              items: List of new enumerator values to add
+          
+          See Also:
+              ExtendType, EnumDecl, EnumItem
+      data:
+      - target: UP<TypeIdentifier>
+      - items: list<UP<EnumItem>>

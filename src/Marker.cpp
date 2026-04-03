@@ -9,6 +9,8 @@
 
 namespace pssp {
 
+
+
 Marker::Marker(
 		const std::string	&msg,
 		MarkerSeverityE		severity,
@@ -26,4 +28,4 @@ IMarker *Marker::clone() const {
 	return new Marker(m_msg, m_severity, m_loc);
 }
 
-} /* namespace pls */
+}

@@ -9,6 +9,8 @@
 
 namespace pssp {
 
+
+
 BaseMarkerListener::BaseMarkerListener() {
 	// TODO Auto-generated constructor stub
 
@@ -18,4 +20,4 @@ BaseMarkerListener::~BaseMarkerListener() {
 	// TODO Auto-generated destructor stub
 }
 
-} /* namespace pssp */
+}

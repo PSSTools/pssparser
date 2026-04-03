@@ -3,17 +3,854 @@
 #*
 #* AST structures for exec constructs
 #****************************************************************************
+enums:
+  - AssignOp:
+      - AssignOp_Eq         # =  - Simple assignment
+      - AssignOp_PlusEq     # += - Add and assign
+      - AssignOp_MinusEq    # -= - Subtract and assign
+      - AssignOp_ShlEq      # <<= - Shift left and assign
+      - AssignOp_ShrEq      # >>= - Shift right and assign
+      - AssignOp_OrEq       # |= - Bitwise OR and assign
+      - AssignOp_AndEq      # &= - Bitwise AND and assign
+
+  - ExecKind:
+      - ExecKind_Body        # Main execution body
+      - ExecKind_Header      # Header initialization code
+      - ExecKind_Declaration # Declaration-time execution
+      - ExecKind_RunStart    # Code executed at start of action
+      - ExecKind_RunEnd      # Code executed at end of action
+      - ExecKind_InitDown    # Down-traversal initialization
+      - ExecKind_InitUp      # Up-traversal initialization
+      - ExecKind_PreSolve    # Pre-randomization execution
+      - ExecKind_PostSolve   # Post-randomization execution
+
 classes:
   - ExecStmt:
-    - data: []
+      super: ScopeChild
+      doc: |
+          Base class for all procedural statements in exec blocks.
+          
+          ExecStmt is the abstract base class for all statements that can appear
+          within exec blocks (body, pre_solve, post_solve, etc.). These statements
+          define imperative/procedural execution semantics including assignments,
+          function calls, control flow, and data declarations.
+          
+          PSS Example::
+          
+              action my_action {
+                  exec body {
+                      // Various ExecStmt subclasses
+                      int x = 10;              // ProceduralStmtDataDeclaration
+                      x += 5;                  // ProceduralStmtAssignment
+                      if (x > 10) { }          // ProceduralStmtIfElse
+                      my_func();               // ProceduralStmtFunctionCall
+                  }
+              }
+          
+          Attributes:
+              upper: Pointer to enclosing symbol scope (not visited during traversal)
+          
+          See Also:
+              ExecScope, ExecBlock, ProceduralStmtAssignment
+      data: 
+      - upper:
+          type: P<SymbolScope>
+          is_ctor: false
+          init: 0
+          visit: false
   - ExecScope:
-    - super: ExecStmt
-    - data:
-      - children: list<UP<ExecStmt>>
+      super: SymbolScope
+      doc: |
+          Scope containing procedural statements with symbol table capabilities.
+          
+          ExecScope represents a scope that can contain procedural statements and
+          maintains a symbol table for local variables. It provides the scoping
+          infrastructure for exec blocks and statement bodies.
+          
+          PSS Example::
+          
+              action my_action {
+                  exec body {
+                      // This exec body is an ExecScope
+                      int local_var = 5;  // Symbol in this scope
+                      {
+                          // Nested scope (also ExecScope)
+                          int nested_var = 10;
+                      }
+                  }
+              }
+          
+          Attributes:
+              endLocation: Source location of the closing brace
+          
+          See Also:
+              ExecBlock, SymbolScope, ProceduralStmtBody
+      data:
+      - endLocation:
+          type: Location
+          is_ctor: false
+
+  - ExecBlock:
+      super: ExecScope
+      doc: |
+          Complete exec block with specific execution phase.
+          
+          ExecBlock represents a complete exec block declaration within an action or
+          component. The kind field specifies when this code executes (body, pre_solve,
+          post_solve, etc.). Each exec block is a symbol scope containing procedural
+          statements.
+          
+          PSS Example::
+          
+              action my_action {
+                  rand int x;
+                  
+                  exec pre_solve {
+                      // Executes before randomization
+                      console.log("About to solve");
+                  }
+                  
+                  exec body {
+                      // Main execution body
+                      console.log("x = ", x);
+                  }
+                  
+                  exec post_solve {
+                      // Executes after randomization
+                      console.log("Solved x = ", x);
+                  }
+              }
+          
+          Attributes:
+              kind: Type of exec block (Body, PreSolve, PostSolve, etc.)
+          
+          See Also:
+              ExecKind, ExecScope, Action
+      data:
+        - kind: ExecKind
+  - ExecTargetTemplateBlock:
+      super: ScopeChild
+      doc: |
+          Target-specific template code with parameterized substitution.
+          
+          ExecTargetTemplateBlock represents target-language-specific exec code
+          using a template string with parameter substitutions. This allows native
+          code generation for specific execution targets while maintaining PSS
+          portability through parameterization.
+          
+          PSS Example::
+          
+              action my_action {
+                  int value;
+                  
+                  exec body {
+                      // Target template example (conceptual)
+                      target cpp '''
+                          std::cout << "Value = " << {{value}} << std::endl;
+                      ''';
+                  }
+              }
+          
+          Attributes:
+              kind: Type of exec block this template belongs to
+              data: Template string with {{parameter}} placeholders
+              parameters: List of parameter substitutions
+          
+          See Also:
+              ExecTargetTemplateParam, ExecBlock
+      data:
+        - kind: ExecKind
+        - data: string
+        - parameters: list<UP<ExecTargetTemplateParam>>
+  - ExecTargetTemplateParam:
+      doc: |
+          Parameter substitution for target template code.
+          
+          ExecTargetTemplateParam represents a parameter to be substituted into
+          a target-specific template string. The expr provides the value, while
+          start and end indicate the character positions in the template where
+          the substitution occurs.
+          
+          PSS Example::
+          
+              action my_action {
+                  rand int delay;
+                  
+                  exec body {
+                      target cpp '''wait({{delay}} * 1000);''';
+                      //              ^^^^^^^^^ ExecTargetTemplateParam
+                  }
+              }
+          
+          Attributes:
+              expr: Expression to substitute into template
+              start: Start position in template string
+              end: End position in template string
+          
+          See Also:
+              ExecTargetTemplateBlock
+      data:
+        - expr: UP<Expr>
+        - start: int32_t
+        - end: int32_t
+  - ProceduralStmtAssignment:
+      super: ExecStmt
+      doc: |
+          Assignment statement with compound assignment operators.
+          
+          ProceduralStmtAssignment represents variable assignment operations in
+          exec blocks. Supports simple assignment (=) and compound assignments
+          (+=, -=, <<=, >>=, |=, &=) for modifying variable values.
+          
+          PSS Example::
+          
+              action my_action {
+                  exec body {
+                      int x = 10;
+                      int y = 20;
+                      
+                      x = y + 5;      // Simple assignment
+                      x += 10;        // Add and assign
+                      x -= 3;         // Subtract and assign
+                      x <<= 2;        // Shift left and assign
+                      x |= 0xFF;      // Bitwise OR and assign
+                  }
+              }
+          
+          Attributes:
+              lhs: Left-hand side expression (target variable)
+              op: Assignment operator (=, +=, -=, etc.)
+              rhs: Right-hand side expression (value to assign)
+          
+          See Also:
+              AssignOp, ProceduralStmtExpr, ProceduralStmtDataDeclaration
+      data:
+      - lhs: UP<Expr>
+      - op: AssignOp
+      - rhs: UP<Expr>
+  - ProceduralStmtExpr:
+      super: ExecStmt
+      doc: |
+          Expression statement for side-effect expressions.
+          
+          ProceduralStmtExpr represents an expression evaluated for its side effects
+          rather than its value. Commonly used for function calls, increment/decrement
+          operations, and other expressions that modify state.
+          
+          PSS Example::
+          
+              action my_action {
+                  exec body {
+                      int x = 0;
+                      
+                      x++;                    // Increment expression
+                      x--;                    // Decrement expression
+                      my_func();              // Function call (see ProceduralStmtFunctionCall)
+                      (x > 5) ? x++ : x--;    // Conditional expression with side effects
+                  }
+              }
+          
+          Attributes:
+              expr: Expression to evaluate
+          
+          See Also:
+              ProceduralStmtFunctionCall, ProceduralStmtAssignment, Expr
+      data:
+      - expr: UP<Expr>
+  - ProceduralStmtFunctionCall:
+      super: ExecStmt
+      doc: |
+          Function or method call statement.
+          
+          ProceduralStmtFunctionCall represents a call to a function or method in
+          an exec block. The prefix identifies the function (which may be qualified
+          with package or component paths), and params provides the argument list.
+          
+          PSS Example::
+          
+              action my_action {
+                  exec body {
+                      // Simple function call
+                      my_function(10, 20);
+                      
+                      // Qualified function call
+                      my_pkg::my_function(x, y);
+                      
+                      // Method call on component
+                      comp.my_method(value);
+                      
+                      // Built-in function call
+                      console.log("Hello");
+                  }
+              }
+          
+          Attributes:
+              prefix: Static reference path to the function/method
+              params: List of argument expressions
+          
+          See Also:
+              ExprRefPathStaticRooted, FunctionDefinition, ProceduralStmtReturn
+      data: 
+      - prefix: UP<ExprRefPathStaticRooted>
+      - params: list<UP<Expr>>
+  - ProceduralStmtReturn:
+      super: ExecStmt
+      doc: |
+          Return statement from function or method.
+          
+          ProceduralStmtReturn represents a return statement that exits the current
+          function or method, optionally returning a value. For void functions, the
+          expr field is null.
+          
+          PSS Example::
+          
+              function int add(int a, int b) {
+                  exec body {
+                      return a + b;  // Return with value
+                  }
+              }
+              
+              function void log_message(string msg) {
+                  exec body {
+                      console.log(msg);
+                      return;  // Return without value
+                  }
+              }
+          
+          Attributes:
+              expr: Expression to return (null for void functions)
+          
+          See Also:
+              ProceduralStmtFunctionCall, FunctionDefinition, FunctionPrototype
+      data:
+        - expr: UP<Expr>
+  - ProceduralStmtRepeat:
+      super: ProceduralStmtSymbolBodyScope
+      doc: |
+          Fixed-count repeat loop with optional iterator variable.
+          
+          ProceduralStmtRepeat represents a loop that executes a fixed number of
+          times, specified by the count expression. An optional iterator variable
+          tracks the current iteration index (0-based).
+          
+          PSS Example::
+          
+              action my_action {
+                  exec body {
+                      // Repeat 10 times without iterator
+                      repeat (10) {
+                          console.log("Iteration");
+                      }
+                      
+                      // Repeat with iterator variable
+                      repeat (i : 5) {
+                          console.log("Iteration ", i);  // i = 0, 1, 2, 3, 4
+                      }
+                  }
+              }
+          
+          Attributes:
+              it_id: Optional iterator variable identifier
+              count: Expression specifying number of iterations
+              body: Statement(s) to execute each iteration (inherited)
+          
+          See Also:
+              ProceduralStmtRepeatWhile, ProceduralStmtWhile, ProceduralStmtForeach
+      data:
+        - it_id: UP<ExprId>
+        - count: UP<Expr>
+  - ProceduralStmtBody:
+      super: ExecStmt
+      doc: |
+          Statement block containing a single statement or compound statement.
+          
+          ProceduralStmtBody wraps a statement or block of statements, providing
+          a common base for control flow constructs that contain a body (while,
+          repeat-while, etc.). The body can be a single statement or a scope
+          containing multiple statements.
+          
+          PSS Example::
+          
+              action my_action {
+                  exec body {
+                      // Single statement body
+                      while (x > 0) x--;
+                      
+                      // Compound statement body
+                      while (y > 0) {
+                          y--;
+                          console.log(y);
+                      }
+                  }
+              }
+          
+          Attributes:
+              body: Statement or scope contained in this body
+          
+          See Also:
+              ProceduralStmtWhile, ProceduralStmtRepeatWhile, ExecScope
+      data:
+        - body: UP<ScopeChild>
+  - ProceduralStmtRepeatWhile:
+      super: ProceduralStmtBody
+      doc: |
+          Post-test loop that executes at least once.
+          
+          ProceduralStmtRepeatWhile represents a repeat-while loop (do-while style)
+          that executes the body at least once, then continues while the condition
+          is true. The condition is evaluated after each iteration.
+          
+          PSS Example::
+          
+              action my_action {
+                  exec body {
+                      int x = 0;
+                      
+                      // Executes body first, then checks condition
+                      repeat {
+                          x++;
+                          console.log("x = ", x);
+                      } while (x < 5);
+                      // Executes at least once even if x >= 5 initially
+                  }
+              }
+          
+          Attributes:
+              expr: Condition evaluated after each iteration
+              body: Statement(s) to execute (inherited from ProceduralStmtBody)
+          
+          See Also:
+              ProceduralStmtWhile, ProceduralStmtRepeat, ProceduralStmtBody
+      data:
+        - expr: UP<Expr>
+  - ProceduralStmtWhile:
+      super: ProceduralStmtBody
+      doc: |
+          Pre-test loop with condition evaluated before each iteration.
+          
+          ProceduralStmtWhile represents a standard while loop that evaluates the
+          condition before executing the body. The body may never execute if the
+          condition is initially false.
+          
+          PSS Example::
+          
+              action my_action {
+                  exec body {
+                      int x = 10;
+                      
+                      // Standard while loop
+                      while (x > 0) {
+                          console.log("x = ", x);
+                          x--;
+                      }
+                      
+                      // Condition checked first - may not execute
+                      while (false) {
+                          console.log("Never executed");
+                      }
+                  }
+              }
+          
+          Attributes:
+              expr: Condition evaluated before each iteration
+              body: Statement(s) to execute (inherited from ProceduralStmtBody)
+          
+          See Also:
+              ProceduralStmtRepeatWhile, ProceduralStmtRepeat, ProceduralStmtForeach
+      data:
+        - expr: UP<Expr>
+  - ProceduralStmtForeach:
+      super: ProceduralStmtSymbolBodyScope
+      doc: |
+          Iteration over elements of a collection.
+          
+          ProceduralStmtForeach represents a foreach loop that iterates over elements
+          of an array, list, or other collection. Provides both the element iterator
+          and an optional index iterator for tracking position.
+          
+          PSS Example::
+          
+              action my_action {
+                  int values[10];
+                  
+                  exec body {
+                      // Iterate over array elements
+                      foreach (v : values) {
+                          console.log("Value: ", v);
+                      }
+                      
+                      // Iterate with index
+                      foreach (v [i] : values) {
+                          console.log("values[", i, "] = ", v);
+                      }
+                  }
+              }
+          
+          Attributes:
+              path: Reference path to the collection to iterate
+              it_id: Iterator variable for current element
+              idx_id: Optional index variable for current position
+              body: Statement(s) to execute each iteration (inherited)
+          
+          See Also:
+              ProceduralStmtRepeat, ProceduralStmtWhile, ExprRefPath
+      data:
+        - path: UP<ExprRefPath>
+        - it_id: UP<ExprId>
+        - idx_id: UP<ExprId>
+  - ProceduralStmtIfClause:
+      super: ScopeChild
+      doc: |
+          Single if or else-if clause with condition and body.
+          
+          ProceduralStmtIfClause represents one conditional branch in an if-else-if
+          chain. Each clause has a condition expression and a body that executes
+          if the condition is true. Multiple clauses are chained together in
+          ProceduralStmtIfElse.
+          
+          PSS Example::
+          
+              action my_action {
+                  exec body {
+                      int x = 10;
+                      
+                      if (x > 15) {          // First ProceduralStmtIfClause
+                          console.log("Big");
+                      } else if (x > 5) {    // Second ProceduralStmtIfClause
+                          console.log("Medium");
+                      }
+                  }
+              }
+          
+          Attributes:
+              cond: Condition expression to evaluate
+              body: Statement(s) to execute if condition is true
+          
+          See Also:
+              ProceduralStmtIfElse
+      data:
+        - cond: UP<Expr>
+        - body: UP<ScopeChild>
+  - ProceduralStmtIfElse:
+      super: ExecStmt
+      doc: |
+          If-else-if-else conditional statement.
+          
+          ProceduralStmtIfElse represents a complete conditional statement with
+          multiple if/else-if clauses and an optional else clause. Evaluates
+          conditions in order and executes the first matching branch, or the
+          else branch if no conditions match.
+          
+          PSS Example::
+          
+              action my_action {
+                  exec body {
+                      int x = 10;
+                      
+                      if (x > 20) {
+                          console.log("Large");
+                      } else if (x > 10) {
+                          console.log("Medium");
+                      } else if (x > 0) {
+                          console.log("Small");
+                      } else {
+                          console.log("Zero or negative");
+                      }
+                  }
+              }
+          
+          Attributes:
+              if_then: List of if/else-if clauses evaluated in order
+              else_then: Optional else body executed if no clause matches
+          
+          See Also:
+              ProceduralStmtIfClause, ProceduralStmtMatch
+      data:
+        - if_then: list<UP<ProceduralStmtIfClause>>
+        - else_then: 
+            type: UP<ScopeChild>
+            is_ctor: false
+  - ProceduralStmtMatch:
+      super: ExecStmt
+      doc: |
+          Pattern matching statement for value-based branching.
+          
+          ProceduralStmtMatch represents a match statement that evaluates an
+          expression and executes the body of the first matching choice. Similar
+          to switch-case in other languages but supports range patterns and
+          more complex matching.
+          
+          PSS Example::
+          
+              action my_action {
+                  exec body {
+                      int status = get_status();
+                      
+                      match (status) {
+                          [0..9]: {
+                              console.log("Single digit");
+                          }
+                          [10, 20, 30]: {
+                              console.log("Multiple values");
+                          }
+                          default: {
+                              console.log("Other value");
+                          }
+                      }
+                  }
+              }
+          
+          Attributes:
+              expr: Expression to match against choice patterns
+              choices: List of match choices with patterns and bodies
+          
+          See Also:
+              ProceduralStmtMatchChoice, ProceduralStmtIfElse, ExprOpenRangeList
+      data:
+        - expr: UP<Expr>
+        - choices: 
+            type: list<UP<ProceduralStmtMatchChoice>>
+            is_ctor: false
+  - ProceduralStmtMatchChoice:
+      super: ExecStmt
+      doc: |
+          Single choice in a match statement with pattern and body.
+          
+          ProceduralStmtMatchChoice represents one branch in a match statement.
+          Each choice specifies a pattern (value, range, or list) to match against,
+          or serves as the default case. The body executes if the match expression
+          matches this choice's pattern.
+          
+          PSS Example::
+          
+              action my_action {
+                  exec body {
+                      int x = 10;
+                      
+                      match (x) {
+                          [0..9]: {              // Range pattern
+                              console.log("0-9");
+                          }
+                          [10, 20, 30]: {        // Value list pattern
+                              console.log("Special values");
+                          }
+                          default: {             // Default case (is_default=true)
+                              console.log("Other");
+                          }
+                      }
+                  }
+              }
+          
+          Attributes:
+              is_default: True if this is the default case
+              cond: Pattern to match (range list), null for default
+              body: Statement(s) to execute if pattern matches
+          
+          See Also:
+              ProceduralStmtMatch, ExprOpenRangeList, ExprOpenRangeValue
+      data:
+        - is_default: bool
+        - cond: UP<ExprOpenRangeList>
+        - body: UP<ScopeChild>
+  - ProceduralStmtBreak:
+      super: ExecStmt
+      doc: |
+          Break statement to exit from innermost loop.
+          
+          ProceduralStmtBreak represents a break statement that immediately exits
+          the innermost enclosing loop (while, repeat, repeat-while, foreach) or
+          match statement. Execution continues with the statement following the loop.
+          
+          PSS Example::
+          
+              action my_action {
+                  exec body {
+                      int i = 0;
+                      
+                      while (true) {
+                          console.log("i = ", i);
+                          i++;
+                          if (i >= 10) {
+                              break;  // Exit the while loop
+                          }
+                      }
+                      console.log("Loop exited");
+                  }
+              }
+          
+          Attributes:
+              (no attributes)
+          
+          See Also:
+              ProceduralStmtContinue, ProceduralStmtWhile, ProceduralStmtForeach
+      data: []
+  - ProceduralStmtContinue:
+      super: ExecStmt
+      doc: |
+          Continue statement to skip to next loop iteration.
+          
+          ProceduralStmtContinue represents a continue statement that skips the
+          remainder of the current iteration and jumps to the next iteration of
+          the innermost enclosing loop (while, repeat, repeat-while, foreach).
+          
+          PSS Example::
+          
+              action my_action {
+                  exec body {
+                      repeat (i : 10) {
+                          if (i % 2 == 0) {
+                              continue;  // Skip even numbers
+                          }
+                          console.log("Odd: ", i);
+                      }
+                  }
+              }
+          
+          Attributes:
+              (no attributes)
+          
+          See Also:
+              ProceduralStmtBreak, ProceduralStmtWhile, ProceduralStmtForeach
+      data: []
   - ProceduralStmtDataDeclaration:
-    - super: ExecStmt
-    - data:
-      - datatype: UP<DataType>
+      super: ExecStmt
+      doc: |
+          Local variable declaration with optional initialization.
+          
+          ProceduralStmtDataDeclaration represents the declaration of a local
+          variable within an exec block. Variables are scoped to the block in
+          which they are declared and can optionally be initialized with an
+          expression.
+          
+          PSS Example::
+          
+              action my_action {
+                  exec body {
+                      // Declaration without initialization
+                      int x;
+                      
+                      // Declaration with initialization
+                      int y = 10;
+                      string msg = "Hello";
+                      bool flag = true;
+                      
+                      // Complex initialization
+                      int sum = x + y * 2;
+                  }
+              }
+          
+          Attributes:
+              name: Identifier for the variable being declared
+              datatype: Type of the variable
+              init: Optional initialization expression
+          
+          See Also:
+              ProceduralStmtAssignment, DataType, Field
+      data:
       - name: UP<ExprId>
+      - datatype: UP<DataType>
+      - init: UP<Expr>
+  - ProceduralStmtYield:
+      super: ExecStmt
+      doc: |
+          Yield control back to scheduler or runtime.
+          
+          ProceduralStmtYield represents a yield statement that temporarily suspends
+          execution and returns control to the scheduler or runtime system. This
+          allows cooperative multitasking and time-slicing in execution models.
+          
+          PSS Example::
+          
+              action my_action {
+                  exec body {
+                      console.log("Starting work");
+                      
+                      // Yield control to allow other actions to run
+                      yield;
+                      
+                      console.log("Resuming work");
+                  }
+              }
+          
+          Attributes:
+              (no attributes)
+          
+          See Also:
+              ProceduralStmtReturn, ExecBlock
+      data: []
+  - ProceduralStmtRandomize:
+      super: ExecStmt
+      doc: |
+          Inline randomization with optional constraints.
+          
+          ProceduralStmtRandomize represents an inline randomization statement
+          that randomizes a variable or object with optional additional constraints.
+          This allows procedural code to trigger randomization at specific points
+          with customized constraint sets.
+          
+          PSS Example::
+          
+              action my_action {
+                  rand int x;
+                  rand int y;
+                  
+                  exec body {
+                      // Randomize with inline constraints
+                      randomize (x, y) with {
+                          x > 0;
+                          y < 100;
+                          x + y < 50;
+                      };
+                      
+                      console.log("x=", x, " y=", y);
+                  }
+              }
+          
+          Attributes:
+              target: Expression identifying what to randomize
+              constraints: List of inline constraint statements
+          
+          See Also:
+              ConstraintStmt, ConstraintBlock, Field
+      data:
+      - target: UP<Expr>
+      - constraints: list<UP<ConstraintStmt>>
+  - ProceduralStmtSymbolBodyScope:
+      super: SymbolScope
+      doc: |
+          Symbol scope with statement body for loop constructs.
+          
+          ProceduralStmtSymbolBodyScope combines symbol scope capabilities with
+          a statement body, providing a base class for loop constructs that need
+          to declare iterator variables (repeat, foreach). The symbol scope holds
+          the iterator variable declarations.
+          
+          PSS Example::
+          
+              action my_action {
+                  exec body {
+                      // 'i' is declared in the symbol scope
+                      repeat (i : 10) {
+                          console.log("i = ", i);
+                          // 'i' is accessible here
+                      }
+                      // 'i' is not accessible here
+                      
+                      // Similar for foreach
+                      int arr[5];
+                      foreach (elem [idx] : arr) {
+                          // 'elem' and 'idx' in symbol scope
+                      }
+                  }
+              }
+          
+          Attributes:
+              body: Statement(s) contained in this scope
+          
+          See Also:
+              ProceduralStmtRepeat, ProceduralStmtForeach, SymbolScope
+      data:
+        - body: UP<ScopeChild>
+
 
 

@@ -9,6 +9,7 @@
 
 namespace pssp {
 
+
 enum class SymbolScopeKind {
     Namespace,
     Type,

@@ -4,6 +4,7 @@
 
 namespace pssp {
 
+
 class ISymbolScope;
 
 struct ResolveResult {

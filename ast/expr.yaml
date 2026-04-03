@@ -1,189 +1,1113 @@
 enums: 
     - ExprBinOp:
-        - BinOp_LogOr
-        - BinOp_LogAnd
-        - BinOp_BitOr
-        - BinOp_BitXor
-        - BinOp_BitAnd
-        - BinOp_Lt
-        - BinOp_Le
-        - BinOp_Gt
-        - BinOp_Ge
-        - BinOp_Exp
-        - BinOp_Mul
-        - BinOp_Div
-        - BinOp_Mod
-        - BinOp_Add
-        - BinOp_Sub
-        - BinOp_Shl
-        - BinOp_Shr
-        - BinOp_Eq
-        - BinOp_Ne
+        - BinOp_LogOr    # Logical OR (||)
+        - BinOp_LogAnd   # Logical AND (&&)
+        - BinOp_BitOr    # Bitwise OR (|)
+        - BinOp_BitXor   # Bitwise XOR (^)
+        - BinOp_BitAnd   # Bitwise AND (&)
+        - BinOp_Lt       # Less than (<)
+        - BinOp_Le       # Less or equal (<=)
+        - BinOp_Gt       # Greater than (>)
+        - BinOp_Ge       # Greater or equal (>=)
+        - BinOp_Exp      # Exponentiation (**)
+        - BinOp_Mul      # Multiplication (*)
+        - BinOp_Div      # Division (/)
+        - BinOp_Mod      # Modulo (%)
+        - BinOp_Add      # Addition (+)
+        - BinOp_Sub      # Subtraction (-)
+        - BinOp_Shl      # Left shift (<<)
+        - BinOp_Shr      # Right shift (>>)
+        - BinOp_Eq       # Equality (==)
+        - BinOp_Ne       # Not equal (!=)
     - ExprUnaryOp:
-        - UnaryOp_Plus
-        - UnaryOp_Minus
-        - UnaryOp_LogNot
-        - UnaryOp_BitNeg
-        - UnaryOp_BitAnd
-        - UnaryOp_BitOr
-        - UnaryOp_BitXor
+        - UnaryOp_Plus   # Unary plus (+)
+        - UnaryOp_Minus  # Unary minus (-)
+        - UnaryOp_LogNot # Logical NOT (!)
+        - UnaryOp_BitNeg # Bitwise negation (~)
+        - UnaryOp_BitAnd # Bitwise reduction AND (&)
+        - UnaryOp_BitOr  # Bitwise reduction OR (|)
+        - UnaryOp_BitXor # Bitwise reduction XOR (^)
+    - StringMethodId:
+        - StringMethod_None
+        - StringMethod_Size
+        - StringMethod_Find
+        - StringMethod_FindLast
+        - StringMethod_FindAll
+        - StringMethod_Lower
+        - StringMethod_Upper
+        - StringMethod_Split
+        - StringMethod_Chars
 
 classes: 
     - Expr:
+        doc: |
+            Base class for all PSS expression nodes.
+            
+            This abstract base class represents any expression that can appear in PSS source code.
+            Expressions produce values and can be composed to form more complex expressions.
+            All expression types in the AST inherit from this class.
+            
+            PSS Example::
+            
+                // Various expression types
+                x + 5           // Binary expression
+                arr[i]          // Subscript expression
+                comp.field      // Reference path expression
+                (cond) ? a : b  // Conditional expression
+            
+            See Also:
+                ExprBin, ExprUnary, ExprCond, ExprRefPath
+
+    - ExprAggrLiteral:
+        super: Expr
+        doc: |
+            Base class for aggregate literal expressions.
+            
+            Represents the common structure for all aggregate literals including arrays,
+            maps, and struct initializers. Aggregate literals are used to initialize
+            composite data structures with specific values.
+            
+            PSS Example::
+            
+                {1, 2, 3}              // Array literal (ExprAggrList)
+                {name: value, ...}     // Struct literal (ExprAggrStruct)
+                {[key]: value, ...}    // Map literal (ExprAggrMap)
+            
+            See Also:
+                ExprAggrList, ExprAggrMap, ExprAggrStruct, ExprAggrEmpty
+        data: []
+#            - data_type: P<DataType>
+    - ExprAggrEmpty:
+        super: ExprAggrLiteral
+        doc: |
+            Represents an empty aggregate literal.
+            
+            Used to initialize arrays, maps, or structs with no elements. This is the
+            literal form `{}` that creates an empty collection or default-initialized
+            composite structure.
+            
+            PSS Example::
+            
+                array<int, 10> arr = {};  // Empty array literal
+                map<string, int> m = {};  // Empty map literal
+            
+            See Also:
+                ExprAggrLiteral, ExprAggrList, ExprAggrMap
+        data: []
+
+    - ExprAggrList:
+        super: ExprAggrLiteral
+        doc: |
+            Represents an array or list literal expression.
+            
+            Contains a comma-separated list of expressions enclosed in braces. Used to
+            initialize arrays with explicit element values. Each element expression is
+            evaluated and assigned to the corresponding array position.
+            
+            PSS Example::
+            
+                array<int, 5> values = {1, 2, 3, 4, 5};
+                array<bit[8], 3> bytes = {8'hFF, 8'h00, 8'hAA};
+            
+            Attributes:
+                elems: List of expression elements in the array literal
+            
+            See Also:
+                ExprAggrLiteral, ExprAggrEmpty
+        data:
+            - elems: "list<UP<Expr>>"
+
+    - ExprAggrMapElem:
+        doc: |
+            Represents a single key-value pair in a map literal.
+            
+            Each map element consists of a key expression (lhs) and a value expression (rhs).
+            The key expression is enclosed in square brackets, and the value follows a colon.
+            
+            PSS Example::
+            
+                // Within a map literal: {[key]: value}
+                {["key1"]: 10, ["key2"]: 20}
+            
+            Attributes:
+                lhs: The key expression
+                rhs: The value expression
+            
+            See Also:
+                ExprAggrMap
+        data:
+            - lhs: UP<Expr>
+            - rhs: UP<Expr>
+
+    - ExprAggrMap:
+        super: ExprAggrLiteral
+        doc: |
+            Represents a map literal expression.
+            
+            Contains key-value pairs for initializing map data structures. Each element
+            is an ExprAggrMapElem with a key in square brackets followed by a colon and value.
+            
+            PSS Example::
+            
+                map<string, int> ages = {
+                    ["Alice"]: 30,
+                    ["Bob"]: 25,
+                    ["Charlie"]: 35
+                };
+            
+            Attributes:
+                elems: List of key-value pair elements
+            
+            See Also:
+                ExprAggrMapElem, ExprAggrLiteral
+        data:
+            - elems: "list<UP<ExprAggrMapElem>>"
+
+    - ExprAggrStructElem:
+        doc: |
+            Represents a single field initialization in a struct literal.
+            
+            Contains a field name and its initialization value expression. Used within
+            ExprAggrStruct to specify individual field values during struct initialization.
+            The target field is resolved during semantic analysis.
+            
+            PSS Example::
+            
+                // Within a struct literal: {field: value}
+                {x: 10, y: 20, z: 30}
+            
+            Attributes:
+                name: Field name identifier
+                target: Index of target field (-1 if unresolved)
+                value: Expression providing the field's value
+            
+            See Also:
+                ExprAggrStruct, ExprId
+        data:
+            - name: UP<ExprId>
+            - target:
+                type: int32_t
+                init: -1
+                is_ctor: false
+            - value: UP<Expr>
+
+    - ExprAggrStruct:
+        super: ExprAggrLiteral
+        doc: |
+            Represents a struct literal expression.
+            
+            Initializes a struct with named field values. Each element specifies a field name
+            and its corresponding value expression. Fields can be initialized in any order,
+            and unspecified fields receive default values.
+            
+            PSS Example::
+            
+                struct Point {
+                    int x;
+                    int y;
+                }
+                
+                Point p = {x: 100, y: 200};
+            
+            Attributes:
+                elems: List of field initialization elements
+            
+            See Also:
+                ExprAggrStructElem, ExprAggrLiteral
+        data:
+            - elems: "list<UP<ExprAggrStructElem>>"
 
     - ExprBin:
-        - super: Expr
-        - data: 
+        super: Expr
+        doc: |
+            Represents a binary expression with an operator.
+            
+            Binary expressions combine two operands (left and right) with an operator such as
+            arithmetic, logical, bitwise, comparison, or shift operators. The operator determines
+            how the operands are combined to produce a result value.
+            
+            PSS Example::
+            
+                a + b           // Arithmetic addition
+                x && y          // Logical AND
+                value << 2      // Left shift
+                count == 5      // Equality comparison
+            
+            Attributes:
+                lhs: Left-hand side operand expression
+                op: Binary operator (ExprBinOp enum value)
+                rhs: Right-hand side operand expression
+            
+            See Also:
+                ExprBinOp, ExprUnary, Expr
+        data: 
             - lhs: "UP<Expr>"
             - op:  "ExprBinOp"
             - rhs: "UP<Expr>"
             
     - ExprBitSlice:
-        - super: Expr
-        - data: 
-            - expr: "UP<Expr>"
+        super: Expr
+        doc: |
+            Represents a bit-slice or bit-range selection expression.
+            
+            Extracts a contiguous range of bits from an integer value. The lhs specifies
+            the high bit index and rhs specifies the low bit index of the range. Both
+            indices are inclusive. Single bit selection uses the same index for both.
+            
+            PSS Example::
+            
+                value[7:0]      // Extract bits 7 through 0
+                data[15:8]      // Extract bits 15 through 8
+                flags[3:3]      // Extract single bit 3
+            
+            Attributes:
+                lhs: Upper bit index expression
+                rhs: Lower bit index expression
+            
+            See Also:
+                ExprSubscript, ExprRefPathId
+        data: 
             - lhs:  "UP<Expr>"
             - rhs:  "UP<Expr>"
     - ExprBool:
-        - super: Expr
-        - data: 
+        super: Expr
+        doc: |
+            Represents a boolean literal value.
+            
+            Contains either the value true or false. Boolean literals are used in
+            conditional expressions, constraints, and logical operations.
+            
+            PSS Example::
+            
+                bool flag = true;
+                constraint c { enabled == false; }
+            
+            Attributes:
+                value: The boolean value (true or false)
+            
+            See Also:
+                ExprNumber, ExprString
+        data: 
             - value : bool
     - ExprCast:
-        - super: Expr
-        - data: 
-            - casting_type: "UP<Expr>"
+        super: Expr
+        doc: |
+            Represents an explicit type cast expression.
+            
+            Converts an expression from one type to another. The casting_type specifies
+            the target type, and expr is the value being converted. Used for numeric
+            conversions, widening/narrowing operations, and explicit type coercion.
+            
+            PSS Example::
+            
+                bit[16] x = 16'h1234;
+                bit[8] y = (bit[8])x;           // Cast to narrower type
+                int z = (int)some_expression;   // Cast to int
+            
+            Attributes:
+                casting_type: Target type for the cast
+                expr: Expression being cast
+            
+            See Also:
+                DataType, Expr
+        data: 
+            - casting_type: "UP<DataType>"
             - expr: "UP<Expr>"
     - ExprCompileHas:
-        - super: Expr
-        - data: 
+        super: Expr
+        doc: |
+            Represents a compile-time existence check expression.
+            
+            Used in compile-time conditional compilation to test whether a symbol or
+            path exists in the current scope. Returns a compile-time boolean value
+            indicating whether the referenced element is available.
+            
+            PSS Example::
+            
+                if (compile.has(some_package::some_type)) {
+                    // Code for when type exists
+                }
+            
+            Attributes:
+                ref: Static reference path to check for existence
+            
+            See Also:
+                ExprRefPathStatic
+        data: 
             - ref: "UP<ExprRefPathStatic>"
     - ExprCond:
-        - super: Expr
-        - data: 
+        super: Expr
+        doc: |
+            Represents a ternary conditional expression (? :).
+            
+            Evaluates a condition expression and returns one of two values depending on
+            whether the condition is true or false. This is the PSS equivalent of the
+            ternary operator found in C-like languages.
+            
+            PSS Example::
+            
+                int result = (x > 10) ? x : 10;  // Use x if > 10, else 10
+                bit[8] value = flag ? 8'hFF : 8'h00;
+            
+            Attributes:
+                cond_e: Boolean condition expression
+                true_e: Expression evaluated if condition is true
+                false_e: Expression evaluated if condition is false
+            
+            See Also:
+                ExprBin, ExprBool
+        data: 
             - cond_e: "UP<Expr>"
             - true_e: "UP<Expr>"
             - false_e: "UP<Expr>"
     - ExprDomainOpenRangeList:
-        - super: Expr
-        - data:
+        super: Expr
+        doc: |
+            Represents a domain constraint range list expression.
+            
+            Contains a list of range values that define valid domains for random variables
+            in constraint blocks. Each range can be a single value or a range interval.
+            
+            PSS Example::
+            
+                rand bit[8] value;
+                constraint c { value in [1..10, 20, 30..40]; }
+            
+            Attributes:
+                values: List of range value specifications
+            
+            See Also:
+                ExprDomainOpenRangeValue, ExprIn
+        data:
             - values: "list<UP<ExprDomainOpenRangeValue>>"
     - ExprDomainOpenRangeValue:
-        - super: Expr
-        - data: 
+        super: Expr
+        doc: |
+            Represents a single range value in a domain constraint.
+            
+            Can represent either a single value or a range interval. If single is true,
+            only lhs is used. For ranges, lhs is the lower bound and rhs is the upper bound.
+            
+            PSS Example::
+            
+                rand int x;
+                constraint c { 
+                    x in [1..10];      // Range: lhs=1, rhs=10, single=false
+                    x in [42];         // Single: lhs=42, single=true
+                }
+            
+            Attributes:
+                single: True if single value, false if range
+                lhs: Lower bound or single value
+                rhs: Upper bound (only used if single is false)
+            
+            See Also:
+                ExprDomainOpenRangeList, ExprIn
+        data: 
             - single: bool
             - lhs: "UP<Expr>"
             - rhs: "UP<Expr>"
     - ExprHierarchicalId:
-        - super: Expr
-        - data: 
+        super: Expr
+        doc: |
+            Represents a qualified identifier with scope resolution.
+            
+            A hierarchical identifier consists of multiple name elements separated by
+            scope resolution operators (::). Used to reference types, packages, or
+            members through nested scopes.
+            
+            PSS Example::
+            
+                my_pkg::my_component::my_field
+                std::addr_handle_t
+                parent_comp::child_comp
+            
+            Attributes:
+                elems: List of path elements forming the hierarchical identifier
+            
+            See Also:
+                ExprId, ExprMemberPathElem, ExprRefPath
+        data: 
             - elems : "list<UP<ExprMemberPathElem>>"
     - ExprId:
-        - super: Expr
-        - data: 
+        super: Expr
+        doc: |
+            Represents a simple identifier expression.
+            
+            The most basic form of identifier, representing a variable name, field name,
+            type name, or other named entity. Can be escaped (prefixed with backslash)
+            to allow use of keywords or special characters as identifiers.
+            
+            PSS Example::
+            
+                my_variable
+                field_name
+                \begin          // Escaped identifier
+            
+            Attributes:
+                id: The identifier string
+                is_escaped: True if identifier is escaped with backslash
+                location: Source location of the identifier
+            
+            See Also:
+                ExprHierarchicalId, ExprRefPath, ExprMemberPathElem
+        data: 
             - id: string
             - is_escaped: bool
             - location:
                 type: Location
                 is_ctor: false
     - ExprIn:
-        - super: Expr
-        - data: 
+        super: Expr
+        doc: |
+            Represents a set membership test expression (in operator).
+            
+            Tests whether a value (lhs) is contained within a specified set of values
+            or ranges (rhs). Commonly used in constraint expressions to restrict
+            random variables to specific value domains.
+            
+            PSS Example::
+            
+                rand int x;
+                constraint c { 
+                    x in [1..10, 20, 30..40];  // x must be in these ranges
+                }
+            
+            Attributes:
+                lhs: Expression to test for membership
+                rhs: Range list defining the valid set
+            
+            See Also:
+                ExprOpenRangeList, ExprDomainOpenRangeList
+        data: 
             - lhs : "UP<Expr>"
             - rhs : "UP<ExprOpenRangeList>"
+
+    - ExprListLiteral:
+        super: Expr
+        doc: |
+            Represents a list literal expression.
+            
+            Similar to ExprAggrList but may have different semantic usage. Contains
+            an ordered sequence of expression values.
+            
+            PSS Example::
+            
+                list<int> values = [1, 2, 3, 4, 5];
+            
+            Attributes:
+                value: List of expression values
+            
+            See Also:
+                ExprAggrList, Expr
+        data:
+            - value: "list<UP<Expr>>"
+
+    - ExprStructLiteral:
+        super: Expr
+        doc: |
+            Represents a struct literal expression.
+            
+            Similar to ExprAggrStruct but may have different semantic usage. Initializes
+            struct fields with named values provided in a list of items.
+            
+            PSS Example::
+            
+                struct Config {
+                    int x;
+                    int y;
+                }
+                Config cfg = {x: 10, y: 20};
+            
+            Attributes:
+                values: List of field initialization items
+            
+            See Also:
+                ExprStructLiteralItem, ExprAggrStruct
+        data:
+            - values: "list<UP<ExprStructLiteralItem>>"
+
+    - ExprStructLiteralItem:
+        super: Expr
+        doc: |
+            Represents a field initialization in a struct literal.
+            
+            Contains a field name identifier and its corresponding value expression.
+            Used within ExprStructLiteral to specify individual field assignments.
+            
+            PSS Example::
+            
+                // Within struct literal: {field: value}
+                {x: 10, y: 20}
+            
+            Attributes:
+                id: Field name identifier
+                value: Expression providing the field's value
+            
+            See Also:
+                ExprStructLiteral, ExprId
+        data:
+            - id: "UP<ExprId>"
+            - value: "UP<Expr>"
+
     - ExprMemberPathElem:
-        - super: Expr
-        - data: 
+        super: Expr
+        doc: |
+            Represents a single element in a member access path.
+            
+            Building block for hierarchical identifiers and reference paths. Can represent
+            a field access, method call, or array subscript. Multiple elements are chained
+            together to form complex access expressions.
+            
+            PSS Example::
+            
+                obj.field               // Simple member access
+                comp.method(args)       // Method call with parameters
+                arr[i]                  // Array subscript
+                str.upper()             // String method call
+            
+            Attributes:
+                id: The identifier name
+                params: Method parameters if this is a function call
+                subscript: Array subscript expressions if applicable
+                target: Resolved target index (-1 if unresolved)
+                super: Super class reference index
+                string_method_id: Identifier for string methods
+            
+            See Also:
+                ExprHierarchicalId, ExprId, MethodParameterList
+        data: 
             - id : "UP<ExprId>"
             - params: "UP<MethodParameterList>"
-            - subscript: "UP<Expr>"
-            - target: 
-                - type: int32_t
-                - is_ctor: false
-                - init: -1
+            - subscript: 
+                type: "list<UP<Expr>>"
+                is_ctor: false
+            - target:
+                type: int32_t
+                init: -1
+                is_ctor: false
+            - super:
+                type: int32_t
+                init: -1
+                is_ctor: false
+            - string_method_id:
+                type: StringMethodId
+                init: StringMethodId::StringMethod_None
+                is_ctor: false
+#                visit: false
+#            - target:
+#                is_ctor: false
+#                type: UP<SymbolRefPath>
+#                visit: false
+    - ExprNull:
+        super: Expr
+        doc: |
+            Represents a null literal value.
+            
+            Used to represent the absence of a value for reference types. Null is
+            commonly used with handle types to indicate an uninitialized or invalid
+            reference.
+            
+            PSS Example::
+            
+                addr_handle_t h = null;
+                if (handle == null) { ... }
+            
+            See Also:
+                ExprBool, ExprNumber
+
     - ExprNumber:
-        - super: Expr
-    - ExprAggregateLiteral:
-        - super: Expr
+        super: Expr
+        doc: |
+            Abstract base class for numeric literal expressions.
+            
+            Represents constant numeric values in PSS source code. Concrete subclasses
+            handle signed and unsigned integers with various representations and bit widths.
+            
+            PSS Example::
+            
+                42              // Decimal number
+                0x2A            // Hexadecimal
+                8'hFF           // Sized hexadecimal (8 bits)
+                -10             // Negative number
+            
+            See Also:
+                ExprSignedNumber, ExprUnsignedNumber
+#    - ExprAggregateLiteral:
+#        - super: Expr
 #        - data:
     - ExprOpenRangeList:
-        - super: Expr
-        - data: 
+        super: Expr
+        doc: |
+            Represents a list of value ranges for set membership tests.
+            
+            Contains a collection of range specifications used with the 'in' operator.
+            Each range can be a single value or an interval. Used primarily in
+            constraint expressions.
+            
+            PSS Example::
+            
+                rand int x;
+                constraint c { x in [1..10, 20, 30..40]; }
+            
+            Attributes:
+                values: List of range value specifications
+            
+            See Also:
+                ExprOpenRangeValue, ExprIn, ExprDomainOpenRangeList
+        data: 
             - values: "list<UP<ExprOpenRangeValue>>"
     - ExprOpenRangeValue:
-        - super: Expr
-        - data: 
+        super: Expr
+        doc: |
+            Represents a single value or range in a range list.
+            
+            Specifies either a single value (when rhs is null) or a range interval
+            (when both lhs and rhs are present). Used within ExprOpenRangeList for
+            set membership constraints.
+            
+            PSS Example::
+            
+                x in [5];           // Single value: lhs=5, rhs=null
+                x in [1..10];       // Range: lhs=1, rhs=10
+            
+            Attributes:
+                lhs: Lower bound or single value
+                rhs: Upper bound (null for single value)
+            
+            See Also:
+                ExprOpenRangeList, ExprIn
+        data: 
             - lhs: "UP<Expr>"
             - rhs: "UP<Expr>"
     - ExprRefPath:
-        - super: Expr
-#        - data: 
+        super: Expr
+        doc: |
+            Base class for reference path expressions.
+            
+            Reference paths represent access to fields, variables, or components through
+            a navigation path. The target field points to the resolved symbol path after
+            semantic analysis. Concrete subclasses handle different forms of paths.
+            
+            PSS Example::
+            
+                component.field         // Reference to component field
+                super.parent_field      // Reference to parent field
+                ::pkg::type             // Static reference path
+            
+            Attributes:
+                target: Resolved symbol reference path (null before resolution)
+            
+            See Also:
+                ExprRefPathId, ExprRefPathContext, ExprRefPathStatic
+        data:
+          - target:
+#              doc: |
+#                Points to the root, or first element, of this path. The balance
+#                of the reference expression may contain further relative references
+#                relative to this initial base.
+              is_ctor: false
+              type: UP<SymbolRefPath>
+              init: 0
+
+    - ExprRefPathId:
+        super: ExprRefPath
+        doc: |
+            Represents a simple identifier reference path.
+            
+            A reference consisting of a single identifier, optionally followed by a
+            bit slice. The simplest form of reference path, used to access local
+            variables, fields, or parameters.
+            
+            PSS Example::
+            
+                my_field
+                value[7:0]          // With bit slice
+                variable
+            
+            Attributes:
+                id: The identifier being referenced
+                slice: Optional bit slice for bit-range extraction
+            
+            See Also:
+                ExprRefPath, ExprId, ExprBitSlice
+        data: 
+          - id: UP<ExprId>
+          - slice: 
+              type: UP<ExprBitSlice>
+              is_ctor: false
+
     - ExprRefPathContext:
-        - super: ExprRefPath
-        - data: 
-            - hier_id : "UP<ExprHierarchicalId>"
+        super: ExprRefPath
+        doc: |
+            Represents a context-relative reference path.
+            
+            A reference that navigates relative to the current context, optionally
+            starting with a super reference to access parent scope. The hier_id
+            specifies the path to follow.
+            
+            PSS Example::
+            
+                super.parent_field      // Access parent's field
+                comp.sub.field          // Navigate through context
+            
+            Attributes:
+                is_super: True if path starts with super keyword
+                hier_id: Hierarchical identifier path
+                slice: Optional bit slice
+            
+            See Also:
+                ExprRefPath, ExprHierarchicalId, ExprRefPathSuper
+        data: 
+          - is_super:
+              type: bool
+              is_ctor: false 
+              init: false
+          - hier_id: "UP<ExprHierarchicalId>"
+          - slice: 
+              type: UP<ExprBitSlice>
+              is_ctor: false
     - ExprRefPathElem:
-        - super: Expr
+        super: Expr
+        doc: |
+            Base class for elements within a reference path.
+            
+            Represents individual components that can be part of a reference path
+            expression. Used as a building block for more complex path structures.
+            
+            See Also:
+                ExprRefPath, ExprMemberPathElem
+
     - ExprRefPathStatic:
-        - super: ExprRefPath
-        - data:
+        super: ExprRefPath
+        doc: |
+            Represents a static reference path to types or symbols.
+            
+            Used to reference types, packages, or compile-time constants through
+            qualified names. Can be global (starting with ::) or relative. The base
+            contains the type identifier path elements.
+            
+            PSS Example::
+            
+                ::my_pkg::my_type           // Global static reference
+                pkg::type_name              // Package-qualified type
+                std::addr_handle_t          // Standard library type
+            
+            Attributes:
+                is_global: True if path starts with :: (global scope)
+                base: List of type identifier elements forming the path
+                slice: Optional bit slice
+            
+            See Also:
+                ExprRefPath, TypeIdentifierElem, ExprRefPathStaticFunc
+        data:
             - is_global: bool
             - base: "list<UP<TypeIdentifierElem>>"
+            - slice: 
+                type: UP<ExprBitSlice>
+                is_ctor: false
+
     - ExprRefPathStaticFunc:
-        - super: ExprRefPathStatic
-        - data:
+        super: ExprRefPathStatic
+        doc: |
+            Represents a static function call expression.
+            
+            Extends ExprRefPathStatic to include method parameters for calling static
+            functions or compile-time functions. Used for function calls on static
+            types or within package scope.
+            
+            PSS Example::
+            
+                my_pkg::my_function(arg1, arg2)
+                compile.has(some_type)
+            
+            Attributes:
+                params: Method parameter list for the function call
+            
+            See Also:
+                ExprRefPathStatic, MethodParameterList
+        data:
             - params: "UP<MethodParameterList>"
+
     - ExprRefPathStaticRooted:
-        - super: Expr
-        - data: 
-            - root: "UP<ExprRefPathStatic>"
-            - leaf: "UP<ExprRefPathContext>"
+        super: ExprRefPath
+        doc: |
+            Represents a reference path with static root and dynamic leaf.
+            
+            Combines a static reference path (root) with a hierarchical identifier
+            (leaf) for mixed static/dynamic references. The root is resolved statically,
+            then the leaf is navigated dynamically from that point.
+            
+            PSS Example::
+            
+                my_pkg::my_type::field.subfield
+                // root: my_pkg::my_type
+                // leaf: field.subfield
+            
+            Attributes:
+                root: Static reference path to the base
+                leaf: Hierarchical identifier for dynamic navigation
+                slice: Optional bit slice
+            
+            See Also:
+                ExprRefPathStatic, ExprHierarchicalId
+        data: 
+          - root: "UP<ExprRefPathStatic>"
+          - leaf: "UP<ExprHierarchicalId>"
+          - slice: 
+              type: UP<ExprBitSlice>
+              is_ctor: false
+
     - ExprRefPathSuper:
-        - super: ExprRefPathContext
+        super: ExprRefPathContext
+        doc: |
+            Represents a super reference to parent scope.
+            
+            Specialization of ExprRefPathContext specifically for super references.
+            Used to access fields, methods, or constraints defined in a parent
+            component or action.
+            
+            PSS Example::
+            
+                super.parent_field
+                super.parent_method()
+            
+            See Also:
+                ExprRefPathContext, ExprRefPath
+
     - ExprSignedNumber:
-        - super: ExprNumber
-        - data: 
+        super: ExprNumber
+        doc: |
+            Represents a signed integer literal value.
+            
+            Stores a signed numeric constant with its textual representation, bit width,
+            and numeric value. Can represent negative numbers and is used for signed
+            arithmetic expressions.
+            
+            PSS Example::
+            
+                -42
+                -8'sd10         // Signed decimal with specified width
+                -100
+            
+            Attributes:
+                image: Original text representation from source
+                width: Bit width of the value (0 for unsized)
+                value: The signed integer value
+            
+            See Also:
+                ExprNumber, ExprUnsignedNumber
+        data: 
             - image: string
-            - width: uint32_t
+            - width: int32_t
             - value: int64_t
+    # TODO: Remove this once it is safe to do so
     - ExprStaticRefPath:
-        - super: Expr
-        - data: 
-            - is_global: bool
-            - base: "list<UP<TypeIdentifierElem>>"
-            - leaf: "UP<ExprMemberPathElem>"
+        super: Expr
+        doc: |
+            Deprecated static reference path expression.
+            
+            Legacy class for static reference paths. This class is marked for removal
+            and should not be used in new code. Use ExprRefPathStatic instead.
+            
+            See Also:
+                ExprRefPathStatic
+        data: 
+        - is_global: bool
+        - base: "list<UP<TypeIdentifierElem>>"
+        - leaf: "UP<ExprMemberPathElem>"
     - ExprString:
-        - super: Expr
-        - data:
+        super: Expr
+        doc: |
+            Represents a string literal expression.
+            
+            Contains a string constant value. Can be a regular string (with escape
+            sequences processed) or a raw string (escape sequences preserved). Used
+            for string data, messages, and identifiers.
+            
+            PSS Example::
+            
+                string msg = "Hello, World!";
+                string path = r"C:\path\to\file";  // Raw string
+            
+            Attributes:
+                value: The string content
+                is_raw: True if this is a raw string literal
+            
+            See Also:
+                ExprBool, ExprNumber, ExprSubstring
+        data:
             - value: string
             - is_raw: bool
+    - ExprSubstring:
+        super: Expr
+        doc: |
+            Represents a substring extraction expression.
+            
+            Extracts a portion of a string based on start and end indices. Used with
+            string expressions to select character ranges.
+            
+            PSS Example::
+            
+                string s = "Hello, World!";
+                string sub = s[0:5];        // "Hello"
+                string tail = s[7:12];      // "World"
+            
+            Attributes:
+                expr: String expression to extract from
+                start: Starting index expression
+                end: Ending index expression
+            
+            See Also:
+                ExprString, ExprSubscript, ExprBitSlice
+        data:
+            - expr: "UP<Expr>"
+            - start: "UP<Expr>"
+            - end: "UP<Expr>"
     - ExprSubscript:
-        - super: Expr
-        - data: 
+        super: Expr
+        doc: |
+            Represents an array subscript or indexing expression.
+            
+            Accesses a single element of an array, list, or map by index. The expr
+            is the collection being indexed, and subscript is the index value.
+            
+            PSS Example::
+            
+                array<int, 10> arr;
+                int x = arr[5];         // Access element at index 5
+                int y = matrix[i];      // Dynamic index
+            
+            Attributes:
+                expr: Array or collection expression
+                subscript: Index expression
+            
+            See Also:
+                ExprBitSlice, ExprMemberPathElem
+        data: 
             - expr: "UP<Expr>"
             - subscript: "UP<Expr>"
     - ExprUnary:
-        - super: Expr
-        - data: 
+        super: Expr
+        doc: |
+            Represents a unary expression with an operator.
+            
+            Applies a unary operator to a single operand. Unary operators include
+            arithmetic negation, logical NOT, bitwise negation, and reduction operators.
+            
+            PSS Example::
+            
+                -x              // Unary minus
+                !flag           // Logical NOT
+                ~bits           // Bitwise negation
+                &vector         // Reduction AND
+            
+            Attributes:
+                op: Unary operator (ExprUnaryOp enum value)
+                rhs: Operand expression
+            
+            See Also:
+                ExprUnaryOp, ExprBin, Expr
+        data: 
             - op: ExprUnaryOp
             - rhs: "UP<Expr>"
     - ExprUnsignedNumber:
-        - super: ExprNumber
-        - data: 
+        super: ExprNumber
+        doc: |
+            Represents an unsigned integer literal value.
+            
+            Stores an unsigned numeric constant with its textual representation, bit width,
+            and numeric value. Used for positive integers and unsigned arithmetic.
+            
+            PSS Example::
+            
+                42
+                8'hFF           // Hexadecimal with specified width
+                32'hDEADBEEF    // 32-bit hex value
+                1000
+            
+            Attributes:
+                image: Original text representation from source
+                width: Bit width of the value (0 for unsized)
+                value: The unsigned integer value
+            
+            See Also:
+                ExprNumber, ExprSignedNumber
+        data: 
             - image: string
-            - width: uint32_t
+            - width: int32_t
             - value: uint64_t
     - MethodParameterList:
-        - super: Expr
-#        - data: 
-
+        super: Expr
+        doc: |
+            Represents a method or function parameter list.
+            
+            Contains the list of argument expressions passed to a method or function call.
+            Used within method call expressions to specify the actual parameters.
+            
+            PSS Example::
+            
+                my_function(arg1, arg2, arg3)
+                obj.method(x, y)
+            
+            Attributes:
+                parameters: List of argument expressions
+            
+            See Also:
+                ExprMemberPathElem, ExprRefPathStaticFunc
+        data: 
+          - parameters: 
+              type: list<UP<Expr>>
+              is_ctor: false
     - TypeIdentifier:
-        - super: Expr
-        - data: 
+        super: Expr
+        doc: |
+            Represents a type identifier expression.
+            
+            Used to reference type names, possibly with template parameters. The type
+            identifier can be simple or qualified with package/scope names. The target
+            field is resolved during semantic analysis.
+            
+            PSS Example::
+            
+                my_type_t
+                pkg::my_component
+                std::addr_handle_t
+                container<int>          // With template parameters
+            
+            Attributes:
+                elems: List of identifier elements forming the type path
+                target: Resolved symbol reference (null before resolution)
+            
+            See Also:
+                TypeIdentifierElem, ExprHierarchicalId
+        data: 
             - elems : "list<UP<TypeIdentifierElem>>"
+            - target:
+                is_ctor: false
+                type: UP<SymbolRefPath>
+                visit: false
     - TypeIdentifierElem:
-        - super: Expr
-        - data:
-            - id: "UP<ExprId>"
-            - params: "list<UP<TemplateParamValue>>"
+        super: Expr
+        doc: |
+            Represents a single element in a type identifier path.
+            
+            Building block for type identifiers. Contains an identifier and optional
+            template parameters. Multiple elements are chained for qualified type names.
+            
+            PSS Example::
+            
+                my_pkg          // Simple element
+                container<int>  // Element with template parameters
+            
+            Attributes:
+                id: The identifier name
+                params: Template parameter value list if present
+            
+            See Also:
+                TypeIdentifier, ExprId, TemplateParamValueList
+        data:
+            - id: UP<ExprId>
+            - params: UP<TemplateParamValueList>
 
  
