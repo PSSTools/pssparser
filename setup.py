@@ -145,18 +145,40 @@ if isSrcBuild:
                 break
 
         print("antlr4_rt_lib: %s" % antlr4_rt_lib)
-    else:
-        antlr4_rt_lib = "build/{libdir}/{libpref}antlr4-runtime{dllext}"
 
-    setup_args["ivpm_extra_data"] = {
-        "pssparser": [
-            ("build/include", "share"),
-            (antlr4_rt_lib, ""),
-            ("build/{libdir}/{libpref}ast{dllext}", ""),
-            ("build/{libdir}/{libpref}pssparser{dllext}", ""),
-            ("python/PyBaseVisitor.h", "share/include"),
-            ("python/PyParserUtils.h", "share/include"),
-        ]
-    }
+        setup_args["ivpm_extra_data"] = {
+            "pssparser": [
+                ("build/include", "share"),
+                (antlr4_rt_lib, ""),
+                ("build/{libdir}/{libpref}ast{dllext}", ""),
+                ("build/{libdir}/{libpref}pssparser{dllext}", ""),
+                ("python/PyBaseVisitor.h", "share/include"),
+                ("python/PyParserUtils.h", "share/include"),
+            ]
+        }
+    elif platform.system() == "Windows":
+        # On Windows, CMake installs RUNTIME targets (DLLs) to bin/ via GNUInstallDirs,
+        # but pssparser.dll uses an explicit DESTINATION ${CMAKE_INSTALL_LIBDIR} = lib/
+        setup_args["ivpm_extra_data"] = {
+            "pssparser": [
+                ("build/include", "share"),
+                ("build/bin/antlr4-runtime.dll", ""),
+                ("build/bin/ast.dll", ""),
+                ("build/{libdir}/pssparser.dll", ""),
+                ("python/PyBaseVisitor.h", "share/include"),
+                ("python/PyParserUtils.h", "share/include"),
+            ]
+        }
+    else:
+        setup_args["ivpm_extra_data"] = {
+            "pssparser": [
+                ("build/include", "share"),
+                ("build/{libdir}/{libpref}antlr4-runtime{dllext}", ""),
+                ("build/{libdir}/{libpref}ast{dllext}", ""),
+                ("build/{libdir}/{libpref}pssparser{dllext}", ""),
+                ("python/PyBaseVisitor.h", "share/include"),
+                ("python/PyParserUtils.h", "share/include"),
+            ]
+        }
 
 setup(**setup_args)
