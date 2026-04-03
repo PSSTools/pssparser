@@ -157,14 +157,15 @@ if isSrcBuild:
             ]
         }
     elif platform.system() == "Windows":
-        # On Windows, CMake installs RUNTIME targets (DLLs) to bin/ via GNUInstallDirs,
-        # but pssparser.dll uses an explicit DESTINATION ${CMAKE_INSTALL_LIBDIR} = lib/
+        # On Windows, antlr4 installs its DLL (RUNTIME target) to bin/ via GNUInstallDirs.
+        # The AST and pssparser projects use a bare DESTINATION ${CMAKE_INSTALL_LIBDIR}=lib/,
+        # which puts all target artifacts (including the DLL) in lib/.
         setup_args["ivpm_extra_data"] = {
             "pssparser": [
                 ("build/include", "share"),
                 ("build/bin/antlr4-runtime.dll", ""),
-                ("build/bin/ast.dll", ""),
-                ("build/{libdir}/pssparser.dll", ""),
+                ("build/lib/ast.dll", ""),
+                ("build/lib/pssparser.dll", ""),
                 ("python/PyBaseVisitor.h", "share/include"),
                 ("python/PyParserUtils.h", "share/include"),
             ]
