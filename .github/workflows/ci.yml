@@ -57,6 +57,28 @@ jobs:
         cmake .. -GNinja
         ninja
 
+  ci-macos:
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    - uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '11'
+    - name: Install Packages
+      run: |
+        python -m pip install ivpm twine cython ninja wheel cmake
+        python -m ivpm update -j 1 -a
+    - name: Build
+      run: |
+        mkdir build
+        cd build
+        cmake .. -GNinja
+        ninja
+
   docs:
     runs-on: ubuntu-latest
     steps:
