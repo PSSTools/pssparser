@@ -47,7 +47,6 @@ jobs:
           cp wheelhouse/*.whl dist
         fi
     - name: Publish to PyPI
-      if: startsWith(github.ref, 'refs/heads/main') || startsWith(github.ref, 'refs/tags/v')
       env:
         TWINE_USERNAME: __token__
         TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
@@ -97,7 +96,6 @@ jobs:
           cp wheelhouse/*.whl dist
         fi
     - name: Publish to PyPI
-      if: startsWith(github.ref, 'refs/heads/main') || startsWith(github.ref, 'refs/tags/v')
       env:
         TWINE_USERNAME: __token__
         TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
@@ -141,7 +139,6 @@ jobs:
       run: |
         packages/python/Scripts/python setup.py bdist_wheel
     - name: Publish to PyPI
-      if: startsWith(github.ref, 'refs/heads/main') || startsWith(github.ref, 'refs/tags/v')
       env:
         TWINE_USERNAME: __token__
         TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
@@ -183,7 +180,6 @@ jobs:
       run: |
         packages/python/bin/python setup.py bdist_wheel
     - name: Publish to PyPI
-      if: startsWith(github.ref, 'refs/heads/main') || startsWith(github.ref, 'refs/tags/v')
       env:
         TWINE_USERNAME: __token__
         TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
