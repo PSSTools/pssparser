@@ -30,6 +30,12 @@ def _patch_ast_pyx(path):
         '                core_lib = os.path.join(ext_dir, libname)\n'
     )
 
+    # Add "bin" to search dirs (Windows installs DLLs to bin/ by default)
+    content = content.replace(
+        '            for libdir in ("lib", "lib64"):\n',
+        '            for libdir in ("lib", "lib64", "bin"):\n'
+    )
+
     # Add macOS antlr4 preload before ctypes.cdll.LoadLibrary
     content = content.replace(
         '            so = ctypes.cdll.LoadLibrary(core_lib)\n',

@@ -125,10 +125,11 @@ cdef class Factory(object):
                     _dm_dll = os.path.join(_dm_dir, 'debug-mgr.dll')
                     if os.path.isfile(_dm_dll):
                         _shutil.copy(_dm_dll, _dm_so)
-                # Ensure the debug_mgr directory is in the DLL search path
+                # Ensure build/lib and build/bin are in the DLL search path
                 if hasattr(os, 'add_dll_directory'):
                     os.add_dll_directory(_dm_dir)
-                    os.add_dll_directory(os.path.dirname(core_lib))
+                    os.add_dll_directory(os.path.join(build_dir, "lib"))
+                    os.add_dll_directory(os.path.join(build_dir, "bin"))
 
             so = ctypes.cdll.LoadLibrary(core_lib)
             func = so.pssparser_getFactory
