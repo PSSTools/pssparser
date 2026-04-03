@@ -54,9 +54,7 @@ jobs:
       run: |
         export IVPM_PYTHON=/opt/python/cp312-cp312/bin/python
         ${IVPM_PYTHON} -m pip install ivpm twine auditwheel
-        ${IVPM_PYTHON} -m ivpm update -j 1 -a || true
-        packages/python/bin/pip install cython
-        packages/python/bin/pip install debug-mgr ciostream
+        ${IVPM_PYTHON} -m ivpm update -j 1 -a
     - name: Build packages
       run: |
         mkdir build
