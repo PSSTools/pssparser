@@ -51,8 +51,11 @@ set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS True)
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
   set(ANTLR_CXXFLAGS "-Wno-attributes -fPIC")
+elseif (MSVC)
+  # antlr4-cpp-runtime 4.13.2 omits <chrono> include and lacks /EHsc with MSVC
+  set(ANTLR_CXXFLAGS "/EHsc /FIchrono -DANTLR4CPP_STATIC")
 else()
-  set(ANTLR_CXXFLAGS -DANTLR4CPP_STATIC)
+  set(ANTLR_CXXFLAGS "-DANTLR4CPP_STATIC")
 endif()
 
 set(CompilerFlags
