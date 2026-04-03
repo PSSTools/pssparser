@@ -5,7 +5,11 @@ project(pssparser)
 include(ExternalProject)
 include(GNUInstallDirs)
 
-set(CMAKE_INSTALL_RPATH $ORIGIN)
+if(APPLE)
+  set(CMAKE_INSTALL_RPATH "@loader_path")
+else()
+  set(CMAKE_INSTALL_RPATH $ORIGIN)
+endif()
 
 if (NOT PACKAGES_DIR)
   set(PACKAGES_DIR ${CMAKE_SOURCE_DIR}/packages)

@@ -106,6 +106,23 @@ cdef class Factory(object):
             if not os.path.isfile(core_lib):
                 raise Exception("Extension library core \"%s\" doesn't exist" % core_lib)
 
+            # Workaround: debug_mgr.core.Factory.inst() looks for 'libdebug-mgr.so'
+            # but some platform wheels (e.g. Windows) ship 'debug-mgr.dll' instead.
+            # Create an alias so the load succeeds.
+            if sys.platform == 'win32':
+                import debug_mgr as _dm_pkg
+                import shutil as _shutil
+                _dm_dir = os.path.dirname(os.path.abspath(_dm_pkg.__file__))
+                _dm_so = os.path.join(_dm_dir, 'libdebug-mgr.so')
+                if not os.path.isfile(_dm_so):
+                    _dm_dll = os.path.join(_dm_dir, 'debug-mgr.dll')
+                    if os.path.isfile(_dm_dll):
+                        _shutil.copy(_dm_dll, _dm_so)
+                # Ensure the debug_mgr directory is in the DLL search path
+                if hasattr(os, 'add_dll_directory'):
+                    os.add_dll_directory(_dm_dir)
+                    os.add_dll_directory(os.path.dirname(core_lib))
+
             so = ctypes.cdll.LoadLibrary(core_lib)
             func = so.pssparser_getFactory
             func.restype = ctypes.c_void_p
