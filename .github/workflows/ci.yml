@@ -10,12 +10,10 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: Update Version
+      if: "!startsWith(github.ref, 'refs/tags/v')"
       run: |
-        tag=$(git tag -l --contains HEAD)
-        if [ -z "$tag" ]; then
-          sed -i -e 's/SUFFIX = ".*"/SUFFIX = ".${{ github.run_id }}"/g' \
-            python/pssparser/__version__.py
-        fi
+        sed -i -e 's/SUFFIX = ".*"/SUFFIX = ".${{ github.run_id }}"/g' \
+          python/pssparser/__version__.py
     - name: Install additional build dependencies
       run: |
         yum install -y libuuid-devel
@@ -61,12 +59,10 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: Update Version
+      if: "!startsWith(github.ref, 'refs/tags/v')"
       run: |
-        tag=$(git tag -l --contains HEAD)
-        if [ -z "$tag" ]; then
-          sed -i -e 's/SUFFIX = ".*"/SUFFIX = ".${{ github.run_id }}"/g' \
-            python/pssparser/__version__.py
-        fi
+        sed -i -e 's/SUFFIX = ".*"/SUFFIX = ".${{ github.run_id }}"/g' \
+          python/pssparser/__version__.py
     - name: Install additional build dependencies
       run: |
         yum install -y libuuid-devel
@@ -115,13 +111,11 @@ jobs:
       with:
         python-version: '3.11'
     - name: Update Version
+      if: "!startsWith(github.ref, 'refs/tags/v')"
       shell: bash
       run: |
-        tag=$(git tag -l --contains HEAD)
-        if [ -z "$tag" ]; then
-          sed -i -e 's/SUFFIX = ".*"/SUFFIX = ".${{ github.run_id }}"/g' \
-            python/pssparser/__version__.py
-        fi
+        sed -i -e 's/SUFFIX = ".*"/SUFFIX = ".${{ github.run_id }}"/g' \
+          python/pssparser/__version__.py
     - name: Install Packages
       run: |
         python -m pip install ivpm twine cython ninja wheel
@@ -156,12 +150,10 @@ jobs:
         distribution: 'temurin'
         java-version: '11'
     - name: Update Version
+      if: "!startsWith(github.ref, 'refs/tags/v')"
       run: |
-        tag=$(git tag -l --contains HEAD)
-        if [ -z "$tag" ]; then
-          sed -i '' -e 's/SUFFIX = ".*"/SUFFIX = ".${{ github.run_id }}"/g' \
-            python/pssparser/__version__.py
-        fi
+        sed -i '' -e 's/SUFFIX = ".*"/SUFFIX = ".${{ github.run_id }}"/g' \
+          python/pssparser/__version__.py
     - name: Install Packages
       run: |
         python -m pip install ivpm twine cython ninja wheel cmake
