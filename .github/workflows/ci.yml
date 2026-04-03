@@ -38,6 +38,30 @@ jobs:
           cp wheelhouse/*.whl dist
         fi
 
+  ci-linux-aarch64:
+    runs-on: ubuntu-24.04-arm
+    container: quay.io/pypa/manylinux_2_28_aarch64
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install additional build dependencies
+      run: |
+        yum install -y libuuid-devel
+        yum install -y java-11-openjdk-devel
+        for py in cp39-cp39 cp310-cp310 cp311-cp311 cp312-cp312; do
+          /opt/python/${py}/bin/python -m pip install ninja wheel cython
+        done
+    - name: Fetch source dependencies
+      run: |
+        export IVPM_PYTHON=/opt/python/cp312-cp312/bin/python
+        ${IVPM_PYTHON} -m pip install ivpm twine auditwheel
+        ${IVPM_PYTHON} -m ivpm update -j 1 -a
+    - name: Build packages
+      run: |
+        mkdir build
+        cd build
+        cmake ..
+        make
+
   ci-win32:
     runs-on: windows-latest
     steps:
