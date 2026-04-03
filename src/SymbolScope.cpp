@@ -74,6 +74,9 @@ bool SymbolScope::addTerminal(ast::INamedScopeChild *terminal) {
 
         m_symtab.insert({terminal->getName()->getId(), res});
         m_terminals.push_back(terminal);
+        return true;
+    } else {
+        return false;
     }
 }
 

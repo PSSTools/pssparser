@@ -1,6 +1,12 @@
 
 cmake_minimum_required(VERSION 3.10)
 
+file(GLOB TEST_SRCS
+	"src/*.cpp"
+	"src/*.h")
+
+if(TEST_SRCS)
+
 ExternalProject_Add(GTEST
 	PREFIX gtest
         SOURCE_DIR "${PACKAGES_DIR}/gtest"
@@ -9,12 +15,6 @@ ExternalProject_Add(GTEST
 	  -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
 	  -DBUILD_SHARED_LIBS:BOOL=${BUILD_SHARED_LIBS}
     )
-
-file(GLOB TEST_SRCS
-	"src/*.cpp"
-	"src/*.h")
-
-if(TEST_SRCS)
 
 set(CMAKE_INSTALL_RPATH $ORIGIN/../lib)
 
