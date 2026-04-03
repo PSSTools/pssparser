@@ -30,10 +30,13 @@ jobs:
     - name: Audit Wheels
       run: |
         for whl in dist/*.whl; do
+          [ -f "$whl" ] || break
           /opt/python/cp39-cp39/bin/auditwheel repair $whl
           rm $whl
         done
-        cp wheelhouse/*.whl dist
+        if ls wheelhouse/*.whl 2>/dev/null | grep -q .; then
+          cp wheelhouse/*.whl dist
+        fi
 
   ci-win32:
     runs-on: windows-latest
