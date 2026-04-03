@@ -356,7 +356,7 @@ void TaskBuildSymbolTree::visitFunctionDefinition(ast::IFunctionDefinition *i) {
             std::unordered_map<std::string, int32_t>::const_iterator sym_it =
                 func_sym->getPlist()->getSymtab().find((*it)->getName()->getId());
             
-            if (sym_it != func_sym->getSymtab().end()) {
+            if (sym_it != func_sym->getPlist()->getSymtab().end()) {
                 // Duplicate
                 reportDuplicateSymbol(
                     func_sym,
