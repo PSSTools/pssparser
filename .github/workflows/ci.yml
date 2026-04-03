@@ -20,7 +20,7 @@ jobs:
       run: |
         export IVPM_PYTHON=/opt/python/cp39-cp39/bin/python
         ${IVPM_PYTHON} -m pip install ivpm twine auditwheel
-        ${IVPM_PYTHON} -m ivpm update -a
+        ${IVPM_PYTHON} -m ivpm update -j 1 -a
     - name: Build packages
       run: |
         mkdir build
@@ -46,7 +46,7 @@ jobs:
     - name: Install Packages
       run: |
         python -m pip install ivpm twine cython ninja wheel
-        python -m ivpm update -a
+        python -m ivpm update -j 1 -a
     - name: Build
       run: |
         mkdir build
