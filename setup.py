@@ -11,7 +11,15 @@ from setuptools import Extension, setup, find_namespace_packages
 proj_dir = os.path.dirname(os.path.abspath(__file__))
 pythondir = os.path.join(proj_dir, "python")
 
-version = "0.0.1"
+try:
+    import sys as _sys
+    _sys.path.insert(0, os.path.join(proj_dir, "python", "pssparser"))
+    from __version__ import VERSION
+    version = VERSION
+    del _sys
+except Exception as e:
+    print("NOTE: no version file found (%s)" % str(e))
+    version = "0.0.1"
 
 isSrcBuild = False
 

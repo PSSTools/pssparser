@@ -6,10 +6,23 @@ import os
 import sys
 
 
+def _get_version() -> str:
+    try:
+        from pssparser.__version__ import VERSION
+        return VERSION
+    except Exception:
+        return "unknown"
+
+
 def _build_parser() -> argparse.ArgumentParser:
     top = argparse.ArgumentParser(
         prog="pssparser",
         description="PSS compiler frontend -- syntax and semantic checker",
+    )
+    top.add_argument(
+        "--version", "-V",
+        action="version",
+        version=f"%(prog)s {_get_version()}",
     )
 
     top.add_argument("files", nargs="+", metavar="FILE", help=".pss source files")

@@ -3,6 +3,7 @@ cmake_minimum_required (VERSION 3.11)
 project(pssparser)
 
 include(ExternalProject)
+include(GNUInstallDirs)
 
 set(CMAKE_INSTALL_RPATH $ORIGIN)
 
