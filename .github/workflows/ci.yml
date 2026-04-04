@@ -42,13 +42,7 @@ jobs:
         /opt/python/cp312-cp312/bin/python -m venv /tmp/test-venv
         source /tmp/test-venv/bin/activate
         pip install dist/*cp312*.whl
-        python -c "
-from pssparser import Parser
-p = Parser()
-result = p.parses([('test.pss', 'component pss_top {}')])
-assert result
-print('System test PASSED')
-"
+        python -c "from pssparser import Parser; p = Parser(); assert p.parses([('test.pss', 'component pss_top {}')]); print('System test PASSED')"
 
   ci-linux-aarch64:
     runs-on: ubuntu-24.04-arm
@@ -78,13 +72,7 @@ print('System test PASSED')
         /opt/python/cp312-cp312/bin/python -m venv /tmp/test-venv
         source /tmp/test-venv/bin/activate
         pip install dist/*cp312*.whl
-        python -c "
-from pssparser import Parser
-p = Parser()
-result = p.parses([('test.pss', 'component pss_top {}')])
-assert result
-print('System test PASSED')
-"
+        python -c "from pssparser import Parser; p = Parser(); assert p.parses([('test.pss', 'component pss_top {}')]); print('System test PASSED')"
 
   ci-win32:
     runs-on: windows-latest
@@ -109,13 +97,7 @@ print('System test PASSED')
       run: |
         python -m venv C:/test-venv
         C:/test-venv/Scripts/pip install dist/*.whl
-        C:/test-venv/Scripts/python -c "
-from pssparser import Parser
-p = Parser()
-result = p.parses([('test.pss', 'component pss_top {}')])
-assert result
-print('System test PASSED')
-"
+        C:/test-venv/Scripts/python -c "from pssparser import Parser; p = Parser(); assert p.parses([('test.pss', 'component pss_top {}')]); print('System test PASSED')"
 
   ci-macos:
     runs-on: macos-latest
@@ -143,13 +125,7 @@ print('System test PASSED')
         python -m venv /tmp/test-venv
         source /tmp/test-venv/bin/activate
         pip install dist/*.whl
-        python -c "
-from pssparser import Parser
-p = Parser()
-result = p.parses([('test.pss', 'component pss_top {}')])
-assert result
-print('System test PASSED')
-"
+        python -c "from pssparser import Parser; p = Parser(); assert p.parses([('test.pss', 'component pss_top {}')]); print('System test PASSED')"
 
   docs:
     runs-on: ubuntu-latest
