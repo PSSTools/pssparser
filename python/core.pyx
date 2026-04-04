@@ -3,6 +3,7 @@
 import ctypes
 from enum import IntEnum
 import os
+import sys
 cimport debug_mgr.core as dm_core
 cimport debug_mgr.decl as dm_decl
 cimport pssparser.ast as ast
@@ -85,17 +86,22 @@ cdef class Factory(object):
             ext_dir = os.path.dirname(os.path.abspath(__file__))
             build_dir = os.path.abspath(os.path.join(ext_dir, "../../build"))
 
-            libname = "libpssparser.so"
+            if sys.platform == 'darwin':
+                libname = "libpssparser.dylib"
+            elif sys.platform == 'win32':
+                libname = "pssparser.dll"
+            else:
+                libname = "libpssparser.so"
             core_lib = None
 
-            for libdir in ("lib", "lib64", "src"):
+            for libdir in ("lib", "lib64", "bin", "src"):
                 cand = os.path.join(build_dir, libdir, libname)
                 if os.path.isfile(cand):
                     core_lib = cand
                     break
 
             if core_lib is None:
-                core_lib = os.path.join(ext_dir, "libpssparser.so")
+                core_lib = os.path.join(ext_dir, libname)
 
             if not os.path.isfile(core_lib):
                 raise Exception("Extension library core \"%s\" doesn't exist" % core_lib)
