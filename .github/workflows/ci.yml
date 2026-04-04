@@ -27,6 +27,11 @@ jobs:
         cd build
         cmake ..
         make
+    - name: Build Python wheels
+      run: |
+        for py in cp39-cp39 cp310-cp310 cp311-cp311 cp312-cp312; do
+          /opt/python/${py}/bin/python setup.py bdist_wheel
+        done
     - name: Audit Wheels
       run: |
         for whl in dist/*.whl; do
@@ -67,6 +72,11 @@ jobs:
         cd build
         cmake ..
         make
+    - name: Build Python wheels
+      run: |
+        for py in cp39-cp39 cp310-cp310 cp311-cp311 cp312-cp312; do
+          /opt/python/${py}/bin/python setup.py bdist_wheel
+        done
     - name: System test
       run: |
         /opt/python/cp312-cp312/bin/python -m venv /tmp/test-venv
@@ -92,6 +102,9 @@ jobs:
         cd build
         cmake .. -GNinja
         ninja
+    - name: Build Python wheel
+      run: |
+        python setup.py bdist_wheel
     - name: System test
       shell: bash
       run: |
@@ -120,6 +133,9 @@ jobs:
         cd build
         cmake .. -GNinja
         ninja
+    - name: Build Python wheel
+      run: |
+        python setup.py bdist_wheel
     - name: System test
       run: |
         python -m venv /tmp/test-venv
