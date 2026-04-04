@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="./">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>PSS 3.0 Migration Guide &#8212; pssparser  documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=5ecbeea2" />
+    <link rel="stylesheet" type="text/css" href="_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="_static/alabaster.css?v=27fed22d" />
+    <script src="_static/documentation_options.js?v=5929fcd5"></script>
+    <script src="_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="PSS 3.0 Features" href="pss30_features.html" />
+    <link rel="prev" title="CLI" href="cli.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="pss-3-0-migration-guide">
+<h1>PSS 3.0 Migration Guide<a class="headerlink" href="#pss-3-0-migration-guide" title="Link to this heading">¶</a></h1>
+<p>This guide helps users migrate from PSS 2.x to PSS 3.0 with pssparser.</p>
+<section id="backward-compatibility">
+<h2>Backward Compatibility<a class="headerlink" href="#backward-compatibility" title="Link to this heading">¶</a></h2>
+<p>PSS 3.0 is designed to be largely backward compatible with PSS 2.x. Existing
+PSS 2.x code should continue to work without modification in most cases.</p>
+</section>
+<section id="breaking-changes">
+<h2>Breaking Changes<a class="headerlink" href="#breaking-changes" title="Link to this heading">¶</a></h2>
+<section id="reserved-keywords">
+<h3>Reserved Keywords<a class="headerlink" href="#reserved-keywords" title="Link to this heading">¶</a></h3>
+<p>The following keywords are newly reserved in PSS 3.0:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">monitor</span></code> - Used for behavioral coverage</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">yield</span></code> - Control flow in target execution</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">randomize</span></code> - Procedural randomization</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">atomic</span></code> - Atomic activity blocks</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">eventually</span></code> - Monitor temporal operator</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">concat</span></code> - Monitor temporal concatenation</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">overlap</span></code> - Monitor temporal overlap</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">schedule</span></code> - Monitor temporal scheduling</p></li>
+</ul>
+<p><strong>Action Required</strong>: If your PSS 2.x code uses any of these as identifiers,
+you must rename them.</p>
+<div class="highlight-pss notranslate"><div class="highlight"><pre><span></span>// PSS 2.x - May need updating if &#39;monitor&#39; is used as identifier
+action monitor { }  // ERROR in PSS 3.0
+
+// PSS 3.0 - Use different identifier
+action monitor_action { }  // OK
+</pre></div>
+</div>
+</section>
+</section>
+<section id="new-features">
+<h2>New Features<a class="headerlink" href="#new-features" title="Link to this heading">¶</a></h2>
+<section id="monitors-for-behavioral-coverage">
+<h3>Monitors for Behavioral Coverage<a class="headerlink" href="#monitors-for-behavioral-coverage" title="Link to this heading">¶</a></h3>
+<p>PSS 3.0 introduces monitors as a first-class construct for behavioral coverage.
+This replaces ad-hoc coverage approaches.</p>
+<p><strong>PSS 2.x Approach</strong> (manual coverage):</p>
+<div class="highlight-pss notranslate"><div class="highlight"><pre><span></span>component pss_top {
+    action A { }
+    action B { }
+
+    // Manual tracking via constraints or actions
+    covergroup my_coverage {
+        // Manual coverage points
+    }
+}
+</pre></div>
+</div>
+<p><strong>PSS 3.0 Approach</strong> (monitors):</p>
+<div class="highlight-pss notranslate"><div class="highlight"><pre><span></span>monitor SequenceMonitor {
+    activity {
+        concat {
+            A;
+            B;
+        }
+    }
+}
+
+component pss_top {
+    action A { }
+    action B { }
+
+    cover SequenceMonitor;
+}
+</pre></div>
+</div>
+<p><strong>Migration Strategy</strong>:</p>
+<ol class="arabic simple">
+<li><p>Identify behavioral patterns you’re tracking manually</p></li>
+<li><p>Create monitor declarations for those patterns</p></li>
+<li><p>Use cover statements to instantiate monitors</p></li>
+<li><p>Remove manual coverage tracking code</p></li>
+</ol>
+</section>
+<section id="string-enhancements">
+<h3>String Enhancements<a class="headerlink" href="#string-enhancements" title="Link to this heading">¶</a></h3>
+<p>PSS 3.0 adds built-in string methods and substring operator.</p>
+<p><strong>PSS 2.x Approach</strong> (limited string operations):</p>
+<div class="highlight-pss notranslate"><div class="highlight"><pre><span></span>// String operations were limited
+action my_action {
+    string s = &quot;hello&quot;;
+    // No way to get length, search, or manipulate strings
+}
+</pre></div>
+</div>
+<p><strong>PSS 3.0 Approach</strong> (rich string API):</p>
+<div class="highlight-pss notranslate"><div class="highlight"><pre><span></span>action my_action {
+    string s = &quot;hello world&quot;;
+
+    int len = s.size();              // 11
+    int idx = s.find(&quot;world&quot;);       // 6
+    string sub = s[0..4];            // &quot;hello&quot;
+    string upper_s = s.upper();      // &quot;HELLO WORLD&quot;
+}
+</pre></div>
+</div>
+<p><strong>Migration Strategy</strong>:</p>
+<ol class="arabic simple">
+<li><p>Review string handling code</p></li>
+<li><p>Replace workarounds with built-in methods</p></li>
+<li><p>Use substring operator for extraction</p></li>
+<li><p>Leverage string methods in constraints</p></li>
+</ol>
+</section>
+<section id="reference-collections">
+<h3>Reference Collections<a class="headerlink" href="#reference-collections" title="Link to this heading">¶</a></h3>
+<p>PSS 3.0 allows reference types in collections.</p>
+<p><strong>PSS 2.x Approach</strong> (handles only):</p>
+<div class="highlight-pss notranslate"><div class="highlight"><pre><span></span>component pss_top {
+    pool[10] A actions;
+
+    // No direct collection of references
+}
+</pre></div>
+</div>
+<p><strong>PSS 3.0 Approach</strong> (explicit reference collections):</p>
+<div class="highlight-pss notranslate"><div class="highlight"><pre><span></span>component pss_top {
+    action A { }
+
+    array&lt;ref A, 10&gt; action_refs;
+    list&lt;ref A&gt; action_list;
+    map&lt;string, ref A&gt; action_map;
+}
+</pre></div>
+</div>
+<p><strong>Migration Strategy</strong>:</p>
+<ol class="arabic simple">
+<li><p>Identify action handle usage patterns</p></li>
+<li><p>Consider using explicit reference collections</p></li>
+<li><p>Leverage null reference capability for optional references</p></li>
+</ol>
+</section>
+<section id="procedural-randomization">
+<h3>Procedural Randomization<a class="headerlink" href="#procedural-randomization" title="Link to this heading">¶</a></h3>
+<p>PSS 3.0 adds <code class="docutils literal notranslate"><span class="pre">randomize</span></code> statement for procedural randomization.</p>
+<p><strong>PSS 2.x Approach</strong> (declarative only):</p>
+<div class="highlight-pss notranslate"><div class="highlight"><pre><span></span>action my_action {
+    rand int x;
+
+    constraint {
+        x &gt; 0;
+        x &lt; 100;
+    }
+}
+</pre></div>
+</div>
+<p><strong>PSS 3.0 Approach</strong> (procedural randomization):</p>
+<div class="highlight-pss notranslate"><div class="highlight"><pre><span></span>action my_action {
+    int x;  // Non-rand field
+
+    exec body {
+        randomize(x) {
+            x &gt; 0;
+            x &lt; 100;
+        }
+    }
+}
+</pre></div>
+</div>
+<p><strong>Migration Strategy</strong>:</p>
+<ol class="arabic simple">
+<li><p>Identify cases where procedural randomization is beneficial</p></li>
+<li><p>Use <code class="docutils literal notranslate"><span class="pre">randomize</span></code> for dynamic constraint-based randomization</p></li>
+<li><p>Keep declarative <code class="docutils literal notranslate"><span class="pre">rand</span></code> for static randomization</p></li>
+</ol>
+</section>
+<section id="activity-atomic-blocks">
+<h3>Activity Atomic Blocks<a class="headerlink" href="#activity-atomic-blocks" title="Link to this heading">¶</a></h3>
+<p>PSS 3.0 adds <code class="docutils literal notranslate"><span class="pre">atomic</span></code> blocks for atomic activity execution.</p>
+<p><strong>PSS 2.x Approach</strong> (no atomic guarantee):</p>
+<div class="highlight-pss notranslate"><div class="highlight"><pre><span></span>action my_action {
+    activity {
+        // No way to guarantee atomic execution
+        do A;
+        do B;
+    }
+}
+</pre></div>
+</div>
+<p><strong>PSS 3.0 Approach</strong> (explicit atomic):</p>
+<div class="highlight-pss notranslate"><div class="highlight"><pre><span></span>action my_action {
+    activity {
+        atomic {
+            do A;
+            do B;
+        }
+    }
+}
+</pre></div>
+</div>
+<p><strong>Migration Strategy</strong>:</p>
+<ol class="arabic simple">
+<li><p>Identify activities that require atomic execution</p></li>
+<li><p>Wrap them in <code class="docutils literal notranslate"><span class="pre">atomic</span></code> blocks</p></li>
+<li><p>Document atomicity requirements</p></li>
+</ol>
+</section>
+<section id="yield-statements">
+<h3>Yield Statements<a class="headerlink" href="#yield-statements" title="Link to this heading">¶</a></h3>
+<p>PSS 3.0 adds <code class="docutils literal notranslate"><span class="pre">yield</span></code> for explicit scheduling points in target execution.</p>
+<p><strong>PSS 2.x Approach</strong> (implicit scheduling):</p>
+<div class="highlight-pss notranslate"><div class="highlight"><pre><span></span>action my_action {
+    exec target {
+        // Scheduler decides when to suspend
+    }
+}
+</pre></div>
+</div>
+<p><strong>PSS 3.0 Approach</strong> (explicit yield):</p>
+<div class="highlight-pss notranslate"><div class="highlight"><pre><span></span>action my_action {
+    exec target {
+        // Do work
+        yield;  // Explicit scheduling point
+        // Continue work
+    }
+}
+</pre></div>
+</div>
+<p><strong>Migration Strategy</strong>:</p>
+<ol class="arabic simple">
+<li><p>Identify long-running target exec blocks</p></li>
+<li><p>Insert <code class="docutils literal notranslate"><span class="pre">yield</span></code> statements at appropriate points</p></li>
+<li><p>Test scheduling behavior</p></li>
+</ol>
+</section>
+<section id="platform-qualifiers">
+<h3>Platform Qualifiers<a class="headerlink" href="#platform-qualifiers" title="Link to this heading">¶</a></h3>
+<p>PSS 3.0 adds <code class="docutils literal notranslate"><span class="pre">target</span></code> and <code class="docutils literal notranslate"><span class="pre">solve</span></code> qualifiers for functions.</p>
+<p><strong>PSS 2.x Approach</strong> (no context specification):</p>
+<div class="highlight-pss notranslate"><div class="highlight"><pre><span></span>import function int utility_func(int x);
+</pre></div>
+</div>
+<p><strong>PSS 3.0 Approach</strong> (explicit context):</p>
+<div class="highlight-pss notranslate"><div class="highlight"><pre><span></span>import target function int read_hw(int addr);
+import solve function int compute_value(int x);
+import target solve function int utility_func(int x);
+</pre></div>
+</div>
+<p><strong>Migration Strategy</strong>:</p>
+<ol class="arabic simple">
+<li><p>Review imported functions</p></li>
+<li><p>Add appropriate platform qualifiers</p></li>
+<li><p>Validate usage contexts</p></li>
+</ol>
+</section>
+</section>
+<section id="common-migration-patterns">
+<h2>Common Migration Patterns<a class="headerlink" href="#common-migration-patterns" title="Link to this heading">¶</a></h2>
+<section id="pattern-1-coverage-to-monitors">
+<h3>Pattern 1: Coverage to Monitors<a class="headerlink" href="#pattern-1-coverage-to-monitors" title="Link to this heading">¶</a></h3>
+<p><strong>Before (PSS 2.x)</strong>:</p>
+<div class="highlight-pss notranslate"><div class="highlight"><pre><span></span>component pss_top {
+    action A { }
+    action B { }
+
+    // Manual coverage tracking
+    int coverage_counter;
+
+    constraint {
+        // Complex constraints to track patterns
+    }
+}
+</pre></div>
+</div>
+<p><strong>After (PSS 3.0)</strong>:</p>
+<div class="highlight-pss notranslate"><div class="highlight"><pre><span></span>monitor ABSequence {
+    activity {
+        concat {
+            A;
+            B;
+        }
+    }
+}
+
+component pss_top {
+    action A { }
+    action B { }
+
+    cover ABSequence;
+}
+</pre></div>
+</div>
+</section>
+<section id="pattern-2-string-processing">
+<h3>Pattern 2: String Processing<a class="headerlink" href="#pattern-2-string-processing" title="Link to this heading">¶</a></h3>
+<p><strong>Before (PSS 2.x)</strong>:</p>
+<div class="highlight-pss notranslate"><div class="highlight"><pre><span></span>// Limited string operations
+action my_action {
+    string filename;
+    // No way to extract extension or validate format
+}
+</pre></div>
+</div>
+<p><strong>After (PSS 3.0)</strong>:</p>
+<div class="highlight-pss notranslate"><div class="highlight"><pre><span></span>action my_action {
+    string filename;
+
+    exec body {
+        int dot_pos = filename.find_last(&quot;.&quot;);
+        if (dot_pos != -1) {
+            string extension = filename[dot_pos..];
+            // Process extension
+        }
+    }
+}
+</pre></div>
+</div>
+</section>
+<section id="pattern-3-dynamic-reference-management">
+<h3>Pattern 3: Dynamic Reference Management<a class="headerlink" href="#pattern-3-dynamic-reference-management" title="Link to this heading">¶</a></h3>
+<p><strong>Before (PSS 2.x)</strong>:</p>
+<div class="highlight-pss notranslate"><div class="highlight"><pre><span></span>component pss_top {
+    pool[10] A actions;
+    // Limited reference handling
+}
+</pre></div>
+</div>
+<p><strong>After (PSS 3.0)</strong>:</p>
+<div class="highlight-pss notranslate"><div class="highlight"><pre><span></span>component pss_top {
+    action A { }
+
+    list&lt;ref A&gt; active_actions;
+    map&lt;string, ref A&gt; action_registry;
+
+    exec init {
+        // Dynamic reference management
+        active_actions.clear();
+    }
+}
+</pre></div>
+</div>
+</section>
+</section>
+<section id="testing-your-migration">
+<h2>Testing Your Migration<a class="headerlink" href="#testing-your-migration" title="Link to this heading">¶</a></h2>
+<section id="validation-checklist">
+<h3>Validation Checklist<a class="headerlink" href="#validation-checklist" title="Link to this heading">¶</a></h3>
+<ol class="arabic">
+<li><p><strong>Parse Check</strong>: Verify all files parse without errors</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">pssparser</span><span class="w"> </span><span class="kn">import</span> <span class="n">Parser</span>
+
+<span class="n">parser</span> <span class="o">=</span> <span class="n">Parser</span><span class="p">()</span>
+<span class="k">try</span><span class="p">:</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">parses</span><span class="p">([(</span><span class="s2">&quot;file.pss&quot;</span><span class="p">,</span> <span class="n">content</span><span class="p">)])</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;✓ Parse successful&quot;</span><span class="p">)</span>
+<span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;✗ Parse error: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</li>
+<li><p><strong>Keyword Check</strong>: Ensure no reserved keywords used as identifiers</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Search for potential conflicts</span>
+grep<span class="w"> </span>-E<span class="w"> </span><span class="s1">&#39;\b(monitor|yield|randomize|atomic)\b&#39;</span><span class="w"> </span>*.pss
+</pre></div>
+</div>
+</li>
+<li><p><strong>Feature Check</strong>: Verify new features work as expected</p></li>
+<li><p><strong>Regression Check</strong>: Run existing test suite</p></li>
+</ol>
+</section>
+</section>
+<section id="known-migration-issues">
+<h2>Known Migration Issues<a class="headerlink" href="#known-migration-issues" title="Link to this heading">¶</a></h2>
+<section id="issue-1-monitor-keyword-conflicts">
+<h3>Issue 1: Monitor Keyword Conflicts<a class="headerlink" href="#issue-1-monitor-keyword-conflicts" title="Link to this heading">¶</a></h3>
+<p><strong>Symptom</strong>: Parse errors on identifiers named “monitor”</p>
+<p><strong>Solution</strong>: Rename identifiers</p>
+<div class="highlight-pss notranslate"><div class="highlight"><pre><span></span>// Before
+action monitor { }
+
+// After
+action monitor_action { }
+</pre></div>
+</div>
+</section>
+<section id="issue-2-implicit-string-operations">
+<h3>Issue 2: Implicit String Operations<a class="headerlink" href="#issue-2-implicit-string-operations" title="Link to this heading">¶</a></h3>
+<p><strong>Symptom</strong>: Code expected string operations that weren’t available</p>
+<p><strong>Solution</strong>: Use new string methods</p>
+<div class="highlight-pss notranslate"><div class="highlight"><pre><span></span>// Now available
+int len = my_string.size();
+string sub = my_string[0..10];
+</pre></div>
+</div>
+</section>
+<section id="issue-3-reference-type-cloning">
+<h3>Issue 3: Reference Type Cloning<a class="headerlink" href="#issue-3-reference-type-cloning" title="Link to this heading">¶</a></h3>
+<p><strong>Symptom</strong>: Warnings about “TaskCopyAst: Error: copy(DataType) failed”</p>
+<p><strong>Impact</strong>: Benign - does not affect functionality</p>
+<p><strong>Solution</strong>: No action required - will be addressed in future release</p>
+</section>
+</section>
+<section id="performance-considerations">
+<h2>Performance Considerations<a class="headerlink" href="#performance-considerations" title="Link to this heading">¶</a></h2>
+<p>The PSS 3.0 parser maintains performance characteristics similar to PSS 2.x:</p>
+<ul class="simple">
+<li><p>Parse time: No significant change</p></li>
+<li><p>Memory usage: Minimal increase for new AST nodes</p></li>
+<li><p>Linking time: Comparable to PSS 2.x</p></li>
+</ul>
+</section>
+<section id="getting-help">
+<h2>Getting Help<a class="headerlink" href="#getting-help" title="Link to this heading">¶</a></h2>
+<p>If you encounter migration issues:</p>
+<ol class="arabic simple">
+<li><p>Check this guide for common patterns</p></li>
+<li><p>Review the <a class="reference internal" href="pss30_features.html"><span class="doc">PSS 3.0 Features</span></a> documentation</p></li>
+<li><p>Examine the test suite in <code class="docutils literal notranslate"><span class="pre">tests/src/TestPSS30Grammar.cpp</span></code></p></li>
+<li><p>File an issue on the project repository</p></li>
+</ol>
+</section>
+<section id="best-practices">
+<h2>Best Practices<a class="headerlink" href="#best-practices" title="Link to this heading">¶</a></h2>
+<ol class="arabic simple">
+<li><p><strong>Incremental Migration</strong>: Migrate one feature at a time</p></li>
+<li><p><strong>Test Early</strong>: Validate changes frequently</p></li>
+<li><p><strong>Document Changes</strong>: Note PSS 3.0 features used</p></li>
+<li><p><strong>Leverage New Features</strong>: Don’t just maintain compatibility - use new capabilities</p></li>
+<li><p><strong>Review Monitors</strong>: Consider behavioral coverage opportunities</p></li>
+</ol>
+</section>
+<section id="example-complete-migration">
+<h2>Example: Complete Migration<a class="headerlink" href="#example-complete-migration" title="Link to this heading">¶</a></h2>
+<p><strong>Original PSS 2.x Code</strong>:</p>
+<div class="highlight-pss notranslate"><div class="highlight"><pre><span></span>component pss_top {
+    action ReadReg {
+        rand bit[31:0] addr;
+        constraint { addr % 4 == 0; }
+    }
+
+    action WriteReg {
+        rand bit[31:0] addr;
+        rand bit[31:0] data;
+        constraint { addr % 4 == 0; }
+    }
+}
+</pre></div>
+</div>
+<p><strong>Migrated PSS 3.0 Code</strong>:</p>
+<div class="highlight-pss notranslate"><div class="highlight"><pre><span></span>// Add behavioral coverage
+monitor ReadWriteSequence {
+    activity {
+        concat {
+            ReadReg;
+            WriteReg;
+        }
+    }
+}
+
+component pss_top {
+    action ReadReg {
+        rand bit[31:0] addr;
+        constraint { addr % 4 == 0; }
+    }
+
+    action WriteReg {
+        rand bit[31:0] addr;
+        rand bit[31:0] data;
+        constraint { addr % 4 == 0; }
+    }
+
+    // Enable behavioral coverage
+    cover ReadWriteSequence;
+
+    // Use reference collection for tracking
+    list&lt;ref ReadReg&gt; read_history;
+
+    exec init {
+        read_history.clear();
+    }
+}
+</pre></div>
+</div>
+</section>
+<section id="summary">
+<h2>Summary<a class="headerlink" href="#summary" title="Link to this heading">¶</a></h2>
+<p>PSS 3.0 migration is straightforward for most codebases:</p>
+<ul class="simple">
+<li><p>✅ High backward compatibility</p></li>
+<li><p>✅ Minimal breaking changes (reserved keywords only)</p></li>
+<li><p>✅ Significant new capabilities (monitors, strings, references)</p></li>
+<li><p>✅ Clear migration patterns</p></li>
+<li><p>✅ Good performance characteristics</p></li>
+</ul>
+</section>
+<section id="see-also">
+<h2>See Also<a class="headerlink" href="#see-also" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p><a class="reference internal" href="pss30_features.html"><span class="doc">PSS 3.0 Features</span></a> - Complete feature reference</p></li>
+<li><p><a class="reference internal" href="quickstart.html"><span class="doc">Quickstart</span></a> - Getting started guide</p></li>
+<li><p><a class="reference internal" href="ast_structure.html"><span class="doc">AST Structure</span></a> - AST structure details</p></li>
+</ul>
+</section>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">pssparser</a></h1>
+
+
+
+
+
+
+
+
+
+<search id="searchbox" style="display: none" role="search">
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Search"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Getting Started:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="quickstart.html">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cli.html">CLI</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">PSS 3.0 Migration Guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#backward-compatibility">Backward Compatibility</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#breaking-changes">Breaking Changes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#new-features">New Features</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#common-migration-patterns">Common Migration Patterns</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#testing-your-migration">Testing Your Migration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#known-migration-issues">Known Migration Issues</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#performance-considerations">Performance Considerations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#getting-help">Getting Help</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#best-practices">Best Practices</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#example-complete-migration">Example: Complete Migration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#summary">Summary</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#see-also">See Also</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">PSS 3.0 Features:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="pss30_features.html">PSS 3.0 Features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="pss30_api.html">PSS 3.0 API Documentation</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer Documentation:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="pss30_architecture.html">PSS 3.0 Architecture &amp; Design</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ast_structure.html">AST Structure</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ast_usage_guide.html">AST Usage Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ast_class_hierarchy.html">AST Class Hierarchy</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Reference:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="reference_api_docs.html">API Reference</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="cli.html" title="previous chapter">CLI</a></li>
+      <li>Next: <a href="pss30_features.html" title="next chapter">PSS 3.0 Features</a></li>
+  </ul></li>
+</ul>
+</div>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2024, Matthew Ballance.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 9.0.4</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
+      
+      |
+      <a href="_sources/pss30_migration.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

@@ -1,0 +1,950 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="./">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>PSS 3.0 Architecture &amp; Design &#8212; pssparser  documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=5ecbeea2" />
+    <link rel="stylesheet" type="text/css" href="_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="_static/alabaster.css?v=27fed22d" />
+    <script src="_static/documentation_options.js?v=5929fcd5"></script>
+    <script src="_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="AST Structure" href="ast_structure.html" />
+    <link rel="prev" title="PSS 3.0 API Documentation" href="pss30_api.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="pss-3-0-architecture-design">
+<h1>PSS 3.0 Architecture &amp; Design<a class="headerlink" href="#pss-3-0-architecture-design" title="Link to this heading">¶</a></h1>
+<p>This document describes the implementation architecture and design decisions
+for PSS 3.0 support in pssparser.</p>
+<section id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Link to this heading">¶</a></h2>
+<p>PSS 3.0 support was implemented across 7 phases over the course of the PSS 3.0
+upgrade plan, with each phase building on the previous:</p>
+<ol class="arabic simple">
+<li><p>Foundation &amp; Assessment</p></li>
+<li><p>Grammar Completion</p></li>
+<li><p>AST Implementation</p></li>
+<li><p>Visitor Implementation</p></li>
+<li><p>Semantic Validation (partial)</p></li>
+<li><p>Linking &amp; Resolution</p></li>
+<li><p>Testing &amp; Validation</p></li>
+</ol>
+<p>This document focuses on architectural decisions and design rationale.</p>
+</section>
+<section id="architecture-layers">
+<h2>Architecture Layers<a class="headerlink" href="#architecture-layers" title="Link to this heading">¶</a></h2>
+<p>The parser follows a layered architecture:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>┌─────────────────────────────────────┐
+│      Application Layer              │
+│  (Python/C++ API consumers)         │
+└─────────────────────────────────────┘
+                ↓
+┌─────────────────────────────────────┐
+│      Semantic Layer                 │
+│  (Linking, Type Checking)           │
+└─────────────────────────────────────┘
+                ↓
+┌─────────────────────────────────────┐
+│      AST Layer                      │
+│  (Abstract Syntax Tree)             │
+└─────────────────────────────────────┘
+                ↓
+┌─────────────────────────────────────┐
+│      Visitor Layer                  │
+│  (ANTLR Visitors)                   │
+└─────────────────────────────────────┘
+                ↓
+┌─────────────────────────────────────┐
+│      Parser Layer                   │
+│  (ANTLR Generated Parser)           │
+└─────────────────────────────────────┘
+                ↓
+┌─────────────────────────────────────┐
+│      Lexer Layer                    │
+│  (ANTLR Generated Lexer)            │
+└─────────────────────────────────────┘
+                ↓
+┌─────────────────────────────────────┐
+│      Input (PSS Source Code)        │
+└─────────────────────────────────────┘
+</pre></div>
+</div>
+</section>
+<section id="grammar-design">
+<h2>Grammar Design<a class="headerlink" href="#grammar-design" title="Link to this heading">¶</a></h2>
+<section id="dual-grammar-approach">
+<h3>Dual Grammar Approach<a class="headerlink" href="#dual-grammar-approach" title="Link to this heading">¶</a></h3>
+<p>The parser uses two separate grammars for optimal performance:</p>
+<p><strong>PSSParser.g4</strong> - Procedural code context</p>
+<ul class="simple">
+<li><p>Action exec blocks</p></li>
+<li><p>Function bodies</p></li>
+<li><p>Procedural statements</p></li>
+<li><p>Import declarations</p></li>
+</ul>
+<p><strong>PSSExprParser.g4</strong> - Constraint context</p>
+<ul class="simple">
+<li><p>Constraint expressions</p></li>
+<li><p>Constraint blocks</p></li>
+<li><p>Constraint-specific operators</p></li>
+</ul>
+<p>This separation provides:</p>
+<ul class="simple">
+<li><p>Better error messages (context-aware)</p></li>
+<li><p>Reduced ambiguity</p></li>
+<li><p>Faster parsing (smaller rule sets)</p></li>
+<li><p>Cleaner grammar organization</p></li>
+</ul>
+</section>
+<section id="grammar-optimization-strategies">
+<h3>Grammar Optimization Strategies<a class="headerlink" href="#grammar-optimization-strategies" title="Link to this heading">¶</a></h3>
+<p>The grammar deviates from literal BNF translation for performance:</p>
+<p><strong>1. Left-Recursion Elimination</strong></p>
+<p>PSS Spec BNF uses left-recursion:</p>
+<div class="highlight-antlr notranslate"><div class="highlight"><pre><span></span><span class="c">// Spec (theoretical):</span>
+<span class="nl">expression</span><span class="p">:</span><span class="w"> </span><span class="nv">expression</span><span class="w"> </span><span class="s1">&#39;+&#39;</span><span class="w"> </span><span class="nv">term</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="nv">term</span><span class="w"> </span><span class="p">;</span>
+</pre></div>
+</div>
+<p>ANTLR grammar uses right-recursion with precedence:</p>
+<div class="highlight-antlr notranslate"><div class="highlight"><pre><span></span><span class="c">// Implementation:</span>
+<span class="nl">expression</span><span class="p">:</span><span class="w"> </span><span class="nv">term</span><span class="w"> </span><span class="o">(</span><span class="s1">&#39;+&#39;</span><span class="w"> </span><span class="nv">term</span><span class="o">)*</span><span class="w"> </span><span class="p">;</span>
+</pre></div>
+</div>
+<p><strong>2. Precedence Climbing</strong></p>
+<p>Instead of separate rules for each precedence level, uses ANTLR’s built-in
+precedence mechanism for expressions.</p>
+<p><strong>3. Rule Consolidation</strong></p>
+<p>Multiple similar BNF rules consolidated into parameterized rules:</p>
+<div class="highlight-antlr notranslate"><div class="highlight"><pre><span></span><span class="c">// Instead of:</span>
+<span class="c">// array_type: &#39;array&#39; &#39;&lt;&#39; type &#39;,&#39; size &#39;&gt;&#39; ;</span>
+<span class="c">// list_type: &#39;list&#39; &#39;&lt;&#39; type &#39;&gt;&#39; ;</span>
+<span class="c">// set_type: &#39;set&#39; &#39;&lt;&#39; type &#39;&gt;&#39; ;</span>
+
+<span class="c">// Consolidated:</span>
+<span class="nl">collection_type</span><span class="p">:</span>
+<span class="w">    </span><span class="o">(</span><span class="s1">&#39;array&#39;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s1">&#39;list&#39;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s1">&#39;set&#39;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s1">&#39;map&#39;</span><span class="o">)</span>
+<span class="w">    </span><span class="s1">&#39;&lt;&#39;</span><span class="w"> </span><span class="nv">type_parameter_list</span><span class="w"> </span><span class="s1">&#39;&gt;&#39;</span><span class="w"> </span><span class="p">;</span>
+</pre></div>
+</div>
+</section>
+<section id="token-design">
+<h3>Token Design<a class="headerlink" href="#token-design" title="Link to this heading">¶</a></h3>
+<p>PSS 3.0 adds 8 new keywords:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">monitor</span></code> - Monitor declarations</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">yield</span></code> - Control flow</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">randomize</span></code> - Procedural randomization</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">atomic</span></code> - Atomic blocks</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">eventually</span></code> - Temporal operator</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">concat</span></code> - Temporal concatenation</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">overlap</span></code> - Temporal overlap</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">schedule</span></code> - Temporal scheduling</p></li>
+</ul>
+<p>All keywords are reserved tokens to prevent identifier conflicts.</p>
+</section>
+</section>
+<section id="ast-design">
+<h2>AST Design<a class="headerlink" href="#ast-design" title="Link to this heading">¶</a></h2>
+<section id="node-hierarchy">
+<h3>Node Hierarchy<a class="headerlink" href="#node-hierarchy" title="Link to this heading">¶</a></h3>
+<p>The AST follows an object-oriented hierarchy:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>IBase (root)
+├── IScope
+│   ├── IGlobalScope
+│   ├── ITypeScope
+│   │   ├── IComponent
+│   │   ├── IAction
+│   │   ├── IMonitor ← NEW PSS 3.0
+│   │   └── ...
+│   └── ...
+├── IStmt
+│   ├── IActivityStmt
+│   │   ├── IActivityAtomicBlock ← NEW PSS 3.0
+│   │   └── ...
+│   ├── IProceduralStmt
+│   │   ├── IProceduralStmtRandomize ← NEW PSS 3.0
+│   │   └── ...
+│   └── IMonitorActivityStmt ← NEW PSS 3.0
+│       ├── IMonitorActivitySequence
+│       ├── IMonitorActivityConcat
+│       ├── IMonitorActivityEventually
+│       └── ...
+└── IExpr
+    ├── IExprSubstring ← NEW PSS 3.0 (planned)
+    └── ...
+</pre></div>
+</div>
+</section>
+<section id="design-principles">
+<h3>Design Principles<a class="headerlink" href="#design-principles" title="Link to this heading">¶</a></h3>
+<p><strong>1. Immutability Where Possible</strong></p>
+<p>AST nodes are largely immutable after construction, reducing bugs.</p>
+<p><strong>2. Smart Pointers</strong></p>
+<p>Use of unique pointers (<code class="docutils literal notranslate"><span class="pre">IMonitorUP</span></code>) for ownership, raw pointers for references.</p>
+<p><strong>3. Visitor Pattern</strong></p>
+<p>AST supports visitor pattern for traversal and transformation.</p>
+<p><strong>4. Type Safety</strong></p>
+<p>Strong typing prevents invalid AST construction.</p>
+</section>
+<section id="monitor-ast-design">
+<h3>Monitor AST Design<a class="headerlink" href="#monitor-ast-design" title="Link to this heading">¶</a></h3>
+<p>Monitors follow the TypeScope pattern like Actions and Components:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">IMonitor</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">ITypeScope</span><span class="w"> </span><span class="p">{</span>
+<span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="c1">// Properties</span>
+<span class="w">    </span><span class="k">virtual</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">getIsAbstract</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">    </span><span class="k">virtual</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">setIsAbstract</span><span class="p">(</span><span class="kt">bool</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// Children</span>
+<span class="w">    </span><span class="k">virtual</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">IMonitorUP</span><span class="o">&gt;</span><span class="w"> </span><span class="o">&amp;</span><span class="n">getMonitors</span><span class="p">()</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">    </span><span class="k">virtual</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">IMonitorActivityDeclUP</span><span class="o">&gt;</span><span class="w"> </span><span class="o">&amp;</span><span class="n">getActivities</span><span class="p">()</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">    </span><span class="k">virtual</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">IConstraintUP</span><span class="o">&gt;</span><span class="w"> </span><span class="o">&amp;</span><span class="n">getConstraints</span><span class="p">()</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// Inheritance</span>
+<span class="w">    </span><span class="k">virtual</span><span class="w"> </span><span class="n">ITypeRef</span><span class="w"> </span><span class="o">*</span><span class="nf">getSuperType</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">    </span><span class="k">virtual</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">setSuperType</span><span class="p">(</span><span class="n">ITypeRef</span><span class="o">*</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">};</span>
+</pre></div>
+</div>
+<p><strong>Design Rationale:</strong></p>
+<ul class="simple">
+<li><p>Monitors are TypeScopes - can contain nested types</p></li>
+<li><p>Abstract flag via getter/setter (not constructor) for visitor flexibility</p></li>
+<li><p>Activities stored as declarations (parallel to action activities)</p></li>
+<li><p>Constraints separate from activities (clearer semantics)</p></li>
+</ul>
+</section>
+<section id="monitor-activity-ast">
+<h3>Monitor Activity AST<a class="headerlink" href="#monitor-activity-ast" title="Link to this heading">¶</a></h3>
+<p>Activities use a statement hierarchy similar to procedural statements:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">IMonitorActivityStmt</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">IBase</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// Base class for all monitor activities</span>
+<span class="p">};</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">IMonitorActivitySequence</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">IMonitorActivityStmt</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// Sequential composition</span>
+<span class="w">    </span><span class="k">virtual</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">IMonitorActivityStmtUP</span><span class="o">&gt;</span><span class="w"> </span><span class="o">&amp;</span><span class="n">getActivities</span><span class="p">()</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">};</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">IMonitorActivityConcat</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">IMonitorActivityStmt</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// Temporal concatenation (##)</span>
+<span class="w">    </span><span class="k">virtual</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">IMonitorActivityStmtUP</span><span class="o">&gt;</span><span class="w"> </span><span class="o">&amp;</span><span class="n">getActivities</span><span class="p">()</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">};</span>
+</pre></div>
+</div>
+<p><strong>Design Rationale:</strong></p>
+<ul class="simple">
+<li><p>Separate hierarchy from action activities (different semantics)</p></li>
+<li><p>Temporal operators as first-class nodes</p></li>
+<li><p>Composable - activities nest naturally</p></li>
+</ul>
+</section>
+<section id="string-enhancement-design">
+<h3>String Enhancement Design<a class="headerlink" href="#string-enhancement-design" title="Link to this heading">¶</a></h3>
+<p>String methods use an enumeration for efficient dispatch:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="k">enum</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">StringMethodId</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">NoMethod</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span>
+<span class="w">    </span><span class="n">Size</span><span class="p">,</span>
+<span class="w">    </span><span class="n">Find</span><span class="p">,</span>
+<span class="w">    </span><span class="n">FindLast</span><span class="p">,</span>
+<span class="w">    </span><span class="n">FindAll</span><span class="p">,</span>
+<span class="w">    </span><span class="n">Lower</span><span class="p">,</span>
+<span class="w">    </span><span class="n">Upper</span><span class="p">,</span>
+<span class="w">    </span><span class="n">Split</span><span class="p">,</span>
+<span class="w">    </span><span class="n">Chars</span>
+<span class="p">};</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">IExprMemberPathElem</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// ...</span>
+<span class="w">    </span><span class="k">virtual</span><span class="w"> </span><span class="n">StringMethodId</span><span class="w"> </span><span class="nf">getStringMethodId</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">    </span><span class="k">virtual</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">setStringMethodId</span><span class="p">(</span><span class="n">StringMethodId</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">};</span>
+</pre></div>
+</div>
+<p><strong>Design Rationale:</strong></p>
+<ul class="simple">
+<li><p>Reuse existing member access expression infrastructure</p></li>
+<li><p>Enumeration for efficient type checking</p></li>
+<li><p>Extensible for future string methods</p></li>
+</ul>
+<p><strong>Substring Representation:</strong></p>
+<p>Currently uses subscript mechanism:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="c1">// s[0..4] represented as:</span>
+<span class="n">IExprMemberPathElem</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">subscript</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">expr</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="w">      </span><span class="c1">// start</span>
+<span class="w">    </span><span class="n">subscript</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">expr</span><span class="p">(</span><span class="mi">4</span><span class="p">)</span><span class="w">      </span><span class="c1">// end</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p><strong>Future Enhancement:</strong> May add dedicated <code class="docutils literal notranslate"><span class="pre">IExprSubstring</span></code> node for better
+semantic analysis.</p>
+</section>
+</section>
+<section id="visitor-implementation">
+<h2>Visitor Implementation<a class="headerlink" href="#visitor-implementation" title="Link to this heading">¶</a></h2>
+<section id="visitor-pattern">
+<h3>Visitor Pattern<a class="headerlink" href="#visitor-pattern" title="Link to this heading">¶</a></h3>
+<p>ANTLR generates a base visitor class. Implementation overrides methods for
+relevant grammar rules:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">AstBuilderInt</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">PSSParserBaseVisitor</span><span class="w"> </span><span class="p">{</span>
+<span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="c1">// Override for each grammar rule</span>
+<span class="w">    </span><span class="k">virtual</span><span class="w"> </span><span class="n">antlrcpp</span><span class="o">::</span><span class="n">Any</span><span class="w"> </span><span class="n">visitMonitor_declaration</span><span class="p">(</span>
+<span class="w">        </span><span class="n">PSSParser</span><span class="o">::</span><span class="n">Monitor_declarationContext</span><span class="w"> </span><span class="o">*</span><span class="n">ctx</span><span class="p">)</span><span class="w"> </span><span class="k">override</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// Returns AST node wrapped in antlrcpp::Any</span>
+<span class="p">};</span>
+</pre></div>
+</div>
+</section>
+<section id="visitor-design-patterns">
+<h3>Visitor Design Patterns<a class="headerlink" href="#visitor-design-patterns" title="Link to this heading">¶</a></h3>
+<p><strong>1. Factory Pattern</strong></p>
+<p>AST nodes created via factory:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="n">ast</span><span class="o">::</span><span class="n">IFactory</span><span class="w"> </span><span class="o">*</span><span class="n">factory</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ast</span><span class="o">::</span><span class="n">getFactory</span><span class="p">();</span>
+<span class="n">ast</span><span class="o">::</span><span class="n">IMonitorUP</span><span class="w"> </span><span class="n">monitor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">factory</span><span class="o">-&gt;</span><span class="n">mkMonitor</span><span class="p">(</span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="n">is_abstract</span><span class="p">);</span>
+</pre></div>
+</div>
+<p><strong>2. Builder Pattern</strong></p>
+<p>Complex nodes built incrementally:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="n">antlrcpp</span><span class="o">::</span><span class="n">Any</span><span class="w"> </span><span class="nf">AstBuilderInt::visitMonitor_declaration</span><span class="p">(</span>
+<span class="w">    </span><span class="n">PSSParser</span><span class="o">::</span><span class="n">Monitor_declarationContext</span><span class="w"> </span><span class="o">*</span><span class="n">ctx</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+
+<span class="w">    </span><span class="c1">// Create monitor</span>
+<span class="w">    </span><span class="n">ast</span><span class="o">::</span><span class="n">IMonitorUP</span><span class="w"> </span><span class="n">monitor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">m_factory</span><span class="o">-&gt;</span><span class="n">mkMonitor</span><span class="p">(</span>
+<span class="w">        </span><span class="n">ctx</span><span class="o">-&gt;</span><span class="n">identifier</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">getText</span><span class="p">(),</span>
+<span class="w">        </span><span class="nb">false</span><span class="w">  </span><span class="c1">// not abstract</span>
+<span class="w">    </span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// Add template parameters</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">ctx</span><span class="o">-&gt;</span><span class="n">template_param_decl_list</span><span class="p">())</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// ... process templates</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="c1">// Add super type</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">ctx</span><span class="o">-&gt;</span><span class="n">super_spec</span><span class="p">())</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// ... process inheritance</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="c1">// Process body</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="k">auto</span><span class="w"> </span><span class="o">*</span><span class="n">item</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">ctx</span><span class="o">-&gt;</span><span class="n">monitor_body_item</span><span class="p">())</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// ... add body items</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">monitor</span><span class="p">.</span><span class="n">release</span><span class="p">();</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p><strong>3. Context Stack</strong></p>
+<p>Maintains stack of scopes during traversal:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">AstBuilderInt</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">ast</span><span class="o">::</span><span class="n">IScope</span><span class="o">*&gt;</span><span class="w"> </span><span class="n">m_scope_stack</span><span class="p">;</span>
+
+<span class="w">    </span><span class="n">ast</span><span class="o">::</span><span class="n">IScope</span><span class="w"> </span><span class="o">*</span><span class="nf">currentScope</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">m_scope_stack</span><span class="p">.</span><span class="n">back</span><span class="p">();</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">pushScope</span><span class="p">(</span><span class="n">ast</span><span class="o">::</span><span class="n">IScope</span><span class="w"> </span><span class="o">*</span><span class="n">scope</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">m_scope_stack</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">scope</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">popScope</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">m_scope_stack</span><span class="p">.</span><span class="n">pop_back</span><span class="p">();</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">};</span>
+</pre></div>
+</div>
+</section>
+<section id="error-handling-in-visitors">
+<h3>Error Handling in Visitors<a class="headerlink" href="#error-handling-in-visitors" title="Link to this heading">¶</a></h3>
+<p>Visitors report errors via error listener:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">isValidContext</span><span class="p">(</span><span class="n">ctx</span><span class="p">))</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">m_error_listener</span><span class="o">-&gt;</span><span class="n">reportError</span><span class="p">(</span>
+<span class="w">        </span><span class="n">ctx</span><span class="o">-&gt;</span><span class="n">getStart</span><span class="p">(),</span>
+<span class="w">        </span><span class="s">&quot;Invalid context for monitor declaration&quot;</span>
+<span class="w">    </span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nb">nullptr</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="semantic-validation">
+<h2>Semantic Validation<a class="headerlink" href="#semantic-validation" title="Link to this heading">¶</a></h2>
+<section id="validation-phases">
+<h3>Validation Phases<a class="headerlink" href="#validation-phases" title="Link to this heading">¶</a></h3>
+<p>Semantic validation occurs in multiple phases:</p>
+<p><strong>1. AST Construction (Visitors)</strong></p>
+<ul class="simple">
+<li><p>Basic syntax validation</p></li>
+<li><p>Structural correctness</p></li>
+</ul>
+<p><strong>2. Linking Phase</strong></p>
+<ul class="simple">
+<li><p>Name resolution</p></li>
+<li><p>Type resolution</p></li>
+<li><p>Reference resolution</p></li>
+</ul>
+<p><strong>3. Type Checking Phase</strong></p>
+<ul class="simple">
+<li><p>Type compatibility</p></li>
+<li><p>Constraint validation</p></li>
+<li><p>Method signature validation</p></li>
+</ul>
+<p><strong>4. Context Validation Phase</strong> (Partial Implementation)</p>
+<ul class="simple">
+<li><p>Platform qualifier validation</p></li>
+<li><p>Yield context validation</p></li>
+<li><p>Monitor field restrictions</p></li>
+</ul>
+</section>
+<section id="currently-implemented">
+<h3>Currently Implemented<a class="headerlink" href="#currently-implemented" title="Link to this heading">¶</a></h3>
+<p>✅ <strong>Name Resolution</strong></p>
+<ul class="simple">
+<li><p>Symbol table construction</p></li>
+<li><p>Cross-file references</p></li>
+<li><p>Template instantiation</p></li>
+</ul>
+<p>✅ <strong>Type Resolution</strong></p>
+<ul class="simple">
+<li><p>Type references resolved</p></li>
+<li><p>Template parameter substitution</p></li>
+<li><p>Collection type validation</p></li>
+</ul>
+<p>✅ <strong>Basic Type Checking</strong></p>
+<ul class="simple">
+<li><p>Expression type compatibility</p></li>
+<li><p>Assignment type checking</p></li>
+<li><p>Function parameter validation</p></li>
+</ul>
+</section>
+<section id="partially-implemented">
+<h3>Partially Implemented<a class="headerlink" href="#partially-implemented" title="Link to this heading">¶</a></h3>
+<p>⚠️ <strong>Context Validation</strong></p>
+<ul class="simple">
+<li><p>Yield context not validated</p></li>
+<li><p>Platform qualifier calls not checked</p></li>
+<li><p>Atomic block context not validated</p></li>
+</ul>
+<p>⚠️ <strong>Monitor Validation</strong></p>
+<ul class="simple">
+<li><p>Field restrictions not enforced</p></li>
+<li><p>Cover statement scope not checked</p></li>
+<li><p>Abstract monitor instantiation not prevented</p></li>
+</ul>
+<p>⚠️ <strong>String Method Validation</strong></p>
+<ul class="simple">
+<li><p>Return types not validated</p></li>
+<li><p>Parameter types not fully checked</p></li>
+<li><p>Context restrictions not enforced</p></li>
+</ul>
+</section>
+<section id="design-for-future-implementation">
+<h3>Design for Future Implementation<a class="headerlink" href="#design-for-future-implementation" title="Link to this heading">¶</a></h3>
+<p>Context validation will use a context stack:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">SemanticValidator</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">enum</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">ExecContext</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">None</span><span class="p">,</span>
+<span class="w">        </span><span class="n">Target</span><span class="p">,</span>
+<span class="w">        </span><span class="n">Solve</span><span class="p">,</span>
+<span class="w">        </span><span class="n">Body</span>
+<span class="w">    </span><span class="p">};</span>
+
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">stack</span><span class="o">&lt;</span><span class="n">ExecContext</span><span class="o">&gt;</span><span class="w"> </span><span class="n">m_context_stack</span><span class="p">;</span>
+
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">validateYield</span><span class="p">(</span><span class="n">IProceduralStmtYield</span><span class="w"> </span><span class="o">*</span><span class="n">stmt</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">m_context_stack</span><span class="p">.</span><span class="n">top</span><span class="p">()</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">ExecContext</span><span class="o">::</span><span class="n">Target</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">reportError</span><span class="p">(</span><span class="n">stmt</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;yield only allowed in target exec&quot;</span><span class="p">);</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">};</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="linking-and-resolution">
+<h2>Linking and Resolution<a class="headerlink" href="#linking-and-resolution" title="Link to this heading">¶</a></h2>
+<section id="symbol-table-structure">
+<h3>Symbol Table Structure<a class="headerlink" href="#symbol-table-structure" title="Link to this heading">¶</a></h3>
+<p>Two-level symbol table:</p>
+<p><strong>1. Physical View</strong> (per-file)</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">IGlobalScope</span></code> per file</p></li>
+<li><p>Contains declarations as written</p></li>
+</ul>
+<p><strong>2. Logical View</strong> (global)</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">RootSymbolTable</span></code> across all files</p></li>
+<li><p>Merges declarations by namespace</p></li>
+<li><p>Handles <code class="docutils literal notranslate"><span class="pre">extend</span></code> statements</p></li>
+</ul>
+</section>
+<section id="monitor-resolution">
+<h3>Monitor Resolution<a class="headerlink" href="#monitor-resolution" title="Link to this heading">¶</a></h3>
+<p>Monitors resolve like other type scopes:</p>
+<ol class="arabic simple">
+<li><p>Register monitor in symbol table</p></li>
+<li><p>Resolve inheritance (super type)</p></li>
+<li><p>Resolve action/monitor references in activities</p></li>
+<li><p>Resolve cover statement monitor references</p></li>
+</ol>
+</section>
+<section id="reference-type-linking">
+<h3>Reference Type Linking<a class="headerlink" href="#reference-type-linking" title="Link to this heading">¶</a></h3>
+<p>Reference types link in two phases:</p>
+<p><strong>1. Type Resolution</strong></p>
+<p>Resolve the referenced type:</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="n">array</span><span class="o">&lt;</span><span class="n">ref</span><span class="w"> </span><span class="n">Action</span><span class="p">,</span><span class="w"> </span><span class="mi">10</span><span class="o">&gt;</span><span class="w"> </span><span class="n">actions</span><span class="p">;</span>
+<span class="c1">//          ^^^^^^ - resolve to Action type</span>
+</pre></div>
+</div>
+<p><strong>2. Reference Validation</strong></p>
+<p>Validate reference usage contexts (future work).</p>
+</section>
+</section>
+<section id="extension-mechanism">
+<h2>Extension Mechanism<a class="headerlink" href="#extension-mechanism" title="Link to this heading">¶</a></h2>
+<p>PSS supports extending existing declarations:</p>
+<div class="highlight-pss notranslate"><div class="highlight"><pre><span></span>extend monitor MyMonitor {
+    // Additional body items
+}
+</pre></div>
+</div>
+<section id="extension-resolution">
+<h3>Extension Resolution<a class="headerlink" href="#extension-resolution" title="Link to this heading">¶</a></h3>
+<ol class="arabic simple">
+<li><p>Parse extension as separate AST node</p></li>
+<li><p>During linking, find original declaration</p></li>
+<li><p>Merge extension items into original</p></li>
+<li><p>Validate compatibility</p></li>
+</ol>
+<p>Currently, basic extension works for monitors similar to components/actions.</p>
+</section>
+</section>
+<section id="performance-considerations">
+<h2>Performance Considerations<a class="headerlink" href="#performance-considerations" title="Link to this heading">¶</a></h2>
+<section id="parse-performance">
+<h3>Parse Performance<a class="headerlink" href="#parse-performance" title="Link to this heading">¶</a></h3>
+<p><strong>Metrics:</strong></p>
+<ul class="simple">
+<li><p>Average parse time: ~1-2ms per 100 lines</p></li>
+<li><p>Memory usage: ~500 bytes per AST node</p></li>
+<li><p>No significant PSS 3.0 overhead (&lt; 5%)</p></li>
+</ul>
+<p><strong>Optimizations:</strong></p>
+<ul class="simple">
+<li><p>Efficient grammar (minimizes backtracking)</p></li>
+<li><p>Smart pointer reuse</p></li>
+<li><p>Lazy evaluation where possible</p></li>
+</ul>
+</section>
+<section id="memory-management">
+<h3>Memory Management<a class="headerlink" href="#memory-management" title="Link to this heading">¶</a></h3>
+<p><strong>Strategy:</strong></p>
+<ul class="simple">
+<li><p>Unique pointers for ownership (<code class="docutils literal notranslate"><span class="pre">IMonitorUP</span></code>)</p></li>
+<li><p>Raw pointers for references (<code class="docutils literal notranslate"><span class="pre">IMonitor*</span></code>)</p></li>
+<li><p>ANTLR contexts cleaned up automatically</p></li>
+</ul>
+<p><strong>Memory Profile:</strong></p>
+<ul class="simple">
+<li><p>Small models: &lt; 10MB</p></li>
+<li><p>Large models: ~50-100MB</p></li>
+<li><p>No memory leaks detected (Valgrind clean)</p></li>
+</ul>
+</section>
+<section id="threading-model">
+<h3>Threading Model<a class="headerlink" href="#threading-model" title="Link to this heading">¶</a></h3>
+<p>Parser is <strong>not thread-safe</strong>:</p>
+<ul class="simple">
+<li><p>Create separate parser instances per thread</p></li>
+<li><p>AST nodes are not thread-safe</p></li>
+<li><p>No global state (safe for multi-process)</p></li>
+</ul>
+</section>
+</section>
+<section id="extensibility">
+<h2>Extensibility<a class="headerlink" href="#extensibility" title="Link to this heading">¶</a></h2>
+<section id="adding-new-pss-features">
+<h3>Adding New PSS Features<a class="headerlink" href="#adding-new-pss-features" title="Link to this heading">¶</a></h3>
+<p>To add a new PSS feature:</p>
+<ol class="arabic simple">
+<li><p><strong>Update Grammar</strong></p>
+<ul class="simple">
+<li><p>Add tokens to lexer</p></li>
+<li><p>Add productions to parser</p></li>
+<li><p>Test grammar with ANTLR</p></li>
+</ul>
+</li>
+<li><p><strong>Define AST</strong></p>
+<ul class="simple">
+<li><p>Create node classes in YAML</p></li>
+<li><p>Run code generator</p></li>
+<li><p>Compile generated code</p></li>
+</ul>
+</li>
+<li><p><strong>Implement Visitor</strong></p>
+<ul class="simple">
+<li><p>Add visitor method</p></li>
+<li><p>Create and populate AST node</p></li>
+<li><p>Handle context appropriately</p></li>
+</ul>
+</li>
+<li><p><strong>Add Tests</strong></p>
+<ul class="simple">
+<li><p>Unit tests for parsing</p></li>
+<li><p>Integration tests for linking</p></li>
+<li><p>Validation tests for semantics</p></li>
+</ul>
+</li>
+<li><p><strong>Document</strong></p>
+<ul class="simple">
+<li><p>User documentation</p></li>
+<li><p>API documentation</p></li>
+<li><p>Examples</p></li>
+</ul>
+</li>
+</ol>
+</section>
+<section id="plugin-architecture-future">
+<h3>Plugin Architecture (Future)<a class="headerlink" href="#plugin-architecture-future" title="Link to this heading">¶</a></h3>
+<p>Future versions may support plugins for:</p>
+<ul class="simple">
+<li><p>Custom AST transformations</p></li>
+<li><p>Additional semantic checks</p></li>
+<li><p>Code generation backends</p></li>
+<li><p>Analysis tools</p></li>
+</ul>
+</section>
+</section>
+<section id="design-decisions">
+<h2>Design Decisions<a class="headerlink" href="#design-decisions" title="Link to this heading">¶</a></h2>
+<section id="key-decisions-and-rationale">
+<h3>Key Decisions and Rationale<a class="headerlink" href="#key-decisions-and-rationale" title="Link to this heading">¶</a></h3>
+<p><strong>1. ANTLR4 vs Hand-Written Parser</strong></p>
+<p><em>Decision:</em> Use ANTLR4</p>
+<p><em>Rationale:</em>
+- Faster development
+- Easier grammar maintenance
+- Good error recovery
+- Industry standard</p>
+<p><strong>2. Dual Grammar Approach</strong></p>
+<p><em>Decision:</em> Separate procedural and expression grammars</p>
+<p><em>Rationale:</em>
+- Clearer separation of contexts
+- Better error messages
+- Reduced ambiguity
+- PSS has distinct contexts</p>
+<p><strong>3. YAML for AST Definitions</strong></p>
+<p><em>Decision:</em> Define AST in YAML, generate C++/Python</p>
+<p><em>Rationale:</em>
+- Single source of truth
+- Automatic language binding generation
+- Consistent API across languages
+- Easy to maintain</p>
+<p><strong>4. Smart Pointers for Ownership</strong></p>
+<p><em>Decision:</em> Use unique pointers for ownership</p>
+<p><em>Rationale:</em>
+- Clear ownership semantics
+- Automatic memory management
+- Prevents leaks
+- Modern C++ best practice</p>
+<p><strong>5. Substring Reuses Subscript</strong></p>
+<p><em>Decision:</em> Don’t create dedicated ExprSubstring initially</p>
+<p><em>Rationale:</em>
+- Faster implementation
+- Functionally equivalent for parsing
+- Can enhance later if needed
+- Minimal user impact</p>
+<p><strong>6. Incremental Semantic Validation</strong></p>
+<p><em>Decision:</em> Ship grammar/AST before full validation</p>
+<p><em>Rationale:</em>
+- Unblocks users faster
+- Grammar is most critical
+- Validation can be added incrementally
+- Clear documentation of limitations</p>
+</section>
+<section id="trade-offs">
+<h3>Trade-offs<a class="headerlink" href="#trade-offs" title="Link to this heading">¶</a></h3>
+<p><strong>Grammar Complexity vs Performance</strong></p>
+<ul class="simple">
+<li><p>More complex grammar = harder to maintain</p></li>
+<li><p>But better performance and error messages</p></li>
+<li><p>Decision: Optimize for performance</p></li>
+</ul>
+<p><strong>AST Completeness vs Simplicity</strong></p>
+<ul class="simple">
+<li><p>More AST nodes = more complete representation</p></li>
+<li><p>But more code to maintain</p></li>
+<li><p>Decision: Optimize for completeness</p></li>
+</ul>
+<p><strong>Validation Strictness vs Usability</strong></p>
+<ul class="simple">
+<li><p>Strict validation = catches more errors</p></li>
+<li><p>But may block valid use cases</p></li>
+<li><p>Decision: Incremental validation</p></li>
+</ul>
+</section>
+</section>
+<section id="testing-strategy">
+<h2>Testing Strategy<a class="headerlink" href="#testing-strategy" title="Link to this heading">¶</a></h2>
+<section id="test-pyramid">
+<h3>Test Pyramid<a class="headerlink" href="#test-pyramid" title="Link to this heading">¶</a></h3>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>        ┌────────────┐
+        │  E2E Tests │  (Few)
+        └────────────┘
+     ┌───────────────────┐
+     │ Integration Tests │  (Some)
+     └───────────────────┘
+┌─────────────────────────────┐
+│       Unit Tests            │  (Many)
+└─────────────────────────────┘
+</pre></div>
+</div>
+</section>
+<section id="unit-test-strategy">
+<h3>Unit Test Strategy<a class="headerlink" href="#unit-test-strategy" title="Link to this heading">¶</a></h3>
+<p>Each feature has dedicated unit tests:</p>
+<ul class="simple">
+<li><p>Parsing tests (grammar validation)</p></li>
+<li><p>AST construction tests (visitor validation)</p></li>
+<li><p>Linking tests (resolution validation)</p></li>
+<li><p>Type checking tests (semantic validation)</p></li>
+</ul>
+</section>
+<section id="integration-test-strategy">
+<h3>Integration Test Strategy<a class="headerlink" href="#integration-test-strategy" title="Link to this heading">¶</a></h3>
+<p>Combined feature tests:</p>
+<ul class="simple">
+<li><p>Multiple features in single file</p></li>
+<li><p>Cross-file references</p></li>
+<li><p>Complex scenarios</p></li>
+<li><p>Real-world examples</p></li>
+</ul>
+</section>
+<section id="test-organization">
+<h3>Test Organization<a class="headerlink" href="#test-organization" title="Link to this heading">¶</a></h3>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>tests/
+├── src/
+│   ├── TestPSS30Grammar.cpp    # PSS 3.0 specific
+│   ├── TestMonitors.cpp        # Monitor feature tests
+│   ├── TestStringMethods.cpp   # String feature tests
+│   └── ...
+└── pss_examples/
+    ├── monitor_examples/       # Spec examples
+    ├── string_examples/
+    └── ...
+</pre></div>
+</div>
+</section>
+</section>
+<section id="code-quality">
+<h2>Code Quality<a class="headerlink" href="#code-quality" title="Link to this heading">¶</a></h2>
+<section id="style-guidelines">
+<h3>Style Guidelines<a class="headerlink" href="#style-guidelines" title="Link to this heading">¶</a></h3>
+<p><strong>C++ Style:</strong></p>
+<ul class="simple">
+<li><p>Google C++ Style Guide (mostly)</p></li>
+<li><p>4-space indentation</p></li>
+<li><p>Member variables prefixed with <code class="docutils literal notranslate"><span class="pre">m_</span></code></p></li>
+<li><p>Const correctness enforced</p></li>
+</ul>
+<p><strong>Python Style:</strong></p>
+<ul class="simple">
+<li><p>PEP 8 compliant</p></li>
+<li><p>Type hints where applicable</p></li>
+<li><p>Docstrings for public APIs</p></li>
+</ul>
+</section>
+<section id="code-review-process">
+<h3>Code Review Process<a class="headerlink" href="#code-review-process" title="Link to this heading">¶</a></h3>
+<p>All changes reviewed for:</p>
+<ul class="simple">
+<li><p>Correctness</p></li>
+<li><p>Performance</p></li>
+<li><p>Maintainability</p></li>
+<li><p>Test coverage</p></li>
+<li><p>Documentation</p></li>
+</ul>
+</section>
+</section>
+<section id="future-enhancements">
+<h2>Future Enhancements<a class="headerlink" href="#future-enhancements" title="Link to this heading">¶</a></h2>
+<section id="planned-improvements">
+<h3>Planned Improvements<a class="headerlink" href="#planned-improvements" title="Link to this heading">¶</a></h3>
+<ol class="arabic simple">
+<li><p><strong>Complete Semantic Validation</strong></p>
+<ul class="simple">
+<li><p>All context validations</p></li>
+<li><p>Complete type checking</p></li>
+<li><p>Full constraint validation</p></li>
+</ul>
+</li>
+<li><p><strong>Enhanced AST</strong></p>
+<ul class="simple">
+<li><p>Dedicated ExprSubstring node</p></li>
+<li><p>Better source location tracking</p></li>
+<li><p>AST cloning for reference types</p></li>
+</ul>
+</li>
+<li><p><strong>Performance Optimization</strong></p>
+<ul class="simple">
+<li><p>Incremental parsing</p></li>
+<li><p>AST caching</p></li>
+<li><p>Lazy linking</p></li>
+</ul>
+</li>
+<li><p><strong>Tool Integration</strong></p>
+<ul class="simple">
+<li><p>Language Server Protocol</p></li>
+<li><p>IDE integration</p></li>
+<li><p>Static analysis tools</p></li>
+</ul>
+</li>
+<li><p><strong>Additional Language Features</strong></p>
+<ul class="simple">
+<li><p>Future PSS versions</p></li>
+<li><p>Vendor extensions</p></li>
+<li><p>Custom pragmas</p></li>
+</ul>
+</li>
+</ol>
+</section>
+</section>
+<section id="see-also">
+<h2>See Also<a class="headerlink" href="#see-also" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p><a class="reference internal" href="pss30_features.html"><span class="doc">PSS 3.0 Features</span></a> - Feature documentation</p></li>
+<li><p><a class="reference internal" href="pss30_api.html"><span class="doc">PSS 3.0 API Documentation</span></a> - API reference</p></li>
+<li><p><a class="reference internal" href="ast_structure.html"><span class="doc">AST Structure</span></a> - AST structure details</p></li>
+<li><p><span class="xref std std-doc">../PSS_3.0_UPGRADE_PLAN</span> - Implementation plan</p></li>
+</ul>
+</section>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">pssparser</a></h1>
+
+
+
+
+
+
+
+
+
+<search id="searchbox" style="display: none" role="search">
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Search"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Getting Started:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="quickstart.html">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cli.html">CLI</a></li>
+<li class="toctree-l1"><a class="reference internal" href="pss30_migration.html">PSS 3.0 Migration Guide</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">PSS 3.0 Features:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="pss30_features.html">PSS 3.0 Features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="pss30_api.html">PSS 3.0 API Documentation</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer Documentation:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">PSS 3.0 Architecture &amp; Design</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#architecture-layers">Architecture Layers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#grammar-design">Grammar Design</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#ast-design">AST Design</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#visitor-implementation">Visitor Implementation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#semantic-validation">Semantic Validation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#linking-and-resolution">Linking and Resolution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#extension-mechanism">Extension Mechanism</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#performance-considerations">Performance Considerations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#extensibility">Extensibility</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#design-decisions">Design Decisions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#testing-strategy">Testing Strategy</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#code-quality">Code Quality</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#future-enhancements">Future Enhancements</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#see-also">See Also</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="ast_structure.html">AST Structure</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ast_usage_guide.html">AST Usage Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ast_class_hierarchy.html">AST Class Hierarchy</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Reference:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="reference_api_docs.html">API Reference</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="pss30_api.html" title="previous chapter">PSS 3.0 API Documentation</a></li>
+      <li>Next: <a href="ast_structure.html" title="next chapter">AST Structure</a></li>
+  </ul></li>
+</ul>
+</div>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2024, Matthew Ballance.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 9.0.4</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
+      
+      |
+      <a href="_sources/pss30_architecture.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

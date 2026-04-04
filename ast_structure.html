@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="./">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>AST Structure &#8212; pssparser  documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=5ecbeea2" />
+    <link rel="stylesheet" type="text/css" href="_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="_static/alabaster.css?v=27fed22d" />
+    <script src="_static/documentation_options.js?v=5929fcd5"></script>
+    <script src="_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="AST Usage Guide" href="ast_usage_guide.html" />
+    <link rel="prev" title="PSS 3.0 Architecture &amp; Design" href="pss30_architecture.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="ast-structure">
+<h1>AST Structure<a class="headerlink" href="#ast-structure" title="Link to this heading">¶</a></h1>
+<p>The PSS language is object-oriented, with some aspect-oriented features as well.
+The AST structure reflects this by maintaining both a logical and a physcial
+view of the content.</p>
+<p>Performing syntax parsing on a file results in a physcial AST structure,
+which is captured in an object of type <cite>pssp::ast::IGlobalScope</cite>. There
+is a 1:1 relationship between file and <cite>IGlobalScope</cite> object.</p>
+<p>A “Symbol Tree” is built as part of the symbol resolution process. This
+tree represents the logical view of the content. Specifically, all
+content within the same namespace is visible within a single “Symbol”
+scope, with pointers back to the physical view. In general a “Symbol”
+type exists for any scope that supports multiple contributors –
+For example, package, action, component, function. Scopes, such as
+constraints, that do not support contribution from multiple sources
+are represented only in the “physical” view of the AST and not
+within the logical “Symbol Tree”.</p>
+<p>Let’s look at an example.</p>
+<div class="highlight-pss notranslate"><div class="highlight"><pre><span></span>component pss_top {
+    action Entry { }
+}
+</pre></div>
+</div>
+<div class="highlight-pss notranslate"><div class="highlight"><pre><span></span>extend component pss_top {
+    action B { }
+}
+</pre></div>
+</div>
+<p>In this case, the RootSymbolTree will be structured as follows:</p>
+<ul class="simple">
+<li><dl class="simple">
+<dt>RootSymbolTree</dt><dd><ul>
+<li><dl class="simple">
+<dt>children</dt><dd><ul>
+<li><dl class="simple">
+<dt>pss_top<span class="classifier">SymbolTypeScope</span></dt><dd><ul>
+<li><dl class="simple">
+<dt>children</dt><dd><ul>
+<li><p>Entry : SymbolTypeScope</p></li>
+<li><p>B : SymbolTypeScope</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>units</dt><dd><ul>
+<li><dl class="simple">
+<dt>pss_top.pss<span class="classifier">GlobalScope</span></dt><dd><ul>
+<li><dl class="simple">
+<dt>children</dt><dd><ul>
+<li><dl class="simple">
+<dt>pss_top<span class="classifier">Component</span></dt><dd><ul>
+<li><dl class="simple">
+<dt>children</dt><dd><ul>
+<li><p>Entry : Action</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>pss_top_ext.pss<span class="classifier">GlobalScope</span></dt><dd><ul>
+<li><dl class="simple">
+<dt>children</dt><dd><ul>
+<li><dl class="simple">
+<dt>pss_top<span class="classifier">ExtendType</span></dt><dd><ul>
+<li><dl class="simple">
+<dt>children</dt><dd><ul>
+<li><p>B : Action</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+<p>Note how the children of the symbol tree hold the ‘merged’ view of the
+PSS content that takes type extension into account. Meanwhile, the
+physical view of the PSS content is maintained under the ‘units’
+subsection of the symbol tree.</p>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">pssparser</a></h1>
+
+
+
+
+
+
+
+
+
+<search id="searchbox" style="display: none" role="search">
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Search"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Getting Started:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="quickstart.html">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cli.html">CLI</a></li>
+<li class="toctree-l1"><a class="reference internal" href="pss30_migration.html">PSS 3.0 Migration Guide</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">PSS 3.0 Features:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="pss30_features.html">PSS 3.0 Features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="pss30_api.html">PSS 3.0 API Documentation</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer Documentation:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="pss30_architecture.html">PSS 3.0 Architecture &amp; Design</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">AST Structure</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ast_usage_guide.html">AST Usage Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ast_class_hierarchy.html">AST Class Hierarchy</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Reference:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="reference_api_docs.html">API Reference</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="pss30_architecture.html" title="previous chapter">PSS 3.0 Architecture &amp; Design</a></li>
+      <li>Next: <a href="ast_usage_guide.html" title="next chapter">AST Usage Guide</a></li>
+  </ul></li>
+</ul>
+</div>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2024, Matthew Ballance.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 9.0.4</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
+      
+      |
+      <a href="_sources/ast_structure.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

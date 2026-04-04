@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="./">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Quickstart &#8212; pssparser  documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=5ecbeea2" />
+    <link rel="stylesheet" type="text/css" href="_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="_static/alabaster.css?v=27fed22d" />
+    <script src="_static/documentation_options.js?v=5929fcd5"></script>
+    <script src="_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="CLI" href="cli.html" />
+    <link rel="prev" title="pssparser Documentation" href="index.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="quickstart">
+<h1>Quickstart<a class="headerlink" href="#quickstart" title="Link to this heading">¶</a></h1>
+<section id="installing-pssparser">
+<h2>Installing pssparser<a class="headerlink" href="#installing-pssparser" title="Link to this heading">¶</a></h2>
+<p>pssparser is most easily installed as a Python
+package from PyPI. To install, run the following command:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>%<span class="w">  </span>pip<span class="w"> </span>install<span class="w"> </span>pssparser
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Add instructions for building from source.</p>
+</div>
+</section>
+<section id="trying-pssparser">
+<h2>Trying pssparser<a class="headerlink" href="#trying-pssparser" title="Link to this heading">¶</a></h2>
+<p>pssparser provides the <cite>Parser</cite> utility class to simplify
+the process of parsing and linking PSS content from a Python script.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">pssparser</span><span class="w"> </span><span class="kn">import</span> <span class="n">Parser</span>
+
+<span class="n">parser</span> <span class="o">=</span> <span class="n">Parser</span><span class="p">()</span>
+<span class="n">parser</span><span class="o">.</span><span class="n">parses</span><span class="p">([(</span>
+ <span class="s2">&quot;file1.pss&quot;</span><span class="p">,</span>
+<span class="w"> </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd"> component pss_top {</span>
+<span class="sd">   action A { }</span>
+<span class="sd"> }</span>
+<span class="sd"> &quot;&quot;&quot;</span><span class="p">)</span>
+<span class="p">])</span>
+
+<span class="n">root</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">link</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>The above snippet is incredibly simple, but shows the basic flow of
+parsing and linking PSS content.</p>
+<ul class="simple">
+<li><p>The <cite>parses</cite> method accepts a list of tuples, each containing a filename
+and the content to parse. The <cite>parses</cite> method raises an exception if
+syntax errors are encountered in any file,</p></li>
+<li><p>The <cite>link</cite> method resolves references between the files and returns
+a linked symbol tree for further processing.</p></li>
+</ul>
+</section>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">pssparser</a></h1>
+
+
+
+
+
+
+
+
+
+<search id="searchbox" style="display: none" role="search">
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Search"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Getting Started:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Quickstart</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#installing-pssparser">Installing pssparser</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#trying-pssparser">Trying pssparser</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="cli.html">CLI</a></li>
+<li class="toctree-l1"><a class="reference internal" href="pss30_migration.html">PSS 3.0 Migration Guide</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">PSS 3.0 Features:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="pss30_features.html">PSS 3.0 Features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="pss30_api.html">PSS 3.0 API Documentation</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer Documentation:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="pss30_architecture.html">PSS 3.0 Architecture &amp; Design</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ast_structure.html">AST Structure</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ast_usage_guide.html">AST Usage Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ast_class_hierarchy.html">AST Class Hierarchy</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Reference:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="reference_api_docs.html">API Reference</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="index.html" title="previous chapter">pssparser Documentation</a></li>
+      <li>Next: <a href="cli.html" title="next chapter">CLI</a></li>
+  </ul></li>
+</ul>
+</div>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2024, Matthew Ballance.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 9.0.4</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
+      
+      |
+      <a href="_sources/quickstart.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

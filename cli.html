@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="./">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>CLI &#8212; pssparser  documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=5ecbeea2" />
+    <link rel="stylesheet" type="text/css" href="_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="_static/alabaster.css?v=27fed22d" />
+    <script src="_static/documentation_options.js?v=5929fcd5"></script>
+    <script src="_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="PSS 3.0 Migration Guide" href="pss30_migration.html" />
+    <link rel="prev" title="Quickstart" href="quickstart.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="cli">
+<h1>CLI<a class="headerlink" href="#cli" title="Link to this heading">¶</a></h1>
+<p>The <cite>pssparser</cite> package provides a parser-focused command-line interface.</p>
+<section id="basic-usage">
+<h2>Basic usage<a class="headerlink" href="#basic-usage" title="Link to this heading">¶</a></h2>
+<p>Parse and link one or more PSS source files:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pssparser<span class="w"> </span>file1.pss<span class="w"> </span>file2.pss
+</pre></div>
+</div>
+</section>
+<section id="common-options">
+<h2>Common options<a class="headerlink" href="#common-options" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">--syntax-only</span></code> parses without performing linking / symbol resolution</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--json</span></code> emits diagnostics as JSON</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--dump-ast</span> <span class="pre">OUT</span></code> writes a JSON dump of the linked AST</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--quiet</span></code> suppresses normal diagnostic output</p></li>
+</ul>
+</section>
+<section id="examples">
+<h2>Examples<a class="headerlink" href="#examples" title="Link to this heading">¶</a></h2>
+<p>Syntax-only parse:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pssparser<span class="w"> </span>--syntax-only<span class="w"> </span>model.pss
+</pre></div>
+</div>
+<p>Emit diagnostics as JSON:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pssparser<span class="w"> </span>--json<span class="w"> </span>model.pss
+</pre></div>
+</div>
+<p>Dump the linked AST:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pssparser<span class="w"> </span>--dump-ast<span class="w"> </span>ast.json<span class="w"> </span>model.pss
+</pre></div>
+</div>
+</section>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">pssparser</a></h1>
+
+
+
+
+
+
+
+
+
+<search id="searchbox" style="display: none" role="search">
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Search"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Getting Started:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="quickstart.html">Quickstart</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">CLI</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#basic-usage">Basic usage</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#common-options">Common options</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#examples">Examples</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="pss30_migration.html">PSS 3.0 Migration Guide</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">PSS 3.0 Features:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="pss30_features.html">PSS 3.0 Features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="pss30_api.html">PSS 3.0 API Documentation</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer Documentation:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="pss30_architecture.html">PSS 3.0 Architecture &amp; Design</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ast_structure.html">AST Structure</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ast_usage_guide.html">AST Usage Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ast_class_hierarchy.html">AST Class Hierarchy</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Reference:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="reference_api_docs.html">API Reference</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="quickstart.html" title="previous chapter">Quickstart</a></li>
+      <li>Next: <a href="pss30_migration.html" title="next chapter">PSS 3.0 Migration Guide</a></li>
+  </ul></li>
+</ul>
+</div>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2024, Matthew Ballance.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 9.0.4</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
+      
+      |
+      <a href="_sources/cli.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

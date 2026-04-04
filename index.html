@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="./">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>pssparser Documentation &#8212; pssparser  documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=5ecbeea2" />
+    <link rel="stylesheet" type="text/css" href="_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="_static/alabaster.css?v=27fed22d" />
+    <script src="_static/documentation_options.js?v=5929fcd5"></script>
+    <script src="_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Quickstart" href="quickstart.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="pssparser-documentation">
+<h1>pssparser Documentation<a class="headerlink" href="#pssparser-documentation" title="Link to this heading">¶</a></h1>
+<p>pssparser provides a Portable Test and Stimulus Standard (PSS) language parser
+with C++ and Python APIs. The parser supports both PSS 2.x and PSS 3.0 specifications.</p>
+<section id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Link to this heading">¶</a></h2>
+<p>pssparser is a comprehensive PSS language parser that converts PSS source code
+into an Abstract Syntax Tree (AST) for further processing. It provides both C++ and
+Python APIs and includes full support for PSS 3.0 features including monitors,
+string enhancements, reference collections, and more.</p>
+</section>
+<section id="key-features">
+<h2>Key Features<a class="headerlink" href="#key-features" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p><strong>PSS 3.0 Support</strong> - Full grammar support for PSS 3.0 (August 2024)</p></li>
+<li><p><strong>Monitors</strong> - Behavioral coverage with temporal operators</p></li>
+<li><p><strong>String Enhancements</strong> - String methods and substring operator</p></li>
+<li><p><strong>Reference Collections</strong> - Collections of reference types</p></li>
+<li><p><strong>C++ and Python APIs</strong> - Use from either language</p></li>
+<li><p><strong>Complete AST</strong> - Full abstract syntax tree representation</p></li>
+<li><p><strong>High Performance</strong> - Fast parsing with minimal memory overhead</p></li>
+</ul>
+<div class="toctree-wrapper compound">
+<p class="caption" role="heading"><span class="caption-text">Getting Started:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="quickstart.html">Quickstart</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="quickstart.html#installing-pssparser">Installing pssparser</a></li>
+<li class="toctree-l2"><a class="reference internal" href="quickstart.html#trying-pssparser">Trying pssparser</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="cli.html">CLI</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="cli.html#basic-usage">Basic usage</a></li>
+<li class="toctree-l2"><a class="reference internal" href="cli.html#common-options">Common options</a></li>
+<li class="toctree-l2"><a class="reference internal" href="cli.html#examples">Examples</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="pss30_migration.html">PSS 3.0 Migration Guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="pss30_migration.html#backward-compatibility">Backward Compatibility</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pss30_migration.html#breaking-changes">Breaking Changes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pss30_migration.html#new-features">New Features</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pss30_migration.html#common-migration-patterns">Common Migration Patterns</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pss30_migration.html#testing-your-migration">Testing Your Migration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pss30_migration.html#known-migration-issues">Known Migration Issues</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pss30_migration.html#performance-considerations">Performance Considerations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pss30_migration.html#getting-help">Getting Help</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pss30_migration.html#best-practices">Best Practices</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pss30_migration.html#example-complete-migration">Example: Complete Migration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pss30_migration.html#summary">Summary</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pss30_migration.html#see-also">See Also</a></li>
+</ul>
+</li>
+</ul>
+</div>
+<div class="toctree-wrapper compound">
+<p class="caption" role="heading"><span class="caption-text">PSS 3.0 Features:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="pss30_features.html">PSS 3.0 Features</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="pss30_features.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pss30_features.html#monitors-and-behavioral-coverage">Monitors and Behavioral Coverage</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pss30_features.html#string-enhancements">String Enhancements</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pss30_features.html#reference-collections">Reference Collections</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pss30_features.html#procedural-randomization">Procedural Randomization</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pss30_features.html#activity-atomic-blocks">Activity Atomic Blocks</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pss30_features.html#yield-statements">Yield Statements</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pss30_features.html#platform-qualifiers">Platform Qualifiers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pss30_features.html#limitations-and-known-issues">Limitations and Known Issues</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pss30_features.html#migration-from-pss-2-x">Migration from PSS 2.x</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pss30_features.html#see-also">See Also</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="pss30_api.html">PSS 3.0 API Documentation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="pss30_api.html#ast-nodes-for-pss-3-0">AST Nodes for PSS 3.0</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pss30_api.html#visitor-api">Visitor API</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pss30_api.html#python-api-integration">Python API Integration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pss30_api.html#c-api-usage-examples">C++ API Usage Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pss30_api.html#best-practices">Best Practices</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pss30_api.html#error-handling">Error Handling</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pss30_api.html#performance-considerations">Performance Considerations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pss30_api.html#thread-safety">Thread Safety</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pss30_api.html#deprecations">Deprecations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pss30_api.html#see-also">See Also</a></li>
+</ul>
+</li>
+</ul>
+</div>
+<div class="toctree-wrapper compound">
+<p class="caption" role="heading"><span class="caption-text">Developer Documentation:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="pss30_architecture.html">PSS 3.0 Architecture &amp; Design</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="pss30_architecture.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pss30_architecture.html#architecture-layers">Architecture Layers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pss30_architecture.html#grammar-design">Grammar Design</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pss30_architecture.html#ast-design">AST Design</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pss30_architecture.html#visitor-implementation">Visitor Implementation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pss30_architecture.html#semantic-validation">Semantic Validation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pss30_architecture.html#linking-and-resolution">Linking and Resolution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pss30_architecture.html#extension-mechanism">Extension Mechanism</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pss30_architecture.html#performance-considerations">Performance Considerations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pss30_architecture.html#extensibility">Extensibility</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pss30_architecture.html#design-decisions">Design Decisions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pss30_architecture.html#testing-strategy">Testing Strategy</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pss30_architecture.html#code-quality">Code Quality</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pss30_architecture.html#future-enhancements">Future Enhancements</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pss30_architecture.html#see-also">See Also</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="ast_structure.html">AST Structure</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ast_usage_guide.html">AST Usage Guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="ast_usage_guide.html#getting-started">Getting Started</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ast_usage_guide.html#traversing-the-ast">Traversing the AST</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ast_usage_guide.html#working-with-expressions">Working with Expressions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ast_usage_guide.html#working-with-activities">Working with Activities</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ast_usage_guide.html#working-with-constraints">Working with Constraints</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ast_usage_guide.html#pss-to-ast-mapping-examples">PSS to AST Mapping Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ast_usage_guide.html#advanced-topics">Advanced Topics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ast_usage_guide.html#best-practices">Best Practices</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ast_usage_guide.html#common-patterns">Common Patterns</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ast_usage_guide.html#error-handling">Error Handling</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ast_usage_guide.html#next-steps">Next Steps</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="ast_class_hierarchy.html">AST Class Hierarchy</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="ast_class_hierarchy.html#inheritance-overview">Inheritance Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ast_class_hierarchy.html#complete-class-hierarchy">Complete Class Hierarchy</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ast_class_hierarchy.html#when-to-use-which-class">When to Use Which Class</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ast_class_hierarchy.html#common-design-patterns">Common Design Patterns</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ast_class_hierarchy.html#next-steps">Next Steps</a></li>
+</ul>
+</li>
+</ul>
+</div>
+<div class="toctree-wrapper compound">
+<p class="caption" role="heading"><span class="caption-text">Reference:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="reference_api_docs.html">API Reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="reference_api_docs.html#core-ast-structure">Core AST Structure</a></li>
+<li class="toctree-l2"><a class="reference internal" href="reference_api_docs.html#type-system">Type System</a></li>
+<li class="toctree-l2"><a class="reference internal" href="reference_api_docs.html#declarations">Declarations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="reference_api_docs.html#expressions">Expressions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="reference_api_docs.html#activities">Activities</a></li>
+<li class="toctree-l2"><a class="reference internal" href="reference_api_docs.html#constraints">Constraints</a></li>
+<li class="toctree-l2"><a class="reference internal" href="reference_api_docs.html#procedural-code">Procedural Code</a></li>
+<li class="toctree-l2"><a class="reference internal" href="reference_api_docs.html#functions">Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="reference_api_docs.html#monitors">Monitors</a></li>
+<li class="toctree-l2"><a class="reference internal" href="reference_api_docs.html#templates">Templates</a></li>
+<li class="toctree-l2"><a class="reference internal" href="reference_api_docs.html#symbol-resolution">Symbol Resolution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="reference_api_docs.html#extensions">Extensions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="reference_api_docs.html#type-identifiers">Type Identifiers</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</section>
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="#">pssparser</a></h1>
+
+
+
+
+
+
+
+
+
+<search id="searchbox" style="display: none" role="search">
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Search"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Getting Started:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="quickstart.html">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cli.html">CLI</a></li>
+<li class="toctree-l1"><a class="reference internal" href="pss30_migration.html">PSS 3.0 Migration Guide</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">PSS 3.0 Features:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="pss30_features.html">PSS 3.0 Features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="pss30_api.html">PSS 3.0 API Documentation</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer Documentation:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="pss30_architecture.html">PSS 3.0 Architecture &amp; Design</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ast_structure.html">AST Structure</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ast_usage_guide.html">AST Usage Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ast_class_hierarchy.html">AST Class Hierarchy</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Reference:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="reference_api_docs.html">API Reference</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="#">Documentation overview</a><ul>
+      <li>Next: <a href="quickstart.html" title="next chapter">Quickstart</a></li>
+  </ul></li>
+</ul>
+</div>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2024, Matthew Ballance.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 9.0.4</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
+      
+      |
+      <a href="_sources/index.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>
