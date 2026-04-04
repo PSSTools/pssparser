@@ -8,6 +8,13 @@ from cython.operator cimport dereference
 from pssparser cimport ast_decl
 from enum import IntEnum
 
+if sys.platform == 'darwin':
+    _libname = "libast.dylib"
+elif sys.platform == 'win32':
+    _libname = "ast.dll"
+else:
+    _libname = "libast.so"
+
 
 class ListIterator(object):
     def __init__(self, n_children, get_child):
@@ -1248,12 +1255,7 @@ cdef class Factory(object):
         if _inst is None:
             ext_dir = os.path.dirname(os.path.abspath(__file__))
             build_dir = os.path.abspath(os.path.join(ext_dir, "../../build"))
-            if sys.platform == 'darwin':
-                libname = "libast.dylib"
-            elif sys.platform == 'win32':
-                libname = "ast.dll"
-            else:
-                libname = "libast.so"
+            libname = _libname
             core_lib = None
             for libdir in ("lib", "lib64", "bin"):
                 if os.path.isfile(os.path.join(build_dir, libdir, libname)):
@@ -1263,7 +1265,7 @@ cdef class Factory(object):
                 core_lib = os.path.join(ext_dir, libname)
             if not os.path.isfile(core_lib):
                 raise Exception("Extension library core \"%s\" doesn't exist" % core_lib)
-            if sys.platform == 'darwin':
+            if _libname == "libast.dylib":
                 import glob as _glob
                 for _al in _glob.glob(os.path.join(os.path.dirname(core_lib), 'libantlr4-runtime*.dylib')):
                     ctypes.cdll.LoadLibrary(_al)

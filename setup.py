@@ -92,7 +92,7 @@ ext = Extension(
 
 extensions=[ast_ext, ext]
 
-setup_requires=['cython', 'ivpm', 'debug-mgr', 'ciostream']
+setup_requires=['cython', 'ivpm']
 
 if isSrcBuild:
     pass  # pyastbuilder used at cmake time, not setup time
