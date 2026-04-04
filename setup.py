@@ -46,6 +46,14 @@ if isSrcBuild:
     if os.path.isdir(ciostream_inc):
         include_dirs.append(ciostream_inc)
 
+    # Add debug_mgr include path (needed for dmgr/IDebugMgr.h in PyParserUtils.h)
+    import glob
+    debug_mgr_inc_matches = glob.glob(os.path.join(
+        proj_dir, "packages", "python", "lib", "python*",
+        "site-packages", "debug_mgr", "share", "include"))
+    if debug_mgr_inc_matches:
+        include_dirs.append(debug_mgr_inc_matches[0])
+
 library_dirs = []
 libraries = []
 extra_link_args = []

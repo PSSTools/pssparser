@@ -23,10 +23,11 @@ jobs:
         ${IVPM_PYTHON} -m ivpm update -j 1 -a
     - name: Build packages
       run: |
+        export PATH=/opt/python/cp39-cp39/bin:$PATH
         mkdir build
         cd build
-        cmake ..
-        make
+        cmake .. -GNinja
+        ninja
     - name: Build Python wheels
       run: |
         for py in cp39-cp39 cp310-cp310 cp311-cp311 cp312-cp312; do
@@ -68,10 +69,11 @@ jobs:
         ${IVPM_PYTHON} -m ivpm update -j 1 -a
     - name: Build packages
       run: |
+        export PATH=/opt/python/cp312-cp312/bin:$PATH
         mkdir build
         cd build
-        cmake ..
-        make
+        cmake .. -GNinja
+        ninja
     - name: Build Python wheels
       run: |
         for py in cp39-cp39 cp310-cp310 cp311-cp311 cp312-cp312; do
