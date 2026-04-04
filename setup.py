@@ -21,10 +21,11 @@ def _get_version():
 version = _get_version()
 
 isSrcBuild = False
+isSrcTree = os.path.isdir(os.path.join(proj_dir, "src"))
 
 try:
     from ivpm.setup import setup
-    isSrcBuild = os.path.isdir(os.path.join(proj_dir, "src"))
+    isSrcBuild = isSrcTree
     print("pssparser: isSrcBuild: %s" % str(isSrcBuild))
 except ImportError as e:
     from setuptools import setup
@@ -32,7 +33,7 @@ except ImportError as e:
 
 include_dirs = []
 
-if isSrcBuild:
+if isSrcTree:
     include_dirs.append(pythondir)
     include_dirs.append(os.path.join(proj_dir, "src", "include"))
     include_dirs.append(os.path.join(proj_dir, "build", "include"))
@@ -58,6 +59,17 @@ if isSrcBuild:
     for _pattern in [
         os.path.join(proj_dir, "packages", "python", "lib", "python*", "site-packages", "debug_mgr", "share", "include"),
         os.path.join(proj_dir, "packages", "python", "Lib", "site-packages", "debug_mgr", "share", "include"),
+    ]:
+        _matches = glob.glob(_pattern)
+        if _matches and os.path.isdir(_matches[0]):
+            include_dirs.append(_matches[0])
+            break
+
+    # Add site-packages to include_dirs so Cython can find .pxd files for
+    # debug_mgr, ciostream, etc. installed there by ivpm.
+    for _pattern in [
+        os.path.join(proj_dir, "packages", "python", "lib", "python*", "site-packages"),
+        os.path.join(proj_dir, "packages", "python", "Lib", "site-packages"),
     ]:
         _matches = glob.glob(_pattern)
         if _matches and os.path.isdir(_matches[0]):

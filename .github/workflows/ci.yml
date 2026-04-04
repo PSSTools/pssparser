@@ -14,12 +14,12 @@ jobs:
         yum install -y libuuid-devel
         yum install -y java-11-openjdk-devel
         for py in cp39-cp39 cp310-cp310 cp311-cp311 cp312-cp312; do
-          /opt/python/${py}/bin/python -m pip install ninja wheel cython setuptools
+          /opt/python/${py}/bin/python -m pip install ninja wheel cython setuptools ivpm
         done
     - name: Fetch source dependencies
       run: |
         export IVPM_PYTHON=/opt/python/cp39-cp39/bin/python
-        ${IVPM_PYTHON} -m pip install ivpm twine auditwheel
+        ${IVPM_PYTHON} -m pip install twine auditwheel
         ${IVPM_PYTHON} -m ivpm update -j 1 -a
     - name: Build packages
       run: |
@@ -60,12 +60,12 @@ jobs:
         yum install -y libuuid-devel
         yum install -y java-11-openjdk-devel
         for py in cp39-cp39 cp310-cp310 cp311-cp311 cp312-cp312; do
-          /opt/python/${py}/bin/python -m pip install ninja wheel cython setuptools
+          /opt/python/${py}/bin/python -m pip install ninja wheel cython setuptools ivpm
         done
     - name: Fetch source dependencies
       run: |
         export IVPM_PYTHON=/opt/python/cp312-cp312/bin/python
-        ${IVPM_PYTHON} -m pip install ivpm twine auditwheel
+        ${IVPM_PYTHON} -m pip install twine auditwheel
         ${IVPM_PYTHON} -m ivpm update -j 1 -a
     - name: Build packages
       run: |
