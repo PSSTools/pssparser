@@ -37,22 +37,32 @@ if isSrcBuild:
     include_dirs.append(os.path.join(proj_dir, "src", "include"))
     include_dirs.append(os.path.join(proj_dir, "build", "include"))
 
-    # Add ciostream native header path
-    # Check both locations for ciostream
-    parent_packages = os.path.dirname(proj_dir)
-    ciostream_inc = os.path.join(parent_packages, "ciostream", "src", "ciostream")
-    if not os.path.isdir(ciostream_inc):
-        ciostream_inc = os.path.join(proj_dir, "packages", "ciostream", "src", "ciostream")
-    if os.path.isdir(ciostream_inc):
-        include_dirs.append(ciostream_inc)
+    # Add ciostream native header path (ciostream_native.h)
+    # Search pip-installed location first (Linux/macOS: lib/python*/site-packages,
+    # Windows: Lib/site-packages), then fall back to source layout.
+    import glob
+    _ciostream_found = False
+    for _pattern in [
+        os.path.join(proj_dir, "packages", "python", "lib", "python*", "site-packages", "ciostream"),
+        os.path.join(proj_dir, "packages", "python", "Lib", "site-packages", "ciostream"),
+        os.path.join(os.path.dirname(proj_dir), "ciostream", "src", "ciostream"),
+        os.path.join(proj_dir, "packages", "ciostream", "src", "ciostream"),
+    ]:
+        _matches = glob.glob(_pattern)
+        if _matches and os.path.isdir(_matches[0]):
+            include_dirs.append(_matches[0])
+            _ciostream_found = True
+            break
 
     # Add debug_mgr include path (needed for dmgr/IDebugMgr.h in PyParserUtils.h)
-    import glob
-    debug_mgr_inc_matches = glob.glob(os.path.join(
-        proj_dir, "packages", "python", "lib", "python*",
-        "site-packages", "debug_mgr", "share", "include"))
-    if debug_mgr_inc_matches:
-        include_dirs.append(debug_mgr_inc_matches[0])
+    for _pattern in [
+        os.path.join(proj_dir, "packages", "python", "lib", "python*", "site-packages", "debug_mgr", "share", "include"),
+        os.path.join(proj_dir, "packages", "python", "Lib", "site-packages", "debug_mgr", "share", "include"),
+    ]:
+        _matches = glob.glob(_pattern)
+        if _matches and os.path.isdir(_matches[0]):
+            include_dirs.append(_matches[0])
+            break
 
 library_dirs = []
 libraries = []
