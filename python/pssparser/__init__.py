@@ -1,4 +1,5 @@
 from .parser import Parser, ParseException
+from .__version__ import __version__, get_version
 
 def get_deps():
     return []

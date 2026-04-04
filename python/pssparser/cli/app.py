@@ -68,6 +68,11 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 2
 
+    if argv and argv[0] in ("--version", "-V"):
+        from pssparser.__version__ import get_version
+        print(get_version())
+        return 0
+
     try:
         args = parser.parse_args(argv)
     except SystemExit as e:

@@ -11,7 +11,14 @@ from setuptools import Extension, setup, find_namespace_packages
 proj_dir = os.path.dirname(os.path.abspath(__file__))
 pythondir = os.path.join(proj_dir, "python")
 
-version = "0.0.1"
+def _get_version():
+    version_file = os.path.join(proj_dir, "python", "pssparser", "__version__.py")
+    glb = {}
+    with open(version_file) as f:
+        exec(f.read(), glb)
+    return glb["_pkg_version"]
+
+version = _get_version()
 
 isSrcBuild = False
 
