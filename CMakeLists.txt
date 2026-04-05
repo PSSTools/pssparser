@@ -20,6 +20,8 @@ else()
   message("CMAKE_INSTALL_PREFIX set to ${CMAKE_INSTALL_PREFIX}")
 endif()
 
+# Force DLLs (RUNTIME artifacts) to install into lib/ so ivpm can find them
+set(CMAKE_INSTALL_BINDIR "lib" CACHE PATH "Installation directory for executables" FORCE)
 
 message("PSSParser: PACKAGES_DIR=${PACKAGES_DIR}")
 
