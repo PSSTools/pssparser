@@ -14,7 +14,7 @@
     <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="PSS 3.0 Migration Guide" href="pss30_migration.html" />
+    <link rel="next" title="Checker Plug-in Guide" href="checker_plugin_guide.html" />
     <link rel="prev" title="Quickstart" href="quickstart.html" />
    
   <link rel="stylesheet" href="_static/custom.css" type="text/css" />
@@ -67,6 +67,66 @@
 </pre></div>
 </div>
 </section>
+<section id="checker-flags">
+<h2>Checker flags<a class="headerlink" href="#checker-flags" title="Link to this heading">¶</a></h2>
+<p>The following flags control the checker plug-in system.  See
+<a class="reference internal" href="checker_plugin_guide.html"><span class="doc">Checker Plug-in Guide</span></a> for a full explanation of the plug-in
+architecture.</p>
+<section id="query-and-exit-flags">
+<h3>Query-and-exit flags<a class="headerlink" href="#query-and-exit-flags" title="Link to this heading">¶</a></h3>
+<p>These flags do <strong>not</strong> require source files.</p>
+<dl>
+<dt><code class="docutils literal notranslate"><span class="pre">--list-checkers</span></code></dt><dd><p>Print a table of all registered checkers — name, description, and
+declared marker IDs — then exit with code 0.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pssparser<span class="w"> </span>--list-checkers
+</pre></div>
+</div>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">--list-markers</span></code></dt><dd><p>Print a table of every declared marker ID across all registered checkers
+(including the built-in <code class="docutils literal notranslate"><span class="pre">core</span></code>), then exit with code 0.  Columns are
+<code class="docutils literal notranslate"><span class="pre">ID</span></code>, <code class="docutils literal notranslate"><span class="pre">SEV</span></code>, <code class="docutils literal notranslate"><span class="pre">CHECKER</span></code>, and <code class="docutils literal notranslate"><span class="pre">SUMMARY</span></code>.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pssparser<span class="w"> </span>--list-markers
+</pre></div>
+</div>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">--describe</span> <span class="pre">ID</span></code></dt><dd><p>Print the full definition (summary, severity, detail, owning checker) for
+the marker with the given ID, then exit with code 0.  Exits with code 2
+and an error message if the ID is not found.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pssparser<span class="w"> </span>--describe<span class="w"> </span>PSS001
+</pre></div>
+</div>
+</dd>
+</dl>
+</section>
+<section id="checker-selection-flags">
+<h3>Checker selection flags<a class="headerlink" href="#checker-selection-flags" title="Link to this heading">¶</a></h3>
+<dl>
+<dt><code class="docutils literal notranslate"><span class="pre">--checker</span> <span class="pre">NAME</span></code></dt><dd><p>Run <em>only</em> the named checker.  May be repeated to select multiple
+checkers.  <code class="docutils literal notranslate"><span class="pre">NAME</span></code> must match a registered entry-point name or a checker
+previously loaded with <code class="docutils literal notranslate"><span class="pre">--load-checker</span></code>.  Specifying an unknown name
+produces an error and exits with code 2.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pssparser<span class="w"> </span>--checker<span class="w"> </span>naming-convention<span class="w"> </span>model.pss
+</pre></div>
+</div>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">--no-checker</span> <span class="pre">NAME</span></code></dt><dd><p>Exclude the named checker from the active set.  May be repeated.
+Silently ignored when the name is not in the registry, or when
+<code class="docutils literal notranslate"><span class="pre">--checker</span></code> is also specified (explicit selection takes precedence).</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pssparser<span class="w"> </span>--no-checker<span class="w"> </span>deprecated-syntax<span class="w"> </span>model.pss
+</pre></div>
+</div>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">--load-checker</span> <span class="pre">MODULE:CLASS</span></code></dt><dd><p>Dynamically import <code class="docutils literal notranslate"><span class="pre">CLASS</span></code> from <code class="docutils literal notranslate"><span class="pre">MODULE</span></code> and add it to the active
+checker set.  No package installation required.  May be repeated.  The
+loaded checker participates in <code class="docutils literal notranslate"><span class="pre">--checker</span></code> / <code class="docutils literal notranslate"><span class="pre">--no-checker</span></code> filtering
+using its <code class="docutils literal notranslate"><span class="pre">name</span></code> attribute.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pssparser<span class="w"> </span>--load-checker<span class="w"> </span>myproject.rules:StyleChecker<span class="w"> </span>model.pss
+</pre></div>
+</div>
+</dd>
+</dl>
+</section>
+</section>
 </section>
 
 
@@ -102,8 +162,10 @@
 <li class="toctree-l2"><a class="reference internal" href="#basic-usage">Basic usage</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#common-options">Common options</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#examples">Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#checker-flags">Checker flags</a></li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="checker_plugin_guide.html">Checker Plug-in Guide</a></li>
 <li class="toctree-l1"><a class="reference internal" href="pss30_migration.html">PSS 3.0 Migration Guide</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">PSS 3.0 Features:</span></p>
@@ -128,7 +190,7 @@
 <ul>
   <li><a href="index.html">Documentation overview</a><ul>
       <li>Previous: <a href="quickstart.html" title="previous chapter">Quickstart</a></li>
-      <li>Next: <a href="pss30_migration.html" title="next chapter">PSS 3.0 Migration Guide</a></li>
+      <li>Next: <a href="checker_plugin_guide.html" title="next chapter">Checker Plug-in Guide</a></li>
   </ul></li>
 </ul>
 </div>

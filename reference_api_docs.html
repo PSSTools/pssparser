@@ -39,299 +39,568 @@ Classes are organized by category for easy navigation.</p>
 <nav class="contents local" id="table-of-contents">
 <p class="topic-title">Table of Contents</p>
 <ul class="simple">
-<li><p><a class="reference internal" href="#core-ast-structure" id="id1">Core AST Structure</a></p>
+<li><p><a class="reference internal" href="#checker-plug-in-api" id="id7">Checker Plug-in API</a></p></li>
+<li><p><a class="reference internal" href="#core-ast-structure" id="id8">Core AST Structure</a></p>
 <ul>
-<li><p><a class="reference internal" href="#base-classes" id="id2">Base Classes</a></p></li>
-<li><p><a class="reference internal" href="#package-and-imports" id="id3">Package and Imports</a></p></li>
-<li><p><a class="reference internal" href="#utilities" id="id4">Utilities</a></p></li>
+<li><p><a class="reference internal" href="#base-classes" id="id9">Base Classes</a></p></li>
+<li><p><a class="reference internal" href="#package-and-imports" id="id10">Package and Imports</a></p></li>
+<li><p><a class="reference internal" href="#utilities" id="id11">Utilities</a></p></li>
 </ul>
 </li>
-<li><p><a class="reference internal" href="#type-system" id="id5">Type System</a></p>
+<li><p><a class="reference internal" href="#type-system" id="id12">Type System</a></p>
 <ul>
-<li><p><a class="reference internal" href="#data-types" id="id6">Data Types</a></p></li>
-<li><p><a class="reference internal" href="#enumerations" id="id7">Enumerations</a></p></li>
+<li><p><a class="reference internal" href="#data-types" id="id13">Data Types</a></p></li>
+<li><p><a class="reference internal" href="#enumerations" id="id14">Enumerations</a></p></li>
 </ul>
 </li>
-<li><p><a class="reference internal" href="#declarations" id="id8">Declarations</a></p>
+<li><p><a class="reference internal" href="#declarations" id="id15">Declarations</a></p>
 <ul>
-<li><p><a class="reference internal" href="#actions-and-components" id="id9">Actions and Components</a></p></li>
-<li><p><a class="reference internal" href="#struct-types" id="id10">Struct Types</a></p></li>
-<li><p><a class="reference internal" href="#fields" id="id11">Fields</a></p></li>
+<li><p><a class="reference internal" href="#actions-and-components" id="id16">Actions and Components</a></p></li>
+<li><p><a class="reference internal" href="#struct-types" id="id17">Struct Types</a></p></li>
+<li><p><a class="reference internal" href="#fields" id="id18">Fields</a></p></li>
 </ul>
 </li>
-<li><p><a class="reference internal" href="#expressions" id="id12">Expressions</a></p>
+<li><p><a class="reference internal" href="#expressions" id="id19">Expressions</a></p>
 <ul>
-<li><p><a class="reference internal" href="#base-expression-classes" id="id13">Base Expression Classes</a></p></li>
-<li><p><a class="reference internal" href="#literals" id="id14">Literals</a></p></li>
-<li><p><a class="reference internal" href="#identifiers-and-references" id="id15">Identifiers and References</a></p></li>
-<li><p><a class="reference internal" href="#operators" id="id16">Operators</a></p></li>
-<li><p><a class="reference internal" href="#array-and-bit-operations" id="id17">Array and Bit Operations</a></p></li>
-<li><p><a class="reference internal" href="#type-operations" id="id18">Type Operations</a></p></li>
-<li><p><a class="reference internal" href="#aggregate-expressions" id="id19">Aggregate Expressions</a></p></li>
-<li><p><a class="reference internal" href="#domain-expressions" id="id20">Domain Expressions</a></p></li>
+<li><p><a class="reference internal" href="#base-expression-classes" id="id20">Base Expression Classes</a></p></li>
+<li><p><a class="reference internal" href="#literals" id="id21">Literals</a></p></li>
+<li><p><a class="reference internal" href="#identifiers-and-references" id="id22">Identifiers and References</a></p></li>
+<li><p><a class="reference internal" href="#operators" id="id23">Operators</a></p></li>
+<li><p><a class="reference internal" href="#array-and-bit-operations" id="id24">Array and Bit Operations</a></p></li>
+<li><p><a class="reference internal" href="#type-operations" id="id25">Type Operations</a></p></li>
+<li><p><a class="reference internal" href="#aggregate-expressions" id="id26">Aggregate Expressions</a></p></li>
+<li><p><a class="reference internal" href="#domain-expressions" id="id27">Domain Expressions</a></p></li>
 </ul>
 </li>
-<li><p><a class="reference internal" href="#activities" id="id21">Activities</a></p>
+<li><p><a class="reference internal" href="#activities" id="id28">Activities</a></p>
 <ul>
-<li><p><a class="reference internal" href="#activity-statements" id="id22">Activity Statements</a></p></li>
-<li><p><a class="reference internal" href="#sequential-and-parallel-execution" id="id23">Sequential and Parallel Execution</a></p></li>
-<li><p><a class="reference internal" href="#join-specifications" id="id24">Join Specifications</a></p></li>
-<li><p><a class="reference internal" href="#branch-selection" id="id25">Branch Selection</a></p></li>
-<li><p><a class="reference internal" href="#loops-and-repetition" id="id26">Loops and Repetition</a></p></li>
-<li><p><a class="reference internal" href="#conditionals-and-matching" id="id27">Conditionals and Matching</a></p></li>
-<li><p><a class="reference internal" href="#traversals" id="id28">Traversals</a></p></li>
-<li><p><a class="reference internal" href="#activity-constraints" id="id29">Activity Constraints</a></p></li>
+<li><p><a class="reference internal" href="#activity-statements" id="id29">Activity Statements</a></p></li>
+<li><p><a class="reference internal" href="#sequential-and-parallel-execution" id="id30">Sequential and Parallel Execution</a></p></li>
+<li><p><a class="reference internal" href="#join-specifications" id="id31">Join Specifications</a></p></li>
+<li><p><a class="reference internal" href="#branch-selection" id="id32">Branch Selection</a></p></li>
+<li><p><a class="reference internal" href="#loops-and-repetition" id="id33">Loops and Repetition</a></p></li>
+<li><p><a class="reference internal" href="#conditionals-and-matching" id="id34">Conditionals and Matching</a></p></li>
+<li><p><a class="reference internal" href="#traversals" id="id35">Traversals</a></p></li>
+<li><p><a class="reference internal" href="#activity-constraints" id="id36">Activity Constraints</a></p></li>
 </ul>
 </li>
-<li><p><a class="reference internal" href="#constraints" id="id30">Constraints</a></p>
+<li><p><a class="reference internal" href="#constraints" id="id37">Constraints</a></p>
 <ul>
-<li><p><a class="reference internal" href="#constraint-blocks" id="id31">Constraint Blocks</a></p></li>
-<li><p><a class="reference internal" href="#constraint-statements" id="id32">Constraint Statements</a></p></li>
-<li><p><a class="reference internal" href="#constraint-loops" id="id33">Constraint Loops</a></p></li>
-<li><p><a class="reference internal" href="#conditional-constraints" id="id34">Conditional Constraints</a></p></li>
-<li><p><a class="reference internal" href="#constraint-modifiers" id="id35">Constraint Modifiers</a></p></li>
+<li><p><a class="reference internal" href="#constraint-blocks" id="id38">Constraint Blocks</a></p></li>
+<li><p><a class="reference internal" href="#constraint-statements" id="id39">Constraint Statements</a></p></li>
+<li><p><a class="reference internal" href="#constraint-loops" id="id40">Constraint Loops</a></p></li>
+<li><p><a class="reference internal" href="#conditional-constraints" id="id41">Conditional Constraints</a></p></li>
+<li><p><a class="reference internal" href="#constraint-modifiers" id="id42">Constraint Modifiers</a></p></li>
 </ul>
 </li>
-<li><p><a class="reference internal" href="#procedural-code" id="id36">Procedural Code</a></p>
+<li><p><a class="reference internal" href="#procedural-code" id="id43">Procedural Code</a></p>
 <ul>
-<li><p><a class="reference internal" href="#exec-blocks" id="id37">Exec Blocks</a></p></li>
-<li><p><a class="reference internal" href="#procedural-statements" id="id38">Procedural Statements</a></p></li>
-<li><p><a class="reference internal" href="#control-flow" id="id39">Control Flow</a></p></li>
-<li><p><a class="reference internal" href="#loops" id="id40">Loops</a></p></li>
-<li><p><a class="reference internal" href="#special-statements" id="id41">Special Statements</a></p></li>
+<li><p><a class="reference internal" href="#exec-blocks" id="id44">Exec Blocks</a></p></li>
+<li><p><a class="reference internal" href="#procedural-statements" id="id45">Procedural Statements</a></p></li>
+<li><p><a class="reference internal" href="#control-flow" id="id46">Control Flow</a></p></li>
+<li><p><a class="reference internal" href="#loops" id="id47">Loops</a></p></li>
+<li><p><a class="reference internal" href="#special-statements" id="id48">Special Statements</a></p></li>
 </ul>
 </li>
-<li><p><a class="reference internal" href="#functions" id="id42">Functions</a></p>
+<li><p><a class="reference internal" href="#functions" id="id49">Functions</a></p>
 <ul>
-<li><p><a class="reference internal" href="#function-declarations" id="id43">Function Declarations</a></p></li>
-<li><p><a class="reference internal" href="#function-imports" id="id44">Function Imports</a></p></li>
+<li><p><a class="reference internal" href="#function-declarations" id="id50">Function Declarations</a></p></li>
+<li><p><a class="reference internal" href="#function-imports" id="id51">Function Imports</a></p></li>
 </ul>
 </li>
-<li><p><a class="reference internal" href="#monitors" id="id45">Monitors</a></p>
+<li><p><a class="reference internal" href="#monitors" id="id52">Monitors</a></p>
 <ul>
-<li><p><a class="reference internal" href="#monitor-declarations" id="id46">Monitor Declarations</a></p></li>
-<li><p><a class="reference internal" href="#monitor-activities" id="id47">Monitor Activities</a></p></li>
-<li><p><a class="reference internal" href="#monitor-control-flow" id="id48">Monitor Control Flow</a></p></li>
-<li><p><a class="reference internal" href="#monitor-traversals" id="id49">Monitor Traversals</a></p></li>
-<li><p><a class="reference internal" href="#monitor-constraints" id="id50">Monitor Constraints</a></p></li>
-<li><p><a class="reference internal" href="#coverage" id="id51">Coverage</a></p></li>
+<li><p><a class="reference internal" href="#monitor-declarations" id="id53">Monitor Declarations</a></p></li>
+<li><p><a class="reference internal" href="#monitor-activities" id="id54">Monitor Activities</a></p></li>
+<li><p><a class="reference internal" href="#monitor-control-flow" id="id55">Monitor Control Flow</a></p></li>
+<li><p><a class="reference internal" href="#monitor-traversals" id="id56">Monitor Traversals</a></p></li>
+<li><p><a class="reference internal" href="#monitor-constraints" id="id57">Monitor Constraints</a></p></li>
+<li><p><a class="reference internal" href="#coverage" id="id58">Coverage</a></p></li>
 </ul>
 </li>
-<li><p><a class="reference internal" href="#templates" id="id52">Templates</a></p>
+<li><p><a class="reference internal" href="#templates" id="id59">Templates</a></p>
 <ul>
-<li><p><a class="reference internal" href="#template-parameters" id="id53">Template Parameters</a></p></li>
-<li><p><a class="reference internal" href="#template-values" id="id54">Template Values</a></p></li>
+<li><p><a class="reference internal" href="#template-parameters" id="id60">Template Parameters</a></p></li>
+<li><p><a class="reference internal" href="#template-values" id="id61">Template Values</a></p></li>
 </ul>
 </li>
-<li><p><a class="reference internal" href="#symbol-resolution" id="id55">Symbol Resolution</a></p>
+<li><p><a class="reference internal" href="#symbol-resolution" id="id62">Symbol Resolution</a></p>
 <ul>
-<li><p><a class="reference internal" href="#symbol-scopes" id="id56">Symbol Scopes</a></p></li>
-<li><p><a class="reference internal" href="#symbol-references" id="id57">Symbol References</a></p></li>
-<li><p><a class="reference internal" href="#reference-expressions" id="id58">Reference Expressions</a></p></li>
+<li><p><a class="reference internal" href="#symbol-scopes" id="id63">Symbol Scopes</a></p></li>
+<li><p><a class="reference internal" href="#symbol-references" id="id64">Symbol References</a></p></li>
+<li><p><a class="reference internal" href="#reference-expressions" id="id65">Reference Expressions</a></p></li>
 </ul>
 </li>
-<li><p><a class="reference internal" href="#extensions" id="id59">Extensions</a></p>
+<li><p><a class="reference internal" href="#extensions" id="id66">Extensions</a></p>
 <ul>
-<li><p><a class="reference internal" href="#type-extension" id="id60">Type Extension</a></p></li>
+<li><p><a class="reference internal" href="#type-extension" id="id67">Type Extension</a></p></li>
 </ul>
 </li>
-<li><p><a class="reference internal" href="#type-identifiers" id="id61">Type Identifiers</a></p></li>
+<li><p><a class="reference internal" href="#type-identifiers" id="id68">Type Identifiers</a></p></li>
 </ul>
 </nav>
+<section id="checker-plug-in-api">
+<h2><a class="toc-backref" href="#id7" role="doc-backlink">Checker Plug-in API</a><a class="headerlink" href="#checker-plug-in-api" title="Link to this heading">¶</a></h2>
+<p>These classes form the public API for writing and registering pssparser
+checker plug-ins.  See <a class="reference internal" href="checker_plugin_guide.html"><span class="doc">Checker Plug-in Guide</span></a> for a usage guide.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="pssparser.checkers.MarkerDef">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pssparser.checkers.</span></span><span class="sig-name descname"><span class="pre">MarkerDef</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">severity</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">summary</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">detail</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">''</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pssparser.checkers.MarkerDef" title="Link to this definition">¶</a></dt>
+<dd><p>Describes one diagnostic that a checker (or the core) may emit.</p>
+<section id="attributes">
+<h3>Attributes<a class="headerlink" href="#attributes" title="Link to this heading">¶</a></h3>
+<dl class="simple">
+<dt>id:</dt><dd><p>Globally unique identifier string, e.g. <code class="docutils literal notranslate"><span class="pre">&quot;PSS001&quot;</span></code> or <code class="docutils literal notranslate"><span class="pre">&quot;PSC042&quot;</span></code>.
+IDs must be unique across <em>all</em> registered checkers and the core; the
+<code class="docutils literal notranslate"><span class="pre">CheckerManager</span></code> enforces this at discovery time.</p>
+</dd>
+<dt>severity:</dt><dd><p>Default severity: <code class="docutils literal notranslate"><span class="pre">&quot;error&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;warning&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;info&quot;</span></code>, or
+<code class="docutils literal notranslate"><span class="pre">&quot;hint&quot;</span></code>.</p>
+</dd>
+<dt>summary:</dt><dd><p>One-line description displayed in <code class="docutils literal notranslate"><span class="pre">--list-markers</span></code> output.</p>
+</dd>
+<dt>detail:</dt><dd><p>Multi-line explanation shown by <code class="docutils literal notranslate"><span class="pre">--describe</span> <span class="pre">ID</span></code>.  May include
+reStructuredText markup.</p>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pssparser.checkers.MarkerDef.detail">
+<span class="sig-name descname"><span class="pre">detail</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">''</span></span><a class="headerlink" href="#pssparser.checkers.MarkerDef.detail" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pssparser.checkers.MarkerDef.id">
+<span class="sig-name descname"><span class="pre">id</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></span><a class="headerlink" href="#pssparser.checkers.MarkerDef.id" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pssparser.checkers.MarkerDef.severity">
+<span class="sig-name descname"><span class="pre">severity</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></span><a class="headerlink" href="#pssparser.checkers.MarkerDef.severity" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pssparser.checkers.MarkerDef.summary">
+<span class="sig-name descname"><span class="pre">summary</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></span><a class="headerlink" href="#pssparser.checkers.MarkerDef.summary" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</section>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="pssparser.checkers.CheckerBase">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pssparser.checkers.</span></span><span class="sig-name descname"><span class="pre">CheckerBase</span></span><a class="headerlink" href="#pssparser.checkers.CheckerBase" title="Link to this definition">¶</a></dt>
+<dd><p>Abstract base for all pssparser plug-in checkers.</p>
+<p>Subclasses must override <a class="reference internal" href="#pssparser.checkers.CheckerBase.name" title="pssparser.checkers.CheckerBase.name"><code class="xref py py-attr docutils literal notranslate"><span class="pre">name</span></code></a>, <a class="reference internal" href="#pssparser.checkers.CheckerBase.description" title="pssparser.checkers.CheckerBase.description"><code class="xref py py-attr docutils literal notranslate"><span class="pre">description</span></code></a>,
+<a class="reference internal" href="#pssparser.checkers.CheckerBase.marker_defs" title="pssparser.checkers.CheckerBase.marker_defs"><code class="xref py py-attr docutils literal notranslate"><span class="pre">marker_defs</span></code></a>, and <a class="reference internal" href="#pssparser.checkers.CheckerBase.check" title="pssparser.checkers.CheckerBase.check"><code class="xref py py-meth docutils literal notranslate"><span class="pre">check()</span></code></a>.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="pssparser.checkers.CheckerBase.check">
+<span class="sig-name descname"><span class="pre">check</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">context</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#pssparser.checkers.CheckContext" title="pssparser.checkers.CheckContext"><span class="pre">CheckContext</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#pssparser.checkers.CheckerBase.check" title="Link to this definition">¶</a></dt>
+<dd><p>Perform checks and emit diagnostics via <em>context</em>.</p>
+<section id="parameters">
+<h3>Parameters<a class="headerlink" href="#parameters" title="Link to this heading">¶</a></h3>
+<dl class="simple">
+<dt>context:</dt><dd><p>Provides access to the AST and the marker-emission API.</p>
+</dd>
+</dl>
+</section>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pssparser.checkers.CheckerBase.description">
+<span class="sig-name descname"><span class="pre">description</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">''</span></span><a class="headerlink" href="#pssparser.checkers.CheckerBase.description" title="Link to this definition">¶</a></dt>
+<dd><p>One-line description shown in <code class="docutils literal notranslate"><span class="pre">--list-checkers</span></code>.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pssparser.checkers.CheckerBase.marker_defs">
+<span class="sig-name descname"><span class="pre">marker_defs</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#pssparser.checkers.MarkerDef" title="pssparser.checkers.markerdef.MarkerDef"><span class="pre">MarkerDef</span></a><span class="p"><span class="pre">]</span></span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">[]</span></span><a class="headerlink" href="#pssparser.checkers.CheckerBase.marker_defs" title="Link to this definition">¶</a></dt>
+<dd><p>Structured definitions of every marker this checker may emit.
+Each subclass must declare its own list — do <em>not</em> mutate the
+inherited one.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pssparser.checkers.CheckerBase.name">
+<span class="sig-name descname"><span class="pre">name</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">''</span></span><a class="headerlink" href="#pssparser.checkers.CheckerBase.name" title="Link to this definition">¶</a></dt>
+<dd><p>Short unique identifier, e.g. <code class="docutils literal notranslate"><span class="pre">&quot;naming-convention&quot;</span></code>.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pssparser.checkers.CheckerBase.runs_without_link">
+<span class="sig-name descname"><span class="pre">runs_without_link</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">False</span></span><a class="headerlink" href="#pssparser.checkers.CheckerBase.runs_without_link" title="Link to this definition">¶</a></dt>
+<dd><p>If <code class="docutils literal notranslate"><span class="pre">True</span></code> the checker runs even when <code class="docutils literal notranslate"><span class="pre">--syntax-only</span></code> was
+requested (i.e. the linked AST is not available).</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="pssparser.checkers.CheckContext">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pssparser.checkers.</span></span><span class="sig-name descname"><span class="pre">CheckContext</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">root:</span> <span class="pre">~typing.Any</span> <span class="pre">|</span> <span class="pre">None,</span> <span class="pre">files:</span> <span class="pre">~typing.List[str],</span> <span class="pre">global_scopes:</span> <span class="pre">~typing.List[~typing.Any],</span> <span class="pre">file_map:</span> <span class="pre">~typing.Dict[int,</span> <span class="pre">str]</span> <span class="pre">=</span> <span class="pre">&lt;factory&gt;,</span> <span class="pre">_markers:</span> <span class="pre">list</span> <span class="pre">=</span> <span class="pre">&lt;factory&gt;,</span> <span class="pre">_marker_index:</span> <span class="pre">~typing.Dict[str,</span> <span class="pre">~typing.Any]</span> <span class="pre">=</span> <span class="pre">&lt;factory&gt;</span></em><span class="sig-paren">)</span><a class="headerlink" href="#pssparser.checkers.CheckContext" title="Link to this definition">¶</a></dt>
+<dd><p>Provides AST access and a diagnostic-emission API to checkers.</p>
+<section id="id1">
+<h3>Attributes<a class="headerlink" href="#id1" title="Link to this heading">¶</a></h3>
+<dl class="simple">
+<dt>root:</dt><dd><p>Fully-linked root symbol scope, or <code class="docutils literal notranslate"><span class="pre">None</span></code> when <code class="docutils literal notranslate"><span class="pre">--syntax-only</span></code>.</p>
+</dd>
+<dt>files:</dt><dd><p>Ordered list of source file paths that were parsed.</p>
+</dd>
+<dt>global_scopes:</dt><dd><p>Raw per-file <code class="docutils literal notranslate"><span class="pre">GlobalScope</span></code> AST nodes (same order as <em>files</em>).</p>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="pssparser.checkers.CheckContext.add_marker">
+<span class="sig-name descname"><span class="pre">add_marker</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">code</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">file</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">line</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">col</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">message</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">severity</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#pssparser.checkers.CheckContext.add_marker" title="Link to this definition">¶</a></dt>
+<dd><p>Emit one diagnostic from within a checker.</p>
+<section id="id2">
+<h4>Parameters<a class="headerlink" href="#id2" title="Link to this heading">¶</a></h4>
+<dl class="simple">
+<dt>code:</dt><dd><p>The <code class="docutils literal notranslate"><span class="pre">MarkerDef.id</span></code> for this diagnostic.  Must be declared in
+the checker’s <code class="docutils literal notranslate"><span class="pre">marker_defs</span></code> list (enforced via
+<code class="docutils literal notranslate"><span class="pre">_marker_index</span></code>).</p>
+</dd>
+<dt>file:</dt><dd><p>Source file path.</p>
+</dd>
+<dt>line:</dt><dd><p>1-based line number.</p>
+</dd>
+<dt>col:</dt><dd><p>1-based column number.</p>
+</dd>
+<dt>message:</dt><dd><p>Human-readable diagnostic text.</p>
+</dd>
+<dt>severity:</dt><dd><p>Override the default severity declared in the <code class="docutils literal notranslate"><span class="pre">MarkerDef</span></code>.
+If omitted, the <code class="docutils literal notranslate"><span class="pre">MarkerDef.severity</span></code> is used.</p>
+</dd>
+</dl>
+</section>
+<section id="raises">
+<h4>Raises<a class="headerlink" href="#raises" title="Link to this heading">¶</a></h4>
+<dl class="simple">
+<dt>ValueError</dt><dd><p>If <em>code</em> is not present in <code class="docutils literal notranslate"><span class="pre">_marker_index</span></code>.</p>
+</dd>
+</dl>
+</section>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pssparser.checkers.CheckContext.file_map">
+<span class="sig-name descname"><span class="pre">file_map</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span><a class="headerlink" href="#pssparser.checkers.CheckContext.file_map" title="Link to this definition">¶</a></dt>
+<dd><p>Maps fileid (int) -&gt; source file path; allows checkers to resolve
+GlobalScope.getFileid() to a human-readable path when getFilename()
+is unavailable.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pssparser.checkers.CheckContext.files">
+<span class="sig-name descname"><span class="pre">files</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span><a class="headerlink" href="#pssparser.checkers.CheckContext.files" title="Link to this definition">¶</a></dt>
+<dd><p>Ordered list of source file paths that were parsed.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pssparser.checkers.CheckContext.global_scopes">
+<span class="sig-name descname"><span class="pre">global_scopes</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></span><a class="headerlink" href="#pssparser.checkers.CheckContext.global_scopes" title="Link to this definition">¶</a></dt>
+<dd><p>Raw per-file GlobalScope AST nodes (same order as <em>files</em>).</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="pssparser.checkers.CheckContext.root">
+<span class="sig-name descname"><span class="pre">root</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Any</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><a class="headerlink" href="#pssparser.checkers.CheckContext.root" title="Link to this definition">¶</a></dt>
+<dd><p>Fully-linked root symbol scope, or None when –syntax-only.</p>
+</dd></dl>
+
+</section>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="pssparser.checkers.CheckerManager">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pssparser.checkers.</span></span><span class="sig-name descname"><span class="pre">CheckerManager</span></span><a class="headerlink" href="#pssparser.checkers.CheckerManager" title="Link to this definition">¶</a></dt>
+<dd><p>Manages discovery, filtering, and invocation of checker plug-ins.</p>
+<p>Typical usage:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">manager</span> <span class="o">=</span> <span class="n">CheckerManager</span><span class="p">()</span>
+<span class="n">manager</span><span class="o">.</span><span class="n">discover</span><span class="p">()</span>                        <span class="c1"># load entry_points</span>
+<span class="n">manager</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;mypkg.rules:MyChecker&quot;</span><span class="p">)</span>     <span class="c1"># optional: ad-hoc load</span>
+<span class="n">checkers</span> <span class="o">=</span> <span class="n">manager</span><span class="o">.</span><span class="n">active</span><span class="p">(</span><span class="n">select</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">exclude</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;some-checker&quot;</span><span class="p">])</span>
+</pre></div>
+</div>
+<dl class="py method">
+<dt class="sig sig-object py" id="pssparser.checkers.CheckerManager.active">
+<span class="sig-name descname"><span class="pre">active</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">select</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">exclude</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#pssparser.checkers.CheckerBase" title="pssparser.checkers.base.CheckerBase"><span class="pre">CheckerBase</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#pssparser.checkers.CheckerManager.active" title="Link to this definition">¶</a></dt>
+<dd><p>Return instantiated active checkers after applying filters.</p>
+<p><code class="docutils literal notranslate"><span class="pre">is_builtin</span></code> checkers are never included (they are metadata-only).</p>
+<section id="id3">
+<h3>Parameters<a class="headerlink" href="#id3" title="Link to this heading">¶</a></h3>
+<dl class="simple">
+<dt>select:</dt><dd><p>If non-empty, keep <em>only</em> these checker names.  Unknown names
+raise <code class="docutils literal notranslate"><span class="pre">ValueError</span></code> (fail-fast).</p>
+</dd>
+<dt>exclude:</dt><dd><p>If <code class="docutils literal notranslate"><span class="pre">select</span></code> is <code class="docutils literal notranslate"><span class="pre">None</span></code>/empty and this is non-empty, remove
+these checker names from the active set.  Unknown names are
+silently ignored.</p>
+</dd>
+</dl>
+</section>
+<section id="id4">
+<h3>Raises<a class="headerlink" href="#id4" title="Link to this heading">¶</a></h3>
+<dl class="simple">
+<dt>ValueError</dt><dd><p>When <em>select</em> contains names not in the registry.</p>
+</dd>
+</dl>
+</section>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pssparser.checkers.CheckerManager.build_marker_index">
+<span class="sig-name descname"><span class="pre">build_marker_index</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">active_checkers</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#pssparser.checkers.CheckerBase" title="pssparser.checkers.base.CheckerBase"><span class="pre">CheckerBase</span></a><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">dict</span></span></span><a class="headerlink" href="#pssparser.checkers.CheckerManager.build_marker_index" title="Link to this definition">¶</a></dt>
+<dd><p>Build a <code class="docutils literal notranslate"><span class="pre">{marker_id:</span> <span class="pre">MarkerDef}</span></code> index for the given checkers.</p>
+<p>Always includes <code class="docutils literal notranslate"><span class="pre">CoreChecker</span></code> marker defs so that built-in codes
+can be looked up even though <code class="docutils literal notranslate"><span class="pre">CoreChecker</span></code> is not in
+<em>active_checkers</em>.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pssparser.checkers.CheckerManager.describe_marker">
+<span class="sig-name descname"><span class="pre">describe_marker</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">marker_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">dict</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></span><a class="headerlink" href="#pssparser.checkers.CheckerManager.describe_marker" title="Link to this definition">¶</a></dt>
+<dd><p>Return a full description dict for <em>marker_id</em>, or <code class="docutils literal notranslate"><span class="pre">None</span></code>.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pssparser.checkers.CheckerManager.discover">
+<span class="sig-name descname"><span class="pre">discover</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#pssparser.checkers.CheckerManager.discover" title="Link to this definition">¶</a></dt>
+<dd><p>Register CoreChecker then all <code class="docutils literal notranslate"><span class="pre">pssparser.checkers</span></code> entry-points.</p>
+<p>Idempotent: safe to call more than once, though once per process is
+the normal pattern (second call will raise on duplicate IDs if any
+entry-points were already registered).</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pssparser.checkers.CheckerManager.list_all_markers">
+<span class="sig-name descname"><span class="pre">list_all_markers</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">dict</span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#pssparser.checkers.CheckerManager.list_all_markers" title="Link to this definition">¶</a></dt>
+<dd><p>Return every <code class="docutils literal notranslate"><span class="pre">MarkerDef</span></code> across all registered checkers.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pssparser.checkers.CheckerManager.list_checkers">
+<span class="sig-name descname"><span class="pre">list_checkers</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">dict</span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#pssparser.checkers.CheckerManager.list_checkers" title="Link to this definition">¶</a></dt>
+<dd><p>Return info dicts for <code class="docutils literal notranslate"><span class="pre">--list-checkers</span></code> display.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pssparser.checkers.CheckerManager.load">
+<span class="sig-name descname"><span class="pre">load</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">spec</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#pssparser.checkers.CheckerManager.load" title="Link to this definition">¶</a></dt>
+<dd><p>Load a checker from a <code class="docutils literal notranslate"><span class="pre">'module.path:ClassName'</span></code> spec string.</p>
+<section id="id5">
+<h3>Parameters<a class="headerlink" href="#id5" title="Link to this heading">¶</a></h3>
+<dl class="simple">
+<dt>spec:</dt><dd><p>A string of the form <code class="docutils literal notranslate"><span class="pre">&quot;module.path:ClassName&quot;</span></code>.</p>
+</dd>
+</dl>
+</section>
+<section id="id6">
+<h3>Raises<a class="headerlink" href="#id6" title="Link to this heading">¶</a></h3>
+<dl class="simple">
+<dt>ValueError</dt><dd><p>On malformed spec, missing module/class, empty checker name, or
+duplicate marker IDs.</p>
+</dd>
+</dl>
+</section>
+</dd></dl>
+
+</dd></dl>
+
+</section>
 <section id="core-ast-structure">
-<h2><a class="toc-backref" href="#id1" role="doc-backlink">Core AST Structure</a><a class="headerlink" href="#core-ast-structure" title="Link to this heading">¶</a></h2>
+<h2><a class="toc-backref" href="#id8" role="doc-backlink">Core AST Structure</a><a class="headerlink" href="#core-ast-structure" title="Link to this heading">¶</a></h2>
 <section id="base-classes">
-<h3><a class="toc-backref" href="#id2" role="doc-backlink">Base Classes</a><a class="headerlink" href="#base-classes" title="Link to this heading">¶</a></h3>
+<h3><a class="toc-backref" href="#id9" role="doc-backlink">Base Classes</a><a class="headerlink" href="#base-classes" title="Link to this heading">¶</a></h3>
 <p>These fundamental classes form the foundation of the AST hierarchy.</p>
 </section>
 <section id="package-and-imports">
-<h3><a class="toc-backref" href="#id3" role="doc-backlink">Package and Imports</a><a class="headerlink" href="#package-and-imports" title="Link to this heading">¶</a></h3>
+<h3><a class="toc-backref" href="#id10" role="doc-backlink">Package and Imports</a><a class="headerlink" href="#package-and-imports" title="Link to this heading">¶</a></h3>
 <p>Classes for managing package declarations and import statements.</p>
 </section>
 <section id="utilities">
-<h3><a class="toc-backref" href="#id4" role="doc-backlink">Utilities</a><a class="headerlink" href="#utilities" title="Link to this heading">¶</a></h3>
+<h3><a class="toc-backref" href="#id11" role="doc-backlink">Utilities</a><a class="headerlink" href="#utilities" title="Link to this heading">¶</a></h3>
 </section>
 </section>
 <section id="type-system">
-<h2><a class="toc-backref" href="#id5" role="doc-backlink">Type System</a><a class="headerlink" href="#type-system" title="Link to this heading">¶</a></h2>
+<h2><a class="toc-backref" href="#id12" role="doc-backlink">Type System</a><a class="headerlink" href="#type-system" title="Link to this heading">¶</a></h2>
 <section id="data-types">
-<h3><a class="toc-backref" href="#id6" role="doc-backlink">Data Types</a><a class="headerlink" href="#data-types" title="Link to this heading">¶</a></h3>
+<h3><a class="toc-backref" href="#id13" role="doc-backlink">Data Types</a><a class="headerlink" href="#data-types" title="Link to this heading">¶</a></h3>
 <p>Core PSS data types for fields and expressions.</p>
 </section>
 <section id="enumerations">
-<h3><a class="toc-backref" href="#id7" role="doc-backlink">Enumerations</a><a class="headerlink" href="#enumerations" title="Link to this heading">¶</a></h3>
+<h3><a class="toc-backref" href="#id14" role="doc-backlink">Enumerations</a><a class="headerlink" href="#enumerations" title="Link to this heading">¶</a></h3>
 </section>
 </section>
 <section id="declarations">
-<h2><a class="toc-backref" href="#id8" role="doc-backlink">Declarations</a><a class="headerlink" href="#declarations" title="Link to this heading">¶</a></h2>
+<h2><a class="toc-backref" href="#id15" role="doc-backlink">Declarations</a><a class="headerlink" href="#declarations" title="Link to this heading">¶</a></h2>
 <section id="actions-and-components">
-<h3><a class="toc-backref" href="#id9" role="doc-backlink">Actions and Components</a><a class="headerlink" href="#actions-and-components" title="Link to this heading">¶</a></h3>
+<h3><a class="toc-backref" href="#id16" role="doc-backlink">Actions and Components</a><a class="headerlink" href="#actions-and-components" title="Link to this heading">¶</a></h3>
 <p>Top-level behavioral and structural types.</p>
 </section>
 <section id="struct-types">
-<h3><a class="toc-backref" href="#id10" role="doc-backlink">Struct Types</a><a class="headerlink" href="#struct-types" title="Link to this heading">¶</a></h3>
+<h3><a class="toc-backref" href="#id17" role="doc-backlink">Struct Types</a><a class="headerlink" href="#struct-types" title="Link to this heading">¶</a></h3>
 <p>Data structures including buffers, streams, resources, and states.</p>
 </section>
 <section id="fields">
-<h3><a class="toc-backref" href="#id11" role="doc-backlink">Fields</a><a class="headerlink" href="#fields" title="Link to this heading">¶</a></h3>
+<h3><a class="toc-backref" href="#id18" role="doc-backlink">Fields</a><a class="headerlink" href="#fields" title="Link to this heading">¶</a></h3>
 <p>Field declarations within types.</p>
 </section>
 </section>
 <section id="expressions">
-<h2><a class="toc-backref" href="#id12" role="doc-backlink">Expressions</a><a class="headerlink" href="#expressions" title="Link to this heading">¶</a></h2>
+<h2><a class="toc-backref" href="#id19" role="doc-backlink">Expressions</a><a class="headerlink" href="#expressions" title="Link to this heading">¶</a></h2>
 <section id="base-expression-classes">
-<h3><a class="toc-backref" href="#id13" role="doc-backlink">Base Expression Classes</a><a class="headerlink" href="#base-expression-classes" title="Link to this heading">¶</a></h3>
+<h3><a class="toc-backref" href="#id20" role="doc-backlink">Base Expression Classes</a><a class="headerlink" href="#base-expression-classes" title="Link to this heading">¶</a></h3>
 </section>
 <section id="literals">
-<h3><a class="toc-backref" href="#id14" role="doc-backlink">Literals</a><a class="headerlink" href="#literals" title="Link to this heading">¶</a></h3>
+<h3><a class="toc-backref" href="#id21" role="doc-backlink">Literals</a><a class="headerlink" href="#literals" title="Link to this heading">¶</a></h3>
 </section>
 <section id="identifiers-and-references">
-<h3><a class="toc-backref" href="#id15" role="doc-backlink">Identifiers and References</a><a class="headerlink" href="#identifiers-and-references" title="Link to this heading">¶</a></h3>
+<h3><a class="toc-backref" href="#id22" role="doc-backlink">Identifiers and References</a><a class="headerlink" href="#identifiers-and-references" title="Link to this heading">¶</a></h3>
 </section>
 <section id="operators">
-<h3><a class="toc-backref" href="#id16" role="doc-backlink">Operators</a><a class="headerlink" href="#operators" title="Link to this heading">¶</a></h3>
+<h3><a class="toc-backref" href="#id23" role="doc-backlink">Operators</a><a class="headerlink" href="#operators" title="Link to this heading">¶</a></h3>
 <p>Binary and unary operations.</p>
 </section>
 <section id="array-and-bit-operations">
-<h3><a class="toc-backref" href="#id17" role="doc-backlink">Array and Bit Operations</a><a class="headerlink" href="#array-and-bit-operations" title="Link to this heading">¶</a></h3>
+<h3><a class="toc-backref" href="#id24" role="doc-backlink">Array and Bit Operations</a><a class="headerlink" href="#array-and-bit-operations" title="Link to this heading">¶</a></h3>
 </section>
 <section id="type-operations">
-<h3><a class="toc-backref" href="#id18" role="doc-backlink">Type Operations</a><a class="headerlink" href="#type-operations" title="Link to this heading">¶</a></h3>
+<h3><a class="toc-backref" href="#id25" role="doc-backlink">Type Operations</a><a class="headerlink" href="#type-operations" title="Link to this heading">¶</a></h3>
 </section>
 <section id="aggregate-expressions">
-<h3><a class="toc-backref" href="#id19" role="doc-backlink">Aggregate Expressions</a><a class="headerlink" href="#aggregate-expressions" title="Link to this heading">¶</a></h3>
+<h3><a class="toc-backref" href="#id26" role="doc-backlink">Aggregate Expressions</a><a class="headerlink" href="#aggregate-expressions" title="Link to this heading">¶</a></h3>
 <p>List, map, and struct literals.</p>
 </section>
 <section id="domain-expressions">
-<h3><a class="toc-backref" href="#id20" role="doc-backlink">Domain Expressions</a><a class="headerlink" href="#domain-expressions" title="Link to this heading">¶</a></h3>
+<h3><a class="toc-backref" href="#id27" role="doc-backlink">Domain Expressions</a><a class="headerlink" href="#domain-expressions" title="Link to this heading">¶</a></h3>
 </section>
 </section>
 <section id="activities">
-<h2><a class="toc-backref" href="#id21" role="doc-backlink">Activities</a><a class="headerlink" href="#activities" title="Link to this heading">¶</a></h2>
+<h2><a class="toc-backref" href="#id28" role="doc-backlink">Activities</a><a class="headerlink" href="#activities" title="Link to this heading">¶</a></h2>
 <section id="activity-statements">
-<h3><a class="toc-backref" href="#id22" role="doc-backlink">Activity Statements</a><a class="headerlink" href="#activity-statements" title="Link to this heading">¶</a></h3>
+<h3><a class="toc-backref" href="#id29" role="doc-backlink">Activity Statements</a><a class="headerlink" href="#activity-statements" title="Link to this heading">¶</a></h3>
 <p>Control flow within action activity blocks.</p>
 </section>
 <section id="sequential-and-parallel-execution">
-<h3><a class="toc-backref" href="#id23" role="doc-backlink">Sequential and Parallel Execution</a><a class="headerlink" href="#sequential-and-parallel-execution" title="Link to this heading">¶</a></h3>
+<h3><a class="toc-backref" href="#id30" role="doc-backlink">Sequential and Parallel Execution</a><a class="headerlink" href="#sequential-and-parallel-execution" title="Link to this heading">¶</a></h3>
 </section>
 <section id="join-specifications">
-<h3><a class="toc-backref" href="#id24" role="doc-backlink">Join Specifications</a><a class="headerlink" href="#join-specifications" title="Link to this heading">¶</a></h3>
+<h3><a class="toc-backref" href="#id31" role="doc-backlink">Join Specifications</a><a class="headerlink" href="#join-specifications" title="Link to this heading">¶</a></h3>
 <p>Synchronization semantics for parallel activities.</p>
 </section>
 <section id="branch-selection">
-<h3><a class="toc-backref" href="#id25" role="doc-backlink">Branch Selection</a><a class="headerlink" href="#branch-selection" title="Link to this heading">¶</a></h3>
+<h3><a class="toc-backref" href="#id32" role="doc-backlink">Branch Selection</a><a class="headerlink" href="#branch-selection" title="Link to this heading">¶</a></h3>
 </section>
 <section id="loops-and-repetition">
-<h3><a class="toc-backref" href="#id26" role="doc-backlink">Loops and Repetition</a><a class="headerlink" href="#loops-and-repetition" title="Link to this heading">¶</a></h3>
+<h3><a class="toc-backref" href="#id33" role="doc-backlink">Loops and Repetition</a><a class="headerlink" href="#loops-and-repetition" title="Link to this heading">¶</a></h3>
 </section>
 <section id="conditionals-and-matching">
-<h3><a class="toc-backref" href="#id27" role="doc-backlink">Conditionals and Matching</a><a class="headerlink" href="#conditionals-and-matching" title="Link to this heading">¶</a></h3>
+<h3><a class="toc-backref" href="#id34" role="doc-backlink">Conditionals and Matching</a><a class="headerlink" href="#conditionals-and-matching" title="Link to this heading">¶</a></h3>
 </section>
 <section id="traversals">
-<h3><a class="toc-backref" href="#id28" role="doc-backlink">Traversals</a><a class="headerlink" href="#traversals" title="Link to this heading">¶</a></h3>
+<h3><a class="toc-backref" href="#id35" role="doc-backlink">Traversals</a><a class="headerlink" href="#traversals" title="Link to this heading">¶</a></h3>
 </section>
 <section id="activity-constraints">
-<h3><a class="toc-backref" href="#id29" role="doc-backlink">Activity Constraints</a><a class="headerlink" href="#activity-constraints" title="Link to this heading">¶</a></h3>
+<h3><a class="toc-backref" href="#id36" role="doc-backlink">Activity Constraints</a><a class="headerlink" href="#activity-constraints" title="Link to this heading">¶</a></h3>
 </section>
 </section>
 <section id="constraints">
-<h2><a class="toc-backref" href="#id30" role="doc-backlink">Constraints</a><a class="headerlink" href="#constraints" title="Link to this heading">¶</a></h2>
+<h2><a class="toc-backref" href="#id37" role="doc-backlink">Constraints</a><a class="headerlink" href="#constraints" title="Link to this heading">¶</a></h2>
 <section id="constraint-blocks">
-<h3><a class="toc-backref" href="#id31" role="doc-backlink">Constraint Blocks</a><a class="headerlink" href="#constraint-blocks" title="Link to this heading">¶</a></h3>
+<h3><a class="toc-backref" href="#id38" role="doc-backlink">Constraint Blocks</a><a class="headerlink" href="#constraint-blocks" title="Link to this heading">¶</a></h3>
 </section>
 <section id="constraint-statements">
-<h3><a class="toc-backref" href="#id32" role="doc-backlink">Constraint Statements</a><a class="headerlink" href="#constraint-statements" title="Link to this heading">¶</a></h3>
+<h3><a class="toc-backref" href="#id39" role="doc-backlink">Constraint Statements</a><a class="headerlink" href="#constraint-statements" title="Link to this heading">¶</a></h3>
 </section>
 <section id="constraint-loops">
-<h3><a class="toc-backref" href="#id33" role="doc-backlink">Constraint Loops</a><a class="headerlink" href="#constraint-loops" title="Link to this heading">¶</a></h3>
+<h3><a class="toc-backref" href="#id40" role="doc-backlink">Constraint Loops</a><a class="headerlink" href="#constraint-loops" title="Link to this heading">¶</a></h3>
 </section>
 <section id="conditional-constraints">
-<h3><a class="toc-backref" href="#id34" role="doc-backlink">Conditional Constraints</a><a class="headerlink" href="#conditional-constraints" title="Link to this heading">¶</a></h3>
+<h3><a class="toc-backref" href="#id41" role="doc-backlink">Conditional Constraints</a><a class="headerlink" href="#conditional-constraints" title="Link to this heading">¶</a></h3>
 </section>
 <section id="constraint-modifiers">
-<h3><a class="toc-backref" href="#id35" role="doc-backlink">Constraint Modifiers</a><a class="headerlink" href="#constraint-modifiers" title="Link to this heading">¶</a></h3>
+<h3><a class="toc-backref" href="#id42" role="doc-backlink">Constraint Modifiers</a><a class="headerlink" href="#constraint-modifiers" title="Link to this heading">¶</a></h3>
 </section>
 </section>
 <section id="procedural-code">
-<h2><a class="toc-backref" href="#id36" role="doc-backlink">Procedural Code</a><a class="headerlink" href="#procedural-code" title="Link to this heading">¶</a></h2>
+<h2><a class="toc-backref" href="#id43" role="doc-backlink">Procedural Code</a><a class="headerlink" href="#procedural-code" title="Link to this heading">¶</a></h2>
 <section id="exec-blocks">
-<h3><a class="toc-backref" href="#id37" role="doc-backlink">Exec Blocks</a><a class="headerlink" href="#exec-blocks" title="Link to this heading">¶</a></h3>
+<h3><a class="toc-backref" href="#id44" role="doc-backlink">Exec Blocks</a><a class="headerlink" href="#exec-blocks" title="Link to this heading">¶</a></h3>
 </section>
 <section id="procedural-statements">
-<h3><a class="toc-backref" href="#id38" role="doc-backlink">Procedural Statements</a><a class="headerlink" href="#procedural-statements" title="Link to this heading">¶</a></h3>
+<h3><a class="toc-backref" href="#id45" role="doc-backlink">Procedural Statements</a><a class="headerlink" href="#procedural-statements" title="Link to this heading">¶</a></h3>
 </section>
 <section id="control-flow">
-<h3><a class="toc-backref" href="#id39" role="doc-backlink">Control Flow</a><a class="headerlink" href="#control-flow" title="Link to this heading">¶</a></h3>
+<h3><a class="toc-backref" href="#id46" role="doc-backlink">Control Flow</a><a class="headerlink" href="#control-flow" title="Link to this heading">¶</a></h3>
 </section>
 <section id="loops">
-<h3><a class="toc-backref" href="#id40" role="doc-backlink">Loops</a><a class="headerlink" href="#loops" title="Link to this heading">¶</a></h3>
+<h3><a class="toc-backref" href="#id47" role="doc-backlink">Loops</a><a class="headerlink" href="#loops" title="Link to this heading">¶</a></h3>
 </section>
 <section id="special-statements">
-<h3><a class="toc-backref" href="#id41" role="doc-backlink">Special Statements</a><a class="headerlink" href="#special-statements" title="Link to this heading">¶</a></h3>
+<h3><a class="toc-backref" href="#id48" role="doc-backlink">Special Statements</a><a class="headerlink" href="#special-statements" title="Link to this heading">¶</a></h3>
 </section>
 </section>
 <section id="functions">
-<h2><a class="toc-backref" href="#id42" role="doc-backlink">Functions</a><a class="headerlink" href="#functions" title="Link to this heading">¶</a></h2>
+<h2><a class="toc-backref" href="#id49" role="doc-backlink">Functions</a><a class="headerlink" href="#functions" title="Link to this heading">¶</a></h2>
 <section id="function-declarations">
-<h3><a class="toc-backref" href="#id43" role="doc-backlink">Function Declarations</a><a class="headerlink" href="#function-declarations" title="Link to this heading">¶</a></h3>
+<h3><a class="toc-backref" href="#id50" role="doc-backlink">Function Declarations</a><a class="headerlink" href="#function-declarations" title="Link to this heading">¶</a></h3>
 </section>
 <section id="function-imports">
-<h3><a class="toc-backref" href="#id44" role="doc-backlink">Function Imports</a><a class="headerlink" href="#function-imports" title="Link to this heading">¶</a></h3>
+<h3><a class="toc-backref" href="#id51" role="doc-backlink">Function Imports</a><a class="headerlink" href="#function-imports" title="Link to this heading">¶</a></h3>
 </section>
 </section>
 <section id="monitors">
-<h2><a class="toc-backref" href="#id45" role="doc-backlink">Monitors</a><a class="headerlink" href="#monitors" title="Link to this heading">¶</a></h2>
+<h2><a class="toc-backref" href="#id52" role="doc-backlink">Monitors</a><a class="headerlink" href="#monitors" title="Link to this heading">¶</a></h2>
 <p>PSS 3.0 monitors for behavioral coverage and assertions.</p>
 <section id="monitor-declarations">
-<h3><a class="toc-backref" href="#id46" role="doc-backlink">Monitor Declarations</a><a class="headerlink" href="#monitor-declarations" title="Link to this heading">¶</a></h3>
+<h3><a class="toc-backref" href="#id53" role="doc-backlink">Monitor Declarations</a><a class="headerlink" href="#monitor-declarations" title="Link to this heading">¶</a></h3>
 </section>
 <section id="monitor-activities">
-<h3><a class="toc-backref" href="#id47" role="doc-backlink">Monitor Activities</a><a class="headerlink" href="#monitor-activities" title="Link to this heading">¶</a></h3>
+<h3><a class="toc-backref" href="#id54" role="doc-backlink">Monitor Activities</a><a class="headerlink" href="#monitor-activities" title="Link to this heading">¶</a></h3>
 </section>
 <section id="monitor-control-flow">
-<h3><a class="toc-backref" href="#id48" role="doc-backlink">Monitor Control Flow</a><a class="headerlink" href="#monitor-control-flow" title="Link to this heading">¶</a></h3>
+<h3><a class="toc-backref" href="#id55" role="doc-backlink">Monitor Control Flow</a><a class="headerlink" href="#monitor-control-flow" title="Link to this heading">¶</a></h3>
 </section>
 <section id="monitor-traversals">
-<h3><a class="toc-backref" href="#id49" role="doc-backlink">Monitor Traversals</a><a class="headerlink" href="#monitor-traversals" title="Link to this heading">¶</a></h3>
+<h3><a class="toc-backref" href="#id56" role="doc-backlink">Monitor Traversals</a><a class="headerlink" href="#monitor-traversals" title="Link to this heading">¶</a></h3>
 </section>
 <section id="monitor-constraints">
-<h3><a class="toc-backref" href="#id50" role="doc-backlink">Monitor Constraints</a><a class="headerlink" href="#monitor-constraints" title="Link to this heading">¶</a></h3>
+<h3><a class="toc-backref" href="#id57" role="doc-backlink">Monitor Constraints</a><a class="headerlink" href="#monitor-constraints" title="Link to this heading">¶</a></h3>
 </section>
 <section id="coverage">
-<h3><a class="toc-backref" href="#id51" role="doc-backlink">Coverage</a><a class="headerlink" href="#coverage" title="Link to this heading">¶</a></h3>
+<h3><a class="toc-backref" href="#id58" role="doc-backlink">Coverage</a><a class="headerlink" href="#coverage" title="Link to this heading">¶</a></h3>
 </section>
 </section>
 <section id="templates">
-<h2><a class="toc-backref" href="#id52" role="doc-backlink">Templates</a><a class="headerlink" href="#templates" title="Link to this heading">¶</a></h2>
+<h2><a class="toc-backref" href="#id59" role="doc-backlink">Templates</a><a class="headerlink" href="#templates" title="Link to this heading">¶</a></h2>
 <section id="template-parameters">
-<h3><a class="toc-backref" href="#id53" role="doc-backlink">Template Parameters</a><a class="headerlink" href="#template-parameters" title="Link to this heading">¶</a></h3>
+<h3><a class="toc-backref" href="#id60" role="doc-backlink">Template Parameters</a><a class="headerlink" href="#template-parameters" title="Link to this heading">¶</a></h3>
 </section>
 <section id="template-values">
-<h3><a class="toc-backref" href="#id54" role="doc-backlink">Template Values</a><a class="headerlink" href="#template-values" title="Link to this heading">¶</a></h3>
+<h3><a class="toc-backref" href="#id61" role="doc-backlink">Template Values</a><a class="headerlink" href="#template-values" title="Link to this heading">¶</a></h3>
 </section>
 </section>
 <section id="symbol-resolution">
-<h2><a class="toc-backref" href="#id55" role="doc-backlink">Symbol Resolution</a><a class="headerlink" href="#symbol-resolution" title="Link to this heading">¶</a></h2>
+<h2><a class="toc-backref" href="#id62" role="doc-backlink">Symbol Resolution</a><a class="headerlink" href="#symbol-resolution" title="Link to this heading">¶</a></h2>
 <section id="symbol-scopes">
-<h3><a class="toc-backref" href="#id56" role="doc-backlink">Symbol Scopes</a><a class="headerlink" href="#symbol-scopes" title="Link to this heading">¶</a></h3>
+<h3><a class="toc-backref" href="#id63" role="doc-backlink">Symbol Scopes</a><a class="headerlink" href="#symbol-scopes" title="Link to this heading">¶</a></h3>
 <p>Internal classes for name resolution and linking.</p>
 </section>
 <section id="symbol-references">
-<h3><a class="toc-backref" href="#id57" role="doc-backlink">Symbol References</a><a class="headerlink" href="#symbol-references" title="Link to this heading">¶</a></h3>
+<h3><a class="toc-backref" href="#id64" role="doc-backlink">Symbol References</a><a class="headerlink" href="#symbol-references" title="Link to this heading">¶</a></h3>
 </section>
 <section id="reference-expressions">
-<h3><a class="toc-backref" href="#id58" role="doc-backlink">Reference Expressions</a><a class="headerlink" href="#reference-expressions" title="Link to this heading">¶</a></h3>
+<h3><a class="toc-backref" href="#id65" role="doc-backlink">Reference Expressions</a><a class="headerlink" href="#reference-expressions" title="Link to this heading">¶</a></h3>
 </section>
 </section>
 <section id="extensions">
-<h2><a class="toc-backref" href="#id59" role="doc-backlink">Extensions</a><a class="headerlink" href="#extensions" title="Link to this heading">¶</a></h2>
+<h2><a class="toc-backref" href="#id66" role="doc-backlink">Extensions</a><a class="headerlink" href="#extensions" title="Link to this heading">¶</a></h2>
 <section id="type-extension">
-<h3><a class="toc-backref" href="#id60" role="doc-backlink">Type Extension</a><a class="headerlink" href="#type-extension" title="Link to this heading">¶</a></h3>
+<h3><a class="toc-backref" href="#id67" role="doc-backlink">Type Extension</a><a class="headerlink" href="#type-extension" title="Link to this heading">¶</a></h3>
 </section>
 </section>
 <section id="type-identifiers">
-<h2><a class="toc-backref" href="#id61" role="doc-backlink">Type Identifiers</a><a class="headerlink" href="#type-identifiers" title="Link to this heading">¶</a></h2>
+<h2><a class="toc-backref" href="#id68" role="doc-backlink">Type Identifiers</a><a class="headerlink" href="#type-identifiers" title="Link to this heading">¶</a></h2>
 </section>
 </section>
 
@@ -365,6 +634,7 @@ Classes are organized by category for easy navigation.</p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="quickstart.html">Quickstart</a></li>
 <li class="toctree-l1"><a class="reference internal" href="cli.html">CLI</a></li>
+<li class="toctree-l1"><a class="reference internal" href="checker_plugin_guide.html">Checker Plug-in Guide</a></li>
 <li class="toctree-l1"><a class="reference internal" href="pss30_migration.html">PSS 3.0 Migration Guide</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">PSS 3.0 Features:</span></p>
@@ -382,6 +652,7 @@ Classes are organized by category for easy navigation.</p>
 <p class="caption" role="heading"><span class="caption-text">Reference:</span></p>
 <ul class="current">
 <li class="toctree-l1 current"><a class="current reference internal" href="#">API Reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#checker-plug-in-api">Checker Plug-in API</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#core-ast-structure">Core AST Structure</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#type-system">Type System</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#declarations">Declarations</a></li>

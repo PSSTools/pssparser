@@ -9,6 +9,29 @@ Classes are organized by category for easy navigation.
    :local:
    :depth: 2
 
+**********************
+Checker Plug-in API
+**********************
+
+These classes form the public API for writing and registering pssparser
+checker plug-ins.  See :doc:`checker_plugin_guide` for a usage guide.
+
+.. autoclass:: pssparser.checkers.MarkerDef
+   :members:
+   :undoc-members:
+
+.. autoclass:: pssparser.checkers.CheckerBase
+   :members:
+   :undoc-members:
+
+.. autoclass:: pssparser.checkers.CheckContext
+   :members:
+   :undoc-members:
+
+.. autoclass:: pssparser.checkers.CheckerManager
+   :members:
+   :undoc-members:
+
 ******************
 Core AST Structure
 ******************
