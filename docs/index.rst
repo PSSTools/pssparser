@@ -31,6 +31,7 @@ Key Features
 
    quickstart
    cli
+   checker_plugin_guide
    pss30_migration
 
 .. toctree::
