@@ -26,51 +26,85 @@ disabled.
 Writing a Checker
 =================
 
-Minimal example — a naming-convention checker that warns when a component
-name does not start with an uppercase letter:
+Below is a complete, real-world example — a naming-convention checker that
+warns when ``action`` or ``struct`` type names do not start with an uppercase
+letter.  The full source lives in ``examples/pss_naming_checker/``.
 
 .. code-block:: python
 
-   # mypkg/pss_rules.py
+   # pss_naming/checker.py
+   from __future__ import annotations
+   from typing import TYPE_CHECKING
+
+   import pssparser.ast as pss_ast
    from pssparser.checkers import CheckerBase, MarkerDef
+
+   if TYPE_CHECKING:
+       from pssparser.checkers import CheckContext
+
 
    class NamingConventionChecker(CheckerBase):
        name = "naming-convention"
-       description = "Enforce PSS naming conventions"
+       description = "Warn when action or struct type names do not start with uppercase"
 
        marker_defs = [
            MarkerDef(
                id="PSC001",
                severity="warning",
-               summary="Component name does not start with an uppercase letter",
+               summary="Action type name does not start with an uppercase letter",
                detail=(
-                   "PSS convention requires component type names to begin with "
-                   "an uppercase letter.  Rename the component to fix this."
+                   "PSS convention uses PascalCase for action type names.  "
+                   "Rename the action so that its first letter is uppercase, "
+                   "e.g. rename ``write_data`` to ``WriteData``."
+               ),
+           ),
+           MarkerDef(
+               id="PSC002",
+               severity="warning",
+               summary="Struct type name does not start with an uppercase letter",
+               detail=(
+                   "PSS convention uses PascalCase for struct type names.  "
+                   "Rename the struct so that its first letter is uppercase, "
+                   "e.g. rename ``my_packet`` to ``MyPacket``."
                ),
            ),
        ]
 
-       runs_without_link = False
+       # Name-checking only needs the parse tree; no linked AST required.
+       runs_without_link = True
 
-       def check(self, context):
-           # Walk top-level global scopes looking for component declarations
-           for scope in context.global_scopes:
-               for child in (scope.children() if hasattr(scope, "children") else []):
-                   if hasattr(child, "getName"):
-                       name_node = child.getName()
-                       name = (
-                           name_node.getId()
-                           if hasattr(name_node, "getId")
-                           else str(name_node)
-                       )
-                       if name and not name[0].isupper():
-                           context.add_marker(
-                               code="PSC001",
-                               file=context.files[0],
-                               line=1,
-                               col=1,
-                               message=f"Component {name!r} should start with uppercase",
-                           )
+       def check(self, context: "CheckContext") -> None:
+           for global_scope in context.global_scopes:
+               # context.file_map maps GlobalScope.getFileid() → source path.
+               # GlobalScope.getFilename() is not reliably set by the parser.
+               filename = context.file_map.get(global_scope.getFileid(), "")
+               self._walk(context, global_scope, filename)
+
+       def _walk(self, context, scope, filename: str) -> None:
+           """Recursively walk *scope* and emit markers for naming violations."""
+           for child in scope.children():
+               if isinstance(child, pss_ast.Action):
+                   self._check_name(context, child, filename, "PSC001", "Action")
+               elif isinstance(child, pss_ast.Struct):
+                   self._check_name(context, child, filename, "PSC002", "Struct")
+               # Recurse into any child scope (components, packages, …)
+               if isinstance(child, pss_ast.Scope):
+                   self._walk(context, child, filename)
+
+       @staticmethod
+       def _check_name(context, node, filename, code, kind):
+           name_expr = node.getName()
+           name = name_expr.getId()
+           if not name or name[0].isupper():
+               return
+           loc = name_expr.getLocation()
+           context.add_marker(
+               code=code,
+               file=filename,
+               line=loc.lineno,
+               col=loc.linepos,
+               message=f"{kind} '{name}' should start with an uppercase letter",
+           )
 
 Step-by-step walkthrough:
 
@@ -79,8 +113,19 @@ Step-by-step walkthrough:
 3. **Set** ``description`` — shown by ``--list-checkers``.
 4. **Declare** ``marker_defs`` — one :class:`~pssparser.checkers.MarkerDef`
    per diagnostic code your checker can emit.
-5. **Implement** ``check(context)`` — walk the AST and call
+5. **Set** ``runs_without_link = True`` when your checker only needs the raw
+   parse tree (faster; works even when ``--syntax-only`` is active).
+6. **Implement** ``check(context)`` — walk the AST and call
    :meth:`~pssparser.checkers.CheckContext.add_marker` to emit diagnostics.
+
+.. tip::
+
+   ``context.file_map`` is a ``dict[int, str]`` mapping
+   ``GlobalScope.getFileid()`` to the source file path.  Use it instead of
+   ``GlobalScope.getFilename()``, which may be empty.
+
+   ``context.global_scopes`` contains only the user-supplied source files;
+   the built-in PSS library scopes are filtered out automatically.
 
 Declaring Markers
 =================
@@ -226,6 +271,17 @@ Inside ``check(context)``, the linked AST is available as
 ``context.root`` (a ``RootSymbolScope``) and the per-file ``GlobalScope``
 nodes are in ``context.global_scopes``.  See :doc:`ast_usage_guide` for a
 full guide to navigating the AST.
+
+To resolve a ``GlobalScope`` to its source path, use ``context.file_map``::
+
+    filename = context.file_map.get(gs.getFileid(), "")
+
+``context.file_map`` is a ``dict[int, str]`` (fileid → path).
+``GlobalScope.getFilename()`` is not reliably populated by the parser, so
+always prefer ``file_map``.
+
+``context.global_scopes`` contains only the user-supplied source files;
+the built-in PSS library scopes are filtered out automatically.
 
 If your checker only needs the *parse tree* (not the linked AST), set
 ``runs_without_link = True`` on the class.  The checker will then run even

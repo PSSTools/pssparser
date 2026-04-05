@@ -28,6 +28,11 @@ class CheckContext:
     #: Raw per-file GlobalScope AST nodes (same order as *files*).
     global_scopes: List[Any]
 
+    #: Maps fileid (int) -> source file path; allows checkers to resolve
+    #: GlobalScope.getFileid() to a human-readable path when getFilename()
+    #: is unavailable.
+    file_map: Dict[int, str] = field(default_factory=dict)
+
     #: Internal – collected markers; use add_marker() to append.
     _markers: list = field(default_factory=list, repr=False)
 
