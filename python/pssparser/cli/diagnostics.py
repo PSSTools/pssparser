@@ -53,6 +53,7 @@ class Diagnostic:
             severity=marker.get("severity", "error"),
             message=msg,
             suggestion=suggestion,
+            code=marker.get("code"),
             end_col=end_col,
         )
 

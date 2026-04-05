@@ -21,10 +21,23 @@ def cmd_parse(
     max_errors: int = 20,
     stderr: TextIO | None = None,
     stdout: TextIO | None = None,
+    manager=None,
+    checkers: Optional[List[str]] = None,
+    no_checkers: Optional[List[str]] = None,
 ) -> int:
     """Run the parse (and optionally link) pipeline, report diagnostics.
 
     Returns an exit code: 0 success, 1 errors found, 2 usage problem.
+
+    Parameters
+    ----------
+    manager:
+        A pre-configured ``CheckerManager``.  When ``None``, a fresh manager
+        is created and ``discover()`` is called automatically.
+    checkers:
+        Names of checkers to run (``--checker``).  ``None`` means run all.
+    no_checkers:
+        Names of checkers to exclude (``--no-checker``).
     """
     from pssparser.parser import Parser, ParseException
 
@@ -66,6 +79,18 @@ def cmd_parse(
     # Collect any non-fatal markers from successful phases
     _collect(coll, [], parser)
 
+    # -- checker phase ------------------------------------------------------
+    _run_checkers(
+        coll=coll,
+        files=files,
+        parser=parser,
+        linked_root=linked_root,
+        syntax_only=syntax_only,
+        manager=manager,
+        checkers=checkers,
+        no_checkers=no_checkers,
+    )
+
     # -- dump-ast -----------------------------------------------------------
     if dump_ast and linked_root is not None:
         try:
@@ -83,6 +108,61 @@ def cmd_parse(
 
 
 # -- helpers ----------------------------------------------------------------
+
+def _run_checkers(
+    coll: DiagnosticCollection,
+    files: List[str],
+    parser,
+    linked_root,
+    syntax_only: bool,
+    manager,
+    checkers,
+    no_checkers,
+) -> None:
+    """Run the checker phase and merge results into *coll*."""
+    from pssparser.checkers import CheckContext, CheckerManager
+
+    if manager is None:
+        manager = CheckerManager()
+        manager.discover()
+
+    try:
+        active = manager.active(select=checkers, exclude=no_checkers)
+    except ValueError as exc:
+        import sys
+        sys.stderr.write(f"error: {exc}\n")
+        return
+
+    if not active:
+        return
+
+    # Build per-file global scopes list (best-effort)
+    global_scopes: list = []
+    if hasattr(parser, "global_scopes"):
+        global_scopes = list(parser.global_scopes)
+
+    marker_index = manager.build_marker_index(active)
+
+    context = CheckContext(
+        root=linked_root,
+        files=list(files),
+        global_scopes=global_scopes,
+        _marker_index=marker_index,
+    )
+
+    for checker in active:
+        if not syntax_only or checker.runs_without_link:
+            try:
+                checker.check(context)
+            except Exception as exc:
+                import sys
+                sys.stderr.write(
+                    f"warning: checker {checker.name!r} raised an exception: {exc}\n"
+                )
+
+    for m in context._markers:
+        coll.add(Diagnostic.from_marker(m))
+
 
 def _collect(
     coll: DiagnosticCollection,
