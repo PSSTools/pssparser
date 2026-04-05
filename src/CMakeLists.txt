@@ -60,10 +60,10 @@ add_library(pssparser SHARED
 	${ANTLR_PSSLexer_OUTPUTS})
 
 install(TARGETS pssparser
+    EXPORT pssparser-targets
     RUNTIME DESTINATION ${CMAKE_INSTALL_LIBDIR}
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    EXPORT pssparser-targets)
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
 install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include/pssp" # source directory
     DESTINATION "include" # target directory
