@@ -24,7 +24,7 @@ isSrcBuild = False
 isSrcTree = os.path.isdir(os.path.join(proj_dir, "src"))
 
 try:
-    from ivpm.setup import setup
+    from ivpm_build.setup import setup
     isSrcBuild = isSrcTree
     print("pssparser: isSrcBuild: %s" % str(isSrcBuild))
 except ImportError as e:
@@ -104,7 +104,7 @@ ext = Extension(
 
 extensions=[ast_ext, ext]
 
-setup_requires=['cython', 'ivpm']
+setup_requires=['cython', 'ivpm-build', 'ivpm']
 
 if isSrcBuild:
     pass  # pyastbuilder used at cmake time, not setup time
