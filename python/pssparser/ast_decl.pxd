@@ -723,7 +723,8 @@ cdef extern from "pssp/ast/IFactory.h" namespace "pssp::ast":
                 bool is_escaped)
         IExprIn *mkExprIn(
                 IExprP lhs,
-                IExprOpenRangeListP rhs)
+                IExprOpenRangeListP rhs,
+                IExprP collection)
         IExprListLiteral *mkExprListLiteral(
                 )
         IExprMemberPathElem *mkExprMemberPathElem(
@@ -1592,6 +1593,9 @@ cdef extern from "pssp/ast/IExprIn.h" namespace "pssp::ast":
         IExprOpenRangeList *getRhs()
         
         void setRhs(IExprOpenRangeList *v)
+        IExpr *getCollection()
+        
+        void setCollection(IExpr *v)
 
 cdef extern from "pssp/ast/IExprListLiteral.h" namespace "pssp::ast":
     cpdef cppclass IExprListLiteral(IExpr):

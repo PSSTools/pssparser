@@ -829,7 +829,7 @@ activity_repeat_stmt:
 activity_foreach_stmt:
 	TOK_FOREACH 
 		TOK_LPAREN 
-			(it_id=iterator_identifier)? expression (TOK_LSBRACE idx_id=index_identifier TOK_RSBRACE)? 
+			(it_id=iterator_identifier TOK_COLON)? target=identifier (TOK_LSBRACE idx_id=index_identifier TOK_RSBRACE)? 
 		TOK_RPAREN
 		activity_stmt_ann
 	;

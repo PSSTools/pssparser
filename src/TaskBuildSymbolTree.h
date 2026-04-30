@@ -46,6 +46,7 @@ public:
 
     virtual void visitActivityDecl(ast::IActivityDecl *i) override;
 
+    void registerActivityLabels(ast::ISymbolScope *scope);
     virtual void visitConstraintBlock(ast::IConstraintBlock *i) override;
 
     virtual void visitConstraintScope(ast::IConstraintScope *i) override;

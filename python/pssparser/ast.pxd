@@ -167,7 +167,8 @@ cdef class Factory(object):
     bool is_escaped)
     cpdef ExprIn mkExprIn(self,
     Expr lhs,
-    ExprOpenRangeList rhs)
+    ExprOpenRangeList rhs,
+    Expr collection)
     cpdef ExprListLiteral mkExprListLiteral(self)
     cpdef ExprMemberPathElem mkExprMemberPathElem(self,
     ExprId id,
@@ -1105,6 +1106,7 @@ cdef class ExprIn(Expr):
     cdef ExprIn mk(ast_decl.IExprIn *hndl, bool owned)
     cpdef Expr getLhs(self)
     cpdef ExprOpenRangeList getRhs(self)
+    cpdef Expr getCollection(self)
 
 cdef class ExprListLiteral(Expr):
     

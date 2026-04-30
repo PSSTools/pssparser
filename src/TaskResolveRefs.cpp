@@ -646,6 +646,26 @@ void TaskResolveRefs::visitActivitySequence(ast::IActivitySequence *i) {
     DEBUG_LEAVE("visitActivitySequence");
 }
 
+void TaskResolveRefs::visitActivityForeach(ast::IActivityForeach *i) {
+    DEBUG_ENTER("visitActivityForeach");
+    // Push the body scope FIRST so that the index variable (idx_id) is in scope
+    // when resolving the target expression (e.g., `count[j]` where `j` is idx_id).
+    ast::ISymbolScope *body_scope =
+        i->getBody() ? dynamic_cast<ast::ISymbolScope*>(i->getBody()) : nullptr;
+    if (body_scope) {
+        m_ctxt->symtab()->pushScope(body_scope);
+    }
+    visitActivityLabeledStmt(i);
+    if (i->getIt_id())  { i->getIt_id()->accept(this); }
+    if (i->getIdx_id()) { i->getIdx_id()->accept(this); }
+    if (i->getTarget()) { i->getTarget()->accept(this); }
+    if (body_scope) {
+        m_ctxt->symtab()->popScope();
+    }
+    if (i->getBody()) { i->getBody()->accept(this); }
+    DEBUG_LEAVE("visitActivityForeach");
+}
+
 
 void TaskResolveRefs::visitExprRefPathId(ast::IExprRefPathId *i) {
     DEBUG_ENTER("visitExprRefPathId %s", i->getId()->getId().c_str());

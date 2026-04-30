@@ -219,6 +219,14 @@ public:
 
 	virtual antlrcpp::Any visitActivity_atomic_block_stmt(PSSParser::Activity_atomic_block_stmtContext *ctx) override;
 
+	virtual antlrcpp::Any visitActivity_select_stmt(PSSParser::Activity_select_stmtContext *ctx) override;
+
+	virtual antlrcpp::Any visitActivity_if_else_stmt(PSSParser::Activity_if_else_stmtContext *ctx) override;
+
+	virtual antlrcpp::Any visitActivity_match_stmt(PSSParser::Activity_match_stmtContext *ctx) override;
+
+	virtual antlrcpp::Any visitActivity_foreach_stmt(PSSParser::Activity_foreach_stmtContext *ctx) override;
+
 	// B.11 Data declarations
 
 	virtual antlrcpp::Any visitData_declaration(PSSParser::Data_declarationContext *ctx) override;
@@ -412,6 +420,7 @@ private:
         ast::ISymbolScope                   *scope,
         PSSParser::Activity_stmt_annContext *ctx);
 
+    void addSyntheticIntField(ast::ISymbolScope *scope, const std::string &name);
 	ast::IScopeChild *mkActivityStmt(PSSParser::Activity_stmt_annContext *ctx);
 
 	ast::IConstraintStmt *mkConstraintSet(PSSParser::Constraint_setContext *ctx);

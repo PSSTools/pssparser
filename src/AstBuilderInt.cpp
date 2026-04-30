@@ -1925,13 +1925,30 @@ antlrcpp::Any AstBuilderInt::visitActivity_repeat_stmt(PSSParser::Activity_repea
             body = m_factory->mkActivitySequence("");
         }
 
+        // Register the loop variable as a synthetic field in the body scope so
+        // `with` constraints inside the loop body can reference it by name.
+        if (ctx->loop_var) {
+            auto *body_scope = dynamic_cast<ast::ISymbolScope*>(body);
+            if (body_scope) {
+                addSyntheticIntField(body_scope, ctx->loop_var->getText());
+            }
+        }
+
 		ast::IActivityRepeatCount *rstmt = m_factory->mkActivityRepeatCount(
 			(ctx->loop_var)?mkId(ctx->loop_var):0,
 			mkExpr(ctx->expression()),
             body);
         stmt = rstmt;
 	} else {
-
+		// do { body } while (cond);
+		ast::IScopeChild *body = mkActivityStmt(ctx->activity_stmt_ann());
+		if (!body) {
+			body = m_factory->mkActivitySequence("");
+		}
+		ast::IActivityRepeatWhile *rw = m_factory->mkActivityRepeatWhile(
+			mkExpr(ctx->expression()),
+			body);
+		stmt = rw;
 	}
 
 	if (m_labeled_activity_id) {
@@ -1969,6 +1986,133 @@ antlrcpp::Any AstBuilderInt::visitActivity_atomic_block_stmt(PSSParser::Activity
 	m_activity_stmt = atomic;
 
 	DEBUG_LEAVE("visitActivity_atomic_block_stmt");
+	return 0;
+}
+
+antlrcpp::Any AstBuilderInt::visitActivity_select_stmt(PSSParser::Activity_select_stmtContext *ctx) {
+	DEBUG_ENTER("visitActivity_select_stmt");
+
+	ast::IActivitySelect *sel = m_factory->mkActivitySelect();
+
+	if (m_labeled_activity_id) {
+		sel->setLabel(m_labeled_activity_id);
+		m_labeled_activity_id = 0;
+	}
+
+	for (auto *b : ctx->select_branch()) {
+		ast::IExpr *guard  = b->guard  ? mkExpr(b->guard)  : nullptr;
+		ast::IExpr *weight = b->weight ? mkExpr(b->weight) : nullptr;
+		ast::IScopeChild *body = mkActivityStmt(b->activity_stmt_ann());
+		if (!body) {
+			body = m_factory->mkActivitySequence("");
+		}
+		ast::IActivitySelectBranch *branch = m_factory->mkActivitySelectBranch(guard, weight, body);
+		sel->getBranches().push_back(ast::IActivitySelectBranchUP(branch));
+	}
+
+	m_activity_stmt = sel;
+
+	DEBUG_LEAVE("visitActivity_select_stmt");
+	return 0;
+}
+
+antlrcpp::Any AstBuilderInt::visitActivity_if_else_stmt(PSSParser::Activity_if_else_stmtContext *ctx) {
+	DEBUG_ENTER("visitActivity_if_else_stmt");
+
+	ast::IExpr *cond = mkExpr(ctx->expression());
+	ast::IScopeChild *true_body  = mkActivityStmt(ctx->activity_stmt_ann(0));
+	ast::IScopeChild *false_body = (ctx->activity_stmt_ann().size() > 1)
+	                               ? mkActivityStmt(ctx->activity_stmt_ann(1))
+	                               : nullptr;
+
+	// mkActivityIfElse takes IActivityStmt*; the bodies are IScopeChild* which
+	// also implement IActivityStmt via the generated hierarchy.
+	ast::IActivityIfElse *ife = m_factory->mkActivityIfElse(
+		cond,
+		dynamic_cast<ast::IActivityStmt*>(true_body),
+		dynamic_cast<ast::IActivityStmt*>(false_body));
+
+	if (m_labeled_activity_id) {
+		ife->setLabel(m_labeled_activity_id);
+		m_labeled_activity_id = 0;
+	}
+
+	m_activity_stmt = ife;
+
+	DEBUG_LEAVE("visitActivity_if_else_stmt");
+	return 0;
+}
+
+antlrcpp::Any AstBuilderInt::visitActivity_match_stmt(PSSParser::Activity_match_stmtContext *ctx) {
+	DEBUG_ENTER("visitActivity_match_stmt");
+
+	ast::IExpr *cond_expr = mkExpr(ctx->expression());
+	ast::IActivityMatch *match = m_factory->mkActivityMatch(cond_expr);
+
+	if (m_labeled_activity_id) {
+		match->setLabel(m_labeled_activity_id);
+		m_labeled_activity_id = 0;
+	}
+
+	for (auto *choice : ctx->match_choice()) {
+		bool is_default = (choice->is_default != nullptr);
+		ast::IExprOpenRangeList *cond = is_default
+		                               ? nullptr
+		                               : mkOpenRangeList(choice->open_range_list());
+		ast::IScopeChild *body = mkActivityStmt(choice->activity_stmt_ann());
+		if (!body) {
+			body = m_factory->mkActivitySequence("");
+		}
+		ast::IActivityMatchChoice *mc = m_factory->mkActivityMatchChoice(is_default, cond, body);
+		match->getChoices().push_back(ast::IActivityMatchChoiceUP(mc));
+	}
+
+	m_activity_stmt = match;
+
+	DEBUG_LEAVE("visitActivity_match_stmt");
+	return 0;
+}
+
+antlrcpp::Any AstBuilderInt::visitActivity_foreach_stmt(PSSParser::Activity_foreach_stmtContext *ctx) {
+	DEBUG_ENTER("visitActivity_foreach_stmt");
+
+	ast::IExprId *it_id  = ctx->it_id  ? mkId(ctx->it_id->identifier())  : nullptr;
+	ast::IExprId *idx_id = ctx->idx_id ? mkId(ctx->idx_id->identifier()) : nullptr;
+	ast::IExprRefPathContext *target = nullptr;
+
+	// The foreach target is a simple field identifier (e.g. `count`). Use the
+	// labeled `target=identifier` grammar token (not a general expression) so
+	// the optional [idx_id] subscript is NOT consumed by expression parsing.
+	{
+		ast::IExprHierarchicalId *hid = m_factory->mkExprHierarchicalId();
+		ast::IExprMemberPathElem *elem = m_factory->mkExprMemberPathElem(
+			mkId(ctx->target), 0);
+		hid->getElems().push_back(ast::IExprMemberPathElemUP(elem));
+		target = m_factory->mkExprRefPathContext(hid);
+	}
+
+	ast::IScopeChild *body = mkActivityStmt(ctx->activity_stmt_ann());
+	if (!body) {
+		body = m_factory->mkActivitySequence("");
+	}
+
+	// Register iterator and index variables as synthetic fields in the body scope
+	// so `with` constraints inside the loop body can reference them by name.
+	if (auto *body_scope = dynamic_cast<ast::ISymbolScope*>(body)) {
+		if (ctx->it_id)  addSyntheticIntField(body_scope, ctx->it_id->identifier()->getText());
+		if (ctx->idx_id) addSyntheticIntField(body_scope, ctx->idx_id->identifier()->getText());
+	}
+
+	ast::IActivityForeach *fe = m_factory->mkActivityForeach(it_id, idx_id, target, body);
+
+	if (m_labeled_activity_id) {
+		fe->setLabel(m_labeled_activity_id);
+		m_labeled_activity_id = 0;
+	}
+
+	m_activity_stmt = fe;
+
+	DEBUG_LEAVE("visitActivity_foreach_stmt");
 	return 0;
 }
 
@@ -2681,11 +2825,16 @@ antlrcpp::Any AstBuilderInt::visitExpression(PSSParser::ExpressionContext *ctx) 
 	} else if (ctx->lhs) {
 		// It's either an 'in' or a conditional 
 		if (ctx->in_expression()) {
-			// Build ExprIn: lhs in [open_range_list]
+			// Build ExprIn: lhs in [open_range_list | collection_expression]
 			ast::IExpr *lhs = mkExpr(ctx->lhs);
 			PSSParser::In_expressionContext *in_ctx = ctx->in_expression();
 			ast::IExprOpenRangeList *rhs = mkOpenRangeList(in_ctx->open_range_list());
-			m_expr = m_factory->mkExprIn(lhs, rhs);
+			// Collection-expression form: x in comp.some_list
+			ast::IExpr *coll = nullptr;
+			if (in_ctx->collection_expression()) {
+				coll = mkExpr(in_ctx->collection_expression()->expression());
+			}
+			m_expr = m_factory->mkExprIn(lhs, rhs, coll);
 		} else {
 			// Conditional
 			ast::IExpr *cond = mkExpr(ctx->lhs);
@@ -4136,13 +4285,40 @@ ast::IScopeChild *AstBuilderInt::mkActivityStmt(PSSParser::Activity_stmt_annCont
 	return m_activity_stmt;
 }
 
+// Add a synthetic integer field to a scope's symtab and children vector.
+// Used to register loop variables (repeat, foreach) so the name resolver can
+// find them when resolving `with` constraint expressions inside loop bodies.
+void AstBuilderInt::addSyntheticIntField(ast::ISymbolScope *scope, const std::string &name) {
+    if (!scope || name.empty()) return;
+    if (scope->getSymtab().find(name) != scope->getSymtab().end()) return; // already registered
+
+    ast::IExprId *id = m_factory->mkExprId(name, false);
+    ast::IField *field = m_factory->mkField(
+        id,
+        m_factory->mkDataTypeInt(
+            false,
+            m_factory->mkExprUnsignedNumber("32", 32, 32),
+            nullptr),
+        ast::FieldAttr::NoFlags,
+        nullptr);
+    int32_t idx = scope->getChildren().size();
+    field->setIndex(idx);
+    scope->getSymtab()[name] = idx;
+    scope->getChildren().push_back(ast::IScopeChildUP(field, true));
+}
+
 void AstBuilderInt::addActivityStmt(
         ast::ISymbolScope                   *scope,
         PSSParser::Activity_stmt_annContext *ctx) {
     ast::IScopeChild *a_stmt = mkActivityStmt(ctx);
     if (a_stmt) {
-        a_stmt->setIndex(scope->getChildren().size());
+        int32_t idx = scope->getChildren().size();
+        a_stmt->setIndex(idx);
         scope->getChildren().push_back(ast::IScopeChildUP(a_stmt));
+        // NOTE: Labels (e.g. T1: do tx_data_a) are registered in the action's
+        // synthetic type scope by TaskBuildSymbolTree::registerActivityLabels,
+        // not here. Adding them to the immediate activity scope (parallel, etc.)
+        // would build a corrupt symbol-path since activity scopes have getId()=-1.
     }
 }
 

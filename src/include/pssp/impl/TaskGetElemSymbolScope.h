@@ -51,6 +51,25 @@ public:
         DEBUG_LEAVE("visitField %s", i->getName()->getId().c_str());
     }
 
+    // Labeled `do Type` traversals (e.g., `T1: do tx_data_a`).
+    // Resolve target type scope so `T1.tx_byte` can follow the path.
+    virtual void visitActivityActionTypeTraversal(ast::IActivityActionTypeTraversal *i) override {
+        DEBUG_ENTER("visitActivityActionTypeTraversal");
+        if (i->getTarget()) {
+            i->getTarget()->accept(m_this);
+        }
+        DEBUG_LEAVE("visitActivityActionTypeTraversal");
+    }
+
+    // Labeled handle traversal (e.g., `T1: cfg` where cfg is a declared handle).
+    // Resolve the handle's action type scope so `T1.field` paths work.
+    virtual void visitActivityActionHandleTraversal(ast::IActivityActionHandleTraversal *i) override {
+        DEBUG_ENTER("visitActivityActionHandleTraversal");
+        // The target is an ExprRefPathContext -- defer; resolution happens
+        // via the field lookup path in visitExprRefPathContext.
+        DEBUG_LEAVE("visitActivityActionHandleTraversal");
+    }
+
     virtual void visitDataTypeUserDefined(ast::IDataTypeUserDefined *i) override {
         DEBUG_ENTER("visitDataTypeUserDefined");
         if (i->getType_id()->getTarget()) {

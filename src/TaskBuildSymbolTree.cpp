@@ -23,6 +23,13 @@
 #include "pssp/impl/TaskGetName.h"
 #include "BuiltinsFactory.h"
 #include "TaskBuildSymbolTree.h"
+#include "pssp/ast/IActivityDecl.h"
+#include "pssp/ast/IActivityLabeledStmt.h"
+#include "pssp/ast/IActivityActionTypeTraversal.h"
+#include "pssp/ast/IActivityParallel.h"
+#include "pssp/ast/IActivitySchedule.h"
+#include "pssp/ast/IActivitySequence.h"
+#include "pssp/ast/ISymbolScope.h"
 #include "Marker.h"
 
 namespace pssp {
@@ -91,6 +98,11 @@ ast::IRootSymbolScope *TaskBuildSymbolTree::build(
 
 void TaskBuildSymbolTree::visitActivityDecl(ast::IActivityDecl *i) {
     DEBUG_ENTER("visitActivityDecl");
+    // Before adding the activity decl as an opaque child, register any labeled
+    // activity stmts (e.g. T1: do tx_data_a) as NAMED children in the PARENT
+    // scope (the action type scope). This gives them valid getId() values via
+    // setId(), which is needed for correct symbol path resolution (T1.tx_byte).
+    registerActivityLabels(i);
     addChild(i, false);
 
     pushSymbolScope(i);
@@ -894,6 +906,28 @@ bool TaskBuildSymbolTree::addChild(
     c->setUpper(scope);
     DEBUG_LEAVE("addChild(SymbolChild)");
     return true;
+}
+
+// Recursively scan an activity scope and register labeled activity stmts
+// (e.g. T1: do tx_data_a) as named children in the CURRENT symbol scope.
+// This gives them valid getId() entries so path resolution through the
+// symbol tree works correctly for cross-traversal references (T1.tx_byte).
+void TaskBuildSymbolTree::registerActivityLabels(ast::ISymbolScope *scope) {
+    if (!scope) return;
+    for (auto &child : scope->getChildren()) {
+        auto *labeled = dynamic_cast<ast::IActivityLabeledStmt*>(child.get());
+        if (labeled && labeled->getLabel()) {
+            const std::string &lname = labeled->getLabel()->getId();
+            // Register in the CURRENT symbol scope (the action's type scope)
+            // using the addChild that properly sets getId() via setId().
+            addChild(dynamic_cast<ast::IScopeChild*>(labeled), lname, false);
+        }
+        // Recurse into compound activity scopes (parallel, schedule, sequence)
+        auto *nested_scope = dynamic_cast<ast::ISymbolScope*>(child.get());
+        if (nested_scope) {
+            registerActivityLabels(nested_scope);
+        }
+    }
 }
 
 dmgr::IDebug *TaskBuildSymbolTree::m_dbg = 0;

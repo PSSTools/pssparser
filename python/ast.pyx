@@ -465,10 +465,12 @@ cdef class Factory(object):
                 is_escaped), True)
     cpdef ExprIn mkExprIn(self,
             Expr lhs,
-            ExprOpenRangeList rhs):
+            ExprOpenRangeList rhs,
+            Expr collection):
         return ExprIn.mk(self._hndl.mkExprIn(
                 lhs.asExpr(),
-                rhs.asExprOpenRangeList()), True)
+                rhs.asExprOpenRangeList(),
+                collection.asExpr()), True)
     cpdef ExprListLiteral mkExprListLiteral(self):
         return ExprListLiteral.mk(self._hndl.mkExprListLiteral(
 ), True)
@@ -3108,6 +3110,13 @@ cdef class ExprIn(Expr):
             of = ObjFactory()
             self.asExprIn().getRhs().accept(of._hndl)
             return <ExprOpenRangeList>(of._obj)
+    cpdef Expr getCollection(self):
+        if self.asExprIn().getCollection() == NULL:
+            return None
+        else:
+            of = ObjFactory()
+            self.asExprIn().getCollection().accept(of._hndl)
+            return <Expr>(of._obj)
 
 cdef class ExprListLiteral(Expr):
     

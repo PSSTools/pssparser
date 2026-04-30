@@ -266,7 +266,8 @@ class Factory(object):
         is_escaped : bool) -> 'ExprId': ...
     def mkExprIn(self,
         lhs : Expr,
-        rhs : ExprOpenRangeList) -> 'ExprIn': ...
+        rhs : ExprOpenRangeList,
+        collection : Expr) -> 'ExprIn': ...
     def mkExprListLiteral(self) -> 'ExprListLiteral': ...
     def mkExprMemberPathElem(self,
         id : ExprId,
@@ -1968,20 +1969,14 @@ class ExprIn(Expr):
     """
     Represents a set membership test expression (in operator).
     
-    Tests whether a value (lhs) is contained within a specified set of values
-    or ranges (rhs). Commonly used in constraint expressions to restrict
-    random variables to specific value domains.
-    
-    PSS Example::
-    
-        rand int x;
-        constraint c { 
-            x in [1..10, 20, 30..40];  // x must be in these ranges
-        }
+    Two forms exist in PSS:
+      Range-list form:  x in [1..10, 20, 30..40]  -- rhs is populated
+      Collection form:  x in comp.some_list        -- collection is populated
     
     Attributes:
-        lhs: Expression to test for membership
-        rhs: Range list defining the valid set
+        lhs:        Expression to test for membership
+        rhs:        Range list (range-list form; empty for collection form)
+        collection: Collection expression (collection form; null for range-list form)
     
     See Also:
         ExprOpenRangeList, ExprDomainOpenRangeList
@@ -1992,6 +1987,8 @@ class ExprIn(Expr):
     def getLhs(self) -> Expr: ...
     
     def getRhs(self) -> ExprOpenRangeList: ...
+    
+    def getCollection(self) -> Expr: ...
     
 class ExprListLiteral(Expr):
     """
