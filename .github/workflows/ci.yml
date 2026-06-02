@@ -18,12 +18,12 @@ jobs:
         done
     - name: Fetch source dependencies
       run: |
-        export IVPM_PYTHON=/opt/python/cp39-cp39/bin/python
+        export IVPM_PYTHON=/opt/python/cp312-cp312/bin/python
         ${IVPM_PYTHON} -m pip install twine auditwheel build
         ${IVPM_PYTHON} -m ivpm update -j 1 -a
     - name: Build packages
       run: |
-        export PATH=/opt/python/cp39-cp39/bin:$PATH
+        export PATH=/opt/python/cp312-cp312/bin:$PATH
         mkdir build
         cd build
         cmake .. -GNinja
@@ -38,7 +38,7 @@ jobs:
       run: |
         for whl in dist/*.whl; do
           [ -f "$whl" ] || continue
-          /opt/python/cp39-cp39/bin/auditwheel repair $whl
+          /opt/python/cp312-cp312/bin/auditwheel repair $whl
           rm $whl
         done
         if ls wheelhouse/*.whl 2>/dev/null | grep -q .; then
@@ -46,15 +46,15 @@ jobs:
         fi
     - name: Run Python tests
       run: |
-        for py in cp312-cp312 cp314-cp314; do
+        for py in cp312-cp312 cp313-cp313; do
           /opt/python/${py}/bin/python -m pip install pytest dist/*${py%%-*}*.whl
           /opt/python/${py}/bin/python -m pytest tests/python -v --tb=short
         done
     - name: System test
       run: |
-        /opt/python/cp314-cp314/bin/python -m venv /tmp/test-venv
+        /opt/python/cp313-cp313/bin/python -m venv /tmp/test-venv
         source /tmp/test-venv/bin/activate
-        pip install dist/*cp314*.whl
+        pip install dist/*cp313*.whl
         python -c "from pssparser import Parser; p = Parser(); assert p.parses([('test.pss', 'component pss_top {}')]); print('System test PASSED')"
 
   ci-linux-aarch64:
@@ -99,9 +99,9 @@ jobs:
         fi
     - name: System test
       run: |
-        /opt/python/cp314-cp314/bin/python -m venv /tmp/test-venv
+        /opt/python/cp313-cp313/bin/python -m venv /tmp/test-venv
         source /tmp/test-venv/bin/activate
-        pip install dist/*cp314*.whl
+        pip install dist/*cp313*.whl
         python -c "from pssparser import Parser; p = Parser(); assert p.parses([('test.pss', 'component pss_top {}')]); print('System test PASSED')"
 
   # ci-win32:
@@ -138,7 +138,7 @@ jobs:
     - uses: actions/checkout@v4
     - uses: actions/setup-python@v5
       with:
-        python-version: '3.14'
+        python-version: '3.13'
     - uses: actions/setup-java@v4
       with:
         distribution: 'temurin'
