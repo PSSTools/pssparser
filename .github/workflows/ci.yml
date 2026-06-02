@@ -195,15 +195,16 @@ jobs:
 
   publish:
     name: Publish to PyPI
-    needs: [ci-linux, ci-linux-aarch64, ci-macos]
+    # Linux-only for now; add ci-macos here once macOS wheels are vetted.
+    needs: [ci-linux, ci-linux-aarch64]
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
     runs-on: ubuntu-latest
     steps:
-    - name: Download all wheels
+    - name: Download Linux wheels
       uses: actions/download-artifact@v4
       with:
         path: dist
-        pattern: wheels-*
+        pattern: wheels-linux-*
         merge-multiple: true
     - name: Publish to PyPI
       uses: pypa/gh-action-pypi-publish@release/v1
