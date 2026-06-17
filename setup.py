@@ -25,11 +25,27 @@ isSrcTree = os.path.isdir(os.path.join(proj_dir, "src"))
 
 try:
     from ivpm_build.setup import setup
-    isSrcBuild = isSrcTree
-    print("pssparser: isSrcBuild: %s" % str(isSrcBuild))
 except ImportError as e:
-    from setuptools import setup
-    print("pssparser: not IVPM build (Falling back): %s" % str(e))
+    # Any from-source build of pssparser (editable git checkout, sdist, or a
+    # pypi source-fallback when no wheel matches) goes through this setup.py and
+    # depends on the IVPM build backend: it runs the AST code generation (which
+    # produces python/PyBaseVisitor.cpp and friends) and copies the generated
+    # sources into place. Plain setuptools cannot do that, so the build would
+    # fail later with a confusing "PyBaseVisitor.cpp: No such file or directory".
+    # Fail now with an actionable message instead of silently falling back.
+    raise RuntimeError(
+        "pssparser: building from source requires the 'ivpm-build' package "
+        "(which depends on 'ivpm'), but it is not installed in the build "
+        "environment.\n"
+        "IVPM installs with --no-build-isolation, so [build-system].requires is "
+        "not auto-provisioned; install ivpm-build into the target venv first, "
+        "e.g.:\n"
+        "    uv pip install ivpm-build\n"
+        "Original import error: %s" % e
+    ) from e
+
+isSrcBuild = isSrcTree
+print("pssparser: isSrcBuild: %s" % str(isSrcBuild))
 
 include_dirs = []
 

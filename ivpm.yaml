@@ -6,6 +6,7 @@ package:
   setup-deps:
   - ninja
   - cython
+  - ivpm-build
 
   dep-sets:
   - name: default-dev
@@ -30,6 +31,8 @@ package:
       src: pypi
     - name: cython
       src: pypi
+    - name: ivpm-build
+      src: pypi
 
   - name: default
     deps:
@@ -42,4 +45,10 @@ package:
     - name: antlr4-cpp-runtime
       url: https://www.antlr.org/download/antlr4-cpp-runtime-4.13.2-source.zip
     - name: debug-mgr
+      src: pypi
+    - name: ivpm-build
+      src: pypi
+    - name: cython
+      src: pypi
+    - name: ninja
       src: pypi
