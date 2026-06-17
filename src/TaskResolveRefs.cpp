@@ -858,6 +858,19 @@ void TaskResolveRefs::visitProceduralStmtRepeat(ast::IProceduralStmtRepeat *i) {
     DEBUG_LEAVE("visitProceduralStmtRepeat");
 }
 
+void TaskResolveRefs::visitProceduralStmtForeach(ast::IProceduralStmtForeach *i) {
+    DEBUG_ENTER("visitProceduralStmtForeach %d", i->getSymtab().size());
+    // Resolve the collection path in the OUTER scope (it must not see the
+    // loop variables registered on the foreach node itself).
+    if (i->getPath()) { i->getPath()->accept(m_this); }
+    // Push the foreach scope so the iterator/index variables are visible while
+    // resolving references in the body (e.g. `arr[i]`).
+    m_ctxt->symtab()->pushScope(i);
+    if (i->getBody()) { i->getBody()->accept(m_this); }
+    m_ctxt->symtab()->popScope();
+    DEBUG_LEAVE("visitProceduralStmtForeach");
+}
+
 void TaskResolveRefs::visitSymbolScope(ast::ISymbolScope *i) {
     DEBUG_ENTER("visitSymbolScope %s", i->getName().c_str());
     /*

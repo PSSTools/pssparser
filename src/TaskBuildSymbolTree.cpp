@@ -663,6 +663,18 @@ void TaskBuildSymbolTree::visitProceduralStmtRepeat(ast::IProceduralStmtRepeat *
     DEBUG_LEAVE("visitProceduralStmtRepeat");
 }
 
+void TaskBuildSymbolTree::visitProceduralStmtForeach(ast::IProceduralStmtForeach *i) {
+    // The iterator/index variables were registered on the node's symtab by the
+    // AST builder; do not let the base visitor re-home them (mirrors repeat).
+    DEBUG_ENTER("visitProceduralStmtForeach symtab-sz: %d", i->getSymtab().size());
+    DEBUG_LEAVE("visitProceduralStmtForeach");
+}
+
+void TaskBuildSymbolTree::visitProceduralStmtMatch(ast::IProceduralStmtMatch *i) {
+    DEBUG_ENTER("visitProceduralStmtMatch");
+    DEBUG_LEAVE("visitProceduralStmtMatch");
+}
+
 void TaskBuildSymbolTree::visitProceduralStmtRepeatWhile(ast::IProceduralStmtRepeatWhile *i) {
     DEBUG_ENTER("visitProceduralStmtRepeatWhile");
     DEBUG_LEAVE("visitProceduralStmtRepeatWhile");

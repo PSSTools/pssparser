@@ -512,6 +512,58 @@ def test_foreach_array():
     assert ast is not None
 
 
+def _count_proc_nodes(root):
+    """Walk the AST and count ProceduralStmtForeach / ProceduralStmtMatch nodes."""
+    import pssparser.ast as ast_mod
+    found = {"foreach": 0, "match": 0}
+
+    class _W(ast_mod.VisitorBase):
+        def visitProceduralStmtForeach(self, i):
+            found["foreach"] += 1
+            super().visitProceduralStmtForeach(i)
+
+        def visitProceduralStmtMatch(self, i):
+            found["match"] += 1
+            super().visitProceduralStmtMatch(i)
+
+    root.accept(_W())
+    return found
+
+
+def test_procedural_foreach_builds_ast_node():
+    """exec-body foreach must build a ProceduralStmtForeach node (not be dropped)."""
+    pss = """
+    component MyComponent {
+        function void process() {
+            int arr[10];
+            foreach (arr[i]) {
+                arr[i] = i * 2;
+            }
+        }
+    }
+    """
+    root = assert_parse_ok(pss)
+    assert _count_proc_nodes(root)["foreach"] >= 1
+
+
+def test_procedural_foreach_element_form_builds_ast_node():
+    """Element-iteration foreach (`v : arr`) also builds a ProceduralStmtForeach."""
+    pss = """
+    component MyComponent {
+        function void process() {
+            int arr[10];
+            int total;
+            total = 0;
+            foreach (v : arr) {
+                total = total + 1;
+            }
+        }
+    }
+    """
+    root = assert_parse_ok(pss)
+    assert _count_proc_nodes(root)["foreach"] >= 1
+
+
 def test_nested_control_flow():
     """Test nested control flow."""
     pss = """
@@ -552,6 +604,24 @@ def test_procedural_match():
     """
     ast = assert_parse_ok(pss)
     assert ast is not None
+
+
+def test_procedural_match_builds_ast_node():
+    """exec-body match must build a ProceduralStmtMatch node (not be dropped)."""
+    pss = """
+    component MyComponent {
+        function void process() {
+            int x = 5;
+            match (x) {
+                [0..3]: { x = 0; }
+                [4..7]: { x = 1; }
+                default: { x = 2; }
+            }
+        }
+    }
+    """
+    root = assert_parse_ok(pss)
+    assert _count_proc_nodes(root)["match"] >= 1
 
 
 def test_procedural_match_multiple_cases():

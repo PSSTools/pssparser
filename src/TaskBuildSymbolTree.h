@@ -102,6 +102,10 @@ public:
 
     virtual void visitProceduralStmtRepeat(ast::IProceduralStmtRepeat *i) override;
 
+    virtual void visitProceduralStmtForeach(ast::IProceduralStmtForeach *i) override;
+
+    virtual void visitProceduralStmtMatch(ast::IProceduralStmtMatch *i) override;
+
     virtual void visitProceduralStmtRepeatWhile(ast::IProceduralStmtRepeatWhile *i) override;
 
     virtual void visitProceduralStmtWhile(ast::IProceduralStmtWhile *i) override;

@@ -1237,8 +1237,68 @@ antlrcpp::Any AstBuilderInt::visitProcedural_repeat_stmt(PSSParser::Procedural_r
     return 0;
 }
 
-antlrcpp::Any AstBuilderInt::visitProcedural_foreach_stmt(PSSParser::Procedural_foreach_stmtContext *ctx) { 
+antlrcpp::Any AstBuilderInt::visitProcedural_foreach_stmt(PSSParser::Procedural_foreach_stmtContext *ctx) {
     DEBUG_ENTER("visitProcedural_foreach_stmt");
+
+    // Collection reference. Grammar uses a general `expression`, which (being
+    // greedy) folds a trailing `[idx]` into a subscript on the path.
+    ast::IExpr *expr = mkExpr(ctx->expression());
+    ast::IExprRefPathContext *path = dynamic_cast<ast::IExprRefPathContext *>(expr);
+
+    ast::IExprId *it_id  = ctx->iterator_identifier()
+                           ? mkId(ctx->iterator_identifier()->identifier()) : 0;
+    ast::IExprId *idx_id = ctx->index_identifier()
+                           ? mkId(ctx->index_identifier()->identifier())    : 0;
+
+    // If no explicit index_identifier was parsed, recover it from the trailing
+    // subscript that expression parsing greedily consumed (mirrors
+    // visitForeach_constraint_item).
+    if (!idx_id && path && path->getHier_id()->getElems().back()->getSubscript().size()) {
+        std::vector<ast::IExprUP> &subscript = path->getHier_id()->getElems().back()->getSubscript();
+        ast::IExprRefPathContext *idx_ref = dynamic_cast<ast::IExprRefPathContext *>(subscript.back().get());
+        if (idx_ref && idx_ref->getHier_id()->getElems().size() == 1
+                && !idx_ref->getHier_id()->getElems().back()->getSubscript().size()) {
+            ast::IExprId *idx = idx_ref->getHier_id()->getElems().back()->getId();
+            idx_id = m_factory->mkExprId(idx->getId(), idx->getIs_escaped());
+            idx_id->setLocation(idx->getLocation());
+            subscript.pop_back();
+        }
+    }
+
+    ast::IScopeChild *body = mkExecStmt(ctx->procedural_stmt());
+
+    ast::IProceduralStmtForeach *stmt = m_factory->mkProceduralStmtForeach(
+        "<foreach>",
+        body,
+        path,
+        it_id,
+        idx_id);
+
+    // Register iterator and index variables in the scope's symtab so the body
+    // can resolve them (mirrors visitProcedural_repeat_stmt's index var).
+    if (it_id) {
+        ast::IExprId *id = m_factory->mkExprId(it_id->getId(), it_id->getIs_escaped());
+        id->setLocation(it_id->getLocation());
+        ast::IProceduralStmtDataDeclaration *var = m_factory->mkProceduralStmtDataDeclaration(id, 0, 0);
+        var->setIndex(stmt->getChildren().size());
+        stmt->getSymtab().insert({id->getId(), stmt->getChildren().size()});
+        stmt->getChildren().push_back(ast::IScopeChildUP(var));
+    }
+    if (idx_id) {
+        ast::IExprId *id = m_factory->mkExprId(idx_id->getId(), idx_id->getIs_escaped());
+        id->setLocation(idx_id->getLocation());
+        ast::IProceduralStmtDataDeclaration *var = m_factory->mkProceduralStmtDataDeclaration(id, 0, 0);
+        var->setIndex(stmt->getChildren().size());
+        stmt->getSymtab().insert({id->getId(), stmt->getChildren().size()});
+        stmt->getChildren().push_back(ast::IScopeChildUP(var));
+    }
+
+    if (body) {
+        body->setIndex(stmt->getChildren().size());
+    }
+
+    m_exec_stmt = stmt;
+    m_exec_stmt_cnt++;
 
     DEBUG_LEAVE("visitProcedural_foreach_stmt");
     return 0;
@@ -1286,9 +1346,26 @@ antlrcpp::Any AstBuilderInt::visitProcedural_if_else_stmt(PSSParser::Procedural_
     return 0;
 }
 
-antlrcpp::Any AstBuilderInt::visitProcedural_match_stmt(PSSParser::Procedural_match_stmtContext *ctx) { 
+antlrcpp::Any AstBuilderInt::visitProcedural_match_stmt(PSSParser::Procedural_match_stmtContext *ctx) {
     DEBUG_ENTER("visitProcedural_match_stmt");
-    DEBUG("TODO: visitProcedural_match_stmt");
+
+    ast::IExpr *cond_expr = mkExpr(ctx->expression());
+    ast::IProceduralStmtMatch *stmt = m_factory->mkProceduralStmtMatch(cond_expr);
+
+    for (auto *choice : ctx->procedural_match_choice()) {
+        bool is_default = (choice->TOK_DEFAULT() != nullptr);
+        ast::IExprOpenRangeList *cond = (is_default || !choice->open_range_list())
+                                        ? nullptr
+                                        : mkOpenRangeList(choice->open_range_list());
+        ast::IScopeChild *body = mkExecStmt(choice->procedural_stmt());
+        ast::IProceduralStmtMatchChoice *mc = m_factory->mkProceduralStmtMatchChoice(
+            is_default, cond, body);
+        stmt->getChoices().push_back(ast::IProceduralStmtMatchChoiceUP(mc));
+    }
+
+    m_exec_stmt = stmt;
+    m_exec_stmt_cnt++;
+
     DEBUG_LEAVE("visitProcedural_match_stmt");
     return 0;
 }

@@ -72,6 +72,14 @@ void TaskResolveRootRef::visitProceduralStmtRepeat(ast::IProceduralStmtRepeat *i
     DEBUG_LEAVE("visitProceduralStmtRepeat");
 }
 
+void TaskResolveRootRef::visitProceduralStmtForeach(ast::IProceduralStmtForeach *i) {
+    // Only inspect this scope's symtab (the iterator/index vars); do not let the
+    // base visitor descend into the body and clobber a successful match.
+    DEBUG_ENTER("visitProceduralStmtForeach");
+    visitSymbolScope(i);
+    DEBUG_LEAVE("visitProceduralStmtForeach");
+}
+
 void TaskResolveRootRef::visitRootSymbolScope(ast::IRootSymbolScope *i) {
     DEBUG_ENTER("visitRootSymbolScope %s %d %p", i->getName().c_str(), i->getSymtab().size(), i);
     visitSymbolScope(i);

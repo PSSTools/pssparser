@@ -50,6 +50,10 @@ public:
         m_ret = s;
     }
 
+    virtual void visitProceduralStmtForeach(ast::IProceduralStmtForeach *s) override {
+        m_ret = s;
+    }
+
     virtual void visitRootSymbolScope(ast::IRootSymbolScope *s) override {
         m_ret = s;
     }
