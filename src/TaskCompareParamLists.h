@@ -22,6 +22,7 @@
 #include "dmgr/IDebugMgr.h"
 #include "pssp/ast/impl/VisitorBase.h"
 #include "pssp/IFactory.h"
+#include "pssp/impl/TaskResolveSymbolPathRef.h"
 #include "TaskCompareTypeRefs.h"
 
 namespace pssp {
@@ -54,7 +55,16 @@ public:
     virtual void visitTemplateParamExprValue(ast::ITemplateParamExprValue *i) override;
 
 private:
+    // Compare the default expressions of two value parameters. Handles both
+    // type-reference value params (e.g. the element type of array<T,N>, which
+    // is carried as a value parameter whose default is a type-identifier) and
+    // constant value params (e.g. the size of array<T,N>).
+    bool valueParamDfltEqual(ast::IExpr *e0, ast::IExpr *e1);
+
+private:
     static dmgr::IDebug                 *m_dbg;
+    IFactory                            *m_factory;
+    ast::ISymbolScope                   *m_root;
     uint32_t                            m_idx;
     uint32_t                            m_phase;
     ast::ITemplateGenericTypeParamDecl  *m_type_value;

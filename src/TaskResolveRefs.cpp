@@ -1094,6 +1094,20 @@ void TaskResolveRefs::visitDataTypeUserDefined(ast::IDataTypeUserDefined *i) {
 
 void TaskResolveRefs::visitTypeIdentifier(ast::ITypeIdentifier *i) {
     DEBUG_ENTER("visitTypeIdentifier %s", i->getElems().at(0)->getId()->getId().c_str());
+
+    // If this reference is already resolved, leave it alone. This node may have
+    // been resolved in its proper instantiation context and then copied into a
+    // freshly-created template specialization (see TaskGetSpecializedTemplateType).
+    // Re-resolving here would use the specialization's declaration scope, which
+    // does not include the instantiation site -- so a package-local type argument
+    // (e.g. an array element type) would spuriously fail and clobber the good
+    // target with a null. Mirror visitDataTypeUserDefined, which guards likewise.
+    if (i->getTarget()) {
+        DEBUG("Symbol already resolved");
+        DEBUG_LEAVE("visitTypeIdentifier");
+        return;
+    }
+
     ast::ISymbolRefPath *target = TaskResolveRef(m_ctxt).resolve(i);
 
     if (target) {

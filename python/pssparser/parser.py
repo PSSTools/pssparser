@@ -134,7 +134,7 @@ class Parser(object):
             marker_m = "%s%s %s:%d:%d" % (
                 prefix[int(marker.severity())],
                 marker.msg(),
-                self._filenames[loc.file],
+                self._filenames.get(loc.file, "<unknown>"),
                 loc.line,
                 loc.pos+1)
             msg += marker_m + "\n"

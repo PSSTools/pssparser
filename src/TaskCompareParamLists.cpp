@@ -29,6 +29,7 @@ namespace pssp {
 TaskCompareParamLists::TaskCompareParamLists(
     IFactory                *factory,
     ast::ISymbolScope       *root) :
+    m_factory(factory), m_root(root),
     m_tref_comp(factory, root) {
     DEBUG_INIT("TaskCompareParamLists", factory->getDebugMgr());
 
@@ -74,15 +75,19 @@ bool TaskCompareParamLists::equal(
 
         // How do we compare?
         if (type_value[0]) {
-            DEBUG("type_value[0].dflt=%p type_value[1].dflt=%p", 
+            DEBUG("type_value[0].dflt=%p type_value[1].dflt=%p",
                 type_value[0]->getDflt(),
                 type_value[1]->getDflt());
             ret &= m_tref_comp.equal(
                 type_value[0]->getDflt(),
                 type_value[1]->getDflt());
-        } else if (expr_value[0] && expr_value[0]->getDflt()) {
-            DEBUG("TODO: Compare value-type parameters");
-            expr_value[0]->getDflt()->accept(m_this);
+        } else if (expr_value[0] && expr_value[1]) {
+            ret &= valueParamDfltEqual(
+                expr_value[0]->getDflt(),
+                expr_value[1]->getDflt());
+            if (!ret) {
+                break;
+            }
         } else {
             DEBUG("FATAL: didn't hit anything");
             ret = false;
@@ -92,6 +97,72 @@ bool TaskCompareParamLists::equal(
 
     DEBUG_LEAVE("equal %d", ret);
     return ret;
+}
+
+bool TaskCompareParamLists::valueParamDfltEqual(
+        ast::IExpr      *e0,
+        ast::IExpr      *e1) {
+    DEBUG_ENTER("valueParamDfltEqual");
+    if (!e0 || !e1) {
+        DEBUG_LEAVE("valueParamDfltEqual (null) %d", (e0 == e1));
+        return (e0 == e1);
+    }
+
+    // Type-reference value parameters. The element type of a generic such as
+    // array<T,N> is carried as a value parameter whose default expression is
+    // the type-identifier for T. Compare these by their resolved targets so
+    // that, e.g., array<ch_c,N> and array<reg_c,N> are NOT treated as the
+    // same specialization.
+    ast::ITypeIdentifier *t0 = dynamic_cast<ast::ITypeIdentifier *>(e0);
+    ast::ITypeIdentifier *t1 = dynamic_cast<ast::ITypeIdentifier *>(e1);
+    if (t0 || t1) {
+        if (!t0 || !t1) {
+            DEBUG_LEAVE("valueParamDfltEqual (type/non-type mismatch)");
+            return false;
+        }
+        if (!t0->getTarget() || !t1->getTarget()) {
+            bool ret = (t0->getTarget() == t1->getTarget());
+            DEBUG_LEAVE("valueParamDfltEqual (unresolved type) %d", ret);
+            return ret;
+        }
+        TaskResolveSymbolPathRef resolver(m_factory->getDebugMgr(), m_root);
+        ast::IScopeChild *c0 = resolver.resolve(t0->getTarget());
+        ast::IScopeChild *c1 = resolver.resolve(t1->getTarget());
+        bool ret = (c0 && c1 && c0 == c1);
+        DEBUG_LEAVE("valueParamDfltEqual (type %p vs %p) %d", c0, c1, ret);
+        return ret;
+    }
+
+    // Constant value parameters. Compare structurally on the leaf form rather
+    // than evaluating: some defaults are non-constant, recursive expressions
+    // (e.g. reg_c's SZ2 default `8*sizeof_s<R>::nbytes`) that are unsafe to
+    // evaluate here. Two specializations of the same generic share identical
+    // (copied) default expressions for any parameter not explicitly supplied,
+    // so the explicitly-supplied leaves are what must be distinguished.
+
+    // Integer literals (e.g. the size of array<T,N>).
+    ast::IExprUnsignedNumber *n0 = dynamic_cast<ast::IExprUnsignedNumber *>(e0);
+    ast::IExprUnsignedNumber *n1 = dynamic_cast<ast::IExprUnsignedNumber *>(e1);
+    if (n0 || n1) {
+        bool ret = (n0 && n1 && n0->getValue() == n1->getValue());
+        DEBUG_LEAVE("valueParamDfltEqual (number) %d", ret);
+        return ret;
+    }
+
+    // Identifier references (e.g. an enum value such as READONLY/READWRITE).
+    ast::IExprId *i0 = dynamic_cast<ast::IExprId *>(e0);
+    ast::IExprId *i1 = dynamic_cast<ast::IExprId *>(e1);
+    if (i0 || i1) {
+        bool ret = (i0 && i1 && i0->getId() == i1->getId());
+        DEBUG_LEAVE("valueParamDfltEqual (id) %d", ret);
+        return ret;
+    }
+
+    // Other expression forms: these are non-explicit, structurally-identical
+    // defaults between two specializations of the same generic, so treat them
+    // as equal (matching the historical behavior) without evaluating.
+    DEBUG_LEAVE("valueParamDfltEqual (other, assume-equal)");
+    return true;
 }
 
 void TaskCompareParamLists::visitExpr(ast::IExpr *i) {
