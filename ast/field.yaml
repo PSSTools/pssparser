@@ -123,6 +123,32 @@ classes:
       data:
       - type: UP<DataTypeUserDefined>
       - is_lock: bool
+  - FieldPool:
+      super: NamedScopeChild
+      doc: |
+          Pool declaration within a component.
+
+          Declares a pool of flow- or resource-objects of a given type, with an
+          optional size (capacity). Actions bind their object references to pools
+          via ``bind`` statements.
+
+          PSS Example::
+
+              component pss_top {
+                  pool [16] my_resource pool_a;   // sized pool
+                  pool my_buffer pool_b;          // unsized pool
+              }
+
+          Attributes:
+              name: Pool identifier (inherited from NamedScopeChild)
+              type: Element type held by the pool
+              size: Optional capacity expression (null if unsized)
+
+          See Also:
+              FieldClaim, FieldRef
+      data:
+      - type: UP<DataTypeUserDefined>
+      - size: UP<Expr>
   - ActionHandleField:
       super: NamedScopeChild
       doc: |

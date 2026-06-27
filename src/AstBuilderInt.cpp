@@ -730,6 +730,28 @@ antlrcpp::Any AstBuilderInt::visitResource_ref_field_declaration(PSSParser::Reso
 	return 0;
 }
 
+antlrcpp::Any AstBuilderInt::visitComponent_pool_declaration(PSSParser::Component_pool_declarationContext *ctx) {
+	DEBUG_ENTER("visitComponent_pool_declaration");
+	// Grammar:
+	//   TOK_POOL ('[' expression ']')? type_identifier identifier ';'
+	ast::IDataTypeUserDefined *type = mkDataTypeUserDefined(ctx->type_identifier());
+
+	ast::IExpr *size = 0;
+	if (ctx->expression()) {
+		size = mkExpr(ctx->expression());
+	}
+
+	ast::IFieldPool *pool = m_factory->mkFieldPool(
+		mkId(ctx->identifier()),
+		type,
+		size);
+	setLoc(pool, ctx->identifier()->start);
+	addChild(pool, ctx->start);
+
+	DEBUG_LEAVE("visitComponent_pool_declaration");
+	return 0;
+}
+
 antlrcpp::Any AstBuilderInt::visitAction_handle_declaration(PSSParser::Action_handle_declarationContext *ctx) {
 	DEBUG_ENTER("visitAction_handle_declaration");
 

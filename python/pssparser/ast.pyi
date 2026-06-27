@@ -148,18 +148,18 @@ class Factory(object):
         end : int) -> 'ExecTargetTemplateParam': ...
     def mkExpr(self) -> 'Expr': ...
     def mkTemplateParamValue(self) -> 'TemplateParamValue': ...
+    def mkTemplateParamValueList(self) -> 'TemplateParamValueList': ...
     def mkMonitorActivityMatchChoice(self,
         is_default : bool,
         cond : ExprOpenRangeList,
         body : ScopeChild) -> 'MonitorActivityMatchChoice': ...
-    def mkTemplateParamValueList(self) -> 'TemplateParamValueList': ...
     def mkExprAggrMapElem(self,
         lhs : Expr,
         rhs : Expr) -> 'ExprAggrMapElem': ...
-    def mkRefExpr(self) -> 'RefExpr': ...
     def mkExprAggrStructElem(self,
         name : ExprId,
         value : Expr) -> 'ExprAggrStructElem': ...
+    def mkRefExpr(self) -> 'RefExpr': ...
     def mkMonitorActivitySelectBranch(self,
         guard : Expr,
         body : ScopeChild) -> 'MonitorActivitySelectBranch': ...
@@ -216,21 +216,21 @@ class Factory(object):
     def mkSymbolChild(self) -> 'SymbolChild': ...
     def mkSymbolScopeRef(self,
         name : str) -> 'SymbolScopeRef': ...
-    def mkTemplateParamDecl(self,
-        name : ExprId) -> 'TemplateParamDecl': ...
     def mkExecStmt(self) -> 'ExecStmt': ...
     def mkExecTargetTemplateBlock(self,
         kind : ExecKind,
         data : str) -> 'ExecTargetTemplateBlock': ...
-    def mkTemplateParamExprValue(self,
-        value : Expr) -> 'TemplateParamExprValue': ...
+    def mkTemplateParamDecl(self,
+        name : ExprId) -> 'TemplateParamDecl': ...
     def mkExportFunction(self,
         plat : PlatQual,
         name : ExprId) -> 'ExportFunction': ...
+    def mkTemplateParamExprValue(self,
+        value : Expr) -> 'TemplateParamExprValue': ...
     def mkTemplateParamTypeValue(self,
         value : DataType) -> 'TemplateParamTypeValue': ...
-    def mkTypeIdentifier(self) -> 'TypeIdentifier': ...
     def mkExprAggrLiteral(self) -> 'ExprAggrLiteral': ...
+    def mkTypeIdentifier(self) -> 'TypeIdentifier': ...
     def mkTypeIdentifierElem(self,
         id : ExprId,
         params : TemplateParamValueList) -> 'TypeIdentifierElem': ...
@@ -325,12 +325,12 @@ class Factory(object):
     def mkMonitorActivityActionTraversal(self,
         target : ExprRefPath,
         with_c : ConstraintStmt) -> 'MonitorActivityActionTraversal': ...
-    def mkMonitorActivityConcat(self,
-        lhs : MonitorActivityStmt,
-        rhs : MonitorActivityStmt) -> 'MonitorActivityConcat': ...
     def mkActionHandleField(self,
         name : ExprId,
         type : DataType) -> 'ActionHandleField': ...
+    def mkMonitorActivityConcat(self,
+        lhs : MonitorActivityStmt,
+        rhs : MonitorActivityStmt) -> 'MonitorActivityConcat': ...
     def mkMonitorActivityEventually(self,
         condition : Expr,
         body : MonitorActivityStmt) -> 'MonitorActivityEventually': ...
@@ -338,12 +338,12 @@ class Factory(object):
         cond : Expr,
         true_s : MonitorActivityStmt,
         false_s : MonitorActivityStmt) -> 'MonitorActivityIfElse': ...
-    def mkMonitorActivityMatch(self,
-        cond : Expr) -> 'MonitorActivityMatch': ...
     def mkActivityBindStmt(self,
         lhs : ExprHierarchicalId) -> 'ActivityBindStmt': ...
     def mkActivityConstraint(self,
         constraint : ConstraintStmt) -> 'ActivityConstraint': ...
+    def mkMonitorActivityMatch(self,
+        cond : Expr) -> 'MonitorActivityMatch': ...
     def mkMonitorActivityMonitorTraversal(self,
         target : ExprRefPath,
         with_c : ConstraintStmt) -> 'MonitorActivityMonitorTraversal': ...
@@ -354,17 +354,17 @@ class Factory(object):
         loop_var : ExprId,
         count : Expr,
         body : ScopeChild) -> 'MonitorActivityRepeatCount': ...
-    def mkMonitorActivityRepeatWhile(self,
-        cond : Expr,
-        body : ScopeChild) -> 'MonitorActivityRepeatWhile': ...
     def mkActivityJoinSpecBranch(self) -> 'ActivityJoinSpecBranch': ...
     def mkActivityJoinSpecFirst(self,
         count : Expr) -> 'ActivityJoinSpecFirst': ...
     def mkActivityJoinSpecNone(self) -> 'ActivityJoinSpecNone': ...
     def mkActivityJoinSpecSelect(self,
         count : Expr) -> 'ActivityJoinSpecSelect': ...
-    def mkMonitorActivitySelect(self) -> 'MonitorActivitySelect': ...
+    def mkMonitorActivityRepeatWhile(self,
+        cond : Expr,
+        body : ScopeChild) -> 'MonitorActivityRepeatWhile': ...
     def mkActivityLabeledStmt(self) -> 'ActivityLabeledStmt': ...
+    def mkMonitorActivitySelect(self) -> 'MonitorActivitySelect': ...
     def mkMonitorConstraint(self,
         constraint : ConstraintStmt) -> 'MonitorConstraint': ...
     def mkNamedScope(self,
@@ -395,9 +395,9 @@ class Factory(object):
         body : ScopeChild) -> 'ProceduralStmtMatchChoice': ...
     def mkProceduralStmtRandomize(self,
         target : Expr) -> 'ProceduralStmtRandomize': ...
+    def mkConstraintScope(self) -> 'ConstraintScope': ...
     def mkProceduralStmtReturn(self,
         expr : Expr) -> 'ProceduralStmtReturn': ...
-    def mkConstraintScope(self) -> 'ConstraintScope': ...
     def mkConstraintStmtDefault(self,
         hid : ExprHierarchicalId,
         expr : Expr) -> 'ConstraintStmtDefault': ...
@@ -414,8 +414,6 @@ class Factory(object):
         true_c : ConstraintScope,
         false_c : ConstraintScope) -> 'ConstraintStmtIf': ...
     def mkConstraintStmtUnique(self) -> 'ConstraintStmtUnique': ...
-    def mkSymbolChildrenScope(self,
-        name : str) -> 'SymbolChildrenScope': ...
     def mkDataTypeBool(self) -> 'DataTypeBool': ...
     def mkDataTypeChandle(self) -> 'DataTypeChandle': ...
     def mkDataTypeEnum(self,
@@ -438,6 +436,8 @@ class Factory(object):
     def mkEnumItem(self,
         name : ExprId,
         value : Expr) -> 'EnumItem': ...
+    def mkSymbolChildrenScope(self,
+        name : str) -> 'SymbolChildrenScope': ...
     def mkTemplateCategoryTypeParamDecl(self,
         name : ExprId,
         category : TypeCategory,
@@ -486,6 +486,10 @@ class Factory(object):
     def mkFieldCompRef(self,
         name : ExprId,
         type : DataTypeUserDefined) -> 'FieldCompRef': ...
+    def mkFieldPool(self,
+        name : ExprId,
+        type : DataTypeUserDefined,
+        size : Expr) -> 'FieldPool': ...
     def mkFieldRef(self,
         name : ExprId,
         type : DataTypeUserDefined,
@@ -537,12 +541,12 @@ class Factory(object):
         body : ScopeChild) -> 'ActivityReplicate': ...
     def mkActivitySelect(self) -> 'ActivitySelect': ...
     def mkActivitySuper(self) -> 'ActivitySuper': ...
-    def mkProceduralStmtRepeatWhile(self,
-        body : ScopeChild,
-        expr : Expr) -> 'ProceduralStmtRepeatWhile': ...
     def mkConstraintBlock(self,
         name : str,
         is_dynamic : bool) -> 'ConstraintBlock': ...
+    def mkProceduralStmtRepeatWhile(self,
+        body : ScopeChild,
+        expr : Expr) -> 'ProceduralStmtRepeatWhile': ...
     def mkProceduralStmtWhile(self,
         body : ScopeChild,
         expr : Expr) -> 'ProceduralStmtWhile': ...
@@ -568,6 +572,9 @@ class Factory(object):
         name : ExprId,
         super_t : TypeIdentifier,
         is_abstract : bool) -> 'Action': ...
+    def mkMonitor(self,
+        name : ExprId,
+        super_t : TypeIdentifier) -> 'Monitor': ...
     def mkMonitorActivityDecl(self,
         name : str) -> 'MonitorActivityDecl': ...
     def mkActivityDecl(self,
@@ -609,14 +616,13 @@ class Factory(object):
     def mkGenericConstraintDeclBool(self,
         name : str,
         is_dynamic : bool) -> 'GenericConstraintDeclBool': ...
-    def mkMonitor(self,
-        name : ExprId,
-        super_t : TypeIdentifier) -> 'Monitor': ...
     def mkProceduralStmtRepeat(self,
         name : str,
         body : ScopeChild,
         it_id : ExprId,
         count : Expr) -> 'ProceduralStmtRepeat': ...
+    def mkActivitySequence(self,
+        name : str) -> 'ActivitySequence': ...
     def mkActivityParallel(self,
         name : str,
         join_spec : ActivityJoinSpec) -> 'ActivityParallel': ...
@@ -629,8 +635,6 @@ class Factory(object):
         path : ExprRefPath,
         it_id : ExprId,
         idx_id : ExprId) -> 'ProceduralStmtForeach': ...
-    def mkActivitySequence(self,
-        name : str) -> 'ActivitySequence': ...
     def mkExecBlock(self,
         name : str,
         kind : ExecKind) -> 'ExecBlock': ...
@@ -659,13 +663,6 @@ class Expr(object):
 class TemplateParamValue(object):
     pass
     
-class MonitorActivityMatchChoice(object):
-    pass
-    
-    def getCond(self) -> ExprOpenRangeList: ...
-    
-    def getBody(self) -> ScopeChild: ...
-    
 class TemplateParamValueList(object):
     pass
     
@@ -674,6 +671,13 @@ class TemplateParamValueList(object):
     
     def getValues(self) -> List[TemplateParamValue]: ...
     
+class MonitorActivityMatchChoice(object):
+    pass
+    
+    def getCond(self) -> ExprOpenRangeList: ...
+    
+    def getBody(self) -> ScopeChild: ...
+    
 class ExprAggrMapElem(object):
     pass
     
@@ -681,15 +685,15 @@ class ExprAggrMapElem(object):
     
     def getRhs(self) -> Expr: ...
     
-class RefExpr(object):
-    pass
-    
 class ExprAggrStructElem(object):
     pass
     
     def getName(self) -> ExprId: ...
     
     def getValue(self) -> Expr: ...
+    
+class RefExpr(object):
+    pass
     
 class MonitorActivitySelectBranch(object):
     pass
@@ -1388,44 +1392,6 @@ class SymbolScopeRef(ScopeChild):
     
     def setName(self, v : str): ...
     
-class TemplateParamDecl(ScopeChild):
-    """
-    Base class for template parameter declarations.
-    
-    Template parameters allow types and functions to be parameterized, enabling
-    generic programming in PSS. This abstract base class provides the common name
-    field shared by all template parameter types (generic type, category-constrained
-    type, and value parameters).
-    
-    PSS Example::
-    
-        // Generic type parameter T
-        action generic<T> {
-            rand T value;
-        }
-        
-        // Value parameter N
-        action sized<int N> {
-            int array[N];
-        }
-        
-        // Category-constrained parameter T
-        component container<T: action> {
-            T inst;
-        }
-    
-    Attributes:
-        name: Identifier for the template parameter
-    
-    See Also:
-        TemplateGenericTypeParamDecl, TemplateCategoryTypeParamDecl,
-        TemplateValueParamDecl, TemplateParamDeclList
-    
-    """
-    pass
-    
-    def getName(self) -> ExprId: ...
-    
 class ExecStmt(ScopeChild):
     """
     Base class for all procedural statements in exec blocks.
@@ -1502,6 +1468,57 @@ class ExecTargetTemplateBlock(ScopeChild):
     
     def getParameters(self) -> List[ExecTargetTemplateParam]: ...
     
+class TemplateParamDecl(ScopeChild):
+    """
+    Base class for template parameter declarations.
+    
+    Template parameters allow types and functions to be parameterized, enabling
+    generic programming in PSS. This abstract base class provides the common name
+    field shared by all template parameter types (generic type, category-constrained
+    type, and value parameters).
+    
+    PSS Example::
+    
+        // Generic type parameter T
+        action generic<T> {
+            rand T value;
+        }
+        
+        // Value parameter N
+        action sized<int N> {
+            int array[N];
+        }
+        
+        // Category-constrained parameter T
+        component container<T: action> {
+            T inst;
+        }
+    
+    Attributes:
+        name: Identifier for the template parameter
+    
+    See Also:
+        TemplateGenericTypeParamDecl, TemplateCategoryTypeParamDecl,
+        TemplateValueParamDecl, TemplateParamDeclList
+    
+    """
+    pass
+    
+    def getName(self) -> ExprId: ...
+    
+class ExportFunction(ScopeChild):
+    """
+    Exported target function declaration.
+    
+    Represents a PSS 3.1 ``export target function name;`` declaration.
+    
+    """
+    pass
+    
+    def setPlat(self, v : PlatQual): ...
+    
+    def getName(self) -> ExprId: ...
+    
 class TemplateParamExprValue(TemplateParamValue):
     """
     Expression value for template instantiation.
@@ -1548,19 +1565,6 @@ class TemplateParamExprValue(TemplateParamValue):
     
     def getValue(self) -> Expr: ...
     
-class ExportFunction(ScopeChild):
-    """
-    Exported target function declaration.
-    
-    Represents a PSS 3.1 ``export target function name;`` declaration.
-    
-    """
-    pass
-    
-    def setPlat(self, v : PlatQual): ...
-    
-    def getName(self) -> ExprId: ...
-    
 class TemplateParamTypeValue(TemplateParamValue):
     """
     Type value for template instantiation.
@@ -1601,6 +1605,26 @@ class TemplateParamTypeValue(TemplateParamValue):
     
     def getValue(self) -> DataType: ...
     
+class ExprAggrLiteral(Expr):
+    """
+    Base class for aggregate literal expressions.
+    
+    Represents the common structure for all aggregate literals including arrays,
+    maps, and struct initializers. Aggregate literals are used to initialize
+    composite data structures with specific values.
+    
+    PSS Example::
+    
+        {1, 2, 3}              // Array literal (ExprAggrList)
+        {name: value, ...}     // Struct literal (ExprAggrStruct)
+        {[key]: value, ...}    // Map literal (ExprAggrMap)
+    
+    See Also:
+        ExprAggrList, ExprAggrMap, ExprAggrStruct, ExprAggrEmpty
+    
+    """
+    pass
+    
 class TypeIdentifier(Expr):
     """
     Represents a type identifier expression.
@@ -1632,26 +1656,6 @@ class TypeIdentifier(Expr):
     def getElems(self) -> List[TypeIdentifierElem]: ...
     
     def getTarget(self) -> SymbolRefPath: ...
-    
-class ExprAggrLiteral(Expr):
-    """
-    Base class for aggregate literal expressions.
-    
-    Represents the common structure for all aggregate literals including arrays,
-    maps, and struct initializers. Aggregate literals are used to initialize
-    composite data structures with specific values.
-    
-    PSS Example::
-    
-        {1, 2, 3}              // Array literal (ExprAggrList)
-        {name: value, ...}     // Struct literal (ExprAggrStruct)
-        {[key]: value, ...}    // Map literal (ExprAggrMap)
-    
-    See Also:
-        ExprAggrList, ExprAggrMap, ExprAggrStruct, ExprAggrEmpty
-    
-    """
-    pass
     
 class TypeIdentifierElem(Expr):
     """
@@ -2653,6 +2657,24 @@ class MonitorActivityActionTraversal(MonitorActivityStmt):
     
     def getWith_c(self) -> ConstraintStmt: ...
     
+class ActionHandleField(NamedScopeChild):
+    """
+    Action handle field declaration.
+    
+    Represents an action instance field declared in an action or monitor
+    body, including optional PSS 3.1 initializer assignments and support
+    for array-typed handles.
+    
+    """
+    pass
+    
+    def getType(self) -> DataType: ...
+    
+    def initializers(self) -> ListUtil...
+        """Returns an iterator over the items"""
+    
+    def getInitializers(self) -> List[ActionFieldInitializer]: ...
+    
 class MonitorActivityConcat(MonitorActivityStmt):
     """
     Temporal concatenation operator for sequential event monitoring.
@@ -2695,24 +2717,6 @@ class MonitorActivityConcat(MonitorActivityStmt):
     def getLhs(self) -> MonitorActivityStmt: ...
     
     def getRhs(self) -> MonitorActivityStmt: ...
-    
-class ActionHandleField(NamedScopeChild):
-    """
-    Action handle field declaration.
-    
-    Represents an action instance field declared in an action or monitor
-    body, including optional PSS 3.1 initializer assignments and support
-    for array-typed handles.
-    
-    """
-    pass
-    
-    def getType(self) -> DataType: ...
-    
-    def initializers(self) -> ListUtil...
-        """Returns an iterator over the items"""
-    
-    def getInitializers(self) -> List[ActionFieldInitializer]: ...
     
 class MonitorActivityEventually(MonitorActivityStmt):
     """
@@ -2822,62 +2826,6 @@ class MonitorActivityIfElse(MonitorActivityStmt):
     
     def getFalse_s(self) -> MonitorActivityStmt: ...
     
-class MonitorActivityMatch(MonitorActivityStmt):
-    """
-    Multi-way pattern matching for monitor activities.
-    
-    MonitorActivityMatch provides multi-way branching based on matching an
-    expression against multiple value ranges or patterns. Each choice specifies
-    a pattern and corresponding monitor activity. A default choice can handle
-    unmatched cases. Note these are PSS 3.0 features.
-    
-    PSS Example::
-    
-        monitor state_based {
-            rand bit[3] state;
-            
-            activity {
-                // Match on state value
-                match (state) {
-                    0: idle_protocol;
-                    [1..3]: active_protocol;
-                    4: suspend_protocol;
-                    default: error_protocol;
-                }
-                
-                // Complex patterns
-                match (opcode) {
-                    READ: read_sequence;
-                    WRITE: write_sequence;
-                    [BURST_READ, BURST_WRITE]: burst_sequence;
-                    default: unknown_op;
-                }
-                
-                // Combined with temporal operators
-                init ##1 match (mode) {
-                    0: fast_path ##1 done;
-                    1: slow_path ##1 done;
-                }
-            }
-        }
-    
-    Attributes:
-        cond: Expression to match against choice patterns
-        choices: List of match choices with patterns and bodies
-    
-    See Also:
-        MonitorActivityMatchChoice, MonitorActivityIfElse, ActivityMatch
-    
-    """
-    pass
-    
-    def getCond(self) -> Expr: ...
-    
-    def choices(self) -> ListUtil...
-        """Returns an iterator over the items"""
-    
-    def getChoices(self) -> List[MonitorActivityMatchChoice]: ...
-    
 class ActivityBindStmt(ActivityStmt):
     """
     Binds resource references between actions.
@@ -2961,6 +2909,62 @@ class ActivityConstraint(ActivityStmt):
     pass
     
     def getConstraint(self) -> ConstraintStmt: ...
+    
+class MonitorActivityMatch(MonitorActivityStmt):
+    """
+    Multi-way pattern matching for monitor activities.
+    
+    MonitorActivityMatch provides multi-way branching based on matching an
+    expression against multiple value ranges or patterns. Each choice specifies
+    a pattern and corresponding monitor activity. A default choice can handle
+    unmatched cases. Note these are PSS 3.0 features.
+    
+    PSS Example::
+    
+        monitor state_based {
+            rand bit[3] state;
+            
+            activity {
+                // Match on state value
+                match (state) {
+                    0: idle_protocol;
+                    [1..3]: active_protocol;
+                    4: suspend_protocol;
+                    default: error_protocol;
+                }
+                
+                // Complex patterns
+                match (opcode) {
+                    READ: read_sequence;
+                    WRITE: write_sequence;
+                    [BURST_READ, BURST_WRITE]: burst_sequence;
+                    default: unknown_op;
+                }
+                
+                // Combined with temporal operators
+                init ##1 match (mode) {
+                    0: fast_path ##1 done;
+                    1: slow_path ##1 done;
+                }
+            }
+        }
+    
+    Attributes:
+        cond: Expression to match against choice patterns
+        choices: List of match choices with patterns and bodies
+    
+    See Also:
+        MonitorActivityMatchChoice, MonitorActivityIfElse, ActivityMatch
+    
+    """
+    pass
+    
+    def getCond(self) -> Expr: ...
+    
+    def choices(self) -> ListUtil...
+        """Returns an iterator over the items"""
+    
+    def getChoices(self) -> List[MonitorActivityMatchChoice]: ...
     
 class MonitorActivityMonitorTraversal(MonitorActivityStmt):
     """
@@ -3115,62 +3119,6 @@ class MonitorActivityRepeatCount(MonitorActivityStmt):
     
     def getBody(self) -> ScopeChild: ...
     
-class MonitorActivityRepeatWhile(MonitorActivityStmt):
-    """
-    Conditional repetition of monitor activity.
-    
-    MonitorActivityRepeatWhile specifies that a monitor activity should be
-    repeatedly observed as long as a condition remains true. The condition is
-    evaluated before each iteration. This is used for monitoring variable-length
-    sequences or data-dependent patterns. Note these are PSS 3.0 features.
-    
-    PSS Example::
-    
-        monitor variable_length {
-            rand bit more_data;
-            rand bit[8] count;
-            
-            activity {
-                // Simple condition
-                repeat while (more_data) {
-                    data_phase;
-                }
-                
-                // Expression-based condition
-                repeat while (count > 0) {
-                    transfer;
-                    count = count - 1;
-                }
-                
-                // Complex temporal pattern
-                init ##1 repeat while (active) {
-                    req ##1 ack;
-                } ##1 done;
-                
-                // Nested with other constructs
-                repeat while (state == RUNNING) {
-                    sequence {
-                        cmd_valid;
-                        ##[1:3] response;
-                    }
-                }
-            }
-        }
-    
-    Attributes:
-        cond: Boolean expression evaluated before each iteration
-        body: Monitor activity body to repeat while condition is true
-    
-    See Also:
-        MonitorActivityRepeatCount, ActivityRepeatWhile, MonitorActivityStmt
-    
-    """
-    pass
-    
-    def getCond(self) -> Expr: ...
-    
-    def getBody(self) -> ScopeChild: ...
-    
 class ActivityJoinSpecBranch(ActivityJoinSpec):
     """
     Join specification with explicit branch identification.
@@ -3321,6 +3269,94 @@ class ActivityJoinSpecSelect(ActivityJoinSpec):
     
     def getCount(self) -> Expr: ...
     
+class MonitorActivityRepeatWhile(MonitorActivityStmt):
+    """
+    Conditional repetition of monitor activity.
+    
+    MonitorActivityRepeatWhile specifies that a monitor activity should be
+    repeatedly observed as long as a condition remains true. The condition is
+    evaluated before each iteration. This is used for monitoring variable-length
+    sequences or data-dependent patterns. Note these are PSS 3.0 features.
+    
+    PSS Example::
+    
+        monitor variable_length {
+            rand bit more_data;
+            rand bit[8] count;
+            
+            activity {
+                // Simple condition
+                repeat while (more_data) {
+                    data_phase;
+                }
+                
+                // Expression-based condition
+                repeat while (count > 0) {
+                    transfer;
+                    count = count - 1;
+                }
+                
+                // Complex temporal pattern
+                init ##1 repeat while (active) {
+                    req ##1 ack;
+                } ##1 done;
+                
+                // Nested with other constructs
+                repeat while (state == RUNNING) {
+                    sequence {
+                        cmd_valid;
+                        ##[1:3] response;
+                    }
+                }
+            }
+        }
+    
+    Attributes:
+        cond: Boolean expression evaluated before each iteration
+        body: Monitor activity body to repeat while condition is true
+    
+    See Also:
+        MonitorActivityRepeatCount, ActivityRepeatWhile, MonitorActivityStmt
+    
+    """
+    pass
+    
+    def getCond(self) -> Expr: ...
+    
+    def getBody(self) -> ScopeChild: ...
+    
+class ActivityLabeledStmt(ActivityStmt):
+    """
+    Base class for activity statements that can have a label.
+    
+    ActivityLabeledStmt provides the ability to attach an optional label to
+    an activity statement. Labels can be used to reference activities in
+    scheduling constraints or for identification purposes.
+    
+    PSS Example::
+    
+        action my_action {
+            activity {
+                my_label: do comp.sub_action;
+                
+                another_label: sequence {
+                    do comp.action1;
+                    do comp.action2;
+                }
+            }
+        }
+    
+    Attributes:
+        label: Optional identifier expression for the label
+    
+    See Also:
+        ActivityActionHandleTraversal, ActivitySequence, ActivityRepeatCount
+    
+    """
+    pass
+    
+    def getLabel(self) -> ExprId: ...
+    
 class MonitorActivitySelect(MonitorActivityStmt):
     """
     Branch selection for alternative monitoring paths.
@@ -3371,38 +3407,6 @@ class MonitorActivitySelect(MonitorActivityStmt):
         """Returns an iterator over the items"""
     
     def getBranches(self) -> List[MonitorActivitySelectBranch]: ...
-    
-class ActivityLabeledStmt(ActivityStmt):
-    """
-    Base class for activity statements that can have a label.
-    
-    ActivityLabeledStmt provides the ability to attach an optional label to
-    an activity statement. Labels can be used to reference activities in
-    scheduling constraints or for identification purposes.
-    
-    PSS Example::
-    
-        action my_action {
-            activity {
-                my_label: do comp.sub_action;
-                
-                another_label: sequence {
-                    do comp.action1;
-                    do comp.action2;
-                }
-            }
-        }
-    
-    Attributes:
-        label: Optional identifier expression for the label
-    
-    See Also:
-        ActivityActionHandleTraversal, ActivitySequence, ActivityRepeatCount
-    
-    """
-    pass
-    
-    def getLabel(self) -> ExprId: ...
     
 class MonitorConstraint(MonitorActivityStmt):
     """
@@ -3949,40 +3953,6 @@ class ProceduralStmtRandomize(ExecStmt):
     
     def getConstraints(self) -> List[ConstraintStmt]: ...
     
-class ProceduralStmtReturn(ExecStmt):
-    """
-    Return statement from function or method.
-    
-    ProceduralStmtReturn represents a return statement that exits the current
-    function or method, optionally returning a value. For void functions, the
-    expr field is null.
-    
-    PSS Example::
-    
-        function int add(int a, int b) {
-            exec body {
-                return a + b;  // Return with value
-            }
-        }
-        
-        function void log_message(string msg) {
-            exec body {
-                console.log(msg);
-                return;  // Return without value
-            }
-        }
-    
-    Attributes:
-        expr: Expression to return (null for void functions)
-    
-    See Also:
-        ProceduralStmtFunctionCall, FunctionDefinition, FunctionPrototype
-    
-    """
-    pass
-    
-    def getExpr(self) -> Expr: ...
-    
 class ConstraintScope(ConstraintStmt):
     """
     Container for a sequence of constraint statements.
@@ -4016,6 +3986,40 @@ class ConstraintScope(ConstraintStmt):
         """Returns an iterator over the items"""
     
     def getConstraints(self) -> List[ConstraintStmt]: ...
+    
+class ProceduralStmtReturn(ExecStmt):
+    """
+    Return statement from function or method.
+    
+    ProceduralStmtReturn represents a return statement that exits the current
+    function or method, optionally returning a value. For void functions, the
+    expr field is null.
+    
+    PSS Example::
+    
+        function int add(int a, int b) {
+            exec body {
+                return a + b;  // Return with value
+            }
+        }
+        
+        function void log_message(string msg) {
+            exec body {
+                console.log(msg);
+                return;  // Return without value
+            }
+        }
+    
+    Attributes:
+        expr: Expression to return (null for void functions)
+    
+    See Also:
+        ProceduralStmtFunctionCall, FunctionDefinition, FunctionPrototype
+    
+    """
+    pass
+    
+    def getExpr(self) -> Expr: ...
     
 class ConstraintStmtDefault(ConstraintStmt):
     """
@@ -4274,39 +4278,6 @@ class ConstraintStmtUnique(ConstraintStmt):
     
     def getList(self) -> List[ExprHierarchicalId]: ...
     
-class SymbolChildrenScope(SymbolChild):
-    """
-    Symbol node that contains child scopes and declarations.
-    
-    Extends SymbolChild to support hierarchical symbol structures with named
-    scopes containing child elements. Forms the basis for namespaces, types,
-    and other container-like constructs in the linked symbol tree.
-    
-    During linking, this class manages the collection of child declarations
-    and provides the structure for symbol table lookups within a named scope.
-    
-    Attributes:
-        name: Identifier for this scope (package, type, function name)
-        children: List of child declarations and sub-scopes
-        target: Reference to the original physical AST node being wrapped
-    
-    See Also:
-        SymbolChild, SymbolScope, ScopeChild
-    
-    """
-    pass
-    
-    def getName(self) -> str: ...
-    
-    def setName(self, v : str): ...
-    
-    def children(self) -> ListUtil...
-        """Returns an iterator over the items"""
-    
-    def getChildren(self) -> List[ScopeChild]: ...
-    
-    def getTarget(self) -> ScopeChild: ...
-    
 class DataTypeBool(DataType):
     """
     Boolean data type.
@@ -4556,6 +4527,39 @@ class EnumItem(NamedScopeChild):
     def getValue(self) -> Expr: ...
     
     def getUpper(self) -> SymbolEnumScope: ...
+    
+class SymbolChildrenScope(SymbolChild):
+    """
+    Symbol node that contains child scopes and declarations.
+    
+    Extends SymbolChild to support hierarchical symbol structures with named
+    scopes containing child elements. Forms the basis for namespaces, types,
+    and other container-like constructs in the linked symbol tree.
+    
+    During linking, this class manages the collection of child declarations
+    and provides the structure for symbol table lookups within a named scope.
+    
+    Attributes:
+        name: Identifier for this scope (package, type, function name)
+        children: List of child declarations and sub-scopes
+        target: Reference to the original physical AST node being wrapped
+    
+    See Also:
+        SymbolChild, SymbolScope, ScopeChild
+    
+    """
+    pass
+    
+    def getName(self) -> str: ...
+    
+    def setName(self, v : str): ...
+    
+    def children(self) -> ListUtil...
+        """Returns an iterator over the items"""
+    
+    def getChildren(self) -> List[ScopeChild]: ...
+    
+    def getTarget(self) -> ScopeChild: ...
     
 class TemplateCategoryTypeParamDecl(TemplateParamDecl):
     """
@@ -5094,6 +5098,36 @@ class FieldCompRef(NamedScopeChild):
     pass
     
     def getType(self) -> DataTypeUserDefined: ...
+    
+class FieldPool(NamedScopeChild):
+    """
+    Pool declaration within a component.
+    
+    Declares a pool of flow- or resource-objects of a given type, with an
+    optional size (capacity). Actions bind their object references to pools
+    via ``bind`` statements.
+    
+    PSS Example::
+    
+        component pss_top {
+            pool [16] my_resource pool_a;   // sized pool
+            pool my_buffer pool_b;          // unsized pool
+        }
+    
+    Attributes:
+        name: Pool identifier (inherited from NamedScopeChild)
+        type: Element type held by the pool
+        size: Optional capacity expression (null if unsized)
+    
+    See Also:
+        FieldClaim, FieldRef
+    
+    """
+    pass
+    
+    def getType(self) -> DataTypeUserDefined: ...
+    
+    def getSize(self) -> Expr: ...
     
 class FieldRef(NamedScopeChild):
     """
@@ -5817,41 +5851,6 @@ class ActivitySuper(ActivityLabeledStmt):
     """
     pass
     
-class ProceduralStmtRepeatWhile(ProceduralStmtBody):
-    """
-    Post-test loop that executes at least once.
-    
-    ProceduralStmtRepeatWhile represents a repeat-while loop (do-while style)
-    that executes the body at least once, then continues while the condition
-    is true. The condition is evaluated after each iteration.
-    
-    PSS Example::
-    
-        action my_action {
-            exec body {
-                int x = 0;
-                
-                // Executes body first, then checks condition
-                repeat {
-                    x++;
-                    console.log("x = ", x);
-                } while (x < 5);
-                // Executes at least once even if x >= 5 initially
-            }
-        }
-    
-    Attributes:
-        expr: Condition evaluated after each iteration
-        body: Statement(s) to execute (inherited from ProceduralStmtBody)
-    
-    See Also:
-        ProceduralStmtWhile, ProceduralStmtRepeat, ProceduralStmtBody
-    
-    """
-    pass
-    
-    def getExpr(self) -> Expr: ...
-    
 class ConstraintBlock(ConstraintScope):
     """
     Named constraint block declaration within a type.
@@ -5890,6 +5889,41 @@ class ConstraintBlock(ConstraintScope):
     def getName(self) -> str: ...
     
     def setName(self, v : str): ...
+    
+class ProceduralStmtRepeatWhile(ProceduralStmtBody):
+    """
+    Post-test loop that executes at least once.
+    
+    ProceduralStmtRepeatWhile represents a repeat-while loop (do-while style)
+    that executes the body at least once, then continues while the condition
+    is true. The condition is evaluated after each iteration.
+    
+    PSS Example::
+    
+        action my_action {
+            exec body {
+                int x = 0;
+                
+                // Executes body first, then checks condition
+                repeat {
+                    x++;
+                    console.log("x = ", x);
+                } while (x < 5);
+                // Executes at least once even if x >= 5 initially
+            }
+        }
+    
+    Attributes:
+        expr: Condition evaluated after each iteration
+        body: Statement(s) to execute (inherited from ProceduralStmtBody)
+    
+    See Also:
+        ProceduralStmtWhile, ProceduralStmtRepeat, ProceduralStmtBody
+    
+    """
+    pass
+    
+    def getExpr(self) -> Expr: ...
     
 class ProceduralStmtWhile(ProceduralStmtBody):
     """
@@ -6185,6 +6219,47 @@ class Action(TypeScope):
     
     See Also:
         Component, TypeScope, ActivityStmt
+    
+    """
+    pass
+    
+class Monitor(TypeScope):
+    """
+    Declares a PSS 3.0 monitor type for temporal property verification.
+    
+    Monitor represents a PSS 3.0 monitor type declaration that defines temporal
+    properties and sequences to be verified during execution. Monitors contain
+    activity blocks that specify sequences of events, temporal operators, and
+    coverage collection. Unlike actions, monitors observe behavior without
+    affecting execution flow. Note these are PSS 3.0 features.
+    
+    PSS Example::
+    
+        monitor protocol_check {
+            activity {
+                req ##1 ack;              // Request followed by ack
+                eventually gnt;           // Grant must occur
+            }
+        }
+        
+        monitor bus_monitor {
+            activity {
+                sequence {
+                    addr_phase;
+                    data_phase;
+                }
+            }
+        }
+        
+        abstract monitor base_monitor {
+            // Can be extended
+        }
+    
+    Attributes:
+        is_abstract: True if this is an abstract monitor declaration
+    
+    See Also:
+        MonitorActivityDecl, MonitorActivityStmt, Action
     
     """
     pass
@@ -6718,47 +6793,6 @@ class GenericConstraintDeclBool(ConstraintBlock):
     
     def getParameters(self) -> List[GenericConstraintParam]: ...
     
-class Monitor(TypeScope):
-    """
-    Declares a PSS 3.0 monitor type for temporal property verification.
-    
-    Monitor represents a PSS 3.0 monitor type declaration that defines temporal
-    properties and sequences to be verified during execution. Monitors contain
-    activity blocks that specify sequences of events, temporal operators, and
-    coverage collection. Unlike actions, monitors observe behavior without
-    affecting execution flow. Note these are PSS 3.0 features.
-    
-    PSS Example::
-    
-        monitor protocol_check {
-            activity {
-                req ##1 ack;              // Request followed by ack
-                eventually gnt;           // Grant must occur
-            }
-        }
-        
-        monitor bus_monitor {
-            activity {
-                sequence {
-                    addr_phase;
-                    data_phase;
-                }
-            }
-        }
-        
-        abstract monitor base_monitor {
-            // Can be extended
-        }
-    
-    Attributes:
-        is_abstract: True if this is an abstract monitor declaration
-    
-    See Also:
-        MonitorActivityDecl, MonitorActivityStmt, Action
-    
-    """
-    pass
-    
 class ProceduralStmtRepeat(ProceduralStmtSymbolBodyScope):
     """
     Fixed-count repeat loop with optional iterator variable.
@@ -6797,6 +6831,52 @@ class ProceduralStmtRepeat(ProceduralStmtSymbolBodyScope):
     def getIt_id(self) -> ExprId: ...
     
     def getCount(self) -> Expr: ...
+    
+class ActivitySequence(ActivityLabeledScope):
+    """
+    Defines a sequential execution block.
+    
+    ActivitySequence specifies that its contained activities execute in strict
+    sequential order, one after another. Each activity completes before the next
+    begins. This is the default execution model and can be explicitly specified
+    with the 'sequence' keyword.
+    
+    PSS Example::
+    
+        action my_action {
+            activity {
+                // Explicit sequence
+                sequence {
+                    do comp.init_action;
+                    do comp.process_action;
+                    do comp.cleanup_action;
+                }
+                
+                // Labeled sequence
+                setup_phase: sequence {
+                    do comp.config;
+                    do comp.verify;
+                }
+                
+                // Nested sequences
+                sequence {
+                    sequence {
+                        do comp.step1;
+                        do comp.step2;
+                    }
+                    do comp.step3;
+                }
+            }
+        }
+    
+    Attributes:
+        (inherits from ActivityLabeledScope)
+    
+    See Also:
+        ActivityParallel, ActivitySchedule, ActivityLabeledScope
+    
+    """
+    pass
     
 class ActivityParallel(ActivityLabeledScope):
     """
@@ -6926,52 +7006,6 @@ class ProceduralStmtForeach(ProceduralStmtSymbolBodyScope):
     def getIt_id(self) -> ExprId: ...
     
     def getIdx_id(self) -> ExprId: ...
-    
-class ActivitySequence(ActivityLabeledScope):
-    """
-    Defines a sequential execution block.
-    
-    ActivitySequence specifies that its contained activities execute in strict
-    sequential order, one after another. Each activity completes before the next
-    begins. This is the default execution model and can be explicitly specified
-    with the 'sequence' keyword.
-    
-    PSS Example::
-    
-        action my_action {
-            activity {
-                // Explicit sequence
-                sequence {
-                    do comp.init_action;
-                    do comp.process_action;
-                    do comp.cleanup_action;
-                }
-                
-                // Labeled sequence
-                setup_phase: sequence {
-                    do comp.config;
-                    do comp.verify;
-                }
-                
-                // Nested sequences
-                sequence {
-                    sequence {
-                        do comp.step1;
-                        do comp.step2;
-                    }
-                    do comp.step3;
-                }
-            }
-        }
-    
-    Attributes:
-        (inherits from ActivityLabeledScope)
-    
-    See Also:
-        ActivityParallel, ActivitySchedule, ActivityLabeledScope
-    
-    """
-    pass
     
 class ExecBlock(ExecScope):
     """

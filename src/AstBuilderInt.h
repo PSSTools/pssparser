@@ -116,6 +116,8 @@ public:
 	
 	virtual antlrcpp::Any visitResource_ref_field_declaration(PSSParser::Resource_ref_field_declarationContext *ctx) override;
 
+	virtual antlrcpp::Any visitComponent_pool_declaration(PSSParser::Component_pool_declarationContext *ctx) override;
+
     virtual antlrcpp::Any visitAction_handle_declaration(PSSParser::Action_handle_declarationContext *ctx) override;
 
 	virtual antlrcpp::Any visitActivity_data_field(PSSParser::Activity_data_fieldContext *ctx) override;
