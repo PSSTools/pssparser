@@ -51,6 +51,17 @@ public:
         DEBUG_LEAVE("visitField %s", i->getName()->getId().c_str());
     }
 
+    // forall iterator variable: map it to its type's scope so member access
+    // through the iterator (`it.field`) resolves.
+    virtual void visitConstraintStmtField(ast::IConstraintStmtField *i) override {
+        DEBUG_ENTER("visitConstraintStmtField %s (type=%p)",
+            i->getName()->getId().c_str(), i->getType());
+        if (i->getType()) {
+            i->getType()->accept(m_this);
+        }
+        DEBUG_LEAVE("visitConstraintStmtField");
+    }
+
     // Labeled `do Type` traversals (e.g., `T1: do tx_data_a`).
     // Resolve target type scope so `T1.tx_byte` can follow the path.
     virtual void visitActivityActionTypeTraversal(ast::IActivityActionTypeTraversal *i) override {

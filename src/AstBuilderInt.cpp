@@ -752,6 +752,94 @@ antlrcpp::Any AstBuilderInt::visitComponent_pool_declaration(PSSParser::Componen
 	return 0;
 }
 
+antlrcpp::Any AstBuilderInt::visitObject_bind_stmt(PSSParser::Object_bind_stmtContext *ctx) {
+	DEBUG_ENTER("visitObject_bind_stmt");
+	// Grammar:
+	//   TOK_BIND hierarchical_id object_bind_item_or_list ';'
+	// Targets are captured as plain dotted-path text (no ref resolution), so
+	// the node is inert during link. The wildcard form (`bind p *;`) sets
+	// is_wildcard and leaves targets empty.
+	std::string pool_path = ctx->hierarchical_id()->getText();
+
+	bool is_wildcard = false;
+	std::vector<std::string> targets; // explicit dotted bind-item paths
+
+	PSSParser::Object_bind_item_or_listContext *list = ctx->object_bind_item_or_list();
+	std::vector<PSSParser::Object_bind_item_pathContext *> paths = list->object_bind_item_path();
+	for (std::vector<PSSParser::Object_bind_item_pathContext *>::const_iterator
+		it=paths.begin(); it!=paths.end(); it++) {
+		PSSParser::Object_bind_item_pathContext *path = *it;
+		PSSParser::Object_bind_itemContext *item = path->object_bind_item();
+		if (item && item->TOK_ASTERISK()) {
+			is_wildcard = true;
+		} else {
+			targets.push_back(path->getText());
+		}
+	}
+
+	ast::IComponentBind *bind = m_factory->mkComponentBind(pool_path, is_wildcard);
+	for (std::vector<std::string>::const_iterator
+		it=targets.begin(); it!=targets.end(); it++) {
+		bind->getTargets().push_back(*it);
+	}
+	setLoc(bind, ctx->start);
+	addChild(bind, ctx->start);
+
+	DEBUG_LEAVE("visitObject_bind_stmt");
+	return 0;
+}
+
+antlrcpp::Any AstBuilderInt::visitInline_covergroup(PSSParser::Inline_covergroupContext *ctx) {
+	DEBUG_ENTER("visitInline_covergroup");
+	// Grammar:
+	//   TOK_COVERGROUP '{' covergroup_body_item* '}' identifier ';'
+	ast::ICovergroup *cg = m_factory->mkCovergroup(mkId(ctx->identifier()));
+
+	// NOTE: ANTLR rule-list accessors return a fresh vector by value, so the
+	// vector must be bound to a local before iterating (begin()/end() on two
+	// separate temporaries is undefined behaviour).
+	std::vector<PSSParser::Covergroup_body_itemContext *> items = ctx->covergroup_body_item();
+	for (std::vector<PSSParser::Covergroup_body_itemContext *>::const_iterator
+		it=items.begin(); it!=items.end(); it++) {
+		PSSParser::Covergroup_body_itemContext *item = *it;
+
+		if (item->covergroup_coverpoint()) {
+			PSSParser::Covergroup_coverpointContext *cp_ctx = item->covergroup_coverpoint();
+			// Name: explicit label, else the (textual) target identifier.
+			ast::IExprId *cp_name;
+			if (cp_ctx->coverpoint_identifier()) {
+				cp_name = mkId(cp_ctx->coverpoint_identifier()->identifier());
+			} else {
+				cp_name = m_factory->mkExprId(cp_ctx->target->getText(), false);
+			}
+			ast::IExpr *target = cp_ctx->target ? mkExpr(cp_ctx->target) : 0;
+			ast::ICovergroupCoverpoint *cp = m_factory->mkCovergroupCoverpoint(cp_name, target);
+			setLoc(cp, cp_ctx->start);
+			cg->getCoverpoints().push_back(ast::ICovergroupCoverpointUP(cp));
+		} else if (item->covergroup_cross()) {
+			PSSParser::Covergroup_crossContext *cx_ctx = item->covergroup_cross();
+			ast::ICovergroupCross *cx = m_factory->mkCovergroupCross(
+				mkId(cx_ctx->covercross_identifier()->identifier()));
+			setLoc(cx, cx_ctx->start);
+			std::vector<PSSParser::Coverpoint_identifierContext *> cp_ids =
+				cx_ctx->coverpoint_identifier();
+			for (std::vector<PSSParser::Coverpoint_identifierContext *>::const_iterator
+				cp_it=cp_ids.begin(); cp_it!=cp_ids.end(); cp_it++) {
+				cx->getCoverpoint_names().push_back(
+					ast::IExprIdUP(mkId((*cp_it)->identifier())));
+			}
+			cg->getCrosses().push_back(ast::ICovergroupCrossUP(cx));
+		}
+		// covergroup_option / compile_if are ignored for now.
+	}
+
+	setLoc(cg, ctx->identifier()->start);
+	addChild(cg, ctx->start);
+
+	DEBUG_LEAVE("visitInline_covergroup");
+	return 0;
+}
+
 antlrcpp::Any AstBuilderInt::visitAction_handle_declaration(PSSParser::Action_handle_declarationContext *ctx) {
 	DEBUG_ENTER("visitAction_handle_declaration");
 
@@ -853,12 +941,21 @@ antlrcpp::Any AstBuilderInt::visitStruct_declaration(PSSParser::Struct_declarati
 
 	addChild(s, ctx->start, ctx->TOK_RCBRACE()->getSymbol());
 	push_scope(s);
+	ast::StructKind kind = StructKind_m.find(ctx->struct_kind()->getText())->second;
 	std::vector<PSSParser::Struct_body_itemContext *> body = ctx->struct_body_item();
 	for (std::vector<PSSParser::Struct_body_itemContext *>::const_iterator
 		it=body.begin();
 		it!=body.end(); it++) {
 		(*it)->accept(this);
 	}
+
+	// Inject LRM built-in fields so the name resolver accepts references to
+	// them: `initial` (bool) on state structs, `instance_id` (int) on resource
+	// structs. Skip if the user explicitly declares a field of the same name.
+	// Mirrors the synthetic `comp` field added to actions (field resolution
+	// for type members walks getChildren(), not the symbol table).
+	addStructBuiltinField(s, kind);
+
 	pop_scope();
 
 	DEBUG_LEAVE("visitStruct_declaration");
@@ -2491,7 +2588,22 @@ antlrcpp::Any AstBuilderInt::visitConstraint_declaration(PSSParser::Constraint_d
 
 	if (ctx->constraint_set()) {
         DEBUG("constraint_set");
-		ctx->constraint_set()->accept(this);
+		// An anonymous `constraint { ... }` carries its body via constraint_set.
+		// When that is a brace block, add its items DIRECTLY to this block (as
+		// the named `constraint id { ... }` form does) rather than letting
+		// visitConstraint_block wrap them in an extra ConstraintScope. The
+		// wrapper desyncs ref-path resolution from symbol-tree navigation for
+		// constructs that introduce symbols (e.g. nested forall iterators).
+		if (ctx->constraint_set()->constraint_block()) {
+			std::vector<PSSParser::Constraint_body_itemContext *> items =
+				ctx->constraint_set()->constraint_block()->constraint_body_item();
+			for (std::vector<PSSParser::Constraint_body_itemContext *>::const_iterator
+				it=items.begin(); it!=items.end(); it++) {
+				(*it)->accept(this);
+			}
+		} else {
+			ctx->constraint_set()->accept(this);
+		}
 	} else {
 		std::vector<PSSParser::Constraint_body_itemContext *> items = 
 			ctx->constraint_block()->constraint_body_item();
@@ -2754,7 +2866,48 @@ antlrcpp::Any AstBuilderInt::visitForeach_constraint_item(PSSParser::Foreach_con
 
 antlrcpp::Any AstBuilderInt::visitForall_constraint_item(PSSParser::Forall_constraint_itemContext *ctx) {
 	DEBUG_ENTER("visitForall_constraint_item");
-	DEBUG("TODO");
+
+	ast::IExprId *iterator_id = mkId(ctx->identifier());
+	ast::IDataTypeUserDefined *type_id = mkDataTypeUserDefined(ctx->type_identifier());
+	ast::IExprRefPath *ref_path = ctx->ref_path() ? mkExprRefPath(ctx->ref_path()) : 0;
+
+	ast::IConstraintStmtForall *c = m_factory->mkConstraintStmtForall(
+		iterator_id, type_id, ref_path);
+	ast::IConstraintSymbolScope *symtab = m_factory->mkConstraintSymbolScope("<forall>");
+	c->setSymtab(symtab);
+	symtab->setConstraint(c);
+
+	// Register the quantified iterator variable so the body can reference it
+	// (incl. member access like `it.field`). The iterator carries its own
+	// DataTypeUserDefined (a fresh node built from the same type_identifier) so
+	// field-ref resolution can map it to the type's scope.
+	//
+	// The iterator is placed as the FIRST entry of the forall's constraint list
+	// (index 0) and the symtab maps its name to that index. This is required for
+	// ref-path resolution: a constraint scope is navigated via getConstraints()
+	// (ScopeUtil), so the iterator must live there to be addressable as
+	// forall.getChild(0); the real body constraints follow at index 1+. The
+	// symtab.getChildren() also references it (non-owning) so the resolver's
+	// scope walk can read the declaration when looking the name up.
+	ast::IConstraintStmtField *it = m_factory->mkConstraintStmtField(
+		m_factory->mkExprId(iterator_id->getId(), iterator_id->getIs_escaped()),
+		mkDataTypeUserDefined(ctx->type_identifier())
+	);
+	it->setIndex(0);
+	symtab->getSymtab().insert({it->getName()->getId(), 0});
+	symtab->getChildren().push_back(ast::IScopeChildUP(it, false)); // non-owning ref
+	c->getConstraints().push_back(ast::IConstraintStmtUP(it, true)); // owner, index 0
+
+	m_constraint_s.push_back(c);
+	visitConstraintSetItems(ctx->constraint_set());
+	m_constraint_s.pop_back();
+
+	m_constraint = c;
+	if (m_constraint_s.size() > 0) {
+		c->setIndex(m_constraint_s.back()->getConstraints().size());
+		m_constraint_s.back()->getConstraints().push_back(ast::IConstraintStmtUP(c));
+	}
+
 	DEBUG_LEAVE("visitForall_constraint_item");
 	return 0;
 
@@ -4404,6 +4557,43 @@ void AstBuilderInt::addSyntheticIntField(ast::ISymbolScope *scope, const std::st
     field->setIndex(idx);
     scope->getSymtab()[name] = idx;
     scope->getChildren().push_back(ast::IScopeChildUP(field, true));
+}
+
+// Inject the LRM built-in field for a state/resource struct (`initial`:bool /
+// `instance_id`:int) so the name resolver can resolve references to it (e.g.
+// `constraint initial -> ...`). Skips injection when the user already declares
+// a field of that name. Field resolution for type members walks getChildren()
+// (cf. the synthetic `comp` field added to actions), so no symtab entry is
+// needed.
+void AstBuilderInt::addStructBuiltinField(ast::IStruct *s, ast::StructKind kind) {
+    const char *name;
+    bool is_bool;
+    if (kind == ast::StructKind::State) {
+        name = "initial"; is_bool = true;
+    } else if (kind == ast::StructKind::Resource) {
+        name = "instance_id"; is_bool = false;
+    } else {
+        return;
+    }
+
+    for (auto &ch : s->getChildren()) {
+        ast::IField *f = dynamic_cast<ast::IField *>(ch.get());
+        if (f && f->getName() && f->getName()->getId() == name) {
+            return; // user-declared; leave it alone
+        }
+    }
+
+    ast::IDataType *type = is_bool
+        ? (ast::IDataType *)m_factory->mkDataTypeBool()
+        : (ast::IDataType *)m_factory->mkDataTypeInt(
+            false, m_factory->mkExprUnsignedNumber("32", 32, 32), nullptr);
+    ast::IField *field = m_factory->mkField(
+        m_factory->mkExprId(name, false),
+        type,
+        ast::FieldAttr::NoFlags,
+        nullptr);
+    field->setIndex(s->getChildren().size());
+    s->getChildren().push_back(ast::IScopeChildUP(field));
 }
 
 void AstBuilderInt::addActivityStmt(

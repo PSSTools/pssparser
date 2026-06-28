@@ -1,0 +1,80 @@
+
+classes:
+  - CovergroupCoverpoint:
+      super: NamedScopeChild
+      doc: |
+          A coverpoint within a covergroup.
+
+          Samples the value of ``target`` (an expression, typically a field
+          reference). The coverpoint name is the optional label, or the target
+          identifier when unlabeled.
+
+          PSS Example::
+
+              covergroup {
+                  cp_x : coverpoint x;   // labeled
+                  coverpoint y;          // unlabeled (name 'y')
+              } cg;
+
+          Attributes:
+              name: Coverpoint name (inherited from NamedScopeChild)
+              target: Expression being sampled
+
+          See Also:
+              Covergroup, CovergroupCross
+      data:
+      - target:
+          - type: UP<Expr>
+          - visit: false   # coverage metadata; not a link-resolved reference
+
+  - CovergroupCross:
+      super: NamedScopeChild
+      doc: |
+          A cross of named coverpoints within a covergroup.
+
+          PSS Example::
+
+              covergroup {
+                  coverpoint a;
+                  coverpoint b;
+                  ab : cross a, b;
+              } cg;
+
+          Attributes:
+              name: Cross name (inherited from NamedScopeChild)
+              coverpoint_names: Names of the coverpoints being crossed
+
+          See Also:
+              Covergroup, CovergroupCoverpoint
+      data:
+      - coverpoint_names: "list<UP<ExprId>>"
+
+  - Covergroup:
+      super: NamedScopeChild
+      doc: |
+          An inline covergroup instance declared in an action/struct/component.
+
+          Corresponds to the PSS ``covergroup { ... } name;`` form. Carries the
+          instance name (inherited) plus its coverpoints and crosses.
+
+          PSS Example::
+
+              action a {
+                  rand bit[4] x, y;
+                  covergroup {
+                      coverpoint x;
+                      coverpoint y;
+                      xy : cross x, y;
+                  } cg;
+              }
+
+          Attributes:
+              name: Covergroup instance name (inherited from NamedScopeChild)
+              coverpoints: The covergroup's coverpoints
+              crosses: The covergroup's crosses
+
+          See Also:
+              CovergroupCoverpoint, CovergroupCross
+      data:
+      - coverpoints: "list<UP<CovergroupCoverpoint>>"
+      - crosses: "list<UP<CovergroupCross>>"

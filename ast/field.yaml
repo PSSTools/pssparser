@@ -149,6 +149,37 @@ classes:
       data:
       - type: UP<DataTypeUserDefined>
       - size: UP<Expr>
+  - ComponentBind:
+      super: ScopeChild
+      doc: |
+          Component-level object/pool bind directive (``bind pool targets;``).
+
+          Binds a pool to a set of action object-reference fields, or to all
+          compatible references via the wildcard form. Targets are captured as
+          plain dotted-path strings (e.g. ``"a.x"``); the wildcard form sets
+          ``is_wildcard`` and leaves ``targets`` empty. Paths are stored as
+          text rather than resolved references, so this node is inert during
+          link (no ref resolution, no traversal cycles).
+
+          PSS Example::
+
+              component pss_top {
+                  pool my_buffer p;
+                  bind p *;                  // wildcard
+                  bind p { producer.out };   // explicit target path
+              }
+
+          Attributes:
+              pool_path: Hierarchical id of the bound pool (e.g. ``"p"``).
+              is_wildcard: True for the ``bind p *;`` form.
+              targets: Explicit dotted bind-item paths (empty when wildcard),
+                  e.g. ``["producer.out", "consumer.inp"]``.
+      data:
+      - pool_path: string
+      - is_wildcard: bool
+      - targets:
+          - type: list<string>
+          - is_ctor: false
   - ActionHandleField:
       super: NamedScopeChild
       doc: |

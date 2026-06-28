@@ -140,8 +140,8 @@ class FieldAttr(IntEnum):
     Protected = auto()
     
 class Factory(object):
-    def mkTemplateParamDeclList(self) -> 'TemplateParamDeclList': ...
     def mkAssocData(self) -> 'AssocData': ...
+    def mkTemplateParamDeclList(self) -> 'TemplateParamDeclList': ...
     def mkExecTargetTemplateParam(self,
         expr : Expr,
         start : int,
@@ -163,20 +163,27 @@ class Factory(object):
     def mkMonitorActivitySelectBranch(self,
         guard : Expr,
         body : ScopeChild) -> 'MonitorActivitySelectBranch': ...
-    def mkScopeChild(self) -> 'ScopeChild': ...
     def mkActivityMatchChoice(self,
         is_default : bool,
         cond : ExprOpenRangeList,
         body : ScopeChild) -> 'ActivityMatchChoice': ...
-    def mkSymbolImportSpec(self) -> 'SymbolImportSpec': ...
-    def mkSymbolRefPath(self) -> 'SymbolRefPath': ...
+    def mkScopeChild(self) -> 'ScopeChild': ...
     def mkActivitySelectBranch(self,
         guard : Expr,
         weight : Expr,
         body : ScopeChild) -> 'ActivitySelectBranch': ...
+    def mkSymbolImportSpec(self) -> 'SymbolImportSpec': ...
+    def mkSymbolRefPath(self) -> 'SymbolRefPath': ...
+    def mkGenericConstraintDeclValue(self) -> 'GenericConstraintDeclValue': ...
     def mkActionFieldInitializer(self,
         path : ExprHierarchicalId,
         value : Expr) -> 'ActionFieldInitializer': ...
+    def mkGenericConstraintParam(self,
+        name : ExprId,
+        is_const : bool,
+        is_numeric : bool,
+        type : DataType) -> 'GenericConstraintParam': ...
+    def mkMethodParameterList(self) -> 'MethodParameterList': ...
     def mkActivityJoinSpec(self) -> 'ActivityJoinSpec': ...
     def mkMonitorActivityStmt(self) -> 'MonitorActivityStmt': ...
     def mkNamedScopeChild(self,
@@ -187,13 +194,16 @@ class Factory(object):
     def mkActivitySchedulingConstraint(self,
         is_parallel : bool) -> 'ActivitySchedulingConstraint': ...
     def mkActivityStmt(self) -> 'ActivityStmt': ...
-    def mkProceduralStmtIfClause(self,
-        cond : Expr,
-        body : ScopeChild) -> 'ProceduralStmtIfClause': ...
     def mkAnnotation(self,
         type : TypeIdentifier) -> 'Annotation': ...
     def mkAnnotationParam(self,
         value : Expr) -> 'AnnotationParam': ...
+    def mkProceduralStmtIfClause(self,
+        cond : Expr,
+        body : ScopeChild) -> 'ProceduralStmtIfClause': ...
+    def mkComponentBind(self,
+        pool_path : str,
+        is_wildcard : bool) -> 'ComponentBind': ...
     def mkConstraintStmt(self) -> 'ConstraintStmt': ...
     def mkPyImportFromStmt(self) -> 'PyImportFromStmt': ...
     def mkPyImportStmt(self) -> 'PyImportStmt': ...
@@ -203,16 +213,16 @@ class Factory(object):
     def mkRefExprTypeScopeContext(self,
         base : RefExpr,
         offset : int) -> 'RefExprTypeScopeContext': ...
-    def mkRefExprTypeScopeGlobal(self,
-        fileid : int) -> 'RefExprTypeScopeGlobal': ...
-    def mkScope(self) -> 'Scope': ...
     def mkCoverStmtInline(self,
         body : ScopeChild) -> 'CoverStmtInline': ...
     def mkCoverStmtReference(self,
         target : ExprRefPath) -> 'CoverStmtReference': ...
-    def mkDataType(self) -> 'DataType': ...
+    def mkRefExprTypeScopeGlobal(self,
+        fileid : int) -> 'RefExprTypeScopeGlobal': ...
+    def mkScope(self) -> 'Scope': ...
     def mkScopeChildRef(self,
         target : ScopeChild) -> 'ScopeChildRef': ...
+    def mkDataType(self) -> 'DataType': ...
     def mkSymbolChild(self) -> 'SymbolChild': ...
     def mkSymbolScopeRef(self,
         name : str) -> 'SymbolScopeRef': ...
@@ -315,89 +325,21 @@ class Factory(object):
         type : DataType,
         dir : ParamDir,
         dflt : Expr) -> 'FunctionParamDecl': ...
-    def mkGenericConstraintDeclValue(self) -> 'GenericConstraintDeclValue': ...
-    def mkGenericConstraintParam(self,
-        name : ExprId,
-        is_const : bool,
-        is_numeric : bool,
-        type : DataType) -> 'GenericConstraintParam': ...
-    def mkMethodParameterList(self) -> 'MethodParameterList': ...
-    def mkMonitorActivityActionTraversal(self,
-        target : ExprRefPath,
-        with_c : ConstraintStmt) -> 'MonitorActivityActionTraversal': ...
     def mkActionHandleField(self,
         name : ExprId,
         type : DataType) -> 'ActionHandleField': ...
-    def mkMonitorActivityConcat(self,
-        lhs : MonitorActivityStmt,
-        rhs : MonitorActivityStmt) -> 'MonitorActivityConcat': ...
-    def mkMonitorActivityEventually(self,
-        condition : Expr,
-        body : MonitorActivityStmt) -> 'MonitorActivityEventually': ...
-    def mkMonitorActivityIfElse(self,
-        cond : Expr,
-        true_s : MonitorActivityStmt,
-        false_s : MonitorActivityStmt) -> 'MonitorActivityIfElse': ...
     def mkActivityBindStmt(self,
         lhs : ExprHierarchicalId) -> 'ActivityBindStmt': ...
     def mkActivityConstraint(self,
         constraint : ConstraintStmt) -> 'ActivityConstraint': ...
-    def mkMonitorActivityMatch(self,
-        cond : Expr) -> 'MonitorActivityMatch': ...
-    def mkMonitorActivityMonitorTraversal(self,
-        target : ExprRefPath,
-        with_c : ConstraintStmt) -> 'MonitorActivityMonitorTraversal': ...
-    def mkMonitorActivityOverlap(self,
-        lhs : MonitorActivityStmt,
-        rhs : MonitorActivityStmt) -> 'MonitorActivityOverlap': ...
-    def mkMonitorActivityRepeatCount(self,
-        loop_var : ExprId,
-        count : Expr,
-        body : ScopeChild) -> 'MonitorActivityRepeatCount': ...
     def mkActivityJoinSpecBranch(self) -> 'ActivityJoinSpecBranch': ...
     def mkActivityJoinSpecFirst(self,
         count : Expr) -> 'ActivityJoinSpecFirst': ...
     def mkActivityJoinSpecNone(self) -> 'ActivityJoinSpecNone': ...
     def mkActivityJoinSpecSelect(self,
         count : Expr) -> 'ActivityJoinSpecSelect': ...
-    def mkMonitorActivityRepeatWhile(self,
-        cond : Expr,
-        body : ScopeChild) -> 'MonitorActivityRepeatWhile': ...
     def mkActivityLabeledStmt(self) -> 'ActivityLabeledStmt': ...
-    def mkMonitorActivitySelect(self) -> 'MonitorActivitySelect': ...
-    def mkMonitorConstraint(self,
-        constraint : ConstraintStmt) -> 'MonitorConstraint': ...
-    def mkNamedScope(self,
-        name : ExprId) -> 'NamedScope': ...
-    def mkPackageScope(self) -> 'PackageScope': ...
-    def mkProceduralStmtAssignment(self,
-        lhs : Expr,
-        op : AssignOp,
-        rhs : Expr) -> 'ProceduralStmtAssignment': ...
-    def mkProceduralStmtBody(self,
-        body : ScopeChild) -> 'ProceduralStmtBody': ...
-    def mkProceduralStmtBreak(self) -> 'ProceduralStmtBreak': ...
-    def mkProceduralStmtContinue(self) -> 'ProceduralStmtContinue': ...
-    def mkProceduralStmtDataDeclaration(self,
-        name : ExprId,
-        datatype : DataType,
-        init : Expr) -> 'ProceduralStmtDataDeclaration': ...
-    def mkProceduralStmtExpr(self,
-        expr : Expr) -> 'ProceduralStmtExpr': ...
-    def mkProceduralStmtFunctionCall(self,
-        prefix : ExprRefPathStaticRooted) -> 'ProceduralStmtFunctionCall': ...
-    def mkProceduralStmtIfElse(self) -> 'ProceduralStmtIfElse': ...
-    def mkProceduralStmtMatch(self,
-        expr : Expr) -> 'ProceduralStmtMatch': ...
-    def mkProceduralStmtMatchChoice(self,
-        is_default : bool,
-        cond : ExprOpenRangeList,
-        body : ScopeChild) -> 'ProceduralStmtMatchChoice': ...
-    def mkProceduralStmtRandomize(self,
-        target : Expr) -> 'ProceduralStmtRandomize': ...
     def mkConstraintScope(self) -> 'ConstraintScope': ...
-    def mkProceduralStmtReturn(self,
-        expr : Expr) -> 'ProceduralStmtReturn': ...
     def mkConstraintStmtDefault(self,
         hid : ExprHierarchicalId,
         expr : Expr) -> 'ConstraintStmtDefault': ...
@@ -408,12 +350,18 @@ class Factory(object):
     def mkConstraintStmtField(self,
         name : ExprId,
         type : DataType) -> 'ConstraintStmtField': ...
-    def mkProceduralStmtYield(self) -> 'ProceduralStmtYield': ...
     def mkConstraintStmtIf(self,
         cond : Expr,
         true_c : ConstraintScope,
         false_c : ConstraintScope) -> 'ConstraintStmtIf': ...
     def mkConstraintStmtUnique(self) -> 'ConstraintStmtUnique': ...
+    def mkCovergroup(self,
+        name : ExprId) -> 'Covergroup': ...
+    def mkCovergroupCoverpoint(self,
+        name : ExprId,
+        target : Expr) -> 'CovergroupCoverpoint': ...
+    def mkCovergroupCross(self,
+        name : ExprId) -> 'CovergroupCross': ...
     def mkDataTypeBool(self) -> 'DataTypeBool': ...
     def mkDataTypeChandle(self) -> 'DataTypeChandle': ...
     def mkDataTypeEnum(self,
@@ -436,22 +384,8 @@ class Factory(object):
     def mkEnumItem(self,
         name : ExprId,
         value : Expr) -> 'EnumItem': ...
-    def mkSymbolChildrenScope(self,
-        name : str) -> 'SymbolChildrenScope': ...
-    def mkTemplateCategoryTypeParamDecl(self,
-        name : ExprId,
-        category : TypeCategory,
-        restriction : TypeIdentifier,
-        dflt : DataType) -> 'TemplateCategoryTypeParamDecl': ...
-    def mkTemplateGenericTypeParamDecl(self,
-        name : ExprId,
-        dflt : DataType) -> 'TemplateGenericTypeParamDecl': ...
     def mkExprAggrEmpty(self) -> 'ExprAggrEmpty': ...
     def mkExprAggrList(self) -> 'ExprAggrList': ...
-    def mkTemplateValueParamDecl(self,
-        name : ExprId,
-        type : DataType,
-        dflt : Expr) -> 'TemplateValueParamDecl': ...
     def mkExprAggrMap(self) -> 'ExprAggrMap': ...
     def mkExprAggrStruct(self) -> 'ExprAggrStruct': ...
     def mkExprRefPathContext(self,
@@ -509,6 +443,82 @@ class Factory(object):
         is_solve : bool) -> 'FunctionPrototype': ...
     def mkGlobalScope(self,
         fileid : int) -> 'GlobalScope': ...
+    def mkMonitorActivityActionTraversal(self,
+        target : ExprRefPath,
+        with_c : ConstraintStmt) -> 'MonitorActivityActionTraversal': ...
+    def mkMonitorActivityConcat(self,
+        lhs : MonitorActivityStmt,
+        rhs : MonitorActivityStmt) -> 'MonitorActivityConcat': ...
+    def mkMonitorActivityEventually(self,
+        condition : Expr,
+        body : MonitorActivityStmt) -> 'MonitorActivityEventually': ...
+    def mkMonitorActivityIfElse(self,
+        cond : Expr,
+        true_s : MonitorActivityStmt,
+        false_s : MonitorActivityStmt) -> 'MonitorActivityIfElse': ...
+    def mkMonitorActivityMatch(self,
+        cond : Expr) -> 'MonitorActivityMatch': ...
+    def mkMonitorActivityMonitorTraversal(self,
+        target : ExprRefPath,
+        with_c : ConstraintStmt) -> 'MonitorActivityMonitorTraversal': ...
+    def mkMonitorActivityOverlap(self,
+        lhs : MonitorActivityStmt,
+        rhs : MonitorActivityStmt) -> 'MonitorActivityOverlap': ...
+    def mkMonitorActivityRepeatCount(self,
+        loop_var : ExprId,
+        count : Expr,
+        body : ScopeChild) -> 'MonitorActivityRepeatCount': ...
+    def mkMonitorActivityRepeatWhile(self,
+        cond : Expr,
+        body : ScopeChild) -> 'MonitorActivityRepeatWhile': ...
+    def mkMonitorActivitySelect(self) -> 'MonitorActivitySelect': ...
+    def mkMonitorConstraint(self,
+        constraint : ConstraintStmt) -> 'MonitorConstraint': ...
+    def mkNamedScope(self,
+        name : ExprId) -> 'NamedScope': ...
+    def mkPackageScope(self) -> 'PackageScope': ...
+    def mkProceduralStmtAssignment(self,
+        lhs : Expr,
+        op : AssignOp,
+        rhs : Expr) -> 'ProceduralStmtAssignment': ...
+    def mkProceduralStmtBody(self,
+        body : ScopeChild) -> 'ProceduralStmtBody': ...
+    def mkProceduralStmtBreak(self) -> 'ProceduralStmtBreak': ...
+    def mkProceduralStmtContinue(self) -> 'ProceduralStmtContinue': ...
+    def mkProceduralStmtDataDeclaration(self,
+        name : ExprId,
+        datatype : DataType,
+        init : Expr) -> 'ProceduralStmtDataDeclaration': ...
+    def mkProceduralStmtExpr(self,
+        expr : Expr) -> 'ProceduralStmtExpr': ...
+    def mkProceduralStmtFunctionCall(self,
+        prefix : ExprRefPathStaticRooted) -> 'ProceduralStmtFunctionCall': ...
+    def mkProceduralStmtIfElse(self) -> 'ProceduralStmtIfElse': ...
+    def mkProceduralStmtMatch(self,
+        expr : Expr) -> 'ProceduralStmtMatch': ...
+    def mkProceduralStmtMatchChoice(self,
+        is_default : bool,
+        cond : ExprOpenRangeList,
+        body : ScopeChild) -> 'ProceduralStmtMatchChoice': ...
+    def mkProceduralStmtRandomize(self,
+        target : Expr) -> 'ProceduralStmtRandomize': ...
+    def mkProceduralStmtReturn(self,
+        expr : Expr) -> 'ProceduralStmtReturn': ...
+    def mkProceduralStmtYield(self) -> 'ProceduralStmtYield': ...
+    def mkSymbolChildrenScope(self,
+        name : str) -> 'SymbolChildrenScope': ...
+    def mkTemplateCategoryTypeParamDecl(self,
+        name : ExprId,
+        category : TypeCategory,
+        restriction : TypeIdentifier,
+        dflt : DataType) -> 'TemplateCategoryTypeParamDecl': ...
+    def mkTemplateGenericTypeParamDecl(self,
+        name : ExprId,
+        dflt : DataType) -> 'TemplateGenericTypeParamDecl': ...
+    def mkTemplateValueParamDecl(self,
+        name : ExprId,
+        type : DataType,
+        dflt : Expr) -> 'TemplateValueParamDecl': ...
     def mkActivityActionHandleTraversal(self,
         target : ExprRefPathContext,
         with_c : ConstraintStmt) -> 'ActivityActionHandleTraversal': ...
@@ -579,12 +589,12 @@ class Factory(object):
         name : str) -> 'MonitorActivityDecl': ...
     def mkActivityDecl(self,
         name : str) -> 'ActivityDecl': ...
+    def mkActivityLabeledScope(self,
+        name : str) -> 'ActivityLabeledScope': ...
     def mkMonitorActivitySchedule(self,
         name : str) -> 'MonitorActivitySchedule': ...
     def mkMonitorActivitySequence(self,
         name : str) -> 'MonitorActivitySequence': ...
-    def mkActivityLabeledScope(self,
-        name : str) -> 'ActivityLabeledScope': ...
     def mkAnnotationDecl(self,
         name : ExprId,
         super_t : TypeIdentifier) -> 'AnnotationDecl': ...
@@ -594,10 +604,10 @@ class Factory(object):
     def mkProceduralStmtSymbolBodyScope(self,
         name : str,
         body : ScopeChild) -> 'ProceduralStmtSymbolBodyScope': ...
-    def mkRootSymbolScope(self,
-        name : str) -> 'RootSymbolScope': ...
     def mkConstraintSymbolScope(self,
         name : str) -> 'ConstraintSymbolScope': ...
+    def mkRootSymbolScope(self,
+        name : str) -> 'RootSymbolScope': ...
     def mkStruct(self,
         name : ExprId,
         super_t : TypeIdentifier,
@@ -616,19 +626,6 @@ class Factory(object):
     def mkGenericConstraintDeclBool(self,
         name : str,
         is_dynamic : bool) -> 'GenericConstraintDeclBool': ...
-    def mkProceduralStmtRepeat(self,
-        name : str,
-        body : ScopeChild,
-        it_id : ExprId,
-        count : Expr) -> 'ProceduralStmtRepeat': ...
-    def mkActivitySequence(self,
-        name : str) -> 'ActivitySequence': ...
-    def mkActivityParallel(self,
-        name : str,
-        join_spec : ActivityJoinSpec) -> 'ActivityParallel': ...
-    def mkActivitySchedule(self,
-        name : str,
-        join_spec : ActivityJoinSpec) -> 'ActivitySchedule': ...
     def mkProceduralStmtForeach(self,
         name : str,
         body : ScopeChild,
@@ -638,8 +635,24 @@ class Factory(object):
     def mkExecBlock(self,
         name : str,
         kind : ExecKind) -> 'ExecBlock': ...
+    def mkProceduralStmtRepeat(self,
+        name : str,
+        body : ScopeChild,
+        it_id : ExprId,
+        count : Expr) -> 'ProceduralStmtRepeat': ...
+    def mkActivityParallel(self,
+        name : str,
+        join_spec : ActivityJoinSpec) -> 'ActivityParallel': ...
+    def mkActivitySchedule(self,
+        name : str,
+        join_spec : ActivityJoinSpec) -> 'ActivitySchedule': ...
+    def mkActivitySequence(self,
+        name : str) -> 'ActivitySequence': ...
     @staticmethod
     def inst() -> 'Factory': ...
+    
+class AssocData(object):
+    pass
     
 class TemplateParamDeclList(object):
     pass
@@ -648,9 +661,6 @@ class TemplateParamDeclList(object):
         """Returns an iterator over the items"""
     
     def getParams(self) -> List[TemplateParamDecl]: ...
-    
-class AssocData(object):
-    pass
     
 class ExecTargetTemplateParam(object):
     pass
@@ -702,6 +712,13 @@ class MonitorActivitySelectBranch(object):
     
     def getBody(self) -> ScopeChild: ...
     
+class ActivityMatchChoice(object):
+    pass
+    
+    def getCond(self) -> ExprOpenRangeList: ...
+    
+    def getBody(self) -> ScopeChild: ...
+    
 class ScopeChild(object):
     pass
     
@@ -720,10 +737,12 @@ class ScopeChild(object):
     
     def getAnnotations(self) -> List[Annotation]: ...
     
-class ActivityMatchChoice(object):
+class ActivitySelectBranch(object):
     pass
     
-    def getCond(self) -> ExprOpenRangeList: ...
+    def getGuard(self) -> Expr: ...
+    
+    def getWeight(self) -> Expr: ...
     
     def getBody(self) -> ScopeChild: ...
     
@@ -743,14 +762,26 @@ class SymbolRefPath(object):
     
     def getPath(self) -> List[SymbolRefPathElem]: ...
     
-class ActivitySelectBranch(object):
+class GenericConstraintDeclValue(ScopeChild):
+    """
+    Value-returning generic constraint declaration.
+    
+    Represents a declaration of the form
+    ``[static] constraint <type> name(params) expr;``.
+    
+    """
     pass
     
-    def getGuard(self) -> Expr: ...
+    def getReturn_type(self) -> DataType: ...
     
-    def getWeight(self) -> Expr: ...
+    def getName(self) -> ExprId: ...
     
-    def getBody(self) -> ScopeChild: ...
+    def parameters(self) -> ListUtil...
+        """Returns an iterator over the items"""
+    
+    def getParameters(self) -> List[GenericConstraintParam]: ...
+    
+    def getExpr(self) -> Expr: ...
     
 class ActionFieldInitializer(ScopeChild):
     """
@@ -765,6 +796,47 @@ class ActionFieldInitializer(ScopeChild):
     def getPath(self) -> ExprHierarchicalId: ...
     
     def getValue(self) -> Expr: ...
+    
+class GenericConstraintParam(ScopeChild):
+    """
+    Parameter declaration for a PSS 3.1 generic constraint.
+    
+    Generic constraint parameters may be typed with either a concrete
+    PSS data type or the `numeric` category and may optionally be
+    declared `const`.
+    
+    """
+    pass
+    
+    def getName(self) -> ExprId: ...
+    
+    def getType(self) -> DataType: ...
+    
+class MethodParameterList(Expr):
+    """
+    Represents a method or function parameter list.
+    
+    Contains the list of argument expressions passed to a method or function call.
+    Used within method call expressions to specify the actual parameters.
+    
+    PSS Example::
+    
+        my_function(arg1, arg2, arg3)
+        obj.method(x, y)
+    
+    Attributes:
+        parameters: List of argument expressions
+    
+    See Also:
+        ExprMemberPathElem, ExprRefPathStaticFunc
+    
+    """
+    pass
+    
+    def parameters(self) -> ListUtil...
+        """Returns an iterator over the items"""
+    
+    def getParameters(self) -> List[Expr]: ...
     
 class ActivityJoinSpec(ScopeChild):
     """
@@ -953,43 +1025,6 @@ class ActivityStmt(ScopeChild):
     """
     pass
     
-class ProceduralStmtIfClause(ScopeChild):
-    """
-    Single if or else-if clause with condition and body.
-    
-    ProceduralStmtIfClause represents one conditional branch in an if-else-if
-    chain. Each clause has a condition expression and a body that executes
-    if the condition is true. Multiple clauses are chained together in
-    ProceduralStmtIfElse.
-    
-    PSS Example::
-    
-        action my_action {
-            exec body {
-                int x = 10;
-                
-                if (x > 15) {          // First ProceduralStmtIfClause
-                    console.log("Big");
-                } else if (x > 5) {    // Second ProceduralStmtIfClause
-                    console.log("Medium");
-                }
-            }
-        }
-    
-    Attributes:
-        cond: Condition expression to evaluate
-        body: Statement(s) to execute if condition is true
-    
-    See Also:
-        ProceduralStmtIfElse
-    
-    """
-    pass
-    
-    def getCond(self) -> Expr: ...
-    
-    def getBody(self) -> ScopeChild: ...
-    
 class Annotation(ScopeChild):
     """
     Applied annotation attached to a model element.
@@ -1027,6 +1062,80 @@ class AnnotationParam(ScopeChild):
     def getName(self) -> ExprId: ...
     
     def getValue(self) -> Expr: ...
+    
+class ProceduralStmtIfClause(ScopeChild):
+    """
+    Single if or else-if clause with condition and body.
+    
+    ProceduralStmtIfClause represents one conditional branch in an if-else-if
+    chain. Each clause has a condition expression and a body that executes
+    if the condition is true. Multiple clauses are chained together in
+    ProceduralStmtIfElse.
+    
+    PSS Example::
+    
+        action my_action {
+            exec body {
+                int x = 10;
+                
+                if (x > 15) {          // First ProceduralStmtIfClause
+                    console.log("Big");
+                } else if (x > 5) {    // Second ProceduralStmtIfClause
+                    console.log("Medium");
+                }
+            }
+        }
+    
+    Attributes:
+        cond: Condition expression to evaluate
+        body: Statement(s) to execute if condition is true
+    
+    See Also:
+        ProceduralStmtIfElse
+    
+    """
+    pass
+    
+    def getCond(self) -> Expr: ...
+    
+    def getBody(self) -> ScopeChild: ...
+    
+class ComponentBind(ScopeChild):
+    """
+    Component-level object/pool bind directive (``bind pool targets;``).
+    
+    Binds a pool to a set of action object-reference fields, or to all
+    compatible references via the wildcard form. Targets are captured as
+    plain dotted-path strings (e.g. ``"a.x"``); the wildcard form sets
+    ``is_wildcard`` and leaves ``targets`` empty. Paths are stored as
+    text rather than resolved references, so this node is inert during
+    link (no ref resolution, no traversal cycles).
+    
+    PSS Example::
+    
+        component pss_top {
+            pool my_buffer p;
+            bind p *;                  // wildcard
+            bind p { producer.out };   // explicit target path
+        }
+    
+    Attributes:
+        pool_path: Hierarchical id of the bound pool (e.g. ``"p"``).
+        is_wildcard: True for the ``bind p *;`` form.
+        targets: Explicit dotted bind-item paths (empty when wildcard),
+            e.g. ``["producer.out", "consumer.inp"]``.
+    
+    """
+    pass
+    
+    def getPool_path(self) -> str: ...
+    
+    def setPool_path(self, v : str): ...
+    
+    def targets(self) -> ListUtil...
+        """Returns an iterator over the items"""
+    
+    def getTargets(self) -> List[str]: ...
     
 class ConstraintStmt(ScopeChild):
     """
@@ -1153,56 +1262,6 @@ class RefExprTypeScopeContext(RefExpr):
     
     def getBase(self) -> RefExpr: ...
     
-class RefExprTypeScopeGlobal(RefExpr):
-    """
-    Reference to a type scope at the global (file) level.
-    
-    Represents a resolved reference to a type defined at the global scope
-    of a specific file. Used during linking to track cross-file type
-    references and maintain file boundaries in the symbol tree.
-    
-    Attributes:
-        fileid: File identifier where the type scope is defined
-    
-    See Also:
-        RefExpr, GlobalScope, SymbolTypeScope
-    
-    """
-    pass
-    
-class Scope(ScopeChild):
-    """
-    Container for child AST nodes forming a hierarchical scope.
-    
-    Base class for all AST nodes that can contain other nodes. Provides
-    the fundamental tree structure of the AST. Most PSS constructs that
-    use braces create a Scope.
-    
-    PSS Example::
-    
-        component my_comp {      // Creates Scope
-            action a1 { }        // Nested Scope
-            struct s1 { }        // Nested Scope
-        }
-    
-    Attributes:
-        endLocation: Source location of closing brace
-        children: List of child nodes in this scope
-        parent: Parent scope (inherited from ScopeChild)
-    
-    See Also:
-        ScopeChild, NamedScope, GlobalScope
-    
-    """
-    pass
-    
-    def getEndLocation(self) -> 'Location': ...
-    
-    def children(self) -> ListUtil...
-        """Returns an iterator over the items"""
-    
-    def getChildren(self) -> List[ScopeChild]: ...
-    
 class CoverStmtInline(ScopeChild):
     """
     Inline coverage statement within monitor or action.
@@ -1315,19 +1374,55 @@ class CoverStmtReference(ScopeChild):
     
     def getTarget(self) -> ExprRefPath: ...
     
-class DataType(ScopeChild):
+class RefExprTypeScopeGlobal(RefExpr):
     """
-    Base class for all PSS data types.
+    Reference to a type scope at the global (file) level.
     
-    Represents the type system in PSS. All type expressions (int, bool,
-    user-defined types, etc.) derive from this base class. Used in field
-    declarations, expressions, and function signatures.
+    Represents a resolved reference to a type defined at the global scope
+    of a specific file. Used during linking to track cross-file type
+    references and maintain file boundaries in the symbol tree.
+    
+    Attributes:
+        fileid: File identifier where the type scope is defined
     
     See Also:
-        DataTypeInt, DataTypeBool, DataTypeUserDefined, Field
+        RefExpr, GlobalScope, SymbolTypeScope
     
     """
     pass
+    
+class Scope(ScopeChild):
+    """
+    Container for child AST nodes forming a hierarchical scope.
+    
+    Base class for all AST nodes that can contain other nodes. Provides
+    the fundamental tree structure of the AST. Most PSS constructs that
+    use braces create a Scope.
+    
+    PSS Example::
+    
+        component my_comp {      // Creates Scope
+            action a1 { }        // Nested Scope
+            struct s1 { }        // Nested Scope
+        }
+    
+    Attributes:
+        endLocation: Source location of closing brace
+        children: List of child nodes in this scope
+        parent: Parent scope (inherited from ScopeChild)
+    
+    See Also:
+        ScopeChild, NamedScope, GlobalScope
+    
+    """
+    pass
+    
+    def getEndLocation(self) -> 'Location': ...
+    
+    def children(self) -> ListUtil...
+        """Returns an iterator over the items"""
+    
+    def getChildren(self) -> List[ScopeChild]: ...
     
 class ScopeChildRef(ScopeChild):
     """
@@ -1347,6 +1442,20 @@ class ScopeChildRef(ScopeChild):
     pass
     
     def getTarget(self) -> ScopeChild: ...
+    
+class DataType(ScopeChild):
+    """
+    Base class for all PSS data types.
+    
+    Represents the type system in PSS. All type expressions (int, bool,
+    user-defined types, etc.) derive from this base class. Used in field
+    declarations, expressions, and function signatures.
+    
+    See Also:
+        DataTypeInt, DataTypeBool, DataTypeUserDefined, Field
+    
+    """
+    pass
     
 class SymbolChild(ScopeChild):
     """
@@ -2546,34 +2655,458 @@ class FunctionParamDecl(ScopeChild):
     
     def getDflt(self) -> Expr: ...
     
-class GenericConstraintDeclValue(ScopeChild):
+class ActionHandleField(NamedScopeChild):
     """
-    Value-returning generic constraint declaration.
+    Action handle field declaration.
     
-    Represents a declaration of the form
-    ``[static] constraint <type> name(params) expr;``.
+    Represents an action instance field declared in an action or monitor
+    body, including optional PSS 3.1 initializer assignments and support
+    for array-typed handles.
     
     """
     pass
     
-    def getReturn_type(self) -> DataType: ...
+    def getType(self) -> DataType: ...
     
-    def getName(self) -> ExprId: ...
-    
-    def parameters(self) -> ListUtil...
+    def initializers(self) -> ListUtil...
         """Returns an iterator over the items"""
     
-    def getParameters(self) -> List[GenericConstraintParam]: ...
+    def getInitializers(self) -> List[ActionFieldInitializer]: ...
+    
+class ActivityBindStmt(ActivityStmt):
+    """
+    Binds resource references between actions.
+    
+    ActivityBindStmt creates a binding between resource references, allowing
+    an action to use resources from another action's scope. This enables
+    resource sharing and coordination between actions in a behavior tree.
+    
+    PSS Example::
+    
+        action producer {
+            output mydata_s data_out;
+            activity { }
+        }
+        
+        action consumer {
+            input mydata_s data_in;
+            activity { }
+        }
+        
+        action top {
+            producer prod;
+            consumer cons;
+            
+            activity {
+                do prod;
+                do cons;
+                bind cons.data_in prod.data_out;
+            }
+        }
+    
+    Attributes:
+        lhs: Left-hand side hierarchical ID (the reference being bound)
+        rhs: List of right-hand side hierarchical IDs (source references)
+    
+    See Also:
+        FieldRef, FieldCompRef
+    
+    """
+    pass
+    
+    def getLhs(self) -> ExprHierarchicalId: ...
+    
+    def rhs(self) -> ListUtil...
+        """Returns an iterator over the items"""
+    
+    def getRhs(self) -> List[ExprHierarchicalId]: ...
+    
+class ActivityConstraint(ActivityStmt):
+    """
+    Adds constraints within an activity block.
+    
+    ActivityConstraint allows constraint statements to be embedded within
+    activity blocks to further constrain the behavior or data of actions
+    being executed. These constraints are evaluated during scenario generation.
+    
+    PSS Example::
+    
+        action my_action {
+            rand bit[16] addr;
+            rand bit[8] data;
+            
+            activity {
+                do comp.sub_action with {
+                    addr == 0x1000;
+                }
+                
+                constraint {
+                    data inside [0..100];
+                }
+            }
+        }
+    
+    Attributes:
+        constraint: The constraint statement to be applied
+    
+    See Also:
+        ConstraintStmt, ConstraintBlock
+    
+    """
+    pass
+    
+    def getConstraint(self) -> ConstraintStmt: ...
+    
+class ActivityJoinSpecBranch(ActivityJoinSpec):
+    """
+    Join specification with explicit branch identification.
+    
+    ActivityJoinSpecBranch allows explicit specification of which branches
+    must complete for the parallel or schedule block to complete. This provides
+    fine-grained control over synchronization points.
+    
+    PSS Example::
+    
+        action my_action {
+            activity {
+                parallel join_branch (branch1, branch2) {
+                    branch1: do comp.action1;
+                    branch2: do comp.action2;
+                    branch3: do comp.action3;
+                    // Block completes when branch1 and branch2 complete
+                    // branch3 may still be running
+                }
+            }
+        }
+    
+    Attributes:
+        branches: List of reference paths identifying branches that must complete
+    
+    See Also:
+        ActivityJoinSpec, ActivityParallel, ActivitySchedule
+    
+    """
+    pass
+    
+    def branches(self) -> ListUtil...
+        """Returns an iterator over the items"""
+    
+    def getBranches(self) -> List[ExprRefPathContext]: ...
+    
+class ActivityJoinSpecFirst(ActivityJoinSpec):
+    """
+    Join specification that waits for the first N branches to complete.
+    
+    ActivityJoinSpecFirst causes the parallel or schedule block to complete
+    when the first specified number of branches have completed. Unlike join_select,
+    this waits for the actual first branches to finish rather than randomly
+    selecting which ones complete.
+    
+    PSS Example::
+    
+        action my_action {
+            activity {
+                // Wait for first 2 to complete
+                parallel join_first(2) {
+                    do comp.action1;
+                    do comp.action2;
+                    do comp.action3;
+                    do comp.action4;
+                }
+                // Block completes as soon as any 2 finish
+                
+                // Wait for first one
+                parallel join_first(1) {
+                    do comp.option_a;
+                    do comp.option_b;
+                }
+            }
+        }
+    
+    Attributes:
+        count: Expression specifying how many branches to wait for
+    
+    See Also:
+        ActivityJoinSpec, ActivityJoinSpecSelect, ActivityParallel
+    
+    """
+    pass
+    
+    def getCount(self) -> Expr: ...
+    
+class ActivityJoinSpecNone(ActivityJoinSpec):
+    """
+    Join specification with no synchronization.
+    
+    ActivityJoinSpecNone indicates that the parallel or schedule block completes
+    immediately without waiting for any branches to complete. The branches continue
+    executing asynchronously in the background. This is useful for fire-and-forget
+    concurrent operations.
+    
+    PSS Example::
+    
+        action my_action {
+            activity {
+                // No waiting for completion
+                parallel join_none {
+                    do comp.background_task1;
+                    do comp.background_task2;
+                    do comp.background_task3;
+                }
+                // Execution continues immediately
+                do comp.foreground_task;
+            }
+        }
+    
+    Attributes:
+        (no specific attributes)
+    
+    See Also:
+        ActivityJoinSpec, ActivityJoinSpecFirst, ActivityParallel
+    
+    """
+    pass
+    
+class ActivityJoinSpecSelect(ActivityJoinSpec):
+    """
+    Join specification that randomly selects branches to complete.
+    
+    ActivityJoinSpecSelect causes the parallel or schedule block to complete
+    when a specified number of branches have completed. The selection of which
+    branches complete is typically random and can be constrained.
+    
+    PSS Example::
+    
+        action my_action {
+            activity {
+                // Select 2 branches to complete
+                parallel join_select(2) {
+                    do comp.action1;
+                    do comp.action2;
+                    do comp.action3;
+                    do comp.action4;
+                }
+                // Block completes when any 2 actions complete
+                
+                // Select 1 (like a race condition)
+                parallel join_select(1) {
+                    do comp.fast_path;
+                    do comp.slow_path;
+                }
+            }
+        }
+    
+    Attributes:
+        count: Expression specifying how many branches must complete
+    
+    See Also:
+        ActivityJoinSpec, ActivityJoinSpecFirst, ActivityParallel
+    
+    """
+    pass
+    
+    def getCount(self) -> Expr: ...
+    
+class ActivityLabeledStmt(ActivityStmt):
+    """
+    Base class for activity statements that can have a label.
+    
+    ActivityLabeledStmt provides the ability to attach an optional label to
+    an activity statement. Labels can be used to reference activities in
+    scheduling constraints or for identification purposes.
+    
+    PSS Example::
+    
+        action my_action {
+            activity {
+                my_label: do comp.sub_action;
+                
+                another_label: sequence {
+                    do comp.action1;
+                    do comp.action2;
+                }
+            }
+        }
+    
+    Attributes:
+        label: Optional identifier expression for the label
+    
+    See Also:
+        ActivityActionHandleTraversal, ActivitySequence, ActivityRepeatCount
+    
+    """
+    pass
+    
+    def getLabel(self) -> ExprId: ...
+    
+class ConstraintScope(ConstraintStmt):
+    """
+    Container for a sequence of constraint statements.
+    
+    A constraint scope groups multiple constraint statements together, forming the body
+    of constraint blocks, conditional constraints, loops, and implications. It maintains
+    the source location information for the entire scope.
+    
+    PSS Example::
+    
+        constraint my_constraints {
+            // This entire block is a ConstraintScope
+            value1 > 0;
+            value2 < 100;
+            value1 + value2 == 50;
+        }
+    
+    Attributes:
+        endLocation: Source location of the closing brace
+        constraints: Ordered list of constraint statements within this scope
+    
+    See Also:
+        ConstraintBlock, ConstraintStmt
+    
+    """
+    pass
+    
+    def getEndLocation(self) -> 'Location': ...
+    
+    def constraints(self) -> ListUtil...
+        """Returns an iterator over the items"""
+    
+    def getConstraints(self) -> List[ConstraintStmt]: ...
+    
+class ConstraintStmtDefault(ConstraintStmt):
+    """
+    Default value constraint for random fields.
+    
+    Specifies a default value for a random field that will be used if no other constraints
+    determine its value. Default constraints have lower priority than regular constraints
+    and can be disabled using 'default disable' statements. This provides a fallback value
+    while allowing overrides.
+    
+    PSS Example::
+    
+        action network_packet {
+            rand bit[16] packet_size;
+            rand bit[8] priority;
+            
+            constraint defaults_c {
+                default packet_size == 64;      // Minimum Ethernet frame
+                default priority == 0;           // Normal priority
+            }
+            
+            constraint size_limits_c {
+                packet_size <= 1500;             // This overrides default
+            }
+        }
+    
+    Attributes:
+        hid: Hierarchical identifier of the field receiving the default value
+        expr: The default value expression
+    
+    See Also:
+        ConstraintStmtDefaultDisable, ConstraintStmtExpr, ExprHierarchicalId
+    
+    """
+    pass
+    
+    def getHid(self) -> ExprHierarchicalId: ...
     
     def getExpr(self) -> Expr: ...
     
-class GenericConstraintParam(ScopeChild):
+class ConstraintStmtDefaultDisable(ConstraintStmt):
     """
-    Parameter declaration for a PSS 3.1 generic constraint.
+    Disables inherited default value constraints.
     
-    Generic constraint parameters may be typed with either a concrete
-    PSS data type or the `numeric` category and may optionally be
-    declared `const`.
+    Explicitly disables default constraints that would otherwise be inherited from a base
+    type or applied from enclosing scopes. This allows derived types to override parent
+    defaults or clear unwanted default values, giving full control to other constraints.
+    
+    PSS Example::
+    
+        action base_transfer {
+            rand bit[16] addr;
+            rand bit[8] data;
+            
+            constraint defaults_c {
+                default addr == 0x1000;
+                default data == 0;
+            }
+        }
+        
+        action special_transfer : base_transfer {
+            constraint override_defaults_c {
+                default disable addr;    // Don't use parent's default
+                addr inside [0x2000..0x2FFF];  // Use this range instead
+            }
+        }
+    
+    Attributes:
+        hid: Hierarchical identifier of the field whose default is being disabled
+    
+    See Also:
+        ConstraintStmtDefault, ExprHierarchicalId
+    
+    """
+    pass
+    
+    def getHid(self) -> ExprHierarchicalId: ...
+    
+class ConstraintStmtExpr(ConstraintStmt):
+    """
+    Expression-based constraint statement.
+    
+    Represents a constraint expressed as a Boolean expression that must evaluate to true
+    during randomization. This is the most common form of constraint, supporting arithmetic
+    relations, logical operations, and complex expressions involving random variables.
+    
+    PSS Example::
+    
+        action transfer {
+            rand bit[16] addr;
+            rand bit[8] size;
+            
+            constraint valid_transfer_c {
+                addr >= 0x1000;                    // Simple relational
+                addr + size <= 0xFFFF;             // Arithmetic expression
+                size inside [1, 2, 4, 8];          // Set membership
+                (addr & 0x3) == 0;                 // Address alignment
+            }
+        }
+    
+    Attributes:
+        expr: The Boolean expression that must be satisfied
+    
+    See Also:
+        Expr, ConstraintStmt, ConstraintBlock
+    
+    """
+    pass
+    
+    def getExpr(self) -> Expr: ...
+    
+class ConstraintStmtField(ConstraintStmt):
+    """
+    Iterator variable declaration within constraint loops.
+    
+    Represents a temporary variable introduced by foreach or forall statements. These
+    variables are scoped to the constraint loop body and provide access to collection
+    elements or type instances during constraint evaluation.
+    
+    PSS Example::
+    
+        constraint iteration_c {
+            foreach (items[idx]) {
+                // 'idx' is a ConstraintStmtField
+                // 'items[idx]' references the element
+                items[idx] != 0;
+            }
+        }
+    
+    Attributes:
+        name: The name of the iterator variable
+        type: The data type of the iterator variable
+    
+    See Also:
+        ConstraintStmtForeach, ConstraintStmtForall, ConstraintSymbolScope
     
     """
     pass
@@ -2582,31 +3115,1039 @@ class GenericConstraintParam(ScopeChild):
     
     def getType(self) -> DataType: ...
     
-class MethodParameterList(Expr):
+class ConstraintStmtIf(ConstraintStmt):
     """
-    Represents a method or function parameter list.
+    Conditional constraint statement with optional else clause.
     
-    Contains the list of argument expressions passed to a method or function call.
-    Used within method call expressions to specify the actual parameters.
+    Applies different constraints based on the evaluation of a Boolean condition. If the
+    condition is true, constraints in the true branch are active; otherwise, constraints
+    in the optional else branch are active. The condition is evaluated after randomization
+    of variables it depends on.
     
     PSS Example::
     
-        my_function(arg1, arg2, arg3)
-        obj.method(x, y)
+        action memory_access {
+            rand bit is_read;
+            rand bit[32] addr;
+            rand bit[8] data;
+            
+            constraint access_type_c {
+                if (is_read) {
+                    addr inside [0x0000..0x0FFF];  // ROM region
+                } else {
+                    addr inside [0x1000..0x1FFF];  // RAM region
+                    data != 0;                      // Write non-zero
+                }
+            }
+        }
     
     Attributes:
-        parameters: List of argument expressions
+        cond: The Boolean condition expression
+        true_c: Constraints applied when condition is true
+        false_c: Constraints applied when condition is false (may be empty)
     
     See Also:
-        ExprMemberPathElem, ExprRefPathStaticFunc
+        ConstraintScope, ConstraintStmtExpr, ConstraintStmtImplication
     
     """
     pass
     
+    def getCond(self) -> Expr: ...
+    
+    def getTrue_c(self) -> ConstraintScope: ...
+    
+    def getFalse_c(self) -> ConstraintScope: ...
+    
+class ConstraintStmtUnique(ConstraintStmt):
+    """
+    Uniqueness constraint ensuring distinct values.
+    
+    Constrains a set of expressions to have mutually distinct values during randomization.
+    All expressions in the list must evaluate to different values, preventing duplicates
+    within the specified set.
+    
+    PSS Example::
+    
+        action transaction_set {
+            rand bit[8] id1, id2, id3, id4;
+            rand bit[16] addr[4];
+            
+            constraint unique_ids_c {
+                unique { id1, id2, id3, id4 };
+            }
+            
+            constraint unique_addresses_c {
+                unique { addr[0], addr[1], addr[2], addr[3] };
+            }
+            
+            constraint mixed_unique_c {
+                unique { id1, id2, id3 };  // First three must differ
+                // id4 is not constrained by this
+            }
+        }
+    
+    Attributes:
+        list: Expressions that must have unique values
+    
+    See Also:
+        ConstraintStmtExpr, ExprHierarchicalId
+    
+    """
+    pass
+    
+    def list(self) -> ListUtil...
+        """Returns an iterator over the items"""
+    
+    def getList(self) -> List[ExprHierarchicalId]: ...
+    
+class Covergroup(NamedScopeChild):
+    """
+    An inline covergroup instance declared in an action/struct/component.
+    
+    Corresponds to the PSS ``covergroup { ... } name;`` form. Carries the
+    instance name (inherited) plus its coverpoints and crosses.
+    
+    PSS Example::
+    
+        action a {
+            rand bit[4] x, y;
+            covergroup {
+                coverpoint x;
+                coverpoint y;
+                xy : cross x, y;
+            } cg;
+        }
+    
+    Attributes:
+        name: Covergroup instance name (inherited from NamedScopeChild)
+        coverpoints: The covergroup's coverpoints
+        crosses: The covergroup's crosses
+    
+    See Also:
+        CovergroupCoverpoint, CovergroupCross
+    
+    """
+    pass
+    
+    def coverpoints(self) -> ListUtil...
+        """Returns an iterator over the items"""
+    
+    def getCoverpoints(self) -> List[CovergroupCoverpoint]: ...
+    
+    def crosses(self) -> ListUtil...
+        """Returns an iterator over the items"""
+    
+    def getCrosses(self) -> List[CovergroupCross]: ...
+    
+class CovergroupCoverpoint(NamedScopeChild):
+    """
+    A coverpoint within a covergroup.
+    
+    Samples the value of ``target`` (an expression, typically a field
+    reference). The coverpoint name is the optional label, or the target
+    identifier when unlabeled.
+    
+    PSS Example::
+    
+        covergroup {
+            cp_x : coverpoint x;   // labeled
+            coverpoint y;          // unlabeled (name 'y')
+        } cg;
+    
+    Attributes:
+        name: Coverpoint name (inherited from NamedScopeChild)
+        target: Expression being sampled
+    
+    See Also:
+        Covergroup, CovergroupCross
+    
+    """
+    pass
+    
+    def getTarget(self) -> Expr: ...
+    
+class CovergroupCross(NamedScopeChild):
+    """
+    A cross of named coverpoints within a covergroup.
+    
+    PSS Example::
+    
+        covergroup {
+            coverpoint a;
+            coverpoint b;
+            ab : cross a, b;
+        } cg;
+    
+    Attributes:
+        name: Cross name (inherited from NamedScopeChild)
+        coverpoint_names: Names of the coverpoints being crossed
+    
+    See Also:
+        Covergroup, CovergroupCoverpoint
+    
+    """
+    pass
+    
+    def coverpoint_names(self) -> ListUtil...
+        """Returns an iterator over the items"""
+    
+    def getCoverpoint_names(self) -> List[ExprId]: ...
+    
+class DataTypeBool(DataType):
+    """
+    Boolean data type.
+    
+    Represents the 'bool' type in PSS. Boolean values are true or false.
+    
+    PSS Example::
+    
+        bool flag;
+        rand bool enable;
+        
+        constraint {
+            enable == true;
+        }
+    
+    See Also:
+        DataType, DataTypeInt
+    
+    """
+    pass
+    
+class DataTypeChandle(DataType):
+    """
+    Opaque handle type for referencing external objects.
+    
+    Represents the 'chandle' type - an opaque pointer to data managed
+    outside PSS (typically C/C++ objects). Used for interfacing with
+    external code and APIs.
+    
+    PSS Example::
+    
+        function void use_object(chandle obj);
+    
+    See Also:
+        DataType, DataTypePyObj
+    
+    """
+    pass
+    
+class DataTypeEnum(DataType):
+    """
+    Enum type reference with optional range restriction.
+    
+    Represents a reference to an enum type, optionally restricted to
+    a subset of enum values using an 'in' range expression.
+    
+    PSS Example::
+    
+        enum my_enum { A, B, C, D };
+        
+        rand my_enum value in [A, B];    // Only A or B allowed
+    
+    Attributes:
+        tid: Reference to the user-defined enum type
+        in_rangelist: Optional range restriction expression
+    
+    See Also:
+        EnumDecl, DataTypeUserDefined, ExprOpenRangeList
+    
+    """
+    pass
+    
+    def getTid(self) -> DataTypeUserDefined: ...
+    
+    def getIn_rangelist(self) -> ExprOpenRangeList: ...
+    
+class DataTypeInt(DataType):
+    """
+    Integer data type with signedness, width, and optional range.
+    
+    Represents integer types in PSS. Can be signed/unsigned, have
+    explicit or inferred bit-width, and include value constraints.
+    
+    PSS Example::
+    
+        int<8> byte_val;                    // 8-bit signed
+        bit<16> word_val;                   // 16-bit unsigned
+        rand int addr in [0x1000..0x2000];  // With range constraint
+        int value;                          // Implementation-defined width
+    
+    Attributes:
+        is_signed: True for 'int', false for 'bit'
+        width: Bit-width expression (optional)
+        in_range: Optional domain range constraint
+    
+    See Also:
+        DataType, ExprDomainOpenRangeList
+    
+    """
+    pass
+    
+    def getWidth(self) -> Expr: ...
+    
+    def getIn_range(self) -> ExprDomainOpenRangeList: ...
+    
+class DataTypePyObj(DataType):
+    """
+    Python object type for embedded Python integration.
+    
+    Represents Python objects accessible within PSS. Used for
+    interfacing with embedded Python code and libraries.
+    
+    See Also:
+        DataTypeChandle, PyImportStmt
+    
+    """
+    pass
+    
+class DataTypeRef(DataType):
+    """
+    Reference type to another type instance.
+    
+    Represents a reference (pointer) to an instance of a user-defined
+    type. Used for creating references to action or component instances.
+    
+    PSS Example::
+    
+        action A { }
+        
+        action B {
+            ref A a_ref;    // Reference to action A instance
+        }
+    
+    Attributes:
+        type: The user-defined type being referenced
+    
+    See Also:
+        DataTypeUserDefined, FieldRef
+    
+    """
+    pass
+    
+    def getType(self) -> DataTypeUserDefined: ...
+    
+class DataTypeString(DataType):
+    """
+    String data type with optional value constraint.
+    
+    Represents string literals and variables in PSS. Can be constrained
+    to a specific set of allowed string values.
+    
+    PSS Example::
+    
+        string message;
+        rand string mode in ["read", "write", "execute"];
+    
+    Attributes:
+        has_range: True if 'in' constraint is present
+        in_range: List of allowed string values
+    
+    See Also:
+        DataType, ExprString
+    
+    """
+    pass
+    
+    def in_range(self) -> ListUtil...
+        """Returns an iterator over the items"""
+    
+    def getIn_range(self) -> List[str]: ...
+    
+class DataTypeUserDefined(DataType):
+    """
+    Reference to a user-defined type (action, component, struct, enum).
+    
+    Represents a type reference using a type identifier. The identifier
+    may be simple or hierarchical (package-qualified). Resolution to the
+    actual type occurs during linking phase.
+    
+    PSS Example::
+    
+        my_pkg::my_action a1;        // Qualified type reference
+        my_struct s1;                // Simple type reference
+    
+    Attributes:
+        is_global: True if type reference starts with '::'
+        type_id: Hierarchical type identifier
+    
+    See Also:
+        TypeIdentifier, DataType, Action, Component, Struct
+    
+    """
+    pass
+    
+    def getType_id(self) -> TypeIdentifier: ...
+    
+class EnumDecl(NamedScopeChild):
+    """
+    Enum type declaration with named values.
+    
+    Declares an enumerated type with a set of named constant values.
+    Enums can be used as field types and in constraints.
+    
+    PSS Example::
+    
+        enum direction {
+            NORTH, SOUTH, EAST, WEST
+        };
+        
+        enum error_code {
+            SUCCESS = 0,
+            ERR_INVALID = 1,
+            ERR_TIMEOUT = 2
+        };
+    
+    Attributes:
+        name: Enum type name (inherited from NamedScopeChild)
+        items: List of enumerator values
+    
+    See Also:
+        EnumItem, DataTypeEnum
+    
+    """
+    pass
+    
+    def items(self) -> ListUtil...
+        """Returns an iterator over the items"""
+    
+    def getItems(self) -> List[EnumItem]: ...
+    
+class EnumItem(NamedScopeChild):
+    """
+    Single enumerator value within an enum declaration.
+    
+    Represents one named value in an enum. Can have an explicit value
+    expression or be auto-assigned sequentially.
+    
+    PSS Example::
+    
+        enum status {
+            OK = 0,          // Explicit value
+            ERROR,           // Auto-assigned value (1)
+            PENDING = 100    // Explicit value
+        };
+    
+    Attributes:
+        name: Enumerator identifier (inherited from NamedScopeChild)
+        value: Optional value expression
+        upper: Back-reference to containing enum scope
+    
+    See Also:
+        EnumDecl, NamedScopeChild
+    
+    """
+    pass
+    
+    def getValue(self) -> Expr: ...
+    
+    def getUpper(self) -> SymbolEnumScope: ...
+    
+class ExprAggrEmpty(ExprAggrLiteral):
+    """
+    Represents an empty aggregate literal.
+    
+    Used to initialize arrays, maps, or structs with no elements. This is the
+    literal form `{}` that creates an empty collection or default-initialized
+    composite structure.
+    
+    PSS Example::
+    
+        array<int, 10> arr = {};  // Empty array literal
+        map<string, int> m = {};  // Empty map literal
+    
+    See Also:
+        ExprAggrLiteral, ExprAggrList, ExprAggrMap
+    
+    """
+    pass
+    
+class ExprAggrList(ExprAggrLiteral):
+    """
+    Represents an array or list literal expression.
+    
+    Contains a comma-separated list of expressions enclosed in braces. Used to
+    initialize arrays with explicit element values. Each element expression is
+    evaluated and assigned to the corresponding array position.
+    
+    PSS Example::
+    
+        array<int, 5> values = {1, 2, 3, 4, 5};
+        array<bit[8], 3> bytes = {8'hFF, 8'h00, 8'hAA};
+    
+    Attributes:
+        elems: List of expression elements in the array literal
+    
+    See Also:
+        ExprAggrLiteral, ExprAggrEmpty
+    
+    """
+    pass
+    
+    def elems(self) -> ListUtil...
+        """Returns an iterator over the items"""
+    
+    def getElems(self) -> List[Expr]: ...
+    
+class ExprAggrMap(ExprAggrLiteral):
+    """
+    Represents a map literal expression.
+    
+    Contains key-value pairs for initializing map data structures. Each element
+    is an ExprAggrMapElem with a key in square brackets followed by a colon and value.
+    
+    PSS Example::
+    
+        map<string, int> ages = {
+            ["Alice"]: 30,
+            ["Bob"]: 25,
+            ["Charlie"]: 35
+        };
+    
+    Attributes:
+        elems: List of key-value pair elements
+    
+    See Also:
+        ExprAggrMapElem, ExprAggrLiteral
+    
+    """
+    pass
+    
+    def elems(self) -> ListUtil...
+        """Returns an iterator over the items"""
+    
+    def getElems(self) -> List[ExprAggrMapElem]: ...
+    
+class ExprAggrStruct(ExprAggrLiteral):
+    """
+    Represents a struct literal expression.
+    
+    Initializes a struct with named field values. Each element specifies a field name
+    and its corresponding value expression. Fields can be initialized in any order,
+    and unspecified fields receive default values.
+    
+    PSS Example::
+    
+        struct Point {
+            int x;
+            int y;
+        }
+        
+        Point p = {x: 100, y: 200};
+    
+    Attributes:
+        elems: List of field initialization elements
+    
+    See Also:
+        ExprAggrStructElem, ExprAggrLiteral
+    
+    """
+    pass
+    
+    def elems(self) -> ListUtil...
+        """Returns an iterator over the items"""
+    
+    def getElems(self) -> List[ExprAggrStructElem]: ...
+    
+class ExprRefPathContext(ExprRefPath):
+    """
+    Represents a context-relative reference path.
+    
+    A reference that navigates relative to the current context, optionally
+    starting with a super reference to access parent scope. The hier_id
+    specifies the path to follow.
+    
+    PSS Example::
+    
+        super.parent_field      // Access parent's field
+        comp.sub.field          // Navigate through context
+    
+    Attributes:
+        is_super: True if path starts with super keyword
+        hier_id: Hierarchical identifier path
+        slice: Optional bit slice
+    
+    See Also:
+        ExprRefPath, ExprHierarchicalId, ExprRefPathSuper
+    
+    """
+    pass
+    
+    def getHier_id(self) -> ExprHierarchicalId: ...
+    
+    def getSlice(self) -> ExprBitSlice: ...
+    
+class ExprRefPathId(ExprRefPath):
+    """
+    Represents a simple identifier reference path.
+    
+    A reference consisting of a single identifier, optionally followed by a
+    bit slice. The simplest form of reference path, used to access local
+    variables, fields, or parameters.
+    
+    PSS Example::
+    
+        my_field
+        value[7:0]          // With bit slice
+        variable
+    
+    Attributes:
+        id: The identifier being referenced
+        slice: Optional bit slice for bit-range extraction
+    
+    See Also:
+        ExprRefPath, ExprId, ExprBitSlice
+    
+    """
+    pass
+    
+    def getId(self) -> ExprId: ...
+    
+    def getSlice(self) -> ExprBitSlice: ...
+    
+class ExprRefPathStatic(ExprRefPath):
+    """
+    Represents a static reference path to types or symbols.
+    
+    Used to reference types, packages, or compile-time constants through
+    qualified names. Can be global (starting with ::) or relative. The base
+    contains the type identifier path elements.
+    
+    PSS Example::
+    
+        ::my_pkg::my_type           // Global static reference
+        pkg::type_name              // Package-qualified type
+        std::addr_handle_t          // Standard library type
+    
+    Attributes:
+        is_global: True if path starts with :: (global scope)
+        base: List of type identifier elements forming the path
+        slice: Optional bit slice
+    
+    See Also:
+        ExprRefPath, TypeIdentifierElem, ExprRefPathStaticFunc
+    
+    """
+    pass
+    
+    def base(self) -> ListUtil...
+        """Returns an iterator over the items"""
+    
+    def getBase(self) -> List[TypeIdentifierElem]: ...
+    
+    def getSlice(self) -> ExprBitSlice: ...
+    
+class ExprRefPathStaticRooted(ExprRefPath):
+    """
+    Represents a reference path with static root and dynamic leaf.
+    
+    Combines a static reference path (root) with a hierarchical identifier
+    (leaf) for mixed static/dynamic references. The root is resolved statically,
+    then the leaf is navigated dynamically from that point.
+    
+    PSS Example::
+    
+        my_pkg::my_type::field.subfield
+        // root: my_pkg::my_type
+        // leaf: field.subfield
+    
+    Attributes:
+        root: Static reference path to the base
+        leaf: Hierarchical identifier for dynamic navigation
+        slice: Optional bit slice
+    
+    See Also:
+        ExprRefPathStatic, ExprHierarchicalId
+    
+    """
+    pass
+    
+    def getRoot(self) -> ExprRefPathStatic: ...
+    
+    def getLeaf(self) -> ExprHierarchicalId: ...
+    
+    def getSlice(self) -> ExprBitSlice: ...
+    
+class ExprSignedNumber(ExprNumber):
+    """
+    Represents a signed integer literal value.
+    
+    Stores a signed numeric constant with its textual representation, bit width,
+    and numeric value. Can represent negative numbers and is used for signed
+    arithmetic expressions.
+    
+    PSS Example::
+    
+        -42
+        -8'sd10         // Signed decimal with specified width
+        -100
+    
+    Attributes:
+        image: Original text representation from source
+        width: Bit width of the value (0 for unsized)
+        value: The signed integer value
+    
+    See Also:
+        ExprNumber, ExprUnsignedNumber
+    
+    """
+    pass
+    
+    def getImage(self) -> str: ...
+    
+    def setImage(self, v : str): ...
+    
+class ExprUnsignedNumber(ExprNumber):
+    """
+    Represents an unsigned integer literal value.
+    
+    Stores an unsigned numeric constant with its textual representation, bit width,
+    and numeric value. Used for positive integers and unsigned arithmetic.
+    
+    PSS Example::
+    
+        42
+        8'hFF           // Hexadecimal with specified width
+        32'hDEADBEEF    // 32-bit hex value
+        1000
+    
+    Attributes:
+        image: Original text representation from source
+        width: Bit width of the value (0 for unsized)
+        value: The unsigned integer value
+    
+    See Also:
+        ExprNumber, ExprSignedNumber
+    
+    """
+    pass
+    
+    def getImage(self) -> str: ...
+    
+    def setImage(self, v : str): ...
+    
+class ExtendType(Scope):
+    """
+    Maps between local item identifier and item child index
+    
+    """
+    pass
+    
+    def setKind(self, v : ExtendTargetE): ...
+    
+    def getTarget(self) -> TypeIdentifier: ...
+    
+    def getImports(self) -> SymbolImportSpec: ...
+    
+class Field(NamedScopeChild):
+    """
+    Data field declaration within actions, components, or structs.
+    
+    Represents variable declarations with optional type, attributes,
+    and initialization. Fields can be randomized ('rand'), constant
+    ('const'), static ('static'), or have visibility modifiers.
+    
+    PSS Example::
+    
+        action my_action {
+            rand int<32> addr;           // Random field
+            const int timeout = 100;     // Constant field
+            static int counter;          // Static field
+            private bool flag;           // Private field
+        }
+    
+    Attributes:
+        name: Field identifier (inherited from NamedScopeChild)
+        type: Data type of the field
+        attr: Attribute flags (FieldAttr)
+        init: Optional initializer expression
+    
+    See Also:
+        FieldAttr, DataType, NamedScopeChild
+    
+    """
+    pass
+    
+    def getType(self) -> DataType: ...
+    
+    def setAttr(self, v : FieldAttr): ...
+    
+    def getInit(self) -> Expr: ...
+    
+class FieldClaim(NamedScopeChild):
+    """
+    Claim or lock on a resource instance.
+    
+    Declares exclusive access to a resource for the duration of an
+    action. Claims can be locks (exclusive) or shares (non-exclusive).
+    Used for resource management and synchronization.
+    
+    PSS Example::
+    
+        resource bus_t { }
+        
+        action my_action {
+            lock bus_t my_bus;     // Exclusive lock
+            share bus_t my_bus2;   // Shared access
+        }
+    
+    Attributes:
+        name: Claim identifier (inherited from NamedScopeChild)
+        type: Resource type to claim
+        is_lock: True for 'lock', false for 'share'
+    
+    See Also:
+        Struct (with kind=Resource), FieldRef
+    
+    """
+    pass
+    
+    def getType(self) -> DataTypeUserDefined: ...
+    
+class FieldCompRef(NamedScopeChild):
+    """
+    Component reference field for hierarchical composition.
+    
+    Declares a reference to a component instance. Used for building
+    the structural hierarchy of components within other components.
+    
+    PSS Example::
+    
+        component sub_comp { }
+        
+        component top_comp {
+            sub_comp sc1;    // Component reference field
+            sub_comp sc2;
+        }
+    
+    Attributes:
+        name: Field name (inherited from NamedScopeChild)
+        type: User-defined component type
+    
+    See Also:
+        FieldRef, Component, DataTypeUserDefined
+    
+    """
+    pass
+    
+    def getType(self) -> DataTypeUserDefined: ...
+    
+class FieldPool(NamedScopeChild):
+    """
+    Pool declaration within a component.
+    
+    Declares a pool of flow- or resource-objects of a given type, with an
+    optional size (capacity). Actions bind their object references to pools
+    via ``bind`` statements.
+    
+    PSS Example::
+    
+        component pss_top {
+            pool [16] my_resource pool_a;   // sized pool
+            pool my_buffer pool_b;          // unsized pool
+        }
+    
+    Attributes:
+        name: Pool identifier (inherited from NamedScopeChild)
+        type: Element type held by the pool
+        size: Optional capacity expression (null if unsized)
+    
+    See Also:
+        FieldClaim, FieldRef
+    
+    """
+    pass
+    
+    def getType(self) -> DataTypeUserDefined: ...
+    
+    def getSize(self) -> Expr: ...
+    
+class FieldRef(NamedScopeChild):
+    """
+    Reference field pointing to action/component instances.
+    
+    Declares a reference (pointer) to an action or component instance.
+    References can be inputs (passed in) or outputs (assigned internally).
+    Used for action composition and resource sharing.
+    
+    PSS Example::
+    
+        action producer { }
+        
+        action consumer {
+            input producer p_ref;    // Input reference
+            ref producer p_local;    // Local reference
+        }
+    
+    Attributes:
+        name: Reference name (inherited from NamedScopeChild)
+        type: User-defined type being referenced
+        is_input: True if declared as 'input'
+    
+    See Also:
+        FieldCompRef, FieldClaim, DataTypeRef
+    
+    """
+    pass
+    
+    def getType(self) -> DataTypeUserDefined: ...
+    
+class FunctionImportProto(FunctionImport):
+    """
+    Import a single external function by prototype.
+    
+    Imports a specific external function by declaring its complete
+    prototype (signature). The function is implemented externally in
+    the specified language and platform. Used for integrating individual
+    foreign functions into PSS.
+    
+    PSS Example::
+    
+        // Import C++ target function
+        import function void write_reg(
+            int addr, 
+            int data
+        ) = target "cpp";
+        
+        // Import Python solve-time function
+        import function int optimize(
+            input int constraints[], 
+            output int solution[]
+        ) = solve "python";
+        
+        // Import with various parameter types
+        import function string format_message(
+            string fmt,
+            input int value,
+            ...
+        ) = target;
+        
+        action my_action {
+            exec body {
+                write_reg(0x1000, 0x42);
+                string msg = format_message("Value: %d", 42);
+            }
+        }
+    
+    Attributes:
+        plat: Platform qualifier (inherited from FunctionImport)
+        lang: Implementation language (inherited from FunctionImport)
+        proto: Complete function prototype with signature
+    
+    See Also:
+        FunctionImport, FunctionImportType, FunctionPrototype
+    
+    """
+    pass
+    
+    def getProto(self) -> FunctionPrototype: ...
+    
+class FunctionImportType(FunctionImport):
+    """
+    Import all functions from an external type/class.
+    
+    Imports all methods from a specified external type by referencing
+    its type identifier. Used when importing entire classes or packages
+    of utility functions from foreign implementations.
+    
+    PSS Example::
+    
+        // Import all methods from a C++ class
+        import class my_pkg::MathUtils = target "cpp";
+        
+        // Import Python utility package for solve-time
+        import class algorithms::Optimizer = solve "python";
+        
+        component my_comp {
+            // Can now use imported functions
+            exec init {
+                int result = MathUtils::square(5);
+            }
+        }
+    
+    Attributes:
+        plat: Platform qualifier (inherited from FunctionImport)
+        lang: Implementation language (inherited from FunctionImport)
+        type: Type identifier of the class/package to import
+    
+    See Also:
+        FunctionImport, FunctionImportProto, TypeIdentifier
+    
+    """
+    pass
+    
+    def getType(self) -> TypeIdentifier: ...
+    
+class FunctionPrototype(NamedScopeChild):
+    """
+    Function signature without implementation.
+    
+    Represents a function's interface: return type, name, and parameter
+    list. Used both in complete function definitions and standalone
+    prototypes. Can be marked as pure virtual, and qualified for
+    target or solve-time execution. Core functions are built-in library
+    functions.
+    
+    PSS Example::
+    
+        // Pure virtual method in action
+        action base_action {
+            pure virtual function void execute();
+        }
+        
+        // Function prototype with parameters
+        function int multiply(int a, int b);
+        
+        // Target function prototype
+        function void hw_write(int addr, int data) = target;
+        
+        // Solve-time function prototype
+        function int compute_size() = solve;
+    
+    Attributes:
+        name: Function name (inherited from NamedScopeChild)
+        rtype: Return type (void if no return)
+        parameters: List of parameter declarations
+        is_pure: True if declared as 'pure virtual'
+        is_target: True if qualified with '= target'
+        is_solve: True if qualified with '= solve'
+        is_core: True for built-in library functions
+    
+    See Also:
+        FunctionDefinition, FunctionParamDecl, FunctionImportProto
+    
+    """
+    pass
+    
+    def getRtype(self) -> DataType: ...
+    
     def parameters(self) -> ListUtil...
         """Returns an iterator over the items"""
     
-    def getParameters(self) -> List[Expr]: ...
+    def getParameters(self) -> List[FunctionParamDecl]: ...
+    
+class GlobalScope(Scope):
+    """
+    Root scope representing a single source file.
+    
+    The top-level container for all PSS declarations in one compilation
+    unit. Each source file parsed creates one GlobalScope containing all
+    package declarations, imports, and top-level definitions.
+    
+    Attributes:
+        fileid: Unique identifier for this source file
+        filename: Path to the source file
+        children: All top-level declarations (inherited from Scope)
+    
+    See Also:
+        Scope, PackageScope
+    
+    """
+    pass
+    
+    def getFilename(self) -> str: ...
+    
+    def setFilename(self, v : str): ...
     
 class MonitorActivityActionTraversal(MonitorActivityStmt):
     """
@@ -2656,24 +4197,6 @@ class MonitorActivityActionTraversal(MonitorActivityStmt):
     def getTarget(self) -> ExprRefPath: ...
     
     def getWith_c(self) -> ConstraintStmt: ...
-    
-class ActionHandleField(NamedScopeChild):
-    """
-    Action handle field declaration.
-    
-    Represents an action instance field declared in an action or monitor
-    body, including optional PSS 3.1 initializer assignments and support
-    for array-typed handles.
-    
-    """
-    pass
-    
-    def getType(self) -> DataType: ...
-    
-    def initializers(self) -> ListUtil...
-        """Returns an iterator over the items"""
-    
-    def getInitializers(self) -> List[ActionFieldInitializer]: ...
     
 class MonitorActivityConcat(MonitorActivityStmt):
     """
@@ -2825,90 +4348,6 @@ class MonitorActivityIfElse(MonitorActivityStmt):
     def getTrue_s(self) -> MonitorActivityStmt: ...
     
     def getFalse_s(self) -> MonitorActivityStmt: ...
-    
-class ActivityBindStmt(ActivityStmt):
-    """
-    Binds resource references between actions.
-    
-    ActivityBindStmt creates a binding between resource references, allowing
-    an action to use resources from another action's scope. This enables
-    resource sharing and coordination between actions in a behavior tree.
-    
-    PSS Example::
-    
-        action producer {
-            output mydata_s data_out;
-            activity { }
-        }
-        
-        action consumer {
-            input mydata_s data_in;
-            activity { }
-        }
-        
-        action top {
-            producer prod;
-            consumer cons;
-            
-            activity {
-                do prod;
-                do cons;
-                bind cons.data_in prod.data_out;
-            }
-        }
-    
-    Attributes:
-        lhs: Left-hand side hierarchical ID (the reference being bound)
-        rhs: List of right-hand side hierarchical IDs (source references)
-    
-    See Also:
-        FieldRef, FieldCompRef
-    
-    """
-    pass
-    
-    def getLhs(self) -> ExprHierarchicalId: ...
-    
-    def rhs(self) -> ListUtil...
-        """Returns an iterator over the items"""
-    
-    def getRhs(self) -> List[ExprHierarchicalId]: ...
-    
-class ActivityConstraint(ActivityStmt):
-    """
-    Adds constraints within an activity block.
-    
-    ActivityConstraint allows constraint statements to be embedded within
-    activity blocks to further constrain the behavior or data of actions
-    being executed. These constraints are evaluated during scenario generation.
-    
-    PSS Example::
-    
-        action my_action {
-            rand bit[16] addr;
-            rand bit[8] data;
-            
-            activity {
-                do comp.sub_action with {
-                    addr == 0x1000;
-                }
-                
-                constraint {
-                    data inside [0..100];
-                }
-            }
-        }
-    
-    Attributes:
-        constraint: The constraint statement to be applied
-    
-    See Also:
-        ConstraintStmt, ConstraintBlock
-    
-    """
-    pass
-    
-    def getConstraint(self) -> ConstraintStmt: ...
     
 class MonitorActivityMatch(MonitorActivityStmt):
     """
@@ -3119,156 +4558,6 @@ class MonitorActivityRepeatCount(MonitorActivityStmt):
     
     def getBody(self) -> ScopeChild: ...
     
-class ActivityJoinSpecBranch(ActivityJoinSpec):
-    """
-    Join specification with explicit branch identification.
-    
-    ActivityJoinSpecBranch allows explicit specification of which branches
-    must complete for the parallel or schedule block to complete. This provides
-    fine-grained control over synchronization points.
-    
-    PSS Example::
-    
-        action my_action {
-            activity {
-                parallel join_branch (branch1, branch2) {
-                    branch1: do comp.action1;
-                    branch2: do comp.action2;
-                    branch3: do comp.action3;
-                    // Block completes when branch1 and branch2 complete
-                    // branch3 may still be running
-                }
-            }
-        }
-    
-    Attributes:
-        branches: List of reference paths identifying branches that must complete
-    
-    See Also:
-        ActivityJoinSpec, ActivityParallel, ActivitySchedule
-    
-    """
-    pass
-    
-    def branches(self) -> ListUtil...
-        """Returns an iterator over the items"""
-    
-    def getBranches(self) -> List[ExprRefPathContext]: ...
-    
-class ActivityJoinSpecFirst(ActivityJoinSpec):
-    """
-    Join specification that waits for the first N branches to complete.
-    
-    ActivityJoinSpecFirst causes the parallel or schedule block to complete
-    when the first specified number of branches have completed. Unlike join_select,
-    this waits for the actual first branches to finish rather than randomly
-    selecting which ones complete.
-    
-    PSS Example::
-    
-        action my_action {
-            activity {
-                // Wait for first 2 to complete
-                parallel join_first(2) {
-                    do comp.action1;
-                    do comp.action2;
-                    do comp.action3;
-                    do comp.action4;
-                }
-                // Block completes as soon as any 2 finish
-                
-                // Wait for first one
-                parallel join_first(1) {
-                    do comp.option_a;
-                    do comp.option_b;
-                }
-            }
-        }
-    
-    Attributes:
-        count: Expression specifying how many branches to wait for
-    
-    See Also:
-        ActivityJoinSpec, ActivityJoinSpecSelect, ActivityParallel
-    
-    """
-    pass
-    
-    def getCount(self) -> Expr: ...
-    
-class ActivityJoinSpecNone(ActivityJoinSpec):
-    """
-    Join specification with no synchronization.
-    
-    ActivityJoinSpecNone indicates that the parallel or schedule block completes
-    immediately without waiting for any branches to complete. The branches continue
-    executing asynchronously in the background. This is useful for fire-and-forget
-    concurrent operations.
-    
-    PSS Example::
-    
-        action my_action {
-            activity {
-                // No waiting for completion
-                parallel join_none {
-                    do comp.background_task1;
-                    do comp.background_task2;
-                    do comp.background_task3;
-                }
-                // Execution continues immediately
-                do comp.foreground_task;
-            }
-        }
-    
-    Attributes:
-        (no specific attributes)
-    
-    See Also:
-        ActivityJoinSpec, ActivityJoinSpecFirst, ActivityParallel
-    
-    """
-    pass
-    
-class ActivityJoinSpecSelect(ActivityJoinSpec):
-    """
-    Join specification that randomly selects branches to complete.
-    
-    ActivityJoinSpecSelect causes the parallel or schedule block to complete
-    when a specified number of branches have completed. The selection of which
-    branches complete is typically random and can be constrained.
-    
-    PSS Example::
-    
-        action my_action {
-            activity {
-                // Select 2 branches to complete
-                parallel join_select(2) {
-                    do comp.action1;
-                    do comp.action2;
-                    do comp.action3;
-                    do comp.action4;
-                }
-                // Block completes when any 2 actions complete
-                
-                // Select 1 (like a race condition)
-                parallel join_select(1) {
-                    do comp.fast_path;
-                    do comp.slow_path;
-                }
-            }
-        }
-    
-    Attributes:
-        count: Expression specifying how many branches must complete
-    
-    See Also:
-        ActivityJoinSpec, ActivityJoinSpecFirst, ActivityParallel
-    
-    """
-    pass
-    
-    def getCount(self) -> Expr: ...
-    
 class MonitorActivityRepeatWhile(MonitorActivityStmt):
     """
     Conditional repetition of monitor activity.
@@ -3324,38 +4613,6 @@ class MonitorActivityRepeatWhile(MonitorActivityStmt):
     def getCond(self) -> Expr: ...
     
     def getBody(self) -> ScopeChild: ...
-    
-class ActivityLabeledStmt(ActivityStmt):
-    """
-    Base class for activity statements that can have a label.
-    
-    ActivityLabeledStmt provides the ability to attach an optional label to
-    an activity statement. Labels can be used to reference activities in
-    scheduling constraints or for identification purposes.
-    
-    PSS Example::
-    
-        action my_action {
-            activity {
-                my_label: do comp.sub_action;
-                
-                another_label: sequence {
-                    do comp.action1;
-                    do comp.action2;
-                }
-            }
-        }
-    
-    Attributes:
-        label: Optional identifier expression for the label
-    
-    See Also:
-        ActivityActionHandleTraversal, ActivitySequence, ActivityRepeatCount
-    
-    """
-    pass
-    
-    def getLabel(self) -> ExprId: ...
     
 class MonitorActivitySelect(MonitorActivityStmt):
     """
@@ -3953,40 +5210,6 @@ class ProceduralStmtRandomize(ExecStmt):
     
     def getConstraints(self) -> List[ConstraintStmt]: ...
     
-class ConstraintScope(ConstraintStmt):
-    """
-    Container for a sequence of constraint statements.
-    
-    A constraint scope groups multiple constraint statements together, forming the body
-    of constraint blocks, conditional constraints, loops, and implications. It maintains
-    the source location information for the entire scope.
-    
-    PSS Example::
-    
-        constraint my_constraints {
-            // This entire block is a ConstraintScope
-            value1 > 0;
-            value2 < 100;
-            value1 + value2 == 50;
-        }
-    
-    Attributes:
-        endLocation: Source location of the closing brace
-        constraints: Ordered list of constraint statements within this scope
-    
-    See Also:
-        ConstraintBlock, ConstraintStmt
-    
-    """
-    pass
-    
-    def getEndLocation(self) -> 'Location': ...
-    
-    def constraints(self) -> ListUtil...
-        """Returns an iterator over the items"""
-    
-    def getConstraints(self) -> List[ConstraintStmt]: ...
-    
 class ProceduralStmtReturn(ExecStmt):
     """
     Return statement from function or method.
@@ -4021,148 +5244,6 @@ class ProceduralStmtReturn(ExecStmt):
     
     def getExpr(self) -> Expr: ...
     
-class ConstraintStmtDefault(ConstraintStmt):
-    """
-    Default value constraint for random fields.
-    
-    Specifies a default value for a random field that will be used if no other constraints
-    determine its value. Default constraints have lower priority than regular constraints
-    and can be disabled using 'default disable' statements. This provides a fallback value
-    while allowing overrides.
-    
-    PSS Example::
-    
-        action network_packet {
-            rand bit[16] packet_size;
-            rand bit[8] priority;
-            
-            constraint defaults_c {
-                default packet_size == 64;      // Minimum Ethernet frame
-                default priority == 0;           // Normal priority
-            }
-            
-            constraint size_limits_c {
-                packet_size <= 1500;             // This overrides default
-            }
-        }
-    
-    Attributes:
-        hid: Hierarchical identifier of the field receiving the default value
-        expr: The default value expression
-    
-    See Also:
-        ConstraintStmtDefaultDisable, ConstraintStmtExpr, ExprHierarchicalId
-    
-    """
-    pass
-    
-    def getHid(self) -> ExprHierarchicalId: ...
-    
-    def getExpr(self) -> Expr: ...
-    
-class ConstraintStmtDefaultDisable(ConstraintStmt):
-    """
-    Disables inherited default value constraints.
-    
-    Explicitly disables default constraints that would otherwise be inherited from a base
-    type or applied from enclosing scopes. This allows derived types to override parent
-    defaults or clear unwanted default values, giving full control to other constraints.
-    
-    PSS Example::
-    
-        action base_transfer {
-            rand bit[16] addr;
-            rand bit[8] data;
-            
-            constraint defaults_c {
-                default addr == 0x1000;
-                default data == 0;
-            }
-        }
-        
-        action special_transfer : base_transfer {
-            constraint override_defaults_c {
-                default disable addr;    // Don't use parent's default
-                addr inside [0x2000..0x2FFF];  // Use this range instead
-            }
-        }
-    
-    Attributes:
-        hid: Hierarchical identifier of the field whose default is being disabled
-    
-    See Also:
-        ConstraintStmtDefault, ExprHierarchicalId
-    
-    """
-    pass
-    
-    def getHid(self) -> ExprHierarchicalId: ...
-    
-class ConstraintStmtExpr(ConstraintStmt):
-    """
-    Expression-based constraint statement.
-    
-    Represents a constraint expressed as a Boolean expression that must evaluate to true
-    during randomization. This is the most common form of constraint, supporting arithmetic
-    relations, logical operations, and complex expressions involving random variables.
-    
-    PSS Example::
-    
-        action transfer {
-            rand bit[16] addr;
-            rand bit[8] size;
-            
-            constraint valid_transfer_c {
-                addr >= 0x1000;                    // Simple relational
-                addr + size <= 0xFFFF;             // Arithmetic expression
-                size inside [1, 2, 4, 8];          // Set membership
-                (addr & 0x3) == 0;                 // Address alignment
-            }
-        }
-    
-    Attributes:
-        expr: The Boolean expression that must be satisfied
-    
-    See Also:
-        Expr, ConstraintStmt, ConstraintBlock
-    
-    """
-    pass
-    
-    def getExpr(self) -> Expr: ...
-    
-class ConstraintStmtField(ConstraintStmt):
-    """
-    Iterator variable declaration within constraint loops.
-    
-    Represents a temporary variable introduced by foreach or forall statements. These
-    variables are scoped to the constraint loop body and provide access to collection
-    elements or type instances during constraint evaluation.
-    
-    PSS Example::
-    
-        constraint iteration_c {
-            foreach (items[idx]) {
-                // 'idx' is a ConstraintStmtField
-                // 'items[idx]' references the element
-                items[idx] != 0;
-            }
-        }
-    
-    Attributes:
-        name: The name of the iterator variable
-        type: The data type of the iterator variable
-    
-    See Also:
-        ConstraintStmtForeach, ConstraintStmtForall, ConstraintSymbolScope
-    
-    """
-    pass
-    
-    def getName(self) -> ExprId: ...
-    
-    def getType(self) -> DataType: ...
-    
 class ProceduralStmtYield(ExecStmt):
     """
     Yield control back to scheduler or runtime.
@@ -4192,341 +5273,6 @@ class ProceduralStmtYield(ExecStmt):
     
     """
     pass
-    
-class ConstraintStmtIf(ConstraintStmt):
-    """
-    Conditional constraint statement with optional else clause.
-    
-    Applies different constraints based on the evaluation of a Boolean condition. If the
-    condition is true, constraints in the true branch are active; otherwise, constraints
-    in the optional else branch are active. The condition is evaluated after randomization
-    of variables it depends on.
-    
-    PSS Example::
-    
-        action memory_access {
-            rand bit is_read;
-            rand bit[32] addr;
-            rand bit[8] data;
-            
-            constraint access_type_c {
-                if (is_read) {
-                    addr inside [0x0000..0x0FFF];  // ROM region
-                } else {
-                    addr inside [0x1000..0x1FFF];  // RAM region
-                    data != 0;                      // Write non-zero
-                }
-            }
-        }
-    
-    Attributes:
-        cond: The Boolean condition expression
-        true_c: Constraints applied when condition is true
-        false_c: Constraints applied when condition is false (may be empty)
-    
-    See Also:
-        ConstraintScope, ConstraintStmtExpr, ConstraintStmtImplication
-    
-    """
-    pass
-    
-    def getCond(self) -> Expr: ...
-    
-    def getTrue_c(self) -> ConstraintScope: ...
-    
-    def getFalse_c(self) -> ConstraintScope: ...
-    
-class ConstraintStmtUnique(ConstraintStmt):
-    """
-    Uniqueness constraint ensuring distinct values.
-    
-    Constrains a set of expressions to have mutually distinct values during randomization.
-    All expressions in the list must evaluate to different values, preventing duplicates
-    within the specified set.
-    
-    PSS Example::
-    
-        action transaction_set {
-            rand bit[8] id1, id2, id3, id4;
-            rand bit[16] addr[4];
-            
-            constraint unique_ids_c {
-                unique { id1, id2, id3, id4 };
-            }
-            
-            constraint unique_addresses_c {
-                unique { addr[0], addr[1], addr[2], addr[3] };
-            }
-            
-            constraint mixed_unique_c {
-                unique { id1, id2, id3 };  // First three must differ
-                // id4 is not constrained by this
-            }
-        }
-    
-    Attributes:
-        list: Expressions that must have unique values
-    
-    See Also:
-        ConstraintStmtExpr, ExprHierarchicalId
-    
-    """
-    pass
-    
-    def list(self) -> ListUtil...
-        """Returns an iterator over the items"""
-    
-    def getList(self) -> List[ExprHierarchicalId]: ...
-    
-class DataTypeBool(DataType):
-    """
-    Boolean data type.
-    
-    Represents the 'bool' type in PSS. Boolean values are true or false.
-    
-    PSS Example::
-    
-        bool flag;
-        rand bool enable;
-        
-        constraint {
-            enable == true;
-        }
-    
-    See Also:
-        DataType, DataTypeInt
-    
-    """
-    pass
-    
-class DataTypeChandle(DataType):
-    """
-    Opaque handle type for referencing external objects.
-    
-    Represents the 'chandle' type - an opaque pointer to data managed
-    outside PSS (typically C/C++ objects). Used for interfacing with
-    external code and APIs.
-    
-    PSS Example::
-    
-        function void use_object(chandle obj);
-    
-    See Also:
-        DataType, DataTypePyObj
-    
-    """
-    pass
-    
-class DataTypeEnum(DataType):
-    """
-    Enum type reference with optional range restriction.
-    
-    Represents a reference to an enum type, optionally restricted to
-    a subset of enum values using an 'in' range expression.
-    
-    PSS Example::
-    
-        enum my_enum { A, B, C, D };
-        
-        rand my_enum value in [A, B];    // Only A or B allowed
-    
-    Attributes:
-        tid: Reference to the user-defined enum type
-        in_rangelist: Optional range restriction expression
-    
-    See Also:
-        EnumDecl, DataTypeUserDefined, ExprOpenRangeList
-    
-    """
-    pass
-    
-    def getTid(self) -> DataTypeUserDefined: ...
-    
-    def getIn_rangelist(self) -> ExprOpenRangeList: ...
-    
-class DataTypeInt(DataType):
-    """
-    Integer data type with signedness, width, and optional range.
-    
-    Represents integer types in PSS. Can be signed/unsigned, have
-    explicit or inferred bit-width, and include value constraints.
-    
-    PSS Example::
-    
-        int<8> byte_val;                    // 8-bit signed
-        bit<16> word_val;                   // 16-bit unsigned
-        rand int addr in [0x1000..0x2000];  // With range constraint
-        int value;                          // Implementation-defined width
-    
-    Attributes:
-        is_signed: True for 'int', false for 'bit'
-        width: Bit-width expression (optional)
-        in_range: Optional domain range constraint
-    
-    See Also:
-        DataType, ExprDomainOpenRangeList
-    
-    """
-    pass
-    
-    def getWidth(self) -> Expr: ...
-    
-    def getIn_range(self) -> ExprDomainOpenRangeList: ...
-    
-class DataTypePyObj(DataType):
-    """
-    Python object type for embedded Python integration.
-    
-    Represents Python objects accessible within PSS. Used for
-    interfacing with embedded Python code and libraries.
-    
-    See Also:
-        DataTypeChandle, PyImportStmt
-    
-    """
-    pass
-    
-class DataTypeRef(DataType):
-    """
-    Reference type to another type instance.
-    
-    Represents a reference (pointer) to an instance of a user-defined
-    type. Used for creating references to action or component instances.
-    
-    PSS Example::
-    
-        action A { }
-        
-        action B {
-            ref A a_ref;    // Reference to action A instance
-        }
-    
-    Attributes:
-        type: The user-defined type being referenced
-    
-    See Also:
-        DataTypeUserDefined, FieldRef
-    
-    """
-    pass
-    
-    def getType(self) -> DataTypeUserDefined: ...
-    
-class DataTypeString(DataType):
-    """
-    String data type with optional value constraint.
-    
-    Represents string literals and variables in PSS. Can be constrained
-    to a specific set of allowed string values.
-    
-    PSS Example::
-    
-        string message;
-        rand string mode in ["read", "write", "execute"];
-    
-    Attributes:
-        has_range: True if 'in' constraint is present
-        in_range: List of allowed string values
-    
-    See Also:
-        DataType, ExprString
-    
-    """
-    pass
-    
-    def in_range(self) -> ListUtil...
-        """Returns an iterator over the items"""
-    
-    def getIn_range(self) -> List[str]: ...
-    
-class DataTypeUserDefined(DataType):
-    """
-    Reference to a user-defined type (action, component, struct, enum).
-    
-    Represents a type reference using a type identifier. The identifier
-    may be simple or hierarchical (package-qualified). Resolution to the
-    actual type occurs during linking phase.
-    
-    PSS Example::
-    
-        my_pkg::my_action a1;        // Qualified type reference
-        my_struct s1;                // Simple type reference
-    
-    Attributes:
-        is_global: True if type reference starts with '::'
-        type_id: Hierarchical type identifier
-    
-    See Also:
-        TypeIdentifier, DataType, Action, Component, Struct
-    
-    """
-    pass
-    
-    def getType_id(self) -> TypeIdentifier: ...
-    
-class EnumDecl(NamedScopeChild):
-    """
-    Enum type declaration with named values.
-    
-    Declares an enumerated type with a set of named constant values.
-    Enums can be used as field types and in constraints.
-    
-    PSS Example::
-    
-        enum direction {
-            NORTH, SOUTH, EAST, WEST
-        };
-        
-        enum error_code {
-            SUCCESS = 0,
-            ERR_INVALID = 1,
-            ERR_TIMEOUT = 2
-        };
-    
-    Attributes:
-        name: Enum type name (inherited from NamedScopeChild)
-        items: List of enumerator values
-    
-    See Also:
-        EnumItem, DataTypeEnum
-    
-    """
-    pass
-    
-    def items(self) -> ListUtil...
-        """Returns an iterator over the items"""
-    
-    def getItems(self) -> List[EnumItem]: ...
-    
-class EnumItem(NamedScopeChild):
-    """
-    Single enumerator value within an enum declaration.
-    
-    Represents one named value in an enum. Can have an explicit value
-    expression or be auto-assigned sequentially.
-    
-    PSS Example::
-    
-        enum status {
-            OK = 0,          // Explicit value
-            ERROR,           // Auto-assigned value (1)
-            PENDING = 100    // Explicit value
-        };
-    
-    Attributes:
-        name: Enumerator identifier (inherited from NamedScopeChild)
-        value: Optional value expression
-        upper: Back-reference to containing enum scope
-    
-    See Also:
-        EnumDecl, NamedScopeChild
-    
-    """
-    pass
-    
-    def getValue(self) -> Expr: ...
-    
-    def getUpper(self) -> SymbolEnumScope: ...
     
 class SymbolChildrenScope(SymbolChild):
     """
@@ -4657,52 +5403,6 @@ class TemplateGenericTypeParamDecl(TemplateParamDecl):
     
     def getDflt(self) -> DataType: ...
     
-class ExprAggrEmpty(ExprAggrLiteral):
-    """
-    Represents an empty aggregate literal.
-    
-    Used to initialize arrays, maps, or structs with no elements. This is the
-    literal form `{}` that creates an empty collection or default-initialized
-    composite structure.
-    
-    PSS Example::
-    
-        array<int, 10> arr = {};  // Empty array literal
-        map<string, int> m = {};  // Empty map literal
-    
-    See Also:
-        ExprAggrLiteral, ExprAggrList, ExprAggrMap
-    
-    """
-    pass
-    
-class ExprAggrList(ExprAggrLiteral):
-    """
-    Represents an array or list literal expression.
-    
-    Contains a comma-separated list of expressions enclosed in braces. Used to
-    initialize arrays with explicit element values. Each element expression is
-    evaluated and assigned to the corresponding array position.
-    
-    PSS Example::
-    
-        array<int, 5> values = {1, 2, 3, 4, 5};
-        array<bit[8], 3> bytes = {8'hFF, 8'h00, 8'hAA};
-    
-    Attributes:
-        elems: List of expression elements in the array literal
-    
-    See Also:
-        ExprAggrLiteral, ExprAggrEmpty
-    
-    """
-    pass
-    
-    def elems(self) -> ListUtil...
-        """Returns an iterator over the items"""
-    
-    def getElems(self) -> List[Expr]: ...
-    
 class TemplateValueParamDecl(TemplateParamDecl):
     """
     Value template parameter declaration.
@@ -4755,566 +5455,6 @@ class TemplateValueParamDecl(TemplateParamDecl):
     def getType(self) -> DataType: ...
     
     def getDflt(self) -> Expr: ...
-    
-class ExprAggrMap(ExprAggrLiteral):
-    """
-    Represents a map literal expression.
-    
-    Contains key-value pairs for initializing map data structures. Each element
-    is an ExprAggrMapElem with a key in square brackets followed by a colon and value.
-    
-    PSS Example::
-    
-        map<string, int> ages = {
-            ["Alice"]: 30,
-            ["Bob"]: 25,
-            ["Charlie"]: 35
-        };
-    
-    Attributes:
-        elems: List of key-value pair elements
-    
-    See Also:
-        ExprAggrMapElem, ExprAggrLiteral
-    
-    """
-    pass
-    
-    def elems(self) -> ListUtil...
-        """Returns an iterator over the items"""
-    
-    def getElems(self) -> List[ExprAggrMapElem]: ...
-    
-class ExprAggrStruct(ExprAggrLiteral):
-    """
-    Represents a struct literal expression.
-    
-    Initializes a struct with named field values. Each element specifies a field name
-    and its corresponding value expression. Fields can be initialized in any order,
-    and unspecified fields receive default values.
-    
-    PSS Example::
-    
-        struct Point {
-            int x;
-            int y;
-        }
-        
-        Point p = {x: 100, y: 200};
-    
-    Attributes:
-        elems: List of field initialization elements
-    
-    See Also:
-        ExprAggrStructElem, ExprAggrLiteral
-    
-    """
-    pass
-    
-    def elems(self) -> ListUtil...
-        """Returns an iterator over the items"""
-    
-    def getElems(self) -> List[ExprAggrStructElem]: ...
-    
-class ExprRefPathContext(ExprRefPath):
-    """
-    Represents a context-relative reference path.
-    
-    A reference that navigates relative to the current context, optionally
-    starting with a super reference to access parent scope. The hier_id
-    specifies the path to follow.
-    
-    PSS Example::
-    
-        super.parent_field      // Access parent's field
-        comp.sub.field          // Navigate through context
-    
-    Attributes:
-        is_super: True if path starts with super keyword
-        hier_id: Hierarchical identifier path
-        slice: Optional bit slice
-    
-    See Also:
-        ExprRefPath, ExprHierarchicalId, ExprRefPathSuper
-    
-    """
-    pass
-    
-    def getHier_id(self) -> ExprHierarchicalId: ...
-    
-    def getSlice(self) -> ExprBitSlice: ...
-    
-class ExprRefPathId(ExprRefPath):
-    """
-    Represents a simple identifier reference path.
-    
-    A reference consisting of a single identifier, optionally followed by a
-    bit slice. The simplest form of reference path, used to access local
-    variables, fields, or parameters.
-    
-    PSS Example::
-    
-        my_field
-        value[7:0]          // With bit slice
-        variable
-    
-    Attributes:
-        id: The identifier being referenced
-        slice: Optional bit slice for bit-range extraction
-    
-    See Also:
-        ExprRefPath, ExprId, ExprBitSlice
-    
-    """
-    pass
-    
-    def getId(self) -> ExprId: ...
-    
-    def getSlice(self) -> ExprBitSlice: ...
-    
-class ExprRefPathStatic(ExprRefPath):
-    """
-    Represents a static reference path to types or symbols.
-    
-    Used to reference types, packages, or compile-time constants through
-    qualified names. Can be global (starting with ::) or relative. The base
-    contains the type identifier path elements.
-    
-    PSS Example::
-    
-        ::my_pkg::my_type           // Global static reference
-        pkg::type_name              // Package-qualified type
-        std::addr_handle_t          // Standard library type
-    
-    Attributes:
-        is_global: True if path starts with :: (global scope)
-        base: List of type identifier elements forming the path
-        slice: Optional bit slice
-    
-    See Also:
-        ExprRefPath, TypeIdentifierElem, ExprRefPathStaticFunc
-    
-    """
-    pass
-    
-    def base(self) -> ListUtil...
-        """Returns an iterator over the items"""
-    
-    def getBase(self) -> List[TypeIdentifierElem]: ...
-    
-    def getSlice(self) -> ExprBitSlice: ...
-    
-class ExprRefPathStaticRooted(ExprRefPath):
-    """
-    Represents a reference path with static root and dynamic leaf.
-    
-    Combines a static reference path (root) with a hierarchical identifier
-    (leaf) for mixed static/dynamic references. The root is resolved statically,
-    then the leaf is navigated dynamically from that point.
-    
-    PSS Example::
-    
-        my_pkg::my_type::field.subfield
-        // root: my_pkg::my_type
-        // leaf: field.subfield
-    
-    Attributes:
-        root: Static reference path to the base
-        leaf: Hierarchical identifier for dynamic navigation
-        slice: Optional bit slice
-    
-    See Also:
-        ExprRefPathStatic, ExprHierarchicalId
-    
-    """
-    pass
-    
-    def getRoot(self) -> ExprRefPathStatic: ...
-    
-    def getLeaf(self) -> ExprHierarchicalId: ...
-    
-    def getSlice(self) -> ExprBitSlice: ...
-    
-class ExprSignedNumber(ExprNumber):
-    """
-    Represents a signed integer literal value.
-    
-    Stores a signed numeric constant with its textual representation, bit width,
-    and numeric value. Can represent negative numbers and is used for signed
-    arithmetic expressions.
-    
-    PSS Example::
-    
-        -42
-        -8'sd10         // Signed decimal with specified width
-        -100
-    
-    Attributes:
-        image: Original text representation from source
-        width: Bit width of the value (0 for unsized)
-        value: The signed integer value
-    
-    See Also:
-        ExprNumber, ExprUnsignedNumber
-    
-    """
-    pass
-    
-    def getImage(self) -> str: ...
-    
-    def setImage(self, v : str): ...
-    
-class ExprUnsignedNumber(ExprNumber):
-    """
-    Represents an unsigned integer literal value.
-    
-    Stores an unsigned numeric constant with its textual representation, bit width,
-    and numeric value. Used for positive integers and unsigned arithmetic.
-    
-    PSS Example::
-    
-        42
-        8'hFF           // Hexadecimal with specified width
-        32'hDEADBEEF    // 32-bit hex value
-        1000
-    
-    Attributes:
-        image: Original text representation from source
-        width: Bit width of the value (0 for unsized)
-        value: The unsigned integer value
-    
-    See Also:
-        ExprNumber, ExprSignedNumber
-    
-    """
-    pass
-    
-    def getImage(self) -> str: ...
-    
-    def setImage(self, v : str): ...
-    
-class ExtendType(Scope):
-    """
-    Maps between local item identifier and item child index
-    
-    """
-    pass
-    
-    def setKind(self, v : ExtendTargetE): ...
-    
-    def getTarget(self) -> TypeIdentifier: ...
-    
-    def getImports(self) -> SymbolImportSpec: ...
-    
-class Field(NamedScopeChild):
-    """
-    Data field declaration within actions, components, or structs.
-    
-    Represents variable declarations with optional type, attributes,
-    and initialization. Fields can be randomized ('rand'), constant
-    ('const'), static ('static'), or have visibility modifiers.
-    
-    PSS Example::
-    
-        action my_action {
-            rand int<32> addr;           // Random field
-            const int timeout = 100;     // Constant field
-            static int counter;          // Static field
-            private bool flag;           // Private field
-        }
-    
-    Attributes:
-        name: Field identifier (inherited from NamedScopeChild)
-        type: Data type of the field
-        attr: Attribute flags (FieldAttr)
-        init: Optional initializer expression
-    
-    See Also:
-        FieldAttr, DataType, NamedScopeChild
-    
-    """
-    pass
-    
-    def getType(self) -> DataType: ...
-    
-    def setAttr(self, v : FieldAttr): ...
-    
-    def getInit(self) -> Expr: ...
-    
-class FieldClaim(NamedScopeChild):
-    """
-    Claim or lock on a resource instance.
-    
-    Declares exclusive access to a resource for the duration of an
-    action. Claims can be locks (exclusive) or shares (non-exclusive).
-    Used for resource management and synchronization.
-    
-    PSS Example::
-    
-        resource bus_t { }
-        
-        action my_action {
-            lock bus_t my_bus;     // Exclusive lock
-            share bus_t my_bus2;   // Shared access
-        }
-    
-    Attributes:
-        name: Claim identifier (inherited from NamedScopeChild)
-        type: Resource type to claim
-        is_lock: True for 'lock', false for 'share'
-    
-    See Also:
-        Struct (with kind=Resource), FieldRef
-    
-    """
-    pass
-    
-    def getType(self) -> DataTypeUserDefined: ...
-    
-class FieldCompRef(NamedScopeChild):
-    """
-    Component reference field for hierarchical composition.
-    
-    Declares a reference to a component instance. Used for building
-    the structural hierarchy of components within other components.
-    
-    PSS Example::
-    
-        component sub_comp { }
-        
-        component top_comp {
-            sub_comp sc1;    // Component reference field
-            sub_comp sc2;
-        }
-    
-    Attributes:
-        name: Field name (inherited from NamedScopeChild)
-        type: User-defined component type
-    
-    See Also:
-        FieldRef, Component, DataTypeUserDefined
-    
-    """
-    pass
-    
-    def getType(self) -> DataTypeUserDefined: ...
-    
-class FieldPool(NamedScopeChild):
-    """
-    Pool declaration within a component.
-    
-    Declares a pool of flow- or resource-objects of a given type, with an
-    optional size (capacity). Actions bind their object references to pools
-    via ``bind`` statements.
-    
-    PSS Example::
-    
-        component pss_top {
-            pool [16] my_resource pool_a;   // sized pool
-            pool my_buffer pool_b;          // unsized pool
-        }
-    
-    Attributes:
-        name: Pool identifier (inherited from NamedScopeChild)
-        type: Element type held by the pool
-        size: Optional capacity expression (null if unsized)
-    
-    See Also:
-        FieldClaim, FieldRef
-    
-    """
-    pass
-    
-    def getType(self) -> DataTypeUserDefined: ...
-    
-    def getSize(self) -> Expr: ...
-    
-class FieldRef(NamedScopeChild):
-    """
-    Reference field pointing to action/component instances.
-    
-    Declares a reference (pointer) to an action or component instance.
-    References can be inputs (passed in) or outputs (assigned internally).
-    Used for action composition and resource sharing.
-    
-    PSS Example::
-    
-        action producer { }
-        
-        action consumer {
-            input producer p_ref;    // Input reference
-            ref producer p_local;    // Local reference
-        }
-    
-    Attributes:
-        name: Reference name (inherited from NamedScopeChild)
-        type: User-defined type being referenced
-        is_input: True if declared as 'input'
-    
-    See Also:
-        FieldCompRef, FieldClaim, DataTypeRef
-    
-    """
-    pass
-    
-    def getType(self) -> DataTypeUserDefined: ...
-    
-class FunctionImportProto(FunctionImport):
-    """
-    Import a single external function by prototype.
-    
-    Imports a specific external function by declaring its complete
-    prototype (signature). The function is implemented externally in
-    the specified language and platform. Used for integrating individual
-    foreign functions into PSS.
-    
-    PSS Example::
-    
-        // Import C++ target function
-        import function void write_reg(
-            int addr, 
-            int data
-        ) = target "cpp";
-        
-        // Import Python solve-time function
-        import function int optimize(
-            input int constraints[], 
-            output int solution[]
-        ) = solve "python";
-        
-        // Import with various parameter types
-        import function string format_message(
-            string fmt,
-            input int value,
-            ...
-        ) = target;
-        
-        action my_action {
-            exec body {
-                write_reg(0x1000, 0x42);
-                string msg = format_message("Value: %d", 42);
-            }
-        }
-    
-    Attributes:
-        plat: Platform qualifier (inherited from FunctionImport)
-        lang: Implementation language (inherited from FunctionImport)
-        proto: Complete function prototype with signature
-    
-    See Also:
-        FunctionImport, FunctionImportType, FunctionPrototype
-    
-    """
-    pass
-    
-    def getProto(self) -> FunctionPrototype: ...
-    
-class FunctionImportType(FunctionImport):
-    """
-    Import all functions from an external type/class.
-    
-    Imports all methods from a specified external type by referencing
-    its type identifier. Used when importing entire classes or packages
-    of utility functions from foreign implementations.
-    
-    PSS Example::
-    
-        // Import all methods from a C++ class
-        import class my_pkg::MathUtils = target "cpp";
-        
-        // Import Python utility package for solve-time
-        import class algorithms::Optimizer = solve "python";
-        
-        component my_comp {
-            // Can now use imported functions
-            exec init {
-                int result = MathUtils::square(5);
-            }
-        }
-    
-    Attributes:
-        plat: Platform qualifier (inherited from FunctionImport)
-        lang: Implementation language (inherited from FunctionImport)
-        type: Type identifier of the class/package to import
-    
-    See Also:
-        FunctionImport, FunctionImportProto, TypeIdentifier
-    
-    """
-    pass
-    
-    def getType(self) -> TypeIdentifier: ...
-    
-class FunctionPrototype(NamedScopeChild):
-    """
-    Function signature without implementation.
-    
-    Represents a function's interface: return type, name, and parameter
-    list. Used both in complete function definitions and standalone
-    prototypes. Can be marked as pure virtual, and qualified for
-    target or solve-time execution. Core functions are built-in library
-    functions.
-    
-    PSS Example::
-    
-        // Pure virtual method in action
-        action base_action {
-            pure virtual function void execute();
-        }
-        
-        // Function prototype with parameters
-        function int multiply(int a, int b);
-        
-        // Target function prototype
-        function void hw_write(int addr, int data) = target;
-        
-        // Solve-time function prototype
-        function int compute_size() = solve;
-    
-    Attributes:
-        name: Function name (inherited from NamedScopeChild)
-        rtype: Return type (void if no return)
-        parameters: List of parameter declarations
-        is_pure: True if declared as 'pure virtual'
-        is_target: True if qualified with '= target'
-        is_solve: True if qualified with '= solve'
-        is_core: True for built-in library functions
-    
-    See Also:
-        FunctionDefinition, FunctionParamDecl, FunctionImportProto
-    
-    """
-    pass
-    
-    def getRtype(self) -> DataType: ...
-    
-    def parameters(self) -> ListUtil...
-        """Returns an iterator over the items"""
-    
-    def getParameters(self) -> List[FunctionParamDecl]: ...
-    
-class GlobalScope(Scope):
-    """
-    Root scope representing a single source file.
-    
-    The top-level container for all PSS declarations in one compilation
-    unit. Each source file parsed creates one GlobalScope containing all
-    package declarations, imports, and top-level definitions.
-    
-    Attributes:
-        fileid: Unique identifier for this source file
-        filename: Path to the source file
-        children: All top-level declarations (inherited from Scope)
-    
-    See Also:
-        Scope, PackageScope
-    
-    """
-    pass
-    
-    def getFilename(self) -> str: ...
-    
-    def setFilename(self, v : str): ...
     
 class ActivityActionHandleTraversal(ActivityLabeledStmt):
     """
@@ -6332,6 +6472,42 @@ class ActivityDecl(SymbolScope):
     """
     pass
     
+class ActivityLabeledScope(SymbolScope):
+    """
+    Base class for labeled activity scopes.
+    
+    ActivityLabeledScope represents activity constructs that introduce a new
+    scope and can be labeled. This includes sequences, parallel blocks, and
+    schedule blocks. The label can be used for referencing in scheduling
+    constraints.
+    
+    PSS Example::
+    
+        action my_action {
+            activity {
+                my_seq: sequence {
+                    do comp.action1;
+                    do comp.action2;
+                }
+                
+                my_par: parallel {
+                    do comp.action3;
+                    do comp.action4;
+                }
+            }
+        }
+    
+    Attributes:
+        label: Optional identifier expression for the label
+    
+    See Also:
+        ActivitySequence, ActivityParallel, ActivitySchedule
+    
+    """
+    pass
+    
+    def getLabel(self) -> ExprId: ...
+    
 class MonitorActivitySchedule(SymbolScope):
     """
     Defines a scheduled monitoring block with flexible ordering.
@@ -6425,42 +6601,6 @@ class MonitorActivitySequence(SymbolScope):
     
     def getLabel(self) -> ExprId: ...
     
-class ActivityLabeledScope(SymbolScope):
-    """
-    Base class for labeled activity scopes.
-    
-    ActivityLabeledScope represents activity constructs that introduce a new
-    scope and can be labeled. This includes sequences, parallel blocks, and
-    schedule blocks. The label can be used for referencing in scheduling
-    constraints.
-    
-    PSS Example::
-    
-        action my_action {
-            activity {
-                my_seq: sequence {
-                    do comp.action1;
-                    do comp.action2;
-                }
-                
-                my_par: parallel {
-                    do comp.action3;
-                    do comp.action4;
-                }
-            }
-        }
-    
-    Attributes:
-        label: Optional identifier expression for the label
-    
-    See Also:
-        ActivitySequence, ActivityParallel, ActivitySchedule
-    
-    """
-    pass
-    
-    def getLabel(self) -> ExprId: ...
-    
 class AnnotationDecl(TypeScope):
     """
     Annotation type declaration.
@@ -6541,28 +6681,6 @@ class ProceduralStmtSymbolBodyScope(SymbolScope):
     
     def getBody(self) -> ScopeChild: ...
     
-class RootSymbolScope(SymbolScope):
-    """
-    List of inbound refs to each unit
-    
-    """
-    pass
-    
-    def units(self) -> ListUtil...
-        """Returns an iterator over the items"""
-    
-    def getUnits(self) -> List[GlobalScope]: ...
-    
-    def fileOutRef(self) -> ListUtil...
-        """Returns an iterator over the items"""
-    
-    def getFileOutRef(self) -> List[List[int]]: ...
-    
-    def fileInRef(self) -> ListUtil...
-        """Returns an iterator over the items"""
-    
-    def getFileInRef(self) -> List[List[int]]: ...
-    
 class ConstraintSymbolScope(SymbolScope):
     """
     Symbol table scope for constraint expressions.
@@ -6590,6 +6708,28 @@ class ConstraintSymbolScope(SymbolScope):
     pass
     
     def getConstraint(self) -> ConstraintStmt: ...
+    
+class RootSymbolScope(SymbolScope):
+    """
+    List of inbound refs to each unit
+    
+    """
+    pass
+    
+    def units(self) -> ListUtil...
+        """Returns an iterator over the items"""
+    
+    def getUnits(self) -> List[GlobalScope]: ...
+    
+    def fileOutRef(self) -> ListUtil...
+        """Returns an iterator over the items"""
+    
+    def getFileOutRef(self) -> List[List[int]]: ...
+    
+    def fileInRef(self) -> ListUtil...
+        """Returns an iterator over the items"""
+    
+    def getFileInRef(self) -> List[List[int]]: ...
     
 class Struct(TypeScope):
     """
@@ -6793,6 +6933,91 @@ class GenericConstraintDeclBool(ConstraintBlock):
     
     def getParameters(self) -> List[GenericConstraintParam]: ...
     
+class ProceduralStmtForeach(ProceduralStmtSymbolBodyScope):
+    """
+    Iteration over elements of a collection.
+    
+    ProceduralStmtForeach represents a foreach loop that iterates over elements
+    of an array, list, or other collection. Provides both the element iterator
+    and an optional index iterator for tracking position.
+    
+    PSS Example::
+    
+        action my_action {
+            int values[10];
+            
+            exec body {
+                // Iterate over array elements
+                foreach (v : values) {
+                    console.log("Value: ", v);
+                }
+                
+                // Iterate with index
+                foreach (v [i] : values) {
+                    console.log("values[", i, "] = ", v);
+                }
+            }
+        }
+    
+    Attributes:
+        path: Reference path to the collection to iterate
+        it_id: Iterator variable for current element
+        idx_id: Optional index variable for current position
+        body: Statement(s) to execute each iteration (inherited)
+    
+    See Also:
+        ProceduralStmtRepeat, ProceduralStmtWhile, ExprRefPath
+    
+    """
+    pass
+    
+    def getPath(self) -> ExprRefPath: ...
+    
+    def getIt_id(self) -> ExprId: ...
+    
+    def getIdx_id(self) -> ExprId: ...
+    
+class ExecBlock(ExecScope):
+    """
+    Complete exec block with specific execution phase.
+    
+    ExecBlock represents a complete exec block declaration within an action or
+    component. The kind field specifies when this code executes (body, pre_solve,
+    post_solve, etc.). Each exec block is a symbol scope containing procedural
+    statements.
+    
+    PSS Example::
+    
+        action my_action {
+            rand int x;
+            
+            exec pre_solve {
+                // Executes before randomization
+                console.log("About to solve");
+            }
+            
+            exec body {
+                // Main execution body
+                console.log("x = ", x);
+            }
+            
+            exec post_solve {
+                // Executes after randomization
+                console.log("Solved x = ", x);
+            }
+        }
+    
+    Attributes:
+        kind: Type of exec block (Body, PreSolve, PostSolve, etc.)
+    
+    See Also:
+        ExecKind, ExecScope, Action
+    
+    """
+    pass
+    
+    def setKind(self, v : ExecKind): ...
+    
 class ProceduralStmtRepeat(ProceduralStmtSymbolBodyScope):
     """
     Fixed-count repeat loop with optional iterator variable.
@@ -6831,52 +7056,6 @@ class ProceduralStmtRepeat(ProceduralStmtSymbolBodyScope):
     def getIt_id(self) -> ExprId: ...
     
     def getCount(self) -> Expr: ...
-    
-class ActivitySequence(ActivityLabeledScope):
-    """
-    Defines a sequential execution block.
-    
-    ActivitySequence specifies that its contained activities execute in strict
-    sequential order, one after another. Each activity completes before the next
-    begins. This is the default execution model and can be explicitly specified
-    with the 'sequence' keyword.
-    
-    PSS Example::
-    
-        action my_action {
-            activity {
-                // Explicit sequence
-                sequence {
-                    do comp.init_action;
-                    do comp.process_action;
-                    do comp.cleanup_action;
-                }
-                
-                // Labeled sequence
-                setup_phase: sequence {
-                    do comp.config;
-                    do comp.verify;
-                }
-                
-                // Nested sequences
-                sequence {
-                    sequence {
-                        do comp.step1;
-                        do comp.step2;
-                    }
-                    do comp.step3;
-                }
-            }
-        }
-    
-    Attributes:
-        (inherits from ActivityLabeledScope)
-    
-    See Also:
-        ActivityParallel, ActivitySchedule, ActivityLabeledScope
-    
-    """
-    pass
     
 class ActivityParallel(ActivityLabeledScope):
     """
@@ -6963,88 +7142,49 @@ class ActivitySchedule(ActivityLabeledScope):
     
     def getJoin_spec(self) -> ActivityJoinSpec: ...
     
-class ProceduralStmtForeach(ProceduralStmtSymbolBodyScope):
+class ActivitySequence(ActivityLabeledScope):
     """
-    Iteration over elements of a collection.
+    Defines a sequential execution block.
     
-    ProceduralStmtForeach represents a foreach loop that iterates over elements
-    of an array, list, or other collection. Provides both the element iterator
-    and an optional index iterator for tracking position.
+    ActivitySequence specifies that its contained activities execute in strict
+    sequential order, one after another. Each activity completes before the next
+    begins. This is the default execution model and can be explicitly specified
+    with the 'sequence' keyword.
     
     PSS Example::
     
         action my_action {
-            int values[10];
-            
-            exec body {
-                // Iterate over array elements
-                foreach (v : values) {
-                    console.log("Value: ", v);
+            activity {
+                // Explicit sequence
+                sequence {
+                    do comp.init_action;
+                    do comp.process_action;
+                    do comp.cleanup_action;
                 }
                 
-                // Iterate with index
-                foreach (v [i] : values) {
-                    console.log("values[", i, "] = ", v);
+                // Labeled sequence
+                setup_phase: sequence {
+                    do comp.config;
+                    do comp.verify;
+                }
+                
+                // Nested sequences
+                sequence {
+                    sequence {
+                        do comp.step1;
+                        do comp.step2;
+                    }
+                    do comp.step3;
                 }
             }
         }
     
     Attributes:
-        path: Reference path to the collection to iterate
-        it_id: Iterator variable for current element
-        idx_id: Optional index variable for current position
-        body: Statement(s) to execute each iteration (inherited)
+        (inherits from ActivityLabeledScope)
     
     See Also:
-        ProceduralStmtRepeat, ProceduralStmtWhile, ExprRefPath
+        ActivityParallel, ActivitySchedule, ActivityLabeledScope
     
     """
     pass
-    
-    def getPath(self) -> ExprRefPath: ...
-    
-    def getIt_id(self) -> ExprId: ...
-    
-    def getIdx_id(self) -> ExprId: ...
-    
-class ExecBlock(ExecScope):
-    """
-    Complete exec block with specific execution phase.
-    
-    ExecBlock represents a complete exec block declaration within an action or
-    component. The kind field specifies when this code executes (body, pre_solve,
-    post_solve, etc.). Each exec block is a symbol scope containing procedural
-    statements.
-    
-    PSS Example::
-    
-        action my_action {
-            rand int x;
-            
-            exec pre_solve {
-                // Executes before randomization
-                console.log("About to solve");
-            }
-            
-            exec body {
-                // Main execution body
-                console.log("x = ", x);
-            }
-            
-            exec post_solve {
-                // Executes after randomization
-                console.log("Solved x = ", x);
-            }
-        }
-    
-    Attributes:
-        kind: Type of exec block (Body, PreSolve, PostSolve, etc.)
-    
-    See Also:
-        ExecKind, ExecScope, Action
-    
-    """
-    pass
-    
-    def setKind(self, v : ExecKind): ...
     

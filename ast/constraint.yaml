@@ -324,9 +324,10 @@ classes:
             - iterator_id: UP<ExprId>
             - type_id: UP<DataTypeUserDefined>
             - ref_path: UP<ExprRefPath>
-            - symtab: 
+            - symtab:
                  - type: UP<ConstraintSymbolScope>
                  - is_ctor: false
+                 - visit: false
     - ConstraintStmtIf:
         - super: ConstraintStmt
         - doc: |

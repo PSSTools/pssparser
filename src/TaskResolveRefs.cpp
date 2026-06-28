@@ -304,6 +304,39 @@ void TaskResolveRefs::visitConstraintStmtForeach(ast::IConstraintStmtForeach *i)
     DEBUG_LEAVE("visitConstraintStmtForeach");
 }
 
+void TaskResolveRefs::visitConstraintStmtForall(ast::IConstraintStmtForall *i) {
+    DEBUG_ENTER("visitConstraintStmtForall");
+    // Resolve the quantified type and the optional collection ref-path
+    if (i->getType_id()) {
+        i->getType_id()->accept(m_this);
+    }
+    if (i->getRef_path()) {
+        i->getRef_path()->accept(m_this);
+    }
+    // Resolve the iterator variable's own type (a sibling DataTypeUserDefined),
+    // in the enclosing scope, so member access through the iterator (`it.field`)
+    // can map the iterator to its type's symbol scope.
+    if (i->getSymtab()) {
+        for (std::vector<ast::IScopeChildUP>::const_iterator
+            it=i->getSymtab()->getChildren().begin();
+            it!=i->getSymtab()->getChildren().end(); it++) {
+            ast::IConstraintStmtField *f =
+                dynamic_cast<ast::IConstraintStmtField *>(it->get());
+            if (f && f->getType()) {
+                f->getType()->accept(m_this);
+            }
+        }
+    }
+    m_ctxt->symtab()->pushScope(i->getSymtab());
+    for (std::vector<ast::IConstraintStmtUP>::const_iterator
+        it=i->getConstraints().begin();
+        it!=i->getConstraints().end(); it++) {
+        (*it)->accept(m_this);
+    }
+    m_ctxt->symtab()->popScope();
+    DEBUG_LEAVE("visitConstraintStmtForall");
+}
+
 void TaskResolveRefs::visitExecScope(ast::IExecScope *i) {
     DEBUG_ENTER("visitExecScope");
     m_ctxt->symtab()->pushScope(i);

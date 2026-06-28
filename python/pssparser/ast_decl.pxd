@@ -28,10 +28,10 @@ ctypedef unsigned int         uint32_t
 ctypedef long long            int64_t
 ctypedef unsigned long long   uint64_t
 
-ctypedef ITemplateParamDeclList *ITemplateParamDeclListP
-ctypedef UP[ITemplateParamDeclList] ITemplateParamDeclListUP
 ctypedef IAssocData *IAssocDataP
 ctypedef UP[IAssocData] IAssocDataUP
+ctypedef ITemplateParamDeclList *ITemplateParamDeclListP
+ctypedef UP[ITemplateParamDeclList] ITemplateParamDeclListUP
 ctypedef IExecTargetTemplateParam *IExecTargetTemplateParamP
 ctypedef UP[IExecTargetTemplateParam] IExecTargetTemplateParamUP
 ctypedef IExpr *IExprP
@@ -50,18 +50,24 @@ ctypedef IRefExpr *IRefExprP
 ctypedef UP[IRefExpr] IRefExprUP
 ctypedef IMonitorActivitySelectBranch *IMonitorActivitySelectBranchP
 ctypedef UP[IMonitorActivitySelectBranch] IMonitorActivitySelectBranchUP
-ctypedef IScopeChild *IScopeChildP
-ctypedef UP[IScopeChild] IScopeChildUP
 ctypedef IActivityMatchChoice *IActivityMatchChoiceP
 ctypedef UP[IActivityMatchChoice] IActivityMatchChoiceUP
+ctypedef IScopeChild *IScopeChildP
+ctypedef UP[IScopeChild] IScopeChildUP
+ctypedef IActivitySelectBranch *IActivitySelectBranchP
+ctypedef UP[IActivitySelectBranch] IActivitySelectBranchUP
 ctypedef ISymbolImportSpec *ISymbolImportSpecP
 ctypedef UP[ISymbolImportSpec] ISymbolImportSpecUP
 ctypedef ISymbolRefPath *ISymbolRefPathP
 ctypedef UP[ISymbolRefPath] ISymbolRefPathUP
-ctypedef IActivitySelectBranch *IActivitySelectBranchP
-ctypedef UP[IActivitySelectBranch] IActivitySelectBranchUP
+ctypedef IGenericConstraintDeclValue *IGenericConstraintDeclValueP
+ctypedef UP[IGenericConstraintDeclValue] IGenericConstraintDeclValueUP
 ctypedef IActionFieldInitializer *IActionFieldInitializerP
 ctypedef UP[IActionFieldInitializer] IActionFieldInitializerUP
+ctypedef IGenericConstraintParam *IGenericConstraintParamP
+ctypedef UP[IGenericConstraintParam] IGenericConstraintParamUP
+ctypedef IMethodParameterList *IMethodParameterListP
+ctypedef UP[IMethodParameterList] IMethodParameterListUP
 ctypedef IActivityJoinSpec *IActivityJoinSpecP
 ctypedef UP[IActivityJoinSpec] IActivityJoinSpecUP
 ctypedef IMonitorActivityStmt *IMonitorActivityStmtP
@@ -74,12 +80,14 @@ ctypedef IActivitySchedulingConstraint *IActivitySchedulingConstraintP
 ctypedef UP[IActivitySchedulingConstraint] IActivitySchedulingConstraintUP
 ctypedef IActivityStmt *IActivityStmtP
 ctypedef UP[IActivityStmt] IActivityStmtUP
-ctypedef IProceduralStmtIfClause *IProceduralStmtIfClauseP
-ctypedef UP[IProceduralStmtIfClause] IProceduralStmtIfClauseUP
 ctypedef IAnnotation *IAnnotationP
 ctypedef UP[IAnnotation] IAnnotationUP
 ctypedef IAnnotationParam *IAnnotationParamP
 ctypedef UP[IAnnotationParam] IAnnotationParamUP
+ctypedef IProceduralStmtIfClause *IProceduralStmtIfClauseP
+ctypedef UP[IProceduralStmtIfClause] IProceduralStmtIfClauseUP
+ctypedef IComponentBind *IComponentBindP
+ctypedef UP[IComponentBind] IComponentBindUP
 ctypedef IConstraintStmt *IConstraintStmtP
 ctypedef UP[IConstraintStmt] IConstraintStmtUP
 ctypedef IPyImportFromStmt *IPyImportFromStmtP
@@ -90,18 +98,18 @@ ctypedef IRefExprScopeIndex *IRefExprScopeIndexP
 ctypedef UP[IRefExprScopeIndex] IRefExprScopeIndexUP
 ctypedef IRefExprTypeScopeContext *IRefExprTypeScopeContextP
 ctypedef UP[IRefExprTypeScopeContext] IRefExprTypeScopeContextUP
-ctypedef IRefExprTypeScopeGlobal *IRefExprTypeScopeGlobalP
-ctypedef UP[IRefExprTypeScopeGlobal] IRefExprTypeScopeGlobalUP
-ctypedef IScope *IScopeP
-ctypedef UP[IScope] IScopeUP
 ctypedef ICoverStmtInline *ICoverStmtInlineP
 ctypedef UP[ICoverStmtInline] ICoverStmtInlineUP
 ctypedef ICoverStmtReference *ICoverStmtReferenceP
 ctypedef UP[ICoverStmtReference] ICoverStmtReferenceUP
-ctypedef IDataType *IDataTypeP
-ctypedef UP[IDataType] IDataTypeUP
+ctypedef IRefExprTypeScopeGlobal *IRefExprTypeScopeGlobalP
+ctypedef UP[IRefExprTypeScopeGlobal] IRefExprTypeScopeGlobalUP
+ctypedef IScope *IScopeP
+ctypedef UP[IScope] IScopeUP
 ctypedef IScopeChildRef *IScopeChildRefP
 ctypedef UP[IScopeChildRef] IScopeChildRefUP
+ctypedef IDataType *IDataTypeP
+ctypedef UP[IDataType] IDataTypeUP
 ctypedef ISymbolChild *ISymbolChildP
 ctypedef UP[ISymbolChild] ISymbolChildUP
 ctypedef ISymbolScopeRef *ISymbolScopeRefP
@@ -186,34 +194,12 @@ ctypedef IFunctionImport *IFunctionImportP
 ctypedef UP[IFunctionImport] IFunctionImportUP
 ctypedef IFunctionParamDecl *IFunctionParamDeclP
 ctypedef UP[IFunctionParamDecl] IFunctionParamDeclUP
-ctypedef IGenericConstraintDeclValue *IGenericConstraintDeclValueP
-ctypedef UP[IGenericConstraintDeclValue] IGenericConstraintDeclValueUP
-ctypedef IGenericConstraintParam *IGenericConstraintParamP
-ctypedef UP[IGenericConstraintParam] IGenericConstraintParamUP
-ctypedef IMethodParameterList *IMethodParameterListP
-ctypedef UP[IMethodParameterList] IMethodParameterListUP
-ctypedef IMonitorActivityActionTraversal *IMonitorActivityActionTraversalP
-ctypedef UP[IMonitorActivityActionTraversal] IMonitorActivityActionTraversalUP
 ctypedef IActionHandleField *IActionHandleFieldP
 ctypedef UP[IActionHandleField] IActionHandleFieldUP
-ctypedef IMonitorActivityConcat *IMonitorActivityConcatP
-ctypedef UP[IMonitorActivityConcat] IMonitorActivityConcatUP
-ctypedef IMonitorActivityEventually *IMonitorActivityEventuallyP
-ctypedef UP[IMonitorActivityEventually] IMonitorActivityEventuallyUP
-ctypedef IMonitorActivityIfElse *IMonitorActivityIfElseP
-ctypedef UP[IMonitorActivityIfElse] IMonitorActivityIfElseUP
 ctypedef IActivityBindStmt *IActivityBindStmtP
 ctypedef UP[IActivityBindStmt] IActivityBindStmtUP
 ctypedef IActivityConstraint *IActivityConstraintP
 ctypedef UP[IActivityConstraint] IActivityConstraintUP
-ctypedef IMonitorActivityMatch *IMonitorActivityMatchP
-ctypedef UP[IMonitorActivityMatch] IMonitorActivityMatchUP
-ctypedef IMonitorActivityMonitorTraversal *IMonitorActivityMonitorTraversalP
-ctypedef UP[IMonitorActivityMonitorTraversal] IMonitorActivityMonitorTraversalUP
-ctypedef IMonitorActivityOverlap *IMonitorActivityOverlapP
-ctypedef UP[IMonitorActivityOverlap] IMonitorActivityOverlapUP
-ctypedef IMonitorActivityRepeatCount *IMonitorActivityRepeatCountP
-ctypedef UP[IMonitorActivityRepeatCount] IMonitorActivityRepeatCountUP
 ctypedef IActivityJoinSpecBranch *IActivityJoinSpecBranchP
 ctypedef UP[IActivityJoinSpecBranch] IActivityJoinSpecBranchUP
 ctypedef IActivityJoinSpecFirst *IActivityJoinSpecFirstP
@@ -222,44 +208,10 @@ ctypedef IActivityJoinSpecNone *IActivityJoinSpecNoneP
 ctypedef UP[IActivityJoinSpecNone] IActivityJoinSpecNoneUP
 ctypedef IActivityJoinSpecSelect *IActivityJoinSpecSelectP
 ctypedef UP[IActivityJoinSpecSelect] IActivityJoinSpecSelectUP
-ctypedef IMonitorActivityRepeatWhile *IMonitorActivityRepeatWhileP
-ctypedef UP[IMonitorActivityRepeatWhile] IMonitorActivityRepeatWhileUP
 ctypedef IActivityLabeledStmt *IActivityLabeledStmtP
 ctypedef UP[IActivityLabeledStmt] IActivityLabeledStmtUP
-ctypedef IMonitorActivitySelect *IMonitorActivitySelectP
-ctypedef UP[IMonitorActivitySelect] IMonitorActivitySelectUP
-ctypedef IMonitorConstraint *IMonitorConstraintP
-ctypedef UP[IMonitorConstraint] IMonitorConstraintUP
-ctypedef INamedScope *INamedScopeP
-ctypedef UP[INamedScope] INamedScopeUP
-ctypedef IPackageScope *IPackageScopeP
-ctypedef UP[IPackageScope] IPackageScopeUP
-ctypedef IProceduralStmtAssignment *IProceduralStmtAssignmentP
-ctypedef UP[IProceduralStmtAssignment] IProceduralStmtAssignmentUP
-ctypedef IProceduralStmtBody *IProceduralStmtBodyP
-ctypedef UP[IProceduralStmtBody] IProceduralStmtBodyUP
-ctypedef IProceduralStmtBreak *IProceduralStmtBreakP
-ctypedef UP[IProceduralStmtBreak] IProceduralStmtBreakUP
-ctypedef IProceduralStmtContinue *IProceduralStmtContinueP
-ctypedef UP[IProceduralStmtContinue] IProceduralStmtContinueUP
-ctypedef IProceduralStmtDataDeclaration *IProceduralStmtDataDeclarationP
-ctypedef UP[IProceduralStmtDataDeclaration] IProceduralStmtDataDeclarationUP
-ctypedef IProceduralStmtExpr *IProceduralStmtExprP
-ctypedef UP[IProceduralStmtExpr] IProceduralStmtExprUP
-ctypedef IProceduralStmtFunctionCall *IProceduralStmtFunctionCallP
-ctypedef UP[IProceduralStmtFunctionCall] IProceduralStmtFunctionCallUP
-ctypedef IProceduralStmtIfElse *IProceduralStmtIfElseP
-ctypedef UP[IProceduralStmtIfElse] IProceduralStmtIfElseUP
-ctypedef IProceduralStmtMatch *IProceduralStmtMatchP
-ctypedef UP[IProceduralStmtMatch] IProceduralStmtMatchUP
-ctypedef IProceduralStmtMatchChoice *IProceduralStmtMatchChoiceP
-ctypedef UP[IProceduralStmtMatchChoice] IProceduralStmtMatchChoiceUP
-ctypedef IProceduralStmtRandomize *IProceduralStmtRandomizeP
-ctypedef UP[IProceduralStmtRandomize] IProceduralStmtRandomizeUP
 ctypedef IConstraintScope *IConstraintScopeP
 ctypedef UP[IConstraintScope] IConstraintScopeUP
-ctypedef IProceduralStmtReturn *IProceduralStmtReturnP
-ctypedef UP[IProceduralStmtReturn] IProceduralStmtReturnUP
 ctypedef IConstraintStmtDefault *IConstraintStmtDefaultP
 ctypedef UP[IConstraintStmtDefault] IConstraintStmtDefaultUP
 ctypedef IConstraintStmtDefaultDisable *IConstraintStmtDefaultDisableP
@@ -268,12 +220,16 @@ ctypedef IConstraintStmtExpr *IConstraintStmtExprP
 ctypedef UP[IConstraintStmtExpr] IConstraintStmtExprUP
 ctypedef IConstraintStmtField *IConstraintStmtFieldP
 ctypedef UP[IConstraintStmtField] IConstraintStmtFieldUP
-ctypedef IProceduralStmtYield *IProceduralStmtYieldP
-ctypedef UP[IProceduralStmtYield] IProceduralStmtYieldUP
 ctypedef IConstraintStmtIf *IConstraintStmtIfP
 ctypedef UP[IConstraintStmtIf] IConstraintStmtIfUP
 ctypedef IConstraintStmtUnique *IConstraintStmtUniqueP
 ctypedef UP[IConstraintStmtUnique] IConstraintStmtUniqueUP
+ctypedef ICovergroup *ICovergroupP
+ctypedef UP[ICovergroup] ICovergroupUP
+ctypedef ICovergroupCoverpoint *ICovergroupCoverpointP
+ctypedef UP[ICovergroupCoverpoint] ICovergroupCoverpointUP
+ctypedef ICovergroupCross *ICovergroupCrossP
+ctypedef UP[ICovergroupCross] ICovergroupCrossUP
 ctypedef IDataTypeBool *IDataTypeBoolP
 ctypedef UP[IDataTypeBool] IDataTypeBoolUP
 ctypedef IDataTypeChandle *IDataTypeChandleP
@@ -294,18 +250,10 @@ ctypedef IEnumDecl *IEnumDeclP
 ctypedef UP[IEnumDecl] IEnumDeclUP
 ctypedef IEnumItem *IEnumItemP
 ctypedef UP[IEnumItem] IEnumItemUP
-ctypedef ISymbolChildrenScope *ISymbolChildrenScopeP
-ctypedef UP[ISymbolChildrenScope] ISymbolChildrenScopeUP
-ctypedef ITemplateCategoryTypeParamDecl *ITemplateCategoryTypeParamDeclP
-ctypedef UP[ITemplateCategoryTypeParamDecl] ITemplateCategoryTypeParamDeclUP
-ctypedef ITemplateGenericTypeParamDecl *ITemplateGenericTypeParamDeclP
-ctypedef UP[ITemplateGenericTypeParamDecl] ITemplateGenericTypeParamDeclUP
 ctypedef IExprAggrEmpty *IExprAggrEmptyP
 ctypedef UP[IExprAggrEmpty] IExprAggrEmptyUP
 ctypedef IExprAggrList *IExprAggrListP
 ctypedef UP[IExprAggrList] IExprAggrListUP
-ctypedef ITemplateValueParamDecl *ITemplateValueParamDeclP
-ctypedef UP[ITemplateValueParamDecl] ITemplateValueParamDeclUP
 ctypedef IExprAggrMap *IExprAggrMapP
 ctypedef UP[IExprAggrMap] IExprAggrMapUP
 ctypedef IExprAggrStruct *IExprAggrStructP
@@ -342,6 +290,66 @@ ctypedef IFunctionPrototype *IFunctionPrototypeP
 ctypedef UP[IFunctionPrototype] IFunctionPrototypeUP
 ctypedef IGlobalScope *IGlobalScopeP
 ctypedef UP[IGlobalScope] IGlobalScopeUP
+ctypedef IMonitorActivityActionTraversal *IMonitorActivityActionTraversalP
+ctypedef UP[IMonitorActivityActionTraversal] IMonitorActivityActionTraversalUP
+ctypedef IMonitorActivityConcat *IMonitorActivityConcatP
+ctypedef UP[IMonitorActivityConcat] IMonitorActivityConcatUP
+ctypedef IMonitorActivityEventually *IMonitorActivityEventuallyP
+ctypedef UP[IMonitorActivityEventually] IMonitorActivityEventuallyUP
+ctypedef IMonitorActivityIfElse *IMonitorActivityIfElseP
+ctypedef UP[IMonitorActivityIfElse] IMonitorActivityIfElseUP
+ctypedef IMonitorActivityMatch *IMonitorActivityMatchP
+ctypedef UP[IMonitorActivityMatch] IMonitorActivityMatchUP
+ctypedef IMonitorActivityMonitorTraversal *IMonitorActivityMonitorTraversalP
+ctypedef UP[IMonitorActivityMonitorTraversal] IMonitorActivityMonitorTraversalUP
+ctypedef IMonitorActivityOverlap *IMonitorActivityOverlapP
+ctypedef UP[IMonitorActivityOverlap] IMonitorActivityOverlapUP
+ctypedef IMonitorActivityRepeatCount *IMonitorActivityRepeatCountP
+ctypedef UP[IMonitorActivityRepeatCount] IMonitorActivityRepeatCountUP
+ctypedef IMonitorActivityRepeatWhile *IMonitorActivityRepeatWhileP
+ctypedef UP[IMonitorActivityRepeatWhile] IMonitorActivityRepeatWhileUP
+ctypedef IMonitorActivitySelect *IMonitorActivitySelectP
+ctypedef UP[IMonitorActivitySelect] IMonitorActivitySelectUP
+ctypedef IMonitorConstraint *IMonitorConstraintP
+ctypedef UP[IMonitorConstraint] IMonitorConstraintUP
+ctypedef INamedScope *INamedScopeP
+ctypedef UP[INamedScope] INamedScopeUP
+ctypedef IPackageScope *IPackageScopeP
+ctypedef UP[IPackageScope] IPackageScopeUP
+ctypedef IProceduralStmtAssignment *IProceduralStmtAssignmentP
+ctypedef UP[IProceduralStmtAssignment] IProceduralStmtAssignmentUP
+ctypedef IProceduralStmtBody *IProceduralStmtBodyP
+ctypedef UP[IProceduralStmtBody] IProceduralStmtBodyUP
+ctypedef IProceduralStmtBreak *IProceduralStmtBreakP
+ctypedef UP[IProceduralStmtBreak] IProceduralStmtBreakUP
+ctypedef IProceduralStmtContinue *IProceduralStmtContinueP
+ctypedef UP[IProceduralStmtContinue] IProceduralStmtContinueUP
+ctypedef IProceduralStmtDataDeclaration *IProceduralStmtDataDeclarationP
+ctypedef UP[IProceduralStmtDataDeclaration] IProceduralStmtDataDeclarationUP
+ctypedef IProceduralStmtExpr *IProceduralStmtExprP
+ctypedef UP[IProceduralStmtExpr] IProceduralStmtExprUP
+ctypedef IProceduralStmtFunctionCall *IProceduralStmtFunctionCallP
+ctypedef UP[IProceduralStmtFunctionCall] IProceduralStmtFunctionCallUP
+ctypedef IProceduralStmtIfElse *IProceduralStmtIfElseP
+ctypedef UP[IProceduralStmtIfElse] IProceduralStmtIfElseUP
+ctypedef IProceduralStmtMatch *IProceduralStmtMatchP
+ctypedef UP[IProceduralStmtMatch] IProceduralStmtMatchUP
+ctypedef IProceduralStmtMatchChoice *IProceduralStmtMatchChoiceP
+ctypedef UP[IProceduralStmtMatchChoice] IProceduralStmtMatchChoiceUP
+ctypedef IProceduralStmtRandomize *IProceduralStmtRandomizeP
+ctypedef UP[IProceduralStmtRandomize] IProceduralStmtRandomizeUP
+ctypedef IProceduralStmtReturn *IProceduralStmtReturnP
+ctypedef UP[IProceduralStmtReturn] IProceduralStmtReturnUP
+ctypedef IProceduralStmtYield *IProceduralStmtYieldP
+ctypedef UP[IProceduralStmtYield] IProceduralStmtYieldUP
+ctypedef ISymbolChildrenScope *ISymbolChildrenScopeP
+ctypedef UP[ISymbolChildrenScope] ISymbolChildrenScopeUP
+ctypedef ITemplateCategoryTypeParamDecl *ITemplateCategoryTypeParamDeclP
+ctypedef UP[ITemplateCategoryTypeParamDecl] ITemplateCategoryTypeParamDeclUP
+ctypedef ITemplateGenericTypeParamDecl *ITemplateGenericTypeParamDeclP
+ctypedef UP[ITemplateGenericTypeParamDecl] ITemplateGenericTypeParamDeclUP
+ctypedef ITemplateValueParamDecl *ITemplateValueParamDeclP
+ctypedef UP[ITemplateValueParamDecl] ITemplateValueParamDeclUP
 ctypedef IActivityActionHandleTraversal *IActivityActionHandleTraversalP
 ctypedef UP[IActivityActionHandleTraversal] IActivityActionHandleTraversalUP
 ctypedef IActivityActionTypeTraversal *IActivityActionTypeTraversalP
@@ -392,22 +400,22 @@ ctypedef IMonitorActivityDecl *IMonitorActivityDeclP
 ctypedef UP[IMonitorActivityDecl] IMonitorActivityDeclUP
 ctypedef IActivityDecl *IActivityDeclP
 ctypedef UP[IActivityDecl] IActivityDeclUP
+ctypedef IActivityLabeledScope *IActivityLabeledScopeP
+ctypedef UP[IActivityLabeledScope] IActivityLabeledScopeUP
 ctypedef IMonitorActivitySchedule *IMonitorActivityScheduleP
 ctypedef UP[IMonitorActivitySchedule] IMonitorActivityScheduleUP
 ctypedef IMonitorActivitySequence *IMonitorActivitySequenceP
 ctypedef UP[IMonitorActivitySequence] IMonitorActivitySequenceUP
-ctypedef IActivityLabeledScope *IActivityLabeledScopeP
-ctypedef UP[IActivityLabeledScope] IActivityLabeledScopeUP
 ctypedef IAnnotationDecl *IAnnotationDeclP
 ctypedef UP[IAnnotationDecl] IAnnotationDeclUP
 ctypedef IComponent *IComponentP
 ctypedef UP[IComponent] IComponentUP
 ctypedef IProceduralStmtSymbolBodyScope *IProceduralStmtSymbolBodyScopeP
 ctypedef UP[IProceduralStmtSymbolBodyScope] IProceduralStmtSymbolBodyScopeUP
-ctypedef IRootSymbolScope *IRootSymbolScopeP
-ctypedef UP[IRootSymbolScope] IRootSymbolScopeUP
 ctypedef IConstraintSymbolScope *IConstraintSymbolScopeP
 ctypedef UP[IConstraintSymbolScope] IConstraintSymbolScopeUP
+ctypedef IRootSymbolScope *IRootSymbolScopeP
+ctypedef UP[IRootSymbolScope] IRootSymbolScopeUP
 ctypedef IStruct *IStructP
 ctypedef UP[IStruct] IStructUP
 ctypedef ISymbolEnumScope *ISymbolEnumScopeP
@@ -422,18 +430,18 @@ ctypedef IExecScope *IExecScopeP
 ctypedef UP[IExecScope] IExecScopeUP
 ctypedef IGenericConstraintDeclBool *IGenericConstraintDeclBoolP
 ctypedef UP[IGenericConstraintDeclBool] IGenericConstraintDeclBoolUP
-ctypedef IProceduralStmtRepeat *IProceduralStmtRepeatP
-ctypedef UP[IProceduralStmtRepeat] IProceduralStmtRepeatUP
-ctypedef IActivitySequence *IActivitySequenceP
-ctypedef UP[IActivitySequence] IActivitySequenceUP
-ctypedef IActivityParallel *IActivityParallelP
-ctypedef UP[IActivityParallel] IActivityParallelUP
-ctypedef IActivitySchedule *IActivityScheduleP
-ctypedef UP[IActivitySchedule] IActivityScheduleUP
 ctypedef IProceduralStmtForeach *IProceduralStmtForeachP
 ctypedef UP[IProceduralStmtForeach] IProceduralStmtForeachUP
 ctypedef IExecBlock *IExecBlockP
 ctypedef UP[IExecBlock] IExecBlockUP
+ctypedef IProceduralStmtRepeat *IProceduralStmtRepeatP
+ctypedef UP[IProceduralStmtRepeat] IProceduralStmtRepeatUP
+ctypedef IActivityParallel *IActivityParallelP
+ctypedef UP[IActivityParallel] IActivityParallelUP
+ctypedef IActivitySchedule *IActivityScheduleP
+ctypedef UP[IActivitySchedule] IActivityScheduleUP
+ctypedef IActivitySequence *IActivitySequenceP
+ctypedef UP[IActivitySequence] IActivitySequenceUP
 cdef extern from "pssp/ast/AssignOp.h" namespace "pssp::ast":
     cdef enum AssignOp:
         AssignOp_AssignOp_Eq "pssp::ast::AssignOp::AssignOp_Eq"
@@ -576,9 +584,9 @@ cdef extern from "pssp/ast/FieldAttr.h" namespace "pssp::ast":
 ctypedef IFactory *IFactoryP
 cdef extern from "pssp/ast/IFactory.h" namespace "pssp::ast":
     cdef cppclass IFactory:
-        ITemplateParamDeclList *mkTemplateParamDeclList(
-                )
         IAssocData *mkAssocData(
+                )
+        ITemplateParamDeclList *mkTemplateParamDeclList(
                 )
         IExecTargetTemplateParam *mkExecTargetTemplateParam(
                 IExprP expr,
@@ -605,23 +613,32 @@ cdef extern from "pssp/ast/IFactory.h" namespace "pssp::ast":
         IMonitorActivitySelectBranch *mkMonitorActivitySelectBranch(
                 IExprP guard,
                 IScopeChildP body)
-        IScopeChild *mkScopeChild(
-                )
         IActivityMatchChoice *mkActivityMatchChoice(
                 bool is_default,
                 IExprOpenRangeListP cond,
                 IScopeChildP body)
-        ISymbolImportSpec *mkSymbolImportSpec(
-                )
-        ISymbolRefPath *mkSymbolRefPath(
+        IScopeChild *mkScopeChild(
                 )
         IActivitySelectBranch *mkActivitySelectBranch(
                 IExprP guard,
                 IExprP weight,
                 IScopeChildP body)
+        ISymbolImportSpec *mkSymbolImportSpec(
+                )
+        ISymbolRefPath *mkSymbolRefPath(
+                )
+        IGenericConstraintDeclValue *mkGenericConstraintDeclValue(
+                )
         IActionFieldInitializer *mkActionFieldInitializer(
                 IExprHierarchicalIdP path,
                 IExprP value)
+        IGenericConstraintParam *mkGenericConstraintParam(
+                IExprIdP name,
+                bool is_const,
+                bool is_numeric,
+                IDataTypeP type)
+        IMethodParameterList *mkMethodParameterList(
+                )
         IActivityJoinSpec *mkActivityJoinSpec(
                 )
         IMonitorActivityStmt *mkMonitorActivityStmt(
@@ -635,13 +652,16 @@ cdef extern from "pssp/ast/IFactory.h" namespace "pssp::ast":
                 bool is_parallel)
         IActivityStmt *mkActivityStmt(
                 )
-        IProceduralStmtIfClause *mkProceduralStmtIfClause(
-                IExprP cond,
-                IScopeChildP body)
         IAnnotation *mkAnnotation(
                 ITypeIdentifierP type)
         IAnnotationParam *mkAnnotationParam(
                 IExprP value)
+        IProceduralStmtIfClause *mkProceduralStmtIfClause(
+                IExprP cond,
+                IScopeChildP body)
+        IComponentBind *mkComponentBind(
+                std_string pool_path,
+                bool is_wildcard)
         IConstraintStmt *mkConstraintStmt(
                 )
         IPyImportFromStmt *mkPyImportFromStmt(
@@ -654,18 +674,18 @@ cdef extern from "pssp/ast/IFactory.h" namespace "pssp::ast":
         IRefExprTypeScopeContext *mkRefExprTypeScopeContext(
                 IRefExprP base,
                 int32_t offset)
-        IRefExprTypeScopeGlobal *mkRefExprTypeScopeGlobal(
-                int32_t fileid)
-        IScope *mkScope(
-                )
         ICoverStmtInline *mkCoverStmtInline(
                 IScopeChildP body)
         ICoverStmtReference *mkCoverStmtReference(
                 IExprRefPathP target)
-        IDataType *mkDataType(
+        IRefExprTypeScopeGlobal *mkRefExprTypeScopeGlobal(
+                int32_t fileid)
+        IScope *mkScope(
                 )
         IScopeChildRef *mkScopeChildRef(
                 IScopeChildP target)
+        IDataType *mkDataType(
+                )
         ISymbolChild *mkSymbolChild(
                 )
         ISymbolScopeRef *mkSymbolScopeRef(
@@ -781,47 +801,13 @@ cdef extern from "pssp/ast/IFactory.h" namespace "pssp::ast":
                 IDataTypeP type,
                 ParamDir dir,
                 IExprP dflt)
-        IGenericConstraintDeclValue *mkGenericConstraintDeclValue(
-                )
-        IGenericConstraintParam *mkGenericConstraintParam(
-                IExprIdP name,
-                bool is_const,
-                bool is_numeric,
-                IDataTypeP type)
-        IMethodParameterList *mkMethodParameterList(
-                )
-        IMonitorActivityActionTraversal *mkMonitorActivityActionTraversal(
-                IExprRefPathP target,
-                IConstraintStmtP with_c)
         IActionHandleField *mkActionHandleField(
                 IExprIdP name,
                 IDataTypeP type)
-        IMonitorActivityConcat *mkMonitorActivityConcat(
-                IMonitorActivityStmtP lhs,
-                IMonitorActivityStmtP rhs)
-        IMonitorActivityEventually *mkMonitorActivityEventually(
-                IExprP condition,
-                IMonitorActivityStmtP body)
-        IMonitorActivityIfElse *mkMonitorActivityIfElse(
-                IExprP cond,
-                IMonitorActivityStmtP true_s,
-                IMonitorActivityStmtP false_s)
         IActivityBindStmt *mkActivityBindStmt(
                 IExprHierarchicalIdP lhs)
         IActivityConstraint *mkActivityConstraint(
                 IConstraintStmtP constraint)
-        IMonitorActivityMatch *mkMonitorActivityMatch(
-                IExprP cond)
-        IMonitorActivityMonitorTraversal *mkMonitorActivityMonitorTraversal(
-                IExprRefPathP target,
-                IConstraintStmtP with_c)
-        IMonitorActivityOverlap *mkMonitorActivityOverlap(
-                IMonitorActivityStmtP lhs,
-                IMonitorActivityStmtP rhs)
-        IMonitorActivityRepeatCount *mkMonitorActivityRepeatCount(
-                IExprIdP loop_var,
-                IExprP count,
-                IScopeChildP body)
         IActivityJoinSpecBranch *mkActivityJoinSpecBranch(
                 )
         IActivityJoinSpecFirst *mkActivityJoinSpecFirst(
@@ -830,51 +816,10 @@ cdef extern from "pssp/ast/IFactory.h" namespace "pssp::ast":
                 )
         IActivityJoinSpecSelect *mkActivityJoinSpecSelect(
                 IExprP count)
-        IMonitorActivityRepeatWhile *mkMonitorActivityRepeatWhile(
-                IExprP cond,
-                IScopeChildP body)
         IActivityLabeledStmt *mkActivityLabeledStmt(
                 )
-        IMonitorActivitySelect *mkMonitorActivitySelect(
-                )
-        IMonitorConstraint *mkMonitorConstraint(
-                IConstraintStmtP constraint)
-        INamedScope *mkNamedScope(
-                IExprIdP name)
-        IPackageScope *mkPackageScope(
-                )
-        IProceduralStmtAssignment *mkProceduralStmtAssignment(
-                IExprP lhs,
-                AssignOp op,
-                IExprP rhs)
-        IProceduralStmtBody *mkProceduralStmtBody(
-                IScopeChildP body)
-        IProceduralStmtBreak *mkProceduralStmtBreak(
-                )
-        IProceduralStmtContinue *mkProceduralStmtContinue(
-                )
-        IProceduralStmtDataDeclaration *mkProceduralStmtDataDeclaration(
-                IExprIdP name,
-                IDataTypeP datatype,
-                IExprP init)
-        IProceduralStmtExpr *mkProceduralStmtExpr(
-                IExprP expr)
-        IProceduralStmtFunctionCall *mkProceduralStmtFunctionCall(
-                IExprRefPathStaticRootedP prefix)
-        IProceduralStmtIfElse *mkProceduralStmtIfElse(
-                )
-        IProceduralStmtMatch *mkProceduralStmtMatch(
-                IExprP expr)
-        IProceduralStmtMatchChoice *mkProceduralStmtMatchChoice(
-                bool is_default,
-                IExprOpenRangeListP cond,
-                IScopeChildP body)
-        IProceduralStmtRandomize *mkProceduralStmtRandomize(
-                IExprP target)
         IConstraintScope *mkConstraintScope(
                 )
-        IProceduralStmtReturn *mkProceduralStmtReturn(
-                IExprP expr)
         IConstraintStmtDefault *mkConstraintStmtDefault(
                 IExprHierarchicalIdP hid,
                 IExprP expr)
@@ -885,14 +830,19 @@ cdef extern from "pssp/ast/IFactory.h" namespace "pssp::ast":
         IConstraintStmtField *mkConstraintStmtField(
                 IExprIdP name,
                 IDataTypeP type)
-        IProceduralStmtYield *mkProceduralStmtYield(
-                )
         IConstraintStmtIf *mkConstraintStmtIf(
                 IExprP cond,
                 IConstraintScopeP true_c,
                 IConstraintScopeP false_c)
         IConstraintStmtUnique *mkConstraintStmtUnique(
                 )
+        ICovergroup *mkCovergroup(
+                IExprIdP name)
+        ICovergroupCoverpoint *mkCovergroupCoverpoint(
+                IExprIdP name,
+                IExprP target)
+        ICovergroupCross *mkCovergroupCross(
+                IExprIdP name)
         IDataTypeBool *mkDataTypeBool(
                 )
         IDataTypeChandle *mkDataTypeChandle(
@@ -918,24 +868,10 @@ cdef extern from "pssp/ast/IFactory.h" namespace "pssp::ast":
         IEnumItem *mkEnumItem(
                 IExprIdP name,
                 IExprP value)
-        ISymbolChildrenScope *mkSymbolChildrenScope(
-                std_string name)
-        ITemplateCategoryTypeParamDecl *mkTemplateCategoryTypeParamDecl(
-                IExprIdP name,
-                TypeCategory category,
-                ITypeIdentifierP restriction,
-                IDataTypeP dflt)
-        ITemplateGenericTypeParamDecl *mkTemplateGenericTypeParamDecl(
-                IExprIdP name,
-                IDataTypeP dflt)
         IExprAggrEmpty *mkExprAggrEmpty(
                 )
         IExprAggrList *mkExprAggrList(
                 )
-        ITemplateValueParamDecl *mkTemplateValueParamDecl(
-                IExprIdP name,
-                IDataTypeP type,
-                IExprP dflt)
         IExprAggrMap *mkExprAggrMap(
                 )
         IExprAggrStruct *mkExprAggrStruct(
@@ -995,6 +931,88 @@ cdef extern from "pssp/ast/IFactory.h" namespace "pssp::ast":
                 bool is_solve)
         IGlobalScope *mkGlobalScope(
                 int32_t fileid)
+        IMonitorActivityActionTraversal *mkMonitorActivityActionTraversal(
+                IExprRefPathP target,
+                IConstraintStmtP with_c)
+        IMonitorActivityConcat *mkMonitorActivityConcat(
+                IMonitorActivityStmtP lhs,
+                IMonitorActivityStmtP rhs)
+        IMonitorActivityEventually *mkMonitorActivityEventually(
+                IExprP condition,
+                IMonitorActivityStmtP body)
+        IMonitorActivityIfElse *mkMonitorActivityIfElse(
+                IExprP cond,
+                IMonitorActivityStmtP true_s,
+                IMonitorActivityStmtP false_s)
+        IMonitorActivityMatch *mkMonitorActivityMatch(
+                IExprP cond)
+        IMonitorActivityMonitorTraversal *mkMonitorActivityMonitorTraversal(
+                IExprRefPathP target,
+                IConstraintStmtP with_c)
+        IMonitorActivityOverlap *mkMonitorActivityOverlap(
+                IMonitorActivityStmtP lhs,
+                IMonitorActivityStmtP rhs)
+        IMonitorActivityRepeatCount *mkMonitorActivityRepeatCount(
+                IExprIdP loop_var,
+                IExprP count,
+                IScopeChildP body)
+        IMonitorActivityRepeatWhile *mkMonitorActivityRepeatWhile(
+                IExprP cond,
+                IScopeChildP body)
+        IMonitorActivitySelect *mkMonitorActivitySelect(
+                )
+        IMonitorConstraint *mkMonitorConstraint(
+                IConstraintStmtP constraint)
+        INamedScope *mkNamedScope(
+                IExprIdP name)
+        IPackageScope *mkPackageScope(
+                )
+        IProceduralStmtAssignment *mkProceduralStmtAssignment(
+                IExprP lhs,
+                AssignOp op,
+                IExprP rhs)
+        IProceduralStmtBody *mkProceduralStmtBody(
+                IScopeChildP body)
+        IProceduralStmtBreak *mkProceduralStmtBreak(
+                )
+        IProceduralStmtContinue *mkProceduralStmtContinue(
+                )
+        IProceduralStmtDataDeclaration *mkProceduralStmtDataDeclaration(
+                IExprIdP name,
+                IDataTypeP datatype,
+                IExprP init)
+        IProceduralStmtExpr *mkProceduralStmtExpr(
+                IExprP expr)
+        IProceduralStmtFunctionCall *mkProceduralStmtFunctionCall(
+                IExprRefPathStaticRootedP prefix)
+        IProceduralStmtIfElse *mkProceduralStmtIfElse(
+                )
+        IProceduralStmtMatch *mkProceduralStmtMatch(
+                IExprP expr)
+        IProceduralStmtMatchChoice *mkProceduralStmtMatchChoice(
+                bool is_default,
+                IExprOpenRangeListP cond,
+                IScopeChildP body)
+        IProceduralStmtRandomize *mkProceduralStmtRandomize(
+                IExprP target)
+        IProceduralStmtReturn *mkProceduralStmtReturn(
+                IExprP expr)
+        IProceduralStmtYield *mkProceduralStmtYield(
+                )
+        ISymbolChildrenScope *mkSymbolChildrenScope(
+                std_string name)
+        ITemplateCategoryTypeParamDecl *mkTemplateCategoryTypeParamDecl(
+                IExprIdP name,
+                TypeCategory category,
+                ITypeIdentifierP restriction,
+                IDataTypeP dflt)
+        ITemplateGenericTypeParamDecl *mkTemplateGenericTypeParamDecl(
+                IExprIdP name,
+                IDataTypeP dflt)
+        ITemplateValueParamDecl *mkTemplateValueParamDecl(
+                IExprIdP name,
+                IDataTypeP type,
+                IExprP dflt)
         IActivityActionHandleTraversal *mkActivityActionHandleTraversal(
                 IExprRefPathContextP target,
                 IConstraintStmtP with_c)
@@ -1067,11 +1085,11 @@ cdef extern from "pssp/ast/IFactory.h" namespace "pssp::ast":
                 std_string name)
         IActivityDecl *mkActivityDecl(
                 std_string name)
+        IActivityLabeledScope *mkActivityLabeledScope(
+                std_string name)
         IMonitorActivitySchedule *mkMonitorActivitySchedule(
                 std_string name)
         IMonitorActivitySequence *mkMonitorActivitySequence(
-                std_string name)
-        IActivityLabeledScope *mkActivityLabeledScope(
                 std_string name)
         IAnnotationDecl *mkAnnotationDecl(
                 IExprIdP name,
@@ -1082,9 +1100,9 @@ cdef extern from "pssp/ast/IFactory.h" namespace "pssp::ast":
         IProceduralStmtSymbolBodyScope *mkProceduralStmtSymbolBodyScope(
                 std_string name,
                 IScopeChildP body)
-        IRootSymbolScope *mkRootSymbolScope(
-                std_string name)
         IConstraintSymbolScope *mkConstraintSymbolScope(
+                std_string name)
+        IRootSymbolScope *mkRootSymbolScope(
                 std_string name)
         IStruct *mkStruct(
                 IExprIdP name,
@@ -1104,19 +1122,6 @@ cdef extern from "pssp/ast/IFactory.h" namespace "pssp::ast":
         IGenericConstraintDeclBool *mkGenericConstraintDeclBool(
                 std_string name,
                 bool is_dynamic)
-        IProceduralStmtRepeat *mkProceduralStmtRepeat(
-                std_string name,
-                IScopeChildP body,
-                IExprIdP it_id,
-                IExprP count)
-        IActivitySequence *mkActivitySequence(
-                std_string name)
-        IActivityParallel *mkActivityParallel(
-                std_string name,
-                IActivityJoinSpecP join_spec)
-        IActivitySchedule *mkActivitySchedule(
-                std_string name,
-                IActivityJoinSpecP join_spec)
         IProceduralStmtForeach *mkProceduralStmtForeach(
                 std_string name,
                 IScopeChildP body,
@@ -1126,17 +1131,30 @@ cdef extern from "pssp/ast/IFactory.h" namespace "pssp::ast":
         IExecBlock *mkExecBlock(
                 std_string name,
                 ExecKind kind)
+        IProceduralStmtRepeat *mkProceduralStmtRepeat(
+                std_string name,
+                IScopeChildP body,
+                IExprIdP it_id,
+                IExprP count)
+        IActivityParallel *mkActivityParallel(
+                std_string name,
+                IActivityJoinSpecP join_spec)
+        IActivitySchedule *mkActivitySchedule(
+                std_string name,
+                IActivityJoinSpecP join_spec)
+        IActivitySequence *mkActivitySequence(
+                std_string name)
+cdef extern from "pssp/ast/IAssocData.h" namespace "pssp::ast":
+    cpdef cppclass IAssocData:
+        pass
+        void accept(VisitorBase *v)
+
 cdef extern from "pssp/ast/ITemplateParamDeclList.h" namespace "pssp::ast":
     cpdef cppclass ITemplateParamDeclList:
         std_vector[UP[ITemplateParamDecl]] & getParams();
         bool getSpecialized()
         
         void setSpecialized(bool v)
-        void accept(VisitorBase *v)
-
-cdef extern from "pssp/ast/IAssocData.h" namespace "pssp::ast":
-    cpdef cppclass IAssocData:
-        pass
         void accept(VisitorBase *v)
 
 cdef extern from "pssp/ast/IExecTargetTemplateParam.h" namespace "pssp::ast":
@@ -1218,6 +1236,19 @@ cdef extern from "pssp/ast/IMonitorActivitySelectBranch.h" namespace "pssp::ast"
         void setBody(IScopeChild *v)
         void accept(VisitorBase *v)
 
+cdef extern from "pssp/ast/IActivityMatchChoice.h" namespace "pssp::ast":
+    cpdef cppclass IActivityMatchChoice:
+        bool getIs_default()
+        
+        void setIs_default(bool v)
+        IExprOpenRangeList *getCond()
+        
+        void setCond(IExprOpenRangeList *v)
+        IScopeChild *getBody()
+        
+        void setBody(IScopeChild *v)
+        void accept(VisitorBase *v)
+
 cdef extern from "pssp/ast/IScopeChild.h" namespace "pssp::ast":
     cpdef cppclass IScopeChild:
         const std_string &getDocstring()
@@ -1238,14 +1269,14 @@ cdef extern from "pssp/ast/IScopeChild.h" namespace "pssp::ast":
         std_vector[UP[IAnnotation]] & getAnnotations();
         void accept(VisitorBase *v)
 
-cdef extern from "pssp/ast/IActivityMatchChoice.h" namespace "pssp::ast":
-    cpdef cppclass IActivityMatchChoice:
-        bool getIs_default()
+cdef extern from "pssp/ast/IActivitySelectBranch.h" namespace "pssp::ast":
+    cpdef cppclass IActivitySelectBranch:
+        IExpr *getGuard()
         
-        void setIs_default(bool v)
-        IExprOpenRangeList *getCond()
+        void setGuard(IExpr *v)
+        IExpr *getWeight()
         
-        void setCond(IExprOpenRangeList *v)
+        void setWeight(IExpr *v)
         IScopeChild *getBody()
         
         void setBody(IScopeChild *v)
@@ -1265,18 +1296,24 @@ cdef extern from "pssp/ast/ISymbolRefPath.h" namespace "pssp::ast":
         void setPyref_idx(int32_t v)
         void accept(VisitorBase *v)
 
-cdef extern from "pssp/ast/IActivitySelectBranch.h" namespace "pssp::ast":
-    cpdef cppclass IActivitySelectBranch:
-        IExpr *getGuard()
+cdef extern from "pssp/ast/IGenericConstraintDeclValue.h" namespace "pssp::ast":
+    cpdef cppclass IGenericConstraintDeclValue(IScopeChild):
+        bool getIs_static()
         
-        void setGuard(IExpr *v)
-        IExpr *getWeight()
+        void setIs_static(bool v)
+        bool getIs_return_numeric()
         
-        void setWeight(IExpr *v)
-        IScopeChild *getBody()
+        void setIs_return_numeric(bool v)
+        IDataType *getReturn_type()
         
-        void setBody(IScopeChild *v)
-        void accept(VisitorBase *v)
+        void setReturn_type(IDataType *v)
+        IExprId *getName()
+        
+        void setName(IExprId *v)
+        std_vector[UP[IGenericConstraintParam]] & getParameters();
+        IExpr *getExpr()
+        
+        void setExpr(IExpr *v)
 
 cdef extern from "pssp/ast/IActionFieldInitializer.h" namespace "pssp::ast":
     cpdef cppclass IActionFieldInitializer(IScopeChild):
@@ -1286,6 +1323,25 @@ cdef extern from "pssp/ast/IActionFieldInitializer.h" namespace "pssp::ast":
         IExpr *getValue()
         
         void setValue(IExpr *v)
+
+cdef extern from "pssp/ast/IGenericConstraintParam.h" namespace "pssp::ast":
+    cpdef cppclass IGenericConstraintParam(IScopeChild):
+        IExprId *getName()
+        
+        void setName(IExprId *v)
+        bool getIs_const()
+        
+        void setIs_const(bool v)
+        bool getIs_numeric()
+        
+        void setIs_numeric(bool v)
+        IDataType *getType()
+        
+        void setType(IDataType *v)
+
+cdef extern from "pssp/ast/IMethodParameterList.h" namespace "pssp::ast":
+    cpdef cppclass IMethodParameterList(IExpr):
+        std_vector[UP[IExpr]] & getParameters();
 
 cdef extern from "pssp/ast/IActivityJoinSpec.h" namespace "pssp::ast":
     cpdef cppclass IActivityJoinSpec(IScopeChild):
@@ -1324,15 +1380,6 @@ cdef extern from "pssp/ast/IActivityStmt.h" namespace "pssp::ast":
     cpdef cppclass IActivityStmt(IScopeChild):
         pass
 
-cdef extern from "pssp/ast/IProceduralStmtIfClause.h" namespace "pssp::ast":
-    cpdef cppclass IProceduralStmtIfClause(IScopeChild):
-        IExpr *getCond()
-        
-        void setCond(IExpr *v)
-        IScopeChild *getBody()
-        
-        void setBody(IScopeChild *v)
-
 cdef extern from "pssp/ast/IAnnotation.h" namespace "pssp::ast":
     cpdef cppclass IAnnotation(IScopeChild):
         ITypeIdentifier *getType()
@@ -1348,6 +1395,25 @@ cdef extern from "pssp/ast/IAnnotationParam.h" namespace "pssp::ast":
         IExpr *getValue()
         
         void setValue(IExpr *v)
+
+cdef extern from "pssp/ast/IProceduralStmtIfClause.h" namespace "pssp::ast":
+    cpdef cppclass IProceduralStmtIfClause(IScopeChild):
+        IExpr *getCond()
+        
+        void setCond(IExpr *v)
+        IScopeChild *getBody()
+        
+        void setBody(IScopeChild *v)
+
+cdef extern from "pssp/ast/IComponentBind.h" namespace "pssp::ast":
+    cpdef cppclass IComponentBind(IScopeChild):
+        const std_string &getPool_path()
+        
+        void setPool_path(const std_string & v)
+        bool getIs_wildcard()
+        
+        void setIs_wildcard(bool v)
+        std_vector[std_string] & getTargets();
 
 cdef extern from "pssp/ast/IConstraintStmt.h" namespace "pssp::ast":
     cpdef cppclass IConstraintStmt(IScopeChild):
@@ -1383,6 +1449,18 @@ cdef extern from "pssp/ast/IRefExprTypeScopeContext.h" namespace "pssp::ast":
         
         void setOffset(int32_t v)
 
+cdef extern from "pssp/ast/ICoverStmtInline.h" namespace "pssp::ast":
+    cpdef cppclass ICoverStmtInline(IScopeChild):
+        IScopeChild *getBody()
+        
+        void setBody(IScopeChild *v)
+
+cdef extern from "pssp/ast/ICoverStmtReference.h" namespace "pssp::ast":
+    cpdef cppclass ICoverStmtReference(IScopeChild):
+        IExprRefPath *getTarget()
+        
+        void setTarget(IExprRefPath *v)
+
 cdef extern from "pssp/ast/IRefExprTypeScopeGlobal.h" namespace "pssp::ast":
     cpdef cppclass IRefExprTypeScopeGlobal(IRefExpr):
         int32_t getFileid()
@@ -1396,27 +1474,15 @@ cdef extern from "pssp/ast/IScope.h" namespace "pssp::ast":
         void setEndLocation(const Location &)
         std_vector[UP[IScopeChild]] & getChildren();
 
-cdef extern from "pssp/ast/ICoverStmtInline.h" namespace "pssp::ast":
-    cpdef cppclass ICoverStmtInline(IScopeChild):
-        IScopeChild *getBody()
-        
-        void setBody(IScopeChild *v)
-
-cdef extern from "pssp/ast/ICoverStmtReference.h" namespace "pssp::ast":
-    cpdef cppclass ICoverStmtReference(IScopeChild):
-        IExprRefPath *getTarget()
-        
-        void setTarget(IExprRefPath *v)
-
-cdef extern from "pssp/ast/IDataType.h" namespace "pssp::ast":
-    cpdef cppclass IDataType(IScopeChild):
-        pass
-
 cdef extern from "pssp/ast/IScopeChildRef.h" namespace "pssp::ast":
     cpdef cppclass IScopeChildRef(IScopeChild):
         IScopeChildP getTarget();
         
         void setTarget(IScopeChildP v)
+
+cdef extern from "pssp/ast/IDataType.h" namespace "pssp::ast":
+    cpdef cppclass IDataType(IScopeChild):
+        pass
 
 cdef extern from "pssp/ast/ISymbolChild.h" namespace "pssp::ast":
     cpdef cppclass ISymbolChild(IScopeChild):
@@ -1771,89 +1837,12 @@ cdef extern from "pssp/ast/IFunctionParamDecl.h" namespace "pssp::ast":
         
         void setIs_varargs(bool v)
 
-cdef extern from "pssp/ast/IGenericConstraintDeclValue.h" namespace "pssp::ast":
-    cpdef cppclass IGenericConstraintDeclValue(IScopeChild):
-        bool getIs_static()
-        
-        void setIs_static(bool v)
-        bool getIs_return_numeric()
-        
-        void setIs_return_numeric(bool v)
-        IDataType *getReturn_type()
-        
-        void setReturn_type(IDataType *v)
-        IExprId *getName()
-        
-        void setName(IExprId *v)
-        std_vector[UP[IGenericConstraintParam]] & getParameters();
-        IExpr *getExpr()
-        
-        void setExpr(IExpr *v)
-
-cdef extern from "pssp/ast/IGenericConstraintParam.h" namespace "pssp::ast":
-    cpdef cppclass IGenericConstraintParam(IScopeChild):
-        IExprId *getName()
-        
-        void setName(IExprId *v)
-        bool getIs_const()
-        
-        void setIs_const(bool v)
-        bool getIs_numeric()
-        
-        void setIs_numeric(bool v)
-        IDataType *getType()
-        
-        void setType(IDataType *v)
-
-cdef extern from "pssp/ast/IMethodParameterList.h" namespace "pssp::ast":
-    cpdef cppclass IMethodParameterList(IExpr):
-        std_vector[UP[IExpr]] & getParameters();
-
-cdef extern from "pssp/ast/IMonitorActivityActionTraversal.h" namespace "pssp::ast":
-    cpdef cppclass IMonitorActivityActionTraversal(IMonitorActivityStmt):
-        IExprRefPath *getTarget()
-        
-        void setTarget(IExprRefPath *v)
-        IConstraintStmt *getWith_c()
-        
-        void setWith_c(IConstraintStmt *v)
-
 cdef extern from "pssp/ast/IActionHandleField.h" namespace "pssp::ast":
     cpdef cppclass IActionHandleField(INamedScopeChild):
         IDataType *getType()
         
         void setType(IDataType *v)
         std_vector[UP[IActionFieldInitializer]] & getInitializers();
-
-cdef extern from "pssp/ast/IMonitorActivityConcat.h" namespace "pssp::ast":
-    cpdef cppclass IMonitorActivityConcat(IMonitorActivityStmt):
-        IMonitorActivityStmt *getLhs()
-        
-        void setLhs(IMonitorActivityStmt *v)
-        IMonitorActivityStmt *getRhs()
-        
-        void setRhs(IMonitorActivityStmt *v)
-
-cdef extern from "pssp/ast/IMonitorActivityEventually.h" namespace "pssp::ast":
-    cpdef cppclass IMonitorActivityEventually(IMonitorActivityStmt):
-        IExpr *getCondition()
-        
-        void setCondition(IExpr *v)
-        IMonitorActivityStmt *getBody()
-        
-        void setBody(IMonitorActivityStmt *v)
-
-cdef extern from "pssp/ast/IMonitorActivityIfElse.h" namespace "pssp::ast":
-    cpdef cppclass IMonitorActivityIfElse(IMonitorActivityStmt):
-        IExpr *getCond()
-        
-        void setCond(IExpr *v)
-        IMonitorActivityStmt *getTrue_s()
-        
-        void setTrue_s(IMonitorActivityStmt *v)
-        IMonitorActivityStmt *getFalse_s()
-        
-        void setFalse_s(IMonitorActivityStmt *v)
 
 cdef extern from "pssp/ast/IActivityBindStmt.h" namespace "pssp::ast":
     cpdef cppclass IActivityBindStmt(IActivityStmt):
@@ -1867,43 +1856,6 @@ cdef extern from "pssp/ast/IActivityConstraint.h" namespace "pssp::ast":
         IConstraintStmt *getConstraint()
         
         void setConstraint(IConstraintStmt *v)
-
-cdef extern from "pssp/ast/IMonitorActivityMatch.h" namespace "pssp::ast":
-    cpdef cppclass IMonitorActivityMatch(IMonitorActivityStmt):
-        IExpr *getCond()
-        
-        void setCond(IExpr *v)
-        std_vector[UP[IMonitorActivityMatchChoice]] & getChoices();
-
-cdef extern from "pssp/ast/IMonitorActivityMonitorTraversal.h" namespace "pssp::ast":
-    cpdef cppclass IMonitorActivityMonitorTraversal(IMonitorActivityStmt):
-        IExprRefPath *getTarget()
-        
-        void setTarget(IExprRefPath *v)
-        IConstraintStmt *getWith_c()
-        
-        void setWith_c(IConstraintStmt *v)
-
-cdef extern from "pssp/ast/IMonitorActivityOverlap.h" namespace "pssp::ast":
-    cpdef cppclass IMonitorActivityOverlap(IMonitorActivityStmt):
-        IMonitorActivityStmt *getLhs()
-        
-        void setLhs(IMonitorActivityStmt *v)
-        IMonitorActivityStmt *getRhs()
-        
-        void setRhs(IMonitorActivityStmt *v)
-
-cdef extern from "pssp/ast/IMonitorActivityRepeatCount.h" namespace "pssp::ast":
-    cpdef cppclass IMonitorActivityRepeatCount(IMonitorActivityStmt):
-        IExprId *getLoop_var()
-        
-        void setLoop_var(IExprId *v)
-        IExpr *getCount()
-        
-        void setCount(IExpr *v)
-        IScopeChild *getBody()
-        
-        void setBody(IScopeChild *v)
 
 cdef extern from "pssp/ast/IActivityJoinSpecBranch.h" namespace "pssp::ast":
     cpdef cppclass IActivityJoinSpecBranch(IActivityJoinSpec):
@@ -1925,130 +1877,11 @@ cdef extern from "pssp/ast/IActivityJoinSpecSelect.h" namespace "pssp::ast":
         
         void setCount(IExpr *v)
 
-cdef extern from "pssp/ast/IMonitorActivityRepeatWhile.h" namespace "pssp::ast":
-    cpdef cppclass IMonitorActivityRepeatWhile(IMonitorActivityStmt):
-        IExpr *getCond()
-        
-        void setCond(IExpr *v)
-        IScopeChild *getBody()
-        
-        void setBody(IScopeChild *v)
-
 cdef extern from "pssp/ast/IActivityLabeledStmt.h" namespace "pssp::ast":
     cpdef cppclass IActivityLabeledStmt(IActivityStmt):
         IExprId *getLabel()
         
         void setLabel(IExprId *v)
-
-cdef extern from "pssp/ast/IMonitorActivitySelect.h" namespace "pssp::ast":
-    cpdef cppclass IMonitorActivitySelect(IMonitorActivityStmt):
-        IExprId *getLabel()
-        
-        void setLabel(IExprId *v)
-        std_vector[UP[IMonitorActivitySelectBranch]] & getBranches();
-
-cdef extern from "pssp/ast/IMonitorConstraint.h" namespace "pssp::ast":
-    cpdef cppclass IMonitorConstraint(IMonitorActivityStmt):
-        IConstraintStmt *getConstraint()
-        
-        void setConstraint(IConstraintStmt *v)
-
-cdef extern from "pssp/ast/INamedScope.h" namespace "pssp::ast":
-    cpdef cppclass INamedScope(IScope):
-        IExprId *getName()
-        
-        void setName(IExprId *v)
-
-cdef extern from "pssp/ast/IPackageScope.h" namespace "pssp::ast":
-    cpdef cppclass IPackageScope(IScope):
-        std_vector[UP[IExprId]] & getId();
-        IPackageScopeP getSibling();
-        
-        void setSibling(IPackageScopeP v)
-
-cdef extern from "pssp/ast/IProceduralStmtAssignment.h" namespace "pssp::ast":
-    cpdef cppclass IProceduralStmtAssignment(IExecStmt):
-        IExpr *getLhs()
-        
-        void setLhs(IExpr *v)
-        AssignOp getOp()
-        
-        void setOp(AssignOp v)
-        IExpr *getRhs()
-        
-        void setRhs(IExpr *v)
-
-cdef extern from "pssp/ast/IProceduralStmtBody.h" namespace "pssp::ast":
-    cpdef cppclass IProceduralStmtBody(IExecStmt):
-        IScopeChild *getBody()
-        
-        void setBody(IScopeChild *v)
-
-cdef extern from "pssp/ast/IProceduralStmtBreak.h" namespace "pssp::ast":
-    cpdef cppclass IProceduralStmtBreak(IExecStmt):
-        pass
-
-cdef extern from "pssp/ast/IProceduralStmtContinue.h" namespace "pssp::ast":
-    cpdef cppclass IProceduralStmtContinue(IExecStmt):
-        pass
-
-cdef extern from "pssp/ast/IProceduralStmtDataDeclaration.h" namespace "pssp::ast":
-    cpdef cppclass IProceduralStmtDataDeclaration(IExecStmt):
-        IExprId *getName()
-        
-        void setName(IExprId *v)
-        IDataType *getDatatype()
-        
-        void setDatatype(IDataType *v)
-        IExpr *getInit()
-        
-        void setInit(IExpr *v)
-
-cdef extern from "pssp/ast/IProceduralStmtExpr.h" namespace "pssp::ast":
-    cpdef cppclass IProceduralStmtExpr(IExecStmt):
-        IExpr *getExpr()
-        
-        void setExpr(IExpr *v)
-
-cdef extern from "pssp/ast/IProceduralStmtFunctionCall.h" namespace "pssp::ast":
-    cpdef cppclass IProceduralStmtFunctionCall(IExecStmt):
-        IExprRefPathStaticRooted *getPrefix()
-        
-        void setPrefix(IExprRefPathStaticRooted *v)
-        std_vector[UP[IExpr]] & getParams();
-
-cdef extern from "pssp/ast/IProceduralStmtIfElse.h" namespace "pssp::ast":
-    cpdef cppclass IProceduralStmtIfElse(IExecStmt):
-        std_vector[UP[IProceduralStmtIfClause]] & getIf_then();
-        IScopeChild *getElse_then()
-        
-        void setElse_then(IScopeChild *v)
-
-cdef extern from "pssp/ast/IProceduralStmtMatch.h" namespace "pssp::ast":
-    cpdef cppclass IProceduralStmtMatch(IExecStmt):
-        IExpr *getExpr()
-        
-        void setExpr(IExpr *v)
-        std_vector[UP[IProceduralStmtMatchChoice]] & getChoices();
-
-cdef extern from "pssp/ast/IProceduralStmtMatchChoice.h" namespace "pssp::ast":
-    cpdef cppclass IProceduralStmtMatchChoice(IExecStmt):
-        bool getIs_default()
-        
-        void setIs_default(bool v)
-        IExprOpenRangeList *getCond()
-        
-        void setCond(IExprOpenRangeList *v)
-        IScopeChild *getBody()
-        
-        void setBody(IScopeChild *v)
-
-cdef extern from "pssp/ast/IProceduralStmtRandomize.h" namespace "pssp::ast":
-    cpdef cppclass IProceduralStmtRandomize(IExecStmt):
-        IExpr *getTarget()
-        
-        void setTarget(IExpr *v)
-        std_vector[UP[IConstraintStmt]] & getConstraints();
 
 cdef extern from "pssp/ast/IConstraintScope.h" namespace "pssp::ast":
     cpdef cppclass IConstraintScope(IConstraintStmt):
@@ -2056,12 +1889,6 @@ cdef extern from "pssp/ast/IConstraintScope.h" namespace "pssp::ast":
         
         void setEndLocation(const Location &)
         std_vector[UP[IConstraintStmt]] & getConstraints();
-
-cdef extern from "pssp/ast/IProceduralStmtReturn.h" namespace "pssp::ast":
-    cpdef cppclass IProceduralStmtReturn(IExecStmt):
-        IExpr *getExpr()
-        
-        void setExpr(IExpr *v)
 
 cdef extern from "pssp/ast/IConstraintStmtDefault.h" namespace "pssp::ast":
     cpdef cppclass IConstraintStmtDefault(IConstraintStmt):
@@ -2093,10 +1920,6 @@ cdef extern from "pssp/ast/IConstraintStmtField.h" namespace "pssp::ast":
         
         void setType(IDataType *v)
 
-cdef extern from "pssp/ast/IProceduralStmtYield.h" namespace "pssp::ast":
-    cpdef cppclass IProceduralStmtYield(IExecStmt):
-        pass
-
 cdef extern from "pssp/ast/IConstraintStmtIf.h" namespace "pssp::ast":
     cpdef cppclass IConstraintStmtIf(IConstraintStmt):
         IExpr *getCond()
@@ -2112,6 +1935,21 @@ cdef extern from "pssp/ast/IConstraintStmtIf.h" namespace "pssp::ast":
 cdef extern from "pssp/ast/IConstraintStmtUnique.h" namespace "pssp::ast":
     cpdef cppclass IConstraintStmtUnique(IConstraintStmt):
         std_vector[UP[IExprHierarchicalId]] & getList();
+
+cdef extern from "pssp/ast/ICovergroup.h" namespace "pssp::ast":
+    cpdef cppclass ICovergroup(INamedScopeChild):
+        std_vector[UP[ICovergroupCoverpoint]] & getCoverpoints();
+        std_vector[UP[ICovergroupCross]] & getCrosses();
+
+cdef extern from "pssp/ast/ICovergroupCoverpoint.h" namespace "pssp::ast":
+    cpdef cppclass ICovergroupCoverpoint(INamedScopeChild):
+        IExpr *getTarget()
+        
+        void setTarget(IExpr *v)
+
+cdef extern from "pssp/ast/ICovergroupCross.h" namespace "pssp::ast":
+    cpdef cppclass ICovergroupCross(INamedScopeChild):
+        std_vector[UP[IExprId]] & getCoverpoint_names();
 
 cdef extern from "pssp/ast/IDataTypeBool.h" namespace "pssp::ast":
     cpdef cppclass IDataTypeBool(IDataType):
@@ -2181,34 +2019,6 @@ cdef extern from "pssp/ast/IEnumItem.h" namespace "pssp::ast":
         
         void setUpper(ISymbolEnumScopeP v)
 
-cdef extern from "pssp/ast/ISymbolChildrenScope.h" namespace "pssp::ast":
-    cpdef cppclass ISymbolChildrenScope(ISymbolChild):
-        const std_string &getName()
-        
-        void setName(const std_string & v)
-        std_vector[UP[IScopeChild]] & getChildren();
-        IScopeChildP getTarget();
-        
-        void setTarget(IScopeChildP v)
-
-cdef extern from "pssp/ast/ITemplateCategoryTypeParamDecl.h" namespace "pssp::ast":
-    cpdef cppclass ITemplateCategoryTypeParamDecl(ITemplateParamDecl):
-        TypeCategory getCategory()
-        
-        void setCategory(TypeCategory v)
-        ITypeIdentifier *getRestriction()
-        
-        void setRestriction(ITypeIdentifier *v)
-        IDataType *getDflt()
-        
-        void setDflt(IDataType *v)
-
-cdef extern from "pssp/ast/ITemplateGenericTypeParamDecl.h" namespace "pssp::ast":
-    cpdef cppclass ITemplateGenericTypeParamDecl(ITemplateParamDecl):
-        IDataType *getDflt()
-        
-        void setDflt(IDataType *v)
-
 cdef extern from "pssp/ast/IExprAggrEmpty.h" namespace "pssp::ast":
     cpdef cppclass IExprAggrEmpty(IExprAggrLiteral):
         pass
@@ -2216,15 +2026,6 @@ cdef extern from "pssp/ast/IExprAggrEmpty.h" namespace "pssp::ast":
 cdef extern from "pssp/ast/IExprAggrList.h" namespace "pssp::ast":
     cpdef cppclass IExprAggrList(IExprAggrLiteral):
         std_vector[UP[IExpr]] & getElems();
-
-cdef extern from "pssp/ast/ITemplateValueParamDecl.h" namespace "pssp::ast":
-    cpdef cppclass ITemplateValueParamDecl(ITemplateParamDecl):
-        IDataType *getType()
-        
-        void setType(IDataType *v)
-        IExpr *getDflt()
-        
-        void setDflt(IExpr *v)
 
 cdef extern from "pssp/ast/IExprAggrMap.h" namespace "pssp::ast":
     cpdef cppclass IExprAggrMap(IExprAggrLiteral):
@@ -2398,6 +2199,248 @@ cdef extern from "pssp/ast/IGlobalScope.h" namespace "pssp::ast":
         const std_string &getFilename()
         
         void setFilename(const std_string & v)
+
+cdef extern from "pssp/ast/IMonitorActivityActionTraversal.h" namespace "pssp::ast":
+    cpdef cppclass IMonitorActivityActionTraversal(IMonitorActivityStmt):
+        IExprRefPath *getTarget()
+        
+        void setTarget(IExprRefPath *v)
+        IConstraintStmt *getWith_c()
+        
+        void setWith_c(IConstraintStmt *v)
+
+cdef extern from "pssp/ast/IMonitorActivityConcat.h" namespace "pssp::ast":
+    cpdef cppclass IMonitorActivityConcat(IMonitorActivityStmt):
+        IMonitorActivityStmt *getLhs()
+        
+        void setLhs(IMonitorActivityStmt *v)
+        IMonitorActivityStmt *getRhs()
+        
+        void setRhs(IMonitorActivityStmt *v)
+
+cdef extern from "pssp/ast/IMonitorActivityEventually.h" namespace "pssp::ast":
+    cpdef cppclass IMonitorActivityEventually(IMonitorActivityStmt):
+        IExpr *getCondition()
+        
+        void setCondition(IExpr *v)
+        IMonitorActivityStmt *getBody()
+        
+        void setBody(IMonitorActivityStmt *v)
+
+cdef extern from "pssp/ast/IMonitorActivityIfElse.h" namespace "pssp::ast":
+    cpdef cppclass IMonitorActivityIfElse(IMonitorActivityStmt):
+        IExpr *getCond()
+        
+        void setCond(IExpr *v)
+        IMonitorActivityStmt *getTrue_s()
+        
+        void setTrue_s(IMonitorActivityStmt *v)
+        IMonitorActivityStmt *getFalse_s()
+        
+        void setFalse_s(IMonitorActivityStmt *v)
+
+cdef extern from "pssp/ast/IMonitorActivityMatch.h" namespace "pssp::ast":
+    cpdef cppclass IMonitorActivityMatch(IMonitorActivityStmt):
+        IExpr *getCond()
+        
+        void setCond(IExpr *v)
+        std_vector[UP[IMonitorActivityMatchChoice]] & getChoices();
+
+cdef extern from "pssp/ast/IMonitorActivityMonitorTraversal.h" namespace "pssp::ast":
+    cpdef cppclass IMonitorActivityMonitorTraversal(IMonitorActivityStmt):
+        IExprRefPath *getTarget()
+        
+        void setTarget(IExprRefPath *v)
+        IConstraintStmt *getWith_c()
+        
+        void setWith_c(IConstraintStmt *v)
+
+cdef extern from "pssp/ast/IMonitorActivityOverlap.h" namespace "pssp::ast":
+    cpdef cppclass IMonitorActivityOverlap(IMonitorActivityStmt):
+        IMonitorActivityStmt *getLhs()
+        
+        void setLhs(IMonitorActivityStmt *v)
+        IMonitorActivityStmt *getRhs()
+        
+        void setRhs(IMonitorActivityStmt *v)
+
+cdef extern from "pssp/ast/IMonitorActivityRepeatCount.h" namespace "pssp::ast":
+    cpdef cppclass IMonitorActivityRepeatCount(IMonitorActivityStmt):
+        IExprId *getLoop_var()
+        
+        void setLoop_var(IExprId *v)
+        IExpr *getCount()
+        
+        void setCount(IExpr *v)
+        IScopeChild *getBody()
+        
+        void setBody(IScopeChild *v)
+
+cdef extern from "pssp/ast/IMonitorActivityRepeatWhile.h" namespace "pssp::ast":
+    cpdef cppclass IMonitorActivityRepeatWhile(IMonitorActivityStmt):
+        IExpr *getCond()
+        
+        void setCond(IExpr *v)
+        IScopeChild *getBody()
+        
+        void setBody(IScopeChild *v)
+
+cdef extern from "pssp/ast/IMonitorActivitySelect.h" namespace "pssp::ast":
+    cpdef cppclass IMonitorActivitySelect(IMonitorActivityStmt):
+        IExprId *getLabel()
+        
+        void setLabel(IExprId *v)
+        std_vector[UP[IMonitorActivitySelectBranch]] & getBranches();
+
+cdef extern from "pssp/ast/IMonitorConstraint.h" namespace "pssp::ast":
+    cpdef cppclass IMonitorConstraint(IMonitorActivityStmt):
+        IConstraintStmt *getConstraint()
+        
+        void setConstraint(IConstraintStmt *v)
+
+cdef extern from "pssp/ast/INamedScope.h" namespace "pssp::ast":
+    cpdef cppclass INamedScope(IScope):
+        IExprId *getName()
+        
+        void setName(IExprId *v)
+
+cdef extern from "pssp/ast/IPackageScope.h" namespace "pssp::ast":
+    cpdef cppclass IPackageScope(IScope):
+        std_vector[UP[IExprId]] & getId();
+        IPackageScopeP getSibling();
+        
+        void setSibling(IPackageScopeP v)
+
+cdef extern from "pssp/ast/IProceduralStmtAssignment.h" namespace "pssp::ast":
+    cpdef cppclass IProceduralStmtAssignment(IExecStmt):
+        IExpr *getLhs()
+        
+        void setLhs(IExpr *v)
+        AssignOp getOp()
+        
+        void setOp(AssignOp v)
+        IExpr *getRhs()
+        
+        void setRhs(IExpr *v)
+
+cdef extern from "pssp/ast/IProceduralStmtBody.h" namespace "pssp::ast":
+    cpdef cppclass IProceduralStmtBody(IExecStmt):
+        IScopeChild *getBody()
+        
+        void setBody(IScopeChild *v)
+
+cdef extern from "pssp/ast/IProceduralStmtBreak.h" namespace "pssp::ast":
+    cpdef cppclass IProceduralStmtBreak(IExecStmt):
+        pass
+
+cdef extern from "pssp/ast/IProceduralStmtContinue.h" namespace "pssp::ast":
+    cpdef cppclass IProceduralStmtContinue(IExecStmt):
+        pass
+
+cdef extern from "pssp/ast/IProceduralStmtDataDeclaration.h" namespace "pssp::ast":
+    cpdef cppclass IProceduralStmtDataDeclaration(IExecStmt):
+        IExprId *getName()
+        
+        void setName(IExprId *v)
+        IDataType *getDatatype()
+        
+        void setDatatype(IDataType *v)
+        IExpr *getInit()
+        
+        void setInit(IExpr *v)
+
+cdef extern from "pssp/ast/IProceduralStmtExpr.h" namespace "pssp::ast":
+    cpdef cppclass IProceduralStmtExpr(IExecStmt):
+        IExpr *getExpr()
+        
+        void setExpr(IExpr *v)
+
+cdef extern from "pssp/ast/IProceduralStmtFunctionCall.h" namespace "pssp::ast":
+    cpdef cppclass IProceduralStmtFunctionCall(IExecStmt):
+        IExprRefPathStaticRooted *getPrefix()
+        
+        void setPrefix(IExprRefPathStaticRooted *v)
+        std_vector[UP[IExpr]] & getParams();
+
+cdef extern from "pssp/ast/IProceduralStmtIfElse.h" namespace "pssp::ast":
+    cpdef cppclass IProceduralStmtIfElse(IExecStmt):
+        std_vector[UP[IProceduralStmtIfClause]] & getIf_then();
+        IScopeChild *getElse_then()
+        
+        void setElse_then(IScopeChild *v)
+
+cdef extern from "pssp/ast/IProceduralStmtMatch.h" namespace "pssp::ast":
+    cpdef cppclass IProceduralStmtMatch(IExecStmt):
+        IExpr *getExpr()
+        
+        void setExpr(IExpr *v)
+        std_vector[UP[IProceduralStmtMatchChoice]] & getChoices();
+
+cdef extern from "pssp/ast/IProceduralStmtMatchChoice.h" namespace "pssp::ast":
+    cpdef cppclass IProceduralStmtMatchChoice(IExecStmt):
+        bool getIs_default()
+        
+        void setIs_default(bool v)
+        IExprOpenRangeList *getCond()
+        
+        void setCond(IExprOpenRangeList *v)
+        IScopeChild *getBody()
+        
+        void setBody(IScopeChild *v)
+
+cdef extern from "pssp/ast/IProceduralStmtRandomize.h" namespace "pssp::ast":
+    cpdef cppclass IProceduralStmtRandomize(IExecStmt):
+        IExpr *getTarget()
+        
+        void setTarget(IExpr *v)
+        std_vector[UP[IConstraintStmt]] & getConstraints();
+
+cdef extern from "pssp/ast/IProceduralStmtReturn.h" namespace "pssp::ast":
+    cpdef cppclass IProceduralStmtReturn(IExecStmt):
+        IExpr *getExpr()
+        
+        void setExpr(IExpr *v)
+
+cdef extern from "pssp/ast/IProceduralStmtYield.h" namespace "pssp::ast":
+    cpdef cppclass IProceduralStmtYield(IExecStmt):
+        pass
+
+cdef extern from "pssp/ast/ISymbolChildrenScope.h" namespace "pssp::ast":
+    cpdef cppclass ISymbolChildrenScope(ISymbolChild):
+        const std_string &getName()
+        
+        void setName(const std_string & v)
+        std_vector[UP[IScopeChild]] & getChildren();
+        IScopeChildP getTarget();
+        
+        void setTarget(IScopeChildP v)
+
+cdef extern from "pssp/ast/ITemplateCategoryTypeParamDecl.h" namespace "pssp::ast":
+    cpdef cppclass ITemplateCategoryTypeParamDecl(ITemplateParamDecl):
+        TypeCategory getCategory()
+        
+        void setCategory(TypeCategory v)
+        ITypeIdentifier *getRestriction()
+        
+        void setRestriction(ITypeIdentifier *v)
+        IDataType *getDflt()
+        
+        void setDflt(IDataType *v)
+
+cdef extern from "pssp/ast/ITemplateGenericTypeParamDecl.h" namespace "pssp::ast":
+    cpdef cppclass ITemplateGenericTypeParamDecl(ITemplateParamDecl):
+        IDataType *getDflt()
+        
+        void setDflt(IDataType *v)
+
+cdef extern from "pssp/ast/ITemplateValueParamDecl.h" namespace "pssp::ast":
+    cpdef cppclass ITemplateValueParamDecl(ITemplateParamDecl):
+        IDataType *getType()
+        
+        void setType(IDataType *v)
+        IExpr *getDflt()
+        
+        void setDflt(IExpr *v)
 
 cdef extern from "pssp/ast/IActivityActionHandleTraversal.h" namespace "pssp::ast":
     cpdef cppclass IActivityActionHandleTraversal(IActivityLabeledStmt):
@@ -2615,6 +2658,12 @@ cdef extern from "pssp/ast/IActivityDecl.h" namespace "pssp::ast":
     cpdef cppclass IActivityDecl(ISymbolScope):
         pass
 
+cdef extern from "pssp/ast/IActivityLabeledScope.h" namespace "pssp::ast":
+    cpdef cppclass IActivityLabeledScope(ISymbolScope):
+        IExprId *getLabel()
+        
+        void setLabel(IExprId *v)
+
 cdef extern from "pssp/ast/IMonitorActivitySchedule.h" namespace "pssp::ast":
     cpdef cppclass IMonitorActivitySchedule(ISymbolScope):
         IExprId *getLabel()
@@ -2623,12 +2672,6 @@ cdef extern from "pssp/ast/IMonitorActivitySchedule.h" namespace "pssp::ast":
 
 cdef extern from "pssp/ast/IMonitorActivitySequence.h" namespace "pssp::ast":
     cpdef cppclass IMonitorActivitySequence(ISymbolScope):
-        IExprId *getLabel()
-        
-        void setLabel(IExprId *v)
-
-cdef extern from "pssp/ast/IActivityLabeledScope.h" namespace "pssp::ast":
-    cpdef cppclass IActivityLabeledScope(ISymbolScope):
         IExprId *getLabel()
         
         void setLabel(IExprId *v)
@@ -2647,6 +2690,12 @@ cdef extern from "pssp/ast/IProceduralStmtSymbolBodyScope.h" namespace "pssp::as
         
         void setBody(IScopeChild *v)
 
+cdef extern from "pssp/ast/IConstraintSymbolScope.h" namespace "pssp::ast":
+    cpdef cppclass IConstraintSymbolScope(ISymbolScope):
+        IConstraintStmtP getConstraint();
+        
+        void setConstraint(IConstraintStmtP v)
+
 cdef extern from "pssp/ast/IRootSymbolScope.h" namespace "pssp::ast":
     cpdef cppclass IRootSymbolScope(ISymbolScope):
         std_vector[UP[IGlobalScope]] & getUnits();
@@ -2654,12 +2703,6 @@ cdef extern from "pssp/ast/IRootSymbolScope.h" namespace "pssp::ast":
         std_unordered_map[int32_t,int32_t] &getId2idx()
         std_vector[std_vector[int32_t]] & getFileOutRef();
         std_vector[std_vector[int32_t]] & getFileInRef();
-
-cdef extern from "pssp/ast/IConstraintSymbolScope.h" namespace "pssp::ast":
-    cpdef cppclass IConstraintSymbolScope(ISymbolScope):
-        IConstraintStmtP getConstraint();
-        
-        void setConstraint(IConstraintStmtP v)
 
 cdef extern from "pssp/ast/IStruct.h" namespace "pssp::ast":
     cpdef cppclass IStruct(ITypeScope):
@@ -2709,31 +2752,6 @@ cdef extern from "pssp/ast/IGenericConstraintDeclBool.h" namespace "pssp::ast":
         void setIs_static(bool v)
         std_vector[UP[IGenericConstraintParam]] & getParameters();
 
-cdef extern from "pssp/ast/IProceduralStmtRepeat.h" namespace "pssp::ast":
-    cpdef cppclass IProceduralStmtRepeat(IProceduralStmtSymbolBodyScope):
-        IExprId *getIt_id()
-        
-        void setIt_id(IExprId *v)
-        IExpr *getCount()
-        
-        void setCount(IExpr *v)
-
-cdef extern from "pssp/ast/IActivitySequence.h" namespace "pssp::ast":
-    cpdef cppclass IActivitySequence(IActivityLabeledScope):
-        pass
-
-cdef extern from "pssp/ast/IActivityParallel.h" namespace "pssp::ast":
-    cpdef cppclass IActivityParallel(IActivityLabeledScope):
-        IActivityJoinSpec *getJoin_spec()
-        
-        void setJoin_spec(IActivityJoinSpec *v)
-
-cdef extern from "pssp/ast/IActivitySchedule.h" namespace "pssp::ast":
-    cpdef cppclass IActivitySchedule(IActivityLabeledScope):
-        IActivityJoinSpec *getJoin_spec()
-        
-        void setJoin_spec(IActivityJoinSpec *v)
-
 cdef extern from "pssp/ast/IProceduralStmtForeach.h" namespace "pssp::ast":
     cpdef cppclass IProceduralStmtForeach(IProceduralStmtSymbolBodyScope):
         IExprRefPath *getPath()
@@ -2752,10 +2770,35 @@ cdef extern from "pssp/ast/IExecBlock.h" namespace "pssp::ast":
         
         void setKind(ExecKind v)
 
+cdef extern from "pssp/ast/IProceduralStmtRepeat.h" namespace "pssp::ast":
+    cpdef cppclass IProceduralStmtRepeat(IProceduralStmtSymbolBodyScope):
+        IExprId *getIt_id()
+        
+        void setIt_id(IExprId *v)
+        IExpr *getCount()
+        
+        void setCount(IExpr *v)
+
+cdef extern from "pssp/ast/IActivityParallel.h" namespace "pssp::ast":
+    cpdef cppclass IActivityParallel(IActivityLabeledScope):
+        IActivityJoinSpec *getJoin_spec()
+        
+        void setJoin_spec(IActivityJoinSpec *v)
+
+cdef extern from "pssp/ast/IActivitySchedule.h" namespace "pssp::ast":
+    cpdef cppclass IActivitySchedule(IActivityLabeledScope):
+        IActivityJoinSpec *getJoin_spec()
+        
+        void setJoin_spec(IActivityJoinSpec *v)
+
+cdef extern from "pssp/ast/IActivitySequence.h" namespace "pssp::ast":
+    cpdef cppclass IActivitySequence(IActivityLabeledScope):
+        pass
+
 cdef extern from 'pssp/ast/impl/VisitorBase.h' namespace 'pssp::ast':
     cpdef cppclass VisitorBase:
-        void visitTemplateParamDeclList(ITemplateParamDeclListP i)
         void visitAssocData(IAssocDataP i)
+        void visitTemplateParamDeclList(ITemplateParamDeclListP i)
         void visitExecTargetTemplateParam(IExecTargetTemplateParamP i)
         void visitExpr(IExprP i)
         void visitTemplateParamValue(ITemplateParamValueP i)
@@ -2765,32 +2808,36 @@ cdef extern from 'pssp/ast/impl/VisitorBase.h' namespace 'pssp::ast':
         void visitExprAggrStructElem(IExprAggrStructElemP i)
         void visitRefExpr(IRefExprP i)
         void visitMonitorActivitySelectBranch(IMonitorActivitySelectBranchP i)
-        void visitScopeChild(IScopeChildP i)
         void visitActivityMatchChoice(IActivityMatchChoiceP i)
+        void visitScopeChild(IScopeChildP i)
+        void visitActivitySelectBranch(IActivitySelectBranchP i)
         void visitSymbolImportSpec(ISymbolImportSpecP i)
         void visitSymbolRefPath(ISymbolRefPathP i)
-        void visitActivitySelectBranch(IActivitySelectBranchP i)
+        void visitGenericConstraintDeclValue(IGenericConstraintDeclValueP i)
         void visitActionFieldInitializer(IActionFieldInitializerP i)
+        void visitGenericConstraintParam(IGenericConstraintParamP i)
+        void visitMethodParameterList(IMethodParameterListP i)
         void visitActivityJoinSpec(IActivityJoinSpecP i)
         void visitMonitorActivityStmt(IMonitorActivityStmtP i)
         void visitNamedScopeChild(INamedScopeChildP i)
         void visitPackageImportStmt(IPackageImportStmtP i)
         void visitActivitySchedulingConstraint(IActivitySchedulingConstraintP i)
         void visitActivityStmt(IActivityStmtP i)
-        void visitProceduralStmtIfClause(IProceduralStmtIfClauseP i)
         void visitAnnotation(IAnnotationP i)
         void visitAnnotationParam(IAnnotationParamP i)
+        void visitProceduralStmtIfClause(IProceduralStmtIfClauseP i)
+        void visitComponentBind(IComponentBindP i)
         void visitConstraintStmt(IConstraintStmtP i)
         void visitPyImportFromStmt(IPyImportFromStmtP i)
         void visitPyImportStmt(IPyImportStmtP i)
         void visitRefExprScopeIndex(IRefExprScopeIndexP i)
         void visitRefExprTypeScopeContext(IRefExprTypeScopeContextP i)
-        void visitRefExprTypeScopeGlobal(IRefExprTypeScopeGlobalP i)
-        void visitScope(IScopeP i)
         void visitCoverStmtInline(ICoverStmtInlineP i)
         void visitCoverStmtReference(ICoverStmtReferenceP i)
-        void visitDataType(IDataTypeP i)
+        void visitRefExprTypeScopeGlobal(IRefExprTypeScopeGlobalP i)
+        void visitScope(IScopeP i)
         void visitScopeChildRef(IScopeChildRefP i)
+        void visitDataType(IDataTypeP i)
         void visitSymbolChild(ISymbolChildP i)
         void visitSymbolScopeRef(ISymbolScopeRefP i)
         void visitExecStmt(IExecStmtP i)
@@ -2833,50 +2880,24 @@ cdef extern from 'pssp/ast/impl/VisitorBase.h' namespace 'pssp::ast':
         void visitFunctionDefinition(IFunctionDefinitionP i)
         void visitFunctionImport(IFunctionImportP i)
         void visitFunctionParamDecl(IFunctionParamDeclP i)
-        void visitGenericConstraintDeclValue(IGenericConstraintDeclValueP i)
-        void visitGenericConstraintParam(IGenericConstraintParamP i)
-        void visitMethodParameterList(IMethodParameterListP i)
-        void visitMonitorActivityActionTraversal(IMonitorActivityActionTraversalP i)
         void visitActionHandleField(IActionHandleFieldP i)
-        void visitMonitorActivityConcat(IMonitorActivityConcatP i)
-        void visitMonitorActivityEventually(IMonitorActivityEventuallyP i)
-        void visitMonitorActivityIfElse(IMonitorActivityIfElseP i)
         void visitActivityBindStmt(IActivityBindStmtP i)
         void visitActivityConstraint(IActivityConstraintP i)
-        void visitMonitorActivityMatch(IMonitorActivityMatchP i)
-        void visitMonitorActivityMonitorTraversal(IMonitorActivityMonitorTraversalP i)
-        void visitMonitorActivityOverlap(IMonitorActivityOverlapP i)
-        void visitMonitorActivityRepeatCount(IMonitorActivityRepeatCountP i)
         void visitActivityJoinSpecBranch(IActivityJoinSpecBranchP i)
         void visitActivityJoinSpecFirst(IActivityJoinSpecFirstP i)
         void visitActivityJoinSpecNone(IActivityJoinSpecNoneP i)
         void visitActivityJoinSpecSelect(IActivityJoinSpecSelectP i)
-        void visitMonitorActivityRepeatWhile(IMonitorActivityRepeatWhileP i)
         void visitActivityLabeledStmt(IActivityLabeledStmtP i)
-        void visitMonitorActivitySelect(IMonitorActivitySelectP i)
-        void visitMonitorConstraint(IMonitorConstraintP i)
-        void visitNamedScope(INamedScopeP i)
-        void visitPackageScope(IPackageScopeP i)
-        void visitProceduralStmtAssignment(IProceduralStmtAssignmentP i)
-        void visitProceduralStmtBody(IProceduralStmtBodyP i)
-        void visitProceduralStmtBreak(IProceduralStmtBreakP i)
-        void visitProceduralStmtContinue(IProceduralStmtContinueP i)
-        void visitProceduralStmtDataDeclaration(IProceduralStmtDataDeclarationP i)
-        void visitProceduralStmtExpr(IProceduralStmtExprP i)
-        void visitProceduralStmtFunctionCall(IProceduralStmtFunctionCallP i)
-        void visitProceduralStmtIfElse(IProceduralStmtIfElseP i)
-        void visitProceduralStmtMatch(IProceduralStmtMatchP i)
-        void visitProceduralStmtMatchChoice(IProceduralStmtMatchChoiceP i)
-        void visitProceduralStmtRandomize(IProceduralStmtRandomizeP i)
         void visitConstraintScope(IConstraintScopeP i)
-        void visitProceduralStmtReturn(IProceduralStmtReturnP i)
         void visitConstraintStmtDefault(IConstraintStmtDefaultP i)
         void visitConstraintStmtDefaultDisable(IConstraintStmtDefaultDisableP i)
         void visitConstraintStmtExpr(IConstraintStmtExprP i)
         void visitConstraintStmtField(IConstraintStmtFieldP i)
-        void visitProceduralStmtYield(IProceduralStmtYieldP i)
         void visitConstraintStmtIf(IConstraintStmtIfP i)
         void visitConstraintStmtUnique(IConstraintStmtUniqueP i)
+        void visitCovergroup(ICovergroupP i)
+        void visitCovergroupCoverpoint(ICovergroupCoverpointP i)
+        void visitCovergroupCross(ICovergroupCrossP i)
         void visitDataTypeBool(IDataTypeBoolP i)
         void visitDataTypeChandle(IDataTypeChandleP i)
         void visitDataTypeEnum(IDataTypeEnumP i)
@@ -2887,12 +2908,8 @@ cdef extern from 'pssp/ast/impl/VisitorBase.h' namespace 'pssp::ast':
         void visitDataTypeUserDefined(IDataTypeUserDefinedP i)
         void visitEnumDecl(IEnumDeclP i)
         void visitEnumItem(IEnumItemP i)
-        void visitSymbolChildrenScope(ISymbolChildrenScopeP i)
-        void visitTemplateCategoryTypeParamDecl(ITemplateCategoryTypeParamDeclP i)
-        void visitTemplateGenericTypeParamDecl(ITemplateGenericTypeParamDeclP i)
         void visitExprAggrEmpty(IExprAggrEmptyP i)
         void visitExprAggrList(IExprAggrListP i)
-        void visitTemplateValueParamDecl(ITemplateValueParamDeclP i)
         void visitExprAggrMap(IExprAggrMapP i)
         void visitExprAggrStruct(IExprAggrStructP i)
         void visitExprRefPathContext(IExprRefPathContextP i)
@@ -2911,6 +2928,36 @@ cdef extern from 'pssp/ast/impl/VisitorBase.h' namespace 'pssp::ast':
         void visitFunctionImportType(IFunctionImportTypeP i)
         void visitFunctionPrototype(IFunctionPrototypeP i)
         void visitGlobalScope(IGlobalScopeP i)
+        void visitMonitorActivityActionTraversal(IMonitorActivityActionTraversalP i)
+        void visitMonitorActivityConcat(IMonitorActivityConcatP i)
+        void visitMonitorActivityEventually(IMonitorActivityEventuallyP i)
+        void visitMonitorActivityIfElse(IMonitorActivityIfElseP i)
+        void visitMonitorActivityMatch(IMonitorActivityMatchP i)
+        void visitMonitorActivityMonitorTraversal(IMonitorActivityMonitorTraversalP i)
+        void visitMonitorActivityOverlap(IMonitorActivityOverlapP i)
+        void visitMonitorActivityRepeatCount(IMonitorActivityRepeatCountP i)
+        void visitMonitorActivityRepeatWhile(IMonitorActivityRepeatWhileP i)
+        void visitMonitorActivitySelect(IMonitorActivitySelectP i)
+        void visitMonitorConstraint(IMonitorConstraintP i)
+        void visitNamedScope(INamedScopeP i)
+        void visitPackageScope(IPackageScopeP i)
+        void visitProceduralStmtAssignment(IProceduralStmtAssignmentP i)
+        void visitProceduralStmtBody(IProceduralStmtBodyP i)
+        void visitProceduralStmtBreak(IProceduralStmtBreakP i)
+        void visitProceduralStmtContinue(IProceduralStmtContinueP i)
+        void visitProceduralStmtDataDeclaration(IProceduralStmtDataDeclarationP i)
+        void visitProceduralStmtExpr(IProceduralStmtExprP i)
+        void visitProceduralStmtFunctionCall(IProceduralStmtFunctionCallP i)
+        void visitProceduralStmtIfElse(IProceduralStmtIfElseP i)
+        void visitProceduralStmtMatch(IProceduralStmtMatchP i)
+        void visitProceduralStmtMatchChoice(IProceduralStmtMatchChoiceP i)
+        void visitProceduralStmtRandomize(IProceduralStmtRandomizeP i)
+        void visitProceduralStmtReturn(IProceduralStmtReturnP i)
+        void visitProceduralStmtYield(IProceduralStmtYieldP i)
+        void visitSymbolChildrenScope(ISymbolChildrenScopeP i)
+        void visitTemplateCategoryTypeParamDecl(ITemplateCategoryTypeParamDeclP i)
+        void visitTemplateGenericTypeParamDecl(ITemplateGenericTypeParamDeclP i)
+        void visitTemplateValueParamDecl(ITemplateValueParamDeclP i)
         void visitActivityActionHandleTraversal(IActivityActionHandleTraversalP i)
         void visitActivityActionTypeTraversal(IActivityActionTypeTraversalP i)
         void visitActivityAtomicBlock(IActivityAtomicBlockP i)
@@ -2936,14 +2983,14 @@ cdef extern from 'pssp/ast/impl/VisitorBase.h' namespace 'pssp::ast':
         void visitMonitor(IMonitorP i)
         void visitMonitorActivityDecl(IMonitorActivityDeclP i)
         void visitActivityDecl(IActivityDeclP i)
+        void visitActivityLabeledScope(IActivityLabeledScopeP i)
         void visitMonitorActivitySchedule(IMonitorActivityScheduleP i)
         void visitMonitorActivitySequence(IMonitorActivitySequenceP i)
-        void visitActivityLabeledScope(IActivityLabeledScopeP i)
         void visitAnnotationDecl(IAnnotationDeclP i)
         void visitComponent(IComponentP i)
         void visitProceduralStmtSymbolBodyScope(IProceduralStmtSymbolBodyScopeP i)
-        void visitRootSymbolScope(IRootSymbolScopeP i)
         void visitConstraintSymbolScope(IConstraintSymbolScopeP i)
+        void visitRootSymbolScope(IRootSymbolScopeP i)
         void visitStruct(IStructP i)
         void visitSymbolEnumScope(ISymbolEnumScopeP i)
         void visitSymbolExtendScope(ISymbolExtendScopeP i)
@@ -2951,17 +2998,17 @@ cdef extern from 'pssp/ast/impl/VisitorBase.h' namespace 'pssp::ast':
         void visitSymbolTypeScope(ISymbolTypeScopeP i)
         void visitExecScope(IExecScopeP i)
         void visitGenericConstraintDeclBool(IGenericConstraintDeclBoolP i)
-        void visitProceduralStmtRepeat(IProceduralStmtRepeatP i)
-        void visitActivitySequence(IActivitySequenceP i)
-        void visitActivityParallel(IActivityParallelP i)
-        void visitActivitySchedule(IActivityScheduleP i)
         void visitProceduralStmtForeach(IProceduralStmtForeachP i)
         void visitExecBlock(IExecBlockP i)
+        void visitProceduralStmtRepeat(IProceduralStmtRepeatP i)
+        void visitActivityParallel(IActivityParallelP i)
+        void visitActivitySchedule(IActivityScheduleP i)
+        void visitActivitySequence(IActivitySequenceP i)
 cdef extern from 'PyBaseVisitor.h' namespace 'pssp::ast':
     cpdef cppclass PyBaseVisitor(VisitorBase):
         PyBaseVisitor(cpy_ref.PyObject *)
-        void py_acceptTemplateParamDeclList(ITemplateParamDeclList *i);
         void py_acceptAssocData(IAssocData *i);
+        void py_acceptTemplateParamDeclList(ITemplateParamDeclList *i);
         void py_acceptExecTargetTemplateParam(IExecTargetTemplateParam *i);
         void py_acceptExpr(IExpr *i);
         void py_acceptTemplateParamValue(ITemplateParamValue *i);
@@ -2971,13 +3018,13 @@ cdef extern from 'PyBaseVisitor.h' namespace 'pssp::ast':
         void py_acceptExprAggrStructElem(IExprAggrStructElem *i);
         void py_acceptRefExpr(IRefExpr *i);
         void py_acceptMonitorActivitySelectBranch(IMonitorActivitySelectBranch *i);
-        void py_acceptScopeChild(IScopeChild *i);
         void py_acceptActivityMatchChoice(IActivityMatchChoice *i);
+        void py_acceptScopeChild(IScopeChild *i);
+        void py_acceptActivitySelectBranch(IActivitySelectBranch *i);
         void py_acceptSymbolImportSpec(ISymbolImportSpec *i);
         void py_acceptSymbolRefPath(ISymbolRefPath *i);
-        void py_acceptActivitySelectBranch(IActivitySelectBranch *i);
-        void py_visitTemplateParamDeclListBase(ITemplateParamDeclList *i)
         void py_visitAssocDataBase(IAssocData *i)
+        void py_visitTemplateParamDeclListBase(ITemplateParamDeclList *i)
         void py_visitExecTargetTemplateParamBase(IExecTargetTemplateParam *i)
         void py_visitExprBase(IExpr *i)
         void py_visitTemplateParamValueBase(ITemplateParamValue *i)
@@ -2987,32 +3034,36 @@ cdef extern from 'PyBaseVisitor.h' namespace 'pssp::ast':
         void py_visitExprAggrStructElemBase(IExprAggrStructElem *i)
         void py_visitRefExprBase(IRefExpr *i)
         void py_visitMonitorActivitySelectBranchBase(IMonitorActivitySelectBranch *i)
-        void py_visitScopeChildBase(IScopeChild *i)
         void py_visitActivityMatchChoiceBase(IActivityMatchChoice *i)
+        void py_visitScopeChildBase(IScopeChild *i)
+        void py_visitActivitySelectBranchBase(IActivitySelectBranch *i)
         void py_visitSymbolImportSpecBase(ISymbolImportSpec *i)
         void py_visitSymbolRefPathBase(ISymbolRefPath *i)
-        void py_visitActivitySelectBranchBase(IActivitySelectBranch *i)
+        void py_visitGenericConstraintDeclValueBase(IGenericConstraintDeclValue *i)
         void py_visitActionFieldInitializerBase(IActionFieldInitializer *i)
+        void py_visitGenericConstraintParamBase(IGenericConstraintParam *i)
+        void py_visitMethodParameterListBase(IMethodParameterList *i)
         void py_visitActivityJoinSpecBase(IActivityJoinSpec *i)
         void py_visitMonitorActivityStmtBase(IMonitorActivityStmt *i)
         void py_visitNamedScopeChildBase(INamedScopeChild *i)
         void py_visitPackageImportStmtBase(IPackageImportStmt *i)
         void py_visitActivitySchedulingConstraintBase(IActivitySchedulingConstraint *i)
         void py_visitActivityStmtBase(IActivityStmt *i)
-        void py_visitProceduralStmtIfClauseBase(IProceduralStmtIfClause *i)
         void py_visitAnnotationBase(IAnnotation *i)
         void py_visitAnnotationParamBase(IAnnotationParam *i)
+        void py_visitProceduralStmtIfClauseBase(IProceduralStmtIfClause *i)
+        void py_visitComponentBindBase(IComponentBind *i)
         void py_visitConstraintStmtBase(IConstraintStmt *i)
         void py_visitPyImportFromStmtBase(IPyImportFromStmt *i)
         void py_visitPyImportStmtBase(IPyImportStmt *i)
         void py_visitRefExprScopeIndexBase(IRefExprScopeIndex *i)
         void py_visitRefExprTypeScopeContextBase(IRefExprTypeScopeContext *i)
-        void py_visitRefExprTypeScopeGlobalBase(IRefExprTypeScopeGlobal *i)
-        void py_visitScopeBase(IScope *i)
         void py_visitCoverStmtInlineBase(ICoverStmtInline *i)
         void py_visitCoverStmtReferenceBase(ICoverStmtReference *i)
-        void py_visitDataTypeBase(IDataType *i)
+        void py_visitRefExprTypeScopeGlobalBase(IRefExprTypeScopeGlobal *i)
+        void py_visitScopeBase(IScope *i)
         void py_visitScopeChildRefBase(IScopeChildRef *i)
+        void py_visitDataTypeBase(IDataType *i)
         void py_visitSymbolChildBase(ISymbolChild *i)
         void py_visitSymbolScopeRefBase(ISymbolScopeRef *i)
         void py_visitExecStmtBase(IExecStmt *i)
@@ -3055,50 +3106,24 @@ cdef extern from 'PyBaseVisitor.h' namespace 'pssp::ast':
         void py_visitFunctionDefinitionBase(IFunctionDefinition *i)
         void py_visitFunctionImportBase(IFunctionImport *i)
         void py_visitFunctionParamDeclBase(IFunctionParamDecl *i)
-        void py_visitGenericConstraintDeclValueBase(IGenericConstraintDeclValue *i)
-        void py_visitGenericConstraintParamBase(IGenericConstraintParam *i)
-        void py_visitMethodParameterListBase(IMethodParameterList *i)
-        void py_visitMonitorActivityActionTraversalBase(IMonitorActivityActionTraversal *i)
         void py_visitActionHandleFieldBase(IActionHandleField *i)
-        void py_visitMonitorActivityConcatBase(IMonitorActivityConcat *i)
-        void py_visitMonitorActivityEventuallyBase(IMonitorActivityEventually *i)
-        void py_visitMonitorActivityIfElseBase(IMonitorActivityIfElse *i)
         void py_visitActivityBindStmtBase(IActivityBindStmt *i)
         void py_visitActivityConstraintBase(IActivityConstraint *i)
-        void py_visitMonitorActivityMatchBase(IMonitorActivityMatch *i)
-        void py_visitMonitorActivityMonitorTraversalBase(IMonitorActivityMonitorTraversal *i)
-        void py_visitMonitorActivityOverlapBase(IMonitorActivityOverlap *i)
-        void py_visitMonitorActivityRepeatCountBase(IMonitorActivityRepeatCount *i)
         void py_visitActivityJoinSpecBranchBase(IActivityJoinSpecBranch *i)
         void py_visitActivityJoinSpecFirstBase(IActivityJoinSpecFirst *i)
         void py_visitActivityJoinSpecNoneBase(IActivityJoinSpecNone *i)
         void py_visitActivityJoinSpecSelectBase(IActivityJoinSpecSelect *i)
-        void py_visitMonitorActivityRepeatWhileBase(IMonitorActivityRepeatWhile *i)
         void py_visitActivityLabeledStmtBase(IActivityLabeledStmt *i)
-        void py_visitMonitorActivitySelectBase(IMonitorActivitySelect *i)
-        void py_visitMonitorConstraintBase(IMonitorConstraint *i)
-        void py_visitNamedScopeBase(INamedScope *i)
-        void py_visitPackageScopeBase(IPackageScope *i)
-        void py_visitProceduralStmtAssignmentBase(IProceduralStmtAssignment *i)
-        void py_visitProceduralStmtBodyBase(IProceduralStmtBody *i)
-        void py_visitProceduralStmtBreakBase(IProceduralStmtBreak *i)
-        void py_visitProceduralStmtContinueBase(IProceduralStmtContinue *i)
-        void py_visitProceduralStmtDataDeclarationBase(IProceduralStmtDataDeclaration *i)
-        void py_visitProceduralStmtExprBase(IProceduralStmtExpr *i)
-        void py_visitProceduralStmtFunctionCallBase(IProceduralStmtFunctionCall *i)
-        void py_visitProceduralStmtIfElseBase(IProceduralStmtIfElse *i)
-        void py_visitProceduralStmtMatchBase(IProceduralStmtMatch *i)
-        void py_visitProceduralStmtMatchChoiceBase(IProceduralStmtMatchChoice *i)
-        void py_visitProceduralStmtRandomizeBase(IProceduralStmtRandomize *i)
         void py_visitConstraintScopeBase(IConstraintScope *i)
-        void py_visitProceduralStmtReturnBase(IProceduralStmtReturn *i)
         void py_visitConstraintStmtDefaultBase(IConstraintStmtDefault *i)
         void py_visitConstraintStmtDefaultDisableBase(IConstraintStmtDefaultDisable *i)
         void py_visitConstraintStmtExprBase(IConstraintStmtExpr *i)
         void py_visitConstraintStmtFieldBase(IConstraintStmtField *i)
-        void py_visitProceduralStmtYieldBase(IProceduralStmtYield *i)
         void py_visitConstraintStmtIfBase(IConstraintStmtIf *i)
         void py_visitConstraintStmtUniqueBase(IConstraintStmtUnique *i)
+        void py_visitCovergroupBase(ICovergroup *i)
+        void py_visitCovergroupCoverpointBase(ICovergroupCoverpoint *i)
+        void py_visitCovergroupCrossBase(ICovergroupCross *i)
         void py_visitDataTypeBoolBase(IDataTypeBool *i)
         void py_visitDataTypeChandleBase(IDataTypeChandle *i)
         void py_visitDataTypeEnumBase(IDataTypeEnum *i)
@@ -3109,12 +3134,8 @@ cdef extern from 'PyBaseVisitor.h' namespace 'pssp::ast':
         void py_visitDataTypeUserDefinedBase(IDataTypeUserDefined *i)
         void py_visitEnumDeclBase(IEnumDecl *i)
         void py_visitEnumItemBase(IEnumItem *i)
-        void py_visitSymbolChildrenScopeBase(ISymbolChildrenScope *i)
-        void py_visitTemplateCategoryTypeParamDeclBase(ITemplateCategoryTypeParamDecl *i)
-        void py_visitTemplateGenericTypeParamDeclBase(ITemplateGenericTypeParamDecl *i)
         void py_visitExprAggrEmptyBase(IExprAggrEmpty *i)
         void py_visitExprAggrListBase(IExprAggrList *i)
-        void py_visitTemplateValueParamDeclBase(ITemplateValueParamDecl *i)
         void py_visitExprAggrMapBase(IExprAggrMap *i)
         void py_visitExprAggrStructBase(IExprAggrStruct *i)
         void py_visitExprRefPathContextBase(IExprRefPathContext *i)
@@ -3133,6 +3154,36 @@ cdef extern from 'PyBaseVisitor.h' namespace 'pssp::ast':
         void py_visitFunctionImportTypeBase(IFunctionImportType *i)
         void py_visitFunctionPrototypeBase(IFunctionPrototype *i)
         void py_visitGlobalScopeBase(IGlobalScope *i)
+        void py_visitMonitorActivityActionTraversalBase(IMonitorActivityActionTraversal *i)
+        void py_visitMonitorActivityConcatBase(IMonitorActivityConcat *i)
+        void py_visitMonitorActivityEventuallyBase(IMonitorActivityEventually *i)
+        void py_visitMonitorActivityIfElseBase(IMonitorActivityIfElse *i)
+        void py_visitMonitorActivityMatchBase(IMonitorActivityMatch *i)
+        void py_visitMonitorActivityMonitorTraversalBase(IMonitorActivityMonitorTraversal *i)
+        void py_visitMonitorActivityOverlapBase(IMonitorActivityOverlap *i)
+        void py_visitMonitorActivityRepeatCountBase(IMonitorActivityRepeatCount *i)
+        void py_visitMonitorActivityRepeatWhileBase(IMonitorActivityRepeatWhile *i)
+        void py_visitMonitorActivitySelectBase(IMonitorActivitySelect *i)
+        void py_visitMonitorConstraintBase(IMonitorConstraint *i)
+        void py_visitNamedScopeBase(INamedScope *i)
+        void py_visitPackageScopeBase(IPackageScope *i)
+        void py_visitProceduralStmtAssignmentBase(IProceduralStmtAssignment *i)
+        void py_visitProceduralStmtBodyBase(IProceduralStmtBody *i)
+        void py_visitProceduralStmtBreakBase(IProceduralStmtBreak *i)
+        void py_visitProceduralStmtContinueBase(IProceduralStmtContinue *i)
+        void py_visitProceduralStmtDataDeclarationBase(IProceduralStmtDataDeclaration *i)
+        void py_visitProceduralStmtExprBase(IProceduralStmtExpr *i)
+        void py_visitProceduralStmtFunctionCallBase(IProceduralStmtFunctionCall *i)
+        void py_visitProceduralStmtIfElseBase(IProceduralStmtIfElse *i)
+        void py_visitProceduralStmtMatchBase(IProceduralStmtMatch *i)
+        void py_visitProceduralStmtMatchChoiceBase(IProceduralStmtMatchChoice *i)
+        void py_visitProceduralStmtRandomizeBase(IProceduralStmtRandomize *i)
+        void py_visitProceduralStmtReturnBase(IProceduralStmtReturn *i)
+        void py_visitProceduralStmtYieldBase(IProceduralStmtYield *i)
+        void py_visitSymbolChildrenScopeBase(ISymbolChildrenScope *i)
+        void py_visitTemplateCategoryTypeParamDeclBase(ITemplateCategoryTypeParamDecl *i)
+        void py_visitTemplateGenericTypeParamDeclBase(ITemplateGenericTypeParamDecl *i)
+        void py_visitTemplateValueParamDeclBase(ITemplateValueParamDecl *i)
         void py_visitActivityActionHandleTraversalBase(IActivityActionHandleTraversal *i)
         void py_visitActivityActionTypeTraversalBase(IActivityActionTypeTraversal *i)
         void py_visitActivityAtomicBlockBase(IActivityAtomicBlock *i)
@@ -3158,14 +3209,14 @@ cdef extern from 'PyBaseVisitor.h' namespace 'pssp::ast':
         void py_visitMonitorBase(IMonitor *i)
         void py_visitMonitorActivityDeclBase(IMonitorActivityDecl *i)
         void py_visitActivityDeclBase(IActivityDecl *i)
+        void py_visitActivityLabeledScopeBase(IActivityLabeledScope *i)
         void py_visitMonitorActivityScheduleBase(IMonitorActivitySchedule *i)
         void py_visitMonitorActivitySequenceBase(IMonitorActivitySequence *i)
-        void py_visitActivityLabeledScopeBase(IActivityLabeledScope *i)
         void py_visitAnnotationDeclBase(IAnnotationDecl *i)
         void py_visitComponentBase(IComponent *i)
         void py_visitProceduralStmtSymbolBodyScopeBase(IProceduralStmtSymbolBodyScope *i)
-        void py_visitRootSymbolScopeBase(IRootSymbolScope *i)
         void py_visitConstraintSymbolScopeBase(IConstraintSymbolScope *i)
+        void py_visitRootSymbolScopeBase(IRootSymbolScope *i)
         void py_visitStructBase(IStruct *i)
         void py_visitSymbolEnumScopeBase(ISymbolEnumScope *i)
         void py_visitSymbolExtendScopeBase(ISymbolExtendScope *i)
@@ -3173,9 +3224,9 @@ cdef extern from 'PyBaseVisitor.h' namespace 'pssp::ast':
         void py_visitSymbolTypeScopeBase(ISymbolTypeScope *i)
         void py_visitExecScopeBase(IExecScope *i)
         void py_visitGenericConstraintDeclBoolBase(IGenericConstraintDeclBool *i)
-        void py_visitProceduralStmtRepeatBase(IProceduralStmtRepeat *i)
-        void py_visitActivitySequenceBase(IActivitySequence *i)
-        void py_visitActivityParallelBase(IActivityParallel *i)
-        void py_visitActivityScheduleBase(IActivitySchedule *i)
         void py_visitProceduralStmtForeachBase(IProceduralStmtForeach *i)
         void py_visitExecBlockBase(IExecBlock *i)
+        void py_visitProceduralStmtRepeatBase(IProceduralStmtRepeat *i)
+        void py_visitActivityParallelBase(IActivityParallel *i)
+        void py_visitActivityScheduleBase(IActivitySchedule *i)
+        void py_visitActivitySequenceBase(IActivitySequence *i)

@@ -118,6 +118,10 @@ public:
 
 	virtual antlrcpp::Any visitComponent_pool_declaration(PSSParser::Component_pool_declarationContext *ctx) override;
 
+	virtual antlrcpp::Any visitObject_bind_stmt(PSSParser::Object_bind_stmtContext *ctx) override;
+
+	virtual antlrcpp::Any visitInline_covergroup(PSSParser::Inline_covergroupContext *ctx) override;
+
     virtual antlrcpp::Any visitAction_handle_declaration(PSSParser::Action_handle_declarationContext *ctx) override;
 
 	virtual antlrcpp::Any visitActivity_data_field(PSSParser::Activity_data_fieldContext *ctx) override;
@@ -423,6 +427,7 @@ private:
         PSSParser::Activity_stmt_annContext *ctx);
 
     void addSyntheticIntField(ast::ISymbolScope *scope, const std::string &name);
+    void addStructBuiltinField(ast::IStruct *s, ast::StructKind kind);
 	ast::IScopeChild *mkActivityStmt(PSSParser::Activity_stmt_annContext *ctx);
 
 	ast::IConstraintStmt *mkConstraintSet(PSSParser::Constraint_setContext *ctx);
