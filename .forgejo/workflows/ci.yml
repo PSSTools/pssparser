@@ -47,8 +47,14 @@ jobs:
         echo "OK: no internal identifiers in tracked files"
 
     - name: Stamp build version
+      # Tag builds keep the clean BASE version; everything else gets a
+      # .<run-id> dev suffix so ordinary pushes can never collide with a
+      # release version on PyPI.
       run: |
-        sed -i 's/^SUFFIX = ""$/SUFFIX = ".'"$GITHUB_RUN_ID"'"/' python/pssparser/__version__.py
+        case "$GITHUB_REF" in
+          refs/tags/*) echo "tag build -- leaving version clean" ;;
+          *) sed -i 's/^SUFFIX = ""$/SUFFIX = ".'"$GITHUB_RUN_ID"'"/' python/pssparser/__version__.py ;;
+        esac
         grep '^SUFFIX = ' python/pssparser/__version__.py
 
     - name: Configure ivpm dependency resolution
@@ -186,3 +192,57 @@ jobs:
         name: docs-psstools-pssparser
         path: _site/**
         if-no-files-found: error
+
+  publish-pypi:
+    # Releases only. A tag is the deliberate act; ordinary pushes to master
+    # produce dev-suffixed wheels that must never reach PyPI, because a
+    # version number there can be yanked but never reused.
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build-linux-x86_64, docs]
+    runs-on: ubuntu-latest
+    container:
+      image: dvkit/pssparser-ci:manylinux_2_28-x86_64
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Download wheels
+      uses: forgejo/download-artifact@v4
+      with:
+        name: wheels-linux-x86_64
+        path: dist
+
+    - name: Check the tag matches the package version
+      # Guards against tagging v3.0.1 while __version__.py still says 3.0.0 --
+      # which would publish a release under the wrong number, unfixably.
+      run: |
+        tag="${GITHUB_REF#refs/tags/v}"
+        base=$(grep '^BASE = ' python/pssparser/__version__.py | sed 's/.*"\(.*\)".*/\1/')
+        echo "tag=$tag  BASE=$base"
+        if [ "$tag" != "$base" ]; then
+          echo "::error::tag v$tag does not match BASE $base in python/pssparser/__version__.py"
+          exit 1
+        fi
+        for w in dist/*.whl; do
+          case "$(basename "$w")" in
+            pssparser-${base}-*) ;;
+            *) echo "::error::wheel $(basename "$w") is not version ${base}"; exit 1 ;;
+          esac
+        done
+        echo "OK: tag, source version and all wheels agree on ${base}"
+
+    - name: Publish to PyPI
+      # Plain twine rather than a third-party action: this is the release path,
+      # and it should not depend on GitHub being reachable.
+      env:
+        TWINE_USERNAME: __token__
+        TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+      run: |
+        if [ -z "$TWINE_PASSWORD" ]; then
+          echo "::error::PYPI_API_TOKEN is not set for this repository"
+          exit 1
+        fi
+        P=/opt/python/cp312-cp312/bin/python
+        $P -m twine check dist/*.whl
+        $P -m twine upload --non-interactive --skip-existing dist/*.whl
+        echo "published $(ls dist/*.whl | wc -l) wheels"
