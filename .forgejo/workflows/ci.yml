@@ -135,3 +135,54 @@ jobs:
         /opt/python/cp313-cp313/bin/python -m venv /tmp/systest
         /tmp/systest/bin/pip install -q dist/*cp313*.whl
         /tmp/systest/bin/python -c "from pssparser import Parser; p = Parser(); assert p.parses([('test.pss', 'component pss_top {}')]); print('System test PASSED')"
+
+  docs:
+    # Depends on the build job on purpose. docs/conf.py uses sphinx.ext.autodoc,
+    # which imports pssparser.ast and pssparser.core -- compiled Cython
+    # extensions that exist only in a built wheel, never in the source tree.
+    # Building docs from a bare checkout silently yields an empty API reference
+    # while still reporting success, so the wheel is a hard prerequisite.
+    needs: build-linux-x86_64
+    runs-on: ubuntu-latest
+    container:
+      image: dvkit/pssparser-ci:manylinux_2_28-x86_64
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Download wheels from the build job
+      uses: forgejo/download-artifact@v4
+      with:
+        name: wheels-linux-x86_64
+        path: dist
+
+    - name: Build HTML docs
+      run: |
+        P=/opt/python/cp312-cp312/bin/python
+        $P -m venv /tmp/docsenv
+        /tmp/docsenv/bin/pip install -q sphinx alabaster
+        # Install the wheel so autodoc can import the compiled extensions.
+        /tmp/docsenv/bin/pip install -q dist/*cp312*.whl
+        /tmp/docsenv/bin/python -c "import pssparser.ast, pssparser.core; print('compiled extensions importable')"
+        /tmp/docsenv/bin/python -m sphinx -b html docs _site 2>&1 | tee /tmp/sphinx.log
+        rm -rf _site/.doctrees
+
+    - name: Fail if autodoc could not import the package
+      # Sphinx exits 0 even when every autodoc import fails, so the exit code
+      # is not a sufficient check -- assert on the warnings instead.
+      run: |
+        n=$(grep -c "autodoc: failed to import" /tmp/sphinx.log || true)
+        if [ "$n" -gt 0 ]; then
+          echo "::error::$n autodoc imports failed -- the API reference would ship empty"
+          grep "autodoc: failed to import" /tmp/sphinx.log | head -5
+          exit 1
+        fi
+        echo "OK: no autodoc import failures"
+        echo "documented symbols: $(grep -c "sig-name descname" _site/reference_api_docs.html || echo 0)"
+
+    - name: Upload docs
+      uses: forgejo/upload-artifact@v4
+      with:
+        name: docs-psstools-pssparser
+        path: _site/**
+        if-no-files-found: error
