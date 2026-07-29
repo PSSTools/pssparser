@@ -2,5 +2,5 @@
 cython
 toposort
 
--e git+https://github.com/mballance/pyastbuilder.git#egg=pyastbuilder
+-e git+https://github.com/mballance-utils/pyastbuilder.git#egg=pyastbuilder
 

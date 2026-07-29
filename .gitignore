@@ -149,3 +149,14 @@ python/pssparser/pssast_decl.pxd
 python/PyBaseVisitor.*
 
 gen/
+
+# ivpm-managed dependency tree and local build venv
+/packages/
+/wheelhouse/
+/.venv/
+
+# Agent skill views: symlinks into /packages, materialized by `ivpm update`.
+# Committing them would leave dangling links in a fresh clone.
+/.agents/
+/.claude/
+/.cursor/

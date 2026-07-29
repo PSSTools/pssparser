@@ -1,0 +1,137 @@
+# CI for psstools/pssparser on Forgejo Actions.
+#
+# Linux x86_64 only, by decision (2026-07-28). macOS / Windows / aarch64 are
+# out of scope -- see ~/Documents/pssparser-cicd-design.md §9.
+#
+# Two things differ from the GitHub workflow this was ported from, and both
+# matter:
+#
+#  1. No third-party actions. Bare `uses:` resolves against code.forgejo.org
+#     (Forgejo's DEFAULT_ACTIONS_URL), not github.com. Publishing and release
+#     steps are plain shell so that GitHub is not on the critical path of a
+#     release.
+#  2. Dependencies resolve from git.dvkit.org, not github.com. See the
+#     "Configure ivpm" step for why it is not the in-network Forgejo URL.
+name: CI
+
+on:
+  - push
+  - pull_request
+  - workflow_dispatch
+
+jobs:
+  build-linux-x86_64:
+    runs-on: ubuntu-latest
+    container:
+      # Prebuilt: manylinux_2_28 + node (act needs it in-container for JS
+      # actions) + java (ANTLR is a jar) + build tooling in every interpreter.
+      # Source and rebuild instructions: .forgejo/ci-image/Dockerfile
+      image: dvkit/pssparser-ci:manylinux_2_28-x86_64
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Check for internal identifiers in tracked files
+      # This repo is published to git.dvkit.org and mirrored to R2, so anything
+      # committed here is public. Internal host names, tailnet addresses and
+      # CGNAT-range IPs must not appear in tracked files -- if a build ever
+      # needs one, it belongs in a repository secret, which is masked in logs.
+      # Verified clean across all refs of all repos on 2026-07-28; this step
+      # exists so it stays that way.
+      run: |
+        pattern='perch-char\.ts\.net|\.ts\.net|a9550|100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\.[0-9]+\.[0-9]+'
+        if git grep -nIE "$pattern" -- . ':!.forgejo/workflows/ci.yml' ; then
+          echo "::error::internal identifier found in a tracked file (see matches above)"
+          exit 1
+        fi
+        echo "OK: no internal identifiers in tracked files"
+
+    - name: Stamp build version
+      run: |
+        sed -i 's/^SUFFIX = ""$/SUFFIX = ".'"$GITHUB_RUN_ID"'"/' python/pssparser/__version__.py
+        grep '^SUFFIX = ' python/pssparser/__version__.py
+
+    - name: Configure ivpm dependency resolution
+      # ivpm.yaml names github.com URLs. Remap them to git.dvkit.org so a build
+      # does not depend on GitHub.
+      #
+      # git.dvkit.org serves anonymously, which keeps this job credential-free
+      # -- including for pull requests from forks, which cannot be given
+      # secrets. If an internal endpoint is ever needed here instead, put it in
+      # a repository secret rather than inline: this file is public.
+      run: |
+        mkdir -p ~/.config/ivpm
+        cat > ~/.config/ivpm/config.yaml <<'EOF'
+        git-url-map:
+          - from: "https://github.com/mballance-utils/"
+            to:   "https://git.dvkit.org/mballance-utils/"
+          - from: "https://github.com/psstools/"
+            to:   "https://git.dvkit.org/psstools/"
+          - from: "https://github.com/fvutils/"
+            to:   "https://git.dvkit.org/fvutils/"
+        git-auth:
+          - host: "git.dvkit.org"
+            order: ["https"]
+        EOF
+
+    - name: Fetch source dependencies
+      run: |
+        export IVPM_PYTHON=/opt/python/cp312-cp312/bin/python
+        ${IVPM_PYTHON} -m ivpm update -j 1 -a
+        echo "--- dependency origins (must not be github.com) ---"
+        for d in packages/*/; do
+          [ -d "$d/.git" ] && echo "  $(basename $d) <- $(git -C $d remote get-url origin)"
+        done
+        if grep -rl 'github\.com' packages/*/.git/config 2>/dev/null | grep -q .; then
+          echo "::error::a dependency resolved to github.com; the ivpm url-map did not apply"
+          exit 1
+        fi
+
+    - name: Build native core
+      run: |
+        export PATH=/opt/python/cp312-cp312/bin:$PATH
+        mkdir -p build && cd build
+        cmake .. -GNinja
+        ninja
+
+    - name: Build wheels
+      run: |
+        for py in cp39-cp39 cp310-cp310 cp311-cp311 cp312-cp312 cp313-cp313 cp314-cp314; do
+          echo "=== $py ==="
+          /opt/python/${py}/bin/python -m build --wheel --no-isolation
+        done
+
+    - name: Audit wheels
+      run: |
+        for whl in dist/*.whl; do
+          [ -f "$whl" ] || continue
+          /opt/python/cp312-cp312/bin/auditwheel repair "$whl"
+          rm "$whl"
+        done
+        if ls wheelhouse/*.whl >/dev/null 2>&1; then cp wheelhouse/*.whl dist; fi
+        ls -la dist/
+
+    - name: Upload wheels
+      uses: forgejo/upload-artifact@v4
+      with:
+        name: wheels-linux-x86_64
+        path: dist/*.whl
+        if-no-files-found: error
+
+    - name: Test against the built wheel
+      # Tests run against the *installed* wheel in a clean venv, never against
+      # the source tree -- that is what makes this a test of the artifact we
+      # would ship rather than of the build directory.
+      run: |
+        for py in cp312-cp312 cp313-cp313; do
+          echo "=== $py ==="
+          /opt/python/${py}/bin/python -m venv /tmp/venv-${py}
+          /tmp/venv-${py}/bin/pip install -q pytest dist/*${py%%-*}-*.whl
+          /tmp/venv-${py}/bin/python -m pytest tests/python -q --tb=short
+        done
+
+    - name: System test
+      run: |
+        /opt/python/cp313-cp313/bin/python -m venv /tmp/systest
+        /tmp/systest/bin/pip install -q dist/*cp313*.whl
+        /tmp/systest/bin/python -c "from pssparser import Parser; p = Parser(); assert p.parses([('test.pss', 'component pss_top {}')]); print('System test PASSED')"

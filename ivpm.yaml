@@ -18,7 +18,7 @@ package:
     - name: gtest
       url: https://github.com/google/googletest/archive/release-1.10.0.tar.gz
     - name: pyastbuilder
-      url: https://github.com/mballance/pyastbuilder.git
+      url: https://github.com/mballance-utils/pyastbuilder.git
     - name: ciostream
       src: pypi
     - name: debug-mgr
@@ -39,7 +39,7 @@ package:
     - name: ciostream
       url: https://github.com/mballance-utils/ciostream.git
     - name: pyastbuilder
-      url: https://github.com/mballance/pyastbuilder.git
+      url: https://github.com/mballance-utils/pyastbuilder.git
     - name: antlr4-tools.jar
       url: https://www.antlr.org/download/antlr-4.13.2-complete.jar
     - name: antlr4-cpp-runtime
