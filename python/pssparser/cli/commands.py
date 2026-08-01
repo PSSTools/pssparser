@@ -191,23 +191,29 @@ def _run_checkers(
     if not active:
         return
 
-    # Build per-file global scopes list (best-effort).
-    # p._files contains all GlobalScope objects; p._filenames maps
-    # fileid -> path for user-supplied files (built-in PSS library files
-    # have fileid=0 and are absent from _filenames).
-    global_scopes: list = []
-    if hasattr(parser, "_files") and hasattr(parser, "_filenames"):
-        filenames = parser._filenames  # {fileid: path}
-        user_files = set(files)
-        for gs in parser._files:
-            fid = gs.getFileid()
-            fname = filenames.get(fid, "")
-            if fname in user_files:
-                global_scopes.append(gs)
+    # Prefer the public snapshots, which survive link(). The private
+    # _files/_filenames are cleared by link() before this point, so reading
+    # them here yielded an empty file_map and no global scopes -- exactly the
+    # two things the plug-in guide tells checkers to use.
+    file_map: dict = dict(getattr(parser, "file_map", {}) or {})
 
-    file_map: dict = {}
-    if hasattr(parser, "_filenames"):
-        file_map = dict(parser._filenames)
+    user_files = set(files)
+    global_scopes: list = []
+    if hasattr(parser, "user_units"):
+        global_scopes = [
+            gs for gs in parser.user_units()
+            if file_map.get(gs.getFileid(), "") in user_files
+        ]
+
+    if not global_scopes and hasattr(parser, "_files"):
+        # --syntax-only never calls link(), so no snapshot was taken.
+        filenames = getattr(parser, "_filenames", {}) or {}
+        if not file_map:
+            file_map = dict(filenames)
+        global_scopes = [
+            gs for gs in parser._files
+            if filenames.get(gs.getFileid(), "") in user_files
+        ]
 
     marker_index = manager.build_marker_index(active)
 

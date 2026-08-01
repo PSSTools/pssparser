@@ -405,3 +405,73 @@ def test_resource_string_field(parser):
     assert_parse_ok(code, parser)
 
 from test_helpers import get_symbol, has_symbol, get_location
+
+
+# ============================================================================
+# lock / share claim field references (LRM 9.4.2, 12.4)
+# ============================================================================
+#
+# TaskBuildSymbolTree had visitFieldRef and visitFieldCompRef, both of which
+# register the field's name, but no visitFieldClaim -- so a lock/share claim
+# parsed and then was absent from the action's symbol table. Any reference to
+# it failed with "unknown identifier". This blocked constraining a chosen
+# resource by property, i.e. essentially all interesting use of resources.
+
+def test_lock_claim_field_is_constrainable(parser):
+    """Constrain a locked resource by one of its properties."""
+    assert_parse_ok("""
+    package p { resource r_s { rand bit[4] prio; } }
+    component c {
+        import p::*;
+        pool [2] r_s rp;
+        bind rp *;
+        action a { lock r_s ch; constraint ch.prio > 2; }
+    }
+    component pss_top { c c0; }
+    """, parser)
+
+
+def test_share_claim_field_is_constrainable(parser):
+    """`share` behaves the same as `lock` for name resolution."""
+    assert_parse_ok("""
+    package p { resource r_s { rand bit[4] prio; } }
+    component c {
+        import p::*;
+        pool [2] r_s rp;
+        bind rp *;
+        action a { share r_s ch; constraint ch.prio < 8; }
+    }
+    component pss_top { c c0; }
+    """, parser)
+
+
+def test_claim_instance_id_is_readable(parser):
+    """instance_id is the built-in every resource claim is used for."""
+    assert_parse_ok("""
+    package p { resource r_s { } }
+    component c {
+        import p::*;
+        pool [4] r_s rp;
+        bind rp *;
+        action a {
+            lock r_s ch;
+            bit[32] id;
+            exec post_solve { id = ch.instance_id; }
+        }
+    }
+    component pss_top { c c0; }
+    """, parser)
+
+
+def test_input_field_reference_still_resolves(parser):
+    """Control: the FieldRef path already worked and must keep working."""
+    assert_parse_ok("""
+    package p { buffer b_s { rand bit[4] v; } }
+    component c {
+        import p::*;
+        pool b_s bp;
+        bind bp *;
+        action a { input b_s i; constraint i.v > 2; }
+    }
+    component pss_top { c c0; }
+    """, parser)

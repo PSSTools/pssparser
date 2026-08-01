@@ -23,6 +23,7 @@
 #include "TaskApplyTypeExtensions.h"
 #include "TaskResolveImports.h"
 #include "TaskResolveRef.h"
+#include "pssp/impl/TaskGetName.h"
 
 namespace pssp {
 
@@ -83,7 +84,7 @@ void TaskApplyTypeExtensions::visitExtendEnum(ast::IExtendEnum *i) {
             // 
             int32_t id = target_s->getChildren().size();
             target_s->getSymtab().insert({(*it)->getName()->getId(), id});
-            target_s->getChildren().push_back(it->get());
+            target_s->getChildren().push_back(ast::IScopeChildUP(it->get(), false));
         } else {
             // TODO: duplicate name
         }
@@ -160,10 +161,17 @@ void TaskApplyTypeExtensions::visitSymbolExtendScope(ast::ISymbolExtendScope *i)
     
     m_target_s = target_s;
     DEBUG("%d children in extension scope", i->getChildren().size());
+
+    // Merge by name rather than by node type. Dispatching through accept()
+    // needs one visit method per contributable construct, and anything
+    // without one is silently dropped -- which is how plain fields went
+    // missing. TaskGetName() answers for every named construct uniformly,
+    // and what has no name (an anonymous constraint or exec block) is
+    // appended positionally.
     for (std::vector<ast::IScopeChildUP>::const_iterator
         it=i->getChildren().begin();
         it!=i->getChildren().end(); it++) {
-        it->get()->accept(this);
+        mergeChild(target_s, it->get());
     }
     m_target_s = 0;
 
@@ -260,13 +268,34 @@ void TaskApplyTypeExtensions::visitTypeScope(ast::ITypeScope *i) {
 
         if (it == m_target_s->getSymtab().end()) {
             // Add new
-            m_target_s->getChildren().push_back(i);
+            m_target_s->getChildren().push_back(ast::IScopeChildUP(i, false));
         } else {
             // TODO: name collision
         }
     }
 
     DEBUG_LEAVE("visitTypeScope");
+}
+
+void TaskApplyTypeExtensions::mergeChild(
+        ast::ISymbolScope       *target,
+        ast::IScopeChild        *child) {
+    // By value: get() returns a reference into the TaskGetName instance, so
+    // binding to the temporary's result leaves a dangling reference.
+    std::string name = TaskGetName().get(child);
+
+    if (name.size()) {
+        addChild(target, child, name);
+    } else {
+        // Anonymous contribution -- an unnamed constraint or an exec block.
+        // It has no symtab entry to make, but it still belongs to the
+        // extended type's logical body.
+        DEBUG("Appending anonymous %s child", "extension");
+        if (dynamic_cast<ast::ISymbolChild *>(child)) {
+            dynamic_cast<ast::ISymbolChild *>(child)->setUpper(target);
+        }
+        target->getChildren().push_back(ast::IScopeChildUP(child, false));
+    }
 }
 
 void TaskApplyTypeExtensions::addChild(
@@ -279,10 +308,23 @@ void TaskApplyTypeExtensions::addChild(
     if ((it=target->getSymtab().find(name)) == target->getSymtab().end()) {
         int32_t id = target->getChildren().size();
         if (dynamic_cast<ast::ISymbolChild *>(child)) {
-            dynamic_cast<ast::ISymbolChild *>(child)->setUpper(target);
+            ast::ISymbolChild *sc = dynamic_cast<ast::ISymbolChild *>(child);
+            sc->setUpper(target);
+            // Re-index into the target. getId() is what
+            // AstSymbolTableIterator emits as the ChildIdx step for this
+            // scope, and until this was set it still held the member's
+            // position in the `<extend>` scope. A function contributed by an
+            // extension then resolved to whatever sat at that index in the
+            // extended type, and paths through it dead-ended.
+            sc->setId(id);
         }
         target->getSymtab().insert({name, id});
-        target->getChildren().push_back(child);
+        // Non-owning: the logical (symbol) view borrows from the physical
+        // view, which keeps the sole owning reference in its GlobalScope.
+        // IScopeChildUP's implicit constructor defaults to owned=true, so
+        // pushing the raw pointer here would make the extended type a second
+        // owner of a node the `extend` statement already owns.
+        target->getChildren().push_back(ast::IScopeChildUP(child, false));
     } else {
         std::string msg = "Type extension of ";
         msg += name + " conflicts with an existing declaration";

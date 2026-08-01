@@ -50,6 +50,7 @@ ast::ITemplateParamDeclList *TaskBuildParamValList::build(
     m_pval_type = 0;
     m_pval_type_valref_expr = 0;
     m_pval_expr = 0;
+    m_pval_param_ref = 0;
     m_visited.clear();  // Clear visited set for each build
 
     if (pvals->getValues().size() > plist->getChildren().size()) {
@@ -72,6 +73,7 @@ ast::ITemplateParamDeclList *TaskBuildParamValList::build(
     for (plist_idx=0; plist_idx<pvals->getValues().size(); plist_idx++) {
         m_pval_expr = 0;
         m_pval_type = 0;
+        m_pval_param_ref = 0;
         m_ptype_value = 0;
         m_ptype_generic_type = 0;
         m_ptype_category_type = 0;
@@ -96,10 +98,15 @@ ast::ITemplateParamDeclList *TaskBuildParamValList::build(
         if (pval_expr) {
             if (m_ptype_value) {
                 DEBUG("Value parameter");
+
+                // If the argument names an enclosing specialization's value
+                // parameter, pass down what that parameter is bound to.
+                ast::IExpr *bound = substValueArg();
+
                 ast::ITemplateValueParamDecl *p = m_ctxt->getFactory()->getAstFactory()->mkTemplateValueParamDecl(
                     copier.copyT<ast::IExprId>(m_ptype_value->getName()),
                     copier.copyT<ast::IDataType>(m_ptype_value->getType()),
-                    copier.copyT<ast::IExpr>(pval_expr));
+                    (bound)?copier.copy(bound):copier.copyT<ast::IExpr>(pval_expr));
 
                 m_ret->getParams().push_back(ast::ITemplateParamDeclUP(p));
             } else if (m_ptype_generic_type) {
@@ -145,15 +152,23 @@ ast::ITemplateParamDeclList *TaskBuildParamValList::build(
                 DEBUG_ERROR("TODO: no ptype_decl captured\n");
             }
 
+            // If the argument names an enclosing specialization's type
+            // parameter, pass down the type that parameter is bound to rather
+            // than the parameter reference itself. Without this, `S<type T> {
+            // Q<T> inner; }` specializes Q on the *name* T, so every
+            // specialization of S shares one Q -- and Q's body sees a
+            // parameter that is bound to nothing.
+            ast::IDataType *bound = substTypeArg();
+
             DEBUG("Add parameter %s", (name)?name->getId().c_str():"<unknown>");
-            DEBUG("  value=%p type=%p %p", 
-                m_pval_type->getValue(), 
+            DEBUG("  value=%p type=%p bound=%p",
+                m_pval_type->getValue(),
                 type,
-                copier.copy(m_pval_type->getValue()));
+                bound);
 
             ast::ITemplateGenericTypeParamDecl *p = m_ctxt->getFactory()->getAstFactory()->mkTemplateGenericTypeParamDecl(
                 (name)?copier.copyT<ast::IExprId>(name):0,
-                copier.copy(m_pval_type->getValue())
+                copier.copy((bound)?bound:m_pval_type->getValue())
             );
             m_ret->getParams().push_back(ast::ITemplateParamDeclUP(p));
 
@@ -197,6 +212,21 @@ ast::ITemplateParamDeclList *TaskBuildParamValList::build(
             DEBUG("Error: Unknown parameter kind");
         }
 
+        // A default may name an earlier parameter of this same list, which is
+        // already bound in m_ret. `struct S<type T, type U = T>` used as
+        // `S<my_s>` must bind U to my_s, not to the declaration of T.
+        if (value) {
+            ast::IExpr *sub = substValueDflt(value);
+            if (sub) {
+                value = sub;
+            }
+        } else if (type) {
+            ast::IDataType *sub = substTypeDflt(type);
+            if (sub) {
+                type = sub;
+            }
+        }
+
         DEBUG("Add parameter %s", (name)?name->getId().c_str():"<unset>");
         ast::ITemplateParamDecl *p = 0;
         if (value) {
@@ -225,6 +255,115 @@ ast::ITemplateParamDeclList *TaskBuildParamValList::build(
 
     DEBUG_LEAVE("build %p sz=%d", m_ret, (m_ret)?m_ret->getParams().size():-1);
     return m_ret;
+}
+
+void TaskBuildParamValList::probe(ast::IScopeChild *target) {
+    // Follow the reference to see what it really names, without letting that
+    // one hop overwrite what the *declaration* said this position wants. The
+    // declaration is visited first in build()'s loop, so a clobber here left
+    // the new parameter named after the argument: `S<type T> { Q<T> inner; }`
+    // produced a specialization of Q whose parameter was called T rather than
+    // U, so Q's body -- which refers to U -- saw nothing bound.
+    // Ask what the target *is*, rather than accepting it and seeing which
+    // visitor fires. The difference matters: the default visitor walks a
+    // target's whole subtree, so probing the argument `Q<int>` in `S<Q<int>>`
+    // walked Q's body, found the parameter reference in `U u;`, and reported
+    // the argument as a reference to U -- binding T to int, the argument of
+    // the *inner* generic, instead of to Q<int>.
+    if (ast::ITemplateParamDecl *pd =
+            dynamic_cast<ast::ITemplateParamDecl *>(target)) {
+        m_pval_param_ref = pd;
+        return;
+    }
+
+    // The only other thing worth knowing is whether an id that parses as a
+    // type reference actually names a value.
+    if (dynamic_cast<ast::IEnumItem *>(target)) {
+        m_pval_type_isval = true;
+    }
+}
+
+ast::IDataType *TaskBuildParamValList::substTypeArg() {
+    ast::ITemplateGenericTypeParamDecl *g =
+        dynamic_cast<ast::ITemplateGenericTypeParamDecl *>(m_pval_param_ref);
+    if (g && g->getDflt()) {
+        // On a specialized parameter list the dflt slot holds the bound
+        // argument. On an unspecialized one it holds the declared default,
+        // and an unspecialized generic's body is never resolved into
+        // specializations, so there is nothing to guard against here.
+        DEBUG("substTypeArg: parameter %s is bound",
+            (g->getName())?g->getName()->getId().c_str():"<unnamed>");
+        return g->getDflt();
+    }
+    return 0;
+}
+
+ast::IExpr *TaskBuildParamValList::substValueArg() {
+    ast::ITemplateValueParamDecl *v =
+        dynamic_cast<ast::ITemplateValueParamDecl *>(m_pval_param_ref);
+    if (v && v->getDflt()) {
+        DEBUG("substValueArg: parameter %s is bound",
+            (v->getName())?v->getName()->getId().c_str():"<unnamed>");
+        return v->getDflt();
+    }
+    return 0;
+}
+
+std::string TaskBuildParamValList::simpleTypeName(ast::IDataType *dt) {
+    ast::IDataTypeUserDefined *ud = dynamic_cast<ast::IDataTypeUserDefined *>(dt);
+    if (!ud || !ud->getType_id()) {
+        return "";
+    }
+    // Anything qualified or itself parameterized -- `q::thing_s`,
+    // `sz_t<R>::xz` -- is not a bare parameter reference and is left alone.
+    if (ud->getType_id()->getElems().size() != 1 ||
+        ud->getType_id()->getElems().at(0)->getParams() ||
+        !ud->getType_id()->getElems().at(0)->getId()) {
+        return "";
+    }
+    return ud->getType_id()->getElems().at(0)->getId()->getId();
+}
+
+ast::ITemplateParamDecl *TaskBuildParamValList::findBuiltParam(
+        const std::string &name) {
+    if (name.empty()) {
+        return 0;
+    }
+    for (std::vector<ast::ITemplateParamDeclUP>::const_iterator
+        it=m_ret->getParams().begin(); it!=m_ret->getParams().end(); it++) {
+        if ((*it)->getName() && (*it)->getName()->getId() == name) {
+            return it->get();
+        }
+    }
+    return 0;
+}
+
+ast::IDataType *TaskBuildParamValList::substTypeDflt(ast::IDataType *dflt) {
+    ast::ITemplateGenericTypeParamDecl *g =
+        dynamic_cast<ast::ITemplateGenericTypeParamDecl *>(
+            findBuiltParam(simpleTypeName(dflt)));
+    if (g && g->getDflt()) {
+        DEBUG("substTypeDflt: default names bound parameter %s",
+            g->getName()->getId().c_str());
+        return g->getDflt();
+    }
+    return 0;
+}
+
+ast::IExpr *TaskBuildParamValList::substValueDflt(ast::IExpr *dflt) {
+    // A value default naming an earlier parameter is spelled as a plain id.
+    ast::IExprId *id = dynamic_cast<ast::IExprId *>(dflt);
+    if (!id) {
+        return 0;
+    }
+    ast::ITemplateValueParamDecl *v =
+        dynamic_cast<ast::ITemplateValueParamDecl *>(findBuiltParam(id->getId()));
+    if (v && v->getDflt()) {
+        DEBUG("substValueDflt: default names bound parameter %s",
+            v->getName()->getId().c_str());
+        return v->getDflt();
+    }
+    return 0;
 }
 
 void TaskBuildParamValList::visitDataTypeEnum(ast::IDataTypeEnum *i) {
@@ -256,8 +395,11 @@ void TaskBuildParamValList::visitDataTypeUserDefined(ast::IDataTypeUserDefined *
         if (target && m_visited.find(target) == m_visited.end()) {
             m_visited.insert(target);
             m_pval_type_isval = false;
-            target->accept(m_this);
-            
+            probe(target);
+
+            // m_ptype_value here is the *declaration* capture: the position
+            // wants a value and was handed something that parses as a type
+            // reference, so record the reference as the value expression.
             if (m_pval_type_isval || m_ptype_value) {
                 // Save the reference
                 m_pval_type_valref_expr = i->getType_id();

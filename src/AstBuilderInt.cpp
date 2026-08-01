@@ -14,6 +14,7 @@
 #include <sys/time.h>
 #endif
 #include <vector>
+#include <cstdarg>
 #include "dmgr/impl/DebugMacros.h"
 #include "AstBuilderInt.h"
 #include "PSSLexer.h"
@@ -1117,6 +1118,18 @@ antlrcpp::Any AstBuilderInt::visitProcedural_function(PSSParser::Procedural_func
 antlrcpp::Any AstBuilderInt::visitFunction_decl(PSSParser::Function_declContext *ctx) {
     DEBUG_ENTER("visitFunction_decl");
     ast::IFunctionPrototype *proto = mkFunctionPrototype(ctx->function_prototype());
+
+    // A declaration carries its platform qualification just as a definition
+    // does (LRM 20.2.1). Dropping it here would make the declare-in-a-package,
+    // define-elsewhere split indistinguishable from an unqualified function.
+    if (ctx->platform_qualifier()) {
+        if (ctx->platform_qualifier()->TOK_TARGET()) {
+            proto->setIs_target(true);
+        } else {
+            proto->setIs_solve(true);
+        }
+    }
+
     addChild(proto, ctx->start);
     DEBUG_LEAVE("visitFunction_decl");
     return 0;
@@ -2407,7 +2420,37 @@ antlrcpp::Any AstBuilderInt::visitInteger_type(PSSParser::Integer_typeContext *c
 	ast::IExprDomainOpenRangeList *in = 0;
 
 	if (ctx->lhs) {
-		width = mkExpr(ctx->lhs);
+		if (ctx->rhs) {
+			// Legacy `bit[msb:lsb]` form (PSS 1.x/2.x). Not part of the PSS 3.1
+			// grammar; accepted so existing models can be ingested. Fold it to
+			// a plain width of msb-lsb+1, which requires both bounds to be
+			// constants.
+			int64_t msb = 0, lsb = 0;
+			if (evalExpression(ctx->lhs, msb)
+				&& evalExpression(ctx->rhs, lsb)) {
+				if (lsb != 0) {
+					addErrorMarker(ctx->rhs->start,
+						"the low bound of a width specification must be 0, not %lld; "
+						"use a single width expression instead (LRM 7.2)",
+						(long long)lsb);
+				}
+				int64_t w = msb - lsb + 1;
+				if (w <= 0) {
+					addErrorMarker(ctx->lhs->start,
+						"width specification [%lld:%lld] yields a non-positive width",
+						(long long)msb, (long long)lsb);
+					w = 1;
+				}
+				width = m_factory->mkExprUnsignedNumber(
+					std::to_string(w), 32, w);
+			} else {
+				addErrorMarker(ctx->lhs->start,
+					"the bounds of a [msb:lsb] width specification must be constant");
+				width = mkExpr(ctx->lhs);
+			}
+		} else {
+			width = mkExpr(ctx->lhs);
+		}
 	} else {
         if (ctx->integer_atom_type()->TOK_INT()) {
             width = m_factory->mkExprUnsignedNumber("32", 32, 32);
@@ -3167,12 +3210,32 @@ antlrcpp::Any AstBuilderInt::visitCast_expression(PSSParser::Cast_expressionCont
 
 // B.18 Identifiers
 
+/**
+ * Strip the leading backslash from an escaped identifier's token text.
+ *
+ * LRM 4.3: "Neither the leading backslash character nor the terminating white
+ * space is considered to be part of the identifier.  Therefore, an escaped
+ * identifier \cpu3 is treated the same as a non-escaped identifier cpu3."
+ *
+ * So the backslash is spelling, not name.  Keeping it made `\cpu3` and `cpu3`
+ * two distinct names, which resolves only as long as every declaration and
+ * every reference happen to be spelled the same way -- correct by consistency
+ * rather than by rule, and silently wrong the moment they differ.
+ *
+ * The terminating whitespace never reaches here: the lexer rule stops before
+ * it, so the token text has nothing to trim on the right.
+ */
+static std::string unescapeId(const std::string &text) {
+	return (text.size() && text[0] == '\\') ? text.substr(1) : text;
+}
+
 antlrcpp::Any AstBuilderInt::visitIdentifier(PSSParser::IdentifierContext *ctx) {
 	DEBUG_ENTER("visitIdentifier");
 	IExprId *id;
-	
+
 	if (ctx->ESCAPED_ID()) {
-		id = m_factory->mkExprId(ctx->ESCAPED_ID()->getText(), true);
+		id = m_factory->mkExprId(
+			unescapeId(ctx->ESCAPED_ID()->getText()), true);
 	} else {
         DEBUG("visitIdentifier: %s", ctx->ID()->getText().c_str());
 		id = m_factory->mkExprId(ctx->ID()->getText(), false);
@@ -3181,9 +3244,11 @@ antlrcpp::Any AstBuilderInt::visitIdentifier(PSSParser::IdentifierContext *ctx) 
 	Location loc;
 	loc.lineno = ctx->start->getLine();
 	loc.linepos = ctx->start->getCharPositionInLine()+1;
-    loc.extent = id->getId().size();
+    // The extent spans the source text, which for an escaped identifier is one
+    // character longer than the name now that the backslash has been stripped.
+    loc.extent = id->getId().size() + (id->getIs_escaped()?1:0);
 	id->setLocation(loc);
-    DEBUG("Set Location: %d:%d:%d", 
+    DEBUG("Set Location: %d:%d:%d",
         id->getLocation().fileid,
         id->getLocation().lineno,
         id->getLocation().linepos);
@@ -3822,6 +3887,27 @@ void AstBuilderInt::pop_scope() {
         m_pending_annotations.clear();
     }
 	m_scopes.pop_back(); 
+}
+
+void AstBuilderInt::addErrorMarker(Token *t, const char *fmt, ...) {
+    if (!m_marker_l) {
+        return;
+    }
+
+    char tmp[1024];
+    va_list ap;
+    va_start(ap, fmt);
+    vsnprintf(tmp, sizeof(tmp), fmt, ap);
+    va_end(ap);
+
+    ast::Location loc;
+    loc.fileid = m_file_id;
+    loc.lineno = t ? t->getLine() : 0;
+    loc.linepos = t ? t->getCharPositionInLine()+1 : 0;
+    loc.extent = t ? t->getText().size() : 0;
+
+    Marker m(tmp, MarkerSeverityE::Error, loc);
+    m_marker_l->marker(&m);
 }
 
 bool AstBuilderInt::evalConstantExpression(PSSParser::Constant_expressionContext *ctx, int64_t &val) {
@@ -4931,7 +5017,8 @@ IExprId *AstBuilderInt::mkId(PSSParser::IdentifierContext *ctx) {
 
 	
 	if (ctx->ESCAPED_ID()) {
-		id = m_factory->mkExprId(ctx->ESCAPED_ID()->getText(), true);
+		id = m_factory->mkExprId(
+			unescapeId(ctx->ESCAPED_ID()->getText()), true);
 	} else {
         DEBUG("mkId: %s", ctx->ID()->getText().c_str());
 		id = m_factory->mkExprId(ctx->ID()->getText(), false);
@@ -4941,7 +5028,7 @@ IExprId *AstBuilderInt::mkId(PSSParser::IdentifierContext *ctx) {
     loc.fileid = m_file_id;
 	loc.lineno = ctx->start->getLine();
 	loc.linepos = ctx->start->getCharPositionInLine()+1;
-    loc.extent = id->getId().size();
+    loc.extent = id->getId().size() + (id->getIs_escaped()?1:0);
 	id->setLocation(loc);
 
     DEBUG("ID Loc: %d:%d:%d",
@@ -4955,7 +5042,7 @@ IExprId *AstBuilderInt::mkId(PSSParser::IdentifierContext *ctx) {
 std::string AstBuilderInt::toString(PSSParser::IdentifierContext *ctx) {
     if (ctx) {
         if (ctx->ESCAPED_ID()) {
-            return ctx->ESCAPED_ID()->getText();
+            return unescapeId(ctx->ESCAPED_ID()->getText());
         } else {
             return ctx->ID()->getText();
         }

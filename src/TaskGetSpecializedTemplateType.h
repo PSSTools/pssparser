@@ -31,6 +31,17 @@ namespace pssp {
 
 class TaskGetSpecializedTemplateType {
 public:
+    /**
+     * How deep a chain of nested specializations may run before it is treated
+     * as non-terminating.
+     *
+     * Legitimate nesting is shallow -- the deepest shape in the core library
+     * is a handful of levels -- while a non-terminating chain grows without
+     * bound, so a generous limit separates the two cleanly and is only ever
+     * reached by a program that would otherwise exhaust the stack.
+     */
+    static const int32_t MAX_SPECIALIZATION_DEPTH = 64;
+
     TaskGetSpecializedTemplateType(ResolveContext *ctxt);
 
     virtual ~TaskGetSpecializedTemplateType();

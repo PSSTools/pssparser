@@ -50,6 +50,16 @@ public:
     ast::IScopeChild *resolve(const ast::ISymbolRefPath *ref) {
         DEBUG_ENTER("resolve root=%p", m_root);
         ast::IScopeChild *ret = 0;
+
+        // A null path means the reference was never resolved -- normal when
+        // the model is incomplete, or when this runs before the reference's
+        // own resolution pass. Every caller already handles a null return;
+        // walking getPath() on a null ref is an immediate fault.
+        if (!ref) {
+            DEBUG_LEAVE("resolve -- null ref");
+            return ret;
+        }
+
         ScopeUtil scope(m_root);
 
         if (DEBUG_EN) {
@@ -243,7 +253,11 @@ public:
             if (dynamic_cast<ast::ISymbolTypeScope *>(*it)) {
                 ast::ISymbolTypeScope *ts = dynamic_cast<ast::ISymbolTypeScope *>(*it);
                 ast::ITypeScope *tst = dynamic_cast<ast::ITypeScope *>(ts->getTarget());
-                if (tst->getParams()->getSpecialized()) {
+                // getParams() is null for any type that is not parameterized,
+                // and every enclosing scope on the way up is walked here -- so
+                // a specialized type declared inside a plain component reaches
+                // this with a null parameter list.
+                if (tst && tst->getParams() && tst->getParams()->getSpecialized()) {
                     ret->pushScope(dynamic_cast<ast::ISymbolScope *>(*it),
                         ast::SymbolRefPathElemKind::ElemKind_TypeSpec);
                 } else {

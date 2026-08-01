@@ -103,7 +103,18 @@ public:
     }
 
     virtual void visitSymbolTypeScope(ast::ISymbolTypeScope *i) override {
-        m_index = i->getId();
+        ast::ITypeScope *ts = dynamic_cast<ast::ITypeScope *>(i->getTarget());
+        if (ts && ts->getParams() && ts->getParams()->getSpecialized()) {
+            // A specialization is not a child of any scope: it is addressed
+            // by its position in the generic's spec_types vector, and that
+            // position is carried in the type scope's index (the convention
+            // TaskGetSymbolRefPath::visitSymbolTypeScope already reads).
+            // Using getId() here made every specialization after the first
+            // resolve its own parameters through specialization 0.
+            m_index = ts->getIndex();
+        } else {
+            m_index = i->getId();
+        }
     }
 
 protected:

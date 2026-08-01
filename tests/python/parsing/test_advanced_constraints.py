@@ -769,9 +769,9 @@ def test_dist_basic(parser):
             
             constraint {
                 dist val in [
-                    0..9 [:= 10],
-                    10..19 [:= 20],
-                    20..29 [:= 70]
+                    0..9 := 10,
+                    10..19 := 20,
+                    20..29 := 70
                 ];
             }
         }
@@ -789,10 +789,10 @@ def test_dist_single_value(parser):
             
             constraint {
                 dist color in [
-                    0 [:= 25],
-                    1 [:= 25],
-                    2 [:= 25],
-                    3 [:= 25]
+                    0 := 25,
+                    1 := 25,
+                    2 := 25,
+                    3 := 25
                 ];
             }
         }
@@ -810,11 +810,11 @@ def test_dist_multiple_ranges(parser):
             
             constraint {
                 dist pkt_size in [
-                    64..127 [:= 20],
-                    128..511 [:= 30],
-                    512..1023 [:= 25],
-                    1024..1518 [:= 15],
-                    1519..9000 [:= 10]
+                    64..127 := 20,
+                    128..511 := 30,
+                    512..1023 := 25,
+                    1024..1518 := 15,
+                    1519..9000 := 10
                 ];
             }
         }
@@ -834,8 +834,8 @@ def test_dist_with_conditional(parser):
             constraint {
                 (mode == 1) -> {
                     dist val in [
-                        0..10 [:= 50],
-                        11..20 [:= 50]
+                        0..10 := 50,
+                        11..20 := 50
                     ];
                 }
             }
@@ -854,12 +854,12 @@ def test_dist_equal_weights(parser):
             
             constraint {
                 dist dice in [
-                    1 [:= 1],
-                    2 [:= 1],
-                    3 [:= 1],
-                    4 [:= 1],
-                    5 [:= 1],
-                    6 [:= 1]
+                    1 := 1,
+                    2 := 1,
+                    3 := 1,
+                    4 := 1,
+                    5 := 1,
+                    6 := 1
                 ];
             }
         }
@@ -877,9 +877,9 @@ def test_dist_open_ranges(parser):
             
             constraint {
                 dist val in [
-                    0..49 [:= 40],
-                    50..99 [:= 40],
-                    100..999 [:= 20]
+                    0..49 := 40,
+                    50..99 := 40,
+                    100..999 := 20
                 ];
             }
         }
@@ -897,9 +897,9 @@ def test_dist_proportional_weight(parser):
             
             constraint {
                 dist val in [
-                    0..9 [:/ 1],
-                    10..19 [:/ 2],
-                    20..29 [:/ 3]
+                    0..9 :/ 1,
+                    10..19 :/ 2,
+                    20..29 :/ 3
                 ];
             }
         }
@@ -1143,3 +1143,56 @@ def test_constraint_inheritance_with_unique(parser):
     }
     """
     assert_parse_ok(code, parser)
+
+
+# ============================================================================
+# dist weight syntax (LRM B.14)
+# ============================================================================
+#
+# dist_item ::= open_range_value [ dist_weight ]
+#
+# The brackets in the LRM are BNF optionality, not literal tokens.  The
+# grammar originally transcribed them as real brackets, which made the LRM
+# spelling a syntax error and `1 [:= 5]` the only accepted form.  The tests in
+# this file were written against that spelling and so encoded the defect;
+# they now use the LRM syntax.
+
+def test_dist_weight_without_brackets(parser):
+    """The LRM spelling: a weight follows the range directly."""
+    assert_parse_ok("""
+    component pss_top {
+        action a {
+            rand int x;
+            constraint { dist x in [1 := 5, 2..4 :/ 5]; }
+        }
+    }
+    """, parser)
+
+
+def test_dist_item_without_weight(parser):
+    """The weight is optional -- a bare range is a legal dist_item."""
+    assert_parse_ok("""
+    component pss_top {
+        action a {
+            rand int x;
+            constraint { dist x in [1, 2..4]; }
+        }
+    }
+    """, parser)
+
+
+def test_dist_bracketed_weight_is_rejected(parser):
+    """The old bracketed spelling was never legal PSS and must not parse.
+
+    Pinned deliberately: it is the shape every test in this file used before
+    the grammar was corrected, so silently re-accepting it would let the
+    defect return unnoticed.
+    """
+    assert_parse_error("""
+    component pss_top {
+        action a {
+            rand int x;
+            constraint { dist x in [1 [:= 5]]; }
+        }
+    }
+    """)

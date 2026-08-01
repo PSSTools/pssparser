@@ -112,6 +112,7 @@ TOK_SYMBOL: 'symbol';
 TOK_OVERRIDE: 'override';
 TOK_TYPE: 'type';
 TOK_INSTANCE: 'instance';
+TOK_MUTABLE: 'mutable';
 TOK_CHANDLE: 'chandle';
 /* This parser treats collection types as parameterized classes
 TOK_ARRAY: 'array';

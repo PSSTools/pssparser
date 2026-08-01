@@ -19,6 +19,8 @@ class Parser(object):
         self._enable_profiling = False
         self._last_builder = None
         self._markers = []
+        #: fileid -> path, snapshotted by link() before it clears its state.
+        self._file_map : Dict[int,str] = {}
         pass
 
     def parse(self, files : List[str]) -> bool:
@@ -113,10 +115,51 @@ class Parser(object):
             err = self._mkErrorMessage(marker_l)
             raise ParseException(err, self._markers)
 
+        # Snapshot the fileid -> path mapping before clearing. Consumers that
+        # run *after* linking -- checker plug-ins in particular -- still need
+        # to resolve a fileid to a path, and clearing without a snapshot is
+        # why CheckContext.file_map arrived empty.
+        #
+        # Only the mapping is retained, never the GlobalScope objects. The
+        # linker takes ownership of them (TaskBuildSymbolTree pushes each into
+        # root->getUnits() as an owning pointer), so a Python wrapper kept
+        # past this point is a second owner of the same memory and will fault.
+        # That is why _files is cleared here; it is deliberate, not an
+        # oversight. Reach the per-file scopes through the linked root
+        # instead -- see user_units().
+        self._file_map = dict(self._filenames)
+        self._root = ret
+
         self._filenames.clear()
         self._files.clear()
-        
+
         return ret
+
+    @property
+    def file_map(self) -> Dict[int, str]:
+        """Map fileid -> source path for the user-supplied files.
+
+        Populated by :meth:`link` and valid afterwards. Built-in and library
+        units are excluded: they carry fileid 0 or -1 and have no user path.
+        """
+        return dict(self._file_map)
+
+    def user_units(self) -> List['zsp_ast.GlobalScope']:
+        """The GlobalScope of each user-supplied file, in parse order.
+
+        Read from the linked root, which owns the units after :meth:`link`.
+        Built-in and standard-library units are filtered out by fileid.
+
+        Returns an empty list before :meth:`link` has run.
+        """
+        if self._root is None:
+            return []
+        out = []
+        for i in range(self._root.numUnits()):
+            u = self._root.getUnit(i)
+            if u is not None and u.getFileid() in self._file_map:
+                out.append(u)
+        return out
 
 
     def _mkErrorMessage(self, marker_l) -> str:

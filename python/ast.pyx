@@ -1377,7 +1377,8 @@ cdef class TemplateParamDeclList(object):
         of = ObjFactory()
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
-            ret.append(__ep.accept(of._hndl))
+            __ep.accept(of._hndl)
+            ret.append(of._obj)
         return ret
     cpdef getParam(self, i):
         cdef ast_decl.ITemplateParamDecl *__ep = self.asTemplateParamDeclList().getParams().at(i).get();
@@ -1532,7 +1533,8 @@ cdef class TemplateParamValueList(object):
         of = ObjFactory()
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
-            ret.append(__ep.accept(of._hndl))
+            __ep.accept(of._hndl)
+            ret.append(of._obj)
         return ret
     cpdef getValue(self, i):
         cdef ast_decl.ITemplateParamValue *__ep = self.asTemplateParamValueList().getValues().at(i).get();
@@ -1862,7 +1864,8 @@ cdef class ScopeChild(object):
         of = ObjFactory()
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
-            ret.append(__ep.accept(of._hndl))
+            __ep.accept(of._hndl)
+            ret.append(of._obj)
         return ret
     cpdef getAnnotation(self, i):
         cdef ast_decl.IAnnotation *__ep = self.asScopeChild().getAnnotations().at(i).get();
@@ -1965,7 +1968,8 @@ cdef class SymbolImportSpec(object):
         of = ObjFactory()
         for __i in range(__lp.size()):
             __ep = __lp.at(__i)
-            ret.append(__ep.accept(of._hndl))
+            __ep.accept(of._hndl)
+            ret.append(of._obj)
         return ret
     cpdef getImport(self, i):
         cdef ast_decl.IPackageImportStmt *__ep = self.asSymbolImportSpec().getImports().at(i);
@@ -2060,7 +2064,8 @@ cdef class GenericConstraintDeclValue(ScopeChild):
         of = ObjFactory()
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
-            ret.append(__ep.accept(of._hndl))
+            __ep.accept(of._hndl)
+            ret.append(of._obj)
         return ret
     cpdef getParameter(self, i):
         cdef ast_decl.IGenericConstraintParam *__ep = self.asGenericConstraintDeclValue().getParameters().at(i).get();
@@ -2160,7 +2165,8 @@ cdef class MethodParameterList(Expr):
         of = ObjFactory()
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
-            ret.append(__ep.accept(of._hndl))
+            __ep.accept(of._hndl)
+            ret.append(of._obj)
         return ret
     cpdef getParameter(self, i):
         cdef ast_decl.IExpr *__ep = self.asMethodParameterList().getParameters().at(i).get();
@@ -2272,7 +2278,8 @@ cdef class ActivitySchedulingConstraint(ScopeChild):
         of = ObjFactory()
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
-            ret.append(__ep.accept(of._hndl))
+            __ep.accept(of._hndl)
+            ret.append(of._obj)
         return ret
     cpdef getTarget(self, i):
         cdef ast_decl.IExprHierarchicalId *__ep = self.asActivitySchedulingConstraint().getTargets().at(i).get();
@@ -2327,7 +2334,8 @@ cdef class Annotation(ScopeChild):
         of = ObjFactory()
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
-            ret.append(__ep.accept(of._hndl))
+            __ep.accept(of._hndl)
+            ret.append(of._obj)
         return ret
     cpdef getParameter(self, i):
         cdef ast_decl.IAnnotationParam *__ep = self.asAnnotation().getParameters().at(i).get();
@@ -2459,7 +2467,8 @@ cdef class PyImportFromStmt(ScopeChild):
         of = ObjFactory()
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
-            ret.append(__ep.accept(of._hndl))
+            __ep.accept(of._hndl)
+            ret.append(of._obj)
         return ret
     cpdef getPath(self, i):
         cdef ast_decl.IExprId *__ep = self.asPyImportFromStmt().getPath().at(i).get();
@@ -2481,7 +2490,8 @@ cdef class PyImportFromStmt(ScopeChild):
         of = ObjFactory()
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
-            ret.append(__ep.accept(of._hndl))
+            __ep.accept(of._hndl)
+            ret.append(of._obj)
         return ret
     cpdef getTarget(self, i):
         cdef ast_decl.IExprId *__ep = self.asPyImportFromStmt().getTargets().at(i).get();
@@ -2516,7 +2526,8 @@ cdef class PyImportStmt(ScopeChild):
         of = ObjFactory()
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
-            ret.append(__ep.accept(of._hndl))
+            __ep.accept(of._hndl)
+            ret.append(of._obj)
         return ret
     cpdef getPath(self, i):
         cdef ast_decl.IExprId *__ep = self.asPyImportStmt().getPath().at(i).get();
@@ -2659,7 +2670,8 @@ cdef class Scope(ScopeChild):
         of = ObjFactory()
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
-            ret.append(__ep.accept(of._hndl))
+            __ep.accept(of._hndl)
+            ret.append(of._obj)
         return ret
     cpdef getChild(self, i):
         cdef ast_decl.IScopeChild *__ep = self.asScope().getChildren().at(i).get();
@@ -2792,7 +2804,8 @@ cdef class ExecTargetTemplateBlock(ScopeChild):
         of = ObjFactory()
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
-            ret.append(__ep.accept(of._hndl))
+            __ep.accept(of._hndl)
+            ret.append(of._obj)
         return ret
     cpdef getParameter(self, i):
         cdef ast_decl.IExecTargetTemplateParam *__ep = self.asExecTargetTemplateBlock().getParameters().at(i).get();
@@ -2922,7 +2935,8 @@ cdef class TypeIdentifier(Expr):
         of = ObjFactory()
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
-            ret.append(__ep.accept(of._hndl))
+            __ep.accept(of._hndl)
+            ret.append(of._obj)
         return ret
     cpdef getElem(self, i):
         cdef ast_decl.ITypeIdentifierElem *__ep = self.asTypeIdentifier().getElems().at(i).get();
@@ -3170,7 +3184,8 @@ cdef class ExprDomainOpenRangeList(Expr):
         of = ObjFactory()
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
-            ret.append(__ep.accept(of._hndl))
+            __ep.accept(of._hndl)
+            ret.append(of._obj)
         return ret
     cpdef getValue(self, i):
         cdef ast_decl.IExprDomainOpenRangeValue *__ep = self.asExprDomainOpenRangeList().getValues().at(i).get();
@@ -3234,7 +3249,8 @@ cdef class ExprHierarchicalId(Expr):
         of = ObjFactory()
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
-            ret.append(__ep.accept(of._hndl))
+            __ep.accept(of._hndl)
+            ret.append(of._obj)
         return ret
     cpdef getElem(self, i):
         cdef ast_decl.IExprMemberPathElem *__ep = self.asExprHierarchicalId().getElems().at(i).get();
@@ -3324,7 +3340,8 @@ cdef class ExprListLiteral(Expr):
         of = ObjFactory()
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
-            ret.append(__ep.accept(of._hndl))
+            __ep.accept(of._hndl)
+            ret.append(of._obj)
         return ret
     cpdef getValue(self, i):
         cdef ast_decl.IExpr *__ep = self.asExprListLiteral().getValue().at(i).get();
@@ -3373,7 +3390,8 @@ cdef class ExprMemberPathElem(Expr):
         of = ObjFactory()
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
-            ret.append(__ep.accept(of._hndl))
+            __ep.accept(of._hndl)
+            ret.append(of._obj)
         return ret
     cpdef getSubscript(self, i):
         cdef ast_decl.IExpr *__ep = self.asExprMemberPathElem().getSubscript().at(i).get();
@@ -3440,7 +3458,8 @@ cdef class ExprOpenRangeList(Expr):
         of = ObjFactory()
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
-            ret.append(__ep.accept(of._hndl))
+            __ep.accept(of._hndl)
+            ret.append(of._obj)
         return ret
     cpdef getValue(self, i):
         cdef ast_decl.IExprOpenRangeValue *__ep = self.asExprOpenRangeList().getValues().at(i).get();
@@ -3537,7 +3556,8 @@ cdef class ExprStaticRefPath(Expr):
         of = ObjFactory()
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
-            ret.append(__ep.accept(of._hndl))
+            __ep.accept(of._hndl)
+            ret.append(of._obj)
         return ret
     cpdef getBase(self, i):
         cdef ast_decl.ITypeIdentifierElem *__ep = self.asExprStaticRefPath().getBase().at(i).get();
@@ -3598,7 +3618,8 @@ cdef class ExprStructLiteral(Expr):
         of = ObjFactory()
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
-            ret.append(__ep.accept(of._hndl))
+            __ep.accept(of._hndl)
+            ret.append(of._obj)
         return ret
     cpdef getValue(self, i):
         cdef ast_decl.IExprStructLiteralItem *__ep = self.asExprStructLiteral().getValues().at(i).get();
@@ -3750,7 +3771,8 @@ cdef class ExtendEnum(ScopeChild):
         of = ObjFactory()
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
-            ret.append(__ep.accept(of._hndl))
+            __ep.accept(of._hndl)
+            ret.append(of._obj)
         return ret
     cpdef getItem(self, i):
         cdef ast_decl.IEnumItem *__ep = self.asExtendEnum().getItems().at(i).get();
@@ -3882,7 +3904,8 @@ cdef class ActionHandleField(NamedScopeChild):
         of = ObjFactory()
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
-            ret.append(__ep.accept(of._hndl))
+            __ep.accept(of._hndl)
+            ret.append(of._obj)
         return ret
     cpdef getInitializer(self, i):
         cdef ast_decl.IActionFieldInitializer *__ep = self.asActionHandleField().getInitializers().at(i).get();
@@ -3924,7 +3947,8 @@ cdef class ActivityBindStmt(ActivityStmt):
         of = ObjFactory()
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
-            ret.append(__ep.accept(of._hndl))
+            __ep.accept(of._hndl)
+            ret.append(of._obj)
         return ret
     cpdef getRh(self, i):
         cdef ast_decl.IExprHierarchicalId *__ep = self.asActivityBindStmt().getRhs().at(i).get();
@@ -3979,7 +4003,8 @@ cdef class ActivityJoinSpecBranch(ActivityJoinSpec):
         of = ObjFactory()
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
-            ret.append(__ep.accept(of._hndl))
+            __ep.accept(of._hndl)
+            ret.append(of._obj)
         return ret
     cpdef getBranche(self, i):
         cdef ast_decl.IExprRefPathContext *__ep = self.asActivityJoinSpecBranch().getBranches().at(i).get();
@@ -4089,7 +4114,8 @@ cdef class ConstraintScope(ConstraintStmt):
         of = ObjFactory()
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
-            ret.append(__ep.accept(of._hndl))
+            __ep.accept(of._hndl)
+            ret.append(of._obj)
         return ret
     cpdef getConstraint(self, i):
         cdef ast_decl.IConstraintStmt *__ep = self.asConstraintScope().getConstraints().at(i).get();
@@ -4252,7 +4278,8 @@ cdef class ConstraintStmtUnique(ConstraintStmt):
         of = ObjFactory()
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
-            ret.append(__ep.accept(of._hndl))
+            __ep.accept(of._hndl)
+            ret.append(of._obj)
         return ret
     cpdef getList(self, i):
         cdef ast_decl.IExprHierarchicalId *__ep = self.asConstraintStmtUnique().getList().at(i).get();
@@ -4287,7 +4314,8 @@ cdef class Covergroup(NamedScopeChild):
         of = ObjFactory()
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
-            ret.append(__ep.accept(of._hndl))
+            __ep.accept(of._hndl)
+            ret.append(of._obj)
         return ret
     cpdef getCoverpoint(self, i):
         cdef ast_decl.ICovergroupCoverpoint *__ep = self.asCovergroup().getCoverpoints().at(i).get();
@@ -4309,7 +4337,8 @@ cdef class Covergroup(NamedScopeChild):
         of = ObjFactory()
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
-            ret.append(__ep.accept(of._hndl))
+            __ep.accept(of._hndl)
+            ret.append(of._obj)
         return ret
     cpdef getCrosse(self, i):
         cdef ast_decl.ICovergroupCross *__ep = self.asCovergroup().getCrosses().at(i).get();
@@ -4364,7 +4393,8 @@ cdef class CovergroupCross(NamedScopeChild):
         of = ObjFactory()
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
-            ret.append(__ep.accept(of._hndl))
+            __ep.accept(of._hndl)
+            ret.append(of._obj)
         return ret
     cpdef getCoverpoint_name(self, i):
         cdef ast_decl.IExprId *__ep = self.asCovergroupCross().getCoverpoint_names().at(i).get();
@@ -4562,7 +4592,8 @@ cdef class EnumDecl(NamedScopeChild):
         of = ObjFactory()
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
-            ret.append(__ep.accept(of._hndl))
+            __ep.accept(of._hndl)
+            ret.append(of._obj)
         return ret
     cpdef getItem(self, i):
         cdef ast_decl.IEnumItem *__ep = self.asEnumDecl().getItems().at(i).get();
@@ -4637,7 +4668,8 @@ cdef class ExprAggrList(ExprAggrLiteral):
         of = ObjFactory()
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
-            ret.append(__ep.accept(of._hndl))
+            __ep.accept(of._hndl)
+            ret.append(of._obj)
         return ret
     cpdef getElem(self, i):
         cdef ast_decl.IExpr *__ep = self.asExprAggrList().getElems().at(i).get();
@@ -4672,7 +4704,8 @@ cdef class ExprAggrMap(ExprAggrLiteral):
         of = ObjFactory()
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
-            ret.append(__ep.accept(of._hndl))
+            __ep.accept(of._hndl)
+            ret.append(of._obj)
         return ret
     cpdef getElem(self, i):
         cdef ast_decl.IExprAggrMapElem *__ep = self.asExprAggrMap().getElems().at(i).get();
@@ -4707,7 +4740,8 @@ cdef class ExprAggrStruct(ExprAggrLiteral):
         of = ObjFactory()
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
-            ret.append(__ep.accept(of._hndl))
+            __ep.accept(of._hndl)
+            ret.append(of._obj)
         return ret
     cpdef getElem(self, i):
         cdef ast_decl.IExprAggrStructElem *__ep = self.asExprAggrStruct().getElems().at(i).get();
@@ -4800,7 +4834,8 @@ cdef class ExprRefPathStatic(ExprRefPath):
         of = ObjFactory()
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
-            ret.append(__ep.accept(of._hndl))
+            __ep.accept(of._hndl)
+            ret.append(of._obj)
         return ret
     cpdef getBase(self, i):
         cdef ast_decl.ITypeIdentifierElem *__ep = self.asExprRefPathStatic().getBase().at(i).get();
@@ -5120,7 +5155,8 @@ cdef class FunctionPrototype(NamedScopeChild):
         of = ObjFactory()
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
-            ret.append(__ep.accept(of._hndl))
+            __ep.accept(of._hndl)
+            ret.append(of._obj)
         return ret
     cpdef getParameter(self, i):
         cdef ast_decl.IFunctionParamDecl *__ep = self.asFunctionPrototype().getParameters().at(i).get();
@@ -5304,7 +5340,8 @@ cdef class MonitorActivityMatch(MonitorActivityStmt):
         of = ObjFactory()
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
-            ret.append(__ep.accept(of._hndl))
+            __ep.accept(of._hndl)
+            ret.append(of._obj)
         return ret
     cpdef getChoice(self, i):
         cdef ast_decl.IMonitorActivityMatchChoice *__ep = self.asMonitorActivityMatch().getChoices().at(i).get();
@@ -5461,7 +5498,8 @@ cdef class MonitorActivitySelect(MonitorActivityStmt):
         of = ObjFactory()
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
-            ret.append(__ep.accept(of._hndl))
+            __ep.accept(of._hndl)
+            ret.append(of._obj)
         return ret
     cpdef getBranche(self, i):
         cdef ast_decl.IMonitorActivitySelectBranch *__ep = self.asMonitorActivitySelect().getBranches().at(i).get();
@@ -5536,7 +5574,8 @@ cdef class PackageScope(Scope):
         of = ObjFactory()
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
-            ret.append(__ep.accept(of._hndl))
+            __ep.accept(of._hndl)
+            ret.append(of._obj)
         return ret
     cpdef getId(self, i):
         cdef ast_decl.IExprId *__ep = self.asPackageScope().getId().at(i).get();
@@ -5714,7 +5753,8 @@ cdef class ProceduralStmtFunctionCall(ExecStmt):
         of = ObjFactory()
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
-            ret.append(__ep.accept(of._hndl))
+            __ep.accept(of._hndl)
+            ret.append(of._obj)
         return ret
     cpdef getParam(self, i):
         cdef ast_decl.IExpr *__ep = self.asProceduralStmtFunctionCall().getParams().at(i).get();
@@ -5749,7 +5789,8 @@ cdef class ProceduralStmtIfElse(ExecStmt):
         of = ObjFactory()
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
-            ret.append(__ep.accept(of._hndl))
+            __ep.accept(of._hndl)
+            ret.append(of._obj)
         return ret
     cpdef getIf_then(self, i):
         cdef ast_decl.IProceduralStmtIfClause *__ep = self.asProceduralStmtIfElse().getIf_then().at(i).get();
@@ -5798,7 +5839,8 @@ cdef class ProceduralStmtMatch(ExecStmt):
         of = ObjFactory()
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
-            ret.append(__ep.accept(of._hndl))
+            __ep.accept(of._hndl)
+            ret.append(of._obj)
         return ret
     cpdef getChoice(self, i):
         cdef ast_decl.IProceduralStmtMatchChoice *__ep = self.asProceduralStmtMatch().getChoices().at(i).get();
@@ -5869,7 +5911,8 @@ cdef class ProceduralStmtRandomize(ExecStmt):
         of = ObjFactory()
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
-            ret.append(__ep.accept(of._hndl))
+            __ep.accept(of._hndl)
+            ret.append(of._obj)
         return ret
     cpdef getConstraint(self, i):
         cdef ast_decl.IConstraintStmt *__ep = self.asProceduralStmtRandomize().getConstraints().at(i).get();
@@ -5941,7 +5984,8 @@ cdef class SymbolChildrenScope(SymbolChild):
         of = ObjFactory()
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
-            ret.append(__ep.accept(of._hndl))
+            __ep.accept(of._hndl)
+            ret.append(of._obj)
         return ret
     cpdef getChild(self, i):
         cdef ast_decl.IScopeChild *__ep = self.asSymbolChildrenScope().getChildren().at(i).get();
@@ -6073,7 +6117,8 @@ cdef class ActivityActionHandleTraversal(ActivityLabeledStmt):
         of = ObjFactory()
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
-            ret.append(__ep.accept(of._hndl))
+            __ep.accept(of._hndl)
+            ret.append(of._obj)
         return ret
     cpdef getInitializer(self, i):
         cdef ast_decl.IActionFieldInitializer *__ep = self.asActivityActionHandleTraversal().getInitializers().at(i).get();
@@ -6122,7 +6167,8 @@ cdef class ActivityActionTypeTraversal(ActivityLabeledStmt):
         of = ObjFactory()
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
-            ret.append(__ep.accept(of._hndl))
+            __ep.accept(of._hndl)
+            ret.append(of._obj)
         return ret
     cpdef getInitializer(self, i):
         cdef ast_decl.IActionFieldInitializer *__ep = self.asActivityActionTypeTraversal().getInitializers().at(i).get();
@@ -6259,7 +6305,8 @@ cdef class ActivityMatch(ActivityLabeledStmt):
         of = ObjFactory()
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
-            ret.append(__ep.accept(of._hndl))
+            __ep.accept(of._hndl)
+            ret.append(of._obj)
         return ret
     cpdef getChoice(self, i):
         cdef ast_decl.IActivityMatchChoice *__ep = self.asActivityMatch().getChoices().at(i).get();
@@ -6389,7 +6436,8 @@ cdef class ActivitySelect(ActivityLabeledStmt):
         of = ObjFactory()
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
-            ret.append(__ep.accept(of._hndl))
+            __ep.accept(of._hndl)
+            ret.append(of._obj)
         return ret
     cpdef getBranche(self, i):
         cdef ast_decl.IActivitySelectBranch *__ep = self.asActivitySelect().getBranches().at(i).get();
@@ -6874,7 +6922,8 @@ cdef class RootSymbolScope(SymbolScope):
         of = ObjFactory()
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
-            ret.append(__ep.accept(of._hndl))
+            __ep.accept(of._hndl)
+            ret.append(of._obj)
         return ret
     cpdef getUnit(self, i):
         cdef ast_decl.IGlobalScope *__ep = self.asRootSymbolScope().getUnits().at(i).get();
@@ -6984,7 +7033,8 @@ cdef class SymbolFunctionScope(SymbolScope):
         of = ObjFactory()
         for __i in range(__lp.size()):
             __ep = __lp.at(__i)
-            ret.append(__ep.accept(of._hndl))
+            __ep.accept(of._hndl)
+            ret.append(of._obj)
         return ret
     cpdef getPrototype(self, i):
         cdef ast_decl.IFunctionPrototype *__ep = self.asSymbolFunctionScope().getPrototypes().at(i);
@@ -7005,7 +7055,8 @@ cdef class SymbolFunctionScope(SymbolScope):
         of = ObjFactory()
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
-            ret.append(__ep.accept(of._hndl))
+            __ep.accept(of._hndl)
+            ret.append(of._obj)
         return ret
     cpdef getImport_spec(self, i):
         cdef ast_decl.IFunctionImport *__ep = self.asSymbolFunctionScope().getImport_specs().at(i).get();
@@ -7068,7 +7119,8 @@ cdef class SymbolTypeScope(SymbolScope):
         of = ObjFactory()
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
-            ret.append(__ep.accept(of._hndl))
+            __ep.accept(of._hndl)
+            ret.append(of._obj)
         return ret
     cpdef getSpec_type(self, i):
         cdef ast_decl.ISymbolTypeScope *__ep = self.asSymbolTypeScope().getSpec_types().at(i).get();
@@ -7120,7 +7172,8 @@ cdef class GenericConstraintDeclBool(ConstraintBlock):
         of = ObjFactory()
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
-            ret.append(__ep.accept(of._hndl))
+            __ep.accept(of._hndl)
+            ret.append(of._obj)
         return ret
     cpdef getParameter(self, i):
         cdef ast_decl.IGenericConstraintParam *__ep = self.asGenericConstraintDeclBool().getParameters().at(i).get();

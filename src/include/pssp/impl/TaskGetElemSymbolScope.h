@@ -47,8 +47,36 @@ public:
     
     virtual void visitField(ast::IField *i) override {
         DEBUG_ENTER("visitField %s", i->getName()->getId().c_str());
-        i->getType()->accept(m_this);
+        if (i->getType()) {
+            i->getType()->accept(m_this);
+        }
         DEBUG_LEAVE("visitField %s", i->getName()->getId().c_str());
+    }
+
+    // A procedural local (`my_struct_s v;` inside an exec or function body)
+    // reaches its members exactly as a declared field does. Without this,
+    // `v.member` reported "root ref-path element v is not a composite scope"
+    // -- the local resolved to its declaration, but the declaration was
+    // never mapped to its type's scope.
+    virtual void visitProceduralStmtDataDeclaration(
+            ast::IProceduralStmtDataDeclaration *i) override {
+        DEBUG_ENTER("visitProceduralStmtDataDeclaration %s",
+            i->getName()->getId().c_str());
+        if (i->getDatatype()) {
+            i->getDatatype()->accept(m_this);
+        }
+        DEBUG_LEAVE("visitProceduralStmtDataDeclaration");
+    }
+
+    // Likewise for a function parameter, which is where this first showed up
+    // (a `string` parameter could not reach its methods while a field of the
+    // same type could).
+    virtual void visitFunctionParamDecl(ast::IFunctionParamDecl *i) override {
+        DEBUG_ENTER("visitFunctionParamDecl %s", i->getName()->getId().c_str());
+        if (i->getType()) {
+            i->getType()->accept(m_this);
+        }
+        DEBUG_LEAVE("visitFunctionParamDecl");
     }
 
     // forall iterator variable: map it to its type's scope so member access
@@ -89,7 +117,9 @@ public:
 
             // This could be an indirect reference (eg via a parameter). Delegate
             // resolution to support further refinement
-            c->accept(m_this);
+            if (c) {
+                c->accept(m_this);
+            }
         }
         DEBUG_LEAVE("visitDataTypeUserDefined");
     }
@@ -99,7 +129,9 @@ public:
         ast::IScopeChild *c = m_path_resolver.resolve(i->getTarget());
         // This could be an indirect reference (eg via a parameter). Delegate
         // resolution to support further refinement
-        c->accept(m_this);
+        if (c) {
+            c->accept(m_this);
+        }
         DEBUG_LEAVE("visitTypeIdentifier");
     }
 
@@ -115,21 +147,33 @@ public:
         DEBUG_LEAVE("visitSymbolTypeScope");
     }
 
+    // On a *specialized* parameter list the dflt slot holds the bound
+    // argument, which is what these want.  On an unspecialized one it holds
+    // the declared default -- and there may not be one, so it can be null.
+    // A parameter with nothing bound simply has no element scope; every
+    // caller already handles a null return.
+
     virtual void visitTemplateGenericTypeParamDecl(ast::ITemplateGenericTypeParamDecl *i) override {
         DEBUG_ENTER("visitTemplateGenericTypeParamDecl");
-        i->getDflt()->accept(m_this);
+        if (i->getDflt()) {
+            i->getDflt()->accept(m_this);
+        }
         DEBUG_LEAVE("visitTemplateGenericTypeParamDecl");
     }
 
     virtual void visitTemplateCategoryTypeParamDecl(ast::ITemplateCategoryTypeParamDecl *i) override {
         DEBUG_ENTER("visitTemplateCategoryTypeParamDecl");
-        i->getDflt()->accept(m_this);
+        if (i->getDflt()) {
+            i->getDflt()->accept(m_this);
+        }
         DEBUG_LEAVE("visitTemplateCategoryTypeParamDecl");
     }
 
     virtual void visitTemplateValueParamDecl(ast::ITemplateValueParamDecl *i) override {
         DEBUG_ENTER("visitTemplateValueParamDecl");
-        i->getDflt()->accept(m_this);
+        if (i->getDflt()) {
+            i->getDflt()->accept(m_this);
+        }
         DEBUG_LEAVE("visitTemplateValueParamDecl");
     }
 

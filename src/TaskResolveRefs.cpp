@@ -38,6 +38,58 @@
 
 namespace pssp {
 
+/**
+ * Methods available on the built-in types, which have no declaration in the
+ * standard library and so cannot be resolved through the symbol table.
+ *
+ * Kept in one place: these lists were previously duplicated at each use site,
+ * and drifted -- `sum` was present in the LRM but missing from both copies,
+ * which is why `a.sum()` failed while `a.size()` worked.
+ */
+namespace {
+
+//: LRM 7.6.3 -- string methods
+const std::set<std::string> &stringMethods() {
+    static const std::set<std::string> s = {
+        "size", "len",
+        "find", "rfind", "find_last", "find_all",
+        "substr",
+        "lower", "upper", "to_lower", "to_upper",
+        "starts_with", "ends_with", "trim",
+        "split", "chars"
+    };
+    return s;
+}
+
+//: LRM 7.9.2.2 (array), 7.9.3.2 (list), 7.9.4.2 (set), 7.9.5.2 (map)
+const std::set<std::string> &collectionMethods() {
+    static const std::set<std::string> s = {
+        "size",
+        "push_back", "pop_back", "push_front", "pop_front",
+        "insert", "delete", "clear",
+        "contains", "find",
+        "sort", "rsort", "shuffle", "reverse", "unique",
+        "join", "str_from_chars",
+        "sum", "to_list", "to_set",
+        "keys", "values",
+        "front", "back",
+        "set", "get"
+    };
+    return s;
+}
+
+//: The union, for the "is this a method on a built-in at all?" test.
+const std::set<std::string> &builtinMethods() {
+    static const std::set<std::string> s = [] {
+        std::set<std::string> merged = stringMethods();
+        merged.insert(collectionMethods().begin(), collectionMethods().end());
+        return merged;
+    }();
+    return s;
+}
+
+}
+
 
 static int editDistance_rr(const std::string &a, const std::string &b) {
     int m = a.size(), n = b.size();
@@ -520,32 +572,7 @@ void TaskResolveRefs::visitExprRefPathContext(ast::IExprRefPathContext *i) {
         if (!target_s && is_builtin_with_methods && ii == 1) {
             // This is a method call on a built-in type - validate method name
             std::string method_name = elem->getId()->getId();
-            static const std::set<std::string> valid_string_methods = {
-                "size", "len",
-                "find", "rfind", "find_last", "find_all",
-                "substr",
-                "lower", "upper", "to_lower", "to_upper",
-                "starts_with", "ends_with", "trim",
-                "split", "chars"
-            };
-            static const std::set<std::string> valid_collection_methods = {
-                "size",
-                "push_back", "pop_back", "push_front", "pop_front",
-                "insert", "delete", "clear",
-                "contains", "find",
-                "sort", "rsort", "shuffle", "reverse", "unique",
-                "join", "str_from_chars",
-                "keys", "values",
-                "front", "back",
-                "set", "get"
-            };
-            static const std::set<std::string> all_builtin_methods = [] {
-                std::set<std::string> merged = valid_string_methods;
-                merged.insert(valid_collection_methods.begin(), valid_collection_methods.end());
-                return merged;
-            }();
-            
-            if (all_builtin_methods.find(method_name) != all_builtin_methods.end()) {
+            if (builtinMethods().find(method_name) != builtinMethods().end()) {
                 DEBUG("Valid built-in method: %s", method_name.c_str());
                 elem->setTarget(-2);
                 if (elem->getParams()) {
@@ -566,28 +593,36 @@ void TaskResolveRefs::visitExprRefPathContext(ast::IExprRefPathContext *i) {
             }
         }
 
+        if (!target_s) {
+            // The enclosing scope is unresolved -- most often because the
+            // root element's type is unknown, which is the normal state when
+            // one file of a multi-file model is parsed on its own.
+            //
+            // This is reachable even though the pre-loop check above rejects
+            // a null target_s: the subscript step earlier in this loop
+            // re-assigns target_s from TaskGetSubscriptSymbolScope(), which
+            // returns null for an element of unknown type. Passing that null
+            // to TaskFindPathElem::find() dereferences it immediately.
+            m_ctxt->addMarker(
+                MarkerSeverityE::Error,
+                elem->getId()->getLocation(),
+                "cannot resolve '%s': the enclosing scope is unknown",
+                elem->getId()->getId().c_str());
+            DEBUG_LEAVE("visitExprRefPathContext -- unresolved enclosing scope");
+            return;
+        }
+
         TaskFindPathElem::Result res = TaskFindPathElem(
-            m_ctxt->getDebugMgr(), 
+            m_ctxt->getDebugMgr(),
             m_ctxt->root()).find(
                 target_s,
                 elem->getId()
             );
 
-        std::unordered_map<std::string, int32_t>::const_iterator it = 
+        std::unordered_map<std::string, int32_t>::const_iterator it =
             target_s->getSymtab().find(elem->getId()->getId());
         
         if (!res.sym) {
-            static const std::set<std::string> valid_collection_methods = {
-                "size",
-                "push_back", "pop_back", "push_front", "pop_front",
-                "insert", "delete", "clear",
-                "contains", "find",
-                "sort", "rsort", "shuffle", "reverse", "unique",
-                "join", "str_from_chars",
-                "keys", "values",
-                "front", "back",
-                "set", "get"
-            };
             bool is_collection_method = false;
             auto isCollectionScope = [](ast::ISymbolScope *s) -> bool {
                 if (!s) return false;
@@ -599,7 +634,7 @@ void TaskResolveRefs::visitExprRefPathContext(ast::IExprRefPathContext *i) {
                 DEBUG("Collection method check: target_s name='%s' method='%s'",
                     target_s->getName().c_str(), elem->getId()->getId().c_str());
                 const std::string &mname = elem->getId()->getId();
-                if (valid_collection_methods.count(mname)) {
+                if (collectionMethods().count(mname)) {
                     is_collection_method = true;
                     elem->setTarget(-2);
                     if (elem->getParams()) {

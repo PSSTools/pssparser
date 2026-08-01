@@ -37,9 +37,9 @@ package:
   - name: default
     deps:
     - name: ciostream
-      url: https://github.com/mballance-utils/ciostream.git
+      src: pypi
     - name: pyastbuilder
-      url: https://github.com/mballance-utils/pyastbuilder.git
+      src: pypi
     - name: antlr4-tools.jar
       url: https://www.antlr.org/download/antlr-4.13.2-complete.jar
     - name: antlr4-cpp-runtime

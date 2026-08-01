@@ -40,10 +40,19 @@ TaskFindPathElem::~TaskFindPathElem() {
 TaskFindPathElem::Result TaskFindPathElem::find(
         ast::ISymbolScope       *src,
         ast::IExprId            *id) {
-    DEBUG_ENTER("find: src=%s id=%s", src->getName().c_str(), id->getId().c_str());
     m_ret.idx = -1;
     m_ret.super_idx = -1;
     m_ret.sym = 0;
+
+    // Defensive: callers reach here with an unresolved scope when the model
+    // is incomplete. Note that DEBUG_ENTER evaluates its arguments whether or
+    // not debug output is enabled, so this check must precede it -- otherwise
+    // src->getName() faults before any guard inside the visitors can run.
+    if (!src || !id) {
+        return m_ret;
+    }
+
+    DEBUG_ENTER("find: src=%s id=%s", src->getName().c_str(), id->getId().c_str());
 
     m_id = id;
     m_super_depth = 0;
@@ -77,7 +86,7 @@ void TaskFindPathElem::visitSymbolTypeScope(ast::ISymbolTypeScope *i) {
     if (m_ret.sym) {
         // Found the symbol
         DEBUG("Found the symbol in this type scope");
-    } else {
+    } else if (i->getTarget()) {
         // Try visiting the super scope to see if we have better luck
         i->getTarget()->accept(m_this);
     }
@@ -91,11 +100,19 @@ void TaskFindPathElem::visitTypeScope(ast::ITypeScope *i) {
         ast::IScopeChild *c = TaskResolveSymbolPathRef(m_dmgr, m_root).resolve(
             i->getSuper_t()->getTarget());
 
-        m_super_depth++;
-        DEBUG_ENTER("search super scope (%d)", m_super_depth);
-        c->accept(m_this); 
-        DEBUG_LEAVE("search super scope (%d)", m_super_depth);
-        m_super_depth--;
+        // An unresolvable super-type yields a null scope. Walking it would
+        // fault; the caller reports the failure to find the element, and the
+        // unresolved base type is diagnosed where it is declared.
+        if (c) {
+            m_super_depth++;
+            DEBUG_ENTER("search super scope (%d)", m_super_depth);
+            c->accept(m_this);
+            DEBUG_LEAVE("search super scope (%d)", m_super_depth);
+            m_super_depth--;
+        } else {
+            DEBUG("super-type of %s did not resolve; ending search",
+                i->getName()->getId().c_str());
+        }
     }
     DEBUG_LEAVE("visitTypeScope");
 }

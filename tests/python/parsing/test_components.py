@@ -541,3 +541,34 @@ def test_component_hierarchy_scalability(parser, depth):
     
     code = "\n".join(code_parts)
     assert_parse_ok(code, parser)
+
+
+# ============================================================================
+# mutable component attributes (LRM 9.1.6, PSS 3.1)
+# ============================================================================
+#
+# component_data_decl_qualifier ::= static const | mutable | instance
+# `mutable` was missing from the qualifier alternatives.
+
+def test_mutable_component_attribute(parser):
+    """`mutable` qualifies a component data declaration."""
+    assert_parse_ok("""
+    component c { mutable int total; }
+    component pss_top { c c0; }
+    """, parser)
+
+
+def test_mutable_with_access_modifier(parser):
+    """An access modifier composes with `mutable`."""
+    assert_parse_ok("""
+    component c { protected mutable bit[32] count; }
+    component pss_top { c c0; }
+    """, parser)
+
+
+def test_static_const_component_attribute_still_parses(parser):
+    """Control: the other qualifiers must keep working."""
+    assert_parse_ok("""
+    component c { static const int LIMIT = 4; }
+    component pss_top { c c0; }
+    """, parser)

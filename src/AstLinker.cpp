@@ -35,6 +35,7 @@
 #include "TaskBuildSymbolTree.h"
 #include "TaskResolveRefsOverlay.h"
 #include "TaskResolveRefs.h"
+#include "TaskResolveSuperTypes.h"
 
 
 namespace pssp {
@@ -103,6 +104,12 @@ ast::IRootSymbolScope *AstLinker::link(
 
     uint64_t resolve_s = time_ms();
     ResolveContext ctxt(m_factory, marker_l, symtree);
+
+    // Super types first, so that resolving a reference to an inherited
+    // member does not depend on the base type having been declared in an
+    // earlier file than the use. See TaskResolveSuperTypes.
+    TaskResolveSuperTypes(&ctxt).resolve(symtree);
+
     TaskResolveRefs(&ctxt).resolve(symtree);
     uint64_t resolve_e = time_ms();
     DEBUG("Resolve: %lldms", (resolve_e-resolve_s));

@@ -67,6 +67,8 @@ package_body_item:
 	| const_field_declaration
 	| component_declaration
 	| package_declaration
+	| monitor_declaration
+	| abstract_monitor_declaration
 	| compile_assert_stmt
 	| package_body_compile_if
 	| annotation
@@ -433,8 +435,11 @@ procedural_function:
 	TOK_RCBRACE
 	;
 
+// Note: platform_qualifier is accepted here as well as on procedural_function.
+// Declaring a platform-qualified API in a package and defining it elsewhere is
+// the normal split (LRM 20.2.1), and is how the LRM's own examples are written.
 function_decl:
-	TOK_PURE? TOK_STATIC? TOK_FUNCTION function_prototype TOK_SEMICOLON
+	platform_qualifier? TOK_PURE? TOK_STATIC? TOK_FUNCTION function_prototype TOK_SEMICOLON
 	;
 
 platform_qualifier: 
@@ -678,8 +683,9 @@ component_body_item:
  	| TOK_SEMICOLON
 	;
 
+// LRM 9.1.6: component_data_decl_qualifier ::= static const | mutable | instance
 component_data_declaration:
-	access_modifier? ((is_static=TOK_STATIC is_const=TOK_CONST) | is_instance=TOK_INSTANCE)? data_declaration
+	access_modifier? ((is_static=TOK_STATIC is_const=TOK_CONST) | is_mutable=TOK_MUTABLE | is_instance=TOK_INSTANCE)? data_declaration
 	;
 
 // Note: LRM only supports a single pool per declaration
@@ -1012,12 +1018,18 @@ monitor_activity_stmt:
     | TOK_SEMICOLON
     ;
 
+// LRM B.11: labeled_monitor_activity_stmt also admits the select statement
+// and activity_super_stmt. monitor_activity_select_stmt was defined below but
+// never referenced from anywhere, so `select { ... }` in a monitor activity
+// could not parse.
 labeled_monitor_activity_stmt:
     monitor_activity_sequence_block_stmt
     | monitor_activity_concat_stmt
     | monitor_activity_eventually_stmt
     | monitor_activity_overlap_stmt
     | monitor_activity_schedule_stmt
+    | monitor_activity_select_stmt
+    | activity_super_stmt
     ;
 
 monitor_handle_declaration: 
@@ -1036,8 +1048,12 @@ monitor_activity_concat_stmt:
     TOK_CONCAT TOK_LCBRACE monitor_activity_stmt* TOK_RCBRACE
     ;
 
-monitor_activity_eventually_stmt: 
-    TOK_EVENTUALLY labeled_monitor_activity_stmt
+// LRM 16.4.4: monitor_activity_eventually_stmt ::= eventually monitor_activity_stmt
+// The operand is a full monitor_activity_stmt, not just the labeled subset --
+// `eventually r;`, where r is an action handle, is the common form and was
+// rejected when only block statements were accepted here.
+monitor_activity_eventually_stmt:
+    TOK_EVENTUALLY monitor_activity_stmt
     ;
 
 monitor_activity_overlap_stmt: 
@@ -1187,8 +1203,13 @@ chandle_type:
 	;
 
 // Note: this parser considers dual-interval widths to be unsupported
+// The `lhs:rhs` form is *not* in the PSS 3.1 grammar -- LRM 7.2 (c) specifies a
+// single width expression, and the dual-bound spelling was dropped from the
+// BNF. It is accepted here only so that existing PSS 1.x/2.x models can be
+// ingested; the builder folds `[N:0]` to a width of N+1 and rejects a non-zero
+// low bound, which has no meaning under the current type model.
 integer_type:
-	integer_atom_type (TOK_LSBRACE lhs=expression /*(TOK_COLON rhs=expression)?*/ TOK_RSBRACE)?
+	integer_atom_type (TOK_LSBRACE lhs=expression (TOK_COLON rhs=expression)? TOK_RSBRACE)?
 		(is_in=TOK_IN TOK_LSBRACE domain=domain_open_range_list TOK_RSBRACE)?
 	;
 
@@ -1377,8 +1398,12 @@ dist_list:
     dist_item ( TOK_COMMA dist_item )*
     ;
 
-dist_item: 
-    open_range_value TOK_LSBRACE dist_weight TOK_RSBRACE
+// LRM B.14: dist_item ::= open_range_value [ dist_weight ]
+// The brackets there are BNF optionality, not literal tokens. Transcribing
+// them as TOK_LSBRACE/TOK_RSBRACE made `dist x in [1 := 5]` a syntax error and
+// `dist x in [1 [:= 5]]` the only accepted spelling.
+dist_item:
+    open_range_value dist_weight?
     ;
 
 dist_weight:

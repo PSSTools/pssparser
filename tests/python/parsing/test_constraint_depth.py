@@ -17,7 +17,7 @@ def test_dist_directive(parser):
     code = """
 struct s {
     rand int x;
-    constraint { dist x in [1 [:= 10], 2 [:= 20], 3 [:= 70]]; }
+    constraint { dist x in [1 := 10, 2 := 20, 3 := 70]; }
 };
 """
     root = parse_pss(code, parser=parser)
@@ -34,7 +34,7 @@ def test_dist_range_weights(parser):
     code = """
 struct s {
     rand int x;
-    constraint { dist x in [0..9 [:/ 1], 10..99 [:/ 2], 100..999 [:/ 7]]; }
+    constraint { dist x in [0..9 :/ 1, 10..99 :/ 2, 100..999 :/ 7]; }
 };
 """
     root = parse_pss(code, parser=parser)

@@ -20,6 +20,7 @@
  */
 #include "dmgr/impl/DebugMacros.h"
 #include "TaskResolveFieldRef.h"
+#include "pssp/impl/TaskGetName.h"
 
 
 namespace pssp {
@@ -60,10 +61,56 @@ void TaskResolveFieldRef::visitNamedScopeChild(ast::INamedScopeChild *i) {
 
 }
 
-void TaskResolveFieldRef::visitSymbolScope(ast::ISymbolScope *i) { 
-    DEBUG_ENTER("visitSymbolScope");
+void TaskResolveFieldRef::visitSymbolScope(ast::ISymbolScope *i) {
+    DEBUG_ENTER("visitSymbolScope %s", i->getName().c_str());
 
-    DEBUG_LEAVE("visitSymbolScope");
+    // A package is an ISymbolScope, not an ISymbolTypeScope. Until this was
+    // implemented, only the type-scope case below did any lookup, so the
+    // second element of a package-qualified path -- the `s` of `p::s` --
+    // could never be found. `extend struct p::s` then failed its target
+    // resolution silently and the extension was dropped whole.
+    lookup(i);
+
+    DEBUG_LEAVE("visitSymbolScope %p", m_ret);
+}
+
+void TaskResolveFieldRef::lookup(ast::ISymbolScope *i) {
+    std::unordered_map<std::string,int32_t>::const_iterator it;
+
+    if ((it=i->getSymtab().find(m_id->getId())) == i->getSymtab().end()) {
+        return;
+    }
+
+    // A synthetic scope owns its children list, so the symtab index addresses
+    // it directly. A non-synthetic scope records the child's index in the
+    // *physical* AST parent instead, which need not line up. Confirm the
+    // candidate by name before trusting it, and fall back to a scan.
+    int32_t idx = it->second;
+    if (idx >= 0 && idx < (int32_t)i->getChildren().size()) {
+        ast::IScopeChild *c = i->getChildren().at(idx).get();
+        if (TaskGetName().get(c) == m_id->getId()) {
+            m_ret = c;
+            m_path->getPath().push_back({
+                ast::SymbolRefPathElemKind::ElemKind_ChildIdx,
+                idx
+            });
+            return;
+        }
+    }
+
+    for (int32_t ci=0; ci<(int32_t)i->getChildren().size(); ci++) {
+        ast::IScopeChild *c = i->getChildren().at(ci).get();
+        if (TaskGetName().get(c) == m_id->getId()) {
+            DEBUG("symtab index %d did not match; found %s at %d",
+                idx, m_id->getId().c_str(), ci);
+            m_ret = c;
+            m_path->getPath().push_back({
+                ast::SymbolRefPathElemKind::ElemKind_ChildIdx,
+                ci
+            });
+            return;
+        }
+    }
 }
 
 //void TaskResolveFieldRef::visitSymbolExecScope(ast::ISymbolExecScope *i) { 

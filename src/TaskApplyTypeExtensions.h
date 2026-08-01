@@ -65,6 +65,14 @@ public:
     virtual void visitTypeScope(ast::ITypeScope *i) override;
 
 protected:
+    /**
+     * Contribute one member of an `extend` body to the extended type's
+     * logical scope, keyed by name when it has one.
+     */
+    void mergeChild(
+        ast::ISymbolScope       *target,
+        ast::IScopeChild        *child);
+
     void addChild(
         ast::ISymbolScope       *target,
         ast::IScopeChild        *child,

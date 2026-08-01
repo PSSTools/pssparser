@@ -300,6 +300,20 @@ void TaskBuildSymbolTree::visitExtendType(ast::IExtendType *i) {
     ext->setLocation(i->getLocation());
     ext->setTarget(i);
 
+    // The extend scope must materialize its own children list, exactly as a
+    // type scope does. addChild() only pushes into getChildren() for a
+    // synthetic scope; for a non-synthetic one it records
+    // symtab[name] = child->getIndex(), an index into the *physical* AST
+    // parent. That is correct for a scope whose logical contents are exactly
+    // one physical body, but an extend scope's contents get merged into
+    // another type, so its members need logical indices of their own.
+    //
+    // Without this, getChildren() stayed empty and every plain field declared
+    // in an `extend` was invisible to the merge in TaskApplyTypeExtensions --
+    // the reason extension-declared types and functions resolved while
+    // extension-declared fields did not.
+    ext->setSynthetic(true);
+
     //addChild(i, false);
 
     addChild(ext, true);
@@ -334,6 +348,16 @@ void TaskBuildSymbolTree::visitFieldRef(ast::IFieldRef *i) {
     DEBUG_ENTER("visitFieldRef %s", i->getName()->getId().c_str());
     addChild(i, i->getName()->getId(), false);
     DEBUG_LEAVE("visitFieldRef %s", i->getName()->getId().c_str());
+}
+
+void TaskBuildSymbolTree::visitFieldClaim(ast::IFieldClaim *i) {
+    DEBUG_ENTER("visitFieldClaim %s", i->getName()->getId().c_str());
+    // A lock/share claim names a resource instance and must be reachable by
+    // that name, exactly as an input/output FieldRef is. Without this the
+    // claim parses but never enters the action's symbol table, so
+    // `constraint ch.prio > 2` fails with "unknown identifier 'ch'".
+    addChild(i, i->getName()->getId(), false);
+    DEBUG_LEAVE("visitFieldClaim %s", i->getName()->getId().c_str());
 }
 
 void TaskBuildSymbolTree::visitFunctionDefinition(ast::IFunctionDefinition *i) { 

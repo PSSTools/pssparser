@@ -189,3 +189,93 @@ def test_json_output_includes_code_field(valid_pss):
     data = json.loads(output)
     codes = [d.get("code") for d in data.get("diagnostics", [])]
     assert "JSN001" in codes
+
+
+# ---------------------------------------------------------------------------
+# CheckContext is actually populated (regression)
+# ---------------------------------------------------------------------------
+#
+# Parser.link() clears its working state, and the CLI read that state
+# *after* linking -- so file_map and global_scopes, the two access paths the
+# plug-in guide documents, always arrived empty. Every checker written to the
+# guide silently got nothing. link() now snapshots them into public
+# properties.
+
+class _ContextCapture(CheckerBase):
+    """Records the CheckContext it was handed, for inspection."""
+
+    name = "context-capture"
+    description = "captures the CheckContext for assertions"
+    runs_without_link = True
+    marker_defs = [
+        MarkerDef(
+            id="CTX001",
+            severity="warning",
+            summary="context capture",
+            detail="test-only checker",
+        )
+    ]
+
+    captured = None
+
+    def check(self, context):
+        type(self).captured = context
+
+
+def test_check_context_has_file_map(valid_pss):
+    _ContextCapture.captured = None
+    cmd_parse(files=[valid_pss], manager=_make_manager(_ContextCapture), quiet=True)
+
+    ctx = _ContextCapture.captured
+    assert ctx is not None, "checker did not run"
+    assert ctx.file_map, "file_map is empty; checkers cannot resolve a fileid to a path"
+    assert valid_pss in ctx.file_map.values()
+
+
+def test_check_context_has_global_scopes(valid_pss):
+    _ContextCapture.captured = None
+    cmd_parse(files=[valid_pss], manager=_make_manager(_ContextCapture), quiet=True)
+
+    ctx = _ContextCapture.captured
+    assert len(ctx.global_scopes) == 1, (
+        "expected one GlobalScope for one user file, got %d" % len(ctx.global_scopes)
+    )
+    # The standard library must not appear: it is not a user file.
+    assert ctx.global_scopes[0].getFileid() != 0
+
+
+def test_parser_exposes_file_map_after_link(tmp_path):
+    """The underlying Parser API, independent of the CLI."""
+    from pssparser import Parser
+
+    f = tmp_path / "m.pss"
+    f.write_text("component pss_top { action A {} }\n")
+
+    p = Parser()
+    p.parse([str(f)])
+    p.link()
+
+    assert p.file_map == {1: str(f)}
+
+
+def test_user_units_come_from_the_linked_root(tmp_path):
+    """user_units() must read the root, not retained pre-link wrappers.
+
+    The linker takes ownership of each GlobalScope, so a Python wrapper held
+    across link() becomes a second owner of the same memory and segfaults on
+    the next attribute access. Reading through root.getUnit(i) yields
+    non-owning views, which is why this is safe and the obvious snapshot is
+    not. Accessed twice here deliberately: a double-free shows up on the
+    second pass.
+    """
+    from pssparser import Parser
+
+    f = tmp_path / "m.pss"
+    f.write_text("component pss_top { action A {} }\n")
+
+    p = Parser()
+    p.parse([str(f)])
+    p.link()
+
+    assert [u.getFileid() for u in p.user_units()] == [1]
+    assert [u.getFileid() for u in p.user_units()] == [1]

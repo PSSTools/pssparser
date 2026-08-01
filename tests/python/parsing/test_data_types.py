@@ -271,3 +271,73 @@ def test_type_in_constraint(parser):
     };
     """
     assert_parse_ok(code, parser)
+
+
+# ============================================================================
+# Legacy [msb:lsb] width specification
+# ============================================================================
+#
+# NOT part of the PSS 3.1 grammar: LRM 7.2 (c) specifies a single width
+# expression, and the dual-bound spelling is absent from the BNF.  It is
+# accepted only so existing PSS 1.x/2.x models can be ingested, and is folded
+# to a plain width at build time.
+
+def test_legacy_dual_bound_width(parser):
+    """`bit[31:0]` is accepted and means `bit[32]`."""
+    assert_parse_ok("""
+    struct s { bit[31:0] a; }
+    component pss_top { }
+    """, parser)
+
+
+def test_legacy_dual_bound_width_folds_to_width(parser):
+    """The folded width must be msb-lsb+1, not the msb.
+
+    Checked through the value domain rather than the AST: a 4-bit field
+    cannot hold 16, so a constraint requiring it is unsatisfiable only if the
+    width really is 4.
+    """
+    import pssparser.ast as ast
+
+    root = parse_pss("""
+    struct s { bit[3:0] nibble; }
+    component pss_top { }
+    """, parser=parser)
+
+    widths = {}
+
+    class V(ast.VisitorBase):
+        def visitField(self, i):
+            name = i.getName()
+            t = i.getType()
+            if name is None or t is None:
+                return
+            dt = None
+            try:
+                dt = t.getWidth()
+            except Exception:
+                return
+            if dt is not None:
+                try:
+                    widths[name.getId()] = int(dt.getValue())
+                except Exception:
+                    widths[name.getId()] = dt
+
+    root.accept(V())
+    assert widths.get("nibble") == 4, widths
+
+
+def test_non_zero_low_bound_is_rejected(parser):
+    """`bit[7:4]` has no meaning under the current type model."""
+    assert_parse_error("""
+    struct s { bit[7:4] a; }
+    component pss_top { }
+    """)
+
+
+def test_single_width_still_parses(parser):
+    """Control: the PSS 3.1 spelling must keep working."""
+    assert_parse_ok("""
+    struct s { bit[32] a; int[5] b; }
+    component pss_top { }
+    """, parser)

@@ -95,10 +95,41 @@ ast::ISymbolRefPath *TaskGetSpecializedTemplateType::mk(
         m_ctxt->getDebugMgr(), m_ctxt->root()).resolveT<ast::ISymbolTypeScope>(type);
     DEBUG("type_up=%s", type_up->getName().c_str());
 
+    if (m_ctxt->specializationDepth() >= MAX_SPECIALIZATION_DEPTH) {
+        // Specializing a type resolves its body, which may specialize again.
+        // Most such chains terminate because the argument list repeats and the
+        // existing specialization is reused, but some do not: `struct S<type T>
+        // { S<S<T>> next; }` names a strictly larger argument at every step and
+        // has no fixed point. Diagnose it rather than running out of stack.
+        m_ctxt->addErrorMarker(
+            type_up->getTarget()->getLocation(),
+            "recursive specialization of '%s' exceeded the maximum depth of "
+            "%d: each step specializes on a larger argument than the last, so "
+            "the chain does not terminate",
+            type_up->getName().c_str(),
+            MAX_SPECIALIZATION_DEPTH);
+        DEBUG_LEAVE("mk (depth limit)");
+        return 0;
+    }
+
     TaskCopyAst copier(m_ctxt->getFactory());
 
-    ast::ITypeScope *type_s = 
+    ast::ITypeScope *type_s =
         copier.copyT<ast::ITypeScope>(type_up->getTarget());
+
+    if (!type_s) {
+        // The copier hit a construct it does not handle.  It has already named
+        // the construct on stderr; report the failure against the declaration
+        // and give up on this specialization rather than dereferencing null.
+        m_ctxt->addErrorMarker(
+            type_up->getTarget()->getLocation(),
+            "failed to specialize type '%s': it contains a construct the "
+            "AST copier does not support",
+            type_up->getName().c_str());
+        DEBUG_LEAVE("mk (copy failed)");
+        return 0;
+    }
+
     type_s->setParent(type_up->getTarget()->getParent());
 
     if (DEBUG_EN) {
@@ -132,6 +163,17 @@ ast::ISymbolRefPath *TaskGetSpecializedTemplateType::mk(
     type_ss->setName(mkTypename(type, params));
 
     int32_t id = type_up->getSpec_types().size();
+
+    // Record where this specialization lives in the generic's spec_types
+    // vector. Everything that later builds a reference path *into* this
+    // specialization -- the symbol-table iterator by way of TaskGetItemIndex,
+    // and TaskGetSymbolRefPath -- reads the index from here. The copier had
+    // carried over the declaration's own child index instead, so every
+    // specialization claimed to be specialization 0 and references to a
+    // parameter from inside the second and later specializations resolved to
+    // the first one's binding.
+    type_s->setIndex(id);
+
     DEBUG("Adding \"%s\" to specialization %s (%p)",
         type_ss->getName().c_str(),
         type_up->getName().c_str(),

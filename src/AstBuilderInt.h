@@ -362,6 +362,12 @@ private:
 
     void attachPendingAnnotations(ast::IScopeChild *c);
 
+    /**
+     * Emit an error marker anchored at *t*, with printf-style formatting.
+     * Safe when no marker listener is attached.
+     */
+    void addErrorMarker(Token *t, const char *fmt, ...);
+
     bool evalConstantExpression(PSSParser::Constant_expressionContext *ctx, int64_t &val);
 
     bool evalExpression(PSSParser::ExpressionContext *ctx, int64_t &val);

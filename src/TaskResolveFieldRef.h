@@ -53,6 +53,9 @@ public:
     virtual void visitScopeChild(ast::IScopeChild *i) override;
 
 private:
+    /// Find `m_id` among `i`'s children, appending the step to `m_path`.
+    void lookup(ast::ISymbolScope *i);
+
     static dmgr::IDebug                     *m_dbg;
     ast::IExprId                            *m_id;
     ast::ISymbolRefPath                     *m_path;
