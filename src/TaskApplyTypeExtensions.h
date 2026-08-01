@@ -27,7 +27,7 @@
 
 namespace pssp {
 
-
+class ResolveContext;
 
 class TaskApplyTypeExtensions : public ast::VisitorBase {
 public:
@@ -69,9 +69,27 @@ protected:
      * Contribute one member of an `extend` body to the extended type's
      * logical scope, keyed by name when it has one.
      */
+    /**
+     * Put the enclosing scopes back in scope for an `extend` target lookup.
+     *
+     * Without this an unqualified target name resolves against the root only.
+     */
+    void seedCtxtScope(ResolveContext &ctxt);
+
     void mergeChild(
         ast::ISymbolScope       *target,
         ast::IScopeChild        *child);
+
+    /**
+     * Also contribute an extension body to a *generic* type's AST scope.
+     *
+     * Specializations are built by copying the generic's AST, not its symbol
+     * scope, so an extension merged only into the symbol scope is invisible to
+     * every instance. No-op for non-templated targets, which are never copied.
+     */
+    void mergeIntoGenericAst(
+        ast::ISymbolScope       *target_s,
+        ast::IExtendType        *ext);
 
     void addChild(
         ast::ISymbolScope       *target,
@@ -86,6 +104,9 @@ private:
     ast::IRootSymbolScope                   *m_root;
     ISymbolTableIteratorUP                  m_symtab_it;
     ast::ISymbolScope                       *m_target_s;
+    // Non-zero while walking inside a type scope, where an `extend` node may
+    // in fact be an `override action` and is allowed to fail to resolve.
+    int32_t                                 m_type_scope_depth;
 
 };
 

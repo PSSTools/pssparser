@@ -257,13 +257,20 @@ def test_non_generic_constraint_sees_own_field():
     """)])
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="a type parameter used as a super type does not contribute its "
-           "members: 'Failed to find elem zork', though the identical "
-           "non-generic control resolves. Remove this marker when a bound "
-           "parameter works as a super type.",
-)
+# ---------------------------------------------------------------------------
+# A type parameter used as a super type
+# ---------------------------------------------------------------------------
+#
+# `struct S<type T> : T` is inheritance from whatever the parameter is bound
+# to.  In the specialization the super-type reference still *spells* ``T``, so
+# resolving it lands on the parameter declaration -- which has no members of
+# its own.  Every site that walked the super chain stopped there, and so every
+# inherited member was invisible: to member lookup, to unqualified lookup
+# inside the body, and to the subtype test a category restriction performs.
+#
+# The tests below cross all three, because the walk is implemented separately
+# in each and fixing one proves nothing about the others.
+
 def test_parameter_as_super_type_contributes_members():
     assert_clean([("t.pss", """
         package p {
@@ -280,6 +287,93 @@ def test_concrete_super_type_contributes_members():
         package p {
             struct base_s { int zork; }
             struct S : base_s { }
+            struct Top { S s; exec init_down { s.zork = 1; } }
+        }
+    """)])
+
+
+def test_inherited_member_of_a_parameter_resolves_unqualified():
+    """A different lookup path: an unqualified name inside the body."""
+    assert_clean([("t.pss", """
+        package p {
+            struct base_s { rand int zork; }
+            struct S<type T> : T { exec post_solve { zork = 1; } }
+            struct Top { S<base_s> s; }
+        }
+    """)])
+
+
+def test_inherited_member_of_a_parameter_resolves_through_super():
+    assert_clean([("t.pss", """
+        package p {
+            struct base_s { rand int zork; }
+            struct S<type T> : T { exec post_solve { super.zork = 1; } }
+            struct Top { S<base_s> s; }
+        }
+    """)])
+
+
+def test_inherited_member_of_a_parameter_resolves_in_a_constraint():
+    assert_clean([("t.pss", """
+        package p {
+            struct base_s { rand int zork; }
+            struct S<type T> : T { constraint { zork == 1; } }
+            struct Top { S<base_s> s; }
+        }
+    """)])
+
+
+def test_a_member_that_does_not_exist_is_still_reported():
+    """Control: following the binding must not make lookup succeed blindly."""
+    res = run_isolated([("t.pss", """
+        package p {
+            struct base_s { int zork; }
+            struct S<type T> : T { }
+            struct Top { S<base_s> s; exec init_down { s.nope = 1; } }
+        }
+    """)])
+    assert res.rc == 1, res.describe()
+    assert "nope" in res.output, res.describe()
+
+
+def test_a_parameter_super_type_works_through_a_second_generic():
+    """The nested case, which failed for a second and separate reason.
+
+    ``M``'s super type is its own parameter, and ``M`` is specialized from
+    inside another generic's body.  That path resolved the super-type
+    reference *before* pushing the type's own scope, so ``T`` was looked up
+    where it means nothing -- while a direct use, which pushes the scope
+    first, worked.
+    """
+    assert_clean([("t.pss", """
+        package p {
+            struct base_s { int zork; }
+            struct M<type T> : T { }
+            struct S<type U> : M<U> { }
+            struct Top { S<base_s> s; exec init_down { s.zork = 1; } }
+        }
+    """)])
+
+
+def test_a_parameter_super_type_works_through_a_nested_field():
+    """The same nesting, with the inner generic as a field rather than a base."""
+    assert_clean([("t.pss", """
+        package p {
+            struct base_s { int zork; }
+            struct M<type T> : T { }
+            struct S<type U> { M<U> m; }
+            struct Top { S<base_s> s; exec init_down { s.m.zork = 1; } }
+        }
+    """)])
+
+
+def test_a_parameter_super_type_works_under_a_concrete_derived_type():
+    """A non-generic deriving from a generic whose super is a parameter."""
+    assert_clean([("t.pss", """
+        package p {
+            struct base_s { int zork; }
+            struct M<type T> : T { }
+            struct S : M<base_s> { }
             struct Top { S s; exec init_down { s.zork = 1; } }
         }
     """)])
@@ -378,18 +472,95 @@ def test_multidim_array_subscript_reports_a_bad_member():
     assert res.rc == 1, "expected a reported error, got %s" % res.describe()
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="a multi-dimensional subscript emits the internal line "
-           "\"Error: TaskResolveRefs: Handle multi-dim array subscript\" even "
-           "on a successful parse. Resolution is correct -- the two tests "
-           "above prove that -- but an 'Error:' line on a clean run is "
-           "misleading to a user and to any tool scraping output. Remove this "
-           "marker when the message is dropped or demoted to debug.",
-)
 def test_multidim_array_subscript_is_quiet_on_success():
     res = link(_MULTIDIM % "zork")
     assert "Handle multi-dim array subscript" not in res.output, res.describe()
+
+
+# The "Handle multi-dim array subscript" line was not merely noisy: it marked a
+# gap that was real.  The walk peeled collection layers for as long as the
+# element type was itself a collection, no matter how many subscripts were
+# written, so a reference could reach a member of a dimension it never named.
+# Only the *positive* cases were tested before, and they cannot see this --
+# over-unwrapping resolves them just fine.  The under-subscripted cases below
+# are what pin it.
+
+def test_too_few_subscripts_does_not_reach_the_inner_element():
+    """``arr[0].zork`` on an ``array<array<my_s,2>,4>`` names an array.
+
+    ``arr[0]`` is an ``array<my_s,2>``, which has no member ``zork``.  This
+    used to resolve, because the walk kept unwrapping.
+    """
+    res = link("""
+        package p {
+            struct my_s { int zork; }
+            struct Top {
+                array<array<my_s,2>,4> arr;
+                exec init_down { arr[0].zork = 1; }
+            }
+        }
+    """)
+    assert res.rc == 1, "expected a reported error, got %s" % res.describe()
+    assert not res.crashed, res.describe()
+
+
+def test_three_dimensions_need_three_subscripts():
+    """The same, one dimension deeper -- and its fully-subscripted control."""
+    src = """
+        package p {
+            struct my_s { int zork; }
+            struct Top {
+                array<array<array<my_s,2>,2>,4> arr;
+                exec init_down { arr%s.zork = 1; }
+            }
+        }
+    """
+    assert_clean([("t.pss", src % "[0][1][2]")])
+    assert link(src % "[0][1]").rc == 1
+
+
+@pytest.mark.parametrize(
+    "decl,ref",
+    [
+        ("list<my_s> c;", "c[0]"),
+        ("map<int,my_s> c;", "c[0]"),
+        ("list<array<my_s,2>> c;", "c[0][1]"),
+    ],
+    ids=["list", "map", "list-of-array"],
+)
+def test_a_subscripted_collection_yields_its_element_type(decl, ref):
+    """Not just ``array<>``.
+
+    The walk recognized only arrays, so a member of a ``list<>`` or ``map<>``
+    element could not be reached at all.  A ``map<K,V>`` subscript yields the
+    *value* -- the second parameter, which is the kind of thing an index-based
+    guess gets wrong.
+    """
+    assert_clean([("t.pss", """
+        package p {
+            struct my_s { int zork; }
+            struct Top { %s exec init_down { %s.zork = 1; } }
+        }
+    """ % (decl, ref))])
+
+
+@pytest.mark.parametrize(
+    "decl,ref",
+    [
+        ("list<my_s> c;", "c[0]"),
+        ("map<int,my_s> c;", "c[0]"),
+    ],
+    ids=["list", "map"],
+)
+def test_a_bad_member_of_a_collection_element_is_still_reported(decl, ref):
+    """Control: the element type is genuinely consulted, not waved through."""
+    res = link("""
+        package p {
+            struct my_s { int zork; }
+            struct Top { %s exec init_down { %s.nosuch = 1; } }
+        }
+    """ % (decl, ref))
+    assert res.rc == 1, "expected a reported error, got %s" % res.describe()
 
 
 # ---------------------------------------------------------------------------

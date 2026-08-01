@@ -23,6 +23,7 @@
 #include "pssp/impl/TaskResolveSymbolPathRef.h"
 #include "TaskBuildParamValList.h"
 #include "TaskExpr2DataType.h"
+#include "TaskResolveSuperTypeRef.h"
 
 
 namespace pssp {
@@ -38,9 +39,18 @@ TaskBuildParamValList::~TaskBuildParamValList() {
 
 }
 
+const ast::Location &TaskBuildParamValList::errLoc(ast::IScopeChild *pdecl) {
+    // A parameter declaration carries a location now, but a specialization's
+    // copied list may not, and neither may a synthesized one -- so fall back
+    // rather than trading a use-site location for <unknown>.
+    return (m_use_loc.lineno >= 0 || !pdecl)?m_use_loc:pdecl->getLocation();
+}
+
 ast::ITemplateParamDeclList *TaskBuildParamValList::build(
         ast::ISymbolScope               *plist,
-        ast::ITemplateParamValueList    *pvals) {
+        ast::ITemplateParamValueList    *pvals,
+        const ast::Location             &use_loc) {
+    m_use_loc = use_loc;
     DEBUG_ENTER("build plist=%d n_pvals=%d", 
         plist->getChildren().size(),
         pvals->getValues().size());
@@ -60,7 +70,7 @@ ast::ITemplateParamDeclList *TaskBuildParamValList::build(
             (int)plist->getChildren().size(),
             (int)pvals->getValues().size());
         m_ctxt->addErrorMarker(
-            plist->getChildren().at(0)->getLocation(),
+            errLoc(plist->getChildren().at(0).get()),
             "%s", buf);
         return 0;
     }
@@ -115,7 +125,27 @@ ast::ITemplateParamDeclList *TaskBuildParamValList::build(
 
                 dt = TaskExpr2DataType(m_ctxt).expr2dt(pval_expr);
 
-                ast::ITemplateGenericTypeParamDecl *p = 
+                if (!dt) {
+                    // The position declares a *type* parameter and was handed
+                    // an expression that does not denote a type -- `S<4>` for
+                    // `struct S<type T>`. TaskExpr2DataType returns null for
+                    // anything it does not recognize, and that null used to be
+                    // passed straight into the parameter below, producing a
+                    // type parameter bound to nothing.
+                    m_ctxt->addErrorMarker(
+                        errLoc(plist->getChildren().at(plist_idx).get()),
+                        "template parameter '%s' expects a type, but the "
+                        "argument supplied is a value",
+                        (m_ptype_generic_type->getName())
+                            ?m_ptype_generic_type->getName()->getId().c_str()
+                            :"<unknown>"
+                    );
+                    delete m_ret;
+                    m_ret = 0;
+                    return 0;
+                }
+
+                ast::ITemplateGenericTypeParamDecl *p =
                     m_ctxt->getFactory()->getAstFactory()->mkTemplateGenericTypeParamDecl(
                         copier.copyT<ast::IExprId>(m_ptype_generic_type->getName()),
                         dt
@@ -159,6 +189,21 @@ ast::ITemplateParamDeclList *TaskBuildParamValList::build(
             // specialization of S shares one Q -- and Q's body sees a
             // parameter that is bound to nothing.
             ast::IDataType *bound = substTypeArg();
+
+            if (m_ptype_category_type) {
+                // Check what is actually being bound: when the argument names
+                // a bound parameter of an enclosing generic, the binding is
+                // the type this position receives, and the parameter
+                // reference itself is not checkable.
+                if (!checkCategoryArg(
+                        m_ptype_category_type,
+                        (bound)?bound:m_pval_type->getValue(),
+                        errLoc(plist->getChildren().at(plist_idx).get()))) {
+                    delete m_ret;
+                    m_ret = 0;
+                    return 0;
+                }
+            }
 
             DEBUG("Add parameter %s", (name)?name->getId().c_str():"<unknown>");
             DEBUG("  value=%p type=%p bound=%p",
@@ -227,6 +272,22 @@ ast::ITemplateParamDeclList *TaskBuildParamValList::build(
             }
         }
 
+        // A default is an argument too, and is subject to the same two gates.
+        // `struct S<struct T : base_s = unrelated_s>` is wrong at its
+        // declaration; it is caught here, at the first use that falls back to
+        // the default, because that is where the default is turned into a
+        // binding.
+        if (m_ptype_category_type && type) {
+            if (!checkCategoryArg(
+                    m_ptype_category_type,
+                    type,
+                    errLoc(plist->getChildren().at(plist_idx).get()))) {
+                delete m_ret;
+                m_ret = 0;
+                break;
+            }
+        }
+
         DEBUG("Add parameter %s", (name)?name->getId().c_str():"<unset>");
         ast::ITemplateParamDecl *p = 0;
         if (value) {
@@ -235,6 +296,24 @@ ast::ITemplateParamDeclList *TaskBuildParamValList::build(
                 copier.copy(type),
                 value?copier.copy(value):0
             );
+        } else if (m_ptype_value) {
+            // A value parameter with no default and no supplied argument.
+            //
+            // `type` is non-null here, but it is the parameter's *declared*
+            // type -- the `int` in `struct S<type T, int N>` -- not a default.
+            // Falling through to the generic-type branch below therefore
+            // manufactured a *type* parameter named N bound to `int`, so
+            // `S<int>` was accepted silently and N was bound to nonsense.
+            // A declared type is not a value; missing is missing.
+            m_ctxt->addErrorMarker(
+                errLoc(plist->getChildren().at(plist_idx).get()),
+                "no value supplied for template parameter '%s', and it has "
+                "no default",
+                (name)?name->getId().c_str():"<unknown>"
+            );
+            delete m_ret;
+            m_ret = 0;
+            break;
         } else if (type) {
             p = m_ctxt->getFactory()->getAstFactory()->mkTemplateGenericTypeParamDecl(
                 copier.copyT<ast::IExprId>(name),
@@ -242,7 +321,7 @@ ast::ITemplateParamDeclList *TaskBuildParamValList::build(
             );
         } else {
             m_ctxt->addErrorMarker(
-                plist->getChildren().at(plist_idx)->getLocation(),
+                errLoc(plist->getChildren().at(plist_idx).get()),
                 "No default provided for template parameter %s",
                 (name)?name->getId().c_str():"<unknown>"
             );
@@ -364,6 +443,164 @@ ast::IExpr *TaskBuildParamValList::substValueDflt(ast::IExpr *dflt) {
         return v->getDflt();
     }
     return 0;
+}
+
+static const char *categoryName(ast::TypeCategory c) {
+    switch (c) {
+        case ast::TypeCategory::Action:    return "action";
+        case ast::TypeCategory::Component: return "component";
+        case ast::TypeCategory::Buffer:    return "buffer";
+        case ast::TypeCategory::Resource:  return "resource";
+        case ast::TypeCategory::State:     return "state";
+        case ast::TypeCategory::Stream:    return "stream";
+        case ast::TypeCategory::Struct:    return "struct";
+    }
+    return "<unknown>";
+}
+
+/**
+ * The category a type declaration belongs to.
+ *
+ * Returns false for a declaration whose category is not one a parameter can
+ * name -- an enum or a function, say. Those are left to the silent path
+ * rather than reported, because getting the classification wrong here would
+ * reject valid code.
+ */
+static bool categoryOf(ast::ITypeScope *ts, ast::TypeCategory &cat) {
+    if (ast::IStruct *s = dynamic_cast<ast::IStruct *>(ts)) {
+        switch (s->getKind()) {
+            case ast::StructKind::Buffer:   cat = ast::TypeCategory::Buffer; break;
+            case ast::StructKind::Resource: cat = ast::TypeCategory::Resource; break;
+            case ast::StructKind::State:    cat = ast::TypeCategory::State; break;
+            case ast::StructKind::Stream:   cat = ast::TypeCategory::Stream; break;
+            case ast::StructKind::Struct:   cat = ast::TypeCategory::Struct; break;
+            default: return false;
+        }
+        return true;
+    } else if (dynamic_cast<ast::IAction *>(ts)) {
+        cat = ast::TypeCategory::Action;
+        return true;
+    } else if (dynamic_cast<ast::IComponent *>(ts)) {
+        cat = ast::TypeCategory::Component;
+        return true;
+    }
+    return false;
+}
+
+static std::string typeScopeName(ast::ITypeScope *ts) {
+    return (ts && ts->getName())?ts->getName()->getId():std::string("<unknown>");
+}
+
+ast::IScopeChild *TaskBuildParamValList::resolveRef(const ast::ISymbolRefPath *ref) {
+    return TaskResolveSymbolPathRef(
+        m_ctxt->getDebugMgr(),
+        m_ctxt->root()).resolve(ref);
+}
+
+ast::ITypeScope *TaskBuildParamValList::asTypeScope(ast::IScopeChild *sc) {
+    if (!sc) {
+        return 0;
+    }
+    // A resolved reference lands on the symbol-tree node, which carries the
+    // declaration as its target.
+    if (ast::ISymbolChildrenScope *ss =
+            dynamic_cast<ast::ISymbolChildrenScope *>(sc)) {
+        sc = ss->getTarget();
+    }
+    return dynamic_cast<ast::ITypeScope *>(sc);
+}
+
+ast::ITypeScope *TaskBuildParamValList::argTypeScope(ast::IDataType *arg) {
+    ast::IDataTypeUserDefined *ud = dynamic_cast<ast::IDataTypeUserDefined *>(arg);
+    if (!ud || !ud->getType_id()) {
+        return 0;
+    }
+    return asTypeScope(resolveRef(ud->getType_id()->getTarget()));
+}
+
+bool TaskBuildParamValList::derivesFrom(
+        ast::ITypeScope *ts,
+        ast::ITypeScope *base) {
+    // A malformed or cyclic inheritance chain must not hang the walk. The
+    // depth bound is deliberately generous: a real hierarchy this deep is
+    // implausible, so hitting it means something is wrong, and the answer
+    // "not a subtype" is the safe one only because the caller reports and
+    // stops rather than silently binding.
+    for (uint32_t depth=0; ts && depth<64; depth++) {
+        if (ts == base) {
+            return true;
+        }
+        if (!ts->getSuper_t()) {
+            break;
+        }
+        // A generic that inherits from its own parameter (`struct Q<type T> :
+        // T`) really is a subtype of whatever that parameter is bound to, so
+        // the walk has to follow the binding rather than stop at the
+        // parameter declaration.
+        ts = asTypeScope(
+            TaskResolveSuperTypeRef(m_ctxt->getDebugMgr(), m_ctxt->root())
+                .resolve(ts));
+    }
+    return false;
+}
+
+bool TaskBuildParamValList::checkCategoryArg(
+        ast::ITemplateCategoryTypeParamDecl *decl,
+        ast::IDataType                      *arg,
+        const ast::Location                 &loc) {
+    DEBUG_ENTER("checkCategoryArg");
+    ast::ITypeScope *arg_ts = argTypeScope(arg);
+
+    if (!arg_ts) {
+        // Either the argument is not a user-defined type reference at all, or
+        // it names something this pass cannot resolve to a declaration -- an
+        // enum type, or a parameter of an enclosing generic that is not yet
+        // bound. Neither is grounds for an error here.
+        DEBUG_LEAVE("checkCategoryArg -- nothing resolvable to check");
+        return true;
+    }
+
+    const char *pname = (decl->getName())
+        ?decl->getName()->getId().c_str():"<unknown>";
+    std::string aname = typeScopeName(arg_ts);
+
+    ast::TypeCategory arg_cat;
+    if (categoryOf(arg_ts, arg_cat) && arg_cat != decl->getCategory()) {
+        // LRM 10.3.2.1's own example turns on this: `struct T : base_t`
+        // rejects the buffers b1 and b2 even though both derive from base_t.
+        // The category is the first gate, and the restriction the second.
+        m_ctxt->addErrorMarker(loc,
+            "template parameter '%s' requires an argument of type category "
+            "'%s', but the argument '%s' is of category '%s'",
+            pname,
+            categoryName(decl->getCategory()),
+            aname.c_str(),
+            categoryName(arg_cat));
+        DEBUG_LEAVE("checkCategoryArg -- category mismatch");
+        return false;
+    }
+
+    if (decl->getRestriction()) {
+        ast::ITypeScope *base = asTypeScope(
+            resolveRef(decl->getRestriction()->getTarget()));
+
+        // An unresolved restriction is reported where it is written, not here;
+        // failing every use of the generic as well would bury that one error.
+        if (base && !derivesFrom(arg_ts, base)) {
+            m_ctxt->addErrorMarker(loc,
+                "template parameter '%s' is restricted to '%s' and its "
+                "subtypes, but the argument '%s' does not derive from '%s'",
+                pname,
+                typeScopeName(base).c_str(),
+                aname.c_str(),
+                typeScopeName(base).c_str());
+            DEBUG_LEAVE("checkCategoryArg -- restriction violated");
+            return false;
+        }
+    }
+
+    DEBUG_LEAVE("checkCategoryArg -- ok");
+    return true;
 }
 
 void TaskBuildParamValList::visitDataTypeEnum(ast::IDataTypeEnum *i) {

@@ -21,6 +21,7 @@
 #include "dmgr/impl/DebugMacros.h"
 #include "pssp/impl/TaskResolveSymbolPathRef.h"
 #include "TaskFindPathElem.h"
+#include "TaskResolveSuperTypeRef.h"
 
 
 namespace pssp {
@@ -97,8 +98,10 @@ void TaskFindPathElem::visitSymbolTypeScope(ast::ISymbolTypeScope *i) {
 void TaskFindPathElem::visitTypeScope(ast::ITypeScope *i) {
     DEBUG_ENTER("visitTypeScope %s", i->getName()->getId().c_str());
     if (i->getSuper_t()) {
-        ast::IScopeChild *c = TaskResolveSymbolPathRef(m_dmgr, m_root).resolve(
-            i->getSuper_t()->getTarget());
+        // Not a plain path resolution: the super type may be one of this
+        // type's own parameters (`struct S<type T> : T`), in which case what
+        // is inherited is whatever the parameter is bound to.
+        ast::IScopeChild *c = TaskResolveSuperTypeRef(m_dmgr, m_root).resolve(i);
 
         // An unresolvable super-type yields a null scope. Walking it would
         // fault; the caller reports the failure to find the element, and the

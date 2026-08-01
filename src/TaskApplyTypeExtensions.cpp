@@ -27,6 +27,17 @@
 
 namespace pssp {
 
+/**
+ * Discards every marker.
+ *
+ * Used for an `extend` target lookup that is allowed to fail -- see
+ * visitSymbolExtendScope.
+ */
+class SwallowMarkers : public IMarkerListener {
+public:
+    virtual void marker(const IMarker *m) override { }
+    virtual bool hasSeverity(MarkerSeverityE s) override { return false; }
+};
 
 
 
@@ -37,6 +48,7 @@ TaskApplyTypeExtensions::TaskApplyTypeExtensions(
         m_factory(factory), m_marker_l(marker_l) {
     DEBUG_INIT("TaskApplyTypeExtensions", dmgr);
     m_target_s = 0;
+    m_type_scope_depth = 0;
 }
 
 TaskApplyTypeExtensions::~TaskApplyTypeExtensions() {
@@ -53,9 +65,28 @@ void TaskApplyTypeExtensions::apply(ast::IRootSymbolScope *root) {
     DEBUG_LEAVE("apply");
 }
 
+/**
+ * Resolve an `extend` target from where the `extend` statement is written.
+ *
+ * A bare ResolveContext starts its symbol-table iterator at the root, and
+ * TaskResolveRootRef resolves an unqualified name by walking that iterator's
+ * scope stack outward. With nothing on the stack but the root, the only names
+ * in scope were the package names -- which is why `package p { struct S {}
+ * extend struct S {} }` reported "unknown type 'S'; did you mean 'p'?" and only
+ * a fully-qualified `p::S` ever resolved. LRM Example247 is written unqualified.
+ *
+ * The traversal already tracks the enclosing scopes in m_symtab_it; handing the
+ * resolver a clone of it (a clone because the walk pops as it goes) puts the
+ * declaring package, its imports, and any enclosing component back in scope.
+ */
+void TaskApplyTypeExtensions::seedCtxtScope(ResolveContext &ctxt) {
+    ctxt.pushSymtab(m_symtab_it->clone());
+}
+
 void TaskApplyTypeExtensions::visitExtendEnum(ast::IExtendEnum *i) {
     DEBUG_ENTER("visitExtendEnum");
     ResolveContext ctxt(m_factory, m_marker_l, m_root);
+    seedCtxtScope(ctxt);
     ast::ISymbolRefPath *target_p = TaskResolveRef(&ctxt).resolve(i->getTarget());
 
     if (!target_p) {
@@ -96,6 +127,7 @@ void TaskApplyTypeExtensions::visitExtendEnum(ast::IExtendEnum *i) {
 void TaskApplyTypeExtensions::visitExtendType(ast::IExtendType *i) {
     DEBUG_ENTER("visitExtendType");
     ResolveContext ctxt(m_factory, m_marker_l, m_root);
+    seedCtxtScope(ctxt);
     ast::ISymbolRefPath *target_p = TaskResolveRef(&ctxt).resolve(i->getTarget());
 
     if (!target_p) {
@@ -145,7 +177,26 @@ void TaskApplyTypeExtensions::visitSymbolEnumScope(ast::ISymbolEnumScope *i) {
 void TaskApplyTypeExtensions::visitSymbolExtendScope(ast::ISymbolExtendScope *i) {
     DEBUG_ENTER("visitSymbolExtendScope");
     ast::IExtendType *ast_target = dynamic_cast<ast::IExtendType *>(i->getTarget());
-    ResolveContext ctxt(m_factory, m_marker_l, m_root);
+
+    // Inside a type scope, a failed lookup is not reported. `override action A
+    // { ... }` is built as an IExtendType targeting A (AstBuilderInt::
+    // visitOverride_action_declaration), so an override and a real extension
+    // are the same node here and cannot be told apart. They need opposite
+    // lookups: LRM 17.3 restricts an in-component `extend` to a type defined
+    // in that same component, while LRM 19.2.2a requires an override's target
+    // to come from a *base* component -- and super types are not resolved
+    // until after this pass, so an override's target cannot be found at all.
+    //
+    // Reporting the miss would put "unknown type 'base_a'" on LRM Example57,
+    // which is valid. Staying quiet keeps an override a no-op, which is what
+    // it has always been. Overriding is unimplemented either way; see
+    // docs/pssparser-fix-plan.md.
+    SwallowMarkers quiet;
+    ResolveContext ctxt(
+        m_factory,
+        m_type_scope_depth?static_cast<IMarkerListener *>(&quiet):m_marker_l,
+        m_root);
+    seedCtxtScope(ctxt);
     ast::ISymbolRefPath *target_p = TaskResolveRef(&ctxt).resolve(
         ast_target->getTarget());
 
@@ -157,8 +208,27 @@ void TaskApplyTypeExtensions::visitSymbolExtendScope(ast::ISymbolExtendScope *i)
     ast_target->getTarget()->setTarget(target_p);
     ast::IScopeChild *ext_target = m_symtab_it->resolveAbsPath(target_p);
     ast::ISymbolScope *target_s = dynamic_cast<ast::ISymbolScope *>(ext_target);
+    if (!target_s) {
+        // The path resolved to something that is not a scope. A template
+        // instance extension (`extend struct S<int>`) does this: its
+        // reference path ends in an ElemKind_TypeSpec step, and no
+        // specialization exists yet at this point in the link -- extensions
+        // are applied before TaskResolveRefs creates any -- so the step
+        // indexes into the generic's (empty) specialization list and lands on
+        // an unrelated node. That node was then written to as though it were a
+        // scope, which is the segfault. See visitSymbolExtendScope's caller
+        // and TaskGetSpecializedTemplateType::mk.
+        m_marker_l->marker(IMarkerUP(m_factory->mkMarker(
+            "cannot extend a template instance: extending a specific "
+            "specialization (LRM 17.2.6b) is not supported; extend the "
+            "generic type instead, which applies to every instance",
+            MarkerSeverityE::Error,
+            ast_target->getTarget()->getElems().back()->getId()->getLocation())).get());
+        DEBUG_LEAVE("visitSymbolExtendScope - target is not a scope");
+        return;
+    }
     DEBUG("Target scope: %s", target_s->getName().c_str());
-    
+
     m_target_s = target_s;
     DEBUG("%d children in extension scope", i->getChildren().size());
 
@@ -174,6 +244,8 @@ void TaskApplyTypeExtensions::visitSymbolExtendScope(ast::ISymbolExtendScope *i)
         mergeChild(target_s, it->get());
     }
     m_target_s = 0;
+
+    mergeIntoGenericAst(target_s, ast_target);
 
     DEBUG_LEAVE("visitSymbolExtendScope");
 }
@@ -191,6 +263,21 @@ void TaskApplyTypeExtensions::visitSymbolTypeScope(ast::ISymbolTypeScope *i) {
     if (m_target_s) {
         DEBUG("Adding to the target scope (%s)", m_target_s->getName().c_str());
         addChild(m_target_s, i, i->getName());
+    } else {
+        // Not merging: this is the ordinary walk looking for `extend`
+        // statements, and a type scope can contain them. LRM 17.3 makes a
+        // component the *expected* place to write one -- "Extending types in a
+        // component scope is only allowed for types that are defined in that
+        // scope" -- so `component C { action A {...} extend action A {...} }`
+        // is the normal form.
+        //
+        // This method used to stop here, which meant the walk never entered a
+        // component at all and every extension written inside one was silently
+        // dropped: the target resolved, no diagnostic was issued, and the
+        // members simply were not there. Templates had nothing to do with it.
+        m_type_scope_depth++;
+        visitSymbolScope(i);
+        m_type_scope_depth--;
     }
     DEBUG_LEAVE("visitSymbolTypeScope");
 }
@@ -275,6 +362,47 @@ void TaskApplyTypeExtensions::visitTypeScope(ast::ITypeScope *i) {
     }
 
     DEBUG_LEAVE("visitTypeScope");
+}
+
+void TaskApplyTypeExtensions::mergeIntoGenericAst(
+        ast::ISymbolScope       *target_s,
+        ast::IExtendType        *ext) {
+    // Extending a *generic* has to reach the AST, not just the symbol tree.
+    //
+    // LRM 17.2.6a: extending the generic template type applies the extension
+    // to every instance of it. But a specialization is not built from the
+    // generic's symbol scope -- TaskGetSpecializedTemplateType::mk copies the
+    // generic's **AST** type scope and builds a fresh symbol tree from the
+    // copy. Everything this task merged above went into the symbol scope
+    // only, so the copy never saw it and no specialization had the extension's
+    // members: `extend struct p::S { int added; }` followed by `S<int> s;
+    // s.added` reported "Failed to find elem added".
+    //
+    // Contributing to the AST as well is also what makes an extension body
+    // that mentions a template parameter work at all. `extend struct p::S
+    // { T w; }` has to bind `T` per instance, so the member must be *copied*
+    // into each specialization and resolved there -- one shared node merged
+    // into the generic could only ever have one binding.
+    //
+    // Non-templated types are left alone: they are never copied, so the symbol
+    // merge above is the whole story for them, and adding the same nodes twice
+    // would only create a second path to them.
+    ast::ITypeScope *target_ast = dynamic_cast<ast::ITypeScope *>(
+        target_s->getTarget());
+
+    if (!target_ast || !target_ast->getParams()) {
+        return;
+    }
+
+    DEBUG_ENTER("mergeIntoGenericAst %s", target_s->getName().c_str());
+    for (std::vector<ast::IScopeChildUP>::const_iterator
+        it=ext->getChildren().begin();
+        it!=ext->getChildren().end(); it++) {
+        // Non-owning, for the reason spelled out in addChild: the `extend`
+        // statement holds the sole owning reference.
+        target_ast->getChildren().push_back(ast::IScopeChildUP(it->get(), false));
+    }
+    DEBUG_LEAVE("mergeIntoGenericAst %s", target_s->getName().c_str());
 }
 
 void TaskApplyTypeExtensions::mergeChild(

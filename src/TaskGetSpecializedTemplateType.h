@@ -54,6 +54,10 @@ public:
         const ast::ISymbolRefPath           *type,
         ast::ITemplateParamDeclList         *params);
 
+    /// Render one bound argument for the specialization's name.
+    std::string argName(ast::IDataType *dt);
+    std::string argName(ast::IExpr *e);
+
     std::string mkTypename(
         const ast::ISymbolRefPath           *type,
         ast::ITemplateParamDeclList         *params);

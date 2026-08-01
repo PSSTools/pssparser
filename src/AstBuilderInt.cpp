@@ -5352,9 +5352,30 @@ ast::IExprRefPathStatic *AstBuilderInt::mkExprRefPathStatic(
     return ret;
 }
 
+/**
+ * Give a template parameter declaration the location of its own name.
+ *
+ * The declarations were built without one, so every diagnostic that pointed at
+ * a parameter -- "duplicate parameter name 'T'" among them -- was reported at
+ * <unknown>:-1:0. The name carries a usable location already; the declaration
+ * simply never took it.
+ */
+static void setDeclLocation(ast::ITemplateParamDecl *p) {
+    if (p && p->getName()) {
+        p->setLocation(p->getName()->getLocation());
+    }
+}
+
+// Every alternative of the `type_category` grammar rule must appear here.
+// `buffer` did not: the lookup below dereferenced end() and read whatever the
+// map's header node happened to contain, so `struct S<buffer T>` bound the
+// parameter to a garbage category. It went unnoticed only because nothing
+// read the category back -- see TaskBuildParamValList::checkCategoryArg,
+// which now does.
 static std::map<std::string, ast::TypeCategory> type_category_m = {
     {"action", ast::TypeCategory::Action },
     {"component", ast::TypeCategory::Component },
+    {"buffer", ast::TypeCategory::Buffer },
     {"resource", ast::TypeCategory::Resource },
     {"state", ast::TypeCategory::State },
     {"stream", ast::TypeCategory::Stream },
@@ -5377,10 +5398,17 @@ ast::ITemplateParamDeclList *AstBuilderInt::mkTypeParamDecl(
                     ((*it)->type_param_decl()->generic_type_param_decl()->data_type())?
                         mkDataType((*it)->type_param_decl()->generic_type_param_decl()->data_type()):0
                 );
+                setDeclLocation(gen_p);
                 plist->getParams().push_back(ast::ITemplateParamDeclUP(gen_p));
             } else { // Type-category parameter
                 PSSParser::Category_type_param_declContext *cat_ctx = (*it)->type_param_decl()->category_type_param_decl();
-                ast::TypeCategory category = type_category_m.find(cat_ctx->type_category()->getText())->second;
+                std::map<std::string, ast::TypeCategory>::const_iterator cat_it =
+                    type_category_m.find(cat_ctx->type_category()->getText());
+                // A category the map does not know is a gap between the
+                // grammar and this table, not a user error; default to the
+                // most permissive reading rather than dereferencing end().
+                ast::TypeCategory category = (cat_it != type_category_m.end())
+                    ?cat_it->second:ast::TypeCategory::Struct;
                 ast::IDataType *dflt = 0;
 
                 if ((*it)->type_param_decl()->category_type_param_decl()->type_identifier()) {
@@ -5397,6 +5425,7 @@ ast::ITemplateParamDeclList *AstBuilderInt::mkTypeParamDecl(
                         mkTypeId((*it)->type_param_decl()->category_type_param_decl()->type_restriction()->type_identifier()):0,
                     dflt
                 );
+                setDeclLocation(cat_p);
                 plist->getParams().push_back(ast::ITemplateParamDeclUP(cat_p));
             }
         } else {
@@ -5407,6 +5436,7 @@ ast::ITemplateParamDeclList *AstBuilderInt::mkTypeParamDecl(
                 ((*it)->value_param_decl()->constant_expression())?
                     mkExpr((*it)->value_param_decl()->constant_expression()->expression()):0
             );
+            setDeclLocation(val_p);
             plist->getParams().push_back(ast::ITemplateParamDeclUP(val_p));
         }
     }

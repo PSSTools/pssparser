@@ -250,12 +250,115 @@ ast::ISymbolRefPath *TaskGetSpecializedTemplateType::mk(
     return ret;
 }
 
+/**
+ * Render one bound *type* argument.
+ *
+ * Prefers the resolved declaration's name over the spelling, so an argument
+ * that is itself a specialization reads as what it is: specializations are
+ * created innermost-first, so `Q<int>` already carries that name by the time
+ * an enclosing `S<Q<int>>` is named.
+ */
+std::string TaskGetSpecializedTemplateType::argName(ast::IDataType *dt) {
+    if (!dt) {
+        return "?";
+    }
+
+    if (ast::IDataTypeUserDefined *ud =
+            dynamic_cast<ast::IDataTypeUserDefined *>(dt)) {
+        if (ud->getType_id()) {
+            ast::IScopeChild *sc = TaskResolveSymbolPathRef(
+                m_ctxt->getDebugMgr(),
+                m_ctxt->root()).resolve(ud->getType_id()->getTarget());
+            if (ast::ISymbolChildrenScope *ss =
+                    dynamic_cast<ast::ISymbolChildrenScope *>(sc)) {
+                return ss->getName();
+            }
+            // Unresolved: fall back to what was written.
+            if (ud->getType_id()->getElems().size() &&
+                ud->getType_id()->getElems().back()->getId()) {
+                return ud->getType_id()->getElems().back()->getId()->getId();
+            }
+        }
+    } else if (ast::IDataTypeInt *i = dynamic_cast<ast::IDataTypeInt *>(dt)) {
+        std::string base = (i->getIs_signed())?"int":"bit";
+        if (ast::IExprUnsignedNumber *w =
+                dynamic_cast<ast::IExprUnsignedNumber *>(i->getWidth())) {
+            return base + "[" + std::to_string(w->getValue()) + "]";
+        }
+        return base;
+    } else if (dynamic_cast<ast::IDataTypeBool *>(dt)) {
+        return "bool";
+    } else if (dynamic_cast<ast::IDataTypeString *>(dt)) {
+        return "string";
+    } else if (dynamic_cast<ast::IDataTypeChandle *>(dt)) {
+        return "chandle";
+    }
+
+    // Deliberately not silent. A name that says "there is an argument here I
+    // cannot render" is still a name that distinguishes two specializations
+    // less well than it should -- but it says so, where `<>` did not.
+    return "?";
+}
+
+/** Render one bound *value* argument. */
+std::string TaskGetSpecializedTemplateType::argName(ast::IExpr *e) {
+    if (!e) {
+        return "?";
+    }
+    if (ast::IExprUnsignedNumber *n =
+            dynamic_cast<ast::IExprUnsignedNumber *>(e)) {
+        return std::to_string(n->getValue());
+    } else if (ast::IExprSignedNumber *n =
+            dynamic_cast<ast::IExprSignedNumber *>(e)) {
+        return std::to_string(n->getValue());
+    } else if (ast::IExprId *id = dynamic_cast<ast::IExprId *>(e)) {
+        return id->getId();
+    }
+    return "?";
+}
+
+/**
+ * The name a specialization is known by.
+ *
+ * This used to emit `name<>` -- the angle brackets with nothing between them --
+ * so every specialization of a generic had the *same* name. Identity was never
+ * affected (specializations are matched by comparing parameter lists, not
+ * names), but everything a human or a tool reads was: a diagnostic naming
+ * `S<>` cannot say which use it means, and an outline built on the API showed
+ * one entry repeated.
+ *
+ * It also made a name test on a specialization scope meaningless, which is
+ * what several collection checks were doing -- see BuiltinCollectionUtil.
+ */
 std::string TaskGetSpecializedTemplateType::mkTypename(
         const ast::ISymbolRefPath           *type,
         ast::ITemplateParamDeclList         *params) {
     std::string name = TaskResolveSymbolPathRef(m_ctxt->getDebugMgr(), m_ctxt->root()).mkName(type);
 
     name += "<";
+
+    if (params) {
+        for (std::vector<ast::ITemplateParamDeclUP>::const_iterator
+            it=params->getParams().begin();
+            it!=params->getParams().end(); it++) {
+            if (it != params->getParams().begin()) {
+                name += ",";
+            }
+            // On a specialized list the dflt slot holds the bound argument.
+            if (ast::ITemplateValueParamDecl *v =
+                    dynamic_cast<ast::ITemplateValueParamDecl *>(it->get())) {
+                name += argName(v->getDflt());
+            } else if (ast::ITemplateGenericTypeParamDecl *g =
+                    dynamic_cast<ast::ITemplateGenericTypeParamDecl *>(it->get())) {
+                name += argName(g->getDflt());
+            } else if (ast::ITemplateCategoryTypeParamDecl *c =
+                    dynamic_cast<ast::ITemplateCategoryTypeParamDecl *>(it->get())) {
+                name += argName(c->getDflt());
+            } else {
+                name += "?";
+            }
+        }
+    }
 
     name += ">";
 

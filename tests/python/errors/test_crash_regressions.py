@@ -124,10 +124,17 @@ def test_sizeof_builtin_type_is_accepted():
     assert_clean(SIZEOF_BUILTIN)
 
 
-# PLAN: phase 1.3 -- TaskComputeTypePackedSize resolves an unresolved path
-@pytest.mark.xfail(strict=True, reason="phase 1.3: crash in TaskComputeTypePackedSize")
 def test_sizeof_user_type_is_accepted():
-    """LRM 21.13.2. This is how a model computes layout without hard-coding it."""
+    """LRM 21.13.2. This is how a model computes layout without hard-coding it.
+
+    Closed by the §4.9 static-ref-path fix, and the cause was not where phase
+    1.3 recorded it. ``sizeof_s`` is declared in ``addr_reg_pkg``, and
+    ``TaskResolveRefs::visitExprRefPathStatic`` never resolved a template
+    argument at the *use* site, so the unqualified ``s`` was looked up in
+    ``addr_reg_pkg`` rather than in ``p``, where it is declared. Hence the
+    "did you mean 'set'?" suggestion the symptom carried: ``set`` is a builtin,
+    and the builtins were the only types the lookup could see.
+    """
     assert_clean(SIZEOF_USER_TYPE)
 
 

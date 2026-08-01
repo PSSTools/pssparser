@@ -37,9 +37,14 @@ public:
 
     virtual ~TaskSpecializeParameterizedRef();
 
+    /**
+     * @param use_loc the location of the reference being specialized, used to
+     *   report an argument-list error where the reader can act on it.
+     */
     ast::ISymbolRefPath *specialize(
         ast::ISymbolRefPath                 *target,
-        ast::ITemplateParamValueList        *pvals);
+        ast::ITemplateParamValueList        *pvals,
+        const ast::Location                 &use_loc);
 
 private:
     static dmgr::IDebug                     *m_dbg;

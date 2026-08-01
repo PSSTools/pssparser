@@ -32,6 +32,7 @@
 #include "pssp/impl/TaskResolveSymbolPathRef.h"
 #include "pssp/impl/TaskGetElemSymbolScope.h"
 #include "pssp/impl/TaskGetSubscriptSymbolScope.h"
+#include "pssp/impl/BuiltinCollectionUtil.h"
 #include "pssp/impl/TaskIsPyRef.h"
 
 #include <algorithm>
@@ -189,11 +190,6 @@ void TaskResolveRefs::resolve(ast::ISymbolTypeScope *scope) {
         DEBUG_LEAVE("Resolving names in plist");
     }
 
-    ast::ITypeScope *target_s = dynamic_cast<ast::ITypeScope *>(scope->getTarget());
-    if (target_s->getSuper_t()) {
-        target_s->getSuper_t()->accept(m_this);
-    }
-
     // Create an iterator based on the type-scope itself
     ISymbolTableIterator *type_it = TaskResolveSymbolPathRef(
         m_ctxt->getDebugMgr(),
@@ -243,6 +239,20 @@ void TaskResolveRefs::resolve(ast::ISymbolTypeScope *scope) {
         }
 
     m_ctxt->symtab()->pushScope(scope, kind);
+
+    // The super type is resolved *after* the type's own scope is pushed, not
+    // before. A generic may inherit from one of its own parameters
+    // (`struct M<type T> : T`), and the parameter is only in scope once the
+    // type is. Resolving first meant `T` was looked up in the enclosing scope,
+    // where it means nothing -- which is why a generic like that could be
+    // specialized directly, where a different path pushes the scope first, but
+    // not from inside another generic's body, which comes through here.
+    ast::ITypeScope *target_s = dynamic_cast<ast::ITypeScope *>(scope->getTarget());
+    if (target_s->getSuper_t()) {
+        DEBUG_ENTER("Resolve super type");
+        target_s->getSuper_t()->accept(m_this);
+        DEBUG_LEAVE("Resolve super type");
+    }
 
     TaskLinkActionCompRefFields(m_ctxt->getFactory()).link(scope);
 
@@ -488,16 +498,17 @@ void TaskResolveRefs::visitExprRefPathContext(ast::IExprRefPathContext *i) {
             }
             if (!is_builtin_with_methods) {
                 ast::IDataTypeUserDefined *udt = dynamic_cast<ast::IDataTypeUserDefined *>(target_type);
-                if (udt && udt->getType_id() && !udt->getType_id()->getElems().empty()) {
-                    const std::string &tname = udt->getType_id()->getElems().at(0)->getId()->getId();
-                    static const std::set<std::string> collection_types = {
-                        "list", "array", "set", "map"
-                    };
-                    if (collection_types.find(tname) != collection_types.end()) {
+                if (udt && udt->getType_id()) {
+                    // Resolve the reference rather than reading the name the
+                    // user wrote: a package may declare its own `array`, and
+                    // the built-in's methods are not its methods.
+                    ast::ITypeScope *ts = dynamic_cast<ast::ITypeScope *>(
+                        TaskGetElemSymbolScope(m_ctxt->getDebugMgr(), m_ctxt->root())
+                            .resolve(resolvePath(udt->getType_id()->getTarget())));
+                    if (builtinCollectionKind(ts) != CollectionKind::None) {
                         is_builtin_with_methods = true;
-                        DEBUG("Found collection variable '%s' (type %s) - allowing method calls",
-                            i->getHier_id()->getElems().at(0)->getId()->getId().c_str(),
-                            tname.c_str());
+                        DEBUG("Found collection variable '%s' - allowing method calls",
+                            i->getHier_id()->getElems().at(0)->getId()->getId().c_str());
                     }
                 }
             }
@@ -546,11 +557,9 @@ void TaskResolveRefs::visitExprRefPathContext(ast::IExprRefPathContext *i) {
 
 //        if (!ii) {
             if (ii+1 < i->getHier_id()->getElems().size() && elem->getSubscript().size()) {
-                if (elem->getSubscript().size() > 1) {
-                    DEBUG_ERROR("Handle multi-dim array subscript");
-                }
                 target_s = TaskGetSubscriptSymbolScope(
-                    m_ctxt->getDebugMgr(), m_ctxt->root()).resolve(
+                    m_ctxt->getDebugMgr(), m_ctxt->root(),
+                    elem->getSubscript().size()).resolve(
                         target_c
                     );
             }
@@ -624,11 +633,10 @@ void TaskResolveRefs::visitExprRefPathContext(ast::IExprRefPathContext *i) {
         
         if (!res.sym) {
             bool is_collection_method = false;
+            // Not a name test: `n.rfind("set", 0) == 0` matched `setup_s`,
+            // and every collection method was then available on it.
             auto isCollectionScope = [](ast::ISymbolScope *s) -> bool {
-                if (!s) return false;
-                const std::string &n = s->getName();
-                return (n.rfind("list", 0) == 0 || n.rfind("array", 0) == 0 ||
-                        n.rfind("set", 0) == 0 || n.rfind("map", 0) == 0);
+                return builtinCollectionKind(s) != CollectionKind::None;
             };
             if (isCollectionScope(target_s)) {
                 DEBUG("Collection method check: target_s name='%s' method='%s'",
@@ -680,11 +688,9 @@ void TaskResolveRefs::visitExprRefPathContext(ast::IExprRefPathContext *i) {
                 }
 
                 if (elem->getSubscript().size()) {
-                    if (elem->getSubscript().size() > 1) {
-                        DEBUG_ERROR("Handle multi-dim array subscript");
-                    }
                     target_s = TaskGetSubscriptSymbolScope(
-                        m_ctxt->getDebugMgr(), m_ctxt->root()).resolve(
+                        m_ctxt->getDebugMgr(), m_ctxt->root(),
+                        elem->getSubscript().size()).resolve(
                             target_s
                         );
                 }
@@ -753,6 +759,22 @@ void TaskResolveRefs::visitExprRefPathId(ast::IExprRefPathId *i) {
     DEBUG_LEAVE("visitExprRefPathId");
 }
 
+/**
+ * True if `c` is a template type that has not been specialized -- the generic
+ * itself, which cannot stand in for one of its instances.
+ *
+ * A specialization's own scope carries `specialized`, so this is false for
+ * `P<8>` and for references written inside a specialized copy.
+ */
+static bool isUnspecializedGeneric(ast::IScopeChild *c) {
+    ast::ISymbolTypeScope *ts = dynamic_cast<ast::ISymbolTypeScope *>(c);
+    ast::ITypeScope *td = ts?dynamic_cast<ast::ITypeScope *>(ts->getTarget()):0;
+    return td
+        && td->getParams()
+        && !td->getParams()->getSpecialized()
+        && td->getParams()->getParams().size();
+}
+
 void TaskResolveRefs::visitExprRefPathStatic(ast::IExprRefPathStatic *i) {
     DEBUG_ENTER("visitExprRefPathStatic size=%d", i->getBase().size());
     ast::ISymbolRefPath *target = 0;
@@ -760,7 +782,11 @@ void TaskResolveRefs::visitExprRefPathStatic(ast::IExprRefPathStatic *i) {
         DEBUG("TODO: support global-rooted references");
     } else {
         // relative root
-        ast::ISymbolRefPath *target = 0;
+        //
+        // `target` deliberately assigns to the outer declaration rather than
+        // shadowing it. It used to be re-declared here, which left the outer
+        // one at 0 for the `if (target)` below -- so the cross-file dependency
+        // edge (addRef) was never recorded for any static reference path.
         ast::IScopeChild *target_s = 0;
         bool in_pyref = false;
         for (std::vector<ast::ITypeIdentifierElemUP>::const_iterator
@@ -781,18 +807,59 @@ void TaskResolveRefs::visitExprRefPathStatic(ast::IExprRefPathStatic *i) {
                 if ((*it)->getParams()) {
                     DEBUG("Ref elem %d is parameterized", (it-i->getBase().begin()));
 
+                    // Resolve the argument values *here*, at the use site,
+                    // before specializing -- the same thing
+                    // TaskResolveRef::visitTypeIdentifier does for a type
+                    // reference. Without it the arguments carry no resolved
+                    // target into TaskBuildParamValList, which then resolves
+                    // them wherever it happens to be: the generic's declaring
+                    // package. `Q<s_s>::nbytes` written in package `p` bound
+                    // `q::s_s` when both packages declared an `s_s`, silently
+                    // and with no diagnostic, while the field-typed form
+                    // `Q<s_s> q;` bound `p::s_s` from the same source line.
+                    for (std::vector<ast::ITemplateParamValueUP>::const_iterator
+                        v_it=(*it)->getParams()->getValues().begin();
+                        v_it!=(*it)->getParams()->getValues().end(); v_it++) {
+                        (*v_it)->accept(m_this);
+                    }
+
                     // Build out parameter value list
                     target = TaskSpecializeParameterizedRef(m_ctxt).specialize(
-                            target, 
-                            (*it)->getParams());
+                            target,
+                            (*it)->getParams(),
+                            (*it)->getId()->getLocation());
 
                     // TODO: do we need to delete target?
+
+                    if (!target) {
+                        // specialize() returns null once it has reported an
+                        // argument error -- a wrong argument count, a
+                        // restriction violation. Continuing dereferenced the
+                        // null path and segfaulted, so `P<int>::nbytes` (one
+                        // argument too few) crashed where the field-typed form
+                        // reported "no value supplied for template parameter".
+                        break;
+                    }
                 }
 
                 target_s = m_ctxt->resolveSymbolPathRef(target);
 
                 if ((*it)->getParams()) {
                     DEBUG("Ref elem is parameterized");
+                } else if (isUnspecializedGeneric(target_s)) {
+                    // A generic named with no argument list at all --
+                    // `P::nbytes` rather than `P<8>::nbytes`. Nothing above
+                    // catches it: the specialize() step that validates
+                    // arguments only runs when there *are* arguments, so the
+                    // path resolved straight to the generic and every member
+                    // of it looked available.
+                    addMarker(
+                        MarkerSeverityE::Error,
+                        (*it)->getId()->getLocation(),
+                        "template type '%s' requires a template argument list",
+                        (*it)->getId()->getId().c_str());
+                    target = 0;
+                    break;
                 }
 
                 if (!in_pyref) {
@@ -803,10 +870,61 @@ void TaskResolveRefs::visitExprRefPathStatic(ast::IExprRefPathStatic *i) {
                     }
                 }
             } else if (!in_pyref) {
-                // Need to resolve within root element ... unless we're down a Python scope
-                // Visit the element to resolve internal references
+                // Visit the element to resolve internal references (its own
+                // template arguments, if any)
                 (*it)->accept(m_this);
 
+                // ...then resolve the element *within* the preceding one,
+                // which is what the TODO that used to stand here asked for.
+                // Until now the accept() above was the whole of it and its
+                // result was discarded, so `Q<ok_s>::nosuch` linked cleanly:
+                // only the root of a static path was ever checked.
+                ast::ISymbolScope *scope_s =
+                    dynamic_cast<ast::ISymbolScope *>(target_s);
+
+                if (!scope_s) {
+                    // The preceding element is not a scope -- a static path
+                    // through a field, say. Nothing to look the name up in,
+                    // and the reason is already diagnosed where that element
+                    // resolved, so stop rather than report a second error.
+                    DEBUG("Preceding element is not a scope; cannot check %s",
+                        (*it)->getId()->getId().c_str());
+                    break;
+                }
+
+                TaskFindPathElem::Result res = TaskFindPathElem(
+                    m_ctxt->getDebugMgr(),
+                    m_ctxt->root()).find(scope_s, (*it)->getId());
+
+                if (!res.sym) {
+                    addMarker(
+                        MarkerSeverityE::Error,
+                        (*it)->getId()->getLocation(),
+                        "'%s' has no member named '%s'",
+                        scope_s->getName().c_str(),
+                        (*it)->getId()->getId().c_str());
+                    target = 0;
+                    break;
+                }
+
+                target_s = res.sym;
+
+                if (res.super_idx == 0) {
+                    target->getPath().push_back({
+                        ast::SymbolRefPathElemKind::ElemKind_ChildIdx,
+                        res.idx});
+                } else {
+                    // The member is inherited. A symbol path has no way to
+                    // encode a step through a base type --
+                    // TaskResolveSymbolPathRef leaves ElemKind_Super as a
+                    // TODO -- so extending it with the base's child index
+                    // would resolve to whatever child sits at that index in
+                    // the derived type. Leave the path at the enclosing type;
+                    // the member is checked either way, which is what this
+                    // branch is here for.
+                    DEBUG("Member %s is inherited (super_idx=%d); path not extended",
+                        (*it)->getId()->getId().c_str(), res.super_idx);
+                }
             } else {
                 DEBUG("element is inside a pyref path");
             }
@@ -815,10 +933,17 @@ void TaskResolveRefs::visitExprRefPathStatic(ast::IExprRefPathStatic *i) {
     }
 
     if (target) {
+        // Reached for the first time now that `target` is no longer shadowed
+        // above. It had never run, so the null check on target_c had never
+        // been needed -- a path can resolve to a reference the symbol-path
+        // resolver then declines to follow, and this would have dereferenced
+        // it.
         ast::IScopeChild *target_c = m_ctxt->resolveSymbolPathRef(target);
-        m_ctxt->addRef(
-            i->getBase().front()->getId()->getLocation().fileid,
-            target_c->getLocation().fileid);
+        if (target_c) {
+            m_ctxt->addRef(
+                i->getBase().front()->getId()->getLocation().fileid,
+                target_c->getLocation().fileid);
+        }
     }
     DEBUG_LEAVE("visitExprRefPathStatic");
 }
@@ -1055,6 +1180,33 @@ void TaskResolveRefs::visitSymbolFunctionScope(ast::ISymbolFunctionScope *i) {
 //     DEBUG_LEAVE("visitSymbolStmtScope %s", i->getName().c_str());
 // }
 
+/**
+ * True when ``dt`` is a bare reference to one of ``plist``'s own parameters.
+ *
+ * Such a reference resolves only inside the generic, so it must not be
+ * resolved in the declaring scope -- where the name means nothing, or worse,
+ * means some unrelated type that happens to share it.
+ */
+static bool namesTemplateParam(
+        ast::ITemplateParamDeclList *plist,
+        ast::IDataType              *dt) {
+    ast::IDataTypeUserDefined *ud = dynamic_cast<ast::IDataTypeUserDefined *>(dt);
+    if (!ud || !ud->getType_id() ||
+        ud->getType_id()->getElems().size() != 1 ||
+        !ud->getType_id()->getElems().at(0)->getId()) {
+        return false;
+    }
+    const std::string &name = ud->getType_id()->getElems().at(0)->getId()->getId();
+    for (std::vector<ast::ITemplateParamDeclUP>::const_iterator
+        it=plist->getParams().begin();
+        it!=plist->getParams().end(); it++) {
+        if ((*it)->getName() && (*it)->getName()->getId() == name) {
+            return true;
+        }
+    }
+    return false;
+}
+
 void TaskResolveRefs::visitSymbolTypeScope(ast::ISymbolTypeScope *i) {
     ast::ITypeScope *i_ts = dynamic_cast<ast::ITypeScope *>(i->getTarget());
     DEBUG_ENTER("visitSymbolTypeScope %s (param=%s specialized=%s)", 
@@ -1063,6 +1215,41 @@ void TaskResolveRefs::visitSymbolTypeScope(ast::ISymbolTypeScope *i) {
         (i_ts->getParams() && i_ts->getParams()->getSpecialized())?"true":"false");
     if (i_ts->getParams() && !i_ts->getParams()->getSpecialized()) {
         DEBUG("Note: Skipping symbol resolution in an unspecialized templated type");
+
+        // One thing in an unspecialized generic's declaration must still be
+        // resolved: the restriction on a category type parameter. It names a
+        // concrete type in the *declaring* scope, and it has to be resolved
+        // before any use of the generic, because checking an argument against
+        // it happens while that use is being specialized -- which is to say,
+        // before this type scope would otherwise be visited at all.
+        //
+        // Only restrictions. A parameter *default* may name an earlier
+        // parameter of the same list (`struct S<type T, type U = T>`), which
+        // does not resolve in the declaring scope; attempting it would report
+        // an unknown type for a perfectly legal declaration.
+        for (std::vector<ast::ITemplateParamDeclUP>::const_iterator
+            it=i_ts->getParams()->getParams().begin();
+            it!=i_ts->getParams()->getParams().end(); it++) {
+            ast::ITemplateCategoryTypeParamDecl *cat =
+                dynamic_cast<ast::ITemplateCategoryTypeParamDecl *>(it->get());
+            if (!cat) {
+                continue;
+            }
+            if (cat->getRestriction()) {
+                DEBUG_ENTER("Resolve type-parameter restriction");
+                cat->getRestriction()->accept(m_this);
+                DEBUG_LEAVE("Resolve type-parameter restriction");
+            }
+            // A category parameter's default is checked against the
+            // restriction the same way a supplied argument is, so it needs a
+            // target too. The caveat above applies, so a default that spells
+            // the name of a parameter in this same list is left alone.
+            if (cat->getDflt() && !namesTemplateParam(i_ts->getParams(), cat->getDflt())) {
+                DEBUG_ENTER("Resolve type-parameter default");
+                cat->getDflt()->accept(m_this);
+                DEBUG_LEAVE("Resolve type-parameter default");
+            }
+        }
     } else {
         ast::SymbolRefPathElemKind kind = ast::SymbolRefPathElemKind::ElemKind_ChildIdx;
 
