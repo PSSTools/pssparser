@@ -411,6 +411,200 @@ void TaskResolveRefs::visitExecScope(ast::IExecScope *i) {
     DEBUG_LEAVE("visitExecScope");
 }
 
+/**
+ * True if `c` is a field or local variable whose type is a built-in that
+ * carries methods -- `string`, or one of the built-in collections.
+ *
+ * Such a type has no symbol scope to search, so a member access on it is
+ * checked against a method list instead of by lookup.  Distinguishing it
+ * from a plain `int` is the whole reason a null scope cannot simply be
+ * reported as an error.
+ */
+/**
+ * The declared type of `c`, if it is a field or a local variable.
+ */
+static ast::IDataType *declaredTypeOf(ast::IScopeChild *c) {
+    ast::IField *field = dynamic_cast<ast::IField *>(c);
+    if (field && field->getType()) {
+        return field->getType();
+    }
+
+    ast::IProceduralStmtDataDeclaration *var_decl =
+        dynamic_cast<ast::IProceduralStmtDataDeclaration *>(c);
+    if (var_decl) {
+        return var_decl->getDatatype();
+    }
+
+    return 0;
+}
+
+/**
+ * True if `c` has a scalar type that can have no members at all -- an int, a
+ * bit vector, a bool, a chandle.
+ *
+ * Deliberately a positive test on a short list rather than "anything that
+ * failed to produce a scope". The two are not the same, and the difference
+ * is the whole reason a member access on an unresolved type must stay quiet:
+ * a user-defined type resolves to nothing when one file of a multi-file
+ * model is parsed alone, which is normal and not an error. `string` and the
+ * built-in collections are excluded because they *do* have members -- see
+ * isBuiltinWithMethods().
+ */
+static bool isScalarWithoutMembers(ast::IScopeChild *c) {
+    ast::IDataType *type = declaredTypeOf(c);
+    return type
+        && (dynamic_cast<ast::IDataTypeInt *>(type)
+            || dynamic_cast<ast::IDataTypeBool *>(type)
+            || dynamic_cast<ast::IDataTypeChandle *>(type));
+}
+
+/**
+ * True if `c` has a user-defined type that did not resolve.
+ *
+ * Such a field has no scope, so a member access on it fails -- but the
+ * *reason* has already been reported, as `unknown type '<name>'`, at the
+ * declaration. Saying "not a composite scope" as well gives two diagnostics
+ * for one cause and points the second one at the use site rather than at the
+ * thing the user has to fix.
+ *
+ * Note this is not the same condition as isScalarWithoutMembers(): that one
+ * says the type is known and has no members, this one says the type is not
+ * known at all. Only the first is a defect in the reference; the second is a
+ * consequence of a defect already reported elsewhere.
+ */
+static bool hasUnresolvedUserDefinedType(ast::IScopeChild *c) {
+    ast::IDataTypeUserDefined *udt =
+        dynamic_cast<ast::IDataTypeUserDefined *>(declaredTypeOf(c));
+    return udt && (!udt->getType_id() || !udt->getType_id()->getTarget());
+}
+
+bool TaskResolveRefs::isBuiltinWithMethods(ast::IScopeChild *c) {
+    ast::IDataType *type = declaredTypeOf(c);
+
+    if (!type) {
+        return false;
+    }
+
+    if (dynamic_cast<ast::IDataTypeString *>(type)) {
+        return true;
+    }
+
+    ast::IDataTypeUserDefined *udt =
+        dynamic_cast<ast::IDataTypeUserDefined *>(type);
+    if (udt && udt->getType_id()) {
+        // Resolve the reference rather than reading the name the user
+        // wrote: a package may declare its own `array`, and the built-in's
+        // methods are not its methods.
+        ast::ITypeScope *ts = dynamic_cast<ast::ITypeScope *>(
+            TaskGetElemSymbolScope(m_ctxt->getDebugMgr(), m_ctxt->root())
+                .resolve(resolvePath(udt->getType_id()->getTarget())));
+        if (builtinCollectionKind(ts) != CollectionKind::None) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+/**
+ * The argument counts a prototype will accept.
+ *
+ * `min` is the number of leading parameters with no default. The LRM requires
+ * defaults to be trailing, so this is just the index of the first one that has
+ * a default; a model that violates that is not made worse by counting it this
+ * way. `max` is -1 when the last parameter is `...`, meaning unbounded.
+ */
+static void protoArity(ast::IFunctionPrototype *p, int32_t &min, int32_t &max) {
+    const std::vector<ast::IFunctionParamDeclUP> &params = p->getParameters();
+
+    min = 0;
+    max = (int32_t)params.size();
+
+    for (int32_t ii=0; ii<(int32_t)params.size(); ii++) {
+        if (params.at(ii)->getIs_varargs()) {
+            // A varargs parameter absorbs any number of arguments, including
+            // none, so it neither raises the minimum nor bounds the maximum.
+            max = -1;
+            break;
+        }
+        if (!params.at(ii)->getDflt()) {
+            min = ii+1;
+        }
+    }
+}
+
+void TaskResolveRefs::checkCallArity(
+        ast::IExprMemberPathElem *elem,
+        ast::IScopeChild        *target) {
+    // A parameter list is present exactly when the source wrote `(...)` --
+    // see AstBuilderInt::mkMemberPathElem -- so this is what distinguishes a
+    // call from a plain reference to the same name.
+    if (!elem->getParams()) {
+        return;
+    }
+
+    ast::ISymbolFunctionScope *fn =
+        dynamic_cast<ast::ISymbolFunctionScope *>(target);
+
+    if (!fn || !fn->getPrototypes().size()) {
+        // Either not a function -- calling a non-function is its own defect,
+        // and reporting it here would mean reporting it for every built-in
+        // and collection method too -- or a function whose prototype never
+        // made it into the symbol scope. Neither is an arity question.
+        return;
+    }
+
+    int32_t argc = (int32_t)elem->getParams()->getParameters().size();
+
+    // Accept if *any* prototype takes this count. PSS has no overloading, so
+    // there is normally one; a function declared twice with different
+    // signatures leaves two, and that is a duplicate-declaration defect
+    // (plan section 31.4) which should not also surface here as a bogus
+    // arity error.
+    int32_t min = 0, max = 0;
+
+    for (std::vector<ast::IFunctionPrototype *>::const_iterator
+        it=fn->getPrototypes().begin();
+        it!=fn->getPrototypes().end(); it++) {
+        int32_t p_min, p_max;
+        protoArity(*it, p_min, p_max);
+
+        if (argc >= p_min && (p_max < 0 || argc <= p_max)) {
+            DEBUG("Call to %s: %d argument(s) accepted",
+                elem->getId()->getId().c_str(), argc);
+            return;
+        }
+
+        if (it == fn->getPrototypes().begin()) {
+            min = p_min;
+            max = p_max;
+        }
+    }
+
+    // Report against the first prototype: with no overloading it is the only
+    // one, and naming a bound from a signature the user did not write would
+    // be worse than naming one from the signature they did.
+    if (argc < min) {
+        m_ctxt->addMarker(
+            MarkerSeverityE::Error,
+            elem->getId()->getLocation(),
+            "too few arguments to '%s': expected %s%d, got %d",
+            elem->getId()->getId().c_str(),
+            (max != min)?"at least ":"",
+            min,
+            argc);
+    } else {
+        m_ctxt->addMarker(
+            MarkerSeverityE::Error,
+            elem->getId()->getLocation(),
+            "too many arguments to '%s': expected %s%d, got %d",
+            elem->getId()->getId().c_str(),
+            (max != min)?"at most ":"",
+            max,
+            argc);
+    }
+}
+
 void TaskResolveRefs::visitExprRefPathContext(ast::IExprRefPathContext *i) {
     DEBUG_ENTER("visitExprRefPathContext %s", i->getHier_id()->getElems().at(0)->getId()->getId().c_str());
     // Find the first path element
@@ -469,58 +663,33 @@ void TaskResolveRefs::visitExprRefPathContext(ast::IExprRefPathContext *i) {
     DEBUG("target_c=%p target_s=%p", target_c, target_s);
 
     // Check if target_c is a field or local variable with a built-in type that has methods (e.g., string)
-    bool is_builtin_with_methods = false;
-    ast::IDataType *target_type = 0;
-    
-    if (!target_s && target_c) {
-        // Check if it's a field declaration
-        ast::IField *field = dynamic_cast<ast::IField *>(target_c);
-        if (field && field->getType()) {
-            target_type = field->getType();
-        }
-        
-        // Check if it's a procedural data declaration (local variable)
-        if (!target_type) {
-            ast::IProceduralStmtDataDeclaration *var_decl = 
-                dynamic_cast<ast::IProceduralStmtDataDeclaration *>(target_c);
-            if (var_decl && var_decl->getDatatype()) {
-                target_type = var_decl->getDatatype();
-            }
-        }
-        
-        // Check if the type is a string
-        if (target_type) {
-            ast::IDataTypeString *string_type = dynamic_cast<ast::IDataTypeString *>(target_type);
-            if (string_type) {
-                is_builtin_with_methods = true;
-                DEBUG("Found string variable '%s' - allowing method calls", 
-                    i->getHier_id()->getElems().at(0)->getId()->getId().c_str());
-            }
-            if (!is_builtin_with_methods) {
-                ast::IDataTypeUserDefined *udt = dynamic_cast<ast::IDataTypeUserDefined *>(target_type);
-                if (udt && udt->getType_id()) {
-                    // Resolve the reference rather than reading the name the
-                    // user wrote: a package may declare its own `array`, and
-                    // the built-in's methods are not its methods.
-                    ast::ITypeScope *ts = dynamic_cast<ast::ITypeScope *>(
-                        TaskGetElemSymbolScope(m_ctxt->getDebugMgr(), m_ctxt->root())
-                            .resolve(resolvePath(udt->getType_id()->getTarget())));
-                    if (builtinCollectionKind(ts) != CollectionKind::None) {
-                        is_builtin_with_methods = true;
-                        DEBUG("Found collection variable '%s' - allowing method calls",
-                            i->getHier_id()->getElems().at(0)->getId()->getId().c_str());
-                    }
-                }
-            }
-        }
-    }
+    bool is_builtin_with_methods =
+        (!target_s && target_c && isBuiltinWithMethods(target_c));
+
+    // The element index at which a member is checked against the built-in
+    // method list rather than looked up in a scope: the one directly after
+    // whichever element turned out to have a built-in type. For the root
+    // that is 1; the advance step below sets it when a *later* element does.
+    int32_t builtin_method_ii = is_builtin_with_methods?1:-1;
 
     if (!target_s && !is_builtin_with_methods && i->getHier_id()->getElems().size() > 1) {
-        m_ctxt->addMarker(
-            MarkerSeverityE::Error,
-            i->getHier_id()->getElems().at(0)->getId()->getLocation(),
-            "root ref-path element %s is not a composite scope",
-            i->getHier_id()->getElems().at(0)->getId()->getId().c_str());
+        if (target_c && hasUnresolvedUserDefinedType(target_c)) {
+            // The root's type never resolved, and `unknown type '<name>'` was
+            // already reported at its declaration. Reporting again here gives
+            // two errors for one cause and points the second at the use site
+            // rather than at the thing to fix. Return regardless: with no
+            // scope there is nothing to search the rest of the path in, and
+            // falling through raises a *different* error from the loop.
+            DEBUG("Root %s has an unresolved type; "
+                "already reported at its declaration",
+                i->getHier_id()->getElems().at(0)->getId()->getId().c_str());
+        } else {
+            m_ctxt->addMarker(
+                MarkerSeverityE::Error,
+                i->getHier_id()->getElems().at(0)->getId()->getLocation(),
+                "root ref-path element %s is not a composite scope",
+                i->getHier_id()->getElems().at(0)->getId()->getId().c_str());
+        }
 
         DEBUG_LEAVE("visitExprRefPathContext -- fail");
         return;
@@ -564,6 +733,10 @@ void TaskResolveRefs::visitExprRefPathContext(ast::IExprRefPathContext *i) {
                     );
             }
             if (!ii) {
+                // A call whose callee is the root of the path -- a plain
+                // `f(1)`. The member-call form is checked further down,
+                // where the element's own target is resolved.
+                checkCallArity(elem, target_c);
                 continue;
             }
 //        }
@@ -578,7 +751,7 @@ void TaskResolveRefs::visitExprRefPathContext(ast::IExprRefPathContext *i) {
         }
 
         // Special handling for string and collection methods
-        if (!target_s && is_builtin_with_methods && ii == 1) {
+        if (!target_s && is_builtin_with_methods && ii == builtin_method_ii) {
             // This is a method call on a built-in type - validate method name
             std::string method_name = elem->getId()->getId();
             if (builtinMethods().find(method_name) != builtinMethods().end()) {
@@ -671,6 +844,9 @@ void TaskResolveRefs::visitExprRefPathContext(ast::IExprRefPathContext *i) {
             elem->setTarget(res.idx);
             elem->setSuper(res.super_idx);
 
+            // A member call -- `comp.f(1)`, `pkg::f(1)`.
+            checkCallArity(elem, res.sym);
+
             // Resolve name references for parameter values
             if (elem->getParams()) {
                 elem->getParams()->accept(m_this);
@@ -683,7 +859,45 @@ void TaskResolveRefs::visitExprRefPathContext(ast::IExprRefPathContext *i) {
                         target_c
                     );
                 if (!target_s) {
-                    DEBUG_ERROR("target_s is null");
+                    // This element has no scope to search for the next one.
+                    // Until now that was a DEBUG_ERROR and a break -- debug
+                    // chatter, no marker, exit 0 -- so `s.a.nosuch` with `a`
+                    // an int linked cleanly. Only the *root* of the path was
+                    // ever reported (above); everything after it fell to here.
+                    if (isBuiltinWithMethods(target_c)) {
+                        // `a` is a string or a built-in collection: it has no
+                        // scope but it does have methods. Check the next
+                        // element against the method list, exactly as the
+                        // root case does.
+                        is_builtin_with_methods = true;
+                        builtin_method_ii = ii+1;
+                        DEBUG("Element %s is a built-in with methods; "
+                            "checking %s against the method list",
+                            elem->getId()->getId().c_str(),
+                            i->getHier_id()->getElems().at(ii+1)
+                                ->getId()->getId().c_str());
+                        continue;
+                    }
+
+                    if (isScalarWithoutMembers(target_c)) {
+                        m_ctxt->addMarker(
+                            MarkerSeverityE::Error,
+                            i->getHier_id()->getElems().at(ii+1)
+                                ->getId()->getLocation(),
+                            "ref-path element %s is not a composite scope",
+                            elem->getId()->getId().c_str());
+                    } else {
+                        // A type that produced no scope for some other
+                        // reason -- most often a user-defined type that did
+                        // not resolve, which is the normal state when one
+                        // file of a multi-file model is parsed on its own.
+                        // Reporting it here would turn that into an error;
+                        // the unresolved type is diagnosed where it is
+                        // declared, if at all.
+                        DEBUG("No scope for %s, but its type is not a scalar; "
+                            "not reporting",
+                            elem->getId()->getId().c_str());
+                    }
                     break;
                 }
 
@@ -948,6 +1162,71 @@ void TaskResolveRefs::visitExprRefPathStatic(ast::IExprRefPathStatic *i) {
     DEBUG_LEAVE("visitExprRefPathStatic");
 }
 
+void TaskResolveRefs::resolveStaticRootedLeaf(ast::IExprRefPathStaticRooted *i) {
+    DEBUG_ENTER("resolveStaticRootedLeaf");
+
+    // The leaf of a static-rooted path had no resolution at all -- the branch
+    // this replaces was a `DEBUG("TODO")`. `i->getLeaf()->accept()` above
+    // descends into the elements' argument expressions, which is why
+    // `p::f(nosuch)` was reported, but the element *names* were never looked
+    // up in anything: `p::nosuch_f(1)` linked clean, and no qualified call
+    // could be checked for arity.
+    ast::IScopeChild *target_c =
+        m_ctxt->resolveSymbolPathRef(i->getRoot()->getTarget());
+
+    if (!target_c) {
+        DEBUG_LEAVE("resolveStaticRootedLeaf -- root path does not resolve");
+        return;
+    }
+
+    ast::ISymbolScope *scope = TaskGetElemSymbolScope(
+        m_ctxt->getDebugMgr(), m_ctxt->root()).resolve(target_c);
+
+    for (uint32_t ii=0; ii<i->getLeaf()->getElems().size(); ii++) {
+        ast::IExprMemberPathElem *elem = i->getLeaf()->getElems().at(ii).get();
+
+        if (!scope) {
+            // Nothing to search. Quiet on purpose, and for the same reason as
+            // the ref-path loop above (see section 29): a scope goes missing
+            // when a user-defined type did not resolve, which is the normal
+            // state when one file of a multi-file model is parsed alone, and
+            // is diagnosed where the type is named rather than here.
+            DEBUG("No scope for element %s; not reporting",
+                elem->getId()->getId().c_str());
+            break;
+        }
+
+        if (scope->getOpaque()) {
+            DEBUG("Note: scope is opaque; ending search");
+            break;
+        }
+
+        TaskFindPathElem::Result res = TaskFindPathElem(
+            m_ctxt->getDebugMgr(),
+            m_ctxt->root()).find(scope, elem->getId());
+
+        if (!res.sym) {
+            m_ctxt->addMarker(
+                MarkerSeverityE::Error,
+                elem->getId()->getLocation(),
+                "'%s' has no member named '%s'",
+                scope->getName().c_str(),
+                elem->getId()->getId().c_str());
+            break;
+        }
+
+        elem->setTarget(res.idx);
+        elem->setSuper(res.super_idx);
+
+        checkCallArity(elem, res.sym);
+
+        scope = TaskGetElemSymbolScope(
+            m_ctxt->getDebugMgr(), m_ctxt->root()).resolve(res.sym);
+    }
+
+    DEBUG_LEAVE("resolveStaticRootedLeaf");
+}
+
 void TaskResolveRefs::visitExprRefPathStaticRooted(ast::IExprRefPathStaticRooted *i) {
     DEBUG_ENTER("visitExprRefPathStaticRooted %s",
         i->getLeaf()->getElems().at(0)->getId()->getId().c_str());
@@ -988,7 +1267,7 @@ void TaskResolveRefs::visitExprRefPathStaticRooted(ast::IExprRefPathStaticRooted
             DEBUG("Root (static) reference has a Python component");
         } else {
             DEBUG("Root (static) reference does not have a Python component");
-            DEBUG("TODO: visitExprRefPathStaticRooted");
+            resolveStaticRootedLeaf(i);
         }
     }
 
@@ -1133,6 +1412,47 @@ void TaskResolveRefs::visitSymbolExtendScope(ast::ISymbolExtendScope *i) {
 //     DEBUG_LEAVE("visitSymbolExecScope \"%s\"", i->getName().c_str());
 // }
 
+void TaskResolveRefs::visitProceduralStmtReturn(ast::IProceduralStmtReturn *i) {
+    // Resolve the returned expression first, whatever the verdict below: a
+    // bad reference inside it should be reported on its own terms.
+    ast::VisitorBase::visitProceduralStmtReturn(i);
+
+    if (m_func_s.empty()) {
+        // A `return` outside any function body. The grammar admits one in an
+        // action's exec block, where there is nothing to check it against.
+        DEBUG("Note: return outside a function body");
+        return;
+    }
+
+    ast::IFunctionPrototype *proto = m_func_s.back();
+
+    // A null return type is how `void` is spelled -- see
+    // AstBuilderInt::mkFunctionPrototype, which leaves rtype at 0 unless the
+    // return type parses as a data_type.
+    bool is_void = (proto->getRtype() == 0);
+
+    // Report at the statement, not at the function name: a body may hold
+    // several returns and only one of them be wrong.
+    ast::Location loc = i->getLocation();
+    if (loc.lineno < 0) {
+        loc = proto->getName()->getLocation();
+    }
+
+    if (is_void && i->getExpr()) {
+        m_ctxt->addMarker(
+            MarkerSeverityE::Error,
+            loc,
+            "'%s' returns void, so 'return' cannot take a value",
+            proto->getName()->getId().c_str());
+    } else if (!is_void && !i->getExpr()) {
+        m_ctxt->addMarker(
+            MarkerSeverityE::Error,
+            loc,
+            "'%s' has a return type, so 'return' must supply a value",
+            proto->getName()->getId().c_str());
+    }
+}
+
 void TaskResolveRefs::visitSymbolFunctionScope(ast::ISymbolFunctionScope *i) {
     DEBUG_ENTER("visitSymbolFunctionScope %s (%d %p) ", 
     i->getName().c_str(),
@@ -1160,7 +1480,17 @@ void TaskResolveRefs::visitSymbolFunctionScope(ast::ISymbolFunctionScope *i) {
         // Resolve references in the body
         if (i->getBody()) {
             DEBUG("--> visitBody");
+            // Track which function's body this is, so that a `return` inside
+            // it can be checked against the declared return type.
+            // visitFunctionDefinition inserts the definition's own prototype
+            // at the front, so front() is the one that carries this body.
+            if (i->getPrototypes().size()) {
+                m_func_s.push_back(i->getPrototypes().front());
+            }
             i->getBody()->accept(m_this);
+            if (i->getPrototypes().size()) {
+                m_func_s.pop_back();
+            }
             DEBUG("<-- visitBody");
         }
 

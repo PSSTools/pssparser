@@ -594,19 +594,42 @@ antlrcpp::Any AstBuilderInt::visitAbstract_action_declaration(PSSParser::Abstrac
 antlrcpp::Any AstBuilderInt::visitOverride_action_declaration(PSSParser::Override_action_declarationContext *ctx) {
     DEBUG_ENTER("visitOverride_action_declaration");
 
-    // Map override action to IExtendType with Action kind.
-    ast::ITypeIdentifier *target_id = m_factory->mkTypeIdentifier();
-    target_id->getElems().push_back(ast::ITypeIdentifierElemUP(
+    // LRM 19.2.2: an override action is a *new* action in the declaring
+    // component that implicitly inherits from the one it overrides. So it is
+    // built as an Action, not -- as it was until now -- an IExtendType
+    // targeting the same name. An extension would have added these members to
+    // the base action everywhere it is used, which is the opposite of what
+    // overriding means.
+    //
+    // The super type spells the action's own name, and that is not a mistake:
+    // `inh1_c::base_a` inherits `base_c::base_a`. Resolving it therefore
+    // cannot use the ordinary lookup, which would find this very declaration
+    // and cycle -- TaskResolveOverrideActions starts from the enclosing
+    // component's base chain instead, and reports 19.2.2a when nothing there
+    // declares the name.
+    ast::ITypeIdentifier *super_t = m_factory->mkTypeIdentifier();
+    super_t->getElems().push_back(ast::ITypeIdentifierElemUP(
         m_factory->mkTypeIdentifierElem(
             mkId(ctx->action_identifier()->identifier()), 0)));
 
-    ast::IExtendType *ext = m_factory->mkExtendType(
-        ast::ExtendTargetE::Action,
-        target_id);
-    setLoc(ext, ctx->start);
+    ast::IAction *action = m_factory->mkAction(
+        mkId(ctx->action_identifier()->identifier()),
+        super_t,
+        false);
+    action->setIs_override(true);
+    setLoc(action, ctx->start);
 
-    addChild(ext, ctx->start, ctx->TOK_RCBRACE()->getSymbol());
-    push_scope(ext);
+    // The `comp` ref field a normal action declaration installs; an override
+    // is an action like any other and needs it too.
+    ast::IFieldCompRef *comp = m_factory->mkFieldCompRef(
+        m_factory->mkExprId("comp", false),
+        0 // Type: must back-patch later
+    );
+    comp->setIndex(action->getChildren().size());
+    action->getChildren().push_back(ast::IScopeChildUP(comp));
+
+    addChild(action, ctx->start, ctx->TOK_RCBRACE()->getSymbol());
+    push_scope(action);
 
     std::vector<PSSParser::Action_body_item_annContext *> items = ctx->action_body_item_ann();
     for (auto *item : items) {
@@ -1300,6 +1323,10 @@ antlrcpp::Any AstBuilderInt::visitProcedural_return_stmt(PSSParser::Procedural_r
     DEBUG_ENTER("visitProcedural_return_stmt");
     ast::IExpr *expr = ctx->expression()?mkExpr(ctx->expression()):0;
     ast::IProceduralStmtReturn *stmt = m_factory->mkProceduralStmtReturn(expr);
+    // Without this the statement has no location, so a diagnostic about it
+    // has to point at the enclosing function's name instead -- unhelpful in a
+    // body with more than one `return`.
+    setLoc(stmt, ctx->start);
 
     m_exec_stmt = stmt;
     m_exec_stmt_cnt++;
@@ -4919,18 +4946,22 @@ ast::IFunctionPrototype *AstBuilderInt::mkFunctionPrototype(
         ast::IDataType *type = 0;
         ast::IExpr *dflt = 0;
 
+        // The four alternatives of `varargs_parameter` are siblings in the
+        // grammar. They were nested: `is_type`, `is_ref` and `is_struct` were
+        // all tested only *inside* an `is_ref` branch, so `type... args` and
+        // `struct... args` fell through with no kind set at all and kept the
+        // ParamKind_DataType default with a null type. This mirrors the flat
+        // shape mkFunctionParamDecl() uses for a non-varargs parameter.
         if (va_p->data_type()) {
             type = mkDataType(va_p->data_type());
+        } else if (va_p->is_type) {
+            kind = FunctionParamDeclKind::ParamKind_Type;
         } else if (va_p->is_ref) {
-            if (va_p->is_type) {
-                kind = FunctionParamDeclKind::ParamKind_Type;
-            } else if (va_p->is_ref) {
-                kind = ref_param_kind_m.find(va_p->type_category()->getText())->second;
-            } else if (va_p->is_struct) {
-                kind = FunctionParamDeclKind::ParamKind_Struct;
-            } else {
-                // TODO: should not occur
-            }
+            kind = ref_param_kind_m.find(va_p->type_category()->getText())->second;
+        } else if (va_p->is_struct) {
+            kind = FunctionParamDeclKind::ParamKind_Struct;
+        } else {
+            // TODO: should not occur
         }
 
         ast::IFunctionParamDecl *param = m_factory->mkFunctionParamDecl(

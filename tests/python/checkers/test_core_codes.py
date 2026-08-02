@@ -37,6 +37,8 @@ def test_syntax_error_mapped_to_pss001(msg):
     "unknown identifier 'badref'",
     "unknown identifier 'badref'; did you mean 'goodref'?",
     "unknown method 'nosuchmethod' on built-in type",
+    # The leaf of a static-rooted path, once it is resolved at all
+    "'p' has no member named 'nosuch_f'",
 ])
 def test_unknown_symbol_mapped_to_pss002(msg):
     assert _assign_core_code(_m(msg))["code"] == "PSS002"
@@ -51,6 +53,10 @@ def test_unknown_symbol_mapped_to_pss002(msg):
     "duplicate variable declaration my_var",
     "duplicate parameter name 'p'",
     "duplicate symbol declaration",
+    # Function redeclaration, which does not start with the word "duplicate"
+    "function 'f' is already defined",
+    "function 'f' cannot be both defined and imported",
+    "function 'f' is already imported",
 ])
 def test_duplicate_mapped_to_pss003(msg):
     assert _assign_core_code(_m(msg))["code"] == "PSS003"
@@ -64,6 +70,8 @@ def test_duplicate_mapped_to_pss003(msg):
     "failed to resolve ref-path some.path",
     "failed to resolve symbol foo",
     "root ref-path element x is not a composite scope",
+    # The same failure below the root, which reports without the "root" prefix
+    "ref-path element a is not a composite scope",
 ])
 def test_resolution_failure_mapped_to_pss004(msg):
     assert _assign_core_code(_m(msg))["code"] == "PSS004"
@@ -143,3 +151,29 @@ def test_real_unknown_type_gets_pss002(tmp_path):
 
     pss002 = [d for d in coll.diagnostics if d.code == "PSS002"]
     assert len(pss002) > 0
+
+
+# ---------------------------------------------------------------------------
+# PSS006 — call argument count
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize("msg", [
+    "too few arguments to 'f': expected 2, got 1",
+    "too many arguments to 'f': expected 1, got 2",
+    "too few arguments to 'f': expected at least 1, got 0",
+    "too many arguments to 'f': expected at most 2, got 3",
+])
+def test_call_arity_mapped_to_pss006(msg):
+    assert _assign_core_code(_m(msg))["code"] == "PSS006"
+
+
+# ---------------------------------------------------------------------------
+# PSS007 — return statement vs. declared return type
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize("msg", [
+    "'f' returns void, so 'return' cannot take a value",
+    "'f' has a return type, so 'return' must supply a value",
+])
+def test_return_mismatch_mapped_to_pss007(msg):
+    assert _assign_core_code(_m(msg))["code"] == "PSS007"

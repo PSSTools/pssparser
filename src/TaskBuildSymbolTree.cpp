@@ -19,6 +19,7 @@
  *     Author:
  */
 #include <algorithm>
+#include <set>
 #include "dmgr/impl/DebugMacros.h"
 #include "pssp/impl/TaskGetName.h"
 #include "BuiltinsFactory.h"
@@ -360,8 +361,10 @@ void TaskBuildSymbolTree::visitFieldClaim(ast::IFieldClaim *i) {
     DEBUG_LEAVE("visitFieldClaim %s", i->getName()->getId().c_str());
 }
 
-void TaskBuildSymbolTree::visitFunctionDefinition(ast::IFunctionDefinition *i) { 
+void TaskBuildSymbolTree::visitFunctionDefinition(ast::IFunctionDefinition *i) {
     DEBUG_ENTER("visitFunctionDefinition %s", i->getProto()->getName()->getId().c_str());
+
+    reportDuplicateParams(i->getProto());
 
     ast::IScopeChild *ex_func_b = findSymbol(i->getProto()->getName()->getId());
     ast::ISymbolFunctionScope *func_sym = dynamic_cast<ast::ISymbolFunctionScope *>(ex_func_b);
@@ -389,15 +392,25 @@ void TaskBuildSymbolTree::visitFunctionDefinition(ast::IFunctionDefinition *i) {
             it=i->getProto()->getParameters().begin();
             it!=i->getProto()->getParameters().end(); it++) {
             int32_t id = func_sym->getChildren().size();
+
+            // Look up in the same table the else-branch inserts into.
+            // This searched the *plist* and compared the result against the
+            // end of func_sym's own symtab -- two different containers, so
+            // the comparison was undefined, and since nothing here ever
+            // populates the plist the lookup could not have hit anyway.
+            // `function void f(int a, int a) {}` was therefore accepted in
+            // silence. (visitFunctionImportProto below uses the plist for
+            // both halves, and works; the two paths store parameters in
+            // different places, which is worth reconciling but is not this
+            // fix.)
             std::unordered_map<std::string, int32_t>::const_iterator sym_it =
-                func_sym->getPlist()->getSymtab().find((*it)->getName()->getId());
-            
+                func_sym->getSymtab().find((*it)->getName()->getId());
+
             if (sym_it != func_sym->getSymtab().end()) {
-                // Duplicate
-                reportDuplicateSymbol(
-                    func_sym,
-                    func_sym->getChildren().at(sym_it->second).get(),
-                    it->get());
+                // Already reported by reportDuplicateParams(); skip the
+                // insert so the first declaration keeps the name.
+                DEBUG("Skipping duplicate parameter %s",
+                    (*it)->getName()->getId().c_str());
             } else {
                 DEBUG("Add parameter %s to function symtab", (*it)->getName()->getId().c_str());
                 (*it)->setIndex(id);
@@ -407,8 +420,23 @@ void TaskBuildSymbolTree::visitFunctionDefinition(ast::IFunctionDefinition *i) {
         }
     }
 
+    // A function has at most one implementation. Two bodies, or a body
+    // alongside an `import`, both leave the tool with no way to say which one
+    // runs -- and the second silently overwrote the first via setBody() below.
     if (func_sym->getBody()) {
-        // TODO: Report duplicate function error
+        Marker m(
+            "function '" + i->getProto()->getName()->getId()
+                + "' is already defined",
+            MarkerSeverityE::Error,
+            i->getProto()->getName()->getLocation());
+        m_marker_l->marker(&m);
+    } else if (func_sym->getImport_specs().size()) {
+        Marker m(
+            "function '" + i->getProto()->getName()->getId()
+                + "' cannot be both defined and imported",
+            MarkerSeverityE::Error,
+            i->getProto()->getName()->getLocation());
+        m_marker_l->marker(&m);
     }
 
     // Build the body (and subscopes) symbol scopes
@@ -440,6 +468,8 @@ void TaskBuildSymbolTree::visitFunctionDefinition(ast::IFunctionDefinition *i) {
 void TaskBuildSymbolTree::visitFunctionImportProto(ast::IFunctionImportProto *i) { 
     DEBUG_ENTER("visitFunctionImportProto %s", i->getProto()->getName()->getId().c_str());
 
+    reportDuplicateParams(i->getProto());
+
     ast::IScopeChild *ex_func_b = findSymbol(i->getProto()->getName()->getId());
     ast::ISymbolFunctionScope *func_sym = dynamic_cast<ast::ISymbolFunctionScope *>(ex_func_b);
 
@@ -468,11 +498,10 @@ void TaskBuildSymbolTree::visitFunctionImportProto(ast::IFunctionImportProto *i)
                 func_sym->getPlist()->getSymtab().find((*it)->getName()->getId());
             
             if (sym_it != func_sym->getPlist()->getSymtab().end()) {
-                // Duplicate
-                reportDuplicateSymbol(
-                    func_sym,
-                    func_sym->getPlist()->getChildren().at(sym_it->second).get(),
-                    it->get());
+                // Already reported by reportDuplicateParams(); skip the
+                // insert so the first declaration keeps the name.
+                DEBUG("Skipping duplicate parameter %s",
+                    (*it)->getName()->getId().c_str());
             } else {
                 func_sym->getPlist()->getSymtab().insert({(*it)->getName()->getId(), id});
                 func_sym->getPlist()->getChildren().push_back(ast::IScopeChildUP(it->get(), false));
@@ -480,8 +509,23 @@ void TaskBuildSymbolTree::visitFunctionImportProto(ast::IFunctionImportProto *i)
         }
     }
 
+    // The mirror of the check in visitFunctionDefinition, for the other
+    // declaration order. Two imports are the same conflict: the second
+    // import_spec is appended and nothing ever chooses between them.
     if (func_sym->getBody()) {
-        // TODO: Cannot both define and import an implementation
+        Marker m(
+            "function '" + i->getProto()->getName()->getId()
+                + "' cannot be both defined and imported",
+            MarkerSeverityE::Error,
+            i->getProto()->getName()->getLocation());
+        m_marker_l->marker(&m);
+    } else if (func_sym->getImport_specs().size()) {
+        Marker m(
+            "function '" + i->getProto()->getName()->getId()
+                + "' is already imported",
+            MarkerSeverityE::Error,
+            i->getProto()->getName()->getLocation());
+        m_marker_l->marker(&m);
     }
 
     i->getProto()->accept(m_this);
@@ -508,6 +552,12 @@ void TaskBuildSymbolTree::visitFunctionImportType(ast::IFunctionImportType *i) {
 
 void TaskBuildSymbolTree::visitFunctionPrototype(ast::IFunctionPrototype *i) { 
     DEBUG_ENTER("visitFunctionPrototype %s", i->getName()->getId().c_str());
+
+    // This visitor never built a plist and never looked at the parameters at
+    // all, so `function void f(int a, int a);` -- a prototype with no body --
+    // was the one form that went entirely unchecked.
+    reportDuplicateParams(i);
+
     ast::IScopeChild *ex_func_b = findSymbol(i->getName()->getId());
     ast::ISymbolFunctionScope *func_sym = dynamic_cast<ast::ISymbolFunctionScope *>(ex_func_b);
 
@@ -792,16 +842,59 @@ void TaskBuildSymbolTree::reportDuplicateSymbol(
         ast::IScopeChild        *orig,
         ast::IScopeChild        *dup) {
     std::string name = TaskGetName().get(orig);
-    DEBUG_ERROR("Duplicate declaration: %s", name.c_str());
+
+    // DEBUG rather than DEBUG_ERROR: with no debug manager installed --
+    // i.e. in every ordinary run -- DEBUG_ERROR prints straight to stdout,
+    // so this produced a bare `Error: TaskBuildSymbolTree: Duplicate
+    // declaration: A` line with no file, no location, and no bearing on the
+    // exit code, above a summary that said `0 errors`. The marker below is
+    // the report.
+    DEBUG("Duplicate declaration: %s", name.c_str());
+
     ast::Location loc = dup->getLocation();
     if (loc.lineno < 0 && orig) {
         loc = orig->getLocation();
     }
+
+    // Error, not Warn. Two declarations of one name in one scope is illegal
+    // PSS, and the second silently wins the symbol table -- so a reference
+    // that names the first resolves to the second, and every diagnostic that
+    // follows is measured against a declaration the user did not write.
+    // `checkers/core_checker.py` has always classified PSS003 as an error;
+    // only the marker disagreed. Extensions that collide with a declaration
+    // (`Type extension of A conflicts...`) were already errors, so this also
+    // makes the two paths agree.
     Marker m(
         "duplicate declaration of '" + name + "'",
-        MarkerSeverityE::Warn,
+        MarkerSeverityE::Error,
         loc);
     m_marker_l->marker(&m);
+}
+
+void TaskBuildSymbolTree::reportDuplicateParams(ast::IFunctionPrototype *proto) {
+    if (!proto) {
+        return;
+    }
+
+    std::set<std::string> seen;
+
+    for (std::vector<ast::IFunctionParamDeclUP>::const_iterator
+        it=proto->getParameters().begin();
+        it!=proto->getParameters().end(); it++) {
+        if (!(*it)->getName()) {
+            continue;
+        }
+
+        const std::string &name = (*it)->getName()->getId();
+
+        if (!seen.insert(name).second) {
+            Marker m(
+                "duplicate parameter name '" + name + "'",
+                MarkerSeverityE::Error,
+                (*it)->getName()->getLocation());
+            m_marker_l->marker(&m);
+        }
+    }
 }
 
 ast::IScopeChild *TaskBuildSymbolTree::findSymbol(const std::string &name) {

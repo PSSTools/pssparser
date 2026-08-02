@@ -110,8 +110,15 @@ class Parser(object):
 
         ret = linker.link(marker_l, self._files)
 
+        # Collect unconditionally. This ran only inside the `hasSeverity`
+        # branch below, so a link that produced warnings but no errors built
+        # them, handed them to the collector, and then dropped them: the CLI
+        # reads `parser.markers`, which stayed empty, and printed "0 errors in
+        # 0 files". Both parse paths above already collect on success; only
+        # this one did not.
+        self._markers.extend(self._collectMarkers(marker_l))
+
         if marker_l.hasSeverity(zspp.MarkerSeverityE.Error):
-            self._markers.extend(self._collectMarkers(marker_l))
             err = self._mkErrorMessage(marker_l)
             raise ParseException(err, self._markers)
 

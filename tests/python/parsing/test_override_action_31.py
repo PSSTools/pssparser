@@ -10,8 +10,16 @@ from test_helpers import assert_parse_ok, assert_parse_error, get_symbol
 
 
 def test_override_action_in_component():
+    # LRM 19.2.2a: an action may be declared override only if a same-named
+    # action is declared in a *base* component.  This test used to declare
+    # `override action A` in a component with no base at all, which the parser
+    # accepted only because overriding was a no-op.  The base is what makes
+    # the input valid PSS; the declaration under test is unchanged.
     pss = """
-    component C {
+    component B {
+        action A { }
+    }
+    component C : B {
         override action A {
             activity {
             }
@@ -24,8 +32,12 @@ def test_override_action_in_component():
 
 
 def test_override_action_with_fields_and_constraints():
+    # See the note above: `C` needs a base declaring `A` to be valid PSS.
     pss = """
-    component C {
+    component B {
+        action A { }
+    }
+    component C : B {
         override action A {
             rand int x;
             constraint {

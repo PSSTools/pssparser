@@ -409,14 +409,14 @@ def test_an_override_does_not_contribute_to_the_overridden_action():
     """)], "x")
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "override is unimplemented: `override action A {...}` is built as an "
-    "IExtendType targeting A (AstBuilderInt::visitOverride_action_declaration), "
-    "so it cannot be told apart from a real extension, and its target lives in "
-    "a base component whose super type is not resolved until a later phase. "
-    "Remove this marker when ExtendType carries an is_override flag and "
-    "overriding creates a derived action in the declaring component."))
 def test_an_override_declares_the_action_in_the_declaring_component():
+    """LRM 19.2.2: the overriding action is a new action in the declaring
+    component that inherits from the one it overrides.
+
+    So `inh1_c::base_a` has `x` and `base_c::base_a` does not -- which is what
+    ``test_an_override_does_not_contribute_to_the_overridden_action`` above
+    pins from the other side.
+    """
     assert_clean([("t.pss", """
         package p {
             component base_c { action base_a { } }

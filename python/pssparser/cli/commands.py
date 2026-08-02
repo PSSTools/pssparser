@@ -126,9 +126,20 @@ def _build_core_patterns() -> list:
         (r"^unknown type\b", "PSS002"),
         (r"^unknown identifier\b", "PSS002"),
         (r"^unknown method\b", "PSS002"),
+        (r"\bhas no member named\b", "PSS002"),
+
+        # PSS006 — call argument count
+        (r"^too few arguments\b", "PSS006"),
+        (r"^too many arguments\b", "PSS006"),
 
         # PSS003 — duplicate declarations
         (r"^duplicate\b", "PSS003"),
+        (r"^function '.*' is already (defined|imported)\b", "PSS003"),
+        (r"^function '.*' cannot be both defined and imported\b", "PSS003"),
+
+        # PSS007 — return statement vs. declared return type
+        (r"\breturns void, so 'return'", "PSS007"),
+        (r"\bhas a return type, so 'return'", "PSS007"),
 
         # PSS005 — extend-unknown (checked before PSS004 to avoid false match)
         (r"^cannot extend unknown\b", "PSS005"),

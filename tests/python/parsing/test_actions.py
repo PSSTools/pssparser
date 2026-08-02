@@ -175,17 +175,23 @@ def test_action_invalid_syntax():
 
 
 def test_action_duplicate_name():
-    """Test duplicate action names"""
+    """Two actions of one name in one component are rejected.
+
+    This used to assert the opposite -- that the model links -- under a
+    ``TODO: Add proper duplicate checking when API available``.  The check
+    existed; it built a *warning*, and the linker then discarded warnings from
+    a run with no errors, so nothing was reported and the second declaration
+    silently won the symbol table.
+    """
     code = """
         component pss_top {
             action A { }
             action A { }  // Duplicate
         }
     """
-    # This should parse but may fail at link time
-    # TODO: Add proper duplicate checking when API available
-    root = parse_pss(code)
-    assert root is not None
+    with pytest.raises(Exception) as exc:
+        parse_pss(code)
+    assert "duplicate declaration of 'A'" in str(exc.value)
 
 
 def test_abstract_action(parser):

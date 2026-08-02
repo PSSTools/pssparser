@@ -36,6 +36,7 @@
 #include "TaskResolveRefsOverlay.h"
 #include "TaskResolveRefs.h"
 #include "TaskResolveSuperTypes.h"
+#include "TaskResolveOverrideActions.h"
 
 
 namespace pssp {
@@ -109,6 +110,12 @@ ast::IRootSymbolScope *AstLinker::link(
     // member does not depend on the base type having been declared in an
     // earlier file than the use. See TaskResolveSuperTypes.
     TaskResolveSuperTypes(&ctxt).resolve(symtree);
+
+    // Then override actions, whose super type is their own name and so has
+    // to be looked up in the declaring component's base chain rather than by
+    // the ordinary rules. Separate from the pass above because walking more
+    // than one level up needs every component's super type already resolved.
+    TaskResolveOverrideActions(&ctxt).resolve(symtree);
 
     TaskResolveRefs(&ctxt).resolve(symtree);
     uint64_t resolve_e = time_ms();

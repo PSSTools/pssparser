@@ -128,6 +128,19 @@ protected:
         ast::IScopeChild        *orig,
         ast::IScopeChild        *dup);
 
+    /**
+     * Report any repeated parameter name in `proto`.
+     *
+     * Separate from the symtab loops in the three function visitors because
+     * those loops run only when the function scope is being created: a
+     * prototype seen after a definition, or a second prototype, skips them
+     * entirely. This runs for every prototype. It also has to be its own
+     * routine rather than a reportDuplicateSymbol() call, since a parameter
+     * decl carries neither a name that TaskGetName() can read nor a location
+     * of its own -- both live on its name node.
+     */
+    void reportDuplicateParams(ast::IFunctionPrototype *proto);
+
     ast::IScopeChild *findSymbol(const std::string &name);
 
     void pushSymbolScope(ast::ISymbolChild *s);

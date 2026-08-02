@@ -93,6 +93,8 @@ public:
 
     virtual void visitSymbolFunctionScope(ast::ISymbolFunctionScope *i) override;
 
+    virtual void visitProceduralStmtReturn(ast::IProceduralStmtReturn *i) override;
+
 //    virtual void visitSymbolStmtScope(ast::ISymbolStmtScope *i) override;
 
     virtual void visitSymbolTypeScope(ast::ISymbolTypeScope *i) override;
@@ -112,9 +114,42 @@ protected:
 
     bool isGenericConstraintParam(const std::string &name) const;
 
+    bool isBuiltinWithMethods(ast::IScopeChild *c);
+
+    /**
+     * Check a call's argument count against the callee's declared parameters.
+     *
+     * `elem` is the path element that carries the argument list; `target` is
+     * whatever that element resolved to. Does nothing unless `elem` is
+     * actually a call and `target` is actually a function -- calling a
+     * non-function is a separate defect, and reporting it from here would
+     * also catch every built-in and collection method, whose parameters the
+     * parser does not model.
+     */
+    void checkCallArity(
+        ast::IExprMemberPathElem *elem,
+        ast::IScopeChild         *target);
+
+    /**
+     * Resolve the leaf elements of a static-rooted path -- the `f` of
+     * `p::f(1)` -- against the scope the static root resolved to.
+     *
+     * The branch this fills was a `DEBUG("TODO")`, so the leaf's names were
+     * never looked up in anything.
+     */
+    void resolveStaticRootedLeaf(ast::IExprRefPathStaticRooted *i);
+
 private:
     static dmgr::IDebug                 *m_dbg;
     std::set<std::string>               m_generic_constraint_params;
+
+    /**
+     * The prototypes of the function bodies currently being walked, innermost
+     * last. Empty while walking anything that is not a function body -- an
+     * action's `exec` block, say -- which is why a `return` seen with this
+     * empty is left alone rather than reported.
+     */
+    std::vector<ast::IFunctionPrototype *> m_func_s;
 
 };
 

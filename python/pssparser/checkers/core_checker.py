@@ -44,7 +44,8 @@ class CoreChecker(CheckerBase):
                 "method.  Messages include patterns such as:\n\n"
                 "* ``unknown type 'Foo'``\n"
                 "* ``unknown identifier 'bar'``\n"
-                "* ``unknown method 'baz' on built-in type``\n\n"
+                "* ``unknown method 'baz' on built-in type``\n"
+                "* ``'pkg' has no member named 'thing'``\n\n"
                 "Ensure the symbol is declared in one of the source files "
                 "passed to pssparser, or that the correct package is imported."
                 "  When a close match exists, a ``did you mean '...'?`` "
@@ -61,7 +62,10 @@ class CoreChecker(CheckerBase):
                 "* ``duplicate declaration of 'Foo'``\n"
                 "* ``duplicate variable declaration bar``\n"
                 "* ``duplicate parameter name 'p'``\n"
-                "* ``duplicate symbol declaration``\n\n"
+                "* ``duplicate symbol declaration``\n"
+                "* ``function 'f' is already defined``\n"
+                "* ``function 'f' cannot be both defined and imported``\n"
+                "* ``function 'f' is already imported``\n\n"
                 "Rename one of the declarations to resolve the conflict."
             ),
         ),
@@ -90,6 +94,36 @@ class CoreChecker(CheckerBase):
                 "* ``cannot extend unknown enum 'MyEnum'``\n\n"
                 "Ensure the base type is declared before or alongside the "
                 "extend block."
+            ),
+        ),
+        MarkerDef(
+            id="PSS006",
+            severity="error",
+            summary="Wrong number of call arguments",
+            detail=(
+                "A function call supplies more or fewer arguments than the "
+                "callee declares.  Messages include patterns such as:\n\n"
+                "* ``too few arguments to 'f': expected 2, got 1``\n"
+                "* ``too many arguments to 'f': expected 1, got 2``\n\n"
+                "Parameters with a default may be omitted, which is why the "
+                "bound is reported as ``at least``/``at most`` when the two "
+                "differ.  A ``type... args`` parameter removes the upper "
+                "bound entirely."
+            ),
+        ),
+        MarkerDef(
+            id="PSS007",
+            severity="error",
+            summary="Return statement conflicts with the return type",
+            detail=(
+                "A ``return`` supplies a value from a ``void`` function, or "
+                "omits one where a return type is declared.  Messages "
+                "include patterns such as:\n\n"
+                "* ``'f' returns void, so 'return' cannot take a value``\n"
+                "* ``'f' has a return type, so 'return' must supply a "
+                "value``\n\n"
+                "Whether a non-void function returns on *every* path is not "
+                "checked."
             ),
         ),
     ]

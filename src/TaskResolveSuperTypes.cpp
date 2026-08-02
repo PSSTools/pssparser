@@ -23,6 +23,7 @@
 #include "TaskResolveRef.h"
 #include "TaskResolveImports.h"
 #include "pssp/ast/ITypeScope.h"
+#include "pssp/ast/IAction.h"
 
 namespace pssp {
 
@@ -100,7 +101,18 @@ void TaskResolveSuperTypes::visitSymbolTypeScope(ast::ISymbolTypeScope *i) {
         TaskResolveImports(m_ctxt).resolve(i);
     }
 
-    if (i_ts->getSuper_t() && !i_ts->getSuper_t()->getTarget()) {
+    ast::IAction *i_a = dynamic_cast<ast::IAction *>(i_ts);
+
+    if (i_a && i_a->getIs_override()) {
+        // An override action's super type spells its own name (LRM 19.2.2),
+        // so the ordinary lookup would find this very declaration and make
+        // the type its own base. TaskResolveOverrideActions resolves it in
+        // the enclosing component's base chain instead, after this whole
+        // pass has finished -- it needs every component's super type already
+        // resolved to walk more than one level up.
+        DEBUG("Note: deferring super type of override action %s",
+            i->getName().c_str());
+    } else if (i_ts->getSuper_t() && !i_ts->getSuper_t()->getTarget()) {
         DEBUG("Resolving super type of %s", i->getName().c_str());
         ast::ISymbolRefPath *target = TaskResolveRef(m_ctxt).resolve(
             i_ts->getSuper_t());
