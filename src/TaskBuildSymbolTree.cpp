@@ -387,36 +387,50 @@ void TaskBuildSymbolTree::visitFunctionDefinition(ast::IFunctionDefinition *i) {
 
         func_sym->setPlist(m_factory->mkSymbolScope("<plist>"));
 
-        // Add parameters to the function symbol scope
+        // Parameters go in the plist, as they do in the other two function
+        // visitors. This one used to put them in the function scope's own
+        // symtab and children instead, so the same declaration produced a
+        // different tree depending on which form it took:
+        //
+        //   definition      plist 0, children 2
+        //   import proto    plist 2, children 0
+        //   bare prototype  no plist at all
+        //
+        // A consumer asking "what are this function's parameters?" -- a
+        // checker plug-in, say -- got a different answer for each. The plist
+        // is the canonical store because ElemKind_ArgIdx resolves through it
+        // (TaskResolveSymbolPathRef), and TaskResolveRootRef looks names up
+        // there first.
+        //
+        // Names still resolved from a definition's body before this, but by
+        // the fallback path: TaskResolveRootRef::visitSymbolFunctionScope
+        // misses in the plist and delegates to visitSymbolScope, which
+        // searches the scope's own symtab and yields an ElemKind_ChildIdx
+        // path. Two routes to the same answer, only one of which any other
+        // pass knows about.
         for (std::vector<ast::IFunctionParamDeclUP>::const_iterator
             it=i->getProto()->getParameters().begin();
             it!=i->getProto()->getParameters().end(); it++) {
-            int32_t id = func_sym->getChildren().size();
+            if (!(*it)->getName()) {
+                continue;
+            }
 
-            // Look up in the same table the else-branch inserts into.
-            // This searched the *plist* and compared the result against the
-            // end of func_sym's own symtab -- two different containers, so
-            // the comparison was undefined, and since nothing here ever
-            // populates the plist the lookup could not have hit anyway.
-            // `function void f(int a, int a) {}` was therefore accepted in
-            // silence. (visitFunctionImportProto below uses the plist for
-            // both halves, and works; the two paths store parameters in
-            // different places, which is worth reconciling but is not this
-            // fix.)
-            std::unordered_map<std::string, int32_t>::const_iterator sym_it =
-                func_sym->getSymtab().find((*it)->getName()->getId());
+            const std::string &name = (*it)->getName()->getId();
+            int32_t id = func_sym->getPlist()->getChildren().size();
 
-            if (sym_it != func_sym->getSymtab().end()) {
+            if (func_sym->getPlist()->getSymtab().find(name)
+                != func_sym->getPlist()->getSymtab().end()) {
                 // Already reported by reportDuplicateParams(); skip the
                 // insert so the first declaration keeps the name.
-                DEBUG("Skipping duplicate parameter %s",
-                    (*it)->getName()->getId().c_str());
-            } else {
-                DEBUG("Add parameter %s to function symtab", (*it)->getName()->getId().c_str());
-                (*it)->setIndex(id);
-                func_sym->getSymtab().insert({(*it)->getName()->getId(), id});
-                func_sym->getChildren().push_back(ast::IScopeChildUP(it->get(), false));
+                DEBUG("Skipping duplicate parameter %s", name.c_str());
+                continue;
             }
+
+            DEBUG("Add parameter %s to function plist", name.c_str());
+            (*it)->setIndex(id);
+            func_sym->getPlist()->getSymtab().insert({name, id});
+            func_sym->getPlist()->getChildren().push_back(
+                ast::IScopeChildUP(it->get(), false));
         }
     }
 
@@ -461,6 +475,26 @@ void TaskBuildSymbolTree::visitFunctionDefinition(ast::IFunctionDefinition *i) {
         func_sym->getPrototypes().begin(),
         i->getProto()
     );
+
+    // Checked here rather than at the top of the visitor, and over *every*
+    // prototype rather than this one. LRM 20.3.2 attaches the rule to the
+    // declaration, not to the syntactic form the body arrived in:
+    //
+    //   function void f(output int a);       // legal alone
+    //   function void f(int a) { }           // ... and now it is not
+    //
+    // The direction is on the earlier prototype, so checking only
+    // `i->getProto()` -- which is what the first version of this did -- saw a
+    // clean parameter list and accepted the pair.
+    for (std::vector<ast::IFunctionPrototype *>::const_iterator
+        it=func_sym->getPrototypes().begin();
+        it!=func_sym->getPrototypes().end(); it++) {
+        // One report per function: a prototype and a definition that both
+        // spell the direction are one mistake, not two.
+        if (checkNativeParamDir(*it)) {
+            break;
+        }
+    }
 
     DEBUG_LEAVE("visitFunctionDefinition %s", i->getProto()->getName()->getId().c_str());
 }
@@ -577,6 +611,50 @@ void TaskBuildSymbolTree::visitFunctionPrototype(ast::IFunctionPrototype *i) {
         addChild(func_sym, i->getName()->getId(), false);
     } else {
         DEBUG("Note: Function %s is already defined", func_sym->getName().c_str());
+    }
+
+    // Build the parameter list. This visitor did not, which left a bare
+    // prototype's function scope with a **null** plist -- the only one of the
+    // three forms without one. Two things followed:
+    //
+    //  - TaskResolveRootRef::visitSymbolFunctionScope opens with
+    //    `i->getPlist()->getSymtab()`, unguarded, and
+    //    TaskResolveSymbolPathRef does the same for ElemKind_ArgIdx;
+    //  - a prototype followed by a definition of the same function left the
+    //    parameters registered in neither place, because
+    //    visitFunctionDefinition only builds them when it is the visitor that
+    //    creates the scope. The body was still walked, but nothing in it
+    //    resolved: `function void f(int a); function void f(int a) { v =
+    //    nosuch; }` reported nothing at all.
+    //
+    // Populating it here also settles which of the two stores is canonical:
+    // the plist is what ElemKind_ArgIdx resolves through, so it is.
+    if (!func_sym->getPlist()) {
+        func_sym->setPlist(m_factory->mkSymbolScope("<plist>"));
+    }
+
+    for (std::vector<ast::IFunctionParamDeclUP>::const_iterator
+        it=i->getParameters().begin();
+        it!=i->getParameters().end(); it++) {
+        if (!(*it)->getName()) {
+            continue;
+        }
+
+        const std::string &name = (*it)->getName()->getId();
+        int32_t id = func_sym->getPlist()->getChildren().size();
+
+        if (func_sym->getPlist()->getSymtab().find(name)
+            != func_sym->getPlist()->getSymtab().end()) {
+            // Already registered -- a repeated prototype, or a duplicate
+            // parameter name, which reportDuplicateParams() above has
+            // already reported.
+            continue;
+        }
+
+        (*it)->setIndex(id);
+        func_sym->getPlist()->getSymtab().insert({name, id});
+        func_sym->getPlist()->getChildren().push_back(
+            ast::IScopeChildUP(it->get(), false));
     }
 
     func_sym->getPrototypes().push_back(i);
@@ -893,6 +971,138 @@ void TaskBuildSymbolTree::reportDuplicateParams(ast::IFunctionPrototype *proto) 
                 MarkerSeverityE::Error,
                 (*it)->getName()->getLocation());
             m_marker_l->marker(&m);
+        }
+    }
+
+    checkParamDefaultOrder(proto);
+    checkPureQualifier(proto);
+}
+
+void TaskBuildSymbolTree::checkPureQualifier(ast::IFunctionPrototype *proto) {
+    // LRM 20.2.6 rule (a): "Only non-void functions with no output or inout
+    // parameters may be declared pure."
+    //
+    // Both halves follow from what `pure` means -- the return value depends
+    // only on the parameters, and evaluation has no side effects. A void pure
+    // function can have no observable effect at all, and an output parameter
+    // *is* a side effect. The LRM notes that a wrongly-declared pure function
+    // "may lead to unexpected behavior", because implementations are entitled
+    // to optimize on the strength of the modifier: the call may be hoisted,
+    // reordered, or evaluated once and reused. Neither of these is a style
+    // question.
+    if (!proto->getIs_pure()) {
+        return;
+    }
+
+    if (!proto->getRtype()) {
+        Marker m(
+            "'" + proto->getName()->getId()
+                + "' is declared pure, so it cannot return void",
+            MarkerSeverityE::Error,
+            proto->getName()->getLocation());
+        m_marker_l->marker(&m);
+    }
+
+    for (std::vector<ast::IFunctionParamDeclUP>::const_iterator
+        it=proto->getParameters().begin();
+        it!=proto->getParameters().end(); it++) {
+        ast::ParamDir dir = (*it)->getDir();
+        if (dir != ast::ParamDir::ParamDir_Out
+            && dir != ast::ParamDir::ParamDir_InOut) {
+            continue;
+        }
+        if (!(*it)->getName()) {
+            continue;
+        }
+        Marker m(
+            "'" + proto->getName()->getId() + "' is declared pure, so parameter '"
+                + (*it)->getName()->getId() + "' cannot be "
+                + ((dir == ast::ParamDir::ParamDir_Out)?"output":"inout"),
+            MarkerSeverityE::Error,
+            (*it)->getName()->getLocation());
+        m_marker_l->marker(&m);
+        // One report per prototype: a pure function with three output
+        // parameters has one thing wrong with it, not three.
+        break;
+    }
+}
+
+bool TaskBuildSymbolTree::checkNativeParamDir(ast::IFunctionPrototype *proto) {
+    // LRM 20.2.2: "Parameter direction modifiers (input, output, or inout) are
+    // optional in the function declaration. However, if they are specified in
+    // the function declaration, such a function may only be imported." And
+    // 20.3.2, for native functions: "Parameter direction shall be unspecified
+    // ... If the function declaration contains directions for parameters, this
+    // function shall not have a native implementation."
+    //
+    // Called only from visitFunctionDefinition -- that is the whole of the
+    // rule. A direction on a prototype is legal on its own; it becomes illegal
+    // when a PSS body turns up for it.
+    //
+    // `is_core` is the exemption the LRM grants itself: "Functions whose
+    // definition is built into implementations, such as functions included in
+    // the PSS core library, may also have output or inout parameters."
+    if (!proto || proto->getIs_core()) {
+        return false;
+    }
+
+    for (std::vector<ast::IFunctionParamDeclUP>::const_iterator
+        it=proto->getParameters().begin();
+        it!=proto->getParameters().end(); it++) {
+        ast::ParamDir dir = (*it)->getDir();
+        if (dir == ast::ParamDir::ParamDir_Default || !(*it)->getName()) {
+            continue;
+        }
+        const char *dir_s = (dir == ast::ParamDir::ParamDir_In)?"input":
+                            (dir == ast::ParamDir::ParamDir_Out)?"output":"inout";
+        Marker m(
+            std::string("parameter '") + (*it)->getName()->getId() + "' of '"
+                + proto->getName()->getId() + "' is declared " + dir_s
+                + ", so '" + proto->getName()->getId()
+                + "' may only be imported, not defined in PSS",
+            MarkerSeverityE::Error,
+            (*it)->getName()->getLocation());
+        m_marker_l->marker(&m);
+        return true;
+    }
+
+    return false;
+}
+
+void TaskBuildSymbolTree::checkParamDefaultOrder(ast::IFunctionPrototype *proto) {
+    // Parameters with a default shall be trailing. Otherwise the default is
+    // unreachable -- there is no call that omits it while supplying the ones
+    // after it -- and the arity check computes its minimum by taking the index
+    // of the last parameter without a default, which quietly treats the
+    // earlier default as required.
+    bool seen_dflt = false;
+    ast::IFunctionParamDecl *first_dflt = 0;
+
+    for (std::vector<ast::IFunctionParamDeclUP>::const_iterator
+        it=proto->getParameters().begin();
+        it!=proto->getParameters().end(); it++) {
+        if ((*it)->getIs_varargs()) {
+            // Always last, and never carries a default.
+            break;
+        }
+
+        if ((*it)->getDflt()) {
+            seen_dflt = true;
+            if (!first_dflt) {
+                first_dflt = it->get();
+            }
+        } else if (seen_dflt && (*it)->getName()) {
+            Marker m(
+                "parameter '" + (*it)->getName()->getId()
+                    + "' has no default, but follows '"
+                    + first_dflt->getName()->getId() + "' which does",
+                MarkerSeverityE::Error,
+                (*it)->getName()->getLocation());
+            m_marker_l->marker(&m);
+            // One report per prototype: every later non-defaulted parameter
+            // is the same mistake, and naming the first default each time
+            // would repeat the same advice.
+            break;
         }
     }
 }

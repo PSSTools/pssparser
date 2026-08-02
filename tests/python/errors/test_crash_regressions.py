@@ -80,21 +80,81 @@ component pss_top { c c0; }
 """
 
 
-# PLAN: phase 1.2 -- AstBuilderInt::mkExecStmt has no case for super
-@pytest.mark.xfail(strict=True, reason="phase 1.2: crash in AstBuilderInt::mkExecStmt")
 def test_super_in_exec_is_accepted():
     """`super;` invokes the base type's same-kind exec (LRM 17.1, 20.1.4.2).
 
     Without it a derived exec silently *replaces* the base's, so this is the
     correct form of the most damaging inheritance mistake in PSS.
+
+    Closed in plan section 37.  `exec_stmt` has two alternatives and
+    ``visitExec_block`` handled only one, so ``procedural_stmt()`` came back
+    null for ``super;`` and went straight into ``mkExecStmt()``, which
+    dereferenced it.
     """
     assert_clean(SUPER_IN_EXEC)
 
 
-@pytest.mark.xfail(strict=True, reason="phase 1.2: crash in AstBuilderInt::mkExecStmt")
 def test_super_in_exec_does_not_crash():
     """Weaker companion to the above: survives even before the feature lands."""
     assert_no_crash(SUPER_IN_EXEC, description="super; in an exec block")
+
+
+def test_super_in_exec_builds_a_node():
+    """Not merely accepted -- represented.
+
+    Skipping the statement would also have made the two tests above pass,
+    while discarding the one thing that distinguishes extending a base exec
+    from replacing it.  That is the shape of the LRM 17.5 ``override`` block
+    defect, and worth a test rather than a comment.
+    """
+    import sys, pathlib
+    sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
+    from pssparser.parser import Parser
+    import pssparser.ast as ast
+
+    assert hasattr(ast, "ProceduralStmtSuper")
+
+    p = Parser()
+    p.parses([("t.pss", SUPER_IN_EXEC)])
+    root = p.link()
+    assert root is not None
+
+    # Walk for the node itself.  Asserting only that the class exists and
+    # that the link succeeded -- which is all this test did at first -- is
+    # exactly the check that a skipped statement passes.
+    seen = []
+
+    def walk(n, depth=0):
+        if n is None or depth > 30:
+            return
+        if type(n).__name__ == "ProceduralStmtSuper":
+            seen.append(n)
+        for acc in ("getChildren", "getBody"):
+            g = getattr(n, acc, None)
+            if not callable(g):
+                continue
+            try:
+                v = g()
+            except Exception:
+                continue
+            if acc == "getChildren":
+                for c in v:
+                    walk(c, depth+1)
+            else:
+                walk(v, depth+1)
+
+    walk(root)
+    assert seen, "`super;` linked, but built no ProceduralStmtSuper node"
+
+
+def test_statements_after_super_are_still_resolved():
+    """The statement must not swallow the rest of the block."""
+    assert_rejects([("t.pss", """
+        component c {
+            action a { exec body { } }
+            action b : a { exec body { super; int v; v = nosuch; } }
+        }
+    """)], "nosuch")
 
 
 # ---------------------------------------------------------------------------

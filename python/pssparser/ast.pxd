@@ -42,11 +42,11 @@ cdef class SymbolRefPathElem:
 cdef class Factory(object):
     cdef ast_decl.IFactory *_hndl
     cpdef AssocData mkAssocData(self)
-    cpdef TemplateParamDeclList mkTemplateParamDeclList(self)
     cpdef ExecTargetTemplateParam mkExecTargetTemplateParam(self,
     Expr expr,
     int32_t start,
     int32_t end)
+    cpdef TemplateParamDeclList mkTemplateParamDeclList(self)
     cpdef Expr mkExpr(self)
     cpdef TemplateParamValue mkTemplateParamValue(self)
     cpdef TemplateParamValueList mkTemplateParamValueList(self)
@@ -111,19 +111,19 @@ cdef class Factory(object):
     cpdef RefExprScopeIndex mkRefExprScopeIndex(self,
     RefExpr base,
     int32_t offset)
-    cpdef RefExprTypeScopeContext mkRefExprTypeScopeContext(self,
-    RefExpr base,
-    int32_t offset)
     cpdef CoverStmtInline mkCoverStmtInline(self,
     ScopeChild body)
     cpdef CoverStmtReference mkCoverStmtReference(self,
     ExprRefPath target)
+    cpdef RefExprTypeScopeContext mkRefExprTypeScopeContext(self,
+    RefExpr base,
+    int32_t offset)
     cpdef RefExprTypeScopeGlobal mkRefExprTypeScopeGlobal(self,
     int32_t fileid)
     cpdef Scope mkScope(self)
+    cpdef DataType mkDataType(self)
     cpdef ScopeChildRef mkScopeChildRef(self,
     ScopeChild target)
-    cpdef DataType mkDataType(self)
     cpdef SymbolChild mkSymbolChild(self)
     cpdef SymbolScopeRef mkSymbolScopeRef(self,
     str name)
@@ -405,6 +405,7 @@ cdef class Factory(object):
     Expr target)
     cpdef ProceduralStmtReturn mkProceduralStmtReturn(self,
     Expr expr)
+    cpdef ProceduralStmtSuper mkProceduralStmtSuper(self)
     cpdef ProceduralStmtYield mkProceduralStmtYield(self)
     cpdef SymbolChildrenScope mkSymbolChildrenScope(self,
     str name)
@@ -458,14 +459,14 @@ cdef class Factory(object):
     cpdef ProceduralStmtRepeatWhile mkProceduralStmtRepeatWhile(self,
     ScopeChild body,
     Expr expr)
-    cpdef ProceduralStmtWhile mkProceduralStmtWhile(self,
-    ScopeChild body,
-    Expr expr)
     cpdef ConstraintStmtForall mkConstraintStmtForall(self,
     ExprId iterator_id,
     DataTypeUserDefined type_id,
     ExprRefPath ref_path)
     cpdef ConstraintStmtForeach mkConstraintStmtForeach(self,
+    Expr expr)
+    cpdef ProceduralStmtWhile mkProceduralStmtWhile(self,
+    ScopeChild body,
     Expr expr)
     cpdef ConstraintStmtImplication mkConstraintStmtImplication(self,
     Expr cond)
@@ -561,6 +562,19 @@ cdef class AssocData(object):
     @staticmethod
     cdef AssocData mk(ast_decl.IAssocData *hndl, bool owned)
 
+cdef class ExecTargetTemplateParam(object):
+    cdef ast_decl.IExecTargetTemplateParam    *_hndl
+    cdef bool           _owned
+    
+    cpdef void accept(self, VisitorBase v)
+    cpdef int id(self)
+    cdef ast_decl.IExecTargetTemplateParam *asExecTargetTemplateParam(self)
+    @staticmethod
+    cdef ExecTargetTemplateParam mk(ast_decl.IExecTargetTemplateParam *hndl, bool owned)
+    cpdef Expr getExpr(self)
+    cpdef int32_t getStart(self)
+    cpdef int32_t getEnd(self)
+
 cdef class TemplateParamDeclList(object):
     cdef ast_decl.ITemplateParamDeclList    *_hndl
     cdef bool           _owned
@@ -575,19 +589,6 @@ cdef class TemplateParamDeclList(object):
     cpdef void addParam(self, TemplateParamDecl i)
     cpdef numParams(self)
     cpdef bool getSpecialized(self)
-
-cdef class ExecTargetTemplateParam(object):
-    cdef ast_decl.IExecTargetTemplateParam    *_hndl
-    cdef bool           _owned
-    
-    cpdef void accept(self, VisitorBase v)
-    cpdef int id(self)
-    cdef ast_decl.IExecTargetTemplateParam *asExecTargetTemplateParam(self)
-    @staticmethod
-    cdef ExecTargetTemplateParam mk(ast_decl.IExecTargetTemplateParam *hndl, bool owned)
-    cpdef Expr getExpr(self)
-    cpdef int32_t getStart(self)
-    cpdef int32_t getEnd(self)
 
 cdef class Expr(object):
     cdef ast_decl.IExpr    *_hndl
@@ -923,14 +924,6 @@ cdef class RefExprScopeIndex(RefExpr):
     cpdef RefExpr getBase(self)
     cpdef int32_t getOffset(self)
 
-cdef class RefExprTypeScopeContext(RefExpr):
-    
-    cdef ast_decl.IRefExprTypeScopeContext *asRefExprTypeScopeContext(self)
-    @staticmethod
-    cdef RefExprTypeScopeContext mk(ast_decl.IRefExprTypeScopeContext *hndl, bool owned)
-    cpdef RefExpr getBase(self)
-    cpdef int32_t getOffset(self)
-
 cdef class CoverStmtInline(ScopeChild):
     
     cdef ast_decl.ICoverStmtInline *asCoverStmtInline(self)
@@ -944,6 +937,14 @@ cdef class CoverStmtReference(ScopeChild):
     @staticmethod
     cdef CoverStmtReference mk(ast_decl.ICoverStmtReference *hndl, bool owned)
     cpdef ExprRefPath getTarget(self)
+
+cdef class RefExprTypeScopeContext(RefExpr):
+    
+    cdef ast_decl.IRefExprTypeScopeContext *asRefExprTypeScopeContext(self)
+    @staticmethod
+    cdef RefExprTypeScopeContext mk(ast_decl.IRefExprTypeScopeContext *hndl, bool owned)
+    cpdef RefExpr getBase(self)
+    cpdef int32_t getOffset(self)
 
 cdef class RefExprTypeScopeGlobal(RefExpr):
     
@@ -963,18 +964,18 @@ cdef class Scope(ScopeChild):
     cpdef void addChild(self, ScopeChild i)
     cpdef numChildren(self)
 
+cdef class DataType(ScopeChild):
+    
+    cdef ast_decl.IDataType *asDataType(self)
+    @staticmethod
+    cdef DataType mk(ast_decl.IDataType *hndl, bool owned)
+
 cdef class ScopeChildRef(ScopeChild):
     
     cdef ast_decl.IScopeChildRef *asScopeChildRef(self)
     @staticmethod
     cdef ScopeChildRef mk(ast_decl.IScopeChildRef *hndl, bool owned)
     cpdef ScopeChild getTarget(self)
-
-cdef class DataType(ScopeChild):
-    
-    cdef ast_decl.IDataType *asDataType(self)
-    @staticmethod
-    cdef DataType mk(ast_decl.IDataType *hndl, bool owned)
 
 cdef class SymbolChild(ScopeChild):
     
@@ -1980,6 +1981,12 @@ cdef class ProceduralStmtReturn(ExecStmt):
     cdef ProceduralStmtReturn mk(ast_decl.IProceduralStmtReturn *hndl, bool owned)
     cpdef Expr getExpr(self)
 
+cdef class ProceduralStmtSuper(ExecStmt):
+    
+    cdef ast_decl.IProceduralStmtSuper *asProceduralStmtSuper(self)
+    @staticmethod
+    cdef ProceduralStmtSuper mk(ast_decl.IProceduralStmtSuper *hndl, bool owned)
+
 cdef class ProceduralStmtYield(ExecStmt):
     
     cdef ast_decl.IProceduralStmtYield *asProceduralStmtYield(self)
@@ -2142,13 +2149,6 @@ cdef class ProceduralStmtRepeatWhile(ProceduralStmtBody):
     cdef ProceduralStmtRepeatWhile mk(ast_decl.IProceduralStmtRepeatWhile *hndl, bool owned)
     cpdef Expr getExpr(self)
 
-cdef class ProceduralStmtWhile(ProceduralStmtBody):
-    
-    cdef ast_decl.IProceduralStmtWhile *asProceduralStmtWhile(self)
-    @staticmethod
-    cdef ProceduralStmtWhile mk(ast_decl.IProceduralStmtWhile *hndl, bool owned)
-    cpdef Expr getExpr(self)
-
 cdef class ConstraintStmtForall(ConstraintScope):
     
     cdef ast_decl.IConstraintStmtForall *asConstraintStmtForall(self)
@@ -2168,6 +2168,13 @@ cdef class ConstraintStmtForeach(ConstraintScope):
     cpdef ConstraintStmtField getIdx(self)
     cpdef Expr getExpr(self)
     cpdef ConstraintSymbolScope getSymtab(self)
+
+cdef class ProceduralStmtWhile(ProceduralStmtBody):
+    
+    cdef ast_decl.IProceduralStmtWhile *asProceduralStmtWhile(self)
+    @staticmethod
+    cdef ProceduralStmtWhile mk(ast_decl.IProceduralStmtWhile *hndl, bool owned)
+    cpdef Expr getExpr(self)
 
 cdef class ConstraintStmtImplication(ConstraintScope):
     
@@ -2418,8 +2425,8 @@ cdef class VisitorBase(object):
     cdef ast_decl.PyBaseVisitor *_hndl
     cdef bool                  _owned
     cpdef void visitAssocData(self, AssocData i)
-    cpdef void visitTemplateParamDeclList(self, TemplateParamDeclList i)
     cpdef void visitExecTargetTemplateParam(self, ExecTargetTemplateParam i)
+    cpdef void visitTemplateParamDeclList(self, TemplateParamDeclList i)
     cpdef void visitExpr(self, Expr i)
     cpdef void visitTemplateParamValue(self, TemplateParamValue i)
     cpdef void visitTemplateParamValueList(self, TemplateParamValueList i)
@@ -2451,13 +2458,13 @@ cdef class VisitorBase(object):
     cpdef void visitPyImportFromStmt(self, PyImportFromStmt i)
     cpdef void visitPyImportStmt(self, PyImportStmt i)
     cpdef void visitRefExprScopeIndex(self, RefExprScopeIndex i)
-    cpdef void visitRefExprTypeScopeContext(self, RefExprTypeScopeContext i)
     cpdef void visitCoverStmtInline(self, CoverStmtInline i)
     cpdef void visitCoverStmtReference(self, CoverStmtReference i)
+    cpdef void visitRefExprTypeScopeContext(self, RefExprTypeScopeContext i)
     cpdef void visitRefExprTypeScopeGlobal(self, RefExprTypeScopeGlobal i)
     cpdef void visitScope(self, Scope i)
-    cpdef void visitScopeChildRef(self, ScopeChildRef i)
     cpdef void visitDataType(self, DataType i)
+    cpdef void visitScopeChildRef(self, ScopeChildRef i)
     cpdef void visitSymbolChild(self, SymbolChild i)
     cpdef void visitSymbolScopeRef(self, SymbolScopeRef i)
     cpdef void visitExecStmt(self, ExecStmt i)
@@ -2573,6 +2580,7 @@ cdef class VisitorBase(object):
     cpdef void visitProceduralStmtMatchChoice(self, ProceduralStmtMatchChoice i)
     cpdef void visitProceduralStmtRandomize(self, ProceduralStmtRandomize i)
     cpdef void visitProceduralStmtReturn(self, ProceduralStmtReturn i)
+    cpdef void visitProceduralStmtSuper(self, ProceduralStmtSuper i)
     cpdef void visitProceduralStmtYield(self, ProceduralStmtYield i)
     cpdef void visitSymbolChildrenScope(self, SymbolChildrenScope i)
     cpdef void visitTemplateCategoryTypeParamDecl(self, TemplateCategoryTypeParamDecl i)
@@ -2591,9 +2599,9 @@ cdef class VisitorBase(object):
     cpdef void visitActivitySuper(self, ActivitySuper i)
     cpdef void visitConstraintBlock(self, ConstraintBlock i)
     cpdef void visitProceduralStmtRepeatWhile(self, ProceduralStmtRepeatWhile i)
-    cpdef void visitProceduralStmtWhile(self, ProceduralStmtWhile i)
     cpdef void visitConstraintStmtForall(self, ConstraintStmtForall i)
     cpdef void visitConstraintStmtForeach(self, ConstraintStmtForeach i)
+    cpdef void visitProceduralStmtWhile(self, ProceduralStmtWhile i)
     cpdef void visitConstraintStmtImplication(self, ConstraintStmtImplication i)
     cpdef void visitSymbolScope(self, SymbolScope i)
     cpdef void visitTypeScope(self, TypeScope i)
@@ -2628,8 +2636,8 @@ cdef class ObjFactory(VisitorBase):
     cdef bool _obj_owned
     cdef object _obj
     cpdef void visitAssocData(self, AssocData i)
-    cpdef void visitTemplateParamDeclList(self, TemplateParamDeclList i)
     cpdef void visitExecTargetTemplateParam(self, ExecTargetTemplateParam i)
+    cpdef void visitTemplateParamDeclList(self, TemplateParamDeclList i)
     cpdef void visitExpr(self, Expr i)
     cpdef void visitTemplateParamValue(self, TemplateParamValue i)
     cpdef void visitTemplateParamValueList(self, TemplateParamValueList i)
@@ -2661,13 +2669,13 @@ cdef class ObjFactory(VisitorBase):
     cpdef void visitPyImportFromStmt(self, PyImportFromStmt i)
     cpdef void visitPyImportStmt(self, PyImportStmt i)
     cpdef void visitRefExprScopeIndex(self, RefExprScopeIndex i)
-    cpdef void visitRefExprTypeScopeContext(self, RefExprTypeScopeContext i)
     cpdef void visitCoverStmtInline(self, CoverStmtInline i)
     cpdef void visitCoverStmtReference(self, CoverStmtReference i)
+    cpdef void visitRefExprTypeScopeContext(self, RefExprTypeScopeContext i)
     cpdef void visitRefExprTypeScopeGlobal(self, RefExprTypeScopeGlobal i)
     cpdef void visitScope(self, Scope i)
-    cpdef void visitScopeChildRef(self, ScopeChildRef i)
     cpdef void visitDataType(self, DataType i)
+    cpdef void visitScopeChildRef(self, ScopeChildRef i)
     cpdef void visitSymbolChild(self, SymbolChild i)
     cpdef void visitSymbolScopeRef(self, SymbolScopeRef i)
     cpdef void visitExecStmt(self, ExecStmt i)
@@ -2783,6 +2791,7 @@ cdef class ObjFactory(VisitorBase):
     cpdef void visitProceduralStmtMatchChoice(self, ProceduralStmtMatchChoice i)
     cpdef void visitProceduralStmtRandomize(self, ProceduralStmtRandomize i)
     cpdef void visitProceduralStmtReturn(self, ProceduralStmtReturn i)
+    cpdef void visitProceduralStmtSuper(self, ProceduralStmtSuper i)
     cpdef void visitProceduralStmtYield(self, ProceduralStmtYield i)
     cpdef void visitSymbolChildrenScope(self, SymbolChildrenScope i)
     cpdef void visitTemplateCategoryTypeParamDecl(self, TemplateCategoryTypeParamDecl i)
@@ -2801,9 +2810,9 @@ cdef class ObjFactory(VisitorBase):
     cpdef void visitActivitySuper(self, ActivitySuper i)
     cpdef void visitConstraintBlock(self, ConstraintBlock i)
     cpdef void visitProceduralStmtRepeatWhile(self, ProceduralStmtRepeatWhile i)
-    cpdef void visitProceduralStmtWhile(self, ProceduralStmtWhile i)
     cpdef void visitConstraintStmtForall(self, ConstraintStmtForall i)
     cpdef void visitConstraintStmtForeach(self, ConstraintStmtForeach i)
+    cpdef void visitProceduralStmtWhile(self, ProceduralStmtWhile i)
     cpdef void visitConstraintStmtImplication(self, ConstraintStmtImplication i)
     cpdef void visitSymbolScope(self, SymbolScope i)
     cpdef void visitTypeScope(self, TypeScope i)

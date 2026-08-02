@@ -1062,6 +1062,21 @@ antlrcpp::Any AstBuilderInt::visitExec_block(PSSParser::Exec_blockContext *ctx) 
     for (std::vector<PSSParser::Exec_stmtContext *>::const_iterator
         it=items.begin();
         it!=items.end(); it++) {
+        if ((*it)->exec_super_stmt()) {
+            // `super;` -- the other alternative of `exec_stmt`. This branch
+            // did not exist, so procedural_stmt() came back null and went
+            // straight into mkExecStmt(), which segfaulted the parser (plan
+            // phase 1.2). Building the node rather than skipping the
+            // statement: dropping it would link cleanly and lose the one
+            // thing that distinguishes extending a base exec from replacing
+            // it.
+            ast::IProceduralStmtSuper *stmt = m_factory->mkProceduralStmtSuper();
+            setLoc(stmt, (*it)->start);
+            stmt->setIndex(m_exec_scope_s.back()->getChildren().size());
+            m_exec_scope_s.back()->getChildren().push_back(
+                ast::IScopeChildUP(stmt));
+            continue;
+        }
         addExecStmt((*it)->procedural_stmt());
     }
     m_exec_scope_s.pop_back();
@@ -1125,6 +1140,14 @@ antlrcpp::Any AstBuilderInt::visitProcedural_function(PSSParser::Procedural_func
         platqual
     );
 
+    // See visitFunction_decl: the `pure` token was parsed and dropped.
+    // LRM 20.2.6 rule (b) allows the keyword to be omitted on a definition
+    // whose declaration carried it, so a definition without it is not
+    // evidence of anything -- this only ever sets the flag, never clears it.
+    if (ctx->is_pure) {
+        func->getProto()->setIs_pure(true);
+    }
+
     if (ctx->platform_qualifier()) {
         if (ctx->platform_qualifier()->TOK_TARGET()) {
             func->getProto()->setIs_target(true);
@@ -1141,6 +1164,14 @@ antlrcpp::Any AstBuilderInt::visitProcedural_function(PSSParser::Procedural_func
 antlrcpp::Any AstBuilderInt::visitFunction_decl(PSSParser::Function_declContext *ctx) {
     DEBUG_ENTER("visitFunction_decl");
     ast::IFunctionPrototype *proto = mkFunctionPrototype(ctx->function_prototype());
+
+    // `pure` was parsed and discarded -- the token appeared in the grammar
+    // rule but was never labelled, and setIs_pure() was called from nowhere in
+    // the builder. So getIs_pure() was false for every function ever parsed,
+    // and any check written against it could not fire (cf. the dead enum
+    // branch in plan section 35.3). LRM 20.2.6 rule (a) is checked in
+    // TaskBuildSymbolTree::checkPureQualifier.
+    proto->setIs_pure(ctx->is_pure != 0);
 
     // A declaration carries its platform qualification just as a definition
     // does (LRM 20.2.1). Dropping it here would make the declare-in-a-package,
@@ -4868,6 +4899,17 @@ ast::IScopeChild *AstBuilderInt::mkExecStmt(PSSParser::Procedural_stmtContext *c
     m_exec_stmt = 0;
     m_exec_stmt_cnt = 0;
 
+    if (!ctx) {
+        // An `exec_stmt` that is not a `procedural_stmt` -- `super;` is the
+        // only one the grammar admits. Callers used to hand the null straight
+        // to ctx->TOK_SEMICOLON() below, which segfaulted the parser (plan
+        // phase 1.2). Callers that can produce one handle it themselves; this
+        // guard is for the rest, and for whatever the grammar grows next.
+        DEBUG("Note: null procedural_stmt");
+        DEBUG_LEAVE("mkExecStmt -- null ctx");
+        return 0;
+    }
+
     if (!ctx->TOK_SEMICOLON()) {
         ctx->accept(this);
 
@@ -5371,6 +5413,31 @@ ast::IExprRefPathStatic *AstBuilderInt::mkExprRefPathStatic(
     IExprRefPathStatic *ret = 0;
 
     ret = m_factory->mkExprRefPathStatic(ctx->static_ref_path_prefix()->is_global);
+
+    // The prefix element is part of the path, and was being dropped:
+    //
+    //   static_ref_path: static_ref_path_prefix
+    //                    (type_identifier_elem TOK_DOUBLE_COLON)*
+    //                    member_path_elem
+    //   static_ref_path_prefix: (type_identifier_elem TOK_DOUBLE_COLON)
+    //                         | is_global=TOK_DOUBLE_COLON
+    //
+    // For `p::f.x` the prefix holds `p` and `type_identifier_elem()` is
+    // *empty*, so building the base from the latter alone produced a static
+    // root with no elements at all. visitExprRefPathStatic then walked a base
+    // of size zero, left the target null, and visitExprRefPathStaticRooted
+    // returned at its "failed root resolution" branch -- silently. Every
+    // qualified path with a member suffix (`p::f().x`, `p::S.field`) linked
+    // clean no matter what it named, including a call with the wrong number
+    // of arguments.
+    //
+    // The other builder of this shape -- the "case2" branch of mkExprRefPath
+    // -- has always pushed the prefix explicitly, which is why `p::f(1,2)`
+    // *was* checked and `p::f(1,2).x` was not.
+    if (!ctx->static_ref_path_prefix()->is_global) {
+        ret->getBase().push_back(ast::ITypeIdentifierElemUP(
+            mkTypeIdElem(ctx->static_ref_path_prefix()->type_identifier_elem())));
+    }
 
     std::vector<PSSParser::Type_identifier_elemContext *> items =
         ctx->type_identifier_elem();

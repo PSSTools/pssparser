@@ -197,3 +197,125 @@ def test_a_missing_return_in_a_non_void_function_is_not_reported():
     current behaviour so that implementing it is a visible change rather than
     a silent one."""
     assert_clean([("t.pss", "function int f() { int v; v = 1; }")])
+
+
+# ---------------------------------------------------------------------------
+# Where parameters live, and the body that was never resolved
+# ---------------------------------------------------------------------------
+#
+# The three function forms stored their parameters in three different places:
+#
+#     definition      plist 0, scope children 2
+#     import proto    plist 2, scope children 0
+#     bare prototype  no plist at all
+#
+# A consumer asking "what are this function's parameters?" got a different
+# answer for each, and ``TaskResolveRootRef`` and ``TaskResolveSymbolPathRef``
+# both open with ``getPlist()->...`` unguarded.  All three now populate the
+# plist, which is canonical because ``ElemKind_ArgIdx`` resolves through it.
+
+def test_a_prototype_followed_by_a_definition_resolves_its_body():
+    """The defect that made this worth reconciling rather than tidying.
+
+    ``visitFunctionDefinition`` registered parameters only when it was the
+    visitor that *created* the function scope.  With a prototype seen first,
+    the scope already existed, so the parameters went nowhere and the plist
+    stayed null -- and nothing in the body resolved at all.  The body was
+    walked; every name in it silently failed to be checked.
+    """
+    assert_rejects([("t.pss", """
+        function void f(int a);
+        function void f(int a) { int v; v = nosuch; }
+    """)], "unknown identifier 'nosuch'")
+
+
+def test_the_same_holds_for_a_component_method():
+    assert_rejects([("t.pss", """
+        component C {
+            function void f(int a);
+            function void f(int a) { int v; v = nosuch; }
+        }
+    """)], "unknown identifier 'nosuch'")
+
+
+def test_a_parameter_still_resolves_after_a_prototype():
+    """Control for the above: the point is to check the body, not to break
+    it."""
+    assert_clean([("t.pss", """
+        function void f(int a);
+        function void f(int a) { int v; v = a; }
+    """)])
+
+
+@pytest.mark.parametrize("src", [
+    "function void f(int a) { int v; v = a; }",
+    "function int f(int a) { return a; }",
+    "component C { function void g(int a, int b) { int v; v = a+b; } }",
+    # This case read `function void f(output int a) { a = 1; }` until the
+    # direction rule landed.  A direction modifier on a function with a PSS
+    # body is illegal (LRM 20.2.2, 20.3.2, and see section 38), so the case
+    # was asserting that invalid input links clean.  Assigning to a plain
+    # parameter keeps what it was here to exercise -- a parameter reached as
+    # the target of an assignment rather than as an operand.
+    "function void f(int a) { a = 1; }",
+])
+def test_parameters_resolve_from_a_definition_body(src):
+    """These passed before the move as well, by a different route:
+    ``TaskResolveRootRef`` missed in the plist and fell back to the scope's
+    own symtab.  They are here to hold that behaviour across the change, not
+    to demonstrate it."""
+    assert_clean([("t.pss", src)])
+
+
+def test_a_parameter_resolves_from_an_unnamed_body_position():
+    assert_rejects([("t.pss", "function void f(int a) { int v; v = nosuch; }")],
+                   "unknown identifier 'nosuch'")
+
+
+@pytest.mark.parametrize("src", [
+    "function void f(int a, int b) { }",
+    "import solve function void f(int a, int b);",
+    "function void f(int a, int b);",
+])
+def test_every_declaration_form_puts_parameters_in_the_plist(src):
+    """The tree shape itself, which is what the reconciliation is *for*.
+
+    Nothing else asserts it.  Moving the definition's parameters from the
+    function scope's own symtab into the plist changes no diagnostic, because
+    ``TaskResolveRootRef`` falls back to the scope symtab when the plist
+    misses -- so a neutralization that puts them back fails no other test.
+    Without this, the only guarantee that the three forms agree would be the
+    source comment.
+
+    ``getPlist()`` returning None is the state that made
+    ``TaskResolveRootRef::visitSymbolFunctionScope`` and
+    ``TaskResolveSymbolPathRef`` -- both of which dereference it unguarded --
+    a latent crash.
+    """
+    import sys, pathlib
+    sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
+    from pssparser.parser import Parser
+
+    p = Parser()
+    p.parses([("t.pss", src)])
+    root = p.link()
+
+    fn = None
+    for ch in root.getChildren():
+        get_name = getattr(ch, "getName", None)
+        if not callable(get_name):
+            continue
+        try:
+            if ch.getName() == "f":
+                fn = ch
+                break
+        except Exception:
+            continue
+
+    assert fn is not None, "function scope for 'f' not found"
+
+    plist = fn.getPlist()
+    assert plist is not None, "%r left getPlist() null" % src
+    assert len(plist.getChildren()) == 2, (
+        "%r put %d parameter(s) in the plist"
+        % (src, len(plist.getChildren())))

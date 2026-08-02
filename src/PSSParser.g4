@@ -429,7 +429,7 @@ target_file_exec_block:
  ********************************************************************/
 
 procedural_function:
-	platform_qualifier? TOK_PURE? TOK_STATIC? TOK_FUNCTION function_prototype
+	platform_qualifier? is_pure=TOK_PURE? TOK_STATIC? TOK_FUNCTION function_prototype
 	TOK_LCBRACE
 	procedural_stmt*
 	TOK_RCBRACE
@@ -439,7 +439,7 @@ procedural_function:
 // Declaring a platform-qualified API in a package and defining it elsewhere is
 // the normal split (LRM 20.2.1), and is how the LRM's own examples are written.
 function_decl:
-	platform_qualifier? TOK_PURE? TOK_STATIC? TOK_FUNCTION function_prototype TOK_SEMICOLON
+	platform_qualifier? is_pure=TOK_PURE? TOK_STATIC? TOK_FUNCTION function_prototype TOK_SEMICOLON
 	;
 
 platform_qualifier: 

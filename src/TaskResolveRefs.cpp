@@ -20,6 +20,7 @@
  */
 #include <set>
 #include "dmgr/impl/DebugMacros.h"
+#include "TaskCompareTypeRefs.h"
 #include "TaskFindPathElem.h"
 #include "TaskLinkActionCompRefFields.h"
 #include "TaskResolveImports.h"
@@ -435,6 +436,23 @@ static ast::IDataType *declaredTypeOf(ast::IScopeChild *c) {
         return var_decl->getDatatype();
     }
 
+    // A call is a value, and the type of that value is what the function
+    // returns. Without this every caller of declaredTypeOf answered "no type
+    // at all" for a call element, which is not the same as "a type with no
+    // members": `f().size()` on a string-returning `f` was reported as
+    // "root ref-path element f is not a composite scope" rather than being
+    // recognized as a built-in method call, and `f().x` on an int-returning
+    // `f` got the same message instead of the scalar one.
+    ast::ISymbolFunctionScope *fn = dynamic_cast<ast::ISymbolFunctionScope *>(c);
+    if (fn) {
+        for (std::vector<ast::IFunctionPrototype *>::const_iterator
+            it=fn->getPrototypes().begin(); it!=fn->getPrototypes().end(); it++) {
+            if ((*it)->getRtype()) {
+                return (*it)->getRtype();
+            }
+        }
+    }
+
     return 0;
 }
 
@@ -472,6 +490,34 @@ static bool isScalarWithoutMembers(ast::IScopeChild *c) {
  * known at all. Only the first is a defect in the reference; the second is a
  * consequence of a defect already reported elsewhere.
  */
+/**
+ * True if `c` is a function that returns nothing.
+ *
+ * Such an element has no scope, so a member access on it fails -- but saying
+ * "not a composite scope" is the least useful true thing available. The call
+ * is diagnosed as an LRM 20.5 violation instead ("returns void, so its result
+ * cannot be used as a value"), by checkVoidCallUse, which now runs on every
+ * call element rather than only the last. This predicate is what keeps the two
+ * from both firing.
+ *
+ * Note the asymmetry with a *scalar* return: `f()` returning `int` has a type
+ * with no members, and gets the same message `int a; a.x` gets. Only `void`
+ * has a better thing to say.
+ */
+static bool isVoidFunction(ast::IScopeChild *c) {
+    ast::ISymbolFunctionScope *fn = dynamic_cast<ast::ISymbolFunctionScope *>(c);
+    if (!fn || !fn->getPrototypes().size()) {
+        return false;
+    }
+    for (std::vector<ast::IFunctionPrototype *>::const_iterator
+        it=fn->getPrototypes().begin(); it!=fn->getPrototypes().end(); it++) {
+        if ((*it)->getRtype()) {
+            return false;
+        }
+    }
+    return true;
+}
+
 static bool hasUnresolvedUserDefinedType(ast::IScopeChild *c) {
     ast::IDataTypeUserDefined *udt =
         dynamic_cast<ast::IDataTypeUserDefined *>(declaredTypeOf(c));
@@ -533,6 +579,186 @@ static void protoArity(ast::IFunctionPrototype *p, int32_t &min, int32_t &max) {
     }
 }
 
+TaskResolveRefs::TypeCat TaskResolveRefs::catOfDataType(ast::IDataType *dt) {
+    if (!dt) {
+        return TypeCat::Unknown;
+    }
+
+    if (dynamic_cast<ast::IDataTypeString *>(dt)) {
+        return TypeCat::Str;
+    }
+
+    // int, bit and bool are mutually convertible in PSS, and so is an enum
+    // with an integer. Lumping them together means this never has an opinion
+    // about width or signedness, which is the part that would need real
+    // compatibility rules.
+    if (dynamic_cast<ast::IDataTypeInt *>(dt)
+        || dynamic_cast<ast::IDataTypeBool *>(dt)
+        || dynamic_cast<ast::IDataTypeEnum *>(dt)) {
+        return TypeCat::Numeric;
+    }
+
+    ast::IDataTypeUserDefined *udt = dynamic_cast<ast::IDataTypeUserDefined *>(dt);
+
+    if (udt && udt->getType_id() && udt->getType_id()->getTarget()) {
+        ast::IScopeChild *c = resolvePath(udt->getType_id()->getTarget());
+
+        // Read the declaration straight off the resolved symbol rather than
+        // through TaskGetElemSymbolScope. An enum is an INamedScopeChild, not
+        // an ITypeScope, so asking that route for a type scope returns null
+        // for every enum -- which is why the first version of this classified
+        // enum-typed fields as Unknown and the enum branch below was dead.
+        // An enum resolves to an ISymbolEnumScope, which is an ISymbolScope
+        // and *not* an ISymbolTypeScope -- so neither the type-scope route
+        // nor TaskGetElemSymbolScope ever produces an IEnumDecl from one.
+        // Two earlier versions of this branch tested for IEnumDecl and could
+        // not fire; enum-typed values classified as Unknown and every enum
+        // control in the suite passed vacuously. Found by printing the RTTI
+        // name of what the path actually resolved to.
+        if (dynamic_cast<ast::ISymbolEnumScope *>(c)) {
+            return TypeCat::Numeric;
+        }
+
+        ast::ISymbolTypeScope *sts = dynamic_cast<ast::ISymbolTypeScope *>(c);
+        ast::IScopeChild *decl = sts?sts->getTarget():c;
+
+        if (dynamic_cast<ast::IEnumDecl *>(decl)) {
+            return TypeCat::Numeric;
+        }
+
+        ast::ITypeScope *ts = dynamic_cast<ast::ITypeScope *>(decl);
+
+        // A built-in collection is left Unknown. `list<int>` against an
+        // `int` parameter is a genuine mismatch, but "is a composite type"
+        // is the wrong thing to say about it -- the element type is what
+        // matters -- so the classifier declines rather than says something
+        // true and useless.
+        //
+        // This guard is **currently unreachable**, and the comment is worth
+        // more than the code. A parameterized type reference such as
+        // `list<int>` does not resolve to a target here at all, so it never
+        // enters this branch; collections come out Unknown by falling off
+        // the end instead. Neutralizing the guard fails no test for that
+        // reason and not because it is harmless -- the collections *are*
+        // declared as IStruct in BuiltinsFactory, so the moment a
+        // specialized type reference does resolve here, removing this would
+        // start calling every collection composite. Kept deliberately, with
+        // the tests in test_function_calls.py pinning the behaviour either
+        // way. See plan section 35.3.
+        if (builtinCollectionKind(ts) != CollectionKind::None) {
+            return TypeCat::Unknown;
+        }
+
+        if (dynamic_cast<ast::IStruct *>(ts)
+            || dynamic_cast<ast::IComponent *>(ts)
+            || dynamic_cast<ast::IAction *>(ts)) {
+            return TypeCat::Aggregate;
+        }
+    }
+
+    // chandle, pyobj, a ref type, an unresolved user-defined name.
+    return TypeCat::Unknown;
+}
+
+TaskResolveRefs::TypeCat TaskResolveRefs::catOfExpr(ast::IExpr *e) {
+    if (!e) {
+        return TypeCat::Unknown;
+    }
+
+    if (dynamic_cast<ast::IExprString *>(e)) {
+        return TypeCat::Str;
+    }
+
+    if (dynamic_cast<ast::IExprNumber *>(e)
+        || dynamic_cast<ast::IExprBool *>(e)) {
+        return TypeCat::Numeric;
+    }
+
+    if (dynamic_cast<ast::IExprAggrLiteral *>(e)
+        || dynamic_cast<ast::IExprStructLiteral *>(e)) {
+        return TypeCat::Aggregate;
+    }
+
+    // A bare name. Anything longer than one element is a member path, whose
+    // type needs the walk this classification does not do -- left Unknown.
+    ast::IExprRefPathContext *rp = dynamic_cast<ast::IExprRefPathContext *>(e);
+
+    if (rp && !rp->getIs_super() && !rp->getSlice()
+        && rp->getHier_id()->getElems().size() == 1
+        && !rp->getHier_id()->getElems().at(0)->getParams()
+        && rp->getHier_id()->getElems().at(0)->getSubscript().empty()
+        && rp->getTarget()) {
+        ast::IScopeChild *c = resolvePath(rp->getTarget());
+
+        // An enum *item* used as a value, rather than a field of enum type.
+        if (dynamic_cast<ast::IEnumItem *>(c)) {
+            return TypeCat::Numeric;
+        }
+
+        return catOfDataType(declaredTypeOf(c));
+    }
+
+    // Arithmetic, comparisons, casts, conditionals, calls, static paths,
+    // subscripts, slices, null. All Unknown by design.
+    return TypeCat::Unknown;
+}
+
+static const char *catName(TaskResolveRefs::TypeCat c);
+
+void TaskResolveRefs::checkCallArgTypes(
+        ast::IExprMemberPathElem  *elem,
+        ast::ISymbolFunctionScope *fn) {
+    ast::IFunctionPrototype *proto = fn->getPrototypes().front();
+    const std::vector<ast::IExprUP> &args = elem->getParams()->getParameters();
+    const std::vector<ast::IFunctionParamDeclUP> &params = proto->getParameters();
+
+    for (uint32_t ii=0; ii<args.size() && ii<params.size(); ii++) {
+        ast::IFunctionParamDecl *p = params.at(ii).get();
+
+        if (p->getIs_varargs()) {
+            // Everything from here on is absorbed, with no declared type to
+            // check against.
+            break;
+        }
+
+        if (p->getKind() != ast::FunctionParamDeclKind::ParamKind_DataType) {
+            // A `type` parameter takes a type name, and a `ref` parameter
+            // takes a handle. Neither is an ordinary value, and neither is
+            // modelled well enough here to have an opinion.
+            continue;
+        }
+
+        TypeCat want = catOfDataType(p->getType());
+        TypeCat got = catOfExpr(args.at(ii).get());
+
+        if (want == TypeCat::Unknown || got == TypeCat::Unknown
+            || want == got) {
+            continue;
+        }
+
+        m_ctxt->addMarker(
+            MarkerSeverityE::Error,
+            // IExpr carries no location, so this points at the call and
+            // names the argument by position instead.
+            elem->getId()->getLocation(),
+            "argument %d of '%s' is %s, but parameter '%s' is %s",
+            ii+1,
+            elem->getId()->getId().c_str(),
+            catName(got),
+            p->getName()?p->getName()->getId().c_str():"?",
+            catName(want));
+    }
+}
+
+static const char *catName(TaskResolveRefs::TypeCat c) {
+    switch (c) {
+        case TaskResolveRefs::TypeCat::Numeric:   return "numeric";
+        case TaskResolveRefs::TypeCat::Str:       return "a string";
+        case TaskResolveRefs::TypeCat::Aggregate: return "a composite type";
+        default:                                  return "of unknown type";
+    }
+}
+
 void TaskResolveRefs::checkCallArity(
         ast::IExprMemberPathElem *elem,
         ast::IScopeChild        *target) {
@@ -546,13 +772,55 @@ void TaskResolveRefs::checkCallArity(
     ast::ISymbolFunctionScope *fn =
         dynamic_cast<ast::ISymbolFunctionScope *>(target);
 
-    if (!fn || !fn->getPrototypes().size()) {
-        // Either not a function -- calling a non-function is its own defect,
-        // and reporting it here would mean reporting it for every built-in
-        // and collection method too -- or a function whose prototype never
-        // made it into the symbol scope. Neither is an arity question.
+    if (!fn) {
+        // Report whenever the callee resolved to *something* that is not a
+        // function. The null guard is the whole of the caution needed here: a
+        // name whose type never resolved -- the normal state when one file of
+        // a multi-file model is parsed alone -- arrives as null, and is
+        // diagnosed where the type is named rather than at the call.
+        //
+        // Built-in and collection methods never reach this line. They are
+        // matched against the method list earlier in the loop and `break`
+        // there, which is why this condition does not touch `s.size()` or
+        // `l.push_back(1)`.
+        //
+        // This was first written as a positive test on IField and
+        // IProceduralStmtDataDeclaration, in the manner of section 29's
+        // isScalarWithoutMembers(), on the reasoning that a wider test would
+        // catch the built-in methods too. That reasoning was wrong, and a
+        // neutralization row is what showed it: widening the test failed no
+        // test and no corpus file. The two versions differ on exactly one
+        // input -- `S(1)`, where S names a type -- and reporting that is
+        // correct. See plan section 34.2.
+        if (target) {
+            m_ctxt->addMarker(
+                MarkerSeverityE::Error,
+                elem->getId()->getLocation(),
+                "'%s' is not a function",
+                elem->getId()->getId().c_str());
+        }
         return;
     }
+
+    if (!fn->getPrototypes().size()) {
+        // A function whose prototype never made it into the symbol scope.
+        // Not an arity question.
+        return;
+    }
+
+    // Every call element, not only the path's last. `is_last` used to guard
+    // this, on the reasoning that only the final element's value is the
+    // path's value. It is not: taking a member of a call result is a use of
+    // that result, so `f().x` on a void `f` is exactly what LRM 20.5
+    // forbids -- and it is the case that produces the *most* useful message.
+    //
+    // §38.6 recorded the guard as unobservable, and it was, because `f().x`
+    // did not resolve at all then. §39 fixed that, at which point the guard's
+    // only remaining effect was to suppress a better diagnostic in favour of
+    // "root ref-path element f is not a composite scope". The composite-scope
+    // branches now stay quiet for a void function instead; see
+    // isVoidFunction().
+    checkVoidCallUse(elem, fn);
 
     int32_t argc = (int32_t)elem->getParams()->getParameters().size();
 
@@ -572,6 +840,7 @@ void TaskResolveRefs::checkCallArity(
         if (argc >= p_min && (p_max < 0 || argc <= p_max)) {
             DEBUG("Call to %s: %d argument(s) accepted",
                 elem->getId()->getId().c_str(), argc);
+            checkCallArgTypes(elem, fn);
             return;
         }
 
@@ -605,8 +874,25 @@ void TaskResolveRefs::checkCallArity(
     }
 }
 
+namespace {
+    /** Sets a member for the duration of a scope, and puts it back. */
+    struct SaveExpr {
+        SaveExpr(ast::IExpr *&slot, ast::IExpr *v) : m_slot(slot), m_prev(slot) {
+            m_slot = v;
+        }
+        ~SaveExpr() { m_slot = m_prev; }
+        ast::IExpr *&m_slot;
+        ast::IExpr *m_prev;
+    };
+}
+
 void TaskResolveRefs::visitExprRefPathContext(ast::IExprRefPathContext *i) {
     DEBUG_ENTER("visitExprRefPathContext %s", i->getHier_id()->getElems().at(0)->getId()->getId().c_str());
+
+    // Restored on every exit, of which this function has many (see the
+    // DEBUG_LEAVE calls below), which is why it is a scope guard and not a
+    // pair of assignments.
+    SaveExpr save_refpath(m_cur_refpath, i);
     // Find the first path element
     ast::ISymbolRefPath *target = TaskResolveRef(m_ctxt).resolve(
         i->getHier_id()->getElems().at(0)->getId());
@@ -673,7 +959,14 @@ void TaskResolveRefs::visitExprRefPathContext(ast::IExprRefPathContext *i) {
     int32_t builtin_method_ii = is_builtin_with_methods?1:-1;
 
     if (!target_s && !is_builtin_with_methods && i->getHier_id()->getElems().size() > 1) {
-        if (target_c && hasUnresolvedUserDefinedType(target_c)) {
+        if (target_c && isVoidFunction(target_c)) {
+            // checkVoidCallUse has the better message for this; see
+            // isVoidFunction(). It has to be invoked here rather than left to
+            // the loop below, because this branch returns before the loop
+            // runs -- suppressing the composite-scope message without also
+            // making the call reported nothing at all.
+            checkCallArity(i->getHier_id()->getElems().at(0).get(), target_c);
+        } else if (target_c && hasUnresolvedUserDefinedType(target_c)) {
             // The root's type never resolved, and `unknown type '<name>'` was
             // already reported at its declaration. Reporting again here gives
             // two errors for one cause and points the second at the use site
@@ -1230,6 +1523,14 @@ void TaskResolveRefs::resolveStaticRootedLeaf(ast::IExprRefPathStaticRooted *i) 
 void TaskResolveRefs::visitExprRefPathStaticRooted(ast::IExprRefPathStaticRooted *i) {
     DEBUG_ENTER("visitExprRefPathStaticRooted %s",
         i->getLeaf()->getElems().at(0)->getId()->getId().c_str());
+
+    // Set here as well as in visitExprRefPathContext: `p::f(1);` is a
+    // standalone statement too, and a qualified name builds a *different*
+    // expression node. Setting it in only one of the two made every
+    // statement-position call through a package qualifier look like an
+    // operand, and three tests that had nothing to do with void returns
+    // started failing on `p::f(1);` and `p::m(1,2);`.
+    SaveExpr save_refpath(m_cur_refpath, i);
     // Resolve the root
     if (i->getRoot()->getIs_global()) {
         ast::IExprId *id = i->getLeaf()->getElems().at(0)->getId();
@@ -1412,6 +1713,233 @@ void TaskResolveRefs::visitSymbolExtendScope(ast::ISymbolExtendScope *i) {
 //     DEBUG_LEAVE("visitSymbolExecScope \"%s\"", i->getName().c_str());
 // }
 
+void TaskResolveRefs::visitProceduralStmtExpr(ast::IProceduralStmtExpr *i) {
+    // The one place a call is allowed to be void (LRM 20.5). Recorded rather
+    // than checked here: by the time the ref-path is reached, the walk has no
+    // way to ask what statement it is under.
+    //
+    // Saved and restored rather than assigned and cleared: a statement's own
+    // expression can contain further calls -- `f(g())` -- and each of those
+    // is an operand, not a statement.
+    ast::IExpr *prev = m_stmt_expr;
+    m_stmt_expr = i->getExpr();
+    ast::VisitorBase::visitProceduralStmtExpr(i);
+    m_stmt_expr = prev;
+}
+
+void TaskResolveRefs::checkVoidCallUse(
+        ast::IExprMemberPathElem  *elem,
+        ast::ISymbolFunctionScope *fn) {
+    // LRM 20.5: "Functions not returning a value (declared with void return
+    // type) may only be called as standalone procedural statements."
+    //
+    // The converse is explicitly *not* an error, and is not checked: "Calling
+    // a nonvoid function as if it has no return value shall be legal, but it
+    // is recommended to explicitly discard the return value by casting the
+    // function call to void." A recommendation is not a rule.
+    if (m_cur_refpath && m_cur_refpath == m_stmt_expr) {
+        return;
+    }
+
+    // Any prototype with a return type is enough. A function is void only if
+    // every declaration of it says so.
+    for (std::vector<ast::IFunctionPrototype *>::const_iterator
+        it=fn->getPrototypes().begin();
+        it!=fn->getPrototypes().end(); it++) {
+        if ((*it)->getRtype()) {
+            return;
+        }
+    }
+
+    m_ctxt->addMarker(
+        MarkerSeverityE::Error,
+        elem->getId()->getLocation(),
+        "'%s' returns void, so its result cannot be used as a value",
+        elem->getId()->getId().c_str());
+}
+
+void TaskResolveRefs::checkDeclarationConsistency(ast::ISymbolFunctionScope *i) {
+    if (i->getPrototypes().size() < 2) {
+        return;
+    }
+
+    // Compared against the *first* prototype rather than pairwise, because
+    // that is the one every other pass already treats as authoritative:
+    // visitFunctionDefinition inserts a definition's prototype at the front,
+    // declaredTypeOf and TaskGetElemSymbolScope both take the first return
+    // type they find, and m_func_s checks a `return` against front(). One
+    // choice of authority, or the diagnostics disagree with each other.
+    ast::IFunctionPrototype *base = i->getPrototypes().front();
+
+    TaskCompareTypeRefs comp(m_ctxt->getFactory(), m_ctxt->root());
+
+    for (uint32_t idx=1; idx<i->getPrototypes().size(); idx++) {
+        ast::IFunctionPrototype *p = i->getPrototypes().at(idx);
+
+        if (checkReturnTypeConsistency(base, p, comp)) {
+            return;
+        }
+        if (checkParamListConsistency(base, p, comp)) {
+            return;
+        }
+    }
+}
+
+bool TaskResolveRefs::checkReturnTypeConsistency(
+        ast::IFunctionPrototype     *base,
+        ast::IFunctionPrototype     *p,
+        TaskCompareTypeRefs         &comp) {
+    // `void` is not a data type in this AST -- it is the absence of one --
+    // so it needs its own comparison, and it gets its own message. It is
+    // also the only disagreement that can be stated with certainty
+    // without resolving anything.
+    if ((base->getRtype() == 0) != (p->getRtype() == 0)) {
+        m_ctxt->addMarker(
+            MarkerSeverityE::Error,
+            p->getName()->getLocation(),
+            "declarations of '%s' disagree about the return type: "
+            "one returns void and the other does not",
+            p->getName()->getId().c_str());
+        return true;
+    }
+
+    if (!base->getRtype()) {
+        return false;
+    }
+
+    // Only a *certain* difference is reported. `Unsure` covers a type
+    // this parser cannot compare -- an unfolded width, an alias, a kind
+    // with no comparison -- and every one of those is a case where the
+    // two declarations may well agree. Under-reporting here costs a
+    // missed diagnostic on invalid input; over-reporting rejects valid
+    // input, which is worse.
+    if (comp.compare(base->getRtype(), p->getRtype())
+        == TaskCompareTypeRefs::Rel::NotEqual) {
+        m_ctxt->addMarker(
+            MarkerSeverityE::Error,
+            p->getName()->getLocation(),
+            "declarations of '%s' disagree about the return type",
+            p->getName()->getId().c_str());
+        return true;
+    }
+
+    return false;
+}
+
+/**
+ * A parameter's direction as it *behaves*, rather than as it is written.
+ *
+ * LRM 20.2.1: the direction modifiers are optional, and an omitted one is
+ * input. So `f(int a)` and `f(input int a)` are the same declaration written
+ * two ways, and reporting them as a disagreement would reject valid code --
+ * while `f(int a)` against `f(output int a)` is a real conflict and is
+ * reported.
+ *
+ * Note that the *presence* of a modifier does carry a separate consequence --
+ * it makes the function importable only (LRM 20.3.2) -- but that rule is
+ * already applied across every prototype by
+ * TaskBuildSymbolTree::checkNativeParamDir, so it does not need this one to
+ * treat the two spellings as different.
+ */
+static ast::ParamDir effectiveDir(ast::IFunctionParamDecl *pd) {
+    return (pd->getDir() == ast::ParamDir::ParamDir_Default)
+        ? ast::ParamDir::ParamDir_In
+        : pd->getDir();
+}
+
+/** How a parameter's position reads in a message: `parameter 2 ('len')`. */
+static std::string paramDesc(uint32_t idx, ast::IFunctionParamDecl *pd) {
+    char buf[32];
+    snprintf(buf, sizeof(buf), "parameter %u", idx+1);
+    std::string ret(buf);
+    if (pd->getName()) {
+        ret += " ('" + pd->getName()->getId() + "')";
+    }
+    return ret;
+}
+
+bool TaskResolveRefs::checkParamListConsistency(
+        ast::IFunctionPrototype     *base,
+        ast::IFunctionPrototype     *p,
+        TaskCompareTypeRefs         &comp) {
+    const std::string &fname = p->getName()->getId();
+    ast::Location loc = p->getName()->getLocation();
+
+    if (base->getParameters().size() != p->getParameters().size()) {
+        m_ctxt->addMarker(
+            MarkerSeverityE::Error,
+            loc,
+            "declarations of '%s' disagree about the number of parameters "
+            "(%u and %u)",
+            fname.c_str(),
+            (uint32_t)base->getParameters().size(),
+            (uint32_t)p->getParameters().size());
+        return true;
+    }
+
+    for (uint32_t idx=0; idx<base->getParameters().size(); idx++) {
+        ast::IFunctionParamDecl *b = base->getParameters().at(idx).get();
+        ast::IFunctionParamDecl *q = p->getParameters().at(idx).get();
+
+        // The kind separates a value parameter from a type parameter and from
+        // each flavour of reference parameter -- `int a`, `type a`, `ref
+        // action a`. These are not variations of one thing, so the comparison
+        // below would be measuring types that are not comparable.
+        if (b->getKind() != q->getKind()) {
+            m_ctxt->addMarker(
+                MarkerSeverityE::Error, loc,
+                "declarations of '%s' disagree about what kind of %s is",
+                fname.c_str(), paramDesc(idx, b).c_str());
+            return true;
+        }
+
+        if (b->getIs_varargs() != q->getIs_varargs()) {
+            m_ctxt->addMarker(
+                MarkerSeverityE::Error, loc,
+                "declarations of '%s' disagree about whether %s is varargs",
+                fname.c_str(), paramDesc(idx, b).c_str());
+            return true;
+        }
+
+        if (effectiveDir(b) != effectiveDir(q)) {
+            m_ctxt->addMarker(
+                MarkerSeverityE::Error, loc,
+                "declarations of '%s' disagree about the direction of %s",
+                fname.c_str(), paramDesc(idx, b).c_str());
+            return true;
+        }
+
+        // LRM 20.2.4 c: "A default parameter value shall not be specified in
+        // the redeclaration of a function if already declared for the same
+        // parameter in a previous declaration, *even if the value is the
+        // same*." So the values are deliberately not compared -- specifying
+        // one twice is the violation.
+        //
+        // Stated without "earlier"/"previous", because the prototype list is
+        // not in lexical order: a definition's prototype is moved to the
+        // front. The rule is symmetric, so nothing is lost by saying so.
+        if (b->getDflt() && q->getDflt()) {
+            m_ctxt->addMarker(
+                MarkerSeverityE::Error, loc,
+                "%s of '%s' is given a default value by more than one "
+                "declaration; only one declaration may give it",
+                paramDesc(idx, b).c_str(), fname.c_str());
+            return true;
+        }
+
+        if (comp.compare(b->getType(), q->getType())
+            == TaskCompareTypeRefs::Rel::NotEqual) {
+            m_ctxt->addMarker(
+                MarkerSeverityE::Error, loc,
+                "declarations of '%s' disagree about the type of %s",
+                fname.c_str(), paramDesc(idx, b).c_str());
+            return true;
+        }
+    }
+
+    return false;
+}
+
 void TaskResolveRefs::visitProceduralStmtReturn(ast::IProceduralStmtReturn *i) {
     // Resolve the returned expression first, whatever the verdict below: a
     // bad reference inside it should be reported on its own terms.
@@ -1464,6 +1992,8 @@ void TaskResolveRefs::visitSymbolFunctionScope(ast::ISymbolFunctionScope *i) {
         it!=i->getPrototypes().end(); it++) {
         (*it)->accept(m_this);
     }
+
+    checkDeclarationConsistency(i);
 
 //    if (i->getBody()) {
         DEBUG("Push function scope %s", i->getName().c_str());

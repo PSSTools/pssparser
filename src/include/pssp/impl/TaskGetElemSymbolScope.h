@@ -41,7 +41,23 @@ public:
 
     ast::ISymbolScope *resolve(ast::IScopeChild *c) {
         m_ret = 0;
-        c->accept(m_this);
+        // Null is a normal answer from the callers' side -- resolvePath()
+        // returns it for a path that runs off the end of a scope, which
+        // happens whenever a type did not resolve. Every call site passed it
+        // straight through to accept(); the first one to actually be handed a
+        // null segfaulted the linker, on
+        // `list<int> l; l.push_back(42)`.
+        //
+        // No test witnesses this any more, and that is worth stating rather
+        // than leaving to be rediscovered: the call site that crashed was in
+        // TaskResolveRefs::catOfDataType, and rewriting that function to read
+        // the declaration directly (plan section 35.3) removed the call. The
+        // guard is kept because the hazard is structural -- resolve() takes a
+        // pointer that its callers routinely obtain from resolvePath() -- not
+        // because anything currently exercises it.
+        if (c) {
+            c->accept(m_this);
+        }
         return m_ret;
     }
     
@@ -133,6 +149,39 @@ public:
             c->accept(m_this);
         }
         DEBUG_LEAVE("visitTypeIdentifier");
+    }
+
+    /**
+     * The members reachable through a call are the members of what it
+     * *returns*.
+     *
+     * Without this, the inherited `visitSymbolScope` matched -- a
+     * SymbolFunctionScope is a SymbolScope -- and handed back the function's
+     * own scope, so `f().x` looked `x` up among `f`'s parameters and locals.
+     * That is not a near miss: `struct S { int x; } function S f(int p);`
+     * accepted `f(1).p` and rejected `f(1).x`, exactly inverting the rule.
+     *
+     * Unconditional rather than asking whether the element carried a
+     * parameter list, because a function name with nothing else after it is
+     * not a value in PSS -- there is no other thing `f.something` could mean.
+     *
+     * A null return is the normal answer for a function returning `void` or a
+     * scalar; every caller already treats a missing scope as "nothing to
+     * search here".
+     */
+    virtual void visitSymbolFunctionScope(ast::ISymbolFunctionScope *i) override {
+        DEBUG_ENTER("visitSymbolFunctionScope \"%s\"", i->getName().c_str());
+        // Any prototype that declares one will do. Overloads differing only
+        // in return type are not a thing the LRM permits, and a prototype
+        // pair that disagrees is already reported as such.
+        for (std::vector<ast::IFunctionPrototype *>::const_iterator
+            it=i->getPrototypes().begin(); it!=i->getPrototypes().end(); it++) {
+            if ((*it)->getRtype()) {
+                (*it)->getRtype()->accept(m_this);
+                break;
+            }
+        }
+        DEBUG_LEAVE("visitSymbolFunctionScope");
     }
 
     virtual void visitSymbolScope(ast::ISymbolScope *i) override {

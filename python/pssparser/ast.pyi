@@ -141,11 +141,11 @@ class FieldAttr(IntEnum):
     
 class Factory(object):
     def mkAssocData(self) -> 'AssocData': ...
-    def mkTemplateParamDeclList(self) -> 'TemplateParamDeclList': ...
     def mkExecTargetTemplateParam(self,
         expr : Expr,
         start : int,
         end : int) -> 'ExecTargetTemplateParam': ...
+    def mkTemplateParamDeclList(self) -> 'TemplateParamDeclList': ...
     def mkExpr(self) -> 'Expr': ...
     def mkTemplateParamValue(self) -> 'TemplateParamValue': ...
     def mkTemplateParamValueList(self) -> 'TemplateParamValueList': ...
@@ -210,19 +210,19 @@ class Factory(object):
     def mkRefExprScopeIndex(self,
         base : RefExpr,
         offset : int) -> 'RefExprScopeIndex': ...
-    def mkRefExprTypeScopeContext(self,
-        base : RefExpr,
-        offset : int) -> 'RefExprTypeScopeContext': ...
     def mkCoverStmtInline(self,
         body : ScopeChild) -> 'CoverStmtInline': ...
     def mkCoverStmtReference(self,
         target : ExprRefPath) -> 'CoverStmtReference': ...
+    def mkRefExprTypeScopeContext(self,
+        base : RefExpr,
+        offset : int) -> 'RefExprTypeScopeContext': ...
     def mkRefExprTypeScopeGlobal(self,
         fileid : int) -> 'RefExprTypeScopeGlobal': ...
     def mkScope(self) -> 'Scope': ...
+    def mkDataType(self) -> 'DataType': ...
     def mkScopeChildRef(self,
         target : ScopeChild) -> 'ScopeChildRef': ...
-    def mkDataType(self) -> 'DataType': ...
     def mkSymbolChild(self) -> 'SymbolChild': ...
     def mkSymbolScopeRef(self,
         name : str) -> 'SymbolScopeRef': ...
@@ -504,6 +504,7 @@ class Factory(object):
         target : Expr) -> 'ProceduralStmtRandomize': ...
     def mkProceduralStmtReturn(self,
         expr : Expr) -> 'ProceduralStmtReturn': ...
+    def mkProceduralStmtSuper(self) -> 'ProceduralStmtSuper': ...
     def mkProceduralStmtYield(self) -> 'ProceduralStmtYield': ...
     def mkSymbolChildrenScope(self,
         name : str) -> 'SymbolChildrenScope': ...
@@ -557,15 +558,15 @@ class Factory(object):
     def mkProceduralStmtRepeatWhile(self,
         body : ScopeChild,
         expr : Expr) -> 'ProceduralStmtRepeatWhile': ...
-    def mkProceduralStmtWhile(self,
-        body : ScopeChild,
-        expr : Expr) -> 'ProceduralStmtWhile': ...
     def mkConstraintStmtForall(self,
         iterator_id : ExprId,
         type_id : DataTypeUserDefined,
         ref_path : ExprRefPath) -> 'ConstraintStmtForall': ...
     def mkConstraintStmtForeach(self,
         expr : Expr) -> 'ConstraintStmtForeach': ...
+    def mkProceduralStmtWhile(self,
+        body : ScopeChild,
+        expr : Expr) -> 'ProceduralStmtWhile': ...
     def mkConstraintStmtImplication(self,
         cond : Expr) -> 'ConstraintStmtImplication': ...
     def mkSymbolScope(self,
@@ -654,6 +655,11 @@ class Factory(object):
 class AssocData(object):
     pass
     
+class ExecTargetTemplateParam(object):
+    pass
+    
+    def getExpr(self) -> Expr: ...
+    
 class TemplateParamDeclList(object):
     pass
     
@@ -661,11 +667,6 @@ class TemplateParamDeclList(object):
         """Returns an iterator over the items"""
     
     def getParams(self) -> List[TemplateParamDecl]: ...
-    
-class ExecTargetTemplateParam(object):
-    pass
-    
-    def getExpr(self) -> Expr: ...
     
 class Expr(object):
     pass
@@ -1242,26 +1243,6 @@ class RefExprScopeIndex(RefExpr):
     
     def getBase(self) -> RefExpr: ...
     
-class RefExprTypeScopeContext(RefExpr):
-    """
-    Reference to a type scope relative to a context.
-    
-    Represents a resolved reference to a type scope relative to another
-    reference expression. Used for navigating hierarchical type structures
-    during linking (e.g., nested types, inner classes).
-    
-    Attributes:
-        base: Base reference expression providing context
-        offset: Offset from base to target type scope
-    
-    See Also:
-        RefExpr, RefExprTypeScopeGlobal, SymbolTypeScope
-    
-    """
-    pass
-    
-    def getBase(self) -> RefExpr: ...
-    
 class CoverStmtInline(ScopeChild):
     """
     Inline coverage statement within monitor or action.
@@ -1374,6 +1355,26 @@ class CoverStmtReference(ScopeChild):
     
     def getTarget(self) -> ExprRefPath: ...
     
+class RefExprTypeScopeContext(RefExpr):
+    """
+    Reference to a type scope relative to a context.
+    
+    Represents a resolved reference to a type scope relative to another
+    reference expression. Used for navigating hierarchical type structures
+    during linking (e.g., nested types, inner classes).
+    
+    Attributes:
+        base: Base reference expression providing context
+        offset: Offset from base to target type scope
+    
+    See Also:
+        RefExpr, RefExprTypeScopeGlobal, SymbolTypeScope
+    
+    """
+    pass
+    
+    def getBase(self) -> RefExpr: ...
+    
 class RefExprTypeScopeGlobal(RefExpr):
     """
     Reference to a type scope at the global (file) level.
@@ -1424,6 +1425,20 @@ class Scope(ScopeChild):
     
     def getChildren(self) -> List[ScopeChild]: ...
     
+class DataType(ScopeChild):
+    """
+    Base class for all PSS data types.
+    
+    Represents the type system in PSS. All type expressions (int, bool,
+    user-defined types, etc.) derive from this base class. Used in field
+    declarations, expressions, and function signatures.
+    
+    See Also:
+        DataTypeInt, DataTypeBool, DataTypeUserDefined, Field
+    
+    """
+    pass
+    
 class ScopeChildRef(ScopeChild):
     """
     Reference to another AST node, used for type aliases and forwards.
@@ -1442,20 +1457,6 @@ class ScopeChildRef(ScopeChild):
     pass
     
     def getTarget(self) -> ScopeChild: ...
-    
-class DataType(ScopeChild):
-    """
-    Base class for all PSS data types.
-    
-    Represents the type system in PSS. All type expressions (int, bool,
-    user-defined types, etc.) derive from this base class. Used in field
-    declarations, expressions, and function signatures.
-    
-    See Also:
-        DataTypeInt, DataTypeBool, DataTypeUserDefined, Field
-    
-    """
-    pass
     
 class SymbolChild(ScopeChild):
     """
@@ -5244,6 +5245,42 @@ class ProceduralStmtReturn(ExecStmt):
     
     def getExpr(self) -> Expr: ...
     
+class ProceduralStmtSuper(ExecStmt):
+    """
+    Invokes the base type's implementation of the enclosing exec block.
+    
+    ProceduralStmtSuper represents the `super;` statement inside an exec
+    block. Without it, a derived type's exec silently *replaces* the
+    base's rather than extending it, so this is the correct form of the
+    most damaging inheritance mistake in PSS.
+    
+    The statement carries no operands: which exec block it refers to is
+    fixed by where it appears -- the same kind, on the base type.
+    
+    PSS Example::
+    
+        action base_a {
+            exec body {
+                console.log("base");
+            }
+        }
+    
+        action derived_a : base_a {
+            exec body {
+                super;                  // run base_a's exec body first
+                console.log("derived");
+            }
+        }
+    
+    Attributes:
+        (no attributes)
+    
+    See Also:
+        ActivitySuper, ExecBlock, ExprRefPathSuper
+    
+    """
+    pass
+    
 class ProceduralStmtYield(ExecStmt):
     """
     Yield control back to scheduler or runtime.
@@ -6065,45 +6102,6 @@ class ProceduralStmtRepeatWhile(ProceduralStmtBody):
     
     def getExpr(self) -> Expr: ...
     
-class ProceduralStmtWhile(ProceduralStmtBody):
-    """
-    Pre-test loop with condition evaluated before each iteration.
-    
-    ProceduralStmtWhile represents a standard while loop that evaluates the
-    condition before executing the body. The body may never execute if the
-    condition is initially false.
-    
-    PSS Example::
-    
-        action my_action {
-            exec body {
-                int x = 10;
-                
-                // Standard while loop
-                while (x > 0) {
-                    console.log("x = ", x);
-                    x--;
-                }
-                
-                // Condition checked first - may not execute
-                while (false) {
-                    console.log("Never executed");
-                }
-            }
-        }
-    
-    Attributes:
-        expr: Condition evaluated before each iteration
-        body: Statement(s) to execute (inherited from ProceduralStmtBody)
-    
-    See Also:
-        ProceduralStmtRepeatWhile, ProceduralStmtRepeat, ProceduralStmtForeach
-    
-    """
-    pass
-    
-    def getExpr(self) -> Expr: ...
-    
 class ConstraintStmtForall(ConstraintScope):
     """
     Universal quantification constraint over typed instances.
@@ -6199,6 +6197,45 @@ class ConstraintStmtForeach(ConstraintScope):
     def getExpr(self) -> Expr: ...
     
     def getSymtab(self) -> ConstraintSymbolScope: ...
+    
+class ProceduralStmtWhile(ProceduralStmtBody):
+    """
+    Pre-test loop with condition evaluated before each iteration.
+    
+    ProceduralStmtWhile represents a standard while loop that evaluates the
+    condition before executing the body. The body may never execute if the
+    condition is initially false.
+    
+    PSS Example::
+    
+        action my_action {
+            exec body {
+                int x = 10;
+                
+                // Standard while loop
+                while (x > 0) {
+                    console.log("x = ", x);
+                    x--;
+                }
+                
+                // Condition checked first - may not execute
+                while (false) {
+                    console.log("Never executed");
+                }
+            }
+        }
+    
+    Attributes:
+        expr: Condition evaluated before each iteration
+        body: Statement(s) to execute (inherited from ProceduralStmtBody)
+    
+    See Also:
+        ProceduralStmtRepeatWhile, ProceduralStmtRepeat, ProceduralStmtForeach
+    
+    """
+    pass
+    
+    def getExpr(self) -> Expr: ...
     
 class ConstraintStmtImplication(ConstraintScope):
     """

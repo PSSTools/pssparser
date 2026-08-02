@@ -141,6 +141,27 @@ protected:
      */
     void reportDuplicateParams(ast::IFunctionPrototype *proto);
 
+    /**
+     * Report a parameter with no default that follows one that has a default.
+     * Called from reportDuplicateParams(), so it reaches the same three
+     * function visitors.
+     */
+    void checkParamDefaultOrder(ast::IFunctionPrototype *proto);
+
+    /**
+     * Report a `pure` function that returns void or takes an output/inout
+     * parameter (LRM 20.2.6 rule a).  Called from reportDuplicateParams(),
+     * so it reaches the same three function visitors.
+     */
+    void checkPureQualifier(ast::IFunctionPrototype *proto);
+
+    /**
+     * Report a parameter direction modifier on a function that has a PSS
+     * body (LRM 20.2.2, 20.3.2).  Called only from visitFunctionDefinition:
+     * a direction on a prototype is legal until an implementation appears.
+     */
+    bool checkNativeParamDir(ast::IFunctionPrototype *proto);
+
     ast::IScopeChild *findSymbol(const std::string &name);
 
     void pushSymbolScope(ast::ISymbolChild *s);

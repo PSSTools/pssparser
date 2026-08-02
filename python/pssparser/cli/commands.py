@@ -127,10 +127,18 @@ def _build_core_patterns() -> list:
         (r"^unknown identifier\b", "PSS002"),
         (r"^unknown method\b", "PSS002"),
         (r"\bhas no member named\b", "PSS002"),
+        # The same failure as the line above, reached through the *unqualified*
+        # path. The two spellings are one diagnosis and must carry one code;
+        # this one had no code at all until member access on a call result
+        # made it a routine result rather than a rarity (see section 39).
+        (r"^failed to find elem\b", "PSS002"),
 
-        # PSS006 — call argument count
+        # PSS006 — call argument count, and the callee's parameter list
         (r"^too few arguments\b", "PSS006"),
         (r"^too many arguments\b", "PSS006"),
+        (r"^'.*' is not a function\b", "PSS006"),
+        (r"\bhas no default, but follows\b", "PSS006"),
+        (r"^argument \d+ of\b", "PSS006"),
 
         # PSS003 — duplicate declarations
         (r"^duplicate\b", "PSS003"),
@@ -139,7 +147,20 @@ def _build_core_patterns() -> list:
 
         # PSS007 — return statement vs. declared return type
         (r"\breturns void, so 'return'", "PSS007"),
+        (r"\breturns void, so its result\b", "PSS007"),
         (r"\bhas a return type, so 'return'", "PSS007"),
+
+        # PSS009 — declarations of one function that disagree with each other
+        (r"^declarations of '.*' disagree\b", "PSS009"),
+        # LRM 20.2.4 c. Phrased as a property of the parameter rather than as
+        # a disagreement, because respecifying an *identical* default is the
+        # violation too -- so "disagree" would be the wrong word.
+        (r"\bis given a default value by more than one declaration\b",
+            "PSS009"),
+
+        # PSS008 — function qualifiers used where the LRM disallows them
+        (r"\bmay only be imported, not defined in PSS\b", "PSS008"),
+        (r"\bis declared pure, so\b", "PSS008"),
 
         # PSS005 — extend-unknown (checked before PSS004 to avoid false match)
         (r"^cannot extend unknown\b", "PSS005"),

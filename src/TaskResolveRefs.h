@@ -27,6 +27,7 @@
 #include "pssp/ast/impl/VisitorBase.h"
 #include <set>
 #include "ResolveContext.h"
+#include "TaskCompareTypeRefs.h"
 #include "TaskResolveBase.h"
 
 namespace pssp {
@@ -95,6 +96,8 @@ public:
 
     virtual void visitProceduralStmtReturn(ast::IProceduralStmtReturn *i) override;
 
+    virtual void visitProceduralStmtExpr(ast::IProceduralStmtExpr *i) override;
+
 //    virtual void visitSymbolStmtScope(ast::ISymbolStmtScope *i) override;
 
     virtual void visitSymbolTypeScope(ast::ISymbolTypeScope *i) override;
@@ -131,6 +134,74 @@ protected:
         ast::IScopeChild         *target);
 
     /**
+     * Report a call to a void function whose value is used (LRM 20.5:
+     * "Functions not returning a value (declared with void return type) may
+     * only be called as standalone procedural statements").
+     *
+     * Called from checkCallArity() for *every* call element of a path.
+     * Restricting it to the last element -- which it did until §39 -- misses
+     * `f().x`, where the member access is itself a use of the result. An
+     * intermediate element that is not a call never reaches here, because
+     * checkCallArity() returns early when the element has no parameter list.
+     */
+    void checkVoidCallUse(
+        ast::IExprMemberPathElem  *elem,
+        ast::ISymbolFunctionScope *fn);
+
+    /**
+     * Report declarations of one function that do not agree with each other.
+     *
+     * Called from visitSymbolFunctionScope *after* the prototypes have been
+     * walked, because the comparisons are only worth making once the types
+     * have resolved: unresolved, `S` and `p::S` are two spellings that
+     * routinely denote one type, and comparing them by name would report
+     * valid code.
+     *
+     * Reports at most once per function. Two declarations that disagree
+     * wholesale -- a different return type *and* a different parameter list --
+     * are one mistake, and the second report would tell the user nothing the
+     * first did not.
+     *
+     * What is deliberately *not* compared is as much of the design as what is;
+     * see the two helpers below and §41 of the fix plan.
+     */
+    void checkDeclarationConsistency(ast::ISymbolFunctionScope *i);
+
+    /**
+     * The return-type half of checkDeclarationConsistency(). True if it
+     * reported.
+     *
+     * Only a *certain* difference is reported; see TaskCompareTypeRefs::Rel.
+     */
+    bool checkReturnTypeConsistency(
+        ast::IFunctionPrototype     *base,
+        ast::IFunctionPrototype     *p,
+        TaskCompareTypeRefs         &comp);
+
+    /**
+     * The parameter-list half of checkDeclarationConsistency(). True if it
+     * reported.
+     *
+     * Compares arity, parameter kind, type and direction, and applies LRM
+     * 20.2.4 c -- a default value may be given by only one declaration, "even
+     * if the value is the same".
+     *
+     * Parameter *names* are not compared. PSS calls are positional -- the
+     * grammar's `function_parameter_list` is a list of expressions, with no
+     * named-argument form -- and nothing in the LRM requires the names to
+     * match, so a definition naming its parameters differently from an
+     * earlier declaration is legal. (That it currently breaks resolution
+     * inside the definition's own body is a separate defect; see §41.5.)
+     *
+     * `pure` is not compared either: LRM 20.2.6 b explicitly permits omitting
+     * it in a definition whose declaration carries it.
+     */
+    bool checkParamListConsistency(
+        ast::IFunctionPrototype     *base,
+        ast::IFunctionPrototype     *p,
+        TaskCompareTypeRefs         &comp);
+
+    /**
      * Resolve the leaf elements of a static-rooted path -- the `f` of
      * `p::f(1)` -- against the scope the static root resolved to.
      *
@@ -139,7 +210,55 @@ protected:
      */
     void resolveStaticRootedLeaf(ast::IExprRefPathStaticRooted *i);
 
+public:
+    /**
+     * A deliberately coarse classification of a type or an expression.
+     *
+     * There is no expression-type inference in this parser, and building a
+     * full one means deciding PSS's assignment compatibility -- numeric
+     * widths, signedness, enum-to-integer, struct subtyping -- where a wrong
+     * rule rejects valid code at every call site in every model. These four
+     * categories are the part of that which needs no such judgement: nothing
+     * in PSS makes a string interchangeable with a number, or either with a
+     * struct.
+     *
+     * `Unknown` is the answer for anything not certainly in one of the
+     * others, and it is never reported against. Arithmetic, casts, calls,
+     * multi-element paths, `chandle`, type parameters, reference parameters
+     * and unresolved types all land there on purpose.
+     */
+    enum class TypeCat {
+        Unknown,    //< not certainly anything; never reported
+        Numeric,    //< int, bit, bool, enum -- mutually convertible in PSS
+        Str,        //< string
+        Aggregate   //< struct, component, action -- a composite value
+    };
+
+protected:
+    TypeCat catOfDataType(ast::IDataType *dt);
+
+    TypeCat catOfExpr(ast::IExpr *e);
+
+    /**
+     * Report an argument whose category cannot be what the parameter
+     * declares. Called from checkCallArity() once the count is known good.
+     */
+    void checkCallArgTypes(
+        ast::IExprMemberPathElem  *elem,
+        ast::ISymbolFunctionScope *fn);
+
 private:
+    /**
+     * The expression of the `ProceduralStmtExpr` currently being walked, or
+     * null when the walk is not inside one.  This is the whole of what makes
+     * "standalone procedural statement" decidable here: a call whose ref-path
+     * *is* this expression is a statement, and any other call is an operand.
+     */
+    ast::IExpr                          *m_stmt_expr = 0;
+
+    /** The ref-path expression currently being walked; see m_stmt_expr. */
+    ast::IExpr                          *m_cur_refpath = 0;
+
     static dmgr::IDebug                 *m_dbg;
     std::set<std::string>               m_generic_constraint_params;
 

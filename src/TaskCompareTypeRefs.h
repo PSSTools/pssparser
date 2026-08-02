@@ -55,6 +55,44 @@ public:
 
     virtual ~TaskCompareTypeRefs();
 
+    /**
+     * The three answers this comparison can give.
+     *
+     * ``Unsure`` was folded into ``NotEqual`` until it had a second caller.
+     * For specialization dedup that is the right collapse -- see the class
+     * comment -- but it is exactly wrong for a *diagnostic*, where saying
+     * "these two declarations disagree" about types this class merely could
+     * not compare rejects valid code.  The two callers want opposite
+     * defaults, so the uncertainty is now reported rather than resolved here.
+     *
+     * Sources of ``Unsure``: a data-type kind with no visitor, an integer
+     * width that will not fold to a constant, an unresolved user-defined
+     * reference whose spellings differ, and any reference that resolves to a
+     * ``typedef`` (an alias is the same type as what it aliases, which
+     * nothing in this parser currently expands).
+     */
+    enum class Rel {
+        Equal,
+        NotEqual,
+        Unsure
+    };
+
+    /**
+     * Decide whether ``tref1`` and ``tref2`` name the same type.
+     *
+     * Callers that must not act on doubt should test against a specific
+     * ``Rel``; ``equal()`` below is the "treat doubt as different" reading.
+     */
+    Rel compare(
+        ast::IDataType          *tref1,
+        ast::IDataType          *tref2);
+
+    /**
+     * ``compare() == Rel::Equal``: doubt reads as different.
+     *
+     * This is what specialization dedup wants -- an unnecessary
+     * specialization costs time, where merging two distinct types is wrong.
+     */
     bool equal(
         ast::IDataType          *tref1,
         ast::IDataType          *tref2);
@@ -98,22 +136,34 @@ private:
     /// Classify `t`, returning its kind and leaving the node in `m_type`.
     Kind classify(ast::IDataType *t);
 
-    bool intEqual(ast::IDataTypeInt *t1, ast::IDataTypeInt *t2);
+    Rel intEqual(ast::IDataTypeInt *t1, ast::IDataTypeInt *t2);
 
     /// Width may be absent (plain ``int``), and may be an expression this
-    /// evaluator cannot fold. Absent-vs-absent is equal; anything that cannot
-    /// be folded to a value is reported unequal.
-    bool widthEqual(ast::IExpr *w1, ast::IExpr *w2);
+    /// evaluator cannot fold. Absent-vs-absent is equal; a width that will
+    /// not fold -- a template parameter, say -- is ``Unsure``.
+    Rel widthEqual(ast::IExpr *w1, ast::IExpr *w2);
 
     /// Two user-defined type references name the same type when their
     /// reference paths resolve to the same declaration.
-    bool userDefinedEqual(
+    Rel userDefinedEqual(
         ast::IDataTypeUserDefined   *t1,
         ast::IDataTypeUserDefined   *t2);
 
     /// Textual fallback for a type reference that never resolved -- the
     /// normal state when one file of a multi-file model is opened alone.
-    bool typeIdNameEqual(ast::ITypeIdentifier *t1, ast::ITypeIdentifier *t2);
+    /// Matching spellings are taken as the same type; differing ones are
+    /// ``Unsure``, since an unresolved name says nothing about what it names.
+    Rel typeIdNameEqual(ast::ITypeIdentifier *t1, ast::ITypeIdentifier *t2);
+
+    /// True if `t` is a reference that resolves to a ``typedef``.  An alias
+    /// and its underlying type are one type, and nothing here expands one, so
+    /// any comparison involving an alias is ``Unsure`` rather than unequal.
+    bool isTypedefRef(ast::IDataType *t);
+
+    /// True if `t` is a user-defined reference that names nothing this run
+    /// could find.  Consulted only where the alternative would be to call it
+    /// *different* from something; see compare().
+    bool isUnresolvedRef(ast::IDataType *t);
 
 private:
     static dmgr::IDebug             *m_dbg;
