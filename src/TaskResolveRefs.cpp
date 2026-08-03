@@ -33,6 +33,7 @@
 #include "pssp/impl/TaskResolveSymbolPathRef.h"
 #include "pssp/impl/TaskGetElemSymbolScope.h"
 #include "pssp/impl/TaskGetSubscriptSymbolScope.h"
+#include "pssp/impl/TaskGetCollectionElemType.h"
 #include "pssp/impl/BuiltinCollectionUtil.h"
 #include "pssp/impl/TaskIsPyRef.h"
 
@@ -1631,11 +1632,52 @@ void TaskResolveRefs::visitProceduralStmtRepeat(ast::IProceduralStmtRepeat *i) {
     DEBUG_LEAVE("visitProceduralStmtRepeat");
 }
 
+void TaskResolveRefs::typeForeachIterator(ast::IProceduralStmtForeach *i) {
+    if (!i->getIt_id() || !i->getPath() || !i->getPath()->getTarget()) {
+        DEBUG("No iterator variable, or the collection did not resolve");
+        return;
+    }
+
+    // The iterator variable the AST builder registered on the foreach node.
+    std::unordered_map<std::string, int32_t>::const_iterator it =
+        i->getSymtab().find(i->getIt_id()->getId());
+    if (it == i->getSymtab().end()) {
+        return;
+    }
+    ast::IProceduralStmtDataDeclaration *var =
+        dynamic_cast<ast::IProceduralStmtDataDeclaration *>(
+            i->getChildren().at(it->second).get());
+    if (!var || var->getDatatype()) {
+        return;
+    }
+
+    ast::IScopeChild *coll = TaskResolveSymbolPathRef(
+        m_ctxt->getDebugMgr(),
+        m_ctxt->root(),
+        m_ctxt->inlineCtxt()).resolve(i->getPath()->getTarget());
+
+    ast::IDataType *elem_t = TaskGetCollectionElemType(
+        m_ctxt->getDebugMgr(), m_ctxt->root()).resolve(coll);
+
+    if (elem_t) {
+        DEBUG("Iterator %s takes the collection's element type",
+            i->getIt_id()->getId().c_str());
+        // Not owned: the type belongs to the collection's specialized
+        // parameter list, which outlives the loop that borrows it.
+        var->setDatatype(elem_t, false);
+    }
+}
+
 void TaskResolveRefs::visitProceduralStmtForeach(ast::IProceduralStmtForeach *i) {
     DEBUG_ENTER("visitProceduralStmtForeach %d", i->getSymtab().size());
     // Resolve the collection path in the OUTER scope (it must not see the
     // loop variables registered on the foreach node itself).
     if (i->getPath()) { i->getPath()->accept(m_this); }
+    // The AST builder creates the iterator variable untyped -- at parse time
+    // the collection is just a path. Give it the collection's element type now
+    // that the path has resolved, so member access through the iterator
+    // (`foreach (e : l) { e.field }`) has something to look `field` up in.
+    typeForeachIterator(i);
     // Push the foreach scope so the iterator/index variables are visible while
     // resolving references in the body (e.g. `arr[i]`).
     m_ctxt->symtab()->pushScope(i);

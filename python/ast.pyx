@@ -4608,6 +4608,13 @@ cdef class EnumDecl(NamedScopeChild):
         self.asEnumDecl().getItems().push_back(ast_decl.IEnumItemUP(i.asEnumItem(), True))
     cpdef numItems(self):
         return self.asEnumDecl().getItems().size()
+    cpdef DataType getBase_type(self):
+        if self.asEnumDecl().getBase_type() == NULL:
+            return None
+        else:
+            of = ObjFactory()
+            self.asEnumDecl().getBase_type().accept(of._hndl)
+            return <DataType>(of._obj)
 
 cdef class EnumItem(NamedScopeChild):
     

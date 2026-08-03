@@ -124,6 +124,23 @@ ExternalProject_Add(AST
         -DCMAKE_OSX_ARCHITECTURES:STRING=${CMAKE_OSX_ARCHITECTURES}
 	)
 
+# Re-run the generator when the AST specification changes.
+#
+# ExternalProject steps are stamped, and nothing invalidates the stamp of a
+# DOWNLOAD_COMMAND that is really a code generator: the AST was generated once
+# and every later build compiled against the headers from that run. An edit to
+# ast/*.yaml then failed as a missing accessor on the *generated* class, which
+# reads as a mistake in the yaml rather than as a stale build.
+#
+# GLOB is evaluated at configure time, so *adding* a spec file still needs
+# cmake to re-run -- same caveat as pss_stdlib_SRC in src/CMakeLists.txt.
+file(GLOB pssparser_ast_SPEC "${CMAKE_CURRENT_SOURCE_DIR}/ast/*.yaml")
+
+ExternalProject_Add_StepDependencies(AST download
+	${pssparser_ast_SPEC}
+	${CMAKE_CURRENT_SOURCE_DIR}/scripts/gen_ast.py
+	)
+
 add_subdirectory(src)
 
 

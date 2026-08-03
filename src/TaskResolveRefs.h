@@ -84,6 +84,13 @@ public:
 
     virtual void visitProceduralStmtForeach(ast::IProceduralStmtForeach *i) override;
 
+    /**
+     * Give a `foreach` iterator variable the element type of the collection
+     * being iterated. The AST builder cannot: at parse time the collection is
+     * an unresolved path.
+     */
+    void typeForeachIterator(ast::IProceduralStmtForeach *i);
+
 //    virtual void visitRootSymbolScope(ast::IRootSymbolScope *i) override;
 
     virtual void visitSymbolScope(ast::ISymbolScope *i) override;

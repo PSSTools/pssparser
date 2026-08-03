@@ -1572,6 +1572,7 @@ cdef class EnumDecl(NamedScopeChild):
     cpdef getItem(self, i)
     cpdef void addItem(self, EnumItem i)
     cpdef numItems(self)
+    cpdef DataType getBase_type(self)
 
 cdef class EnumItem(NamedScopeChild):
     

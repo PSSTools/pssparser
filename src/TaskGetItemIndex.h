@@ -66,6 +66,22 @@ public:
         }
     }
 
+    // Same shape as repeat, and for the same reason: the loop's own symtab is
+    // built by AstBuilderInt rather than TaskBuildSymbolTree, so `getId()` is
+    // the position among a scope's *symbols* and `getIndex()` the position
+    // among its children. Without this, the inherited SymbolChildrenScope
+    // handler used getId() unconditionally and a `foreach` whose id and index
+    // disagreed produced a ref-path that resolved to the loop statement
+    // instead of to its iterator variable -- so `foreach (e : l) { e.f }`
+    // linked or failed depending on where in the block the loop sat.
+    virtual void visitProceduralStmtForeach(ast::IProceduralStmtForeach *i) override {
+        if (i->getId() != -1) {
+            m_index = i->getId();
+        } else {
+            m_index = i->getIndex();
+        }
+    }
+
     virtual void visitScopeChild(ast::IScopeChild *i) override {
         m_index = i->getIndex();
     }

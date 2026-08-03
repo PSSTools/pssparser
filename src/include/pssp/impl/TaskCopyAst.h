@@ -1001,6 +1001,9 @@ public:
     virtual void visitEnumDecl(ast::IEnumDecl *i) {
         ast::IEnumDecl *ic = m_factory->mkEnumDecl(
             copyT<ast::IExprId>(i->getName()));
+        if (i->getBase_type()) {
+            ic->setBase_type(copyT<ast::IDataType>(i->getBase_type()));
+        }
         for (std::vector<ast::IEnumItemUP>::const_iterator
             it=i->getItems().begin(); it!=i->getItems().end(); it++) {
             ic->getItems().push_back(ast::IEnumItemUP(

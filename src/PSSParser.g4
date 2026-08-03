@@ -1239,8 +1239,9 @@ bool_type:
 	;
 
 enum_declaration:
-  	TOK_ENUM enum_identifier 
-	TOK_LCBRACE 
+  	TOK_ENUM enum_identifier
+	(TOK_COLON data_type)?
+	TOK_LCBRACE
   		(enum_item (TOK_COMMA enum_item)*)?
 	TOK_RCBRACE 
 	;

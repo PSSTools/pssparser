@@ -2013,6 +2013,9 @@ cdef extern from "pssp/ast/IDataTypeUserDefined.h" namespace "pssp::ast":
 cdef extern from "pssp/ast/IEnumDecl.h" namespace "pssp::ast":
     cpdef cppclass IEnumDecl(INamedScopeChild):
         std_vector[UP[IEnumItem]] & getItems();
+        IDataType *getBase_type()
+        
+        void setBase_type(IDataType *v)
 
 cdef extern from "pssp/ast/IEnumItem.h" namespace "pssp::ast":
     cpdef cppclass IEnumItem(INamedScopeChild):

@@ -2585,6 +2585,12 @@ antlrcpp::Any AstBuilderInt::visitEnum_declaration(PSSParser::Enum_declarationCo
 
 	ast::IEnumDecl *decl = m_factory->mkEnumDecl(mkId(ctx->enum_identifier()->identifier()));
 
+	// Optional base type (21.13.1): `enum mode_e : bit[4] { ... }`. Carried on
+	// the declaration so type checking and packed-struct layout can see it.
+	if (ctx->data_type()) {
+		decl->setBase_type(mkDataType(ctx->data_type()));
+	}
+
 	std::vector<PSSParser::Enum_itemContext *> items = ctx->enum_item();
 	for (std::vector<PSSParser::Enum_itemContext *>::const_iterator
 		it=items.begin();

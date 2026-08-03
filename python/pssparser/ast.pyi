@@ -3499,9 +3499,15 @@ class EnumDecl(NamedScopeChild):
             ERR_TIMEOUT = 2
         };
     
+        enum mode_e : bit[4] {          // With an explicit base type
+            IDLE = 0, RUN = 1
+        };
+    
     Attributes:
         name: Enum type name (inherited from NamedScopeChild)
         items: List of enumerator values
+        base_type: Optional integral base type. Only an enum that has one
+            may be a member of a packed struct (21.13.1).
     
     See Also:
         EnumItem, DataTypeEnum
@@ -3513,6 +3519,8 @@ class EnumDecl(NamedScopeChild):
         """Returns an iterator over the items"""
     
     def getItems(self) -> List[EnumItem]: ...
+    
+    def getBase_type(self) -> DataType: ...
     
 class EnumItem(NamedScopeChild):
     """

@@ -13,8 +13,7 @@ package addr_reg_pkg {
 
     struct empty_addr_trait_s : addr_trait_s {};
 
-//    typedef chandle addr_handle_t;
-    struct addr_handle_t { }
+    typedef chandle addr_handle_t;
 
     component contiguous_addr_space_c<
             struct TRAIT : addr_trait_s = empty_addr_trait_s> : addr_space_base_c {
@@ -67,10 +66,9 @@ package addr_reg_pkg {
         rand bit[64] addr;
     };
 
-    struct sizeof_s<type T> {
-        static const int nbytes = /* implementation-specific */ -1;
-        static const int nbits = /* implementation-specific */ -1;
-    };
+    // Note: sizeof_s is declared in std_pkg (21.13.2). It is visible here --
+    // and to users that import addr_reg_pkg::* -- via the std_pkg import above,
+    // which is what the spec's "as if they were the same types" requires.
 
     const addr_handle_t nullhandle = /* implementation-specific */ null;
 
@@ -81,7 +79,8 @@ package addr_reg_pkg {
  addr_handle_t hndl;
 };
 function addr_handle_t make_handle_from_claim (addr_claim_base_s claim,
- bit[64] offset = 0);
+ bit[64] offset = 0,
+ bool sub = false);
 function addr_handle_t make_handle_from_handle (addr_handle_t handle,
  bit[64] offset);
 
@@ -106,13 +105,11 @@ function void write32(addr_handle_t hndl, bit[32] data);
 function void write64(addr_handle_t hndl, bit[64] data);
 
 
-/* TODO: generic type
 function void read_bytes (addr_handle_t hndl, list<bit[8]> data,
  int size);
 function void write_bytes(addr_handle_t hndl, list<bit[8]> data);
-function void read_struct (addr_handle_t hndl, struct packed_struct);
-function void write_struct(addr_handle_t hndl, struct packed_struct);
- */
+target function void read_struct (addr_handle_t hndl, struct packed_struct);
+target function void write_struct(addr_handle_t hndl, struct packed_struct);
 // extend component executor_base_c {
 //     function bit[8] read8(addr_handle_t hndl);
 //     function bit[16] read16(addr_handle_t hndl);
@@ -131,37 +128,50 @@ function void write_struct(addr_handle_t hndl, struct packed_struct);
 
 enum reg_access {READWRITE, READONLY, WRITEONLY};
 
-pure component reg_c < type R, reg_access ACC = READWRITE, int SZ2 = (8*sizeof_s<R>::nbytes)> {
-    function R read();
-    import target function read;
-
-    function void write(R r);
-    import target function write;
-
-    function bit[SZ2] read_val();
-    import target function read_val;
-
-    function void write_val(bit[SZ2] r);
-    import target function write_val;
-
-    // Zuspec extenion, as of PSS 3.0
+// 21.14.1 Syntax158: base of the register-component hierarchy
+pure component reg_base_c {
     function addr_handle_t get_handle();
 };
 
-/*
+// 21.14.1 Syntax159: size-parameterized registers, allowing generic access
+// across same-width registers regardless of their field layout
+pure component reg_sized_c<int SZ> : reg_base_c {
+    target function bit[SZ] read_val();
+    target function void    write_val(bit[SZ] r);
+    target function void    write_val_masked(bit[SZ] mask, bit[SZ] val);
+    target function void    write_field(string name, bit[SZ] val);
+    target function void    write_fields(list<string> names, list<bit[SZ]> vals);
+};
+
+// 21.14.1 Syntax160
+pure component reg_c < type R, reg_access ACC = READWRITE,
+        int SZ = (8*sizeof_s<R>::nbytes)> : reg_sized_c<SZ> {
+    target function R    read();
+    target function void write(R r);
+    target function void write_masked(R mask, R val);
+};
+
 struct node_s {
  string name;
  int index;
 };
- */
+
 pure component reg_group_c {
     pure function bit[64] get_offset_of_instance(string name);
     pure function bit[64] get_offset_of_instance_array(string name, int index);
-    /** TODO: list
     pure function bit[64] get_offset_of_path(list<node_s> path);
-     */
+
+    // 21.14.6.1 Syntax162: symbolic register names
+    solve pure function string get_mnemonic_of_instance(string name);
+    solve pure function string get_mnemonic_of_instance_array(string name, int index);
+    solve pure function string get_mnemonic_of_path(list<node_s> path);
+    solve function void        set_mnemonic(string prefix);
+
     function void set_handle(addr_handle_t addr);
 //    import solve function set_handle;
 };
+
+// 21.14.6.2 Syntax163
+solve function void use_symbolic_reg_names(ref reg_group_c grp, bool enable);
 
 }
