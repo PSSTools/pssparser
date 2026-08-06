@@ -49,6 +49,8 @@ def test_compile_if_compile_has_type():
         action A { }
         compile if (compile has (A)) {
             action B { }
+        } else {
+            action NotB { }
         }
     }
     """
@@ -56,6 +58,7 @@ def test_compile_if_compile_has_type():
     comp = get_symbol(root, "C")
     assert comp is not None
     assert get_symbol(comp, "B") is not None
+    assert get_symbol(comp, "NotB") is None
 
 
 def test_compile_if_compile_has_field():
@@ -68,6 +71,8 @@ def test_compile_if_compile_has_field():
             S s;
             compile if (compile has (s.field1)) {
                 rand bit[8] value;
+            } else {
+                rand bit[8] not_value;
             }
         }
     }
@@ -77,6 +82,7 @@ def test_compile_if_compile_has_field():
     action = get_symbol(comp, "A")
     assert action is not None
     assert get_symbol(action, "value") is not None
+    assert get_symbol(action, "not_value") is None
 
 
 def test_compile_assert_failure_reports_error():
@@ -162,6 +168,8 @@ def test_compile_if_package_static_const():
         import config_pkg::*;
         compile if (config_pkg::PROTOCOL_VER_1_2) {
             action A { }
+        } else {
+            action NotA { }
         }
     }
     """
@@ -169,6 +177,7 @@ def test_compile_if_package_static_const():
     comp = get_symbol(root, "C")
     assert comp is not None
     assert get_symbol(comp, "A") is not None
+    assert get_symbol(comp, "NotA") is None
 
 
 def test_compile_if_wildcard_imported_static_const():
@@ -181,6 +190,8 @@ def test_compile_if_wildcard_imported_static_const():
         import config_pkg::*;
         compile if (FEATURE_ENABLED) {
             action A { }
+        } else {
+            action NotA { }
         }
     }
     """
@@ -188,6 +199,7 @@ def test_compile_if_wildcard_imported_static_const():
     comp = get_symbol(root, "C")
     assert comp is not None
     assert get_symbol(comp, "A") is not None
+    assert get_symbol(comp, "NotA") is None
 
 
 def test_compile_assert_wildcard_imported_nested_package_static_const():
@@ -220,6 +232,8 @@ def test_compile_if_alias_imported_static_const():
         import outer::inner as cfg;
         compile if (cfg::FIELD2 == 2) {
             action A { }
+        } else {
+            action NotA { }
         }
     }
     """
@@ -227,6 +241,7 @@ def test_compile_if_alias_imported_static_const():
     comp = get_symbol(root, "C")
     assert comp is not None
     assert get_symbol(comp, "A") is not None
+    assert get_symbol(comp, "NotA") is None
 
 
 def test_compile_assert_static_const_identifier():
@@ -250,6 +265,8 @@ def test_compile_if_static_const_expression_identifier():
         static const int FIELD2 = FIELD1 + 1;
         compile if (FIELD2 == 2) {
             action A { }
+        } else {
+            action NotA { }
         }
     }
     """
@@ -257,6 +274,7 @@ def test_compile_if_static_const_expression_identifier():
     comp = get_symbol(root, "C")
     assert comp is not None
     assert get_symbol(comp, "A") is not None
+    assert get_symbol(comp, "NotA") is None
 
 
 def test_compile_assert_nested_package_static_const_expression():
@@ -286,6 +304,8 @@ def test_compile_if_enum_item_expression():
         }
         compile if (E::B == 2) {
             action Enabled { }
+        } else {
+            action Disabled { }
         }
     }
     """
@@ -293,3 +313,4 @@ def test_compile_if_enum_item_expression():
     comp = get_symbol(root, "C")
     assert comp is not None
     assert get_symbol(comp, "Enabled") is not None
+    assert get_symbol(comp, "Disabled") is None

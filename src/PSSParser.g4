@@ -548,6 +548,11 @@ procedural_stmt:
 	| procedural_data_declaration // TODO: positioning this first causes assign to be incorrectly recognized as data_declaration
     | procedural_yield_stmt
 	| procedural_randomization_stmt
+	// procedural_compile_if was declared but never referenced by any rule, so
+	// `compile if` in a function or exec body was a syntax error despite
+	// LRM 19.2.1 listing procedural scopes.  It precedes nothing that can
+	// start with `compile`, so the alternative is unambiguous here.
+	| procedural_compile_if
 	| TOK_SEMICOLON
 	;
 
@@ -1609,7 +1614,7 @@ action_body_compile_if_item:
 	;
 
 monitor_body_compile_if_item: 
-    TOK_LSBRACE monitor_body_item* TOK_RSBRACE
+    TOK_LCBRACE monitor_body_item* TOK_RCBRACE
     ;
 
 component_body_compile_if_item:
@@ -1622,20 +1627,27 @@ struct_body_compile_if_item:
 	| (TOK_LCBRACE struct_body_item* TOK_RCBRACE)
 	;
 
-procedural_compile_if_stmt: 
-    TOK_LSBRACE procedural_stmt* TOK_RSBRACE
+// The five rules below took their braces from the LRM's meta-syntax rather
+// than from the production: `procedural_compile_if_stmt ::= { { procedural_stmt } }`
+// is a *curly*-brace block containing zero or more statements, where the inner
+// `{ }` is the meta-notation for repetition.  Written with TOK_LSBRACE they
+// demanded `compile if (C) [ stmt ]`, which no PSS source can supply, so
+// `compile if` was unusable in procedural, constraint, covergroup, override and
+// monitor scopes -- LRM 19.2.1 lists all of them as legal.
+procedural_compile_if_stmt:
+    TOK_LCBRACE procedural_stmt* TOK_RCBRACE
     ;
 
-constraint_body_compile_if_item: 
-    TOK_LSBRACE constraint_body_item TOK_RSBRACE
+constraint_body_compile_if_item:
+    TOK_LCBRACE constraint_body_item* TOK_RCBRACE
     ;
 
-covergroup_body_compile_if_item: 
-    TOK_LSBRACE covergroup_body_item TOK_RSBRACE
+covergroup_body_compile_if_item:
+    TOK_LCBRACE covergroup_body_item* TOK_RCBRACE
     ;
 
-override_compile_if_stmt: 
-    TOK_LSBRACE override_stmt TOK_RSBRACE
+override_compile_if_stmt:
+    TOK_LCBRACE override_stmt* TOK_RCBRACE
     ;
 
 compile_has_expr:

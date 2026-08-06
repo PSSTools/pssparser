@@ -3,6 +3,14 @@ import std_pkg::*;
 package sync_pkg {
 
     component channel_c<type Te, int DEPTH=1> {
+        // 21.9.1 -- the target-time API. All four are target functions:
+        // callable from body/run_start/run_end and functions reached from
+        // them, never from a solve exec.
+        target function Te      get();
+        target function void    put(Te t);
+        target function bool    try_get(output Te t);
+        target function bool    try_put(Te t);
+
         action put_a {
             Te          data;
         }

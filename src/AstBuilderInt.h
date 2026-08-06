@@ -378,6 +378,21 @@ private:
 
     bool evalCompileHas(PSSParser::Ref_pathContext *ctx);
 
+    /**
+     * Evaluate a compile-time condition, reporting an error anchored at *t*
+     * when its value cannot be determined (PSS 3.1 19.1.3).
+     *
+     * *construct* names the statement ("compile if" / "compile assert") and
+     * *ctx* supplies the condition text quoted in the diagnostic.  Returns
+     * false, with the error already reported, when the value is unavailable;
+     * callers must then elaborate neither branch, since 19.1.1 promises only
+     * that a disabled branch is syntactically correct.
+     */
+    bool evalCompileTimeCond(
+        PSSParser::Constant_expressionContext   *ctx,
+        int64_t                                 &val,
+        const char                              *construct);
+
     void visitCompileIfItem(antlr4::ParserRuleContext *ctx);
 
     ast::IScope *getGlobalScope(ast::IScope *s);
@@ -390,6 +405,27 @@ private:
         ast::IScope *scope,
         const std::vector<std::string> &path,
         uint32_t &consumed);
+
+    /**
+     * Walk the trailing elements of *path*, starting from *target* and
+     * element *path_i*, through scopes, enum declarations and typed fields.
+     * Returns null when any element is missing.
+     */
+    ast::IScopeChild *walkPathMembers(
+        ast::IScopeChild *target,
+        const std::vector<std::string> &path,
+        uint32_t path_i);
+
+    /**
+     * Resolve *path* against a previously-processed source unit, newest first
+     * (PSS 3.1 19.1.2).  Each unit is tried as a whole -- root lookup plus the
+     * member walk -- rather than sharing a root across units, so a package
+     * declared in several units resolves against the fragment that actually
+     * holds the member.
+     */
+    ast::IScopeChild *resolvePathTargetInPriorUnits(
+        ast::IScope *cur_global,
+        const std::vector<std::string> &path);
 
     ast::IScope *resolveDataTypeScope(ast::IDataType *type);
 
@@ -528,6 +564,19 @@ private:
 	ast::IExpr									*m_expr;
 	ast::IDataType								*m_type;
     std::vector<ast::IScope *>					m_scopes;
+    /**
+     * Source units this builder has already processed, in processing order.
+     *
+     * Compile-time expressions are evaluated during AST construction, so the
+     * only view they have of the model is what the builder has built.  Holding
+     * the prior units here is what lets a `compile if` condition read a
+     * `static const` from an earlier file (PSS 3.1 19.1.2); without it every
+     * cross-file reference resolves to null and reads as false.
+     *
+     * These are borrowed pointers to scopes owned by the caller (Parser._files
+     * on the Python side), so the builder must not outlive them.
+     */
+    std::vector<ast::IGlobalScope *>            m_prior_units;
 	ast::IScopeChild							*m_activity_stmt;
 	ast::IExprId								*m_labeled_activity_id;
 	ast::IConstraintStmt						*m_constraint;

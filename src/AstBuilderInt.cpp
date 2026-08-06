@@ -125,6 +125,11 @@ void AstBuilderInt::build(
 		pop_scope();
         uint64_t build_ast_e = time_ms();
         DEBUG("Build AST: %lld", (build_ast_e-build_ast_s));
+
+        // This unit is now a "previously-processed source unit" for every unit
+        // built after it, and supplies the types and constants their
+        // compile-time expressions may reference (PSS 3.1 19.1.2).
+        m_prior_units.push_back(global);
 	}
 
     if (m_enableProfile) {
@@ -174,7 +179,10 @@ antlrcpp::Any AstBuilderInt::visitPackage_declaration(
 
 antlrcpp::Any AstBuilderInt::visitPackage_body_compile_if(PSSParser::Package_body_compile_ifContext *ctx) {
     int64_t cond = 0;
-    if (evalConstantExpression(ctx->cond, cond) && cond) {
+    if (!evalCompileTimeCond(ctx->cond, cond, "compile if")) {
+        // Reported as an error: elaborate neither branch (19.1.1 promises only
+        // that a disabled branch is syntactically correct).
+    } else if (cond) {
         visitCompileIfItem(ctx->true_body);
     } else if (ctx->false_body) {
         visitCompileIfItem(ctx->false_body);
@@ -401,7 +409,10 @@ antlrcpp::Any AstBuilderInt::visitAnnotation_declaration(PSSParser::Annotation_d
 
 antlrcpp::Any AstBuilderInt::visitAnnotation_body_compile_if(PSSParser::Annotation_body_compile_ifContext *ctx) {
     int64_t cond = 0;
-    if (evalConstantExpression(ctx->cond, cond) && cond) {
+    if (!evalCompileTimeCond(ctx->cond, cond, "compile if")) {
+        // Reported as an error: elaborate neither branch (19.1.1 promises only
+        // that a disabled branch is syntactically correct).
+    } else if (cond) {
         visitCompileIfItem(ctx->true_body);
     } else if (ctx->false_body) {
         visitCompileIfItem(ctx->false_body);
@@ -514,7 +525,11 @@ antlrcpp::Any AstBuilderInt::visitConst_field_declaration(PSSParser::Const_field
 
 antlrcpp::Any AstBuilderInt::visitCompile_assert_stmt(PSSParser::Compile_assert_stmtContext *ctx) {
     int64_t cond = 0;
-    if (!evalConstantExpression(ctx->cond, cond) || !cond) {
+    if (!evalCompileTimeCond(ctx->cond, cond, "compile assert")) {
+        // Indeterminable: already reported, and distinct from a condition that
+        // evaluated to false.  Reporting it as a plain assertion failure is
+        // what made a cross-file `static const` look like a failing assert.
+    } else if (!cond) {
         if (m_marker_l) {
             ast::Location loc;
             loc.fileid = m_file_id;
@@ -689,7 +704,10 @@ antlrcpp::Any AstBuilderInt::visitActivity_declaration(PSSParser::Activity_decla
 
 antlrcpp::Any AstBuilderInt::visitAction_body_compile_if(PSSParser::Action_body_compile_ifContext *ctx) {
     int64_t cond = 0;
-    if (evalConstantExpression(ctx->cond, cond) && cond) {
+    if (!evalCompileTimeCond(ctx->cond, cond, "compile if")) {
+        // Reported as an error: elaborate neither branch (19.1.1 promises only
+        // that a disabled branch is syntactically correct).
+    } else if (cond) {
         visitCompileIfItem(ctx->true_body);
     } else if (ctx->false_body) {
         visitCompileIfItem(ctx->false_body);
@@ -988,7 +1006,10 @@ antlrcpp::Any AstBuilderInt::visitStruct_declaration(PSSParser::Struct_declarati
 
 antlrcpp::Any AstBuilderInt::visitStruct_body_compile_if(PSSParser::Struct_body_compile_ifContext *ctx) {
     int64_t cond = 0;
-    if (evalConstantExpression(ctx->cond, cond) && cond) {
+    if (!evalCompileTimeCond(ctx->cond, cond, "compile if")) {
+        // Reported as an error: elaborate neither branch (19.1.1 promises only
+        // that a disabled branch is syntactically correct).
+    } else if (cond) {
         visitCompileIfItem(ctx->true_body);
     } else if (ctx->false_body) {
         visitCompileIfItem(ctx->false_body);
@@ -998,7 +1019,9 @@ antlrcpp::Any AstBuilderInt::visitStruct_body_compile_if(PSSParser::Struct_body_
 
 antlrcpp::Any AstBuilderInt::visitMonitor_body_compile_if(PSSParser::Monitor_body_compile_ifContext *ctx) {
     int64_t cond = 0;
-    if (evalConstantExpression(ctx->constant_expression(), cond) && cond) {
+    if (!evalCompileTimeCond(ctx->constant_expression(), cond, "compile if")) {
+        // Reported as an error: elaborate neither branch.
+    } else if (cond) {
         visitCompileIfItem(ctx->monitor_body_compile_if_item(0));
     } else if (ctx->monitor_body_compile_if_item().size() > 1) {
         visitCompileIfItem(ctx->monitor_body_compile_if_item(1));
@@ -1734,7 +1757,10 @@ antlrcpp::Any AstBuilderInt::visitComponent_declaration(PSSParser::Component_dec
 
 antlrcpp::Any AstBuilderInt::visitComponent_body_compile_if(PSSParser::Component_body_compile_ifContext *ctx) {
     int64_t cond = 0;
-    if (evalConstantExpression(ctx->cond, cond) && cond) {
+    if (!evalCompileTimeCond(ctx->cond, cond, "compile if")) {
+        // Reported as an error: elaborate neither branch (19.1.1 promises only
+        // that a disabled branch is syntactically correct).
+    } else if (cond) {
         visitCompileIfItem(ctx->true_body);
     } else if (ctx->false_body) {
         visitCompileIfItem(ctx->false_body);
@@ -2826,7 +2852,9 @@ antlrcpp::Any AstBuilderInt::visitConstraint_block(PSSParser::Constraint_blockCo
 
 antlrcpp::Any AstBuilderInt::visitConstraint_body_compile_if(PSSParser::Constraint_body_compile_ifContext *ctx) {
     int64_t cond = 0;
-    if (evalConstantExpression(ctx->constant_expression(), cond) && cond) {
+    if (!evalCompileTimeCond(ctx->constant_expression(), cond, "compile if")) {
+        // Reported as an error: elaborate neither branch.
+    } else if (cond) {
         visitCompileIfItem(ctx->constraint_body_compile_if_item(0));
     } else if (ctx->constraint_body_compile_if_item().size() > 1) {
         visitCompileIfItem(ctx->constraint_body_compile_if_item(1));
@@ -2863,17 +2891,48 @@ antlrcpp::Any AstBuilderInt::visitExpression_constraint_item(PSSParser::Expressi
 
 antlrcpp::Any AstBuilderInt::visitProcedural_compile_if(PSSParser::Procedural_compile_ifContext *ctx) {
     int64_t cond = 0;
-    if (evalConstantExpression(ctx->constant_expression(), cond) && cond) {
-        visitCompileIfItem(ctx->procedural_compile_if_stmt(0));
+    PSSParser::Procedural_compile_if_stmtContext *selected = 0;
+
+    if (!evalCompileTimeCond(ctx->constant_expression(), cond, "compile if")) {
+        // Reported as an error: elaborate neither branch.
+    } else if (cond) {
+        selected = ctx->procedural_compile_if_stmt(0);
     } else if (ctx->procedural_compile_if_stmt().size() > 1) {
-        visitCompileIfItem(ctx->procedural_compile_if_stmt(1));
+        selected = ctx->procedural_compile_if_stmt(1);
     }
+
+    // Unlike every other compile-if scope, this one cannot elaborate its
+    // branch by simply accepting the children.  A procedural statement is
+    // built into `m_exec_stmt` and appended by the *caller*, one statement per
+    // `procedural_stmt`; a compile if contributes zero or more.  Accepting the
+    // children directly built the statements and then dropped them on the
+    // floor -- the enclosing block only ever appends the single m_exec_stmt.
+    // So append them here, as procedural_data_declaration does, and report
+    // "one statement handled, nothing to append" to the caller.
+    if (selected) {
+        std::vector<PSSParser::Procedural_stmtContext *> stmts = selected->procedural_stmt();
+        for (std::vector<PSSParser::Procedural_stmtContext *>::const_iterator
+            it=stmts.begin();
+            it!=stmts.end(); it++) {
+            addExecStmt(*it);
+        }
+    }
+
+    // NOTE: a compile if used as the *unbraced* body of an if/foreach --
+    // `if (c) compile if (F) { ... }` -- appends into the enclosing block
+    // rather than the branch.  The LRM spells this scope as a braced block, so
+    // that shape is pathological; it is called out here rather than guarded.
+    m_exec_stmt = 0;
+    m_exec_stmt_cnt++;
+
     return 0;
 }
 
 antlrcpp::Any AstBuilderInt::visitCovergroup_body_compile_if(PSSParser::Covergroup_body_compile_ifContext *ctx) {
     int64_t cond = 0;
-    if (evalConstantExpression(ctx->constant_expression(), cond) && cond) {
+    if (!evalCompileTimeCond(ctx->constant_expression(), cond, "compile if")) {
+        // Reported as an error: elaborate neither branch.
+    } else if (cond) {
         visitCompileIfItem(ctx->covergroup_body_compile_if_item(0));
     } else if (ctx->covergroup_body_compile_if_item().size() > 1) {
         visitCompileIfItem(ctx->covergroup_body_compile_if_item(1));
@@ -2883,7 +2942,9 @@ antlrcpp::Any AstBuilderInt::visitCovergroup_body_compile_if(PSSParser::Covergro
 
 antlrcpp::Any AstBuilderInt::visitOverride_compile_if(PSSParser::Override_compile_ifContext *ctx) {
     int64_t cond = 0;
-    if (evalConstantExpression(ctx->constant_expression(), cond) && cond) {
+    if (!evalCompileTimeCond(ctx->constant_expression(), cond, "compile if")) {
+        // Reported as an error: elaborate neither branch.
+    } else if (cond) {
         visitCompileIfItem(ctx->override_compile_if_stmt(0));
     } else if (ctx->override_compile_if_stmt().size() > 1) {
         visitCompileIfItem(ctx->override_compile_if_stmt(1));
@@ -3974,6 +4035,32 @@ void AstBuilderInt::addErrorMarker(Token *t, const char *fmt, ...) {
     m_marker_l->marker(&m);
 }
 
+bool AstBuilderInt::evalCompileTimeCond(
+        PSSParser::Constant_expressionContext   *ctx,
+        int64_t                                 &val,
+        const char                              *construct) {
+    if (!ctx) {
+        return false;
+    }
+    if (evalConstantExpression(ctx, val)) {
+        return true;
+    }
+
+    // "The value of any compile if expressions must be determinable at compile
+    // time" (19.1.3).  Reading an indeterminable condition as false is what
+    // made a cross-file `static const` reference drop its branch and still
+    // report a clean parse.
+    addErrorMarker(
+        ctx->start,
+        "%s condition cannot be evaluated at compile time: '%s'. "
+        "Compile-time expressions may reference only types and constants declared "
+        "in this source unit or in a previously-processed one (PSS 3.1 19.1.2)",
+        construct,
+        ctx->getText().c_str());
+
+    return false;
+}
+
 bool AstBuilderInt::evalConstantExpression(PSSParser::Constant_expressionContext *ctx, int64_t &val) {
     return evalExpression(ctx->expression(), val);
 }
@@ -4442,6 +4529,24 @@ ast::IScopeChild *AstBuilderInt::resolvePathTarget(
         }
     }
 
+    target = walkPathMembers(target, path, path_i);
+
+    if (!target) {
+        // Nothing in this source unit answers the path.  Compile-time
+        // expressions may also reference declarations from a
+        // previously-processed source unit (PSS 3.1 19.1.2), so try those
+        // before giving up -- otherwise a `compile if` reading a constant from
+        // another file resolves to null and silently reads as false.
+        target = resolvePathTargetInPriorUnits(global_scope, path);
+    }
+
+    return target;
+}
+
+ast::IScopeChild *AstBuilderInt::walkPathMembers(
+        ast::IScopeChild *target,
+        const std::vector<std::string> &path,
+        uint32_t path_i) {
     if (!target) {
         return 0;
     }
@@ -4483,6 +4588,43 @@ ast::IScopeChild *AstBuilderInt::resolvePathTarget(
     }
 
     return target;
+}
+
+ast::IScopeChild *AstBuilderInt::resolvePathTargetInPriorUnits(
+        ast::IScope *cur_global,
+        const std::vector<std::string> &path) {
+    if (path.empty()) {
+        return 0;
+    }
+
+    for (std::vector<ast::IGlobalScope *>::const_reverse_iterator
+        it=m_prior_units.rbegin();
+        it!=m_prior_units.rend(); it++) {
+        ast::IScope *unit = *it;
+        if (unit == cur_global) {
+            continue;
+        }
+
+        // Each unit is resolved end-to-end: a package may be split across
+        // several units, so the fragment that matches the leading path
+        // elements is not necessarily the one holding the member.
+        uint32_t path_i = 1;
+        ast::IScopeChild *target = findPackagePath(unit, path, path_i);
+        if (target) {
+            if (ast::IScopeChild *ret=walkPathMembers(target, path, path_i)) {
+                return ret;
+            }
+        }
+
+        target = findNamedChild(unit, path.at(0));
+        if (target) {
+            if (ast::IScopeChild *ret=walkPathMembers(target, path, 1)) {
+                return ret;
+            }
+        }
+    }
+
+    return 0;
 }
 
 ast::IScopeChild *AstBuilderInt::resolveRefPathTarget(PSSParser::Ref_pathContext *ctx) {

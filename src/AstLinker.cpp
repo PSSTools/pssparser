@@ -36,6 +36,7 @@
 #include "TaskResolveRefsOverlay.h"
 #include "TaskResolveRefs.h"
 #include "TaskResolveSuperTypes.h"
+#include "TaskCheckRefsResolved.h"
 #include "TaskResolveOverrideActions.h"
 
 
@@ -120,6 +121,14 @@ ast::IRootSymbolScope *AstLinker::link(
     TaskResolveRefs(&ctxt).resolve(symtree);
     uint64_t resolve_e = time_ms();
     DEBUG("Resolve: %lldms", (resolve_e-resolve_s));
+
+    // The completeness gate. Resolution is finished, so a type reference that
+    // is still unbound is unbound for good -- report it rather than hand a
+    // consumer a field with no type. Deliberately last and deliberately
+    // structural: it does not know which code path failed to bind a reference,
+    // which is what makes it hold for paths that do not exist yet. See
+    // TaskCheckRefsResolved.h.
+    TaskCheckRefsResolved(&ctxt).check(symtree, 1 /* the bundled stdlib */);
 
     return symtree;
 }

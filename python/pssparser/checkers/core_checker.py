@@ -229,6 +229,43 @@ class CoreChecker(CheckerBase):
                 "match, and that is not checked."
             ),
         ),
+        MarkerDef(
+            id="PSS010",
+            severity="error",
+            summary="Bad field name in a masked register write",
+            detail=(
+                "``write_field`` / ``write_fields`` / ``write_masked`` (LRM "
+                "21.14.1) name a *declared field* of the register's value "
+                "type.  The string spelling is forced by the signature "
+                "``write_field(string name, bit[SZ] val)`` and does not make "
+                "the name data: 21.14.1 restricts it to a string **literal** "
+                "precisely so a tool can resolve it at compile time.  "
+                "Messages include patterns such as:\n\n"
+                "* ``no field 'chan_en' in register value type 'csr_s'; did "
+                "you mean 'ch_en'?``\n"
+                "* ``write_field: field 'sub' of 'agg_s' has a composite "
+                "type; field-wise register access applies to scalar fields "
+                "only``\n"
+                "* ``write_field: the field name must be a string literal``\n"
+                "* ``write_field: field name 'a.b' must not be a "
+                "hierarchical reference``\n"
+                "* ``write_fields: duplicate field name 'prio'``\n"
+                "* ``write_fields: 2 field name(s) but 1 value(s)``\n"
+                "* ``write_masked: no field 'nosuch' in register value type "
+                "'csr_s'``\n"
+                "* ``write_field: this register's value type is not a "
+                "struct, so it has no named fields``\n\n"
+                "A duplicate name matters more than it looks: the plural "
+                "form writes its fields in a *single* read-modify-write, so "
+                "naming one twice does not write it twice -- one of the two "
+                "values is simply lost.\n\n"
+                "Which **bits** a resolved field occupies is deliberately not "
+                "decided here.  ``packed_s<>`` layout is a target "
+                "representation -- backends order it oppositely on purpose -- "
+                "so the compiler folds the mask.  This checks *which field*; "
+                "the compiler answers *which bits*."
+            ),
+        ),
     ]
 
     def check(self, context) -> None:  # noqa: D102

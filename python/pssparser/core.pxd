@@ -49,6 +49,8 @@ cdef class AstBuilder(object):
         ast.GlobalScope         root,
                                 in_s)
 
+    cpdef void setMarkerListener(self, MarkerListener l)
+
     cpdef void setCollectDocStrings(self, bool collect)
 
     cpdef bool getCollectDocStrings(self)

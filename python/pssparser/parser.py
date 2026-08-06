@@ -21,13 +21,32 @@ class Parser(object):
         self._markers = []
         #: fileid -> path, snapshotted by link() before it clears its state.
         self._file_map : Dict[int,str] = {}
+        #: One builder per Parser, created lazily by _mkBuilder.
+        self._builder = None
         pass
+
+    def _mkBuilder(self, marker_l):
+        """Return this Parser's builder, pointed at *marker_l*.
+
+        The builder is created once and reused, because it accumulates the
+        source units it has processed: compile-time expressions are evaluated
+        during AST construction and may reference types and constants from a
+        previously-processed unit (PSS 3.1 19.1.2).  A builder per parse() call
+        would restart that environment, so a second call could not see the
+        constants declared by the first.  Each call still gets a fresh marker
+        collector, since markers are reported per call.
+        """
+        if self._builder is None:
+            self._builder = self.parser_f.mkAstBuilder(marker_l)
+        else:
+            self._builder.setMarkerListener(marker_l)
+        return self._builder
 
     def parse(self, files : List[str]) -> bool:
         import pssparser.core as zspp
         marker_l = self.parser_f.mkMarkerCollector()
-        builder = self.parser_f.mkAstBuilder(marker_l)
-        
+        builder = self._mkBuilder(marker_l)
+
         if self._enable_profiling:
             builder.setEnableProfile(True)
 
@@ -59,8 +78,8 @@ class Parser(object):
     def parses(self, files : List[Tuple[str, str]]) -> bool:
         import pssparser.core as zspp
         marker_l = self.parser_f.mkMarkerCollector()
-        builder = self.parser_f.mkAstBuilder(marker_l)
-        
+        builder = self._mkBuilder(marker_l)
+
         if self._enable_profiling:
             builder.setEnableProfile(True)
 
@@ -139,6 +158,15 @@ class Parser(object):
 
         self._filenames.clear()
         self._files.clear()
+
+        # Drop the builder along with the units it was handed.  It holds
+        # borrowed pointers to these GlobalScopes as its compile-time
+        # environment (PSS 3.1 19.1.2), and ownership has just moved to the
+        # linked root: a later link() replaces that root, frees the scopes, and
+        # a parse() after that would read freed memory.  A fresh builder
+        # restarts the environment, which matches what just happened -- these
+        # units are no longer the Parser's to offer.
+        self._builder = None
 
         return ret
 

@@ -21,6 +21,8 @@
 #pragma once
 #include <stdint.h>
 #include <string>
+#include <set>
+#include <tuple>
 #include <unordered_set>
 #include <vector>
 #include "dmgr/IDebugMgr.h"
@@ -113,6 +115,13 @@ public:
         const char          *fmt,
         ...);
 
+    /**
+     * True if an error has already been reported at this source position.
+     * Lets a later pass stay quiet about a failure an earlier one described
+     * better -- see TaskCheckRefsResolved.
+     */
+    bool wasReported(const ast::Location &loc) const;
+
 private:
     ast::IRootSymbolScope                           *m_root;
     std::vector<ast::ISymbolScope *>                m_inline_ctxt_s;
@@ -122,6 +131,9 @@ private:
     std::vector<ISymbolTableIteratorUP>             m_symtab_it_s;
     std::vector<std::unordered_set<int32_t>>        m_inbound_refs;
     std::vector<std::unordered_set<int32_t>>        m_outbound_refs;
+    // (fileid, lineno, linepos) of every position that already carries an
+    // error marker; see wasReported().
+    std::set<std::tuple<int32_t,int32_t,int32_t>>   m_reported;
 
 };
 

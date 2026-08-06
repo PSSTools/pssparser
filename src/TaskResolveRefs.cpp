@@ -36,6 +36,17 @@
 #include "pssp/impl/TaskGetCollectionElemType.h"
 #include "pssp/impl/BuiltinCollectionUtil.h"
 #include "pssp/impl/TaskIsPyRef.h"
+#include "pssp/ast/IExprAggrList.h"
+#include "pssp/ast/IExprAggrStruct.h"
+#include "pssp/ast/IExprAggrStructElem.h"
+#include "pssp/ast/IExprString.h"
+#include "pssp/ast/IField.h"
+#include "pssp/ast/IStruct.h"
+#include "pssp/ast/ISymbolTypeScope.h"
+#include "pssp/ast/ITemplateGenericTypeParamDecl.h"
+#include "pssp/ast/ITemplateParamDeclList.h"
+#include "pssp/ast/IDataTypeUserDefined.h"
+#include "pssp/ast/ITypeIdentifier.h"
 
 #include <algorithm>
 
@@ -1140,6 +1151,11 @@ void TaskResolveRefs::visitExprRefPathContext(ast::IExprRefPathContext *i) {
 
             // A member call -- `comp.f(1)`, `pkg::f(1)`.
             checkCallArity(elem, res.sym);
+
+            // The receiver is in hand here, which is what the §21.14.1 field
+            // names need: they are resolved against the register's value type,
+            // not against the callee.
+            checkRegFieldRefs(elem, target_s);
 
             // Resolve name references for parameter values
             if (elem->getParams()) {
@@ -2347,5 +2363,351 @@ ast::IScopeChild *TaskResolveRefs::resolvePath(ast::ISymbolRefPath *path) {
 }
 
 dmgr::IDebug *TaskResolveRefs::m_dbg = 0;
+
+
+// --- PSS 3.1 §21.14.1: field names in a masked register write --------------
+//
+// `regs.csr.write_field("ch_en", 1)` names a declared field of the register's
+// value type. The string spelling is forced by the LRM's own signature --
+// `write_field(string name, bit[SZ] val)` -- and is not a sign that the name is
+// data: §21.14.1 restricts it to a string *literal* precisely so a tool can
+// resolve it at compile time.
+//
+// Resolving it is name binding, which is this pass's job. Everything the parser
+// resolves elsewhere -- types, members, methods, enum items -- goes through
+// here, and a name that did not would be resolved instead by each consumer, or
+// by none. Before this, `write_field("chan_en", 1)` -- one letter wrong --
+// linked clean and wrote a register bit nobody asked for.
+//
+// What is NOT decided here: which bits a resolved field occupies. `packed_s<>`
+// layout is a target representation -- the C and SystemVerilog backends order
+// it oppositely, on purpose -- so it belongs to the compiler, which folds the
+// mask. This pass answers "which field", and the compiler answers "which bits".
+
+bool TaskResolveRefs::regValueStruct(
+        ast::ISymbolScope  *recv_s,
+        ast::IStruct      **vs) {
+    *vs = 0;
+    ast::ISymbolTypeScope *ts = dynamic_cast<ast::ISymbolTypeScope *>(recv_s);
+
+    // Bounded rather than "until the super is null": a super chain is a handful
+    // of links, and a cycle here would hang the parse instead of diagnosing it.
+    for (int32_t depth=0; ts && depth<32; depth++) {
+        ast::ITypeScope *decl = dynamic_cast<ast::ITypeScope *>(ts->getTarget());
+
+        if (!decl) {
+            return false;
+        }
+
+        ast::ITemplateParamDeclList *params = decl->getParams();
+
+        if (params) {
+            for (std::vector<ast::ITemplateParamDeclUP>::const_iterator
+                it=params->getParams().begin();
+                it!=params->getParams().end(); it++) {
+                if (!(*it)->getName() || (*it)->getName()->getId() != "R") {
+                    continue;
+                }
+
+                // This is reg_c. Its bound R is carried as the parameter's
+                // *default*: TaskGetSpecializedTemplateType copies the
+                // declaration and replaces the parameter list with the bound
+                // one, so a specialization's default IS its argument.
+                ast::ITemplateGenericTypeParamDecl *tp =
+                    dynamic_cast<ast::ITemplateGenericTypeParamDecl *>(it->get());
+
+                if (!tp || !tp->getDflt()) {
+                    // The unspecialized declaration: nothing is bound, so
+                    // there is nothing to resolve against.
+                    return false;
+                }
+
+                ast::IDataTypeUserDefined *udt =
+                    dynamic_cast<ast::IDataTypeUserDefined *>(tp->getDflt());
+
+                if (!udt || !udt->getType_id()) {
+                    // reg_c<bit[32]>: a register, but with no named fields.
+                    // Reported by the caller, which knows what was asked for.
+                    return true;
+                }
+
+                ast::ISymbolTypeScope *sts = TaskResolveSymbolPathRef(
+                        m_ctxt->getDebugMgr(), m_ctxt->root())
+                    .resolveT<ast::ISymbolTypeScope>(
+                        udt->getType_id()->getTarget());
+                *vs = sts
+                    ? dynamic_cast<ast::IStruct *>(sts->getTarget())
+                    : 0;
+                return true;
+            }
+        }
+
+        // Not reg_c itself. A named register type --
+        // `pure component csr_r : reg_c<csr_s, ...>` -- puts exactly one link
+        // between the field's type and the register; an inline
+        // `reg_c<csr_s, ...> csr;` puts none.
+        if (!decl->getSuper_t()) {
+            return false;
+        }
+
+        // TaskResolveSymbolPathRef, not resolvePath(): the super of a named
+        // register type is a *specialization* (`reg_c<csr_s,?,32>`), which
+        // lives in the base type's spec_types rather than among its children,
+        // so the plain index walk cannot reach it and silently yields null.
+        ts = TaskResolveSymbolPathRef(
+                m_ctxt->getDebugMgr(), m_ctxt->root())
+            .resolveT<ast::ISymbolTypeScope>(decl->getSuper_t()->getTarget());
+    }
+
+    return false;
+}
+
+/// The declared field of `vs` named `n`, or null.
+static ast::IField *findRegField(ast::IStruct *vs, const std::string &n) {
+    for (std::vector<ast::IScopeChildUP>::const_iterator
+        it=vs->getChildren().begin(); it!=vs->getChildren().end(); it++) {
+        ast::IField *f = dynamic_cast<ast::IField *>(it->get());
+        if (f && f->getName() && f->getName()->getId() == n) {
+            return f;
+        }
+    }
+    return 0;
+}
+
+/// The closest declared field name to `n`, for a `did you mean` suggestion.
+static std::string closestRegField(ast::IStruct *vs, const std::string &n) {
+    std::string best;
+    int bestDist = 3;
+    for (std::vector<ast::IScopeChildUP>::const_iterator
+        it=vs->getChildren().begin(); it!=vs->getChildren().end(); it++) {
+        ast::IField *f = dynamic_cast<ast::IField *>(it->get());
+        if (!f || !f->getName()) {
+            continue;
+        }
+        int d = editDistance_rr(n, f->getName()->getId());
+        if (d > 0 && d < bestDist) {
+            bestDist = d;
+            best = f->getName()->getId();
+        }
+    }
+    return best;
+}
+
+static const char *structName(ast::IStruct *vs) {
+    return (vs->getName())?vs->getName()->getId().c_str():"<anonymous>";
+}
+
+ast::IField *TaskResolveRefs::resolveRegField(
+        ast::IExprMemberPathElem *elem,
+        ast::IStruct             *vs,
+        ast::IExpr               *name_e) {
+    const std::string &method = elem->getId()->getId();
+
+    ast::IExprString *lit = dynamic_cast<ast::IExprString *>(name_e);
+
+    if (!lit) {
+        // §21.14.1(a). Reported here rather than left to the compiler because
+        // this is the restriction that makes compile-time resolution possible
+        // at all, and "must be a string literal" is a better answer than
+        // whatever the compiler would say about a mask it could not fold.
+        m_ctxt->addErrorMarker(
+            elem->getId()->getLocation(),
+            "%s: the field name must be a string literal (PSS 3.1 21.14.1); "
+            "it names a declared field of '%s' and is resolved at compile time",
+            method.c_str(),
+            structName(vs));
+        return 0;
+    }
+
+    const std::string &n = lit->getValue();
+
+    if (n.find('.') != std::string::npos) {
+        // §21.14.1(b): top-level fields only.
+        m_ctxt->addErrorMarker(
+            elem->getId()->getLocation(),
+            "%s: field name '%s' must not be a hierarchical reference "
+            "(PSS 3.1 21.14.1)",
+            method.c_str(),
+            n.c_str());
+        return 0;
+    }
+
+    ast::IField *f = findRegField(vs, n);
+
+    if (!f) {
+        std::string suggestion = closestRegField(vs, n);
+        if (suggestion.empty()) {
+            m_ctxt->addErrorMarker(
+                elem->getId()->getLocation(),
+                "no field '%s' in register value type '%s'",
+                n.c_str(),
+                structName(vs));
+        } else {
+            m_ctxt->addErrorMarker(
+                elem->getId()->getLocation(),
+                "no field '%s' in register value type '%s'; did you mean '%s'?",
+                n.c_str(),
+                structName(vs),
+                suggestion.c_str());
+        }
+        return 0;
+    }
+
+    if (catOfDataType(f->getType()) == TypeCat::Aggregate) {
+        // §21.14.1(c): the value written is a bit vector, so a field that is
+        // not one cannot receive it.
+        m_ctxt->addErrorMarker(
+            elem->getId()->getLocation(),
+            "%s: field '%s' of '%s' has a composite type; field-wise register "
+            "access applies to scalar fields only (PSS 3.1 21.14.1)",
+            method.c_str(),
+            n.c_str(),
+            structName(vs));
+        return 0;
+    }
+
+    return f;
+}
+
+void TaskResolveRefs::checkRegFieldRefs(
+        ast::IExprMemberPathElem *elem,
+        ast::ISymbolScope        *recv_s) {
+    if (!elem->getParams()) {
+        return;
+    }
+
+    const std::string &method = elem->getId()->getId();
+    bool one    = (method == "write_field");
+    bool many   = (method == "write_fields");
+    bool masked = (method == "write_masked");
+
+    if (!one && !many && !masked) {
+        return;
+    }
+
+    ast::IStruct *vs = 0;
+
+    if (!regValueStruct(recv_s, &vs)) {
+        // Not a register. A user type is free to have a method of this name,
+        // and judging it here would be a false positive on someone else's API.
+        return;
+    }
+
+    if (!vs) {
+        m_ctxt->addErrorMarker(
+            elem->getId()->getLocation(),
+            "%s: this register's value type is not a struct, so it has no "
+            "named fields (PSS 3.1 21.14.1)",
+            method.c_str());
+        return;
+    }
+
+    const std::vector<ast::IExprUP> &args = elem->getParams()->getParameters();
+
+    if (one) {
+        if (args.size() >= 1) {
+            resolveRegField(elem, vs, args.at(0).get());
+        }
+        return;
+    }
+
+    if (many) {
+        if (args.size() < 2) {
+            // Arity is checkCallArity's to report; nothing to resolve.
+            return;
+        }
+
+        ast::IExprAggrList *names =
+            dynamic_cast<ast::IExprAggrList *>(args.at(0).get());
+        ast::IExprAggrList *vals =
+            dynamic_cast<ast::IExprAggrList *>(args.at(1).get());
+
+        if (!names) {
+            m_ctxt->addErrorMarker(
+                elem->getId()->getLocation(),
+                "write_fields: the field names must be a list literal of "
+                "string literals; a runtime list cannot be resolved at compile "
+                "time (PSS 3.1 21.14.1)");
+            return;
+        }
+
+        if (vals && names->getElems().size() != vals->getElems().size()) {
+            m_ctxt->addErrorMarker(
+                elem->getId()->getLocation(),
+                "write_fields: %d field name(s) but %d value(s)",
+                (int32_t)names->getElems().size(),
+                (int32_t)vals->getElems().size());
+        }
+
+        std::set<std::string> seen;
+
+        for (std::vector<ast::IExprUP>::const_iterator
+            it=names->getElems().begin(); it!=names->getElems().end(); it++) {
+            ast::IField *f = resolveRegField(elem, vs, it->get());
+            if (!f) {
+                continue;
+            }
+            // §21.14.1(d). It matters more here than it looks: the whole point
+            // of the plural form is that the fields are written in ONE
+            // read-modify-write, so naming a field twice does not write it
+            // twice -- one of the two values is simply lost.
+            if (!seen.insert(f->getName()->getId()).second) {
+                m_ctxt->addErrorMarker(
+                    elem->getId()->getLocation(),
+                    "write_fields: duplicate field name '%s' (PSS 3.1 21.14.1)",
+                    f->getName()->getId().c_str());
+            }
+        }
+        return;
+    }
+
+    // write_masked(R mask, R val): the arguments are values of the register's
+    // own type, so a struct literal names its fields directly. A non-literal
+    // argument is a whole value and has nothing to check.
+    for (uint32_t ai=0; ai<args.size() && ai<2; ai++) {
+        ast::IExprAggrStruct *sl =
+            dynamic_cast<ast::IExprAggrStruct *>(args.at(ai).get());
+
+        if (!sl) {
+            continue;
+        }
+
+        std::set<std::string> seen;
+
+        for (std::vector<ast::IExprAggrStructElemUP>::const_iterator
+            it=sl->getElems().begin(); it!=sl->getElems().end(); it++) {
+            if (!(*it)->getName()) {
+                continue;
+            }
+
+            const std::string &n = (*it)->getName()->getId();
+
+            if (!findRegField(vs, n)) {
+                std::string suggestion = closestRegField(vs, n);
+                if (suggestion.empty()) {
+                    m_ctxt->addErrorMarker(
+                        elem->getId()->getLocation(),
+                        "write_masked: no field '%s' in register value type '%s'",
+                        n.c_str(), structName(vs));
+                } else {
+                    m_ctxt->addErrorMarker(
+                        elem->getId()->getLocation(),
+                        "write_masked: no field '%s' in register value type "
+                        "'%s'; did you mean '%s'?",
+                        n.c_str(), structName(vs), suggestion.c_str());
+                }
+                continue;
+            }
+
+            if (!seen.insert(n).second) {
+                m_ctxt->addErrorMarker(
+                    elem->getId()->getLocation(),
+                    "write_masked: duplicate field '%s' in the %s literal",
+                    n.c_str(), (ai==0)?"mask":"value");
+            }
+        }
+    }
+}
+
 
 }

@@ -67,6 +67,46 @@ EXAMPLE_FILES = _pss_files(_EXAMPLES)
 MODEL_FILES = _pss_files(_MODEL, recursive=True)
 
 
+#: Why a glob is the wrong input for a whole-model run, reported when the
+#: derivation is unavailable so the skip does not read as "nothing to test".
+_NO_ORDER = (
+    "the model's file order could not be derived (dv-flow-libpss's "
+    "pss.FileSet); a glob is not a substitute -- see _model_build_order"
+)
+
+
+def _model_build_order():
+    """The model's files, in the order and selection its build uses.
+
+    A glob is not usable here, for two reasons that have nothing to do with the
+    parser.  Compile-time elaboration is order-*dependent* by specification --
+    a ``compile if`` reads constants from previously-processed source units
+    (PSS 3.1 19.1.2) -- so a config package that sorts after its users is a
+    forward reference.  And ``wb_dma_cfg_pkg/`` holds two mutually-exclusive
+    files declaring the same package, of which a build selects exactly one; a
+    glob takes both and duplicates the constant.
+
+    Both the order and that selection are stated in the model's ``pss.FileSet``
+    task, so read them from there.  Deriving beats reading a checked-in
+    filelist: the filelist this test used to read had gone stale against a
+    renamed model, which is the failure mode a derivation cannot have.
+    """
+    if _MODEL is None:
+        return []
+    try:
+        from dv_flow.libpss.file_set import derive_from_flow
+    except ImportError:
+        return []
+
+    files, markers = derive_from_flow(str(_MODEL), "src")
+    if any(sev == "error" for sev, _ in markers):
+        return []
+    return [str(_MODEL / f) for f in files]
+
+
+MODEL_BUILD_FILES = _model_build_order()
+
+
 def _ids(paths):
     return [os.path.basename(p) for p in paths]
 
@@ -132,7 +172,7 @@ def test_model_file_alone_does_not_crash(path):
     )
 
 
-@pytest.mark.skipif(not MODEL_FILES, reason="src/pss model not present")
+@pytest.mark.skipif(not MODEL_BUILD_FILES, reason=_NO_ORDER)
 def test_whole_model_parses():
     """The complete model, all files at once, must link with no errors.
 
@@ -147,16 +187,16 @@ def test_whole_model_parses():
     binding collapsed to the inner generic's argument.  See
     ``test_template_nesting.py``, which pins it in four lines of PSS.
     """
-    res = run_isolated(MODEL_FILES, timeout=300)
+    res = run_isolated(MODEL_BUILD_FILES, timeout=300)
     assert res.ok, "the complete model did not parse: %s" % res.describe()
 
 
-@pytest.mark.skipif(not MODEL_FILES, reason="src/pss model not present")
+@pytest.mark.skipif(not MODEL_BUILD_FILES, reason=_NO_ORDER)
 def test_whole_model_syntax_only():
     """Parse without linking -- isolates grammar coverage from resolution.
 
     Passing here while :func:`test_whole_model_parses` fails localizes the
     defect to the linker, which is exactly the split seen today.
     """
-    res = run_isolated(MODEL_FILES, args=["--syntax-only"], timeout=300)
+    res = run_isolated(MODEL_BUILD_FILES, args=["--syntax-only"], timeout=300)
     assert res.ok, "the complete model failed to *parse*: %s" % res.describe()

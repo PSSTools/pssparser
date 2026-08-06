@@ -254,6 +254,52 @@ protected:
         ast::IExprMemberPathElem  *elem,
         ast::ISymbolFunctionScope *fn);
 
+    /**
+     * Resolve the field names in a masked register write (PSS 3.1 §21.14.1).
+     *
+     * `regs.csr.write_field("ch_en", 1)` names a *declared field* of the
+     * register's value type; the string spelling is forced by the LRM's
+     * signature `write_field(string, bit[SZ])`, not a sign that it is data.
+     * Resolving it is name binding, and name binding is the front end's job --
+     * a compiler that had to do it would be a second implementation, and every
+     * other consumer of this parser would need a third.
+     *
+     * Called from the member-call site alongside checkCallArity(), where the
+     * receiver's scope is in hand. What the *bits* of a resolved field are is
+     * deliberately NOT decided here: `packed_s<>` layout is a target
+     * representation (the C and SV backends order it oppositely on purpose),
+     * so it belongs to the compiler.
+     */
+    void checkRegFieldRefs(
+        ast::IExprMemberPathElem *elem,
+        ast::ISymbolScope        *recv_s);
+
+    /**
+     * The value type of a register-typed scope.
+     *
+     * Walks the super chain looking for the `reg_c<R, ACC, SZ>` specialization
+     * -- `pure component csr_r : reg_c<csr_s, ...>` puts one level between the
+     * field's type and the register, and an inline `reg_c<csr_s, ...> csr;`
+     * puts none -- and returns its bound `R`.
+     *
+     * Returns false when the scope is not a register at all, which is the
+     * quiet case: a user type may legitimately have a method called
+     * `write_field`. When it returns true, `*vs` is the value struct, or null
+     * if `R` is a scalar (`reg_c<bit[32]>`) and therefore has no named fields.
+     */
+    bool regValueStruct(
+        ast::ISymbolScope  *recv_s,
+        ast::IStruct      **vs);
+
+    /**
+     * Check one field-name argument. Returns the resolved field, or null
+     * (having reported why).
+     */
+    ast::IField *resolveRegField(
+        ast::IExprMemberPathElem *elem,
+        ast::IStruct             *vs,
+        ast::IExpr               *name_e);
+
 private:
     /**
      * The expression of the `ProceduralStmtExpr` currently being walked, or
