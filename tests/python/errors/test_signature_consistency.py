@@ -358,6 +358,56 @@ def test_a_default_given_twice_is_reported(src):
         "is given a default value by more than one declaration")
 
 
+def test_a_definition_alone_may_give_a_default():
+    """A definition with no preceding declaration is ONE declaration, so
+    LRM 20.2.4 c does not apply and the default is legal.
+
+    It was rejected. ``visitFunctionDefinition`` registered the definition's
+    prototype twice when it also had to create the function symbol -- once at
+    creation, once via the insert that puts a definition at the front -- so
+    ``checkDeclarationConsistency`` compared that one prototype against itself.
+
+    Only this rule could see the duplicate. Return type, parameter type,
+    direction and kind all report a DISAGREEMENT, which a prototype cannot have
+    with itself; the default-value rule reports both prototypes merely HAVING a
+    default (20.2.4 c does not compare values), which a self-comparison always
+    satisfies. That is why the ordinary shape below was the only casualty.
+    """
+    assert_clean([("t.pss", "function void f(int a = 1) { }")])
+    assert_clean([("t.pss", 'function void f(string s = "x") { }')])
+    assert_clean([("t.pss",
+        "component C { function void f(int a = 1) { } }")])
+    assert_clean([("t.pss",
+        "package p { function void f(int a = 1) { } }")])
+    # The duplicate was invisible to every other rule, so guard the shape
+    # itself rather than only this one diagnostic: two params, one defaulted.
+    assert_clean([("t.pss",
+        "function void f(int a, int b = 2) { g(); } function void g() { }")])
+
+
+def test_a_definition_that_repeats_a_declarations_default_is_still_reported():
+    """The other half: with a real second declaration the rule must still fire.
+
+    This is what stops the fix above from being "delete the check". Removing
+    the duplicate registration must not remove the genuine pair.
+    """
+    assert_rejects([("t.pss",
+        "function void f(int a = 1); function void f(int a = 1) { }")],
+        "is given a default value by more than one declaration")
+    assert_rejects([("t.pss",
+        "function void f(int a = 1) { } function void f(int a = 2);")],
+        "is given a default value by more than one declaration")
+
+
+def test_a_definition_and_a_declaration_still_disagree_about_types():
+    """A definition alone now contributes ONE prototype instead of two; the
+    consistency check must still see the pair when a declaration exists.
+    """
+    assert_rejects([("t.pss",
+        "function int f(int a); function int f(string a) { return 0; }")],
+        "disagree about the type of")
+
+
 def test_a_default_given_by_only_one_declaration_is_clean():
     """LRM 20.2.4 c again, read the other way: a default "is in effect for
     redeclarations", so one declaration supplying it is the *expected* shape,

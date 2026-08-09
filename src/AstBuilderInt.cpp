@@ -3176,7 +3176,13 @@ void AstBuilderInt::visitConstraintSetItems(PSSParser::Constraint_setContext *ct
 // B.17 Expressions
 
 static std::map<std::string, ast::ExprUnaryOp> prv_str2unop = {
-
+	{"+", ast::ExprUnaryOp::UnaryOp_Plus},
+	{"-", ast::ExprUnaryOp::UnaryOp_Minus},
+	{"!", ast::ExprUnaryOp::UnaryOp_LogNot},
+	{"~", ast::ExprUnaryOp::UnaryOp_BitNeg},
+	{"&", ast::ExprUnaryOp::UnaryOp_BitAnd},
+	{"|", ast::ExprUnaryOp::UnaryOp_BitOr},
+	{"^", ast::ExprUnaryOp::UnaryOp_BitXor}
 };
 
 static std::map<std::string, ast::ExprBinOp> prv_str2binop = {
@@ -3207,6 +3213,9 @@ antlrcpp::Any AstBuilderInt::visitExpression(PSSParser::ExpressionContext *ctx) 
 	if (ctx->unary_op()) {
 		ast::IExpr *lhs = mkExpr(ctx->lhs);
 
+		m_expr = m_factory->mkExprUnary(
+			prv_str2unop.find(ctx->unary_op()->getText())->second,
+			lhs);
 	} else if (ctx->lhs && ctx->rhs) {
 		// It's some form of binary op
 		ast::IExpr *lhs = mkExpr(ctx->lhs);

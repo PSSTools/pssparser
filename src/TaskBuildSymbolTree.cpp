@@ -382,7 +382,25 @@ void TaskBuildSymbolTree::visitFunctionDefinition(ast::IFunctionDefinition *i) {
         func_sym = m_factory->mkSymbolFunctionScope(i->getProto()->getName()->getId());
         func_sym->setLocation(i->getLocation());
         addChild(func_sym, i->getProto()->getName()->getId(), false);
-        func_sym->getPrototypes().push_back(i->getProto());
+        // NOT registered here. The insert below adds this same prototype at
+        // the front unconditionally, so pushing it here too listed one pointer
+        // twice whenever a definition had no preceding declaration -- which is
+        // the ordinary case.
+        //
+        // That duplicate was invisible to every consistency check but one.
+        // checkDeclarationConsistency() compares each prototype against
+        // front(), and the return-type, parameter-type and direction rules all
+        // fire on DISAGREEMENT, which a prototype can never have with itself.
+        // The default-value rule (LRM 20.2.4 c) fires on both prototypes
+        // merely HAVING a default -- values are deliberately not compared --
+        // so a self-comparison always trips it:
+        //
+        //   function void f(int a = 1) { }   // rejected: "given a default
+        //                                    // value by more than one
+        //                                    // declaration"
+        //
+        // A separate declaration made the error vanish, because then this
+        // branch does not run and the list holds two distinct prototypes.
         func_sym->setSynthetic(true);
 
         func_sym->setPlist(m_factory->mkSymbolScope("<plist>"));
