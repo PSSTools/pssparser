@@ -29,6 +29,22 @@ association rules, the supported comment forms, and the normalization steps.
 - **Trailing comments.** `rand int len;  // how many bytes` documents `len`. A
   leading comment always wins, and a trailing comment never leaks into the next
   declaration.
+- **`getDocstring()` works on the linked tree.** The linker copies the doc
+  comment — with `getDocRaw()`, `getDocForm()` and `getDocLocation()` — onto
+  the symbol scope wrapping each declaration. Previously a `SymbolTypeScope`
+  required a `getTarget()` hop, and package, enum and function scopes offered
+  no route at all because they set no target: four scope classes, four rules,
+  two of them dead ends. One call now answers for all of them.
+
+  Where several declarations contribute to one scope — a package re-opened in
+  another file, a function declared and then defined — **the first non-empty
+  doc comment in link order wins**. See
+  :ref:`docs/doc_comments.rst <multi-declaration-docstrings>`.
+
+- **Symbol scopes carry a source extent.** `endLocation` is copied onto the
+  scope alongside `location`, which no site did, so every scope in the linked
+  tree reported a start and an end of -1.
+
 - **The full comment on the AST.** `ScopeChild` gains `getDocRaw()` (verbatim
   source), `getDocForm()` (a `DocCommentForm` enum), and `getDocLocation()` (the
   comment's own position, so a bad doc comment can be reported where it was
@@ -43,6 +59,39 @@ association rules, the supported comment forms, and the normalization steps.
   declarations.
 
 ### Fixed
+
+- **Enum items and function prototypes had no source location.** `addChild`
+  sets a node's location, but both of these are built into a typed list on
+  their parent instead — `EnumDecl::items`, `FunctionDefinition::proto` — so
+  they kept the default `lineno` of -1. That is the documented marker for a
+  compiler-injected node, so a consumer applying it uniformly discarded every
+  enum value in the model. An item contributed by `extend enum` reports the
+  extend site, not the base declaration. The injected
+  `set_executor`/`set_default_executor` prototypes are still marked, which is
+  what distinguishes them.
+
+- **A failed `link()` left nothing walkable.** `link()` raised before
+  recording its result, so a caller that caught the `ParseException` found
+  `user_units()` returning `[]` and `file_map` empty. The units existed —
+  ownership moves into the linked root before any error is reported — but the
+  Parser never recorded where they went, so a degraded consumer had to parse
+  the sources a second time to see anything at all. What a caught failure
+  gives you is the per-file view; what it does not give you is a trustworthy
+  cross-file view, since that is what the error was about. See
+  `docs/ast_usage_guide.rst`.
+
+- **A line-comment run dedented to zero if any line omitted the space after
+  `//`.** The conventional space was left to the dedent to remove, which works
+  only while *every* line has it: one line written `//text` dropped the common
+  prefix to zero and left every other line indented by one, which
+  reStructuredText renders as a block quote. Realistic triggers are `//@…`,
+  `//---` rules and ASCII diagrams. Relative indentation is unaffected.
+
+- **`SymbolRefPath.path` raised `AttributeError`.** `list<SymbolRefPathElem>`
+  is the only value-typed list in the schema, and the code generator had no
+  case for that element shape: it emitted the iterator property and none of
+  the helpers the property calls. Requires a `pyastbuilder` carrying the
+  `PyExtListAccessorGen.visitTypeUserDef` fix.
 
 - **Qualified fields lost their doc comment.** `rand int x;` and
   `static const int y = 1;` got nothing while an unqualified `int z;` in the
@@ -64,9 +113,9 @@ association rules, the supported comment forms, and the normalization steps.
 
 ### Changed — output differs
 
-Both changes make line comments behave the way block comments already did,
-matching Doxygen, Javadoc, and Python docstrings. They are fixes, but they
-change what `getDocstring()` returns:
+These make line comments behave the way block comments already did, matching
+Doxygen, Javadoc, and Python docstrings. They are fixes, but they change what
+`getDocstring()` returns:
 
 - **A blank line now breaks a line-comment association.** The rule was
   previously enforced for block comments only, so a line comment attached across
@@ -81,14 +130,26 @@ change what `getDocstring()` returns:
   The exception is a comment that also *ends* on the following declaration's
   line, which is positionally leading it — this is what keeps
   `function void f(/** how many */ int len)` documenting `len`.
+- **A leading space after `//` is stripped by the marker, not by the dedent.**
+  `//     indented` still keeps four columns more than `// text`, so relative
+  indentation is unchanged; what changes is that a run no longer depends on
+  every line spelling the space the same way.
+- **`getDocstring()` on a symbol scope returns the doc comment** rather than
+  the empty string. Code that reached it through `getTarget()` still works;
+  code that relied on the scope being empty does not.
 
 ### Build
 
-- Requires a `pyastbuilder` carrying the `Linker.visitTypeUserDef` fix: the
-  target of a user-defined type was resolved only on a class's *first*
-  reference to it, so `ScopeChild`'s second and third `Location`-typed fields
-  resolved to `None` and code generation died. Adding any of the fields above
-  is impossible without it.
+Requires a `pyastbuilder` carrying two fixes, both of which fail silently
+rather than loudly:
+
+- `Linker.visitTypeUserDef`: the target of a user-defined type was resolved
+  only on a class's *first* reference to it, so `ScopeChild`'s second and
+  third `Location`-typed fields resolved to `None` and code generation died.
+  Adding any of the fields above is impossible without it.
+- `PyExtListAccessorGen.visitTypeUserDef`: a `list<value-struct>` field
+  generated an iterator property whose helpers were never generated. See
+  `SymbolRefPath.path` above.
 
 ### LRM annotation conformance
 

@@ -601,3 +601,48 @@ def test_no_user_written_node_is_mistaken_for_injected(parser):
     visit(pkg, ["p"])
 
     assert unlocated == [], "user-written nodes reporting lineno < 0: %s" % unlocated
+
+
+def test_the_standard_library_has_no_unlocated_declarations(parser):
+    """The previous test over real sources rather than a fixture.
+
+    The standard library ships with the parser and is loaded by every parse,
+    so this is PSS written with no awareness of the location machinery. A
+    fixture only proves the shapes someone thought to write down; this covers
+    what is actually there.
+
+    (The reference corpora would be broader still, but they are optional
+    checkouts -- see tests/python/corpus -- so a guard placed there does not
+    run for most people. This one always runs.)
+    """
+    root = parse_pss("component pss_top { }", "test.pss", parser)
+
+    KNOWN_INJECTED = {"set_executor", "set_default_executor", "comp"}
+    unlocated = []
+    inspected = []
+
+    def visit(node, path, depth=0):
+        if depth > 40 or not hasattr(node, "getChildren"):
+            return
+        for child in node.getChildren():
+            name = _node_name(child)
+            here = path + [name or type(child).__name__]
+            if name in KNOWN_INJECTED:
+                continue
+            loc = child.getLocation()
+            # fileid 0 is the standard library; -1 is a built-in with no
+            # source at all, which is legitimately unlocated.
+            if loc is not None and loc.fileid == 0:
+                inspected.append(here)
+                if loc.lineno < 0:
+                    unlocated.append("::".join(here))
+            visit(child, here, depth + 1)
+
+    visit(root, [])
+
+    # Without this the test passes just as happily if the walk stops finding
+    # anything -- a guard that inspects nothing is not a guard.
+    assert len(inspected) > 50, (
+        "expected to inspect the standard library, saw %d nodes" % len(inspected))
+    assert unlocated == [], (
+        "standard-library declarations reporting lineno < 0: %s" % unlocated[:20])
