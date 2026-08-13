@@ -18,6 +18,7 @@
 #include "pssp/ast/IGlobalScope.h"
 #include "pssp/ast/IScope.h"
 #include "pssp/ast/IEnumDecl.h"
+#include "DocCommentExtractor.h"
 
 using namespace antlr4;
 using namespace antlrcpp;
@@ -55,6 +56,42 @@ public:
 
     virtual bool getCollectDocStrings() {
         return m_collectDocStrings;
+    }
+
+    virtual void setDocCommentTabWidth(int32_t w) {
+        m_doc_opts.tab_width = w;
+        if (m_doc_extractor) {
+            m_doc_extractor->setOptions(m_doc_opts);
+        }
+    }
+
+    virtual int32_t getDocCommentTabWidth() {
+        return m_doc_opts.tab_width;
+    }
+
+    virtual void setDocCommentStrictMarkers(bool s) {
+        m_doc_opts.strict_markers = s;
+        if (m_doc_extractor) {
+            m_doc_extractor->setOptions(m_doc_opts);
+        }
+    }
+
+    virtual bool getDocCommentStrictMarkers() {
+        return m_doc_opts.strict_markers;
+    }
+
+    /**
+     * Establish *tok* as the doc anchor until the matching pop.  Use
+     * DocAnchorScope rather than calling these directly.
+     */
+    void pushDocAnchor(Token *tok) {
+        m_doc_anchors.push_back(tok);
+    }
+
+    void popDocAnchor() {
+        if (!m_doc_anchors.empty()) {
+            m_doc_anchors.pop_back();
+        }
     }
 
     virtual void setEnableProfile(bool e) {
@@ -239,6 +276,15 @@ public:
 
 	virtual antlrcpp::Any visitAttr_field(PSSParser::Attr_fieldContext *ctx) override;
 
+	// The `*_ann` rules put an annotation between a doc comment and the
+	// declaration it documents.  These overrides exist only to anchor the
+	// comment lookup; they add nothing to the AST.
+	virtual antlrcpp::Any visitAction_body_item_ann(PSSParser::Action_body_item_annContext *ctx) override;
+
+	virtual antlrcpp::Any visitComponent_body_item_ann(PSSParser::Component_body_item_annContext *ctx) override;
+
+	virtual antlrcpp::Any visitActivity_stmt_ann(PSSParser::Activity_stmt_annContext *ctx) override;
+
 	// B.13 Data types
 
  	virtual antlrcpp::Any visitChandle_type(PSSParser::Chandle_typeContext *ctx) override;
@@ -342,7 +388,16 @@ public:
 
 private:
 
-    void addChild(ast::IScopeChild *c, Token *t, const ast::Location *loc=0, Token *ct=0);
+    /**
+     * @param stop           last token of the construct, for its source extent
+     * @param trailing_stop  token a same-line trailing comment follows.  For a
+     *                       field this is the statement's `;`, not the
+     *                       declarator's last token: the `;` sits between the
+     *                       declarator and the comment, so looking right from
+     *                       the declarator finds nothing.  Defaults to *stop*.
+     */
+    void addChild(ast::IScopeChild *c, Token *t, const ast::Location *loc=0, Token *ct=0,
+                  Token *stop=0, Token *trailing_stop=0);
 
     void addChild(ast::ISymbolScope *c, Token *t, Token *end);
 
@@ -358,9 +413,56 @@ private:
 
     void addChild(ast::IScope *c, Token *start, Token *end);
 
-    void addDocstring(ast::IScopeChild *c, Token *t);
+    void addDocstring(ast::IScopeChild *c, Token *t, Token *stop=0);
+
+    /**
+     * Attach the doc comment leading *t* to *c*, for nodes that are built into
+     * a typed list rather than through addChild -- enum items, function
+     * parameters and template parameters (D9).
+     *
+     * Unlike addDocstring this ignores any active DocAnchorScope.  These nodes
+     * sit *inside* a declaration that may itself have an anchor, and each one
+     * carries its own comment; taking the enclosing anchor would give every
+     * item in the list the declaration's docstring.
+     */
+    void attachDocstring(ast::IScopeChild *c, Token *t);
+
+    /** Record text, raw source, form and comment location on *c* (E4). */
+    void applyDocComment(ast::IScopeChild *c, const DocComment &dc);
+
+    static ast::DocCommentForm toAstDocForm(pssp::DocCommentForm form);
+
+    /**
+     * Record the source extent of a construct that runs from *start* to *stop*
+     * (E6): `endLocation`, and `location.extent` as the character span.  Both
+     * are needed for a `[source]` link that highlights a range rather than a
+     * single line.
+     */
+    void setExtent(ast::IScopeChild *c, Token *start, Token *stop);
+
+    /**
+     * The token a doc comment is looked up from: the innermost anchor
+     * established by a DocAnchorScope, or *fallback* (the token the
+     * constructing visitor happens to hold) when none is in force.
+     */
+    Token *docAnchor(Token *fallback) const {
+        if (!m_doc_anchors.empty() && m_doc_anchors.back()) {
+            return m_doc_anchors.back();
+        }
+        return fallback;
+    }
 
     void attachPendingAnnotations(ast::IScopeChild *c);
+
+    /**
+     * True when *ctx* is a standalone annotation -- one terminated by `;`
+     * (LRM 7.13), which attaches to a lexical location rather than to the
+     * next declared element.
+     */
+    bool isStandaloneAnnotation(PSSParser::AnnotationContext *ctx);
+
+    /** Report an element annotation that never found an element (LRM 7.13). */
+    void reportUnattachedAnnotation(ast::IAnnotation *a);
 
     /**
      * Emit an error marker anchored at *t*, with printf-style formatting.
@@ -447,14 +549,6 @@ private:
     bool evalScopeChildValue(ast::IScopeChild *target, int64_t &val);
 
     bool evalScopeChildValue(ast::IScopeChild *target, std::string &val);
-
-    std::string processDocStringMultiLineComment(
-    		const std::vector<Token *>		&mlc_tokens,
-			const std::vector<Token *>		&ws_tokens);
-
-    std::string processDocStringSingleLineComment(
-    		const std::vector<Token *>		&slc_tokens,
-			const std::vector<Token *>		&ws_tokens);
 
     ast::IScope *scope() const { return m_scopes.back(); }
 
@@ -585,6 +679,14 @@ private:
     std::vector<ast::IExecScope *>              m_exec_scope_s;
 	std::vector<ast::IConstraintScope *>		m_constraint_s;
     std::unique_ptr<CommonTokenStream>			m_tokens;
+    DocCommentOptions                           m_doc_opts;
+    std::unique_ptr<DocCommentExtractor>        m_doc_extractor;
+    /**
+     * Stack of doc anchors, innermost last.  A null entry means "no anchor is
+     * in force" and is pushed by push_scope so a declaration nested inside a
+     * scope cannot inherit the anchor of the wrapper that opened it.
+     */
+    std::vector<Token *>                        m_doc_anchors;
 	std::vector<ast::IExprIdUP>					*m_type_id;
 	uint32_t									m_field_depth;
 	std::vector<ast::IField *>					m_fields;

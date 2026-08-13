@@ -8,11 +8,19 @@ class ParseException(Exception):
 
 class Parser(object):
 
-    def __init__(self):
+    def __init__(self, collect_docstrings : bool = False):
+        """Create a parser.
+
+        :param collect_docstrings: collect doc comments and attach them to the
+            declarations they document, reachable as ``getDocstring()`` on any
+            ``ScopeChild``.  Off by default: collection costs time and memory
+            that a consumer which never reads a docstring should not pay.
+        """
         import pssparser.core as zspp
         import pssparser.ast as zsp_ast
         self.ast_f = zsp_ast.Factory.inst()
         self.parser_f = zspp.Factory.inst()
+        self._collect_docstrings = collect_docstrings
         self._root = None
         self._filenames : Dict[int,str] = {}
         self._files : List[zsp_ast.GlobalScope] = []
@@ -40,6 +48,10 @@ class Parser(object):
             self._builder = self.parser_f.mkAstBuilder(marker_l)
         else:
             self._builder.setMarkerListener(marker_l)
+        # Set unconditionally rather than only on creation: link() drops the
+        # builder, so a Parser reused across link boundaries builds a fresh one
+        # that would otherwise come back with collection off.
+        self._builder.setCollectDocStrings(self._collect_docstrings)
         return self._builder
 
     def parse(self, files : List[str]) -> bool:
@@ -169,6 +181,11 @@ class Parser(object):
         self._builder = None
 
         return ret
+
+    @property
+    def collect_docstrings(self) -> bool:
+        """Whether doc comments are collected. Set via the constructor."""
+        return self._collect_docstrings
 
     @property
     def file_map(self) -> Dict[int, str]:

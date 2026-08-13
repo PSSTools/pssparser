@@ -31,6 +31,8 @@ Key Features
 
    quickstart
    cli
+   doc_comments
+   annotations
    checker_plugin_guide
    pss30_migration
 

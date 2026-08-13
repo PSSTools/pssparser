@@ -1,0 +1,112 @@
+# Changelog
+
+Version numbers are `<PSS major>.<PSS minor>.<patch>`: the first two components
+name the **revision of the PSS LRM this parser targets**, not the parser's own
+feature level. A release that adds parser capability without moving to a new LRM
+revision advances only the patch component.
+
+## 3.0.3 — doc comments, source extents, and the shipped standard library
+
+The doc-comment subsystem has been replaced. See `docs/doc_comments.rst` for the
+association rules, the supported comment forms, and the normalization steps.
+
+### Added
+
+- `Parser(collect_docstrings=True)` enables doc-comment collection through the
+  public Python API. Previously the only way to get a docstring was to drive
+  `core.Factory` and call `setCollectDocStrings` on the builder directly, so the
+  documented entry point could not produce docstrings at all. Default is
+  unchanged (off).
+- Doc comments now attach to **enum items, function parameters, and template
+  parameters**. These are built into typed lists rather than through `addChild`,
+  so they never received a docstring before.
+- All four comment forms are recognized without marker residue: `//`, `///`,
+  `//!`, `/* */`, `/** */`, `/*! */`. Doxygen's trailing markers (`///<`,
+  `//!<`, `/**< */`, `/*!< */`) are accepted and the `<` is stripped.
+- `setDocCommentTabWidth()` and `setDocCommentStrictMarkers()` on `IAstBuilder`.
+  Strict mode restricts documentation to the marked forms; the default remains
+  permissive.
+- **Trailing comments.** `rand int len;  // how many bytes` documents `len`. A
+  leading comment always wins, and a trailing comment never leaks into the next
+  declaration.
+- **The full comment on the AST.** `ScopeChild` gains `getDocRaw()` (verbatim
+  source), `getDocForm()` (a `DocCommentForm` enum), and `getDocLocation()` (the
+  comment's own position, so a bad doc comment can be reported where it was
+  written).
+- **Source extents.** `endLocation` moved up to `ScopeChild` from the handful of
+  subclasses that declared it, and `Location.extent` is populated, so any
+  declaration — not just a braced scope — reports a usable range.
+- **The standard-library sources ship in the wheel**, with
+  `pssparser.get_stdlib_dir()` and `pssparser.get_stdlib_files()` to locate
+  them. Note that these must not be handed to `Parser.parse()`: every parser
+  loads the compiled-in copy first, so they would arrive as duplicate
+  declarations.
+
+### Fixed
+
+- **Qualified fields lost their doc comment.** `rand int x;` and
+  `static const int y = 1;` got nothing while an unqualified `int z;` in the
+  same scope worked: the qualifier sat between the comment and the token the
+  lookup was anchored on. The anchor is now the start of the declaration as
+  written in source, for every wrapper rule — `attr_field`,
+  `component_data_declaration`, `const_field_declaration`,
+  `annotation_attr_field`, `activity_data_field`, `abstract_action_declaration`,
+  `abstract_monitor_declaration`, and an annotation preceding a body item.
+- **Block-comment text was unusable as reStructuredText.** Continuation `*`
+  markers were only stripped when preceded by exactly one whitespace character,
+  and the body was never dedented, so an indented comment arrived with `*`
+  markers and full source indentation. Markers are now stripped at any depth and
+  the body is dedented with relative indentation preserved.
+- A block comment immediately adjacent to its declaration (`/** doc */int f;`)
+  was silently dropped.
+- A latent off-by-one in the block-comment line counter bounded the whitespace
+  scan by the comment's length.
+
+### Changed — output differs
+
+Both changes make line comments behave the way block comments already did,
+matching Doxygen, Javadoc, and Python docstrings. They are fixes, but they
+change what `getDocstring()` returns:
+
+- **A blank line now breaks a line-comment association.** The rule was
+  previously enforced for block comments only, so a line comment attached across
+  any amount of blank space.
+- **Separated line-comment blocks are no longer concatenated.** Every line
+  comment preceding a declaration used to be joined into one string regardless
+  of the blank lines between them; now only the adjacent block documents.
+- **A comment on the same line as the preceding construct no longer leads the
+  next declaration.** `int a; // bytes` followed by `int b;` used to document
+  `b`. It now documents `a`, as a trailing comment.
+
+  The exception is a comment that also *ends* on the following declaration's
+  line, which is positionally leading it — this is what keeps
+  `function void f(/** how many */ int len)` documenting `len`.
+
+### Build
+
+- Requires a `pyastbuilder` carrying the `Linker.visitTypeUserDef` fix: the
+  target of a user-defined type was resolved only on a class's *first*
+  reference to it, so `ScopeChild`'s second and third `Location`-typed fields
+  resolved to `None` and code generation died. Adding any of the fields above
+  is impossible without it.
+
+### LRM annotation conformance
+
+- **The LRM annotation form is supported and canonical.**
+  `@desc_s {.desc = "text", .weight = 3}` — literal braces, dot-prefixed named
+  parameters (PSS 3.1 Syntax 20). The standard defines no positional form.
+- **The paren form is retained as a documented extension.**
+  `@desc_s("text", weight = 3)` still parses and produces the same
+  `AnnotationParam` structure. No deprecation warning: it predates the LRM
+  syntax and offers a positional form the standard lacks.
+- **Annotations may be applied to procedural statements**, which is what
+  `code_doc` is for (PSS 3.1 21.6.1). LRM Example323 now parses verbatim.
+- **`code_doc` is declared in `std_pkg`**, per Syntax 124.
+- **Standalone annotations are distinguished from element annotations.** An
+  annotation terminated by `;` attaches to a lexical location (LRM 7.13) and no
+  longer leaks onto the next declaration.
+- **An element annotation with no subsequent element in its scope is an error**,
+  as LRM 7.13 requires. It was silently discarded.
+- **`TOK_COMMENT_AT` (`//@`) removed.** The token had been unreachable since
+  `SL_COMMENT` out-matched it, so `//@…` was already an ordinary comment and
+  remains one. Nothing can regress.

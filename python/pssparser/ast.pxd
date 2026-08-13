@@ -708,7 +708,12 @@ cdef class ScopeChild(object):
     cdef ScopeChild mk(ast_decl.IScopeChild *hndl, bool owned)
     cpdef str getDocstring(self)
     cpdef void setDocstring(self, str v)
+    cpdef str getDocRaw(self)
+    cpdef void setDocRaw(self, str v)
+    cpdef  getDocForm(self)
+    cpdef Location getDocLocation(self)
     cpdef Location getLocation(self)
+    cpdef Location getEndLocation(self)
     cpdef Scope getParent(self)
     cpdef int32_t getIndex(self)
     cpdef AssocData getAssocData(self)
@@ -958,7 +963,6 @@ cdef class Scope(ScopeChild):
     cdef ast_decl.IScope *asScope(self)
     @staticmethod
     cdef Scope mk(ast_decl.IScope *hndl, bool owned)
-    cpdef Location getEndLocation(self)
     cpdef getChildren(self)
     cpdef getChild(self, i)
     cpdef void addChild(self, ScopeChild i)
@@ -1319,7 +1323,6 @@ cdef class FunctionDefinition(ScopeChild):
     cdef ast_decl.IFunctionDefinition *asFunctionDefinition(self)
     @staticmethod
     cdef FunctionDefinition mk(ast_decl.IFunctionDefinition *hndl, bool owned)
-    cpdef Location getEndLocation(self)
     cpdef FunctionPrototype getProto(self)
     cpdef ExecScope getBody(self)
     cpdef  getPlat(self)
@@ -1416,7 +1419,6 @@ cdef class ConstraintScope(ConstraintStmt):
     cdef ast_decl.IConstraintScope *asConstraintScope(self)
     @staticmethod
     cdef ConstraintScope mk(ast_decl.IConstraintScope *hndl, bool owned)
-    cpdef Location getEndLocation(self)
     cpdef getConstraints(self)
     cpdef getConstraint(self, i)
     cpdef void addConstraint(self, ConstraintStmt i)
@@ -2365,7 +2367,6 @@ cdef class ExecScope(SymbolScope):
     cdef ast_decl.IExecScope *asExecScope(self)
     @staticmethod
     cdef ExecScope mk(ast_decl.IExecScope *hndl, bool owned)
-    cpdef Location getEndLocation(self)
 
 cdef class GenericConstraintDeclBool(ConstraintBlock):
     

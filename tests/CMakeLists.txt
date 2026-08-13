@@ -57,6 +57,10 @@ target_include_directories(pssparser_testmain PRIVATE
 	${CMAKE_BINARY_DIR}/pssparser_ast/src/include
 	${CMAKE_CURRENT_SOURCE_DIR}/../src
 	${CMAKE_CURRENT_SOURCE_DIR}/../src/include
+	${CMAKE_BINARY_DIR}/antlr4/include/antlr4-runtime
+	${PACKAGES_DIR}/antlr4-cpp-runtime/runtime/src
+	${CMAKE_BINARY_DIR}/src/antlr4cpp_generated_src/PSSLexer
+	${CMAKE_BINARY_DIR}/src/antlr4cpp_generated_src/PSSParser
     "${debug_mgr_INCDIR}"
 )
 

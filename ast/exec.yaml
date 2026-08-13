@@ -85,10 +85,8 @@ classes:
           
           See Also:
               ExecBlock, SymbolScope, ProceduralStmtBody
-      data:
-      - endLocation:
-          type: Location
-          is_ctor: false
+      # endLocation is inherited from ScopeChild.
+      data: []
 
   - ExecBlock:
       super: ExecScope

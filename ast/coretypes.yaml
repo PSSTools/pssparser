@@ -3,6 +3,14 @@
 #*
 #* Defines base types used by other segments of the AST
 #****************************************************************************
+enums:
+  - DocCommentForm:
+    - DocForm_None       # No doc comment is attached
+    - DocForm_Line       # //
+    - DocForm_DocLine    # /// or //!
+    - DocForm_Block      # Ordinary block comment
+    - DocForm_DocBlock   # /** or the /*! form
+
 structs:
 - Location:
     doc: |
@@ -67,9 +75,7 @@ classes:
             See Also:
                 ScopeChild, NamedScope, GlobalScope
         data:
-        - endLocation:
-            type: Location
-            is_ctor: false
+        # endLocation is inherited from ScopeChild.
         - children: list<UP<ScopeChild>>
 
     - ScopeChild:
@@ -81,7 +87,28 @@ classes:
         - docstring:
           - type: string
           - is_ctor: false
+        # The doc comment as it was written, plus where and in what form.
+        # Retaining the raw text lets a consumer implement another dialect
+        # (Doxygen, say) without re-lexing the source, and docLocation lets a
+        # malformed doc comment be reported at its own line rather than at the
+        # declaration's.
+        - docRaw:
+          - type: string
+          - is_ctor: false
+        - docForm:
+            type: DocCommentForm
+            is_ctor: false
+            init: DocCommentForm::DocForm_None
+        - docLocation:
+            type: Location
+            is_ctor: false
         - location:
+            type: Location
+            is_ctor: false
+        # Source extent of the construct.  Declared here rather than on Scope
+        # so a plain field can report a range too, which is what a [source]
+        # link needs.
+        - endLocation:
             type: Location
             is_ctor: false
         - parent:

@@ -53,6 +53,22 @@ bool AstBuilder::getCollectDocStrings() {
     return m_builder_int->getCollectDocStrings();
 }
 
+void AstBuilder::setDocCommentTabWidth(int32_t w) {
+    m_builder_int->setDocCommentTabWidth(w);
+}
+
+int32_t AstBuilder::getDocCommentTabWidth() {
+    return m_builder_int->getDocCommentTabWidth();
+}
+
+void AstBuilder::setDocCommentStrictMarkers(bool s) {
+    m_builder_int->setDocCommentStrictMarkers(s);
+}
+
+bool AstBuilder::getDocCommentStrictMarkers() {
+    return m_builder_int->getDocCommentStrictMarkers();
+}
+
 void AstBuilder::setEnableProfile(bool e) {
     m_builder_int->setEnableProfile(e);
 }

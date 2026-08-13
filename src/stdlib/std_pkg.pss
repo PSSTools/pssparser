@@ -4,6 +4,17 @@ package std_pkg {
     enum endianness_e {LITTLE_ENDIAN, BIG_ENDIAN};
 
     /**
+     * Associates implementation-level documentation text with an element of
+     * the model. May be applied to statements and other executable elements.
+     *
+     * A tool may emit the text as a comment in generated target code; the
+     * interpretation is tool-specific. PSS 3.1 21.6.1, Syntax 124.
+     */
+    annotation code_doc {
+        string text;
+    }
+
+    /**
      * Base type for structs with bit-packed fields
      */
     struct packed_s<endianness_e e = LITTLE_ENDIAN> {};
