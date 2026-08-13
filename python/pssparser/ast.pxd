@@ -760,6 +760,10 @@ cdef class SymbolRefPath(object):
     cdef ast_decl.ISymbolRefPath *asSymbolRefPath(self)
     @staticmethod
     cdef SymbolRefPath mk(ast_decl.ISymbolRefPath *hndl, bool owned)
+    cpdef getPathList(self)
+    cpdef SymbolRefPathElem getPath(self, i)
+    cpdef void addPath(self, SymbolRefPathElem i)
+    cpdef numPath(self)
     cpdef int32_t getPyref_idx(self)
 
 cdef class GenericConstraintDeclValue(ScopeChild):

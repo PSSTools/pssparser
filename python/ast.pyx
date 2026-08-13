@@ -2040,6 +2040,14 @@ cdef class SymbolRefPath(object):
     def path(self) -> ListUtil:
         return ListUtil(self.numPath, self.getPath)
     
+    cpdef getPathList(self):
+        return [self.getPath(__i) for __i in range(self.numPath())]
+    cpdef SymbolRefPathElem getPath(self, i):
+        return SymbolRefPathElem.wrap(self.asSymbolRefPath().getPath().at(i))
+    cpdef void addPath(self, SymbolRefPathElem i):
+        self.asSymbolRefPath().getPath().push_back(i._val)
+    cpdef numPath(self):
+        return self.asSymbolRefPath().getPath().size()
     cpdef int32_t getPyref_idx(self):
         return dynamic_cast[ast_decl.ISymbolRefPathP](self._hndl).getPyref_idx()
 
