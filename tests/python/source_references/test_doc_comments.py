@@ -18,11 +18,14 @@ def link(code: str, collect_docstrings: bool = True):
 
 
 def _unwrap(node):
-    """Linking wraps a type declaration in a SymbolTypeScope.
+    """Reach the declaration a symbol scope wraps, where there is one.
 
-    The docstring stays on the declaration, so a consumer reading
-    ``getDocstring()`` off the scope sees an empty string.  Reach the
-    declaration through ``getTarget()``.
+    Kept for the tests that are specifically about ``getTarget()``.  It is
+    **not** how a docstring is read any more: the linker copies the doc
+    comment onto the scope, so ``getDocstring()`` is authoritative on the
+    linked tree for every scope kind.  Navigating through ``getTarget()``
+    also leaves the linked tree -- an ``EnumDecl`` has no ``getChildren()``
+    -- so it cannot be used to walk.
     """
     target = getattr(node, "getTarget", None)
     if target is not None:
@@ -47,10 +50,14 @@ def find(scope, *path):
     that API does ``map.find(key)`` and dereferences the iterator without
     checking it against ``end()``, so a name that is not present segfaults
     instead of reporting a miss.
+
+    The walk stays entirely on the linked tree.  It used to unwrap through
+    ``getTarget()`` at each hop, which was necessary only because the
+    docstring was unreachable from the scope; now that it is not, unwrapping
+    would step off the tree onto a declaration node that cannot be walked.
     """
     node = scope
     for name in path:
-        node = _unwrap(node)
         children = node.getChildren()
         match = None
         for i in range(len(children)):
@@ -59,7 +66,7 @@ def find(scope, *path):
                 break
         assert match is not None, "no member %r (looking up %s)" % (name, path)
         node = match
-    return _unwrap(node)
+    return node
 
 
 def doc(scope, *path) -> str:
@@ -209,15 +216,153 @@ def test_annotation_between_comment_and_declaration():
     assert doc(root, "C", "A") == "doc A"
 
 
-def test_type_declaration_docstring_is_on_the_target():
-    """Linking wraps a type in a SymbolTypeScope; the docstring stays on the
-    declaration, which is what consumers must read."""
+def test_type_declaration_docstring_is_on_the_linked_scope():
+    """``getDocstring()`` is authoritative on the linked tree.
+
+    This test previously asserted the opposite -- that a ``SymbolTypeScope``
+    reports an empty docstring and a consumer must hop through
+    ``getTarget()``.  That rule was the reason four scope kinds each needed
+    their own handling, and two of them (package, enum, function) set no
+    target at all and so had no route to their documentation.  The linker now
+    copies the doc comment onto the scope, and the declaration keeps its own,
+    so both nodes answer.
+    """
     p = Parser(collect_docstrings=True)
     p.parses([("t.pss", "/// doc C\ncomponent C { }\n")])
     root = p.link()
     scope = root.getChild(root.symtabAt("C"))
-    assert scope.getDocstring() == ""
+    assert scope.getDocstring() == "doc C"
     assert scope.getTarget().getDocstring() == "doc C"
+
+
+def test_every_scope_kind_documents_without_a_target_hop():
+    """The whole point of F3, stated once.
+
+    Package, function, enum and type scopes all answer ``getDocstring()``
+    directly.  A consumer needs no knowledge of which kind it is holding.
+    """
+    root = link("""
+        /** doc pkg */
+        package p {
+            /** doc f */
+            function int f(int a);
+
+            /** doc g */
+            import target function int g(int a);
+
+            /** doc h */
+            function int h(int a) { return a; }
+
+            /** doc e */
+            enum e_t { A }
+
+            /** doc s */
+            struct s_t { int a; }
+
+            /** doc c */
+            component C {
+                /** doc a */
+                action A { }
+                /** doc b */
+                buffer B { }
+            }
+        }
+        """)
+    assert doc(root, "p") == "doc pkg"
+    assert doc(root, "p", "f") == "doc f"
+    assert doc(root, "p", "g") == "doc g"
+    assert doc(root, "p", "h") == "doc h"
+    assert doc(root, "p", "e_t") == "doc e"
+    assert doc(root, "p", "s_t") == "doc s"
+    assert doc(root, "p", "C") == "doc c"
+    assert doc(root, "p", "C", "A") == "doc a"
+    assert doc(root, "p", "C", "B") == "doc b"
+
+
+def test_enum_scope_deliberately_has_no_target():
+    """`target` is a traversal edge, not a back-pointer.
+
+    It is declared ``visit: true``, so setting it on an enum scope makes
+    visitors descend into the EnumDecl again from inside the enum -- where
+    the base type, written in the enclosing scope, is not visible.  That
+    breaks ``enum e : byte_t``.  The docstring is copied onto the scope
+    instead, so nothing needs the target.
+
+    Asserted rather than left implicit because "the enum scope should carry
+    its declaration like a type scope does" is an obvious-looking change that
+    costs a working feature.
+    """
+    root = link("/// doc E\nenum E { A }\n")
+    scope = find(root, "E")
+    assert scope.getTarget() is None
+    assert scope.getDocstring() == "doc E"
+
+
+# ---------------------------------------------------------------------------
+# The multi-declaration rule: first non-empty in link order wins.
+#
+# A package is declared once per file, and a function may be declared and
+# then defined, so more than one declaration can contribute to one scope.
+# Concatenating risks incoherent prose assembled from unrelated files, and
+# last-wins is order-dependent in a way nobody can see.  First non-empty is
+# predictable, needs no merge rule, and matches how a reader expects a
+# re-opened scope to read.  Documented in docs/doc_comments.rst.
+# ---------------------------------------------------------------------------
+
+def test_package_documented_in_two_files_takes_the_first():
+    p = Parser(collect_docstrings=True)
+    p.parses([
+        ("a.pss", "/** From a. */\npackage p { }\n"),
+        ("b.pss", "/** From b. */\npackage p { }\n"),
+    ])
+    root = p.link()
+    assert doc(root, "p") == "From a."
+
+
+def test_package_undocumented_in_the_first_file_takes_the_next():
+    """An empty docstring is not a contribution -- the rule is first
+    *non-empty*, so a file that happens to link first does not silence a
+    later one that actually documented the package."""
+    p = Parser(collect_docstrings=True)
+    p.parses([
+        ("a.pss", "package p { }\n"),
+        ("b.pss", "/** From b. */\npackage p { }\n"),
+    ])
+    root = p.link()
+    assert doc(root, "p") == "From b."
+
+
+def test_intermediate_package_scope_is_not_documented():
+    """``package a::b { }`` creates an `a` with no declaration of its own.
+
+    It must not inherit b's documentation: nothing was written about `a`.
+    """
+    root = link("/** doc b */\npackage a::b { }\n")
+    assert doc(root, "a") == ""
+    assert doc(root, "a", "b") == "doc b"
+
+
+def test_declared_then_defined_function_takes_the_declaration():
+    root = link("""package p {
+    /** From the declaration. */
+    function int f(int a);
+
+    /** From the definition. */
+    function int f(int a) { return a; }
+}
+""")
+    assert doc(root, "p", "f") == "From the declaration."
+
+
+def test_undocumented_declaration_lets_the_definition_document():
+    root = link("""package p {
+    function int f(int a);
+
+    /** From the definition. */
+    function int f(int a) { return a; }
+}
+""")
+    assert doc(root, "p", "f") == "From the definition."
 
 
 # ---------------------------------------------------------------------------
@@ -401,7 +546,10 @@ def test_template_parameters_document():
             type T
         > { }
         """)
-    assert _docs_by_name(find(root, "S").getParams().getParams()) == {
+    # Explicitly on the declaration: `getParams()` is a declaration API and
+    # has no counterpart on the linked scope, so this is one of the few places
+    # a `getTarget()` hop is still the right thing to do.
+    assert _docs_by_name(_unwrap(find(root, "S")).getParams().getParams()) == {
         "W": "element width",
         "T": "element type",
     }
@@ -666,3 +814,81 @@ def _all_docstrings_of(node, depth=0):
         for child in children():
             out += _all_docstrings_of(child, depth + 1)
     return out
+
+
+# ---------------------------------------------------------------------------
+# T-D9 -- function prototypes
+#
+# Where the docstring lives for a function is worth pinning down, because the
+# answer differs by spelling and a consumer has to handle every one:
+#
+#   function f(...);              the FunctionPrototype *is* the scope child
+#   import ... function f(...);   the FunctionImportProto wrapper is
+#   function f(...) { ... }       the FunctionDefinition wrapper is
+#
+# On the AST the docstring sits on the node added to the scope -- the
+# declaration as written -- which is a different node type in each case. The
+# linker collapses all three onto one SymbolFunctionScope, and copies the doc
+# comment onto it, so a consumer of the linked tree sees one answer.
+#
+# The comment is deliberately not duplicated onto the inner prototype: that
+# would give two nodes a claim to it with no rule for which wins.
+# ---------------------------------------------------------------------------
+
+def test_declared_function_is_documented():
+    root = link("""package p {
+    /** Declared, defined elsewhere. */
+    function int f(int a);
+}
+""")
+    assert doc(root, "p", "f") == "Declared, defined elsewhere."
+
+
+def test_imported_function_is_documented():
+    root = link("""package p {
+    /** Implemented in C. */
+    import target function int f(int a);
+}
+""")
+    assert doc(root, "p", "f") == "Implemented in C."
+
+
+def test_defined_function_is_documented():
+    root = link("""package p {
+    /** Defined here. */
+    function int f(int a) {
+        return a;
+    }
+}
+""")
+    assert doc(root, "p", "f") == "Defined here."
+
+
+# ---------------------------------------------------------------------------
+# T-D10 -- a line-comment run is insensitive to a missing space after `//`
+#
+# The C++ half of this is in tests/src/TestDocCommentExtractor.cpp; this is
+# the end-to-end check that it reaches getDocstring(). A one-space indent is
+# a block quote in reStructuredText, so the difference is visible in rendered
+# documentation rather than only in the string.
+# ---------------------------------------------------------------------------
+
+def test_line_comment_run_with_a_missing_space_has_no_stray_indent():
+    root = link("""package p {
+    //@doc(text = "x")
+    // Real prose.
+    component C { }
+}
+""")
+    assert doc(root, "p", "C") == '@doc(text = "x")\nReal prose.'
+
+
+def test_line_comment_run_keeps_relative_indent():
+    root = link("""package p {
+    // Intro.
+    //     indented code
+    // Outro.
+    component C { }
+}
+""")
+    assert doc(root, "p", "C") == "Intro.\n    indented code\nOutro."

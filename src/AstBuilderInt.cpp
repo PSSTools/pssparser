@@ -307,6 +307,9 @@ antlrcpp::Any AstBuilderInt::visitExtend_stmt(PSSParser::Extend_stmtContext *ctx
 				value = mkExpr((*it)->constant_expression()->expression());
 			}
 			ast::IEnumItem *item = m_factory->mkEnumItem(id, value);
+			// The extend site, not the base declaration: an item contributed
+			// by `extend enum` is written here.
+			setLoc(item, (*it)->start);
 			attachDocstring(item, (*it)->start);
 			ext->getItems().push_back(ast::IEnumItemUP(item));
 		}
@@ -2716,6 +2719,7 @@ antlrcpp::Any AstBuilderInt::visitEnum_declaration(PSSParser::Enum_declarationCo
 		ast::IEnumItem *item = m_factory->mkEnumItem(
 			mkId((*it)->identifier()),
 			value);
+		setLoc(item, (*it)->start);
 		attachDocstring(item, (*it)->start);
 		decl->getItems().push_back(ast::IEnumItemUP(item));
 	}
@@ -5184,6 +5188,15 @@ ast::IFunctionPrototype *AstBuilderInt::mkFunctionPrototype(
         rtype,
         is_target,
         is_solve);
+
+    // A prototype reached through FunctionDefinition::getProto() or
+    // FunctionImportProto::getProto() is never handed to addChild -- the
+    // wrapper is the scope child -- so without this it keeps the default
+    // lineno of -1, which is the documented marker for a compiler-injected
+    // node.  The prototypes built directly from m_factory (the injected
+    // set_executor/set_default_executor pair) deliberately do not come
+    // through here and so remain marked.
+    setLoc(proto, ctx->start);
 
     std::vector<PSSParser::Function_parameterContext *> items =
         ctx->function_parameter_list_prototype()->function_parameter();

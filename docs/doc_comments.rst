@@ -20,15 +20,59 @@ Collection is off by default. Turn it on through the ``Parser`` constructor:
 Every ``ScopeChild`` then carries the text on ``getDocstring()``. Nodes with no
 doc comment return the empty string.
 
+This holds on the **linked tree** as well as on the AST. Linking wraps each
+declaration in a symbol scope, and the linker copies the doc comment — along
+with ``getDocRaw()``, ``getDocForm()`` and ``getDocLocation()`` — onto that
+scope:
+
+.. code-block:: python
+
+   scope = root.getChild(root.symtabAt("my_component"))
+   text  = scope.getDocstring()
+
+The same call works for a package, a function, an enum and a type, which are
+four different scope classes. Earlier releases required a ``getTarget()`` hop
+for a ``SymbolTypeScope``, and offered no route at all for the other three,
+because they set no target. Reading ``getDocstring()`` directly is now the
+supported way; ``getTarget()`` still returns the declaration where there is
+one, and the declaration still carries its own copy.
+
 .. note::
 
-   Linking wraps a type declaration in a ``SymbolTypeScope``. The docstring
-   stays on the declaration, so read it through ``getTarget()``:
+   ``getTarget()`` is not a general back-pointer. It is declared as a
+   traversal edge, so a scope that sets one is visited through it; that is why
+   an enum scope deliberately leaves it unset. Use it to reach declaration-only
+   APIs such as ``getParams()``, not to read documentation.
 
-   .. code-block:: python
+.. _multi-declaration-docstrings:
 
-      scope = root.getChild(root.symtabAt("my_component"))
-      text  = scope.getTarget().getDocstring()
+When more than one declaration contributes
+==========================================
+
+One symbol scope can come from several declarations. A package is declared once
+per file that opens it, and a function may be declared and then defined
+elsewhere. When more than one of them carries a doc comment:
+
+   **The first non-empty doc comment in link order wins.**
+
+Nothing is merged and nothing is overwritten. Concatenating would assemble one
+description out of prose written in unrelated files, and last-wins would depend
+on link order in a way a reader cannot see. An empty docstring is not a
+contribution, so a file that happens to link first does not silence a later one
+that actually documented the package.
+
+.. code-block:: pss
+
+   // a.pss
+   /** Transfer descriptors. */
+   package dma { }
+
+   // b.pss -- links second; this comment is not used
+   /** Also transfer descriptors. */
+   package dma { }
+
+``package a::b { }`` documents ``b``. It also creates an intermediate scope
+``a``, which has no declaration of its own and so is never documented by it.
 
 
 Which comments are doc comments

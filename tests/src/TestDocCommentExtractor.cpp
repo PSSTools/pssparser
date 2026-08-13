@@ -267,6 +267,58 @@ TEST(DocCommentNorm, line_comment_run_preserves_relative_indent) {
     EXPECT_EQ(leading(src, "int"), "Line one.\n\n    indented code");
 }
 
+// The conventional single space after `//` is removed by the marker strip,
+// not left to the dedent.  Leaving it to the dedent made the whole run
+// sensitive to one line written without it: the common prefix dropped to
+// zero and every other line kept a one-space indent, which reStructuredText
+// reads as a block quote.
+TEST(DocCommentNorm, line_comment_run_survives_a_missing_space) {
+    std::string src =
+        "component C {\n"
+        "    //@doc(text = \"x\")\n"
+        "    // Real prose.\n"
+        "    int f1;\n"
+        "}\n";
+    EXPECT_EQ(leading(src, "int"), "@doc(text = \"x\")\nReal prose.");
+}
+
+// The same run written conventionally must come out identically -- the fix
+// must not depend on which spelling appears.
+TEST(DocCommentNorm, line_comment_run_with_every_space_present) {
+    std::string src =
+        "component C {\n"
+        "    // First.\n"
+        "    // Second.\n"
+        "    int f1;\n"
+        "}\n";
+    EXPECT_EQ(leading(src, "int"), "First.\nSecond.");
+}
+
+// Stripping one space must not eat deliberate indentation: `//     code` is
+// still four columns in from `// text`.
+TEST(DocCommentNorm, line_comment_relative_indent_survives_the_space_strip) {
+    std::string src =
+        "component C {\n"
+        "    // Intro.\n"
+        "    //     indented code\n"
+        "    // Outro.\n"
+        "    int f1;\n"
+        "}\n";
+    EXPECT_EQ(leading(src, "int"), "Intro.\n    indented code\nOutro.");
+}
+
+// All three line forms strip the space identically, and `///<` still loses
+// its `<` before the space is considered.
+TEST(DocCommentNorm, every_line_form_strips_the_space) {
+    EXPECT_EQ(leading("component C {\n// doc\nint f1;\n}\n", "int"), "doc");
+    EXPECT_EQ(leading("component C {\n/// doc\nint f1;\n}\n", "int"), "doc");
+    EXPECT_EQ(leading("component C {\n//! doc\nint f1;\n}\n", "int"), "doc");
+    EXPECT_EQ(leading("component C {\n///< doc\nint f1;\n}\n", "int"), "doc");
+    // A plain `//<` is not a Doxygen trailing marker, so the `<` is content
+    // and only the space that follows the marker is removed.
+    EXPECT_EQ(leading("component C {\n//< doc\nint f1;\n}\n", "int"), "< doc");
+}
+
 TEST(DocCommentNorm, tabs_expand_before_dedent) {
     // One tab of indent on the body, two on the nested line: at tab width 4
     // the nested line ends up indented four spaces relative to the body.

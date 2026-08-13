@@ -123,6 +123,37 @@ public:
 
 protected:
 
+    /**
+     * Copy the doc comment from a declaration onto the symbol-tree scope that
+     * wraps it, so `getDocstring()` is correct on the linked tree.
+     *
+     * Without this, every scope kind hid its doc comment: a consumer had to
+     * know that a `SymbolTypeScope` keeps it behind `getTarget()`, and that a
+     * `SymbolScope`, `SymbolEnumScope` and `SymbolFunctionScope` do not
+     * expose it at all because they set no target. That is four rules for one
+     * question; this makes it none.
+     *
+     * The raw text, form and location travel with it, so a consumer
+     * implementing another doc dialect sees the same view from either tree.
+     *
+     * **First non-empty wins.** A scope can be produced by more than one
+     * declaration -- a package re-opened in another file, a function declared
+     * and then defined -- so this only ever fills an empty docstring and never
+     * replaces one. The rule is the same for every kind, it needs no merge,
+     * and it matches how a reader expects a re-opened scope to read. It is
+     * documented in docs/doc_comments.rst because it is observable behavior.
+     */
+    void copyDocInfo(ast::IScopeChild *dst, ast::IScopeChild *src);
+
+    /**
+     * Give a symbol-tree scope the source range of the declaration it wraps.
+     *
+     * Replaces the bare `setLocation(i->getLocation())` each scope-creating
+     * site did: `endLocation` was never carried across, so every scope in the
+     * linked tree reported a start and an end of -1.
+     */
+    void copyExtent(ast::IScopeChild *dst, ast::IScopeChild *src);
+
     void reportDuplicateSymbol(
         ast::ISymbolScope       *scope,
         ast::IScopeChild        *orig,

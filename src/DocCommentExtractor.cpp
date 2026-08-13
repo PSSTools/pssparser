@@ -144,8 +144,16 @@ void splitLines(const std::string &s, std::vector<std::string> &lines) {
 }
 
 /**
- * Body of a single-line comment token: marker, an optional Doxygen `<`, and
- * the terminating newline removed.
+ * Body of a single-line comment token: marker, an optional Doxygen `<`, one
+ * optional following space, and the terminating newline removed.
+ *
+ * The space matters because normalization dedents by the common prefix. The
+ * conventional `// text` puts one space on every line, which the dedent then
+ * removes -- but only while *every* line has it. One line written `//text`
+ * drops the common prefix to zero and leaves every other line indented by
+ * one, which reStructuredText reads as a block quote. Removing the space here
+ * rather than relying on the dedent makes the run insensitive to it, exactly
+ * as stripContinuationStar already does for the block form.
  */
 std::string stripLineMarker(const std::string &tok, DocCommentForm form) {
     std::string s = tok;
@@ -163,6 +171,11 @@ std::string stripLineMarker(const std::string &tok, DocCommentForm form) {
     // `///<` / `//!<` mark a Doxygen trailing comment.  Only the marked forms
     // define it, so a plain `//<...>` keeps its `<`.
     if (form == DocCommentForm::DocLine && !s.empty() && s[0] == '<') {
+        s = s.substr(1);
+    }
+    // Relative indentation survives: `//     code` still keeps four spaces
+    // more than `// text`, so the dedent sees the same difference it did.
+    if (!s.empty() && s[0] == ' ') {
         s = s.substr(1);
     }
     return s;
