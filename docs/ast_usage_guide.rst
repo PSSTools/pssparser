@@ -58,6 +58,38 @@ To parse PSS code and generate an AST:
    not parse cleanly.  The exception carries the markers on its ``.markers``
    attribute.
 
+Working with a model that failed to link
+----------------------------------------
+
+A caught ``ParseException`` from ``link()`` still leaves a usable model. The
+Parser records its result before reporting the failure, so ``user_units()``,
+``file_map`` and ``root`` are all populated:
+
+.. code-block:: python
+
+   try:
+       root = pss_parser.link()
+   except ParseException as e:
+       # Degraded, but not empty.
+       for unit in pss_parser.user_units():
+           path = pss_parser.file_map[unit.getFileid()]
+           ...
+
+What this gives you is the **per-file view**: every declaration in every file,
+with its location and its doc comment. That is enough to document or index a
+model with one bad type reference in it.
+
+What it does not give you is a trustworthy **cross-file view**. A link error
+means exactly that some cross-file question could not be answered: a type
+reference may be unresolved, and ``extend`` bodies may not have been merged
+into their targets. Treat inherited members, resolved type targets and
+extension contributions as unavailable on this path.
+
+Before this behavior existed, a caught link failure left ``user_units()``
+returning ``[]`` and ``file_map`` empty, and the only way to recover a
+degraded view was to parse the sources a second time into a Parser that is
+never linked.
+
 .. warning::
 
    ``Parser.link()`` transfers ownership of each ``GlobalScope`` to the
