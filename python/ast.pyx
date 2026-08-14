@@ -51,6 +51,12 @@ class CommentPlacement(IntEnum):
     CommentPlacement_Leading = ast_decl.CommentPlacement.CommentPlacement_CommentPlacement_Leading
     CommentPlacement_Trailing = ast_decl.CommentPlacement.CommentPlacement_CommentPlacement_Trailing
     CommentPlacement_Orphan = ast_decl.CommentPlacement.CommentPlacement_CommentPlacement_Orphan
+class DocCommentForm(IntEnum):
+    DocForm_None = ast_decl.DocCommentForm.DocCommentForm_DocForm_None
+    DocForm_Line = ast_decl.DocCommentForm.DocCommentForm_DocForm_Line
+    DocForm_DocLine = ast_decl.DocCommentForm.DocCommentForm_DocForm_DocLine
+    DocForm_Block = ast_decl.DocCommentForm.DocCommentForm_DocForm_Block
+    DocForm_DocBlock = ast_decl.DocCommentForm.DocCommentForm_DocForm_DocBlock
 class ExecKind(IntEnum):
     ExecKind_Body = ast_decl.ExecKind.ExecKind_ExecKind_Body
     ExecKind_Header = ast_decl.ExecKind.ExecKind_ExecKind_Header
@@ -1354,6 +1360,14 @@ cdef class SymbolRefPath(object):
     def path(self) -> ListUtil:
         return ListUtil(self.numPath, self.getPath)
     
+    cpdef getPathList(self):
+        return [self.getPath(__i) for __i in range(self.numPath())]
+    cpdef SymbolRefPathElem getPath(self, i):
+        return SymbolRefPathElem.wrap(self.asSymbolRefPath().getPath().at(i))
+    cpdef void addPath(self, SymbolRefPathElem i):
+        self.asSymbolRefPath().getPath().push_back(i._val)
+    cpdef numPath(self):
+        return self.asSymbolRefPath().getPath().size()
     cpdef int32_t getPyref_idx(self):
         return dynamic_cast[ast_decl.ISymbolRefPathP](self._hndl).getPyref_idx()
 
@@ -1885,8 +1899,18 @@ cdef class ScopeChild(object):
         return dynamic_cast[ast_decl.IScopeChildP](self._hndl).getDocstring().decode()
     cpdef void setDocstring(self, str v):
         dynamic_cast[ast_decl.IScopeChildP](self._hndl).setDocstring(v.encode())
+    cpdef str getDocRaw(self):
+        return dynamic_cast[ast_decl.IScopeChildP](self._hndl).getDocRaw().decode()
+    cpdef void setDocRaw(self, str v):
+        dynamic_cast[ast_decl.IScopeChildP](self._hndl).setDocRaw(v.encode())
+    cpdef  getDocForm(self):
+        return dynamic_cast[ast_decl.IScopeChildP](self._hndl).getDocForm()
+    cpdef Location getDocLocation(self):
+        return Location.wrap(dynamic_cast[ast_decl.IScopeChildP](self._hndl).getDocLocation())
     cpdef Location getLocation(self):
         return Location.wrap(dynamic_cast[ast_decl.IScopeChildP](self._hndl).getLocation())
+    cpdef Location getEndLocation(self):
+        return Location.wrap(dynamic_cast[ast_decl.IScopeChildP](self._hndl).getEndLocation())
     cpdef Scope getParent(self):
         if self.asScopeChild().getParent() == NULL:
             return None
@@ -2743,8 +2767,6 @@ cdef class Scope(ScopeChild):
         ret._owned = owned
         return ret
     
-    cpdef Location getEndLocation(self):
-        return Location.wrap(dynamic_cast[ast_decl.IScopeP](self._hndl).getEndLocation())
     def children(self) -> ListUtil:
         return ListUtil(self.numChildren, self.getChild)
     
@@ -3882,8 +3904,6 @@ cdef class FunctionDefinition(ScopeChild):
         ret._owned = owned
         return ret
     
-    cpdef Location getEndLocation(self):
-        return Location.wrap(dynamic_cast[ast_decl.IFunctionDefinitionP](self._hndl).getEndLocation())
     cpdef FunctionPrototype getProto(self):
         if self.asFunctionDefinition().getProto() == NULL:
             return None
@@ -4187,8 +4207,6 @@ cdef class ConstraintScope(ConstraintStmt):
         ret._owned = owned
         return ret
     
-    cpdef Location getEndLocation(self):
-        return Location.wrap(dynamic_cast[ast_decl.IConstraintScopeP](self._hndl).getEndLocation())
     def constraints(self) -> ListUtil:
         return ListUtil(self.numConstraints, self.getConstraint)
     
@@ -7288,8 +7306,6 @@ cdef class ExecScope(SymbolScope):
         ret._owned = owned
         return ret
     
-    cpdef Location getEndLocation(self):
-        return Location.wrap(dynamic_cast[ast_decl.IExecScopeP](self._hndl).getEndLocation())
 
 cdef class ProceduralStmtForeach(ProceduralStmtSymbolBodyScope):
     

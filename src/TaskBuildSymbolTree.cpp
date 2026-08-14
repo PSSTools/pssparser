@@ -119,6 +119,36 @@ void TaskBuildSymbolTree::visitActivityDecl(ast::IActivityDecl *i) {
     DEBUG_LEAVE("visitActivityDecl");
 }
 
+void TaskBuildSymbolTree::copyExtent(ast::IScopeChild *dst, ast::IScopeChild *src) {
+    if (!dst || !src) {
+        return;
+    }
+    dst->setLocation(src->getLocation());
+    // Both halves or neither. Copying `location` alone -- which is what every
+    // site here used to do -- left the scope reporting a start with no end, so
+    // a consumer asking the linked tree for a construct's source range got a
+    // range ending at -1 and had to hop to getTarget() for the other half.
+    dst->setEndLocation(src->getEndLocation());
+}
+
+void TaskBuildSymbolTree::copyDocInfo(ast::IScopeChild *dst, ast::IScopeChild *src) {
+    if (!dst || !src) {
+        return;
+    }
+    if (!dst->getDocstring().empty()) {
+        // First non-empty wins -- see the header. A second declaration of the
+        // same scope does not overwrite the first one's documentation.
+        return;
+    }
+    if (src->getDocstring().empty()) {
+        return;
+    }
+    dst->setDocstring(src->getDocstring());
+    dst->setDocRaw(src->getDocRaw());
+    dst->setDocForm(src->getDocForm());
+    dst->setDocLocation(src->getDocLocation());
+}
+
 ast::ISymbolTypeScope *TaskBuildSymbolTree::build(ast::ITypeScope *ts) {
     DEBUG_ENTER("build");
     ast::ISymbolTypeScope *ret = 0;
@@ -197,16 +227,29 @@ void TaskBuildSymbolTree::visitPackageScope(ast::IPackageScope *i) {
         if (p_it == scope->getSymtab().end()) {
             int32_t id = scope->getChildren().size();
             ast::ISymbolScope *pkg = m_factory->mkSymbolScope((*id_it)->getId());
-            pkg->setLocation(i->getLocation());
+            copyExtent(pkg, i);
             pkg->setSynthetic(true);
+            // Only the last name element is the package being declared.
+            // `package a::b { }` also creates `a`, which has no declaration
+            // of its own and so must not inherit b's documentation.
+            if (*id_it == i->getId().back()) {
+                copyDocInfo(pkg, i);
+            }
             addChild(pkg, (*id_it)->getId(), true);
 
             pushSymbolScope(pkg);
             scope = pkg;
         } else {
-            ast::ISymbolScope *new_scope = 
+            ast::ISymbolScope *new_scope =
                 dynamic_cast<ast::ISymbolScope *>(scope->getChildren().at(p_it->second).get());
             new_scope->setUpper(symbolScope());
+            // The re-opened branch: a package declared in more than one file,
+            // or an intermediate scope that a later declaration documents.
+            // copyDocInfo() keeps the first non-empty docstring, so this fills
+            // one in only if no earlier declaration carried one.
+            if (*id_it == i->getId().back()) {
+                copyDocInfo(new_scope, i);
+            }
             pushSymbolScope(new_scope);
             scope = new_scope;
         }
@@ -232,8 +275,23 @@ void TaskBuildSymbolTree::visitEnumDecl(ast::IEnumDecl *i) {
 
     int32_t id = scope->getChildren().size();
     ast::ISymbolEnumScope *ts = m_factory->mkSymbolEnumScope(i->getName()->getId());
-    ts->setLocation(i->getLocation());
+    copyExtent(ts, i);
     ts->setSynthetic(true);
+    // Deliberately NOT `ts->setTarget(i)`, though an enum scope does wrap
+    // exactly one declaration and could name it.
+    //
+    // `target` is declared `visit: true`, so it is a traversal edge and not
+    // merely a back-pointer: setting it makes every visitor descend into the
+    // EnumDecl a second time, now from inside the enum scope. An enum's base
+    // type is written in the enclosing scope and is not visible from within
+    // the enum, so `typedef bit[8] byte_t; enum e : byte_t {...}` stopped
+    // resolving -- see tests/python/parsing/test_enum_base_type.py.
+    //
+    // Nothing is lost: reaching the declaration was only ever the route to
+    // its documentation, and copyDocInfo below now delivers that directly.
+    // A back-pointer that is not also a traversal edge would be a separate
+    // field, and no consumer has asked for one.
+    copyDocInfo(ts, i);
 
 
     if (addChild(ts, i->getName()->getId(), true)) {
@@ -298,7 +356,7 @@ void TaskBuildSymbolTree::visitExecScope(ast::IExecScope *i) {
 void TaskBuildSymbolTree::visitExtendType(ast::IExtendType *i) {
     DEBUG_ENTER("visitExtendType");
     ast::ISymbolExtendScope *ext = m_factory->mkSymbolExtendScope("<extend>");
-    ext->setLocation(i->getLocation());
+    copyExtent(ext, i);
     ext->setTarget(i);
 
     // The extend scope must materialize its own children list, exactly as a
@@ -380,7 +438,7 @@ void TaskBuildSymbolTree::visitFunctionDefinition(ast::IFunctionDefinition *i) {
     if (!func_sym) {
         DEBUG("mkSymbolFunctionScope %s (1)", i->getProto()->getName()->getId().c_str());
         func_sym = m_factory->mkSymbolFunctionScope(i->getProto()->getName()->getId());
-        func_sym->setLocation(i->getLocation());
+        copyExtent(func_sym, i);
         addChild(func_sym, i->getProto()->getName()->getId(), false);
         // NOT registered here. The insert below adds this same prototype at
         // the front unconditionally, so pushing it here too listed one pointer
@@ -488,6 +546,10 @@ void TaskBuildSymbolTree::visitFunctionDefinition(ast::IFunctionDefinition *i) {
     // popSymbolScope();
 
     func_sym->setTarget(i);
+    // Outside the create branch above: a definition preceded by a declaration
+    // reuses that scope, and if the declaration carried no doc comment the
+    // definition's should still reach the linked tree.
+    copyDocInfo(func_sym, i);
     // Ensure that the definition takes the primary prototype location
     func_sym->getPrototypes().insert(
         func_sym->getPrototypes().begin(),
@@ -536,7 +598,7 @@ void TaskBuildSymbolTree::visitFunctionImportProto(ast::IFunctionImportProto *i)
     if (!func_sym) {
         DEBUG("mkSymbolFunctionScope %s (2)", i->getProto()->getName()->getId().c_str());
         func_sym = m_factory->mkSymbolFunctionScope(i->getProto()->getName()->getId());
-        func_sym->setLocation(i->getLocation());
+        copyExtent(func_sym, i);
         addChild(func_sym, i->getProto()->getName()->getId(), false);
 
         func_sym->setPlist(m_factory->mkSymbolScope("<plist>"));
@@ -560,6 +622,10 @@ void TaskBuildSymbolTree::visitFunctionImportProto(ast::IFunctionImportProto *i)
             }
         }
     }
+
+    // The doc comment is written on the `import ... function ...;` statement,
+    // which is this node -- not on the prototype inside it.
+    copyDocInfo(func_sym, i);
 
     // The mirror of the check in visitFunctionDefinition, for the other
     // declaration order. Two imports are the same conflict: the second
@@ -625,11 +691,16 @@ void TaskBuildSymbolTree::visitFunctionPrototype(ast::IFunctionPrototype *i) {
     if (!func_sym) {
         DEBUG("mkSymbolFunctionScope %s (3)", i->getName()->getId().c_str());
         func_sym = m_factory->mkSymbolFunctionScope(i->getName()->getId());
-        func_sym->setLocation(i->getLocation());
+        copyExtent(func_sym, i);
         addChild(func_sym, i->getName()->getId(), false);
     } else {
         DEBUG("Note: Function %s is already defined", func_sym->getName().c_str());
     }
+
+    // A standalone `function f(...);` is itself the documented declaration.
+    // Runs outside the create branch so a prototype following a definition
+    // can still supply the docstring the definition lacked.
+    copyDocInfo(func_sym, i);
 
     // Build the parameter list. This visitor did not, which left a bare
     // prototype's function scope with a **null** plist -- the only one of the
@@ -908,8 +979,9 @@ void TaskBuildSymbolTree::visitTypeScope(ast::ITypeScope *i) {
     }
     ast::ISymbolTypeScope *ts = m_factory->mkSymbolTypeScope(i->getName() ? i->getName()->getId() : "<unnamed>", plist);
     ts->setSynthetic(true);
-    ts->setLocation(i->getLocation());
+    copyExtent(ts, i);
     ts->setTarget(i);
+    copyDocInfo(ts, i);
     ts->setParent(i->getParent());
 
     // pyobj fields are opaque, since Python is a dynamically-typed library

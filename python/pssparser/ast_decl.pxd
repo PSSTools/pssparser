@@ -460,6 +460,13 @@ cdef extern from "pssp/ast/CommentPlacement.h" namespace "pssp::ast":
         CommentPlacement_CommentPlacement_Leading "pssp::ast::CommentPlacement::CommentPlacement_Leading"
         CommentPlacement_CommentPlacement_Trailing "pssp::ast::CommentPlacement::CommentPlacement_Trailing"
         CommentPlacement_CommentPlacement_Orphan "pssp::ast::CommentPlacement::CommentPlacement_Orphan"
+cdef extern from "pssp/ast/DocCommentForm.h" namespace "pssp::ast":
+    cdef enum DocCommentForm:
+        DocCommentForm_DocForm_None "pssp::ast::DocCommentForm::DocForm_None"
+        DocCommentForm_DocForm_Line "pssp::ast::DocCommentForm::DocForm_Line"
+        DocCommentForm_DocForm_DocLine "pssp::ast::DocCommentForm::DocForm_DocLine"
+        DocCommentForm_DocForm_Block "pssp::ast::DocCommentForm::DocForm_Block"
+        DocCommentForm_DocForm_DocBlock "pssp::ast::DocCommentForm::DocForm_DocBlock"
 cdef extern from "pssp/ast/ExecKind.h" namespace "pssp::ast":
     cdef enum ExecKind:
         ExecKind_ExecKind_Body "pssp::ast::ExecKind::ExecKind_Body"
@@ -1276,9 +1283,21 @@ cdef extern from "pssp/ast/IScopeChild.h" namespace "pssp::ast":
         const std_string &getDocstring()
         
         void setDocstring(const std_string & v)
+        const std_string &getDocRaw()
+        
+        void setDocRaw(const std_string & v)
+        DocCommentForm getDocForm()
+        
+        void setDocForm(DocCommentForm v)
+        const Location & getDocLocation()
+        
+        void setDocLocation(const Location &)
         const Location & getLocation()
         
         void setLocation(const Location &)
+        const Location & getEndLocation()
+        
+        void setEndLocation(const Location &)
         IScopeP getParent();
         
         void setParent(IScopeP v)
@@ -1500,9 +1519,6 @@ cdef extern from "pssp/ast/IRefExprTypeScopeGlobal.h" namespace "pssp::ast":
 
 cdef extern from "pssp/ast/IScope.h" namespace "pssp::ast":
     cpdef cppclass IScope(IScopeChild):
-        const Location & getEndLocation()
-        
-        void setEndLocation(const Location &)
         std_vector[UP[IScopeChild]] & getChildren();
 
 cdef extern from "pssp/ast/IDataType.h" namespace "pssp::ast":
@@ -1825,9 +1841,6 @@ cdef extern from "pssp/ast/IExtendEnum.h" namespace "pssp::ast":
 
 cdef extern from "pssp/ast/IFunctionDefinition.h" namespace "pssp::ast":
     cpdef cppclass IFunctionDefinition(IScopeChild):
-        const Location & getEndLocation()
-        
-        void setEndLocation(const Location &)
         IFunctionPrototype *getProto()
         
         void setProto(IFunctionPrototype *v)
@@ -1916,9 +1929,6 @@ cdef extern from "pssp/ast/IActivityLabeledStmt.h" namespace "pssp::ast":
 
 cdef extern from "pssp/ast/IConstraintScope.h" namespace "pssp::ast":
     cpdef cppclass IConstraintScope(IConstraintStmt):
-        const Location & getEndLocation()
-        
-        void setEndLocation(const Location &)
         std_vector[UP[IConstraintStmt]] & getConstraints();
 
 cdef extern from "pssp/ast/IConstraintStmtDefault.h" namespace "pssp::ast":
@@ -2786,9 +2796,7 @@ cdef extern from "pssp/ast/ISymbolTypeScope.h" namespace "pssp::ast":
 
 cdef extern from "pssp/ast/IExecScope.h" namespace "pssp::ast":
     cpdef cppclass IExecScope(ISymbolScope):
-        const Location & getEndLocation()
-        
-        void setEndLocation(const Location &)
+        pass
 
 cdef extern from "pssp/ast/IProceduralStmtForeach.h" namespace "pssp::ast":
     cpdef cppclass IProceduralStmtForeach(IProceduralStmtSymbolBodyScope):

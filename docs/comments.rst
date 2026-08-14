@@ -20,13 +20,20 @@ Two knobs
 
 ``collect_docstrings`` populates :py:meth:`getDocstring` on declarations. This
 is the older and narrower of the two: one string per declaration, and nothing
-at all on a statement.
+at all on a statement. :doc:`doc_comments` covers it in full -- which comment
+form is recognized, and how the text is unwrapped.
 
 ``collect_comments`` populates ``getComments()`` on **every** ``ScopeChild`` --
 procedural statements as well as declarations -- with ``Comment`` nodes that
 keep their own text, their own source location, and their relationship to what
-they document. It implies ``collect_docstrings``, because the docstring is
-derived from the same leading run.
+they document. It implies ``collect_docstrings``: a consumer asking for every
+comment always wants the documenting one identified as well.
+
+The two are extracted independently. The docstring is whichever comment
+*documents* the declaration, chosen by the rules in :doc:`doc_comments`;
+``getComments()`` is everything that was *written* around it, classified by
+position. A comment can appear in both, and the docstring's text may be
+unwrapped differently from the same comment's ``getText()``.
 
 On the C++ ``IAstBuilder`` the same knobs are ``setCollectDocStrings(bool)`` and
 ``setCollectComments(bool)``.

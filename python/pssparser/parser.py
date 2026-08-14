@@ -14,14 +14,15 @@ class Parser(object):
             collect_comments : bool = False):
         """Build a parser.
 
-        :param collect_docstrings: attach the doc comment above a declaration
-            to it, as ``ScopeChild.docstring``.
+        :param collect_docstrings: collect doc comments and attach them to the
+            declarations they document, reachable as ``getDocstring()`` on any
+            ``ScopeChild``.
         :param collect_comments: capture *every* comment, on statements as
             well as declarations, as ``ScopeChild.comments``. Implies
             ``collect_docstrings``.
 
-        Both default off: collection costs a token-stream walk per construct,
-        and most callers only want the tree.
+        Both default off: collection costs time and memory that a consumer
+        which never reads a comment should not pay.
         """
         import pssparser.core as zspp
         import pssparser.ast as zsp_ast
@@ -55,12 +56,16 @@ class Parser(object):
         """
         if self._builder is None:
             self._builder = self.parser_f.mkAstBuilder(marker_l)
-            if self._collect_docstrings:
-                self._builder.setCollectDocStrings(True)
-            if self._collect_comments:
-                self._builder.setCollectComments(True)
         else:
             self._builder.setMarkerListener(marker_l)
+        # Set unconditionally rather than only on creation: link() drops the
+        # builder, so a Parser reused across link boundaries builds a fresh one
+        # that would otherwise come back with collection off.
+        #
+        # Docstrings first: setCollectComments(True) turns docstring collection
+        # on as a side effect, and the reverse order would undo it.
+        self._builder.setCollectDocStrings(self._collect_docstrings)
+        self._builder.setCollectComments(self._collect_comments)
         return self._builder
 
     def parse(self, files : List[str]) -> bool:
@@ -158,10 +163,26 @@ class Parser(object):
         # this one did not.
         self._markers.extend(self._collectMarkers(marker_l))
 
-        if marker_l.hasSeverity(zspp.MarkerSeverityE.Error):
-            err = self._mkErrorMessage(marker_l)
-            raise ParseException(err, self._markers)
-
+        # Record the result *before* reporting failure.
+        #
+        # This block used to sit below the raise, which made a failed link
+        # leave the Parser holding nothing: user_units() returned [] and
+        # file_map was {}. Ownership of the units has already moved into
+        # `ret` inside link() by this point, so they exist and are walkable
+        # -- the Parser simply never recorded where they went, and a caller
+        # that caught the exception had no route back to them.
+        #
+        # AstLinker::link() has one return and no early exit: errors are
+        # reported through the marker listener, never by returning null. So
+        # there is no error path on which `ret` is unusable, and nothing here
+        # needs to be conditional.
+        #
+        # What a caught ParseException leaves available is the per-file view:
+        # each file's declarations and their doc comments. What it does not
+        # leave is a trustworthy cross-file view -- type references may be
+        # unresolved and extensions may not have been merged, which is what
+        # the error was about.
+        #
         # Snapshot the fileid -> path mapping before clearing. Consumers that
         # run *after* linking -- checker plug-ins in particular -- still need
         # to resolve a fileid to a path, and clearing without a snapshot is
@@ -189,7 +210,21 @@ class Parser(object):
         # units are no longer the Parser's to offer.
         self._builder = None
 
+        if marker_l.hasSeverity(zspp.MarkerSeverityE.Error):
+            err = self._mkErrorMessage(marker_l)
+            raise ParseException(err, self._markers)
+
         return ret
+
+    @property
+    def collect_docstrings(self) -> bool:
+        """Whether doc comments are collected. Set via the constructor."""
+        return self._collect_docstrings
+
+    @property
+    def collect_comments(self) -> bool:
+        """Whether every comment is collected. Set via the constructor."""
+        return self._collect_comments
 
     @property
     def file_map(self) -> Dict[int, str]:
@@ -218,6 +253,19 @@ class Parser(object):
         return out
 
 
+    def _pathOf(self, fileid: int) -> str:
+        """Source path for *fileid*, from either the live map or the snapshot.
+
+        ``_filenames`` is the in-flight mapping and ``_file_map`` the snapshot
+        link() keeps after clearing it. Consulting both means a message can be
+        formatted on either side of that clear: link() records its result
+        before raising, so _mkErrorMessage runs after the clear and would
+        otherwise report every marker against "<unknown>".
+        """
+        if fileid in self._filenames:
+            return self._filenames[fileid]
+        return self._file_map.get(fileid, "<unknown>")
+
     def _mkErrorMessage(self, marker_l) -> str:
         import pssparser.core as zspp
         prefix = {
@@ -233,7 +281,7 @@ class Parser(object):
             marker_m = "%s%s %s:%d:%d" % (
                 prefix[int(marker.severity())],
                 marker.msg(),
-                self._filenames.get(loc.file, "<unknown>"),
+                self._pathOf(loc.file),
                 loc.line,
                 loc.pos+1)
             msg += marker_m + "\n"
@@ -253,7 +301,7 @@ class Parser(object):
         for i in range(marker_l.numMarkers()):
             m = marker_l.getMarker(i)
             loc = m.loc()
-            filename = self._filenames.get(loc.file, "<unknown>")
+            filename = self._pathOf(loc.file)
             result.append({
                 "severity": severity_names.get(int(m.severity()), "unknown"),
                 "message": m.msg(),

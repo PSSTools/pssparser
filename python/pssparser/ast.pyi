@@ -14,6 +14,13 @@ class CommentPlacement(IntEnum):
     CommentPlacement_Trailing = auto()
     CommentPlacement_Orphan = auto()
     
+class DocCommentForm(IntEnum):
+    DocForm_None = auto()
+    DocForm_Line = auto()
+    DocForm_DocLine = auto()
+    DocForm_Block = auto()
+    DocForm_DocBlock = auto()
+    
 class ExecKind(IntEnum):
     ExecKind_Body = auto()
     ExecKind_Header = auto()
@@ -666,6 +673,12 @@ class SymbolRefPath(object):
     def path(self) -> ListUtil...
         """Returns an iterator over the items"""
     
+    def getPathList(self) -> List['SymbolRefPathElem']: ...
+    
+    def getPath(self, i) -> 'SymbolRefPathElem': ...
+    
+    def addPath(self, i : 'SymbolRefPathElem'): ...
+    
     def getPath(self) -> List[SymbolRefPathElem]: ...
     
 class AssocData(object):
@@ -743,7 +756,17 @@ class ScopeChild(object):
     
     def setDocstring(self, v : str): ...
     
+    def getDocRaw(self) -> str: ...
+    
+    def setDocRaw(self, v : str): ...
+    
+    def setDocForm(self, v : DocCommentForm): ...
+    
+    def getDocLocation(self) -> 'Location': ...
+    
     def getLocation(self) -> 'Location': ...
+    
+    def getEndLocation(self) -> 'Location': ...
     
     def getParent(self) -> Scope: ...
     
@@ -1467,8 +1490,6 @@ class Scope(ScopeChild):
     
     """
     pass
-    
-    def getEndLocation(self) -> 'Location': ...
     
     def children(self) -> ListUtil...
         """Returns an iterator over the items"""
@@ -2612,8 +2633,6 @@ class FunctionDefinition(ScopeChild):
     """
     pass
     
-    def getEndLocation(self) -> 'Location': ...
-    
     def getProto(self) -> FunctionPrototype: ...
     
     def getBody(self) -> ExecScope: ...
@@ -3016,8 +3035,6 @@ class ConstraintScope(ConstraintStmt):
     
     """
     pass
-    
-    def getEndLocation(self) -> 'Location': ...
     
     def constraints(self) -> ListUtil...
         """Returns an iterator over the items"""
@@ -7025,8 +7042,6 @@ class ExecScope(SymbolScope):
     
     """
     pass
-    
-    def getEndLocation(self) -> 'Location': ...
     
 class ProceduralStmtForeach(ProceduralStmtSymbolBodyScope):
     """

@@ -553,6 +553,12 @@ procedural_stmt:
 	// LRM 19.2.1 listing procedural scopes.  It precedes nothing that can
 	// start with `compile`, so the alternative is unambiguous here.
 	| procedural_compile_if
+	// LRM 21.6.1: `code_doc` "may be applied to statements and other executable
+	// elements", and Example323 applies it to a call inside a function body.
+	// An alternative here rather than a `procedural_stmt_ann` wrapper, matching
+	// how package_body_item takes `annotation`: the annotation becomes pending
+	// and attaches to the next element built in the scope.
+	| annotation
 	| TOK_SEMICOLON
 	;
 
@@ -2021,13 +2027,35 @@ filename_string: DOUBLE_QUOTED_STRING;
  * annotate <path> <type_identifier>();
  */	
 annotation:
-    (TOK_AT|TOK_COMMENT_AT) type_identifier annotation_parameter_list?
+    TOK_AT type_identifier annotation_parameter_list?
     ;
 
 annotation_parameter_list:
-	annotation_positional_parameter_list
+	annotation_brace_parameter_list
+	| annotation_positional_parameter_list
 	| annotation_namemapped_parameter_list
 	| annotation_mixed_parameter_list
+	;
+
+/**
+ * The LRM form (PSS 3.1 Syntax 20).  Literal braces, dot-prefixed named
+ * parameters only -- the standard defines no positional form:
+ *
+ *   annotation_params_list ::= { annotation_param_item {, annotation_param_item} }
+ *   annotation_param_item  ::= . identifier = constant_expression
+ *
+ * The outer braces there are literal; the inner ones are BNF repetition.
+ * Example323 in the LRM reads `@code_doc {.text="Zero the target memory word" }`.
+ *
+ * Unambiguous against the paren forms below, and against a following
+ * declaration: no body item begins with `{`.
+ */
+annotation_brace_parameter_list:
+	TOK_LCBRACE ( annotation_brace_parameter_elem ( TOK_COMMA annotation_brace_parameter_elem )* )? TOK_RCBRACE
+	;
+
+annotation_brace_parameter_elem:
+	TOK_DOT identifier TOK_SINGLE_EQ constant_expression
 	;
 
 annotation_positional_parameter_list:

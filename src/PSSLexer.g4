@@ -181,7 +181,12 @@ TOK_CLASS: 'class';
 WS : [ \t\n\r]+ -> channel (10) ;
 //WS : [ \t\n\r]+ -> skip;
 
-TOK_COMMENT_AT: '//@';
+/*
+ * There was a TOK_COMMENT_AT: '//@' here, for a comment-form annotation.  It
+ * was unreachable -- SL_COMMENT below matches longer and wins -- so `//@doc(…)`
+ * has always been an ordinary comment.  The LRM defines no comment-form
+ * annotation, so the token is gone rather than rescued with a lexer predicate.
+ */
 
 /**
  * BNF: SL_COMMENT ::= <kw>//</kw>\n 

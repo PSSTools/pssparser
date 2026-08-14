@@ -404,3 +404,245 @@ component pss_top {
 """
     root = parse_pss(code, "test.pss", parser)
     assert root is not None
+
+
+# =============================================================================
+# Nodes built into typed lists rather than through addChild
+#
+# `addChild` sets the location, so anything reaching a scope through it is
+# located for free.  The nodes below do not: they are pushed onto a typed
+# list on their parent (`EnumDecl::items`, `FunctionDefinition::proto`), so
+# each needs an explicit `setLoc` at its construction site.  Both were missing
+# it, and both failed silently -- `lineno` stayed at the default -1, which is
+# the documented marker for a compiler-injected node, so a consumer filtering
+# on it discarded real user declarations.
+# =============================================================================
+
+def _node_name(node):
+    """Name of *node*, or None.
+
+    `getName()` returns an ExprId on most nodes but a plain str on some, so
+    neither form can be assumed.
+    """
+    getter = getattr(node, "getName", None)
+    if getter is None:
+        return None
+    name = getter()
+    if name is None:
+        return None
+    return name.getId() if hasattr(name, "getId") else name
+
+
+def _enum_items(root, qname):
+    """Return the linked enum scope's items, which are its children."""
+    from pssparser.utils import SymbolScopeUtil
+
+    scope = SymbolScopeUtil(root).getQname(qname)
+    assert scope is not None, "no enum %s" % qname
+    return {c.getName().getId(): c for c in scope.getChildren()}
+
+
+def test_enum_items_report_their_declaring_line(parser):
+    """Every enumerator carries the line it is written on."""
+    code = """package p {
+    enum mode_e {
+        IDLE,
+        BUSY = 3,
+        DONE
+    }
+}
+"""
+    root = parse_pss(code, "test.pss", parser)
+    items = _enum_items(root, "p::mode_e")
+
+    assert items["IDLE"].getLocation().lineno == 3
+    assert items["BUSY"].getLocation().lineno == 4
+    assert items["DONE"].getLocation().lineno == 5
+
+
+def test_enum_items_added_by_extend_report_the_extend_site(parser):
+    """An item contributed by `extend enum` is located where it is written.
+
+    Not at the base declaration: the extend site is where a reader would look
+    for it, and it may be in an entirely different file.
+    """
+    code = """package p {
+    enum mode_e {
+        IDLE
+    }
+}
+
+extend enum p::mode_e {
+    EXTRA
+}
+"""
+    root = parse_pss(code, "test.pss", parser)
+    items = _enum_items(root, "p::mode_e")
+
+    assert items["IDLE"].getLocation().lineno == 3
+    assert items["EXTRA"].getLocation().lineno == 8
+
+
+def test_function_prototypes_are_located(parser):
+    """A prototype reached through `getProto()` carries its own location.
+
+    A standalone `function f(...);` is itself the scope child and so was
+    always located.  The prototype inside a `FunctionDefinition` or a
+    `FunctionImportProto` is not handed to `addChild` -- the wrapper is --
+    and so had no location of its own.
+    """
+    code = """package p {
+    function int declared_f(int a);
+
+    import target function int imported_f(int a);
+
+    function int defined_f(int a) {
+        return a;
+    }
+}
+"""
+    root = parse_pss(code, "test.pss", parser)
+    pkg = get_symbol(root, "p")
+    protos = {}
+    for child in pkg.getChildren():
+        proto = child.getProto() if hasattr(child, "getProto") else child
+        name = _node_name(proto) if proto is not None else None
+        if name is not None:
+            protos[name] = proto
+
+    assert protos["declared_f"].getLocation().lineno == 2
+    assert protos["imported_f"].getLocation().lineno == 4
+    assert protos["defined_f"].getLocation().lineno == 6
+
+
+def test_injected_prototypes_stay_marked(parser):
+    """The compiler-injected executor prototypes keep `lineno == -1`.
+
+    This is the other half of the previous test: the -1 marker only means
+    "not written by the user" while genuinely-written nodes are all located.
+    """
+    code = """component C { }"""
+    root = parse_pss(code, "test.pss", parser)
+    comp = get_symbol(root, "C")
+
+    injected = [
+        c for c in comp.getChildren()
+        if _node_name(c) in ("set_executor", "set_default_executor")
+    ]
+    assert injected, "expected the injected executor prototypes"
+    for node in injected:
+        assert node.getLocation().lineno == -1
+
+
+def test_no_user_written_node_is_mistaken_for_injected(parser):
+    """The general guard: nothing a user wrote reports `lineno < 0`.
+
+    This is deliberately broad.  It is the test that would have caught the
+    enum-item and prototype omissions together, and it is the one that will
+    catch the next node type added to a typed list without a `setLoc`.
+    """
+    code = """package p {
+    enum mode_e {
+        IDLE,
+        BUSY
+    }
+
+    struct s_t {
+        rand int a;
+    }
+
+    function int f(int a);
+
+    import target function int g(int a);
+
+    function int h(int a) {
+        return a;
+    }
+
+    component C {
+        action A {
+            rand int v;
+
+            constraint { v > 0; }
+        }
+    }
+}
+"""
+    root = parse_pss(code, "test.pss", parser)
+    pkg = get_symbol(root, "p")
+
+    # The complete set of nodes the builder injects into a user scope. Listed
+    # by name rather than detected, because `synthetic` is a SymbolScope flag
+    # and does not exist on ScopeChild -- `lineno < 0` is the only signal an
+    # AST consumer has, which is precisely why it must stay trustworthy. A new
+    # entry here should be a deliberate decision, not a way to quiet the test.
+    KNOWN_INJECTED = {"set_executor", "set_default_executor", "comp"}
+
+    unlocated = []
+
+    def visit(node, path):
+        if not hasattr(node, "getChildren"):
+            return
+        for child in node.getChildren():
+            name = _node_name(child)
+            here = path + [name or type(child).__name__]
+            if name in KNOWN_INJECTED:
+                continue
+            loc = child.getLocation()
+            if loc is not None and loc.lineno < 0:
+                unlocated.append("::".join(here))
+            proto = child.getProto() if hasattr(child, "getProto") else None
+            if proto is not None:
+                ploc = proto.getLocation()
+                if ploc is not None and ploc.lineno < 0:
+                    unlocated.append("::".join(here) + " (proto)")
+            visit(child, here)
+
+    visit(pkg, ["p"])
+
+    assert unlocated == [], "user-written nodes reporting lineno < 0: %s" % unlocated
+
+
+def test_the_standard_library_has_no_unlocated_declarations(parser):
+    """The previous test over real sources rather than a fixture.
+
+    The standard library ships with the parser and is loaded by every parse,
+    so this is PSS written with no awareness of the location machinery. A
+    fixture only proves the shapes someone thought to write down; this covers
+    what is actually there.
+
+    (The reference corpora would be broader still, but they are optional
+    checkouts -- see tests/python/corpus -- so a guard placed there does not
+    run for most people. This one always runs.)
+    """
+    root = parse_pss("component pss_top { }", "test.pss", parser)
+
+    KNOWN_INJECTED = {"set_executor", "set_default_executor", "comp"}
+    unlocated = []
+    inspected = []
+
+    def visit(node, path, depth=0):
+        if depth > 40 or not hasattr(node, "getChildren"):
+            return
+        for child in node.getChildren():
+            name = _node_name(child)
+            here = path + [name or type(child).__name__]
+            if name in KNOWN_INJECTED:
+                continue
+            loc = child.getLocation()
+            # fileid 0 is the standard library; -1 is a built-in with no
+            # source at all, which is legitimately unlocated.
+            if loc is not None and loc.fileid == 0:
+                inspected.append(here)
+                if loc.lineno < 0:
+                    unlocated.append("::".join(here))
+            visit(child, here, depth + 1)
+
+    visit(root, [])
+
+    # Without this the test passes just as happily if the walk stops finding
+    # anything -- a guard that inspects nothing is not a guard.
+    assert len(inspected) > 50, (
+        "expected to inspect the standard library, saw %d nodes" % len(inspected))
+    assert unlocated == [], (
+        "standard-library declarations reporting lineno < 0: %s" % unlocated[:20])
