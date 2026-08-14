@@ -8,7 +8,21 @@ class ParseException(Exception):
 
 class Parser(object):
 
-    def __init__(self):
+    def __init__(
+            self,
+            collect_docstrings : bool = False,
+            collect_comments : bool = False):
+        """Build a parser.
+
+        :param collect_docstrings: attach the doc comment above a declaration
+            to it, as ``ScopeChild.docstring``.
+        :param collect_comments: capture *every* comment, on statements as
+            well as declarations, as ``ScopeChild.comments``. Implies
+            ``collect_docstrings``.
+
+        Both default off: collection costs a token-stream walk per construct,
+        and most callers only want the tree.
+        """
         import pssparser.core as zspp
         import pssparser.ast as zsp_ast
         self.ast_f = zsp_ast.Factory.inst()
@@ -23,7 +37,10 @@ class Parser(object):
         self._file_map : Dict[int,str] = {}
         #: One builder per Parser, created lazily by _mkBuilder.
         self._builder = None
-        pass
+        #: Applied by _mkBuilder to every builder it creates. link() drops the
+        #: builder, so these cannot be set once at construction time.
+        self._collect_docstrings = collect_docstrings
+        self._collect_comments = collect_comments
 
     def _mkBuilder(self, marker_l):
         """Return this Parser's builder, pointed at *marker_l*.
@@ -38,6 +55,10 @@ class Parser(object):
         """
         if self._builder is None:
             self._builder = self.parser_f.mkAstBuilder(marker_l)
+            if self._collect_docstrings:
+                self._builder.setCollectDocStrings(True)
+            if self._collect_comments:
+                self._builder.setCollectComments(True)
         else:
             self._builder.setMarkerListener(marker_l)
         return self._builder

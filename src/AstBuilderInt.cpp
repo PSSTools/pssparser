@@ -53,6 +53,8 @@ AstBuilderInt::AstBuilderInt(
 	IMarkerListener 	*marker_l) : m_factory(factory), m_marker_l(marker_l) {
     DEBUG_INIT("pssp::AstBuilderInt", dmgr);
 	m_collectDocStrings = false;
+	m_collectComments = false;
+	m_attr_field_start = 0;
     m_enableProfile = false;
 	m_field_depth = 0;
 	m_labeled_activity_id = 0;
@@ -106,6 +108,16 @@ void AstBuilderInt::build(
 	ANTLRInputStream input(*in);
 	PSSLexer lexer(&input);
 	m_tokens = std::unique_ptr<CommonTokenStream>(new CommonTokenStream(&lexer));
+
+	if (m_collectComments) {
+		// A trailing comment sits to the *right* of the construct that owns
+		// it, and the stream only buffers as far as the parser's lookahead
+		// has reached -- which, mid-rule, is short of it. Buffer the lot up
+		// front. Leading comments never needed this, which is why the
+		// docstring path has always worked without it.
+		m_tokens->fill();
+	}
+
 	PSSParser parser(m_tokens.get());
 
 	parser.removeErrorListeners();
@@ -304,6 +316,7 @@ antlrcpp::Any AstBuilderInt::visitExtend_stmt(PSSParser::Extend_stmtContext *ctx
 				value = mkExpr((*it)->constant_expression()->expression());
 			}
 			ast::IEnumItem *item = m_factory->mkEnumItem(id, value);
+			attachEnumItemSource(item, *it);
 			ext->getItems().push_back(ast::IEnumItemUP(item));
 		}
 		
@@ -506,7 +519,12 @@ antlrcpp::Any AstBuilderInt::visitConst_field_declaration(PSSParser::Const_field
 	DEBUG_ENTER("visitConst_field_declaration");
 
 	m_field_depth++;
+	// Same as visitAttr_field: `static const` sits out here, so the inner
+	// data_declaration would look left of the type and find only `const`.
+	Token *attr_start_prev = m_attr_field_start;
+	m_attr_field_start = ctx->getStart();
 	ctx->data_declaration()->accept(this);
+	m_attr_field_start = attr_start_prev;
 	m_field_depth--;
 
 	if (!m_field_depth) {
@@ -1145,6 +1163,7 @@ antlrcpp::Any AstBuilderInt::visitProcedural_function(PSSParser::Procedural_func
         addExecStmt(*it);
     }
     m_exec_scope_s.pop_back();
+    collectScopeTrailingComments(body, ctx->stop);
     DEBUG("Result is %d statements in body", body->getChildren().size());
 
     ast::PlatQual platqual = ast::PlatQual::PlatQual_None;
@@ -1275,6 +1294,7 @@ antlrcpp::Any AstBuilderInt::visitProcedural_sequence_block_stmt(PSSParser::Proc
     }
 
     m_exec_scope_s.pop_back();
+    collectScopeTrailingComments(block, ctx->stop);
 
     m_exec_stmt = block;
     m_exec_stmt_cnt++;
@@ -1625,6 +1645,22 @@ antlrcpp::Any AstBuilderInt::visitProcedural_data_declaration(PSSParser::Procedu
             type,
             init);
         decl->setIndex(m_exec_scope_s.back()->getChildren().size());
+
+        // This visitor pushes straight into the exec scope rather than
+        // returning through mkExecStmt, so it has to record its own
+        // provenance. `int a, b;` is one source statement and several decls;
+        // only the first carries the comment, per the no-duplication rule.
+        if (ctx->getStart()) {
+            decl->setLocation({
+                m_file_id,
+                (int32_t)ctx->getStart()->getLine(),
+                (int32_t)ctx->getStart()->getCharPositionInLine()+1
+            });
+            if (m_collectDocStrings && it == items.begin()) {
+                attachComments(decl, ctx->getStart());
+            }
+        }
+
         m_exec_scope_s.back()->getChildren().push_back(ast::IScopeChildUP(decl));
 
         std::unordered_map<std::string,int32_t>::const_iterator var_it =
@@ -1772,7 +1808,14 @@ antlrcpp::Any AstBuilderInt::visitComponent_data_declaration(PSSParser::Componen
     DEBUG_ENTER("visitComponent_data_declaration");
 
     m_field_depth++;
+    // As in visitAttr_field: the access modifier and the `static const` /
+    // `mutable` / `instance` qualifier live here, ahead of the
+    // data_declaration, and the doc comment sits ahead of *them*. The inner
+    // rule looks left of the type and finds the qualifier beside it.
+    Token *attr_start_prev = m_attr_field_start;
+    m_attr_field_start = ctx->getStart();
     ctx->data_declaration()->accept(this);
+    m_attr_field_start = attr_start_prev;
     m_field_depth--;
 
     for (std::vector<ast::IField *>::const_iterator
@@ -2446,7 +2489,7 @@ antlrcpp::Any AstBuilderInt::visitData_declaration(PSSParser::Data_declarationCo
             field, 
             (*it)->identifier()->start,
             &field->getName()->getLocation(),
-            ctx->data_type()->start);
+            m_attr_field_start?m_attr_field_start:ctx->data_type()->start);
 
 		if (m_field_depth > 0) {
 			m_fields.push_back(field);
@@ -2460,7 +2503,15 @@ antlrcpp::Any AstBuilderInt::visitAttr_field(PSSParser::Attr_fieldContext *ctx) 
 	DEBUG_ENTER("visitAttr_field");
 
 	m_field_depth++;
+	// A doc comment sits above the whole declaration -- above `rand` or the
+	// access modifier, which live here rather than in the data_declaration
+	// this delegates to. The inner rule looks left of the *type*, and for
+	// `rand int len;` finds only the `rand` beside it, so the comment went
+	// uncollected. Hand the outer start token down.
+	Token *attr_start_prev = m_attr_field_start;
+	m_attr_field_start = ctx->getStart();
 	ctx->data_declaration()->accept(this);
+	m_attr_field_start = attr_start_prev;
 	m_field_depth--;
 
 	for (std::vector<ast::IField *>::const_iterator
@@ -2630,6 +2681,7 @@ antlrcpp::Any AstBuilderInt::visitEnum_declaration(PSSParser::Enum_declarationCo
 		ast::IEnumItem *item = m_factory->mkEnumItem(
 			mkId((*it)->identifier()),
 			value);
+		attachEnumItemSource(item, *it);
 		decl->getItems().push_back(ast::IEnumItemUP(item));
 	}
 
@@ -3774,6 +3826,7 @@ void AstBuilderInt::addChild(ast::IExecScope *c, Token *start, Token *end) {
 	if (m_collectDocStrings && start) {
 		addDocstring(c, start);
 	}
+	collectScopeTrailingComments(c, end);
 }
 
 void AstBuilderInt::addChild(ast::IFunctionDefinition *c, Token *start, Token *end) {
@@ -3795,6 +3848,7 @@ void AstBuilderInt::addChild(ast::IFunctionDefinition *c, Token *start, Token *e
 	if (m_collectDocStrings && start) {
 		addDocstring(c, start);
 	}
+	collectScopeTrailingComments(c, end);
 }
 
 void AstBuilderInt::addChild(ast::INamedScope *c, Token *start, Token *end) {
@@ -3818,6 +3872,7 @@ void AstBuilderInt::addChild(ast::INamedScope *c, Token *start, Token *end) {
 	if (m_collectDocStrings && start) {
 		addDocstring(c, start);
 	}
+	collectScopeTrailingComments(c, end);
     DEBUG_LEAVE("addChild (INamedScope) %p %p", start, end);
 }
 
@@ -3840,70 +3895,352 @@ void AstBuilderInt::addChild(ast::IScope *c, Token *start, Token *end) {
 	if (m_collectDocStrings && start) {
 		addDocstring(c, start);
 	}
+	collectScopeTrailingComments(c, end);
+}
+
+int32_t AstBuilderInt::tokenEndLine(Token *t) {
+	int32_t line = (int32_t)t->getLine();
+	const std::string &txt = t->getText();
+
+	// SL_COMMENT is lexed as `'//' .*? '\r'? ('\n'|EOF)`, so a `//` comment
+	// carries its own line terminator. Counting that newline would put the
+	// comment on the following line and make a blank-line-detached note look
+	// adjacent to whatever follows it.
+	size_t n = txt.size();
+	if (n > 0 && txt[n-1] == '\n') {
+		n--;
+	}
+
+	for (size_t i=0; i<n; i++) {
+		if (txt[i] == '\n') {
+			line++;
+		}
+	}
+
+	return line;
+}
+
+std::string AstBuilderInt::normalizeComment(const std::string &raw, bool is_block) {
+	if (!is_block) {
+		// `// text` -- drop the marker and at most one space, so that the
+		// relative indent of a run of `//` lines survives.
+		std::string body = (raw.size() >= 2)?raw.substr(2):std::string();
+		if (body.size() > 0 && body[0] == ' ') {
+			body = body.substr(1);
+		}
+		while (body.size() > 0 && isspace((unsigned char)body[body.size()-1])) {
+			body.erase(body.size()-1);
+		}
+		return body;
+	}
+
+	bool has_doc_marker = (raw.compare(0, 3, "/**") == 0);
+	std::string body = raw;
+	if (body.size() >= 2 && body.compare(0, 2, "/*") == 0) {
+		body = body.substr(2);
+	}
+	if (body.size() >= 2 && body.compare(body.size()-2, 2, "*/") == 0) {
+		body = body.substr(0, body.size()-2);
+	}
+
+	std::vector<std::string> lines;
+	size_t pos = 0;
+	while (true) {
+		size_t nl = body.find('\n', pos);
+		if (nl == std::string::npos) {
+			lines.push_back(body.substr(pos));
+			break;
+		}
+		std::string l = body.substr(pos, nl-pos);
+		if (l.size() > 0 && l[l.size()-1] == '\r') {
+			l.erase(l.size()-1);
+		}
+		lines.push_back(l);
+		pos = nl+1;
+	}
+
+	// Strip the `*` gutter. Continuation lines always; the first line only
+	// when the comment opened `/**`, so that `/* *emph* */` keeps its text.
+	for (size_t i=0; i<lines.size(); i++) {
+		if (i == 0 && !has_doc_marker) {
+			continue;
+		}
+		std::string &l = lines[i];
+		size_t j = 0;
+		while (j < l.size() && (l[j] == ' ' || l[j] == '\t')) {
+			j++;
+		}
+		if (j < l.size() && l[j] == '*') {
+			j++;
+			if (j < l.size() && l[j] == ' ') {
+				j++;
+			}
+			l = l.substr(j);
+		}
+	}
+
+	for (size_t i=0; i<lines.size(); i++) {
+		std::string &l = lines[i];
+		while (l.size() > 0 && isspace((unsigned char)l[l.size()-1])) {
+			l.erase(l.size()-1);
+		}
+	}
+
+	while (lines.size() > 0 && lines.front().empty()) {
+		lines.erase(lines.begin());
+	}
+	while (lines.size() > 0 && lines.back().empty()) {
+		lines.pop_back();
+	}
+
+	// Re-flush the block against the left margin, keeping relative indent.
+	size_t indent = std::string::npos;
+	for (size_t i=0; i<lines.size(); i++) {
+		if (lines[i].empty()) {
+			continue;
+		}
+		size_t j = 0;
+		while (j < lines[i].size() && lines[i][j] == ' ') {
+			j++;
+		}
+		if (indent == std::string::npos || j < indent) {
+			indent = j;
+		}
+	}
+	if (indent == std::string::npos) {
+		indent = 0;
+	}
+
+	std::string result;
+	for (size_t i=0; i<lines.size(); i++) {
+		if (i > 0) {
+			result += "\n";
+		}
+		result += (lines[i].size() >= indent)?lines[i].substr(indent):lines[i];
+	}
+
+	return result;
+}
+
+ast::IComment *AstBuilderInt::mkCommentFor(Token *t, ast::CommentPlacement placement) {
+	bool is_block = (t->getChannel() == 12);
+	std::string raw = t->getText();
+	ast::IComment *cm = m_factory->mkComment(
+			normalizeComment(raw, is_block),
+			placement);
+	cm->setRaw(raw);
+	cm->setIs_block(is_block);
+	cm->setLocation({
+		m_file_id,
+		(int32_t)t->getLine(),
+		(int32_t)t->getCharPositionInLine()+1,
+		(int32_t)raw.size()
+	});
+	return cm;
 }
 
 void AstBuilderInt::addDocstring(ast::IScopeChild *c, Token *t) {
-	DEBUG_ENTER("addDocstring");
-	std::vector<Token *> ws_tokens = m_tokens->getHiddenTokensToLeft(
-			t->getTokenIndex(), 10);
-	std::vector<Token *> slc_tokens = m_tokens->getHiddenTokensToLeft(
-			t->getTokenIndex(), 11);
-	std::vector<Token *> mlc_tokens = m_tokens->getHiddenTokensToLeft(
-			t->getTokenIndex(), 12);
+	attachComments(c, t);
+}
 
-	DEBUG("ws_tokens=%d slc_tokens=%d mlc_tokens=%d",
-			ws_tokens.size(), slc_tokens.size(), mlc_tokens.size());
+void AstBuilderInt::attachComments(ast::IScopeChild *c, Token *t) {
+	DEBUG_ENTER("attachComments");
 
-	if (slc_tokens.size() == 0 && mlc_tokens.size() == 0) {
+	if (!t || !c) {
+		DEBUG_LEAVE("attachComments -- no token");
 		return;
 	}
 
-	int32_t last_ws_line = -1;
-	if (ws_tokens.size() > 0) {
-		last_ws_line = ws_tokens.back()->getLine();
+	std::string trailing = attachTrailingComment(c, t);
+
+	// A declaration with no leading comment is documented by its trailing one
+	// -- `rand int a; // bytes`. A leading run always wins over it.
+	if (m_collectDocStrings && trailing != "") {
+		c->setDocstring(trailing);
 	}
 
-	std::string docstring;
-	if (slc_tokens.size() > 0 && mlc_tokens.size() > 0) {
-		if (slc_tokens.back()->getLine() > mlc_tokens.back()->getLine()) {
-			// Single-line comment is last
-			docstring = processDocStringSingleLineComment(
-					slc_tokens,
-					ws_tokens);
-		} else {
-			// Multi-line comment is last
-			docstring = processDocStringMultiLineComment(
-					mlc_tokens,
-					ws_tokens);
+	size_t idx = t->getTokenIndex();
+	if (idx == 0) {
+		DEBUG_LEAVE("attachComments -- first token");
+		return;
+	}
+
+	std::vector<Token *> cmts = m_tokens->getHiddenTokensToLeft(idx, 11);
+	std::vector<Token *> mlc = m_tokens->getHiddenTokensToLeft(idx, 12);
+	cmts.insert(cmts.end(), mlc.begin(), mlc.end());
+
+	if (cmts.empty()) {
+		DEBUG_LEAVE("attachComments -- no comments");
+		return;
+	}
+
+	// `//` and `/* */` arrive on separate channels, so a file that interleaves
+	// them comes back in two runs. Restore source order.
+	std::sort(cmts.begin(), cmts.end(), [](Token *a, Token *b) {
+		return a->getTokenIndex() < b->getTokenIndex();
+	});
+
+	// A comment sharing a line with the previous on-channel token documents
+	// *that* construct -- `x = 1; // note` -- and its owner has already
+	// claimed it via attachTrailingComment. Skip it here.
+	int32_t prev_line = -1;
+	for (int32_t i=(int32_t)cmts.front()->getTokenIndex()-1; i>=0; i--) {
+		Token *p = m_tokens->get(i);
+		if (p->getChannel() == Token::DEFAULT_CHANNEL) {
+			prev_line = tokenEndLine(p);
+			break;
 		}
-	} else if (slc_tokens.size() > 0) {
-		// Single-line comment
-		docstring = processDocStringSingleLineComment(
-				slc_tokens,
-				ws_tokens);
-	} else {
-		// Multi-line comment
-		docstring = processDocStringMultiLineComment(
-				mlc_tokens,
-				ws_tokens);
 	}
 
-	DEBUG("docstring=%s", docstring.c_str());
-	if (docstring != "") {
-		c->setDocstring(docstring);
+	size_t first = 0;
+	while (first < cmts.size() && (int32_t)cmts[first]->getLine() == prev_line) {
+		first++;
 	}
 
-	/*
-	fprintf(stdout, "Token pos: %d\n", comp->getLine());
-	for (std::vector<Token*>::const_iterator
-			it=tokens.begin();
-			it!=tokens.end(); it++) {
-		fprintf(stdout, "Token %d: %s\n",
-				(*it)->getLine(),
-				(*it)->getText().c_str());
+	// Walk back from the construct over the contiguous run of comment lines.
+	// A blank line cuts it -- that is how a note is deliberately detached.
+	int32_t anchor = (int32_t)t->getLine();
+	size_t lead = cmts.size();
+	while (lead > first && tokenEndLine(cmts[lead-1]) >= anchor-1) {
+		lead--;
+		anchor = (int32_t)cmts[lead]->getLine();
 	}
-	 */
-	DEBUG_LEAVE("addDocstring");
+
+	if (m_collectDocStrings) {
+		std::string docstring;
+		for (size_t i=lead; i<cmts.size(); i++) {
+			bool is_block = (cmts[i]->getChannel() == 12);
+			if (!docstring.empty()) {
+				docstring += "\n";
+			}
+			docstring += normalizeComment(cmts[i]->getText(), is_block);
+		}
+		DEBUG("docstring=%s", docstring.c_str());
+		if (docstring != "") {
+			c->setDocstring(docstring);
+		}
+
+	}
+
+	if (m_collectComments) {
+		for (size_t i=first; i<cmts.size(); i++) {
+			c->getComments().push_back(ast::ICommentUP(mkCommentFor(
+					cmts[i],
+					(i >= lead)
+						?ast::CommentPlacement::CommentPlacement_Leading
+						:ast::CommentPlacement::CommentPlacement_Orphan)));
+		}
+	}
+
+	DEBUG_LEAVE("attachComments");
+}
+
+void AstBuilderInt::attachEnumItemSource(
+		ast::IEnumItem					*item,
+		PSSParser::Enum_itemContext		*ctx) {
+	// Enum items are pushed straight onto the enum's item list rather than
+	// through addChild, so they never picked up a location or a doc comment.
+	if (!ctx || !ctx->getStart()) {
+		return;
+	}
+	item->setLocation({
+		m_file_id,
+		(int32_t)ctx->getStart()->getLine(),
+		(int32_t)ctx->getStart()->getCharPositionInLine()+1
+	});
+	if (m_collectDocStrings) {
+		attachComments(item, ctx->getStart());
+	}
+}
+
+std::string AstBuilderInt::attachTrailingComment(ast::IScopeChild *c, Token *t) {
+	std::string text;
+
+	if (!t || !c) {
+		return text;
+	}
+
+	int32_t line = tokenEndLine(t);
+	size_t n = m_tokens->size();
+	bool past_terminator = false;
+
+	// Callers hand us the construct's *start* token, so walk forward to find
+	// the comment that trails its end. The construct runs to its `;`; once
+	// that is behind us, the next on-channel token opens the following
+	// construct and any comment past it is that one's business, not ours.
+	for (size_t i=t->getTokenIndex()+1; i<n; i++) {
+		Token *nt = m_tokens->get(i);
+
+		if ((int32_t)nt->getLine() != line) {
+			break;
+		}
+
+		size_t ch = nt->getChannel();
+		if (ch == 11 || ch == 12) {
+			text = normalizeComment(nt->getText(), ch == 12);
+			if (m_collectComments) {
+				c->getComments().push_back(ast::ICommentUP(mkCommentFor(
+						nt,
+						ast::CommentPlacement::CommentPlacement_Trailing)));
+			}
+			break;
+		} else if (ch == Token::DEFAULT_CHANNEL) {
+			if (past_terminator) {
+				break;
+			} else if (nt->getText() == ";") {
+				past_terminator = true;
+			} else if (nt->getText() == "}") {
+				// The construct is the last in its block; whatever follows the
+				// brace documents the block, not this construct.
+				break;
+			}
+		}
+	}
+
+	return text;
+}
+
+void AstBuilderInt::collectScopeTrailingComments(ast::IScopeChild *s, Token *end) {
+	if (!m_collectComments || !s || !end) {
+		return;
+	}
+
+	size_t idx = end->getTokenIndex();
+	if (idx == 0) {
+		return;
+	}
+
+	std::vector<Token *> cmts = m_tokens->getHiddenTokensToLeft(idx, 11);
+	std::vector<Token *> mlc = m_tokens->getHiddenTokensToLeft(idx, 12);
+	cmts.insert(cmts.end(), mlc.begin(), mlc.end());
+
+	if (cmts.empty()) {
+		return;
+	}
+
+	std::sort(cmts.begin(), cmts.end(), [](Token *a, Token *b) {
+		return a->getTokenIndex() < b->getTokenIndex();
+	});
+
+	// Same partition as attachComments: whatever trails the scope's last
+	// statement already belongs to that statement.
+	int32_t prev_line = -1;
+	for (int32_t i=(int32_t)cmts.front()->getTokenIndex()-1; i>=0; i--) {
+		Token *p = m_tokens->get(i);
+		if (p->getChannel() == Token::DEFAULT_CHANNEL) {
+			prev_line = tokenEndLine(p);
+			break;
+		}
+	}
+
+	for (size_t i=0; i<cmts.size(); i++) {
+		if ((int32_t)cmts[i]->getLine() == prev_line) {
+			continue;
+		}
+		s->getTrailing_comments().push_back(ast::ICommentUP(mkCommentFor(
+				cmts[i],
+				ast::CommentPlacement::CommentPlacement_Orphan)));
+	}
 }
 
 void AstBuilderInt::attachPendingAnnotations(ast::IScopeChild *c) {
@@ -3915,92 +4252,6 @@ void AstBuilderInt::attachPendingAnnotations(ast::IScopeChild *c) {
         }
         m_pending_annotations.clear();
     }
-}
-
-std::string AstBuilderInt::processDocStringMultiLineComment(
-    		const std::vector<Token *>		&mlc_tokens,
-			const std::vector<Token *>		&ws_tokens) {
-	int32_t last_ws_line = -1;
-	if (ws_tokens.size() > 0) {
-		last_ws_line = ws_tokens.back()->getLine();
-	}
-
-	std::string comment;
-	if (last_ws_line < 0 || last_ws_line < mlc_tokens.back()->getLine()) {
-//		fprintf(stdout, "OK: no whitespace between element and comment\n");
-	} else if (last_ws_line >= 0) {
-//		fprintf(stdout, "TODO: check if whitespace exceeds a limit\n");
-
-		// Find the extent of the comment
-		uint32_t comment_last_line = mlc_tokens.back()->getLine();
-		comment = mlc_tokens.back()->getText();
-		std::string ws = ws_tokens.back()->getText();
-		int32_t i=0;
-		while (i < comment.size() &&
-				(i=comment.find('\n', i)) != std::string::npos) {
-			comment_last_line++;
-			i++;
-		}
-
-		i=0;
-		while (i < comment.size() &&
-				(i=ws.find('\n', i)) != std::string::npos) {
-			last_ws_line++;
-			i++;
-		}
-/*
-		fprintf(stdout, "Comment last line: %d\n", comment_last_line);
-		fprintf(stdout, "Whitespace last line: %d\n", last_ws_line);
- */
-
-		if (last_ws_line <= (comment_last_line+2)) {
-//			fprintf(stdout, "Note: Have a doc comment\n");
-
-			// TODO: now we need to clean up the comment
-			//
-
-			// Trim off the beginning and end of the comment
-			comment = comment.substr(2,comment.size()-4);
-
-//			fprintf(stdout, "Comment: %s\n", comment.c_str());
-			// Step through the lines looking for a '*' prefix
-			i=0;
-			while (i<comment.size()) {
-				if (comment.at(i) == '*') {
-					comment.erase(i, 1);
-//					fprintf(stdout, "Post-remove(1): %s\n", comment.c_str());
-				} else if ((i+1<comment.size()) &&
-						(isspace(comment.at(i)) && comment.at(i+1) == '*')) {
-					comment.erase(i, 2);
-//					fprintf(stdout, "Post-remove(2): %s\n", comment.c_str());
-				}
-				if ((i=comment.find('\n',i)) != std::string::npos) {
-					i++;
-				} else {
-					break;
-				}
-			}
-		} else {
-//			fprintf(stdout, "Note: False alarm\n");
-			comment.clear();
-		}
-	}
-
-	return comment;
-}
-
-std::string AstBuilderInt::processDocStringSingleLineComment(
-    		const std::vector<Token *>		&slc_tokens,
-			const std::vector<Token *>		&ws_tokens) {
-    std::string comment;
-
-    for (std::vector<Token *>::const_iterator
-        it=slc_tokens.begin();
-        it!=slc_tokens.end(); it++) {
-        comment += (*it)->getText().substr(2);
-    }
-
-	return comment;
 }
 
 void AstBuilderInt::push_scope(ast::IScope *s) { 
@@ -5077,6 +5328,24 @@ ast::IScopeChild *AstBuilderInt::mkExecStmt(PSSParser::Procedural_stmtContext *c
         // Null statement
         m_exec_stmt_cnt++;
     }
+
+    // Every procedural statement is built through here, nested bodies
+    // included, so this is the one place a statement's provenance can be
+    // recorded. Neither the location nor the comments were carried before.
+    if (m_exec_stmt) {
+        Token *start = ctx->getStart();
+        if (start && m_exec_stmt->getLocation().lineno < 0) {
+            m_exec_stmt->setLocation({
+                m_file_id,
+                (int32_t)start->getLine(),
+                (int32_t)start->getCharPositionInLine()+1
+            });
+        }
+        if (m_collectDocStrings) {
+            attachComments(m_exec_stmt, start);
+        }
+    }
+
     DEBUG_LEAVE("mkExecStmt %p", m_exec_stmt);
     return m_exec_stmt;
 }

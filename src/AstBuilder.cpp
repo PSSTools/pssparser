@@ -53,6 +53,14 @@ bool AstBuilder::getCollectDocStrings() {
     return m_builder_int->getCollectDocStrings();
 }
 
+void AstBuilder::setCollectComments(bool c) {
+    m_builder_int->setCollectComments(c);
+}
+
+bool AstBuilder::getCollectComments() {
+    return m_builder_int->getCollectComments();
+}
+
 void AstBuilder::setEnableProfile(bool e) {
     m_builder_int->setEnableProfile(e);
 }

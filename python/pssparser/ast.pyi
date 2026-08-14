@@ -9,6 +9,11 @@ class AssignOp(IntEnum):
     AssignOp_OrEq = auto()
     AssignOp_AndEq = auto()
     
+class CommentPlacement(IntEnum):
+    CommentPlacement_Leading = auto()
+    CommentPlacement_Trailing = auto()
+    CommentPlacement_Orphan = auto()
+    
 class ExecKind(IntEnum):
     ExecKind_Body = auto()
     ExecKind_Header = auto()
@@ -140,6 +145,7 @@ class FieldAttr(IntEnum):
     Protected = auto()
     
 class Factory(object):
+    def mkSymbolRefPath(self) -> 'SymbolRefPath': ...
     def mkAssocData(self) -> 'AssocData': ...
     def mkExecTargetTemplateParam(self,
         expr : Expr,
@@ -160,24 +166,23 @@ class Factory(object):
         name : ExprId,
         value : Expr) -> 'ExprAggrStructElem': ...
     def mkRefExpr(self) -> 'RefExpr': ...
-    def mkMonitorActivitySelectBranch(self,
-        guard : Expr,
-        body : ScopeChild) -> 'MonitorActivitySelectBranch': ...
     def mkActivityMatchChoice(self,
         is_default : bool,
         cond : ExprOpenRangeList,
         body : ScopeChild) -> 'ActivityMatchChoice': ...
+    def mkMonitorActivitySelectBranch(self,
+        guard : Expr,
+        body : ScopeChild) -> 'MonitorActivitySelectBranch': ...
     def mkScopeChild(self) -> 'ScopeChild': ...
     def mkActivitySelectBranch(self,
         guard : Expr,
         weight : Expr,
         body : ScopeChild) -> 'ActivitySelectBranch': ...
     def mkSymbolImportSpec(self) -> 'SymbolImportSpec': ...
-    def mkSymbolRefPath(self) -> 'SymbolRefPath': ...
-    def mkGenericConstraintDeclValue(self) -> 'GenericConstraintDeclValue': ...
     def mkActionFieldInitializer(self,
         path : ExprHierarchicalId,
         value : Expr) -> 'ActionFieldInitializer': ...
+    def mkGenericConstraintDeclValue(self) -> 'GenericConstraintDeclValue': ...
     def mkGenericConstraintParam(self,
         name : ExprId,
         is_const : bool,
@@ -188,16 +193,19 @@ class Factory(object):
     def mkMonitorActivityStmt(self) -> 'MonitorActivityStmt': ...
     def mkNamedScopeChild(self,
         name : ExprId) -> 'NamedScopeChild': ...
+    def mkActivitySchedulingConstraint(self,
+        is_parallel : bool) -> 'ActivitySchedulingConstraint': ...
     def mkPackageImportStmt(self,
         wildcard : bool,
         alias : ExprId) -> 'PackageImportStmt': ...
-    def mkActivitySchedulingConstraint(self,
-        is_parallel : bool) -> 'ActivitySchedulingConstraint': ...
     def mkActivityStmt(self) -> 'ActivityStmt': ...
     def mkAnnotation(self,
         type : TypeIdentifier) -> 'Annotation': ...
     def mkAnnotationParam(self,
         value : Expr) -> 'AnnotationParam': ...
+    def mkComment(self,
+        text : str,
+        placement : CommentPlacement) -> 'Comment': ...
     def mkProceduralStmtIfClause(self,
         cond : Expr,
         body : ScopeChild) -> 'ProceduralStmtIfClause': ...
@@ -583,13 +591,16 @@ class Factory(object):
         name : ExprId,
         super_t : TypeIdentifier,
         is_abstract : bool) -> 'Action': ...
+    def mkGenericConstraintDeclBool(self,
+        name : str,
+        is_dynamic : bool) -> 'GenericConstraintDeclBool': ...
     def mkMonitor(self,
         name : ExprId,
         super_t : TypeIdentifier) -> 'Monitor': ...
-    def mkMonitorActivityDecl(self,
-        name : str) -> 'MonitorActivityDecl': ...
     def mkActivityDecl(self,
         name : str) -> 'ActivityDecl': ...
+    def mkMonitorActivityDecl(self,
+        name : str) -> 'MonitorActivityDecl': ...
     def mkActivityLabeledScope(self,
         name : str) -> 'ActivityLabeledScope': ...
     def mkMonitorActivitySchedule(self,
@@ -624,9 +635,6 @@ class Factory(object):
         plist : SymbolScope) -> 'SymbolTypeScope': ...
     def mkExecScope(self,
         name : str) -> 'ExecScope': ...
-    def mkGenericConstraintDeclBool(self,
-        name : str,
-        is_dynamic : bool) -> 'GenericConstraintDeclBool': ...
     def mkProceduralStmtForeach(self,
         name : str,
         body : ScopeChild,
@@ -651,6 +659,14 @@ class Factory(object):
         name : str) -> 'ActivitySequence': ...
     @staticmethod
     def inst() -> 'Factory': ...
+    
+class SymbolRefPath(object):
+    pass
+    
+    def path(self) -> ListUtil...
+        """Returns an iterator over the items"""
+    
+    def getPath(self) -> List[SymbolRefPathElem]: ...
     
 class AssocData(object):
     pass
@@ -706,17 +722,17 @@ class ExprAggrStructElem(object):
 class RefExpr(object):
     pass
     
-class MonitorActivitySelectBranch(object):
-    pass
-    
-    def getGuard(self) -> Expr: ...
-    
-    def getBody(self) -> ScopeChild: ...
-    
 class ActivityMatchChoice(object):
     pass
     
     def getCond(self) -> ExprOpenRangeList: ...
+    
+    def getBody(self) -> ScopeChild: ...
+    
+class MonitorActivitySelectBranch(object):
+    pass
+    
+    def getGuard(self) -> Expr: ...
     
     def getBody(self) -> ScopeChild: ...
     
@@ -738,6 +754,16 @@ class ScopeChild(object):
     
     def getAnnotations(self) -> List[Annotation]: ...
     
+    def comments(self) -> ListUtil...
+        """Returns an iterator over the items"""
+    
+    def getComments(self) -> List[Comment]: ...
+    
+    def trailing_comments(self) -> ListUtil...
+        """Returns an iterator over the items"""
+    
+    def getTrailing_comments(self) -> List[Comment]: ...
+    
 class ActivitySelectBranch(object):
     pass
     
@@ -755,13 +781,19 @@ class SymbolImportSpec(object):
     
     def getImports(self) -> List[PackageImportStmt]: ...
     
-class SymbolRefPath(object):
+class ActionFieldInitializer(ScopeChild):
+    """
+    Single field assignment in a PSS 3.1 action initializer list.
+    
+    Represents entries such as ``.x = 1`` or ``.cfg.mode = FAST`` used in
+    action-handle declarations and action traversal statements.
+    
+    """
     pass
     
-    def path(self) -> ListUtil...
-        """Returns an iterator over the items"""
+    def getPath(self) -> ExprHierarchicalId: ...
     
-    def getPath(self) -> List[SymbolRefPathElem]: ...
+    def getValue(self) -> Expr: ...
     
 class GenericConstraintDeclValue(ScopeChild):
     """
@@ -783,20 +815,6 @@ class GenericConstraintDeclValue(ScopeChild):
     def getParameters(self) -> List[GenericConstraintParam]: ...
     
     def getExpr(self) -> Expr: ...
-    
-class ActionFieldInitializer(ScopeChild):
-    """
-    Single field assignment in a PSS 3.1 action initializer list.
-    
-    Represents entries such as ``.x = 1`` or ``.cfg.mode = FAST`` used in
-    action-handle declarations and action traversal statements.
-    
-    """
-    pass
-    
-    def getPath(self) -> ExprHierarchicalId: ...
-    
-    def getValue(self) -> Expr: ...
     
 class GenericConstraintParam(ScopeChild):
     """
@@ -927,34 +945,6 @@ class NamedScopeChild(ScopeChild):
     
     def getName(self) -> ExprId: ...
     
-class PackageImportStmt(ScopeChild):
-    """
-    Import statement bringing package symbols into current scope.
-    
-    Imports types and declarations from another package. Can import
-    all symbols with wildcard or create an alias for qualified access.
-    
-    PSS Example::
-    
-        import other_pkg::*;              // Wildcard import
-        import other_pkg::MyAction;       // Single import
-        import other_pkg as op;           // Aliased import
-    
-    Attributes:
-        wildcard: True if using wildcard (::*)
-        alias: Optional alias name for the import
-        path: Type identifier for the imported package/symbol
-    
-    See Also:
-        PackageScope, TypeIdentifier
-    
-    """
-    pass
-    
-    def getAlias(self) -> ExprId: ...
-    
-    def getPath(self) -> TypeIdentifier: ...
-    
 class ActivitySchedulingConstraint(ScopeChild):
     """
     Defines ordering constraints between scheduled activities.
@@ -995,6 +985,34 @@ class ActivitySchedulingConstraint(ScopeChild):
         """Returns an iterator over the items"""
     
     def getTargets(self) -> List[ExprHierarchicalId]: ...
+    
+class PackageImportStmt(ScopeChild):
+    """
+    Import statement bringing package symbols into current scope.
+    
+    Imports types and declarations from another package. Can import
+    all symbols with wildcard or create an alias for qualified access.
+    
+    PSS Example::
+    
+        import other_pkg::*;              // Wildcard import
+        import other_pkg::MyAction;       // Single import
+        import other_pkg as op;           // Aliased import
+    
+    Attributes:
+        wildcard: True if using wildcard (::*)
+        alias: Optional alias name for the import
+        path: Type identifier for the imported package/symbol
+    
+    See Also:
+        PackageScope, TypeIdentifier
+    
+    """
+    pass
+    
+    def getAlias(self) -> ExprId: ...
+    
+    def getPath(self) -> TypeIdentifier: ...
     
 class ActivityStmt(ScopeChild):
     """
@@ -1063,6 +1081,38 @@ class AnnotationParam(ScopeChild):
     def getName(self) -> ExprId: ...
     
     def getValue(self) -> Expr: ...
+    
+class Comment(ScopeChild):
+    """
+    A source comment captured verbatim and in normalized form.
+    
+    Collected only when the builder has ``setCollectComments(true)``.
+    Leading and trailing comments hang off the ``comments`` list of the
+    ``ScopeChild`` they document; orphans -- comments a blank line has
+    detached from any construct -- collect in the enclosing
+    ``Scope.trailing_comments``.
+    
+    Attributes:
+        text: normalized content, comment markers and the ``*`` gutter removed
+        raw: the untouched source text, delimiters included
+        is_block: true for ``/* */``, false for ``//``
+        placement: how the comment relates to its owner
+    
+    See Also:
+        ScopeChild.comments, Scope.trailing_comments
+    
+    """
+    pass
+    
+    def getText(self) -> str: ...
+    
+    def setText(self, v : str): ...
+    
+    def setPlacement(self, v : CommentPlacement): ...
+    
+    def getRaw(self) -> str: ...
+    
+    def setRaw(self, v : str): ...
     
 class ProceduralStmtIfClause(ScopeChild):
     """
@@ -6408,6 +6458,21 @@ class Action(TypeScope):
     """
     pass
     
+class GenericConstraintDeclBool(ConstraintBlock):
+    """
+    Boolean generic constraint declaration.
+    
+    Represents a declaration of the form
+    ``[static] constraint name(params) constraint_set``.
+    
+    """
+    pass
+    
+    def parameters(self) -> ListUtil...
+        """Returns an iterator over the items"""
+    
+    def getParameters(self) -> List[GenericConstraintParam]: ...
+    
 class Monitor(TypeScope):
     """
     Declares a PSS 3.0 monitor type for temporal property verification.
@@ -6449,6 +6514,33 @@ class Monitor(TypeScope):
     """
     pass
     
+class ActivityDecl(SymbolScope):
+    """
+    Declares an activity block within an action.
+    
+    ActivityDecl represents the declaration of an activity block that defines
+    the behavioral execution flow of an action. It serves as a symbol scope
+    containing activity statements that specify sequences, parallelism, 
+    scheduling, and control flow.
+    
+    PSS Example::
+    
+        action my_action {
+            activity {
+                do comp1.child_action;
+                do comp2.child_action;
+            }
+        }
+    
+    Attributes:
+        (inherits symbol scope capabilities)
+    
+    See Also:
+        ActivityStmt, Action, SymbolScope
+    
+    """
+    pass
+    
 class MonitorActivityDecl(SymbolScope):
     """
     Declares an activity block within a monitor.
@@ -6486,33 +6578,6 @@ class MonitorActivityDecl(SymbolScope):
     
     See Also:
         MonitorActivityStmt, Monitor, ActivityDecl
-    
-    """
-    pass
-    
-class ActivityDecl(SymbolScope):
-    """
-    Declares an activity block within an action.
-    
-    ActivityDecl represents the declaration of an activity block that defines
-    the behavioral execution flow of an action. It serves as a symbol scope
-    containing activity statements that specify sequences, parallelism, 
-    scheduling, and control flow.
-    
-    PSS Example::
-    
-        action my_action {
-            activity {
-                do comp1.child_action;
-                do comp2.child_action;
-            }
-        }
-    
-    Attributes:
-        (inherits symbol scope capabilities)
-    
-    See Also:
-        ActivityStmt, Action, SymbolScope
     
     """
     pass
@@ -6962,21 +7027,6 @@ class ExecScope(SymbolScope):
     pass
     
     def getEndLocation(self) -> 'Location': ...
-    
-class GenericConstraintDeclBool(ConstraintBlock):
-    """
-    Boolean generic constraint declaration.
-    
-    Represents a declaration of the form
-    ``[static] constraint name(params) constraint_set``.
-    
-    """
-    pass
-    
-    def parameters(self) -> ListUtil...
-        """Returns an iterator over the items"""
-    
-    def getParameters(self) -> List[GenericConstraintParam]: ...
     
 class ProceduralStmtForeach(ProceduralStmtSymbolBodyScope):
     """

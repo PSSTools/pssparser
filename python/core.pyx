@@ -150,6 +150,12 @@ cdef class AstBuilder(object):
     cpdef bool getCollectDocStrings(self):
         return self._hndl.getCollectDocStrings()
 
+    cpdef void setCollectComments(self, bool collect):
+        self._hndl.setCollectComments(collect)
+
+    cpdef bool getCollectComments(self):
+        return self._hndl.getCollectComments()
+
     cpdef void setEnableProfile(self, bool enable):
         self._hndl.setEnableProfile(enable)
 

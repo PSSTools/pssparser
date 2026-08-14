@@ -53,6 +53,10 @@ cdef class AstBuilder(object):
 
     cpdef void setCollectDocStrings(self, bool collect)
 
+    cpdef void setCollectComments(self, bool collect)
+
+    cpdef bool getCollectComments(self)
+
     cpdef bool getCollectDocStrings(self)
 
     cpdef void setEnableProfile(self, bool enable)

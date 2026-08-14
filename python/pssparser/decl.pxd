@@ -90,6 +90,8 @@ cdef extern from "pssp/IAstBuilder.h" namespace "pssp":
         void setMarkerListener(IMarkerListener *)
 
         void setCollectDocStrings(bool)
+        void setCollectComments(bool)
+        bool getCollectComments()
 
         bool getCollectDocStrings()
 

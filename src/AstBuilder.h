@@ -46,6 +46,10 @@ public:
 
     virtual void setCollectDocStrings(bool c) override;
 
+    virtual void setCollectComments(bool c) override;
+
+    virtual bool getCollectComments() override;
+
     virtual bool getCollectDocStrings() override;
 
     virtual void setEnableProfile(bool e) override;

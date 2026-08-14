@@ -34,6 +34,14 @@ public:
 
     virtual void setCollectDocStrings(bool c) = 0;
 
+    /**
+     * Collect every comment, not only the docstring of a declaration.
+     * Implies docstring collection.
+     */
+    virtual void setCollectComments(bool c) = 0;
+
+    virtual bool getCollectComments() = 0;
+
     virtual bool getCollectDocStrings() = 0;
 
     virtual void setEnableProfile(bool e) = 0;

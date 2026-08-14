@@ -57,6 +57,24 @@ public:
         return m_collectDocStrings;
     }
 
+    /**
+     * Collect every comment, not just the docstring of a declaration.
+     *
+     * Populates ScopeChild::comments -- on procedural statements as well as
+     * declarations -- and ScopeChild::trailing_comments. Implies docstring
+     * collection, since the docstring is derived from the same leading run.
+     */
+    virtual void setCollectComments(bool c) {
+        m_collectComments = c;
+        if (c) {
+            m_collectDocStrings = true;
+        }
+    }
+
+    virtual bool getCollectComments() {
+        return m_collectComments;
+    }
+
     virtual void setEnableProfile(bool e) {
         m_enableProfile = e;
     }
@@ -360,6 +378,51 @@ private:
 
     void addDocstring(ast::IScopeChild *c, Token *t);
 
+    /**
+     * Partition the comments around *t* and attach them to *c*.
+     *
+     * Leading comments are the contiguous run ending on the line immediately
+     * above *t*; a blank line cuts the run. A comment sharing a line with the
+     * previous on-channel token belongs to the *previous* construct, so it is
+     * left alone here and picked up by that construct's trailing scan.
+     * Everything else is an orphan and lands on the enclosing scope.
+     *
+     * Also sets the docstring from the leading run, so a builder configured
+     * only for docstrings goes through this same path.
+     */
+    void attachComments(ast::IScopeChild *c, Token *t);
+
+    /**
+     * Claim a comment that starts on *t*'s line, after it, as *c*'s trailing
+     * comment -- the `x = 1; // note` case. Returns its normalized text, which
+     * documents the declaration when no leading comment does.
+     */
+    std::string attachTrailingComment(ast::IScopeChild *c, Token *t);
+
+    /** Give an enum item its location and comments; addChild never sees it. */
+    void attachEnumItemSource(
+        ast::IEnumItem                  *item,
+        PSSParser::Enum_itemContext     *ctx);
+
+    /**
+     * Collect the comments left dangling at the end of *s* -- those after the
+     * scope's last construct and before its closing brace, which no
+     * ScopeChild is in a position to claim.
+     */
+    void collectScopeTrailingComments(ast::IScopeChild *s, Token *end);
+
+    /**
+     * Strip comment delimiters, the `*` gutter of a block comment, and the
+     * common indent. The result is what a consumer emits.
+     */
+    static std::string normalizeComment(const std::string &raw, bool is_block);
+
+    /** Line on which *t* ends -- its start line plus any embedded newlines. */
+    static int32_t tokenEndLine(Token *t);
+
+    /** Build a Comment node for *t*, located and normalized. */
+    ast::IComment *mkCommentFor(Token *t, ast::CommentPlacement placement);
+
     void attachPendingAnnotations(ast::IScopeChild *c);
 
     /**
@@ -447,14 +510,6 @@ private:
     bool evalScopeChildValue(ast::IScopeChild *target, int64_t &val);
 
     bool evalScopeChildValue(ast::IScopeChild *target, std::string &val);
-
-    std::string processDocStringMultiLineComment(
-    		const std::vector<Token *>		&mlc_tokens,
-			const std::vector<Token *>		&ws_tokens);
-
-    std::string processDocStringSingleLineComment(
-    		const std::vector<Token *>		&slc_tokens,
-			const std::vector<Token *>		&ws_tokens);
 
     ast::IScope *scope() const { return m_scopes.back(); }
 
@@ -557,6 +612,9 @@ private:
     static dmgr::IDebug                         *m_dbg;
     int32_t                                     m_file_id;
 	bool										m_collectDocStrings;
+	bool										m_collectComments;
+	/** Start of the enclosing attr_field, for doc-comment lookup. */
+	Token									*m_attr_field_start;
     bool                                        m_enableProfile;
     std::vector<atn::DecisionInfo>              m_profile_decisions;
     IMarkerListener								*m_marker_l;

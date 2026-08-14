@@ -47,6 +47,10 @@ class AssignOp(IntEnum):
     AssignOp_ShrEq = ast_decl.AssignOp.AssignOp_AssignOp_ShrEq
     AssignOp_OrEq = ast_decl.AssignOp.AssignOp_AssignOp_OrEq
     AssignOp_AndEq = ast_decl.AssignOp.AssignOp_AssignOp_AndEq
+class CommentPlacement(IntEnum):
+    CommentPlacement_Leading = ast_decl.CommentPlacement.CommentPlacement_CommentPlacement_Leading
+    CommentPlacement_Trailing = ast_decl.CommentPlacement.CommentPlacement_CommentPlacement_Trailing
+    CommentPlacement_Orphan = ast_decl.CommentPlacement.CommentPlacement_CommentPlacement_Orphan
 class ExecKind(IntEnum):
     ExecKind_Body = ast_decl.ExecKind.ExecKind_ExecKind_Body
     ExecKind_Header = ast_decl.ExecKind.ExecKind_ExecKind_Header
@@ -189,6 +193,9 @@ class FieldAttr(IntEnum):
     Protected = ast_decl.FieldAttr.FieldAttr_Protected
 cdef Factory _inst = None
 cdef class Factory(object):
+    cpdef SymbolRefPath mkSymbolRefPath(self):
+        return SymbolRefPath.mk(self._hndl.mkSymbolRefPath(
+), True)
     cpdef AssocData mkAssocData(self):
         return AssocData.mk(self._hndl.mkAssocData(
 ), True)
@@ -235,12 +242,6 @@ cdef class Factory(object):
     cpdef RefExpr mkRefExpr(self):
         return RefExpr.mk(self._hndl.mkRefExpr(
 ), True)
-    cpdef MonitorActivitySelectBranch mkMonitorActivitySelectBranch(self,
-            Expr guard,
-            ScopeChild body):
-        return MonitorActivitySelectBranch.mk(self._hndl.mkMonitorActivitySelectBranch(
-                guard.asExpr(),
-                body.asScopeChild()), True)
     cpdef ActivityMatchChoice mkActivityMatchChoice(self,
             bool is_default,
             ExprOpenRangeList cond,
@@ -248,6 +249,12 @@ cdef class Factory(object):
         return ActivityMatchChoice.mk(self._hndl.mkActivityMatchChoice(
                 is_default,
                 cond.asExprOpenRangeList(),
+                body.asScopeChild()), True)
+    cpdef MonitorActivitySelectBranch mkMonitorActivitySelectBranch(self,
+            Expr guard,
+            ScopeChild body):
+        return MonitorActivitySelectBranch.mk(self._hndl.mkMonitorActivitySelectBranch(
+                guard.asExpr(),
                 body.asScopeChild()), True)
     cpdef ScopeChild mkScopeChild(self):
         return ScopeChild.mk(self._hndl.mkScopeChild(
@@ -263,18 +270,15 @@ cdef class Factory(object):
     cpdef SymbolImportSpec mkSymbolImportSpec(self):
         return SymbolImportSpec.mk(self._hndl.mkSymbolImportSpec(
 ), True)
-    cpdef SymbolRefPath mkSymbolRefPath(self):
-        return SymbolRefPath.mk(self._hndl.mkSymbolRefPath(
-), True)
-    cpdef GenericConstraintDeclValue mkGenericConstraintDeclValue(self):
-        return GenericConstraintDeclValue.mk(self._hndl.mkGenericConstraintDeclValue(
-), True)
     cpdef ActionFieldInitializer mkActionFieldInitializer(self,
             ExprHierarchicalId path,
             Expr value):
         return ActionFieldInitializer.mk(self._hndl.mkActionFieldInitializer(
                 path.asExprHierarchicalId(),
                 value.asExpr()), True)
+    cpdef GenericConstraintDeclValue mkGenericConstraintDeclValue(self):
+        return GenericConstraintDeclValue.mk(self._hndl.mkGenericConstraintDeclValue(
+), True)
     cpdef GenericConstraintParam mkGenericConstraintParam(self,
             ExprId name,
             bool is_const,
@@ -298,16 +302,16 @@ cdef class Factory(object):
             ExprId name):
         return NamedScopeChild.mk(self._hndl.mkNamedScopeChild(
                 name.asExprId()), True)
+    cpdef ActivitySchedulingConstraint mkActivitySchedulingConstraint(self,
+            bool is_parallel):
+        return ActivitySchedulingConstraint.mk(self._hndl.mkActivitySchedulingConstraint(
+                is_parallel), True)
     cpdef PackageImportStmt mkPackageImportStmt(self,
             bool wildcard,
             ExprId alias):
         return PackageImportStmt.mk(self._hndl.mkPackageImportStmt(
                 wildcard,
                 alias.asExprId()), True)
-    cpdef ActivitySchedulingConstraint mkActivitySchedulingConstraint(self,
-            bool is_parallel):
-        return ActivitySchedulingConstraint.mk(self._hndl.mkActivitySchedulingConstraint(
-                is_parallel), True)
     cpdef ActivityStmt mkActivityStmt(self):
         return ActivityStmt.mk(self._hndl.mkActivityStmt(
 ), True)
@@ -319,6 +323,13 @@ cdef class Factory(object):
             Expr value):
         return AnnotationParam.mk(self._hndl.mkAnnotationParam(
                 value.asExpr()), True)
+    cpdef Comment mkComment(self,
+            str text,
+             placement):
+        cdef int placement_i = int(placement)
+        return Comment.mk(self._hndl.mkComment(
+                text,
+                <ast_decl.CommentPlacement>(placement_i)), True)
     cpdef ProceduralStmtIfClause mkProceduralStmtIfClause(self,
             Expr cond,
             ScopeChild body):
@@ -1142,19 +1153,25 @@ cdef class Factory(object):
                 name.asExprId(),
                 super_t.asTypeIdentifier(),
                 is_abstract), True)
+    cpdef GenericConstraintDeclBool mkGenericConstraintDeclBool(self,
+            str name,
+            bool is_dynamic):
+        return GenericConstraintDeclBool.mk(self._hndl.mkGenericConstraintDeclBool(
+                name,
+                is_dynamic), True)
     cpdef Monitor mkMonitor(self,
             ExprId name,
             TypeIdentifier super_t):
         return Monitor.mk(self._hndl.mkMonitor(
                 name.asExprId(),
                 super_t.asTypeIdentifier()), True)
-    cpdef MonitorActivityDecl mkMonitorActivityDecl(self,
-            str name):
-        return MonitorActivityDecl.mk(self._hndl.mkMonitorActivityDecl(
-                name), True)
     cpdef ActivityDecl mkActivityDecl(self,
             str name):
         return ActivityDecl.mk(self._hndl.mkActivityDecl(
+                name), True)
+    cpdef MonitorActivityDecl mkMonitorActivityDecl(self,
+            str name):
+        return MonitorActivityDecl.mk(self._hndl.mkMonitorActivityDecl(
                 name), True)
     cpdef ActivityLabeledScope mkActivityLabeledScope(self,
             str name):
@@ -1225,12 +1242,6 @@ cdef class Factory(object):
             str name):
         return ExecScope.mk(self._hndl.mkExecScope(
                 name), True)
-    cpdef GenericConstraintDeclBool mkGenericConstraintDeclBool(self,
-            str name,
-            bool is_dynamic):
-        return GenericConstraintDeclBool.mk(self._hndl.mkGenericConstraintDeclBool(
-                name,
-                is_dynamic), True)
     cpdef ProceduralStmtForeach mkProceduralStmtForeach(self,
             str name,
             ScopeChild body,
@@ -1311,6 +1322,41 @@ cdef class Factory(object):
             factory._hndl = hndl
             _inst = factory
         return _inst
+cdef class SymbolRefPath(object):
+    
+    def __dealloc__(self):
+        if self._owned and self._hndl != NULL:
+            del self._hndl
+            self._hndl = NULL
+    
+    cpdef void accept(self, VisitorBase v):
+        self._hndl.accept(v._hndl)
+    
+    cpdef int id(self):
+        return reinterpret_cast[intptr_t](self._hndl)
+    def __hash__(self):
+        return reinterpret_cast[intptr_t](self._hndl)
+    
+    def __eq__(self, o):
+        oh = <SymbolRefPath>(o)
+        return self._hndl == oh._hndl
+    
+    cdef ast_decl.ISymbolRefPath *asSymbolRefPath(self):
+        return dynamic_cast[ast_decl.ISymbolRefPathP](self._hndl)
+    @staticmethod
+    cdef SymbolRefPath mk(ast_decl.ISymbolRefPath *hndl, bool owned):
+        '''Creates a Python wrapper around native class'''
+        ret = SymbolRefPath()
+        ret._hndl = hndl
+        ret._owned = owned
+        return ret
+    
+    def path(self) -> ListUtil:
+        return ListUtil(self.numPath, self.getPath)
+    
+    cpdef int32_t getPyref_idx(self):
+        return dynamic_cast[ast_decl.ISymbolRefPathP](self._hndl).getPyref_idx()
+
 cdef class AssocData(object):
     
     def __dealloc__(self):
@@ -1716,50 +1762,6 @@ cdef class RefExpr(object):
         return ret
     
 
-cdef class MonitorActivitySelectBranch(object):
-    
-    def __dealloc__(self):
-        if self._owned and self._hndl != NULL:
-            del self._hndl
-            self._hndl = NULL
-    
-    cpdef void accept(self, VisitorBase v):
-        self._hndl.accept(v._hndl)
-    
-    cpdef int id(self):
-        return reinterpret_cast[intptr_t](self._hndl)
-    def __hash__(self):
-        return reinterpret_cast[intptr_t](self._hndl)
-    
-    def __eq__(self, o):
-        oh = <MonitorActivitySelectBranch>(o)
-        return self._hndl == oh._hndl
-    
-    cdef ast_decl.IMonitorActivitySelectBranch *asMonitorActivitySelectBranch(self):
-        return dynamic_cast[ast_decl.IMonitorActivitySelectBranchP](self._hndl)
-    @staticmethod
-    cdef MonitorActivitySelectBranch mk(ast_decl.IMonitorActivitySelectBranch *hndl, bool owned):
-        '''Creates a Python wrapper around native class'''
-        ret = MonitorActivitySelectBranch()
-        ret._hndl = hndl
-        ret._owned = owned
-        return ret
-    
-    cpdef Expr getGuard(self):
-        if self.asMonitorActivitySelectBranch().getGuard() == NULL:
-            return None
-        else:
-            of = ObjFactory()
-            self.asMonitorActivitySelectBranch().getGuard().accept(of._hndl)
-            return <Expr>(of._obj)
-    cpdef ScopeChild getBody(self):
-        if self.asMonitorActivitySelectBranch().getBody() == NULL:
-            return None
-        else:
-            of = ObjFactory()
-            self.asMonitorActivitySelectBranch().getBody().accept(of._hndl)
-            return <ScopeChild>(of._obj)
-
 cdef class ActivityMatchChoice(object):
     
     def __dealloc__(self):
@@ -1804,6 +1806,50 @@ cdef class ActivityMatchChoice(object):
         else:
             of = ObjFactory()
             self.asActivityMatchChoice().getBody().accept(of._hndl)
+            return <ScopeChild>(of._obj)
+
+cdef class MonitorActivitySelectBranch(object):
+    
+    def __dealloc__(self):
+        if self._owned and self._hndl != NULL:
+            del self._hndl
+            self._hndl = NULL
+    
+    cpdef void accept(self, VisitorBase v):
+        self._hndl.accept(v._hndl)
+    
+    cpdef int id(self):
+        return reinterpret_cast[intptr_t](self._hndl)
+    def __hash__(self):
+        return reinterpret_cast[intptr_t](self._hndl)
+    
+    def __eq__(self, o):
+        oh = <MonitorActivitySelectBranch>(o)
+        return self._hndl == oh._hndl
+    
+    cdef ast_decl.IMonitorActivitySelectBranch *asMonitorActivitySelectBranch(self):
+        return dynamic_cast[ast_decl.IMonitorActivitySelectBranchP](self._hndl)
+    @staticmethod
+    cdef MonitorActivitySelectBranch mk(ast_decl.IMonitorActivitySelectBranch *hndl, bool owned):
+        '''Creates a Python wrapper around native class'''
+        ret = MonitorActivitySelectBranch()
+        ret._hndl = hndl
+        ret._owned = owned
+        return ret
+    
+    cpdef Expr getGuard(self):
+        if self.asMonitorActivitySelectBranch().getGuard() == NULL:
+            return None
+        else:
+            of = ObjFactory()
+            self.asMonitorActivitySelectBranch().getGuard().accept(of._hndl)
+            return <Expr>(of._obj)
+    cpdef ScopeChild getBody(self):
+        if self.asMonitorActivitySelectBranch().getBody() == NULL:
+            return None
+        else:
+            of = ObjFactory()
+            self.asMonitorActivitySelectBranch().getBody().accept(of._hndl)
             return <ScopeChild>(of._obj)
 
 cdef class ScopeChild(object):
@@ -1880,6 +1926,52 @@ cdef class ScopeChild(object):
         self.asScopeChild().getAnnotations().push_back(ast_decl.IAnnotationUP(i.asAnnotation(), True))
     cpdef numAnnotations(self):
         return self.asScopeChild().getAnnotations().size()
+    def comments(self) -> ListUtil:
+        return ListUtil(self.numComments, self.getComment)
+    
+    cpdef getComments(self):
+        cdef const std_vector[ast_decl.ICommentUP] *__lp = &self.asScopeChild().getComments()
+        cdef ast_decl.IComment *__ep;
+        ret = []
+        of = ObjFactory()
+        for __i in range(__lp.size()):
+            __ep = __lp.at(__i).get()
+            __ep.accept(of._hndl)
+            ret.append(of._obj)
+        return ret
+    cpdef getComment(self, i):
+        cdef ast_decl.IComment *__ep = self.asScopeChild().getComments().at(i).get();
+        of = ObjFactory()
+        __ep.accept(of._hndl)
+        return of._obj
+    cpdef void addComment(self, Comment i):
+        i._owned = False
+        self.asScopeChild().getComments().push_back(ast_decl.ICommentUP(i.asComment(), True))
+    cpdef numComments(self):
+        return self.asScopeChild().getComments().size()
+    def trailing_comments(self) -> ListUtil:
+        return ListUtil(self.numTrailing_comments, self.getTrailing_comment)
+    
+    cpdef getTrailing_comments(self):
+        cdef const std_vector[ast_decl.ICommentUP] *__lp = &self.asScopeChild().getTrailing_comments()
+        cdef ast_decl.IComment *__ep;
+        ret = []
+        of = ObjFactory()
+        for __i in range(__lp.size()):
+            __ep = __lp.at(__i).get()
+            __ep.accept(of._hndl)
+            ret.append(of._obj)
+        return ret
+    cpdef getTrailing_comment(self, i):
+        cdef ast_decl.IComment *__ep = self.asScopeChild().getTrailing_comments().at(i).get();
+        of = ObjFactory()
+        __ep.accept(of._hndl)
+        return of._obj
+    cpdef void addTrailing_comment(self, Comment i):
+        i._owned = False
+        self.asScopeChild().getTrailing_comments().push_back(ast_decl.ICommentUP(i.asComment(), True))
+    cpdef numTrailing_comments(self):
+        return self.asScopeChild().getTrailing_comments().size()
 
 cdef class ActivitySelectBranch(object):
     
@@ -1992,40 +2084,32 @@ cdef class SymbolImportSpec(object):
         dereference(it).second.get().accept(_obj_f._hndl)
         return _obj_f._obj
 
-cdef class SymbolRefPath(object):
+cdef class ActionFieldInitializer(ScopeChild):
     
-    def __dealloc__(self):
-        if self._owned and self._hndl != NULL:
-            del self._hndl
-            self._hndl = NULL
-    
-    cpdef void accept(self, VisitorBase v):
-        self._hndl.accept(v._hndl)
-    
-    cpdef int id(self):
-        return reinterpret_cast[intptr_t](self._hndl)
-    def __hash__(self):
-        return reinterpret_cast[intptr_t](self._hndl)
-    
-    def __eq__(self, o):
-        oh = <SymbolRefPath>(o)
-        return self._hndl == oh._hndl
-    
-    cdef ast_decl.ISymbolRefPath *asSymbolRefPath(self):
-        return dynamic_cast[ast_decl.ISymbolRefPathP](self._hndl)
+    cdef ast_decl.IActionFieldInitializer *asActionFieldInitializer(self):
+        return dynamic_cast[ast_decl.IActionFieldInitializerP](self._hndl)
     @staticmethod
-    cdef SymbolRefPath mk(ast_decl.ISymbolRefPath *hndl, bool owned):
+    cdef ActionFieldInitializer mk(ast_decl.IActionFieldInitializer *hndl, bool owned):
         '''Creates a Python wrapper around native class'''
-        ret = SymbolRefPath()
+        ret = ActionFieldInitializer()
         ret._hndl = hndl
         ret._owned = owned
         return ret
     
-    def path(self) -> ListUtil:
-        return ListUtil(self.numPath, self.getPath)
-    
-    cpdef int32_t getPyref_idx(self):
-        return dynamic_cast[ast_decl.ISymbolRefPathP](self._hndl).getPyref_idx()
+    cpdef ExprHierarchicalId getPath(self):
+        if self.asActionFieldInitializer().getPath() == NULL:
+            return None
+        else:
+            of = ObjFactory()
+            self.asActionFieldInitializer().getPath().accept(of._hndl)
+            return <ExprHierarchicalId>(of._obj)
+    cpdef Expr getValue(self):
+        if self.asActionFieldInitializer().getValue() == NULL:
+            return None
+        else:
+            of = ObjFactory()
+            self.asActionFieldInitializer().getValue().accept(of._hndl)
+            return <Expr>(of._obj)
 
 cdef class GenericConstraintDeclValue(ScopeChild):
     
@@ -2086,33 +2170,6 @@ cdef class GenericConstraintDeclValue(ScopeChild):
         else:
             of = ObjFactory()
             self.asGenericConstraintDeclValue().getExpr().accept(of._hndl)
-            return <Expr>(of._obj)
-
-cdef class ActionFieldInitializer(ScopeChild):
-    
-    cdef ast_decl.IActionFieldInitializer *asActionFieldInitializer(self):
-        return dynamic_cast[ast_decl.IActionFieldInitializerP](self._hndl)
-    @staticmethod
-    cdef ActionFieldInitializer mk(ast_decl.IActionFieldInitializer *hndl, bool owned):
-        '''Creates a Python wrapper around native class'''
-        ret = ActionFieldInitializer()
-        ret._hndl = hndl
-        ret._owned = owned
-        return ret
-    
-    cpdef ExprHierarchicalId getPath(self):
-        if self.asActionFieldInitializer().getPath() == NULL:
-            return None
-        else:
-            of = ObjFactory()
-            self.asActionFieldInitializer().getPath().accept(of._hndl)
-            return <ExprHierarchicalId>(of._obj)
-    cpdef Expr getValue(self):
-        if self.asActionFieldInitializer().getValue() == NULL:
-            return None
-        else:
-            of = ObjFactory()
-            self.asActionFieldInitializer().getValue().accept(of._hndl)
             return <Expr>(of._obj)
 
 cdef class GenericConstraintParam(ScopeChild):
@@ -2228,35 +2285,6 @@ cdef class NamedScopeChild(ScopeChild):
             self.asNamedScopeChild().getName().accept(of._hndl)
             return <ExprId>(of._obj)
 
-cdef class PackageImportStmt(ScopeChild):
-    
-    cdef ast_decl.IPackageImportStmt *asPackageImportStmt(self):
-        return dynamic_cast[ast_decl.IPackageImportStmtP](self._hndl)
-    @staticmethod
-    cdef PackageImportStmt mk(ast_decl.IPackageImportStmt *hndl, bool owned):
-        '''Creates a Python wrapper around native class'''
-        ret = PackageImportStmt()
-        ret._hndl = hndl
-        ret._owned = owned
-        return ret
-    
-    cpdef bool getWildcard(self):
-        return dynamic_cast[ast_decl.IPackageImportStmtP](self._hndl).getWildcard()
-    cpdef ExprId getAlias(self):
-        if self.asPackageImportStmt().getAlias() == NULL:
-            return None
-        else:
-            of = ObjFactory()
-            self.asPackageImportStmt().getAlias().accept(of._hndl)
-            return <ExprId>(of._obj)
-    cpdef TypeIdentifier getPath(self):
-        if self.asPackageImportStmt().getPath() == NULL:
-            return None
-        else:
-            of = ObjFactory()
-            self.asPackageImportStmt().getPath().accept(of._hndl)
-            return <TypeIdentifier>(of._obj)
-
 cdef class ActivitySchedulingConstraint(ScopeChild):
     
     cdef ast_decl.IActivitySchedulingConstraint *asActivitySchedulingConstraint(self):
@@ -2294,6 +2322,35 @@ cdef class ActivitySchedulingConstraint(ScopeChild):
         self.asActivitySchedulingConstraint().getTargets().push_back(ast_decl.IExprHierarchicalIdUP(i.asExprHierarchicalId(), True))
     cpdef numTargets(self):
         return self.asActivitySchedulingConstraint().getTargets().size()
+
+cdef class PackageImportStmt(ScopeChild):
+    
+    cdef ast_decl.IPackageImportStmt *asPackageImportStmt(self):
+        return dynamic_cast[ast_decl.IPackageImportStmtP](self._hndl)
+    @staticmethod
+    cdef PackageImportStmt mk(ast_decl.IPackageImportStmt *hndl, bool owned):
+        '''Creates a Python wrapper around native class'''
+        ret = PackageImportStmt()
+        ret._hndl = hndl
+        ret._owned = owned
+        return ret
+    
+    cpdef bool getWildcard(self):
+        return dynamic_cast[ast_decl.IPackageImportStmtP](self._hndl).getWildcard()
+    cpdef ExprId getAlias(self):
+        if self.asPackageImportStmt().getAlias() == NULL:
+            return None
+        else:
+            of = ObjFactory()
+            self.asPackageImportStmt().getAlias().accept(of._hndl)
+            return <ExprId>(of._obj)
+    cpdef TypeIdentifier getPath(self):
+        if self.asPackageImportStmt().getPath() == NULL:
+            return None
+        else:
+            of = ObjFactory()
+            self.asPackageImportStmt().getPath().accept(of._hndl)
+            return <TypeIdentifier>(of._obj)
 
 cdef class ActivityStmt(ScopeChild):
     
@@ -2377,6 +2434,31 @@ cdef class AnnotationParam(ScopeChild):
             of = ObjFactory()
             self.asAnnotationParam().getValue().accept(of._hndl)
             return <Expr>(of._obj)
+
+cdef class Comment(ScopeChild):
+    
+    cdef ast_decl.IComment *asComment(self):
+        return dynamic_cast[ast_decl.ICommentP](self._hndl)
+    @staticmethod
+    cdef Comment mk(ast_decl.IComment *hndl, bool owned):
+        '''Creates a Python wrapper around native class'''
+        ret = Comment()
+        ret._hndl = hndl
+        ret._owned = owned
+        return ret
+    
+    cpdef str getText(self):
+        return dynamic_cast[ast_decl.ICommentP](self._hndl).getText().decode()
+    cpdef void setText(self, str v):
+        dynamic_cast[ast_decl.ICommentP](self._hndl).setText(v.encode())
+    cpdef  getPlacement(self):
+        return dynamic_cast[ast_decl.ICommentP](self._hndl).getPlacement()
+    cpdef str getRaw(self):
+        return dynamic_cast[ast_decl.ICommentP](self._hndl).getRaw().decode()
+    cpdef void setRaw(self, str v):
+        dynamic_cast[ast_decl.ICommentP](self._hndl).setRaw(v.encode())
+    cpdef bool getIs_block(self):
+        return dynamic_cast[ast_decl.ICommentP](self._hndl).getIs_block()
 
 cdef class ProceduralStmtIfClause(ScopeChild):
     
@@ -6756,6 +6838,44 @@ cdef class Action(TypeScope):
     cpdef bool getIs_override(self):
         return dynamic_cast[ast_decl.IActionP](self._hndl).getIs_override()
 
+cdef class GenericConstraintDeclBool(ConstraintBlock):
+    
+    cdef ast_decl.IGenericConstraintDeclBool *asGenericConstraintDeclBool(self):
+        return dynamic_cast[ast_decl.IGenericConstraintDeclBoolP](self._hndl)
+    @staticmethod
+    cdef GenericConstraintDeclBool mk(ast_decl.IGenericConstraintDeclBool *hndl, bool owned):
+        '''Creates a Python wrapper around native class'''
+        ret = GenericConstraintDeclBool()
+        ret._hndl = hndl
+        ret._owned = owned
+        return ret
+    
+    cpdef bool getIs_static(self):
+        return dynamic_cast[ast_decl.IGenericConstraintDeclBoolP](self._hndl).getIs_static()
+    def parameters(self) -> ListUtil:
+        return ListUtil(self.numParameters, self.getParameter)
+    
+    cpdef getParameters(self):
+        cdef const std_vector[ast_decl.IGenericConstraintParamUP] *__lp = &self.asGenericConstraintDeclBool().getParameters()
+        cdef ast_decl.IGenericConstraintParam *__ep;
+        ret = []
+        of = ObjFactory()
+        for __i in range(__lp.size()):
+            __ep = __lp.at(__i).get()
+            __ep.accept(of._hndl)
+            ret.append(of._obj)
+        return ret
+    cpdef getParameter(self, i):
+        cdef ast_decl.IGenericConstraintParam *__ep = self.asGenericConstraintDeclBool().getParameters().at(i).get();
+        of = ObjFactory()
+        __ep.accept(of._hndl)
+        return of._obj
+    cpdef void addParameter(self, GenericConstraintParam i):
+        i._owned = False
+        self.asGenericConstraintDeclBool().getParameters().push_back(ast_decl.IGenericConstraintParamUP(i.asGenericConstraintParam(), True))
+    cpdef numParameters(self):
+        return self.asGenericConstraintDeclBool().getParameters().size()
+
 cdef class Monitor(TypeScope):
     
     cdef ast_decl.IMonitor *asMonitor(self):
@@ -6771,19 +6891,6 @@ cdef class Monitor(TypeScope):
     cpdef bool getIs_abstract(self):
         return dynamic_cast[ast_decl.IMonitorP](self._hndl).getIs_abstract()
 
-cdef class MonitorActivityDecl(SymbolScope):
-    
-    cdef ast_decl.IMonitorActivityDecl *asMonitorActivityDecl(self):
-        return dynamic_cast[ast_decl.IMonitorActivityDeclP](self._hndl)
-    @staticmethod
-    cdef MonitorActivityDecl mk(ast_decl.IMonitorActivityDecl *hndl, bool owned):
-        '''Creates a Python wrapper around native class'''
-        ret = MonitorActivityDecl()
-        ret._hndl = hndl
-        ret._owned = owned
-        return ret
-    
-
 cdef class ActivityDecl(SymbolScope):
     
     cdef ast_decl.IActivityDecl *asActivityDecl(self):
@@ -6792,6 +6899,19 @@ cdef class ActivityDecl(SymbolScope):
     cdef ActivityDecl mk(ast_decl.IActivityDecl *hndl, bool owned):
         '''Creates a Python wrapper around native class'''
         ret = ActivityDecl()
+        ret._hndl = hndl
+        ret._owned = owned
+        return ret
+    
+
+cdef class MonitorActivityDecl(SymbolScope):
+    
+    cdef ast_decl.IMonitorActivityDecl *asMonitorActivityDecl(self):
+        return dynamic_cast[ast_decl.IMonitorActivityDeclP](self._hndl)
+    @staticmethod
+    cdef MonitorActivityDecl mk(ast_decl.IMonitorActivityDecl *hndl, bool owned):
+        '''Creates a Python wrapper around native class'''
+        ret = MonitorActivityDecl()
         ret._hndl = hndl
         ret._owned = owned
         return ret
@@ -7171,44 +7291,6 @@ cdef class ExecScope(SymbolScope):
     cpdef Location getEndLocation(self):
         return Location.wrap(dynamic_cast[ast_decl.IExecScopeP](self._hndl).getEndLocation())
 
-cdef class GenericConstraintDeclBool(ConstraintBlock):
-    
-    cdef ast_decl.IGenericConstraintDeclBool *asGenericConstraintDeclBool(self):
-        return dynamic_cast[ast_decl.IGenericConstraintDeclBoolP](self._hndl)
-    @staticmethod
-    cdef GenericConstraintDeclBool mk(ast_decl.IGenericConstraintDeclBool *hndl, bool owned):
-        '''Creates a Python wrapper around native class'''
-        ret = GenericConstraintDeclBool()
-        ret._hndl = hndl
-        ret._owned = owned
-        return ret
-    
-    cpdef bool getIs_static(self):
-        return dynamic_cast[ast_decl.IGenericConstraintDeclBoolP](self._hndl).getIs_static()
-    def parameters(self) -> ListUtil:
-        return ListUtil(self.numParameters, self.getParameter)
-    
-    cpdef getParameters(self):
-        cdef const std_vector[ast_decl.IGenericConstraintParamUP] *__lp = &self.asGenericConstraintDeclBool().getParameters()
-        cdef ast_decl.IGenericConstraintParam *__ep;
-        ret = []
-        of = ObjFactory()
-        for __i in range(__lp.size()):
-            __ep = __lp.at(__i).get()
-            __ep.accept(of._hndl)
-            ret.append(of._obj)
-        return ret
-    cpdef getParameter(self, i):
-        cdef ast_decl.IGenericConstraintParam *__ep = self.asGenericConstraintDeclBool().getParameters().at(i).get();
-        of = ObjFactory()
-        __ep.accept(of._hndl)
-        return of._obj
-    cpdef void addParameter(self, GenericConstraintParam i):
-        i._owned = False
-        self.asGenericConstraintDeclBool().getParameters().push_back(ast_decl.IGenericConstraintParamUP(i.asGenericConstraintParam(), True))
-    cpdef numParameters(self):
-        return self.asGenericConstraintDeclBool().getParameters().size()
-
 cdef class ProceduralStmtForeach(ProceduralStmtSymbolBodyScope):
     
     cdef ast_decl.IProceduralStmtForeach *asProceduralStmtForeach(self):
@@ -7342,6 +7424,8 @@ cdef class ActivitySequence(ActivityLabeledScope):
 cdef class VisitorBase(object):
     def __cinit__(self):
         self._hndl = new ast_decl.PyBaseVisitor(<cpy_ref.PyObject*>self)
+    cpdef void visitSymbolRefPath(self, SymbolRefPath i):
+        self._hndl.py_visitSymbolRefPathBase(dynamic_cast[ast_decl.ISymbolRefPathP](i._hndl));
     cpdef void visitAssocData(self, AssocData i):
         self._hndl.py_visitAssocDataBase(dynamic_cast[ast_decl.IAssocDataP](i._hndl));
     cpdef void visitExecTargetTemplateParam(self, ExecTargetTemplateParam i):
@@ -7362,22 +7446,20 @@ cdef class VisitorBase(object):
         self._hndl.py_visitExprAggrStructElemBase(dynamic_cast[ast_decl.IExprAggrStructElemP](i._hndl));
     cpdef void visitRefExpr(self, RefExpr i):
         self._hndl.py_visitRefExprBase(dynamic_cast[ast_decl.IRefExprP](i._hndl));
-    cpdef void visitMonitorActivitySelectBranch(self, MonitorActivitySelectBranch i):
-        self._hndl.py_visitMonitorActivitySelectBranchBase(dynamic_cast[ast_decl.IMonitorActivitySelectBranchP](i._hndl));
     cpdef void visitActivityMatchChoice(self, ActivityMatchChoice i):
         self._hndl.py_visitActivityMatchChoiceBase(dynamic_cast[ast_decl.IActivityMatchChoiceP](i._hndl));
+    cpdef void visitMonitorActivitySelectBranch(self, MonitorActivitySelectBranch i):
+        self._hndl.py_visitMonitorActivitySelectBranchBase(dynamic_cast[ast_decl.IMonitorActivitySelectBranchP](i._hndl));
     cpdef void visitScopeChild(self, ScopeChild i):
         self._hndl.py_visitScopeChildBase(dynamic_cast[ast_decl.IScopeChildP](i._hndl));
     cpdef void visitActivitySelectBranch(self, ActivitySelectBranch i):
         self._hndl.py_visitActivitySelectBranchBase(dynamic_cast[ast_decl.IActivitySelectBranchP](i._hndl));
     cpdef void visitSymbolImportSpec(self, SymbolImportSpec i):
         self._hndl.py_visitSymbolImportSpecBase(dynamic_cast[ast_decl.ISymbolImportSpecP](i._hndl));
-    cpdef void visitSymbolRefPath(self, SymbolRefPath i):
-        self._hndl.py_visitSymbolRefPathBase(dynamic_cast[ast_decl.ISymbolRefPathP](i._hndl));
-    cpdef void visitGenericConstraintDeclValue(self, GenericConstraintDeclValue i):
-        self._hndl.py_visitGenericConstraintDeclValueBase(dynamic_cast[ast_decl.IGenericConstraintDeclValueP](i._hndl));
     cpdef void visitActionFieldInitializer(self, ActionFieldInitializer i):
         self._hndl.py_visitActionFieldInitializerBase(dynamic_cast[ast_decl.IActionFieldInitializerP](i._hndl));
+    cpdef void visitGenericConstraintDeclValue(self, GenericConstraintDeclValue i):
+        self._hndl.py_visitGenericConstraintDeclValueBase(dynamic_cast[ast_decl.IGenericConstraintDeclValueP](i._hndl));
     cpdef void visitGenericConstraintParam(self, GenericConstraintParam i):
         self._hndl.py_visitGenericConstraintParamBase(dynamic_cast[ast_decl.IGenericConstraintParamP](i._hndl));
     cpdef void visitMethodParameterList(self, MethodParameterList i):
@@ -7388,16 +7470,18 @@ cdef class VisitorBase(object):
         self._hndl.py_visitMonitorActivityStmtBase(dynamic_cast[ast_decl.IMonitorActivityStmtP](i._hndl));
     cpdef void visitNamedScopeChild(self, NamedScopeChild i):
         self._hndl.py_visitNamedScopeChildBase(dynamic_cast[ast_decl.INamedScopeChildP](i._hndl));
-    cpdef void visitPackageImportStmt(self, PackageImportStmt i):
-        self._hndl.py_visitPackageImportStmtBase(dynamic_cast[ast_decl.IPackageImportStmtP](i._hndl));
     cpdef void visitActivitySchedulingConstraint(self, ActivitySchedulingConstraint i):
         self._hndl.py_visitActivitySchedulingConstraintBase(dynamic_cast[ast_decl.IActivitySchedulingConstraintP](i._hndl));
+    cpdef void visitPackageImportStmt(self, PackageImportStmt i):
+        self._hndl.py_visitPackageImportStmtBase(dynamic_cast[ast_decl.IPackageImportStmtP](i._hndl));
     cpdef void visitActivityStmt(self, ActivityStmt i):
         self._hndl.py_visitActivityStmtBase(dynamic_cast[ast_decl.IActivityStmtP](i._hndl));
     cpdef void visitAnnotation(self, Annotation i):
         self._hndl.py_visitAnnotationBase(dynamic_cast[ast_decl.IAnnotationP](i._hndl));
     cpdef void visitAnnotationParam(self, AnnotationParam i):
         self._hndl.py_visitAnnotationParamBase(dynamic_cast[ast_decl.IAnnotationParamP](i._hndl));
+    cpdef void visitComment(self, Comment i):
+        self._hndl.py_visitCommentBase(dynamic_cast[ast_decl.ICommentP](i._hndl));
     cpdef void visitProceduralStmtIfClause(self, ProceduralStmtIfClause i):
         self._hndl.py_visitProceduralStmtIfClauseBase(dynamic_cast[ast_decl.IProceduralStmtIfClauseP](i._hndl));
     cpdef void visitComponentBind(self, ComponentBind i):
@@ -7710,12 +7794,14 @@ cdef class VisitorBase(object):
         self._hndl.py_visitExprRefPathSuperBase(dynamic_cast[ast_decl.IExprRefPathSuperP](i._hndl));
     cpdef void visitAction(self, Action i):
         self._hndl.py_visitActionBase(dynamic_cast[ast_decl.IActionP](i._hndl));
+    cpdef void visitGenericConstraintDeclBool(self, GenericConstraintDeclBool i):
+        self._hndl.py_visitGenericConstraintDeclBoolBase(dynamic_cast[ast_decl.IGenericConstraintDeclBoolP](i._hndl));
     cpdef void visitMonitor(self, Monitor i):
         self._hndl.py_visitMonitorBase(dynamic_cast[ast_decl.IMonitorP](i._hndl));
-    cpdef void visitMonitorActivityDecl(self, MonitorActivityDecl i):
-        self._hndl.py_visitMonitorActivityDeclBase(dynamic_cast[ast_decl.IMonitorActivityDeclP](i._hndl));
     cpdef void visitActivityDecl(self, ActivityDecl i):
         self._hndl.py_visitActivityDeclBase(dynamic_cast[ast_decl.IActivityDeclP](i._hndl));
+    cpdef void visitMonitorActivityDecl(self, MonitorActivityDecl i):
+        self._hndl.py_visitMonitorActivityDeclBase(dynamic_cast[ast_decl.IMonitorActivityDeclP](i._hndl));
     cpdef void visitActivityLabeledScope(self, ActivityLabeledScope i):
         self._hndl.py_visitActivityLabeledScopeBase(dynamic_cast[ast_decl.IActivityLabeledScopeP](i._hndl));
     cpdef void visitMonitorActivitySchedule(self, MonitorActivitySchedule i):
@@ -7744,8 +7830,6 @@ cdef class VisitorBase(object):
         self._hndl.py_visitSymbolTypeScopeBase(dynamic_cast[ast_decl.ISymbolTypeScopeP](i._hndl));
     cpdef void visitExecScope(self, ExecScope i):
         self._hndl.py_visitExecScopeBase(dynamic_cast[ast_decl.IExecScopeP](i._hndl));
-    cpdef void visitGenericConstraintDeclBool(self, GenericConstraintDeclBool i):
-        self._hndl.py_visitGenericConstraintDeclBoolBase(dynamic_cast[ast_decl.IGenericConstraintDeclBoolP](i._hndl));
     cpdef void visitProceduralStmtForeach(self, ProceduralStmtForeach i):
         self._hndl.py_visitProceduralStmtForeachBase(dynamic_cast[ast_decl.IProceduralStmtForeachP](i._hndl));
     cpdef void visitExecBlock(self, ExecBlock i):
@@ -7758,6 +7842,8 @@ cdef class VisitorBase(object):
         self._hndl.py_visitActivityScheduleBase(dynamic_cast[ast_decl.IActivityScheduleP](i._hndl));
     cpdef void visitActivitySequence(self, ActivitySequence i):
         self._hndl.py_visitActivitySequenceBase(dynamic_cast[ast_decl.IActivitySequenceP](i._hndl));
+cdef public api ast_call_visitSymbolRefPath(object self, ast_decl.ISymbolRefPath *i) with gil:
+    self.visitSymbolRefPath(SymbolRefPath.mk(i, False))
 cdef public api ast_call_visitAssocData(object self, ast_decl.IAssocData *i) with gil:
     self.visitAssocData(AssocData.mk(i, False))
 cdef public api ast_call_visitExecTargetTemplateParam(object self, ast_decl.IExecTargetTemplateParam *i) with gil:
@@ -7778,22 +7864,20 @@ cdef public api ast_call_visitExprAggrStructElem(object self, ast_decl.IExprAggr
     self.visitExprAggrStructElem(ExprAggrStructElem.mk(i, False))
 cdef public api ast_call_visitRefExpr(object self, ast_decl.IRefExpr *i) with gil:
     self.visitRefExpr(RefExpr.mk(i, False))
-cdef public api ast_call_visitMonitorActivitySelectBranch(object self, ast_decl.IMonitorActivitySelectBranch *i) with gil:
-    self.visitMonitorActivitySelectBranch(MonitorActivitySelectBranch.mk(i, False))
 cdef public api ast_call_visitActivityMatchChoice(object self, ast_decl.IActivityMatchChoice *i) with gil:
     self.visitActivityMatchChoice(ActivityMatchChoice.mk(i, False))
+cdef public api ast_call_visitMonitorActivitySelectBranch(object self, ast_decl.IMonitorActivitySelectBranch *i) with gil:
+    self.visitMonitorActivitySelectBranch(MonitorActivitySelectBranch.mk(i, False))
 cdef public api ast_call_visitScopeChild(object self, ast_decl.IScopeChild *i) with gil:
     self.visitScopeChild(ScopeChild.mk(i, False))
 cdef public api ast_call_visitActivitySelectBranch(object self, ast_decl.IActivitySelectBranch *i) with gil:
     self.visitActivitySelectBranch(ActivitySelectBranch.mk(i, False))
 cdef public api ast_call_visitSymbolImportSpec(object self, ast_decl.ISymbolImportSpec *i) with gil:
     self.visitSymbolImportSpec(SymbolImportSpec.mk(i, False))
-cdef public api ast_call_visitSymbolRefPath(object self, ast_decl.ISymbolRefPath *i) with gil:
-    self.visitSymbolRefPath(SymbolRefPath.mk(i, False))
-cdef public api ast_call_visitGenericConstraintDeclValue(object self, ast_decl.IGenericConstraintDeclValue *i) with gil:
-    self.visitGenericConstraintDeclValue(GenericConstraintDeclValue.mk(i, False))
 cdef public api ast_call_visitActionFieldInitializer(object self, ast_decl.IActionFieldInitializer *i) with gil:
     self.visitActionFieldInitializer(ActionFieldInitializer.mk(i, False))
+cdef public api ast_call_visitGenericConstraintDeclValue(object self, ast_decl.IGenericConstraintDeclValue *i) with gil:
+    self.visitGenericConstraintDeclValue(GenericConstraintDeclValue.mk(i, False))
 cdef public api ast_call_visitGenericConstraintParam(object self, ast_decl.IGenericConstraintParam *i) with gil:
     self.visitGenericConstraintParam(GenericConstraintParam.mk(i, False))
 cdef public api ast_call_visitMethodParameterList(object self, ast_decl.IMethodParameterList *i) with gil:
@@ -7804,16 +7888,18 @@ cdef public api ast_call_visitMonitorActivityStmt(object self, ast_decl.IMonitor
     self.visitMonitorActivityStmt(MonitorActivityStmt.mk(i, False))
 cdef public api ast_call_visitNamedScopeChild(object self, ast_decl.INamedScopeChild *i) with gil:
     self.visitNamedScopeChild(NamedScopeChild.mk(i, False))
-cdef public api ast_call_visitPackageImportStmt(object self, ast_decl.IPackageImportStmt *i) with gil:
-    self.visitPackageImportStmt(PackageImportStmt.mk(i, False))
 cdef public api ast_call_visitActivitySchedulingConstraint(object self, ast_decl.IActivitySchedulingConstraint *i) with gil:
     self.visitActivitySchedulingConstraint(ActivitySchedulingConstraint.mk(i, False))
+cdef public api ast_call_visitPackageImportStmt(object self, ast_decl.IPackageImportStmt *i) with gil:
+    self.visitPackageImportStmt(PackageImportStmt.mk(i, False))
 cdef public api ast_call_visitActivityStmt(object self, ast_decl.IActivityStmt *i) with gil:
     self.visitActivityStmt(ActivityStmt.mk(i, False))
 cdef public api ast_call_visitAnnotation(object self, ast_decl.IAnnotation *i) with gil:
     self.visitAnnotation(Annotation.mk(i, False))
 cdef public api ast_call_visitAnnotationParam(object self, ast_decl.IAnnotationParam *i) with gil:
     self.visitAnnotationParam(AnnotationParam.mk(i, False))
+cdef public api ast_call_visitComment(object self, ast_decl.IComment *i) with gil:
+    self.visitComment(Comment.mk(i, False))
 cdef public api ast_call_visitProceduralStmtIfClause(object self, ast_decl.IProceduralStmtIfClause *i) with gil:
     self.visitProceduralStmtIfClause(ProceduralStmtIfClause.mk(i, False))
 cdef public api ast_call_visitComponentBind(object self, ast_decl.IComponentBind *i) with gil:
@@ -8126,12 +8212,14 @@ cdef public api ast_call_visitExprRefPathSuper(object self, ast_decl.IExprRefPat
     self.visitExprRefPathSuper(ExprRefPathSuper.mk(i, False))
 cdef public api ast_call_visitAction(object self, ast_decl.IAction *i) with gil:
     self.visitAction(Action.mk(i, False))
+cdef public api ast_call_visitGenericConstraintDeclBool(object self, ast_decl.IGenericConstraintDeclBool *i) with gil:
+    self.visitGenericConstraintDeclBool(GenericConstraintDeclBool.mk(i, False))
 cdef public api ast_call_visitMonitor(object self, ast_decl.IMonitor *i) with gil:
     self.visitMonitor(Monitor.mk(i, False))
-cdef public api ast_call_visitMonitorActivityDecl(object self, ast_decl.IMonitorActivityDecl *i) with gil:
-    self.visitMonitorActivityDecl(MonitorActivityDecl.mk(i, False))
 cdef public api ast_call_visitActivityDecl(object self, ast_decl.IActivityDecl *i) with gil:
     self.visitActivityDecl(ActivityDecl.mk(i, False))
+cdef public api ast_call_visitMonitorActivityDecl(object self, ast_decl.IMonitorActivityDecl *i) with gil:
+    self.visitMonitorActivityDecl(MonitorActivityDecl.mk(i, False))
 cdef public api ast_call_visitActivityLabeledScope(object self, ast_decl.IActivityLabeledScope *i) with gil:
     self.visitActivityLabeledScope(ActivityLabeledScope.mk(i, False))
 cdef public api ast_call_visitMonitorActivitySchedule(object self, ast_decl.IMonitorActivitySchedule *i) with gil:
@@ -8160,8 +8248,6 @@ cdef public api ast_call_visitSymbolTypeScope(object self, ast_decl.ISymbolTypeS
     self.visitSymbolTypeScope(SymbolTypeScope.mk(i, False))
 cdef public api ast_call_visitExecScope(object self, ast_decl.IExecScope *i) with gil:
     self.visitExecScope(ExecScope.mk(i, False))
-cdef public api ast_call_visitGenericConstraintDeclBool(object self, ast_decl.IGenericConstraintDeclBool *i) with gil:
-    self.visitGenericConstraintDeclBool(GenericConstraintDeclBool.mk(i, False))
 cdef public api ast_call_visitProceduralStmtForeach(object self, ast_decl.IProceduralStmtForeach *i) with gil:
     self.visitProceduralStmtForeach(ProceduralStmtForeach.mk(i, False))
 cdef public api ast_call_visitExecBlock(object self, ast_decl.IExecBlock *i) with gil:
@@ -8179,6 +8265,8 @@ cdef class ObjFactory(VisitorBase):
         super().__init__()
         self._obj = None
         self._obj_owned = False
+    cpdef void visitSymbolRefPath(self, SymbolRefPath i):
+        self._obj = i
     cpdef void visitAssocData(self, AssocData i):
         self._obj = i
     cpdef void visitExecTargetTemplateParam(self, ExecTargetTemplateParam i):
@@ -8199,9 +8287,9 @@ cdef class ObjFactory(VisitorBase):
         self._obj = i
     cpdef void visitRefExpr(self, RefExpr i):
         self._obj = i
-    cpdef void visitMonitorActivitySelectBranch(self, MonitorActivitySelectBranch i):
-        self._obj = i
     cpdef void visitActivityMatchChoice(self, ActivityMatchChoice i):
+        self._obj = i
+    cpdef void visitMonitorActivitySelectBranch(self, MonitorActivitySelectBranch i):
         self._obj = i
     cpdef void visitScopeChild(self, ScopeChild i):
         self._obj = i
@@ -8209,11 +8297,9 @@ cdef class ObjFactory(VisitorBase):
         self._obj = i
     cpdef void visitSymbolImportSpec(self, SymbolImportSpec i):
         self._obj = i
-    cpdef void visitSymbolRefPath(self, SymbolRefPath i):
+    cpdef void visitActionFieldInitializer(self, ActionFieldInitializer i):
         self._obj = i
     cpdef void visitGenericConstraintDeclValue(self, GenericConstraintDeclValue i):
-        self._obj = i
-    cpdef void visitActionFieldInitializer(self, ActionFieldInitializer i):
         self._obj = i
     cpdef void visitGenericConstraintParam(self, GenericConstraintParam i):
         self._obj = i
@@ -8225,15 +8311,17 @@ cdef class ObjFactory(VisitorBase):
         self._obj = i
     cpdef void visitNamedScopeChild(self, NamedScopeChild i):
         self._obj = i
-    cpdef void visitPackageImportStmt(self, PackageImportStmt i):
-        self._obj = i
     cpdef void visitActivitySchedulingConstraint(self, ActivitySchedulingConstraint i):
+        self._obj = i
+    cpdef void visitPackageImportStmt(self, PackageImportStmt i):
         self._obj = i
     cpdef void visitActivityStmt(self, ActivityStmt i):
         self._obj = i
     cpdef void visitAnnotation(self, Annotation i):
         self._obj = i
     cpdef void visitAnnotationParam(self, AnnotationParam i):
+        self._obj = i
+    cpdef void visitComment(self, Comment i):
         self._obj = i
     cpdef void visitProceduralStmtIfClause(self, ProceduralStmtIfClause i):
         self._obj = i
@@ -8547,11 +8635,13 @@ cdef class ObjFactory(VisitorBase):
         self._obj = i
     cpdef void visitAction(self, Action i):
         self._obj = i
+    cpdef void visitGenericConstraintDeclBool(self, GenericConstraintDeclBool i):
+        self._obj = i
     cpdef void visitMonitor(self, Monitor i):
         self._obj = i
-    cpdef void visitMonitorActivityDecl(self, MonitorActivityDecl i):
-        self._obj = i
     cpdef void visitActivityDecl(self, ActivityDecl i):
+        self._obj = i
+    cpdef void visitMonitorActivityDecl(self, MonitorActivityDecl i):
         self._obj = i
     cpdef void visitActivityLabeledScope(self, ActivityLabeledScope i):
         self._obj = i
@@ -8580,8 +8670,6 @@ cdef class ObjFactory(VisitorBase):
     cpdef void visitSymbolTypeScope(self, SymbolTypeScope i):
         self._obj = i
     cpdef void visitExecScope(self, ExecScope i):
-        self._obj = i
-    cpdef void visitGenericConstraintDeclBool(self, GenericConstraintDeclBool i):
         self._obj = i
     cpdef void visitProceduralStmtForeach(self, ProceduralStmtForeach i):
         self._obj = i
