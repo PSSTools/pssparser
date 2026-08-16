@@ -14,6 +14,12 @@ ExternalProject_Add(GTEST
           -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_BINARY_DIR}/gtest
 	  -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
 	  -DBUILD_SHARED_LIBS:BOOL=${BUILD_SHARED_LIBS}
+	  # gtest in particular must match: a sanitizer changes what the test
+	  # main and the code under test agree about, and a gtest built without
+	  # the flags the tests were built with is an ODR violation waiting to
+	  # be reported as a bug in the tests.
+	  "-DCMAKE_CXX_FLAGS:STRING=${CMAKE_CXX_FLAGS}"
+	  ${FORWARDED_BUILD_ARGS}
     )
 
 set(CMAKE_INSTALL_RPATH $ORIGIN/../lib)

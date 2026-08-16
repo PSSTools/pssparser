@@ -57,6 +57,7 @@ TaskFindPathElem::Result TaskFindPathElem::find(
 
     m_id = id;
     m_super_depth = 0;
+    m_super_chain.clear();
     src->accept(m_this);
 
     DEBUG_LEAVE("find: sym=%p idx=%d super_idx=%d", 
@@ -106,12 +107,23 @@ void TaskFindPathElem::visitTypeScope(ast::ITypeScope *i) {
         // An unresolvable super-type yields a null scope. Walking it would
         // fault; the caller reports the failure to find the element, and the
         // unresolved base type is diagnosed where it is declared.
-        if (c) {
+        //
+        // A base already on the chain means the inheritance graph has a ring
+        // in it. Stop rather than go round again: everything reachable from
+        // the second visit was reachable from the first, so the search result
+        // is the same and the recursion is not. The ring itself is reported
+        // by TaskCheckTypeCycles -- reporting it a second time here, once per
+        // failed lookup, would bury it.
+        if (c && m_super_chain.insert(c).second) {
             m_super_depth++;
             DEBUG_ENTER("search super scope (%d)", m_super_depth);
             c->accept(m_this);
             DEBUG_LEAVE("search super scope (%d)", m_super_depth);
             m_super_depth--;
+            m_super_chain.erase(c);
+        } else if (c) {
+            DEBUG("super-type of %s is already on the chain (cycle); ending search",
+                i->getName()->getId().c_str());
         } else {
             DEBUG("super-type of %s did not resolve; ending search",
                 i->getName()->getId().c_str());

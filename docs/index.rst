@@ -52,6 +52,7 @@ Key Features
    ast_structure
    ast_usage_guide
    ast_class_hierarchy
+   sanitizers
 
 .. toctree::
    :maxdepth: 2

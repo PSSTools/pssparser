@@ -271,3 +271,153 @@ def test_prev_reference_does_not_abort():
     (exit 134).  An internal invariant must never terminate the CLI.
     """
     assert_no_crash(PREV_CONSTRAINT, description="prev in a state constraint")
+
+
+# ---------------------------------------------------------------------------
+# Cyclic inheritance -- a ring in the super-type graph
+#
+# Every case below overflowed the stack, in TaskFindPathElem's member search:
+# it walks from a type to its base until it finds the name or runs out of
+# bases, and a ring means it never runs out.
+#
+# Two properties make this worth a block of its own rather than one test.
+#
+# It is the FAILING lookup that crashes. A lookup that hits stops at the scope
+# holding the name, so `x.a` was fine and `x.nope` was a segfault -- the bug
+# was reachable only by a typo, which is why a cyclic model could sit in a
+# suite looking healthy.
+#
+# And the cycle itself was accepted in silence. With no lookup through it at
+# all, a model containing one linked with `0 errors`, so the illegal input was
+# never rejected, only occasionally fatal. TaskCheckTypeCycles reports it now;
+# the walkers carry loop guards so that they terminate even if it does not.
+# ---------------------------------------------------------------------------
+
+SELF_INHERIT = """
+struct S : S { int a; };
+component pss_top { S x; }
+"""
+
+MUTUAL_INHERIT = """
+struct A : B { int a; };
+struct B : A { int b; };
+component pss_top { A x; }
+"""
+
+MUTUAL_INHERIT_MISS = """
+struct A : B { int a; };
+struct B : A { int b; };
+component pss_top {
+    A x;
+    exec init_down { x.nope = 1; }
+}
+"""
+
+MUTUAL_INHERIT_HIT = """
+struct A : B { int a; };
+struct B : A { int b; };
+component pss_top {
+    A x;
+    exec init_down { x.a = 1; }
+}
+"""
+
+THREE_CYCLE_MISS = """
+struct A : C { };
+struct B : A { };
+struct C : B { };
+component pss_top {
+    A x;
+    exec init_down { x.nope = 1; }
+}
+"""
+
+COMPONENT_CYCLE_MISS = """
+component C : D { }
+component D : C { }
+component pss_top {
+    C c;
+    exec init_down { c.nope = 1; }
+}
+"""
+
+ACTION_CYCLE_MISS = """
+component pss_top {
+    action A : B { }
+    action B : A { }
+    action C { A a; constraint { a.nope == 1; } }
+}
+"""
+
+TYPEDEF_CYCLE_MISS = """
+typedef A B;
+typedef B A;
+component pss_top {
+    A x;
+    exec init_down { x.nope = 1; }
+}
+"""
+
+
+def test_self_inheritance_is_rejected():
+    assert_rejects(SELF_INHERIT, "cyclic inheritance: 'S' -> 'S'")
+
+
+def test_mutual_inheritance_is_rejected():
+    """Rejected on the declaration alone -- no lookup needed to provoke it."""
+    assert_rejects(MUTUAL_INHERIT, "cyclic inheritance: 'A' -> 'B' -> 'A'")
+
+
+def test_mutual_inheritance_is_reported_once():
+    """One ring is one mistake.
+
+    Both A and B start a walk that closes the same ring; naming it from each
+    end says nothing extra and trains the reader to skim.
+    """
+    res = assert_rejects(MUTUAL_INHERIT)
+    assert res.output.count("cyclic inheritance") == 1, res.describe()
+
+
+def test_three_type_cycle_names_the_whole_loop():
+    """The message has to name the loop, or the user has to find it.
+
+    Order follows the inheritance edges from the reported type, so the text
+    is a path the reader can check against the source.
+    """
+    assert_rejects(THREE_CYCLE_MISS, "cyclic inheritance: 'A' -> 'C' -> 'B' -> 'A'")
+
+
+def test_failing_lookup_through_a_cycle_does_not_crash():
+    """The original crash: the search goes round the ring looking for `nope`."""
+    assert_no_crash(MUTUAL_INHERIT_MISS, description="failed lookup through an inheritance cycle")
+
+
+def test_succeeding_lookup_through_a_cycle_does_not_crash():
+    """The control. This shape always worked -- the search stops at `a`.
+
+    Pinned because it is what made the crash look intermittent, so a future
+    guard that breaks the hit path would otherwise look like a fix.
+    """
+    assert_no_crash(MUTUAL_INHERIT_HIT, description="successful lookup through an inheritance cycle")
+
+
+def test_component_inheritance_cycle_does_not_crash():
+    assert_rejects(COMPONENT_CYCLE_MISS, "cyclic inheritance: 'C' -> 'D' -> 'C'")
+
+
+def test_action_inheritance_cycle_does_not_crash():
+    assert_rejects(ACTION_CYCLE_MISS, "cyclic inheritance: 'A' -> 'B' -> 'A'")
+
+
+def test_typedef_cycle_does_not_crash():
+    """A second, independent ring: the typedef alias chain.
+
+    Overflowed the stack in TaskGetElemSymbolScope::visitDataTypeUserDefined,
+    which follows an alias to its target with nothing bounding the walk. The
+    guard there stops it. Deliberately asserted as "does not crash" and not as
+    a diagnostic: TaskCheckTypeCycles checks the *inheritance* graph, so this
+    input is reported only through its consequences. Tighten this to
+    assert_rejects with a cyclic-typedef message when that check grows an
+    alias arm.
+    """
+    assert_no_crash(TYPEDEF_CYCLE_MISS, description="typedef alias cycle")

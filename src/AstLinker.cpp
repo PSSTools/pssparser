@@ -37,6 +37,7 @@
 #include "TaskResolveRefs.h"
 #include "TaskResolveSuperTypes.h"
 #include "TaskCheckRefsResolved.h"
+#include "TaskCheckTypeCycles.h"
 #include "TaskResolveOverrideActions.h"
 
 
@@ -117,6 +118,15 @@ ast::IRootSymbolScope *AstLinker::link(
     // the ordinary rules. Separate from the pass above because walking more
     // than one level up needs every component's super type already resolved.
     TaskResolveOverrideActions(&ctxt).resolve(symtree);
+
+    // Between the two on purpose. Super-type references are bound above, so
+    // the inheritance graph is readable; TaskResolveRefs below is the pass
+    // that walks it, and a ring in it used to take the member search round
+    // forever on the first failed lookup. The walkers carry loop guards now,
+    // so this does not run for safety -- it runs so the user is told which
+    // types form the ring instead of being left with the unresolved-member
+    // errors that follow from it. See TaskCheckTypeCycles.h.
+    TaskCheckTypeCycles(&ctxt).check(symtree);
 
     TaskResolveRefs(&ctxt).resolve(symtree);
     uint64_t resolve_e = time_ms();

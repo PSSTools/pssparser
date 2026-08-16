@@ -19,6 +19,7 @@
  *     Author: 
  */
 #pragma once
+#include <set>
 #include "dmgr/IDebugMgr.h"
 #include "dmgr/impl/DebugMacros.h"
 #include "pssp/ast/impl/VisitorBase.h"
@@ -41,6 +42,10 @@ public:
 
     ast::ISymbolScope *resolve(ast::IScopeChild *c) {
         m_ret = 0;
+        // Each resolve() is an independent walk, so the loop guard starts
+        // empty here rather than persisting across calls -- visiting the same
+        // type twice in two separate queries is normal.
+        m_visiting.clear();
         // Null is a normal answer from the callers' side -- resolvePath()
         // returns it for a path that runs off the end of a scope, which
         // happens whenever a type did not resolve. Every call site passed it
@@ -133,8 +138,14 @@ public:
 
             // This could be an indirect reference (eg via a parameter). Delegate
             // resolution to support further refinement
-            if (c) {
+            //
+            // `enter()` is what stops `typedef A B; typedef B A;`: the alias
+            // chain is a user-declared edge, so it can be a cycle, and this
+            // walk follows it with no other bound. See the class note on
+            // m_visiting.
+            if (c && enter(c)) {
                 c->accept(m_this);
+                leave(c);
             }
         }
         DEBUG_LEAVE("visitDataTypeUserDefined");
@@ -145,8 +156,12 @@ public:
         ast::IScopeChild *c = m_path_resolver.resolve(i->getTarget());
         // This could be an indirect reference (eg via a parameter). Delegate
         // resolution to support further refinement
-        if (c) {
+        //
+        // Guarded for the same reason as visitDataTypeUserDefined: this
+        // follows a reference the user wrote, so it can close a loop.
+        if (c && enter(c)) {
             c->accept(m_this);
+            leave(c);
         }
         DEBUG_LEAVE("visitTypeIdentifier");
     }
@@ -227,9 +242,40 @@ public:
     }
 
 protected:
-    dmgr::IDebug                *m_dbg;
-    TaskResolveSymbolPathRef    m_path_resolver;
-    ast::ISymbolScope           *m_ret;
+    /**
+     * Loop guard for the walk.
+     *
+     * Most of the edges this visitor follows are structural -- a field to its
+     * type, a parameter to its declaration -- and a tree cannot loop. The
+     * exception is every edge that follows a *reference the user wrote*: a
+     * type identifier, a typedef alias, a template argument binding. Those
+     * form a graph, and the user is free to make it cyclic.
+     *
+     * `typedef A B; typedef B A;` is the smallest case, and it is legal input
+     * as far as this visitor is concerned -- it is not this file's job to
+     * reject it (TaskCheckTypeCycles does that, with a diagnostic that names
+     * the loop). It IS this file's job not to recurse forever if it is handed
+     * one, because a walker that terminates only on well-formed input is a
+     * walker that turns a user's typo into a stack overflow with no
+     * diagnostic at all.
+     *
+     * Stopping at an already-visited node is right rather than merely safe:
+     * anything reachable through the second visit was reachable through the
+     * first, so the answer is unchanged.
+     */
+    bool enter(ast::IScopeChild *c) {
+        return m_visiting.insert(c).second;
+    }
+
+    void leave(ast::IScopeChild *c) {
+        m_visiting.erase(c);
+    }
+
+protected:
+    dmgr::IDebug                        *m_dbg;
+    TaskResolveSymbolPathRef            m_path_resolver;
+    ast::ISymbolScope                   *m_ret;
+    std::set<ast::IScopeChild *>        m_visiting;
 
 };
 
