@@ -6,6 +6,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+import pytest
+
 from test_helpers import parse_pss, get_symbol, assert_parse_error
 
 
@@ -293,3 +295,45 @@ def test_compile_if_enum_item_expression():
     comp = get_symbol(root, "C")
     assert comp is not None
     assert get_symbol(comp, "Enabled") is not None
+
+
+# -- literal forms in a compile-time condition (P1-G1c) -----------------------
+#
+# Compile-time evaluation used to have a literal reader of its own, and it
+# disagreed with the one the AST is built from: it read `8'hFF` as 8 (strtoll
+# stops at the quote) and `0b1010` as 0 (the leading `0` routed it to the octal
+# branch). Nothing reported it -- the condition just evaluated false and the
+# wrong branch was elaborated.
+#
+# Both now go through `parseIntegerLiteral`. Every form B.19 spells is listed
+# here, because the failure mode of having two readers is precisely that one of
+# them is missing a form nobody thought to check.
+
+@pytest.mark.parametrize("cond", [
+    "255 == 255",
+    "1_000 == 1000",
+    "0xFF == 255",
+    "0XFF == 255",
+    "0777 == 511",
+    "0b1010 == 10",
+    "0B1010 == 10",
+    "8'hFF == 255",
+    "8'd99 == 99",
+    "4'b1010 == 10",
+    "8'o777 == 511",
+    "'hFF == 255",
+    "8'hF_F == 255",
+    "1_6'hFF == 255",
+])
+def test_compile_if_reads_a_literal_condition(cond):
+    pss = """
+    component C {
+        compile if (%s) {
+            action Yes { }
+        } else {
+            action No { }
+        }
+    }
+    """ % cond
+    comp = get_symbol(parse_pss(pss), "C")
+    assert get_symbol(comp, "Yes") is not None, "%r took the else branch" % cond

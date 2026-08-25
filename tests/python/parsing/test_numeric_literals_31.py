@@ -184,20 +184,79 @@ def test_decimal_literal_value(literal, expected):
 ])
 def test_based_literal_value(literal, expected):
     """Based literals share the digit-separator handling being changed here."""
-    # Image is checked separately below -- sized forms currently lose their
-    # width prefix.
-    assert_literal_value(literal, expected, check_image=False)
+    assert_literal_value(literal, expected)
 
 
-@pytest.mark.parametrize("literal", ["8'hFF", "4'b1010", "16'd99"])
-@pytest.mark.xfail(strict=True, reason=(
-    "P1-G1 follow-up: AstBuilderInt::visitNumber sets the literal image from "
-    "the BASED_*_LITERAL token alone, dropping the width prefix, so a sized "
-    "based literal reconstructs as \"'hFF\" rather than \"8'hFF\". Value and "
-    "width are correct; only the source image is lossy."))
+# -- the size prefix is part of the literal (P1-G1a) --------------------------
+#
+# The size is a token of its own -- `8` on its own is an ordinary DEC_LITERAL,
+# and the based literal token starts at the quote -- so building the image from
+# the based literal alone dropped it, and `8'hFF` reconstructed as `'hFF`. Value
+# and width were right the whole time, so nothing but a source-reconstructing
+# consumer could see it.
+
+@pytest.mark.parametrize("literal", [
+    "8'hFF", "4'b1010", "16'd99", "8'o777",
+    "8'shFF", "4'sb1010",            # the signed forms keep their `s` too
+    "8'hF_F",                        # separators survive in the digits...
+    "1_6'hFF",                       # ...and in the size
+])
 def test_sized_based_literal_keeps_full_image(literal):
+    assert _literal_node(literal).getImage() == literal
+
+
+@pytest.mark.parametrize("literal,width", [
+    ("1_6'hFF", 16),
+    ("3_2'hFF", 32),
+])
+def test_a_separator_in_the_size_does_not_change_the_width(literal, width):
+    """
+    B.19 allows `_` anywhere after the first digit, the size included. strtoul
+    stops at the separator, so `1_6'hFF` used to come out 1 bit wide.
+    """
+    assert _literal_node(literal).getWidth() == width
+
+
+@pytest.mark.parametrize("literal,width", [
+    ("8'shFF", 8),
+    ("8'sd99", 8),
+    ("4'sb1010", 4),
+])
+def test_signed_based_literal_is_signed(literal, width):
+    """
+    The `s` sits between the quote and the base letter, ahead of the digits, so
+    it has to be stepped over to find them -- get that wrong and the first digit
+    is dropped or the `s` is fed to the conversion.
+
+    Only the signedness and the width are asserted. What `getValue()` should
+    return for a negative bit pattern is an open question -- see known-issues
+    P1-G1b -- and pinning today's answer here would cement it.
+    """
     node = _literal_node(literal)
-    assert node.getImage() == literal
+    assert type(node).__name__ == "ExprSignedNumber"
+    assert node.getWidth() == width
+
+
+@pytest.mark.parametrize("literal,expected", [
+    ("8'sd99", 99),
+    ("4'sb0101", 5),
+])
+def test_signed_based_literal_value_when_positive(literal, expected):
+    """Below the sign bit there is no question of what the value is."""
+    assert _literal_node(literal).getValue() == expected
+
+
+def test_a_size_may_be_separated_from_its_base():
+    """
+    `16 'hFF` is two tokens with whitespace between, and the image is rebuilt
+    from the tokens, so it comes back closed up. That is a normalization, not
+    the loss P1-G1a was about: the size is still there and the result re-parses
+    to the same literal.
+    """
+    node = _literal_node("16 'hFF")
+    assert node.getImage() == "16'hFF"
+    assert node.getWidth() == 16
+    assert node.getValue() == 255
 
 
 @pytest.mark.parametrize("literal,expected", [

@@ -3556,140 +3556,118 @@ antlrcpp::Any AstBuilderInt::visitType_identifier(PSSParser::Type_identifierCont
 
 // B.19 Numbers
 
+/**
+ * A copy of `s` with the `_` digit separators removed.
+ *
+ * B.19 allows the separator anywhere after the first digit, in every base and
+ * in the size prefix as well. None of the conversion routines understand it, so
+ * it is stripped for them -- never from the image, which is the source
+ * spelling.
+ */
+static std::string stripSeparators(const std::string &s, uint32_t off=0) {
+	std::string ret;
+	for (uint32_t i=off; i<s.size(); i++) {
+		if (s.at(i) != '_') {
+			ret.push_back(s.at(i));
+		}
+	}
+	return ret;
+}
+
+/**
+ * Read an integer literal -- every form B.19 spells -- from its source text.
+ *
+ * Text rather than tokens, because there are two callers and only one of them
+ * has tokens to offer: `evalExpression` walks the parse tree. Nothing is lost
+ * by meeting there. A number's `getText()` is its tokens concatenated, and the
+ * only thing that can sit between them is whitespace (`16 'hFF`), which is not
+ * part of any token either.
+ *
+ * There were two readers before this, and the second one silently disagreed
+ * with the first: it read `8'hFF` as 8 and `0b1010` as 0, so a `compile if`
+ * written with either quietly took the wrong branch (P1-G1c). The way to not
+ * have that happen again is to have one reader.
+ *
+ * Returns false only for text no lexer rule can produce.
+ */
+static bool parseIntegerLiteral(
+		const std::string   &text,
+		int32_t             &width,
+		uint64_t            &value,
+		bool                &is_signed) {
+	width = 32;
+	value = 0;
+	is_signed = false;
+
+	std::string::size_type q = text.find('\'');
+
+	if (q != std::string::npos) {
+		// `[ size ] ' [s] base digits`. The size is a separate token (B.19
+		// spells the halves separately, and `8` alone is an ordinary
+		// DEC_LITERAL); absent, the literal keeps the default width.
+		if (q > 0) {
+			width = (int32_t)strtoul(
+				stripSeparators(text.substr(0, q)).c_str(), 0, 10);
+		}
+
+		uint32_t i = (uint32_t)q+1;
+
+		if (i < text.size() && (text[i] == 's' || text[i] == 'S')) {
+			is_signed = true;
+			i++;
+		}
+
+		if (i >= text.size()) {
+			return false;
+		}
+
+		int32_t radix;
+		switch (text[i]) {
+			case 'h': case 'H': radix = 16; break;
+			case 'd': case 'D': radix = 10; break;
+			case 'o': case 'O': radix = 8; break;
+			case 'b': case 'B': radix = 2; break;
+			default: return false;
+		}
+
+		value = strtoull(stripSeparators(text, i+1).c_str(), 0, radix);
+		return true;
+	}
+
+	// Unbased. The prefix picks the base, and a lone leading `0` is octal --
+	// so the `0` of `0b1010` has to be tested for `b` before it is taken as
+	// one, which is the half of this the second reader got wrong.
+	uint32_t off = 0;
+	int32_t radix = 10;
+
+	if (text.size() > 2 && text[0] == '0' && (text[1] == 'x' || text[1] == 'X')) {
+		radix = 16;
+		off = 2;
+	} else if (text.size() > 2 && text[0] == '0' && (text[1] == 'b' || text[1] == 'B')) {
+		radix = 2;
+		off = 2;
+	} else if (text.size() > 1 && text[0] == '0') {
+		radix = 8;
+		off = 1;
+	}
+
+	value = strtoull(stripSeparators(text, off).c_str(), 0, radix);
+	return true;
+}
+
 antlrcpp::Any AstBuilderInt::visitNumber(PSSParser::NumberContext *ctx_t) {
 	DEBUG_ENTER("visitNumber %s", ctx_t->getText().c_str());
     if (ctx_t->integer_number()) {
-        PSSParser::Integer_numberContext *ctx = ctx_t->integer_number();
+        // The image is the source spelling, and the source spelling is the
+        // tokens: which of the eight `integer_number` alternatives matched is
+        // exactly what `parseIntegerLiteral` recovers from the text, so there
+        // is nothing to gain by asking here as well.
+        std::string img = ctx_t->integer_number()->getText();
         uint64_t value;
-        bool is_signed = false;
-        int32_t width = 32;
-        std::string img;
-        if (ctx->based_hex_number()) {
-            DEBUG("Based hex number");
-            if (ctx->based_hex_number()->DEC_LITERAL()) {
-                // Explicit width
-                width = strtoul(
-                    ctx->based_hex_number()->DEC_LITERAL()->getSymbol()->getText().c_str(), 0, 10);
-            }
-            img = ctx->based_hex_number()->BASED_HEX_LITERAL()->getSymbol()->getText();
-            std::string val_t;
-            is_signed = (img[1] == 's' || img[1] == 'S');
+        bool is_signed;
+        int32_t width;
 
-            for (uint32_t i=2+is_signed; i<img.size(); i++) {
-                if (img.at(i) != '_') {
-                    val_t.push_back(img.at(i));
-                }
-            }
-
-            value = strtoull(val_t.c_str(), 0, 16);
-        } else if (ctx->based_oct_number()) {
-            DEBUG("Based oct number");
-            if (ctx->based_oct_number()->DEC_LITERAL()) {
-                // Explicit width
-                width = strtoul(
-                    ctx->based_oct_number()->DEC_LITERAL()->getSymbol()->getText().c_str(), 0, 10);
-            }
-            img = ctx->based_oct_number()->BASED_OCT_LITERAL()->getSymbol()->getText();
-            std::string val_t;
-            is_signed = (img[1] == 's' || img[1] == 'S');
-
-            for (uint32_t i=2+is_signed; i<img.size(); i++) {
-                if (img.at(i) != '_') {
-                    val_t.push_back(img.at(i));
-                }
-            }
-
-            value = strtoull(val_t.c_str(), 0, 8);
-        } else if (ctx->based_dec_number()) {
-            DEBUG("Based dec number");
-            if (ctx->based_dec_number()->DEC_LITERAL()) {
-                // Explicit width
-                width = strtoul(
-                    ctx->based_dec_number()->DEC_LITERAL()->getSymbol()->getText().c_str(), 0, 10);
-            }
-            img = ctx->based_dec_number()->BASED_DEC_LITERAL()->getSymbol()->getText();
-            std::string val_t;
-            is_signed = (img[1] == 's' || img[1] == 'S');
-
-            for (uint32_t i=2+is_signed; i<img.size(); i++) {
-                if (img.at(i) != '_') {
-                    val_t.push_back(img.at(i));
-                }
-            }
-
-            value = strtoull(val_t.c_str(), 0, 10);
-        } else if (ctx->based_bin_number()) {
-            DEBUG("Based bin number");
-            if (ctx->based_bin_number()->DEC_LITERAL()) {
-                // Explicit width
-                width = strtoul(
-                    ctx->based_bin_number()->DEC_LITERAL()->getSymbol()->getText().c_str(), 0, 10);
-            }
-            img = ctx->based_bin_number()->BASED_BIN_LITERAL()->getSymbol()->getText();
-            std::string val_t;
-            is_signed = (img[1] == 's' || img[1] == 'S');
-
-            for (uint32_t i=2+is_signed; i<img.size(); i++) {
-                if (img.at(i) != '_') {
-                    val_t.push_back(img.at(i));
-                }
-            }
-
-            value = strtoull(val_t.c_str(), 0, 2);
-        } else if (ctx->hex_number()) {
-            DEBUG("Unbased hex number");
-            img = ctx->hex_number()->HEX_LITERAL()->getSymbol()->getText();
-            std::string val_t;
-
-            for (uint32_t i=2; i<img.size(); i++) {
-                if (img.at(i) != '_') {
-                    val_t.push_back(img.at(i));
-                }
-            }
-
-            value = strtoull(val_t.c_str(), 0, 16);
-        } else if (ctx->dec_number()) {
-            DEBUG("Unbased dec number");
-            img = ctx->dec_number()->DEC_LITERAL()->getSymbol()->getText();
-            std::string val_t;
-
-            for (uint32_t i=0; i<img.size(); i++) {
-                if (img.at(i) != '_') {
-                    val_t.push_back(img.at(i));
-                }
-            }
-
-            value = strtoull(val_t.c_str(), 0, 10);
-        } else if (ctx->bin_number()) {
-            DEBUG("Unbased bin number");
-            img = ctx->bin_number()->BIN_LITERAL()->getSymbol()->getText();
-            std::string val_t;
-
-            // skip the '0b'/'0B' prefix
-            for (uint32_t i=2; i<img.size(); i++) {
-                if (img.at(i) != '_') {
-                    val_t.push_back(img.at(i));
-                }
-            }
-
-            value = strtoull(val_t.c_str(), 0, 2);
-        } else if (ctx->oct_number()) {
-            DEBUG("Unbased oct number");
-            img = ctx->oct_number()->OCT_LITERAL()->getSymbol()->getText();
-            std::string val_t;
-
-            if (img.size() > 1) {
-                for (uint32_t i=1; i<img.size(); i++) {
-                    if (img.at(i) != '_') {
-                        val_t.push_back(img.at(i));
-                    }
-                }
-
-                value = strtoull(val_t.c_str(), 0, 8);
-            } else {
-                value = 0;
-            }
-        } else {
+        if (!parseIntegerLiteral(img, width, value, is_signed)) {
             DEBUG_FATAL("Unknown format");
         }
 
@@ -4309,17 +4287,22 @@ bool AstBuilderInt::evalExpression(PSSParser::ExpressionContext *ctx, int64_t &v
             return true;
         } else if (ctx->primary()->number()) {
             std::string txt = ctx->primary()->number()->getText();
-            std::string norm;
-            for (char c : txt) {
-                if (c != '_') norm.push_back(c);
+
+            if (ctx->primary()->number()->integer_number()) {
+                int32_t width;
+                uint64_t value;
+                bool is_signed;
+                if (!parseIntegerLiteral(txt, width, value, is_signed)) {
+                    return false;
+                }
+                val = (int64_t)value;
+                return true;
             }
-            if (norm.rfind("0x", 0) == 0 || norm.rfind("0X", 0) == 0) {
-                val = strtoll(norm.c_str()+2, 0, 16);
-            } else if (norm.size() > 1 && norm[0] == '0') {
-                val = strtoll(norm.c_str()+1, 0, 8);
-            } else {
-                val = strtoll(norm.c_str(), 0, 10);
-            }
+
+            // A float where an integer is required. Truncating it is what this
+            // has always done; reporting it belongs with the rest of
+            // compile-time type checking, which does not exist yet.
+            val = (int64_t)strtod(stripSeparators(txt).c_str(), 0);
             return true;
         } else if (ctx->primary()->paren_expr()) {
             return evalExpression(ctx->primary()->paren_expr()->expression(), val);
