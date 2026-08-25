@@ -358,29 +358,7 @@ void TaskBuildSymbolTree::visitFunctionDefinition(ast::IFunctionDefinition *i) {
         func_sym->getPrototypes().push_back(i->getProto());
         func_sym->setSynthetic(true);
 
-        func_sym->setPlist(m_factory->mkSymbolScope("<plist>"));
-
-        // Add parameters to the function symbol scope
-        for (std::vector<ast::IFunctionParamDeclUP>::const_iterator
-            it=i->getProto()->getParameters().begin();
-            it!=i->getProto()->getParameters().end(); it++) {
-            int32_t id = func_sym->getChildren().size();
-            std::unordered_map<std::string, int32_t>::const_iterator sym_it =
-                func_sym->getPlist()->getSymtab().find((*it)->getName()->getId());
-            
-            if (sym_it != func_sym->getSymtab().end()) {
-                // Duplicate
-                reportDuplicateSymbol(
-                    func_sym,
-                    func_sym->getChildren().at(sym_it->second).get(),
-                    it->get());
-            } else {
-                DEBUG("Add parameter %s to function symtab", (*it)->getName()->getId().c_str());
-                (*it)->setIndex(id);
-                func_sym->getSymtab().insert({(*it)->getName()->getId(), id});
-                func_sym->getChildren().push_back(ast::IScopeChildUP(it->get(), false));
-            }
-        }
+        addFunctionParams(func_sym, i->getProto(), i);
     }
 
     if (func_sym->getBody()) {
@@ -433,27 +411,7 @@ void TaskBuildSymbolTree::visitFunctionImportProto(ast::IFunctionImportProto *i)
         func_sym->setLocation(i->getLocation());
         addChild(func_sym, i->getProto()->getName()->getId(), false);
 
-        func_sym->setPlist(m_factory->mkSymbolScope("<plist>"));
-
-        // Add parameters to the function symbol scope
-        for (std::vector<ast::IFunctionParamDeclUP>::const_iterator
-            it=i->getProto()->getParameters().begin();
-            it!=i->getProto()->getParameters().end(); it++) {
-            int32_t id = func_sym->getPlist()->getChildren().size();
-            std::unordered_map<std::string, int32_t>::const_iterator sym_it =
-                func_sym->getPlist()->getSymtab().find((*it)->getName()->getId());
-            
-            if (sym_it != func_sym->getPlist()->getSymtab().end()) {
-                // Duplicate
-                reportDuplicateSymbol(
-                    func_sym,
-                    func_sym->getPlist()->getChildren().at(sym_it->second).get(),
-                    it->get());
-            } else {
-                func_sym->getPlist()->getSymtab().insert({(*it)->getName()->getId(), id});
-                func_sym->getPlist()->getChildren().push_back(ast::IScopeChildUP(it->get(), false));
-            }
-        }
+        addFunctionParams(func_sym, i->getProto(), i);
     }
 
     if (func_sym->getBody()) {
@@ -501,6 +459,12 @@ void TaskBuildSymbolTree::visitFunctionPrototype(ast::IFunctionPrototype *i) {
         func_sym = m_factory->mkSymbolFunctionScope(i->getName()->getId());
         func_sym->setLocation(i->getLocation());
         addChild(func_sym, i->getName()->getId(), false);
+
+        // Only on the creation branch. This visitor is also reached for the
+        // prototype of an import declaration (visitFunctionImportProto accepts
+        // it after building the scope), and re-registering the same parameters
+        // would report every one of them as a duplicate of itself.
+        addFunctionParams(func_sym, i, i);
     } else {
         DEBUG("Note: Function %s is already defined", func_sym->getName().c_str());
     }
@@ -513,11 +477,10 @@ void TaskBuildSymbolTree::visitTargetTemplateFunction(ast::ITargetTemplateFuncti
     DEBUG_ENTER("visitTargetTemplateFunction %s", i->getProto()->getName()->getId().c_str());
 
     // 20.6. A target-template function has a prototype but no PSS body, so the
-    // bare-prototype path (visitFunctionPrototype) would otherwise handle it --
-    // and that path does *not* put the parameters into a scope. The parameters
-    // are exactly what a mustache in the template body resolves against, so
-    // they are registered here the way visitFunctionDefinition registers a real
-    // function's.
+    // bare-prototype path (visitFunctionPrototype) would otherwise handle it.
+    // It needs its own builder for the template node below; the parameters go
+    // through the shared addFunctionParams, so a mustache resolves against them
+    // in the same `<plist>` an ordinary function's body would search.
     const std::string &name = i->getProto()->getName()->getId();
 
     ast::IScopeChild *ex_func_b = findSymbol(name);
@@ -534,38 +497,8 @@ void TaskBuildSymbolTree::visitTargetTemplateFunction(ast::ITargetTemplateFuncti
         func_sym->setLocation(i->getLocation());
         addChild(func_sym, name, false);
         func_sym->setSynthetic(true);
-        func_sym->setPlist(m_factory->mkSymbolScope("<plist>"));
 
-        for (std::vector<ast::IFunctionParamDeclUP>::const_iterator
-            it=i->getProto()->getParameters().begin();
-            it!=i->getProto()->getParameters().end(); it++) {
-            const std::string &pname = (*it)->getName()->getId();
-            std::unordered_map<std::string, int32_t>::const_iterator sym_it =
-                func_sym->getSymtab().find(pname);
-
-            if (sym_it != func_sym->getSymtab().end()) {
-                // Not reportDuplicateSymbol(): that routes the name through
-                // TaskGetName, and FunctionParamDecl is a ScopeChild rather
-                // than a NamedScopeChild, so the name comes back empty. Use
-                // the same wording the template-parameter path already uses.
-                ast::Location loc = (*it)->getLocation();
-                if (loc.lineno <= 0) {
-                    loc = i->getLocation();
-                }
-                Marker m(
-                    "duplicate parameter name '" + pname + "'",
-                    MarkerSeverityE::Error,
-                    loc);
-                if (m_marker_l) {
-                    m_marker_l->marker(&m);
-                }
-            } else {
-                int32_t id = func_sym->getChildren().size();
-                (*it)->setIndex(id);
-                func_sym->getSymtab().insert({pname, id});
-                func_sym->getChildren().push_back(ast::IScopeChildUP(it->get(), false));
-            }
-        }
+        addFunctionParams(func_sym, i->getProto(), i);
     }
 
     func_sym->getPrototypes().push_back(i->getProto());
@@ -869,6 +802,53 @@ void TaskBuildSymbolTree::reportDuplicateSymbol(
         MarkerSeverityE::Warn,
         loc);
     m_marker_l->marker(&m);
+}
+
+void TaskBuildSymbolTree::addFunctionParams(
+        ast::ISymbolFunctionScope   *func_sym,
+        ast::IFunctionPrototype     *proto,
+        ast::IScopeChild            *ctxt) {
+    DEBUG_ENTER("addFunctionParams %s", func_sym->getName().c_str());
+
+    if (!func_sym->getPlist()) {
+        func_sym->setPlist(m_factory->mkSymbolScope("<plist>"));
+    }
+    ast::ISymbolScope *plist = func_sym->getPlist();
+
+    for (std::vector<ast::IFunctionParamDeclUP>::const_iterator
+        it=proto->getParameters().begin();
+        it!=proto->getParameters().end(); it++) {
+        const std::string &pname = (*it)->getName()->getId();
+        std::unordered_map<std::string, int32_t>::const_iterator sym_it =
+            plist->getSymtab().find(pname);
+
+        if (sym_it != plist->getSymtab().end()) {
+            // Not reportDuplicateSymbol(): that routes the name through
+            // TaskGetName, and FunctionParamDecl is a ScopeChild rather than a
+            // NamedScopeChild, so the name comes back empty and the message
+            // reads "duplicate declaration of ''".
+            ast::Location loc = (*it)->getLocation();
+            if (loc.lineno <= 0) {
+                loc = ctxt->getLocation();
+            }
+            Marker m(
+                "duplicate parameter name '" + pname + "'",
+                MarkerSeverityE::Error,
+                loc);
+            if (m_marker_l) {
+                m_marker_l->marker(&m);
+            }
+        } else {
+            DEBUG("Add parameter %s to <plist> @ %d",
+                pname.c_str(), (int32_t)plist->getChildren().size());
+            int32_t id = plist->getChildren().size();
+            (*it)->setIndex(id);
+            plist->getSymtab().insert({pname, id});
+            plist->getChildren().push_back(ast::IScopeChildUP(it->get(), false));
+        }
+    }
+
+    DEBUG_LEAVE("addFunctionParams %s", func_sym->getName().c_str());
 }
 
 ast::IScopeChild *TaskBuildSymbolTree::findSymbol(const std::string &name) {

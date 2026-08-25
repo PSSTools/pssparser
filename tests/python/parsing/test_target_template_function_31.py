@@ -160,13 +160,29 @@ def test_prototype_is_present_and_named():
 # Parameter scoping -- what §20.6 mustache resolution will need
 # ---------------------------------------------------------------------------
 
+def get_param(fn_scope, name):
+    """Look a function parameter up in its scope's `<plist>`.
+
+    That sub-scope is where all four function-scope builders put parameters
+    (known-issues P3-X8); before that was made uniform, this path put them in
+    the function scope's own children instead.
+    """
+    if fn_scope is None or fn_scope.getPlist() is None:
+        return None
+    plist = fn_scope.getPlist()
+    for i in range(plist.numChildren()):
+        c = plist.getChild(i)
+        if c is not None and c.getName().getId() == name:
+            return c
+    return None
+
+
 def test_parameters_are_resolvable_in_the_function_scope():
     """The prerequisite for P5-I1c.
 
     A target-template function has a prototype but no PSS body, so it would
-    otherwise take the bare-prototype path -- and that path does *not* put
-    parameters into a scope.  Without this, a `{{a}}` in the template has
-    nothing to bind to.
+    otherwise take the bare-prototype path.  Without a scope holding the
+    parameters, a `{{a}}` in the template has nothing to bind to.
     """
     root, _ = _parse('''
         package p {
@@ -175,8 +191,8 @@ def test_parameters_are_resolvable_in_the_function_scope():
     ''')
     fn_scope = get_symbol(get_symbol(root, "p"), "do_stw")
 
-    assert get_symbol(fn_scope, "a") is not None, "parameter 'a' is not in scope"
-    assert get_symbol(fn_scope, "b") is not None, "parameter 'b' is not in scope"
+    assert get_param(fn_scope, "a") is not None, "parameter 'a' is not in scope"
+    assert get_param(fn_scope, "b") is not None, "parameter 'b' is not in scope"
 
 
 def test_template_node_lives_inside_its_own_function_scope():
@@ -240,5 +256,5 @@ def test_two_template_functions_coexist():
     ''')
     assert markers == []
     pkg = get_symbol(root, "p")
-    assert get_symbol(get_symbol(pkg, "f"), "a") is not None
-    assert get_symbol(get_symbol(pkg, "g"), "b") is not None
+    assert get_param(get_symbol(pkg, "f"), "a") is not None
+    assert get_param(get_symbol(pkg, "g"), "b") is not None

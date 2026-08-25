@@ -78,6 +78,26 @@ public:
         m_ret = s;
     }
 
+    // Same failure, and the reason field references inside a parameterized
+    // type's constraints did not resolve. The generated visitor reaches
+    // visitSymbolScope (setting m_ret) and then descends into the type's
+    // `<plist>` and into each of its specializations -- every one of which is
+    // itself a SymbolScope and overwrites m_ret. So asking for the symbol
+    // scope of `struct S<int W>` handed back the scope holding `W`, and the
+    // type's own fields were never searched.
+    //
+    // Invisible for a non-parameterized type, which has a null plist and no
+    // specializations, hence nothing to descend into.
+    virtual void visitSymbolTypeScope(ast::ISymbolTypeScope *s) override {
+        m_ret = s;
+    }
+
+    // Likewise: this descends into its constraint, and a nested foreach/forall
+    // carries a ConstraintSymbolScope of its own that would overwrite m_ret.
+    virtual void visitConstraintSymbolScope(ast::IConstraintSymbolScope *s) override {
+        m_ret = s;
+    }
+
     virtual void visitSymbolScope(ast::ISymbolScope *s) override {
         m_ret = s;
     }

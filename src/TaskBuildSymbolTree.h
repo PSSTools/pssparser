@@ -130,6 +130,19 @@ protected:
         ast::IScopeChild        *orig,
         ast::IScopeChild        *dup);
 
+    /**
+     * Register a prototype's parameters in the function scope's `<plist>`.
+     *
+     * All four builders that can create an ISymbolFunctionScope go through
+     * here, so that a parameter is found in the same place no matter how its
+     * function was declared. `ctxt` supplies a fallback location for the
+     * duplicate diagnostic.
+     */
+    void addFunctionParams(
+        ast::ISymbolFunctionScope   *func_sym,
+        ast::IFunctionPrototype     *proto,
+        ast::IScopeChild            *ctxt);
+
     ast::IScopeChild *findSymbol(const std::string &name);
 
     void pushSymbolScope(ast::ISymbolChild *s);

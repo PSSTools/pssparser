@@ -77,7 +77,12 @@ public:
                 case ast::SymbolRefPathElemKind::ElemKind_ArgIdx: {
                     DEBUG("Elem: ArgIdx %d", it->idx);
                     ast::ISymbolFunctionScope *fs = scope.getT<ast::ISymbolFunctionScope>();
-                    if (fs && it->idx < fs->getPlist()->getChildren().size()) {
+                    // `plist` is checked, not assumed: a function scope built
+                    // from a bare prototype used to have none at all, and a
+                    // stale path recorded against one is better reported as
+                    // unresolved than dereferenced.
+                    if (fs && fs->getPlist() &&
+                        it->idx < fs->getPlist()->getChildren().size()) {
                         ret = fs->getPlist()->getChildren().at(it->idx).get();
                     } else {
                         DEBUG("Out-of-range");
@@ -90,7 +95,8 @@ public:
                 case ast::SymbolRefPathElemKind::ElemKind_ParamIdx: {
                     DEBUG("Elem: ParamIdx %d", it->idx);
                     ast::ISymbolTypeScope *scope_ts = scope.getT<ast::ISymbolTypeScope>();
-                    if (scope_ts && it->idx < scope_ts->getPlist()->getChildren().size()) {
+                    if (scope_ts && scope_ts->getPlist() &&
+                        it->idx < scope_ts->getPlist()->getChildren().size()) {
                         ret = scope_ts->getPlist()->getChildren().at(it->idx).get();
                     } else {
                         DEBUG("Out-of-range");
@@ -240,17 +246,25 @@ public:
             it=scopes.rbegin();
             it!=scopes.rend(); it++) {
             DEBUG("pushScope");
-            if (dynamic_cast<ast::ISymbolTypeScope *>(*it)) {
-                ast::ISymbolTypeScope *ts = dynamic_cast<ast::ISymbolTypeScope *>(*it);
+            // A scope is pushed as a specialization only when it demonstrably
+            // is one. Both steps to that conclusion can come back null and
+            // used not to be checked: a SymbolTypeScope's target need not be a
+            // TypeScope (an annotation declaration is one such), and a type
+            // that takes no template parameters has a null parameter list.
+            // The latter is the common case -- it is every ordinary component
+            // and struct -- so walking out of a parameterized type nested in a
+            // component dereferenced null and crashed the linker.
+            bool is_spec = false;
+            ast::ISymbolTypeScope *ts = dynamic_cast<ast::ISymbolTypeScope *>(*it);
+            if (ts) {
                 ast::ITypeScope *tst = dynamic_cast<ast::ITypeScope *>(ts->getTarget());
-                if (tst->getParams()->getSpecialized()) {
-                    ret->pushScope(dynamic_cast<ast::ISymbolScope *>(*it),
-                        ast::SymbolRefPathElemKind::ElemKind_TypeSpec);
-                } else {
-                    ret->pushScope(dynamic_cast<ast::ISymbolScope *>(*it));
-                }
+                is_spec = (tst && tst->getParams() && tst->getParams()->getSpecialized());
+            }
+
+            if (is_spec) {
+                ret->pushScope(*it, ast::SymbolRefPathElemKind::ElemKind_TypeSpec);
             } else {
-                ret->pushScope(dynamic_cast<ast::ISymbolScope *>(*it));
+                ret->pushScope(*it);
             }
         }
 

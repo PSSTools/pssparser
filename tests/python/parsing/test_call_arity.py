@@ -204,15 +204,43 @@ def test_argument_type_mismatch_is_not_an_arity_error():
     assert_no_marker(pss, marker_id="PSS006")
 
 
-@pytest.mark.xfail(strict=True,
-                   reason="P3-X6e / P2-A5a: a package-qualified path never "
-                          "resolves, so the call site is never reached")
 def test_package_qualified_call_is_checked():
+    """P3-X6e.
+
+    The leaf of a qualified path was visited but never looked up *against its
+    root*, so the call site was never reached.
+    """
     pss = """
     package p { function void g(int a); }
     component pss_top { exec init_up { p::g(1, 2, 3); } }
     """
     assert_marker(pss, marker_id="PSS006", text="expects 1 argument, got 3")
+
+
+def test_package_qualified_call_with_correct_arity_is_silent():
+    pss = """
+    package p { function void g(int a); }
+    component pss_top { exec init_up { p::g(1); } }
+    """
+    assert_no_marker(pss, severity="error")
+
+
+def test_package_qualified_call_to_an_unknown_name_is_reported():
+    """The other half of the same gap: the name was not checked to exist."""
+    pss = """
+    package p { function void g(int a); }
+    component pss_top { exec init_up { p::nope(1); } }
+    """
+    assert_marker(pss, text="failed to find 'nope'")
+
+
+def test_nested_package_qualified_call_is_checked():
+    """The root may itself be several elements deep."""
+    pss = """
+    package p::q { function void g(int a); }
+    component pss_top { exec init_up { p::q::g(1, 2); } }
+    """
+    assert_marker(pss, marker_id="PSS006", text="expects 1 argument, got 2")
 
 
 # ---------------------------------------------------------------------------
@@ -236,14 +264,52 @@ def test_prototype_then_definition_does_not_crash():
     parse_collect(pss)   # must not segfault
 
 
-@pytest.mark.xfail(strict=True,
-                   reason="P3-X8: a parameter of a function that was prototyped "
-                          "before being defined does not resolve in its body")
 def test_prototype_then_definition_resolves_parameters():
+    """P3-X8.
+
+    The definition reuses the scope the prototype built, so it never runs its
+    own parameter-registering block.  That was only survivable once the
+    prototype path registered parameters too -- before, ``a`` was in no scope
+    at all and the body reported ``PSS002 unknown identifier 'a'``.
+    """
     pss = """
     package p {
         function void g(int a);
         function void g(int a) { int q = a; }
+    }
+    """
+    assert_no_marker(pss, severity="error")
+
+
+def test_duplicate_function_parameter_is_reported():
+    """P3-X8, the other half.
+
+    ``visitFunctionDefinition`` searched the ``<plist>`` symtab and compared the
+    result against the *function scope's* symtab ``end()`` -- undefined
+    behaviour, and one that made the diagnostic it guards dead code: this input
+    used to produce no marker at all.
+    """
+    pss = """
+    package p { function void f(int a, int a) { } }
+    """
+    assert_marker(pss, text="duplicate parameter name 'a'")
+
+
+def test_duplicate_parameter_on_a_bare_prototype_is_reported():
+    pss = """
+    package p { function void f(int a, int a); }
+    """
+    assert_marker(pss, text="duplicate parameter name 'a'")
+
+
+def test_distinct_parameters_are_not_reported_as_duplicates():
+    """Guard on the import path, which reaches the prototype visitor a second
+    time after building the scope: re-registering there would report every
+    parameter as a duplicate of itself."""
+    pss = """
+    package p {
+        import target C function void f(int a, int b);
+        function void g(int a, int b) { int q = a + b; }
     }
     """
     assert_no_marker(pss, severity="error")

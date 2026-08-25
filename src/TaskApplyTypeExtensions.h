@@ -24,6 +24,7 @@
 #include "pssp/ISymbolTableIterator.h"
 #include "pssp/IFactory.h"
 #include "pssp/ast/impl/VisitorBase.h"
+#include "ResolveContext.h"
 
 namespace pssp {
 
@@ -64,11 +65,24 @@ public:
 
     virtual void visitTypeScope(ast::ITypeScope *i) override;
 
+    virtual void visitField(ast::IField *i) override;
+
 protected:
+    /**
+     * Seed `ctxt` with the scope stack this walk is currently at.
+     *
+     * A freshly built ResolveContext starts at the root, so an extension target
+     * named without qualification resolved only when the type happened to live
+     * at the root: `package p { struct S {...} extend struct S {...} }` reported
+     * `unknown type 'S'`.
+     */
+    void seedScope(ResolveContext &ctxt);
+
     void addChild(
         ast::ISymbolScope       *target,
         ast::IScopeChild        *child,
-        const std::string       &name);
+        const std::string       &name,
+        bool                    owned=true);
 
 
 private:
@@ -78,6 +92,10 @@ private:
     ast::IRootSymbolScope                   *m_root;
     ISymbolTableIteratorUP                  m_symtab_it;
     ast::ISymbolScope                       *m_target_s;
+
+    // Set while walking the *AST* body of an extension rather than its symbol
+    // scope. See visitSymbolExtendScope for why both walks are needed.
+    bool                                    m_ast_body;
 
 };
 

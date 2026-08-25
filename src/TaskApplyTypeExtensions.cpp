@@ -36,6 +36,7 @@ TaskApplyTypeExtensions::TaskApplyTypeExtensions(
         m_factory(factory), m_marker_l(marker_l) {
     DEBUG_INIT("TaskApplyTypeExtensions", dmgr);
     m_target_s = 0;
+    m_ast_body = false;
 }
 
 TaskApplyTypeExtensions::~TaskApplyTypeExtensions() {
@@ -55,11 +56,15 @@ void TaskApplyTypeExtensions::apply(ast::IRootSymbolScope *root) {
 void TaskApplyTypeExtensions::visitExtendEnum(ast::IExtendEnum *i) {
     DEBUG_ENTER("visitExtendEnum");
     ResolveContext ctxt(m_factory, m_marker_l, m_root);
-    ast::ISymbolRefPath *target_p = TaskResolveRef(&ctxt).resolve(i->getTarget());
+    seedScope(ctxt);
+    // report_unresolved=false: the marker below says the same thing with more
+    // context, and letting both fire reported one mistake twice.
+    ast::ISymbolRefPath *target_p =
+        TaskResolveRef(&ctxt, true, false).resolve(i->getTarget());
 
     if (!target_p) {
         IMarkerUP marker(m_factory->mkMarker(
-            "cannot extend unknown enum '" + 
+            "cannot extend unknown enum '" +
             i->getTarget()->getElems().at(0)->getId()->getId() + "'",
             MarkerSeverityE::Error,
             i->getTarget()->getElems().at(0)->getId()->getLocation()));
@@ -95,6 +100,7 @@ void TaskApplyTypeExtensions::visitExtendEnum(ast::IExtendEnum *i) {
 void TaskApplyTypeExtensions::visitExtendType(ast::IExtendType *i) {
     DEBUG_ENTER("visitExtendType");
     ResolveContext ctxt(m_factory, m_marker_l, m_root);
+    seedScope(ctxt);
     ast::ISymbolRefPath *target_p = TaskResolveRef(&ctxt).resolve(i->getTarget());
 
     if (!target_p) {
@@ -145,6 +151,7 @@ void TaskApplyTypeExtensions::visitSymbolExtendScope(ast::ISymbolExtendScope *i)
     DEBUG_ENTER("visitSymbolExtendScope");
     ast::IExtendType *ast_target = dynamic_cast<ast::IExtendType *>(i->getTarget());
     ResolveContext ctxt(m_factory, m_marker_l, m_root);
+    seedScope(ctxt);
     ast::ISymbolRefPath *target_p = TaskResolveRef(&ctxt).resolve(
         ast_target->getTarget());
 
@@ -165,6 +172,30 @@ void TaskApplyTypeExtensions::visitSymbolExtendScope(ast::ISymbolExtendScope *i)
         it!=i->getChildren().end(); it++) {
         it->get()->accept(this);
     }
+
+    // A second walk, over the *AST* extension body, because the loop above
+    // cannot see a plain field (P2-A5b).
+    //
+    // The extension's symbol scope is not synthetic, so
+    // TaskBuildSymbolTree::addChild records a named child in its symtab while
+    // mapping the name to the child's index in the AST scope rather than
+    // pushing it into the symbol scope's children. Nested declarations survive
+    // that -- an action or a function becomes a symbol scope of its own, which
+    // is pushed -- but a field does not exist in `getChildren()` at all, so
+    // `extend struct S { int b; }` contributed nothing to `S` and `s.b` was an
+    // error.
+    //
+    // Resolution depends on this: TaskResolveRefs::visitSymbolExtendScope
+    // deliberately skips extension bodies, on the understanding that their
+    // contents are reached through the type they extend.
+    m_ast_body = true;
+    for (std::vector<ast::IScopeChildUP>::const_iterator
+        it=ast_target->getChildren().begin();
+        it!=ast_target->getChildren().end(); it++) {
+        it->get()->accept(this);
+    }
+    m_ast_body = false;
+
     m_target_s = 0;
 
     DEBUG_LEAVE("visitSymbolExtendScope");
@@ -252,8 +283,27 @@ void TaskApplyTypeExtensions::visitEnumItem(ast::IEnumItem *i) {
 
 }
 
+void TaskApplyTypeExtensions::visitField(ast::IField *i) {
+    DEBUG_ENTER("visitField %s", i->getName()->getId().c_str());
+
+    // Only on the AST pass: a field is invisible to the symbol-scope walk (see
+    // visitSymbolExtendScope). Non-owning, because the extension's AST node
+    // owns the field -- the target scope holds an alias, exactly as
+    // TaskBuildSymbolTree::addChild does for a type's own fields.
+    if (m_target_s && m_ast_body) {
+        addChild(m_target_s, i, i->getName()->getId(), false);
+    }
+
+    DEBUG_LEAVE("visitField %s", i->getName()->getId().c_str());
+}
+
 void TaskApplyTypeExtensions::visitTypeScope(ast::ITypeScope *i) {
     DEBUG_ENTER("visitTypeScope");
+    if (m_ast_body) {
+        // Already handled on the symbol-scope pass, as an ISymbolTypeScope.
+        DEBUG_LEAVE("visitTypeScope -- AST pass");
+        return;
+    }
     if (m_target_s) {
         std::unordered_map<std::string,int32_t>::const_iterator it =
             m_target_s->getSymtab().find(i->getName()->getId());
@@ -269,10 +319,17 @@ void TaskApplyTypeExtensions::visitTypeScope(ast::ITypeScope *i) {
     DEBUG_LEAVE("visitTypeScope");
 }
 
+void TaskApplyTypeExtensions::seedScope(ResolveContext &ctxt) {
+    if (m_symtab_it) {
+        ctxt.pushSymtab(m_symtab_it->clone());
+    }
+}
+
 void TaskApplyTypeExtensions::addChild(
         ast::ISymbolScope       *target,
         ast::IScopeChild        *child,
-        const std::string       &name) {
+        const std::string       &name,
+        bool                    owned) {
     DEBUG_ENTER("addChild %s to %s", name.c_str(), target->getName().c_str());
     std::unordered_map<std::string,int32_t>::const_iterator it;
 
@@ -282,7 +339,7 @@ void TaskApplyTypeExtensions::addChild(
             dynamic_cast<ast::ISymbolChild *>(child)->setUpper(target);
         }
         target->getSymtab().insert({name, id});
-        target->getChildren().push_back(child);
+        target->getChildren().push_back(ast::IScopeChildUP(child, owned));
     } else {
         std::string msg = "Type extension of ";
         msg += name + " conflicts with an existing declaration";

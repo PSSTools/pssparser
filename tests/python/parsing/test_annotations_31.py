@@ -334,13 +334,10 @@ def test_inherited_annotation_field_is_accepted():
     assert_parse_ok(pss)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="Pre-existing linker gap, not specific to annotations: type "
-           "extensions contribute no fields to name resolution. `extend struct "
-           "S { int b; }` followed by `s.b` fails identically. See plan item "
-           "P2-A5b.")
 def test_extend_annotation_field_is_accepted():
+    """Closed with P2-A5b, which was never specific to annotations: the
+    annotation checker was simply the first thing to report that a type
+    extension's fields reached no scope."""
     pss = """
     annotation note_s { string text; }
     extend annotation note_s { string extra; }

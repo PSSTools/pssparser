@@ -561,11 +561,7 @@ public:
         // a template specialization -- visitConstraintStmtIf already delegates
         // here for both of its branches.
         ast::IConstraintScope *ic = m_factory->mkConstraintScope();
-        for (std::vector<ast::IConstraintStmtUP>::const_iterator
-            it=i->getConstraints().begin();
-            it!=i->getConstraints().end(); it++) {
-            ic->getConstraints().push_back(ast::IConstraintStmtUP(copy(it->get())));
-        }
+        copyConstraints(i, ic);
         m_constraint = ic;
     }
 
@@ -668,8 +664,20 @@ public:
         );
     }
     
-    virtual void visitConstraintStmtField(ast::IConstraintStmtField *i) { }
-    
+    virtual void visitConstraintStmtField(ast::IConstraintStmtField *i) override {
+        ast::IConstraintStmtField *ic = m_factory->mkConstraintStmtField(
+            copyT<ast::IExprId>(i->getName()),
+            (i->getType())?copy(i->getType()):0
+        );
+        ic->setIndex(i->getIndex());
+        ic->setLocation(i->getLocation());
+        // Reached both as a constraint (forall's constraints[0]) and as a plain
+        // scope child (a foreach iterator, which lives only in the symbol scope),
+        // so both results have to be set.
+        m_constraint = ic;
+        m_sc = ic;
+    }
+
     virtual void visitExprRefPathStaticRooted(ast::IExprRefPathStaticRooted *i) { 
         DEBUG_ENTER("visitExprRefPathStaticRooted");
         ast::IExprRefPathStaticRooted *ic = m_factory->mkExprRefPathStaticRooted(
@@ -776,7 +784,10 @@ public:
         );
     }
     
-    virtual void visitDataTypeRef(ast::IDataTypeRef *i) { }
+    virtual void visitDataTypeRef(ast::IDataTypeRef *i) override {
+        m_dt = m_factory->mkDataTypeRef(
+            copyT<ast::IDataTypeUserDefined>(i->getType()));
+    }
     
     virtual void visitDataTypeString(ast::IDataTypeString *i) { 
         ast::IDataTypeString *ci = m_factory->mkDataTypeString(i->getHas_range());
@@ -809,11 +820,47 @@ public:
         );
     }
     
-    virtual void visitFieldCompRef(ast::IFieldCompRef *i) { }
-    
-    virtual void visitFieldRef(ast::IFieldRef *i) { }
-    
-    virtual void visitFieldClaim(ast::IFieldClaim *i) { }
+    virtual void visitFieldCompRef(ast::IFieldCompRef *i) override {
+        // Every action carries one of these -- the implicit `comp` handle --
+        // so leaving it uncopied dropped a null into the specialization's
+        // child list, which TaskBuildSymbolTree then walked into.
+        m_sc = m_factory->mkFieldCompRef(
+            copyT<ast::IExprId>(i->getName()),
+            (i->getType())?copyT<ast::IDataTypeUserDefined>(i->getType()):0
+        );
+        m_sc->setIndex(i->getIndex());
+        m_sc->setLocation(i->getLocation());
+    }
+
+    virtual void visitFieldRef(ast::IFieldRef *i) override {
+        m_sc = m_factory->mkFieldRef(
+            copyT<ast::IExprId>(i->getName()),
+            (i->getType())?copyT<ast::IDataTypeUserDefined>(i->getType()):0,
+            i->getIs_input()
+        );
+        m_sc->setIndex(i->getIndex());
+        m_sc->setLocation(i->getLocation());
+    }
+
+    virtual void visitFieldClaim(ast::IFieldClaim *i) override {
+        m_sc = m_factory->mkFieldClaim(
+            copyT<ast::IExprId>(i->getName()),
+            (i->getType())?copyT<ast::IDataTypeUserDefined>(i->getType()):0,
+            i->getIs_lock()
+        );
+        m_sc->setIndex(i->getIndex());
+        m_sc->setLocation(i->getLocation());
+    }
+
+    virtual void visitFieldPool(ast::IFieldPool *i) override {
+        m_sc = m_factory->mkFieldPool(
+            copyT<ast::IExprId>(i->getName()),
+            (i->getType())?copyT<ast::IDataTypeUserDefined>(i->getType()):0,
+            (i->getSize())?copy(i->getSize()):0
+        );
+        m_sc->setIndex(i->getIndex());
+        m_sc->setLocation(i->getLocation());
+    }
     
     virtual void visitSymbolEnumScope(ast::ISymbolEnumScope *i) { }
     
@@ -881,34 +928,71 @@ public:
         ast::IConstraintBlock *ic = m_factory->mkConstraintBlock(
             i->getName(),
             i->getIs_dynamic());
-
-        for (std::vector<ast::IConstraintStmtUP>::const_iterator
-            it=i->getConstraints().begin();
-            it!=i->getConstraints().end(); it++) {
-            ic->getConstraints().push_back(ast::IConstraintStmtUP(copy(it->get())));
-        }
-
+        copyConstraints(i, ic);
         m_sc = ic;
     }
     
-    virtual void visitConstraintStmtForeach(ast::IConstraintStmtForeach *i) { }
-    
+    virtual void visitConstraintStmtForeach(ast::IConstraintStmtForeach *i) override {
+        DEBUG_ENTER("visitConstraintStmtForeach");
+        ast::IConstraintStmtForeach *ic = m_factory->mkConstraintStmtForeach(
+            copy(i->getExpr()));
+        ic->setIndex(i->getIndex());
+        ic->setLocation(i->getLocation());
+        copyConstraints(i, ic);
+
+        // it/idx are non-owning aliases into the foreach's own symbol scope
+        // (AstBuilderInt::visitForeach_constraint_item). Copy the scope, then
+        // re-point them at the copies by position -- the scope may also hold a
+        // null placeholder where no index variable was written, so matching by
+        // position rather than by name is what keeps the two lined up.
+        ic->setSymtab(copyConstraintSymtab(i->getSymtab(), i, ic));
+        ic->setIt(symtabAlias(i, ic, i->getIt()));
+        ic->setIdx(symtabAlias(i, ic, i->getIdx()));
+
+        m_constraint = ic;
+        DEBUG_LEAVE("visitConstraintStmtForeach");
+    }
+
     virtual void visitExprRefPathStaticFunc(ast::IExprRefPathStaticFunc *i) { 
         DEBUG_ENTER("visitExprRefPathStaticFunc");
         DEBUG("TODO: visitExprRefPathStaticFunc");
         DEBUG_LEAVE("visitExprRefPathStaticFunc");
     }
     
-    virtual void visitConstraintStmtForall(ast::IConstraintStmtForall *i) { }
-    
+    virtual void visitConstraintStmtForall(ast::IConstraintStmtForall *i) override {
+        DEBUG_ENTER("visitConstraintStmtForall");
+        ast::IConstraintStmtForall *ic = m_factory->mkConstraintStmtForall(
+            copyT<ast::IExprId>(i->getIterator_id()),
+            copyT<ast::IDataTypeUserDefined>(i->getType_id()),
+            (i->getRef_path())?copyT<ast::IExprRefPath>(i->getRef_path()):0);
+        ic->setIndex(i->getIndex());
+        ic->setLocation(i->getLocation());
+
+        // The quantified iterator is constraints[0] here, owned by the
+        // constraint list and merely referenced from the symbol scope, so the
+        // constraints must be copied before the scope that aliases them.
+        copyConstraints(i, ic);
+        ic->setSymtab(copyConstraintSymtab(i->getSymtab(), i, ic));
+
+        m_constraint = ic;
+        DEBUG_LEAVE("visitConstraintStmtForall");
+    }
+
     virtual void visitExprRefPathSuper(ast::IExprRefPathSuper *i) { 
         DEBUG_ENTER("visitExprRefPathSuper");
         DEBUG("TODO: visitExprRefPathSuper");
         DEBUG_LEAVE("visitExprRefPathSuper");
     }
     
-    virtual void visitConstraintStmtImplication(ast::IConstraintStmtImplication *i) { }
-    
+    virtual void visitConstraintStmtImplication(ast::IConstraintStmtImplication *i) override {
+        ast::IConstraintStmtImplication *ic = m_factory->mkConstraintStmtImplication(
+            copy(i->getCond()));
+        ic->setIndex(i->getIndex());
+        ic->setLocation(i->getLocation());
+        copyConstraints(i, ic);
+        m_constraint = ic;
+    }
+
     virtual void visitTypeScope(ast::ITypeScope *i) { }
     
     virtual void visitActivityActionHandleTraversal(ast::IActivityActionHandleTraversal *i) { }
@@ -950,11 +1034,7 @@ public:
 
         }
 
-        for (std::vector<ast::IScopeChildUP>::const_iterator
-            it=i->getChildren().begin();
-            it!=i->getChildren().end(); it++) {
-            ic->getChildren().push_back(ast::IScopeChildUP(copy(it->get())));
-        }
+        copyChildren(i, ic);
 
         if (i->getAssocData()) {
             ic->setAssocData(i->getAssocData(), false);
@@ -963,35 +1043,27 @@ public:
         ic->setDocstring(i->getDocstring());
         m_sc = ic;
     }
-    
-    virtual void visitAction(ast::IAction *i) { 
+
+    virtual void visitAction(ast::IAction *i) {
         ast::IAction *ic = m_factory->mkAction(
             copyT<ast::IExprId>(i->getName()),
             (i->getSuper_t())?copyT<ast::ITypeIdentifier>(i->getSuper_t()):0,
             i->getIs_abstract()
         );
 
-        for (std::vector<ast::IScopeChildUP>::const_iterator
-            it=i->getChildren().begin();
-            it!=i->getChildren().end(); it++) {
-            ic->getChildren().push_back(ast::IScopeChildUP(copy(it->get())));
-        }
+        copyChildren(i, ic);
 
         ic->setDocstring(i->getDocstring());
         m_sc = ic;
     }
-    
-    virtual void visitComponent(ast::IComponent *i) { 
+
+    virtual void visitComponent(ast::IComponent *i) {
         ast::IComponent *ic = m_factory->mkComponent(
             copyT<ast::IExprId>(i->getName()),
             (i->getSuper_t())?copyT<ast::ITypeIdentifier>(i->getSuper_t()):0
         );
 
-        for (std::vector<ast::IScopeChildUP>::const_iterator
-            it=i->getChildren().begin();
-            it!=i->getChildren().end(); it++) {
-            ic->getChildren().push_back(ast::IScopeChildUP(copy(it->get())));
-        }
+        copyChildren(i, ic);
 
         if (i->getAssocData()) {
             ic->setAssocData(i->getAssocData(), false);
@@ -1005,6 +1077,150 @@ public:
 
 
 private:
+
+    /**
+     * Copy the children of a type scope into its copy.
+     *
+     * A child whose kind still has no visitor here comes back null. Pushing
+     * that null was how an unimplemented visitor turned into a segfault rather
+     * than a diagnosable gap: TaskBuildSymbolTree runs over the copy straight
+     * afterwards and dereferences every child. Dropping it instead leaves the
+     * specialization incomplete, which is the honest consequence, and copy()
+     * has already reported which kind was missing.
+     */
+    void copyChildren(
+        ast::IScope                 *src,
+        ast::IScope                 *dst) {
+        for (std::vector<ast::IScopeChildUP>::const_iterator
+            it=src->getChildren().begin();
+            it!=src->getChildren().end(); it++) {
+            if (!it->get()) {
+                continue;
+            }
+            ast::IScopeChild *c = copy(it->get());
+            if (!c) {
+                continue;
+            }
+            // Set here rather than in each visitor, for the same reason as in
+            // copyConstraints -- and it is load-bearing beyond ordering:
+            // `index` is how TaskGetItemIndex addresses a child, so a copied
+            // constraint block with the default -1 cannot be named by a symbol
+            // path at all, and every reference recorded beneath it pointed
+            // somewhere else.
+            c->setIndex((*it)->getIndex());
+            c->setLocation((*it)->getLocation());
+            dst->getChildren().push_back(ast::IScopeChildUP(c));
+        }
+    }
+
+    /**
+     * Copy the constraint statements of a constraint scope into its copy,
+     * preserving position -- both the soft-constraint priority rule and the
+     * symbol scopes built by foreach/forall address constraints by index.
+     */
+    void copyConstraints(
+        ast::IConstraintScope       *src,
+        ast::IConstraintScope       *dst) {
+        for (std::vector<ast::IConstraintStmtUP>::const_iterator
+            it=src->getConstraints().begin();
+            it!=src->getConstraints().end(); it++) {
+            ast::IConstraintStmt *c = copy(it->get());
+            if (!c) {
+                // copy() has already reported. Dropping the statement loses a
+                // restriction, which is bad, but pushing the null is worse:
+                // every later walk of this list dereferences it unguarded.
+                continue;
+            }
+            // Set here rather than in each visitor so that every constraint
+            // list -- block, scope, foreach, forall, implication -- carries it.
+            c->setIndex((*it)->getIndex());
+            c->setLocation((*it)->getLocation());
+            dst->getConstraints().push_back(ast::IConstraintStmtUP(c));
+        }
+    }
+
+    /**
+     * Copy the ConstraintSymbolScope that a foreach/forall hangs its iteration
+     * variables from.
+     *
+     * A child of that scope is either an alias of one of the constraint scope's
+     * own statements (forall's iterator, which is constraints[0]) or a node the
+     * scope is the sole holder of (a foreach iterator, which nothing else
+     * owns). The two cases differ only in ownership, so they are told apart the
+     * way the builder created them: by looking for the child in the source
+     * constraint list. Null placeholders are preserved as null.
+     */
+    ast::IConstraintSymbolScope *copyConstraintSymtab(
+        ast::IConstraintSymbolScope *src,
+        ast::IConstraintScope       *src_c,
+        ast::IConstraintScope       *dst_c) {
+        if (!src) {
+            return 0;
+        }
+        ast::IConstraintSymbolScope *ret = m_factory->mkConstraintSymbolScope(
+            src->getName());
+        ret->setConstraint(dst_c);
+        ret->getSymtab() = src->getSymtab();
+
+        for (std::vector<ast::IScopeChildUP>::const_iterator
+            it=src->getChildren().begin();
+            it!=src->getChildren().end(); it++) {
+            ast::IScopeChild *c = 0;
+            bool own = true;
+
+            if (it->get()) {
+                int32_t idx = constraintIndexOf(src_c, it->get());
+                if (idx >= 0 && idx < dst_c->getConstraints().size()) {
+                    c = dst_c->getConstraints().at(idx).get();
+                    own = false;
+                } else {
+                    c = copy(it->get());
+                }
+            }
+
+            ret->getChildren().push_back(ast::IScopeChildUP(c, own));
+        }
+
+        return ret;
+    }
+
+    /**
+     * Position of `c` in `src`'s constraint list, or -1 if it is not one of them.
+     */
+    int32_t constraintIndexOf(
+        ast::IConstraintScope       *src,
+        ast::IScopeChild            *c) {
+        for (int32_t i=0; i<src->getConstraints().size(); i++) {
+            if (static_cast<ast::IScopeChild *>(
+                src->getConstraints().at(i).get()) == c) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    /**
+     * Given a node held by `src`'s symbol scope, return the corresponding node
+     * in `dst`'s -- matched by position, since a foreach scope may hold
+     * same-named or null entries.
+     */
+    ast::IConstraintStmtField *symtabAlias(
+        ast::IConstraintStmtForeach *src,
+        ast::IConstraintStmtForeach *dst,
+        ast::IConstraintStmtField   *c) {
+        if (!c || !src->getSymtab() || !dst->getSymtab()) {
+            return 0;
+        }
+        const std::vector<ast::IScopeChildUP> &children = src->getSymtab()->getChildren();
+        for (int32_t i=0; i<children.size(); i++) {
+            if (children.at(i).get() == static_cast<ast::IScopeChild *>(c)) {
+                return dynamic_cast<ast::IConstraintStmtField *>(
+                    dst->getSymtab()->getChildren().at(i).get());
+            }
+        }
+        return 0;
+    }
+
     ast::IFactory                   *m_factory;
     dmgr::IDebug                    *m_dbg;
 

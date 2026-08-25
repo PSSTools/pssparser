@@ -914,11 +914,121 @@ void TaskResolveRefs::visitExprRefPathStaticRooted(ast::IExprRefPathStaticRooted
             DEBUG("Root (static) reference has a Python component");
         } else {
             DEBUG("Root (static) reference does not have a Python component");
-            DEBUG("TODO: visitExprRefPathStaticRooted");
+            resolveStaticRootedLeaf(i);
         }
     }
 
     DEBUG_LEAVE("visitExprRefPathStaticRooted");
+}
+
+void TaskResolveRefs::resolveStaticRootedLeaf(ast::IExprRefPathStaticRooted *i) {
+    DEBUG_ENTER("resolveStaticRootedLeaf");
+
+    // P3-X6e. The leaf of a qualified reference used to be visited but never
+    // looked up *against its root*, so `p::g(1,2,3)` reached no call site and
+    // was neither arity-checked nor reported when `g` did not exist at all.
+    ast::IScopeChild *target_c = m_ctxt->resolveSymbolPathRef(i->getRoot()->getTarget());
+
+    if (!target_c) {
+        DEBUG_LEAVE("resolveStaticRootedLeaf -- root path does not resolve");
+        return;
+    }
+
+    ast::ISymbolScope *target_s = TaskGetElemSymbolScope(
+        m_ctxt->getDebugMgr(), m_ctxt->root()).resolve(target_c);
+
+    if (!target_s) {
+        // The root names something that is not a scope to look inside. That is
+        // reportable in its own right, but not here -- this path is also taken
+        // by references the resolver models loosely, and guessing would turn
+        // every one of them into a spurious error.
+        DEBUG_LEAVE("resolveStaticRootedLeaf -- root is not a scope");
+        return;
+    }
+
+    // `getRoot()->getTarget()` names only the *first* element of the static
+    // path: visitExprRefPathStatic resolves base[0] and merely visits the rest.
+    // So the remainder has to be walked here for `p::q::g(...)` to arrive at
+    // `q` rather than at `p`.
+    for (uint32_t bi=1; bi<i->getRoot()->getBase().size(); bi++) {
+        ast::ITypeIdentifierElem *belem = i->getRoot()->getBase().at(bi).get();
+
+        if (belem->getParams()) {
+            // A parameterized element would have to be specialized first, and
+            // the specialization built for the root is not reachable from here.
+            DEBUG_LEAVE("resolveStaticRootedLeaf -- parameterized base element");
+            return;
+        }
+
+        TaskFindPathElem::Result bres = TaskFindPathElem(
+            m_ctxt->getDebugMgr(),
+            m_ctxt->root()).find(target_s, belem->getId());
+
+        // Deliberately silent on failure: the root path is resolved (and
+        // reported on) by visitExprRefPathStatic, and duplicating its
+        // diagnostics here would report the same name twice.
+        if (!bres.sym) {
+            DEBUG_LEAVE("resolveStaticRootedLeaf -- base elem %s not found",
+                belem->getId()->getId().c_str());
+            return;
+        }
+
+        target_s = TaskGetElemSymbolScope(
+            m_ctxt->getDebugMgr(), m_ctxt->root()).resolve(bres.sym);
+
+        if (!target_s) {
+            DEBUG_LEAVE("resolveStaticRootedLeaf -- base elem %s is not a scope",
+                belem->getId()->getId().c_str());
+            return;
+        }
+    }
+
+    for (uint32_t ii=0; ii<i->getLeaf()->getElems().size(); ii++) {
+        ast::IExprMemberPathElem *elem = i->getLeaf()->getElems().at(ii).get();
+
+        TaskFindPathElem::Result res = TaskFindPathElem(
+            m_ctxt->getDebugMgr(),
+            m_ctxt->root()).find(target_s, elem->getId());
+
+        if (!res.sym) {
+            m_ctxt->addErrorMarker(
+                elem->getId()->getLocation(),
+                "failed to find '%s' in '%s'",
+                elem->getId()->getId().c_str(),
+                target_s->getName().c_str());
+            break;
+        }
+
+        elem->setTarget(res.idx);
+        elem->setSuper(res.super_idx);
+
+        if (elem->getParams()) {
+            elem->getParams()->accept(m_this);
+            TaskCheckCallArgs(m_ctxt).check(res.sym, elem);
+            if (m_template_depth) {
+                TaskTemplateCheck(m_ctxt).checkPure(res.sym, elem);
+            }
+        }
+
+        for (std::vector<ast::IExprUP>::const_iterator
+            it=elem->getSubscript().begin();
+            it!=elem->getSubscript().end(); it++) {
+            (*it)->accept(m_this);
+        }
+
+        if (ii+1 < i->getLeaf()->getElems().size()) {
+            target_c = res.sym;
+            target_s = TaskGetElemSymbolScope(
+                m_ctxt->getDebugMgr(), m_ctxt->root()).resolve(target_c);
+            if (!target_s) {
+                DEBUG("Element %s is not a composite scope -- stop",
+                    elem->getId()->getId().c_str());
+                break;
+            }
+        }
+    }
+
+    DEBUG_LEAVE("resolveStaticRootedLeaf");
 }
 
 void TaskResolveRefs::visitExtendEnum(ast::IExtendEnum *i) {
