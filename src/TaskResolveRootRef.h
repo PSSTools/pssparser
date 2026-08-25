@@ -43,6 +43,12 @@ public:
 
     virtual void visitProceduralStmtForeach(ast::IProceduralStmtForeach *i) override;
 
+    // 4.7.1 -- consult a template scope's own symtab (its iterator, index and
+    // declared variables) without descending into the body.
+    virtual void visitTemplateString(ast::ITemplateString *i) override;
+
+    virtual void visitTemplateBlock(ast::ITemplateBlock *i) override;
+
     virtual void visitRootSymbolScope(ast::IRootSymbolScope *i) override;
 
     virtual void visitSymbolScope(ast::ISymbolScope *i) override;

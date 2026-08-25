@@ -232,8 +232,16 @@ TRIPLE_DOUBLE_QUOTED_STRING:
 			'"""' TripleQuotedStringPart*? '"""'
 		; 
 		
-fragment TripleQuotedStringPart : EscapedTripleQuote | SourceCharacter;
-fragment EscapedTripleQuote: '\\"""';
+// O5: there is deliberately no escape here. §4.7 is explicit that a
+// triple-quoted string "may contain any ASCII character... There is no
+// escape character", the sole exclusion being three consecutive double
+// quotes.
+//
+// An EscapedTripleQuote alternative matching a backslash followed by three
+// quotes used to be part of this rule. It made `"""a\"""` scan as content
+// `a\"""` and keep going, where the standard ends the string at the `"""`
+// with content `a\`. It was a non-conformant extension and it is gone.
+fragment TripleQuotedStringPart : SourceCharacter;
 fragment SourceCharacter :[\u0009\u000A\u000D\u0020-\uFFFF];
 
 /**

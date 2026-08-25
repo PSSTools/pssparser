@@ -150,21 +150,15 @@ class Factory(object):
     def mkAssocData(self) -> 'AssocData': ...
     def mkSymbolImportSpec(self) -> 'SymbolImportSpec': ...
     def mkSymbolRefPath(self) -> 'SymbolRefPath': ...
-    def mkExecTargetTemplateParam(self,
-        expr : Expr,
-        start : int,
-        end : int) -> 'ExecTargetTemplateParam': ...
-    def mkTemplateParamDeclList(self) -> 'TemplateParamDeclList': ...
-    def mkExpr(self) -> 'Expr': ...
-    def mkTemplateParamValue(self) -> 'TemplateParamValue': ...
     def mkTemplateParamValueList(self) -> 'TemplateParamValueList': ...
+    def mkExpr(self) -> 'Expr': ...
+    def mkExprAggrMapElem(self,
+        lhs : Expr,
+        rhs : Expr) -> 'ExprAggrMapElem': ...
     def mkActivityMatchChoice(self,
         is_default : bool,
         cond : ExprOpenRangeList,
         body : ScopeChild) -> 'ActivityMatchChoice': ...
-    def mkExprAggrMapElem(self,
-        lhs : Expr,
-        rhs : Expr) -> 'ExprAggrMapElem': ...
     def mkExprAggrStructElem(self,
         name : ExprId,
         value : Expr) -> 'ExprAggrStructElem': ...
@@ -172,7 +166,9 @@ class Factory(object):
         is_default : bool,
         cond : ExprOpenRangeList,
         body : ScopeChild) -> 'MonitorActivityMatchChoice': ...
+    def mkTemplateParamDeclList(self) -> 'TemplateParamDeclList': ...
     def mkRefExpr(self) -> 'RefExpr': ...
+    def mkTemplateParamValue(self) -> 'TemplateParamValue': ...
     def mkMonitorActivitySelectBranch(self,
         guard : Expr,
         body : ScopeChild) -> 'MonitorActivitySelectBranch': ...
@@ -226,6 +222,8 @@ class Factory(object):
     def mkProceduralStmtIfClause(self,
         cond : Expr,
         body : ScopeChild) -> 'ProceduralStmtIfClause': ...
+    def mkTemplateParamDecl(self,
+        name : ExprId) -> 'TemplateParamDecl': ...
     def mkCoverStmtInline(self,
         body : ScopeChild) -> 'CoverStmtInline': ...
     def mkCoverStmtReference(self,
@@ -242,11 +240,12 @@ class Factory(object):
     def mkRefExprTypeScopeGlobal(self,
         fileid : int) -> 'RefExprTypeScopeGlobal': ...
     def mkScope(self) -> 'Scope': ...
-    def mkTypedefDeclaration(self,
-        name : ExprId,
-        type : DataType) -> 'TypedefDeclaration': ...
+    def mkTemplateParamExprValue(self,
+        value : Expr) -> 'TemplateParamExprValue': ...
     def mkScopeChildRef(self,
         target : ScopeChild) -> 'ScopeChildRef': ...
+    def mkTemplateParamTypeValue(self,
+        value : DataType) -> 'TemplateParamTypeValue': ...
     def mkSymbolChild(self) -> 'SymbolChild': ...
     def mkDistItem(self,
         range : ExprOpenRangeValue,
@@ -262,20 +261,14 @@ class Factory(object):
     def mkExecTargetTemplateBlock(self,
         kind : ExecKind,
         data : str) -> 'ExecTargetTemplateBlock': ...
-    def mkTemplateParamDecl(self,
-        name : ExprId) -> 'TemplateParamDecl': ...
     def mkExportFunction(self,
         plat : PlatQual,
         name : ExprId) -> 'ExportFunction': ...
-    def mkTemplateParamExprValue(self,
-        value : Expr) -> 'TemplateParamExprValue': ...
-    def mkTemplateParamTypeValue(self,
-        value : DataType) -> 'TemplateParamTypeValue': ...
+    def mkTargetTemplateFunction(self,
+        proto : FunctionPrototype,
+        language : str,
+        data : str) -> 'TargetTemplateFunction': ...
     def mkExprAggrLiteral(self) -> 'ExprAggrLiteral': ...
-    def mkTypeIdentifier(self) -> 'TypeIdentifier': ...
-    def mkTypeIdentifierElem(self,
-        id : ExprId,
-        params : TemplateParamValueList) -> 'TypeIdentifierElem': ...
     def mkExprBin(self,
         lhs : Expr,
         op : ExprBinOp,
@@ -322,7 +315,14 @@ class Factory(object):
         lhs : Expr,
         rhs : Expr) -> 'ExprOpenRangeValue': ...
     def mkExprRefPath(self) -> 'ExprRefPath': ...
+    def mkTypeIdentifier(self) -> 'TypeIdentifier': ...
     def mkExprRefPathElem(self) -> 'ExprRefPathElem': ...
+    def mkTypeIdentifierElem(self,
+        id : ExprId,
+        params : TemplateParamValueList) -> 'TypeIdentifierElem': ...
+    def mkTypedefDeclaration(self,
+        name : ExprId,
+        type : DataType) -> 'TypedefDeclaration': ...
     def mkExprSliceRange(self) -> 'ExprSliceRange': ...
     def mkExprStaticRefPath(self,
         is_global : bool,
@@ -428,6 +428,9 @@ class Factory(object):
         image : str,
         width : int,
         value : int) -> 'ExprSignedNumber': ...
+    def mkExprTemplateString(self,
+        value : str,
+        is_raw : bool) -> 'ExprTemplateString': ...
     def mkExprUnsignedNumber(self,
         image : str,
         width : int,
@@ -653,6 +656,13 @@ class Factory(object):
     def mkSymbolTypeScope(self,
         name : str,
         plist : SymbolScope) -> 'SymbolTypeScope': ...
+    def mkTemplateElem(self,
+        name : str,
+        offset : int,
+        extent : int) -> 'TemplateElem': ...
+    def mkTemplateString(self,
+        name : str,
+        raw : str) -> 'TemplateString': ...
     def mkExecBlock(self,
         name : str,
         kind : ExecKind) -> 'ExecBlock': ...
@@ -662,11 +672,35 @@ class Factory(object):
         path : ExprRefPath,
         it_id : ExprId,
         idx_id : ExprId) -> 'ProceduralStmtForeach': ...
+    def mkTemplateAssign(self,
+        name : str,
+        offset : int,
+        extent : int,
+        lhs : ExprId,
+        rhs : Expr) -> 'TemplateAssign': ...
+    def mkTemplateBlock(self,
+        name : str,
+        offset : int,
+        extent : int) -> 'TemplateBlock': ...
+    def mkTemplateComment(self,
+        name : str,
+        offset : int,
+        extent : int,
+        text : str) -> 'TemplateComment': ...
     def mkProceduralStmtRepeat(self,
         name : str,
         body : ScopeChild,
         it_id : ExprId,
         count : Expr) -> 'ProceduralStmtRepeat': ...
+    def mkTemplateExpr(self,
+        name : str,
+        offset : int,
+        extent : int,
+        expr : Expr) -> 'TemplateExpr': ...
+    def mkTemplateIf(self,
+        name : str,
+        offset : int,
+        extent : int) -> 'TemplateIf': ...
     def mkActivityParallel(self,
         name : str,
         join_spec : ActivityJoinSpec) -> 'ActivityParallel': ...
@@ -675,6 +709,29 @@ class Factory(object):
         join_spec : ActivityJoinSpec) -> 'ActivitySchedule': ...
     def mkActivitySequence(self,
         name : str) -> 'ActivitySequence': ...
+    def mkTemplateText(self,
+        name : str,
+        offset : int,
+        extent : int,
+        text : str) -> 'TemplateText': ...
+    def mkTemplateVarDecl(self,
+        name : str,
+        offset : int,
+        extent : int) -> 'TemplateVarDecl': ...
+    def mkTemplateForeach(self,
+        name : str,
+        offset : int,
+        extent : int,
+        expr : Expr) -> 'TemplateForeach': ...
+    def mkTemplateRepeat(self,
+        name : str,
+        offset : int,
+        extent : int,
+        expr : Expr) -> 'TemplateRepeat': ...
+    def mkTemplateIfClause(self,
+        name : str,
+        offset : int,
+        extent : int) -> 'TemplateIfClause': ...
     @staticmethod
     def inst() -> 'Factory': ...
     
@@ -697,25 +754,6 @@ class SymbolRefPath(object):
     
     def getPath(self) -> List[SymbolRefPathElem]: ...
     
-class ExecTargetTemplateParam(object):
-    pass
-    
-    def getExpr(self) -> Expr: ...
-    
-class TemplateParamDeclList(object):
-    pass
-    
-    def params(self) -> ListUtil...
-        """Returns an iterator over the items"""
-    
-    def getParams(self) -> List[TemplateParamDecl]: ...
-    
-class Expr(object):
-    pass
-    
-class TemplateParamValue(object):
-    pass
-    
 class TemplateParamValueList(object):
     pass
     
@@ -724,12 +762,8 @@ class TemplateParamValueList(object):
     
     def getValues(self) -> List[TemplateParamValue]: ...
     
-class ActivityMatchChoice(object):
+class Expr(object):
     pass
-    
-    def getCond(self) -> ExprOpenRangeList: ...
-    
-    def getBody(self) -> ScopeChild: ...
     
 class ExprAggrMapElem(object):
     pass
@@ -737,6 +771,13 @@ class ExprAggrMapElem(object):
     def getLhs(self) -> Expr: ...
     
     def getRhs(self) -> Expr: ...
+    
+class ActivityMatchChoice(object):
+    pass
+    
+    def getCond(self) -> ExprOpenRangeList: ...
+    
+    def getBody(self) -> ScopeChild: ...
     
 class ExprAggrStructElem(object):
     pass
@@ -752,7 +793,18 @@ class MonitorActivityMatchChoice(object):
     
     def getBody(self) -> ScopeChild: ...
     
+class TemplateParamDeclList(object):
+    pass
+    
+    def params(self) -> ListUtil...
+        """Returns an iterator over the items"""
+    
+    def getParams(self) -> List[TemplateParamDecl]: ...
+    
 class RefExpr(object):
+    pass
+    
+class TemplateParamValue(object):
     pass
     
 class MonitorActivitySelectBranch(object):
@@ -1326,6 +1378,44 @@ class ProceduralStmtIfClause(ScopeChild):
     
     def getBody(self) -> ScopeChild: ...
     
+class TemplateParamDecl(ScopeChild):
+    """
+    Base class for template parameter declarations.
+    
+    Template parameters allow types and functions to be parameterized, enabling
+    generic programming in PSS. This abstract base class provides the common name
+    field shared by all template parameter types (generic type, category-constrained
+    type, and value parameters).
+    
+    PSS Example::
+    
+        // Generic type parameter T
+        action generic<T> {
+            rand T value;
+        }
+        
+        // Value parameter N
+        action sized<int N> {
+            int array[N];
+        }
+        
+        // Category-constrained parameter T
+        component container<T: action> {
+            T inst;
+        }
+    
+    Attributes:
+        name: Identifier for the template parameter
+    
+    See Also:
+        TemplateGenericTypeParamDecl, TemplateCategoryTypeParamDecl,
+        TemplateValueParamDecl, TemplateParamDeclList
+    
+    """
+    pass
+    
+    def getName(self) -> ExprId: ...
+    
 class CoverStmtInline(ScopeChild):
     """
     Inline coverage statement within monitor or action.
@@ -1602,12 +1692,51 @@ class Scope(ScopeChild):
     
     def getChildren(self) -> List[ScopeChild]: ...
     
-class TypedefDeclaration(ScopeChild):
+class TemplateParamExprValue(TemplateParamValue):
+    """
+    Expression value for template instantiation.
+    
+    Represents a compile-time constant expression provided when instantiating a
+    template. This is used to fill in value parameters with concrete values. The
+    expression must be evaluable at compile time and must match the type specified
+    in the corresponding value parameter declaration.
+    
+    PSS Example::
+    
+        // Template with value parameters
+        action sized<int N, int WIDTH> {
+            bit<WIDTH> array[N];
+        }
+        
+        // Instantiation with expression values
+        sized<16, 8> inst1;  // Literal expressions
+        
+        // Using constants as expression values
+        const int BUFFER_SIZE = 32;
+        const int DATA_WIDTH = 64;
+        sized<BUFFER_SIZE, DATA_WIDTH> inst2;
+        
+        // Expressions can be computed
+        sized<8*4, 2+6> inst3;  // 32 elements, 8 bits wide
+        
+        // Mixed type and expression values
+        action mixed<T, int COUNT> {
+            T values[COUNT];
+        }
+        mixed<bit<32>, 10> mixed_inst;
+        // First value: bit<32> (TemplateParamTypeValue)
+        // Second value: 10 (TemplateParamExprValue)
+    
+    Attributes:
+        value: The compile-time constant expression
+    
+    See Also:
+        TemplateParamValue, TemplateParamTypeValue, Expr, TemplateValueParamDecl
+    
+    """
     pass
     
-    def getName(self) -> ExprId: ...
-    
-    def getType(self) -> DataType: ...
+    def getValue(self) -> Expr: ...
     
 class ScopeChildRef(ScopeChild):
     """
@@ -1627,6 +1756,46 @@ class ScopeChildRef(ScopeChild):
     pass
     
     def getTarget(self) -> ScopeChild: ...
+    
+class TemplateParamTypeValue(TemplateParamValue):
+    """
+    Type value for template instantiation.
+    
+    Represents a type argument provided when instantiating a template. This is used
+    to fill in type parameters (both generic and category-constrained) with concrete
+    types. The value must be a valid data type expression that satisfies any
+    constraints specified in the template parameter declaration.
+    
+    PSS Example::
+    
+        // Template with type parameters
+        action generic<T, U: action> {
+            rand T data;
+            U action_inst;
+        }
+        
+        // Instantiation with type values
+        generic<bit<16>, my_action_t> inst;
+        // First parameter value: bit<16> (built-in type)
+        // Second parameter value: my_action_t (user-defined action type)
+        
+        // Complex type as parameter value
+        struct nested_struct<T> {
+            T value;
+        }
+        generic<nested_struct<int<32>>, other_action_t> complex_inst;
+    
+    Attributes:
+        value: The type being provided as the template argument
+    
+    See Also:
+        TemplateParamValue, TemplateParamExprValue, DataType,
+        TemplateGenericTypeParamDecl, TemplateCategoryTypeParamDecl
+    
+    """
+    pass
+    
+    def getValue(self) -> DataType: ...
     
 class SymbolChild(ScopeChild):
     """
@@ -1830,11 +1999,20 @@ class ExecTargetTemplateBlock(ScopeChild):
     
     Attributes:
         kind: Type of exec block this template belongs to
-        data: Template string with {{parameter}} placeholders
-        parameters: List of parameter substitutions
+        data: Raw template text, verbatim, with quotes stripped
+        template: Scanned template body, present only when the text
+            contains special elements (§4.7.1)
+        language: Target language identifier
+        filename: For ``exec file``, the destination filename as raw
+            text with quotes stripped
+        filename_template: Scanned template for the filename, present
+            only when it is triple-quoted and holds special elements.
+            §20.5.3 wants mustache expressions here so a per-instance
+            file can be generated
+        tag: Optional exec block tag (§20.5.4)
     
     See Also:
-        ExecTargetTemplateParam, ExecBlock
+        TemplateString, ExecBlock
     
     """
     pass
@@ -1845,10 +2023,7 @@ class ExecTargetTemplateBlock(ScopeChild):
     
     def setData(self, v : str): ...
     
-    def parameters(self) -> ListUtil...
-        """Returns an iterator over the items"""
-    
-    def getParameters(self) -> List[ExecTargetTemplateParam]: ...
+    def getTemplate(self) -> TemplateString: ...
     
     def getLanguage(self) -> str: ...
     
@@ -1858,45 +2033,9 @@ class ExecTargetTemplateBlock(ScopeChild):
     
     def setFilename(self, v : str): ...
     
+    def getFilename_template(self) -> TemplateString: ...
+    
     def getTag(self) -> ExecBlockTag: ...
-    
-class TemplateParamDecl(ScopeChild):
-    """
-    Base class for template parameter declarations.
-    
-    Template parameters allow types and functions to be parameterized, enabling
-    generic programming in PSS. This abstract base class provides the common name
-    field shared by all template parameter types (generic type, category-constrained
-    type, and value parameters).
-    
-    PSS Example::
-    
-        // Generic type parameter T
-        action generic<T> {
-            rand T value;
-        }
-        
-        // Value parameter N
-        action sized<int N> {
-            int array[N];
-        }
-        
-        // Category-constrained parameter T
-        component container<T: action> {
-            T inst;
-        }
-    
-    Attributes:
-        name: Identifier for the template parameter
-    
-    See Also:
-        TemplateGenericTypeParamDecl, TemplateCategoryTypeParamDecl,
-        TemplateValueParamDecl, TemplateParamDeclList
-    
-    """
-    pass
-    
-    def getName(self) -> ExprId: ...
     
 class ExportFunction(ScopeChild):
     """
@@ -1911,91 +2050,55 @@ class ExportFunction(ScopeChild):
     
     def getName(self) -> ExprId: ...
     
-class TemplateParamExprValue(TemplateParamValue):
+class TargetTemplateFunction(ScopeChild):
     """
-    Expression value for template instantiation.
+    Function whose body is target-language template text -- PSS 3.1 §20.6.
     
-    Represents a compile-time constant expression provided when instantiating a
-    template. This is used to fill in value parameters with concrete values. The
-    expression must be evaluable at compile time and must match the type specified
-    in the corresponding value parameter declaration.
+    A target-template function declares a PSS prototype but supplies its
+    implementation as a string of target-language code rather than as a
+    PSS body.  The string is a template: inside a triple-quoted string it
+    may contain mustache expressions and control-flow directives, and
+    those resolve against the function's own parameter list.
     
     PSS Example::
     
-        // Template with value parameters
-        action sized<int N, int WIDTH> {
-            bit<WIDTH> array[N];
+        package my_pkg {
+            // Single-line form
+            target C function void set_reg(int addr, int val) =
+                """ *(volatile int *)addr = val; """;
+    
+            // Parameters are referenceable from mustache expressions
+            target C function void store(int a) = """ stw {{a}}, 0 """;
+    
+            // Static form
+            target C static function int read() = """ return *p; """;
         }
-        
-        // Instantiation with expression values
-        sized<16, 8> inst1;  // Literal expressions
-        
-        // Using constants as expression values
-        const int BUFFER_SIZE = 32;
-        const int DATA_WIDTH = 64;
-        sized<BUFFER_SIZE, DATA_WIDTH> inst2;
-        
-        // Expressions can be computed
-        sized<8*4, 2+6> inst3;  // 32 elements, 8 bits wide
-        
-        // Mixed type and expression values
-        action mixed<T, int COUNT> {
-            T values[COUNT];
-        }
-        mixed<bit<32>, 10> mixed_inst;
-        // First value: bit<32> (TemplateParamTypeValue)
-        // Second value: 10 (TemplateParamExprValue)
     
     Attributes:
-        value: The compile-time constant expression
+        proto: Function prototype (return type, name, parameters)
+        language: Target language identifier (e.g. "C", "SV")
+        data: Raw template text, with the enclosing quotes stripped
+        is_static: True if declared ``static``
+        template: Scanned template body, present only when the text
+            contains special elements (§4.7.1)
     
     See Also:
-        TemplateParamValue, TemplateParamTypeValue, Expr, TemplateValueParamDecl
+        FunctionPrototype, ExecTargetTemplateBlock, TemplateString
     
     """
     pass
     
-    def getValue(self) -> Expr: ...
+    def getProto(self) -> FunctionPrototype: ...
     
-class TemplateParamTypeValue(TemplateParamValue):
-    """
-    Type value for template instantiation.
+    def getLanguage(self) -> str: ...
     
-    Represents a type argument provided when instantiating a template. This is used
-    to fill in type parameters (both generic and category-constrained) with concrete
-    types. The value must be a valid data type expression that satisfies any
-    constraints specified in the template parameter declaration.
+    def setLanguage(self, v : str): ...
     
-    PSS Example::
+    def getData(self) -> str: ...
     
-        // Template with type parameters
-        action generic<T, U: action> {
-            rand T data;
-            U action_inst;
-        }
-        
-        // Instantiation with type values
-        generic<bit<16>, my_action_t> inst;
-        // First parameter value: bit<16> (built-in type)
-        // Second parameter value: my_action_t (user-defined action type)
-        
-        // Complex type as parameter value
-        struct nested_struct<T> {
-            T value;
-        }
-        generic<nested_struct<int<32>>, other_action_t> complex_inst;
+    def setData(self, v : str): ...
     
-    Attributes:
-        value: The type being provided as the template argument
-    
-    See Also:
-        TemplateParamValue, TemplateParamExprValue, DataType,
-        TemplateGenericTypeParamDecl, TemplateCategoryTypeParamDecl
-    
-    """
-    pass
-    
-    def getValue(self) -> DataType: ...
+    def getTemplate(self) -> TemplateString: ...
     
 class ExprAggrLiteral(Expr):
     """
@@ -2016,64 +2119,6 @@ class ExprAggrLiteral(Expr):
     
     """
     pass
-    
-class TypeIdentifier(Expr):
-    """
-    Represents a type identifier expression.
-    
-    Used to reference type names, possibly with template parameters. The type
-    identifier can be simple or qualified with package/scope names. The target
-    field is resolved during semantic analysis.
-    
-    PSS Example::
-    
-        my_type_t
-        pkg::my_component
-        std::addr_handle_t
-        container<int>          // With template parameters
-    
-    Attributes:
-        elems: List of identifier elements forming the type path
-        target: Resolved symbol reference (null before resolution)
-    
-    See Also:
-        TypeIdentifierElem, ExprHierarchicalId
-    
-    """
-    pass
-    
-    def elems(self) -> ListUtil...
-        """Returns an iterator over the items"""
-    
-    def getElems(self) -> List[TypeIdentifierElem]: ...
-    
-    def getTarget(self) -> SymbolRefPath: ...
-    
-class TypeIdentifierElem(Expr):
-    """
-    Represents a single element in a type identifier path.
-    
-    Building block for type identifiers. Contains an identifier and optional
-    template parameters. Multiple elements are chained for qualified type names.
-    
-    PSS Example::
-    
-        my_pkg          // Simple element
-        container<int>  // Element with template parameters
-    
-    Attributes:
-        id: The identifier name
-        params: Template parameter value list if present
-    
-    See Also:
-        TypeIdentifier, ExprId, TemplateParamValueList
-    
-    """
-    pass
-    
-    def getId(self) -> ExprId: ...
-    
-    def getParams(self) -> TemplateParamValueList: ...
     
 class ExprBin(Expr):
     """
@@ -2600,6 +2645,38 @@ class ExprRefPath(Expr):
     
     def getTarget(self) -> SymbolRefPath: ...
     
+class TypeIdentifier(Expr):
+    """
+    Represents a type identifier expression.
+    
+    Used to reference type names, possibly with template parameters. The type
+    identifier can be simple or qualified with package/scope names. The target
+    field is resolved during semantic analysis.
+    
+    PSS Example::
+    
+        my_type_t
+        pkg::my_component
+        std::addr_handle_t
+        container<int>          // With template parameters
+    
+    Attributes:
+        elems: List of identifier elements forming the type path
+        target: Resolved symbol reference (null before resolution)
+    
+    See Also:
+        TypeIdentifierElem, ExprHierarchicalId
+    
+    """
+    pass
+    
+    def elems(self) -> ListUtil...
+        """Returns an iterator over the items"""
+    
+    def getElems(self) -> List[TypeIdentifierElem]: ...
+    
+    def getTarget(self) -> SymbolRefPath: ...
+    
 class ExprRefPathElem(Expr):
     """
     Base class for elements within a reference path.
@@ -2612,6 +2689,39 @@ class ExprRefPathElem(Expr):
     
     """
     pass
+    
+class TypeIdentifierElem(Expr):
+    """
+    Represents a single element in a type identifier path.
+    
+    Building block for type identifiers. Contains an identifier and optional
+    template parameters. Multiple elements are chained for qualified type names.
+    
+    PSS Example::
+    
+        my_pkg          // Simple element
+        container<int>  // Element with template parameters
+    
+    Attributes:
+        id: The identifier name
+        params: Template parameter value list if present
+    
+    See Also:
+        TypeIdentifier, ExprId, TemplateParamValueList
+    
+    """
+    pass
+    
+    def getId(self) -> ExprId: ...
+    
+    def getParams(self) -> TemplateParamValueList: ...
+    
+class TypedefDeclaration(ScopeChild):
+    pass
+    
+    def getName(self) -> ExprId: ...
+    
+    def getType(self) -> DataType: ...
     
 class ExprSliceRange(Expr):
     """
@@ -4153,6 +4263,40 @@ class ExprSignedNumber(ExprNumber):
     
     def setImage(self, v : str): ...
     
+class ExprTemplateString(ExprString):
+    """
+    A triple-quoted string literal that contains special elements --
+    PSS 3.1 §4.7.1.
+    
+    Subclasses ExprString rather than replacing it, deliberately: every
+    existing consumer that dynamic_casts to ExprString or calls
+    ``getValue()`` keeps working and sees the raw text, exactly as
+    before. Only consumers that care look for the subclass.
+    
+    A triple-quoted string with **no** special elements stays a plain
+    ExprString -- this keeps the common case free of extra nodes and
+    makes "has specials" a type test.
+    
+    Note ``getValue()`` returns the *unexpanded* text.  A front end
+    cannot supply the expanded value: expansion needs solve-time data,
+    which is a tool's job, not a parser's.
+    
+    PSS Example::
+    
+        static const string greeting = """Hello, {{name}}!""";
+    
+    Attributes:
+        template: The scanned template body
+        value: Raw text with quotes stripped (inherited from ExprString)
+    
+    See Also:
+        ExprString, TemplateString
+    
+    """
+    pass
+    
+    def getTemplate(self) -> TemplateString: ...
+    
 class ExprUnsignedNumber(ExprNumber):
     """
     Represents an unsigned integer literal value.
@@ -4440,15 +4584,15 @@ class FunctionPrototype(NamedScopeChild):
     
     Represents a function's interface: return type, name, and parameter
     list. Used both in complete function definitions and standalone
-    prototypes. Can be marked as pure virtual, and qualified for
-    target or solve-time execution. Core functions are built-in library
+    prototypes. Can be marked 'pure', and qualified for target or
+    solve-time execution. Core functions are built-in library
     functions.
     
     PSS Example::
     
-        // Pure virtual method in action
-        action base_action {
-            pure virtual function void execute();
+        // Pure function -- callable from a template string
+        package p {
+            pure function int addr_of(int idx);
         }
         
         // Function prototype with parameters
@@ -4464,7 +4608,10 @@ class FunctionPrototype(NamedScopeChild):
         name: Function name (inherited from NamedScopeChild)
         rtype: Return type (void if no return)
         parameters: List of parameter declarations
-        is_pure: True if declared as 'pure virtual'
+        is_pure: True if declared with the 'pure' qualifier
+            (B.5) -- a function with no side effects, which is what a
+            template string may call (4.7.1.1).  Not 'pure virtual',
+            which this grammar does not have.
         is_target: True if qualified with '= target'
         is_solve: True if qualified with '= solve'
         is_core: True for built-in library functions
@@ -7289,6 +7436,91 @@ class SymbolTypeScope(SymbolScope):
     
     def getSpec_types(self) -> List[SymbolTypeScope]: ...
     
+class TemplateElem(SymbolScope):
+    """
+    Base class for one element of a scanned template string.
+    
+    Every element records where it came from in the owning
+    TemplateString's ``raw`` text.  A ``Location`` is not enough for a
+    renderer that wants to splice, so byte offsets are carried as well.
+    
+    Note this derives from SymbolScope rather than plain ScopeChild.
+    Only the block elements actually need a symbol table, but the name
+    resolution machinery requires a scope pushed onto the resolution
+    stack to be an ISymbolScope -- ``AstSymbolTableIterator::
+    getSymScopeBack()`` silently *erases* anything else from the stack.
+    Keeping one hierarchy avoids duplicating offset/extent across two
+    parallel ones.  The ``name`` inherited from SymbolChildrenScope is a
+    fixed kind tag (``<template-text>``, ``<template-if>``, ...), which
+    also makes the resolver's debug output readable.
+    
+    Attributes:
+        offset: Byte offset into the owning TemplateString's raw text
+        extent: Length in bytes, including the delimiters
+        is_own_line: True when this element's line holds directives and
+            whitespace only.  §4.7.1.2 excludes that whitespace and the
+            terminating newline from the expansion; deciding it needs the
+            raw text, so the scanner computes it once and records it here
+            rather than making every renderer re-scan.
+    
+    See Also:
+        TemplateString, TemplateBlock
+    
+    """
+    pass
+    
+class TemplateString(SymbolScope):
+    """
+    Parsed body of one triple-quoted string that contains special
+    elements -- PSS 3.1 §4.7.1.
+    
+    A triple-quoted string stops being a leaf and becomes a *scope* when
+    it contains mustache expressions or control-flow directives: the
+    expressions resolve against the enclosing model, and the directives
+    declare variables of their own.
+    
+    A triple-quoted string containing **no** special elements does not
+    get a TemplateString at all -- it stays a plain ExprString.  "Has
+    specials" is therefore a type test rather than a list-length test.
+    
+    PSS Example::
+    
+        action a {
+            int size;
+            exec body C = """
+                {# a block comment, not scanned for specials #}
+                {% if (size > 0) %}
+                memset(buf, 0, {{size}});
+                {%%}
+            """;
+        }
+    
+    Attributes:
+        raw: Verbatim content with the enclosing quotes stripped.  Kept
+            lossless so a formatter that cannot render a template
+            structurally can still copy it byte for byte.
+        elems: The scanned elements, in source order
+        is_const: True when every special element references only
+            constant expressions (§4.7).  Computed after resolution,
+            not during scanning.
+        symtab: Variables declared at the top level of this template
+            (inherited from SymbolScope)
+    
+    See Also:
+        TemplateElem, ExprTemplateString, ExecTargetTemplateBlock
+    
+    """
+    pass
+    
+    def getRaw(self) -> str: ...
+    
+    def setRaw(self, v : str): ...
+    
+    def elems(self) -> ListUtil...
+        """Returns an iterator over the items"""
+    
+    def getElems(self) -> List[TemplateElem]: ...
+    
 class ExecBlock(ExecScope):
     """
     Complete exec block with specific execution phase.
@@ -7374,6 +7606,89 @@ class ProceduralStmtForeach(ProceduralStmtSymbolBodyScope):
     
     def getIdx_id(self) -> ExprId: ...
     
+class TemplateAssign(TemplateElem):
+    """
+    A template variable assignment -- §4.7.1.2, Table 5.
+    
+    ``{% identifier = expression ; %}``
+    
+    §4.7.1.2 restricts the target: it may only be a variable *previously
+    declared within the same triple-quoted string*.  Assigning to an
+    action attribute is illegal, and nothing about the syntax
+    distinguishes the two cases -- the only way to tell them apart is to
+    ask which symtab the name resolved through.  That is why template
+    locals must be real symbols in a real scope rather than a side table.
+    
+    Attributes:
+        lhs: The assignment target
+        rhs: The assigned expression
+    
+    See Also:
+        TemplateVarDecl
+    
+    """
+    pass
+    
+    def getLhs(self) -> ExprId: ...
+    
+    def getRhs(self) -> Expr: ...
+    
+class TemplateBlock(TemplateElem):
+    """
+    Base class for a control-flow directive that opens a block.
+    
+    §4.7.1.2: a foreach iterator/index, a repeat index, and a variable
+    declaration are "added to the scope until the block closing
+    directive, and can be referenced in mustache expressions and other
+    control-flow directives within this block."  That is what makes a
+    block a scope.
+    
+    The variables are synthesized as ProceduralStmtDataDeclaration nodes
+    and registered in this node's own symtab, exactly as
+    ProceduralStmtForeach does for a procedural loop -- which means
+    ``{% int x; %}`` and a procedural ``int x;`` resolve through one path.
+    
+    Attributes:
+        body: Elements between this directive and its ``{%%}``
+        symtab: Variables this block introduces (inherited)
+    
+    See Also:
+        TemplateIf, TemplateForeach, TemplateRepeat
+    
+    """
+    pass
+    
+    def body(self) -> ListUtil...
+        """Returns an iterator over the items"""
+    
+    def getBody(self) -> List[TemplateElem]: ...
+    
+class TemplateComment(TemplateElem):
+    """
+    A template comment -- ``{# ... #}`` or ``{#}`` to end of line,
+    §4.7.1.3.
+    
+    Comment content is **not** processed for special elements: a ``{{``
+    inside a comment is literal text.
+    
+    Comments are retained rather than discarded.  Evaluation drops them,
+    but *parsing* must not, or a formatter loses the user's comments.
+    Dropping is the renderer's job.
+    
+    Attributes:
+        text: Comment content, excluding the delimiters
+        is_line: True for the ``{#}`` line form, false for ``{# ... #}``
+    
+    See Also:
+        TemplateElem
+    
+    """
+    pass
+    
+    def getText(self) -> str: ...
+    
+    def setText(self, v : str): ...
+    
 class ProceduralStmtRepeat(ProceduralStmtSymbolBodyScope):
     """
     Fixed-count repeat loop with optional iterator variable.
@@ -7412,6 +7727,52 @@ class ProceduralStmtRepeat(ProceduralStmtSymbolBodyScope):
     def getIt_id(self) -> ExprId: ...
     
     def getCount(self) -> Expr: ...
+    
+class TemplateExpr(TemplateElem):
+    """
+    A mustache expression -- ``{{ expression }}``, §4.7.1.1.
+    
+    The expression is parsed by the ordinary PSS expression grammar and
+    resolves against whatever is referenceable at that point in the
+    source.  §4.7.1.1 additionally requires the type to be scalar and any
+    function called to be ``pure``.
+    
+    PSS Example::
+    
+        exec body C = """ stw {{addr}}, {{value}} """;
+    
+    Attributes:
+        expr: The parsed expression
+    
+    See Also:
+        TemplateElem, TemplateString
+    
+    """
+    pass
+    
+    def getExpr(self) -> Expr: ...
+    
+class TemplateIf(TemplateElem):
+    """
+    A template if directive with its else-if and else arms -- §4.7.1.2.
+    
+    The clauses are held **flat**, not as a tree of nested ifs.  The
+    source is a flat directive sequence, so nesting would be an invention
+    a formatter would then have to undo.
+    
+    Attributes:
+        clauses: if / else-if / else arms, in source order
+    
+    See Also:
+        TemplateIfClause, TemplateBlock
+    
+    """
+    pass
+    
+    def clauses(self) -> ListUtil...
+        """Returns an iterator over the items"""
+    
+    def getClauses(self) -> List[TemplateIfClause]: ...
     
 class ActivityParallel(ActivityLabeledScope):
     """
@@ -7543,4 +7904,108 @@ class ActivitySequence(ActivityLabeledScope):
     
     """
     pass
+    
+class TemplateText(TemplateElem):
+    """
+    A run of literal text between special elements.
+    
+    Attributes:
+        text: The literal text, verbatim
+    
+    See Also:
+        TemplateElem
+    
+    """
+    pass
+    
+    def getText(self) -> str: ...
+    
+    def setText(self, v : str): ...
+    
+class TemplateVarDecl(TemplateElem):
+    """
+    A template variable declaration -- §4.7.1.2, Table 5.
+    
+    ``{% data_type procedural_data_instantiation { , procedural_data_instantiation } ; %}``
+    
+    The declarations are ProceduralStmtDataDeclaration nodes, the same
+    node a procedural ``int x;`` produces, so both resolve through one
+    path.  They are registered in the enclosing TemplateBlock's (or
+    TemplateString's) symtab.
+    
+    Attributes:
+        decls: The declared variables
+    
+    See Also:
+        TemplateAssign, TemplateBlock
+    
+    """
+    pass
+    
+    def decls(self) -> ListUtil...
+        """Returns an iterator over the items"""
+    
+    def getDecls(self) -> List[ProceduralStmtDataDeclaration]: ...
+    
+class TemplateForeach(TemplateBlock):
+    """
+    A template foreach directive -- §4.7.1.2, Table 5.
+    
+    ``{% foreach ( [ iterator_identifier : ] expression [ [ index_identifier ] ] ) %}``
+    
+    Attributes:
+        expr: The collection expression being iterated
+        it: Iterator variable identifier, if written
+        idx: Index variable identifier, if written
+    
+    See Also:
+        TemplateBlock, TemplateRepeat
+    
+    """
+    pass
+    
+    def getExpr(self) -> Expr: ...
+    
+    def getIt(self) -> ExprId: ...
+    
+    def getIdx(self) -> ExprId: ...
+    
+class TemplateRepeat(TemplateBlock):
+    """
+    A template repeat directive -- §4.7.1.2, Table 5.
+    
+    ``{% repeat ( [ index_identifier : ] expression ) %}``
+    
+    Attributes:
+        expr: The repeat-count expression
+        idx: Index variable identifier, if written
+    
+    See Also:
+        TemplateBlock, TemplateForeach
+    
+    """
+    pass
+    
+    def getExpr(self) -> Expr: ...
+    
+    def getIdx(self) -> ExprId: ...
+    
+class TemplateIfClause(TemplateBlock):
+    """
+    One arm of a template if/else-if/else chain.
+    
+    PSS Example::
+    
+        {% if (a) %}   one   {% else if (b) %}   two   {% else %}   three   {%%}
+    
+    Attributes:
+        cond: The guard expression; null for the ``else`` arm
+    
+    See Also:
+        TemplateIf
+    
+    """
+    pass
+    
+    def getCond(self) -> Expr: ...
     

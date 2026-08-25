@@ -223,8 +223,7 @@ Procedural Code Hierarchy
     │   ├── ProceduralStmtContinue
     │   ├── ProceduralStmtYield
     │   └── ProceduralStmtRandomize
-    ├── ExecTargetTemplateBlock
-    └── ExecTargetTemplateParam
+    └── ExecTargetTemplateBlock
 
 Function Hierarchy
 ==================
@@ -270,8 +269,41 @@ Monitor Hierarchy (PSS 3.0)
     ├── CoverStmtInline
     └── CoverStmtReference
 
-Template Hierarchy
-==================
+Template String Hierarchy (PSS 3.1)
+====================================
+
+The scanned body of a triple-quoted string containing special elements
+(§4.7.1).  Distinct from the *type* template hierarchy below, which is about
+parameterized types and shares only the word.
+
+Note both bases derive from **SymbolScope**.  Only the block elements need a
+symbol table -- a ``foreach`` iterator has to be visible inside its own block --
+but the resolution machinery erases anything that is not an ``ISymbolScope``
+from its scope stack, so one hierarchy is cheaper than two parallel ones.
+
+::
+
+    SymbolScope
+    ├── TemplateString (one scanned triple-quoted string)
+    └── TemplateElem (base element; carries offset/extent)
+        ├── TemplateText (literal run)
+        ├── TemplateExpr ({{ expr }})
+        ├── TemplateComment ({# ... #} and {#})
+        ├── TemplateIf (flat if/else-if/else chain)
+        ├── TemplateVarDecl ({% int x; %})
+        ├── TemplateAssign ({% x = expr; %})
+        └── TemplateBlock (base for block-opening directives)
+            ├── TemplateIfClause (one arm of a TemplateIf)
+            ├── TemplateForeach
+            └── TemplateRepeat
+
+``ExprTemplateString`` subclasses ``ExprString``, so every existing consumer
+that casts to ``ExprString`` or calls ``getValue()`` keeps working and sees the
+raw text.  A triple-quoted string with *no* special elements stays a plain
+``ExprString``.
+
+Type Template Hierarchy
+=======================
 
 ::
 

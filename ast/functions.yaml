@@ -122,15 +122,15 @@ classes:
           
           Represents a function's interface: return type, name, and parameter
           list. Used both in complete function definitions and standalone
-          prototypes. Can be marked as pure virtual, and qualified for
-          target or solve-time execution. Core functions are built-in library
+          prototypes. Can be marked 'pure', and qualified for target or
+          solve-time execution. Core functions are built-in library
           functions.
           
           PSS Example::
           
-              // Pure virtual method in action
-              action base_action {
-                  pure virtual function void execute();
+              // Pure function -- callable from a template string
+              package p {
+                  pure function int addr_of(int idx);
               }
               
               // Function prototype with parameters
@@ -146,7 +146,10 @@ classes:
               name: Function name (inherited from NamedScopeChild)
               rtype: Return type (void if no return)
               parameters: List of parameter declarations
-              is_pure: True if declared as 'pure virtual'
+              is_pure: True if declared with the 'pure' qualifier
+                  (B.5) -- a function with no side effects, which is what a
+                  template string may call (4.7.1.1).  Not 'pure virtual',
+                  which this grammar does not have.
               is_target: True if qualified with '= target'
               is_solve: True if qualified with '= solve'
               is_core: True for built-in library functions
@@ -291,6 +294,53 @@ classes:
       data:
         - plat: PlatQual
         - name: UP<ExprId>
+
+  - TargetTemplateFunction:
+      super: ScopeChild
+      doc: |
+          Function whose body is target-language template text -- PSS 3.1 §20.6.
+
+          A target-template function declares a PSS prototype but supplies its
+          implementation as a string of target-language code rather than as a
+          PSS body.  The string is a template: inside a triple-quoted string it
+          may contain mustache expressions and control-flow directives, and
+          those resolve against the function's own parameter list.
+
+          PSS Example::
+
+              package my_pkg {
+                  // Single-line form
+                  target C function void set_reg(int addr, int val) =
+                      """ *(volatile int *)addr = val; """;
+
+                  // Parameters are referenceable from mustache expressions
+                  target C function void store(int a) = """ stw {{a}}, 0 """;
+
+                  // Static form
+                  target C static function int read() = """ return *p; """;
+              }
+
+          Attributes:
+              proto: Function prototype (return type, name, parameters)
+              language: Target language identifier (e.g. "C", "SV")
+              data: Raw template text, with the enclosing quotes stripped
+              is_static: True if declared ``static``
+              template: Scanned template body, present only when the text
+                  contains special elements (§4.7.1)
+
+          See Also:
+              FunctionPrototype, ExecTargetTemplateBlock, TemplateString
+      data:
+        - proto: UP<FunctionPrototype>
+        - language: string
+        - data: string
+        - is_static:
+            type: bool
+            is_ctor: false
+            init: false
+        - template:
+            type: UP<TemplateString>
+            is_ctor: false
 
 
 

@@ -171,13 +171,6 @@ Table 3 as an error in the table.
    This breaks existing target-template code that happens to contain two
    adjacent open braces. It is not specific to any one construct.
 
-.. note::
-
-   **Not yet in effect.** pssparser does not process special elements yet —
-   triple-quoted strings are still passed through opaquely, so the code below
-   currently parses. This section is written ahead of the change so that
-   existing sources can be checked before it lands.
-
 PSS 3.1 §4.7.1 makes ``{{`` open a *mustache expression* inside a triple-quoted
 string. Triple-quoted strings have **no escape character**, so target code that
 legitimately contains ``{{`` is now read as the start of an expression:
@@ -207,7 +200,16 @@ Only the **opening** delimiter is special. A stray ``}}`` in text is not an
 error, so the closing braces that C and C++ produce constantly are unaffected.
 
 The failure is loud, never silent — a malformed ``{{`` is reported, not quietly
-treated as text — and the diagnostic names this workaround inline.
+treated as text — and the diagnostic names this workaround inline:
+
+.. code-block:: text
+
+    PSS109: malformed mustache expression: unexpected ','; if '{{' was
+    intended as literal text, separate the braces ('{ {')
+
+An unterminated ``{{`` reports ``PSS108`` and carries the same hint. Treating an
+unparseable mustache as literal text would let a genuinely malformed
+``{{ x + }}`` pass unnoticed, which is worse than failing on valid-looking C.
 
 .. note::
 
@@ -218,6 +220,36 @@ treated as text — and the diagnostic names this workaround inline.
    ``{% raw %}`` and configurable delimiters, and the original Mustache
    specification's set-delimiter tag exists precisely because "double-braces may
    occur in the text."
+
+.. _triple-quote-escape-removed:
+
+``\\"""`` is no longer an escape
+---------------------------------
+
+.. warning::
+
+   This breaks any source relying on a backslash to embed ``"""`` inside a
+   triple-quoted string.
+
+PSS 3.1 §4.7 is explicit that a triple-quoted string "may contain any ASCII
+character... **There is no escape character**", the sole exclusion being three
+consecutive double quotes.
+
+pssparser previously accepted a backslash before the closing delimiter as an
+escape, so the string continued past where the standard ends it:
+
+.. code-block:: pss
+
+    // Read as content `a\"""...` and scanning continued -- non-conformant.
+    // Now the string ends at the `"""`, with content `a\`.
+    exec declaration C = """a\""";
+
+There is no replacement: the standard provides no way to write three
+consecutive double quotes inside a triple-quoted string. Restructure the target
+code so the sequence does not occur.
+
+This lands together with the ``{{`` change above; both are the same class of
+correction, from a local extension to what the standard actually specifies.
 
 New Features
 ============
@@ -418,8 +450,10 @@ An untagged block matches nothing, *including another untagged block*, so
    Target-template exec blocks previously produced no AST at all -- the builder
    discarded them. They now build an ``ExecTargetTemplateBlock`` carrying the
    template text, the language identifier or filename, and the tag. The
-   ``{{expr}}`` substitutions inside the template body are not yet extracted;
-   the raw text is preserved in ``getData()``.
+   ``{{expr}}`` substitutions and ``{% %}`` directives inside the template
+   body are now scanned into a ``TemplateString`` on ``getTemplate()``, with
+   the raw text still preserved verbatim in ``getData()``. A triple-quoted
+   string containing no special elements gets no ``TemplateString`` at all.
 
 The ``pre_body`` exec kind
 --------------------------

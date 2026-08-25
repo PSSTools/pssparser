@@ -53,6 +53,10 @@ public:
     virtual void visitScopeChild(ast::IScopeChild *i) override;
 
 private:
+    /** One level of symtab lookup, shared by every scope kind. */
+    void lookup(ast::ISymbolScope *i);
+
+private:
     static dmgr::IDebug                     *m_dbg;
     ast::IExprId                            *m_id;
     ast::ISymbolRefPath                     *m_path;

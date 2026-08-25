@@ -155,20 +155,34 @@ classes:
           
           Attributes:
               kind: Type of exec block this template belongs to
-              data: Template string with {{parameter}} placeholders
-              parameters: List of parameter substitutions
-          
+              data: Raw template text, verbatim, with quotes stripped
+              template: Scanned template body, present only when the text
+                  contains special elements (§4.7.1)
+              language: Target language identifier
+              filename: For ``exec file``, the destination filename as raw
+                  text with quotes stripped
+              filename_template: Scanned template for the filename, present
+                  only when it is triple-quoted and holds special elements.
+                  §20.5.3 wants mustache expressions here so a per-instance
+                  file can be generated
+              tag: Optional exec block tag (§20.5.4)
+
           See Also:
-              ExecTargetTemplateParam, ExecBlock
+              TemplateString, ExecBlock
       data:
         - kind: ExecKind
         - data: string
-        - parameters: list<UP<ExecTargetTemplateParam>>
+        - template:
+            type: UP<TemplateString>
+            is_ctor: false
         - language:
             type: string
             is_ctor: false
         - filename:
             type: string
+            is_ctor: false
+        - filename_template:
+            type: UP<TemplateString>
             is_ctor: false
         - tag:
             type: UP<ExecBlockTag>
@@ -214,37 +228,6 @@ classes:
         - literal:
             type: UP<ExprAggrStruct>
             is_ctor: false
-  - ExecTargetTemplateParam:
-      doc: |
-          Parameter substitution for target template code.
-          
-          ExecTargetTemplateParam represents a parameter to be substituted into
-          a target-specific template string. The expr provides the value, while
-          start and end indicate the character positions in the template where
-          the substitution occurs.
-          
-          PSS Example::
-          
-              action my_action {
-                  rand int delay;
-                  
-                  exec body {
-                      target cpp '''wait({{delay}} * 1000);''';
-                      //              ^^^^^^^^^ ExecTargetTemplateParam
-                  }
-              }
-          
-          Attributes:
-              expr: Expression to substitute into template
-              start: Start position in template string
-              end: End position in template string
-          
-          See Also:
-              ExecTargetTemplateBlock
-      data:
-        - expr: UP<Expr>
-        - start: int32_t
-        - end: int32_t
   - ProceduralStmtAssignment:
       super: ExecStmt
       doc: |

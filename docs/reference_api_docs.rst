@@ -754,7 +754,62 @@ Exec Blocks
     :undoc-members:
     :show-inheritance:
 
-.. autoclass:: pssparser.ast.ExecTargetTemplateParam
+.. autoclass:: pssparser.ast.TemplateString
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+.. autoclass:: pssparser.ast.TemplateElem
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+.. autoclass:: pssparser.ast.TemplateText
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+.. autoclass:: pssparser.ast.TemplateExpr
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+.. autoclass:: pssparser.ast.TemplateComment
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+.. autoclass:: pssparser.ast.TemplateBlock
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+.. autoclass:: pssparser.ast.TemplateIf
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+.. autoclass:: pssparser.ast.TemplateIfClause
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+.. autoclass:: pssparser.ast.TemplateForeach
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+.. autoclass:: pssparser.ast.TemplateRepeat
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+.. autoclass:: pssparser.ast.TemplateVarDecl
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+.. autoclass:: pssparser.ast.TemplateAssign
     :members:
     :undoc-members:
     :show-inheritance:

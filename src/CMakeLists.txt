@@ -17,8 +17,6 @@ set(CMAKE_INSTALL_RPATH "$ORIGIN;$ORIGIN/../lib64")
 include_directories(
     ${CMAKE_BINARY_DIR}/antlr4/include/antlr4-runtime
     ${PACKAGES_DIR}/antlr4-cpp-runtime/runtime/src
-    ${CMAKE_CURRENT_BINARY_DIR}/antlr4cpp_generated_src/PSSExprLexer
-    ${CMAKE_CURRENT_BINARY_DIR}/antlr4cpp_generated_src/PSSExprParser
     ${CMAKE_CURRENT_BINARY_DIR}/antlr4cpp_generated_src/PSSLexer
     ${CMAKE_CURRENT_BINARY_DIR}/antlr4cpp_generated_src/PSSParser
     ${CMAKE_BINARY_DIR}/pssparser_ast/src/include
@@ -32,12 +30,6 @@ link_directories(
 	${CMAKE_BINARY_DIR}/lib
 	${CMAKE_BINARY_DIR}/lib64
 	)
-
-antlr_target(PSSExprLexer PSSExprLexer.g4 LEXER)
-antlr_target(PSSExprParser PSSExprParser.g4 PARSER
-             DEPENDS_ANTLR PSSExprLexer
-             COMPILE_FLAGS -lib ${ANTLR_PSSExprLexer_OUTPUT_DIR}
-             VISITOR LISTENER)
 
 antlr_target(PSSLexer PSSLexer.g4 LEXER)
 antlr_target(PSSParser PSSParser.g4 PARSER
@@ -54,8 +46,6 @@ file(GLOB pssparser_SRC
 add_library(pssparser SHARED
 	${pssparser_SRC}
     pss_stdlib.h
-	${ANTLR_PSSExprParser_OUTPUTS}
-	${ANTLR_PSSExprLexer_OUTPUTS}
 	${ANTLR_PSSParser_OUTPUTS}
 	${ANTLR_PSSLexer_OUTPUTS})
 

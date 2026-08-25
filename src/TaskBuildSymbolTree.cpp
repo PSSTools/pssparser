@@ -509,6 +509,97 @@ void TaskBuildSymbolTree::visitFunctionPrototype(ast::IFunctionPrototype *i) {
     DEBUG_LEAVE("visitFunctionPrototype %s", i->getName()->getId().c_str());
 }
 
+void TaskBuildSymbolTree::visitTargetTemplateFunction(ast::ITargetTemplateFunction *i) {
+    DEBUG_ENTER("visitTargetTemplateFunction %s", i->getProto()->getName()->getId().c_str());
+
+    // 20.6. A target-template function has a prototype but no PSS body, so the
+    // bare-prototype path (visitFunctionPrototype) would otherwise handle it --
+    // and that path does *not* put the parameters into a scope. The parameters
+    // are exactly what a mustache in the template body resolves against, so
+    // they are registered here the way visitFunctionDefinition registers a real
+    // function's.
+    const std::string &name = i->getProto()->getName()->getId();
+
+    ast::IScopeChild *ex_func_b = findSymbol(name);
+    ast::ISymbolFunctionScope *func_sym =
+        dynamic_cast<ast::ISymbolFunctionScope *>(ex_func_b);
+
+    if (ex_func_b && !func_sym) {
+        reportDuplicateSymbol(symbolScope(), ex_func_b, i);
+        return;
+    }
+
+    if (!func_sym) {
+        func_sym = m_factory->mkSymbolFunctionScope(name);
+        func_sym->setLocation(i->getLocation());
+        addChild(func_sym, name, false);
+        func_sym->setSynthetic(true);
+        func_sym->setPlist(m_factory->mkSymbolScope("<plist>"));
+
+        for (std::vector<ast::IFunctionParamDeclUP>::const_iterator
+            it=i->getProto()->getParameters().begin();
+            it!=i->getProto()->getParameters().end(); it++) {
+            const std::string &pname = (*it)->getName()->getId();
+            std::unordered_map<std::string, int32_t>::const_iterator sym_it =
+                func_sym->getSymtab().find(pname);
+
+            if (sym_it != func_sym->getSymtab().end()) {
+                // Not reportDuplicateSymbol(): that routes the name through
+                // TaskGetName, and FunctionParamDecl is a ScopeChild rather
+                // than a NamedScopeChild, so the name comes back empty. Use
+                // the same wording the template-parameter path already uses.
+                ast::Location loc = (*it)->getLocation();
+                if (loc.lineno <= 0) {
+                    loc = i->getLocation();
+                }
+                Marker m(
+                    "duplicate parameter name '" + pname + "'",
+                    MarkerSeverityE::Error,
+                    loc);
+                if (m_marker_l) {
+                    m_marker_l->marker(&m);
+                }
+            } else {
+                int32_t id = func_sym->getChildren().size();
+                (*it)->setIndex(id);
+                func_sym->getSymtab().insert({pname, id});
+                func_sym->getChildren().push_back(ast::IScopeChildUP(it->get(), false));
+            }
+        }
+    }
+
+    func_sym->getPrototypes().push_back(i->getProto());
+    func_sym->setTarget(i);
+
+    // Home the template node inside its own function scope. The template body
+    // is not an ExecScope, so it cannot go through setBody(); making it a child
+    // is what puts a mustache expression *inside* the scope that holds the
+    // parameters it must resolve against.
+    i->setIndex(func_sym->getChildren().size());
+    func_sym->getChildren().push_back(ast::IScopeChildUP(i, false));
+
+    DEBUG_LEAVE("visitTargetTemplateFunction %s", name.c_str());
+}
+
+void TaskBuildSymbolTree::visitTemplateString(ast::ITemplateString *i) {
+    // Deliberately does nothing -- the same trick as visitProceduralStmtForeach.
+    //
+    // TemplateString and every TemplateElem derive from SymbolScope (they have
+    // to: the resolver's scope stack drops anything that is not an
+    // ISymbolScope). The base visitor therefore treats each of them as a scope
+    // to be re-homed, and hoists them into the enclosing type's symbol scope.
+    //
+    // That is not merely untidy: it gives the template subtree extra parents,
+    // so a single `{{expr}}` was reachable three times -- via the exec block,
+    // via the hoisted TemplateString, and via the hoisted TemplateExpr -- and
+    // every diagnostic inside a template was reported three times over.
+    //
+    // The AST builder has already parented the elements and registered the
+    // template locals in the right symtabs, so there is nothing to do here.
+    DEBUG_ENTER("visitTemplateString (deliberate no-op)");
+    DEBUG_LEAVE("visitTemplateString");
+}
+
 void TaskBuildSymbolTree::visitGlobalScope(ast::IGlobalScope *i) {
     DEBUG_ENTER("visitGlobalScope");
     addChild(i, false);

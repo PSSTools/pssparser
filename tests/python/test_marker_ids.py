@@ -32,6 +32,7 @@ REPRESENTATIVE_MESSAGES = [
     ("PSS001", "unexpected end of input; possible missing closing '}'"),
     ("PSS001", "unknown exec-block kind 'wibble'"),
     ("PSS002", "unknown type 'Foo'"),
+    ("PSS002", "unknown type 'Nope' in 'p::q'"),
     ("PSS002", "unknown identifier 'bar'"),
     ("PSS002", "unknown method 'baz' on built-in type"),
     ("PSS003", "duplicate declaration of 'a'"),
@@ -57,6 +58,27 @@ REPRESENTATIVE_MESSAGES = [
     ("PSS105", "illegal 'mutable' qualifier: not permitted on a rand field"),
     ("PSS106", "exec block tag is not permitted on 'body' exec blocks"),
     ("PSS107", "member selection is not permitted on a slice of 'arr'"),
+    # PSS108/PSS109 -- the exact text emitted for the `{{` collision (D3.3).
+    # The hint is a *suffix* on both, which keeps each pattern anchored on its
+    # distinguishing prefix rather than on the shared tail.
+    ("PSS108",
+     "unterminated mustache expression; if '{{' was intended as literal text, "
+     "separate the braces ('{ {') -- triple-quoted strings have no escape mechanism"),
+    ("PSS109",
+     "malformed mustache expression: unexpected ','; if '{{' was intended as "
+     "literal text, separate the braces ('{ {')"),
+    ("PSS110", "unterminated template directive"),
+    ("PSS110", "unterminated template comment"),
+    ("PSS110", "unclosed template block at end of string"),
+    ("PSS110", "malformed template directive: expected ';' after assignment"),
+    ("PSS111", "template block close with no open block"),
+    ("PSS111", "'else' with no preceding 'if'"),
+    ("PSS112",
+     "template assignment target 'a' is not declared within this template string"),
+    ("PSS113", "template expression is not of scalar type"),
+    ("PSS114", "call to non-pure function 'f' in a template string"),
+    ("PSS115",
+     "template string with non-constant elements is not a constant expression"),
 ]
 
 
@@ -128,7 +150,9 @@ def test_pss31_band_is_reserved_for_31_diagnostics():
     # grammar, so no linker check can emit it. The gap is deliberate -- the ID
     # must not be reused.
     assert pss31 == ["PSS100", "PSS101", "PSS102",
-                     "PSS104", "PSS105", "PSS106", "PSS107"]
+                     "PSS104", "PSS105", "PSS106", "PSS107",
+                     "PSS108", "PSS109", "PSS110", "PSS111", "PSS112",
+                     "PSS113", "PSS114", "PSS115"]
 
 
 # -- CLI discoverability (P0-T2 acceptance criterion) ------------------------

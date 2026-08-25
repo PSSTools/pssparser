@@ -65,30 +65,35 @@ The parser follows a layered architecture:
 Grammar Design
 ==============
 
-Dual Grammar Approach
----------------------
+Single Grammar
+--------------
 
-The parser uses two separate grammars for optimal performance:
+The parser uses one grammar pair for the whole language:
 
-**PSSParser.g4** - Procedural code context
+**PSSLexer.g4** - tokens
 
-* Action exec blocks
-* Function bodies
-* Procedural statements
-* Import declarations
+**PSSParser.g4** - the complete PSS grammar
 
-**PSSExprParser.g4** - Constraint context
+* Type declarations, packages, components, actions
+* Constraints and constraint expressions
+* Action and procedural exec blocks, function bodies
+* Activities, coverage, monitors
 
-* Constraint expressions
-* Constraint blocks
-* Constraint-specific operators
+There is deliberately no second grammar. Where a construct must be parsed out of
+its normal context -- the expressions inside a triple-quoted template string, for
+instance -- the same generated ``PSSParser`` is re-entered at the appropriate
+rule rather than duplicated. ANTLR generates a public method per rule, so
+``parser.expression()`` parses an expression fragment with the identical
+operator precedence, path syntax and literal forms as the main parse.
 
-This separation provides:
+.. note::
 
-* Better error messages (context-aware)
-* Reduced ambiguity
-* Faster parsing (smaller rule sets)
-* Cleaner grammar organization
+   An earlier revision of this document described a second grammar,
+   ``PSSExprParser.g4``, as a "constraint context" grammar. That was never
+   accurate: the file was an unreferenced, drifting copy of the entire main
+   grammar. It was deleted (P5-C1) -- keeping a second copy that no longer
+   parsed current PSS was a liability, since the next reader would assume it
+   was live.
 
 Grammar Optimization Strategies
 --------------------------------

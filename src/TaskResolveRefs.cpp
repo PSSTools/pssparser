@@ -26,6 +26,8 @@
 #include "TaskResolveImports.h"
 #include "TaskResolveRef.h"
 #include "TaskResolveRefs.h"
+#include "TaskTemplateCheck.h"
+#include "pssp/ast/IExprTemplateString.h"
 #include "pssp/ast/IGenericConstraintDeclBool.h"
 #include "pssp/ast/IGenericConstraintDeclValue.h"
 #include "pssp/ast/IGenericConstraintParam.h"
@@ -539,6 +541,9 @@ void TaskResolveRefs::visitExprRefPathContext(ast::IExprRefPathContext *i) {
             // The root element is itself the call -- `g(1,2,3)`. Later
             // elements are checked once TaskFindPathElem has resolved them.
             TaskCheckCallArgs(m_ctxt).check(target_c, elem);
+            if (m_template_depth) {
+                TaskTemplateCheck(m_ctxt).checkPure(target_c, elem);
+            }
         }
 
 //        if (!ii) {
@@ -621,6 +626,9 @@ void TaskResolveRefs::visitExprRefPathContext(ast::IExprRefPathContext *i) {
                     DEBUG_LEAVE("Resolve built-in method parameters");
                     if (proto) {
                         TaskCheckCallArgs(m_ctxt).check(proto, elem);
+                        if (m_template_depth) {
+                            TaskTemplateCheck(m_ctxt).checkPure(proto, elem);
+                        }
                     }
                 }
                 break;
@@ -699,6 +707,9 @@ void TaskResolveRefs::visitExprRefPathContext(ast::IExprRefPathContext *i) {
             if (elem->getParams()) {
                 elem->getParams()->accept(m_this);
                 TaskCheckCallArgs(m_ctxt).check(res.sym, elem);
+                if (m_template_depth) {
+                    TaskTemplateCheck(m_ctxt).checkPure(res.sym, elem);
+                }
             }
 
             if (ii+1 < i->getHier_id()->getElems().size()) {
@@ -929,9 +940,39 @@ void TaskResolveRefs::visitField(ast::IField *i) {
     }
     if (i->getInit()) {
         i->getInit()->accept(m_this);
+
+        // PSS115. §4.7: a template whose special elements reference
+        // non-constants is not a constant expression, so it cannot initialize
+        // a `const` field. Checked after the descent above, which is what
+        // computes `is_const`.
+        if ((i->getAttr() & ast::FieldAttr::Const) != ast::FieldAttr::NoFlags) {
+            checkConstTemplate(i->getInit(), i->getName()->getLocation());
+        }
     }
     checkMutableField(i);
     DEBUG_LEAVE("visitField %s", i->getName()->getId().c_str());
+}
+
+/**
+ * PSS115 -- §4.7: "a triple-quoted string whose special elements reference only
+ * constant expressions is itself constant". One that does not cannot appear
+ * where a constant string is required.
+ *
+ * Reported at the point of *use*, not at the template: the same template text
+ * is legal in an exec body and illegal in a `const` initializer, so the
+ * template alone cannot say whether anything is wrong.
+ */
+void TaskResolveRefs::checkConstTemplate(
+    ast::IExpr              *e,
+    const ast::Location     &loc) {
+    ast::IExprTemplateString *ts = dynamic_cast<ast::IExprTemplateString *>(e);
+
+    if (ts && ts->getTemplate() && !ts->getTemplate()->getIs_const()) {
+        m_ctxt->addErrorMarker(
+            loc,
+            "template string with non-constant elements is not a constant "
+            "expression");
+    }
 }
 
 /**
@@ -1025,6 +1066,144 @@ void TaskResolveRefs::visitProceduralStmtForeach(ast::IProceduralStmtForeach *i)
     if (i->getBody()) { i->getBody()->accept(m_this); }
     m_ctxt->symtab()->popScope();
     DEBUG_LEAVE("visitProceduralStmtForeach");
+}
+
+// ---------------------------------------------------------------------------
+// 4.7.1 -- template scopes
+//
+// The generated visitors are the wrong shape here. visitTemplateBlock calls
+// visitTemplateElem first, which reaches visitSymbolScope -- pushing the scope,
+// visiting its children and popping it again -- and only *then* walks the
+// block's body. So the body would be resolved with the scope already popped,
+// and a foreach iterator would be invisible inside its own block.
+//
+// These overrides push the scope around the body instead, which is what
+// 4.7.1.2 asks for: the iterator, index and declared variables are "added to
+// the scope until the block closing directive".
+// ---------------------------------------------------------------------------
+
+void TaskResolveRefs::visitTemplateString(ast::ITemplateString *i) {
+    DEBUG_ENTER("visitTemplateString");
+    m_ctxt->symtab()->pushScope(i);
+    m_template_depth++;
+
+    // Children are the synthesized declarations for `{% int x; %}`.
+    for (std::vector<ast::IScopeChildUP>::const_iterator
+        it=i->getChildren().begin(); it!=i->getChildren().end(); it++) {
+        it->get()->accept(m_this);
+    }
+    for (std::vector<ast::ITemplateElemUP>::const_iterator
+        it=i->getElems().begin(); it!=i->getElems().end(); it++) {
+        it->get()->accept(m_this);
+    }
+
+    m_template_depth--;
+    m_ctxt->symtab()->popScope();
+
+    // Only now: `is_const` and the scalar-type rule both ask what a reference
+    // resolved to, so neither can be decided while the walk is still going.
+    TaskTemplateCheck(m_ctxt).check(i);
+
+    DEBUG_LEAVE("visitTemplateString");
+}
+
+void TaskResolveRefs::visitTemplateBlock(ast::ITemplateBlock *i) {
+    DEBUG_ENTER("visitTemplateBlock");
+    m_ctxt->symtab()->pushScope(i);
+
+    for (std::vector<ast::IScopeChildUP>::const_iterator
+        it=i->getChildren().begin(); it!=i->getChildren().end(); it++) {
+        it->get()->accept(m_this);
+    }
+    for (std::vector<ast::ITemplateElemUP>::const_iterator
+        it=i->getBody().begin(); it!=i->getBody().end(); it++) {
+        it->get()->accept(m_this);
+    }
+
+    m_ctxt->symtab()->popScope();
+    DEBUG_LEAVE("visitTemplateBlock");
+}
+
+void TaskResolveRefs::visitTemplateForeach(ast::ITemplateForeach *i) {
+    DEBUG_ENTER("visitTemplateForeach");
+    // The collection is resolved in the OUTER scope: it must not see the loop
+    // variables this block introduces. Same rule as procedural foreach.
+    if (i->getExpr()) {
+        i->getExpr()->accept(m_this);
+    }
+    // getIt()/getIdx() are *declarations*, not references. Resolving them would
+    // report the very names this block is introducing as unknown.
+    visitTemplateBlock(i);
+    DEBUG_LEAVE("visitTemplateForeach");
+}
+
+void TaskResolveRefs::visitTemplateRepeat(ast::ITemplateRepeat *i) {
+    DEBUG_ENTER("visitTemplateRepeat");
+    if (i->getExpr()) {
+        i->getExpr()->accept(m_this);
+    }
+    visitTemplateBlock(i);
+    DEBUG_LEAVE("visitTemplateRepeat");
+}
+
+void TaskResolveRefs::visitTemplateIfClause(ast::ITemplateIfClause *i) {
+    DEBUG_ENTER("visitTemplateIfClause");
+    // The guard belongs to the enclosing scope -- a variable declared inside
+    // the clause body is not in scope for the condition that selects it.
+    if (i->getCond()) {
+        i->getCond()->accept(m_this);
+    }
+    visitTemplateBlock(i);
+    DEBUG_LEAVE("visitTemplateIfClause");
+}
+
+void TaskResolveRefs::visitTemplateAssign(ast::ITemplateAssign *i) {
+    DEBUG_ENTER("visitTemplateAssign");
+
+    if (i->getRhs()) {
+        i->getRhs()->accept(m_this);
+    }
+
+    // PSS112. 4.7.1.2 restricts `{% x = expr; %}` to a variable *previously
+    // declared within the same triple-quoted string*; assigning to an action
+    // attribute is illegal. Nothing about the syntax distinguishes the two, so
+    // the only way to tell them apart is to ask which symtab the name came
+    // from -- which is why template locals are real symbols in a real scope
+    // rather than a side table.
+    const std::string &name = i->getLhs()->getId();
+
+    bool found = false;
+    bool in_template = false;
+    for (int32_t off=0; ; off++) {
+        ast::ISymbolScope *scope = m_ctxt->symtab()->getScope(off);
+        if (!scope) {
+            break;
+        }
+        if (scope->getSymtab().find(name) != scope->getSymtab().end()) {
+            found = true;
+            in_template =
+                dynamic_cast<ast::ITemplateString *>(scope) != 0 ||
+                dynamic_cast<ast::ITemplateBlock *>(scope) != 0;
+            break;
+        }
+    }
+
+    if (!found) {
+        m_ctxt->addMarker(
+            MarkerSeverityE::Error,
+            i->getLhs()->getLocation(),
+            "unknown identifier '%s'",
+            name.c_str());
+    } else if (!in_template) {
+        m_ctxt->addMarker(
+            MarkerSeverityE::Error,
+            i->getLhs()->getLocation(),
+            "template assignment target '%s' is not declared within this "
+            "template string",
+            name.c_str());
+    }
+
+    DEBUG_LEAVE("visitTemplateAssign");
 }
 
 void TaskResolveRefs::visitSymbolScope(ast::ISymbolScope *i) {
@@ -1271,6 +1450,18 @@ public:
     virtual void visitExprRefPathId(ast::IExprRefPathId *i) override {
         non_constant = true;
     }
+
+    /**
+     * A template nested inside a larger expression -- `"a" + """{{C}}"""`.
+     * Its own `is_const` is the answer; descending would reach the references
+     * inside the mustaches and call a perfectly constant template
+     * non-constant.
+     */
+    virtual void visitExprTemplateString(ast::IExprTemplateString *i) override {
+        if (!i->getTemplate() || !i->getTemplate()->getIs_const()) {
+            non_constant = true;
+        }
+    }
 };
 
 std::string typeIdName(ast::ITypeIdentifier *type_id) {
@@ -1385,6 +1576,15 @@ void TaskResolveRefs::visitAnnotation(ast::IAnnotation *i) {
         }
 
         if (param->getValue()) {
+            // A template initializer answers the constant question itself
+            // (PSS115) and is not put through the crude walker below, which
+            // would see the references *inside* the mustaches and report a
+            // constant template as non-constant.
+            if (dynamic_cast<ast::IExprTemplateString *>(param->getValue())) {
+                checkConstTemplate(param->getValue(), param->getLocation());
+                continue;
+            }
+
             IsNonConstantExpr chk;
             param->getValue()->accept(&chk);
             if (chk.non_constant) {

@@ -187,14 +187,19 @@ def test_file_block_carries_its_tag():
     assert tag.getType().getElem(0).getId().getId() == "tag_s"
 
 
-def test_template_parameters_are_not_extracted_yet():
+def test_double_quoted_string_is_never_a_template():
     """
-    A recorded limit, not an accident: pulling `{{expr}}` out of the template
-    body needs a sub-parser over its content, which is P5-I1. The raw text is
-    kept verbatim so nothing is lost in the meantime.
+    §4.7.1 admits special elements inside `\"\"\"...\"\"\"` only -- never inside a
+    plain `"..."`.  So `{{x}}` here is ordinary text: no TemplateString is
+    built, and the raw text is preserved verbatim.
+
+    (This replaced a test asserting `numParameters() == 0` against the old
+    ExecTargetTemplateParam model.  That node was a faithful model of PSS 3.0
+    mustache -- a flat list of splice points -- which cannot represent 3.1's
+    nesting directives, so P5-I1a deleted it.)
     """
     block = _exec_block(_ACTION % 'exec header C = "value is {{x}}";')
-    assert block.numParameters() == 0
+    assert block.getTemplate() is None
     assert block.getData() == "value is {{x}}"
 
 

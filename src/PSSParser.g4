@@ -2105,7 +2105,11 @@ string_literal:
 	DOUBLE_QUOTED_STRING 
 	| TRIPLE_DOUBLE_QUOTED_STRING;
 
-filename_string: DOUBLE_QUOTED_STRING;
+// Annex B: `filename_string ::= string_literal`. §20.5.3 wants mustache
+// expressions in the filename so a per-instance file can be generated, which
+// requires the triple-quoted form. This landed with the template scanner
+// (P5-G1/P5-I1b); on its own it would accept a template and then ignore it.
+filename_string: string_literal;
 
 	
 /**

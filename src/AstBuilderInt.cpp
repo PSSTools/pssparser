@@ -485,14 +485,22 @@ antlrcpp::Any AstBuilderInt::visitConst_field_declaration(PSSParser::Const_field
 	ctx->data_declaration()->accept(this);
 	m_field_depth--;
 
-	if (!m_field_depth) {
-		m_fields.clear();
-	}
-
+	// The clear used to come *first*, so the loop below ran over an empty
+	// vector and `const int K = 4;` was recorded with no attributes at all --
+	// indistinguishable from an ordinary field. Every other site that stamps
+	// field attributes clears afterwards; this one now does too.
 	for (std::vector<ast::IField *>::const_iterator
 		it=m_fields.begin();
 		it!=m_fields.end(); it++) {
-		(*it)->setAttr((*it)->getAttr() | FieldAttr::Const);
+		FieldAttr attr = (*it)->getAttr() | FieldAttr::Const;
+		if (ctx->TOK_STATIC()) {
+			attr |= FieldAttr::Static;
+		}
+		(*it)->setAttr(attr);
+	}
+
+	if (!m_field_depth) {
+		m_fields.clear();
 	}
 
 	DEBUG_LEAVE("visitConst_field_declaration");
@@ -1116,13 +1124,12 @@ antlrcpp::Any AstBuilderInt::visitTarget_code_exec_block(PSSParser::Target_code_
 
     checkExecBlockTagPlacement(ctx->exec_block_tag(), kind, kind_s);
 
-    // NOTE: `parameters` is left empty. Extracting the `{{expr}}` substitutions
-    // out of the template body means sub-parsing its content, which is Phase 5
-    // work (P5-I1). Until then the raw template text is preserved verbatim in
-    // `data` -- previously this whole construct was parsed and discarded.
     ast::IExecTargetTemplateBlock *exec = m_factory->mkExecTargetTemplateBlock(
         kind,
         execTemplateText(ctx->string_literal()));
+    // `data` stays the raw text; `template` is present only when the body has
+    // special elements (§4.7.1), which keeps a plain string free of extra nodes.
+    exec->setTemplate(mkTemplateString(ctx->string_literal()));
     exec->setLanguage(ctx->language_identifier()->identifier()->getText());
     exec->setTag(mkExecBlockTag(ctx->exec_block_tag()));
 
@@ -1143,14 +1150,43 @@ antlrcpp::Any AstBuilderInt::visitTarget_file_exec_block(PSSParser::Target_file_
     ast::IExecTargetTemplateBlock *exec = m_factory->mkExecTargetTemplateBlock(
         ast::ExecKind::ExecKind_File,
         execTemplateText(ctx->string_literal()));
+    exec->setTemplate(mkTemplateString(ctx->string_literal()));
 
-    std::string filename = ctx->filename_string()->getText();
-    exec->setFilename(filename.substr(1, filename.size()-2));
+    // P5-G1: `filename_string ::= string_literal`, so the filename may now be
+    // triple-quoted and carry mustache expressions (§20.5.3). execTemplateText
+    // strips whichever quote form was used -- the previous substr(1, n-2) would
+    // have mangled a triple-quoted filename.
+    exec->setFilename(execTemplateText(ctx->filename_string()->string_literal()));
+    exec->setFilename_template(
+        mkTemplateString(ctx->filename_string()->string_literal()));
     exec->setTag(mkExecBlockTag(ctx->exec_block_tag()));
 
     addChild(exec, ctx->start);
 
     DEBUG_LEAVE("visitTarget_file_exec_block");
+    return 0;
+}
+
+antlrcpp::Any AstBuilderInt::visitTarget_template_function(
+        PSSParser::Target_template_functionContext *ctx) {
+    DEBUG_ENTER("visitTarget_template_function");
+
+    // 20.6. Before this existed the construct parsed and was discarded
+    // entirely -- no node, no marker (P5-C2).
+    //
+    // NOTE: the template text is kept verbatim in `data` and is not yet
+    // scanned for special elements. P5-I1b adds the `template` field and the
+    // scan; this node exists so there is something to attach it to.
+    ast::ITargetTemplateFunction *fn = m_factory->mkTargetTemplateFunction(
+        mkFunctionPrototype(ctx->function_prototype(), 0),
+        ctx->language_identifier()->identifier()->getText(),
+        execTemplateText(ctx->string_literal()));
+    fn->setIs_static(ctx->TOK_STATIC() != 0);
+    fn->setTemplate(mkTemplateString(ctx->string_literal()));
+
+    addChild(fn, ctx->start);
+
+    DEBUG_LEAVE("visitTarget_template_function");
     return 0;
 }
 
@@ -1190,7 +1226,10 @@ antlrcpp::Any AstBuilderInt::visitProcedural_function(PSSParser::Procedural_func
     // The qualifier goes through mkFunctionPrototype rather than being applied
     // afterwards: the old if/else recorded only `target` for `target solve`.
     ast::IFunctionDefinition *func = m_factory->mkFunctionDefinition(
-        mkFunctionPrototype(ctx->function_prototype(), ctx->platform_qualifier()),
+        mkFunctionPrototype(
+            ctx->function_prototype(),
+            ctx->platform_qualifier(),
+            ctx->TOK_PURE() != 0),
         body,
         platqual
     );
@@ -1204,7 +1243,8 @@ antlrcpp::Any AstBuilderInt::visitFunction_decl(PSSParser::Function_declContext 
     DEBUG_ENTER("visitFunction_decl");
     ast::IFunctionPrototype *proto = mkFunctionPrototype(
         ctx->function_prototype(),
-        ctx->platform_qualifier());
+        ctx->platform_qualifier(),
+        ctx->TOK_PURE() != 0);
     addChild(proto, ctx->start);
     DEBUG_LEAVE("visitFunction_decl");
     return 0;
@@ -3357,7 +3397,17 @@ antlrcpp::Any AstBuilderInt::visitString_literal(PSSParser::String_literalContex
 	} else { 
 		std::string value = ctx->TRIPLE_DOUBLE_QUOTED_STRING()->getText();
 		value = value.substr(3, value.size()-6);
-		m_expr = m_factory->mkExprString(value, true);
+		// §4.7.1: only a triple-quoted string is a template context, and only one
+		// that actually holds special elements becomes an ExprTemplateString. The
+		// subclass keeps every existing ExprString consumer working unchanged.
+		ast::ITemplateString *tmpl = mkTemplateString(ctx);
+		if (tmpl) {
+			ast::IExprTemplateString *e = m_factory->mkExprTemplateString(value, true);
+			e->setTemplate(tmpl);
+			m_expr = e;
+		} else {
+			m_expr = m_factory->mkExprString(value, true);
+		}
 	}
 	DEBUG_LEAVE("visitString_literal");
 	return 0;
@@ -5154,7 +5204,8 @@ static FunctionParamDeclKind lookupParamKind(
 
 ast::IFunctionPrototype *AstBuilderInt::mkFunctionPrototype(
     PSSParser::Function_prototypeContext *ctx,
-    PSSParser::Platform_qualifierContext *plat) {
+    PSSParser::Platform_qualifierContext *plat,
+    bool                                 is_pure) {
     DEBUG_ENTER("mkFunctionPrototype %s", toString(ctx->function_identifier()->identifier()).c_str());
     ast::IDataType *rtype = 0;
 
@@ -5172,6 +5223,7 @@ ast::IFunctionPrototype *AstBuilderInt::mkFunctionPrototype(
         rtype,
         is_target,
         is_solve);
+    proto->setIs_pure(is_pure);
 
     std::vector<PSSParser::Function_parameterContext *> items =
         ctx->function_parameter_list_prototype()->function_parameter();
@@ -5769,6 +5821,8 @@ void AstBuilderInt::setLoc(ast::IScopeChild *c, Token *start) {
     loc.fileid = m_file_id;
     loc.lineno = (int32_t)start->getLine();
     loc.linepos = (int32_t)start->getCharPositionInLine()+1;
+    // A no-op outside a template fragment sub-parse (§4.7.1).
+    rebaseLoc(loc.lineno, loc.linepos);
 	c->setLocation(loc);
 }
 
@@ -5777,6 +5831,7 @@ void AstBuilderInt::setLoc(ast::IExprId *c, Token *start) {
     loc.fileid = m_file_id;
     loc.lineno = (int32_t)start->getLine();
     loc.linepos = (int32_t)start->getCharPositionInLine()+1;
+    rebaseLoc(loc.lineno, loc.linepos);
 	c->setLocation(loc);
 }
 

@@ -1,0 +1,308 @@
+#****************************************************************************
+#* template.yaml
+#*
+#* AST structures for PSS 3.1 triple-quoted string special elements (§4.7.1)
+#****************************************************************************
+
+classes:
+  - TemplateString:
+      super: SymbolScope
+      doc: |
+          Parsed body of one triple-quoted string that contains special
+          elements -- PSS 3.1 §4.7.1.
+
+          A triple-quoted string stops being a leaf and becomes a *scope* when
+          it contains mustache expressions or control-flow directives: the
+          expressions resolve against the enclosing model, and the directives
+          declare variables of their own.
+
+          A triple-quoted string containing **no** special elements does not
+          get a TemplateString at all -- it stays a plain ExprString.  "Has
+          specials" is therefore a type test rather than a list-length test.
+
+          PSS Example::
+
+              action a {
+                  int size;
+                  exec body C = """
+                      {# a block comment, not scanned for specials #}
+                      {% if (size > 0) %}
+                      memset(buf, 0, {{size}});
+                      {%%}
+                  """;
+              }
+
+          Attributes:
+              raw: Verbatim content with the enclosing quotes stripped.  Kept
+                  lossless so a formatter that cannot render a template
+                  structurally can still copy it byte for byte.
+              elems: The scanned elements, in source order
+              is_const: True when every special element references only
+                  constant expressions (§4.7).  Computed after resolution,
+                  not during scanning.
+              symtab: Variables declared at the top level of this template
+                  (inherited from SymbolScope)
+
+          See Also:
+              TemplateElem, ExprTemplateString, ExecTargetTemplateBlock
+      data:
+        - raw: string
+        - elems:
+            type: list<UP<TemplateElem>>
+            is_ctor: false
+        - is_const:
+            type: bool
+            is_ctor: false
+            init: false
+
+  - TemplateElem:
+      super: SymbolScope
+      doc: |
+          Base class for one element of a scanned template string.
+
+          Every element records where it came from in the owning
+          TemplateString's ``raw`` text.  A ``Location`` is not enough for a
+          renderer that wants to splice, so byte offsets are carried as well.
+
+          Note this derives from SymbolScope rather than plain ScopeChild.
+          Only the block elements actually need a symbol table, but the name
+          resolution machinery requires a scope pushed onto the resolution
+          stack to be an ISymbolScope -- ``AstSymbolTableIterator::
+          getSymScopeBack()`` silently *erases* anything else from the stack.
+          Keeping one hierarchy avoids duplicating offset/extent across two
+          parallel ones.  The ``name`` inherited from SymbolChildrenScope is a
+          fixed kind tag (``<template-text>``, ``<template-if>``, ...), which
+          also makes the resolver's debug output readable.
+
+          Attributes:
+              offset: Byte offset into the owning TemplateString's raw text
+              extent: Length in bytes, including the delimiters
+              is_own_line: True when this element's line holds directives and
+                  whitespace only.  §4.7.1.2 excludes that whitespace and the
+                  terminating newline from the expansion; deciding it needs the
+                  raw text, so the scanner computes it once and records it here
+                  rather than making every renderer re-scan.
+
+          See Also:
+              TemplateString, TemplateBlock
+      data:
+        - offset: int32_t
+        - extent: int32_t
+        - is_own_line:
+            type: bool
+            is_ctor: false
+            init: false
+
+  - TemplateText:
+      super: TemplateElem
+      doc: |
+          A run of literal text between special elements.
+
+          Attributes:
+              text: The literal text, verbatim
+
+          See Also:
+              TemplateElem
+      data:
+        - text: string
+
+  - TemplateExpr:
+      super: TemplateElem
+      doc: |
+          A mustache expression -- ``{{ expression }}``, §4.7.1.1.
+
+          The expression is parsed by the ordinary PSS expression grammar and
+          resolves against whatever is referenceable at that point in the
+          source.  §4.7.1.1 additionally requires the type to be scalar and any
+          function called to be ``pure``.
+
+          PSS Example::
+
+              exec body C = """ stw {{addr}}, {{value}} """;
+
+          Attributes:
+              expr: The parsed expression
+
+          See Also:
+              TemplateElem, TemplateString
+      data:
+        - expr: UP<Expr>
+
+  - TemplateComment:
+      super: TemplateElem
+      doc: |
+          A template comment -- ``{# ... #}`` or ``{#}`` to end of line,
+          §4.7.1.3.
+
+          Comment content is **not** processed for special elements: a ``{{``
+          inside a comment is literal text.
+
+          Comments are retained rather than discarded.  Evaluation drops them,
+          but *parsing* must not, or a formatter loses the user's comments.
+          Dropping is the renderer's job.
+
+          Attributes:
+              text: Comment content, excluding the delimiters
+              is_line: True for the ``{#}`` line form, false for ``{# ... #}``
+
+          See Also:
+              TemplateElem
+      data:
+        - text: string
+        - is_line:
+            type: bool
+            is_ctor: false
+            init: false
+
+  - TemplateBlock:
+      super: TemplateElem
+      doc: |
+          Base class for a control-flow directive that opens a block.
+
+          §4.7.1.2: a foreach iterator/index, a repeat index, and a variable
+          declaration are "added to the scope until the block closing
+          directive, and can be referenced in mustache expressions and other
+          control-flow directives within this block."  That is what makes a
+          block a scope.
+
+          The variables are synthesized as ProceduralStmtDataDeclaration nodes
+          and registered in this node's own symtab, exactly as
+          ProceduralStmtForeach does for a procedural loop -- which means
+          ``{% int x; %}`` and a procedural ``int x;`` resolve through one path.
+
+          Attributes:
+              body: Elements between this directive and its ``{%%}``
+              symtab: Variables this block introduces (inherited)
+
+          See Also:
+              TemplateIf, TemplateForeach, TemplateRepeat
+      data:
+        - body:
+            type: list<UP<TemplateElem>>
+            is_ctor: false
+
+  - TemplateIfClause:
+      super: TemplateBlock
+      doc: |
+          One arm of a template if/else-if/else chain.
+
+          PSS Example::
+
+              {% if (a) %}   one   {% else if (b) %}   two   {% else %}   three   {%%}
+
+          Attributes:
+              cond: The guard expression; null for the ``else`` arm
+
+          See Also:
+              TemplateIf
+      data:
+        - cond:
+            type: UP<Expr>
+            is_ctor: false
+
+  - TemplateIf:
+      super: TemplateElem
+      doc: |
+          A template if directive with its else-if and else arms -- §4.7.1.2.
+
+          The clauses are held **flat**, not as a tree of nested ifs.  The
+          source is a flat directive sequence, so nesting would be an invention
+          a formatter would then have to undo.
+
+          Attributes:
+              clauses: if / else-if / else arms, in source order
+
+          See Also:
+              TemplateIfClause, TemplateBlock
+      data:
+        - clauses:
+            type: list<UP<TemplateIfClause>>
+            is_ctor: false
+
+  - TemplateForeach:
+      super: TemplateBlock
+      doc: |
+          A template foreach directive -- §4.7.1.2, Table 5.
+
+          ``{% foreach ( [ iterator_identifier : ] expression [ [ index_identifier ] ] ) %}``
+
+          Attributes:
+              expr: The collection expression being iterated
+              it: Iterator variable identifier, if written
+              idx: Index variable identifier, if written
+
+          See Also:
+              TemplateBlock, TemplateRepeat
+      data:
+        - expr: UP<Expr>
+        - it:
+            type: UP<ExprId>
+            is_ctor: false
+        - idx:
+            type: UP<ExprId>
+            is_ctor: false
+
+  - TemplateRepeat:
+      super: TemplateBlock
+      doc: |
+          A template repeat directive -- §4.7.1.2, Table 5.
+
+          ``{% repeat ( [ index_identifier : ] expression ) %}``
+
+          Attributes:
+              expr: The repeat-count expression
+              idx: Index variable identifier, if written
+
+          See Also:
+              TemplateBlock, TemplateForeach
+      data:
+        - expr: UP<Expr>
+        - idx:
+            type: UP<ExprId>
+            is_ctor: false
+
+  - TemplateVarDecl:
+      super: TemplateElem
+      doc: |
+          A template variable declaration -- §4.7.1.2, Table 5.
+
+          ``{% data_type procedural_data_instantiation { , procedural_data_instantiation } ; %}``
+
+          The declarations are ProceduralStmtDataDeclaration nodes, the same
+          node a procedural ``int x;`` produces, so both resolve through one
+          path.  They are registered in the enclosing TemplateBlock's (or
+          TemplateString's) symtab.
+
+          Attributes:
+              decls: The declared variables
+
+          See Also:
+              TemplateAssign, TemplateBlock
+      data:
+        - decls:
+            type: list<UP<ProceduralStmtDataDeclaration>>
+            is_ctor: false
+
+  - TemplateAssign:
+      super: TemplateElem
+      doc: |
+          A template variable assignment -- §4.7.1.2, Table 5.
+
+          ``{% identifier = expression ; %}``
+
+          §4.7.1.2 restricts the target: it may only be a variable *previously
+          declared within the same triple-quoted string*.  Assigning to an
+          action attribute is illegal, and nothing about the syntax
+          distinguishes the two cases -- the only way to tell them apart is to
+          ask which symtab the name resolved through.  That is why template
+          locals must be real symbols in a real scope rather than a side table.
+
+          Attributes:
+              lhs: The assignment target
+              rhs: The assigned expression
+
+          See Also:
+              TemplateVarDecl
+      data:
+        - lhs: UP<ExprId>
+        - rhs: UP<Expr>

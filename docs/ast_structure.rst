@@ -56,8 +56,30 @@ In this case, the RootSymbolTree will be structured as follows:
                         * B : Action
 
 
-Note how the children of the symbol tree hold the 'merged' view of the 
-PSS content that takes type extension into account. Meanwhile, the 
-physical view of the PSS content is maintained under the 'units' 
+Note how the children of the symbol tree hold the 'merged' view of the
+PSS content that takes type extension into account. Meanwhile, the
+physical view of the PSS content is maintained under the 'units'
 subsection of the symbol tree.
+
+Scopes that are not in the Symbol Tree
+--------------------------------------
+
+Not every ``SymbolScope`` belongs in the Symbol Tree, and the template-string
+nodes (``TemplateString``, ``TemplateElem`` and its block subclasses -- see
+:ref:`template-strings`) are the clearest case.
+
+They derive from ``SymbolScope`` because they hold declarations: a
+``{% foreach (it : c) %}`` directive introduces ``it`` for the duration of its
+block, and the name-resolution machinery only accepts an ``ISymbolScope`` on
+its scope stack.  But they are deliberately **not** hoisted into the Symbol
+Tree, because a template is not a scope multiple sources contribute to -- and
+hoisting them made every diagnostic inside a template appear three times, once
+per parent the node acquired.
+
+The consequence to know about: a ``SymbolRefPath`` is a chain of child indices
+read from the Symbol Tree, so a reference to a template-local variable records
+a path that cannot address its declaration.  Resolution during the walk is
+correct -- the scope is on the stack -- but following the recorded path
+afterwards lands somewhere unrelated.  See ``docs/design/known-issues.md``
+P5-X2.
 

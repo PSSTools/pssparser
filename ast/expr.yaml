@@ -980,6 +980,39 @@ classes:
         data:
             - value: string
             - is_raw: bool
+    - ExprTemplateString:
+        super: ExprString
+        doc: |
+            A triple-quoted string literal that contains special elements --
+            PSS 3.1 §4.7.1.
+
+            Subclasses ExprString rather than replacing it, deliberately: every
+            existing consumer that dynamic_casts to ExprString or calls
+            ``getValue()`` keeps working and sees the raw text, exactly as
+            before. Only consumers that care look for the subclass.
+
+            A triple-quoted string with **no** special elements stays a plain
+            ExprString -- this keeps the common case free of extra nodes and
+            makes "has specials" a type test.
+
+            Note ``getValue()`` returns the *unexpanded* text.  A front end
+            cannot supply the expanded value: expansion needs solve-time data,
+            which is a tool's job, not a parser's.
+
+            PSS Example::
+
+                static const string greeting = """Hello, {{name}}!""";
+
+            Attributes:
+                template: The scanned template body
+                value: Raw text with quotes stripped (inherited from ExprString)
+
+            See Also:
+                ExprString, TemplateString
+        data:
+            - template:
+                type: UP<TemplateString>
+                is_ctor: false
     - ExprSubstring:
         super: Expr
         doc: |

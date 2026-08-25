@@ -160,8 +160,6 @@ public:
     
     virtual void visitTemplateParamValue(ast::ITemplateParamValue *i) { }
     
-    virtual void visitExecTargetTemplateParam(ast::IExecTargetTemplateParam *i) { }
-    
     virtual void visitConstraintStmt(ast::IConstraintStmt *i) { }
 
     virtual void visitExprRefPathElem(ast::IExprRefPathElem *i) { 
@@ -298,7 +296,150 @@ public:
     
     virtual void visitExecStmt(ast::IExecStmt *i) { }
     
-    virtual void visitExecTargetTemplateBlock(ast::IExecTargetTemplateBlock *i) { }
+    /**
+     * 20.5.3/20.5.4 -- a target exec block.
+     *
+     * This used to be an empty stub, so specializing a parameterized type
+     * silently dropped the target code entirely. That was already a defect
+     * (P3-X3's class); it became a worse one when the block stopped being a
+     * leaf and started carrying a scanned template.
+     */
+    virtual void visitExecTargetTemplateBlock(ast::IExecTargetTemplateBlock *i) override {
+        DEBUG_ENTER("visitExecTargetTemplateBlock");
+        ast::IExecTargetTemplateBlock *ic = m_factory->mkExecTargetTemplateBlock(
+            i->getKind(),
+            i->getData());
+        ic->setLanguage(i->getLanguage());
+        ic->setFilename(i->getFilename());
+        ic->setTemplate(copyTemplate(i->getTemplate()));
+        ic->setFilename_template(copyTemplate(i->getFilename_template()));
+        if (i->getTag()) {
+            ic->setTag(copyT<ast::IExecBlockTag>(i->getTag()));
+        }
+        ic->setDocstring(i->getDocstring());
+        ic->setLocation(i->getLocation());
+        m_sc = ic;
+        DEBUG_LEAVE("visitExecTargetTemplateBlock");
+    }
+
+    /**
+     * 4.7.1 -- deep-copy a scanned template, or return 0 if there is none.
+     *
+     * Written as a plain recursive walk rather than through the visitor: the
+     * element types form a small closed set, and threading them through
+     * m_sc/copy() would need a visitor override per type for no benefit.
+     *
+     * Template-local declarations are *not* copied here. They live on the
+     * scope node's `children`, which the symbol tree owns; a specialized copy
+     * is re-linked from scratch, so re-registering them is the linker's job,
+     * not this one's.
+     */
+    ast::ITemplateString *copyTemplate(ast::ITemplateString *i) {
+        if (!i) {
+            return 0;
+        }
+        ast::ITemplateString *ic = m_factory->mkTemplateString(
+            i->getName(), i->getRaw());
+        ic->setIs_const(i->getIs_const());
+        ic->setLocation(i->getLocation());
+        for (std::vector<ast::ITemplateElemUP>::const_iterator
+            it=i->getElems().begin(); it!=i->getElems().end(); it++) {
+            ast::ITemplateElem *e = copyTemplateElem(it->get());
+            if (e) {
+                e->setIndex((int32_t)ic->getElems().size());
+                ic->getElems().push_back(ast::ITemplateElemUP(e));
+            }
+        }
+        return ic;
+    }
+
+    ast::ITemplateElem *copyTemplateElem(ast::ITemplateElem *i) {
+        ast::ITemplateElem *ret = 0;
+
+        if (ast::ITemplateText *t = dynamic_cast<ast::ITemplateText *>(i)) {
+            ret = m_factory->mkTemplateText(
+                t->getName(), t->getOffset(), t->getExtent(), t->getText());
+        } else if (ast::ITemplateExpr *t = dynamic_cast<ast::ITemplateExpr *>(i)) {
+            ret = m_factory->mkTemplateExpr(
+                t->getName(), t->getOffset(), t->getExtent(),
+                t->getExpr() ? copy(t->getExpr()) : 0);
+        } else if (ast::ITemplateComment *t = dynamic_cast<ast::ITemplateComment *>(i)) {
+            ast::ITemplateComment *c = m_factory->mkTemplateComment(
+                t->getName(), t->getOffset(), t->getExtent(), t->getText());
+            c->setIs_line(t->getIs_line());
+            ret = c;
+        } else if (ast::ITemplateIf *t = dynamic_cast<ast::ITemplateIf *>(i)) {
+            ast::ITemplateIf *n = m_factory->mkTemplateIf(
+                t->getName(), t->getOffset(), t->getExtent());
+            for (std::vector<ast::ITemplateIfClauseUP>::const_iterator
+                it=t->getClauses().begin(); it!=t->getClauses().end(); it++) {
+                ast::ITemplateIfClause *c = m_factory->mkTemplateIfClause(
+                    (*it)->getName(), (*it)->getOffset(), (*it)->getExtent());
+                if ((*it)->getCond()) {
+                    c->setCond(copy((*it)->getCond()));
+                }
+                copyTemplateBody(it->get(), c);
+                c->setIs_own_line((*it)->getIs_own_line());
+                c->setLocation((*it)->getLocation());
+                c->setIndex((int32_t)n->getClauses().size());
+                n->getClauses().push_back(ast::ITemplateIfClauseUP(c));
+            }
+            ret = n;
+        } else if (ast::ITemplateForeach *t = dynamic_cast<ast::ITemplateForeach *>(i)) {
+            ast::ITemplateForeach *n = m_factory->mkTemplateForeach(
+                t->getName(), t->getOffset(), t->getExtent(),
+                t->getExpr() ? copy(t->getExpr()) : 0);
+            if (t->getIt()) {
+                n->setIt(copyT<ast::IExprId>(t->getIt()));
+            }
+            if (t->getIdx()) {
+                n->setIdx(copyT<ast::IExprId>(t->getIdx()));
+            }
+            copyTemplateBody(t, n);
+            ret = n;
+        } else if (ast::ITemplateRepeat *t = dynamic_cast<ast::ITemplateRepeat *>(i)) {
+            ast::ITemplateRepeat *n = m_factory->mkTemplateRepeat(
+                t->getName(), t->getOffset(), t->getExtent(),
+                t->getExpr() ? copy(t->getExpr()) : 0);
+            if (t->getIdx()) {
+                n->setIdx(copyT<ast::IExprId>(t->getIdx()));
+            }
+            copyTemplateBody(t, n);
+            ret = n;
+        } else if (ast::ITemplateVarDecl *t = dynamic_cast<ast::ITemplateVarDecl *>(i)) {
+            ast::ITemplateVarDecl *n = m_factory->mkTemplateVarDecl(
+                t->getName(), t->getOffset(), t->getExtent());
+            for (std::vector<ast::IProceduralStmtDataDeclarationUP>::const_iterator
+                it=t->getDecls().begin(); it!=t->getDecls().end(); it++) {
+                n->getDecls().push_back(ast::IProceduralStmtDataDeclarationUP(
+                    copyT<ast::IProceduralStmtDataDeclaration>(it->get()), false));
+            }
+            ret = n;
+        } else if (ast::ITemplateAssign *t = dynamic_cast<ast::ITemplateAssign *>(i)) {
+            ret = m_factory->mkTemplateAssign(
+                t->getName(), t->getOffset(), t->getExtent(),
+                copyT<ast::IExprId>(t->getLhs()),
+                t->getRhs() ? copy(t->getRhs()) : 0);
+        } else {
+            DEBUG_ERROR("Error: unhandled template element in copy");
+            return 0;
+        }
+
+        ret->setIs_own_line(i->getIs_own_line());
+        ret->setLocation(i->getLocation());
+        return ret;
+    }
+
+    void copyTemplateBody(ast::ITemplateBlock *src, ast::ITemplateBlock *dst) {
+        for (std::vector<ast::ITemplateElemUP>::const_iterator
+            it=src->getBody().begin(); it!=src->getBody().end(); it++) {
+            ast::ITemplateElem *e = copyTemplateElem(it->get());
+            if (e) {
+                e->setIndex((int32_t)dst->getBody().size());
+                dst->getBody().push_back(ast::ITemplateElemUP(e));
+            }
+        }
+    }
     
     virtual void visitExprBin(ast::IExprBin *i) { 
         m_expr = m_factory->mkExprBin(
@@ -585,7 +726,19 @@ public:
         DEBUG_ENTER("visitFunctionPrototype");
     }
     
-    virtual void visitFunctionImportType(ast::IFunctionImportType *i) { 
+    virtual void visitTargetTemplateFunction(ast::ITargetTemplateFunction *i) override {
+        DEBUG_ENTER("visitTargetTemplateFunction %s", i->getProto()->getName()->getId().c_str());
+        ast::ITargetTemplateFunction *ic = m_factory->mkTargetTemplateFunction(
+            copyT<ast::IFunctionPrototype>(i->getProto()),
+            i->getLanguage(),
+            i->getData());
+        ic->setIs_static(i->getIs_static());
+        ic->setDocstring(i->getDocstring());
+        m_sc = ic;
+        DEBUG_LEAVE("visitTargetTemplateFunction");
+    }
+
+    virtual void visitFunctionImportType(ast::IFunctionImportType *i) {
         DEBUG_ENTER("visitFunctionImportType");
         DEBUG("TODO: visitFunctionImportType");
         DEBUG_LEAVE("visitFunctionImportType");

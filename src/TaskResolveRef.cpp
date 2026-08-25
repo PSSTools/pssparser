@@ -295,8 +295,31 @@ void TaskResolveRef::visitTypeIdentifier(ast::ITypeIdentifier *i) {
             }
 
         } else {
-            // Assume 
+            // Before P2-A5a this branch was unreachable-in-practice noise: the
+            // qualified lookup itself was broken, so *every* multi-element type
+            // identifier landed here and reporting would have been all false
+            // positives. Now that the lookup works, arriving here means the
+            // name genuinely is not in the qualifying scope.
             DEBUG("Note: failed to resolve element %s", (*it)->getId()->getId().c_str());
+            if (m_report_unresolved) {
+                // Name the whole qualifying prefix, not just the root: with a
+                // nested package `p::q::Nope`, "in 'p'" would point at the
+                // wrong scope.
+                std::string scope_name;
+                for (std::vector<ast::ITypeIdentifierElemUP>::const_iterator
+                    p_it=i->getElems().begin(); p_it!=it; p_it++) {
+                    if (scope_name.size()) {
+                        scope_name += "::";
+                    }
+                    scope_name += (*p_it)->getId()->getId();
+                }
+                m_ctxt->addMarker(
+                    MarkerSeverityE::Error,
+                    (*it)->getId()->getLocation(),
+                    "unknown type '%s' in '%s'",
+                    (*it)->getId()->getId().c_str(),
+                    scope_name.c_str());
+            }
             delete root;
             root = 0;
             break;

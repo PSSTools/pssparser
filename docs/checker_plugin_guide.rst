@@ -232,6 +232,37 @@ Core IDs are allocated in bands:
    * - ``PSS107``
      - error
      - Member selection on a slice
+   * - ``PSS108``
+     - error
+     - Unterminated ``{{`` mustache in a triple-quoted string
+   * - ``PSS109``
+     - error
+     - Mustache content does not parse as an expression
+   * - ``PSS110``
+     - error
+     - Unterminated or malformed template directive or comment; unclosed
+       block at end of string
+   * - ``PSS111``
+     - error
+     - Template block directive out of place (a ``{%%}`` too many, or an
+       ``else`` with no ``if``)
+   * - ``PSS112``
+     - error
+     - Template assignment target is not a template local
+   * - ``PSS113``
+     - error
+     - Template expression is not of scalar type
+   * - ``PSS114``
+     - error
+     - Non-pure function called from a template string
+   * - ``PSS115``
+     - error
+     - Non-constant template string where a constant is required
+
+``PSS108``–``PSS115`` are the triple-quoted-string diagnostics (PSS 3.1
+§4.7.1); see :doc:`pss31_features`.  ``PSS108`` and ``PSS109`` carry an inline
+hint about the ``{{`` collision, because the overwhelmingly common cause is
+target code that meant two literal braces -- see :doc:`pss31_migration`.
 
 Two of these are warnings by deliberate design rather than by leniency.
 ``PSS101`` must not be an error because PSS 3.1 §7.13 requires that

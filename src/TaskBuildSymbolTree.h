@@ -87,6 +87,10 @@ public:
 
     virtual void visitFunctionPrototype(ast::IFunctionPrototype *i) override;
 
+    virtual void visitTargetTemplateFunction(ast::ITargetTemplateFunction *i) override;
+
+    virtual void visitTemplateString(ast::ITemplateString *i) override;
+
     virtual void visitGlobalScope(ast::IGlobalScope *i) override;
 
     virtual void visitPackageImportStmt(ast::IPackageImportStmt *i) override;

@@ -420,15 +420,8 @@ def test_code_doc_on_procedural_stmt():
     assert_no_marker(pss, marker_id="PSS101")
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="Pre-existing linker gap, not specific to annotations: a "
-           "package-qualified type identifier (`pkg::Type`) never resolves -- "
-           "TaskResolveRef fails on the second path element and returns null. "
-           "Elsewhere this is silent (the type reference is simply left "
-           "unresolved); an annotation surfaces it as PSS101. See plan item "
-           "P2-A5a.")
 def test_package_qualified_annotation_type_resolves():
+    """Was P2-A5a: `pkg::Type` failed on its second path element."""
     pss = """
     package p {
         annotation note_s { string text; }

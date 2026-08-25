@@ -57,11 +57,19 @@ public:
         ast::IScopeChild            *target,
         ast::IExprMemberPathElem    *elem);
 
-private:
-    /** Gathers every signature `target` offers, in declaration order. */
-    void collectPrototypes(
+    /**
+     * Gathers every signature `target` offers, in declaration order.
+     *
+     * Public because "what did this call resolve to" is not specific to arity
+     * checking: PSS114 asks the same question of the same declaration forms,
+     * and a second copy of the ISymbolFunctionScope/definition/import walk
+     * would drift.
+     */
+    static void collectPrototypes(
         ast::IScopeChild                            *target,
         std::vector<ast::IFunctionPrototype *>      &protos);
+
+private:
 
     /** The [min,max] argument count `proto` accepts; max is -1 for varargs. */
     static void arity(

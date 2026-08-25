@@ -62,6 +62,8 @@ class CoreChecker(CheckerBase):
                 "The linker could not resolve a named type, identifier, or "
                 "method.  Messages include patterns such as:\n\n"
                 "* ``unknown type 'Foo'``\n"
+                "* ``unknown type 'Foo' in 'pkg'`` (the name is not in the "
+                "qualifying package or scope)\n"
                 "* ``unknown identifier 'bar'``\n"
                 "* ``unknown method 'baz' on built-in type``\n\n"
                 "Ensure the symbol is declared in one of the source files "
@@ -321,6 +323,179 @@ class CoreChecker(CheckerBase):
                 "silently resolved as though it were an index."
             ),
             patterns=(r"^member selection is not permitted on a slice\b",),
+        ),
+        MarkerDef(
+            id="PSS108",
+            severity="error",
+            summary="Unterminated mustache expression",
+            detail=(
+                "A ``{{`` inside a triple-quoted string was never closed by a "
+                "matching ``}}`` (PSS 3.1 §4.7.1.1).\n\n"
+                "Message: ``unterminated mustache expression; if '{{' was "
+                "intended as literal text, separate the braces ('{ {') -- "
+                "triple-quoted strings have no escape mechanism``\n\n"
+                "The hint is not decoration.  PSS 3.1 makes ``{{`` open a "
+                "mustache inside ``\"\"\"...\"\"\"`` and provides **no** escape "
+                "mechanism, so target code that legitimately contains two "
+                "adjacent open braces -- ``int m[2][2] = {{1,2},{3,4}};`` -- "
+                "now fails here.  The conformant spelling is ``{ {``: a lone "
+                "``{`` is ordinary text, so separating the braces needs no "
+                "escape and is read identically by every other PSS tool.\n\n"
+                "Note only the *opening* delimiter is special.  A stray ``}}`` "
+                "in text is literal and is never reported, which is why C and "
+                "C++ closing braces are unaffected."
+            ),
+            patterns=(r"^unterminated mustache expression\b",),
+        ),
+        MarkerDef(
+            id="PSS109",
+            severity="error",
+            summary="Malformed mustache expression",
+            detail=(
+                "The content of a ``{{ ... }}`` did not parse as a PSS "
+                "expression (PSS 3.1 §4.7.1.1).\n\n"
+                "Message: ``malformed mustache expression: <detail>; if '{{' "
+                "was intended as literal text, separate the braces ('{ {')``\n\n"
+                "Syntax errors from the sub-parse are wrapped in this "
+                "diagnostic rather than forwarded verbatim: a raw "
+                "``mismatched input '}' expecting ...`` rebased out of a "
+                "fragment tells the user nothing about the real cause, which "
+                "is most often the ``{{`` collision described under PSS108.\n\n"
+                "An unparseable mustache is deliberately an **error** and "
+                "never silently-literal text.  Treating it as text would let a "
+                "genuinely malformed ``{{ x + }}`` through unnoticed."
+            ),
+            patterns=(r"^malformed mustache expression\b",),
+        ),
+        MarkerDef(
+            id="PSS110",
+            severity="error",
+            summary="Malformed or unterminated template directive or comment",
+            detail=(
+                "A ``{% ... %}`` directive or ``{# ... #}`` comment inside a "
+                "triple-quoted string is unterminated, does not parse, or "
+                "opened a block that was never closed (PSS 3.1 §4.7.1.2, "
+                "§4.7.1.3).\n\n"
+                "Messages:\n\n"
+                "* ``unterminated template directive``\n"
+                "* ``unterminated template comment``\n"
+                "* ``unclosed template block at end of string``\n"
+                "* ``malformed template directive: <detail>``\n\n"
+                "These carry no ``{ {`` hint, unlike PSS108/PSS109.  A "
+                "malformed ``{%`` or ``{#`` cannot be produced by ordinary "
+                "target code the way ``{{`` can, so the hint would be noise."
+            ),
+            patterns=(
+                r"^unterminated template (directive|comment)\b",
+                r"^unclosed template block\b",
+                r"^malformed template directive\b",
+            ),
+        ),
+        MarkerDef(
+            id="PSS111",
+            severity="error",
+            summary="Template block directive out of place",
+            detail=(
+                "A block-closing or ``else`` directive appeared where no block "
+                "was open (PSS 3.1 §4.7.1.2, Table 5).\n\n"
+                "Messages:\n\n"
+                "* ``template block close with no open block`` -- a ``{%%}`` "
+                "too many\n"
+                "* ``'else' with no preceding 'if'``\n\n"
+                "Note a *duplicate* template-local declaration is reported as "
+                "``PSS003`` rather than here: it is the same defect as any "
+                "other duplicate declaration and shares that message shape."
+            ),
+            patterns=(
+                r"^template block close with no open block\b",
+                r"^'else' with no preceding 'if'",
+            ),
+        ),
+        MarkerDef(
+            id="PSS112",
+            severity="error",
+            summary="Template assignment target is not a template local",
+            detail=(
+                "A ``{% x = expr; %}`` directive assigned to something other "
+                "than a variable declared earlier in the *same* triple-quoted "
+                "string (PSS 3.1 §4.7.1.2).  Assigning to an action attribute "
+                "is illegal.\n\n"
+                "Message: ``template assignment target '<name>' is not "
+                "declared within this template string``\n\n"
+                "Nothing about the syntax distinguishes a legal template-local "
+                "assignment from an illegal attribute assignment -- the only "
+                "way to tell them apart is which symbol table the name "
+                "resolved through.  Declare the variable with ``{% int x; %}`` "
+                "inside the template, or drop the assignment."
+            ),
+            patterns=(r"^template assignment target\b",),
+        ),
+        MarkerDef(
+            id="PSS113",
+            severity="error",
+            summary="Template expression is not of scalar type",
+            detail=(
+                "A ``{{ ... }}`` mustache expression is of aggregate type.  PSS "
+                "3.1 §4.7.1.1 requires the substituted expression to be of "
+                "scalar type -- there is no defined text for a struct, a list "
+                "or a map.\n\n"
+                "Message: ``template expression is not of scalar type``\n\n"
+                "Classification is the same coarse categoriser the argument "
+                "checks use (PSS007), and it inherits that pass's known gaps "
+                "(see ``known-issues.md`` P3-X6c): member paths, subscripts, "
+                "nested calls and user-defined types are classified as "
+                "*unknown*, and nothing is reported for an unknown category.  "
+                "So this fires on a literal aggregate and on a field whose "
+                "declared type is plainly aggregate, and stays silent "
+                "elsewhere rather than guessing."
+            ),
+            patterns=(r"^template expression is not of scalar type\b",),
+        ),
+        MarkerDef(
+            id="PSS114",
+            severity="error",
+            summary="Non-pure function called from a template string",
+            detail=(
+                "A mustache expression or control-flow directive called a "
+                "function that is not declared ``pure``.  PSS 3.1 §4.7.1.1: "
+                "any function called from a template shall be pure, since "
+                "expansion happens during elaboration and must not have side "
+                "effects.\n\n"
+                "Message: ``call to non-pure function '<name>' in a template "
+                "string``\n\n"
+                "Declare the function ``pure function ...`` if it is free of "
+                "side effects, or compute the value outside the template and "
+                "reference the result.\n\n"
+                "One gap: the ``pure`` qualifier on a *component* is not "
+                "recorded in the AST, so a function that is pure only by "
+                "virtue of its enclosing ``pure component`` is still reported "
+                "(``known-issues.md`` P5-X3)."
+            ),
+            patterns=(r"^call to non-pure function\b",),
+        ),
+        MarkerDef(
+            id="PSS115",
+            severity="error",
+            summary="Non-constant template string where a constant is required",
+            detail=(
+                "A triple-quoted string whose special elements reference "
+                "something other than constants was used where a constant "
+                "expression is required -- a ``const`` field initializer, or "
+                "an annotation initializer (§4.7, §7.13a).\n\n"
+                "Message: ``template string with non-constant elements is not "
+                "a constant expression``\n\n"
+                "Reported at the point of *use*, not at the template: the same "
+                "template text is perfectly legal in an exec body.  A template "
+                "is constant when every expression under every special element "
+                "references only constants -- ``const`` fields, enum items, "
+                "type template value parameters, and template locals derived "
+                "from those.  A call is never constant, even to a ``pure`` "
+                "function: this front end does not evaluate function bodies."
+            ),
+            patterns=(
+                r"^template string with non-constant elements is not a "
+                r"constant expression",
+            ),
         ),
     ]
 

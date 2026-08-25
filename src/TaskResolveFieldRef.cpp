@@ -60,18 +60,29 @@ void TaskResolveFieldRef::visitNamedScopeChild(ast::INamedScopeChild *i) {
 
 }
 
-void TaskResolveFieldRef::visitSymbolScope(ast::ISymbolScope *i) { 
-    DEBUG_ENTER("visitSymbolScope");
-
+void TaskResolveFieldRef::visitSymbolScope(ast::ISymbolScope *i) {
+    DEBUG_ENTER("visitSymbolScope \"%s\"", i->getName().c_str());
+    // A package is an ordinary symbol scope, so this is the case that makes
+    // `pkg::T` resolve; it had been an empty stub, which is why every
+    // package-qualified reference failed on its second element (P2-A5a).
+    //
+    // Deliberately does *not* chain to VisitorBase, which would walk the
+    // scope's imports and children. This is a single-level lookup.
+    lookup(i);
     DEBUG_LEAVE("visitSymbolScope");
 }
 
-//void TaskResolveFieldRef::visitSymbolExecScope(ast::ISymbolExecScope *i) { 
+//void TaskResolveFieldRef::visitSymbolExecScope(ast::ISymbolExecScope *i) {
 //
 //}
 
-void TaskResolveFieldRef::visitSymbolTypeScope(ast::ISymbolTypeScope *i) { 
-    DEBUG_ENTER("visitSymbolTypeScope");
+void TaskResolveFieldRef::visitSymbolTypeScope(ast::ISymbolTypeScope *i) {
+    DEBUG_ENTER("visitSymbolTypeScope \"%s\"", i->getName().c_str());
+    lookup(i);
+    DEBUG_LEAVE("visitSymbolTypeScope");
+}
+
+void TaskResolveFieldRef::lookup(ast::ISymbolScope *i) {
     std::unordered_map<std::string,int32_t>::const_iterator it;
 
     if ((it=i->getSymtab().find(m_id->getId())) != i->getSymtab().end()) {
@@ -81,8 +92,6 @@ void TaskResolveFieldRef::visitSymbolTypeScope(ast::ISymbolTypeScope *i) {
             it->second
         });
     }
-
-    DEBUG_LEAVE("visitSymbolTypeScope");
 }
 
 void TaskResolveFieldRef::visitScopeChild(ast::IScopeChild *i) {

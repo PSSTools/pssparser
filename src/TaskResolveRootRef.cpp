@@ -80,6 +80,24 @@ void TaskResolveRootRef::visitProceduralStmtForeach(ast::IProceduralStmtForeach 
     DEBUG_LEAVE("visitProceduralStmtForeach");
 }
 
+void TaskResolveRootRef::visitTemplateString(ast::ITemplateString *i) {
+    // Variables declared at the top level of a triple-quoted string, via
+    // `{% int x; %}` (4.7.1.2). Same shape as the procedural loops above:
+    // inspect only this scope's symtab, never the body.
+    DEBUG_ENTER("visitTemplateString");
+    visitSymbolScope(i);
+    DEBUG_LEAVE("visitTemplateString");
+}
+
+void TaskResolveRootRef::visitTemplateBlock(ast::ITemplateBlock *i) {
+    // A foreach iterator/index, a repeat index, or a variable declared inside
+    // the block -- "added to the scope until the block closing directive"
+    // (4.7.1.2). Covers TemplateIfClause too, which derives from this.
+    DEBUG_ENTER("visitTemplateBlock");
+    visitSymbolScope(i);
+    DEBUG_LEAVE("visitTemplateBlock");
+}
+
 void TaskResolveRootRef::visitRootSymbolScope(ast::IRootSymbolScope *i) {
     DEBUG_ENTER("visitRootSymbolScope %s %d %p", i->getName().c_str(), i->getSymtab().size(), i);
     visitSymbolScope(i);

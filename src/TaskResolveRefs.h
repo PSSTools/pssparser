@@ -78,6 +78,9 @@ public:
     /** §9.1.6 b) -- `mutable` is not permitted on a component field. */
     void checkMutableField(ast::IField *i);
 
+    /** PSS115 -- `e` is a template string that is not a constant expression. */
+    void checkConstTemplate(ast::IExpr *e, const ast::Location &loc);
+
     virtual void visitFieldCompRef(ast::IFieldCompRef *i) override;
 
     virtual void visitFunctionPrototype(ast::IFunctionPrototype *i) override;
@@ -85,6 +88,22 @@ public:
     virtual void visitProceduralStmtRepeat(ast::IProceduralStmtRepeat *i) override;
 
     virtual void visitProceduralStmtForeach(ast::IProceduralStmtForeach *i) override;
+
+    // 4.7.1 -- template scopes. The generated visitors walk a block's body
+    // *after* visitTemplateElem has already pushed and popped the scope, so a
+    // foreach iterator would not be visible inside its own block. These push
+    // the scope around the body instead.
+    virtual void visitTemplateString(ast::ITemplateString *i) override;
+
+    virtual void visitTemplateBlock(ast::ITemplateBlock *i) override;
+
+    virtual void visitTemplateForeach(ast::ITemplateForeach *i) override;
+
+    virtual void visitTemplateRepeat(ast::ITemplateRepeat *i) override;
+
+    virtual void visitTemplateIfClause(ast::ITemplateIfClause *i) override;
+
+    virtual void visitTemplateAssign(ast::ITemplateAssign *i) override;
 
 //    virtual void visitRootSymbolScope(ast::IRootSymbolScope *i) override;
 
@@ -144,6 +163,15 @@ private:
     // resolution succeeds -- `getTarget()` short-circuits the second pass --
     // and shows up only as a duplicated diagnostic when it fails.
     std::set<ast::IExecBlockTag *>      m_checked_exec_tags;
+
+    // Non-zero while resolving inside a triple-quoted template string.
+    //
+    // PSS114 -- §4.7.1.1's "any function called shall be pure" -- has to be
+    // checked where the callee is resolved: for `a.b.f()` that happens deep in
+    // the ref-path walk, and only there is the declaration in hand. Rather
+    // than duplicate that walk, the call sites ask this counter whether the
+    // call they just resolved is inside a template.
+    int32_t                             m_template_depth = 0;
 
 };
 

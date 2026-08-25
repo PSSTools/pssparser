@@ -58,6 +58,26 @@ public:
         m_ret = s;
     }
 
+    // 4.7.1 -- template scopes, for the same reason the two procedural loops
+    // above need explicit overrides: the *generated* visitors descend.
+    //
+    // TemplateString and TemplateBlock both reach visitSymbolScope (which sets
+    // m_ret) and then walk their elements, each of which is itself a
+    // SymbolScope and overwrites m_ret. Without these, asking for the symbol
+    // scope of a template returns its **last element** -- whose symtab is
+    // empty -- so every template-local name failed to resolve.
+    virtual void visitTemplateString(ast::ITemplateString *s) override {
+        m_ret = s;
+    }
+
+    virtual void visitTemplateBlock(ast::ITemplateBlock *s) override {
+        m_ret = s;
+    }
+
+    virtual void visitTemplateElem(ast::ITemplateElem *s) override {
+        m_ret = s;
+    }
+
     virtual void visitSymbolScope(ast::ISymbolScope *s) override {
         m_ret = s;
     }

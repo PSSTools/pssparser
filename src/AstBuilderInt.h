@@ -138,6 +138,9 @@ public:
 
     virtual antlrcpp::Any visitTarget_file_exec_block(PSSParser::Target_file_exec_blockContext *ctx) override;
 
+    /** 20.6 -- `target C function void f(int a) = """...""";` */
+    virtual antlrcpp::Any visitTarget_template_function(PSSParser::Target_template_functionContext *ctx) override;
+
     ast::IExecBlockTag *mkExecBlockTag(PSSParser::Exec_block_tagContext *ctx);
 
     /** 20.5.4 -- PSS106 when a tag is written on an exec kind that rejects it. */
@@ -523,10 +526,15 @@ private:
      *        information; the qualifier is threaded in here so that all three
      *        declaration forms (function_decl, procedural_function,
      *        import_function) record it the same way.
+     * @param is_pure whether the declaration carried the `pure` qualifier
+     *        (B.5). Like the platform qualifier, this was never recorded --
+     *        `is_pure` was left at its default at every call site -- which
+     *        made the flag useless to any check that needed it (PSS114).
      */
     ast::IFunctionPrototype *mkFunctionPrototype(
         PSSParser::Function_prototypeContext *ctx,
-        PSSParser::Platform_qualifierContext *plat = 0);
+        PSSParser::Platform_qualifierContext *plat = 0,
+        bool                                 is_pure = false);
 
     ast::IFunctionParamDecl *mkFunctionParamDecl(PSSParser::Function_parameterContext *ctx);
 
@@ -582,7 +590,95 @@ private:
 
     void setLoc(ast::IExprId *c, Token *start);
 
+    /**
+     * 4.7.1 -- scan a triple-quoted string body and build its TemplateString.
+     *
+     * `raw` is the content with the enclosing `"""` already stripped;
+     * `base_line`/`base_col` are the file position of raw[0], 1-based.
+     *
+     * Returns 0 when the text holds no special elements, which is the common
+     * case and keeps a plain string free of extra nodes. Diagnostics
+     * (PSS108-PSS111) are emitted here.
+     *
+     * Defined in AstBuilderIntTemplate.cpp.
+     */
+    ast::ITemplateString *mkTemplateString(
+        const std::string   &raw,
+        int32_t             base_line,
+        int32_t             base_col);
+
+    /** Build the template for a string_literal token, or 0. */
+    ast::ITemplateString *mkTemplateString(PSSParser::String_literalContext *ctx);
+
 private:
+
+    /**
+     * Where the fragment currently being sub-parsed sits in the file.
+     *
+     * Every template fragment is parsed out of context, so ANTLR reports
+     * positions relative to the fragment. `rebaseLoc` maps them back; `active`
+     * is false during an ordinary parse, when positions are already absolute.
+     */
+    struct FragmentBase {
+        int32_t line = 0;
+        int32_t col = 0;
+        bool    active = false;
+    };
+
+    /**
+     * Map a fragment-relative (line, col) onto the file.
+     *
+     * The column offset applies **only on the fragment's first line** -- on
+     * every later line the fragment's own column is already the file column.
+     * That is the classic off-by-one here and it has a dedicated test.
+     *
+     * `col` is 1-based on the way in and on the way out.
+     */
+    void rebaseLoc(int32_t &line, int32_t &col) const;
+
+    /** Sub-parse `text` as an `expression`. Returns 0 and sets `err` on failure. */
+    ast::IExpr *fragmentExpr(
+        const std::string   &text,
+        int32_t             line,
+        int32_t             col,
+        std::string         &err);
+
+    /** Emit one of the template diagnostics. `code` is 108..111. */
+    void templateMarker(
+        int32_t             code,
+        const std::string   &detail,
+        int32_t             line,
+        int32_t             col,
+        int32_t             extent);
+
+    /**
+     * Classify and build one `{% ... %}` directive, maintaining the block
+     * stack. Appends whatever element it produces itself, because `if` has to
+     * append the TemplateIf to the enclosing frame *before* pushing the clause
+     * frame the body will go into.
+     */
+    void buildTemplateDirective(
+        const std::string           &raw,
+        const struct TemplateToken  &tok,
+        struct TemplateBuildState   &st);
+
+    /** Append an element to the current frame, stamping location and flags. */
+    void appendTemplateElem(
+        struct TemplateBuildState   &st,
+        ast::ITemplateElem          *elem,
+        const struct TemplateToken  &tok);
+
+    /**
+     * Register a template-local declaration in `scope`'s symtab and children.
+     *
+     * Follows visitProcedural_foreach_stmt exactly: the symbol lives on the
+     * owning node, and TaskBuildSymbolTree is told not to re-home it.
+     */
+    void registerTemplateLocal(
+        ast::ISymbolScope           *scope,
+        ast::IProceduralStmtDataDeclaration *decl,
+        const struct TemplateToken  &tok);
+
     static dmgr::IDebug                         *m_dbg;
     int32_t                                     m_file_id;
 	bool										m_collectDocStrings;
@@ -601,6 +697,7 @@ private:
     std::vector<ast::IExecScope *>              m_exec_scope_s;
 	std::vector<ast::IConstraintScope *>		m_constraint_s;
     std::unique_ptr<CommonTokenStream>			m_tokens;
+    FragmentBase                                m_frag;
 	std::vector<ast::IExprIdUP>					*m_type_id;
 	uint32_t									m_field_depth;
 	std::vector<ast::IField *>					m_fields;

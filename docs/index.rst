@@ -37,6 +37,12 @@ Key Features
 
 .. toctree::
    :maxdepth: 2
+   :caption: PSS 3.1 Features:
+
+   pss31_features
+
+.. toctree::
+   :maxdepth: 2
    :caption: PSS 3.0 Features:
 
    pss30_features
