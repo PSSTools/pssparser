@@ -1742,6 +1742,11 @@ antlrcpp::Any AstBuilderInt::visitComponent_declaration(PSSParser::Component_dec
 		mkId(ctx->component_identifier()->identifier()),
 		super_t);
 
+    // 'pure component' declares every function of the component pure (P5-X3).
+    // The grammar has always accepted the token; until this, nothing read it,
+    // so PSS114 reported a call to any function of `reg_c` as non-pure.
+    comp->setIs_pure(ctx->TOK_PURE() != 0);
+
     if (ctx->template_param_decl_list()) {
         comp->setParams(mkTypeParamDecl(ctx->template_param_decl_list()));
     }
@@ -2552,6 +2557,68 @@ antlrcpp::Any AstBuilderInt::visitChandle_type(PSSParser::Chandle_typeContext *c
 	return 0;
 }
 
+/**
+ * Width of `[msb : lsb]`, given the width expression already built for `msb`.
+ *
+ * B.13 spells the range form `[ expression [ : 0 ] ]` -- the low bound is the
+ * literal 0, not an expression -- so `bit[7:0]` is another way of writing
+ * `bit[8]` and `bit[7:1]` is not legal PSS. The grammar accepts an expression
+ * there regardless, so that the diagnostic comes from here and names the
+ * problem, rather than from ANTLR as an unexplained syntax error.
+ */
+ast::IExpr *AstBuilderInt::mkMsbWidth(
+		ast::IExpr                  *msb,
+		PSSParser::ExpressionContext *lsb_ctx) {
+	ast::IExpr *lsb = mkExpr(lsb_ctx);
+	ast::IExprUnsignedNumber *lsb_n =
+		dynamic_cast<ast::IExprUnsignedNumber *>(lsb);
+
+	if (!lsb_n || lsb_n->getValue() != 0) {
+		ast::Location loc;
+		loc.fileid = m_file_id;
+		loc.lineno = (int32_t)lsb_ctx->start->getLine();
+		loc.linepos = (int32_t)lsb_ctx->start->getCharPositionInLine()+1;
+		loc.extent = (int32_t)lsb_ctx->getText().size();
+
+		char tmp[1024];
+		snprintf(tmp, sizeof(tmp),
+			"unexpected low bound '%s' in an integer width; "
+			"only '0' is permitted, as in 'bit[7:0]'",
+			lsb_ctx->getText().c_str());
+
+		Marker m(tmp, MarkerSeverityE::Error, loc);
+		if (m_marker_l) { m_marker_l->marker(&m); }
+
+		delete lsb;
+		return msb;
+	}
+
+	delete lsb;
+
+	// `bit[7:0]` and `bit[8]` are the same type, so where the bound is a
+	// literal they are also the same AST -- nothing downstream should have to
+	// know which spelling it came from. Where it is not (`bit[W:0]`), the
+	// addition is left for the width to be evaluated with, which is what
+	// happens to `bit[W]` anyway.
+	ast::IExprUnsignedNumber *msb_n =
+		dynamic_cast<ast::IExprUnsignedNumber *>(msb);
+
+	if (msb_n) {
+		char img[32];
+		snprintf(img, sizeof(img), "%llu",
+			(unsigned long long)(msb_n->getValue()+1));
+		ast::IExpr *ret = m_factory->mkExprUnsignedNumber(
+			img, msb_n->getWidth(), msb_n->getValue()+1);
+		delete msb;
+		return ret;
+	}
+
+	return m_factory->mkExprBin(
+		msb,
+		ast::ExprBinOp::BinOp_Add,
+		m_factory->mkExprUnsignedNumber("1", 32, 1));
+}
+
 antlrcpp::Any AstBuilderInt::visitInteger_type(PSSParser::Integer_typeContext *ctx) {
 	DEBUG_ENTER("visitInteger_type");
 
@@ -2560,6 +2627,10 @@ antlrcpp::Any AstBuilderInt::visitInteger_type(PSSParser::Integer_typeContext *c
 
 	if (ctx->lhs) {
 		width = mkExpr(ctx->lhs);
+
+		if (ctx->rhs) {
+			width = mkMsbWidth(width, ctx->rhs);
+		}
 	} else {
         if (ctx->integer_atom_type()->TOK_INT()) {
             width = m_factory->mkExprUnsignedNumber("32", 32, 32);

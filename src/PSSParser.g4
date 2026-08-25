@@ -1255,9 +1255,12 @@ chandle_type:
 	TOK_CHANDLE
 	;
 
-// Note: this parser considers dual-interval widths to be unsupported
+// B.13: `integer_atom_type [ [ expression [ : 0 ] ] ]`. The low bound is the
+// literal 0 rather than an expression, so `bit[7:0]` is another spelling of
+// `bit[8]` and `bit[7:1]` is not legal PSS. Accepting `expression` there anyway
+// keeps the parse error out of ANTLR and lets the builder say what is wrong.
 integer_type:
-	integer_atom_type (TOK_LSBRACE lhs=expression /*(TOK_COLON rhs=expression)?*/ TOK_RSBRACE)?
+	integer_atom_type (TOK_LSBRACE lhs=expression (TOK_COLON rhs=expression)? TOK_RSBRACE)?
 		(is_in=TOK_IN TOK_LSBRACE domain=domain_open_range_list TOK_RSBRACE)?
 	;
 

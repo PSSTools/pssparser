@@ -360,13 +360,20 @@ classes:
                 }
             
             Attributes:
+                is_pure: True if declared as 'pure component'
                 name: Component name (inherited from NamedScope)
                 super_t: Optional base component type (inherited from TypeScope)
                 children: Actions, resources, pools, etc (inherited from Scope)
-            
+
             See Also:
                 Action, TypeScope, Field
-        data: []
+        data:
+        # Not a constructor argument: every existing mkComponent call site
+        # predates the flag, and 'pure component' is the rare form.
+        - is_pure:
+            type: bool
+            is_ctor: false
+            init: false
 
 
             

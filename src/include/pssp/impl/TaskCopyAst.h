@@ -1063,6 +1063,12 @@ public:
             (i->getSuper_t())?copyT<ast::ITypeIdentifier>(i->getSuper_t()):0
         );
 
+        // Not carried by the constructor, and the specialization is what every
+        // call is actually checked against: `reg_c` is a templated pure
+        // component, so dropping this here left PSS114 reporting every call to
+        // it (P5-X3).
+        ic->setIs_pure(i->getIs_pure());
+
         copyChildren(i, ic);
 
         if (i->getAssocData()) {

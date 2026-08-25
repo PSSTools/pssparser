@@ -271,3 +271,119 @@ def test_type_in_constraint(parser):
     };
     """
     assert_parse_ok(code, parser)
+
+
+# ===========================================================================
+# `bit[msb:0]` -- the range spelling of a width, Annex B B.13 (P3-X5)
+#
+# B.13 is `integer_atom_type [ [ expression [ : 0 ] ] ]`.  The low bound is the
+# literal 0 rather than an expression, so `bit[7:0]` is another way of writing
+# `bit[8]` -- and the two must build the *same* AST, since nothing downstream
+# should have to know which spelling it came from.
+# ===========================================================================
+
+# Keeps the linked tree alive.  The C++ nodes are freed with the root, and the
+# AST wrappers do not reference it -- a helper that returns only the width
+# expression drops the root on the way out and touching the result segfaults.
+_LIVE_ROOTS = []
+
+
+def _field_width(pss, field, parser=None):
+    """The width expression of `field` in `struct test_s`."""
+    root = parse_pss(pss, parser=parser)
+    _LIVE_ROOTS.append((parser, root))
+    sym = get_symbol(root, "test_s")
+    return sym.getChild(sym.symtabAt(field)).getType().getWidth()
+
+
+_RANGE_STRUCT = """
+struct test_s {
+    bit[7:0]   a;
+    bit[8]     b;
+    int[31:0]  c;
+    int[32]    d;
+}
+"""
+
+
+@pytest.mark.parametrize("field,expected", [
+    ("a", 8), ("b", 8), ("c", 32), ("d", 32),
+])
+def test_integer_width_range(parser, field, expected):
+    """`bit[7:0]` is width 8, not width 7 -- the bound is the most significant
+    bit index, so the width is one more than it."""
+    w = _field_width(_RANGE_STRUCT, field, parser)
+    assert isinstance(w, ast.ExprUnsignedNumber), type(w).__name__
+    assert w.getValue() == expected
+
+
+def test_range_and_count_spellings_are_indistinguishable(parser):
+    """The two forms name the same type, so they leave the same AST behind --
+    including the literal's image, which a formatter reads."""
+    root = parse_pss(_RANGE_STRUCT, parser=parser)
+    sym = get_symbol(root, "test_s")
+
+    def w(name):
+        return sym.getChild(sym.symtabAt(name)).getType().getWidth()
+
+    assert w("a").getValue() == w("b").getValue()
+    assert w("a").getImage() == w("b").getImage()
+    assert w("c").getValue() == w("d").getValue()
+
+
+def test_integer_width_range_over_a_parameter(parser):
+    """`bit[W:0]` cannot be folded, so the addition is left in the expression
+    for the width to be evaluated with -- the same as happens to `bit[W]`."""
+    root = parse_pss("""
+    struct test_s<int W> {
+        bit[W:0] a;
+    }
+    """, parser=parser)
+    sym = get_symbol(root, "test_s")
+    w = sym.getChild(sym.symtabAt("a")).getType().getWidth()
+    assert isinstance(w, ast.ExprBin), type(w).__name__
+    assert isinstance(w.getRhs(), ast.ExprUnsignedNumber)
+    assert w.getRhs().getValue() == 1
+
+
+def test_a_nonzero_low_bound_is_rejected(parser):
+    """B.13 fixes the low bound at 0.  The grammar accepts an expression there
+    anyway, so that this says what is wrong rather than ANTLR reporting an
+    unexplained syntax error."""
+    from test_helpers import parse_collect
+    _, markers = parse_collect("struct test_s { bit[7:1] a; }")
+    assert [m.get("code") for m in markers] == ["PSS001"], markers
+    assert "low bound" in markers[0]["message"]
+
+
+def test_the_low_bound_must_be_a_literal(parser):
+    """Not an expression that happens to evaluate to zero: B.13 gives the
+    token, and accepting more would mean constant-folding in the builder."""
+    from test_helpers import parse_collect
+    _, markers = parse_collect("struct test_s { bit[7:1-1] a; }")
+    assert [m.get("code") for m in markers] == ["PSS001"], markers
+    # Asserted on the text, not just the code: before the grammar accepted the
+    # range form at all this failed as an ordinary syntax error, which is also
+    # PSS001.
+    assert "low bound" in markers[0]["message"], markers
+
+
+def test_integer_width_range_in_a_function_parameter(parser):
+    """Not only in a field declaration -- the gap was in `integer_type`, which
+    is every position an integer type may be written."""
+    assert_parse_ok("""
+    package p {
+        function void f(bit[15:0] v);
+    }
+    """, parser)
+
+
+def test_integer_width_range_in_a_cast(parser):
+    """`casting_type` reaches `integer_type` too."""
+    assert_parse_ok("""
+    struct test_s {
+        int a;
+        int b;
+        constraint { b == (bit[7:0])a; }
+    }
+    """, parser)

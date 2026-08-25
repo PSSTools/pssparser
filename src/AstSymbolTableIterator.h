@@ -69,6 +69,10 @@ public:
     virtual ISymbolTableIterator *clone() const override;
 
 private:
+    static bool isTemplateScope(ast::IScopeChild *c);
+
+    static bool isPlistOf(ast::IScopeChild *outer, ast::IScopeChild *c);
+
     ast::ISymbolScope *getSymScopeBack();
 
 //    ast::ISymbolScope *getSymScopeBack() const;

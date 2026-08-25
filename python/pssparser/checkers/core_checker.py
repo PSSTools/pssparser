@@ -466,10 +466,11 @@ class CoreChecker(CheckerBase):
                 "Declare the function ``pure function ...`` if it is free of "
                 "side effects, or compute the value outside the template and "
                 "reference the result.\n\n"
-                "One gap: the ``pure`` qualifier on a *component* is not "
-                "recorded in the AST, so a function that is pure only by "
-                "virtue of its enclosing ``pure component`` is still reported "
-                "(``known-issues.md`` P5-X3)."
+                "A function declared in a ``pure component`` is pure without "
+                "carrying the qualifier itself, and is not reported.  Purity "
+                "follows the type a function is *declared* in, so deriving "
+                "from a pure component does not make the derived component's "
+                "own functions pure."
             ),
             patterns=(r"^call to non-pure function\b",),
         ),

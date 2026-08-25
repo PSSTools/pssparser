@@ -113,6 +113,7 @@ class SymbolRefPathElemKind(IntEnum):
     ElemKind_ParamIdx = auto()
     ElemKind_Super = auto()
     ElemKind_TypeSpec = auto()
+    ElemKind_TemplateScope = auto()
     
 class TypeCategory(IntEnum):
     Action = auto()
@@ -7150,6 +7151,7 @@ class Component(TypeScope):
         }
     
     Attributes:
+        is_pure: True if declared as 'pure component'
         name: Component name (inherited from NamedScope)
         super_t: Optional base component type (inherited from TypeScope)
         children: Actions, resources, pools, etc (inherited from Scope)

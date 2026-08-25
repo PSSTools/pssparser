@@ -598,6 +598,7 @@ cdef extern from "pssp/ast/SymbolRefPathElemKind.h" namespace "pssp::ast":
         SymbolRefPathElemKind_ElemKind_ParamIdx "pssp::ast::SymbolRefPathElemKind::ElemKind_ParamIdx"
         SymbolRefPathElemKind_ElemKind_Super "pssp::ast::SymbolRefPathElemKind::ElemKind_Super"
         SymbolRefPathElemKind_ElemKind_TypeSpec "pssp::ast::SymbolRefPathElemKind::ElemKind_TypeSpec"
+        SymbolRefPathElemKind_ElemKind_TemplateScope "pssp::ast::SymbolRefPathElemKind::ElemKind_TemplateScope"
 cdef extern from "pssp/ast/TypeCategory.h" namespace "pssp::ast":
     cdef enum TypeCategory:
         TypeCategory_Action "pssp::ast::TypeCategory::Action"
@@ -2917,7 +2918,9 @@ cdef extern from "pssp/ast/IAnnotationDecl.h" namespace "pssp::ast":
 
 cdef extern from "pssp/ast/IComponent.h" namespace "pssp::ast":
     cpdef cppclass IComponent(ITypeScope):
-        pass
+        bool getIs_pure()
+        
+        void setIs_pure(bool v)
 
 cdef extern from "pssp/ast/IProceduralStmtSymbolBodyScope.h" namespace "pssp::ast":
     cpdef cppclass IProceduralStmtSymbolBodyScope(ISymbolScope):

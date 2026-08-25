@@ -571,6 +571,10 @@ private:
 	ast::IExpr *mkExpr(
 		PSSParser::ExpressionContext 			*ctx);
 
+	ast::IExpr *mkMsbWidth(
+		ast::IExpr                              *msb,
+		PSSParser::ExpressionContext            *lsb_ctx);
+
     ast::IExprBitSlice *mkExprBitSlice(
         PSSParser::Bit_sliceContext             *ctx);
 

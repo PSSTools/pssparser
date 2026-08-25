@@ -20,6 +20,7 @@
  */
 #include "dmgr/impl/DebugMacros.h"
 #include "pssp/ast/impl/VisitorBase.h"
+#include "pssp/ast/IComponent.h"
 #include "pssp/ast/IEnumItem.h"
 #include "pssp/ast/IExprRefPath.h"
 #include "pssp/ast/IExprRefPathContext.h"
@@ -28,6 +29,8 @@
 #include "pssp/ast/IField.h"
 #include "pssp/ast/IFunctionPrototype.h"
 #include "pssp/ast/IProceduralStmtDataDeclaration.h"
+#include "pssp/ast/ISymbolChild.h"
+#include "pssp/ast/ISymbolTypeScope.h"
 #include "pssp/ast/ITemplateAssign.h"
 #include "pssp/ast/ITemplateBlock.h"
 #include "pssp/ast/ITemplateExpr.h"
@@ -108,12 +111,13 @@ private:
     /**
      * The template-local declaration `i` names, or null.
      *
-     * Matched **by name**, not through the resolved symbol path, and that is
-     * not a shortcut: the symbol tree deliberately does not hoist template
-     * scopes, so a reference to a template local carries a path whose indices
-     * address the enclosing type instead and resolves to an unrelated node
-     * (known issue P5-X2). Within a template the innermost declaration wins,
-     * which is what `m_locals` records.
+     * Matched **by name** rather than through the resolved symbol path. The
+     * path now reaches the same declaration (P5-X2), but not the same *state*:
+     * this pass walks the template in source order and needs the declaration in
+     * effect at the point of the reference, so that a later declaration of the
+     * same name shadows an earlier one and an assignment made after a reference
+     * does not retroactively make it non-constant. A symbol path names the
+     * scope's final contents and cannot express either.
      */
     ast::IScopeChild *localFor(ast::IExprRefPath *i) {
         const std::string *name = 0;
@@ -335,6 +339,33 @@ bool TaskTemplateCheck::expr(ast::IExpr *e, const ast::Location *loc) {
     return scan.is_const;
 }
 
+bool TaskTemplateCheck::inPureComponent(ast::IScopeChild *target) {
+    ast::ISymbolChild *sc = dynamic_cast<ast::ISymbolChild *>(target);
+
+    if (!sc) {
+        return false;
+    }
+
+    // One level, not the whole chain. `pure component` says every function *of
+    // the component* is pure; it says nothing about a function of an action
+    // declared inside it, which is a type of its own.
+    ast::ISymbolTypeScope *ts = dynamic_cast<ast::ISymbolTypeScope *>(sc->getUpper());
+
+    if (!ts) {
+        return false;
+    }
+
+    ast::IComponent *comp = dynamic_cast<ast::IComponent *>(ts->getTarget());
+
+    // Deliberately the *enclosing* type rather than the one the call was
+    // written against. A function inherited from a pure component is pure
+    // because of where it is declared, so a plain `component D : PC` does not
+    // make D's own functions pure -- and a function added by
+    // `extend component PC` is pure, because applying the extension re-homes it
+    // into PC (see known-issues P2-A5b).
+    return comp && comp->getIs_pure();
+}
+
 void TaskTemplateCheck::checkPure(
     ast::IScopeChild            *target,
     ast::IExprMemberPathElem    *elem) {
@@ -357,6 +388,10 @@ void TaskTemplateCheck::checkPure(
         if ((*it)->getIs_pure()) {
             return;
         }
+    }
+
+    if (inPureComponent(target)) {
+        return;
     }
 
     m_ctxt->addErrorMarker(

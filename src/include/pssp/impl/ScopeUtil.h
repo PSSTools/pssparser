@@ -216,6 +216,26 @@ public:
         m_scope.sym_cs = i;
     }
 
+    // 4.7.1 -- the same shape as TaskGetSymbolScope's overrides. The generated
+    // visitors descend: visitTemplateString routes through visitSymbolScope
+    // (recording the string) and then walks its elements, each of which is
+    // itself a SymbolScope and *overwrites* what was just recorded. So asking
+    // for a template's children used to hand back its last element's.
+    virtual void visitTemplateString(ast::ITemplateString *i) override {
+        m_kind = Kind::SymbolChildScope;
+        m_scope.sym_cs = i;
+    }
+
+    virtual void visitTemplateBlock(ast::ITemplateBlock *i) override {
+        m_kind = Kind::SymbolChildScope;
+        m_scope.sym_cs = i;
+    }
+
+    virtual void visitTemplateElem(ast::ITemplateElem *i) override {
+        m_kind = Kind::SymbolChildScope;
+        m_scope.sym_cs = i;
+    }
+
     virtual void visitScope(ast::IScope *i) override {
         m_kind = Kind::Scope;
         m_scope.scope = i;

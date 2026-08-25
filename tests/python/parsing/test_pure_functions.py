@@ -354,3 +354,104 @@ def test_scalability_pure_function_nesting(nesting_depth):
     """
     ast = assert_parse_ok(pss)
     assert ast is not None
+
+
+# ============================================================================
+# `pure component` (P5-X3)
+#
+# `pure component` declares every function of the component pure, so a call to
+# one of them from a template string is legal. Until the qualifier was recorded,
+# nothing read the token the grammar had always accepted, and PSS114 reported
+# every such call -- including every call into `addr_reg_pkg`'s `reg_c`.
+# ============================================================================
+
+def test_pure_component_records_the_qualifier():
+    root = parse_pss("pure component PC { }\ncomponent C { }")
+    pc = get_symbol(root, "PC")
+    assert pc is not None
+    assert pc.getTarget().getIs_pure() is True
+
+    c = get_symbol(root, "C")
+    assert c.getTarget().getIs_pure() is False
+
+
+def _tmpl_markers(pss):
+    from test_helpers import parse_collect
+    _, markers = parse_collect(pss)
+    return [m for m in markers if m["severity"] == "error"]
+
+
+def test_call_to_a_pure_component_function_is_allowed_in_a_template():
+    assert _tmpl_markers("""
+    pure component PC { function int f(int a); }
+    component C {
+        PC pc;
+        action A { exec body C = \"\"\"{{comp.pc.f(1)}}\"\"\"; }
+    }
+    """) == []
+
+
+def test_call_to_a_plain_component_function_is_still_reported():
+    """The guard has to stay narrow: this is the case PSS114 exists for."""
+    errs = _tmpl_markers("""
+    component PC { function int f(int a); }
+    component C {
+        PC pc;
+        action A { exec body C = \"\"\"{{comp.pc.f(1)}}\"\"\"; }
+    }
+    """)
+    assert len(errs) == 1, errs
+    assert "non-pure" in errs[0]["message"]
+
+
+def test_function_inherited_from_a_pure_component_is_pure():
+    """Purity follows the type the function is declared in, not the one the
+    call is written against."""
+    assert _tmpl_markers("""
+    pure component PC { function int f(int a); }
+    component D : PC { }
+    component C {
+        D d;
+        action A { exec body C = \"\"\"{{comp.d.f(1)}}\"\"\"; }
+    }
+    """) == []
+
+
+def test_deriving_from_a_pure_component_does_not_make_the_derived_pure():
+    errs = _tmpl_markers("""
+    pure component PC { function int f(int a); }
+    component D : PC { function int h(int a); }
+    component C {
+        D d;
+        action A { exec body C = \"\"\"{{comp.d.h(1)}}\"\"\"; }
+    }
+    """)
+    assert len(errs) == 1, errs
+    assert "'h'" in errs[0]["message"]
+
+
+def test_function_added_by_an_extension_of_a_pure_component_is_pure():
+    """Applying the extension re-homes the function into the pure component, so
+    it is pure for the same reason a directly-declared one is."""
+    assert _tmpl_markers("""
+    pure component PC { }
+    extend component PC { function int g(int a); }
+    component C {
+        PC pc;
+        action A { exec body C = \"\"\"{{comp.pc.g(1)}}\"\"\"; }
+    }
+    """) == []
+
+
+def test_call_into_the_standard_library_reg_c_is_allowed():
+    """The case that made this reachable rather than hypothetical:
+    `addr_reg_pkg` declares `reg_c` as a templated `pure component`, so the
+    qualifier also has to survive specialization."""
+    assert _tmpl_markers("""
+    import addr_reg_pkg::*;
+    struct my_r : packed_s<> { bit[32] v; }
+    component C {
+        reg_c<my_r> r;
+        action A { exec body C = \"\"\"{{comp.r.read()}}\"\"\"; }
+    }
+    """) == []

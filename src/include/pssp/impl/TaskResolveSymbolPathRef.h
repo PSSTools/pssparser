@@ -28,6 +28,7 @@
 #include "pssp/ast/impl/VisitorBase.h"
 #include "pssp/ISymbolTableIterator.h"
 #include "pssp/impl/ScopeUtil.h"
+#include "pssp/impl/TaskIndexTemplateScope.h"
 #include "pssp/impl/TaskGetName.h"
 #include "pssp/impl/TaskResolveSymbolPathRefResult.h"
 
@@ -67,11 +68,27 @@ public:
             switch (it->kind) {
                 case ast::SymbolRefPathElemKind::ElemKind_ChildIdx: {
                     DEBUG("Elem: ChildIdx %d", it->idx);
-                    if (it->idx < scope.getNumChildren()) {
+                    // A negative index means the recorder had no way to name
+                    // this scope. It is deliberately left in the path (see
+                    // AstSymbolTableIterator::getScopeSymbolPath) so that the
+                    // reference resolves to nothing rather than to whatever
+                    // child of the *enclosing* scope the rest of the path
+                    // happens to land on.
+                    if (it->idx >= 0 && it->idx < scope.getNumChildren()) {
                         ret = scope.getChild(it->idx);
                     } else {
                         DEBUG("Index %d out-of-range (%d)", it->idx, scope.getNumChildren());
+                        ret = 0;
                     }
+                    DEBUG("  scope %p => %p", scope.get(), ret);
+                } break;
+                case ast::SymbolRefPathElemKind::ElemKind_TemplateScope: {
+                    // 4.7.1. A template scope is not a child of the scope that
+                    // encloses it, so it is named by position among that
+                    // scope's template scopes instead -- the same walk that
+                    // assigned the position assigns it again here.
+                    DEBUG("Elem: TemplateScope %d", it->idx);
+                    ret = TaskIndexTemplateScope().get(scope.get(), it->idx);
                     DEBUG("  scope %p => %p", scope.get(), ret);
                 } break;
                 case ast::SymbolRefPathElemKind::ElemKind_ArgIdx: {

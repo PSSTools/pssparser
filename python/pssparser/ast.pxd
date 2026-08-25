@@ -2436,6 +2436,7 @@ cdef class Component(TypeScope):
     cdef ast_decl.IComponent *asComponent(self)
     @staticmethod
     cdef Component mk(ast_decl.IComponent *hndl, bool owned)
+    cpdef bool getIs_pure(self)
 
 cdef class ProceduralStmtSymbolBodyScope(SymbolScope):
     

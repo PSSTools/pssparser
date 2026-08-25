@@ -1054,3 +1054,171 @@ store RA {{vaddr}}
     assert kinds.count('TemplateExpr') == 2, kinds
     # A parameter is not a constant, so neither is the template.
     assert t.getIs_const() is False
+
+
+# ===========================================================================
+# The recorded symbol path of a mustache reference -- known-issues P5-X2
+#
+# A reference resolves correctly *during* the walk, because the template scopes
+# are on the symbol-table stack.  What it also leaves behind is a
+# `SymbolRefPath`, a chain of indices read from the root, and that is what any
+# later consumer follows -- go-to-definition, or any check that resolves a
+# reference a second time.
+#
+# A template scope has no index: it is not a child of anything in the symbol
+# tree, and must not become one (hoisting is what made every diagnostic inside
+# a template appear three times).  The hop used to be dropped from the path
+# instead, which left a *shorter* path that still resolved -- against the
+# enclosing type, so `{{x}}` came back as whichever declaration happened to sit
+# at that index.  `ElemKind_TemplateScope` names the scope positionally
+# instead.
+# ===========================================================================
+
+def _resolve_mustaches(root):
+    """{referenced name: {names of what its recorded path resolves to}}.
+
+    The same template is reachable by more than one route through the linked
+    tree, so a name is collected against a *set* rather than asserted to appear
+    once.
+    """
+    import pssparser.ast as ast
+    import pssparser.core as zspp
+
+    class Collect(ast.VisitorBase):
+        def __init__(self):
+            super().__init__()
+            self.exprs = []
+
+        def visitTemplateExpr(self, i):
+            self.exprs.append(i)
+            super().visitTemplateExpr(i)
+
+    def name_of(node):
+        if node is None:
+            return None
+        nm = getattr(node, 'getName', lambda: None)()
+        return nm.getId() if hasattr(nm, 'getId') else nm
+
+    c = Collect()
+    root.accept(c)
+
+    ret = {}
+    for e in c.exprs:
+        ex = e.getExpr()
+        if type(ex).__name__ != 'ExprRefPathContext':
+            continue
+        ref = "/".join(h.getId().getId() for h in ex.getHier_id().getElems())
+        tgt = ex.getTarget()
+        got = zspp.resolveSymbolPathRef(root, tgt) if tgt is not None else None
+        ret.setdefault(ref, set()).add(name_of(got))
+    return ret
+
+
+def test_template_local_path_resolves_to_its_declaration():
+    """The motivating case.  `x` used to come back as the action's implicit
+    `comp` field -- child 0 of the action, and a node with no relation to it."""
+    root, m = _parse('''
+        component pss_top {
+            action A {
+                int size;
+                exec body C = """{% int x = 1; %}{{x}} {{size}}""";
+            }
+        }
+    ''')
+    assert m == [], [(y.get('code'), y['message']) for y in m]
+    assert _resolve_mustaches(root) == {'x': {'x'}, 'size': {'size'}}
+
+
+def test_two_templates_in_one_scope_get_distinct_paths():
+    """The index numbers template scopes within the enclosing scope, so two
+    templates side by side must not collapse onto each other."""
+    root, m = _parse('''
+        component pss_top {
+            action A {
+                exec body C = """{% int a = 1; %}{{a}}""";
+                exec run_start C = """{% int b = 2; %}{{b}}""";
+            }
+        }
+    ''')
+    assert m == [], [(y.get('code'), y['message']) for y in m]
+    assert _resolve_mustaches(root) == {'a': {'a'}, 'b': {'b'}}
+
+
+def test_template_local_in_a_nested_block_resolves():
+    """A variable declared inside `{% if %}` lives on the *block's* scope, one
+    level further from anything addressable than the string's own."""
+    root, m = _parse('''
+        component pss_top {
+            action A {
+                int n;
+                exec body C = """{% if (n > 0) %}{% int z = 3; %}{{z}}{%%}""";
+            }
+        }
+    ''')
+    assert m == [], [(y.get('code'), y['message']) for y in m]
+    # `n` is the directive's guard rather than a mustache, so it is not one of
+    # the references collected here.
+    assert _resolve_mustaches(root) == {'z': {'z'}}
+
+
+def test_foreach_iterator_resolves():
+    """The iterator is declared by the directive rather than by a statement,
+    and is registered on the block scope the same way."""
+    root, m = _parse('''
+        component pss_top {
+            action A {
+                int arr[4];
+                exec body C = """{% foreach (e : arr) %}{{e}}{%%}""";
+            }
+        }
+    ''')
+    assert m == [], [(y.get('code'), y['message']) for y in m]
+    assert _resolve_mustaches(root) == {'e': {'e'}}
+
+
+def test_template_in_a_procedural_exec_block_resolves():
+    """The enclosing scope here is the exec block, not the action -- so the
+    index is relative to the exec block, which carries a path element of its
+    own."""
+    root, m = _parse('''
+        component pss_top {
+            action A {
+                exec post_solve {
+                    string s = """{% int y = 2; %}{{y}}""";
+                }
+            }
+        }
+    ''')
+    assert m == [], [(y.get('code'), y['message']) for y in m]
+    assert _resolve_mustaches(root) == {'y': {'y'}}
+
+
+def test_template_in_a_field_initializer_resolves():
+    """Reached through an expression rather than through an exec block: the
+    field is an ordinary child, and the walk descends into its initializer."""
+    root, m = _parse('''
+        component pss_top {
+            action A {
+                string msg = """{% int w = 9; %}{{w}}""";
+            }
+        }
+    ''')
+    assert m == [], [(y.get('code'), y['message']) for y in m]
+    assert _resolve_mustaches(root) == {'w': {'w'}}
+
+
+def test_target_template_function_parameter_resolves():
+    """Example309's shape.  A parameter is reached by ElemKind_ArgIdx through
+    the function scope, so the template hop and the argument hop have to
+    compose -- the plist is deliberately absent from the path, since resolving
+    an ArgIdx steps into it."""
+    root, m = _parse('''
+        package p {
+            target ASM function void do_stw(bit[32] val, bit[32] vaddr) = """
+loadi RA {{val}}
+store RA {{vaddr}}
+""";
+        }
+    ''')
+    assert m == [], [(y.get('code'), y['message']) for y in m]
+    assert _resolve_mustaches(root) == {'val': {'val'}, 'vaddr': {'vaddr'}}

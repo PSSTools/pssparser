@@ -142,6 +142,7 @@ class SymbolRefPathElemKind(IntEnum):
     ElemKind_ParamIdx = ast_decl.SymbolRefPathElemKind.SymbolRefPathElemKind_ElemKind_ParamIdx
     ElemKind_Super = ast_decl.SymbolRefPathElemKind.SymbolRefPathElemKind_ElemKind_Super
     ElemKind_TypeSpec = ast_decl.SymbolRefPathElemKind.SymbolRefPathElemKind_ElemKind_TypeSpec
+    ElemKind_TemplateScope = ast_decl.SymbolRefPathElemKind.SymbolRefPathElemKind_ElemKind_TemplateScope
 class TypeCategory(IntEnum):
     Action = ast_decl.TypeCategory.TypeCategory_Action
     Component = ast_decl.TypeCategory.TypeCategory_Component
@@ -7294,6 +7295,8 @@ cdef class Component(TypeScope):
         ret._owned = owned
         return ret
     
+    cpdef bool getIs_pure(self):
+        return dynamic_cast[ast_decl.IComponentP](self._hndl).getIs_pure()
 
 cdef class ProceduralStmtSymbolBodyScope(SymbolScope):
     

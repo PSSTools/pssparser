@@ -11,6 +11,7 @@ enums:
   - ElemKind_ParamIdx    # Parameter by index
   - ElemKind_Super       # Reference to super/parent scope
   - ElemKind_TypeSpec    # Type specialization/instantiation
+  - ElemKind_TemplateScope # Template scope (4.7.1) by index within the enclosing scope
 structs:
 - SymbolRefPathElem:
     doc: |

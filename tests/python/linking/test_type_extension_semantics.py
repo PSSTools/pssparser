@@ -190,3 +190,140 @@ def test_extending_an_unknown_enum_reports_once():
     errs = [m for m in markers if m["severity"] == "error"]
     assert len(errs) == 1, errs
     assert "Nope" in errs[0]["message"]
+
+
+# ---------------------------------------------------------------------------
+# P2-A5c: an extension's anonymous body items -- constraints, exec blocks,
+# activities -- reach the type it extends, and are therefore checked
+# ---------------------------------------------------------------------------
+
+def test_constraint_in_an_extension_is_checked():
+    """The point of the entry: a typo here used to be silently accepted, because
+    the constraint reached no scope and `TaskResolveRefs` skips extension bodies."""
+    from ..test_helpers import assert_marker
+    assert_marker(
+        """
+        struct S { int a; }
+        extend struct S { constraint c { nope > 0; } }
+        """,
+        text="nope")
+
+
+def test_constraint_in_an_extension_sees_the_original_fields():
+    assert_parse_ok(
+        """
+        struct S { int a; }
+        extend struct S { constraint c { a > 0; } }
+        """
+    )
+
+
+def test_constraint_in_an_extension_sees_the_extension_fields():
+    assert_parse_ok(
+        """
+        struct S { int a; }
+        extend struct S { int b; constraint c { b > a; } }
+        """
+    )
+
+
+def test_two_extensions_may_each_add_a_constraint():
+    """Same-named constraint blocks conjoin rather than collide, so neither the
+    duplicate-declaration check nor the extension-conflict check may fire."""
+    assert_parse_ok(
+        """
+        struct S { int a; }
+        extend struct S { constraint c { a > 0; } }
+        extend struct S { constraint c { a < 10; } }
+        """
+    )
+
+
+def test_exec_block_in_an_extension_is_accepted():
+    """`<exec>` is the name every exec-block symbol scope carries, so the
+    extension-conflict check used to reject this outright."""
+    assert_parse_ok(
+        """
+        component C { int a; }
+        extend component C { exec init_down { a = 1; } }
+        """
+    )
+
+
+def test_exec_block_in_an_extension_is_accepted_alongside_an_existing_one():
+    assert_parse_ok(
+        """
+        component C { int a; exec init_down { a = 1; } }
+        extend component C { exec init_up { a = 2; } }
+        """
+    )
+
+
+def test_two_extensions_may_each_add_an_exec_block():
+    assert_parse_ok(
+        """
+        component C { int a; }
+        extend component C { exec init_down { a = 1; } }
+        extend component C { exec init_up { a = 2; } }
+        """
+    )
+
+
+def test_exec_block_in_an_extension_is_checked_once():
+    """Not just "is reported": re-homing it while it was still reachable by its
+    original route reported the same typo twice."""
+    from ..test_helpers import parse_collect
+    _, markers = parse_collect(
+        """
+        component C { int a; }
+        extend component C { exec init_down { nope = 1; } }
+        """)
+    errs = [m for m in markers if m["severity"] == "error"]
+    assert len(errs) == 1, errs
+    assert "nope" in errs[0]["message"]
+
+
+def test_activity_in_an_extension_is_accepted():
+    """An activity's symbol scope has no name at all, which the conflict check
+    treated as a collision with the next one."""
+    assert_parse_ok(
+        """
+        component C {
+            action A { }
+            action B { }
+        }
+        extend action C::A { activity { do C::B; } }
+        """
+    )
+
+
+def test_activity_in_an_extension_is_checked_once():
+    from ..test_helpers import parse_collect
+    _, markers = parse_collect(
+        """
+        component C { action A { } }
+        extend action C::A { activity { do C::NoSuch; } }
+        """)
+    errs = [m for m in markers if m["severity"] == "error"]
+    assert len(errs) == 1, errs
+    assert "NoSuch" in errs[0]["message"]
+
+
+def test_extension_declarations_are_still_re_homed_once():
+    """The dedup that keeps the two walks from doubling up must not go so far as
+    to drop a declaration: P2-A5b's cases have to keep working."""
+    root = assert_parse_ok(
+        """
+        component S { int a; }
+        extend component S {
+            int b;
+            exec init_down { b = a; }
+            function int f() { return b; }
+        }
+        """
+    )
+    s = get_symbol(root, "S")
+    assert s is not None
+    assert s.symtabHas("a")
+    assert s.symtabHas("b")
+    assert s.symtabHas("f")

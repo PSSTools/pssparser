@@ -31,6 +31,9 @@ REPRESENTATIVE_MESSAGES = [
     ("PSS001", "expected ';' before '}'"),
     ("PSS001", "unexpected end of input; possible missing closing '}'"),
     ("PSS001", "unknown exec-block kind 'wibble'"),
+    ("PSS001",
+     "unexpected low bound '1' in an integer width; only '0' is permitted, "
+     "as in 'bit[7:0]'"),
     ("PSS002", "unknown type 'Foo'"),
     ("PSS002", "unknown type 'Nope' in 'p::q'"),
     ("PSS002", "unknown identifier 'bar'"),

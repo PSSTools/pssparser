@@ -73,6 +73,12 @@ public:
         ast::IExprMemberPathElem    *elem);
 
 private:
+    /**
+     * True when `target` is declared directly in a `pure component`, which
+     * declares all of its functions pure (§20.3 / known-issues P5-X3).
+     */
+    static bool inPureComponent(ast::IScopeChild *target);
+
     /** Walks a list of elements in source order. */
     void elems(const std::vector<ast::ITemplateElemUP> &elems);
 

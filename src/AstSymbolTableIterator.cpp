@@ -22,6 +22,11 @@
 #include "AstSymbolTableIterator.h"
 #include "TaskGetItemIndex.h"
 #include "TaskGetSymbolScope.h"
+#include "pssp/impl/TaskIndexTemplateScope.h"
+#include "pssp/ast/ISymbolFunctionScope.h"
+#include "pssp/ast/ISymbolTypeScope.h"
+#include "pssp/ast/ITemplateElem.h"
+#include "pssp/ast/ITemplateString.h"
 
 namespace pssp {
 
@@ -86,16 +91,80 @@ ast::ISymbolRefPath *AstSymbolTableIterator::findLocalSymbolPath(const std::stri
     }
 }
 
+bool AstSymbolTableIterator::isTemplateScope(ast::IScopeChild *c) {
+    return dynamic_cast<ast::ITemplateString *>(c) != 0 ||
+        dynamic_cast<ast::ITemplateElem *>(c) != 0;
+}
+
+bool AstSymbolTableIterator::isPlistOf(
+        ast::IScopeChild        *outer,
+        ast::IScopeChild        *c) {
+    // A `<plist>` is pushed so that a type's parameters are in scope, but it
+    // gets no path element of its own: the element that follows it is an
+    // ElemKind_ParamIdx or ElemKind_ArgIdx, and resolving one of those steps
+    // into the plist itself. Emitting the plist as well would step in twice.
+    ast::ISymbolTypeScope *ts = dynamic_cast<ast::ISymbolTypeScope *>(outer);
+
+    if (ts && ts->getPlist() == c) {
+        return true;
+    }
+
+    ast::ISymbolFunctionScope *fs = dynamic_cast<ast::ISymbolFunctionScope *>(outer);
+
+    return fs && fs->getPlist() == c;
+}
+
 ast::ISymbolRefPath *AstSymbolTableIterator::getScopeSymbolPath(int32_t off) const {
     DEBUG_ENTER("getScopeSymbolPath (off=%d)", off);
     ast::ISymbolRefPath *ret = m_factory->mkSymbolRefPath();
+    int32_t n = (int32_t)m_path.size()-off;
 
-    for (int32_t i=0; i<(m_path.size()-off); i++) {
-        if (m_path.at(i).idx >= 0) {
+    for (int32_t i=0; i<n; i++) {
+        if (isTemplateScope(m_scope_s.at(i))) {
+            // 4.7.1. A template scope has no child index -- it is not a child
+            // of anything in the symbol tree -- so it needs an element of its
+            // own. Collapse the whole run of them to one: nested blocks are
+            // numbered relative to the same enclosing scope as the string that
+            // holds them, and the innermost is the one the symbol was found in.
+            int32_t last = i;
+            while (last+1 < n && isTemplateScope(m_scope_s.at(last+1))) {
+                last++;
+            }
+
+            // The nearest enclosing scope that *is* addressable. Everything the
+            // path has emitted so far navigates to it, so this is the same
+            // scope resolution will be standing in when it reads the element.
+            ast::IScopeChild *encl = 0;
+            for (int32_t j=i-1; j>=0 && !encl; j--) {
+                encl = TaskGetSymbolScope().get(m_scope_s.at(j));
+            }
+
+            int32_t idx = (encl)
+                ?TaskIndexTemplateScope().index(encl, m_scope_s.at(last))
+                :-1;
+
+            ret->getPath().push_back(
+                {ast::SymbolRefPathElemKind::ElemKind_TemplateScope, idx});
+            DEBUG("Add template-scope %d (idx=%d..%d)", idx, i, last);
+
+            i = last;
+        } else if (m_path.at(i).idx >= 0) {
             ret->getPath().push_back(m_path.at(i));
             DEBUG("Add child-idx %d (idx=%d)", m_path.at(i).idx, i);
+        } else if (i > 0 && isPlistOf(m_scope_s.at(i-1), m_scope_s.at(i))) {
+            DEBUG("NOTE: skip plist at index %d", i);
+        } else if (i > 0) {
+            // Some other scope with no index. Emitting it is what keeps the
+            // path honest: dropping it used to leave a shorter path that still
+            // resolved -- against the *enclosing* scope, so a reference came
+            // back as whichever unrelated declaration sat at that index. A
+            // negative element resolves to nothing instead.
+            ret->getPath().push_back(m_path.at(i));
+            DEBUG("NOTE: unaddressable scope at index %d", i);
         } else {
-            DEBUG("NOTE: skip index %d with child-idx %d", i, m_path.at(i).idx);
+            // The root, which is where every path starts. It is the one scope
+            // that needs no element at all.
+            DEBUG("NOTE: skip root");
         }
     }
 

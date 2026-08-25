@@ -19,6 +19,7 @@
  *     Author: 
  */
 #pragma once
+#include <set>
 #include "dmgr/IDebugMgr.h"
 #include "pssp/IMarkerListener.h"
 #include "pssp/ISymbolTableIterator.h"
@@ -67,6 +68,8 @@ public:
 
     virtual void visitField(ast::IField *i) override;
 
+    virtual void visitConstraintBlock(ast::IConstraintBlock *i) override;
+
 protected:
     /**
      * Seed `ctxt` with the scope stack this walk is currently at.
@@ -84,6 +87,19 @@ protected:
         const std::string       &name,
         bool                    owned=true);
 
+    /**
+     * Append `child` to `target` without giving it a name.
+     *
+     * For the anonymous body items -- constraints, exec blocks, activities.
+     * They are reached positionally rather than by lookup, and two of them are
+     * not a redeclaration of each other, so registering them in the symtab is
+     * both useless and actively wrong (see known-issues P2-A5c).
+     */
+    void addAnonChild(
+        ast::ISymbolScope       *target,
+        ast::IScopeChild        *child,
+        bool                    owned=true);
+
 
 private:
     static dmgr::IDebug                     *m_dbg;
@@ -96,6 +112,10 @@ private:
     // Set while walking the *AST* body of an extension rather than its symbol
     // scope. See visitSymbolExtendScope for why both walks are needed.
     bool                                    m_ast_body;
+
+    // AST nodes the symbol-scope walk already re-homed, so the AST walk that
+    // follows it can skip them.
+    std::set<ast::IScopeChild *>            m_rehomed;
 
 };
 

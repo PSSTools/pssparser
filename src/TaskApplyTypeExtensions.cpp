@@ -167,9 +167,22 @@ void TaskApplyTypeExtensions::visitSymbolExtendScope(ast::ISymbolExtendScope *i)
     
     m_target_s = target_s;
     DEBUG("%d children in extension scope", i->getChildren().size());
+    m_rehomed.clear();
     for (std::vector<ast::IScopeChildUP>::const_iterator
         it=i->getChildren().begin();
         it!=i->getChildren().end(); it++) {
+        // Remember what this symbol scope stands for, so the second walk below
+        // does not re-home the same declaration twice. Both forms occur: a type
+        // declaration is a separate ISymbolTypeScope wrapping the AST node,
+        // while an exec block is built as a symbol scope by the parser and so
+        // is *the same object* in the AST body.
+        ast::ISymbolScope *ss = dynamic_cast<ast::ISymbolScope *>(it->get());
+        if (ss) {
+            m_rehomed.insert(ss);
+            if (ss->getTarget()) {
+                m_rehomed.insert(ss->getTarget());
+            }
+        }
         it->get()->accept(this);
     }
 
@@ -192,9 +205,14 @@ void TaskApplyTypeExtensions::visitSymbolExtendScope(ast::ISymbolExtendScope *i)
     for (std::vector<ast::IScopeChildUP>::const_iterator
         it=ast_target->getChildren().begin();
         it!=ast_target->getChildren().end(); it++) {
+        if (m_rehomed.find(it->get()) != m_rehomed.end()) {
+            DEBUG("Skip %p -- already re-homed on the symbol pass", it->get());
+            continue;
+        }
         it->get()->accept(this);
     }
     m_ast_body = false;
+    m_rehomed.clear();
 
     m_target_s = 0;
 
@@ -297,6 +315,25 @@ void TaskApplyTypeExtensions::visitField(ast::IField *i) {
     DEBUG_LEAVE("visitField %s", i->getName()->getId().c_str());
 }
 
+void TaskApplyTypeExtensions::visitConstraintBlock(ast::IConstraintBlock *i) {
+    DEBUG_ENTER("visitConstraintBlock");
+
+    // P2-A5c. A constraint block is not a symbol scope, so -- like a field --
+    // it is invisible to the symbol-scope walk. Unlike a field it is anonymous
+    // as far as lookup is concerned: TaskBuildSymbolTree registers a type's own
+    // constraints with the unnamed addChild too, so the name of a constraint
+    // block is never in any symtab.
+    //
+    // Getting it into the target's children is what makes it *checked*:
+    // TaskResolveRefs skips extension bodies outright, so until this ran a typo
+    // in a constraint added by an extension was silently accepted.
+    if (m_target_s && m_ast_body) {
+        addAnonChild(m_target_s, i, false);
+    }
+
+    DEBUG_LEAVE("visitConstraintBlock");
+}
+
 void TaskApplyTypeExtensions::visitTypeScope(ast::ITypeScope *i) {
     DEBUG_ENTER("visitTypeScope");
     if (m_ast_body) {
@@ -319,6 +356,25 @@ void TaskApplyTypeExtensions::visitTypeScope(ast::ITypeScope *i) {
     DEBUG_LEAVE("visitTypeScope");
 }
 
+void TaskApplyTypeExtensions::addAnonChild(
+        ast::ISymbolScope       *target,
+        ast::IScopeChild        *child,
+        bool                    owned) {
+    DEBUG_ENTER("addAnonChild to %s @ %d",
+        target->getName().c_str(), (int32_t)target->getChildren().size());
+
+    ast::ISymbolScope *ss = dynamic_cast<ast::ISymbolScope *>(child);
+    if (ss) {
+        ss->setId(target->getChildren().size());
+    }
+    if (dynamic_cast<ast::ISymbolChild *>(child)) {
+        dynamic_cast<ast::ISymbolChild *>(child)->setUpper(target);
+    }
+    target->getChildren().push_back(ast::IScopeChildUP(child, owned));
+
+    DEBUG_LEAVE("addAnonChild to %s", target->getName().c_str());
+}
+
 void TaskApplyTypeExtensions::seedScope(ResolveContext &ctxt) {
     if (m_symtab_it) {
         ctxt.pushSymtab(m_symtab_it->clone());
@@ -332,6 +388,24 @@ void TaskApplyTypeExtensions::addChild(
         bool                    owned) {
     DEBUG_ENTER("addChild %s to %s", name.c_str(), target->getName().c_str());
     std::unordered_map<std::string,int32_t>::const_iterator it;
+
+    if (name.empty() || name.at(0) == '<') {
+        // An exec block is a symbol scope called `<exec>` and an activity is one
+        // with no name at all, so the collision check below used to reject every
+        // extension that carried either -- `extend component C { exec init_down
+        // {...} }` reported "Type extension of <exec> conflicts with an existing
+        // declaration" whether or not C had an exec of its own. Neither is ever
+        // looked up by that name; both are simply appended (P2-A5c).
+        //
+        // Non-owning regardless of what the caller asked for: unlike the
+        // ISymbolTypeScope built to wrap a nested declaration -- which nothing
+        // else owns -- these scopes are built by the parser straight into the
+        // extension's AST body, which owns them.
+        addAnonChild(target, child, false);
+        DEBUG_LEAVE("addChild %s to %s -- anonymous",
+            name.c_str(), target->getName().c_str());
+        return;
+    }
 
     if ((it=target->getSymtab().find(name)) == target->getSymtab().end()) {
         int32_t id = target->getChildren().size();
