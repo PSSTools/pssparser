@@ -138,6 +138,14 @@ public:
 
     virtual antlrcpp::Any visitTarget_file_exec_block(PSSParser::Target_file_exec_blockContext *ctx) override;
 
+    ast::IExecBlockTag *mkExecBlockTag(PSSParser::Exec_block_tagContext *ctx);
+
+    /** 20.5.4 -- PSS106 when a tag is written on an exec kind that rejects it. */
+    void checkExecBlockTagPlacement(
+        PSSParser::Exec_block_tagContext *tag_ctx,
+        ast::ExecKind                     kind,
+        const std::string                &kind_s);
+
     virtual antlrcpp::Any visitExec_super_stmt(PSSParser::Exec_super_stmtContext *ctx) override;
     
 	// B.5 Functions
@@ -249,6 +257,8 @@ public:
 
 	virtual antlrcpp::Any visitBool_type(PSSParser::Bool_typeContext *ctx) override;
 
+	virtual antlrcpp::Any visitFloat_type(PSSParser::Float_typeContext *ctx) override;
+
 	virtual antlrcpp::Any visitEnum_type(PSSParser::Enum_typeContext *ctx) override;
 	
     virtual antlrcpp::Any visitEnum_declaration(PSSParser::Enum_declarationContext *ctx) override;
@@ -284,6 +294,10 @@ public:
 
     virtual antlrcpp::Any visitOverride_compile_if(PSSParser::Override_compile_ifContext *ctx) override;
 
+    virtual antlrcpp::Any visitOverride_stmt(PSSParser::Override_stmtContext *ctx) override;
+
+    virtual antlrcpp::Any visitCovergroup_body_item(PSSParser::Covergroup_body_itemContext *ctx) override;
+
 	virtual antlrcpp::Any visitForeach_constraint_item(PSSParser::Foreach_constraint_itemContext *ctx) override;
 
 	virtual antlrcpp::Any visitForall_constraint_item(PSSParser::Forall_constraint_itemContext *ctx) override;
@@ -293,6 +307,10 @@ public:
 	virtual antlrcpp::Any visitImplication_constraint_item(PSSParser::Implication_constraint_itemContext *ctx) override;
 	
 	virtual antlrcpp::Any visitUnique_constraint_item(PSSParser::Unique_constraint_itemContext *ctx) override;
+
+	virtual antlrcpp::Any visitSoft_constraint_item(PSSParser::Soft_constraint_itemContext *ctx) override;
+
+	virtual antlrcpp::Any visitDist_directive(PSSParser::Dist_directiveContext *ctx) override;
 
 	void visitConstraintSetItems(PSSParser::Constraint_setContext *ctx);
 
@@ -361,6 +379,10 @@ private:
     void addDocstring(ast::IScopeChild *c, Token *t);
 
     void attachPendingAnnotations(ast::IScopeChild *c);
+    void discardPendingAnnotations(size_t mark);
+
+    /** Where the docstring scan should start for the child now being added. */
+    Token *docstringAnchor(Token *t);
 
     bool evalConstantExpression(PSSParser::Constant_expressionContext *ctx, int64_t &val);
 
@@ -373,6 +395,18 @@ private:
     bool evalCompileHas(PSSParser::Ref_pathContext *ctx);
 
     void visitCompileIfItem(antlr4::ParserRuleContext *ctx);
+
+    /**
+     * Report the D2 deprecation (PSS104) for any `compile if` branch written
+     * without enclosing braces. Called from every `visit*_compile_if` method
+     * with both branches, so the diagnostic does not depend on which branch
+     * the condition selects.
+     */
+    void checkCompileIfBranches(
+        antlr4::ParserRuleContext *true_body,
+        antlr4::ParserRuleContext *false_body);
+
+    void checkCompileIfBraces(antlr4::ParserRuleContext *ctx);
 
     ast::IScope *getGlobalScope(ast::IScope *s);
 
@@ -443,6 +477,33 @@ private:
         ast::IDataType          *elem_t,
         ast::IExpr              *size);
 
+    /**
+     * Wrap `elem_t` in one `array<>` per declared dimension.
+     *
+     * Dimensions are applied **right to left**: `A a[3][2]` denotes an array
+     * of 3 arrays of 2, so the rightmost dimension is the innermost wrap.
+     * §11.3.2 Example87 makes this observable -- given `A a_arr[3][2]`,
+     * `a_arr[1]` is a sub-array of two handles, not an element. Applying the
+     * dimensions left to right builds the transposed type, which is wrong for
+     * every non-square declaration and accidentally right for square ones.
+     *
+     * Templated so the caller keeps whichever static type it started with;
+     * `array<>` is itself a user-defined type, so the cast never fails.
+     */
+    template <class T> T *applyArrayDims(
+        T                                                *elem_t,
+        const std::vector<PSSParser::Array_dimContext *> &dims) {
+        ast::IDataType *type = elem_t;
+        for (std::vector<PSSParser::Array_dimContext *>::const_reverse_iterator
+            it=dims.rbegin();
+            it!=dims.rend(); it++) {
+            type = mkDataTypeArray(
+                type,
+                mkExpr((*it)->constant_expression()->expression()));
+        }
+        return dynamic_cast<T *>(type);
+    }
+
 	template <class T> T *mkDataTypeT(PSSParser::Data_typeContext *ctx) {
 		return dynamic_cast<T *>(mkDataType(ctx));
 	}
@@ -455,7 +516,17 @@ private:
 
     void addExecStmt(PSSParser::Procedural_stmtContext *ctx);
 
-    ast::IFunctionPrototype *mkFunctionPrototype(PSSParser::Function_prototypeContext *ctx);
+    /**
+     * @param plat the enclosing declaration's `platform_qualifier`, or null.
+     *        `is_target`/`is_solve` on the prototype were previously hardcoded
+     *        to false at every call site, so the two flags carried no
+     *        information; the qualifier is threaded in here so that all three
+     *        declaration forms (function_decl, procedural_function,
+     *        import_function) record it the same way.
+     */
+    ast::IFunctionPrototype *mkFunctionPrototype(
+        PSSParser::Function_prototypeContext *ctx,
+        PSSParser::Platform_qualifierContext *plat = 0);
 
     ast::IFunctionParamDecl *mkFunctionParamDecl(PSSParser::Function_parameterContext *ctx);
 
@@ -534,6 +605,12 @@ private:
 	uint32_t									m_field_depth;
 	std::vector<ast::IField *>					m_fields;
     std::vector<ast::IAnnotation *>            m_pending_annotations;
+    // Start token of the first pending element annotation, and of the batch
+    // most recently attached to a child. A doc comment is written above the
+    // annotations rather than above the declaration, so the docstring scan must
+    // start from the annotation, not from the declaration's own first token.
+    Token                                     *m_pending_annotation_tok = 0;
+    Token                                     *m_attached_annotation_tok = 0;
 
 };
 

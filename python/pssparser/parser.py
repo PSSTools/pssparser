@@ -108,8 +108,11 @@ class Parser(object):
 
         ret = linker.link(marker_l, self._files)
 
+        # Merge link-phase markers unconditionally. Warnings and hints are only
+        # observable if they are collected on the success path too.
+        self._markers.extend(self._collectMarkers(marker_l))
+
         if marker_l.hasSeverity(zspp.MarkerSeverityE.Error):
-            self._markers.extend(self._collectMarkers(marker_l))
             err = self._mkErrorMessage(marker_l)
             raise ParseException(err, self._markers)
 

@@ -20,6 +20,7 @@
  */
 #include <set>
 #include "dmgr/impl/DebugMacros.h"
+#include "TaskCheckCallArgs.h"
 #include "TaskFindPathElem.h"
 #include "TaskLinkActionCompRefFields.h"
 #include "TaskResolveImports.h"
@@ -53,6 +54,24 @@ static int editDistance_rr(const std::string &a, const std::string &b) {
     return dp[m][n];
 }
 
+/**
+ * The `string` pseudo-type built by `BuiltinsFactory`, or null.
+ *
+ * A string variable has no type *reference* to follow -- `IDataTypeString` names
+ * nothing -- so a method call on one cannot reach its methods the way a call on
+ * a user-defined type does.  Looking the pseudo-type up by name here is what
+ * bridges that gap, and is what lets string methods be checked against real
+ * signatures rather than against a list of names (P3-X6d).
+ */
+static ast::ISymbolScope *builtinStringScope_rr(ast::ISymbolScope *root) {
+    if (!root) return 0;
+    std::unordered_map<std::string, int32_t>::const_iterator it =
+        root->getSymtab().find("string");
+    if (it == root->getSymtab().end()) return 0;
+    return dynamic_cast<ast::ISymbolScope *>(
+        root->getChildren().at(it->second).get());
+}
+
 static std::string findCloseMatch_rr(
         const std::string &name,
         ast::ISymbolScope *scope,
@@ -81,6 +100,28 @@ static std::string findCloseMatch_rr(
         }
     }
     return best;
+}
+
+/**
+ * True if any subscript on `elem` is a slice (`[a..b]`) rather than a plain
+ * index (`[a]`).
+ *
+ * The distinction changes the type of the path so far: an index selects one
+ * element, while a slice selects a sub-collection. So `arr[1].f` names a field
+ * of an element, but `arr[1..3].f` names a field of a *list*, which does not
+ * exist. Both spellings reach the resolver as entries in the same subscript
+ * list, so without this the two are indistinguishable and a slice is silently
+ * resolved as though it were an index.
+ */
+static bool hasSliceSubscript_rr(ast::IExprMemberPathElem *elem) {
+    for (std::vector<ast::IExprUP>::const_iterator
+        it=elem->getSubscript().begin();
+        it!=elem->getSubscript().end(); it++) {
+        if (dynamic_cast<ast::IExprSliceRange *>(it->get())) {
+            return true;
+        }
+    }
+    return false;
 }
 
 
@@ -408,8 +449,9 @@ void TaskResolveRefs::visitExprRefPathContext(ast::IExprRefPathContext *i) {
 
     // Check if target_c is a field or local variable with a built-in type that has methods (e.g., string)
     bool is_builtin_with_methods = false;
+    bool is_string_target = false;
     ast::IDataType *target_type = 0;
-    
+
     if (!target_s && target_c) {
         // Check if it's a field declaration
         ast::IField *field = dynamic_cast<ast::IField *>(target_c);
@@ -431,7 +473,8 @@ void TaskResolveRefs::visitExprRefPathContext(ast::IExprRefPathContext *i) {
             ast::IDataTypeString *string_type = dynamic_cast<ast::IDataTypeString *>(target_type);
             if (string_type) {
                 is_builtin_with_methods = true;
-                DEBUG("Found string variable '%s' - allowing method calls", 
+                is_string_target = true;
+                DEBUG("Found string variable '%s' - allowing method calls",
                     i->getHier_id()->getElems().at(0)->getId()->getId().c_str());
             }
             if (!is_builtin_with_methods) {
@@ -492,8 +535,21 @@ void TaskResolveRefs::visitExprRefPathContext(ast::IExprRefPathContext *i) {
             (*it)->accept(m_this);
         }
 
+        if (!ii && elem->getParams()) {
+            // The root element is itself the call -- `g(1,2,3)`. Later
+            // elements are checked once TaskFindPathElem has resolved them.
+            TaskCheckCallArgs(m_ctxt).check(target_c, elem);
+        }
+
 //        if (!ii) {
             if (ii+1 < i->getHier_id()->getElems().size() && elem->getSubscript().size()) {
+                if (hasSliceSubscript_rr(elem)) {
+                    m_ctxt->addErrorMarker(
+                        elem->getId()->getLocation(),
+                        "member selection is not permitted on a slice of '%s'",
+                        elem->getId()->getId().c_str());
+                    break;
+                }
                 if (elem->getSubscript().size() > 1) {
                     DEBUG_ERROR("Handle multi-dim array subscript");
                 }
@@ -520,14 +576,6 @@ void TaskResolveRefs::visitExprRefPathContext(ast::IExprRefPathContext *i) {
         if (!target_s && is_builtin_with_methods && ii == 1) {
             // This is a method call on a built-in type - validate method name
             std::string method_name = elem->getId()->getId();
-            static const std::set<std::string> valid_string_methods = {
-                "size", "len",
-                "find", "rfind", "find_last", "find_all",
-                "substr",
-                "lower", "upper", "to_lower", "to_upper",
-                "starts_with", "ends_with", "trim",
-                "split", "chars"
-            };
             static const std::set<std::string> valid_collection_methods = {
                 "size",
                 "push_back", "pop_back", "push_front", "pop_front",
@@ -539,14 +587,30 @@ void TaskResolveRefs::visitExprRefPathContext(ast::IExprRefPathContext *i) {
                 "front", "back",
                 "set", "get"
             };
-            static const std::set<std::string> all_builtin_methods = [] {
-                std::set<std::string> merged = valid_string_methods;
-                merged.insert(valid_collection_methods.begin(), valid_collection_methods.end());
-                return merged;
-            }();
-            
-            if (all_builtin_methods.find(method_name) != all_builtin_methods.end()) {
+
+            // A string method is looked up in the `string` pseudo-type, which
+            // carries a real prototype for each one; a collection method is
+            // still only name-checked (P3-X6d covers strings only).
+            ast::IScopeChild *proto = 0;
+            bool found = false;
+            if (is_string_target) {
+                ast::ISymbolScope *string_s = builtinStringScope_rr(m_ctxt->root());
+                if (string_s) {
+                    proto = TaskFindPathElem(
+                        m_ctxt->getDebugMgr(),
+                        m_ctxt->root()).find(string_s, elem->getId()).sym;
+                    found = (proto != 0);
+                }
+            } else {
+                found = (valid_collection_methods.find(method_name)
+                            != valid_collection_methods.end());
+            }
+
+            if (found) {
                 DEBUG("Valid built-in method: %s", method_name.c_str());
+                // -2 marks "resolved, but not to an index in the enclosing
+                // scope". The element path stops here either way, so the
+                // prototype is used for checking only and is not recorded.
                 elem->setTarget(-2);
                 if (elem->getParams()) {
                     DEBUG_ENTER("Resolve built-in method parameters");
@@ -555,12 +619,15 @@ void TaskResolveRefs::visitExprRefPathContext(ast::IExprRefPathContext *i) {
                         (*it)->accept(m_this);
                     }
                     DEBUG_LEAVE("Resolve built-in method parameters");
+                    if (proto) {
+                        TaskCheckCallArgs(m_ctxt).check(proto, elem);
+                    }
                 }
                 break;
             } else {
                 m_ctxt->addErrorMarker(
                     elem->getId()->getLocation(),
-                    "unknown method '%s' on built-in type", 
+                    "unknown method '%s' on built-in type",
                     method_name.c_str());
                 break;
             }
@@ -631,6 +698,7 @@ void TaskResolveRefs::visitExprRefPathContext(ast::IExprRefPathContext *i) {
             // Resolve name references for parameter values
             if (elem->getParams()) {
                 elem->getParams()->accept(m_this);
+                TaskCheckCallArgs(m_ctxt).check(res.sym, elem);
             }
 
             if (ii+1 < i->getHier_id()->getElems().size()) {
@@ -645,6 +713,13 @@ void TaskResolveRefs::visitExprRefPathContext(ast::IExprRefPathContext *i) {
                 }
 
                 if (elem->getSubscript().size()) {
+                    if (hasSliceSubscript_rr(elem)) {
+                        m_ctxt->addErrorMarker(
+                            elem->getId()->getLocation(),
+                            "member selection is not permitted on a slice of '%s'",
+                            elem->getId()->getId().c_str());
+                        break;
+                    }
                     if (elem->getSubscript().size() > 1) {
                         DEBUG_ERROR("Handle multi-dim array subscript");
                     }
@@ -855,7 +930,55 @@ void TaskResolveRefs::visitField(ast::IField *i) {
     if (i->getInit()) {
         i->getInit()->accept(m_this);
     }
+    checkMutableField(i);
     DEBUG_LEAVE("visitField %s", i->getName()->getId().c_str());
+}
+
+/**
+ * §9.1.6 b): `mutable` shall not be applied to a component field.
+ *
+ * A component instance is part of the system's immutable structure; whether
+ * the fields *inside* it may change is decided by their own qualifiers, not by
+ * the qualifier on the instance. This has to run after the field's type has
+ * been resolved -- "is this type a component?" is not knowable from the
+ * declaration alone.
+ *
+ * The other half of b), "nor to instance reference fields", is unreachable:
+ * `mutable` and `instance` are alternatives of the same optional group in
+ * `component_data_decl_qualifier`, so the two cannot both be written. Left
+ * unimplemented deliberately rather than as an oversight -- cf. PSS103, which
+ * was retired for the same reason.
+ */
+void TaskResolveRefs::checkMutableField(ast::IField *i) {
+    if ((i->getAttr() & ast::FieldAttr::Mutable) == ast::FieldAttr::NoFlags) {
+        return;
+    }
+
+    ast::IDataTypeUserDefined *ud =
+        dynamic_cast<ast::IDataTypeUserDefined *>(i->getType());
+    if (!ud || !ud->getType_id() || !ud->getType_id()->getTarget()) {
+        return;
+    }
+
+    ast::IScopeChild *target_c =
+        m_ctxt->resolveSymbolPathRef(ud->getType_id()->getTarget());
+    if (!target_c) {
+        return;
+    }
+
+    // Type references resolve to the wrapping symbol scope, not the
+    // declaration -- the same indirection annotations hit in Phase 2.
+    ast::ISymbolTypeScope *ts = dynamic_cast<ast::ISymbolTypeScope *>(target_c);
+    if (ts && ts->getTarget()) {
+        target_c = ts->getTarget();
+    }
+
+    if (dynamic_cast<ast::IComponent *>(target_c)) {
+        m_ctxt->addErrorMarker(
+            i->getName()->getLocation(),
+            "illegal 'mutable' qualifier: not permitted on component field '%s'",
+            i->getName()->getId().c_str());
+    }
 }
 
 void TaskResolveRefs::visitFieldCompRef(ast::IFieldCompRef *i) {
@@ -924,6 +1047,8 @@ void TaskResolveRefs::visitSymbolScope(ast::ISymbolScope *i) {
         TaskResolveImports(m_ctxt).resolve(i);
         DEBUG_LEAVE("  Resolve Imports");
     }
+
+    checkScopeAnnotations(i);
 
     DEBUG("Have %d children", i->getChildren().size());
     DEBUG_ENTER("visit children");
@@ -1080,6 +1205,8 @@ void TaskResolveRefs::visitSymbolTypeScope(ast::ISymbolTypeScope *i) {
             DEBUG_LEAVE("  Resolve Imports");
         }
 
+        checkScopeAnnotations(i);
+
         // Check on children
         for (std::vector<ast::IScopeChildUP>::const_iterator
             it=i->getChildren().begin();
@@ -1090,6 +1217,186 @@ void TaskResolveRefs::visitSymbolTypeScope(ast::ISymbolTypeScope *i) {
         m_ctxt->symtab()->popScope();
     }
     DEBUG_LEAVE("visitSymbolTypeScope %s", i->getName().c_str());
+}
+
+namespace {
+
+/**
+ * An annotation initializer must be a constant expression (§7.13a).
+ *
+ * The grammar already restricts it to `constant_expression`, which rules out
+ * calls and randomization but still admits a plain reference to an instance
+ * field. Contextual references are exactly that case; package-qualified static
+ * references name constants or enum items and are treated as constant.
+ */
+/**
+ * Gathers the annotations owned by one symbol scope. Nested symbol scopes are
+ * not descended into: each gets its own pass, under its own symbol-table scope.
+ */
+class AnnotationCollector : public ast::VisitorBase {
+public:
+    std::vector<ast::IAnnotation *> annotations;
+
+    void collect(ast::IScope *s) {
+        if (!s) {
+            return;
+        }
+        for (std::vector<ast::IScopeChildUP>::const_iterator
+            it=s->getChildren().begin();
+            it!=s->getChildren().end(); it++) {
+            (*it)->accept(this);
+        }
+    }
+
+    virtual void visitAnnotation(ast::IAnnotation *i) override {
+        annotations.push_back(i);
+    }
+
+    virtual void visitSymbolScope(ast::ISymbolScope *i) override { }
+    virtual void visitSymbolTypeScope(ast::ISymbolTypeScope *i) override { }
+    virtual void visitSymbolEnumScope(ast::ISymbolEnumScope *i) override { }
+    virtual void visitSymbolExtendScope(ast::ISymbolExtendScope *i) override { }
+    virtual void visitSymbolFunctionScope(ast::ISymbolFunctionScope *i) override { }
+    virtual void visitSymbolChildrenScope(ast::ISymbolChildrenScope *i) override { }
+};
+
+class IsNonConstantExpr : public ast::VisitorBase {
+public:
+    bool non_constant = false;
+
+    virtual void visitExprRefPathContext(ast::IExprRefPathContext *i) override {
+        non_constant = true;
+    }
+
+    virtual void visitExprRefPathId(ast::IExprRefPathId *i) override {
+        non_constant = true;
+    }
+};
+
+std::string typeIdName(ast::ITypeIdentifier *type_id) {
+    std::string ret;
+    for (std::vector<ast::ITypeIdentifierElemUP>::const_iterator
+        it=type_id->getElems().begin();
+        it!=type_id->getElems().end(); it++) {
+        if (ret.size()) {
+            ret += "::";
+        }
+        ret += (*it)->getId()->getId();
+    }
+    return ret;
+}
+
+}
+
+void TaskResolveRefs::checkScopeAnnotations(ast::ISymbolScope *scope) {
+    AnnotationCollector collector;
+    collector.collect(dynamic_cast<ast::IScope *>(scope));
+
+    // An annotation on the declaration itself hangs off the wrapped AST node.
+    // Its type is resolved from inside the declaration's scope rather than the
+    // enclosing one; annotation types are package-scope only (§7.13b), so the
+    // outward lookup reaches the same declaration either way.
+    if (scope->getTarget()) {
+        collector.collect(dynamic_cast<ast::IScope *>(scope->getTarget()));
+        for (std::vector<ast::IAnnotationUP>::const_iterator
+            it=scope->getTarget()->getAnnotations().begin();
+            it!=scope->getTarget()->getAnnotations().end(); it++) {
+            collector.annotations.push_back(it->get());
+        }
+    }
+
+    for (std::vector<ast::IAnnotation *>::const_iterator
+        it=collector.annotations.begin();
+        it!=collector.annotations.end(); it++) {
+        if (m_checked_annotations.insert(*it).second) {
+            (*it)->accept(m_this);
+        }
+    }
+}
+
+void TaskResolveRefs::visitAnnotation(ast::IAnnotation *i) {
+    DEBUG_ENTER("visitAnnotation");
+    ast::ITypeIdentifier *type_id = i->getType();
+    if (!type_id) {
+        DEBUG_LEAVE("visitAnnotation (no type)");
+        return;
+    }
+
+    std::string type_name = typeIdName(type_id);
+
+    if (!type_id->getTarget()) {
+        // Resolve the annotation type ahead of the generic traversal, quietly:
+        // TaskResolveRef reports an unresolved type identifier as an error, and
+        // an unknown annotation type must not fail the build.
+        type_id->setTarget(
+            TaskResolveRef(m_ctxt, true, false).resolve(type_id));
+    }
+
+    if (!type_id->getTarget()) {
+        // §7.13: "PSS processing tools shall disregard unrecognized
+        // annotations". Deliberately not routed through the normal
+        // unresolved-type error path: an unknown annotation type must never
+        // fail the build, and nothing inside it is checked further.
+        m_ctxt->addMarker(
+            MarkerSeverityE::Warn,
+            i->getLocation(),
+            "unknown annotation type '%s'; annotation disregarded",
+            type_name.c_str());
+        DEBUG_LEAVE("visitAnnotation (unresolved)");
+        return;
+    }
+
+    // Only now visit the parameters: nothing inside an unrecognized annotation
+    // is checked, so an unknown annotation contributes no diagnostics beyond
+    // the one warning above.
+    VisitorBase::visitAnnotation(i);
+
+    ast::IScopeChild *target_c = m_ctxt->resolveSymbolPathRef(type_id->getTarget());
+    ast::ISymbolScope *decl_s = dynamic_cast<ast::ISymbolScope *>(target_c);
+
+    for (std::vector<ast::IAnnotationParamUP>::const_iterator
+        it=i->getParameters().begin();
+        it!=i->getParameters().end(); it++) {
+        ast::IAnnotationParam *param = it->get();
+
+        if (!param->getName()) {
+            continue;
+        }
+        const std::string &name = param->getName()->getId();
+
+        // Use TaskFindPathElem rather than the scope's own symtab: fields
+        // contributed by `extend annotation` are not merged into the symbol
+        // scope's children, and a plain symtab lookup would report them as
+        // unknown.
+        TaskFindPathElem::Result res = {0, -1, -1};
+        if (decl_s) {
+            res = TaskFindPathElem(
+                m_ctxt->getDebugMgr(),
+                m_ctxt->root()).find(decl_s, param->getName());
+        }
+
+        if (decl_s && !res.sym) {
+            m_ctxt->addErrorMarker(
+                param->getLocation(),
+                "unknown identifier '%s' in annotation type '%s'",
+                name.c_str(),
+                type_name.c_str());
+            continue;
+        }
+
+        if (param->getValue()) {
+            IsNonConstantExpr chk;
+            param->getValue()->accept(&chk);
+            if (chk.non_constant) {
+                m_ctxt->addErrorMarker(
+                    param->getLocation(),
+                    "annotation initializer for '%s' is not a constant expression",
+                    name.c_str());
+            }
+        }
+    }
+
+    DEBUG_LEAVE("visitAnnotation");
 }
 
 void TaskResolveRefs::visitDataTypeUserDefined(ast::IDataTypeUserDefined *i) {
@@ -1124,6 +1431,24 @@ void TaskResolveRefs::visitDataTypeUserDefined(ast::IDataTypeUserDefined *i) {
     DEBUG_LEAVE("visitDataTypeUserDefined");
 }
 
+
+/**
+ * Resolve an exec block tag's struct type (20.5.4), exactly once per node.
+ */
+void TaskResolveRefs::visitExecBlockTag(ast::IExecBlockTag *i) {
+    DEBUG_ENTER("visitExecBlockTag");
+    if (!m_checked_exec_tags.insert(i).second) {
+        DEBUG_LEAVE("visitExecBlockTag -- already checked");
+        return;
+    }
+    if (i->getType()) {
+        i->getType()->accept(m_this);
+    }
+    if (i->getLiteral()) {
+        i->getLiteral()->accept(m_this);
+    }
+    DEBUG_LEAVE("visitExecBlockTag");
+}
 
 void TaskResolveRefs::visitTypeIdentifier(ast::ITypeIdentifier *i) {
     DEBUG_ENTER("visitTypeIdentifier %s", i->getElems().at(0)->getId()->getId().c_str());

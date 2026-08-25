@@ -35,6 +35,33 @@ public:
     ast::IGlobalScope *build();
 
 private:
+    /**
+     * Adds a method prototype to `owner` and returns it, so that parameters
+     * can be appended.  `rtype` may be null, meaning `void`.
+     */
+    ast::IFunctionPrototype *mkMethod(
+        ast::IScope             *owner,
+        const std::string       &name,
+        ast::IDataType          *rtype);
+
+    /** Appends an `in` parameter to `proto`.  `dflt` may be null. */
+    void addParam(
+        ast::IFunctionPrototype *proto,
+        const std::string       &name,
+        ast::IDataType          *type,
+        ast::IExpr              *dflt=0);
+
+    ast::IDataType *mkInt();                        ///< `int`
+    ast::IDataType *mkBit(int32_t width);           ///< `bit[width]`
+    ast::IDataType *mkString();                     ///< `string`
+    ast::IDataType *mkBool();                       ///< `bool`
+    ast::IDataType *mkList(ast::IDataType *elem);   ///< `list<elem>`
+    ast::IExpr *mkIntLit(int32_t v);
+
+    /** Builds the `string` pseudo-type that carries the methods of §7.6.3. */
+    ast::IStruct *buildString();
+
+private:
     ast::IFactory           *m_ast_f;
     ast::IGlobalScopeUP     m_builtins;
 

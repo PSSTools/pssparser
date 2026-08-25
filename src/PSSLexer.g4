@@ -137,6 +137,15 @@ TOK_TYPEDEF: 'typedef';
 TOK_DYNAMIC: 'dynamic';
 TOK_DISABLE: 'disable';
 TOK_DIST: 'dist';
+// PSS 3.1 B.14 / 13.1.12. Note `soft` is absent from Table 3 (the keyword
+// table), which we treat as an oversight in the table rather than in the BNF:
+// every other word the BNF spells literally is reserved here too. The
+// consequence -- `soft` can no longer be used as an identifier -- is called out
+// in the migration guide.
+TOK_SOFT: 'soft';
+// PSS 3.1 B.8 / 9.1.6. Absent from Table 3 for the same reason `soft` is --
+// see the note above.
+TOK_MUTABLE: 'mutable';
 TOK_COLON_EQ: ':=';
 TOK_COLON_DIV: ':/';
 TOK_FORALL: 'forall';
@@ -227,30 +236,32 @@ fragment TripleQuotedStringPart : EscapedTripleQuote | SourceCharacter;
 fragment EscapedTripleQuote: '\\"""';
 fragment SourceCharacter :[\u0009\u000A\u000D\u0020-\uFFFF];
 
-// fragment FloatingPointLiteral:
-//     FractionalConstant ExponentPart?
-//     | DigitSequence ExponentPart
-//     ;
+/**
+ * B.20 floating-point literals.
+ *
+ *   unsigned_number           ::= dec_digit { dec_digit | _ }
+ *   floating_point_dec_number ::= unsigned_number . unsigned_number
+ *   floating_point_sci_number ::= unsigned_number [ . unsigned_number ]
+ *                                 exp [ sign ] unsigned_number
+ *
+ * Both forms require a digit on each side of the '.', which is what keeps the
+ * range operator unambiguous: in `1..2` the first token cannot extend past the
+ * `1`, because the character after the first '.' is not a digit. ANTLR then
+ * falls back to DEC_LITERAL and the `..` lexes as TOK_ELIPSIS.
+ *
+ * The scientific rule is listed first only for readability -- ANTLR's
+ * longest-match rule already picks it over the decimal rule for `1.5e3`.
+ */
+FLOAT_SCI_LITERAL:
+	UnsignedNumber ('.' UnsignedNumber)? ('e'|'E') ('+'|'-')? UnsignedNumber
+	;
 
-// fragment FractionalConstant
-//     : DigitSequence? '.' DigitSequence
-//     | DigitSequence '.'
-//     ;
+FLOAT_DEC_LITERAL:
+	UnsignedNumber '.' UnsignedNumber
+	;
 
-// fragment ExponentPart
-//     : [eE] Sign? DigitSequence
-//     ;
+fragment UnsignedNumber: ('0'..'9') ('0'..'9'|'_')*;
 
-// fragment Sign
-//     : [+-]
-//     ;
-
-// DigitSequence
-//     : Digit+
-//     ;
-
-// fragment Digit: [0-9];
-		
 // TODO: move to LexicalRules
 ID : [a-zA-Z_] [a-zA-Z0-9_]* ;
 
@@ -261,6 +272,7 @@ BASED_DEC_LITERAL: '\'' ('s'|'S')? ('d'|'D') ('0'..'9') ('0'..'9'|'_')*;
 DEC_LITERAL: ('1'..'9') ('0'..'9'|'_')*;
 BASED_BIN_LITERAL: '\'' ('s'|'S')? ('b'|'B') (('0'..'1') ('0'..'1'|'_')*);
 BASED_OCT_LITERAL: '\'' ('s'|'S')? ('o'|'O') (('0'..'7') ('0'..'7'|'_')*);
-OCT_LITERAL: '0' ('0'..'7')*;
-HEX_LITERAL: '0x' ('0'..'9'|'a'..'f'|'A'..'F') ('0'..'9'|'a'..'f'|'A'..'F'|'_')*;
+OCT_LITERAL: '0' ('0'..'7'|'_')*;
+HEX_LITERAL: '0' ('x'|'X') ('0'..'9'|'a'..'f'|'A'..'F') ('0'..'9'|'a'..'f'|'A'..'F'|'_')*;
+BIN_LITERAL: '0' ('b'|'B') ('0'..'1') ('0'..'1'|'_')*;
 

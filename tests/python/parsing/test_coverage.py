@@ -455,3 +455,65 @@ def test_coverage_with_constraint(parser):
     """
     assert_parse_ok(code, parser)
 from test_helpers import get_symbol, has_symbol, get_location
+
+
+# ---------------------------------------------------------------------------
+# PSS 3.1 alignment: portmap list arity (plan item P1-G6)
+# ---------------------------------------------------------------------------
+# Annex B: `covergroup_portmap_list ::= covergroup_portmap { , covergroup_portmap }`.
+# The grammar previously used `(TOK_COMMA covergroup_portmap)?`, capping the
+# list at two entries, so any covergroup with three or more ports could not be
+# instantiated by name.
+
+_CG3 = """
+covergroup cg_t(bit[8] p1, bit[8] p2, bit[8] p3, bit[8] p4) {
+    coverpoint p1;
+}
+"""
+
+
+def test_covergroup_three_portmaps(parser):
+    assert_parse_ok(_CG3 + """
+    struct S {
+        rand bit[8] a, b, c;
+        cg_t cg_i(.p1(a), .p2(b), .p3(c));
+    }
+    """, parser)
+
+
+def test_covergroup_four_portmaps(parser):
+    assert_parse_ok(_CG3 + """
+    struct S {
+        rand bit[8] a, b, c, d;
+        cg_t cg_i(.p1(a), .p2(b), .p3(c), .p4(d));
+    }
+    """, parser)
+
+
+def test_covergroup_one_portmap(parser):
+    assert_parse_ok(_CG3 + """
+    struct S {
+        rand bit[8] a;
+        cg_t cg_i(.p1(a));
+    }
+    """, parser)
+
+
+def test_covergroup_two_portmaps_still_accepted(parser):
+    """The arity the old rule capped at must keep working."""
+    assert_parse_ok(_CG3 + """
+    struct S {
+        rand bit[8] a, b;
+        cg_t cg_i(.p1(a), .p2(b));
+    }
+    """, parser)
+
+
+def test_covergroup_positional_list_still_accepted(parser):
+    """The `hierarchical_id_list` alternative is unaffected by the change."""
+    assert_parse_ok(_CG3 + """
+    struct S {
+        rand bit[8] a, b, c, d;
+        cg_t cg_i(a, b, c, d);
+    }
+    """, parser)

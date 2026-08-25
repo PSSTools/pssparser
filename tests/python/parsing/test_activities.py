@@ -628,3 +628,121 @@ def test_activity_repeat_with_parallel(parser):
     """
     assert_parse_ok(code, parser)
 from test_helpers import get_symbol, has_symbol, get_location
+
+
+# ---------------------------------------------------------------------------
+# PSS 3.1 alignment: foreach traversal target (plan item P1-G5, Mantis8649)
+# ---------------------------------------------------------------------------
+# Annex B B.9 makes the traversal target an `expression`, not a bare
+# identifier, so a hierarchical or indexed path is legal. The grammar
+# previously used `target=identifier`, which rejected `foreach (s.v)` outright.
+#
+# Switching to `expression` reintroduces the greediness that
+# `foreach_constraint_item` already contends with: in `foreach (arr[i])` the
+# expression parser consumes `[i]` as a subscript rather than leaving it to
+# match the optional `[index_identifier]`. The builder lifts a trailing
+# single-identifier subscript back out, so both spellings must declare `i`.
+
+def test_activity_foreach_hierarchical_target(parser):
+    assert_parse_ok("""
+    struct S { rand int v[4]; }
+    component pss_top {
+        action A {
+            S s;
+            activity { foreach (s.v) { } }
+        }
+    }
+    """, parser)
+
+
+def test_activity_foreach_indexed_target(parser):
+    assert_parse_ok("""
+    struct S { rand int v[4]; }
+    component pss_top {
+        action A {
+            S s[2];
+            activity { foreach (s[0].v) { } }
+        }
+    }
+    """, parser)
+
+
+def test_activity_foreach_simple_target_still_works(parser):
+    assert_parse_ok("""
+    component pss_top {
+        action A {
+            rand int arr[4];
+            activity { foreach (arr) { } }
+        }
+    }
+    """, parser)
+
+
+def test_activity_foreach_iterator_only(parser):
+    assert_parse_ok("""
+    component pss_top {
+        action B { rand int x; }
+        action A {
+            rand int arr[4];
+            activity { foreach (e : arr) { do B with { x == e; } } }
+        }
+    }
+    """, parser)
+
+
+def test_activity_foreach_index_var_is_declared(parser):
+    """
+    `foreach (arr[i])` declares `i`. The expression parser swallows `[i]` as a
+    subscript, so this only resolves if the builder lifts it back out.
+    """
+    assert_parse_ok("""
+    component pss_top {
+        action B { rand int x; }
+        action A {
+            rand int arr[4];
+            activity { foreach (arr[i]) { do B with { x == i; } } }
+        }
+    }
+    """, parser)
+
+
+def test_activity_foreach_iterator_and_index(parser):
+    assert_parse_ok("""
+    component pss_top {
+        action B { rand int x; }
+        action A {
+            rand int arr[4];
+            activity { foreach (e : arr[i]) { do B with { x == e + i; } } }
+        }
+    }
+    """, parser)
+
+
+def test_activity_foreach_index_over_hierarchical_target(parser):
+    """Both features at once: a hierarchical target *and* an index variable."""
+    assert_parse_ok("""
+    struct S { rand int v[4]; }
+    component pss_top {
+        action B { rand int x; }
+        action A {
+            S s;
+            activity { foreach (s.v[i]) { do B with { x == i; } } }
+        }
+    }
+    """, parser)
+
+
+def test_activity_foreach_index_var_not_visible_outside_loop(parser):
+    """The lifted index must be scoped to the body, not leaked to the action."""
+    assert_parse_error("""
+    component pss_top {
+        action B { rand int x; }
+        action A {
+            rand int arr[4];
+            activity {
+                foreach (arr[i]) { }
+                do B with { x == i; }
+            }
+        }
+    }
+    """)

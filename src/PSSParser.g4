@@ -215,8 +215,13 @@ action_super_spec:
 	TOK_COLON type_identifier
 ;
 
+    // B.1 models `annotation` as an alternative of action_body_item, not as a
+    // prefix on the following item. Keeping the prefix as well would make every
+    // annotation here ambiguous, and the greedy prefix loop would win -- which
+    // breaks a trailing standalone `@T {...};`. Wrapper retained (many call
+    // sites) but now a pass-through, matching package_body_item_ann.
 action_body_item_ann:
-    annotation* action_body_item
+    action_body_item
     ;
 
 action_body_item:
@@ -232,6 +237,7 @@ action_body_item:
 	| attr_group
 	| compile_assert_stmt
 	| covergroup_instantiation
+	| annotation
 	| action_body_compile_if
 	| TOK_SEMICOLON
 ;
@@ -279,8 +285,9 @@ resource_object_type:
 	resource_type_identifier
 	;
 
+// B.4: `identifier { array_dim }` -- 3.1 allows more than one dimension.
 object_ref_field:
-	identifier array_dim?
+	identifier array_dim*
 	;
 
 // NOTE: refactored grammar for improved AST
@@ -366,6 +373,7 @@ struct_body_item:
 	| compile_assert_stmt
 	| covergroup_declaration
 	| covergroup_instantiation
+	| annotation
 	| struct_body_compile_if
     | TOK_SEMICOLON
 ;
@@ -414,12 +422,21 @@ exec_super_stmt:
 	TOK_SUPER TOK_SEMICOLON
 	;
 
+// B.4 / 20.5.4. The optional `exec_block_tag :` prefix is unambiguous against
+// the bare string_literal form because a type_identifier cannot begin a string
+// literal.
 target_code_exec_block:
-	TOK_EXEC exec_kind language_identifier TOK_SINGLE_EQ string_literal TOK_SEMICOLON
+	TOK_EXEC exec_kind language_identifier TOK_SINGLE_EQ
+		(exec_block_tag TOK_COLON)? string_literal TOK_SEMICOLON
 	;
 
 target_file_exec_block:
-	TOK_EXEC TOK_FILE filename_string TOK_SINGLE_EQ string_literal TOK_SEMICOLON
+	TOK_EXEC TOK_FILE filename_string TOK_SINGLE_EQ
+		(exec_block_tag TOK_COLON)? string_literal TOK_SEMICOLON
+	;
+
+exec_block_tag:
+	type_identifier struct_literal?
 	;
 
 /********************************************************************
@@ -433,8 +450,12 @@ procedural_function:
 	TOK_RCBRACE
 	;
 
+// B.5: `[ platform_qualifier ] [ pure ] [ static ] function function_prototype ;`
+// Annex C declares many core-library functions as `solve function` / `target
+// function` at package scope, so without the qualifier the 3.1 stdlib does not
+// parse.
 function_decl:
-	TOK_PURE? TOK_STATIC? TOK_FUNCTION function_prototype TOK_SEMICOLON
+	platform_qualifier? TOK_PURE? TOK_STATIC? TOK_FUNCTION function_prototype TOK_SEMICOLON
 	;
 
 platform_qualifier: 
@@ -467,7 +488,10 @@ function_parameter:
 	(
 		function_parameter_dir? TOK_CONST? data_type identifier (TOK_SINGLE_EQ constant_expression)?
 	) | (
-		TOK_CONST? (is_type=TOK_TYPE | is_ref=TOK_REF type_category | is_struct=TOK_STRUCT) identifier
+		// B.5: `[const] ( type | ref ref_type_category | plain_type_category ) identifier`.
+		// `ref` takes a *ref* category only, and the un-`ref`ed alternative is the full
+		// plain category -- not just `struct`, which is what rejected `numeric` params.
+		TOK_CONST? (is_type=TOK_TYPE | is_ref=TOK_REF ref_type_category | plain_type_category) identifier
 	)
 	;
 
@@ -478,7 +502,7 @@ function_parameter_dir:
 	;
 
 varargs_parameter:
-	(data_type | is_type=TOK_TYPE | is_ref=TOK_REF type_category | is_struct=TOK_STRUCT) TOK_TRIPLE_ELIPSIS identifier
+	(data_type | is_type=TOK_TYPE | is_ref=TOK_REF ref_type_category | plain_type_category) TOK_TRIPLE_ELIPSIS identifier
 	;
 
 /********************************************************************
@@ -543,6 +567,11 @@ procedural_stmt:
 	| procedural_data_declaration // TODO: positioning this first causes assign to be incorrectly recognized as data_declaration
     | procedural_yield_stmt
 	| procedural_randomization_stmt
+	// B.1: `procedural_compile_if` is a procedural_stmt. It was defined but
+	// never referenced, so `compile if` inside an exec/function body did not
+	// parse at all.
+	| annotation
+	| procedural_compile_if
 	| TOK_SEMICOLON
 	;
 
@@ -559,8 +588,9 @@ procedural_data_declaration:
 	data_type procedural_data_instantiation (TOK_COMMA procedural_data_instantiation)*
 	;
 
+// B.12: `identifier { array_dim } [ = expression ]`
 procedural_data_instantiation:
-	identifier array_dim? (TOK_SINGLE_EQ expression)?
+	identifier array_dim* (TOK_SINGLE_EQ expression)?
 	;
 
 // TODO: does this assign function_call is part of expression"
@@ -641,8 +671,13 @@ component_super_spec :
 	TOK_COLON type_identifier
 	;
 
+    // B.1 models `annotation` as an alternative of component_body_item, not as a
+    // prefix on the following item. Keeping the prefix as well would make every
+    // annotation here ambiguous, and the greedy prefix loop would win -- which
+    // breaks a trailing standalone `@T {...};`. Wrapper retained (many call
+    // sites) but now a pass-through, matching package_body_item_ann.
 component_body_item_ann:
-    annotation* component_body_item
+    component_body_item
     ;
 
 component_body_item:
@@ -670,6 +705,7 @@ component_body_item:
 	| extend_stmt
 	| compile_assert_stmt
 	| attr_group
+	| annotation
 	| component_body_compile_if
     | monitor_declaration
     | abstract_monitor_declaration
@@ -679,7 +715,8 @@ component_body_item:
 	;
 
 component_data_declaration:
-	access_modifier? ((is_static=TOK_STATIC is_const=TOK_CONST) | is_instance=TOK_INSTANCE)? data_declaration
+	// B.8: `component_data_decl_qualifier ::= static const | mutable | instance`
+	access_modifier? ((is_static=TOK_STATIC is_const=TOK_CONST) | is_mutable=TOK_MUTABLE | is_instance=TOK_INSTANCE)? data_declaration
 	;
 
 // Note: LRM only supports a single pool per declaration
@@ -714,8 +751,13 @@ object_bind_item:
  * B.9 Activity statements
  ********************************************************************/
 
+    // B.1 models `annotation` as an alternative of activity_stmt, not as a
+    // prefix on the following item. Keeping the prefix as well would make every
+    // annotation here ambiguous, and the greedy prefix loop would win -- which
+    // breaks a trailing standalone `@T {...};`. Wrapper retained (many call
+    // sites) but now a pass-through, matching package_body_item_ann.
 activity_stmt_ann:
-    annotation* activity_stmt
+    activity_stmt
     ;
 
 activity_stmt: 
@@ -724,6 +766,7 @@ activity_stmt:
 	| activity_bind_stmt
 	| action_handle_declaration
 	| activity_constraint_stmt
+	| annotation
 	| activity_scheduling_constraint
 	| TOK_SEMICOLON
 	;
@@ -829,7 +872,7 @@ activity_repeat_stmt:
 activity_foreach_stmt:
 	TOK_FOREACH 
 		TOK_LPAREN 
-			(it_id=iterator_identifier TOK_COLON)? target=identifier (TOK_LSBRACE idx_id=index_identifier TOK_RSBRACE)? 
+			(it_id=iterator_identifier TOK_COLON)? expression (TOK_LSBRACE idx_id=index_identifier TOK_RSBRACE)?
 		TOK_RPAREN
 		activity_stmt_ann
 	;
@@ -915,6 +958,7 @@ override_declaration:
 override_stmt:
 	type_override 
 	| instance_override
+    | annotation
     | override_compile_if
 	| TOK_SEMICOLON
 	;
@@ -988,6 +1032,7 @@ monitor_body_item:
     | attr_group
     | compile_assert_stmt
     | covergroup_instantiation
+    | annotation
     | monitor_body_compile_if
     | TOK_SEMICOLON
     ;
@@ -1009,6 +1054,7 @@ monitor_activity_stmt:
     | action_handle_declaration
     | monitor_handle_declaration
     | monitor_activity_constraint_stmt
+    | annotation
     | TOK_SEMICOLON
     ;
 
@@ -1024,8 +1070,9 @@ monitor_handle_declaration:
     monitor_type_identifier monitor_instantiation TOK_SEMICOLON
     ;
 
+// B.9: `monitor_identifier { array_dim } { , monitor_identifier { array_dim } }`
 monitor_instantiation:
-    monitor_identifier array_dim?  (TOK_COMMA monitor_identifier array_dim?)*
+    monitor_identifier array_dim*  (TOK_COMMA monitor_identifier array_dim*)*
     ;
 
 monitor_activity_sequence_block_stmt: 
@@ -1088,6 +1135,8 @@ monitor_constraint_body_item:
     | if_constraint_item
     | implication_constraint_item
     | unique_constraint_item
+    | soft_constraint_item
+    | annotation
     | constraint_body_compile_if
     | TOK_SEMICOLON
     ;
@@ -1124,10 +1173,30 @@ type_restriction:
 	TOK_COLON type_identifier
 	;
 
-type_category:
-    img=TOK_ACTION
+// B.13:
+//   ref_type_category   ::= action | monitor | component | object_kind
+//   plain_type_category ::= struct | numeric
+//   type_category       ::= ref_type_category | plain_type_category
+//
+// The 3.0 rule conflated these: it folded `struct_kind` (plain `struct` *plus*
+// the object kinds) into one alternative, and had no `monitor` or `numeric` at
+// all. The split matters because `ref` may only precede a ref category --
+// `ref struct` and `ref numeric` are not legal, while `ref buffer` is.
+ref_type_category:
+	img=TOK_ACTION
+	| img=TOK_MONITOR
 	| img=TOK_COMPONENT
-	| struct_kind
+	| object_kind
+	;
+
+plain_type_category:
+	img=TOK_STRUCT
+	| img=TOK_NUMERIC
+	;
+
+type_category:
+	ref_type_category
+	| plain_type_category
 	;
 
 value_param_decl: 
@@ -1217,11 +1286,12 @@ bool_type:
 	TOK_BOOL
 	;
 
+// B.13: `enum enum_identifier [ : data_type ] { [ enum_item {, enum_item} ] }`
 enum_declaration:
-  	TOK_ENUM enum_identifier 
-	TOK_LCBRACE 
+  	TOK_ENUM enum_identifier (TOK_COLON base_type=data_type)?
+	TOK_LCBRACE
   		(enum_item (TOK_COMMA enum_item)*)?
-	TOK_RCBRACE 
+	TOK_RCBRACE
 	;
 
 enum_item:
@@ -1264,7 +1334,7 @@ reference_type:
 	;
 
 typedef_declaration:
- 	TOK_TYPEDEF data_type type_identifier TOK_SEMICOLON 
+ 	TOK_TYPEDEF data_type identifier TOK_SEMICOLON
 ;
 
 /********************************************************************
@@ -1322,8 +1392,10 @@ constraint_body_item:
 	| if_constraint_item
 	| implication_constraint_item
 	| unique_constraint_item
+	| soft_constraint_item
 	| default_constraint_item
     | dist_directive
+    | annotation
     | constraint_body_compile_if
 	| TOK_SEMICOLON
 ;
@@ -1365,8 +1437,27 @@ implication_constraint_item:
 	expression TOK_IMPLIES constraint_set
 	;
 
+// B.14 / 13.1.12
+soft_constraint_item:
+	TOK_SOFT expression TOK_SEMICOLON
+	;
+
 unique_constraint_item:
-	TOK_UNIQUE TOK_LCBRACE hierarchical_id_list TOK_RCBRACE TOK_SEMICOLON
+	TOK_UNIQUE unique_constraint_argument TOK_SEMICOLON
+	;
+
+// B.14: `unique_constraint_argument ::= hierarchical_id [ [ array_slice ] ]
+//                                     | { hierarchical_id_list }`
+//
+// The optional `[ array_slice ]` is not spelled out here because
+// `hierarchical_id` already absorbs it: `member_path_elem_index` accepts a
+// `..` range, so `arr[2..5]` parses as a hierarchical_id whose last element
+// carries a slice subscript. Adding a second, overlapping way to match the
+// same brackets would be an ambiguity ANTLR resolves silently -- same accepted
+// language, two AST shapes. See ExprSliceRange.
+unique_constraint_argument:
+	(TOK_LCBRACE hierarchical_id_list TOK_RCBRACE)
+	| hierarchical_id
 	;
 
 dist_directive: 
@@ -1377,8 +1468,11 @@ dist_list:
     dist_item ( TOK_COMMA dist_item )*
     ;
 
-dist_item: 
-    open_range_value TOK_LSBRACE dist_weight TOK_RSBRACE
+// B.14: `dist_item ::= open_range_value [ dist_weight ]` -- the brackets in the
+// BNF mark optional content, they are not literal delimiters. Requiring literal
+// `[ ]` around the weight rejected every conforming `dist` directive.
+dist_item:
+    open_range_value dist_weight?
     ;
 
 dist_weight:
@@ -1405,6 +1499,7 @@ covergroup_body_item:
 	covergroup_option
 	| covergroup_coverpoint
 	| covergroup_cross
+    | annotation
     | covergroup_body_compile_if
 	| TOK_SEMICOLON
 	;
@@ -1432,7 +1527,7 @@ covergroup_type_instantiation:
 	
 covergroup_portmap_list:
 	(
-		(covergroup_portmap (TOK_COMMA covergroup_portmap)?)
+		(covergroup_portmap (TOK_COMMA covergroup_portmap)*)
 		| hierarchical_id_list
 	)
 	;
@@ -1582,8 +1677,16 @@ action_body_compile_if_item:
 	| (TOK_LCBRACE action_body_item_ann* TOK_RCBRACE)
 	;
 
-monitor_body_compile_if_item: 
-    TOK_LSBRACE monitor_body_item* TOK_RSBRACE
+// The five rules below used TOK_LSBRACE/TOK_RSBRACE (`[ ]`) where the spec has
+// `{ }`, and three of them admitted only a single item, so none of them
+// accepted any conforming `compile if` branch. Each now has both alternatives,
+// matching the other five: a bare item, or a braced list.
+//
+// Per decision D2 the bare form is retained as a *deprecated* spelling --
+// accepted, but reported via PSS104 from AstBuilderInt::checkCompileIfBranches.
+monitor_body_compile_if_item:
+    monitor_body_item
+    | (TOK_LCBRACE monitor_body_item* TOK_RCBRACE)
     ;
 
 component_body_compile_if_item:
@@ -1596,20 +1699,31 @@ struct_body_compile_if_item:
 	| (TOK_LCBRACE struct_body_item* TOK_RCBRACE)
 	;
 
-procedural_compile_if_stmt: 
-    TOK_LSBRACE procedural_stmt* TOK_RSBRACE
+// Unlike the other nine, this rule's two alternatives genuinely overlap:
+// `procedural_stmt` includes `procedural_sequence_block_stmt`, which is also
+// spelled `{ ... }`. The braced alternative is listed FIRST so that
+// `compile if (x) { ... }` is the conditional-inclusion group it looks like,
+// rather than a sequence block -- `compile if` braces are grouping, and must
+// not introduce a scope. `compile if (x) sequence { ... }` is unaffected: the
+// `sequence` keyword still selects the statement alternative.
+procedural_compile_if_stmt:
+    (TOK_LCBRACE procedural_stmt* TOK_RCBRACE)
+    | procedural_stmt
     ;
 
-constraint_body_compile_if_item: 
-    TOK_LSBRACE constraint_body_item TOK_RSBRACE
+constraint_body_compile_if_item:
+    constraint_body_item
+    | (TOK_LCBRACE constraint_body_item* TOK_RCBRACE)
     ;
 
-covergroup_body_compile_if_item: 
-    TOK_LSBRACE covergroup_body_item TOK_RSBRACE
+covergroup_body_compile_if_item:
+    covergroup_body_item
+    | (TOK_LCBRACE covergroup_body_item* TOK_RCBRACE)
     ;
 
-override_compile_if_stmt: 
-    TOK_LSBRACE override_stmt TOK_RSBRACE
+override_compile_if_stmt:
+    override_stmt
+    | (TOK_LCBRACE override_stmt* TOK_RCBRACE)
     ;
 
 compile_has_expr:
@@ -1839,8 +1953,19 @@ member_path_elem:
 	identifier function_parameter_list? member_path_elem_index*
 	;
 
+// Covers three distinct constructs that share one bracket syntax:
+//
+//   [ expr ]                  a plain index (yields the *element* type)
+//   [ expr .. expr ]          a slice     (yields the *collection* type)
+//   [ expr .. ] / [ .. expr ] a half-open slice
+//
+// B.19 spells the latter two as `array_slice` (in an `in` expression) and
+// `string_slice` (on a ref_path). They are syntactically identical and only
+// the operand's type tells them apart, so both build an ExprSliceRange and the
+// linker classifies it. The `[ .. expr ]` alternative is the only spelling
+// this rule did not already accept.
 member_path_elem_index:
-	TOK_LSBRACE expression (TOK_ELIPSIS expression?)? TOK_RSBRACE
+	TOK_LSBRACE (expression (TOK_ELIPSIS expression?)? | TOK_ELIPSIS expression) TOK_RSBRACE
 	;
 
 
@@ -1904,6 +2029,7 @@ integer_number:
 	| dec_number
 	| oct_number
 	| hex_number
+	| bin_number
 	;
 
 oct_number: OCT_LITERAL;
@@ -1911,6 +2037,8 @@ oct_number: OCT_LITERAL;
 dec_number: DEC_LITERAL;
 
 hex_number: HEX_LITERAL;
+
+bin_number: BIN_LITERAL;
 
 based_bin_number: DEC_LITERAL? BASED_BIN_LITERAL;
 
@@ -1921,9 +2049,13 @@ based_dec_number: DEC_LITERAL? BASED_DEC_LITERAL;
 based_hex_number: DEC_LITERAL? BASED_HEX_LITERAL;
 
 floating_point_number:
-    TOK_ACTION
-//    FloatingPointLiteral
+    floating_point_dec_number
+    | floating_point_sci_number
     ;
+
+floating_point_dec_number: FLOAT_DEC_LITERAL;
+
+floating_point_sci_number: FLOAT_SCI_LITERAL;
 
 aggregate_literal:
 	empty_aggregate_literal
@@ -1978,33 +2110,30 @@ filename_string: DOUBLE_QUOTED_STRING;
 	
 /**
  * Annotations allow meta-data to be associated with model elements
- * PSS 3.1 feature
+ * PSS 3.1 feature (B.1, Syntax20).
  *
- * annotate <path> <type_identifier>();
- */	
+ * An *element* annotation has no trailing semicolon and attaches to the model
+ * element that follows it. A *standalone* annotation is terminated with a
+ * semicolon and is anchored to the enclosing scope instead.
+ *
+ *   @desc_s {.desc = "block", .owner = "dv"}
+ *   component C { }
+ *
+ *   @file_note_s {.text = "generated"};
+ *
+ * The parenthesized 3.0 form (@T("a", n=v)) is deliberately absent: PSS 3.1
+ * replaces it outright, and pssparser follows with a hard cut-over rather than
+ * a deprecation path.
+ */
 annotation:
-    (TOK_AT|TOK_COMMENT_AT) type_identifier annotation_parameter_list?
+    (TOK_AT|TOK_COMMENT_AT) type_identifier annotation_params_list? is_standalone=TOK_SEMICOLON?
     ;
 
-annotation_parameter_list:
-	annotation_positional_parameter_list
-	| annotation_namemapped_parameter_list
-	| annotation_mixed_parameter_list
+annotation_params_list:
+	TOK_LCBRACE annotation_param_item (TOK_COMMA annotation_param_item)* TOK_RCBRACE
 	;
 
-annotation_positional_parameter_list:
-	TOK_LPAREN ( expression ( TOK_COMMA expression )* )? TOK_RPAREN
-    ;
-
-annotation_namemapped_parameter_list:
-	TOK_LPAREN annotation_namemapped_parameter_elem ( TOK_COMMA annotation_namemapped_parameter_elem )* TOK_RPAREN
-    ;
-
-annotation_mixed_parameter_list:
-	TOK_LPAREN expression ( TOK_COMMA expression )* TOK_COMMA annotation_namemapped_parameter_elem ( TOK_COMMA annotation_namemapped_parameter_elem )* TOK_RPAREN
-    ;
-
-annotation_namemapped_parameter_elem:
-	identifier TOK_SINGLE_EQ expression
+annotation_param_item:
+	TOK_DOT identifier TOK_SINGLE_EQ constant_expression
 	;
-	
+

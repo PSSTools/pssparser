@@ -23,6 +23,8 @@ enums:
       - ExecKind_InitUp      # Up-traversal initialization
       - ExecKind_PreSolve    # Pre-randomization execution
       - ExecKind_PostSolve   # Post-randomization execution
+      - ExecKind_PreBody     # PSS 3.1 (B.4): runs before the body exec
+      - ExecKind_File        # `exec file <name> = ...`; has no exec_kind of its own
 
 classes:
   - ExecStmt:
@@ -162,6 +164,56 @@ classes:
         - kind: ExecKind
         - data: string
         - parameters: list<UP<ExecTargetTemplateParam>>
+        - language:
+            type: string
+            is_ctor: false
+        - filename:
+            type: string
+            is_ctor: false
+        - tag:
+            type: UP<ExecBlockTag>
+            is_ctor: false
+
+  - ExecBlockTag:
+      super: ScopeChild
+      doc: |
+          Tag on a target-template exec block -- PSS 3.1 §20.5.4.
+
+          ``exec_block_tag ::= type_identifier [ struct_literal ]``
+
+          A tag exists solely so a code generator can tell whether two exec
+          blocks are equivalent and may be coalesced. It has no effect on
+          action traversal, solving, or runtime execution.
+
+          It is evaluated using a temporary instance of the named struct type,
+          initialized from the struct literal when one is written and from the
+          field defaults otherwise. Two blocks match only if their tags are the
+          same struct type *and* evaluate equal; an untagged block matches
+          nothing, not even another untagged block.
+
+          Tags are permitted only on ``header``, ``declaration``,
+          ``run_start``, ``run_end`` and ``exec file`` blocks -- not on native
+          exec blocks, not on ``body``, and not on the solve execs. That
+          restriction is a semantic rule, not a grammatical one, and is
+          reported as PSS106.
+
+          PSS Example::
+
+              exec header C = tag_s {.name = "hdr"}: """
+                  #include <stdio.h>
+              """;
+
+          Attributes:
+              type: The struct type naming the tag
+              literal: Field initializers, or null when none were written
+
+          See Also:
+              ExecTargetTemplateBlock, ExprAggrStruct
+      data:
+        - type: UP<TypeIdentifier>
+        - literal:
+            type: UP<ExprAggrStruct>
+            is_ctor: false
   - ExecTargetTemplateParam:
       doc: |
           Parameter substitution for target template code.

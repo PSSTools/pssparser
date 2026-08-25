@@ -33,9 +33,16 @@ namespace pssp {
 
 class TaskResolveRef : public TaskResolveBase {
 public:
+    /**
+     * @param report_unresolved when false, a type identifier that cannot be
+     *        resolved is reported only through the null return value, with no
+     *        marker. Required by §7.13, which obliges tools to *disregard*
+     *        unrecognized annotations rather than reject them.
+     */
     TaskResolveRef(
         ResolveContext *ctxt,
-        bool           search_imp=true);
+        bool           search_imp=true,
+        bool           report_unresolved=true);
 
     virtual ~TaskResolveRef();
 
@@ -79,6 +86,7 @@ private:
 private:
     static dmgr::IDebug                 *m_dbg;
     bool                                m_search_imp;
+    bool                                m_report_unresolved;
     ast::ISymbolRefPath                 *m_ref;
 
 };

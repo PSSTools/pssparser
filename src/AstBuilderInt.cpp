@@ -173,6 +173,7 @@ antlrcpp::Any AstBuilderInt::visitPackage_declaration(
 
 antlrcpp::Any AstBuilderInt::visitPackage_body_compile_if(PSSParser::Package_body_compile_ifContext *ctx) {
     int64_t cond = 0;
+    checkCompileIfBranches(ctx->true_body, ctx->false_body);
     if (evalConstantExpression(ctx->cond, cond) && cond) {
         visitCompileIfItem(ctx->true_body);
     } else if (ctx->false_body) {
@@ -400,6 +401,7 @@ antlrcpp::Any AstBuilderInt::visitAnnotation_declaration(PSSParser::Annotation_d
 
 antlrcpp::Any AstBuilderInt::visitAnnotation_body_compile_if(PSSParser::Annotation_body_compile_ifContext *ctx) {
     int64_t cond = 0;
+    checkCompileIfBranches(ctx->true_body, ctx->false_body);
     if (evalConstantExpression(ctx->cond, cond) && cond) {
         visitCompileIfItem(ctx->true_body);
     } else if (ctx->false_body) {
@@ -443,48 +445,34 @@ antlrcpp::Any AstBuilderInt::visitAnnotation(PSSParser::AnnotationContext *ctx) 
         mkTypeId(ctx->type_identifier()));
     setLoc(annotation, ctx->start);
 
-    if (ctx->annotation_parameter_list()) {
-        if (ctx->annotation_parameter_list()->annotation_positional_parameter_list()) {
-            std::vector<PSSParser::ExpressionContext *> exprs =
-                ctx->annotation_parameter_list()->annotation_positional_parameter_list()->expression();
-            for (std::vector<PSSParser::ExpressionContext *>::const_iterator
-                it=exprs.begin();
-                it!=exprs.end(); it++) {
-                { ast::IAnnotationParam *param = m_factory->mkAnnotationParam(mkExpr(*it));
-                annotation->getParameters().push_back(ast::IAnnotationParamUP(param)); }
-            }
-        } else if (ctx->annotation_parameter_list()->annotation_namemapped_parameter_list()) {
-            std::vector<PSSParser::Annotation_namemapped_parameter_elemContext *> elems =
-                ctx->annotation_parameter_list()->annotation_namemapped_parameter_list()->annotation_namemapped_parameter_elem();
-            for (std::vector<PSSParser::Annotation_namemapped_parameter_elemContext *>::const_iterator
-                it=elems.begin();
-                it!=elems.end(); it++) {
-                { ast::IAnnotationParam *param = m_factory->mkAnnotationParam(
-                        mkExpr((*it)->expression()));
-                    param->setName(mkId((*it)->identifier()));
-                    annotation->getParameters().push_back(ast::IAnnotationParamUP(param)); }
-            }
-        } else if (ctx->annotation_parameter_list()->annotation_mixed_parameter_list()) {
-            // Positional params first
-            std::vector<PSSParser::ExpressionContext *> exprs =
-                ctx->annotation_parameter_list()->annotation_mixed_parameter_list()->expression();
-            for (auto *expr : exprs) {
-                ast::IAnnotationParam *param = m_factory->mkAnnotationParam(mkExpr(expr));
-                annotation->getParameters().push_back(ast::IAnnotationParamUP(param));
-            }
-            // Named params after
-            std::vector<PSSParser::Annotation_namemapped_parameter_elemContext *> elems =
-                ctx->annotation_parameter_list()->annotation_mixed_parameter_list()->annotation_namemapped_parameter_elem();
-            for (auto *elem : elems) {
-                ast::IAnnotationParam *param = m_factory->mkAnnotationParam(
-                    mkExpr(elem->expression()));
-                param->setName(mkId(elem->identifier()));
-                annotation->getParameters().push_back(ast::IAnnotationParamUP(param));
-            }
+    if (ctx->annotation_params_list()) {
+        for (auto *item : ctx->annotation_params_list()->annotation_param_item()) {
+            ast::IAnnotationParam *param = m_factory->mkAnnotationParam(
+                mkId(item->identifier()),
+                mkExpr(item->constant_expression()->expression()));
+            setLoc(param, item->start);
+            annotation->getParameters().push_back(ast::IAnnotationParamUP(param));
         }
     }
 
-    m_pending_annotations.push_back(annotation);
+    // pyastbuilder leaves non-ctor `bool` members uninitialized (the generated
+    // Annotation ctor initializes only m_type), so this must be set on both
+    // paths rather than only when the flag is true.
+    annotation->setIs_standalone(ctx->is_standalone != nullptr);
+
+    if (ctx->is_standalone) {
+        // §7.13: a standalone annotation is anchored at its lexical location in
+        // the enclosing scope. It never attaches to a following element, so it
+        // must not enter the pending list -- otherwise it would both steal the
+        // next declaration's annotation slot and suppress the dangling-
+        // annotation diagnostic below.
+        addChild(annotation, ctx->start);
+    } else {
+        if (m_pending_annotations.empty()) {
+            m_pending_annotation_tok = ctx->start;
+        }
+        m_pending_annotations.push_back(annotation);
+    }
 
     DEBUG_LEAVE("visitAnnotation");
     return 0;
@@ -665,6 +653,7 @@ antlrcpp::Any AstBuilderInt::visitActivity_declaration(PSSParser::Activity_decla
 
 antlrcpp::Any AstBuilderInt::visitAction_body_compile_if(PSSParser::Action_body_compile_ifContext *ctx) {
     int64_t cond = 0;
+    checkCompileIfBranches(ctx->true_body, ctx->false_body);
     if (evalConstantExpression(ctx->cond, cond) && cond) {
         visitCompileIfItem(ctx->true_body);
     } else if (ctx->false_body) {
@@ -684,11 +673,7 @@ antlrcpp::Any AstBuilderInt::visitFlow_ref_field_declaration(PSSParser::Flow_ref
 
 		type = mkDataTypeUserDefined(ctx->flow_object_type()->type_identifier());
 
-		if ((*it)->array_dim()) {
-		    ast::IExpr *array_dim = 0;
-			array_dim = mkExpr((*it)->array_dim()->constant_expression()->expression());
-            type = mkDataTypeArray(type, array_dim);
-		}
+		type = applyArrayDims(type, (*it)->array_dim());
 
 		ast::IFieldRef *field = m_factory->mkFieldRef(
 			mkId((*it)->identifier()),
@@ -712,11 +697,7 @@ antlrcpp::Any AstBuilderInt::visitResource_ref_field_declaration(PSSParser::Reso
 		ast::IDataTypeUserDefined *type = mkDataTypeUserDefined(
 			ctx->resource_object_type()->resource_type_identifier()->type_identifier());
 
-		if ((*it)->array_dim()) {
-		    ast::IExpr *array_dim = 0;
-			array_dim = mkExpr((*it)->array_dim()->constant_expression()->expression());
-            type = mkDataTypeArray(type, array_dim);
-		}
+		type = applyArrayDims(type, (*it)->array_dim());
 
 		ast::IFieldClaim *field = m_factory->mkFieldClaim(
 			mkId((*it)->identifier()),
@@ -855,14 +836,8 @@ antlrcpp::Any AstBuilderInt::visitAction_handle_declaration(PSSParser::Action_ha
         if ((*it)->action_handle_array_instance()) {
             name = mkId((*it)->action_handle_array_instance()->action_identifier()->identifier());
             name_tok = (*it)->action_handle_array_instance()->action_identifier()->start;
-            std::vector<PSSParser::Array_dimContext *> dims = (*it)->action_handle_array_instance()->array_dim();
-            for (std::vector<PSSParser::Array_dimContext *>::reverse_iterator
-                dim_it=dims.rbegin();
-                dim_it!=dims.rend(); dim_it++) {
-                type = mkDataTypeArray(
-                    type,
-                    mkExpr((*dim_it)->constant_expression()->expression()));
-            }
+            type = applyArrayDims(
+                type, (*it)->action_handle_array_instance()->array_dim());
         } else {
             name = mkId((*it)->action_handle_single_instance()->action_identifier()->identifier());
             name_tok = (*it)->action_handle_single_instance()->action_identifier()->start;
@@ -964,6 +939,7 @@ antlrcpp::Any AstBuilderInt::visitStruct_declaration(PSSParser::Struct_declarati
 
 antlrcpp::Any AstBuilderInt::visitStruct_body_compile_if(PSSParser::Struct_body_compile_ifContext *ctx) {
     int64_t cond = 0;
+    checkCompileIfBranches(ctx->true_body, ctx->false_body);
     if (evalConstantExpression(ctx->cond, cond) && cond) {
         visitCompileIfItem(ctx->true_body);
     } else if (ctx->false_body) {
@@ -974,6 +950,9 @@ antlrcpp::Any AstBuilderInt::visitStruct_body_compile_if(PSSParser::Struct_body_
 
 antlrcpp::Any AstBuilderInt::visitMonitor_body_compile_if(PSSParser::Monitor_body_compile_ifContext *ctx) {
     int64_t cond = 0;
+    checkCompileIfBranches(
+        ctx->monitor_body_compile_if_item(0),
+        ctx->monitor_body_compile_if_item().size() > 1 ? ctx->monitor_body_compile_if_item(1) : nullptr);
     if (evalConstantExpression(ctx->constant_expression(), cond) && cond) {
         visitCompileIfItem(ctx->monitor_body_compile_if_item(0));
     } else if (ctx->monitor_body_compile_if_item().size() > 1) {
@@ -996,7 +975,8 @@ static std::map<std::string, ast::ExecKind> exec_kind_m = {
     { "init_down", ast::ExecKind::ExecKind_InitDown },
     { "init_up", ast::ExecKind::ExecKind_InitUp },
     { "pre_solve", ast::ExecKind::ExecKind_PreSolve },
-    { "post_solve", ast::ExecKind::ExecKind_PostSolve }
+    { "post_solve", ast::ExecKind::ExecKind_PostSolve },
+    { "pre_body", ast::ExecKind::ExecKind_PreBody }
 };
 
 antlrcpp::Any AstBuilderInt::visitExec_block(PSSParser::Exec_blockContext *ctx) {
@@ -1017,7 +997,7 @@ antlrcpp::Any AstBuilderInt::visitExec_block(PSSParser::Exec_blockContext *ctx) 
                 "unknown exec-block kind \"%s\" specified. Expect one of ", 
                 ctx->exec_kind()->identifier()->getText().c_str());
             msg = tmp;
-            msg += "(body, header, declaration, run_start, run_end, init, init_down, init_up, pre_solve, post_solve)";
+            msg += "(body, header, declaration, run_start, run_end, init, init_down, init_up, pre_solve, post_solve, pre_body)";
 
 		    Marker m(
 				msg,
@@ -1048,16 +1028,128 @@ antlrcpp::Any AstBuilderInt::visitExec_block(PSSParser::Exec_blockContext *ctx) 
     return 0;
 }
 
+/**
+ * Exec kinds that may carry a tag (20.5.4).
+ *
+ * A tag exists to let a generator coalesce equivalent emitted code, so it is
+ * meaningful only where the code is emitted once per *type*. `body` runs per
+ * traversal and the solve execs run during solving, so neither can be
+ * deduplicated this way.
+ */
+static bool execKindAcceptsTag(ast::ExecKind kind) {
+    switch (kind) {
+        case ast::ExecKind::ExecKind_Header:
+        case ast::ExecKind::ExecKind_Declaration:
+        case ast::ExecKind::ExecKind_RunStart:
+        case ast::ExecKind::ExecKind_RunEnd:
+        case ast::ExecKind::ExecKind_File:
+            return true;
+        default:
+            return false;
+    }
+}
+
+ast::IExecBlockTag *AstBuilderInt::mkExecBlockTag(
+        PSSParser::Exec_block_tagContext *ctx) {
+    if (!ctx) {
+        return 0;
+    }
+    ast::IExecBlockTag *tag = m_factory->mkExecBlockTag(mkTypeId(ctx->type_identifier()));
+    setLoc(tag, ctx->start);
+
+    if (ctx->struct_literal()) {
+        ctx->struct_literal()->accept(this);
+        tag->setLiteral(dynamic_cast<ast::IExprAggrStruct *>(m_expr));
+        m_expr = 0;
+    }
+
+    return tag;
+}
+
+/**
+ * Report a tag written on an exec kind that does not accept one.
+ *
+ * The restriction is semantic, not grammatical -- the tag is spelled the same
+ * way everywhere -- but it needs nothing beyond the exec kind, which is known
+ * here, so there is no reason to defer it to the linker.
+ */
+void AstBuilderInt::checkExecBlockTagPlacement(
+        PSSParser::Exec_block_tagContext *tag_ctx,
+        ast::ExecKind                     kind,
+        const std::string                &kind_s) {
+    if (!tag_ctx || execKindAcceptsTag(kind) || !m_marker_l) {
+        return;
+    }
+    char tmp[1024];
+    snprintf(tmp, sizeof(tmp),
+        "exec block tag is not permitted on '%s' exec blocks",
+        kind_s.c_str());
+
+    ast::Location loc;
+    loc.fileid = m_file_id;
+    loc.lineno = (int32_t)tag_ctx->start->getLine();
+    loc.linepos = (int32_t)tag_ctx->start->getCharPositionInLine()+1;
+
+    Marker m(tmp, MarkerSeverityE::Error, loc);
+    m_marker_l->marker(&m);
+}
+
+/** Strip the quoting from a string_literal's text. */
+static std::string execTemplateText(PSSParser::String_literalContext *ctx) {
+    if (ctx->DOUBLE_QUOTED_STRING()) {
+        std::string value = ctx->DOUBLE_QUOTED_STRING()->getText();
+        return value.substr(1, value.size()-2);
+    } else {
+        std::string value = ctx->TRIPLE_DOUBLE_QUOTED_STRING()->getText();
+        return value.substr(3, value.size()-6);
+    }
+}
+
 antlrcpp::Any AstBuilderInt::visitTarget_code_exec_block(PSSParser::Target_code_exec_blockContext *ctx) {
     DEBUG_ENTER("visitTarget_code_exec_block");
-    DEBUG("TODO: visitTarget_code_exec_block");
+
+    std::string kind_s = ctx->exec_kind()->identifier()->getText();
+    std::map<std::string, ast::ExecKind>::const_iterator kind_it =
+        exec_kind_m.find(kind_s);
+    ast::ExecKind kind = (kind_it != exec_kind_m.end())?
+        kind_it->second:ast::ExecKind::ExecKind_Body;
+
+    checkExecBlockTagPlacement(ctx->exec_block_tag(), kind, kind_s);
+
+    // NOTE: `parameters` is left empty. Extracting the `{{expr}}` substitutions
+    // out of the template body means sub-parsing its content, which is Phase 5
+    // work (P5-I1). Until then the raw template text is preserved verbatim in
+    // `data` -- previously this whole construct was parsed and discarded.
+    ast::IExecTargetTemplateBlock *exec = m_factory->mkExecTargetTemplateBlock(
+        kind,
+        execTemplateText(ctx->string_literal()));
+    exec->setLanguage(ctx->language_identifier()->identifier()->getText());
+    exec->setTag(mkExecBlockTag(ctx->exec_block_tag()));
+
+    addChild(exec, ctx->start);
+
     DEBUG_LEAVE("visitTarget_code_exec_block");
     return 0;
 }
 
 antlrcpp::Any AstBuilderInt::visitTarget_file_exec_block(PSSParser::Target_file_exec_blockContext *ctx) {
     DEBUG_ENTER("visitTarget_file_exec_block");
-    DEBUG("TODO: visitTarget_file_exec_block");
+
+    // `exec file` has no exec_kind of its own; ExecKind_File stands in so that
+    // downstream code has a single discriminator to switch on.
+    checkExecBlockTagPlacement(
+        ctx->exec_block_tag(), ast::ExecKind::ExecKind_File, "file");
+
+    ast::IExecTargetTemplateBlock *exec = m_factory->mkExecTargetTemplateBlock(
+        ast::ExecKind::ExecKind_File,
+        execTemplateText(ctx->string_literal()));
+
+    std::string filename = ctx->filename_string()->getText();
+    exec->setFilename(filename.substr(1, filename.size()-2));
+    exec->setTag(mkExecBlockTag(ctx->exec_block_tag()));
+
+    addChild(exec, ctx->start);
+
     DEBUG_LEAVE("visitTarget_file_exec_block");
     return 0;
 }
@@ -1095,19 +1187,13 @@ antlrcpp::Any AstBuilderInt::visitProcedural_function(PSSParser::Procedural_func
         }
     }
 
+    // The qualifier goes through mkFunctionPrototype rather than being applied
+    // afterwards: the old if/else recorded only `target` for `target solve`.
     ast::IFunctionDefinition *func = m_factory->mkFunctionDefinition(
-        mkFunctionPrototype(ctx->function_prototype()),
+        mkFunctionPrototype(ctx->function_prototype(), ctx->platform_qualifier()),
         body,
         platqual
     );
-
-    if (ctx->platform_qualifier()) {
-        if (ctx->platform_qualifier()->TOK_TARGET()) {
-            func->getProto()->setIs_target(true);
-        } else {
-            func->getProto()->setIs_solve(true);
-        }
-    }
 
     addChild(func, ctx->start);
     DEBUG_LEAVE("visitProcedural_function");
@@ -1116,7 +1202,9 @@ antlrcpp::Any AstBuilderInt::visitProcedural_function(PSSParser::Procedural_func
 
 antlrcpp::Any AstBuilderInt::visitFunction_decl(PSSParser::Function_declContext *ctx) {
     DEBUG_ENTER("visitFunction_decl");
-    ast::IFunctionPrototype *proto = mkFunctionPrototype(ctx->function_prototype());
+    ast::IFunctionPrototype *proto = mkFunctionPrototype(
+        ctx->function_prototype(),
+        ctx->platform_qualifier());
     addChild(proto, ctx->start);
     DEBUG_LEAVE("visitFunction_decl");
     return 0;
@@ -1148,7 +1236,7 @@ antlrcpp::Any AstBuilderInt::visitImport_function(PSSParser::Import_functionCont
         ast::IFunctionImportProto *func = m_factory->mkFunctionImportProto(
             platqual,
             "",
-            mkFunctionPrototype(ctx->function_prototype())
+            mkFunctionPrototype(ctx->function_prototype(), ctx->platform_qualifier())
             );
 
 
@@ -1521,11 +1609,8 @@ antlrcpp::Any AstBuilderInt::visitProcedural_data_declaration(PSSParser::Procedu
         ast::IExprId *name = mkId((*it)->identifier());
         ast::IExpr *init = ((*it)->expression())?mkExpr((*it)->expression()):0;
 
-        if ((*it)->array_dim()) {
-            ast::IExpr *array_dim = 0;
-            array_dim = mkExpr((*it)->array_dim()->constant_expression()->expression());
-            type = mkDataTypeArray(type, array_dim);
-        }
+        type = applyArrayDims(type, (*it)->array_dim());
+
         ast::IProceduralStmtDataDeclaration *decl = m_factory->mkProceduralStmtDataDeclaration(
             name,
             type,
@@ -1663,6 +1748,7 @@ antlrcpp::Any AstBuilderInt::visitComponent_declaration(PSSParser::Component_dec
 
 antlrcpp::Any AstBuilderInt::visitComponent_body_compile_if(PSSParser::Component_body_compile_ifContext *ctx) {
     int64_t cond = 0;
+    checkCompileIfBranches(ctx->true_body, ctx->false_body);
     if (evalConstantExpression(ctx->cond, cond) && cond) {
         visitCompileIfItem(ctx->true_body);
     } else if (ctx->false_body) {
@@ -1691,6 +1777,9 @@ antlrcpp::Any AstBuilderInt::visitComponent_data_declaration(PSSParser::Componen
         }
         if (ctx->is_instance) {
             attr |= FieldAttr::Instance;
+        }
+        if (ctx->is_mutable) {
+            attr |= FieldAttr::Mutable;
         }
 
         (*it)->setAttr(attr);
@@ -2274,17 +2363,43 @@ antlrcpp::Any AstBuilderInt::visitActivity_foreach_stmt(PSSParser::Activity_fore
 
 	ast::IExprId *it_id  = ctx->it_id  ? mkId(ctx->it_id->identifier())  : nullptr;
 	ast::IExprId *idx_id = ctx->idx_id ? mkId(ctx->idx_id->identifier()) : nullptr;
-	ast::IExprRefPathContext *target = nullptr;
 
-	// The foreach target is a simple field identifier (e.g. `count`). Use the
-	// labeled `target=identifier` grammar token (not a general expression) so
-	// the optional [idx_id] subscript is NOT consumed by expression parsing.
-	{
-		ast::IExprHierarchicalId *hid = m_factory->mkExprHierarchicalId();
-		ast::IExprMemberPathElem *elem = m_factory->mkExprMemberPathElem(
-			mkId(ctx->target), 0);
-		hid->getElems().push_back(ast::IExprMemberPathElemUP(elem));
-		target = m_factory->mkExprRefPathContext(hid);
+	// B.9: the traversal target is an `expression`, not a bare identifier, so
+	// `foreach (a.b[0].c)` is legal. Every conforming target is a reference to
+	// a collection, which is what ExprRefPathContext models.
+	ast::IExpr *target_e = mkExpr(ctx->expression());
+	ast::IExprRefPathContext *target =
+		dynamic_cast<ast::IExprRefPathContext *>(target_e);
+
+	if (!target) {
+		ast::Location loc;
+		loc.fileid = m_file_id;
+		loc.lineno = ctx->expression()->start->getLine();
+		loc.linepos = ctx->expression()->start->getCharPositionInLine()+1;
+		loc.extent = ctx->expression()->getText().size();
+		Marker m(
+			"foreach traversal target must be a reference to a collection",
+			MarkerSeverityE::Error,
+			loc);
+		if (m_marker_l) { m_marker_l->marker(&m); }
+	} else if (!idx_id) {
+		// Expressions are greedy, so `foreach (a[i])` parses the index variable
+		// as a subscript of `a` rather than matching the optional [idx_id].
+		// Lift a trailing single-identifier subscript back out. This mirrors
+		// visitForeach_constraint_item, which has the same grammar shape.
+		std::vector<ast::IExprUP> &subscript =
+			target->getHier_id()->getElems().back()->getSubscript();
+		if (subscript.size()) {
+			ast::IExprRefPathContext *sub_c =
+				dynamic_cast<ast::IExprRefPathContext *>(subscript.back().get());
+			if (sub_c && sub_c->getHier_id()->getElems().size() == 1 &&
+				!sub_c->getHier_id()->getElems().back()->getSubscript().size()) {
+				ast::IExprId *idx = sub_c->getHier_id()->getElems().back()->getId();
+				idx_id = m_factory->mkExprId(idx->getId(), idx->getIs_escaped());
+				idx_id->setLocation(idx->getLocation());
+				subscript.pop_back();
+			}
+		}
 	}
 
 	ast::IScopeChild *body = mkActivityStmt(ctx->activity_stmt_ann());
@@ -2294,9 +2409,12 @@ antlrcpp::Any AstBuilderInt::visitActivity_foreach_stmt(PSSParser::Activity_fore
 
 	// Register iterator and index variables as synthetic fields in the body scope
 	// so `with` constraints inside the loop body can reference them by name.
+	// Use the resolved it_id/idx_id nodes rather than the parse context: idx_id
+	// may have been lifted out of a greedy subscript above, in which case
+	// ctx->idx_id is null but the loop still declares an index variable.
 	if (auto *body_scope = dynamic_cast<ast::ISymbolScope*>(body)) {
-		if (ctx->it_id)  addSyntheticIntField(body_scope, ctx->it_id->identifier()->getText());
-		if (ctx->idx_id) addSyntheticIntField(body_scope, ctx->idx_id->identifier()->getText());
+		if (it_id)  addSyntheticIntField(body_scope, it_id->getId());
+		if (idx_id) addSyntheticIntField(body_scope, idx_id->getId());
 	}
 
 	ast::IActivityForeach *fe = m_factory->mkActivityForeach(it_id, idx_id, target, body);
@@ -2325,13 +2443,7 @@ antlrcpp::Any AstBuilderInt::visitData_declaration(PSSParser::Data_declarationCo
 		ast::IDataType *type = mkDataType(ctx->data_type());
 		ast::IExpr *init = 0;
 
-		if (!(*it)->array_dim().empty()) {
-		    // Convert the type to array<type,expr> for each dimension
-		    for (auto *dim : (*it)->array_dim()) {
-		        ast::IExpr *array_dim = mkExpr(dim->constant_expression()->expression());
-		        type = mkDataTypeArray(type, array_dim);
-		    }
-		}
+		type = applyArrayDims(type, (*it)->array_dim());
 
 		if ((*it)->constant_expression()) {
 			init = mkExpr((*it)->constant_expression()->expression());
@@ -2449,6 +2561,13 @@ antlrcpp::Any AstBuilderInt::visitBool_type(PSSParser::Bool_typeContext *ctx) {
 	return 0;
 }
 
+antlrcpp::Any AstBuilderInt::visitFloat_type(PSSParser::Float_typeContext *ctx) {
+	DEBUG_ENTER("visitFloat_type");
+	m_type = m_factory->mkDataTypeFloat(ctx->TOK_FLOAT64() != nullptr);
+	DEBUG_LEAVE("visitFloat_type");
+	return 0;
+}
+
 antlrcpp::Any AstBuilderInt::visitEnum_type(PSSParser::Enum_typeContext *ctx) {
 	DEBUG_ENTER("visitEnum_type");
 
@@ -2483,6 +2602,10 @@ antlrcpp::Any AstBuilderInt::visitEnum_declaration(PSSParser::Enum_declarationCo
 	DEBUG_ENTER("visitEnum_declaration");
 
 	ast::IEnumDecl *decl = m_factory->mkEnumDecl(mkId(ctx->enum_identifier()->identifier()));
+
+	if (ctx->base_type) {
+		decl->setBase_type(mkDataType(ctx->base_type));
+	}
 
 	std::vector<PSSParser::Enum_itemContext *> items = ctx->enum_item();
 	for (std::vector<PSSParser::Enum_itemContext *>::const_iterator
@@ -2535,11 +2658,11 @@ antlrcpp::Any AstBuilderInt::visitTypedef_declaration(PSSParser::Typedef_declara
 		type = mkDataType(ctx->data_type());
 	}
 
+	// B.13: the declared name is an `identifier`, not a `type_identifier` --
+	// `typedef int a::b;` is not legal PSS.
 	ast::IExprId *name = 0;
-	if (ctx->type_identifier() &&
-		!ctx->type_identifier()->type_identifier_elem().empty()) {
-		name = mkId(
-			ctx->type_identifier()->type_identifier_elem(0)->identifier());
+	if (ctx->identifier()) {
+		name = mkId(ctx->identifier());
 	}
 
 	if (name) {
@@ -2712,6 +2835,7 @@ antlrcpp::Any AstBuilderInt::visitConstraint_block(PSSParser::Constraint_blockCo
         scope->setIndex(m_constraint_s.back()->getConstraints().size());
 		m_constraint_s.back()->getConstraints().push_back(ast::IConstraintStmtUP(scope));
 	}
+	attachPendingAnnotations(scope);
 
 	DEBUG_LEAVE("visitConstraint_block (%d)", m_constraint_s.size());
 	return 0;
@@ -2719,6 +2843,9 @@ antlrcpp::Any AstBuilderInt::visitConstraint_block(PSSParser::Constraint_blockCo
 
 antlrcpp::Any AstBuilderInt::visitConstraint_body_compile_if(PSSParser::Constraint_body_compile_ifContext *ctx) {
     int64_t cond = 0;
+    checkCompileIfBranches(
+        ctx->constraint_body_compile_if_item(0),
+        ctx->constraint_body_compile_if_item().size() > 1 ? ctx->constraint_body_compile_if_item(1) : nullptr);
     if (evalConstantExpression(ctx->constant_expression(), cond) && cond) {
         visitCompileIfItem(ctx->constraint_body_compile_if_item(0));
     } else if (ctx->constraint_body_compile_if_item().size() > 1) {
@@ -2750,12 +2877,16 @@ antlrcpp::Any AstBuilderInt::visitExpression_constraint_item(PSSParser::Expressi
         c->setIndex(m_constraint_s.back()->getConstraints().size());
 		m_constraint_s.back()->getConstraints().push_back(ast::IConstraintStmtUP(c));
 	}
+	attachPendingAnnotations(c);
 	DEBUG_LEAVE("visitExpression_constraint_item");
 	return 0;
 }
 
 antlrcpp::Any AstBuilderInt::visitProcedural_compile_if(PSSParser::Procedural_compile_ifContext *ctx) {
     int64_t cond = 0;
+    checkCompileIfBranches(
+        ctx->procedural_compile_if_stmt(0),
+        ctx->procedural_compile_if_stmt().size() > 1 ? ctx->procedural_compile_if_stmt(1) : nullptr);
     if (evalConstantExpression(ctx->constant_expression(), cond) && cond) {
         visitCompileIfItem(ctx->procedural_compile_if_stmt(0));
     } else if (ctx->procedural_compile_if_stmt().size() > 1) {
@@ -2766,6 +2897,9 @@ antlrcpp::Any AstBuilderInt::visitProcedural_compile_if(PSSParser::Procedural_co
 
 antlrcpp::Any AstBuilderInt::visitCovergroup_body_compile_if(PSSParser::Covergroup_body_compile_ifContext *ctx) {
     int64_t cond = 0;
+    checkCompileIfBranches(
+        ctx->covergroup_body_compile_if_item(0),
+        ctx->covergroup_body_compile_if_item().size() > 1 ? ctx->covergroup_body_compile_if_item(1) : nullptr);
     if (evalConstantExpression(ctx->constant_expression(), cond) && cond) {
         visitCompileIfItem(ctx->covergroup_body_compile_if_item(0));
     } else if (ctx->covergroup_body_compile_if_item().size() > 1) {
@@ -2774,8 +2908,34 @@ antlrcpp::Any AstBuilderInt::visitCovergroup_body_compile_if(PSSParser::Covergro
     return 0;
 }
 
+// B.10/B.15 make `annotation` an alternative of override_stmt and
+// covergroup_body_item, so the grammar must accept it. Neither construct is
+// represented in the AST yet -- there is no visitType_override /
+// visitInstance_override, and covergroup body items are only walked (partially)
+// by visitInline_covergroup -- so an annotation here has no model element to
+// attach to for reasons that have nothing to do with the source. Drop it rather
+// than letting it reach pop_scope and be reported as dangling (PSS100), which
+// would reject conforming 3.1 code. Remove these two overrides once the
+// constructs themselves are built.
+antlrcpp::Any AstBuilderInt::visitOverride_stmt(PSSParser::Override_stmtContext *ctx) {
+    size_t mark = m_pending_annotations.size();
+    visitChildren(ctx);
+    discardPendingAnnotations(mark);
+    return 0;
+}
+
+antlrcpp::Any AstBuilderInt::visitCovergroup_body_item(PSSParser::Covergroup_body_itemContext *ctx) {
+    size_t mark = m_pending_annotations.size();
+    visitChildren(ctx);
+    discardPendingAnnotations(mark);
+    return 0;
+}
+
 antlrcpp::Any AstBuilderInt::visitOverride_compile_if(PSSParser::Override_compile_ifContext *ctx) {
     int64_t cond = 0;
+    checkCompileIfBranches(
+        ctx->override_compile_if_stmt(0),
+        ctx->override_compile_if_stmt().size() > 1 ? ctx->override_compile_if_stmt(1) : nullptr);
     if (evalConstantExpression(ctx->constant_expression(), cond) && cond) {
         visitCompileIfItem(ctx->override_compile_if_stmt(0));
     } else if (ctx->override_compile_if_stmt().size() > 1) {
@@ -2860,6 +3020,7 @@ antlrcpp::Any AstBuilderInt::visitForeach_constraint_item(PSSParser::Foreach_con
         c->setIndex(m_constraint_s.back()->getConstraints().size());
 		m_constraint_s.back()->getConstraints().push_back(ast::IConstraintStmtUP(c));
 	}
+	attachPendingAnnotations(c);
 	DEBUG_LEAVE("visitForeach_constraint_item");
 	return 0;
 }
@@ -2907,6 +3068,7 @@ antlrcpp::Any AstBuilderInt::visitForall_constraint_item(PSSParser::Forall_const
 		c->setIndex(m_constraint_s.back()->getConstraints().size());
 		m_constraint_s.back()->getConstraints().push_back(ast::IConstraintStmtUP(c));
 	}
+	attachPendingAnnotations(c);
 
 	DEBUG_LEAVE("visitForall_constraint_item");
 	return 0;
@@ -2941,6 +3103,7 @@ antlrcpp::Any AstBuilderInt::visitIf_constraint_item(PSSParser::If_constraint_it
 		m_constraint_s.back()->getConstraints().push_back(
 			IConstraintStmtUP(c));
 	}
+	attachPendingAnnotations(c);
 
 	DEBUG_LEAVE("visitIf_constraint_item");
 	return 0;
@@ -2959,6 +3122,7 @@ antlrcpp::Any AstBuilderInt::visitImplication_constraint_item(PSSParser::Implica
         c->setIndex(m_constraint_s.back()->getConstraints().size());
 		m_constraint_s.back()->getConstraints().push_back(ast::IConstraintStmtUP(c));
 	}
+	attachPendingAnnotations(c);
 
 	DEBUG_LEAVE("visitImplication_constraint_item");
 	return 0;
@@ -2967,23 +3131,91 @@ antlrcpp::Any AstBuilderInt::visitImplication_constraint_item(PSSParser::Implica
 antlrcpp::Any AstBuilderInt::visitUnique_constraint_item(PSSParser::Unique_constraint_itemContext *ctx) {
 	DEBUG_ENTER("visitUnique_constraint_item");
 	ast::IConstraintStmtUnique *c = m_factory->mkConstraintStmtUnique();
+	setLoc(c, ctx->start);
 
-	std::vector<PSSParser::Hierarchical_idContext *> items = 
-		ctx->hierarchical_id_list()->hierarchical_id();
-	
-	for (std::vector<PSSParser::Hierarchical_idContext *>::const_iterator
-		it=items.begin();
-		it!=items.end(); it++) {
-		ast::IExprHierarchicalId *hid = mkHierarchicalId(*it);
-		c->getList().push_back(ast::IExprHierarchicalIdUP(hid));
+	PSSParser::Unique_constraint_argumentContext *arg = ctx->unique_constraint_argument();
+
+	if (arg->hierarchical_id_list()) {
+		c->setIs_braced(true);
+
+		std::vector<PSSParser::Hierarchical_idContext *> items =
+			arg->hierarchical_id_list()->hierarchical_id();
+
+		for (std::vector<PSSParser::Hierarchical_idContext *>::const_iterator
+			it=items.begin();
+			it!=items.end(); it++) {
+			ast::IExprHierarchicalId *hid = mkHierarchicalId(*it);
+			c->getList().push_back(ast::IExprHierarchicalIdUP(hid));
+		}
+	} else {
+		// Single-argument form (3.1). A slice, if written, is already part of
+		// the hierarchical_id -- see the grammar comment on
+		// unique_constraint_argument.
+		c->setIs_braced(false);
+		c->getList().push_back(ast::IExprHierarchicalIdUP(
+			mkHierarchicalId(arg->hierarchical_id())));
 	}
 
 	if (m_constraint_s.size() > 0) {
 		c->setIndex(m_constraint_s.back()->getConstraints().size());
 		m_constraint_s.back()->getConstraints().push_back(ast::IConstraintStmtUP(c));
 	}
+	attachPendingAnnotations(c);
 
 	DEBUG_LEAVE("visitUnique_constraint_item");
+	return 0;
+}
+
+antlrcpp::Any AstBuilderInt::visitSoft_constraint_item(PSSParser::Soft_constraint_itemContext *ctx) {
+	DEBUG_ENTER("visitSoft_constraint_item");
+	ast::IConstraintStmtSoft *c = m_factory->mkConstraintStmtSoft(
+		mkExpr(ctx->expression()));
+	setLoc(c, ctx->start);
+
+	// `index` is what a downstream solver derives soft-constraint priority
+	// from (13.1.12), so it must reflect source order exactly.
+	if (m_constraint_s.size() > 0) {
+		c->setIndex(m_constraint_s.back()->getConstraints().size());
+		m_constraint_s.back()->getConstraints().push_back(ast::IConstraintStmtUP(c));
+	}
+	attachPendingAnnotations(c);
+
+	DEBUG_LEAVE("visitSoft_constraint_item");
+	return 0;
+}
+
+antlrcpp::Any AstBuilderInt::visitDist_directive(PSSParser::Dist_directiveContext *ctx) {
+	DEBUG_ENTER("visitDist_directive");
+	ast::IExpr *lhs = mkExpr(ctx->expression());
+	ast::IConstraintStmtDist *c = m_factory->mkConstraintStmtDist(lhs);
+
+	for (auto *item : ctx->dist_list()->dist_item()) {
+		PSSParser::Open_range_valueContext *rv = item->open_range_value();
+		ast::IExpr *rlhs = rv->lhs ? mkExpr(rv->lhs) : nullptr;
+		ast::IExpr *rrhs = rv->rhs ? mkExpr(rv->rhs) : nullptr;
+		ast::IExprOpenRangeValue *range =
+			m_factory->mkExprOpenRangeValue(rlhs, rrhs);
+
+		// The weight is optional; absent means the default weight of 1.
+		ast::IDistWeight *weight = nullptr;
+		if (item->dist_weight()) {
+			PSSParser::Dist_weightContext *w = item->dist_weight();
+			weight = m_factory->mkDistWeight(
+				w->TOK_COLON_DIV() != nullptr,
+				mkExpr(w->expression()));
+		}
+
+		c->getItems().push_back(
+			ast::IDistItemUP(m_factory->mkDistItem(range, weight)));
+	}
+
+	if (m_constraint_s.size() > 0) {
+		c->setIndex(m_constraint_s.back()->getConstraints().size());
+		m_constraint_s.back()->getConstraints().push_back(ast::IConstraintStmtUP(c));
+	}
+	attachPendingAnnotations(c);
+
+	DEBUG_LEAVE("visitDist_directive");
 	return 0;
 }
 
@@ -3307,6 +3539,19 @@ antlrcpp::Any AstBuilderInt::visitNumber(PSSParser::NumberContext *ctx_t) {
             }
 
             value = strtoull(val_t.c_str(), 0, 10);
+        } else if (ctx->bin_number()) {
+            DEBUG("Unbased bin number");
+            img = ctx->bin_number()->BIN_LITERAL()->getSymbol()->getText();
+            std::string val_t;
+
+            // skip the '0b'/'0B' prefix
+            for (uint32_t i=2; i<img.size(); i++) {
+                if (img.at(i) != '_') {
+                    val_t.push_back(img.at(i));
+                }
+            }
+
+            value = strtoull(val_t.c_str(), 0, 2);
         } else if (ctx->oct_number()) {
             DEBUG("Unbased oct number");
             img = ctx->oct_number()->OCT_LITERAL()->getSymbol()->getText();
@@ -3335,7 +3580,21 @@ antlrcpp::Any AstBuilderInt::visitNumber(PSSParser::NumberContext *ctx_t) {
 
     } else { // floating-point number
         PSSParser::Floating_point_numberContext *ctx = ctx_t->floating_point_number();
-        DEBUG_ERROR("handle floating-point number");
+        std::string img = ctx->getText();
+
+        // strtod does not understand PSS digit separators, so strip them for
+        // the conversion while keeping the original spelling in the image.
+        std::string val_t;
+        for (std::string::const_iterator it=img.begin(); it!=img.end(); it++) {
+            if (*it != '_') {
+                val_t += *it;
+            }
+        }
+
+        m_expr = m_factory->mkExprFloatLiteral(
+            strtod(val_t.c_str(), 0),
+            img,
+            ctx->floating_point_sci_number() != nullptr);
     }
 
 	DEBUG_LEAVE("visitNumber");
@@ -3493,7 +3752,7 @@ void AstBuilderInt::addChild(ast::IScopeChild *c, Token *t, const ast::Location 
     }
 
 	if (m_collectDocStrings && (t || ct)) {
-		addDocstring(c, (ct)?ct:t);
+		addDocstring(c, docstringAnchor((ct)?ct:t));
 	}
     DEBUG_LEAVE("addChild (IScopeChild) %p %p", t, loc);
 }
@@ -3515,7 +3774,7 @@ void AstBuilderInt::addChild(ast::ISymbolScope *c, Token *start, Token *end) {
     // });
 
 	if (m_collectDocStrings && start) {
-		addDocstring(c, start);
+		addDocstring(c, docstringAnchor(start));
 	}
 }
 
@@ -3531,7 +3790,7 @@ void AstBuilderInt::addChild(ast::INamedScopeChild *c, Token *t) {
     });
 
 	if (m_collectDocStrings && t) {
-		addDocstring(c, t);
+		addDocstring(c, docstringAnchor(t));
 	}
 }
 
@@ -3552,7 +3811,7 @@ void AstBuilderInt::addChild(ast::IConstraintScope *c, Token *start, Token *end)
 	scope()->getChildren().push_back(ast::IScopeChildUP(c));
 
 	if (m_collectDocStrings && start) {
-		addDocstring(c, start);
+		addDocstring(c, docstringAnchor(start));
 	}
 }
 
@@ -3573,7 +3832,7 @@ void AstBuilderInt::addChild(ast::IExecScope *c, Token *start, Token *end) {
 	scope()->getChildren().push_back(ast::IScopeChildUP(c));
 
 	if (m_collectDocStrings && start) {
-		addDocstring(c, start);
+		addDocstring(c, docstringAnchor(start));
 	}
 }
 
@@ -3594,7 +3853,7 @@ void AstBuilderInt::addChild(ast::IFunctionDefinition *c, Token *start, Token *e
 	scope()->getChildren().push_back(ast::IScopeChildUP(c));
 
 	if (m_collectDocStrings && start) {
-		addDocstring(c, start);
+		addDocstring(c, docstringAnchor(start));
 	}
 }
 
@@ -3617,7 +3876,7 @@ void AstBuilderInt::addChild(ast::INamedScope *c, Token *start, Token *end) {
 	scope()->getChildren().push_back(ast::IScopeChildUP(c));
 
 	if (m_collectDocStrings && start) {
-		addDocstring(c, start);
+		addDocstring(c, docstringAnchor(start));
 	}
     DEBUG_LEAVE("addChild (INamedScope) %p %p", start, end);
 }
@@ -3639,7 +3898,7 @@ void AstBuilderInt::addChild(ast::IScope *c, Token *start, Token *end) {
 	scope()->getChildren().push_back(ast::IScopeChildUP(c));
 
 	if (m_collectDocStrings && start) {
-		addDocstring(c, start);
+		addDocstring(c, docstringAnchor(start));
 	}
 }
 
@@ -3707,8 +3966,17 @@ void AstBuilderInt::addDocstring(ast::IScopeChild *c, Token *t) {
 	DEBUG_LEAVE("addDocstring");
 }
 
+void AstBuilderInt::discardPendingAnnotations(size_t mark) {
+    while (m_pending_annotations.size() > mark) {
+        delete m_pending_annotations.back();
+        m_pending_annotations.pop_back();
+    }
+}
+
 void AstBuilderInt::attachPendingAnnotations(ast::IScopeChild *c) {
     if (!m_pending_annotations.empty()) {
+        m_attached_annotation_tok = m_pending_annotation_tok;
+        m_pending_annotation_tok = 0;
         for (std::vector<ast::IAnnotation *>::const_iterator
             it=m_pending_annotations.begin();
             it!=m_pending_annotations.end(); it++) {
@@ -3716,6 +3984,12 @@ void AstBuilderInt::attachPendingAnnotations(ast::IScopeChild *c) {
         }
         m_pending_annotations.clear();
     }
+}
+
+Token *AstBuilderInt::docstringAnchor(Token *t) {
+    Token *anchor = m_attached_annotation_tok;
+    m_attached_annotation_tok = 0;
+    return anchor ? anchor : t;
 }
 
 std::string AstBuilderInt::processDocStringMultiLineComment(
@@ -3812,14 +4086,23 @@ void AstBuilderInt::push_scope(ast::IScope *s) {
 void AstBuilderInt::pop_scope() { 
 	DEBUG("-- pop_scope");
     if (!m_pending_annotations.empty()) {
-        DEBUG("Discarding %d pending annotations at scope pop",
-            (int)m_pending_annotations.size());
+        // §7.13: an element annotation attaches to the element that follows it,
+        // and "it is an error if no subsequent element is present in the scope."
+        // These were previously discarded silently.
         for (std::vector<ast::IAnnotation *>::const_iterator
             it=m_pending_annotations.begin();
             it!=m_pending_annotations.end(); it++) {
+            if (m_marker_l) {
+                Marker m(
+                    "annotation is not attached to a model element",
+                    MarkerSeverityE::Error,
+                    (*it)->getLocation());
+                m_marker_l->marker(&m);
+            }
             delete *it;
         }
         m_pending_annotations.clear();
+        m_pending_annotation_tok = 0;
     }
 	m_scopes.pop_back(); 
 }
@@ -4080,6 +4363,43 @@ void AstBuilderInt::visitCompileIfItem(antlr4::ParserRuleContext *ctx) {
     for (auto *c : ctx->children) {
         c->accept(this);
     }
+}
+
+void AstBuilderInt::checkCompileIfBranches(
+        antlr4::ParserRuleContext *true_body,
+        antlr4::ParserRuleContext *false_body) {
+    checkCompileIfBraces(true_body);
+    checkCompileIfBraces(false_body);
+}
+
+void AstBuilderInt::checkCompileIfBraces(antlr4::ParserRuleContext *ctx) {
+    // D2: a `compile if` branch consisting of a single unbraced item remains
+    // legal, but is deprecated. Report it wherever it appears rather than only
+    // on the branch the condition selects -- the spelling is deprecated
+    // regardless of which way the condition happens to evaluate, and warning
+    // only on the taken branch would make the diagnostic come and go as
+    // unrelated configuration changed.
+    if (!ctx || !m_marker_l || ctx->children.empty()) {
+        return;
+    }
+
+    antlr4::tree::TerminalNode *first =
+        dynamic_cast<antlr4::tree::TerminalNode *>(ctx->children.front());
+    if (first && first->getSymbol()->getType() == PSSParser::TOK_LCBRACE) {
+        return;
+    }
+
+    ast::Location loc;
+    loc.fileid = m_file_id;
+    loc.lineno = ctx->start->getLine();
+    loc.linepos = ctx->start->getCharPositionInLine()+1;
+    loc.extent = ctx->getText().size();
+
+    Marker m(
+        "'compile if' branch without enclosing braces is deprecated",
+        MarkerSeverityE::Warn,
+        loc);
+    m_marker_l->marker(&m);
 }
 
 ast::IScope *AstBuilderInt::getGlobalScope(ast::IScope *s) {
@@ -4676,6 +4996,17 @@ ast::IDataTypeUserDefined *AstBuilderInt::mkDataTypeUserDefined(PSSParser::Type_
 	return ret;
 }
 
+/**
+ * Wrap `elem_t` in one `array<>` per declared dimension.
+ *
+ * Dimensions are applied **right to left**: `A a[3][2]` denotes an array of 3
+ * arrays of 2, so the rightmost dimension is the innermost wrap. §11.3.2
+ * Example87 makes this observable -- given `A a_arr[3][2]`, `a_arr[1]` is a
+ * sub-array of two handles, not an element.
+ *
+ * Applying them left to right builds the transposed type, which is wrong for
+ * every non-square declaration and silently right for square ones.
+ */
 ast::IDataTypeUserDefined *AstBuilderInt::mkDataTypeArray(
         ast::IDataType          *elem_t,
         ast::IExpr              *size) {
@@ -4786,18 +5117,44 @@ static std::map<std::string, ParamDir> param_dir_m = {
     { "output", ParamDir::ParamDir_Out},
     { "inout", ParamDir::ParamDir_InOut}
 };
+// B.13 `ref_type_category ::= action | monitor | component | object_kind`.
+// `struct` is deliberately absent: it is a *plain* category, so `ref struct`
+// is not legal 3.1 -- see plain_param_kind_m.
 static std::map<std::string, FunctionParamDeclKind> ref_param_kind_m = {
     { "action", FunctionParamDeclKind::ParamKind_RefAction },
+    { "monitor", FunctionParamDeclKind::ParamKind_RefMonitor },
     { "component", FunctionParamDeclKind::ParamKind_RefComponent },
-    { "struct", FunctionParamDeclKind::ParamKind_RefStruct },
     { "buffer", FunctionParamDeclKind::ParamKind_RefBuffer },
     { "stream", FunctionParamDeclKind::ParamKind_RefStream },
     { "state", FunctionParamDeclKind::ParamKind_RefState },
     { "resource", FunctionParamDeclKind::ParamKind_RefResource }
 };
 
+// B.13 `plain_type_category ::= struct | numeric`
+static std::map<std::string, FunctionParamDeclKind> plain_param_kind_m = {
+    { "struct", FunctionParamDeclKind::ParamKind_Struct },
+    { "numeric", FunctionParamDeclKind::ParamKind_Numeric }
+};
+
+/**
+ * Look `text` up in `m`, or return `dflt`.
+ *
+ * These maps were previously indexed with `m.find(k)->second`, which
+ * dereferences `end()` when the key is absent. Adding a category to the
+ * grammar without adding it here would then be undefined behaviour rather
+ * than a wrong-but-visible value.
+ */
+static FunctionParamDeclKind lookupParamKind(
+        const std::map<std::string, FunctionParamDeclKind> &m,
+        const std::string                                  &text,
+        FunctionParamDeclKind                               dflt) {
+    std::map<std::string, FunctionParamDeclKind>::const_iterator it = m.find(text);
+    return (it != m.end())?it->second:dflt;
+}
+
 ast::IFunctionPrototype *AstBuilderInt::mkFunctionPrototype(
-    PSSParser::Function_prototypeContext *ctx) {
+    PSSParser::Function_prototypeContext *ctx,
+    PSSParser::Platform_qualifierContext *plat) {
     DEBUG_ENTER("mkFunctionPrototype %s", toString(ctx->function_identifier()->identifier()).c_str());
     ast::IDataType *rtype = 0;
 
@@ -4805,8 +5162,10 @@ ast::IFunctionPrototype *AstBuilderInt::mkFunctionPrototype(
         rtype = mkDataType(ctx->function_return_type()->data_type());
     }
 
-    bool is_target = false;
-    bool is_solve = false;
+    // `platform_qualifier ::= target [solve] | solve`, so the two are not
+    // mutually exclusive -- `target solve function` sets both.
+    bool is_target = plat && plat->TOK_TARGET();
+    bool is_solve = plat && plat->TOK_SOLVE();
 
     ast::IFunctionPrototype *proto = m_factory->mkFunctionPrototype(
         mkId(ctx->function_identifier()->identifier()),
@@ -4833,18 +5192,24 @@ ast::IFunctionPrototype *AstBuilderInt::mkFunctionPrototype(
         ast::IDataType *type = 0;
         ast::IExpr *dflt = 0;
 
+        // The `is_type` and plain-category arms used to sit inside an
+        // `else if (va_p->is_ref)`, so they were unreachable: `type... args`
+        // -- which Annex C uses throughout for `print`, `format`, `message`
+        // and friends -- silently built a ParamKind_DataType with a null type.
         if (va_p->data_type()) {
             type = mkDataType(va_p->data_type());
+        } else if (va_p->is_type) {
+            kind = FunctionParamDeclKind::ParamKind_Type;
         } else if (va_p->is_ref) {
-            if (va_p->is_type) {
-                kind = FunctionParamDeclKind::ParamKind_Type;
-            } else if (va_p->is_ref) {
-                kind = ref_param_kind_m.find(va_p->type_category()->getText())->second;
-            } else if (va_p->is_struct) {
-                kind = FunctionParamDeclKind::ParamKind_Struct;
-            } else {
-                // TODO: should not occur
-            }
+            kind = lookupParamKind(
+                ref_param_kind_m,
+                va_p->ref_type_category()->getText(),
+                FunctionParamDeclKind::ParamKind_RefStruct);
+        } else if (va_p->plain_type_category()) {
+            kind = lookupParamKind(
+                plain_param_kind_m,
+                va_p->plain_type_category()->getText(),
+                FunctionParamDeclKind::ParamKind_Struct);
         }
 
         ast::IFunctionParamDecl *param = m_factory->mkFunctionParamDecl(
@@ -4887,11 +5252,15 @@ ast::IFunctionParamDecl *AstBuilderInt::mkFunctionParamDecl(PSSParser::Function_
         if (ctx->is_type) {
             kind = FunctionParamDeclKind::ParamKind_Type;
         } else if (ctx->is_ref) {
-            kind = ref_param_kind_m.find(ctx->type_category()->getText())->second;
-        } else if (ctx->is_struct) {
-            kind = FunctionParamDeclKind::ParamKind_Struct;
-        } else {
-            // TODO: should not occur
+            kind = lookupParamKind(
+                ref_param_kind_m,
+                ctx->ref_type_category()->getText(),
+                FunctionParamDeclKind::ParamKind_RefStruct);
+        } else if (ctx->plain_type_category()) {
+            kind = lookupParamKind(
+                plain_param_kind_m,
+                ctx->plain_type_category()->getText(),
+                FunctionParamDeclKind::ParamKind_Struct);
         }
     }
 
@@ -5035,10 +5404,41 @@ ast::IExprMemberPathElem *AstBuilderInt::mkMemberPathElem(
     if (ctx->member_path_elem_index().size()) {
         for (uint32_t i=0; i<ctx->member_path_elem_index().size(); i++) {
             auto idx_ctx = ctx->member_path_elem_index(i);
-            // For now, just handle the first expression (index or start of range)
-            // TODO: Handle substring range with ELIPSIS
-            subscript = mkExpr(idx_ctx->expression(0));
-            elem->getSubscript().push_back(ast::IExprUP(subscript));
+
+            if (idx_ctx->TOK_ELIPSIS()) {
+                /*
+                 * A slice, not an index. Which endpoint is present depends on
+                 * the spelling:
+                 *
+                 *   [ a .. b ]   expression(0)=a  expression(1)=b
+                 *   [ a .. ]     expression(0)=a  (no second expression)
+                 *   [ .. b ]     expression(0)=b  -- the *upper* bound
+                 *
+                 * The third case is why the token position, not the expression
+                 * index, decides: with a leading '..' the sole expression is
+                 * the right-hand endpoint.
+                 */
+                // No setLoc: ast::Expr is a root class with no Location member
+                // (only ScopeChild and ExprId carry one).
+                ast::IExprSliceRange *slice = m_factory->mkExprSliceRange();
+
+                bool leading_elipsis =
+                    idx_ctx->TOK_ELIPSIS()->getSymbol()->getTokenIndex()
+                        < idx_ctx->expression(0)->start->getTokenIndex();
+
+                if (leading_elipsis) {
+                    slice->setUpper(mkExpr(idx_ctx->expression(0)));
+                } else {
+                    slice->setLower(mkExpr(idx_ctx->expression(0)));
+                    if (idx_ctx->expression().size() > 1) {
+                        slice->setUpper(mkExpr(idx_ctx->expression(1)));
+                    }
+                }
+                elem->getSubscript().push_back(ast::IExprUP(slice));
+            } else {
+                subscript = mkExpr(idx_ctx->expression(0));
+                elem->getSubscript().push_back(ast::IExprUP(subscript));
+            }
         }
     }
 
@@ -5265,13 +5665,19 @@ ast::IExprRefPathStatic *AstBuilderInt::mkExprRefPathStatic(
     return ret;
 }
 
+// B.13 `type_category ::= ref_type_category | plain_type_category`.
+// `buffer` was missing here, so `buffer T` as a template type parameter fell
+// off the end of the map.
 static std::map<std::string, ast::TypeCategory> type_category_m = {
     {"action", ast::TypeCategory::Action },
+    {"monitor", ast::TypeCategory::Monitor },
     {"component", ast::TypeCategory::Component },
+    {"buffer", ast::TypeCategory::Buffer },
     {"resource", ast::TypeCategory::Resource },
     {"state", ast::TypeCategory::State },
     {"stream", ast::TypeCategory::Stream },
-    {"struct", ast::TypeCategory::Struct }
+    {"struct", ast::TypeCategory::Struct },
+    {"numeric", ast::TypeCategory::Numeric }
 };
 
 ast::ITemplateParamDeclList *AstBuilderInt::mkTypeParamDecl(
@@ -5293,7 +5699,10 @@ ast::ITemplateParamDeclList *AstBuilderInt::mkTypeParamDecl(
                 plist->getParams().push_back(ast::ITemplateParamDeclUP(gen_p));
             } else { // Type-category parameter
                 PSSParser::Category_type_param_declContext *cat_ctx = (*it)->type_param_decl()->category_type_param_decl();
-                ast::TypeCategory category = type_category_m.find(cat_ctx->type_category()->getText())->second;
+                std::map<std::string, ast::TypeCategory>::const_iterator cat_it =
+                    type_category_m.find(cat_ctx->type_category()->getText());
+                ast::TypeCategory category = (cat_it != type_category_m.end())?
+                    cat_it->second:ast::TypeCategory::Struct;
                 ast::IDataType *dflt = 0;
 
                 if ((*it)->type_param_decl()->category_type_param_decl()->type_identifier()) {

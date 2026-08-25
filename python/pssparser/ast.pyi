@@ -19,6 +19,8 @@ class ExecKind(IntEnum):
     ExecKind_InitUp = auto()
     ExecKind_PreSolve = auto()
     ExecKind_PostSolve = auto()
+    ExecKind_PreBody = auto()
+    ExecKind_File = auto()
     
 class ExprBinOp(IntEnum):
     BinOp_LogOr = auto()
@@ -72,6 +74,8 @@ class FunctionParamDeclKind(IntEnum):
     ParamKind_RefStream = auto()
     ParamKind_RefStruct = auto()
     ParamKind_Struct = auto()
+    ParamKind_RefMonitor = auto()
+    ParamKind_Numeric = auto()
     
 class ParamDir(IntEnum):
     ParamDir_Default = auto()
@@ -118,6 +122,8 @@ class TypeCategory(IntEnum):
     State = auto()
     Stream = auto()
     Struct = auto()
+    Monitor = auto()
+    Numeric = auto()
     
 class Location:
     fileid: int
@@ -138,92 +144,118 @@ class FieldAttr(IntEnum):
     Instance = auto()
     Private = auto()
     Protected = auto()
+    Mutable = auto()
     
 class Factory(object):
     def mkAssocData(self) -> 'AssocData': ...
-    def mkTemplateParamDeclList(self) -> 'TemplateParamDeclList': ...
+    def mkSymbolImportSpec(self) -> 'SymbolImportSpec': ...
+    def mkSymbolRefPath(self) -> 'SymbolRefPath': ...
     def mkExecTargetTemplateParam(self,
         expr : Expr,
         start : int,
         end : int) -> 'ExecTargetTemplateParam': ...
+    def mkTemplateParamDeclList(self) -> 'TemplateParamDeclList': ...
     def mkExpr(self) -> 'Expr': ...
     def mkTemplateParamValue(self) -> 'TemplateParamValue': ...
     def mkTemplateParamValueList(self) -> 'TemplateParamValueList': ...
-    def mkMonitorActivityMatchChoice(self,
+    def mkActivityMatchChoice(self,
         is_default : bool,
         cond : ExprOpenRangeList,
-        body : ScopeChild) -> 'MonitorActivityMatchChoice': ...
+        body : ScopeChild) -> 'ActivityMatchChoice': ...
     def mkExprAggrMapElem(self,
         lhs : Expr,
         rhs : Expr) -> 'ExprAggrMapElem': ...
     def mkExprAggrStructElem(self,
         name : ExprId,
         value : Expr) -> 'ExprAggrStructElem': ...
+    def mkMonitorActivityMatchChoice(self,
+        is_default : bool,
+        cond : ExprOpenRangeList,
+        body : ScopeChild) -> 'MonitorActivityMatchChoice': ...
     def mkRefExpr(self) -> 'RefExpr': ...
     def mkMonitorActivitySelectBranch(self,
         guard : Expr,
         body : ScopeChild) -> 'MonitorActivitySelectBranch': ...
-    def mkActivityMatchChoice(self,
-        is_default : bool,
-        cond : ExprOpenRangeList,
-        body : ScopeChild) -> 'ActivityMatchChoice': ...
-    def mkScopeChild(self) -> 'ScopeChild': ...
     def mkActivitySelectBranch(self,
         guard : Expr,
         weight : Expr,
         body : ScopeChild) -> 'ActivitySelectBranch': ...
-    def mkSymbolImportSpec(self) -> 'SymbolImportSpec': ...
-    def mkSymbolRefPath(self) -> 'SymbolRefPath': ...
-    def mkGenericConstraintDeclValue(self) -> 'GenericConstraintDeclValue': ...
+    def mkScopeChild(self) -> 'ScopeChild': ...
     def mkActionFieldInitializer(self,
         path : ExprHierarchicalId,
         value : Expr) -> 'ActionFieldInitializer': ...
+    def mkFunctionDefinition(self,
+        proto : FunctionPrototype,
+        body : ExecScope,
+        plat : PlatQual) -> 'FunctionDefinition': ...
+    def mkFunctionImport(self,
+        plat : PlatQual,
+        lang : str) -> 'FunctionImport': ...
+    def mkFunctionParamDecl(self,
+        kind : FunctionParamDeclKind,
+        name : ExprId,
+        type : DataType,
+        dir : ParamDir,
+        dflt : Expr) -> 'FunctionParamDecl': ...
+    def mkGenericConstraintDeclValue(self) -> 'GenericConstraintDeclValue': ...
     def mkGenericConstraintParam(self,
         name : ExprId,
         is_const : bool,
         is_numeric : bool,
         type : DataType) -> 'GenericConstraintParam': ...
-    def mkMethodParameterList(self) -> 'MethodParameterList': ...
     def mkActivityJoinSpec(self) -> 'ActivityJoinSpec': ...
-    def mkMonitorActivityStmt(self) -> 'MonitorActivityStmt': ...
-    def mkNamedScopeChild(self,
-        name : ExprId) -> 'NamedScopeChild': ...
-    def mkPackageImportStmt(self,
-        wildcard : bool,
-        alias : ExprId) -> 'PackageImportStmt': ...
+    def mkMethodParameterList(self) -> 'MethodParameterList': ...
     def mkActivitySchedulingConstraint(self,
         is_parallel : bool) -> 'ActivitySchedulingConstraint': ...
+    def mkMonitorActivityStmt(self) -> 'MonitorActivityStmt': ...
     def mkActivityStmt(self) -> 'ActivityStmt': ...
     def mkAnnotation(self,
         type : TypeIdentifier) -> 'Annotation': ...
+    def mkNamedScopeChild(self,
+        name : ExprId) -> 'NamedScopeChild': ...
     def mkAnnotationParam(self,
+        name : ExprId,
         value : Expr) -> 'AnnotationParam': ...
-    def mkProceduralStmtIfClause(self,
-        cond : Expr,
-        body : ScopeChild) -> 'ProceduralStmtIfClause': ...
+    def mkPackageImportStmt(self,
+        wildcard : bool,
+        alias : ExprId) -> 'PackageImportStmt': ...
     def mkComponentBind(self,
         pool_path : str,
         is_wildcard : bool) -> 'ComponentBind': ...
     def mkConstraintStmt(self) -> 'ConstraintStmt': ...
+    def mkProceduralStmtIfClause(self,
+        cond : Expr,
+        body : ScopeChild) -> 'ProceduralStmtIfClause': ...
+    def mkCoverStmtInline(self,
+        body : ScopeChild) -> 'CoverStmtInline': ...
+    def mkCoverStmtReference(self,
+        target : ExprRefPath) -> 'CoverStmtReference': ...
     def mkPyImportFromStmt(self) -> 'PyImportFromStmt': ...
     def mkPyImportStmt(self) -> 'PyImportStmt': ...
     def mkRefExprScopeIndex(self,
         base : RefExpr,
         offset : int) -> 'RefExprScopeIndex': ...
+    def mkDataType(self) -> 'DataType': ...
     def mkRefExprTypeScopeContext(self,
         base : RefExpr,
         offset : int) -> 'RefExprTypeScopeContext': ...
-    def mkCoverStmtInline(self,
-        body : ScopeChild) -> 'CoverStmtInline': ...
-    def mkCoverStmtReference(self,
-        target : ExprRefPath) -> 'CoverStmtReference': ...
     def mkRefExprTypeScopeGlobal(self,
         fileid : int) -> 'RefExprTypeScopeGlobal': ...
     def mkScope(self) -> 'Scope': ...
+    def mkTypedefDeclaration(self,
+        name : ExprId,
+        type : DataType) -> 'TypedefDeclaration': ...
     def mkScopeChildRef(self,
         target : ScopeChild) -> 'ScopeChildRef': ...
-    def mkDataType(self) -> 'DataType': ...
     def mkSymbolChild(self) -> 'SymbolChild': ...
+    def mkDistItem(self,
+        range : ExprOpenRangeValue,
+        weight : DistWeight) -> 'DistItem': ...
+    def mkDistWeight(self,
+        is_dividing : bool,
+        expr : Expr) -> 'DistWeight': ...
+    def mkExecBlockTag(self,
+        type : TypeIdentifier) -> 'ExecBlockTag': ...
     def mkSymbolScopeRef(self,
         name : str) -> 'SymbolScopeRef': ...
     def mkExecStmt(self) -> 'ExecStmt': ...
@@ -244,9 +276,6 @@ class Factory(object):
     def mkTypeIdentifierElem(self,
         id : ExprId,
         params : TemplateParamValueList) -> 'TypeIdentifierElem': ...
-    def mkTypedefDeclaration(self,
-        name : ExprId,
-        type : DataType) -> 'TypedefDeclaration': ...
     def mkExprBin(self,
         lhs : Expr,
         op : ExprBinOp,
@@ -270,6 +299,10 @@ class Factory(object):
         single : bool,
         lhs : Expr,
         rhs : Expr) -> 'ExprDomainOpenRangeValue': ...
+    def mkExprFloatLiteral(self,
+        value : float,
+        image : str,
+        is_scientific : bool) -> 'ExprFloatLiteral': ...
     def mkExprHierarchicalId(self) -> 'ExprHierarchicalId': ...
     def mkExprId(self,
         id : str,
@@ -290,6 +323,7 @@ class Factory(object):
         rhs : Expr) -> 'ExprOpenRangeValue': ...
     def mkExprRefPath(self) -> 'ExprRefPath': ...
     def mkExprRefPathElem(self) -> 'ExprRefPathElem': ...
+    def mkExprSliceRange(self) -> 'ExprSliceRange': ...
     def mkExprStaticRefPath(self,
         is_global : bool,
         leaf : ExprMemberPathElem) -> 'ExprStaticRefPath': ...
@@ -312,19 +346,6 @@ class Factory(object):
         rhs : Expr) -> 'ExprUnary': ...
     def mkExtendEnum(self,
         target : TypeIdentifier) -> 'ExtendEnum': ...
-    def mkFunctionDefinition(self,
-        proto : FunctionPrototype,
-        body : ExecScope,
-        plat : PlatQual) -> 'FunctionDefinition': ...
-    def mkFunctionImport(self,
-        plat : PlatQual,
-        lang : str) -> 'FunctionImport': ...
-    def mkFunctionParamDecl(self,
-        kind : FunctionParamDeclKind,
-        name : ExprId,
-        type : DataType,
-        dir : ParamDir,
-        dflt : Expr) -> 'FunctionParamDecl': ...
     def mkActionHandleField(self,
         name : ExprId,
         type : DataType) -> 'ActionHandleField': ...
@@ -345,6 +366,8 @@ class Factory(object):
         expr : Expr) -> 'ConstraintStmtDefault': ...
     def mkConstraintStmtDefaultDisable(self,
         hid : ExprHierarchicalId) -> 'ConstraintStmtDefaultDisable': ...
+    def mkConstraintStmtDist(self,
+        lhs : Expr) -> 'ConstraintStmtDist': ...
     def mkConstraintStmtExpr(self,
         expr : Expr) -> 'ConstraintStmtExpr': ...
     def mkConstraintStmtField(self,
@@ -354,6 +377,8 @@ class Factory(object):
         cond : Expr,
         true_c : ConstraintScope,
         false_c : ConstraintScope) -> 'ConstraintStmtIf': ...
+    def mkConstraintStmtSoft(self,
+        expr : Expr) -> 'ConstraintStmtSoft': ...
     def mkConstraintStmtUnique(self) -> 'ConstraintStmtUnique': ...
     def mkCovergroup(self,
         name : ExprId) -> 'Covergroup': ...
@@ -367,6 +392,8 @@ class Factory(object):
     def mkDataTypeEnum(self,
         tid : DataTypeUserDefined,
         in_rangelist : ExprOpenRangeList) -> 'DataTypeEnum': ...
+    def mkDataTypeFloat(self,
+        is_float64 : bool) -> 'DataTypeFloat': ...
     def mkDataTypeInt(self,
         is_signed : bool,
         width : Expr,
@@ -554,12 +581,6 @@ class Factory(object):
     def mkConstraintBlock(self,
         name : str,
         is_dynamic : bool) -> 'ConstraintBlock': ...
-    def mkProceduralStmtRepeatWhile(self,
-        body : ScopeChild,
-        expr : Expr) -> 'ProceduralStmtRepeatWhile': ...
-    def mkProceduralStmtWhile(self,
-        body : ScopeChild,
-        expr : Expr) -> 'ProceduralStmtWhile': ...
     def mkConstraintStmtForall(self,
         iterator_id : ExprId,
         type_id : DataTypeUserDefined,
@@ -568,6 +589,12 @@ class Factory(object):
         expr : Expr) -> 'ConstraintStmtForeach': ...
     def mkConstraintStmtImplication(self,
         cond : Expr) -> 'ConstraintStmtImplication': ...
+    def mkProceduralStmtRepeatWhile(self,
+        body : ScopeChild,
+        expr : Expr) -> 'ProceduralStmtRepeatWhile': ...
+    def mkProceduralStmtWhile(self,
+        body : ScopeChild,
+        expr : Expr) -> 'ProceduralStmtWhile': ...
     def mkSymbolScope(self,
         name : str) -> 'SymbolScope': ...
     def mkTypeScope(self,
@@ -582,13 +609,16 @@ class Factory(object):
         name : ExprId,
         super_t : TypeIdentifier,
         is_abstract : bool) -> 'Action': ...
+    def mkGenericConstraintDeclBool(self,
+        name : str,
+        is_dynamic : bool) -> 'GenericConstraintDeclBool': ...
+    def mkActivityDecl(self,
+        name : str) -> 'ActivityDecl': ...
     def mkMonitor(self,
         name : ExprId,
         super_t : TypeIdentifier) -> 'Monitor': ...
     def mkMonitorActivityDecl(self,
         name : str) -> 'MonitorActivityDecl': ...
-    def mkActivityDecl(self,
-        name : str) -> 'ActivityDecl': ...
     def mkActivityLabeledScope(self,
         name : str) -> 'ActivityLabeledScope': ...
     def mkMonitorActivitySchedule(self,
@@ -618,23 +648,20 @@ class Factory(object):
         name : str) -> 'SymbolExtendScope': ...
     def mkSymbolFunctionScope(self,
         name : str) -> 'SymbolFunctionScope': ...
+    def mkExecScope(self,
+        name : str) -> 'ExecScope': ...
     def mkSymbolTypeScope(self,
         name : str,
         plist : SymbolScope) -> 'SymbolTypeScope': ...
-    def mkExecScope(self,
-        name : str) -> 'ExecScope': ...
-    def mkGenericConstraintDeclBool(self,
+    def mkExecBlock(self,
         name : str,
-        is_dynamic : bool) -> 'GenericConstraintDeclBool': ...
+        kind : ExecKind) -> 'ExecBlock': ...
     def mkProceduralStmtForeach(self,
         name : str,
         body : ScopeChild,
         path : ExprRefPath,
         it_id : ExprId,
         idx_id : ExprId) -> 'ProceduralStmtForeach': ...
-    def mkExecBlock(self,
-        name : str,
-        kind : ExecKind) -> 'ExecBlock': ...
     def mkProceduralStmtRepeat(self,
         name : str,
         body : ScopeChild,
@@ -654,6 +681,27 @@ class Factory(object):
 class AssocData(object):
     pass
     
+class SymbolImportSpec(object):
+    pass
+    
+    def imports(self) -> ListUtil...
+        """Returns an iterator over the items"""
+    
+    def getImports(self) -> List[PackageImportStmt]: ...
+    
+class SymbolRefPath(object):
+    pass
+    
+    def path(self) -> ListUtil...
+        """Returns an iterator over the items"""
+    
+    def getPath(self) -> List[SymbolRefPathElem]: ...
+    
+class ExecTargetTemplateParam(object):
+    pass
+    
+    def getExpr(self) -> Expr: ...
+    
 class TemplateParamDeclList(object):
     pass
     
@@ -661,11 +709,6 @@ class TemplateParamDeclList(object):
         """Returns an iterator over the items"""
     
     def getParams(self) -> List[TemplateParamDecl]: ...
-    
-class ExecTargetTemplateParam(object):
-    pass
-    
-    def getExpr(self) -> Expr: ...
     
 class Expr(object):
     pass
@@ -681,7 +724,7 @@ class TemplateParamValueList(object):
     
     def getValues(self) -> List[TemplateParamValue]: ...
     
-class MonitorActivityMatchChoice(object):
+class ActivityMatchChoice(object):
     pass
     
     def getCond(self) -> ExprOpenRangeList: ...
@@ -702,6 +745,13 @@ class ExprAggrStructElem(object):
     
     def getValue(self) -> Expr: ...
     
+class MonitorActivityMatchChoice(object):
+    pass
+    
+    def getCond(self) -> ExprOpenRangeList: ...
+    
+    def getBody(self) -> ScopeChild: ...
+    
 class RefExpr(object):
     pass
     
@@ -712,10 +762,12 @@ class MonitorActivitySelectBranch(object):
     
     def getBody(self) -> ScopeChild: ...
     
-class ActivityMatchChoice(object):
+class ActivitySelectBranch(object):
     pass
     
-    def getCond(self) -> ExprOpenRangeList: ...
+    def getGuard(self) -> Expr: ...
+    
+    def getWeight(self) -> Expr: ...
     
     def getBody(self) -> ScopeChild: ...
     
@@ -737,30 +789,151 @@ class ScopeChild(object):
     
     def getAnnotations(self) -> List[Annotation]: ...
     
-class ActivitySelectBranch(object):
+class ActionFieldInitializer(ScopeChild):
+    """
+    Single field assignment in a PSS 3.1 action initializer list.
+    
+    Represents entries such as ``.x = 1`` or ``.cfg.mode = FAST`` used in
+    action-handle declarations and action traversal statements.
+    
+    """
     pass
     
-    def getGuard(self) -> Expr: ...
+    def getPath(self) -> ExprHierarchicalId: ...
     
-    def getWeight(self) -> Expr: ...
+    def getValue(self) -> Expr: ...
     
-    def getBody(self) -> ScopeChild: ...
+class FunctionDefinition(ScopeChild):
+    """
+    Complete function definition with implementation body.
     
-class SymbolImportSpec(object):
+    Represents a function declaration with a complete implementation,
+    including prototype (signature) and execution body. Functions can
+    be qualified for target or solve-time execution using platform
+    qualifiers.
+    
+    PSS Example::
+    
+        // Simple function
+        function int add(int a, int b) {
+            return a + b;
+        }
+        
+        // Target function with output parameter
+        function void process(input int x, output int result) = target {
+            result = x * 2;
+        }
+        
+        // Solve-time function
+        function int calculate(int value) = solve {
+            return value + 100;
+        }
+    
+    Attributes:
+        endLocation: Location of function closing brace
+        proto: Function prototype (signature)
+        body: Execution scope containing statements
+        plat: Platform qualifier (None, Target, or Solve)
+    
+    See Also:
+        FunctionPrototype, ExecScope, PlatQual, FunctionImport
+    
+    """
     pass
     
-    def imports(self) -> ListUtil...
-        """Returns an iterator over the items"""
+    def getEndLocation(self) -> 'Location': ...
     
-    def getImports(self) -> List[PackageImportStmt]: ...
+    def getProto(self) -> FunctionPrototype: ...
     
-class SymbolRefPath(object):
+    def getBody(self) -> ExecScope: ...
+    
+    def setPlat(self, v : PlatQual): ...
+    
+class FunctionImport(ScopeChild):
+    """
+    Base class for importing external functions.
+    
+    Represents an import statement that brings external functions into
+    PSS scope. External functions can be qualified for target or
+    solve-time execution and can specify the implementation language.
+    This is an abstract base; concrete imports use FunctionImportType
+    or FunctionImportProto.
+    
+    PSS Example::
+    
+        // Import by type name
+        import class my_pkg::util_funcs = target "cpp";
+        
+        // Import function prototype
+        import function int extern_func(int x) = solve "python";
+    
+    Attributes:
+        plat: Platform qualifier (None, Target, or Solve)
+        lang: Implementation language identifier (e.g., "cpp", "python")
+    
+    See Also:
+        FunctionImportType, FunctionImportProto, PlatQual
+    
+    """
     pass
     
-    def path(self) -> ListUtil...
-        """Returns an iterator over the items"""
+    def setPlat(self, v : PlatQual): ...
     
-    def getPath(self) -> List[SymbolRefPathElem]: ...
+    def getLang(self) -> str: ...
+    
+    def setLang(self, v : str): ...
+    
+class FunctionParamDecl(ScopeChild):
+    """
+    Function parameter declaration with type and direction.
+    
+    Represents a single parameter in a function signature. Parameters
+    can have direction qualifiers (input, output, inout), default values,
+    and various kinds (data types, type parameters, or references).
+    Supports variadic parameters for variable-length argument lists.
+    
+    PSS Example::
+    
+        // Function with multiple parameter types
+        function void my_func(
+            input int x,              // Input parameter
+            output int result,        // Output parameter
+            inout int counter,        // Input/output parameter
+            int default_val = 10      // Parameter with default value
+        );
+        
+        // Type parameter
+        function void generic<type T>(T value);
+        
+        // Reference parameters
+        function void process_action(ref my_action act);
+        
+        // Variadic function
+        function void log(string fmt, ...);
+    
+    Attributes:
+        kind: Parameter kind (data type, type, reference, etc.)
+        name: Parameter identifier
+        type: Parameter data type
+        dir: Parameter direction (Default, In, Out, InOut)
+        dflt: Optional default value expression
+        is_varargs: True if this is a variadic parameter (...)
+    
+    See Also:
+        FunctionPrototype, FunctionParamDeclKind, ParamDir, DataType
+    
+    """
+    pass
+    
+    def setKind(self, v : FunctionParamDeclKind): ...
+    
+    def getName(self) -> ExprId: ...
+    
+    def getType(self) -> DataType: ...
+    
+    def setDir(self, v : ParamDir): ...
+    
+    def getDflt(self) -> Expr: ...
     
 class GenericConstraintDeclValue(ScopeChild):
     """
@@ -783,20 +956,6 @@ class GenericConstraintDeclValue(ScopeChild):
     
     def getExpr(self) -> Expr: ...
     
-class ActionFieldInitializer(ScopeChild):
-    """
-    Single field assignment in a PSS 3.1 action initializer list.
-    
-    Represents entries such as ``.x = 1`` or ``.cfg.mode = FAST`` used in
-    action-handle declarations and action traversal statements.
-    
-    """
-    pass
-    
-    def getPath(self) -> ExprHierarchicalId: ...
-    
-    def getValue(self) -> Expr: ...
-    
 class GenericConstraintParam(ScopeChild):
     """
     Parameter declaration for a PSS 3.1 generic constraint.
@@ -811,32 +970,6 @@ class GenericConstraintParam(ScopeChild):
     def getName(self) -> ExprId: ...
     
     def getType(self) -> DataType: ...
-    
-class MethodParameterList(Expr):
-    """
-    Represents a method or function parameter list.
-    
-    Contains the list of argument expressions passed to a method or function call.
-    Used within method call expressions to specify the actual parameters.
-    
-    PSS Example::
-    
-        my_function(arg1, arg2, arg3)
-        obj.method(x, y)
-    
-    Attributes:
-        parameters: List of argument expressions
-    
-    See Also:
-        ExprMemberPathElem, ExprRefPathStaticFunc
-    
-    """
-    pass
-    
-    def parameters(self) -> ListUtil...
-        """Returns an iterator over the items"""
-    
-    def getParameters(self) -> List[Expr]: ...
     
 class ActivityJoinSpec(ScopeChild):
     """
@@ -867,92 +1000,31 @@ class ActivityJoinSpec(ScopeChild):
     """
     pass
     
-class MonitorActivityStmt(ScopeChild):
+class MethodParameterList(Expr):
     """
-    Base class for all monitor activity statements.
+    Represents a method or function parameter list.
     
-    MonitorActivityStmt is the abstract base class for all statements that can
-    appear within a monitor's activity block. Monitor activity statements define
-    temporal sequences, property assertions, and coverage collection patterns.
-    They use temporal operators like concatenation (##), eventually, and overlap
-    to specify time-based relationships. Note these are PSS 3.0 features.
+    Contains the list of argument expressions passed to a method or function call.
+    Used within method call expressions to specify the actual parameters.
     
     PSS Example::
     
-        monitor protocol_monitor {
-            activity {
-                // Various MonitorActivityStmt subclasses
-                req ##1 ack;                  // Concat
-                eventually grant;             // Eventually
-                repeat(3) data_phase;         // Repeat
-                sequence { start; end; }      // Sequence
-                if (mode == 0) fast; else slow;  // IfElse
-            }
-        }
+        my_function(arg1, arg2, arg3)
+        obj.method(x, y)
     
     Attributes:
-        (base class - no specific attributes)
+        parameters: List of argument expressions
     
     See Also:
-        MonitorActivityDecl, MonitorActivityConcat, MonitorActivityEventually,
-        MonitorActivitySequence
+        ExprMemberPathElem, ExprRefPathStaticFunc
     
     """
     pass
     
-class NamedScopeChild(ScopeChild):
-    """
-    An AST node with an identifier name that is a child of a scope.
+    def parameters(self) -> ListUtil...
+        """Returns an iterator over the items"""
     
-    Base class for named declarations that aren't scopes themselves,
-    such as fields, enum items, and function parameters. The name is
-    used for symbol lookup within the parent scope.
-    
-    PSS Example::
-    
-        struct my_struct {
-            int field1;        // NamedScopeChild with name="field1"
-            bool field2;       // NamedScopeChild with name="field2"
-        }
-    
-    Attributes:
-        name: Identifier expression containing the name
-    
-    See Also:
-        ScopeChild, NamedScope, Field
-    
-    """
-    pass
-    
-    def getName(self) -> ExprId: ...
-    
-class PackageImportStmt(ScopeChild):
-    """
-    Import statement bringing package symbols into current scope.
-    
-    Imports types and declarations from another package. Can import
-    all symbols with wildcard or create an alias for qualified access.
-    
-    PSS Example::
-    
-        import other_pkg::*;              // Wildcard import
-        import other_pkg::MyAction;       // Single import
-        import other_pkg as op;           // Aliased import
-    
-    Attributes:
-        wildcard: True if using wildcard (::*)
-        alias: Optional alias name for the import
-        path: Type identifier for the imported package/symbol
-    
-    See Also:
-        PackageScope, TypeIdentifier
-    
-    """
-    pass
-    
-    def getAlias(self) -> ExprId: ...
-    
-    def getPath(self) -> TypeIdentifier: ...
+    def getParameters(self) -> List[Expr]: ...
     
 class ActivitySchedulingConstraint(ScopeChild):
     """
@@ -995,6 +1067,39 @@ class ActivitySchedulingConstraint(ScopeChild):
     
     def getTargets(self) -> List[ExprHierarchicalId]: ...
     
+class MonitorActivityStmt(ScopeChild):
+    """
+    Base class for all monitor activity statements.
+    
+    MonitorActivityStmt is the abstract base class for all statements that can
+    appear within a monitor's activity block. Monitor activity statements define
+    temporal sequences, property assertions, and coverage collection patterns.
+    They use temporal operators like concatenation (##), eventually, and overlap
+    to specify time-based relationships. Note these are PSS 3.0 features.
+    
+    PSS Example::
+    
+        monitor protocol_monitor {
+            activity {
+                // Various MonitorActivityStmt subclasses
+                req ##1 ack;                  // Concat
+                eventually grant;             // Eventually
+                repeat(3) data_phase;         // Repeat
+                sequence { start; end; }      // Sequence
+                if (mode == 0) fast; else slow;  // IfElse
+            }
+        }
+    
+    Attributes:
+        (base class - no specific attributes)
+    
+    See Also:
+        MonitorActivityDecl, MonitorActivityConcat, MonitorActivityEventually,
+        MonitorActivitySequence
+    
+    """
+    pass
+    
 class ActivityStmt(ScopeChild):
     """
     Base class for all activity statements.
@@ -1029,9 +1134,14 @@ class Annotation(ScopeChild):
     """
     Applied annotation attached to a model element.
     
-    Represents an annotation use such as ``@desc("hello")`` or
-    ``@meta(name="foo")``. The annotation type is referenced by name and
-    the parameters preserve both positional and name-mapped arguments.
+    Represents an annotation use such as ``@desc_s {.desc = "hello"}``.
+    The annotation type is referenced by name; every parameter is
+    name-mapped (PSS 3.1 removed positional annotation parameters).
+    
+    ``is_standalone`` distinguishes the two application forms of §7.13: a
+    standalone annotation is terminated with ``;`` and is anchored to the
+    enclosing scope, while an element annotation has no terminator and
+    attaches to the model element that follows it.
     
     See Also:
         AnnotationDecl, AnnotationParam
@@ -1046,12 +1156,38 @@ class Annotation(ScopeChild):
     
     def getParameters(self) -> List[AnnotationParam]: ...
     
+class NamedScopeChild(ScopeChild):
+    """
+    An AST node with an identifier name that is a child of a scope.
+    
+    Base class for named declarations that aren't scopes themselves,
+    such as fields, enum items, and function parameters. The name is
+    used for symbol lookup within the parent scope.
+    
+    PSS Example::
+    
+        struct my_struct {
+            int field1;        // NamedScopeChild with name="field1"
+            bool field2;       // NamedScopeChild with name="field2"
+        }
+    
+    Attributes:
+        name: Identifier expression containing the name
+    
+    See Also:
+        ScopeChild, NamedScope, Field
+    
+    """
+    pass
+    
+    def getName(self) -> ExprId: ...
+    
 class AnnotationParam(ScopeChild):
     """
     Parameter to an applied annotation.
     
-    Positional parameters leave ``name`` unset. Name-mapped parameters set
-    ``name`` to the mapped field identifier.
+    ``name`` is the annotation-type field the value is mapped onto. It is
+    always set: PSS 3.1 annotation parameters are name-mapped only.
     
     See Also:
         Annotation
@@ -1063,42 +1199,33 @@ class AnnotationParam(ScopeChild):
     
     def getValue(self) -> Expr: ...
     
-class ProceduralStmtIfClause(ScopeChild):
+class PackageImportStmt(ScopeChild):
     """
-    Single if or else-if clause with condition and body.
+    Import statement bringing package symbols into current scope.
     
-    ProceduralStmtIfClause represents one conditional branch in an if-else-if
-    chain. Each clause has a condition expression and a body that executes
-    if the condition is true. Multiple clauses are chained together in
-    ProceduralStmtIfElse.
+    Imports types and declarations from another package. Can import
+    all symbols with wildcard or create an alias for qualified access.
     
     PSS Example::
     
-        action my_action {
-            exec body {
-                int x = 10;
-                
-                if (x > 15) {          // First ProceduralStmtIfClause
-                    console.log("Big");
-                } else if (x > 5) {    // Second ProceduralStmtIfClause
-                    console.log("Medium");
-                }
-            }
-        }
+        import other_pkg::*;              // Wildcard import
+        import other_pkg::MyAction;       // Single import
+        import other_pkg as op;           // Aliased import
     
     Attributes:
-        cond: Condition expression to evaluate
-        body: Statement(s) to execute if condition is true
+        wildcard: True if using wildcard (::*)
+        alias: Optional alias name for the import
+        path: Type identifier for the imported package/symbol
     
     See Also:
-        ProceduralStmtIfElse
+        PackageScope, TypeIdentifier
     
     """
     pass
     
-    def getCond(self) -> Expr: ...
+    def getAlias(self) -> ExprId: ...
     
-    def getBody(self) -> ScopeChild: ...
+    def getPath(self) -> TypeIdentifier: ...
     
 class ComponentBind(ScopeChild):
     """
@@ -1162,105 +1289,42 @@ class ConstraintStmt(ScopeChild):
     """
     pass
     
-class PyImportFromStmt(ScopeChild):
+class ProceduralStmtIfClause(ScopeChild):
     """
-    Python 'from...import' statement for selective imports.
+    Single if or else-if clause with condition and body.
     
-    Imports specific symbols from a Python module into PSS context.
+    ProceduralStmtIfClause represents one conditional branch in an if-else-if
+    chain. Each clause has a condition expression and a body that executes
+    if the condition is true. Multiple clauses are chained together in
+    ProceduralStmtIfElse.
     
     PSS Example::
     
-        python from os import path, environ;
-        python from numpy import array, matrix;
+        action my_action {
+            exec body {
+                int x = 10;
+                
+                if (x > 15) {          // First ProceduralStmtIfClause
+                    console.log("Big");
+                } else if (x > 5) {    // Second ProceduralStmtIfClause
+                    console.log("Medium");
+                }
+            }
+        }
     
     Attributes:
-        path: Module path (e.g., ["os"])
-        targets: List of symbols to import (e.g., ["path", "environ"])
+        cond: Condition expression to evaluate
+        body: Statement(s) to execute if condition is true
     
     See Also:
-        PyImportStmt
+        ProceduralStmtIfElse
     
     """
     pass
     
-    def path(self) -> ListUtil...
-        """Returns an iterator over the items"""
+    def getCond(self) -> Expr: ...
     
-    def getPath(self) -> List[ExprId]: ...
-    
-    def targets(self) -> ListUtil...
-        """Returns an iterator over the items"""
-    
-    def getTargets(self) -> List[ExprId]: ...
-    
-class PyImportStmt(ScopeChild):
-    """
-    Python import statement for embedded Python integration.
-    
-    Imports Python modules into PSS context. Allows PSS code to
-    access Python libraries and functions.
-    
-    PSS Example::
-    
-        python import os;
-        python import numpy as np;
-    
-    Attributes:
-        path: List of identifiers forming module path (e.g., ["os", "path"])
-        alias: Optional alias for the import
-    
-    See Also:
-        PyImportFromStmt
-    
-    """
-    pass
-    
-    def path(self) -> ListUtil...
-        """Returns an iterator over the items"""
-    
-    def getPath(self) -> List[ExprId]: ...
-    
-    def getAlias(self) -> ExprId: ...
-    
-class RefExprScopeIndex(RefExpr):
-    """
-    Reference to a scope using indexed access.
-    
-    Represents a resolved reference to a scope accessed via an index
-    relative to a base reference. Used for efficient symbol lookup in
-    the linked tree structure.
-    
-    Attributes:
-        base: Base reference expression
-        offset: Index offset from base to target scope
-    
-    See Also:
-        RefExpr, SymbolScope
-    
-    """
-    pass
-    
-    def getBase(self) -> RefExpr: ...
-    
-class RefExprTypeScopeContext(RefExpr):
-    """
-    Reference to a type scope relative to a context.
-    
-    Represents a resolved reference to a type scope relative to another
-    reference expression. Used for navigating hierarchical type structures
-    during linking (e.g., nested types, inner classes).
-    
-    Attributes:
-        base: Base reference expression providing context
-        offset: Offset from base to target type scope
-    
-    See Also:
-        RefExpr, RefExprTypeScopeGlobal, SymbolTypeScope
-    
-    """
-    pass
-    
-    def getBase(self) -> RefExpr: ...
+    def getBody(self) -> ScopeChild: ...
     
 class CoverStmtInline(ScopeChild):
     """
@@ -1374,6 +1438,120 @@ class CoverStmtReference(ScopeChild):
     
     def getTarget(self) -> ExprRefPath: ...
     
+class PyImportFromStmt(ScopeChild):
+    """
+    Python 'from...import' statement for selective imports.
+    
+    Imports specific symbols from a Python module into PSS context.
+    
+    PSS Example::
+    
+        python from os import path, environ;
+        python from numpy import array, matrix;
+    
+    Attributes:
+        path: Module path (e.g., ["os"])
+        targets: List of symbols to import (e.g., ["path", "environ"])
+    
+    See Also:
+        PyImportStmt
+    
+    """
+    pass
+    
+    def path(self) -> ListUtil...
+        """Returns an iterator over the items"""
+    
+    def getPath(self) -> List[ExprId]: ...
+    
+    def targets(self) -> ListUtil...
+        """Returns an iterator over the items"""
+    
+    def getTargets(self) -> List[ExprId]: ...
+    
+class PyImportStmt(ScopeChild):
+    """
+    Python import statement for embedded Python integration.
+    
+    Imports Python modules into PSS context. Allows PSS code to
+    access Python libraries and functions.
+    
+    PSS Example::
+    
+        python import os;
+        python import numpy as np;
+    
+    Attributes:
+        path: List of identifiers forming module path (e.g., ["os", "path"])
+        alias: Optional alias for the import
+    
+    See Also:
+        PyImportFromStmt
+    
+    """
+    pass
+    
+    def path(self) -> ListUtil...
+        """Returns an iterator over the items"""
+    
+    def getPath(self) -> List[ExprId]: ...
+    
+    def getAlias(self) -> ExprId: ...
+    
+class RefExprScopeIndex(RefExpr):
+    """
+    Reference to a scope using indexed access.
+    
+    Represents a resolved reference to a scope accessed via an index
+    relative to a base reference. Used for efficient symbol lookup in
+    the linked tree structure.
+    
+    Attributes:
+        base: Base reference expression
+        offset: Index offset from base to target scope
+    
+    See Also:
+        RefExpr, SymbolScope
+    
+    """
+    pass
+    
+    def getBase(self) -> RefExpr: ...
+    
+class DataType(ScopeChild):
+    """
+    Base class for all PSS data types.
+    
+    Represents the type system in PSS. All type expressions (int, bool,
+    user-defined types, etc.) derive from this base class. Used in field
+    declarations, expressions, and function signatures.
+    
+    See Also:
+        DataTypeInt, DataTypeBool, DataTypeUserDefined, Field
+    
+    """
+    pass
+    
+class RefExprTypeScopeContext(RefExpr):
+    """
+    Reference to a type scope relative to a context.
+    
+    Represents a resolved reference to a type scope relative to another
+    reference expression. Used for navigating hierarchical type structures
+    during linking (e.g., nested types, inner classes).
+    
+    Attributes:
+        base: Base reference expression providing context
+        offset: Offset from base to target type scope
+    
+    See Also:
+        RefExpr, RefExprTypeScopeGlobal, SymbolTypeScope
+    
+    """
+    pass
+    
+    def getBase(self) -> RefExpr: ...
+    
 class RefExprTypeScopeGlobal(RefExpr):
     """
     Reference to a type scope at the global (file) level.
@@ -1424,6 +1602,13 @@ class Scope(ScopeChild):
     
     def getChildren(self) -> List[ScopeChild]: ...
     
+class TypedefDeclaration(ScopeChild):
+    pass
+    
+    def getName(self) -> ExprId: ...
+    
+    def getType(self) -> DataType: ...
+    
 class ScopeChildRef(ScopeChild):
     """
     Reference to another AST node, used for type aliases and forwards.
@@ -1442,20 +1627,6 @@ class ScopeChildRef(ScopeChild):
     pass
     
     def getTarget(self) -> ScopeChild: ...
-    
-class DataType(ScopeChild):
-    """
-    Base class for all PSS data types.
-    
-    Represents the type system in PSS. All type expressions (int, bool,
-    user-defined types, etc.) derive from this base class. Used in field
-    declarations, expressions, and function signatures.
-    
-    See Also:
-        DataTypeInt, DataTypeBool, DataTypeUserDefined, Field
-    
-    """
-    pass
     
 class SymbolChild(ScopeChild):
     """
@@ -1479,6 +1650,108 @@ class SymbolChild(ScopeChild):
     pass
     
     def getUpper(self) -> SymbolScope: ...
+    
+class DistItem(ScopeChild):
+    """
+    One value-or-range entry in a `dist` directive's distribution list.
+    
+    The weight is optional; an item written without one carries the
+    default weight (`:= 1`).
+    
+    PSS Example::
+    
+        constraint c {
+            dist x in [1 := 10,        // single value, weighted
+                       2..4 :/ 30,     // range, weight divided
+                       5];             // no weight -- defaults to 1
+        }
+    
+    Attributes:
+        range: The value or value range this weight applies to
+        weight: The weight, or null when none was written
+    
+    See Also:
+        DistWeight, ConstraintStmtDist, ExprOpenRangeValue
+    
+    """
+    pass
+    
+    def getRange(self) -> ExprOpenRangeValue: ...
+    
+    def getWeight(self) -> DistWeight: ...
+    
+class DistWeight(ScopeChild):
+    """
+    Weight applied to one item of a `dist` directive.
+    
+    PSS spells the weight two ways, which mean different things when the
+    item covers a range of values:
+    
+    * ``:=`` gives the stated weight to *each* value in the range
+    * ``:/`` divides the stated weight *across* the values in the range
+    
+    The distinction is not recoverable from the expression alone, so it
+    is carried here rather than left to the consumer to infer.
+    
+    PSS Example::
+    
+        constraint c {
+            dist x in [1 := 10, 2..4 :/ 30];
+        }
+    
+    Attributes:
+        is_dividing: True for `:/`, false for `:=`
+        expr: The weight expression
+    
+    See Also:
+        DistItem, ConstraintStmtDist
+    
+    """
+    pass
+    
+    def getExpr(self) -> Expr: ...
+    
+class ExecBlockTag(ScopeChild):
+    """
+    Tag on a target-template exec block -- PSS 3.1 §20.5.4.
+    
+    ``exec_block_tag ::= type_identifier [ struct_literal ]``
+    
+    A tag exists solely so a code generator can tell whether two exec
+    blocks are equivalent and may be coalesced. It has no effect on
+    action traversal, solving, or runtime execution.
+    
+    It is evaluated using a temporary instance of the named struct type,
+    initialized from the struct literal when one is written and from the
+    field defaults otherwise. Two blocks match only if their tags are the
+    same struct type *and* evaluate equal; an untagged block matches
+    nothing, not even another untagged block.
+    
+    Tags are permitted only on ``header``, ``declaration``,
+    ``run_start``, ``run_end`` and ``exec file`` blocks -- not on native
+    exec blocks, not on ``body``, and not on the solve execs. That
+    restriction is a semantic rule, not a grammatical one, and is
+    reported as PSS106.
+    
+    PSS Example::
+    
+        exec header C = tag_s {.name = "hdr"}: """
+            #include <stdio.h>
+        """;
+    
+    Attributes:
+        type: The struct type naming the tag
+        literal: Field initializers, or null when none were written
+    
+    See Also:
+        ExecTargetTemplateBlock, ExprAggrStruct
+    
+    """
+    pass
+    
+    def getType(self) -> TypeIdentifier: ...
+    
+    def getLiteral(self) -> ExprAggrStruct: ...
     
 class SymbolScopeRef(ScopeChild):
     """
@@ -1576,6 +1849,16 @@ class ExecTargetTemplateBlock(ScopeChild):
         """Returns an iterator over the items"""
     
     def getParameters(self) -> List[ExecTargetTemplateParam]: ...
+    
+    def getLanguage(self) -> str: ...
+    
+    def setLanguage(self, v : str): ...
+    
+    def getFilename(self) -> str: ...
+    
+    def setFilename(self, v : str): ...
+    
+    def getTag(self) -> ExecBlockTag: ...
     
 class TemplateParamDecl(ScopeChild):
     """
@@ -1791,13 +2074,6 @@ class TypeIdentifierElem(Expr):
     def getId(self) -> ExprId: ...
     
     def getParams(self) -> TemplateParamValueList: ...
-    
-class TypedefDeclaration(ScopeChild):
-    pass
-    
-    def getName(self) -> ExprId: ...
-    
-    def getType(self) -> DataType: ...
     
 class ExprBin(Expr):
     """
@@ -2018,6 +2294,44 @@ class ExprDomainOpenRangeValue(Expr):
     def getLhs(self) -> Expr: ...
     
     def getRhs(self) -> Expr: ...
+    
+class ExprFloatLiteral(Expr):
+    """
+    Represents a floating-point literal value.
+    
+    PSS 3.1 §4.6 admits two spellings, both modelled here: a plain
+    decimal form (`1.5`) and a scientific form (`1.5e-3`). They differ
+    only in notation, not in value, so `is_scientific` exists to let a
+    consumer reproduce the source spelling rather than to change how the
+    value is interpreted.
+    
+    Both the parsed value and the source text are kept. `value` is what
+    a consumer evaluates; `image` is what it needs to reproduce the
+    source, and the two are not interchangeable. Digit separators and
+    trailing zeros do not survive a round trip through a double, and not
+    every decimal fraction is exactly representable, so `image` is the
+    authority on spelling and `value` on magnitude.
+    
+    PSS Example::
+    
+        float32 a = 1.5;
+        float64 b = 1.0e-9;
+        float64 c = 1_000.5;
+    
+    Attributes:
+        value: Parsed value, with digit separators removed
+        image: Original text representation from source, separators included
+        is_scientific: True when written in exponent notation
+    
+    See Also:
+        ExprNumber, ExprUnsignedNumber
+    
+    """
+    pass
+    
+    def getImage(self) -> str: ...
+    
+    def setImage(self, v : str): ...
     
 class ExprHierarchicalId(Expr):
     """
@@ -2299,6 +2613,52 @@ class ExprRefPathElem(Expr):
     """
     pass
     
+class ExprSliceRange(Expr):
+    """
+    A `[ lower .. upper ]` range used to select a sub-range of a
+    collection or a string.
+    
+    Annex B defines two rules with *identical* syntax:
+    
+    * ``array_slice  ::= expression .. expression | expression .. | .. expression``
+    * ``string_slice ::= expression .. expression | expression .. | .. expression``
+    
+    Which one a given range is cannot be decided while parsing -- it
+    depends on the type of the operand being sliced, which is only
+    known after name resolution. A single neutral node is therefore the
+    only shape the builder can honestly produce; the linker classifies
+    it. (Contrast ``ExprBitSlice``, which is spelled ``[msb : lsb]``
+    and *is* syntactically distinct.)
+    
+    Either endpoint may be absent, but not both -- ``[..]`` is not a
+    legal slice. An absent endpoint means "to the end of the
+    collection" in that direction.
+    
+    The node appears as an element of ``ExprMemberPathElem.subscript``.
+    A subscript that is a slice yields the *collection* type, whereas a
+    plain index subscript yields the *element* type -- consumers that
+    walk subscripts must distinguish the two.
+    
+    PSS Example::
+    
+        unique arr[2..5];       // array slice: elements 2 through 5
+        string tail = s[3..];   // string slice: from index 3 onward
+        string head = s[..3];   // string slice: up to index 3
+    
+    Attributes:
+        lower: Left index, or null when written as ``[..upper]``
+        upper: Right index, or null when written as ``[lower..]``
+    
+    See Also:
+        ExprBitSlice, ExprSubscript, ExprMemberPathElem
+    
+    """
+    pass
+    
+    def getLower(self) -> Expr: ...
+    
+    def getUpper(self) -> Expr: ...
+    
 class ExprStaticRefPath(Expr):
     """
     Deprecated static reference path expression.
@@ -2522,138 +2882,6 @@ class ExtendEnum(ScopeChild):
         """Returns an iterator over the items"""
     
     def getItems(self) -> List[EnumItem]: ...
-    
-class FunctionDefinition(ScopeChild):
-    """
-    Complete function definition with implementation body.
-    
-    Represents a function declaration with a complete implementation,
-    including prototype (signature) and execution body. Functions can
-    be qualified for target or solve-time execution using platform
-    qualifiers.
-    
-    PSS Example::
-    
-        // Simple function
-        function int add(int a, int b) {
-            return a + b;
-        }
-        
-        // Target function with output parameter
-        function void process(input int x, output int result) = target {
-            result = x * 2;
-        }
-        
-        // Solve-time function
-        function int calculate(int value) = solve {
-            return value + 100;
-        }
-    
-    Attributes:
-        endLocation: Location of function closing brace
-        proto: Function prototype (signature)
-        body: Execution scope containing statements
-        plat: Platform qualifier (None, Target, or Solve)
-    
-    See Also:
-        FunctionPrototype, ExecScope, PlatQual, FunctionImport
-    
-    """
-    pass
-    
-    def getEndLocation(self) -> 'Location': ...
-    
-    def getProto(self) -> FunctionPrototype: ...
-    
-    def getBody(self) -> ExecScope: ...
-    
-    def setPlat(self, v : PlatQual): ...
-    
-class FunctionImport(ScopeChild):
-    """
-    Base class for importing external functions.
-    
-    Represents an import statement that brings external functions into
-    PSS scope. External functions can be qualified for target or
-    solve-time execution and can specify the implementation language.
-    This is an abstract base; concrete imports use FunctionImportType
-    or FunctionImportProto.
-    
-    PSS Example::
-    
-        // Import by type name
-        import class my_pkg::util_funcs = target "cpp";
-        
-        // Import function prototype
-        import function int extern_func(int x) = solve "python";
-    
-    Attributes:
-        plat: Platform qualifier (None, Target, or Solve)
-        lang: Implementation language identifier (e.g., "cpp", "python")
-    
-    See Also:
-        FunctionImportType, FunctionImportProto, PlatQual
-    
-    """
-    pass
-    
-    def setPlat(self, v : PlatQual): ...
-    
-    def getLang(self) -> str: ...
-    
-    def setLang(self, v : str): ...
-    
-class FunctionParamDecl(ScopeChild):
-    """
-    Function parameter declaration with type and direction.
-    
-    Represents a single parameter in a function signature. Parameters
-    can have direction qualifiers (input, output, inout), default values,
-    and various kinds (data types, type parameters, or references).
-    Supports variadic parameters for variable-length argument lists.
-    
-    PSS Example::
-    
-        // Function with multiple parameter types
-        function void my_func(
-            input int x,              // Input parameter
-            output int result,        // Output parameter
-            inout int counter,        // Input/output parameter
-            int default_val = 10      // Parameter with default value
-        );
-        
-        // Type parameter
-        function void generic<type T>(T value);
-        
-        // Reference parameters
-        function void process_action(ref my_action act);
-        
-        // Variadic function
-        function void log(string fmt, ...);
-    
-    Attributes:
-        kind: Parameter kind (data type, type, reference, etc.)
-        name: Parameter identifier
-        type: Parameter data type
-        dir: Parameter direction (Default, In, Out, InOut)
-        dflt: Optional default value expression
-        is_varargs: True if this is a variadic parameter (...)
-    
-    See Also:
-        FunctionPrototype, FunctionParamDeclKind, ParamDir, DataType
-    
-    """
-    pass
-    
-    def setKind(self, v : FunctionParamDeclKind): ...
-    
-    def getName(self) -> ExprId: ...
-    
-    def getType(self) -> DataType: ...
-    
-    def setDir(self, v : ParamDir): ...
-    
-    def getDflt(self) -> Expr: ...
     
 class ActionHandleField(NamedScopeChild):
     """
@@ -3050,6 +3278,42 @@ class ConstraintStmtDefaultDisable(ConstraintStmt):
     
     def getHid(self) -> ExprHierarchicalId: ...
     
+class ConstraintStmtDist(ConstraintStmt):
+    """
+    Distribution directive: a weighted set of values for an expression.
+    
+    A `dist` directive constrains its target expression to the values
+    covered by the distribution list, and biases the solver toward
+    values in proportion to their weights. Unlike `inside`, the weights
+    make it a distribution rather than a plain set-membership test.
+    
+    PSS Example::
+    
+        action A {
+            rand bit[8] kind;
+    
+            constraint c {
+                dist kind in [0 := 10, 1 := 20, 2..7 :/ 30];
+            }
+        }
+    
+    Attributes:
+        lhs: The expression being distributed
+        items: The weighted values and ranges
+    
+    See Also:
+        DistItem, DistWeight, ExprIn
+    
+    """
+    pass
+    
+    def getLhs(self) -> Expr: ...
+    
+    def items(self) -> ListUtil...
+        """Returns an iterator over the items"""
+    
+    def getItems(self) -> List[DistItem]: ...
+    
 class ConstraintStmtExpr(ConstraintStmt):
     """
     Expression-based constraint statement.
@@ -3158,6 +3422,48 @@ class ConstraintStmtIf(ConstraintStmt):
     
     def getFalse_c(self) -> ConstraintScope: ...
     
+class ConstraintStmtSoft(ConstraintStmt):
+    """
+    Soft (overridable) constraint statement -- PSS 3.1, §13.1.12.
+    
+    A soft constraint expresses a *preference* rather than a
+    requirement. It is discarded when it contradicts a hard constraint,
+    an active default constraint, or a higher-priority soft constraint,
+    instead of producing a solve failure.
+    
+    Relative priority is determined by *position in the model*, not by
+    anything written in the source: a soft constraint declared later
+    outranks one declared earlier in the same scope, a derived type
+    outranks its base, and a type extension outranks the initial
+    declaration. The parser's obligation is therefore to preserve
+    declaration order faithfully -- `ConstraintStmt::index` records the
+    position within the enclosing scope, and priority is derived from
+    it downstream. Reordering constraint-scope children would silently
+    change what the model means.
+    
+    PSS Example::
+    
+        action A {
+            rand int x;
+    
+            constraint c {
+                x < 100;            // hard -- always holds
+                soft x > 10;        // preference, lower priority
+                soft x in [50..60]; // preference, higher priority
+            }
+        }
+    
+    Attributes:
+        expr: The Boolean expression preferred to hold
+    
+    See Also:
+        ConstraintStmtExpr, ConstraintStmtDefault, ConstraintScope
+    
+    """
+    pass
+    
+    def getExpr(self) -> Expr: ...
+    
 class ConstraintStmtUnique(ConstraintStmt):
     """
     Uniqueness constraint ensuring distinct values.
@@ -3186,11 +3492,29 @@ class ConstraintStmtUnique(ConstraintStmt):
             }
         }
     
+    PSS 3.1 (§13.1.10) admits a second, single-argument form whose
+    meaning is *different*::
+    
+        unique { a, b, c };   // these three attributes must differ
+        unique arr;           // the elements of `arr` must differ
+        unique arr[2..5];     // elements 2..5 of `arr` must differ
+    
+    Both forms populate `list`, so `is_braced` is what distinguishes
+    them: with one entry, `unique { a }` constrains a single scalar
+    (vacuously true) while `unique a` constrains every element of a
+    collection. A consumer that ignores the flag will silently
+    mis-interpret one of them.
+    
+    A slice on the single-argument form is not carried here -- it is
+    part of the `hierarchical_id`, as the trailing subscript of its
+    last `ExprMemberPathElem` (an `ExprSliceRange`).
+    
     Attributes:
         list: Expressions that must have unique values
+        is_braced: True for the `unique { ... }` form
     
     See Also:
-        ConstraintStmtExpr, ExprHierarchicalId
+        ConstraintStmtExpr, ExprHierarchicalId, ExprSliceRange
     
     """
     pass
@@ -3359,6 +3683,28 @@ class DataTypeEnum(DataType):
     
     def getIn_rangelist(self) -> ExprOpenRangeList: ...
     
+class DataTypeFloat(DataType):
+    """
+    Floating-point data type.
+    
+    Represents the PSS 3.1 ``float32`` and ``float64`` types (§4.6).
+    ``is_float64`` distinguishes the two widths; they differ only in
+    precision, so a single node carries both.
+    
+    PSS Example::
+    
+        float32 ratio;
+        float64 tolerance = 1.0e-9;
+    
+    Attributes:
+        is_float64: True for ``float64``, False for ``float32``
+    
+    See Also:
+        DataType, DataTypeInt, ExprFloatLiteral
+    
+    """
+    pass
+    
 class DataTypeInt(DataType):
     """
     Integer data type with signedness, width, and optional range.
@@ -3368,8 +3714,8 @@ class DataTypeInt(DataType):
     
     PSS Example::
     
-        int<8> byte_val;                    // 8-bit signed
-        bit<16> word_val;                   // 16-bit unsigned
+        int[8] byte_val;                    // 8-bit signed
+        bit[16] word_val;                   // 16-bit unsigned
         rand int addr in [0x1000..0x2000];  // With range constraint
         int value;                          // Implementation-defined width
     
@@ -3498,9 +3844,17 @@ class EnumDecl(NamedScopeChild):
             ERR_TIMEOUT = 2
         };
     
+    PSS 3.1 (§3.1, Annex B B.13) adds an optional base type, which fixes
+    the representation of the enumerators::
+    
+        enum small_e : bit[4] {
+            A, B, C
+        };
+    
     Attributes:
         name: Enum type name (inherited from NamedScopeChild)
         items: List of enumerator values
+        base_type: Declared base type, or null when none was written
     
     See Also:
         EnumItem, DataTypeEnum
@@ -3512,6 +3866,8 @@ class EnumDecl(NamedScopeChild):
         """Returns an iterator over the items"""
     
     def getItems(self) -> List[EnumItem]: ...
+    
+    def getBase_type(self) -> DataType: ...
     
 class EnumItem(NamedScopeChild):
     """
@@ -6030,80 +6386,6 @@ class ConstraintBlock(ConstraintScope):
     
     def setName(self, v : str): ...
     
-class ProceduralStmtRepeatWhile(ProceduralStmtBody):
-    """
-    Post-test loop that executes at least once.
-    
-    ProceduralStmtRepeatWhile represents a repeat-while loop (do-while style)
-    that executes the body at least once, then continues while the condition
-    is true. The condition is evaluated after each iteration.
-    
-    PSS Example::
-    
-        action my_action {
-            exec body {
-                int x = 0;
-                
-                // Executes body first, then checks condition
-                repeat {
-                    x++;
-                    console.log("x = ", x);
-                } while (x < 5);
-                // Executes at least once even if x >= 5 initially
-            }
-        }
-    
-    Attributes:
-        expr: Condition evaluated after each iteration
-        body: Statement(s) to execute (inherited from ProceduralStmtBody)
-    
-    See Also:
-        ProceduralStmtWhile, ProceduralStmtRepeat, ProceduralStmtBody
-    
-    """
-    pass
-    
-    def getExpr(self) -> Expr: ...
-    
-class ProceduralStmtWhile(ProceduralStmtBody):
-    """
-    Pre-test loop with condition evaluated before each iteration.
-    
-    ProceduralStmtWhile represents a standard while loop that evaluates the
-    condition before executing the body. The body may never execute if the
-    condition is initially false.
-    
-    PSS Example::
-    
-        action my_action {
-            exec body {
-                int x = 10;
-                
-                // Standard while loop
-                while (x > 0) {
-                    console.log("x = ", x);
-                    x--;
-                }
-                
-                // Condition checked first - may not execute
-                while (false) {
-                    console.log("Never executed");
-                }
-            }
-        }
-    
-    Attributes:
-        expr: Condition evaluated before each iteration
-        body: Statement(s) to execute (inherited from ProceduralStmtBody)
-    
-    See Also:
-        ProceduralStmtRepeatWhile, ProceduralStmtRepeat, ProceduralStmtForeach
-    
-    """
-    pass
-    
-    def getExpr(self) -> Expr: ...
-    
 class ConstraintStmtForall(ConstraintScope):
     """
     Universal quantification constraint over typed instances.
@@ -6242,6 +6524,80 @@ class ConstraintStmtImplication(ConstraintScope):
     
     def getCond(self) -> Expr: ...
     
+class ProceduralStmtRepeatWhile(ProceduralStmtBody):
+    """
+    Post-test loop that executes at least once.
+    
+    ProceduralStmtRepeatWhile represents a repeat-while loop (do-while style)
+    that executes the body at least once, then continues while the condition
+    is true. The condition is evaluated after each iteration.
+    
+    PSS Example::
+    
+        action my_action {
+            exec body {
+                int x = 0;
+                
+                // Executes body first, then checks condition
+                repeat {
+                    x++;
+                    console.log("x = ", x);
+                } while (x < 5);
+                // Executes at least once even if x >= 5 initially
+            }
+        }
+    
+    Attributes:
+        expr: Condition evaluated after each iteration
+        body: Statement(s) to execute (inherited from ProceduralStmtBody)
+    
+    See Also:
+        ProceduralStmtWhile, ProceduralStmtRepeat, ProceduralStmtBody
+    
+    """
+    pass
+    
+    def getExpr(self) -> Expr: ...
+    
+class ProceduralStmtWhile(ProceduralStmtBody):
+    """
+    Pre-test loop with condition evaluated before each iteration.
+    
+    ProceduralStmtWhile represents a standard while loop that evaluates the
+    condition before executing the body. The body may never execute if the
+    condition is initially false.
+    
+    PSS Example::
+    
+        action my_action {
+            exec body {
+                int x = 10;
+                
+                // Standard while loop
+                while (x > 0) {
+                    console.log("x = ", x);
+                    x--;
+                }
+                
+                // Condition checked first - may not execute
+                while (false) {
+                    console.log("Never executed");
+                }
+            }
+        }
+    
+    Attributes:
+        expr: Condition evaluated before each iteration
+        body: Statement(s) to execute (inherited from ProceduralStmtBody)
+    
+    See Also:
+        ProceduralStmtRepeatWhile, ProceduralStmtRepeat, ProceduralStmtForeach
+    
+    """
+    pass
+    
+    def getExpr(self) -> Expr: ...
+    
 class SymbolScope(SymbolChildrenScope):
     """
     Maps between local item identifier and item child index
@@ -6363,6 +6719,48 @@ class Action(TypeScope):
     """
     pass
     
+class GenericConstraintDeclBool(ConstraintBlock):
+    """
+    Boolean generic constraint declaration.
+    
+    Represents a declaration of the form
+    ``[static] constraint name(params) constraint_set``.
+    
+    """
+    pass
+    
+    def parameters(self) -> ListUtil...
+        """Returns an iterator over the items"""
+    
+    def getParameters(self) -> List[GenericConstraintParam]: ...
+    
+class ActivityDecl(SymbolScope):
+    """
+    Declares an activity block within an action.
+    
+    ActivityDecl represents the declaration of an activity block that defines
+    the behavioral execution flow of an action. It serves as a symbol scope
+    containing activity statements that specify sequences, parallelism, 
+    scheduling, and control flow.
+    
+    PSS Example::
+    
+        action my_action {
+            activity {
+                do comp1.child_action;
+                do comp2.child_action;
+            }
+        }
+    
+    Attributes:
+        (inherits symbol scope capabilities)
+    
+    See Also:
+        ActivityStmt, Action, SymbolScope
+    
+    """
+    pass
+    
 class Monitor(TypeScope):
     """
     Declares a PSS 3.0 monitor type for temporal property verification.
@@ -6441,33 +6839,6 @@ class MonitorActivityDecl(SymbolScope):
     
     See Also:
         MonitorActivityStmt, Monitor, ActivityDecl
-    
-    """
-    pass
-    
-class ActivityDecl(SymbolScope):
-    """
-    Declares an activity block within an action.
-    
-    ActivityDecl represents the declaration of an activity block that defines
-    the behavioral execution flow of an action. It serves as a symbol scope
-    containing activity statements that specify sequences, parallelism, 
-    scheduling, and control flow.
-    
-    PSS Example::
-    
-        action my_action {
-            activity {
-                do comp1.child_action;
-                do comp2.child_action;
-            }
-        }
-    
-    Attributes:
-        (inherits symbol scope capabilities)
-    
-    See Also:
-        ActivityStmt, Action, SymbolScope
     
     """
     pass
@@ -6856,36 +7227,6 @@ class SymbolFunctionScope(SymbolScope):
     
     def getBody(self) -> ExecScope: ...
     
-class SymbolTypeScope(SymbolScope):
-    """
-    Symbol scope for type declarations (actions, components, structs).
-    
-    Represents a user-defined type in the linked symbol tree, managing its
-    members, methods, and constraints. Supports template specialization by
-    tracking parameter lists and specialized type instantiations.
-    
-    During linking, type declarations from multiple files can be merged
-    (for extend statements) and specialized instances are tracked separately.
-    The plist holds template parameters, while spec_types contains any
-    specialized/instantiated versions of this generic type.
-    
-    Attributes:
-        plist: Template parameter list scope (if this is a generic type)
-        spec_types: List of specialized/instantiated versions of this type
-    
-    See Also:
-        SymbolScope, Action, Component, Struct, SymbolExtendScope
-    
-    """
-    pass
-    
-    def getPlist(self) -> SymbolScope: ...
-    
-    def spec_types(self) -> ListUtil...
-        """Returns an iterator over the items"""
-    
-    def getSpec_types(self) -> List[SymbolTypeScope]: ...
-    
 class ExecScope(SymbolScope):
     """
     Scope containing procedural statements with symbol table capabilities.
@@ -6918,20 +7259,76 @@ class ExecScope(SymbolScope):
     
     def getEndLocation(self) -> 'Location': ...
     
-class GenericConstraintDeclBool(ConstraintBlock):
+class SymbolTypeScope(SymbolScope):
     """
-    Boolean generic constraint declaration.
+    Symbol scope for type declarations (actions, components, structs).
     
-    Represents a declaration of the form
-    ``[static] constraint name(params) constraint_set``.
+    Represents a user-defined type in the linked symbol tree, managing its
+    members, methods, and constraints. Supports template specialization by
+    tracking parameter lists and specialized type instantiations.
+    
+    During linking, type declarations from multiple files can be merged
+    (for extend statements) and specialized instances are tracked separately.
+    The plist holds template parameters, while spec_types contains any
+    specialized/instantiated versions of this generic type.
+    
+    Attributes:
+        plist: Template parameter list scope (if this is a generic type)
+        spec_types: List of specialized/instantiated versions of this type
+    
+    See Also:
+        SymbolScope, Action, Component, Struct, SymbolExtendScope
     
     """
     pass
     
-    def parameters(self) -> ListUtil...
+    def getPlist(self) -> SymbolScope: ...
+    
+    def spec_types(self) -> ListUtil...
         """Returns an iterator over the items"""
     
-    def getParameters(self) -> List[GenericConstraintParam]: ...
+    def getSpec_types(self) -> List[SymbolTypeScope]: ...
+    
+class ExecBlock(ExecScope):
+    """
+    Complete exec block with specific execution phase.
+    
+    ExecBlock represents a complete exec block declaration within an action or
+    component. The kind field specifies when this code executes (body, pre_solve,
+    post_solve, etc.). Each exec block is a symbol scope containing procedural
+    statements.
+    
+    PSS Example::
+    
+        action my_action {
+            rand int x;
+            
+            exec pre_solve {
+                // Executes before randomization
+                console.log("About to solve");
+            }
+            
+            exec body {
+                // Main execution body
+                console.log("x = ", x);
+            }
+            
+            exec post_solve {
+                // Executes after randomization
+                console.log("Solved x = ", x);
+            }
+        }
+    
+    Attributes:
+        kind: Type of exec block (Body, PreSolve, PostSolve, etc.)
+    
+    See Also:
+        ExecKind, ExecScope, Action
+    
+    """
+    pass
+    
+    def setKind(self, v : ExecKind): ...
     
 class ProceduralStmtForeach(ProceduralStmtSymbolBodyScope):
     """
@@ -6976,47 +7373,6 @@ class ProceduralStmtForeach(ProceduralStmtSymbolBodyScope):
     def getIt_id(self) -> ExprId: ...
     
     def getIdx_id(self) -> ExprId: ...
-    
-class ExecBlock(ExecScope):
-    """
-    Complete exec block with specific execution phase.
-    
-    ExecBlock represents a complete exec block declaration within an action or
-    component. The kind field specifies when this code executes (body, pre_solve,
-    post_solve, etc.). Each exec block is a symbol scope containing procedural
-    statements.
-    
-    PSS Example::
-    
-        action my_action {
-            rand int x;
-            
-            exec pre_solve {
-                // Executes before randomization
-                console.log("About to solve");
-            }
-            
-            exec body {
-                // Main execution body
-                console.log("x = ", x);
-            }
-            
-            exec post_solve {
-                // Executes after randomization
-                console.log("Solved x = ", x);
-            }
-        }
-    
-    Attributes:
-        kind: Type of exec block (Body, PreSolve, PostSolve, etc.)
-    
-    See Also:
-        ExecKind, ExecScope, Action
-    
-    """
-    pass
-    
-    def setKind(self, v : ExecKind): ...
     
 class ProceduralStmtRepeat(ProceduralStmtSymbolBodyScope):
     """

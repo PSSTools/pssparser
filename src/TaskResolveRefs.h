@@ -75,6 +75,9 @@ public:
 
     virtual void visitField(ast::IField *i) override;
 
+    /** §9.1.6 b) -- `mutable` is not permitted on a component field. */
+    void checkMutableField(ast::IField *i);
+
     virtual void visitFieldCompRef(ast::IFieldCompRef *i) override;
 
     virtual void visitFunctionPrototype(ast::IFunctionPrototype *i) override;
@@ -97,9 +100,13 @@ public:
 
     virtual void visitSymbolTypeScope(ast::ISymbolTypeScope *i) override;
 
+    virtual void visitAnnotation(ast::IAnnotation *i) override;
+
     virtual void visitDataTypeUserDefined(ast::IDataTypeUserDefined *i) override;
     
     virtual void visitTypeIdentifier(ast::ITypeIdentifier *i) override;
+
+    virtual void visitExecBlockTag(ast::IExecBlockTag *i) override;
 
     virtual void visitStruct(ast::IStruct *i) override;
 
@@ -108,6 +115,20 @@ public:
     virtual void visitGenericConstraintDeclValue(ast::IGenericConstraintDeclValue *i) override;
 
 protected:
+    /**
+     * Check every annotation that belongs directly to `scope` -- that is, all
+     * annotations reachable from its children without crossing into a nested
+     * symbol scope, plus any attached to the declaration `scope` wraps.
+     *
+     * Annotations are not reachable from the ordinary traversal: most of the
+     * visitors overridden here (visitField, visitFunctionPrototype, the
+     * activity/constraint statements) recurse into the members they care about
+     * rather than chaining to visitScopeChild, which is what carries the
+     * annotation list. Collecting per symbol scope keeps the symbol-table stack
+     * correct for name resolution while reaching them all.
+     */
+    void checkScopeAnnotations(ast::ISymbolScope *scope);
+
     ast::IScopeChild *resolvePath(ast::ISymbolRefPath *path);
 
     bool isGenericConstraintParam(const std::string &name) const;
@@ -115,6 +136,14 @@ protected:
 private:
     static dmgr::IDebug                 *m_dbg;
     std::set<std::string>               m_generic_constraint_params;
+    std::set<ast::IAnnotation *>        m_checked_annotations;
+
+    // Same reason as m_checked_annotations: a declaration is reachable both
+    // through its symbol scope and through the scope's target, so a node with
+    // no dedicated visitor override is resolved twice. That is invisible while
+    // resolution succeeds -- `getTarget()` short-circuits the second pass --
+    // and shows up only as a duplicated diagnostic when it fails.
+    std::set<ast::IExecBlockTag *>      m_checked_exec_tags;
 
 };
 

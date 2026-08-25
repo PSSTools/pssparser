@@ -154,6 +154,94 @@ collisions.
 The :class:`~pssparser.checkers.CheckerManager` enforces globally unique IDs
 across all registered checkers at discovery time.
 
+.. _core-marker-catalogue:
+
+Built-in Marker Catalogue
+=========================
+
+The ``PSS`` prefix is reserved for the built-in ``CoreChecker``.  Because core
+diagnostics originate in C++ — where the marker object carries no ID — the ID
+is recovered by matching the message text against the ``patterns`` declared on
+each :class:`~pssparser.checkers.MarkerDef`.  ID, severity, documentation, and
+patterns are therefore all declared together in
+``pssparser/checkers/core_checker.py``, and the C++ message strings form part
+of that contract.  ``tests/python/test_marker_ids.py`` pins the mapping.
+
+Core IDs are allocated in bands:
+
+``PSS001``–``PSS099``
+    General parse and link diagnostics.
+
+``PSS100``–``PSS199``
+    PSS 3.1 language-rule diagnostics.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 12 12 76
+
+   * - ID
+     - Severity
+     - Summary
+   * - ``PSS001``
+     - error
+     - Syntax error
+   * - ``PSS002``
+     - error
+     - Unknown symbol reference
+   * - ``PSS003``
+     - error
+     - Duplicate symbol declaration (the ``duplicate declaration of '...'``
+       variant is currently emitted as a warning)
+   * - ``PSS004``
+     - error
+     - Symbol or ref-path resolution failure
+   * - ``PSS005``
+     - error
+     - Cannot extend unknown type or enum
+   * - ``PSS006``
+     - error
+     - Wrong number of arguments in a call (built-in ``string`` methods
+       included; collection methods other than ``push_back`` are not yet
+       checked)
+   * - ``PSS007``
+     - error
+     - Argument type mismatch in a call (by broad category -- numeric, string,
+       aggregate -- not by exact type)
+   * - ``PSS008``
+     - error
+     - Call to something that is not a function (a field, variable, or
+       parameter)
+   * - ``PSS100``
+     - error
+     - Annotation is not attached to a model element
+   * - ``PSS101``
+     - warning
+     - Unknown annotation type (annotation disregarded)
+   * - ``PSS102``
+     - error
+     - Annotation initializer is not a constant expression
+   * - ``PSS104``
+     - warning
+     - Deprecated brace-less ``compile if`` branch
+   * - ``PSS105``
+     - error
+     - Illegal ``mutable`` qualifier
+   * - ``PSS106``
+     - error
+     - Exec block tag not permitted on this exec kind
+   * - ``PSS107``
+     - error
+     - Member selection on a slice
+
+Two of these are warnings by deliberate design rather than by leniency.
+``PSS101`` must not be an error because PSS 3.1 §7.13 requires that
+unrecognized annotations be *disregarded*, so source using a tool-specific
+annotation stays portable.  ``PSS104`` marks a form that remains legal and is
+never scheduled for removal.
+
+Run ``pssparser --list-markers`` for the live catalogue and
+``pssparser --describe <ID>`` for the full text of any entry.
+
 Registering via entry_points
 =============================
 

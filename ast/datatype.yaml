@@ -31,6 +31,28 @@ classes:
         See Also:
             DataType, DataTypeInt
 
+- DataTypeFloat:
+    super: DataType
+    doc: |
+        Floating-point data type.
+
+        Represents the PSS 3.1 ``float32`` and ``float64`` types (§4.6).
+        ``is_float64`` distinguishes the two widths; they differ only in
+        precision, so a single node carries both.
+
+        PSS Example::
+
+            float32 ratio;
+            float64 tolerance = 1.0e-9;
+
+        Attributes:
+            is_float64: True for ``float64``, False for ``float32``
+
+        See Also:
+            DataType, DataTypeInt, ExprFloatLiteral
+    data:
+        - is_float64: bool
+
 - DataTypeChandle:
     super: DataType
     doc: |
@@ -122,14 +144,25 @@ classes:
                 ERR_TIMEOUT = 2
             };
         
+        PSS 3.1 (§3.1, Annex B B.13) adds an optional base type, which fixes
+        the representation of the enumerators::
+
+            enum small_e : bit[4] {
+                A, B, C
+            };
+
         Attributes:
             name: Enum type name (inherited from NamedScopeChild)
             items: List of enumerator values
-        
+            base_type: Declared base type, or null when none was written
+
         See Also:
             EnumItem, DataTypeEnum
     data:
     - items: list<UP<EnumItem>>
+    - base_type:
+        type: UP<DataType>
+        is_ctor: false
 
 - DataTypeInt:
     super: DataType
@@ -141,8 +174,8 @@ classes:
         
         PSS Example::
         
-            int<8> byte_val;                    // 8-bit signed
-            bit<16> word_val;                   // 16-bit unsigned
+            int[8] byte_val;                    // 8-bit signed
+            bit[16] word_val;                   // 16-bit unsigned
             rand int addr in [0x1000..0x2000];  // With range constraint
             int value;                          // Implementation-defined width
         

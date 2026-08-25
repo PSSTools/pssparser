@@ -48,6 +48,14 @@ bool TaskCompareTypeRefs::equal(
     ast::IDataTypeInt    *type_int = 0;
     ast::IDataTypeString *type_str = 0;
 
+    // A parameter with no bound type has no reference to compare. Two of those
+    // match each other and nothing else -- the same rule `valueParamDfltEqual`
+    // applies to an unbound value parameter.
+    if (!tref1 || !tref2) {
+        DEBUG_LEAVE("equal (null) %d", (tref1 == tref2));
+        return (tref1 == tref2);
+    }
+
     m_type_int = 0;
     m_type_str = 0;
     tref1->accept(m_this);
@@ -55,17 +63,26 @@ bool TaskCompareTypeRefs::equal(
     type_str = m_type_str;
 
     m_type_int = 0;
-    m_type_int = 0;
+    m_type_str = 0;
     tref2->accept(m_this);
 
     if (m_type_int && type_int) {
         // Both are type int
-        IVal *w1 = m_expr_eval.eval(m_type_int->getWidth());
-        IVal *w2 = m_expr_eval.eval(type_int->getWidth());
+        //
+        // An unspecified width -- plain `int` or `bit` -- carries no expression
+        // to evaluate. Two of those are the same type; one of each is not.
+        ast::IExpr *w1_e = m_type_int->getWidth();
+        ast::IExpr *w2_e = type_int->getWidth();
         DEBUG("Both are type 'int'");
-        DEBUG("T1: width=%d signed=%d", m_type_int->getWidth(), m_type_int->getIs_signed());
-        DEBUG("T2: width=%d signed=%d", type_int->getWidth(), type_int->getIs_signed());
-        ret &= m_comp_val.equal(w1, w2);
+        DEBUG("T1: width=%p signed=%d", w1_e, m_type_int->getIs_signed());
+        DEBUG("T2: width=%p signed=%d", w2_e, type_int->getIs_signed());
+        if (!w1_e || !w2_e) {
+            ret &= (w1_e == w2_e);
+        } else {
+            ret &= m_comp_val.equal(
+                m_expr_eval.eval(w1_e),
+                m_expr_eval.eval(w2_e));
+        }
     } else if (m_type_str && type_str) {
         DEBUG("Both are type 'str'");
         // Nothing else to do...

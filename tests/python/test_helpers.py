@@ -212,16 +212,218 @@ def assert_linked(scope, name: str):
 
 def assert_no_errors(parser: Parser):
     """
-    Assert parser has no errors
-    
+    Assert parser has no error-severity markers
+
     Args:
         parser: Parser to check
-        
+
     Raises:
         AssertionError if parser has errors
     """
-    # TODO: Add proper error checking when API is available
-    pass
+    errors = [m for m in parser.markers if m.get("severity") == "error"]
+    assert not errors, \
+        "Expected no errors, got:\n" + _format_markers(errors)
+
+
+# =============================================================================
+# Marker (diagnostic) Helpers
+# =============================================================================
+#
+# Marker IDs (PSSnnn) are not carried by the C++ marker objects. They are
+# assigned in Python by matching the message text -- see
+# pssparser.cli.commands._assign_core_code. These helpers route markers through
+# that same mapping so a test asserting on an ID exercises the mapping the CLI
+# uses, rather than a parallel copy of it.
+
+
+def _assign_codes(markers: List[dict]) -> List[dict]:
+    """Annotate markers with their 'code' (PSSnnn) field where one is known."""
+    from pssparser.cli.commands import _assign_core_code
+    return [_assign_core_code(m) for m in markers]
+
+
+def _format_markers(markers: List[dict]) -> str:
+    """Render a marker list for assertion failure messages."""
+    if not markers:
+        return "    (none)"
+    return "\n".join(
+        "    [%s] %s (%s:%s:%s)%s" % (
+            m.get("severity", "?"),
+            m.get("message", ""),
+            m.get("file", "?"),
+            m.get("line", "?"),
+            m.get("col", "?"),
+            " code=%s" % m["code"] if m.get("code") else "")
+        for m in markers)
+
+
+def parse_collect(code: str, filename: str = "test.pss",
+                  parser: Optional[Parser] = None) -> Tuple[Any, List[dict]]:
+    """
+    Parse and link, returning (root_or_None, markers) instead of raising.
+
+    This is the primitive the marker assertions are built on. Diagnostics that
+    do not stop the parse (warnings, hints, info) are only reachable this way --
+    parse_pss raises before the caller can inspect them.
+
+    Args:
+        code: PSS source code
+        filename: Filename for error reporting
+        parser: Optional parser instance (creates new if None)
+
+    Returns:
+        (root, markers) where root is the linked symbol scope, or None if
+        parsing/linking failed. markers is a list of marker dicts, each
+        annotated with a 'code' key where an ID is known.
+    """
+    if parser is None:
+        parser = Parser()
+
+    try:
+        parser.parses([(filename, code)])
+        root = parser.link()
+    except Exception as e:
+        # ParseException carries the markers that triggered it. Anything else
+        # is a bug in the parser rather than a diagnostic, so surface it.
+        markers = getattr(e, "markers", None)
+        if markers is None:
+            raise
+        return None, _assign_codes(markers)
+
+    return root, _assign_codes(parser.markers)
+
+
+def find_markers(markers: List[dict], marker_id: Optional[str] = None,
+                 severity: Optional[str] = None,
+                 text: Optional[str] = None) -> List[dict]:
+    """
+    Filter a marker list by ID, severity, and/or message substring.
+
+    Args:
+        markers: Marker list, as returned by parse_collect
+        marker_id: Expected marker code (e.g. "PSS002"); None matches any
+        severity: Expected severity ("error"/"warning"/"info"/"hint")
+        text: Substring expected in the message (case-insensitive)
+
+    Returns:
+        The matching subset, in emission order
+    """
+    result = markers
+    if marker_id is not None:
+        result = [m for m in result if m.get("code") == marker_id]
+    if severity is not None:
+        result = [m for m in result if m.get("severity") == severity]
+    if text is not None:
+        needle = text.lower()
+        result = [m for m in result if needle in m.get("message", "").lower()]
+    return result
+
+
+def assert_marker(code: str, marker_id: Optional[str] = None,
+                  severity: Optional[str] = None,
+                  text: Optional[str] = None,
+                  count: Optional[int] = None) -> dict:
+    """
+    Assert a marker matching the given criteria was emitted.
+
+    At least one of marker_id/severity/text must be given -- an unconstrained
+    call would assert only that *some* diagnostic occurred, which is never what
+    a test means.
+
+    Args:
+        code: PSS source code
+        marker_id: Expected marker code (e.g. "PSS002")
+        severity: Expected severity ("error"/"warning"/"info"/"hint")
+        text: Substring expected in the message (case-insensitive)
+        count: If given, the exact number of matches expected
+
+    Returns:
+        The first matching marker
+
+    Raises:
+        AssertionError if no marker matches (or count does not match)
+    """
+    assert marker_id is not None or severity is not None or text is not None, \
+        "assert_marker requires at least one of marker_id, severity, or text"
+
+    _, markers = parse_collect(code)
+    matches = find_markers(markers, marker_id, severity, text)
+
+    criteria = ", ".join(
+        "%s=%r" % (k, v)
+        for k, v in (("marker_id", marker_id), ("severity", severity),
+                     ("text", text))
+        if v is not None)
+
+    assert matches, \
+        "Expected a marker matching %s; markers emitted were:\n%s" % (
+            criteria, _format_markers(markers))
+
+    if count is not None:
+        assert len(matches) == count, \
+            "Expected %d markers matching %s, got %d:\n%s" % (
+                count, criteria, len(matches), _format_markers(matches))
+
+    return matches[0]
+
+
+def assert_no_marker(code: str, marker_id: Optional[str] = None,
+                     severity: Optional[str] = None,
+                     text: Optional[str] = None):
+    """
+    Assert no marker matching the given criteria was emitted.
+
+    Args:
+        code: PSS source code
+        marker_id: Marker code that must be absent
+        severity: Severity that must be absent
+        text: Message substring that must be absent
+
+    Raises:
+        AssertionError if a matching marker was emitted
+    """
+    assert marker_id is not None or severity is not None or text is not None, \
+        "assert_no_marker requires at least one of marker_id, severity, or text"
+
+    _, markers = parse_collect(code)
+    matches = find_markers(markers, marker_id, severity, text)
+
+    assert not matches, \
+        "Expected no matching marker, but got:\n" + _format_markers(matches)
+
+
+def assert_parse_ok_with_warning(code: str, marker_id: Optional[str] = None,
+                                 text: Optional[str] = None) -> Any:
+    """
+    Assert the code parses and links successfully *and* emits a warning.
+
+    This is the shape PSS 3.1 deprecations take: the construct remains legal,
+    so the parse must succeed, but a diagnostic must accompany it. Asserting
+    only one half of that would let either regression through.
+
+    Args:
+        code: PSS source code
+        marker_id: Expected warning code (e.g. "PSS101")
+        text: Substring expected in the warning message
+
+    Returns:
+        The linked symbol scope root
+
+    Raises:
+        AssertionError if parsing fails, or if no matching warning was emitted
+    """
+    root, markers = parse_collect(code)
+
+    errors = [m for m in markers if m.get("severity") == "error"]
+    assert root is not None and not errors, \
+        "Expected a successful parse, but got errors:\n" + _format_markers(errors)
+
+    matches = find_markers(markers, marker_id, "warning", text)
+    assert matches, \
+        "Parse succeeded but expected warning was not emitted; markers were:\n" \
+        + _format_markers(markers)
+
+    return root
 
 
 # =============================================================================

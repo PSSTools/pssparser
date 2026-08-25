@@ -20,6 +20,8 @@ enums:
       - ParamKind_RefStream     # Reference to stream type
       - ParamKind_RefStruct     # Reference to struct type
       - ParamKind_Struct        # Struct value parameter
+      - ParamKind_RefMonitor    # PSS 3.1: reference to monitor type
+      - ParamKind_Numeric       # PSS 3.1: `numeric` category value parameter
 
 classes:
   - FunctionDefinition:

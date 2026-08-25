@@ -33,6 +33,7 @@ Key Features
    cli
    checker_plugin_guide
    pss30_migration
+   pss31_migration
 
 .. toctree::
    :maxdepth: 2

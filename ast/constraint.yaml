@@ -203,6 +203,46 @@ classes:
                 Expr, ConstraintStmt, ConstraintBlock
         - data:
             - expr: UP<Expr>
+    - ConstraintStmtSoft:
+        - super: ConstraintStmt
+        - doc: |
+            Soft (overridable) constraint statement -- PSS 3.1, §13.1.12.
+
+            A soft constraint expresses a *preference* rather than a
+            requirement. It is discarded when it contradicts a hard constraint,
+            an active default constraint, or a higher-priority soft constraint,
+            instead of producing a solve failure.
+
+            Relative priority is determined by *position in the model*, not by
+            anything written in the source: a soft constraint declared later
+            outranks one declared earlier in the same scope, a derived type
+            outranks its base, and a type extension outranks the initial
+            declaration. The parser's obligation is therefore to preserve
+            declaration order faithfully -- `ConstraintStmt::index` records the
+            position within the enclosing scope, and priority is derived from
+            it downstream. Reordering constraint-scope children would silently
+            change what the model means.
+
+            PSS Example::
+
+                action A {
+                    rand int x;
+
+                    constraint c {
+                        x < 100;            // hard -- always holds
+                        soft x > 10;        // preference, lower priority
+                        soft x in [50..60]; // preference, higher priority
+                    }
+                }
+
+            Attributes:
+                expr: The Boolean expression preferred to hold
+
+            See Also:
+                ConstraintStmtExpr, ConstraintStmtDefault, ConstraintScope
+        - data:
+            - expr: UP<Expr>
+
     - ConstraintStmtForeach:
         - super: ConstraintScope
         - doc: |
@@ -434,15 +474,37 @@ classes:
                     }
                 }
             
+            PSS 3.1 (§13.1.10) admits a second, single-argument form whose
+            meaning is *different*::
+
+                unique { a, b, c };   // these three attributes must differ
+                unique arr;           // the elements of `arr` must differ
+                unique arr[2..5];     // elements 2..5 of `arr` must differ
+
+            Both forms populate `list`, so `is_braced` is what distinguishes
+            them: with one entry, `unique { a }` constrains a single scalar
+            (vacuously true) while `unique a` constrains every element of a
+            collection. A consumer that ignores the flag will silently
+            mis-interpret one of them.
+
+            A slice on the single-argument form is not carried here -- it is
+            part of the `hierarchical_id`, as the trailing subscript of its
+            last `ExprMemberPathElem` (an `ExprSliceRange`).
+
             Attributes:
                 list: Expressions that must have unique values
-            
+                is_braced: True for the `unique { ... }` form
+
             See Also:
-                ConstraintStmtExpr, ExprHierarchicalId
+                ConstraintStmtExpr, ExprHierarchicalId, ExprSliceRange
         - data:
             # LRM has List<HierarchicalId>
 #            - list: list<UP<ExprRefPathContext>>
             - list: list<UP<ExprHierarchicalId>>
+            - is_braced:
+                type: bool
+                is_ctor: false
+                init: false
     - ConstraintStmtDefault:
         - super: ConstraintStmt
         - doc: |
@@ -515,3 +577,91 @@ classes:
             - hid: UP<ExprHierarchicalId>
             
             
+
+    - DistWeight:
+        - super: ScopeChild
+        - doc: |
+            Weight applied to one item of a `dist` directive.
+
+            PSS spells the weight two ways, which mean different things when the
+            item covers a range of values:
+
+            * ``:=`` gives the stated weight to *each* value in the range
+            * ``:/`` divides the stated weight *across* the values in the range
+
+            The distinction is not recoverable from the expression alone, so it
+            is carried here rather than left to the consumer to infer.
+
+            PSS Example::
+
+                constraint c {
+                    dist x in [1 := 10, 2..4 :/ 30];
+                }
+
+            Attributes:
+                is_dividing: True for `:/`, false for `:=`
+                expr: The weight expression
+
+            See Also:
+                DistItem, ConstraintStmtDist
+        - data:
+            - is_dividing: bool
+            - expr: UP<Expr>
+
+    - DistItem:
+        - super: ScopeChild
+        - doc: |
+            One value-or-range entry in a `dist` directive's distribution list.
+
+            The weight is optional; an item written without one carries the
+            default weight (`:= 1`).
+
+            PSS Example::
+
+                constraint c {
+                    dist x in [1 := 10,        // single value, weighted
+                               2..4 :/ 30,     // range, weight divided
+                               5];             // no weight -- defaults to 1
+                }
+
+            Attributes:
+                range: The value or value range this weight applies to
+                weight: The weight, or null when none was written
+
+            See Also:
+                DistWeight, ConstraintStmtDist, ExprOpenRangeValue
+        - data:
+            - range: UP<ExprOpenRangeValue>
+            - weight: UP<DistWeight>
+
+    - ConstraintStmtDist:
+        - super: ConstraintStmt
+        - doc: |
+            Distribution directive: a weighted set of values for an expression.
+
+            A `dist` directive constrains its target expression to the values
+            covered by the distribution list, and biases the solver toward
+            values in proportion to their weights. Unlike `inside`, the weights
+            make it a distribution rather than a plain set-membership test.
+
+            PSS Example::
+
+                action A {
+                    rand bit[8] kind;
+
+                    constraint c {
+                        dist kind in [0 := 10, 1 := 20, 2..7 :/ 30];
+                    }
+                }
+
+            Attributes:
+                lhs: The expression being distributed
+                items: The weighted values and ranges
+
+            See Also:
+                DistItem, DistWeight, ExprIn
+        - data:
+            - lhs: UP<Expr>
+            - items:
+                type: list<UP<DistItem>>
+                is_ctor: false

@@ -137,3 +137,30 @@ struct regs_s {
     assert sym is not None
     for name in ("ctrl", "status", "data", "addr"):
         assert has_symbol(sym, name), f"field {name} not found"
+
+
+# ---------------------------------------------------------------------------
+# PSS 3.1 alignment: the declared name is an `identifier` (plan item P1-G7)
+# ---------------------------------------------------------------------------
+# Annex B B.13 is `typedef_declaration ::= typedef data_type identifier ;`.
+# The grammar previously used `type_identifier` for the declared name, which
+# accepted a qualified name -- `typedef int a::b;` -- and then silently kept
+# only the first element, so the typedef bound a name the source never wrote.
+
+def test_typedef_qualified_name_rejected(parser):
+    """A typedef declares a new name; it cannot name an existing scope."""
+    from test_helpers import assert_parse_error
+    assert_parse_error("package p { package q { } } typedef int p::q;")
+
+
+def test_typedef_plain_name_still_accepted(parser):
+    root = parse_pss("typedef int my_int; struct S { my_int a; }", parser=parser)
+    assert get_symbol(root, "my_int") is not None
+
+
+def test_typedef_name_binds_exactly_what_was_written(parser):
+    """Guards the silent-truncation behaviour the old rule allowed."""
+    root = parse_pss("typedef bit[8] byte_t; struct S { byte_t v; }", parser=parser)
+    assert get_symbol(root, "byte_t") is not None
+    sym = get_symbol(root, "S")
+    assert has_symbol(sym, "v")

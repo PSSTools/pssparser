@@ -1,0 +1,264 @@
+"""
+Tests for call-site argument-count checking (PSS006, known issue P3-X6).
+
+Every call in the AST -- statement or expression, plain or method -- is an
+``ExprMemberPathElem`` carrying a ``params`` list, so all these forms reach the
+same check.  This file covers the argument *count*; argument types are checked
+separately, as PSS007 -- see ``test_call_arg_types.py``.
+"""
+import sys
+from pathlib import Path
+
+import pytest
+
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from test_helpers import assert_marker, assert_no_marker
+
+
+# ---------------------------------------------------------------------------
+# Too few / too many, across every call form
+# ---------------------------------------------------------------------------
+
+def test_too_many_arguments():
+    pss = """
+    package p {
+        function void g(int a);
+        component pss_top { exec init_up { g(1, 2, 3); } }
+    }
+    """
+    assert_marker(pss, marker_id="PSS006",
+                  text="call to 'g' expects 1 argument, got 3")
+
+
+def test_too_few_arguments():
+    pss = """
+    package p {
+        function void g(int a);
+        component pss_top { exec init_up { g(); } }
+    }
+    """
+    assert_marker(pss, marker_id="PSS006",
+                  text="call to 'g' expects 1 argument, got 0")
+
+
+def test_correct_arity_is_silent():
+    pss = """
+    package p {
+        function void g(int a);
+        component pss_top { exec init_up { g(1); } }
+    }
+    """
+    assert_no_marker(pss, severity="error")
+
+
+def test_zero_arg_function_called_with_arguments():
+    pss = """
+    package p {
+        function void g();
+        component pss_top { exec init_up { g(1); } }
+    }
+    """
+    assert_marker(pss, marker_id="PSS006",
+                  text="expects 0 arguments, got 1")
+
+
+def test_defined_function_is_checked():
+    """A function with a body, not just a prototype."""
+    pss = """
+    package p {
+        function void g(int a) { int q = a; }
+        component pss_top { exec init_up { g(1, 2, 3); } }
+    }
+    """
+    assert_marker(pss, marker_id="PSS006", text="expects 1 argument, got 3")
+
+
+def test_imported_function_is_checked():
+    pss = """
+    package p {
+        import function void g(int a);
+        component pss_top { exec init_up { g(1, 2, 3); } }
+    }
+    """
+    assert_marker(pss, marker_id="PSS006", text="expects 1 argument, got 3")
+
+
+def test_call_in_value_context_is_checked():
+    """A call used as an expression, not as a statement."""
+    pss = """
+    package p {
+        function int g(int a);
+        component pss_top { exec init_up { int x = g(1, 2, 3); } }
+    }
+    """
+    assert_marker(pss, marker_id="PSS006", text="expects 1 argument, got 3")
+
+
+def test_method_call_is_checked():
+    pss = """
+    component c { function void g(int a); }
+    component pss_top {
+        c inst;
+        exec init_up { inst.g(1, 2, 3); }
+    }
+    """
+    assert_marker(pss, marker_id="PSS006", text="expects 1 argument, got 3")
+
+
+# ---------------------------------------------------------------------------
+# Defaults widen the accepted range
+# ---------------------------------------------------------------------------
+
+def test_default_parameter_may_be_omitted():
+    pss = """
+    package p {
+        function void g(int a, int b = 2);
+        component pss_top { exec init_up { g(1); } }
+    }
+    """
+    assert_no_marker(pss, marker_id="PSS006")
+
+
+def test_required_parameter_may_not_be_omitted():
+    pss = """
+    package p {
+        function void g(int a, int b = 2);
+        component pss_top { exec init_up { g(); } }
+    }
+    """
+    assert_marker(pss, marker_id="PSS006",
+                  text="expects 1 to 2 arguments, got 0")
+
+
+def test_too_many_past_the_defaults():
+    pss = """
+    package p {
+        function void g(int a, int b = 2);
+        component pss_top { exec init_up { g(1, 2, 3); } }
+    }
+    """
+    assert_marker(pss, marker_id="PSS006", text="expects 1 to 2 arguments, got 3")
+
+
+# ---------------------------------------------------------------------------
+# Varargs remove the upper bound but keep the lower one
+# ---------------------------------------------------------------------------
+
+def test_varargs_accepts_any_trailing_count():
+    pss = """
+    package p {
+        function void g(int a, int... rest);
+        component pss_top { exec init_up { g(1, 2, 3, 4); } }
+    }
+    """
+    assert_no_marker(pss, marker_id="PSS006")
+
+
+def test_varargs_still_requires_the_fixed_parameters():
+    pss = """
+    package p {
+        function void g(int a, int... rest);
+        component pss_top { exec init_up { g(); } }
+    }
+    """
+    assert_marker(pss, marker_id="PSS006",
+                  text="expects at least 1 argument, got 0")
+
+
+# ---------------------------------------------------------------------------
+# Core-library and collection methods go through the same path
+# ---------------------------------------------------------------------------
+
+def test_core_function_is_checked():
+    pss = """
+    component pss_top { exec init_up { print(); } }
+    """
+    assert_marker(pss, marker_id="PSS006", text="call to 'print' expects")
+
+
+def test_collection_method_is_checked():
+    pss = """
+    component pss_top {
+        exec init_up {
+            list<int> l;
+            l.push_back(1, 2, 3);
+        }
+    }
+    """
+    assert_marker(pss, marker_id="PSS006", text="call to 'push_back' expects")
+
+
+# ---------------------------------------------------------------------------
+# Boundaries: what this check deliberately does not do
+# ---------------------------------------------------------------------------
+
+def test_argument_type_mismatch_is_not_an_arity_error():
+    """A type mismatch is PSS007, not PSS006 -- see test_call_arg_types.py."""
+    pss = """
+    package p {
+        function void g(int a);
+        component pss_top { exec init_up { g("not an int"); } }
+    }
+    """
+    assert_no_marker(pss, marker_id="PSS006")
+
+
+@pytest.mark.xfail(strict=True,
+                   reason="P3-X6e / P2-A5a: a package-qualified path never "
+                          "resolves, so the call site is never reached")
+def test_package_qualified_call_is_checked():
+    pss = """
+    package p { function void g(int a); }
+    component pss_top { exec init_up { p::g(1, 2, 3); } }
+    """
+    assert_marker(pss, marker_id="PSS006", text="expects 1 argument, got 3")
+
+
+# ---------------------------------------------------------------------------
+# A prototype followed by a definition used to segfault
+# ---------------------------------------------------------------------------
+
+def test_prototype_then_definition_does_not_crash():
+    """
+    ``TaskBuildSymbolTree::visitFunctionPrototype`` builds a function scope with
+    no ``plist``; the following definition reuses that scope and attaches a body
+    whose statements then resolve through ``TaskResolveRootRef``, which
+    dereferenced the null ``plist``.  Regression guard: this must terminate.
+    """
+    pss = """
+    package p {
+        function void g(int a);
+        function void g(int a) { int q = a; }
+    }
+    """
+    from test_helpers import parse_collect
+    parse_collect(pss)   # must not segfault
+
+
+@pytest.mark.xfail(strict=True,
+                   reason="P3-X8: a parameter of a function that was prototyped "
+                          "before being defined does not resolve in its body")
+def test_prototype_then_definition_resolves_parameters():
+    pss = """
+    package p {
+        function void g(int a);
+        function void g(int a) { int q = a; }
+    }
+    """
+    assert_no_marker(pss, severity="error")
+
+
+@pytest.mark.xfail(strict=True,
+                   reason="P3-X6d (collections): collection methods other than "
+                          "push_back still resolve through a name allow-list")
+def test_collection_method_arity_is_checked_beyond_push_back():
+    pss = """
+    component pss_top {
+        exec init_up {
+            list<int> l;
+            int n = l.size(1, 2);
+        }
+    }
+    """
+    assert_marker(pss, marker_id="PSS006", text="call to 'size' expects")

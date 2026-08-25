@@ -415,7 +415,65 @@ public:
         DEBUG_LEAVE("visitExprRefPathId");
     }
     
-    virtual void visitConstraintScope(ast::IConstraintScope *i) { }
+    virtual void visitConstraintScope(ast::IConstraintScope *i) {
+        // Was a no-op, which silently emptied every nested constraint block on
+        // a template specialization -- visitConstraintStmtIf already delegates
+        // here for both of its branches.
+        ast::IConstraintScope *ic = m_factory->mkConstraintScope();
+        for (std::vector<ast::IConstraintStmtUP>::const_iterator
+            it=i->getConstraints().begin();
+            it!=i->getConstraints().end(); it++) {
+            ic->getConstraints().push_back(ast::IConstraintStmtUP(copy(it->get())));
+        }
+        m_constraint = ic;
+    }
+
+    virtual void visitConstraintStmtSoft(ast::IConstraintStmtSoft *i) override {
+        m_constraint = m_factory->mkConstraintStmtSoft(copy(i->getExpr()));
+    }
+
+    virtual void visitConstraintStmtDist(ast::IConstraintStmtDist *i) override {
+        ast::IConstraintStmtDist *ic = m_factory->mkConstraintStmtDist(
+            copy(i->getLhs()));
+        for (std::vector<ast::IDistItemUP>::const_iterator
+            it=i->getItems().begin();
+            it!=i->getItems().end(); it++) {
+            ic->getItems().push_back(ast::IDistItemUP(
+                copyT<ast::IDistItem>(it->get())));
+        }
+        m_constraint = ic;
+    }
+
+    virtual void visitDistItem(ast::IDistItem *i) override {
+        m_sc = m_factory->mkDistItem(
+            copyT<ast::IExprOpenRangeValue>(i->getRange()),
+            (i->getWeight())?copyT<ast::IDistWeight>(i->getWeight()):0);
+    }
+
+    virtual void visitDistWeight(ast::IDistWeight *i) override {
+        m_sc = m_factory->mkDistWeight(
+            i->getIs_dividing(),
+            copy(i->getExpr()));
+    }
+
+    virtual void visitExprSliceRange(ast::IExprSliceRange *i) override {
+        ast::IExprSliceRange *ic = m_factory->mkExprSliceRange();
+        if (i->getLower()) { ic->setLower(copy(i->getLower())); }
+        if (i->getUpper()) { ic->setUpper(copy(i->getUpper())); }
+        m_expr = ic;
+    }
+
+    virtual void visitExprFloatLiteral(ast::IExprFloatLiteral *i) override {
+        m_expr = m_factory->mkExprFloatLiteral(
+            i->getValue(),
+            i->getImage(),
+            i->getIs_scientific());
+    }
+
+    virtual void visitDataTypeFloat(ast::IDataTypeFloat *i) override {
+        m_dt = m_factory->mkDataTypeFloat(i->getIs_float64());
+    }
+
     
     virtual void visitExprRefPathContext(ast::IExprRefPathContext *i) { 
         DEBUG_ENTER("visitExprRefPathContext");
@@ -489,7 +547,17 @@ public:
         );
     }
     
-    virtual void visitConstraintStmtUnique(ast::IConstraintStmtUnique *i) { }
+    virtual void visitConstraintStmtUnique(ast::IConstraintStmtUnique *i) {
+        ast::IConstraintStmtUnique *ic = m_factory->mkConstraintStmtUnique();
+        ic->setIs_braced(i->getIs_braced());
+        for (std::vector<ast::IExprHierarchicalIdUP>::const_iterator
+            it=i->getList().begin();
+            it!=i->getList().end(); it++) {
+            ic->getList().push_back(ast::IExprHierarchicalIdUP(
+                copyT<ast::IExprHierarchicalId>(it->get())));
+        }
+        m_constraint = ic;
+    }
     
     virtual void visitConstraintStmtDefault(ast::IConstraintStmtDefault *i) { }
     

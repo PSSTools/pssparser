@@ -8,6 +8,8 @@ enums:
     - State       # State type category for state-related templates
     - Stream      # Stream type category for stream-related templates
     - Struct      # Struct type category for struct-related templates
+    - Monitor     # PSS 3.1: monitor type category (a *ref* category)
+    - Numeric     # PSS 3.1: any numeric type (a *plain* category)
 
 classes:
 

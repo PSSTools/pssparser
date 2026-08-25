@@ -4,9 +4,14 @@ classes:
       doc: |
           Applied annotation attached to a model element.
 
-          Represents an annotation use such as ``@desc("hello")`` or
-          ``@meta(name="foo")``. The annotation type is referenced by name and
-          the parameters preserve both positional and name-mapped arguments.
+          Represents an annotation use such as ``@desc_s {.desc = "hello"}``.
+          The annotation type is referenced by name; every parameter is
+          name-mapped (PSS 3.1 removed positional annotation parameters).
+
+          ``is_standalone`` distinguishes the two application forms of §7.13: a
+          standalone annotation is terminated with ``;`` and is anchored to the
+          enclosing scope, while an element annotation has no terminator and
+          attaches to the model element that follows it.
 
           See Also:
               AnnotationDecl, AnnotationParam
@@ -16,21 +21,23 @@ classes:
       - parameters:
           type: list<UP<AnnotationParam>>
           is_ctor: false
+      - is_standalone:
+          type: bool
+          is_ctor: false
 
   - AnnotationParam:
       super: ScopeChild
       doc: |
           Parameter to an applied annotation.
 
-          Positional parameters leave ``name`` unset. Name-mapped parameters set
-          ``name`` to the mapped field identifier.
+          ``name`` is the annotation-type field the value is mapped onto. It is
+          always set: PSS 3.1 annotation parameters are name-mapped only.
 
           See Also:
               Annotation
       data:
       - name:
           type: UP<ExprId>
-          is_ctor: false
       - value:
           type: UP<Expr>
 

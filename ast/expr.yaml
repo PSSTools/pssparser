@@ -896,6 +896,52 @@ classes:
             - image: string
             - width: int32_t
             - value: int64_t
+    - ExprSliceRange:
+        super: Expr
+        doc: |
+            A `[ lower .. upper ]` range used to select a sub-range of a
+            collection or a string.
+
+            Annex B defines two rules with *identical* syntax:
+
+            * ``array_slice  ::= expression .. expression | expression .. | .. expression``
+            * ``string_slice ::= expression .. expression | expression .. | .. expression``
+
+            Which one a given range is cannot be decided while parsing -- it
+            depends on the type of the operand being sliced, which is only
+            known after name resolution. A single neutral node is therefore the
+            only shape the builder can honestly produce; the linker classifies
+            it. (Contrast ``ExprBitSlice``, which is spelled ``[msb : lsb]``
+            and *is* syntactically distinct.)
+
+            Either endpoint may be absent, but not both -- ``[..]`` is not a
+            legal slice. An absent endpoint means "to the end of the
+            collection" in that direction.
+
+            The node appears as an element of ``ExprMemberPathElem.subscript``.
+            A subscript that is a slice yields the *collection* type, whereas a
+            plain index subscript yields the *element* type -- consumers that
+            walk subscripts must distinguish the two.
+
+            PSS Example::
+
+                unique arr[2..5];       // array slice: elements 2 through 5
+                string tail = s[3..];   // string slice: from index 3 onward
+                string head = s[..3];   // string slice: up to index 3
+
+            Attributes:
+                lower: Left index, or null when written as ``[..upper]``
+                upper: Right index, or null when written as ``[lower..]``
+
+            See Also:
+                ExprBitSlice, ExprSubscript, ExprMemberPathElem
+        data:
+            - lower:
+                type: "UP<Expr>"
+                is_ctor: false
+            - upper:
+                type: "UP<Expr>"
+                is_ctor: false
     # TODO: Remove this once it is safe to do so
     - ExprStaticRefPath:
         super: Expr
@@ -1028,10 +1074,45 @@ classes:
             
             See Also:
                 ExprNumber, ExprSignedNumber
-        data: 
+        data:
             - image: string
             - width: int32_t
             - value: uint64_t
+    - ExprFloatLiteral:
+        super: Expr
+        doc: |
+            Represents a floating-point literal value.
+
+            PSS 3.1 §4.6 admits two spellings, both modelled here: a plain
+            decimal form (`1.5`) and a scientific form (`1.5e-3`). They differ
+            only in notation, not in value, so `is_scientific` exists to let a
+            consumer reproduce the source spelling rather than to change how the
+            value is interpreted.
+
+            Both the parsed value and the source text are kept. `value` is what
+            a consumer evaluates; `image` is what it needs to reproduce the
+            source, and the two are not interchangeable. Digit separators and
+            trailing zeros do not survive a round trip through a double, and not
+            every decimal fraction is exactly representable, so `image` is the
+            authority on spelling and `value` on magnitude.
+
+            PSS Example::
+
+                float32 a = 1.5;
+                float64 b = 1.0e-9;
+                float64 c = 1_000.5;
+
+            Attributes:
+                value: Parsed value, with digit separators removed
+                image: Original text representation from source, separators included
+                is_scientific: True when written in exponent notation
+
+            See Also:
+                ExprNumber, ExprUnsignedNumber
+        data:
+            - value: double
+            - image: string
+            - is_scientific: bool
     - MethodParameterList:
         super: Expr
         doc: |

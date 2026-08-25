@@ -69,8 +69,10 @@ static std::string findCloseMatch(
 
 TaskResolveRef::TaskResolveRef(
     ResolveContext                  *ctxt,
-    bool                            search_imp) : 
-        TaskResolveBase(ctxt), m_search_imp(search_imp) {
+    bool                            search_imp,
+    bool                            report_unresolved) : 
+        TaskResolveBase(ctxt), m_search_imp(search_imp),
+        m_report_unresolved(report_unresolved) {
     DEBUG_INIT("TaskResolveRef", ctxt->getDebugMgr());
     m_ref = 0;
 }
@@ -223,6 +225,9 @@ void TaskResolveRef::visitTypeIdentifier(ast::ITypeIdentifier *i) {
     if (!root) {
         const std::string &name = i->getElems().at(0)->getId()->getId();
         DEBUG("Note: failed to resolve root symbol %s", name.c_str());
+        if (!m_report_unresolved) {
+            return;
+        }
         std::string suggestion = findCloseMatch(
             name, dynamic_cast<ast::ISymbolScope *>(m_ctxt->root()));
         if (suggestion.empty()) {

@@ -115,29 +115,22 @@ _CORE_CODE_PATTERNS: list = []
 
 
 def _build_core_patterns() -> list:
-    """Compile and return the message-to-PSS-code pattern table."""
-    rules = [
-        # PSS001 — syntax errors (parser phase)
-        (r"^expected\b", "PSS001"),
-        (r"^unexpected\b", "PSS001"),
-        (r"^unknown exec-block kind\b", "PSS001"),
+    """Compile and return the message-to-PSS-code pattern table.
 
-        # PSS002 — unknown symbol (linker phase)
-        (r"^unknown type\b", "PSS002"),
-        (r"^unknown identifier\b", "PSS002"),
-        (r"^unknown method\b", "PSS002"),
+    The table is derived from ``CoreChecker.marker_defs`` so that a marker's
+    ID, severity, documentation, and message patterns are declared together in
+    one record.  Patterns are tried in declaration order (i.e. ascending ID)
+    and the first match wins; ``tests/python/test_marker_ids.py`` pins the
+    resulting mapping so that a newly-added pattern cannot silently shadow an
+    existing code.
+    """
+    from pssparser.checkers.core_checker import CoreChecker
 
-        # PSS003 — duplicate declarations
-        (r"^duplicate\b", "PSS003"),
-
-        # PSS005 — extend-unknown (checked before PSS004 to avoid false match)
-        (r"^cannot extend unknown\b", "PSS005"),
-
-        # PSS004 — general resolution / ref-path failures
-        (r"^failed to resolve\b", "PSS004"),
-        (r"\bref-path element\b", "PSS004"),
+    return [
+        (re.compile(pat, re.IGNORECASE), mdef.id)
+        for mdef in CoreChecker.marker_defs
+        for pat in mdef.patterns
     ]
-    return [(re.compile(pat, re.IGNORECASE), code) for pat, code in rules]
 
 
 def _assign_core_code(marker: dict) -> dict:

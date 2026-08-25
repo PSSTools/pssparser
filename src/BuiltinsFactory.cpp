@@ -138,7 +138,142 @@ ast::IGlobalScope *BuiltinsFactory::build() {
     map->setParent(m_builtins.get());
     m_builtins->getChildren().push_back(ast::IScopeChildUP(map));
 
+    /****************************************************************
+     * string - PSS 3.1 7.6
+     ****************************************************************/
+    ast::IStruct *string_t = buildString();
+    string_t->setParent(m_builtins.get());
+    m_builtins->getChildren().push_back(ast::IScopeChildUP(string_t));
+
     return m_builtins.release();
+}
+
+/**
+ * `string` is spelled as a keyword, so the grammar never produces a reference
+ * to this type and a user cannot declare one that collides with it.  It exists
+ * only to give the methods of 7.6.3 real signatures, which is what lets a call
+ * on a string variable be arity- and argument-checked like any other call.
+ */
+ast::IStruct *BuiltinsFactory::buildString() {
+    ast::IStruct *s = m_ast_f->mkStruct(
+        m_ast_f->mkExprId("string", false),
+        0,
+        ast::StructKind::Struct);
+
+    // -- PSS 3.1 7.6.3, in the order the LRM lists them ------------------
+    mkMethod(s, "size", mkInt());
+
+    ast::IFunctionPrototype *find = mkMethod(s, "find", mkInt());
+    addParam(find, "sub_str", mkString());
+    addParam(find, "first_pos", mkInt(), mkIntLit(0));
+
+    ast::IFunctionPrototype *find_last = mkMethod(s, "find_last", mkInt());
+    addParam(find_last, "sub_str", mkString());
+    addParam(find_last, "first_pos", mkInt(), mkIntLit(-1));
+
+    ast::IFunctionPrototype *find_all = mkMethod(s, "find_all", mkList(mkInt()));
+    addParam(find_all, "sub_str", mkString());
+
+    mkMethod(s, "lower", mkString());
+    mkMethod(s, "upper", mkString());
+
+    ast::IFunctionPrototype *split = mkMethod(s, "split", mkList(mkString()));
+    addParam(split, "sep", mkString());
+
+    mkMethod(s, "chars", mkList(mkBit(8)));
+
+    // -- Non-LRM methods retained for compatibility ----------------------
+    // These predate the 3.1 alignment and are not in 7.6.3.  They are kept
+    // so that source written against earlier releases still parses; giving
+    // them signatures here is what allows the name allow-list they used to
+    // live on to be deleted.  Whether to deprecate them is P3-X6f.
+    mkMethod(s, "len", mkInt());
+
+    ast::IFunctionPrototype *rfind = mkMethod(s, "rfind", mkInt());
+    addParam(rfind, "sub_str", mkString());
+    addParam(rfind, "first_pos", mkInt(), mkIntLit(-1));
+
+    ast::IFunctionPrototype *substr = mkMethod(s, "substr", mkString());
+    addParam(substr, "first_pos", mkInt());
+    addParam(substr, "len", mkInt(), mkIntLit(-1));
+
+    mkMethod(s, "to_lower", mkString());
+    mkMethod(s, "to_upper", mkString());
+    mkMethod(s, "trim", mkString());
+
+    ast::IFunctionPrototype *starts_with = mkMethod(s, "starts_with", mkBool());
+    addParam(starts_with, "prefix", mkString());
+
+    ast::IFunctionPrototype *ends_with = mkMethod(s, "ends_with", mkBool());
+    addParam(ends_with, "suffix", mkString());
+
+    return s;
+}
+
+ast::IFunctionPrototype *BuiltinsFactory::mkMethod(
+        ast::IScope             *owner,
+        const std::string       &name,
+        ast::IDataType          *rtype) {
+    ast::IFunctionPrototype *proto = m_ast_f->mkFunctionPrototype(
+        m_ast_f->mkExprId(name, false),
+        rtype,
+        false,
+        false);
+    owner->getChildren().push_back(ast::IScopeChildUP(proto));
+    return proto;
+}
+
+void BuiltinsFactory::addParam(
+        ast::IFunctionPrototype *proto,
+        const std::string       &name,
+        ast::IDataType          *type,
+        ast::IExpr              *dflt) {
+    proto->getParameters().push_back(ast::IFunctionParamDeclUP(
+        m_ast_f->mkFunctionParamDecl(
+            ast::FunctionParamDeclKind::ParamKind_DataType,
+            m_ast_f->mkExprId(name, false),
+            type,
+            ast::ParamDir::ParamDir_In,
+            dflt)));
+}
+
+ast::IDataType *BuiltinsFactory::mkInt() {
+    return m_ast_f->mkDataTypeInt(true, 0, 0);
+}
+
+ast::IDataType *BuiltinsFactory::mkBit(int32_t width) {
+    char image[16];
+    snprintf(image, sizeof(image), "%d", width);
+    return m_ast_f->mkDataTypeInt(
+        false,
+        m_ast_f->mkExprUnsignedNumber(image, 32, width),
+        0);
+}
+
+ast::IDataType *BuiltinsFactory::mkString() {
+    return m_ast_f->mkDataTypeString(false);
+}
+
+ast::IDataType *BuiltinsFactory::mkBool() {
+    return m_ast_f->mkDataTypeBool();
+}
+
+ast::IDataType *BuiltinsFactory::mkList(ast::IDataType *elem) {
+    ast::ITemplateParamValueList *params = m_ast_f->mkTemplateParamValueList();
+    params->getValues().push_back(ast::ITemplateParamValueUP(
+        m_ast_f->mkTemplateParamTypeValue(elem)));
+    ast::ITypeIdentifier *type_id = m_ast_f->mkTypeIdentifier();
+    type_id->getElems().push_back(ast::ITypeIdentifierElemUP(
+        m_ast_f->mkTypeIdentifierElem(
+            m_ast_f->mkExprId("list", false),
+            params)));
+    return m_ast_f->mkDataTypeUserDefined(false, type_id);
+}
+
+ast::IExpr *BuiltinsFactory::mkIntLit(int32_t v) {
+    char image[16];
+    snprintf(image, sizeof(image), "%d", v);
+    return m_ast_f->mkExprSignedNumber(image, 32, v);
 }
 
 }

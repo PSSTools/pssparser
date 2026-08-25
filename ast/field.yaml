@@ -9,6 +9,7 @@ flags:
     - Instance    # Component instance-qualified field
     - Private     # Private field (not visible outside)
     - Protected   # Protected field (visible in subclasses)
+    - Mutable     # PSS 3.1 §9.1.6: component data modifiable after construction
 
 classes:
   - Field:

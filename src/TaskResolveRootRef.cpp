@@ -185,9 +185,18 @@ void TaskResolveRootRef::visitSymbolTypeScope(ast::ISymbolTypeScope *i) {
 void TaskResolveRootRef::visitSymbolFunctionScope(ast::ISymbolFunctionScope *i) {
     DEBUG_ENTER("visitSymbolFunctionScope %s (searching for %s)", i->getName().c_str(), m_id->getId().c_str());
 
-    std::unordered_map<std::string,int32_t>::const_iterator it = i->getPlist()->getSymtab().find(m_id->getId());
+    // A function scope built from a bare prototype has no plist -- see
+    // TaskBuildSymbolTree::visitFunctionPrototype. That scope becomes reachable
+    // once a definition of the same function follows, which attaches a body
+    // whose statements resolve through here. visitSymbolTypeScope already
+    // guards the equivalent lookup; this one did not, and segfaulted.
+    std::unordered_map<std::string,int32_t>::const_iterator it;
 
-    if (it != i->getPlist()->getSymtab().end()) {
+    if (i->getPlist()) {
+        it = i->getPlist()->getSymtab().find(m_id->getId());
+    }
+
+    if (i->getPlist() && it != i->getPlist()->getSymtab().end()) {
         ast::IScopeChild *c = i->getPlist()->getChildren().at(it->second).get();
         DEBUG("Found as a function parameter @ %d", it->second);
         m_ref = m_ctxt->symtab()->getScopeSymbolPath(); // Path to 'i'
