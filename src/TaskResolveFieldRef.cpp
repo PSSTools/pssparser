@@ -20,6 +20,7 @@
  */
 #include "dmgr/impl/DebugMacros.h"
 #include "TaskResolveFieldRef.h"
+#include "pssp/impl/TaskGetName.h"
 
 
 namespace pssp {
@@ -61,28 +62,63 @@ void TaskResolveFieldRef::visitNamedScopeChild(ast::INamedScopeChild *i) {
 }
 
 void TaskResolveFieldRef::visitSymbolScope(ast::ISymbolScope *i) {
-    DEBUG_ENTER("visitSymbolScope \"%s\"", i->getName().c_str());
-    // A package is an ordinary symbol scope, so this is the case that makes
-    // `pkg::T` resolve; it had been an empty stub, which is why every
-    // package-qualified reference failed on its second element (P2-A5a).
-    //
-    // Deliberately does *not* chain to VisitorBase, which would walk the
-    // scope's imports and children. This is a single-level lookup.
-    lookup(i);
-    DEBUG_LEAVE("visitSymbolScope");
-}
+    DEBUG_ENTER("visitSymbolScope %s", i->getName().c_str());
 
-//void TaskResolveFieldRef::visitSymbolExecScope(ast::ISymbolExecScope *i) {
-//
-//}
-
-void TaskResolveFieldRef::visitSymbolTypeScope(ast::ISymbolTypeScope *i) {
-    DEBUG_ENTER("visitSymbolTypeScope \"%s\"", i->getName().c_str());
+    // A package is an ISymbolScope, not an ISymbolTypeScope. Until this was
+    // implemented, only the type-scope case below did any lookup, so the
+    // second element of a package-qualified path -- the `s` of `p::s` --
+    // could never be found. `extend struct p::s` then failed its target
+    // resolution silently and the extension was dropped whole.
     lookup(i);
-    DEBUG_LEAVE("visitSymbolTypeScope");
+
+    DEBUG_LEAVE("visitSymbolScope %p", m_ret);
 }
 
 void TaskResolveFieldRef::lookup(ast::ISymbolScope *i) {
+    std::unordered_map<std::string,int32_t>::const_iterator it;
+
+    if ((it=i->getSymtab().find(m_id->getId())) == i->getSymtab().end()) {
+        return;
+    }
+
+    // A synthetic scope owns its children list, so the symtab index addresses
+    // it directly. A non-synthetic scope records the child's index in the
+    // *physical* AST parent instead, which need not line up. Confirm the
+    // candidate by name before trusting it, and fall back to a scan.
+    int32_t idx = it->second;
+    if (idx >= 0 && idx < (int32_t)i->getChildren().size()) {
+        ast::IScopeChild *c = i->getChildren().at(idx).get();
+        if (TaskGetName().get(c) == m_id->getId()) {
+            m_ret = c;
+            m_path->getPath().push_back({
+                ast::SymbolRefPathElemKind::ElemKind_ChildIdx,
+                idx
+            });
+            return;
+        }
+    }
+
+    for (int32_t ci=0; ci<(int32_t)i->getChildren().size(); ci++) {
+        ast::IScopeChild *c = i->getChildren().at(ci).get();
+        if (TaskGetName().get(c) == m_id->getId()) {
+            DEBUG("symtab index %d did not match; found %s at %d",
+                idx, m_id->getId().c_str(), ci);
+            m_ret = c;
+            m_path->getPath().push_back({
+                ast::SymbolRefPathElemKind::ElemKind_ChildIdx,
+                ci
+            });
+            return;
+        }
+    }
+}
+
+//void TaskResolveFieldRef::visitSymbolExecScope(ast::ISymbolExecScope *i) { 
+//
+//}
+
+void TaskResolveFieldRef::visitSymbolTypeScope(ast::ISymbolTypeScope *i) { 
+    DEBUG_ENTER("visitSymbolTypeScope");
     std::unordered_map<std::string,int32_t>::const_iterator it;
 
     if ((it=i->getSymtab().find(m_id->getId())) != i->getSymtab().end()) {
@@ -92,6 +128,8 @@ void TaskResolveFieldRef::lookup(ast::ISymbolScope *i) {
             it->second
         });
     }
+
+    DEBUG_LEAVE("visitSymbolTypeScope");
 }
 
 void TaskResolveFieldRef::visitScopeChild(ast::IScopeChild *i) {

@@ -14,6 +14,7 @@
 #include <sys/time.h>
 #endif
 #include <vector>
+#include <cstdarg>
 #include "dmgr/impl/DebugMacros.h"
 #include "AstBuilderInt.h"
 #include "PSSLexer.h"
@@ -38,6 +39,7 @@
 #include "pssp/ast/IPackageScope.h"
 #include "pssp/ast/IPackageImportStmt.h"
 #include "pssp/ast/Location.h"
+#include "DocAnchorScope.h"
 #include "Marker.h"
 
 namespace pssp {
@@ -52,6 +54,7 @@ AstBuilderInt::AstBuilderInt(
 	IMarkerListener 	*marker_l) : m_factory(factory), m_marker_l(marker_l) {
     DEBUG_INIT("pssp::AstBuilderInt", dmgr);
 	m_collectDocStrings = false;
+	m_collectComments = false;
     m_enableProfile = false;
 	m_field_depth = 0;
 	m_labeled_activity_id = 0;
@@ -105,6 +108,18 @@ void AstBuilderInt::build(
 	ANTLRInputStream input(*in);
 	PSSLexer lexer(&input);
 	m_tokens = std::unique_ptr<CommonTokenStream>(new CommonTokenStream(&lexer));
+
+	if (m_collectComments) {
+		// A trailing comment sits to the *right* of the construct that owns
+		// it, and the stream only buffers as far as the parser's lookahead
+		// has reached -- which, mid-rule, is short of it. Buffer the lot up
+		// front. Leading comments never needed this, which is why the
+		// docstring path has always worked without it.
+		m_tokens->fill();
+	}
+
+	m_doc_extractor = std::unique_ptr<DocCommentExtractor>(
+		new DocCommentExtractor(m_tokens.get(), m_file_id, m_doc_opts));
 	PSSParser parser(m_tokens.get());
 
 	parser.removeErrorListeners();
@@ -124,6 +139,11 @@ void AstBuilderInt::build(
 		pop_scope();
         uint64_t build_ast_e = time_ms();
         DEBUG("Build AST: %lld", (build_ast_e-build_ast_s));
+
+        // This unit is now a "previously-processed source unit" for every unit
+        // built after it, and supplies the types and constants their
+        // compile-time expressions may reference (PSS 3.1 19.1.2).
+        m_prior_units.push_back(global);
 	}
 
     if (m_enableProfile) {
@@ -174,7 +194,10 @@ antlrcpp::Any AstBuilderInt::visitPackage_declaration(
 antlrcpp::Any AstBuilderInt::visitPackage_body_compile_if(PSSParser::Package_body_compile_ifContext *ctx) {
     int64_t cond = 0;
     checkCompileIfBranches(ctx->true_body, ctx->false_body);
-    if (evalConstantExpression(ctx->cond, cond) && cond) {
+    if (!evalCompileTimeCond(ctx->cond, cond, "compile if")) {
+        // Reported as an error: elaborate neither branch (19.1.1 promises only
+        // that a disabled branch is syntactically correct).
+    } else if (cond) {
         visitCompileIfItem(ctx->true_body);
     } else if (ctx->false_body) {
         visitCompileIfItem(ctx->false_body);
@@ -296,6 +319,10 @@ antlrcpp::Any AstBuilderInt::visitExtend_stmt(PSSParser::Extend_stmtContext *ctx
 				value = mkExpr((*it)->constant_expression()->expression());
 			}
 			ast::IEnumItem *item = m_factory->mkEnumItem(id, value);
+			// The extend site, not the base declaration: an item contributed
+			// by `extend enum` is written here.
+			setLoc(item, (*it)->start);
+			attachDocstring(item, (*it)->start);
 			ext->getItems().push_back(ast::IEnumItemUP(item));
 		}
 		
@@ -402,7 +429,10 @@ antlrcpp::Any AstBuilderInt::visitAnnotation_declaration(PSSParser::Annotation_d
 antlrcpp::Any AstBuilderInt::visitAnnotation_body_compile_if(PSSParser::Annotation_body_compile_ifContext *ctx) {
     int64_t cond = 0;
     checkCompileIfBranches(ctx->true_body, ctx->false_body);
-    if (evalConstantExpression(ctx->cond, cond) && cond) {
+    if (!evalCompileTimeCond(ctx->cond, cond, "compile if")) {
+        // Reported as an error: elaborate neither branch (19.1.1 promises only
+        // that a disabled branch is syntactically correct).
+    } else if (cond) {
         visitCompileIfItem(ctx->true_body);
     } else if (ctx->false_body) {
         visitCompileIfItem(ctx->false_body);
@@ -410,8 +440,32 @@ antlrcpp::Any AstBuilderInt::visitAnnotation_body_compile_if(PSSParser::Annotati
     return 0;
 }
 
+/**
+ * The `*_ann` rules wrap a body item in `annotation*`.  When an annotation is
+ * present it sits between a leading doc comment and the declaration, so the
+ * declaration's own start token is no longer adjacent to the comment.
+ *
+ * The anchor is established only when an annotation is actually there: with
+ * none, `ctx->start` is already the declaration's start token and the override
+ * is a no-op.
+ */
+antlrcpp::Any AstBuilderInt::visitAction_body_item_ann(PSSParser::Action_body_item_annContext *ctx) {
+	return visitChildren(ctx);
+}
+
+antlrcpp::Any AstBuilderInt::visitComponent_body_item_ann(PSSParser::Component_body_item_annContext *ctx) {
+	return visitChildren(ctx);
+}
+
+antlrcpp::Any AstBuilderInt::visitActivity_stmt_ann(PSSParser::Activity_stmt_annContext *ctx) {
+	return visitChildren(ctx);
+}
+
 antlrcpp::Any AstBuilderInt::visitAnnotation_attr_field(PSSParser::Annotation_attr_fieldContext *ctx) {
 	DEBUG_ENTER("visitAnnotation_attr_field");
+	// D2: `annotation_attr_field` contributes tokens ahead of the declaration it wraps, so the
+	// comment sits to the left of *this* rule, not of the delegate.
+	DocAnchorScope doc_anchor(this, ctx->start);
 
 	m_field_depth++;
 	ctx->data_declaration()->accept(this);
@@ -480,6 +534,9 @@ antlrcpp::Any AstBuilderInt::visitAnnotation(PSSParser::AnnotationContext *ctx) 
 
 antlrcpp::Any AstBuilderInt::visitConst_field_declaration(PSSParser::Const_field_declarationContext *ctx) {
 	DEBUG_ENTER("visitConst_field_declaration");
+	// D2: `const_field_declaration` contributes tokens ahead of the declaration it wraps, so the
+	// comment sits to the left of *this* rule, not of the delegate.
+	DocAnchorScope doc_anchor(this, ctx->start);
 
 	m_field_depth++;
 	ctx->data_declaration()->accept(this);
@@ -509,7 +566,11 @@ antlrcpp::Any AstBuilderInt::visitConst_field_declaration(PSSParser::Const_field
 
 antlrcpp::Any AstBuilderInt::visitCompile_assert_stmt(PSSParser::Compile_assert_stmtContext *ctx) {
     int64_t cond = 0;
-    if (!evalConstantExpression(ctx->cond, cond) || !cond) {
+    if (!evalCompileTimeCond(ctx->cond, cond, "compile assert")) {
+        // Indeterminable: already reported, and distinct from a condition that
+        // evaluated to false.  Reporting it as a plain assertion failure is
+        // what made a cross-file `static const` look like a failing assert.
+    } else if (!cond) {
         if (m_marker_l) {
             ast::Location loc;
             loc.fileid = m_file_id;
@@ -578,6 +639,9 @@ antlrcpp::Any AstBuilderInt::visitAction_declaration(PSSParser::Action_declarati
 
 antlrcpp::Any AstBuilderInt::visitAbstract_action_declaration(PSSParser::Abstract_action_declarationContext *ctx) {
 	DEBUG_ENTER("visitAbstract_action_declaration");
+	// D2: `abstract_action_declaration` contributes tokens ahead of the declaration it wraps, so the
+	// comment sits to the left of *this* rule, not of the delegate.
+	DocAnchorScope doc_anchor(this, ctx->start);
 	ctx->action_declaration()->accept(this);
 	ast::IAction *action = dynamic_cast<ast::IAction *>(scope()->getChildren().back().get());
 	action->setIs_abstract(true);
@@ -589,19 +653,42 @@ antlrcpp::Any AstBuilderInt::visitAbstract_action_declaration(PSSParser::Abstrac
 antlrcpp::Any AstBuilderInt::visitOverride_action_declaration(PSSParser::Override_action_declarationContext *ctx) {
     DEBUG_ENTER("visitOverride_action_declaration");
 
-    // Map override action to IExtendType with Action kind.
-    ast::ITypeIdentifier *target_id = m_factory->mkTypeIdentifier();
-    target_id->getElems().push_back(ast::ITypeIdentifierElemUP(
+    // LRM 19.2.2: an override action is a *new* action in the declaring
+    // component that implicitly inherits from the one it overrides. So it is
+    // built as an Action, not -- as it was until now -- an IExtendType
+    // targeting the same name. An extension would have added these members to
+    // the base action everywhere it is used, which is the opposite of what
+    // overriding means.
+    //
+    // The super type spells the action's own name, and that is not a mistake:
+    // `inh1_c::base_a` inherits `base_c::base_a`. Resolving it therefore
+    // cannot use the ordinary lookup, which would find this very declaration
+    // and cycle -- TaskResolveOverrideActions starts from the enclosing
+    // component's base chain instead, and reports 19.2.2a when nothing there
+    // declares the name.
+    ast::ITypeIdentifier *super_t = m_factory->mkTypeIdentifier();
+    super_t->getElems().push_back(ast::ITypeIdentifierElemUP(
         m_factory->mkTypeIdentifierElem(
             mkId(ctx->action_identifier()->identifier()), 0)));
 
-    ast::IExtendType *ext = m_factory->mkExtendType(
-        ast::ExtendTargetE::Action,
-        target_id);
-    setLoc(ext, ctx->start);
+    ast::IAction *action = m_factory->mkAction(
+        mkId(ctx->action_identifier()->identifier()),
+        super_t,
+        false);
+    action->setIs_override(true);
+    setLoc(action, ctx->start);
 
-    addChild(ext, ctx->start, ctx->TOK_RCBRACE()->getSymbol());
-    push_scope(ext);
+    // The `comp` ref field a normal action declaration installs; an override
+    // is an action like any other and needs it too.
+    ast::IFieldCompRef *comp = m_factory->mkFieldCompRef(
+        m_factory->mkExprId("comp", false),
+        0 // Type: must back-patch later
+    );
+    comp->setIndex(action->getChildren().size());
+    action->getChildren().push_back(ast::IScopeChildUP(comp));
+
+    addChild(action, ctx->start, ctx->TOK_RCBRACE()->getSymbol());
+    push_scope(action);
 
     std::vector<PSSParser::Action_body_item_annContext *> items = ctx->action_body_item_ann();
     for (auto *item : items) {
@@ -662,7 +749,10 @@ antlrcpp::Any AstBuilderInt::visitActivity_declaration(PSSParser::Activity_decla
 antlrcpp::Any AstBuilderInt::visitAction_body_compile_if(PSSParser::Action_body_compile_ifContext *ctx) {
     int64_t cond = 0;
     checkCompileIfBranches(ctx->true_body, ctx->false_body);
-    if (evalConstantExpression(ctx->cond, cond) && cond) {
+    if (!evalCompileTimeCond(ctx->cond, cond, "compile if")) {
+        // Reported as an error: elaborate neither branch (19.1.1 promises only
+        // that a disabled branch is syntactically correct).
+    } else if (cond) {
         visitCompileIfItem(ctx->true_body);
     } else if (ctx->false_body) {
         visitCompileIfItem(ctx->false_body);
@@ -875,6 +965,9 @@ antlrcpp::Any AstBuilderInt::visitAction_handle_declaration(PSSParser::Action_ha
 
 antlrcpp::Any AstBuilderInt::visitActivity_data_field(PSSParser::Activity_data_fieldContext *ctx) {
 	DEBUG_ENTER("visitActivity_data_field");
+	// D2: `activity_data_field` contributes tokens ahead of the declaration it wraps, so the
+	// comment sits to the left of *this* rule, not of the delegate.
+	DocAnchorScope doc_anchor(this, ctx->start);
 	m_field_depth++;
 	m_field_depth--;
 
@@ -948,7 +1041,10 @@ antlrcpp::Any AstBuilderInt::visitStruct_declaration(PSSParser::Struct_declarati
 antlrcpp::Any AstBuilderInt::visitStruct_body_compile_if(PSSParser::Struct_body_compile_ifContext *ctx) {
     int64_t cond = 0;
     checkCompileIfBranches(ctx->true_body, ctx->false_body);
-    if (evalConstantExpression(ctx->cond, cond) && cond) {
+    if (!evalCompileTimeCond(ctx->cond, cond, "compile if")) {
+        // Reported as an error: elaborate neither branch (19.1.1 promises only
+        // that a disabled branch is syntactically correct).
+    } else if (cond) {
         visitCompileIfItem(ctx->true_body);
     } else if (ctx->false_body) {
         visitCompileIfItem(ctx->false_body);
@@ -961,7 +1057,9 @@ antlrcpp::Any AstBuilderInt::visitMonitor_body_compile_if(PSSParser::Monitor_bod
     checkCompileIfBranches(
         ctx->monitor_body_compile_if_item(0),
         ctx->monitor_body_compile_if_item().size() > 1 ? ctx->monitor_body_compile_if_item(1) : nullptr);
-    if (evalConstantExpression(ctx->constant_expression(), cond) && cond) {
+    if (!evalCompileTimeCond(ctx->constant_expression(), cond, "compile if")) {
+        // Reported as an error: elaborate neither branch.
+    } else if (cond) {
         visitCompileIfItem(ctx->monitor_body_compile_if_item(0));
     } else if (ctx->monitor_body_compile_if_item().size() > 1) {
         visitCompileIfItem(ctx->monitor_body_compile_if_item(1));
@@ -1026,6 +1124,21 @@ antlrcpp::Any AstBuilderInt::visitExec_block(PSSParser::Exec_blockContext *ctx) 
     for (std::vector<PSSParser::Exec_stmtContext *>::const_iterator
         it=items.begin();
         it!=items.end(); it++) {
+        if ((*it)->exec_super_stmt()) {
+            // `super;` -- the other alternative of `exec_stmt`. This branch
+            // did not exist, so procedural_stmt() came back null and went
+            // straight into mkExecStmt(), which segfaulted the parser (plan
+            // phase 1.2). Building the node rather than skipping the
+            // statement: dropping it would link cleanly and lose the one
+            // thing that distinguishes extending a base exec from replacing
+            // it.
+            ast::IProceduralStmtSuper *stmt = m_factory->mkProceduralStmtSuper();
+            setLoc(stmt, (*it)->start);
+            stmt->setIndex(m_exec_scope_s.back()->getChildren().size());
+            m_exec_scope_s.back()->getChildren().push_back(
+                ast::IScopeChildUP(stmt));
+            continue;
+        }
         addExecStmt((*it)->procedural_stmt());
     }
     m_exec_scope_s.pop_back();
@@ -1211,6 +1324,7 @@ antlrcpp::Any AstBuilderInt::visitProcedural_function(PSSParser::Procedural_func
         addExecStmt(*it);
     }
     m_exec_scope_s.pop_back();
+    collectScopeTrailingComments(body, ctx->stop);
     DEBUG("Result is %d statements in body", body->getChildren().size());
 
     ast::PlatQual platqual = ast::PlatQual::PlatQual_None;
@@ -1313,6 +1427,7 @@ antlrcpp::Any AstBuilderInt::visitProcedural_sequence_block_stmt(PSSParser::Proc
     }
 
     m_exec_scope_s.pop_back();
+    collectScopeTrailingComments(block, ctx->stop);
 
     m_exec_stmt = block;
     m_exec_stmt_cnt++;
@@ -1415,6 +1530,10 @@ antlrcpp::Any AstBuilderInt::visitProcedural_return_stmt(PSSParser::Procedural_r
     DEBUG_ENTER("visitProcedural_return_stmt");
     ast::IExpr *expr = ctx->expression()?mkExpr(ctx->expression()):0;
     ast::IProceduralStmtReturn *stmt = m_factory->mkProceduralStmtReturn(expr);
+    // Without this the statement has no location, so a diagnostic about it
+    // has to point at the enclosing function's name instead -- unhelpful in a
+    // body with more than one `return`.
+    setLoc(stmt, ctx->start);
 
     m_exec_stmt = stmt;
     m_exec_stmt_cnt++;
@@ -1656,6 +1775,22 @@ antlrcpp::Any AstBuilderInt::visitProcedural_data_declaration(PSSParser::Procedu
             type,
             init);
         decl->setIndex(m_exec_scope_s.back()->getChildren().size());
+
+        // This visitor pushes straight into the exec scope rather than
+        // returning through mkExecStmt, so it has to record its own
+        // provenance. `int a, b;` is one source statement and several decls;
+        // only the first carries the comment, per the no-duplication rule.
+        if (ctx->getStart()) {
+            decl->setLocation({
+                m_file_id,
+                (int32_t)ctx->getStart()->getLine(),
+                (int32_t)ctx->getStart()->getCharPositionInLine()+1
+            });
+            if (m_collectDocStrings && it == items.begin()) {
+                attachDocstring(decl, ctx->getStart());
+            }
+        }
+
         m_exec_scope_s.back()->getChildren().push_back(ast::IScopeChildUP(decl));
 
         std::unordered_map<std::string,int32_t>::const_iterator var_it =
@@ -1794,7 +1929,10 @@ antlrcpp::Any AstBuilderInt::visitComponent_declaration(PSSParser::Component_dec
 antlrcpp::Any AstBuilderInt::visitComponent_body_compile_if(PSSParser::Component_body_compile_ifContext *ctx) {
     int64_t cond = 0;
     checkCompileIfBranches(ctx->true_body, ctx->false_body);
-    if (evalConstantExpression(ctx->cond, cond) && cond) {
+    if (!evalCompileTimeCond(ctx->cond, cond, "compile if")) {
+        // Reported as an error: elaborate neither branch (19.1.1 promises only
+        // that a disabled branch is syntactically correct).
+    } else if (cond) {
         visitCompileIfItem(ctx->true_body);
     } else if (ctx->false_body) {
         visitCompileIfItem(ctx->false_body);
@@ -1804,6 +1942,9 @@ antlrcpp::Any AstBuilderInt::visitComponent_body_compile_if(PSSParser::Component
 
 antlrcpp::Any AstBuilderInt::visitComponent_data_declaration(PSSParser::Component_data_declarationContext *ctx) {
     DEBUG_ENTER("visitComponent_data_declaration");
+	// D2: `component_data_declaration` contributes tokens ahead of the declaration it wraps, so the
+	// comment sits to the left of *this* rule, not of the delegate.
+	DocAnchorScope doc_anchor(this, ctx->start);
 
     m_field_depth++;
     ctx->data_declaration()->accept(this);
@@ -1877,6 +2018,9 @@ antlrcpp::Any AstBuilderInt::visitMonitor_declaration(PSSParser::Monitor_declara
 
 antlrcpp::Any AstBuilderInt::visitAbstract_monitor_declaration(PSSParser::Abstract_monitor_declarationContext *ctx) {
 	DEBUG_ENTER("visitAbstract_monitor_declaration");
+	// D2: `abstract_monitor_declaration` contributes tokens ahead of the declaration it wraps, so the
+	// comment sits to the left of *this* rule, not of the delegate.
+	DocAnchorScope doc_anchor(this, ctx->start);
 	ast::ITypeIdentifier *super_t = 0;
 
 	PSSParser::Monitor_declarationContext *decl_ctx = ctx->monitor_declaration();
@@ -2506,7 +2650,9 @@ antlrcpp::Any AstBuilderInt::visitData_declaration(PSSParser::Data_declarationCo
             field, 
             (*it)->identifier()->start,
             &field->getName()->getLocation(),
-            ctx->data_type()->start);
+            ctx->data_type()->start,
+            (*it)->stop,
+            ctx->stop);
 
 		if (m_field_depth > 0) {
 			m_fields.push_back(field);
@@ -2518,6 +2664,9 @@ antlrcpp::Any AstBuilderInt::visitData_declaration(PSSParser::Data_declarationCo
 
 antlrcpp::Any AstBuilderInt::visitAttr_field(PSSParser::Attr_fieldContext *ctx) {
 	DEBUG_ENTER("visitAttr_field");
+	// D2: `attr_field` contributes tokens ahead of the declaration it wraps, so the
+	// comment sits to the left of *this* rule, not of the delegate.
+	DocAnchorScope doc_anchor(this, ctx->start);
 
 	m_field_depth++;
 	ctx->data_declaration()->accept(this);
@@ -2714,6 +2863,8 @@ antlrcpp::Any AstBuilderInt::visitEnum_declaration(PSSParser::Enum_declarationCo
 
 	ast::IEnumDecl *decl = m_factory->mkEnumDecl(mkId(ctx->enum_identifier()->identifier()));
 
+	// Optional base type (21.13.1): `enum mode_e : bit[4] { ... }`. Carried on
+	// the declaration so type checking and packed-struct layout can see it.
 	if (ctx->base_type) {
 		decl->setBase_type(mkDataType(ctx->base_type));
 	}
@@ -2731,6 +2882,8 @@ antlrcpp::Any AstBuilderInt::visitEnum_declaration(PSSParser::Enum_declarationCo
 		ast::IEnumItem *item = m_factory->mkEnumItem(
 			mkId((*it)->identifier()),
 			value);
+		setLoc(item, (*it)->start);
+		attachDocstring(item, (*it)->start);
 		decl->getItems().push_back(ast::IEnumItemUP(item));
 	}
 
@@ -2957,7 +3110,9 @@ antlrcpp::Any AstBuilderInt::visitConstraint_body_compile_if(PSSParser::Constrai
     checkCompileIfBranches(
         ctx->constraint_body_compile_if_item(0),
         ctx->constraint_body_compile_if_item().size() > 1 ? ctx->constraint_body_compile_if_item(1) : nullptr);
-    if (evalConstantExpression(ctx->constant_expression(), cond) && cond) {
+    if (!evalCompileTimeCond(ctx->constant_expression(), cond, "compile if")) {
+        // Reported as an error: elaborate neither branch.
+    } else if (cond) {
         visitCompileIfItem(ctx->constraint_body_compile_if_item(0));
     } else if (ctx->constraint_body_compile_if_item().size() > 1) {
         visitCompileIfItem(ctx->constraint_body_compile_if_item(1));
@@ -2998,11 +3153,40 @@ antlrcpp::Any AstBuilderInt::visitProcedural_compile_if(PSSParser::Procedural_co
     checkCompileIfBranches(
         ctx->procedural_compile_if_stmt(0),
         ctx->procedural_compile_if_stmt().size() > 1 ? ctx->procedural_compile_if_stmt(1) : nullptr);
-    if (evalConstantExpression(ctx->constant_expression(), cond) && cond) {
-        visitCompileIfItem(ctx->procedural_compile_if_stmt(0));
+    PSSParser::Procedural_compile_if_stmtContext *selected = 0;
+
+    if (!evalCompileTimeCond(ctx->constant_expression(), cond, "compile if")) {
+        // Reported as an error: elaborate neither branch.
+    } else if (cond) {
+        selected = ctx->procedural_compile_if_stmt(0);
     } else if (ctx->procedural_compile_if_stmt().size() > 1) {
-        visitCompileIfItem(ctx->procedural_compile_if_stmt(1));
+        selected = ctx->procedural_compile_if_stmt(1);
     }
+
+    // Unlike every other compile-if scope, this one cannot elaborate its
+    // branch by simply accepting the children.  A procedural statement is
+    // built into `m_exec_stmt` and appended by the *caller*, one statement per
+    // `procedural_stmt`; a compile if contributes zero or more.  Accepting the
+    // children directly built the statements and then dropped them on the
+    // floor -- the enclosing block only ever appends the single m_exec_stmt.
+    // So append them here, as procedural_data_declaration does, and report
+    // "one statement handled, nothing to append" to the caller.
+    if (selected) {
+        std::vector<PSSParser::Procedural_stmtContext *> stmts = selected->procedural_stmt();
+        for (std::vector<PSSParser::Procedural_stmtContext *>::const_iterator
+            it=stmts.begin();
+            it!=stmts.end(); it++) {
+            addExecStmt(*it);
+        }
+    }
+
+    // NOTE: a compile if used as the *unbraced* body of an if/foreach --
+    // `if (c) compile if (F) { ... }` -- appends into the enclosing block
+    // rather than the branch.  The LRM spells this scope as a braced block, so
+    // that shape is pathological; it is called out here rather than guarded.
+    m_exec_stmt = 0;
+    m_exec_stmt_cnt++;
+
     return 0;
 }
 
@@ -3011,7 +3195,9 @@ antlrcpp::Any AstBuilderInt::visitCovergroup_body_compile_if(PSSParser::Covergro
     checkCompileIfBranches(
         ctx->covergroup_body_compile_if_item(0),
         ctx->covergroup_body_compile_if_item().size() > 1 ? ctx->covergroup_body_compile_if_item(1) : nullptr);
-    if (evalConstantExpression(ctx->constant_expression(), cond) && cond) {
+    if (!evalCompileTimeCond(ctx->constant_expression(), cond, "compile if")) {
+        // Reported as an error: elaborate neither branch.
+    } else if (cond) {
         visitCompileIfItem(ctx->covergroup_body_compile_if_item(0));
     } else if (ctx->covergroup_body_compile_if_item().size() > 1) {
         visitCompileIfItem(ctx->covergroup_body_compile_if_item(1));
@@ -3047,7 +3233,9 @@ antlrcpp::Any AstBuilderInt::visitOverride_compile_if(PSSParser::Override_compil
     checkCompileIfBranches(
         ctx->override_compile_if_stmt(0),
         ctx->override_compile_if_stmt().size() > 1 ? ctx->override_compile_if_stmt(1) : nullptr);
-    if (evalConstantExpression(ctx->constant_expression(), cond) && cond) {
+    if (!evalCompileTimeCond(ctx->constant_expression(), cond, "compile if")) {
+        // Reported as an error: elaborate neither branch.
+    } else if (cond) {
         visitCompileIfItem(ctx->override_compile_if_stmt(0));
     } else if (ctx->override_compile_if_stmt().size() > 1) {
         visitCompileIfItem(ctx->override_compile_if_stmt(1));
@@ -3351,7 +3539,13 @@ void AstBuilderInt::visitConstraintSetItems(PSSParser::Constraint_setContext *ct
 // B.17 Expressions
 
 static std::map<std::string, ast::ExprUnaryOp> prv_str2unop = {
-
+	{"+", ast::ExprUnaryOp::UnaryOp_Plus},
+	{"-", ast::ExprUnaryOp::UnaryOp_Minus},
+	{"!", ast::ExprUnaryOp::UnaryOp_LogNot},
+	{"~", ast::ExprUnaryOp::UnaryOp_BitNeg},
+	{"&", ast::ExprUnaryOp::UnaryOp_BitAnd},
+	{"|", ast::ExprUnaryOp::UnaryOp_BitOr},
+	{"^", ast::ExprUnaryOp::UnaryOp_BitXor}
 };
 
 static std::map<std::string, ast::ExprBinOp> prv_str2binop = {
@@ -3382,6 +3576,9 @@ antlrcpp::Any AstBuilderInt::visitExpression(PSSParser::ExpressionContext *ctx) 
 	if (ctx->unary_op()) {
 		ast::IExpr *lhs = mkExpr(ctx->lhs);
 
+		m_expr = m_factory->mkExprUnary(
+			prv_str2unop.find(ctx->unary_op()->getText())->second,
+			lhs);
 	} else if (ctx->lhs && ctx->rhs) {
 		// It's some form of binary op
 		ast::IExpr *lhs = mkExpr(ctx->lhs);
@@ -3520,12 +3717,32 @@ antlrcpp::Any AstBuilderInt::visitCast_expression(PSSParser::Cast_expressionCont
 
 // B.18 Identifiers
 
+/**
+ * Strip the leading backslash from an escaped identifier's token text.
+ *
+ * LRM 4.3: "Neither the leading backslash character nor the terminating white
+ * space is considered to be part of the identifier.  Therefore, an escaped
+ * identifier \cpu3 is treated the same as a non-escaped identifier cpu3."
+ *
+ * So the backslash is spelling, not name.  Keeping it made `\cpu3` and `cpu3`
+ * two distinct names, which resolves only as long as every declaration and
+ * every reference happen to be spelled the same way -- correct by consistency
+ * rather than by rule, and silently wrong the moment they differ.
+ *
+ * The terminating whitespace never reaches here: the lexer rule stops before
+ * it, so the token text has nothing to trim on the right.
+ */
+static std::string unescapeId(const std::string &text) {
+	return (text.size() && text[0] == '\\') ? text.substr(1) : text;
+}
+
 antlrcpp::Any AstBuilderInt::visitIdentifier(PSSParser::IdentifierContext *ctx) {
 	DEBUG_ENTER("visitIdentifier");
 	IExprId *id;
-	
+
 	if (ctx->ESCAPED_ID()) {
-		id = m_factory->mkExprId(ctx->ESCAPED_ID()->getText(), true);
+		id = m_factory->mkExprId(
+			unescapeId(ctx->ESCAPED_ID()->getText()), true);
 	} else {
         DEBUG("visitIdentifier: %s", ctx->ID()->getText().c_str());
 		id = m_factory->mkExprId(ctx->ID()->getText(), false);
@@ -3534,9 +3751,11 @@ antlrcpp::Any AstBuilderInt::visitIdentifier(PSSParser::IdentifierContext *ctx) 
 	Location loc;
 	loc.lineno = ctx->start->getLine();
 	loc.linepos = ctx->start->getCharPositionInLine()+1;
-    loc.extent = id->getId().size();
+    // The extent spans the source text, which for an escaped identifier is one
+    // character longer than the name now that the backslash has been stripped.
+    loc.extent = id->getId().size() + (id->getIs_escaped()?1:0);
 	id->setLocation(loc);
-    DEBUG("Set Location: %d:%d:%d", 
+    DEBUG("Set Location: %d:%d:%d",
         id->getLocation().fileid,
         id->getLocation().lineno,
         id->getLocation().linepos);
@@ -3834,7 +4053,7 @@ void AstBuilderInt::syntaxError(
 	}
 }
 
-void AstBuilderInt::addChild(ast::IScopeChild *c, Token *t, const ast::Location *loc, Token *ct) {
+void AstBuilderInt::addChild(ast::IScopeChild *c, Token *t, const ast::Location *loc, Token *ct, Token *stop, Token *trailing_stop) {
     DEBUG_ENTER("addChild (IScopeChild) %p %p", t, loc);
     c->setIndex(scope()->getChildren().size());
 	scope()->getChildren().push_back(ast::IScopeChildUP(c));
@@ -3850,8 +4069,13 @@ void AstBuilderInt::addChild(ast::IScopeChild *c, Token *t, const ast::Location 
         });
     }
 
+    // Measured from `t`, which is where `location` points -- for a field that
+    // is the identifier, not the type.  `ct` is the doc anchor and may sit
+    // further left; using it would make `extent` inconsistent with `location`.
+    setExtent(c, t, stop);
+
 	if (m_collectDocStrings && (t || ct)) {
-		addDocstring(c, docstringAnchor((ct)?ct:t));
+		addDocstring(c, docstringAnchor((ct)?ct:t), (trailing_stop)?trailing_stop:stop);
 	}
     DEBUG_LEAVE("addChild (IScopeChild) %p %p", t, loc);
 }
@@ -3866,14 +4090,10 @@ void AstBuilderInt::addChild(ast::ISymbolScope *c, Token *start, Token *end) {
         (int32_t)start->getLine(),
         (int32_t)start->getCharPositionInLine()+1
     });
-    // c->setEndLocation({
-    //     m_file_id,
-    //     (int32_t)end->getLine(),
-    //     (int32_t)end->getCharPositionInLine()+1
-    // });
+    setExtent(c, start, end);
 
 	if (m_collectDocStrings && start) {
-		addDocstring(c, docstringAnchor(start));
+		addDocstring(c, docstringAnchor(start), end);
 	}
 }
 
@@ -3899,18 +4119,14 @@ void AstBuilderInt::addChild(ast::IConstraintScope *c, Token *start, Token *end)
         (int32_t)start->getLine(),
         (int32_t)start->getCharPositionInLine()+1
     });
-    c->setEndLocation({
-        m_file_id,
-        (int32_t)end->getLine(),
-        (int32_t)end->getCharPositionInLine()+1
-    });
+    setExtent(c, start, end);
 	c->setParent(scope());
     attachPendingAnnotations(c);
     c->setIndex(scope()->getChildren().size());
 	scope()->getChildren().push_back(ast::IScopeChildUP(c));
 
 	if (m_collectDocStrings && start) {
-		addDocstring(c, docstringAnchor(start));
+		addDocstring(c, docstringAnchor(start), end);
 	}
 }
 
@@ -3920,19 +4136,16 @@ void AstBuilderInt::addChild(ast::IExecScope *c, Token *start, Token *end) {
         (int32_t)start->getLine(),
         (int32_t)start->getCharPositionInLine()+1
     });
-    c->setEndLocation({
-        m_file_id,
-        (int32_t)end->getLine(),
-        (int32_t)end->getCharPositionInLine()+1
-    });
+    setExtent(c, start, end);
     c->setParent(scope());
     attachPendingAnnotations(c);
     c->setIndex(scope()->getChildren().size());
 	scope()->getChildren().push_back(ast::IScopeChildUP(c));
 
 	if (m_collectDocStrings && start) {
-		addDocstring(c, docstringAnchor(start));
+		addDocstring(c, docstringAnchor(start), end);
 	}
+	collectScopeTrailingComments(c, end);
 }
 
 void AstBuilderInt::addChild(ast::IFunctionDefinition *c, Token *start, Token *end) {
@@ -3941,19 +4154,16 @@ void AstBuilderInt::addChild(ast::IFunctionDefinition *c, Token *start, Token *e
         (int32_t)start->getLine(),
         (int32_t)start->getCharPositionInLine()+1
     });
-    c->setEndLocation({
-        m_file_id,
-        (int32_t)end->getLine(),
-        (int32_t)end->getCharPositionInLine()+1
-    });
+    setExtent(c, start, end);
     c->setParent(scope());
     attachPendingAnnotations(c);
     c->setIndex(scope()->getChildren().size());
 	scope()->getChildren().push_back(ast::IScopeChildUP(c));
 
 	if (m_collectDocStrings && start) {
-		addDocstring(c, docstringAnchor(start));
+		addDocstring(c, docstringAnchor(start), end);
 	}
+	collectScopeTrailingComments(c, end);
 }
 
 void AstBuilderInt::addChild(ast::INamedScope *c, Token *start, Token *end) {
@@ -3963,11 +4173,7 @@ void AstBuilderInt::addChild(ast::INamedScope *c, Token *start, Token *end) {
         (int32_t)start->getLine(),
         (int32_t)start->getCharPositionInLine()+1
     });
-    c->setEndLocation({
-        m_file_id,
-        (int32_t)end->getLine(),
-        (int32_t)end->getCharPositionInLine()+1
-    });
+    setExtent(c, start, end);
     c->setParent(scope());
     attachPendingAnnotations(c);
     DEBUG("Parent: %p", c->getParent());
@@ -3975,8 +4181,9 @@ void AstBuilderInt::addChild(ast::INamedScope *c, Token *start, Token *end) {
 	scope()->getChildren().push_back(ast::IScopeChildUP(c));
 
 	if (m_collectDocStrings && start) {
-		addDocstring(c, docstringAnchor(start));
+		addDocstring(c, docstringAnchor(start), end);
 	}
+	collectScopeTrailingComments(c, end);
     DEBUG_LEAVE("addChild (INamedScope) %p %p", start, end);
 }
 
@@ -3986,83 +4193,441 @@ void AstBuilderInt::addChild(ast::IScope *c, Token *start, Token *end) {
         (int32_t)start->getLine(),
         (int32_t)start->getCharPositionInLine()
     });
-    c->setEndLocation({
-        m_file_id,
-        (int32_t)end->getLine(),
-        (int32_t)end->getCharPositionInLine()
-    });
+    setExtent(c, start, end);
     c->setParent(scope());
     attachPendingAnnotations(c);
     c->setIndex(scope()->getChildren().size());
 	scope()->getChildren().push_back(ast::IScopeChildUP(c));
 
 	if (m_collectDocStrings && start) {
-		addDocstring(c, docstringAnchor(start));
+		addDocstring(c, docstringAnchor(start), end);
+	}
+	collectScopeTrailingComments(c, end);
+}
+
+int32_t AstBuilderInt::tokenEndLine(Token *t) {
+	int32_t line = (int32_t)t->getLine();
+	const std::string &txt = t->getText();
+
+	// SL_COMMENT is lexed as `'//' .*? '\r'? ('\n'|EOF)`, so a `//` comment
+	// carries its own line terminator. Counting that newline would put the
+	// comment on the following line and make a blank-line-detached note look
+	// adjacent to whatever follows it.
+	size_t n = txt.size();
+	if (n > 0 && txt[n-1] == '\n') {
+		n--;
+	}
+
+	for (size_t i=0; i<n; i++) {
+		if (txt[i] == '\n') {
+			line++;
+		}
+	}
+
+	return line;
+}
+
+std::string AstBuilderInt::normalizeComment(const std::string &raw, bool is_block) {
+	if (!is_block) {
+		// `// text` -- drop the marker and at most one space, so that the
+		// relative indent of a run of `//` lines survives.
+		std::string body = (raw.size() >= 2)?raw.substr(2):std::string();
+		if (body.size() > 0 && body[0] == ' ') {
+			body = body.substr(1);
+		}
+		while (body.size() > 0 && isspace((unsigned char)body[body.size()-1])) {
+			body.erase(body.size()-1);
+		}
+		return body;
+	}
+
+	bool has_doc_marker = (raw.compare(0, 3, "/**") == 0);
+	std::string body = raw;
+	if (body.size() >= 2 && body.compare(0, 2, "/*") == 0) {
+		body = body.substr(2);
+	}
+	if (body.size() >= 2 && body.compare(body.size()-2, 2, "*/") == 0) {
+		body = body.substr(0, body.size()-2);
+	}
+
+	std::vector<std::string> lines;
+	size_t pos = 0;
+	while (true) {
+		size_t nl = body.find('\n', pos);
+		if (nl == std::string::npos) {
+			lines.push_back(body.substr(pos));
+			break;
+		}
+		std::string l = body.substr(pos, nl-pos);
+		if (l.size() > 0 && l[l.size()-1] == '\r') {
+			l.erase(l.size()-1);
+		}
+		lines.push_back(l);
+		pos = nl+1;
+	}
+
+	// Strip the `*` gutter. Continuation lines always; the first line only
+	// when the comment opened `/**`, so that `/* *emph* */` keeps its text.
+	for (size_t i=0; i<lines.size(); i++) {
+		if (i == 0 && !has_doc_marker) {
+			continue;
+		}
+		std::string &l = lines[i];
+		size_t j = 0;
+		while (j < l.size() && (l[j] == ' ' || l[j] == '\t')) {
+			j++;
+		}
+		if (j < l.size() && l[j] == '*') {
+			j++;
+			if (j < l.size() && l[j] == ' ') {
+				j++;
+			}
+			l = l.substr(j);
+		}
+	}
+
+	for (size_t i=0; i<lines.size(); i++) {
+		std::string &l = lines[i];
+		while (l.size() > 0 && isspace((unsigned char)l[l.size()-1])) {
+			l.erase(l.size()-1);
+		}
+	}
+
+	while (lines.size() > 0 && lines.front().empty()) {
+		lines.erase(lines.begin());
+	}
+	while (lines.size() > 0 && lines.back().empty()) {
+		lines.pop_back();
+	}
+
+	// Re-flush the block against the left margin, keeping relative indent.
+	size_t indent = std::string::npos;
+	for (size_t i=0; i<lines.size(); i++) {
+		if (lines[i].empty()) {
+			continue;
+		}
+		size_t j = 0;
+		while (j < lines[i].size() && lines[i][j] == ' ') {
+			j++;
+		}
+		if (indent == std::string::npos || j < indent) {
+			indent = j;
+		}
+	}
+	if (indent == std::string::npos) {
+		indent = 0;
+	}
+
+	std::string result;
+	for (size_t i=0; i<lines.size(); i++) {
+		if (i > 0) {
+			result += "\n";
+		}
+		result += (lines[i].size() >= indent)?lines[i].substr(indent):lines[i];
+	}
+
+	return result;
+}
+
+ast::IComment *AstBuilderInt::mkCommentFor(Token *t, ast::CommentPlacement placement) {
+	bool is_block = (t->getChannel() == 12);
+	std::string raw = t->getText();
+	ast::IComment *cm = m_factory->mkComment(
+			normalizeComment(raw, is_block),
+			placement);
+	cm->setRaw(raw);
+	cm->setIs_block(is_block);
+	cm->setLocation({
+		m_file_id,
+		(int32_t)t->getLine(),
+		(int32_t)t->getCharPositionInLine()+1,
+		(int32_t)raw.size()
+	});
+	return cm;
+}
+
+void AstBuilderInt::addDocstring(ast::IScopeChild *c, Token *t, Token *stop) {
+	DEBUG_ENTER("addDocstring");
+	// The anchor is the start of the outermost declaration context as written
+	// in source.  A wrapper rule -- `attr_field`'s `rand` / `static const`, for
+	// instance -- puts tokens between the comment and the token the
+	// constructing visitor happens to hold, so the visitor's token is only a
+	// fallback (see DocAnchorScope).
+	Token *anchor = docAnchor(t);
+
+	DocComment dc;
+	if (m_doc_extractor && m_doc_extractor->extractLeading(anchor, dc)) {
+		DEBUG("docstring=%s", dc.text.c_str());
+		applyDocComment(c, dc);
+	} else if (m_doc_extractor && stop &&
+			m_doc_extractor->extractTrailing(stop, dc)) {
+		// A leading comment always wins; a trailing one is consulted only when
+		// there is none (§3.5).
+		DEBUG("trailing docstring=%s", dc.text.c_str());
+		applyDocComment(c, dc);
+	}
+
+	// The docstring is one comment; `comments` is all of them. The two are
+	// extracted independently -- the extractor decides what documents `c`,
+	// this records what was written around it.
+	attachComments(c, anchor);
+
+	DEBUG_LEAVE("addDocstring");
+}
+
+/**
+ * Record the extracted comment on *c*: the normalized text, plus the verbatim
+ * source, its lexical form and its own location (E4).  Keeping the raw text
+ * lets a consumer apply a different dialect without re-lexing, and the
+ * location lets a malformed doc comment be reported where it was written.
+ */
+void AstBuilderInt::applyDocComment(ast::IScopeChild *c, const DocComment &dc) {
+	if (!dc.text.empty()) {
+		c->setDocstring(dc.text);
+	}
+	c->setDocRaw(dc.raw);
+	c->setDocForm(toAstDocForm(dc.form));
+	c->setDocLocation(dc.location);
+}
+
+// Both namespaces spell this type `DocCommentForm`, and this file has
+// `using namespace ast`, so every mention here is qualified.
+ast::DocCommentForm AstBuilderInt::toAstDocForm(pssp::DocCommentForm form) {
+	switch (form) {
+		case pssp::DocCommentForm::Line:     return ast::DocCommentForm::DocForm_Line;
+		case pssp::DocCommentForm::DocLine:  return ast::DocCommentForm::DocForm_DocLine;
+		case pssp::DocCommentForm::Block:    return ast::DocCommentForm::DocForm_Block;
+		case pssp::DocCommentForm::DocBlock: return ast::DocCommentForm::DocForm_DocBlock;
+		default:                             return ast::DocCommentForm::DocForm_None;
 	}
 }
 
-void AstBuilderInt::addDocstring(ast::IScopeChild *c, Token *t) {
-	DEBUG_ENTER("addDocstring");
-	std::vector<Token *> ws_tokens = m_tokens->getHiddenTokensToLeft(
-			t->getTokenIndex(), 10);
-	std::vector<Token *> slc_tokens = m_tokens->getHiddenTokensToLeft(
-			t->getTokenIndex(), 11);
-	std::vector<Token *> mlc_tokens = m_tokens->getHiddenTokensToLeft(
-			t->getTokenIndex(), 12);
+void AstBuilderInt::setExtent(ast::IScopeChild *c, Token *start, Token *stop) {
+	if (!c || !start || !stop) {
+		return;
+	}
+	// One past the last character of the stop token, so the range covers the
+	// closing brace or semicolon rather than stopping just before it.
+	c->setEndLocation({
+		m_file_id,
+		(int32_t)stop->getLine(),
+		(int32_t)stop->getCharPositionInLine() + 1 + (int32_t)stop->getText().size()
+	});
+	// getStopIndex() is inclusive.
+	int32_t extent = (int32_t)stop->getStopIndex() - (int32_t)start->getStartIndex() + 1;
+	if (extent > 0) {
+		ast::Location loc = c->getLocation();
+		loc.extent = extent;
+		c->setLocation(loc);
+	}
+}
 
-	DEBUG("ws_tokens=%d slc_tokens=%d mlc_tokens=%d",
-			ws_tokens.size(), slc_tokens.size(), mlc_tokens.size());
+void AstBuilderInt::attachDocstring(ast::IScopeChild *c, Token *t) {
+	if (!m_collectDocStrings || !c || !t || !m_doc_extractor) {
+		return;
+	}
+	DocComment dc;
+	if (m_doc_extractor->extractLeading(t, dc)) {
+		applyDocComment(c, dc);
+	}
+	attachComments(c, t);
+}
 
-	if (slc_tokens.size() == 0 && mlc_tokens.size() == 0) {
+void AstBuilderInt::attachComments(ast::IScopeChild *c, Token *t) {
+	DEBUG_ENTER("attachComments");
+
+	if (!m_collectComments || !t || !c) {
+		DEBUG_LEAVE("attachComments -- not collecting");
 		return;
 	}
 
-	int32_t last_ws_line = -1;
-	if (ws_tokens.size() > 0) {
-		last_ws_line = ws_tokens.back()->getLine();
+	attachTrailingComment(c, t);
+
+	size_t idx = t->getTokenIndex();
+	if (idx == 0) {
+		DEBUG_LEAVE("attachComments -- first token");
+		return;
 	}
 
-	std::string docstring;
-	if (slc_tokens.size() > 0 && mlc_tokens.size() > 0) {
-		if (slc_tokens.back()->getLine() > mlc_tokens.back()->getLine()) {
-			// Single-line comment is last
-			docstring = processDocStringSingleLineComment(
-					slc_tokens,
-					ws_tokens);
-		} else {
-			// Multi-line comment is last
-			docstring = processDocStringMultiLineComment(
-					mlc_tokens,
-					ws_tokens);
+	std::vector<Token *> cmts = m_tokens->getHiddenTokensToLeft(idx, 11);
+	std::vector<Token *> mlc = m_tokens->getHiddenTokensToLeft(idx, 12);
+	cmts.insert(cmts.end(), mlc.begin(), mlc.end());
+
+	if (cmts.empty()) {
+		DEBUG_LEAVE("attachComments -- no comments");
+		return;
+	}
+
+	// `//` and `/* */` arrive on separate channels, so a file that interleaves
+	// them comes back in two runs. Restore source order.
+	std::sort(cmts.begin(), cmts.end(), [](Token *a, Token *b) {
+		return a->getTokenIndex() < b->getTokenIndex();
+	});
+
+	// A comment sharing a line with the previous on-channel token documents
+	// *that* construct -- `x = 1; // note` -- and its owner has already
+	// claimed it via attachTrailingComment. Skip it here.
+	int32_t prev_line = -1;
+	for (int32_t i=(int32_t)cmts.front()->getTokenIndex()-1; i>=0; i--) {
+		Token *p = m_tokens->get(i);
+		if (p->getChannel() == Token::DEFAULT_CHANNEL) {
+			prev_line = tokenEndLine(p);
+			break;
 		}
-	} else if (slc_tokens.size() > 0) {
-		// Single-line comment
-		docstring = processDocStringSingleLineComment(
-				slc_tokens,
-				ws_tokens);
-	} else {
-		// Multi-line comment
-		docstring = processDocStringMultiLineComment(
-				mlc_tokens,
-				ws_tokens);
 	}
 
-	DEBUG("docstring=%s", docstring.c_str());
-	if (docstring != "") {
-		c->setDocstring(docstring);
+	size_t first = 0;
+	while (first < cmts.size() && (int32_t)cmts[first]->getLine() == prev_line) {
+		first++;
 	}
 
-	/*
-	fprintf(stdout, "Token pos: %d\n", comp->getLine());
-	for (std::vector<Token*>::const_iterator
-			it=tokens.begin();
-			it!=tokens.end(); it++) {
-		fprintf(stdout, "Token %d: %s\n",
-				(*it)->getLine(),
-				(*it)->getText().c_str());
+	// Walk back from the construct over the contiguous run of comment lines.
+	// A blank line cuts it -- that is how a note is deliberately detached.
+	int32_t anchor = (int32_t)t->getLine();
+	size_t lead = cmts.size();
+	while (lead > first && tokenEndLine(cmts[lead-1]) >= anchor-1) {
+		lead--;
+		anchor = (int32_t)cmts[lead]->getLine();
 	}
-	 */
-	DEBUG_LEAVE("addDocstring");
+
+	for (size_t i=first; i<cmts.size(); i++) {
+		c->getComments().push_back(ast::ICommentUP(mkCommentFor(
+				cmts[i],
+				(i >= lead)
+					?ast::CommentPlacement::CommentPlacement_Leading
+					:ast::CommentPlacement::CommentPlacement_Orphan)));
+	}
+
+	DEBUG_LEAVE("attachComments");
+}
+
+std::string AstBuilderInt::attachTrailingComment(ast::IScopeChild *c, Token *t) {
+	std::string text;
+
+	if (!t || !c) {
+		return text;
+	}
+
+	int32_t line = tokenEndLine(t);
+	size_t n = m_tokens->size();
+	bool past_terminator = false;
+
+	// Callers hand us the construct's *start* token, so walk forward to find
+	// the comment that trails its end. The construct runs to its `;`; once
+	// that is behind us, the next on-channel token opens the following
+	// construct and any comment past it is that one's business, not ours.
+	for (size_t i=t->getTokenIndex()+1; i<n; i++) {
+		Token *nt = m_tokens->get(i);
+
+		if ((int32_t)nt->getLine() != line) {
+			break;
+		}
+
+		size_t ch = nt->getChannel();
+		if (ch == 11 || ch == 12) {
+			text = normalizeComment(nt->getText(), ch == 12);
+			if (m_collectComments) {
+				c->getComments().push_back(ast::ICommentUP(mkCommentFor(
+						nt,
+						ast::CommentPlacement::CommentPlacement_Trailing)));
+			}
+			break;
+		} else if (ch == Token::DEFAULT_CHANNEL) {
+			if (past_terminator) {
+				break;
+			} else if (nt->getText() == ";") {
+				past_terminator = true;
+			} else if (nt->getText() == "}") {
+				// The construct is the last in its block; whatever follows the
+				// brace documents the block, not this construct.
+				break;
+			}
+		}
+	}
+
+	return text;
+}
+
+void AstBuilderInt::collectScopeTrailingComments(ast::IScopeChild *s, Token *end) {
+	if (!m_collectComments || !s || !end) {
+		return;
+	}
+
+	size_t idx = end->getTokenIndex();
+	if (idx == 0) {
+		return;
+	}
+
+	std::vector<Token *> cmts = m_tokens->getHiddenTokensToLeft(idx, 11);
+	std::vector<Token *> mlc = m_tokens->getHiddenTokensToLeft(idx, 12);
+	cmts.insert(cmts.end(), mlc.begin(), mlc.end());
+
+	if (cmts.empty()) {
+		return;
+	}
+
+	std::sort(cmts.begin(), cmts.end(), [](Token *a, Token *b) {
+		return a->getTokenIndex() < b->getTokenIndex();
+	});
+
+	// Same partition as attachComments: whatever trails the scope's last
+	// statement already belongs to that statement.
+	int32_t prev_line = -1;
+	for (int32_t i=(int32_t)cmts.front()->getTokenIndex()-1; i>=0; i--) {
+		Token *p = m_tokens->get(i);
+		if (p->getChannel() == Token::DEFAULT_CHANNEL) {
+			prev_line = tokenEndLine(p);
+			break;
+		}
+	}
+
+	for (size_t i=0; i<cmts.size(); i++) {
+		if ((int32_t)cmts[i]->getLine() == prev_line) {
+			continue;
+		}
+		s->getTrailing_comments().push_back(ast::ICommentUP(mkCommentFor(
+				cmts[i],
+				ast::CommentPlacement::CommentPlacement_Orphan)));
+	}
+}
+
+void AstBuilderInt::reportUnattachedAnnotation(ast::IAnnotation *a) {
+	if (!m_marker_l || !a) {
+		return;
+	}
+	std::string name;
+	if (a->getType()) {
+		for (uint32_t i=0; i<a->getType()->getElems().size(); i++) {
+			if (i) {
+				name += "::";
+			}
+			name += a->getType()->getElems().at(i)->getId()->getId();
+		}
+	}
+	char msg[512];
+	snprintf(msg, sizeof(msg),
+		"annotation '%s' has no subsequent element in this scope to attach to. "
+		"An element annotation attaches to the next declaration; terminate it "
+		"with ';' if a standalone annotation was intended (PSS 3.1 7.13)",
+		name.c_str());
+	Marker m(msg, MarkerSeverityE::Error, a->getLocation());
+	m_marker_l->marker(&m);
+}
+
+bool AstBuilderInt::isStandaloneAnnotation(PSSParser::AnnotationContext *ctx) {
+	if (!ctx || !ctx->stop || !m_tokens) {
+		return false;
+	}
+	size_t next = ctx->stop->getTokenIndex() + 1;
+	while (next < m_tokens->size()) {
+		Token *t = m_tokens->get(next);
+		if (t->getChannel() != Token::DEFAULT_CHANNEL) {
+			next++;
+			continue;
+		}
+		return t->getText() == ";";
+	}
+	return false;
 }
 
 void AstBuilderInt::discardPendingAnnotations(size_t mark) {
@@ -4091,119 +4656,84 @@ Token *AstBuilderInt::docstringAnchor(Token *t) {
     return anchor ? anchor : t;
 }
 
-std::string AstBuilderInt::processDocStringMultiLineComment(
-    		const std::vector<Token *>		&mlc_tokens,
-			const std::vector<Token *>		&ws_tokens) {
-	int32_t last_ws_line = -1;
-	if (ws_tokens.size() > 0) {
-		last_ws_line = ws_tokens.back()->getLine();
-	}
-
-	std::string comment;
-	if (last_ws_line < 0 || last_ws_line < mlc_tokens.back()->getLine()) {
-//		fprintf(stdout, "OK: no whitespace between element and comment\n");
-	} else if (last_ws_line >= 0) {
-//		fprintf(stdout, "TODO: check if whitespace exceeds a limit\n");
-
-		// Find the extent of the comment
-		uint32_t comment_last_line = mlc_tokens.back()->getLine();
-		comment = mlc_tokens.back()->getText();
-		std::string ws = ws_tokens.back()->getText();
-		int32_t i=0;
-		while (i < comment.size() &&
-				(i=comment.find('\n', i)) != std::string::npos) {
-			comment_last_line++;
-			i++;
-		}
-
-		i=0;
-		while (i < comment.size() &&
-				(i=ws.find('\n', i)) != std::string::npos) {
-			last_ws_line++;
-			i++;
-		}
-/*
-		fprintf(stdout, "Comment last line: %d\n", comment_last_line);
-		fprintf(stdout, "Whitespace last line: %d\n", last_ws_line);
- */
-
-		if (last_ws_line <= (comment_last_line+2)) {
-//			fprintf(stdout, "Note: Have a doc comment\n");
-
-			// TODO: now we need to clean up the comment
-			//
-
-			// Trim off the beginning and end of the comment
-			comment = comment.substr(2,comment.size()-4);
-
-//			fprintf(stdout, "Comment: %s\n", comment.c_str());
-			// Step through the lines looking for a '*' prefix
-			i=0;
-			while (i<comment.size()) {
-				if (comment.at(i) == '*') {
-					comment.erase(i, 1);
-//					fprintf(stdout, "Post-remove(1): %s\n", comment.c_str());
-				} else if ((i+1<comment.size()) &&
-						(isspace(comment.at(i)) && comment.at(i+1) == '*')) {
-					comment.erase(i, 2);
-//					fprintf(stdout, "Post-remove(2): %s\n", comment.c_str());
-				}
-				if ((i=comment.find('\n',i)) != std::string::npos) {
-					i++;
-				} else {
-					break;
-				}
-			}
-		} else {
-//			fprintf(stdout, "Note: False alarm\n");
-			comment.clear();
-		}
-	}
-
-	return comment;
-}
-
-std::string AstBuilderInt::processDocStringSingleLineComment(
-    		const std::vector<Token *>		&slc_tokens,
-			const std::vector<Token *>		&ws_tokens) {
-    std::string comment;
-
-    for (std::vector<Token *>::const_iterator
-        it=slc_tokens.begin();
-        it!=slc_tokens.end(); it++) {
-        comment += (*it)->getText().substr(2);
-    }
-
-	return comment;
-}
-
-void AstBuilderInt::push_scope(ast::IScope *s) { 
+void AstBuilderInt::push_scope(ast::IScope *s) {
 	DEBUG("-- push_scope");
-	m_scopes.push_back(s); 
+	// Entering a scope suspends any active doc anchor: the anchor describes one
+	// declaration, and the declarations nested inside it must find their own
+	// comments.  A null entry reads as "no anchor in force".
+	m_doc_anchors.push_back(0);
+	m_scopes.push_back(s);
 }
 
 void AstBuilderInt::pop_scope() { 
 	DEBUG("-- pop_scope");
     if (!m_pending_annotations.empty()) {
-        // §7.13: an element annotation attaches to the element that follows it,
-        // and "it is an error if no subsequent element is present in the scope."
-        // These were previously discarded silently.
+        // LRM 7.13: an element annotation "is attached to the next PSS model
+        // element declared in the scope.  It is an error if no subsequent
+        // element is present in the scope."  These were dropped silently, so
+        // Example32's third case -- an annotation at the end of a scope -- was
+        // accepted.  Standalone annotations never reach here: visitAnnotation
+        // recognizes them by their terminating `;` and does not queue them.
+        DEBUG("Reporting %d unattached annotations at scope pop",
+            (int)m_pending_annotations.size());
         for (std::vector<ast::IAnnotation *>::const_iterator
             it=m_pending_annotations.begin();
             it!=m_pending_annotations.end(); it++) {
-            if (m_marker_l) {
-                Marker m(
-                    "annotation is not attached to a model element",
-                    MarkerSeverityE::Error,
-                    (*it)->getLocation());
-                m_marker_l->marker(&m);
-            }
+            reportUnattachedAnnotation(*it);
             delete *it;
         }
         m_pending_annotations.clear();
         m_pending_annotation_tok = 0;
     }
-	m_scopes.pop_back(); 
+	popDocAnchor();
+	m_scopes.pop_back();
+}
+
+void AstBuilderInt::addErrorMarker(Token *t, const char *fmt, ...) {
+    if (!m_marker_l) {
+        return;
+    }
+
+    char tmp[1024];
+    va_list ap;
+    va_start(ap, fmt);
+    vsnprintf(tmp, sizeof(tmp), fmt, ap);
+    va_end(ap);
+
+    ast::Location loc;
+    loc.fileid = m_file_id;
+    loc.lineno = t ? t->getLine() : 0;
+    loc.linepos = t ? t->getCharPositionInLine()+1 : 0;
+    loc.extent = t ? t->getText().size() : 0;
+
+    Marker m(tmp, MarkerSeverityE::Error, loc);
+    m_marker_l->marker(&m);
+}
+
+bool AstBuilderInt::evalCompileTimeCond(
+        PSSParser::Constant_expressionContext   *ctx,
+        int64_t                                 &val,
+        const char                              *construct) {
+    if (!ctx) {
+        return false;
+    }
+    if (evalConstantExpression(ctx, val)) {
+        return true;
+    }
+
+    // "The value of any compile if expressions must be determinable at compile
+    // time" (19.1.3).  Reading an indeterminable condition as false is what
+    // made a cross-file `static const` reference drop its branch and still
+    // report a clean parse.
+    addErrorMarker(
+        ctx->start,
+        "%s condition cannot be evaluated at compile time: '%s'. "
+        "Compile-time expressions may reference only types and constants declared "
+        "in this source unit or in a previously-processed one (PSS 3.1 19.1.2)",
+        construct,
+        ctx->getText().c_str());
+
+    return false;
 }
 
 bool AstBuilderInt::evalConstantExpression(PSSParser::Constant_expressionContext *ctx, int64_t &val) {
@@ -4716,6 +5246,24 @@ ast::IScopeChild *AstBuilderInt::resolvePathTarget(
         }
     }
 
+    target = walkPathMembers(target, path, path_i);
+
+    if (!target) {
+        // Nothing in this source unit answers the path.  Compile-time
+        // expressions may also reference declarations from a
+        // previously-processed source unit (PSS 3.1 19.1.2), so try those
+        // before giving up -- otherwise a `compile if` reading a constant from
+        // another file resolves to null and silently reads as false.
+        target = resolvePathTargetInPriorUnits(global_scope, path);
+    }
+
+    return target;
+}
+
+ast::IScopeChild *AstBuilderInt::walkPathMembers(
+        ast::IScopeChild *target,
+        const std::vector<std::string> &path,
+        uint32_t path_i) {
     if (!target) {
         return 0;
     }
@@ -4757,6 +5305,43 @@ ast::IScopeChild *AstBuilderInt::resolvePathTarget(
     }
 
     return target;
+}
+
+ast::IScopeChild *AstBuilderInt::resolvePathTargetInPriorUnits(
+        ast::IScope *cur_global,
+        const std::vector<std::string> &path) {
+    if (path.empty()) {
+        return 0;
+    }
+
+    for (std::vector<ast::IGlobalScope *>::const_reverse_iterator
+        it=m_prior_units.rbegin();
+        it!=m_prior_units.rend(); it++) {
+        ast::IScope *unit = *it;
+        if (unit == cur_global) {
+            continue;
+        }
+
+        // Each unit is resolved end-to-end: a package may be split across
+        // several units, so the fragment that matches the leading path
+        // elements is not necessarily the one holding the member.
+        uint32_t path_i = 1;
+        ast::IScopeChild *target = findPackagePath(unit, path, path_i);
+        if (target) {
+            if (ast::IScopeChild *ret=walkPathMembers(target, path, path_i)) {
+                return ret;
+            }
+        }
+
+        target = findNamedChild(unit, path.at(0));
+        if (target) {
+            if (ast::IScopeChild *ret=walkPathMembers(target, path, 1)) {
+                return ret;
+            }
+        }
+    }
+
+    return 0;
 }
 
 ast::IScopeChild *AstBuilderInt::resolveRefPathTarget(PSSParser::Ref_pathContext *ctx) {
@@ -5190,6 +5775,27 @@ ast::IScopeChild *AstBuilderInt::mkExecStmt(PSSParser::Procedural_stmtContext *c
     m_exec_stmt = 0;
     m_exec_stmt_cnt = 0;
 
+    if (!ctx) {
+        // An `exec_stmt` that is not a `procedural_stmt` -- `super;` is the
+        // only one the grammar admits. Callers used to hand the null straight
+        // to ctx->TOK_SEMICOLON() below, which segfaulted the parser (plan
+        // phase 1.2). Callers that can produce one handle it themselves; this
+        // guard is for the rest, and for whatever the grammar grows next.
+        DEBUG("Note: null procedural_stmt");
+        DEBUG_LEAVE("mkExecStmt -- null ctx");
+        return 0;
+    }
+
+    if (ctx->annotation()) {
+        // An annotation applied to a statement (LRM 21.6.1, Example323).  It is
+        // metadata, not a statement: visiting it makes it pending so it
+        // attaches to the next element built in this scope, and it contributes
+        // nothing to the exec body itself.
+        ctx->accept(this);
+        DEBUG_LEAVE("mkExecStmt -- annotation");
+        return 0;
+    }
+
     if (!ctx->TOK_SEMICOLON()) {
         ctx->accept(this);
 
@@ -5200,6 +5806,24 @@ ast::IScopeChild *AstBuilderInt::mkExecStmt(PSSParser::Procedural_stmtContext *c
         // Null statement
         m_exec_stmt_cnt++;
     }
+
+    // Every procedural statement is built through here, nested bodies
+    // included, so this is the one place a statement's provenance can be
+    // recorded. Neither the location nor the comments were carried before.
+    if (m_exec_stmt) {
+        Token *start = ctx->getStart();
+        if (start && m_exec_stmt->getLocation().lineno < 0) {
+            m_exec_stmt->setLocation({
+                m_file_id,
+                (int32_t)start->getLine(),
+                (int32_t)start->getCharPositionInLine()+1
+            });
+        }
+        if (m_collectDocStrings) {
+            attachDocstring(m_exec_stmt, start);
+        }
+    }
+
     DEBUG_LEAVE("mkExecStmt %p", m_exec_stmt);
     return m_exec_stmt;
 }
@@ -5279,6 +5903,15 @@ ast::IFunctionPrototype *AstBuilderInt::mkFunctionPrototype(
         is_solve);
     proto->setIs_pure(is_pure);
 
+    // A prototype reached through FunctionDefinition::getProto() or
+    // FunctionImportProto::getProto() is never handed to addChild -- the
+    // wrapper is the scope child -- so without this it keeps the default
+    // lineno of -1, which is the documented marker for a compiler-injected
+    // node.  The prototypes built directly from m_factory (the injected
+    // set_executor/set_default_executor pair) deliberately do not come
+    // through here and so remain marked.
+    setLoc(proto, ctx->start);
+
     std::vector<PSSParser::Function_parameterContext *> items =
         ctx->function_parameter_list_prototype()->function_parameter();
     for (std::vector<PSSParser::Function_parameterContext *>::const_iterator
@@ -5298,10 +5931,12 @@ ast::IFunctionPrototype *AstBuilderInt::mkFunctionPrototype(
         ast::IDataType *type = 0;
         ast::IExpr *dflt = 0;
 
-        // The `is_type` and plain-category arms used to sit inside an
-        // `else if (va_p->is_ref)`, so they were unreachable: `type... args`
-        // -- which Annex C uses throughout for `print`, `format`, `message`
-        // and friends -- silently built a ParamKind_DataType with a null type.
+        // The four alternatives of `varargs_parameter` are siblings in the
+        // grammar. They were nested: `is_type`, `is_ref` and `is_struct` were
+        // all tested only *inside* an `is_ref` branch, so `type... args` and
+        // `struct... args` fell through with no kind set at all and kept the
+        // ParamKind_DataType default with a null type. This mirrors the flat
+        // shape mkFunctionParamDecl() uses for a non-varargs parameter.
         if (va_p->data_type()) {
             type = mkDataType(va_p->data_type());
         } else if (va_p->is_type) {
@@ -5376,6 +6011,7 @@ ast::IFunctionParamDecl *AstBuilderInt::mkFunctionParamDecl(PSSParser::Function_
         type,
         dir,
         dflt);
+    attachDocstring(ret, ctx->start);
 
     DEBUG_LEAVE("mkFunctionParamDecl");
     return ret;
@@ -5406,7 +6042,8 @@ IExprId *AstBuilderInt::mkId(PSSParser::IdentifierContext *ctx) {
 
 	
 	if (ctx->ESCAPED_ID()) {
-		id = m_factory->mkExprId(ctx->ESCAPED_ID()->getText(), true);
+		id = m_factory->mkExprId(
+			unescapeId(ctx->ESCAPED_ID()->getText()), true);
 	} else {
         DEBUG("mkId: %s", ctx->ID()->getText().c_str());
 		id = m_factory->mkExprId(ctx->ID()->getText(), false);
@@ -5416,7 +6053,7 @@ IExprId *AstBuilderInt::mkId(PSSParser::IdentifierContext *ctx) {
     loc.fileid = m_file_id;
 	loc.lineno = ctx->start->getLine();
 	loc.linepos = ctx->start->getCharPositionInLine()+1;
-    loc.extent = id->getId().size();
+    loc.extent = id->getId().size() + (id->getIs_escaped()?1:0);
 	id->setLocation(loc);
 
     DEBUG("ID Loc: %d:%d:%d",
@@ -5430,7 +6067,7 @@ IExprId *AstBuilderInt::mkId(PSSParser::IdentifierContext *ctx) {
 std::string AstBuilderInt::toString(PSSParser::IdentifierContext *ctx) {
     if (ctx) {
         if (ctx->ESCAPED_ID()) {
-            return ctx->ESCAPED_ID()->getText();
+            return unescapeId(ctx->ESCAPED_ID()->getText());
         } else {
             return ctx->ID()->getText();
         }
@@ -5760,6 +6397,31 @@ ast::IExprRefPathStatic *AstBuilderInt::mkExprRefPathStatic(
 
     ret = m_factory->mkExprRefPathStatic(ctx->static_ref_path_prefix()->is_global);
 
+    // The prefix element is part of the path, and was being dropped:
+    //
+    //   static_ref_path: static_ref_path_prefix
+    //                    (type_identifier_elem TOK_DOUBLE_COLON)*
+    //                    member_path_elem
+    //   static_ref_path_prefix: (type_identifier_elem TOK_DOUBLE_COLON)
+    //                         | is_global=TOK_DOUBLE_COLON
+    //
+    // For `p::f.x` the prefix holds `p` and `type_identifier_elem()` is
+    // *empty*, so building the base from the latter alone produced a static
+    // root with no elements at all. visitExprRefPathStatic then walked a base
+    // of size zero, left the target null, and visitExprRefPathStaticRooted
+    // returned at its "failed root resolution" branch -- silently. Every
+    // qualified path with a member suffix (`p::f().x`, `p::S.field`) linked
+    // clean no matter what it named, including a call with the wrong number
+    // of arguments.
+    //
+    // The other builder of this shape -- the "case2" branch of mkExprRefPath
+    // -- has always pushed the prefix explicitly, which is why `p::f(1,2)`
+    // *was* checked and `p::f(1,2).x` was not.
+    if (!ctx->static_ref_path_prefix()->is_global) {
+        ret->getBase().push_back(ast::ITypeIdentifierElemUP(
+            mkTypeIdElem(ctx->static_ref_path_prefix()->type_identifier_elem())));
+    }
+
     std::vector<PSSParser::Type_identifier_elemContext *> items =
         ctx->type_identifier_elem();
     for (std::vector<PSSParser::Type_identifier_elemContext *>::const_iterator
@@ -5771,9 +6433,26 @@ ast::IExprRefPathStatic *AstBuilderInt::mkExprRefPathStatic(
     return ret;
 }
 
-// B.13 `type_category ::= ref_type_category | plain_type_category`.
-// `buffer` was missing here, so `buffer T` as a template type parameter fell
-// off the end of the map.
+/**
+ * Give a template parameter declaration the location of its own name.
+ *
+ * The declarations were built without one, so every diagnostic that pointed at
+ * a parameter -- "duplicate parameter name 'T'" among them -- was reported at
+ * <unknown>:-1:0. The name carries a usable location already; the declaration
+ * simply never took it.
+ */
+static void setDeclLocation(ast::ITemplateParamDecl *p) {
+    if (p && p->getName()) {
+        p->setLocation(p->getName()->getLocation());
+    }
+}
+
+// Every alternative of the `type_category` grammar rule must appear here.
+// `buffer` did not: the lookup below dereferenced end() and read whatever the
+// map's header node happened to contain, so `struct S<buffer T>` bound the
+// parameter to a garbage category. It went unnoticed only because nothing
+// read the category back -- see TaskBuildParamValList::checkCategoryArg,
+// which now does.
 static std::map<std::string, ast::TypeCategory> type_category_m = {
     {"action", ast::TypeCategory::Action },
     {"monitor", ast::TypeCategory::Monitor },
@@ -5802,13 +6481,18 @@ ast::ITemplateParamDeclList *AstBuilderInt::mkTypeParamDecl(
                     ((*it)->type_param_decl()->generic_type_param_decl()->data_type())?
                         mkDataType((*it)->type_param_decl()->generic_type_param_decl()->data_type()):0
                 );
+                setDeclLocation(gen_p);
+                attachDocstring(gen_p, (*it)->start);
                 plist->getParams().push_back(ast::ITemplateParamDeclUP(gen_p));
             } else { // Type-category parameter
                 PSSParser::Category_type_param_declContext *cat_ctx = (*it)->type_param_decl()->category_type_param_decl();
                 std::map<std::string, ast::TypeCategory>::const_iterator cat_it =
                     type_category_m.find(cat_ctx->type_category()->getText());
-                ast::TypeCategory category = (cat_it != type_category_m.end())?
-                    cat_it->second:ast::TypeCategory::Struct;
+                // A category the map does not know is a gap between the
+                // grammar and this table, not a user error; default to the
+                // most permissive reading rather than dereferencing end().
+                ast::TypeCategory category = (cat_it != type_category_m.end())
+                    ?cat_it->second:ast::TypeCategory::Struct;
                 ast::IDataType *dflt = 0;
 
                 if ((*it)->type_param_decl()->category_type_param_decl()->type_identifier()) {
@@ -5825,6 +6509,8 @@ ast::ITemplateParamDeclList *AstBuilderInt::mkTypeParamDecl(
                         mkTypeId((*it)->type_param_decl()->category_type_param_decl()->type_restriction()->type_identifier()):0,
                     dflt
                 );
+                setDeclLocation(cat_p);
+                attachDocstring(cat_p, (*it)->start);
                 plist->getParams().push_back(ast::ITemplateParamDeclUP(cat_p));
             }
         } else {
@@ -5835,6 +6521,8 @@ ast::ITemplateParamDeclList *AstBuilderInt::mkTypeParamDecl(
                 ((*it)->value_param_decl()->constant_expression())?
                     mkExpr((*it)->value_param_decl()->constant_expression()->expression()):0
             );
+            setDeclLocation(val_p);
+            attachDocstring(val_p, (*it)->start);
             plist->getParams().push_back(ast::ITemplateParamDeclUP(val_p));
         }
     }

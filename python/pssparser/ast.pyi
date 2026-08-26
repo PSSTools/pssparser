@@ -9,6 +9,18 @@ class AssignOp(IntEnum):
     AssignOp_OrEq = auto()
     AssignOp_AndEq = auto()
     
+class CommentPlacement(IntEnum):
+    CommentPlacement_Leading = auto()
+    CommentPlacement_Trailing = auto()
+    CommentPlacement_Orphan = auto()
+    
+class DocCommentForm(IntEnum):
+    DocForm_None = auto()
+    DocForm_Line = auto()
+    DocForm_DocLine = auto()
+    DocForm_Block = auto()
+    DocForm_DocBlock = auto()
+    
 class ExecKind(IntEnum):
     ExecKind_Body = auto()
     ExecKind_Header = auto()
@@ -151,8 +163,11 @@ class Factory(object):
     def mkAssocData(self) -> 'AssocData': ...
     def mkSymbolImportSpec(self) -> 'SymbolImportSpec': ...
     def mkSymbolRefPath(self) -> 'SymbolRefPath': ...
-    def mkTemplateParamValueList(self) -> 'TemplateParamValueList': ...
+    def mkMonitorActivitySelectBranch(self,
+        guard : Expr,
+        body : ScopeChild) -> 'MonitorActivitySelectBranch': ...
     def mkExpr(self) -> 'Expr': ...
+    def mkTemplateParamValue(self) -> 'TemplateParamValue': ...
     def mkExprAggrMapElem(self,
         lhs : Expr,
         rhs : Expr) -> 'ExprAggrMapElem': ...
@@ -169,14 +184,11 @@ class Factory(object):
         body : ScopeChild) -> 'MonitorActivityMatchChoice': ...
     def mkTemplateParamDeclList(self) -> 'TemplateParamDeclList': ...
     def mkRefExpr(self) -> 'RefExpr': ...
-    def mkTemplateParamValue(self) -> 'TemplateParamValue': ...
-    def mkMonitorActivitySelectBranch(self,
-        guard : Expr,
-        body : ScopeChild) -> 'MonitorActivitySelectBranch': ...
     def mkActivitySelectBranch(self,
         guard : Expr,
         weight : Expr,
         body : ScopeChild) -> 'ActivitySelectBranch': ...
+    def mkTemplateParamValueList(self) -> 'TemplateParamValueList': ...
     def mkScopeChild(self) -> 'ScopeChild': ...
     def mkActionFieldInitializer(self,
         path : ExprHierarchicalId,
@@ -204,8 +216,8 @@ class Factory(object):
     def mkMethodParameterList(self) -> 'MethodParameterList': ...
     def mkActivitySchedulingConstraint(self,
         is_parallel : bool) -> 'ActivitySchedulingConstraint': ...
-    def mkMonitorActivityStmt(self) -> 'MonitorActivityStmt': ...
     def mkActivityStmt(self) -> 'ActivityStmt': ...
+    def mkMonitorActivityStmt(self) -> 'MonitorActivityStmt': ...
     def mkAnnotation(self,
         type : TypeIdentifier) -> 'Annotation': ...
     def mkNamedScopeChild(self,
@@ -216,6 +228,9 @@ class Factory(object):
     def mkPackageImportStmt(self,
         wildcard : bool,
         alias : ExprId) -> 'PackageImportStmt': ...
+    def mkComment(self,
+        text : str,
+        placement : CommentPlacement) -> 'Comment': ...
     def mkComponentBind(self,
         pool_path : str,
         is_wildcard : bool) -> 'ComponentBind': ...
@@ -223,30 +238,26 @@ class Factory(object):
     def mkProceduralStmtIfClause(self,
         cond : Expr,
         body : ScopeChild) -> 'ProceduralStmtIfClause': ...
-    def mkTemplateParamDecl(self,
-        name : ExprId) -> 'TemplateParamDecl': ...
     def mkCoverStmtInline(self,
         body : ScopeChild) -> 'CoverStmtInline': ...
     def mkCoverStmtReference(self,
         target : ExprRefPath) -> 'CoverStmtReference': ...
     def mkPyImportFromStmt(self) -> 'PyImportFromStmt': ...
     def mkPyImportStmt(self) -> 'PyImportStmt': ...
+    def mkDataType(self) -> 'DataType': ...
     def mkRefExprScopeIndex(self,
         base : RefExpr,
         offset : int) -> 'RefExprScopeIndex': ...
-    def mkDataType(self) -> 'DataType': ...
     def mkRefExprTypeScopeContext(self,
         base : RefExpr,
         offset : int) -> 'RefExprTypeScopeContext': ...
     def mkRefExprTypeScopeGlobal(self,
         fileid : int) -> 'RefExprTypeScopeGlobal': ...
     def mkScope(self) -> 'Scope': ...
-    def mkTemplateParamExprValue(self,
-        value : Expr) -> 'TemplateParamExprValue': ...
+    def mkTemplateParamDecl(self,
+        name : ExprId) -> 'TemplateParamDecl': ...
     def mkScopeChildRef(self,
         target : ScopeChild) -> 'ScopeChildRef': ...
-    def mkTemplateParamTypeValue(self,
-        value : DataType) -> 'TemplateParamTypeValue': ...
     def mkSymbolChild(self) -> 'SymbolChild': ...
     def mkDistItem(self,
         range : ExprOpenRangeValue,
@@ -254,6 +265,8 @@ class Factory(object):
     def mkDistWeight(self,
         is_dividing : bool,
         expr : Expr) -> 'DistWeight': ...
+    def mkTemplateParamExprValue(self,
+        value : Expr) -> 'TemplateParamExprValue': ...
     def mkExecBlockTag(self,
         type : TypeIdentifier) -> 'ExecBlockTag': ...
     def mkSymbolScopeRef(self,
@@ -269,6 +282,8 @@ class Factory(object):
         proto : FunctionPrototype,
         language : str,
         data : str) -> 'TargetTemplateFunction': ...
+    def mkTemplateParamTypeValue(self,
+        value : DataType) -> 'TemplateParamTypeValue': ...
     def mkExprAggrLiteral(self) -> 'ExprAggrLiteral': ...
     def mkExprBin(self,
         lhs : Expr,
@@ -535,6 +550,7 @@ class Factory(object):
         target : Expr) -> 'ProceduralStmtRandomize': ...
     def mkProceduralStmtReturn(self,
         expr : Expr) -> 'ProceduralStmtReturn': ...
+    def mkProceduralStmtSuper(self) -> 'ProceduralStmtSuper': ...
     def mkProceduralStmtYield(self) -> 'ProceduralStmtYield': ...
     def mkSymbolChildrenScope(self,
         name : str) -> 'SymbolChildrenScope': ...
@@ -613,18 +629,18 @@ class Factory(object):
         name : ExprId,
         super_t : TypeIdentifier,
         is_abstract : bool) -> 'Action': ...
+    def mkActivityDecl(self,
+        name : str) -> 'ActivityDecl': ...
     def mkGenericConstraintDeclBool(self,
         name : str,
         is_dynamic : bool) -> 'GenericConstraintDeclBool': ...
-    def mkActivityDecl(self,
-        name : str) -> 'ActivityDecl': ...
     def mkMonitor(self,
         name : ExprId,
         super_t : TypeIdentifier) -> 'Monitor': ...
-    def mkMonitorActivityDecl(self,
-        name : str) -> 'MonitorActivityDecl': ...
     def mkActivityLabeledScope(self,
         name : str) -> 'ActivityLabeledScope': ...
+    def mkMonitorActivityDecl(self,
+        name : str) -> 'MonitorActivityDecl': ...
     def mkMonitorActivitySchedule(self,
         name : str) -> 'MonitorActivitySchedule': ...
     def mkMonitorActivitySequence(self,
@@ -635,11 +651,11 @@ class Factory(object):
     def mkComponent(self,
         name : ExprId,
         super_t : TypeIdentifier) -> 'Component': ...
+    def mkConstraintSymbolScope(self,
+        name : str) -> 'ConstraintSymbolScope': ...
     def mkProceduralStmtSymbolBodyScope(self,
         name : str,
         body : ScopeChild) -> 'ProceduralStmtSymbolBodyScope': ...
-    def mkConstraintSymbolScope(self,
-        name : str) -> 'ConstraintSymbolScope': ...
     def mkRootSymbolScope(self,
         name : str) -> 'RootSymbolScope': ...
     def mkStruct(self,
@@ -664,6 +680,10 @@ class Factory(object):
     def mkTemplateString(self,
         name : str,
         raw : str) -> 'TemplateString': ...
+    def mkTemplateVarDecl(self,
+        name : str,
+        offset : int,
+        extent : int) -> 'TemplateVarDecl': ...
     def mkExecBlock(self,
         name : str,
         kind : ExecKind) -> 'ExecBlock': ...
@@ -683,28 +703,28 @@ class Factory(object):
         name : str,
         offset : int,
         extent : int) -> 'TemplateBlock': ...
-    def mkTemplateComment(self,
-        name : str,
-        offset : int,
-        extent : int,
-        text : str) -> 'TemplateComment': ...
     def mkProceduralStmtRepeat(self,
         name : str,
         body : ScopeChild,
         it_id : ExprId,
         count : Expr) -> 'ProceduralStmtRepeat': ...
+    def mkTemplateComment(self,
+        name : str,
+        offset : int,
+        extent : int,
+        text : str) -> 'TemplateComment': ...
     def mkTemplateExpr(self,
         name : str,
         offset : int,
         extent : int,
         expr : Expr) -> 'TemplateExpr': ...
+    def mkActivityParallel(self,
+        name : str,
+        join_spec : ActivityJoinSpec) -> 'ActivityParallel': ...
     def mkTemplateIf(self,
         name : str,
         offset : int,
         extent : int) -> 'TemplateIf': ...
-    def mkActivityParallel(self,
-        name : str,
-        join_spec : ActivityJoinSpec) -> 'ActivityParallel': ...
     def mkActivitySchedule(self,
         name : str,
         join_spec : ActivityJoinSpec) -> 'ActivitySchedule': ...
@@ -715,10 +735,6 @@ class Factory(object):
         offset : int,
         extent : int,
         text : str) -> 'TemplateText': ...
-    def mkTemplateVarDecl(self,
-        name : str,
-        offset : int,
-        extent : int) -> 'TemplateVarDecl': ...
     def mkTemplateForeach(self,
         name : str,
         offset : int,
@@ -753,17 +769,25 @@ class SymbolRefPath(object):
     def path(self) -> ListUtil...
         """Returns an iterator over the items"""
     
+    def getPathList(self) -> List['SymbolRefPathElem']: ...
+    
+    def getPath(self, i) -> 'SymbolRefPathElem': ...
+    
+    def addPath(self, i : 'SymbolRefPathElem'): ...
+    
     def getPath(self) -> List[SymbolRefPathElem]: ...
     
-class TemplateParamValueList(object):
+class MonitorActivitySelectBranch(object):
     pass
     
-    def values(self) -> ListUtil...
-        """Returns an iterator over the items"""
+    def getGuard(self) -> Expr: ...
     
-    def getValues(self) -> List[TemplateParamValue]: ...
+    def getBody(self) -> ScopeChild: ...
     
 class Expr(object):
+    pass
+    
+class TemplateParamValue(object):
     pass
     
 class ExprAggrMapElem(object):
@@ -805,16 +829,6 @@ class TemplateParamDeclList(object):
 class RefExpr(object):
     pass
     
-class TemplateParamValue(object):
-    pass
-    
-class MonitorActivitySelectBranch(object):
-    pass
-    
-    def getGuard(self) -> Expr: ...
-    
-    def getBody(self) -> ScopeChild: ...
-    
 class ActivitySelectBranch(object):
     pass
     
@@ -824,6 +838,14 @@ class ActivitySelectBranch(object):
     
     def getBody(self) -> ScopeChild: ...
     
+class TemplateParamValueList(object):
+    pass
+    
+    def values(self) -> ListUtil...
+        """Returns an iterator over the items"""
+    
+    def getValues(self) -> List[TemplateParamValue]: ...
+    
 class ScopeChild(object):
     pass
     
@@ -831,7 +853,17 @@ class ScopeChild(object):
     
     def setDocstring(self, v : str): ...
     
+    def getDocRaw(self) -> str: ...
+    
+    def setDocRaw(self, v : str): ...
+    
+    def setDocForm(self, v : DocCommentForm): ...
+    
+    def getDocLocation(self) -> 'Location': ...
+    
     def getLocation(self) -> 'Location': ...
+    
+    def getEndLocation(self) -> 'Location': ...
     
     def getParent(self) -> Scope: ...
     
@@ -841,6 +873,16 @@ class ScopeChild(object):
         """Returns an iterator over the items"""
     
     def getAnnotations(self) -> List[Annotation]: ...
+    
+    def comments(self) -> ListUtil...
+        """Returns an iterator over the items"""
+    
+    def getComments(self) -> List[Comment]: ...
+    
+    def trailing_comments(self) -> ListUtil...
+        """Returns an iterator over the items"""
+    
+    def getTrailing_comments(self) -> List[Comment]: ...
     
 class ActionFieldInitializer(ScopeChild):
     """
@@ -893,8 +935,6 @@ class FunctionDefinition(ScopeChild):
     
     """
     pass
-    
-    def getEndLocation(self) -> 'Location': ...
     
     def getProto(self) -> FunctionPrototype: ...
     
@@ -1120,6 +1160,36 @@ class ActivitySchedulingConstraint(ScopeChild):
     
     def getTargets(self) -> List[ExprHierarchicalId]: ...
     
+class ActivityStmt(ScopeChild):
+    """
+    Base class for all activity statements.
+    
+    ActivityStmt is the abstract base class for all statements that can appear
+    within an activity block. Activity statements define the execution behavior
+    of actions, including action traversals, control flow, parallelism, and
+    scheduling constraints.
+    
+    PSS Example::
+    
+        action my_action {
+            activity {
+                // Various ActivityStmt subclasses
+                do comp.sub_action;        // Traversal
+                sequence { }                // Sequence
+                parallel { }                // Parallel
+                if (condition) { }          // IfElse
+            }
+        }
+    
+    Attributes:
+        (base class - no specific attributes)
+    
+    See Also:
+        ActivityDecl, ActivitySequence, ActivityParallel, ActivityActionHandleTraversal
+    
+    """
+    pass
+    
 class MonitorActivityStmt(ScopeChild):
     """
     Base class for all monitor activity statements.
@@ -1149,36 +1219,6 @@ class MonitorActivityStmt(ScopeChild):
     See Also:
         MonitorActivityDecl, MonitorActivityConcat, MonitorActivityEventually,
         MonitorActivitySequence
-    
-    """
-    pass
-    
-class ActivityStmt(ScopeChild):
-    """
-    Base class for all activity statements.
-    
-    ActivityStmt is the abstract base class for all statements that can appear
-    within an activity block. Activity statements define the execution behavior
-    of actions, including action traversals, control flow, parallelism, and
-    scheduling constraints.
-    
-    PSS Example::
-    
-        action my_action {
-            activity {
-                // Various ActivityStmt subclasses
-                do comp.sub_action;        // Traversal
-                sequence { }                // Sequence
-                parallel { }                // Parallel
-                if (condition) { }          // IfElse
-            }
-        }
-    
-    Attributes:
-        (base class - no specific attributes)
-    
-    See Also:
-        ActivityDecl, ActivitySequence, ActivityParallel, ActivityActionHandleTraversal
     
     """
     pass
@@ -1280,6 +1320,38 @@ class PackageImportStmt(ScopeChild):
     
     def getPath(self) -> TypeIdentifier: ...
     
+class Comment(ScopeChild):
+    """
+    A source comment captured verbatim and in normalized form.
+    
+    Collected only when the builder has ``setCollectComments(true)``.
+    Leading and trailing comments hang off the ``comments`` list of the
+    ``ScopeChild`` they document; orphans -- comments a blank line has
+    detached from any construct -- collect in the enclosing
+    ``Scope.trailing_comments``.
+    
+    Attributes:
+        text: normalized content, comment markers and the ``*`` gutter removed
+        raw: the untouched source text, delimiters included
+        is_block: true for ``/* */``, false for ``//``
+        placement: how the comment relates to its owner
+    
+    See Also:
+        ScopeChild.comments, Scope.trailing_comments
+    
+    """
+    pass
+    
+    def getText(self) -> str: ...
+    
+    def setText(self, v : str): ...
+    
+    def setPlacement(self, v : CommentPlacement): ...
+    
+    def getRaw(self) -> str: ...
+    
+    def setRaw(self, v : str): ...
+    
 class ComponentBind(ScopeChild):
     """
     Component-level object/pool bind directive (``bind pool targets;``).
@@ -1378,44 +1450,6 @@ class ProceduralStmtIfClause(ScopeChild):
     def getCond(self) -> Expr: ...
     
     def getBody(self) -> ScopeChild: ...
-    
-class TemplateParamDecl(ScopeChild):
-    """
-    Base class for template parameter declarations.
-    
-    Template parameters allow types and functions to be parameterized, enabling
-    generic programming in PSS. This abstract base class provides the common name
-    field shared by all template parameter types (generic type, category-constrained
-    type, and value parameters).
-    
-    PSS Example::
-    
-        // Generic type parameter T
-        action generic<T> {
-            rand T value;
-        }
-        
-        // Value parameter N
-        action sized<int N> {
-            int array[N];
-        }
-        
-        // Category-constrained parameter T
-        component container<T: action> {
-            T inst;
-        }
-    
-    Attributes:
-        name: Identifier for the template parameter
-    
-    See Also:
-        TemplateGenericTypeParamDecl, TemplateCategoryTypeParamDecl,
-        TemplateValueParamDecl, TemplateParamDeclList
-    
-    """
-    pass
-    
-    def getName(self) -> ExprId: ...
     
 class CoverStmtInline(ScopeChild):
     """
@@ -1589,6 +1623,20 @@ class PyImportStmt(ScopeChild):
     
     def getAlias(self) -> ExprId: ...
     
+class DataType(ScopeChild):
+    """
+    Base class for all PSS data types.
+    
+    Represents the type system in PSS. All type expressions (int, bool,
+    user-defined types, etc.) derive from this base class. Used in field
+    declarations, expressions, and function signatures.
+    
+    See Also:
+        DataTypeInt, DataTypeBool, DataTypeUserDefined, Field
+    
+    """
+    pass
+    
 class RefExprScopeIndex(RefExpr):
     """
     Reference to a scope using indexed access.
@@ -1608,20 +1656,6 @@ class RefExprScopeIndex(RefExpr):
     pass
     
     def getBase(self) -> RefExpr: ...
-    
-class DataType(ScopeChild):
-    """
-    Base class for all PSS data types.
-    
-    Represents the type system in PSS. All type expressions (int, bool,
-    user-defined types, etc.) derive from this base class. Used in field
-    declarations, expressions, and function signatures.
-    
-    See Also:
-        DataTypeInt, DataTypeBool, DataTypeUserDefined, Field
-    
-    """
-    pass
     
 class RefExprTypeScopeContext(RefExpr):
     """
@@ -1686,58 +1720,48 @@ class Scope(ScopeChild):
     """
     pass
     
-    def getEndLocation(self) -> 'Location': ...
-    
     def children(self) -> ListUtil...
         """Returns an iterator over the items"""
     
     def getChildren(self) -> List[ScopeChild]: ...
     
-class TemplateParamExprValue(TemplateParamValue):
+class TemplateParamDecl(ScopeChild):
     """
-    Expression value for template instantiation.
+    Base class for template parameter declarations.
     
-    Represents a compile-time constant expression provided when instantiating a
-    template. This is used to fill in value parameters with concrete values. The
-    expression must be evaluable at compile time and must match the type specified
-    in the corresponding value parameter declaration.
+    Template parameters allow types and functions to be parameterized, enabling
+    generic programming in PSS. This abstract base class provides the common name
+    field shared by all template parameter types (generic type, category-constrained
+    type, and value parameters).
     
     PSS Example::
     
-        // Template with value parameters
-        action sized<int N, int WIDTH> {
-            bit<WIDTH> array[N];
+        // Generic type parameter T
+        action generic<T> {
+            rand T value;
         }
         
-        // Instantiation with expression values
-        sized<16, 8> inst1;  // Literal expressions
-        
-        // Using constants as expression values
-        const int BUFFER_SIZE = 32;
-        const int DATA_WIDTH = 64;
-        sized<BUFFER_SIZE, DATA_WIDTH> inst2;
-        
-        // Expressions can be computed
-        sized<8*4, 2+6> inst3;  // 32 elements, 8 bits wide
-        
-        // Mixed type and expression values
-        action mixed<T, int COUNT> {
-            T values[COUNT];
+        // Value parameter N
+        action sized<int N> {
+            int array[N];
         }
-        mixed<bit<32>, 10> mixed_inst;
-        // First value: bit<32> (TemplateParamTypeValue)
-        // Second value: 10 (TemplateParamExprValue)
+        
+        // Category-constrained parameter T
+        component container<T: action> {
+            T inst;
+        }
     
     Attributes:
-        value: The compile-time constant expression
+        name: Identifier for the template parameter
     
     See Also:
-        TemplateParamValue, TemplateParamTypeValue, Expr, TemplateValueParamDecl
+        TemplateGenericTypeParamDecl, TemplateCategoryTypeParamDecl,
+        TemplateValueParamDecl, TemplateParamDeclList
     
     """
     pass
     
-    def getValue(self) -> Expr: ...
+    def getName(self) -> ExprId: ...
     
 class ScopeChildRef(ScopeChild):
     """
@@ -1757,46 +1781,6 @@ class ScopeChildRef(ScopeChild):
     pass
     
     def getTarget(self) -> ScopeChild: ...
-    
-class TemplateParamTypeValue(TemplateParamValue):
-    """
-    Type value for template instantiation.
-    
-    Represents a type argument provided when instantiating a template. This is used
-    to fill in type parameters (both generic and category-constrained) with concrete
-    types. The value must be a valid data type expression that satisfies any
-    constraints specified in the template parameter declaration.
-    
-    PSS Example::
-    
-        // Template with type parameters
-        action generic<T, U: action> {
-            rand T data;
-            U action_inst;
-        }
-        
-        // Instantiation with type values
-        generic<bit<16>, my_action_t> inst;
-        // First parameter value: bit<16> (built-in type)
-        // Second parameter value: my_action_t (user-defined action type)
-        
-        // Complex type as parameter value
-        struct nested_struct<T> {
-            T value;
-        }
-        generic<nested_struct<int<32>>, other_action_t> complex_inst;
-    
-    Attributes:
-        value: The type being provided as the template argument
-    
-    See Also:
-        TemplateParamValue, TemplateParamExprValue, DataType,
-        TemplateGenericTypeParamDecl, TemplateCategoryTypeParamDecl
-    
-    """
-    pass
-    
-    def getValue(self) -> DataType: ...
     
 class SymbolChild(ScopeChild):
     """
@@ -1880,6 +1864,52 @@ class DistWeight(ScopeChild):
     pass
     
     def getExpr(self) -> Expr: ...
+    
+class TemplateParamExprValue(TemplateParamValue):
+    """
+    Expression value for template instantiation.
+    
+    Represents a compile-time constant expression provided when instantiating a
+    template. This is used to fill in value parameters with concrete values. The
+    expression must be evaluable at compile time and must match the type specified
+    in the corresponding value parameter declaration.
+    
+    PSS Example::
+    
+        // Template with value parameters
+        action sized<int N, int WIDTH> {
+            bit<WIDTH> array[N];
+        }
+        
+        // Instantiation with expression values
+        sized<16, 8> inst1;  // Literal expressions
+        
+        // Using constants as expression values
+        const int BUFFER_SIZE = 32;
+        const int DATA_WIDTH = 64;
+        sized<BUFFER_SIZE, DATA_WIDTH> inst2;
+        
+        // Expressions can be computed
+        sized<8*4, 2+6> inst3;  // 32 elements, 8 bits wide
+        
+        // Mixed type and expression values
+        action mixed<T, int COUNT> {
+            T values[COUNT];
+        }
+        mixed<bit<32>, 10> mixed_inst;
+        // First value: bit<32> (TemplateParamTypeValue)
+        // Second value: 10 (TemplateParamExprValue)
+    
+    Attributes:
+        value: The compile-time constant expression
+    
+    See Also:
+        TemplateParamValue, TemplateParamTypeValue, Expr, TemplateValueParamDecl
+    
+    """
+    pass
+    
+    def getValue(self) -> Expr: ...
     
 class ExecBlockTag(ScopeChild):
     """
@@ -2100,6 +2130,46 @@ class TargetTemplateFunction(ScopeChild):
     def setData(self, v : str): ...
     
     def getTemplate(self) -> TemplateString: ...
+    
+class TemplateParamTypeValue(TemplateParamValue):
+    """
+    Type value for template instantiation.
+    
+    Represents a type argument provided when instantiating a template. This is used
+    to fill in type parameters (both generic and category-constrained) with concrete
+    types. The value must be a valid data type expression that satisfies any
+    constraints specified in the template parameter declaration.
+    
+    PSS Example::
+    
+        // Template with type parameters
+        action generic<T, U: action> {
+            rand T data;
+            U action_inst;
+        }
+        
+        // Instantiation with type values
+        generic<bit<16>, my_action_t> inst;
+        // First parameter value: bit<16> (built-in type)
+        // Second parameter value: my_action_t (user-defined action type)
+        
+        // Complex type as parameter value
+        struct nested_struct<T> {
+            T value;
+        }
+        generic<nested_struct<int<32>>, other_action_t> complex_inst;
+    
+    Attributes:
+        value: The type being provided as the template argument
+    
+    See Also:
+        TemplateParamValue, TemplateParamExprValue, DataType,
+        TemplateGenericTypeParamDecl, TemplateCategoryTypeParamDecl
+    
+    """
+    pass
+    
+    def getValue(self) -> DataType: ...
     
 class ExprAggrLiteral(Expr):
     """
@@ -3305,8 +3375,6 @@ class ConstraintScope(ConstraintStmt):
     """
     pass
     
-    def getEndLocation(self) -> 'Location': ...
-    
     def constraints(self) -> ListUtil...
         """Returns an iterator over the items"""
     
@@ -3958,14 +4026,16 @@ class EnumDecl(NamedScopeChild):
     PSS 3.1 (§3.1, Annex B B.13) adds an optional base type, which fixes
     the representation of the enumerators::
     
-        enum small_e : bit[4] {
-            A, B, C
+        enum mode_e : bit[4] {          // With an explicit base type
+            IDLE = 0, RUN = 1
         };
     
     Attributes:
         name: Enum type name (inherited from NamedScopeChild)
         items: List of enumerator values
-        base_type: Declared base type, or null when none was written
+        base_type: Declared integral base type, or null when none was
+            written. Only an enum that has one may be a member of a
+            packed struct (21.13.1).
     
     See Also:
         EnumItem, DataTypeEnum
@@ -5748,6 +5818,42 @@ class ProceduralStmtReturn(ExecStmt):
     
     def getExpr(self) -> Expr: ...
     
+class ProceduralStmtSuper(ExecStmt):
+    """
+    Invokes the base type's implementation of the enclosing exec block.
+    
+    ProceduralStmtSuper represents the `super;` statement inside an exec
+    block. Without it, a derived type's exec silently *replaces* the
+    base's rather than extending it, so this is the correct form of the
+    most damaging inheritance mistake in PSS.
+    
+    The statement carries no operands: which exec block it refers to is
+    fixed by where it appears -- the same kind, on the base type.
+    
+    PSS Example::
+    
+        action base_a {
+            exec body {
+                console.log("base");
+            }
+        }
+    
+        action derived_a : base_a {
+            exec body {
+                super;                  // run base_a's exec body first
+                console.log("derived");
+            }
+        }
+    
+    Attributes:
+        (no attributes)
+    
+    See Also:
+        ActivitySuper, ExecBlock, ExprRefPathSuper
+    
+    """
+    pass
+    
 class ProceduralStmtYield(ExecStmt):
     """
     Yield control back to scheduler or runtime.
@@ -6867,21 +6973,6 @@ class Action(TypeScope):
     """
     pass
     
-class GenericConstraintDeclBool(ConstraintBlock):
-    """
-    Boolean generic constraint declaration.
-    
-    Represents a declaration of the form
-    ``[static] constraint name(params) constraint_set``.
-    
-    """
-    pass
-    
-    def parameters(self) -> ListUtil...
-        """Returns an iterator over the items"""
-    
-    def getParameters(self) -> List[GenericConstraintParam]: ...
-    
 class ActivityDecl(SymbolScope):
     """
     Declares an activity block within an action.
@@ -6908,6 +6999,21 @@ class ActivityDecl(SymbolScope):
     
     """
     pass
+    
+class GenericConstraintDeclBool(ConstraintBlock):
+    """
+    Boolean generic constraint declaration.
+    
+    Represents a declaration of the form
+    ``[static] constraint name(params) constraint_set``.
+    
+    """
+    pass
+    
+    def parameters(self) -> ListUtil...
+        """Returns an iterator over the items"""
+    
+    def getParameters(self) -> List[GenericConstraintParam]: ...
     
 class Monitor(TypeScope):
     """
@@ -6950,6 +7056,42 @@ class Monitor(TypeScope):
     """
     pass
     
+class ActivityLabeledScope(SymbolScope):
+    """
+    Base class for labeled activity scopes.
+    
+    ActivityLabeledScope represents activity constructs that introduce a new
+    scope and can be labeled. This includes sequences, parallel blocks, and
+    schedule blocks. The label can be used for referencing in scheduling
+    constraints.
+    
+    PSS Example::
+    
+        action my_action {
+            activity {
+                my_seq: sequence {
+                    do comp.action1;
+                    do comp.action2;
+                }
+                
+                my_par: parallel {
+                    do comp.action3;
+                    do comp.action4;
+                }
+            }
+        }
+    
+    Attributes:
+        label: Optional identifier expression for the label
+    
+    See Also:
+        ActivitySequence, ActivityParallel, ActivitySchedule
+    
+    """
+    pass
+    
+    def getLabel(self) -> ExprId: ...
+    
 class MonitorActivityDecl(SymbolScope):
     """
     Declares an activity block within a monitor.
@@ -6990,42 +7132,6 @@ class MonitorActivityDecl(SymbolScope):
     
     """
     pass
-    
-class ActivityLabeledScope(SymbolScope):
-    """
-    Base class for labeled activity scopes.
-    
-    ActivityLabeledScope represents activity constructs that introduce a new
-    scope and can be labeled. This includes sequences, parallel blocks, and
-    schedule blocks. The label can be used for referencing in scheduling
-    constraints.
-    
-    PSS Example::
-    
-        action my_action {
-            activity {
-                my_seq: sequence {
-                    do comp.action1;
-                    do comp.action2;
-                }
-                
-                my_par: parallel {
-                    do comp.action3;
-                    do comp.action4;
-                }
-            }
-        }
-    
-    Attributes:
-        label: Optional identifier expression for the label
-    
-    See Also:
-        ActivitySequence, ActivityParallel, ActivitySchedule
-    
-    """
-    pass
-    
-    def getLabel(self) -> ExprId: ...
     
 class MonitorActivitySchedule(SymbolScope):
     """
@@ -7162,6 +7268,34 @@ class Component(TypeScope):
     """
     pass
     
+class ConstraintSymbolScope(SymbolScope):
+    """
+    Symbol table scope for constraint expressions.
+    
+    Provides a symbol resolution context for identifiers used within constraint statements.
+    This scope manages the visibility of iterator variables (from foreach/forall) and field
+    references within the constraint context.
+    
+    PSS Example::
+    
+        constraint loop_constraint {
+            foreach (items[i]) {
+                // 'i' and 'items[i]' are resolved through ConstraintSymbolScope
+                items[i] > 0;
+            }
+        }
+    
+    Attributes:
+        constraint: The constraint statement this scope is associated with
+    
+    See Also:
+        SymbolScope, ConstraintStmtForeach, ConstraintStmtForall
+    
+    """
+    pass
+    
+    def getConstraint(self) -> ConstraintStmt: ...
+    
 class ProceduralStmtSymbolBodyScope(SymbolScope):
     """
     Symbol scope with statement body for loop constructs.
@@ -7200,34 +7334,6 @@ class ProceduralStmtSymbolBodyScope(SymbolScope):
     pass
     
     def getBody(self) -> ScopeChild: ...
-    
-class ConstraintSymbolScope(SymbolScope):
-    """
-    Symbol table scope for constraint expressions.
-    
-    Provides a symbol resolution context for identifiers used within constraint statements.
-    This scope manages the visibility of iterator variables (from foreach/forall) and field
-    references within the constraint context.
-    
-    PSS Example::
-    
-        constraint loop_constraint {
-            foreach (items[i]) {
-                // 'i' and 'items[i]' are resolved through ConstraintSymbolScope
-                items[i] > 0;
-            }
-        }
-    
-    Attributes:
-        constraint: The constraint statement this scope is associated with
-    
-    See Also:
-        SymbolScope, ConstraintStmtForeach, ConstraintStmtForall
-    
-    """
-    pass
-    
-    def getConstraint(self) -> ConstraintStmt: ...
     
 class RootSymbolScope(SymbolScope):
     """
@@ -7406,8 +7512,6 @@ class ExecScope(SymbolScope):
     """
     pass
     
-    def getEndLocation(self) -> 'Location': ...
-    
 class SymbolTypeScope(SymbolScope):
     """
     Symbol scope for type declarations (actions, components, structs).
@@ -7522,6 +7626,31 @@ class TemplateString(SymbolScope):
         """Returns an iterator over the items"""
     
     def getElems(self) -> List[TemplateElem]: ...
+    
+class TemplateVarDecl(TemplateElem):
+    """
+    A template variable declaration -- §4.7.1.2, Table 5.
+    
+    ``{% data_type procedural_data_instantiation { , procedural_data_instantiation } ; %}``
+    
+    The declarations are ProceduralStmtDataDeclaration nodes, the same
+    node a procedural ``int x;`` produces, so both resolve through one
+    path.  They are registered in the enclosing TemplateBlock's (or
+    TemplateString's) symtab.
+    
+    Attributes:
+        decls: The declared variables
+    
+    See Also:
+        TemplateAssign, TemplateBlock
+    
+    """
+    pass
+    
+    def decls(self) -> ListUtil...
+        """Returns an iterator over the items"""
+    
+    def getDecls(self) -> List[ProceduralStmtDataDeclaration]: ...
     
 class ExecBlock(ExecScope):
     """
@@ -7665,32 +7794,6 @@ class TemplateBlock(TemplateElem):
     
     def getBody(self) -> List[TemplateElem]: ...
     
-class TemplateComment(TemplateElem):
-    """
-    A template comment -- ``{# ... #}`` or ``{#}`` to end of line,
-    §4.7.1.3.
-    
-    Comment content is **not** processed for special elements: a ``{{``
-    inside a comment is literal text.
-    
-    Comments are retained rather than discarded.  Evaluation drops them,
-    but *parsing* must not, or a formatter loses the user's comments.
-    Dropping is the renderer's job.
-    
-    Attributes:
-        text: Comment content, excluding the delimiters
-        is_line: True for the ``{#}`` line form, false for ``{# ... #}``
-    
-    See Also:
-        TemplateElem
-    
-    """
-    pass
-    
-    def getText(self) -> str: ...
-    
-    def setText(self, v : str): ...
-    
 class ProceduralStmtRepeat(ProceduralStmtSymbolBodyScope):
     """
     Fixed-count repeat loop with optional iterator variable.
@@ -7730,6 +7833,32 @@ class ProceduralStmtRepeat(ProceduralStmtSymbolBodyScope):
     
     def getCount(self) -> Expr: ...
     
+class TemplateComment(TemplateElem):
+    """
+    A template comment -- ``{# ... #}`` or ``{#}`` to end of line,
+    §4.7.1.3.
+    
+    Comment content is **not** processed for special elements: a ``{{``
+    inside a comment is literal text.
+    
+    Comments are retained rather than discarded.  Evaluation drops them,
+    but *parsing* must not, or a formatter loses the user's comments.
+    Dropping is the renderer's job.
+    
+    Attributes:
+        text: Comment content, excluding the delimiters
+        is_line: True for the ``{#}`` line form, false for ``{# ... #}``
+    
+    See Also:
+        TemplateElem
+    
+    """
+    pass
+    
+    def getText(self) -> str: ...
+    
+    def setText(self, v : str): ...
+    
 class TemplateExpr(TemplateElem):
     """
     A mustache expression -- ``{{ expression }}``, §4.7.1.1.
@@ -7753,28 +7882,6 @@ class TemplateExpr(TemplateElem):
     pass
     
     def getExpr(self) -> Expr: ...
-    
-class TemplateIf(TemplateElem):
-    """
-    A template if directive with its else-if and else arms -- §4.7.1.2.
-    
-    The clauses are held **flat**, not as a tree of nested ifs.  The
-    source is a flat directive sequence, so nesting would be an invention
-    a formatter would then have to undo.
-    
-    Attributes:
-        clauses: if / else-if / else arms, in source order
-    
-    See Also:
-        TemplateIfClause, TemplateBlock
-    
-    """
-    pass
-    
-    def clauses(self) -> ListUtil...
-        """Returns an iterator over the items"""
-    
-    def getClauses(self) -> List[TemplateIfClause]: ...
     
 class ActivityParallel(ActivityLabeledScope):
     """
@@ -7820,6 +7927,28 @@ class ActivityParallel(ActivityLabeledScope):
     pass
     
     def getJoin_spec(self) -> ActivityJoinSpec: ...
+    
+class TemplateIf(TemplateElem):
+    """
+    A template if directive with its else-if and else arms -- §4.7.1.2.
+    
+    The clauses are held **flat**, not as a tree of nested ifs.  The
+    source is a flat directive sequence, so nesting would be an invention
+    a formatter would then have to undo.
+    
+    Attributes:
+        clauses: if / else-if / else arms, in source order
+    
+    See Also:
+        TemplateIfClause, TemplateBlock
+    
+    """
+    pass
+    
+    def clauses(self) -> ListUtil...
+        """Returns an iterator over the items"""
+    
+    def getClauses(self) -> List[TemplateIfClause]: ...
     
 class ActivitySchedule(ActivityLabeledScope):
     """
@@ -7923,31 +8052,6 @@ class TemplateText(TemplateElem):
     def getText(self) -> str: ...
     
     def setText(self, v : str): ...
-    
-class TemplateVarDecl(TemplateElem):
-    """
-    A template variable declaration -- §4.7.1.2, Table 5.
-    
-    ``{% data_type procedural_data_instantiation { , procedural_data_instantiation } ; %}``
-    
-    The declarations are ProceduralStmtDataDeclaration nodes, the same
-    node a procedural ``int x;`` produces, so both resolve through one
-    path.  They are registered in the enclosing TemplateBlock's (or
-    TemplateString's) symtab.
-    
-    Attributes:
-        decls: The declared variables
-    
-    See Also:
-        TemplateAssign, TemplateBlock
-    
-    """
-    pass
-    
-    def decls(self) -> ListUtil...
-        """Returns an iterator over the items"""
-    
-    def getDecls(self) -> List[ProceduralStmtDataDeclaration]: ...
     
 class TemplateForeach(TemplateBlock):
     """

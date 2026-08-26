@@ -18,6 +18,7 @@
 #include "pssp/ast/IGlobalScope.h"
 #include "pssp/ast/IScope.h"
 #include "pssp/ast/IEnumDecl.h"
+#include "DocCommentExtractor.h"
 
 using namespace antlr4;
 using namespace antlrcpp;
@@ -55,6 +56,60 @@ public:
 
     virtual bool getCollectDocStrings() {
         return m_collectDocStrings;
+    }
+
+    /**
+     * Collect every comment, not just the docstring of a declaration.
+     *
+     * Populates ScopeChild::comments -- on procedural statements as well as
+     * declarations -- and ScopeChild::trailing_comments. Implies docstring
+     * collection, since the docstring is derived from the same leading run.
+     */
+    virtual void setCollectComments(bool c) {
+        m_collectComments = c;
+        if (c) {
+            m_collectDocStrings = true;
+        }
+    }
+
+    virtual bool getCollectComments() {
+        return m_collectComments;
+    }
+
+    virtual void setDocCommentTabWidth(int32_t w) {
+        m_doc_opts.tab_width = w;
+        if (m_doc_extractor) {
+            m_doc_extractor->setOptions(m_doc_opts);
+        }
+    }
+
+    virtual int32_t getDocCommentTabWidth() {
+        return m_doc_opts.tab_width;
+    }
+
+    virtual void setDocCommentStrictMarkers(bool s) {
+        m_doc_opts.strict_markers = s;
+        if (m_doc_extractor) {
+            m_doc_extractor->setOptions(m_doc_opts);
+        }
+    }
+
+    virtual bool getDocCommentStrictMarkers() {
+        return m_doc_opts.strict_markers;
+    }
+
+    /**
+     * Establish *tok* as the doc anchor until the matching pop.  Use
+     * DocAnchorScope rather than calling these directly.
+     */
+    void pushDocAnchor(Token *tok) {
+        m_doc_anchors.push_back(tok);
+    }
+
+    void popDocAnchor() {
+        if (!m_doc_anchors.empty()) {
+            m_doc_anchors.pop_back();
+        }
     }
 
     virtual void setEnableProfile(bool e) {
@@ -250,6 +305,15 @@ public:
 
 	virtual antlrcpp::Any visitAttr_field(PSSParser::Attr_fieldContext *ctx) override;
 
+	// The `*_ann` rules put an annotation between a doc comment and the
+	// declaration it documents.  These overrides exist only to anchor the
+	// comment lookup; they add nothing to the AST.
+	virtual antlrcpp::Any visitAction_body_item_ann(PSSParser::Action_body_item_annContext *ctx) override;
+
+	virtual antlrcpp::Any visitComponent_body_item_ann(PSSParser::Component_body_item_annContext *ctx) override;
+
+	virtual antlrcpp::Any visitActivity_stmt_ann(PSSParser::Activity_stmt_annContext *ctx) override;
+
 	// B.13 Data types
 
  	virtual antlrcpp::Any visitChandle_type(PSSParser::Chandle_typeContext *ctx) override;
@@ -363,7 +427,16 @@ public:
 
 private:
 
-    void addChild(ast::IScopeChild *c, Token *t, const ast::Location *loc=0, Token *ct=0);
+    /**
+     * @param stop           last token of the construct, for its source extent
+     * @param trailing_stop  token a same-line trailing comment follows.  For a
+     *                       field this is the statement's `;`, not the
+     *                       declarator's last token: the `;` sits between the
+     *                       declarator and the comment, so looking right from
+     *                       the declarator finds nothing.  Defaults to *stop*.
+     */
+    void addChild(ast::IScopeChild *c, Token *t, const ast::Location *loc=0, Token *ct=0,
+                  Token *stop=0, Token *trailing_stop=0);
 
     void addChild(ast::ISymbolScope *c, Token *t, Token *end);
 
@@ -379,13 +452,121 @@ private:
 
     void addChild(ast::IScope *c, Token *start, Token *end);
 
-    void addDocstring(ast::IScopeChild *c, Token *t);
+    void addDocstring(ast::IScopeChild *c, Token *t, Token *stop=0);
+
+    /**
+     * Attach the doc comment (and, when enabled, the comments) leading *t* to
+     * *c*, for nodes that are built into
+     * a typed list rather than through addChild -- enum items, function
+     * parameters and template parameters (D9).
+     *
+     * Unlike addDocstring this ignores any active DocAnchorScope.  These nodes
+     * sit *inside* a declaration that may itself have an anchor, and each one
+     * carries its own comment; taking the enclosing anchor would give every
+     * item in the list the declaration's docstring.
+     */
+    void attachDocstring(ast::IScopeChild *c, Token *t);
+
+    /** Record text, raw source, form and comment location on *c* (E4). */
+    void applyDocComment(ast::IScopeChild *c, const DocComment &dc);
+
+    static ast::DocCommentForm toAstDocForm(pssp::DocCommentForm form);
+
+    /**
+     * Record the source extent of a construct that runs from *start* to *stop*
+     * (E6): `endLocation`, and `location.extent` as the character span.  Both
+     * are needed for a `[source]` link that highlights a range rather than a
+     * single line.
+     */
+    void setExtent(ast::IScopeChild *c, Token *start, Token *stop);
+
+    /**
+     * The token a doc comment is looked up from: the innermost anchor
+     * established by a DocAnchorScope, or *fallback* (the token the
+     * constructing visitor happens to hold) when none is in force.
+     */
+    Token *docAnchor(Token *fallback) const {
+        if (!m_doc_anchors.empty() && m_doc_anchors.back()) {
+            // Both anchors exist to move the lookup *earlier* than the token
+            // the constructing visitor holds: this one past a wrapper rule's
+            // leading tokens (`rand`, `static const`), and the caller's past
+            // any annotations attached to the declaration. Whichever reaches
+            // further back is the start of the construct as written, and that
+            // is where the comment sits.
+            //
+            // Taking this one unconditionally lost the docstring on
+            // `/** doc */ @ann {...} C c1;`: component_data_declaration
+            // anchors at `C`, which is *after* the annotation, so the comment
+            // was no longer adjacent.
+            if (!fallback
+                || m_doc_anchors.back()->getTokenIndex()
+                        <= fallback->getTokenIndex()) {
+                return m_doc_anchors.back();
+            }
+        }
+        return fallback;
+    }
+
+    /**
+     * Partition the comments around *t* and attach them to *c*.
+     *
+     * Leading comments are the contiguous run ending on the line immediately
+     * above *t*; a blank line cuts the run. A comment sharing a line with the
+     * previous on-channel token belongs to the *previous* construct, so it is
+     * left alone here and picked up by that construct's trailing scan.
+     * Everything else is an orphan and lands on the enclosing scope.
+     *
+     * Does nothing unless comment collection is enabled; the docstring comes
+     * from the DocCommentExtractor, not from this partition.
+     */
+    void attachComments(ast::IScopeChild *c, Token *t);
+
+    /**
+     * Claim a comment that starts on *t*'s line, after it, as *c*'s trailing
+     * comment -- the `x = 1; // note` case. Returns its normalized text.
+     */
+    std::string attachTrailingComment(ast::IScopeChild *c, Token *t);
+
+    /**
+     * Collect the comments left dangling at the end of *s* -- those after the
+     * scope's last construct and before its closing brace, which no
+     * ScopeChild is in a position to claim.
+     */
+    void collectScopeTrailingComments(ast::IScopeChild *s, Token *end);
+
+    /**
+     * Strip comment delimiters, the `*` gutter of a block comment, and the
+     * common indent. The result is what a consumer emits.
+     */
+    static std::string normalizeComment(const std::string &raw, bool is_block);
+
+    /** Line on which *t* ends -- its start line plus any embedded newlines. */
+    static int32_t tokenEndLine(Token *t);
+
+    /** Build a Comment node for *t*, located and normalized. */
+    ast::IComment *mkCommentFor(Token *t, ast::CommentPlacement placement);
 
     void attachPendingAnnotations(ast::IScopeChild *c);
     void discardPendingAnnotations(size_t mark);
 
     /** Where the docstring scan should start for the child now being added. */
     Token *docstringAnchor(Token *t);
+
+    /**
+     * True when *ctx* is a standalone annotation -- one terminated by `;`
+     * (LRM 7.13), which attaches to a lexical location rather than to the
+     * next declared element.
+     */
+    bool isStandaloneAnnotation(PSSParser::AnnotationContext *ctx);
+
+    /** Report an element annotation that never found an element (LRM 7.13). */
+    void reportUnattachedAnnotation(ast::IAnnotation *a);
+
+    /**
+     * Emit an error marker anchored at *t*, with printf-style formatting.
+     * Safe when no marker listener is attached.
+     */
+    void addErrorMarker(Token *t, const char *fmt, ...);
 
     bool evalConstantExpression(PSSParser::Constant_expressionContext *ctx, int64_t &val);
 
@@ -396,6 +577,21 @@ private:
     bool evalAstExpression(ast::IScope *eval_scope, ast::IExpr *expr, std::string &val);
 
     bool evalCompileHas(PSSParser::Ref_pathContext *ctx);
+
+    /**
+     * Evaluate a compile-time condition, reporting an error anchored at *t*
+     * when its value cannot be determined (PSS 3.1 19.1.3).
+     *
+     * *construct* names the statement ("compile if" / "compile assert") and
+     * *ctx* supplies the condition text quoted in the diagnostic.  Returns
+     * false, with the error already reported, when the value is unavailable;
+     * callers must then elaborate neither branch, since 19.1.1 promises only
+     * that a disabled branch is syntactically correct.
+     */
+    bool evalCompileTimeCond(
+        PSSParser::Constant_expressionContext   *ctx,
+        int64_t                                 &val,
+        const char                              *construct);
 
     void visitCompileIfItem(antlr4::ParserRuleContext *ctx);
 
@@ -422,6 +618,27 @@ private:
         const std::vector<std::string> &path,
         uint32_t &consumed);
 
+    /**
+     * Walk the trailing elements of *path*, starting from *target* and
+     * element *path_i*, through scopes, enum declarations and typed fields.
+     * Returns null when any element is missing.
+     */
+    ast::IScopeChild *walkPathMembers(
+        ast::IScopeChild *target,
+        const std::vector<std::string> &path,
+        uint32_t path_i);
+
+    /**
+     * Resolve *path* against a previously-processed source unit, newest first
+     * (PSS 3.1 19.1.2).  Each unit is tried as a whole -- root lookup plus the
+     * member walk -- rather than sharing a root across units, so a package
+     * declared in several units resolves against the fragment that actually
+     * holds the member.
+     */
+    ast::IScopeChild *resolvePathTargetInPriorUnits(
+        ast::IScope *cur_global,
+        const std::vector<std::string> &path);
+
     ast::IScope *resolveDataTypeScope(ast::IDataType *type);
 
     ast::IScopeChild *findImportedPathTarget(
@@ -442,14 +659,6 @@ private:
     bool evalScopeChildValue(ast::IScopeChild *target, int64_t &val);
 
     bool evalScopeChildValue(ast::IScopeChild *target, std::string &val);
-
-    std::string processDocStringMultiLineComment(
-    		const std::vector<Token *>		&mlc_tokens,
-			const std::vector<Token *>		&ws_tokens);
-
-    std::string processDocStringSingleLineComment(
-    		const std::vector<Token *>		&slc_tokens,
-			const std::vector<Token *>		&ws_tokens);
 
     ast::IScope *scope() const { return m_scopes.back(); }
 
@@ -686,6 +895,8 @@ private:
     static dmgr::IDebug                         *m_dbg;
     int32_t                                     m_file_id;
 	bool										m_collectDocStrings;
+	bool										m_collectComments;
+	/** Start of the enclosing attr_field, for doc-comment lookup. */
     bool                                        m_enableProfile;
     std::vector<atn::DecisionInfo>              m_profile_decisions;
     IMarkerListener								*m_marker_l;
@@ -693,6 +904,19 @@ private:
 	ast::IExpr									*m_expr;
 	ast::IDataType								*m_type;
     std::vector<ast::IScope *>					m_scopes;
+    /**
+     * Source units this builder has already processed, in processing order.
+     *
+     * Compile-time expressions are evaluated during AST construction, so the
+     * only view they have of the model is what the builder has built.  Holding
+     * the prior units here is what lets a `compile if` condition read a
+     * `static const` from an earlier file (PSS 3.1 19.1.2); without it every
+     * cross-file reference resolves to null and reads as false.
+     *
+     * These are borrowed pointers to scopes owned by the caller (Parser._files
+     * on the Python side), so the builder must not outlive them.
+     */
+    std::vector<ast::IGlobalScope *>            m_prior_units;
 	ast::IScopeChild							*m_activity_stmt;
 	ast::IExprId								*m_labeled_activity_id;
 	ast::IConstraintStmt						*m_constraint;
@@ -702,6 +926,14 @@ private:
 	std::vector<ast::IConstraintScope *>		m_constraint_s;
     std::unique_ptr<CommonTokenStream>			m_tokens;
     FragmentBase                                m_frag;
+    DocCommentOptions                           m_doc_opts;
+    std::unique_ptr<DocCommentExtractor>        m_doc_extractor;
+    /**
+     * Stack of doc anchors, innermost last.  A null entry means "no anchor is
+     * in force" and is pushed by push_scope so a declaration nested inside a
+     * scope cannot inherit the anchor of the wrapper that opened it.
+     */
+    std::vector<Token *>                        m_doc_anchors;
 	std::vector<ast::IExprIdUP>					*m_type_id;
 	uint32_t									m_field_depth;
 	std::vector<ast::IField *>					m_fields;

@@ -1,4 +1,4 @@
-from ..test_helpers import assert_parse_ok, get_symbol
+from ..test_helpers import assert_parse_ok, get_symbol, parse_pss
 
 
 def test_component_extension_adds_action():
@@ -298,13 +298,22 @@ def test_activity_in_an_extension_is_accepted():
 
 
 def test_activity_in_an_extension_is_checked_once():
+    """The extension body must be walked once, not twice.
+
+    Counted over the *resolution* diagnostic specifically: a reference that
+    never binds also draws a separate "is never resolved" report from
+    TaskCheckRefsResolved, which is a different pass making a different point
+    (see tests/python/errors/test_refs_resolved.py). Two walks of the body
+    would instead show this one message twice.
+    """
     from ..test_helpers import parse_collect
     _, markers = parse_collect(
         """
         component C { action A { } }
         extend action C::A { activity { do C::NoSuch; } }
         """)
-    errs = [m for m in markers if m["severity"] == "error"]
+    errs = [m for m in markers
+            if m["severity"] == "error" and "unknown type" in m["message"]]
     assert len(errs) == 1, errs
     assert "NoSuch" in errs[0]["message"]
 
@@ -327,3 +336,108 @@ def test_extension_declarations_are_still_re_homed_once():
     assert s.symtabHas("a")
     assert s.symtabHas("b")
     assert s.symtabHas("f")
+
+
+# ===========================================================================
+# Name resolution inside a type extension (LRM 17.2.3)
+# ===========================================================================
+#
+# pssparser maintains two views of a model. The *physical* view keeps each
+# type definition and each `extend` as the distinct item it was in source;
+# the *logical* view presents the type as definition-plus-extensions merged.
+# The physical view is the GlobalScope/AST tree, the logical view is the
+# symbol tree, and the logical view borrows -- it holds non-owning pointers
+# to nodes the physical view owns.
+#
+# Three defects broke the merge, all now fixed:
+#
+#   * The `<extend>` symbol scope was not marked synthetic, and
+#     TaskBuildSymbolTree::addChild only materializes getChildren() for a
+#     synthetic scope. So the scope came out empty and plain fields were
+#     never merged at all. Scope-like members (nested types, functions) were
+#     pushed by a different overload, which is why they alone worked.
+#
+#   * TaskResolveFieldRef::visitSymbolScope was an empty stub, so the second
+#     element of a package-qualified path -- the `s` of `p::s` -- never
+#     resolved and `extend struct p::s` silently dropped its whole body.
+#
+#   * A merged member kept the getId() it had in the `<extend>` scope, which
+#     is the index AstSymbolTableIterator emits as its ChildIdx step, so
+#     paths through it landed on whatever occupied that index in the target.
+#
+# What remains is genuinely a scoping question rather than a merge defect:
+# unqualified names in an extension body resolve against the *target's*
+# scope stack rather than the package that declares the extension, so the
+# declaring package's imports are not visible (LRM 17.2.3).
+
+import pytest
+
+
+def test_extension_field_is_referenceable_across_packages():
+    """A field introduced by an extension must be reachable by name."""
+    parse_pss("""
+    package p { struct s_s { bit[4] f; } }
+    import p::*;
+    component c { }
+    extend component c {
+        s_s fld;
+        target function void go() { fld.f = 1; }
+    }
+    component pss_top { c c0; }
+    """)
+
+
+def test_extension_local_reaches_its_type_scope():
+    """A local in an extension-added function must reach its type's members."""
+    parse_pss("""
+    package p { struct s_s { bit[4] f; } }
+    import p::*;
+    component c { }
+    extend component c {
+        target function void go() { s_s v; v.f = 1; }
+    }
+    component pss_top { c c0; }
+    """)
+
+
+def test_extension_body_sees_declaring_package_imports():
+    """LRM 17.2.3: names in an extension resolve where it is *declared*."""
+    parse_pss("""
+    package p { struct s_s { bit[4] f; } }
+    component c { }
+    package q {
+        import p::*;
+        extend component c {
+            target function void go() { s_s v; v.f = 1; }
+        }
+    }
+    component pss_top { import q::*; c c0; }
+    """)
+
+
+def test_same_code_outside_an_extension_works():
+    """Control: all three constructs are fine written directly in the type.
+
+    This is what makes the above extension bugs rather than unsupported
+    constructs.
+    """
+    parse_pss("""
+    package p { struct s_s { bit[4] f; } }
+    import p::*;
+    component c {
+        s_s fld;
+        target function void go() { s_s v; v.f = 1; fld.f = 2; }
+    }
+    component pss_top { c c0; }
+    """)
+
+
+for _fn in (
+    test_extension_body_sees_declaring_package_imports,
+):
+    _fn = pytest.mark.xfail(
+        strict=True,
+        reason="phase 3.2: extension body resolves against the target's scope, "
+               "not the declaring package (LRM 17.2.3)",
+    )(_fn)
+    globals()[_fn.__name__] = _fn

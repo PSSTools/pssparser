@@ -143,18 +143,20 @@ classes:
                 ERR_INVALID = 1,
                 ERR_TIMEOUT = 2
             };
-        
+
         PSS 3.1 (§3.1, Annex B B.13) adds an optional base type, which fixes
         the representation of the enumerators::
 
-            enum small_e : bit[4] {
-                A, B, C
+            enum mode_e : bit[4] {          // With an explicit base type
+                IDLE = 0, RUN = 1
             };
 
         Attributes:
             name: Enum type name (inherited from NamedScopeChild)
             items: List of enumerator values
-            base_type: Declared base type, or null when none was written
+            base_type: Declared integral base type, or null when none was
+                written. Only an enum that has one may be a member of a
+                packed struct (21.13.1).
 
         See Also:
             EnumItem, DataTypeEnum

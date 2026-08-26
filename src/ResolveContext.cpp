@@ -79,6 +79,21 @@ void ResolveContext::addMarker(
         severity,
         loc));
     m_marker_l->marker(marker.get());
+
+    // Remember where an error has already been reported, so a later pass can
+    // avoid saying the same thing twice about the same source position.
+    // TaskCheckRefsResolved is the caller that needs this: an unresolved
+    // reference reaches it having usually *already* been diagnosed with a
+    // better message ("unknown type 'x'"), and two diagnostics for one mistake
+    // is the cascade pssparser-issues.md 5.3 objects to.
+    if (severity == MarkerSeverityE::Error) {
+        m_reported.insert(std::make_tuple(loc.fileid, loc.lineno, loc.linepos));
+    }
+}
+
+bool ResolveContext::wasReported(const ast::Location &loc) const {
+    return m_reported.find(
+        std::make_tuple(loc.fileid, loc.lineno, loc.linepos)) != m_reported.end();
 }
 
 void ResolveContext::addMarker(

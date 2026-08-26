@@ -19,6 +19,16 @@
  *     Author:
  */
 #include "dmgr/impl/DebugMacros.h"
+#include "pssp/ast/IDataTypeUserDefined.h"
+#include "pssp/ast/IEnumDecl.h"
+#include "pssp/ast/IStruct.h"
+#include "pssp/ast/IComponent.h"
+#include "pssp/ast/IAction.h"
+#include "pssp/ast/ISymbolEnumScope.h"
+#include "pssp/ast/ISymbolTypeScope.h"
+#include "pssp/ast/IExprId.h"
+#include "pssp/ast/ITypeScope.h"
+#include "pssp/impl/BuiltinCollectionUtil.h"
 #include "pssp/ast/IDataTypeBool.h"
 #include "pssp/ast/IDataTypeChandle.h"
 #include "pssp/ast/IDataTypeEnum.h"
@@ -220,9 +230,50 @@ TypeCatE TaskExprTypeCat::dataType(ast::IDataType *dt) {
         return TypeCatE::Chandle;
     }
 
-    // A user-defined type could be a struct, a component, a collection, an
-    // enum reached through a typedef, or a template parameter. Resolving that
-    // is the type-inference pass that does not exist yet.
+    // A user-defined type is resolved as far as its declaration, which is
+    // enough to place the ones that matter. What is left genuinely Unknown --
+    // a template parameter, an unresolved name -- stays that way, and Unknown
+    // is compatible with everything.
+    ast::IDataTypeUserDefined *udt = dynamic_cast<ast::IDataTypeUserDefined *>(dt);
+
+    if (udt && udt->getType_id() && udt->getType_id()->getTarget()) {
+        ast::IScopeChild *c =
+            m_ctxt->resolveSymbolPathRef(udt->getType_id()->getTarget());
+
+        // An enum resolves to an ISymbolEnumScope, which is an ISymbolScope
+        // and *not* an ISymbolTypeScope, so neither the type-scope route nor
+        // TaskGetElemSymbolScope produces an IEnumDecl from one.
+        if (dynamic_cast<ast::ISymbolEnumScope *>(c)) {
+            return TypeCatE::Enum;
+        }
+
+        ast::ISymbolTypeScope *sts = dynamic_cast<ast::ISymbolTypeScope *>(c);
+        ast::IScopeChild *decl = sts?sts->getTarget():c;
+
+        if (dynamic_cast<ast::IEnumDecl *>(decl)) {
+            return TypeCatE::Enum;
+        }
+
+        ast::ITypeScope *ts = dynamic_cast<ast::ITypeScope *>(decl);
+
+        if (ts) {
+            // A built-in collection stays Unknown: `list<int>` against an
+            // `int` parameter is a mistake, but the collections are declared
+            // as IStruct in BuiltinsFactory, so calling them composite would
+            // be right for the wrong reason and wrong for `array<int,4>`
+            // against an aggregate literal.
+            if (builtinCollectionKind(ts) != CollectionKind::None) {
+                return TypeCatE::Unknown;
+            }
+
+            if (dynamic_cast<ast::IStruct *>(ts)
+                || dynamic_cast<ast::IComponent *>(ts)
+                || dynamic_cast<ast::IAction *>(ts)) {
+                return TypeCatE::Aggregate;
+            }
+        }
+    }
+
     return TypeCatE::Unknown;
 }
 

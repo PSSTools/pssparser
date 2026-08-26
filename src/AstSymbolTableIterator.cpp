@@ -191,13 +191,26 @@ ast::IScopeChild *AstSymbolTableIterator::resolveAbsPath(const ast::ISymbolRefPa
     for (uint32_t i=0; i<path->getPath().size(); i++) {
         DEBUG("Scope: %s @ %d", scope->getName().c_str(), path->getPath().at(i));
         const ast::SymbolRefPathElem &elem = path->getPath().at(i);
+
+        // A path can outlive the scope it was built against -- most visibly
+        // an import path resolved before the tree it indexes is final. at()
+        // then throws, and because nothing here catches it the whole process
+        // aborts on what is only a failed lookup. Every caller already
+        // handles a null return.
+        if (elem.idx < 0 || elem.idx >= (int32_t)scope->getChildren().size()) {
+            DEBUG("Index %d out of range for scope %s (%d children)",
+                elem.idx, scope->getName().c_str(),
+                (int32_t)scope->getChildren().size());
+            return 0;
+        }
+
         ast::IScopeChild *next = scope->getChildren().at(elem.idx).get();
 
         if (i+1 < path->getPath().size()) {
             if (!(scope=dynamic_cast<ast::ISymbolScope *>(next))) {
-                fprintf(stdout, "i=%d size=%d and target isn't a symbol scope (next=%p)\n",
-                    i, path->getPath().size(), next);
-                break;
+                DEBUG("Path element %d of %d does not name a symbol scope",
+                    i, (int32_t)path->getPath().size());
+                return 0;
             }
         } else {
             ret = next;

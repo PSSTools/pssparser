@@ -23,6 +23,7 @@
 #include "pssp/impl/TaskGetSymbolRefPathKind.h"
 #include "TaskResolveRootRef.h"
 #include "TaskResolveEnumRef.h"
+#include "TaskResolveSuperTypeRef.h"
 #include "pssp/impl/TaskResolveSymbolPathRef.h"
 
 
@@ -188,9 +189,11 @@ void TaskResolveRootRef::visitSymbolTypeScope(ast::ISymbolTypeScope *i) {
         ast::ITypeScope *ts = dynamic_cast<ast::ITypeScope *>(i->getTarget());
         if (ts && ts->getSuper_t() && ts->getSuper_t()->getTarget()) {
             DEBUG("Searching super-type chain for %s", m_id->getId().c_str());
-            ast::IScopeChild *super_sc = TaskResolveSymbolPathRef(
+            // Follows a parameter binding when the super type is one of the
+            // generic's own parameters -- see TaskResolveSuperTypeRef.
+            ast::IScopeChild *super_sc = TaskResolveSuperTypeRef(
                 m_ctxt->getDebugMgr(), m_ctxt->root()
-            ).resolve(ts->getSuper_t()->getTarget());
+            ).resolve(ts);
             if (super_sc) {
                 super_sc->accept(m_this);
             }

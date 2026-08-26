@@ -19,6 +19,7 @@
  *     Author: 
  */
 #pragma once
+#include <set>
 #include "dmgr/IDebugMgr.h"
 #include "pssp/ast/ISymbolScope.h"
 #include "pssp/ast/impl/VisitorBase.h"
@@ -59,6 +60,24 @@ private:
     ast::IExprId                    *m_id;
     Result                          m_ret;
     int32_t                         m_super_depth;
+
+    /**
+     * Type scopes on the current super-type chain.
+     *
+     * The search walks from a type to its base and keeps going until it finds
+     * the name or runs out of bases. "Runs out of bases" assumes the chain
+     * ends, and inheritance is a reference the user wrote, so it need not:
+     * `struct A : B {}; struct B : A {};` is a ring.
+     *
+     * Note that only a search that FAILS goes round it -- one that finds the
+     * name stops at the scope holding it. So the crash this prevents is not
+     * reached by the cyclic declaration itself, but by the first typo against
+     * a type that participates in one, which is why it survived so long.
+     *
+     * m_super_depth is not this guard and cannot become it: it is reported to
+     * the caller as `super_idx`, the number of hops the name was found at.
+     */
+    std::set<ast::IScopeChild *>    m_super_chain;
 
 };
 

@@ -87,10 +87,8 @@ classes:
           
           See Also:
               ExecBlock, SymbolScope, ProceduralStmtBody
-      data:
-      - endLocation:
-          type: Location
-          is_ctor: false
+      # endLocation is inherited from ScopeChild.
+      data: []
 
   - ExecBlock:
       super: ExecScope
@@ -718,6 +716,40 @@ classes:
           
           See Also:
               ProceduralStmtContinue, ProceduralStmtWhile, ProceduralStmtForeach
+      data: []
+  - ProceduralStmtSuper:
+      super: ExecStmt
+      doc: |
+          Invokes the base type's implementation of the enclosing exec block.
+
+          ProceduralStmtSuper represents the `super;` statement inside an exec
+          block. Without it, a derived type's exec silently *replaces* the
+          base's rather than extending it, so this is the correct form of the
+          most damaging inheritance mistake in PSS.
+
+          The statement carries no operands: which exec block it refers to is
+          fixed by where it appears -- the same kind, on the base type.
+
+          PSS Example::
+
+              action base_a {
+                  exec body {
+                      console.log("base");
+                  }
+              }
+
+              action derived_a : base_a {
+                  exec body {
+                      super;                  // run base_a's exec body first
+                      console.log("derived");
+                  }
+              }
+
+          Attributes:
+              (no attributes)
+
+          See Also:
+              ActivitySuper, ExecBlock, ExprRefPathSuper
       data: []
   - ProceduralStmtContinue:
       super: ExecStmt

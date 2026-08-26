@@ -310,3 +310,82 @@ def test_function_complex_example(parser):
     """
     assert_parse_ok(code, parser)
 from test_helpers import get_symbol, has_symbol, get_location
+
+
+# ============================================================================
+# Platform-qualified declarations (LRM 20.2.1)
+# ============================================================================
+#
+# Declaring a platform-qualified API in a package and defining it elsewhere is
+# the normal split, and is how the LRM's own examples are written.  Before the
+# platform_qualifier was added to `function_decl`, only the *definition* form
+# accepted a qualifier, so the declaration failed with `missing '{' at ';'`.
+
+def test_solve_function_declaration(parser):
+    """`solve function ... ;` -- declaration only, no body."""
+    assert_parse_ok("""
+    package p { solve function bit[32] alloc(bit[32] sz); }
+    component pss_top { }
+    """, parser)
+
+
+def test_target_function_declaration(parser):
+    """`target function ... ;` -- declaration only, no body."""
+    assert_parse_ok("""
+    package p { target function void poke(bit[32] addr, bit[32] data); }
+    component pss_top { }
+    """, parser)
+
+
+def test_target_solve_function_declaration(parser):
+    """`target solve` qualifies a function available on both platforms."""
+    assert_parse_ok("""
+    package p { target solve function bit[32] both(bit[32] v); }
+    component pss_top { }
+    """, parser)
+
+
+def test_unqualified_declaration_still_parses(parser):
+    """Control: the unqualified form was never broken and must stay working."""
+    assert_parse_ok("""
+    package p { function void plain(bit[32] v); }
+    component pss_top { }
+    """, parser)
+
+
+def test_pure_qualified_declaration(parser):
+    """`pure` composes with a platform qualifier."""
+    assert_parse_ok("""
+    package p { solve pure function int f(int v); }
+    component pss_top { }
+    """, parser)
+
+
+def test_declaration_platform_qualifier_is_recorded(parser):
+    """The qualifier must reach the AST, not merely parse.
+
+    A dropped qualifier would make a declared-here/defined-there API
+    indistinguishable from an unqualified function, which is exactly what
+    platform checkers key off.
+    """
+    import pssparser.ast as ast
+
+    root = parse_pss("""
+    package p {
+        solve  function bit[32] alloc(bit[32] sz);
+        target function void    poke(bit[32] a);
+    }
+    component pss_top { }
+    """, parser=parser)
+
+    found = {}
+
+    class V(ast.VisitorBase):
+        def visitFunctionPrototype(self, i):
+            name = i.getName()
+            if name is not None:
+                found[name.getId()] = (i.getIs_solve(), i.getIs_target())
+
+    root.accept(V())
+    assert found.get("alloc") == (True, False), found
+    assert found.get("poke") == (False, True), found

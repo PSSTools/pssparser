@@ -51,6 +51,16 @@ public:
     ast::IScopeChild *resolve(const ast::ISymbolRefPath *ref) {
         DEBUG_ENTER("resolve root=%p", m_root);
         ast::IScopeChild *ret = 0;
+
+        // A null path means the reference was never resolved -- normal when
+        // the model is incomplete, or when this runs before the reference's
+        // own resolution pass. Every caller already handles a null return;
+        // walking getPath() on a null ref is an immediate fault.
+        if (!ref) {
+            DEBUG_LEAVE("resolve -- null ref");
+            return ret;
+        }
+
         ScopeUtil scope(m_root);
 
         if (DEBUG_EN) {

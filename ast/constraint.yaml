@@ -119,9 +119,7 @@ classes:
             See Also:
                 ConstraintBlock, ConstraintStmt
         - data:
-          - endLocation:
-              type: Location
-              is_ctor: false
+          # endLocation is inherited from ScopeChild.
           - constraints: list<UP<ConstraintStmt>>
     - ConstraintSymbolScope:
         - super: SymbolScope

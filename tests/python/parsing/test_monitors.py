@@ -380,3 +380,40 @@ def test_scalability_nested_monitors(nesting_depth):
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
 from test_helpers import parse_pss, get_symbol, has_symbol, get_location
+
+
+# ============================================================================
+# Monitor declaration scope (LRM 16.1)
+# ============================================================================
+#
+# monitor_declaration was wired into component_body_item but not
+# package_body_item, so a monitor declared in a package failed with
+# "unexpected keyword monitor" while the identical declaration inside a
+# component parsed.
+
+def test_monitor_in_package():
+    """A monitor may be declared at package scope."""
+    assert_parse_ok("""
+    package q {
+        monitor m { }
+    }
+    component pss_top { }
+    """)
+
+
+def test_abstract_monitor_in_package():
+    """...including the abstract form."""
+    assert_parse_ok("""
+    package q {
+        abstract monitor m { }
+    }
+    component pss_top { }
+    """)
+
+
+def test_monitor_in_component_still_parses():
+    """Control: the component-scoped form was never broken."""
+    assert_parse_ok("""
+    component c { monitor m { } }
+    component pss_top { c c0; }
+    """)

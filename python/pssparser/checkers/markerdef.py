@@ -12,9 +12,15 @@ class MarkerDef:
     Attributes
     ----------
     id:
-        Globally unique identifier string, e.g. ``"PSS001"`` or ``"PSC042"``.
+        Globally unique identifier string, e.g. ``"PSC042"``.
         IDs must be unique across *all* registered checkers and the core; the
         ``CheckerManager`` enforces this at discovery time.
+
+        **The ``PSS`` prefix is reserved for the built-in ``CoreChecker``.**
+        Choose a distinct prefix for a plug-in -- three letters plus a
+        three-digit number is the convention (``PSC042``, ``PSL001``).  This
+        is stated in the plug-in guide too, but this docstring is where an
+        implementer actually looks when filling the field in.
     severity:
         Default severity: ``"error"``, ``"warning"``, ``"info"``, or
         ``"hint"``.  Some IDs cover a family of related messages that are not

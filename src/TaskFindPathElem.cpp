@@ -21,6 +21,7 @@
 #include "dmgr/impl/DebugMacros.h"
 #include "pssp/impl/TaskResolveSymbolPathRef.h"
 #include "TaskFindPathElem.h"
+#include "TaskResolveSuperTypeRef.h"
 
 
 namespace pssp {
@@ -40,13 +41,23 @@ TaskFindPathElem::~TaskFindPathElem() {
 TaskFindPathElem::Result TaskFindPathElem::find(
         ast::ISymbolScope       *src,
         ast::IExprId            *id) {
-    DEBUG_ENTER("find: src=%s id=%s", src->getName().c_str(), id->getId().c_str());
     m_ret.idx = -1;
     m_ret.super_idx = -1;
     m_ret.sym = 0;
 
+    // Defensive: callers reach here with an unresolved scope when the model
+    // is incomplete. Note that DEBUG_ENTER evaluates its arguments whether or
+    // not debug output is enabled, so this check must precede it -- otherwise
+    // src->getName() faults before any guard inside the visitors can run.
+    if (!src || !id) {
+        return m_ret;
+    }
+
+    DEBUG_ENTER("find: src=%s id=%s", src->getName().c_str(), id->getId().c_str());
+
     m_id = id;
     m_super_depth = 0;
+    m_super_chain.clear();
     src->accept(m_this);
 
     DEBUG_LEAVE("find: sym=%p idx=%d super_idx=%d", 
@@ -77,7 +88,7 @@ void TaskFindPathElem::visitSymbolTypeScope(ast::ISymbolTypeScope *i) {
     if (m_ret.sym) {
         // Found the symbol
         DEBUG("Found the symbol in this type scope");
-    } else {
+    } else if (i->getTarget()) {
         // Try visiting the super scope to see if we have better luck
         i->getTarget()->accept(m_this);
     }
@@ -88,14 +99,35 @@ void TaskFindPathElem::visitSymbolTypeScope(ast::ISymbolTypeScope *i) {
 void TaskFindPathElem::visitTypeScope(ast::ITypeScope *i) {
     DEBUG_ENTER("visitTypeScope %s", i->getName()->getId().c_str());
     if (i->getSuper_t()) {
-        ast::IScopeChild *c = TaskResolveSymbolPathRef(m_dmgr, m_root).resolve(
-            i->getSuper_t()->getTarget());
+        // Not a plain path resolution: the super type may be one of this
+        // type's own parameters (`struct S<type T> : T`), in which case what
+        // is inherited is whatever the parameter is bound to.
+        ast::IScopeChild *c = TaskResolveSuperTypeRef(m_dmgr, m_root).resolve(i);
 
-        m_super_depth++;
-        DEBUG_ENTER("search super scope (%d)", m_super_depth);
-        c->accept(m_this); 
-        DEBUG_LEAVE("search super scope (%d)", m_super_depth);
-        m_super_depth--;
+        // An unresolvable super-type yields a null scope. Walking it would
+        // fault; the caller reports the failure to find the element, and the
+        // unresolved base type is diagnosed where it is declared.
+        //
+        // A base already on the chain means the inheritance graph has a ring
+        // in it. Stop rather than go round again: everything reachable from
+        // the second visit was reachable from the first, so the search result
+        // is the same and the recursion is not. The ring itself is reported
+        // by TaskCheckTypeCycles -- reporting it a second time here, once per
+        // failed lookup, would bury it.
+        if (c && m_super_chain.insert(c).second) {
+            m_super_depth++;
+            DEBUG_ENTER("search super scope (%d)", m_super_depth);
+            c->accept(m_this);
+            DEBUG_LEAVE("search super scope (%d)", m_super_depth);
+            m_super_depth--;
+            m_super_chain.erase(c);
+        } else if (c) {
+            DEBUG("super-type of %s is already on the chain (cycle); ending search",
+                i->getName()->getId().c_str());
+        } else {
+            DEBUG("super-type of %s did not resolve; ending search",
+                i->getName()->getId().c_str());
+        }
     }
     DEBUG_LEAVE("visitTypeScope");
 }

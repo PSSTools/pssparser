@@ -31,15 +31,47 @@ namespace pssp {
 
 
 
+/**
+ * Builds the bound parameter list for one use of a parameterized type.
+ *
+ * Two separate roles run through the same visitor, and keeping them apart is
+ * the whole difficulty here:
+ *
+ * - the **declaration** side (``m_ptype_*``), captured by visiting the
+ *   generic's own parameter declaration, says what kind of thing this position
+ *   wants and supplies its name;
+ * - the **argument** side (``m_pval_*``), captured by visiting the supplied
+ *   value.
+ *
+ * The argument side also follows a resolved type reference one hop, to notice
+ * that an id which looks like a type is really a value (an enum item, or a
+ * value parameter). That hop is a *probe*: it must not write the declaration
+ * captures, or the parameter ends up named after the argument instead of after
+ * the declaration -- see ``probe()``.
+ *
+ * When the argument names a template parameter of an enclosing specialized
+ * generic, the parameter's *binding* is what must be passed down, not the
+ * parameter reference itself. ``m_pval_param_ref`` carries that, and the two
+ * ``subst*`` helpers apply it.
+ */
 class TaskBuildParamValList : public ast::VisitorBase {
 public:
     TaskBuildParamValList(ResolveContext *ctxt);
 
     virtual ~TaskBuildParamValList();
 
+    /**
+     * @param use_loc where the generic is *used*. Every diagnostic below is
+     *   about an argument list, so the use site -- not the declaration -- is
+     *   where the reader has to go to fix it. Neither ``ITemplateParamValue``
+     *   nor ``IExpr`` carries a location, so the individual argument cannot be
+     *   pointed at; the reference that spells the argument list can, and the
+     *   message names the parameter.
+     */
     ast::ITemplateParamDeclList *build(
         ast::ISymbolScope               *plist,
-        ast::ITemplateParamValueList    *pvals);
+        ast::ITemplateParamValueList    *pvals,
+        const ast::Location             &use_loc);
 
     virtual void visitDataTypeEnum(ast::IDataTypeEnum *i) override;
 
@@ -61,7 +93,63 @@ public:
 
 
 private:
-    static dmgr::IDebug                 *m_dbg; 
+
+    /// Follow a resolved argument reference one hop without disturbing the
+    /// declaration-side captures.
+    void probe(ast::IScopeChild *target);
+
+    /// If the argument names a bound template parameter, yield its binding.
+    /// Returns null when there is nothing to substitute.
+    ast::IDataType *substTypeArg();
+    ast::IExpr *substValueArg();
+
+    /// A parameter default may name an earlier parameter of the same list
+    /// (``struct S<type T, type U = T>``). By the time the default is applied
+    /// the earlier parameter is already bound in ``m_ret``, so resolve the
+    /// name against what has been built so far.
+    ast::ITemplateParamDecl *findBuiltParam(const std::string &name);
+    ast::IDataType *substTypeDflt(ast::IDataType *dflt);
+    ast::IExpr *substValueDflt(ast::IExpr *dflt);
+
+    /// The single-element, unparameterized name a type reference spells, or
+    /// the empty string if it spells anything more complicated.
+    static std::string simpleTypeName(ast::IDataType *dt);
+
+    /// LRM 10.3.2.1: a category type parameter constrains its argument twice
+    /// over -- by type category (``struct T`` admits a struct and not a
+    /// buffer, even one that derives from the restriction), and, when a
+    /// restriction is present, by subtype (``: base_s`` admits ``base_s``
+    /// itself and anything deriving from it).
+    ///
+    /// Returns false having reported a diagnostic. Anything that cannot be
+    /// resolved to a declaration is passed, not failed: an argument naming an
+    /// unbound parameter of an enclosing generic -- ``addr_region_s<TRAIT>``
+    /// in the standard library -- resolves to a parameter declaration rather
+    /// than a type, and is checked later against whatever TRAIT is bound to.
+    bool checkCategoryArg(
+        ast::ITemplateCategoryTypeParamDecl *decl,
+        ast::IDataType                      *arg,
+        const ast::Location                 &loc);
+
+    /// The location to report an argument-list error at: the use site when it
+    /// has one, otherwise the parameter declaration.
+    const ast::Location &errLoc(ast::IScopeChild *pdecl);
+
+    /// The type declaration an argument names, or null if it does not name
+    /// one that can be resolved here.
+    ast::ITypeScope *argTypeScope(ast::IDataType *arg);
+
+    /// Unwrap a symbol-tree node to the declaration it stands for.
+    ast::ITypeScope *asTypeScope(ast::IScopeChild *sc);
+
+    ast::IScopeChild *resolveRef(const ast::ISymbolRefPath *ref);
+
+    /// Walk the super-type chain from ``ts`` looking for ``base``. ``base``
+    /// itself counts: LRM 10.3.2.1 admits the restriction type.
+    bool derivesFrom(ast::ITypeScope *ts, ast::ITypeScope *base);
+
+private:
+    static dmgr::IDebug                 *m_dbg;
     ResolveContext                      *m_ctxt;
     ast::ITemplateParamDeclList         *m_ret;
     // Handle to a static-reference parameter value
@@ -73,6 +161,11 @@ private:
     ast::ITemplateGenericTypeParamDecl  *m_ptype_generic_type;
     ast::ITemplateCategoryTypeParamDecl *m_ptype_category_type;
     ast::ITemplateValueParamDecl        *m_ptype_value;
+    // The template parameter declaration the supplied argument refers to, if
+    // it refers to one. Set by probe(); read by the subst* helpers.
+    ast::ITemplateParamDecl             *m_pval_param_ref;
+    // Where the generic is used -- see build()
+    ast::Location                       m_use_loc;
     // Track visited types to prevent infinite recursion
     std::set<ast::IScopeChild *>        m_visited;
 

@@ -164,10 +164,19 @@ public:
 
     virtual void visitExprRefPathContext(ast::IExprRefPathContext *i) override {
         DEBUG_ENTER("visitExprRefPathContext");
-        ast::IScopeChild *target = TaskResolveSymbolPathRef(
-            m_factory->getDebugMgr(), 
-            m_root).resolve(i->getTarget());
-        target->accept(m_this);
+        // The reference may not resolve to anything foldable -- a template
+        // parameter used as a width (`bit[SZ]`) has no target until the type
+        // is specialized. Leaving m_val empty reports "did not fold", which
+        // every caller already distinguishes from "folded to a value".
+        ast::IScopeChild *target = i->getTarget()?
+            TaskResolveSymbolPathRef(
+                m_factory->getDebugMgr(),
+                m_root).resolve(i->getTarget()):0;
+        if (target) {
+            target->accept(m_this);
+        } else {
+            DEBUG("Reference does not resolve to a foldable target");
+        }
         DEBUG_LEAVE("visitExprRefPathContext");
     }
 

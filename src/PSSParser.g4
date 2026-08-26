@@ -67,6 +67,8 @@ package_body_item:
 	| const_field_declaration
 	| component_declaration
 	| package_declaration
+	| monitor_declaration
+	| abstract_monitor_declaration
 	| compile_assert_stmt
 	| package_body_compile_if
 	| annotation
@@ -444,7 +446,7 @@ exec_block_tag:
  ********************************************************************/
 
 procedural_function:
-	platform_qualifier? TOK_PURE? TOK_STATIC? TOK_FUNCTION function_prototype
+	platform_qualifier? is_pure=TOK_PURE? TOK_STATIC? TOK_FUNCTION function_prototype
 	TOK_LCBRACE
 	procedural_stmt*
 	TOK_RCBRACE
@@ -453,9 +455,11 @@ procedural_function:
 // B.5: `[ platform_qualifier ] [ pure ] [ static ] function function_prototype ;`
 // Annex C declares many core-library functions as `solve function` / `target
 // function` at package scope, so without the qualifier the 3.1 stdlib does not
-// parse.
+// parse. Declaring a platform-qualified API in a package and defining it
+// elsewhere is the normal split (LRM 20.2.1), and is how the LRM's own
+// examples are written.
 function_decl:
-	platform_qualifier? TOK_PURE? TOK_STATIC? TOK_FUNCTION function_prototype TOK_SEMICOLON
+	platform_qualifier? is_pure=TOK_PURE? TOK_STATIC? TOK_FUNCTION function_prototype TOK_SEMICOLON
 	;
 
 platform_qualifier: 
@@ -567,11 +571,17 @@ procedural_stmt:
 	| procedural_data_declaration // TODO: positioning this first causes assign to be incorrectly recognized as data_declaration
     | procedural_yield_stmt
 	| procedural_randomization_stmt
-	// B.1: `procedural_compile_if` is a procedural_stmt. It was defined but
-	// never referenced, so `compile if` inside an exec/function body did not
-	// parse at all.
-	| annotation
+	// procedural_compile_if was declared but never referenced by any rule, so
+	// `compile if` in a function or exec body was a syntax error despite
+	// LRM 19.2.1 listing procedural scopes.  It precedes nothing that can
+	// start with `compile`, so the alternative is unambiguous here.
 	| procedural_compile_if
+	// LRM 21.6.1: `code_doc` "may be applied to statements and other executable
+	// elements", and Example323 applies it to a call inside a function body.
+	// An alternative here rather than a `procedural_stmt_ann` wrapper, matching
+	// how package_body_item takes `annotation`: the annotation becomes pending
+	// and attaches to the next element built in the scope.
+	| annotation
 	| TOK_SEMICOLON
 	;
 
@@ -714,6 +724,7 @@ component_body_item:
  	| TOK_SEMICOLON
 	;
 
+// LRM 9.1.6: component_data_decl_qualifier ::= static const | mutable | instance
 component_data_declaration:
 	// B.8: `component_data_decl_qualifier ::= static const | mutable | instance`
 	access_modifier? ((is_static=TOK_STATIC is_const=TOK_CONST) | is_mutable=TOK_MUTABLE | is_instance=TOK_INSTANCE)? data_declaration
@@ -1058,12 +1069,18 @@ monitor_activity_stmt:
     | TOK_SEMICOLON
     ;
 
+// LRM B.11: labeled_monitor_activity_stmt also admits the select statement
+// and activity_super_stmt. monitor_activity_select_stmt was defined below but
+// never referenced from anywhere, so `select { ... }` in a monitor activity
+// could not parse.
 labeled_monitor_activity_stmt:
     monitor_activity_sequence_block_stmt
     | monitor_activity_concat_stmt
     | monitor_activity_eventually_stmt
     | monitor_activity_overlap_stmt
     | monitor_activity_schedule_stmt
+    | monitor_activity_select_stmt
+    | activity_super_stmt
     ;
 
 monitor_handle_declaration: 
@@ -1083,8 +1100,12 @@ monitor_activity_concat_stmt:
     TOK_CONCAT TOK_LCBRACE monitor_activity_stmt* TOK_RCBRACE
     ;
 
-monitor_activity_eventually_stmt: 
-    TOK_EVENTUALLY labeled_monitor_activity_stmt
+// LRM 16.4.4: monitor_activity_eventually_stmt ::= eventually monitor_activity_stmt
+// The operand is a full monitor_activity_stmt, not just the labeled subset --
+// `eventually r;`, where r is an action handle, is the common form and was
+// rejected when only block statements were accepted here.
+monitor_activity_eventually_stmt:
+    TOK_EVENTUALLY monitor_activity_stmt
     ;
 
 monitor_activity_overlap_stmt: 
@@ -1257,8 +1278,11 @@ chandle_type:
 
 // B.13: `integer_atom_type [ [ expression [ : 0 ] ] ]`. The low bound is the
 // literal 0 rather than an expression, so `bit[7:0]` is another spelling of
-// `bit[8]` and `bit[7:1]` is not legal PSS. Accepting `expression` there anyway
-// keeps the parse error out of ANTLR and lets the builder say what is wrong.
+// `bit[8]` and `bit[7:1]` is not legal PSS. The `lhs:rhs` form is not in the
+// PSS 3.1 BNF at all; it is accepted here only so that existing PSS 1.x/2.x
+// models can be ingested. Accepting `expression` there anyway keeps the parse
+// error out of ANTLR and lets the builder say what is wrong -- mkMsbWidth()
+// folds `[N:0]` to a width of N+1 and rejects a non-zero low bound.
 integer_type:
 	integer_atom_type (TOK_LSBRACE lhs=expression (TOK_COLON rhs=expression)? TOK_RSBRACE)?
 		(is_in=TOK_IN TOK_LSBRACE domain=domain_open_range_list TOK_RSBRACE)?
@@ -2133,11 +2157,16 @@ filename_string: string_literal;
  * a deprecation path.
  */
 annotation:
-    (TOK_AT|TOK_COMMENT_AT) type_identifier annotation_params_list? is_standalone=TOK_SEMICOLON?
+    TOK_AT type_identifier annotation_params_list? is_standalone=TOK_SEMICOLON?
     ;
 
+// Syntax 20 writes the list as `{ annotation_param_item {, annotation_param_item} }`,
+// which requires at least one item. The empty list is accepted anyway: `@a {}` and
+// `@a` mean the same thing -- no parameters -- so rejecting it would be a syntax
+// cliff with no semantic content behind it, and it can never misparse conforming
+// source.
 annotation_params_list:
-	TOK_LCBRACE annotation_param_item (TOK_COMMA annotation_param_item)* TOK_RCBRACE
+	TOK_LCBRACE (annotation_param_item (TOK_COMMA annotation_param_item)*)? TOK_RCBRACE
 	;
 
 annotation_param_item:

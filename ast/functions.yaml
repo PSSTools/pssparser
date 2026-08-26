@@ -60,9 +60,7 @@ classes:
           See Also:
               FunctionPrototype, ExecScope, PlatQual, FunctionImport
       data:
-        - endLocation: 
-            type: Location
-            is_ctor: false
+        # endLocation is inherited from ScopeChild.
         - proto: UP<FunctionPrototype>
         - body: UP<ExecScope>
         - plat: PlatQual

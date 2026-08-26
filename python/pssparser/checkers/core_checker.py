@@ -57,6 +57,11 @@ class CoreChecker(CheckerBase):
                 r"^unknown type\b",
                 r"^unknown identifier\b",
                 r"^unknown method\b",
+                r"\bhas no member named\b",
+                # The same failure as the line above, reached through the
+                # *unqualified* path. The two spellings are one diagnosis and
+                # must carry one code.
+                r"^failed to find elem\b",
             ),
             detail=(
                 "The linker could not resolve a named type, identifier, or "
@@ -65,7 +70,11 @@ class CoreChecker(CheckerBase):
                 "* ``unknown type 'Foo' in 'pkg'`` (the name is not in the "
                 "qualifying package or scope)\n"
                 "* ``unknown identifier 'bar'``\n"
-                "* ``unknown method 'baz' on built-in type``\n\n"
+                "* ``unknown method 'baz' on built-in type``\n"
+                "* ``'pkg' has no member named 'thing'``\n"
+                "* ``Failed to find elem 'thing'``\n\n"
+                "The last two are the same diagnosis reached through a "
+                "qualified and an unqualified path respectively.\n\n"
                 "Ensure the symbol is declared in one of the source files "
                 "passed to pssparser, or that the correct package is imported."
                 "  When a close match exists, a ``did you mean '...'?`` "
@@ -76,18 +85,25 @@ class CoreChecker(CheckerBase):
             id="PSS003",
             severity="error",
             summary="Duplicate symbol declaration",
-            patterns=(r"^duplicate\b",),
+            patterns=(
+                r"^duplicate\b",
+                r"^function '.*' is already (defined|imported)\b",
+                r"^function '.*' cannot be both defined and imported\b",
+            ),
             detail=(
                 "A symbol with this name is already declared in the same "
                 "scope.  Messages include patterns such as:\n\n"
                 "* ``duplicate declaration of 'Foo'``\n"
                 "* ``duplicate variable declaration bar``\n"
                 "* ``duplicate parameter name 'p'``\n"
-                "* ``duplicate symbol declaration``\n\n"
+                "* ``duplicate symbol declaration``\n"
+                "* ``duplicate parameter name 'a'``\n"
+                "* ``function 'f' is already defined``\n"
+                "* ``function 'f' cannot be both defined and imported``\n"
+                "* ``function 'f' is already imported``\n\n"
                 "Rename one of the declarations to resolve the conflict.\n\n"
                 "Note that ``duplicate declaration of '...'`` is currently "
-                "emitted as a *warning* while the other three are errors."
-            ),
+                "emitted as a *warning* while the others are errors."            ),
         ),
         MarkerDef(
             id="PSS004",
@@ -124,74 +140,198 @@ class CoreChecker(CheckerBase):
         MarkerDef(
             id="PSS006",
             severity="error",
-            summary="Wrong number of arguments in a call",
+            summary="Call does not match the callee's parameters",
+            detail=(
+                "A function call supplies more or fewer arguments than the "
+                "callee declares, names something that is not a function, or "
+                "the callee's parameter list is itself malformed.  Messages "
+                "include patterns such as:\n\n"
+                "* ``too few arguments to 'f': expected 2, got 1``\n"
+                "* ``too many arguments to 'f': expected 1, got 2``\n"
+                "* ``'x' is not a function``\n"
+                "* ``parameter 'b' has no default, but follows 'a' which "
+                "does``\n"
+                "* ``argument 1 of 'f' is a string, but parameter 'a' is "
+                "numeric``\n\n"
+                "Argument types are compared only by broad category -- "
+                "numeric, string, composite.  Widths, signedness and struct "
+                "subtyping are deliberately not judged.\n\n"
+                "Parameters with a default may be omitted, which is why the "
+                "bound is reported as ``at least``/``at most`` when the two "
+                "differ.  A ``type... args`` parameter removes the upper "
+                "bound entirely."
+            ),
             patterns=(
+                r"^too few arguments\b",
+                r"^too many arguments\b",
                 r"^call to '.*' expects\b",
                 r"^no overload of '.*' accepts\b",
-            ),
-            detail=(
-                "A call supplies a number of arguments the function does not "
-                "accept.  Messages include patterns such as:\n\n"
-                "* ``call to 'g' expects 1 argument, got 3``\n"
-                "* ``call to 'g' expects 1 to 2 arguments, got 0`` "
-                "(trailing parameters have defaults)\n"
-                "* ``call to 'g' expects at least 1 argument, got 0`` "
-                "(the function is variadic)\n"
-                "* ``no overload of 'g' accepts 3 arguments``\n\n"
-                "This covers the argument *count* only.  A mismatched "
-                "argument type is reported separately, as ``PSS007``.\n\n"
-                "Built-in ``string`` methods are checked here too -- they "
-                "carry real signatures.  Collection methods other than "
-                "``push_back`` are not yet: they still resolve by name, so "
-                "their argument count is unchecked."
+                r"^'.*' is not a function; it is\b",
+                r"^'.*' is not a function",
+                r"\bhas no default, but follows\b",
+                r"^argument \d+ of\b",
+                r"^argument \d+ to '.*' expects\b",
             ),
         ),
-
         MarkerDef(
             id="PSS007",
             severity="error",
-            summary="Argument type mismatch in a call",
-            patterns=(
-                r"^argument \d+ to '.*' expects\b",
-            ),
+            summary="Return type used inconsistently",
             detail=(
-                "An argument belongs to a different broad type category than "
-                "the parameter it is passed to::\n\n"
-                "    argument 1 to 'g' expects int, got string\n"
-                "    argument 2 to 'g' expects string, got an aggregate literal\n\n"
-                "The comparison is by *category* -- numeric, string, "
-                "``chandle``, aggregate, ``null`` -- not by exact type.  The "
-                "numeric family (``int``, ``bit``, ``bool``, ``float``, enums) "
-                "converts freely, so nothing is reported for width, "
-                "signedness, or enum-vs-int differences.  Anything the linker "
-                "cannot classify -- a user-defined type, a member path such as "
-                "``a.b``, a subscript, or a call used as an argument -- is "
-                "left alone rather than guessed at, so this check reports no "
-                "false positives but is far from exhaustive.\n\n"
-                "The count is checked separately, as ``PSS006``; an argument "
-                "with the wrong count is never also reported here."
+                "A ``return`` supplies a value from a ``void`` function, "
+                "omits one where a return type is declared, or the result of "
+                "a ``void`` call is used as a value.  Messages include "
+                "patterns such as:\n\n"
+                "* ``'f' returns void, so 'return' cannot take a value``\n"
+                "* ``'f' has a return type, so 'return' must supply a "
+                "value``\n"
+                "* ``'f' returns void, so its result cannot be used as a "
+                "value``\n\n"
+                "The last of these is LRM 20.5: a void function "
+                "\"may only be called as a standalone procedural "
+                "statement\".  The converse -- calling a non-void function "
+                "as a statement and discarding the result -- is explicitly "
+                "legal and is not reported.\n\n"
+                "Taking a member of a call result counts as using it, so "
+                "``f().x`` on a void ``f`` is reported here rather than as a "
+                "resolution failure.  A *scalar* return is not: ``f().x`` on "
+                "an int-returning ``f`` gets the same PSS004 message a scalar "
+                "variable would.\n\n"
+                "Whether a non-void function returns on *every* path is not "
+                "checked."
+            ),
+            patterns=(
+                r"\breturns void, so 'return'",
+                r"\breturns void, so its result\b",
+                r"\bhas a return type, so 'return'",
             ),
         ),
-
         MarkerDef(
             id="PSS008",
             severity="error",
-            summary="Call to something that is not a function",
-            patterns=(
-                r"^'.*' is not a function; it is\b",
-            ),
+            summary="Function qualifier is not allowed here",
             detail=(
-                "A path element carries an argument list, but the declaration "
-                "it resolves to is a value rather than a function::\n\n"
-                "    'f' is not a function; it is a field\n"
-                "    'v' is not a function; it is a variable\n"
-                "    'x' is not a function; it is a parameter\n\n"
-                "Only declarations that are unambiguously values are reported "
-                "-- fields, procedural variables, and function parameters.  A "
-                "call whose target the linker models loosely is left alone "
-                "rather than guessed at.  Built-in ``string`` and collection "
-                "methods are unaffected: they resolve through a separate path "
-                "and never reach this check."
+                "A ``pure`` or parameter-direction qualifier is used where "
+                "the LRM does not allow it.  Messages include patterns such "
+                "as:\n\n"
+                "* ``parameter 'a' of 'f' is declared output, so 'f' may "
+                "only be imported, not defined in PSS``\n"
+                "* ``'f' is declared pure, so it cannot return void``\n"
+                "* ``'f' is declared pure, so parameter 'a' cannot be "
+                "output``\n\n"
+                "Direction modifiers (LRM 20.2.2, 20.3.2) mark a function as "
+                "importable only; a function carrying one on any of its "
+                "declarations may not also have a PSS body.  Functions built "
+                "into an implementation, such as the core library, are "
+                "exempt.\n\n"
+                "``pure`` (LRM 20.2.6) asserts that the result depends only "
+                "on the arguments and that evaluation has no side effects, "
+                "so a pure function can be neither ``void`` nor take an "
+                "``output``/``inout`` parameter.\n\n"
+                "The ``const`` parameter qualifier (LRM 20.2.3) is parsed "
+                "and discarded rather than checked -- no AST node records "
+                "it."
+            ),
+            patterns=(
+                r"\bmay only be imported, not defined in PSS\b",
+                r"\bis declared pure, so\b",
+            ),
+        ),
+        MarkerDef(
+            id="PSS009",
+            severity="error",
+            summary="Declarations of one function disagree",
+            detail=(
+                "A function may be declared more than once -- a prototype "
+                "and a definition, a prototype and an ``import`` -- and LRM "
+                "20.2 requires every declaration to give the same signature. "
+                " Messages include patterns such as:\n\n"
+                "* ``declarations of 'f' disagree about the return type``\n"
+                "* ``declarations of 'f' disagree about the return type: one "
+                "returns void and the other does not``\n"
+                "* ``declarations of 'f' disagree about the number of "
+                "parameters (1 and 2)``\n"
+                "* ``declarations of 'f' disagree about the type of parameter "
+                "1 ('a')``\n"
+                "* ``declarations of 'f' disagree about the direction of "
+                "parameter 1 ('a')``\n"
+                "* ``declarations of 'f' disagree about what kind of "
+                "parameter 1 ('a') is``\n"
+                "* ``declarations of 'f' disagree about whether parameter 2 "
+                "('args') is varargs``\n"
+                "* ``parameter 1 ('a') of 'f' is given a default value by "
+                "more than one declaration``\n\n"
+                "Reported once per function, against the declaration the "
+                "rest of the tool treats as authoritative: a definition's "
+                "prototype where there is one, otherwise the first.\n\n"
+                "The last of these is LRM 20.2.4 c, which forbids "
+                "respecifying a default \"even if the value is the same\" -- "
+                "so the values are never compared.  A default given by only "
+                "one declaration is in effect for all of them.\n\n"
+                "Only a *certain* difference is reported.  A ``typedef`` "
+                "alias, an integer width that will not fold to a constant, a "
+                "default width against a written one, and a type name that "
+                "did not resolve are all cases where the two declarations may "
+                "well agree, and none of them is reported.\n\n"
+                "Three things are deliberately **not** compared. Parameter "
+                "*names*, because PSS calls are positional and nothing "
+                "requires a redeclaration to reuse them.  A ``pure`` "
+                "qualifier, because LRM 20.2.6 b permits omitting it in a "
+                "definition whose declaration carries it.  The ``const`` "
+                "qualifier, which LRM 20.2.3 c does make part of the "
+                "signature -- but it is parsed and discarded, so there is "
+                "nothing to compare.\n\n"
+                "A *static* function shadowed in a derived component may "
+                "differ freely (LRM 20.2) and is not reported.  An "
+                "*instance* function shadowed in a derived component must "
+                "match, and that is not checked."
+            ),
+            patterns=(
+                r"^declarations of '.*' disagree\b",
+                r"\bis given a default value by more than one declaration\b",
+            ),
+        ),
+        MarkerDef(
+            id="PSS010",
+            severity="error",
+            summary="Bad field name in a masked register write",
+            detail=(
+                "``write_field`` / ``write_fields`` / ``write_masked`` (LRM "
+                "21.14.1) name a *declared field* of the register's value "
+                "type.  The string spelling is forced by the signature "
+                "``write_field(string name, bit[SZ] val)`` and does not make "
+                "the name data: 21.14.1 restricts it to a string **literal** "
+                "precisely so a tool can resolve it at compile time.  "
+                "Messages include patterns such as:\n\n"
+                "* ``no field 'chan_en' in register value type 'csr_s'; did "
+                "you mean 'ch_en'?``\n"
+                "* ``write_field: field 'sub' of 'agg_s' has a composite "
+                "type; field-wise register access applies to scalar fields "
+                "only``\n"
+                "* ``write_field: the field name must be a string literal``\n"
+                "* ``write_field: field name 'a.b' must not be a "
+                "hierarchical reference``\n"
+                "* ``write_fields: duplicate field name 'prio'``\n"
+                "* ``write_fields: 2 field name(s) but 1 value(s)``\n"
+                "* ``write_masked: no field 'nosuch' in register value type "
+                "'csr_s'``\n"
+                "* ``write_field: this register's value type is not a "
+                "struct, so it has no named fields``\n\n"
+                "A duplicate name matters more than it looks: the plural "
+                "form writes its fields in a *single* read-modify-write, so "
+                "naming one twice does not write it twice -- one of the two "
+                "values is simply lost.\n\n"
+                "Which **bits** a resolved field occupies is deliberately not "
+                "decided here.  ``packed_s<>`` layout is a target "
+                "representation -- backends order it oppositely on purpose -- "
+                "so the compiler folds the mask.  This checks *which field*; "
+                "the compiler answers *which bits*."
+            ),
+            patterns=(
+                r"\bin register value type\b",
+                r"^write_field\b",
+                r"^write_fields\b",
+                r"^write_masked\b",
             ),
         ),
 
@@ -216,7 +356,10 @@ class CoreChecker(CheckerBase):
                 "make it a standalone annotation by terminating it with ``;``, "
                 "which attaches it to the enclosing scope."
             ),
-            patterns=(r"^annotation is not attached\b",),
+            patterns=(
+                r"^annotation is not attached\b",
+                r"^annotation '.*' has no subsequent element\b",
+            ),
         ),
         MarkerDef(
             id="PSS101",

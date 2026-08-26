@@ -31,6 +31,9 @@ Key Features
 
    quickstart
    cli
+   doc_comments
+   comments
+   annotations
    checker_plugin_guide
    pss30_migration
    pss31_migration
@@ -56,6 +59,7 @@ Key Features
    ast_structure
    ast_usage_guide
    ast_class_hierarchy
+   sanitizers
 
 .. toctree::
    :maxdepth: 2

@@ -11,6 +11,14 @@ argument count is checked (``PSS006``) and so is the argument category
 A string variable has no type *reference* to follow -- ``IDataTypeString`` names
 nothing -- so the lookup goes through the pseudo-type by name.  That bridge is
 what these tests exercise.
+
+NOTE: a built-in method's arguments are checked by TaskCheckCallArgs, which
+phrases the mismatch as "argument 1 to 'find' expects string, got int". An
+ordinary call goes through TaskResolveRefs::checkCallArgTypes and reads
+"argument 1 of 'g' is a string, but parameter 'a' is numeric". Same diagnosis
+and the same code (PSS006), two spellings -- the built-in path is the one
+checkCallArity never reaches, so the two checkers divide the work by callee
+kind rather than duplicating it. Worth unifying; see the merge notes.
 """
 import sys
 from pathlib import Path
@@ -70,12 +78,12 @@ def test_a_string_field_is_checked_too():
 # ---------------------------------------------------------------------------
 
 def test_argument_type_mismatch():
-    assert_marker(_exec('int n = s.find(1);'), marker_id="PSS007",
+    assert_marker(_exec('int n = s.find(1);'), marker_id="PSS006",
                   text="argument 1 to 'find' expects string, got int")
 
 
 def test_second_argument_type_mismatch():
-    assert_marker(_exec('int n = s.find("a", "b");'), marker_id="PSS007",
+    assert_marker(_exec('int n = s.find("a", "b");'), marker_id="PSS006",
                   text="argument 2 to 'find' expects int, got string")
 
 

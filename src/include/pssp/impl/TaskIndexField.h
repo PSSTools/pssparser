@@ -67,7 +67,11 @@ public:
         ast::IScopeChild *target = TaskResolveSymbolPathRef(
             m_dmgr, m_root_scope).resolve(
                 i->getType_id()->getTarget());
-        target->accept(m_this);
+        // An unresolved type leaves m_ret null, which the caller reports as
+        // a failure to index the field.
+        if (target) {
+            target->accept(m_this);
+        }
         DEBUG_LEAVE("visitDataTypeUserDefined");
     }
 
@@ -89,7 +93,9 @@ public:
             ast::IScopeChild *super_t = TaskResolveSymbolPathRef(
                 m_dmgr, m_root_scope).resolve(
                     i->getSuper_t()->getTarget());
-            super_t->accept(m_this);
+            if (super_t) {
+                super_t->accept(m_this);
+            }
             m_super_idx++;
         }
         DEBUG_LEAVE("visitTypeScope (super_idx=%d)", m_super_idx);

@@ -26,6 +26,8 @@
 #include "TaskResolveRef.h"
 #include "TaskResolveRefs.h"
 #include "TaskResolveRootRef.h"
+#include "pssp/ast/IField.h"
+#include "pssp/ast/IProceduralStmtDataDeclaration.h"
 #include "TaskResolveFieldRef.h"
 #include "Marker.h"
 
@@ -260,7 +262,8 @@ void TaskResolveRef::visitTypeIdentifier(ast::ITypeIdentifier *i) {
 
         ast::ISymbolRefPath *root_s = TaskSpecializeParameterizedRef(m_ctxt).specialize(
                 root, 
-                i->getElems().at(0)->getParams());
+                i->getElems().at(0)->getParams(),
+                i->getElems().at(0)->getId()->getLocation());
 
         delete root;
         root = root_s;
@@ -287,7 +290,8 @@ void TaskResolveRef::visitTypeIdentifier(ast::ITypeIdentifier *i) {
             if ((*it)->getParams()) {
                root = TaskSpecializeParameterizedRef(m_ctxt).specialize(
                         root, 
-                        (*it)->getParams());
+                        (*it)->getParams(),
+                        (*it)->getId()->getLocation());
                root_t = TaskResolveSymbolPathRef(
                 m_ctxt->getDebugMgr(), m_ctxt->root()).resolve(root);
             } else {
@@ -301,7 +305,19 @@ void TaskResolveRef::visitTypeIdentifier(ast::ITypeIdentifier *i) {
             // positives. Now that the lookup works, arriving here means the
             // name genuinely is not in the qualifying scope.
             DEBUG("Note: failed to resolve element %s", (*it)->getId()->getId().c_str());
-            if (m_report_unresolved) {
+
+            // A qualifier that is a component *instance* rather than a scope
+            // is left alone. `tx::send_pkt s;` in an activity, with `tx` a
+            // `tx_c` field, is legal PSS: the path is resolved by instance,
+            // which this scope walk does not do, so the miss here says nothing
+            // about the model. Reporting it rejected working models --
+            // TaskCheckRefsResolved exempts the same shape, and for the same
+            // reason (see its last-segment lookup).
+            bool qualifier_is_instance =
+                dynamic_cast<ast::IField *>(root_t) != 0
+                || dynamic_cast<ast::IProceduralStmtDataDeclaration *>(root_t) != 0;
+
+            if (m_report_unresolved && !qualifier_is_instance) {
                 // Name the whole qualifying prefix, not just the root: with a
                 // nested package `p::q::Nope`, "in 'p'" would point at the
                 // wrong scope.
@@ -334,52 +350,6 @@ void TaskResolveRef::visitTypeIdentifier(ast::ITypeIdentifier *i) {
 ast::ISymbolRefPath *TaskResolveRef::findRoot(
         const ast::IExprId              *sym) {
     return TaskResolveRootRef(m_ctxt).resolve(sym);
-}
-
-ast::ISymbolRefPath *TaskResolveRef::specializeParameterizedRef(
-        ast::ISymbolRefPath             *target,
-        ast::ITemplateParamValueList    *pvals) {
-    DEBUG_ENTER("specializeParameterizedRef");
-
-    // Find the base type
-    ast::IScopeChild *target_sc = TaskResolveSymbolPathRef(
-        m_ctxt->getDebugMgr(), m_ctxt->root()).resolve(target);
-    ast::ISymbolTypeScope *target_c = 
-        TaskResolveSymbolPathRef(
-            m_ctxt->getDebugMgr(), m_ctxt->root()).resolveT<ast::ISymbolTypeScope>(target);
-
-    if (!target_c) {
-        DEBUG("TODO: Flag error about templated type");
-        return 0;
-    }
-
-    if (!target_c->getPlist()) {
-        DEBUG("TODO: Flag type as not being templated");
-        return 0;
-    }
-
-    // Form parameter list 
-    ast::ITemplateParamDeclList *pdecl_list = TaskBuildParamValList(m_ctxt).build(
-            target_c->getPlist(),
-            pvals);
-    TaskGetSpecializedTemplateType typespec_getter(m_ctxt);
-
-    ast::ISymbolRefPath *target_t = typespec_getter.find(
-        target, 
-        pdecl_list);
-
-    if (target_t) {
-        // The new parameter list that we created is no longer needed
-        DEBUG("Specialization already exists");
-        delete pdecl_list;
-    } else {
-        DEBUG("Must create new specialization");
-        target_t = typespec_getter.mk(target, pdecl_list);
-    }
-    
-
-    DEBUG_LEAVE("specializeParameterizedRef %p", target_t);
-    return target_t;
 }
 
 dmgr::IDebug *TaskResolveRef::m_dbg = 0;

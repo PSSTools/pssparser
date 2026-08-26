@@ -50,10 +50,18 @@ REPRESENTATIVE_MESSAGES = [
     ("PSS006", "call to 'g' expects 1 to 2 arguments, got 0"),
     ("PSS006", "call to 'g' expects at least 1 argument, got 0"),
     ("PSS006", "no overload of 'g' accepts 3 arguments"),
-    ("PSS007", "argument 1 to 'g' expects int, got string"),
-    ("PSS007", "argument 2 to 'g' expects string, got an aggregate literal"),
-    ("PSS008", "'f' is not a function; it is a field"),
-    ("PSS008", "'x' is not a function; it is a parameter"),
+    # PSS006 covers the whole "call does not match the callee's parameters"
+    # family -- count, argument type, and calling something that is not a
+    # function. Both message spellings reach it: checkCallArity's for an
+    # ordinary call, TaskCheckCallArgs's for a built-in method signature.
+    ("PSS006", "too few arguments to 'f': expected 2, got 1"),
+    ("PSS006", "too many arguments to 'f': expected at most 2, got 3"),
+    ("PSS006", "argument 1 of 'g' is a string, but parameter 'a' is numeric"),
+    ("PSS006", "'f' is not a function"),
+    ("PSS007", "'f' returns void, so 'return' cannot take a value"),
+    ("PSS008", "'f' is declared pure, so it cannot return void"),
+    ("PSS009", "declarations of 'f' disagree about the return type"),
+    ("PSS010", "no field 'chan_en' in register value type 'csr_s'"),
     ("PSS100", "annotation is not attached to a model element"),
     ("PSS101", "unknown annotation type 'desc_s'; annotation disregarded"),
     ("PSS102", "annotation initializer for 'owner' is not a constant expression"),

@@ -21,6 +21,8 @@
 #include <set>
 #include "dmgr/impl/DebugMacros.h"
 #include "TaskCheckCallArgs.h"
+#include "TaskExprTypeCat.h"
+#include "TaskCompareTypeRefs.h"
 #include "TaskFindPathElem.h"
 #include "TaskLinkActionCompRefFields.h"
 #include "TaskResolveImports.h"
@@ -35,11 +37,76 @@
 #include "pssp/impl/TaskResolveSymbolPathRef.h"
 #include "pssp/impl/TaskGetElemSymbolScope.h"
 #include "pssp/impl/TaskGetSubscriptSymbolScope.h"
+#include "pssp/impl/TaskGetCollectionElemType.h"
+#include "pssp/impl/BuiltinCollectionUtil.h"
 #include "pssp/impl/TaskIsPyRef.h"
+#include "pssp/ast/IExprAggrList.h"
+#include "pssp/ast/IExprAggrStruct.h"
+#include "pssp/ast/IExprAggrStructElem.h"
+#include "pssp/ast/IExprString.h"
+#include "pssp/ast/IField.h"
+#include "pssp/ast/IStruct.h"
+#include "pssp/ast/ISymbolTypeScope.h"
+#include "pssp/ast/ITemplateGenericTypeParamDecl.h"
+#include "pssp/ast/ITemplateParamDeclList.h"
+#include "pssp/ast/IDataTypeUserDefined.h"
+#include "pssp/ast/ITypeIdentifier.h"
 
 #include <algorithm>
 
 namespace pssp {
+
+/**
+ * Methods available on the built-in types, which have no declaration in the
+ * standard library and so cannot be resolved through the symbol table.
+ *
+ * Kept in one place: these lists were previously duplicated at each use site,
+ * and drifted -- `sum` was present in the LRM but missing from both copies,
+ * which is why `a.sum()` failed while `a.size()` worked.
+ */
+namespace {
+
+//: LRM 7.6.3 -- string methods
+const std::set<std::string> &stringMethods() {
+    static const std::set<std::string> s = {
+        "size", "len",
+        "find", "rfind", "find_last", "find_all",
+        "substr",
+        "lower", "upper", "to_lower", "to_upper",
+        "starts_with", "ends_with", "trim",
+        "split", "chars"
+    };
+    return s;
+}
+
+//: LRM 7.9.2.2 (array), 7.9.3.2 (list), 7.9.4.2 (set), 7.9.5.2 (map)
+const std::set<std::string> &collectionMethods() {
+    static const std::set<std::string> s = {
+        "size",
+        "push_back", "pop_back", "push_front", "pop_front",
+        "insert", "delete", "clear",
+        "contains", "find",
+        "sort", "rsort", "shuffle", "reverse", "unique",
+        "join", "str_from_chars",
+        "sum", "to_list", "to_set",
+        "keys", "values",
+        "front", "back",
+        "set", "get"
+    };
+    return s;
+}
+
+//: The union, for the "is this a method on a built-in at all?" test.
+const std::set<std::string> &builtinMethods() {
+    static const std::set<std::string> s = [] {
+        std::set<std::string> merged = stringMethods();
+        merged.insert(collectionMethods().begin(), collectionMethods().end());
+        return merged;
+    }();
+    return s;
+}
+
+}
 
 
 static int editDistance_rr(const std::string &a, const std::string &b) {
@@ -180,11 +247,6 @@ void TaskResolveRefs::resolve(ast::ISymbolTypeScope *scope) {
         DEBUG_LEAVE("Resolving names in plist");
     }
 
-    ast::ITypeScope *target_s = dynamic_cast<ast::ITypeScope *>(scope->getTarget());
-    if (target_s->getSuper_t()) {
-        target_s->getSuper_t()->accept(m_this);
-    }
-
     // Create an iterator based on the type-scope itself
     ISymbolTableIterator *type_it = TaskResolveSymbolPathRef(
         m_ctxt->getDebugMgr(),
@@ -234,6 +296,20 @@ void TaskResolveRefs::resolve(ast::ISymbolTypeScope *scope) {
         }
 
     m_ctxt->symtab()->pushScope(scope, kind);
+
+    // The super type is resolved *after* the type's own scope is pushed, not
+    // before. A generic may inherit from one of its own parameters
+    // (`struct M<type T> : T`), and the parameter is only in scope once the
+    // type is. Resolving first meant `T` was looked up in the enclosing scope,
+    // where it means nothing -- which is why a generic like that could be
+    // specialized directly, where a different path pushes the scope first, but
+    // not from inside another generic's body, which comes through here.
+    ast::ITypeScope *target_s = dynamic_cast<ast::ITypeScope *>(scope->getTarget());
+    if (target_s->getSuper_t()) {
+        DEBUG_ENTER("Resolve super type");
+        target_s->getSuper_t()->accept(m_this);
+        DEBUG_LEAVE("Resolve super type");
+    }
 
     TaskLinkActionCompRefFields(m_ctxt->getFactory()).link(scope);
 
@@ -392,8 +468,521 @@ void TaskResolveRefs::visitExecScope(ast::IExecScope *i) {
     DEBUG_LEAVE("visitExecScope");
 }
 
+/**
+ * True if `c` is a field or local variable whose type is a built-in that
+ * carries methods -- `string`, or one of the built-in collections.
+ *
+ * Such a type has no symbol scope to search, so a member access on it is
+ * checked against a method list instead of by lookup.  Distinguishing it
+ * from a plain `int` is the whole reason a null scope cannot simply be
+ * reported as an error.
+ */
+/**
+ * The declared type of `c`, if it is a field or a local variable.
+ */
+static ast::IDataType *declaredTypeOf(ast::IScopeChild *c) {
+    ast::IField *field = dynamic_cast<ast::IField *>(c);
+    if (field && field->getType()) {
+        return field->getType();
+    }
+
+    ast::IProceduralStmtDataDeclaration *var_decl =
+        dynamic_cast<ast::IProceduralStmtDataDeclaration *>(c);
+    if (var_decl) {
+        return var_decl->getDatatype();
+    }
+
+    // A call is a value, and the type of that value is what the function
+    // returns. Without this every caller of declaredTypeOf answered "no type
+    // at all" for a call element, which is not the same as "a type with no
+    // members": `f().size()` on a string-returning `f` was reported as
+    // "root ref-path element f is not a composite scope" rather than being
+    // recognized as a built-in method call, and `f().x` on an int-returning
+    // `f` got the same message instead of the scalar one.
+    ast::ISymbolFunctionScope *fn = dynamic_cast<ast::ISymbolFunctionScope *>(c);
+    if (fn) {
+        for (std::vector<ast::IFunctionPrototype *>::const_iterator
+            it=fn->getPrototypes().begin(); it!=fn->getPrototypes().end(); it++) {
+            if ((*it)->getRtype()) {
+                return (*it)->getRtype();
+            }
+        }
+    }
+
+    return 0;
+}
+
+/**
+ * True if `c` has a scalar type that can have no members at all -- an int, a
+ * bit vector, a bool, a chandle.
+ *
+ * Deliberately a positive test on a short list rather than "anything that
+ * failed to produce a scope". The two are not the same, and the difference
+ * is the whole reason a member access on an unresolved type must stay quiet:
+ * a user-defined type resolves to nothing when one file of a multi-file
+ * model is parsed alone, which is normal and not an error. `string` and the
+ * built-in collections are excluded because they *do* have members -- see
+ * isBuiltinWithMethods().
+ */
+static bool isScalarWithoutMembers(ast::IScopeChild *c) {
+    ast::IDataType *type = declaredTypeOf(c);
+    return type
+        && (dynamic_cast<ast::IDataTypeInt *>(type)
+            || dynamic_cast<ast::IDataTypeBool *>(type)
+            || dynamic_cast<ast::IDataTypeChandle *>(type));
+}
+
+/**
+ * True if `c` has a user-defined type that did not resolve.
+ *
+ * Such a field has no scope, so a member access on it fails -- but the
+ * *reason* has already been reported, as `unknown type '<name>'`, at the
+ * declaration. Saying "not a composite scope" as well gives two diagnostics
+ * for one cause and points the second one at the use site rather than at the
+ * thing the user has to fix.
+ *
+ * Note this is not the same condition as isScalarWithoutMembers(): that one
+ * says the type is known and has no members, this one says the type is not
+ * known at all. Only the first is a defect in the reference; the second is a
+ * consequence of a defect already reported elsewhere.
+ */
+/**
+ * True if `c` is a function that returns nothing.
+ *
+ * Such an element has no scope, so a member access on it fails -- but saying
+ * "not a composite scope" is the least useful true thing available. The call
+ * is diagnosed as an LRM 20.5 violation instead ("returns void, so its result
+ * cannot be used as a value"), by checkVoidCallUse, which now runs on every
+ * call element rather than only the last. This predicate is what keeps the two
+ * from both firing.
+ *
+ * Note the asymmetry with a *scalar* return: `f()` returning `int` has a type
+ * with no members, and gets the same message `int a; a.x` gets. Only `void`
+ * has a better thing to say.
+ */
+static bool isVoidFunction(ast::IScopeChild *c) {
+    ast::ISymbolFunctionScope *fn = dynamic_cast<ast::ISymbolFunctionScope *>(c);
+    if (!fn || !fn->getPrototypes().size()) {
+        return false;
+    }
+    for (std::vector<ast::IFunctionPrototype *>::const_iterator
+        it=fn->getPrototypes().begin(); it!=fn->getPrototypes().end(); it++) {
+        if ((*it)->getRtype()) {
+            return false;
+        }
+    }
+    return true;
+}
+
+static bool hasUnresolvedUserDefinedType(ast::IScopeChild *c) {
+    ast::IDataTypeUserDefined *udt =
+        dynamic_cast<ast::IDataTypeUserDefined *>(declaredTypeOf(c));
+    return udt && (!udt->getType_id() || !udt->getType_id()->getTarget());
+}
+
+bool TaskResolveRefs::isBuiltinWithMethods(ast::IScopeChild *c) {
+    ast::IDataType *type = declaredTypeOf(c);
+
+    if (!type) {
+        return false;
+    }
+
+    if (dynamic_cast<ast::IDataTypeString *>(type)) {
+        return true;
+    }
+
+    ast::IDataTypeUserDefined *udt =
+        dynamic_cast<ast::IDataTypeUserDefined *>(type);
+    if (udt && udt->getType_id()) {
+        // Resolve the reference rather than reading the name the user
+        // wrote: a package may declare its own `array`, and the built-in's
+        // methods are not its methods.
+        ast::ITypeScope *ts = dynamic_cast<ast::ITypeScope *>(
+            TaskGetElemSymbolScope(m_ctxt->getDebugMgr(), m_ctxt->root())
+                .resolve(resolvePath(udt->getType_id()->getTarget())));
+        if (builtinCollectionKind(ts) != CollectionKind::None) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+
+/**
+ * The argument counts a prototype will accept.
+ *
+ * `min` is the number of leading parameters with no default. The LRM requires
+ * defaults to be trailing, so this is just the index of the first one that has
+ * a default; a model that violates that is not made worse by counting it this
+ * way. `max` is -1 when the last parameter is `...`, meaning unbounded.
+ */
+static void protoArity(ast::IFunctionPrototype *p, int32_t &min, int32_t &max) {
+    const std::vector<ast::IFunctionParamDeclUP> &params = p->getParameters();
+
+    min = 0;
+    max = (int32_t)params.size();
+
+    for (int32_t ii=0; ii<(int32_t)params.size(); ii++) {
+        if (params.at(ii)->getIs_varargs()) {
+            // A varargs parameter absorbs any number of arguments, including
+            // none, so it neither raises the minimum nor bounds the maximum.
+            max = -1;
+            break;
+        }
+        if (!params.at(ii)->getDflt()) {
+            min = ii+1;
+        }
+    }
+}
+
+TaskResolveRefs::TypeCat TaskResolveRefs::catOfDataType(ast::IDataType *dt) {
+    if (!dt) {
+        return TypeCat::Unknown;
+    }
+
+    if (dynamic_cast<ast::IDataTypeString *>(dt)) {
+        return TypeCat::Str;
+    }
+
+    // int, bit and bool are mutually convertible in PSS, and so is an enum
+    // with an integer. Lumping them together means this never has an opinion
+    // about width or signedness, which is the part that would need real
+    // compatibility rules.
+    if (dynamic_cast<ast::IDataTypeInt *>(dt)
+        || dynamic_cast<ast::IDataTypeBool *>(dt)
+        || dynamic_cast<ast::IDataTypeEnum *>(dt)) {
+        return TypeCat::Numeric;
+    }
+
+    ast::IDataTypeUserDefined *udt = dynamic_cast<ast::IDataTypeUserDefined *>(dt);
+
+    if (udt && udt->getType_id() && udt->getType_id()->getTarget()) {
+        ast::IScopeChild *c = resolvePath(udt->getType_id()->getTarget());
+
+        // Read the declaration straight off the resolved symbol rather than
+        // through TaskGetElemSymbolScope. An enum is an INamedScopeChild, not
+        // an ITypeScope, so asking that route for a type scope returns null
+        // for every enum -- which is why the first version of this classified
+        // enum-typed fields as Unknown and the enum branch below was dead.
+        // An enum resolves to an ISymbolEnumScope, which is an ISymbolScope
+        // and *not* an ISymbolTypeScope -- so neither the type-scope route
+        // nor TaskGetElemSymbolScope ever produces an IEnumDecl from one.
+        // Two earlier versions of this branch tested for IEnumDecl and could
+        // not fire; enum-typed values classified as Unknown and every enum
+        // control in the suite passed vacuously. Found by printing the RTTI
+        // name of what the path actually resolved to.
+        if (dynamic_cast<ast::ISymbolEnumScope *>(c)) {
+            return TypeCat::Numeric;
+        }
+
+        ast::ISymbolTypeScope *sts = dynamic_cast<ast::ISymbolTypeScope *>(c);
+        ast::IScopeChild *decl = sts?sts->getTarget():c;
+
+        if (dynamic_cast<ast::IEnumDecl *>(decl)) {
+            return TypeCat::Numeric;
+        }
+
+        ast::ITypeScope *ts = dynamic_cast<ast::ITypeScope *>(decl);
+
+        // A built-in collection is left Unknown. `list<int>` against an
+        // `int` parameter is a genuine mismatch, but "is a composite type"
+        // is the wrong thing to say about it -- the element type is what
+        // matters -- so the classifier declines rather than says something
+        // true and useless.
+        //
+        // This guard is **currently unreachable**, and the comment is worth
+        // more than the code. A parameterized type reference such as
+        // `list<int>` does not resolve to a target here at all, so it never
+        // enters this branch; collections come out Unknown by falling off
+        // the end instead. Neutralizing the guard fails no test for that
+        // reason and not because it is harmless -- the collections *are*
+        // declared as IStruct in BuiltinsFactory, so the moment a
+        // specialized type reference does resolve here, removing this would
+        // start calling every collection composite. Kept deliberately, with
+        // the tests in test_function_calls.py pinning the behaviour either
+        // way. See plan section 35.3.
+        if (builtinCollectionKind(ts) != CollectionKind::None) {
+            return TypeCat::Unknown;
+        }
+
+        if (dynamic_cast<ast::IStruct *>(ts)
+            || dynamic_cast<ast::IComponent *>(ts)
+            || dynamic_cast<ast::IAction *>(ts)) {
+            return TypeCat::Aggregate;
+        }
+    }
+
+    // chandle, pyobj, a ref type, an unresolved user-defined name.
+    return TypeCat::Unknown;
+}
+
+TaskResolveRefs::TypeCat TaskResolveRefs::catOfExpr(ast::IExpr *e) {
+    if (!e) {
+        return TypeCat::Unknown;
+    }
+
+    if (dynamic_cast<ast::IExprString *>(e)) {
+        return TypeCat::Str;
+    }
+
+    if (dynamic_cast<ast::IExprNumber *>(e)
+        || dynamic_cast<ast::IExprBool *>(e)) {
+        return TypeCat::Numeric;
+    }
+
+    if (dynamic_cast<ast::IExprAggrLiteral *>(e)
+        || dynamic_cast<ast::IExprStructLiteral *>(e)) {
+        return TypeCat::Aggregate;
+    }
+
+    // A bare name. Anything longer than one element is a member path, whose
+    // type needs the walk this classification does not do -- left Unknown.
+    ast::IExprRefPathContext *rp = dynamic_cast<ast::IExprRefPathContext *>(e);
+
+    if (rp && !rp->getIs_super() && !rp->getSlice()
+        && rp->getHier_id()->getElems().size() == 1
+        && !rp->getHier_id()->getElems().at(0)->getParams()
+        && rp->getHier_id()->getElems().at(0)->getSubscript().empty()
+        && rp->getTarget()) {
+        ast::IScopeChild *c = resolvePath(rp->getTarget());
+
+        // An enum *item* used as a value, rather than a field of enum type.
+        if (dynamic_cast<ast::IEnumItem *>(c)) {
+            return TypeCat::Numeric;
+        }
+
+        return catOfDataType(declaredTypeOf(c));
+    }
+
+    // Arithmetic, comparisons, casts, conditionals, calls, static paths,
+    // subscripts, slices, null. All Unknown by design.
+    return TypeCat::Unknown;
+}
+
+
+static const char *catName(TaskResolveRefs::TypeCat c);
+
+namespace {
+
+/**
+ * The coarse name this diagnostic uses for a category.
+ *
+ * TaskExprTypeCat draws finer distinctions than the message does -- it tells
+ * `int` from `bit` from an enum -- but the categories that *convert freely*
+ * are exactly the ones it lumps together as compatible, so naming them apart
+ * here would describe a difference the check does not act on.
+ */
+const char *argCatName(TypeCatE c) {
+    switch (c) {
+        case TypeCatE::Int:
+        case TypeCatE::Bool:
+        case TypeCatE::Float:
+        case TypeCatE::Enum:      return "numeric";
+        case TypeCatE::String:    return "a string";
+        case TypeCatE::Aggregate: return "a composite type";
+        case TypeCatE::Chandle:   return "a chandle";
+        case TypeCatE::Null:      return "null";
+        default:                  return "of unknown type";
+    }
+}
+
+}
+
+void TaskResolveRefs::checkCallArgTypes(
+        ast::IExprMemberPathElem  *elem,
+        ast::ISymbolFunctionScope *fn) {
+    ast::IFunctionPrototype *proto = fn->getPrototypes().front();
+    const std::vector<ast::IExprUP> &args = elem->getParams()->getParameters();
+    const std::vector<ast::IFunctionParamDeclUP> &params = proto->getParameters();
+    TaskExprTypeCat cat(m_ctxt);
+
+    for (uint32_t ii=0; ii<args.size(); ii++) {
+        // Arguments past the fixed parameters land on the varargs parameter,
+        // which is always last and carries the element type. Stopping at
+        // params.size() left every variadic argument unchecked.
+        ast::IFunctionParamDecl *p = 0;
+        if (ii < params.size()) {
+            p = params.at(ii).get();
+        } else if (params.size() && params.back()->getIs_varargs()) {
+            p = params.back().get();
+        }
+
+        if (!p || !p->getType()) {
+            continue;
+        }
+
+        if (p->getKind() != ast::FunctionParamDeclKind::ParamKind_DataType) {
+            // A `type` parameter takes a type name, and a `ref` parameter
+            // takes a handle. Neither is an ordinary value, and neither is
+            // modelled well enough here to have an opinion.
+            continue;
+        }
+
+        TypeCatE want = cat.dataType(p->getType());
+        TypeCatE got = cat.expr(args.at(ii).get());
+
+        if (TaskExprTypeCat::compatible(want, got)) {
+            continue;
+        }
+
+        m_ctxt->addMarker(
+            MarkerSeverityE::Error,
+            // IExpr carries no location, so this points at the call and
+            // names the argument by position instead.
+            elem->getId()->getLocation(),
+            "argument %d of '%s' is %s, but parameter '%s' is %s",
+            ii+1,
+            elem->getId()->getId().c_str(),
+            argCatName(got),
+            p->getName()?p->getName()->getId().c_str():"?",
+            argCatName(want));
+    }
+}
+
+static const char *catName(TaskResolveRefs::TypeCat c) {
+    switch (c) {
+        case TaskResolveRefs::TypeCat::Numeric:   return "numeric";
+        case TaskResolveRefs::TypeCat::Str:       return "a string";
+        case TaskResolveRefs::TypeCat::Aggregate: return "a composite type";
+        default:                                  return "of unknown type";
+    }
+}
+
+void TaskResolveRefs::checkCallArity(
+        ast::IExprMemberPathElem *elem,
+        ast::IScopeChild        *target) {
+    // A parameter list is present exactly when the source wrote `(...)` --
+    // see AstBuilderInt::mkMemberPathElem -- so this is what distinguishes a
+    // call from a plain reference to the same name.
+    if (!elem->getParams()) {
+        return;
+    }
+
+    ast::ISymbolFunctionScope *fn =
+        dynamic_cast<ast::ISymbolFunctionScope *>(target);
+
+    if (!fn) {
+        // Report whenever the callee resolved to *something* that is not a
+        // function. The null guard is the whole of the caution needed here: a
+        // name whose type never resolved -- the normal state when one file of
+        // a multi-file model is parsed alone -- arrives as null, and is
+        // diagnosed where the type is named rather than at the call.
+        //
+        // Built-in and collection methods never reach this line. They are
+        // matched against the method list earlier in the loop and `break`
+        // there, which is why this condition does not touch `s.size()` or
+        // `l.push_back(1)`.
+        //
+        // This was first written as a positive test on IField and
+        // IProceduralStmtDataDeclaration, in the manner of section 29's
+        // isScalarWithoutMembers(), on the reasoning that a wider test would
+        // catch the built-in methods too. That reasoning was wrong, and a
+        // neutralization row is what showed it: widening the test failed no
+        // test and no corpus file. The two versions differ on exactly one
+        // input -- `S(1)`, where S names a type -- and reporting that is
+        // correct. See plan section 34.2.
+        if (target) {
+            m_ctxt->addMarker(
+                MarkerSeverityE::Error,
+                elem->getId()->getLocation(),
+                "'%s' is not a function",
+                elem->getId()->getId().c_str());
+        }
+        return;
+    }
+
+    if (!fn->getPrototypes().size()) {
+        // A function whose prototype never made it into the symbol scope.
+        // Not an arity question.
+        return;
+    }
+
+    // Every call element, not only the path's last. `is_last` used to guard
+    // this, on the reasoning that only the final element's value is the
+    // path's value. It is not: taking a member of a call result is a use of
+    // that result, so `f().x` on a void `f` is exactly what LRM 20.5
+    // forbids -- and it is the case that produces the *most* useful message.
+    //
+    // §38.6 recorded the guard as unobservable, and it was, because `f().x`
+    // did not resolve at all then. §39 fixed that, at which point the guard's
+    // only remaining effect was to suppress a better diagnostic in favour of
+    // "root ref-path element f is not a composite scope". The composite-scope
+    // branches now stay quiet for a void function instead; see
+    // isVoidFunction().
+    checkVoidCallUse(elem, fn);
+
+    int32_t argc = (int32_t)elem->getParams()->getParameters().size();
+
+    // Accept if *any* prototype takes this count. PSS has no overloading, so
+    // there is normally one; a function declared twice with different
+    // signatures leaves two, and that is a duplicate-declaration defect
+    // (plan section 31.4) which should not also surface here as a bogus
+    // arity error.
+    int32_t min = 0, max = 0;
+
+    for (std::vector<ast::IFunctionPrototype *>::const_iterator
+        it=fn->getPrototypes().begin();
+        it!=fn->getPrototypes().end(); it++) {
+        int32_t p_min, p_max;
+        protoArity(*it, p_min, p_max);
+
+        if (argc >= p_min && (p_max < 0 || argc <= p_max)) {
+            DEBUG("Call to %s: %d argument(s) accepted",
+                elem->getId()->getId().c_str(), argc);
+            checkCallArgTypes(elem, fn);
+            return;
+        }
+
+        if (it == fn->getPrototypes().begin()) {
+            min = p_min;
+            max = p_max;
+        }
+    }
+
+    // Report against the first prototype: with no overloading it is the only
+    // one, and naming a bound from a signature the user did not write would
+    // be worse than naming one from the signature they did.
+    if (argc < min) {
+        m_ctxt->addMarker(
+            MarkerSeverityE::Error,
+            elem->getId()->getLocation(),
+            "too few arguments to '%s': expected %s%d, got %d",
+            elem->getId()->getId().c_str(),
+            (max != min)?"at least ":"",
+            min,
+            argc);
+    } else {
+        m_ctxt->addMarker(
+            MarkerSeverityE::Error,
+            elem->getId()->getLocation(),
+            "too many arguments to '%s': expected %s%d, got %d",
+            elem->getId()->getId().c_str(),
+            (max != min)?"at most ":"",
+            max,
+            argc);
+    }
+}
+
+namespace {
+    /** Sets a member for the duration of a scope, and puts it back. */
+    struct SaveExpr {
+        SaveExpr(ast::IExpr *&slot, ast::IExpr *v) : m_slot(slot), m_prev(slot) {
+            m_slot = v;
+        }
+        ~SaveExpr() { m_slot = m_prev; }
+        ast::IExpr *&m_slot;
+        ast::IExpr *m_prev;
+    };
+}
+
 void TaskResolveRefs::visitExprRefPathContext(ast::IExprRefPathContext *i) {
     DEBUG_ENTER("visitExprRefPathContext %s", i->getHier_id()->getElems().at(0)->getId()->getId().c_str());
+
+    // Restored on every exit, of which this function has many (see the
+    // DEBUG_LEAVE calls below), which is why it is a scope guard and not a
+    // pair of assignments.
+    SaveExpr save_refpath(m_cur_refpath, i);
     // Find the first path element
     ast::ISymbolRefPath *target = TaskResolveRef(m_ctxt).resolve(
         i->getHier_id()->getElems().at(0)->getId());
@@ -450,59 +1039,47 @@ void TaskResolveRefs::visitExprRefPathContext(ast::IExprRefPathContext *i) {
     DEBUG("target_c=%p target_s=%p", target_c, target_s);
 
     // Check if target_c is a field or local variable with a built-in type that has methods (e.g., string)
-    bool is_builtin_with_methods = false;
-    bool is_string_target = false;
-    ast::IDataType *target_type = 0;
+    bool is_builtin_with_methods =
+        (!target_s && target_c && isBuiltinWithMethods(target_c));
 
-    if (!target_s && target_c) {
-        // Check if it's a field declaration
-        ast::IField *field = dynamic_cast<ast::IField *>(target_c);
-        if (field && field->getType()) {
-            target_type = field->getType();
-        }
-        
-        // Check if it's a procedural data declaration (local variable)
-        if (!target_type) {
-            ast::IProceduralStmtDataDeclaration *var_decl = 
-                dynamic_cast<ast::IProceduralStmtDataDeclaration *>(target_c);
-            if (var_decl && var_decl->getDatatype()) {
-                target_type = var_decl->getDatatype();
-            }
-        }
-        
-        // Check if the type is a string
-        if (target_type) {
-            ast::IDataTypeString *string_type = dynamic_cast<ast::IDataTypeString *>(target_type);
-            if (string_type) {
-                is_builtin_with_methods = true;
-                is_string_target = true;
-                DEBUG("Found string variable '%s' - allowing method calls",
-                    i->getHier_id()->getElems().at(0)->getId()->getId().c_str());
-            }
-            if (!is_builtin_with_methods) {
-                ast::IDataTypeUserDefined *udt = dynamic_cast<ast::IDataTypeUserDefined *>(target_type);
-                if (udt && udt->getType_id() && !udt->getType_id()->getElems().empty()) {
-                    const std::string &tname = udt->getType_id()->getElems().at(0)->getId()->getId();
-                    static const std::set<std::string> collection_types = {
-                        "list", "array", "set", "map"
-                    };
-                    if (collection_types.find(tname) != collection_types.end()) {
-                        is_builtin_with_methods = true;
-                        DEBUG("Found collection variable '%s' (type %s) - allowing method calls",
-                            i->getHier_id()->getElems().at(0)->getId()->getId().c_str(),
-                            tname.c_str());
-                    }
-                }
-            }
-        }
-    }
+    // Tracked separately from the flag above because the two built-in
+    // families are checked differently below: `string` carries real
+    // prototypes and is resolved against them, while a collection method is
+    // still only name-checked.
+    bool is_string_target = is_builtin_with_methods
+        && dynamic_cast<ast::IDataTypeString *>(declaredTypeOf(target_c));
+
+    // The element index at which a member is checked against the built-in
+    // method list rather than looked up in a scope: the one directly after
+    // whichever element turned out to have a built-in type. For the root
+    // that is 1; the advance step below sets it when a *later* element does.
+    int32_t builtin_method_ii = is_builtin_with_methods?1:-1;
 
     if (!target_s && !is_builtin_with_methods && i->getHier_id()->getElems().size() > 1) {
-        m_ctxt->addMarker(
-            MarkerSeverityE::Error,
-            i->getHier_id()->getElems().at(0)->getId()->getLocation(),
-            "root ref-path element %s is not a composite scope",
-            i->getHier_id()->getElems().at(0)->getId()->getId().c_str());
+        if (target_c && isVoidFunction(target_c)) {
+            // checkVoidCallUse has the better message for this; see
+            // isVoidFunction(). It has to be invoked here rather than left to
+            // the loop below, because this branch returns before the loop
+            // runs -- suppressing the composite-scope message without also
+            // making the call reported nothing at all.
+            checkCallArity(i->getHier_id()->getElems().at(0).get(), target_c);
+        } else if (target_c && hasUnresolvedUserDefinedType(target_c)) {
+            // The root's type never resolved, and `unknown type '<name>'` was
+            // already reported at its declaration. Reporting again here gives
+            // two errors for one cause and points the second at the use site
+            // rather than at the thing to fix. Return regardless: with no
+            // scope there is nothing to search the rest of the path in, and
+            // falling through raises a *different* error from the loop.
+            DEBUG("Root %s has an unresolved type; "
+                "already reported at its declaration",
+                i->getHier_id()->getElems().at(0)->getId()->getId().c_str());
+        } else {
+            m_ctxt->addMarker(
+                MarkerSeverityE::Error,
+                i->getHier_id()->getElems().at(0)->getId()->getLocation(),
+                "root ref-path element %s is not a composite scope",
+                i->getHier_id()->getElems().at(0)->getId()->getId().c_str());
+        }
 
         DEBUG_LEAVE("visitExprRefPathContext -- fail");
         return;
@@ -540,7 +1117,6 @@ void TaskResolveRefs::visitExprRefPathContext(ast::IExprRefPathContext *i) {
         if (!ii && elem->getParams()) {
             // The root element is itself the call -- `g(1,2,3)`. Later
             // elements are checked once TaskFindPathElem has resolved them.
-            TaskCheckCallArgs(m_ctxt).check(target_c, elem);
             if (m_template_depth) {
                 TaskTemplateCheck(m_ctxt).checkPure(target_c, elem);
             }
@@ -556,14 +1132,19 @@ void TaskResolveRefs::visitExprRefPathContext(ast::IExprRefPathContext *i) {
                     break;
                 }
                 if (elem->getSubscript().size() > 1) {
-                    DEBUG_ERROR("Handle multi-dim array subscript");
+                    DEBUG("Multi-dim array subscript");
                 }
                 target_s = TaskGetSubscriptSymbolScope(
-                    m_ctxt->getDebugMgr(), m_ctxt->root()).resolve(
+                    m_ctxt->getDebugMgr(), m_ctxt->root(),
+                    elem->getSubscript().size()).resolve(
                         target_c
                     );
             }
             if (!ii) {
+                // A call whose callee is the root of the path -- a plain
+                // `f(1)`. The member-call form is checked further down,
+                // where the element's own target is resolved.
+                checkCallArity(elem, target_c);
                 continue;
             }
 //        }
@@ -578,21 +1159,9 @@ void TaskResolveRefs::visitExprRefPathContext(ast::IExprRefPathContext *i) {
         }
 
         // Special handling for string and collection methods
-        if (!target_s && is_builtin_with_methods && ii == 1) {
+        if (!target_s && is_builtin_with_methods && ii == builtin_method_ii) {
             // This is a method call on a built-in type - validate method name
             std::string method_name = elem->getId()->getId();
-            static const std::set<std::string> valid_collection_methods = {
-                "size",
-                "push_back", "pop_back", "push_front", "pop_front",
-                "insert", "delete", "clear",
-                "contains", "find",
-                "sort", "rsort", "shuffle", "reverse", "unique",
-                "join", "str_from_chars",
-                "keys", "values",
-                "front", "back",
-                "set", "get"
-            };
-
             // A string method is looked up in the `string` pseudo-type, which
             // carries a real prototype for each one; a collection method is
             // still only name-checked (P3-X6d covers strings only).
@@ -607,8 +1176,8 @@ void TaskResolveRefs::visitExprRefPathContext(ast::IExprRefPathContext *i) {
                     found = (proto != 0);
                 }
             } else {
-                found = (valid_collection_methods.find(method_name)
-                            != valid_collection_methods.end());
+                found = (builtinMethods().find(method_name)
+                            != builtinMethods().end());
             }
 
             if (found) {
@@ -625,6 +1194,10 @@ void TaskResolveRefs::visitExprRefPathContext(ast::IExprRefPathContext *i) {
                     }
                     DEBUG_LEAVE("Resolve built-in method parameters");
                     if (proto) {
+                        // checkCallArity never reaches a built-in method --
+                        // the loop breaks here -- so this site is the only
+                        // place a `string` method's real signature gets
+                        // checked. Additive, not a second opinion.
                         TaskCheckCallArgs(m_ctxt).check(proto, elem);
                         if (m_template_depth) {
                             TaskTemplateCheck(m_ctxt).checkPure(proto, elem);
@@ -641,40 +1214,47 @@ void TaskResolveRefs::visitExprRefPathContext(ast::IExprRefPathContext *i) {
             }
         }
 
+        if (!target_s) {
+            // The enclosing scope is unresolved -- most often because the
+            // root element's type is unknown, which is the normal state when
+            // one file of a multi-file model is parsed on its own.
+            //
+            // This is reachable even though the pre-loop check above rejects
+            // a null target_s: the subscript step earlier in this loop
+            // re-assigns target_s from TaskGetSubscriptSymbolScope(), which
+            // returns null for an element of unknown type. Passing that null
+            // to TaskFindPathElem::find() dereferences it immediately.
+            m_ctxt->addMarker(
+                MarkerSeverityE::Error,
+                elem->getId()->getLocation(),
+                "cannot resolve '%s': the enclosing scope is unknown",
+                elem->getId()->getId().c_str());
+            DEBUG_LEAVE("visitExprRefPathContext -- unresolved enclosing scope");
+            return;
+        }
+
         TaskFindPathElem::Result res = TaskFindPathElem(
-            m_ctxt->getDebugMgr(), 
+            m_ctxt->getDebugMgr(),
             m_ctxt->root()).find(
                 target_s,
                 elem->getId()
             );
 
-        std::unordered_map<std::string, int32_t>::const_iterator it = 
+        std::unordered_map<std::string, int32_t>::const_iterator it =
             target_s->getSymtab().find(elem->getId()->getId());
         
         if (!res.sym) {
-            static const std::set<std::string> valid_collection_methods = {
-                "size",
-                "push_back", "pop_back", "push_front", "pop_front",
-                "insert", "delete", "clear",
-                "contains", "find",
-                "sort", "rsort", "shuffle", "reverse", "unique",
-                "join", "str_from_chars",
-                "keys", "values",
-                "front", "back",
-                "set", "get"
-            };
             bool is_collection_method = false;
+            // Not a name test: `n.rfind("set", 0) == 0` matched `setup_s`,
+            // and every collection method was then available on it.
             auto isCollectionScope = [](ast::ISymbolScope *s) -> bool {
-                if (!s) return false;
-                const std::string &n = s->getName();
-                return (n.rfind("list", 0) == 0 || n.rfind("array", 0) == 0 ||
-                        n.rfind("set", 0) == 0 || n.rfind("map", 0) == 0);
+                return builtinCollectionKind(s) != CollectionKind::None;
             };
             if (isCollectionScope(target_s)) {
                 DEBUG("Collection method check: target_s name='%s' method='%s'",
                     target_s->getName().c_str(), elem->getId()->getId().c_str());
                 const std::string &mname = elem->getId()->getId();
-                if (valid_collection_methods.count(mname)) {
+                if (collectionMethods().count(mname)) {
                     is_collection_method = true;
                     elem->setTarget(-2);
                     if (elem->getParams()) {
@@ -703,10 +1283,17 @@ void TaskResolveRefs::visitExprRefPathContext(ast::IExprRefPathContext *i) {
             elem->setTarget(res.idx);
             elem->setSuper(res.super_idx);
 
+            // A member call -- `comp.f(1)`, `pkg::f(1)`.
+            checkCallArity(elem, res.sym);
+
+            // The receiver is in hand here, which is what the §21.14.1 field
+            // names need: they are resolved against the register's value type,
+            // not against the callee.
+            checkRegFieldRefs(elem, target_s);
+
             // Resolve name references for parameter values
             if (elem->getParams()) {
                 elem->getParams()->accept(m_this);
-                TaskCheckCallArgs(m_ctxt).check(res.sym, elem);
                 if (m_template_depth) {
                     TaskTemplateCheck(m_ctxt).checkPure(res.sym, elem);
                 }
@@ -719,7 +1306,47 @@ void TaskResolveRefs::visitExprRefPathContext(ast::IExprRefPathContext *i) {
                         target_c
                     );
                 if (!target_s) {
-                    DEBUG_ERROR("target_s is null");
+                    // This element has no scope to search for the next one.
+                    // Until now that was a DEBUG_ERROR and a break -- debug
+                    // chatter, no marker, exit 0 -- so `s.a.nosuch` with `a`
+                    // an int linked cleanly. Only the *root* of the path was
+                    // ever reported (above); everything after it fell to here.
+                    if (isBuiltinWithMethods(target_c)) {
+                        // `a` is a string or a built-in collection: it has no
+                        // scope but it does have methods. Check the next
+                        // element against the method list, exactly as the
+                        // root case does.
+                        is_builtin_with_methods = true;
+                        is_string_target = (dynamic_cast<ast::IDataTypeString *>(
+                            declaredTypeOf(target_c)) != 0);
+                        builtin_method_ii = ii+1;
+                        DEBUG("Element %s is a built-in with methods; "
+                            "checking %s against the method list",
+                            elem->getId()->getId().c_str(),
+                            i->getHier_id()->getElems().at(ii+1)
+                                ->getId()->getId().c_str());
+                        continue;
+                    }
+
+                    if (isScalarWithoutMembers(target_c)) {
+                        m_ctxt->addMarker(
+                            MarkerSeverityE::Error,
+                            i->getHier_id()->getElems().at(ii+1)
+                                ->getId()->getLocation(),
+                            "ref-path element %s is not a composite scope",
+                            elem->getId()->getId().c_str());
+                    } else {
+                        // A type that produced no scope for some other
+                        // reason -- most often a user-defined type that did
+                        // not resolve, which is the normal state when one
+                        // file of a multi-file model is parsed on its own.
+                        // Reporting it here would turn that into an error;
+                        // the unresolved type is diagnosed where it is
+                        // declared, if at all.
+                        DEBUG("No scope for %s, but its type is not a scalar; "
+                            "not reporting",
+                            elem->getId()->getId().c_str());
+                    }
                     break;
                 }
 
@@ -735,7 +1362,8 @@ void TaskResolveRefs::visitExprRefPathContext(ast::IExprRefPathContext *i) {
                         DEBUG_ERROR("Handle multi-dim array subscript");
                     }
                     target_s = TaskGetSubscriptSymbolScope(
-                        m_ctxt->getDebugMgr(), m_ctxt->root()).resolve(
+                        m_ctxt->getDebugMgr(), m_ctxt->root(),
+                        elem->getSubscript().size()).resolve(
                             target_s
                         );
                 }
@@ -804,6 +1432,22 @@ void TaskResolveRefs::visitExprRefPathId(ast::IExprRefPathId *i) {
     DEBUG_LEAVE("visitExprRefPathId");
 }
 
+/**
+ * True if `c` is a template type that has not been specialized -- the generic
+ * itself, which cannot stand in for one of its instances.
+ *
+ * A specialization's own scope carries `specialized`, so this is false for
+ * `P<8>` and for references written inside a specialized copy.
+ */
+static bool isUnspecializedGeneric(ast::IScopeChild *c) {
+    ast::ISymbolTypeScope *ts = dynamic_cast<ast::ISymbolTypeScope *>(c);
+    ast::ITypeScope *td = ts?dynamic_cast<ast::ITypeScope *>(ts->getTarget()):0;
+    return td
+        && td->getParams()
+        && !td->getParams()->getSpecialized()
+        && td->getParams()->getParams().size();
+}
+
 void TaskResolveRefs::visitExprRefPathStatic(ast::IExprRefPathStatic *i) {
     DEBUG_ENTER("visitExprRefPathStatic size=%d", i->getBase().size());
     ast::ISymbolRefPath *target = 0;
@@ -811,7 +1455,11 @@ void TaskResolveRefs::visitExprRefPathStatic(ast::IExprRefPathStatic *i) {
         DEBUG("TODO: support global-rooted references");
     } else {
         // relative root
-        ast::ISymbolRefPath *target = 0;
+        //
+        // `target` deliberately assigns to the outer declaration rather than
+        // shadowing it. It used to be re-declared here, which left the outer
+        // one at 0 for the `if (target)` below -- so the cross-file dependency
+        // edge (addRef) was never recorded for any static reference path.
         ast::IScopeChild *target_s = 0;
         bool in_pyref = false;
         for (std::vector<ast::ITypeIdentifierElemUP>::const_iterator
@@ -832,18 +1480,59 @@ void TaskResolveRefs::visitExprRefPathStatic(ast::IExprRefPathStatic *i) {
                 if ((*it)->getParams()) {
                     DEBUG("Ref elem %d is parameterized", (it-i->getBase().begin()));
 
+                    // Resolve the argument values *here*, at the use site,
+                    // before specializing -- the same thing
+                    // TaskResolveRef::visitTypeIdentifier does for a type
+                    // reference. Without it the arguments carry no resolved
+                    // target into TaskBuildParamValList, which then resolves
+                    // them wherever it happens to be: the generic's declaring
+                    // package. `Q<s_s>::nbytes` written in package `p` bound
+                    // `q::s_s` when both packages declared an `s_s`, silently
+                    // and with no diagnostic, while the field-typed form
+                    // `Q<s_s> q;` bound `p::s_s` from the same source line.
+                    for (std::vector<ast::ITemplateParamValueUP>::const_iterator
+                        v_it=(*it)->getParams()->getValues().begin();
+                        v_it!=(*it)->getParams()->getValues().end(); v_it++) {
+                        (*v_it)->accept(m_this);
+                    }
+
                     // Build out parameter value list
                     target = TaskSpecializeParameterizedRef(m_ctxt).specialize(
-                            target, 
-                            (*it)->getParams());
+                            target,
+                            (*it)->getParams(),
+                            (*it)->getId()->getLocation());
 
                     // TODO: do we need to delete target?
+
+                    if (!target) {
+                        // specialize() returns null once it has reported an
+                        // argument error -- a wrong argument count, a
+                        // restriction violation. Continuing dereferenced the
+                        // null path and segfaulted, so `P<int>::nbytes` (one
+                        // argument too few) crashed where the field-typed form
+                        // reported "no value supplied for template parameter".
+                        break;
+                    }
                 }
 
                 target_s = m_ctxt->resolveSymbolPathRef(target);
 
                 if ((*it)->getParams()) {
                     DEBUG("Ref elem is parameterized");
+                } else if (isUnspecializedGeneric(target_s)) {
+                    // A generic named with no argument list at all --
+                    // `P::nbytes` rather than `P<8>::nbytes`. Nothing above
+                    // catches it: the specialize() step that validates
+                    // arguments only runs when there *are* arguments, so the
+                    // path resolved straight to the generic and every member
+                    // of it looked available.
+                    addMarker(
+                        MarkerSeverityE::Error,
+                        (*it)->getId()->getLocation(),
+                        "template type '%s' requires a template argument list",
+                        (*it)->getId()->getId().c_str());
+                    target = 0;
+                    break;
                 }
 
                 if (!in_pyref) {
@@ -854,10 +1543,61 @@ void TaskResolveRefs::visitExprRefPathStatic(ast::IExprRefPathStatic *i) {
                     }
                 }
             } else if (!in_pyref) {
-                // Need to resolve within root element ... unless we're down a Python scope
-                // Visit the element to resolve internal references
+                // Visit the element to resolve internal references (its own
+                // template arguments, if any)
                 (*it)->accept(m_this);
 
+                // ...then resolve the element *within* the preceding one,
+                // which is what the TODO that used to stand here asked for.
+                // Until now the accept() above was the whole of it and its
+                // result was discarded, so `Q<ok_s>::nosuch` linked cleanly:
+                // only the root of a static path was ever checked.
+                ast::ISymbolScope *scope_s =
+                    dynamic_cast<ast::ISymbolScope *>(target_s);
+
+                if (!scope_s) {
+                    // The preceding element is not a scope -- a static path
+                    // through a field, say. Nothing to look the name up in,
+                    // and the reason is already diagnosed where that element
+                    // resolved, so stop rather than report a second error.
+                    DEBUG("Preceding element is not a scope; cannot check %s",
+                        (*it)->getId()->getId().c_str());
+                    break;
+                }
+
+                TaskFindPathElem::Result res = TaskFindPathElem(
+                    m_ctxt->getDebugMgr(),
+                    m_ctxt->root()).find(scope_s, (*it)->getId());
+
+                if (!res.sym) {
+                    addMarker(
+                        MarkerSeverityE::Error,
+                        (*it)->getId()->getLocation(),
+                        "'%s' has no member named '%s'",
+                        scope_s->getName().c_str(),
+                        (*it)->getId()->getId().c_str());
+                    target = 0;
+                    break;
+                }
+
+                target_s = res.sym;
+
+                if (res.super_idx == 0) {
+                    target->getPath().push_back({
+                        ast::SymbolRefPathElemKind::ElemKind_ChildIdx,
+                        res.idx});
+                } else {
+                    // The member is inherited. A symbol path has no way to
+                    // encode a step through a base type --
+                    // TaskResolveSymbolPathRef leaves ElemKind_Super as a
+                    // TODO -- so extending it with the base's child index
+                    // would resolve to whatever child sits at that index in
+                    // the derived type. Leave the path at the enclosing type;
+                    // the member is checked either way, which is what this
+                    // branch is here for.
+                    DEBUG("Member %s is inherited (super_idx=%d); path not extended",
+                        (*it)->getId()->getId().c_str(), res.super_idx);
+                }
             } else {
                 DEBUG("element is inside a pyref path");
             }
@@ -866,10 +1606,17 @@ void TaskResolveRefs::visitExprRefPathStatic(ast::IExprRefPathStatic *i) {
     }
 
     if (target) {
+        // Reached for the first time now that `target` is no longer shadowed
+        // above. It had never run, so the null check on target_c had never
+        // been needed -- a path can resolve to a reference the symbol-path
+        // resolver then declines to follow, and this would have dereferenced
+        // it.
         ast::IScopeChild *target_c = m_ctxt->resolveSymbolPathRef(target);
-        m_ctxt->addRef(
-            i->getBase().front()->getId()->getLocation().fileid,
-            target_c->getLocation().fileid);
+        if (target_c) {
+            m_ctxt->addRef(
+                i->getBase().front()->getId()->getLocation().fileid,
+                target_c->getLocation().fileid);
+        }
     }
     DEBUG_LEAVE("visitExprRefPathStatic");
 }
@@ -877,6 +1624,14 @@ void TaskResolveRefs::visitExprRefPathStatic(ast::IExprRefPathStatic *i) {
 void TaskResolveRefs::visitExprRefPathStaticRooted(ast::IExprRefPathStaticRooted *i) {
     DEBUG_ENTER("visitExprRefPathStaticRooted %s",
         i->getLeaf()->getElems().at(0)->getId()->getId().c_str());
+
+    // Set here as well as in visitExprRefPathContext: `p::f(1);` is a
+    // standalone statement too, and a qualified name builds a *different*
+    // expression node. Setting it in only one of the two made every
+    // statement-position call through a package qualifier look like an
+    // operand, and three tests that had nothing to do with void returns
+    // started failing on `p::f(1);` and `p::m(1,2);`.
+    SaveExpr save_refpath(m_cur_refpath, i);
     // Resolve the root
     if (i->getRoot()->getIs_global()) {
         ast::IExprId *id = i->getLeaf()->getElems().at(0)->getId();
@@ -946,43 +1701,6 @@ void TaskResolveRefs::resolveStaticRootedLeaf(ast::IExprRefPathStaticRooted *i) 
         return;
     }
 
-    // `getRoot()->getTarget()` names only the *first* element of the static
-    // path: visitExprRefPathStatic resolves base[0] and merely visits the rest.
-    // So the remainder has to be walked here for `p::q::g(...)` to arrive at
-    // `q` rather than at `p`.
-    for (uint32_t bi=1; bi<i->getRoot()->getBase().size(); bi++) {
-        ast::ITypeIdentifierElem *belem = i->getRoot()->getBase().at(bi).get();
-
-        if (belem->getParams()) {
-            // A parameterized element would have to be specialized first, and
-            // the specialization built for the root is not reachable from here.
-            DEBUG_LEAVE("resolveStaticRootedLeaf -- parameterized base element");
-            return;
-        }
-
-        TaskFindPathElem::Result bres = TaskFindPathElem(
-            m_ctxt->getDebugMgr(),
-            m_ctxt->root()).find(target_s, belem->getId());
-
-        // Deliberately silent on failure: the root path is resolved (and
-        // reported on) by visitExprRefPathStatic, and duplicating its
-        // diagnostics here would report the same name twice.
-        if (!bres.sym) {
-            DEBUG_LEAVE("resolveStaticRootedLeaf -- base elem %s not found",
-                belem->getId()->getId().c_str());
-            return;
-        }
-
-        target_s = TaskGetElemSymbolScope(
-            m_ctxt->getDebugMgr(), m_ctxt->root()).resolve(bres.sym);
-
-        if (!target_s) {
-            DEBUG_LEAVE("resolveStaticRootedLeaf -- base elem %s is not a scope",
-                belem->getId()->getId().c_str());
-            return;
-        }
-    }
-
     for (uint32_t ii=0; ii<i->getLeaf()->getElems().size(); ii++) {
         ast::IExprMemberPathElem *elem = i->getLeaf()->getElems().at(ii).get();
 
@@ -991,20 +1709,24 @@ void TaskResolveRefs::resolveStaticRootedLeaf(ast::IExprRefPathStaticRooted *i) 
             m_ctxt->root()).find(target_s, elem->getId());
 
         if (!res.sym) {
+            // Same wording as the member-path loop above: one phrasing for
+            // one diagnosis, whether the receiver was reached through a
+            // qualified path or a member path.
             m_ctxt->addErrorMarker(
                 elem->getId()->getLocation(),
-                "failed to find '%s' in '%s'",
-                elem->getId()->getId().c_str(),
-                target_s->getName().c_str());
+                "'%s' has no member named '%s'",
+                target_s->getName().c_str(),
+                elem->getId()->getId().c_str());
             break;
         }
 
         elem->setTarget(res.idx);
         elem->setSuper(res.super_idx);
 
+        checkCallArity(elem, res.sym);
+
         if (elem->getParams()) {
             elem->getParams()->accept(m_this);
-            TaskCheckCallArgs(m_ctxt).check(res.sym, elem);
             if (m_template_depth) {
                 TaskTemplateCheck(m_ctxt).checkPure(res.sym, elem);
             }
@@ -1165,11 +1887,52 @@ void TaskResolveRefs::visitProceduralStmtRepeat(ast::IProceduralStmtRepeat *i) {
     DEBUG_LEAVE("visitProceduralStmtRepeat");
 }
 
+void TaskResolveRefs::typeForeachIterator(ast::IProceduralStmtForeach *i) {
+    if (!i->getIt_id() || !i->getPath() || !i->getPath()->getTarget()) {
+        DEBUG("No iterator variable, or the collection did not resolve");
+        return;
+    }
+
+    // The iterator variable the AST builder registered on the foreach node.
+    std::unordered_map<std::string, int32_t>::const_iterator it =
+        i->getSymtab().find(i->getIt_id()->getId());
+    if (it == i->getSymtab().end()) {
+        return;
+    }
+    ast::IProceduralStmtDataDeclaration *var =
+        dynamic_cast<ast::IProceduralStmtDataDeclaration *>(
+            i->getChildren().at(it->second).get());
+    if (!var || var->getDatatype()) {
+        return;
+    }
+
+    ast::IScopeChild *coll = TaskResolveSymbolPathRef(
+        m_ctxt->getDebugMgr(),
+        m_ctxt->root(),
+        m_ctxt->inlineCtxt()).resolve(i->getPath()->getTarget());
+
+    ast::IDataType *elem_t = TaskGetCollectionElemType(
+        m_ctxt->getDebugMgr(), m_ctxt->root()).resolve(coll);
+
+    if (elem_t) {
+        DEBUG("Iterator %s takes the collection's element type",
+            i->getIt_id()->getId().c_str());
+        // Not owned: the type belongs to the collection's specialized
+        // parameter list, which outlives the loop that borrows it.
+        var->setDatatype(elem_t, false);
+    }
+}
+
 void TaskResolveRefs::visitProceduralStmtForeach(ast::IProceduralStmtForeach *i) {
     DEBUG_ENTER("visitProceduralStmtForeach %d", i->getSymtab().size());
     // Resolve the collection path in the OUTER scope (it must not see the
     // loop variables registered on the foreach node itself).
     if (i->getPath()) { i->getPath()->accept(m_this); }
+    // The AST builder creates the iterator variable untyped -- at parse time
+    // the collection is just a path. Give it the collection's element type now
+    // that the path has resolved, so member access through the iterator
+    // (`foreach (e : l) { e.field }`) has something to look `field` up in.
+    typeForeachIterator(i);
     // Push the foreach scope so the iterator/index variables are visible while
     // resolving references in the body (e.g. `arr[i]`).
     m_ctxt->symtab()->pushScope(i);
@@ -1387,6 +2150,274 @@ void TaskResolveRefs::visitSymbolExtendScope(ast::ISymbolExtendScope *i) {
 //     DEBUG_LEAVE("visitSymbolExecScope \"%s\"", i->getName().c_str());
 // }
 
+void TaskResolveRefs::visitProceduralStmtExpr(ast::IProceduralStmtExpr *i) {
+    // The one place a call is allowed to be void (LRM 20.5). Recorded rather
+    // than checked here: by the time the ref-path is reached, the walk has no
+    // way to ask what statement it is under.
+    //
+    // Saved and restored rather than assigned and cleared: a statement's own
+    // expression can contain further calls -- `f(g())` -- and each of those
+    // is an operand, not a statement.
+    ast::IExpr *prev = m_stmt_expr;
+    m_stmt_expr = i->getExpr();
+    ast::VisitorBase::visitProceduralStmtExpr(i);
+    m_stmt_expr = prev;
+}
+
+void TaskResolveRefs::checkVoidCallUse(
+        ast::IExprMemberPathElem  *elem,
+        ast::ISymbolFunctionScope *fn) {
+    // LRM 20.5: "Functions not returning a value (declared with void return
+    // type) may only be called as standalone procedural statements."
+    //
+    // The converse is explicitly *not* an error, and is not checked: "Calling
+    // a nonvoid function as if it has no return value shall be legal, but it
+    // is recommended to explicitly discard the return value by casting the
+    // function call to void." A recommendation is not a rule.
+    if (m_cur_refpath && m_cur_refpath == m_stmt_expr) {
+        return;
+    }
+
+    // Any prototype with a return type is enough. A function is void only if
+    // every declaration of it says so.
+    for (std::vector<ast::IFunctionPrototype *>::const_iterator
+        it=fn->getPrototypes().begin();
+        it!=fn->getPrototypes().end(); it++) {
+        if ((*it)->getRtype()) {
+            return;
+        }
+    }
+
+    m_ctxt->addMarker(
+        MarkerSeverityE::Error,
+        elem->getId()->getLocation(),
+        "'%s' returns void, so its result cannot be used as a value",
+        elem->getId()->getId().c_str());
+}
+
+void TaskResolveRefs::checkDeclarationConsistency(ast::ISymbolFunctionScope *i) {
+    if (i->getPrototypes().size() < 2) {
+        return;
+    }
+
+    // Compared against the *first* prototype rather than pairwise, because
+    // that is the one every other pass already treats as authoritative:
+    // visitFunctionDefinition inserts a definition's prototype at the front,
+    // declaredTypeOf and TaskGetElemSymbolScope both take the first return
+    // type they find, and m_func_s checks a `return` against front(). One
+    // choice of authority, or the diagnostics disagree with each other.
+    ast::IFunctionPrototype *base = i->getPrototypes().front();
+
+    TaskCompareTypeRefs comp(m_ctxt->getFactory(), m_ctxt->root());
+
+    for (uint32_t idx=1; idx<i->getPrototypes().size(); idx++) {
+        ast::IFunctionPrototype *p = i->getPrototypes().at(idx);
+
+        if (checkReturnTypeConsistency(base, p, comp)) {
+            return;
+        }
+        if (checkParamListConsistency(base, p, comp)) {
+            return;
+        }
+    }
+}
+
+bool TaskResolveRefs::checkReturnTypeConsistency(
+        ast::IFunctionPrototype     *base,
+        ast::IFunctionPrototype     *p,
+        TaskCompareTypeRefs         &comp) {
+    // `void` is not a data type in this AST -- it is the absence of one --
+    // so it needs its own comparison, and it gets its own message. It is
+    // also the only disagreement that can be stated with certainty
+    // without resolving anything.
+    if ((base->getRtype() == 0) != (p->getRtype() == 0)) {
+        m_ctxt->addMarker(
+            MarkerSeverityE::Error,
+            p->getName()->getLocation(),
+            "declarations of '%s' disagree about the return type: "
+            "one returns void and the other does not",
+            p->getName()->getId().c_str());
+        return true;
+    }
+
+    if (!base->getRtype()) {
+        return false;
+    }
+
+    // Only a *certain* difference is reported. `Unsure` covers a type
+    // this parser cannot compare -- an unfolded width, an alias, a kind
+    // with no comparison -- and every one of those is a case where the
+    // two declarations may well agree. Under-reporting here costs a
+    // missed diagnostic on invalid input; over-reporting rejects valid
+    // input, which is worse.
+    if (comp.compare(base->getRtype(), p->getRtype())
+        == TaskCompareTypeRefs::Rel::NotEqual) {
+        m_ctxt->addMarker(
+            MarkerSeverityE::Error,
+            p->getName()->getLocation(),
+            "declarations of '%s' disagree about the return type",
+            p->getName()->getId().c_str());
+        return true;
+    }
+
+    return false;
+}
+
+/**
+ * A parameter's direction as it *behaves*, rather than as it is written.
+ *
+ * LRM 20.2.1: the direction modifiers are optional, and an omitted one is
+ * input. So `f(int a)` and `f(input int a)` are the same declaration written
+ * two ways, and reporting them as a disagreement would reject valid code --
+ * while `f(int a)` against `f(output int a)` is a real conflict and is
+ * reported.
+ *
+ * Note that the *presence* of a modifier does carry a separate consequence --
+ * it makes the function importable only (LRM 20.3.2) -- but that rule is
+ * already applied across every prototype by
+ * TaskBuildSymbolTree::checkNativeParamDir, so it does not need this one to
+ * treat the two spellings as different.
+ */
+static ast::ParamDir effectiveDir(ast::IFunctionParamDecl *pd) {
+    return (pd->getDir() == ast::ParamDir::ParamDir_Default)
+        ? ast::ParamDir::ParamDir_In
+        : pd->getDir();
+}
+
+/** How a parameter's position reads in a message: `parameter 2 ('len')`. */
+static std::string paramDesc(uint32_t idx, ast::IFunctionParamDecl *pd) {
+    char buf[32];
+    snprintf(buf, sizeof(buf), "parameter %u", idx+1);
+    std::string ret(buf);
+    if (pd->getName()) {
+        ret += " ('" + pd->getName()->getId() + "')";
+    }
+    return ret;
+}
+
+bool TaskResolveRefs::checkParamListConsistency(
+        ast::IFunctionPrototype     *base,
+        ast::IFunctionPrototype     *p,
+        TaskCompareTypeRefs         &comp) {
+    const std::string &fname = p->getName()->getId();
+    ast::Location loc = p->getName()->getLocation();
+
+    if (base->getParameters().size() != p->getParameters().size()) {
+        m_ctxt->addMarker(
+            MarkerSeverityE::Error,
+            loc,
+            "declarations of '%s' disagree about the number of parameters "
+            "(%u and %u)",
+            fname.c_str(),
+            (uint32_t)base->getParameters().size(),
+            (uint32_t)p->getParameters().size());
+        return true;
+    }
+
+    for (uint32_t idx=0; idx<base->getParameters().size(); idx++) {
+        ast::IFunctionParamDecl *b = base->getParameters().at(idx).get();
+        ast::IFunctionParamDecl *q = p->getParameters().at(idx).get();
+
+        // The kind separates a value parameter from a type parameter and from
+        // each flavour of reference parameter -- `int a`, `type a`, `ref
+        // action a`. These are not variations of one thing, so the comparison
+        // below would be measuring types that are not comparable.
+        if (b->getKind() != q->getKind()) {
+            m_ctxt->addMarker(
+                MarkerSeverityE::Error, loc,
+                "declarations of '%s' disagree about what kind of %s is",
+                fname.c_str(), paramDesc(idx, b).c_str());
+            return true;
+        }
+
+        if (b->getIs_varargs() != q->getIs_varargs()) {
+            m_ctxt->addMarker(
+                MarkerSeverityE::Error, loc,
+                "declarations of '%s' disagree about whether %s is varargs",
+                fname.c_str(), paramDesc(idx, b).c_str());
+            return true;
+        }
+
+        if (effectiveDir(b) != effectiveDir(q)) {
+            m_ctxt->addMarker(
+                MarkerSeverityE::Error, loc,
+                "declarations of '%s' disagree about the direction of %s",
+                fname.c_str(), paramDesc(idx, b).c_str());
+            return true;
+        }
+
+        // LRM 20.2.4 c: "A default parameter value shall not be specified in
+        // the redeclaration of a function if already declared for the same
+        // parameter in a previous declaration, *even if the value is the
+        // same*." So the values are deliberately not compared -- specifying
+        // one twice is the violation.
+        //
+        // Stated without "earlier"/"previous", because the prototype list is
+        // not in lexical order: a definition's prototype is moved to the
+        // front. The rule is symmetric, so nothing is lost by saying so.
+        if (b->getDflt() && q->getDflt()) {
+            m_ctxt->addMarker(
+                MarkerSeverityE::Error, loc,
+                "%s of '%s' is given a default value by more than one "
+                "declaration; only one declaration may give it",
+                paramDesc(idx, b).c_str(), fname.c_str());
+            return true;
+        }
+
+        if (comp.compare(b->getType(), q->getType())
+            == TaskCompareTypeRefs::Rel::NotEqual) {
+            m_ctxt->addMarker(
+                MarkerSeverityE::Error, loc,
+                "declarations of '%s' disagree about the type of %s",
+                fname.c_str(), paramDesc(idx, b).c_str());
+            return true;
+        }
+    }
+
+    return false;
+}
+
+void TaskResolveRefs::visitProceduralStmtReturn(ast::IProceduralStmtReturn *i) {
+    // Resolve the returned expression first, whatever the verdict below: a
+    // bad reference inside it should be reported on its own terms.
+    ast::VisitorBase::visitProceduralStmtReturn(i);
+
+    if (m_func_s.empty()) {
+        // A `return` outside any function body. The grammar admits one in an
+        // action's exec block, where there is nothing to check it against.
+        DEBUG("Note: return outside a function body");
+        return;
+    }
+
+    ast::IFunctionPrototype *proto = m_func_s.back();
+
+    // A null return type is how `void` is spelled -- see
+    // AstBuilderInt::mkFunctionPrototype, which leaves rtype at 0 unless the
+    // return type parses as a data_type.
+    bool is_void = (proto->getRtype() == 0);
+
+    // Report at the statement, not at the function name: a body may hold
+    // several returns and only one of them be wrong.
+    ast::Location loc = i->getLocation();
+    if (loc.lineno < 0) {
+        loc = proto->getName()->getLocation();
+    }
+
+    if (is_void && i->getExpr()) {
+        m_ctxt->addMarker(
+            MarkerSeverityE::Error,
+            loc,
+            "'%s' returns void, so 'return' cannot take a value",
+            proto->getName()->getId().c_str());
+    } else if (!is_void && !i->getExpr()) {
+        m_ctxt->addMarker(
+            MarkerSeverityE::Error,
+            loc,
+            "'%s' has a return type, so 'return' must supply a value",
+            proto->getName()->getId().c_str());
+    }
+}
+
 void TaskResolveRefs::visitSymbolFunctionScope(ast::ISymbolFunctionScope *i) {
     DEBUG_ENTER("visitSymbolFunctionScope %s (%d %p) ", 
     i->getName().c_str(),
@@ -1398,6 +2429,8 @@ void TaskResolveRefs::visitSymbolFunctionScope(ast::ISymbolFunctionScope *i) {
         it!=i->getPrototypes().end(); it++) {
         (*it)->accept(m_this);
     }
+
+    checkDeclarationConsistency(i);
 
 //    if (i->getBody()) {
         DEBUG("Push function scope %s", i->getName().c_str());
@@ -1414,7 +2447,17 @@ void TaskResolveRefs::visitSymbolFunctionScope(ast::ISymbolFunctionScope *i) {
         // Resolve references in the body
         if (i->getBody()) {
             DEBUG("--> visitBody");
+            // Track which function's body this is, so that a `return` inside
+            // it can be checked against the declared return type.
+            // visitFunctionDefinition inserts the definition's own prototype
+            // at the front, so front() is the one that carries this body.
+            if (i->getPrototypes().size()) {
+                m_func_s.push_back(i->getPrototypes().front());
+            }
             i->getBody()->accept(m_this);
+            if (i->getPrototypes().size()) {
+                m_func_s.pop_back();
+            }
             DEBUG("<-- visitBody");
         }
 
@@ -1434,6 +2477,33 @@ void TaskResolveRefs::visitSymbolFunctionScope(ast::ISymbolFunctionScope *i) {
 //     DEBUG_LEAVE("visitSymbolStmtScope %s", i->getName().c_str());
 // }
 
+/**
+ * True when ``dt`` is a bare reference to one of ``plist``'s own parameters.
+ *
+ * Such a reference resolves only inside the generic, so it must not be
+ * resolved in the declaring scope -- where the name means nothing, or worse,
+ * means some unrelated type that happens to share it.
+ */
+static bool namesTemplateParam(
+        ast::ITemplateParamDeclList *plist,
+        ast::IDataType              *dt) {
+    ast::IDataTypeUserDefined *ud = dynamic_cast<ast::IDataTypeUserDefined *>(dt);
+    if (!ud || !ud->getType_id() ||
+        ud->getType_id()->getElems().size() != 1 ||
+        !ud->getType_id()->getElems().at(0)->getId()) {
+        return false;
+    }
+    const std::string &name = ud->getType_id()->getElems().at(0)->getId()->getId();
+    for (std::vector<ast::ITemplateParamDeclUP>::const_iterator
+        it=plist->getParams().begin();
+        it!=plist->getParams().end(); it++) {
+        if ((*it)->getName() && (*it)->getName()->getId() == name) {
+            return true;
+        }
+    }
+    return false;
+}
+
 void TaskResolveRefs::visitSymbolTypeScope(ast::ISymbolTypeScope *i) {
     ast::ITypeScope *i_ts = dynamic_cast<ast::ITypeScope *>(i->getTarget());
     DEBUG_ENTER("visitSymbolTypeScope %s (param=%s specialized=%s)", 
@@ -1442,6 +2512,41 @@ void TaskResolveRefs::visitSymbolTypeScope(ast::ISymbolTypeScope *i) {
         (i_ts->getParams() && i_ts->getParams()->getSpecialized())?"true":"false");
     if (i_ts->getParams() && !i_ts->getParams()->getSpecialized()) {
         DEBUG("Note: Skipping symbol resolution in an unspecialized templated type");
+
+        // One thing in an unspecialized generic's declaration must still be
+        // resolved: the restriction on a category type parameter. It names a
+        // concrete type in the *declaring* scope, and it has to be resolved
+        // before any use of the generic, because checking an argument against
+        // it happens while that use is being specialized -- which is to say,
+        // before this type scope would otherwise be visited at all.
+        //
+        // Only restrictions. A parameter *default* may name an earlier
+        // parameter of the same list (`struct S<type T, type U = T>`), which
+        // does not resolve in the declaring scope; attempting it would report
+        // an unknown type for a perfectly legal declaration.
+        for (std::vector<ast::ITemplateParamDeclUP>::const_iterator
+            it=i_ts->getParams()->getParams().begin();
+            it!=i_ts->getParams()->getParams().end(); it++) {
+            ast::ITemplateCategoryTypeParamDecl *cat =
+                dynamic_cast<ast::ITemplateCategoryTypeParamDecl *>(it->get());
+            if (!cat) {
+                continue;
+            }
+            if (cat->getRestriction()) {
+                DEBUG_ENTER("Resolve type-parameter restriction");
+                cat->getRestriction()->accept(m_this);
+                DEBUG_LEAVE("Resolve type-parameter restriction");
+            }
+            // A category parameter's default is checked against the
+            // restriction the same way a supplied argument is, so it needs a
+            // target too. The caveat above applies, so a default that spells
+            // the name of a parameter in this same list is left alone.
+            if (cat->getDflt() && !namesTemplateParam(i_ts->getParams(), cat->getDflt())) {
+                DEBUG_ENTER("Resolve type-parameter default");
+                cat->getDflt()->accept(m_this);
+                DEBUG_LEAVE("Resolve type-parameter default");
+            }
+        }
     } else {
         ast::SymbolRefPathElemKind kind = ast::SymbolRefPathElemKind::ElemKind_ChildIdx;
 
@@ -1722,10 +2827,18 @@ void TaskResolveRefs::visitDataTypeUserDefined(ast::IDataTypeUserDefined *i) {
         DEBUG("Success");
         i->getType_id()->setTarget(target);
 
+        // Guarded: a resolved *path* is not the same as a reachable node. An
+        // override's path is built before super types are resolved, so its
+        // final step can index past the end of the scope it names and come
+        // back null -- `override action base_a` seen from a sibling subtype is
+        // the case that crashed here. addRef only records a file-to-file edge
+        // for the include graph, so skipping it costs nothing but the edge.
         ast::IScopeChild *target_c = m_ctxt->resolveSymbolPathRef(target);
-        m_ctxt->addRef(
-            i->getLocation().fileid,
-            target_c->getLocation().fileid);
+        if (target_c) {
+            m_ctxt->addRef(
+                i->getLocation().fileid,
+                target_c->getLocation().fileid);
+        }
     } else {
         DEBUG("Failed");
         // char tmp[1024];
@@ -1858,5 +2971,351 @@ ast::IScopeChild *TaskResolveRefs::resolvePath(ast::ISymbolRefPath *path) {
 }
 
 dmgr::IDebug *TaskResolveRefs::m_dbg = 0;
+
+
+// --- PSS 3.1 §21.14.1: field names in a masked register write --------------
+//
+// `regs.csr.write_field("ch_en", 1)` names a declared field of the register's
+// value type. The string spelling is forced by the LRM's own signature --
+// `write_field(string name, bit[SZ] val)` -- and is not a sign that the name is
+// data: §21.14.1 restricts it to a string *literal* precisely so a tool can
+// resolve it at compile time.
+//
+// Resolving it is name binding, which is this pass's job. Everything the parser
+// resolves elsewhere -- types, members, methods, enum items -- goes through
+// here, and a name that did not would be resolved instead by each consumer, or
+// by none. Before this, `write_field("chan_en", 1)` -- one letter wrong --
+// linked clean and wrote a register bit nobody asked for.
+//
+// What is NOT decided here: which bits a resolved field occupies. `packed_s<>`
+// layout is a target representation -- the C and SystemVerilog backends order
+// it oppositely, on purpose -- so it belongs to the compiler, which folds the
+// mask. This pass answers "which field", and the compiler answers "which bits".
+
+bool TaskResolveRefs::regValueStruct(
+        ast::ISymbolScope  *recv_s,
+        ast::IStruct      **vs) {
+    *vs = 0;
+    ast::ISymbolTypeScope *ts = dynamic_cast<ast::ISymbolTypeScope *>(recv_s);
+
+    // Bounded rather than "until the super is null": a super chain is a handful
+    // of links, and a cycle here would hang the parse instead of diagnosing it.
+    for (int32_t depth=0; ts && depth<32; depth++) {
+        ast::ITypeScope *decl = dynamic_cast<ast::ITypeScope *>(ts->getTarget());
+
+        if (!decl) {
+            return false;
+        }
+
+        ast::ITemplateParamDeclList *params = decl->getParams();
+
+        if (params) {
+            for (std::vector<ast::ITemplateParamDeclUP>::const_iterator
+                it=params->getParams().begin();
+                it!=params->getParams().end(); it++) {
+                if (!(*it)->getName() || (*it)->getName()->getId() != "R") {
+                    continue;
+                }
+
+                // This is reg_c. Its bound R is carried as the parameter's
+                // *default*: TaskGetSpecializedTemplateType copies the
+                // declaration and replaces the parameter list with the bound
+                // one, so a specialization's default IS its argument.
+                ast::ITemplateGenericTypeParamDecl *tp =
+                    dynamic_cast<ast::ITemplateGenericTypeParamDecl *>(it->get());
+
+                if (!tp || !tp->getDflt()) {
+                    // The unspecialized declaration: nothing is bound, so
+                    // there is nothing to resolve against.
+                    return false;
+                }
+
+                ast::IDataTypeUserDefined *udt =
+                    dynamic_cast<ast::IDataTypeUserDefined *>(tp->getDflt());
+
+                if (!udt || !udt->getType_id()) {
+                    // reg_c<bit[32]>: a register, but with no named fields.
+                    // Reported by the caller, which knows what was asked for.
+                    return true;
+                }
+
+                ast::ISymbolTypeScope *sts = TaskResolveSymbolPathRef(
+                        m_ctxt->getDebugMgr(), m_ctxt->root())
+                    .resolveT<ast::ISymbolTypeScope>(
+                        udt->getType_id()->getTarget());
+                *vs = sts
+                    ? dynamic_cast<ast::IStruct *>(sts->getTarget())
+                    : 0;
+                return true;
+            }
+        }
+
+        // Not reg_c itself. A named register type --
+        // `pure component csr_r : reg_c<csr_s, ...>` -- puts exactly one link
+        // between the field's type and the register; an inline
+        // `reg_c<csr_s, ...> csr;` puts none.
+        if (!decl->getSuper_t()) {
+            return false;
+        }
+
+        // TaskResolveSymbolPathRef, not resolvePath(): the super of a named
+        // register type is a *specialization* (`reg_c<csr_s,?,32>`), which
+        // lives in the base type's spec_types rather than among its children,
+        // so the plain index walk cannot reach it and silently yields null.
+        ts = TaskResolveSymbolPathRef(
+                m_ctxt->getDebugMgr(), m_ctxt->root())
+            .resolveT<ast::ISymbolTypeScope>(decl->getSuper_t()->getTarget());
+    }
+
+    return false;
+}
+
+/// The declared field of `vs` named `n`, or null.
+static ast::IField *findRegField(ast::IStruct *vs, const std::string &n) {
+    for (std::vector<ast::IScopeChildUP>::const_iterator
+        it=vs->getChildren().begin(); it!=vs->getChildren().end(); it++) {
+        ast::IField *f = dynamic_cast<ast::IField *>(it->get());
+        if (f && f->getName() && f->getName()->getId() == n) {
+            return f;
+        }
+    }
+    return 0;
+}
+
+/// The closest declared field name to `n`, for a `did you mean` suggestion.
+static std::string closestRegField(ast::IStruct *vs, const std::string &n) {
+    std::string best;
+    int bestDist = 3;
+    for (std::vector<ast::IScopeChildUP>::const_iterator
+        it=vs->getChildren().begin(); it!=vs->getChildren().end(); it++) {
+        ast::IField *f = dynamic_cast<ast::IField *>(it->get());
+        if (!f || !f->getName()) {
+            continue;
+        }
+        int d = editDistance_rr(n, f->getName()->getId());
+        if (d > 0 && d < bestDist) {
+            bestDist = d;
+            best = f->getName()->getId();
+        }
+    }
+    return best;
+}
+
+static const char *structName(ast::IStruct *vs) {
+    return (vs->getName())?vs->getName()->getId().c_str():"<anonymous>";
+}
+
+ast::IField *TaskResolveRefs::resolveRegField(
+        ast::IExprMemberPathElem *elem,
+        ast::IStruct             *vs,
+        ast::IExpr               *name_e) {
+    const std::string &method = elem->getId()->getId();
+
+    ast::IExprString *lit = dynamic_cast<ast::IExprString *>(name_e);
+
+    if (!lit) {
+        // §21.14.1(a). Reported here rather than left to the compiler because
+        // this is the restriction that makes compile-time resolution possible
+        // at all, and "must be a string literal" is a better answer than
+        // whatever the compiler would say about a mask it could not fold.
+        m_ctxt->addErrorMarker(
+            elem->getId()->getLocation(),
+            "%s: the field name must be a string literal (PSS 3.1 21.14.1); "
+            "it names a declared field of '%s' and is resolved at compile time",
+            method.c_str(),
+            structName(vs));
+        return 0;
+    }
+
+    const std::string &n = lit->getValue();
+
+    if (n.find('.') != std::string::npos) {
+        // §21.14.1(b): top-level fields only.
+        m_ctxt->addErrorMarker(
+            elem->getId()->getLocation(),
+            "%s: field name '%s' must not be a hierarchical reference "
+            "(PSS 3.1 21.14.1)",
+            method.c_str(),
+            n.c_str());
+        return 0;
+    }
+
+    ast::IField *f = findRegField(vs, n);
+
+    if (!f) {
+        std::string suggestion = closestRegField(vs, n);
+        if (suggestion.empty()) {
+            m_ctxt->addErrorMarker(
+                elem->getId()->getLocation(),
+                "no field '%s' in register value type '%s'",
+                n.c_str(),
+                structName(vs));
+        } else {
+            m_ctxt->addErrorMarker(
+                elem->getId()->getLocation(),
+                "no field '%s' in register value type '%s'; did you mean '%s'?",
+                n.c_str(),
+                structName(vs),
+                suggestion.c_str());
+        }
+        return 0;
+    }
+
+    if (catOfDataType(f->getType()) == TypeCat::Aggregate) {
+        // §21.14.1(c): the value written is a bit vector, so a field that is
+        // not one cannot receive it.
+        m_ctxt->addErrorMarker(
+            elem->getId()->getLocation(),
+            "%s: field '%s' of '%s' has a composite type; field-wise register "
+            "access applies to scalar fields only (PSS 3.1 21.14.1)",
+            method.c_str(),
+            n.c_str(),
+            structName(vs));
+        return 0;
+    }
+
+    return f;
+}
+
+void TaskResolveRefs::checkRegFieldRefs(
+        ast::IExprMemberPathElem *elem,
+        ast::ISymbolScope        *recv_s) {
+    if (!elem->getParams()) {
+        return;
+    }
+
+    const std::string &method = elem->getId()->getId();
+    bool one    = (method == "write_field");
+    bool many   = (method == "write_fields");
+    bool masked = (method == "write_masked");
+
+    if (!one && !many && !masked) {
+        return;
+    }
+
+    ast::IStruct *vs = 0;
+
+    if (!regValueStruct(recv_s, &vs)) {
+        // Not a register. A user type is free to have a method of this name,
+        // and judging it here would be a false positive on someone else's API.
+        return;
+    }
+
+    if (!vs) {
+        m_ctxt->addErrorMarker(
+            elem->getId()->getLocation(),
+            "%s: this register's value type is not a struct, so it has no "
+            "named fields (PSS 3.1 21.14.1)",
+            method.c_str());
+        return;
+    }
+
+    const std::vector<ast::IExprUP> &args = elem->getParams()->getParameters();
+
+    if (one) {
+        if (args.size() >= 1) {
+            resolveRegField(elem, vs, args.at(0).get());
+        }
+        return;
+    }
+
+    if (many) {
+        if (args.size() < 2) {
+            // Arity is checkCallArity's to report; nothing to resolve.
+            return;
+        }
+
+        ast::IExprAggrList *names =
+            dynamic_cast<ast::IExprAggrList *>(args.at(0).get());
+        ast::IExprAggrList *vals =
+            dynamic_cast<ast::IExprAggrList *>(args.at(1).get());
+
+        if (!names) {
+            m_ctxt->addErrorMarker(
+                elem->getId()->getLocation(),
+                "write_fields: the field names must be a list literal of "
+                "string literals; a runtime list cannot be resolved at compile "
+                "time (PSS 3.1 21.14.1)");
+            return;
+        }
+
+        if (vals && names->getElems().size() != vals->getElems().size()) {
+            m_ctxt->addErrorMarker(
+                elem->getId()->getLocation(),
+                "write_fields: %d field name(s) but %d value(s)",
+                (int32_t)names->getElems().size(),
+                (int32_t)vals->getElems().size());
+        }
+
+        std::set<std::string> seen;
+
+        for (std::vector<ast::IExprUP>::const_iterator
+            it=names->getElems().begin(); it!=names->getElems().end(); it++) {
+            ast::IField *f = resolveRegField(elem, vs, it->get());
+            if (!f) {
+                continue;
+            }
+            // §21.14.1(d). It matters more here than it looks: the whole point
+            // of the plural form is that the fields are written in ONE
+            // read-modify-write, so naming a field twice does not write it
+            // twice -- one of the two values is simply lost.
+            if (!seen.insert(f->getName()->getId()).second) {
+                m_ctxt->addErrorMarker(
+                    elem->getId()->getLocation(),
+                    "write_fields: duplicate field name '%s' (PSS 3.1 21.14.1)",
+                    f->getName()->getId().c_str());
+            }
+        }
+        return;
+    }
+
+    // write_masked(R mask, R val): the arguments are values of the register's
+    // own type, so a struct literal names its fields directly. A non-literal
+    // argument is a whole value and has nothing to check.
+    for (uint32_t ai=0; ai<args.size() && ai<2; ai++) {
+        ast::IExprAggrStruct *sl =
+            dynamic_cast<ast::IExprAggrStruct *>(args.at(ai).get());
+
+        if (!sl) {
+            continue;
+        }
+
+        std::set<std::string> seen;
+
+        for (std::vector<ast::IExprAggrStructElemUP>::const_iterator
+            it=sl->getElems().begin(); it!=sl->getElems().end(); it++) {
+            if (!(*it)->getName()) {
+                continue;
+            }
+
+            const std::string &n = (*it)->getName()->getId();
+
+            if (!findRegField(vs, n)) {
+                std::string suggestion = closestRegField(vs, n);
+                if (suggestion.empty()) {
+                    m_ctxt->addErrorMarker(
+                        elem->getId()->getLocation(),
+                        "write_masked: no field '%s' in register value type '%s'",
+                        n.c_str(), structName(vs));
+                } else {
+                    m_ctxt->addErrorMarker(
+                        elem->getId()->getLocation(),
+                        "write_masked: no field '%s' in register value type "
+                        "'%s'; did you mean '%s'?",
+                        n.c_str(), structName(vs), suggestion.c_str());
+                }
+                continue;
+            }
+
+            if (!seen.insert(n).second) {
+                m_ctxt->addErrorMarker(
+                    elem->getId()->getLocation(),
+                    "write_masked: duplicate field '%s' in the %s literal",
+                    n.c_str(), (ai==0)?"mask":"value");
+            }
+        }
+    }
+}
+
 
 }

@@ -42,6 +42,21 @@ public:
         m_ret = i;
     }
 
+    /**
+     * Answer with the type scope itself, not with something inside it.
+     *
+     * Without this override the base visitor keeps walking after
+     * ``visitSymbolScope(i)`` -- into the parameter list and then each
+     * specialization -- and every one of those is a symbol scope too, so the
+     * *last* one visited wins.  A parameterized type therefore reported its
+     * ``<plist>`` as the enclosing scope, which made a specialized generic's
+     * own fields invisible to any lookup inside its own body.  Non-generic
+     * types were unaffected only because their plist is null.
+     */
+    virtual void visitSymbolTypeScope(ast::ISymbolTypeScope *s) override {
+        m_ret = s;
+    }
+
     virtual void visitSymbolFunctionScope(ast::ISymbolFunctionScope *s) override {
         m_ret = s;
     }
@@ -88,9 +103,6 @@ public:
     //
     // Invisible for a non-parameterized type, which has a null plist and no
     // specializations, hence nothing to descend into.
-    virtual void visitSymbolTypeScope(ast::ISymbolTypeScope *s) override {
-        m_ret = s;
-    }
 
     // Likewise: this descends into its constraint, and a nested foreach/forall
     // carries a ConstraintSymbolScope of its own that would overwrite m_ret.

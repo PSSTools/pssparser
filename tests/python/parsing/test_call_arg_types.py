@@ -32,8 +32,8 @@ def test_string_literal_to_int_parameter():
         component pss_top { exec init_up { g("not an int"); } }
     }
     """
-    assert_marker(pss, marker_id="PSS007",
-                  text="argument 1 to 'g' expects int, got string")
+    assert_marker(pss, marker_id="PSS006",
+                  text="argument 1 of 'g' is a string, but parameter 'a' is numeric")
 
 
 def test_int_literal_to_string_parameter():
@@ -43,8 +43,8 @@ def test_int_literal_to_string_parameter():
         component pss_top { exec init_up { g(1); } }
     }
     """
-    assert_marker(pss, marker_id="PSS007",
-                  text="argument 1 to 'g' expects string, got int")
+    assert_marker(pss, marker_id="PSS006",
+                  text="argument 1 of 'g' is numeric, but parameter 'a' is a string")
 
 
 def test_bool_literal_to_string_parameter():
@@ -54,7 +54,7 @@ def test_bool_literal_to_string_parameter():
         component pss_top { exec init_up { g(true); } }
     }
     """
-    assert_marker(pss, marker_id="PSS007", text="expects string, got bool")
+    assert_marker(pss, marker_id="PSS006", text="is numeric, but parameter 'a' is a string")
 
 
 def test_aggregate_literal_to_scalar_parameter():
@@ -64,8 +64,8 @@ def test_aggregate_literal_to_scalar_parameter():
         component pss_top { exec init_up { g({1, 2}); } }
     }
     """
-    assert_marker(pss, marker_id="PSS007",
-                  text="expects int, got an aggregate literal")
+    assert_marker(pss, marker_id="PSS006",
+                  text="is a composite type, but parameter 'a' is numeric")
 
 
 def test_null_to_string_parameter():
@@ -75,18 +75,24 @@ def test_null_to_string_parameter():
         component pss_top { exec init_up { g(null); } }
     }
     """
-    assert_marker(pss, marker_id="PSS007", text="expects string, got null")
+    assert_marker(pss, marker_id="PSS006", text="is null, but parameter 'a' is a string")
 
 
 def test_bit_parameter_is_named_bit_not_int():
-    """The message reports the declared spelling, not the category name."""
+    """A `bit` parameter is reported as numeric, like any other integral type.
+
+    The message deliberately does not name the declared spelling: `bit`, `int`,
+    `bool` and enums convert freely into one another, so the check has no
+    opinion that distinguishes them and the message should not imply one.
+    """
     pss = """
     package p {
         function void g(bit[8] a);
         component pss_top { exec init_up { g("x"); } }
     }
     """
-    assert_marker(pss, marker_id="PSS007", text="expects bit, got string")
+    assert_marker(pss, marker_id="PSS006",
+                  text="argument 1 of 'g' is a string, but parameter 'a' is numeric")
 
 
 # ---------------------------------------------------------------------------
@@ -102,7 +108,7 @@ def test_string_variable_to_int_parameter():
         }
     }
     """
-    assert_marker(pss, marker_id="PSS007", text="expects int, got string")
+    assert_marker(pss, marker_id="PSS006", text="is a string, but parameter 'a' is numeric")
 
 
 def test_int_variable_to_string_parameter():
@@ -114,7 +120,7 @@ def test_int_variable_to_string_parameter():
         }
     }
     """
-    assert_marker(pss, marker_id="PSS007", text="expects string, got int")
+    assert_marker(pss, marker_id="PSS006", text="is numeric, but parameter 'a' is a string")
 
 
 def test_enclosing_function_parameter_is_classified():
@@ -124,7 +130,7 @@ def test_enclosing_function_parameter_is_classified():
         function void h(int x) { g(x); }
     }
     """
-    assert_marker(pss, marker_id="PSS007", text="expects string, got int")
+    assert_marker(pss, marker_id="PSS006", text="is numeric, but parameter 'a' is a string")
 
 
 def test_comparison_yields_bool():
@@ -134,7 +140,7 @@ def test_comparison_yields_bool():
         component pss_top { exec init_up { g(1 < 2); } }
     }
     """
-    assert_marker(pss, marker_id="PSS007", text="expects string, got bool")
+    assert_marker(pss, marker_id="PSS006", text="is numeric, but parameter 'a' is a string")
 
 
 def test_string_concatenation_yields_string():
@@ -146,7 +152,7 @@ def test_string_concatenation_yields_string():
         }
     }
     """
-    assert_marker(pss, marker_id="PSS007", text="expects int, got string")
+    assert_marker(pss, marker_id="PSS006", text="is a string, but parameter 'a' is numeric")
 
 
 def test_cast_states_the_category():
@@ -156,7 +162,7 @@ def test_cast_states_the_category():
         component pss_top { exec init_up { g((int)1); } }
     }
     """
-    assert_marker(pss, marker_id="PSS007", text="expects string, got int")
+    assert_marker(pss, marker_id="PSS006", text="is numeric, but parameter 'a' is a string")
 
 
 def test_varargs_element_type_is_checked():
@@ -167,8 +173,8 @@ def test_varargs_element_type_is_checked():
         component pss_top { exec init_up { g(1, "x", 3); } }
     }
     """
-    assert_marker(pss, marker_id="PSS007",
-                  text="argument 2 to 'g' expects int, got string")
+    assert_marker(pss, marker_id="PSS006",
+                  text="argument 2 of 'g' is a string, but parameter 'rest' is numeric")
 
 
 # ---------------------------------------------------------------------------
@@ -182,7 +188,7 @@ def test_matching_types_are_silent():
         component pss_top { exec init_up { g(1 + 2, "ok"); } }
     }
     """
-    assert_no_marker(pss, marker_id="PSS007")
+    assert_no_marker(pss, marker_id="PSS006")
 
 
 def test_bool_to_int_parameter_is_accepted():
@@ -192,7 +198,7 @@ def test_bool_to_int_parameter_is_accepted():
         component pss_top { exec init_up { g(true); } }
     }
     """
-    assert_no_marker(pss, marker_id="PSS007")
+    assert_no_marker(pss, marker_id="PSS006")
 
 
 def test_bit_variable_to_int_parameter_is_accepted():
@@ -205,7 +211,7 @@ def test_bit_variable_to_int_parameter_is_accepted():
         }
     }
     """
-    assert_no_marker(pss, marker_id="PSS007")
+    assert_no_marker(pss, marker_id="PSS006")
 
 
 def test_enum_value_to_int_parameter_is_accepted():
@@ -218,7 +224,7 @@ def test_enum_value_to_int_parameter_is_accepted():
         }
     }
     """
-    assert_no_marker(pss, marker_id="PSS007")
+    assert_no_marker(pss, marker_id="PSS006")
 
 
 def test_core_library_call_is_silent():
@@ -243,7 +249,7 @@ def test_member_path_argument_is_not_classified():
         }
     }
     """
-    assert_no_marker(pss, marker_id="PSS007")
+    assert_no_marker(pss, marker_id="PSS006")
 
 
 def test_call_result_argument_is_not_classified():
@@ -255,7 +261,7 @@ def test_call_result_argument_is_not_classified():
         component pss_top { exec init_up { g(h()); } }
     }
     """
-    assert_no_marker(pss, marker_id="PSS007")
+    assert_no_marker(pss, marker_id="PSS006")
 
 
 def test_subscript_argument_is_not_classified():
@@ -267,10 +273,17 @@ def test_subscript_argument_is_not_classified():
         }
     }
     """
-    assert_no_marker(pss, marker_id="PSS007")
+    assert_no_marker(pss, marker_id="PSS006")
 
 
-def test_user_defined_argument_type_is_not_classified():
+def test_user_defined_argument_type_is_classified():
+    """A user-defined type is resolved as far as its declaration.
+
+    A struct, component or action reaches the check as a composite type, so
+    passing one where a scalar is declared is reported. What stays unclassified
+    is what genuinely cannot be placed -- a template parameter, an unresolved
+    name, a built-in collection -- and Unknown is compatible with everything.
+    """
     pss = """
     package p {
         struct s { int f; }
@@ -280,11 +293,18 @@ def test_user_defined_argument_type_is_not_classified():
         }
     }
     """
-    assert_no_marker(pss, marker_id="PSS007")
+    assert_marker(pss, marker_id="PSS006",
+                  text="argument 1 of 'g' is a composite type, "
+                       "but parameter 'a' is numeric")
 
 
-def test_overloaded_function_arguments_are_not_checked():
-    """Choosing a parameter list would mean implementing overload resolution."""
+def test_redeclared_function_is_reported_and_checked_against_the_first():
+    """PSS has no overloading, so two signatures for one name is the defect.
+
+    That is PSS009. The argument check does not then stay silent -- it uses the
+    first declaration, which is the one the rest of the linker treats as
+    authoritative.
+    """
     pss = """
     package p {
         function void g(int a);
@@ -292,13 +312,11 @@ def test_overloaded_function_arguments_are_not_checked():
         component pss_top { exec init_up { g("x"); } }
     }
     """
-    assert_no_marker(pss, marker_id="PSS007")
+    assert_marker(pss, marker_id="PSS009", text="disagree about the number of parameters")
+    assert_marker(pss, marker_id="PSS006",
+                  text="argument 1 of 'g' is a string, but parameter 'a' is numeric")
 
 
-@pytest.mark.xfail(strict=True,
-                   reason="P3-X6c: an enum-typed parameter is written as a "
-                          "user-defined type reference, so it is not "
-                          "classified")
 def test_string_to_enum_parameter_is_reported():
     pss = """
     package p {
@@ -307,4 +325,4 @@ def test_string_to_enum_parameter_is_reported():
         component pss_top { exec init_up { g("x"); } }
     }
     """
-    assert_marker(pss, marker_id="PSS007", text="expects an enum value")
+    assert_marker(pss, marker_id="PSS006", text="is a string, but parameter 'a' is numeric")

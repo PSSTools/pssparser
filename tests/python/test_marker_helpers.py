@@ -10,9 +10,14 @@ filter dimension.
 The PSS fragments below are chosen because they exercise diagnostics that
 already exist today:
 
-* ``duplicate declaration of 'a'`` -- PSS003, severity *warning*, emitted by
-  the linker while the parse still succeeds. This is the only construct in the
-  current implementation with the shape PSS 3.1 deprecations will take.
+* ``unknown annotation type 'nosuch_ann'`` -- PSS101, severity *warning*,
+  emitted while the parse still succeeds. PSS 3.1 7.13 requires that an
+  unrecognized annotation be disregarded rather than rejected, which is exactly
+  the shape the deprecation warnings take.
+
+  (This was ``duplicate declaration of 'a'`` until that became an error:
+  two declarations of one name in one scope is illegal PSS, and the second
+  silently wins the symbol table -- see TaskBuildSymbolTree.)
 * ``unknown type 'Nope'`` -- PSS002, severity *error*, aborts the link.
 """
 import sys
@@ -33,7 +38,8 @@ from pssparser import Parser  # noqa: E402
 
 
 # PSS that links successfully but emits a warning
-DUP_WARNING = "component C { int a; int a; }"
+WARNS = '@nosuch_ann component C { int a; }'
+DUP_WARNING = WARNS  # retained: several assertions below read better by name
 
 # PSS that fails to link with an error
 UNKNOWN_TYPE_ERROR = "component C { Nope x; }"
@@ -150,7 +156,7 @@ def test_assert_marker_by_text():
 
 def test_assert_marker_returns_the_matching_marker():
     m = assert_marker(DUP_WARNING, severity="warning")
-    assert "duplicate" in m["message"]
+    assert "unknown annotation type" in m["message"]
 
 
 def test_assert_marker_fails_when_absent():
@@ -206,7 +212,7 @@ def test_assert_no_marker_fails_when_present():
 def test_assert_no_marker_by_id():
     assert_no_marker(DUP_WARNING, marker_id="PSS002")
     with pytest.raises(AssertionError):
-        assert_no_marker(DUP_WARNING, marker_id="PSS003")
+        assert_no_marker(DUP_WARNING, marker_id="PSS101")
 
 
 def test_assert_no_marker_requires_a_criterion():
@@ -219,18 +225,18 @@ def test_assert_no_marker_requires_a_criterion():
 # =============================================================================
 
 def test_assert_parse_ok_with_warning_happy_path():
-    root = assert_parse_ok_with_warning(DUP_WARNING, marker_id="PSS003")
+    root = assert_parse_ok_with_warning(DUP_WARNING, marker_id="PSS101")
     assert root is not None
 
 
 def test_assert_parse_ok_with_warning_matches_by_text():
-    assert_parse_ok_with_warning(DUP_WARNING, text="duplicate declaration")
+    assert_parse_ok_with_warning(DUP_WARNING, text="unknown annotation type")
 
 
 def test_assert_parse_ok_with_warning_fails_without_warning():
     """Half the assertion: the parse succeeded but nothing warned."""
     with pytest.raises(AssertionError, match="expected warning was not emitted"):
-        assert_parse_ok_with_warning(CLEAN, marker_id="PSS003")
+        assert_parse_ok_with_warning(CLEAN, marker_id="PSS101")
 
 
 def test_assert_parse_ok_with_warning_fails_on_error():

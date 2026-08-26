@@ -8,11 +8,24 @@ package std_pkg {
      */
     struct packed_s<endianness_e e = LITTLE_ENDIAN> {};
 
-    function void print(string fmt/*, type ... args*/);
+    /**
+     * Reports the size of a packed type. Declared here per PSS 3.1 21.13.2;
+     * addr_reg_pkg re-exports it for PSS 2.0 back-compatibility.
+     */
+    struct sizeof_s<type T> {
+        static const int nbytes = /* implementation-specific */ -1;
+        static const int nbits = /* implementation-specific */ -1;
+    };
+
+    function void print(string fmt, type... args);
 
     enum message_verbosity_e {NONE, LOW, MEDIUM, HIGH, FULL};
 
-    function void message(message_verbosity_e vrb_level, string format_str /*, type... args*/);
+    function void message(message_verbosity_e vrb_level, string format_str, type... args);
+
+    solve pure function string format(string format_str, type... args);
+
+    function string format_string(string format, type... args);
 
     function bit[32] urandom();
 

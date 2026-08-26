@@ -3,6 +3,7 @@
 #*
 #* pssparser Python extension setup file
 #*****************************************************************************
+import glob
 import os
 import sys
 import platform
@@ -137,6 +138,11 @@ setup_args = dict(
             "core.pyi",
             "core.pxd",
             "decl.pxd",
+            # The standard-library sources.  A tool that documents or
+            # cross-references the core library needs the .pss text, not just
+            # the compiled-in copy, and an installed wheel is the only place it
+            # can look.  See pssparser.get_stdlib_dir().
+            "stdlib/*.pss",
         ]
     },
     version=version,
@@ -193,8 +199,17 @@ if isSrcBuild:
     else:
         antlr4_rt_lib = "build/{libdir}/{libpref}antlr4-runtime{dllext}"
 
+    # Ship the standard-library sources inside the package.  They live in
+    # src/stdlib, outside package_dir, so package_data alone cannot reach them
+    # in a source build; each file is copied in explicitly.  Globbed rather
+    # than listed so a new stdlib package is picked up without editing here.
+    _stdlib_data = [
+        (os.path.join("src", "stdlib", os.path.basename(f)), "stdlib")
+        for f in sorted(glob.glob(os.path.join(proj_dir, "src", "stdlib", "*.pss")))
+    ]
+
     setup_args["ivpm_extra_data"] = {
-        "pssparser": [
+        "pssparser": _stdlib_data + [
             ("build/include", "share"),
             (antlr4_rt_lib, ""),
             ("build/{libdir}/{libpref}ast{dllext}", ""),

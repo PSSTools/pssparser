@@ -97,7 +97,9 @@ def test_qualified_function_decl_in_a_component():
 
 
 def test_qualifier_combines_with_pure_and_static():
-    assert_parse_ok("package p { target pure static function void f(); }")
+    # Non-void deliberately: LRM 20.2.6 (a) allows `pure` only on a function
+    # that returns a value, and that rule is checked.
+    assert_parse_ok("package p { target pure static function int f(); }")
 
 
 def test_qualifier_with_parameters_and_return_type():
@@ -213,7 +215,7 @@ def test_varargs_data_type_parameter():
 def test_annex_c_style_signatures_parse():
     """The signatures P4-L1 depends on."""
     assert_parse_ok("""
-    package std_pkg {
+    package annex_c_shapes_p {
         function string format(string fmt, type... args);
         target function void print(string fmt, type... args);
         function void message(int level, string fmt, type... args);

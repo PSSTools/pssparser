@@ -20,27 +20,85 @@ To parse PSS code and generate an AST:
 
 .. code-block:: python
 
-    from zuspec.fe.pss import parser
-    
-    # Create a parser instance
-    pss_parser = parser.Factory.inst().getParser()
-    
-    # Parse a PSS file
-    ast_root = pss_parser.parse("""
+    from pssparser import Parser
+
+    pss_parser = Parser()
+
+    # parse()/parses() return a bool -- they do NOT return the AST.
+    # parse()  takes a list of file paths.
+    # parses() takes a list of (filename, source-text) pairs.
+    pss_parser.parses([("inline.pss", """
         component my_comp {
             action my_action {
-                rand int<8> value;
-                
+                rand bit[8] value;
+
                 constraint {
                     value >= 10;
                     value <= 100;
                 }
             }
         }
-    """, "inline.pss")
-    
-    # The result is a GlobalScope containing all declarations
-    print(f"Parsed {len(ast_root.children)} top-level declarations")
+    """)])
+
+    # The AST comes from link(), which returns the linked RootSymbolScope.
+    root = pss_parser.link()
+
+    # Each parsed file is a GlobalScope unit under the root. Units with a
+    # fileid of 0 or -1 are the standard library and the built-ins.
+    for i in range(root.numUnits()):
+        unit = root.getUnit(i)
+        if unit.getFileid() in pss_parser.file_map:
+            print(f"{pss_parser.file_map[unit.getFileid()]}: "
+                  f"{unit.numChildren()} top-level declarations")
+
+.. note::
+
+   Both phases raise ``ParseException`` when they produce error markers, so
+   wrap them in ``try``/``except`` if you want to inspect a model that does
+   not parse cleanly.  The exception carries the markers on its ``.markers``
+   attribute.
+
+Working with a model that failed to link
+----------------------------------------
+
+A caught ``ParseException`` from ``link()`` still leaves a usable model. The
+Parser records its result before reporting the failure, so ``user_units()``,
+``file_map`` and ``root`` are all populated:
+
+.. code-block:: python
+
+   try:
+       root = pss_parser.link()
+   except ParseException as e:
+       # Degraded, but not empty.
+       for unit in pss_parser.user_units():
+           path = pss_parser.file_map[unit.getFileid()]
+           ...
+
+What this gives you is the **per-file view**: every declaration in every file,
+with its location and its doc comment. That is enough to document or index a
+model with one bad type reference in it.
+
+What it does not give you is a trustworthy **cross-file view**. A link error
+means exactly that some cross-file question could not be answered: a type
+reference may be unresolved, and ``extend`` bodies may not have been merged
+into their targets. Treat inherited members, resolved type targets and
+extension contributions as unavailable on this path.
+
+Before this behavior existed, a caught link failure left ``user_units()``
+returning ``[]`` and ``file_map`` empty, and the only way to recover a
+degraded view was to parse the sources a second time into a Parser that is
+never linked.
+
+.. warning::
+
+   ``Parser.link()`` transfers ownership of each ``GlobalScope`` to the
+   returned root, and drops its own references.  Do not hold a ``GlobalScope``
+   obtained before ``link()`` and use it afterwards -- the wrapper becomes a
+   second owner of the same memory and will crash the interpreter.  Reach the
+   units through ``root.getUnit(i)``, as above, or through
+   ``Parser.user_units()``, which does this for you and filters out the
+   library units.
 
 Understanding the AST Structure
 ================================
@@ -83,8 +141,8 @@ Walk the entire AST tree:
         print(f"{indent}{type(node).__name__}")
         
         # Visit children if this is a Scope
-        if hasattr(node, 'children'):
-            for child in node.children:
+        if hasattr(node, 'getChildren'):
+            for child in node.getChildren():
                 visit_node(child, depth + 1)
     
     # Start from root
@@ -97,7 +155,7 @@ Find all actions in the AST:
 
 .. code-block:: python
 
-    from zuspec.fe.pss import ast
+    import pssparser.ast as ast
     
     def find_actions(node, actions=None):
         if actions is None:
@@ -108,8 +166,8 @@ Find all actions in the AST:
             actions.append(node)
         
         # Recursively search children
-        if hasattr(node, 'children'):
-            for child in node.children:
+        if hasattr(node, 'getChildren'):
+            for child in node.getChildren():
                 find_actions(child, actions)
         
         return actions
@@ -128,11 +186,11 @@ Extract all random fields from actions:
 
 .. code-block:: python
 
-    from zuspec.fe.pss import ast
+    import pssparser.ast as ast
     
     def collect_rand_fields(action):
         rand_fields = []
-        for child in action.children:
+        for child in action.getChildren():
             if isinstance(child, ast.Field):
                 # Check if field has Rand attribute
                 if child.attr & ast.FieldAttr.Rand:
@@ -167,7 +225,7 @@ Evaluating Simple Expressions
 
 .. code-block:: python
 
-    from zuspec.fe.pss import ast
+    import pssparser.ast as ast
     
     def describe_expr(expr):
         if isinstance(expr, ast.ExprNumber):
@@ -186,7 +244,7 @@ Evaluating Simple Expressions
     
     # Example: Describe constraint expressions
     for constraint_block in find_constraints(action):
-        for stmt in constraint_block.children:
+        for stmt in constraint_block.getChildren():
             if isinstance(stmt, ast.ConstraintStmtExpr):
                 print(describe_expr(stmt.expr))
 
@@ -197,9 +255,10 @@ Create a new constraint expression:
 
 .. code-block:: python
 
-    from zuspec.fe.pss import ast, parser
+    import pssparser.ast as ast
+    from pssparser import Parser
     
-    factory = parser.Factory.inst()
+    factory = ast.Factory.inst()
     
     # Create: value > 10
     lhs = factory.mkExprId("value")
@@ -235,13 +294,13 @@ Analyzing Activity Flow
         
         if isinstance(activity, ast.ActivitySequence):
             print(f"{indent}Sequential execution:")
-            for child in activity.children:
+            for child in activity.getChildren():
                 analyze_activity(child, depth + 1)
         
         elif isinstance(activity, ast.ActivityParallel):
             join_type = type(activity.join_spec).__name__
             print(f"{indent}Parallel ({join_type}):")
-            for child in activity.children:
+            for child in activity.getChildren():
                 analyze_activity(child, depth + 1)
         
         elif isinstance(activity, ast.ActivityActionHandleTraversal):
@@ -255,7 +314,7 @@ Analyzing Activity Flow
             analyze_activity(activity.body, depth + 1)
     
     # Analyze the activity block of an action
-    for child in action.children:
+    for child in action.getChildren():
         if isinstance(child, ast.ActivityDecl):
             print(f"Activity for {action.name.id}:")
             analyze_activity(child.activity)
@@ -283,11 +342,11 @@ Analyzing Constraints
     def analyze_constraints(action):
         print(f"Constraints in {action.name.id}:")
         
-        for child in action.children:
+        for child in action.getChildren():
             if isinstance(child, ast.ConstraintBlock):
                 print(f"  Block: {child.name if hasattr(child, 'name') else 'anonymous'}")
                 
-                for stmt in child.children:
+                for stmt in child.getChildren():
                     if isinstance(stmt, ast.ConstraintStmtExpr):
                         print(f"    Expression: {describe_expr(stmt.expr)}")
                     
@@ -405,7 +464,7 @@ After parsing, the AST can be "linked" to resolve symbol references:
 
 .. code-block:: python
 
-    from zuspec.fe.pss import linker
+    from pssparser import Parser
     
     # Create a linker
     pss_linker = linker.Factory.inst().mkLinker()
@@ -425,9 +484,10 @@ You can programmatically modify the AST:
 
 .. code-block:: python
 
-    from zuspec.fe.pss import ast, parser
+    import pssparser.ast as ast
+    from pssparser import Parser
     
-    factory = parser.Factory.inst()
+    factory = ast.Factory.inst()
     
     # Add a new field to an action
     new_field = factory.mkField(
@@ -437,7 +497,7 @@ You can programmatically modify the AST:
         None  # no initializer
     )
     
-    action.children.append(new_field)
+    action.addChild(new_field)
 
 Note: After modification, you may need to re-run the linker to update
 symbol references.
@@ -459,8 +519,8 @@ For complex traversals, implement a visitor class:
                 self.constraints.append(node.expr)
             
             # Continue traversal
-            if hasattr(node, 'children'):
-                for child in node.children:
+            if hasattr(node, 'getChildren'):
+                for child in node.getChildren():
                     self.visit(child)
             
             # Handle other node types with children
@@ -503,8 +563,8 @@ Find All Declarations of a Type
         def visit(node):
             if isinstance(node, node_type):
                 results.append(node)
-            if hasattr(node, 'children'):
-                for child in node.children:
+            if hasattr(node, 'getChildren'):
+                for child in node.getChildren():
                     visit(child)
         
         visit(root)
@@ -545,7 +605,7 @@ The parser reports errors through a marker listener:
 
 .. code-block:: python
 
-    from zuspec.fe.pss import parser
+    from pssparser import Parser
     
     class ErrorCollector(parser.IMarkerListener):
         def __init__(self):

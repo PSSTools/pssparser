@@ -14,6 +14,12 @@ ExternalProject_Add(GTEST
           -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_BINARY_DIR}/gtest
 	  -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
 	  -DBUILD_SHARED_LIBS:BOOL=${BUILD_SHARED_LIBS}
+	  # gtest in particular must match: a sanitizer changes what the test
+	  # main and the code under test agree about, and a gtest built without
+	  # the flags the tests were built with is an ODR violation waiting to
+	  # be reported as a bug in the tests.
+	  "-DCMAKE_CXX_FLAGS:STRING=${CMAKE_CXX_FLAGS}"
+	  ${FORWARDED_BUILD_ARGS}
     )
 
 set(CMAKE_INSTALL_RPATH $ORIGIN/../lib)
@@ -57,6 +63,10 @@ target_include_directories(pssparser_testmain PRIVATE
 	${CMAKE_BINARY_DIR}/pssparser_ast/src/include
 	${CMAKE_CURRENT_SOURCE_DIR}/../src
 	${CMAKE_CURRENT_SOURCE_DIR}/../src/include
+	${CMAKE_BINARY_DIR}/antlr4/include/antlr4-runtime
+	${PACKAGES_DIR}/antlr4-cpp-runtime/runtime/src
+	${CMAKE_BINARY_DIR}/src/antlr4cpp_generated_src/PSSLexer
+	${CMAKE_BINARY_DIR}/src/antlr4cpp_generated_src/PSSParser
     "${debug_mgr_INCDIR}"
 )
 

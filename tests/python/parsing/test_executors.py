@@ -12,8 +12,15 @@ Test categories:
 - Trait-constrained assignments
 - Executor+resource combinations
 
+These tests hand-roll the executor types rather than importing the standard
+library's, so they exercise the *syntax* in isolation.  They declare them in
+``test_executor_pkg``, not ``executor_pkg``: the parser does now ship
+``executor_pkg``, so redeclaring ``executor_trait_s`` and friends in it is a
+duplicate declaration -- illegal PSS, and reported as an error since the
+duplicate check stopped being a silent warning.  The package name is the only
+thing that changed; every declaration under test is as it was.
+
 Limitations:
-- Executor standard library (executor_pkg) not available in parser
 - Must define executor_trait_s, executor_c, executor_group_c locally
 - Cannot test exec init_down/init_up blocks (require execution context)
 - Cannot test actual executor assignment logic (requires solver)
@@ -29,14 +36,14 @@ from test_helpers import assert_parse_ok, parse_pss, get_symbol, has_symbol, get
 def test_executor_base_definitions():
     """Test basic executor type definitions."""
     pss = """
-package executor_pkg {
+package test_executor_pkg {
     struct executor_trait_s { }
     struct empty_executor_trait_s : executor_trait_s { }
     component executor_base_c { }
 }
     """
     root = parse_pss(pss)
-    pkg = get_symbol(root, "executor_pkg")
+    pkg = get_symbol(root, "test_executor_pkg")
     assert pkg is not None
     assert has_symbol(pkg, "executor_trait_s")
     assert has_symbol(pkg, "executor_base_c")
@@ -45,7 +52,7 @@ package executor_pkg {
 def test_executor_component_template():
     """Test executor_c template component."""
     pss = """
-    package executor_pkg {
+    package test_executor_pkg {
         struct executor_trait_s { }
         
         struct empty_executor_trait_s : executor_trait_s { }
@@ -64,7 +71,7 @@ def test_executor_component_template():
 def test_executor_group_component():
     """Test executor group component declaration."""
     pss = """
-    package executor_pkg {
+    package test_executor_pkg {
         struct executor_trait_s { }
         
         struct empty_executor_trait_s : executor_trait_s { }
@@ -86,7 +93,7 @@ def test_executor_group_component():
 def test_custom_executor_trait():
     """Test custom executor trait with fields."""
     pss = """
-    package executor_pkg {
+    package test_executor_pkg {
         struct executor_trait_s { }
         
         struct my_core_trait_s : executor_trait_s {
@@ -102,7 +109,7 @@ def test_custom_executor_trait():
 def test_executor_claim_struct():
     """Test executor claim struct declaration."""
     pss = """
-    package executor_pkg {
+    package test_executor_pkg {
         struct executor_trait_s { }
         
         struct empty_executor_trait_s : executor_trait_s { }
@@ -119,7 +126,7 @@ def test_executor_claim_struct():
 def test_executor_instantiation():
     """Test basic executor instantiation in component."""
     pss = """
-    package executor_pkg {
+    package test_executor_pkg {
         struct executor_trait_s { }
         struct empty_executor_trait_s : executor_trait_s { }
         component executor_base_c { }
@@ -128,7 +135,7 @@ def test_executor_instantiation():
         }
     }
     
-    import executor_pkg::*;
+    import test_executor_pkg::*;
     
     component my_chip {
         executor_c cpu1;
@@ -142,7 +149,7 @@ def test_executor_instantiation():
 def test_executor_array():
     """Test executor array declaration."""
     pss = """
-    package executor_pkg {
+    package test_executor_pkg {
         struct executor_trait_s { }
         struct empty_executor_trait_s : executor_trait_s { }
         component executor_base_c { }
@@ -151,7 +158,7 @@ def test_executor_array():
         }
     }
     
-    import executor_pkg::*;
+    import test_executor_pkg::*;
     
     component my_chip {
         executor_c cores[8];
@@ -164,7 +171,7 @@ def test_executor_array():
 def test_executor_group_instantiation():
     """Test executor group instantiation."""
     pss = """
-    package executor_pkg {
+    package test_executor_pkg {
         struct executor_trait_s { }
         struct empty_executor_trait_s : executor_trait_s { }
         component executor_base_c { }
@@ -174,7 +181,7 @@ def test_executor_group_instantiation():
         component executor_group_c { }
     }
     
-    import executor_pkg::*;
+    import test_executor_pkg::*;
     
     component my_chip {
         executor_c cores[4];
@@ -188,7 +195,7 @@ def test_executor_group_instantiation():
 def test_executor_claim_in_action():
     """Test executor claim field in action."""
     pss = """
-    package executor_pkg {
+    package test_executor_pkg {
         struct executor_trait_s { }
         struct empty_executor_trait_s : executor_trait_s { }
         struct executor_claim_s {
@@ -196,7 +203,7 @@ def test_executor_claim_in_action():
         }
     }
     
-    import executor_pkg::*;
+    import test_executor_pkg::*;
     
     component my_chip {
         action compute {
@@ -211,7 +218,7 @@ def test_executor_claim_in_action():
 def test_executor_claim_with_custom_trait():
     """Test executor claim with custom trait."""
     pss = """
-    package executor_pkg {
+    package test_executor_pkg {
         struct executor_trait_s { }
         
         struct my_core_trait_s : executor_trait_s {
@@ -223,7 +230,7 @@ def test_executor_claim_with_custom_trait():
         }
     }
     
-    import executor_pkg::*;
+    import test_executor_pkg::*;
     
     component my_chip {
         action compute {
@@ -240,7 +247,7 @@ def test_executor_claim_with_custom_trait():
 def test_executor_claim_with_implication():
     """Test executor claim with implication constraint."""
     pss = """
-    package executor_pkg {
+    package test_executor_pkg {
         struct executor_trait_s { }
         
         struct my_core_trait_s : executor_trait_s {
@@ -252,7 +259,7 @@ def test_executor_claim_with_implication():
         }
     }
     
-    import executor_pkg::*;
+    import test_executor_pkg::*;
     
     component my_chip {
         action compute {
@@ -270,7 +277,7 @@ def test_executor_claim_with_implication():
 def test_multiple_executors_in_component():
     """Test multiple executor types in component."""
     pss = """
-    package executor_pkg {
+    package test_executor_pkg {
         struct executor_trait_s { }
         struct empty_executor_trait_s : executor_trait_s { }
         component executor_base_c { }
@@ -280,7 +287,7 @@ def test_multiple_executors_in_component():
         component executor_group_c { }
     }
     
-    import executor_pkg::*;
+    import test_executor_pkg::*;
     
     component soc {
         executor_c cpu_cores[4];
@@ -298,7 +305,7 @@ def test_multiple_executors_in_component():
 def test_executor_in_hierarchical_component():
     """Test executors in hierarchical components."""
     pss = """
-    package executor_pkg {
+    package test_executor_pkg {
         struct executor_trait_s { }
         struct empty_executor_trait_s : executor_trait_s { }
         component executor_base_c { }
@@ -307,7 +314,7 @@ def test_executor_in_hierarchical_component():
         }
     }
     
-    import executor_pkg::*;
+    import test_executor_pkg::*;
     
     component cluster {
         executor_c cores[2];
@@ -325,7 +332,7 @@ def test_executor_in_hierarchical_component():
 def test_executor_trait_with_multiple_fields():
     """Test executor trait with multiple field types."""
     pss = """
-    package executor_pkg {
+    package test_executor_pkg {
         struct executor_trait_s { }
         
         struct advanced_trait_s : executor_trait_s {
@@ -344,7 +351,7 @@ def test_executor_trait_with_multiple_fields():
 def test_executor_claim_in_multiple_actions():
     """Test executor claims in multiple actions."""
     pss = """
-    package executor_pkg {
+    package test_executor_pkg {
         struct executor_trait_s { }
         struct empty_executor_trait_s : executor_trait_s { }
         struct executor_claim_s {
@@ -352,7 +359,7 @@ def test_executor_claim_in_multiple_actions():
         }
     }
     
-    import executor_pkg::*;
+    import test_executor_pkg::*;
     
     component my_chip {
         action task_a {
@@ -375,7 +382,7 @@ def test_executor_claim_in_multiple_actions():
 def test_executor_claim_array():
     """Test array of executor claims (simulated)."""
     pss = """
-    package executor_pkg {
+    package test_executor_pkg {
         struct executor_trait_s { }
         struct empty_executor_trait_s : executor_trait_s { }
         struct executor_claim_s {
@@ -383,7 +390,7 @@ def test_executor_claim_array():
         }
     }
     
-    import executor_pkg::*;
+    import test_executor_pkg::*;
     
     component my_chip {
         action parallel_compute {
@@ -398,7 +405,7 @@ def test_executor_claim_array():
 def test_executor_with_inheritance():
     """Test executor component inheritance."""
     pss = """
-    package executor_pkg {
+    package test_executor_pkg {
         struct executor_trait_s { }
         struct empty_executor_trait_s : executor_trait_s { }
         component executor_base_c { }
@@ -407,7 +414,7 @@ def test_executor_with_inheritance():
         }
     }
     
-    import executor_pkg::*;
+    import test_executor_pkg::*;
     
     component specialized_executor_c : executor_c {
         bit[8] custom_id;
@@ -429,7 +436,7 @@ def test_scalability_multiple_executors(executor_count):
     executors = "\n".join([f"        executor_c core{i};" for i in range(executor_count)])
     
     pss = f"""
-    package executor_pkg {{
+    package test_executor_pkg {{
         struct executor_trait_s {{ }}
         struct empty_executor_trait_s : executor_trait_s {{ }}
         component executor_base_c {{ }}
@@ -438,7 +445,7 @@ def test_scalability_multiple_executors(executor_count):
         }}
     }}
     
-    import executor_pkg::*;
+    import test_executor_pkg::*;
     
     component my_chip {{
 {executors}
@@ -454,7 +461,7 @@ def test_scalability_trait_fields(trait_field_count):
     fields = "\n".join([f"            rand int field{i};" for i in range(trait_field_count)])
     
     pss = f"""
-    package executor_pkg {{
+    package test_executor_pkg {{
         struct executor_trait_s {{ }}
         
         struct complex_trait_s : executor_trait_s {{
@@ -474,7 +481,7 @@ def test_scalability_executor_claims(action_count):
         }}""" for i in range(action_count)])
     
     pss = f"""
-    package executor_pkg {{
+    package test_executor_pkg {{
         struct executor_trait_s {{ }}
         struct empty_executor_trait_s : executor_trait_s {{ }}
         struct executor_claim_s {{
@@ -482,7 +489,7 @@ def test_scalability_executor_claims(action_count):
         }}
     }}
     
-    import executor_pkg::*;
+    import test_executor_pkg::*;
     
     component my_chip {{
 {actions}

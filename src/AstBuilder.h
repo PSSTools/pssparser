@@ -46,7 +46,19 @@ public:
 
     virtual void setCollectDocStrings(bool c) override;
 
+    virtual void setCollectComments(bool c) override;
+
+    virtual bool getCollectComments() override;
+
     virtual bool getCollectDocStrings() override;
+
+    virtual void setDocCommentTabWidth(int32_t w) override;
+
+    virtual int32_t getDocCommentTabWidth() override;
+
+    virtual void setDocCommentStrictMarkers(bool s) override;
+
+    virtual bool getDocCommentStrictMarkers() override;
 
     virtual void setEnableProfile(bool e) override;
 

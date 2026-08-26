@@ -19,6 +19,7 @@
  *     Author: 
  */
 #pragma once
+#include <set>
 #include "dmgr/IDebugMgr.h"
 #include "dmgr/impl/DebugMacros.h"
 #include "pssp/ast/impl/VisitorBase.h"
@@ -41,14 +42,62 @@ public:
 
     ast::ISymbolScope *resolve(ast::IScopeChild *c) {
         m_ret = 0;
-        c->accept(m_this);
+        // Each resolve() is an independent walk, so the loop guard starts
+        // empty here rather than persisting across calls -- visiting the same
+        // type twice in two separate queries is normal.
+        m_visiting.clear();
+        // Null is a normal answer from the callers' side -- resolvePath()
+        // returns it for a path that runs off the end of a scope, which
+        // happens whenever a type did not resolve. Every call site passed it
+        // straight through to accept(); the first one to actually be handed a
+        // null segfaulted the linker, on
+        // `list<int> l; l.push_back(42)`.
+        //
+        // No test witnesses this any more, and that is worth stating rather
+        // than leaving to be rediscovered: the call site that crashed was in
+        // TaskResolveRefs::catOfDataType, and rewriting that function to read
+        // the declaration directly (plan section 35.3) removed the call. The
+        // guard is kept because the hazard is structural -- resolve() takes a
+        // pointer that its callers routinely obtain from resolvePath() -- not
+        // because anything currently exercises it.
+        if (c) {
+            c->accept(m_this);
+        }
         return m_ret;
     }
     
     virtual void visitField(ast::IField *i) override {
         DEBUG_ENTER("visitField %s", i->getName()->getId().c_str());
-        i->getType()->accept(m_this);
+        if (i->getType()) {
+            i->getType()->accept(m_this);
+        }
         DEBUG_LEAVE("visitField %s", i->getName()->getId().c_str());
+    }
+
+    // A procedural local (`my_struct_s v;` inside an exec or function body)
+    // reaches its members exactly as a declared field does. Without this,
+    // `v.member` reported "root ref-path element v is not a composite scope"
+    // -- the local resolved to its declaration, but the declaration was
+    // never mapped to its type's scope.
+    virtual void visitProceduralStmtDataDeclaration(
+            ast::IProceduralStmtDataDeclaration *i) override {
+        DEBUG_ENTER("visitProceduralStmtDataDeclaration %s",
+            i->getName()->getId().c_str());
+        if (i->getDatatype()) {
+            i->getDatatype()->accept(m_this);
+        }
+        DEBUG_LEAVE("visitProceduralStmtDataDeclaration");
+    }
+
+    // Likewise for a function parameter, which is where this first showed up
+    // (a `string` parameter could not reach its methods while a field of the
+    // same type could).
+    virtual void visitFunctionParamDecl(ast::IFunctionParamDecl *i) override {
+        DEBUG_ENTER("visitFunctionParamDecl %s", i->getName()->getId().c_str());
+        if (i->getType()) {
+            i->getType()->accept(m_this);
+        }
+        DEBUG_LEAVE("visitFunctionParamDecl");
     }
 
     // forall iterator variable: map it to its type's scope so member access
@@ -89,7 +138,15 @@ public:
 
             // This could be an indirect reference (eg via a parameter). Delegate
             // resolution to support further refinement
-            c->accept(m_this);
+            //
+            // `enter()` is what stops `typedef A B; typedef B A;`: the alias
+            // chain is a user-declared edge, so it can be a cycle, and this
+            // walk follows it with no other bound. See the class note on
+            // m_visiting.
+            if (c && enter(c)) {
+                c->accept(m_this);
+                leave(c);
+            }
         }
         DEBUG_LEAVE("visitDataTypeUserDefined");
     }
@@ -99,8 +156,47 @@ public:
         ast::IScopeChild *c = m_path_resolver.resolve(i->getTarget());
         // This could be an indirect reference (eg via a parameter). Delegate
         // resolution to support further refinement
-        c->accept(m_this);
+        //
+        // Guarded for the same reason as visitDataTypeUserDefined: this
+        // follows a reference the user wrote, so it can close a loop.
+        if (c && enter(c)) {
+            c->accept(m_this);
+            leave(c);
+        }
         DEBUG_LEAVE("visitTypeIdentifier");
+    }
+
+    /**
+     * The members reachable through a call are the members of what it
+     * *returns*.
+     *
+     * Without this, the inherited `visitSymbolScope` matched -- a
+     * SymbolFunctionScope is a SymbolScope -- and handed back the function's
+     * own scope, so `f().x` looked `x` up among `f`'s parameters and locals.
+     * That is not a near miss: `struct S { int x; } function S f(int p);`
+     * accepted `f(1).p` and rejected `f(1).x`, exactly inverting the rule.
+     *
+     * Unconditional rather than asking whether the element carried a
+     * parameter list, because a function name with nothing else after it is
+     * not a value in PSS -- there is no other thing `f.something` could mean.
+     *
+     * A null return is the normal answer for a function returning `void` or a
+     * scalar; every caller already treats a missing scope as "nothing to
+     * search here".
+     */
+    virtual void visitSymbolFunctionScope(ast::ISymbolFunctionScope *i) override {
+        DEBUG_ENTER("visitSymbolFunctionScope \"%s\"", i->getName().c_str());
+        // Any prototype that declares one will do. Overloads differing only
+        // in return type are not a thing the LRM permits, and a prototype
+        // pair that disagrees is already reported as such.
+        for (std::vector<ast::IFunctionPrototype *>::const_iterator
+            it=i->getPrototypes().begin(); it!=i->getPrototypes().end(); it++) {
+            if ((*it)->getRtype()) {
+                (*it)->getRtype()->accept(m_this);
+                break;
+            }
+        }
+        DEBUG_LEAVE("visitSymbolFunctionScope");
     }
 
     virtual void visitSymbolScope(ast::ISymbolScope *i) override {
@@ -115,28 +211,71 @@ public:
         DEBUG_LEAVE("visitSymbolTypeScope");
     }
 
+    // On a *specialized* parameter list the dflt slot holds the bound
+    // argument, which is what these want.  On an unspecialized one it holds
+    // the declared default -- and there may not be one, so it can be null.
+    // A parameter with nothing bound simply has no element scope; every
+    // caller already handles a null return.
+
     virtual void visitTemplateGenericTypeParamDecl(ast::ITemplateGenericTypeParamDecl *i) override {
         DEBUG_ENTER("visitTemplateGenericTypeParamDecl");
-        i->getDflt()->accept(m_this);
+        if (i->getDflt()) {
+            i->getDflt()->accept(m_this);
+        }
         DEBUG_LEAVE("visitTemplateGenericTypeParamDecl");
     }
 
     virtual void visitTemplateCategoryTypeParamDecl(ast::ITemplateCategoryTypeParamDecl *i) override {
         DEBUG_ENTER("visitTemplateCategoryTypeParamDecl");
-        i->getDflt()->accept(m_this);
+        if (i->getDflt()) {
+            i->getDflt()->accept(m_this);
+        }
         DEBUG_LEAVE("visitTemplateCategoryTypeParamDecl");
     }
 
     virtual void visitTemplateValueParamDecl(ast::ITemplateValueParamDecl *i) override {
         DEBUG_ENTER("visitTemplateValueParamDecl");
-        i->getDflt()->accept(m_this);
+        if (i->getDflt()) {
+            i->getDflt()->accept(m_this);
+        }
         DEBUG_LEAVE("visitTemplateValueParamDecl");
     }
 
 protected:
-    dmgr::IDebug                *m_dbg;
-    TaskResolveSymbolPathRef    m_path_resolver;
-    ast::ISymbolScope           *m_ret;
+    /**
+     * Loop guard for the walk.
+     *
+     * Most of the edges this visitor follows are structural -- a field to its
+     * type, a parameter to its declaration -- and a tree cannot loop. The
+     * exception is every edge that follows a *reference the user wrote*: a
+     * type identifier, a typedef alias, a template argument binding. Those
+     * form a graph, and the user is free to make it cyclic.
+     *
+     * `typedef A B; typedef B A;` is the smallest case, and it is legal input
+     * as far as this visitor is concerned -- it is not this file's job to
+     * reject it (TaskCheckTypeCycles does that, with a diagnostic that names
+     * the loop). It IS this file's job not to recurse forever if it is handed
+     * one, because a walker that terminates only on well-formed input is a
+     * walker that turns a user's typo into a stack overflow with no
+     * diagnostic at all.
+     *
+     * Stopping at an already-visited node is right rather than merely safe:
+     * anything reachable through the second visit was reachable through the
+     * first, so the answer is unchanged.
+     */
+    bool enter(ast::IScopeChild *c) {
+        return m_visiting.insert(c).second;
+    }
+
+    void leave(ast::IScopeChild *c) {
+        m_visiting.erase(c);
+    }
+
+protected:
+    dmgr::IDebug                        *m_dbg;
+    TaskResolveSymbolPathRef            m_path_resolver;
+    ast::ISymbolScope                   *m_ret;
+    std::set<ast::IScopeChild *>        m_visiting;
 
 };
 

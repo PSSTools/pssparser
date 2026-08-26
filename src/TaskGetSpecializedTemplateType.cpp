@@ -95,10 +95,41 @@ ast::ISymbolRefPath *TaskGetSpecializedTemplateType::mk(
         m_ctxt->getDebugMgr(), m_ctxt->root()).resolveT<ast::ISymbolTypeScope>(type);
     DEBUG("type_up=%s", type_up->getName().c_str());
 
+    if (m_ctxt->specializationDepth() >= MAX_SPECIALIZATION_DEPTH) {
+        // Specializing a type resolves its body, which may specialize again.
+        // Most such chains terminate because the argument list repeats and the
+        // existing specialization is reused, but some do not: `struct S<type T>
+        // { S<S<T>> next; }` names a strictly larger argument at every step and
+        // has no fixed point. Diagnose it rather than running out of stack.
+        m_ctxt->addErrorMarker(
+            type_up->getTarget()->getLocation(),
+            "recursive specialization of '%s' exceeded the maximum depth of "
+            "%d: each step specializes on a larger argument than the last, so "
+            "the chain does not terminate",
+            type_up->getName().c_str(),
+            MAX_SPECIALIZATION_DEPTH);
+        DEBUG_LEAVE("mk (depth limit)");
+        return 0;
+    }
+
     TaskCopyAst copier(m_ctxt->getFactory());
 
-    ast::ITypeScope *type_s = 
+    ast::ITypeScope *type_s =
         copier.copyT<ast::ITypeScope>(type_up->getTarget());
+
+    if (!type_s) {
+        // The copier hit a construct it does not handle.  It has already named
+        // the construct on stderr; report the failure against the declaration
+        // and give up on this specialization rather than dereferencing null.
+        m_ctxt->addErrorMarker(
+            type_up->getTarget()->getLocation(),
+            "failed to specialize type '%s': it contains a construct the "
+            "AST copier does not support",
+            type_up->getName().c_str());
+        DEBUG_LEAVE("mk (copy failed)");
+        return 0;
+    }
+
     type_s->setParent(type_up->getTarget()->getParent());
 
     if (DEBUG_EN) {
@@ -132,6 +163,17 @@ ast::ISymbolRefPath *TaskGetSpecializedTemplateType::mk(
     type_ss->setName(mkTypename(type, params));
 
     int32_t id = type_up->getSpec_types().size();
+
+    // Record where this specialization lives in the generic's spec_types
+    // vector. Everything that later builds a reference path *into* this
+    // specialization -- the symbol-table iterator by way of TaskGetItemIndex,
+    // and TaskGetSymbolRefPath -- reads the index from here. The copier had
+    // carried over the declaration's own child index instead, so every
+    // specialization claimed to be specialization 0 and references to a
+    // parameter from inside the second and later specializations resolved to
+    // the first one's binding.
+    type_s->setIndex(id);
+
     DEBUG("Adding \"%s\" to specialization %s (%p)",
         type_ss->getName().c_str(),
         type_up->getName().c_str(),
@@ -208,12 +250,115 @@ ast::ISymbolRefPath *TaskGetSpecializedTemplateType::mk(
     return ret;
 }
 
+/**
+ * Render one bound *type* argument.
+ *
+ * Prefers the resolved declaration's name over the spelling, so an argument
+ * that is itself a specialization reads as what it is: specializations are
+ * created innermost-first, so `Q<int>` already carries that name by the time
+ * an enclosing `S<Q<int>>` is named.
+ */
+std::string TaskGetSpecializedTemplateType::argName(ast::IDataType *dt) {
+    if (!dt) {
+        return "?";
+    }
+
+    if (ast::IDataTypeUserDefined *ud =
+            dynamic_cast<ast::IDataTypeUserDefined *>(dt)) {
+        if (ud->getType_id()) {
+            ast::IScopeChild *sc = TaskResolveSymbolPathRef(
+                m_ctxt->getDebugMgr(),
+                m_ctxt->root()).resolve(ud->getType_id()->getTarget());
+            if (ast::ISymbolChildrenScope *ss =
+                    dynamic_cast<ast::ISymbolChildrenScope *>(sc)) {
+                return ss->getName();
+            }
+            // Unresolved: fall back to what was written.
+            if (ud->getType_id()->getElems().size() &&
+                ud->getType_id()->getElems().back()->getId()) {
+                return ud->getType_id()->getElems().back()->getId()->getId();
+            }
+        }
+    } else if (ast::IDataTypeInt *i = dynamic_cast<ast::IDataTypeInt *>(dt)) {
+        std::string base = (i->getIs_signed())?"int":"bit";
+        if (ast::IExprUnsignedNumber *w =
+                dynamic_cast<ast::IExprUnsignedNumber *>(i->getWidth())) {
+            return base + "[" + std::to_string(w->getValue()) + "]";
+        }
+        return base;
+    } else if (dynamic_cast<ast::IDataTypeBool *>(dt)) {
+        return "bool";
+    } else if (dynamic_cast<ast::IDataTypeString *>(dt)) {
+        return "string";
+    } else if (dynamic_cast<ast::IDataTypeChandle *>(dt)) {
+        return "chandle";
+    }
+
+    // Deliberately not silent. A name that says "there is an argument here I
+    // cannot render" is still a name that distinguishes two specializations
+    // less well than it should -- but it says so, where `<>` did not.
+    return "?";
+}
+
+/** Render one bound *value* argument. */
+std::string TaskGetSpecializedTemplateType::argName(ast::IExpr *e) {
+    if (!e) {
+        return "?";
+    }
+    if (ast::IExprUnsignedNumber *n =
+            dynamic_cast<ast::IExprUnsignedNumber *>(e)) {
+        return std::to_string(n->getValue());
+    } else if (ast::IExprSignedNumber *n =
+            dynamic_cast<ast::IExprSignedNumber *>(e)) {
+        return std::to_string(n->getValue());
+    } else if (ast::IExprId *id = dynamic_cast<ast::IExprId *>(e)) {
+        return id->getId();
+    }
+    return "?";
+}
+
+/**
+ * The name a specialization is known by.
+ *
+ * This used to emit `name<>` -- the angle brackets with nothing between them --
+ * so every specialization of a generic had the *same* name. Identity was never
+ * affected (specializations are matched by comparing parameter lists, not
+ * names), but everything a human or a tool reads was: a diagnostic naming
+ * `S<>` cannot say which use it means, and an outline built on the API showed
+ * one entry repeated.
+ *
+ * It also made a name test on a specialization scope meaningless, which is
+ * what several collection checks were doing -- see BuiltinCollectionUtil.
+ */
 std::string TaskGetSpecializedTemplateType::mkTypename(
         const ast::ISymbolRefPath           *type,
         ast::ITemplateParamDeclList         *params) {
     std::string name = TaskResolveSymbolPathRef(m_ctxt->getDebugMgr(), m_ctxt->root()).mkName(type);
 
     name += "<";
+
+    if (params) {
+        for (std::vector<ast::ITemplateParamDeclUP>::const_iterator
+            it=params->getParams().begin();
+            it!=params->getParams().end(); it++) {
+            if (it != params->getParams().begin()) {
+                name += ",";
+            }
+            // On a specialized list the dflt slot holds the bound argument.
+            if (ast::ITemplateValueParamDecl *v =
+                    dynamic_cast<ast::ITemplateValueParamDecl *>(it->get())) {
+                name += argName(v->getDflt());
+            } else if (ast::ITemplateGenericTypeParamDecl *g =
+                    dynamic_cast<ast::ITemplateGenericTypeParamDecl *>(it->get())) {
+                name += argName(g->getDflt());
+            } else if (ast::ITemplateCategoryTypeParamDecl *c =
+                    dynamic_cast<ast::ITemplateCategoryTypeParamDecl *>(it->get())) {
+                name += argName(c->getDflt());
+            } else {
+                name += "?";
+            }
+        }
+    }
 
     name += ">";
 

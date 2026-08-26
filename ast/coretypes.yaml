@@ -3,6 +3,19 @@
 #*
 #* Defines base types used by other segments of the AST
 #****************************************************************************
+enums:
+  - DocCommentForm:
+    - DocForm_None       # No doc comment is attached
+    - DocForm_Line       # //
+    - DocForm_DocLine    # /// or //!
+    - DocForm_Block      # Ordinary block comment
+    - DocForm_DocBlock   # /** or the /*! form
+
+  - CommentPlacement:
+    - CommentPlacement_Leading    # Immediately above the construct
+    - CommentPlacement_Trailing   # Same line, after the construct
+    - CommentPlacement_Orphan     # Attached to neither -- recorded on the scope
+
 structs:
 - Location:
     doc: |
@@ -31,6 +44,38 @@ structs:
         init: -1
 
 classes:
+    - Comment:
+        super: ScopeChild
+        doc: |
+            A source comment captured verbatim and in normalized form.
+
+            Collected only when the builder has ``setCollectComments(true)``.
+            Leading and trailing comments hang off the ``comments`` list of the
+            ``ScopeChild`` they document; orphans -- comments a blank line has
+            detached from any construct -- collect in the enclosing
+            ``Scope.trailing_comments``.
+
+            Attributes:
+                text: normalized content, comment markers and the ``*`` gutter removed
+                raw: the untouched source text, delimiters included
+                is_block: true for ``/* */``, false for ``//``
+                placement: how the comment relates to its owner
+
+            See Also:
+                ScopeChild.comments, Scope.trailing_comments
+        data:
+        - text:
+            type: string
+        - placement:
+            type: CommentPlacement
+        - raw:
+            type: string
+            is_ctor: false
+        - is_block:
+            type: bool
+            is_ctor: false
+            init: false
+
     - AssocData:
         doc: |
             Base class for user-defined associated data attached to AST nodes.
@@ -67,9 +112,7 @@ classes:
             See Also:
                 ScopeChild, NamedScope, GlobalScope
         data:
-        - endLocation:
-            type: Location
-            is_ctor: false
+        # endLocation is inherited from ScopeChild.
         - children: list<UP<ScopeChild>>
 
     - ScopeChild:
@@ -81,7 +124,28 @@ classes:
         - docstring:
           - type: string
           - is_ctor: false
+        # The doc comment as it was written, plus where and in what form.
+        # Retaining the raw text lets a consumer implement another dialect
+        # (Doxygen, say) without re-lexing the source, and docLocation lets a
+        # malformed doc comment be reported at its own line rather than at the
+        # declaration's.
+        - docRaw:
+          - type: string
+          - is_ctor: false
+        - docForm:
+            type: DocCommentForm
+            is_ctor: false
+            init: DocCommentForm::DocForm_None
+        - docLocation:
+            type: Location
+            is_ctor: false
         - location:
+            type: Location
+            is_ctor: false
+        # Source extent of the construct.  Declared here rather than on Scope
+        # so a plain field can report a range too, which is what a [source]
+        # link needs.
+        - endLocation:
             type: Location
             is_ctor: false
         - parent:
@@ -99,6 +163,14 @@ classes:
         - annotations:
             type: list<UP<Annotation>>
             is_ctor: false
+        - comments:
+            type: list<UP<Comment>>
+            is_ctor: false
+            visit: false
+        - trailing_comments:
+            type: list<UP<Comment>>
+            is_ctor: false
+            visit: false
 
     - ScopeChildRef:
         super: ScopeChild

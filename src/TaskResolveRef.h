@@ -79,10 +79,6 @@ public:
 private:
     ast::ISymbolRefPath *findRoot(const ast::IExprId *sym);
 
-    ast::ISymbolRefPath *specializeParameterizedRef(
-        ast::ISymbolRefPath             *target,
-        ast::ITemplateParamValueList    *plist);
-
 private:
     static dmgr::IDebug                 *m_dbg;
     bool                                m_search_imp;

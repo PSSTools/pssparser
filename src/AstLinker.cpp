@@ -35,6 +35,10 @@
 #include "TaskBuildSymbolTree.h"
 #include "TaskResolveRefsOverlay.h"
 #include "TaskResolveRefs.h"
+#include "TaskResolveSuperTypes.h"
+#include "TaskCheckRefsResolved.h"
+#include "TaskCheckTypeCycles.h"
+#include "TaskResolveOverrideActions.h"
 
 
 namespace pssp {
@@ -103,9 +107,38 @@ ast::IRootSymbolScope *AstLinker::link(
 
     uint64_t resolve_s = time_ms();
     ResolveContext ctxt(m_factory, marker_l, symtree);
+
+    // Super types first, so that resolving a reference to an inherited
+    // member does not depend on the base type having been declared in an
+    // earlier file than the use. See TaskResolveSuperTypes.
+    TaskResolveSuperTypes(&ctxt).resolve(symtree);
+
+    // Then override actions, whose super type is their own name and so has
+    // to be looked up in the declaring component's base chain rather than by
+    // the ordinary rules. Separate from the pass above because walking more
+    // than one level up needs every component's super type already resolved.
+    TaskResolveOverrideActions(&ctxt).resolve(symtree);
+
+    // Between the two on purpose. Super-type references are bound above, so
+    // the inheritance graph is readable; TaskResolveRefs below is the pass
+    // that walks it, and a ring in it used to take the member search round
+    // forever on the first failed lookup. The walkers carry loop guards now,
+    // so this does not run for safety -- it runs so the user is told which
+    // types form the ring instead of being left with the unresolved-member
+    // errors that follow from it. See TaskCheckTypeCycles.h.
+    TaskCheckTypeCycles(&ctxt).check(symtree);
+
     TaskResolveRefs(&ctxt).resolve(symtree);
     uint64_t resolve_e = time_ms();
     DEBUG("Resolve: %lldms", (resolve_e-resolve_s));
+
+    // The completeness gate. Resolution is finished, so a type reference that
+    // is still unbound is unbound for good -- report it rather than hand a
+    // consumer a field with no type. Deliberately last and deliberately
+    // structural: it does not know which code path failed to bind a reference,
+    // which is what makes it hold for paths that do not exist yet. See
+    // TaskCheckRefsResolved.h.
+    TaskCheckRefsResolved(&ctxt).check(symtree, 1 /* the bundled stdlib */);
 
     return symtree;
 }

@@ -28,7 +28,7 @@ def test_too_many_arguments():
     }
     """
     assert_marker(pss, marker_id="PSS006",
-                  text="call to 'g' expects 1 argument, got 3")
+                  text="too many arguments to 'g': expected 1, got 3")
 
 
 def test_too_few_arguments():
@@ -39,7 +39,7 @@ def test_too_few_arguments():
     }
     """
     assert_marker(pss, marker_id="PSS006",
-                  text="call to 'g' expects 1 argument, got 0")
+                  text="too few arguments to 'g': expected 1, got 0")
 
 
 def test_correct_arity_is_silent():
@@ -60,7 +60,7 @@ def test_zero_arg_function_called_with_arguments():
     }
     """
     assert_marker(pss, marker_id="PSS006",
-                  text="expects 0 arguments, got 1")
+                  text="expected 0, got 1")
 
 
 def test_defined_function_is_checked():
@@ -71,7 +71,7 @@ def test_defined_function_is_checked():
         component pss_top { exec init_up { g(1, 2, 3); } }
     }
     """
-    assert_marker(pss, marker_id="PSS006", text="expects 1 argument, got 3")
+    assert_marker(pss, marker_id="PSS006", text="expected 1, got 3")
 
 
 def test_imported_function_is_checked():
@@ -81,7 +81,7 @@ def test_imported_function_is_checked():
         component pss_top { exec init_up { g(1, 2, 3); } }
     }
     """
-    assert_marker(pss, marker_id="PSS006", text="expects 1 argument, got 3")
+    assert_marker(pss, marker_id="PSS006", text="expected 1, got 3")
 
 
 def test_call_in_value_context_is_checked():
@@ -92,7 +92,7 @@ def test_call_in_value_context_is_checked():
         component pss_top { exec init_up { int x = g(1, 2, 3); } }
     }
     """
-    assert_marker(pss, marker_id="PSS006", text="expects 1 argument, got 3")
+    assert_marker(pss, marker_id="PSS006", text="expected 1, got 3")
 
 
 def test_method_call_is_checked():
@@ -103,7 +103,7 @@ def test_method_call_is_checked():
         exec init_up { inst.g(1, 2, 3); }
     }
     """
-    assert_marker(pss, marker_id="PSS006", text="expects 1 argument, got 3")
+    assert_marker(pss, marker_id="PSS006", text="expected 1, got 3")
 
 
 # ---------------------------------------------------------------------------
@@ -128,7 +128,7 @@ def test_required_parameter_may_not_be_omitted():
     }
     """
     assert_marker(pss, marker_id="PSS006",
-                  text="expects 1 to 2 arguments, got 0")
+                  text="expected at least 1, got 0")
 
 
 def test_too_many_past_the_defaults():
@@ -138,7 +138,7 @@ def test_too_many_past_the_defaults():
         component pss_top { exec init_up { g(1, 2, 3); } }
     }
     """
-    assert_marker(pss, marker_id="PSS006", text="expects 1 to 2 arguments, got 3")
+    assert_marker(pss, marker_id="PSS006", text="expected at most 2, got 3")
 
 
 # ---------------------------------------------------------------------------
@@ -163,7 +163,7 @@ def test_varargs_still_requires_the_fixed_parameters():
     }
     """
     assert_marker(pss, marker_id="PSS006",
-                  text="expects at least 1 argument, got 0")
+                  text="expected at least 1, got 0")
 
 
 # ---------------------------------------------------------------------------
@@ -174,7 +174,7 @@ def test_core_function_is_checked():
     pss = """
     component pss_top { exec init_up { print(); } }
     """
-    assert_marker(pss, marker_id="PSS006", text="call to 'print' expects")
+    assert_marker(pss, marker_id="PSS006", text="arguments to 'print'")
 
 
 def test_collection_method_is_checked():
@@ -186,7 +186,7 @@ def test_collection_method_is_checked():
         }
     }
     """
-    assert_marker(pss, marker_id="PSS006", text="call to 'push_back' expects")
+    assert_marker(pss, marker_id="PSS006", text="arguments to 'push_back'")
 
 
 # ---------------------------------------------------------------------------
@@ -194,14 +194,20 @@ def test_collection_method_is_checked():
 # ---------------------------------------------------------------------------
 
 def test_argument_type_mismatch_is_not_an_arity_error():
-    """A type mismatch is PSS007, not PSS006 -- see test_call_arg_types.py."""
+    """A wrong argument *type* must not be reported as a wrong argument *count*.
+
+    Both share PSS006 -- the code covers "the call does not match the callee's
+    parameters" as a whole -- so the distinction has to be asserted on the
+    message rather than on the id. See test_call_arg_types.py.
+    """
     pss = """
     package p {
         function void g(int a);
         component pss_top { exec init_up { g("not an int"); } }
     }
     """
-    assert_no_marker(pss, marker_id="PSS006")
+    assert_no_marker(pss, text="arguments to 'g'")
+    assert_marker(pss, marker_id="PSS006", text="argument 1 of 'g'")
 
 
 def test_package_qualified_call_is_checked():
@@ -214,7 +220,7 @@ def test_package_qualified_call_is_checked():
     package p { function void g(int a); }
     component pss_top { exec init_up { p::g(1, 2, 3); } }
     """
-    assert_marker(pss, marker_id="PSS006", text="expects 1 argument, got 3")
+    assert_marker(pss, marker_id="PSS006", text="expected 1, got 3")
 
 
 def test_package_qualified_call_with_correct_arity_is_silent():
@@ -231,7 +237,7 @@ def test_package_qualified_call_to_an_unknown_name_is_reported():
     package p { function void g(int a); }
     component pss_top { exec init_up { p::nope(1); } }
     """
-    assert_marker(pss, text="failed to find 'nope'")
+    assert_marker(pss, text="'p' has no member named 'nope'")
 
 
 def test_nested_package_qualified_call_is_checked():
@@ -240,7 +246,7 @@ def test_nested_package_qualified_call_is_checked():
     package p::q { function void g(int a); }
     component pss_top { exec init_up { p::q::g(1, 2); } }
     """
-    assert_marker(pss, marker_id="PSS006", text="expects 1 argument, got 2")
+    assert_marker(pss, marker_id="PSS006", text="expected 1, got 2")
 
 
 # ---------------------------------------------------------------------------
@@ -327,4 +333,4 @@ def test_collection_method_arity_is_checked_beyond_push_back():
         }
     }
     """
-    assert_marker(pss, marker_id="PSS006", text="call to 'size' expects")
+    assert_marker(pss, marker_id="PSS006", text="arguments to 'size'")

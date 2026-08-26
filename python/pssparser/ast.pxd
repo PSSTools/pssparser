@@ -44,8 +44,11 @@ cdef class Factory(object):
     cpdef AssocData mkAssocData(self)
     cpdef SymbolImportSpec mkSymbolImportSpec(self)
     cpdef SymbolRefPath mkSymbolRefPath(self)
-    cpdef TemplateParamValueList mkTemplateParamValueList(self)
+    cpdef MonitorActivitySelectBranch mkMonitorActivitySelectBranch(self,
+    Expr guard,
+    ScopeChild body)
     cpdef Expr mkExpr(self)
+    cpdef TemplateParamValue mkTemplateParamValue(self)
     cpdef ExprAggrMapElem mkExprAggrMapElem(self,
     Expr lhs,
     Expr rhs)
@@ -62,14 +65,11 @@ cdef class Factory(object):
     ScopeChild body)
     cpdef TemplateParamDeclList mkTemplateParamDeclList(self)
     cpdef RefExpr mkRefExpr(self)
-    cpdef TemplateParamValue mkTemplateParamValue(self)
-    cpdef MonitorActivitySelectBranch mkMonitorActivitySelectBranch(self,
-    Expr guard,
-    ScopeChild body)
     cpdef ActivitySelectBranch mkActivitySelectBranch(self,
     Expr guard,
     Expr weight,
     ScopeChild body)
+    cpdef TemplateParamValueList mkTemplateParamValueList(self)
     cpdef ScopeChild mkScopeChild(self)
     cpdef ActionFieldInitializer mkActionFieldInitializer(self,
     ExprHierarchicalId path,
@@ -97,8 +97,8 @@ cdef class Factory(object):
     cpdef MethodParameterList mkMethodParameterList(self)
     cpdef ActivitySchedulingConstraint mkActivitySchedulingConstraint(self,
     bool is_parallel)
-    cpdef MonitorActivityStmt mkMonitorActivityStmt(self)
     cpdef ActivityStmt mkActivityStmt(self)
+    cpdef MonitorActivityStmt mkMonitorActivityStmt(self)
     cpdef Annotation mkAnnotation(self,
     TypeIdentifier type)
     cpdef NamedScopeChild mkNamedScopeChild(self,
@@ -109,6 +109,9 @@ cdef class Factory(object):
     cpdef PackageImportStmt mkPackageImportStmt(self,
     bool wildcard,
     ExprId alias)
+    cpdef Comment mkComment(self,
+    str text,
+     placement)
     cpdef ComponentBind mkComponentBind(self,
     str pool_path,
     bool is_wildcard)
@@ -116,30 +119,26 @@ cdef class Factory(object):
     cpdef ProceduralStmtIfClause mkProceduralStmtIfClause(self,
     Expr cond,
     ScopeChild body)
-    cpdef TemplateParamDecl mkTemplateParamDecl(self,
-    ExprId name)
     cpdef CoverStmtInline mkCoverStmtInline(self,
     ScopeChild body)
     cpdef CoverStmtReference mkCoverStmtReference(self,
     ExprRefPath target)
     cpdef PyImportFromStmt mkPyImportFromStmt(self)
     cpdef PyImportStmt mkPyImportStmt(self)
+    cpdef DataType mkDataType(self)
     cpdef RefExprScopeIndex mkRefExprScopeIndex(self,
     RefExpr base,
     int32_t offset)
-    cpdef DataType mkDataType(self)
     cpdef RefExprTypeScopeContext mkRefExprTypeScopeContext(self,
     RefExpr base,
     int32_t offset)
     cpdef RefExprTypeScopeGlobal mkRefExprTypeScopeGlobal(self,
     int32_t fileid)
     cpdef Scope mkScope(self)
-    cpdef TemplateParamExprValue mkTemplateParamExprValue(self,
-    Expr value)
+    cpdef TemplateParamDecl mkTemplateParamDecl(self,
+    ExprId name)
     cpdef ScopeChildRef mkScopeChildRef(self,
     ScopeChild target)
-    cpdef TemplateParamTypeValue mkTemplateParamTypeValue(self,
-    DataType value)
     cpdef SymbolChild mkSymbolChild(self)
     cpdef DistItem mkDistItem(self,
     ExprOpenRangeValue range,
@@ -147,6 +146,8 @@ cdef class Factory(object):
     cpdef DistWeight mkDistWeight(self,
     bool is_dividing,
     Expr expr)
+    cpdef TemplateParamExprValue mkTemplateParamExprValue(self,
+    Expr value)
     cpdef ExecBlockTag mkExecBlockTag(self,
     TypeIdentifier type)
     cpdef SymbolScopeRef mkSymbolScopeRef(self,
@@ -162,6 +163,8 @@ cdef class Factory(object):
     FunctionPrototype proto,
     str language,
     str data)
+    cpdef TemplateParamTypeValue mkTemplateParamTypeValue(self,
+    DataType value)
     cpdef ExprAggrLiteral mkExprAggrLiteral(self)
     cpdef ExprBin mkExprBin(self,
     Expr lhs,
@@ -428,6 +431,7 @@ cdef class Factory(object):
     Expr target)
     cpdef ProceduralStmtReturn mkProceduralStmtReturn(self,
     Expr expr)
+    cpdef ProceduralStmtSuper mkProceduralStmtSuper(self)
     cpdef ProceduralStmtYield mkProceduralStmtYield(self)
     cpdef SymbolChildrenScope mkSymbolChildrenScope(self,
     str name)
@@ -506,17 +510,17 @@ cdef class Factory(object):
     ExprId name,
     TypeIdentifier super_t,
     bool is_abstract)
+    cpdef ActivityDecl mkActivityDecl(self,
+    str name)
     cpdef GenericConstraintDeclBool mkGenericConstraintDeclBool(self,
     str name,
     bool is_dynamic)
-    cpdef ActivityDecl mkActivityDecl(self,
-    str name)
     cpdef Monitor mkMonitor(self,
     ExprId name,
     TypeIdentifier super_t)
-    cpdef MonitorActivityDecl mkMonitorActivityDecl(self,
-    str name)
     cpdef ActivityLabeledScope mkActivityLabeledScope(self,
+    str name)
+    cpdef MonitorActivityDecl mkMonitorActivityDecl(self,
     str name)
     cpdef MonitorActivitySchedule mkMonitorActivitySchedule(self,
     str name)
@@ -528,11 +532,11 @@ cdef class Factory(object):
     cpdef Component mkComponent(self,
     ExprId name,
     TypeIdentifier super_t)
+    cpdef ConstraintSymbolScope mkConstraintSymbolScope(self,
+    str name)
     cpdef ProceduralStmtSymbolBodyScope mkProceduralStmtSymbolBodyScope(self,
     str name,
     ScopeChild body)
-    cpdef ConstraintSymbolScope mkConstraintSymbolScope(self,
-    str name)
     cpdef RootSymbolScope mkRootSymbolScope(self,
     str name)
     cpdef Struct mkStruct(self,
@@ -557,6 +561,10 @@ cdef class Factory(object):
     cpdef TemplateString mkTemplateString(self,
     str name,
     str raw)
+    cpdef TemplateVarDecl mkTemplateVarDecl(self,
+    str name,
+    int32_t offset,
+    int32_t extent)
     cpdef ExecBlock mkExecBlock(self,
     str name,
      kind)
@@ -576,28 +584,28 @@ cdef class Factory(object):
     str name,
     int32_t offset,
     int32_t extent)
-    cpdef TemplateComment mkTemplateComment(self,
-    str name,
-    int32_t offset,
-    int32_t extent,
-    str text)
     cpdef ProceduralStmtRepeat mkProceduralStmtRepeat(self,
     str name,
     ScopeChild body,
     ExprId it_id,
     Expr count)
+    cpdef TemplateComment mkTemplateComment(self,
+    str name,
+    int32_t offset,
+    int32_t extent,
+    str text)
     cpdef TemplateExpr mkTemplateExpr(self,
     str name,
     int32_t offset,
     int32_t extent,
     Expr expr)
+    cpdef ActivityParallel mkActivityParallel(self,
+    str name,
+    ActivityJoinSpec join_spec)
     cpdef TemplateIf mkTemplateIf(self,
     str name,
     int32_t offset,
     int32_t extent)
-    cpdef ActivityParallel mkActivityParallel(self,
-    str name,
-    ActivityJoinSpec join_spec)
     cpdef ActivitySchedule mkActivitySchedule(self,
     str name,
     ActivityJoinSpec join_spec)
@@ -608,10 +616,6 @@ cdef class Factory(object):
     int32_t offset,
     int32_t extent,
     str text)
-    cpdef TemplateVarDecl mkTemplateVarDecl(self,
-    str name,
-    int32_t offset,
-    int32_t extent)
     cpdef TemplateForeach mkTemplateForeach(self,
     str name,
     int32_t offset,
@@ -663,21 +667,23 @@ cdef class SymbolRefPath(object):
     cdef ast_decl.ISymbolRefPath *asSymbolRefPath(self)
     @staticmethod
     cdef SymbolRefPath mk(ast_decl.ISymbolRefPath *hndl, bool owned)
+    cpdef getPathList(self)
+    cpdef SymbolRefPathElem getPath(self, i)
+    cpdef void addPath(self, SymbolRefPathElem i)
+    cpdef numPath(self)
     cpdef int32_t getPyref_idx(self)
 
-cdef class TemplateParamValueList(object):
-    cdef ast_decl.ITemplateParamValueList    *_hndl
+cdef class MonitorActivitySelectBranch(object):
+    cdef ast_decl.IMonitorActivitySelectBranch    *_hndl
     cdef bool           _owned
     
     cpdef void accept(self, VisitorBase v)
     cpdef int id(self)
-    cdef ast_decl.ITemplateParamValueList *asTemplateParamValueList(self)
+    cdef ast_decl.IMonitorActivitySelectBranch *asMonitorActivitySelectBranch(self)
     @staticmethod
-    cdef TemplateParamValueList mk(ast_decl.ITemplateParamValueList *hndl, bool owned)
-    cpdef getValues(self)
-    cpdef getValue(self, i)
-    cpdef void addValue(self, TemplateParamValue i)
-    cpdef numValues(self)
+    cdef MonitorActivitySelectBranch mk(ast_decl.IMonitorActivitySelectBranch *hndl, bool owned)
+    cpdef Expr getGuard(self)
+    cpdef ScopeChild getBody(self)
 
 cdef class Expr(object):
     cdef ast_decl.IExpr    *_hndl
@@ -688,6 +694,16 @@ cdef class Expr(object):
     cdef ast_decl.IExpr *asExpr(self)
     @staticmethod
     cdef Expr mk(ast_decl.IExpr *hndl, bool owned)
+
+cdef class TemplateParamValue(object):
+    cdef ast_decl.ITemplateParamValue    *_hndl
+    cdef bool           _owned
+    
+    cpdef void accept(self, VisitorBase v)
+    cpdef int id(self)
+    cdef ast_decl.ITemplateParamValue *asTemplateParamValue(self)
+    @staticmethod
+    cdef TemplateParamValue mk(ast_decl.ITemplateParamValue *hndl, bool owned)
 
 cdef class ExprAggrMapElem(object):
     cdef ast_decl.IExprAggrMapElem    *_hndl
@@ -765,28 +781,6 @@ cdef class RefExpr(object):
     @staticmethod
     cdef RefExpr mk(ast_decl.IRefExpr *hndl, bool owned)
 
-cdef class TemplateParamValue(object):
-    cdef ast_decl.ITemplateParamValue    *_hndl
-    cdef bool           _owned
-    
-    cpdef void accept(self, VisitorBase v)
-    cpdef int id(self)
-    cdef ast_decl.ITemplateParamValue *asTemplateParamValue(self)
-    @staticmethod
-    cdef TemplateParamValue mk(ast_decl.ITemplateParamValue *hndl, bool owned)
-
-cdef class MonitorActivitySelectBranch(object):
-    cdef ast_decl.IMonitorActivitySelectBranch    *_hndl
-    cdef bool           _owned
-    
-    cpdef void accept(self, VisitorBase v)
-    cpdef int id(self)
-    cdef ast_decl.IMonitorActivitySelectBranch *asMonitorActivitySelectBranch(self)
-    @staticmethod
-    cdef MonitorActivitySelectBranch mk(ast_decl.IMonitorActivitySelectBranch *hndl, bool owned)
-    cpdef Expr getGuard(self)
-    cpdef ScopeChild getBody(self)
-
 cdef class ActivitySelectBranch(object):
     cdef ast_decl.IActivitySelectBranch    *_hndl
     cdef bool           _owned
@@ -800,6 +794,20 @@ cdef class ActivitySelectBranch(object):
     cpdef Expr getWeight(self)
     cpdef ScopeChild getBody(self)
 
+cdef class TemplateParamValueList(object):
+    cdef ast_decl.ITemplateParamValueList    *_hndl
+    cdef bool           _owned
+    
+    cpdef void accept(self, VisitorBase v)
+    cpdef int id(self)
+    cdef ast_decl.ITemplateParamValueList *asTemplateParamValueList(self)
+    @staticmethod
+    cdef TemplateParamValueList mk(ast_decl.ITemplateParamValueList *hndl, bool owned)
+    cpdef getValues(self)
+    cpdef getValue(self, i)
+    cpdef void addValue(self, TemplateParamValue i)
+    cpdef numValues(self)
+
 cdef class ScopeChild(object):
     cdef ast_decl.IScopeChild    *_hndl
     cdef bool           _owned
@@ -811,7 +819,12 @@ cdef class ScopeChild(object):
     cdef ScopeChild mk(ast_decl.IScopeChild *hndl, bool owned)
     cpdef str getDocstring(self)
     cpdef void setDocstring(self, str v)
+    cpdef str getDocRaw(self)
+    cpdef void setDocRaw(self, str v)
+    cpdef  getDocForm(self)
+    cpdef Location getDocLocation(self)
     cpdef Location getLocation(self)
+    cpdef Location getEndLocation(self)
     cpdef Scope getParent(self)
     cpdef int32_t getIndex(self)
     cpdef AssocData getAssocData(self)
@@ -819,6 +832,14 @@ cdef class ScopeChild(object):
     cpdef getAnnotation(self, i)
     cpdef void addAnnotation(self, Annotation i)
     cpdef numAnnotations(self)
+    cpdef getComments(self)
+    cpdef getComment(self, i)
+    cpdef void addComment(self, Comment i)
+    cpdef numComments(self)
+    cpdef getTrailing_comments(self)
+    cpdef getTrailing_comment(self, i)
+    cpdef void addTrailing_comment(self, Comment i)
+    cpdef numTrailing_comments(self)
 
 cdef class ActionFieldInitializer(ScopeChild):
     
@@ -833,7 +854,6 @@ cdef class FunctionDefinition(ScopeChild):
     cdef ast_decl.IFunctionDefinition *asFunctionDefinition(self)
     @staticmethod
     cdef FunctionDefinition mk(ast_decl.IFunctionDefinition *hndl, bool owned)
-    cpdef Location getEndLocation(self)
     cpdef FunctionPrototype getProto(self)
     cpdef ExecScope getBody(self)
     cpdef  getPlat(self)
@@ -911,17 +931,17 @@ cdef class ActivitySchedulingConstraint(ScopeChild):
     cpdef void addTarget(self, ExprHierarchicalId i)
     cpdef numTargets(self)
 
-cdef class MonitorActivityStmt(ScopeChild):
-    
-    cdef ast_decl.IMonitorActivityStmt *asMonitorActivityStmt(self)
-    @staticmethod
-    cdef MonitorActivityStmt mk(ast_decl.IMonitorActivityStmt *hndl, bool owned)
-
 cdef class ActivityStmt(ScopeChild):
     
     cdef ast_decl.IActivityStmt *asActivityStmt(self)
     @staticmethod
     cdef ActivityStmt mk(ast_decl.IActivityStmt *hndl, bool owned)
+
+cdef class MonitorActivityStmt(ScopeChild):
+    
+    cdef ast_decl.IMonitorActivityStmt *asMonitorActivityStmt(self)
+    @staticmethod
+    cdef MonitorActivityStmt mk(ast_decl.IMonitorActivityStmt *hndl, bool owned)
 
 cdef class Annotation(ScopeChild):
     
@@ -959,6 +979,18 @@ cdef class PackageImportStmt(ScopeChild):
     cpdef ExprId getAlias(self)
     cpdef TypeIdentifier getPath(self)
 
+cdef class Comment(ScopeChild):
+    
+    cdef ast_decl.IComment *asComment(self)
+    @staticmethod
+    cdef Comment mk(ast_decl.IComment *hndl, bool owned)
+    cpdef str getText(self)
+    cpdef void setText(self, str v)
+    cpdef  getPlacement(self)
+    cpdef str getRaw(self)
+    cpdef void setRaw(self, str v)
+    cpdef bool getIs_block(self)
+
 cdef class ComponentBind(ScopeChild):
     
     cdef ast_decl.IComponentBind *asComponentBind(self)
@@ -985,13 +1017,6 @@ cdef class ProceduralStmtIfClause(ScopeChild):
     cdef ProceduralStmtIfClause mk(ast_decl.IProceduralStmtIfClause *hndl, bool owned)
     cpdef Expr getCond(self)
     cpdef ScopeChild getBody(self)
-
-cdef class TemplateParamDecl(ScopeChild):
-    
-    cdef ast_decl.ITemplateParamDecl *asTemplateParamDecl(self)
-    @staticmethod
-    cdef TemplateParamDecl mk(ast_decl.ITemplateParamDecl *hndl, bool owned)
-    cpdef ExprId getName(self)
 
 cdef class CoverStmtInline(ScopeChild):
     
@@ -1032,6 +1057,12 @@ cdef class PyImportStmt(ScopeChild):
     cpdef numPath(self)
     cpdef ExprId getAlias(self)
 
+cdef class DataType(ScopeChild):
+    
+    cdef ast_decl.IDataType *asDataType(self)
+    @staticmethod
+    cdef DataType mk(ast_decl.IDataType *hndl, bool owned)
+
 cdef class RefExprScopeIndex(RefExpr):
     
     cdef ast_decl.IRefExprScopeIndex *asRefExprScopeIndex(self)
@@ -1039,12 +1070,6 @@ cdef class RefExprScopeIndex(RefExpr):
     cdef RefExprScopeIndex mk(ast_decl.IRefExprScopeIndex *hndl, bool owned)
     cpdef RefExpr getBase(self)
     cpdef int32_t getOffset(self)
-
-cdef class DataType(ScopeChild):
-    
-    cdef ast_decl.IDataType *asDataType(self)
-    @staticmethod
-    cdef DataType mk(ast_decl.IDataType *hndl, bool owned)
 
 cdef class RefExprTypeScopeContext(RefExpr):
     
@@ -1066,18 +1091,17 @@ cdef class Scope(ScopeChild):
     cdef ast_decl.IScope *asScope(self)
     @staticmethod
     cdef Scope mk(ast_decl.IScope *hndl, bool owned)
-    cpdef Location getEndLocation(self)
     cpdef getChildren(self)
     cpdef getChild(self, i)
     cpdef void addChild(self, ScopeChild i)
     cpdef numChildren(self)
 
-cdef class TemplateParamExprValue(TemplateParamValue):
+cdef class TemplateParamDecl(ScopeChild):
     
-    cdef ast_decl.ITemplateParamExprValue *asTemplateParamExprValue(self)
+    cdef ast_decl.ITemplateParamDecl *asTemplateParamDecl(self)
     @staticmethod
-    cdef TemplateParamExprValue mk(ast_decl.ITemplateParamExprValue *hndl, bool owned)
-    cpdef Expr getValue(self)
+    cdef TemplateParamDecl mk(ast_decl.ITemplateParamDecl *hndl, bool owned)
+    cpdef ExprId getName(self)
 
 cdef class ScopeChildRef(ScopeChild):
     
@@ -1085,13 +1109,6 @@ cdef class ScopeChildRef(ScopeChild):
     @staticmethod
     cdef ScopeChildRef mk(ast_decl.IScopeChildRef *hndl, bool owned)
     cpdef ScopeChild getTarget(self)
-
-cdef class TemplateParamTypeValue(TemplateParamValue):
-    
-    cdef ast_decl.ITemplateParamTypeValue *asTemplateParamTypeValue(self)
-    @staticmethod
-    cdef TemplateParamTypeValue mk(ast_decl.ITemplateParamTypeValue *hndl, bool owned)
-    cpdef DataType getValue(self)
 
 cdef class SymbolChild(ScopeChild):
     
@@ -1116,6 +1133,13 @@ cdef class DistWeight(ScopeChild):
     cdef DistWeight mk(ast_decl.IDistWeight *hndl, bool owned)
     cpdef bool getIs_dividing(self)
     cpdef Expr getExpr(self)
+
+cdef class TemplateParamExprValue(TemplateParamValue):
+    
+    cdef ast_decl.ITemplateParamExprValue *asTemplateParamExprValue(self)
+    @staticmethod
+    cdef TemplateParamExprValue mk(ast_decl.ITemplateParamExprValue *hndl, bool owned)
+    cpdef Expr getValue(self)
 
 cdef class ExecBlockTag(ScopeChild):
     
@@ -1176,6 +1200,13 @@ cdef class TargetTemplateFunction(ScopeChild):
     cpdef void setData(self, str v)
     cpdef bool getIs_static(self)
     cpdef TemplateString getTemplate(self)
+
+cdef class TemplateParamTypeValue(TemplateParamValue):
+    
+    cdef ast_decl.ITemplateParamTypeValue *asTemplateParamTypeValue(self)
+    @staticmethod
+    cdef TemplateParamTypeValue mk(ast_decl.ITemplateParamTypeValue *hndl, bool owned)
+    cpdef DataType getValue(self)
 
 cdef class ExprAggrLiteral(Expr):
     
@@ -1538,7 +1569,6 @@ cdef class ConstraintScope(ConstraintStmt):
     cdef ast_decl.IConstraintScope *asConstraintScope(self)
     @staticmethod
     cdef ConstraintScope mk(ast_decl.IConstraintScope *hndl, bool owned)
-    cpdef Location getEndLocation(self)
     cpdef getConstraints(self)
     cpdef getConstraint(self, i)
     cpdef void addConstraint(self, ConstraintStmt i)
@@ -2137,6 +2167,12 @@ cdef class ProceduralStmtReturn(ExecStmt):
     cdef ProceduralStmtReturn mk(ast_decl.IProceduralStmtReturn *hndl, bool owned)
     cpdef Expr getExpr(self)
 
+cdef class ProceduralStmtSuper(ExecStmt):
+    
+    cdef ast_decl.IProceduralStmtSuper *asProceduralStmtSuper(self)
+    @staticmethod
+    cdef ProceduralStmtSuper mk(ast_decl.IProceduralStmtSuper *hndl, bool owned)
+
 cdef class ProceduralStmtYield(ExecStmt):
     
     cdef ast_decl.IProceduralStmtYield *asProceduralStmtYield(self)
@@ -2374,6 +2410,12 @@ cdef class Action(TypeScope):
     cpdef bool getIs_abstract(self)
     cpdef bool getIs_override(self)
 
+cdef class ActivityDecl(SymbolScope):
+    
+    cdef ast_decl.IActivityDecl *asActivityDecl(self)
+    @staticmethod
+    cdef ActivityDecl mk(ast_decl.IActivityDecl *hndl, bool owned)
+
 cdef class GenericConstraintDeclBool(ConstraintBlock):
     
     cdef ast_decl.IGenericConstraintDeclBool *asGenericConstraintDeclBool(self)
@@ -2385,12 +2427,6 @@ cdef class GenericConstraintDeclBool(ConstraintBlock):
     cpdef void addParameter(self, GenericConstraintParam i)
     cpdef numParameters(self)
 
-cdef class ActivityDecl(SymbolScope):
-    
-    cdef ast_decl.IActivityDecl *asActivityDecl(self)
-    @staticmethod
-    cdef ActivityDecl mk(ast_decl.IActivityDecl *hndl, bool owned)
-
 cdef class Monitor(TypeScope):
     
     cdef ast_decl.IMonitor *asMonitor(self)
@@ -2398,18 +2434,18 @@ cdef class Monitor(TypeScope):
     cdef Monitor mk(ast_decl.IMonitor *hndl, bool owned)
     cpdef bool getIs_abstract(self)
 
-cdef class MonitorActivityDecl(SymbolScope):
-    
-    cdef ast_decl.IMonitorActivityDecl *asMonitorActivityDecl(self)
-    @staticmethod
-    cdef MonitorActivityDecl mk(ast_decl.IMonitorActivityDecl *hndl, bool owned)
-
 cdef class ActivityLabeledScope(SymbolScope):
     
     cdef ast_decl.IActivityLabeledScope *asActivityLabeledScope(self)
     @staticmethod
     cdef ActivityLabeledScope mk(ast_decl.IActivityLabeledScope *hndl, bool owned)
     cpdef ExprId getLabel(self)
+
+cdef class MonitorActivityDecl(SymbolScope):
+    
+    cdef ast_decl.IMonitorActivityDecl *asMonitorActivityDecl(self)
+    @staticmethod
+    cdef MonitorActivityDecl mk(ast_decl.IMonitorActivityDecl *hndl, bool owned)
 
 cdef class MonitorActivitySchedule(SymbolScope):
     
@@ -2438,19 +2474,19 @@ cdef class Component(TypeScope):
     cdef Component mk(ast_decl.IComponent *hndl, bool owned)
     cpdef bool getIs_pure(self)
 
-cdef class ProceduralStmtSymbolBodyScope(SymbolScope):
-    
-    cdef ast_decl.IProceduralStmtSymbolBodyScope *asProceduralStmtSymbolBodyScope(self)
-    @staticmethod
-    cdef ProceduralStmtSymbolBodyScope mk(ast_decl.IProceduralStmtSymbolBodyScope *hndl, bool owned)
-    cpdef ScopeChild getBody(self)
-
 cdef class ConstraintSymbolScope(SymbolScope):
     
     cdef ast_decl.IConstraintSymbolScope *asConstraintSymbolScope(self)
     @staticmethod
     cdef ConstraintSymbolScope mk(ast_decl.IConstraintSymbolScope *hndl, bool owned)
     cpdef ConstraintStmt getConstraint(self)
+
+cdef class ProceduralStmtSymbolBodyScope(SymbolScope):
+    
+    cdef ast_decl.IProceduralStmtSymbolBodyScope *asProceduralStmtSymbolBodyScope(self)
+    @staticmethod
+    cdef ProceduralStmtSymbolBodyScope mk(ast_decl.IProceduralStmtSymbolBodyScope *hndl, bool owned)
+    cpdef ScopeChild getBody(self)
 
 cdef class RootSymbolScope(SymbolScope):
     
@@ -2515,7 +2551,6 @@ cdef class ExecScope(SymbolScope):
     cdef ast_decl.IExecScope *asExecScope(self)
     @staticmethod
     cdef ExecScope mk(ast_decl.IExecScope *hndl, bool owned)
-    cpdef Location getEndLocation(self)
 
 cdef class SymbolTypeScope(SymbolScope):
     
@@ -2549,6 +2584,16 @@ cdef class TemplateString(SymbolScope):
     cpdef void addElem(self, TemplateElem i)
     cpdef numElems(self)
     cpdef bool getIs_const(self)
+
+cdef class TemplateVarDecl(TemplateElem):
+    
+    cdef ast_decl.ITemplateVarDecl *asTemplateVarDecl(self)
+    @staticmethod
+    cdef TemplateVarDecl mk(ast_decl.ITemplateVarDecl *hndl, bool owned)
+    cpdef getDecls(self)
+    cpdef getDecl(self, i)
+    cpdef void addDecl(self, ProceduralStmtDataDeclaration i)
+    cpdef numDecls(self)
 
 cdef class ExecBlock(ExecScope):
     
@@ -2584,6 +2629,14 @@ cdef class TemplateBlock(TemplateElem):
     cpdef void addBody(self, TemplateElem i)
     cpdef numBody(self)
 
+cdef class ProceduralStmtRepeat(ProceduralStmtSymbolBodyScope):
+    
+    cdef ast_decl.IProceduralStmtRepeat *asProceduralStmtRepeat(self)
+    @staticmethod
+    cdef ProceduralStmtRepeat mk(ast_decl.IProceduralStmtRepeat *hndl, bool owned)
+    cpdef ExprId getIt_id(self)
+    cpdef Expr getCount(self)
+
 cdef class TemplateComment(TemplateElem):
     
     cdef ast_decl.ITemplateComment *asTemplateComment(self)
@@ -2593,20 +2646,19 @@ cdef class TemplateComment(TemplateElem):
     cpdef void setText(self, str v)
     cpdef bool getIs_line(self)
 
-cdef class ProceduralStmtRepeat(ProceduralStmtSymbolBodyScope):
-    
-    cdef ast_decl.IProceduralStmtRepeat *asProceduralStmtRepeat(self)
-    @staticmethod
-    cdef ProceduralStmtRepeat mk(ast_decl.IProceduralStmtRepeat *hndl, bool owned)
-    cpdef ExprId getIt_id(self)
-    cpdef Expr getCount(self)
-
 cdef class TemplateExpr(TemplateElem):
     
     cdef ast_decl.ITemplateExpr *asTemplateExpr(self)
     @staticmethod
     cdef TemplateExpr mk(ast_decl.ITemplateExpr *hndl, bool owned)
     cpdef Expr getExpr(self)
+
+cdef class ActivityParallel(ActivityLabeledScope):
+    
+    cdef ast_decl.IActivityParallel *asActivityParallel(self)
+    @staticmethod
+    cdef ActivityParallel mk(ast_decl.IActivityParallel *hndl, bool owned)
+    cpdef ActivityJoinSpec getJoin_spec(self)
 
 cdef class TemplateIf(TemplateElem):
     
@@ -2617,13 +2669,6 @@ cdef class TemplateIf(TemplateElem):
     cpdef getClause(self, i)
     cpdef void addClause(self, TemplateIfClause i)
     cpdef numClauses(self)
-
-cdef class ActivityParallel(ActivityLabeledScope):
-    
-    cdef ast_decl.IActivityParallel *asActivityParallel(self)
-    @staticmethod
-    cdef ActivityParallel mk(ast_decl.IActivityParallel *hndl, bool owned)
-    cpdef ActivityJoinSpec getJoin_spec(self)
 
 cdef class ActivitySchedule(ActivityLabeledScope):
     
@@ -2645,16 +2690,6 @@ cdef class TemplateText(TemplateElem):
     cdef TemplateText mk(ast_decl.ITemplateText *hndl, bool owned)
     cpdef str getText(self)
     cpdef void setText(self, str v)
-
-cdef class TemplateVarDecl(TemplateElem):
-    
-    cdef ast_decl.ITemplateVarDecl *asTemplateVarDecl(self)
-    @staticmethod
-    cdef TemplateVarDecl mk(ast_decl.ITemplateVarDecl *hndl, bool owned)
-    cpdef getDecls(self)
-    cpdef getDecl(self, i)
-    cpdef void addDecl(self, ProceduralStmtDataDeclaration i)
-    cpdef numDecls(self)
 
 cdef class TemplateForeach(TemplateBlock):
     
@@ -2686,17 +2721,17 @@ cdef class VisitorBase(object):
     cpdef void visitAssocData(self, AssocData i)
     cpdef void visitSymbolImportSpec(self, SymbolImportSpec i)
     cpdef void visitSymbolRefPath(self, SymbolRefPath i)
-    cpdef void visitTemplateParamValueList(self, TemplateParamValueList i)
+    cpdef void visitMonitorActivitySelectBranch(self, MonitorActivitySelectBranch i)
     cpdef void visitExpr(self, Expr i)
+    cpdef void visitTemplateParamValue(self, TemplateParamValue i)
     cpdef void visitExprAggrMapElem(self, ExprAggrMapElem i)
     cpdef void visitActivityMatchChoice(self, ActivityMatchChoice i)
     cpdef void visitExprAggrStructElem(self, ExprAggrStructElem i)
     cpdef void visitMonitorActivityMatchChoice(self, MonitorActivityMatchChoice i)
     cpdef void visitTemplateParamDeclList(self, TemplateParamDeclList i)
     cpdef void visitRefExpr(self, RefExpr i)
-    cpdef void visitTemplateParamValue(self, TemplateParamValue i)
-    cpdef void visitMonitorActivitySelectBranch(self, MonitorActivitySelectBranch i)
     cpdef void visitActivitySelectBranch(self, ActivitySelectBranch i)
+    cpdef void visitTemplateParamValueList(self, TemplateParamValueList i)
     cpdef void visitScopeChild(self, ScopeChild i)
     cpdef void visitActionFieldInitializer(self, ActionFieldInitializer i)
     cpdef void visitFunctionDefinition(self, FunctionDefinition i)
@@ -2707,37 +2742,38 @@ cdef class VisitorBase(object):
     cpdef void visitActivityJoinSpec(self, ActivityJoinSpec i)
     cpdef void visitMethodParameterList(self, MethodParameterList i)
     cpdef void visitActivitySchedulingConstraint(self, ActivitySchedulingConstraint i)
-    cpdef void visitMonitorActivityStmt(self, MonitorActivityStmt i)
     cpdef void visitActivityStmt(self, ActivityStmt i)
+    cpdef void visitMonitorActivityStmt(self, MonitorActivityStmt i)
     cpdef void visitAnnotation(self, Annotation i)
     cpdef void visitNamedScopeChild(self, NamedScopeChild i)
     cpdef void visitAnnotationParam(self, AnnotationParam i)
     cpdef void visitPackageImportStmt(self, PackageImportStmt i)
+    cpdef void visitComment(self, Comment i)
     cpdef void visitComponentBind(self, ComponentBind i)
     cpdef void visitConstraintStmt(self, ConstraintStmt i)
     cpdef void visitProceduralStmtIfClause(self, ProceduralStmtIfClause i)
-    cpdef void visitTemplateParamDecl(self, TemplateParamDecl i)
     cpdef void visitCoverStmtInline(self, CoverStmtInline i)
     cpdef void visitCoverStmtReference(self, CoverStmtReference i)
     cpdef void visitPyImportFromStmt(self, PyImportFromStmt i)
     cpdef void visitPyImportStmt(self, PyImportStmt i)
-    cpdef void visitRefExprScopeIndex(self, RefExprScopeIndex i)
     cpdef void visitDataType(self, DataType i)
+    cpdef void visitRefExprScopeIndex(self, RefExprScopeIndex i)
     cpdef void visitRefExprTypeScopeContext(self, RefExprTypeScopeContext i)
     cpdef void visitRefExprTypeScopeGlobal(self, RefExprTypeScopeGlobal i)
     cpdef void visitScope(self, Scope i)
-    cpdef void visitTemplateParamExprValue(self, TemplateParamExprValue i)
+    cpdef void visitTemplateParamDecl(self, TemplateParamDecl i)
     cpdef void visitScopeChildRef(self, ScopeChildRef i)
-    cpdef void visitTemplateParamTypeValue(self, TemplateParamTypeValue i)
     cpdef void visitSymbolChild(self, SymbolChild i)
     cpdef void visitDistItem(self, DistItem i)
     cpdef void visitDistWeight(self, DistWeight i)
+    cpdef void visitTemplateParamExprValue(self, TemplateParamExprValue i)
     cpdef void visitExecBlockTag(self, ExecBlockTag i)
     cpdef void visitSymbolScopeRef(self, SymbolScopeRef i)
     cpdef void visitExecStmt(self, ExecStmt i)
     cpdef void visitExecTargetTemplateBlock(self, ExecTargetTemplateBlock i)
     cpdef void visitExportFunction(self, ExportFunction i)
     cpdef void visitTargetTemplateFunction(self, TargetTemplateFunction i)
+    cpdef void visitTemplateParamTypeValue(self, TemplateParamTypeValue i)
     cpdef void visitExprAggrLiteral(self, ExprAggrLiteral i)
     cpdef void visitExprBin(self, ExprBin i)
     cpdef void visitExprBitSlice(self, ExprBitSlice i)
@@ -2848,6 +2884,7 @@ cdef class VisitorBase(object):
     cpdef void visitProceduralStmtMatchChoice(self, ProceduralStmtMatchChoice i)
     cpdef void visitProceduralStmtRandomize(self, ProceduralStmtRandomize i)
     cpdef void visitProceduralStmtReturn(self, ProceduralStmtReturn i)
+    cpdef void visitProceduralStmtSuper(self, ProceduralStmtSuper i)
     cpdef void visitProceduralStmtYield(self, ProceduralStmtYield i)
     cpdef void visitSymbolChildrenScope(self, SymbolChildrenScope i)
     cpdef void visitTemplateCategoryTypeParamDecl(self, TemplateCategoryTypeParamDecl i)
@@ -2875,17 +2912,17 @@ cdef class VisitorBase(object):
     cpdef void visitExprRefPathStaticFunc(self, ExprRefPathStaticFunc i)
     cpdef void visitExprRefPathSuper(self, ExprRefPathSuper i)
     cpdef void visitAction(self, Action i)
-    cpdef void visitGenericConstraintDeclBool(self, GenericConstraintDeclBool i)
     cpdef void visitActivityDecl(self, ActivityDecl i)
+    cpdef void visitGenericConstraintDeclBool(self, GenericConstraintDeclBool i)
     cpdef void visitMonitor(self, Monitor i)
-    cpdef void visitMonitorActivityDecl(self, MonitorActivityDecl i)
     cpdef void visitActivityLabeledScope(self, ActivityLabeledScope i)
+    cpdef void visitMonitorActivityDecl(self, MonitorActivityDecl i)
     cpdef void visitMonitorActivitySchedule(self, MonitorActivitySchedule i)
     cpdef void visitMonitorActivitySequence(self, MonitorActivitySequence i)
     cpdef void visitAnnotationDecl(self, AnnotationDecl i)
     cpdef void visitComponent(self, Component i)
-    cpdef void visitProceduralStmtSymbolBodyScope(self, ProceduralStmtSymbolBodyScope i)
     cpdef void visitConstraintSymbolScope(self, ConstraintSymbolScope i)
+    cpdef void visitProceduralStmtSymbolBodyScope(self, ProceduralStmtSymbolBodyScope i)
     cpdef void visitRootSymbolScope(self, RootSymbolScope i)
     cpdef void visitStruct(self, Struct i)
     cpdef void visitSymbolEnumScope(self, SymbolEnumScope i)
@@ -2895,19 +2932,19 @@ cdef class VisitorBase(object):
     cpdef void visitSymbolTypeScope(self, SymbolTypeScope i)
     cpdef void visitTemplateElem(self, TemplateElem i)
     cpdef void visitTemplateString(self, TemplateString i)
+    cpdef void visitTemplateVarDecl(self, TemplateVarDecl i)
     cpdef void visitExecBlock(self, ExecBlock i)
     cpdef void visitProceduralStmtForeach(self, ProceduralStmtForeach i)
     cpdef void visitTemplateAssign(self, TemplateAssign i)
     cpdef void visitTemplateBlock(self, TemplateBlock i)
-    cpdef void visitTemplateComment(self, TemplateComment i)
     cpdef void visitProceduralStmtRepeat(self, ProceduralStmtRepeat i)
+    cpdef void visitTemplateComment(self, TemplateComment i)
     cpdef void visitTemplateExpr(self, TemplateExpr i)
-    cpdef void visitTemplateIf(self, TemplateIf i)
     cpdef void visitActivityParallel(self, ActivityParallel i)
+    cpdef void visitTemplateIf(self, TemplateIf i)
     cpdef void visitActivitySchedule(self, ActivitySchedule i)
     cpdef void visitActivitySequence(self, ActivitySequence i)
     cpdef void visitTemplateText(self, TemplateText i)
-    cpdef void visitTemplateVarDecl(self, TemplateVarDecl i)
     cpdef void visitTemplateForeach(self, TemplateForeach i)
     cpdef void visitTemplateRepeat(self, TemplateRepeat i)
     cpdef void visitTemplateIfClause(self, TemplateIfClause i)
@@ -2917,17 +2954,17 @@ cdef class ObjFactory(VisitorBase):
     cpdef void visitAssocData(self, AssocData i)
     cpdef void visitSymbolImportSpec(self, SymbolImportSpec i)
     cpdef void visitSymbolRefPath(self, SymbolRefPath i)
-    cpdef void visitTemplateParamValueList(self, TemplateParamValueList i)
+    cpdef void visitMonitorActivitySelectBranch(self, MonitorActivitySelectBranch i)
     cpdef void visitExpr(self, Expr i)
+    cpdef void visitTemplateParamValue(self, TemplateParamValue i)
     cpdef void visitExprAggrMapElem(self, ExprAggrMapElem i)
     cpdef void visitActivityMatchChoice(self, ActivityMatchChoice i)
     cpdef void visitExprAggrStructElem(self, ExprAggrStructElem i)
     cpdef void visitMonitorActivityMatchChoice(self, MonitorActivityMatchChoice i)
     cpdef void visitTemplateParamDeclList(self, TemplateParamDeclList i)
     cpdef void visitRefExpr(self, RefExpr i)
-    cpdef void visitTemplateParamValue(self, TemplateParamValue i)
-    cpdef void visitMonitorActivitySelectBranch(self, MonitorActivitySelectBranch i)
     cpdef void visitActivitySelectBranch(self, ActivitySelectBranch i)
+    cpdef void visitTemplateParamValueList(self, TemplateParamValueList i)
     cpdef void visitScopeChild(self, ScopeChild i)
     cpdef void visitActionFieldInitializer(self, ActionFieldInitializer i)
     cpdef void visitFunctionDefinition(self, FunctionDefinition i)
@@ -2938,37 +2975,38 @@ cdef class ObjFactory(VisitorBase):
     cpdef void visitActivityJoinSpec(self, ActivityJoinSpec i)
     cpdef void visitMethodParameterList(self, MethodParameterList i)
     cpdef void visitActivitySchedulingConstraint(self, ActivitySchedulingConstraint i)
-    cpdef void visitMonitorActivityStmt(self, MonitorActivityStmt i)
     cpdef void visitActivityStmt(self, ActivityStmt i)
+    cpdef void visitMonitorActivityStmt(self, MonitorActivityStmt i)
     cpdef void visitAnnotation(self, Annotation i)
     cpdef void visitNamedScopeChild(self, NamedScopeChild i)
     cpdef void visitAnnotationParam(self, AnnotationParam i)
     cpdef void visitPackageImportStmt(self, PackageImportStmt i)
+    cpdef void visitComment(self, Comment i)
     cpdef void visitComponentBind(self, ComponentBind i)
     cpdef void visitConstraintStmt(self, ConstraintStmt i)
     cpdef void visitProceduralStmtIfClause(self, ProceduralStmtIfClause i)
-    cpdef void visitTemplateParamDecl(self, TemplateParamDecl i)
     cpdef void visitCoverStmtInline(self, CoverStmtInline i)
     cpdef void visitCoverStmtReference(self, CoverStmtReference i)
     cpdef void visitPyImportFromStmt(self, PyImportFromStmt i)
     cpdef void visitPyImportStmt(self, PyImportStmt i)
-    cpdef void visitRefExprScopeIndex(self, RefExprScopeIndex i)
     cpdef void visitDataType(self, DataType i)
+    cpdef void visitRefExprScopeIndex(self, RefExprScopeIndex i)
     cpdef void visitRefExprTypeScopeContext(self, RefExprTypeScopeContext i)
     cpdef void visitRefExprTypeScopeGlobal(self, RefExprTypeScopeGlobal i)
     cpdef void visitScope(self, Scope i)
-    cpdef void visitTemplateParamExprValue(self, TemplateParamExprValue i)
+    cpdef void visitTemplateParamDecl(self, TemplateParamDecl i)
     cpdef void visitScopeChildRef(self, ScopeChildRef i)
-    cpdef void visitTemplateParamTypeValue(self, TemplateParamTypeValue i)
     cpdef void visitSymbolChild(self, SymbolChild i)
     cpdef void visitDistItem(self, DistItem i)
     cpdef void visitDistWeight(self, DistWeight i)
+    cpdef void visitTemplateParamExprValue(self, TemplateParamExprValue i)
     cpdef void visitExecBlockTag(self, ExecBlockTag i)
     cpdef void visitSymbolScopeRef(self, SymbolScopeRef i)
     cpdef void visitExecStmt(self, ExecStmt i)
     cpdef void visitExecTargetTemplateBlock(self, ExecTargetTemplateBlock i)
     cpdef void visitExportFunction(self, ExportFunction i)
     cpdef void visitTargetTemplateFunction(self, TargetTemplateFunction i)
+    cpdef void visitTemplateParamTypeValue(self, TemplateParamTypeValue i)
     cpdef void visitExprAggrLiteral(self, ExprAggrLiteral i)
     cpdef void visitExprBin(self, ExprBin i)
     cpdef void visitExprBitSlice(self, ExprBitSlice i)
@@ -3079,6 +3117,7 @@ cdef class ObjFactory(VisitorBase):
     cpdef void visitProceduralStmtMatchChoice(self, ProceduralStmtMatchChoice i)
     cpdef void visitProceduralStmtRandomize(self, ProceduralStmtRandomize i)
     cpdef void visitProceduralStmtReturn(self, ProceduralStmtReturn i)
+    cpdef void visitProceduralStmtSuper(self, ProceduralStmtSuper i)
     cpdef void visitProceduralStmtYield(self, ProceduralStmtYield i)
     cpdef void visitSymbolChildrenScope(self, SymbolChildrenScope i)
     cpdef void visitTemplateCategoryTypeParamDecl(self, TemplateCategoryTypeParamDecl i)
@@ -3106,17 +3145,17 @@ cdef class ObjFactory(VisitorBase):
     cpdef void visitExprRefPathStaticFunc(self, ExprRefPathStaticFunc i)
     cpdef void visitExprRefPathSuper(self, ExprRefPathSuper i)
     cpdef void visitAction(self, Action i)
-    cpdef void visitGenericConstraintDeclBool(self, GenericConstraintDeclBool i)
     cpdef void visitActivityDecl(self, ActivityDecl i)
+    cpdef void visitGenericConstraintDeclBool(self, GenericConstraintDeclBool i)
     cpdef void visitMonitor(self, Monitor i)
-    cpdef void visitMonitorActivityDecl(self, MonitorActivityDecl i)
     cpdef void visitActivityLabeledScope(self, ActivityLabeledScope i)
+    cpdef void visitMonitorActivityDecl(self, MonitorActivityDecl i)
     cpdef void visitMonitorActivitySchedule(self, MonitorActivitySchedule i)
     cpdef void visitMonitorActivitySequence(self, MonitorActivitySequence i)
     cpdef void visitAnnotationDecl(self, AnnotationDecl i)
     cpdef void visitComponent(self, Component i)
-    cpdef void visitProceduralStmtSymbolBodyScope(self, ProceduralStmtSymbolBodyScope i)
     cpdef void visitConstraintSymbolScope(self, ConstraintSymbolScope i)
+    cpdef void visitProceduralStmtSymbolBodyScope(self, ProceduralStmtSymbolBodyScope i)
     cpdef void visitRootSymbolScope(self, RootSymbolScope i)
     cpdef void visitStruct(self, Struct i)
     cpdef void visitSymbolEnumScope(self, SymbolEnumScope i)
@@ -3126,19 +3165,19 @@ cdef class ObjFactory(VisitorBase):
     cpdef void visitSymbolTypeScope(self, SymbolTypeScope i)
     cpdef void visitTemplateElem(self, TemplateElem i)
     cpdef void visitTemplateString(self, TemplateString i)
+    cpdef void visitTemplateVarDecl(self, TemplateVarDecl i)
     cpdef void visitExecBlock(self, ExecBlock i)
     cpdef void visitProceduralStmtForeach(self, ProceduralStmtForeach i)
     cpdef void visitTemplateAssign(self, TemplateAssign i)
     cpdef void visitTemplateBlock(self, TemplateBlock i)
-    cpdef void visitTemplateComment(self, TemplateComment i)
     cpdef void visitProceduralStmtRepeat(self, ProceduralStmtRepeat i)
+    cpdef void visitTemplateComment(self, TemplateComment i)
     cpdef void visitTemplateExpr(self, TemplateExpr i)
-    cpdef void visitTemplateIf(self, TemplateIf i)
     cpdef void visitActivityParallel(self, ActivityParallel i)
+    cpdef void visitTemplateIf(self, TemplateIf i)
     cpdef void visitActivitySchedule(self, ActivitySchedule i)
     cpdef void visitActivitySequence(self, ActivitySequence i)
     cpdef void visitTemplateText(self, TemplateText i)
-    cpdef void visitTemplateVarDecl(self, TemplateVarDecl i)
     cpdef void visitTemplateForeach(self, TemplateForeach i)
     cpdef void visitTemplateRepeat(self, TemplateRepeat i)
     cpdef void visitTemplateIfClause(self, TemplateIfClause i)

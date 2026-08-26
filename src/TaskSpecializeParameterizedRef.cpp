@@ -40,7 +40,8 @@ TaskSpecializeParameterizedRef::~TaskSpecializeParameterizedRef() {
 
 ast::ISymbolRefPath *TaskSpecializeParameterizedRef::specialize(
         ast::ISymbolRefPath                 *target,
-        ast::ITemplateParamValueList        *pvals) {
+        ast::ITemplateParamValueList        *pvals,
+        const ast::Location                 &use_loc) {
     DEBUG_ENTER("specialize");
     // Find the base type
     ast::IScopeChild *target_sc = TaskResolveSymbolPathRef(
@@ -59,7 +60,7 @@ ast::ISymbolRefPath *TaskSpecializeParameterizedRef::specialize(
     if (!target_c->getPlist()) {
         DEBUG_ERROR("Type %s is not templated", target_c->getName().c_str());
         m_ctxt->addErrorMarker(
-            ast::Location{-1, -1, -1},
+            use_loc,
             "Type %s is not templated",
             target_c->getName().c_str());
         return 0;
@@ -70,7 +71,8 @@ ast::ISymbolRefPath *TaskSpecializeParameterizedRef::specialize(
     // Form parameter list 
     ast::ITemplateParamDeclList *pdecl_list = TaskBuildParamValList(m_ctxt).build(
             target_c->getPlist(),
-            pvals);
+            pvals,
+            use_loc);
     TaskGetSpecializedTemplateType typespec_getter(m_ctxt);
 
     if (!pdecl_list) {

@@ -1,11 +1,18 @@
 """
-Tests for calling something that is not a function (PSS008, known issue P3-X6b).
+Tests for calling something that is not a function (PSS006, known issue P3-X6b).
 
-``TaskCheckCallArgs`` reaches a path element that carries an argument list but
-whose target has no signature.  It reports only when that target is
-*unambiguously a value* -- a field, a procedural variable, or a function
-parameter.  Anything the linker models loosely is left alone; the silent cases
-at the bottom pin that boundary.
+``TaskResolveRefs::checkCallArity`` reaches a path element that carries an
+argument list but whose target is not a function scope, and reports it.  The
+test is broad: anything that resolved to a non-function is reported, including
+a type used as a call (``S(1)``).  Only an unresolved target is left alone,
+because that has already been diagnosed where the name was written.
+
+The message names the callee but *not* what it is instead -- ``'f' is not a
+function``, not ``...; it is a field``.  The finer wording lives in
+``TaskCheckCallArgs::valueKind``, which is no longer wired into path
+resolution; the two checkers were merged onto this one so that a bad call
+draws one error rather than two.  The silent cases at the bottom pin the
+boundary.
 """
 import sys
 from pathlib import Path
@@ -26,8 +33,8 @@ def test_calling_a_field():
         exec init_up { f(1); }
     }
     """
-    assert_marker(pss, marker_id="PSS008",
-                  text="'f' is not a function; it is a field")
+    assert_marker(pss, marker_id="PSS006",
+                  text="'f' is not a function")
 
 
 def test_calling_a_local_variable():
@@ -36,8 +43,8 @@ def test_calling_a_local_variable():
         exec init_up { int v; v(); }
     }
     """
-    assert_marker(pss, marker_id="PSS008",
-                  text="'v' is not a function; it is a variable")
+    assert_marker(pss, marker_id="PSS006",
+                  text="'v' is not a function")
 
 
 def test_calling_a_function_parameter():
@@ -46,8 +53,8 @@ def test_calling_a_function_parameter():
         function void h(int x) { x(1); }
     }
     """
-    assert_marker(pss, marker_id="PSS008",
-                  text="'x' is not a function; it is a parameter")
+    assert_marker(pss, marker_id="PSS006",
+                  text="'x' is not a function")
 
 
 def test_calling_a_struct_member():
@@ -60,8 +67,8 @@ def test_calling_a_struct_member():
         }
     }
     """
-    assert_marker(pss, marker_id="PSS008",
-                  text="'f' is not a function; it is a field")
+    assert_marker(pss, marker_id="PSS006",
+                  text="'f' is not a function")
 
 
 def test_calling_a_component_instance():
@@ -72,7 +79,7 @@ def test_calling_a_component_instance():
         exec init_up { inst(1); }
     }
     """
-    assert_marker(pss, marker_id="PSS008", text="'inst' is not a function")
+    assert_marker(pss, marker_id="PSS006", text="'inst' is not a function")
 
 
 def test_calling_a_string_variable():
@@ -83,7 +90,7 @@ def test_calling_a_string_variable():
         exec init_up { s(1); }
     }
     """
-    assert_marker(pss, marker_id="PSS008", text="'s' is not a function")
+    assert_marker(pss, marker_id="PSS006", text="'s' is not a function")
 
 
 def test_calling_a_collection_variable():
@@ -92,7 +99,7 @@ def test_calling_a_collection_variable():
         exec init_up { list<int> l; l(1); }
     }
     """
-    assert_marker(pss, marker_id="PSS008", text="'l' is not a function")
+    assert_marker(pss, marker_id="PSS006", text="'l' is not a function")
 
 
 # ---------------------------------------------------------------------------
@@ -106,7 +113,7 @@ def test_plain_function_call_is_silent():
         component pss_top { exec init_up { g(1); } }
     }
     """
-    assert_no_marker(pss, marker_id="PSS008")
+    assert_no_marker(pss, marker_id="PSS006")
 
 
 def test_method_call_is_silent():
@@ -117,7 +124,7 @@ def test_method_call_is_silent():
         exec init_up { inst.g(); }
     }
     """
-    assert_no_marker(pss, marker_id="PSS008")
+    assert_no_marker(pss, marker_id="PSS006")
 
 
 def test_string_method_call_is_silent():
@@ -127,7 +134,7 @@ def test_string_method_call_is_silent():
         exec init_up { string s = "ab"; int n = s.size(); }
     }
     """
-    assert_no_marker(pss, marker_id="PSS008")
+    assert_no_marker(pss, marker_id="PSS006")
 
 
 def test_collection_method_call_is_silent():
@@ -136,7 +143,7 @@ def test_collection_method_call_is_silent():
         exec init_up { list<int> l; l.push_back(1); }
     }
     """
-    assert_no_marker(pss, marker_id="PSS008")
+    assert_no_marker(pss, marker_id="PSS006")
 
 
 def test_core_library_call_is_silent():

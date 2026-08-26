@@ -23,9 +23,21 @@
 #include "TaskApplyTypeExtensions.h"
 #include "TaskResolveImports.h"
 #include "TaskResolveRef.h"
+#include "pssp/impl/TaskGetName.h"
 
 namespace pssp {
 
+/**
+ * Discards every marker.
+ *
+ * Used for an `extend` target lookup that is allowed to fail -- see
+ * visitSymbolExtendScope.
+ */
+class SwallowMarkers : public IMarkerListener {
+public:
+    virtual void marker(const IMarker *m) override { }
+    virtual bool hasSeverity(MarkerSeverityE s) override { return false; }
+};
 
 
 
@@ -36,7 +48,7 @@ TaskApplyTypeExtensions::TaskApplyTypeExtensions(
         m_factory(factory), m_marker_l(marker_l) {
     DEBUG_INIT("TaskApplyTypeExtensions", dmgr);
     m_target_s = 0;
-    m_ast_body = false;
+    m_type_scope_depth = 0;
 }
 
 TaskApplyTypeExtensions::~TaskApplyTypeExtensions() {
@@ -53,10 +65,32 @@ void TaskApplyTypeExtensions::apply(ast::IRootSymbolScope *root) {
     DEBUG_LEAVE("apply");
 }
 
+/**
+ * Resolve an `extend` target from where the `extend` statement is written.
+ *
+ * A bare ResolveContext starts its symbol-table iterator at the root, and
+ * TaskResolveRootRef resolves an unqualified name by walking that iterator's
+ * scope stack outward. With nothing on the stack but the root, the only names
+ * in scope were the package names -- which is why `package p { struct S {}
+ * extend struct S {} }` reported "unknown type 'S'; did you mean 'p'?" and only
+ * a fully-qualified `p::S` ever resolved. LRM Example247 is written unqualified.
+ *
+ * The traversal already tracks the enclosing scopes in m_symtab_it; handing the
+ * resolver a clone of it (a clone because the walk pops as it goes) puts the
+ * declaring package, its imports, and any enclosing component back in scope.
+ */
+void TaskApplyTypeExtensions::seedCtxtScope(ResolveContext &ctxt) {
+    // Guarded: apply() is not the only entry point, and a walk that has not
+    // established a symtab iterator yet would otherwise dereference null.
+    if (m_symtab_it) {
+        ctxt.pushSymtab(m_symtab_it->clone());
+    }
+}
+
 void TaskApplyTypeExtensions::visitExtendEnum(ast::IExtendEnum *i) {
     DEBUG_ENTER("visitExtendEnum");
     ResolveContext ctxt(m_factory, m_marker_l, m_root);
-    seedScope(ctxt);
+    seedCtxtScope(ctxt);
     // report_unresolved=false: the marker below says the same thing with more
     // context, and letting both fire reported one mistake twice.
     ast::ISymbolRefPath *target_p =
@@ -64,7 +98,7 @@ void TaskApplyTypeExtensions::visitExtendEnum(ast::IExtendEnum *i) {
 
     if (!target_p) {
         IMarkerUP marker(m_factory->mkMarker(
-            "cannot extend unknown enum '" +
+            "cannot extend unknown enum '" + 
             i->getTarget()->getElems().at(0)->getId()->getId() + "'",
             MarkerSeverityE::Error,
             i->getTarget()->getElems().at(0)->getId()->getLocation()));
@@ -88,7 +122,7 @@ void TaskApplyTypeExtensions::visitExtendEnum(ast::IExtendEnum *i) {
             // 
             int32_t id = target_s->getChildren().size();
             target_s->getSymtab().insert({(*it)->getName()->getId(), id});
-            target_s->getChildren().push_back(it->get());
+            target_s->getChildren().push_back(ast::IScopeChildUP(it->get(), false));
         } else {
             // TODO: duplicate name
         }
@@ -100,7 +134,7 @@ void TaskApplyTypeExtensions::visitExtendEnum(ast::IExtendEnum *i) {
 void TaskApplyTypeExtensions::visitExtendType(ast::IExtendType *i) {
     DEBUG_ENTER("visitExtendType");
     ResolveContext ctxt(m_factory, m_marker_l, m_root);
-    seedScope(ctxt);
+    seedCtxtScope(ctxt);
     ast::ISymbolRefPath *target_p = TaskResolveRef(&ctxt).resolve(i->getTarget());
 
     if (!target_p) {
@@ -150,8 +184,26 @@ void TaskApplyTypeExtensions::visitSymbolEnumScope(ast::ISymbolEnumScope *i) {
 void TaskApplyTypeExtensions::visitSymbolExtendScope(ast::ISymbolExtendScope *i) {
     DEBUG_ENTER("visitSymbolExtendScope");
     ast::IExtendType *ast_target = dynamic_cast<ast::IExtendType *>(i->getTarget());
-    ResolveContext ctxt(m_factory, m_marker_l, m_root);
-    seedScope(ctxt);
+
+    // Inside a type scope, a failed lookup is not reported. `override action A
+    // { ... }` is built as an IExtendType targeting A (AstBuilderInt::
+    // visitOverride_action_declaration), so an override and a real extension
+    // are the same node here and cannot be told apart. They need opposite
+    // lookups: LRM 17.3 restricts an in-component `extend` to a type defined
+    // in that same component, while LRM 19.2.2a requires an override's target
+    // to come from a *base* component -- and super types are not resolved
+    // until after this pass, so an override's target cannot be found at all.
+    //
+    // Reporting the miss would put "unknown type 'base_a'" on LRM Example57,
+    // which is valid. Staying quiet keeps an override a no-op, which is what
+    // it has always been. Overriding is unimplemented either way; see
+    // docs/pssparser-fix-plan.md.
+    SwallowMarkers quiet;
+    ResolveContext ctxt(
+        m_factory,
+        m_type_scope_depth?static_cast<IMarkerListener *>(&quiet):m_marker_l,
+        m_root);
+    seedCtxtScope(ctxt);
     ast::ISymbolRefPath *target_p = TaskResolveRef(&ctxt).resolve(
         ast_target->getTarget());
 
@@ -163,58 +215,44 @@ void TaskApplyTypeExtensions::visitSymbolExtendScope(ast::ISymbolExtendScope *i)
     ast_target->getTarget()->setTarget(target_p);
     ast::IScopeChild *ext_target = m_symtab_it->resolveAbsPath(target_p);
     ast::ISymbolScope *target_s = dynamic_cast<ast::ISymbolScope *>(ext_target);
+    if (!target_s) {
+        // The path resolved to something that is not a scope. A template
+        // instance extension (`extend struct S<int>`) does this: its
+        // reference path ends in an ElemKind_TypeSpec step, and no
+        // specialization exists yet at this point in the link -- extensions
+        // are applied before TaskResolveRefs creates any -- so the step
+        // indexes into the generic's (empty) specialization list and lands on
+        // an unrelated node. That node was then written to as though it were a
+        // scope, which is the segfault. See visitSymbolExtendScope's caller
+        // and TaskGetSpecializedTemplateType::mk.
+        m_marker_l->marker(IMarkerUP(m_factory->mkMarker(
+            "cannot extend a template instance: extending a specific "
+            "specialization (LRM 17.2.6b) is not supported; extend the "
+            "generic type instead, which applies to every instance",
+            MarkerSeverityE::Error,
+            ast_target->getTarget()->getElems().back()->getId()->getLocation())).get());
+        DEBUG_LEAVE("visitSymbolExtendScope - target is not a scope");
+        return;
+    }
     DEBUG("Target scope: %s", target_s->getName().c_str());
-    
+
     m_target_s = target_s;
     DEBUG("%d children in extension scope", i->getChildren().size());
-    m_rehomed.clear();
+
+    // Merge by name rather than by node type. Dispatching through accept()
+    // needs one visit method per contributable construct, and anything
+    // without one is silently dropped -- which is how plain fields went
+    // missing. TaskGetName() answers for every named construct uniformly,
+    // and what has no name (an anonymous constraint or exec block) is
+    // appended positionally.
     for (std::vector<ast::IScopeChildUP>::const_iterator
         it=i->getChildren().begin();
         it!=i->getChildren().end(); it++) {
-        // Remember what this symbol scope stands for, so the second walk below
-        // does not re-home the same declaration twice. Both forms occur: a type
-        // declaration is a separate ISymbolTypeScope wrapping the AST node,
-        // while an exec block is built as a symbol scope by the parser and so
-        // is *the same object* in the AST body.
-        ast::ISymbolScope *ss = dynamic_cast<ast::ISymbolScope *>(it->get());
-        if (ss) {
-            m_rehomed.insert(ss);
-            if (ss->getTarget()) {
-                m_rehomed.insert(ss->getTarget());
-            }
-        }
-        it->get()->accept(this);
+        mergeChild(target_s, it->get());
     }
-
-    // A second walk, over the *AST* extension body, because the loop above
-    // cannot see a plain field (P2-A5b).
-    //
-    // The extension's symbol scope is not synthetic, so
-    // TaskBuildSymbolTree::addChild records a named child in its symtab while
-    // mapping the name to the child's index in the AST scope rather than
-    // pushing it into the symbol scope's children. Nested declarations survive
-    // that -- an action or a function becomes a symbol scope of its own, which
-    // is pushed -- but a field does not exist in `getChildren()` at all, so
-    // `extend struct S { int b; }` contributed nothing to `S` and `s.b` was an
-    // error.
-    //
-    // Resolution depends on this: TaskResolveRefs::visitSymbolExtendScope
-    // deliberately skips extension bodies, on the understanding that their
-    // contents are reached through the type they extend.
-    m_ast_body = true;
-    for (std::vector<ast::IScopeChildUP>::const_iterator
-        it=ast_target->getChildren().begin();
-        it!=ast_target->getChildren().end(); it++) {
-        if (m_rehomed.find(it->get()) != m_rehomed.end()) {
-            DEBUG("Skip %p -- already re-homed on the symbol pass", it->get());
-            continue;
-        }
-        it->get()->accept(this);
-    }
-    m_ast_body = false;
-    m_rehomed.clear();
-
     m_target_s = 0;
+
+    mergeIntoGenericAst(target_s, ast_target);
 
     DEBUG_LEAVE("visitSymbolExtendScope");
 }
@@ -232,6 +270,21 @@ void TaskApplyTypeExtensions::visitSymbolTypeScope(ast::ISymbolTypeScope *i) {
     if (m_target_s) {
         DEBUG("Adding to the target scope (%s)", m_target_s->getName().c_str());
         addChild(m_target_s, i, i->getName());
+    } else {
+        // Not merging: this is the ordinary walk looking for `extend`
+        // statements, and a type scope can contain them. LRM 17.3 makes a
+        // component the *expected* place to write one -- "Extending types in a
+        // component scope is only allowed for types that are defined in that
+        // scope" -- so `component C { action A {...} extend action A {...} }`
+        // is the normal form.
+        //
+        // This method used to stop here, which meant the walk never entered a
+        // component at all and every extension written inside one was silently
+        // dropped: the target resolved, no diagnostic was issued, and the
+        // members simply were not there. Templates had nothing to do with it.
+        m_type_scope_depth++;
+        visitSymbolScope(i);
+        m_type_scope_depth--;
     }
     DEBUG_LEAVE("visitSymbolTypeScope");
 }
@@ -301,53 +354,15 @@ void TaskApplyTypeExtensions::visitEnumItem(ast::IEnumItem *i) {
 
 }
 
-void TaskApplyTypeExtensions::visitField(ast::IField *i) {
-    DEBUG_ENTER("visitField %s", i->getName()->getId().c_str());
-
-    // Only on the AST pass: a field is invisible to the symbol-scope walk (see
-    // visitSymbolExtendScope). Non-owning, because the extension's AST node
-    // owns the field -- the target scope holds an alias, exactly as
-    // TaskBuildSymbolTree::addChild does for a type's own fields.
-    if (m_target_s && m_ast_body) {
-        addChild(m_target_s, i, i->getName()->getId(), false);
-    }
-
-    DEBUG_LEAVE("visitField %s", i->getName()->getId().c_str());
-}
-
-void TaskApplyTypeExtensions::visitConstraintBlock(ast::IConstraintBlock *i) {
-    DEBUG_ENTER("visitConstraintBlock");
-
-    // P2-A5c. A constraint block is not a symbol scope, so -- like a field --
-    // it is invisible to the symbol-scope walk. Unlike a field it is anonymous
-    // as far as lookup is concerned: TaskBuildSymbolTree registers a type's own
-    // constraints with the unnamed addChild too, so the name of a constraint
-    // block is never in any symtab.
-    //
-    // Getting it into the target's children is what makes it *checked*:
-    // TaskResolveRefs skips extension bodies outright, so until this ran a typo
-    // in a constraint added by an extension was silently accepted.
-    if (m_target_s && m_ast_body) {
-        addAnonChild(m_target_s, i, false);
-    }
-
-    DEBUG_LEAVE("visitConstraintBlock");
-}
-
 void TaskApplyTypeExtensions::visitTypeScope(ast::ITypeScope *i) {
     DEBUG_ENTER("visitTypeScope");
-    if (m_ast_body) {
-        // Already handled on the symbol-scope pass, as an ISymbolTypeScope.
-        DEBUG_LEAVE("visitTypeScope -- AST pass");
-        return;
-    }
     if (m_target_s) {
         std::unordered_map<std::string,int32_t>::const_iterator it =
             m_target_s->getSymtab().find(i->getName()->getId());
 
         if (it == m_target_s->getSymtab().end()) {
             // Add new
-            m_target_s->getChildren().push_back(i);
+            m_target_s->getChildren().push_back(ast::IScopeChildUP(i, false));
         } else {
             // TODO: name collision
         }
@@ -356,52 +371,91 @@ void TaskApplyTypeExtensions::visitTypeScope(ast::ITypeScope *i) {
     DEBUG_LEAVE("visitTypeScope");
 }
 
-void TaskApplyTypeExtensions::addAnonChild(
-        ast::ISymbolScope       *target,
-        ast::IScopeChild        *child,
-        bool                    owned) {
-    DEBUG_ENTER("addAnonChild to %s @ %d",
-        target->getName().c_str(), (int32_t)target->getChildren().size());
+void TaskApplyTypeExtensions::mergeIntoGenericAst(
+        ast::ISymbolScope       *target_s,
+        ast::IExtendType        *ext) {
+    // Extending a *generic* has to reach the AST, not just the symbol tree.
+    //
+    // LRM 17.2.6a: extending the generic template type applies the extension
+    // to every instance of it. But a specialization is not built from the
+    // generic's symbol scope -- TaskGetSpecializedTemplateType::mk copies the
+    // generic's **AST** type scope and builds a fresh symbol tree from the
+    // copy. Everything this task merged above went into the symbol scope
+    // only, so the copy never saw it and no specialization had the extension's
+    // members: `extend struct p::S { int added; }` followed by `S<int> s;
+    // s.added` reported "Failed to find elem added".
+    //
+    // Contributing to the AST as well is also what makes an extension body
+    // that mentions a template parameter work at all. `extend struct p::S
+    // { T w; }` has to bind `T` per instance, so the member must be *copied*
+    // into each specialization and resolved there -- one shared node merged
+    // into the generic could only ever have one binding.
+    //
+    // Non-templated types are left alone: they are never copied, so the symbol
+    // merge above is the whole story for them, and adding the same nodes twice
+    // would only create a second path to them.
+    ast::ITypeScope *target_ast = dynamic_cast<ast::ITypeScope *>(
+        target_s->getTarget());
 
-    ast::ISymbolScope *ss = dynamic_cast<ast::ISymbolScope *>(child);
-    if (ss) {
-        ss->setId(target->getChildren().size());
+    if (!target_ast || !target_ast->getParams()) {
+        return;
     }
-    if (dynamic_cast<ast::ISymbolChild *>(child)) {
-        dynamic_cast<ast::ISymbolChild *>(child)->setUpper(target);
-    }
-    target->getChildren().push_back(ast::IScopeChildUP(child, owned));
 
-    DEBUG_LEAVE("addAnonChild to %s", target->getName().c_str());
+    DEBUG_ENTER("mergeIntoGenericAst %s", target_s->getName().c_str());
+    for (std::vector<ast::IScopeChildUP>::const_iterator
+        it=ext->getChildren().begin();
+        it!=ext->getChildren().end(); it++) {
+        // Non-owning, for the reason spelled out in addChild: the `extend`
+        // statement holds the sole owning reference.
+        target_ast->getChildren().push_back(ast::IScopeChildUP(it->get(), false));
+    }
+    DEBUG_LEAVE("mergeIntoGenericAst %s", target_s->getName().c_str());
 }
 
-void TaskApplyTypeExtensions::seedScope(ResolveContext &ctxt) {
-    if (m_symtab_it) {
-        ctxt.pushSymtab(m_symtab_it->clone());
+void TaskApplyTypeExtensions::mergeChild(
+        ast::ISymbolScope       *target,
+        ast::IScopeChild        *child) {
+    // By value: get() returns a reference into the TaskGetName instance, so
+    // binding to the temporary's result leaves a dangling reference.
+    std::string name = TaskGetName().get(child);
+
+    if (name.size()) {
+        addChild(target, child, name);
+    } else {
+        // Anonymous contribution -- an unnamed constraint or an exec block.
+        // It has no symtab entry to make, but it still belongs to the
+        // extended type's logical body.
+        DEBUG("Appending anonymous %s child", "extension");
+        if (dynamic_cast<ast::ISymbolChild *>(child)) {
+            dynamic_cast<ast::ISymbolChild *>(child)->setUpper(target);
+        }
+        target->getChildren().push_back(ast::IScopeChildUP(child, false));
     }
 }
 
 void TaskApplyTypeExtensions::addChild(
         ast::ISymbolScope       *target,
         ast::IScopeChild        *child,
-        const std::string       &name,
-        bool                    owned) {
+        const std::string       &name) {
     DEBUG_ENTER("addChild %s to %s", name.c_str(), target->getName().c_str());
     std::unordered_map<std::string,int32_t>::const_iterator it;
 
     if (name.empty() || name.at(0) == '<') {
-        // An exec block is a symbol scope called `<exec>` and an activity is one
-        // with no name at all, so the collision check below used to reject every
-        // extension that carried either -- `extend component C { exec init_down
-        // {...} }` reported "Type extension of <exec> conflicts with an existing
-        // declaration" whether or not C had an exec of its own. Neither is ever
-        // looked up by that name; both are simply appended (P2-A5c).
-        //
-        // Non-owning regardless of what the caller asked for: unlike the
-        // ISymbolTypeScope built to wrap a nested declaration -- which nothing
-        // else owns -- these scopes are built by the parser straight into the
-        // extension's AST body, which owns them.
-        addAnonChild(target, child, false);
+        // An exec block is a symbol scope called `<exec>` and an activity is
+        // one with no name at all, so the collision check below rejected every
+        // extension carrying either -- `extend component C { exec init_down
+        // {...} }` reported "Type extension of <exec> conflicts with an
+        // existing declaration" whether or not C had an exec of its own.
+        // Neither is ever looked up by that name; both are simply appended.
+        DEBUG("Appending anonymous child %s", name.c_str());
+        if (dynamic_cast<ast::ISymbolChild *>(child)) {
+            dynamic_cast<ast::ISymbolChild *>(child)->setUpper(target);
+        }
+        if (dynamic_cast<ast::ISymbolScope *>(child)) {
+            dynamic_cast<ast::ISymbolScope *>(child)->setId(
+                target->getChildren().size());
+        }
+        target->getChildren().push_back(ast::IScopeChildUP(child, false));
         DEBUG_LEAVE("addChild %s to %s -- anonymous",
             name.c_str(), target->getName().c_str());
         return;
@@ -410,10 +464,23 @@ void TaskApplyTypeExtensions::addChild(
     if ((it=target->getSymtab().find(name)) == target->getSymtab().end()) {
         int32_t id = target->getChildren().size();
         if (dynamic_cast<ast::ISymbolChild *>(child)) {
-            dynamic_cast<ast::ISymbolChild *>(child)->setUpper(target);
+            ast::ISymbolChild *sc = dynamic_cast<ast::ISymbolChild *>(child);
+            sc->setUpper(target);
+            // Re-index into the target. getId() is what
+            // AstSymbolTableIterator emits as the ChildIdx step for this
+            // scope, and until this was set it still held the member's
+            // position in the `<extend>` scope. A function contributed by an
+            // extension then resolved to whatever sat at that index in the
+            // extended type, and paths through it dead-ended.
+            sc->setId(id);
         }
         target->getSymtab().insert({name, id});
-        target->getChildren().push_back(ast::IScopeChildUP(child, owned));
+        // Non-owning: the logical (symbol) view borrows from the physical
+        // view, which keeps the sole owning reference in its GlobalScope.
+        // IScopeChildUP's implicit constructor defaults to owned=true, so
+        // pushing the raw pointer here would make the extended type a second
+        // owner of a node the `extend` statement already owns.
+        target->getChildren().push_back(ast::IScopeChildUP(child, false));
     } else {
         std::string msg = "Type extension of ";
         msg += name + " conflicts with an existing declaration";

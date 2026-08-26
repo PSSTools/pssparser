@@ -62,7 +62,23 @@ public:
         if (target) {
             target->accept(m_this);
         } else {
-            DEBUG_ERROR("Failed to resolve user-defined data type target");
+            // Not an error, and specifically not one to print.
+            //
+            // This runs from inside TaskResolveRefs' single in-order walk, on a
+            // symbol that may live in a unit the walk has not reached yet: its
+            // field types are bound by visitDataTypeUserDefined, which has not
+            // run for that unit. So a null target here means "not resolved
+            // yet", and whether it happens at all is a function of the order
+            // the files were listed in -- 0 messages in dependency order, 104
+            // reversed, 78 alphabetical, on the same 22-file model.
+            //
+            // It was DEBUG_ERROR, which prints `Error: pssp::TaskIsPyRef: ...`
+            // to stderr while counting toward nothing, so a run could print 104
+            // `Error:` lines and then report `0 errors in 0 files` and exit 0.
+            // A reference that is *still* unresolved when the pass finishes is
+            // caught by TaskCheckRefsResolved, which measures the end state
+            // rather than the middle of a walk.
+            DEBUG("user-defined data type target not resolved yet");
         }
         DEBUG_LEAVE("visitDataTypeUserDefined");
     }

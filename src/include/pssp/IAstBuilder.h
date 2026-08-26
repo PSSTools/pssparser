@@ -34,7 +34,26 @@ public:
 
     virtual void setCollectDocStrings(bool c) = 0;
 
+    /**
+     * Collect every comment, not only the docstring of a declaration.
+     * Implies docstring collection.
+     */
+    virtual void setCollectComments(bool c) = 0;
+
+    virtual bool getCollectComments() = 0;
+
     virtual bool getCollectDocStrings() = 0;
+
+    /** Columns a tab advances when a doc comment is dedented (default 4). */
+    virtual void setDocCommentTabWidth(int32_t w) = 0;
+
+    virtual int32_t getDocCommentTabWidth() = 0;
+
+    //! When true, only the marked comment forms count as documentation.
+    //! Default false: an ordinary comment above a declaration documents it.
+    virtual void setDocCommentStrictMarkers(bool s) = 0;
+
+    virtual bool getDocCommentStrictMarkers() = 0;
 
     virtual void setEnableProfile(bool e) = 0;
 

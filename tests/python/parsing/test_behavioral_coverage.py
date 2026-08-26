@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from test_helpers import parse_pss, get_symbol, has_symbol, get_location
+from test_helpers import parse_pss, get_symbol, has_symbol, get_location, assert_parse_ok
 
 
 def test_cover_statement_ref(parser):
@@ -193,3 +193,64 @@ component pss_top {
     root = parse_pss(code, parser=parser)
     comp = get_symbol(root, "pss_top")
     assert has_symbol(comp, "CovMon")
+
+
+# ============================================================================
+# Monitor activity statements (LRM 16.4)
+# ============================================================================
+
+def test_eventually_with_action_traversal():
+    """LRM 16.4.4: `eventually monitor_activity_stmt`.
+
+    The grammar took `labeled_monitor_activity_stmt` -- only the block forms
+    -- so the common `eventually <handle>;` was a syntax error.
+    """
+    assert_parse_ok("""
+    component dut_c {
+        action reset { }
+        action read { }
+    }
+    package q {
+        monitor m {
+            dut_c::reset rst;
+            dut_c::read  r;
+            activity {
+                sequence {
+                    rst;
+                    eventually r;
+                }
+            }
+        }
+    }
+    component pss_top { dut_c d; }
+    """)
+
+
+def test_eventually_with_block():
+    """Control: the block form must keep working."""
+    assert_parse_ok("""
+    component dut_c { action reset { } action read { } }
+    package q {
+        monitor m {
+            dut_c::reset rst;
+            dut_c::read  r;
+            activity { sequence { rst; eventually { r; } } }
+        }
+    }
+    component pss_top { dut_c d; }
+    """)
+
+
+def test_monitor_activity_select():
+    """monitor_activity_select_stmt was defined but never referenced."""
+    assert_parse_ok("""
+    component dut_c { action a1 { } action a2 { } }
+    package q {
+        monitor m {
+            dut_c::a1 x;
+            dut_c::a2 y;
+            activity { select { x; y; } }
+        }
+    }
+    component pss_top { dut_c d; }
+    """)

@@ -19,17 +19,15 @@
  *     Author: 
  */
 #pragma once
-#include <set>
 #include "dmgr/IDebugMgr.h"
 #include "pssp/IMarkerListener.h"
 #include "pssp/ISymbolTableIterator.h"
 #include "pssp/IFactory.h"
 #include "pssp/ast/impl/VisitorBase.h"
-#include "ResolveContext.h"
 
 namespace pssp {
 
-
+class ResolveContext;
 
 class TaskApplyTypeExtensions : public ast::VisitorBase {
 public:
@@ -66,39 +64,37 @@ public:
 
     virtual void visitTypeScope(ast::ITypeScope *i) override;
 
-    virtual void visitField(ast::IField *i) override;
-
-    virtual void visitConstraintBlock(ast::IConstraintBlock *i) override;
-
 protected:
     /**
-     * Seed `ctxt` with the scope stack this walk is currently at.
-     *
-     * A freshly built ResolveContext starts at the root, so an extension target
-     * named without qualification resolved only when the type happened to live
-     * at the root: `package p { struct S {...} extend struct S {...} }` reported
-     * `unknown type 'S'`.
+     * Contribute one member of an `extend` body to the extended type's
+     * logical scope, keyed by name when it has one.
      */
-    void seedScope(ResolveContext &ctxt);
+    /**
+     * Put the enclosing scopes back in scope for an `extend` target lookup.
+     *
+     * Without this an unqualified target name resolves against the root only.
+     */
+    void seedCtxtScope(ResolveContext &ctxt);
+
+    void mergeChild(
+        ast::ISymbolScope       *target,
+        ast::IScopeChild        *child);
+
+    /**
+     * Also contribute an extension body to a *generic* type's AST scope.
+     *
+     * Specializations are built by copying the generic's AST, not its symbol
+     * scope, so an extension merged only into the symbol scope is invisible to
+     * every instance. No-op for non-templated targets, which are never copied.
+     */
+    void mergeIntoGenericAst(
+        ast::ISymbolScope       *target_s,
+        ast::IExtendType        *ext);
 
     void addChild(
         ast::ISymbolScope       *target,
         ast::IScopeChild        *child,
-        const std::string       &name,
-        bool                    owned=true);
-
-    /**
-     * Append `child` to `target` without giving it a name.
-     *
-     * For the anonymous body items -- constraints, exec blocks, activities.
-     * They are reached positionally rather than by lookup, and two of them are
-     * not a redeclaration of each other, so registering them in the symtab is
-     * both useless and actively wrong (see known-issues P2-A5c).
-     */
-    void addAnonChild(
-        ast::ISymbolScope       *target,
-        ast::IScopeChild        *child,
-        bool                    owned=true);
+        const std::string       &name);
 
 
 private:
@@ -108,14 +104,9 @@ private:
     ast::IRootSymbolScope                   *m_root;
     ISymbolTableIteratorUP                  m_symtab_it;
     ast::ISymbolScope                       *m_target_s;
-
-    // Set while walking the *AST* body of an extension rather than its symbol
-    // scope. See visitSymbolExtendScope for why both walks are needed.
-    bool                                    m_ast_body;
-
-    // AST nodes the symbol-scope walk already re-homed, so the AST walk that
-    // follows it can skip them.
-    std::set<ast::IScopeChild *>            m_rehomed;
+    // Non-zero while walking inside a type scope, where an `extend` node may
+    // in fact be an `override action` and is allowed to fail to resolve.
+    int32_t                                 m_type_scope_depth;
 
 };
 

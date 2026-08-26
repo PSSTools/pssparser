@@ -47,6 +47,16 @@ class AssignOp(IntEnum):
     AssignOp_ShrEq = ast_decl.AssignOp.AssignOp_AssignOp_ShrEq
     AssignOp_OrEq = ast_decl.AssignOp.AssignOp_AssignOp_OrEq
     AssignOp_AndEq = ast_decl.AssignOp.AssignOp_AssignOp_AndEq
+class CommentPlacement(IntEnum):
+    CommentPlacement_Leading = ast_decl.CommentPlacement.CommentPlacement_CommentPlacement_Leading
+    CommentPlacement_Trailing = ast_decl.CommentPlacement.CommentPlacement_CommentPlacement_Trailing
+    CommentPlacement_Orphan = ast_decl.CommentPlacement.CommentPlacement_CommentPlacement_Orphan
+class DocCommentForm(IntEnum):
+    DocForm_None = ast_decl.DocCommentForm.DocCommentForm_DocForm_None
+    DocForm_Line = ast_decl.DocCommentForm.DocCommentForm_DocForm_Line
+    DocForm_DocLine = ast_decl.DocCommentForm.DocCommentForm_DocForm_DocLine
+    DocForm_Block = ast_decl.DocCommentForm.DocCommentForm_DocForm_Block
+    DocForm_DocBlock = ast_decl.DocCommentForm.DocCommentForm_DocForm_DocBlock
 class ExecKind(IntEnum):
     ExecKind_Body = ast_decl.ExecKind.ExecKind_ExecKind_Body
     ExecKind_Header = ast_decl.ExecKind.ExecKind_ExecKind_Header
@@ -206,11 +216,17 @@ cdef class Factory(object):
     cpdef SymbolRefPath mkSymbolRefPath(self):
         return SymbolRefPath.mk(self._hndl.mkSymbolRefPath(
 ), True)
-    cpdef TemplateParamValueList mkTemplateParamValueList(self):
-        return TemplateParamValueList.mk(self._hndl.mkTemplateParamValueList(
-), True)
+    cpdef MonitorActivitySelectBranch mkMonitorActivitySelectBranch(self,
+            Expr guard,
+            ScopeChild body):
+        return MonitorActivitySelectBranch.mk(self._hndl.mkMonitorActivitySelectBranch(
+                guard.asExpr(),
+                body.asScopeChild()), True)
     cpdef Expr mkExpr(self):
         return Expr.mk(self._hndl.mkExpr(
+), True)
+    cpdef TemplateParamValue mkTemplateParamValue(self):
+        return TemplateParamValue.mk(self._hndl.mkTemplateParamValue(
 ), True)
     cpdef ExprAggrMapElem mkExprAggrMapElem(self,
             Expr lhs,
@@ -246,15 +262,6 @@ cdef class Factory(object):
     cpdef RefExpr mkRefExpr(self):
         return RefExpr.mk(self._hndl.mkRefExpr(
 ), True)
-    cpdef TemplateParamValue mkTemplateParamValue(self):
-        return TemplateParamValue.mk(self._hndl.mkTemplateParamValue(
-), True)
-    cpdef MonitorActivitySelectBranch mkMonitorActivitySelectBranch(self,
-            Expr guard,
-            ScopeChild body):
-        return MonitorActivitySelectBranch.mk(self._hndl.mkMonitorActivitySelectBranch(
-                guard.asExpr(),
-                body.asScopeChild()), True)
     cpdef ActivitySelectBranch mkActivitySelectBranch(self,
             Expr guard,
             Expr weight,
@@ -263,6 +270,9 @@ cdef class Factory(object):
                 guard.asExpr(),
                 weight.asExpr(),
                 body.asScopeChild()), True)
+    cpdef TemplateParamValueList mkTemplateParamValueList(self):
+        return TemplateParamValueList.mk(self._hndl.mkTemplateParamValueList(
+), True)
     cpdef ScopeChild mkScopeChild(self):
         return ScopeChild.mk(self._hndl.mkScopeChild(
 ), True)
@@ -287,7 +297,7 @@ cdef class Factory(object):
         cdef int plat_i = int(plat)
         return FunctionImport.mk(self._hndl.mkFunctionImport(
                 <ast_decl.PlatQual>(plat_i),
-                lang), True)
+                lang.encode()), True)
     cpdef FunctionParamDecl mkFunctionParamDecl(self,
              kind,
             ExprId name,
@@ -325,11 +335,11 @@ cdef class Factory(object):
             bool is_parallel):
         return ActivitySchedulingConstraint.mk(self._hndl.mkActivitySchedulingConstraint(
                 is_parallel), True)
-    cpdef MonitorActivityStmt mkMonitorActivityStmt(self):
-        return MonitorActivityStmt.mk(self._hndl.mkMonitorActivityStmt(
-), True)
     cpdef ActivityStmt mkActivityStmt(self):
         return ActivityStmt.mk(self._hndl.mkActivityStmt(
+), True)
+    cpdef MonitorActivityStmt mkMonitorActivityStmt(self):
+        return MonitorActivityStmt.mk(self._hndl.mkMonitorActivityStmt(
 ), True)
     cpdef Annotation mkAnnotation(self,
             TypeIdentifier type):
@@ -351,11 +361,18 @@ cdef class Factory(object):
         return PackageImportStmt.mk(self._hndl.mkPackageImportStmt(
                 wildcard,
                 alias.asExprId()), True)
+    cpdef Comment mkComment(self,
+            str text,
+             placement):
+        cdef int placement_i = int(placement)
+        return Comment.mk(self._hndl.mkComment(
+                text.encode(),
+                <ast_decl.CommentPlacement>(placement_i)), True)
     cpdef ComponentBind mkComponentBind(self,
             str pool_path,
             bool is_wildcard):
         return ComponentBind.mk(self._hndl.mkComponentBind(
-                pool_path,
+                pool_path.encode(),
                 is_wildcard), True)
     cpdef ConstraintStmt mkConstraintStmt(self):
         return ConstraintStmt.mk(self._hndl.mkConstraintStmt(
@@ -366,10 +383,6 @@ cdef class Factory(object):
         return ProceduralStmtIfClause.mk(self._hndl.mkProceduralStmtIfClause(
                 cond.asExpr(),
                 body.asScopeChild()), True)
-    cpdef TemplateParamDecl mkTemplateParamDecl(self,
-            ExprId name):
-        return TemplateParamDecl.mk(self._hndl.mkTemplateParamDecl(
-                name.asExprId()), True)
     cpdef CoverStmtInline mkCoverStmtInline(self,
             ScopeChild body):
         return CoverStmtInline.mk(self._hndl.mkCoverStmtInline(
@@ -384,15 +397,15 @@ cdef class Factory(object):
     cpdef PyImportStmt mkPyImportStmt(self):
         return PyImportStmt.mk(self._hndl.mkPyImportStmt(
 ), True)
+    cpdef DataType mkDataType(self):
+        return DataType.mk(self._hndl.mkDataType(
+), True)
     cpdef RefExprScopeIndex mkRefExprScopeIndex(self,
             RefExpr base,
             int32_t offset):
         return RefExprScopeIndex.mk(self._hndl.mkRefExprScopeIndex(
                 base.asRefExpr(),
                 offset), True)
-    cpdef DataType mkDataType(self):
-        return DataType.mk(self._hndl.mkDataType(
-), True)
     cpdef RefExprTypeScopeContext mkRefExprTypeScopeContext(self,
             RefExpr base,
             int32_t offset):
@@ -406,18 +419,14 @@ cdef class Factory(object):
     cpdef Scope mkScope(self):
         return Scope.mk(self._hndl.mkScope(
 ), True)
-    cpdef TemplateParamExprValue mkTemplateParamExprValue(self,
-            Expr value):
-        return TemplateParamExprValue.mk(self._hndl.mkTemplateParamExprValue(
-                value.asExpr()), True)
+    cpdef TemplateParamDecl mkTemplateParamDecl(self,
+            ExprId name):
+        return TemplateParamDecl.mk(self._hndl.mkTemplateParamDecl(
+                name.asExprId()), True)
     cpdef ScopeChildRef mkScopeChildRef(self,
             ScopeChild target):
         return ScopeChildRef.mk(self._hndl.mkScopeChildRef(
                 target.asScopeChild()), True)
-    cpdef TemplateParamTypeValue mkTemplateParamTypeValue(self,
-            DataType value):
-        return TemplateParamTypeValue.mk(self._hndl.mkTemplateParamTypeValue(
-                value.asDataType()), True)
     cpdef SymbolChild mkSymbolChild(self):
         return SymbolChild.mk(self._hndl.mkSymbolChild(
 ), True)
@@ -433,6 +442,10 @@ cdef class Factory(object):
         return DistWeight.mk(self._hndl.mkDistWeight(
                 is_dividing,
                 expr.asExpr()), True)
+    cpdef TemplateParamExprValue mkTemplateParamExprValue(self,
+            Expr value):
+        return TemplateParamExprValue.mk(self._hndl.mkTemplateParamExprValue(
+                value.asExpr()), True)
     cpdef ExecBlockTag mkExecBlockTag(self,
             TypeIdentifier type):
         return ExecBlockTag.mk(self._hndl.mkExecBlockTag(
@@ -440,7 +453,7 @@ cdef class Factory(object):
     cpdef SymbolScopeRef mkSymbolScopeRef(self,
             str name):
         return SymbolScopeRef.mk(self._hndl.mkSymbolScopeRef(
-                name), True)
+                name.encode()), True)
     cpdef ExecStmt mkExecStmt(self):
         return ExecStmt.mk(self._hndl.mkExecStmt(
 ), True)
@@ -450,7 +463,7 @@ cdef class Factory(object):
         cdef int kind_i = int(kind)
         return ExecTargetTemplateBlock.mk(self._hndl.mkExecTargetTemplateBlock(
                 <ast_decl.ExecKind>(kind_i),
-                data), True)
+                data.encode()), True)
     cpdef ExportFunction mkExportFunction(self,
              plat,
             ExprId name):
@@ -464,8 +477,12 @@ cdef class Factory(object):
             str data):
         return TargetTemplateFunction.mk(self._hndl.mkTargetTemplateFunction(
                 proto.asFunctionPrototype(),
-                language,
-                data), True)
+                language.encode(),
+                data.encode()), True)
+    cpdef TemplateParamTypeValue mkTemplateParamTypeValue(self,
+            DataType value):
+        return TemplateParamTypeValue.mk(self._hndl.mkTemplateParamTypeValue(
+                value.asDataType()), True)
     cpdef ExprAggrLiteral mkExprAggrLiteral(self):
         return ExprAggrLiteral.mk(self._hndl.mkExprAggrLiteral(
 ), True)
@@ -523,7 +540,7 @@ cdef class Factory(object):
             bool is_scientific):
         return ExprFloatLiteral.mk(self._hndl.mkExprFloatLiteral(
                 value,
-                image,
+                image.encode(),
                 is_scientific), True)
     cpdef ExprHierarchicalId mkExprHierarchicalId(self):
         return ExprHierarchicalId.mk(self._hndl.mkExprHierarchicalId(
@@ -532,7 +549,7 @@ cdef class Factory(object):
             str id,
             bool is_escaped):
         return ExprId.mk(self._hndl.mkExprId(
-                id,
+                id.encode(),
                 is_escaped), True)
     cpdef ExprIn mkExprIn(self,
             Expr lhs,
@@ -600,7 +617,7 @@ cdef class Factory(object):
             str value,
             bool is_raw):
         return ExprString.mk(self._hndl.mkExprString(
-                value,
+                value.encode(),
                 is_raw), True)
     cpdef ExprStructLiteral mkExprStructLiteral(self):
         return ExprStructLiteral.mk(self._hndl.mkExprStructLiteral(
@@ -809,21 +826,21 @@ cdef class Factory(object):
             int32_t width,
             int64_t value):
         return ExprSignedNumber.mk(self._hndl.mkExprSignedNumber(
-                image,
+                image.encode(),
                 width,
                 value), True)
     cpdef ExprTemplateString mkExprTemplateString(self,
             str value,
             bool is_raw):
         return ExprTemplateString.mk(self._hndl.mkExprTemplateString(
-                value,
+                value.encode(),
                 is_raw), True)
     cpdef ExprUnsignedNumber mkExprUnsignedNumber(self,
             str image,
             int32_t width,
             uint64_t value):
         return ExprUnsignedNumber.mk(self._hndl.mkExprUnsignedNumber(
-                image,
+                image.encode(),
                 width,
                 value), True)
     cpdef ExtendType mkExtendType(self,
@@ -881,7 +898,7 @@ cdef class Factory(object):
         cdef int plat_i = int(plat)
         return FunctionImportProto.mk(self._hndl.mkFunctionImportProto(
                 <ast_decl.PlatQual>(plat_i),
-                lang,
+                lang.encode(),
                 proto.asFunctionPrototype()), True)
     cpdef FunctionImportType mkFunctionImportType(self,
              plat,
@@ -890,7 +907,7 @@ cdef class Factory(object):
         cdef int plat_i = int(plat)
         return FunctionImportType.mk(self._hndl.mkFunctionImportType(
                 <ast_decl.PlatQual>(plat_i),
-                lang,
+                lang.encode(),
                 type.asTypeIdentifier()), True)
     cpdef FunctionPrototype mkFunctionPrototype(self,
             ExprId name,
@@ -1034,13 +1051,16 @@ cdef class Factory(object):
             Expr expr):
         return ProceduralStmtReturn.mk(self._hndl.mkProceduralStmtReturn(
                 expr.asExpr()), True)
+    cpdef ProceduralStmtSuper mkProceduralStmtSuper(self):
+        return ProceduralStmtSuper.mk(self._hndl.mkProceduralStmtSuper(
+), True)
     cpdef ProceduralStmtYield mkProceduralStmtYield(self):
         return ProceduralStmtYield.mk(self._hndl.mkProceduralStmtYield(
 ), True)
     cpdef SymbolChildrenScope mkSymbolChildrenScope(self,
             str name):
         return SymbolChildrenScope.mk(self._hndl.mkSymbolChildrenScope(
-                name), True)
+                name.encode()), True)
     cpdef TemplateCategoryTypeParamDecl mkTemplateCategoryTypeParamDecl(self,
             ExprId name,
              category,
@@ -1136,7 +1156,7 @@ cdef class Factory(object):
             str name,
             bool is_dynamic):
         return ConstraintBlock.mk(self._hndl.mkConstraintBlock(
-                name,
+                name.encode(),
                 is_dynamic), True)
     cpdef ConstraintStmtForall mkConstraintStmtForall(self,
             ExprId iterator_id,
@@ -1169,7 +1189,7 @@ cdef class Factory(object):
     cpdef SymbolScope mkSymbolScope(self,
             str name):
         return SymbolScope.mk(self._hndl.mkSymbolScope(
-                name), True)
+                name.encode()), True)
     cpdef TypeScope mkTypeScope(self,
             ExprId name,
             TypeIdentifier super_t):
@@ -1194,38 +1214,38 @@ cdef class Factory(object):
                 name.asExprId(),
                 super_t.asTypeIdentifier(),
                 is_abstract), True)
+    cpdef ActivityDecl mkActivityDecl(self,
+            str name):
+        return ActivityDecl.mk(self._hndl.mkActivityDecl(
+                name.encode()), True)
     cpdef GenericConstraintDeclBool mkGenericConstraintDeclBool(self,
             str name,
             bool is_dynamic):
         return GenericConstraintDeclBool.mk(self._hndl.mkGenericConstraintDeclBool(
-                name,
+                name.encode(),
                 is_dynamic), True)
-    cpdef ActivityDecl mkActivityDecl(self,
-            str name):
-        return ActivityDecl.mk(self._hndl.mkActivityDecl(
-                name), True)
     cpdef Monitor mkMonitor(self,
             ExprId name,
             TypeIdentifier super_t):
         return Monitor.mk(self._hndl.mkMonitor(
                 name.asExprId(),
                 super_t.asTypeIdentifier()), True)
-    cpdef MonitorActivityDecl mkMonitorActivityDecl(self,
-            str name):
-        return MonitorActivityDecl.mk(self._hndl.mkMonitorActivityDecl(
-                name), True)
     cpdef ActivityLabeledScope mkActivityLabeledScope(self,
             str name):
         return ActivityLabeledScope.mk(self._hndl.mkActivityLabeledScope(
-                name), True)
+                name.encode()), True)
+    cpdef MonitorActivityDecl mkMonitorActivityDecl(self,
+            str name):
+        return MonitorActivityDecl.mk(self._hndl.mkMonitorActivityDecl(
+                name.encode()), True)
     cpdef MonitorActivitySchedule mkMonitorActivitySchedule(self,
             str name):
         return MonitorActivitySchedule.mk(self._hndl.mkMonitorActivitySchedule(
-                name), True)
+                name.encode()), True)
     cpdef MonitorActivitySequence mkMonitorActivitySequence(self,
             str name):
         return MonitorActivitySequence.mk(self._hndl.mkMonitorActivitySequence(
-                name), True)
+                name.encode()), True)
     cpdef AnnotationDecl mkAnnotationDecl(self,
             ExprId name,
             TypeIdentifier super_t):
@@ -1238,20 +1258,20 @@ cdef class Factory(object):
         return Component.mk(self._hndl.mkComponent(
                 name.asExprId(),
                 super_t.asTypeIdentifier()), True)
+    cpdef ConstraintSymbolScope mkConstraintSymbolScope(self,
+            str name):
+        return ConstraintSymbolScope.mk(self._hndl.mkConstraintSymbolScope(
+                name.encode()), True)
     cpdef ProceduralStmtSymbolBodyScope mkProceduralStmtSymbolBodyScope(self,
             str name,
             ScopeChild body):
         return ProceduralStmtSymbolBodyScope.mk(self._hndl.mkProceduralStmtSymbolBodyScope(
-                name,
+                name.encode(),
                 body.asScopeChild()), True)
-    cpdef ConstraintSymbolScope mkConstraintSymbolScope(self,
-            str name):
-        return ConstraintSymbolScope.mk(self._hndl.mkConstraintSymbolScope(
-                name), True)
     cpdef RootSymbolScope mkRootSymbolScope(self,
             str name):
         return RootSymbolScope.mk(self._hndl.mkRootSymbolScope(
-                name), True)
+                name.encode()), True)
     cpdef Struct mkStruct(self,
             ExprId name,
             TypeIdentifier super_t,
@@ -1264,45 +1284,53 @@ cdef class Factory(object):
     cpdef SymbolEnumScope mkSymbolEnumScope(self,
             str name):
         return SymbolEnumScope.mk(self._hndl.mkSymbolEnumScope(
-                name), True)
+                name.encode()), True)
     cpdef SymbolExtendScope mkSymbolExtendScope(self,
             str name):
         return SymbolExtendScope.mk(self._hndl.mkSymbolExtendScope(
-                name), True)
+                name.encode()), True)
     cpdef SymbolFunctionScope mkSymbolFunctionScope(self,
             str name):
         return SymbolFunctionScope.mk(self._hndl.mkSymbolFunctionScope(
-                name), True)
+                name.encode()), True)
     cpdef ExecScope mkExecScope(self,
             str name):
         return ExecScope.mk(self._hndl.mkExecScope(
-                name), True)
+                name.encode()), True)
     cpdef SymbolTypeScope mkSymbolTypeScope(self,
             str name,
             SymbolScope plist):
         return SymbolTypeScope.mk(self._hndl.mkSymbolTypeScope(
-                name,
+                name.encode(),
                 plist.asSymbolScope()), True)
     cpdef TemplateElem mkTemplateElem(self,
             str name,
             int32_t offset,
             int32_t extent):
         return TemplateElem.mk(self._hndl.mkTemplateElem(
-                name,
+                name.encode(),
                 offset,
                 extent), True)
     cpdef TemplateString mkTemplateString(self,
             str name,
             str raw):
         return TemplateString.mk(self._hndl.mkTemplateString(
-                name,
-                raw), True)
+                name.encode(),
+                raw.encode()), True)
+    cpdef TemplateVarDecl mkTemplateVarDecl(self,
+            str name,
+            int32_t offset,
+            int32_t extent):
+        return TemplateVarDecl.mk(self._hndl.mkTemplateVarDecl(
+                name.encode(),
+                offset,
+                extent), True)
     cpdef ExecBlock mkExecBlock(self,
             str name,
              kind):
         cdef int kind_i = int(kind)
         return ExecBlock.mk(self._hndl.mkExecBlock(
-                name,
+                name.encode(),
                 <ast_decl.ExecKind>(kind_i)), True)
     cpdef ProceduralStmtForeach mkProceduralStmtForeach(self,
             str name,
@@ -1311,7 +1339,7 @@ cdef class Factory(object):
             ExprId it_id,
             ExprId idx_id):
         return ProceduralStmtForeach.mk(self._hndl.mkProceduralStmtForeach(
-                name,
+                name.encode(),
                 body.asScopeChild(),
                 path.asExprRefPath(),
                 it_id.asExprId(),
@@ -1323,7 +1351,7 @@ cdef class Factory(object):
             ExprId lhs,
             Expr rhs):
         return TemplateAssign.mk(self._hndl.mkTemplateAssign(
-                name,
+                name.encode(),
                 offset,
                 extent,
                 lhs.asExprId(),
@@ -1333,88 +1361,80 @@ cdef class Factory(object):
             int32_t offset,
             int32_t extent):
         return TemplateBlock.mk(self._hndl.mkTemplateBlock(
-                name,
+                name.encode(),
                 offset,
                 extent), True)
-    cpdef TemplateComment mkTemplateComment(self,
-            str name,
-            int32_t offset,
-            int32_t extent,
-            str text):
-        return TemplateComment.mk(self._hndl.mkTemplateComment(
-                name,
-                offset,
-                extent,
-                text), True)
     cpdef ProceduralStmtRepeat mkProceduralStmtRepeat(self,
             str name,
             ScopeChild body,
             ExprId it_id,
             Expr count):
         return ProceduralStmtRepeat.mk(self._hndl.mkProceduralStmtRepeat(
-                name,
+                name.encode(),
                 body.asScopeChild(),
                 it_id.asExprId(),
                 count.asExpr()), True)
+    cpdef TemplateComment mkTemplateComment(self,
+            str name,
+            int32_t offset,
+            int32_t extent,
+            str text):
+        return TemplateComment.mk(self._hndl.mkTemplateComment(
+                name.encode(),
+                offset,
+                extent,
+                text.encode()), True)
     cpdef TemplateExpr mkTemplateExpr(self,
             str name,
             int32_t offset,
             int32_t extent,
             Expr expr):
         return TemplateExpr.mk(self._hndl.mkTemplateExpr(
-                name,
+                name.encode(),
                 offset,
                 extent,
                 expr.asExpr()), True)
+    cpdef ActivityParallel mkActivityParallel(self,
+            str name,
+            ActivityJoinSpec join_spec):
+        return ActivityParallel.mk(self._hndl.mkActivityParallel(
+                name.encode(),
+                join_spec.asActivityJoinSpec()), True)
     cpdef TemplateIf mkTemplateIf(self,
             str name,
             int32_t offset,
             int32_t extent):
         return TemplateIf.mk(self._hndl.mkTemplateIf(
-                name,
+                name.encode(),
                 offset,
                 extent), True)
-    cpdef ActivityParallel mkActivityParallel(self,
-            str name,
-            ActivityJoinSpec join_spec):
-        return ActivityParallel.mk(self._hndl.mkActivityParallel(
-                name,
-                join_spec.asActivityJoinSpec()), True)
     cpdef ActivitySchedule mkActivitySchedule(self,
             str name,
             ActivityJoinSpec join_spec):
         return ActivitySchedule.mk(self._hndl.mkActivitySchedule(
-                name,
+                name.encode(),
                 join_spec.asActivityJoinSpec()), True)
     cpdef ActivitySequence mkActivitySequence(self,
             str name):
         return ActivitySequence.mk(self._hndl.mkActivitySequence(
-                name), True)
+                name.encode()), True)
     cpdef TemplateText mkTemplateText(self,
             str name,
             int32_t offset,
             int32_t extent,
             str text):
         return TemplateText.mk(self._hndl.mkTemplateText(
-                name,
+                name.encode(),
                 offset,
                 extent,
-                text), True)
-    cpdef TemplateVarDecl mkTemplateVarDecl(self,
-            str name,
-            int32_t offset,
-            int32_t extent):
-        return TemplateVarDecl.mk(self._hndl.mkTemplateVarDecl(
-                name,
-                offset,
-                extent), True)
+                text.encode()), True)
     cpdef TemplateForeach mkTemplateForeach(self,
             str name,
             int32_t offset,
             int32_t extent,
             Expr expr):
         return TemplateForeach.mk(self._hndl.mkTemplateForeach(
-                name,
+                name.encode(),
                 offset,
                 extent,
                 expr.asExpr()), True)
@@ -1424,7 +1444,7 @@ cdef class Factory(object):
             int32_t extent,
             Expr expr):
         return TemplateRepeat.mk(self._hndl.mkTemplateRepeat(
-                name,
+                name.encode(),
                 offset,
                 extent,
                 expr.asExpr()), True)
@@ -1433,7 +1453,7 @@ cdef class Factory(object):
             int32_t offset,
             int32_t extent):
         return TemplateIfClause.mk(self._hndl.mkTemplateIfClause(
-                name,
+                name.encode(),
                 offset,
                 extent), True)
     @staticmethod
@@ -1593,10 +1613,18 @@ cdef class SymbolRefPath(object):
     def path(self) -> ListUtil:
         return ListUtil(self.numPath, self.getPath)
     
+    cpdef getPathList(self):
+        return [self.getPath(__i) for __i in range(self.numPath())]
+    cpdef SymbolRefPathElem getPath(self, i):
+        return SymbolRefPathElem.wrap(self.asSymbolRefPath().getPath().at(i))
+    cpdef void addPath(self, SymbolRefPathElem i):
+        self.asSymbolRefPath().getPath().push_back(i._val)
+    cpdef numPath(self):
+        return self.asSymbolRefPath().getPath().size()
     cpdef int32_t getPyref_idx(self):
         return dynamic_cast[ast_decl.ISymbolRefPathP](self._hndl).getPyref_idx()
 
-cdef class TemplateParamValueList(object):
+cdef class MonitorActivitySelectBranch(object):
     
     def __dealloc__(self):
         if self._owned and self._hndl != NULL:
@@ -1612,42 +1640,33 @@ cdef class TemplateParamValueList(object):
         return reinterpret_cast[intptr_t](self._hndl)
     
     def __eq__(self, o):
-        oh = <TemplateParamValueList>(o)
+        oh = <MonitorActivitySelectBranch>(o)
         return self._hndl == oh._hndl
     
-    cdef ast_decl.ITemplateParamValueList *asTemplateParamValueList(self):
-        return dynamic_cast[ast_decl.ITemplateParamValueListP](self._hndl)
+    cdef ast_decl.IMonitorActivitySelectBranch *asMonitorActivitySelectBranch(self):
+        return dynamic_cast[ast_decl.IMonitorActivitySelectBranchP](self._hndl)
     @staticmethod
-    cdef TemplateParamValueList mk(ast_decl.ITemplateParamValueList *hndl, bool owned):
+    cdef MonitorActivitySelectBranch mk(ast_decl.IMonitorActivitySelectBranch *hndl, bool owned):
         '''Creates a Python wrapper around native class'''
-        ret = TemplateParamValueList()
+        ret = MonitorActivitySelectBranch()
         ret._hndl = hndl
         ret._owned = owned
         return ret
     
-    def values(self) -> ListUtil:
-        return ListUtil(self.numValues, self.getValue)
-    
-    cpdef getValues(self):
-        cdef const std_vector[ast_decl.ITemplateParamValueUP] *__lp = &self.asTemplateParamValueList().getValues()
-        cdef ast_decl.ITemplateParamValue *__ep;
-        ret = []
-        for __i in range(__lp.size()):
-            __ep = __lp.at(__i).get()
+    cpdef Expr getGuard(self):
+        if self.asMonitorActivitySelectBranch().getGuard() == NULL:
+            return None
+        else:
             of = ObjFactory()
-            __ep.accept(of._hndl)
-            ret.append(of._obj)
-        return ret
-    cpdef getValue(self, i):
-        cdef ast_decl.ITemplateParamValue *__ep = self.asTemplateParamValueList().getValues().at(i).get();
-        of = ObjFactory()
-        __ep.accept(of._hndl)
-        return of._obj
-    cpdef void addValue(self, TemplateParamValue i):
-        i._owned = False
-        self.asTemplateParamValueList().getValues().push_back(ast_decl.ITemplateParamValueUP(i.asTemplateParamValue(), True))
-    cpdef numValues(self):
-        return self.asTemplateParamValueList().getValues().size()
+            self.asMonitorActivitySelectBranch().getGuard().accept(of._hndl)
+            return <Expr>(of._obj)
+    cpdef ScopeChild getBody(self):
+        if self.asMonitorActivitySelectBranch().getBody() == NULL:
+            return None
+        else:
+            of = ObjFactory()
+            self.asMonitorActivitySelectBranch().getBody().accept(of._hndl)
+            return <ScopeChild>(of._obj)
 
 cdef class Expr(object):
     
@@ -1674,6 +1693,36 @@ cdef class Expr(object):
     cdef Expr mk(ast_decl.IExpr *hndl, bool owned):
         '''Creates a Python wrapper around native class'''
         ret = Expr()
+        ret._hndl = hndl
+        ret._owned = owned
+        return ret
+    
+
+cdef class TemplateParamValue(object):
+    
+    def __dealloc__(self):
+        if self._owned and self._hndl != NULL:
+            del self._hndl
+            self._hndl = NULL
+    
+    cpdef void accept(self, VisitorBase v):
+        self._hndl.accept(v._hndl)
+    
+    cpdef int id(self):
+        return reinterpret_cast[intptr_t](self._hndl)
+    def __hash__(self):
+        return reinterpret_cast[intptr_t](self._hndl)
+    
+    def __eq__(self, o):
+        oh = <TemplateParamValue>(o)
+        return self._hndl == oh._hndl
+    
+    cdef ast_decl.ITemplateParamValue *asTemplateParamValue(self):
+        return dynamic_cast[ast_decl.ITemplateParamValueP](self._hndl)
+    @staticmethod
+    cdef TemplateParamValue mk(ast_decl.ITemplateParamValue *hndl, bool owned):
+        '''Creates a Python wrapper around native class'''
+        ret = TemplateParamValue()
         ret._hndl = hndl
         ret._owned = owned
         return ret
@@ -1946,80 +1995,6 @@ cdef class RefExpr(object):
         return ret
     
 
-cdef class TemplateParamValue(object):
-    
-    def __dealloc__(self):
-        if self._owned and self._hndl != NULL:
-            del self._hndl
-            self._hndl = NULL
-    
-    cpdef void accept(self, VisitorBase v):
-        self._hndl.accept(v._hndl)
-    
-    cpdef int id(self):
-        return reinterpret_cast[intptr_t](self._hndl)
-    def __hash__(self):
-        return reinterpret_cast[intptr_t](self._hndl)
-    
-    def __eq__(self, o):
-        oh = <TemplateParamValue>(o)
-        return self._hndl == oh._hndl
-    
-    cdef ast_decl.ITemplateParamValue *asTemplateParamValue(self):
-        return dynamic_cast[ast_decl.ITemplateParamValueP](self._hndl)
-    @staticmethod
-    cdef TemplateParamValue mk(ast_decl.ITemplateParamValue *hndl, bool owned):
-        '''Creates a Python wrapper around native class'''
-        ret = TemplateParamValue()
-        ret._hndl = hndl
-        ret._owned = owned
-        return ret
-    
-
-cdef class MonitorActivitySelectBranch(object):
-    
-    def __dealloc__(self):
-        if self._owned and self._hndl != NULL:
-            del self._hndl
-            self._hndl = NULL
-    
-    cpdef void accept(self, VisitorBase v):
-        self._hndl.accept(v._hndl)
-    
-    cpdef int id(self):
-        return reinterpret_cast[intptr_t](self._hndl)
-    def __hash__(self):
-        return reinterpret_cast[intptr_t](self._hndl)
-    
-    def __eq__(self, o):
-        oh = <MonitorActivitySelectBranch>(o)
-        return self._hndl == oh._hndl
-    
-    cdef ast_decl.IMonitorActivitySelectBranch *asMonitorActivitySelectBranch(self):
-        return dynamic_cast[ast_decl.IMonitorActivitySelectBranchP](self._hndl)
-    @staticmethod
-    cdef MonitorActivitySelectBranch mk(ast_decl.IMonitorActivitySelectBranch *hndl, bool owned):
-        '''Creates a Python wrapper around native class'''
-        ret = MonitorActivitySelectBranch()
-        ret._hndl = hndl
-        ret._owned = owned
-        return ret
-    
-    cpdef Expr getGuard(self):
-        if self.asMonitorActivitySelectBranch().getGuard() == NULL:
-            return None
-        else:
-            of = ObjFactory()
-            self.asMonitorActivitySelectBranch().getGuard().accept(of._hndl)
-            return <Expr>(of._obj)
-    cpdef ScopeChild getBody(self):
-        if self.asMonitorActivitySelectBranch().getBody() == NULL:
-            return None
-        else:
-            of = ObjFactory()
-            self.asMonitorActivitySelectBranch().getBody().accept(of._hndl)
-            return <ScopeChild>(of._obj)
-
 cdef class ActivitySelectBranch(object):
     
     def __dealloc__(self):
@@ -2071,6 +2046,59 @@ cdef class ActivitySelectBranch(object):
             self.asActivitySelectBranch().getBody().accept(of._hndl)
             return <ScopeChild>(of._obj)
 
+cdef class TemplateParamValueList(object):
+    
+    def __dealloc__(self):
+        if self._owned and self._hndl != NULL:
+            del self._hndl
+            self._hndl = NULL
+    
+    cpdef void accept(self, VisitorBase v):
+        self._hndl.accept(v._hndl)
+    
+    cpdef int id(self):
+        return reinterpret_cast[intptr_t](self._hndl)
+    def __hash__(self):
+        return reinterpret_cast[intptr_t](self._hndl)
+    
+    def __eq__(self, o):
+        oh = <TemplateParamValueList>(o)
+        return self._hndl == oh._hndl
+    
+    cdef ast_decl.ITemplateParamValueList *asTemplateParamValueList(self):
+        return dynamic_cast[ast_decl.ITemplateParamValueListP](self._hndl)
+    @staticmethod
+    cdef TemplateParamValueList mk(ast_decl.ITemplateParamValueList *hndl, bool owned):
+        '''Creates a Python wrapper around native class'''
+        ret = TemplateParamValueList()
+        ret._hndl = hndl
+        ret._owned = owned
+        return ret
+    
+    def values(self) -> ListUtil:
+        return ListUtil(self.numValues, self.getValue)
+    
+    cpdef getValues(self):
+        cdef const std_vector[ast_decl.ITemplateParamValueUP] *__lp = &self.asTemplateParamValueList().getValues()
+        cdef ast_decl.ITemplateParamValue *__ep;
+        ret = []
+        for __i in range(__lp.size()):
+            __ep = __lp.at(__i).get()
+            of = ObjFactory()
+            __ep.accept(of._hndl)
+            ret.append(of._obj)
+        return ret
+    cpdef getValue(self, i):
+        cdef ast_decl.ITemplateParamValue *__ep = self.asTemplateParamValueList().getValues().at(i).get();
+        of = ObjFactory()
+        __ep.accept(of._hndl)
+        return of._obj
+    cpdef void addValue(self, TemplateParamValue i):
+        i._owned = False
+        self.asTemplateParamValueList().getValues().push_back(ast_decl.ITemplateParamValueUP(i.asTemplateParamValue(), True))
+    cpdef numValues(self):
+        return self.asTemplateParamValueList().getValues().size()
+
 cdef class ScopeChild(object):
     
     def __dealloc__(self):
@@ -2104,8 +2132,18 @@ cdef class ScopeChild(object):
         return dynamic_cast[ast_decl.IScopeChildP](self._hndl).getDocstring().decode()
     cpdef void setDocstring(self, str v):
         dynamic_cast[ast_decl.IScopeChildP](self._hndl).setDocstring(v.encode())
+    cpdef str getDocRaw(self):
+        return dynamic_cast[ast_decl.IScopeChildP](self._hndl).getDocRaw().decode()
+    cpdef void setDocRaw(self, str v):
+        dynamic_cast[ast_decl.IScopeChildP](self._hndl).setDocRaw(v.encode())
+    cpdef  getDocForm(self):
+        return dynamic_cast[ast_decl.IScopeChildP](self._hndl).getDocForm()
+    cpdef Location getDocLocation(self):
+        return Location.wrap(dynamic_cast[ast_decl.IScopeChildP](self._hndl).getDocLocation())
     cpdef Location getLocation(self):
         return Location.wrap(dynamic_cast[ast_decl.IScopeChildP](self._hndl).getLocation())
+    cpdef Location getEndLocation(self):
+        return Location.wrap(dynamic_cast[ast_decl.IScopeChildP](self._hndl).getEndLocation())
     cpdef Scope getParent(self):
         if self.asScopeChild().getParent() == NULL:
             return None
@@ -2145,6 +2183,52 @@ cdef class ScopeChild(object):
         self.asScopeChild().getAnnotations().push_back(ast_decl.IAnnotationUP(i.asAnnotation(), True))
     cpdef numAnnotations(self):
         return self.asScopeChild().getAnnotations().size()
+    def comments(self) -> ListUtil:
+        return ListUtil(self.numComments, self.getComment)
+    
+    cpdef getComments(self):
+        cdef const std_vector[ast_decl.ICommentUP] *__lp = &self.asScopeChild().getComments()
+        cdef ast_decl.IComment *__ep;
+        ret = []
+        for __i in range(__lp.size()):
+            __ep = __lp.at(__i).get()
+            of = ObjFactory()
+            __ep.accept(of._hndl)
+            ret.append(of._obj)
+        return ret
+    cpdef getComment(self, i):
+        cdef ast_decl.IComment *__ep = self.asScopeChild().getComments().at(i).get();
+        of = ObjFactory()
+        __ep.accept(of._hndl)
+        return of._obj
+    cpdef void addComment(self, Comment i):
+        i._owned = False
+        self.asScopeChild().getComments().push_back(ast_decl.ICommentUP(i.asComment(), True))
+    cpdef numComments(self):
+        return self.asScopeChild().getComments().size()
+    def trailing_comments(self) -> ListUtil:
+        return ListUtil(self.numTrailing_comments, self.getTrailing_comment)
+    
+    cpdef getTrailing_comments(self):
+        cdef const std_vector[ast_decl.ICommentUP] *__lp = &self.asScopeChild().getTrailing_comments()
+        cdef ast_decl.IComment *__ep;
+        ret = []
+        for __i in range(__lp.size()):
+            __ep = __lp.at(__i).get()
+            of = ObjFactory()
+            __ep.accept(of._hndl)
+            ret.append(of._obj)
+        return ret
+    cpdef getTrailing_comment(self, i):
+        cdef ast_decl.IComment *__ep = self.asScopeChild().getTrailing_comments().at(i).get();
+        of = ObjFactory()
+        __ep.accept(of._hndl)
+        return of._obj
+    cpdef void addTrailing_comment(self, Comment i):
+        i._owned = False
+        self.asScopeChild().getTrailing_comments().push_back(ast_decl.ICommentUP(i.asComment(), True))
+    cpdef numTrailing_comments(self):
+        return self.asScopeChild().getTrailing_comments().size()
 
 cdef class ActionFieldInitializer(ScopeChild):
     
@@ -2185,8 +2269,6 @@ cdef class FunctionDefinition(ScopeChild):
         ret._owned = owned
         return ret
     
-    cpdef Location getEndLocation(self):
-        return Location.wrap(dynamic_cast[ast_decl.IFunctionDefinitionP](self._hndl).getEndLocation())
     cpdef FunctionPrototype getProto(self):
         if self.asFunctionDefinition().getProto() == NULL:
             return None
@@ -2442,19 +2524,6 @@ cdef class ActivitySchedulingConstraint(ScopeChild):
     cpdef numTargets(self):
         return self.asActivitySchedulingConstraint().getTargets().size()
 
-cdef class MonitorActivityStmt(ScopeChild):
-    
-    cdef ast_decl.IMonitorActivityStmt *asMonitorActivityStmt(self):
-        return dynamic_cast[ast_decl.IMonitorActivityStmtP](self._hndl)
-    @staticmethod
-    cdef MonitorActivityStmt mk(ast_decl.IMonitorActivityStmt *hndl, bool owned):
-        '''Creates a Python wrapper around native class'''
-        ret = MonitorActivityStmt()
-        ret._hndl = hndl
-        ret._owned = owned
-        return ret
-    
-
 cdef class ActivityStmt(ScopeChild):
     
     cdef ast_decl.IActivityStmt *asActivityStmt(self):
@@ -2463,6 +2532,19 @@ cdef class ActivityStmt(ScopeChild):
     cdef ActivityStmt mk(ast_decl.IActivityStmt *hndl, bool owned):
         '''Creates a Python wrapper around native class'''
         ret = ActivityStmt()
+        ret._hndl = hndl
+        ret._owned = owned
+        return ret
+    
+
+cdef class MonitorActivityStmt(ScopeChild):
+    
+    cdef ast_decl.IMonitorActivityStmt *asMonitorActivityStmt(self):
+        return dynamic_cast[ast_decl.IMonitorActivityStmtP](self._hndl)
+    @staticmethod
+    cdef MonitorActivityStmt mk(ast_decl.IMonitorActivityStmt *hndl, bool owned):
+        '''Creates a Python wrapper around native class'''
+        ret = MonitorActivityStmt()
         ret._hndl = hndl
         ret._owned = owned
         return ret
@@ -2589,6 +2671,31 @@ cdef class PackageImportStmt(ScopeChild):
             self.asPackageImportStmt().getPath().accept(of._hndl)
             return <TypeIdentifier>(of._obj)
 
+cdef class Comment(ScopeChild):
+    
+    cdef ast_decl.IComment *asComment(self):
+        return dynamic_cast[ast_decl.ICommentP](self._hndl)
+    @staticmethod
+    cdef Comment mk(ast_decl.IComment *hndl, bool owned):
+        '''Creates a Python wrapper around native class'''
+        ret = Comment()
+        ret._hndl = hndl
+        ret._owned = owned
+        return ret
+    
+    cpdef str getText(self):
+        return dynamic_cast[ast_decl.ICommentP](self._hndl).getText().decode()
+    cpdef void setText(self, str v):
+        dynamic_cast[ast_decl.ICommentP](self._hndl).setText(v.encode())
+    cpdef  getPlacement(self):
+        return dynamic_cast[ast_decl.ICommentP](self._hndl).getPlacement()
+    cpdef str getRaw(self):
+        return dynamic_cast[ast_decl.ICommentP](self._hndl).getRaw().decode()
+    cpdef void setRaw(self, str v):
+        dynamic_cast[ast_decl.ICommentP](self._hndl).setRaw(v.encode())
+    cpdef bool getIs_block(self):
+        return dynamic_cast[ast_decl.ICommentP](self._hndl).getIs_block()
+
 cdef class ComponentBind(ScopeChild):
     
     cdef ast_decl.IComponentBind *asComponentBind(self):
@@ -2658,26 +2765,6 @@ cdef class ProceduralStmtIfClause(ScopeChild):
             of = ObjFactory()
             self.asProceduralStmtIfClause().getBody().accept(of._hndl)
             return <ScopeChild>(of._obj)
-
-cdef class TemplateParamDecl(ScopeChild):
-    
-    cdef ast_decl.ITemplateParamDecl *asTemplateParamDecl(self):
-        return dynamic_cast[ast_decl.ITemplateParamDeclP](self._hndl)
-    @staticmethod
-    cdef TemplateParamDecl mk(ast_decl.ITemplateParamDecl *hndl, bool owned):
-        '''Creates a Python wrapper around native class'''
-        ret = TemplateParamDecl()
-        ret._hndl = hndl
-        ret._owned = owned
-        return ret
-    
-    cpdef ExprId getName(self):
-        if self.asTemplateParamDecl().getName() == NULL:
-            return None
-        else:
-            of = ObjFactory()
-            self.asTemplateParamDecl().getName().accept(of._hndl)
-            return <ExprId>(of._obj)
 
 cdef class CoverStmtInline(ScopeChild):
     
@@ -2821,6 +2908,19 @@ cdef class PyImportStmt(ScopeChild):
             self.asPyImportStmt().getAlias().accept(of._hndl)
             return <ExprId>(of._obj)
 
+cdef class DataType(ScopeChild):
+    
+    cdef ast_decl.IDataType *asDataType(self):
+        return dynamic_cast[ast_decl.IDataTypeP](self._hndl)
+    @staticmethod
+    cdef DataType mk(ast_decl.IDataType *hndl, bool owned):
+        '''Creates a Python wrapper around native class'''
+        ret = DataType()
+        ret._hndl = hndl
+        ret._owned = owned
+        return ret
+    
+
 cdef class RefExprScopeIndex(RefExpr):
     
     cdef ast_decl.IRefExprScopeIndex *asRefExprScopeIndex(self):
@@ -2842,19 +2942,6 @@ cdef class RefExprScopeIndex(RefExpr):
             return <RefExpr>(of._obj)
     cpdef int32_t getOffset(self):
         return dynamic_cast[ast_decl.IRefExprScopeIndexP](self._hndl).getOffset()
-
-cdef class DataType(ScopeChild):
-    
-    cdef ast_decl.IDataType *asDataType(self):
-        return dynamic_cast[ast_decl.IDataTypeP](self._hndl)
-    @staticmethod
-    cdef DataType mk(ast_decl.IDataType *hndl, bool owned):
-        '''Creates a Python wrapper around native class'''
-        ret = DataType()
-        ret._hndl = hndl
-        ret._owned = owned
-        return ret
-    
 
 cdef class RefExprTypeScopeContext(RefExpr):
     
@@ -2905,8 +2992,6 @@ cdef class Scope(ScopeChild):
         ret._owned = owned
         return ret
     
-    cpdef Location getEndLocation(self):
-        return Location.wrap(dynamic_cast[ast_decl.IScopeP](self._hndl).getEndLocation())
     def children(self) -> ListUtil:
         return ListUtil(self.numChildren, self.getChild)
     
@@ -2931,25 +3016,25 @@ cdef class Scope(ScopeChild):
     cpdef numChildren(self):
         return self.asScope().getChildren().size()
 
-cdef class TemplateParamExprValue(TemplateParamValue):
+cdef class TemplateParamDecl(ScopeChild):
     
-    cdef ast_decl.ITemplateParamExprValue *asTemplateParamExprValue(self):
-        return dynamic_cast[ast_decl.ITemplateParamExprValueP](self._hndl)
+    cdef ast_decl.ITemplateParamDecl *asTemplateParamDecl(self):
+        return dynamic_cast[ast_decl.ITemplateParamDeclP](self._hndl)
     @staticmethod
-    cdef TemplateParamExprValue mk(ast_decl.ITemplateParamExprValue *hndl, bool owned):
+    cdef TemplateParamDecl mk(ast_decl.ITemplateParamDecl *hndl, bool owned):
         '''Creates a Python wrapper around native class'''
-        ret = TemplateParamExprValue()
+        ret = TemplateParamDecl()
         ret._hndl = hndl
         ret._owned = owned
         return ret
     
-    cpdef Expr getValue(self):
-        if self.asTemplateParamExprValue().getValue() == NULL:
+    cpdef ExprId getName(self):
+        if self.asTemplateParamDecl().getName() == NULL:
             return None
         else:
             of = ObjFactory()
-            self.asTemplateParamExprValue().getValue().accept(of._hndl)
-            return <Expr>(of._obj)
+            self.asTemplateParamDecl().getName().accept(of._hndl)
+            return <ExprId>(of._obj)
 
 cdef class ScopeChildRef(ScopeChild):
     
@@ -2970,26 +3055,6 @@ cdef class ScopeChildRef(ScopeChild):
             of = ObjFactory()
             self.asScopeChildRef().getTarget().accept(of._hndl)
             return <ScopeChild>(of._obj)
-
-cdef class TemplateParamTypeValue(TemplateParamValue):
-    
-    cdef ast_decl.ITemplateParamTypeValue *asTemplateParamTypeValue(self):
-        return dynamic_cast[ast_decl.ITemplateParamTypeValueP](self._hndl)
-    @staticmethod
-    cdef TemplateParamTypeValue mk(ast_decl.ITemplateParamTypeValue *hndl, bool owned):
-        '''Creates a Python wrapper around native class'''
-        ret = TemplateParamTypeValue()
-        ret._hndl = hndl
-        ret._owned = owned
-        return ret
-    
-    cpdef DataType getValue(self):
-        if self.asTemplateParamTypeValue().getValue() == NULL:
-            return None
-        else:
-            of = ObjFactory()
-            self.asTemplateParamTypeValue().getValue().accept(of._hndl)
-            return <DataType>(of._obj)
 
 cdef class SymbolChild(ScopeChild):
     
@@ -3060,6 +3125,26 @@ cdef class DistWeight(ScopeChild):
         else:
             of = ObjFactory()
             self.asDistWeight().getExpr().accept(of._hndl)
+            return <Expr>(of._obj)
+
+cdef class TemplateParamExprValue(TemplateParamValue):
+    
+    cdef ast_decl.ITemplateParamExprValue *asTemplateParamExprValue(self):
+        return dynamic_cast[ast_decl.ITemplateParamExprValueP](self._hndl)
+    @staticmethod
+    cdef TemplateParamExprValue mk(ast_decl.ITemplateParamExprValue *hndl, bool owned):
+        '''Creates a Python wrapper around native class'''
+        ret = TemplateParamExprValue()
+        ret._hndl = hndl
+        ret._owned = owned
+        return ret
+    
+    cpdef Expr getValue(self):
+        if self.asTemplateParamExprValue().getValue() == NULL:
+            return None
+        else:
+            of = ObjFactory()
+            self.asTemplateParamExprValue().getValue().accept(of._hndl)
             return <Expr>(of._obj)
 
 cdef class ExecBlockTag(ScopeChild):
@@ -3232,6 +3317,26 @@ cdef class TargetTemplateFunction(ScopeChild):
             of = ObjFactory()
             self.asTargetTemplateFunction().getTemplate().accept(of._hndl)
             return <TemplateString>(of._obj)
+
+cdef class TemplateParamTypeValue(TemplateParamValue):
+    
+    cdef ast_decl.ITemplateParamTypeValue *asTemplateParamTypeValue(self):
+        return dynamic_cast[ast_decl.ITemplateParamTypeValueP](self._hndl)
+    @staticmethod
+    cdef TemplateParamTypeValue mk(ast_decl.ITemplateParamTypeValue *hndl, bool owned):
+        '''Creates a Python wrapper around native class'''
+        ret = TemplateParamTypeValue()
+        ret._hndl = hndl
+        ret._owned = owned
+        return ret
+    
+    cpdef DataType getValue(self):
+        if self.asTemplateParamTypeValue().getValue() == NULL:
+            return None
+        else:
+            of = ObjFactory()
+            self.asTemplateParamTypeValue().getValue().accept(of._hndl)
+            return <DataType>(of._obj)
 
 cdef class ExprAggrLiteral(Expr):
     
@@ -4393,8 +4498,6 @@ cdef class ConstraintScope(ConstraintStmt):
         ret._owned = owned
         return ret
     
-    cpdef Location getEndLocation(self):
-        return Location.wrap(dynamic_cast[ast_decl.IConstraintScopeP](self._hndl).getEndLocation())
     def constraints(self) -> ListUtil:
         return ListUtil(self.numConstraints, self.getConstraint)
     
@@ -6343,6 +6446,19 @@ cdef class ProceduralStmtReturn(ExecStmt):
             self.asProceduralStmtReturn().getExpr().accept(of._hndl)
             return <Expr>(of._obj)
 
+cdef class ProceduralStmtSuper(ExecStmt):
+    
+    cdef ast_decl.IProceduralStmtSuper *asProceduralStmtSuper(self):
+        return dynamic_cast[ast_decl.IProceduralStmtSuperP](self._hndl)
+    @staticmethod
+    cdef ProceduralStmtSuper mk(ast_decl.IProceduralStmtSuper *hndl, bool owned):
+        '''Creates a Python wrapper around native class'''
+        ret = ProceduralStmtSuper()
+        ret._hndl = hndl
+        ret._owned = owned
+        return ret
+    
+
 cdef class ProceduralStmtYield(ExecStmt):
     
     cdef ast_decl.IProceduralStmtYield *asProceduralStmtYield(self):
@@ -7131,6 +7247,19 @@ cdef class Action(TypeScope):
     cpdef bool getIs_override(self):
         return dynamic_cast[ast_decl.IActionP](self._hndl).getIs_override()
 
+cdef class ActivityDecl(SymbolScope):
+    
+    cdef ast_decl.IActivityDecl *asActivityDecl(self):
+        return dynamic_cast[ast_decl.IActivityDeclP](self._hndl)
+    @staticmethod
+    cdef ActivityDecl mk(ast_decl.IActivityDecl *hndl, bool owned):
+        '''Creates a Python wrapper around native class'''
+        ret = ActivityDecl()
+        ret._hndl = hndl
+        ret._owned = owned
+        return ret
+    
+
 cdef class GenericConstraintDeclBool(ConstraintBlock):
     
     cdef ast_decl.IGenericConstraintDeclBool *asGenericConstraintDeclBool(self):
@@ -7169,19 +7298,6 @@ cdef class GenericConstraintDeclBool(ConstraintBlock):
     cpdef numParameters(self):
         return self.asGenericConstraintDeclBool().getParameters().size()
 
-cdef class ActivityDecl(SymbolScope):
-    
-    cdef ast_decl.IActivityDecl *asActivityDecl(self):
-        return dynamic_cast[ast_decl.IActivityDeclP](self._hndl)
-    @staticmethod
-    cdef ActivityDecl mk(ast_decl.IActivityDecl *hndl, bool owned):
-        '''Creates a Python wrapper around native class'''
-        ret = ActivityDecl()
-        ret._hndl = hndl
-        ret._owned = owned
-        return ret
-    
-
 cdef class Monitor(TypeScope):
     
     cdef ast_decl.IMonitor *asMonitor(self):
@@ -7196,19 +7312,6 @@ cdef class Monitor(TypeScope):
     
     cpdef bool getIs_abstract(self):
         return dynamic_cast[ast_decl.IMonitorP](self._hndl).getIs_abstract()
-
-cdef class MonitorActivityDecl(SymbolScope):
-    
-    cdef ast_decl.IMonitorActivityDecl *asMonitorActivityDecl(self):
-        return dynamic_cast[ast_decl.IMonitorActivityDeclP](self._hndl)
-    @staticmethod
-    cdef MonitorActivityDecl mk(ast_decl.IMonitorActivityDecl *hndl, bool owned):
-        '''Creates a Python wrapper around native class'''
-        ret = MonitorActivityDecl()
-        ret._hndl = hndl
-        ret._owned = owned
-        return ret
-    
 
 cdef class ActivityLabeledScope(SymbolScope):
     
@@ -7229,6 +7332,19 @@ cdef class ActivityLabeledScope(SymbolScope):
             of = ObjFactory()
             self.asActivityLabeledScope().getLabel().accept(of._hndl)
             return <ExprId>(of._obj)
+
+cdef class MonitorActivityDecl(SymbolScope):
+    
+    cdef ast_decl.IMonitorActivityDecl *asMonitorActivityDecl(self):
+        return dynamic_cast[ast_decl.IMonitorActivityDeclP](self._hndl)
+    @staticmethod
+    cdef MonitorActivityDecl mk(ast_decl.IMonitorActivityDecl *hndl, bool owned):
+        '''Creates a Python wrapper around native class'''
+        ret = MonitorActivityDecl()
+        ret._hndl = hndl
+        ret._owned = owned
+        return ret
+    
 
 cdef class MonitorActivitySchedule(SymbolScope):
     
@@ -7298,26 +7414,6 @@ cdef class Component(TypeScope):
     cpdef bool getIs_pure(self):
         return dynamic_cast[ast_decl.IComponentP](self._hndl).getIs_pure()
 
-cdef class ProceduralStmtSymbolBodyScope(SymbolScope):
-    
-    cdef ast_decl.IProceduralStmtSymbolBodyScope *asProceduralStmtSymbolBodyScope(self):
-        return dynamic_cast[ast_decl.IProceduralStmtSymbolBodyScopeP](self._hndl)
-    @staticmethod
-    cdef ProceduralStmtSymbolBodyScope mk(ast_decl.IProceduralStmtSymbolBodyScope *hndl, bool owned):
-        '''Creates a Python wrapper around native class'''
-        ret = ProceduralStmtSymbolBodyScope()
-        ret._hndl = hndl
-        ret._owned = owned
-        return ret
-    
-    cpdef ScopeChild getBody(self):
-        if self.asProceduralStmtSymbolBodyScope().getBody() == NULL:
-            return None
-        else:
-            of = ObjFactory()
-            self.asProceduralStmtSymbolBodyScope().getBody().accept(of._hndl)
-            return <ScopeChild>(of._obj)
-
 cdef class ConstraintSymbolScope(SymbolScope):
     
     cdef ast_decl.IConstraintSymbolScope *asConstraintSymbolScope(self):
@@ -7337,6 +7433,26 @@ cdef class ConstraintSymbolScope(SymbolScope):
             of = ObjFactory()
             self.asConstraintSymbolScope().getConstraint().accept(of._hndl)
             return <ConstraintStmt>(of._obj)
+
+cdef class ProceduralStmtSymbolBodyScope(SymbolScope):
+    
+    cdef ast_decl.IProceduralStmtSymbolBodyScope *asProceduralStmtSymbolBodyScope(self):
+        return dynamic_cast[ast_decl.IProceduralStmtSymbolBodyScopeP](self._hndl)
+    @staticmethod
+    cdef ProceduralStmtSymbolBodyScope mk(ast_decl.IProceduralStmtSymbolBodyScope *hndl, bool owned):
+        '''Creates a Python wrapper around native class'''
+        ret = ProceduralStmtSymbolBodyScope()
+        ret._hndl = hndl
+        ret._owned = owned
+        return ret
+    
+    cpdef ScopeChild getBody(self):
+        if self.asProceduralStmtSymbolBodyScope().getBody() == NULL:
+            return None
+        else:
+            of = ObjFactory()
+            self.asProceduralStmtSymbolBodyScope().getBody().accept(of._hndl)
+            return <ScopeChild>(of._obj)
 
 cdef class RootSymbolScope(SymbolScope):
     
@@ -7540,8 +7656,6 @@ cdef class ExecScope(SymbolScope):
         ret._owned = owned
         return ret
     
-    cpdef Location getEndLocation(self):
-        return Location.wrap(dynamic_cast[ast_decl.IExecScopeP](self._hndl).getEndLocation())
 
 cdef class SymbolTypeScope(SymbolScope):
     
@@ -7646,6 +7760,42 @@ cdef class TemplateString(SymbolScope):
         return self.asTemplateString().getElems().size()
     cpdef bool getIs_const(self):
         return dynamic_cast[ast_decl.ITemplateStringP](self._hndl).getIs_const()
+
+cdef class TemplateVarDecl(TemplateElem):
+    
+    cdef ast_decl.ITemplateVarDecl *asTemplateVarDecl(self):
+        return dynamic_cast[ast_decl.ITemplateVarDeclP](self._hndl)
+    @staticmethod
+    cdef TemplateVarDecl mk(ast_decl.ITemplateVarDecl *hndl, bool owned):
+        '''Creates a Python wrapper around native class'''
+        ret = TemplateVarDecl()
+        ret._hndl = hndl
+        ret._owned = owned
+        return ret
+    
+    def decls(self) -> ListUtil:
+        return ListUtil(self.numDecls, self.getDecl)
+    
+    cpdef getDecls(self):
+        cdef const std_vector[ast_decl.IProceduralStmtDataDeclarationUP] *__lp = &self.asTemplateVarDecl().getDecls()
+        cdef ast_decl.IProceduralStmtDataDeclaration *__ep;
+        ret = []
+        for __i in range(__lp.size()):
+            __ep = __lp.at(__i).get()
+            of = ObjFactory()
+            __ep.accept(of._hndl)
+            ret.append(of._obj)
+        return ret
+    cpdef getDecl(self, i):
+        cdef ast_decl.IProceduralStmtDataDeclaration *__ep = self.asTemplateVarDecl().getDecls().at(i).get();
+        of = ObjFactory()
+        __ep.accept(of._hndl)
+        return of._obj
+    cpdef void addDecl(self, ProceduralStmtDataDeclaration i):
+        i._owned = False
+        self.asTemplateVarDecl().getDecls().push_back(ast_decl.IProceduralStmtDataDeclarationUP(i.asProceduralStmtDataDeclaration(), True))
+    cpdef numDecls(self):
+        return self.asTemplateVarDecl().getDecls().size()
 
 cdef class ExecBlock(ExecScope):
     
@@ -7759,25 +7909,6 @@ cdef class TemplateBlock(TemplateElem):
     cpdef numBody(self):
         return self.asTemplateBlock().getBody().size()
 
-cdef class TemplateComment(TemplateElem):
-    
-    cdef ast_decl.ITemplateComment *asTemplateComment(self):
-        return dynamic_cast[ast_decl.ITemplateCommentP](self._hndl)
-    @staticmethod
-    cdef TemplateComment mk(ast_decl.ITemplateComment *hndl, bool owned):
-        '''Creates a Python wrapper around native class'''
-        ret = TemplateComment()
-        ret._hndl = hndl
-        ret._owned = owned
-        return ret
-    
-    cpdef str getText(self):
-        return dynamic_cast[ast_decl.ITemplateCommentP](self._hndl).getText().decode()
-    cpdef void setText(self, str v):
-        dynamic_cast[ast_decl.ITemplateCommentP](self._hndl).setText(v.encode())
-    cpdef bool getIs_line(self):
-        return dynamic_cast[ast_decl.ITemplateCommentP](self._hndl).getIs_line()
-
 cdef class ProceduralStmtRepeat(ProceduralStmtSymbolBodyScope):
     
     cdef ast_decl.IProceduralStmtRepeat *asProceduralStmtRepeat(self):
@@ -7805,6 +7936,25 @@ cdef class ProceduralStmtRepeat(ProceduralStmtSymbolBodyScope):
             self.asProceduralStmtRepeat().getCount().accept(of._hndl)
             return <Expr>(of._obj)
 
+cdef class TemplateComment(TemplateElem):
+    
+    cdef ast_decl.ITemplateComment *asTemplateComment(self):
+        return dynamic_cast[ast_decl.ITemplateCommentP](self._hndl)
+    @staticmethod
+    cdef TemplateComment mk(ast_decl.ITemplateComment *hndl, bool owned):
+        '''Creates a Python wrapper around native class'''
+        ret = TemplateComment()
+        ret._hndl = hndl
+        ret._owned = owned
+        return ret
+    
+    cpdef str getText(self):
+        return dynamic_cast[ast_decl.ITemplateCommentP](self._hndl).getText().decode()
+    cpdef void setText(self, str v):
+        dynamic_cast[ast_decl.ITemplateCommentP](self._hndl).setText(v.encode())
+    cpdef bool getIs_line(self):
+        return dynamic_cast[ast_decl.ITemplateCommentP](self._hndl).getIs_line()
+
 cdef class TemplateExpr(TemplateElem):
     
     cdef ast_decl.ITemplateExpr *asTemplateExpr(self):
@@ -7824,6 +7974,26 @@ cdef class TemplateExpr(TemplateElem):
             of = ObjFactory()
             self.asTemplateExpr().getExpr().accept(of._hndl)
             return <Expr>(of._obj)
+
+cdef class ActivityParallel(ActivityLabeledScope):
+    
+    cdef ast_decl.IActivityParallel *asActivityParallel(self):
+        return dynamic_cast[ast_decl.IActivityParallelP](self._hndl)
+    @staticmethod
+    cdef ActivityParallel mk(ast_decl.IActivityParallel *hndl, bool owned):
+        '''Creates a Python wrapper around native class'''
+        ret = ActivityParallel()
+        ret._hndl = hndl
+        ret._owned = owned
+        return ret
+    
+    cpdef ActivityJoinSpec getJoin_spec(self):
+        if self.asActivityParallel().getJoin_spec() == NULL:
+            return None
+        else:
+            of = ObjFactory()
+            self.asActivityParallel().getJoin_spec().accept(of._hndl)
+            return <ActivityJoinSpec>(of._obj)
 
 cdef class TemplateIf(TemplateElem):
     
@@ -7860,26 +8030,6 @@ cdef class TemplateIf(TemplateElem):
         self.asTemplateIf().getClauses().push_back(ast_decl.ITemplateIfClauseUP(i.asTemplateIfClause(), True))
     cpdef numClauses(self):
         return self.asTemplateIf().getClauses().size()
-
-cdef class ActivityParallel(ActivityLabeledScope):
-    
-    cdef ast_decl.IActivityParallel *asActivityParallel(self):
-        return dynamic_cast[ast_decl.IActivityParallelP](self._hndl)
-    @staticmethod
-    cdef ActivityParallel mk(ast_decl.IActivityParallel *hndl, bool owned):
-        '''Creates a Python wrapper around native class'''
-        ret = ActivityParallel()
-        ret._hndl = hndl
-        ret._owned = owned
-        return ret
-    
-    cpdef ActivityJoinSpec getJoin_spec(self):
-        if self.asActivityParallel().getJoin_spec() == NULL:
-            return None
-        else:
-            of = ObjFactory()
-            self.asActivityParallel().getJoin_spec().accept(of._hndl)
-            return <ActivityJoinSpec>(of._obj)
 
 cdef class ActivitySchedule(ActivityLabeledScope):
     
@@ -7930,42 +8080,6 @@ cdef class TemplateText(TemplateElem):
         return dynamic_cast[ast_decl.ITemplateTextP](self._hndl).getText().decode()
     cpdef void setText(self, str v):
         dynamic_cast[ast_decl.ITemplateTextP](self._hndl).setText(v.encode())
-
-cdef class TemplateVarDecl(TemplateElem):
-    
-    cdef ast_decl.ITemplateVarDecl *asTemplateVarDecl(self):
-        return dynamic_cast[ast_decl.ITemplateVarDeclP](self._hndl)
-    @staticmethod
-    cdef TemplateVarDecl mk(ast_decl.ITemplateVarDecl *hndl, bool owned):
-        '''Creates a Python wrapper around native class'''
-        ret = TemplateVarDecl()
-        ret._hndl = hndl
-        ret._owned = owned
-        return ret
-    
-    def decls(self) -> ListUtil:
-        return ListUtil(self.numDecls, self.getDecl)
-    
-    cpdef getDecls(self):
-        cdef const std_vector[ast_decl.IProceduralStmtDataDeclarationUP] *__lp = &self.asTemplateVarDecl().getDecls()
-        cdef ast_decl.IProceduralStmtDataDeclaration *__ep;
-        ret = []
-        for __i in range(__lp.size()):
-            __ep = __lp.at(__i).get()
-            of = ObjFactory()
-            __ep.accept(of._hndl)
-            ret.append(of._obj)
-        return ret
-    cpdef getDecl(self, i):
-        cdef ast_decl.IProceduralStmtDataDeclaration *__ep = self.asTemplateVarDecl().getDecls().at(i).get();
-        of = ObjFactory()
-        __ep.accept(of._hndl)
-        return of._obj
-    cpdef void addDecl(self, ProceduralStmtDataDeclaration i):
-        i._owned = False
-        self.asTemplateVarDecl().getDecls().push_back(ast_decl.IProceduralStmtDataDeclarationUP(i.asProceduralStmtDataDeclaration(), True))
-    cpdef numDecls(self):
-        return self.asTemplateVarDecl().getDecls().size()
 
 cdef class TemplateForeach(TemplateBlock):
     
@@ -8058,10 +8172,12 @@ cdef class VisitorBase(object):
         self._hndl.py_visitSymbolImportSpecBase(dynamic_cast[ast_decl.ISymbolImportSpecP](i._hndl));
     cpdef void visitSymbolRefPath(self, SymbolRefPath i):
         self._hndl.py_visitSymbolRefPathBase(dynamic_cast[ast_decl.ISymbolRefPathP](i._hndl));
-    cpdef void visitTemplateParamValueList(self, TemplateParamValueList i):
-        self._hndl.py_visitTemplateParamValueListBase(dynamic_cast[ast_decl.ITemplateParamValueListP](i._hndl));
+    cpdef void visitMonitorActivitySelectBranch(self, MonitorActivitySelectBranch i):
+        self._hndl.py_visitMonitorActivitySelectBranchBase(dynamic_cast[ast_decl.IMonitorActivitySelectBranchP](i._hndl));
     cpdef void visitExpr(self, Expr i):
         self._hndl.py_visitExprBase(dynamic_cast[ast_decl.IExprP](i._hndl));
+    cpdef void visitTemplateParamValue(self, TemplateParamValue i):
+        self._hndl.py_visitTemplateParamValueBase(dynamic_cast[ast_decl.ITemplateParamValueP](i._hndl));
     cpdef void visitExprAggrMapElem(self, ExprAggrMapElem i):
         self._hndl.py_visitExprAggrMapElemBase(dynamic_cast[ast_decl.IExprAggrMapElemP](i._hndl));
     cpdef void visitActivityMatchChoice(self, ActivityMatchChoice i):
@@ -8074,12 +8190,10 @@ cdef class VisitorBase(object):
         self._hndl.py_visitTemplateParamDeclListBase(dynamic_cast[ast_decl.ITemplateParamDeclListP](i._hndl));
     cpdef void visitRefExpr(self, RefExpr i):
         self._hndl.py_visitRefExprBase(dynamic_cast[ast_decl.IRefExprP](i._hndl));
-    cpdef void visitTemplateParamValue(self, TemplateParamValue i):
-        self._hndl.py_visitTemplateParamValueBase(dynamic_cast[ast_decl.ITemplateParamValueP](i._hndl));
-    cpdef void visitMonitorActivitySelectBranch(self, MonitorActivitySelectBranch i):
-        self._hndl.py_visitMonitorActivitySelectBranchBase(dynamic_cast[ast_decl.IMonitorActivitySelectBranchP](i._hndl));
     cpdef void visitActivitySelectBranch(self, ActivitySelectBranch i):
         self._hndl.py_visitActivitySelectBranchBase(dynamic_cast[ast_decl.IActivitySelectBranchP](i._hndl));
+    cpdef void visitTemplateParamValueList(self, TemplateParamValueList i):
+        self._hndl.py_visitTemplateParamValueListBase(dynamic_cast[ast_decl.ITemplateParamValueListP](i._hndl));
     cpdef void visitScopeChild(self, ScopeChild i):
         self._hndl.py_visitScopeChildBase(dynamic_cast[ast_decl.IScopeChildP](i._hndl));
     cpdef void visitActionFieldInitializer(self, ActionFieldInitializer i):
@@ -8100,10 +8214,10 @@ cdef class VisitorBase(object):
         self._hndl.py_visitMethodParameterListBase(dynamic_cast[ast_decl.IMethodParameterListP](i._hndl));
     cpdef void visitActivitySchedulingConstraint(self, ActivitySchedulingConstraint i):
         self._hndl.py_visitActivitySchedulingConstraintBase(dynamic_cast[ast_decl.IActivitySchedulingConstraintP](i._hndl));
-    cpdef void visitMonitorActivityStmt(self, MonitorActivityStmt i):
-        self._hndl.py_visitMonitorActivityStmtBase(dynamic_cast[ast_decl.IMonitorActivityStmtP](i._hndl));
     cpdef void visitActivityStmt(self, ActivityStmt i):
         self._hndl.py_visitActivityStmtBase(dynamic_cast[ast_decl.IActivityStmtP](i._hndl));
+    cpdef void visitMonitorActivityStmt(self, MonitorActivityStmt i):
+        self._hndl.py_visitMonitorActivityStmtBase(dynamic_cast[ast_decl.IMonitorActivityStmtP](i._hndl));
     cpdef void visitAnnotation(self, Annotation i):
         self._hndl.py_visitAnnotationBase(dynamic_cast[ast_decl.IAnnotationP](i._hndl));
     cpdef void visitNamedScopeChild(self, NamedScopeChild i):
@@ -8112,14 +8226,14 @@ cdef class VisitorBase(object):
         self._hndl.py_visitAnnotationParamBase(dynamic_cast[ast_decl.IAnnotationParamP](i._hndl));
     cpdef void visitPackageImportStmt(self, PackageImportStmt i):
         self._hndl.py_visitPackageImportStmtBase(dynamic_cast[ast_decl.IPackageImportStmtP](i._hndl));
+    cpdef void visitComment(self, Comment i):
+        self._hndl.py_visitCommentBase(dynamic_cast[ast_decl.ICommentP](i._hndl));
     cpdef void visitComponentBind(self, ComponentBind i):
         self._hndl.py_visitComponentBindBase(dynamic_cast[ast_decl.IComponentBindP](i._hndl));
     cpdef void visitConstraintStmt(self, ConstraintStmt i):
         self._hndl.py_visitConstraintStmtBase(dynamic_cast[ast_decl.IConstraintStmtP](i._hndl));
     cpdef void visitProceduralStmtIfClause(self, ProceduralStmtIfClause i):
         self._hndl.py_visitProceduralStmtIfClauseBase(dynamic_cast[ast_decl.IProceduralStmtIfClauseP](i._hndl));
-    cpdef void visitTemplateParamDecl(self, TemplateParamDecl i):
-        self._hndl.py_visitTemplateParamDeclBase(dynamic_cast[ast_decl.ITemplateParamDeclP](i._hndl));
     cpdef void visitCoverStmtInline(self, CoverStmtInline i):
         self._hndl.py_visitCoverStmtInlineBase(dynamic_cast[ast_decl.ICoverStmtInlineP](i._hndl));
     cpdef void visitCoverStmtReference(self, CoverStmtReference i):
@@ -8128,28 +8242,28 @@ cdef class VisitorBase(object):
         self._hndl.py_visitPyImportFromStmtBase(dynamic_cast[ast_decl.IPyImportFromStmtP](i._hndl));
     cpdef void visitPyImportStmt(self, PyImportStmt i):
         self._hndl.py_visitPyImportStmtBase(dynamic_cast[ast_decl.IPyImportStmtP](i._hndl));
-    cpdef void visitRefExprScopeIndex(self, RefExprScopeIndex i):
-        self._hndl.py_visitRefExprScopeIndexBase(dynamic_cast[ast_decl.IRefExprScopeIndexP](i._hndl));
     cpdef void visitDataType(self, DataType i):
         self._hndl.py_visitDataTypeBase(dynamic_cast[ast_decl.IDataTypeP](i._hndl));
+    cpdef void visitRefExprScopeIndex(self, RefExprScopeIndex i):
+        self._hndl.py_visitRefExprScopeIndexBase(dynamic_cast[ast_decl.IRefExprScopeIndexP](i._hndl));
     cpdef void visitRefExprTypeScopeContext(self, RefExprTypeScopeContext i):
         self._hndl.py_visitRefExprTypeScopeContextBase(dynamic_cast[ast_decl.IRefExprTypeScopeContextP](i._hndl));
     cpdef void visitRefExprTypeScopeGlobal(self, RefExprTypeScopeGlobal i):
         self._hndl.py_visitRefExprTypeScopeGlobalBase(dynamic_cast[ast_decl.IRefExprTypeScopeGlobalP](i._hndl));
     cpdef void visitScope(self, Scope i):
         self._hndl.py_visitScopeBase(dynamic_cast[ast_decl.IScopeP](i._hndl));
-    cpdef void visitTemplateParamExprValue(self, TemplateParamExprValue i):
-        self._hndl.py_visitTemplateParamExprValueBase(dynamic_cast[ast_decl.ITemplateParamExprValueP](i._hndl));
+    cpdef void visitTemplateParamDecl(self, TemplateParamDecl i):
+        self._hndl.py_visitTemplateParamDeclBase(dynamic_cast[ast_decl.ITemplateParamDeclP](i._hndl));
     cpdef void visitScopeChildRef(self, ScopeChildRef i):
         self._hndl.py_visitScopeChildRefBase(dynamic_cast[ast_decl.IScopeChildRefP](i._hndl));
-    cpdef void visitTemplateParamTypeValue(self, TemplateParamTypeValue i):
-        self._hndl.py_visitTemplateParamTypeValueBase(dynamic_cast[ast_decl.ITemplateParamTypeValueP](i._hndl));
     cpdef void visitSymbolChild(self, SymbolChild i):
         self._hndl.py_visitSymbolChildBase(dynamic_cast[ast_decl.ISymbolChildP](i._hndl));
     cpdef void visitDistItem(self, DistItem i):
         self._hndl.py_visitDistItemBase(dynamic_cast[ast_decl.IDistItemP](i._hndl));
     cpdef void visitDistWeight(self, DistWeight i):
         self._hndl.py_visitDistWeightBase(dynamic_cast[ast_decl.IDistWeightP](i._hndl));
+    cpdef void visitTemplateParamExprValue(self, TemplateParamExprValue i):
+        self._hndl.py_visitTemplateParamExprValueBase(dynamic_cast[ast_decl.ITemplateParamExprValueP](i._hndl));
     cpdef void visitExecBlockTag(self, ExecBlockTag i):
         self._hndl.py_visitExecBlockTagBase(dynamic_cast[ast_decl.IExecBlockTagP](i._hndl));
     cpdef void visitSymbolScopeRef(self, SymbolScopeRef i):
@@ -8162,6 +8276,8 @@ cdef class VisitorBase(object):
         self._hndl.py_visitExportFunctionBase(dynamic_cast[ast_decl.IExportFunctionP](i._hndl));
     cpdef void visitTargetTemplateFunction(self, TargetTemplateFunction i):
         self._hndl.py_visitTargetTemplateFunctionBase(dynamic_cast[ast_decl.ITargetTemplateFunctionP](i._hndl));
+    cpdef void visitTemplateParamTypeValue(self, TemplateParamTypeValue i):
+        self._hndl.py_visitTemplateParamTypeValueBase(dynamic_cast[ast_decl.ITemplateParamTypeValueP](i._hndl));
     cpdef void visitExprAggrLiteral(self, ExprAggrLiteral i):
         self._hndl.py_visitExprAggrLiteralBase(dynamic_cast[ast_decl.IExprAggrLiteralP](i._hndl));
     cpdef void visitExprBin(self, ExprBin i):
@@ -8382,6 +8498,8 @@ cdef class VisitorBase(object):
         self._hndl.py_visitProceduralStmtRandomizeBase(dynamic_cast[ast_decl.IProceduralStmtRandomizeP](i._hndl));
     cpdef void visitProceduralStmtReturn(self, ProceduralStmtReturn i):
         self._hndl.py_visitProceduralStmtReturnBase(dynamic_cast[ast_decl.IProceduralStmtReturnP](i._hndl));
+    cpdef void visitProceduralStmtSuper(self, ProceduralStmtSuper i):
+        self._hndl.py_visitProceduralStmtSuperBase(dynamic_cast[ast_decl.IProceduralStmtSuperP](i._hndl));
     cpdef void visitProceduralStmtYield(self, ProceduralStmtYield i):
         self._hndl.py_visitProceduralStmtYieldBase(dynamic_cast[ast_decl.IProceduralStmtYieldP](i._hndl));
     cpdef void visitSymbolChildrenScope(self, SymbolChildrenScope i):
@@ -8436,16 +8554,16 @@ cdef class VisitorBase(object):
         self._hndl.py_visitExprRefPathSuperBase(dynamic_cast[ast_decl.IExprRefPathSuperP](i._hndl));
     cpdef void visitAction(self, Action i):
         self._hndl.py_visitActionBase(dynamic_cast[ast_decl.IActionP](i._hndl));
-    cpdef void visitGenericConstraintDeclBool(self, GenericConstraintDeclBool i):
-        self._hndl.py_visitGenericConstraintDeclBoolBase(dynamic_cast[ast_decl.IGenericConstraintDeclBoolP](i._hndl));
     cpdef void visitActivityDecl(self, ActivityDecl i):
         self._hndl.py_visitActivityDeclBase(dynamic_cast[ast_decl.IActivityDeclP](i._hndl));
+    cpdef void visitGenericConstraintDeclBool(self, GenericConstraintDeclBool i):
+        self._hndl.py_visitGenericConstraintDeclBoolBase(dynamic_cast[ast_decl.IGenericConstraintDeclBoolP](i._hndl));
     cpdef void visitMonitor(self, Monitor i):
         self._hndl.py_visitMonitorBase(dynamic_cast[ast_decl.IMonitorP](i._hndl));
-    cpdef void visitMonitorActivityDecl(self, MonitorActivityDecl i):
-        self._hndl.py_visitMonitorActivityDeclBase(dynamic_cast[ast_decl.IMonitorActivityDeclP](i._hndl));
     cpdef void visitActivityLabeledScope(self, ActivityLabeledScope i):
         self._hndl.py_visitActivityLabeledScopeBase(dynamic_cast[ast_decl.IActivityLabeledScopeP](i._hndl));
+    cpdef void visitMonitorActivityDecl(self, MonitorActivityDecl i):
+        self._hndl.py_visitMonitorActivityDeclBase(dynamic_cast[ast_decl.IMonitorActivityDeclP](i._hndl));
     cpdef void visitMonitorActivitySchedule(self, MonitorActivitySchedule i):
         self._hndl.py_visitMonitorActivityScheduleBase(dynamic_cast[ast_decl.IMonitorActivityScheduleP](i._hndl));
     cpdef void visitMonitorActivitySequence(self, MonitorActivitySequence i):
@@ -8454,10 +8572,10 @@ cdef class VisitorBase(object):
         self._hndl.py_visitAnnotationDeclBase(dynamic_cast[ast_decl.IAnnotationDeclP](i._hndl));
     cpdef void visitComponent(self, Component i):
         self._hndl.py_visitComponentBase(dynamic_cast[ast_decl.IComponentP](i._hndl));
-    cpdef void visitProceduralStmtSymbolBodyScope(self, ProceduralStmtSymbolBodyScope i):
-        self._hndl.py_visitProceduralStmtSymbolBodyScopeBase(dynamic_cast[ast_decl.IProceduralStmtSymbolBodyScopeP](i._hndl));
     cpdef void visitConstraintSymbolScope(self, ConstraintSymbolScope i):
         self._hndl.py_visitConstraintSymbolScopeBase(dynamic_cast[ast_decl.IConstraintSymbolScopeP](i._hndl));
+    cpdef void visitProceduralStmtSymbolBodyScope(self, ProceduralStmtSymbolBodyScope i):
+        self._hndl.py_visitProceduralStmtSymbolBodyScopeBase(dynamic_cast[ast_decl.IProceduralStmtSymbolBodyScopeP](i._hndl));
     cpdef void visitRootSymbolScope(self, RootSymbolScope i):
         self._hndl.py_visitRootSymbolScopeBase(dynamic_cast[ast_decl.IRootSymbolScopeP](i._hndl));
     cpdef void visitStruct(self, Struct i):
@@ -8476,6 +8594,8 @@ cdef class VisitorBase(object):
         self._hndl.py_visitTemplateElemBase(dynamic_cast[ast_decl.ITemplateElemP](i._hndl));
     cpdef void visitTemplateString(self, TemplateString i):
         self._hndl.py_visitTemplateStringBase(dynamic_cast[ast_decl.ITemplateStringP](i._hndl));
+    cpdef void visitTemplateVarDecl(self, TemplateVarDecl i):
+        self._hndl.py_visitTemplateVarDeclBase(dynamic_cast[ast_decl.ITemplateVarDeclP](i._hndl));
     cpdef void visitExecBlock(self, ExecBlock i):
         self._hndl.py_visitExecBlockBase(dynamic_cast[ast_decl.IExecBlockP](i._hndl));
     cpdef void visitProceduralStmtForeach(self, ProceduralStmtForeach i):
@@ -8484,24 +8604,22 @@ cdef class VisitorBase(object):
         self._hndl.py_visitTemplateAssignBase(dynamic_cast[ast_decl.ITemplateAssignP](i._hndl));
     cpdef void visitTemplateBlock(self, TemplateBlock i):
         self._hndl.py_visitTemplateBlockBase(dynamic_cast[ast_decl.ITemplateBlockP](i._hndl));
-    cpdef void visitTemplateComment(self, TemplateComment i):
-        self._hndl.py_visitTemplateCommentBase(dynamic_cast[ast_decl.ITemplateCommentP](i._hndl));
     cpdef void visitProceduralStmtRepeat(self, ProceduralStmtRepeat i):
         self._hndl.py_visitProceduralStmtRepeatBase(dynamic_cast[ast_decl.IProceduralStmtRepeatP](i._hndl));
+    cpdef void visitTemplateComment(self, TemplateComment i):
+        self._hndl.py_visitTemplateCommentBase(dynamic_cast[ast_decl.ITemplateCommentP](i._hndl));
     cpdef void visitTemplateExpr(self, TemplateExpr i):
         self._hndl.py_visitTemplateExprBase(dynamic_cast[ast_decl.ITemplateExprP](i._hndl));
-    cpdef void visitTemplateIf(self, TemplateIf i):
-        self._hndl.py_visitTemplateIfBase(dynamic_cast[ast_decl.ITemplateIfP](i._hndl));
     cpdef void visitActivityParallel(self, ActivityParallel i):
         self._hndl.py_visitActivityParallelBase(dynamic_cast[ast_decl.IActivityParallelP](i._hndl));
+    cpdef void visitTemplateIf(self, TemplateIf i):
+        self._hndl.py_visitTemplateIfBase(dynamic_cast[ast_decl.ITemplateIfP](i._hndl));
     cpdef void visitActivitySchedule(self, ActivitySchedule i):
         self._hndl.py_visitActivityScheduleBase(dynamic_cast[ast_decl.IActivityScheduleP](i._hndl));
     cpdef void visitActivitySequence(self, ActivitySequence i):
         self._hndl.py_visitActivitySequenceBase(dynamic_cast[ast_decl.IActivitySequenceP](i._hndl));
     cpdef void visitTemplateText(self, TemplateText i):
         self._hndl.py_visitTemplateTextBase(dynamic_cast[ast_decl.ITemplateTextP](i._hndl));
-    cpdef void visitTemplateVarDecl(self, TemplateVarDecl i):
-        self._hndl.py_visitTemplateVarDeclBase(dynamic_cast[ast_decl.ITemplateVarDeclP](i._hndl));
     cpdef void visitTemplateForeach(self, TemplateForeach i):
         self._hndl.py_visitTemplateForeachBase(dynamic_cast[ast_decl.ITemplateForeachP](i._hndl));
     cpdef void visitTemplateRepeat(self, TemplateRepeat i):
@@ -8514,10 +8632,12 @@ cdef public api ast_call_visitSymbolImportSpec(object self, ast_decl.ISymbolImpo
     self.visitSymbolImportSpec(SymbolImportSpec.mk(i, False))
 cdef public api ast_call_visitSymbolRefPath(object self, ast_decl.ISymbolRefPath *i) with gil:
     self.visitSymbolRefPath(SymbolRefPath.mk(i, False))
-cdef public api ast_call_visitTemplateParamValueList(object self, ast_decl.ITemplateParamValueList *i) with gil:
-    self.visitTemplateParamValueList(TemplateParamValueList.mk(i, False))
+cdef public api ast_call_visitMonitorActivitySelectBranch(object self, ast_decl.IMonitorActivitySelectBranch *i) with gil:
+    self.visitMonitorActivitySelectBranch(MonitorActivitySelectBranch.mk(i, False))
 cdef public api ast_call_visitExpr(object self, ast_decl.IExpr *i) with gil:
     self.visitExpr(Expr.mk(i, False))
+cdef public api ast_call_visitTemplateParamValue(object self, ast_decl.ITemplateParamValue *i) with gil:
+    self.visitTemplateParamValue(TemplateParamValue.mk(i, False))
 cdef public api ast_call_visitExprAggrMapElem(object self, ast_decl.IExprAggrMapElem *i) with gil:
     self.visitExprAggrMapElem(ExprAggrMapElem.mk(i, False))
 cdef public api ast_call_visitActivityMatchChoice(object self, ast_decl.IActivityMatchChoice *i) with gil:
@@ -8530,12 +8650,10 @@ cdef public api ast_call_visitTemplateParamDeclList(object self, ast_decl.ITempl
     self.visitTemplateParamDeclList(TemplateParamDeclList.mk(i, False))
 cdef public api ast_call_visitRefExpr(object self, ast_decl.IRefExpr *i) with gil:
     self.visitRefExpr(RefExpr.mk(i, False))
-cdef public api ast_call_visitTemplateParamValue(object self, ast_decl.ITemplateParamValue *i) with gil:
-    self.visitTemplateParamValue(TemplateParamValue.mk(i, False))
-cdef public api ast_call_visitMonitorActivitySelectBranch(object self, ast_decl.IMonitorActivitySelectBranch *i) with gil:
-    self.visitMonitorActivitySelectBranch(MonitorActivitySelectBranch.mk(i, False))
 cdef public api ast_call_visitActivitySelectBranch(object self, ast_decl.IActivitySelectBranch *i) with gil:
     self.visitActivitySelectBranch(ActivitySelectBranch.mk(i, False))
+cdef public api ast_call_visitTemplateParamValueList(object self, ast_decl.ITemplateParamValueList *i) with gil:
+    self.visitTemplateParamValueList(TemplateParamValueList.mk(i, False))
 cdef public api ast_call_visitScopeChild(object self, ast_decl.IScopeChild *i) with gil:
     self.visitScopeChild(ScopeChild.mk(i, False))
 cdef public api ast_call_visitActionFieldInitializer(object self, ast_decl.IActionFieldInitializer *i) with gil:
@@ -8556,10 +8674,10 @@ cdef public api ast_call_visitMethodParameterList(object self, ast_decl.IMethodP
     self.visitMethodParameterList(MethodParameterList.mk(i, False))
 cdef public api ast_call_visitActivitySchedulingConstraint(object self, ast_decl.IActivitySchedulingConstraint *i) with gil:
     self.visitActivitySchedulingConstraint(ActivitySchedulingConstraint.mk(i, False))
-cdef public api ast_call_visitMonitorActivityStmt(object self, ast_decl.IMonitorActivityStmt *i) with gil:
-    self.visitMonitorActivityStmt(MonitorActivityStmt.mk(i, False))
 cdef public api ast_call_visitActivityStmt(object self, ast_decl.IActivityStmt *i) with gil:
     self.visitActivityStmt(ActivityStmt.mk(i, False))
+cdef public api ast_call_visitMonitorActivityStmt(object self, ast_decl.IMonitorActivityStmt *i) with gil:
+    self.visitMonitorActivityStmt(MonitorActivityStmt.mk(i, False))
 cdef public api ast_call_visitAnnotation(object self, ast_decl.IAnnotation *i) with gil:
     self.visitAnnotation(Annotation.mk(i, False))
 cdef public api ast_call_visitNamedScopeChild(object self, ast_decl.INamedScopeChild *i) with gil:
@@ -8568,14 +8686,14 @@ cdef public api ast_call_visitAnnotationParam(object self, ast_decl.IAnnotationP
     self.visitAnnotationParam(AnnotationParam.mk(i, False))
 cdef public api ast_call_visitPackageImportStmt(object self, ast_decl.IPackageImportStmt *i) with gil:
     self.visitPackageImportStmt(PackageImportStmt.mk(i, False))
+cdef public api ast_call_visitComment(object self, ast_decl.IComment *i) with gil:
+    self.visitComment(Comment.mk(i, False))
 cdef public api ast_call_visitComponentBind(object self, ast_decl.IComponentBind *i) with gil:
     self.visitComponentBind(ComponentBind.mk(i, False))
 cdef public api ast_call_visitConstraintStmt(object self, ast_decl.IConstraintStmt *i) with gil:
     self.visitConstraintStmt(ConstraintStmt.mk(i, False))
 cdef public api ast_call_visitProceduralStmtIfClause(object self, ast_decl.IProceduralStmtIfClause *i) with gil:
     self.visitProceduralStmtIfClause(ProceduralStmtIfClause.mk(i, False))
-cdef public api ast_call_visitTemplateParamDecl(object self, ast_decl.ITemplateParamDecl *i) with gil:
-    self.visitTemplateParamDecl(TemplateParamDecl.mk(i, False))
 cdef public api ast_call_visitCoverStmtInline(object self, ast_decl.ICoverStmtInline *i) with gil:
     self.visitCoverStmtInline(CoverStmtInline.mk(i, False))
 cdef public api ast_call_visitCoverStmtReference(object self, ast_decl.ICoverStmtReference *i) with gil:
@@ -8584,28 +8702,28 @@ cdef public api ast_call_visitPyImportFromStmt(object self, ast_decl.IPyImportFr
     self.visitPyImportFromStmt(PyImportFromStmt.mk(i, False))
 cdef public api ast_call_visitPyImportStmt(object self, ast_decl.IPyImportStmt *i) with gil:
     self.visitPyImportStmt(PyImportStmt.mk(i, False))
-cdef public api ast_call_visitRefExprScopeIndex(object self, ast_decl.IRefExprScopeIndex *i) with gil:
-    self.visitRefExprScopeIndex(RefExprScopeIndex.mk(i, False))
 cdef public api ast_call_visitDataType(object self, ast_decl.IDataType *i) with gil:
     self.visitDataType(DataType.mk(i, False))
+cdef public api ast_call_visitRefExprScopeIndex(object self, ast_decl.IRefExprScopeIndex *i) with gil:
+    self.visitRefExprScopeIndex(RefExprScopeIndex.mk(i, False))
 cdef public api ast_call_visitRefExprTypeScopeContext(object self, ast_decl.IRefExprTypeScopeContext *i) with gil:
     self.visitRefExprTypeScopeContext(RefExprTypeScopeContext.mk(i, False))
 cdef public api ast_call_visitRefExprTypeScopeGlobal(object self, ast_decl.IRefExprTypeScopeGlobal *i) with gil:
     self.visitRefExprTypeScopeGlobal(RefExprTypeScopeGlobal.mk(i, False))
 cdef public api ast_call_visitScope(object self, ast_decl.IScope *i) with gil:
     self.visitScope(Scope.mk(i, False))
-cdef public api ast_call_visitTemplateParamExprValue(object self, ast_decl.ITemplateParamExprValue *i) with gil:
-    self.visitTemplateParamExprValue(TemplateParamExprValue.mk(i, False))
+cdef public api ast_call_visitTemplateParamDecl(object self, ast_decl.ITemplateParamDecl *i) with gil:
+    self.visitTemplateParamDecl(TemplateParamDecl.mk(i, False))
 cdef public api ast_call_visitScopeChildRef(object self, ast_decl.IScopeChildRef *i) with gil:
     self.visitScopeChildRef(ScopeChildRef.mk(i, False))
-cdef public api ast_call_visitTemplateParamTypeValue(object self, ast_decl.ITemplateParamTypeValue *i) with gil:
-    self.visitTemplateParamTypeValue(TemplateParamTypeValue.mk(i, False))
 cdef public api ast_call_visitSymbolChild(object self, ast_decl.ISymbolChild *i) with gil:
     self.visitSymbolChild(SymbolChild.mk(i, False))
 cdef public api ast_call_visitDistItem(object self, ast_decl.IDistItem *i) with gil:
     self.visitDistItem(DistItem.mk(i, False))
 cdef public api ast_call_visitDistWeight(object self, ast_decl.IDistWeight *i) with gil:
     self.visitDistWeight(DistWeight.mk(i, False))
+cdef public api ast_call_visitTemplateParamExprValue(object self, ast_decl.ITemplateParamExprValue *i) with gil:
+    self.visitTemplateParamExprValue(TemplateParamExprValue.mk(i, False))
 cdef public api ast_call_visitExecBlockTag(object self, ast_decl.IExecBlockTag *i) with gil:
     self.visitExecBlockTag(ExecBlockTag.mk(i, False))
 cdef public api ast_call_visitSymbolScopeRef(object self, ast_decl.ISymbolScopeRef *i) with gil:
@@ -8618,6 +8736,8 @@ cdef public api ast_call_visitExportFunction(object self, ast_decl.IExportFuncti
     self.visitExportFunction(ExportFunction.mk(i, False))
 cdef public api ast_call_visitTargetTemplateFunction(object self, ast_decl.ITargetTemplateFunction *i) with gil:
     self.visitTargetTemplateFunction(TargetTemplateFunction.mk(i, False))
+cdef public api ast_call_visitTemplateParamTypeValue(object self, ast_decl.ITemplateParamTypeValue *i) with gil:
+    self.visitTemplateParamTypeValue(TemplateParamTypeValue.mk(i, False))
 cdef public api ast_call_visitExprAggrLiteral(object self, ast_decl.IExprAggrLiteral *i) with gil:
     self.visitExprAggrLiteral(ExprAggrLiteral.mk(i, False))
 cdef public api ast_call_visitExprBin(object self, ast_decl.IExprBin *i) with gil:
@@ -8838,6 +8958,8 @@ cdef public api ast_call_visitProceduralStmtRandomize(object self, ast_decl.IPro
     self.visitProceduralStmtRandomize(ProceduralStmtRandomize.mk(i, False))
 cdef public api ast_call_visitProceduralStmtReturn(object self, ast_decl.IProceduralStmtReturn *i) with gil:
     self.visitProceduralStmtReturn(ProceduralStmtReturn.mk(i, False))
+cdef public api ast_call_visitProceduralStmtSuper(object self, ast_decl.IProceduralStmtSuper *i) with gil:
+    self.visitProceduralStmtSuper(ProceduralStmtSuper.mk(i, False))
 cdef public api ast_call_visitProceduralStmtYield(object self, ast_decl.IProceduralStmtYield *i) with gil:
     self.visitProceduralStmtYield(ProceduralStmtYield.mk(i, False))
 cdef public api ast_call_visitSymbolChildrenScope(object self, ast_decl.ISymbolChildrenScope *i) with gil:
@@ -8892,16 +9014,16 @@ cdef public api ast_call_visitExprRefPathSuper(object self, ast_decl.IExprRefPat
     self.visitExprRefPathSuper(ExprRefPathSuper.mk(i, False))
 cdef public api ast_call_visitAction(object self, ast_decl.IAction *i) with gil:
     self.visitAction(Action.mk(i, False))
-cdef public api ast_call_visitGenericConstraintDeclBool(object self, ast_decl.IGenericConstraintDeclBool *i) with gil:
-    self.visitGenericConstraintDeclBool(GenericConstraintDeclBool.mk(i, False))
 cdef public api ast_call_visitActivityDecl(object self, ast_decl.IActivityDecl *i) with gil:
     self.visitActivityDecl(ActivityDecl.mk(i, False))
+cdef public api ast_call_visitGenericConstraintDeclBool(object self, ast_decl.IGenericConstraintDeclBool *i) with gil:
+    self.visitGenericConstraintDeclBool(GenericConstraintDeclBool.mk(i, False))
 cdef public api ast_call_visitMonitor(object self, ast_decl.IMonitor *i) with gil:
     self.visitMonitor(Monitor.mk(i, False))
-cdef public api ast_call_visitMonitorActivityDecl(object self, ast_decl.IMonitorActivityDecl *i) with gil:
-    self.visitMonitorActivityDecl(MonitorActivityDecl.mk(i, False))
 cdef public api ast_call_visitActivityLabeledScope(object self, ast_decl.IActivityLabeledScope *i) with gil:
     self.visitActivityLabeledScope(ActivityLabeledScope.mk(i, False))
+cdef public api ast_call_visitMonitorActivityDecl(object self, ast_decl.IMonitorActivityDecl *i) with gil:
+    self.visitMonitorActivityDecl(MonitorActivityDecl.mk(i, False))
 cdef public api ast_call_visitMonitorActivitySchedule(object self, ast_decl.IMonitorActivitySchedule *i) with gil:
     self.visitMonitorActivitySchedule(MonitorActivitySchedule.mk(i, False))
 cdef public api ast_call_visitMonitorActivitySequence(object self, ast_decl.IMonitorActivitySequence *i) with gil:
@@ -8910,10 +9032,10 @@ cdef public api ast_call_visitAnnotationDecl(object self, ast_decl.IAnnotationDe
     self.visitAnnotationDecl(AnnotationDecl.mk(i, False))
 cdef public api ast_call_visitComponent(object self, ast_decl.IComponent *i) with gil:
     self.visitComponent(Component.mk(i, False))
-cdef public api ast_call_visitProceduralStmtSymbolBodyScope(object self, ast_decl.IProceduralStmtSymbolBodyScope *i) with gil:
-    self.visitProceduralStmtSymbolBodyScope(ProceduralStmtSymbolBodyScope.mk(i, False))
 cdef public api ast_call_visitConstraintSymbolScope(object self, ast_decl.IConstraintSymbolScope *i) with gil:
     self.visitConstraintSymbolScope(ConstraintSymbolScope.mk(i, False))
+cdef public api ast_call_visitProceduralStmtSymbolBodyScope(object self, ast_decl.IProceduralStmtSymbolBodyScope *i) with gil:
+    self.visitProceduralStmtSymbolBodyScope(ProceduralStmtSymbolBodyScope.mk(i, False))
 cdef public api ast_call_visitRootSymbolScope(object self, ast_decl.IRootSymbolScope *i) with gil:
     self.visitRootSymbolScope(RootSymbolScope.mk(i, False))
 cdef public api ast_call_visitStruct(object self, ast_decl.IStruct *i) with gil:
@@ -8932,6 +9054,8 @@ cdef public api ast_call_visitTemplateElem(object self, ast_decl.ITemplateElem *
     self.visitTemplateElem(TemplateElem.mk(i, False))
 cdef public api ast_call_visitTemplateString(object self, ast_decl.ITemplateString *i) with gil:
     self.visitTemplateString(TemplateString.mk(i, False))
+cdef public api ast_call_visitTemplateVarDecl(object self, ast_decl.ITemplateVarDecl *i) with gil:
+    self.visitTemplateVarDecl(TemplateVarDecl.mk(i, False))
 cdef public api ast_call_visitExecBlock(object self, ast_decl.IExecBlock *i) with gil:
     self.visitExecBlock(ExecBlock.mk(i, False))
 cdef public api ast_call_visitProceduralStmtForeach(object self, ast_decl.IProceduralStmtForeach *i) with gil:
@@ -8940,24 +9064,22 @@ cdef public api ast_call_visitTemplateAssign(object self, ast_decl.ITemplateAssi
     self.visitTemplateAssign(TemplateAssign.mk(i, False))
 cdef public api ast_call_visitTemplateBlock(object self, ast_decl.ITemplateBlock *i) with gil:
     self.visitTemplateBlock(TemplateBlock.mk(i, False))
-cdef public api ast_call_visitTemplateComment(object self, ast_decl.ITemplateComment *i) with gil:
-    self.visitTemplateComment(TemplateComment.mk(i, False))
 cdef public api ast_call_visitProceduralStmtRepeat(object self, ast_decl.IProceduralStmtRepeat *i) with gil:
     self.visitProceduralStmtRepeat(ProceduralStmtRepeat.mk(i, False))
+cdef public api ast_call_visitTemplateComment(object self, ast_decl.ITemplateComment *i) with gil:
+    self.visitTemplateComment(TemplateComment.mk(i, False))
 cdef public api ast_call_visitTemplateExpr(object self, ast_decl.ITemplateExpr *i) with gil:
     self.visitTemplateExpr(TemplateExpr.mk(i, False))
-cdef public api ast_call_visitTemplateIf(object self, ast_decl.ITemplateIf *i) with gil:
-    self.visitTemplateIf(TemplateIf.mk(i, False))
 cdef public api ast_call_visitActivityParallel(object self, ast_decl.IActivityParallel *i) with gil:
     self.visitActivityParallel(ActivityParallel.mk(i, False))
+cdef public api ast_call_visitTemplateIf(object self, ast_decl.ITemplateIf *i) with gil:
+    self.visitTemplateIf(TemplateIf.mk(i, False))
 cdef public api ast_call_visitActivitySchedule(object self, ast_decl.IActivitySchedule *i) with gil:
     self.visitActivitySchedule(ActivitySchedule.mk(i, False))
 cdef public api ast_call_visitActivitySequence(object self, ast_decl.IActivitySequence *i) with gil:
     self.visitActivitySequence(ActivitySequence.mk(i, False))
 cdef public api ast_call_visitTemplateText(object self, ast_decl.ITemplateText *i) with gil:
     self.visitTemplateText(TemplateText.mk(i, False))
-cdef public api ast_call_visitTemplateVarDecl(object self, ast_decl.ITemplateVarDecl *i) with gil:
-    self.visitTemplateVarDecl(TemplateVarDecl.mk(i, False))
 cdef public api ast_call_visitTemplateForeach(object self, ast_decl.ITemplateForeach *i) with gil:
     self.visitTemplateForeach(TemplateForeach.mk(i, False))
 cdef public api ast_call_visitTemplateRepeat(object self, ast_decl.ITemplateRepeat *i) with gil:
@@ -8975,9 +9097,11 @@ cdef class ObjFactory(VisitorBase):
         self._obj = i
     cpdef void visitSymbolRefPath(self, SymbolRefPath i):
         self._obj = i
-    cpdef void visitTemplateParamValueList(self, TemplateParamValueList i):
+    cpdef void visitMonitorActivitySelectBranch(self, MonitorActivitySelectBranch i):
         self._obj = i
     cpdef void visitExpr(self, Expr i):
+        self._obj = i
+    cpdef void visitTemplateParamValue(self, TemplateParamValue i):
         self._obj = i
     cpdef void visitExprAggrMapElem(self, ExprAggrMapElem i):
         self._obj = i
@@ -8991,11 +9115,9 @@ cdef class ObjFactory(VisitorBase):
         self._obj = i
     cpdef void visitRefExpr(self, RefExpr i):
         self._obj = i
-    cpdef void visitTemplateParamValue(self, TemplateParamValue i):
-        self._obj = i
-    cpdef void visitMonitorActivitySelectBranch(self, MonitorActivitySelectBranch i):
-        self._obj = i
     cpdef void visitActivitySelectBranch(self, ActivitySelectBranch i):
+        self._obj = i
+    cpdef void visitTemplateParamValueList(self, TemplateParamValueList i):
         self._obj = i
     cpdef void visitScopeChild(self, ScopeChild i):
         self._obj = i
@@ -9017,9 +9139,9 @@ cdef class ObjFactory(VisitorBase):
         self._obj = i
     cpdef void visitActivitySchedulingConstraint(self, ActivitySchedulingConstraint i):
         self._obj = i
-    cpdef void visitMonitorActivityStmt(self, MonitorActivityStmt i):
-        self._obj = i
     cpdef void visitActivityStmt(self, ActivityStmt i):
+        self._obj = i
+    cpdef void visitMonitorActivityStmt(self, MonitorActivityStmt i):
         self._obj = i
     cpdef void visitAnnotation(self, Annotation i):
         self._obj = i
@@ -9029,13 +9151,13 @@ cdef class ObjFactory(VisitorBase):
         self._obj = i
     cpdef void visitPackageImportStmt(self, PackageImportStmt i):
         self._obj = i
+    cpdef void visitComment(self, Comment i):
+        self._obj = i
     cpdef void visitComponentBind(self, ComponentBind i):
         self._obj = i
     cpdef void visitConstraintStmt(self, ConstraintStmt i):
         self._obj = i
     cpdef void visitProceduralStmtIfClause(self, ProceduralStmtIfClause i):
-        self._obj = i
-    cpdef void visitTemplateParamDecl(self, TemplateParamDecl i):
         self._obj = i
     cpdef void visitCoverStmtInline(self, CoverStmtInline i):
         self._obj = i
@@ -9045,9 +9167,9 @@ cdef class ObjFactory(VisitorBase):
         self._obj = i
     cpdef void visitPyImportStmt(self, PyImportStmt i):
         self._obj = i
-    cpdef void visitRefExprScopeIndex(self, RefExprScopeIndex i):
-        self._obj = i
     cpdef void visitDataType(self, DataType i):
+        self._obj = i
+    cpdef void visitRefExprScopeIndex(self, RefExprScopeIndex i):
         self._obj = i
     cpdef void visitRefExprTypeScopeContext(self, RefExprTypeScopeContext i):
         self._obj = i
@@ -9055,17 +9177,17 @@ cdef class ObjFactory(VisitorBase):
         self._obj = i
     cpdef void visitScope(self, Scope i):
         self._obj = i
-    cpdef void visitTemplateParamExprValue(self, TemplateParamExprValue i):
+    cpdef void visitTemplateParamDecl(self, TemplateParamDecl i):
         self._obj = i
     cpdef void visitScopeChildRef(self, ScopeChildRef i):
-        self._obj = i
-    cpdef void visitTemplateParamTypeValue(self, TemplateParamTypeValue i):
         self._obj = i
     cpdef void visitSymbolChild(self, SymbolChild i):
         self._obj = i
     cpdef void visitDistItem(self, DistItem i):
         self._obj = i
     cpdef void visitDistWeight(self, DistWeight i):
+        self._obj = i
+    cpdef void visitTemplateParamExprValue(self, TemplateParamExprValue i):
         self._obj = i
     cpdef void visitExecBlockTag(self, ExecBlockTag i):
         self._obj = i
@@ -9078,6 +9200,8 @@ cdef class ObjFactory(VisitorBase):
     cpdef void visitExportFunction(self, ExportFunction i):
         self._obj = i
     cpdef void visitTargetTemplateFunction(self, TargetTemplateFunction i):
+        self._obj = i
+    cpdef void visitTemplateParamTypeValue(self, TemplateParamTypeValue i):
         self._obj = i
     cpdef void visitExprAggrLiteral(self, ExprAggrLiteral i):
         self._obj = i
@@ -9299,6 +9423,8 @@ cdef class ObjFactory(VisitorBase):
         self._obj = i
     cpdef void visitProceduralStmtReturn(self, ProceduralStmtReturn i):
         self._obj = i
+    cpdef void visitProceduralStmtSuper(self, ProceduralStmtSuper i):
+        self._obj = i
     cpdef void visitProceduralStmtYield(self, ProceduralStmtYield i):
         self._obj = i
     cpdef void visitSymbolChildrenScope(self, SymbolChildrenScope i):
@@ -9353,15 +9479,15 @@ cdef class ObjFactory(VisitorBase):
         self._obj = i
     cpdef void visitAction(self, Action i):
         self._obj = i
-    cpdef void visitGenericConstraintDeclBool(self, GenericConstraintDeclBool i):
-        self._obj = i
     cpdef void visitActivityDecl(self, ActivityDecl i):
+        self._obj = i
+    cpdef void visitGenericConstraintDeclBool(self, GenericConstraintDeclBool i):
         self._obj = i
     cpdef void visitMonitor(self, Monitor i):
         self._obj = i
-    cpdef void visitMonitorActivityDecl(self, MonitorActivityDecl i):
-        self._obj = i
     cpdef void visitActivityLabeledScope(self, ActivityLabeledScope i):
+        self._obj = i
+    cpdef void visitMonitorActivityDecl(self, MonitorActivityDecl i):
         self._obj = i
     cpdef void visitMonitorActivitySchedule(self, MonitorActivitySchedule i):
         self._obj = i
@@ -9371,9 +9497,9 @@ cdef class ObjFactory(VisitorBase):
         self._obj = i
     cpdef void visitComponent(self, Component i):
         self._obj = i
-    cpdef void visitProceduralStmtSymbolBodyScope(self, ProceduralStmtSymbolBodyScope i):
-        self._obj = i
     cpdef void visitConstraintSymbolScope(self, ConstraintSymbolScope i):
+        self._obj = i
+    cpdef void visitProceduralStmtSymbolBodyScope(self, ProceduralStmtSymbolBodyScope i):
         self._obj = i
     cpdef void visitRootSymbolScope(self, RootSymbolScope i):
         self._obj = i
@@ -9393,6 +9519,8 @@ cdef class ObjFactory(VisitorBase):
         self._obj = i
     cpdef void visitTemplateString(self, TemplateString i):
         self._obj = i
+    cpdef void visitTemplateVarDecl(self, TemplateVarDecl i):
+        self._obj = i
     cpdef void visitExecBlock(self, ExecBlock i):
         self._obj = i
     cpdef void visitProceduralStmtForeach(self, ProceduralStmtForeach i):
@@ -9401,23 +9529,21 @@ cdef class ObjFactory(VisitorBase):
         self._obj = i
     cpdef void visitTemplateBlock(self, TemplateBlock i):
         self._obj = i
-    cpdef void visitTemplateComment(self, TemplateComment i):
-        self._obj = i
     cpdef void visitProceduralStmtRepeat(self, ProceduralStmtRepeat i):
+        self._obj = i
+    cpdef void visitTemplateComment(self, TemplateComment i):
         self._obj = i
     cpdef void visitTemplateExpr(self, TemplateExpr i):
         self._obj = i
-    cpdef void visitTemplateIf(self, TemplateIf i):
-        self._obj = i
     cpdef void visitActivityParallel(self, ActivityParallel i):
+        self._obj = i
+    cpdef void visitTemplateIf(self, TemplateIf i):
         self._obj = i
     cpdef void visitActivitySchedule(self, ActivitySchedule i):
         self._obj = i
     cpdef void visitActivitySequence(self, ActivitySequence i):
         self._obj = i
     cpdef void visitTemplateText(self, TemplateText i):
-        self._obj = i
-    cpdef void visitTemplateVarDecl(self, TemplateVarDecl i):
         self._obj = i
     cpdef void visitTemplateForeach(self, TemplateForeach i):
         self._obj = i

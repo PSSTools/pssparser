@@ -137,11 +137,24 @@ cdef class AstBuilder(object):
             root.asGlobalScope(),
             c_in_s.stream())
 
+    cpdef void setMarkerListener(self, MarkerListener l):
+        # Lets a caller reuse one builder across parse calls with a fresh
+        # collector each time.  The builder must be reused when compile-time
+        # elaboration is in play: it carries the previously-processed source
+        # units that `compile if` conditions resolve against (PSS 3.1 19.1.2).
+        self._hndl.setMarkerListener(l._hndl)
+
     cpdef void setCollectDocStrings(self, bool collect):
         self._hndl.setCollectDocStrings(collect)
 
     cpdef bool getCollectDocStrings(self):
         return self._hndl.getCollectDocStrings()
+
+    cpdef void setCollectComments(self, bool collect):
+        self._hndl.setCollectComments(collect)
+
+    cpdef bool getCollectComments(self):
+        return self._hndl.getCollectComments()
 
     cpdef void setEnableProfile(self, bool enable):
         self._hndl.setEnableProfile(enable)

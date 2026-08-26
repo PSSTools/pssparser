@@ -1143,3 +1143,56 @@ def test_constraint_inheritance_with_unique(parser):
     }
     """
     assert_parse_ok(code, parser)
+
+
+# ============================================================================
+# dist weight syntax (LRM B.14)
+# ============================================================================
+#
+# dist_item ::= open_range_value [ dist_weight ]
+#
+# The brackets in the LRM are BNF optionality, not literal tokens.  The
+# grammar originally transcribed them as real brackets, which made the LRM
+# spelling a syntax error and `1 [:= 5]` the only accepted form.  The tests in
+# this file were written against that spelling and so encoded the defect;
+# they now use the LRM syntax.
+
+def test_dist_weight_without_brackets(parser):
+    """The LRM spelling: a weight follows the range directly."""
+    assert_parse_ok("""
+    component pss_top {
+        action a {
+            rand int x;
+            constraint { dist x in [1 := 5, 2..4 :/ 5]; }
+        }
+    }
+    """, parser)
+
+
+def test_dist_item_without_weight(parser):
+    """The weight is optional -- a bare range is a legal dist_item."""
+    assert_parse_ok("""
+    component pss_top {
+        action a {
+            rand int x;
+            constraint { dist x in [1, 2..4]; }
+        }
+    }
+    """, parser)
+
+
+def test_dist_bracketed_weight_is_rejected(parser):
+    """The old bracketed spelling was never legal PSS and must not parse.
+
+    Pinned deliberately: it is the shape every test in this file used before
+    the grammar was corrected, so silently re-accepting it would let the
+    defect return unnoticed.
+    """
+    assert_parse_error("""
+    component pss_top {
+        action a {
+            rand int x;
+            constraint { dist x in [1 [:= 5]]; }
+        }
+    }
+    """)
