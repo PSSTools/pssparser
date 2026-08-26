@@ -1,3 +1,21 @@
+def _add_dll_search_path():
+    """Make the native libraries shipped in this package loadable on Windows.
+
+    Python resolves a .pyd's own imports relative to the .pyd, but the
+    ctypes.cdll.LoadLibrary() call in core.pyx does not get that treatment:
+    it searches the default directories only, so pssparser.dll's dependency
+    on ast.dll would go unresolved.
+    """
+    import os
+    if os.name != "nt":
+        return
+    pkg_dir = os.path.dirname(os.path.abspath(__file__))
+    if hasattr(os, "add_dll_directory") and os.path.isdir(pkg_dir):
+        os.add_dll_directory(pkg_dir)
+
+
+_add_dll_search_path()
+
 from .parser import Parser, ParseException
 from .__version__ import __version__, get_version
 

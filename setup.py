@@ -97,6 +97,12 @@ library_dirs = []
 libraries = []
 extra_link_args = []
 
+# Note: the extensions deliberately link neither pssparser nor ast.  Both
+# libraries are reached at runtime through a ctypes-loaded *_getFactory entry
+# point returning a pure-virtual interface (see Factory.inst() in core.pyx and
+# in the generated ast.pyx), so the extensions carry no undefined symbols from
+# them and need no import libraries on Windows.
+
 ast_ext = Extension(
     "pssparser.ast",
     [
@@ -198,6 +204,12 @@ if isSrcBuild:
                 break
 
         print("antlr4_rt_lib: %s" % antlr4_rt_lib)
+    elif platform.system() == "Windows":
+        # Windows links antlr4 statically into pssparser.dll (see the
+        # ANTLR_BUILD_SHARED=OFF branch in CMakeLists.txt), so there is no
+        # runtime library to ship.  Leaving the entry in would abort the wheel
+        # build: install_lib raises when an ivpm_extra_data source is missing.
+        antlr4_rt_lib = None
     else:
         antlr4_rt_lib = "build/{libdir}/{libpref}antlr4-runtime{dllext}"
 
@@ -210,15 +222,19 @@ if isSrcBuild:
         for f in sorted(glob.glob(os.path.join(proj_dir, "src", "stdlib", "*.pss")))
     ]
 
+    extra_data = _stdlib_data + [
+        ("build/include", "share"),
+        ("build/{libdir}/{libpref}ast{dllext}", ""),
+        ("build/{libdir}/{libpref}pssparser{dllext}", ""),
+        ("python/PyBaseVisitor.h", "share/include"),
+        ("python/PyParserUtils.h", "share/include"),
+    ]
+
+    if antlr4_rt_lib is not None:
+        extra_data.insert(len(_stdlib_data) + 1, (antlr4_rt_lib, ""))
+
     setup_args["ivpm_extra_data"] = {
-        "pssparser": _stdlib_data + [
-            ("build/include", "share"),
-            (antlr4_rt_lib, ""),
-            ("build/{libdir}/{libpref}ast{dllext}", ""),
-            ("build/{libdir}/{libpref}pssparser{dllext}", ""),
-            ("python/PyBaseVisitor.h", "share/include"),
-            ("python/PyParserUtils.h", "share/include"),
-        ]
+        "pssparser": extra_data
     }
 
 setup(**setup_args)

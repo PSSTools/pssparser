@@ -12,6 +12,12 @@ else()
   add_compile_options(-DANTLR4CPP_STATIC)
 endif()
 
+if (MSVC)
+  # The ANTLR-generated PSSParser/PSSLexer translation units blow past the
+  # default 64k section limit, and the .g4-derived sources contain UTF-8.
+  add_compile_options(/bigobj /utf-8)
+endif()
+
 set(CMAKE_INSTALL_RPATH "$ORIGIN;$ORIGIN/../lib64")
 
 include_directories(
