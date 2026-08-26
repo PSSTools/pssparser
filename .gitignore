@@ -159,4 +159,5 @@ gen/
 # Committing them would leave dangling links in a fresh clone.
 /.agents/
 /.claude/
+/.codex/
 /.cursor/
