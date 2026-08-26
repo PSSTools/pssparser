@@ -18,6 +18,7 @@
  * Created on:
  *     Author:
  */
+#include "pssp/FactoryExt.h"
 #include "Factory.h"
 #include "AstBuilder.h"
 #include "AstLinker.h"
@@ -136,14 +137,18 @@ IFactory *Factory::inst() {
     return m_inst.get();
 }
 
-extern "C" IFactory *getZuspecParserFactory() {
-    return Factory::inst();
-}
-
-extern "C" IFactory *pssparser_getFactory() {
-    return Factory::inst();
-}
-
 FactoryUP Factory::m_inst;
 
+}
+
+/*
+ * Defined at global scope so the PSSPARSER_API attribute on the declarations
+ * in FactoryExt.h applies to these definitions.
+ */
+extern "C" PSSPARSER_API pssp::IFactory *getZuspecParserFactory() {
+    return pssp::Factory::inst();
+}
+
+extern "C" PSSPARSER_API pssp::IFactory *pssparser_getFactory() {
+    return pssp::Factory::inst();
 }

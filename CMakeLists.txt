@@ -52,7 +52,13 @@ find_package(ANTLR REQUIRED)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS True)
+
+# Deliberately NOT setting CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS: pssparser.dll
+# exports only the factory entry points in pssp/FactoryExt.h, which carry
+# their own __declspec(dllexport).  Exporting everything produced a 24MB
+# import library holding ~30k mangled names -- every parser context accessor
+# and every STL instantiation -- none of which a consumer can use, since the
+# rest of the API is reached through the interfaces the factory returns.
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
   set(ANTLR_CXXFLAGS "-Wno-attributes -fPIC")

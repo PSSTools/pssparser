@@ -80,6 +80,10 @@ else()
 endif()
 
 target_link_libraries(pssparser ${PSSPARSER_LIBS})
+
+# Selects the dllexport side of PSSPARSER_API in pssp/FactoryExt.h.  PRIVATE:
+# consumers of the installed headers must see the dllimport side.
+target_compile_definitions(pssparser PRIVATE PSSPARSER_BUILD_DLL)
 set_target_properties(pssparser PROPERTIES SKIP_BUILD_RPATH TRUE)
 
 file(GLOB pss_stdlib_SRC "stdlib/*.pss")
