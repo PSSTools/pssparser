@@ -22,6 +22,8 @@
 #include "dmgr/IDebugMgr.h"
 #include "pssp/ast/IFactory.h"
 #include "pssp/IAstBuilder.h"
+#include "pssp/IFmtCst.h"
+#include "pssp/IFmtTokenStream.h"
 #include "pssp/ILinker.h"
 #include "pssp/ILookupLocationResult.h"
 #include "pssp/IMarkerCollector.h"
@@ -84,6 +86,33 @@ public:
     virtual ISymbolTable *mkSymbolTable() = 0;
 
     virtual ITaskFindElementByLocation *mkTaskFindElementByLocation() = 0;
+
+    /**
+     * Lexes *in* without parsing it, and returns the complete token stream --
+     * whitespace, comments and unlexable text included.
+     *
+     * This is the entry point for tools that operate on source text rather
+     * than on meaning: formatters, highlighters, comment extractors.  It does
+     * no AST construction, which is both cheaper and, for a formatter,
+     * necessary: AST construction resolves ``compile if`` and discards the
+     * branch that lost, and a formatter must reproduce both.
+     *
+     * The caller owns the returned stream.
+     */
+    virtual IFmtTokenStream *mkTokenizer(std::istream *in) = 0;
+
+    /**
+     * Parses *in* into a concrete syntax tree, building no AST.
+     *
+     * The companion to :cpp:func:`mkTokenizer` for tools that need structure
+     * as well as text.  Parse-only is the point: it is cheaper than an AST
+     * build, and, more importantly, it never evaluates ``compile if``, so both
+     * branches survive into the tree.
+     *
+     * The caller owns the returned object, which owns its token stream and
+     * tree.
+     */
+    virtual IFmtCst *mkCstParser(std::istream *in) = 0;
 
 };
 

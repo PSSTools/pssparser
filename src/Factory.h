@@ -81,6 +81,10 @@ public:
 
     virtual ITaskFindElementByLocation *mkTaskFindElementByLocation() override;
 
+    virtual IFmtTokenStream *mkTokenizer(std::istream *in) override;
+
+    virtual IFmtCst *mkCstParser(std::istream *in) override;
+
     virtual IValInt *mkValInt(
         bool        is_signed,
         int32_t     width,

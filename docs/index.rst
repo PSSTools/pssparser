@@ -31,6 +31,7 @@ Key Features
 
    quickstart
    cli
+   source_tools
    doc_comments
    comments
    annotations

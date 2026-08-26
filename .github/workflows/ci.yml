@@ -54,6 +54,29 @@ jobs:
         name: wheels-linux-x86_64
         path: dist/*.whl
         if-no-files-found: error
+    - name: Fetch the PSS corpus
+      # tests/python/corpus/test_pss_corpus.py fails rather than skips when the
+      # corpus is absent (pss-corpus PLAN.md C-8), so this step is load-bearing
+      # for the step below. Same rationale as the Forgejo workflow, which
+      # carries the longer version of this comment.
+      #
+      # Deliberately git.dvkit.org and not github.com, which is the one place
+      # this workflow reaches outside GitHub. The GitHub mirror of pss-corpus
+      # does not exist yet (pss-corpus PLAN.md C-2a); naming it here would turn
+      # this job red for a reason that has nothing to do with the parser.
+      # Upstream is public and serves anonymously, so it works today. Switch
+      # the URL to the mirror once C-2a lands -- it is a one-line change, and
+      # ivpm.yaml already names the mirror in anticipation.
+      run: |
+        set -eu
+        git clone https://git.dvkit.org/psstools/pss-corpus.git packages/pss-corpus
+        n=$(find packages/pss-corpus/curated -name '*.pss' | wc -l)
+        echo "corpus: $n .pss files"
+        if [ "$n" -lt 50 ]; then
+          echo "::error::corpus resolved but looks wrong ($n files, expected 50+)"
+          exit 1
+        fi
+
     - name: Run Python tests
       run: |
         for py in cp312-cp312 cp313-cp313; do

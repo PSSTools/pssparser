@@ -133,6 +133,36 @@ jobs:
         path: dist/*.whl
         if-no-files-found: error
 
+    - name: Fetch the PSS corpus
+      # tests/python/corpus/test_pss_corpus.py sweeps the shared corpus, and it
+      # fails rather than skips when the corpus is absent (pss-corpus PLAN.md
+      # C-8) -- so without this step the test job goes red at
+      # test_the_corpus_is_present. That is the design working, not a bug in
+      # it: a sweep that finds no files and reports success is exactly the
+      # outcome the sweep exists to prevent.
+      #
+      # A direct clone rather than widening "Fetch source dependencies" to
+      # `-d default-dev`. That step resolves the `default` set on purpose; the
+      # corpus is declared dev-only (C-17/CQ-3) so no released wheel carries
+      # it, and switching the whole build to the dev set to pick up 324K of
+      # test data would drag the rest of the dev graph along with it.
+      #
+      # Cloned after that step, not before, so a corpus checkout under
+      # packages/ cannot be mistaken for a dependency by its origin check.
+      #
+      # No `--depth 1`: the transport in front of git.dvkit.org can fall back
+      # to dumb http, which has no shallow capability and fails outright rather
+      # than degrading to a full clone.
+      run: |
+        set -eu
+        git clone https://git.dvkit.org/psstools/pss-corpus.git packages/pss-corpus
+        n=$(find packages/pss-corpus/curated -name '*.pss' | wc -l)
+        echo "corpus: $n .pss files"
+        if [ "$n" -lt 50 ]; then
+          echo "::error::corpus resolved but looks wrong ($n files, expected 50+)"
+          exit 1
+        fi
+
     - name: Test against the built wheel
       # Tests run against the *installed* wheel in a clean venv, never against
       # the source tree -- that is what makes this a test of the artifact we

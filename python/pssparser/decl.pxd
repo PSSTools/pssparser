@@ -53,6 +53,59 @@ cdef extern from "pssp/IFactory.h" namespace "pssp":
 
         ITaskFindElementByLocation *mkTaskFindElementByLocation()
 
+        IFmtTokenStream *mkTokenizer(istream *in_s)
+
+        IFmtCst *mkCstParser(istream *in_s)
+
+cdef extern from "pssp/IFmtTokenStream.h" namespace "pssp":
+    cdef enum FmtTokenChannelE:
+        FmtTokenChannel_Default "pssp::FmtTokenChannel_Default"
+        FmtTokenChannel_WS "pssp::FmtTokenChannel_WS"
+        FmtTokenChannel_SlComment "pssp::FmtTokenChannel_SlComment"
+        FmtTokenChannel_MlComment "pssp::FmtTokenChannel_MlComment"
+        FmtTokenChannel_Error "pssp::FmtTokenChannel_Error"
+        FmtTokenChannel_Bom "pssp::FmtTokenChannel_Bom"
+
+    cdef cppclass FmtToken:
+        int32_t index
+        int32_t type
+        int32_t channel
+        int32_t start
+        int32_t stop
+        int32_t line
+        int32_t col
+        cpp_string text
+
+    cdef cppclass IFmtTokenStream:
+        uint32_t size()
+        const FmtToken &at(uint32_t idx)
+        const cpp_string &getTypeName(int32_t type)
+        uint32_t getNumErrors()
+        bool isValidUtf8()
+
+# The synthetic token types, taken from the header rather than restated, so a
+# change there cannot leave the Python side quietly disagreeing.
+cdef extern from "pssp/IFmtTokenStream.h" namespace "pssp::IFmtTokenStream":
+    cdef const int32_t FmtToken_TYPE_ERROR_CHAR "pssp::IFmtTokenStream::TYPE_ERROR_CHAR"
+    cdef const int32_t FmtToken_TYPE_BOM "pssp::IFmtTokenStream::TYPE_BOM"
+
+cdef extern from "pssp/IFmtCst.h" namespace "pssp":
+    cdef cppclass IFmtCstNode:
+        bool isRule()
+        bool isError()
+        int32_t getRuleIndex()
+        const cpp_string &getRuleName()
+        int32_t getTokenIndex()
+        uint32_t getNumChildren()
+        IFmtCstNode *getChild(uint32_t idx)
+        int32_t getStartToken()
+        int32_t getStopToken()
+
+    cdef cppclass IFmtCst:
+        IFmtTokenStream *getTokens()
+        IFmtCstNode *getRoot()
+        uint32_t getNumSyntaxErrors()
+
 cdef extern from "pssp/IParseProfileInfo.h" namespace "pssp":
     cdef cppclass IDecisionProfileInfo:
         size_t getDecision()

@@ -23,6 +23,8 @@
 #include "AstLinker.h"
 #include "AstSymbolTable.h"
 #include "AstSymbolTableIterator.h"
+#include "FmtCst.h"
+#include "FmtTokenStream.h"
 #include "Marker.h"
 #include "MarkerCollector.h"
 #include "NameResolver.h"
@@ -110,6 +112,14 @@ ISymbolTable *Factory::mkSymbolTable() {
 
 ITaskFindElementByLocation *Factory::mkTaskFindElementByLocation() {
     return new TaskFindElementByLocation(m_dmgr);
+}
+
+IFmtTokenStream *Factory::mkTokenizer(std::istream *in) {
+    return new FmtTokenStream(in);
+}
+
+IFmtCst *Factory::mkCstParser(std::istream *in) {
+    return new FmtCst(in);
 }
 
 IValInt *Factory::mkValInt(

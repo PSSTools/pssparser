@@ -138,6 +138,8 @@ setup_args = dict(
             "core.pyi",
             "core.pxd",
             "decl.pxd",
+            "tokens.pyi",
+            "cst.pyi",
             # The standard-library sources.  A tool that documents or
             # cross-references the core library needs the .pss text, not just
             # the compiled-in copy, and an installed wheel is the only place it

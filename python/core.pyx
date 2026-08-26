@@ -11,6 +11,8 @@ cimport pssparser.ast_decl as ast_decl
 cimport pssparser.decl as decl
 from ciostream.core cimport cistream
 from libc.stdint cimport intptr_t
+from libc.stdint cimport int32_t
+from libc.stdint cimport uint32_t
 from libcpp.vector cimport vector as std_vector
 from libcpp.cast cimport dynamic_cast
 
@@ -74,6 +76,43 @@ cdef class Factory(object):
     cpdef TaskFindElementByLocation mkTaskFindElementByLocation(self):
         return TaskFindElementByLocation.mk(
             self._hndl.mkTaskFindElementByLocation(), True)
+
+    cpdef TokenStream mkTokenizer(self, in_s):
+        cdef cistream c_in_s
+        cdef decl.IFmtTokenStream *hndl
+
+        c_in_s = cistream(in_s)
+        hndl = self._hndl.mkTokenizer(c_in_s.stream())
+
+        try:
+            return _mkTokenStream(hndl)
+        finally:
+            del hndl
+
+    cpdef Cst mkCstParser(self, in_s):
+        cdef cistream c_in_s
+        cdef decl.IFmtCst *hndl
+        cdef Cst ret
+
+        c_in_s = cistream(in_s)
+        hndl = self._hndl.mkCstParser(c_in_s.stream())
+
+        try:
+            ret = Cst.__new__(Cst)
+            # Materialize the tokens now, while the C++ object is known good.
+            # Raises UnicodeDecodeError for input that is not UTF-8, in which
+            # case there is no tree either.
+            ret.tokens = _mkTokenStream(hndl.getTokens())
+            ret.num_syntax_errors = hndl.getNumSyntaxErrors()
+            ret._root = None
+        except:
+            del hndl
+            raise
+
+        # Ownership transfers only once nothing above can raise: the tree is
+        # borrowed by every CstNode, so a half-built Cst must not escape.
+        ret._hndl = hndl
+        return ret
 
     cdef init(self, dm_core.Factory f, ast.Factory ast_f):
         self._hndl.init(f._hndl.getDebugMgr(), ast_f._hndl)
@@ -515,3 +554,314 @@ cdef class ParseProfileInfo(object):
         ret._hndl = hndl
         ret._owned = owned
         return ret
+
+
+#***************************************************************************
+#* Lossless token stream (formatters, highlighters, comment tools)
+#***************************************************************************
+
+#: Channel carrying everything the parser sees.
+CHANNEL_DEFAULT = <int32_t>(decl.FmtTokenChannel_Default)
+#: Channel carrying whitespace runs.
+CHANNEL_WS = <int32_t>(decl.FmtTokenChannel_WS)
+#: Channel carrying ``//`` comments.  The token includes its newline.
+CHANNEL_SL_COMMENT = <int32_t>(decl.FmtTokenChannel_SlComment)
+#: Channel carrying ``/* */`` comments.
+CHANNEL_ML_COMMENT = <int32_t>(decl.FmtTokenChannel_MlComment)
+#: Channel carrying text no lexer rule matched.
+CHANNEL_ERROR = <int32_t>(decl.FmtTokenChannel_Error)
+#: Channel carrying a leading byte-order mark.
+CHANNEL_BOM = <int32_t>(decl.FmtTokenChannel_Bom)
+
+#: Token type of text no lexer rule matched.
+TYPE_ERROR_CHAR = <int32_t>(decl.FmtToken_TYPE_ERROR_CHAR)
+#: Token type of a leading byte-order mark.
+TYPE_BOM = <int32_t>(decl.FmtToken_TYPE_BOM)
+
+cdef frozenset _TRIVIA_CHANNELS = frozenset((
+    <int32_t>(decl.FmtTokenChannel_WS),
+    <int32_t>(decl.FmtTokenChannel_SlComment),
+    <int32_t>(decl.FmtTokenChannel_MlComment),
+    <int32_t>(decl.FmtTokenChannel_Bom)))
+
+
+cdef class Token(object):
+    """One token, including whitespace and comments.
+
+    Immutable.  ``start`` and ``stop`` are both **inclusive** offsets into the
+    source, counted in code points -- which is what a Python ``str`` counts, so
+    ``src[t.start:t.stop+1] == t.text`` always holds.
+    """
+
+    def __repr__(self):
+        return "Token(%d, %s, ch=%d, %d:%d, %r)" % (
+            self.index, self.type_name, self.channel,
+            self.line, self.col, self.text)
+
+    @property
+    def is_trivia(self):
+        """True for whitespace, comments and the byte-order mark.
+
+        Error tokens are deliberately *not* trivia: a consumer that skips
+        trivia must still see them, because ignoring them is how text gets
+        silently dropped.
+        """
+        return self.channel in _TRIVIA_CHANNELS
+
+    @property
+    def is_comment(self):
+        return (self.channel == <int32_t>(decl.FmtTokenChannel_SlComment) or
+                self.channel == <int32_t>(decl.FmtTokenChannel_MlComment))
+
+    @property
+    def is_error(self):
+        return self.channel == <int32_t>(decl.FmtTokenChannel_Error)
+
+    @staticmethod
+    cdef Token mk(decl.FmtToken &tok, str type_name):
+        cdef Token ret = Token.__new__(Token)
+        ret.index = tok.index
+        ret.type = tok.type
+        ret.type_name = type_name
+        ret.channel = tok.channel
+        ret.start = tok.start
+        ret.stop = tok.stop
+        ret.line = tok.line
+        ret.col = tok.col
+        ret.text = bytes(tok.text).decode("utf-8")
+        return ret
+
+
+cdef class TokenStream(object):
+    """The complete token stream for one source unit.
+
+    Complete in the strong sense: ``"".join(t.text for t in stream)`` is the
+    input, exactly.  Everything a formatter does is a transformation of that
+    identity, so it is worth asserting in tests rather than assuming.
+    """
+
+    def __len__(self):
+        return len(self.tokens)
+
+    def __iter__(self):
+        return iter(self.tokens)
+
+    def __getitem__(self, idx):
+        return self.tokens[idx]
+
+    def __repr__(self):
+        return "TokenStream(%d tokens, %d errors)" % (
+            len(self.tokens), self.num_errors)
+
+    @property
+    def text(self):
+        """The source, reassembled from the tokens."""
+        return "".join([t.text for t in self.tokens])
+
+    def code(self):
+        """The default-channel tokens, in order -- what the parser would see."""
+        return [t for t in self.tokens
+                if t.channel == <int32_t>(decl.FmtTokenChannel_Default)]
+
+    @staticmethod
+    cdef TokenStream mk(tuple tokens, int32_t num_errors, bool valid_utf8):
+        cdef TokenStream ret = TokenStream.__new__(TokenStream)
+        ret.tokens = tokens
+        ret.num_errors = num_errors
+        ret.valid_utf8 = valid_utf8
+        return ret
+
+
+cdef TokenStream _mkTokenStream(decl.IFmtTokenStream *hndl):
+    """Copies a C++ token stream into Python objects.
+
+    Eager rather than lazy on purpose.  Tokens are small immutable values, and
+    materializing them means the Python objects have no lifetime relationship
+    with the C++ stream at all -- which is what lets the caller free it as soon
+    as this returns.
+    """
+    cdef decl.FmtToken tok
+    cdef uint32_t i
+    cdef uint32_t n
+
+    if not hndl.isValidUtf8():
+        # The C++ side degraded to a single verbatim token rather than
+        # substituting replacement characters.  Surface that as the exception
+        # Python already has for it, instead of handing back a stream whose
+        # offsets mean something different.
+        raise UnicodeDecodeError(
+            "utf-8", bytes(hndl.at(0).text) if hndl.size() else b"",
+            0, 1, "PSS source must be valid UTF-8")
+
+    # Token type names are few and repeat constantly, so resolve each once and
+    # share the string.  Without this, a large file allocates one identical str
+    # per token.
+    names = {}
+    toks = []
+    n = hndl.size()
+    for i in range(n):
+        tok = hndl.at(i)
+        name = names.get(tok.type)
+        if name is None:
+            name = bytes(hndl.getTypeName(tok.type)).decode("utf-8")
+            names[tok.type] = name
+        toks.append(Token.mk(tok, name))
+
+    return TokenStream.mk(tuple(toks), hndl.getNumErrors(), True)
+
+
+cdef class CstNode(object):
+    """A node in the concrete syntax tree: a grammar rule or a token.
+
+    A view onto the C++ tree, created on demand.  Two ``CstNode`` objects for
+    the same position are equal but not identical, so compare with ``==``.
+    """
+
+    def __repr__(self):
+        if self.is_rule:
+            return "CstNode(%s, %d children)" % (
+                self.rule_name, self.num_children)
+        return "CstNode(token %d)" % self.token_index
+
+    def __richcmp__(self, other, int op):
+        if not isinstance(other, CstNode):
+            return NotImplemented
+        same = ((<CstNode>self)._hndl == (<CstNode>other)._hndl)
+        if op == 2:
+            return same
+        elif op == 3:
+            return not same
+        return NotImplemented
+
+    def __hash__(self):
+        return hash(<intptr_t>(self._hndl))
+
+    @property
+    def is_rule(self):
+        return self._hndl.isRule()
+
+    @property
+    def is_error(self):
+        """True for a token the parser did not expect.
+
+        The tree around an error node is a guess, so a consumer that rewrites
+        layout should decline rather than trust the structure.
+        """
+        return self._hndl.isError()
+
+    @property
+    def rule_index(self):
+        """Grammar rule index, or -1 for a token.
+
+        Prefer :attr:`rule_name`: these are generated and renumber whenever
+        the grammar grows.
+        """
+        return self._hndl.getRuleIndex()
+
+    @property
+    def rule_name(self):
+        """Grammar rule name, or ``""`` for a token."""
+        return bytes(self._hndl.getRuleName()).decode("utf-8")
+
+    @property
+    def token_index(self):
+        """Index into :attr:`Cst.tokens`, or -1 for a rule."""
+        return self._hndl.getTokenIndex()
+
+    @property
+    def token(self):
+        """The :class:`Token` this node is, or ``None`` for a rule."""
+        cdef int32_t idx = self._hndl.getTokenIndex()
+        return self._cst.tokens[idx] if idx >= 0 else None
+
+    @property
+    def num_children(self):
+        return self._hndl.getNumChildren()
+
+    @property
+    def children(self):
+        cdef uint32_t i
+        return tuple([CstNode.mk(self._hndl.getChild(i), self._cst)
+                      for i in range(self._hndl.getNumChildren())])
+
+    @property
+    def start_token(self):
+        """First token index this node spans, or -1 if it spans none."""
+        return self._hndl.getStartToken()
+
+    @property
+    def stop_token(self):
+        """Last token index this node spans, inclusive, or -1."""
+        return self._hndl.getStopToken()
+
+    @property
+    def text(self):
+        """The source this node spans, trivia included, or ``""``.
+
+        Everything between the first and last token, verbatim -- so for a rule
+        this is what the author wrote for that construct, comments and all.
+        """
+        cdef int32_t start = self._hndl.getStartToken()
+        cdef int32_t stop = self._hndl.getStopToken()
+        if start < 0 or stop < start:
+            return ""
+        return "".join(
+            [t.text for t in self._cst.tokens[start:stop + 1]])
+
+    def walk(self):
+        """Yields this node and every node below it, depth first."""
+        yield self
+        for c in self.children:
+            for n in c.walk():
+                yield n
+
+    def __len__(self):
+        return self._hndl.getNumChildren()
+
+    def __getitem__(self, int idx):
+        if idx < 0:
+            idx += self._hndl.getNumChildren()
+        if idx < 0 or idx >= <int>(self._hndl.getNumChildren()):
+            raise IndexError("no child %d" % idx)
+        return CstNode.mk(self._hndl.getChild(idx), self._cst)
+
+    def __iter__(self):
+        return iter(self.children)
+
+    @staticmethod
+    cdef CstNode mk(decl.IFmtCstNode *hndl, Cst cst):
+        cdef CstNode ret = CstNode.__new__(CstNode)
+        ret._hndl = hndl
+        ret._cst = cst
+        return ret
+
+
+cdef class Cst(object):
+    """A parsed source unit: the token stream and the tree over it.
+
+    Parsed without building an AST, which is what keeps both branches of a
+    ``compile if`` and the parentheses the author wrote.
+    """
+
+    def __dealloc__(self):
+        if self._hndl != NULL:
+            del self._hndl
+            self._hndl = NULL
+
+    def __repr__(self):
+        return "Cst(%d tokens, %d syntax errors)" % (
+            len(self.tokens), self.num_syntax_errors)
+
+    @property
+    def root(self):
+        """The ``compilation_unit`` node, or ``None`` if nothing was parsed."""
+        cdef decl.IFmtCstNode *r
+        if self._root is None:
+            r = self._hndl.getRoot()
+            self._root = CstNode.mk(r, self) if r != NULL else False
+        return self._root or None
+
+    @property
+    def text(self):
+        """The source, reassembled from the tokens."""
+        return self.tokens.text

@@ -36,6 +36,10 @@ cdef class Factory(object):
 
     cpdef TaskFindElementByLocation mkTaskFindElementByLocation(self)
 
+    cpdef TokenStream mkTokenizer(self, in_s)
+
+    cpdef Cst mkCstParser(self, in_s)
+
     cdef init(self, dm_core.Factory f, ast.Factory ast_f)
 
 cdef Factory _factoryInst = None
@@ -169,3 +173,44 @@ cdef class ParseProfileInfo(object):
 
     @staticmethod
     cdef ParseProfileInfo mk(decl.IParseProfileInfo *hndl, bool owned=*)
+
+
+cdef class Token(object):
+    cdef readonly int32_t   index
+    cdef readonly int32_t   type
+    cdef readonly str       type_name
+    cdef readonly int32_t   channel
+    cdef readonly int32_t   start
+    cdef readonly int32_t   stop
+    cdef readonly int32_t   line
+    cdef readonly int32_t   col
+    cdef readonly str       text
+
+    @staticmethod
+    cdef Token mk(decl.FmtToken &tok, str type_name)
+
+
+cdef class TokenStream(object):
+    cdef readonly tuple     tokens
+    cdef readonly int32_t   num_errors
+    cdef readonly bool      valid_utf8
+
+    @staticmethod
+    cdef TokenStream mk(tuple tokens, int32_t num_errors, bool valid_utf8)
+
+
+cdef class CstNode(object):
+    cdef decl.IFmtCstNode   *_hndl
+    # Keeps the tree alive.  Nodes are borrowed views into a C++ tree owned by
+    # the Cst, so a node outliving its Cst would be a dangling pointer.
+    cdef Cst                _cst
+
+    @staticmethod
+    cdef CstNode mk(decl.IFmtCstNode *hndl, Cst cst)
+
+
+cdef class Cst(object):
+    cdef decl.IFmtCst       *_hndl
+    cdef readonly TokenStream   tokens
+    cdef readonly int32_t       num_syntax_errors
+    cdef object                 _root

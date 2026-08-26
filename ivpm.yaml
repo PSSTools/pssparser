@@ -34,6 +34,25 @@ package:
     - name: ivpm-build
       src: pypi
 
+    # The shared .pss corpus (pss-corpus/PLAN.md, C-17). Test data: `type: raw`
+    # because there is nothing to build and nothing to install.
+    #
+    # `default-dev` only, deliberately. This is the lowest repository in the
+    # stack and the one whose artefacts ship; a released wheel has no business
+    # carrying test data, and nothing under python/ or src/ reads it. The
+    # answer to CQ-3 is that pssparser depends on the corpus the way it depends
+    # on gtest -- as a developer, never as a package.
+    #
+    # URL names the GitHub mirror rather than the git.dvkit.org upstream,
+    # matching every other source dependency in this file; the Forgejo CI
+    # remaps psstools/ to git.dvkit.org, as it already does for the rest. Note
+    # the mirror does not exist yet (pss-corpus PLAN.md C-2a), so an unmapped
+    # `ivpm update -d default-dev` cannot resolve it today -- which is why the
+    # CI jobs clone it directly rather than relying on this entry.
+    - name: pss-corpus
+      url: https://github.com/psstools/pss-corpus.git
+      type: raw
+
   - name: default
     deps:
     - name: ciostream
