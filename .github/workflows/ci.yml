@@ -1,3 +1,11 @@
+# CI for psstools/pssparser on GitHub Actions.
+#
+# CI ONLY. THIS WORKFLOW DOES NOT PUBLISH ANYTHING, and that is deliberate
+# rather than incidental -- see the block where the publish job used to be.
+# The release path for this package is .forgejo/workflows/ci.yml, and
+# sync-policy.toml pins release_authority = "forgejo" for this repository to
+# say so in the one place both forges read.
+
 name: CI
 on:
   - push
@@ -216,26 +224,29 @@ jobs:
         pip install dist/*.whl
         python -c "from pssparser import Parser; p = Parser(); assert p.parses([('test.pss', 'component pss_top {}')]); print('System test PASSED')"
 
-  publish:
-    name: Publish to PyPI
-    # Linux-only for now; add ci-macos here once macOS wheels are vetted.
-    needs: [ci-linux, ci-linux-aarch64]
-    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
-    runs-on: ubuntu-latest
-    steps:
-    - name: Download Linux wheels
-      uses: actions/download-artifact@v4
-      with:
-        path: dist
-        pattern: wheels-linux-*
-        merge-multiple: true
-    - name: Publish to PyPI
-      uses: pypa/gh-action-pypi-publish@release/v1
-      with:
-        user: __token__
-        password: ${{ secrets.PYPI_API_TOKEN }}
-        packages-dir: dist
-        skip-existing: true
+  # A `publish` job stood here. It uploaded every master push to PyPI as
+  # <base>.<github-run-id>, and it is DELETED rather than tag-gated.
+  #
+  # Deleted, because tag-gating it would have created a SECOND path to the
+  # same PyPI project, on a different forge, keyed on the same tag. The
+  # release-authority switch exists precisely so that only one of the two can
+  # fire -- but the cheaper and more legible arrangement, where a repository
+  # has an unambiguous release path at all, is one publisher. This repository
+  # has one, and it is .forgejo/workflows/ci.yml.
+  #
+  # The per-push dev-wheel stream goes with it. That was decided estate-wide
+  # on 2026-08-27: a release is an explicitly tagged version, and run-id
+  # -qualified releases are not something this project does. PyPI still holds
+  # the ones already published (3.0.0.27726656373 and friends); nothing new
+  # joins them. If a prerelease channel is wanted, it needs designing -- it is
+  # explicitly out of scope for this plan, not forgotten.
+  #
+  # Everything that made the removed job trustworthy already exists on the
+  # Forgejo side and is stricter: it checks the tag against BASE in
+  # python/pssparser/__version__.py AND against every wheel filename, and it
+  # consults the release-authority switch. The wheels this workflow builds are
+  # still uploaded as ARTIFACTS above, which is what makes them reviewable
+  # without being publishable.
 
   docs:
     runs-on: ubuntu-latest
@@ -250,9 +261,21 @@ jobs:
     - name: Build Sphinx docs
       run: |
         sphinx-build -b html docs docs/_build/html
-    - name: Deploy to GitHub Pages
-      if: github.ref == 'refs/heads/master'
-      uses: peaceiris/actions-gh-pages@v4
-      with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: docs/_build/html
+    # A gh-pages deploy stood here, unconditional except for the branch,
+    # publishing https://psstools.github.io/pssparser/ on every master push.
+    # Deleted: dvkit.org owns documentation for this estate, and the docs job
+    # in .forgejo/workflows/ci.yml already uploads the real doc set as the
+    # `docs-psstools-pssparser` artifact for the host-side deploy to collect.
+    #
+    # That one is also the better doc set, and not by a little. It installs
+    # the built wheel first, because docs/conf.py uses autodoc to import
+    # pssparser.ast and pssparser.core -- compiled Cython extensions that do
+    # not exist in a source checkout. The build below is a bare `sphinx-build`
+    # over the source tree, so its API reference is empty, and Sphinx exits 0
+    # while producing it. Keeping it as a CI check is fine. Publishing it
+    # would have been publishing the emptier of the two.
+    - name: Sanity-check the docs build
+      run: |
+        test -s docs/_build/html/index.html \
+          || { echo "::error::no index.html in the docs build output"; exit 1; }
+        echo "generated pages: $(find docs/_build/html -name '*.html' | wc -l)"

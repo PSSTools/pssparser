@@ -1,0 +1,214 @@
+# psstools/pssparser -- Forgejo Actions.
+#
+# THIS IS A CHECK, NOT A BUILD. The build for this repository is the file next
+# to it, .forgejo/workflows/ci.yml, and that one is also the RELEASE PATH:
+# sync-policy.toml pins release_authority = "forgejo" here, because PyPI's two
+# most recent pssparser releases (3.0.1 and 3.0.2) are clean versions and only
+# the Forgejo pipeline can produce those -- the GitHub workflow's publish job
+# stamped a run id onto everything it uploaded, and has now been deleted.
+#
+# Unlike every other shadow in this estate, this file is NOT what makes
+# .forgejo/workflows/ exist -- the build already did that, so the runner's
+# directory-level fallback to .github/workflows/ was never armed here. What it
+# adds is the assertion, and the assertion is worth more here than elsewhere
+# precisely BECAUSE the publisher this repository actually uses is the local
+# one: a repo whose release path is on this forge is a repo where an ungated
+# publish step is one push away from firing, with no GitHub-side review in
+# between.
+#
+# It scans BOTH workflow directories, which is what lets it watch that
+# publisher at all. Waves 1-4 scanned only .github, and under that rule this
+# file would have asserted nothing about the only publisher this repo has.
+
+name: Conformance
+
+on:
+  push:
+    branches: ['**']
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Check for internal identifiers in tracked files
+      # This repo is published to git.dvkit.org, so anything committed here is
+      # public. Internal host names, tailnet addresses and CGNAT-range IPs must
+      # not appear in tracked files -- if a build ever needs one it belongs in a
+      # repository secret, which is masked in logs.
+      run: |
+        pattern='perch-char\.ts\.net|\.ts\.net|a9550|100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\.[0-9]+\.[0-9]+'
+        if git grep -nIE "$pattern" -- . ':!.forgejo/workflows/' ; then
+          echo "::error::internal identifier found in a tracked file (see matches above)"
+          exit 1
+        fi
+        echo "OK: no internal identifiers in tracked files"
+
+    - name: Install PyYAML
+      # Not present in catthehacker/ubuntu:act-22.04 by default. The check below
+      # must read the workflows as YAML rather than by grepping: a gate that is
+      # only true textually is exactly the class of bug being guarded against.
+      # PEP 668 marks this image's interpreter externally-managed on some
+      # rebuilds, hence the escalation.
+      run: |
+        python3 -c 'import yaml' 2>/dev/null && { echo "PyYAML already present"; exit 0; }
+        python3 -m pip install -q pyyaml && exit 0
+        python3 -m pip install -q --break-system-packages pyyaml && exit 0
+        echo "::error::could not install PyYAML"; exit 1
+
+    - name: Nothing here may publish because a mirror moved a ref
+      # NOTE ON INDENTATION: the heredoc body sits at the SAME column as the
+      # rest of this run: block. YAML strips that common indentation, so the
+      # script reaches the shell at column 0. Outdenting it to look tidier ends
+      # the block scalar early, which produces a corrupt workflow rather than a
+      # syntax error -- caught the hard way in wave 1.
+      run: |
+        python3 - <<'PY'
+        import pathlib, sys, yaml
+
+        # Markers ASSEMBLED FROM FRAGMENTS on purpose. git-sync's estate
+        # conformance scanner reads this file as TEXT and matches the same
+        # strings, so spelling any of them out -- in the code OR in a comment
+        # about the code -- would register this CHECKING job as a PUBLISHING
+        # job. That is not cosmetic: publish_risk() refuses to pull a ref whose
+        # tree carries an unswitched publisher, so a self-flagging check file
+        # blocks its own repo's inbound sync. It happened to 9 of 38 files
+        # while writing wave 3a, and had already shipped in 11 repos.
+        PUBLISH = tuple(a + b for a, b in (
+            ("twine ", "upload"), ("pypa/gh-action-pypi", "-publish"),
+            ("softprops/action", "-gh-release"), ("actions/create", "-release"),
+            ("actions/upload", "-release-asset"), ("gh release", " create"),
+            ("JamesIves/github", "-pages-deploy-action"),
+            ("peaceiris/actions", "-gh-pages"), ("actions/deploy", "-pages"),
+            # Added 2026-08-31 (Phase 9). psstools/vscode-pss-support is the
+            # estate's only VS Code Marketplace publisher and NOTHING in the
+            # list above matched it. git-sync's own PUBLISH_MARKERS have
+            # carried this one since the start, so the shadow was the side
+            # that was short -- the exact undercount shape found in wave 4,
+            # and the reason the generator now refuses to emit a check whose
+            # markers see fewer steps than git-sync's do.
+            ("vsce ", "publish"),
+        ))
+        TAG = "refs/tags/v"
+        AUTH = "authority"
+
+        bad, found = [], 0
+        WORKFLOW_DIRS = (".github/workflows", ".forgejo/workflows")
+        # BOTH directories, from Phase 9 onward. Waves 1-4 scanned only
+        # .github, on the reasoning that .forgejo held nothing but this check.
+        # psstools/pssparser is the case that breaks: its RELEASE PIPELINE is
+        # the Forgejo one -- release_authority = "forgejo" in sync-policy.toml
+        # -- so the publisher this check most needs to watch lives in the
+        # directory it was not looking at. Scanning both also means the check
+        # reads itself, which is harmless: its markers are assembled from
+        # fragments precisely so this file never matches them.
+
+        def workflows():
+            for d in WORKFLOW_DIRS:
+                yield from sorted(pathlib.Path(d).glob("*.y*ml"))
+
+        for wf in workflows():
+            doc = yaml.safe_load(wf.read_text()) or {}
+            # YAML 1.1 resolves a bare `on:` key to the BOOLEAN True, so
+            # doc["on"] is None and every check here would pass vacuously.
+            if doc.get("on", doc.get(True)) is None:
+                bad.append(f"{wf}: no `on:` block")
+                continue
+            jobs = doc.get("jobs") or {}
+
+            # The gate job must EXIST and export the switch. Checking only that
+            # consumers name it is not enough: a mutation test in wave 3a caught
+            # the equivalent file passing cleanly with the `gate` job deleted,
+            # because every remaining assertion was about the consumers.
+            # MATCHED INSIDE AN EXPRESSION, not anywhere in the job. From
+            # Phase 9 this check scans the Forgejo workflow directory too,
+            # which means it reads ITSELF -- and its own source contains the
+            # words `needs.gate.outputs` in the very code doing the matching.
+            # A bare substring test therefore reported this checking job as a
+            # broken consumer of a gate it has no reason to have. Requiring
+            # the surrounding expression delimiters distinguishes a reference
+            # from a mention, while still catching every real use including
+            # one inside a `run:` block.
+            #
+            # The delimiters are built with chr() rather than written out:
+            # this file is produced by a template that treats braces as field
+            # syntax, and a literal pair here is a generator crash.
+            OPEN, CLOSE = "$" + chr(123) * 2, chr(125)
+
+            def reads_gate(job):
+                dumped = yaml.dump(job)
+                return any("needs.gate.outputs" in seg.split(CLOSE)[0]
+                           for seg in dumped.split(OPEN)[1:])
+
+            readers = [n for n, j in jobs.items() if reads_gate(j)]
+            if readers:
+                gate = jobs.get("gate")
+                if not gate:
+                    bad.append(f"{wf}: job(s) {', '.join(readers)} read "
+                               "needs.gate.outputs but there is no `gate` job")
+                elif "authority" not in (gate.get("outputs") or {}):
+                    bad.append(f"{wf}: `gate` job exports no `authority` output")
+
+            # An undeclared `needs: gate` yields an EMPTY STRING, not an error,
+            # so the publish condition is false forever: nothing publishes and
+            # nothing goes red. The quietest failure available here.
+            for name, job in jobs.items():
+                if not reads_gate(job):
+                    continue
+                needs = job.get("needs") or []
+                if isinstance(needs, str):
+                    needs = [needs]
+                if "gate" not in needs:
+                    bad.append(f"{wf}: job `{name}` reads needs.gate.outputs "
+                               "but does not declare `needs: gate`")
+
+            for name, job in jobs.items():
+                for step in job.get("steps") or []:
+                    # WHITESPACE-NORMALISED, and that is not tidiness.
+                    # vsc-tools/vsc-dm's macOS publish step separates the tool
+                    # name from its subcommand by TWO spaces, so the literal
+                    # marker below -- which has one -- did not match it.
+                    # git-sync's own markers are regexes and did match, which is
+                    # how the discrepancy surfaced: analyse_workflow() counted
+                    # two publishers in that file and this check counted one.
+                    # An undercount is not cosmetic. It is a publish step this
+                    # check would not notice losing its gate.
+                    #
+                    # (The two-space form is deliberately not written out here.
+                    # publish_risk() reads this file as TEXT, and a comment
+                    # naming a publisher is indistinguishable from a publisher.
+                    # The generator's self-check refuses to emit if it is --
+                    # which is how this paragraph came to be worded this way.)
+                    text = " ".join(((step.get("run") or "") + " "
+                                     + (step.get("uses") or "")).split())
+                    if not any(m in text for m in PUBLISH):
+                        continue
+                    found += 1
+                    label = f"{wf}:{name}/{step.get('name') or step.get('uses')}"
+                    cond = str(step.get("if", "")) + " " + str(job.get("if", ""))
+                    if TAG not in cond:
+                        bad.append(f"{label} is reachable without a v* tag -- a "
+                                   f"sync cycle moves the default branch and would "
+                                   f"publish: if={cond.strip()!r}")
+                    if AUTH not in cond:
+                        bad.append(f"{label} does not consult the release-authority "
+                                   f"switch: if={cond.strip()!r}")
+
+        # ANTI-VACUITY. Without this, deleting or renaming the publish step turns
+        # every assertion above into a green no-op, and the check that was meant
+        # to notice would be the thing reporting success.
+        if not found:
+            bad.append("no publishing step matched the markers -- either the "
+                       "release step was removed, or it changed shape and the "
+                       "marker list in this file needs updating")
+
+        if bad:
+            for b in bad:
+                print(f"::error::{b}")
+            sys.exit(1)
+        print(f"OK: {found} publishing step(s), every one tag-gated and switch-gated")
+        PY
