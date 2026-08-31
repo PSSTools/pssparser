@@ -7,8 +7,8 @@ Building with sanitizers
    cmake .. -DENABLE_UBSAN=ON     # UndefinedBehaviorSanitizer
 
 Both add the compile *and* link flags, and both are forwarded to every
-``ExternalProject`` -- the ANTLR runtime, the generated AST library, and gtest
--- so the whole program is instrumented rather than just the sources in this
+``ExternalProject`` -- the ANTLR runtime and the generated AST library -- so
+the whole program is instrumented rather than just the sources in this
 repository. See ``FORWARDED_BUILD_ARGS`` in the top-level ``CMakeLists.txt``.
 
 Running the Python suite against an instrumented build

@@ -474,7 +474,8 @@ If you encounter migration issues:
 
 1. Check this guide for common patterns
 2. Review the :doc:`pss30_features` documentation
-3. Examine the test suite in ``tests/src/TestPSS30Grammar.cpp``
+3. Examine the test suite in ``tests/python/parsing/`` -- the ``*_31.py``
+   modules cover the constructs this guide describes
 4. File an issue on the project repository
 
 Best Practices

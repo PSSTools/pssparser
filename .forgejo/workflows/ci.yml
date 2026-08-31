@@ -158,14 +158,12 @@ jobs:
         cmake .. -GNinja
         ninja
 
-    - name: Run C++ unit tests
-      # The gtest target is built by the step above (a bare `cmake ..` leaves
-      # PACKAGES_DIR unset, which turns ENABLE_TESTS on).  Building it without
-      # running it would let a failing DocCommentExtractor rule ship.
-      run: |
-        export PATH=/opt/python/cp312-cp312/bin:$PATH
-        cd build
-        ctest --output-on-failure
+    # There is no C++ unit-test step. A `ctest --output-on-failure` stood here
+    # against a gtest executable; it was retired with the executable on
+    # 2026-08-31. The rules it guarded -- DocCommentExtractor in particular --
+    # are covered by "Test against the built wheel" below, which is the
+    # stronger check anyway: it runs them through the artifact that ships
+    # rather than through a build-directory binary nothing installs.
 
     - name: Build wheels
       run: |

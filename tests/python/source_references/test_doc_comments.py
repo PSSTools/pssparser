@@ -867,10 +867,10 @@ def test_defined_function_is_documented():
 # ---------------------------------------------------------------------------
 # T-D10 -- a line-comment run is insensitive to a missing space after `//`
 #
-# The C++ half of this is in tests/src/TestDocCommentExtractor.cpp; this is
-# the end-to-end check that it reaches getDocstring(). A one-space indent is
-# a block quote in reStructuredText, so the difference is visible in rendered
-# documentation rather than only in the string.
+# The check is end-to-end: the normalization happens in DocCommentExtractor,
+# and what this asserts is that it survives all the way to getDocstring(). A
+# one-space indent is a block quote in reStructuredText, so the difference is
+# visible in rendered documentation rather than only in the string.
 # ---------------------------------------------------------------------------
 
 def test_line_comment_run_with_a_missing_space_has_no_stray_indent():

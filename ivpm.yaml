@@ -15,17 +15,10 @@ package:
       url: https://www.antlr.org/download/antlr-4.13.2-complete.jar
     - name: antlr4-cpp-runtime
       url: https://www.antlr.org/download/antlr4-cpp-runtime-4.13.2-source.zip
-    # 1.15.2, not the 1.10.0 that stood here. 1.10.0 declares
-    # `cmake_minimum_required(VERSION 2.8.8)`, and CMake 4 removed
-    # compatibility with < 3.5 outright -- the manylinux image picked up
-    # CMake 4.4 and every job died in the GTEST configure step. Raising the
-    # policy floor with -DCMAKE_POLICY_VERSION_MINIMUM=3.5 gets past configure
-    # and then fails in the compile: 1.10.0 builds itself with -Werror, and
-    # gcc >= 13 reports -Wmaybe-uninitialized in gtest-death-test.cc. Moving
-    # the dependency forward fixes both at once; 1.15.2 requires CMake 3.13
-    # and C++14, and this project is already on C++17.
-    - name: gtest
-      url: https://github.com/google/googletest/archive/refs/tags/v1.15.2.tar.gz
+    # No gtest. The C++ test executable was retired on 2026-08-31 (see the note
+    # at the foot of CMakeLists.txt): the suite is pytest, and gtest was a
+    # source dependency that had to be fetched and built by every developer and
+    # every CI job to cover rules the Python tests already cover.
     - name: pyastbuilder
       url: https://github.com/mballance-utils/pyastbuilder.git
     - name: ciostream
@@ -50,7 +43,7 @@ package:
     # stack and the one whose artefacts ship; a released wheel has no business
     # carrying test data, and nothing under python/ or src/ reads it. The
     # answer to CQ-3 is that pssparser depends on the corpus the way it depends
-    # on gtest -- as a developer, never as a package.
+    # on pytest -- as a developer, never as a package.
     #
     # URL names the GitHub mirror rather than the git.dvkit.org upstream,
     # matching every other source dependency in this file; the Forgejo CI

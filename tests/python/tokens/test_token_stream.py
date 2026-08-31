@@ -1,8 +1,8 @@
 """The lossless-tokenization contract, from Python.
 
-The C++ tests (``tests/src/TestFmtTokenStream.cpp``) prove the mechanism.
-These prove that the binding did not lose anything on the way across, and they
-run the guarantee over real PSS rather than fragments.
+These are the whole of the guarantee: that the tokens concatenate back to the
+input, that their offsets index it directly, and that the binding did not lose
+anything on the way across -- over fragments here and over real PSS below.
 """
 
 import io

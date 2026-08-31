@@ -8,9 +8,6 @@ set(CMAKE_INSTALL_RPATH $ORIGIN)
 
 if (NOT PACKAGES_DIR)
   set(PACKAGES_DIR ${CMAKE_SOURCE_DIR}/packages)
-
-  set(ENABLE_TESTS True)
-
 endif()
 
 if (CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
@@ -219,8 +216,11 @@ ExternalProject_Add_StepDependencies(AST download
 
 add_subdirectory(src)
 
-
-if (ENABLE_TESTS)
-  enable_testing()
-  add_subdirectory(tests)
-endif()
+# There is no C++ test target. The suite is pytest, under tests/python, and it
+# exercises this code through the extension modules -- which is the surface
+# callers actually use. The gtest executable that used to live in tests/ was
+# retired on 2026-08-31: every rule it covered (the CST shape, lossless
+# tokenization, doc-comment extraction) has a Python counterpart, and keeping a
+# second harness meant a second toolchain dependency for no additional
+# coverage. Run the suite with `pytest tests/python` against an installed or
+# in-place build.
