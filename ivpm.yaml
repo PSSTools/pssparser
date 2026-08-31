@@ -15,8 +15,17 @@ package:
       url: https://www.antlr.org/download/antlr-4.13.2-complete.jar
     - name: antlr4-cpp-runtime
       url: https://www.antlr.org/download/antlr4-cpp-runtime-4.13.2-source.zip
+    # 1.15.2, not the 1.10.0 that stood here. 1.10.0 declares
+    # `cmake_minimum_required(VERSION 2.8.8)`, and CMake 4 removed
+    # compatibility with < 3.5 outright -- the manylinux image picked up
+    # CMake 4.4 and every job died in the GTEST configure step. Raising the
+    # policy floor with -DCMAKE_POLICY_VERSION_MINIMUM=3.5 gets past configure
+    # and then fails in the compile: 1.10.0 builds itself with -Werror, and
+    # gcc >= 13 reports -Wmaybe-uninitialized in gtest-death-test.cc. Moving
+    # the dependency forward fixes both at once; 1.15.2 requires CMake 3.13
+    # and C++14, and this project is already on C++17.
     - name: gtest
-      url: https://github.com/google/googletest/archive/release-1.10.0.tar.gz
+      url: https://github.com/google/googletest/archive/refs/tags/v1.15.2.tar.gz
     - name: pyastbuilder
       url: https://github.com/mballance-utils/pyastbuilder.git
     - name: ciostream
