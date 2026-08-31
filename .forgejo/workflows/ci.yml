@@ -199,21 +199,32 @@ jobs:
       # it: a sweep that finds no files and reports success is exactly the
       # outcome the sweep exists to prevent.
       #
-      # A direct clone rather than widening "Fetch source dependencies" to
-      # `-d default-dev`. That step resolves the `default` set on purpose; the
-      # corpus is declared dev-only (C-17/CQ-3) so no released wheel carries
-      # it, and switching the whole build to the dev set to pick up 324K of
-      # test data would drag the rest of the dev graph along with it.
+      # CLONE ONLY IF ABSENT. The paragraph that stood here reasoned that
+      # "Fetch source dependencies" resolves the `default` set, so the dev-only
+      # corpus (C-17/CQ-3) would not be fetched and a direct clone was needed.
+      # The premise was wrong: that step runs `ivpm update -a`, which takes the
+      # DEV set. Now that C-2a has landed and the psstools/pss-corpus mirror
+      # named in ivpm.yaml resolves -- via the git.dvkit.org remap this
+      # workflow already applies -- ivpm clones the corpus before this step
+      # runs, and an unconditional `git clone` dies on "destination path
+      # already exists".
       #
-      # Cloned after that step, not before, so a corpus checkout under
-      # packages/ cannot be mistaken for a dependency by its origin check.
+      # So this is now a CHECK with a fetch fallback. The count assertion is
+      # outside the `if` on purpose: it has to run against whatever ivpm
+      # produced, not only against a clone we made ourselves. That keeps the
+      # real guarantee -- a corpus that is present AND populated -- independent
+      # of which of the two paths supplied it.
       #
-      # No `--depth 1`: the transport in front of git.dvkit.org can fall back
-      # to dumb http, which has no shallow capability and fails outright rather
-      # than degrading to a full clone.
+      # No `--depth 1` on the fallback: the transport in front of git.dvkit.org
+      # can fall back to dumb http, which has no shallow capability and fails
+      # outright rather than degrading to a full clone.
       run: |
         set -eu
-        git clone https://git.dvkit.org/psstools/pss-corpus.git packages/pss-corpus
+        if [ -d packages/pss-corpus/curated ]; then
+          echo "corpus already present (fetched by 'ivpm update'); not re-cloning"
+        else
+          git clone https://git.dvkit.org/psstools/pss-corpus.git packages/pss-corpus
+        fi
         n=$(find packages/pss-corpus/curated -name '*.pss' | wc -l)
         echo "corpus: $n .pss files"
         if [ "$n" -lt 50 ]; then

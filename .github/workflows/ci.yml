@@ -68,16 +68,27 @@ jobs:
       # for the step below. Same rationale as the Forgejo workflow, which
       # carries the longer version of this comment.
       #
-      # Deliberately git.dvkit.org and not github.com, which is the one place
-      # this workflow reaches outside GitHub. The GitHub mirror of pss-corpus
-      # does not exist yet (pss-corpus PLAN.md C-2a); naming it here would turn
-      # this job red for a reason that has nothing to do with the parser.
-      # Upstream is public and serves anonymously, so it works today. Switch
-      # the URL to the mirror once C-2a lands -- it is a one-line change, and
-      # ivpm.yaml already names the mirror in anticipation.
+      # CLONE ONLY IF ABSENT, because as of 2026-08-31 it usually is not.
+      # C-2a landed: the psstools/pss-corpus mirror ivpm.yaml names now exists
+      # and is public, and "Fetch source dependencies" runs `ivpm update -a`,
+      # which resolves the dev dep-set -- so ivpm clones the corpus itself,
+      # before this step. An unconditional `git clone` then dies on
+      # "destination path already exists", which is what happened here.
+      #
+      # So this step is now a CHECK that falls back to a fetch, rather than a
+      # fetch. The count assertion below is the part that carries the weight
+      # either way, and it is deliberately outside the `if`: it must run
+      # against whatever ivpm produced, not just against our own clone.
+      #
+      # The fallback URL stays git.dvkit.org -- upstream, public, anonymous --
+      # so this still works if the dep-set or the mirror moves again.
       run: |
         set -eu
-        git clone https://git.dvkit.org/psstools/pss-corpus.git packages/pss-corpus
+        if [ -d packages/pss-corpus/curated ]; then
+          echo "corpus already present (fetched by 'ivpm update'); not re-cloning"
+        else
+          git clone https://git.dvkit.org/psstools/pss-corpus.git packages/pss-corpus
+        fi
         n=$(find packages/pss-corpus/curated -name '*.pss' | wc -l)
         echo "corpus: $n .pss files"
         if [ "$n" -lt 50 ]; then
