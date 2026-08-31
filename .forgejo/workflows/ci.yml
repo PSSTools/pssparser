@@ -226,12 +226,28 @@ jobs:
       # Tests run against the *installed* wheel in a clean venv, never against
       # the source tree -- that is what makes this a test of the artifact we
       # would ship rather than of the build directory.
+      #
+      # The one PYTHONPATH entry does not compromise that, and the reason is
+      # narrow enough to be worth stating: packages/pyastbuilder/src contains
+      # the package `astbuilder` and nothing else, so `pssparser` still
+      # resolves from the installed wheel. It is there because
+      # tests/python/test_astbuilder_codegen.py imports the AST code
+      # generator, a BUILD-time tool that is deliberately absent from the
+      # wheel; without it that module fails at import and pytest exits 2 on a
+      # collection error, losing the whole run rather than one test.
+      #
+      # The ivpm checkout rather than the PyPI release: the test asserts on
+      # generated source to pin generator defects, so it has to run against
+      # the same generator scripts/gen_ast.py used to build this artifact.
+      #
+      # pyyaml and toposort are astbuilder's own imports (parser.py, linker.py).
       run: |
         for py in cp312-cp312 cp313-cp313; do
           echo "=== $py ==="
           /opt/python/${py}/bin/python -m venv /tmp/venv-${py}
-          /tmp/venv-${py}/bin/pip install -q pytest dist/*${py%%-*}-*.whl
-          /tmp/venv-${py}/bin/python -m pytest tests/python -q --tb=short
+          /tmp/venv-${py}/bin/pip install -q pytest pyyaml toposort dist/*${py%%-*}-*.whl
+          PYTHONPATH="$PWD/packages/pyastbuilder/src" \
+            /tmp/venv-${py}/bin/python -m pytest tests/python -q --tb=short
         done
 
     - name: System test

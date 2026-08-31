@@ -92,10 +92,30 @@ jobs:
         fi
 
     - name: Run Python tests
+      # PYTHONPATH points at the ivpm checkout of pyastbuilder because
+      # tests/python/test_astbuilder_codegen.py imports `astbuilder`, the AST
+      # code generator, which is a BUILD-time tool and so is deliberately not
+      # in the wheel. Without it the module fails at import and pytest exits 2
+      # on a collection error -- taking all 3276 tests with it, not just this
+      # one.
+      #
+      # The ivpm checkout rather than `pip install pyastbuilder`, even though
+      # PyPI has one. That test asserts on generated source in order to pin
+      # defects in the generator, so it is only meaningful against the same
+      # generator that produced this build's AST -- which is the checkout that
+      # scripts/gen_ast.py ran from. Installing a release would let the tool
+      # under test and the tool that built the artifact drift apart silently.
+      #
+      # This does not weaken testing against the installed wheel: that
+      # directory contains `astbuilder` and nothing else, so `pssparser` still
+      # resolves from the wheel installed below.
+      #
+      # pyyaml and toposort are astbuilder's own imports (parser.py, linker.py).
       run: |
         for py in cp312-cp312 cp313-cp313; do
-          /opt/python/${py}/bin/python -m pip install pytest dist/*${py%%-*}*.whl
-          /opt/python/${py}/bin/python -m pytest tests/python -v --tb=short
+          /opt/python/${py}/bin/python -m pip install pytest pyyaml toposort dist/*${py%%-*}*.whl
+          PYTHONPATH="$PWD/packages/pyastbuilder/src" \
+            /opt/python/${py}/bin/python -m pytest tests/python -v --tb=short
         done
     - name: System test
       run: |
