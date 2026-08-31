@@ -87,9 +87,18 @@ jobs:
       # needs one, it belongs in a repository secret, which is masked in logs.
       # Verified clean across all refs of all repos on 2026-07-28; this step
       # exists so it stays that way.
+      #
+      # THE PATHSPEC EXCLUDES THE WHOLE DIRECTORY, not just this file, and the
+      # difference is not cosmetic. Excluding only `ci.yml` works exactly as
+      # long as this is the only workflow here; the moment a second one
+      # arrives, each file matches the OTHER's copy of this very pattern and
+      # the job goes red for quoting the thing it is looking for. That is what
+      # happened on 2026-08-31 when conformance.yml landed beside this file,
+      # and it is the same failure that made four edapack repos red for a day
+      # in wave 3a.
       run: |
         pattern='perch-char\.ts\.net|\.ts\.net|a9550|100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\.[0-9]+\.[0-9]+'
-        if git grep -nIE "$pattern" -- . ':!.forgejo/workflows/ci.yml' ; then
+        if git grep -nIE "$pattern" -- . ':!.forgejo/workflows/' ; then
           echo "::error::internal identifier found in a tracked file (see matches above)"
           exit 1
         fi
