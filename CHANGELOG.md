@@ -5,6 +5,58 @@ name the **revision of the PSS LRM this parser targets**, not the parser's own
 feature level. A release that adds parser capability without moving to a new LRM
 revision advances only the patch component.
 
+## 3.0.6 — source tools, PSS 3.1 constructs, and a working release path
+
+**3.0.3, 3.0.4 and 3.0.5 were tagged but never reached PyPI**, so the last
+published release is 3.0.2 and this entry covers everything since. The 3.0.3
+section below still describes what landed under that number; it is accurate,
+it was simply never published. What kept the three of them unpublished was the
+release path itself, which is the last item under Build.
+
+### Added
+
+- **`pssparser.tokens`** — lossless tokenization, separate from parsing. The
+  tokens of a file concatenate back to that file byte for byte, and the
+  guarantee is unconditional: it holds for input that does not lex, for input
+  that is not valid UTF-8, and for input carrying a byte-order mark. Trivia
+  (whitespace, both comment forms) arrives on its own channels rather than
+  being discarded. See `docs/source_tools.rst`.
+- **`pssparser.cst`** — the concrete syntax tree, from a parse-only entry point
+  that does not build the AST. Nothing the parser matched is folded away, so
+  redundant parentheses and both branches of a `compile if` survive, and each
+  node's token indices index the accompanying stream. Syntax errors are counted
+  rather than raised.
+
+  Together these are the surface a formatter or a source-rewriting tool needs;
+  neither existed before.
+- **PSS 3.1 constructs**, including target template blocks and template
+  specialization. See `docs/pss31_features.rst` and `docs/pss31_migration.rst`.
+- `docs/checker_plugin_guide.rst`, `docs/comments.rst`, `docs/sanitizers.rst`.
+
+### Fixed
+
+- Cycle detection and avoidance in type resolution.
+- **Iterating a list accessor works on Python 3.13.** `ListIterator`, emitted
+  by the AST generator, defined `__next__` but not `__iter__` and so was not a
+  valid iterator. On 3.12 nothing noticed, because `list(node.field())` reaches
+  `__next__` without calling `iter()` on the iterator itself; on 3.13
+  `[x for x in node.field()]` raised `TypeError: 'ListIterator' object is not
+  iterable` while `list(...)` on the same object kept working. Fixed upstream
+  in pyastbuilder; no change to any API here.
+
+### Build
+
+- **The C++ test executable and the gtest dependency are gone.** The suite is
+  pytest. The three gtest files covered rules the Python tests already cover,
+  and the dependency had to be fetched and built by every developer and every
+  CI job. Nothing about installing or using the package changes.
+- The release path works. It had been broken in three separate places at once,
+  each of which failed after the tag was pushed: the pinned gtest could not be
+  configured under CMake 4, the corpus was fetched twice and the second clone
+  died on an existing path, and one unimportable test module took the whole
+  pytest run with it as a collection error. All three are fixed; the first is
+  fixed by deletion.
+
 ## 3.0.3 — doc comments, source extents, and the shipped standard library
 
 The doc-comment subsystem has been replaced. See `docs/doc_comments.rst` for the
