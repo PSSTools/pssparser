@@ -62,33 +62,28 @@ jobs:
         name: wheels-linux-x86_64
         path: dist/*.whl
         if-no-files-found: error
-    - name: Fetch the PSS corpus
-      # tests/python/corpus/test_pss_corpus.py fails rather than skips when the
-      # corpus is absent (pss-corpus PLAN.md C-8), so this step is load-bearing
-      # for the step below. Same rationale as the Forgejo workflow, which
-      # carries the longer version of this comment.
+    - name: Check the PSS corpus
+      # VERIFIES the corpus; it does not fetch it. ivpm.yaml declares
+      # pss-corpus in `default-dev`, and "Fetch source dependencies" runs
+      # `ivpm update -a`, which resolves the dev set -- so the corpus arrives
+      # the same way every other dependency does.
       #
-      # CLONE ONLY IF ABSENT, because as of 2026-08-31 it usually is not.
-      # C-2a landed: the psstools/pss-corpus mirror ivpm.yaml names now exists
-      # and is public, and "Fetch source dependencies" runs `ivpm update -a`,
-      # which resolves the dev dep-set -- so ivpm clones the corpus itself,
-      # before this step. An unconditional `git clone` then dies on
-      # "destination path already exists", which is what happened here.
+      # A hand-written `git clone https://git.dvkit.org/...` stood here. It
+      # dated from before C-2a landed, when the psstools/pss-corpus mirror
+      # ivpm.yaml names did not resolve. Now that it does, ivpm clones the
+      # corpus first and the clone died on "destination path already exists".
+      # Deleted rather than made conditional: ivpm.yaml is where this
+      # repository says what it depends on and where it comes from, and a
+      # second fetch path in CI is a place for the two to disagree. It also
+      # took this workflow off git.dvkit.org, which was the one point where it
+      # reached outside GitHub.
       #
-      # So this step is now a CHECK that falls back to a fetch, rather than a
-      # fetch. The count assertion below is the part that carries the weight
-      # either way, and it is deliberately outside the `if`: it must run
-      # against whatever ivpm produced, not just against our own clone.
-      #
-      # The fallback URL stays git.dvkit.org -- upstream, public, anonymous --
-      # so this still works if the dep-set or the mirror moves again.
+      # The check itself stays. tests/python/corpus/test_pss_corpus.py fails
+      # rather than skips on an absent corpus (pss-corpus PLAN.md C-8), but it
+      # runs two steps and several minutes later; failing here says "the
+      # dependency did not arrive" instead of "a sweep found nothing".
       run: |
         set -eu
-        if [ -d packages/pss-corpus/curated ]; then
-          echo "corpus already present (fetched by 'ivpm update'); not re-cloning"
-        else
-          git clone https://git.dvkit.org/psstools/pss-corpus.git packages/pss-corpus
-        fi
         n=$(find packages/pss-corpus/curated -name '*.pss' | wc -l)
         echo "corpus: $n .pss files"
         if [ "$n" -lt 50 ]; then

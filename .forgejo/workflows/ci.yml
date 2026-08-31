@@ -191,40 +191,30 @@ jobs:
         path: dist/*.whl
         if-no-files-found: error
 
-    - name: Fetch the PSS corpus
-      # tests/python/corpus/test_pss_corpus.py sweeps the shared corpus, and it
-      # fails rather than skips when the corpus is absent (pss-corpus PLAN.md
-      # C-8) -- so without this step the test job goes red at
-      # test_the_corpus_is_present. That is the design working, not a bug in
-      # it: a sweep that finds no files and reports success is exactly the
-      # outcome the sweep exists to prevent.
+    - name: Check the PSS corpus
+      # VERIFIES the corpus; it does not fetch it. ivpm.yaml declares
+      # pss-corpus in `default-dev`, and "Fetch source dependencies" runs
+      # `ivpm update -a`, which resolves the dev set -- so the corpus arrives
+      # through the url-map configured above, from git.dvkit.org, exactly like
+      # every other dependency, and the origin check in that step covers it.
       #
-      # CLONE ONLY IF ABSENT. The paragraph that stood here reasoned that
-      # "Fetch source dependencies" resolves the `default` set, so the dev-only
-      # corpus (C-17/CQ-3) would not be fetched and a direct clone was needed.
-      # The premise was wrong: that step runs `ivpm update -a`, which takes the
-      # DEV set. Now that C-2a has landed and the psstools/pss-corpus mirror
-      # named in ivpm.yaml resolves -- via the git.dvkit.org remap this
-      # workflow already applies -- ivpm clones the corpus before this step
-      # runs, and an unconditional `git clone` dies on "destination path
-      # already exists".
+      # A hand-written `git clone https://git.dvkit.org/...` stood here,
+      # justified by a claim that the fetch step resolved the `default` set and
+      # would therefore skip the dev-only corpus (C-17/CQ-3). That was wrong --
+      # the step passes `-a` -- and it stopped being harmless once C-2a landed
+      # and the psstools/pss-corpus mirror named in ivpm.yaml began resolving:
+      # ivpm now clones first, and the hand-written clone died on "destination
+      # path already exists". Deleted rather than made conditional, because
+      # ivpm.yaml is where this repository declares what it depends on, and a
+      # second fetch path in CI is somewhere the two can drift apart.
       #
-      # So this is now a CHECK with a fetch fallback. The count assertion is
-      # outside the `if` on purpose: it has to run against whatever ivpm
-      # produced, not only against a clone we made ourselves. That keeps the
-      # real guarantee -- a corpus that is present AND populated -- independent
-      # of which of the two paths supplied it.
-      #
-      # No `--depth 1` on the fallback: the transport in front of git.dvkit.org
-      # can fall back to dumb http, which has no shallow capability and fails
-      # outright rather than degrading to a full clone.
+      # The check itself stays. tests/python/corpus/test_pss_corpus.py fails
+      # rather than skips on an absent corpus (C-8) -- a sweep that finds no
+      # files and reports success is the outcome that sweep exists to prevent
+      # -- but it runs later and reports as a test failure. Asserting here
+      # names the actual fault: the dependency did not arrive.
       run: |
         set -eu
-        if [ -d packages/pss-corpus/curated ]; then
-          echo "corpus already present (fetched by 'ivpm update'); not re-cloning"
-        else
-          git clone https://git.dvkit.org/psstools/pss-corpus.git packages/pss-corpus
-        fi
         n=$(find packages/pss-corpus/curated -name '*.pss' | wc -l)
         echo "corpus: $n .pss files"
         if [ "$n" -lt 50 ]; then
