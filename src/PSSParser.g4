@@ -55,7 +55,6 @@ package_body_item:
     | generic_constraint_declaration
 	| function_decl
 	| import_class_decl
-	| procedural_function // FIXME
 	| import_function
 	| target_template_function
 	| export_action
@@ -445,21 +444,33 @@ exec_block_tag:
  * B.5 Functions
  ********************************************************************/
 
-procedural_function:
-	platform_qualifier? is_pure=TOK_PURE? TOK_STATIC? TOK_FUNCTION function_prototype
-	TOK_LCBRACE
-	procedural_stmt*
-	TOK_RCBRACE
-	;
-
 // B.5: `[ platform_qualifier ] [ pure ] [ static ] function function_prototype ;`
 // Annex C declares many core-library functions as `solve function` / `target
 // function` at package scope, so without the qualifier the 3.1 stdlib does not
 // parse. Declaring a platform-qualified API in a package and defining it
 // elsewhere is the normal split (LRM 20.2.1), and is how the LRM's own
 // examples are written.
+//
+// A declaration (`... ;`) and a definition (`... { ... }`) are one rule with a
+// trailing choice, not two rules offered as separate alternatives of
+// package_body_item and component_body_item. They are identical up to the end
+// of `function_prototype` and differ only in the token after it, so as separate
+// alternatives the parser had to predict past the entire signature -- 36 tokens
+// for the widest in the corpus -- before it could pick one. That made
+// component_body_item and package_body_item the 2nd and 8th costliest decisions
+// in the grammar, and made the standard library's own
+// `function void print(string fmt);` unresolvable by SLL prediction. Factored,
+// the choice is a single token: `;` or `{`.
+//
+// This is what the `TODO: refactor for performance` below asked for; it was
+// found and quantified by the profiling harness
+// (docs/profiling/findings-2026-09-01.md F4).
 function_decl:
-	platform_qualifier? is_pure=TOK_PURE? TOK_STATIC? TOK_FUNCTION function_prototype TOK_SEMICOLON
+	platform_qualifier? is_pure=TOK_PURE? TOK_STATIC? TOK_FUNCTION function_prototype
+	(
+		TOK_SEMICOLON
+		| TOK_LCBRACE procedural_stmt* TOK_RCBRACE
+	)
 	;
 
 platform_qualifier: 
@@ -698,14 +709,17 @@ component_body_item:
 	| abstract_action_declaration
     | override_action_declaration
 	| object_bind_stmt
-	| exec_block
+	// B.7 gives `component_body_item ::= ... | exec_block`, which admits only the
+	// brace form and cannot derive Example 309 (`exec file` in a component) or any
+	// target-template exec in a component. B.5/B.6 use `exec_block_stmt` for
+	// action and struct bodies. Treated as an Annex B defect; reported upstream.
+	| exec_block_stmt
 	| struct_declaration
 	| enum_declaration
 	| covergroup_declaration
     | generic_constraint_declaration
 	| function_decl
 	| import_class_decl
-	| procedural_function
 	| import_function
 	| target_template_function
 	| export_action
@@ -1276,11 +1290,12 @@ chandle_type:
 	TOK_CHANDLE
 	;
 
-// B.13: `integer_atom_type [ [ expression [ : 0 ] ] ]`. The low bound is the
-// literal 0 rather than an expression, so `bit[7:0]` is another spelling of
-// `bit[8]` and `bit[7:1]` is not legal PSS. The `lhs:rhs` form is not in the
-// PSS 3.1 BNF at all; it is accepted here only so that existing PSS 1.x/2.x
-// models can be ingested. Accepting `expression` there anyway keeps the parse
+// B.13 is `integer_type ::= integer_atom_type [ [ constant_expression ] ]
+// [ in [ domain_open_range_list ] ]` -- a *single* width expression. There is no
+// `[msb:lsb]` form in Annex B of any 3.x draft, so `bit[7:0]` is **not**
+// conformant PSS 3.1; it is accepted here only so that existing PSS 1.x/2.x
+// models can be ingested, and it is treated as another spelling of `bit[8]`
+// (`bit[7:1]` is rejected). Accepting `expression` there anyway keeps the parse
 // error out of ANTLR and lets the builder say what is wrong -- mkMsbWidth()
 // folds `[N:0]` to a width of N+1 and rejects a non-zero low bound.
 integer_type:
@@ -2034,6 +2049,7 @@ stream_type_identifier: type_identifier;
 
 entity_type_identifier:
 	action_type_identifier
+	| monitor_type_identifier
 	| component_type_identifier
 	| flow_object_type
 	| resource_object_type

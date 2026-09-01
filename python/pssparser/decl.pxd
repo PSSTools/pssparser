@@ -107,8 +107,19 @@ cdef extern from "pssp/IFmtCst.h" namespace "pssp":
         uint32_t getNumSyntaxErrors()
 
 cdef extern from "pssp/IParseProfileInfo.h" namespace "pssp":
+    cdef cppclass IDecisionEventInfo:
+        const cpp_string &getKindName()
+        uint32_t getStartLine()
+        uint32_t getStartColumn()
+        uint32_t getStopLine()
+        uint32_t getStopColumn()
+        uint32_t getTokenCount()
+        const cpp_string &getText()
+
     cdef cppclass IDecisionProfileInfo:
         size_t getDecision()
+        size_t getRuleIndex()
+        const cpp_string &getRuleName()
         int64_t getInvocations()
         int64_t getTimeInPrediction()
         int64_t getSLLLookaheadOps()
@@ -119,7 +130,14 @@ cdef extern from "pssp/IParseProfileInfo.h" namespace "pssp":
         size_t getAmbiguityCount()
         size_t getContextSensitivityCount()
         size_t getErrorCount()
+        size_t getPredicateEvalCount()
+        size_t getSLLMinLookahead()
+        size_t getSLLMaxLookahead()
+        size_t getLLMinLookahead()
+        size_t getLLMaxLookahead()
         size_t getMaxLookahead()
+        size_t getNumEvents()
+        IDecisionEventInfo *getEvent(size_t idx)
 
     cdef cppclass IParseProfileInfo:
         cpp_vector[IDecisionProfileInfo*] getDecisionInfo()
@@ -131,6 +149,7 @@ cdef extern from "pssp/IParseProfileInfo.h" namespace "pssp":
         int64_t getTotalLLATNLookaheadOps()
         int64_t getTotalATNLookaheadOps()
         size_t getDFASize()
+        size_t getTokenCount()
 
 
 cdef extern from "pssp/IAstBuilder.h" namespace "pssp":

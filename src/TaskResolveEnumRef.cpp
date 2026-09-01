@@ -42,16 +42,19 @@ ast::ISymbolRefPath *TaskResolveEnumRef::resolve(const ast::IExprId *id) {
     m_id = id;
     m_ref = 0;
 
-    if (m_scope) {
+    // With no explicit scope, search the innermost symbol scope on the stack.
+    // symtab()->getScope() returns 0 when the stack holds no symbol scope at
+    // all -- see the note in TaskResolveRootRef::resolve (P7-X3) -- and this
+    // was the frame the segfault landed in. Nothing to search is simply "not
+    // an enumerator": returning 0 lets the caller go on to imports, which is
+    // what it does for every other miss.
+    const ast::ISymbolScope *scope =
+        m_scope ? m_scope : m_ctxt->symtab()->getScope();
+
+    if (scope) {
         for (std::vector<ast::IScopeChildUP>::const_iterator
-            it=m_scope->getChildren().begin();
-            it!=m_scope->getChildren().end(); it++) {
-            (*it)->accept(m_this);
-        }
-    } else {
-        for (std::vector<ast::IScopeChildUP>::const_iterator
-            it=m_ctxt->symtab()->getScope()->getChildren().begin();
-            it!=m_ctxt->symtab()->getScope()->getChildren().end(); it++) {
+            it=scope->getChildren().begin();
+            it!=scope->getChildren().end(); it++) {
             it->get()->accept(m_this);
         }
     }

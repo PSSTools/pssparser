@@ -160,6 +160,12 @@ cdef class SymbolTableIterator(object):
     @staticmethod
     cdef SymbolTableIterator mk(decl.ISymbolTableIterator *hndl, bool owned=*)
 
+cdef class DecisionEventInfo(object):
+    cdef decl.IDecisionEventInfo    *_hndl
+
+    @staticmethod
+    cdef DecisionEventInfo mk(decl.IDecisionEventInfo *hndl)
+
 cdef class DecisionProfileInfo(object):
     cdef decl.IDecisionProfileInfo  *_hndl
     cdef bool                       _owned

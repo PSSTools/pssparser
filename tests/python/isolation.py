@@ -36,6 +36,40 @@ from typing import List, Optional, Sequence, Tuple, Union
 Source = Union[str, Tuple[str, str]]
 
 
+#: This repository's importable ``pssparser``, as an absolute path.
+_REPO_PYTHON = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+    "python")
+
+
+def _child_env():
+    """The subprocess environment, with *this* checkout's parser pinned first.
+
+    Every run here uses ``cwd=workdir``, a temporary directory.  The suite is
+    normally invoked as ``PYTHONPATH=python pytest ...`` -- a **relative** path,
+    which resolves against the repository root in the parent and against the
+    temporary directory (i.e. nowhere) in the child.  The child then falls back
+    to whatever ``pssparser`` is on the ambient ``sys.path``.
+
+    That is not hypothetical.  On a developer machine with a sibling project
+    installed -- an ``easy-install.pth`` naming another checkout's
+    ``packages/pssparser/python`` is the common case -- every out-of-process
+    test silently exercised *that* copy instead of the working tree.  The
+    corpus sweep, whose entire job is to notice parser gaps, reported green
+    against a parser nobody had just built.  Nothing failed; the gate simply
+    stopped being about this repository.
+
+    Prepending the absolute path makes the child test what the parent built,
+    regardless of cwd, of how the suite was invoked, or of what else is
+    installed.
+    """
+    env = dict(os.environ)
+    existing = env.get("PYTHONPATH", "")
+    env["PYTHONPATH"] = (
+        _REPO_PYTHON + os.pathsep + existing) if existing else _REPO_PYTHON
+    return env
+
+
 @dataclass
 class IsolatedResult:
     """Outcome of one out-of-process parser run."""
@@ -130,6 +164,7 @@ def run_isolated(
                 text=True,
                 timeout=timeout,
                 cwd=workdir,
+                env=_child_env(),
             )
         except subprocess.TimeoutExpired as exc:
             return IsolatedResult(

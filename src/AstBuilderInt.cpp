@@ -102,7 +102,7 @@ void AstBuilderInt::build(
     m_file_id = global->getFileid();
 
     // Clear any previous profiling data
-    m_profile_decisions.clear();
+    m_profile.reset();
 
     uint64_t parse_s = time_ms();
 	ANTLRInputStream input(*in);
@@ -147,16 +147,23 @@ void AstBuilderInt::build(
 	}
 
     if (m_enableProfile) {
-        // Extract and store the profiling data immediately while parser is still alive
-        atn::ParseInfo info = parser.getParseInfo();
-        m_profile_decisions = info.getDecisionInfo();
-        
+        // Snapshot the profiling data while the parser is still alive -- and,
+        // just as importantly, while the token stream it recorded events
+        // against is still the current one.  ANTLR's event records hold raw
+        // pointers into both; `mkProfileSnapshot` resolves every one of them
+        // to a line, a column and a string, so nothing here outlives its
+        // referent.  Deferring the work to `getProfileInfo()` would be a
+        // use-after-free the moment a second file is parsed.
+        m_profile = std::unique_ptr<ProfileSnapshot>(
+            new ProfileSnapshot(mkProfileSnapshot(parser)));
+
         // Log summary for debugging
-        for (std::vector<atn::DecisionInfo>::const_iterator
-            it=m_profile_decisions.begin();
-            it!=m_profile_decisions.end(); it++) {
-            if (it->ambiguities.size()) {
-                DEBUG("Info: %s", it->toString().c_str());
+        for (std::vector<DecisionSnapshot>::const_iterator
+            it=m_profile->decisions.begin();
+            it!=m_profile->decisions.end(); it++) {
+            if (it->ambiguity_count) {
+                DEBUG("Ambiguity: decision %d in rule '%s' (%d occurrences)",
+                    it->decision, it->rule_name.c_str(), it->ambiguity_count);
             }
         }
     }
@@ -1311,8 +1318,29 @@ antlrcpp::Any AstBuilderInt::visitExec_super_stmt(PSSParser::Exec_super_stmtCont
 }
 
 // B.5 Functions
-antlrcpp::Any AstBuilderInt::visitProcedural_function(PSSParser::Procedural_functionContext *ctx) {
-    DEBUG_ENTER("visitProcedural_function");
+//
+// One visitor for both spellings, because the grammar now has one rule for
+// both: a declaration ends at `;`, a definition carries a `{ ... }` body. The
+// two were separate rules until the profiling harness showed what that cost in
+// prediction -- see the note on `function_decl` in PSSParser.g4. The AST is
+// unchanged: a declaration still builds a bare IFunctionPrototype and a
+// definition still wraps one in an IFunctionDefinition.
+antlrcpp::Any AstBuilderInt::visitFunction_decl(PSSParser::Function_declContext *ctx) {
+    DEBUG_ENTER("visitFunction_decl");
+
+    // The qualifier goes through mkFunctionPrototype rather than being applied
+    // afterwards: the old if/else recorded only `target` for `target solve`.
+    ast::IFunctionPrototype *proto = mkFunctionPrototype(
+        ctx->function_prototype(),
+        ctx->platform_qualifier(),
+        ctx->TOK_PURE() != 0);
+
+    if (ctx->TOK_SEMICOLON()) {
+        // A prototype: declared here, defined elsewhere (LRM 20.2.1).
+        addChild(proto, ctx->start);
+        DEBUG_LEAVE("visitFunction_decl (prototype)");
+        return 0;
+    }
 
     ast::IExecScope *body = m_factory->mkExecScope("<func-body>");
     std::vector<PSSParser::Procedural_stmtContext *> items = ctx->procedural_stmt();
@@ -1337,30 +1365,14 @@ antlrcpp::Any AstBuilderInt::visitProcedural_function(PSSParser::Procedural_func
         }
     }
 
-    // The qualifier goes through mkFunctionPrototype rather than being applied
-    // afterwards: the old if/else recorded only `target` for `target solve`.
     ast::IFunctionDefinition *func = m_factory->mkFunctionDefinition(
-        mkFunctionPrototype(
-            ctx->function_prototype(),
-            ctx->platform_qualifier(),
-            ctx->TOK_PURE() != 0),
+        proto,
         body,
         platqual
     );
 
     addChild(func, ctx->start);
-    DEBUG_LEAVE("visitProcedural_function");
-    return 0;
-}
-
-antlrcpp::Any AstBuilderInt::visitFunction_decl(PSSParser::Function_declContext *ctx) {
-    DEBUG_ENTER("visitFunction_decl");
-    ast::IFunctionPrototype *proto = mkFunctionPrototype(
-        ctx->function_prototype(),
-        ctx->platform_qualifier(),
-        ctx->TOK_PURE() != 0);
-    addChild(proto, ctx->start);
-    DEBUG_LEAVE("visitFunction_decl");
+    DEBUG_LEAVE("visitFunction_decl (definition)");
     return 0;
 }
 
@@ -2709,9 +2721,11 @@ antlrcpp::Any AstBuilderInt::visitChandle_type(PSSParser::Chandle_typeContext *c
 /**
  * Width of `[msb : lsb]`, given the width expression already built for `msb`.
  *
- * B.13 spells the range form `[ expression [ : 0 ] ]` -- the low bound is the
- * literal 0, not an expression -- so `bit[7:0]` is another way of writing
- * `bit[8]` and `bit[7:1]` is not legal PSS. The grammar accepts an expression
+ * B.13 has no range form at all -- `integer_type ::= integer_atom_type
+ * [ [ constant_expression ] ] [ in [ domain_open_range_list ] ]` -- so
+ * `bit[7:0]` is a PSS 1.x/2.x ingestion extension rather than conformant 3.1
+ * (D7). It is treated as another way of writing `bit[8]`, with the low bound
+ * required to be 0, so `bit[7:1]` is rejected. The grammar accepts an expression
  * there regardless, so that the diagnostic comes from here and names the
  * problem, rather than from ANTLR as an unexplained syntax error.
  */
@@ -3290,10 +3304,25 @@ antlrcpp::Any AstBuilderInt::visitForeach_constraint_item(PSSParser::Foreach_con
                 DEBUG("Have a subscript %p", idx);
                 subscript.pop_back();
             }
-        } else {
-            // No index is a bit odd, but put a placeholder in anyway
-            symtab->getChildren().push_back(ast::IScopeChildUP(0));
         }
+        // No `else` pushing a placeholder child. One used to stand here --
+        // `getChildren().push_back(ast::IScopeChildUP(0))`, "a bit odd, but put
+        // a placeholder in anyway" -- and it put a **null** into a symbol
+        // scope's child list, which segfaulted the linker (P7-X3).
+        //
+        // This branch is the `foreach (i : a)` form: `a` is the expression and
+        // carries no subscript, so no index field is built here and `setIdx()`
+        // is never called. Nothing ever referred to slot 0; it existed only to
+        // keep the numbering aligned with a `setIdx()` that does not happen.
+        // The iterator pushed just below takes its index from
+        // `getChildren().size()` and inserts the same value into the symtab, so
+        // the two stay consistent whether or not a slot precedes it.
+        //
+        // The crash needed the identifier to *miss* the foreach symtab, because
+        // only then does resolution fall through to the enum search that walks
+        // every child. `foreach (i : a) { i == 1; }` found `i` in the symtab and
+        // never walked, which is why the form looked healthy; `a[0]`, `b[i]`
+        // and any undeclared name all walked, and all died.
     }
 
 	if (ctx->it_id) {

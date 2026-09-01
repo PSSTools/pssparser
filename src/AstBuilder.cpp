@@ -90,9 +90,9 @@ bool AstBuilder::hasProfileInfo() const {
 }
 
 IParseProfileInfo *AstBuilder::getProfileInfo() {
-    const std::vector<atn::DecisionInfo> *decisions = m_builder_int->getProfileInfo();
-    if (decisions) {
-        ParseProfileInfo *info = new ParseProfileInfo(*decisions);
+    const ProfileSnapshot *snapshot = m_builder_int->getProfileInfo();
+    if (snapshot) {
+        ParseProfileInfo *info = new ParseProfileInfo(*snapshot);
         return info;
     }
     return nullptr;

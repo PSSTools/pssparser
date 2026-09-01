@@ -13,6 +13,7 @@
 #include "PSSParserBaseVisitor.h"
 #include "BaseErrorListener.h"
 #include "atn/ParseInfo.h"
+#include "ParseProfileInfo.h"
 #include "pssp/ast/IExprId.h"
 #include "pssp/ast/IFactory.h"
 #include "pssp/ast/IGlobalScope.h"
@@ -121,11 +122,11 @@ public:
     }
 
     virtual bool hasProfileInfo() const {
-        return !m_profile_decisions.empty();
+        return m_profile.get() != nullptr;
     }
 
-    virtual const std::vector<atn::DecisionInfo> *getProfileInfo() const {
-        return m_profile_decisions.empty() ? nullptr : &m_profile_decisions;
+    virtual const ProfileSnapshot *getProfileInfo() const {
+        return m_profile.get();
     }
 
 	// B.1 package declaration
@@ -207,7 +208,6 @@ public:
     virtual antlrcpp::Any visitExec_super_stmt(PSSParser::Exec_super_stmtContext *ctx) override;
     
 	// B.5 Functions
-    virtual antlrcpp::Any visitProcedural_function(PSSParser::Procedural_functionContext *ctx) override;
 
     virtual antlrcpp::Any visitFunction_decl(PSSParser::Function_declContext *ctx) override;
 
@@ -733,8 +733,9 @@ private:
      *        `is_target`/`is_solve` on the prototype were previously hardcoded
      *        to false at every call site, so the two flags carried no
      *        information; the qualifier is threaded in here so that all three
-     *        declaration forms (function_decl, procedural_function,
-     *        import_function) record it the same way.
+     *        declaration forms (function_decl -- which covers both the
+     *        prototype and the definition spelling -- and import_function)
+     *        record it the same way.
      * @param is_pure whether the declaration carried the `pure` qualifier
      *        (B.5). Like the platform qualifier, this was never recorded --
      *        `is_pure` was left at its default at every call site -- which
@@ -898,7 +899,15 @@ private:
 	bool										m_collectComments;
 	/** Start of the enclosing attr_field, for doc-comment lookup. */
     bool                                        m_enableProfile;
-    std::vector<atn::DecisionInfo>              m_profile_decisions;
+    /**
+     * The last parse's profile, already resolved away from the parser.
+     *
+     * Deliberately per-file and replaced on every `build()`: a caller wanting
+     * corpus totals aggregates the snapshots itself.  Accumulating here would
+     * throw away the per-file attribution the profiling harness is built on,
+     * and there is no way to recover it afterwards.
+     */
+    std::unique_ptr<ProfileSnapshot>            m_profile;
     IMarkerListener								*m_marker_l;
 	ast::IFactory								*m_factory;
 	ast::IExpr									*m_expr;

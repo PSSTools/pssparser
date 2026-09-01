@@ -40,10 +40,10 @@ def _enum_decl(code, name="e"):
 @pytest.mark.parametrize("base", [
     # Width is bracketed in PSS -- there is no `int<8>` form.
     #
-    # B.13 is `integer_atom_type [ [ expression [ : 0 ] ] ]`, so the range form
-    # is conforming too. It is accepted everywhere an integer type may be
-    # written, not only here (P3-X5); `test_integer_width_range` covers what it
-    # builds.
+    # `bit[7:0]` is *not* in B.13 -- it is a PSS 1.x/2.x ingestion extension
+    # (D7/P7-D1), accepted everywhere an integer type may be written rather than
+    # only here (P3-X5). `test_integer_width_range` in test_data_types.py covers
+    # what it builds and carries the full note.
     "int", "bit", "bit[4]", "int[16]", "bit[7:0]", "int[15:0]",
 ])
 def test_enum_with_base_type_parses(base):

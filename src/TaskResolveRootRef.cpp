@@ -52,9 +52,29 @@ ast::ISymbolRefPath *TaskResolveRootRef::resolve(const ast::IExprId *id) {
 
     int32_t count = 0;
     while (!m_ref && m_ctxt->symtab()->hasScopes()) {
-        DEBUG_ENTER("processing scope %s", m_ctxt->symtab()->getScope()->getName().c_str());
-        m_ctxt->symtab()->getScope()->accept(m_this);
-        DEBUG_LEAVE("processing scope %s", m_ctxt->symtab()->getScope()->getName().c_str());
+        // hasScopes() and getScope() do not answer the same question, and the
+        // gap between them used to be a segfault (P7-X3). getScope() is
+        // getSymScopeBack(), which walks the stack backwards for the first
+        // entry that *is* a symbol scope and returns 0 when there is none --
+        // so a non-empty stack of non-symbol scopes leaves the loop running
+        // with nothing to run on. `foreach (i : a) { a[0] == 1; }` reached it:
+        // resolving `a` walks out through the foreach's constraint scope, and
+        // the walk reaches a point where the innermost entries carry no symbol
+        // scope at all.
+        //
+        // Popping rather than breaking is what keeps the diagnostic right: the
+        // enclosing action scope, where `a` actually lives, is further out. A
+        // break here would resolve nothing and report PSS002 on a valid
+        // reference -- trading a crash for a wrong answer.
+        ast::ISymbolScope *scope = m_ctxt->symtab()->getScope();
+        if (!scope) {
+            m_ctxt->symtab()->popScope();
+            continue;
+        }
+
+        DEBUG_ENTER("processing scope %s", scope->getName().c_str());
+        scope->accept(m_this);
+        DEBUG_LEAVE("processing scope %s", scope->getName().c_str());
 
         if (!m_ref) {
             m_ctxt->symtab()->popScope();

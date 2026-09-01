@@ -421,3 +421,129 @@ def test_typedef_cycle_does_not_crash():
     alias arm.
     """
     assert_no_crash(TYPEDEF_CYCLE_MISS, description="typedef alias cycle")
+
+
+# ---------------------------------------------------------------------------
+# P7-X3 -- a null child in a `foreach (iter : array)` symbol scope
+#
+# `visitForeach_constraint_item` pushed `IScopeChildUP(0)` into the scope's
+# child list for the `iter : array` form, with the comment "No index is a bit
+# odd, but put a placeholder in anyway".  Nothing referred to that slot; every
+# visitor that walks a scope's children dereferenced it.
+#
+# What made it survive so long is that reaching the null needs the identifier to
+# *miss* the foreach symtab.  A name found there -- the iteration variable
+# itself -- resolves out of the symbol map and never walks the children, so the
+# construct looked healthy under exactly the test anyone would write for it.
+# Everything else in the body walked, and everything else died: a subscript on
+# the iterated array, a subscript on any other array, and any undeclared name.
+#
+# The cases below are ordered miss-first for that reason.  `test_..._iteration_
+# variable_alone` is the control that used to pass, and is pinned so that a
+# future change which "fixes" only the hit path cannot look like a fix.
+# ---------------------------------------------------------------------------
+
+FOREACH_ITER_LITERAL_SUBSCRIPT = """
+component c {
+    action a {
+        rand int arr[4];
+        constraint { foreach (i : arr) { arr[0] == 1; } }
+    }
+}
+"""
+
+FOREACH_ITER_INDEXED_BY_ITERATOR = """
+component c {
+    action a {
+        rand int arr[4];
+        constraint { foreach (i : arr) { arr[i] == i; } }
+    }
+}
+"""
+
+FOREACH_ITER_OTHER_ARRAY = """
+component c {
+    action a {
+        rand int arr[4];
+        rand int other[4];
+        constraint { foreach (i : arr) { other[i] == 1; } }
+    }
+}
+"""
+
+FOREACH_ITER_UNKNOWN_NAME = """
+component c {
+    action a {
+        rand int arr[4];
+        constraint { foreach (i : arr) { nope[i] == 1; } }
+    }
+}
+"""
+
+FOREACH_ITER_VARIABLE_ONLY = """
+component c {
+    action a {
+        rand int arr[4];
+        constraint { foreach (i : arr) { i == 1; } }
+    }
+}
+"""
+
+FOREACH_LEGACY_SUBSCRIPT_FORM = """
+component c {
+    action a {
+        rand int arr[4];
+        constraint { foreach (arr[i]) { arr[i] == i; } }
+    }
+}
+"""
+
+
+def test_foreach_iterator_form_with_a_literal_subscript_is_accepted():
+    """The smallest case, and the one that shows the iterator is beside the point.
+
+    `arr[0]` does not mention `i` at all.  It crashed because resolving `arr`
+    misses the foreach symtab and falls through to the enum search, which walks
+    every child of the scope -- including the null.
+    """
+    assert_clean(FOREACH_ITER_LITERAL_SUBSCRIPT)
+
+
+def test_foreach_iterator_form_indexed_by_its_iterator_is_accepted():
+    """The idiomatic spelling, and the one the PSS 3.1 corpus file uses."""
+    assert_clean(FOREACH_ITER_INDEXED_BY_ITERATOR)
+
+
+def test_foreach_iterator_form_indexing_another_array_is_accepted():
+    assert_clean(FOREACH_ITER_OTHER_ARRAY)
+
+
+def test_unknown_name_in_a_foreach_body_is_reported_not_crashed():
+    """The assertion that keeps the fix honest.
+
+    An undeclared name is the *deepest* path into the old crash: it misses the
+    symtab, misses the enum search, and goes on to imports.  Pinning the
+    diagnostic rather than mere survival is what stops a guard that silently
+    swallows the miss from passing as a fix.
+    """
+    assert_rejects(FOREACH_ITER_UNKNOWN_NAME, "unknown identifier 'nope'")
+
+
+def test_foreach_iteration_variable_alone_is_accepted():
+    """The control.  This shape always worked -- `i` is in the foreach symtab.
+
+    Pinned because it is the reason the defect looked absent: a test written
+    for `foreach (i : arr)` naturally reaches for the iteration variable, and
+    that is the one expression which never touches the null.
+    """
+    assert_clean(FOREACH_ITER_VARIABLE_ONLY)
+
+
+def test_legacy_subscript_foreach_form_is_accepted():
+    """The other control: `foreach (arr[i])` took a different builder branch.
+
+    That branch pushes a real index field, so it never held a null and never
+    crashed.  Pinned so the two forms are asserted side by side -- the pair is
+    what localises a regression to the builder branch rather than to `foreach`.
+    """
+    assert_clean(FOREACH_LEGACY_SUBSCRIPT_FORM)

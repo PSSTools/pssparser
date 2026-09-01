@@ -274,12 +274,22 @@ def test_type_in_constraint(parser):
 
 
 # ===========================================================================
-# `bit[msb:0]` -- the range spelling of a width, Annex B B.13 (P3-X5)
+# `bit[msb:0]` -- the range spelling of a width (P3-X5)
 #
-# B.13 is `integer_atom_type [ [ expression [ : 0 ] ] ]`.  The low bound is the
-# literal 0 rather than an expression, so `bit[7:0]` is another way of writing
-# `bit[8]` -- and the two must build the *same* AST, since nothing downstream
-# should have to know which spelling it came from.
+# NOT conformant PSS 3.1, and recorded that way deliberately (D7/P7-D1). B.13 is
+# `integer_type ::= integer_atom_type [ [ constant_expression ] ]
+# [ in [ domain_open_range_list ] ]` -- one width expression, no `[msb:lsb]`
+# form in any 3.x draft. It is accepted here only so that existing PSS 1.x/2.x
+# models can be ingested.
+#
+# Treated as another way of writing `bit[8]`, with the low bound required to be
+# 0 -- and the two spellings must build the *same* AST, since nothing
+# downstream should have to know which one it came from.
+#
+# This block is the guard on the citation as much as on the behaviour: an
+# earlier version of this comment quoted a B.13 that exists in no draft, and
+# that misquote reached the grammar, the builder and two design documents before
+# anyone checked it against the PDF.
 # ===========================================================================
 
 # Keeps the linked tree alive.  The C++ nodes are freed with the root, and the

@@ -1,6 +1,6 @@
 """``C-18`` -- the shared PSS corpus, swept here rather than downstream.
 
-Why this module exists, stated plainly: the five ``U-8`` grammar and lexer gaps
+Why this module exists, stated plainly: the ``U-8`` grammar and lexer gaps
 recorded below were not found by any test in this repository. They were found
 by ``pssfmt``, which pointed a round-trip gate at a corpus assembled for a
 *syntax highlighter* -- so it contained PSS 3.1 surface that no AST test here
@@ -168,11 +168,23 @@ BROKEN_BUCKETS = _manifest_broken_buckets() or FALLBACK_BROKEN_BUCKETS
 #: for each ``U-8`` entry, under the same identifiers (``C-20``). One fix
 #: should flip markers in both repositories; identifiers are what make that
 #: checkable rather than a matter of remembering.
+#:
+#: ``U-8a`` and ``U-8c`` were **withdrawn**, not fixed -- neither was ever a
+#: parser defect, and both were misdiagnosed the same way (P7-C1):
+#:
+#: * ``U-8a`` (``action`` at package scope) -- ``package_body_item`` (B.1)
+#:   admits only ``abstract_action_declaration``. A bare ``action`` there is a
+#:   syntax error *by the standard*; accepting it would be the unsound
+#:   direction.
+#: * ``U-8c`` (``cover`` in an activity) -- ``activity_stmt`` (B.11) does not
+#:   list ``cover_stmt``, which B.7 admits only as a ``component_body_item``.
+#:
+#: Both came from reading the three ``pss31/`` files as though the LRM's example
+#: idiom were compilable PSS. It is not; see "Completing LRM examples" in
+#: ``PROVENANCE.md``. The identifiers are retired rather than reused, so a
+#: future ``U-8f`` cannot inherit a withdrawn one's history.
 RECORDED_DEFECTS = {
-    "U-8a": "`action` in a package -- package_body_item lists only "
-            "abstract_action_declaration",
     "U-8b": "`dist` constraints",
-    "U-8c": "`cover` statement in an activity",
     "U-8d": "`_` separator inside a based number's value (16'sH_FF)",
     "U-8e": "octal escape in a string literal (\"\\101\")",
     # Not a U-8: those are valid PSS the grammar will not accept. This is the
@@ -181,21 +193,21 @@ RECORDED_DEFECTS = {
 }
 
 #: Corpus files that do not parse today, and why. Cause strings are shared
-#: verbatim with ``pssfmt``'s ``KNOWN_UNPARSEABLE`` -- the same six files, the
-#: same five identifiers, deliberately duplicated rather than imported, because
+#: verbatim with ``pssfmt``'s ``KNOWN_UNPARSEABLE`` -- the same three files, the
+#: same three identifiers, deliberately duplicated rather than imported, because
 #: pssparser is upstream of pssfmt and must not depend on it to know its own
 #: defects.
 #:
 #: Strict xfail: a fix makes the case XPASS, which fails the suite and forces
 #: the entry to be removed here and in pssfmt together.
+#:
+#: ``U-8a`` was retired, not fixed: the three ``pss31/`` files were authored in
+#: the LRM's example idiom, and a bare ``action`` at package scope is a syntax
+#: error *by the standard* -- ``package_body_item`` (B.1) admits only
+#: ``abstract_action_declaration``. There was never a parser defect here. The
+#: files now declare their actions inside a component; see P7-C1 and the
+#: "Completing LRM examples" rule in ``PROVENANCE.md``.
 KNOWN_UNPARSEABLE = {
-    "pss31/annotations.pss":
-        "U-8a: `action` in a package -- package_body_item lists only "
-        "abstract_action_declaration",
-    "pss31/behavioral_coverage.pss":
-        "U-8a: `action` in a package (also U-8c: `cover` in an activity)",
-    "pss31/templates_and_activity.pss":
-        "U-8a: `action` in a package",
     "lexical/numbers.pss":
         "U-8d: `_` separator inside a based number's value (16'sH_FF)",
     "lexical/comments_and_strings.pss":
@@ -417,11 +429,10 @@ def test_the_recorded_defects_use_the_declared_identifiers():
         "identifier -- pssfmt's test_parser_gaps.py reproduces these by name."
         % sorted(unknown))
 
-    # U-8c is real but owns no file: behavioral_coverage.pss trips U-8a first,
-    # so the cover-statement gap is named parenthetically in that entry and
-    # reproduced minimally in pssfmt. Every declared defect must be cited by at
-    # least one file, one way or the other, or the sweep is not what is keeping
-    # it honest.
+    # Every declared defect must be cited by at least one file, or the sweep is
+    # not what is keeping it honest. (This once had to accommodate U-8c, which
+    # owned no file of its own; U-8c has since been withdrawn as not-a-defect,
+    # so the accommodation is gone and every entry now names a file directly.)
     cited = used | {d for d in RECORDED_DEFECTS if any(d in r for r in reasons)}
     assert set(RECORDED_DEFECTS) == cited, (
         "declared defects no corpus file exercises: %s. A defect the sweep "

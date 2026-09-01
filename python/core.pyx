@@ -438,6 +438,51 @@ cpdef ast.ScopeChild resolveSymbolPathRef(
             ret.accept(<ast_decl.VisitorBase *>(of._hndl))
             return of._obj
 
+cdef class DecisionEventInfo(object):
+    """One profiler event, resolved to a source location.
+
+    Never owns its handle: events belong to the DecisionProfileInfo that
+    produced them, which in turn belongs to the ParseProfileInfo.
+    """
+
+    @property
+    def kind(self):
+        return self._hndl.getKindName().decode()
+
+    @property
+    def start_line(self):
+        return self._hndl.getStartLine()
+
+    @property
+    def start_column(self):
+        return self._hndl.getStartColumn()
+
+    @property
+    def stop_line(self):
+        return self._hndl.getStopLine()
+
+    @property
+    def stop_column(self):
+        return self._hndl.getStopColumn()
+
+    @property
+    def token_count(self):
+        return self._hndl.getTokenCount()
+
+    @property
+    def text(self):
+        return self._hndl.getText().decode()
+
+    def __repr__(self):
+        return "DecisionEventInfo(%s, %d:%d, %d tokens)" % (
+            self.kind, self.start_line, self.start_column, self.token_count)
+
+    @staticmethod
+    cdef DecisionEventInfo mk(decl.IDecisionEventInfo *hndl):
+        ret = DecisionEventInfo()
+        ret._hndl = hndl
+        return ret
+
 cdef class DecisionProfileInfo(object):
 
     def __dealloc__(self):
@@ -447,6 +492,14 @@ cdef class DecisionProfileInfo(object):
     @property
     def decision(self):
         return self._hndl.getDecision()
+
+    @property
+    def rule_index(self):
+        return self._hndl.getRuleIndex()
+
+    @property
+    def rule_name(self):
+        return self._hndl.getRuleName().decode()
 
     @property
     def invocations(self):
@@ -489,8 +542,43 @@ cdef class DecisionProfileInfo(object):
         return self._hndl.getErrorCount()
 
     @property
+    def predicate_eval_count(self):
+        return self._hndl.getPredicateEvalCount()
+
+    @property
+    def sll_min_lookahead(self):
+        return self._hndl.getSLLMinLookahead()
+
+    @property
+    def sll_max_lookahead(self):
+        return self._hndl.getSLLMaxLookahead()
+
+    @property
+    def ll_min_lookahead(self):
+        return self._hndl.getLLMinLookahead()
+
+    @property
+    def ll_max_lookahead(self):
+        return self._hndl.getLLMaxLookahead()
+
+    @property
     def max_lookahead(self):
         return self._hndl.getMaxLookahead()
+
+    def get_events(self):
+        """Resolved profiler events for this decision.
+
+        Capped in the C++ layer -- see kMaxEventsPerDecision.  The counts
+        above are not capped, so ``len(get_events()) < ambiguity_count`` is
+        expected on a decision that misbehaves often.
+        """
+        cdef size_t i
+        cdef size_t n = self._hndl.getNumEvents()
+        return [DecisionEventInfo.mk(self._hndl.getEvent(i)) for i in range(n)]
+
+    def __repr__(self):
+        return "DecisionProfileInfo(%d, %s, %d invocations)" % (
+            self.decision, self.rule_name, self.invocations)
 
     @staticmethod
     cdef DecisionProfileInfo mk(decl.IDecisionProfileInfo *hndl, bool owned=True):
@@ -546,7 +634,17 @@ cdef class ParseProfileInfo(object):
 
     @property
     def dfa_size(self):
+        """Total DFA states across every decision.
+
+        Process-global and cumulative -- the generated parser holds the DFA in
+        static data shared by every parser instance -- so this grows as files
+        are parsed and never resets.  It measures the process, not the file.
+        """
         return self._hndl.getDFASize()
+
+    @property
+    def token_count(self):
+        return self._hndl.getTokenCount()
 
     @staticmethod
     cdef ParseProfileInfo mk(decl.IParseProfileInfo *hndl, bool owned=True):
