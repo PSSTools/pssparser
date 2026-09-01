@@ -12,6 +12,12 @@ else()
   add_compile_options(-DANTLR4CPP_STATIC)
 endif()
 
+if (MSVC)
+  # The ANTLR-generated PSSParser/PSSLexer translation units blow past the
+  # default 64k section limit, and the .g4-derived sources contain UTF-8.
+  add_compile_options(/bigobj /utf-8)
+endif()
+
 set(CMAKE_INSTALL_RPATH "$ORIGIN;$ORIGIN/../lib64")
 
 include_directories(
@@ -74,6 +80,10 @@ else()
 endif()
 
 target_link_libraries(pssparser ${PSSPARSER_LIBS})
+
+# Selects the dllexport side of PSSPARSER_API in pssp/FactoryExt.h.  PRIVATE:
+# consumers of the installed headers must see the dllimport side.
+target_compile_definitions(pssparser PRIVATE PSSPARSER_BUILD_DLL)
 set_target_properties(pssparser PROPERTIES SKIP_BUILD_RPATH TRUE)
 
 file(GLOB pss_stdlib_SRC "stdlib/*.pss")

@@ -23,6 +23,11 @@ namespace pssp {
  * Lexical form of a doc comment.  Retained on the extracted comment so a
  * consumer can apply a dialect (Doxygen, Javadoc, ...) that keys off the
  * marker without re-lexing the source.
+ *
+ * The AST namespace spells its own form enum `ast::DocCommentForm`, so every
+ * mention below is qualified: MSVC parses in-class bodies and default member
+ * initializers late, at which point a `using namespace ast` in the including
+ * translation unit makes the unqualified name ambiguous.
  */
 enum class DocCommentForm {
     None = 0,   //!< no comment was associated
@@ -32,7 +37,7 @@ enum class DocCommentForm {
     DocBlock    //!< `/** ... */` or `/*! ... */`
 };
 
-const char *toString(DocCommentForm form);
+const char *toString(pssp::DocCommentForm form);
 
 /**
  * A comment associated with a declaration.
@@ -43,18 +48,18 @@ struct DocComment {
     /** Normalized body -- what getDocstring() returns. */
     std::string     text;
     /** Form of the first comment in the block. */
-    DocCommentForm  form = DocCommentForm::None;
+    pssp::DocCommentForm form = pssp::DocCommentForm::None;
     /** First character of the comment block. */
     ast::Location   location;
     /** True when this is a same-line trailing comment. */
     bool            trailing = false;
 
-    bool valid() const { return form != DocCommentForm::None; }
+    bool valid() const { return form != pssp::DocCommentForm::None; }
 
     void clear() {
         raw.clear();
         text.clear();
-        form = DocCommentForm::None;
+        form = pssp::DocCommentForm::None;
         location = ast::Location();
         trailing = false;
     }
@@ -113,12 +118,12 @@ public:
     // -- Pieces exposed for unit testing ------------------------------------
 
     /** Classify a comment by its opening marker. */
-    static DocCommentForm classify(const std::string &raw);
+    static pssp::DocCommentForm classify(const std::string &raw);
 
     /** Normalize one comment block (already concatenated) to body text. */
     static std::string normalize(
             const std::vector<std::string>  &raws,
-            DocCommentForm                  form,
+            pssp::DocCommentForm            form,
             const DocCommentOptions         &opts);
 
     /**
@@ -133,15 +138,15 @@ public:
 private:
     static bool isComment(antlr4::Token *t);
 
-    static bool isBlockForm(DocCommentForm f) {
-        return f == DocCommentForm::Block || f == DocCommentForm::DocBlock;
+    static bool isBlockForm(pssp::DocCommentForm f) {
+        return f == pssp::DocCommentForm::Block || f == pssp::DocCommentForm::DocBlock;
     }
 
-    bool isDoc(DocCommentForm f) const {
-        return f != DocCommentForm::None &&
+    bool isDoc(pssp::DocCommentForm f) const {
+        return f != pssp::DocCommentForm::None &&
             (!m_opts.strict_markers ||
-                f == DocCommentForm::DocLine ||
-                f == DocCommentForm::DocBlock);
+                f == pssp::DocCommentForm::DocLine ||
+                f == pssp::DocCommentForm::DocBlock);
     }
 
     /** Build the result from *run*, which is in reverse source order. */
