@@ -21,7 +21,15 @@ class ListIterator(object):
         self.n_children = n_children
         self.get_child = get_child
         self.index = 0
-    
+
+    def __iter__(self):
+        # Required by the iterator protocol: an iterator must be its own
+        # iterable. Without this, `for x in obj.some_list()` raises
+        # "'ListIterator' object is not iterable" on Python 3.13+, while
+        # `list(obj.some_list())` keeps working -- so the gap shows up as a
+        # scattered subset of failures rather than as an obvious one.
+        return self
+
     def __next__(self):
         if (self.index >= self.n_children):
             raise StopIteration()
