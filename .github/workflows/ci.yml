@@ -25,8 +25,15 @@
 # (cp311) and one macOS wheel (cp313). Every other Windows and macOS Python
 # still fell back to the source build that cannot succeed -- the same failure
 # the authority moved here to prevent, narrowed from a platform to a version.
-# Both jobs are six-way matrices as of 2026-09-02, and `publish-pypi` now
-# checks the platform coverage of what it is about to upload.
+# Both jobs are matrices as of 2026-09-02, and `publish-pypi` now checks the
+# platform coverage of what it is about to upload.
+#
+# THEY ARE FOUR-WAY, NOT SIX. cp39 and cp314 were tried on both and neither
+# can build today -- ivpm needs >= 3.10, and `debug-mgr` (a build-time C++
+# dependency with no sdist) has no usable cp314 wheel for either platform.
+# Both bounds are upstream and are documented where they bite, on the
+# `python:` matrix in ci-win32. So a release is 6+6+4+4 = 20 wheels, against
+# v3.1.0's 6+6+1+1 = 14.
 #
 # The Forgejo publish job is NOT deleted in exchange. It reads the same switch,
 # so it disarms itself the moment the switch says "github", and re-arms if the
@@ -326,7 +333,31 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python: ['3.9', '3.10', '3.11', '3.12', '3.13', '3.14']
+        # 3.10..3.13, NOT cp39..cp314 -- and the bound is `debug-mgr`'s
+        # release matrix, not this project's. It is a build-time C++
+        # dependency resolved from PyPI, it publishes NO SDIST, so a Python
+        # with no compatible wheel has no fallback: ivpm resolves it, nothing
+        # installs, and the failure surfaces later as a cmake error about a
+        # missing include directory. Measured against PyPI on 2026-09-02:
+        #
+        #   * cp314 macOS -- every recent wheel is tagged `macosx_26_0`, which
+        #     pip rejects here because this job pins a 13.0 deployment target.
+        #     The newest usable-at-a-lower-floor one is `macosx_15_0`, still
+        #     above 13.0. (That mistag is the same defect the "Check the wheel
+        #     tag" step below exists to stop pssparser shipping.)
+        #   * cp314 Windows -- wheels exist, but the line stops at
+        #     0.0.2.27891512881 while the project is on ...33288736809.
+        #   * cp39 -- ivpm/ivpm-build themselves need >= 3.10: the build dies
+        #     in `glob(root_dir=)` and `entry_points(group=)`, both 3.10 APIs.
+        #
+        # THE LINUX JOBS BUILD cp39..cp314 ANYWAY, and the difference is
+        # structural rather than lucky. There, cmake runs ONCE under cp312 and
+        # only the extension is compiled per interpreter, so debug-mgr and
+        # ivpm are needed for one modern Python. These jobs run the whole
+        # toolchain under the matrix Python, so every one of its constraints
+        # applies to every entry. Routing these through a fixed driver Python
+        # would recover cp39; cp314 stays blocked upstream either way.
+        python: ['3.10', '3.11', '3.12', '3.13']
     runs-on: windows-latest
     defaults:
       run:
@@ -406,7 +437,31 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python: ['3.9', '3.10', '3.11', '3.12', '3.13', '3.14']
+        # 3.10..3.13, NOT cp39..cp314 -- and the bound is `debug-mgr`'s
+        # release matrix, not this project's. It is a build-time C++
+        # dependency resolved from PyPI, it publishes NO SDIST, so a Python
+        # with no compatible wheel has no fallback: ivpm resolves it, nothing
+        # installs, and the failure surfaces later as a cmake error about a
+        # missing include directory. Measured against PyPI on 2026-09-02:
+        #
+        #   * cp314 macOS -- every recent wheel is tagged `macosx_26_0`, which
+        #     pip rejects here because this job pins a 13.0 deployment target.
+        #     The newest usable-at-a-lower-floor one is `macosx_15_0`, still
+        #     above 13.0. (That mistag is the same defect the "Check the wheel
+        #     tag" step below exists to stop pssparser shipping.)
+        #   * cp314 Windows -- wheels exist, but the line stops at
+        #     0.0.2.27891512881 while the project is on ...33288736809.
+        #   * cp39 -- ivpm/ivpm-build themselves need >= 3.10: the build dies
+        #     in `glob(root_dir=)` and `entry_points(group=)`, both 3.10 APIs.
+        #
+        # THE LINUX JOBS BUILD cp39..cp314 ANYWAY, and the difference is
+        # structural rather than lucky. There, cmake runs ONCE under cp312 and
+        # only the extension is compiled per interpreter, so debug-mgr and
+        # ivpm are needed for one modern Python. These jobs run the whole
+        # toolchain under the matrix Python, so every one of its constraints
+        # applies to every entry. Routing these through a fixed driver Python
+        # would recover cp39; cp314 stays blocked upstream either way.
+        python: ['3.10', '3.11', '3.12', '3.13']
     runs-on: macos-latest
     env:
       # THE THREE VARIABLES BELOW ARE WHAT MAKE THE WHEEL TAG TRUE, and the
@@ -614,10 +669,18 @@ jobs:
       # green, and the shortfall was visible only by reading the PyPI file
       # list afterwards -- by which point the version cannot be reissued.
       #
-      # The counts are the matrices, not the platforms: six Pythons each,
-      # cp39..cp314, on all four. A LOWER bound rather than an equality, so
-      # that adding a Python or an architecture does not fail the release
-      # before someone gets round to this file.
+      # The counts are the matrices, not the platforms, so they are NOT equal
+      # across the four: linux builds cp39..cp314 (six), Windows and macOS
+      # build cp310..cp313 (four). The shortfall is `debug-mgr`'s release
+      # matrix and ivpm's own 3.10 floor, not a decision taken here -- see the
+      # long note on the `python:` matrix in ci-win32.
+      #
+      # A LOWER bound rather than an equality, so that adding a Python or an
+      # architecture does not fail the release before someone gets round to
+      # this file. The corollary is that these numbers only ever ratchet up:
+      # if debug-mgr starts shipping usable cp314 wheels for Windows and
+      # macOS, widen the matrices AND raise the 4s, or the check silently
+      # stops noticing a regression back to four.
       run: |
         set -eu
         fail=0
@@ -631,8 +694,8 @@ jobs:
         }
         check "linux x86_64"  'manylinux.*x86_64'  6
         check "linux aarch64" 'manylinux.*aarch64' 6
-        check "windows"       'win_amd64'          6
-        check "macos arm64"   'macosx.*arm64'      6
+        check "windows"       'win_amd64'          4
+        check "macos arm64"   'macosx.*arm64'      4
         # A universal2 tag here means the macOS job's tag pinning came
         # undone; the wheel would then be offered to Intel Macs that cannot
         # import it. Caught in the macOS job too -- repeated here because
