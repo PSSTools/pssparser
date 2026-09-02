@@ -1,0 +1,7 @@
+//! id:     PSS024
+//! at:     6:5
+//! match:  unexpected 'import' in this context
+//! count:  1
+struct S {
+    import function void foo();
+}

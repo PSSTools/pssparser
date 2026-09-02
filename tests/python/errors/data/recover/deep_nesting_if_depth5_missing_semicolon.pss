@@ -1,0 +1,22 @@
+//! id:     PSS020
+//! at:     15:29
+//! match:  expected ';' before '}'
+//! count:  1
+component C {
+    action A {
+        rand int x;
+        exec body {
+            if (x == 1) {
+                if (x == 2) {
+                    if (x == 3) {
+                        if (x == 4) {
+                            if (x == 5) {
+                                x = 1
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

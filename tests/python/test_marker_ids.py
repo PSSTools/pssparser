@@ -126,18 +126,112 @@ def test_marker_ids_are_in_ascending_order():
     assert ids == sorted(ids)
 
 
+#: PSS020-PSS029: syntax-classification sub-band, plus PSS029 (the
+#: --max-errors cutoff marker, MarkerCollector::marker in C++). These IDs
+#: arrive on the marker directly from C++, not via message-pattern matching,
+#: so `patterns` is deliberately empty and there is nothing to add to
+#: REPRESENTATIVE_MESSAGES for them -- see SYNTAX_BAND_SAMPLES and
+#: test_syntax_band_ids_are_reachable below instead.
+#: PSS023 and PSS027 are reserved, not assigned (see core_checker.py).
+_SYNTAX_BAND = {"PSS0%02d" % n for n in range(20, 30)}
+
+
 def test_every_core_marker_declares_patterns():
     """A core marker with no pattern can never be assigned to a diagnostic."""
-    missing = [m.id for m in CoreChecker.marker_defs if not m.patterns]
+    missing = [
+        m.id for m in CoreChecker.marker_defs
+        if not m.patterns and m.id not in _SYNTAX_BAND
+    ]
     assert not missing, "core markers with no message patterns: %s" % missing
 
 
 def test_every_marker_has_a_representative_message():
     """Every declared ID must be exercised by the mapping test above."""
-    covered = {mid for mid, _ in REPRESENTATIVE_MESSAGES}
+    covered = {mid for mid, _ in REPRESENTATIVE_MESSAGES} | _SYNTAX_BAND
     declared = {m.id for m in CoreChecker.marker_defs}
     assert declared - covered == set(), \
         "IDs with no representative message: %s" % sorted(declared - covered)
+
+
+def test_syntax_band_markers_declare_no_patterns():
+    """The inverse of test_every_core_marker_declares_patterns: a syntax-band
+    marker's code comes from C++, so a pattern here would be dead weight that
+    could silently shadow a real (checker-produced) diagnostic."""
+    offenders = [
+        m.id for m in CoreChecker.marker_defs
+        if m.id in _SYNTAX_BAND and m.patterns
+    ]
+    assert not offenders, "syntax-band markers with unnecessary patterns: %s" % offenders
+
+
+def test_assign_core_code_never_fires_for_the_syntax_band():
+    """_assign_core_code only fills in a missing code; a syntax-band marker
+    must always already carry one by the time Python sees it."""
+    for marker_id in sorted(_SYNTAX_BAND - {"PSS023", "PSS027"}):
+        assigned = _assign_core_code({"message": "some entirely novel diagnostic"})
+        assert assigned.get("code") != marker_id
+
+
+#: One real snippet per reachable syntax-band ID, parsed through the actual
+#: C++ parser (not the message-pattern table above -- there is none for these
+#: IDs). PSS023 and PSS027 are reserved/unreachable (see core_checker.py) and
+#: are deliberately absent here. The third element is the --max-errors value
+#: to apply before parsing (None = library default, unlimited) -- only
+#: PSS029 needs one, since it is the cap-cutoff marker itself.
+SYNTAX_BAND_SAMPLES = [
+    ("PSS020", "struct S { int x }", None),
+    ("PSS021", "struct S { int x; ", None),
+    ("PSS022", "struct S { int ; }", None),
+    ("PSS024", "class C { }", None),
+    ("PSS025", "struct S { int x; * }", None),
+    ("PSS026", "enum E { struct };", None),
+    ("PSS028", "struct S { 123 x; }", None),
+    (
+        "PSS029",
+        "\n".join("struct S%d { int ; }" % i for i in range(5)),
+        2,
+    ),
+]
+
+
+@pytest.mark.parametrize("expected_id,source,max_errors", SYNTAX_BAND_SAMPLES)
+def test_syntax_band_ids_are_reachable(expected_id, source, max_errors):
+    import sys as _sys
+    from pathlib import Path as _Path
+    _sys.path.insert(0, str(_Path(__file__).parent))
+    from test_helpers import parse_collect
+
+    try:
+        _root, markers = parse_collect(source, max_errors=max_errors)
+    except Exception as exc:
+        markers = getattr(exc, "markers", [])
+    codes = [m.get("code") for m in markers]
+    assert expected_id in codes, \
+        "parsing %r produced codes %r, expected %r among them" % (
+            source, codes, expected_id)
+
+
+def test_syntax_band_samples_cover_every_reachable_id():
+    covered = {mid for mid, _, _ in SYNTAX_BAND_SAMPLES}
+    reachable = _SYNTAX_BAND - {"PSS023", "PSS027"}
+    assert reachable - covered == set(), \
+        "reachable syntax-band IDs with no sample: %s" % sorted(reachable - covered)
+
+
+def test_every_reachable_syntax_band_id_has_a_corpus_case():
+    """Exit criterion for E-3: every PSS020-PSS028 ID that can actually be
+    emitted (excludes the reserved PSS023/PSS027) has >= 1 corpus case under
+    tests/python/errors/data/, queried the same way test_corpus.py does."""
+    import sys as _sys
+    from pathlib import Path as _Path
+    _sys.path.insert(0, str(_Path(__file__).parent / "errors"))
+    from corpus_loader import collect_cases
+
+    ids_with_cases = {c.id for c in collect_cases() if c.id in _SYNTAX_BAND}
+    reachable = _SYNTAX_BAND - {"PSS023", "PSS027"}
+    assert reachable - ids_with_cases == set(), \
+        "reachable syntax-band IDs with no corpus case: %s" % sorted(
+            reachable - ids_with_cases)
 
 
 def test_all_patterns_compile():

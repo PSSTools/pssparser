@@ -114,7 +114,10 @@ def test_existing_code_preserved():
 # Integration: end-to-end check that real parse errors get codes
 # ---------------------------------------------------------------------------
 
-def test_real_syntax_error_gets_pss001(tmp_path):
+def test_real_syntax_error_gets_a_pss02x_code(tmp_path):
+    """A missing ';' is PSS020 (expected specific punctuation) since E-3
+    classified the syntax sub-band; the marker carries its own code (from
+    C++), it is not recovered from _assign_core_code's PSS001 pattern."""
     from pssparser import Parser
     from pssparser.parser import ParseException
     from pssparser.cli.commands import _collect
@@ -130,8 +133,8 @@ def test_real_syntax_error_gets_pss001(tmp_path):
     except ParseException as exc:
         _collect(coll, getattr(exc, "markers", []), p)
 
-    pss001 = [d for d in coll.diagnostics if d.code == "PSS001"]
-    assert len(pss001) > 0
+    pss020 = [d for d in coll.diagnostics if d.code == "PSS020"]
+    assert len(pss020) > 0
 
 
 def test_real_unknown_type_gets_pss002(tmp_path):

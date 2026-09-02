@@ -1,0 +1,15 @@
+//! id:     PSS028
+//! at:     10:24
+//! match:  syntax error at 'arr'
+//! count:  1
+component C {
+    action A {
+    }
+    action B {
+        activity {
+            foreach (a arr) {
+                do A;
+            }
+        }
+    }
+}

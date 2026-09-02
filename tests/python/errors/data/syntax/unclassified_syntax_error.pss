@@ -1,0 +1,5 @@
+//! id:     PSS028
+//! at:     5:17
+//! match:  syntax error at
+//! count:  1
+struct S { 123 x; }

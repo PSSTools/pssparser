@@ -1,0 +1,7 @@
+//! id:     PSS022
+//! at:     5:8
+//! match:  expected identifier before 'component'
+//! count:  1
+struct component {
+    int x;
+}

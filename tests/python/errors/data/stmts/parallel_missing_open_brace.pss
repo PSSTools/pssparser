@@ -1,0 +1,14 @@
+//! id:     PSS024
+//! at:     11:17
+//! match:  unexpected 'do' in this context
+//! count:  1
+component C {
+    action A {
+    }
+    action B {
+        activity {
+            parallel
+                do A;
+        }
+    }
+}

@@ -1,0 +1,24 @@
+//! id:     PSS022
+//! at:     5:17
+//! match:  expected identifier before ';'
+//! count:  20
+struct S0 { int ; }
+struct S1 { int ; }
+struct S2 { int ; }
+struct S3 { int ; }
+struct S4 { int ; }
+struct S5 { int ; }
+struct S6 { int ; }
+struct S7 { int ; }
+struct S8 { int ; }
+struct S9 { int ; }
+struct S10 { int ; }
+struct S11 { int ; }
+struct S12 { int ; }
+struct S13 { int ; }
+struct S14 { int ; }
+struct S15 { int ; }
+struct S16 { int ; }
+struct S17 { int ; }
+struct S18 { int ; }
+struct S19 { int ; }

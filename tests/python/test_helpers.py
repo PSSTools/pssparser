@@ -242,6 +242,20 @@ def _assign_codes(markers: List[dict]) -> List[dict]:
     return [_assign_core_code(m) for m in markers]
 
 
+# Every marker any parse_collect() call in the session has produced. E-2's
+# global lints (tests/python/errors/test_message_lints.py) assert invariants
+# over this instead of hooking each call site individually, so a lint applies
+# to every test that goes through parse_collect regardless of which directory
+# it lives in.
+ALL_MARKERS: List[dict] = []
+
+# Same markers, grouped by the parse_collect() call that produced them --
+# needed for invariants that only make sense within one parse (e.g. "markers
+# from a single parse are emitted in (file, line, col) order"), which a flat
+# merge across unrelated test cases would not let you check.
+ALL_MARKER_BATCHES: List[List[dict]] = []
+
+
 def _format_markers(markers: List[dict]) -> str:
     """Render a marker list for assertion failure messages."""
     if not markers:
@@ -258,7 +272,8 @@ def _format_markers(markers: List[dict]) -> str:
 
 
 def parse_collect(code: str, filename: str = "test.pss",
-                  parser: Optional[Parser] = None) -> Tuple[Any, List[dict]]:
+                  parser: Optional[Parser] = None,
+                  max_errors: Optional[int] = None) -> Tuple[Any, List[dict]]:
     """
     Parse and link, returning (root_or_None, markers) instead of raising.
 
@@ -270,6 +285,10 @@ def parse_collect(code: str, filename: str = "test.pss",
         code: PSS source code
         filename: Filename for error reporting
         parser: Optional parser instance (creates new if None)
+        max_errors: When given, applied via Parser.set_max_errors before
+            parsing (0 = unlimited). None leaves the Parser's own default
+            (unlimited) untouched -- so a caller-supplied `parser` that
+            already has a cap keeps it.
 
     Returns:
         (root, markers) where root is the linked symbol scope, or None if
@@ -278,6 +297,9 @@ def parse_collect(code: str, filename: str = "test.pss",
     """
     if parser is None:
         parser = Parser()
+
+    if max_errors is not None:
+        parser.set_max_errors(max_errors)
 
     try:
         parser.parses([(filename, code)])
@@ -288,9 +310,15 @@ def parse_collect(code: str, filename: str = "test.pss",
         markers = getattr(e, "markers", None)
         if markers is None:
             raise
-        return None, _assign_codes(markers)
+        coded = _assign_codes(markers)
+        ALL_MARKERS.extend(coded)
+        ALL_MARKER_BATCHES.append(coded)
+        return None, coded
 
-    return root, _assign_codes(parser.markers)
+    coded = _assign_codes(parser.markers)
+    ALL_MARKERS.extend(coded)
+    ALL_MARKER_BATCHES.append(coded)
+    return root, coded
 
 
 def find_markers(markers: List[dict], marker_id: Optional[str] = None,

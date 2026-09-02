@@ -1,0 +1,15 @@
+//! id:     PSS020
+//! at:     10:21
+//! match:  expected '(' before 'a'
+//! count:  1
+component C {
+    action A {
+    }
+    action B {
+        activity {
+            foreach a : arr {
+                do A;
+            }
+        }
+    }
+}

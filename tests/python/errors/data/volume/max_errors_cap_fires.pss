@@ -1,0 +1,12 @@
+//! id: PSS029
+//! match: too many errors
+//! count: 1
+//! max-errors: 3
+struct S0 { int ; }
+struct S1 { int ; }
+struct S2 { int ; }
+struct S3 { int ; }
+struct S4 { int ; }
+struct S5 { int ; }
+struct S6 { int ; }
+struct S7 { int ; }

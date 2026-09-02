@@ -1,0 +1,21 @@
+$ pssparser tests/python/errors/data/punct/missing_semicolon_return.pss (exit 1)
+--- stdout ---
+{
+  "diagnostics": [
+    {
+      "file": "tests/python/errors/data/punct/missing_semicolon_return.pss",
+      "line": 9,
+      "col": 9,
+      "severity": "error",
+      "message": "unexpected '}' in this context",
+      "end_col": 10,
+      "code": "PSS024"
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "files": 1
+  }
+}
+--- stderr ---

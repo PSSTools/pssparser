@@ -1,0 +1,6 @@
+//! id:     PSS026
+//! at:     5:1
+//! match:  unexpected keyword 'final'
+//! count:  1
+final component C {
+}

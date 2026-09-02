@@ -1,0 +1,8 @@
+$ pssparser tests/python/errors/data/punct/cascade_garbage_tokens.pss (exit 1)
+--- stdout ---
+--- stderr ---
+tests/python/errors/data/punct/cascade_garbage_tokens.pss:7:14: error: expected identifier before '@'
+ 7 |             @@@ !!! ???
+   |              ^
+
+1 error in 1 file

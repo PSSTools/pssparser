@@ -42,6 +42,19 @@ class Parser(object):
         #: builder, so these cannot be set once at construction time.
         self._collect_docstrings = collect_docstrings
         self._collect_comments = collect_comments
+        #: 0 (default) is unlimited. A library caller wants every diagnostic;
+        #: the cap is a terminal-output affordance the CLI opts into.
+        self._max_errors = 0
+
+    def set_max_errors(self, max_errors: int) -> None:
+        """Stop reporting further errors for a file after ``max_errors``.
+
+        ``0`` (the default) means unlimited. Applies to every marker
+        collector this Parser creates from this point on (parse/parses/link).
+        Only error-severity markers count against the cap; a file that hits
+        it gets one extra PSS029 marker announcing the cutoff.
+        """
+        self._max_errors = max_errors
 
     def _mkBuilder(self, marker_l):
         """Return this Parser's builder, pointed at *marker_l*.
@@ -71,6 +84,7 @@ class Parser(object):
     def parse(self, files : List[str]) -> bool:
         import pssparser.core as zspp
         marker_l = self.parser_f.mkMarkerCollector()
+        marker_l.setMaxErrors(self._max_errors)
         builder = self._mkBuilder(marker_l)
 
         if self._enable_profiling:
@@ -104,6 +118,7 @@ class Parser(object):
     def parses(self, files : List[Tuple[str, str]]) -> bool:
         import pssparser.core as zspp
         marker_l = self.parser_f.mkMarkerCollector()
+        marker_l.setMaxErrors(self._max_errors)
         builder = self._mkBuilder(marker_l)
 
         if self._enable_profiling:
@@ -152,6 +167,7 @@ class Parser(object):
         import pssparser.core as zspp
         linker = self.parser_f.mkAstLinker()
         marker_l = self.parser_f.mkMarkerCollector()
+        marker_l.setMaxErrors(self._max_errors)
 
         ret = linker.link(marker_l, self._files)
 
@@ -162,6 +178,10 @@ class Parser(object):
         # 0 files". Both parse paths above already collect on success; only
         # this one did not.
         self._markers.extend(self._collectMarkers(marker_l))
+        # Re-sort: parse-time and link-time markers are each internally
+        # sorted by _collectMarkers, but concatenating two sorted lists is
+        # not itself sorted (G8).
+        self._markers.sort(key=lambda e: (e["file"], e["line"], e["col"]))
 
         # Record the result *before* reporting failure.
         #
@@ -302,13 +322,34 @@ class Parser(object):
             m = marker_l.getMarker(i)
             loc = m.loc()
             filename = self._pathOf(loc.file)
-            result.append({
+            code = m.id()
+            entry = {
                 "severity": severity_names.get(int(m.severity()), "unknown"),
                 "message": m.msg(),
                 "file": filename,
                 "line": loc.line,
                 "col": loc.pos + 1,
-            })
+                "extent": m.extent(),
+                "related": [
+                    {
+                        "file": self._pathOf(rel["loc"].file),
+                        "line": rel["loc"].line,
+                        "col": rel["loc"].pos + 1,
+                        "label": rel["label"],
+                    }
+                    for rel in m.related()
+                ],
+            }
+            if code:
+                entry["code"] = code
+            result.append(entry)
+        # Stable sort by (file, line, col): different passes (parse-time
+        # syntax errors, link-time resolution, the post-link completeness
+        # check) each emit in their own encounter order, and interleaving
+        # those without resorting produces diagnostics that jump around the
+        # source file. Stable so markers that share a location keep their
+        # relative emission order (e.g. a cascade at the same point).
+        result.sort(key=lambda e: (e["file"], e["line"], e["col"]))
         return result
 
     @property
@@ -321,6 +362,10 @@ class Parser(object):
             file: Source filename
             line: Line number (1-based)
             col: Column number (1-based)
+            extent: Length in characters of the primary span (0 if unknown)
+            related: list of {file, line, col, label} secondary locations
+            code: stable marker ID (e.g. "PSS020"); absent if not yet assigned
+                  by the emitting checker/builder
         """
         return list(self._markers)
 

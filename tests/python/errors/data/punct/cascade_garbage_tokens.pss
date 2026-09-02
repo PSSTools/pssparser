@@ -1,0 +1,10 @@
+//! id:     PSS022
+//! match:  expected identifier before '@'
+//! count:  1
+component C {
+    action A {
+        exec body {
+            @@@ !!! ???
+        }
+    }
+}

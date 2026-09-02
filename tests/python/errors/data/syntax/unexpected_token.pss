@@ -1,0 +1,5 @@
+//! id:     PSS022
+//! at:     5:19
+//! match:  expected identifier before '}'
+//! count:  1
+struct S { int x, }

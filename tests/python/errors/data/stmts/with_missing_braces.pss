@@ -1,0 +1,15 @@
+//! id:     PSS026
+//! at:     10:13
+//! match:  unexpected keyword 'with' in this context
+//! count:  1
+component C {
+    action A {
+    }
+    action B {
+        activity {
+            with {
+                do A;
+            }
+        }
+    }
+}

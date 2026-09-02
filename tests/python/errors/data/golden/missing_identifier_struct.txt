@@ -1,0 +1,8 @@
+$ pssparser tests/python/errors/data/names/struct_no_name.pss (exit 1)
+--- stdout ---
+--- stderr ---
+tests/python/errors/data/names/struct_no_name.pss:5:8: error: expected identifier before '{'
+ 5 | struct { int x; }
+   |        ^
+
+1 error in 1 file

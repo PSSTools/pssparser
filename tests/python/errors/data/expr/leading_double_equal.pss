@@ -1,0 +1,10 @@
+//! id:     PSS028
+//! at:     8:22
+//! match:  syntax error at '=='
+//! count:  1
+component C {
+    action A {
+        rand int x;
+        constraint { == x; }
+    }
+}

@@ -387,7 +387,11 @@ void TaskResolveRefs::visitActivityActionTypeTraversal(ast::IActivityActionTypeT
     if (field_udt->getType_id()->getTarget()) {
         ast::IScopeChild *field_c = resolvePath(field_udt->getType_id()->getTarget());
         ast::ISymbolScope *field_scope = dynamic_cast<ast::ISymbolScope *>(field_c);
-        if (i->getWith_c()) {
+        // Mirrors visitActivityActionHandleTraversal just above: the target
+        // failed to resolve to a scope (e.g. a mistyped/undeclared type), so
+        // there is nothing to push -- a marker was already reported by the
+        // resolvePath/accept above.
+        if (field_scope && i->getWith_c()) {
             m_ctxt->symtab()->pushScope(field_scope, ast::SymbolRefPathElemKind::ElemKind_Inline);
             m_ctxt->pushInlineCtxt(field_scope);
             DEBUG_ENTER(" ::getWith()");
@@ -1000,8 +1004,22 @@ void TaskResolveRefs::visitExprRefPathContext(ast::IExprRefPathContext *i) {
         std::string suggestion = findCloseMatch_rr(
             name, dynamic_cast<ast::ISymbolScope *>(m_ctxt->root()));
         if (suggestion.empty() && m_ctxt->symtab()) {
-            suggestion = findCloseMatch_rr(
-                name, m_ctxt->symtab()->getScope());
+            // getScope() walks backward from the top of the stack it is
+            // given and silently *erases* every non-ISymbolScope entry it
+            // passes over (by design -- TaskResolveRootRef::resolve() relies
+            // on this to converge its root-ref search, and always calls it
+            // on a throwaway clone). Calling it directly on the live active
+            // stack here corrupted it whenever the innermost frame was a
+            // non-ISymbolScope node -- a constraint block, for instance --
+            // silently dropping a frame a caller further up (visitConstraintBlock)
+            // still owns and will pop itself, eventually popping the wrong
+            // scope or an empty stack (E7-D14). Use a scratch clone instead,
+            // exactly as TaskResolveRootRef::resolve() does for the same
+            // reason.
+            ISymbolTableIteratorUP scratch(m_ctxt->cloneSymtab());
+            if (scratch) {
+                suggestion = findCloseMatch_rr(name, scratch->getScope());
+            }
         }
         if (suggestion.empty()) {
             m_ctxt->addMarker(
@@ -1882,7 +1900,10 @@ void TaskResolveRefs::visitFunctionPrototype(ast::IFunctionPrototype *i) {
 void TaskResolveRefs::visitProceduralStmtRepeat(ast::IProceduralStmtRepeat *i) {
     DEBUG_ENTER("visitProceduralStmtRepeat %d", i->getSymtab().size());
     m_ctxt->symtab()->pushScope(i);
-    i->getBody()->accept(m_this);
+    // `repeat (...) ;` -- an empty statement -- leaves body null.
+    if (i->getBody()) {
+        i->getBody()->accept(m_this);
+    }
     m_ctxt->symtab()->popScope();
     DEBUG_LEAVE("visitProceduralStmtRepeat");
 }

@@ -1,0 +1,7 @@
+//! id:     PSS022
+//! at:     6:9
+//! match:  expected identifier before 'action'
+//! count:  1
+struct S {
+    int action;
+}

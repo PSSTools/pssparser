@@ -38,6 +38,7 @@ class CoreChecker(CheckerBase):
                 r"^expected\b",
                 r"^unexpected\b",
                 r"^unknown exec-block kind\b",
+                r"^syntax error at\b",
             ),
             detail=(
                 "The parser encountered a token it did not expect.  "
@@ -45,7 +46,8 @@ class CoreChecker(CheckerBase):
                 "* ``expected ';' before '}'``\n"
                 "* ``unexpected end of input; possible missing closing '}'``\n"
                 "* ``unexpected '<token>' in this context``\n"
-                "* ``expected identifier before '<token>'``\n\n"
+                "* ``expected identifier before '<token>'``\n"
+                "* ``syntax error at '<token>'``\n\n"
                 "Check that the surrounding PSS syntax is well-formed."
             ),
         ),
@@ -332,6 +334,160 @@ class CoreChecker(CheckerBase):
                 r"^write_field\b",
                 r"^write_fields\b",
                 r"^write_masked\b",
+            ),
+        ),
+
+        # -- Syntax-error sub-band (PSS020-PSS029) ---------------------------
+        #
+        # PSS011-PSS019 are held as general-band headroom. Unlike PSS001-PSS010
+        # above, these markers carry their own `code` from the C++ side
+        # (AstBuilderInt::syntaxError / rewriteSyntaxError classifies at the
+        # point the message is built), so `patterns` is deliberately left
+        # empty -- there is nothing for _assign_core_code to match, and a test
+        # in test_marker_ids.py asserts it never fires for one of these IDs.
+        # PSS027 is reserved for lexer-originated errors and is not emitted
+        # yet: the lexer does not install AstBuilderInt as its error listener
+        # (only the parser does), so a lexical error currently goes to
+        # stderr via ANTLR's default listener and never reaches a marker at
+        # all -- see the corpus's `KNOWN_ACCEPTED["pathological/lone_backslash.pss"]`
+        # (defect U-9). PSS027 stays reserved until that listener wiring (and
+        # the exit-status gap it is tangled up with) is fixed. PSS023 is also
+        # reserved, not assigned: see PSS022's detail for why the keyword
+        # sub-case it was meant for turned out to be unreachable.
+
+        MarkerDef(
+            id="PSS020",
+            severity="error",
+            summary="Expected specific punctuation before this token",
+            detail=(
+                "The parser reached a point where only one or two specific "
+                "punctuation tokens could legally continue the construct, and "
+                "the next token was not one of them. Messages include "
+                "patterns such as:\n\n"
+                "* ``expected ';' before '<token>'``\n"
+                "* ``expected '{' or ':' before '<token>'``\n"
+                "* ``expected '{' or ':' before 'extends'; use ':' for "
+                "inheritance, not 'extends'``\n\n"
+                "Insert the missing punctuation, or (for the last case) "
+                "replace ``extends`` with ``:``."
+            ),
+        ),
+        MarkerDef(
+            id="PSS021",
+            severity="error",
+            summary="Unexpected end of input",
+            detail=(
+                "The file ended while a scope (``{ ... }``) was still open.\n\n"
+                "When the still-open scope is a ``component`` or ``struct`` "
+                "declared directly (not several rules deeper, e.g. mid "
+                "``exec`` body), the marker is reported **at the opening "
+                "``{``** of that declaration, named by kind and identifier, "
+                "with the end-of-file position attached as a related "
+                "location:\n\n"
+                "* ``unclosed '{' for component '<name>'``\n"
+                "* ``unclosed '{' for struct '<name>'``\n\n"
+                "Otherwise -- a deeper truncation, or any other brace-opening "
+                "construct (``enum``, ``constraint``, an ``exec`` body, ...) "
+                "-- the marker falls back to the generic end-of-file "
+                "message, reported at the end of file itself:\n\n"
+                "* ``unexpected end of input; missing closing '}'``\n\n"
+                "For the fallback case, count braces from the point the "
+                "parser last made progress; the true cause is often several "
+                "lines above the file's last line, not at it."
+            ),
+        ),
+        MarkerDef(
+            id="PSS022",
+            severity="error",
+            summary="Expected an identifier before this token",
+            detail=(
+                "The grammar requires an identifier at this position and the "
+                "next token is not one. Reached via either of ANTLR's two "
+                "recovery strategies for the same situation: single-token-"
+                "insertion (offending token already in the follow set, e.g. "
+                "``;``, ``{``, ``=``) or a full mismatched-input exception "
+                "whose expecting-set is exactly identifier-shaped (``{ID, "
+                "ESCAPED_ID}``, optionally with a leading ``'::'``) -- which "
+                "is how a real PSS keyword used where an identifier belongs "
+                "(``struct``, ``return``, ...) lands here too. There is no "
+                "reachable keyword sub-case distinct from this one -- "
+                "**PSS023 is reserved, not assigned**.\n\n"
+                "Message: ``expected identifier before '<token>'``"
+            ),
+        ),
+        MarkerDef(
+            id="PSS024",
+            severity="error",
+            summary="Unexpected token in this context",
+            detail=(
+                "A general ``mismatched input`` case that PSS020, PSS021, and "
+                "PSS022 do not cover more specifically: the token is not one "
+                "of the (possibly several) tokens that could legally appear "
+                "here. Messages include patterns such as:\n\n"
+                "* ``unexpected '<token>' in this context`` (the expecting "
+                "set was too large to usefully quote)\n"
+                "* ``unexpected '<token>' expecting {<alternatives>}`` (the "
+                "expecting set was small enough to show)"
+            ),
+        ),
+        MarkerDef(
+            id="PSS025",
+            severity="error",
+            summary="Unexpected punctuation in this context",
+            detail=(
+                "A single punctuation token appears where nothing could "
+                "legally follow.\n\n"
+                "Message: ``unexpected '<token>' in this context``\n\n"
+                "The same wording as PSS024's first pattern; the two differ "
+                "only in which ANTLR exception produced them "
+                "(``extraneous input`` here, ``mismatched input`` there)."
+            ),
+        ),
+        MarkerDef(
+            id="PSS026",
+            severity="error",
+            summary="Unexpected token in this context (non-punctuation)",
+            detail=(
+                "As PSS025, but the extraneous token is not a single "
+                "punctuation character -- a keyword, a multi-character "
+                "operator, or a literal. Only called a \"keyword\" in the "
+                "message when it actually looks like one (starts with a "
+                "letter or ``_``); anything else, such as a numeric literal, "
+                "gets the plain PSS025-style wording while keeping this ID. "
+                "Messages include patterns such as:\n\n"
+                "* ``unexpected keyword '<token>' in this context``\n"
+                "* ``unexpected '<token>' in this context`` (non-keyword-"
+                "looking offender, e.g. ``123``)"
+            ),
+        ),
+        MarkerDef(
+            id="PSS028",
+            severity="error",
+            summary="Syntax error (unclassified alternative)",
+            detail=(
+                "ANTLR could not decide among the grammar's alternatives at "
+                "this point (a ``no viable alternative`` exception) and no "
+                "more specific rewrite applies.\n\n"
+                "Message: ``syntax error at '<token>'``\n\n"
+                "The message does not say what was expected; work outward "
+                "from the enclosing construct to find the mistake."
+            ),
+        ),
+        MarkerDef(
+            id="PSS029",
+            severity="error",
+            summary="Too many errors; stopped reporting further errors",
+            detail=(
+                "``--max-errors`` (default 20; ``0`` disables the cap) was "
+                "reached for this file. Only error-severity markers count "
+                "against it -- warnings and hints never trigger it, and a "
+                "clean file never sees it. Emitted once, at the location of "
+                "the error that pushed the count over the limit; every "
+                "further error in that file is dropped, not merely hidden, "
+                "so re-running with a higher (or ``0``) ``--max-errors`` is "
+                "the only way to see what comes after it.\n\n"
+                "Message: ``too many errors (<N>); stopped reporting "
+                "further errors for this file``"
             ),
         ),
 

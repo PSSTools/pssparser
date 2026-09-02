@@ -218,10 +218,16 @@ cdef extern from "pssp/IMarker.h" namespace "pssp":
         Severity_Hint "pssp::MarkerSeverityE::Hint"
         Severity_NumLevels "pssp::MarkerSeverityE::NumLevels"
 
+    cdef struct MarkerRelation:
+        ast.Location    loc
+        cpp_string      label
+
     cdef cppclass IMarker:
         const cpp_string &msg() const
         MarkerSeverityE severity() const
         const ast.Location &loc() const;
+        const cpp_string &id() const
+        const cpp_vector[MarkerRelation] &related() const
         IMarker *clone() const
 
 cdef extern from "pssp/IMarkerListener.h" namespace "pssp":
@@ -232,6 +238,8 @@ cdef extern from "pssp/IMarkerListener.h" namespace "pssp":
 cdef extern from "pssp/IMarkerCollector.h" namespace "pssp":
     cdef cppclass IMarkerCollector(IMarkerListener):
         const cpp_vector[IMarkerUP] &markers() const
+        void setMaxErrors(int32_t max)
+        bool maxErrorsExceeded() const
 
 cdef extern from "pssp/ISymbolTableIterator.h" namespace "pssp":
     cdef cppclass ISymbolTableIterator:

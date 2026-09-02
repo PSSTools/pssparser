@@ -1,0 +1,6 @@
+//! id:     PSS021
+//! at:     7:1
+//! match:  unexpected end of input
+//! count:  1
+enum E {
+    A, B

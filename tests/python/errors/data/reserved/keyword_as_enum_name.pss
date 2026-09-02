@@ -1,0 +1,7 @@
+//! id:     PSS022
+//! at:     5:6
+//! match:  expected identifier before 'action'
+//! count:  1
+enum action {
+    A, B
+}

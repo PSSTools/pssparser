@@ -46,7 +46,7 @@ def cmd_parse(
     _stdout = stdout or sys.stdout
 
     source_cache = SourceCache()
-    coll = DiagnosticCollection(max_errors=max_errors)
+    coll = DiagnosticCollection()
 
     if use_json:
         driver = JsonOutput(stream=_stdout)
@@ -54,6 +54,7 @@ def cmd_parse(
         driver = HumanOutput(source_cache, stream=_stderr, color=color)
 
     parser = Parser()
+    parser.set_max_errors(max_errors)
     linked_root = None
 
     # -- parse phase --------------------------------------------------------

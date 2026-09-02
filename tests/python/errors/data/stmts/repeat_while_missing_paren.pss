@@ -1,0 +1,15 @@
+//! id:     PSS020
+//! at:     12:21
+//! match:  expected '(' before 'x'
+//! count:  1
+component C {
+    action A {
+    }
+    action B {
+        activity {
+            repeat {
+                do A;
+            } while x < 5;
+        }
+    }
+}

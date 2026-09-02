@@ -1,0 +1,6 @@
+//! id:     PSS028
+//! at:     6:1
+//! match:  syntax error at 'component'
+//! count:  1
+import std_pkg
+component C { }

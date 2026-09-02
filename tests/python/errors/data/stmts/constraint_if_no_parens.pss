@@ -1,0 +1,14 @@
+//! id:     PSS020
+//! at:     9:16
+//! match:  expected '(' before 'x'
+//! count:  1
+component C {
+    action A {
+        rand int x;
+        constraint {
+            if x == 1 {
+                x == 2;
+            }
+        }
+    }
+}

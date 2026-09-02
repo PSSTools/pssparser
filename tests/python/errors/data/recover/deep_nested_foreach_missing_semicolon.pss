@@ -1,0 +1,18 @@
+//! id:     PSS024
+//! at:     13:21
+//! match:  unexpected '}' expecting one of '{', ';', 'with'
+//! count:  1
+component C {
+    action A {
+        rand int arr[4];
+        activity {
+            foreach (arr[i]) {
+                foreach (arr[j]) {
+                    foreach (arr[k]) {
+                        do A
+                    }
+                }
+            }
+        }
+    }
+}

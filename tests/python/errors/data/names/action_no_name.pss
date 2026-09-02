@@ -1,0 +1,7 @@
+//! id:     PSS022
+//! at:     6:12
+//! match:  expected identifier
+//! count:  1
+component C {
+    action { }
+}

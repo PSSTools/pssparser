@@ -1,0 +1,8 @@
+//! id:     PSS001
+//! at:     6:5
+//! match:  No default provided for template parameter T
+//! count:  1
+//! xfail:  E9-S7-D1 -- same uncatalogued-message defect as array_template_arity_extra_arg.pss, different TaskBuildParamValList.cpp message ("No default provided for template parameter %s")
+component C {
+    list<> x;
+}

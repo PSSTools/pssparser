@@ -1,0 +1,10 @@
+//! id:     PSS110
+//! at:     8:29
+//! match:  unterminated template directive
+//! count:  1
+component C {
+    action A {
+        rand int a;
+        exec body cpp = """{% if (a) """;
+    }
+}

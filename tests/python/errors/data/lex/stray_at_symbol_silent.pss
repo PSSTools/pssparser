@@ -1,0 +1,8 @@
+//! id:     PSS027
+//! at:     7:1
+//! match:  unexpected character '@'
+//! count:  1
+//! xfail:  U-9 -- lexical errors never reach a marker at all; only the parser installs AstBuilderInt as its BaseErrorListener, so a stray '@' at file scope produces zero diagnostics (same root cause as PSS027 staying reserved, see plan.md S:0.5/E-3; tracked as known-issues.md's U-9 entry)
+
+@component C {
+}

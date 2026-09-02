@@ -1,0 +1,11 @@
+//! id:     PSS020
+//! at:     10:5
+//! match:  expected ';' before '}'
+//! count:  1
+//! files:  _error_in_file2_of_3_pre.pss, error_in_file2_of_3.pss, _error_in_file2_of_3_post.pss
+//! at-file: error_in_file2_of_3.pss
+component Main {
+    action A {
+        rand int x
+    }
+}

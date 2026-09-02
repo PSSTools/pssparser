@@ -1,0 +1,10 @@
+//! id:     PSS026
+//! at:     7:9
+//! match:  unexpected keyword 'component' in this context
+//! count:  1
+component C {
+    action A {
+        component D {
+        }
+    }
+}

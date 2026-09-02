@@ -1,0 +1,8 @@
+//! id:     PSS020
+//! at:     7:9
+//! match:  expected ';' before '<'
+//! count:  1
+component C {
+    list<list<int>> x;
+    list<list<int> y;
+}

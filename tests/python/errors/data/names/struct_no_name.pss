@@ -1,0 +1,5 @@
+//! id:     PSS022
+//! at:     5:8
+//! match:  expected identifier
+//! count:  1
+struct { int x; }

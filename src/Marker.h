@@ -22,6 +22,12 @@ public:
 			MarkerSeverityE		severity,
 			const ast::Location	&loc);
 
+	Marker(
+			const std::string	&msg,
+			MarkerSeverityE		severity,
+			const ast::Location	&loc,
+			const std::string	&id);
+
 	virtual ~Marker();
 
 	virtual const std::string &msg() const override { 
@@ -48,13 +54,31 @@ public:
 		m_loc = l;
 	}
 
+	virtual const std::string &id() const override {
+		return m_id;
+	}
+
+	virtual void setId(const std::string &id) override {
+		m_id = id;
+	}
+
+	virtual const std::vector<MarkerRelation> &related() const override {
+		return m_related;
+	}
+
+	virtual void addRelated(const ast::Location &loc, const std::string &label) override {
+		m_related.push_back(MarkerRelation{loc, label});
+	}
+
 	virtual IMarker *clone() const override;
-	
+
 
 private:
-	std::string			m_msg;
-	MarkerSeverityE		m_severity;
-	ast::Location		m_loc;
+	std::string					m_msg;
+	MarkerSeverityE				m_severity;
+	ast::Location				m_loc;
+	std::string					m_id;
+	std::vector<MarkerRelation>	m_related;
 
 };
 

@@ -111,11 +111,22 @@ def pytest_collection_modifyitems(config, items):
         if "performance/" in str(item.fspath):
             item.add_marker(pytest.mark.slow)
             item.add_marker(pytest.mark.performance)
-        
+
         # Mark integration tests
         if "integration/" in str(item.fspath):
             item.add_marker(pytest.mark.integration)
-        
+
         # Mark source reference tests
         if "source_references/" in str(item.fspath):
             item.add_marker(pytest.mark.source_ref)
+
+    # E-2's global message lints (test_message_lints.py) assert invariants
+    # over every marker any test produced via parse_collect() this session
+    # (test_helpers.ALL_MARKERS). That sink is only complete once every other
+    # test has run, so move these items to the very end regardless of their
+    # natural collection order (which would otherwise run tests/python/errors/
+    # before tests/python/parsing/ and tests/python/linking/, undercounting).
+    lint_items = [i for i in items if "test_message_lints.py" in str(i.fspath)]
+    if lint_items:
+        other_items = [i for i in items if i not in lint_items]
+        items[:] = other_items + lint_items

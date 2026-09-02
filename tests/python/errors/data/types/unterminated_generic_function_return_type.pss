@@ -1,0 +1,7 @@
+//! id:     PSS024
+//! at:     6:18
+//! match:  unexpected '<' expecting '('
+//! count:  1
+component C {
+    function list<int foo();
+}

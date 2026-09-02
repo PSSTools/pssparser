@@ -1,0 +1,6 @@
+//! id:     PSS020
+//! at:     6:1
+//! match:  expected '{' or ':' before 'struct'
+//! count:  1
+component C
+struct S { }

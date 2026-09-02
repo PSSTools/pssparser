@@ -1,0 +1,11 @@
+//! id:     PSS011
+//! at:     9:31
+//! match:  invalid digit 'Z' in based literal
+//! count:  1
+//! xfail:  E9-S8-D1 -- a malformed based literal ('hGZ) is not a lexical error at all: the bad digit is silently absorbed by the tokenizer and the parser instead reports "unknown identifier 'Z'" for the trailing character, naming the wrong construct entirely
+component C {
+    action A {
+        rand bit[8] x;
+        constraint { x == 'hGZ; }
+    }
+}

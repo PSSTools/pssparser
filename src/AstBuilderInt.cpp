@@ -41,6 +41,7 @@
 #include "pssp/ast/Location.h"
 #include "DocAnchorScope.h"
 #include "Marker.h"
+#include "pssp/IMarkerCollector.h"
 
 namespace pssp {
 
@@ -59,6 +60,8 @@ AstBuilderInt::AstBuilderInt(
 	m_field_depth = 0;
 	m_labeled_activity_id = 0;
 	m_constraint = 0;
+	m_last_syntax_error_token_idx = -1;
+	m_last_syntax_error_rule_idx = static_cast<size_t>(-1);
 
 }
 
@@ -103,6 +106,10 @@ void AstBuilderInt::build(
 
     // Clear any previous profiling data
     m_profile.reset();
+
+    // D2 cascade-suppression state is per-file, not per-process.
+    m_last_syntax_error_token_idx = -1;
+    m_last_syntax_error_rule_idx = static_cast<size_t>(-1);
 
     uint64_t parse_s = time_ms();
 	ANTLRInputStream input(*in);
@@ -1585,13 +1592,19 @@ antlrcpp::Any AstBuilderInt::visitProcedural_repeat_stmt(PSSParser::Procedural_r
         }
         stmt->getChildren().push_back(ast::IScopeChildUP(var));
 
-        body->setIndex(stmt->getChildren().size());
+        // `repeat (...) ;` -- an empty statement -- leaves body null.
+        if (body) {
+            body->setIndex(stmt->getChildren().size());
+        }
 
         m_exec_stmt = stmt;
         m_exec_stmt_cnt++;
     } else if (ctx->is_repeat_while) {
         ast::IScopeChild *body = mkExecStmt(ctx->procedural_stmt());
-        body->setIndex(0);
+        // `repeat ; while (...);` -- an empty statement -- leaves body null.
+        if (body) {
+            body->setIndex(0);
+        }
         ast::IProceduralStmtRepeatWhile *stmt = m_factory->mkProceduralStmtRepeatWhile(
             body,
             mkExpr(ctx->expression()));
@@ -1599,7 +1612,10 @@ antlrcpp::Any AstBuilderInt::visitProcedural_repeat_stmt(PSSParser::Procedural_r
         m_exec_stmt_cnt++;
     } else { // 'while'
         ast::IScopeChild *body = mkExecStmt(ctx->procedural_stmt());
-        body->setIndex(0);
+        // `while (...);` -- an empty statement -- leaves body null.
+        if (body) {
+            body->setIndex(0);
+        }
         ast::IProceduralStmtWhile *stmt = m_factory->mkProceduralStmtWhile(
             body,
             mkExpr(ctx->expression()));
@@ -4017,17 +4033,187 @@ antlrcpp::Any AstBuilderInt::visitStruct_literal(PSSParser::Struct_literalContex
     return 0;
 }
 
-static std::string rewriteSyntaxError(const std::string &msg, const std::string &sym) {
-    if (sym == "<EOF>") {
-        return "unexpected end of input; possible missing closing '}'";
+struct RewrittenSyntaxError {
+    std::string msg;
+    // PSS020-PSS028 sub-band ID, or empty for the PSS001 fallback (an
+    // ANTLR message shape this classifier does not (yet) recognize).
+    std::string id;
+};
+
+// D1: ANTLR reports a follow-set containing the bare token name ID (or its
+// ESCAPED_ID sibling, `\`escaped\``) whenever an identifier is legal at this
+// position -- regardless of what else is *also* legal there (a leading '::'
+// for a qualified name, 'super' at a super-reference, a trailing '*' or '{'
+// at an import spec, ...). Originally three exact strings, one added by hand
+// each time a new grammar position turned up one; generalized to "does ID
+// appear as a standalone element of the set" after E-7's mutation sweep hit
+// a fourth position (import specs) the same day a third (super_ref) was
+// added -- enumerating every position by hand does not scale, and the
+// simplified "expected identifier" message is correct for all of them: an
+// identifier is always among the legal continuations when ID is in the set.
+//
+// Capped at MAX_ELEMENTS: a *name* position's follow set is a short,
+// specific list (qualifiers, ID, ESCAPED_ID -- 5 elements at most seen so
+// far). An *expression* position's follow set also contains ID (any
+// expression can start with an identifier) but alongside a dozen-plus other
+// alternatives (literals, unary operators, '('...) -- e.g. after a bare
+// `return` or a trailing comma in a call's argument list. Collapsing that
+// large a set to "expected identifier" would be actively wrong (the L1
+// corpus's punct/missing_semicolon_return.pss and
+// punct/extra_trailing_comma_call.pss cases pin the correct PSS024 fallback
+// for exactly this shape), so those fall through to the length-gated
+// generic handling instead.
+static bool setBodyHasBareIdentifierElement(const std::string &body) {
+    static const size_t MAX_ELEMENTS = 5;
+    bool foundId = false;
+    size_t elementCount = 0;
+    size_t pos = 0;
+    while (pos <= body.size()) {
+        size_t comma = body.find(", ", pos);
+        std::string elem = (comma == std::string::npos)
+            ? body.substr(pos) : body.substr(pos, comma - pos);
+        elementCount++;
+        // Exact match -- avoids false positives from a quoted literal
+        // containing "ID" or from ESCAPED_ID as a *substring* of some other
+        // token name.
+        if (elem == "ID" || elem == "ESCAPED_ID") {
+            foundId = true;
+        }
+        if (comma == std::string::npos) {
+            break;
+        }
+        pos = comma + 2;
     }
-    if (msg.find("missing {ID, ESCAPED_ID}") != std::string::npos) {
-        return "expected identifier before '" + sym + "'";
+    return foundId && elementCount <= MAX_ELEMENTS;
+}
+
+// A set whose every element is a string-literal token -- a template `exec`
+// file body's `"""..."""` position accepts either quoting style, so ANTLR's
+// set here is exactly {DOUBLE_QUOTED_STRING, TRIPLE_DOUBLE_QUOTED_STRING},
+// two bare lexer token names with no quoted-literal spelling to fall back
+// on (unlike punctuation, a string token's *text* is the file contents, not
+// a fixed spelling ANTLR can quote). Same "one recognizable shape, humanize
+// it" treatment as the identifier case above, found by the same E-7 sweep.
+static bool setBodyIsStringLiteral(const std::string &body) {
+    if (body.empty()) {
+        return false;
+    }
+    size_t pos = 0;
+    while (pos <= body.size()) {
+        size_t comma = body.find(", ", pos);
+        std::string elem = (comma == std::string::npos)
+            ? body.substr(pos) : body.substr(pos, comma - pos);
+        if (elem != "DOUBLE_QUOTED_STRING" && elem != "TRIPLE_DOUBLE_QUOTED_STRING") {
+            return false;
+        }
+        if (comma == std::string::npos) {
+            break;
+        }
+        pos = comma + 2;
+    }
+    return true;
+}
+
+// The "what ANTLR wants here" fragment of a message: either a braced set
+// (`{'a', 'b'}`) or a single bare/quoted element with no braces at all
+// (`'a'`, or the bare token name `ID`). Every classifier branch below that
+// inspects or reformats this fragment goes through here once instead of
+// re-deriving "does it start with '{'" and "where's the matching '}'"
+// independently at each call site.
+static std::string setBody(const std::string &text) {
+    if (!text.empty() && text.front() == '{') {
+        size_t close = text.find('}');
+        if (close != std::string::npos) {
+            return text.substr(1, close - 1);
+        }
+    }
+    return text;
+}
+
+// Strip ANTLR's brace-set syntax from `text`, and prefix a multi-element set
+// with "one of" so the result reads as plain English:
+// "{'static', 'function'}" -> "one of 'static', 'function'"; a single
+// element is returned with its braces (if any) simply removed. Does not
+// touch a set containing a bare token name (ID, TOK_*, ...) -- that shape is
+// jargon for a different reason (setBodyHasBareIdentifierElement above) and
+// is left to G3 to catch, since a real fix needs the rule-context name table
+// this classifier deliberately doesn't have (see E-6's Landed note).
+static std::string humanizeSetText(const std::string &text) {
+    std::string body = setBody(text);
+    if (body == text || body.find(',') == std::string::npos) {
+        return body;
+    }
+    return "one of " + body;
+}
+
+// G7: the offending token's own text is quoted into most of the messages
+// below. It is usually a handful of punctuation characters, but ANTLR hands
+// back the *full* text of whatever token it actually matched -- a triple-
+// quoted template string, say -- and that can be arbitrarily long and
+// contain embedded newlines. Every "'" + sym + "'" splice uses this
+// sanitized form instead of raw `sym`; boolean checks on `sym` (size,
+// first-character class, an exact keyword match) keep using the original,
+// since sanitizing would not change their answer.
+static std::string sanitizeSymForMessage(const std::string &sym) {
+    static const size_t MAX_LEN = 40;
+    std::string out;
+    out.reserve(sym.size());
+    for (char c : sym) {
+        out += (c == '\n' || c == '\r' || c == '\t') ? ' ' : c;
+    }
+    if (out.size() > MAX_LEN) {
+        out = out.substr(0, MAX_LEN) + "...";
+    }
+    return out;
+}
+
+static RewrittenSyntaxError rewriteSyntaxError(const std::string &msg, const std::string &symRaw) {
+    const std::string sym = sanitizeSymForMessage(symRaw);
+    if (msg.rfind("missing ", 0) == 0) {
+        // ANTLR's single-token-insertion recovery: "missing 'X' at 'Y'" when
+        // exactly one token would satisfy the position, or
+        // "missing {A, B, ...} at 'Y'" when more than one would. Originally
+        // two separate branches (an {ID, ESCAPED_ID}-only special case, and
+        // a single-quoted-token catch-all); unified after E-7's mutation
+        // sweep hit a third shape, "missing {DOUBLE_QUOTED_STRING,
+        // TRIPLE_DOUBLE_QUOTED_STRING} at ...", a braced set that is neither.
+        size_t at = msg.find(" at ");
+        std::string what = msg.substr(std::string("missing ").size(),
+            at == std::string::npos ? std::string::npos
+                                     : at - std::string("missing ").size());
+        if (setBodyHasBareIdentifierElement(setBody(what))) {
+            return {"expected identifier before '" + sym + "'", "PSS022"};
+        }
+        if (setBodyIsStringLiteral(setBody(what))) {
+            return {"expected a string literal before '" + sym + "'", "PSS020"};
+        }
+        return {"expected " + humanizeSetText(what) + " before '" + sym + "'", "PSS020"};
     }
     if (msg.find("mismatched input") != std::string::npos) {
+        // Everything from "expecting" to the end of the message -- the
+        // "what ANTLR wants here" clause every "mismatched input" message
+        // carries. Computed once and reused by every sub-branch below
+        // instead of each re-searching for "expecting" independently.
+        size_t expectingAt = msg.find("expecting");
+        std::string expecting = (expectingAt == std::string::npos)
+            ? std::string() : msg.substr(expectingAt);
+        std::string expectingWhat = expecting.empty()
+            ? std::string() : expecting.substr(std::string("expecting ").size());
+
+        if (setBodyHasBareIdentifierElement(setBody(expectingWhat))) {
+            // D1: same "an identifier belongs here" situation as the
+            // single-token-insertion branch above, just reached via ANTLR's
+            // other recovery strategy (deletion+report instead of
+            // insertion+report) -- give it the same PSS022 wording instead
+            // of leaking the raw expecting-set as a generic PSS024.
+            return {"expected identifier before '" + sym + "'", "PSS022"};
+        }
+        if (setBodyIsStringLiteral(setBody(expectingWhat))) {
+            return {"expected a string literal before '" + sym + "'", "PSS020"};
+        }
         if (msg.find("expecting {',', ';'}") != std::string::npos ||
             msg.find("expecting ';'") != std::string::npos) {
-            return "expected ';' before '" + sym + "'";
+            return {"expected ';' before '" + sym + "'", "PSS020"};
         }
         if (msg.find("expecting {'{', ':', '<'}") != std::string::npos ||
             msg.find("expecting {'{', ':'}") != std::string::npos) {
@@ -4035,25 +4221,65 @@ static std::string rewriteSyntaxError(const std::string &msg, const std::string 
             if (sym == "extends") {
                 hint = "; use ':' for inheritance, not 'extends'";
             }
-            return "expected '{' or ':' before '" + sym + "'" + hint;
+            return {"expected '{' or ':' before '" + sym + "'" + hint, "PSS020"};
         }
-        std::string expecting = msg.substr(msg.find("expecting"));
         if (expecting.size() > 60) {
-            return "unexpected '" + sym + "' in this context";
+            return {"unexpected '" + sym + "' in this context", "PSS024"};
         }
-        return "unexpected '" + sym + "' " + expecting;
+        return {"unexpected '" + sym + "' expecting "
+            + humanizeSetText(expectingWhat), "PSS024"};
     }
     if (msg.find("extraneous input") != std::string::npos) {
-        if (sym.size() == 1 && !isalpha(sym[0])) {
-            return "unexpected '" + sym + "' in this context";
-        } else {
-            return "unexpected keyword '" + sym + "' in this context";
+        // D11: only call the offending token a "keyword" when it looks like
+        // one (starts with a letter or '_'). A numeric literal or a
+        // multi-char punctuation run is neither punctuation-single-char
+        // (the PSS025 case) nor a keyword -- it still belongs to PSS025's
+        // sibling PSS026 bucket (this classifier only has the two), but
+        // should not be *called* a keyword.
+        bool looksLikeKeyword = !sym.empty() &&
+            (isalpha((unsigned char)sym[0]) || sym[0] == '_');
+        if (sym.size() == 1 && !isalpha((unsigned char)sym[0])) {
+            return {"unexpected '" + sym + "' in this context", "PSS025"};
         }
+        if (looksLikeKeyword) {
+            return {"unexpected keyword '" + sym + "' in this context", "PSS026"};
+        }
+        return {"unexpected '" + sym + "' in this context", "PSS026"};
     }
     if (msg.find("no viable alternative") != std::string::npos) {
-        return "syntax error at '" + sym + "'";
+        return {"syntax error at '" + sym + "'", "PSS028"};
     }
-    return msg;
+    return {msg, ""};
+}
+
+/**
+ * D8: names of the two grammar rules that get "unclosed '{' for KIND 'NAME'"
+ * treatment when input runs out while they're still open. Only checked
+ * against the innermost active rule at the point of the EOF error -- a
+ * truncation several rules deeper (mid-exec-body, say) is a less specific
+ * diagnosis than pointing at a distant enclosing component's brace would be,
+ * so it deliberately falls through to the generic EOF message instead.
+ */
+static bool findUnclosedOpener(
+        ParserRuleContext *ctx, std::string &kind, std::string &name, Token *&open) {
+    if (PSSParser::Component_declarationContext *cc =
+            dynamic_cast<PSSParser::Component_declarationContext *>(ctx)) {
+        if (cc->TOK_LCBRACE() && cc->component_identifier()) {
+            kind = "component";
+            name = cc->component_identifier()->getText();
+            open = cc->TOK_LCBRACE()->getSymbol();
+            return true;
+        }
+    } else if (PSSParser::Struct_declarationContext *sc =
+            dynamic_cast<PSSParser::Struct_declarationContext *>(ctx)) {
+        if (sc->TOK_LCBRACE() && sc->identifier()) {
+            kind = "struct";
+            name = sc->identifier()->getText();
+            open = sc->TOK_LCBRACE()->getSymbol();
+            return true;
+        }
+    }
+    return false;
 }
 
 void AstBuilderInt::syntaxError(
@@ -4063,22 +4289,89 @@ void AstBuilderInt::syntaxError(
 			size_t charPositionInLine,
 			const std::string &msg,
 			std::exception_ptr e) {
-	DEBUG_ERROR("Error: Syntax error: line=%d pos=%d sym=%s",
-        (int)line, (int)charPositionInLine, offendingSymbol->getText().c_str());
 	if (m_marker_l) {
+		if (IMarkerCollector *coll = dynamic_cast<IMarkerCollector *>(m_marker_l)) {
+			if (coll->maxErrorsExceeded()) {
+				// PSS029 already announced; a hopelessly-broken file can
+				// otherwise cascade into thousands of recovery errors.
+				return;
+			}
+		}
+
+		const std::string sym = offendingSymbol->getText();
+
+		// D2: cascade suppression. A second syntax error within a couple of
+		// tokens of the last one, and still inside the same rule, is almost
+		// always ANTLR flailing through the same garbage region rather than
+		// an independent defect -- report only the first.
+		size_t rule_idx = static_cast<size_t>(-1);
+		Parser *parser = dynamic_cast<Parser *>(recognizer);
+		if (parser && parser->getContext()) {
+			rule_idx = parser->getContext()->getRuleIndex();
+		}
+		ssize_t tok_idx = static_cast<ssize_t>(offendingSymbol->getTokenIndex());
+		bool suppress =
+			m_last_syntax_error_token_idx >= 0 &&
+			rule_idx == m_last_syntax_error_rule_idx &&
+			tok_idx >= m_last_syntax_error_token_idx &&
+			(tok_idx - m_last_syntax_error_token_idx) <= 2;
+		m_last_syntax_error_token_idx = tok_idx;
+		m_last_syntax_error_rule_idx = rule_idx;
+		if (suppress) {
+			return;
+		}
+
 		ast::Location loc;
 		loc.fileid = m_file_id;
 		loc.lineno = line;
 		loc.linepos = charPositionInLine;
-        loc.extent = offendingSymbol->getText().size();
+        loc.extent = sym.size();
 
-		std::string rewritten = rewriteSyntaxError(msg, offendingSymbol->getText());
+        if (sym == "<EOF>") {
+            std::string kind, name;
+            Token *open = nullptr;
+            if (parser && parser->getContext() &&
+                    findUnclosedOpener(parser->getContext(), kind, name, open)) {
+                ast::Location open_loc;
+                open_loc.fileid = m_file_id;
+                open_loc.lineno = open->getLine();
+                open_loc.linepos = open->getCharPositionInLine();
+                open_loc.extent = 1;
 
-		Marker m(
-				rewritten,
-				MarkerSeverityE::Error,
-				loc);
-		m_marker_l->marker(&m);
+                Marker m(
+                    "unclosed '{' for " + kind + " '" + name + "'",
+                    MarkerSeverityE::Error,
+                    open_loc,
+                    std::string("PSS021"));
+                m.addRelated(loc, "input ends here");
+                m_marker_l->marker(&m);
+            } else {
+                Marker m(
+                    "unexpected end of input; missing closing '}'",
+                    MarkerSeverityE::Error,
+                    loc,
+                    std::string("PSS021"));
+                m_marker_l->marker(&m);
+            }
+            return;
+        }
+
+		RewrittenSyntaxError rewritten = rewriteSyntaxError(msg, sym);
+
+		if (rewritten.id.empty()) {
+			Marker m(
+					rewritten.msg,
+					MarkerSeverityE::Error,
+					loc);
+			m_marker_l->marker(&m);
+		} else {
+			Marker m(
+					rewritten.msg,
+					MarkerSeverityE::Error,
+					loc,
+					rewritten.id);
+			m_marker_l->marker(&m);
+		}
 	}
 }
 

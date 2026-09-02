@@ -1,0 +1,7 @@
+//! id:     PSS028
+//! at:     6:13
+//! match:  syntax error at 'action'
+//! count:  1
+component C {
+    virtual action A { }
+}

@@ -80,13 +80,6 @@ class TestDiagnosticCollection:
         c.add(self._make("error"))
         assert c.has_errors
 
-    def test_max_errors(self):
-        c = DiagnosticCollection(max_errors=2)
-        assert c.add(self._make("error")) is True
-        assert c.add(self._make("error")) is True
-        # Third error exceeds limit
-        assert c.add(self._make("error")) is False
-
     def test_files(self):
         c = DiagnosticCollection()
         c.add(Diagnostic(file="a.pss", line=1, col=1, severity="error", message=""))

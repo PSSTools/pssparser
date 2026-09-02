@@ -1,0 +1,7 @@
+//! id:     PSS024
+//! at:     5:1
+//! match:  unexpected 'activity' in this context
+//! count:  1
+activity {
+    do A;
+}

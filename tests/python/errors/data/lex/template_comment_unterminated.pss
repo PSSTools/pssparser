@@ -1,0 +1,9 @@
+//! id:     PSS110
+//! at:     7:29
+//! match:  unterminated template comment
+//! count:  1
+component C {
+    action A {
+        exec body cpp = """{# comment""";
+    }
+}

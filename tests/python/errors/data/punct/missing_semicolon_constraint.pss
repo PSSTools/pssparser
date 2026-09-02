@@ -1,0 +1,10 @@
+//! id:     PSS028
+//! at:     10:1
+//! match:  syntax error at '}'
+//! count:  1
+struct S {
+    rand int x;
+    constraint {
+        x > 0
+    }
+}

@@ -15,6 +15,16 @@ _SYMBOL_RE = re.compile(
 
 
 @dataclass
+class Relation:
+    """A secondary location attached to a diagnostic (e.g. an opening brace)."""
+
+    file: str
+    line: int
+    col: int
+    label: str
+
+
+@dataclass
 class Diagnostic:
     """One diagnostic (error / warning / info / hint)."""
 
@@ -27,13 +37,14 @@ class Diagnostic:
     code: Optional[str] = None
     end_col: Optional[int] = None
     notes: List[str] = field(default_factory=list)
+    related: List[Relation] = field(default_factory=list)
 
     @classmethod
     def from_marker(cls, marker: dict) -> "Diagnostic":
         """Build a ``Diagnostic`` from a structured marker dict.
 
         Marker dicts come from ``Parser.markers`` and have keys:
-        severity, message, file, line, col.
+        severity, message, file, line, col, extent, related, code.
         """
         msg = marker.get("message", "")
         suggestion = extract_suggestion(msg)
@@ -41,10 +52,25 @@ class Diagnostic:
         col = marker.get("col", 1)
         end_col: Optional[int] = None
 
-        # Try to derive underline length from the symbol name in the message
-        sym_m = _SYMBOL_RE.search(msg)
-        if sym_m:
-            end_col = col + len(sym_m.group(1))
+        # Prefer the extent the C++ builder computed; fall back to guessing
+        # the underline length from the symbol name in the message.
+        extent = marker.get("extent") or 0
+        if extent > 0:
+            end_col = col + extent
+        else:
+            sym_m = _SYMBOL_RE.search(msg)
+            if sym_m:
+                end_col = col + len(sym_m.group(1))
+
+        related = [
+            Relation(
+                file=rel.get("file", "<unknown>"),
+                line=rel.get("line", 0),
+                col=rel.get("col", 1),
+                label=rel.get("label", ""),
+            )
+            for rel in marker.get("related", [])
+        ]
 
         return cls(
             file=marker.get("file", "<unknown>"),
@@ -55,22 +81,24 @@ class Diagnostic:
             suggestion=suggestion,
             code=marker.get("code"),
             end_col=end_col,
+            related=related,
         )
 
 
 class DiagnosticCollection:
-    """Accumulates diagnostics and provides counts / filtering."""
+    """Accumulates diagnostics and provides counts / filtering.
 
-    def __init__(self, max_errors: int = 20) -> None:
+    ``--max-errors`` is enforced upstream, by the C++ marker collector (see
+    ``Parser.set_max_errors``): a capped file's marker list already contains
+    at most ``max_errors`` errors plus one PSS029 marker announcing the
+    cutoff. This collection just holds whatever it is handed.
+    """
+
+    def __init__(self) -> None:
         self._diags: List[Diagnostic] = []
-        self._max_errors = max_errors  # 0 = unlimited
 
-    def add(self, diag: Diagnostic) -> bool:
-        """Append a diagnostic.  Returns ``False`` when max errors reached."""
+    def add(self, diag: Diagnostic) -> None:
         self._diags.append(diag)
-        if self._max_errors and self.error_count > self._max_errors:
-            return False
-        return True
 
     @property
     def diagnostics(self) -> List[Diagnostic]:

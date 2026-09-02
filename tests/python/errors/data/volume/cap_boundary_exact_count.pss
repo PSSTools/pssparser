@@ -1,0 +1,10 @@
+//! id:     PSS022
+//! at:     6:17
+//! match:  expected identifier before ';'
+//! count:  5
+//! max-errors: 5
+struct S0 { int ; }
+struct S1 { int ; }
+struct S2 { int ; }
+struct S3 { int ; }
+struct S4 { int ; }
