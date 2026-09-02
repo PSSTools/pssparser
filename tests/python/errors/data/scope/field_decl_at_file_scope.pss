@@ -1,0 +1,5 @@
+//! id:     PSS024
+//! at:     5:1
+//! match:  unexpected 'int' in this context
+//! count:  1
+int x;

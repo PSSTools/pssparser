@@ -1,0 +1,10 @@
+$ pssparser tests/python/errors/data/braces/unclosed_component_opener_pointer.pss (exit 1)
+--- stdout ---
+--- stderr ---
+tests/python/errors/data/braces/unclosed_component_opener_pointer.pss:6:13: error: unclosed '{' for component 'C'
+ 6 | component C {
+   |             ^
+  note: input ends here
+   --> tests/python/errors/data/braces/unclosed_component_opener_pointer.pss:8:1
+
+1 error in 1 file

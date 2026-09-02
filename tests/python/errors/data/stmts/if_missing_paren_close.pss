@@ -1,0 +1,15 @@
+//! id:     PSS020
+//! at:     10:24
+//! match:  expected ')' before '{'
+//! count:  1
+component C {
+    action A {
+    }
+    action B {
+        activity {
+            if (x == 1 {
+                do A;
+            }
+        }
+    }
+}

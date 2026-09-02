@@ -59,6 +59,39 @@ class HumanOutput:
         self._stream = stream or sys.stderr
         self._color = _use_color(self._stream, color)
 
+    def _source_block(
+        self,
+        w,
+        file: str,
+        line: int,
+        col: int,
+        end_col: Optional[int],
+        caret_col: str,
+        indent: str = "",
+    ) -> bool:
+        """Write a gutter'd source line plus a caret line under it.
+
+        Returns ``True`` if a source line was found and written (callers use
+        this to decide whether a suggestion-replacement line makes sense).
+        """
+        c = self._color
+        src_line = self._src.get_line(file, line)
+        if src_line is None:
+            return False
+
+        gutter_w = len(str(line))
+        gutter = f"{line:>{gutter_w}}"
+        blank = " " * gutter_w
+
+        w(f"{indent} {_c(gutter, _DIM, c)} | {src_line}\n")
+
+        span = 1
+        if end_col and end_col > col:
+            span = end_col - col
+        caret = make_caret_line(col, span)
+        w(f"{indent} {blank} | {_c(caret, caret_col, c)}\n")
+        return True
+
     def emit(self, diag: Diagnostic) -> None:
         w = self._stream.write
         c = self._color
@@ -70,26 +103,27 @@ class HumanOutput:
         sev = _c(f"{diag.severity}:", sev_col, c)
         w(f"{_c(loc, _BOLD, c)}: {sev} {diag.message}\n")
 
-        # source context line
-        src_line = self._src.get_line(diag.file, diag.line)
-        if src_line is not None:
+        # source context line + caret
+        has_src = self._source_block(
+            w, diag.file, diag.line, diag.col, diag.end_col, sev_col
+        )
+
+        # suggestion replacement
+        if has_src and diag.suggestion:
             gutter_w = len(str(diag.line))
-            gutter = f"{diag.line:>{gutter_w}}"
             blank = " " * gutter_w
+            pad = " " * (diag.col - 1)
+            w(f" {blank} | {_c(pad + diag.suggestion, _GREEN, c)}\n")
 
-            w(f" {_c(gutter, _DIM, c)} | {src_line}\n")
-
-            # caret line
-            span = 1
-            if diag.end_col and diag.end_col > diag.col:
-                span = diag.end_col - diag.col
-            caret = make_caret_line(diag.col, span)
-            w(f" {blank} | {_c(caret, sev_col, c)}\n")
-
-            # suggestion replacement
-            if diag.suggestion:
-                pad = " " * (diag.col - 1)
-                w(f" {blank} | {_c(pad + diag.suggestion, _GREEN, c)}\n")
+        # related locations -- indented `note:` lines, each with its own
+        # source line and caret (E-8; closes D5's related-location half).
+        for rel in diag.related:
+            note_loc = f"{rel.file}:{rel.line}:{rel.col}"
+            w(f"  {_c('note:', _DIM, c)} {rel.label}\n")
+            w(f"   {_c('-->', _DIM, c)} {note_loc}\n")
+            self._source_block(
+                w, rel.file, rel.line, rel.col, None, _DIM, indent="  "
+            )
 
         w("\n")
 
@@ -136,6 +170,11 @@ class JsonOutput:
             entry["suggestion"] = diag.suggestion
         if diag.code:
             entry["code"] = diag.code
+        if diag.related:
+            entry["related"] = [
+                {"file": r.file, "line": r.line, "col": r.col, "label": r.label}
+                for r in diag.related
+            ]
         self._items.append(entry)
 
     def summary(self, coll: DiagnosticCollection) -> None:

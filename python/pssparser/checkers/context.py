@@ -4,6 +4,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
+RelatedLocation = Dict[str, Any]
+
 
 @dataclass
 class CheckContext:
@@ -49,6 +51,8 @@ class CheckContext:
         col: int,
         message: str,
         severity: Optional[str] = None,
+        extent: int = 0,
+        related: Optional[List[RelatedLocation]] = None,
     ) -> None:
         """Emit one diagnostic from within a checker.
 
@@ -69,6 +73,16 @@ class CheckContext:
         severity:
             Override the default severity declared in the ``MarkerDef``.
             If omitted, the ``MarkerDef.severity`` is used.
+        extent:
+            Length in characters of the primary span, so the CLI can
+            underline the whole offending token/name instead of one column.
+            Defaults to 0 (unknown).
+        related:
+            Secondary locations relevant to the diagnostic — e.g. the
+            declaration a duplicate collides with, or the opener of an
+            unclosed scope. Each entry is a dict with keys ``file``,
+            ``line``, ``col``, and ``label`` (the note text shown under that
+            location). Defaults to none.
 
         Raises
         ------
@@ -87,6 +101,8 @@ class CheckContext:
             "line": line,
             "col": col,
             "code": code,
+            "extent": extent,
+            "related": related if related is not None else [],
         }
         self._markers.append(entry)
 

@@ -1,0 +1,3 @@
+@nosuch_ann component C {
+    int a;
+}

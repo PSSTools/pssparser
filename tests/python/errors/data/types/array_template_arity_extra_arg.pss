@@ -1,0 +1,8 @@
+//! id:     PSS001
+//! at:     6:5
+//! match:  type accepts 2 template parameter(s) but 3 supplied
+//! count:  1
+//! xfail:  E9-S7-D1 -- template-parameter arity/default diagnostics (TaskBuildParamValList.cpp) carry no marker ID at all (code is None, not even the PSS001 fallback), since core_checker.py's marker_defs has no pattern matching "type accepts N template parameter(s)"
+component C {
+    array<int, 4, 5> x;
+}

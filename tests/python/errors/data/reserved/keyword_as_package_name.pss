@@ -1,0 +1,6 @@
+//! id:     PSS022
+//! at:     5:9
+//! match:  expected identifier before 'action'
+//! count:  1
+package action {
+}

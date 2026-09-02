@@ -1,0 +1,5 @@
+//! id:     PSS024
+//! at:     5:1
+//! match:  unexpected 'pool' in this context
+//! count:  1
+pool [4] foo_c p_foo;

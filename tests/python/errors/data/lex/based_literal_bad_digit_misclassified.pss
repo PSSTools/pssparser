@@ -1,0 +1,10 @@
+//! id:     PSS011
+//! at:     8:30
+//! match:  invalid digit 'G' in based literal
+//! count:  1
+component C {
+    action A {
+        rand bit[8] x;
+        constraint { x == 'hGZ; }
+    }
+}

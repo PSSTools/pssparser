@@ -1,0 +1,8 @@
+$ pssparser tests/python/errors/data/punct/missing_semicolon_return.pss (exit 1)
+--- stdout ---
+--- stderr ---
+[1mtests/python/errors/data/punct/missing_semicolon_return.pss:9:9[0m: [1;31merror:[0m unexpected '}' in this context
+ [2m9[0m |         }
+   | [1;31m        ^[0m
+
+1 error in 1 file

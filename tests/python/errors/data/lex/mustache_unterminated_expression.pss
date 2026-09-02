@@ -1,0 +1,10 @@
+//! id:     PSS108
+//! at:     8:33
+//! match:  unterminated mustache expression
+//! count:  1
+component C {
+    action A {
+        rand int a;
+        exec body cpp = """v = {{a""";
+    }
+}

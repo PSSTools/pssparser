@@ -1,0 +1,5 @@
+//! id:     PSS025
+//! at:     5:19
+//! match:  unexpected '*'
+//! count:  1
+struct S { int x; * }

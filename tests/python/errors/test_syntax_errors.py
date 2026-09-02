@@ -3,79 +3,87 @@ Phase 3 error handling tests: readable syntax error messages.
 
 Verify that ANTLR parse errors are rewritten to human-readable messages
 instead of raw token-set jargon.
+
+Migrated off exception-string assertions (D7): these now assert on the
+structured marker dict via ``parse_collect``/``find_markers``, so location
+and count are checked, not just a substring of the stringified exception.
 """
-import pytest
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-
-def get_error(code):
-    """Parse code and return error message string, or None if no error."""
-    from pssparser import Parser
-    try:
-        p = Parser()
-        p.parses([('test.pss', code)])
-        p.link()
-        return None
-    except Exception as e:
-        return str(e)
+from test_helpers import parse_collect, find_markers  # noqa: E402
 
 
 def test_missing_semicolon_message():
-    """Missing semicolon → message mentions ';'"""
-    err = get_error('struct S { int x }')
-    assert err is not None
-    assert "';'" in err
+    """Missing semicolon -> message mentions ';', located at the gap."""
+    _root, markers = parse_collect('struct S { int x }')
+    errs = find_markers(markers, severity="error")
+    assert len(errs) == 1
+    assert "';'" in errs[0]["message"]
+    assert errs[0]["line"] == 1
+    assert errs[0]["col"] == 18
 
 
 def test_missing_name_message():
-    """Missing identifier → 'expected identifier'"""
-    err = get_error('component { }')
-    assert err is not None
-    assert "expected identifier" in err
+    """Missing identifier -> 'expected identifier'."""
+    _root, markers = parse_collect('component { }')
+    errs = find_markers(markers, severity="error", text="expected identifier")
+    assert len(errs) == 1
+    assert errs[0]["line"] == 1
+    assert errs[0]["col"] == 11
 
 
 def test_extends_vs_colon_message():
-    """'extends' instead of ':' → helpful hint"""
-    err = get_error('struct D extends B { };')
-    assert err is not None
-    assert "':'" in err
-    assert "extends" in err
+    """'extends' instead of ':' -> helpful hint naming both tokens."""
+    _root, markers = parse_collect('struct D extends B { };')
+    errs = find_markers(markers, severity="error")
+    assert len(errs) == 1
+    assert "':'" in errs[0]["message"]
+    assert "extends" in errs[0]["message"]
 
 
 def test_extraneous_keyword_message():
-    """Keyword in wrong place → 'unexpected keyword'"""
-    err = get_error('rand struct S { };')
-    assert err is not None
-    assert "unexpected" in err
+    """Keyword in wrong place -> 'unexpected keyword'."""
+    _root, markers = parse_collect('rand struct S { };')
+    errs = find_markers(markers, severity="error", text="unexpected keyword")
+    assert len(errs) == 1
+    assert errs[0]["line"] == 1
+    assert errs[0]["col"] == 1
 
 
 def test_syntax_error_at():
-    """No viable alternative → 'syntax error at'"""
-    err = get_error('struct S { x; };')
-    assert err is not None
-    assert "syntax error" in err
+    """No viable alternative -> 'syntax error at'."""
+    _root, markers = parse_collect('struct S { x; };')
+    errs = find_markers(markers, severity="error", text="syntax error")
+    assert len(errs) == 1
 
 
 def test_error_includes_location():
-    """All errors include file:line:col"""
-    err = get_error('struct S { int x }')
-    assert err is not None
-    assert "test.pss:" in err
+    """All errors include file, line, and column."""
+    _root, markers = parse_collect('struct S { int x }', filename="test.pss")
+    errs = find_markers(markers, severity="error")
+    assert len(errs) == 1
+    assert errs[0]["file"] == "test.pss"
+    assert errs[0]["line"] == 1
+    assert errs[0]["col"] == 18
 
 
 def test_missing_closing_brace():
-    """Unclosed brace → produces error"""
-    err = get_error('struct S { int x; ')
-    assert err is not None
+    """Unclosed brace -> exactly one error, at end of input."""
+    _root, markers = parse_collect('struct S { int x; ')
+    errs = find_markers(markers, severity="error")
+    assert len(errs) == 1
+    assert errs[0]["line"] == 1
 
 
 def test_invalid_operator_in_constraint():
-    """Invalid operator → syntax error"""
-    err = get_error('''
+    """Invalid operator ('===') -> a syntax error inside the constraint."""
+    _root, markers = parse_collect('''
 component pss_top {
     action A { rand int x; constraint { x === 5; } }
 }''')
-    assert err is not None
+    errs = find_markers(markers, severity="error", text="syntax error")
+    assert len(errs) == 1
+    assert errs[0]["line"] == 3

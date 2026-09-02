@@ -1,0 +1,7 @@
+//! id:     PSS024
+//! at:     5:10
+//! match:  unexpected 'struct' in this context
+//! count:  1
+enum E : struct {
+    A, B
+}

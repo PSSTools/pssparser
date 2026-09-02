@@ -185,7 +185,6 @@ BROKEN_BUCKETS = _manifest_broken_buckets() or FALLBACK_BROKEN_BUCKETS
 #: future ``U-8f`` cannot inherit a withdrawn one's history.
 RECORDED_DEFECTS = {
     "U-8b": "`dist` constraints",
-    "U-8d": "`_` separator inside a based number's value (16'sH_FF)",
     "U-8e": "octal escape in a string literal (\"\\101\")",
     # Not a U-8: those are valid PSS the grammar will not accept. This is the
     # opposite direction, and it was found here rather than downstream.
@@ -208,8 +207,6 @@ RECORDED_DEFECTS = {
 #: files now declare their actions inside a component; see P7-C1 and the
 #: "Completing LRM examples" rule in ``PROVENANCE.md``.
 KNOWN_UNPARSEABLE = {
-    "lexical/numbers.pss":
-        "U-8d: `_` separator inside a based number's value (16'sH_FF)",
     "lexical/comments_and_strings.pss":
         "U-8e: octal escape in a string literal (\"\\101\")",
     "lexical/operators.pss":

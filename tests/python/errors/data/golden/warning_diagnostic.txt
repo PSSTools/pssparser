@@ -1,0 +1,8 @@
+$ pssparser tests/python/errors/data/golden/warning_annotation.pss (exit 0)
+--- stdout ---
+--- stderr ---
+tests/python/errors/data/golden/warning_annotation.pss:1:2: warning: unknown annotation type 'nosuch_ann'; annotation disregarded
+ 1 | @nosuch_ann component C {
+   |  ^
+
+1 warning in 1 file

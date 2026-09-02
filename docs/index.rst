@@ -67,4 +67,5 @@ Key Features
    :caption: Reference:
 
    reference_api_docs
+   markers
 

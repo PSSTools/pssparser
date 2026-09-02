@@ -1,0 +1,11 @@
+//! id:     PSS028
+//! at:     8:15
+//! match:  syntax error at '=='
+//! count:  1
+component C {
+    action A {
+        exec body {
+            x == 5;
+        }
+    }
+}

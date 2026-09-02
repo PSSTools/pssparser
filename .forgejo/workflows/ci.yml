@@ -3,6 +3,13 @@
 # Linux x86_64 only, by decision (2026-07-28). macOS / Windows / aarch64 are
 # out of scope -- see ~/Documents/pssparser-cicd-design.md §9.
 #
+# THAT SCOPE DECISION IS WHY THIS IS NO LONGER THE RELEASE PATH. As of
+# 2026-09-01 sync-policy.toml pins release_authority = "github" for this
+# repository: a pssparser release is a matrix of compiled wheels, and three of
+# its four platforms can only be built on the other forge. The `publish-pypi`
+# job below is retained and disarms itself through the switch -- see the note
+# on that job.
+#
 # Two things differ from the GitHub workflow this was ported from, and both
 # matter:
 #
@@ -320,9 +327,26 @@ jobs:
     #
     # `authority == 'forgejo'` resolves that from a single source of truth:
     # https://dvkit.org/.well-known/release-authority.json, generated from
-    # sync-policy.toml, which pins release_authority = "forgejo" for this
-    # repository. Moving the release to GitHub is then a policy edit and a
-    # re-emit, with no change to any workflow file.
+    # sync-policy.toml.
+    #
+    # THAT SWITCH NOW SAYS "github" (2026-09-01), so THIS JOB IS DISARMED and
+    # .github/workflows/ci.yml holds the live publisher. The job is kept rather
+    # than deleted: it costs nothing while the switch points elsewhere, and it
+    # is what makes the move reversible by a policy edit instead of by
+    # rewriting a pipeline. It re-arms the moment the switch says "forgejo" --
+    # which is also why the conformance shadow keeps scanning this directory.
+    #
+    # The move cost ONE thing this comment used to promise it would not: the
+    # line above claimed a switch flip needs "no change to any workflow file",
+    # and that held only in the direction that had a publisher waiting at the
+    # other end. GitHub's had been DELETED in Phase 9, so moving there meant
+    # building one -- gate job, tag/version check, and a tag-aware version
+    # stamp the GitHub workflow did not have, because nothing there published.
+    # Deleting this one would make the reverse trip cost the same.
+    #
+    # WHY IT MOVED: platform coverage. This job publishes what
+    # build-linux-x86_64 produced, and that is one platform of four. See this
+    # file's header.
     #
     # `needs: gate` is what makes the expression readable at all -- without it
     # needs.gate.outputs.authority is the empty string, the condition is false

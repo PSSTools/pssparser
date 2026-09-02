@@ -1,0 +1,12 @@
+//! id:     PSS020
+//! at:     9:13
+//! match:  expected ';' before 'y'
+//! count:  1
+component C {
+    action A {
+        exec body {
+            x = 1
+            y = 2;
+        }
+    }
+}

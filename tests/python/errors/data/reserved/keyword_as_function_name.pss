@@ -1,0 +1,7 @@
+//! id:     PSS022
+//! at:     6:19
+//! match:  expected identifier before 'struct'
+//! count:  1
+component C {
+    function void struct();
+}

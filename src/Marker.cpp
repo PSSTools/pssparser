@@ -20,12 +20,23 @@ Marker::Marker(
 
 }
 
+Marker::Marker(
+		const std::string	&msg,
+		MarkerSeverityE		severity,
+		const ast::Location	&loc,
+		const std::string	&id) :
+				m_msg(msg), m_severity(severity), m_loc(loc), m_id(id) {
+
+}
+
 Marker::~Marker() {
 	// TODO Auto-generated destructor stub
 }
 
 IMarker *Marker::clone() const {
-	return new Marker(m_msg, m_severity, m_loc);
+	Marker *ret = new Marker(m_msg, m_severity, m_loc, m_id);
+	ret->m_related = m_related;
+	return ret;
 }
 
 }

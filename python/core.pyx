@@ -365,6 +365,24 @@ cdef class Marker(object):
         cdef const ast_decl.Location *loc_ref = &(self._hndl.loc())
         return Location(loc_ref.fileid, loc_ref.lineno, loc_ref.linepos)
 
+    cpdef str id(self):
+        return self._hndl.id().decode()
+
+    cpdef int extent(self):
+        cdef const ast_decl.Location *loc_ref = &(self._hndl.loc())
+        return loc_ref.extent
+
+    cpdef list related(self):
+        ret = []
+        cdef const decl.MarkerRelation *rel
+        for i in range(self._hndl.related().size()):
+            rel = &(self._hndl.related()[i])
+            ret.append({
+                "loc": Location(rel.loc.fileid, rel.loc.lineno, rel.loc.linepos),
+                "label": rel.label.decode(),
+            })
+        return ret
+
     @staticmethod
     cdef Marker mk(decl.IMarker *hndl, bool owned=True):
         ret = Marker()
@@ -392,6 +410,9 @@ cdef class MarkerCollector(MarkerListener):
 
     cpdef int numMarkers(self):
         return self.asCollector().markers().size()
+
+    cpdef setMaxErrors(self, int max_errors):
+        self.asCollector().setMaxErrors(max_errors)
 
     cpdef Marker getMarker(self, int idx):
         cdef decl.IMarkerP marker = self.asCollector().markers().at(idx).get()

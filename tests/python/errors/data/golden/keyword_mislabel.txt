@@ -1,0 +1,8 @@
+$ pssparser tests/python/errors/data/keywords/rand_struct.pss (exit 1)
+--- stdout ---
+--- stderr ---
+tests/python/errors/data/keywords/rand_struct.pss:5:1: error: unexpected keyword 'rand' in this context
+ 5 | rand struct S {
+   | ^~~~
+
+1 error in 1 file

@@ -124,6 +124,36 @@ Step-by-step walkthrough:
    ``GlobalScope.getFileid()`` to the source file path.  Use it instead of
    ``GlobalScope.getFilename()``, which may be empty.
 
+Marker Dict Shape
+==================
+
+Whether a marker originates in the C++ parser/linker or from
+:meth:`~pssparser.checkers.CheckContext.add_marker`, ``Parser.markers`` and
+``CheckContext``'s collected diagnostics share the same dict shape:
+
+``severity``, ``message``, ``file``, ``line``, ``col``
+    The core fields every marker has always had.
+``extent``
+    Length in characters of the primary span. ``0`` means unknown, in which
+    case the CLI falls back to underlining a single column. Pass it whenever
+    you know the width of the offending token or name — it is the difference
+    between an underline that covers ``my_bad_name`` and one that covers only
+    its first letter.
+``related``
+    A list of secondary locations, each ``{"file", "line", "col", "label"}``.
+    Use this for a diagnostic that only makes sense with a second point of
+    reference — the earlier declaration a duplicate collides with, the opener
+    of a scope that never closed, the call site of a symbol resolved from an
+    import. Pass ``related`` to :meth:`~pssparser.checkers.CheckContext.add_marker`
+    rather than folding the second location into ``message`` as prose; the
+    CLI renders each entry as its own annotated source line.
+``code``
+    The marker's stable ID (e.g. ``"PSS020"``). Always present for
+    checker-emitted markers (``add_marker`` requires ``code``); for
+    C++-emitted markers not yet migrated to carry their own ID, it is filled
+    in downstream by pattern-matching against ``core_checker.py``'s
+    ``marker_defs`` and may be entirely absent if no pattern matches.
+
    ``context.global_scopes`` contains only the user-supplied source files;
    the built-in PSS library scopes are filtered out automatically.
 
@@ -172,8 +202,22 @@ Core IDs are allocated in bands:
 ``PSS001``–``PSS099``
     General parse and link diagnostics.
 
+``PSS020``–``PSS029``
+    Syntax-error sub-band of the general band above: each ID names one shape
+    of parser recovery (missing punctuation, unexpected end of input, a
+    keyword where an identifier was expected, ...), classified in
+    ``AstBuilderInt::syntaxError`` and carried on the marker itself rather
+    than recovered from message-pattern matching. ``PSS011``–``PSS019`` are
+    held as headroom; ``PSS023`` and ``PSS027`` within the sub-band are
+    reserved, not assigned (see ``core_checker.py`` for why). ``PSS029`` is
+    the ``--max-errors`` cutoff marker (``MarkerCollector::marker`` in C++),
+    emitted once per capped file.
+
 ``PSS100``–``PSS199``
     PSS 3.1 language-rule diagnostics.
+
+The table below is a representative sample, not the full catalogue --
+:doc:`markers` is generated straight from ``marker_defs`` and cannot drift.
 
 .. list-table::
    :header-rows: 1
@@ -184,7 +228,11 @@ Core IDs are allocated in bands:
      - Summary
    * - ``PSS001``
      - error
-     - Syntax error
+     - Syntax error (unclassified fallback -- see the PSS020 sub-band above
+       for the classified cases)
+   * - ``PSS020``
+     - error
+     - Expected specific punctuation before this token
    * - ``PSS002``
      - error
      - Unknown symbol reference

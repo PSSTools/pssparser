@@ -280,11 +280,18 @@ ID : [a-zA-Z_] [a-zA-Z0-9_]* ;
 
 ESCAPED_ID : '\\' ('\u0021'..'\u007E')+ ~ [ \r\t\n]* ;
 		
-BASED_HEX_LITERAL: '\'' ('s'|'S')? ('h'|'H') ('0'..'9'|'a'..'f'|'A'..'F') ('0'..'9'|'a'..'f'|'A'..'F'|'_')*;
-BASED_DEC_LITERAL: '\'' ('s'|'S')? ('d'|'D') ('0'..'9') ('0'..'9'|'_')*;
+// The digit portion accepts any alphanumeric/underscore run, wider than the
+// radix actually allows, so a mistyped digit (e.g. 'hGZ) still lexes as one
+// BASED_*_LITERAL token instead of the lexer bailing out mid-token and the
+// bad character reappearing as its own, unrelated token (see known-issues
+// E9-S8-D1). AstBuilderInt::visitNumber validates the digits against the
+// radix afterward and reports an "invalid digit" marker if one is out of
+// range.
+BASED_HEX_LITERAL: '\'' ('s'|'S')? ('h'|'H') ('0'..'9'|'a'..'z'|'A'..'Z'|'_')+;
+BASED_DEC_LITERAL: '\'' ('s'|'S')? ('d'|'D') ('0'..'9'|'a'..'z'|'A'..'Z'|'_')+;
 DEC_LITERAL: ('1'..'9') ('0'..'9'|'_')*;
-BASED_BIN_LITERAL: '\'' ('s'|'S')? ('b'|'B') (('0'..'1') ('0'..'1'|'_')*);
-BASED_OCT_LITERAL: '\'' ('s'|'S')? ('o'|'O') (('0'..'7') ('0'..'7'|'_')*);
+BASED_BIN_LITERAL: '\'' ('s'|'S')? ('b'|'B') ('0'..'9'|'a'..'z'|'A'..'Z'|'_')+;
+BASED_OCT_LITERAL: '\'' ('s'|'S')? ('o'|'O') ('0'..'9'|'a'..'z'|'A'..'Z'|'_')+;
 OCT_LITERAL: '0' ('0'..'7'|'_')*;
 HEX_LITERAL: '0' ('x'|'X') ('0'..'9'|'a'..'f'|'A'..'F') ('0'..'9'|'a'..'f'|'A'..'F'|'_')*;
 BIN_LITERAL: '0' ('b'|'B') ('0'..'1') ('0'..'1'|'_')*;

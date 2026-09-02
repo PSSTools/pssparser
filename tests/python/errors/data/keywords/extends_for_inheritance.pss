@@ -1,0 +1,7 @@
+//! id:     PSS020
+//! at:     6:13
+//! match:  expected '{' or ':'
+//! hint:   use ':' for inheritance, not 'extends'
+//! count:  1
+component C extends D {
+}

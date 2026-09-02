@@ -1,0 +1,5 @@
+//! id:     PSS026
+//! at:     5:10
+//! match:  unexpected keyword 'struct'
+//! count:  1
+enum E { struct };

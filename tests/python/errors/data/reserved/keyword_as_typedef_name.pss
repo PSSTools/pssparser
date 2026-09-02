@@ -1,0 +1,5 @@
+//! id:     PSS022
+//! at:     5:13
+//! match:  expected identifier before 'component'
+//! count:  1
+typedef int component;

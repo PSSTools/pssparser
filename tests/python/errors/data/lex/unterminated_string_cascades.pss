@@ -1,0 +1,9 @@
+//! id:     PSS024
+//! at:     8:5
+//! match:  unexpected '}' in this context
+//! count:  1
+component C {
+    action A {
+        string s = "abc;
+    }
+}

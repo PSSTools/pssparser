@@ -568,6 +568,12 @@ private:
      */
     void addErrorMarker(Token *t, const char *fmt, ...);
 
+    /**
+     * Check a BASED_*_LITERAL token's digits against its radix and report
+     * an "invalid digit" marker at the offending character, if any.
+     */
+    void checkBasedLiteralDigits(antlr4::tree::TerminalNode *lit, int32_t radix);
+
     bool evalConstantExpression(PSSParser::Constant_expressionContext *ctx, int64_t &val);
 
     bool evalExpression(PSSParser::ExpressionContext *ctx, int64_t &val);
@@ -892,6 +898,16 @@ private:
         ast::ISymbolScope           *scope,
         ast::IProceduralStmtDataDeclaration *decl,
         const struct TemplateToken  &tok);
+
+    /**
+     * D2 cascade suppression: the previous syntax error's token index and
+     * rule index. A new error within N tokens of this one, in the same rule,
+     * is almost always ANTLR flailing through the same garbage region rather
+     * than a second independent defect -- reset per `build()` so state never
+     * leaks across files in a long-lived process.
+     */
+    ssize_t                                     m_last_syntax_error_token_idx;
+    size_t                                      m_last_syntax_error_rule_idx;
 
     static dmgr::IDebug                         *m_dbg;
     int32_t                                     m_file_id;

@@ -131,6 +131,12 @@ cdef class Marker(object):
 
     cpdef Location loc(self)
 
+    cpdef str id(self)
+
+    cpdef int extent(self)
+
+    cpdef list related(self)
+
     @staticmethod
     cdef Marker mk(decl.IMarker *hndl, bool owned=*)
 
@@ -145,6 +151,8 @@ cdef class MarkerCollector(MarkerListener):
     cpdef markers(self)
 
     cpdef int numMarkers(self)
+
+    cpdef setMaxErrors(self, int max_errors)
 
     cpdef Marker getMarker(self, int idx)
 

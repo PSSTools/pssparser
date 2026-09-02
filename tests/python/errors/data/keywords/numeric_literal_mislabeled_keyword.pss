@@ -1,0 +1,11 @@
+//! id:     PSS026
+//! at:     8:13
+//! match:  unexpected '123' in this context
+//! count:  1
+component C {
+    action A {
+        exec body {
+            123;
+        }
+    }
+}

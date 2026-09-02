@@ -1,0 +1,5 @@
+//! id:     PSS022
+//! at:     5:15
+//! match:  expected identifier before 'return'
+//! count:  1
+function void return() { }

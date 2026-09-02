@@ -42,8 +42,46 @@ _REPO_PYTHON = os.path.join(
     "python")
 
 
+def _parent_package_root():
+    """The directory the *parent* process imported ``pssparser`` from.
+
+    This is the pin, and it is deliberately not ``_REPO_PYTHON``.  The
+    invariant that matters is **the child must import the same parser the
+    parent is testing**, and which copy that is depends on how the suite was
+    invoked:
+
+    * On a developer machine (``PYTHONPATH=python pytest ...``) the parent
+      imports the working tree, so this returns ``<repo>/python`` and the child
+      gets the working tree -- the P7-X1 guarantee, unchanged.
+    * In CI the parent imports an **installed wheel** from a clean venv, on
+      purpose: the point of that step is to test the artifact that would ship.
+      The working tree is not importable there at all, because the compiled
+      extension is built into ``build/`` rather than in place.  This returns
+      site-packages, and the child agrees with the parent.
+
+    Pinning ``_REPO_PYTHON`` unconditionally got the second case exactly
+    backwards.  The source tree shadowed the wheel, ``import pssparser.core``
+    raised ``ModuleNotFoundError`` in every child, and all ~590 out-of-process
+    tests -- the corpus sweep, the linking suite, every CLI exit-status case --
+    failed at interpreter startup.  That is what turned the v3.1.0 tag build
+    red and blocked the release.
+
+    Falls back to ``_REPO_PYTHON`` if ``pssparser`` has no locatable
+    ``__file__`` (a namespace package, or a frozen build), which preserves the
+    developer-machine behaviour in the case this cannot resolve.
+    """
+    try:
+        import pssparser
+        init = getattr(pssparser, "__file__", None)
+        if init:
+            return os.path.dirname(os.path.dirname(os.path.abspath(init)))
+    except ImportError:
+        pass
+    return _REPO_PYTHON
+
+
 def _child_env():
-    """The subprocess environment, with *this* checkout's parser pinned first.
+    """The subprocess environment, with the parent's parser pinned first.
 
     Every run here uses ``cwd=workdir``, a temporary directory.  The suite is
     normally invoked as ``PYTHONPATH=python pytest ...`` -- a **relative** path,
@@ -59,14 +97,14 @@ def _child_env():
     against a parser nobody had just built.  Nothing failed; the gate simply
     stopped being about this repository.
 
-    Prepending the absolute path makes the child test what the parent built,
-    regardless of cwd, of how the suite was invoked, or of what else is
-    installed.
+    Prepending :func:`_parent_package_root` makes the child test what the
+    parent tested, regardless of cwd, of how the suite was invoked, or of what
+    else is installed.
     """
     env = dict(os.environ)
     existing = env.get("PYTHONPATH", "")
-    env["PYTHONPATH"] = (
-        _REPO_PYTHON + os.pathsep + existing) if existing else _REPO_PYTHON
+    pin = _parent_package_root()
+    env["PYTHONPATH"] = (pin + os.pathsep + existing) if existing else pin
     return env
 
 

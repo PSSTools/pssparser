@@ -1,0 +1,9 @@
+//! id:     PSS021
+//! at:     10:1
+//! match:  unexpected end of input
+//! count:  1
+component C {
+    action A {
+        exec body {
+            x = 1;
+        }

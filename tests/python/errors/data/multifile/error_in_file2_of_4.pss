@@ -1,0 +1,9 @@
+//! id:     PSS022
+//! at:     8:9
+//! match:  expected identifier before 'action'
+//! count:  1
+//! files:  _error_in_file2_of_4_a.pss, error_in_file2_of_4.pss, _error_in_file2_of_4_c.pss, _error_in_file2_of_4_d.pss
+//! at-file: error_in_file2_of_4.pss
+struct S {
+    int action;
+}

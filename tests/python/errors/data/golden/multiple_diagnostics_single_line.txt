@@ -1,0 +1,16 @@
+$ pssparser tests/python/errors/data/names/expected_identifier_after_garbage_token.pss (exit 1)
+--- stdout ---
+--- stderr ---
+tests/python/errors/data/names/expected_identifier_after_garbage_token.pss:5:47: error: syntax error at '@'
+ 5 | component pss_top { action A { constraint { x @ } } }
+   |                                               ^
+
+tests/python/errors/data/names/expected_identifier_after_garbage_token.pss:5:49: error: expected identifier before '}'
+ 5 | component pss_top { action A { constraint { x @ } } }
+   |                                                 ^
+
+tests/python/errors/data/names/expected_identifier_after_garbage_token.pss:5:53: error: unexpected '}' in this context
+ 5 | component pss_top { action A { constraint { x @ } } }
+   |                                                     ^
+
+3 errors in 1 file

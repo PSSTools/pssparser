@@ -1,0 +1,5 @@
+//! id:     PSS025
+//! at:     5:8
+//! match:  unexpected '9'
+//! count:  1
+struct 9S { int x; }

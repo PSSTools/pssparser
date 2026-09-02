@@ -1,0 +1,9 @@
+//! id:     PSS001
+//! at:     7:21
+//! match:  unexpected low bound '1' in an integer width; only '0' is permitted, as in 'bit[7:0]'
+//! count:  1
+component C {
+    action A {
+        rand bit[7:1] x;
+    }
+}

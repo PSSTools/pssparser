@@ -1,0 +1,5 @@
+//! id:     PSS025
+//! at:     5:6
+//! match:  unexpected '{'
+//! count:  1
+enum { A, B }

@@ -1,10 +1,46 @@
 # CI for psstools/pssparser on GitHub Actions.
 #
-# CI ONLY. THIS WORKFLOW DOES NOT PUBLISH ANYTHING, and that is deliberate
-# rather than incidental -- see the block where the publish job used to be.
-# The release path for this package is .forgejo/workflows/ci.yml, and
-# sync-policy.toml pins release_authority = "forgejo" for this repository to
-# say so in the one place both forges read.
+# THIS WORKFLOW IS THE RELEASE PATH, as of 2026-09-01. It publishes to PyPI on
+# a `v*` tag, and only when the release-authority switch names this forge --
+# sync-policy.toml pins release_authority = "github" for this repository, which
+# is the one place both forges read.
+#
+# WHY IT MOVED BACK, having been on Forgejo since 2026-08-31: WHEELS. This
+# package ships a compiled Cython extension, so a release is not one artifact
+# but a matrix of them, and .forgejo/workflows/ci.yml builds exactly one --
+# linux x86_64, by a scope decision recorded in its own header. Everything
+# else this project supports is built HERE: linux aarch64, Windows and macOS.
+# Under Forgejo authority a tagged release could only ever carry a quarter of
+# its platforms, and `pip install pssparser` on a Mac or on Windows would fall
+# back to a source build that cannot succeed without ANTLR and a C++ toolchain.
+# The v3.0.7 cycle is the concrete case: the win32 support that made a Windows
+# wheel possible was developed and merged here, on the forge that could not
+# release it.
+#
+# HAVING ALL FOUR PLATFORMS IS NOT THE SAME AS SERVING THEM, which v3.1.0 --
+# the first release under this authority -- demonstrated: the manylinux jobs
+# build cp39..cp314 from the interpreters in the manylinux image, but the
+# Windows and macOS jobs each pinned one setup-python version, so that release
+# published six wheels per linux architecture against one Windows wheel
+# (cp311) and one macOS wheel (cp313). Every other Windows and macOS Python
+# still fell back to the source build that cannot succeed -- the same failure
+# the authority moved here to prevent, narrowed from a platform to a version.
+# Both jobs are matrices as of 2026-09-02, and `publish-pypi` now checks the
+# platform coverage of what it is about to upload.
+#
+# THEY ARE FOUR-WAY, NOT SIX. cp39 and cp314 were tried on both and neither
+# can build today -- ivpm needs >= 3.10, and `debug-mgr` (a build-time C++
+# dependency with no sdist) has no usable cp314 wheel for either platform.
+# Both bounds are upstream and are documented where they bite, on the
+# `python:` matrix in ci-win32. So a release is 6+6+4+4 = 20 wheels, against
+# v3.1.0's 6+6+1+1 = 14.
+#
+# The Forgejo publish job is NOT deleted in exchange. It reads the same switch,
+# so it disarms itself the moment the switch says "github", and re-arms if the
+# switch is ever moved back. Deleting it would make the move one-way for no
+# gain; the switch exists precisely so that exactly one of the two can fire.
+# What is deliberately NOT restored is the old per-push dev-wheel stream -- see
+# the note above `publish-pypi`.
 
 name: CI
 on:
@@ -12,14 +48,93 @@ on:
   - pull_request
   - workflow_dispatch
 jobs:
+  # ---------------------------------------------------------------------- #
+  # The release-authority master switch. Resolved in its OWN job because an
+  # `if:` on a job cannot reference a step in that same job, so the value has
+  # to arrive through `needs.<job>.outputs`.
+  #
+  # A consumer that reads needs.gate.outputs WITHOUT declaring `needs: gate`
+  # gets an EMPTY STRING rather than an error -- the publish condition is then
+  # false forever, nothing publishes, and nothing goes red. That is the
+  # quietest failure available here, so the shadow check in
+  # .forgejo/workflows/conformance.yml asserts the wiring explicitly, across
+  # BOTH workflow directories.
+  #
+  # Deliberately a copy of the Forgejo workflow's `gate` rather than a shared
+  # action: this job's entire job is to be the thing that does not depend on
+  # the other forge.
+  # ---------------------------------------------------------------------- #
+  gate:
+    name: Release authority
+    runs-on: ubuntu-latest
+    outputs:
+      authority: ${{ steps.resolve.outputs.authority }}
+    steps:
+      - id: resolve
+        # The python is ONE LINE on purpose: a multi-line `python3 -c` body has
+        # to start at column 0, which terminates the YAML block scalar above it
+        # and silently corrupts the workflow rather than failing to parse.
+        run: |
+          url=https://dvkit.org/.well-known/release-authority.json
+          if ! body=$(curl -fsS --max-time 10 "$url"); then
+            # FAIL CLOSED WHEN A RELEASE COULD ACTUALLY HAPPEN, and quietly
+            # otherwise. In this org a release is a `v*` TAG, so that -- not
+            # the event name -- is the test. Keying on the event name would be
+            # wrong in both directions: a tag push IS a push, so it would let a
+            # release through unresolved, and every ordinary push would then
+            # also be treated as release-critical and fail the build.
+            #
+            # A release blocked by a dvkit.org outage is recoverable in ten
+            # minutes. A version published twice from two forges is not: PyPI
+            # lets a version be yanked, never reused.
+            case "$GITHUB_REF" in
+              refs/tags/v*)
+                echo "::error::release-authority switch unreachable; refusing to publish"
+                exit 1 ;;
+              *)
+                echo "authority=none" >> "$GITHUB_OUTPUT"
+                echo "switch unreachable, and this ref cannot release; continuing"
+                exit 0 ;;
+            esac
+          fi
+          # CASE-FOLDED, and on this forge that is load-bearing rather than
+          # defensive. The repository is named `PSSTools/pssparser` on GitHub
+          # and `psstools/pssparser` on Forgejo, and $GITHUB_REPOSITORY carries
+          # whichever the host thinks it is. sync-policy.toml emits lowercase
+          # keys, so an exact-match lookup here MISSES and silently falls
+          # through to d["default"] -- returning an authority this repository
+          # never pinned, with no error and no clue in the log. Today the
+          # default happens to be "github" and the wrong answer coincides with
+          # the right one, which is exactly the condition under which this
+          # would go unnoticed until the day the default moves.
+          auth=$(printf '%s' "$body" | python3 -c 'import json,os,sys; d=json.load(sys.stdin); r=os.environ["GITHUB_REPOSITORY"].lower(); print(d["repos"].get(r) or d["orgs"].get(r.split("/")[0]) or d["default"])')
+          echo "release authority for $GITHUB_REPOSITORY: $auth"
+          echo "authority=$auth" >> "$GITHUB_OUTPUT"
+
   ci-linux:
     runs-on: ubuntu-latest
     container: quay.io/pypa/manylinux_2_28_x86_64
     steps:
     - uses: actions/checkout@v4
     - name: Stamp build version
+      # Tag builds keep the clean BASE version; everything else gets a
+      # .<run-id> dev suffix so an ordinary push can never collide with a
+      # release version on PyPI.
+      #
+      # THE CASE STATEMENT IS NEW (2026-09-01) and it is what makes this forge
+      # able to release at all. This step used to stamp UNCONDITIONALLY, which
+      # was correct while nothing here published: every wheel was an artifact,
+      # and a dev suffix on an artifact costs nothing. The moment `publish-pypi`
+      # below exists, an unconditional stamp turns `v3.1.0` into a PyPI upload
+      # of 3.1.0.<run-id> -- a version number that cannot be reused once taken.
+      # The tag/version check in that job would in fact catch it and fail the
+      # release, which is the recoverable direction, but only after a full
+      # matrix build.
       run: |
-        sed -i 's/^SUFFIX = ""$/SUFFIX = ".'"$GITHUB_RUN_ID"'"/' python/pssparser/__version__.py
+        case "$GITHUB_REF" in
+          refs/tags/*) echo "tag build -- leaving version clean" ;;
+          *) sed -i 's/^SUFFIX = ""$/SUFFIX = ".'"$GITHUB_RUN_ID"'"/' python/pssparser/__version__.py ;;
+        esac
         grep '^SUFFIX = ' python/pssparser/__version__.py
     - name: Install additional build dependencies
       run: |
@@ -130,8 +245,24 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: Stamp build version
+      # Tag builds keep the clean BASE version; everything else gets a
+      # .<run-id> dev suffix so an ordinary push can never collide with a
+      # release version on PyPI.
+      #
+      # THE CASE STATEMENT IS NEW (2026-09-01) and it is what makes this forge
+      # able to release at all. This step used to stamp UNCONDITIONALLY, which
+      # was correct while nothing here published: every wheel was an artifact,
+      # and a dev suffix on an artifact costs nothing. The moment `publish-pypi`
+      # below exists, an unconditional stamp turns `v3.1.0` into a PyPI upload
+      # of 3.1.0.<run-id> -- a version number that cannot be reused once taken.
+      # The tag/version check in that job would in fact catch it and fail the
+      # release, which is the recoverable direction, but only after a full
+      # matrix build.
       run: |
-        sed -i 's/^SUFFIX = ""$/SUFFIX = ".'"$GITHUB_RUN_ID"'"/' python/pssparser/__version__.py
+        case "$GITHUB_REF" in
+          refs/tags/*) echo "tag build -- leaving version clean" ;;
+          *) sed -i 's/^SUFFIX = ""$/SUFFIX = ".'"$GITHUB_RUN_ID"'"/' python/pssparser/__version__.py ;;
+        esac
         grep '^SUFFIX = ' python/pssparser/__version__.py
     - name: Install additional build dependencies
       run: |
@@ -182,6 +313,51 @@ jobs:
         python -c "from pssparser import Parser; p = Parser(); assert p.parses([('test.pss', 'component pss_top {}')]); print('System test PASSED')"
 
   ci-win32:
+    # ONE MATRIX ENTRY PER PYTHON, matching the cp39..cp314 loop the manylinux
+    # jobs run. This job used to build a single 3.11 wheel, which is why
+    # v3.1.0 shipped exactly one Windows artifact -- pssparser-3.1.0-cp311-
+    # cp311-win_amd64.whl -- and every other Windows Python fell through to a
+    # source build that cannot succeed without ANTLR and MSVC.
+    #
+    # A MATRIX rather than a for-loop inside one job, unlike the manylinux
+    # jobs: those get every interpreter for free from the manylinux image, so
+    # looping costs one container. Here each version has to be installed by
+    # actions/setup-python, and a loop would mean repeatedly swapping the
+    # active interpreter under a single cmake/build_ext configuration whose
+    # build/ directory is keyed to whichever Python configured it first.
+    #
+    # fail-fast IS OFF so that one broken version reports as one broken
+    # version. With it on, the first failure cancels the siblings and the log
+    # cannot distinguish "3.14 is broken" from "3.14 is broken and so are the
+    # four that never ran".
+    strategy:
+      fail-fast: false
+      matrix:
+        # 3.10..3.13, NOT cp39..cp314 -- and the bound is `debug-mgr`'s
+        # release matrix, not this project's. It is a build-time C++
+        # dependency resolved from PyPI, it publishes NO SDIST, so a Python
+        # with no compatible wheel has no fallback: ivpm resolves it, nothing
+        # installs, and the failure surfaces later as a cmake error about a
+        # missing include directory. Measured against PyPI on 2026-09-02:
+        #
+        #   * cp314 macOS -- every recent wheel is tagged `macosx_26_0`, which
+        #     pip rejects here because this job pins a 13.0 deployment target.
+        #     The newest usable-at-a-lower-floor one is `macosx_15_0`, still
+        #     above 13.0. (That mistag is the same defect the "Check the wheel
+        #     tag" step below exists to stop pssparser shipping.)
+        #   * cp314 Windows -- wheels exist, but the line stops at
+        #     0.0.2.27891512881 while the project is on ...33288736809.
+        #   * cp39 -- ivpm/ivpm-build themselves need >= 3.10: the build dies
+        #     in `glob(root_dir=)` and `entry_points(group=)`, both 3.10 APIs.
+        #
+        # THE LINUX JOBS BUILD cp39..cp314 ANYWAY, and the difference is
+        # structural rather than lucky. There, cmake runs ONCE under cp312 and
+        # only the extension is compiled per interpreter, so debug-mgr and
+        # ivpm are needed for one modern Python. These jobs run the whole
+        # toolchain under the matrix Python, so every one of its constraints
+        # applies to every entry. Routing these through a fixed driver Python
+        # would recover cp39; cp314 stays blocked upstream either way.
+        python: ['3.10', '3.11', '3.12', '3.13']
     runs-on: windows-latest
     defaults:
       run:
@@ -191,7 +367,7 @@ jobs:
     - uses: ilammy/msvc-dev-cmd@v1
     - uses: actions/setup-python@v5
       with:
-        python-version: '3.11'
+        python-version: ${{ matrix.python }}
     # find_package(ANTLR) shells out to the antlr jar to detect its version,
     # and the grammars are code-generated with it during the build.
     - uses: actions/setup-java@v4
@@ -199,8 +375,24 @@ jobs:
         distribution: 'temurin'
         java-version: '11'
     - name: Stamp build version
+      # Tag builds keep the clean BASE version; everything else gets a
+      # .<run-id> dev suffix so an ordinary push can never collide with a
+      # release version on PyPI.
+      #
+      # THE CASE STATEMENT IS NEW (2026-09-01) and it is what makes this forge
+      # able to release at all. This step used to stamp UNCONDITIONALLY, which
+      # was correct while nothing here published: every wheel was an artifact,
+      # and a dev suffix on an artifact costs nothing. The moment `publish-pypi`
+      # below exists, an unconditional stamp turns `v3.1.0` into a PyPI upload
+      # of 3.1.0.<run-id> -- a version number that cannot be reused once taken.
+      # The tag/version check in that job would in fact catch it and fail the
+      # release, which is the recoverable direction, but only after a full
+      # matrix build.
       run: |
-        sed -i 's/^SUFFIX = ""$/SUFFIX = ".'"$GITHUB_RUN_ID"'"/' python/pssparser/__version__.py
+        case "$GITHUB_REF" in
+          refs/tags/*) echo "tag build -- leaving version clean" ;;
+          *) sed -i 's/^SUFFIX = ""$/SUFFIX = ".'"$GITHUB_RUN_ID"'"/' python/pssparser/__version__.py ;;
+        esac
         grep '^SUFFIX = ' python/pssparser/__version__.py
     - name: Install Packages
       run: |
@@ -214,9 +406,14 @@ jobs:
       run: |
         python -m build --wheel --no-isolation
     - name: Upload wheels
+      # PER-VERSION ARTIFACT NAME. upload-artifact@v4 rejects a second upload
+      # under a name that already exists, so a shared `wheels-windows` would
+      # make five of the six matrix entries fail outright. The publish job
+      # collects on the `wheels-*` pattern with merge-multiple, so the split
+      # names land back in one dist/ regardless.
       uses: actions/upload-artifact@v4
       with:
-        name: wheels-windows
+        name: wheels-windows-py${{ matrix.python }}
         path: dist/*.whl
         if-no-files-found: error
     - name: System test
@@ -226,16 +423,99 @@ jobs:
         /c/test-venv/Scripts/python -c "from pssparser import Parser; p = Parser(); assert p.parses([('test.pss', 'component pss_top {}')]); print('System test PASSED')"
 
   ci-macos:
+    # SAME MATRIX SHAPE AND SAME REASONS as ci-win32 above: this built 3.13
+    # alone, so v3.1.0 shipped one macOS wheel and every other macOS Python
+    # got the impossible source build.
+    #
+    # ARM64 ONLY, DELIBERATELY. GitHub's Intel macOS runner is gone, so an
+    # x86_64 wheel could only be cross-compiled here and never executed --
+    # including by the system test below, which is the step that has actually
+    # been catching packaging faults. A missing wheel makes `pip install`
+    # report no candidate for Intel Macs; a cross-built wheel nobody ran would
+    # install and then fail at import, which is strictly worse. If Intel
+    # coverage is wanted it needs a real x86_64 executor, not a flag here.
+    strategy:
+      fail-fast: false
+      matrix:
+        # 3.10..3.13, NOT cp39..cp314 -- and the bound is `debug-mgr`'s
+        # release matrix, not this project's. It is a build-time C++
+        # dependency resolved from PyPI, it publishes NO SDIST, so a Python
+        # with no compatible wheel has no fallback: ivpm resolves it, nothing
+        # installs, and the failure surfaces later as a cmake error about a
+        # missing include directory. Measured against PyPI on 2026-09-02:
+        #
+        #   * cp314 macOS -- every recent wheel is tagged `macosx_26_0`, which
+        #     pip rejects here because this job pins a 13.0 deployment target.
+        #     The newest usable-at-a-lower-floor one is `macosx_15_0`, still
+        #     above 13.0. (That mistag is the same defect the "Check the wheel
+        #     tag" step below exists to stop pssparser shipping.)
+        #   * cp314 Windows -- wheels exist, but the line stops at
+        #     0.0.2.27891512881 while the project is on ...33288736809.
+        #   * cp39 -- ivpm/ivpm-build themselves need >= 3.10: the build dies
+        #     in `glob(root_dir=)` and `entry_points(group=)`, both 3.10 APIs.
+        #
+        # THE LINUX JOBS BUILD cp39..cp314 ANYWAY, and the difference is
+        # structural rather than lucky. There, cmake runs ONCE under cp312 and
+        # only the extension is compiled per interpreter, so debug-mgr and
+        # ivpm are needed for one modern Python. These jobs run the whole
+        # toolchain under the matrix Python, so every one of its constraints
+        # applies to every entry. Routing these through a fixed driver Python
+        # would recover cp39; cp314 stays blocked upstream either way.
+        python: ['3.10', '3.11', '3.12', '3.13']
     runs-on: macos-latest
+    env:
+      # THE THREE VARIABLES BELOW ARE WHAT MAKE THE WHEEL TAG TRUE, and the
+      # 3.13 wheel already on PyPI is the evidence for why they are needed:
+      # it is tagged `macosx_26_0_universal2` and is neither of those things.
+      #
+      #   universal2 -- because setup-python's CPython is a universal2 build,
+      #   so setuptools tags by the INTERPRETER's architectures rather than
+      #   the extension's. The extension is arm64 only. pip on an Intel Mac
+      #   believes that tag, installs, and dies at import.
+      #
+      #   26_0 -- because with no deployment target set, the tag is taken from
+      #   the RUNNER's OS version. That number climbs every time GitHub moves
+      #   the macos-latest image, and it makes the wheel uninstallable on
+      #   every macOS older than whatever the runner happened to be.
+      #
+      # ARCHFLAGS drives the compiler, CMAKE_OSX_ARCHITECTURES drives the
+      # native library build (CMake does not read ARCHFLAGS), and
+      # _PYTHON_HOST_PLATFORM overrides the tag setuptools would otherwise
+      # derive from the interpreter. All three, or the tag and the binary
+      # disagree again in one direction or another.
+      #
+      # 13.0 is a floor, not a description of the runner: arm64 Macs run
+      # macOS 11 and up, and CMake takes CMAKE_OSX_DEPLOYMENT_TARGET from
+      # MACOSX_DEPLOYMENT_TARGET so the native libraries get the same floor as
+      # the extensions.
+      MACOSX_DEPLOYMENT_TARGET: '13.0'
+      ARCHFLAGS: '-arch arm64'
+      _PYTHON_HOST_PLATFORM: 'macosx-13.0-arm64'
     steps:
     - uses: actions/checkout@v4
     - name: Stamp build version
+      # Tag builds keep the clean BASE version; everything else gets a
+      # .<run-id> dev suffix so an ordinary push can never collide with a
+      # release version on PyPI.
+      #
+      # THE CASE STATEMENT IS NEW (2026-09-01) and it is what makes this forge
+      # able to release at all. This step used to stamp UNCONDITIONALLY, which
+      # was correct while nothing here published: every wheel was an artifact,
+      # and a dev suffix on an artifact costs nothing. The moment `publish-pypi`
+      # below exists, an unconditional stamp turns `v3.1.0` into a PyPI upload
+      # of 3.1.0.<run-id> -- a version number that cannot be reused once taken.
+      # The tag/version check in that job would in fact catch it and fail the
+      # release, which is the recoverable direction, but only after a full
+      # matrix build.
       run: |
-        sed -i '' 's/^SUFFIX = ""$/SUFFIX = ".'"$GITHUB_RUN_ID"'"/' python/pssparser/__version__.py
+        case "$GITHUB_REF" in
+          refs/tags/*) echo "tag build -- leaving version clean" ;;
+          *) sed -i '' 's/^SUFFIX = ""$/SUFFIX = ".'"$GITHUB_RUN_ID"'"/' python/pssparser/__version__.py ;;
+        esac
         grep '^SUFFIX = ' python/pssparser/__version__.py
     - uses: actions/setup-python@v5
       with:
-        python-version: '3.13'
+        python-version: ${{ matrix.python }}
     - uses: actions/setup-java@v4
       with:
         distribution: 'temurin'
@@ -248,15 +528,30 @@ jobs:
       run: |
         mkdir build
         cd build
-        cmake .. -GNinja
+        cmake .. -GNinja -DCMAKE_OSX_ARCHITECTURES=arm64
         ninja
     - name: Build Python wheel
       run: |
         python -m build --wheel --no-isolation
+    - name: Check the wheel tag
+      # The tag is the whole point of the env block above, so assert it rather
+      # than trusting that three variables all took effect. A wheel that says
+      # universal2, or that names the runner's OS version, is one pip will
+      # hand to a machine that cannot run it -- and PyPI uploads are final.
+      run: |
+        set -eu
+        for w in dist/*.whl; do
+          echo "$(basename "$w")"
+          case "$(basename "$w")" in
+            *-macosx_13_0_arm64.whl) ;;
+            *) echo "::error::$(basename "$w") is not tagged macosx_13_0_arm64"; exit 1 ;;
+          esac
+        done
     - name: Upload wheels
+      # Per-version name: see the note on the Windows upload step.
       uses: actions/upload-artifact@v4
       with:
-        name: wheels-macos
+        name: wheels-macos-py${{ matrix.python }}
         path: dist/*.whl
         if-no-files-found: error
     - name: System test
@@ -266,29 +561,170 @@ jobs:
         pip install dist/*.whl
         python -c "from pssparser import Parser; p = Parser(); assert p.parses([('test.pss', 'component pss_top {}')]); print('System test PASSED')"
 
-  # A `publish` job stood here. It uploaded every master push to PyPI as
-  # <base>.<github-run-id>, and it is DELETED rather than tag-gated.
+  # ---------------------------------------------------------------------- #
+  # THE RELEASE. Restored 2026-09-01, on the authority move described in this
+  # file's header -- but NOT the job that used to stand here, and the
+  # differences are the whole point.
   #
-  # Deleted, because tag-gating it would have created a SECOND path to the
-  # same PyPI project, on a different forge, keyed on the same tag. The
-  # release-authority switch exists precisely so that only one of the two can
-  # fire -- but the cheaper and more legible arrangement, where a repository
-  # has an unambiguous release path at all, is one publisher. This repository
-  # has one, and it is .forgejo/workflows/ci.yml.
+  # The deleted job published on EVERY MASTER PUSH, as <base>.<run-id>. PyPI
+  # still holds what that produced -- 3.0.0.27726656373 and friends -- and
+  # nothing new joins them. A release is an explicitly tagged version; that was
+  # decided estate-wide on 2026-08-27 and the authority move does not reopen
+  # it. If a prerelease channel is ever wanted it needs designing, and this is
+  # not it.
   #
-  # The per-push dev-wheel stream goes with it. That was decided estate-wide
-  # on 2026-08-27: a release is an explicitly tagged version, and run-id
-  # -qualified releases are not something this project does. PyPI still holds
-  # the ones already published (3.0.0.27726656373 and friends); nothing new
-  # joins them. If a prerelease channel is wanted, it needs designing -- it is
-  # explicitly out of scope for this plan, not forgotten.
+  # What this job carries that the deleted one did not, all of it ported from
+  # .forgejo/workflows/ci.yml rather than invented here:
   #
-  # Everything that made the removed job trustworthy already exists on the
-  # Forgejo side and is stricter: it checks the tag against BASE in
-  # python/pssparser/__version__.py AND against every wheel filename, and it
-  # consults the release-authority switch. The wheels this workflow builds are
-  # still uploaded as ARTIFACTS above, which is what makes them reviewable
-  # without being publishable.
+  #   * a v* tag gate, so a sync cycle moving the default branch cannot publish
+  #   * the release-authority switch, so this and the Forgejo publisher can
+  #     never both be armed for the same tag
+  #   * tag == BASE in python/pssparser/__version__.py
+  #   * every wheel filename == BASE, across every platform artifact
+  #
+  # AND ONE THING THE FORGEJO JOB CANNOT HAVE: all four platforms. That is the
+  # reason the authority moved. `needs` names every build job, so a red macOS
+  # build blocks the release rather than shipping three-quarters of it
+  # silently -- which is the failure mode a per-artifact publish would have.
+  #
+  # "All four platforms" became true of the ARTIFACTS at v3.1.0 and true of
+  # the COVERAGE after (2026-09-02): the Windows and macOS jobs built a single
+  # Python each, so that release carried six linux x86_64 wheels, six linux
+  # aarch64, ONE Windows and ONE macOS. Both are matrices now, and the
+  # platform-coverage check below fails the release if any of the four goes
+  # missing again -- a `needs` edge only proves a job went green, not that it
+  # produced anything the merge step could find.
+  # ---------------------------------------------------------------------- #
+  publish-pypi:
+    # `needs: gate` is what makes the second half of this expression readable
+    # at all -- without it needs.gate.outputs.authority is the EMPTY STRING,
+    # the condition is false forever, and this job silently never runs again.
+    if: ${{ startsWith(github.ref, 'refs/tags/v') && needs.gate.outputs.authority == 'github' }}
+    needs: [gate, ci-linux, ci-linux-aarch64, ci-win32, ci-macos, docs]
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Download every platform's wheels
+      # ONE `dist/` FOR ALL FOUR, via the merge-multiple pattern rather than
+      # four separate download steps into four directories. The version check
+      # below then sees every wheel that is about to be uploaded, which is the
+      # only arrangement in which "every wheel agrees on the version" is a
+      # statement about the release rather than about one platform.
+      #
+      # No `name:`, so this pulls every artifact this run produced. `pattern:`
+      # keeps that honest if a non-wheel artifact is ever added.
+      uses: actions/download-artifact@v4
+      with:
+        pattern: wheels-*
+        merge-multiple: true
+        path: dist
+
+    - name: Check the tag matches the package version
+      # Guards against tagging v3.0.1 while __version__.py still says 3.0.0 --
+      # which would publish a release under the wrong number, unfixably.
+      #
+      # The wheel-filename half also catches a stamping regression: if the
+      # "Stamp build version" case statement ever loses its tag arm, every
+      # wheel here is named <base>.<run-id> and this stops the release before
+      # twine sees it.
+      run: |
+        set -eu
+        tag="${GITHUB_REF#refs/tags/v}"
+        base=$(grep '^BASE = ' python/pssparser/__version__.py | sed 's/.*"\(.*\)".*/\1/')
+        echo "tag=$tag  BASE=$base"
+        if [ "$tag" != "$base" ]; then
+          echo "::error::tag v$tag does not match BASE $base in python/pssparser/__version__.py"
+          exit 1
+        fi
+        n=0
+        for w in dist/*.whl; do
+          case "$(basename "$w")" in
+            pssparser-${base}-*) n=$((n+1)) ;;
+            *) echo "::error::wheel $(basename "$w") is not version ${base}"; exit 1 ;;
+          esac
+        done
+        # ANTI-VACUITY: an empty dist/ passes the loop above trivially, and
+        # `twine upload dist/*.whl` would then fail on an unexpanded glob with
+        # a message about no such file -- which reads as a tooling problem
+        # rather than as "the build artifacts did not arrive".
+        if [ "$n" -eq 0 ]; then
+          echo "::error::no wheels were downloaded; the build jobs produced nothing to publish"
+          exit 1
+        fi
+        echo "OK: tag, source version and all ${n} wheels agree on ${base}"
+        ls -1 dist/*.whl
+
+    - name: Check every platform is represented
+      # THE VERSION CHECK ABOVE PASSES ON A LINUX-ONLY RELEASE. It asks that
+      # each wheel present carries the right version; it cannot ask about a
+      # wheel that is absent, and `needs` cannot either -- a build job that
+      # goes green having quietly produced nothing satisfies the edge.
+      #
+      # v3.1.0 is the case this exists for. It went out with six linux
+      # x86_64 wheels, six aarch64, one Windows and one macOS, entirely
+      # green, and the shortfall was visible only by reading the PyPI file
+      # list afterwards -- by which point the version cannot be reissued.
+      #
+      # The counts are the matrices, not the platforms, so they are NOT equal
+      # across the four: linux builds cp39..cp314 (six), Windows and macOS
+      # build cp310..cp313 (four). The shortfall is `debug-mgr`'s release
+      # matrix and ivpm's own 3.10 floor, not a decision taken here -- see the
+      # long note on the `python:` matrix in ci-win32.
+      #
+      # A LOWER bound rather than an equality, so that adding a Python or an
+      # architecture does not fail the release before someone gets round to
+      # this file. The corollary is that these numbers only ever ratchet up:
+      # if debug-mgr starts shipping usable cp314 wheels for Windows and
+      # macOS, widen the matrices AND raise the 4s, or the check silently
+      # stops noticing a regression back to four.
+      run: |
+        set -eu
+        fail=0
+        check() {
+          n=$(ls -1 dist/*.whl | grep -c -- "$2" || true)
+          echo "$1: $n wheel(s)"
+          if [ "$n" -lt "$3" ]; then
+            echo "::error::$1 contributed $n wheels, expected at least $3"
+            fail=1
+          fi
+        }
+        check "linux x86_64"  'manylinux.*x86_64'  6
+        check "linux aarch64" 'manylinux.*aarch64' 6
+        check "windows"       'win_amd64'          4
+        check "macos arm64"   'macosx.*arm64'      4
+        # A universal2 tag here means the macOS job's tag pinning came
+        # undone; the wheel would then be offered to Intel Macs that cannot
+        # import it. Caught in the macOS job too -- repeated here because
+        # this is the last point before the upload is permanent.
+        if ls -1 dist/*.whl | grep -q 'universal2'; then
+          echo "::error::a universal2-tagged wheel reached the publish step"
+          fail=1
+        fi
+        [ "$fail" -eq 0 ] || exit 1
+        echo "OK: all four platforms represented"
+
+    - name: Publish to PyPI
+      # PYPI_API_TOKEN is an ORG-level secret on psstools, scoped to all repos.
+      # The explicit emptiness check is there because a missing secret expands
+      # to the empty string and twine would otherwise fail much later with an
+      # authentication error that says nothing about the cause.
+      env:
+        TWINE_USERNAME: __token__
+        TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+      run: |
+        set -eu
+        if [ -z "${TWINE_PASSWORD:-}" ]; then
+          echo "::error::PYPI_API_TOKEN is not available to this repository"
+          exit 1
+        fi
+        python -m pip install --quiet twine
+        python -m twine check dist/*.whl
+        python -m twine upload --non-interactive --skip-existing dist/*.whl
+        echo "published $(ls dist/*.whl | wc -l) wheels"
 
   docs:
     runs-on: ubuntu-latest

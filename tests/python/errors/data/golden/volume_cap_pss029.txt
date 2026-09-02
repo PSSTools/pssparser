@@ -1,0 +1,20 @@
+$ pssparser tests/python/errors/data/volume/max_errors_cap_fires.pss (exit 1)
+--- stdout ---
+--- stderr ---
+tests/python/errors/data/volume/max_errors_cap_fires.pss:5:17: error: expected identifier before ';'
+ 5 | struct S0 { int ; }
+   |                 ^
+
+tests/python/errors/data/volume/max_errors_cap_fires.pss:6:17: error: expected identifier before ';'
+ 6 | struct S1 { int ; }
+   |                 ^
+
+tests/python/errors/data/volume/max_errors_cap_fires.pss:7:17: error: expected identifier before ';'
+ 7 | struct S2 { int ; }
+   |                 ^
+
+tests/python/errors/data/volume/max_errors_cap_fires.pss:8:17: error: too many errors (3); stopped reporting further errors for this file
+ 8 | struct S3 { int ; }
+   |                 ^
+
+4 errors in 1 file

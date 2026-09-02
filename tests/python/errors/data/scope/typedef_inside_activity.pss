@@ -1,0 +1,11 @@
+//! id:     PSS024
+//! at:     8:13
+//! match:  unexpected 'typedef' in this context
+//! count:  1
+component C {
+    action A {
+        activity {
+            typedef int foo_t;
+        }
+    }
+}

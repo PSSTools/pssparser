@@ -547,3 +547,110 @@ def test_legacy_subscript_foreach_form_is_accepted():
     what localises a regression to the builder branch rather than to `foreach`.
     """
     assert_clean(FOREACH_LEGACY_SUBSCRIPT_FORM)
+
+
+# ---------------------------------------------------------------------------
+# E7-D14 -- two unresolved dotted ref-paths abort the process
+# ---------------------------------------------------------------------------
+# Found by the E-7 L2 mutation sweep (test_mutation_sweep.py --errors-full),
+# not written by hand -- see docs/design/known-issues.md#e7-d14 for the full
+# writeup and what is and isn't understood about the root cause yet.
+
+TWO_UNRESOLVED_DOTTED_REFPATHS = """
+component dma_c {
+    action mem2spi_a {
+        constraint channel_c {
+            ch.instance_id == 1;
+        }
+        constraint size_c {
+            data.nbytes == src.mem.size;
+        }
+    }
+}
+"""
+
+
+def test_two_unresolved_ref_paths_do_not_abort():
+    # E7-D14, fixed: TaskResolveRefs::visitExprRefPathContext's "did you
+    # mean" suggestion lookup called AstSymbolTableIterator::getScope() on
+    # the live active stack. getScope() silently *erases* every
+    # non-ISymbolScope frame it walks past (by design -- it's meant to be
+    # called on a throwaway clone, as TaskResolveRootRef::resolve() does),
+    # so calling it live dropped the ConstraintBlock frame
+    # visitConstraintBlock had just pushed and still owned, and its matching
+    # popScope() then removed the wrong frame. Two constraints in one action
+    # each hitting this compounded the imbalance until a pop found the stack
+    # empty. Fixed by cloning the stack before the lookup. See
+    # known-issues.md#e7-d14.
+    assert_rejects(TWO_UNRESOLVED_DOTTED_REFPATHS, "unknown identifier")
+
+
+# ---------------------------------------------------------------------------
+# E7-D15 -- a bare block directly followed by `while (...);` segfaults
+# ---------------------------------------------------------------------------
+# Also found by --errors-full, a second and unrelated crash from the same run
+# that found E7-D14 -- see docs/design/known-issues.md#e7-d15. A genuine
+# SIGSEGV, not a disciplined DEBUG_FATAL throw, so there is no diagnostic
+# text to assert against; only survival is checked.
+
+BARE_BLOCK_THEN_WHILE = """
+component c {
+    target function void f() {
+        { int x; } while (1);
+    }
+}
+"""
+
+
+def test_bare_block_followed_by_while_does_not_segfault():
+    # E7-D15, fixed: a `while`/`repeat`/`repeat ... while` loop with an empty
+    # (`;`) body left `body` null, and three call sites dereferenced it
+    # unconditionally -- AstBuilderInt::visitProcedural_repeat_stmt's
+    # `body->setIndex(...)` (all three branches) and
+    # TaskResolveRefs::visitProceduralStmtRepeat's `i->getBody()->accept(...)`.
+    # See known-issues.md#e7-d15.
+    assert_no_crash(BARE_BLOCK_THEN_WHILE)
+
+
+# ---------------------------------------------------------------------------
+# E7-D16 -- a mis-typed handle declaration referenced from an activity
+# segfaults, in a not-yet-minimized real corpus file
+# ---------------------------------------------------------------------------
+# A third crash from the same --errors-full run as E7-D14/D15 -- see
+# docs/design/known-issues.md#e7-d16. Unlike those two, no reduced repro is
+# known to reproduce it yet, so this mutates the real corpus file in place
+# (the same "step s1, s2;" -> "s1 step, s2;" swap the sweep applied) rather
+# than embed a hand-written case that might not actually trigger the bug.
+# Skips cleanly when the corpus isn't checked out, same as
+# tests/python/corpus/test_pss_corpus.py.
+
+import os  # noqa: E402
+
+
+def _activity_shapes_source():
+    root = os.environ.get("PSS_CORPUS")
+    candidates = []
+    if root:
+        candidates.append(Path(root))
+    repo_root = Path(__file__).resolve().parents[3]
+    candidates += [repo_root / "packages" / "pss-corpus",
+                   repo_root.parent / "pss-corpus"]
+    for path in candidates:
+        for sub in ("curated", "."):
+            f = path / sub / "language-ref" / "activity_shapes.pss"
+            if f.is_file():
+                return f.read_text(encoding="utf-8")
+    return None
+
+
+def test_swapped_handle_decl_referenced_in_activity_does_not_segfault():
+    # E7-D16, fixed: TaskResolveRefs::visitActivityActionTypeTraversal pushed
+    # an unresolved (null) field_scope onto the symbol-table iterator with no
+    # null check, unlike its sibling visitActivityActionHandleTraversal just
+    # above it, which already guarded the same case. See known-issues.md#e7-d16.
+    src = _activity_shapes_source()
+    if src is None:
+        pytest.skip("pss-corpus not present ($PSS_CORPUS / packages/pss-corpus)")
+    mutated = src.replace("step s1, s2;", "s1 step, s2;", 1)
+    assert mutated != src, "fixture text not found -- corpus file changed shape"
+    assert_no_crash(mutated)

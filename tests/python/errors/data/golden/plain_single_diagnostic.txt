@@ -1,0 +1,8 @@
+$ pssparser tests/python/errors/data/punct/missing_semicolon_return.pss (exit 1)
+--- stdout ---
+--- stderr ---
+tests/python/errors/data/punct/missing_semicolon_return.pss:9:9: error: unexpected '}' in this context
+ 9 |         }
+   |         ^
+
+1 error in 1 file

@@ -1,0 +1,8 @@
+//! id:     PSS021
+//! at:     9:1
+//! match:  unexpected end of input
+//! count:  1
+struct S {
+    rand int x;
+    constraint {
+        x > 0;

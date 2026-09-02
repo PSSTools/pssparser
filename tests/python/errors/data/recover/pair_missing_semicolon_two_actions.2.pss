@@ -1,0 +1,12 @@
+//! id:     PSS020
+//! at:     8:5
+//! match:  expected ';' before '}'
+//! count:  2
+component C {
+    action A {
+        rand int x
+    }
+    action B {
+        rand int y
+    }
+}

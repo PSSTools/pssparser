@@ -1,0 +1,10 @@
+//! id:     PSS109
+//! at:     8:33
+//! match:  malformed mustache expression: unexpected '+'
+//! count:  1
+component C {
+    action A {
+        rand int a;
+        exec body cpp = """v = {{ a + }}""";
+    }
+}

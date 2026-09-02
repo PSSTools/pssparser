@@ -1,0 +1,10 @@
+//! id:     PSS109
+//! at:     8:43
+//! match:  malformed mustache expression: unexpected ','
+//! hint:   separate the braces
+//! count:  1
+component C {
+    action A {
+        exec body cpp = """int m[2][2] = {{1,2},{3,4}};""";
+    }
+}

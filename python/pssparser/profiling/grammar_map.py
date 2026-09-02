@@ -8,6 +8,7 @@ a report is a clickable ``src/PSSParser.g4:NNN``.
 from __future__ import annotations
 
 import hashlib
+import os
 import re
 from pathlib import Path
 from typing import Dict, Optional
@@ -18,12 +19,49 @@ from typing import Dict, Optional
 _RULE_DECL = re.compile(r"^\s*(?P<name>[a-z][a-zA-Z_0-9]*)\s*(?:\[[^\]]*\])?\s*:")
 
 
+#: Where the grammar sits relative to a checkout root.
+_GRAMMAR_RELPATH = Path("src") / "PSSParser.g4"
+
+
 def find_grammar(explicit: Optional[str] = None) -> Optional[Path]:
+    """Locate ``src/PSSParser.g4``, or ``None`` if this is not a checkout.
+
+    The grammar is a BUILD input: ANTLR consumes it to generate the parser, and
+    it is deliberately not shipped in the wheel.  So this can only ever find it
+    in a source tree, and the three probes below are three different ways of
+    being in one:
+
+    1. ``explicit`` -- ``--grammar`` on ``scripts/profile_grammar.py``.
+    2. ``$PSSPARSER_GRAMMAR`` -- the escape hatch for a layout none of the rest
+       anticipates.
+    3. ``parents[3]`` -- this module at ``<repo>/python/pssparser/profiling/``,
+       i.e. the parser is being imported straight out of the checkout.
+    4. **cwd and its ancestors** -- the parser is an INSTALLED WHEEL, but the
+       tests are being run from the checkout.  That is not an edge case, it is
+       how CI runs: a clean venv with the wheel in it, ``pytest tests/python``
+       from the repository root.  Probe 3 resolves into site-packages there and
+       finds nothing, which left ``grammar_sha`` returning ``"unknown"`` and
+       took three profiling tests red on the v3.1.0 tag build.
+    """
     if explicit:
         path = Path(explicit)
         return path if path.is_file() else None
-    path = Path(__file__).resolve().parents[3] / "src" / "PSSParser.g4"
-    return path if path.is_file() else None
+
+    env = os.environ.get("PSSPARSER_GRAMMAR")
+    if env:
+        path = Path(env)
+        return path if path.is_file() else None
+
+    path = Path(__file__).resolve().parents[3] / _GRAMMAR_RELPATH
+    if path.is_file():
+        return path
+
+    cwd = Path.cwd().resolve()
+    for base in (cwd, *cwd.parents):
+        candidate = base / _GRAMMAR_RELPATH
+        if candidate.is_file():
+            return candidate
+    return None
 
 
 def rule_lines(grammar: Optional[Path]) -> Dict[str, int]:

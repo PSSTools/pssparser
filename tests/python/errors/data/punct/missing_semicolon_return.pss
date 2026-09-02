@@ -1,0 +1,11 @@
+//! id:     PSS024
+//! at:     9:9
+//! match:  unexpected '}'
+//! count:  1
+component C {
+    action A {
+        exec body {
+            return
+        }
+    }
+}

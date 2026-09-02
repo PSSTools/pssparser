@@ -64,6 +64,7 @@ public:
         if (!m_has) {
             m_has = true;
             m_msg = msg;
+            m_sym = offendingSymbol ? offendingSymbol->getText() : std::string();
         }
     }
 
@@ -71,10 +72,37 @@ public:
 
     const std::string &msg() const { return m_msg; }
 
+    const std::string &sym() const { return m_sym; }
+
 private:
     bool        m_has = false;
     std::string m_msg;
+    std::string m_sym;
 };
+
+/**
+ * D1 (mustache instance): the fragment parser hits the identical ANTLR
+ * follow-set shapes as the main grammar's classifier in AstBuilderInt.cpp --
+ * strip the same raw-jargon shapes into prose rather than pasting ANTLR's
+ * message straight into "malformed mustache expression: <this>".
+ */
+static std::string humanizeFragmentError(const std::string &msg, const std::string &sym) {
+    if (msg.find("mismatched input") != std::string::npos) {
+        if (msg.find("expecting {ID, ESCAPED_ID}") != std::string::npos ||
+                msg.find("expecting {'::', ID, ESCAPED_ID}") != std::string::npos) {
+            return "expected identifier before '" + sym + "'";
+        }
+        std::string expecting = msg.substr(msg.find("expecting"));
+        if (expecting.size() > 60) {
+            return "unexpected '" + sym + "'";
+        }
+        return "unexpected '" + sym + "' " + expecting;
+    }
+    if (msg.find("extraneous input") != std::string::npos) {
+        return "unexpected '" + sym + "'";
+    }
+    return msg;
+}
 
 /**
  * Owns one throwaway parser over a fragment of template text.
@@ -105,7 +133,7 @@ public:
 
     std::string error() {
         if (m_listener.hasError()) {
-            return m_listener.msg();
+            return humanizeFragmentError(m_listener.msg(), m_listener.sym());
         } else if (m_tokens.LA(1) != antlr4::Token::EOF) {
             return "unexpected '" + m_tokens.LT(1)->getText() + "'";
         } else {

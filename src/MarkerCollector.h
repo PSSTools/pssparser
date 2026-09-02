@@ -27,9 +27,20 @@ public:
 		return m_markers;
 	}
 
+	virtual void setMaxErrors(int32_t max) override {
+		m_max_errors = max;
+	}
+
+	virtual bool maxErrorsExceeded() const override {
+		return m_stopped;
+	}
+
 private:
 	uint32_t					m_count[static_cast<uint32_t>(MarkerSeverityE::NumLevels)];
 	std::vector<IMarkerUP>		m_markers;
+	int32_t						m_max_errors = 0; // 0 = unlimited
+	int32_t						m_error_count = 0;
+	bool						m_stopped = false;
 
 
 };

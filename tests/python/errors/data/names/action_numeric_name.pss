@@ -1,0 +1,7 @@
+//! id:     PSS025
+//! at:     6:12
+//! match:  unexpected '3'
+//! count:  1
+component C {
+    action 3x { }
+}

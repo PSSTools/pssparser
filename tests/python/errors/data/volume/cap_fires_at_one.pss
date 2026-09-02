@@ -1,0 +1,8 @@
+//! id:     PSS029
+//! at:     7:17
+//! match:  too many errors (1); stopped reporting further errors for this file
+//! count:  1
+//! max-errors: 1
+struct S0 { int ; }
+struct S1 { int ; }
+struct S2 { int ; }

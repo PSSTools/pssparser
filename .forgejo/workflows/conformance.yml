@@ -1,24 +1,36 @@
 # psstools/pssparser -- Forgejo Actions.
 #
 # THIS IS A CHECK, NOT A BUILD. The build for this repository is the file next
-# to it, .forgejo/workflows/ci.yml, and that one is also the RELEASE PATH:
-# sync-policy.toml pins release_authority = "forgejo" here, because PyPI's two
-# most recent pssparser releases (3.0.1 and 3.0.2) are clean versions and only
-# the Forgejo pipeline can produce those -- the GitHub workflow's publish job
-# stamped a run id onto everything it uploaded, and has now been deleted.
+# to it, .forgejo/workflows/ci.yml.
+#
+# THE RELEASE PATH IS NO LONGER THAT FILE. sync-policy.toml pinned
+# release_authority = "forgejo" here from 2026-08-31, on the evidence that
+# PyPI's clean versions (3.0.1, 3.0.2) could only have come from the Forgejo
+# pipeline. It moved to "github" on 2026-09-01 for a reason that evidence could
+# not see: this package ships a COMPILED EXTENSION, the Forgejo build is linux
+# x86_64 only by scope decision, and the aarch64/Windows/macOS wheels a release
+# needs exist only on GitHub. Clean version numbers were never the scarce
+# thing; platform coverage was. See .github/workflows/ci.yml's header.
+#
+# THAT MOVE DOES NOT WEAKEN THIS CHECK, and the reason is worth stating because
+# the obvious reading is that it does. This file's assertions are not about
+# which forge publishes -- they are that EVERY publish step in EITHER workflow
+# directory is gated on a v* tag AND on the switch. Both publishers still
+# exist; exactly one is armed at a time, and which one is a value in a JSON
+# file rather than a property of these workflows. An ungated step is one push
+# away from firing whichever way the switch points.
 #
 # Unlike every other shadow in this estate, this file is NOT what makes
 # .forgejo/workflows/ exist -- the build already did that, so the runner's
 # directory-level fallback to .github/workflows/ was never armed here. What it
-# adds is the assertion, and the assertion is worth more here than elsewhere
-# precisely BECAUSE the publisher this repository actually uses is the local
-# one: a repo whose release path is on this forge is a repo where an ungated
-# publish step is one push away from firing, with no GitHub-side review in
-# between.
+# adds is the assertion.
 #
-# It scans BOTH workflow directories, which is what lets it watch that
-# publisher at all. Waves 1-4 scanned only .github, and under that rule this
-# file would have asserted nothing about the only publisher this repo has.
+# It scans BOTH workflow directories, which is what lets it watch either
+# publisher at all. Waves 1-4 scanned only .github; under that rule this file
+# asserted nothing about the Forgejo publisher, which was then the live one.
+# Now that the live one is back under .github, the both-directories rule is
+# what keeps the disarmed publisher watched too -- a switch can be moved back,
+# and a publisher that rotted while disarmed would be armed by that move.
 
 name: Conformance
 
@@ -100,12 +112,21 @@ jobs:
         WORKFLOW_DIRS = (".github/workflows", ".forgejo/workflows")
         # BOTH directories, from Phase 9 onward. Waves 1-4 scanned only
         # .github, on the reasoning that .forgejo held nothing but this check.
-        # psstools/pssparser is the case that breaks: its RELEASE PIPELINE is
-        # the Forgejo one -- release_authority = "forgejo" in sync-policy.toml
-        # -- so the publisher this check most needs to watch lives in the
-        # directory it was not looking at. Scanning both also means the check
-        # reads itself, which is harmless: its markers are assembled from
-        # fragments precisely so this file never matches them.
+        # psstools/pssparser is the case that breaks: when this rule was
+        # written its RELEASE PIPELINE was the Forgejo one, so the publisher
+        # the check most needed to watch lived in the directory it was not
+        # looking at.
+        #
+        # The authority moved back to github on 2026-09-01 and the rule is not
+        # thereby obsolete -- it is what keeps the DISARMED publisher honest.
+        # Both files still carry a publish step; the switch decides which one
+        # fires, and a switch can be moved. A gate that rotted in the directory
+        # nobody was scanning would go live at the moment of the move, which is
+        # the worst possible time to discover it.
+        #
+        # Scanning both also means the check reads itself, which is harmless:
+        # its markers are assembled from fragments precisely so this file never
+        # matches them.
 
         def workflows():
             for d in WORKFLOW_DIRS:

@@ -1,0 +1,31 @@
+# E-2 lint debt list.
+#
+# Format: <LINT>: <substring-of-the-offending-message>  # owner//reason
+#
+# Every current violation of a global lint (test_message_lints.py) must have
+# an entry here, or the corresponding lint test fails. A meta-test asserts
+# entries are not stale: if a listed pattern stops matching any message this
+# session produced, that line must be deleted (this file IS the debt list --
+# its shrinking line count is progress metric 2, see error-testing-plan.md §9).
+
+# TaskCheckRefsResolved's completeness-gate diagnosis (tests/python/errors/
+# test_refs_resolved.py) has no MarkerDef / catalogue entry at all yet, not
+# just a missing pattern -- allocating it an ID belongs to E-3.
+G6: is never resolved: the reference is left unbound after linking  # E-3//no catalogue entry yet for this diagnosis
+
+# Long-but-legitimate explanatory messages -- G7's 120-char cap is meant to
+# catch a wall of ANTLR internals, not a genuinely long piece of prose. These
+# are candidates for a two-line message (primary + hint) once the renderer
+# supports one; revisit then rather than truncating today.
+G7: has no subsequent element in this scope to attach to  # E-6//long but not jargon; revisit when multi-line messages are supported
+G7: Expect one of (body, header, declaration  # E-6//long but not jargon; revisit when multi-line messages are supported
+G7: is never resolved: the reference is left unbound after linking  # E-3//same message as the G6 entry above; also over 120 chars
+
+# D1 (main grammar) and its mustache-sub-parser instance are both fixed as of
+# E-6: rewriteSyntaxError and the fragment parser's humanizeFragmentError now
+# recognize an ID/ESCAPED_ID-only expecting-set and rewrite it to
+# "expected identifier before 'X'" instead of pasting ANTLR's raw set, so
+# none of those messages leak jargon anymore. The G3 entries for both are
+# gone. "unterminated mustache expression" (code 108) is untouched by that
+# fix and is still long-but-legitimate prose, not jargon -- kept below.
+G7: unterminated mustache expression  # E-6//long but not jargon; revisit when multi-line messages are supported

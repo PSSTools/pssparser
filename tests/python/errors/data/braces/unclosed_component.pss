@@ -1,0 +1,7 @@
+//! id:     PSS021
+//! at:     6:13
+//! match:  unclosed '{' for component 'C'
+//! also:   8:1 "input ends here"
+//! count:  1
+component C {
+    action A { }

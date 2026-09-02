@@ -1,0 +1,14 @@
+//! id:     PSS020
+//! at:     11:17
+//! match:  expected '{' before 'A'
+//! count:  1
+component C {
+    action A {
+    }
+    action B {
+        activity {
+            select
+                A;
+        }
+    }
+}
