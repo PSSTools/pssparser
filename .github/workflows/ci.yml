@@ -17,6 +17,17 @@
 # wheel possible was developed and merged here, on the forge that could not
 # release it.
 #
+# HAVING ALL FOUR PLATFORMS IS NOT THE SAME AS SERVING THEM, which v3.1.0 --
+# the first release under this authority -- demonstrated: the manylinux jobs
+# build cp39..cp314 from the interpreters in the manylinux image, but the
+# Windows and macOS jobs each pinned one setup-python version, so that release
+# published six wheels per linux architecture against one Windows wheel
+# (cp311) and one macOS wheel (cp313). Every other Windows and macOS Python
+# still fell back to the source build that cannot succeed -- the same failure
+# the authority moved here to prevent, narrowed from a platform to a version.
+# Both jobs are six-way matrices as of 2026-09-02, and `publish-pypi` now
+# checks the platform coverage of what it is about to upload.
+#
 # The Forgejo publish job is NOT deleted in exchange. It reads the same switch,
 # so it disarms itself the moment the switch says "github", and re-arms if the
 # switch is ever moved back. Deleting it would make the move one-way for no
@@ -295,6 +306,27 @@ jobs:
         python -c "from pssparser import Parser; p = Parser(); assert p.parses([('test.pss', 'component pss_top {}')]); print('System test PASSED')"
 
   ci-win32:
+    # ONE MATRIX ENTRY PER PYTHON, matching the cp39..cp314 loop the manylinux
+    # jobs run. This job used to build a single 3.11 wheel, which is why
+    # v3.1.0 shipped exactly one Windows artifact -- pssparser-3.1.0-cp311-
+    # cp311-win_amd64.whl -- and every other Windows Python fell through to a
+    # source build that cannot succeed without ANTLR and MSVC.
+    #
+    # A MATRIX rather than a for-loop inside one job, unlike the manylinux
+    # jobs: those get every interpreter for free from the manylinux image, so
+    # looping costs one container. Here each version has to be installed by
+    # actions/setup-python, and a loop would mean repeatedly swapping the
+    # active interpreter under a single cmake/build_ext configuration whose
+    # build/ directory is keyed to whichever Python configured it first.
+    #
+    # fail-fast IS OFF so that one broken version reports as one broken
+    # version. With it on, the first failure cancels the siblings and the log
+    # cannot distinguish "3.14 is broken" from "3.14 is broken and so are the
+    # four that never ran".
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.9', '3.10', '3.11', '3.12', '3.13', '3.14']
     runs-on: windows-latest
     defaults:
       run:
@@ -304,7 +336,7 @@ jobs:
     - uses: ilammy/msvc-dev-cmd@v1
     - uses: actions/setup-python@v5
       with:
-        python-version: '3.11'
+        python-version: ${{ matrix.python }}
     # find_package(ANTLR) shells out to the antlr jar to detect its version,
     # and the grammars are code-generated with it during the build.
     - uses: actions/setup-java@v4
@@ -343,9 +375,14 @@ jobs:
       run: |
         python -m build --wheel --no-isolation
     - name: Upload wheels
+      # PER-VERSION ARTIFACT NAME. upload-artifact@v4 rejects a second upload
+      # under a name that already exists, so a shared `wheels-windows` would
+      # make five of the six matrix entries fail outright. The publish job
+      # collects on the `wheels-*` pattern with merge-multiple, so the split
+      # names land back in one dist/ regardless.
       uses: actions/upload-artifact@v4
       with:
-        name: wheels-windows
+        name: wheels-windows-py${{ matrix.python }}
         path: dist/*.whl
         if-no-files-found: error
     - name: System test
@@ -355,7 +392,50 @@ jobs:
         /c/test-venv/Scripts/python -c "from pssparser import Parser; p = Parser(); assert p.parses([('test.pss', 'component pss_top {}')]); print('System test PASSED')"
 
   ci-macos:
+    # SAME MATRIX SHAPE AND SAME REASONS as ci-win32 above: this built 3.13
+    # alone, so v3.1.0 shipped one macOS wheel and every other macOS Python
+    # got the impossible source build.
+    #
+    # ARM64 ONLY, DELIBERATELY. GitHub's Intel macOS runner is gone, so an
+    # x86_64 wheel could only be cross-compiled here and never executed --
+    # including by the system test below, which is the step that has actually
+    # been catching packaging faults. A missing wheel makes `pip install`
+    # report no candidate for Intel Macs; a cross-built wheel nobody ran would
+    # install and then fail at import, which is strictly worse. If Intel
+    # coverage is wanted it needs a real x86_64 executor, not a flag here.
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.9', '3.10', '3.11', '3.12', '3.13', '3.14']
     runs-on: macos-latest
+    env:
+      # THE THREE VARIABLES BELOW ARE WHAT MAKE THE WHEEL TAG TRUE, and the
+      # 3.13 wheel already on PyPI is the evidence for why they are needed:
+      # it is tagged `macosx_26_0_universal2` and is neither of those things.
+      #
+      #   universal2 -- because setup-python's CPython is a universal2 build,
+      #   so setuptools tags by the INTERPRETER's architectures rather than
+      #   the extension's. The extension is arm64 only. pip on an Intel Mac
+      #   believes that tag, installs, and dies at import.
+      #
+      #   26_0 -- because with no deployment target set, the tag is taken from
+      #   the RUNNER's OS version. That number climbs every time GitHub moves
+      #   the macos-latest image, and it makes the wheel uninstallable on
+      #   every macOS older than whatever the runner happened to be.
+      #
+      # ARCHFLAGS drives the compiler, CMAKE_OSX_ARCHITECTURES drives the
+      # native library build (CMake does not read ARCHFLAGS), and
+      # _PYTHON_HOST_PLATFORM overrides the tag setuptools would otherwise
+      # derive from the interpreter. All three, or the tag and the binary
+      # disagree again in one direction or another.
+      #
+      # 13.0 is a floor, not a description of the runner: arm64 Macs run
+      # macOS 11 and up, and CMake takes CMAKE_OSX_DEPLOYMENT_TARGET from
+      # MACOSX_DEPLOYMENT_TARGET so the native libraries get the same floor as
+      # the extensions.
+      MACOSX_DEPLOYMENT_TARGET: '13.0'
+      ARCHFLAGS: '-arch arm64'
+      _PYTHON_HOST_PLATFORM: 'macosx-13.0-arm64'
     steps:
     - uses: actions/checkout@v4
     - name: Stamp build version
@@ -380,7 +460,7 @@ jobs:
         grep '^SUFFIX = ' python/pssparser/__version__.py
     - uses: actions/setup-python@v5
       with:
-        python-version: '3.13'
+        python-version: ${{ matrix.python }}
     - uses: actions/setup-java@v4
       with:
         distribution: 'temurin'
@@ -393,15 +473,30 @@ jobs:
       run: |
         mkdir build
         cd build
-        cmake .. -GNinja
+        cmake .. -GNinja -DCMAKE_OSX_ARCHITECTURES=arm64
         ninja
     - name: Build Python wheel
       run: |
         python -m build --wheel --no-isolation
+    - name: Check the wheel tag
+      # The tag is the whole point of the env block above, so assert it rather
+      # than trusting that three variables all took effect. A wheel that says
+      # universal2, or that names the runner's OS version, is one pip will
+      # hand to a machine that cannot run it -- and PyPI uploads are final.
+      run: |
+        set -eu
+        for w in dist/*.whl; do
+          echo "$(basename "$w")"
+          case "$(basename "$w")" in
+            *-macosx_13_0_arm64.whl) ;;
+            *) echo "::error::$(basename "$w") is not tagged macosx_13_0_arm64"; exit 1 ;;
+          esac
+        done
     - name: Upload wheels
+      # Per-version name: see the note on the Windows upload step.
       uses: actions/upload-artifact@v4
       with:
-        name: wheels-macos
+        name: wheels-macos-py${{ matrix.python }}
         path: dist/*.whl
         if-no-files-found: error
     - name: System test
@@ -430,12 +525,20 @@ jobs:
   #   * the release-authority switch, so this and the Forgejo publisher can
   #     never both be armed for the same tag
   #   * tag == BASE in python/pssparser/__version__.py
-  #   * every wheel filename == BASE, across all four platform artifacts
+  #   * every wheel filename == BASE, across every platform artifact
   #
-  # AND ONE THING THE FORGEJO JOB CANNOT HAVE: all four wheel artifacts. That
-  # is the reason the authority moved. `needs` names every build job, so a red
-  # macOS build blocks the release rather than shipping three-quarters of it
+  # AND ONE THING THE FORGEJO JOB CANNOT HAVE: all four platforms. That is the
+  # reason the authority moved. `needs` names every build job, so a red macOS
+  # build blocks the release rather than shipping three-quarters of it
   # silently -- which is the failure mode a per-artifact publish would have.
+  #
+  # "All four platforms" became true of the ARTIFACTS at v3.1.0 and true of
+  # the COVERAGE after (2026-09-02): the Windows and macOS jobs built a single
+  # Python each, so that release carried six linux x86_64 wheels, six linux
+  # aarch64, ONE Windows and ONE macOS. Both are matrices now, and the
+  # platform-coverage check below fails the release if any of the four goes
+  # missing again -- a `needs` edge only proves a job went green, not that it
+  # produced anything the merge step could find.
   # ---------------------------------------------------------------------- #
   publish-pypi:
     # `needs: gate` is what makes the second half of this expression readable
@@ -499,6 +602,47 @@ jobs:
         fi
         echo "OK: tag, source version and all ${n} wheels agree on ${base}"
         ls -1 dist/*.whl
+
+    - name: Check every platform is represented
+      # THE VERSION CHECK ABOVE PASSES ON A LINUX-ONLY RELEASE. It asks that
+      # each wheel present carries the right version; it cannot ask about a
+      # wheel that is absent, and `needs` cannot either -- a build job that
+      # goes green having quietly produced nothing satisfies the edge.
+      #
+      # v3.1.0 is the case this exists for. It went out with six linux
+      # x86_64 wheels, six aarch64, one Windows and one macOS, entirely
+      # green, and the shortfall was visible only by reading the PyPI file
+      # list afterwards -- by which point the version cannot be reissued.
+      #
+      # The counts are the matrices, not the platforms: six Pythons each,
+      # cp39..cp314, on all four. A LOWER bound rather than an equality, so
+      # that adding a Python or an architecture does not fail the release
+      # before someone gets round to this file.
+      run: |
+        set -eu
+        fail=0
+        check() {
+          n=$(ls -1 dist/*.whl | grep -c -- "$2" || true)
+          echo "$1: $n wheel(s)"
+          if [ "$n" -lt "$3" ]; then
+            echo "::error::$1 contributed $n wheels, expected at least $3"
+            fail=1
+          fi
+        }
+        check "linux x86_64"  'manylinux.*x86_64'  6
+        check "linux aarch64" 'manylinux.*aarch64' 6
+        check "windows"       'win_amd64'          6
+        check "macos arm64"   'macosx.*arm64'      6
+        # A universal2 tag here means the macOS job's tag pinning came
+        # undone; the wheel would then be offered to Intel Macs that cannot
+        # import it. Caught in the macOS job too -- repeated here because
+        # this is the last point before the upload is permanent.
+        if ls -1 dist/*.whl | grep -q 'universal2'; then
+          echo "::error::a universal2-tagged wheel reached the publish step"
+          fail=1
+        fi
+        [ "$fail" -eq 0 ] || exit 1
+        echo "OK: all four platforms represented"
 
     - name: Publish to PyPI
       # PYPI_API_TOKEN is an ORG-level secret on psstools, scoped to all repos.
