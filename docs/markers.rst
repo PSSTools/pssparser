@@ -208,6 +208,15 @@ A duplicate name matters more than it looks: the plural form writes its fields i
 
 Which **bits** a resolved field occupies is deliberately not decided here.  ``packed_s<>`` layout is a target representation -- backends order it oppositely on purpose -- so the compiler folds the mask.  This checks *which field*; the compiler answers *which bits*.
 
+PSS011
+------
+
+**Severity:** error
+
+Digit out of range for a based literal's radix
+
+A based literal (LRM B.19, e.g. ``'hFF``, ``8'b1010``) contains a digit that is not valid for its radix -- for example a hex literal spelled with a letter past ``f``/``F``. The lexer accepts any alphanumeric run after the radix character so a typo still lexes as one literal token (rather than a lexical error splitting the trailing characters into an unrelated token); this check then validates the digits against the radix. Only the first invalid digit is reported. Message: ``invalid digit '<c>' in based literal``.
+
 PSS020
 ------
 

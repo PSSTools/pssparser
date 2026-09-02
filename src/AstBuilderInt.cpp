@@ -3919,9 +3919,70 @@ static bool parseIntegerLiteral(
 	return true;
 }
 
+void AstBuilderInt::checkBasedLiteralDigits(antlr4::tree::TerminalNode *lit, int32_t radix) {
+    if (!lit) {
+        return;
+    }
+    const std::string &text = lit->getText();
+
+    // text is `' [s] <radix-char> <digits>`; digits start right after the
+    // radix character (index 2 or 3, depending on the optional 's'/'S').
+    std::string::size_type i = 1;
+    if (i < text.size() && (text[i] == 's' || text[i] == 'S')) {
+        i++;
+    }
+    i++; // radix character itself, already validated by the lexer rule
+
+    for (; i < text.size(); i++) {
+        char c = text[i];
+        if (c == '_') {
+            continue;
+        }
+        int32_t digit_val;
+        if (c >= '0' && c <= '9') {
+            digit_val = c - '0';
+        } else if (c >= 'a' && c <= 'z') {
+            digit_val = 10 + (c - 'a');
+        } else if (c >= 'A' && c <= 'Z') {
+            digit_val = 10 + (c - 'A');
+        } else {
+            digit_val = radix; // force out-of-range
+        }
+
+        if (digit_val >= radix) {
+            Token *t = lit->getSymbol();
+            ast::Location loc;
+            loc.fileid = m_file_id;
+            loc.lineno = t->getLine();
+            loc.linepos = t->getCharPositionInLine() + 1 + (uint32_t)i;
+            loc.extent = 1;
+
+            char tmp[128];
+            snprintf(tmp, sizeof(tmp), "invalid digit '%c' in based literal", c);
+            Marker m(tmp, MarkerSeverityE::Error, loc);
+            if (m_marker_l) {
+                m_marker_l->marker(&m);
+            }
+            return;
+        }
+    }
+}
+
 antlrcpp::Any AstBuilderInt::visitNumber(PSSParser::NumberContext *ctx_t) {
 	DEBUG_ENTER("visitNumber %s", ctx_t->getText().c_str());
     if (ctx_t->integer_number()) {
+        PSSParser::Integer_numberContext *int_ctx = ctx_t->integer_number();
+
+        if (int_ctx->based_hex_number()) {
+            checkBasedLiteralDigits(int_ctx->based_hex_number()->BASED_HEX_LITERAL(), 16);
+        } else if (int_ctx->based_dec_number()) {
+            checkBasedLiteralDigits(int_ctx->based_dec_number()->BASED_DEC_LITERAL(), 10);
+        } else if (int_ctx->based_bin_number()) {
+            checkBasedLiteralDigits(int_ctx->based_bin_number()->BASED_BIN_LITERAL(), 2);
+        } else if (int_ctx->based_oct_number()) {
+            checkBasedLiteralDigits(int_ctx->based_oct_number()->BASED_OCT_LITERAL(), 8);
+        }
+
         // The image is the source spelling, and the source spelling is the
         // tokens: which of the eight `integer_number` alternatives matched is
         // exactly what `parseIntegerLiteral` recovers from the text, so there

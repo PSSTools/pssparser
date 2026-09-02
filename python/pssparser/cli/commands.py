@@ -47,6 +47,7 @@ def cmd_parse(
 
     source_cache = SourceCache()
     coll = DiagnosticCollection()
+    coll.set_processed_files(files)
 
     if use_json:
         driver = JsonOutput(stream=_stdout)

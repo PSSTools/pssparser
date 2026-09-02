@@ -568,6 +568,12 @@ private:
      */
     void addErrorMarker(Token *t, const char *fmt, ...);
 
+    /**
+     * Check a BASED_*_LITERAL token's digits against its radix and report
+     * an "invalid digit" marker at the offending character, if any.
+     */
+    void checkBasedLiteralDigits(antlr4::tree::TerminalNode *lit, int32_t radix);
+
     bool evalConstantExpression(PSSParser::Constant_expressionContext *ctx, int64_t &val);
 
     bool evalExpression(PSSParser::ExpressionContext *ctx, int64_t &val);

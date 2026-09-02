@@ -62,6 +62,7 @@ REPRESENTATIVE_MESSAGES = [
     ("PSS008", "'f' is declared pure, so it cannot return void"),
     ("PSS009", "declarations of 'f' disagree about the return type"),
     ("PSS010", "no field 'chan_en' in register value type 'csr_s'"),
+    ("PSS011", "invalid digit 'G' in based literal"),
     ("PSS100", "annotation is not attached to a model element"),
     ("PSS101", "unknown annotation type 'desc_s'; annotation disregarded"),
     ("PSS102", "annotation initializer for 'owner' is not a constant expression"),

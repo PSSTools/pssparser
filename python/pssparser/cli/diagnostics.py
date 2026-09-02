@@ -96,9 +96,20 @@ class DiagnosticCollection:
 
     def __init__(self) -> None:
         self._diags: List[Diagnostic] = []
+        self._processed_files: Optional[List[str]] = None
 
     def add(self, diag: Diagnostic) -> None:
         self._diags.append(diag)
+
+    def set_processed_files(self, files: List[str]) -> None:
+        """Record the files actually handed to the parser.
+
+        ``files`` (diagnostic-derived, below) is empty for a clean parse
+        with zero diagnostics, which made ``summary()`` misreport "0
+        files" even though files were processed. Call this once the input
+        file list is known so ``files`` can fall back to it.
+        """
+        self._processed_files = list(files)
 
     @property
     def diagnostics(self) -> List[Diagnostic]:
@@ -114,7 +125,10 @@ class DiagnosticCollection:
 
     @property
     def files(self) -> set:
-        return {d.file for d in self._diags}
+        diag_files = {d.file for d in self._diags}
+        if self._processed_files is not None:
+            return diag_files | set(self._processed_files)
+        return diag_files
 
     @property
     def has_errors(self) -> bool:

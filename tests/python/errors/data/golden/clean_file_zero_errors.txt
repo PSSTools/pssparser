@@ -1,4 +1,4 @@
 $ pssparser tests/python/errors/data/golden/clean.pss (exit 0)
 --- stdout ---
 --- stderr ---
-0 errors in 0 files
+0 errors in 1 file

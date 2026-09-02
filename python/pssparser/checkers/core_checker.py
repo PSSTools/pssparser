@@ -336,6 +336,26 @@ class CoreChecker(CheckerBase):
                 r"^write_masked\b",
             ),
         ),
+        MarkerDef(
+            id="PSS011",
+            severity="error",
+            summary="Digit out of range for a based literal's radix",
+            detail=(
+                "A based literal (LRM B.19, e.g. ``'hFF``, ``8'b1010``) contains "
+                "a digit that is not valid for its radix -- for example a "
+                "hex literal spelled with a letter past ``f``/``F``. The "
+                "lexer accepts any alphanumeric run after the radix "
+                "character so a typo still lexes as one literal token "
+                "(rather than a lexical error splitting the trailing "
+                "characters into an unrelated token); this check then "
+                "validates the digits against the radix. Only the first "
+                "invalid digit is reported. Message: ``invalid digit '<c>' "
+                "in based literal``."
+            ),
+            patterns=(
+                r"^invalid digit\b",
+            ),
+        ),
 
         # -- Syntax-error sub-band (PSS020-PSS029) ---------------------------
         #
