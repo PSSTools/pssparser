@@ -28,6 +28,30 @@ endif()
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+#****************************************************************************
+#* ENABLE_ASAN -- a diagnostic build, never the shipped one
+#*
+#*   emcmake cmake -S wasm -B build-wasm-asan -DENABLE_ASAN=ON
+#*   cmake --build build-wasm-asan -j
+#*   node wasm/asan-probe.mjs build-wasm-asan
+#*
+#* This exists for one class of bug that the test suite provably cannot see.
+#* AstBuilderInt::build keeps borrowed pointers to every unit it has processed
+#* (AstBuilderInt.cpp:153), so a unit freed after a failed parse leaves a
+#* dangling pointer for the next parse to read. bindings.cpp handles that by
+#* retiring failed units -- and with the fix reverted, the whole suite still
+#* passes, because the freed block is not recycled and the read returns
+#* stale-but-intact data. Nothing observable differs.
+#*
+#* ASan is what makes the difference observable. The native build has had
+#* -DENABLE_ASAN=ON for a long time; the WASM build did not, which is why the
+#* fix shipped in Phase 1 justified only by reading the code.
+#*
+#* Not a variant of the release build: ASan replaces the allocator and roughly
+#* triples the artifact, so it is a separate build directory used deliberately.
+#****************************************************************************
+option(ENABLE_ASAN "Build with AddressSanitizer (diagnostic only, not shippable)" OFF)
+
 get_filename_component(PSSPARSER_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/.." ABSOLUTE)
 set(PACKAGES_DIR "${PSSPARSER_ROOT}/packages")
 set(PYTHON "${PACKAGES_DIR}/python/bin/python")
@@ -122,6 +146,30 @@ if (NOT _stdlib_rc EQUAL 0)
   message(FATAL_ERROR "mk_pssstdlib.py failed (${_stdlib_rc}):\n${_stdlib_out}")
 endif()
 
+# -- AST serialisation pair --------------------------------------------------
+# The C++ writer and the TypeScript reader of the AST wire format, emitted
+# together from one schema in one run (gen_wasm.py explains why that matters).
+#
+# This step -- not `npm run gen:ast` -- is the sole producer of deserialize.ts,
+# for the same reason the schema hash below has a single producer: the file has
+# to agree with a .cpp that only this build compiles. gen-ts owns classes.ts and
+# the rest of that directory and does not touch this file, so the two generators
+# share the tree without sharing an output.
+set(SERIALIZER_DIR "${GEN_DIR}/serializer")
+message(STATUS "pssparser-wasm: generating AST serialisation pair")
+execute_process(
+  COMMAND "${PYTHON}" -m astbuilder gen-wasm
+          -astdir "${PSSPARSER_ROOT}/ast"
+          -cpp "${SERIALIZER_DIR}"
+          -ts "${PSSPARSER_ROOT}/ts/src/ast/generated"
+          -license "${PSSPARSER_ROOT}/etc/copyright.cpp"
+  RESULT_VARIABLE _ser_rc
+  OUTPUT_VARIABLE _ser_out
+  ERROR_VARIABLE _ser_out)
+if (NOT _ser_rc EQUAL 0)
+  message(FATAL_ERROR "astbuilder gen-wasm failed (${_ser_rc}):\n${_ser_out}")
+endif()
+
 # -- Schema hash -------------------------------------------------------------
 # Emitted for both sides at once, from the same inputs, in the same run. The
 # C++ half is compiled into the .wasm and the TS half into the package; the
@@ -162,12 +210,14 @@ add_executable(pssparser
   ${ANTLR_FRONTEND_SRC}
   ${AST_SRC}
   ${PSSPARSER_SRC}
+  "${SERIALIZER_DIR}/AstSerializer.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/bindings.cpp")
 
 target_include_directories(pssparser PRIVATE
   "${ANTLR_RUNTIME}"
   "${ANTLR_OUT_DIR}"
   "${AST_GEN_DIR}/include"
+  "${SERIALIZER_DIR}"
   "${GEN_DIR}"
   "${PSSPARSER_ROOT}/src"
   "${PSSPARSER_ROOT}/src/include"
@@ -215,9 +265,39 @@ set(PSSPARSER_LINK_FLAGS
   "-sDISABLE_EXCEPTION_CATCHING=0")
 
 target_compile_options(pssparser PRIVATE -fexceptions)
+
+if (ENABLE_ASAN)
+  # ALLOW_MEMORY_GROWTH is dropped rather than kept: Emscripten's ASan reserves
+  # its shadow memory against the initial heap, and a growing heap invalidates
+  # it. INITIAL_MEMORY replaces it with a fixed, large heap -- workable for a
+  # diagnostic run over one file, which is all this build is for.
+  list(REMOVE_ITEM PSSPARSER_LINK_FLAGS "-sALLOW_MEMORY_GROWTH=1")
+  list(APPEND PSSPARSER_LINK_FLAGS
+    "-fsanitize=address"
+    "-sINITIAL_MEMORY=1073741824"
+    "-sSTACK_SIZE=4194304"
+    # -g2, not -gsource-map. The source-map variant emits an addRunDependency
+    # call outside the MODULARIZE closure, so the ES6 module throws
+    # `addRunDependency is not defined` before it ever instantiates. Function
+    # names in the ASan report survive at -g2; the line numbers do not, which is
+    # a fair trade for a module that loads.
+    "-g2")
+  target_compile_options(pssparser PRIVATE -fsanitize=address -g)
+  message(STATUS "pssparser-wasm: AddressSanitizer ENABLED -- diagnostic build")
+endif()
+
 target_link_options(pssparser PRIVATE ${PSSPARSER_LINK_FLAGS})
+
+# The release build writes straight into the TypeScript package; the ASan build
+# must not, or a diagnostic artifact three times the size and with a different
+# allocator becomes the one that ships. It stays in its own build directory,
+# which is where wasm/asan-probe.mjs looks for it.
+set(PSSPARSER_OUT_DIR "${PSSPARSER_ROOT}/ts/src/wasm")
+if (ENABLE_ASAN)
+  set(PSSPARSER_OUT_DIR "${CMAKE_BINARY_DIR}")
+endif()
 
 set_target_properties(pssparser PROPERTIES
   OUTPUT_NAME pssparser
   SUFFIX ".js"
-  RUNTIME_OUTPUT_DIRECTORY "${PSSPARSER_ROOT}/ts/src/wasm")
+  RUNTIME_OUTPUT_DIRECTORY "${PSSPARSER_OUT_DIR}")

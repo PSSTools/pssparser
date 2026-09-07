@@ -24,6 +24,16 @@ export interface ParserSessionHandle {
   markersJson(): string;
   hasErrors(): boolean;
   maxErrorsExceeded(): boolean;
+  /** Units accepted so far, standard library included. */
+  unitCount(): number;
+  /**
+   * Serialise unit `idx` and return a view over the WASM heap.
+   *
+   * A *view*, not a copy: valid only until the next `serializeUnit()` on this
+   * session, and detached outright if the heap grows in between. Copy it before
+   * doing anything else.
+   */
+  serializeUnit(idx: number): Uint8Array;
   /** Embind's destructor. Frees the C++ object; the handle is dead after. */
   delete(): void;
 }

@@ -62,8 +62,13 @@ const NO_CHILDREN: readonly ScopeChild[] = Object.freeze([]);
  * The original had this test duplicated in each of `walkScope`,
  * `walkSymbolScope` and `findNodeAtPosition`, which is what let `prettyPrint`
  * drift and lose the second branch. One definition, three callers.
+ *
+ * Exported because `walkScope` is not enough for every traversal -- anything
+ * that needs depth, or that prunes, has to drive the recursion itself -- and a
+ * consumer writing one would otherwise reproduce this test and get it wrong in
+ * the way described above.
  */
-function childrenOf(node: ScopeChild): readonly ScopeChild[] {
+export function childrenOf(node: ScopeChild): readonly ScopeChild[] {
   if (node instanceof Scope || node instanceof SymbolChildrenScope) {
     return node.children;
   }

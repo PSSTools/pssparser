@@ -142,28 +142,77 @@ if (corpus.length) {
   }
 }
 
-// -- boundary throughput (Phase 0 step 5) ------------------------------------
+// -- materialisation cost (Phase 0 step 5, now measured for real) ------------
 //
 // The design materialises the AST in bulk: one serialised buffer per parse,
-// handed across in a single transfer (ts-api-design.md §4). Everything rests
-// on that transfer being cheap relative to the parse. This times the transfer
-// alone -- not the C++ walk that would fill the buffer, not the JS that would
-// turn it into objects -- so it is a lower bound on materialisation cost, and
-// the number to compare against parse time before committing to Phase 3.
-if (typeof Module.benchBoundaryOut === 'function') {
-  console.log('\nboundary transfer (wasm -> JS string):');
-  for (const kb of [64, 256, 1024, 4096]) {
-    const n = kb * 1024;
-    // Warm once: the first call at a size pays allocation the rest do not.
-    Module.benchBoundaryOut(n);
-    const reps = kb >= 1024 ? 5 : 20;
-    const t = performance.now();
-    for (let i = 0; i < reps; i++) Module.benchBoundaryOut(n);
-    const ms = (performance.now() - t) / reps;
-    console.log(
-      `  ${String(kb).padStart(5)} KiB : ${ms.toFixed(2)} ms  ` +
-        `(${(n / 1024 / 1024 / (ms / 1000)).toFixed(0)} MiB/s)`
-    );
+// handed across in a single transfer (ts-api-design.md §4). Everything rests on
+// that being cheap relative to the parse.
+//
+// Phase 0 could only bound this from below, by timing an arbitrary buffer
+// leaving the heap -- the serialiser did not exist yet. It does now, so all
+// three parts are timed separately: the C++ walk that fills the buffer, the
+// copy across the boundary, and the JavaScript that rebuilds objects from it.
+// The split is the point. A single "materialise" number would not say which
+// half to attack if it were ever too slow, and Phase 0's measurement showed
+// only the part that turns out to be negligible.
+//
+// The deserialiser is TypeScript, so this section needs `ts/dist`. It is
+// skipped rather than failed when that is absent: the kill criteria above do
+// not depend on it and `npm run build` has its own reasons to have been run.
+if (corpus.length) {
+  let deserialize = null;
+  try {
+    ({ deserialize } = await import(join(root, 'ts', 'dist', 'index.js')));
+  } catch {
+    console.log('\nmaterialisation    : skipped (run `npm --prefix ts run build` first)');
+  }
+
+  if (deserialize) {
+    const sources = corpus.map((p) => readFileSync(p, 'utf8'));
+    const REPS = 5;
+    let tSer = 0, tCopy = 0, tDes = 0, tParse = 0, bytes = 0, units = 0;
+
+    for (let rep = 0; rep < REPS; rep++) {
+      for (const content of sources) {
+        const s = new Module.ParserSession();
+        try {
+          s.beginParse();
+          let mark = performance.now();
+          s.parseSource(content);
+          tParse += performance.now() - mark;
+          if (s.hasErrors()) continue;
+
+          mark = performance.now();
+          const view = s.serializeUnit(1);
+          tSer += performance.now() - mark;
+
+          // The copy is not optional -- the view is over the WASM heap and the
+          // next call can detach it -- so it is part of the cost, not an
+          // artifact of measuring.
+          mark = performance.now();
+          const buf = new Uint8Array(view);
+          tCopy += performance.now() - mark;
+
+          mark = performance.now();
+          deserialize(buf);
+          tDes += performance.now() - mark;
+
+          if (rep === 0) { bytes += buf.length; units++; }
+        } finally {
+          s.delete();
+        }
+      }
+    }
+
+    const per = (x) => (x / REPS).toFixed(1);
+    const total = (tSer + tCopy + tDes) / REPS;
+    console.log(`\nmaterialisation    : ${units} units, ${(bytes / 1024).toFixed(0)} KiB serialised`);
+    console.log(`  parse            : ${per(tParse)} ms`);
+    console.log(`  c++ serialise    : ${per(tSer)} ms`);
+    console.log(`  copy out         : ${(tCopy / REPS).toFixed(2)} ms`);
+    console.log(`  js deserialise   : ${per(tDes)} ms`);
+    console.log(`  total            : ${total.toFixed(1)} ms  ` +
+      `(${((100 * total) / (tParse / REPS)).toFixed(0)}% of parse)`);
   }
 }
 

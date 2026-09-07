@@ -10,6 +10,7 @@ __pycache__/
 .Python
 build/
 build-wasm/
+build-wasm-asan/
 develop-eggs/
 dist/
 downloads/

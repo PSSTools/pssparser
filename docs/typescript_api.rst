@@ -34,11 +34,11 @@ runtime forced it:
 .. note::
 
    **Implementation status.** ``parseSources()``, ``markers`` and the
-   ``ASTUtils`` helpers are implemented and tested. ``link()``, ``root``,
-   ``userUnits()`` and ``getProfileInfo()`` are declared but throw
-   ``not implemented``: they need the AST to cross the WASM boundary, which
-   arrives with the serialiser described in `Roadmap`_. The shape is settled;
-   only the bodies are outstanding.
+   ``ASTUtils`` helpers are implemented and tested. The AST serialiser is in
+   place and verified against the native parser (`The AST boundary`_), but is
+   not yet wired to the ``Parser`` methods that would expose it: ``link()``,
+   ``root``, ``userUnits()`` and ``getProfileInfo()`` still throw
+   ``not implemented``. The shape is settled; only the bodies are outstanding.
 
 
 Getting started
@@ -360,8 +360,8 @@ Python bindings, and are re-exported as a namespace:
 
 .. code-block:: typescript
 
-   import { ast, walkScope, getNodeName, findNodeAtPosition, prettyPrint }
-     from '@psstools/pssparser';
+   import { ast, walkScope, childrenOf, getNodeName, findNodeAtPosition,
+            prettyPrint } from '@psstools/pssparser';
 
    if (node instanceof ast.Action) { /* ... */ }
 
@@ -382,6 +382,12 @@ Python bindings, and are re-exported as a namespace:
 ``prettyPrint(node)``
    Indented debug dump of a subtree.
 
+``childrenOf(node)``
+   The immediate children of *node*, whichever container form it takes. Use
+   this rather than reaching for ``.children`` when writing your own traversal
+   — see the warning below for why. ``walkScope`` cannot express a walk that
+   needs depth or that prunes; this can.
+
 .. warning::
 
    **Two container classes, not one.** ``Scope`` and ``SymbolChildrenScope``
@@ -390,7 +396,8 @@ Python bindings, and are re-exported as a namespace:
    alone typechecks, runs, passes tests, and silently returns nothing for every
    activity body.
 
-   These helpers handle both. If you write your own traversal, handle both.
+   These helpers handle both. If you write your own traversal, drive it from
+   ``childrenOf`` rather than reproducing the test.
 
 Position types are declared locally rather than imported from an LSP package,
 so this package has no dependency on an editor protocol. They are structurally
@@ -405,10 +412,49 @@ The AST boundary
 proxied over WebAssembly memory.
 
 The alternative — a proxy per node — would put a WASM call under every
-``.location.lineno``, and consumers walk the AST by field access. Measurements
-in the build support the bulk choice: bytes leave the WASM heap at roughly
-550 MiB/s, so a serialised tree for a typical source transfers in well under a
-millisecond, against parse times of ones to tens of milliseconds.
+``.location.lineno``, and consumers walk the AST by field access.
+
+Materialisation costs **about a fifth of parse time**, measured over the curated
+corpus (92 files, 84 of which parse; 623 KiB serialised):
+
+.. list-table::
+   :header-rows: 1
+   :widths: 40 20 40
+
+   * - Step
+     - Corpus pass
+     - What it is
+   * - Parse
+     - 71.3 ms
+     - the baseline this is measured against
+   * - C++ serialise
+     - 7.2 ms
+     - walking the tree and filling the buffer
+   * - Copy across the boundary
+     - 0.18 ms
+     - 623 KiB out of the WASM heap
+   * - JavaScript deserialise
+     - 8.2 ms
+     - constructing the generated classes
+   * - **Total**
+     - **16.0 ms**
+     - **22% of parse**
+
+Both columns are warm: five passes over the corpus, of which these are the mean.
+The 197 ms cold-pass figure in `Build characteristics`_ is the same work
+measured on first execution, and dividing one by the other would overstate the
+ratio by nearly 3×. Materialisation itself is stable to ±0.3 ms across runs.
+
+The transfer is 1% of the total, which settles the design question: the cost of
+bulk materialisation is the walk and the rebuild, not the boundary. Re-run it
+with ``node wasm/spike.mjs``.
+
+The wire format is generated from the AST schema by ``astbuilder gen-wasm``,
+which emits both halves — the C++ writer and the TypeScript reader — in one run
+from one schema. That is the whole reason it is generated: a writer and a reader
+from different schema revisions put values in the wrong fields, silently. The
+schema hash (`Loading`_) catches the case where the two were nonetheless
+built apart.
 
 Three consequences are observable and worth stating:
 
@@ -563,8 +609,8 @@ Node 22:
      - Value
      - Notes
    * - ``pssparser.wasm``
-     - 2.74 MiB raw
-     - 598 KiB gzip, 423 KiB brotli
+     - 3.45 MiB raw
+     - 641 KiB gzip, 439 KiB brotli
    * - Cold start
      - ~11 ms
      - import plus instantiation, fresh process
@@ -574,9 +620,9 @@ Node 22:
    * - Standard-library load
      - ~6 ms
      - once per ``Parser``
-   * - Boundary transfer
-     - ~550 MiB/s
-     - bytes out of the WASM heap, size-independent
+   * - Materialisation
+     - ~16 ms / corpus
+     - serialise, transfer and rebuild the AST; see `The AST boundary`_
 
 The core is built single-threaded. ANTLR's synchronisation primitives are
 ``std::mutex`` wrappers and Emscripten's libc++ provides single-threaded
@@ -608,22 +654,53 @@ diagnostics change; the diff is then a reviewable record of what changed.
 A hand-written expectation would only show that the WebAssembly core agrees
 with whatever the author believed while reading the same source twice.
 
+The same applies to the **AST**. For every corpus file, the tree materialised in
+TypeScript is compared node for node against the tree the native bindings build
+— class, declared name, depth and location — over the pre-order walk
+``ASTUtils.walkScope`` performs:
+
+.. code-block:: bash
+
+   PYTHONPATH=python packages/python/bin/python \
+       ts/scripts/gen-ast-parity-fixture.py -o ts/test/fixtures/ast-parity.json
+
+This is the test that matters for the wire format, and the reason is worth
+stating. Both halves of the format come from one generator, so a round-trip test
+shows only that they agree with each other — two same-width fields emitted in
+the wrong order are written and read consistently and round-trip perfectly. Only
+a comparison against an independently-built AST can see that, and this is it.
+It covers the declaration spine rather than every node; expressions and exec
+bodies are not yet compared.
+
+A diagnostic build with AddressSanitizer is available for memory questions the
+suite cannot answer:
+
+.. code-block:: bash
+
+   source scripts/wasm-env.sh
+   emcmake cmake -S wasm -B build-wasm-asan -DENABLE_ASAN=ON
+   cmake --build build-wasm-asan -j
+   node wasm/asan-probe.mjs build-wasm-asan
+
+It writes to its own build directory, never to ``ts/src/wasm``: the ASan
+artifact is ~25× larger and uses a different allocator, and shipping it by
+accident would be hard to notice.
+
 
 Roadmap
 -------
 
 Implemented and tested
    ``createParser``, ``parseSources``, ``markers``, ``clearMarkers``,
-   ``setMaxErrors``, ``dispose``/``Symbol.dispose``, the schema-hash check, and
-   the ``ASTUtils`` helpers.
+   ``setMaxErrors``, ``dispose``/``Symbol.dispose``, the schema-hash check, the
+   ``ASTUtils`` helpers, and the AST wire format in both directions.
 
 Declared, not yet implemented
    ``link()``, ``root``, ``userUnits()``, ``fileMap()`` (populated by ``link``)
-   and ``getProfileInfo()``. These need the AST to cross the boundary, which
-   needs a serialiser generated from the AST schema — a C++ half that flattens
-   the tree into a buffer and a TypeScript half that rebuilds the generated
-   classes from it. The measurements above establish that the transfer cost is
-   not a barrier.
+   and ``getProfileInfo()``. The serialiser these need is now in place and
+   verified against the native parser; what remains is the ``Parser`` plumbing
+   on top of it, and the link semantics — unconditional marker collection and a
+   re-sort, the root recorded before failure — that ``link()`` has to preserve.
 
 Before 1.0
    The marker-catalogue work, which makes ``Marker.code`` required. That is a

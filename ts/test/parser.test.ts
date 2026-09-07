@@ -107,21 +107,18 @@ describe('parseSources', () => {
     // This asserts the *contract*: a caught ParseException leaves the Parser
     // usable, so parsing can continue.
     //
-    // It is also the closest reachable test for a memory-safety fix in
-    // `wasm/bindings.cpp`, and it is worth being precise about what it does
-    // not do. The builder keeps borrowed pointers to every unit it has
-    // processed, and the push into `m_prior_units` is not guarded on whether
-    // the parse produced errors (AstBuilderInt.cpp:153). An earlier version of
-    // the binding freed a failed unit, leaving that pointer dangling for
-    // `resolvePathTargetInPriorUnits` to walk.
+    // It says nothing about memory safety, and an earlier version of this
+    // comment claimed otherwise. Phase 1 read AstBuilderInt.cpp:153 as pushing
+    // every unit into the builder's borrowed-pointer list unconditionally, and
+    // concluded that freeing a failed unit dangled. The push is inside the
+    // `if (no errors)` guard at :142, so a failed unit is never registered and
+    // freeing it is correct -- which is what bindings.cpp now does.
     //
-    // Building with the free restored, this test still passes -- and so does a
-    // probe that deliberately forces the cross-unit lookup with heap churn in
-    // between. The freed block simply is not recycled, so the read returns
-    // stale-but-intact data and nothing observable differs. **This test cannot
-    // distinguish the fixed binding from the broken one.** The justification
-    // for the fix is the code, not this assertion; catching a regression here
-    // would need an ASan build of the WASM core.
+    // That was settled by measurement rather than by re-reading: an ASan build
+    // (`-DENABLE_ASAN=ON`) driven by `wasm/asan-probe.mjs` reports nothing for
+    // the failed-unit sequence, and reports a heap-use-after-free within one
+    // round when a *successful* unit is freed. This assertion could not have
+    // told the two apart either way.
     const p = await parser();
     for (let i = 0; i < 3; i++) {
       expect(() =>

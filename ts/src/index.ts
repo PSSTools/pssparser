@@ -28,6 +28,7 @@ export { initPssParser, type InitOptions } from './wasm/loader.js';
 export { AST_SCHEMA_HASH } from './wasm/schemaHash.js';
 
 export {
+  childrenOf,
   findNodeAtPosition,
   getNodeName,
   prettyPrint,
@@ -55,3 +56,14 @@ export {
  *     two different parses is always false. Key on `(fileid, location)`.
  */
 export * as ast from './ast/generated/index.js';
+
+/**
+ * The AST wire-format reader, and the node type it produces.
+ *
+ * Exported because it is the only way to interpret the bytes
+ * `ParserSessionHandle.serializeUnit()` hands out, and both are reachable
+ * today. Neither is how a consumer should be reading an AST: Phase 3 of
+ * `ts-wasm-impl-plan.md` puts `Parser.root` and `Parser.userUnits()` on top of
+ * this, and those are the API. This is the seam underneath it.
+ */
+export { deserialize, type AstNode } from './ast/generated/deserialize.js';

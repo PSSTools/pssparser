@@ -51,6 +51,7 @@
 #include "pssp/ast/FactoryExt.h"
 #include "pssp/ast/IFactory.h"
 #include "pssp/ast/IGlobalScope.h"
+#include "AstSerializer.h"
 
 namespace {
 
@@ -147,9 +148,6 @@ public:
         for (pssp::ast::IGlobalScope *u : m_units) {
             delete u;
         }
-        for (pssp::ast::IGlobalScope *u : m_retired) {
-            delete u;
-        }
     }
 
     void setMaxErrors(int32_t n) { m_max_errors = n; }
@@ -206,27 +204,29 @@ public:
             // that failed to parse is not part of the environment a later parse
             // or a link sees, and does not consume its fileid.
             //
-            // But it must not be *deleted* either, which is the trap here.
-            // AstBuilderInt::build pushes every unit it processes into
-            // m_prior_units unconditionally -- the push is after the parse and
-            // is not guarded on whether markers were emitted
-            // (AstBuilderInt.cpp:153). Those are borrowed pointers, and the
-            // builder outlives this call by design (see ensureBuilder). Freeing
-            // the unit here would leave m_prior_units holding a dangling
-            // pointer, and the next parseSource() would read it in
-            // resolvePathTargetInPriorUnits.
+            // Freeing it here is safe, and that is worth stating explicitly
+            // because it was got wrong once. AstBuilderInt::build registers a
+            // unit in m_prior_units -- the borrowed-pointer list that
+            // resolvePathTargetInPriorUnits walks on every cross-unit lookup --
+            // but the push at AstBuilderInt.cpp:153 sits *inside* the
+            // `if (!m_marker_l->hasSeverity(Error))` guard at :142. A unit
+            // whose parse produced an error is therefore never registered, and
+            // nothing outlives this call holding a pointer to it.
             //
-            // So it is retired instead: owned until the session ends, reachable
-            // by nothing. This costs the memory of one failed parse and is the
-            // only way to keep the builder's invariant without changing the
-            // core.
+            // Phase 1 read that guard wrong and retired failed units instead of
+            // freeing them, on the theory that the builder still referenced
+            // them. It does not. Retiring them was not merely unnecessary: a
+            // language server re-parsing on each keystroke fails many times per
+            // second, and every failure would have leaked a GlobalScope for the
+            // life of the session.
             //
-            // The Python API has the same shape and does not hit this, for a
-            // reason that is not reassuring: it raises immediately, and its
-            // callers do not resume parsing on a Parser that has thrown. This
-            // API does allow that -- parseSources() leaves the Parser usable --
-            // so the case has to be handled rather than avoided.
-            m_retired.push_back(unit);
+            // Checked, not reasoned: wasm/asan-probe.mjs runs this exact
+            // sequence -- fail a parse, churn the heap, then force a cross-unit
+            // resolve -- under an ASan build, and reports nothing. The same
+            // probe reports a heap-use-after-free within one round if a
+            // *successful* unit is freed, which is the case where the pointer
+            // really is registered.
+            delete unit;
             return true;
         }
 
@@ -292,6 +292,32 @@ public:
         return m_collector && m_collector->maxErrorsExceeded();
     }
 
+    /* Units accepted so far, standard library included. */
+    int32_t unitCount() const { return static_cast<int32_t>(m_units.size()); }
+
+    /*
+     * Serialise one unit and expose the bytes as a view over the WASM heap.
+     *
+     * A view rather than a return-by-value, because Embind marshals
+     * std::string as *text*: it decodes the bytes as UTF-8 on the way out, and
+     * this buffer is binary -- every 0x80..0xFF byte in a length prefix or a
+     * negative id would be replaced. (markersJson() returns a std::string
+     * safely for the opposite reason: it really is UTF-8 text.)
+     *
+     * The buffer is a member so it outlives the call. The view is only valid
+     * until the next serializeUnit() on this session, and the caller must copy
+     * it -- ALLOW_MEMORY_GROWTH can also detach it, since growing the heap
+     * replaces the underlying ArrayBuffer. Parser.ts copies immediately.
+     */
+    emscripten::val serializeUnit(int32_t idx) {
+        if (idx < 0 || static_cast<size_t>(idx) >= m_units.size()) {
+            throw std::runtime_error("serializeUnit(): unit index out of range");
+        }
+        m_buf = pssp::ast::serializeAst(m_units[idx]);
+        return emscripten::val(emscripten::typed_memory_view(
+            m_buf.size(), reinterpret_cast<const uint8_t *>(m_buf.data())));
+    }
+
 private:
     /*
      * One builder per session, created once and reused.
@@ -340,9 +366,8 @@ private:
     pssp::IAstBuilder                   *m_builder;
     pssp::IMarkerCollectorUP            m_collector;
     std::vector<pssp::ast::IGlobalScope *> m_units;
-    /** Units whose parse failed. Owned for lifetime safety only -- the builder
-     *  holds borrowed pointers to them. See parseSource(). */
-    std::vector<pssp::ast::IGlobalScope *> m_retired;
+    /** Backing store for the view returned by serializeUnit(). */
+    std::string                         m_buf;
     int32_t                             m_max_errors;
     bool                                m_collect_docstrings;
     bool                                m_collect_comments;
@@ -362,42 +387,17 @@ private:
 
 std::string schemaHash() { return PSSPARSER_AST_SCHEMA_HASH; }
 
-/****************************************************************************
- * benchBoundaryOut -- a measurement aid, not part of the API
- *
- * Returns *nbytes* of arbitrary data so a harness can time how fast bytes
- * leave the WASM heap.
- *
- * This exists to answer Phase 0 step 5 of `ts-wasm-impl-plan.md`, the number
- * the whole bulk-materialisation design rests on: the AST is serialised into
- * one buffer and handed across in a single transfer
- * (`ts-api-design.md` §4), so the boundary's bulk throughput is the floor
- * under every parse's materialisation cost. The real serialiser does not exist
- * until Phase 2, and waiting for it to find out whether the design is viable
- * is the wrong order.
- *
- * It measures the transfer only -- not the C++ walk that fills the buffer, and
- * not the JavaScript that turns it into objects. It is therefore a *lower
- * bound* on materialisation cost, and should be read as one.
- *
- * Delete this when Phase 2 lands and the real thing can be measured.
- ****************************************************************************/
-std::string benchBoundaryOut(int32_t nbytes) {
-    if (nbytes < 0) {
-        nbytes = 0;
-    }
-    // Not a constant byte: a run of identical bytes is exactly the input that
-    // lets a UTF-8 or a copy path look faster than it is.
-    std::string s(static_cast<size_t>(nbytes), '\0');
-    for (size_t i = 0; i < s.size(); i++) {
-        s[i] = static_cast<char>('a' + (i % 26));
-    }
-    return s;
-}
+/*
+ * `benchBoundaryOut` lived here through Phase 1. It returned arbitrary bytes so
+ * a harness could time the boundary alone, which was a *lower bound* on
+ * materialisation cost -- the best available answer to Phase 0 step 5 before a
+ * serialiser existed. serializeUnit() measures the real thing now, so it has
+ * been removed rather than left as a second, weaker number that a reader would
+ * have to know to disregard. wasm/spike.mjs times all three parts instead.
+ */
 
 EMSCRIPTEN_BINDINGS(pssparser) {
     emscripten::function("schemaHash", &schemaHash);
-    emscripten::function("benchBoundaryOut", &benchBoundaryOut);
 
     emscripten::class_<ParserSession>("ParserSession")
         .constructor<>()
@@ -410,5 +410,7 @@ EMSCRIPTEN_BINDINGS(pssparser) {
         .function("nextFileid", &ParserSession::nextFileid)
         .function("markersJson", &ParserSession::markersJson)
         .function("hasErrors", &ParserSession::hasErrors)
-        .function("maxErrorsExceeded", &ParserSession::maxErrorsExceeded);
+        .function("maxErrorsExceeded", &ParserSession::maxErrorsExceeded)
+        .function("unitCount", &ParserSession::unitCount)
+        .function("serializeUnit", &ParserSession::serializeUnit);
 }

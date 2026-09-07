@@ -21,6 +21,8 @@
   ],
   "scripts": {
     "gen:ast": "../packages/python/bin/astbuilder gen-ts -astdir ../ast -o src/ast/generated",
+    "gen:ast-parity-fixture": "cd .. && PYTHONPATH=python packages/python/bin/python ts/scripts/gen-ast-parity-fixture.py -o ts/test/fixtures/ast-parity.json",
+    "gen:parity-fixture": "cd .. && PYTHONPATH=python packages/python/bin/python ts/scripts/gen-parity-fixture.py -o ts/test/fixtures/parity.json",
     "gen:wasm": "node scripts/build-wasm.mjs",
     "generate": "npm run gen:ast && npm run gen:wasm",
     "build": "tsc -p tsconfig.json && node scripts/copy-wasm.mjs",
