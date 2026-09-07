@@ -12,6 +12,7 @@ export {
   ParseException,
   createParser,
   type ParserOptions,
+  type ProfileInfo,
   type SourceFile,
 } from './Parser.js';
 
@@ -60,10 +61,11 @@ export * as ast from './ast/generated/index.js';
 /**
  * The AST wire-format reader, and the node type it produces.
  *
- * Exported because it is the only way to interpret the bytes
- * `ParserSessionHandle.serializeUnit()` hands out, and both are reachable
- * today. Neither is how a consumer should be reading an AST: Phase 3 of
- * `ts-wasm-impl-plan.md` puts `Parser.root` and `Parser.userUnits()` on top of
- * this, and those are the API. This is the seam underneath it.
+ * Not how a consumer should be reading an AST: `Parser.link()`, `Parser.root`
+ * and `Parser.userUnits()` sit on top of this and are the API. It stays
+ * exported because it is the only way to interpret the bytes
+ * `ParserSessionHandle.serializeUnit()` hands out -- a consumer that wants one
+ * unit without linking, or that is storing the wire format, has no other
+ * route. This is the seam underneath the API, not a second one beside it.
  */
 export { deserialize, type AstNode } from './ast/generated/deserialize.js';

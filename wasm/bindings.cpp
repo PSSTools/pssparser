@@ -47,10 +47,13 @@
 #include "pssp/FactoryExt.h"
 #include "pssp/IFactory.h"
 #include "pssp/IAstBuilder.h"
+#include "pssp/ILinker.h"
 #include "pssp/IMarkerCollector.h"
+#include "pssp/IParseProfileInfo.h"
 #include "pssp/ast/FactoryExt.h"
 #include "pssp/ast/IFactory.h"
 #include "pssp/ast/IGlobalScope.h"
+#include "pssp/ast/IRootSymbolScope.h"
 #include "AstSerializer.h"
 
 namespace {
@@ -116,6 +119,98 @@ void emitLocation(std::ostream &os, const pssp::ast::Location &loc) {
        << ",\"extent\":" << loc.extent;
 }
 
+/****************************************************************************
+ * Profiling
+ *
+ * `IParseProfileInfo` is a diagnostic aid, not part of the AST, so it crosses
+ * as JSON rather than through the serialiser: the shape is small, it is read
+ * once by a human or a report script, and `ts-api-design.md` §9 Q4 keeps it
+ * deliberately untyped on the TypeScript side so that changing what the
+ * profiler reports is not a breaking API change.
+ *
+ * Decisions with no invocations are omitted. ANTLR reports every decision in
+ * the ATN -- some 800 for this grammar -- and the ones never reached during a
+ * parse carry nothing but zeroes. The *totals* are computed by
+ * `ParseProfileInfo` over the full set, so dropping the empty entries here
+ * costs no information.
+ ****************************************************************************/
+void emitEvent(std::ostream &os, pssp::IDecisionEventInfo *ev) {
+    os << "{\"kind\":";
+    jsonEscape(os, ev->getKindName());
+    os << ",\"startLine\":" << ev->getStartLine()
+       << ",\"startColumn\":" << ev->getStartColumn()
+       << ",\"stopLine\":" << ev->getStopLine()
+       << ",\"stopColumn\":" << ev->getStopColumn()
+       << ",\"tokenCount\":" << ev->getTokenCount()
+       << ",\"text\":";
+    jsonEscape(os, ev->getText());
+    os << '}';
+}
+
+void emitDecision(std::ostream &os, pssp::IDecisionProfileInfo *d) {
+    os << "{\"decision\":" << d->getDecision()
+       << ",\"ruleIndex\":" << d->getRuleIndex()
+       << ",\"ruleName\":";
+    jsonEscape(os, d->getRuleName());
+    os << ",\"invocations\":" << d->getInvocations()
+       << ",\"timeInPrediction\":" << d->getTimeInPrediction()
+       << ",\"sllLookaheadOps\":" << d->getSLLLookaheadOps()
+       << ",\"llLookaheadOps\":" << d->getLLLookaheadOps()
+       << ",\"sllATNTransitions\":" << d->getSLLATNTransitions()
+       << ",\"llATNTransitions\":" << d->getLLATNTransitions()
+       << ",\"llFallback\":" << d->getLLFallback()
+       << ",\"ambiguityCount\":" << d->getAmbiguityCount()
+       << ",\"contextSensitivityCount\":" << d->getContextSensitivityCount()
+       << ",\"errorCount\":" << d->getErrorCount()
+       << ",\"predicateEvalCount\":" << d->getPredicateEvalCount()
+       << ",\"sllMinLookahead\":" << d->getSLLMinLookahead()
+       << ",\"sllMaxLookahead\":" << d->getSLLMaxLookahead()
+       << ",\"llMinLookahead\":" << d->getLLMinLookahead()
+       << ",\"llMaxLookahead\":" << d->getLLMaxLookahead()
+       << ",\"events\":[";
+    for (size_t i = 0; i < d->getNumEvents(); i++) {
+        if (i) {
+            os << ',';
+        }
+        emitEvent(os, d->getEvent(i));
+    }
+    os << "]}";
+}
+
+std::string profileJson(pssp::IParseProfileInfo *info) {
+    std::ostringstream os;
+    os << "{\"totalTimeInPrediction\":" << info->getTotalTimeInPrediction()
+       << ",\"totalSLLLookaheadOps\":" << info->getTotalSLLLookaheadOps()
+       << ",\"totalLLLookaheadOps\":" << info->getTotalLLLookaheadOps()
+       << ",\"totalSLLATNLookaheadOps\":" << info->getTotalSLLATNLookaheadOps()
+       << ",\"totalLLATNLookaheadOps\":" << info->getTotalLLATNLookaheadOps()
+       << ",\"totalATNLookaheadOps\":" << info->getTotalATNLookaheadOps()
+       << ",\"dfaSize\":" << info->getDFASize()
+       << ",\"tokenCount\":" << info->getTokenCount()
+       << ",\"llDecisions\":[";
+    const std::vector<size_t> ll = info->getLLDecisions();
+    for (size_t i = 0; i < ll.size(); i++) {
+        if (i) {
+            os << ',';
+        }
+        os << ll[i];
+    }
+    os << "],\"decisions\":[";
+    bool first = true;
+    for (pssp::IDecisionProfileInfo *d : info->getDecisionInfo()) {
+        if (!d->getInvocations()) {
+            continue;
+        }
+        if (!first) {
+            os << ',';
+        }
+        first = false;
+        emitDecision(os, d);
+    }
+    os << "]}";
+    return os.str();
+}
+
 } // namespace
 
 /****************************************************************************
@@ -148,6 +243,8 @@ public:
         for (pssp::ast::IGlobalScope *u : m_units) {
             delete u;
         }
+        delete m_root;
+        delete m_builder;
     }
 
     void setMaxErrors(int32_t n) { m_max_errors = n; }
@@ -172,9 +269,11 @@ public:
         m_collector.reset(m_factory->mkMarkerCollector());
         m_collector->setMaxErrors(m_max_errors);
         pssp::IAstBuilder *builder = ensureBuilder();
-        if (m_enable_profiling) {
-            builder->setEnableProfile(true);
-        }
+        // Set unconditionally rather than only when true. An earlier version
+        // set it only in the `if`, so enableProfiling(false) could never turn
+        // profiling back off once it had been on -- the builder outlives the
+        // parse call and kept the flag.
+        builder->setEnableProfile(m_enable_profiling);
         loadStandardLibraryIfNeeded(builder);
     }
 
@@ -318,6 +417,93 @@ public:
             m_buf.size(), reinterpret_cast<const uint8_t *>(m_buf.data())));
     }
 
+    /*
+     * Link every unit parsed so far. Returns whether the link produced an
+     * error-severity marker; as with parseSource(), reporting is TypeScript's
+     * job and this reports only the fact.
+     *
+     * Four things here are load-bearing, and each is a bug parser.py records:
+     *
+     *  - A *fresh* marker collector, as link() is its own reporting unit
+     *    (parser.py:167-169). The TypeScript side appends what markersJson()
+     *    returns to the parse-time markers and re-sorts the concatenation.
+     *  - The root is recorded whether or not the link succeeded. AstLinker has
+     *    one return and no early exit -- errors go to the marker listener,
+     *    never a null return -- and ownership of the units has already moved
+     *    into it, so a failed link must still leave them reachable
+     *    (parser.py:186-217).
+     *  - m_units is cleared rather than freed. `link(..., own_scopes=true)`
+     *    hands ownership to the root; leaving the pointers in m_units would
+     *    make ~ParserSession a second owner.
+     *  - The builder is dropped. It holds the units as borrowed pointers --
+     *    its compile-time environment (PSS 3.1 19.1.2) -- and ownership has
+     *    just moved away. A later link() replaces the root and frees those
+     *    units; a parse after that would read freed memory
+     *    (parser.py:224-231). beginParse() builds a fresh one, which is why
+     *    the collection flags are re-applied there rather than at
+     *    construction.
+     */
+    bool link() {
+        m_collector.reset(m_factory->mkMarkerCollector());
+        m_collector->setMaxErrors(m_max_errors);
+
+        pssp::ILinkerUP linker(m_factory->mkAstLinker());
+        pssp::ast::IRootSymbolScope *root =
+            linker->link(m_collector.get(), m_units);
+
+        delete m_root;
+        m_root = root;
+        m_units.clear();
+
+        delete m_builder;
+        m_builder = 0;
+
+        return m_collector->hasSeverity(pssp::MarkerSeverityE::Error);
+    }
+
+    bool hasRoot() const { return m_root != 0; }
+
+    /*
+     * Serialise the linked root. Same view-not-copy contract as
+     * serializeUnit().
+     *
+     * The units come with it: RootSymbolScope holds them as
+     * `list<UP<GlobalScope>>`, and the serialiser descends through owning
+     * pointers, so one buffer carries the whole linked program.
+     */
+    emscripten::val serializeRoot() {
+        if (!m_root) {
+            throw std::runtime_error("serializeRoot(): no root; link() first");
+        }
+        m_buf = pssp::ast::serializeAst(m_root);
+        return emscripten::val(emscripten::typed_memory_view(
+            m_buf.size(), reinterpret_cast<const uint8_t *>(m_buf.data())));
+    }
+
+    /*
+     * Profiling data from the last parse as JSON, or "" if there is none.
+     *
+     * "" rather than "null" so the TypeScript side has one cheap test and
+     * never parses a document to discover it is empty.
+     *
+     * There is none after link(), because link() drops the builder that holds
+     * it. This is a deliberate divergence: parser.py keeps a `_last_builder`
+     * reference and would hand back the profile of a builder it has just
+     * released everywhere else.
+     */
+    std::string profileInfoJson() {
+        if (!m_builder) {
+            return "";
+        }
+        // getProfileInfo() news up a ParseProfileInfo from the snapshot on
+        // every call (AstBuilder.cpp:92-95), so the caller owns it.
+        pssp::IParseProfileInfoUP info(m_builder->getProfileInfo());
+        if (!info) {
+            return "";
+        }
+        return profileJson(info.get());
+    }
+
 private:
     /*
      * One builder per session, created once and reused.
@@ -366,6 +552,8 @@ private:
     pssp::IAstBuilder                   *m_builder;
     pssp::IMarkerCollectorUP            m_collector;
     std::vector<pssp::ast::IGlobalScope *> m_units;
+    /** The linked root, owned here and owning the units after link(). */
+    pssp::ast::IRootSymbolScope         *m_root = 0;
     /** Backing store for the view returned by serializeUnit(). */
     std::string                         m_buf;
     int32_t                             m_max_errors;
@@ -412,5 +600,9 @@ EMSCRIPTEN_BINDINGS(pssparser) {
         .function("hasErrors", &ParserSession::hasErrors)
         .function("maxErrorsExceeded", &ParserSession::maxErrorsExceeded)
         .function("unitCount", &ParserSession::unitCount)
-        .function("serializeUnit", &ParserSession::serializeUnit);
+        .function("serializeUnit", &ParserSession::serializeUnit)
+        .function("link", &ParserSession::link)
+        .function("hasRoot", &ParserSession::hasRoot)
+        .function("serializeRoot", &ParserSession::serializeRoot)
+        .function("profileInfoJson", &ParserSession::profileInfoJson);
 }

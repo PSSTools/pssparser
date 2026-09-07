@@ -5,6 +5,12 @@ dist/
 # astbuilder gen-ts output
 src/ast/generated/
 
+# astbuilder gen-census output -- the two AST census walkers. Not shipped: one
+# is imported by a fixture generator and one by a test, and both are as
+# regenerable as the classes they walk.
+scripts/generated/
+test/generated/
+
 # emcc output, and the schema hash emitted alongside it
 src/wasm/pssparser.js
 src/wasm/pssparser.wasm

@@ -27,13 +27,13 @@ collector.
 
 ## Status
 
-Implemented: `createParser`, `parseSources`, `markers`, `clearMarkers`,
-`setMaxErrors`, `dispose`, the schema-hash check, and the AST traversal
-helpers.
+The API is complete: `createParser`, `parseSources`, `markers`,
+`clearMarkers`, `setMaxErrors`, `link`, `root`, `userUnits`, `fileMap`,
+`enableProfiling`/`getProfileInfo`, `dispose`, the schema-hash check, and the
+AST traversal helpers. Nothing throws `not implemented`.
 
-Declared but not yet implemented: `link()`, `root`, `userUnits()`,
-`getProfileInfo()`. They need the AST to cross the WASM boundary, which needs
-the serialiser described in `ts-wasm-impl-plan.md` Phase 2.
+Not published to npm yet, and `Marker.code` is expected to become required
+before 1.0 (`ts-wasm-impl-plan.md` Phase 5).
 
 ## Building
 
@@ -47,8 +47,10 @@ npm test
 npm run build               # tsc -> dist/, plus the .wasm
 ```
 
-Two build products are generated and not committed: `src/ast/generated/` and
-`src/wasm/pssparser.{js,wasm}`. Both come from `npm run generate`.
+Three build products are generated and not committed: `src/ast/generated/`,
+`src/wasm/pssparser.{js,wasm}`, and the census walker pair
+(`scripts/generated/census_gen.py`, `test/generated/census.ts`). All come from
+`npm run generate`.
 
 Note that `src/ast/generated/deserialize.ts` comes from the **wasm** step, not
 from `gen:ast`. It is emitted by `astbuilder gen-wasm` alongside the C++ writer
@@ -67,23 +69,47 @@ test/loader.test.ts    module caching, schema hash, session independence
 test/serialize.test.ts the AST wire format: round-trip, framing, determinism
 test/ast-parity.test.ts the materialised AST must equal the native bindings'
                        node for node, over the same corpus
+test/link.test.ts      link() semantics: unconditional collection and re-sort,
+                       the root recorded before failure, the builder dropped,
+                       userUnits/fileMap/getProfileInfo
+test/link-parity.test.ts the *linked* tree must equal the native bindings'.
+                       A different tree from the per-unit one, and it carries
+                       the cross-unit reference counts
+test/census-parity.test.ts every node, every field: the same comparison past
+                       the declaration spine, 132k nodes per run
 ```
 
-Both sets of parity expectations are generated, not written:
+All four sets of parity expectations are generated, not written:
 
 ```bash
-npm run gen:parity-fixture       # markers
-npm run gen:ast-parity-fixture   # the AST
+npm run gen:parity-fixture         # markers
+npm run gen:ast-parity-fixture     # the AST, per unit
+npm run gen:link-parity-fixture    # the linked tree
+npm run gen:census-parity-fixture  # every node, every field
 ```
 
 The output is committed, so the suite needs no Python, no native build and no
 corpus checkout.
 
-The AST parity test is the one that matters for the wire format. Round-tripping
+The parity tests are the ones that matter for the wire format. Round-tripping
 proves only that the writer and the reader agree with each other, which they do
 by construction — both come from one generator — so it cannot see two same-width
 fields emitted in the wrong order. Comparing against an independently-built tree
 can, and does: that transposition fails 90 of 100 cases.
+
+The first three walk the declaration spine — `Scope`/`SymbolChildrenScope`
+children, with each node's class, name and location. The census walks the whole
+ownership graph and records every field, through a walker pair generated from
+the schema (`astbuilder gen-census`) rather than transliterated by hand.
+
+None was trusted for passing first time. Mutating the reader so `prototypes`
+always deserialises empty fails 91 of the 91 linked cases; perturbing one field
+of the spine walk fails the same 91 through the digest comparison; and decoding
+`ExprBin.op` one greater than it was written fails 92 of the 100 census cases
+and **none** of the 200 spine tests — which is both the liveness check and the
+clearest statement of what the census adds. A parity test that passes because it
+is comparing nothing looks exactly like one that passes because the code is
+right.
 
 For memory questions the suite cannot answer, there is an ASan build:
 
@@ -94,4 +120,8 @@ cmake --build ../build-wasm-asan -j
 node ../wasm/asan-probe.mjs build-wasm-asan
 ```
 
-It writes to its own directory, never to `src/wasm/`.
+It writes to its own directory, never to `src/wasm/`. Three probes: a failed
+parse's unit being freed, `link()` moving ownership into the root (with a
+second link freeing the first root), and teardown holding a root *and* units
+the linker never took. Each names the one-line mutation that makes it fire —
+check one before believing a clean run.

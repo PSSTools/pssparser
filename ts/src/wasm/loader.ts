@@ -34,6 +34,22 @@ export interface ParserSessionHandle {
    * doing anything else.
    */
   serializeUnit(idx: number): Uint8Array;
+  /**
+   * Link every unit parsed so far.
+   *
+   * Returns true when the link produced an error-severity marker. As with
+   * `parseSource`, it reports the fact and leaves reporting to `Parser`, which
+   * has to collect markers before it throws.
+   */
+  link(): boolean;
+  /** Whether `link()` has run and left a root. */
+  hasRoot(): boolean;
+  /** The linked root, serialised. Same heap-view contract as
+   *  `serializeUnit()`. Throws before `link()`. */
+  serializeRoot(): Uint8Array;
+  /** Profiling data from the last parse as JSON, or `''` when there is none
+   *  -- profiling off, no parse yet, or `link()` has dropped the builder. */
+  profileInfoJson(): string;
   /** Embind's destructor. Frees the C++ object; the handle is dead after. */
   delete(): void;
 }

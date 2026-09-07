@@ -216,6 +216,90 @@ if (corpus.length) {
   }
 }
 
+// -- link cost (Phase 3) -----------------------------------------------------
+//
+// `link()` materialises a *different* quantity from the per-unit case above.
+// The linked root owns every unit plus the merged symbol tree, so one call
+// carries the standard library and the builtins whatever the user file's size:
+// the cost has a floor that per-unit materialisation does not, and it is paid
+// on every link.
+//
+// That floor is the number worth knowing. A language server linking on each
+// keystroke pays it per keystroke, and if it is large the answer is to link
+// less often rather than to make the serialiser faster.
+if (corpus.length) {
+  let createParser = null;
+  try {
+    ({ createParser } = await import(join(root, 'ts', 'dist', 'index.js')));
+  } catch {
+    console.log('\nlink               : skipped (run `npm --prefix ts run build` first)');
+  }
+
+  if (createParser) {
+    const sources = corpus.map((p, i) => ({ name: `f${i}.pss`, content: readFileSync(p, 'utf8') }));
+    const REPS = 5;
+    let tLink = 0, linked = 0, failed = 0;
+
+    // Warm up before timing anything. The first link in a process pays a cold
+    // JIT and an unbuilt ANTLR DFA, and measuring the floor first put that
+    // whole cost on the floor -- which then read *higher* than the per-source
+    // mean, an ordering artifact rather than a result.
+    {
+      const p = await createParser();
+      try {
+        p.parseSources([{ name: 'warm.pss', content: 'package warm { }\n' }]);
+        p.link();
+      } catch { /* warmup */ } finally { p.dispose(); }
+    }
+
+    // The empty link -- no user source at all -- isolates the floor: the
+    // standard library and the builtins, which every link carries.
+    let tFloor = 0;
+    for (let rep = 0; rep < REPS; rep++) {
+      const p = await createParser();
+      try {
+        p.parseSources([{ name: 'empty.pss', content: 'package empty { }\n' }]);
+        const mark = performance.now();
+        p.link();
+        tFloor += performance.now() - mark;
+      } catch { /* a link that fails still built a root; the timing stands */ }
+      finally { p.dispose(); }
+    }
+
+    for (let rep = 0; rep < REPS; rep++) {
+      for (const src of sources) {
+        const p = await createParser();
+        try {
+          p.parseSources([src]);
+        } catch {
+          if (rep === 0) failed++;
+          p.dispose();
+          continue;
+        }
+        try {
+          const mark = performance.now();
+          try {
+            p.link();
+          } catch {
+            // An unresolved reference is a link *result*, not a measurement
+            // error: the root was built and the work was done, so the elapsed
+            // time counts. Stopping the clock in the catch instead put failing
+            // links in at zero and made the mean come out below the floor.
+          }
+          tLink += performance.now() - mark;
+          if (rep === 0) linked++;
+        } finally {
+          p.dispose();
+        }
+      }
+    }
+
+    console.log(`\nlink               : ${linked} sources linked, ${failed} did not parse`);
+    console.log(`  floor (stdlib)   : ${(tFloor / REPS).toFixed(1)} ms per link`);
+    console.log(`  mean per source  : ${(tLink / REPS / Math.max(linked, 1)).toFixed(1)} ms`);
+  }
+}
+
 // -- peak memory -------------------------------------------------------------
 const mem = process.memoryUsage();
 console.log(`\npeak RSS           : ${(mem.rss / 1024 / 1024).toFixed(1)} MB`);

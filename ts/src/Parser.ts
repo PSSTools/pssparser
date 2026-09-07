@@ -17,6 +17,8 @@ import {
   type Marker,
   type RawMarker,
 } from './Marker.js';
+import { deserialize } from './ast/generated/deserialize.js';
+import { GlobalScope, RootSymbolScope } from './ast/generated/index.js';
 import { initPssParser, type ParserSessionHandle, type InitOptions } from './wasm/loader.js';
 
 // `using` lowers to a Symbol.dispose lookup, and the well-known symbol is
@@ -110,10 +112,15 @@ const leakRegistry =
 
 let parserSeq = 0;
 
-const NOT_IMPLEMENTED = (what: string): string =>
-  `pssparser: ${what} is not implemented yet. It needs the AST to cross the ` +
-  'WASM boundary, which arrives with the gen_wasm serialiser ' +
-  '(ts-wasm-impl-plan.md Phase 2/3). parseSources() and markers work today.';
+/**
+ * Profiling data from the last parse.
+ *
+ * Deliberately opaque (`ts-api-design.md` §9 Q4). What the ANTLR profiler
+ * reports is a diagnostic aid whose shape is not obviously stable, and
+ * publishing a precise type would turn "we now also count X" into a breaking
+ * API change. The keys emitted today are documented in `docs/typescript_api.rst`.
+ */
+export type ProfileInfo = Readonly<Record<string, unknown>>;
 
 export class Parser {
   #session: ParserSessionHandle | null;
@@ -140,6 +147,9 @@ export class Parser {
    * Parser re-parsing on every keystroke grows this without bound.
    */
   #markers: Marker[] = [];
+
+  /** The linked root, materialised by `link()`. */
+  #root: RootSymbolScope | null = null;
 
   /** @internal Use `createParser()`. */
   constructor(session: ParserSessionHandle, opts: ParserOptions = {}) {
@@ -262,32 +272,30 @@ export class Parser {
   }
 
   /**
-   * Profiling data from the last parse, or null if profiling was off.
+   * Profiling data from the last parse, or null when there is none.
    *
-   * Typed as an opaque record in v1. `ParseProfileInfo`'s shape is not
-   * obviously stable, and publishing a precise type for it would make a change
-   * to a diagnostic aid into a breaking API change
-   * (`ts-api-design.md` §9 Q4).
+   * Null covers three cases and does not distinguish them: profiling was off,
+   * nothing has been parsed yet, or `link()` has run. That last one is a
+   * deliberate divergence from Python, which keeps a `_last_builder` reference
+   * and would report the profile of a builder it released at link time
+   * (`parser.py:161-164`); the builder is gone here, so the answer is honestly
+   * nothing rather than stale.
    */
-  getProfileInfo(): Readonly<Record<string, unknown>> | null {
-    this.#require();
-    throw new Error(NOT_IMPLEMENTED('getProfileInfo()'));
+  getProfileInfo(): ProfileInfo | null {
+    const json = this.#require().profileInfoJson();
+    // '' rather than 'null' from the binding, so the empty case costs no
+    // JSON parse.
+    return json === '' ? null : (JSON.parse(json) as ProfileInfo);
   }
-
-  //--------------------------------------------------------------------------
-  // Below this line: declared, shaped, and not yet implemented.
-  //
-  // These need the AST to cross the boundary, which needs the serialiser from
-  // `gen_wasm` (impl plan Phase 2). They are present rather than absent so
-  // that Phase 3 fills bodies in rather than designing a surface, and so a
-  // consumer reading the type sees the whole API rather than half of it.
-  //--------------------------------------------------------------------------
 
   /**
    * Link every unit parsed so far and return the linked root.
    *
-   * When implemented, must preserve four behaviours that a re-implementation
-   * gets wrong by default -- each is a bug `parser.py` records in a comment:
+   * Throws `ParseException` if the link produces any error-severity marker --
+   * after recording the root, which is the part that is easy to get backwards.
+   *
+   * Four behaviours here are load-bearing, and each is a bug `parser.py`
+   * records in a comment:
    *
    *  1. Collect markers *unconditionally*, not only on failure. Collecting
    *     inside the error branch dropped every warning from a successful link,
@@ -297,31 +305,64 @@ export class Parser {
    *     (`parser.py:182-184`).
    *  3. Record the root *before* reporting failure. Ownership of the units has
    *     already moved into the root by then, so a failed link must still leave
-   *     `userUnits()` and `fileMap()` usable (`parser.py:186-217`).
+   *     `root`, `userUnits()` and `fileMap()` usable (`parser.py:186-217`).
    *  4. Drop the builder. It holds borrowed pointers to the units as its
    *     compile-time environment, and ownership has just moved away
-   *     (`parser.py:224-231`).
+   *     (`parser.py:224-231`). The binding's `link()` does this; a later
+   *     `parseSources()` builds a fresh one and reloads the standard library,
+   *     because the unit list restarted too.
+   *
+   * The returned tree is a materialised snapshot: plain JavaScript objects
+   * that survive `dispose()` and do not change under a later parse.
    */
-  link(): never {
-    this.#require();
-    throw new Error(NOT_IMPLEMENTED('link()'));
+  link(): RootSymbolScope {
+    const session = this.#require();
+
+    const failed = session.link();
+
+    // (1) and (2): collect and re-sort whether or not the link failed.
+    // #absorbMarkers does both, and resolves fileids against the live map --
+    // which is why it must run before the snapshot-and-clear below, or every
+    // link marker would resolve against a map that no longer holds the ids.
+    this.#absorbMarkers(session);
+
+    // (3): record the result before reporting failure.
+    this.#root = this.#materialiseRoot(session);
+
+    // Snapshot fileid -> name, then clear the live map. The clear is not
+    // tidiness: the next parse restarts the unit list, so fileid 1 will name a
+    // different file. #names() consults the live map first for exactly that
+    // reason, and the snapshot keeps older markers resolvable
+    // (`parser.py:_pathOf`).
+    this.#fileMap = new Map(this.#filenames);
+    this.#filenames.clear();
+
+    if (failed) {
+      throw new ParseException(formatMarkers(this.#markers), this.#markers);
+    }
+    return this.#root;
   }
 
   /** The linked root; null before `link()`. */
-  get root(): null {
-    return null;
+  get root(): RootSymbolScope | null {
+    return this.#root;
   }
 
   /**
    * The `GlobalScope` of each user-supplied file, in parse order.
    *
    * Read from the linked root, which owns the units after `link()`. Built-in
-   * and standard-library units are filtered out by fileid. Empty before
-   * `link()`.
+   * and standard-library units are filtered out by fileid, which is what
+   * `fileMap()` membership tests. Empty before `link()`.
+   *
+   * Does not require a live session: the tree is already materialised, so this
+   * keeps working after `dispose()`.
    */
-  userUnits(): never[] {
-    this.#require();
-    throw new Error(NOT_IMPLEMENTED('userUnits()'));
+  userUnits(): GlobalScope[] {
+    if (!this.#root) {
+      return [];
+    }
+    return this.#root.units.filter((u) => this.#fileMap.has(u.fileid));
   }
 
   /**
@@ -365,12 +406,58 @@ export class Parser {
    */
   #absorbMarkers(session: ParserSessionHandle): void {
     const raw = JSON.parse(session.markersJson()) as RawMarker[];
+    const names = this.#names();
     // Markers from this call replace nothing; they are appended to whatever
     // earlier calls left, because `markers` spans the Parser's lifetime.
     for (const r of raw) {
-      this.#markers.push(resolveMarker(r, this.#filenames));
+      this.#markers.push(resolveMarker(r, names));
     }
     sortMarkers(this.#markers);
+  }
+
+  /**
+   * fileid -> name for resolving a marker, across the `link()` boundary.
+   *
+   * `link()` snapshots `#filenames` into `#fileMap` and clears it, and the
+   * next parse then reuses the same fileids for different files. So the live
+   * map must win where the two disagree, and the snapshot must still be
+   * consulted so a marker from before the link does not resolve to
+   * `<unknown>`. This is `_pathOf` (`parser.py:276-287`), which consults both
+   * in the same order and for the same reason.
+   */
+  #names(): ReadonlyMap<number, string> {
+    if (this.#fileMap.size === 0) {
+      return this.#filenames;
+    }
+    return new Map([...this.#fileMap, ...this.#filenames]);
+  }
+
+  /**
+   * Pull the linked root across the boundary as plain JavaScript.
+   *
+   * One buffer carries the whole linked program: `RootSymbolScope` owns the
+   * units (`list<UP<GlobalScope>>`) and the serialiser descends through owning
+   * pointers. That is what makes a cross-unit reference resolvable after
+   * linking -- before it, each unit was serialised alone and a pointer into
+   * another unit had no id to write (`ts-api-design.md` §4).
+   *
+   * The bytes must be copied before anything else touches the WASM heap: what
+   * the binding returns is a view over it, and `ALLOW_MEMORY_GROWTH` can
+   * detach it outright.
+   */
+  #materialiseRoot(session: ParserSessionHandle): RootSymbolScope {
+    const root = deserialize(new Uint8Array(session.serializeRoot()));
+    if (!(root instanceof RootSymbolScope)) {
+      // Not defensive padding: this would mean the linker returned something
+      // other than a RootSymbolScope, or the wire format and the reader
+      // disagree about the class tag. Either is a core or generator bug, and
+      // both are far cheaper to see here than three field accesses later.
+      throw new Error(
+        `pssparser: link() produced ${root === null ? 'nothing' : root.constructor.name}, ` +
+          'not a RootSymbolScope. The WASM core and the generated reader disagree.'
+      );
+    }
+    return root;
   }
 }
 

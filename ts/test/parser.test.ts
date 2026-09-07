@@ -316,17 +316,16 @@ describe('dispose', () => {
   });
 });
 
-describe('not yet implemented', () => {
-  // These are shaped and declared but need the AST to cross the boundary
-  // (impl plan Phase 2/3). Asserting on them keeps the stubs honest: a stub
-  // that silently returned a plausible empty value would let a consumer build
-  // on nothing.
-  it('link/userUnits/getProfileInfo say so, and root is null', async () => {
+describe('before link()', () => {
+  // Through Phase 2 these threw "not implemented". They are implemented now
+  // (`link.test.ts`, `link-parity.test.ts`); what is left to assert here is
+  // that the pre-link state is the *empty* one rather than a stale or invented
+  // one, since that is what a consumer branches on.
+  it('root is null, and userUnits/fileMap are empty', async () => {
     const p = await parser();
     p.parseSources([{ name: 'top.pss', content: VALID }]);
-    expect(() => p.link()).toThrow(/not implemented/);
-    expect(() => p.userUnits()).toThrow(/not implemented/);
-    expect(() => p.getProfileInfo()).toThrow(/not implemented/);
     expect(p.root).toBeNull();
+    expect(p.userUnits()).toEqual([]);
+    expect([...p.fileMap()]).toEqual([]);
   });
 });

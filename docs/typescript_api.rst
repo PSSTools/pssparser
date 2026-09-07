@@ -33,12 +33,13 @@ runtime forced it:
 
 .. note::
 
-   **Implementation status.** ``parseSources()``, ``markers`` and the
-   ``ASTUtils`` helpers are implemented and tested. The AST serialiser is in
-   place and verified against the native parser (`The AST boundary`_), but is
-   not yet wired to the ``Parser`` methods that would expose it: ``link()``,
-   ``root``, ``userUnits()`` and ``getProfileInfo()`` still throw
-   ``not implemented``. The shape is settled; only the bodies are outstanding.
+   **Implementation status.** The API is complete: ``parseSources()``,
+   ``markers``, ``link()``, ``root``, ``userUnits()``, ``fileMap()``,
+   ``getProfileInfo()`` and the ``ASTUtils`` helpers are all implemented, and
+   both the per-unit AST and the linked tree are checked against the native
+   parser node for node and field for field (`Verification`_). The package is
+   not published to npm yet, and
+   ``Marker.code`` is expected to become required before 1.0 — see `Roadmap`_.
 
 
 Getting started
@@ -173,6 +174,103 @@ later ``parseSources()`` calls. A source that fails does not.
       );
       parser.parseSources(files);
 
+.. _ts-link:
+
+``link()``
+^^^^^^^^^^
+
+.. code-block:: typescript
+
+   link(): RootSymbolScope;
+
+Links every unit parsed so far and returns the linked root. Throws
+:ref:`ts-parse-exception` if the link produces any error-severity marker —
+**after** recording the root, which is the part worth knowing about.
+
+Parsing checks one file at a time. Linking is what resolves references *across*
+files, merges ``extend`` declarations into the types they extend, and builds the
+symbol tree. A reference to a type in another file is not a parse error and is
+not reported until here.
+
+.. code-block:: typescript
+
+   const parser = await createParser();
+   try {
+     parser.parseSources([
+       { name: 'pkg.pss', content: 'package p { struct S { int a; } }' },
+       { name: 'top.pss', content: 'import p::*; component pss_top { action A { p::S s; } }' },
+     ]);
+     const root = parser.link();
+     for (const unit of parser.userUnits()) {
+       console.log(parser.fileMap().get(unit.fileid), unit.children.length);
+     }
+   } finally {
+     parser.dispose();
+   }
+
+Four behaviours are contractual, because each is one the Python implementation
+got wrong first and now records in a comment:
+
+Markers are collected whether or not the link succeeded
+   Collecting only in the error branch dropped every warning from a successful
+   link, and the CLI reported "0 errors in 0 files".
+
+The whole marker list is re-sorted
+   Parse-time and link-time markers are each internally sorted, and two sorted
+   lists concatenated are not sorted.
+
+**A failed link still records its root**
+   Ownership of the units moves into the root inside ``link()``, so ``root``,
+   ``userUnits()`` and ``fileMap()`` are usable after a ``ParseException``.
+   What a failed link leaves you is the per-file view — each file's
+   declarations and their doc comments. What it does not leave is a trustworthy
+   cross-file view: that is what the error was about.
+
+The builder is dropped
+   It holds the units as borrowed pointers, and they now belong to the root. A
+   ``parseSources()`` after a ``link()`` starts a fresh environment: the
+   standard library is reloaded and user file ids restart at 1.
+
+Linking twice on one parser is supported. The second call frees the first
+root's C++ objects, but a ``RootSymbolScope`` you are holding is materialised
+JavaScript and is unaffected.
+
+``root``
+^^^^^^^^
+
+.. code-block:: typescript
+
+   readonly root: RootSymbolScope | null;
+
+The tree the last ``link()`` produced, or ``null`` before the first one. The
+same object ``link()`` returned, not a second materialisation.
+
+``userUnits()``
+^^^^^^^^^^^^^^^
+
+.. code-block:: typescript
+
+   userUnits(): GlobalScope[];
+
+The ``GlobalScope`` of each user-supplied file, in parse order. Empty before
+``link()``. Built-in and standard-library units are filtered out by file id
+(`File ids`_), so this is the list a tool iterating "the user's files" wants;
+``root.units`` is the same list with those two prepended.
+
+``fileMap()``
+^^^^^^^^^^^^^
+
+.. code-block:: typescript
+
+   fileMap(): ReadonlyMap<number, string>;
+
+File id to source name for the user files, populated by ``link()`` and valid
+afterwards — including after a *failed* link. Returns a copy.
+
+This is the mapping a consumer that runs after linking needs in order to turn a
+node's ``location.fileid`` back into a name. ``link()`` snapshots it precisely
+because the next parse reuses the same ids for different files.
+
 ``markers``
 ^^^^^^^^^^^
 
@@ -203,6 +301,41 @@ terminal-output affordance a CLI opts into. Only error-severity markers count
 against it, and a file that reaches it gets one extra ``PSS029`` marker
 announcing the cutoff.
 
+``enableProfiling(enable?)`` and ``getProfileInfo()``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: typescript
+
+   enableProfiling(enable?: boolean): void;
+   getProfileInfo(): ProfileInfo | null;   // Readonly<Record<string, unknown>>
+
+Turns on ANTLR's parse profiler for subsequent parses, and reads back what the
+last one recorded. ``getProfileInfo()`` is ``null`` when profiling was off, when
+nothing has been parsed, and after ``link()`` — which drops the builder holding
+the data, so there is nothing to report rather than something stale.
+
+``ProfileInfo`` is deliberately **opaque**. What the profiler reports is a
+diagnostic aid whose shape is not obviously stable, and publishing a precise
+type would turn "we now also count X" into a breaking API change. Today it
+carries aggregate counters (``totalTimeInPrediction``, ``totalSLLLookaheadOps``,
+``dfaSize``, ``tokenCount``, …), an ``llDecisions`` array, and a ``decisions``
+array of per-decision records — each with ``ruleName``, ``invocations``,
+lookahead counters, ambiguity and context-sensitivity counts, and resolved
+``events``. Only decisions the parse actually reached are listed; ANTLR carries
+an entry for every decision in the grammar and the rest are all zeroes.
+
+``ruleName`` is what makes a profile actionable: a decision number names
+nothing a grammar author can edit.
+
+.. code-block:: typescript
+
+   parser.enableProfiling();
+   parser.parseSources([{ name: 'top.pss', content }]);
+   const info = parser.getProfileInfo() as any;
+   const hot = info.decisions
+     .sort((a, b) => b.sllLookaheadOps - a.sllLookaheadOps)
+     .slice(0, 5);
+
 ``dispose()``
 ^^^^^^^^^^^^^
 
@@ -213,9 +346,10 @@ will free it.
 Idempotent — calling it twice is not an error, so a ``finally`` that runs after
 an explicit dispose is fine. Every other method throws afterwards.
 
-Markers and (once implemented) AST objects already materialised are plain
-JavaScript and survive disposal. That is deliberate: a language server can hold
-the last good tree while disposing the parser that produced it.
+Markers and AST objects already materialised are plain JavaScript and survive
+disposal — ``root``, ``userUnits()`` and ``fileMap()`` all keep working after
+``dispose()``. That is deliberate: a language server can hold the last good tree
+while disposing the parser that produced it.
 
 A ``FinalizationRegistry`` warns on the console when a parser is collected
 without being disposed. That is a development aid and never a substitute:
@@ -474,6 +608,44 @@ The **symbol table stays behind the boundary**. It is already an interface, the
 structure is large, and materialising it would be the largest transfer for the
 smallest benefit.
 
+What ``link()`` costs
+^^^^^^^^^^^^^^^^^^^^^
+
+``link()`` materialises a different quantity from a per-unit parse. The linked
+root owns *every* unit plus the merged symbol tree, so one call carries the
+standard library and the builtins whatever the user file's size — 105 KiB
+serialised for a two-line source, of which 55 KiB is the standard library unit
+and 1 KiB is the user's.
+
+That gives the cost a floor a per-unit materialisation does not have, and the
+measurement is that the floor is essentially the whole cost:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 40 20 40
+
+   * - Case
+     - Warm
+     - What it is
+   * - Empty source
+     - 2.3 ms
+     - the floor: link, serialise and rebuild the stdlib and builtins
+   * - Corpus mean (84 files)
+     - 2.3 ms
+     - the same, plus one real user file
+
+A language server linking on each keystroke pays that per keystroke. If it ever
+matters, the answer is to link less often — on save, on idle — rather than to
+make the serialiser faster, because the user's file is not what is being paid
+for.
+
+Cross-unit references resolve after linking, and not before
+   A reference whose target is in another unit cannot be written when units are
+   serialised one at a time: there is no id for a node outside the buffer, and
+   the generated element types are non-nullable, so the entry is dropped. Under
+   ``link()`` every unit is in the same buffer and the loss goes away. This is
+   checked rather than asserted — see `Verification`_.
+
 
 Loading
 -------
@@ -609,8 +781,8 @@ Node 22:
      - Value
      - Notes
    * - ``pssparser.wasm``
-     - 3.45 MiB raw
-     - 641 KiB gzip, 439 KiB brotli
+     - 3.46 MiB raw
+     - 635 KiB gzip, 440 KiB brotli
    * - Cold start
      - ~11 ms
      - import plus instantiation, fresh process
@@ -669,8 +841,79 @@ stating. Both halves of the format come from one generator, so a round-trip test
 shows only that they agree with each other — two same-width fields emitted in
 the wrong order are written and read consistently and round-trip perfectly. Only
 a comparison against an independently-built AST can see that, and this is it.
-It covers the declaration spine rather than every node; expressions and exec
-bodies are not yet compared.
+It covers the declaration spine rather than every node; the **census** below is
+what covers the rest.
+
+The **linked tree** has its own fixture, because it is a different tree — the
+per-unit one walks each ``GlobalScope`` as parsed, and nothing about that
+constrains the merged symbol tree:
+
+.. code-block:: bash
+
+   PYTHONPATH=python packages/python/bin/python \
+       ts/scripts/gen-link-parity-fixture.py -o ts/test/fixtures/link-parity.json
+
+It records the units the root ended up owning, the ``fileMap``, the declaration
+spine of the symbol tree and of each user unit, and — the part that motivated
+it — how many non-owning references resolved. The schema has exactly two
+non-owning list fields, ``SymbolImportSpec.imports`` and
+``SymbolFunctionScope.prototypes``, and those are where the cross-unit loss
+described in `The AST boundary`_ would show. Comparing the counts against the
+native parser is how the claim that ``link()`` dissolves that loss is checked;
+a regression that put the units back in separate buffers would take
+``prototypes`` from 75 to 0, and nothing else in the suite would notice.
+
+Both AST fixtures were checked for liveness rather than trusted for passing
+first time: mutating the reader so that ``prototypes`` always deserialises
+empty fails 91 of the 91 linked cases, and perturbing one field of the spine
+walk fails the same 91 through the digest comparison.
+
+Past the spine: the census
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+All three fixtures above walk the declaration spine — ``Scope`` and
+``SymbolChildrenScope`` children, and on each node its class, name and location.
+That is the containment structure and three fields per node. It never enters an
+expression, a constraint body or an exec block, so a defect confined to
+``ExprBin.op`` passes every one of them.
+
+The **census** closes that. It is a pre-order walk of the ownership graph that
+records every field of every node, and it compares 132,000 nodes per run across
+185 parsed units and 100 linked roots:
+
+.. code-block:: bash
+
+   packages/python/bin/astbuilder gen-census -astdir ast \
+       -py ts/scripts/generated -ts ts/test/generated
+   PYTHONPATH=python packages/python/bin/python \
+       ts/scripts/gen-census-parity-fixture.py -o ts/test/fixtures/census-parity.json
+
+Both walkers are **generated from the schema in one run** — a Python one that
+reads the native AST through the Cython accessors, and a TypeScript one that
+reads the materialised tree — for the same reason the serialiser and
+deserialiser are generated together: two walks meant to produce the same
+sequence, written separately, drift. Only the fixture is committed; the walkers
+are regenerated by ``npm run generate`` alongside the classes they walk.
+
+The corpus cases carry a node count, a count by class and a SHA-256 of the
+record stream rather than the records themselves; the count and the histogram
+are compared before the digest, so a mismatch usually names the class that
+gained or lost nodes instead of only saying that two streams differ. The inline
+cases — expressions, literals, exec bodies, activities, covergroups — carry full
+records for their user units, and are what makes a corpus failure reproducible.
+
+Liveness was established the same way, and the result is the clearest statement
+of what the census adds: making the reader decode ``ExprBin.op`` one greater
+than it was written fails **92 of the 100 census cases and none of the 200 spine
+tests**.
+
+Two things are outside it, both deliberate. Map fields are not read at all —
+the Python bindings expose a map only as ``<field>Has(k)`` and ``<field>At(k)``,
+with no way to enumerate keys — so both walkers skip maps in the body *and* in
+the ownership walk, which keeps the two sides aligned at the cost of leaving the
+``SymbolRefPath`` nodes owned by ``SymbolImportSpec.symtab`` uncovered. And integer
+values above 2\ :sup:`53` are compared as IEEE-754 doubles, because that is what
+the TypeScript reader narrows them to regardless.
 
 A diagnostic build with AddressSanitizer is available for memory questions the
 suite cannot answer:
@@ -686,21 +929,32 @@ It writes to its own build directory, never to ``ts/src/wasm``: the ASan
 artifact is ~25× larger and uses a different allocator, and shipping it by
 accident would be hard to notice.
 
+The probe covers three lifetimes the suite cannot see: a unit whose parse
+failed being freed, ``link()`` moving ownership of every unit into the root
+(and a second ``link()`` freeing the first root), and a session destroyed while
+holding a root *and* units the linker never took. Each probe documents the
+one-line mutation that makes it fire, and a clean run means nothing until one
+of those has been tried — a probe that reports nothing because it never reached
+the interesting code looks exactly like a probe that reports nothing because
+the code is correct.
+
 
 Roadmap
 -------
 
 Implemented and tested
-   ``createParser``, ``parseSources``, ``markers``, ``clearMarkers``,
-   ``setMaxErrors``, ``dispose``/``Symbol.dispose``, the schema-hash check, the
-   ``ASTUtils`` helpers, and the AST wire format in both directions.
+   The whole API surface: ``createParser``, ``parseSources``, ``markers``,
+   ``clearMarkers``, ``setMaxErrors``, ``link``, ``root``, ``userUnits``,
+   ``fileMap``, ``enableProfiling``/``getProfileInfo``,
+   ``dispose``/``Symbol.dispose``, the schema-hash check, the ``ASTUtils``
+   helpers, and the AST wire format in both directions.
 
-Declared, not yet implemented
-   ``link()``, ``root``, ``userUnits()``, ``fileMap()`` (populated by ``link``)
-   and ``getProfileInfo()``. The serialiser these need is now in place and
-   verified against the native parser; what remains is the ``Parser`` plumbing
-   on top of it, and the link semantics — unconditional marker collection and a
-   re-sort, the root recorded before failure — that ``link()`` has to preserve.
+Known gaps in verification
+   Map fields are outside the census, so the ``SymbolRefPath`` nodes that
+   ``SymbolImportSpec.symtab`` owns are compared against nothing. Closing that means
+   adding a key-enumerating accessor to the Python bindings — an additive
+   change to a published API, which is more than a test instrument should decide
+   on its own.
 
 Before 1.0
    The marker-catalogue work, which makes ``Marker.code`` required. That is a
