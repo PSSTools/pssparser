@@ -1,0 +1,36 @@
+{
+  "name": "@psstools/pssparser",
+  "version": "0.0.1",
+  "description": "PSS (Portable Test and Stimulus Standard) parser -- the pssparser C++ core compiled to WebAssembly, with a TypeScript API",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "gen:ast": "../packages/python/bin/astbuilder gen-ts -astdir ../ast -o src/ast/generated",
+    "gen:wasm": "node scripts/build-wasm.mjs",
+    "generate": "npm run gen:ast && npm run gen:wasm",
+    "build": "tsc -p tsconfig.json && node scripts/copy-wasm.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "typescript": "^5.4.0",
+    "vitest": "^2.1.0"
+  }
+}

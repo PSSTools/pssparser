@@ -21,7 +21,8 @@ Key Features
 * **Monitors** - Behavioral coverage with temporal operators
 * **String Enhancements** - String methods and substring operator
 * **Reference Collections** - Collections of reference types
-* **C++ and Python APIs** - Use from either language
+* **C++, Python and TypeScript APIs** - Use from any of the three; the
+  TypeScript API is the core compiled to WebAssembly, and runs in a browser
 * **Complete AST** - Full abstract syntax tree representation
 * **High Performance** - Fast parsing with minimal memory overhead
 
@@ -30,6 +31,7 @@ Key Features
    :caption: Getting Started:
 
    quickstart
+   typescript_api
    cli
    source_tools
    doc_comments

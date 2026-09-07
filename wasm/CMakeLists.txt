@@ -1,0 +1,223 @@
+#****************************************************************************
+#* CMakeLists.txt -- pssparser WebAssembly build
+#*
+#* A separate configuration, not a variant of the native one
+#* (ts-wasm-impl-plan.md §1.5). The native build is a chain of
+#* ExternalProjects with install rules, RPATH handling and MSVC workarounds,
+#* none of which apply here: under Emscripten there are no shared libraries to
+#* find at runtime, nothing to install, and one link step produces the whole
+#* deliverable.
+#*
+#* Drive it through emcmake so the Emscripten toolchain file is selected:
+#*
+#*   source scripts/wasm-env.sh
+#*   emcmake cmake -S wasm -B build-wasm -DCMAKE_BUILD_TYPE=Release
+#*   cmake --build build-wasm -j
+#*
+#* Output lands in ts/src/wasm/pssparser.{js,wasm}.
+#****************************************************************************
+cmake_minimum_required(VERSION 3.16)
+project(pssparser_wasm CXX)
+
+if (NOT EMSCRIPTEN)
+  message(FATAL_ERROR
+    "wasm/CMakeLists.txt must be configured through emcmake. "
+    "Run `source scripts/wasm-env.sh` then `emcmake cmake -S wasm -B build-wasm`.")
+endif()
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+get_filename_component(PSSPARSER_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/.." ABSOLUTE)
+set(PACKAGES_DIR "${PSSPARSER_ROOT}/packages")
+set(PYTHON "${PACKAGES_DIR}/python/bin/python")
+set(ANTLR_JAR "${PACKAGES_DIR}/antlr4-tools.jar")
+set(ANTLR_RUNTIME "${PACKAGES_DIR}/antlr4-cpp-runtime/runtime/src")
+
+foreach (req "${PYTHON}" "${ANTLR_JAR}" "${ANTLR_RUNTIME}")
+  if (NOT EXISTS "${req}")
+    message(FATAL_ERROR "missing dependency: ${req} -- run `ivpm update`")
+  endif()
+endforeach()
+
+find_package(Java COMPONENTS Runtime REQUIRED)
+
+#****************************************************************************
+#* Generated sources
+#*
+#* All three generators run at configure time rather than as build rules.
+#* Under Emscripten every one of them is a host-tool invocation that produces
+#* a fixed file set from a fixed input set, and running them here means the
+#* glob below sees the result -- a build-time custom command would need the
+#* file list up front, which is exactly what the generator decides.
+#*
+#* CMAKE_CONFIGURE_DEPENDS carries the invalidation: editing ast/*.yaml or a
+#* .g4 re-runs configure, which re-runs the generator. The native build learned
+#* this the hard way (CMakeLists.txt:243-251) -- an ExternalProject
+#* DOWNLOAD_COMMAND that is really a code generator is stamped once and never
+#* re-stamped, so a schema edit surfaced as a missing accessor on the generated
+#* class rather than as a stale build.
+#****************************************************************************
+file(GLOB AST_SPEC "${PSSPARSER_ROOT}/ast/*.yaml")
+file(GLOB STDLIB_SPEC "${PSSPARSER_ROOT}/src/stdlib/*.pss")
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+  ${AST_SPEC}
+  ${STDLIB_SPEC}
+  "${PSSPARSER_ROOT}/src/PSSLexer.g4"
+  "${PSSPARSER_ROOT}/src/PSSParser.g4")
+
+set(GEN_DIR "${CMAKE_BINARY_DIR}/generated")
+set(AST_GEN_DIR "${GEN_DIR}/ast")
+set(ANTLR_GEN_DIR "${GEN_DIR}/antlr")
+file(MAKE_DIRECTORY "${AST_GEN_DIR}" "${ANTLR_GEN_DIR}")
+
+# -- AST data structures -----------------------------------------------------
+# Same generator and same arguments as scripts/gen_ast.py, so the WASM core and
+# the native core are compiled against byte-identical headers. gen-cpp writes
+# relative to the working directory, hence WORKING_DIRECTORY rather than -o.
+message(STATUS "pssparser-wasm: generating AST into ${AST_GEN_DIR}")
+execute_process(
+  COMMAND "${PYTHON}" -m astbuilder gen-cpp
+          -name ast -namespace pssp::ast
+          -astdir "${PSSPARSER_ROOT}/ast"
+          -license "${PSSPARSER_ROOT}/etc/copyright.cpp"
+  WORKING_DIRECTORY "${AST_GEN_DIR}"
+  RESULT_VARIABLE _ast_rc
+  OUTPUT_VARIABLE _ast_out
+  ERROR_VARIABLE _ast_out)
+if (NOT _ast_rc EQUAL 0)
+  message(FATAL_ERROR "astbuilder gen-cpp failed (${_ast_rc}):\n${_ast_out}")
+endif()
+
+# -- ANTLR lexer/parser ------------------------------------------------------
+message(STATUS "pssparser-wasm: generating ANTLR front end")
+execute_process(
+  COMMAND "${Java_JAVA_EXECUTABLE}" -jar "${ANTLR_JAR}"
+          -Dlanguage=Cpp -listener -visitor
+          -o "${ANTLR_GEN_DIR}"
+          "${PSSPARSER_ROOT}/src/PSSLexer.g4" "${PSSPARSER_ROOT}/src/PSSParser.g4"
+  RESULT_VARIABLE _antlr_rc
+  OUTPUT_VARIABLE _antlr_out
+  ERROR_VARIABLE _antlr_out)
+if (NOT _antlr_rc EQUAL 0)
+  message(FATAL_ERROR "antlr4 failed (${_antlr_rc}):\n${_antlr_out}")
+endif()
+# antlr mirrors the input path under -o; the .g4 files live in src/.
+set(ANTLR_OUT_DIR "${ANTLR_GEN_DIR}")
+if (EXISTS "${ANTLR_GEN_DIR}/src")
+  set(ANTLR_OUT_DIR "${ANTLR_GEN_DIR}/src")
+endif()
+
+# -- Embedded standard library ----------------------------------------------
+# The stdlib is compiled into the binary as bytes, which is what lets the WASM
+# build run with -sFILESYSTEM=0 (ts-api-design.md §3.1). This is not a
+# concession made for WASM: the native build already does it.
+execute_process(
+  COMMAND "${PYTHON}" "${PSSPARSER_ROOT}/src/stdlib/mk_pssstdlib.py"
+          "${GEN_DIR}/pss_stdlib.h"
+  RESULT_VARIABLE _stdlib_rc
+  OUTPUT_VARIABLE _stdlib_out
+  ERROR_VARIABLE _stdlib_out)
+if (NOT _stdlib_rc EQUAL 0)
+  message(FATAL_ERROR "mk_pssstdlib.py failed (${_stdlib_rc}):\n${_stdlib_out}")
+endif()
+
+# -- Schema hash -------------------------------------------------------------
+# Emitted for both sides at once, from the same inputs, in the same run. The
+# C++ half is compiled into the .wasm and the TS half into the package; the
+# loader compares them (ts-api-design.md §7). Generating them together is the
+# point -- two generators could disagree, which is the failure this check
+# exists to catch.
+execute_process(
+  COMMAND "${PYTHON}" "${PSSPARSER_ROOT}/scripts/gen_schema_hash.py"
+          "${PSSPARSER_ROOT}/ast"
+          -H "${GEN_DIR}/pssparser_schema_hash.h"
+          -T "${PSSPARSER_ROOT}/ts/src/wasm/schemaHash.ts"
+  RESULT_VARIABLE _hash_rc
+  OUTPUT_VARIABLE _hash_out
+  ERROR_VARIABLE _hash_out)
+if (NOT _hash_rc EQUAL 0)
+  message(FATAL_ERROR "gen_schema_hash.py failed (${_hash_rc}):\n${_hash_out}")
+endif()
+string(STRIP "${_hash_out}" _hash_out)
+message(STATUS "pssparser-wasm: ${_hash_out}")
+
+#****************************************************************************
+#* Sources
+#****************************************************************************
+file(GLOB_RECURSE ANTLR_RUNTIME_SRC "${ANTLR_RUNTIME}/*.cpp")
+file(GLOB AST_SRC "${AST_GEN_DIR}/*.cpp")
+file(GLOB PSSPARSER_SRC "${PSSPARSER_ROOT}/src/*.cpp")
+file(GLOB ANTLR_FRONTEND_SRC "${ANTLR_OUT_DIR}/*.cpp")
+
+list(LENGTH AST_SRC _n_ast)
+list(LENGTH ANTLR_FRONTEND_SRC _n_fe)
+if (_n_ast EQUAL 0 OR _n_fe EQUAL 0)
+  message(FATAL_ERROR
+    "generation produced nothing: ${_n_ast} AST sources, ${_n_fe} front-end sources")
+endif()
+
+add_executable(pssparser
+  ${ANTLR_RUNTIME_SRC}
+  ${ANTLR_FRONTEND_SRC}
+  ${AST_SRC}
+  ${PSSPARSER_SRC}
+  "${CMAKE_CURRENT_SOURCE_DIR}/bindings.cpp")
+
+target_include_directories(pssparser PRIVATE
+  "${ANTLR_RUNTIME}"
+  "${ANTLR_OUT_DIR}"
+  "${AST_GEN_DIR}/include"
+  "${GEN_DIR}"
+  "${PSSPARSER_ROOT}/src"
+  "${PSSPARSER_ROOT}/src/include"
+  "${PACKAGES_DIR}/python/lib/python3.12/site-packages/debug_mgr/share/include")
+
+# ANTLR4CPP_STATIC turns off the dllimport/dllexport decorations. There is no
+# dynamic linking under Emscripten, so the decorated form is meaningless here.
+target_compile_definitions(pssparser PRIVATE ANTLR4CPP_STATIC)
+target_compile_options(pssparser PRIVATE
+  -Wno-attributes
+  # The generated parser's serialized ATN is a very large initializer and the
+  # AST headers instantiate deep template chains; neither is a diagnostic worth
+  # reading 20k times.
+  -Wno-unused-command-line-argument)
+
+#****************************************************************************
+#* Link
+#*
+#* -sFILESYSTEM=0 is the load-bearing flag: it is viable only because the
+#* TypeScript API has no parse(paths) (ts-api-design.md §3.1), and it is what
+#* keeps the module usable unchanged in a browser.
+#*
+#* No pthreads. ANTLR's synchronization primitives (internal/Synchronization.h)
+#* are std::mutex/std::shared_mutex wrappers, and Emscripten's libc++ provides
+#* single-threaded no-op implementations of those, so the runtime compiles and
+#* runs correctly without a threading build. Enabling pthreads would cost a
+#* SharedArrayBuffer requirement and the cross-origin isolation headers that go
+#* with it, for a parser that is single-threaded anyway.
+#****************************************************************************
+set(PSSPARSER_LINK_FLAGS
+  "-lembind"
+  "-sMODULARIZE=1"
+  "-sEXPORT_ES6=1"
+  "-sEXPORT_NAME=createPssParserModule"
+  "-sALLOW_MEMORY_GROWTH=1"
+  "-sFILESYSTEM=0"
+  "-sENVIRONMENT=web,worker,node"
+  # Embind marshals std::string by value across the boundary; without this the
+  # module refuses to accept a JS string longer than the initial heap.
+  "-sDYNAMIC_EXECUTION=0"
+  # A C++ exception escaping into JS is a binding bug, but it must surface as
+  # an Error with the what() text rather than as an unreachable trap
+  # (ts-api-design.md §3.3).
+  "-fexceptions"
+  "-sDISABLE_EXCEPTION_CATCHING=0")
+
+target_compile_options(pssparser PRIVATE -fexceptions)
+target_link_options(pssparser PRIVATE ${PSSPARSER_LINK_FLAGS})
+
+set_target_properties(pssparser PROPERTIES
+  OUTPUT_NAME pssparser
+  SUFFIX ".js"
+  RUNTIME_OUTPUT_DIRECTORY "${PSSPARSER_ROOT}/ts/src/wasm")

@@ -1,0 +1,12 @@
+# Build products, all reproducible from a clean checkout by `npm run generate`.
+node_modules/
+dist/
+
+# astbuilder gen-ts output
+src/ast/generated/
+
+# emcc output, and the schema hash emitted alongside it
+src/wasm/pssparser.js
+src/wasm/pssparser.wasm
+src/wasm/pssparser.wasm.map
+src/wasm/schemaHash.ts

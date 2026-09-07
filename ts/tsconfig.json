@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    // NodeNext rather than the server/'s commonjs: this package is published
+    // as ESM ("type": "module") and the WASM glue emcc emits is an ES module
+    // (-sEXPORT_ES6=1), so a CommonJS build could not import it.
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2022"],
+    "strict": true,
+    "esModuleInterop": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "outDir": "dist",
+    "rootDir": "src",
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "noUncheckedIndexedAccess": true,
+    // Symbol.dispose / `using` (ts-api-design.md §8). The polyfill is a
+    // one-line assignment in Parser.ts rather than a dependency.
+    "useDefineForClassFields": true
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}
