@@ -11,6 +11,10 @@ __pycache__/
 build/
 build-wasm/
 build-wasm-asan/
+# Emscripten's generated config and sysroot cache, written by
+# scripts/wasm-env.sh. Project-local because packages/emsdk is a symlink into
+# ivpm's shared cache -- see the note at the head of that script.
+.emsdk/
 develop-eggs/
 dist/
 downloads/

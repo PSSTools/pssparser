@@ -79,12 +79,28 @@ package:
   #*
   #* A dedicated dep-set, not part of default-dev, and deliberately so: the
   #* bundle is 298 MB, and that is not a cost a developer building only the
-  #* Python extension should pay. Fetch it explicitly:
+  #* Python extension should pay. Building the TypeScript package is:
   #*
-  #*     ivpm update -d wasm-build
+  #*     ivpm update -d ts-build
   #*     source scripts/wasm-env.sh
   #*     emcmake cmake -S wasm -B build-wasm -DCMAKE_BUILD_TYPE=Release
   #*     cmake --build build-wasm -j
+  #*
+  #* `ts-build` is default-dev plus this toolchain (see below). Naming one
+  #* dep-set is not a convenience -- it is the only spelling that works, and
+  #* both halves of that were established by running it on a clean clone
+  #* 2026-09-07:
+  #*
+  #*  - The wasm build is not toolchain-only. wasm/CMakeLists.txt reaches for
+  #*    packages/python (to run astbuilder), packages/antlr4-tools.jar and
+  #*    packages/antlr4-cpp-runtime -- all of them default-dev. `-d wasm-build`
+  #*    alone configures as far as the ANTLR step and stops.
+  #*  - ivpm records the requested dep-sets in packages/ivpm.json and refuses a
+  #*    later run that asks for a different set ("Attempting to update with a
+  #*    different dep-set than previously used"), with no CLI override. So
+  #*    `-d wasm-build` first does not merely fetch too little: it leaves the
+  #*    tree in a state where the ordinary `ivpm update` fails, and the way out
+  #*    is to delete packages/ivpm.json.
   #*
   #* The environment (PATH, EM_CONFIG, EM_CACHE) is set by scripts/wasm-env.sh
   #* rather than by an `env:` block here. Two reasons: the manifest-level `env:`
@@ -94,7 +110,11 @@ package:
   #*
   #* EM_CACHE in particular is not optional. emcc compiles sysroot libraries --
   #* libc++, libembind -- on first use, and a $HOME-relative cache is how a
-  #* build ends up warm on a workstation and cold in every CI runner.
+  #* build ends up warm on a workstation and cold in every CI runner. Note that
+  #* `cache: true` below means packages/emsdk is a *symlink* into ~/.ivpm/cache,
+  #* so wasm-env.sh keeps that state in .emsdk/ at the project root rather than
+  #* writing it through the symlink into storage shared with every other
+  #* project on the machine.
   #**************************************************************************
   - name: wasm-build
     deps:
@@ -115,8 +135,50 @@ package:
     #     p:   { match: { on: "${{ivpm_os}}",   cases: { linux: linux, macos: mac, windows: win } } }
     #     sfx: { match: { on: "${{ivpm_arch}}", cases: { x86_64: "", arm64: "-arm64" } } }
     #     ext: { match: { on: "${{ivpm_os}}",   cases: { windows: zip }, default: tar.xz } }
+    #
+    # No `src:` key. It used to say `src: url`, which looks right and is not:
+    # ivpm registers "url" as a source name, but PackageURL is the base class
+    # the concrete fetchers derive from, and it inherits Package.update() --
+    # a method that reports the package and returns success without fetching
+    # anything. `ivpm update -d wasm-build` therefore printed ">> emsdk",
+    # "<< emsdk (0.0s)" and exited 0 with no packages/emsdk on disk. Left out,
+    # the https:// URL auto-probes to "http" and PackageHttp does the work,
+    # which is how every other URL dependency in this file is written.
     - name: emsdk
-      src: url
       cache: true
       url: https://storage.googleapis.com/webassembly/emscripten-releases-builds/linux/f04ea239d533260dd1db760dd2d668d5f9a88d6b/wasm-binaries.tar.xz
       type: raw
+
+  #**************************************************************************
+  #* ts-build -- everything the TypeScript/WebAssembly package needs
+  #*
+  #*     ivpm update -d ts-build
+  #*
+  #* Nothing of its own -- `deps: []` is the whole point. It is `default-dev`
+  #* (astbuilder, ANTLR, the Python venv) plus `wasm-build` (the Emscripten
+  #* toolchain), which together are exactly the set wasm/CMakeLists.txt reaches
+  #* for. Composed by `uses:` rather than by repeating the emsdk entry, so the
+  #* pinned toolchain hash has one home; the two bases stay separately declared
+  #* because they are separately useful -- `wasm-build` alone is the toolchain,
+  #* for someone who has the rest by another route.
+  #*
+  #* This is also the dep-set a *consumer* names when it takes pssparser as a
+  #* source dependency and expects the wasm to be rebuilt:
+  #*
+  #*     - name: pssparser
+  #*       url: https://github.com/psstools/pssparser.git
+  #*       dep-set: ts-build
+  #*       deps-mode: nested
+  #*       type: { node: { subdir: ts } }
+  #*
+  #* `deps-mode: nested` matters: without it pssparser's dependencies are
+  #* flattened into the consumer's deps-dir, and wasm/CMakeLists.txt -- which
+  #* resolves ANTLR relative to its own tree -- finds nothing. A consumer that
+  #* only wants to *use* the parser should take the published npm package
+  #* instead and carry no toolchain at all.
+  #**************************************************************************
+  - name: ts-build
+    uses:
+    - default-dev
+    - wasm-build
+    deps: []

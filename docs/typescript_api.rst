@@ -52,8 +52,7 @@ The package is not yet published to npm. Build it from a checkout:
 
 .. code-block:: bash
 
-   ivpm update -d default-dev
-   ivpm update -d wasm-build      # the Emscripten toolchain; see Building below
+   ivpm update -d ts-build        # see Building below
 
    cd ts
    npm install
@@ -731,9 +730,16 @@ Building
 Two build products are generated and not committed: the TypeScript AST classes
 and the WebAssembly binary. Both are reproducible from a clean checkout.
 
+.. note::
+
+   The build needs a ``pyastbuilder`` providing the ``gen-wasm`` and
+   ``gen-census`` subcommands. Until those reach the published package, a clean
+   checkout resolves an older ``pyastbuilder`` and configuration stops at the
+   ``gen-wasm`` step with ``invalid choice: 'gen-wasm'``.
+
 .. code-block:: bash
 
-   ivpm update -d wasm-build     # Emscripten toolchain (298 MB, separate dep-set)
+   ivpm update -d ts-build
 
    cd ts
    npm install
@@ -749,10 +755,98 @@ The Emscripten toolchain is a dedicated ``wasm-build`` ivpm dep-set rather than
 part of ``default-dev``: 298 MB is not a cost a developer building only the
 Python extension should pay.
 
+Ask for ``ts-build``, which is ``default-dev`` plus ``wasm-build`` composed with
+ivpm's ``uses:``. ``wasm-build`` alone is not enough — ``wasm/CMakeLists.txt``
+runs ``astbuilder`` out of ``packages/python`` and compiles the ANTLR runtime
+from ``packages/antlr4-cpp-runtime``, both of which are ``default-dev``. And
+ivpm records the requested dep-sets in ``packages/ivpm.json`` and refuses a
+later run that asks for a different set, so fetching ``wasm-build`` first leaves
+the tree in a state where the ordinary ``ivpm update`` fails until
+``packages/ivpm.json`` is deleted.
+
 ``scripts/wasm-env.sh`` puts the toolchain on ``PATH`` and points ``EM_CONFIG``
-and ``EM_CACHE`` inside the deps directory. That last part is not cosmetic —
-``emcc`` compiles sysroot libraries on first use, and a ``$HOME``-relative
-cache is how a build ends up warm on a workstation and cold in every CI runner.
+and ``EM_CACHE`` at ``.emsdk/`` in the project root. That last part is not
+cosmetic — ``emcc`` compiles sysroot libraries on first use, and a
+``$HOME``-relative cache is how a build ends up warm on a workstation and cold
+in every CI runner. Project-local rather than beside the toolchain because the
+``wasm-build`` dep sets ``cache: true``, which makes ``packages/emsdk`` a
+symlink into ivpm's shared cache; writing through it would mutate storage
+shared with every other project on the machine.
+
+The build is reproducible in the strict sense. Verified 2026-09-07 on a fresh
+clone with an ivpm-fetched toolchain: ``pssparser.js`` and ``pssparser.wasm``
+came out byte-identical to the working tree's.
+
+.. _ts-consuming:
+
+Consuming pssparser from another project
+-----------------------------------------
+
+Two ways, and they are the same package.
+
+**As a released package**, for a consumer that only wants to use the parser.
+``npm install @psstools/pssparser`` carries the prebuilt ``.wasm`` inside
+``dist/``: no Emscripten toolchain, no build step, no IVPM.
+
+**As an IVPM source dependency**, for a consumer co-developing pssparser. The
+WebAssembly is rebuilt from source automatically on every ``ivpm update``:
+
+.. code-block:: yaml
+
+    - name: pssparser
+      url: https://github.com/psstools/pssparser.git
+      dep-set: ts-build
+      deps-mode: nested
+      type:
+      - raw
+      - node:
+          subdir: ts
+
+Every line earns its place, and each was established by running it rather than
+by reading the manual:
+
+``dep-set: ts-build``
+   The consumer resolves pssparser's *build* dependencies, not just its
+   sources.
+
+``deps-mode: nested``
+   Those dependencies land in ``<pssparser>/packages/``, which is where
+   ``wasm/CMakeLists.txt`` looks for the ANTLR runtime and the toolchain.
+   Flattened into the consumer's own deps-dir — IVPM's default — they are
+   invisible to it. The Python virtual environment is the exception: it stays
+   root-scoped whatever the mode, because one venv cannot hold two versions of
+   a distribution, so both ``wasm/CMakeLists.txt`` and
+   ``ts/scripts/astbuilder.mjs`` search *upward* for it.
+
+``type: [raw, node]``
+   ``raw`` stops IVPM auto-detecting the ``pyproject.toml`` and building the
+   native Python extension — a different toolchain, and not what a TypeScript
+   consumer asked for. IVPM deliberately does not let one language's
+   declaration suppress another's probe, so ``raw`` is the way to say it.
+
+``subdir: ts``
+   This package is one directory inside a larger repository. Without it npm is
+   pointed at the repository root, finds no manifest, and *succeeds* having
+   installed nothing.
+
+The rebuild itself is npm's ``prepare`` hook (``ts/scripts/prepare.mjs``), which
+npm re-runs on every install of a ``file:`` dependency — there is no build
+declaration in ``ivpm.yaml`` because npm already had the hook. ``prepare``
+provisions its own devDependencies first: npm installs a linked package's
+``dependencies`` but not its ``devDependencies``, so ``tsc`` would otherwise be
+missing at the last step.
+
+Verified end to end on 2026-09-07: changing a C++ source and a TypeScript source
+upstream, then running ``ivpm update`` in the consumer with no other action,
+changes the SHA-256 of both ``dist/wasm/pssparser.wasm`` and ``dist/index.js``,
+and the new export is reachable from the consumer's code. The incremental
+rebuild took 19 s.
+
+.. note::
+
+   Consuming from source needs the 298 MB Emscripten toolchain in every
+   checkout and CI job that does it. That is the cost of the automatic rebuild;
+   the released package is the answer for anyone who does not want to pay it.
 
 To build without the npm wrapper:
 

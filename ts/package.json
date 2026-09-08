@@ -20,14 +20,15 @@
     "dist"
   ],
   "scripts": {
-    "gen:ast": "../packages/python/bin/astbuilder gen-ts -astdir ../ast -o src/ast/generated",
+    "gen:ast": "node scripts/astbuilder.mjs gen-ts -astdir ../ast -o src/ast/generated",
     "gen:ast-parity-fixture": "cd .. && PYTHONPATH=python packages/python/bin/python ts/scripts/gen-ast-parity-fixture.py -o ts/test/fixtures/ast-parity.json",
-    "gen:census": "../packages/python/bin/astbuilder gen-census -astdir ../ast -py scripts/generated -ts test/generated",
+    "gen:census": "node scripts/astbuilder.mjs gen-census -astdir ../ast -py scripts/generated -ts test/generated",
     "gen:census-parity-fixture": "cd .. && PYTHONPATH=python packages/python/bin/python ts/scripts/gen-census-parity-fixture.py -o ts/test/fixtures/census-parity.json",
     "gen:link-parity-fixture": "cd .. && PYTHONPATH=python packages/python/bin/python ts/scripts/gen-link-parity-fixture.py -o ts/test/fixtures/link-parity.json",
     "gen:parity-fixture": "cd .. && PYTHONPATH=python packages/python/bin/python ts/scripts/gen-parity-fixture.py -o ts/test/fixtures/parity.json",
     "gen:wasm": "node scripts/build-wasm.mjs",
     "generate": "npm run gen:ast && npm run gen:census && npm run gen:wasm",
+    "prepare": "node scripts/prepare.mjs",
     "build": "tsc -p tsconfig.json && node scripts/copy-wasm.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",

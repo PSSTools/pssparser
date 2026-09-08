@@ -54,13 +54,73 @@ option(ENABLE_ASAN "Build with AddressSanitizer (diagnostic only, not shippable)
 
 get_filename_component(PSSPARSER_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/.." ABSOLUTE)
 set(PACKAGES_DIR "${PSSPARSER_ROOT}/packages")
-set(PYTHON "${PACKAGES_DIR}/python/bin/python")
 set(ANTLR_JAR "${PACKAGES_DIR}/antlr4-tools.jar")
 set(ANTLR_RUNTIME "${PACKAGES_DIR}/antlr4-cpp-runtime/runtime/src")
 
-foreach (req "${PYTHON}" "${ANTLR_JAR}" "${ANTLR_RUNTIME}")
+#****************************************************************************
+#* PYTHON -- searched upward, not assumed to be ours
+#*
+#* Under `deps-mode: nested` a consumer places pssparser's own directory
+#* dependencies in <pssparser>/packages/, which is why ANTLR_JAR above is
+#* still right. The Python venv is the exception: ivpm's python handler is
+#* root-scoped, so the venv belongs to the *consuming* workspace and there is
+#* no <pssparser>/packages/python at all.
+#*
+#* So walk up the enclosing deps-dirs looking for one. A standalone checkout
+#* finds its own on the first try and nothing changes; a nested one finds the
+#* consumer's, which is the venv astbuilder was actually installed into.
+#* -DPSSPARSER_PYTHON=... overrides for anyone whose layout is neither.
+#****************************************************************************
+if (NOT PSSPARSER_PYTHON)
+  set(_py_search "${PSSPARSER_ROOT}")
+  foreach (_i RANGE 6)
+    if (EXISTS "${_py_search}/packages/python/bin/python")
+      set(PSSPARSER_PYTHON "${_py_search}/packages/python/bin/python")
+      break()
+    endif()
+    get_filename_component(_py_parent "${_py_search}" DIRECTORY)
+    if (_py_parent STREQUAL _py_search)
+      break()
+    endif()
+    set(_py_search "${_py_parent}")
+  endforeach()
+endif()
+set(PYTHON "${PSSPARSER_PYTHON}")
+
+if (NOT PYTHON OR NOT EXISTS "${PYTHON}")
+  message(FATAL_ERROR
+    "no IVPM Python environment found at or above ${PSSPARSER_ROOT} -- "
+    "run `ivpm update -d ts-build`, or pass -DPSSPARSER_PYTHON=<python>")
+endif()
+message(STATUS "pssparser-wasm: python: ${PYTHON}")
+
+#****************************************************************************
+#* DMGR_INCLUDE -- debug-mgr's C++ headers, which ship inside the wheel
+#*
+#* debug-mgr is a PyPI dependency that carries headers, so the include path is
+#* a site-packages path. Derived from PYTHON rather than written out, for two
+#* reasons this used to get wrong: the venv is not necessarily under our own
+#* packages/ (see above), and the interpreter version is not necessarily 3.12
+#* -- the path was hardcoded to `python3.12`, which is a dependency on the
+#* machine that happened to build it first.
+#****************************************************************************
+get_filename_component(_venv_bin "${PYTHON}" DIRECTORY)
+get_filename_component(PSSPARSER_VENV "${_venv_bin}" DIRECTORY)
+
+file(GLOB DMGR_INCLUDE
+  "${PSSPARSER_VENV}/lib/python*/site-packages/debug_mgr/share/include"
+  "${PSSPARSER_VENV}/Lib/site-packages/debug_mgr/share/include")
+
+if (NOT DMGR_INCLUDE)
+  message(FATAL_ERROR
+    "debug-mgr headers not found under ${PSSPARSER_VENV} -- the wasm build "
+    "compiles against them. Run `ivpm update -d ts-build`.")
+endif()
+message(STATUS "pssparser-wasm: dmgr headers: ${DMGR_INCLUDE}")
+
+foreach (req "${ANTLR_JAR}" "${ANTLR_RUNTIME}")
   if (NOT EXISTS "${req}")
-    message(FATAL_ERROR "missing dependency: ${req} -- run `ivpm update`")
+    message(FATAL_ERROR "missing dependency: ${req} -- run `ivpm update -d ts-build`")
   endif()
 endforeach()
 
@@ -221,7 +281,7 @@ target_include_directories(pssparser PRIVATE
   "${GEN_DIR}"
   "${PSSPARSER_ROOT}/src"
   "${PSSPARSER_ROOT}/src/include"
-  "${PACKAGES_DIR}/python/lib/python3.12/site-packages/debug_mgr/share/include")
+  ${DMGR_INCLUDE})
 
 # ANTLR4CPP_STATIC turns off the dllimport/dllexport decorations. There is no
 # dynamic linking under Emscripten, so the decorated form is meaningless here.

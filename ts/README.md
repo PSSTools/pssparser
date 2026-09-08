@@ -38,7 +38,7 @@ before 1.0 (`ts-wasm-impl-plan.md` Phase 5).
 ## Building
 
 ```bash
-ivpm update -d wasm-build   # Emscripten toolchain, 298 MB, separate dep-set
+ivpm update -d ts-build     # default-dev + the Emscripten toolchain
 
 npm install
 npm run generate            # AST classes (astbuilder gen-ts) + the .wasm (emcc)
@@ -51,6 +51,58 @@ Three build products are generated and not committed: `src/ast/generated/`,
 `src/wasm/pssparser.{js,wasm}`, and the census walker pair
 (`scripts/generated/census_gen.py`, `test/generated/census.ts`). All come from
 `npm run generate`.
+
+`ts-build` is `default-dev` plus the Emscripten toolchain, composed with ivpm's
+`uses:`. One dep-set, not two: `wasm-build` alone leaves out `packages/python`
+and the ANTLR runtime that `wasm/CMakeLists.txt` needs, and ivpm records the
+requested set in `packages/ivpm.json` and rejects a later run asking for a
+different one. Exercised on a clean clone 2026-09-07: the artifact comes out
+byte-identical to the working tree's.
+
+## Consuming pssparser from another project
+
+Two ways, and they are the same package.
+
+**As a released package** — for a consumer that only wants to *use* the parser.
+`npm install @psstools/pssparser` ships the prebuilt `.wasm` inside `dist/`, so
+there is no Emscripten toolchain and no build.
+
+**As an IVPM source dependency** — for a consumer co-developing pssparser. The
+wasm is rebuilt from source automatically on every `ivpm update`:
+
+```yaml
+- name: pssparser
+  url: https://github.com/psstools/pssparser.git
+  dep-set: ts-build
+  deps-mode: nested
+  type:
+  - raw
+  - node:
+      subdir: ts
+```
+
+Each line is load-bearing, and each was established by running it:
+
+- `dep-set: ts-build` — the consumer gets pssparser's build dependencies, not
+  just its sources.
+- `deps-mode: nested` — those land in `<pssparser>/packages/`, where
+  `wasm/CMakeLists.txt` looks. Flattened into the consumer's deps-dir they are
+  invisible to it. (The Python venv stays root-scoped either way; both the
+  CMake build and `scripts/astbuilder.mjs` search upward for it.)
+- `type: [raw, node]` — `raw` stops ivpm auto-detecting the `pyproject.toml`
+  and building the *native Python extension*, which a TypeScript consumer does
+  not want and which needs a different toolchain.
+- `subdir: ts` — this package is one directory inside the repository. Without
+  it npm is pointed at the repository root, finds no manifest there, and
+  reports success having installed nothing.
+
+The rebuild itself is npm's `prepare` hook (`scripts/prepare.mjs`), which npm
+re-runs on every install of a `file:` dependency. Verified end to end: changing
+a C++ source and a TypeScript source upstream, then running `ivpm update` in the
+consumer with no other action, changes the SHA-256 of both `dist/wasm/pssparser.wasm`
+and `dist/index.js` and the new export is reachable. Consuming this way needs
+the 298 MB Emscripten toolchain; the released package is the answer for anyone
+who does not want it.
 
 Note that `src/ast/generated/deserialize.ts` comes from the **wasm** step, not
 from `gen:ast`. It is emitted by `astbuilder gen-wasm` alongside the C++ writer

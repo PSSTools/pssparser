@@ -24,8 +24,9 @@ if (!existsSync(join(emsdk, 'emscripten', 'emcc'))) {
   console.error(
     `No Emscripten toolchain at ${emsdk}.\n` +
       'The wasm build is a separate ivpm dep-set, because 300 MB is not a cost\n' +
-      'a developer building only the Python extension should pay:\n\n' +
-      '    ivpm update -d wasm-build\n'
+      'a developer building only the Python extension should pay. `ts-build`\n' +
+      'is that toolchain plus everything else this build needs:\n\n' +
+      '    ivpm update -d ts-build\n'
   );
   process.exit(1);
 }
