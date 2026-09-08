@@ -462,8 +462,8 @@ cdef class Factory(object):
     ScopeChild body)
     cpdef ActivityIfElse mkActivityIfElse(self,
     Expr cond,
-    ActivityStmt true_s,
-    ActivityStmt false_s)
+    ScopeChild true_s,
+    ScopeChild false_s)
     cpdef ActivityMatch mkActivityMatch(self,
     Expr cond)
     cpdef ActivityRepeatCount mkActivityRepeatCount(self,
@@ -475,6 +475,7 @@ cdef class Factory(object):
     ScopeChild body)
     cpdef ActivityReplicate mkActivityReplicate(self,
     ExprId idx_id,
+    Expr count,
     ExprId it_label,
     ScopeChild body)
     cpdef ActivitySelect mkActivitySelect(self)
@@ -2263,8 +2264,8 @@ cdef class ActivityIfElse(ActivityLabeledStmt):
     @staticmethod
     cdef ActivityIfElse mk(ast_decl.IActivityIfElse *hndl, bool owned)
     cpdef Expr getCond(self)
-    cpdef ActivityStmt getTrue_s(self)
-    cpdef ActivityStmt getFalse_s(self)
+    cpdef ScopeChild getTrue_s(self)
+    cpdef ScopeChild getFalse_s(self)
 
 cdef class ActivityMatch(ActivityLabeledStmt):
     
@@ -2300,6 +2301,7 @@ cdef class ActivityReplicate(ActivityLabeledStmt):
     @staticmethod
     cdef ActivityReplicate mk(ast_decl.IActivityReplicate *hndl, bool owned)
     cpdef ExprId getIdx_id(self)
+    cpdef Expr getCount(self)
     cpdef ExprId getIt_label(self)
     cpdef ScopeChild getBody(self)
 

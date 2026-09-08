@@ -299,6 +299,12 @@ public:
 
 	virtual antlrcpp::Any visitActivity_foreach_stmt(PSSParser::Activity_foreach_stmtContext *ctx) override;
 
+	virtual antlrcpp::Any visitActivity_replicate_stmt(PSSParser::Activity_replicate_stmtContext *ctx) override;
+
+	virtual antlrcpp::Any visitActivity_super_stmt(PSSParser::Activity_super_stmtContext *ctx) override;
+
+	virtual antlrcpp::Any visitActivity_scheduling_constraint(PSSParser::Activity_scheduling_constraintContext *ctx) override;
+
 	// B.11 Data declarations
 
 	virtual antlrcpp::Any visitData_declaration(PSSParser::Data_declarationContext *ctx) override;

@@ -1122,12 +1122,12 @@ cdef class Factory(object):
                 body.asScopeChild()), True)
     cpdef ActivityIfElse mkActivityIfElse(self,
             Expr cond,
-            ActivityStmt true_s,
-            ActivityStmt false_s):
+            ScopeChild true_s,
+            ScopeChild false_s):
         return ActivityIfElse.mk(self._hndl.mkActivityIfElse(
                 cond.asExpr(),
-                true_s.asActivityStmt(),
-                false_s.asActivityStmt()), True)
+                true_s.asScopeChild(),
+                false_s.asScopeChild()), True)
     cpdef ActivityMatch mkActivityMatch(self,
             Expr cond):
         return ActivityMatch.mk(self._hndl.mkActivityMatch(
@@ -1148,10 +1148,12 @@ cdef class Factory(object):
                 body.asScopeChild()), True)
     cpdef ActivityReplicate mkActivityReplicate(self,
             ExprId idx_id,
+            Expr count,
             ExprId it_label,
             ScopeChild body):
         return ActivityReplicate.mk(self._hndl.mkActivityReplicate(
                 idx_id.asExprId(),
+                count.asExpr(),
                 it_label.asExprId(),
                 body.asScopeChild()), True)
     cpdef ActivitySelect mkActivitySelect(self):
@@ -6783,20 +6785,20 @@ cdef class ActivityIfElse(ActivityLabeledStmt):
             of = ObjFactory()
             self.asActivityIfElse().getCond().accept(of._hndl)
             return <Expr>(of._obj)
-    cpdef ActivityStmt getTrue_s(self):
+    cpdef ScopeChild getTrue_s(self):
         if self.asActivityIfElse().getTrue_s() == NULL:
             return None
         else:
             of = ObjFactory()
             self.asActivityIfElse().getTrue_s().accept(of._hndl)
-            return <ActivityStmt>(of._obj)
-    cpdef ActivityStmt getFalse_s(self):
+            return <ScopeChild>(of._obj)
+    cpdef ScopeChild getFalse_s(self):
         if self.asActivityIfElse().getFalse_s() == NULL:
             return None
         else:
             of = ObjFactory()
             self.asActivityIfElse().getFalse_s().accept(of._hndl)
-            return <ActivityStmt>(of._obj)
+            return <ScopeChild>(of._obj)
 
 cdef class ActivityMatch(ActivityLabeledStmt):
     
@@ -6921,6 +6923,13 @@ cdef class ActivityReplicate(ActivityLabeledStmt):
             of = ObjFactory()
             self.asActivityReplicate().getIdx_id().accept(of._hndl)
             return <ExprId>(of._obj)
+    cpdef Expr getCount(self):
+        if self.asActivityReplicate().getCount() == NULL:
+            return None
+        else:
+            of = ObjFactory()
+            self.asActivityReplicate().getCount().accept(of._hndl)
+            return <Expr>(of._obj)
     cpdef ExprId getIt_label(self):
         if self.asActivityReplicate().getIt_label() == NULL:
             return None

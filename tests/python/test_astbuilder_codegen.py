@@ -189,3 +189,294 @@ def test_plural_accessor_does_not_append_the_result_of_accept():
     pyx = _gen_pyx(SCHEMA_LIST)
     assert "ret.append(__ep.accept(" not in pyx, \
         "plural accessor still appends the (void) result of accept()"
+
+
+# ---------------------------------------------------------------------------
+# gen-wasm: the AST wire format
+# ---------------------------------------------------------------------------
+#
+# One generator emits both halves of this format, which is the point of it --
+# a serializer and a deserializer from different schema revisions put fields in
+# the wrong slots silently. That same property is why the round-trip test in
+# `ts/test/serialize.test.ts` cannot see a *symmetric* defect: both halves agree
+# whether or not either is right. So the cases below assert on the emitted text,
+# where the two halves can be compared against each other and against the
+# schema.
+#
+# `ts/test/ast-parity.test.ts` is the counterpart with independent ground truth.
+
+def _gen_wasm(doc):
+    """Generate both halves for `doc` and return {filename: content}."""
+    from astbuilder.gen_wasm import GenWasm
+    ast = _load(doc)
+    with tempfile.TemporaryDirectory() as d:
+        cpp, ts = os.path.join(d, "cpp"), os.path.join(d, "ts")
+        GenWasm(cpp, ts, None).generate(ast)
+        out = {}
+        for sub in (cpp, ts):
+            for f in os.listdir(sub):
+                with open(os.path.join(sub, f)) as fp:
+                    out[f] = fp.read()
+        return out
+
+
+def _visit_body(section, cls):
+    """The body of `visit<cls>` within one generated visitor class.
+
+    Split on the closing brace at the method's own indent rather than on the
+    first `}`: the emitted guard is `if (!enter(i, 3)) { return; }` all on one
+    line, so a naive split stops before any field.
+    """
+    head = "    void visit%s(I%s *i) override {\n" % (cls, cls)
+    assert head in section, "no visit%s in this visitor" % cls
+    return section.split(head)[1].split("\n    }\n")[0]
+
+
+SCHEMA_WASM = """
+classes:
+- Base:
+    - data:
+        - name : string
+        - flag :
+            type: bool
+            is_ctor: false
+- Derived:
+    - super: Base
+    - data:
+        - child :
+            type: UP<Base>
+            is_ctor: false
+        - back:
+            type: P<Base>
+            is_ctor: false
+        - kids:
+            type: list<UP<Base>>
+            is_ctor: false
+        - table:
+            type: map<string,int32_t>
+            is_ctor: false
+        - where:
+            type: Loc
+            is_ctor: false
+structs:
+- Loc:
+    - data:
+        - line : int32_t
+        - col : int32_t
+"""
+
+
+def test_both_halves_are_emitted():
+    out = _gen_wasm(SCHEMA_WASM)
+    assert set(out) == {"AstSerializer.h", "AstSerializer.cpp", "deserialize.ts"}
+
+
+def test_inherited_fields_are_written_base_first():
+    """The reader assigns into a constructed object and the writer reads off
+    accessors, so the only requirement is that the two agree -- but they must
+    agree, and base-first is the order both are generated in."""
+    cpp = _gen_wasm(SCHEMA_WASM)["AstSerializer.cpp"]
+    body = _visit_body(cpp.split("class AstWriter")[1], "Derived")
+    assert body.index("getName()") < body.index("getFlag()") < body.index("getChild()")
+
+
+def test_scalar_widths_match_between_the_halves():
+    """The reader has no per-node offset to resynchronise on: one field read at
+    the wrong width corrupts every node after it. Same widths, same order."""
+    out = _gen_wasm(SCHEMA_WASM)
+    cpp_body = _visit_body(out["AstSerializer.cpp"].split("class AstWriter")[1], "Derived")
+    ts_body = out["deserialize.ts"].split("// Derived\n")[1].split("},")[0]
+
+    # `str` then `b` on the C++ side; `str()` then `bool()` on the TS side.
+    assert cpp_body.index("buf.str(") < cpp_body.index("buf.b(")
+    assert ts_body.index("r.str()") < ts_body.index("r.bool()")
+
+
+def test_owning_pointers_are_traversed_and_raw_pointers_are_not():
+    """Ownership decides the walk, not the `visit:` flag. A raw pointer's target
+    is owned elsewhere in the tree; recursing through it would assign a second
+    id to a node that already has one, or wander into another compilation
+    unit."""
+    cpp = _gen_wasm(SCHEMA_WASM)["AstSerializer.cpp"]
+    body = _visit_body(cpp.split("class AstIndexer")[1].split("class AstWriter")[0], "Derived")
+    assert "getChild()" in body, "owning UP<> field is not traversed"
+    assert "getKids()" in body, "owning list element is not traversed"
+    assert "getBack()" not in body, "raw pointer is traversed; it must not be"
+
+
+def test_every_reference_is_written_as_an_id_including_raw_ones():
+    cpp = _gen_wasm(SCHEMA_WASM)["AstSerializer.cpp"]
+    body = _visit_body(cpp.split("class AstWriter")[1], "Derived")
+    assert "buf.i32(idOf(i->getChild()));" in body
+    assert "buf.i32(idOf(i->getBack()));" in body
+
+
+def test_maps_are_emitted_in_key_order():
+    """std::unordered_map iteration order is an implementation detail. Emitting
+    it verbatim would make the buffer non-reproducible and the resulting JS
+    Map's insertion order arbitrary."""
+    cpp = _gen_wasm(SCHEMA_WASM)["AstSerializer.cpp"]
+    assert "std::sort(" in cpp
+    assert "return a->first < b->first;" in cpp
+
+
+def test_struct_fields_are_inlined_by_value_on_both_sides():
+    out = _gen_wasm(SCHEMA_WASM)
+    assert "buf.i32(i->getWhere().line);" in out["AstSerializer.cpp"]
+    assert "buf.i32(i->getWhere().col);" in out["AstSerializer.cpp"]
+    # One mk<Name>() call: JS evaluates arguments left to right, so the reads
+    # happen in declaration order, which is the order they were written in.
+    assert "mkLoc(r.i32(), r.i32())" in out["deserialize.ts"]
+
+
+def test_class_tags_agree_between_the_halves():
+    """The tag is an index into ast.classes on both sides. If they disagreed,
+    every node would be constructed as the wrong class."""
+    out = _gen_wasm(SCHEMA_WASM)
+    ast = _load(SCHEMA_WASM)
+    for i, c in enumerate(ast.classes):
+        assert "if (!enter(i, %d)) { return; }" % i in out["AstSerializer.cpp"]
+    ctors = out["deserialize.ts"].split("const CTORS")[1].split("];")[0]
+    assert [l.strip().rstrip(",") for l in ctors.splitlines() if l.strip().startswith("cls.")] == \
+        ["cls." + c.name for c in ast.classes]
+
+
+def test_schema_hash_is_not_emitted_here():
+    """Owned by scripts/gen_schema_hash.py, which already runs in the WASM
+    configure step and the TS build. Two producers of one file is the failure
+    the hash exists to catch."""
+    out = _gen_wasm(SCHEMA_WASM)
+    assert not any("schema_hash" in f or "schemaHash" in f for f in out)
+
+
+def test_unsupported_struct_field_is_a_generator_error_not_bad_output():
+    """A struct holding a pointer has no encoding here -- structs are written
+    inline by value and carry no id. Failing loudly beats emitting code that
+    compiles and decodes garbage."""
+    from astbuilder.gen_wasm import GenWasmError
+    doc = """
+classes:
+- C1:
+    - data:
+        - s : Bad
+structs:
+- Bad:
+    - data:
+        - p : UP<C1>
+"""
+    with pytest.raises(GenWasmError):
+        _gen_wasm(doc)
+
+
+# ---------------------------------------------------------------------------
+# gen-census
+#
+# The census pair has the same failure mode as the serialisation pair -- two
+# walks meant to produce the same sequence, and a difference between them is
+# indistinguishable from a parser defect when the fixture is compared. So the
+# cases below assert on the emitted text, where the halves can be checked
+# against each other; `ts/test/census-parity.test.ts` is the counterpart with
+# independent ground truth.
+
+def _gen_census(doc):
+    """Generate both halves for `doc` and return {filename: content}."""
+    from astbuilder.gen_census import GenCensus
+    ast = _load(doc)
+    with tempfile.TemporaryDirectory() as d:
+        py, ts = os.path.join(d, "py"), os.path.join(d, "ts")
+        GenCensus(py, ts, None).generate(ast)
+        out = {}
+        for sub in (py, ts):
+            for f in os.listdir(sub):
+                with open(os.path.join(sub, f)) as fp:
+                    out[f] = fp.read()
+        return out
+
+
+def _py_fn(src, name):
+    """The body of one generated Python function."""
+    head = "def %s(c, n, r):\n" % name if name.startswith("_bd_") else "def %s(c, n):\n" % name
+    assert head in src, "no %s in the Python census" % name
+    return src.split(head)[1].split("\n\n")[0]
+
+
+def _ts_entry(src, table, cls):
+    """The body of one entry in the generated TypeScript INDEX/BODY table."""
+    marker = "const %s: " % table
+    section = src.split(marker)[1]
+    head = "    %s: (c, n" % cls
+    assert head in section, "no %s entry for %s" % (table, cls)
+    return section.split(head)[1].split("\n    },")[0]
+
+
+def test_census_both_halves_are_emitted():
+    out = _gen_census(SCHEMA_WASM)
+    assert set(out) == {"census_gen.py", "census.ts"}
+
+
+def test_census_records_the_same_fields_in_the_same_order_on_both_sides():
+    """The record streams are compared element by element, so a field emitted
+    on one side and not the other misaligns everything after it."""
+    out = _gen_census(SCHEMA_WASM)
+    py = _py_fn(out["census_gen.py"], "_bd_Derived")
+    ts = _ts_entry(out["census.ts"], "BODY", "Derived")
+    assert py.count("r.append(") == ts.count("r.push(")
+    # name, flag, child, back, kids, and the struct's two fields flattened:
+    # seven values, with the map field contributing none.
+    assert py.count("r.append(") == 7
+
+
+def test_census_skips_maps_on_both_sides():
+    """A map is unreadable from Python -- the pyext backend emits only
+    <field>Has/<field>At -- so both halves skip it. Skipping on one side only
+    would misalign every record after the node that has one."""
+    out = _gen_census(SCHEMA_WASM)
+    assert "getTable" not in out["census_gen.py"]
+    assert "n.table" not in out["census.ts"]
+
+
+def test_census_identity_is_hash_not_id():
+    """`n.id()` is shadowed by a schema field named `id` -- PackageScope has a
+    `list<UP<ExprId>>` called `id`, and the list accessor's `def id(self)` wins.
+    Keyed on that, every PackageScope looked new on the second lookup."""
+    py = _gen_census(SCHEMA_WASM)["census_gen.py"]
+    # The docstring names `n.id()` to explain why it is not used, so this has
+    # to look at the lookups themselves rather than at the file.
+    assert "self.ids.get(hash(n), -1)" in py
+    assert "self.ids.get(n.id()" not in py
+    assert "k = hash(n)" in py
+
+
+def test_census_walks_owning_pointers_and_not_raw_ones():
+    """Same rule as the serialiser: a raw pointer's target is owned elsewhere,
+    and walking it would assign a second id or leave the unit entirely."""
+    out = _gen_census(SCHEMA_WASM)
+    py = _py_fn(out["census_gen.py"], "_ix_Derived")
+    ts = _ts_entry(out["census.ts"], "INDEX", "Derived")
+    assert "n.getChild()" in py and "n.getKids()" in py and "Back" not in py
+    assert "n.child" in ts and "n.kids" in ts and "back" not in ts
+
+
+def test_census_writes_every_reference_as_an_id_including_raw_ones():
+    """Not walked is not the same as not recorded: a raw pointer that has an id
+    is a resolved cross-reference, and losing it was the whole subject of the
+    link fixture."""
+    out = _gen_census(SCHEMA_WASM)
+    assert "c._id(n.getBack())" in out["census_gen.py"]
+    assert "c.id(n.back)" in out["census.ts"]
+
+
+def test_census_uses_the_pyext_list_accessor_naming_rule():
+    """`kids` is already plural so the accessor is `getKids`; a singular name
+    would get a `List` suffix. Transcribed from pyext_list_accessor_gen rather
+    than guessed -- the difference is an AttributeError at fixture time."""
+    py = _gen_census(SCHEMA_WASM)["census_gen.py"]
+    assert "n.getKids()" in py
+    assert "n.getKidsList()" not in py
+
+
+def test_census_flattens_a_struct_at_field_level_on_both_sides():
+    out = _gen_census(SCHEMA_WASM)
+    assert "s1.line" in out["census_gen.py"] or ".line" in out["census_gen.py"]
+    assert "n.where.line" in out["census.ts"]
+    assert "n.where.col" in out["census.ts"]

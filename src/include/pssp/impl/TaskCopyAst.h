@@ -1648,8 +1648,8 @@ public:
     virtual void visitActivityIfElse(ast::IActivityIfElse *i) {
         ast::IActivityIfElse *ic = m_factory->mkActivityIfElse(
             (i->getCond())?copy(i->getCond()):0,
-            (i->getTrue_s())?copyT<ast::IActivityStmt>(i->getTrue_s()):0,
-            (i->getFalse_s())?copyT<ast::IActivityStmt>(i->getFalse_s()):0);
+            (i->getTrue_s())?copyT<ast::IScopeChild>(i->getTrue_s()):0,
+            (i->getFalse_s())?copyT<ast::IScopeChild>(i->getFalse_s()):0);
         if (i->getLabel()) {
             ic->setLabel(copyT<ast::IExprId>(i->getLabel()));
         }
@@ -1701,6 +1701,7 @@ public:
     virtual void visitActivityReplicate(ast::IActivityReplicate *i) {
         ast::IActivityReplicate *ic = m_factory->mkActivityReplicate(
             (i->getIdx_id())?copyT<ast::IExprId>(i->getIdx_id()):0,
+            (i->getCount())?copy(i->getCount()):0,
             (i->getIt_label())?copyT<ast::IExprId>(i->getIt_label()):0,
             (i->getBody())?copy(i->getBody()):0);
         if (i->getLabel()) {
