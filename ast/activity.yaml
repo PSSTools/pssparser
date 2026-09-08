@@ -897,15 +897,22 @@ classes:
         
         Attributes:
             cond: Boolean expression determining which branch executes
-            true_s: Activity statement executed when condition is true
-            false_s: Optional activity statement executed when condition is false
+            true_s: Statement executed when condition is true
+            false_s: Optional statement executed when condition is false
+
+        Note:
+            The branches are typed ScopeChild rather than ActivityStmt because a
+            braced body is built as an ActivitySequence, which descends from
+            ActivityLabeledScope/SymbolScope and shares only ScopeChild with the
+            ActivityStmt branch of the hierarchy. Typing these as ActivityStmt
+            silently discarded every block-shaped branch (gap A1).
         
         See Also:
             ActivitySelect, ActivityMatch
     data:
     - cond: UP<Expr>
-    - true_s: UP<ActivityStmt>
-    - false_s: UP<ActivityStmt>
+    - true_s: UP<ScopeChild>
+    - false_s: UP<ScopeChild>
 
 - ActivityMatch:
     super: ActivityLabeledStmt
@@ -1036,6 +1043,7 @@ classes:
         
         Attributes:
             idx_id: Optional index variable identifier (0 to count-1)
+            count: Expression giving the number of instances to create
             it_label: Optional label for the iterator instance
             body: Activity statement body replicated N times
         
@@ -1043,6 +1051,7 @@ classes:
             ActivityRepeatCount, ActivityParallel
     data:
     - idx_id : UP<ExprId>
+    - count: UP<Expr>
     - it_label: UP<ExprId>
     - body: UP<ScopeChild>
 

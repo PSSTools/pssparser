@@ -1392,12 +1392,23 @@ bool TaskBuildSymbolTree::addChild(
 void TaskBuildSymbolTree::registerActivityLabels(ast::ISymbolScope *scope) {
     if (!scope) return;
     for (auto &child : scope->getChildren()) {
-        auto *labeled = dynamic_cast<ast::IActivityLabeledStmt*>(child.get());
-        if (labeled && labeled->getLabel()) {
-            const std::string &lname = labeled->getLabel()->getId();
+        // A label can hang off either branch of the hierarchy: a leaf statement
+        // is an ActivityLabeledStmt, but a *block* (sequence/parallel/schedule)
+        // is an ActivityLabeledScope, which descends from SymbolScope instead
+        // and shares no common labeled base. Handling only the first branch
+        // left block labels unregistered, so `join_branch(L)` naming a
+        // top-level block branch -- the case LRM 10.5.2 specifically describes
+        // -- failed to resolve, while a deeper leaf label inside it resolved.
+        ast::IExprId *label = 0;
+        if (auto *labeled_s = dynamic_cast<ast::IActivityLabeledStmt*>(child.get())) {
+            label = labeled_s->getLabel();
+        } else if (auto *labeled_b = dynamic_cast<ast::IActivityLabeledScope*>(child.get())) {
+            label = labeled_b->getLabel();
+        }
+        if (label) {
             // Register in the CURRENT symbol scope (the action's type scope)
             // using the addChild that properly sets getId() via setId().
-            addChild(dynamic_cast<ast::IScopeChild*>(labeled), lname, false);
+            addChild(child.get(), label->getId(), false);
         }
         // Recurse into compound activity scopes (parallel, schedule, sequence)
         auto *nested_scope = dynamic_cast<ast::ISymbolScope*>(child.get());

@@ -1123,8 +1123,8 @@ cdef extern from "pssp/ast/IFactory.h" namespace "pssp::ast":
                 IScopeChildP body)
         IActivityIfElse *mkActivityIfElse(
                 IExprP cond,
-                IActivityStmtP true_s,
-                IActivityStmtP false_s)
+                IScopeChildP true_s,
+                IScopeChildP false_s)
         IActivityMatch *mkActivityMatch(
                 IExprP cond)
         IActivityRepeatCount *mkActivityRepeatCount(
@@ -1136,6 +1136,7 @@ cdef extern from "pssp/ast/IFactory.h" namespace "pssp::ast":
                 IScopeChildP body)
         IActivityReplicate *mkActivityReplicate(
                 IExprIdP idx_id,
+                IExprP count,
                 IExprIdP it_label,
                 IScopeChildP body)
         IActivitySelect *mkActivitySelect(
@@ -2762,12 +2763,12 @@ cdef extern from "pssp/ast/IActivityIfElse.h" namespace "pssp::ast":
         IExpr *getCond()
         
         void setCond(IExpr *v)
-        IActivityStmt *getTrue_s()
+        IScopeChild *getTrue_s()
         
-        void setTrue_s(IActivityStmt *v)
-        IActivityStmt *getFalse_s()
+        void setTrue_s(IScopeChild *v)
+        IScopeChild *getFalse_s()
         
-        void setFalse_s(IActivityStmt *v)
+        void setFalse_s(IScopeChild *v)
 
 cdef extern from "pssp/ast/IActivityMatch.h" namespace "pssp::ast":
     cpdef cppclass IActivityMatch(IActivityLabeledStmt):
@@ -2802,6 +2803,9 @@ cdef extern from "pssp/ast/IActivityReplicate.h" namespace "pssp::ast":
         IExprId *getIdx_id()
         
         void setIdx_id(IExprId *v)
+        IExpr *getCount()
+        
+        void setCount(IExpr *v)
         IExprId *getIt_label()
         
         void setIt_label(IExprId *v)

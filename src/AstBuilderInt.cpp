@@ -2330,6 +2330,12 @@ antlrcpp::Any AstBuilderInt::visitActivity_action_traversal_stmt(PSSParser::Acti
 		m_labeled_activity_id = 0;
 	}
 
+	// A5: locate the statement at its opening keyword, and extend the range
+	// through ctx->stop -- the closing brace for a braced form, the last body
+	// token otherwise -- so consumers can slice the statement's source text.
+	setLoc(stmt, ctx->start);
+	setExtent(stmt, ctx->start, ctx->stop);
+
 	m_activity_stmt = stmt;
 
 	DEBUG_LEAVE("visitActivity_action_traversal_stmt");
@@ -2351,6 +2357,12 @@ antlrcpp::Any AstBuilderInt::visitActivity_sequence_block_stmt(PSSParser::Activi
 		it!=items.end(); it++) {
         addActivityStmt(seq, *it);
 	}
+
+	// A5: locate the statement at its opening keyword, and extend the range
+	// through ctx->stop -- the closing brace for a braced form, the last body
+	// token otherwise -- so consumers can slice the statement's source text.
+	setLoc(seq, ctx->start);
+	setExtent(seq, ctx->start, ctx->stop);
 
 	m_activity_stmt = seq;
 
@@ -2381,6 +2393,12 @@ antlrcpp::Any AstBuilderInt::visitActivity_parallel_stmt(PSSParser::Activity_par
         addActivityStmt(par, *it);
 	}
 
+	// A5: locate the statement at its opening keyword, and extend the range
+	// through ctx->stop -- the closing brace for a braced form, the last body
+	// token otherwise -- so consumers can slice the statement's source text.
+	setLoc(par, ctx->start);
+	setExtent(par, ctx->start, ctx->stop);
+
 	m_activity_stmt = par;
 
 	DEBUG_LEAVE("visitActivity_parallel_stmt");
@@ -2408,6 +2426,12 @@ antlrcpp::Any AstBuilderInt::visitActivity_schedule_stmt(PSSParser::Activity_sch
 		it!=items.end(); it++) {
         addActivityStmt(sched, *it);
 	}
+
+	// A5: locate the statement at its opening keyword, and extend the range
+	// through ctx->stop -- the closing brace for a braced form, the last body
+	// token otherwise -- so consumers can slice the statement's source text.
+	setLoc(sched, ctx->start);
+	setExtent(sched, ctx->start, ctx->stop);
 
 	m_activity_stmt = sched;
 
@@ -2457,6 +2481,12 @@ antlrcpp::Any AstBuilderInt::visitActivity_repeat_stmt(PSSParser::Activity_repea
 		stmt->setLabel(m_labeled_activity_id);
 		m_labeled_activity_id = 0;
 	}
+
+	// A5: locate the statement at its opening keyword, and extend the range
+	// through ctx->stop -- the closing brace for a braced form, the last body
+	// token otherwise -- so consumers can slice the statement's source text.
+	setLoc(stmt, ctx->start);
+	setExtent(stmt, ctx->start, ctx->stop);
 
 	m_activity_stmt = stmt;
 
@@ -2512,6 +2542,12 @@ antlrcpp::Any AstBuilderInt::visitActivity_select_stmt(PSSParser::Activity_selec
 		sel->getBranches().push_back(ast::IActivitySelectBranchUP(branch));
 	}
 
+	// A5: locate the statement at its opening keyword, and extend the range
+	// through ctx->stop -- the closing brace for a braced form, the last body
+	// token otherwise -- so consumers can slice the statement's source text.
+	setLoc(sel, ctx->start);
+	setExtent(sel, ctx->start, ctx->stop);
+
 	m_activity_stmt = sel;
 
 	DEBUG_LEAVE("visitActivity_select_stmt");
@@ -2527,17 +2563,21 @@ antlrcpp::Any AstBuilderInt::visitActivity_if_else_stmt(PSSParser::Activity_if_e
 	                               ? mkActivityStmt(ctx->activity_stmt_ann(1))
 	                               : nullptr;
 
-	// mkActivityIfElse takes IActivityStmt*; the bodies are IScopeChild* which
-	// also implement IActivityStmt via the generated hierarchy.
 	ast::IActivityIfElse *ife = m_factory->mkActivityIfElse(
 		cond,
-		dynamic_cast<ast::IActivityStmt*>(true_body),
-		dynamic_cast<ast::IActivityStmt*>(false_body));
+		true_body,
+		false_body);
 
 	if (m_labeled_activity_id) {
 		ife->setLabel(m_labeled_activity_id);
 		m_labeled_activity_id = 0;
 	}
+
+	// A5: locate the statement at its opening keyword, and extend the range
+	// through ctx->stop -- the closing brace for a braced form, the last body
+	// token otherwise -- so consumers can slice the statement's source text.
+	setLoc(ife, ctx->start);
+	setExtent(ife, ctx->start, ctx->stop);
 
 	m_activity_stmt = ife;
 
@@ -2568,6 +2608,12 @@ antlrcpp::Any AstBuilderInt::visitActivity_match_stmt(PSSParser::Activity_match_
 		ast::IActivityMatchChoice *mc = m_factory->mkActivityMatchChoice(is_default, cond, body);
 		match->getChoices().push_back(ast::IActivityMatchChoiceUP(mc));
 	}
+
+	// A5: locate the statement at its opening keyword, and extend the range
+	// through ctx->stop -- the closing brace for a braced form, the last body
+	// token otherwise -- so consumers can slice the statement's source text.
+	setLoc(match, ctx->start);
+	setExtent(match, ctx->start, ctx->stop);
 
 	m_activity_stmt = match;
 
@@ -2641,9 +2687,121 @@ antlrcpp::Any AstBuilderInt::visitActivity_foreach_stmt(PSSParser::Activity_fore
 		m_labeled_activity_id = 0;
 	}
 
+	// A5: locate the statement at its opening keyword, and extend the range
+	// through ctx->stop -- the closing brace for a braced form, the last body
+	// token otherwise -- so consumers can slice the statement's source text.
+	setLoc(fe, ctx->start);
+	setExtent(fe, ctx->start, ctx->stop);
+
 	m_activity_stmt = fe;
 
 	DEBUG_LEAVE("visitActivity_foreach_stmt");
+	return 0;
+}
+
+antlrcpp::Any AstBuilderInt::visitActivity_replicate_stmt(PSSParser::Activity_replicate_stmtContext *ctx) {
+	DEBUG_ENTER("visitActivity_replicate_stmt");
+
+	// Claim the pending label before descending into the body, so the body does
+	// not consume the replicate's own label.
+	ast::IExprId *label = m_labeled_activity_id;
+	m_labeled_activity_id = 0;
+
+	ast::IExprId *idx_id = ctx->index_identifier()
+		? mkId(ctx->index_identifier()->identifier())
+		: nullptr;
+
+	// B.9: the count expression is not optional -- `replicate (4)` and
+	// `replicate (i: 4)` differ only in whether the index identifier is present.
+	ast::IExpr *count = mkExpr(ctx->expression());
+
+	// The optional `lbl[]:` prefix names the array of replicated instances.
+	ast::IExprId *it_label = ctx->identifier() ? mkId(ctx->identifier()) : nullptr;
+
+	m_activity_stmt = 0;
+	ctx->labeled_activity_stmt()->accept(this);
+	ast::IScopeChild *body = m_activity_stmt;
+	if (!body) {
+		body = m_factory->mkActivitySequence("");
+	}
+
+	// Register the index variable in the body scope so `with` constraints
+	// inside the body can reference it by name, as for repeat/foreach.
+	if (idx_id) {
+		if (auto *body_scope = dynamic_cast<ast::ISymbolScope *>(body)) {
+			addSyntheticIntField(body_scope, idx_id->getId());
+		}
+	}
+
+	ast::IActivityReplicate *rep = m_factory->mkActivityReplicate(
+		idx_id,
+		count,
+		it_label,
+		body);
+
+	if (label) {
+		rep->setLabel(label);
+	}
+
+	setLoc(rep, ctx->start);
+	setExtent(rep, ctx->start, ctx->stop);
+
+	m_activity_stmt = rep;
+
+	DEBUG_LEAVE("visitActivity_replicate_stmt");
+	return 0;
+}
+
+antlrcpp::Any AstBuilderInt::visitActivity_scheduling_constraint(PSSParser::Activity_scheduling_constraintContext *ctx) {
+	DEBUG_ENTER("visitActivity_scheduling_constraint");
+
+	// B.9 labels the discriminator directly, so there is no keyword to inspect.
+	ast::IActivitySchedulingConstraint *sc =
+		m_factory->mkActivitySchedulingConstraint(ctx->is_parallel != 0);
+
+	std::vector<PSSParser::Hierarchical_idContext *> targets = ctx->hierarchical_id();
+	for (std::vector<PSSParser::Hierarchical_idContext *>::const_iterator
+		it=targets.begin();
+		it!=targets.end(); it++) {
+		sc->getTargets().push_back(ast::IExprHierarchicalIdUP(mkHierarchicalId(*it)));
+	}
+
+	setLoc(sc, ctx->start);
+	setExtent(sc, ctx->start, ctx->stop);
+
+	// The rule is reachable from two parents (B.1 action_body_item, B.9
+	// activity_stmt) and they attach differently. Inside an activity the
+	// enclosing block collects the node through m_activity_stmt; at action-body
+	// scope nothing is collecting, so it has to be added to the scope directly.
+	// scope() is the action in both cases -- visitActivity_declaration does not
+	// push a scope -- so unconditionally calling addChild would hoist an
+	// in-activity constraint out of its block.
+	if (dynamic_cast<PSSParser::Activity_stmtContext *>(ctx->parent)) {
+		m_activity_stmt = sc;
+	} else {
+		addChild(sc, ctx->start, 0, 0, ctx->stop);
+	}
+
+	DEBUG_LEAVE("visitActivity_scheduling_constraint");
+	return 0;
+}
+
+antlrcpp::Any AstBuilderInt::visitActivity_super_stmt(PSSParser::Activity_super_stmtContext *ctx) {
+	DEBUG_ENTER("visitActivity_super_stmt");
+
+	ast::IActivitySuper *super = m_factory->mkActivitySuper();
+
+	if (m_labeled_activity_id) {
+		super->setLabel(m_labeled_activity_id);
+		m_labeled_activity_id = 0;
+	}
+
+	setLoc(super, ctx->start);
+	setExtent(super, ctx->start, ctx->stop);
+
+	m_activity_stmt = super;
+
+	DEBUG_LEAVE("visitActivity_super_stmt");
 	return 0;
 }
 
@@ -5913,11 +6071,48 @@ bool AstBuilderInt::evalScopeChildValue(ast::IScopeChild *target, std::string &v
 }
 
 ast::IActivityJoinSpec *AstBuilderInt::mkActivityJoinSpec(PSSParser::Activity_join_specContext *ctx) {
-	DEBUG_ENTER("mkActivityoinSpec");
+	DEBUG_ENTER("mkActivityJoinSpec");
 	ast::IActivityJoinSpec *spec = 0;
-	DEBUG("TODO: mkActivityJoinSpec");
 
-	DEBUG_LEAVE("mkActivityoinSpec");
+	if (ctx->activity_join_none_spec()) {
+		spec = m_factory->mkActivityJoinSpecNone();
+	} else if (ctx->activity_join_first_spec()) {
+		spec = m_factory->mkActivityJoinSpecFirst(
+			mkExpr(ctx->activity_join_first_spec()->expression()));
+	} else if (ctx->activity_join_select_spec()) {
+		spec = m_factory->mkActivityJoinSpecSelect(
+			mkExpr(ctx->activity_join_select_spec()->expression()));
+	} else if (ctx->activity_join_branch_spec()) {
+		ast::IActivityJoinSpecBranch *branch = m_factory->mkActivityJoinSpecBranch();
+
+		// Each label_identifier names a top-level branch of the enclosing
+		// parallel/schedule block (LRM 10.5.2). Model it as a single-element
+		// reference path rather than a bare id, so the target can be filled in
+		// if and when join-branch labels are resolved.
+		std::vector<PSSParser::Label_identifierContext *> labels =
+			ctx->activity_join_branch_spec()->label_identifier();
+		for (std::vector<PSSParser::Label_identifierContext *>::const_iterator
+			it=labels.begin();
+			it!=labels.end(); it++) {
+			ast::IExprId *id = mkId((*it)->identifier());
+			setLoc(id, (*it)->start);
+			ast::IExprHierarchicalId *path = m_factory->mkExprHierarchicalId();
+			path->getElems().push_back(ast::IExprMemberPathElemUP(
+				m_factory->mkExprMemberPathElem(id, 0)));
+			branch->getBranches().push_back(ast::IExprRefPathContextUP(
+				m_factory->mkExprRefPathContext(path)));
+		}
+
+		spec = branch;
+	} else {
+		DEBUG_ERROR("Internal Error: unhandled activity_join_spec alternative");
+	}
+
+	if (spec) {
+		setLoc(spec, ctx->start);
+	}
+
+	DEBUG_LEAVE("mkActivityJoinSpec");
 	return spec;
 }
 

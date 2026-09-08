@@ -581,8 +581,8 @@ class Factory(object):
         body : ScopeChild) -> 'ActivityForeach': ...
     def mkActivityIfElse(self,
         cond : Expr,
-        true_s : ActivityStmt,
-        false_s : ActivityStmt) -> 'ActivityIfElse': ...
+        true_s : ScopeChild,
+        false_s : ScopeChild) -> 'ActivityIfElse': ...
     def mkActivityMatch(self,
         cond : Expr) -> 'ActivityMatch': ...
     def mkActivityRepeatCount(self,
@@ -594,6 +594,7 @@ class Factory(object):
         body : ScopeChild) -> 'ActivityRepeatWhile': ...
     def mkActivityReplicate(self,
         idx_id : ExprId,
+        count : Expr,
         it_label : ExprId,
         body : ScopeChild) -> 'ActivityReplicate': ...
     def mkActivitySelect(self) -> 'ActivitySelect': ...
@@ -6303,8 +6304,15 @@ class ActivityIfElse(ActivityLabeledStmt):
     
     Attributes:
         cond: Boolean expression determining which branch executes
-        true_s: Activity statement executed when condition is true
-        false_s: Optional activity statement executed when condition is false
+        true_s: Statement executed when condition is true
+        false_s: Optional statement executed when condition is false
+    
+    Note:
+        The branches are typed ScopeChild rather than ActivityStmt because a
+        braced body is built as an ActivitySequence, which descends from
+        ActivityLabeledScope/SymbolScope and shares only ScopeChild with the
+        ActivityStmt branch of the hierarchy. Typing these as ActivityStmt
+        silently discarded every block-shaped branch (gap A1).
     
     See Also:
         ActivitySelect, ActivityMatch
@@ -6314,9 +6322,9 @@ class ActivityIfElse(ActivityLabeledStmt):
     
     def getCond(self) -> Expr: ...
     
-    def getTrue_s(self) -> ActivityStmt: ...
+    def getTrue_s(self) -> ScopeChild: ...
     
-    def getFalse_s(self) -> ActivityStmt: ...
+    def getFalse_s(self) -> ScopeChild: ...
     
 class ActivityMatch(ActivityLabeledStmt):
     """
@@ -6495,6 +6503,7 @@ class ActivityReplicate(ActivityLabeledStmt):
     
     Attributes:
         idx_id: Optional index variable identifier (0 to count-1)
+        count: Expression giving the number of instances to create
         it_label: Optional label for the iterator instance
         body: Activity statement body replicated N times
     
@@ -6505,6 +6514,8 @@ class ActivityReplicate(ActivityLabeledStmt):
     pass
     
     def getIdx_id(self) -> ExprId: ...
+    
+    def getCount(self) -> Expr: ...
     
     def getIt_label(self) -> ExprId: ...
     

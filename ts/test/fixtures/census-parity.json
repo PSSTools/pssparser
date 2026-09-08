@@ -3841,7 +3841,7 @@
      "TypedefDeclaration": 1
     },
     "count": 1869,
-    "digest": "997ceec423b9fe24a50df535baa6674e57db6e1c8bb3cd5691031359157df80f"
+    "digest": "c9b887d9542ed0f08279730d801610c5ffdfe8744cdb164114f430c8e6978e71"
    },
    "units": [
     {
@@ -3917,7 +3917,7 @@
       "TypeIdentifierElem": 3
      },
      "count": 68,
-     "digest": "46301d74f5bd1a192d2571b58cfc31e8ef76e65f877d668af099c34a140a1df2",
+     "digest": "cbfeafb26140f43ae71612caf3c844fc6cfda3fa0385c0a6bc4e08e7f0f7094a",
      "fileid": 1,
      "records": [
       [
@@ -4547,13 +4547,13 @@
        -1,
        -1,
        -1,
-       -1,
-       -1,
-       -1,
-       -1,
-       -1,
-       -1,
-       -1,
+       1,
+       8,
+       13,
+       20,
+       1,
+       8,
+       33,
        -1,
        -1,
        0,
@@ -4584,13 +4584,13 @@
        -1,
        -1,
        -1,
-       -1,
-       -1,
-       -1,
-       -1,
-       -1,
-       -1,
-       -1,
+       1,
+       8,
+       24,
+       3,
+       1,
+       8,
+       27,
        -1,
        -1,
        0,
@@ -4643,13 +4643,13 @@
        -1,
        -1,
        -1,
-       -1,
-       -1,
-       -1,
-       -1,
-       -1,
-       -1,
-       -1,
+       1,
+       8,
+       28,
+       3,
+       1,
+       8,
+       31,
        -1,
        -1,
        1,
@@ -4702,13 +4702,13 @@
        -1,
        -1,
        -1,
-       -1,
-       -1,
-       -1,
-       -1,
-       -1,
-       -1,
-       -1,
+       1,
+       9,
+       13,
+       18,
+       1,
+       9,
+       31,
        -1,
        -1,
        1,
@@ -4737,13 +4737,13 @@
        -1,
        -1,
        -1,
-       -1,
-       -1,
-       -1,
-       -1,
-       -1,
-       -1,
-       -1,
+       1,
+       9,
+       22,
+       3,
+       1,
+       9,
+       25,
        -1,
        -1,
        -1,
@@ -4802,13 +4802,13 @@
        -1,
        -1,
        -1,
-       -1,
-       -1,
-       -1,
-       -1,
-       -1,
-       -1,
-       -1,
+       1,
+       9,
+       26,
+       3,
+       1,
+       9,
+       29,
        -1,
        -1,
        -1,
@@ -4861,13 +4861,13 @@
        -1,
        -1,
        -1,
-       -1,
-       -1,
-       -1,
-       -1,
-       -1,
-       -1,
-       -1,
+       1,
+       10,
+       13,
+       18,
+       1,
+       10,
+       31,
        -1,
        -1,
        2,
@@ -4895,13 +4895,13 @@
        -1,
        -1,
        -1,
-       -1,
-       -1,
-       -1,
-       -1,
-       -1,
-       -1,
-       -1,
+       1,
+       10,
+       24,
+       7,
+       1,
+       10,
+       31,
        -1,
        -1,
        -1,
@@ -4930,13 +4930,13 @@
        -1,
        -1,
        -1,
-       -1,
-       -1,
-       -1,
-       -1,
-       -1,
-       -1,
-       -1,
+       1,
+       10,
+       26,
+       3,
+       1,
+       10,
+       29,
        -1,
        -1,
        0,
@@ -7152,7 +7152,7 @@
      "TypedefDeclaration": 1
     },
     "count": 1922,
-    "digest": "9a15ca921198bfcfe280f802757a031df8ee09706a62e2d8dff4b95043f266b3"
+    "digest": "5dfd572a60c180f9bf138e435d4410244e37991c2b0586096d8faba2bf68d5db"
    },
    "units": [
     {
@@ -7225,7 +7225,7 @@
       "TypeIdentifierElem": 15
      },
      "count": 148,
-     "digest": "95f528a7ee3057a2fc9592953d39e3706d6197662a6e88f6d28ea294d7d3bb66",
+     "digest": "5477ba06dd7423d22bcd5d36b03e6b13a2f8ed102de7d7643b28b338e1acd1fa",
      "fileid": 1
     }
    ],
@@ -9587,7 +9587,7 @@
      "TypedefDeclaration": 1
     },
     "count": 1845,
-    "digest": "b730ce7cedc688c02e2a0cfabe0d1302c65805be1c90a87eae5443fc15fa74dc"
+    "digest": "f0fd9b12dc4795094a100d90de5c083f4e5b6a08f1f19f7e5bfa4dbba0490388"
    },
    "units": [
     {
@@ -9657,7 +9657,7 @@
       "TypeIdentifierElem": 7
      },
      "count": 71,
-     "digest": "0cadf65ba3580bdaa8f6197945ea2211f2c16e4f03d8c09997f157503a6e711c",
+     "digest": "2b7aaf928859beaec730a3de89aaaf4419fb58976073b681518291176b83a6ab",
      "fileid": 1
     }
    ],
@@ -11143,7 +11143,7 @@
      "TypedefDeclaration": 1
     },
     "count": 1835,
-    "digest": "d43a133df446ea5321790ef3ed29df2f57b052224a75d5914895cc6061955e8f"
+    "digest": "554dc3f5802a2644127ea9bd493ceb9d98d51ee28f60dce465c87d736413caaf"
    },
    "units": [
     {
@@ -11214,7 +11214,7 @@
       "TypeIdentifierElem": 7
      },
      "count": 61,
-     "digest": "4d1504caae6dfe7ab1a2423da3779db3d20c4ba630971864bec0848d437ea761",
+     "digest": "c660f03416817d2feb43277f5cd4f48c377ab78223a0b68ce13b8601003f799c",
      "fileid": 1
     }
    ],
@@ -11290,7 +11290,7 @@
      "TypedefDeclaration": 1
     },
     "count": 1859,
-    "digest": "8d4cc84277235cc73a093624fdacf2529d1e6731919335d90b490ae5e3150e04"
+    "digest": "8f93d26a8a538584e356480e0c783cfb0e04467119d364397af9bead1e6156cd"
    },
    "units": [
     {
@@ -11361,7 +11361,7 @@
       "TypeIdentifierElem": 9
      },
      "count": 85,
-     "digest": "7f18b8199eabe9c882cdb468cf56cc9018de14d9cf9f85047a1f943a919db1ea",
+     "digest": "32ea6ff139f050e5b8368bd4583cb7e2dd317e80362dff30e552e6b8496f9159",
      "fileid": 1
     }
    ],
@@ -11435,7 +11435,7 @@
      "TypedefDeclaration": 1
     },
     "count": 1810,
-    "digest": "5f19f5c0571de0d7fefb72ff8b669ab2b5e0bb13d81da292d442af4c4689d6f5"
+    "digest": "f48c9401f2dfb08ef9065d1cde2550ad9c5bc509db31a1e1cda7438624e7ae8d"
    },
    "units": [
     {
@@ -11504,7 +11504,7 @@
       "TypeIdentifierElem": 5
      },
      "count": 36,
-     "digest": "4b178ee960138dbd051442d4c82e2576e0832189f6b1fa22ae4ecbd5760055e3",
+     "digest": "e1088d4b02f32c5e655d6bafbfc4be3fe601fadff64c21ec7d00375637f4c1f3",
      "fileid": 1
     }
    ],
@@ -11579,7 +11579,7 @@
      "TypedefDeclaration": 1
     },
     "count": 1834,
-    "digest": "8700fa239da7170706f5c6a78963663ea61c437edae95fe898d3e19bb3db4bc0"
+    "digest": "ced25637674c605a003eef5cff0e8d2a11bf43d8de2eeab8f0e0221564485257"
    },
    "units": [
     {
@@ -11649,7 +11649,7 @@
       "TypeIdentifierElem": 7
      },
      "count": 60,
-     "digest": "41d2bbdc2c27db20e20a64ee401e0d71e31bfd33d611a4ec09db63e87ce09ecf",
+     "digest": "3cad83589d93ba67d08a90722460fc04e253eb6103a33a21c922f34d70c6ba82",
      "fileid": 1
     }
    ],
@@ -12348,7 +12348,7 @@
      "TypedefDeclaration": 1
     },
     "count": 1824,
-    "digest": "befc7bec29adc1c733c8f37d37956a2c032422bcaa294e31a1f1dec6780421ff"
+    "digest": "b25604a8f97c1b1c1151f4406798a5afe3798c65818d1968662025078ec8c3bf"
    },
    "units": [
     {
@@ -12418,7 +12418,7 @@
       "TypeIdentifierElem": 7
      },
      "count": 50,
-     "digest": "89c3fba9129447a75e0108dc9bcb1327c8ca0a337eeb499a6c96d46ed15ccd97",
+     "digest": "c2b0472f246f66e0d86f8595577721da576f10cc86db2c4d025ee4500c56c4f0",
      "fileid": 1
     }
    ],
@@ -12748,7 +12748,7 @@
     "classes": {
      "Action": 6,
      "ActivityActionHandleTraversal": 3,
-     "ActivityActionTypeTraversal": 14,
+     "ActivityActionTypeTraversal": 16,
      "ActivityAtomicBlock": 1,
      "ActivityDecl": 1,
      "ActivityForeach": 1,
@@ -12757,10 +12757,12 @@
      "ActivityMatchChoice": 2,
      "ActivityParallel": 1,
      "ActivityRepeatCount": 2,
+     "ActivityReplicate": 1,
      "ActivitySchedule": 1,
+     "ActivitySchedulingConstraint": 1,
      "ActivitySelect": 1,
      "ActivitySelectBranch": 2,
-     "ActivitySequence": 6,
+     "ActivitySequence": 8,
      "AnnotationDecl": 2,
      "Component": 16,
      "ConstraintBlock": 1,
@@ -12771,7 +12773,7 @@
      "DataTypeInt": 65,
      "DataTypeRef": 3,
      "DataTypeString": 34,
-     "DataTypeUserDefined": 110,
+     "DataTypeUserDefined": 112,
      "EnumDecl": 4,
      "EnumItem": 12,
      "ExprAggrList": 1,
@@ -12779,13 +12781,13 @@
      "ExprBool": 2,
      "ExprDomainOpenRangeList": 2,
      "ExprDomainOpenRangeValue": 65,
-     "ExprHierarchicalId": 21,
-     "ExprId": 467,
-     "ExprMemberPathElem": 21,
+     "ExprHierarchicalId": 24,
+     "ExprId": 475,
+     "ExprMemberPathElem": 26,
      "ExprNull": 1,
      "ExprOpenRangeList": 2,
      "ExprOpenRangeValue": 2,
-     "ExprRefPathContext": 21,
+     "ExprRefPathContext": 22,
      "ExprRefPathStatic": 1,
      "ExprSignedNumber": 4,
      "ExprUnary": 2,
@@ -12802,7 +12804,7 @@
      "SymbolEnumScope": 4,
      "SymbolFunctionScope": 80,
      "SymbolImportSpec": 4,
-     "SymbolRefPath": 104,
+     "SymbolRefPath": 107,
      "SymbolScope": 111,
      "SymbolTypeScope": 51,
      "TemplateCategoryTypeParamDecl": 11,
@@ -12812,13 +12814,13 @@
      "TemplateParamTypeValue": 19,
      "TemplateParamValueList": 19,
      "TemplateValueParamDecl": 11,
-     "TypeIdentifier": 137,
-     "TypeIdentifierElem": 139,
+     "TypeIdentifier": 139,
+     "TypeIdentifierElem": 141,
      "TypeScope": 1,
      "TypedefDeclaration": 1
     },
-    "count": 2142,
-    "digest": "443f945eaca3fd850c4bb3f1656e7b53c86a6485471bc59c5a8ea69cc25208b1"
+    "count": 2174,
+    "digest": "8904062c8d2492f09b245a80edaf073afde5981b4d6f2c218017015745029002"
    },
    "units": [
     {
@@ -12873,7 +12875,7 @@
      "classes": {
       "Action": 4,
       "ActivityActionHandleTraversal": 3,
-      "ActivityActionTypeTraversal": 14,
+      "ActivityActionTypeTraversal": 16,
       "ActivityAtomicBlock": 1,
       "ActivityDecl": 1,
       "ActivityForeach": 1,
@@ -12882,28 +12884,30 @@
       "ActivityMatchChoice": 2,
       "ActivityParallel": 1,
       "ActivityRepeatCount": 2,
+      "ActivityReplicate": 1,
       "ActivitySchedule": 1,
+      "ActivitySchedulingConstraint": 1,
       "ActivitySelect": 1,
       "ActivitySelectBranch": 2,
-      "ActivitySequence": 6,
+      "ActivitySequence": 8,
       "Component": 2,
       "ConstraintScope": 2,
       "ConstraintStmtExpr": 2,
       "DataTypeBool": 1,
       "DataTypeInt": 5,
-      "DataTypeUserDefined": 21,
+      "DataTypeUserDefined": 23,
       "EnumDecl": 1,
       "EnumItem": 2,
       "ExprAggrList": 1,
       "ExprBin": 3,
       "ExprDomainOpenRangeList": 1,
       "ExprDomainOpenRangeValue": 1,
-      "ExprHierarchicalId": 12,
-      "ExprId": 66,
-      "ExprMemberPathElem": 12,
+      "ExprHierarchicalId": 15,
+      "ExprId": 74,
+      "ExprMemberPathElem": 17,
       "ExprOpenRangeList": 2,
       "ExprOpenRangeValue": 2,
-      "ExprRefPathContext": 12,
+      "ExprRefPathContext": 13,
       "ExprUnsignedNumber": 19,
       "Field": 11,
       "FieldCompRef": 4,
@@ -12914,11 +12918,11 @@
       "TemplateParamExprValue": 2,
       "TemplateParamTypeValue": 2,
       "TemplateParamValueList": 2,
-      "TypeIdentifier": 22,
-      "TypeIdentifierElem": 22
+      "TypeIdentifier": 24,
+      "TypeIdentifierElem": 24
      },
-     "count": 278,
-     "digest": "af1b01c715e175a1c5834738a676c48b539e65c24911347936669776fb71af5c",
+     "count": 307,
+     "digest": "2770b61c07f8d4210aa37aaa88d0bb0b9313dc0ab7195709b7a42f4eb0fdac54",
      "fileid": 1
     }
    ],
@@ -13150,7 +13154,7 @@
      "TypedefDeclaration": 1
     },
     "count": 2141,
-    "digest": "60e21fcb452481d6193781160df3fdce180c70f0ac002ce2d408ffae12a099ae"
+    "digest": "38c433e9f5329ce6e7e56ad9c2edfb808ec59164678bf8c4347321a20f2341ba"
    },
    "units": [
     {
@@ -13244,7 +13248,7 @@
       "TypeIdentifierElem": 10
      },
      "count": 301,
-     "digest": "f2b43102c42fc3daa97f78dbd8b27b2544cd2b21b4a0d4e863d024f46ed68df4",
+     "digest": "32e478360ce697cc1fe4083494fe7681a58e07ef07f341124390cee6d953cd14",
      "fileid": 1
     }
    ],
@@ -13483,7 +13487,7 @@
      "TypedefDeclaration": 1
     },
     "count": 2205,
-    "digest": "ffff56c0e233ec34415d5fd2237d5163679cab2619bfaee582bb78ece77cbf6c"
+    "digest": "e18ee088070c352cb81d3d27fb66eb24df698544a954bf233fd99d24273c1539"
    },
    "units": [
     {
@@ -13578,7 +13582,7 @@
       "TypeIdentifierElem": 24
      },
      "count": 283,
-     "digest": "780cd19c668b86c259bf9ac1fcb4594a2ed85567889ea72817837a85a82eb4c5",
+     "digest": "5318885709892f21f1478a5b4d28f7618685e19b03f88dbcd844ceef8a494623",
      "fileid": 1
     }
    ],
@@ -13660,7 +13664,7 @@
      "TypedefDeclaration": 1
     },
     "count": 2256,
-    "digest": "888d52fcef55a72a1e3476dc8537e3afcc2f965c19834cc301714235c0608849"
+    "digest": "ce0463130ee67ce4b7ff98ec3f83d0c3b9324474729defe318c5a1eb5ab431bb"
    },
    "units": [
     {
@@ -13750,7 +13754,7 @@
       "TypeIdentifierElem": 29
      },
      "count": 371,
-     "digest": "44f79078e0d24b474e85fc19b9b370ffb14907c9f61b0b84dd93f2b0bbbeb580",
+     "digest": "535011b280535d2c31ebac30de3753d850b4f534c48e49a5b8d1b4c5d246e751",
      "fileid": 1
     }
    ],
@@ -14231,7 +14235,7 @@
      "TypedefDeclaration": 1
     },
     "count": 2141,
-    "digest": "f34657adbdfdf98487d31e72920344322dfdff955cdb69a5bd53cc272ed4df81"
+    "digest": "6a2d24e87cf3a2df109942f59b2b9b36299e4d6ac69bdf00cd43bea7d459cbe7"
    },
    "units": [
     {
@@ -14328,7 +14332,7 @@
       "TypeIdentifierElem": 17
      },
      "count": 285,
-     "digest": "c2139ec72187cc83ccdbdbc54aa90432a00c2eedd139df1c25bd761b1760da49",
+     "digest": "21f6553eca66583a980e765928860c622ad60e43a53ac733bf32c5ac112e8eb3",
      "fileid": 1
     }
    ],
@@ -19025,7 +19029,7 @@
      "TypedefDeclaration": 1
     },
     "count": 1913,
-    "digest": "ad135efa0c5740249dace9fc7181802cc26702553482e98798970d74634df18f"
+    "digest": "a6ca4d5dd000a19e301d3c15b641078141a9f3c28174af3b70ce4630a38e9dec"
    },
    "units": [
     {
@@ -19105,7 +19109,7 @@
       "TypeIdentifierElem": 8
      },
      "count": 102,
-     "digest": "77b25af4b3d5cbf23b2dd23c53c05a7c8ccd2251828b08ec7e98e8e67c618250",
+     "digest": "8f02ad56dab5f9b1f786d4e439fc0817aff06d8f43da5636ee53aebfc0def266",
      "fileid": 1
     }
    ],
@@ -19263,7 +19267,7 @@
     }
    ],
    "id": "corpus:pss31/templates_and_activity.pss",
-   "linkRaised": "ParseException",
+   "linkRaised": null,
    "parseRaised": null,
    "root": {
     "classes": {
@@ -19272,6 +19276,7 @@
      "ActivityActionTypeTraversal": 2,
      "ActivityDecl": 1,
      "ActivityParallel": 1,
+     "ActivityReplicate": 2,
      "ActivitySequence": 1,
      "AnnotationDecl": 2,
      "Component": 15,
@@ -19280,7 +19285,7 @@
      "ConstraintStmtExpr": 1,
      "DataTypeBool": 8,
      "DataTypeChandle": 1,
-     "DataTypeInt": 60,
+     "DataTypeInt": 61,
      "DataTypeRef": 3,
      "DataTypeString": 36,
      "DataTypeUserDefined": 91,
@@ -19292,16 +19297,16 @@
      "ExprBool": 2,
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
-     "ExprHierarchicalId": 21,
-     "ExprId": 432,
-     "ExprMemberPathElem": 21,
+     "ExprHierarchicalId": 23,
+     "ExprId": 437,
+     "ExprMemberPathElem": 23,
      "ExprNull": 1,
-     "ExprRefPathContext": 21,
+     "ExprRefPathContext": 23,
      "ExprRefPathStatic": 1,
      "ExprSignedNumber": 4,
      "ExprUnary": 2,
-     "ExprUnsignedNumber": 177,
-     "Field": 26,
+     "ExprUnsignedNumber": 178,
+     "Field": 27,
      "FieldCompRef": 7,
      "FunctionDefinition": 1,
      "FunctionParamDecl": 85,
@@ -19316,7 +19321,7 @@
      "SymbolEnumScope": 3,
      "SymbolFunctionScope": 80,
      "SymbolImportSpec": 3,
-     "SymbolRefPath": 82,
+     "SymbolRefPath": 85,
      "SymbolScope": 109,
      "SymbolTypeScope": 49,
      "TemplateCategoryTypeParamDecl": 11,
@@ -19336,8 +19341,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 1
     },
-    "count": 1968,
-    "digest": "a7bbb643151fb0557026baa8e3e97f48f82040865e25fe6d837f0f0998eb374d"
+    "count": 1987,
+    "digest": "2ead25b6b7a4209b1a3d782f32ca5ca62e846b2397441c5abb0941f3f903913b"
    },
    "units": [
     {
@@ -19395,22 +19400,23 @@
       "ActivityActionTypeTraversal": 2,
       "ActivityDecl": 1,
       "ActivityParallel": 1,
+      "ActivityReplicate": 2,
       "ActivitySequence": 1,
       "Component": 1,
       "ConstraintScope": 1,
       "ConstraintStmtExpr": 1,
-      "DataTypeInt": 3,
+      "DataTypeInt": 4,
       "DataTypeString": 2,
       "DataTypeUserDefined": 2,
       "ExecScope": 1,
       "ExecTargetTemplateBlock": 3,
       "ExprBin": 2,
-      "ExprHierarchicalId": 12,
-      "ExprId": 35,
-      "ExprMemberPathElem": 12,
-      "ExprRefPathContext": 12,
-      "ExprUnsignedNumber": 4,
-      "Field": 5,
+      "ExprHierarchicalId": 14,
+      "ExprId": 40,
+      "ExprMemberPathElem": 14,
+      "ExprRefPathContext": 14,
+      "ExprUnsignedNumber": 5,
+      "Field": 6,
       "FieldCompRef": 5,
       "FunctionDefinition": 1,
       "FunctionPrototype": 2,
@@ -19427,8 +19433,8 @@
       "TypeIdentifier": 2,
       "TypeIdentifierElem": 2
      },
-     "count": 148,
-     "digest": "d29e6bfbda078eb7871d7bd4ea95e7e6986d816aa8081131dfcfde2e44ecf8ae",
+     "count": 164,
+     "digest": "ffdde39e2e70e6e1b892117e48cd1ee169294b4143903979b5f56636315dd087",
      "fileid": 1
     }
    ],
