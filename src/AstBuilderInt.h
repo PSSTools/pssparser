@@ -679,7 +679,15 @@ private:
         antlr4::ParserRuleContext *true_body,
         antlr4::ParserRuleContext *false_body);
 
-    void checkCompileIfBraces(antlr4::ParserRuleContext *ctx);
+    /**
+     * @param ctx    the branch body being checked
+     * @param owner  the enclosing `compile_if` rule context, used only to
+     *               anchor the "'compile if' begins here" related location.
+     *               May be null, in which case the note is omitted.
+     */
+    void checkCompileIfBraces(
+        antlr4::ParserRuleContext *ctx,
+        antlr4::ParserRuleContext *owner);
 
     ast::IScope *getGlobalScope(ast::IScope *s);
 

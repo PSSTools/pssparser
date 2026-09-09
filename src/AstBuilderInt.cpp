@@ -49,6 +49,29 @@ namespace pssp {
 
 using namespace ast;
 
+/**
+ * Character span of a parser rule, measured from the token stream.
+ *
+ * `ParserRuleContext::getText()` concatenates the *text* of the rule's tokens
+ * and so drops every space between them: `compile assert (a == b)` measures 19
+ * rather than the 23 characters it actually occupies, and the caret drawn from
+ * it stops short of the construct it is meant to underline. Token indices are
+ * absolute offsets into the input, so their difference counts the whitespace
+ * too. `getStopIndex()` is inclusive, hence the +1.
+ *
+ * Returns 0 when the span cannot be measured, which callers treat as "no
+ * extent" rather than propagating a negative into `Location::extent`.
+ */
+static int32_t ctxExtent(antlr4::ParserRuleContext *ctx) {
+    if (!ctx || !ctx->start || !ctx->stop) {
+        return 0;
+    }
+    int32_t extent =
+        (int32_t)ctx->stop->getStopIndex() -
+        (int32_t)ctx->start->getStartIndex() + 1;
+    return (extent > 0) ? extent : 0;
+}
+
 AstBuilderInt::AstBuilderInt(
     dmgr::IDebugMgr     *dmgr,
 	ast::IFactory		*factory,
@@ -604,7 +627,7 @@ antlrcpp::Any AstBuilderInt::visitCompile_assert_stmt(PSSParser::Compile_assert_
             loc.fileid = m_file_id;
             loc.lineno = ctx->start->getLine();
             loc.linepos = ctx->start->getCharPositionInLine()+1;
-            loc.extent = ctx->getText().size();
+            loc.extent = ctxExtent(ctx);
             std::string msg = "compile assert failed";
             if (ctx->msg) {
                 std::string text = ctx->msg->getText();
@@ -2768,7 +2791,7 @@ antlrcpp::Any AstBuilderInt::visitActivity_foreach_stmt(PSSParser::Activity_fore
 		loc.fileid = m_file_id;
 		loc.lineno = ctx->expression()->start->getLine();
 		loc.linepos = ctx->expression()->start->getCharPositionInLine()+1;
-		loc.extent = ctx->expression()->getText().size();
+		loc.extent = ctxExtent(ctx->expression());
 		Marker m(
 			"foreach traversal target must be a reference to a collection",
 			MarkerSeverityE::Error,
@@ -3044,7 +3067,7 @@ ast::IExpr *AstBuilderInt::mkMsbWidth(
 		loc.fileid = m_file_id;
 		loc.lineno = (int32_t)lsb_ctx->start->getLine();
 		loc.linepos = (int32_t)lsb_ctx->start->getCharPositionInLine()+1;
-		loc.extent = (int32_t)lsb_ctx->getText().size();
+		loc.extent = ctxExtent(lsb_ctx);
 
 		char tmp[1024];
 		snprintf(tmp, sizeof(tmp),
@@ -4775,7 +4798,9 @@ void AstBuilderInt::syntaxError(
 		ast::Location loc;
 		loc.fileid = m_file_id;
 		loc.lineno = line;
-		loc.linepos = charPositionInLine;
+		// ANTLR reports a 0-based character position; `Location.linepos` is
+		// 1-based everywhere else in the builder (see ast/coretypes.yaml).
+		loc.linepos = charPositionInLine + 1;
         loc.extent = sym.size();
 
         if (sym == "<EOF>") {
@@ -4786,7 +4811,7 @@ void AstBuilderInt::syntaxError(
                 ast::Location open_loc;
                 open_loc.fileid = m_file_id;
                 open_loc.lineno = open->getLine();
-                open_loc.linepos = open->getCharPositionInLine();
+                open_loc.linepos = open->getCharPositionInLine() + 1;
                 open_loc.extent = 1;
 
                 Marker m(
@@ -4964,7 +4989,7 @@ void AstBuilderInt::addChild(ast::IScope *c, Token *start, Token *end) {
     c->setLocation({
         m_file_id,
         (int32_t)start->getLine(),
-        (int32_t)start->getCharPositionInLine()
+        (int32_t)start->getCharPositionInLine()+1
     });
     setExtent(c, start, end);
     c->setParent(scope());
@@ -5822,11 +5847,23 @@ void AstBuilderInt::visitCompileIfItem(antlr4::ParserRuleContext *ctx) {
 void AstBuilderInt::checkCompileIfBranches(
         antlr4::ParserRuleContext *true_body,
         antlr4::ParserRuleContext *false_body) {
-    checkCompileIfBraces(true_body);
-    checkCompileIfBraces(false_body);
+    // The `compile if` keyword sits on the branch's parent (the compile_if
+    // rule context). Deriving it here rather than threading it through keeps
+    // all eleven `visit*_compile_if` call sites unchanged.
+    antlr4::ParserRuleContext *owner = 0;
+    if (true_body) {
+        owner = dynamic_cast<antlr4::ParserRuleContext *>(true_body->parent);
+    } else if (false_body) {
+        owner = dynamic_cast<antlr4::ParserRuleContext *>(false_body->parent);
+    }
+
+    checkCompileIfBraces(true_body, owner);
+    checkCompileIfBraces(false_body, owner);
 }
 
-void AstBuilderInt::checkCompileIfBraces(antlr4::ParserRuleContext *ctx) {
+void AstBuilderInt::checkCompileIfBraces(
+        antlr4::ParserRuleContext *ctx,
+        antlr4::ParserRuleContext *owner) {
     // D2: a `compile if` branch consisting of a single unbraced item remains
     // legal, but is deprecated. Report it wherever it appears rather than only
     // on the branch the condition selects -- the spelling is deprecated
@@ -5847,12 +5884,23 @@ void AstBuilderInt::checkCompileIfBraces(antlr4::ParserRuleContext *ctx) {
     loc.fileid = m_file_id;
     loc.lineno = ctx->start->getLine();
     loc.linepos = ctx->start->getCharPositionInLine()+1;
-    loc.extent = ctx->getText().size();
+    loc.extent = ctxExtent(ctx);
 
     Marker m(
         "'compile if' branch without enclosing braces is deprecated",
         MarkerSeverityE::Warn,
-        loc);
+        loc,
+        std::string("PSS104"));
+
+    if (owner && owner->start) {
+        ast::Location kw_loc;
+        kw_loc.fileid = m_file_id;
+        kw_loc.lineno = owner->start->getLine();
+        kw_loc.linepos = owner->start->getCharPositionInLine()+1;
+        kw_loc.extent = owner->start->getText().size();
+        m.addRelated(kw_loc, "'compile if' begins here");
+    }
+
     m_marker_l->marker(&m);
 }
 

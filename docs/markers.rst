@@ -382,6 +382,8 @@ After::
 
     compile if (X) { component C { } }
 
+The diagnostic underlines the whole unbraced branch and carries a related location pointing at the ``compile if`` keyword that owns it, which disambiguates the two warnings raised for an ``if``/``else`` pair.  Both branches are reported regardless of which one the condition selects: the spelling is deprecated either way, and warning only on the taken branch would make the diagnostic appear and disappear as unrelated configuration changed.
+
 PSS105
 ------
 

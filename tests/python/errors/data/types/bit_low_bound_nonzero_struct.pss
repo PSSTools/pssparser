@@ -1,5 +1,5 @@
 //! id:     PSS001
-//! at:     6:13
+//! at:     6:12
 //! match:  unexpected low bound '2' in an integer width; only '0' is permitted, as in 'bit[7:0]'
 //! count:  1
 struct S {

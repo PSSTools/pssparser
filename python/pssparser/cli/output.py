@@ -88,6 +88,12 @@ class HumanOutput:
         span = 1
         if end_col and end_col > col:
             span = end_col - col
+        # A construct that spans several lines (a `compile if` branch, a
+        # multi-line expression) has an extent longer than the line it starts
+        # on. Underlining to the end of that first line says "this construct,
+        # continuing below"; running the tildes out past it draws a caret
+        # wider than the source it is pointing at.
+        span = max(1, min(span, len(src_line) - col + 1))
         caret = make_caret_line(col, span)
         w(f"{indent} {blank} | {_c(caret, caret_col, c)}\n")
         return True

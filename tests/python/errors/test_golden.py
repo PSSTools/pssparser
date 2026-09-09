@@ -104,6 +104,15 @@ CASES: List[GoldenCase] = [
         "warning_diagnostic",
         "tests/python/errors/data/golden/warning_annotation.pss",
     ),
+    # A *warning* carrying a related location, and a caret spanning a
+    # multi-token construct including its internal whitespace -- neither shape
+    # appears in any other golden. Pins D4: the span used to come from
+    # `ParserRuleContext::getText()`, which strips spaces and drew a caret
+    # five characters short of the branch it underlines.
+    GoldenCase(
+        "compile_if_unbraced",
+        "tests/python/errors/data/deprecated/compile_if_unbraced.pss",
+    ),
     GoldenCase(
         "clean_file_zero_errors",
         "tests/python/errors/data/golden/clean.pss",

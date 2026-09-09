@@ -28,6 +28,30 @@ revision advances only the patch component.
 
 ### Fixed
 
+- **Diagnostic columns were reported one character past the token they name.**
+  `ast::Location.linepos` is documented as 1-based, but three sites in the AST
+  builder copied ANTLR's 0-based `getCharPositionInLine()` in unadjusted, and
+  the Python marker layer applied a compensating `+1` to *every* marker. The two
+  errors cancelled for syntax diagnostics and compounded for all the others, so
+  roughly half the tool's output pointed one character to the right: `'hGZ`
+  reported the invalid digit `G` at the column of `Z`, `bit[7:1]` reported the
+  low bound `1` at the column of `]`, and an unknown-type error underlined one
+  character past the type name. **This changes reported columns for non-syntax
+  diagnostics** — a consumer pinning them (including `--json` output) will see
+  the corrected values. Syntax-error columns are unchanged.
+- **`compile if` brace-deprecation warnings underlined too little, and did not
+  say which `compile if` they belonged to.** The span came from
+  `ParserRuleContext::getText()`, which concatenates token text and so drops
+  every space between them — the caret stopped several characters short of the
+  branch whenever it was written with ordinary spacing. The warning now spans
+  the whole branch, carries a `note:` pointing at the owning `compile if`
+  keyword (which disambiguates the pair raised for an `if`/`else`), and reports
+  its `PSS104` code directly rather than having it recovered by matching the
+  message text. The same measurement bug is fixed for `compile assert`, the
+  `foreach` traversal-target error, and the integer-width low-bound error.
+- **The caret no longer runs past the end of the source line.** A construct
+  spanning several lines has an extent longer than the line it starts on, and
+  the renderer drew tildes for the full extent regardless.
 - **`public:` / `private:` / `protected:` group labels are now applied.** An
   access-modifier label was parsed and discarded, so every field declared after
   one was built with no access attribute at all and read as *public*. A

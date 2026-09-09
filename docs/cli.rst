@@ -72,11 +72,14 @@ caret underlining the exact span. For example, an unterminated ``component``:
       |             ^
 
 Some diagnostics carry one or more **related locations** — a second place in
-the source that explains the error, such as the opening brace an unclosed
-construct never closed, or (in the example above, run to completion) where
-the input actually ran out. Each related location renders as an indented
-``note:`` line under the primary diagnostic, with its own source line and
-caret when one is available:
+the source that explains the diagnostic, such as the opening brace an unclosed
+construct never closed, (in the example above, run to completion) where the
+input actually ran out, or the ``compile if`` that owns a deprecated
+brace-less branch. Related locations are not limited to errors: a warning
+carries them too, and that is often where they matter most, because a warning
+raised twice for one construct needs to say which half it is talking about.
+Each related location renders as an indented ``note:`` line under the primary
+diagnostic, with its own source line and caret when one is available:
 
 .. code-block:: text
 

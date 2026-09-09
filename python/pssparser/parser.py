@@ -303,7 +303,7 @@ class Parser(object):
                 marker.msg(),
                 self._pathOf(loc.file),
                 loc.line,
-                loc.pos+1)
+                loc.pos)
             msg += marker_m + "\n"
 
         return msg
@@ -328,13 +328,17 @@ class Parser(object):
                 "message": m.msg(),
                 "file": filename,
                 "line": loc.line,
-                "col": loc.pos + 1,
+                # `Location.linepos` is 1-based on the C++ side; see the
+                # invariant documented in ast/coretypes.yaml. No adjustment
+                # belongs here -- one used to, and it was wrong for every
+                # producer except the syntax-error path.
+                "col": loc.pos,
                 "extent": m.extent(),
                 "related": [
                     {
                         "file": self._pathOf(rel["loc"].file),
                         "line": rel["loc"].line,
-                        "col": rel["loc"].pos + 1,
+                        "col": rel["loc"].pos,
                         "label": rel["label"],
                     }
                     for rel in m.related()

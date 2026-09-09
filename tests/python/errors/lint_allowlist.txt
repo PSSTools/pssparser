@@ -13,6 +13,15 @@
 # just a missing pattern -- allocating it an ID belongs to E-3.
 G6: is never resolved: the reference is left unbound after linking  # E-3//no catalogue entry yet for this diagnosis
 
+# Surfaced by the D4-e extent sweep, which added the first test to exercise a
+# failing `compile assert` (tests/python/errors/test_marker_extent.py). The
+# diagnostic has no MarkerDef and no `patterns` entry, so it renders with no
+# code at all -- it was simply never covered. Allocating it an ID is a
+# catalogue decision, not part of the extent fix, so it is recorded here
+# rather than invented in passing. This is also the first concrete instance of
+# what --stats' `<uncoded>` bucket (S4) is meant to surface.
+G6: compile assert failed  # D4-e//no catalogue entry yet; needs an ID allocated
+
 # Long-but-legitimate explanatory messages -- G7's 120-char cap is meant to
 # catch a wall of ANTLR internals, not a genuinely long piece of prose. These
 # are candidates for a two-line message (primary + hint) once the renderer

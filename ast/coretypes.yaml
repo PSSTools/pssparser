@@ -27,8 +27,18 @@ structs:
         Attributes:
             fileid: Unique identifier for the source file (-1 if unknown)
             lineno: Line number in source file (1-indexed, -1 if unknown)
-            linepos: Character position within line (0-indexed, -1 if unknown)
+            linepos: Character position within line (1-indexed, -1 if unknown)
             extent: Length of the source construct in characters
+
+        Both `lineno` and `linepos` are 1-based, and `linepos` counts
+        characters, not bytes.  ANTLR's `Token::getCharPositionInLine()` is
+        0-based, so every builder site that copies one into a `Location` must
+        add 1 -- three sites did not, which made roughly half the diagnostics
+        in the tool point one character past the token they named.  Consumers
+        must not "correct" the value on the way out; the marker dicts built by
+        `Parser._collectMarkers` pass `linepos` through unchanged, and
+        `tests/python/errors/test_caret_alignment.py` pins the invariant across
+        the whole error corpus.
     data:
     - fileid: 
         type: int32_t

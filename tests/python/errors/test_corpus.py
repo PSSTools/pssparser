@@ -154,7 +154,7 @@ def test_corpus_case(case: CorpusCase):
     "category", [
         "punct", "braces", "names", "keywords",
         "scope", "expr", "types", "lex", "stmts", "reserved",
-        "recover", "multifile", "volume",
+        "recover", "multifile", "volume", "deprecated",
     ],
 )
 def test_category_has_a_non_xfail_case(category):
