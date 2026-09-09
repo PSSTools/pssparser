@@ -897,6 +897,225 @@ antlrcpp::Any AstBuilderInt::visitObject_bind_stmt(PSSParser::Object_bind_stmtCo
 	return 0;
 }
 
+static ast::CovergroupBinsKindE binsKind(PSSParser::Bins_keywordContext *ctx) {
+	if (ctx->TOK_ILLEGAL_BINS()) {
+		return ast::CovergroupBinsKindE::IllegalBins;
+	} else if (ctx->TOK_IGNORE_BINS()) {
+		return ast::CovergroupBinsKindE::IgnoreBins;
+	}
+	return ast::CovergroupBinsKindE::Bins;
+}
+
+ast::ICovergroupOption *AstBuilderInt::mkCovergroupOption(PSSParser::Covergroup_optionContext *ctx) {
+	ast::ICovergroupOption *opt = m_factory->mkCovergroupOption(
+		mkId(ctx->identifier()),
+		mkExpr(ctx->constant_expression()->expression()));
+	setLoc(opt, ctx->start);
+	setExtent(opt, ctx->start, ctx->stop);
+	return opt;
+}
+
+ast::ICoverpointBins *AstBuilderInt::mkCoverpointBins(
+		PSSParser::Covergroup_coverpoint_binspecContext *ctx) {
+	PSSParser::Coverpoint_binsContext *rhs = ctx->coverpoint_bins();
+
+	// Which of the three right-hand sides was written decides which fields
+	// below are populated; `form` records the answer so a consumer does not
+	// have to infer it from which fields happen to be null.
+	ast::CoverpointBinsFormE form = ast::CoverpointBinsFormE::Ranges;
+	if (rhs->is_default) {
+		form = ast::CoverpointBinsFormE::Default;
+	} else if (rhs->coverpoint_identifier()) {
+		form = ast::CoverpointBinsFormE::Coverpoint;
+	}
+
+	ast::ICoverpointBins *bins = m_factory->mkCoverpointBins(
+		mkId(ctx->identifier()),
+		binsKind(ctx->bins_keyword()),
+		form);
+
+	bins->setIs_array(ctx->is_array != 0);
+	if (ctx->constant_expression()) {
+		bins->setArray_size(mkExpr(ctx->constant_expression()->expression()));
+	}
+
+	if (form == ast::CoverpointBinsFormE::Ranges && rhs->covergroup_range_list()) {
+		std::vector<PSSParser::Covergroup_value_rangeContext *> values =
+			rhs->covergroup_range_list()->covergroup_value_range();
+		for (std::vector<PSSParser::Covergroup_value_rangeContext *>::const_iterator
+			it=values.begin(); it!=values.end(); it++) {
+			// `covergroup_value_range` has the same three shapes as
+			// `open_range_value` -- value, low.., ..high -- so it reuses
+			// ExprOpenRangeValue rather than introducing a parallel class.
+			std::vector<PSSParser::ExpressionContext *> ends = (*it)->expression();
+			ast::IExpr *lhs = 0;
+			ast::IExpr *rhs_e = 0;
+			if (!(*it)->TOK_ELIPSIS()) {
+				lhs = mkExpr(ends[0]);
+			} else if (ends.size() == 2) {
+				lhs = mkExpr(ends[0]);
+				rhs_e = mkExpr(ends[1]);
+			} else if (ends.size() == 1) {
+				// One end and an ellipsis: which side it is decided by whether
+				// the expression precedes the `..`.
+				if (ends[0]->start->getTokenIndex()
+					< (*it)->TOK_ELIPSIS()->getSymbol()->getTokenIndex()) {
+					lhs = mkExpr(ends[0]);
+				} else {
+					rhs_e = mkExpr(ends[0]);
+				}
+			}
+			bins->getRanges().push_back(ast::IExprOpenRangeValueUP(
+				m_factory->mkExprOpenRangeValue(lhs, rhs_e)));
+		}
+	}
+
+	if (form == ast::CoverpointBinsFormE::Coverpoint) {
+		bins->setTarget(mkId(rhs->coverpoint_identifier()->identifier()));
+	}
+
+	if (rhs->covergroup_expression()) {
+		bins->setWith_expr(mkExpr(rhs->covergroup_expression()->expression()));
+	}
+
+	setLoc(bins, ctx->start);
+	setExtent(bins, ctx->start, ctx->stop);
+	return bins;
+}
+
+ast::ICovergroupCoverpoint *AstBuilderInt::mkCovergroupCoverpoint(
+		PSSParser::Covergroup_coverpointContext *ctx) {
+	// Name: explicit label, else the (textual) target identifier.
+	ast::IExprId *name;
+	if (ctx->coverpoint_identifier()) {
+		name = mkId(ctx->coverpoint_identifier()->identifier());
+	} else {
+		name = m_factory->mkExprId(ctx->target->getText(), false);
+	}
+
+	ast::ICovergroupCoverpoint *cp = m_factory->mkCovergroupCoverpoint(
+		name,
+		ctx->target ? mkExpr(ctx->target) : 0);
+
+	if (ctx->data_type()) {
+		cp->setData_type(mkDataType(ctx->data_type()));
+	}
+	if (ctx->iff) {
+		cp->setIff(mkExpr(ctx->iff));
+	}
+
+	std::vector<PSSParser::Covergroup_coverpoint_body_itemContext *> items =
+		ctx->bins_or_empty()->covergroup_coverpoint_body_item();
+	for (std::vector<PSSParser::Covergroup_coverpoint_body_itemContext *>::const_iterator
+		it=items.begin(); it!=items.end(); it++) {
+		if ((*it)->covergroup_option()) {
+			cp->getOptions().push_back(
+				ast::ICovergroupOptionUP(mkCovergroupOption((*it)->covergroup_option())));
+		} else if ((*it)->covergroup_coverpoint_binspec()) {
+			cp->getBins().push_back(ast::ICoverpointBinsUP(
+				mkCoverpointBins((*it)->covergroup_coverpoint_binspec())));
+		}
+	}
+
+	setLoc(cp, ctx->start);
+	setExtent(cp, ctx->start, ctx->stop);
+	return cp;
+}
+
+ast::ICovergroupCross *AstBuilderInt::mkCovergroupCross(PSSParser::Covergroup_crossContext *ctx) {
+	ast::ICovergroupCross *cx = m_factory->mkCovergroupCross(
+		mkId(ctx->covercross_identifier()->identifier()));
+
+	if (ctx->iff) {
+		cx->setIff(mkExpr(ctx->iff));
+	}
+
+	std::vector<PSSParser::Coverpoint_identifierContext *> cp_ids = ctx->coverpoint_identifier();
+	for (std::vector<PSSParser::Coverpoint_identifierContext *>::const_iterator
+		it=cp_ids.begin(); it!=cp_ids.end(); it++) {
+		cx->getCoverpoint_names().push_back(ast::IExprIdUP(mkId((*it)->identifier())));
+	}
+
+	std::vector<PSSParser::Covergroup_cross_body_itemContext *> items =
+		ctx->cross_item_or_null()->covergroup_cross_body_item();
+	for (std::vector<PSSParser::Covergroup_cross_body_itemContext *>::const_iterator
+		it=items.begin(); it!=items.end(); it++) {
+		if ((*it)->covergroup_option()) {
+			cx->getOptions().push_back(
+				ast::ICovergroupOptionUP(mkCovergroupOption((*it)->covergroup_option())));
+		} else if ((*it)->covergroup_cross_binspec()) {
+			PSSParser::Covergroup_cross_binspecContext *b = (*it)->covergroup_cross_binspec();
+			ast::ICovergroupCrossBins *bins = m_factory->mkCovergroupCrossBins(
+				mkId(b->name),
+				binsKind(b->bins_type),
+				mkId(b->covercross_identifier()->identifier()),
+				mkExpr(b->expr->expression()));
+			setLoc(bins, b->start);
+			setExtent(bins, b->start, b->stop);
+			cx->getBins().push_back(ast::ICovergroupCrossBinsUP(bins));
+		}
+	}
+
+	setLoc(cx, ctx->start);
+	setExtent(cx, ctx->start, ctx->stop);
+	return cx;
+}
+
+// The inline form and the type declaration share a body, so they share this.
+// The three lists are passed rather than the owning node because Covergroup is
+// a NamedScopeChild and CovergroupType a TypeScope: they carry the same three
+// lists but have no common base to hang them off.
+void AstBuilderInt::addCovergroupBody(
+		const std::vector<PSSParser::Covergroup_body_itemContext *> &items,
+		std::vector<ast::ICovergroupCoverpointUP> &coverpoints,
+		std::vector<ast::ICovergroupCrossUP>      &crosses,
+		std::vector<ast::ICovergroupOptionUP>     &options) {
+	for (std::vector<PSSParser::Covergroup_body_itemContext *>::const_iterator
+		it=items.begin(); it!=items.end(); it++) {
+		PSSParser::Covergroup_body_itemContext *item = *it;
+
+		if (item->covergroup_coverpoint()) {
+			coverpoints.push_back(ast::ICovergroupCoverpointUP(
+				mkCovergroupCoverpoint(item->covergroup_coverpoint())));
+		} else if (item->covergroup_cross()) {
+			crosses.push_back(ast::ICovergroupCrossUP(
+				mkCovergroupCross(item->covergroup_cross())));
+		} else if (item->covergroup_option()) {
+			options.push_back(ast::ICovergroupOptionUP(
+				mkCovergroupOption(item->covergroup_option())));
+		} else if (item->covergroup_body_compile_if()) {
+			// Elaborate the selected branch straight into these lists. The
+			// generic visitCompileIfItem path cannot be used here: it dispatches
+			// through the visitor, and a covergroup body item is built into the
+			// enclosing covergroup's typed lists rather than through addChild.
+			PSSParser::Covergroup_body_compile_ifContext *cif =
+				item->covergroup_body_compile_if();
+			std::vector<PSSParser::Covergroup_body_compile_if_itemContext *> branches =
+				cif->covergroup_body_compile_if_item();
+			int64_t cond = 0;
+
+			checkCompileIfBranches(
+				branches[0],
+				branches.size() > 1 ? branches[1] : nullptr);
+
+			PSSParser::Covergroup_body_compile_if_itemContext *taken = 0;
+			if (!evalCompileTimeCond(cif->constant_expression(), cond, "compile if")) {
+				// Reported as an error: elaborate neither branch.
+			} else if (cond) {
+				taken = branches[0];
+			} else if (branches.size() > 1) {
+				taken = branches[1];
+			}
+
+			if (taken) {
+				std::vector<PSSParser::Covergroup_body_itemContext *> sub =
+					taken->covergroup_body_item();
+				addCovergroupBody(sub, coverpoints, crosses, options);
+			}
+		}
+	}
+}
+
 antlrcpp::Any AstBuilderInt::visitInline_covergroup(PSSParser::Inline_covergroupContext *ctx) {
 	DEBUG_ENTER("visitInline_covergroup");
 	// Grammar:
@@ -907,70 +1126,7 @@ antlrcpp::Any AstBuilderInt::visitInline_covergroup(PSSParser::Inline_covergroup
 	// vector must be bound to a local before iterating (begin()/end() on two
 	// separate temporaries is undefined behaviour).
 	std::vector<PSSParser::Covergroup_body_itemContext *> items = ctx->covergroup_body_item();
-	for (std::vector<PSSParser::Covergroup_body_itemContext *>::const_iterator
-		it=items.begin(); it!=items.end(); it++) {
-		PSSParser::Covergroup_body_itemContext *item = *it;
-
-		if (item->covergroup_coverpoint()) {
-			PSSParser::Covergroup_coverpointContext *cp_ctx = item->covergroup_coverpoint();
-			// Name: explicit label, else the (textual) target identifier.
-			ast::IExprId *cp_name;
-			if (cp_ctx->coverpoint_identifier()) {
-				cp_name = mkId(cp_ctx->coverpoint_identifier()->identifier());
-			} else {
-				cp_name = m_factory->mkExprId(cp_ctx->target->getText(), false);
-			}
-			ast::IExpr *target = cp_ctx->target ? mkExpr(cp_ctx->target) : 0;
-			ast::ICovergroupCoverpoint *cp = m_factory->mkCovergroupCoverpoint(cp_name, target);
-
-			// CovergroupCoverpoint holds only a name and a target.
-			if (cp_ctx->data_type()) {
-				noteUnrepresented(
-					cp_ctx->start, "coverpoint", "the explicit data type is dropped");
-			}
-			if (cp_ctx->iff) {
-				noteUnrepresented(
-					cp_ctx->start, "coverpoint", "the `iff` guard is dropped");
-			}
-			if (!cp_ctx->bins_or_empty()->covergroup_coverpoint_body_item().empty()) {
-				noteUnrepresented(
-					cp_ctx->start, "coverpoint", "the bin and option specifications are dropped");
-			}
-
-			setLoc(cp, cp_ctx->start);
-			cg->getCoverpoints().push_back(ast::ICovergroupCoverpointUP(cp));
-		} else if (item->covergroup_cross()) {
-			PSSParser::Covergroup_crossContext *cx_ctx = item->covergroup_cross();
-			ast::ICovergroupCross *cx = m_factory->mkCovergroupCross(
-				mkId(cx_ctx->covercross_identifier()->identifier()));
-
-			// CovergroupCross holds only a name and the coverpoint names.
-			if (cx_ctx->iff) {
-				noteUnrepresented(
-					cx_ctx->start, "cross", "the `iff` guard is dropped");
-			}
-			if (!cx_ctx->cross_item_or_null()->covergroup_cross_body_item().empty()) {
-				noteUnrepresented(
-					cx_ctx->start, "cross", "the bin and option specifications are dropped");
-			}
-
-			setLoc(cx, cx_ctx->start);
-			std::vector<PSSParser::Coverpoint_identifierContext *> cp_ids =
-				cx_ctx->coverpoint_identifier();
-			for (std::vector<PSSParser::Coverpoint_identifierContext *>::const_iterator
-				cp_it=cp_ids.begin(); cp_it!=cp_ids.end(); cp_it++) {
-				cx->getCoverpoint_names().push_back(
-					ast::IExprIdUP(mkId((*cp_it)->identifier())));
-			}
-			cg->getCrosses().push_back(ast::ICovergroupCrossUP(cx));
-		}
-		// covergroup_option / compile_if are ignored for now.
-		else if (item->covergroup_option()) {
-			noteUnrepresented(item->start, "covergroup option");
-		} else if (item->covergroup_body_compile_if()) {
-			noteUnrepresented(item->start, "covergroup body compile if");
-		}
-	}
+	addCovergroupBody(items, cg->getCoverpoints(), cg->getCrosses(), cg->getOptions());
 
 	setLoc(cg, ctx->identifier()->start);
 	addChild(cg, ctx->start);
@@ -1384,22 +1540,16 @@ antlrcpp::Any AstBuilderInt::visitExec_super_stmt(PSSParser::Exec_super_stmtCont
 antlrcpp::Any AstBuilderInt::visitFunction_decl(PSSParser::Function_declContext *ctx) {
     DEBUG_ENTER("visitFunction_decl");
 
-    if (ctx->TOK_STATIC()) {
-        // FunctionPrototype carries is_pure/is_target/is_solve/is_core, but
-        // has no is_static: a consumer cannot tell a static function from an
-        // instance method.
-        noteUnrepresented(
-            ctx->start,
-            "function",
-            "the `static` qualifier is dropped");
-    }
-
     // The qualifier goes through mkFunctionPrototype rather than being applied
     // afterwards: the old if/else recorded only `target` for `target solve`.
     ast::IFunctionPrototype *proto = mkFunctionPrototype(
         ctx->function_prototype(),
         ctx->platform_qualifier(),
         ctx->TOK_PURE() != 0);
+
+    // `static` sits on function_decl, not on function_prototype, so it is
+    // applied here rather than inside mkFunctionPrototype.
+    proto->setIs_static(ctx->TOK_STATIC() != 0);
 
     if (ctx->TOK_SEMICOLON()) {
         // A prototype: declared here, defined elsewhere (LRM 20.2.1).
@@ -1476,18 +1626,14 @@ antlrcpp::Any AstBuilderInt::visitImport_function(PSSParser::Import_functionCont
     } else {
         // One-step import specification
 
-        if (ctx->TOK_STATIC()) {
-            noteUnrepresented(
-                ctx->start,
-                "import function",
-                "the `static` qualifier is dropped");
-        }
+        ast::IFunctionPrototype *proto =
+            mkFunctionPrototype(ctx->function_prototype(), ctx->platform_qualifier());
+        proto->setIs_static(ctx->TOK_STATIC() != 0);
 
         ast::IFunctionImportProto *func = m_factory->mkFunctionImportProto(
             platqual,
             lang,
-            mkFunctionPrototype(ctx->function_prototype(), ctx->platform_qualifier())
-            );
+            proto);
 
         setLoc(func, ctx->start);
         addChild(func, ctx->start);
@@ -1947,29 +2093,37 @@ antlrcpp::Any AstBuilderInt::visitProcedural_yield_stmt(PSSParser::Procedural_yi
 antlrcpp::Any AstBuilderInt::visitProcedural_randomization_stmt(PSSParser::Procedural_randomization_stmtContext *ctx) {
     DEBUG_ENTER("visitProcedural_randomization_stmt");
 
-    // Get the target expression(s)
+    // `randomize a, b, c with { ... };`. The grammar takes a comma-separated
+    // list of targets, but ProceduralStmtRandomize has a single `target`
+    // expression, so only the first is representable; see O-4.
     ast::IExpr *target = 0;
-    if (ctx->procedural_randomization_target()) {
-        // TODO: Process randomization target properly
-        // For now, create a simple null target
+    std::vector<PSSParser::Hierarchical_idContext *> targets =
+        ctx->procedural_randomization_target()->hierarchical_id();
+
+    if (targets.size()) {
+        target = m_factory->mkExprRefPathContext(mkHierarchicalId(targets[0]));
+    }
+    if (targets.size() > 1) {
         noteUnrepresented(
             ctx->start,
             "randomize",
-            "the randomization target is dropped");
+            "only the first of several randomization targets is kept");
     }
 
-    // TODO: Handle constraints from procedural_randomization_term
-    // if (ctx->procedural_randomization_term() && ctx->procedural_randomization_term()->constraint_set())
-    if (ctx->procedural_randomization_term()) {
-        noteUnrepresented(
-            ctx->start,
-            "randomize",
-            "the `with` constraints are dropped");
-    }
-
-    // Create the randomize statement
     ast::IProceduralStmtRandomize *rand_stmt = m_factory->mkProceduralStmtRandomize(target);
     setLoc(rand_stmt, ctx->start);
+
+    // `with { ... }` -- one constraint set, appended to the statement's
+    // constraint list. m_constraint_s is empty in a procedural context, so the
+    // block builds free-standing and is owned here.
+    if (ctx->procedural_randomization_term()
+        && ctx->procedural_randomization_term()->constraint_set()) {
+        ast::IConstraintStmt *c = mkConstraintSet(
+            ctx->procedural_randomization_term()->constraint_set());
+        if (c) {
+            rand_stmt->getConstraints().push_back(ast::IConstraintStmtUP(c));
+        }
+    }
 
     m_exec_stmt = rand_stmt;
     m_exec_stmt_cnt++;
@@ -2179,188 +2333,124 @@ antlrcpp::Any AstBuilderInt::visitMonitor_activity_declaration(PSSParser::Monito
 
 	addChild(activity, ctx->start, ctx->TOK_RCBRACE()->getSymbol());
 
-	// TODO: Handle monitor activity statements
-	std::vector<PSSParser::Monitor_activity_stmtContext *> stmts = ctx->monitor_activity_stmt();
-	if (!stmts.empty()) {
-		noteUnrepresented(
-			ctx->start,
-			"monitor activity",
-			"the body statements are dropped");
-	}
-	for (std::vector<PSSParser::Monitor_activity_stmtContext *>::const_iterator
-		it=stmts.begin();
-		it!=stmts.end(); it++) {
-		// (*it)->accept(this);
-	}
+	addMonitorActivityStmts(activity, ctx->monitor_activity_stmt());
 
 	DEBUG_LEAVE("visitMonitor_activity_declaration");
 	return 0;
 }
 
-antlrcpp::Any AstBuilderInt::visitMonitor_activity_sequence_block_stmt(PSSParser::Monitor_activity_sequence_block_stmtContext *ctx) {
-	DEBUG_ENTER("visitMonitor_activity_sequence_block_stmt");
-
-	ast::IMonitorActivitySequence *seq = m_factory->mkMonitorActivitySequence("");
-    setLoc(seq, ctx->start);
-
-	addChild(seq, ctx->start, ctx->TOK_RCBRACE()->getSymbol());
-
-	// Monitor activity statements - for now, just traverse them
-	// TODO: Properly handle monitor activity statements once visitor pattern is clear
-	std::vector<PSSParser::Monitor_activity_stmtContext *> stmts = ctx->monitor_activity_stmt();
-	if (!stmts.empty()) {
-		noteUnrepresented(
-			ctx->start,
-			"monitor activity sequence",
-			"the body statements are dropped");
-	}
-	for (std::vector<PSSParser::Monitor_activity_stmtContext *>::const_iterator
-		it=stmts.begin();
-		it!=stmts.end(); it++) {
-		// (*it)->accept(this);
-	}
-
-	DEBUG_LEAVE("visitMonitor_activity_sequence_block_stmt");
-	return 0;
+// The five braced monitor activity forms differ only in temporal semantics --
+// `sequence` fixes the order, `concat` forbids gaps, `overlap` requires
+// overlapping lifetimes, `schedule` leaves the order free, `select` takes
+// exactly one alternative. They are identical in shape, so they share one
+// implementation and differ only in the class they construct.
+#define MONITOR_ACTIVITY_BLOCK(RuleName, NodeType, MkFn)                       \
+antlrcpp::Any AstBuilderInt::visit##RuleName(                                  \
+	PSSParser::RuleName##Context *ctx) {                                       \
+	DEBUG_ENTER("visit" #RuleName);                                            \
+	ast::NodeType *blk = m_factory->MkFn("");                                   \
+                                                                               \
+	/* Consume the label before recursing: a nested block would otherwise  */   \
+	/* claim this one's label. */                                              \
+	if (m_labeled_activity_id) {                                               \
+		blk->setLabel(m_labeled_activity_id);                                  \
+		m_labeled_activity_id = 0;                                             \
+	}                                                                          \
+                                                                               \
+	addMonitorActivityStmts(blk, ctx->monitor_activity_stmt());                \
+                                                                               \
+	setLoc(blk, ctx->start);                                                   \
+	setExtent(blk, ctx->start, ctx->stop);                                     \
+                                                                               \
+	m_activity_stmt = blk;                                                     \
+                                                                               \
+	DEBUG_LEAVE("visit" #RuleName);                                            \
+	return 0;                                                                  \
 }
 
-antlrcpp::Any AstBuilderInt::visitMonitor_activity_concat_stmt(PSSParser::Monitor_activity_concat_stmtContext *ctx) {
-	DEBUG_ENTER("visitMonitor_activity_concat_stmt");
+MONITOR_ACTIVITY_BLOCK(
+	Monitor_activity_sequence_block_stmt,
+	IMonitorActivitySequence,
+	mkMonitorActivitySequence)
+MONITOR_ACTIVITY_BLOCK(
+	Monitor_activity_concat_stmt,
+	IMonitorActivityConcat,
+	mkMonitorActivityConcat)
+MONITOR_ACTIVITY_BLOCK(
+	Monitor_activity_overlap_stmt,
+	IMonitorActivityOverlap,
+	mkMonitorActivityOverlap)
+MONITOR_ACTIVITY_BLOCK(
+	Monitor_activity_schedule_stmt,
+	IMonitorActivitySchedule,
+	mkMonitorActivitySchedule)
+MONITOR_ACTIVITY_BLOCK(
+	Monitor_activity_select_stmt,
+	IMonitorActivitySelect,
+	mkMonitorActivitySelect)
 
-	// Concat is represented as a scope containing statements
-	ast::IMonitorActivitySequence *concat = m_factory->mkMonitorActivitySequence("");
-    setLoc(concat, ctx->start);
-
-	addChild(concat, ctx->start, ctx->TOK_RCBRACE()->getSymbol());
-
-	// TODO: Handle monitor activity statements
-	std::vector<PSSParser::Monitor_activity_stmtContext *> stmts = ctx->monitor_activity_stmt();
-	noteUnrepresented(
-		ctx->start,
-		"monitor activity concat",
-		"body statements are dropped; built as a sequence");
-	for (std::vector<PSSParser::Monitor_activity_stmtContext *>::const_iterator
-		it=stmts.begin();
-		it!=stmts.end(); it++) {
-		// (*it)->accept(this);
-	}
-
-	DEBUG_LEAVE("visitMonitor_activity_concat_stmt");
-	return 0;
-}
+#undef MONITOR_ACTIVITY_BLOCK
 
 antlrcpp::Any AstBuilderInt::visitMonitor_activity_eventually_stmt(PSSParser::Monitor_activity_eventually_stmtContext *ctx) {
 	DEBUG_ENTER("visitMonitor_activity_eventually_stmt");
 
-	// For now, create a simple eventually statement with null condition
-	// TODO: Handle condition properly when spec is clearer
-	noteUnrepresented(
-		ctx->start,
-		"monitor activity eventually",
-		"both the condition and the body are dropped");
+	// LRM 16.4.4: `eventually monitor_activity_stmt`. The operand is a full
+	// statement, so it may be a block -- hence the ScopeChild-typed body.
+	ast::IExprId *label = m_labeled_activity_id;
+	m_labeled_activity_id = 0;
 
-	ast::IMonitorActivityEventually *eventually = m_factory->mkMonitorActivityEventually(
-		0,  // condition
-		0   // body
-	);
-    setLoc(eventually, ctx->start);
+	ast::IScopeChild *body = mkMonitorActivityStmt(ctx->monitor_activity_stmt());
 
-	// Add to current scope as a child
-	ast::ISymbolScope *sym_scope = dynamic_cast<ast::ISymbolScope *>(scope());
-	if (sym_scope) {
-		eventually->setIndex(sym_scope->getChildren().size());
-		sym_scope->getChildren().push_back(ast::IScopeChildUP(eventually));
+	ast::IMonitorActivityEventually *eventually =
+		m_factory->mkMonitorActivityEventually(body);
+	if (label) {
+		eventually->setLabel(label);
 	}
+    setLoc(eventually, ctx->start);
+	setExtent(eventually, ctx->start, ctx->stop);
+
+	m_activity_stmt = eventually;
 
 	DEBUG_LEAVE("visitMonitor_activity_eventually_stmt");
-	return 0;
-}
-
-antlrcpp::Any AstBuilderInt::visitMonitor_activity_overlap_stmt(PSSParser::Monitor_activity_overlap_stmtContext *ctx) {
-	DEBUG_ENTER("visitMonitor_activity_overlap_stmt");
-
-	// Overlap is represented as a scope containing statements
-	ast::IMonitorActivitySequence *overlap = m_factory->mkMonitorActivitySequence("");
-    setLoc(overlap, ctx->start);
-
-	addChild(overlap, ctx->start, ctx->TOK_RCBRACE()->getSymbol());
-
-	// TODO: Handle monitor activity statements
-	std::vector<PSSParser::Monitor_activity_stmtContext *> stmts = ctx->monitor_activity_stmt();
-	noteUnrepresented(
-		ctx->start,
-		"monitor activity overlap",
-		"body statements are dropped; built as a sequence");
-	for (std::vector<PSSParser::Monitor_activity_stmtContext *>::const_iterator
-		it=stmts.begin();
-		it!=stmts.end(); it++) {
-		// (*it)->accept(this);
-	}
-
-	DEBUG_LEAVE("visitMonitor_activity_overlap_stmt");
-	return 0;
-}
-
-antlrcpp::Any AstBuilderInt::visitMonitor_activity_schedule_stmt(PSSParser::Monitor_activity_schedule_stmtContext *ctx) {
-	DEBUG_ENTER("visitMonitor_activity_schedule_stmt");
-
-	ast::IMonitorActivitySchedule *schedule = m_factory->mkMonitorActivitySchedule("");
-    setLoc(schedule, ctx->start);
-
-	addChild(schedule, ctx->start, ctx->TOK_RCBRACE()->getSymbol());
-
-	// TODO: Handle monitor activity statements
-	std::vector<PSSParser::Monitor_activity_stmtContext *> stmts = ctx->monitor_activity_stmt();
-	if (!stmts.empty()) {
-		noteUnrepresented(
-			ctx->start,
-			"monitor activity schedule",
-			"the body statements are dropped");
-	}
-	for (std::vector<PSSParser::Monitor_activity_stmtContext *>::const_iterator
-		it=stmts.begin();
-		it!=stmts.end(); it++) {
-		// (*it)->accept(this);
-	}
-
-	DEBUG_LEAVE("visitMonitor_activity_schedule_stmt");
-	return 0;
-}
-
-antlrcpp::Any AstBuilderInt::visitMonitor_activity_monitor_traversal_stmt(PSSParser::Monitor_activity_monitor_traversal_stmtContext *ctx) {
-	DEBUG_ENTER("visitMonitor_activity_monitor_traversal_stmt");
-
-	// TODO: Properly construct target reference path
-	noteUnrepresented(
-		ctx->start,
-		"monitor traversal",
-		"the traversal target is dropped");
-
-	ast::IExprRefPath *target = 0;
-	ast::IConstraintStmt *with_c = 0;
-
-	ast::IMonitorActivityMonitorTraversal *traversal = m_factory->mkMonitorActivityMonitorTraversal(
-		target,
-		with_c
-	);
-    setLoc(traversal, ctx->start);
-
-	// Add to current scope as a child
-	ast::ISymbolScope *sym_scope = dynamic_cast<ast::ISymbolScope *>(scope());
-	if (sym_scope) {
-		traversal->setIndex(sym_scope->getChildren().size());
-		sym_scope->getChildren().push_back(ast::IScopeChildUP(traversal));
-	}
-
-	DEBUG_LEAVE("visitMonitor_activity_monitor_traversal_stmt");
 	return 0;
 }
 
 antlrcpp::Any AstBuilderInt::visitCover_stmt(PSSParser::Cover_stmtContext *ctx) {
 	DEBUG_ENTER("visitCover_stmt");
 
-	// CoverStmtInline and CoverStmtReference exist and are never built.
-	noteUnrepresented(ctx->start, "cover statement");
+	// Both forms may carry `label_identifier ':'`. This is not the activity
+	// label channel -- cover_stmt is a component_body_item, not an activity
+	// statement -- so read it straight off the context rather than through
+	// m_labeled_activity_id.
+	ast::IExprId *label = ctx->label_identifier()
+		? mkId(ctx->label_identifier()->identifier())
+		: 0;
+
+	if (ctx->type_identifier()) {
+		// `cover M;` -- M is a monitor *type*. There is no form that covers an
+		// instance, which is why `target` is a TypeIdentifier.
+		ast::ICoverStmtReference *cover = m_factory->mkCoverStmtReference(
+			mkTypeId(ctx->type_identifier()));
+		cover->setLabel(label);
+		addChild(cover, ctx->start, 0, 0, ctx->stop);
+	} else {
+		// `cover { ... }` -- an anonymous monitor body written in place. The
+		// braces admit the same items a `monitor` body does, so the statement
+		// is a scope and the items are built into it exactly as
+		// visitMonitor_declaration builds them.
+		ast::ICoverStmtInline *cover = m_factory->mkCoverStmtInline();
+		cover->setLabel(label);
+		addChild(cover, ctx->start, ctx->TOK_RCBRACE()->getSymbol());
+		push_scope(cover);
+
+		std::vector<PSSParser::Monitor_body_itemContext *> items = ctx->monitor_body_item();
+		for (std::vector<PSSParser::Monitor_body_itemContext *>::const_iterator
+			it=items.begin(); it!=items.end(); it++) {
+			(*it)->accept(this);
+		}
+
+		pop_scope();
+	}
 
 	DEBUG_LEAVE("visitCover_stmt");
 	return 0;
@@ -3116,16 +3206,21 @@ antlrcpp::Any AstBuilderInt::visitInteger_type(PSSParser::Integer_typeContext *c
 
 antlrcpp::Any AstBuilderInt::visitString_type(PSSParser::String_typeContext *ctx) {
     DEBUG_ENTER("visitString_type");
-    m_type = m_factory->mkDataTypeString(ctx->has_range);
+    ast::IDataTypeString *type = m_factory->mkDataTypeString(ctx->has_range);
     if (ctx->has_range) {
-        DEBUG("TODO: capture string-type range");
-        // has_range is set but in_range is left empty, so the AST says a
-        // range exists and cannot say what it is.
-        noteUnrepresented(
-            ctx->start,
-            "string type range",
-            "the range values are dropped");
+        // The domain values, with their quotes stripped -- `in_range` is a
+        // list<string>, so it holds the values, not their source spelling.
+        std::vector<antlr4::tree::TerminalNode *> values = ctx->DOUBLE_QUOTED_STRING();
+        for (std::vector<antlr4::tree::TerminalNode *>::const_iterator
+            it=values.begin(); it!=values.end(); it++) {
+            std::string v = (*it)->getText();
+            if (v.size() >= 2) {
+                v = v.substr(1, v.size()-2);
+            }
+            type->getIn_range().push_back(v);
+        }
     }
+    m_type = type;
     DEBUG_LEAVE("visitString_type");
     return 0;
 }
@@ -3562,38 +3657,251 @@ antlrcpp::Any AstBuilderInt::visitCovergroup_body_item(PSSParser::Covergroup_bod
 // ---------------------------------------------------------------------------
 
 antlrcpp::Any AstBuilderInt::visitCovergroup_declaration(PSSParser::Covergroup_declarationContext *ctx) {
-    noteUnrepresented(ctx->start, "covergroup declaration");
-    return visitChildren(ctx);
+    DEBUG_ENTER("visitCovergroup_declaration");
+    ast::ICovergroupType *cg = m_factory->mkCovergroupType(
+        mkId(ctx->covergroup_identifier()->identifier()),
+        0);
+
+    std::vector<PSSParser::Covergroup_body_itemContext *> items = ctx->covergroup_body_item();
+    addCovergroupBody(items, cg->getCoverpoints(), cg->getCrosses(), cg->getOptions());
+
+    addChild(cg, ctx->start, ctx->TOK_RCBRACE()->getSymbol());
+    push_scope(cg);
+
+    // `covergroup_port` is `data_type identifier` -- a field declaration -- so
+    // the ports are Fields in the covergroup's scope rather than a list beside
+    // it. That is what lets the port's type resolve: a list hung off the side
+    // is not walked with this scope current.
+    std::vector<PSSParser::Covergroup_portContext *> ports = ctx->covergroup_port();
+    for (std::vector<PSSParser::Covergroup_portContext *>::const_iterator
+        it=ports.begin(); it!=ports.end(); it++) {
+        ast::IField *port = m_factory->mkField(
+            mkId((*it)->identifier()),
+            mkDataType((*it)->data_type()),
+            ast::FieldAttr::NoFlags,
+            0);
+        addChild(port, (*it)->identifier()->start);
+    }
+
+    pop_scope();
+
+    DEBUG_LEAVE("visitCovergroup_declaration");
+    return 0;
 }
 
 antlrcpp::Any AstBuilderInt::visitCovergroup_type_instantiation(PSSParser::Covergroup_type_instantiationContext *ctx) {
-    noteUnrepresented(ctx->start, "covergroup instantiation");
-    return visitChildren(ctx);
+    DEBUG_ENTER("visitCovergroup_type_instantiation");
+    ast::ICovergroupInstantiation *cg = m_factory->mkCovergroupInstantiation(
+        mkId(ctx->covergroup_identifier()->identifier()),
+        mkTypeId(ctx->covergroup_type_identifier()->type_identifier()));
+
+    // The two ways of supplying actuals are alternatives in the grammar, so
+    // exactly one of these lists ends up populated.
+    PSSParser::Covergroup_portmap_listContext *pm = ctx->covergroup_portmap_list();
+    if (pm->hierarchical_id_list()) {
+        std::vector<PSSParser::Hierarchical_idContext *> ids =
+            pm->hierarchical_id_list()->hierarchical_id();
+        for (std::vector<PSSParser::Hierarchical_idContext *>::const_iterator
+            it=ids.begin(); it!=ids.end(); it++) {
+            cg->getTargets().push_back(ast::IExprHierarchicalIdUP(mkHierarchicalId(*it)));
+        }
+    } else {
+        std::vector<PSSParser::Covergroup_portmapContext *> maps = pm->covergroup_portmap();
+        for (std::vector<PSSParser::Covergroup_portmapContext *>::const_iterator
+            it=maps.begin(); it!=maps.end(); it++) {
+            ast::ICovergroupPortmap *map = m_factory->mkCovergroupPortmap(
+                mkId((*it)->identifier()),
+                mkHierarchicalId((*it)->hierarchical_id()));
+            setLoc(map, (*it)->start);
+            setExtent(map, (*it)->start, (*it)->stop);
+            cg->getPortmap().push_back(ast::ICovergroupPortmapUP(map));
+        }
+    }
+
+    std::vector<PSSParser::Covergroup_optionContext *> opts =
+        ctx->covergroup_options_or_empty()->covergroup_option();
+    for (std::vector<PSSParser::Covergroup_optionContext *>::const_iterator
+        it=opts.begin(); it!=opts.end(); it++) {
+        cg->getOptions().push_back(ast::ICovergroupOptionUP(mkCovergroupOption(*it)));
+    }
+
+    addChild(cg, ctx->start, 0, 0, ctx->stop);
+
+    DEBUG_LEAVE("visitCovergroup_type_instantiation");
+    return 0;
 }
 
 antlrcpp::Any AstBuilderInt::visitSymbol_declaration(PSSParser::Symbol_declarationContext *ctx) {
-    noteUnrepresented(ctx->start, "symbol");
-    return visitChildren(ctx);
+    DEBUG_ENTER("visitSymbol_declaration");
+    // A symbol is a named activity fragment. Its body statements are ordinary
+    // activity statements, so they are built by the same mkActivityStmt the
+    // action activity uses -- there is no parallel statement hierarchy.
+    ast::ISymbolDeclaration *sym = m_factory->mkSymbolDeclaration(
+        ctx->identifier()->getText());
+
+    if (ctx->symbol_paramlist()) {
+        std::vector<PSSParser::Symbol_paramContext *> params =
+            ctx->symbol_paramlist()->symbol_param();
+        for (std::vector<PSSParser::Symbol_paramContext *>::const_iterator
+            it=params.begin(); it!=params.end(); it++) {
+            // `symbol_param` is `data_type identifier` -- no direction, no
+            // default -- so the FunctionParamDecl is built directly rather
+            // than through mkFunctionParamDecl, which reads fields this rule
+            // does not have.
+            sym->getParams().push_back(ast::IFunctionParamDeclUP(
+                m_factory->mkFunctionParamDecl(
+                    ast::FunctionParamDeclKind::ParamKind_DataType,
+                    mkId((*it)->identifier()),
+                    mkDataType((*it)->data_type()),
+                    ast::ParamDir::ParamDir_Default,
+                    0)));
+        }
+    }
+
+    addChild(sym, ctx->start, ctx->TOK_RCBRACE()->getSymbol());
+
+    std::vector<PSSParser::Activity_stmt_annContext *> stmts = ctx->activity_stmt_ann();
+    for (std::vector<PSSParser::Activity_stmt_annContext *>::const_iterator
+        it=stmts.begin(); it!=stmts.end(); it++) {
+        addActivityStmt(sym, *it);
+    }
+
+    DEBUG_LEAVE("visitSymbol_declaration");
+    return 0;
 }
 
 antlrcpp::Any AstBuilderInt::visitSymbol_call(PSSParser::Symbol_callContext *ctx) {
-    noteUnrepresented(ctx->start, "symbol call");
-    return visitChildren(ctx);
+    DEBUG_ENTER("visitSymbol_call");
+    // The symbol may be declared after the call, so the target is kept as the
+    // name that was written and left for the linker to resolve.
+    ast::IActivitySymbolCall *call = m_factory->mkActivitySymbolCall(
+        mkId(ctx->symbol_identifier()->identifier()));
+
+    std::vector<PSSParser::ExpressionContext *> args =
+        ctx->function_parameter_list()->expression();
+    for (std::vector<PSSParser::ExpressionContext *>::const_iterator
+        it=args.begin(); it!=args.end(); it++) {
+        call->getParams().push_back(ast::IExprUP(mkExpr(*it)));
+    }
+
+    setLoc(call, ctx->start);
+    setExtent(call, ctx->start, ctx->stop);
+    m_activity_stmt = call;
+
+    DEBUG_LEAVE("visitSymbol_call");
+    return 0;
 }
 
 antlrcpp::Any AstBuilderInt::visitExport_action(PSSParser::Export_actionContext *ctx) {
-    noteUnrepresented(ctx->start, "export action");
-    return visitChildren(ctx);
+    DEBUG_ENTER("visitExport_action");
+    ast::PlatQual platqual = ast::PlatQual::PlatQual_None;
+
+    if (ctx->platform_qualifier()) {
+        if (ctx->platform_qualifier()->TOK_TARGET()) {
+            platqual = ast::PlatQual::PlatQual_Target;
+        } else {
+            platqual = ast::PlatQual::PlatQual_Solve;
+        }
+    }
+
+    ast::IExportAction *exp = m_factory->mkExportAction(
+        platqual,
+        mkTypeId(ctx->action_type_identifier()->type_identifier()));
+
+    std::vector<PSSParser::Function_parameterContext *> params =
+        ctx->function_parameter_list_prototype()->function_parameter();
+    for (std::vector<PSSParser::Function_parameterContext *>::const_iterator
+        it=params.begin(); it!=params.end(); it++) {
+        exp->getParameters().push_back(
+            ast::IFunctionParamDeclUP(mkFunctionParamDecl(*it)));
+    }
+
+    setLoc(exp, ctx->start);
+    addChild(exp, ctx->start, 0, 0, ctx->stop);
+
+    DEBUG_LEAVE("visitExport_action");
+    return 0;
 }
 
 antlrcpp::Any AstBuilderInt::visitImport_class_decl(PSSParser::Import_class_declContext *ctx) {
-    noteUnrepresented(ctx->start, "import class");
-    return visitChildren(ctx);
+    DEBUG_ENTER("visitImport_class_decl");
+    std::vector<ast::ITypeIdentifier *> extends;
+
+    if (ctx->import_class_extends()) {
+        std::vector<PSSParser::Type_identifierContext *> ids =
+            ctx->import_class_extends()->type_identifier();
+        for (std::vector<PSSParser::Type_identifierContext *>::const_iterator
+            it=ids.begin(); it!=ids.end(); it++) {
+            extends.push_back(mkTypeId(*it));
+        }
+    }
+
+    // The grammar accepts several base types; TypeScope has one `super_t`. The
+    // first is put there, so a consumer expecting single inheritance sees
+    // something sensible, and `extends` carries the full list.
+    ast::IImportClass *cls = m_factory->mkImportClass(
+        mkId(ctx->import_class_identifier()->identifier()),
+        extends.size() ? extends[0] : 0);
+
+    for (std::vector<ast::ITypeIdentifier *>::const_iterator
+        it=extends.begin(); it!=extends.end(); it++) {
+        // The first entry is shared with super_t, so this list does not own it.
+        cls->getExtends().push_back(ast::ITypeIdentifierUP(
+            *it, it != extends.begin()));
+    }
+
+    addChild(cls, ctx->start, ctx->TOK_RCBRACE()->getSymbol());
+    push_scope(cls);
+
+    std::vector<PSSParser::Import_class_function_declContext *> decls =
+        ctx->import_class_function_decl();
+    for (std::vector<PSSParser::Import_class_function_declContext *>::const_iterator
+        it=decls.begin(); it!=decls.end(); it++) {
+        ast::IFunctionPrototype *proto = mkFunctionPrototype((*it)->function_prototype(), 0);
+        addChild(proto, (*it)->start);
+    }
+
+    pop_scope();
+
+    DEBUG_LEAVE("visitImport_class_decl");
+    return 0;
 }
 
 antlrcpp::Any AstBuilderInt::visitOverride_declaration(PSSParser::Override_declarationContext *ctx) {
-    noteUnrepresented(ctx->start, "override");
-    return visitChildren(ctx);
+    DEBUG_ENTER("visitOverride_declaration");
+    ast::IOverrideDecl *decl = m_factory->mkOverrideDecl();
+    addChild(decl, ctx->start, 0, 0, ctx->stop);
+    push_scope(decl);
+
+    std::vector<PSSParser::Override_stmtContext *> stmts = ctx->override_stmt();
+    for (std::vector<PSSParser::Override_stmtContext *>::const_iterator
+        it=stmts.begin(); it!=stmts.end(); it++) {
+        (*it)->accept(this);
+    }
+
+    pop_scope();
+    DEBUG_LEAVE("visitOverride_declaration");
+    return 0;
+}
+
+antlrcpp::Any AstBuilderInt::visitType_override(PSSParser::Type_overrideContext *ctx) {
+    DEBUG_ENTER("visitType_override");
+    ast::ITypeOverride *ovr = m_factory->mkTypeOverride(
+        mkTypeId(ctx->target),
+        mkTypeId(ctx->override));
+    addChild(ovr, ctx->start, 0, 0, ctx->stop);
+    DEBUG_LEAVE("visitType_override");
+    return 0;
+}
+
+antlrcpp::Any AstBuilderInt::visitInstance_override(PSSParser::Instance_overrideContext *ctx) {
+    DEBUG_ENTER("visitInstance_override");
+    ast::IInstanceOverride *ovr = m_factory->mkInstanceOverride(
+        mkHierarchicalId(ctx->target),
+        mkTypeId(ctx->override));
+    addChild(ovr, ctx->start, 0, 0, ctx->stop);
+    DEBUG_LEAVE("visitInstance_override");
+    return 0;
 }
 
 antlrcpp::Any AstBuilderInt::visitAttr_group(PSSParser::Attr_groupContext *ctx) {
@@ -3606,23 +3914,82 @@ antlrcpp::Any AstBuilderInt::visitAttr_group(PSSParser::Attr_groupContext *ctx) 
 }
 
 antlrcpp::Any AstBuilderInt::visitActivity_constraint_stmt(PSSParser::Activity_constraint_stmtContext *ctx) {
-    noteUnrepresented(ctx->start, "activity constraint");
-    return visitChildren(ctx);
-}
-
-antlrcpp::Any AstBuilderInt::visitMonitor_activity_select_stmt(PSSParser::Monitor_activity_select_stmtContext *ctx) {
-    noteUnrepresented(ctx->start, "monitor activity select");
-    return visitChildren(ctx);
+    DEBUG_ENTER("visitActivity_constraint_stmt");
+    // `constraint constraint_set` among the activity statements. Its position
+    // in the statement order is what distinguishes it from a constraint in the
+    // action body, so it is a statement node rather than a ConstraintBlock --
+    // the same split MonitorConstraint makes on the monitor side.
+    //
+    // mkConstraintSet is reused as-is: m_constraint_s is empty here, so the
+    // block form builds a free-standing scope owned by this node rather than
+    // attaching itself to an enclosing constraint.
+    ast::IActivityConstraint *c = m_factory->mkActivityConstraint(
+        mkConstraintSet(ctx->constraint_set()));
+    setLoc(c, ctx->start);
+    setExtent(c, ctx->start, ctx->stop);
+    m_activity_stmt = c;
+    DEBUG_LEAVE("visitActivity_constraint_stmt");
+    return 0;
 }
 
 antlrcpp::Any AstBuilderInt::visitMonitor_activity_constraint_stmt(PSSParser::Monitor_activity_constraint_stmtContext *ctx) {
-    noteUnrepresented(ctx->start, "monitor activity constraint");
-    return visitChildren(ctx);
+    DEBUG_ENTER("visitMonitor_activity_constraint_stmt");
+    // A constraint among the *statements* of a monitor activity: its position
+    // in the statement order matters, so it is a statement node rather than the
+    // ConstraintBlock a monitor-body constraint builds.
+    m_labeled_activity_id = 0;
+
+    ast::IMonitorConstraint *c = m_factory->mkMonitorConstraint(
+        mkMonitorConstraintSet(ctx->monitor_constraint_set()));
+    setLoc(c, ctx->start);
+    setExtent(c, ctx->start, ctx->stop);
+
+    m_activity_stmt = c;
+
+    DEBUG_LEAVE("visitMonitor_activity_constraint_stmt");
+    return 0;
 }
 
 antlrcpp::Any AstBuilderInt::visitMonitor_constraint_declaration(PSSParser::Monitor_constraint_declarationContext *ctx) {
-    noteUnrepresented(ctx->start, "monitor constraint");
-    return visitChildren(ctx);
+    DEBUG_ENTER("visitMonitor_constraint_declaration");
+    // Grammar:
+    //   'constraint' monitor_constraint_set
+    // | 'constraint' identifier monitor_constraint_block
+    //
+    // Mirrors visitConstraint_declaration: a monitor-body constraint is an
+    // ordinary ConstraintBlock, so the linker and every constraint consumer see
+    // the same node here that they see in an action or struct. A named block
+    // adds its items directly rather than through a wrapping ConstraintScope,
+    // for the ref-path-resolution reason documented there.
+    std::string name;
+    if (ctx->identifier()) {
+        name = ctx->identifier()->getText();
+    }
+
+    ast::IConstraintBlock *constraint = m_factory->mkConstraintBlock(name, false);
+
+    addChild(constraint, ctx->start);
+    m_constraint_s.push_back(constraint);
+
+    std::vector<PSSParser::Monitor_constraint_body_itemContext *> items;
+    if (ctx->monitor_constraint_block()) {
+        items = ctx->monitor_constraint_block()->monitor_constraint_body_item();
+    } else if (ctx->monitor_constraint_set()->monitor_constraint_block()) {
+        items = ctx->monitor_constraint_set()->monitor_constraint_block()
+            ->monitor_constraint_body_item();
+    } else {
+        items.push_back(ctx->monitor_constraint_set()->monitor_constraint_body_item());
+    }
+
+    for (std::vector<PSSParser::Monitor_constraint_body_itemContext *>::const_iterator
+        it=items.begin(); it!=items.end(); it++) {
+        (*it)->accept(this);
+    }
+
+    m_constraint_s.pop_back();
+
+    DEBUG_LEAVE("visitMonitor_constraint_declaration");
+    return 0;
 }
 
 antlrcpp::Any AstBuilderInt::visitOverride_compile_if(PSSParser::Override_compile_ifContext *ctx) {
@@ -6454,6 +6821,73 @@ void AstBuilderInt::addActivityStmt(
     }
 }
 
+ast::IScopeChild *AstBuilderInt::mkMonitorActivityStmt(PSSParser::Monitor_activity_stmtContext *ctx) {
+	DEBUG_ENTER("mkMonitorActivityStmt");
+	m_activity_stmt = 0;
+
+	// Grammar: `(label_identifier ':')? labeled_monitor_activity_stmt | ...`.
+	// Publish the label the way the action-activity path does, so the visitors
+	// that consume m_labeled_activity_id -- including the shared
+	// activity_action_traversal_stmt visitor, which monitor activities reuse
+	// verbatim -- pick it up without a monitor-specific code path.
+	m_labeled_activity_id = ctx->label_identifier()
+		? mkId(ctx->label_identifier()->identifier())
+		: 0;
+
+	ctx->accept(this);
+
+	// Nothing claimed it (a bare `;`, or an annotation): do not leak it into
+	// the next statement.
+	m_labeled_activity_id = 0;
+
+	DEBUG_LEAVE("mkMonitorActivityStmt");
+	return m_activity_stmt;
+}
+
+void AstBuilderInt::addMonitorActivityStmts(
+		ast::ISymbolScope                                        *scope,
+		const std::vector<PSSParser::Monitor_activity_stmtContext *> &stmts) {
+	for (std::vector<PSSParser::Monitor_activity_stmtContext *>::const_iterator
+		it=stmts.begin(); it!=stmts.end(); it++) {
+		ast::IScopeChild *stmt = mkMonitorActivityStmt(*it);
+		if (stmt) {
+			stmt->setIndex(scope->getChildren().size());
+			scope->getChildren().push_back(ast::IScopeChildUP(stmt));
+		}
+		// A null result is not a dropped statement. `action_handle_declaration`
+		// added itself to the enclosing monitor scope via addChild -- the same
+		// placement a handle declared in an action activity gets -- and `;`
+		// and annotations produce no statement at all.
+	}
+}
+
+ast::IConstraintStmt *AstBuilderInt::mkMonitorConstraintSet(PSSParser::Monitor_constraint_setContext *ctx) {
+	DEBUG_ENTER("mkMonitorConstraintSet");
+	m_constraint = 0;
+
+	if (ctx->monitor_constraint_block()) {
+		// Mirrors visitConstraint_block, but builds a free-standing scope: the
+		// result is owned by the MonitorConstraint that requested it, not by an
+		// enclosing constraint scope.
+		ast::IConstraintScope *scope = m_factory->mkConstraintScope();
+		m_constraint_s.push_back(scope);
+		std::vector<PSSParser::Monitor_constraint_body_itemContext *> items =
+			ctx->monitor_constraint_block()->monitor_constraint_body_item();
+		for (std::vector<PSSParser::Monitor_constraint_body_itemContext *>::const_iterator
+			it=items.begin(); it!=items.end(); it++) {
+			(*it)->accept(this);
+		}
+		m_constraint_s.pop_back();
+		setLoc(scope, ctx->start);
+		m_constraint = scope;
+	} else {
+		ctx->monitor_constraint_body_item()->accept(this);
+	}
+
+	DEBUG_LEAVE("mkMonitorConstraintSet");
+	return m_constraint;
+}
+
 ast::IConstraintStmt *AstBuilderInt::mkConstraintSet(PSSParser::Constraint_setContext *ctx) {
 	m_constraint = 0;
 	ctx->accept(this);
@@ -7247,19 +7681,21 @@ ast::IExprRefPath *AstBuilderInt::mkExprRefPath(
         // Context ref
         DEBUG("!static_ref_path: ExprRefPathContext");
 
+        // `super.x` builds ExprRefPathSuper, which is an ExprRefPathContext
+        // -- so a consumer that does not care keeps seeing what it saw, and
+        // one that does can tell `super.x` from a plain `x`. Both classes
+        // carry `is_super`; setting it on the base was never enough on its
+        // own, because nothing set it.
+        ast::IExprRefPathContext *cref;
         if (ctx->is_super) {
-            // ExprRefPathSuper exists and is never built: `super.x` falls
-            // through to ExprRefPathContext, making it indistinguishable
-            // from a plain `x`.
-            noteUnrepresented(
-                ctx->start,
-                "super reference",
-                "the `super.` prefix is dropped");
+            ast::IExprRefPathSuper *sref = m_factory->mkExprRefPathSuper(
+                mkHierarchicalId(ctx->hierarchical_id()));
+            sref->setIs_super(true);
+            cref = sref;
+        } else {
+            cref = m_factory->mkExprRefPathContext(
+                mkHierarchicalId(ctx->hierarchical_id()));
         }
-
-        ast::IExprRefPathContext *cref = m_factory->mkExprRefPathContext(
-            mkHierarchicalId(ctx->hierarchical_id())
-        );
 
         if (ctx->bit_slice()) {
             cref->setSlice(mkExprBitSlice(ctx->bit_slice()));

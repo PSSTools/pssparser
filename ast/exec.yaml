@@ -45,7 +45,7 @@ classes:
                       int x = 10;              // ProceduralStmtDataDeclaration
                       x += 5;                  // ProceduralStmtAssignment
                       if (x > 10) { }          // ProceduralStmtIfElse
-                      my_func();               // ProceduralStmtFunctionCall
+                      my_func();               // ProceduralStmtExpr
                   }
               }
           
@@ -278,7 +278,7 @@ classes:
                       
                       x++;                    // Increment expression
                       x--;                    // Decrement expression
-                      my_func();              // Function call (see ProceduralStmtFunctionCall)
+                      my_func();              // Function call
                       (x > 5) ? x++ : x--;    // Conditional expression with side effects
                   }
               }
@@ -287,45 +287,9 @@ classes:
               expr: Expression to evaluate
           
           See Also:
-              ProceduralStmtFunctionCall, ProceduralStmtAssignment, Expr
+              ProceduralStmtAssignment, Expr
       data:
       - expr: UP<Expr>
-  - ProceduralStmtFunctionCall:
-      super: ExecStmt
-      doc: |
-          Function or method call statement.
-          
-          ProceduralStmtFunctionCall represents a call to a function or method in
-          an exec block. The prefix identifies the function (which may be qualified
-          with package or component paths), and params provides the argument list.
-          
-          PSS Example::
-          
-              action my_action {
-                  exec body {
-                      // Simple function call
-                      my_function(10, 20);
-                      
-                      // Qualified function call
-                      my_pkg::my_function(x, y);
-                      
-                      // Method call on component
-                      comp.my_method(value);
-                      
-                      // Built-in function call
-                      console.log("Hello");
-                  }
-              }
-          
-          Attributes:
-              prefix: Static reference path to the function/method
-              params: List of argument expressions
-          
-          See Also:
-              ExprRefPathStaticRooted, FunctionDefinition, ProceduralStmtReturn
-      data: 
-      - prefix: UP<ExprRefPathStaticRooted>
-      - params: list<UP<Expr>>
   - ProceduralStmtReturn:
       super: ExecStmt
       doc: |
@@ -354,7 +318,7 @@ classes:
               expr: Expression to return (null for void functions)
           
           See Also:
-              ProceduralStmtFunctionCall, FunctionDefinition, FunctionPrototype
+              ProceduralStmtExpr, FunctionDefinition, FunctionPrototype
       data:
         - expr: UP<Expr>
   - ProceduralStmtRepeat:

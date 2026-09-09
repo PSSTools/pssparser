@@ -35,7 +35,6 @@ public:
 
     virtual void visitComponent(ast::IComponent *i) override;
 
-    virtual void visitExprRefPathId(ast::IExprRefPathId *i) override;
 
     virtual void visitEnumDecl(ast::IEnumDecl *i) override;
 

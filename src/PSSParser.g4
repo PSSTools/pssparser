@@ -1082,7 +1082,6 @@ monitor_activity_declaration:
 monitor_activity_stmt:
     (label_identifier TOK_COLON)? labeled_monitor_activity_stmt
     | activity_action_traversal_stmt
-    | monitor_activity_monitor_traversal_stmt
     | action_handle_declaration
     | monitor_activity_constraint_stmt
     | annotation
@@ -1138,16 +1137,22 @@ monitor_activity_schedule_stmt:
     TOK_SCHEDULE TOK_LCBRACE monitor_activity_stmt* TOK_RCBRACE
     ;
 
-monitor_activity_monitor_traversal_stmt:
-   monitor_identifier (TOK_LSBRACE expression? TOK_RSBRACE)? inline_constraints_or_empty
-   | ( label_identifier TOK_COLON )? TOK_DO monitor_type_identifier
-        inline_constraints_or_empty
-    ;
-
-monitor_inline_constraints_or_empty:
-    TOK_WITH monitor_constraint_set
-    | TOK_SEMICOLON
-    ;
+// LRM B.11 `monitor_activity_monitor_traversal_stmt` was defined here and
+// removed, for the reason `monitor_handle_declaration` was (see
+// monitor_field_declaration above): both of its forms are spelled exactly like
+// `activity_action_traversal_stmt`, which precedes it in monitor_activity_stmt
+// and therefore always wins. Whether `h;` traverses an action handle or a
+// monitor handle is decided by resolving the type, not by the parser, so both
+// build an ActivityActionHandleTraversal -- and `do M;` an
+// ActivityActionTypeTraversal.
+//
+// The rule was additionally mistranscribed: the LRM's optional subscript is
+// `[ '[' expression ']' ]`, one optional subscript around a *required*
+// expression, but this had `('[' expression? ']')?`, which accepted the
+// meaningless `h[];`. That form parsed cleanly until this rule was removed.
+//
+// `monitor_inline_constraints_or_empty` went with it -- it was referenced from
+// nowhere even before the removal.
 
 monitor_activity_constraint_stmt: 
     TOK_CONSTRAINT monitor_constraint_set
@@ -1244,11 +1249,6 @@ value_param_decl:
 
 template_param_value_list: 
 	TOK_LT ( template_param_value ( TOK_COMMA template_param_value )* )? TOK_GT
-	;
-
-// Note: Added to provide a non-terminal matching a templated non-global type identifier
-type_identifier_templ_elem:
-	identifier template_param_value_list
 	;
 
 template_param_value:
@@ -1370,10 +1370,6 @@ pyobj_type: // zuspec extension
 // 	| (TOK_MAP TOK_LT data_type TOK_COMMA data_type TOK_GT)
 // 	| (TOK_SET TOK_LT data_type TOK_GT)
 //	;
-
-array_size_expression:
-	constant_expression
-	;
 
 reference_type:
 	TOK_REF entity_type_identifier

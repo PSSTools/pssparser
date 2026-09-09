@@ -303,8 +303,6 @@ public:
 
     virtual void visitSymbolRefPath(ast::ISymbolRefPath *i) { }
 
-    virtual void visitRefExpr(ast::IRefExpr *i) { }
-
     virtual void visitTemplateParamDeclList(ast::ITemplateParamDeclList *i) { }
 
     virtual void visitTemplateParamValueList(ast::ITemplateParamValueList *i) { }
@@ -348,12 +346,6 @@ public:
     virtual void visitTemplateParamDecl(ast::ITemplateParamDecl *i) {
         unhandled("a bare TemplateParamDecl");
     }
-
-    virtual void visitRefExprTypeScopeGlobal(ast::IRefExprTypeScopeGlobal *i) { }
-
-    virtual void visitRefExprTypeScopeContext(ast::IRefExprTypeScopeContext *i) { }
-
-    virtual void visitRefExprScopeIndex(ast::IRefExprScopeIndex *i) { }
 
     virtual void visitSymbolScope(ast::ISymbolScope *i) {
         unhandled("a bare SymbolScope");
@@ -402,42 +394,8 @@ public:
     // Expressions
     // -----------------------------------------------------------------
 
-    virtual void visitExprRefPathElem(ast::IExprRefPathElem *i) {
-        unhandled("a bare ExprRefPathElem");
-    }
-
-    virtual void visitExprStaticRefPath(ast::IExprStaticRefPath *i) {
-        DEBUG_ENTER("visitExprStaticRefPath");
-        ast::IExprStaticRefPath *ic = m_factory->mkExprStaticRefPath(
-            i->getIs_global(),
-            copyT<ast::IExprMemberPathElem>(i->getLeaf())
-        );
-        for (std::vector<ast::ITypeIdentifierElemUP>::const_iterator
-            it=i->getBase().begin(); it!=i->getBase().end(); it++) {
-            ic->getBase().push_back(ast::ITypeIdentifierElemUP(
-                copyT<ast::ITypeIdentifierElem>(it->get())));
-        }
-        m_expr = ic;
-        DEBUG_LEAVE("visitExprStaticRefPath");
-    }
-
     virtual void visitExprString(ast::IExprString *i) {
         m_expr = m_factory->mkExprString(i->getValue(), i->getIs_raw());
-    }
-
-    virtual void visitExprSubscript(ast::IExprSubscript *i) {
-        m_expr = m_factory->mkExprSubscript(
-            copy(i->getExpr()),
-            copy(i->getSubscript())
-        );
-    }
-
-    virtual void visitExprSubstring(ast::IExprSubstring *i) {
-        m_expr = m_factory->mkExprSubstring(
-            copy(i->getExpr()),
-            (i->getStart())?copy(i->getStart()):0,
-            (i->getEnd())?copy(i->getEnd()):0
-        );
     }
 
     virtual void visitExprUnary(ast::IExprUnary *i) {
@@ -487,29 +445,6 @@ public:
             i->getSingle(),
             (i->getLhs())?copy(i->getLhs()):0,
             (i->getRhs())?copy(i->getRhs()):0
-        );
-    }
-
-    virtual void visitExprListLiteral(ast::IExprListLiteral *i) {
-        ast::IExprListLiteral *ic = m_factory->mkExprListLiteral();
-        copyExprs(i->getValue(), ic->getValue());
-        m_expr = ic;
-    }
-
-    virtual void visitExprStructLiteral(ast::IExprStructLiteral *i) {
-        ast::IExprStructLiteral *ic = m_factory->mkExprStructLiteral();
-        for (std::vector<ast::IExprStructLiteralItemUP>::const_iterator
-            it=i->getValues().begin(); it!=i->getValues().end(); it++) {
-            ic->getValues().push_back(ast::IExprStructLiteralItemUP(
-                copyT<ast::IExprStructLiteralItem>(it->get())));
-        }
-        m_expr = ic;
-    }
-
-    virtual void visitExprStructLiteralItem(ast::IExprStructLiteralItem *i) {
-        m_expr = m_factory->mkExprStructLiteralItem(
-            copyT<ast::IExprId>(i->getId()),
-            copy(i->getValue())
         );
     }
 
@@ -684,17 +619,6 @@ public:
         unhandled("a bare ExprRefPath");
     }
 
-    virtual void visitExprRefPathId(ast::IExprRefPathId *i) {
-        DEBUG_ENTER("visitExprRefPathId");
-        ast::IExprRefPathId *ic = m_factory->mkExprRefPathId(
-            copyT<ast::IExprId>(i->getId()));
-        if (i->getSlice()) {
-            ic->setSlice(copyT<ast::IExprBitSlice>(i->getSlice()));
-        }
-        m_expr = ic;
-        DEBUG_LEAVE("visitExprRefPathId");
-    }
-
     virtual void visitExprRefPathContext(ast::IExprRefPathContext *i) {
         DEBUG_ENTER("visitExprRefPathContext");
         ast::IExprRefPathContext *ic = m_factory->mkExprRefPathContext(
@@ -723,24 +647,6 @@ public:
         }
         m_expr = ic;
         DEBUG_LEAVE("visitExprRefPathStatic");
-    }
-
-    virtual void visitExprRefPathStaticFunc(ast::IExprRefPathStaticFunc *i) {
-        DEBUG_ENTER("visitExprRefPathStaticFunc");
-        ast::IExprRefPathStaticFunc *ic = m_factory->mkExprRefPathStaticFunc(
-            i->getIs_global(),
-            (i->getParams())?copyMethodParamList(i->getParams()):0);
-        for (std::vector<ast::ITypeIdentifierElemUP>::const_iterator
-            it=i->getBase().begin();
-            it!=i->getBase().end(); it++) {
-            ic->getBase().push_back(ast::ITypeIdentifierElemUP(
-                copyT<ast::ITypeIdentifierElem>(it->get())));
-        }
-        if (i->getSlice()) {
-            ic->setSlice(copyT<ast::IExprBitSlice>(i->getSlice()), true);
-        }
-        m_expr = ic;
-        DEBUG_LEAVE("visitExprRefPathStaticFunc");
     }
 
     virtual void visitExprRefPathSuper(ast::IExprRefPathSuper *i) {
@@ -1079,6 +985,7 @@ public:
             i->getIs_solve());
         ic->setIs_pure(i->getIs_pure());
         ic->setIs_core(i->getIs_core());
+        ic->setIs_static(i->getIs_static());
         for (std::vector<ast::IFunctionParamDeclUP>::const_iterator
             it=i->getParameters().begin();
             it!=i->getParameters().end(); it++) {
@@ -1127,6 +1034,72 @@ public:
             i->getPlat(),
             (i->getName())?copyT<ast::IExprId>(i->getName()):0
         ));
+    }
+
+    virtual void visitExportAction(ast::IExportAction *i) {
+        ast::IExportAction *ic = m_factory->mkExportAction(
+            i->getPlat(),
+            (i->getTarget())?copyT<ast::ITypeIdentifier>(i->getTarget()):0);
+        for (std::vector<ast::IFunctionParamDeclUP>::const_iterator
+            it=i->getParameters().begin();
+            it!=i->getParameters().end(); it++) {
+            ic->getParameters().push_back(
+                ast::IFunctionParamDeclUP(copyT<ast::IFunctionParamDecl>(it->get())));
+        }
+        m_sc = fin(i, ic);
+    }
+
+    virtual void visitImportClass(ast::IImportClass *i) {
+        ast::IImportClass *ic = m_factory->mkImportClass(
+            copyT<ast::IExprId>(i->getName()),
+            (i->getSuper_t())?copyT<ast::ITypeIdentifier>(i->getSuper_t()):0);
+        if (i->getParams()) {
+            ic->setParams(copyParamDeclList(i->getParams()));
+        }
+        ic->setOpaque(i->getOpaque());
+        ic->setEndLocation(i->getEndLocation());
+
+        // The first entry aliases super_t in the source node, and the copy
+        // keeps that arrangement -- so the copied list must not own it either.
+        for (std::vector<ast::ITypeIdentifierUP>::const_iterator
+            it=i->getExtends().begin(); it!=i->getExtends().end(); it++) {
+            if (it == i->getExtends().begin() && ic->getSuper_t()) {
+                ic->getExtends().push_back(ast::ITypeIdentifierUP(ic->getSuper_t(), false));
+            } else {
+                ic->getExtends().push_back(
+                    ast::ITypeIdentifierUP(copyT<ast::ITypeIdentifier>(it->get())));
+            }
+        }
+
+        copyChildren(i->getChildren(), ic->getChildren());
+        m_sc = fin(i, ic);
+    }
+
+    // -----------------------------------------------------------------
+    // Overrides
+    // -----------------------------------------------------------------
+
+    virtual void visitOverrideDecl(ast::IOverrideDecl *i) {
+        ast::IOverrideDecl *ic = m_factory->mkOverrideDecl();
+        ic->setEndLocation(i->getEndLocation());
+        copyChildren(i->getChildren(), ic->getChildren());
+        m_sc = fin(i, ic);
+    }
+
+    virtual void visitOverrideStmt(ast::IOverrideStmt *i) {
+        unhandled("a bare OverrideStmt");
+    }
+
+    virtual void visitTypeOverride(ast::ITypeOverride *i) {
+        m_sc = fin(i, m_factory->mkTypeOverride(
+            (i->getTarget())?copyT<ast::ITypeIdentifier>(i->getTarget()):0,
+            (i->getWith_t())?copyT<ast::ITypeIdentifier>(i->getWith_t()):0));
+    }
+
+    virtual void visitInstanceOverride(ast::IInstanceOverride *i) {
+        m_sc = fin(i, m_factory->mkInstanceOverride(
+            (i->getTarget())?copyT<ast::IExprHierarchicalId>(i->getTarget()):0,
+            (i->getWith_t())?copyT<ast::ITypeIdentifier>(i->getWith_t()):0));
     }
 
     // -----------------------------------------------------------------
@@ -1180,13 +1153,6 @@ public:
         m_sc = fin(i, m_factory->mkProceduralStmtExpr(
             (i->getExpr())?copy(i->getExpr()):0
         ));
-    }
-
-    virtual void visitProceduralStmtFunctionCall(ast::IProceduralStmtFunctionCall *i) {
-        ast::IProceduralStmtFunctionCall *ic = m_factory->mkProceduralStmtFunctionCall(
-            (i->getPrefix())?copyT<ast::IExprRefPathStaticRooted>(i->getPrefix()):0);
-        copyExprs(i->getParams(), ic->getParams());
-        m_sc = fin(i, ic);
     }
 
     virtual void visitProceduralStmtReturn(ast::IProceduralStmtReturn *i) {
@@ -1493,9 +1459,19 @@ public:
     // Coverage
     // -----------------------------------------------------------------
 
-    virtual void visitCovergroup(ast::ICovergroup *i) {
-        ast::ICovergroup *ic = m_factory->mkCovergroup(
-            (i->getName())?copyT<ast::IExprId>(i->getName()):0);
+    void copyCovergroupOptions(
+        const std::vector<ast::ICovergroupOptionUP> &src,
+        std::vector<ast::ICovergroupOptionUP>       &dst) {
+        for (std::vector<ast::ICovergroupOptionUP>::const_iterator
+            it=src.begin(); it!=src.end(); it++) {
+            dst.push_back(ast::ICovergroupOptionUP(
+                copyT<ast::ICovergroupOption>(it->get())));
+        }
+    }
+
+    void copyCovergroupBody(
+        ast::ICovergroup *i,
+        ast::ICovergroup *ic) {
         for (std::vector<ast::ICovergroupCoverpointUP>::const_iterator
             it=i->getCoverpoints().begin(); it!=i->getCoverpoints().end(); it++) {
             ic->getCoverpoints().push_back(ast::ICovergroupCoverpointUP(
@@ -1506,14 +1482,123 @@ public:
             ic->getCrosses().push_back(ast::ICovergroupCrossUP(
                 copyT<ast::ICovergroupCross>(it->get())));
         }
+        copyCovergroupOptions(i->getOptions(), ic->getOptions());
+    }
+
+    virtual void visitCovergroupOption(ast::ICovergroupOption *i) {
+        m_sc = fin(i, m_factory->mkCovergroupOption(
+            (i->getName())?copyT<ast::IExprId>(i->getName()):0,
+            (i->getValue())?copy(i->getValue()):0
+        ));
+    }
+
+    virtual void visitCovergroup(ast::ICovergroup *i) {
+        ast::ICovergroup *ic = m_factory->mkCovergroup(
+            (i->getName())?copyT<ast::IExprId>(i->getName()):0);
+        copyCovergroupBody(i, ic);
         m_sc = fin(i, ic);
     }
 
-    virtual void visitCovergroupCoverpoint(ast::ICovergroupCoverpoint *i) {
-        m_sc = fin(i, m_factory->mkCovergroupCoverpoint(
+    virtual void visitCovergroupType(ast::ICovergroupType *i) {
+        ast::ICovergroupType *ic = m_factory->mkCovergroupType(
+            copyT<ast::IExprId>(i->getName()),
+            (i->getSuper_t())?copyT<ast::ITypeIdentifier>(i->getSuper_t()):0);
+        if (i->getParams()) {
+            ic->setParams(copyParamDeclList(i->getParams()));
+        }
+        ic->setOpaque(i->getOpaque());
+        ic->setEndLocation(i->getEndLocation());
+
+        for (std::vector<ast::ICovergroupCoverpointUP>::const_iterator
+            it=i->getCoverpoints().begin(); it!=i->getCoverpoints().end(); it++) {
+            ic->getCoverpoints().push_back(ast::ICovergroupCoverpointUP(
+                copyT<ast::ICovergroupCoverpoint>(it->get())));
+        }
+        for (std::vector<ast::ICovergroupCrossUP>::const_iterator
+            it=i->getCrosses().begin(); it!=i->getCrosses().end(); it++) {
+            ic->getCrosses().push_back(ast::ICovergroupCrossUP(
+                copyT<ast::ICovergroupCross>(it->get())));
+        }
+        copyCovergroupOptions(i->getOptions(), ic->getOptions());
+        copyChildren(i->getChildren(), ic->getChildren());
+
+        m_sc = fin(i, ic);
+    }
+
+    virtual void visitCovergroupPortmap(ast::ICovergroupPortmap *i) {
+        m_sc = fin(i, m_factory->mkCovergroupPortmap(
             (i->getName())?copyT<ast::IExprId>(i->getName()):0,
-            (i->getTarget())?copy(i->getTarget()):0
+            (i->getTarget())?copyT<ast::IExprHierarchicalId>(i->getTarget()):0
         ));
+    }
+
+    virtual void visitCovergroupInstantiation(ast::ICovergroupInstantiation *i) {
+        ast::ICovergroupInstantiation *ic = m_factory->mkCovergroupInstantiation(
+            (i->getName())?copyT<ast::IExprId>(i->getName()):0,
+            (i->getType())?copyT<ast::ITypeIdentifier>(i->getType()):0);
+        for (std::vector<ast::ICovergroupPortmapUP>::const_iterator
+            it=i->getPortmap().begin(); it!=i->getPortmap().end(); it++) {
+            ic->getPortmap().push_back(ast::ICovergroupPortmapUP(
+                copyT<ast::ICovergroupPortmap>(it->get())));
+        }
+        for (std::vector<ast::IExprHierarchicalIdUP>::const_iterator
+            it=i->getTargets().begin(); it!=i->getTargets().end(); it++) {
+            ic->getTargets().push_back(ast::IExprHierarchicalIdUP(
+                copyT<ast::IExprHierarchicalId>(it->get())));
+        }
+        copyCovergroupOptions(i->getOptions(), ic->getOptions());
+        m_sc = fin(i, ic);
+    }
+
+    virtual void visitCoverpointBins(ast::ICoverpointBins *i) {
+        ast::ICoverpointBins *ic = m_factory->mkCoverpointBins(
+            (i->getName())?copyT<ast::IExprId>(i->getName()):0,
+            i->getKind(),
+            i->getForm());
+        ic->setIs_array(i->getIs_array());
+        if (i->getArray_size()) {
+            ic->setArray_size(copy(i->getArray_size()));
+        }
+        for (std::vector<ast::IExprOpenRangeValueUP>::const_iterator
+            it=i->getRanges().begin(); it!=i->getRanges().end(); it++) {
+            ic->getRanges().push_back(ast::IExprOpenRangeValueUP(
+                copyT<ast::IExprOpenRangeValue>(it->get())));
+        }
+        if (i->getTarget()) {
+            ic->setTarget(copyT<ast::IExprId>(i->getTarget()));
+        }
+        if (i->getWith_expr()) {
+            ic->setWith_expr(copy(i->getWith_expr()));
+        }
+        m_sc = fin(i, ic);
+    }
+
+    virtual void visitCovergroupCrossBins(ast::ICovergroupCrossBins *i) {
+        m_sc = fin(i, m_factory->mkCovergroupCrossBins(
+            (i->getName())?copyT<ast::IExprId>(i->getName()):0,
+            i->getKind(),
+            (i->getTarget())?copyT<ast::IExprId>(i->getTarget()):0,
+            (i->getWith_expr())?copy(i->getWith_expr()):0
+        ));
+    }
+
+    virtual void visitCovergroupCoverpoint(ast::ICovergroupCoverpoint *i) {
+        ast::ICovergroupCoverpoint *ic = m_factory->mkCovergroupCoverpoint(
+            (i->getName())?copyT<ast::IExprId>(i->getName()):0,
+            (i->getTarget())?copy(i->getTarget()):0);
+        if (i->getData_type()) {
+            ic->setData_type(copy(i->getData_type()));
+        }
+        if (i->getIff()) {
+            ic->setIff(copy(i->getIff()));
+        }
+        for (std::vector<ast::ICoverpointBinsUP>::const_iterator
+            it=i->getBins().begin(); it!=i->getBins().end(); it++) {
+            ic->getBins().push_back(ast::ICoverpointBinsUP(
+                copyT<ast::ICoverpointBins>(it->get())));
+        }
+        copyCovergroupOptions(i->getOptions(), ic->getOptions());
+        m_sc = fin(i, ic);
     }
 
     virtual void visitCovergroupCross(ast::ICovergroupCross *i) {
@@ -1525,19 +1610,16 @@ public:
             ic->getCoverpoint_names().push_back(ast::IExprIdUP(
                 copyT<ast::IExprId>(it->get())));
         }
+        if (i->getIff()) {
+            ic->setIff(copy(i->getIff()));
+        }
+        for (std::vector<ast::ICovergroupCrossBinsUP>::const_iterator
+            it=i->getBins().begin(); it!=i->getBins().end(); it++) {
+            ic->getBins().push_back(ast::ICovergroupCrossBinsUP(
+                copyT<ast::ICovergroupCrossBins>(it->get())));
+        }
+        copyCovergroupOptions(i->getOptions(), ic->getOptions());
         m_sc = fin(i, ic);
-    }
-
-    virtual void visitCoverStmtInline(ast::ICoverStmtInline *i) {
-        m_sc = fin(i, m_factory->mkCoverStmtInline(
-            (i->getBody())?copy(i->getBody()):0
-        ));
-    }
-
-    virtual void visitCoverStmtReference(ast::ICoverStmtReference *i) {
-        m_sc = fin(i, m_factory->mkCoverStmtReference(
-            (i->getTarget())?copyT<ast::IExprRefPath>(i->getTarget()):0
-        ));
     }
 
     // -----------------------------------------------------------------
@@ -1546,6 +1628,26 @@ public:
 
     virtual void visitActivityDecl(ast::IActivityDecl *i) {
         m_sc = finSymbolScope(i, m_factory->mkActivityDecl(i->getName()));
+    }
+
+    virtual void visitSymbolDeclaration(ast::ISymbolDeclaration *i) {
+        ast::ISymbolDeclaration *ic = m_factory->mkSymbolDeclaration(i->getName());
+        for (std::vector<ast::IFunctionParamDeclUP>::const_iterator
+            it=i->getParams().begin(); it!=i->getParams().end(); it++) {
+            ic->getParams().push_back(
+                ast::IFunctionParamDeclUP(copyT<ast::IFunctionParamDecl>(it->get())));
+        }
+        m_sc = finSymbolScope(i, ic);
+    }
+
+    virtual void visitActivitySymbolCall(ast::IActivitySymbolCall *i) {
+        ast::IActivitySymbolCall *ic = m_factory->mkActivitySymbolCall(
+            (i->getTarget())?copyT<ast::IExprId>(i->getTarget()):0);
+        for (std::vector<ast::IExprUP>::const_iterator
+            it=i->getParams().begin(); it!=i->getParams().end(); it++) {
+            ic->getParams().push_back(ast::IExprUP(copy(it->get())));
+        }
+        m_sc = fin(i, ic);
     }
 
     virtual void visitActivityLabeledScope(ast::IActivityLabeledScope *i) {
@@ -1805,6 +1907,101 @@ public:
 
         copyChildren(i->getChildren(), ic->getChildren());
 
+        m_sc = fin(i, ic);
+    }
+
+    virtual void visitMonitor(ast::IMonitor *i) {
+        ast::IMonitor *ic = m_factory->mkMonitor(
+            copyT<ast::IExprId>(i->getName()),
+            (i->getSuper_t())?copyT<ast::ITypeIdentifier>(i->getSuper_t()):0
+        );
+        ic->setIs_abstract(i->getIs_abstract());
+
+        if (i->getParams()) {
+            ic->setParams(copyParamDeclList(i->getParams()));
+        }
+        ic->setOpaque(i->getOpaque());
+        ic->setEndLocation(i->getEndLocation());
+
+        copyChildren(i->getChildren(), ic->getChildren());
+
+        m_sc = fin(i, ic);
+    }
+
+    // The monitor activity forms below reached this file only once monitor
+    // bodies were built at all: before that a monitor was empty, so nothing
+    // inside one could need copying. `monitor m<int N> { ... }` specializes
+    // through here.
+    virtual void visitMonitorActivityDecl(ast::IMonitorActivityDecl *i) {
+        m_sc = finSymbolScope(i, m_factory->mkMonitorActivityDecl(i->getName()));
+    }
+
+    virtual void visitMonitorActivityLabeledScope(ast::IMonitorActivityLabeledScope *i) {
+        unhandled("a bare MonitorActivityLabeledScope");
+    }
+
+    /**
+     * The five braced monitor activity forms are identical in shape -- a
+     * labeled scope holding statements -- so their copies differ only in which
+     * class they construct.
+     */
+    template <class T> void copyMonitorActivityScope(T *i, T *ic) {
+        if (i->getLabel()) {
+            ic->setLabel(copyT<ast::IExprId>(i->getLabel()));
+        }
+        m_sc = finSymbolScope(i, ic);
+    }
+
+    virtual void visitMonitorActivitySequence(ast::IMonitorActivitySequence *i) {
+        copyMonitorActivityScope(i, m_factory->mkMonitorActivitySequence(i->getName()));
+    }
+
+    virtual void visitMonitorActivityConcat(ast::IMonitorActivityConcat *i) {
+        copyMonitorActivityScope(i, m_factory->mkMonitorActivityConcat(i->getName()));
+    }
+
+    virtual void visitMonitorActivityOverlap(ast::IMonitorActivityOverlap *i) {
+        copyMonitorActivityScope(i, m_factory->mkMonitorActivityOverlap(i->getName()));
+    }
+
+    virtual void visitMonitorActivitySchedule(ast::IMonitorActivitySchedule *i) {
+        copyMonitorActivityScope(i, m_factory->mkMonitorActivitySchedule(i->getName()));
+    }
+
+    virtual void visitMonitorActivitySelect(ast::IMonitorActivitySelect *i) {
+        copyMonitorActivityScope(i, m_factory->mkMonitorActivitySelect(i->getName()));
+    }
+
+    virtual void visitMonitorActivityEventually(ast::IMonitorActivityEventually *i) {
+        ast::IMonitorActivityEventually *ic = m_factory->mkMonitorActivityEventually(
+            (i->getBody())?copyT<ast::IScopeChild>(i->getBody()):0);
+        if (i->getLabel()) {
+            ic->setLabel(copyT<ast::IExprId>(i->getLabel()));
+        }
+        m_sc = fin(i, ic);
+    }
+
+    virtual void visitMonitorConstraint(ast::IMonitorConstraint *i) {
+        m_sc = fin(i, m_factory->mkMonitorConstraint(
+            (i->getConstraint())?copyT<ast::IConstraintStmt>(i->getConstraint()):0));
+    }
+
+    virtual void visitCoverStmtInline(ast::ICoverStmtInline *i) {
+        ast::ICoverStmtInline *ic = m_factory->mkCoverStmtInline();
+        if (i->getLabel()) {
+            ic->setLabel(copyT<ast::IExprId>(i->getLabel()));
+        }
+        ic->setEndLocation(i->getEndLocation());
+        copyChildren(i->getChildren(), ic->getChildren());
+        m_sc = fin(i, ic);
+    }
+
+    virtual void visitCoverStmtReference(ast::ICoverStmtReference *i) {
+        ast::ICoverStmtReference *ic = m_factory->mkCoverStmtReference(
+            (i->getTarget())?copyT<ast::ITypeIdentifier>(i->getTarget()):0);
+        if (i->getLabel()) {
+            ic->setLabel(copyT<ast::IExprId>(i->getLabel()));
+        }
         m_sc = fin(i, ic);
     }
 

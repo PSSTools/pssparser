@@ -344,3 +344,57 @@ def test_scalability_multiple_enums_extended(enum_count):
     """
     ast = assert_parse_ok(pss)
     assert ast is not None
+
+
+# ============================================================================
+# Extension items belong to the enum, not to the enclosing scope
+# ============================================================================
+#
+# `ExtendEnum` is a plain ScopeChild, so before TaskBuildSymbolTree grew a
+# `visitExtendEnum` the generated visitor added the extension and then walked
+# `getItems()` with the *enclosing* scope still current -- and visitEnumItem
+# registers a name. Every item of an `extend enum` was therefore declared in
+# the package. Nothing in the suite noticed, because a single extension in a
+# package with no name clash still resolves; it takes a second declaration of
+# the same name for the leak to become visible.
+#
+# Found by scripts/check_ast_inventory.py, which is what that check is for.
+
+def test_same_item_name_may_extend_two_different_enums():
+    """`x` in enum A and `x` in enum B are different symbols, whether they
+    arrive in the declaration or in an extension."""
+    assert_parse_ok("""
+    package p {
+        enum a_e {A1}
+        enum b_e {B1}
+        extend enum a_e {x}
+        extend enum b_e {x}
+    }
+    """)
+
+
+def test_extension_item_does_not_collide_with_a_package_type():
+    """An enumerator is scoped to its enum; a type named the same thing in the
+    enclosing package is unrelated to it."""
+    assert_parse_ok("""
+    package p {
+        enum a_e {A1}
+        extend enum a_e {x}
+        struct x { }
+    }
+    """)
+
+
+def test_extension_item_is_reachable_through_its_enum():
+    """The other half of the same contract: keeping the item out of the
+    package must not stop it reaching the enum it extends."""
+    assert_parse_ok("""
+    package p {
+        enum a_e {A1}
+        extend enum a_e {x}
+        struct s {
+            a_e f;
+            constraint { f == a_e::x; }
+        }
+    }
+    """)

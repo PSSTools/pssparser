@@ -389,6 +389,23 @@ void TaskBuildSymbolTree::visitExtendType(ast::IExtendType *i) {
     DEBUG_LEAVE("visitExtendType");
 }
 
+void TaskBuildSymbolTree::visitExtendEnum(ast::IExtendEnum *i) {
+    DEBUG_ENTER("visitExtendEnum");
+    // Add the extension and stop. `ExtendEnum` is a plain ScopeChild, so the
+    // generated visitor adds it and then walks `getItems()` with the
+    // *enclosing* scope still current -- and visitEnumItem registers a name.
+    // Every item of an `extend enum` was therefore declared in the package,
+    // which made `extend enum A { x } extend enum B { x }` a duplicate
+    // declaration and `extend enum A { x } struct x { }` a collision between
+    // an enumerator and a type.
+    //
+    // The items belong to the enum being extended, and nothing here needs to
+    // put them there: TaskApplyTypeExtensions::visitExtendEnum merges them
+    // into the target's symbol scope directly from this list.
+    addChild(i, false);
+    DEBUG_LEAVE("visitExtendEnum");
+}
+
 void TaskBuildSymbolTree::visitField(ast::IField *i) {
     DEBUG_ENTER("visitField %s", i->getName()->getId().c_str());
 
@@ -417,6 +434,153 @@ void TaskBuildSymbolTree::visitFieldClaim(ast::IFieldClaim *i) {
     // `constraint ch.prio > 2` fails with "unknown identifier 'ch'".
     addChild(i, i->getName()->getId(), false);
     DEBUG_LEAVE("visitFieldClaim %s", i->getName()->getId().c_str());
+}
+
+void TaskBuildSymbolTree::visitActionHandleField(ast::IActionHandleField *i) {
+    DEBUG_ENTER("visitActionHandleField %s", i->getName()->getId().c_str());
+    // Same defect as visitFieldClaim above, and the same fix. Without an
+    // override here the generated visitor falls through to visitScopeChild,
+    // which appends the node to the scope's children but never names it in the
+    // symtab -- so `M m; constraint { m.x > 0; }` reported "unknown identifier
+    // 'm'". It also descended into getType(), adding the DataTypeUserDefined as
+    // a second, anonymous child of the enclosing scope.
+    //
+    // This was invisible until monitor bodies were built, because an
+    // action-body `A a;` matches action_field_declaration and becomes a plain
+    // Field. ActionHandleField is produced only by action_handle_declaration --
+    // reachable in a monitor body and in an activity, and both were dropped.
+    addChild(i, i->getName()->getId(), false);
+    DEBUG_LEAVE("visitActionHandleField %s", i->getName()->getId().c_str());
+}
+
+void TaskBuildSymbolTree::visitCovergroup(ast::ICovergroup *i) {
+    DEBUG_ENTER("visitCovergroup");
+    // Add the instance and stop. The generated visitor descends into the
+    // coverpoint, cross and option lists, and each item then reaches
+    // visitScopeChild and is appended to the enclosing type scope -- so a
+    // struct holding one covergroup linked to a struct holding the covergroup
+    // plus a loose copy of every coverpoint and cross inside it.
+    //
+    // The covergroup body is not a scope: a coverpoint name is not resolved
+    // through the symbol table, which is also why the coverage expressions
+    // carry `visit: false` in ast/coverage.yaml.
+    addChild(i, false);
+    DEBUG_LEAVE("visitCovergroup");
+}
+
+void TaskBuildSymbolTree::visitCovergroupType(ast::ICovergroupType *i) {
+    DEBUG_ENTER("visitCovergroupType");
+    // The type itself has to be named -- `cg_t cg(...)` resolves it -- which
+    // visitTypeScope does. What must not happen is the descent afterwards:
+    // the generated visitor would walk ports, coverpoints, crosses and options
+    // with the *enclosing* scope current, leaking all four into the package.
+    visitTypeScope(i);
+    DEBUG_LEAVE("visitCovergroupType");
+}
+
+void TaskBuildSymbolTree::visitCovergroupInstantiation(ast::ICovergroupInstantiation *i) {
+    DEBUG_ENTER("visitCovergroupInstantiation");
+    // Same leak, same fix as visitCovergroup above -- here it is the port map
+    // and the option list that would escape.
+    addChild(i, false);
+    DEBUG_LEAVE("visitCovergroupInstantiation");
+}
+
+void TaskBuildSymbolTree::visitExportAction(ast::IExportAction *i) {
+    DEBUG_ENTER("visitExportAction");
+    // Add the statement and stop. The generated visitor would descend into the
+    // parameter list and hand each FunctionParamDecl -- and its type -- to
+    // visitScopeChild, appending them to the enclosing component as loose
+    // anonymous children. The parameters belong to the export.
+    addChild(i, false);
+    DEBUG_LEAVE("visitExportAction");
+}
+
+void TaskBuildSymbolTree::visitSymbolDeclaration(ast::ISymbolDeclaration *i) {
+    DEBUG_ENTER("visitSymbolDeclaration %s", i->getName().c_str());
+    // A symbol is named, and a symbol call names it, so unlike an activity
+    // declaration it has to enter the symbol table. Pushing it first also
+    // keeps its body statements and parameters out of the enclosing action --
+    // the leak visitMonitorActivityDecl below describes.
+    if (addChild(i, i->getName(), false)) {
+        pushSymbolScope(i);
+        for (std::vector<ast::IScopeChildUP>::const_iterator
+            it=i->getChildren().begin();
+            it!=i->getChildren().end(); it++) {
+            (*it)->accept(m_this);
+        }
+        popSymbolScope();
+    }
+    DEBUG_LEAVE("visitSymbolDeclaration %s", i->getName().c_str());
+}
+
+void TaskBuildSymbolTree::visitMonitorActivityDecl(ast::IMonitorActivityDecl *i) {
+    DEBUG_ENTER("visitMonitorActivityDecl");
+    // Without this override the generated visitor adds the declaration to the
+    // enclosing scope and then walks its children *with that scope still
+    // pushed*, so every monitor activity statement was appended to the monitor
+    // type scope a second time: `monitor M { A a; activity { a; } }` linked to
+    // a monitor holding an activity AND a loose copy of its traversal.
+    //
+    // visitActivityDecl above has the shape that avoids it: push the
+    // declaration first, so the nested statements append to a non-synthetic
+    // scope and go nowhere.
+    //
+    // It does not, unlike visitActivityDecl, register labels in the parent.
+    // Action labels are registered because `join_branch(L)` names one; there is
+    // no monitor construct that refers to a monitor activity label.
+    addChild(i, false);
+
+    pushSymbolScope(i);
+    for (std::vector<ast::IScopeChildUP>::const_iterator
+        it=i->getChildren().begin();
+        it!=i->getChildren().end(); it++) {
+        (*it)->accept(m_this);
+    }
+    popSymbolScope();
+    DEBUG_LEAVE("visitMonitorActivityDecl");
+}
+
+void TaskBuildSymbolTree::visitCoverStmtInline(ast::ICoverStmtInline *i) {
+    DEBUG_ENTER("visitCoverStmtInline");
+    // `cover { ... }` is an anonymous monitor body, so its members resolve
+    // against it and not against the enclosing component:
+    // `cover { A a; constraint { a.len > 0; } }` needs `a` visible inside and
+    // invisible outside. The AST node is a plain Scope, so -- as for every
+    // other declaration body -- the linked-tree scope is a synthetic mirror,
+    // built here.
+    //
+    // The mirror is added unnamed. visitTypeScope names its mirror so the type
+    // can be found later; a cover statement has no name to find it by, and two
+    // anonymous covers in one component would collide if we invented one.
+    ast::ISymbolScope *ss = m_factory->mkSymbolScope("");
+    ss->setSynthetic(true);
+    copyExtent(ss, i);
+    ss->setTarget(i);
+    ss->setParent(i->getParent());
+
+    addChild(ss, false);
+
+    pushSymbolScope(ss);
+    for (std::vector<ast::IScopeChildUP>::const_iterator
+        it=i->getChildren().begin();
+        it!=i->getChildren().end(); it++) {
+        (*it)->accept(m_this);
+    }
+    popSymbolScope();
+    DEBUG_LEAVE("visitCoverStmtInline");
+}
+
+void TaskBuildSymbolTree::visitCoverStmtReference(ast::ICoverStmtReference *i) {
+    DEBUG_ENTER("visitCoverStmtReference");
+    // Add the statement, and stop. The generated visitor would descend into
+    // getTarget() and hand the TypeIdentifier to visitScopeChild, which would
+    // append it to the enclosing component as a second, anonymous child --
+    // the same stray-child defect visitActionHandleField above fixes. The
+    // monitor type named here is resolved by the reference pass, not by
+    // placing it in the tree.
+    addChild(i, false);
+    DEBUG_LEAVE("visitCoverStmtReference");
 }
 
 void TaskBuildSymbolTree::visitFunctionDefinition(ast::IFunctionDefinition *i) {

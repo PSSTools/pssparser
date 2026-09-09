@@ -307,22 +307,7 @@ Identifiers and References
     :undoc-members:
     :show-inheritance:
 
-.. autoclass:: pssparser.ast.ExprRefPathElem
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-.. autoclass:: pssparser.ast.ExprRefPathId
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
 .. autoclass:: pssparser.ast.ExprRefPathStatic
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-.. autoclass:: pssparser.ast.ExprRefPathStaticFunc
     :members:
     :undoc-members:
     :show-inheritance:
@@ -338,11 +323,6 @@ Identifiers and References
     :show-inheritance:
 
 .. autoclass:: pssparser.ast.ExprRefPathSuper
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-.. autoclass:: pssparser.ast.ExprStaticRefPath
     :members:
     :undoc-members:
     :show-inheritance:
@@ -375,17 +355,7 @@ Binary and unary operations.
 Array and Bit Operations
 =========================
 
-.. autoclass:: pssparser.ast.ExprSubscript
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
 .. autoclass:: pssparser.ast.ExprBitSlice
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-.. autoclass:: pssparser.ast.ExprSubstring
     :members:
     :undoc-members:
     :show-inheritance:
@@ -428,11 +398,6 @@ List, map, and struct literals.
     :undoc-members:
     :show-inheritance:
 
-.. autoclass:: pssparser.ast.ExprListLiteral
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
 .. autoclass:: pssparser.ast.ExprAggrMap
     :members:
     :undoc-members:
@@ -449,16 +414,6 @@ List, map, and struct literals.
     :show-inheritance:
 
 .. autoclass:: pssparser.ast.ExprAggrStructElem
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-.. autoclass:: pssparser.ast.ExprStructLiteral
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-.. autoclass:: pssparser.ast.ExprStructLiteralItem
     :members:
     :undoc-members:
     :show-inheritance:
@@ -842,11 +797,6 @@ Procedural Statements
     :undoc-members:
     :show-inheritance:
 
-.. autoclass:: pssparser.ast.ProceduralStmtFunctionCall
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
 .. autoclass:: pssparser.ast.ProceduralStmtDataDeclaration
     :members:
     :undoc-members:
@@ -1008,6 +958,16 @@ Monitor Declarations
 Monitor Activities
 ==================
 
+.. autoclass:: pssparser.ast.MonitorActivityLabeledScope
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+.. autoclass:: pssparser.ast.MonitorActivityLabeledStmt
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 .. autoclass:: pssparser.ast.MonitorActivitySequence
     :members:
     :undoc-members:
@@ -1038,51 +998,24 @@ Monitor Activities
     :undoc-members:
     :show-inheritance:
 
-.. autoclass:: pssparser.ast.MonitorActivitySelectBranch
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-Monitor Control Flow
-====================
-
-.. autoclass:: pssparser.ast.MonitorActivityRepeatCount
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-.. autoclass:: pssparser.ast.MonitorActivityRepeatWhile
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-.. autoclass:: pssparser.ast.MonitorActivityIfElse
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-.. autoclass:: pssparser.ast.MonitorActivityMatch
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-.. autoclass:: pssparser.ast.MonitorActivityMatchChoice
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
 Monitor Traversals
 ==================
 
-.. autoclass:: pssparser.ast.MonitorActivityActionTraversal
-    :members:
-    :undoc-members:
-    :show-inheritance:
+A traversal inside a monitor activity is represented by the same nodes an
+action activity uses -- :class:`pssparser.ast.ActivityActionHandleTraversal`
+and :class:`pssparser.ast.ActivityActionTypeTraversal`. ``MonitorActivity\
+ActionTraversal`` and ``MonitorActivityMonitorTraversal`` were removed: the
+grammar spells a monitor traversal exactly as it spells an action traversal, so
+nothing in the syntax distinguishes them and no parser could build a separate
+node. Whether ``h;`` traverses an action or a monitor follows from resolving
+the type.
 
-.. autoclass:: pssparser.ast.MonitorActivityMonitorTraversal
-    :members:
-    :undoc-members:
-    :show-inheritance:
+``MonitorActivityIfElse``, ``MonitorActivityMatch``,
+``MonitorActivityMatchChoice``, ``MonitorActivityRepeatCount``,
+``MonitorActivityRepeatWhile`` and ``MonitorActivitySelectBranch`` were removed
+for a related reason: PSS monitor activities have no ``if``, ``match`` or
+``repeat`` statement, and monitor ``select`` has no guarded branches, so none of
+them described a construct PSS source can contain.
 
 Monitor Constraints
 ===================
@@ -1101,6 +1034,106 @@ Coverage
     :show-inheritance:
 
 .. autoclass:: pssparser.ast.CoverStmtReference
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+Covergroups
+===========
+
+.. autoclass:: pssparser.ast.Covergroup
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+.. autoclass:: pssparser.ast.CovergroupType
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+.. autoclass:: pssparser.ast.CovergroupInstantiation
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+.. autoclass:: pssparser.ast.CovergroupPortmap
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+.. autoclass:: pssparser.ast.CovergroupCoverpoint
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+.. autoclass:: pssparser.ast.CovergroupCross
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+.. autoclass:: pssparser.ast.CoverpointBins
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+.. autoclass:: pssparser.ast.CovergroupCrossBins
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+.. autoclass:: pssparser.ast.CovergroupOption
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+*******************
+Overrides
+*******************
+
+.. autoclass:: pssparser.ast.OverrideDecl
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+.. autoclass:: pssparser.ast.OverrideStmt
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+.. autoclass:: pssparser.ast.TypeOverride
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+.. autoclass:: pssparser.ast.InstanceOverride
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+********************
+Foreign declarations
+********************
+
+.. autoclass:: pssparser.ast.ExportAction
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+.. autoclass:: pssparser.ast.ImportClass
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+*******************
+Symbols
+*******************
+
+.. autoclass:: pssparser.ast.SymbolDeclaration
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+.. autoclass:: pssparser.ast.ActivitySymbolCall
     :members:
     :undoc-members:
     :show-inheritance:
@@ -1209,11 +1242,6 @@ Internal classes for name resolution and linking.
     :undoc-members:
     :show-inheritance:
 
-.. autoclass:: pssparser.ast.SymbolScopeRef
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
 Symbol References
 =================
 
@@ -1223,29 +1251,6 @@ Symbol References
     :show-inheritance:
 
 .. autoclass:: pssparser.ast.SymbolImportSpec
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-Reference Expressions
-=====================
-
-.. autoclass:: pssparser.ast.RefExpr
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-.. autoclass:: pssparser.ast.RefExprScopeIndex
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-.. autoclass:: pssparser.ast.RefExprTypeScopeContext
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-.. autoclass:: pssparser.ast.RefExprTypeScopeGlobal
     :members:
     :undoc-members:
     :show-inheritance:

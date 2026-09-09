@@ -10,175 +10,94 @@ AST Nodes for PSS 3.0
 Monitor AST Nodes
 -----------------
 
+.. note::
+
+   This section previously documented properties (``monitor.activities``,
+   ``monitor.constraints``, ``traversal.action_ref``), constructors
+   (``ast.Monitor("MyMonitor")``) and C++ accessors (``getIsAbstract()``) that
+   the parser has never had, alongside a PSS syntax it has never accepted. It
+   has been rewritten against the implementation. Node reference material lives
+   in :doc:`reference_api_docs`; this section covers only what is specific to
+   walking a monitor.
+
 Monitor
 ^^^^^^^
 
-Represents a monitor declaration (Section 19 of PSS 3.0 spec).
-
-**Namespace**: ``pssp::ast``
-
-**Base Class**: ``TypeScope``
-
-**Properties**:
-
-* ``is_abstract`` (bool) - Whether the monitor is abstract
-* ``super_type`` (ITypeRef) - The super type if the monitor extends another
-* ``monitors`` (list<IMonitor>) - Nested monitor declarations
-* ``activities`` (list<IMonitorActivityDecl>) - Monitor activity declarations
-* ``constraints`` (list<IConstraint>) - Monitor constraints
-
-**Python API**:
+``Monitor`` derives from ``TypeScope``, exactly as ``Action`` and ``Struct``
+do. Its body -- handles, constraints, the activity declaration -- is its
+``getChildren()``; there is no separate list per member kind.
 
 .. code-block:: python
 
-    from pssparser import ast
-    
-    # Create a monitor
-    monitor = ast.Monitor("MyMonitor")
-    monitor.is_abstract = False
-    
-    # Access properties
-    print(f"Monitor name: {monitor.name}")
-    print(f"Is abstract: {monitor.is_abstract}")
+    for child in monitor.getChildren():
+        if type(child).__name__ == "MonitorActivityDecl":
+            ...
+    monitor.getIs_abstract()
 
-**C++ API**:
+Monitor activity statements
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. code-block:: cpp
-
-    #include "pssp/ast/IMonitor.h"
-    
-    // Access monitor properties
-    pssp::ast::IMonitor *monitor = /* ... */;
-    bool is_abstract = monitor->getIsAbstract();
-    const std::vector<ast::IMonitorUP> &monitors = monitor->getMonitors();
-
-MonitorActivityDecl
-^^^^^^^^^^^^^^^^^^^
-
-Represents a monitor activity declaration.
-
-**Properties**:
-
-* ``activity`` (IMonitorActivityStmt) - The activity statement
-
-**Usage**:
+``MonitorActivityDecl`` holds the activity's statements in ``getChildren()``,
+in source order. So do the five braced forms -- ``MonitorActivitySequence``,
+``MonitorActivityConcat``, ``MonitorActivityOverlap``,
+``MonitorActivitySchedule`` and ``MonitorActivitySelect`` -- which all derive
+from ``MonitorActivityLabeledScope`` and are told apart by class, not by a
+field:
 
 .. code-block:: python
 
-    from pssparser import ast
-    
-    # Create activity declaration
-    activity_decl = ast.MonitorActivityDecl()
-    
-    # Set activity statement
-    sequence = ast.MonitorActivitySequence()
-    activity_decl.activity = sequence
+    (activity,) = [c for c in monitor.getChildren()
+                   if type(c).__name__ == "MonitorActivityDecl"]
 
-MonitorActivitySequence
-^^^^^^^^^^^^^^^^^^^^^^^
+    for stmt in activity.getChildren():
+        kind = type(stmt).__name__
+        if kind == "MonitorActivityConcat":
+            body = stmt.getChildren()          # gapless sequence
+        elif kind == "MonitorActivityEventually":
+            body = [stmt.getBody()]            # one statement, maybe a block
+        elif kind == "MonitorConstraint":
+            constraint = stmt.getConstraint()
 
-Represents a sequence of monitor activities.
+``MonitorActivityEventually.body`` is typed ``ScopeChild`` rather than
+``MonitorActivityStmt``, because ``eventually { ... }`` makes it a
+``MonitorActivitySequence`` -- a scope, which shares only ``ScopeChild`` with
+the statement branch of the hierarchy.
 
-**Properties**:
+Traversals
+^^^^^^^^^^
 
-* ``activities`` (list<IMonitorActivityStmt>) - Sequential activities
+A traversal inside a monitor activity builds an
+``ActivityActionHandleTraversal`` (``h;``, ``h with { ... }``) or an
+``ActivityActionTypeTraversal`` (``do T;``) -- the same nodes an action
+activity builds. The grammar spells an action traversal and a monitor
+traversal identically, so nothing before type resolution distinguishes them.
 
-**Usage**:
+Constraints
+^^^^^^^^^^^
 
-.. code-block:: python
+A ``constraint`` in the monitor *body* builds an ordinary ``ConstraintBlock``,
+as it does in an action or struct. ``MonitorConstraint`` is used only for a
+``constraint`` among the *statements* of an activity, where its position in the
+statement order carries meaning.
 
-    sequence = ast.MonitorActivitySequence()
-    
-    # Add activities
-    sequence.activities.append(activity1)
-    sequence.activities.append(activity2)
+Cover statements
+^^^^^^^^^^^^^^^^
 
-MonitorActivityConcat
-^^^^^^^^^^^^^^^^^^^^^
+``cover T;`` builds a ``CoverStmtReference`` whose ``target`` is a
+``TypeIdentifier``: the statement names a monitor *type*, and there is no
+syntax that covers an instance. ``cover { ... }`` builds a ``CoverStmtInline``,
+an anonymous monitor body -- a ``Scope`` whose members are reached through
+``getChildren()``. Both forms accept a ``label_identifier ':'`` prefix, kept in
+``label``.
 
-Represents temporal concatenation (concat blocks).
+Both statements appear only as a ``component_body_item``.
 
-**Properties**:
+.. note::
 
-* ``activities`` (list<IMonitorActivityStmt>) - Activities to concatenate
-
-**Usage**:
-
-.. code-block:: python
-
-    concat = ast.MonitorActivityConcat()
-    concat.activities.append(action_ref1)
-    concat.activities.append(action_ref2)
-
-MonitorActivityEventually
-^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Represents an eventually activity (must occur eventually).
-
-**Properties**:
-
-* ``activity`` (IMonitorActivityStmt) - The activity that must occur
-
-**Usage**:
-
-.. code-block:: python
-
-    eventually = ast.MonitorActivityEventually()
-    eventually.activity = sequence_activity
-
-MonitorActivitySchedule
-^^^^^^^^^^^^^^^^^^^^^^^
-
-Represents unordered concurrent activities (schedule blocks).
-
-**Properties**:
-
-* ``activities`` (list<IMonitorActivityStmt>) - Concurrent activities
-
-**Usage**:
-
-.. code-block:: python
-
-    schedule = ast.MonitorActivitySchedule()
-    schedule.activities.append(activity1)
-    schedule.activities.append(activity2)
-
-MonitorActivityActionTraversal
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Represents traversal of an action in a monitor.
-
-**Properties**:
-
-* ``action_ref`` (ITypeRef) - Reference to the action type
-
-**Usage**:
-
-.. code-block:: python
-
-    traversal = ast.MonitorActivityActionTraversal()
-    # Set action reference
-    traversal.action_ref = action_type_ref
-
-CoverStmt
-^^^^^^^^^
-
-Represents a cover statement.
-
-**Properties**:
-
-* ``label`` (string) - Optional label for the cover statement
-* ``type_ref`` (ITypeRef) - Reference to the monitor type
-* ``variable_name`` (string) - Optional variable name for the cover instance
-
-**Usage**:
-
-.. code-block:: python
-
-    cover = ast.CoverStmt()
-    cover.label = "my_coverage"
-    cover.type_ref = monitor_type_ref
-    cover.variable_name = "monitor_inst"
+   Earlier text here said the two forms parsed and built nothing, which was
+   true. The classes that existed for them described something else: the
+   reference form held an ``ExprRefPath``, as if ``cover`` named an instance,
+   and the inline form held one ``ScopeChild`` rather than a body.
 
 String Enhancement AST Nodes
 -----------------------------
@@ -210,32 +129,33 @@ Enumeration of string methods (Section 7.6 of PSS 3.0 spec).
     if method == StringMethodId.Find:
         print("Using find method")
 
-ExprSubstring
-^^^^^^^^^^^^^
+Substrings
+^^^^^^^^^^
 
-Represents a substring operation (Section 7.6.2 of PSS 3.0 spec).
+A substring (Section 7.6.2 of the PSS 3.0 spec) has no node of its own. It is
+a *slice on a path element*: ``s[0..4]`` is an ``ExprMemberPathElem`` for
+``s`` carrying an ``ExprSliceRange`` in its ``subscript`` list.
 
-**Properties**:
+.. note::
 
-* ``target`` (IExpr) - The string expression
-* ``start`` (IExpr) - Start index (optional)
-* ``end`` (IExpr) - End index (optional)
+   Earlier versions of this document described an ``ExprSubstring`` class with
+   ``target`` / ``start`` / ``end``. That class existed in the schema but the
+   builder never constructed it -- a consumer that matched on it would never
+   have fired. It was removed in 3.1.1; see the migration note in
+   ``CHANGELOG.md``.
+
+Which endpoints are set records how the substring was written: ``[a..b]``
+sets both, ``[a..]`` sets only ``lower``, and ``[..b]`` sets only ``upper``.
 
 **Usage**:
 
 .. code-block:: python
 
-    # s[0..4]
-    substring = ast.ExprSubstring()
-    substring.target = string_expr
-    substring.start = start_index_expr
-    substring.end = end_index_expr
-    
-    # s[6..]
-    substring_open = ast.ExprSubstring()
-    substring_open.target = string_expr
-    substring_open.start = start_index_expr
-    # end is None
+    # s[0..4], reached through the member-path element for `s`
+    for sub in elem.getSubscript():
+        if isinstance(sub, ast.ExprSliceRange):
+            lower = sub.getLower()      # None for `s[..4]`
+            upper = sub.getUpper()      # None for `s[0..]`
 
 ExprMemberPathElem
 ^^^^^^^^^^^^^^^^^^
@@ -471,39 +391,11 @@ Check for PSS 3.0 types at runtime:
             ast.MonitorActivityStmt,
             ast.ProceduralStmtRandomize,
             ast.ActivityAtomicBlock,
-            ast.ExprSubstring
+            ast.ExprSliceRange
         ))
 
 C++ API Usage Examples
 ======================
-
-Creating Monitor AST Programmatically
---------------------------------------
-
-.. code-block:: cpp
-
-    #include "pssp/ast/IFactory.h"
-    #include "pssp/ast/IMonitor.h"
-    
-    // Get factory
-    ast::IFactory *factory = ast::getFactory();
-    
-    // Create monitor
-    ast::IMonitorUP monitor = factory->mkMonitor("MyMonitor", false);
-    
-    // Create activity declaration
-    ast::IMonitorActivityDeclUP activity_decl = 
-        factory->mkMonitorActivityDecl();
-    
-    // Create sequence activity
-    ast::IMonitorActivitySequenceUP sequence = 
-        factory->mkMonitorActivitySequence();
-    
-    // Set activity
-    activity_decl->setActivity(sequence.release());
-    
-    // Add to monitor
-    monitor->getActivities().push_back(activity_decl.release());
 
 Traversing Monitor Activities
 ------------------------------
@@ -511,27 +403,45 @@ Traversing Monitor Activities
 .. code-block:: cpp
 
     #include "pssp/ast/IMonitor.h"
-    
+
+    // A monitor's body is its children, and each activity block holds its
+    // statements the same way. There is no getActivities()/getActivity() pair;
+    // the earlier version of this page documented one, along with a
+    // getIsAbstract() spelling the generator does not produce.
     void processMonitor(ast::IMonitor *monitor) {
-        // Process monitor properties
-        std::string name = monitor->getName();
-        bool is_abstract = monitor->getIsAbstract();
-        
-        // Process activities
-        for (auto &activity_decl : monitor->getActivities()) {
-            ast::IMonitorActivityStmt *activity = 
-                activity_decl->getActivity();
-            
-            // Check activity type
-            if (auto *sequence = 
-                dynamic_cast<ast::IMonitorActivitySequence*>(activity)) {
-                // Process sequence
-                for (auto &stmt : sequence->getActivities()) {
-                    // Process each statement
+        bool is_abstract = monitor->getIs_abstract();
+
+        for (std::vector<ast::IScopeChildUP>::const_iterator
+            it=monitor->getChildren().begin();
+            it!=monitor->getChildren().end(); it++) {
+            ast::IMonitorActivityDecl *activity =
+                dynamic_cast<ast::IMonitorActivityDecl *>(it->get());
+            if (!activity) {
+                continue;
+            }
+
+            for (std::vector<ast::IScopeChildUP>::const_iterator
+                s_it=activity->getChildren().begin();
+                s_it!=activity->getChildren().end(); s_it++) {
+                // The five braced forms are distinguished by class. Casting to
+                // MonitorActivitySequence alone would silently skip concat,
+                // overlap, schedule and select.
+                if (ast::IMonitorActivityLabeledScope *blk =
+                    dynamic_cast<ast::IMonitorActivityLabeledScope *>(s_it->get())) {
+                    for (std::vector<ast::IScopeChildUP>::const_iterator
+                        b_it=blk->getChildren().begin();
+                        b_it!=blk->getChildren().end(); b_it++) {
+                        // ...
+                    }
                 }
             }
         }
     }
+
+Building a monitor AST is not a supported use of this library: the factory
+exists for the parser, and a hand-built monitor will not carry the source
+locations or symbol tables the linker requires. Parse PSS source instead.
+
 
 Best Practices
 ==============

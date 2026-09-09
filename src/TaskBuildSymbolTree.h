@@ -73,6 +73,8 @@ public:
 
     virtual void visitExtendType(ast::IExtendType *i) override;
 
+    virtual void visitExtendEnum(ast::IExtendEnum *i) override;
+
     virtual void visitField(ast::IField *i) override;
 
     virtual void visitFieldCompRef(ast::IFieldCompRef *i) override;
@@ -80,6 +82,24 @@ public:
     virtual void visitFieldRef(ast::IFieldRef *i) override;
 
     virtual void visitFieldClaim(ast::IFieldClaim *i) override;
+
+    virtual void visitActionHandleField(ast::IActionHandleField *i) override;
+
+    virtual void visitCovergroup(ast::ICovergroup *i) override;
+
+    virtual void visitCovergroupType(ast::ICovergroupType *i) override;
+
+    virtual void visitCovergroupInstantiation(ast::ICovergroupInstantiation *i) override;
+
+    virtual void visitExportAction(ast::IExportAction *i) override;
+
+    virtual void visitSymbolDeclaration(ast::ISymbolDeclaration *i) override;
+
+    virtual void visitMonitorActivityDecl(ast::IMonitorActivityDecl *i) override;
+
+    virtual void visitCoverStmtInline(ast::ICoverStmtInline *i) override;
+
+    virtual void visitCoverStmtReference(ast::ICoverStmtReference *i) override;
 
     virtual void visitFunctionDefinition(ast::IFunctionDefinition *i) override;
 

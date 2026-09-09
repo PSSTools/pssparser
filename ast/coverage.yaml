@@ -1,5 +1,161 @@
+#****************************************************************************
+#* coverage.yaml
+#*
+#* AST structures for LRM B.15 covergroups
+#*
+#* NOTE. Coverage expressions carry `visit: false`. A coverpoint target, an
+#* `iff` guard and a bin `with` expression are coverage metadata: they are
+#* sampled at run time, not resolved as references during linking, and marking
+#* them visitable made the linker try. Every expression field added here
+#* follows the same rule as the original `CovergroupCoverpoint.target`.
+#****************************************************************************
+
+enums:
+  - CovergroupBinsKindE:
+    - Bins         # bins
+    - IllegalBins  # illegal_bins
+    - IgnoreBins   # ignore_bins
+
+  - CoverpointBinsFormE:
+    - Ranges       # bins b = [1..3, 7];
+    - Coverpoint   # bins b = cp with (expr);
+    - Default      # bins b = default;
 
 classes:
+  - CovergroupOption:
+      super: ScopeChild
+      doc: |
+          An ``option.<name> = <value>;`` setting.
+
+          Options appear in three places -- a covergroup body, a coverpoint
+          body, and a cross body -- and mean the same thing in each, so one
+          class serves all three. The name is left as written; the set of legal
+          option names is a semantic question, not a syntactic one.
+
+          PSS Example::
+
+              covergroup {
+                  option.weight = 2;
+                  cp : coverpoint x {
+                      option.at_least = 4;
+                  }
+              } cg;
+
+          Attributes:
+              name: The option being set, without the ``option.`` prefix
+              value: The value assigned
+
+          See Also:
+              Covergroup, CovergroupCoverpoint, CovergroupCross
+      data:
+      - name: UP<ExprId>
+      - value:
+          - type: UP<Expr>
+          - visit: false   # coverage metadata; not a link-resolved reference
+
+  - CoverpointBins:
+      super: NamedScopeChild
+      doc: |
+          A ``bins`` / ``illegal_bins`` / ``ignore_bins`` specification.
+
+          The three keywords differ only in what the tool does with the bin, so
+          they are one class with a ``kind`` rather than three classes.
+
+          ``form`` says which of the three right-hand sides the grammar took,
+          and therefore which fields are populated:
+
+          * ``Ranges`` -- ``ranges`` holds the value list, and ``with_expr``
+            the optional ``with (...)`` filter.
+          * ``Coverpoint`` -- ``target`` names the coverpoint the bins are
+            derived from, and ``with_expr`` the required filter.
+          * ``Default`` -- neither; the bin catches everything unbinned.
+
+          ``bins b[] = ...`` and ``bins b[4] = ...`` declare an array of bins;
+          ``is_array`` records the brackets and ``array_size`` the optional
+          expression inside them.
+
+          PSS Example::
+
+              covergroup {
+                  cp : coverpoint x {
+                      bins low     = [0..3];
+                      bins high[4] = [8..15] with (x % 2 == 0);
+                      bins mirror  = cp with (x > 0);
+                      ignore_bins  rest = default;
+                  }
+              } cg;
+
+          Attributes:
+              name: The bin name
+              kind: bins / illegal_bins / ignore_bins
+              form: Which right-hand side was written
+              is_array: True if the name was followed by brackets
+              array_size: The expression inside the brackets, if any
+              ranges: The value list, for the ``Ranges`` form
+              target: The coverpoint named, for the ``Coverpoint`` form
+              with_expr: The ``with (...)`` filter, where one is present
+
+          See Also:
+              CovergroupCoverpoint, CovergroupCrossBins
+      data:
+      - kind: CovergroupBinsKindE
+      - form: CoverpointBinsFormE
+      - is_array:
+          type: bool
+          is_ctor: false
+          init: false
+      - array_size:
+          - type: UP<Expr>
+          - is_ctor: false
+          - visit: false
+      - ranges:
+          type: list<UP<ExprOpenRangeValue>>
+          is_ctor: false
+          visit: false
+      - target:
+          type: UP<ExprId>
+          is_ctor: false
+      - with_expr:
+          - type: UP<Expr>
+          - is_ctor: false
+          - visit: false
+
+  - CovergroupCrossBins:
+      super: NamedScopeChild
+      doc: |
+          A bins specification in a ``cross`` body.
+
+          The cross form is narrower than the coverpoint form -- LRM B.15 gives
+          it exactly one shape, ``<kind> name = <cross> with ( expr );`` -- so
+          it is a separate class rather than another ``form`` on
+          ``CoverpointBins``, whose optional fields would then all be
+          inapplicable.
+
+          PSS Example::
+
+              covergroup {
+                  coverpoint a;
+                  coverpoint b;
+                  ab : cross a, b {
+                      ignore_bins skip = ab with (a == b);
+                  }
+              } cg;
+
+          Attributes:
+              name: The bin name
+              kind: bins / illegal_bins / ignore_bins
+              target: The cross the bins are derived from
+              with_expr: The filter expression
+
+          See Also:
+              CovergroupCross, CoverpointBins
+      data:
+      - kind: CovergroupBinsKindE
+      - target: UP<ExprId>
+      - with_expr:
+          - type: UP<Expr>
+          - visit: false
+
   - CovergroupCoverpoint:
       super: NamedScopeChild
       doc: |
@@ -12,20 +168,42 @@ classes:
           PSS Example::
 
               covergroup {
-                  cp_x : coverpoint x;   // labeled
-                  coverpoint y;          // unlabeled (name 'y')
+                  cp_x : coverpoint x;              // labeled
+                  coverpoint y;                     // unlabeled (name 'y')
+                  bit[4] cp_z : coverpoint z        // explicit sample type
+                      iff (enable) {
+                          option.at_least = 2;
+                          bins low = [0..3];
+                      }
               } cg;
 
           Attributes:
               name: Coverpoint name (inherited from NamedScopeChild)
               target: Expression being sampled
+              data_type: Explicit sample type, if one was written
+              iff: Guard expression -- the sample is taken only when it holds
+              bins: Bin specifications from the coverpoint body
+              options: ``option.x = y;`` settings from the coverpoint body
 
           See Also:
-              Covergroup, CovergroupCross
+              Covergroup, CovergroupCross, CoverpointBins, CovergroupOption
       data:
       - target:
           - type: UP<Expr>
           - visit: false   # coverage metadata; not a link-resolved reference
+      - data_type:
+          type: UP<DataType>
+          is_ctor: false
+      - iff:
+          - type: UP<Expr>
+          - is_ctor: false
+          - visit: false
+      - bins:
+          type: list<UP<CoverpointBins>>
+          is_ctor: false
+      - options:
+          type: list<UP<CovergroupOption>>
+          is_ctor: false
 
   - CovergroupCross:
       super: NamedScopeChild
@@ -37,17 +215,33 @@ classes:
               covergroup {
                   coverpoint a;
                   coverpoint b;
-                  ab : cross a, b;
+                  ab : cross a, b iff (enable) {
+                      option.weight = 3;
+                      ignore_bins same = ab with (a == b);
+                  }
               } cg;
 
           Attributes:
               name: Cross name (inherited from NamedScopeChild)
               coverpoint_names: Names of the coverpoints being crossed
+              iff: Guard expression -- the sample is taken only when it holds
+              bins: Bin specifications from the cross body
+              options: ``option.x = y;`` settings from the cross body
 
           See Also:
-              Covergroup, CovergroupCoverpoint
+              Covergroup, CovergroupCoverpoint, CovergroupCrossBins
       data:
       - coverpoint_names: "list<UP<ExprId>>"
+      - iff:
+          - type: UP<Expr>
+          - is_ctor: false
+          - visit: false
+      - bins:
+          type: list<UP<CovergroupCrossBins>>
+          is_ctor: false
+      - options:
+          type: list<UP<CovergroupOption>>
+          is_ctor: false
 
   - Covergroup:
       super: NamedScopeChild
@@ -55,13 +249,14 @@ classes:
           An inline covergroup instance declared in an action/struct/component.
 
           Corresponds to the PSS ``covergroup { ... } name;`` form. Carries the
-          instance name (inherited) plus its coverpoints and crosses.
+          instance name (inherited) plus its coverpoints, crosses and options.
 
           PSS Example::
 
               action a {
                   rand bit[4] x, y;
                   covergroup {
+                      option.weight = 2;
                       coverpoint x;
                       coverpoint y;
                       xy : cross x, y;
@@ -72,9 +267,120 @@ classes:
               name: Covergroup instance name (inherited from NamedScopeChild)
               coverpoints: The covergroup's coverpoints
               crosses: The covergroup's crosses
+              options: ``option.x = y;`` settings from the covergroup body
 
           See Also:
-              CovergroupCoverpoint, CovergroupCross
+              CovergroupType, CovergroupCoverpoint, CovergroupCross
       data:
       - coverpoints: "list<UP<CovergroupCoverpoint>>"
       - crosses: "list<UP<CovergroupCross>>"
+      - options:
+          type: list<UP<CovergroupOption>>
+          is_ctor: false
+
+  - CovergroupType:
+      super: TypeScope
+      doc: |
+          A named covergroup *type* -- ``covergroup cg_t(int a) { ... }``.
+
+          Declared once and instantiated by name, unlike the inline form, which
+          is a single anonymous instance. It is a ``TypeScope`` because it
+          declares a type others name; the body is held in the same typed lists
+          the inline form uses rather than in ``getChildren()``, so a consumer
+          reads one covergroup body shape and not two.
+
+          The formal parameters are ``Field`` children in ``getChildren()``,
+          not a separate list. ``covergroup_port`` is ``data_type identifier``
+          -- a field declaration -- and putting them in the scope is what lets
+          the port's *type* resolve: a list hung off the side is not walked
+          with the covergroup's scope current, so ``covergroup cg(Mode m)``
+          reported ``type 'Mode' is never resolved``. An instantiation supplies
+          an actual for each port, either by name or positionally.
+
+          PSS Example::
+
+              package p {
+                  covergroup cg_t(int a, int b) {
+                      cp_a : coverpoint a;
+                      cp_b : coverpoint b;
+                      ab   : cross cp_a, cp_b;
+                  }
+              }
+
+          Attributes:
+              coverpoints: The covergroup's coverpoints
+              crosses: The covergroup's crosses
+              options: ``option.x = y;`` settings from the covergroup body
+
+          See Also:
+              Covergroup, CovergroupInstantiation
+      data:
+      - coverpoints:
+          type: list<UP<CovergroupCoverpoint>>
+          is_ctor: false
+      - crosses:
+          type: list<UP<CovergroupCross>>
+          is_ctor: false
+      - options:
+          type: list<UP<CovergroupOption>>
+          is_ctor: false
+
+  - CovergroupPortmap:
+      super: ScopeChild
+      doc: |
+          One ``.port(actual)`` binding in a covergroup instantiation.
+
+          PSS Example::
+
+              cg_t cg(.a(x), .b(y));
+
+          Attributes:
+              name: The formal port being bound
+              target: The actual bound to it
+
+          See Also:
+              CovergroupInstantiation
+      data:
+      - name: UP<ExprId>
+      - target:
+          - type: UP<ExprHierarchicalId>
+          - visit: false   # coverage metadata; not a link-resolved reference
+
+  - CovergroupInstantiation:
+      super: NamedScopeChild
+      doc: |
+          An instance of a named covergroup type -- ``cg_t cg(.a(x));``.
+
+          The grammar offers two ways to supply actuals and they are mutually
+          exclusive, so exactly one of ``portmap`` and ``targets`` is populated:
+          ``portmap`` for the named form, ``targets`` for the positional one.
+
+          PSS Example::
+
+              struct s {
+                  rand int x, y;
+                  cg_t cg1(.a(x), .b(y));           // named
+                  cg_t cg2(x, y) with { option.weight = 2; };   // positional
+              }
+
+          Attributes:
+              name: The instance name
+              type: The covergroup type being instantiated
+              portmap: Named actuals, for the ``.port(actual)`` form
+              targets: Positional actuals, for the bare-list form
+              options: ``with { option.x = y; }`` settings
+
+          See Also:
+              CovergroupType, CovergroupPortmap
+      data:
+      - type: UP<TypeIdentifier>
+      - portmap:
+          type: list<UP<CovergroupPortmap>>
+          is_ctor: false
+      - targets:
+          type: list<UP<ExprHierarchicalId>>
+          is_ctor: false
+          visit: false
+      - options:
+          type: list<UP<CovergroupOption>>
+          is_ctor: false

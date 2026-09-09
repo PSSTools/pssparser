@@ -117,23 +117,17 @@ Expression Hierarchy
     ├── ExprCast (type cast)
     ├── ExprIn (in operator)
     ├── ExprCompileHas (compile-time has)
-    ├── ExprSubscript (array subscript)
     ├── ExprBitSlice (bit slice)
-    ├── ExprSubstring (substring)
     ├── ExprRefPath (reference path)
     │   ├── ExprRefPathContext
     │   ├── ExprRefPathStatic
-    │   │   ├── ExprRefPathStaticFunc
     │   │   └── ExprRefPathStaticRooted
     │   └── ExprRefPathSuper
-    ├── ExprStaticRefPath (static reference)
     ├── ExprAggrLiteral (aggregate literal)
     │   ├── ExprAggrEmpty ({ })
     │   ├── ExprAggrList ({ a, b, c })
     │   ├── ExprAggrMap ({ key: val })
     │   └── ExprAggrStruct ({ .field = val })
-    ├── ExprListLiteral (list literal)
-    ├── ExprStructLiteral (struct literal)
     ├── ExprDomainOpenRangeList (domain range)
     ├── ExprDomainOpenRangeValue
     ├── ExprOpenRangeList (open range)
@@ -166,6 +160,7 @@ Activity Hierarchy
     ├── ActivitySelectBranch (select branch)
     ├── ActivityMatchChoice (match case)
     ├── ActivityBindStmt (bind)
+    ├── ActivitySymbolCall (symbol call: s(1);)
     ├── ActivityConstraint (constraint)
     ├── ActivitySchedulingConstraint (scheduling constraint)
     └── ActivityJoinSpec (join specification)
@@ -173,6 +168,15 @@ Activity Hierarchy
         ├── ActivityJoinSpecFirst
         ├── ActivityJoinSpecBranch
         └── ActivityJoinSpecSelect
+
+    SymbolScope
+    ├── ActivityDecl (also here -- an activity is a symbol scope)
+    └── SymbolDeclaration (symbol s(params) { ... })
+
+``SymbolDeclaration`` is a scope and is named in the symbol table, because a
+``symbol_call`` names it. Its body statements are the ordinary activity
+statement classes -- a symbol body *is* an activity body -- rather than a
+parallel set.
 
 Constraint Hierarchy
 ====================
@@ -206,7 +210,6 @@ Procedural Code Hierarchy
     ├── ExecStmt (base exec statement)
     │   ├── ProceduralStmtAssignment
     │   ├── ProceduralStmtExpr
-    │   ├── ProceduralStmtFunctionCall
     │   ├── ProceduralStmtReturn
     │   ├── ProceduralStmtDataDeclaration
     │   ├── ProceduralStmtBody
@@ -249,25 +252,81 @@ Monitor Hierarchy (PSS 3.0)
     └── Monitor (monitor declaration)
 
     ScopeChild
-    ├── MonitorActivityDecl (activity declaration)
-    ├── MonitorActivityStmt (base monitor activity)
-    │   ├── MonitorActivitySequence
-    │   ├── MonitorActivityConcat (##)
-    │   ├── MonitorActivityEventually
-    │   ├── MonitorActivityOverlap
-    │   ├── MonitorActivitySchedule
-    │   ├── MonitorActivitySelect
-    │   ├── MonitorActivityRepeatCount
-    │   ├── MonitorActivityRepeatWhile
-    │   ├── MonitorActivityIfElse
-    │   ├── MonitorActivityMatch
-    │   ├── MonitorActivityActionTraversal
-    │   └── MonitorActivityMonitorTraversal
-    ├── MonitorActivitySelectBranch
-    ├── MonitorActivityMatchChoice
-    ├── MonitorConstraint
-    ├── CoverStmtInline
-    └── CoverStmtReference
+    ├── SymbolScope
+    │   ├── MonitorActivityDecl (activity declaration)
+    │   └── MonitorActivityLabeledScope (braced forms; body in getChildren())
+    │       ├── MonitorActivitySequence
+    │       ├── MonitorActivityConcat
+    │       ├── MonitorActivityOverlap
+    │       ├── MonitorActivitySchedule
+    │       └── MonitorActivitySelect
+    ├── MonitorActivityStmt (non-scope monitor activity statements)
+    │   ├── MonitorActivityLabeledStmt
+    │   │   └── MonitorActivityEventually
+    │   └── MonitorConstraint
+    ├── Scope
+    │   └── CoverStmtInline (cover { ... }; body in getChildren())
+    └── CoverStmtReference (cover T;)
+
+The five braced forms split from MonitorActivityStmt because they introduce a
+scope; the two branches meet at ScopeChild. A field holding an arbitrary
+monitor activity statement -- ``MonitorActivityEventually.body``, for one --
+must therefore be typed ``ScopeChild``. This mirrors the action-activity side,
+where ``ActivityLabeledScope`` and ``ActivityLabeledStmt`` split the same way
+for the same reason.
+
+An action or monitor traversal inside a monitor activity is an
+``ActivityActionHandleTraversal`` / ``ActivityActionTypeTraversal``: the
+grammar spells the two identically, so nothing before type resolution can tell
+them apart.
+
+``CoverStmtInline`` is a plain ``Scope``, not a ``SymbolScope``, for the same
+reason ``Monitor`` and ``Component`` are: a *declaration* body's linked-tree
+scope is a synthetic mirror the linker builds, not the AST node. Only nodes
+that appear directly in the linked tree -- the activity declaration and the
+braced activity forms -- are ``SymbolScope``\ s.
+
+Covergroup Hierarchy
+====================
+
+::
+
+    ScopeChild
+    ├── NamedScopeChild
+    │   ├── Covergroup (inline instance: covergroup { ... } name;)
+    │   ├── CovergroupInstantiation (cg_t name(...);)
+    │   ├── CovergroupCoverpoint
+    │   ├── CovergroupCross
+    │   ├── CoverpointBins (bins / illegal_bins / ignore_bins in a coverpoint)
+    │   └── CovergroupCrossBins (the same, in a cross)
+    ├── CovergroupOption (option.x = y;)
+    └── CovergroupPortmap (.port(actual) in an instantiation)
+
+    TypeScope
+    └── CovergroupType (covergroup cg_t(ports) { ... })
+
+A covergroup body is not a scope, and a coverpoint name is not resolved through
+the symbol table -- so the coverpoint target, the ``iff`` guards and the bin
+``with`` expressions all carry ``visit: false``. The one exception is
+``CovergroupType``'s ports: those are ``Field`` children in the covergroup's own
+scope, because a port's *type* is an ordinary type reference that has to bind.
+
+Override Hierarchy
+==================
+
+::
+
+    ScopeChild
+    ├── Scope
+    │   └── OverrideDecl (override { ... }; statements in getChildren())
+    └── OverrideStmt
+        ├── TypeOverride (type T with U;)
+        └── InstanceOverride (instance p.q with U;)
+
+The two statements differ in what they select -- a type identifier, or a
+hierarchical instance path -- which is why they are separate classes rather
+than one class with a discriminator. ``OverrideDecl`` declares no names, so it
+introduces no scope in the linked tree even though it is a ``Scope``.
 
 Template String Hierarchy (PSS 3.1)
 ====================================
@@ -332,16 +391,10 @@ Symbol Resolution Hierarchy
     │           ├── SymbolEnumScope (enum scope)
     │           ├── SymbolFunctionScope (function scope)
     │           └── SymbolExtendScope (extension scope)
-    ├── SymbolScopeRef (scope reference)
     └── SymbolImportSpec (import specification)
 
     (Internal classes)
     SymbolRefPath (reference path)
-    
-    RefExpr (reference expression)
-    ├── RefExprScopeIndex
-    ├── RefExprTypeScopeContext
-    └── RefExprTypeScopeGlobal
 
 ***********************
 When to Use Which Class

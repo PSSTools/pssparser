@@ -58,7 +58,6 @@ public:
 
     virtual void visitExprRefPathStaticRooted(ast::IExprRefPathStaticRooted *i) override;
 
-    virtual void visitExprRefPathId(ast::IExprRefPathId *i) override;
 
     virtual void visitExprRefPathContext(ast::IExprRefPathContext *i) override;
 

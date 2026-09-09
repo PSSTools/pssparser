@@ -151,17 +151,6 @@ public:
         DEBUG_LEAVE("visitExprRefPath");
     }
 
-    virtual void visitExprRefPathId(ast::IExprRefPathId *i) override {
-        DEBUG_ENTER("visitExprRefPathId %s", (i->getId())?i->getId()->getId().c_str():"null");
-        if (i->getTarget()) {
-            DEBUG("Target is set");
-            i->getTarget()->accept(m_this);
-        } else {
-            DEBUG("Error: Target not set");
-        }
-        DEBUG_LEAVE("visitExprRefPathId");
-    }
-
     virtual void visitExprRefPathContext(ast::IExprRefPathContext *i) override {
         DEBUG_ENTER("visitExprRefPathContext");
         // The reference may not resolve to anything foldable -- a template
@@ -180,18 +169,6 @@ public:
         DEBUG_LEAVE("visitExprRefPathContext");
     }
 
-    virtual void visitExprStaticRefPath(ast::IExprStaticRefPath *i) override {
-        DEBUG_ENTER("visitExprStaticRefPath");
-        DEBUG("TODO: visitExprStaticRefPath");
-        /*
-        ast::IScopeChild *target = TaskResolveSymbolPathRef(
-            m_factory->getDebugMgr(), 
-            m_root).resolve(i->getTarget());
-        target->accept(m_this);
-         */
-        DEBUG_LEAVE("visitExprStaticRefPath");
-    }
-
     virtual void visitExprNull(ast::IExprNull *i) override {
         DEBUG_ENTER("visitExprNull");
         DEBUG("TODO: visitExprNull");
@@ -208,12 +185,6 @@ public:
         DEBUG_ENTER("visitExprString");
         DEBUG("TODO: visitExprString");
         DEBUG_LEAVE("visitExprString");
-    }
-
-    virtual void visitExprSubscript(ast::IExprSubscript *i) override {
-        DEBUG_ENTER("visitExprSubscript");
-        DEBUG("TODO: visitExprSubscript");
-        DEBUG_LEAVE("visitExprSubscript");
     }
 
     virtual void visitField(ast::IField *i) override {

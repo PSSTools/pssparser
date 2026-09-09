@@ -25,8 +25,140 @@ revision advances only the patch component.
   each construct is implemented its `PSS116` disappears.
 - `IAstBuilder::setReportUnrepresented()` / `getReportUnrepresented()`, which
   gate the above.
+- **`scripts/check_ast_inventory.py`**, run from the suite as
+  `tests/python/test_ast_inventory.py`. Three checks, each catching a defect
+  class that is a *silence* rather than a wrong answer, so no ordinary test can
+  see it:
+
+  - a class in `ast/*.yaml` the builder never constructs;
+  - a class whose declared fields the symbol-tree builder walks with the
+    enclosing scope still current, silently duplicating their contents into it;
+  - a parser rule in `PSSParser.g4` no input can reach.
+
+  Exemptions live in `scripts/ast_inventory_allowlist.txt` and must carry a
+  reason; an entry that no longer names a finding is itself an error, so the
+  file cannot decay into a list nobody has re-read.
 
 ### Changed
+
+- **Monitor activity bodies are built, and the monitor AST now matches the
+  PSS grammar.** Every braced monitor activity form constructed an *empty*
+  node: the statement loop in each visitor was commented out. A monitor's
+  `activity { ... }` reached a consumer with no children, whatever the source
+  said. `concat` and `overlap` additionally built a `MonitorActivitySequence`,
+  so a gapless sequence and a strictly-ordered one were indistinguishable;
+  `select` and both `constraint` forms had no visitor at all; `eventually` was
+  built with a null body; and the monitor traversal was built with a
+  hard-coded null target.
+
+  All five braced forms (`sequence`, `concat`, `overlap`, `schedule`,
+  `select`) now build their own class, derived from the new
+  `MonitorActivityLabeledScope`, and carry their statements in
+  `getChildren()`. `eventually` carries its operand. A `constraint` among the
+  activity statements builds a `MonitorConstraint`; one in the monitor body
+  builds an ordinary `ConstraintBlock`, as it does in an action or struct.
+
+  **Eight AST classes were removed**, none of which was ever constructible.
+  `MonitorActivityIfElse`, `MonitorActivityMatch`,
+  `MonitorActivityMatchChoice`, `MonitorActivityRepeatCount`,
+  `MonitorActivityRepeatWhile` and `MonitorActivitySelectBranch` described an
+  imagined SystemVerilog-assertion-like syntax — `req ##1 ack`, `repeat`,
+  `if`/`else`, `match`, guarded `select` branches — that PSS does not have.
+  `MonitorActivityActionTraversal` and `MonitorActivityMonitorTraversal` went
+  because the grammar spells a monitor traversal exactly as it spells an
+  action traversal: nothing before type resolution distinguishes them, so both
+  build an `ActivityActionHandleTraversal` or `ActivityActionTypeTraversal`.
+  `MonitorActivityConcat.lhs`/`.rhs` and `MonitorActivityOverlap.lhs`/`.rhs`
+  are gone with the binary operator they modelled, and
+  `MonitorActivityEventually.condition` with the expression the grammar has no
+  place for.
+
+  Two grammar rules were removed with them:
+  `monitor_activity_monitor_traversal_stmt`, unreachable behind
+  `activity_action_traversal_stmt`, and `monitor_inline_constraints_or_empty`,
+  which nothing referenced. The former was also mistranscribed from LRM B.11 —
+  it put the optional marker on the subscript *expression* rather than on the
+  subscript — so `h[];` parsed cleanly. It is now a syntax error.
+
+- **Cover statements build AST nodes, and the two classes for them now match
+  the grammar.** `cover M;` and `cover { ... }` parsed, reported `PSS116` and
+  constructed nothing — the last monitor construct that did. Both now build,
+  and both carry the optional `label_identifier :` prefix.
+
+  `CoverStmtReference.target` changed from `ExprRefPath` to `TypeIdentifier`:
+  LRM B.12 has `cover monitor_type_identifier ;`, so the statement names a
+  monitor *type*. The old shape claimed it named an instance, for which there
+  is no syntax. The target is resolved, so `cover NotThere;` is now reported;
+  its *kind* is not checked yet, so `cover A;` naming an action is accepted.
+
+  `CoverStmtInline` changed from a `ScopeChild` holding one `body` node to a
+  `Scope` holding the body in `getChildren()`: the braces take
+  `monitor_body_item*`, the same items a `monitor` body takes. The body is its
+  own scope, so a handle declared in one inline cover does not collide with a
+  handle of the same name in another, or leak into the enclosing component.
+
+- **Covergroups are represented beyond their names.** The covergroup AST held a
+  name, a target expression and a list of crossed names. Everything else — every
+  `option.x = y;`, every `bins` / `illegal_bins` / `ignore_bins` specification,
+  a coverpoint's explicit sample type and its `iff` guard, a cross's `iff` and
+  bins — was reported as a gap and discarded. A covergroup *type*
+  (`covergroup cg_t(int a) { ... }`) and an instantiation of one
+  (`cg_t cg(.a(x));`) built no node at all.
+
+  New: `CovergroupType`, `CovergroupInstantiation`, `CovergroupPortmap`,
+  `CovergroupOption`, `CoverpointBins`, `CovergroupCrossBins`. Existing
+  `Covergroup`, `CovergroupCoverpoint` and `CovergroupCross` gained the fields
+  that were being dropped. `CoverpointBins.form` says which of the three
+  right-hand sides the grammar took — a value list, another coverpoint, or
+  `default` — so a null field is never ambiguous.
+
+  A covergroup type's ports are `Field` children in its own scope rather than a
+  list beside it: a port's type is an ordinary type reference and has to bind.
+  The rest of a covergroup body is not resolved, which is why the coverpoint
+  target, the guards and the bin filters carry `visit: false`.
+
+- **`override { ... }` is represented.** The block was walked and discarded, so
+  a consumer doing elaboration saw no overrides at all. `OverrideDecl` holds
+  `TypeOverride` (`type T with U;`) and `InstanceOverride`
+  (`instance p.q with U;`) in source order, which matters — a later statement
+  overriding the same target wins.
+
+- **`symbol` declarations and calls are represented.** Both were parse-only.
+  `SymbolDeclaration` is a scope named in the symbol table, holding its body as
+  ordinary activity statements; `ActivitySymbolCall` keeps the name called and
+  the arguments. The call is not resolved here — a symbol may be declared after
+  the call that uses it.
+
+- **`export A(...)` and `import class C { ... }` are represented.**
+  `ExportFunction` covered only the function form; `ExportAction` now covers the
+  action form, with the same platform qualifier and the exported parameter
+  signature. `ImportClass` is a `TypeScope`, so an imported class is a type
+  others can name; its method prototypes are its children, and `extends` holds
+  every base named after `:` (the first also being `super_t`).
+
+- **Activity `constraint` is represented.** `constraint { ... }` and
+  `constraint expr;` among the activity statements built nothing.
+  `ActivityConstraint` is a statement rather than a block hoisted into the
+  action body, because its position in the statement order is what
+  distinguishes it.
+
+- **`randomize` keeps its target and its `with` constraints.** Both were
+  dropped, leaving a `ProceduralStmtRandomize` that named nothing and
+  constrained nothing. A comma-separated target list is still reduced to its
+  first element — `target` is one expression — and now says so.
+
+- **`super.x` builds `ExprRefPathSuper`.** It built a plain
+  `ExprRefPathContext`, which made it indistinguishable from `x`.
+  `ExprRefPathSuper` derives from `ExprRefPathContext`, so a consumer that does
+  not care is unaffected.
+
+- **`string in ["a","b"]` keeps its domain values.** `has_range` was set and
+  `in_range` left empty: the AST said a range existed and could not say what it
+  was.
+
+- **`FunctionPrototype` carries `is_static`.** A `static function` and an
+  instance method were indistinguishable; the qualifier is now recorded for
+  both the plain and the imported forms.
 
 - **`bind` targets are structured nodes instead of dotted text.**
   `ComponentBind.targets` was a list of strings, which lost every index
@@ -43,8 +175,83 @@ revision advances only the patch component.
   summary of the list — true if any target is a wildcard — and is unchanged for
   the bare form.
 
+### Removed
+
+- **Fifteen AST classes the builder never constructed have been deleted.**
+  `ExprListLiteral`, `ExprStructLiteral`, `ExprStructLiteralItem`,
+  `ExprSubscript`, `ExprSubstring`, `ExprRefPathId`, `ExprRefPathElem`,
+  `ExprRefPathStaticFunc`, `ExprStaticRefPath`, `ProceduralStmtFunctionCall`,
+  `SymbolScopeRef`, and the whole `RefExpr` family (`RefExpr`,
+  `RefExprTypeScopeGlobal`, `RefExprTypeScopeContext`, `RefExprScopeIndex`).
+
+  Each was superseded by a differently-named node that *is* built, and nothing
+  said so: a consumer writing `visitExprStructLiteral` got a visitor that
+  compiled, linked, and never fired. That is worse than a missing class, which
+  at least fails at build time.
+
+  **Migration.** Nothing that ever ran needs changing — none of these nodes
+  could appear in a tree this parser produced. What each was mistaken for:
+
+  | Deleted | Built instead |
+  |---|---|
+  | `ExprListLiteral` | `ExprAggrList` |
+  | `ExprStructLiteral`, `ExprStructLiteralItem` | `ExprAggrStruct`, `ExprAggrStructElem` |
+  | `ExprSubscript` | `ExprMemberPathElem.getSubscript()` |
+  | `ExprSubstring` | `ExprSliceRange` in `ExprMemberPathElem.getSubscript()` |
+  | `ExprRefPathId`, `ExprRefPathElem` | `ExprRefPathContext` |
+  | `ExprStaticRefPath`, `ExprRefPathStaticFunc` | `ExprRefPathStatic`, `ExprRefPathStaticRooted` |
+  | `ProceduralStmtFunctionCall` | `ProceduralStmtExpr` |
+  | `SymbolScopeRef`, `RefExpr` and subclasses | nothing — the linker resolves through `SymbolRefPath` |
+
+  `scripts/check_ast_inventory.py` now fails the build if a new class joins
+  them, so this list cannot grow again unnoticed.
+- **Two unreachable parser rules**, `type_identifier_templ_elem` and
+  `array_size_expression`. Neither had a reference outside a comment; the same
+  script now checks that every rule in `PSSParser.g4` is reachable from
+  `compilation_unit`.
+
 ### Fixed
 
+- **An `extend enum` no longer declares its items in the enclosing package.**
+  `ExtendEnum` is a plain `ScopeChild`, so the generated symbol-tree visitor
+  added the extension and then walked its item list with the *enclosing* scope
+  still current — and an enum item registers a name. Every enumerator added by
+  an extension was therefore declared in the package as well as in the enum, so
+  `extend enum a_e {x} extend enum b_e {x}` reported *duplicate declaration of
+  'x'* although the two enumerators belong to different enums, and
+  `extend enum a_e {x} struct x { }` collided an enumerator with a type. The
+  items reach the enum through `TaskApplyTypeExtensions`, which reads them from
+  the AST directly, so nothing needed the symbol-tree registration.
+
+  Found by `scripts/check_ast_inventory.py` — the seventh instance of a defect
+  whose first six were fixed by hand during the AST-coverage work.
+
+- **An action handle is now reachable by name from a constraint.**
+  `ActionHandleField` had no visitor in the symbol-tree builder, so it fell
+  through to the generic scope-child path: appended to the scope's children,
+  never entered in the symbol table. `monitor M { A a; constraint { a.v < 4; } }`
+  reported *unknown identifier 'a'*, as did an activity-declared handle
+  (`activity { A h; ... }`) referenced from anywhere. The node's type was also
+  added to the enclosing scope as a second, anonymous child. Nothing noticed
+  while monitor bodies were discarded, because an action-body `A a;` matches
+  `action_field_declaration` and becomes a plain `Field` — `ActionHandleField`
+  is reachable only from a monitor body or an activity.
+- **A covergroup body no longer leaks into the enclosing scope.** Neither
+  `Covergroup` nor the two new covergroup classes had a symbol-tree visitor, so
+  the generated ones walked the coverpoint, cross, option and port-map lists
+  with the enclosing scope still current. A struct with one covergroup linked to
+  a struct holding the covergroup *plus* a loose copy of everything inside it.
+  The same defect applied to an exported action's parameter list and to a
+  `symbol` body.
+- **A monitor's activity statements no longer appear twice in the linked
+  tree.** `MonitorActivityDecl` had no visitor in the symbol-tree builder, so
+  the generated one added the declaration and then walked its children with the
+  enclosing type scope still pushed. `monitor M { A a; activity { a; } }` linked
+  to a monitor holding an activity *and* a loose copy of the traversal beside
+  it. Surfaced by the same change that made monitor bodies non-empty.
+- **A parameterized monitor can be specialized.** `TaskCopyAst` had no visitor
+  for `Monitor` or for any monitor activity node, so `monitor M<int N> { ... }`
+  failed with *"it contains a construct the AST copier does not support"*.
 - **`bind` no longer reports a gap it does not have.** `PSS116` fired on *every*
   object bind, including the wildcard and plain-path forms that were already
   fully represented. Every occurrence in the test corpus was one of those, so

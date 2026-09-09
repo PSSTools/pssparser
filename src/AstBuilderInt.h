@@ -279,7 +279,7 @@ public:
 
 	virtual antlrcpp::Any visitMonitor_activity_schedule_stmt(PSSParser::Monitor_activity_schedule_stmtContext *ctx) override;
 
-	virtual antlrcpp::Any visitMonitor_activity_monitor_traversal_stmt(PSSParser::Monitor_activity_monitor_traversal_stmtContext *ctx) override;
+	virtual antlrcpp::Any visitMonitor_activity_select_stmt(PSSParser::Monitor_activity_select_stmtContext *ctx) override;
 
 	virtual antlrcpp::Any visitCover_stmt(PSSParser::Cover_stmtContext *ctx) override;
 
@@ -406,9 +406,11 @@ public:
 
     virtual antlrcpp::Any visitOverride_declaration(PSSParser::Override_declarationContext *ctx) override;
 
-    virtual antlrcpp::Any visitActivity_constraint_stmt(PSSParser::Activity_constraint_stmtContext *ctx) override;
+    virtual antlrcpp::Any visitType_override(PSSParser::Type_overrideContext *ctx) override;
 
-    virtual antlrcpp::Any visitMonitor_activity_select_stmt(PSSParser::Monitor_activity_select_stmtContext *ctx) override;
+    virtual antlrcpp::Any visitInstance_override(PSSParser::Instance_overrideContext *ctx) override;
+
+    virtual antlrcpp::Any visitActivity_constraint_stmt(PSSParser::Activity_constraint_stmtContext *ctx) override;
 
     virtual antlrcpp::Any visitMonitor_activity_constraint_stmt(PSSParser::Monitor_activity_constraint_stmtContext *ctx) override;
 
@@ -749,6 +751,52 @@ private:
 	ast::IScopeChild *mkActivityStmt(PSSParser::Activity_stmt_annContext *ctx);
 
 	ast::IConstraintStmt *mkConstraintSet(PSSParser::Constraint_setContext *ctx);
+
+    /** Build one `option.<name> = <expr>;` setting. */
+    ast::ICovergroupOption *mkCovergroupOption(PSSParser::Covergroup_optionContext *ctx);
+
+    /** Build one bins/illegal_bins/ignore_bins specification in a coverpoint. */
+    ast::ICoverpointBins *mkCoverpointBins(PSSParser::Covergroup_coverpoint_binspecContext *ctx);
+
+    /** Build one coverpoint, including its bins and options. */
+    ast::ICovergroupCoverpoint *mkCovergroupCoverpoint(PSSParser::Covergroup_coverpointContext *ctx);
+
+    /** Build one cross, including its bins and options. */
+    ast::ICovergroupCross *mkCovergroupCross(PSSParser::Covergroup_crossContext *ctx);
+
+    /**
+     * Fill the three body lists shared by the inline covergroup and the
+     * covergroup type declaration. The lists are passed rather than the owning
+     * node: Covergroup is a NamedScopeChild and CovergroupType a TypeScope, so
+     * there is no common base to take.
+     */
+    void addCovergroupBody(
+        const std::vector<PSSParser::Covergroup_body_itemContext *> &items,
+        std::vector<ast::ICovergroupCoverpointUP>                   &coverpoints,
+        std::vector<ast::ICovergroupCrossUP>                        &crosses,
+        std::vector<ast::ICovergroupOptionUP>                       &options);
+
+	/**
+	 * Build one monitor activity statement, publishing its optional label for
+	 * the visitor that claims it. Returns null when the statement produced no
+	 * node of its own -- `;`, an annotation, or a handle declaration that
+	 * placed itself in the enclosing monitor scope.
+	 */
+	ast::IScopeChild *mkMonitorActivityStmt(PSSParser::Monitor_activity_stmtContext *ctx);
+
+	/**
+	 * Build each monitor activity statement and append it to `scope`, in source
+	 * order. Shared by the activity declaration and all five braced forms.
+	 */
+	void addMonitorActivityStmts(
+		ast::ISymbolScope                                        *scope,
+		const std::vector<PSSParser::Monitor_activity_stmtContext *> &stmts);
+
+	/**
+	 * Build the constraint body of a monitor activity `constraint`, whether
+	 * written as a single item or a brace block.
+	 */
+	ast::IConstraintStmt *mkMonitorConstraintSet(PSSParser::Monitor_constraint_setContext *ctx);
 
     std::vector<ast::IGenericConstraintParam *> mkGenericConstraintParams(
         PSSParser::Generic_constraint_paramsContext *ctx);

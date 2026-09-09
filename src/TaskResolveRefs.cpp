@@ -735,8 +735,7 @@ TaskResolveRefs::TypeCat TaskResolveRefs::catOfExpr(ast::IExpr *e) {
         return TypeCat::Numeric;
     }
 
-    if (dynamic_cast<ast::IExprAggrLiteral *>(e)
-        || dynamic_cast<ast::IExprStructLiteral *>(e)) {
+    if (dynamic_cast<ast::IExprAggrLiteral *>(e)) {
         return TypeCat::Aggregate;
     }
 
@@ -1431,24 +1430,6 @@ void TaskResolveRefs::visitActivityForeach(ast::IActivityForeach *i) {
     DEBUG_LEAVE("visitActivityForeach");
 }
 
-
-void TaskResolveRefs::visitExprRefPathId(ast::IExprRefPathId *i) {
-    DEBUG_ENTER("visitExprRefPathId %s", i->getId()->getId().c_str());
-    ast::ISymbolRefPath *target = TaskResolveRef(m_ctxt).resolve(i);
-    if (!target) {
-        m_ctxt->addErrorMarker(
-            i->getId()->getLocation(),
-            "failed to resolve ref-path %s", 
-            i->getId()->getId().c_str());
-    } else {
-        ast::IScopeChild *target_c = m_ctxt->resolveSymbolPathRef(target);
-        m_ctxt->addRef(
-            i->getId()->getLocation().fileid,
-            target_c->getLocation().fileid);
-    }
-    i->setTarget(target);
-    DEBUG_LEAVE("visitExprRefPathId");
-}
 
 /**
  * True if `c` is a template type that has not been specialized -- the generic
@@ -2680,10 +2661,6 @@ public:
     bool non_constant = false;
 
     virtual void visitExprRefPathContext(ast::IExprRefPathContext *i) override {
-        non_constant = true;
-    }
-
-    virtual void visitExprRefPathId(ast::IExprRefPathId *i) override {
         non_constant = true;
     }
 

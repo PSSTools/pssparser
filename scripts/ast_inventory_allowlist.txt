@@ -1,0 +1,51 @@
+# Exemptions for scripts/check_ast_inventory.py.
+#
+# Format:  <check>:<name>  <reason>
+#
+# A reason is required, and a stale entry -- one naming something that is no
+# longer a finding -- is an error. Both rules exist so this file stays a list
+# of decisions somebody made, rather than a list of things nobody has looked
+# at since. `python3 scripts/check_ast_inventory.py --list` prints every
+# finding, allowlisted or not.
+
+# --- producers -------------------------------------------------------------
+
+producers:AssocData  Reserved extension hook, not a parser product. ScopeChild.assocData exists so a consumer can attach its own data to any node; the parser never sets it, and there is nothing for it to build.
+
+# --- symtree ---------------------------------------------------------------
+#
+# Group 1: activity and monitor statement bodies. Descending into the body
+# with the enclosing scope current is the intended behavior here -- it is what
+# puts a handle declared inside an activity into the action's type scope.
+# The cost is recorded in the A8 xfail in tests/python/parsing/test_activity_gaps.py:
+# two sibling loops cannot share an index name, because the bodies are not
+# distinct namespaces. That is a scoping decision, not an accidental leak.
+
+symtree:ActivityAtomicBlock  Activity statement body; flattened into the enclosing activity scope by design (see A8).
+symtree:ActivityForeach  Activity statement body; flattened into the enclosing activity scope by design (see A8).
+symtree:ActivityIfElse  Activity statement bodies; flattened into the enclosing activity scope by design (see A8).
+symtree:ActivityMatchChoice  Activity statement body; flattened into the enclosing activity scope by design (see A8).
+symtree:ActivityRepeatCount  Activity statement body; flattened into the enclosing activity scope by design (see A8).
+symtree:ActivityRepeatWhile  Activity statement body; flattened into the enclosing activity scope by design (see A8).
+symtree:ActivityReplicate  Activity statement body; flattened into the enclosing activity scope by design (see A8).
+symtree:ActivitySelectBranch  Activity statement body; flattened into the enclosing activity scope by design (see A8).
+symtree:MonitorActivityEventually  Monitor activity statement body; walked inside the scope visitMonitorActivityDecl pushes.
+
+# Group 2: not reached. The enclosing visitor adds its node and stops, so
+# these are never walked while a symbol scope is current. Each names the
+# visitor that makes that true -- if that visitor starts descending, the
+# entry here is wrong and this check will not say so, which is why the reason
+# names it.
+
+symtree:CovergroupCoverpoint  Not reached: TaskBuildSymbolTree::visitCovergroup and visitCovergroupType add the node and stop. A coverpoint name is not resolved through the symbol table.
+symtree:CovergroupCross  Not reached: TaskBuildSymbolTree::visitCovergroup and visitCovergroupType add the node and stop. A cross name is not resolved through the symbol table.
+symtree:ProceduralStmtMatchChoice  Not reached: TaskBuildSymbolTree::visitProceduralStmtMatch does not descend.
+
+# Group 3: the symbol tree itself. These are what TaskBuildSymbolTree
+# produces, never what it is given, so the walk this check warns about does
+# not happen to them.
+
+symtree:RootSymbolScope  Symbol-tree node: output of TaskBuildSymbolTree, never input to it.
+symtree:ScopeChildRef  Symbol-tree node: output of TaskBuildSymbolTree, never input to it.
+symtree:SymbolChildrenScope  Symbol-tree node: output of TaskBuildSymbolTree, never input to it.
+symtree:SymbolFunctionScope  Symbol-tree node: output of TaskBuildSymbolTree, never input to it.

@@ -31,71 +31,15 @@ from test_helpers import find_markers, parse_collect  # noqa: E402
 # The substring is the construct name as the builder spells it, plus enough of
 # the detail to distinguish partials that share a construct name.
 UNREPRESENTED = [
-    # -- Phase 2: declaration-level constructs ------------------------------
-    ("export_action",
-     "component c { action A {} export A(); }",
-     "`export action`"),
-    ("import_class",
-     "package p { import class C { void f(); } }",
-     "`import class`"),
-    ("override",
-     "component c { action A {} action B : A {} override { type A with B; } }",
-     "`override`"),
-
-    # -- Phase 1: activity --------------------------------------------------
-    ("activity_constraint",
-     "component c { action a { rand int x; activity { constraint { x < 10; } } } }",
-     "`activity constraint`"),
-    ("symbol_declaration",
-     "component c { action A {} action a { symbol s { do A; } activity { s(); } } }",
-     "`symbol`"),
-    ("symbol_call",
-     "component c { action A {} action a { symbol s { do A; } activity { s(); } } }",
-     "`symbol call`"),
-
-    # -- Phase 3: monitors and behavioral coverage --------------------------
-    ("monitor_activity_body",
-     "component c { action A {} monitor m { A a1; activity { a1; } } }",
-     "`monitor activity`"),
-    ("cover_stmt",
-     "component c { monitor m { activity { } } cover m; }",
-     "`cover statement`"),
-
-    # -- Phase 4: coverage specification detail -----------------------------
-    ("covergroup_declaration",
-     "package p { covergroup cg_t(int a) { coverpoint a; } }",
-     "`covergroup declaration`"),
-    ("covergroup_instantiation",
-     "package p { covergroup cg_t(int a) { coverpoint a; }"
-     " struct s { rand int x; cg_t cg(.a(x)); } }",
-     "`covergroup instantiation`"),
-    ("covergroup_option",
-     "package p { struct s { rand int x;"
-     " covergroup { option.weight = 2; cp: coverpoint x; } cg; } }",
-     "`covergroup option`"),
-    ("coverpoint_bins",
-     "package p { struct s { rand int x;"
-     " covergroup { cp: coverpoint x { bins b = [0..3]; } } cg; } }",
-     "`coverpoint`"),
-
     # -- Phase 5: qualifiers lost on nodes that are built --------------------
-    ("function_static",
-     "package p { static function void f(); }",
-     "the `static` qualifier is dropped"),
-    ("randomize_target",
+    # The single-target form is fully represented; only the list is not.
+    # ProceduralStmtRandomize has one `target` expression and the grammar takes
+    # a comma-separated list -- see open question O-4.
+    ("randomize_multi_target",
      "package p { struct s { rand int x; } }"
-     " component c { function void f() { p::s v; randomize v with { v.x < 4; } } }",
-     "the randomization target is dropped"),
-    ("randomize_with",
-     "package p { struct s { rand int x; } }"
-     " component c { function void f() { p::s v; randomize v with { v.x < 4; } } }",
-     "the `with` constraints are dropped"),
-    ("super_ref_path",
-     "package p { struct b { int x; } struct s : b { constraint c { super.x == 1; } } }",
-     "the `super.` prefix is dropped"),
-    ("string_type_range",
-     'package p { struct s { string in ["a","b"] x; } }',
-     "the range values are dropped"),
+     " component c { function void f() { p::s v; p::s w;"
+     " randomize v, w with { v.x < 4; } } }",
+     "only the first of several randomization targets is kept"),
 ]
 
 _IDS = [c[0] for c in UNREPRESENTED]
@@ -150,6 +94,87 @@ CLOSED_CASES = [
      " component leaf { action prod { output Buf out; } }"
      " component pss_top { leaf sub[4]; pool Buf p;"
      " bind p { sub[0..3].prod.out }; }"),
+    # -- Phase 3 -------------------------------------------------------------
+    # Six markers covered the monitor activity: the declaration, `sequence`,
+    # `concat`, `overlap`, `schedule`, `select`, `eventually`, the monitor
+    # traversal, and both constraint forms. One source must silence all of them
+    # -- a partial fix here would leave `concat`'s marker firing while
+    # `sequence`'s went quiet.
+    ("monitor_activity_all_forms",
+     "component c { action A { rand int v; } monitor M1 { }"
+     " monitor M { A a; M1 h; constraint cb { a.v < 9; }"
+     " activity { lbl: sequence { a; } concat { a; } overlap { a; }"
+     " schedule { a; } select { a; a; } eventually a; h; do M1;"
+     " constraint { a.v < 4; } a; } } }"),
+    # One marker covered both cover forms, so one source must silence both --
+    # and the labeled spellings too, since the label is what the reference form
+    # and the inline form have in common.
+    ("cover_stmt_all_forms",
+     "component c { action A { rand int v; } monitor M { A a; activity { a; } }"
+     " cover M; ref_lbl: cover M;"
+     " cover { A a; constraint { a.v < 4; } activity { a; } }"
+     " inline_lbl: cover { A a; activity { a; } } }"),
+    # -- Phase 1 -------------------------------------------------------------
+    ("activity_constraint",
+     "component c { action a { rand int x; activity { constraint { x < 10; }"
+     " constraint x > 1; } } }"),
+    # -- Phase 5 -------------------------------------------------------------
+    # One target and a `with` block: the form that carried both markers.
+    ("randomize_single_target",
+     "package p { struct s { rand int x; } }"
+     " component c { function void f() { p::s v; randomize v with { v.x < 4; } } }"),
+    ("super_ref_path",
+     "package p { struct b { int x; } struct s : b { constraint c { super.x == 1; } } }"),
+    ("string_type_range",
+     'package p { struct s { string in ["a","b"] x; } }'),
+    ("function_static",
+     "package p { static function void f();"
+     " import static function void g(); }"),
+    # -- Phase 2 -------------------------------------------------------------
+    ("export_action",
+     "component c { action A { rand int x; } export A(int x);"
+     " export target A(int x); }"),
+    ("import_class",
+     "package p { import class B { void g(); }"
+     " import class C : B { void f(int x); } }"),
+    # One marker covered the whole block, so one source must silence it for
+    # both statement forms.
+    ("override_both_forms",
+     "component leaf { action A { } action B : A { } }"
+     " component c { action A {} action B : A {} leaf sub;"
+     " override { type A with B; instance sub.A with B; } }"),
+    # -- Phase 1 -------------------------------------------------------------
+    # `symbol` and `symbol call` were two markers on one construct: declaring a
+    # symbol without calling it, or the reverse, is not a use of the feature.
+    ("symbol_declaration_and_call",
+     "component c { action A {} action a { symbol s(int n) { do A; }"
+     " activity { s(1); } } }"),
+    # -- Phase 4 -------------------------------------------------------------
+    # Seven markers covered the covergroup subsystem: the type declaration, the
+    # type instantiation, options in all three positions, and a coverpoint's
+    # data type, `iff` guard and bins. One source must silence all of them.
+    ("covergroup_all_forms",
+     "package p {"
+     " covergroup cg_t(int a, int b) {"
+     "   option.weight = 2;"
+     "   cp_a : coverpoint a iff (b > 0) {"
+     "     option.at_least = 4;"
+     "     bins low = [0..3, 7];"
+     "     bins hi[4] = [8..] with (a % 2 == 0);"
+     "     bins mirror = cp_a with (a > 0);"
+     "     ignore_bins rest = default;"
+     "   }"
+     "   bit[4] cp_b : coverpoint b;"
+     "   ab : cross cp_a, cp_b iff (a > 0) {"
+     "     option.weight = 1;"
+     "     illegal_bins same = ab with (a == b);"
+     "   }"
+     " }"
+     " struct s { rand int x; rand int y;"
+     "   cg_t cg1(.a(x), .b(y));"
+     "   cg_t cg2(x, y) with { option.weight = 3; };"
+     "   covergroup { option.weight = 5; coverpoint x; } cg3;"
+     " } }"),
 ]
 
 

@@ -450,7 +450,6 @@ AST Structure:
     └── constraints:
         └── ConstraintStmtExpr
             └── ExprBin (op=BinOp_Gt)
-                ├── ExprSubscript (arr[i])
                 └── ExprNumber (0)
 
 **************

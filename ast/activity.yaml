@@ -1135,3 +1135,75 @@ classes:
 
 
 
+
+- SymbolDeclaration:
+    super: SymbolScope
+    doc: |
+        A named, reusable activity fragment -- LRM B.9, ``symbol_declaration``.
+
+        ``symbol s(int n) { do A; do B; }`` declares a fragment that a
+        ``symbol_call`` inlines at its call site. It is a scope so its
+        parameters and the labels of its body statements resolve, and so a call
+        can name it.
+
+        Its body statements are ``getChildren()``, exactly as for
+        ``ActivityDecl`` -- a symbol body is an activity body, and reuses the
+        same statement classes rather than a parallel set.
+
+        PSS Example::
+
+            component c {
+                action A { }
+                action B { }
+
+                action top {
+                    symbol two_of(int unused) {
+                        do A;
+                        do B;
+                    }
+
+                    activity {
+                        two_of(1);
+                    }
+                }
+            }
+
+        Attributes:
+            params: The declared parameters, in order
+
+        See Also:
+            ActivitySymbolCall, ActivityDecl
+    data:
+    - params:
+        type: list<UP<FunctionParamDecl>>
+        is_ctor: false
+
+- ActivitySymbolCall:
+    super: ActivityStmt
+    doc: |
+        Inlines a symbol at this point in the activity -- ``symbol_call``.
+
+        The call is not a function call: the symbol's statements are spliced
+        into the activity where the call appears. The AST keeps the call rather
+        than the expansion, so a consumer sees what the source wrote.
+
+        ``target`` names the symbol. It is not resolved here -- the symbol may
+        be declared after the call -- so the reference is left to the linker.
+
+        PSS Example::
+
+            activity {
+                two_of(1);
+            }
+
+        Attributes:
+            target: The symbol being called
+            params: The call arguments, in order
+
+        See Also:
+            SymbolDeclaration
+    data:
+    - target: UP<ExprId>
+    - params:
+        type: list<UP<Expr>>
+        is_ctor: false
