@@ -46,6 +46,10 @@ public:
 
     virtual void setCollectDocStrings(bool c) override;
 
+    virtual void setReportUnrepresented(bool r) override;
+
+    virtual bool getReportUnrepresented() override;
+
     virtual void setCollectComments(bool c) override;
 
     virtual bool getCollectComments() override;

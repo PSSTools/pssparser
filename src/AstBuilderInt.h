@@ -55,6 +55,14 @@ public:
         m_collectDocStrings = c;
     }
 
+    virtual void setReportUnrepresented(bool r) {
+        m_report_unrepresented = r;
+    }
+
+    virtual bool getReportUnrepresented() {
+        return m_report_unrepresented;
+    }
+
     virtual bool getCollectDocStrings() {
         return m_collectDocStrings;
     }
@@ -355,6 +363,14 @@ public:
 
     virtual antlrcpp::Any visitConstraint_body_compile_if(PSSParser::Constraint_body_compile_ifContext *ctx) override;
 
+	virtual antlrcpp::Any visitAttr_group(PSSParser::Attr_groupContext *ctx) override;
+
+	/**
+	 * Resolves the access modifier for a declaration: the inline modifier if
+	 * one is present, otherwise the `attr_group` label in force for the scope.
+	 */
+	ast::FieldAttr accessAttr(PSSParser::Access_modifierContext *ctx);
+
 	virtual antlrcpp::Any visitDefault_constraint(PSSParser::Default_constraintContext *ctx) override;
 
 	virtual antlrcpp::Any visitDefault_disable_constraint(PSSParser::Default_disable_constraintContext *ctx) override;
@@ -370,6 +386,35 @@ public:
     virtual antlrcpp::Any visitOverride_stmt(PSSParser::Override_stmtContext *ctx) override;
 
     virtual antlrcpp::Any visitCovergroup_body_item(PSSParser::Covergroup_body_itemContext *ctx) override;
+
+    // Constructs the grammar accepts that the builder does not represent.
+    // Each of these exists only to report PSS116 and then walk children
+    // exactly as the default visitor would; see docs/ast-coverage-plan.md.
+    // Remove the visitor -- or replace its body -- as each is implemented.
+
+    virtual antlrcpp::Any visitCovergroup_declaration(PSSParser::Covergroup_declarationContext *ctx) override;
+
+    virtual antlrcpp::Any visitCovergroup_type_instantiation(PSSParser::Covergroup_type_instantiationContext *ctx) override;
+
+    virtual antlrcpp::Any visitSymbol_declaration(PSSParser::Symbol_declarationContext *ctx) override;
+
+    virtual antlrcpp::Any visitSymbol_call(PSSParser::Symbol_callContext *ctx) override;
+
+    virtual antlrcpp::Any visitExport_action(PSSParser::Export_actionContext *ctx) override;
+
+    virtual antlrcpp::Any visitImport_class_decl(PSSParser::Import_class_declContext *ctx) override;
+
+    virtual antlrcpp::Any visitOverride_declaration(PSSParser::Override_declarationContext *ctx) override;
+
+    virtual antlrcpp::Any visitMonitor_handle_declaration(PSSParser::Monitor_handle_declarationContext *ctx) override;
+
+    virtual antlrcpp::Any visitActivity_constraint_stmt(PSSParser::Activity_constraint_stmtContext *ctx) override;
+
+    virtual antlrcpp::Any visitMonitor_activity_select_stmt(PSSParser::Monitor_activity_select_stmtContext *ctx) override;
+
+    virtual antlrcpp::Any visitMonitor_activity_constraint_stmt(PSSParser::Monitor_activity_constraint_stmtContext *ctx) override;
+
+    virtual antlrcpp::Any visitMonitor_constraint_declaration(PSSParser::Monitor_constraint_declarationContext *ctx) override;
 
 	virtual antlrcpp::Any visitForeach_constraint_item(PSSParser::Foreach_constraint_itemContext *ctx) override;
 
@@ -569,10 +614,27 @@ private:
     void reportUnattachedAnnotation(ast::IAnnotation *a);
 
     /**
+     * Emit a marker of *severity* anchored at *t*, with printf-style
+     * formatting. Safe when no marker listener is attached.
+     */
+    void addMarker(MarkerSeverityE severity, Token *t, const char *fmt, ...);
+
+    /**
      * Emit an error marker anchored at *t*, with printf-style formatting.
      * Safe when no marker listener is attached.
      */
     void addErrorMarker(Token *t, const char *fmt, ...);
+
+    /**
+     * Report (PSS116) that *construct* was accepted by the grammar but is
+     * not represented in the AST.  When *detail* is non-null it names the
+     * specific part that is dropped, for constructs that are represented
+     * only partially.
+     */
+    void noteUnrepresented(
+        Token       *t,
+        const char  *construct,
+        const char  *detail = 0);
 
     /**
      * Check a BASED_*_LITERAL token's digits against its radix and report
@@ -767,6 +829,12 @@ private:
 
     std::string toString(PSSParser::IdentifierContext *ctx);
 
+	/**
+	 * Adds a constraint statement to the innermost open constraint scope,
+	 * assigning its index and attaching any pending annotations.
+	 */
+	void addConstraintStmt(ast::IConstraintStmt *c);
+
 	ast::IExprHierarchicalId *mkHierarchicalId(PSSParser::Hierarchical_idContext *ctx);
 
 	ast::IExprHierarchicalId *mkHierarchicalId(
@@ -776,10 +844,6 @@ private:
 	ast::IExprHierarchicalId *mkHierarchicalId(PSSParser::Member_path_elemContext *ctx);
 
     ast::IExprMemberPathElem *mkMemberPathElem(PSSParser::Member_path_elemContext *ctx);
-
-	void mkTypeId(
-		std::vector<ast::IExprIdUP>				&type_id,
-		PSSParser::Type_identifierContext		*ctx);
 
 	ast::ITypeIdentifier *mkTypeId(
 		PSSParser::Type_identifierContext		*ctx);
@@ -918,6 +982,7 @@ private:
     static dmgr::IDebug                         *m_dbg;
     int32_t                                     m_file_id;
 	bool										m_collectDocStrings;
+	bool										m_report_unrepresented;
 	bool										m_collectComments;
 	/** Start of the enclosing attr_field, for doc-comment lookup. */
     bool                                        m_enableProfile;
@@ -965,6 +1030,14 @@ private:
      * scope cannot inherit the anchor of the wrapper that opened it.
      */
     std::vector<Token *>                        m_doc_anchors;
+    /**
+     * Stack of access modifiers established by an `attr_group` label
+     * (`private:`), innermost last.  Parallel to m_doc_anchors: push_scope
+     * pushes NoFlags so a label does not leak into a nested type declaration,
+     * and pop_scope discards it.  An inline modifier on a field always wins
+     * over the group label in force.
+     */
+    std::vector<ast::FieldAttr>                 m_access_s;
 	std::vector<ast::IExprIdUP>					*m_type_id;
 	uint32_t									m_field_depth;
 	std::vector<ast::IField *>					m_fields;

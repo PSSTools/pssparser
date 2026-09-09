@@ -91,6 +91,10 @@ REPRESENTATIVE_MESSAGES = [
     ("PSS114", "call to non-pure function 'f' in a template string"),
     ("PSS115",
      "template string with non-constant elements is not a constant expression"),
+    ("PSS116", "`override` is accepted but not represented in the AST"),
+    ("PSS116",
+     "`randomize` is accepted but not represented in the AST: "
+     "the `with` constraints are dropped"),
 ]
 
 
@@ -258,7 +262,7 @@ def test_pss31_band_is_reserved_for_31_diagnostics():
     assert pss31 == ["PSS100", "PSS101", "PSS102",
                      "PSS104", "PSS105", "PSS106", "PSS107",
                      "PSS108", "PSS109", "PSS110", "PSS111", "PSS112",
-                     "PSS113", "PSS114", "PSS115"]
+                     "PSS113", "PSS114", "PSS115", "PSS116"]
 
 
 # -- CLI discoverability (P0-T2 acceptance criterion) ------------------------

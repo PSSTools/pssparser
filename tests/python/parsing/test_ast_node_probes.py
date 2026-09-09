@@ -1,16 +1,29 @@
-"""AST-node probes for the pssparser-detox effort (docs/pssparser-detox-plan.md).
+"""AST-node probes for the AST-coverage effort (docs/ast-coverage-plan.md).
 
 Unlike the sibling parsing tests, which only assert ``assert_parse_ok`` plus
 symbol presence, these probes walk the *pre-link* AST (``parser._files``) and
 assert that each construct actually produces the expected AST node with the
 expected fields. They are the regression net for the grammar / AST-builder
-changes the detox plan introduces.
+changes that plan introduces.
+
+A test asserting only ``assert_parse_ok`` is not coverage of a language
+feature: the monitor subsystem stayed green for its whole life with every
+monitor activity body empty. That is what these probes exist to catch.
 
 Constructs that the parser does NOT yet surface are marked
-``xfail(strict=True)`` with a ``# DETOX:`` note naming the plan phase that fixes
-them. When the fix lands, the test XPASSes -> strict xfail turns that into a
-hard failure, which is the signal to drop the marker. Do not delete an xfail
-marker without making its body pass.
+``xfail(strict=True)`` with a ``# COVERAGE:`` note naming the plan item that
+fixes them. When the fix lands, the test XPASSes -> strict xfail turns that
+into a hard failure, which is the signal to drop the marker. Do not delete an
+xfail marker without making its body pass.
+
+The ``# DETOX ...`` notes below are a historical record of the earlier
+pssparser-detox effort, whose plan document no longer exists; every one of
+them is closed. New notes use ``# COVERAGE:``.
+
+The companion file ``test_unrepresented_constructs.py`` asserts the *other*
+side of the same contract: that an unimplemented construct is at least loud
+(PSS116) rather than silent. A construct closed here should lose its case
+there in the same commit.
 """
 import pytest
 import sys
@@ -306,3 +319,141 @@ def test_get_children_agrees_with_get_child():
     by_list = [type(c).__name__ for c in comp.getChildren()]
     by_index = [type(comp.getChild(i)).__name__ for i in range(comp.numChildren())]
     assert by_list == by_index, (by_list, by_index)
+
+
+# ---------------------------------------------------------------------------
+# access modifier groups  ->  Field.attr   (COVERAGE plan item 2.2)
+# ---------------------------------------------------------------------------
+# `private:` is a *label*: it sets the access modifier for every subsequent
+# declaration in the scope. Before 2.2 the label was discarded entirely, so
+# fields after it were built with attr == 0 and read as public -- a consumer
+# enforcing access saw no violation. The group form and the inline form must
+# now produce identical attrs.
+
+def _fields_by_name(parser, src):
+    p = _parse_only(src, parser)
+    return {f.getName().getId(): f for f in _find_nodes(p, "Field")}
+
+
+def test_access_group_and_inline_forms_agree(parser):
+    from pssparser.ast import FieldAttr
+
+    # Both forms declare x and y, so a single parse would collide the names in
+    # the flat dict; probe each form separately.
+    grouped = _fields_by_name(
+        parser, "package p { struct s { private: int x; protected: int y; } }")
+    inline = _fields_by_name(
+        parser, "package p { struct s { private int x; protected int y; } }")
+    for name in ("x", "y"):
+        assert int(grouped[name].getAttr()) == int(inline[name].getAttr()), \
+            "group and inline access modifiers disagree for %s" % name
+    assert int(grouped["x"].getAttr()) & int(FieldAttr.Private)
+    assert int(grouped["y"].getAttr()) & int(FieldAttr.Protected)
+
+
+def test_inline_access_modifier_overrides_the_group_label(parser):
+    """`public int b;` under `private:` is public -- the inline form wins."""
+    fields = _fields_by_name(
+        parser, "package p { struct s { private: int a; public int b; int c; } }")
+    assert int(fields["a"].getAttr()) != 0, "the label was dropped"
+    assert int(fields["b"].getAttr()) == 0, "inline `public` did not override"
+    assert int(fields["c"].getAttr()) == int(fields["a"].getAttr()), \
+        "the label stopped applying after an inline override"
+
+
+def test_access_group_does_not_leak_into_a_nested_scope(parser):
+    """A label applies to its own scope only, not to a type declared inside."""
+    fields = _fields_by_name(
+        parser,
+        "component outer { private: int cf; action nested { int af; } }")
+    assert int(fields["cf"].getAttr()) != 0
+    assert int(fields["af"].getAttr()) == 0, \
+        "the enclosing `private:` leaked into the nested action"
+
+
+# ---------------------------------------------------------------------------
+# default constraints  ->  ConstraintStmtDefault(Disable)   (plan item 2.3)
+# ---------------------------------------------------------------------------
+# Both AST classes existed and neither visitor built anything. The standard
+# library's own addr_reg_pkg.pss uses `default permanent == false;`, so this
+# gap was live on every parse.
+
+DEFAULT_CONSTRAINT_SRC = """
+package p {
+    struct s {
+        rand int x;
+        rand int y;
+        constraint c { default x == 3; default disable y; }
+    }
+}
+"""
+
+
+def test_default_constraints_build_nodes(parser):
+    p = _parse_only(DEFAULT_CONSTRAINT_SRC, parser)
+
+    defaults = _find_nodes(p, "ConstraintStmtDefault")
+    assert len(defaults) == 1
+    d = defaults[0]
+    assert [e.getId().getId() for e in d.getHid().getElems()] == ["x"]
+    assert d.getExpr() is not None, "the default value expression was dropped"
+
+    disables = _find_nodes(p, "ConstraintStmtDefaultDisable")
+    assert len(disables) == 1
+    assert [e.getId().getId() for e in disables[0].getHid().getElems()] == ["y"]
+
+
+def test_default_constraints_are_ordered_within_the_block(parser):
+    """setIndex must place the statements in source order alongside siblings."""
+    p = _parse_only("""
+package p {
+    struct s {
+        rand int x;
+        constraint c { x > 0; default x == 3; x < 9; }
+    }
+}
+""", parser)
+    blocks = [b for b in _find_nodes(p, "ConstraintBlock")
+              if b.numConstraints() == 3]
+    assert blocks, "expected one 3-statement constraint block"
+    kinds = [type(blocks[0].getConstraint(i)).__name__ for i in range(3)]
+    assert kinds == ["ConstraintStmtExpr", "ConstraintStmtDefault",
+                     "ConstraintStmtExpr"], kinds
+
+
+# ---------------------------------------------------------------------------
+# import function  ->  FunctionImportType / lang   (plan items 2.6, 5.2)
+# ---------------------------------------------------------------------------
+# The two-step form (`import function pkg::f;`) hit a literally empty branch,
+# so FunctionImportType -- which exists -- was never constructed. The one-step
+# form was built with "" for lang no matter what the source said.
+
+IMPORT_FUNCTION_SRC = """
+package p {
+    function void f();
+    import function p::f;
+    import C function void g();
+    import target C2 function void h();
+    import function void plain();
+}
+"""
+
+
+def test_two_step_import_builds_function_import_type(parser):
+    p = _parse_only(IMPORT_FUNCTION_SRC, parser)
+    types = _find_nodes(p, "FunctionImportType")
+    assert len(types) == 1, "two-step `import function pkg::f;` built nothing"
+    t = types[0].getType()
+    assert t is not None
+    assert [e.getId().getId() for e in t.getElems()] == ["p", "f"]
+
+
+def test_import_function_language_is_captured(parser):
+    from pssparser.ast import PlatQual
+
+    p = _parse_only(IMPORT_FUNCTION_SRC, parser)
+    protos = {n.getLang(): n for n in _find_nodes(p, "FunctionImportProto")}
+    assert "C" in protos, "the language identifier was dropped"
+    assert protos["C"].getPlat() == PlatQual.PlatQual_None
+    assert protos["C2"].getPlat() == PlatQual.PlatQual_Target
+    assert "" in protos, "an import with no language should carry no language"

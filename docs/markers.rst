@@ -535,3 +535,21 @@ Message: ``template string with non-constant elements is not a constant expressi
 
 Reported at the point of *use*, not at the template: the same template text is perfectly legal in an exec body.  A template is constant when every expression under every special element references only constants -- ``const`` fields, enum items, type template value parameters, and template locals derived from those.  A call is never constant, even to a ``pure`` function: this front end does not evaluate function bodies.
 
+PSS116
+------
+
+**Severity:** warning
+
+Construct is accepted but not represented in the AST
+
+The grammar accepts this construct and the parse is sound, but the AST builder does not build a node for it -- or builds one that omits part of what was written.  A consumer walking the AST will not see the construct at all, or will see it without the detail named in the message.
+
+Messages take one of two forms, where *construct* is the construct name in backticks:
+
+* *construct* ``is accepted but not represented in the AST`` -- nothing is built for the construct.
+* *construct* ``is accepted but not represented in the AST:`` *detail* -- a node is built, and *detail* names the part that is dropped.
+
+This is a gap in the front end, not a problem with the source: the code is legal PSS.  There is nothing to fix in the input.  Suppress the marker if the construct is not material to how the AST is consumed; otherwise treat any analysis that depends on the named construct as unreliable.
+
+The catalogue of affected constructs, and the plan for closing them, are in ``docs/ast-coverage-gaps.md`` and ``docs/ast-coverage-plan.md``.  As each construct is implemented its PSS116 disappears.
+

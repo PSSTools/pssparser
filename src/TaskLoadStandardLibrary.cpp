@@ -43,11 +43,20 @@ void TaskLoadStandardLibrary::load(
     ast::IGlobalScope   *global) {
     DEBUG_ENTER("load");
 
+    // The standard library itself uses constructs the builder does not yet
+    // represent (`default` constraints in addr_reg_pkg, for one).  Those are
+    // real gaps, but they are not the user's source and the user cannot act
+    // on them, so PSS116 is suppressed for the duration of the load.
+    bool report_unrepresented = ast_builder->getReportUnrepresented();
+    ast_builder->setReportUnrepresented(false);
+
     for (uint32_t i=0; pss_stdlib[i]; i++) {
         std::stringstream s(pss_stdlib[i]);
 
         ast_builder->build(global, &s);
     }
+
+    ast_builder->setReportUnrepresented(report_unrepresented);
 
     // Perform post-load fixup
     global->accept(m_this);

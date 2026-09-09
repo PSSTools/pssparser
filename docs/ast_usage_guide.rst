@@ -632,6 +632,39 @@ The parser reports errors through a marker listener:
         for error in error_collector.errors:
             print(f"  Line {error['location'][0]}: {error['message']}")
 
+*****************************
+Coverage Gaps and ``PSS116``
+*****************************
+
+A clean parse does not, on its own, mean the AST holds everything the source
+said. Some constructs are accepted by the grammar but are not built into the
+AST -- or are built with part of what was written dropped. Walking the AST for
+one of those constructs finds nothing, and no error explains why.
+
+Every such site now emits ``PSS116`` as a warning:
+
+.. code-block:: text
+
+   `override` is accepted but not represented in the AST
+   `randomize` is accepted but not represented in the AST: the `with` constraints are dropped
+
+The first form means nothing is built for the construct. The second means a
+node *is* built, and the text after the colon names the part that is lost.
+
+``PSS116`` is not a problem with the input -- the source is legal PSS, and
+there is nothing to fix in it. It is a front-end gap. Treat it as a warning
+about your own analysis: if you are looking for the named construct, this file
+will not show it to you. If the construct is not material to what you are
+doing, the marker can be suppressed like any other.
+
+The standard library itself uses some of these constructs; ``PSS116`` is
+suppressed while loading it, so the marker only ever refers to your source.
+
+The catalogue of affected constructs is in ``docs/ast-coverage-gaps.md``, and
+``docs/ast-coverage-plan.md`` tracks the work to close them. As each construct
+is implemented, its ``PSS116`` disappears -- so the set of markers a file
+produces is a live measure of what the AST does not yet carry.
+
 ***********
 Next Steps
 ***********

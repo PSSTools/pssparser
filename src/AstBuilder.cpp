@@ -49,6 +49,14 @@ void AstBuilder::setCollectDocStrings(bool c) {
     m_builder_int->setCollectDocStrings(c);
 }
 
+void AstBuilder::setReportUnrepresented(bool r) {
+    m_builder_int->setReportUnrepresented(r);
+}
+
+bool AstBuilder::getReportUnrepresented() {
+    return m_builder_int->getReportUnrepresented();
+}
+
 bool AstBuilder::getCollectDocStrings() {
     return m_builder_int->getCollectDocStrings();
 }

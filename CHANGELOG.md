@@ -5,6 +5,64 @@ name the **revision of the PSS LRM this parser targets**, not the parser's own
 feature level. A release that adds parser capability without moving to a new LRM
 revision advances only the patch component.
 
+## Unreleased
+
+### Added
+
+- **`PSS116` — "construct is accepted but not represented in the AST."**
+  Constructs the grammar accepts but the AST builder discards were previously
+  silent: source using them parsed with an empty marker list, and the consumer
+  received a model missing behaviour with nothing to indicate it. Every such
+  site now warns, naming the construct, and — where a node is built but
+  incomplete — the specific part that is dropped (`the \`with\` constraints are
+  dropped`). "Parses clean" now means "is fully represented".
+
+  The marker is informational about the front end, not about the input: the
+  source is legal PSS and there is nothing to fix in it. `PSS116` is suppressed
+  while loading the standard library, which uses some of these constructs
+  itself. See `docs/ast_usage_guide.rst`, and `docs/ast-coverage-gaps.md` /
+  `docs/ast-coverage-plan.md` for the catalogue and the work to close it. As
+  each construct is implemented its `PSS116` disappears.
+- `IAstBuilder::setReportUnrepresented()` / `getReportUnrepresented()`, which
+  gate the above.
+
+### Fixed
+
+- **`public:` / `private:` / `protected:` group labels are now applied.** An
+  access-modifier label was parsed and discarded, so every field declared after
+  one was built with no access attribute at all and read as *public*. A
+  consumer enforcing access saw no violation. The label now sets the access
+  attribute for the rest of its scope, exactly as the inline form
+  (`private int x;`) does; an inline modifier on a declaration still overrides
+  the label in force, and a label does not leak into a type declared inside the
+  labelled scope. **This changes `Field.attr` for existing input** — code that
+  treated group-labelled fields as public will now see `Private`/`Protected`.
+- **`default x == v;` and `default disable x;` now build
+  `ConstraintStmtDefault` / `ConstraintStmtDefaultDisable`.** Both AST classes
+  existed and neither visitor constructed anything, so default-value
+  constraints vanished from the model — including the standard library's own
+  `default permanent == false;`.
+- **The two-step `import function pkg::f;` now builds `FunctionImportType`.**
+  The branch handling it was empty, so this import form produced no AST node
+  whatsoever.
+- **`import <lang> function ...` records the language.** `FunctionImportProto`
+  was constructed with `""` for `lang` regardless of what the source declared.
+- **Parameterized types in `type_id` were already handled**; what remained was
+  a dead `mkTypeId(std::vector<IExprIdUP>&, ...)` overload whose body was
+  entirely commented out and which had no callers, plus a stale `TODO` on the
+  live overload. Both removed.
+
+### Notes
+
+- `exec_super_stmt` is unreachable: `exec_stmt` tries `procedural_stmt` first
+  and it matches `super;`, so `exec body { super; }` has always built a
+  `ProceduralStmtSuper` and nothing was ever lost.
+- `monitor_handle_declaration` is likewise unreachable —
+  `action_handle_declaration` precedes it with the same shape — so `m1 h1;`
+  inside a monitor builds an `ActionHandleField`. That is a miscompile rather
+  than an omission, it cannot be diagnosed before the symbol table exists, and
+  closing it is a grammar change.
+
 ## 3.0.6 — source tools, PSS 3.1 constructs, and a working release path
 
 **3.0.3, 3.0.4 and 3.0.5 were tagged but never reached PyPI**, so the last

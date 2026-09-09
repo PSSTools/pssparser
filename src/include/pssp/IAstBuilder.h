@@ -35,6 +35,16 @@ public:
     virtual void setCollectDocStrings(bool c) = 0;
 
     /**
+     * Report (PSS116) constructs the grammar accepts that the builder does
+     * not represent in the AST.  Default true.  Turned off while loading the
+     * standard library, which is not the user's source and whose gaps the
+     * user cannot act on.
+     */
+    virtual void setReportUnrepresented(bool r) = 0;
+
+    virtual bool getReportUnrepresented() = 0;
+
+    /**
      * Collect every comment, not only the docstring of a declaration.
      * Implies docstring collection.
      */

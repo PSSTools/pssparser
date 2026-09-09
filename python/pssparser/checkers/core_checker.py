@@ -817,6 +817,35 @@ class CoreChecker(CheckerBase):
                 r"constant expression",
             ),
         ),
+        MarkerDef(
+            id="PSS116",
+            severity="warning",
+            summary="Construct is accepted but not represented in the AST",
+            detail=(
+                "The grammar accepts this construct and the parse is sound, "
+                "but the AST builder does not build a node for it -- or "
+                "builds one that omits part of what was written.  A consumer "
+                "walking the AST will not see the construct at all, or will "
+                "see it without the detail named in the message.\n\n"
+                "Messages take one of two forms, where *construct* is the "
+                "construct name in backticks:\n\n"
+                "* *construct* ``is accepted but not represented in the AST`` "
+                "-- nothing is built for the construct.\n"
+                "* *construct* ``is accepted but not represented in the AST:`` "
+                "*detail* -- a node is built, and *detail* names the part that "
+                "is dropped.\n\n"
+                "This is a gap in the front end, not a problem with the "
+                "source: the code is legal PSS.  There is nothing to fix in "
+                "the input.  Suppress the marker if the construct is not "
+                "material to how the AST is consumed; otherwise treat any "
+                "analysis that depends on the named construct as unreliable.\n\n"
+                "The catalogue of affected constructs, and the plan for "
+                "closing them, are in ``docs/ast-coverage-gaps.md`` and "
+                "``docs/ast-coverage-plan.md``.  As each construct is "
+                "implemented its PSS116 disappears."
+            ),
+            patterns=(r"^`[^`]+` is accepted but not represented in the AST",),
+        ),
     ]
 
     def check(self, context) -> None:  # noqa: D102
