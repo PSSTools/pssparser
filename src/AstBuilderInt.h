@@ -406,8 +406,6 @@ public:
 
     virtual antlrcpp::Any visitOverride_declaration(PSSParser::Override_declarationContext *ctx) override;
 
-    virtual antlrcpp::Any visitMonitor_handle_declaration(PSSParser::Monitor_handle_declarationContext *ctx) override;
-
     virtual antlrcpp::Any visitActivity_constraint_stmt(PSSParser::Activity_constraint_stmtContext *ctx) override;
 
     virtual antlrcpp::Any visitMonitor_activity_select_stmt(PSSParser::Monitor_activity_select_stmtContext *ctx) override;
@@ -793,6 +791,18 @@ private:
 	template <class T> T *mkDataTypeT(PSSParser::Data_typeContext *ctx) {
 		return dynamic_cast<T *>(mkDataType(ctx));
 	}
+
+	/**
+	 * Build one component-instance step of a `bind` target path, carrying its
+	 * optional `[...]` index selection.
+	 */
+	ast::IComponentPathElem *mkComponentPathElem(PSSParser::Component_path_elemContext *ctx);
+
+	/**
+	 * Build one `bind` target: a component path plus either `*` or the
+	 * `ActionType.field` the bind names.
+	 */
+	ast::IComponentBindTarget *mkComponentBindTarget(PSSParser::Object_bind_item_pathContext *ctx);
 
 	ast::IExprDomainOpenRangeList *mkDomainOpenRangeList(PSSParser::Domain_open_range_listContext *ctx);
 

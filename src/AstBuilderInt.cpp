@@ -863,39 +863,32 @@ antlrcpp::Any AstBuilderInt::visitObject_bind_stmt(PSSParser::Object_bind_stmtCo
 	DEBUG_ENTER("visitObject_bind_stmt");
 	// Grammar:
 	//   TOK_BIND hierarchical_id object_bind_item_or_list ';'
-	// Targets are captured as plain dotted-path text (no ref resolution), so
-	// the node is inert during link. The wildcard form (`bind p *;`) sets
-	// is_wildcard and leaves targets empty.
+	// Targets are structural but unresolved -- no ref resolution happens here,
+	// so the node stays inert during link.
 	std::string pool_path = ctx->hierarchical_id()->getText();
 
-	// Targets are raw text, so component-path indices (`c[0..3].a.x`) carry no
-	// structure, and a mixed list (`{a.x, *}`) collapses to is_wildcard plus a
-	// partial target list.
-	noteUnrepresented(
-		ctx->start,
-		"bind",
-		"targets are stored as raw text, so path indices have no structure");
-
+	std::vector<ast::IComponentBindTarget *> targets;
 	bool is_wildcard = false;
-	std::vector<std::string> targets; // explicit dotted bind-item paths
 
 	PSSParser::Object_bind_item_or_listContext *list = ctx->object_bind_item_or_list();
 	std::vector<PSSParser::Object_bind_item_pathContext *> paths = list->object_bind_item_path();
 	for (std::vector<PSSParser::Object_bind_item_pathContext *>::const_iterator
 		it=paths.begin(); it!=paths.end(); it++) {
-		PSSParser::Object_bind_item_pathContext *path = *it;
-		PSSParser::Object_bind_itemContext *item = path->object_bind_item();
-		if (item && item->TOK_ASTERISK()) {
+		ast::IComponentBindTarget *target = mkComponentBindTarget(*it);
+		if (target->getIs_wildcard()) {
 			is_wildcard = true;
-		} else {
-			targets.push_back(path->getText());
 		}
+		targets.push_back(target);
 	}
 
+	// is_wildcard is kept as a shorthand for the bare `bind p *;` form, which is
+	// almost every bind in practice. It is now a summary of the target list
+	// rather than a substitute for it: a mixed list `{a.x, *}` sets the flag and
+	// still carries both targets.
 	ast::IComponentBind *bind = m_factory->mkComponentBind(pool_path, is_wildcard);
-	for (std::vector<std::string>::const_iterator
+	for (std::vector<ast::IComponentBindTarget *>::const_iterator
 		it=targets.begin(); it!=targets.end(); it++) {
-		bind->getTargets().push_back(*it);
+		bind->getTargets().push_back(ast::IComponentBindTargetUP(*it));
 	}
 	setLoc(bind, ctx->start);
 	addChild(bind, ctx->start);
@@ -3609,22 +3602,6 @@ antlrcpp::Any AstBuilderInt::visitAttr_group(PSSParser::Attr_groupContext *ctx) 
     if (!m_access_s.empty()) {
         m_access_s.back() = accessModifierToFieldAttr(ctx->access_modifier());
     }
-    return visitChildren(ctx);
-}
-
-// Unreachable in practice, and the marker below has never been observed to
-// fire.  Both `monitor_body_item -> monitor_field_declaration` and
-// `monitor_activity_stmt` list `action_handle_declaration` ahead of
-// `monitor_handle_declaration`, and the two rules have the same shape
-// (type_identifier instantiation-list `;`), so ANTLR always takes the action
-// alternative.  `m1 h1;` inside a monitor therefore builds an
-// ActionHandleField -- a monitor handle represented as an action handle.
-//
-// That cannot be diagnosed here: distinguishing the two needs the symbol
-// table, which does not exist until link.  Closing it is a grammar change
-// (see docs/ast-coverage-plan.md, risk R-4), not a builder change.
-antlrcpp::Any AstBuilderInt::visitMonitor_handle_declaration(PSSParser::Monitor_handle_declarationContext *ctx) {
-    noteUnrepresented(ctx->start, "monitor handle declaration");
     return visitChildren(ctx);
 }
 
@@ -6576,6 +6553,46 @@ ast::IDataTypeUserDefined *AstBuilderInt::mkDataTypeArray(
 
     DEBUG_LEAVE("mkDataTypeArray");
     return ret;
+}
+
+ast::IComponentPathElem *AstBuilderInt::mkComponentPathElem(PSSParser::Component_path_elemContext *ctx) {
+	DEBUG_ENTER("mkComponentPathElem");
+	ast::IComponentPathElem *ret = m_factory->mkComponentPathElem(
+		mkId(ctx->component_identifier()->identifier()));
+	if (ctx->domain_open_range_list()) {
+		ret->setRange(mkDomainOpenRangeList(ctx->domain_open_range_list()));
+	}
+	setLoc(ret, ctx->start);
+	DEBUG_LEAVE("mkComponentPathElem");
+	return ret;
+}
+
+ast::IComponentBindTarget *AstBuilderInt::mkComponentBindTarget(PSSParser::Object_bind_item_pathContext *ctx) {
+	DEBUG_ENTER("mkComponentBindTarget");
+	PSSParser::Object_bind_itemContext *item = ctx->object_bind_item();
+	bool is_wildcard = (item && item->TOK_ASTERISK());
+
+	ast::IComponentBindTarget *ret = m_factory->mkComponentBindTarget(is_wildcard);
+
+	std::vector<PSSParser::Component_path_elemContext *> elems = ctx->component_path_elem();
+	for (std::vector<PSSParser::Component_path_elemContext *>::const_iterator
+		it=elems.begin(); it!=elems.end(); it++) {
+		ret->getPath().push_back(ast::IComponentPathElemUP(mkComponentPathElem(*it)));
+	}
+
+	// The wildcard carries no type, field or range: `*` stands for every
+	// compatible reference, and there is nothing further to name.
+	if (!is_wildcard) {
+		ret->setType_id(mkTypeId(item->action_type_identifier()->type_identifier()));
+		ret->setField(mkId(item->identifier()));
+		if (item->domain_open_range_list()) {
+			ret->setRange(mkDomainOpenRangeList(item->domain_open_range_list()));
+		}
+	}
+
+	setLoc(ret, ctx->start);
+	DEBUG_LEAVE("mkComponentBindTarget");
+	return ret;
 }
 
 ast::IExprDomainOpenRangeList *AstBuilderInt::mkDomainOpenRangeList(PSSParser::Domain_open_range_listContext *ctx) {

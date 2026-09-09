@@ -96,10 +96,6 @@ UNREPRESENTED = [
     ("string_type_range",
      'package p { struct s { string in ["a","b"] x; } }',
      "the range values are dropped"),
-    ("bind_component_path",
-     "buffer Buf { int x; } component pss_top { pool Buf p;"
-     " bind p { producer.out }; action producer { output Buf out; } }",
-     "`bind`"),
 ]
 
 _IDS = [c[0] for c in UNREPRESENTED]
@@ -141,6 +137,19 @@ CLOSED_CASES = [
     # -- Phase 5 -------------------------------------------------------------
     ("import_function_language",
      "package p { import C function void g(); }"),
+    # The marker here fired on *every* object bind, including the wildcard form
+    # that was already fully represented -- so all 10 corpus hits were false
+    # gaps. Both the plain and the indexed forms must now be clean.
+    ("bind_plain",
+     "buffer Buf { int x; } component pss_top { pool Buf p;"
+     " bind p { producer.out }; action producer { output Buf out; } }"),
+    ("bind_wildcard",
+     "buffer Buf { int x; } component pss_top { pool Buf p; bind p *; }"),
+    ("bind_component_path_index",
+     "buffer Buf { int x; }"
+     " component leaf { action prod { output Buf out; } }"
+     " component pss_top { leaf sub[4]; pool Buf p;"
+     " bind p { sub[0..3].prod.out }; }"),
 ]
 
 

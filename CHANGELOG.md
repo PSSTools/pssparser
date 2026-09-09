@@ -26,8 +26,29 @@ revision advances only the patch component.
 - `IAstBuilder::setReportUnrepresented()` / `getReportUnrepresented()`, which
   gate the above.
 
+### Changed
+
+- **`bind` targets are structured nodes instead of dotted text.**
+  `ComponentBind.targets` was a list of strings, which lost every index
+  selection in a target path — `bind p { sub[0..3].prod.out }` kept the text but
+  no consumer could read the `0..3` or tell it from part of a name — and
+  collapsed a mixed list `{ a.x, * }` to a wildcard flag plus a partial list.
+  Each target is now a `ComponentBindTarget`: a list of `ComponentPathElem`
+  (each with an optional index range), plus either the wildcard flag or the
+  `ActionType.field` the bind names with its own optional index.
+
+  **This changes the type of `ComponentBind.getTargets()`** from `List[str]` to
+  `List[ComponentBindTarget]`. A wildcard is now a target like any other, so
+  `bind p *;` has one target rather than none; `is_wildcard` survives as a
+  summary of the list — true if any target is a wildcard — and is unchanged for
+  the bare form.
+
 ### Fixed
 
+- **`bind` no longer reports a gap it does not have.** `PSS116` fired on *every*
+  object bind, including the wildcard and plain-path forms that were already
+  fully represented. Every occurrence in the test corpus was one of those, so
+  the marker's entire observed output was false positives.
 - **`public:` / `private:` / `protected:` group labels are now applied.** An
   access-modifier label was parsed and discarded, so every field declared after
   one was built with no access attribute at all and read as *public*. A
@@ -57,11 +78,18 @@ revision advances only the patch component.
 - `exec_super_stmt` is unreachable: `exec_stmt` tries `procedural_stmt` first
   and it matches `super;`, so `exec body { super; }` has always built a
   `ProceduralStmtSuper` and nothing was ever lost.
-- `monitor_handle_declaration` is likewise unreachable —
-  `action_handle_declaration` precedes it with the same shape — so `m1 h1;`
-  inside a monitor builds an `ActionHandleField`. That is a miscompile rather
-  than an omission, it cannot be diagnosed before the symbol table exists, and
-  closing it is a grammar change.
+- **`monitor_handle_declaration` has been removed from the grammar.** It was
+  unreachable — `action_handle_declaration` preceded it in both
+  `monitor_field_declaration` and `monitor_activity_stmt` with the same shape,
+  `type_identifier identifier-list ;` — so `m1 h1;` inside a monitor has always
+  built an `ActionHandleField`, and the builder hook for the monitor form could
+  never fire. No parser can separate the two: which kind of handle is being
+  declared follows from resolving the type, which happens at link. Keeping a
+  production that made the distinction look decidable was the actual defect.
+  Behaviour is unchanged — the same nodes are built from the same source — but
+  the generated `PSSParserVisitor` no longer declares
+  `visitMonitor_handle_declaration`, and `ActionHandleField` is now documented
+  as covering both forms.
 
 ## 3.0.6 — source tools, PSS 3.1 constructs, and a working release path
 

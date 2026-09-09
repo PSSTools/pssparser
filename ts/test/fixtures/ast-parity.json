@@ -17351,11 +17351,29 @@
        -1
       ],
       [
+       "FunctionImportType",
+       null,
+       2,
+       1,
+       136,
+       5,
+       -1
+      ],
+      [
        "FunctionPrototype",
        "write",
        2,
        1,
        138,
+       5,
+       -1
+      ],
+      [
+       "FunctionImportType",
+       null,
+       2,
+       1,
+       139,
        5,
        -1
       ],
@@ -17369,11 +17387,29 @@
        -1
       ],
       [
+       "FunctionImportType",
+       null,
+       2,
+       1,
+       142,
+       5,
+       -1
+      ],
+      [
        "FunctionPrototype",
        "write_val",
        2,
        1,
        144,
+       5,
+       -1
+      ],
+      [
+       "FunctionImportType",
+       null,
+       2,
+       1,
+       145,
        5,
        -1
       ],

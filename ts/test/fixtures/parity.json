@@ -770,7 +770,125 @@
     ]
    ],
    "id": "corpus:language-ref/behavioral_coverage.pss",
-   "markers": [],
+   "markers": [
+    {
+     "col": 10,
+     "extent": 8,
+     "file": "language-ref/behavioral_coverage.pss",
+     "line": 46,
+     "message": "`monitor activity` is accepted but not represented in the AST: the body statements are dropped",
+     "related": [],
+     "severity": "warning"
+    },
+    {
+     "col": 10,
+     "extent": 10,
+     "file": "language-ref/behavioral_coverage.pss",
+     "line": 54,
+     "message": "`monitor constraint` is accepted but not represented in the AST",
+     "related": [],
+     "severity": "warning"
+    },
+    {
+     "col": 10,
+     "extent": 8,
+     "file": "language-ref/behavioral_coverage.pss",
+     "line": 62,
+     "message": "`monitor activity` is accepted but not represented in the AST: the body statements are dropped",
+     "related": [],
+     "severity": "warning"
+    },
+    {
+     "col": 10,
+     "extent": 10,
+     "file": "language-ref/behavioral_coverage.pss",
+     "line": 69,
+     "message": "`monitor constraint` is accepted but not represented in the AST",
+     "related": [],
+     "severity": "warning"
+    },
+    {
+     "col": 10,
+     "extent": 8,
+     "file": "language-ref/behavioral_coverage.pss",
+     "line": 77,
+     "message": "`monitor activity` is accepted but not represented in the AST: the body statements are dropped",
+     "related": [],
+     "severity": "warning"
+    },
+    {
+     "col": 10,
+     "extent": 10,
+     "file": "language-ref/behavioral_coverage.pss",
+     "line": 84,
+     "message": "`monitor constraint` is accepted but not represented in the AST",
+     "related": [],
+     "severity": "warning"
+    },
+    {
+     "col": 10,
+     "extent": 8,
+     "file": "language-ref/behavioral_coverage.pss",
+     "line": 94,
+     "message": "`monitor activity` is accepted but not represented in the AST: the body statements are dropped",
+     "related": [],
+     "severity": "warning"
+    },
+    {
+     "col": 10,
+     "extent": 10,
+     "file": "language-ref/behavioral_coverage.pss",
+     "line": 101,
+     "message": "`monitor constraint` is accepted but not represented in the AST",
+     "related": [],
+     "severity": "warning"
+    },
+    {
+     "col": 10,
+     "extent": 8,
+     "file": "language-ref/behavioral_coverage.pss",
+     "line": 106,
+     "message": "`monitor activity` is accepted but not represented in the AST: the body statements are dropped",
+     "related": [],
+     "severity": "warning"
+    },
+    {
+     "col": 10,
+     "extent": 8,
+     "file": "language-ref/behavioral_coverage.pss",
+     "line": 116,
+     "message": "`monitor activity` is accepted but not represented in the AST: the body statements are dropped",
+     "related": [],
+     "severity": "warning"
+    },
+    {
+     "col": 6,
+     "extent": 2,
+     "file": "language-ref/behavioral_coverage.pss",
+     "line": 133,
+     "message": "`cover statement` is accepted but not represented in the AST",
+     "related": [],
+     "severity": "warning"
+    },
+    {
+     "col": 6,
+     "extent": 2,
+     "file": "language-ref/behavioral_coverage.pss",
+     "line": 134,
+     "message": "`cover statement` is accepted but not represented in the AST",
+     "related": [],
+     "severity": "warning"
+    },
+    {
+     "col": 6,
+     "extent": 2,
+     "file": "language-ref/behavioral_coverage.pss",
+     "line": 139,
+     "message": "`cover statement` is accepted but not represented in the AST",
+     "related": [],
+     "severity": "warning"
+    }
+   ],
    "maxErrors": 0,
    "raised": null,
    "why": "corpus parity"
@@ -785,7 +903,26 @@
     ]
    ],
    "id": "corpus:language-ref/constraints.pss",
-   "markers": [],
+   "markers": [
+    {
+     "col": 14,
+     "extent": 9,
+     "file": "language-ref/constraints.pss",
+     "line": 110,
+     "message": "`randomize` is accepted but not represented in the AST: the randomization target is dropped",
+     "related": [],
+     "severity": "warning"
+    },
+    {
+     "col": 14,
+     "extent": 9,
+     "file": "language-ref/constraints.pss",
+     "line": 110,
+     "message": "`randomize` is accepted but not represented in the AST: the `with` constraints are dropped",
+     "related": [],
+     "severity": "warning"
+    }
+   ],
    "maxErrors": 0,
    "raised": null,
    "why": "corpus parity"
@@ -800,7 +937,62 @@
     ]
    ],
    "id": "corpus:language-ref/coverage.pss",
-   "markers": [],
+   "markers": [
+    {
+     "col": 6,
+     "extent": 10,
+     "file": "language-ref/coverage.pss",
+     "line": 22,
+     "message": "`covergroup declaration` is accepted but not represented in the AST",
+     "related": [],
+     "severity": "warning"
+    },
+    {
+     "col": 10,
+     "extent": 7,
+     "file": "language-ref/coverage.pss",
+     "line": 56,
+     "message": "`covergroup instantiation` is accepted but not represented in the AST",
+     "related": [],
+     "severity": "warning"
+    },
+    {
+     "col": 14,
+     "extent": 6,
+     "file": "language-ref/coverage.pss",
+     "line": 63,
+     "message": "`covergroup option` is accepted but not represented in the AST",
+     "related": [],
+     "severity": "warning"
+    },
+    {
+     "col": 14,
+     "extent": 6,
+     "file": "language-ref/coverage.pss",
+     "line": 64,
+     "message": "`covergroup option` is accepted but not represented in the AST",
+     "related": [],
+     "severity": "warning"
+    },
+    {
+     "col": 14,
+     "extent": 2,
+     "file": "language-ref/coverage.pss",
+     "line": 67,
+     "message": "`coverpoint` is accepted but not represented in the AST: the `iff` guard is dropped",
+     "related": [],
+     "severity": "warning"
+    },
+    {
+     "col": 14,
+     "extent": 2,
+     "file": "language-ref/coverage.pss",
+     "line": 67,
+     "message": "`coverpoint` is accepted but not represented in the AST: the bin and option specifications are dropped",
+     "related": [],
+     "severity": "warning"
+    }
+   ],
    "maxErrors": 0,
    "raised": null,
    "why": "corpus parity"
@@ -1353,7 +1545,26 @@
     ]
    ],
    "id": "corpus:peakrdl/arrays_nd__index_helpers.pss",
-   "markers": [],
+   "markers": [
+    {
+     "col": 10,
+     "extent": 4,
+     "file": "peakrdl/arrays_nd__index_helpers.pss",
+     "line": 45,
+     "message": "`function` is accepted but not represented in the AST: the `static` qualifier is dropped",
+     "related": [],
+     "severity": "warning"
+    },
+    {
+     "col": 10,
+     "extent": 4,
+     "file": "peakrdl/arrays_nd__index_helpers.pss",
+     "line": 49,
+     "message": "`function` is accepted but not represented in the AST: the `static` qualifier is dropped",
+     "related": [],
+     "severity": "warning"
+    }
+   ],
    "maxErrors": 0,
    "raised": null,
    "why": "corpus parity"
@@ -1683,7 +1894,71 @@
     ]
    ],
    "id": "corpus:pss31/behavioral_coverage.pss",
-   "markers": [],
+   "markers": [
+    {
+     "col": 14,
+     "extent": 10,
+     "file": "pss31/behavioral_coverage.pss",
+     "line": 22,
+     "message": "`monitor constraint` is accepted but not represented in the AST",
+     "related": [],
+     "severity": "warning"
+    },
+    {
+     "col": 14,
+     "extent": 8,
+     "file": "pss31/behavioral_coverage.pss",
+     "line": 24,
+     "message": "`monitor activity` is accepted but not represented in the AST: the body statements are dropped",
+     "related": [],
+     "severity": "warning"
+    },
+    {
+     "col": 14,
+     "extent": 8,
+     "file": "pss31/behavioral_coverage.pss",
+     "line": 40,
+     "message": "`monitor activity` is accepted but not represented in the AST: the body statements are dropped",
+     "related": [],
+     "severity": "warning"
+    },
+    {
+     "col": 14,
+     "extent": 8,
+     "file": "pss31/behavioral_coverage.pss",
+     "line": 50,
+     "message": "`monitor activity` is accepted but not represented in the AST: the body statements are dropped",
+     "related": [],
+     "severity": "warning"
+    },
+    {
+     "col": 10,
+     "extent": 5,
+     "file": "pss31/behavioral_coverage.pss",
+     "line": 59,
+     "message": "`cover statement` is accepted but not represented in the AST",
+     "related": [],
+     "severity": "warning"
+    },
+    {
+     "col": 10,
+     "extent": 13,
+     "file": "pss31/behavioral_coverage.pss",
+     "line": 62,
+     "message": "`cover statement` is accepted but not represented in the AST",
+     "related": [],
+     "severity": "warning"
+    },
+    {
+     "col": 10,
+     "extent": 10,
+     "file": "pss31/behavioral_coverage.pss",
+     "line": 73,
+     "message": "`covergroup declaration` is accepted but not represented in the AST",
+     "related": [],
+     "severity": "warning"
+    }
+   ],
    "maxErrors": 0,
    "raised": null,
    "why": "corpus parity"
@@ -1698,7 +1973,17 @@
     ]
    ],
    "id": "corpus:pss31/templates_and_activity.pss",
-   "markers": [],
+   "markers": [
+    {
+     "col": 14,
+     "extent": 6,
+     "file": "pss31/templates_and_activity.pss",
+     "line": 25,
+     "message": "`symbol` is accepted but not represented in the AST",
+     "related": [],
+     "severity": "warning"
+    }
+   ],
    "maxErrors": 0,
    "raised": null,
    "why": "corpus parity"

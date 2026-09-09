@@ -176,9 +176,13 @@ def test_pool_unsized_has_no_size(parser):
 # ---------------------------------------------------------------------------
 # 6. bind pool *;  ->  ComponentBind AST node   (DETOX Phase B1b — DONE)
 # ---------------------------------------------------------------------------
-# The component-level `bind` directive now builds a ComponentBind node carrying
-# the pool path, the wildcard flag, and explicit dotted target paths. Targets
-# are plain text (no ref resolution), so link() stays loop-free.
+# The component-level `bind` directive builds a ComponentBind node carrying the
+# pool path, the wildcard flag, and one ComponentBindTarget per entry. Targets
+# are structural but unresolved (no ref resolution), so link() stays loop-free.
+#
+# COVERAGE 5.6 (DONE): targets used to be raw dotted text, which lost the
+# `[0..3]` index selections entirely and collapsed a mixed list `{a.x, *}` to a
+# flag plus a partial list. See test_bind_target_paths_are_structured below.
 
 BIND_SRC = """
 buffer Buf { int x; }
@@ -193,6 +197,29 @@ component pss_top {
 """
 
 
+def _bind_target_text(t):
+    """Render a ComponentBindTarget back to its dotted source form.
+
+    This is what the AST used to store *instead* of structure. Reconstructing
+    it from the nodes proves the structure is a superset of the old text.
+    """
+    if t.getIs_wildcard():
+        return "*"
+    parts = [e.getId().getId() for e in t.getPathList()]
+    parts.append(".".join(e.getId().getId() for e in t.getType_id().getElems()))
+    parts.append(t.getField().getId())
+    return ".".join(parts)
+
+
+def _ranges(rl):
+    """[(lhs, rhs)] for a domain-open-range-list; rhs is None for a single."""
+    if rl is None:
+        return None
+    return [(v.getLhs().getValue(),
+             None if v.getSingle() else v.getRhs().getValue())
+            for v in rl.getValues()]
+
+
 def test_bind_builds_node(parser):
     p = _parse_only(BIND_SRC, parser)
     binds = _find_nodes(p, "ComponentBind")
@@ -201,11 +228,65 @@ def test_bind_builds_node(parser):
 
     wild = by_pool["p"]
     assert wild.getIs_wildcard() is True
-    assert wild.getTargets() == []
+    # The wildcard is a target like any other, not the absence of one.
+    assert [t.getIs_wildcard() for t in wild.getTargets()] == [True]
 
     targeted = by_pool["q"]
     assert targeted.getIs_wildcard() is False
-    assert targeted.getTargets() == ["producer.out", "consumer.inp"]
+    assert [_bind_target_text(t) for t in targeted.getTargets()] == [
+        "producer.out", "consumer.inp"]
+
+
+BIND_PATHS_SRC = """
+buffer Buf { int x; }
+component leaf { action prod { output Buf out; } }
+component pss_top {
+    leaf sub[4];
+    pool Buf p;
+    bind p { sub[0..3].prod.out };
+    pool Buf q;
+    bind q { prod.out, * };
+    pool Buf r;
+    bind r { prod.out[2] };
+    action prod { output Buf out; }
+}
+"""
+
+
+def test_bind_target_paths_are_structured(parser):
+    """The `[0..3]` on a component-path element must be readable as a range."""
+    p = _parse_only(BIND_PATHS_SRC, parser)
+    by_pool = {b.getPool_path(): b for b in _find_nodes(p, "ComponentBind")}
+
+    (target,) = by_pool["p"].getTargets()
+    (elem,) = target.getPathList()
+    assert elem.getId().getId() == "sub"
+    assert _ranges(elem.getRange()) == [(0, 3)]
+    # The bind item itself is separate from the component path.
+    assert [e.getId().getId() for e in target.getType_id().getElems()] == ["prod"]
+    assert target.getField().getId() == "out"
+    assert target.getRange() is None
+
+
+def test_bind_mixed_list_keeps_every_entry(parser):
+    """`{ prod.out, * }` is two targets in order, not one target plus a flag."""
+    p = _parse_only(BIND_PATHS_SRC, parser)
+    by_pool = {b.getPool_path(): b for b in _find_nodes(p, "ComponentBind")}
+
+    bind = by_pool["q"]
+    assert [_bind_target_text(t) for t in bind.getTargets()] == ["prod.out", "*"]
+    # is_wildcard survives as a summary of the list, not a substitute for it.
+    assert bind.getIs_wildcard() is True
+
+
+def test_bind_item_index_is_captured(parser):
+    """An index on the bind item (`prod.out[2]`) is distinct from a path index."""
+    p = _parse_only(BIND_PATHS_SRC, parser)
+    by_pool = {b.getPool_path(): b for b in _find_nodes(p, "ComponentBind")}
+
+    (target,) = by_pool["r"].getTargets()
+    assert target.getPathList() == []
+    assert _ranges(target.getRange()) == [(2, None)]
 
 
 def test_bind_link_is_loop_free(parser):
@@ -457,3 +538,53 @@ def test_import_function_language_is_captured(parser):
     assert protos["C"].getPlat() == PlatQual.PlatQual_None
     assert protos["C2"].getPlat() == PlatQual.PlatQual_Target
     assert "" in protos, "an import with no language should carry no language"
+
+
+# ---------------------------------------------------------------------------
+# monitor handle declaration  ->  ActionHandleField   (plan item 2.7)
+# ---------------------------------------------------------------------------
+# `monitor_handle_declaration` and `action_handle_declaration` had the same
+# shape, so the monitor alternative was unreachable and its builder hook could
+# never fire. The grammar no longer claims a distinction no parser can make:
+# both forms take the action production and build an ActionHandleField, and
+# which kind of handle it is follows from resolving the type at link.
+#
+# The probe that matters is therefore not "which node class" -- it is that the
+# declared name and type survive, since that is what a consumer needs to
+# resolve the handle at all.
+
+MONITOR_HANDLE_SRC = """
+component c {
+    action A { }
+    monitor m1 { }
+    monitor m2 {
+        A a1;
+        m1 h1, h2[4];
+    }
+}
+"""
+
+
+def test_monitor_handle_declaration_builds_a_handle_field(parser):
+    p = _parse_only(MONITOR_HANDLE_SRC, parser)
+    handles = {h.getName().getId(): h
+               for h in _find_nodes(p, "ActionHandleField")}
+    assert set(handles) == {"a1", "h1", "h2"}
+
+    # The monitor handle names its monitor type, not something invented for it.
+    h1_type = handles["h1"].getType()
+    assert [e.getId().getId() for e in h1_type.getType_id().getElems()] == ["m1"]
+
+    # An action handle in the same body is indistinguishable at this level --
+    # that is the point: only resolving the type separates the two.
+    a1_type = handles["a1"].getType()
+    assert [e.getId().getId() for e in a1_type.getType_id().getElems()] == ["A"]
+
+
+def test_monitor_handle_declaration_is_not_reported_as_a_gap(parser):
+    """The construct is represented, so it must not claim to be unrepresented."""
+    p = _parse_only(MONITOR_HANDLE_SRC, parser)
+    unrepresented = [m for m in p.markers
+                     if "not represented in the AST" in m["message"]]
+    assert not unrepresented, \
+        "\n".join(m["message"] for m in unrepresented)

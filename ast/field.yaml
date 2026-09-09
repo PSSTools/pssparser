@@ -156,39 +156,126 @@ classes:
           Component-level object/pool bind directive (``bind pool targets;``).
 
           Binds a pool to a set of action object-reference fields, or to all
-          compatible references via the wildcard form. Targets are captured as
-          plain dotted-path strings (e.g. ``"a.x"``); the wildcard form sets
-          ``is_wildcard`` and leaves ``targets`` empty. Paths are stored as
-          text rather than resolved references, so this node is inert during
-          link (no ref resolution, no traversal cycles).
+          compatible references via the wildcard form. Every target -- including
+          a wildcard -- is a ``ComponentBindTarget``, so a mixed list such as
+          ``bind p { a.x, * }`` keeps both entries in source order. Paths are
+          not resolved to references, so this node is inert during link (no ref
+          resolution, no traversal cycles).
 
           PSS Example::
 
               component pss_top {
                   pool my_buffer p;
-                  bind p *;                  // wildcard
-                  bind p { producer.out };   // explicit target path
+                  bind p *;                       // wildcard
+                  bind p { producer.out };        // explicit target path
+                  bind p { sub[0..3].prod.out };  // indexed component path
               }
 
           Attributes:
               pool_path: Hierarchical id of the bound pool (e.g. ``"p"``).
-              is_wildcard: True for the ``bind p *;`` form.
-              targets: Explicit dotted bind-item paths (empty when wildcard),
-                  e.g. ``["producer.out", "consumer.inp"]``.
+              is_wildcard: True if *any* target is a wildcard -- for the bare
+                  ``bind p *;`` form, and for a mixed list containing ``*``.
+                  Equivalent to ``any(t.is_wildcard for t in targets)``, and
+                  retained as a shorthand for the overwhelmingly common bare
+                  form.
+              targets: The bind targets in source order, one
+                  ``ComponentBindTarget`` per entry.
       data:
       - pool_path: string
       - is_wildcard: bool
       - targets:
-          - type: list<string>
+          - type: list<UP<ComponentBindTarget>>
+          - is_ctor: false
+  - ComponentPathElem:
+      super: ScopeChild
+      doc: |
+          One component-instance step of a ``bind`` target path.
+
+          Corresponds to ``component_path_elem`` in the grammar: a component
+          instance name with an optional index or index-range selection. The
+          index selection is the reason this class exists -- it was previously
+          folded into the target's dotted text, where a consumer could neither
+          read the indices nor tell them from part of a name.
+
+          PSS Example::
+
+              component pss_top {
+                  pool my_buffer p;
+                  bind p { sub[0..3].prod.out };
+                  //       ^^^^^^^^^ one ComponentPathElem, id="sub",
+                  //                 range=[0..3]
+                  //                 ^^^^ a second, id="prod", no index
+              }
+
+          Attributes:
+              id: The component instance name.
+              range: Optional index / index-range selection; null when the
+                  element carries no ``[...]``.
+      data:
+      - id: UP<ExprId>
+      - range:
+          - type: UP<ExprDomainOpenRangeList>
+          - is_ctor: false
+  - ComponentBindTarget:
+      super: ScopeChild
+      doc: |
+          One entry in a ``bind`` directive's target list.
+
+          Corresponds to ``object_bind_item_path`` in the grammar: a possibly
+          empty component-instance path followed by the bind item itself, which
+          is either ``*`` or ``ActionType.field`` with an optional index
+          selection.
+
+          A wildcard entry sets ``is_wildcard`` and leaves ``type_id``,
+          ``field`` and ``range`` null. Because the wildcard is a target like
+          any other, a mixed list keeps its shape: ``bind p { a.x, * }`` has two
+          targets rather than one target plus a flag.
+
+          PSS Example::
+
+              component pss_top {
+                  pool my_buffer p;
+                  bind p { sub[0..3].prod.out };
+                  //       path -----^     ^--- type_id="prod", field="out"
+                  bind p { a.x, * };  // two targets, the second a wildcard
+              }
+
+          Attributes:
+              path: Leading component-instance path elements (empty when the
+                  target names an action in the enclosing component).
+              is_wildcard: True for the ``*`` form.
+              type_id: Action type of the bind item; null when wildcard.
+              field: Object-reference field on that action; null when wildcard.
+              range: Optional index / index-range selection on the field; null
+                  when absent or wildcard.
+      data:
+      - is_wildcard: bool
+      - path:
+          - type: list<UP<ComponentPathElem>>
+          - is_ctor: false
+      - type_id:
+          - type: UP<TypeIdentifier>
+          - is_ctor: false
+      - field:
+          - type: UP<ExprId>
+          - is_ctor: false
+      - range:
+          - type: UP<ExprDomainOpenRangeList>
           - is_ctor: false
   - ActionHandleField:
       super: NamedScopeChild
       doc: |
-          Action handle field declaration.
+          Action or monitor handle field declaration.
 
           Represents an action instance field declared in an action or monitor
           body, including optional PSS 3.1 initializer assignments and support
           for array-typed handles.
+
+          A *monitor* handle declared in a monitor body (``m1 h1;``) also builds
+          this class, despite the name. The two declarations are syntactically
+          identical -- ``type_identifier identifier ;`` -- so the parser cannot
+          distinguish them; which kind of handle it is follows from resolving
+          ``type``, and is known only after linking.
       data:
       - type: UP<DataType>
       - initializers:

@@ -160,36 +160,36 @@ class FieldAttr(IntEnum):
     Mutable = auto()
     
 class Factory(object):
+    def mkScopeChild(self) -> 'ScopeChild': ...
     def mkAssocData(self) -> 'AssocData': ...
     def mkSymbolImportSpec(self) -> 'SymbolImportSpec': ...
     def mkSymbolRefPath(self) -> 'SymbolRefPath': ...
-    def mkMonitorActivitySelectBranch(self,
-        guard : Expr,
-        body : ScopeChild) -> 'MonitorActivitySelectBranch': ...
+    def mkRefExpr(self) -> 'RefExpr': ...
     def mkExpr(self) -> 'Expr': ...
-    def mkTemplateParamValue(self) -> 'TemplateParamValue': ...
-    def mkExprAggrMapElem(self,
-        lhs : Expr,
-        rhs : Expr) -> 'ExprAggrMapElem': ...
     def mkActivityMatchChoice(self,
         is_default : bool,
         cond : ExprOpenRangeList,
         body : ScopeChild) -> 'ActivityMatchChoice': ...
-    def mkExprAggrStructElem(self,
-        name : ExprId,
-        value : Expr) -> 'ExprAggrStructElem': ...
+    def mkExprAggrMapElem(self,
+        lhs : Expr,
+        rhs : Expr) -> 'ExprAggrMapElem': ...
     def mkMonitorActivityMatchChoice(self,
         is_default : bool,
         cond : ExprOpenRangeList,
         body : ScopeChild) -> 'MonitorActivityMatchChoice': ...
+    def mkExprAggrStructElem(self,
+        name : ExprId,
+        value : Expr) -> 'ExprAggrStructElem': ...
+    def mkTemplateParamValue(self) -> 'TemplateParamValue': ...
     def mkTemplateParamDeclList(self) -> 'TemplateParamDeclList': ...
-    def mkRefExpr(self) -> 'RefExpr': ...
     def mkActivitySelectBranch(self,
         guard : Expr,
         weight : Expr,
         body : ScopeChild) -> 'ActivitySelectBranch': ...
+    def mkMonitorActivitySelectBranch(self,
+        guard : Expr,
+        body : ScopeChild) -> 'MonitorActivitySelectBranch': ...
     def mkTemplateParamValueList(self) -> 'TemplateParamValueList': ...
-    def mkScopeChild(self) -> 'ScopeChild': ...
     def mkActionFieldInitializer(self,
         path : ExprHierarchicalId,
         value : Expr) -> 'ActionFieldInitializer': ...
@@ -206,34 +206,38 @@ class Factory(object):
         type : DataType,
         dir : ParamDir,
         dflt : Expr) -> 'FunctionParamDecl': ...
+    def mkActivityJoinSpec(self) -> 'ActivityJoinSpec': ...
     def mkGenericConstraintDeclValue(self) -> 'GenericConstraintDeclValue': ...
     def mkGenericConstraintParam(self,
         name : ExprId,
         is_const : bool,
         is_numeric : bool,
         type : DataType) -> 'GenericConstraintParam': ...
-    def mkActivityJoinSpec(self) -> 'ActivityJoinSpec': ...
     def mkMethodParameterList(self) -> 'MethodParameterList': ...
     def mkActivitySchedulingConstraint(self,
         is_parallel : bool) -> 'ActivitySchedulingConstraint': ...
     def mkActivityStmt(self) -> 'ActivityStmt': ...
-    def mkMonitorActivityStmt(self) -> 'MonitorActivityStmt': ...
     def mkAnnotation(self,
         type : TypeIdentifier) -> 'Annotation': ...
-    def mkNamedScopeChild(self,
-        name : ExprId) -> 'NamedScopeChild': ...
+    def mkMonitorActivityStmt(self) -> 'MonitorActivityStmt': ...
     def mkAnnotationParam(self,
         name : ExprId,
         value : Expr) -> 'AnnotationParam': ...
-    def mkPackageImportStmt(self,
-        wildcard : bool,
-        alias : ExprId) -> 'PackageImportStmt': ...
+    def mkNamedScopeChild(self,
+        name : ExprId) -> 'NamedScopeChild': ...
     def mkComment(self,
         text : str,
         placement : CommentPlacement) -> 'Comment': ...
+    def mkPackageImportStmt(self,
+        wildcard : bool,
+        alias : ExprId) -> 'PackageImportStmt': ...
     def mkComponentBind(self,
         pool_path : str,
         is_wildcard : bool) -> 'ComponentBind': ...
+    def mkComponentBindTarget(self,
+        is_wildcard : bool) -> 'ComponentBindTarget': ...
+    def mkComponentPathElem(self,
+        id : ExprId) -> 'ComponentPathElem': ...
     def mkConstraintStmt(self) -> 'ConstraintStmt': ...
     def mkProceduralStmtIfClause(self,
         cond : Expr,
@@ -254,19 +258,17 @@ class Factory(object):
     def mkRefExprTypeScopeGlobal(self,
         fileid : int) -> 'RefExprTypeScopeGlobal': ...
     def mkScope(self) -> 'Scope': ...
-    def mkTemplateParamDecl(self,
-        name : ExprId) -> 'TemplateParamDecl': ...
     def mkScopeChildRef(self,
         target : ScopeChild) -> 'ScopeChildRef': ...
     def mkSymbolChild(self) -> 'SymbolChild': ...
+    def mkTemplateParamDecl(self,
+        name : ExprId) -> 'TemplateParamDecl': ...
     def mkDistItem(self,
         range : ExprOpenRangeValue,
         weight : DistWeight) -> 'DistItem': ...
     def mkDistWeight(self,
         is_dividing : bool,
         expr : Expr) -> 'DistWeight': ...
-    def mkTemplateParamExprValue(self,
-        value : Expr) -> 'TemplateParamExprValue': ...
     def mkExecBlockTag(self,
         type : TypeIdentifier) -> 'ExecBlockTag': ...
     def mkSymbolScopeRef(self,
@@ -282,9 +284,11 @@ class Factory(object):
         proto : FunctionPrototype,
         language : str,
         data : str) -> 'TargetTemplateFunction': ...
+    def mkTemplateParamExprValue(self,
+        value : Expr) -> 'TemplateParamExprValue': ...
+    def mkExprAggrLiteral(self) -> 'ExprAggrLiteral': ...
     def mkTemplateParamTypeValue(self,
         value : DataType) -> 'TemplateParamTypeValue': ...
-    def mkExprAggrLiteral(self) -> 'ExprAggrLiteral': ...
     def mkExprBin(self,
         lhs : Expr,
         op : ExprBinOp,
@@ -681,6 +685,11 @@ class Factory(object):
     def mkTemplateString(self,
         name : str,
         raw : str) -> 'TemplateString': ...
+    def mkTemplateText(self,
+        name : str,
+        offset : int,
+        extent : int,
+        text : str) -> 'TemplateText': ...
     def mkTemplateVarDecl(self,
         name : str,
         offset : int,
@@ -714,14 +723,14 @@ class Factory(object):
         offset : int,
         extent : int,
         text : str) -> 'TemplateComment': ...
+    def mkActivityParallel(self,
+        name : str,
+        join_spec : ActivityJoinSpec) -> 'ActivityParallel': ...
     def mkTemplateExpr(self,
         name : str,
         offset : int,
         extent : int,
         expr : Expr) -> 'TemplateExpr': ...
-    def mkActivityParallel(self,
-        name : str,
-        join_spec : ActivityJoinSpec) -> 'ActivityParallel': ...
     def mkTemplateIf(self,
         name : str,
         offset : int,
@@ -731,11 +740,10 @@ class Factory(object):
         join_spec : ActivityJoinSpec) -> 'ActivitySchedule': ...
     def mkActivitySequence(self,
         name : str) -> 'ActivitySequence': ...
-    def mkTemplateText(self,
+    def mkTemplateIfClause(self,
         name : str,
         offset : int,
-        extent : int,
-        text : str) -> 'TemplateText': ...
+        extent : int) -> 'TemplateIfClause': ...
     def mkTemplateForeach(self,
         name : str,
         offset : int,
@@ -746,106 +754,8 @@ class Factory(object):
         offset : int,
         extent : int,
         expr : Expr) -> 'TemplateRepeat': ...
-    def mkTemplateIfClause(self,
-        name : str,
-        offset : int,
-        extent : int) -> 'TemplateIfClause': ...
     @staticmethod
     def inst() -> 'Factory': ...
-    
-class AssocData(object):
-    pass
-    
-class SymbolImportSpec(object):
-    pass
-    
-    def imports(self) -> ListUtil...
-        """Returns an iterator over the items"""
-    
-    def getImports(self) -> List[PackageImportStmt]: ...
-    
-class SymbolRefPath(object):
-    pass
-    
-    def path(self) -> ListUtil...
-        """Returns an iterator over the items"""
-    
-    def getPathList(self) -> List['SymbolRefPathElem']: ...
-    
-    def getPath(self, i) -> 'SymbolRefPathElem': ...
-    
-    def addPath(self, i : 'SymbolRefPathElem'): ...
-    
-    def getPath(self) -> List[SymbolRefPathElem]: ...
-    
-class MonitorActivitySelectBranch(object):
-    pass
-    
-    def getGuard(self) -> Expr: ...
-    
-    def getBody(self) -> ScopeChild: ...
-    
-class Expr(object):
-    pass
-    
-class TemplateParamValue(object):
-    pass
-    
-class ExprAggrMapElem(object):
-    pass
-    
-    def getLhs(self) -> Expr: ...
-    
-    def getRhs(self) -> Expr: ...
-    
-class ActivityMatchChoice(object):
-    pass
-    
-    def getCond(self) -> ExprOpenRangeList: ...
-    
-    def getBody(self) -> ScopeChild: ...
-    
-class ExprAggrStructElem(object):
-    pass
-    
-    def getName(self) -> ExprId: ...
-    
-    def getValue(self) -> Expr: ...
-    
-class MonitorActivityMatchChoice(object):
-    pass
-    
-    def getCond(self) -> ExprOpenRangeList: ...
-    
-    def getBody(self) -> ScopeChild: ...
-    
-class TemplateParamDeclList(object):
-    pass
-    
-    def params(self) -> ListUtil...
-        """Returns an iterator over the items"""
-    
-    def getParams(self) -> List[TemplateParamDecl]: ...
-    
-class RefExpr(object):
-    pass
-    
-class ActivitySelectBranch(object):
-    pass
-    
-    def getGuard(self) -> Expr: ...
-    
-    def getWeight(self) -> Expr: ...
-    
-    def getBody(self) -> ScopeChild: ...
-    
-class TemplateParamValueList(object):
-    pass
-    
-    def values(self) -> ListUtil...
-        """Returns an iterator over the items"""
-    
-    def getValues(self) -> List[TemplateParamValue]: ...
     
 class ScopeChild(object):
     pass
@@ -884,6 +794,100 @@ class ScopeChild(object):
         """Returns an iterator over the items"""
     
     def getTrailing_comments(self) -> List[Comment]: ...
+    
+class AssocData(object):
+    pass
+    
+class SymbolImportSpec(object):
+    pass
+    
+    def imports(self) -> ListUtil...
+        """Returns an iterator over the items"""
+    
+    def getImports(self) -> List[PackageImportStmt]: ...
+    
+class SymbolRefPath(object):
+    pass
+    
+    def path(self) -> ListUtil...
+        """Returns an iterator over the items"""
+    
+    def getPathList(self) -> List['SymbolRefPathElem']: ...
+    
+    def getPath(self, i) -> 'SymbolRefPathElem': ...
+    
+    def addPath(self, i : 'SymbolRefPathElem'): ...
+    
+    def getPath(self) -> List[SymbolRefPathElem]: ...
+    
+class RefExpr(object):
+    pass
+    
+class Expr(object):
+    pass
+    
+class ActivityMatchChoice(object):
+    pass
+    
+    def getCond(self) -> ExprOpenRangeList: ...
+    
+    def getBody(self) -> ScopeChild: ...
+    
+class ExprAggrMapElem(object):
+    pass
+    
+    def getLhs(self) -> Expr: ...
+    
+    def getRhs(self) -> Expr: ...
+    
+class MonitorActivityMatchChoice(object):
+    pass
+    
+    def getCond(self) -> ExprOpenRangeList: ...
+    
+    def getBody(self) -> ScopeChild: ...
+    
+class ExprAggrStructElem(object):
+    pass
+    
+    def getName(self) -> ExprId: ...
+    
+    def getValue(self) -> Expr: ...
+    
+class TemplateParamValue(object):
+    pass
+    
+class TemplateParamDeclList(object):
+    pass
+    
+    def params(self) -> ListUtil...
+        """Returns an iterator over the items"""
+    
+    def getParams(self) -> List[TemplateParamDecl]: ...
+    
+class ActivitySelectBranch(object):
+    pass
+    
+    def getGuard(self) -> Expr: ...
+    
+    def getWeight(self) -> Expr: ...
+    
+    def getBody(self) -> ScopeChild: ...
+    
+class MonitorActivitySelectBranch(object):
+    pass
+    
+    def getGuard(self) -> Expr: ...
+    
+    def getBody(self) -> ScopeChild: ...
+    
+class TemplateParamValueList(object):
+    pass
+    
+    def values(self) -> ListUtil...
+        """Returns an iterator over the items"""
+    
+    def getValues(self) -> List[TemplateParamValue]: ...
     
 class ActionFieldInitializer(ScopeChild):
     """
@@ -1029,6 +1033,35 @@ class FunctionParamDecl(ScopeChild):
     
     def getDflt(self) -> Expr: ...
     
+class ActivityJoinSpec(ScopeChild):
+    """
+    Base class for specifying join semantics in parallel and schedule blocks.
+    
+    ActivityJoinSpec defines how parallel or scheduled activities synchronize
+    and when the containing block completes. Different join specifications
+    provide flexibility in modeling concurrent execution patterns.
+    
+    PSS Example::
+    
+        action my_action {
+            activity {
+                // Various join specifications
+                parallel join_none { }      // No synchronization
+                parallel join_first(2) { }  // Wait for first 2
+                parallel join_select(1) { } // Select 1 to complete
+                parallel join_branch { }    // Explicit branches
+            }
+        }
+    
+    Attributes:
+        (base class - no specific attributes)
+    
+    See Also:
+        ActivityJoinSpecNone, ActivityJoinSpecFirst, ActivityJoinSpecSelect, ActivityJoinSpecBranch
+    
+    """
+    pass
+    
 class GenericConstraintDeclValue(ScopeChild):
     """
     Value-returning generic constraint declaration.
@@ -1064,35 +1097,6 @@ class GenericConstraintParam(ScopeChild):
     def getName(self) -> ExprId: ...
     
     def getType(self) -> DataType: ...
-    
-class ActivityJoinSpec(ScopeChild):
-    """
-    Base class for specifying join semantics in parallel and schedule blocks.
-    
-    ActivityJoinSpec defines how parallel or scheduled activities synchronize
-    and when the containing block completes. Different join specifications
-    provide flexibility in modeling concurrent execution patterns.
-    
-    PSS Example::
-    
-        action my_action {
-            activity {
-                // Various join specifications
-                parallel join_none { }      // No synchronization
-                parallel join_first(2) { }  // Wait for first 2
-                parallel join_select(1) { } // Select 1 to complete
-                parallel join_branch { }    // Explicit branches
-            }
-        }
-    
-    Attributes:
-        (base class - no specific attributes)
-    
-    See Also:
-        ActivityJoinSpecNone, ActivityJoinSpecFirst, ActivityJoinSpecSelect, ActivityJoinSpecBranch
-    
-    """
-    pass
     
 class MethodParameterList(Expr):
     """
@@ -1191,6 +1195,32 @@ class ActivityStmt(ScopeChild):
     """
     pass
     
+class Annotation(ScopeChild):
+    """
+    Applied annotation attached to a model element.
+    
+    Represents an annotation use such as ``@desc_s {.desc = "hello"}``.
+    The annotation type is referenced by name; every parameter is
+    name-mapped (PSS 3.1 removed positional annotation parameters).
+    
+    ``is_standalone`` distinguishes the two application forms of §7.13: a
+    standalone annotation is terminated with ``;`` and is anchored to the
+    enclosing scope, while an element annotation has no terminator and
+    attaches to the model element that follows it.
+    
+    See Also:
+        AnnotationDecl, AnnotationParam
+    
+    """
+    pass
+    
+    def getType(self) -> TypeIdentifier: ...
+    
+    def parameters(self) -> ListUtil...
+        """Returns an iterator over the items"""
+    
+    def getParameters(self) -> List[AnnotationParam]: ...
+    
 class MonitorActivityStmt(ScopeChild):
     """
     Base class for all monitor activity statements.
@@ -1224,31 +1254,22 @@ class MonitorActivityStmt(ScopeChild):
     """
     pass
     
-class Annotation(ScopeChild):
+class AnnotationParam(ScopeChild):
     """
-    Applied annotation attached to a model element.
+    Parameter to an applied annotation.
     
-    Represents an annotation use such as ``@desc_s {.desc = "hello"}``.
-    The annotation type is referenced by name; every parameter is
-    name-mapped (PSS 3.1 removed positional annotation parameters).
-    
-    ``is_standalone`` distinguishes the two application forms of §7.13: a
-    standalone annotation is terminated with ``;`` and is anchored to the
-    enclosing scope, while an element annotation has no terminator and
-    attaches to the model element that follows it.
+    ``name`` is the annotation-type field the value is mapped onto. It is
+    always set: PSS 3.1 annotation parameters are name-mapped only.
     
     See Also:
-        AnnotationDecl, AnnotationParam
+        Annotation
     
     """
     pass
     
-    def getType(self) -> TypeIdentifier: ...
+    def getName(self) -> ExprId: ...
     
-    def parameters(self) -> ListUtil...
-        """Returns an iterator over the items"""
-    
-    def getParameters(self) -> List[AnnotationParam]: ...
+    def getValue(self) -> Expr: ...
     
 class NamedScopeChild(ScopeChild):
     """
@@ -1275,51 +1296,6 @@ class NamedScopeChild(ScopeChild):
     pass
     
     def getName(self) -> ExprId: ...
-    
-class AnnotationParam(ScopeChild):
-    """
-    Parameter to an applied annotation.
-    
-    ``name`` is the annotation-type field the value is mapped onto. It is
-    always set: PSS 3.1 annotation parameters are name-mapped only.
-    
-    See Also:
-        Annotation
-    
-    """
-    pass
-    
-    def getName(self) -> ExprId: ...
-    
-    def getValue(self) -> Expr: ...
-    
-class PackageImportStmt(ScopeChild):
-    """
-    Import statement bringing package symbols into current scope.
-    
-    Imports types and declarations from another package. Can import
-    all symbols with wildcard or create an alias for qualified access.
-    
-    PSS Example::
-    
-        import other_pkg::*;              // Wildcard import
-        import other_pkg::MyAction;       // Single import
-        import other_pkg as op;           // Aliased import
-    
-    Attributes:
-        wildcard: True if using wildcard (::*)
-        alias: Optional alias name for the import
-        path: Type identifier for the imported package/symbol
-    
-    See Also:
-        PackageScope, TypeIdentifier
-    
-    """
-    pass
-    
-    def getAlias(self) -> ExprId: ...
-    
-    def getPath(self) -> TypeIdentifier: ...
     
 class Comment(ScopeChild):
     """
@@ -1353,30 +1329,63 @@ class Comment(ScopeChild):
     
     def setRaw(self, v : str): ...
     
+class PackageImportStmt(ScopeChild):
+    """
+    Import statement bringing package symbols into current scope.
+    
+    Imports types and declarations from another package. Can import
+    all symbols with wildcard or create an alias for qualified access.
+    
+    PSS Example::
+    
+        import other_pkg::*;              // Wildcard import
+        import other_pkg::MyAction;       // Single import
+        import other_pkg as op;           // Aliased import
+    
+    Attributes:
+        wildcard: True if using wildcard (::*)
+        alias: Optional alias name for the import
+        path: Type identifier for the imported package/symbol
+    
+    See Also:
+        PackageScope, TypeIdentifier
+    
+    """
+    pass
+    
+    def getAlias(self) -> ExprId: ...
+    
+    def getPath(self) -> TypeIdentifier: ...
+    
 class ComponentBind(ScopeChild):
     """
     Component-level object/pool bind directive (``bind pool targets;``).
     
     Binds a pool to a set of action object-reference fields, or to all
-    compatible references via the wildcard form. Targets are captured as
-    plain dotted-path strings (e.g. ``"a.x"``); the wildcard form sets
-    ``is_wildcard`` and leaves ``targets`` empty. Paths are stored as
-    text rather than resolved references, so this node is inert during
-    link (no ref resolution, no traversal cycles).
+    compatible references via the wildcard form. Every target -- including
+    a wildcard -- is a ``ComponentBindTarget``, so a mixed list such as
+    ``bind p { a.x, * }`` keeps both entries in source order. Paths are
+    not resolved to references, so this node is inert during link (no ref
+    resolution, no traversal cycles).
     
     PSS Example::
     
         component pss_top {
             pool my_buffer p;
-            bind p *;                  // wildcard
-            bind p { producer.out };   // explicit target path
+            bind p *;                       // wildcard
+            bind p { producer.out };        // explicit target path
+            bind p { sub[0..3].prod.out };  // indexed component path
         }
     
     Attributes:
         pool_path: Hierarchical id of the bound pool (e.g. ``"p"``).
-        is_wildcard: True for the ``bind p *;`` form.
-        targets: Explicit dotted bind-item paths (empty when wildcard),
-            e.g. ``["producer.out", "consumer.inp"]``.
+        is_wildcard: True if *any* target is a wildcard -- for the bare
+            ``bind p *;`` form, and for a mixed list containing ``*``.
+            Equivalent to ``any(t.is_wildcard for t in targets)``, and
+            retained as a shorthand for the overwhelmingly common bare
+            form.
+        targets: The bind targets in source order, one
+            ``ComponentBindTarget`` per entry.
     
     """
     pass
@@ -1388,7 +1397,85 @@ class ComponentBind(ScopeChild):
     def targets(self) -> ListUtil...
         """Returns an iterator over the items"""
     
-    def getTargets(self) -> List[str]: ...
+    def getTargets(self) -> List[ComponentBindTarget]: ...
+    
+class ComponentBindTarget(ScopeChild):
+    """
+    One entry in a ``bind`` directive's target list.
+    
+    Corresponds to ``object_bind_item_path`` in the grammar: a possibly
+    empty component-instance path followed by the bind item itself, which
+    is either ``*`` or ``ActionType.field`` with an optional index
+    selection.
+    
+    A wildcard entry sets ``is_wildcard`` and leaves ``type_id``,
+    ``field`` and ``range`` null. Because the wildcard is a target like
+    any other, a mixed list keeps its shape: ``bind p { a.x, * }`` has two
+    targets rather than one target plus a flag.
+    
+    PSS Example::
+    
+        component pss_top {
+            pool my_buffer p;
+            bind p { sub[0..3].prod.out };
+            //       path -----^     ^--- type_id="prod", field="out"
+            bind p { a.x, * };  // two targets, the second a wildcard
+        }
+    
+    Attributes:
+        path: Leading component-instance path elements (empty when the
+            target names an action in the enclosing component).
+        is_wildcard: True for the ``*`` form.
+        type_id: Action type of the bind item; null when wildcard.
+        field: Object-reference field on that action; null when wildcard.
+        range: Optional index / index-range selection on the field; null
+            when absent or wildcard.
+    
+    """
+    pass
+    
+    def path(self) -> ListUtil...
+        """Returns an iterator over the items"""
+    
+    def getPath(self) -> List[ComponentPathElem]: ...
+    
+    def getType_id(self) -> TypeIdentifier: ...
+    
+    def getField(self) -> ExprId: ...
+    
+    def getRange(self) -> ExprDomainOpenRangeList: ...
+    
+class ComponentPathElem(ScopeChild):
+    """
+    One component-instance step of a ``bind`` target path.
+    
+    Corresponds to ``component_path_elem`` in the grammar: a component
+    instance name with an optional index or index-range selection. The
+    index selection is the reason this class exists -- it was previously
+    folded into the target's dotted text, where a consumer could neither
+    read the indices nor tell them from part of a name.
+    
+    PSS Example::
+    
+        component pss_top {
+            pool my_buffer p;
+            bind p { sub[0..3].prod.out };
+            //       ^^^^^^^^^ one ComponentPathElem, id="sub",
+            //                 range=[0..3]
+            //                 ^^^^ a second, id="prod", no index
+        }
+    
+    Attributes:
+        id: The component instance name.
+        range: Optional index / index-range selection; null when the
+            element carries no ``[...]``.
+    
+    """
+    pass
+    
+    def getId(self) -> ExprId: ...
+    
+    def getRange(self) -> ExprDomainOpenRangeList: ...
     
 class ConstraintStmt(ScopeChild):
     """
@@ -1726,44 +1813,6 @@ class Scope(ScopeChild):
     
     def getChildren(self) -> List[ScopeChild]: ...
     
-class TemplateParamDecl(ScopeChild):
-    """
-    Base class for template parameter declarations.
-    
-    Template parameters allow types and functions to be parameterized, enabling
-    generic programming in PSS. This abstract base class provides the common name
-    field shared by all template parameter types (generic type, category-constrained
-    type, and value parameters).
-    
-    PSS Example::
-    
-        // Generic type parameter T
-        action generic<T> {
-            rand T value;
-        }
-        
-        // Value parameter N
-        action sized<int N> {
-            int array[N];
-        }
-        
-        // Category-constrained parameter T
-        component container<T: action> {
-            T inst;
-        }
-    
-    Attributes:
-        name: Identifier for the template parameter
-    
-    See Also:
-        TemplateGenericTypeParamDecl, TemplateCategoryTypeParamDecl,
-        TemplateValueParamDecl, TemplateParamDeclList
-    
-    """
-    pass
-    
-    def getName(self) -> ExprId: ...
-    
 class ScopeChildRef(ScopeChild):
     """
     Reference to another AST node, used for type aliases and forwards.
@@ -1805,6 +1854,44 @@ class SymbolChild(ScopeChild):
     pass
     
     def getUpper(self) -> SymbolScope: ...
+    
+class TemplateParamDecl(ScopeChild):
+    """
+    Base class for template parameter declarations.
+    
+    Template parameters allow types and functions to be parameterized, enabling
+    generic programming in PSS. This abstract base class provides the common name
+    field shared by all template parameter types (generic type, category-constrained
+    type, and value parameters).
+    
+    PSS Example::
+    
+        // Generic type parameter T
+        action generic<T> {
+            rand T value;
+        }
+        
+        // Value parameter N
+        action sized<int N> {
+            int array[N];
+        }
+        
+        // Category-constrained parameter T
+        component container<T: action> {
+            T inst;
+        }
+    
+    Attributes:
+        name: Identifier for the template parameter
+    
+    See Also:
+        TemplateGenericTypeParamDecl, TemplateCategoryTypeParamDecl,
+        TemplateValueParamDecl, TemplateParamDeclList
+    
+    """
+    pass
+    
+    def getName(self) -> ExprId: ...
     
 class DistItem(ScopeChild):
     """
@@ -1865,52 +1952,6 @@ class DistWeight(ScopeChild):
     pass
     
     def getExpr(self) -> Expr: ...
-    
-class TemplateParamExprValue(TemplateParamValue):
-    """
-    Expression value for template instantiation.
-    
-    Represents a compile-time constant expression provided when instantiating a
-    template. This is used to fill in value parameters with concrete values. The
-    expression must be evaluable at compile time and must match the type specified
-    in the corresponding value parameter declaration.
-    
-    PSS Example::
-    
-        // Template with value parameters
-        action sized<int N, int WIDTH> {
-            bit<WIDTH> array[N];
-        }
-        
-        // Instantiation with expression values
-        sized<16, 8> inst1;  // Literal expressions
-        
-        // Using constants as expression values
-        const int BUFFER_SIZE = 32;
-        const int DATA_WIDTH = 64;
-        sized<BUFFER_SIZE, DATA_WIDTH> inst2;
-        
-        // Expressions can be computed
-        sized<8*4, 2+6> inst3;  // 32 elements, 8 bits wide
-        
-        // Mixed type and expression values
-        action mixed<T, int COUNT> {
-            T values[COUNT];
-        }
-        mixed<bit<32>, 10> mixed_inst;
-        // First value: bit<32> (TemplateParamTypeValue)
-        // Second value: 10 (TemplateParamExprValue)
-    
-    Attributes:
-        value: The compile-time constant expression
-    
-    See Also:
-        TemplateParamValue, TemplateParamTypeValue, Expr, TemplateValueParamDecl
-    
-    """
-    pass
-    
-    def getValue(self) -> Expr: ...
     
 class ExecBlockTag(ScopeChild):
     """
@@ -2132,6 +2173,72 @@ class TargetTemplateFunction(ScopeChild):
     
     def getTemplate(self) -> TemplateString: ...
     
+class TemplateParamExprValue(TemplateParamValue):
+    """
+    Expression value for template instantiation.
+    
+    Represents a compile-time constant expression provided when instantiating a
+    template. This is used to fill in value parameters with concrete values. The
+    expression must be evaluable at compile time and must match the type specified
+    in the corresponding value parameter declaration.
+    
+    PSS Example::
+    
+        // Template with value parameters
+        action sized<int N, int WIDTH> {
+            bit<WIDTH> array[N];
+        }
+        
+        // Instantiation with expression values
+        sized<16, 8> inst1;  // Literal expressions
+        
+        // Using constants as expression values
+        const int BUFFER_SIZE = 32;
+        const int DATA_WIDTH = 64;
+        sized<BUFFER_SIZE, DATA_WIDTH> inst2;
+        
+        // Expressions can be computed
+        sized<8*4, 2+6> inst3;  // 32 elements, 8 bits wide
+        
+        // Mixed type and expression values
+        action mixed<T, int COUNT> {
+            T values[COUNT];
+        }
+        mixed<bit<32>, 10> mixed_inst;
+        // First value: bit<32> (TemplateParamTypeValue)
+        // Second value: 10 (TemplateParamExprValue)
+    
+    Attributes:
+        value: The compile-time constant expression
+    
+    See Also:
+        TemplateParamValue, TemplateParamTypeValue, Expr, TemplateValueParamDecl
+    
+    """
+    pass
+    
+    def getValue(self) -> Expr: ...
+    
+class ExprAggrLiteral(Expr):
+    """
+    Base class for aggregate literal expressions.
+    
+    Represents the common structure for all aggregate literals including arrays,
+    maps, and struct initializers. Aggregate literals are used to initialize
+    composite data structures with specific values.
+    
+    PSS Example::
+    
+        {1, 2, 3}              // Array literal (ExprAggrList)
+        {name: value, ...}     // Struct literal (ExprAggrStruct)
+        {[key]: value, ...}    // Map literal (ExprAggrMap)
+    
+    See Also:
+        ExprAggrList, ExprAggrMap, ExprAggrStruct, ExprAggrEmpty
+    
+    """
+    pass
+    
 class TemplateParamTypeValue(TemplateParamValue):
     """
     Type value for template instantiation.
@@ -2171,26 +2278,6 @@ class TemplateParamTypeValue(TemplateParamValue):
     pass
     
     def getValue(self) -> DataType: ...
-    
-class ExprAggrLiteral(Expr):
-    """
-    Base class for aggregate literal expressions.
-    
-    Represents the common structure for all aggregate literals including arrays,
-    maps, and struct initializers. Aggregate literals are used to initialize
-    composite data structures with specific values.
-    
-    PSS Example::
-    
-        {1, 2, 3}              // Array literal (ExprAggrList)
-        {name: value, ...}     // Struct literal (ExprAggrStruct)
-        {[key]: value, ...}    // Map literal (ExprAggrMap)
-    
-    See Also:
-        ExprAggrList, ExprAggrMap, ExprAggrStruct, ExprAggrEmpty
-    
-    """
-    pass
     
 class ExprBin(Expr):
     """
@@ -3067,11 +3154,17 @@ class ExtendEnum(ScopeChild):
     
 class ActionHandleField(NamedScopeChild):
     """
-    Action handle field declaration.
+    Action or monitor handle field declaration.
     
     Represents an action instance field declared in an action or monitor
     body, including optional PSS 3.1 initializer assignments and support
     for array-typed handles.
+    
+    A *monitor* handle declared in a monitor body (``m1 h1;``) also builds
+    this class, despite the name. The two declarations are syntactically
+    identical -- ``type_identifier identifier ;`` -- so the parser cannot
+    distinguish them; which kind of handle it is follows from resolving
+    ``type``, and is known only after linking.
     
     """
     pass
@@ -7638,6 +7731,23 @@ class TemplateString(SymbolScope):
     
     def getElems(self) -> List[TemplateElem]: ...
     
+class TemplateText(TemplateElem):
+    """
+    A run of literal text between special elements.
+    
+    Attributes:
+        text: The literal text, verbatim
+    
+    See Also:
+        TemplateElem
+    
+    """
+    pass
+    
+    def getText(self) -> str: ...
+    
+    def setText(self, v : str): ...
+    
 class TemplateVarDecl(TemplateElem):
     """
     A template variable declaration -- §4.7.1.2, Table 5.
@@ -7870,30 +7980,6 @@ class TemplateComment(TemplateElem):
     
     def setText(self, v : str): ...
     
-class TemplateExpr(TemplateElem):
-    """
-    A mustache expression -- ``{{ expression }}``, §4.7.1.1.
-    
-    The expression is parsed by the ordinary PSS expression grammar and
-    resolves against whatever is referenceable at that point in the
-    source.  §4.7.1.1 additionally requires the type to be scalar and any
-    function called to be ``pure``.
-    
-    PSS Example::
-    
-        exec body C = """ stw {{addr}}, {{value}} """;
-    
-    Attributes:
-        expr: The parsed expression
-    
-    See Also:
-        TemplateElem, TemplateString
-    
-    """
-    pass
-    
-    def getExpr(self) -> Expr: ...
-    
 class ActivityParallel(ActivityLabeledScope):
     """
     Defines a parallel execution block with join semantics.
@@ -7938,6 +8024,30 @@ class ActivityParallel(ActivityLabeledScope):
     pass
     
     def getJoin_spec(self) -> ActivityJoinSpec: ...
+    
+class TemplateExpr(TemplateElem):
+    """
+    A mustache expression -- ``{{ expression }}``, §4.7.1.1.
+    
+    The expression is parsed by the ordinary PSS expression grammar and
+    resolves against whatever is referenceable at that point in the
+    source.  §4.7.1.1 additionally requires the type to be scalar and any
+    function called to be ``pure``.
+    
+    PSS Example::
+    
+        exec body C = """ stw {{addr}}, {{value}} """;
+    
+    Attributes:
+        expr: The parsed expression
+    
+    See Also:
+        TemplateElem, TemplateString
+    
+    """
+    pass
+    
+    def getExpr(self) -> Expr: ...
     
 class TemplateIf(TemplateElem):
     """
@@ -8047,22 +8157,24 @@ class ActivitySequence(ActivityLabeledScope):
     """
     pass
     
-class TemplateText(TemplateElem):
+class TemplateIfClause(TemplateBlock):
     """
-    A run of literal text between special elements.
+    One arm of a template if/else-if/else chain.
+    
+    PSS Example::
+    
+        {% if (a) %}   one   {% else if (b) %}   two   {% else %}   three   {%%}
     
     Attributes:
-        text: The literal text, verbatim
+        cond: The guard expression; null for the ``else`` arm
     
     See Also:
-        TemplateElem
+        TemplateIf
     
     """
     pass
     
-    def getText(self) -> str: ...
-    
-    def setText(self, v : str): ...
+    def getCond(self) -> Expr: ...
     
 class TemplateForeach(TemplateBlock):
     """
@@ -8106,23 +8218,4 @@ class TemplateRepeat(TemplateBlock):
     def getExpr(self) -> Expr: ...
     
     def getIdx(self) -> ExprId: ...
-    
-class TemplateIfClause(TemplateBlock):
-    """
-    One arm of a template if/else-if/else chain.
-    
-    PSS Example::
-    
-        {% if (a) %}   one   {% else if (b) %}   two   {% else %}   three   {%%}
-    
-    Attributes:
-        cond: The guard expression; null for the ``else`` arm
-    
-    See Also:
-        TemplateIf
-    
-    """
-    pass
-    
-    def getCond(self) -> Expr: ...
     

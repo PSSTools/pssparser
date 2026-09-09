@@ -1062,10 +1062,17 @@ monitor_body_item:
     | TOK_SEMICOLON
     ;
 
+// LRM B.11 lists monitor_handle_declaration alongside action_handle_declaration
+// here, but the two productions have the same shape -- `type_identifier
+// identifier-with-optional-dims-list ;` -- so no parser can tell them apart, and
+// ANTLR always took the action alternative. `monitor_handle_declaration` was
+// dead grammar that made the distinction look decidable when it is not: which
+// kind of handle `m1 h1;` declares is known only once `m1` is resolved, which
+// happens at link. Both forms parse as action_handle_declaration and build an
+// ActionHandleField; see ast/field.yaml.
 monitor_field_declaration:
     const_field_declaration
     | action_handle_declaration
-    | monitor_handle_declaration
     ;
 
 monitor_activity_declaration:
@@ -1077,7 +1084,6 @@ monitor_activity_stmt:
     | activity_action_traversal_stmt
     | monitor_activity_monitor_traversal_stmt
     | action_handle_declaration
-    | monitor_handle_declaration
     | monitor_activity_constraint_stmt
     | annotation
     | TOK_SEMICOLON
@@ -1097,14 +1103,12 @@ labeled_monitor_activity_stmt:
     | activity_super_stmt
     ;
 
-monitor_handle_declaration: 
-    monitor_type_identifier monitor_instantiation TOK_SEMICOLON
-    ;
-
-// B.9: `monitor_identifier { array_dim } { , monitor_identifier { array_dim } }`
-monitor_instantiation:
-    monitor_identifier array_dim*  (TOK_COMMA monitor_identifier array_dim*)*
-    ;
+// LRM B.11 `monitor_handle_declaration` and B.9 `monitor_instantiation` were
+// defined here and removed: both were unreachable behind
+// action_handle_declaration (see monitor_field_declaration above), and
+// action_instantiation already accepts everything monitor_instantiation did
+// -- an identifier with any number of array dimensions -- plus the PSS 3.1
+// initializer list.
 
 monitor_activity_sequence_block_stmt: 
     TOK_SEQUENCE?  TOK_LCBRACE monitor_activity_stmt* TOK_RCBRACE

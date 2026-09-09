@@ -961,10 +961,40 @@ public:
         ast::IComponentBind *ic = m_factory->mkComponentBind(
             i->getPool_path(),
             i->getIs_wildcard());
-        ic->getTargets().insert(
-            ic->getTargets().begin(),
-            i->getTargets().begin(),
-            i->getTargets().end());
+        for (std::vector<ast::IComponentBindTargetUP>::const_iterator
+            it=i->getTargets().begin(); it!=i->getTargets().end(); it++) {
+            ic->getTargets().push_back(ast::IComponentBindTargetUP(
+                copyT<ast::IComponentBindTarget>(it->get())));
+        }
+        m_sc = fin(i, ic);
+    }
+
+    virtual void visitComponentBindTarget(ast::IComponentBindTarget *i) {
+        ast::IComponentBindTarget *ic = m_factory->mkComponentBindTarget(
+            i->getIs_wildcard());
+        for (std::vector<ast::IComponentPathElemUP>::const_iterator
+            it=i->getPath().begin(); it!=i->getPath().end(); it++) {
+            ic->getPath().push_back(ast::IComponentPathElemUP(
+                copyT<ast::IComponentPathElem>(it->get())));
+        }
+        if (i->getType_id()) {
+            ic->setType_id(copyT<ast::ITypeIdentifier>(i->getType_id()));
+        }
+        if (i->getField()) {
+            ic->setField(copyT<ast::IExprId>(i->getField()));
+        }
+        if (i->getRange()) {
+            ic->setRange(copyT<ast::IExprDomainOpenRangeList>(i->getRange()));
+        }
+        m_sc = fin(i, ic);
+    }
+
+    virtual void visitComponentPathElem(ast::IComponentPathElem *i) {
+        ast::IComponentPathElem *ic = m_factory->mkComponentPathElem(
+            copyT<ast::IExprId>(i->getId()));
+        if (i->getRange()) {
+            ic->setRange(copyT<ast::IExprDomainOpenRangeList>(i->getRange()));
+        }
         m_sc = fin(i, ic);
     }
 

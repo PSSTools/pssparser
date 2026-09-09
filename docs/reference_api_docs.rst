@@ -229,6 +229,21 @@ Field declarations within types.
     :undoc-members:
     :show-inheritance:
 
+.. autoclass:: pssparser.ast.ComponentBind
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+.. autoclass:: pssparser.ast.ComponentBindTarget
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+.. autoclass:: pssparser.ast.ComponentPathElem
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 ***********
 Expressions
 ***********
