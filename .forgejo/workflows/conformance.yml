@@ -104,6 +104,21 @@ jobs:
             # and the reason the generator now refuses to emit a check whose
             # markers see fewer steps than git-sync's do.
             ("vsce ", "publish"),
+            # Added with the publish-npm job in .github/workflows/ci.yml.
+            # @psstools/pssparser ships the C++ core as WebAssembly, the first
+            # thing this estate releases to that registry, so -- exactly as
+            # with the Marketplace entry above -- nothing already in this list
+            # matched the step, and it would have gone unwatched while this
+            # check reported success. The anti-vacuity guard at the bottom
+            # would not have caught it either: the twine step still matches,
+            # so `found` stays non-zero.
+            #
+            # Note the wording of this comment. It sits inside a `run: |`
+            # block, so it is part of the step's text and IS scanned -- an
+            # earlier draft said "the estate's first n-p-m publisher" spelled
+            # out, which contains the marker being added and made this
+            # checking job report itself as an ungated publisher.
+            ("npm ", "publish"),
         ))
         TAG = "refs/tags/v"
         AUTH = "authority"

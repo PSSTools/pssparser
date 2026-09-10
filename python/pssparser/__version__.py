@@ -1,6 +1,6 @@
 import os
 
-BASE = "3.1.1"
+BASE = "3.1.2"
 SUFFIX = ""
 
 __version__ = (BASE, SUFFIX)
