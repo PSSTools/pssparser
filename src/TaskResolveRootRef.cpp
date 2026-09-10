@@ -292,6 +292,29 @@ ast::ISymbolRefPath *TaskResolveRootRef::searchImport(
 		DEBUG("Skipping, due to unset import target");
 		return 0;
 	}
+
+	// A single-symbol import names the symbol; it does not open it as a scope.
+	// `import p::t;` has to match `t` and hand back the path the import itself
+	// resolved to. Falling through to the wildcard search below instead looked
+	// for `t` inside `t`, never found it, and left every `import p::t;` in the
+	// workspace doing nothing at all.
+	if (!imp->getWildcard()) {
+		const std::vector<ast::ITypeIdentifierElemUP> &elems =
+			imp->getPath()->getElems();
+		if (elems.empty() ||
+			elems.back()->getId()->getId() != id->getId()) {
+			DEBUG_LEAVE("searchImport %s - single-symbol import of something else",
+				id->getId().c_str());
+			return 0;
+		}
+		ret = m_ctxt->getFactory()->getAstFactory()->mkSymbolRefPath();
+		ret->getPath().insert(
+			ret->getPath().begin(),
+			imp->getPath()->getTarget()->getPath().begin(),
+			imp->getPath()->getTarget()->getPath().end());
+		DEBUG_LEAVE("searchImport %s - single-symbol import", id->getId().c_str());
+		return ret;
+	}
 	for (uint32_t i=0; i<imp->getPath()->getTarget()->getPath().size(); i++) {
 		DEBUG("Imp Path[%d] %d", i, imp->getPath()->getTarget()->getPath().at(i));
 	}
