@@ -1,4 +1,5 @@
 
+import io
 import sys
 import os
 
@@ -29,23 +30,42 @@ copyright = """
 
 print("mk_pssstdlib.py")
 
+
+def write_if_changed(path, content):
+    """Write *content* to *path* only when it differs from what is there.
+
+    Kept local rather than imported from astbuilder: this script is also run
+    by the native build, and standalone is what makes that safe.
+    """
+    try:
+        with open(path, "r") as fp:
+            if fp.read() == content:
+                return False
+    except (FileNotFoundError, IsADirectoryError, UnicodeDecodeError):
+        pass
+    with open(path, "w") as fp:
+        fp.write(content)
+    return True
+
+
 def main():
     pss_stdlib_dir = os.path.dirname(os.path.abspath(__file__))
 
-    out = None
-
-    if len(sys.argv) > 1:
-        if sys.argv[1] == "-":
-            out = sys.stdout
-        else:
-            out = open(sys.argv[1], "w")
-    else:
-        out = sys.stdout
+    # Built in memory rather than streamed to the destination so that the
+    # result can be compared against what is already there. The wasm build
+    # runs this at cmake *configure* time, and an explicit `cmake -S -B`
+    # always re-configures -- so an unconditional write made pss_stdlib.h
+    # newer than every object that includes it, and a no-op refresh became a
+    # full rebuild of the parser.
+    out = io.StringIO()
 
     out.write(copyright)
 
+    # Sorted, because os.listdir order is filesystem-dependent. Without this
+    # the file's *content* varies between runs, which is both a
+    # reproducibility problem and enough to defeat the comparison below.
     files = []
-    for f in os.listdir(pss_stdlib_dir):
+    for f in sorted(os.listdir(pss_stdlib_dir)):
         base,ext = os.path.splitext(f)
         if ext == ".pss":
             files.append(base)
@@ -63,10 +83,12 @@ def main():
     out.write("};\n")
     out.write("\n")
 
-    if out is not sys.stdout:
-        out.close()
+    content = out.getvalue()
 
-    pass
+    if len(sys.argv) > 1 and sys.argv[1] != "-":
+        write_if_changed(sys.argv[1], content)
+    else:
+        sys.stdout.write(content)
 
 if __name__ == "__main__":
     main()

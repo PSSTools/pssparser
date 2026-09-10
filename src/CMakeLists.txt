@@ -88,9 +88,13 @@ set_target_properties(pssparser PROPERTIES SKIP_BUILD_RPATH TRUE)
 
 file(GLOB pss_stdlib_SRC "stdlib/*.pss")
 
+# The generator script is a dependency too. Without it, editing
+# mk_pssstdlib.py leaves pss_stdlib.h stale indefinitely -- the .pss inputs
+# have not changed, so the rule never re-runs, and the native and WASM builds
+# quietly disagree about the stdlib.
 add_custom_command(
     OUTPUT pss_stdlib.h
-    DEPENDS ${pss_stdlib_SRC}
+    DEPENDS ${pss_stdlib_SRC} ${CMAKE_CURRENT_SOURCE_DIR}/stdlib/mk_pssstdlib.py
     COMMAND ${PYTHON} ${CMAKE_CURRENT_SOURCE_DIR}/stdlib/mk_pssstdlib.py
         ${CMAKE_CURRENT_BINARY_DIR}/pss_stdlib.h
 )
