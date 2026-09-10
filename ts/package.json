@@ -1,10 +1,28 @@
 {
   "name": "@psstools/pssparser",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "PSS (Portable Test and Stimulus Standard) parser -- the pssparser C++ core compiled to WebAssembly, with a TypeScript API",
   "license": "Apache-2.0",
-  "private": true,
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/psstools/pssparser.git",
+    "directory": "ts"
+  },
+  "homepage": "https://github.com/psstools/pssparser#readme",
+  "bugs": {
+    "url": "https://github.com/psstools/pssparser/issues"
+  },
+  "keywords": [
+    "pss",
+    "portable stimulus",
+    "accellera",
+    "parser",
+    "webassembly"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "engines": {
     "node": ">=18"
   },
@@ -21,7 +39,9 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "scripts/prepare.mjs",
+    "scripts/ivpm-python.mjs"
   ],
   "scripts": {
     "gen:ast": "node scripts/astbuilder.mjs gen-ts -astdir ../ast -o src/ast/generated",

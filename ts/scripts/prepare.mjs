@@ -36,6 +36,13 @@ if (process.env.SKIP_PSSPARSER_PREPARE) {
 // `dist/` is already the deliverable. npm should not run us here at all; the
 // check costs one syscall and turns a confusing failure into a no-op if some
 // future npm decides otherwise.
+//
+// For that to be true this file has to BE in the tarball, which is why
+// `scripts` is listed in package.json's `files` alongside `dist`. npm invokes
+// a `prepare` hook by path before anything in it can decline to run, so a
+// manifest that declares one and ships no script fails the install outright
+// with MODULE_NOT_FOUND -- the guard below would never be reached. Shipping
+// the directory costs a few kilobytes and makes the no-op reachable.
 if (!existsSync(join(tsDir, 'src', 'index.ts'))) {
   console.log('prepare: no sources present -- nothing to build');
   process.exit(0);
