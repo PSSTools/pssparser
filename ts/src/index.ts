@@ -3,8 +3,23 @@
  *
  * What this file exports *is* the API. Anything reachable only by a deeper
  * import path is an implementation detail and may change without a major
- * version; `package.json` has a single `"exports"` entry to keep that from
- * being merely a convention.
+ * version; `package.json`'s `"exports"` map keeps that from being merely a
+ * convention.
+ *
+ * There is a second entry point, `@psstools/pssparser/ast`, and it is the one
+ * exception. It resolves to the same module this file re-exports as the `ast`
+ * namespace, and exists because a namespace cannot be flattened by a
+ * re-exporting module: TypeScript has `export * as ns from`, but nothing that
+ * turns a namespace back into named exports. A consumer with its own AST
+ * module -- a language server whose several dozen files already say
+ * `import { GlobalScope } from '../ast'` -- can therefore write
+ * `export * from '@psstools/pssparser/ast'` and leave its use sites alone.
+ * Without it the only route is `ast.GlobalScope` at every use site, which is
+ * a rename of the consumer's entire codebase to satisfy a packaging detail.
+ *
+ * It carries the same stability promise as this file. The classes reached
+ * through it are the ones `Parser` hands back, so the two entry points cannot
+ * drift: they are the same objects.
  */
 
 export {

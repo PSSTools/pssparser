@@ -112,6 +112,22 @@ void TaskApplyTypeExtensions::visitExtendEnum(ast::IExtendEnum *i) {
     ast::IScopeChild *target = m_symtab_it->resolveAbsPath(i->getTarget()->getTarget());
     ast::ISymbolEnumScope *target_s = dynamic_cast<ast::ISymbolEnumScope *>(target);
 
+    // The name resolved, but not to an enum: `extend enum s` where s is a
+    // struct or a component. The cast is then null and the loop below writes
+    // through it. This is reachable from ordinary mistyped source, so it has
+    // to be a marker and not a crash.
+    if (!target_s) {
+        IMarkerUP marker(m_factory->mkMarker(
+            "cannot extend '" +
+            i->getTarget()->getElems().at(0)->getId()->getId() +
+            "' as an enum: it is not an enum type",
+            MarkerSeverityE::Error,
+            i->getTarget()->getElems().at(0)->getId()->getLocation()));
+        m_marker_l->marker(marker.get());
+        DEBUG_LEAVE("visitExtendEnum - target is not an enum");
+        return;
+    }
+
     for (std::vector<ast::IEnumItemUP>::const_iterator
         it=i->getItems().begin();
         it!=i->getItems().end(); it++) {
@@ -152,6 +168,21 @@ void TaskApplyTypeExtensions::visitExtendType(ast::IExtendType *i) {
 
     ast::IScopeChild *target = m_symtab_it->resolveAbsPath(i->getTarget()->getTarget());
     ast::ISymbolTypeScope *target_s = dynamic_cast<ast::ISymbolTypeScope *>(target);
+
+    // As in visitExtendEnum: a name that resolves to something other than a
+    // type scope leaves this null, and addChild() writes through it.
+    if (!target_s) {
+        IMarkerUP marker(m_factory->mkMarker(
+            "cannot extend '" +
+            i->getTarget()->getElems().at(0)->getId()->getId() +
+            "': it is not an extendable type",
+            MarkerSeverityE::Error,
+            i->getTarget()->getElems().at(0)->getId()->getLocation()));
+        m_marker_l->marker(marker.get());
+        DEBUG_LEAVE("visitExtendType - target is not a type scope");
+        return;
+    }
+
     m_target_s = target_s;
     for (std::vector<ast::IScopeChildUP>::const_iterator
         it=i->getChildren().begin();

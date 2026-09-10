@@ -14,6 +14,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./ast": {
+      "types": "./dist/ast/generated/index.d.ts",
+      "default": "./dist/ast/generated/index.js"
     }
   },
   "files": [
