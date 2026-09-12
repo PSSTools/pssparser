@@ -7,6 +7,26 @@ revision advances only the patch component.
 
 ## Unreleased
 
+### Fixed
+
+- **A generic constraint (13.1.2) is now a symbol in its enclosing scope, so
+  references to it resolve.** The declaration linked clean, but every reference
+  failed — `lim_lt(20)` with `unknown identifier 'lim_lt'`, `p::gt_zero(x)` with
+  `'p' has no member named 'gt_zero'` — so the construct could be declared and
+  never used. `IGenericConstraintDeclBool` derives from `IConstraintBlock` and so
+  reached `TaskBuildSymbolTree::visitConstraintBlock`, which calls the *unnamed*
+  `addChild()`: correct for a fixed constraint block, which is not referenceable,
+  and wrong for a generic one, which is called by name. Both declaration forms
+  now register their name.
+
+  Two consequences worth noting. A generic constraint that shares a name with a
+  field in the same scope is now a duplicate declaration, where before the
+  collision was silent. And arity is now checked at the reference: a generic
+  constraint has no `IFunctionPrototype`, so it does not go through the ordinary
+  call path — without its own check every reference would be rejected as
+  "'lim_lt' is not a function". The message names the construct:
+  `too many arguments to constraint 'lim_lt': expected 1, got 2`.
+
 ### Added
 
 - **`PSS116` — "construct is accepted but not represented in the AST."**

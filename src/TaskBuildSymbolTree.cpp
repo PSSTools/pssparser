@@ -30,6 +30,9 @@
 #include "pssp/ast/IActivityParallel.h"
 #include "pssp/ast/IActivitySchedule.h"
 #include "pssp/ast/IActivitySequence.h"
+#include "pssp/ast/IGenericConstraintDeclBool.h"
+#include "pssp/ast/IGenericConstraintDeclValue.h"
+#include "pssp/ast/IGenericConstraintParam.h"
 #include "pssp/ast/ISymbolScope.h"
 #include "Marker.h"
 
@@ -178,6 +181,45 @@ void TaskBuildSymbolTree::visitConstraintBlock(ast::IConstraintBlock *i) {
         (*it)->accept(m_this);
     }
     DEBUG_LEAVE("visitConstraintBlock");
+}
+
+void TaskBuildSymbolTree::visitGenericConstraintDeclBool(ast::IGenericConstraintDeclBool *i) {
+    DEBUG_ENTER("visitGenericConstraintDeclBool %s",
+        i->getName().c_str());
+
+    // A generic constraint, unlike a fixed one, is *referenced by name*
+    // (13.1.2), so it must be a symbol in its enclosing scope. Without this
+    // override the generated visitor falls through to visitConstraintBlock --
+    // GenericConstraintDeclBool derives from ConstraintBlock -- which calls the
+    // unnamed addChild(), appending the node to the scope's children but never
+    // naming it in the symtab. The declaration then linked clean while every
+    // reference to it failed with "unknown identifier". Same defect and same
+    // fix as visitFieldClaim and visitActionHandleField above.
+    if (i->getName() != "") {
+        addChild(i, i->getName(), false);
+    }
+
+    for (std::vector<ast::IConstraintStmtUP>::const_iterator
+        it=i->getConstraints().begin();
+        it!=i->getConstraints().end(); it++) {
+        (*it)->accept(m_this);
+    }
+
+    DEBUG_LEAVE("visitGenericConstraintDeclBool %s", i->getName().c_str());
+}
+
+void TaskBuildSymbolTree::visitGenericConstraintDeclValue(ast::IGenericConstraintDeclValue *i) {
+    DEBUG_ENTER("visitGenericConstraintDeclValue");
+
+    // The value-yielding form (`constraint int f(int a) a+1;`) is referenced by
+    // name in exactly the same way; it is not a ConstraintBlock, so it reaches
+    // this scope through visitScopeChild rather than visitConstraintBlock, but
+    // it was equally absent from the symtab.
+    if (i->getName()) {
+        addChild(i, i->getName()->getId(), false);
+    }
+
+    DEBUG_LEAVE("visitGenericConstraintDeclValue");
 }
 
 void TaskBuildSymbolTree::visitConstraintScope(ast::IConstraintScope *i) {

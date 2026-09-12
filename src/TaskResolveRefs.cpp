@@ -862,6 +862,36 @@ void TaskResolveRefs::checkCallArity(
         return;
     }
 
+    // A generic constraint is called like a function but is not one: it has no
+    // ISymbolFunctionScope and no IFunctionPrototype, so the arity check below
+    // would reject every reference as "'x' is not a function". Its parameter
+    // list is on the declaration itself (13.1.2), and none of the parameters
+    // may be defaulted or variadic, so arity is an exact match.
+    {
+        int32_t n_params = -1;
+        if (ast::IGenericConstraintDeclBool *gc =
+                dynamic_cast<ast::IGenericConstraintDeclBool *>(target)) {
+            n_params = (int32_t)gc->getParameters().size();
+        } else if (ast::IGenericConstraintDeclValue *gv =
+                dynamic_cast<ast::IGenericConstraintDeclValue *>(target)) {
+            n_params = (int32_t)gv->getParameters().size();
+        }
+        if (n_params >= 0) {
+            int32_t argc = (int32_t)elem->getParams()->getParameters().size();
+            if (argc != n_params) {
+                m_ctxt->addMarker(
+                    MarkerSeverityE::Error,
+                    elem->getId()->getLocation(),
+                    "%s arguments to constraint '%s': expected %d, got %d",
+                    (argc < n_params)?"too few":"too many",
+                    elem->getId()->getId().c_str(),
+                    n_params,
+                    argc);
+            }
+            return;
+        }
+    }
+
     ast::ISymbolFunctionScope *fn =
         dynamic_cast<ast::ISymbolFunctionScope *>(target);
 

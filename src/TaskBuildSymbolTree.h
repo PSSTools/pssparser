@@ -49,8 +49,12 @@ public:
     void registerActivityLabels(ast::ISymbolScope *scope);
     virtual void visitConstraintBlock(ast::IConstraintBlock *i) override;
 
+    virtual void visitGenericConstraintDeclBool(ast::IGenericConstraintDeclBool *i) override;
+
+    virtual void visitGenericConstraintDeclValue(ast::IGenericConstraintDeclValue *i) override;
+
     virtual void visitConstraintScope(ast::IConstraintScope *i) override;
-    
+
     virtual void visitConstraintStmt(ast::IConstraintStmt *i) override;
 
     virtual void visitConstraintStmtForall(ast::IConstraintStmtForall *i) override;
