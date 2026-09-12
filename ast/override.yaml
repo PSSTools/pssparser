@@ -1,0 +1,95 @@
+#****************************************************************************
+#* override.yaml
+#*
+#* AST structures for LRM B.10 override declarations
+#****************************************************************************
+
+classes:
+  - OverrideDecl:
+      super: Scope
+      doc: |
+          An ``override { ... }`` block.
+
+          Overrides retarget type selection during elaboration: every place the
+          model would have used the target type or instance, it uses the
+          replacement instead. The block's statements are held in
+          ``getChildren()`` and are in source order, which matters -- a later
+          statement overriding the same target wins.
+
+          The block declares no names, so it introduces no scope in the linked
+          tree even though it is a ``Scope`` in the AST.
+
+          PSS Example::
+
+              component pss_top {
+                  action A { }
+                  action B : A { }
+
+                  sub s1, s2;
+
+                  override {
+                      type A with B;
+                      instance s1.a with B;
+                  }
+              }
+
+          See Also:
+              TypeOverride, InstanceOverride
+
+  - OverrideStmt:
+      super: ScopeChild
+      doc: |
+          Base class for the two statements an ``override`` block admits.
+
+          The two differ in what they select -- a type, or one instance -- and
+          share the replacement type. They are separate classes rather than one
+          class with a discriminator because the target is a type identifier in
+          one and a hierarchical instance path in the other.
+
+          See Also:
+              TypeOverride, InstanceOverride, OverrideDecl
+
+  - TypeOverride:
+      super: OverrideStmt
+      doc: |
+          ``type T with U;`` -- every use of type ``T`` is replaced by ``U``.
+
+          PSS Example::
+
+              override {
+                  type mem_write with mem_write_ecc;
+              }
+
+          Attributes:
+              target: The type being overridden
+              with_t: The replacement type
+
+          See Also:
+              InstanceOverride
+      data:
+      - target: UP<TypeIdentifier>
+      - with_t: UP<TypeIdentifier>
+
+  - InstanceOverride:
+      super: OverrideStmt
+      doc: |
+          ``instance p.q with U;`` -- one instance is replaced by ``U``.
+
+          The target is a hierarchical path to a field, so the override applies
+          at that one site rather than to every use of the field's type.
+
+          PSS Example::
+
+              override {
+                  instance sub.mem.write_a with mem_write_ecc;
+              }
+
+          Attributes:
+              target: Hierarchical path naming the instance to override
+              with_t: The replacement type
+
+          See Also:
+              TypeOverride
+      data:
+      - target: UP<ExprHierarchicalId>
+      - with_t: UP<TypeIdentifier>

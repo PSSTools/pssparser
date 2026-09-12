@@ -143,47 +143,118 @@ Unordered concurrent activities:
         }
     }
 
+**Select**
+
+Exactly one of the alternatives must be observed. At least two are required:
+
+.. code-block:: pss
+
+    monitor SelectMonitor {
+        activity {
+            select {
+                fast_path;
+                slow_path;
+            }
+        }
+    }
+
+All five braced forms may carry a label (``setup: sequence { ... }``), and all
+five nest. In the AST they are five distinct classes deriving from
+``MonitorActivityLabeledScope``, holding their statements in ``getChildren()``.
+Monitor ``select`` has no guarded branches -- that form exists for action
+``select`` only.
+
+**Traversals**
+
+An action or monitor handle is traversed by naming it, and a type by ``do``:
+
+.. code-block:: pss
+
+    monitor TraversalMonitor {
+        my_action a;
+        my_monitor m;
+
+        activity {
+            a;
+            m;
+            do my_action;
+        }
+    }
+
+The syntax for traversing an action and for traversing a monitor is the same,
+so both build the same AST node (``ActivityActionHandleTraversal`` or
+``ActivityActionTypeTraversal``). Which kind of thing is being traversed
+follows from resolving the type.
+
 Cover Statements
 ----------------
 
-Cover statements specify which monitors to instantiate for behavioral coverage:
-
-**Inline Cover**
+A cover statement names the monitor to instantiate for behavioral coverage.
+There are two forms, each optionally labeled:
 
 .. code-block:: pss
 
     component pss_top {
         cover MyMonitor;
+
+        // Labeled
+        my_coverage: cover MyMonitor;
+
+        // Inline: a monitor body written in place, with no named type
+        cover {
+            my_action a;
+            activity { a; }
+        }
     }
 
-**Reference Cover**
+.. note::
 
-.. code-block:: pss
+   Earlier versions of this page also documented ``cover MyMonitor ref;`` and
+   ``cover "label" MyMonitor;``. Neither is PSS: the first is rejected, and a
+   label is a bare identifier followed by ``:``, not a string literal.
 
-    component pss_top {
-        cover MyMonitor monitor_ref;
-    }
+The reference form builds a ``CoverStmtReference`` naming a monitor *type*;
+the inline form builds a ``CoverStmtInline``, whose members are reached through
+``getChildren()``. An inline body is its own scope, so two ``cover { ... }``
+statements in one component may each declare a handle of the same name.
 
-**Labeled Cover**
-
-.. code-block:: pss
-
-    component pss_top {
-        cover "coverage_label" MyMonitor;
-    }
+A cover statement is a component body item. It is not an activity statement --
+there is no ``cover`` inside ``activity { ... }``.
 
 Monitor Constraints
 -------------------
 
-Monitors can include constraints that restrict the covered behavior:
+A monitor may constrain the behavior it covers. A constraint in the monitor
+body may be named or anonymous, and builds an ordinary ``ConstraintBlock``:
 
 .. code-block:: pss
 
     monitor ConstrainedMonitor {
-        constraint {
-            // Constraints on monitor behavior
+        my_action a;
+
+        constraint c1 { a.len > 0; }
+        constraint { a.len < 64; }
+
+        activity {
+            // A constraint among the activity statements is positional, and
+            // builds a MonitorConstraint rather than a ConstraintBlock.
+            constraint { a.addr % 4 == 0; }
+            a;
         }
     }
+
+Monitor Body Members
+--------------------
+
+A monitor body admits action and monitor handle declarations, ``static const``
+fields, constraints, covergroups, ``compile if``, annotations, access-modifier
+labels, and one ``activity`` block. It does not admit ``rand`` data fields,
+flow-object references, or ``exec`` blocks -- a monitor observes behavior and
+generates none.
+
+Handle declarations for actions and for monitors are spelled identically
+(``T h;``), so both build an ``ActionHandleField``; the declared kind follows
+from resolving ``T``.
 
 String Enhancements
 ===================
@@ -472,12 +543,28 @@ The following limitations currently exist:
    - Platform qualifier transitive validation
    
 2. **AST Representation**: Some constructs use simplified AST representations:
-   
+
    - Substring operations currently use subscript mechanism
    - May be enhanced in future versions
 
-3. **TaskCopyAst Warnings**: Some operations generate benign warnings about
-   AST copying for reference types. These do not affect functionality.
+3. **Monitor semantics are not checked**: every monitor construct is now
+   represented in the AST, but nothing yet verifies that a ``cover``
+   statement's target names a monitor type rather than some other type, or
+   that an abstract monitor is not covered directly.
+
+.. note::
+
+   This section previously claimed that "all PSS 3.0 constructs parse
+   correctly" and that AST-copy warnings were "benign ... do not affect
+   functionality". Neither was accurate. Every monitor activity body was
+   discarded during AST construction -- the source parsed, and the consumer
+   received a monitor with an empty activity. And an AST-copy gap is not
+   benign: it fails the specialization of a parameterized type and reports an
+   error, which is what happened to every parameterized monitor.
+
+   Both are fixed. The lesson kept from it: "parses correctly" is not a
+   statement about the AST, and this page should not make one without a test
+   that walks the nodes.
 
 Migration from PSS 2.x
 ======================

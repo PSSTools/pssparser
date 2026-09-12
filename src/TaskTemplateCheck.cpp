@@ -24,8 +24,6 @@
 #include "pssp/ast/IEnumItem.h"
 #include "pssp/ast/IExprRefPath.h"
 #include "pssp/ast/IExprRefPathContext.h"
-#include "pssp/ast/IExprRefPathId.h"
-#include "pssp/ast/IExprRefPathStaticFunc.h"
 #include "pssp/ast/IField.h"
 #include "pssp/ast/IFunctionPrototype.h"
 #include "pssp/ast/IProceduralStmtDataDeclaration.h"
@@ -91,9 +89,6 @@ public:
 
 private:
     static bool isCall(ast::IExprRefPath *i) {
-        if (dynamic_cast<ast::IExprRefPathStaticFunc *>(i)) {
-            return true;
-        }
         ast::IExprRefPathContext *rc =
             dynamic_cast<ast::IExprRefPathContext *>(i);
         if (rc && rc->getHier_id()) {
@@ -122,11 +117,7 @@ private:
     ast::IScopeChild *localFor(ast::IExprRefPath *i) {
         const std::string *name = 0;
 
-        if (ast::IExprRefPathId *ri = dynamic_cast<ast::IExprRefPathId *>(i)) {
-            if (ri->getId()) {
-                name = &ri->getId()->getId();
-            }
-        } else if (ast::IExprRefPathContext *rc =
+        if (ast::IExprRefPathContext *rc =
             dynamic_cast<ast::IExprRefPathContext *>(i)) {
             // Only a bare `x`. `x.a` is a member of something a template local
             // cannot be -- a local is scalar -- so it is not one of these.

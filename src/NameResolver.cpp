@@ -6,7 +6,6 @@
  */
 #include "dmgr/impl/DebugMacros.h"
 #include "NameResolver.h"
-#include "RefExprUtil.h"
 #include "TaskCollectDeclarations.h"
 
 namespace pssp {
@@ -90,12 +89,6 @@ void NameResolver::visitComponent(ast::IComponent *i) {
 
 	sym_it()->popScope();
 	DEBUG_LEAVE("visitComponent %s", i->getName()->getId().c_str());
-}
-
-void NameResolver::visitExprRefPathId(ast::IExprRefPathId *i) {
-    DEBUG_ENTER("visitExprRefPathId");
-
-    DEBUG_LEAVE("visitExprRefPathId");
 }
 
 void NameResolver::visitEnumDecl(ast::IEnumDecl *i) {

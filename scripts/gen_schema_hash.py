@@ -75,18 +75,37 @@ def banner(outname, files):
     return BANNER % (outname, len(files), listing)
 
 
-def write_header(path, digest, files):
+def write_if_changed(path, content):
+    """Write *content* to *path* only when it differs from what is there.
+
+    The wasm build runs this at cmake *configure* time, and an explicit
+    `cmake -S -B` always re-configures. Writing unconditionally made the
+    header newer than every object that includes it, turning a no-op refresh
+    into a full rebuild.
+    """
+    try:
+        with open(path, "r") as fp:
+            if fp.read() == content:
+                return False
+    except (FileNotFoundError, IsADirectoryError, UnicodeDecodeError):
+        pass
     with open(path, "w") as fp:
-        fp.write(banner(os.path.basename(path), files))
-        fp.write("#pragma once\n\n")
-        fp.write('#define PSSPARSER_AST_SCHEMA_HASH "%s"\n' % digest)
+        fp.write(content)
+    return True
+
+
+def write_header(path, digest, files):
+    write_if_changed(path, "".join((
+        banner(os.path.basename(path), files),
+        "#pragma once\n\n",
+        '#define PSSPARSER_AST_SCHEMA_HASH "%s"\n' % digest)))
 
 
 def write_ts(path, digest, files):
-    with open(path, "w") as fp:
-        fp.write(banner(os.path.basename(path), files))
-        fp.write("\n/** sha256 of the ast/*.yaml this package was generated from. */\n")
-        fp.write("export const AST_SCHEMA_HASH = '%s';\n" % digest)
+    write_if_changed(path, "".join((
+        banner(os.path.basename(path), files),
+        "\n/** sha256 of the ast/*.yaml this package was generated from. */\n",
+        "export const AST_SCHEMA_HASH = '%s';\n" % digest)))
 
 
 def main(argv=None):

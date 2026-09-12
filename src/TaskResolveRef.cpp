@@ -158,18 +158,6 @@ void TaskResolveRef::visitExprRefPathStaticRooted(ast::IExprRefPathStaticRooted 
     DEBUG_LEAVE("visitExprRefPathStaticRooted");
 }
 
-void TaskResolveRef::visitExprRefPathId(ast::IExprRefPathId *i) {
-    DEBUG_ENTER("visitExprRefPathId id=%s", i->getId()->getId().c_str());
-
-	// Find the first element
-
-    ast::ISymbolRefPath *root = findRoot(i->getId());
-
-    m_ref = root;
-
-    DEBUG_LEAVE("visitExprRefPathId");
-}
-
 void TaskResolveRef::visitExprRefPathContext(ast::IExprRefPathContext *i) {
     DEBUG_ENTER("visitExprRefPathContext");
     DEBUG("Searching for root element (%s)", 

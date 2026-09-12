@@ -275,9 +275,6 @@ classes:
     data: 
     - is_global: bool
     - type_id: UP<TypeIdentifier>
-      #            - target:
-      #  - is_ctor: false
-      #  - type: SP<RefExpr>
 
 - TypedefDeclaration:
     super: ScopeChild

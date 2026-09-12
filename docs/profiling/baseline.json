@@ -1,13 +1,13 @@
 {
   "mode": "warm",
   "schema": 1,
-  "grammar_sha": "e0144fe836f9",
-  "corpus_rev": "efa1ef2",
+  "grammar_sha": "0bf8b4d70e84",
+  "corpus_rev": "9b4cad9",
   "corpus_root": "/home/mballance/projects/psstools/pssparser/packages/pss-corpus/curated",
   "repeat": 1,
   "synthetic": false,
   "file_count": 85,
-  "error_file_count": 3,
+  "error_file_count": 2,
   "files": [
     {
       "path": "<merged>",
@@ -15,8 +15,8 @@
       "mode": "warm",
       "lines": 5299,
       "tokens": 25671,
-      "parse_wall_ns": 105211548,
-      "dfa_size": 1205,
+      "parse_wall_ns": 83315258,
+      "dfa_size": 1187,
       "syntax_errors": 0,
       "parsed": true,
       "decisions": [
@@ -39,7 +39,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 254425,
+          "time_ns": 215508,
           "events": []
         },
         {
@@ -61,7 +61,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 36827,
+          "time_ns": 27539,
           "events": []
         },
         {
@@ -83,7 +83,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 2245,
+          "time_ns": 3147,
           "events": []
         },
         {
@@ -105,7 +105,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 1028097,
+          "time_ns": 771469,
           "events": []
         },
         {
@@ -127,7 +127,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 8837,
+          "time_ns": 8073,
           "events": []
         },
         {
@@ -149,7 +149,7 @@
           "context_sensitivities": 0,
           "errors": 2,
           "predicate_evals": 0,
-          "time_ns": 401472,
+          "time_ns": 322566,
           "events": []
         },
         {
@@ -171,7 +171,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 43473,
+          "time_ns": 36228,
           "events": []
         },
         {
@@ -193,7 +193,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 36829,
+          "time_ns": 30292,
           "events": []
         },
         {
@@ -215,7 +215,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 5751,
+          "time_ns": 7585,
           "events": []
         },
         {
@@ -237,7 +237,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 511170,
+          "time_ns": 439605,
           "events": []
         },
         {
@@ -259,7 +259,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 26720,
+          "time_ns": 24555,
           "events": []
         },
         {
@@ -281,7 +281,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 1352,
+          "time_ns": 1342,
           "events": []
         },
         {
@@ -303,7 +303,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 51858,
+          "time_ns": 51268,
           "events": []
         },
         {
@@ -325,7 +325,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 3218823,
+          "time_ns": 2483311,
           "events": []
         },
         {
@@ -347,7 +347,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 106020,
+          "time_ns": 80893,
           "events": []
         },
         {
@@ -369,7 +369,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 28576,
+          "time_ns": 23423,
           "events": []
         },
         {
@@ -391,7 +391,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 56459,
+          "time_ns": 43864,
           "events": []
         },
         {
@@ -413,7 +413,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 37922,
+          "time_ns": 29206,
           "events": []
         },
         {
@@ -435,7 +435,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 548364,
+          "time_ns": 427846,
           "events": []
         },
         {
@@ -457,7 +457,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 184118,
+          "time_ns": 162498,
           "events": []
         },
         {
@@ -479,7 +479,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 4928,
+          "time_ns": 3727,
           "events": []
         },
         {
@@ -501,7 +501,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 50581,
+          "time_ns": 41664,
           "events": []
         },
         {
@@ -523,7 +523,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 29230,
+          "time_ns": 23304,
           "events": []
         },
         {
@@ -545,7 +545,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 25348,
+          "time_ns": 21255,
           "events": []
         },
         {
@@ -567,7 +567,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 33223,
+          "time_ns": 25039,
           "events": []
         },
         {
@@ -589,7 +589,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 23234,
+          "time_ns": 18216,
           "events": []
         },
         {
@@ -611,7 +611,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 26160,
+          "time_ns": 20509,
           "events": []
         },
         {
@@ -633,7 +633,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 142472,
+          "time_ns": 109809,
           "events": []
         },
         {
@@ -655,7 +655,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 26710,
+          "time_ns": 21171,
           "events": []
         },
         {
@@ -677,7 +677,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 29747,
+          "time_ns": 24967,
           "events": []
         },
         {
@@ -699,7 +699,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 18956,
+          "time_ns": 17625,
           "events": []
         },
         {
@@ -721,58 +721,36 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 70947,
-          "events": []
-        },
-        {
-          "decision": 167,
-          "rule": "monitor_field_declaration",
-          "rule_index": 148,
-          "grammar_line": 1065,
-          "invocations": 17,
-          "sll_look": 91,
-          "sll_min_look": 4,
-          "sll_max_look": 7,
-          "ll_look": 91,
-          "ll_min_look": 4,
-          "ll_max_look": 7,
-          "sll_atn_transitions": 9,
-          "ll_atn_transitions": 73,
-          "ll_fallback": 17,
-          "ambiguities": 17,
-          "context_sensitivities": 0,
-          "errors": 0,
-          "predicate_evals": 0,
-          "time_ns": 822440,
+          "time_ns": 47989,
           "events": []
         },
         {
           "decision": 170,
           "rule": "monitor_activity_stmt",
           "rule_index": 150,
-          "grammar_line": 1075,
+          "grammar_line": 1082,
           "invocations": 34,
-          "sll_look": 68,
+          "sll_look": 52,
           "sll_min_look": 1,
-          "sll_max_look": 6,
-          "ll_look": 56,
-          "ll_min_look": 2,
-          "ll_max_look": 6,
-          "sll_atn_transitions": 14,
-          "ll_atn_transitions": 52,
-          "ll_fallback": 22,
-          "ambiguities": 22,
+          "sll_max_look": 2,
+          "ll_look": 0,
+          "ll_min_look": 0,
+          "ll_max_look": 0,
+          "sll_atn_transitions": 9,
+          "ll_atn_transitions": 0,
+          "ll_fallback": 0,
+          "ambiguities": 0,
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 1722904,
+          "time_ns": 21679,
           "events": []
         },
         {
-          "decision": 186,
+          "decision": 178,
           "rule": "monitor_constraint_declaration",
-          "rule_index": 163,
-          "grammar_line": 1152,
+          "rule_index": 159,
+          "grammar_line": 1161,
           "invocations": 5,
           "sll_look": 21,
           "sll_min_look": 4,
@@ -787,14 +765,14 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 55236,
+          "time_ns": 45316,
           "events": []
         },
         {
-          "decision": 187,
+          "decision": 179,
           "rule": "monitor_constraint_set",
-          "rule_index": 164,
-          "grammar_line": 1157,
+          "rule_index": 160,
+          "grammar_line": 1166,
           "invocations": 4,
           "sll_look": 4,
           "sll_min_look": 1,
@@ -809,14 +787,14 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 26952,
+          "time_ns": 19867,
           "events": []
         },
         {
-          "decision": 189,
+          "decision": 181,
           "rule": "monitor_constraint_body_item",
-          "rule_index": 166,
-          "grammar_line": 1166,
+          "rule_index": 162,
+          "grammar_line": 1175,
           "invocations": 5,
           "sll_look": 48,
           "sll_min_look": 8,
@@ -831,14 +809,14 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 193288,
+          "time_ns": 151378,
           "events": []
         },
         {
-          "decision": 202,
+          "decision": 194,
           "rule": "template_param_value",
-          "rule_index": 179,
-          "grammar_line": 1250,
+          "rule_index": 174,
+          "grammar_line": 1254,
           "invocations": 240,
           "sll_look": 531,
           "sll_min_look": 1,
@@ -853,14 +831,14 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 10283833,
+          "time_ns": 9144814,
           "events": []
         },
         {
-          "decision": 203,
+          "decision": 195,
           "rule": "data_type",
-          "rule_index": 180,
-          "grammar_line": 1262,
+          "rule_index": 175,
+          "grammar_line": 1266,
           "invocations": 1042,
           "sll_look": 1841,
           "sll_min_look": 1,
@@ -875,14 +853,14 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 675391,
+          "time_ns": 534392,
           "events": []
         },
         {
-          "decision": 205,
+          "decision": 197,
           "rule": "casting_type",
-          "rule_index": 182,
-          "grammar_line": 1280,
+          "rule_index": 177,
+          "grammar_line": 1284,
           "invocations": 13,
           "sll_look": 13,
           "sll_min_look": 1,
@@ -897,14 +875,14 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 7112,
+          "time_ns": 5540,
           "events": []
         },
         {
-          "decision": 210,
+          "decision": 202,
           "rule": "domain_open_range_value",
-          "rule_index": 187,
-          "grammar_line": 1316,
+          "rule_index": 182,
+          "grammar_line": 1320,
           "invocations": 71,
           "sll_look": 344,
           "sll_min_look": 2,
@@ -919,13 +897,13 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 110094,
+          "time_ns": 96996,
           "events": []
         },
         {
-          "decision": 218,
+          "decision": 210,
           "rule": "constraint_declaration",
-          "rule_index": 198,
+          "rule_index": 192,
           "grammar_line": 1385,
           "invocations": 52,
           "sll_look": 250,
@@ -941,13 +919,13 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 46658,
+          "time_ns": 37346,
           "events": []
         },
         {
-          "decision": 226,
+          "decision": 218,
           "rule": "constraint_set",
-          "rule_index": 205,
+          "rule_index": 199,
           "grammar_line": 1419,
           "invocations": 35,
           "sll_look": 122,
@@ -963,13 +941,13 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 782659,
+          "time_ns": 595268,
           "events": []
         },
         {
-          "decision": 228,
+          "decision": 220,
           "rule": "constraint_body_item",
-          "rule_index": 207,
+          "rule_index": 201,
           "grammar_line": 1430,
           "invocations": 98,
           "sll_look": 783,
@@ -985,13 +963,13 @@
           "context_sensitivities": 0,
           "errors": 28,
           "predicate_evals": 0,
-          "time_ns": 3765092,
+          "time_ns": 2932388,
           "events": []
         },
         {
-          "decision": 229,
+          "decision": 221,
           "rule": "default_constraint_item",
-          "rule_index": 208,
+          "rule_index": 202,
           "grammar_line": 1447,
           "invocations": 2,
           "sll_look": 6,
@@ -1007,13 +985,13 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 1322,
+          "time_ns": 1593,
           "events": []
         },
         {
-          "decision": 230,
+          "decision": 222,
           "rule": "foreach_constraint_item",
-          "rule_index": 212,
+          "rule_index": 206,
           "grammar_line": 1464,
           "invocations": 1,
           "sll_look": 2,
@@ -1029,13 +1007,13 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 28645,
+          "time_ns": 22012,
           "events": []
         },
         {
-          "decision": 233,
+          "decision": 225,
           "rule": "if_constraint_item",
-          "rule_index": 214,
+          "rule_index": 208,
           "grammar_line": 1474,
           "invocations": 1,
           "sll_look": 16,
@@ -1051,13 +1029,13 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 2701099,
+          "time_ns": 2033171,
           "events": []
         },
         {
-          "decision": 241,
+          "decision": 233,
           "rule": "covergroup_body_item",
-          "rule_index": 225,
+          "rule_index": 219,
           "grammar_line": 1540,
           "invocations": 12,
           "sll_look": 46,
@@ -1073,13 +1051,13 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 36931,
+          "time_ns": 31971,
           "events": []
         },
         {
-          "decision": 248,
+          "decision": 240,
           "rule": "covergroup_coverpoint",
-          "rule_index": 233,
+          "rule_index": 227,
           "grammar_line": 1586,
           "invocations": 6,
           "sll_look": 17,
@@ -1095,13 +1073,13 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 12565,
+          "time_ns": 9989,
           "events": []
         },
         {
-          "decision": 261,
+          "decision": 253,
           "rule": "covergroup_value_range",
-          "rule_index": 239,
+          "rule_index": 233,
           "grammar_line": 1618,
           "invocations": 11,
           "sll_look": 31,
@@ -1117,13 +1095,13 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 917159,
+          "time_ns": 773497,
           "events": []
         },
         {
-          "decision": 271,
+          "decision": 263,
           "rule": "component_body_compile_if",
-          "rule_index": 250,
+          "rule_index": 244,
           "grammar_line": 1677,
           "invocations": 1,
           "sll_look": 1,
@@ -1139,13 +1117,13 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 81446,
+          "time_ns": 64123,
           "events": []
         },
         {
-          "decision": 299,
+          "decision": 291,
           "rule": "expression",
-          "rule_index": 269,
+          "rule_index": 263,
           "grammar_line": 1790,
           "invocations": 277,
           "sll_look": 310,
@@ -1161,13 +1139,13 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 117714,
+          "time_ns": 94889,
           "events": []
         },
         {
-          "decision": 300,
+          "decision": 292,
           "rule": "expression",
-          "rule_index": 269,
+          "rule_index": 263,
           "grammar_line": 1790,
           "invocations": 2131,
           "sll_look": 2800,
@@ -1176,20 +1154,20 @@
           "ll_look": 368,
           "ll_min_look": 1,
           "ll_max_look": 8,
-          "sll_atn_transitions": 94,
+          "sll_atn_transitions": 93,
           "ll_atn_transitions": 341,
           "ll_fallback": 280,
           "ambiguities": 40,
           "context_sensitivities": 3,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 24652180,
+          "time_ns": 19104786,
           "events": []
         },
         {
-          "decision": 302,
+          "decision": 294,
           "rule": "in_expression",
-          "rule_index": 284,
+          "rule_index": 278,
           "grammar_line": 1875,
           "invocations": 9,
           "sll_look": 27,
@@ -1205,13 +1183,13 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 24818,
+          "time_ns": 17973,
           "events": []
         },
         {
-          "decision": 305,
+          "decision": 297,
           "rule": "primary",
-          "rule_index": 288,
+          "rule_index": 282,
           "grammar_line": 1892,
           "invocations": 1751,
           "sll_look": 1801,
@@ -1227,13 +1205,13 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 276338,
+          "time_ns": 230116,
           "events": []
         },
         {
-          "decision": 307,
+          "decision": 299,
           "rule": "static_ref_path",
-          "rule_index": 292,
+          "rule_index": 286,
           "grammar_line": 1942,
           "invocations": 9,
           "sll_look": 20,
@@ -1249,13 +1227,13 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 269123,
+          "time_ns": 207447,
           "events": []
         },
         {
-          "decision": 308,
+          "decision": 300,
           "rule": "ref_path",
-          "rule_index": 293,
+          "rule_index": 287,
           "grammar_line": 1946,
           "invocations": 8,
           "sll_look": 8,
@@ -1271,13 +1249,13 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 8758,
+          "time_ns": 8555,
           "events": []
         },
         {
-          "decision": 309,
+          "decision": 301,
           "rule": "ref_path",
-          "rule_index": 293,
+          "rule_index": 287,
           "grammar_line": 1946,
           "invocations": 8,
           "sll_look": 8,
@@ -1293,13 +1271,13 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 8255,
+          "time_ns": 8526,
           "events": []
         },
         {
-          "decision": 311,
+          "decision": 303,
           "rule": "ref_path",
-          "rule_index": 293,
+          "rule_index": 287,
           "grammar_line": 1946,
           "invocations": 646,
           "sll_look": 646,
@@ -1315,13 +1293,13 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 97241,
+          "time_ns": 77463,
           "events": []
         },
         {
-          "decision": 312,
+          "decision": 304,
           "rule": "ref_path",
-          "rule_index": 293,
+          "rule_index": 287,
           "grammar_line": 1946,
           "invocations": 654,
           "sll_look": 1499,
@@ -1337,13 +1315,13 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 1401306,
+          "time_ns": 1151605,
           "events": []
         },
         {
-          "decision": 314,
+          "decision": 306,
           "rule": "function_call",
-          "rule_index": 295,
+          "rule_index": 289,
           "grammar_line": 1960,
           "invocations": 53,
           "sll_look": 106,
@@ -1359,13 +1337,13 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 17713,
+          "time_ns": 13510,
           "events": []
         },
         {
-          "decision": 316,
+          "decision": 308,
           "rule": "function_ref_path",
-          "rule_index": 296,
+          "rule_index": 290,
           "grammar_line": 1965,
           "invocations": 97,
           "sll_look": 698,
@@ -1381,13 +1359,13 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 2156821,
+          "time_ns": 1676967,
           "events": []
         },
         {
-          "decision": 320,
+          "decision": 312,
           "rule": "hierarchical_id",
-          "rule_index": 301,
+          "rule_index": 295,
           "grammar_line": 1990,
           "invocations": 903,
           "sll_look": 903,
@@ -1403,13 +1381,13 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 129081,
+          "time_ns": 101823,
           "events": []
         },
         {
-          "decision": 321,
+          "decision": 313,
           "rule": "member_path_elem",
-          "rule_index": 302,
+          "rule_index": 296,
           "grammar_line": 1994,
           "invocations": 955,
           "sll_look": 995,
@@ -1425,13 +1403,13 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 175727,
+          "time_ns": 138391,
           "events": []
         },
         {
-          "decision": 322,
+          "decision": 314,
           "rule": "member_path_elem",
-          "rule_index": 302,
+          "rule_index": 296,
           "grammar_line": 1994,
           "invocations": 964,
           "sll_look": 1006,
@@ -1447,13 +1425,13 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 4239062,
+          "time_ns": 3257411,
           "events": []
         },
         {
-          "decision": 327,
+          "decision": 319,
           "rule": "type_identifier",
-          "rule_index": 321,
+          "rule_index": 315,
           "grammar_line": 2032,
           "invocations": 962,
           "sll_look": 1494,
@@ -1469,13 +1447,13 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 11761243,
+          "time_ns": 8659083,
           "events": []
         },
         {
-          "decision": 329,
+          "decision": 321,
           "rule": "entity_type_identifier",
-          "rule_index": 332,
+          "rule_index": 326,
           "grammar_line": 2050,
           "invocations": 2,
           "sll_look": 2,
@@ -1491,13 +1469,13 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 35318,
+          "time_ns": 39486,
           "events": []
         },
         {
-          "decision": 331,
+          "decision": 323,
           "rule": "integer_number",
-          "rule_index": 334,
+          "rule_index": 328,
           "grammar_line": 2067,
           "invocations": 1024,
           "sll_look": 1842,
@@ -1506,20 +1484,20 @@
           "ll_look": 0,
           "ll_min_look": 0,
           "ll_max_look": 0,
-          "sll_atn_transitions": 17,
+          "sll_atn_transitions": 16,
           "ll_atn_transitions": 0,
           "ll_fallback": 0,
           "ambiguities": 0,
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 241977,
+          "time_ns": 199075,
           "events": []
         },
         {
-          "decision": 337,
+          "decision": 329,
           "rule": "aggregate_literal",
-          "rule_index": 346,
+          "rule_index": 340,
           "grammar_line": 2103,
           "invocations": 1,
           "sll_look": 3,
@@ -1535,13 +1513,13 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 58872,
+          "time_ns": 46037,
           "events": []
         },
         {
-          "decision": 341,
+          "decision": 333,
           "rule": "annotation",
-          "rule_index": 357,
+          "rule_index": 351,
           "grammar_line": 2175,
           "invocations": 5,
           "sll_look": 66,
@@ -1557,13 +1535,13 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 4291832,
+          "time_ns": 4148300,
           "events": []
         },
         {
-          "decision": 342,
+          "decision": 334,
           "rule": "annotation",
-          "rule_index": 357,
+          "rule_index": 351,
           "grammar_line": 2175,
           "invocations": 5,
           "sll_look": 10,
@@ -1579,7 +1557,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 2536736,
+          "time_ns": 2287767,
           "events": []
         }
       ]

@@ -81,25 +81,6 @@ void TaskExpr2DataType::visitExprRefPathContext(ast::IExprRefPathContext *i) {
     DEBUG_LEAVE("visitExprRefPathContext");
 }
 
-void TaskExpr2DataType::visitExprRefPathId(ast::IExprRefPathId *i) { 
-    DEBUG_ENTER("visitExprRefPathId");
-    if (i->getSlice()) {
-        DEBUG("TODO: flag error -- slice not permitted on a type identifier");
-    } else {
-        ast::ITypeIdentifier *tid = m_ctxt->getFactory()->getAstFactory()->mkTypeIdentifier();
-        tid->getElems().push_back(ast::ITypeIdentifierElemUP(
-            m_ctxt->getFactory()->getAstFactory()->mkTypeIdentifierElem(
-                TaskCopyAst(m_ctxt->getFactory()).copyT<ast::IExprId>(i->getId()),
-                0
-            )));
-        m_ret = m_ctxt->getFactory()->getAstFactory()->mkDataTypeUserDefined(
-            false,
-            tid
-        );
-    }
-    DEBUG_LEAVE("visitExprRefPathId");
-}
-
 void TaskExpr2DataType::visitExprRefPathStatic(ast::IExprRefPathStatic *i) { 
     DEBUG_ENTER("visitExprRefPathStatic");
     DEBUG("TODO: flag error");
@@ -108,12 +89,6 @@ void TaskExpr2DataType::visitExprRefPathStatic(ast::IExprRefPathStatic *i) {
 
 void TaskExpr2DataType::visitExprRefPathStaticRooted(ast::IExprRefPathStaticRooted *i) { 
 
-}
-
-void TaskExpr2DataType::visitExprStaticRefPath(ast::IExprStaticRefPath *i) { 
-    DEBUG_ENTER("visitExprStaticRefPath");
-    DEBUG("TODO: flag error");
-    DEBUG_LEAVE("visitExprStaticRefPath");
 }
 
 void TaskExpr2DataType::visitTypeIdentifier(ast::ITypeIdentifier *i) {

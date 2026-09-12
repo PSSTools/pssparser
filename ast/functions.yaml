@@ -171,6 +171,10 @@ classes:
             type: bool
             is_ctor: false
             init: false
+        - is_static:
+            type: bool
+            is_ctor: false
+            init: false
 
   - FunctionImport:
       super: ScopeChild
@@ -292,6 +296,82 @@ classes:
       data:
         - plat: PlatQual
         - name: UP<ExprId>
+
+  - ExportAction:
+      super: ScopeChild
+      doc: |
+          Exported action declaration -- LRM B.5, ``export_action``.
+
+          ``export A(int x);`` makes action type ``A`` callable from the target
+          environment with the given parameter signature. This is the action
+          counterpart of ``ExportFunction``, and is modelled on it: the same
+          platform qualifier, a type rather than a bare name, and the parameter
+          list the export declares.
+
+          The parameter list belongs to the export, not to the action: an
+          action has fields, and the export names which of them appear in the
+          exported signature and in what order.
+
+          PSS Example::
+
+              component pss_top {
+                  action A { rand int x; }
+
+                  export A(int x);
+                  export target A(int x);
+              }
+
+          Attributes:
+              plat: Platform qualifier (``target`` / ``solve``), if any
+              target: The action type being exported
+              parameters: The exported parameter signature
+
+          See Also:
+              ExportFunction, Action
+      data:
+        - plat: PlatQual
+        - target: UP<TypeIdentifier>
+        - parameters:
+            type: list<UP<FunctionParamDecl>>
+            is_ctor: false
+
+  - ImportClass:
+      super: TypeScope
+      doc: |
+          Foreign class declaration -- LRM B.5, ``import_class_decl``.
+
+          ``import class C : B { void f(); }`` declares a class implemented in
+          the target language, with the method prototypes PSS may call. The
+          body admits prototypes only -- no fields, no bodies -- so the
+          children of this scope are all ``FunctionPrototype``.
+
+          It is a ``TypeScope`` because it declares a type others name: a field
+          may be declared of an imported class type. ``super_t`` holds the
+          first entry of the extends list, which is where a consumer expecting
+          single inheritance will look; ``extends`` holds the whole list,
+          because ``import_class_extends`` accepts several and the target
+          language may allow it.
+
+          PSS Example::
+
+              package p {
+                  import class base { void init(); }
+
+                  import class dev : base {
+                      void write(int addr, int data);
+                      int  read(int addr);
+                  }
+              }
+
+          Attributes:
+              extends: Every type named after ``:``, in source order
+
+          See Also:
+              FunctionPrototype, TypeScope
+      data:
+        - extends:
+            type: list<UP<TypeIdentifier>>
+            is_ctor: false
 
   - TargetTemplateFunction:
       super: ScopeChild

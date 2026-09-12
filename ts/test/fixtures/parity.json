@@ -785,7 +785,17 @@
     ]
    ],
    "id": "corpus:language-ref/constraints.pss",
-   "markers": [],
+   "markers": [
+    {
+     "col": 14,
+     "extent": 9,
+     "file": "language-ref/constraints.pss",
+     "line": 110,
+     "message": "`randomize` is accepted but not represented in the AST: only the first of several randomization targets is kept",
+     "related": [],
+     "severity": "warning"
+    }
+   ],
    "maxErrors": 0,
    "raised": null,
    "why": "corpus parity"

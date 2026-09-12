@@ -44,14 +44,11 @@
 #include "pssp/ast/IExprFloatLiteral.h"
 #include "pssp/ast/IExprHierarchicalId.h"
 #include "pssp/ast/IExprIn.h"
-#include "pssp/ast/IExprListLiteral.h"
 #include "pssp/ast/IExprMemberPathElem.h"
 #include "pssp/ast/IExprNull.h"
 #include "pssp/ast/IExprNumber.h"
 #include "pssp/ast/IExprRefPathContext.h"
 #include "pssp/ast/IExprString.h"
-#include "pssp/ast/IExprStructLiteral.h"
-#include "pssp/ast/IExprSubstring.h"
 #include "pssp/ast/IExprUnary.h"
 #include "pssp/ast/IField.h"
 #include "pssp/ast/IFunctionParamDecl.h"
@@ -82,8 +79,6 @@ TypeCatE TaskExprTypeCat::expr(ast::IExpr *e) {
     // Literals -- the cases that motivated this in the first place.
     if (dynamic_cast<ast::IExprString *>(e)) {
         return TypeCatE::String;
-    } else if (dynamic_cast<ast::IExprSubstring *>(e)) {
-        return TypeCatE::String;
     } else if (dynamic_cast<ast::IExprBool *>(e)) {
         return TypeCatE::Bool;
     } else if (dynamic_cast<ast::IExprFloatLiteral *>(e)) {
@@ -92,9 +87,7 @@ TypeCatE TaskExprTypeCat::expr(ast::IExpr *e) {
         return TypeCatE::Int;
     } else if (dynamic_cast<ast::IExprNull *>(e)) {
         return TypeCatE::Null;
-    } else if (dynamic_cast<ast::IExprAggrLiteral *>(e) ||
-               dynamic_cast<ast::IExprListLiteral *>(e) ||
-               dynamic_cast<ast::IExprStructLiteral *>(e)) {
+    } else if (dynamic_cast<ast::IExprAggrLiteral *>(e)) {
         return TypeCatE::Aggregate;
     }
 

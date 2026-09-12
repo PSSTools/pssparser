@@ -265,7 +265,7 @@ classes:
                 rhs: Lower bit index expression
             
             See Also:
-                ExprSubscript, ExprRefPathId
+                ExprSliceRange, ExprRefPath
         data: 
             - lhs:  "UP<Expr>"
             - rhs:  "UP<Expr>"
@@ -478,73 +478,6 @@ classes:
             - rhs        : "UP<ExprOpenRangeList>"
             - collection : "UP<Expr>"
 
-    - ExprListLiteral:
-        super: Expr
-        doc: |
-            Represents a list literal expression.
-            
-            Similar to ExprAggrList but may have different semantic usage. Contains
-            an ordered sequence of expression values.
-            
-            PSS Example::
-            
-                list<int> values = [1, 2, 3, 4, 5];
-            
-            Attributes:
-                value: List of expression values
-            
-            See Also:
-                ExprAggrList, Expr
-        data:
-            - value: "list<UP<Expr>>"
-
-    - ExprStructLiteral:
-        super: Expr
-        doc: |
-            Represents a struct literal expression.
-            
-            Similar to ExprAggrStruct but may have different semantic usage. Initializes
-            struct fields with named values provided in a list of items.
-            
-            PSS Example::
-            
-                struct Config {
-                    int x;
-                    int y;
-                }
-                Config cfg = {x: 10, y: 20};
-            
-            Attributes:
-                values: List of field initialization items
-            
-            See Also:
-                ExprStructLiteralItem, ExprAggrStruct
-        data:
-            - values: "list<UP<ExprStructLiteralItem>>"
-
-    - ExprStructLiteralItem:
-        super: Expr
-        doc: |
-            Represents a field initialization in a struct literal.
-            
-            Contains a field name identifier and its corresponding value expression.
-            Used within ExprStructLiteral to specify individual field assignments.
-            
-            PSS Example::
-            
-                // Within struct literal: {field: value}
-                {x: 10, y: 20}
-            
-            Attributes:
-                id: Field name identifier
-                value: Expression providing the field's value
-            
-            See Also:
-                ExprStructLiteral, ExprId
-        data:
-            - id: "UP<ExprId>"
-            - value: "UP<Expr>"
-
     - ExprMemberPathElem:
         super: Expr
         doc: |
@@ -694,7 +627,7 @@ classes:
                 target: Resolved symbol reference path (null before resolution)
             
             See Also:
-                ExprRefPathId, ExprRefPathContext, ExprRefPathStatic
+                ExprRefPathContext, ExprRefPathStatic, ExprRefPathSuper
         data:
           - target:
 #              doc: |
@@ -704,33 +637,6 @@ classes:
               is_ctor: false
               type: UP<SymbolRefPath>
               init: 0
-
-    - ExprRefPathId:
-        super: ExprRefPath
-        doc: |
-            Represents a simple identifier reference path.
-            
-            A reference consisting of a single identifier, optionally followed by a
-            bit slice. The simplest form of reference path, used to access local
-            variables, fields, or parameters.
-            
-            PSS Example::
-            
-                my_field
-                value[7:0]          // With bit slice
-                variable
-            
-            Attributes:
-                id: The identifier being referenced
-                slice: Optional bit slice for bit-range extraction
-            
-            See Also:
-                ExprRefPath, ExprId, ExprBitSlice
-        data: 
-          - id: UP<ExprId>
-          - slice: 
-              type: UP<ExprBitSlice>
-              is_ctor: false
 
     - ExprRefPathContext:
         super: ExprRefPath
@@ -762,17 +668,6 @@ classes:
           - slice: 
               type: UP<ExprBitSlice>
               is_ctor: false
-    - ExprRefPathElem:
-        super: Expr
-        doc: |
-            Base class for elements within a reference path.
-            
-            Represents individual components that can be part of a reference path
-            expression. Used as a building block for more complex path structures.
-            
-            See Also:
-                ExprRefPath, ExprMemberPathElem
-
     - ExprRefPathStatic:
         super: ExprRefPath
         doc: |
@@ -794,35 +689,13 @@ classes:
                 slice: Optional bit slice
             
             See Also:
-                ExprRefPath, TypeIdentifierElem, ExprRefPathStaticFunc
+                ExprRefPath, TypeIdentifierElem, ExprRefPathStaticRooted
         data:
             - is_global: bool
             - base: "list<UP<TypeIdentifierElem>>"
             - slice: 
                 type: UP<ExprBitSlice>
                 is_ctor: false
-
-    - ExprRefPathStaticFunc:
-        super: ExprRefPathStatic
-        doc: |
-            Represents a static function call expression.
-            
-            Extends ExprRefPathStatic to include method parameters for calling static
-            functions or compile-time functions. Used for function calls on static
-            types or within package scope.
-            
-            PSS Example::
-            
-                my_pkg::my_function(arg1, arg2)
-                compile.has(some_type)
-            
-            Attributes:
-                params: Method parameter list for the function call
-            
-            See Also:
-                ExprRefPathStatic, MethodParameterList
-        data:
-            - params: "UP<MethodParameterList>"
 
     - ExprRefPathStaticRooted:
         super: ExprRefPath
@@ -934,7 +807,7 @@ classes:
                 upper: Right index, or null when written as ``[lower..]``
 
             See Also:
-                ExprBitSlice, ExprSubscript, ExprMemberPathElem
+                ExprBitSlice, ExprMemberPathElem
         data:
             - lower:
                 type: "UP<Expr>"
@@ -943,20 +816,6 @@ classes:
                 type: "UP<Expr>"
                 is_ctor: false
     # TODO: Remove this once it is safe to do so
-    - ExprStaticRefPath:
-        super: Expr
-        doc: |
-            Deprecated static reference path expression.
-            
-            Legacy class for static reference paths. This class is marked for removal
-            and should not be used in new code. Use ExprRefPathStatic instead.
-            
-            See Also:
-                ExprRefPathStatic
-        data: 
-        - is_global: bool
-        - base: "list<UP<TypeIdentifierElem>>"
-        - leaf: "UP<ExprMemberPathElem>"
     - ExprString:
         super: Expr
         doc: |
@@ -976,7 +835,7 @@ classes:
                 is_raw: True if this is a raw string literal
             
             See Also:
-                ExprBool, ExprNumber, ExprSubstring
+                ExprBool, ExprNumber, ExprTemplateString
         data:
             - value: string
             - is_raw: bool
@@ -1013,54 +872,6 @@ classes:
             - template:
                 type: UP<TemplateString>
                 is_ctor: false
-    - ExprSubstring:
-        super: Expr
-        doc: |
-            Represents a substring extraction expression.
-            
-            Extracts a portion of a string based on start and end indices. Used with
-            string expressions to select character ranges.
-            
-            PSS Example::
-            
-                string s = "Hello, World!";
-                string sub = s[0:5];        // "Hello"
-                string tail = s[7:12];      // "World"
-            
-            Attributes:
-                expr: String expression to extract from
-                start: Starting index expression
-                end: Ending index expression
-            
-            See Also:
-                ExprString, ExprSubscript, ExprBitSlice
-        data:
-            - expr: "UP<Expr>"
-            - start: "UP<Expr>"
-            - end: "UP<Expr>"
-    - ExprSubscript:
-        super: Expr
-        doc: |
-            Represents an array subscript or indexing expression.
-            
-            Accesses a single element of an array, list, or map by index. The expr
-            is the collection being indexed, and subscript is the index value.
-            
-            PSS Example::
-            
-                array<int, 10> arr;
-                int x = arr[5];         // Access element at index 5
-                int y = matrix[i];      // Dynamic index
-            
-            Attributes:
-                expr: Array or collection expression
-                subscript: Index expression
-            
-            See Also:
-                ExprBitSlice, ExprMemberPathElem
-        data: 
-            - expr: "UP<Expr>"
-            - subscript: "UP<Expr>"
     - ExprUnary:
         super: Expr
         doc: |
@@ -1163,7 +974,7 @@ classes:
                 parameters: List of argument expressions
             
             See Also:
-                ExprMemberPathElem, ExprRefPathStaticFunc
+                ExprMemberPathElem, ExprRefPathStatic
         data: 
           - parameters: 
               type: list<UP<Expr>>

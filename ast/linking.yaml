@@ -94,23 +94,6 @@ classes:
       - visit: true
 
 # Used to reference
-- SymbolScopeRef:
-    doc: |
-        Lightweight reference to a symbol scope by name.
-        
-        Provides a named reference mechanism for symbols without duplicating
-        the full scope structure. Used during linking to create references
-        between scopes before full resolution is complete.
-        
-        Attributes:
-            name: Identifier of the referenced scope
-        
-        See Also:
-            SymbolScope, ScopeChild
-    super: ScopeChild
-    data:
-    - name: string
-
 - SymbolScope:
     doc: |
         Base class for a node in the fully-linked tree.
