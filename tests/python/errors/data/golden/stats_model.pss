@@ -1,0 +1,33 @@
+// Fixture for the `stats_clean_model` golden: a small but structurally
+// varied model that exercises several --stats counters at once while
+// producing no diagnostics of its own.
+package dma_pkg {
+    buffer mem_b {
+        rand bit[32] addr;
+        rand bit[16] size;
+        constraint valid_size { size > 0; }
+    }
+
+    struct config_s {
+        rand bit[4] channel;
+    }
+
+    function void log(string msg);
+}
+
+component dma_c {
+    import dma_pkg::*;
+
+    mem_b   mem;
+    config_s cfg;
+
+    action transfer {
+        rand bit[16] len;
+        constraint len_c { len > 0; }
+        exec body {
+            len = 1;
+        }
+    }
+
+    action reset { }
+}

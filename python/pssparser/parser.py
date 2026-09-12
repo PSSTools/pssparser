@@ -1,3 +1,4 @@
+import time
 from io import StringIO
 from typing import Dict, List, Tuple, TextIO
 
@@ -45,6 +46,20 @@ class Parser(object):
         #: 0 (default) is unlimited. A library caller wants every diagnostic;
         #: the cap is a terminal-output affordance the CLI opts into.
         self._max_errors = 0
+        #: Phase name -> nanoseconds, accumulated across parse() calls. Read
+        #: by the CLI's --stats. Kept here rather than in the CLI because the
+        #: standard-library load happens inside parse() and is invisible from
+        #: outside -- reporting it as part of the user's parse time would be a
+        #: lie the number gets quoted for.
+        self._timings_ns : Dict[str,int] = {}
+
+    def _add_timing(self, phase: str, ns: int) -> None:
+        self._timings_ns[phase] = self._timings_ns.get(phase, 0) + ns
+
+    @property
+    def timings_ns(self) -> Dict[str,int]:
+        """Nanoseconds spent per internal phase, accumulated across calls."""
+        return dict(self._timings_ns)
 
     def set_max_errors(self, max_errors: int) -> None:
         """Stop reporting further errors for a file after ``max_errors``.
@@ -92,17 +107,25 @@ class Parser(object):
 
         file_id = 0
         if len(self._files) == 0:
+            t0 = time.perf_counter_ns()
             stdlib = self.ast_f.mkGlobalScope(len(self._files))
             self.parser_f.loadStandardLibrary(builder, stdlib)
             self._files.append(stdlib)
+            self._add_timing("stdlib", time.perf_counter_ns() - t0)
 
         for f in files:
             id = len(self._files)
             self._filenames[id] = f
+            # Timed as one span: the builder reads from the open file object,
+            # so the I/O is interleaved with parsing and cannot be separated
+            # without buffering the whole source first. Reported under a name
+            # that says so rather than as a bare "parse".
+            t0 = time.perf_counter_ns()
             with open(f, "r") as fp:
                 ast = self.ast_f.mkGlobalScope(id)
                 builder.build(ast, fp)
-            
+            self._add_timing("parse (incl. read)", time.perf_counter_ns() - t0)
+
             if marker_l.hasSeverity(zspp.MarkerSeverityE.Error):
                 self._markers = self._collectMarkers(marker_l)
                 err = self._mkErrorMessage(marker_l)

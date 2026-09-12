@@ -15,13 +15,15 @@ inspect the diff before committing.
 from __future__ import annotations
 
 import io
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Optional
 
 import pytest
 
+from pssparser.cli.app import _build_parser
 from pssparser.cli.commands import cmd_parse
+from pssparser.cli.diagnostics import WarningPolicy
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 GOLDEN_DIR = Path(__file__).parent / "data" / "golden"
@@ -35,6 +37,10 @@ class GoldenCase:
     use_json: bool = False
     max_errors: int = 20
     color: Optional[bool] = False
+    show_stats: bool = False
+    # Extra CLI flags, parsed through the real argparse surface so the
+    # golden pins the flag *plumbing* as well as the rendering.
+    argv: List[str] = field(default_factory=list)
 
 
 # Picked to exercise: a plain single diagnostic with no related location; a
@@ -113,9 +119,26 @@ CASES: List[GoldenCase] = [
         "compile_if_unbraced",
         "tests/python/errors/data/deprecated/compile_if_unbraced.pss",
     ),
+    # -Werror promotion: the header severity changes, the `[-Werror=PSS104]`
+    # suffix appears, the summary line counts it as an error, and the exit
+    # code moves 0 -> 1. Uses the code-specific spelling so the golden also
+    # pins that the code is echoed back verbatim.
+    GoldenCase(
+        "werror_promoted",
+        "tests/python/errors/data/deprecated/compile_if_unbraced.pss",
+        argv=["-Werror=PSS104"],
+    ),
     GoldenCase(
         "clean_file_zero_errors",
         "tests/python/errors/data/golden/clean.pss",
+    ),
+    # --stats on a clean model: pins the drop-zero rule, the pluralisation,
+    # and that no phantom standard-library declaration leaks into the counts.
+    GoldenCase(
+        "stats_clean_model",
+        "tests/python/errors/data/golden/stats_model.pss",
+        argv=["--stats-no-timing"],
+        show_stats=True,
     ),
     GoldenCase(
         "colored_output",
@@ -134,6 +157,10 @@ def _render(case: GoldenCase, monkeypatch) -> str:
     # happened to be invoked from.
     monkeypatch.chdir(REPO_ROOT)
 
+    args = _build_parser().parse_args(case.argv)
+    policy = args.warning_policy or WarningPolicy()
+    policy.no_warnings = args.no_warnings
+
     stdout = io.StringIO()
     stderr = io.StringIO()
     exit_code = cmd_parse(
@@ -141,11 +168,17 @@ def _render(case: GoldenCase, monkeypatch) -> str:
         use_json=case.use_json,
         color=case.color,
         max_errors=case.max_errors,
+        warning_policy=policy,
+        show_stats=case.show_stats,
+        # Never time a golden: wall times are not byte-stable, which is the
+        # whole reason --stats-no-timing exists.
+        stats_timing=False,
         stdout=stdout,
         stderr=stderr,
     )
+    cmdline = " ".join(case.argv + [case.source])
     return (
-        f"$ pssparser {case.source} (exit {exit_code})\n"
+        f"$ pssparser {cmdline} (exit {exit_code})\n"
         f"--- stdout ---\n{stdout.getvalue()}"
         f"--- stderr ---\n{stderr.getvalue()}"
     )

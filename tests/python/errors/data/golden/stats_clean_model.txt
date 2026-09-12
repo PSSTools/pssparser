@@ -1,0 +1,6 @@
+$ pssparser --stats-no-timing tests/python/errors/data/golden/stats_model.pss (exit 0)
+--- stdout ---
+--- stderr ---
+0 errors in 1 file
+stats: 1 file processed
+  declarations: 1 package, 1 component, 2 actions, 1 struct, 1 buffer, 6 fields, 2 constraint blocks, 1 exec block, 1 function, 1 import

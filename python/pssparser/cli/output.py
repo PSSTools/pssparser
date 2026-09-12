@@ -107,7 +107,10 @@ class HumanOutput:
         # header: file:line:col: severity: message
         loc = f"{diag.file}:{diag.line}:{diag.col}"
         sev = _c(f"{diag.severity}:", sev_col, c)
-        w(f"{_c(loc, _BOLD, c)}: {sev} {diag.message}\n")
+        # A promoted warning names the flag that promoted it, so the reader
+        # can tell "this is an error" from "you asked for this to be an error".
+        flag = f" [{diag.werror_flag}]" if diag.werror_flag else ""
+        w(f"{_c(loc, _BOLD, c)}: {sev} {diag.message}{flag}\n")
 
         # source context line + caret
         has_src = self._source_block(
@@ -132,6 +135,18 @@ class HumanOutput:
             )
 
         w("\n")
+
+    def finish(self, coll: DiagnosticCollection, quiet: bool, stats=None) -> None:
+        """Write the trailing summary line and, if asked, the stats block.
+
+        ``-q --stats`` is a supported combination: the summary line is
+        suppressed but the stats block still appears.
+        """
+        if not quiet:
+            self.summary(coll)
+        if stats is not None:
+            from .stats import render_human
+            self._stream.write(render_human(stats))
 
     def summary(self, coll: DiagnosticCollection) -> None:
         parts = []
@@ -172,6 +187,8 @@ class JsonOutput:
         }
         if diag.end_col is not None:
             entry["end_col"] = diag.end_col
+        if diag.original_severity is not None:
+            entry["original_severity"] = diag.original_severity
         if diag.suggestion:
             entry["suggestion"] = diag.suggestion
         if diag.code:
@@ -183,7 +200,17 @@ class JsonOutput:
             ]
         self._items.append(entry)
 
-    def summary(self, coll: DiagnosticCollection) -> None:
+    def finish(self, coll: DiagnosticCollection, quiet: bool, stats=None) -> None:
+        """Emit the JSON document.
+
+        Under ``--quiet`` nothing is written unless stats were requested:
+        asking for stats is asking for output.
+        """
+        if quiet and stats is None:
+            return
+        self.summary(coll, stats)
+
+    def summary(self, coll: DiagnosticCollection, stats=None) -> None:
         doc = {
             "diagnostics": self._items,
             "summary": {
@@ -192,5 +219,8 @@ class JsonOutput:
                 "files": len(coll.files),
             },
         }
+        if stats is not None:
+            from .stats import to_json
+            doc["stats"] = to_json(stats)
         json.dump(doc, self._stream, indent=2)
         self._stream.write("\n")

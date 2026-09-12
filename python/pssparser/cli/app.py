@@ -6,6 +6,38 @@ import os
 import sys
 
 
+class _WarningAction(argparse.Action):
+    """Parse the GCC-style ``-W...`` family into a ``WarningPolicy``.
+
+    ``argparse`` splits ``-Wno-error=PSS104`` into the option string ``-W``
+    with the explicit argument ``no-error=PSS104`` -- exactly the shape GCC
+    uses -- so a single ``-W`` option covers the whole family.  Pre-scanning
+    ``sys.argv`` would also work, but it breaks ``--`` and ``@file``
+    handling, so it is deliberately not done here.
+    """
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        from .diagnostics import WarningPolicy
+
+        policy = getattr(namespace, "warning_policy", None)
+        if policy is None:
+            policy = WarningPolicy()
+            setattr(namespace, "warning_policy", policy)
+
+        spec = values
+        if spec == "error":
+            policy.error_all = True
+        elif spec.startswith("error="):
+            policy.error_codes.add(spec[len("error="):])
+        elif spec.startswith("no-error="):
+            policy.no_error_codes.add(spec[len("no-error="):])
+        else:
+            parser.error(
+                f"unrecognised warning option '-W{spec}' "
+                "(expected -Werror, -Werror=ID, or -Wno-error=ID)"
+            )
+
+
 def _build_parser() -> argparse.ArgumentParser:
     top = argparse.ArgumentParser(
         prog="pssparser",
@@ -98,6 +130,37 @@ def _build_parser() -> argparse.ArgumentParser:
         dest="color",
         help="Disable coloured output",
     )
+    # -- warning policy ---------------------------------------------------
+    warn_grp = top.add_argument_group("warning policy")
+    warn_grp.add_argument(
+        "-W",
+        action=_WarningAction,
+        dest="warning_policy",
+        default=None,
+        metavar="SPEC",
+        help="-Werror (all warnings are errors), -Werror=ID (only ID), "
+             "-Wno-error=ID (exempt ID from -Werror)",
+    )
+    warn_grp.add_argument(
+        "--no-warnings",
+        action="store_true",
+        default=False,
+        help="Suppress all warnings (applied before -Werror)",
+    )
+    # -- run statistics ---------------------------------------------------
+    stats_grp = top.add_argument_group("run statistics")
+    stats_grp.add_argument(
+        "--stats",
+        action="store_true",
+        default=False,
+        help="Report declaration counts, diagnostic codes, and phase timings",
+    )
+    stats_grp.add_argument(
+        "--stats-no-timing",
+        action="store_true",
+        default=False,
+        help="As --stats, but omit wall times so the output is reproducible",
+    )
     top.add_argument(
         "--max-errors",
         type=int,
@@ -173,6 +236,10 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     from .commands import cmd_parse
+    from .diagnostics import WarningPolicy
+
+    policy = args.warning_policy or WarningPolicy()
+    policy.no_warnings = args.no_warnings
 
     try:
         return cmd_parse(
@@ -186,6 +253,11 @@ def main(argv: list[str] | None = None) -> int:
             manager=manager,
             checkers=args.checkers,
             no_checkers=args.no_checkers,
+            warning_policy=policy,
+            # --stats-no-timing implies --stats; it is a variant of it, not
+            # a modifier that needs both flags spelled out.
+            show_stats=args.stats or args.stats_no_timing,
+            stats_timing=not args.stats_no_timing,
         )
     except KeyboardInterrupt:
         sys.stderr.write("\nInterrupted\n")

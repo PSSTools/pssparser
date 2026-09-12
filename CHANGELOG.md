@@ -9,6 +9,35 @@ revision advances only the patch component.
 
 ### Added
 
+- **`-Werror`, `-Werror=ID`, `-Wno-error=ID`, and `--no-warnings`.** Warnings
+  can now be promoted to errors, individually or wholesale, and a promoted
+  diagnostic names the flag that promoted it (`[-Werror=PSS104]`) so a reader
+  can tell "this is an error" from "you asked for this to be an error". In
+  `--json`, a promoted diagnostic carries `"original_severity": "warning"`
+  next to its `"severity": "error"`, and `summary.errors` counts it.
+  Suppression is applied before promotion, so `--no-warnings -Werror` reports
+  nothing. Two documented consequences: a warning with no marker ID can only
+  be promoted by a blanket `-Werror` (there is no name to put after the `=`),
+  and `--max-errors` does not count promoted warnings, because the cap is
+  enforced while parsing, long before promotion happens.
+- **`--stats` and `--stats-no-timing`.** Report what a run actually did:
+  declaration counts by kind, a histogram of the diagnostic codes that fired,
+  and per-phase wall times. Only the user's files are counted — neither the
+  standard library nor the implicit members the linker grafts onto user types
+  (every action gets a `set_executor` prototype) contribute. The
+  standard-library load is reported on its own row rather than folded into
+  the user's parse time, and the parse row is labelled `parse (incl. read)`
+  because the parser reads from the open file and the I/O cannot honestly be
+  separated. `--stats-no-timing` drops the wall times, making the output
+  byte-stable and therefore usable in goldens and documentation. Under
+  `--json` the document gains a top-level `"stats"` key whose `decls` object
+  always carries every counter, even at zero. A diagnostic whose message
+  matches no entry in the marker-ID pattern table is counted under
+  `<uncoded>` rather than dropped — a non-zero `<uncoded>` count means the
+  C++ message text has drifted from the table. Neither flag ever changes the
+  exit code.
+- `docs/cli.rst` now documents the exit codes (`0`/`1`/`2`/`130`) in a table.
+  It previously described none of them.
 - **`PSS116` — "construct is accepted but not represented in the AST."**
   Constructs the grammar accepts but the AST builder discards were previously
   silent: source using them parsed with an empty marker list, and the consumer

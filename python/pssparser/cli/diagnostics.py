@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import List, Optional, Set
 
 from .suggestion import extract_suggestion
 
@@ -38,6 +38,14 @@ class Diagnostic:
     end_col: Optional[int] = None
     notes: List[str] = field(default_factory=list)
     related: List[Relation] = field(default_factory=list)
+
+    # Set only when a warning was promoted to an error by ``-Werror``; holds
+    # the severity the diagnostic was reported with before promotion.
+    original_severity: Optional[str] = None
+    # The flag spelling that caused the promotion, e.g. ``-Werror=PSS104``.
+    # Human output renders it as a trailing ``[...]``; JSON does not, since
+    # ``original_severity`` already carries the machine-readable fact.
+    werror_flag: Optional[str] = None
 
     @classmethod
     def from_marker(cls, marker: dict) -> "Diagnostic":
@@ -85,6 +93,47 @@ class Diagnostic:
         )
 
 
+@dataclass
+class WarningPolicy:
+    """How ``-Werror`` / ``--no-warnings`` reshape warning diagnostics.
+
+    Suppression is applied before promotion, so ``--no-warnings -Werror``
+    leaves nothing to promote.  ``no_error_codes`` exempts individual marker
+    IDs from a blanket ``-Werror``.
+    """
+
+    no_warnings: bool = False
+    error_all: bool = False
+    error_codes: Set[str] = field(default_factory=set)
+    no_error_codes: Set[str] = field(default_factory=set)
+
+    @property
+    def is_default(self) -> bool:
+        return not (
+            self.no_warnings
+            or self.error_all
+            or self.error_codes
+            or self.no_error_codes
+        )
+
+    def promotion_flag(self, diag: Diagnostic) -> Optional[str]:
+        """Return the flag spelling that promotes *diag*, or ``None``.
+
+        A code-specific ``-Wno-error=ID`` always wins over a blanket
+        ``-Werror``; that is the only way to spell an exception.
+        """
+        if diag.severity != "warning":
+            return None
+        code = diag.code
+        if code and code in self.no_error_codes:
+            return None
+        if code and code in self.error_codes:
+            return f"-Werror={code}"
+        if self.error_all:
+            return "-Werror"
+        return None
+
+
 class DiagnosticCollection:
     """Accumulates diagnostics and provides counts / filtering.
 
@@ -100,6 +149,15 @@ class DiagnosticCollection:
 
     def add(self, diag: Diagnostic) -> None:
         self._diags.append(diag)
+
+    def replace_diagnostics(self, diags: List[Diagnostic]) -> None:
+        """Swap the diagnostic list wholesale.
+
+        Used by the warning-policy pass, which both drops and rewrites
+        entries.  Every consumer -- human output, JSON, the counts, and the
+        exit code -- reads this collection, so rewriting here covers all four.
+        """
+        self._diags = list(diags)
 
     def set_processed_files(self, files: List[str]) -> None:
         """Record the files actually handed to the parser.
