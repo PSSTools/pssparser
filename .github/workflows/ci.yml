@@ -19,7 +19,7 @@
 #
 # HAVING ALL FOUR PLATFORMS IS NOT THE SAME AS SERVING THEM, which v3.1.0 --
 # the first release under this authority -- demonstrated: the manylinux jobs
-# build cp39..cp314 from the interpreters in the manylinux image, but the
+# build every supported interpreter from the manylinux image, but the
 # Windows and macOS jobs each pinned one setup-python version, so that release
 # published six wheels per linux architecture against one Windows wheel
 # (cp311) and one macOS wheel (cp313). Every other Windows and macOS Python
@@ -28,11 +28,20 @@
 # Both jobs are matrices as of 2026-09-02, and `publish-pypi` now checks the
 # platform coverage of what it is about to upload.
 #
-# THEY ARE FOUR-WAY, NOT SIX. cp39 and cp314 were tried on both and neither
-# can build today -- ivpm needs >= 3.10, and `debug-mgr` (a build-time C++
-# dependency with no sdist) has no usable cp314 wheel for either platform.
-# Both bounds are upstream and are documented where they bite, on the
-# `python:` matrix in ci-win32. So a release is 6+6+4+4 = 20 wheels, against
+# THE FLOOR IS PYTHON 3.10 (2026-09-13). cp39 was built and published for
+# linux until then, and the wheels were not installable: `debug-mgr` has
+# never shipped a cp39 aarch64 wheel in ANY release and publishes no sdist, so
+# `pip install pssparser` on aarch64/3.9 ended at "No matching distribution
+# found for debug-mgr". On x86_64 it resolved only by walking back to a
+# debug-mgr from far earlier in the line. ciostream then dropped cp39 in 0.0.2
+# as well. Nothing was served by continuing to build an artifact whose
+# dependencies cannot be satisfied, so 3.9 is gone from the matrices and from
+# `python_requires` in setup.py -- the latter being what turns this into a
+# clear message rather than a confusing build failure.
+#
+# cp314 is linux-only, and that bound is upstream: `debug-mgr` has no usable
+# cp314 wheel for Windows or macOS. It is documented where it bites, on the
+# `python:` matrix in ci-win32. So a release is 5+5+4+4 = 18 wheels, against
 # v3.1.0's 6+6+1+1 = 14.
 #
 # ALL FOUR ARE MATRICES AS OF 2026-09-13. The manylinux jobs kept building
@@ -122,7 +131,7 @@ jobs:
 
   ci-linux:
     # ONE JOB PER ABI, as of 2026-09-13. This was a serial
-    # `for py in cp39 ... cp314` loop inside a single job, and that loop was
+    # `for py in cp310 ... cp314` loop inside a single job, and that loop was
     # the whole critical path: 1381s of the job's 1980s, against 5-6 minute
     # Windows and macOS jobs that have been matrices since 2026-09-02.
     #
@@ -135,16 +144,16 @@ jobs:
     # Duplicating ~17 CPU-minutes of native build to remove ~23 wall-clock
     # minutes is the trade, and on a public repo the runners are free.
     #
-    # The matrix is SIX wide, not four: linux ships cp39-cp314 where Windows
-    # and macOS ship 3.10-3.13. The publish job's per-platform wheel-count
-    # floor (>= 6 here) is what pins that.
+    # The matrix is FIVE wide: linux ships cp310-cp314 where Windows and
+    # macOS ship 3.10-3.13, the extra entry being cp314. The publish job's
+    # per-platform wheel-count floor (>= 5 here) is what pins that.
     strategy:
       # OFF so that one broken ABI reports as one broken ABI. With it on the
       # first failure cancels its siblings, and the log then cannot answer
       # "was this cp314 only, or everything?" -- same reasoning as ci-win32.
       fail-fast: false
       matrix:
-        py: ['cp39-cp39', 'cp310-cp310', 'cp311-cp311', 'cp312-cp312', 'cp313-cp313', 'cp314-cp314']
+        py: ['cp310-cp310', 'cp311-cp311', 'cp312-cp312', 'cp313-cp313', 'cp314-cp314']
     runs-on: ubuntu-latest
     container: quay.io/pypa/manylinux_2_28_x86_64
     steps:
@@ -254,7 +263,7 @@ jobs:
       # cp312 is the TOOLING interpreter -- ivpm here, auditwheel below -- and
       # stays cp312 on every matrix entry. It is deliberately not
       # ${{ matrix.py }}: ivpm and auditwheel are build tools, unrelated to the
-      # ABI being built, so pinning them means the cp39 and cp314 entries run
+      # ABI being built, so pinning them means the oldest and newest entries run
       # the same tooling as everything else rather than whatever pip can
       # resolve for the oldest and newest interpreters.
       run: |
@@ -369,7 +378,7 @@ jobs:
       # than a loop. Widening to all six ABIs is nearly free here -- the
       # entries run in parallel -- but it is a coverage change, not a
       # parallelism change, and it does not belong in the same commit as the
-      # split: cp39 and cp314 have never run this suite, so any failure they
+      # split: cp310 and cp314 have never run this suite, so any failure they
       # turn up would arrive looking like a regression from the matrix.
       if: matrix.py == 'cp312-cp312' || matrix.py == 'cp313-cp313'
       run: |
@@ -393,7 +402,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        py: ['cp39-cp39', 'cp310-cp310', 'cp311-cp311', 'cp312-cp312', 'cp313-cp313', 'cp314-cp314']
+        py: ['cp310-cp310', 'cp311-cp311', 'cp312-cp312', 'cp313-cp313', 'cp314-cp314']
     runs-on: ubuntu-24.04-arm
     container: quay.io/pypa/manylinux_2_28_aarch64
     steps:
@@ -503,7 +512,7 @@ jobs:
       # cp312 is the TOOLING interpreter -- ivpm here, auditwheel below -- and
       # stays cp312 on every matrix entry. It is deliberately not
       # ${{ matrix.py }}: ivpm and auditwheel are build tools, unrelated to the
-      # ABI being built, so pinning them means the cp39 and cp314 entries run
+      # ABI being built, so pinning them means the oldest and newest entries run
       # the same tooling as everything else rather than whatever pip can
       # resolve for the oldest and newest interpreters.
       run: |
@@ -603,7 +612,7 @@ jobs:
         python -c "from pssparser import Parser; p = Parser(); assert p.parses([('test.pss', 'component pss_top {}')]); print('System test PASSED')"
 
   ci-win32:
-    # ONE MATRIX ENTRY PER PYTHON, matching the cp39..cp314 loop the manylinux
+    # ONE MATRIX ENTRY PER PYTHON, matching the cp310..cp314 matrix the manylinux
     # jobs run. This job used to build a single 3.11 wheel, which is why
     # v3.1.0 shipped exactly one Windows artifact -- pssparser-3.1.0-cp311-
     # cp311-win_amd64.whl -- and every other Windows Python fell through to a
@@ -623,7 +632,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # 3.10..3.13, NOT cp39..cp314 -- and the bound is `debug-mgr`'s
+        # 3.10..3.13, NOT 3.10..3.14 -- and the bound is `debug-mgr`'s
         # release matrix, not this project's. It is a build-time C++
         # dependency resolved from PyPI, it publishes NO SDIST, so a Python
         # with no compatible wheel has no fallback: ivpm resolves it, nothing
@@ -637,16 +646,16 @@ jobs:
         #     tag" step below exists to stop pssparser shipping.)
         #   * cp314 Windows -- wheels exist, but the line stops at
         #     0.0.2.27891512881 while the project is on ...33288736809.
-        #   * cp39 -- ivpm/ivpm-build themselves need >= 3.10: the build dies
-        #     in `glob(root_dir=)` and `entry_points(group=)`, both 3.10 APIs.
+        # (cp39 used to be listed here too, blocked by ivpm/ivpm-build
+        # needing >= 3.10. It is no longer a special case for these jobs:
+        # 3.10 is the project floor everywhere as of 2026-09-13.)
         #
-        # THE LINUX JOBS BUILD cp39..cp314 ANYWAY, and the difference is
-        # structural rather than lucky. There, cmake runs ONCE under cp312 and
-        # only the extension is compiled per interpreter, so debug-mgr and
-        # ivpm are needed for one modern Python. These jobs run the whole
-        # toolchain under the matrix Python, so every one of its constraints
-        # applies to every entry. Routing these through a fixed driver Python
-        # would recover cp39; cp314 stays blocked upstream either way.
+        # THE LINUX JOBS BUILD cp314 ANYWAY, and the difference is structural
+        # rather than lucky. There, cmake runs ONCE under cp312 and only the
+        # extension is compiled per interpreter, so debug-mgr is needed for
+        # one modern Python. These jobs run the whole toolchain under the
+        # matrix Python, so every one of its constraints applies to every
+        # entry. cp314 stays blocked upstream here either way.
         python: ['3.10', '3.11', '3.12', '3.13']
     runs-on: windows-latest
     defaults:
@@ -783,7 +792,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # 3.10..3.13, NOT cp39..cp314 -- and the bound is `debug-mgr`'s
+        # 3.10..3.13, NOT 3.10..3.14 -- and the bound is `debug-mgr`'s
         # release matrix, not this project's. It is a build-time C++
         # dependency resolved from PyPI, it publishes NO SDIST, so a Python
         # with no compatible wheel has no fallback: ivpm resolves it, nothing
@@ -797,16 +806,16 @@ jobs:
         #     tag" step below exists to stop pssparser shipping.)
         #   * cp314 Windows -- wheels exist, but the line stops at
         #     0.0.2.27891512881 while the project is on ...33288736809.
-        #   * cp39 -- ivpm/ivpm-build themselves need >= 3.10: the build dies
-        #     in `glob(root_dir=)` and `entry_points(group=)`, both 3.10 APIs.
+        # (cp39 used to be listed here too, blocked by ivpm/ivpm-build
+        # needing >= 3.10. It is no longer a special case for these jobs:
+        # 3.10 is the project floor everywhere as of 2026-09-13.)
         #
-        # THE LINUX JOBS BUILD cp39..cp314 ANYWAY, and the difference is
-        # structural rather than lucky. There, cmake runs ONCE under cp312 and
-        # only the extension is compiled per interpreter, so debug-mgr and
-        # ivpm are needed for one modern Python. These jobs run the whole
-        # toolchain under the matrix Python, so every one of its constraints
-        # applies to every entry. Routing these through a fixed driver Python
-        # would recover cp39; cp314 stays blocked upstream either way.
+        # THE LINUX JOBS BUILD cp314 ANYWAY, and the difference is structural
+        # rather than lucky. There, cmake runs ONCE under cp312 and only the
+        # extension is compiled per interpreter, so debug-mgr is needed for
+        # one modern Python. These jobs run the whole toolchain under the
+        # matrix Python, so every one of its constraints applies to every
+        # entry. cp314 stays blocked upstream here either way.
         python: ['3.10', '3.11', '3.12', '3.13']
     runs-on: macos-latest
     env:
@@ -1198,8 +1207,8 @@ jobs:
             fail=1
           fi
         }
-        check "linux x86_64"  'manylinux.*x86_64'  6
-        check "linux aarch64" 'manylinux.*aarch64' 6
+        check "linux x86_64"  'manylinux.*x86_64'  5
+        check "linux aarch64" 'manylinux.*aarch64' 5
         check "windows"       'win_amd64'          4
         check "macos arm64"   'macosx.*arm64'      4
         # A universal2 tag here means the macOS job's tag pinning came

@@ -170,6 +170,20 @@ setup_args = dict(
         'debug-mgr',
         'ciostream'
     ],
+    # 3.10 is the floor, and declaring it is what makes that a message rather
+    # than a puzzle.  Without python_requires, pip on 3.9 happily selects this
+    # project and then fails somewhere downstream -- on aarch64 it ended at
+    # "No matching distribution found for debug-mgr", because debug-mgr has
+    # never published a cp39 aarch64 wheel and ships no sdist.  With it, pip
+    # says the package requires a different Python and stops.
+    #
+    # It also stops pip from offering an OLD pssparser to a 3.9 user as a
+    # substitute: every release published before this one carries no
+    # Requires-Python, so 3.9 resolves happily to one of those.  That is the
+    # correct outcome for versions that genuinely built for 3.9; it is the
+    # reason this bound has to be declared going forward rather than applied
+    # retroactively.
+    python_requires='>=3.10',
     setup_requires=setup_requires,
 )
 

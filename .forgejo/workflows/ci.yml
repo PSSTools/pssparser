@@ -229,7 +229,7 @@ jobs:
 
     - name: Build wheels
       run: |
-        for py in cp39-cp39 cp310-cp310 cp311-cp311 cp312-cp312 cp313-cp313 cp314-cp314; do
+        for py in cp310-cp310 cp311-cp311 cp312-cp312 cp313-cp313 cp314-cp314; do
           echo "=== $py ==="
           /opt/python/${py}/bin/python -m build --wheel --no-isolation
         done
