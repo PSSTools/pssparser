@@ -226,12 +226,30 @@ jobs:
         esac
         grep -E '^(BASE|SUFFIX) = ' python/pssparser/__version__.py
     - name: Install additional build dependencies
-      # This job's ABI only. The loop that stood here installed into all six
-      # interpreters because one job built all six wheels.
+      # THIS ABI *AND* cp312, and the duplication is load-bearing.
+      #
+      # cp312 is the tooling interpreter and three later steps depend on it:
+      # "Fetch source dependencies" runs `ivpm update` from it, "Build
+      # packages" puts it on PATH and calls ninja, and "Audit Wheels" repairs
+      # with its auditwheel. The serial loop this replaced installed into all
+      # six interpreters, so cp312 came out equipped on every job -- by
+      # accident, not by intent, and nothing said so.
+      #
+      # Narrowing the install to ${{ matrix.py }} alone therefore broke five
+      # jobs out of six on the first real run: every entry except cp312 died
+      # on "No module named ivpm", and would have died on a missing ninja
+      # immediately after. Installing into both costs one extra pip run
+      # against a warm index; the six-interpreter loop it replaced cost six.
       run: |
+        set -eu
         yum install -y libuuid-devel
         yum install -y java-11-openjdk-devel
-        /opt/python/${{ matrix.py }}/bin/python -m pip install ninja wheel cython setuptools ivpm ivpm-build build
+        pys="${{ matrix.py }}"
+        [ "$pys" = "cp312-cp312" ] || pys="$pys cp312-cp312"
+        for py in $pys; do
+          echo "=== equipping $py ==="
+          /opt/python/${py}/bin/python -m pip install ninja wheel cython setuptools ivpm ivpm-build build
+        done
     - name: Fetch source dependencies
       # cp312 is the TOOLING interpreter -- ivpm here, auditwheel below -- and
       # stays cp312 on every matrix entry. It is deliberately not
@@ -457,12 +475,30 @@ jobs:
         esac
         grep -E '^(BASE|SUFFIX) = ' python/pssparser/__version__.py
     - name: Install additional build dependencies
-      # This job's ABI only. The loop that stood here installed into all six
-      # interpreters because one job built all six wheels.
+      # THIS ABI *AND* cp312, and the duplication is load-bearing.
+      #
+      # cp312 is the tooling interpreter and three later steps depend on it:
+      # "Fetch source dependencies" runs `ivpm update` from it, "Build
+      # packages" puts it on PATH and calls ninja, and "Audit Wheels" repairs
+      # with its auditwheel. The serial loop this replaced installed into all
+      # six interpreters, so cp312 came out equipped on every job -- by
+      # accident, not by intent, and nothing said so.
+      #
+      # Narrowing the install to ${{ matrix.py }} alone therefore broke five
+      # jobs out of six on the first real run: every entry except cp312 died
+      # on "No module named ivpm", and would have died on a missing ninja
+      # immediately after. Installing into both costs one extra pip run
+      # against a warm index; the six-interpreter loop it replaced cost six.
       run: |
+        set -eu
         yum install -y libuuid-devel
         yum install -y java-11-openjdk-devel
-        /opt/python/${{ matrix.py }}/bin/python -m pip install ninja wheel cython setuptools ivpm ivpm-build build
+        pys="${{ matrix.py }}"
+        [ "$pys" = "cp312-cp312" ] || pys="$pys cp312-cp312"
+        for py in $pys; do
+          echo "=== equipping $py ==="
+          /opt/python/${py}/bin/python -m pip install ninja wheel cython setuptools ivpm ivpm-build build
+        done
     - name: Fetch source dependencies
       # cp312 is the TOOLING interpreter -- ivpm here, auditwheel below -- and
       # stays cp312 on every matrix entry. It is deliberately not
