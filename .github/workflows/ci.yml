@@ -1264,9 +1264,32 @@ jobs:
       # status tee's. `npm pack` failing outright was therefore invisible, and
       # surfaced as the same misleading "no .wasm" message. Redirecting stdout
       # lets `set -e` see the real failure.
+      #
+      # --ignore-scripts IS WHAT MAKES THE REDIRECT SAFE, and its absence cost
+      # v3.1.4 the release (2026-09-13). `npm pack` runs the `prepare`
+      # lifecycle, and npm writes BOTH its own `prepare: <cmd>` banner and the
+      # script's output to STDOUT -- the same stream this redirect captures. So
+      # /tmp/pack.json was two and a half minutes of Emscripten build log with
+      # the JSON array appended, and the parse died on the first token:
+      #
+      #   could not parse npm pack --json output: Unexpected token 'p',
+      #   "prepare: n"... is not valid JSON
+      #
+      # The grep form this replaced was accidentally immune -- it read the
+      # noise and ignored it -- so the defect arrived with the redirect, in the
+      # same commit that added it.
+      #
+      # SKIP_PSSPARSER_PREPARE (which the publish step below sets) would NOT
+      # fix this: prepare.mjs would exit immediately, but npm prints the banner
+      # line whether or not the script body does anything. The lifecycle has to
+      # not run at all. That is also correct on the merits rather than merely
+      # expedient -- "Build the WebAssembly package" above has already built
+      # this tarball's contents, so re-running prepare here rebuilt the wasm a
+      # second time and then checked the rebuild rather than the artifact the
+      # next step publishes.
       run: |
         set -eu
-        npm pack --dry-run --json > /tmp/pack.json
+        npm pack --dry-run --json --ignore-scripts > /tmp/pack.json
         node -e '
           const fs = require("fs");
           const want = process.env.VERSION_NPM;
