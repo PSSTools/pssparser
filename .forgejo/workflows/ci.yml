@@ -126,11 +126,25 @@ jobs:
         case "$GITHUB_REF" in
           refs/tags/v*)
             v="${GITHUB_REF#refs/tags/v}"
+            # Same grammar as the GitHub workflow. Tags are spelled the PEP
+            # 440 way (v3.2.0rc1) and go into this file verbatim; this forge
+            # builds no npm package, so the semver spelling never arises here.
+            bad=0
             case "$v" in
-              ''|*[!0-9.]*)
-                echo "::error::tag v$v is not a <major>.<minor>.<patch> version"
-                exit 1 ;;
+              *rc*)
+                core="${v%rc*}"
+                rcnum="${v##*rc}"
+                case "$core"  in ''|*[!0-9.]*) bad=1 ;; esac
+                case "$rcnum" in ''|*[!0-9]*)  bad=1 ;; esac
+                ;;
+              *)
+                case "$v" in ''|*[!0-9.]*) bad=1 ;; esac
+                ;;
             esac
+            if [ "$bad" -ne 0 ]; then
+              echo "::error::tag v$v is not <major>.<minor>.<patch> or <major>.<minor>.<patch>rc<N> (PEP 440 spelling: v3.2.0rc1, not v3.2.0-rc1)"
+              exit 1
+            fi
             sed 's/^BASE = .*$/BASE = "'"$v"'"/' python/pssparser/__version__.py > __version__.stamped
             mv __version__.stamped python/pssparser/__version__.py
             # ANTI-VACUITY: a sed matching nothing exits 0 and would ship the
@@ -403,6 +417,8 @@ jobs:
       run: |
         set -eu
         tag="${GITHUB_REF#refs/tags/v}"
+        # No conversion: tags are spelled the PEP 440 way (v3.2.0rc1), which
+        # is exactly how setuptools names the wheel.
         n=0
         for w in dist/*.whl; do
           case "$(basename "$w")" in

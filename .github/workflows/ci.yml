@@ -138,18 +138,43 @@ jobs:
         case "$GITHUB_REF" in
           refs/tags/v*)
             v="${GITHUB_REF#refs/tags/v}"
-            # DIGITS AND DOTS ONLY. This project's versions are
-            # <PSS major>.<PSS minor>.<patch> and it has no pre-release
-            # channel by decision -- so `v3.2.0-rc1` is a mistake, and one
-            # worth catching here, in every build job, rather than after
-            # twenty wheels have been built under a version PyPI will reject
-            # or accept-and-keep. Widen this if a pre-release channel is ever
-            # designed.
+            # THE TAG IS SPELLED THE PEP 440 WAY -- v3.2.0, v3.2.0rc1 -- and
+            # goes into this file VERBATIM. Git tag, PyPI version and wheel
+            # filename are then one identical string with no transformation
+            # anywhere between them.
+            #
+            # The two ecosystems do spell a pre-release differently: semver
+            # requires the hyphen, so npm wants `3.2.0-rc1` where Python wants
+            # `3.2.0rc1`. Tagging the PEP 440 way puts that conversion where
+            # it costs nothing, because NPM DOES IT ITSELF -- `npm version
+            # 3.2.0rc1` writes "3.2.0-rc1". setuptools does not reciprocate:
+            # given `3.2.0-rc1` it still names the wheel pssparser-3.2.0rc1-*
+            # while setup.py reports the hyphenated form, so a semver-spelled
+            # tag would leave this workflow hand-converting a version string
+            # and comparing the wrong spelling against wheel filenames.
+            #
+            # So nothing here reformats a version. Each ecosystem normalises
+            # what it is handed, and the publish job cross-checks that the two
+            # spellings denote the same release.
+            #
+            # `rc` only; alpha and beta are not accepted because nothing has
+            # asked for them.
+            bad=0
             case "$v" in
-              ''|*[!0-9.]*)
-                echo "::error::tag v$v is not a <major>.<minor>.<patch> version"
-                exit 1 ;;
+              *rc*)
+                core="${v%rc*}"
+                rcnum="${v##*rc}"
+                case "$core"  in ''|*[!0-9.]*) bad=1 ;; esac
+                case "$rcnum" in ''|*[!0-9]*)  bad=1 ;; esac
+                ;;
+              *)
+                case "$v" in ''|*[!0-9.]*) bad=1 ;; esac
+                ;;
             esac
+            if [ "$bad" -ne 0 ]; then
+              echo "::error::tag v$v is not <major>.<minor>.<patch> or <major>.<minor>.<patch>rc<N> (PEP 440 spelling: v3.2.0rc1, not v3.2.0-rc1)"
+              exit 1
+            fi
             sed 's/^BASE = .*$/BASE = "'"$v"'"/' python/pssparser/__version__.py > __version__.stamped
             mv __version__.stamped python/pssparser/__version__.py
             # ANTI-VACUITY. A sed whose pattern matches nothing exits 0 and
@@ -297,18 +322,43 @@ jobs:
         case "$GITHUB_REF" in
           refs/tags/v*)
             v="${GITHUB_REF#refs/tags/v}"
-            # DIGITS AND DOTS ONLY. This project's versions are
-            # <PSS major>.<PSS minor>.<patch> and it has no pre-release
-            # channel by decision -- so `v3.2.0-rc1` is a mistake, and one
-            # worth catching here, in every build job, rather than after
-            # twenty wheels have been built under a version PyPI will reject
-            # or accept-and-keep. Widen this if a pre-release channel is ever
-            # designed.
+            # THE TAG IS SPELLED THE PEP 440 WAY -- v3.2.0, v3.2.0rc1 -- and
+            # goes into this file VERBATIM. Git tag, PyPI version and wheel
+            # filename are then one identical string with no transformation
+            # anywhere between them.
+            #
+            # The two ecosystems do spell a pre-release differently: semver
+            # requires the hyphen, so npm wants `3.2.0-rc1` where Python wants
+            # `3.2.0rc1`. Tagging the PEP 440 way puts that conversion where
+            # it costs nothing, because NPM DOES IT ITSELF -- `npm version
+            # 3.2.0rc1` writes "3.2.0-rc1". setuptools does not reciprocate:
+            # given `3.2.0-rc1` it still names the wheel pssparser-3.2.0rc1-*
+            # while setup.py reports the hyphenated form, so a semver-spelled
+            # tag would leave this workflow hand-converting a version string
+            # and comparing the wrong spelling against wheel filenames.
+            #
+            # So nothing here reformats a version. Each ecosystem normalises
+            # what it is handed, and the publish job cross-checks that the two
+            # spellings denote the same release.
+            #
+            # `rc` only; alpha and beta are not accepted because nothing has
+            # asked for them.
+            bad=0
             case "$v" in
-              ''|*[!0-9.]*)
-                echo "::error::tag v$v is not a <major>.<minor>.<patch> version"
-                exit 1 ;;
+              *rc*)
+                core="${v%rc*}"
+                rcnum="${v##*rc}"
+                case "$core"  in ''|*[!0-9.]*) bad=1 ;; esac
+                case "$rcnum" in ''|*[!0-9]*)  bad=1 ;; esac
+                ;;
+              *)
+                case "$v" in ''|*[!0-9.]*) bad=1 ;; esac
+                ;;
             esac
+            if [ "$bad" -ne 0 ]; then
+              echo "::error::tag v$v is not <major>.<minor>.<patch> or <major>.<minor>.<patch>rc<N> (PEP 440 spelling: v3.2.0rc1, not v3.2.0-rc1)"
+              exit 1
+            fi
             sed 's/^BASE = .*$/BASE = "'"$v"'"/' python/pssparser/__version__.py > __version__.stamped
             mv __version__.stamped python/pssparser/__version__.py
             # ANTI-VACUITY. A sed whose pattern matches nothing exits 0 and
@@ -458,18 +508,43 @@ jobs:
         case "$GITHUB_REF" in
           refs/tags/v*)
             v="${GITHUB_REF#refs/tags/v}"
-            # DIGITS AND DOTS ONLY. This project's versions are
-            # <PSS major>.<PSS minor>.<patch> and it has no pre-release
-            # channel by decision -- so `v3.2.0-rc1` is a mistake, and one
-            # worth catching here, in every build job, rather than after
-            # twenty wheels have been built under a version PyPI will reject
-            # or accept-and-keep. Widen this if a pre-release channel is ever
-            # designed.
+            # THE TAG IS SPELLED THE PEP 440 WAY -- v3.2.0, v3.2.0rc1 -- and
+            # goes into this file VERBATIM. Git tag, PyPI version and wheel
+            # filename are then one identical string with no transformation
+            # anywhere between them.
+            #
+            # The two ecosystems do spell a pre-release differently: semver
+            # requires the hyphen, so npm wants `3.2.0-rc1` where Python wants
+            # `3.2.0rc1`. Tagging the PEP 440 way puts that conversion where
+            # it costs nothing, because NPM DOES IT ITSELF -- `npm version
+            # 3.2.0rc1` writes "3.2.0-rc1". setuptools does not reciprocate:
+            # given `3.2.0-rc1` it still names the wheel pssparser-3.2.0rc1-*
+            # while setup.py reports the hyphenated form, so a semver-spelled
+            # tag would leave this workflow hand-converting a version string
+            # and comparing the wrong spelling against wheel filenames.
+            #
+            # So nothing here reformats a version. Each ecosystem normalises
+            # what it is handed, and the publish job cross-checks that the two
+            # spellings denote the same release.
+            #
+            # `rc` only; alpha and beta are not accepted because nothing has
+            # asked for them.
+            bad=0
             case "$v" in
-              ''|*[!0-9.]*)
-                echo "::error::tag v$v is not a <major>.<minor>.<patch> version"
-                exit 1 ;;
+              *rc*)
+                core="${v%rc*}"
+                rcnum="${v##*rc}"
+                case "$core"  in ''|*[!0-9.]*) bad=1 ;; esac
+                case "$rcnum" in ''|*[!0-9]*)  bad=1 ;; esac
+                ;;
+              *)
+                case "$v" in ''|*[!0-9.]*) bad=1 ;; esac
+                ;;
             esac
+            if [ "$bad" -ne 0 ]; then
+              echo "::error::tag v$v is not <major>.<minor>.<patch> or <major>.<minor>.<patch>rc<N> (PEP 440 spelling: v3.2.0rc1, not v3.2.0-rc1)"
+              exit 1
+            fi
             sed 's/^BASE = .*$/BASE = "'"$v"'"/' python/pssparser/__version__.py > __version__.stamped
             mv __version__.stamped python/pssparser/__version__.py
             # ANTI-VACUITY. A sed whose pattern matches nothing exits 0 and
@@ -608,18 +683,43 @@ jobs:
         case "$GITHUB_REF" in
           refs/tags/v*)
             v="${GITHUB_REF#refs/tags/v}"
-            # DIGITS AND DOTS ONLY. This project's versions are
-            # <PSS major>.<PSS minor>.<patch> and it has no pre-release
-            # channel by decision -- so `v3.2.0-rc1` is a mistake, and one
-            # worth catching here, in every build job, rather than after
-            # twenty wheels have been built under a version PyPI will reject
-            # or accept-and-keep. Widen this if a pre-release channel is ever
-            # designed.
+            # THE TAG IS SPELLED THE PEP 440 WAY -- v3.2.0, v3.2.0rc1 -- and
+            # goes into this file VERBATIM. Git tag, PyPI version and wheel
+            # filename are then one identical string with no transformation
+            # anywhere between them.
+            #
+            # The two ecosystems do spell a pre-release differently: semver
+            # requires the hyphen, so npm wants `3.2.0-rc1` where Python wants
+            # `3.2.0rc1`. Tagging the PEP 440 way puts that conversion where
+            # it costs nothing, because NPM DOES IT ITSELF -- `npm version
+            # 3.2.0rc1` writes "3.2.0-rc1". setuptools does not reciprocate:
+            # given `3.2.0-rc1` it still names the wheel pssparser-3.2.0rc1-*
+            # while setup.py reports the hyphenated form, so a semver-spelled
+            # tag would leave this workflow hand-converting a version string
+            # and comparing the wrong spelling against wheel filenames.
+            #
+            # So nothing here reformats a version. Each ecosystem normalises
+            # what it is handed, and the publish job cross-checks that the two
+            # spellings denote the same release.
+            #
+            # `rc` only; alpha and beta are not accepted because nothing has
+            # asked for them.
+            bad=0
             case "$v" in
-              ''|*[!0-9.]*)
-                echo "::error::tag v$v is not a <major>.<minor>.<patch> version"
-                exit 1 ;;
+              *rc*)
+                core="${v%rc*}"
+                rcnum="${v##*rc}"
+                case "$core"  in ''|*[!0-9.]*) bad=1 ;; esac
+                case "$rcnum" in ''|*[!0-9]*)  bad=1 ;; esac
+                ;;
+              *)
+                case "$v" in ''|*[!0-9.]*) bad=1 ;; esac
+                ;;
             esac
+            if [ "$bad" -ne 0 ]; then
+              echo "::error::tag v$v is not <major>.<minor>.<patch> or <major>.<minor>.<patch>rc<N> (PEP 440 spelling: v3.2.0rc1, not v3.2.0-rc1)"
+              exit 1
+            fi
             sed 's/^BASE = .*$/BASE = "'"$v"'"/' python/pssparser/__version__.py > __version__.stamped
             mv __version__.stamped python/pssparser/__version__.py
             # ANTI-VACUITY. A sed whose pattern matches nothing exits 0 and
@@ -806,19 +906,44 @@ jobs:
       # every wheel filename carries $VERSION, and the npm tarball check
       # asserts `npm pack` reports it. Those catch a build job whose stamp
       # silently did nothing, which the source comparison could not.
+      #
+      # VERSION is the tag verbatim, in PEP 440 spelling -- 3.2.0 or 3.2.0rc1
+      # -- which is what the wheels carry and what every wheel-name check
+      # compares against. The npm spelling is NOT derived here; npm produces
+      # it in the next step and it is read back from what npm wrote.
+      #
+      # NPM_TAG is the one thing a pre-release genuinely needs decided: npm
+      # REFUSES to publish a pre-release without --tag ("You must specify a
+      # tag using --tag when publishing a prerelease version"), so this is a
+      # hard requirement rather than a nicety. It does not quietly assign
+      # `latest`, which is the failure mode this would otherwise guard.
       run: |
         set -eu
         tag="${GITHUB_REF#refs/tags/v}"
-        # Same shape check the build jobs apply before stamping. Repeated
-        # because this job does its own stamping below and must not be the
-        # one place a malformed tag gets through.
+        # Same grammar the build jobs apply before stamping. Repeated because
+        # this job does its own stamping below and must not be the one place a
+        # malformed tag gets through.
+        bad=0
         case "$tag" in
-          ''|*[!0-9.]*)
-            echo "::error::tag v$tag is not a <major>.<minor>.<patch> version"
-            exit 1 ;;
+          *rc*)
+            core="${tag%rc*}"
+            rcnum="${tag##*rc}"
+            case "$core"  in ''|*[!0-9.]*) bad=1 ;; esac
+            case "$rcnum" in ''|*[!0-9]*)  bad=1 ;; esac
+            npmtag=rc
+            ;;
+          *)
+            case "$tag" in ''|*[!0-9.]*) bad=1 ;; esac
+            npmtag=latest
+            ;;
         esac
-        echo "releasing $tag"
-        echo "VERSION=$tag" >> "$GITHUB_ENV"
+        if [ "$bad" -ne 0 ]; then
+          echo "::error::tag v$tag is not <major>.<minor>.<patch> or <major>.<minor>.<patch>rc<N> (PEP 440 spelling: v3.2.0rc1, not v3.2.0-rc1)"
+          exit 1
+        fi
+        echo "releasing $tag under npm dist-tag $npmtag"
+        echo "VERSION=$tag"     >> "$GITHUB_ENV"
+        echo "NPM_TAG=$npmtag"  >> "$GITHUB_ENV"
 
     - name: Stamp the npm package version
       # The wheels arrive pre-stamped as build artifacts; the npm package is
@@ -827,6 +952,18 @@ jobs:
       # npm's own mechanism, it updates package-lock.json in step, and it
       # fails loudly on a malformed version instead of writing it.
       #
+      # IT IS ALSO THE CONVERTER. Handed the PEP 440 tag `3.2.0rc1`, npm
+      # writes the semver form "3.2.0-rc1" -- so the hyphen is inserted by the
+      # tool that requires it, not by a sed in this file that would have to be
+      # kept in step with semver's rules.
+      #
+      # VERSION_NPM is then read BACK from what npm wrote, rather than
+      # predicted. The cross-check is the assertion that matters: strip
+      # hyphens from npm's spelling and it must equal the PEP 440 VERSION, so
+      # the two registries cannot end up describing different releases even
+      # though they spell this one differently. For a stable release both
+      # sides are already identical and the check is trivially true.
+      #
       # --no-git-tag-version because we are already on the tag and do not want
       # npm creating another; --allow-same-version so a re-run against an
       # already-stamped tree is not an error.
@@ -834,8 +971,13 @@ jobs:
       run: |
         set -eu
         npm version "$VERSION" --no-git-tag-version --allow-same-version
-        test "$(node -p "require('./package.json').version")" = "$VERSION"
-        echo "ts/package.json is $VERSION"
+        npmv=$(node -p "require('./package.json').version")
+        if [ "$(printf '%s' "$npmv" | tr -d '-')" != "$VERSION" ]; then
+          echo "::error::npm wrote version $npmv, which is not the tag $VERSION in semver spelling"
+          exit 1
+        fi
+        echo "ts/package.json is $npmv (tag $VERSION)"
+        echo "VERSION_NPM=$npmv" >> "$GITHUB_ENV"
 
     - name: Download every platform's wheels
       uses: actions/download-artifact@v4
@@ -940,7 +1082,7 @@ jobs:
         npm pack --dry-run --json > /tmp/pack.json
         node -e '
           const fs = require("fs");
-          const want = process.env.VERSION;
+          const want = process.env.VERSION_NPM;
           const fail = (m) => { console.error(`::error::${m}`); process.exit(1); };
           let p;
           try { p = JSON.parse(fs.readFileSync("/tmp/pack.json", "utf8"))[0]; }
@@ -1001,8 +1143,8 @@ jobs:
           echo "::error::NPM_TOKEN is not available to this repository"
           exit 1
         fi
-        npm publish
-        echo "published @psstools/pssparser@${VERSION}"
+        npm publish --tag "$NPM_TAG"
+        echo "published @psstools/pssparser@${VERSION_NPM} under dist-tag ${NPM_TAG}"
 
     - name: Publish to PyPI
       env:
