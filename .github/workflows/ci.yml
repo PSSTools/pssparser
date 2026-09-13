@@ -35,6 +35,15 @@
 # `python:` matrix in ci-win32. So a release is 6+6+4+4 = 20 wheels, against
 # v3.1.0's 6+6+1+1 = 14.
 #
+# ALL FOUR ARE MATRICES AS OF 2026-09-13. The manylinux jobs kept building
+# their six wheels in a serial loop inside one job long after Windows and macOS
+# were split, and that loop was the entire critical path: 33m and 30m against
+# 5-13m everywhere else, ~70-86% of it in the loop. The wheel count is
+# unchanged at 20 -- this is the same work, run per-ABI instead of end to end.
+# See the note on ci-linux for why duplicating the native build is the cheaper
+# side of the trade, and for the -DCMAKE_BUILD_TYPE=Release fix that came with
+# it.
+#
 # The Forgejo publish job is NOT deleted in exchange. It reads the same switch,
 # so it disarms itself the moment the switch says "github", and re-arms if the
 # switch is ever moved back. Deleting it would make the move one-way for no
@@ -112,6 +121,30 @@ jobs:
           echo "authority=$auth" >> "$GITHUB_OUTPUT"
 
   ci-linux:
+    # ONE JOB PER ABI, as of 2026-09-13. This was a serial
+    # `for py in cp39 ... cp314` loop inside a single job, and that loop was
+    # the whole critical path: 1381s of the job's 1980s, against 5-6 minute
+    # Windows and macOS jobs that have been matrices since 2026-09-02.
+    #
+    # The usual argument against splitting is that the matrix duplicates the
+    # shared native build. Measured, that argument does not hold here: the
+    # cmake/ninja build of the C++ core is ~170s against ~230s PER WHEEL, and
+    # the per-wheel cost is almost entirely one translation unit -- the
+    # Cythonized python/ast.cpp, 556k lines, ~3 minutes of g++ on its own.
+    # That cost is per-ABI and irreducible; it is also perfectly parallel.
+    # Duplicating ~17 CPU-minutes of native build to remove ~23 wall-clock
+    # minutes is the trade, and on a public repo the runners are free.
+    #
+    # The matrix is SIX wide, not four: linux ships cp39-cp314 where Windows
+    # and macOS ship 3.10-3.13. The publish job's per-platform wheel-count
+    # floor (>= 6 here) is what pins that.
+    strategy:
+      # OFF so that one broken ABI reports as one broken ABI. With it on the
+      # first failure cancels its siblings, and the log then cannot answer
+      # "was this cp314 only, or everything?" -- same reasoning as ci-win32.
+      fail-fast: false
+      matrix:
+        py: ['cp39-cp39', 'cp310-cp310', 'cp311-cp311', 'cp312-cp312', 'cp313-cp313', 'cp314-cp314']
     runs-on: ubuntu-latest
     container: quay.io/pypa/manylinux_2_28_x86_64
     steps:
@@ -137,30 +170,56 @@ jobs:
         esac
         grep '^SUFFIX = ' python/pssparser/__version__.py
     - name: Install additional build dependencies
+      # This job's ABI only. The loop that stood here installed into all six
+      # interpreters because one job built all six wheels.
       run: |
         yum install -y libuuid-devel
         yum install -y java-11-openjdk-devel
-        for py in cp39-cp39 cp310-cp310 cp311-cp311 cp312-cp312 cp313-cp313 cp314-cp314; do
-          /opt/python/${py}/bin/python -m pip install ninja wheel cython setuptools ivpm ivpm-build
-        done
+        /opt/python/${{ matrix.py }}/bin/python -m pip install ninja wheel cython setuptools ivpm ivpm-build build
     - name: Fetch source dependencies
+      # cp312 is the TOOLING interpreter -- ivpm here, auditwheel below -- and
+      # stays cp312 on every matrix entry. It is deliberately not
+      # ${{ matrix.py }}: ivpm and auditwheel are build tools, unrelated to the
+      # ABI being built, so pinning them means the cp39 and cp314 entries run
+      # the same tooling as everything else rather than whatever pip can
+      # resolve for the oldest and newest interpreters.
       run: |
         export IVPM_PYTHON=/opt/python/cp312-cp312/bin/python
         ${IVPM_PYTHON} -m pip install twine auditwheel build
         ${IVPM_PYTHON} -m ivpm update -j 1 -a
     - name: Build packages
+      # -DCMAKE_BUILD_TYPE=Release IS LOAD-BEARING, and its absence was a
+      # silent doubling of the native build (fixed 2026-09-13).
+      #
+      # This step does not stand alone: ivpm_build's BuildExt.build_extensions
+      # runs CmakeBuilder on every `python -m build` whenever CMakeLists.txt
+      # exists, and CmakeBuilder configures THIS SAME build/ directory with
+      # `-DCMAKE_BUILD_TYPE=Release -DPACKAGES_DIR=<proj>/packages
+      # -DCMAKE_INSTALL_PREFIX=<proj>/build`. The latter two match what
+      # CMakeLists.txt already defaults to, so the build type was the only
+      # real difference -- and changing it on an existing cache changes every
+      # compile flag, so the first wheel build rebuilt all 228 objects this
+      # step had just built unoptimised. The logs show the 228-target build
+      # running exactly twice, for exactly that reason.
+      #
+      # So why keep the step at all, rather than let CmakeBuilder do the one
+      # build it was always going to do? Because setup.py computes
+      # `antlr4_rt_lib` by globbing build/lib*/libantlr4-runtime.so* at MODULE
+      # level -- before setup() runs, so before build_ext, so before cmake. On
+      # a fresh runner with no build/ the glob finds nothing, antlr4_rt_lib is
+      # None, and the ANTLR runtime is quietly left out of ivpm_extra_data.
+      # That ordering is a setup.py problem; priming build/ here is what keeps
+      # it from becoming this workflow's problem. Deleting this step needs
+      # that fixed first.
       run: |
         export PATH=/opt/python/cp312-cp312/bin:$PATH
         mkdir build
         cd build
-        cmake .. -GNinja
+        cmake .. -GNinja -DCMAKE_BUILD_TYPE=Release
         ninja
-    - name: Build Python wheels
+    - name: Build Python wheel
       run: |
-        for py in cp39-cp39 cp310-cp310 cp311-cp311 cp312-cp312 cp313-cp313 cp314-cp314; do
-          /opt/python/${py}/bin/python -m pip install build
-          /opt/python/${py}/bin/python -m build --wheel --no-isolation
-        done
+        /opt/python/${{ matrix.py }}/bin/python -m build --wheel --no-isolation
     - name: Audit Wheels
       run: |
         for whl in dist/*.whl; do
@@ -172,9 +231,14 @@ jobs:
           cp wheelhouse/*.whl dist
         fi
     - name: Upload wheels
+      # PER-ABI ARTIFACT NAME, for the reason spelled out on the ci-win32
+      # upload: upload-artifact@v4 rejects a second upload under an existing
+      # name, so a shared `wheels-linux-x86_64` would fail five of the six
+      # entries outright. The publish job collects on `wheels-*` with
+      # merge-multiple, so the split names land back in one dist/.
       uses: actions/upload-artifact@v4
       with:
-        name: wheels-linux-x86_64
+        name: wheels-linux-x86_64-${{ matrix.py }}
         path: dist/*.whl
         if-no-files-found: error
     - name: Check the PSS corpus
@@ -226,20 +290,36 @@ jobs:
       # resolves from the wheel installed below.
       #
       # pyyaml and toposort are astbuilder's own imports (parser.py, linker.py).
+      #
+      # STILL cp312 AND cp313 ONLY, now expressed as a matrix condition rather
+      # than a loop. Widening to all six ABIs is nearly free here -- the
+      # entries run in parallel -- but it is a coverage change, not a
+      # parallelism change, and it does not belong in the same commit as the
+      # split: cp39 and cp314 have never run this suite, so any failure they
+      # turn up would arrive looking like a regression from the matrix.
+      if: matrix.py == 'cp312-cp312' || matrix.py == 'cp313-cp313'
       run: |
-        for py in cp312-cp312 cp313-cp313; do
-          /opt/python/${py}/bin/python -m pip install pytest pyyaml toposort dist/*${py%%-*}*.whl
-          PYTHONPATH="$PWD/packages/pyastbuilder/src" \
-            /opt/python/${py}/bin/python -m pytest tests/python -v --tb=short
-        done
+        /opt/python/${{ matrix.py }}/bin/python -m pip install pytest pyyaml toposort dist/*.whl
+        PYTHONPATH="$PWD/packages/pyastbuilder/src" \
+          /opt/python/${{ matrix.py }}/bin/python -m pytest tests/python -v --tb=short
     - name: System test
+      # Every entry, where this used to be cp313 only: it is four seconds, it
+      # needs no condition, and "the wheel this job just built imports and
+      # parses" is worth asserting per ABI rather than for one of six.
       run: |
-        /opt/python/cp313-cp313/bin/python -m venv /tmp/test-venv
+        /opt/python/${{ matrix.py }}/bin/python -m venv /tmp/test-venv
         source /tmp/test-venv/bin/activate
-        pip install dist/*cp313*.whl
+        pip install dist/*.whl
         python -c "from pssparser import Parser; p = Parser(); assert p.parses([('test.pss', 'component pss_top {}')]); print('System test PASSED')"
 
   ci-linux-aarch64:
+    # Split six ways for the same reasons as ci-linux above, and with the same
+    # measurements behind it: 1554s of this job's 1800s was the serial wheel
+    # loop.
+    strategy:
+      fail-fast: false
+      matrix:
+        py: ['cp39-cp39', 'cp310-cp310', 'cp311-cp311', 'cp312-cp312', 'cp313-cp313', 'cp314-cp314']
     runs-on: ubuntu-24.04-arm
     container: quay.io/pypa/manylinux_2_28_aarch64
     steps:
@@ -265,30 +345,56 @@ jobs:
         esac
         grep '^SUFFIX = ' python/pssparser/__version__.py
     - name: Install additional build dependencies
+      # This job's ABI only. The loop that stood here installed into all six
+      # interpreters because one job built all six wheels.
       run: |
         yum install -y libuuid-devel
         yum install -y java-11-openjdk-devel
-        for py in cp39-cp39 cp310-cp310 cp311-cp311 cp312-cp312 cp313-cp313 cp314-cp314; do
-          /opt/python/${py}/bin/python -m pip install ninja wheel cython setuptools ivpm ivpm-build
-        done
+        /opt/python/${{ matrix.py }}/bin/python -m pip install ninja wheel cython setuptools ivpm ivpm-build build
     - name: Fetch source dependencies
+      # cp312 is the TOOLING interpreter -- ivpm here, auditwheel below -- and
+      # stays cp312 on every matrix entry. It is deliberately not
+      # ${{ matrix.py }}: ivpm and auditwheel are build tools, unrelated to the
+      # ABI being built, so pinning them means the cp39 and cp314 entries run
+      # the same tooling as everything else rather than whatever pip can
+      # resolve for the oldest and newest interpreters.
       run: |
         export IVPM_PYTHON=/opt/python/cp312-cp312/bin/python
         ${IVPM_PYTHON} -m pip install twine auditwheel build
         ${IVPM_PYTHON} -m ivpm update -j 1 -a
     - name: Build packages
+      # -DCMAKE_BUILD_TYPE=Release IS LOAD-BEARING, and its absence was a
+      # silent doubling of the native build (fixed 2026-09-13).
+      #
+      # This step does not stand alone: ivpm_build's BuildExt.build_extensions
+      # runs CmakeBuilder on every `python -m build` whenever CMakeLists.txt
+      # exists, and CmakeBuilder configures THIS SAME build/ directory with
+      # `-DCMAKE_BUILD_TYPE=Release -DPACKAGES_DIR=<proj>/packages
+      # -DCMAKE_INSTALL_PREFIX=<proj>/build`. The latter two match what
+      # CMakeLists.txt already defaults to, so the build type was the only
+      # real difference -- and changing it on an existing cache changes every
+      # compile flag, so the first wheel build rebuilt all 228 objects this
+      # step had just built unoptimised. The logs show the 228-target build
+      # running exactly twice, for exactly that reason.
+      #
+      # So why keep the step at all, rather than let CmakeBuilder do the one
+      # build it was always going to do? Because setup.py computes
+      # `antlr4_rt_lib` by globbing build/lib*/libantlr4-runtime.so* at MODULE
+      # level -- before setup() runs, so before build_ext, so before cmake. On
+      # a fresh runner with no build/ the glob finds nothing, antlr4_rt_lib is
+      # None, and the ANTLR runtime is quietly left out of ivpm_extra_data.
+      # That ordering is a setup.py problem; priming build/ here is what keeps
+      # it from becoming this workflow's problem. Deleting this step needs
+      # that fixed first.
       run: |
         export PATH=/opt/python/cp312-cp312/bin:$PATH
         mkdir build
         cd build
-        cmake .. -GNinja
+        cmake .. -GNinja -DCMAKE_BUILD_TYPE=Release
         ninja
-    - name: Build Python wheels
+    - name: Build Python wheel
       run: |
-        for py in cp39-cp39 cp310-cp310 cp311-cp311 cp312-cp312 cp313-cp313 cp314-cp314; do
-          /opt/python/${py}/bin/python -m pip install build
-          /opt/python/${py}/bin/python -m build --wheel --no-isolation
-        done
+        /opt/python/${{ matrix.py }}/bin/python -m build --wheel --no-isolation
     - name: Audit Wheels
       run: |
         for whl in dist/*.whl; do
@@ -300,16 +406,52 @@ jobs:
           cp wheelhouse/*.whl dist
         fi
     - name: Upload wheels
+      # PER-ABI ARTIFACT NAME -- see the note on the ci-linux upload.
       uses: actions/upload-artifact@v4
       with:
-        name: wheels-linux-aarch64
+        name: wheels-linux-aarch64-${{ matrix.py }}
         path: dist/*.whl
         if-no-files-found: error
+
+    # ---- Tests, which this job did not have before 2026-09-13 ------------ #
+    #
+    # aarch64 shipped on a smoke test alone: it built six wheels, uploaded
+    # them, imported one, and parsed one component. The full suite and the
+    # corpus sweep ran on x86_64 only, so an arch-dependent defect -- an
+    # alignment or endianness assumption in the C++ core, a size_t/int narrowing
+    # that only bites on a different ABI -- had no way to show up before a user
+    # hit it. The job names imply symmetry with ci-linux that was not there.
+    #
+    # Adding it was cheap only once this job became a matrix: appended to the
+    # old serial job these steps would have extended an already 30-minute
+    # critical path. In parallel they land inside an entry that is doing
+    # nothing else.
+    - name: Check the PSS corpus
+      # See the ci-linux copy for why this verifies rather than fetches, and
+      # why a missing corpus should fail here rather than in the sweep.
+      run: |
+        set -eu
+        n=$(find packages/pss-corpus/curated -name '*.pss' | wc -l)
+        echo "corpus: $n .pss files"
+        if [ "$n" -lt 50 ]; then
+          echo "::error::corpus resolved but looks wrong ($n files, expected 50+)"
+          exit 1
+        fi
+    - name: Run Python tests
+      # cp312/cp313 to match ci-linux exactly. Same PYTHONPATH reasoning as
+      # there: astbuilder is a build-time tool, absent from the wheel, and
+      # without it test_astbuilder_codegen.py fails at import and takes the
+      # whole collection with it.
+      if: matrix.py == 'cp312-cp312' || matrix.py == 'cp313-cp313'
+      run: |
+        /opt/python/${{ matrix.py }}/bin/python -m pip install pytest pyyaml toposort dist/*.whl
+        PYTHONPATH="$PWD/packages/pyastbuilder/src" \
+          /opt/python/${{ matrix.py }}/bin/python -m pytest tests/python -v --tb=short
     - name: System test
       run: |
-        /opt/python/cp313-cp313/bin/python -m venv /tmp/test-venv
+        /opt/python/${{ matrix.py }}/bin/python -m venv /tmp/test-venv
         source /tmp/test-venv/bin/activate
-        pip install dist/*cp313*.whl
+        pip install dist/*.whl
         python -c "from pssparser import Parser; p = Parser(); assert p.parses([('test.pss', 'component pss_top {}')]); print('System test PASSED')"
 
   ci-win32:

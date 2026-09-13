@@ -162,7 +162,23 @@ jobs:
       run: |
         export PATH=/opt/python/cp312-cp312/bin:$PATH
         mkdir -p build && cd build
-        cmake .. -GNinja
+        # -DCMAKE_BUILD_TYPE=Release IS LOAD-BEARING. ivpm_build's BuildExt
+        # runs CmakeBuilder on every `python -m build`, against THIS build/
+        # directory and with an explicit `-DCMAKE_BUILD_TYPE=Release`. Without
+        # it here the two configures disagree on the build type, which changes
+        # every compile flag, and the first wheel rebuilds all 228 objects this
+        # step just built unoptimised -- the native build ran twice per job.
+        # See the longer note in .github/workflows/ci.yml.
+        #
+        # The GitHub workflow ALSO split its two linux jobs into six-wide
+        # per-ABI matrices on 2026-09-13. That is deliberately NOT mirrored
+        # here: this workflow runs on one self-hosted runner, where six entries
+        # would serialise AND pay the native build six times instead of once.
+        # The loop below is the right shape for a single runner; the matrix is
+        # the right shape for GitHub's per-job ones. The pair rule is about
+        # neither side being missing, and this file has been scoped to linux
+        # x86_64 by decision since 2026-07-28 anyway.
+        cmake .. -GNinja -DCMAKE_BUILD_TYPE=Release
         ninja
 
     # There is no C++ unit-test step. A `ctest --output-on-failure` stood here
