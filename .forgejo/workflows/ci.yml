@@ -111,16 +111,41 @@ jobs:
         fi
         echo "OK: no internal identifiers in tracked files"
 
-    - name: Stamp build version
-      # Tag builds keep the clean BASE version; everything else gets a
-      # .<run-id> dev suffix so ordinary pushes can never collide with a
-      # release version on PyPI.
+    - name: Stamp version
+      # THE TAG IS THE VERSION (2026-09-13), mirroring the GitHub workflow.
+      #
+      # THIS IS NOT OPTIONAL HERE, even though this forge does not currently
+      # publish. The committed BASE is now a 0.0.0 placeholder, so a workflow
+      # that does not substitute the tag builds 0.0.0 wheels -- and the moment
+      # sync-policy.toml moves release authority back to forgejo, this job's
+      # `publish-pypi` would upload them under a version PyPI keeps forever.
+      # The disarmed publisher is kept honest by the switch, not by being
+      # incapable, so it has to stay correct.
       run: |
+        set -eu
         case "$GITHUB_REF" in
-          refs/tags/*) echo "tag build -- leaving version clean" ;;
-          *) sed -i 's/^SUFFIX = ""$/SUFFIX = ".'"$GITHUB_RUN_ID"'"/' python/pssparser/__version__.py ;;
+          refs/tags/v*)
+            v="${GITHUB_REF#refs/tags/v}"
+            case "$v" in
+              ''|*[!0-9.]*)
+                echo "::error::tag v$v is not a <major>.<minor>.<patch> version"
+                exit 1 ;;
+            esac
+            sed 's/^BASE = .*$/BASE = "'"$v"'"/' python/pssparser/__version__.py > __version__.stamped
+            mv __version__.stamped python/pssparser/__version__.py
+            # ANTI-VACUITY: a sed matching nothing exits 0 and would ship the
+            # 0.0.0 placeholder as a release.
+            grep -q "^BASE = \"$v\"$" python/pssparser/__version__.py || {
+              echo "::error::failed to stamp version $v into python/pssparser/__version__.py"
+              exit 1
+            }
+            ;;
+          *)
+            sed 's/^SUFFIX = ""$/SUFFIX = ".'"$GITHUB_RUN_ID"'"/' python/pssparser/__version__.py > __version__.stamped
+            mv __version__.stamped python/pssparser/__version__.py
+            ;;
         esac
-        grep '^SUFFIX = ' python/pssparser/__version__.py
+        grep -E '^(BASE|SUFFIX) = ' python/pssparser/__version__.py
 
     - name: Configure ivpm dependency resolution
       # ivpm.yaml names github.com URLs. Remap them to git.dvkit.org so a build
@@ -366,24 +391,31 @@ jobs:
         name: wheels-linux-x86_64
         path: dist
 
-    - name: Check the tag matches the package version
-      # Guards against tagging v3.0.1 while __version__.py still says 3.0.0 --
-      # which would publish a release under the wrong number, unfixably.
+    - name: Check the wheels carry the tag version
+      # WAS a comparison of the tag against BASE in __version__.py, guarding
+      # against tagging v3.0.1 while the file still said 3.0.0. CI substitutes
+      # the tag into that file now, so the comparison would only confirm that
+      # this workflow wrote what it wrote.
+      #
+      # The wheels are still worth checking, and more than they were: they are
+      # the output of the stamp rather than its input, so this is what catches
+      # a stamp that silently did nothing.
       run: |
+        set -eu
         tag="${GITHUB_REF#refs/tags/v}"
-        base=$(grep '^BASE = ' python/pssparser/__version__.py | sed 's/.*"\(.*\)".*/\1/')
-        echo "tag=$tag  BASE=$base"
-        if [ "$tag" != "$base" ]; then
-          echo "::error::tag v$tag does not match BASE $base in python/pssparser/__version__.py"
-          exit 1
-        fi
+        n=0
         for w in dist/*.whl; do
           case "$(basename "$w")" in
-            pssparser-${base}-*) ;;
-            *) echo "::error::wheel $(basename "$w") is not version ${base}"; exit 1 ;;
+            pssparser-${tag}-*) n=$((n+1)) ;;
+            *) echo "::error::wheel $(basename "$w") is not version ${tag}"; exit 1 ;;
           esac
         done
-        echo "OK: tag, source version and all wheels agree on ${base}"
+        # ANTI-VACUITY: an empty dist/ satisfies the loop above trivially.
+        if [ "$n" -eq 0 ]; then
+          echo "::error::no wheels to publish"
+          exit 1
+        fi
+        echo "OK: all ${n} wheels are version ${tag}"
 
     - name: Publish to PyPI
       # Plain twine rather than a third-party action: this is the release path,

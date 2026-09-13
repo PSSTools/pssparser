@@ -116,26 +116,57 @@ jobs:
     container: quay.io/pypa/manylinux_2_28_x86_64
     steps:
     - uses: actions/checkout@v4
-    - name: Stamp build version
-      # Tag builds keep the clean BASE version; everything else gets a
-      # .<run-id> dev suffix so an ordinary push can never collide with a
-      # release version on PyPI.
+    - name: Stamp version
+      # THE TAG IS THE VERSION (2026-09-13). On a `v*` build this substitutes
+      # the tag into BASE; everything else gets a .<run-id> dev suffix on the
+      # 0.0.0 placeholder that is committed. There is no version to bump
+      # before tagging, and nothing in the tree to keep in step with the tag.
       #
-      # THE CASE STATEMENT IS NEW (2026-09-01) and it is what makes this forge
-      # able to release at all. This step used to stamp UNCONDITIONALLY, which
-      # was correct while nothing here published: every wheel was an artifact,
-      # and a dev suffix on an artifact costs nothing. The moment `publish-pypi`
-      # below exists, an unconditional stamp turns `v3.1.0` into a PyPI upload
-      # of 3.1.0.<run-id> -- a version number that cannot be reused once taken.
-      # The tag/version check in that job would in fact catch it and fail the
-      # release, which is the recoverable direction, but only after a full
-      # matrix build.
+      # This step used to do the opposite -- leave the committed BASE alone on
+      # a tag and let the publish job REFUSE the release if the two disagreed.
+      # That check was correct and caught nothing useful: the failure it
+      # guarded against was forgetting to hand-edit a file, which is a step
+      # that should not exist. Substituting removes the step and the check
+      # together.
+      #
+      # IDENTICAL ON ALL FOUR PLATFORMS, which the previous form was not: it
+      # used `sed -i`, whose argument handling differs between GNU and BSD, so
+      # macOS carried its own copy with `sed -i ''`. Writing through a temp
+      # file needs no -i and so needs no per-platform variant.
       run: |
+        set -eu
         case "$GITHUB_REF" in
-          refs/tags/*) echo "tag build -- leaving version clean" ;;
-          *) sed -i 's/^SUFFIX = ""$/SUFFIX = ".'"$GITHUB_RUN_ID"'"/' python/pssparser/__version__.py ;;
+          refs/tags/v*)
+            v="${GITHUB_REF#refs/tags/v}"
+            # DIGITS AND DOTS ONLY. This project's versions are
+            # <PSS major>.<PSS minor>.<patch> and it has no pre-release
+            # channel by decision -- so `v3.2.0-rc1` is a mistake, and one
+            # worth catching here, in every build job, rather than after
+            # twenty wheels have been built under a version PyPI will reject
+            # or accept-and-keep. Widen this if a pre-release channel is ever
+            # designed.
+            case "$v" in
+              ''|*[!0-9.]*)
+                echo "::error::tag v$v is not a <major>.<minor>.<patch> version"
+                exit 1 ;;
+            esac
+            sed 's/^BASE = .*$/BASE = "'"$v"'"/' python/pssparser/__version__.py > __version__.stamped
+            mv __version__.stamped python/pssparser/__version__.py
+            # ANTI-VACUITY. A sed whose pattern matches nothing exits 0 and
+            # leaves the file untouched, so a rename or reformat of
+            # __version__.py would turn this step into a silent no-op and
+            # ship the 0.0.0 placeholder as a release.
+            grep -q "^BASE = \"$v\"$" python/pssparser/__version__.py || {
+              echo "::error::failed to stamp version $v into python/pssparser/__version__.py"
+              exit 1
+            }
+            ;;
+          *)
+            sed 's/^SUFFIX = ""$/SUFFIX = ".'"$GITHUB_RUN_ID"'"/' python/pssparser/__version__.py > __version__.stamped
+            mv __version__.stamped python/pssparser/__version__.py
+            ;;
         esac
-        grep '^SUFFIX = ' python/pssparser/__version__.py
+        grep -E '^(BASE|SUFFIX) = ' python/pssparser/__version__.py
     - name: Install additional build dependencies
       run: |
         yum install -y libuuid-devel
@@ -244,26 +275,57 @@ jobs:
     container: quay.io/pypa/manylinux_2_28_aarch64
     steps:
     - uses: actions/checkout@v4
-    - name: Stamp build version
-      # Tag builds keep the clean BASE version; everything else gets a
-      # .<run-id> dev suffix so an ordinary push can never collide with a
-      # release version on PyPI.
+    - name: Stamp version
+      # THE TAG IS THE VERSION (2026-09-13). On a `v*` build this substitutes
+      # the tag into BASE; everything else gets a .<run-id> dev suffix on the
+      # 0.0.0 placeholder that is committed. There is no version to bump
+      # before tagging, and nothing in the tree to keep in step with the tag.
       #
-      # THE CASE STATEMENT IS NEW (2026-09-01) and it is what makes this forge
-      # able to release at all. This step used to stamp UNCONDITIONALLY, which
-      # was correct while nothing here published: every wheel was an artifact,
-      # and a dev suffix on an artifact costs nothing. The moment `publish-pypi`
-      # below exists, an unconditional stamp turns `v3.1.0` into a PyPI upload
-      # of 3.1.0.<run-id> -- a version number that cannot be reused once taken.
-      # The tag/version check in that job would in fact catch it and fail the
-      # release, which is the recoverable direction, but only after a full
-      # matrix build.
+      # This step used to do the opposite -- leave the committed BASE alone on
+      # a tag and let the publish job REFUSE the release if the two disagreed.
+      # That check was correct and caught nothing useful: the failure it
+      # guarded against was forgetting to hand-edit a file, which is a step
+      # that should not exist. Substituting removes the step and the check
+      # together.
+      #
+      # IDENTICAL ON ALL FOUR PLATFORMS, which the previous form was not: it
+      # used `sed -i`, whose argument handling differs between GNU and BSD, so
+      # macOS carried its own copy with `sed -i ''`. Writing through a temp
+      # file needs no -i and so needs no per-platform variant.
       run: |
+        set -eu
         case "$GITHUB_REF" in
-          refs/tags/*) echo "tag build -- leaving version clean" ;;
-          *) sed -i 's/^SUFFIX = ""$/SUFFIX = ".'"$GITHUB_RUN_ID"'"/' python/pssparser/__version__.py ;;
+          refs/tags/v*)
+            v="${GITHUB_REF#refs/tags/v}"
+            # DIGITS AND DOTS ONLY. This project's versions are
+            # <PSS major>.<PSS minor>.<patch> and it has no pre-release
+            # channel by decision -- so `v3.2.0-rc1` is a mistake, and one
+            # worth catching here, in every build job, rather than after
+            # twenty wheels have been built under a version PyPI will reject
+            # or accept-and-keep. Widen this if a pre-release channel is ever
+            # designed.
+            case "$v" in
+              ''|*[!0-9.]*)
+                echo "::error::tag v$v is not a <major>.<minor>.<patch> version"
+                exit 1 ;;
+            esac
+            sed 's/^BASE = .*$/BASE = "'"$v"'"/' python/pssparser/__version__.py > __version__.stamped
+            mv __version__.stamped python/pssparser/__version__.py
+            # ANTI-VACUITY. A sed whose pattern matches nothing exits 0 and
+            # leaves the file untouched, so a rename or reformat of
+            # __version__.py would turn this step into a silent no-op and
+            # ship the 0.0.0 placeholder as a release.
+            grep -q "^BASE = \"$v\"$" python/pssparser/__version__.py || {
+              echo "::error::failed to stamp version $v into python/pssparser/__version__.py"
+              exit 1
+            }
+            ;;
+          *)
+            sed 's/^SUFFIX = ""$/SUFFIX = ".'"$GITHUB_RUN_ID"'"/' python/pssparser/__version__.py > __version__.stamped
+            mv __version__.stamped python/pssparser/__version__.py
+            ;;
         esac
-        grep '^SUFFIX = ' python/pssparser/__version__.py
+        grep -E '^(BASE|SUFFIX) = ' python/pssparser/__version__.py
     - name: Install additional build dependencies
       run: |
         yum install -y libuuid-devel
@@ -374,26 +436,57 @@ jobs:
       with:
         distribution: 'temurin'
         java-version: '11'
-    - name: Stamp build version
-      # Tag builds keep the clean BASE version; everything else gets a
-      # .<run-id> dev suffix so an ordinary push can never collide with a
-      # release version on PyPI.
+    - name: Stamp version
+      # THE TAG IS THE VERSION (2026-09-13). On a `v*` build this substitutes
+      # the tag into BASE; everything else gets a .<run-id> dev suffix on the
+      # 0.0.0 placeholder that is committed. There is no version to bump
+      # before tagging, and nothing in the tree to keep in step with the tag.
       #
-      # THE CASE STATEMENT IS NEW (2026-09-01) and it is what makes this forge
-      # able to release at all. This step used to stamp UNCONDITIONALLY, which
-      # was correct while nothing here published: every wheel was an artifact,
-      # and a dev suffix on an artifact costs nothing. The moment `publish-pypi`
-      # below exists, an unconditional stamp turns `v3.1.0` into a PyPI upload
-      # of 3.1.0.<run-id> -- a version number that cannot be reused once taken.
-      # The tag/version check in that job would in fact catch it and fail the
-      # release, which is the recoverable direction, but only after a full
-      # matrix build.
+      # This step used to do the opposite -- leave the committed BASE alone on
+      # a tag and let the publish job REFUSE the release if the two disagreed.
+      # That check was correct and caught nothing useful: the failure it
+      # guarded against was forgetting to hand-edit a file, which is a step
+      # that should not exist. Substituting removes the step and the check
+      # together.
+      #
+      # IDENTICAL ON ALL FOUR PLATFORMS, which the previous form was not: it
+      # used `sed -i`, whose argument handling differs between GNU and BSD, so
+      # macOS carried its own copy with `sed -i ''`. Writing through a temp
+      # file needs no -i and so needs no per-platform variant.
       run: |
+        set -eu
         case "$GITHUB_REF" in
-          refs/tags/*) echo "tag build -- leaving version clean" ;;
-          *) sed -i 's/^SUFFIX = ""$/SUFFIX = ".'"$GITHUB_RUN_ID"'"/' python/pssparser/__version__.py ;;
+          refs/tags/v*)
+            v="${GITHUB_REF#refs/tags/v}"
+            # DIGITS AND DOTS ONLY. This project's versions are
+            # <PSS major>.<PSS minor>.<patch> and it has no pre-release
+            # channel by decision -- so `v3.2.0-rc1` is a mistake, and one
+            # worth catching here, in every build job, rather than after
+            # twenty wheels have been built under a version PyPI will reject
+            # or accept-and-keep. Widen this if a pre-release channel is ever
+            # designed.
+            case "$v" in
+              ''|*[!0-9.]*)
+                echo "::error::tag v$v is not a <major>.<minor>.<patch> version"
+                exit 1 ;;
+            esac
+            sed 's/^BASE = .*$/BASE = "'"$v"'"/' python/pssparser/__version__.py > __version__.stamped
+            mv __version__.stamped python/pssparser/__version__.py
+            # ANTI-VACUITY. A sed whose pattern matches nothing exits 0 and
+            # leaves the file untouched, so a rename or reformat of
+            # __version__.py would turn this step into a silent no-op and
+            # ship the 0.0.0 placeholder as a release.
+            grep -q "^BASE = \"$v\"$" python/pssparser/__version__.py || {
+              echo "::error::failed to stamp version $v into python/pssparser/__version__.py"
+              exit 1
+            }
+            ;;
+          *)
+            sed 's/^SUFFIX = ""$/SUFFIX = ".'"$GITHUB_RUN_ID"'"/' python/pssparser/__version__.py > __version__.stamped
+            mv __version__.stamped python/pssparser/__version__.py
+            ;;
         esac
-        grep '^SUFFIX = ' python/pssparser/__version__.py
+        grep -E '^(BASE|SUFFIX) = ' python/pssparser/__version__.py
     - name: Install Packages
       run: |
         python -m pip install ivpm ivpm-build cython ninja cmake wheel setuptools build
@@ -493,26 +586,57 @@ jobs:
       _PYTHON_HOST_PLATFORM: 'macosx-13.0-arm64'
     steps:
     - uses: actions/checkout@v4
-    - name: Stamp build version
-      # Tag builds keep the clean BASE version; everything else gets a
-      # .<run-id> dev suffix so an ordinary push can never collide with a
-      # release version on PyPI.
+    - name: Stamp version
+      # THE TAG IS THE VERSION (2026-09-13). On a `v*` build this substitutes
+      # the tag into BASE; everything else gets a .<run-id> dev suffix on the
+      # 0.0.0 placeholder that is committed. There is no version to bump
+      # before tagging, and nothing in the tree to keep in step with the tag.
       #
-      # THE CASE STATEMENT IS NEW (2026-09-01) and it is what makes this forge
-      # able to release at all. This step used to stamp UNCONDITIONALLY, which
-      # was correct while nothing here published: every wheel was an artifact,
-      # and a dev suffix on an artifact costs nothing. The moment `publish-pypi`
-      # below exists, an unconditional stamp turns `v3.1.0` into a PyPI upload
-      # of 3.1.0.<run-id> -- a version number that cannot be reused once taken.
-      # The tag/version check in that job would in fact catch it and fail the
-      # release, which is the recoverable direction, but only after a full
-      # matrix build.
+      # This step used to do the opposite -- leave the committed BASE alone on
+      # a tag and let the publish job REFUSE the release if the two disagreed.
+      # That check was correct and caught nothing useful: the failure it
+      # guarded against was forgetting to hand-edit a file, which is a step
+      # that should not exist. Substituting removes the step and the check
+      # together.
+      #
+      # IDENTICAL ON ALL FOUR PLATFORMS, which the previous form was not: it
+      # used `sed -i`, whose argument handling differs between GNU and BSD, so
+      # macOS carried its own copy with `sed -i ''`. Writing through a temp
+      # file needs no -i and so needs no per-platform variant.
       run: |
+        set -eu
         case "$GITHUB_REF" in
-          refs/tags/*) echo "tag build -- leaving version clean" ;;
-          *) sed -i '' 's/^SUFFIX = ""$/SUFFIX = ".'"$GITHUB_RUN_ID"'"/' python/pssparser/__version__.py ;;
+          refs/tags/v*)
+            v="${GITHUB_REF#refs/tags/v}"
+            # DIGITS AND DOTS ONLY. This project's versions are
+            # <PSS major>.<PSS minor>.<patch> and it has no pre-release
+            # channel by decision -- so `v3.2.0-rc1` is a mistake, and one
+            # worth catching here, in every build job, rather than after
+            # twenty wheels have been built under a version PyPI will reject
+            # or accept-and-keep. Widen this if a pre-release channel is ever
+            # designed.
+            case "$v" in
+              ''|*[!0-9.]*)
+                echo "::error::tag v$v is not a <major>.<minor>.<patch> version"
+                exit 1 ;;
+            esac
+            sed 's/^BASE = .*$/BASE = "'"$v"'"/' python/pssparser/__version__.py > __version__.stamped
+            mv __version__.stamped python/pssparser/__version__.py
+            # ANTI-VACUITY. A sed whose pattern matches nothing exits 0 and
+            # leaves the file untouched, so a rename or reformat of
+            # __version__.py would turn this step into a silent no-op and
+            # ship the 0.0.0 placeholder as a release.
+            grep -q "^BASE = \"$v\"$" python/pssparser/__version__.py || {
+              echo "::error::failed to stamp version $v into python/pssparser/__version__.py"
+              exit 1
+            }
+            ;;
+          *)
+            sed 's/^SUFFIX = ""$/SUFFIX = ".'"$GITHUB_RUN_ID"'"/' python/pssparser/__version__.py > __version__.stamped
+            mv __version__.stamped python/pssparser/__version__.py
+            ;;
         esac
-        grep '^SUFFIX = ' python/pssparser/__version__.py
+        grep -E '^(BASE|SUFFIX) = ' python/pssparser/__version__.py
     - uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python }}
@@ -669,28 +793,49 @@ jobs:
 
     # ---- Everything that can fail, before anything is published ---------- #
 
-    - name: Check the tag, the Python version and the npm version all agree
-      # FIRST, because it costs seconds and everything below costs minutes.
-      # This is also the step that makes lockstep a rule rather than an
-      # intention: the wheel and the wasm are one C++ core built from one
-      # commit, and shipping them under different numbers would leave a bug
-      # report starting with "which pair of versions do you have".
+    - name: Resolve the release version from the tag
+      # FIRST, because everything below is expressed in terms of $VERSION.
+      #
+      # This replaces a step that CHECKED tag == BASE == ts/package.json and
+      # failed the release when they disagreed. With CI substituting the tag
+      # into both files, two of those three are now things this workflow
+      # wrote, and a check that a value equals what you just assigned it is
+      # not a check. What the lockstep rule actually needs -- that the wheels
+      # and the wasm carry ONE version -- is still enforced, but against the
+      # ARTIFACTS rather than against the sources: "Check the wheels" asserts
+      # every wheel filename carries $VERSION, and the npm tarball check
+      # asserts `npm pack` reports it. Those catch a build job whose stamp
+      # silently did nothing, which the source comparison could not.
       run: |
         set -eu
         tag="${GITHUB_REF#refs/tags/v}"
-        base=$(grep '^BASE = ' python/pssparser/__version__.py | sed 's/.*"\(.*\)".*/\1/')
-        npmv=$(node -p "require('./ts/package.json').version")
-        echo "tag=$tag  BASE=$base  ts/package.json=$npmv"
-        if [ "$tag" != "$base" ]; then
-          echo "::error::tag v$tag does not match BASE $base in python/pssparser/__version__.py"
-          exit 1
-        fi
-        if [ "$tag" != "$npmv" ]; then
-          echo "::error::tag v$tag does not match version $npmv in ts/package.json -- the npm package and the wheels release together and must carry the same version"
-          exit 1
-        fi
-        echo "OK: tag, Python BASE and ts/package.json all say $tag"
+        # Same shape check the build jobs apply before stamping. Repeated
+        # because this job does its own stamping below and must not be the
+        # one place a malformed tag gets through.
+        case "$tag" in
+          ''|*[!0-9.]*)
+            echo "::error::tag v$tag is not a <major>.<minor>.<patch> version"
+            exit 1 ;;
+        esac
+        echo "releasing $tag"
         echo "VERSION=$tag" >> "$GITHUB_ENV"
+
+    - name: Stamp the npm package version
+      # The wheels arrive pre-stamped as build artifacts; the npm package is
+      # built HERE, from this job's checkout, so this is where ts/package.json
+      # has to be given the tag. `npm version` rather than an edit: it is
+      # npm's own mechanism, it updates package-lock.json in step, and it
+      # fails loudly on a malformed version instead of writing it.
+      #
+      # --no-git-tag-version because we are already on the tag and do not want
+      # npm creating another; --allow-same-version so a re-run against an
+      # already-stamped tree is not an error.
+      working-directory: ts
+      run: |
+        set -eu
+        npm version "$VERSION" --no-git-tag-version --allow-same-version
+        test "$(node -p "require('./package.json').version")" = "$VERSION"
+        echo "ts/package.json is $VERSION"
 
     - name: Download every platform's wheels
       uses: actions/download-artifact@v4
