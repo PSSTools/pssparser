@@ -47,8 +47,9 @@
 # ALL FOUR ARE MATRICES AS OF 2026-09-13. The manylinux jobs kept building
 # their six wheels in a serial loop inside one job long after Windows and macOS
 # were split, and that loop was the entire critical path: 33m and 30m against
-# 5-13m everywhere else, ~70-86% of it in the loop. The wheel count is
-# unchanged at 20 -- this is the same work, run per-ABI instead of end to end.
+# 5-13m everywhere else, ~70-86% of it in the loop. The split did not change
+# the wheel count -- this is the same work, run per-ABI instead of end to end.
+# It was 20 when the split landed; dropping cp39 above is what took it to 18.
 # See the note on ci-linux for why duplicating the native build is the cheaper
 # side of the trade, and for the -DCMAKE_BUILD_TYPE=Release fix that came with
 # it.
@@ -1249,62 +1250,77 @@ jobs:
       # binary is in the tarball, then load it and parse with it.
       working-directory: ts
       #
-      # --json, NOT a grep of the `npm notice` listing (2026-09-13). The
-      # listing is human-readable output, not an interface: npm has changed
-      # its shape across majors, and when it next does, this check does not
-      # start failing to find the wasm -- it starts reporting that the wasm is
-      # MISSING, which blocks a release that is perfectly fine and sends
-      # whoever is on the release looking for a build problem that does not
-      # exist. `npm pack --dry-run --json` is the documented machine-readable
-      # form and carries name and version as well, so the check can assert
-      # what the tarball IS rather than only that a path appears somewhere in
-      # a log.
+      # The tarball itself, NOT a grep of the `npm notice` listing
+      # (2026-09-13). The listing is human-readable output, not an interface:
+      # npm has changed its shape across majors, and when it next does, this
+      # check does not start failing to find the wasm -- it starts reporting
+      # that the wasm is MISSING, which blocks a release that is perfectly fine
+      # and sends whoever is on the release looking for a build problem that
+      # does not exist. Unpacking the artifact gives name and version as well,
+      # so the check asserts what the tarball IS rather than only that a path
+      # appears somewhere in a log.
       #
       # The old form also piped through `tee`, which made the pipeline's exit
       # status tee's. `npm pack` failing outright was therefore invisible, and
-      # surfaced as the same misleading "no .wasm" message. Redirecting stdout
-      # lets `set -e` see the real failure.
+      # surfaced as the same misleading "no .wasm" message. Not reading npm's
+      # stdout at all lets `set -e` see the real failure.
       #
-      # --ignore-scripts IS WHAT MAKES THE REDIRECT SAFE, and its absence cost
-      # v3.1.4 the release (2026-09-13). `npm pack` runs the `prepare`
-      # lifecycle, and npm writes BOTH its own `prepare: <cmd>` banner and the
-      # script's output to STDOUT -- the same stream this redirect captures. So
-      # /tmp/pack.json was two and a half minutes of Emscripten build log with
-      # the JSON array appended, and the parse died on the first token:
+      # NPM'S STDOUT IS NOT AN INTERFACE, and two releases died learning it.
+      # `npm pack` runs the `prepare` lifecycle, and npm writes both its own
+      # `prepare: <cmd>` banner and the script's entire output to STDOUT. With
+      # `--dry-run --json > file`, that file was two and a half minutes of
+      # Emscripten build log with the JSON array appended, and the parse died
+      # on the first token -- v3.1.4 (2026-09-13):
       #
       #   could not parse npm pack --json output: Unexpected token 'p',
       #   "prepare: n"... is not valid JSON
       #
       # The grep form this replaced was accidentally immune -- it read the
-      # noise and ignored it -- so the defect arrived with the redirect, in the
-      # same commit that added it.
+      # noise and ignored it -- so the defect arrived with the redirect.
       #
-      # SKIP_PSSPARSER_PREPARE (which the publish step below sets) would NOT
-      # fix this: prepare.mjs would exit immediately, but npm prints the banner
-      # line whether or not the script body does anything. The lifecycle has to
-      # not run at all. That is also correct on the merits rather than merely
-      # expedient -- "Build the WebAssembly package" above has already built
-      # this tarball's contents, so re-running prepare here rebuilt the wasm a
-      # second time and then checked the rebuild rather than the artifact the
-      # next step publishes.
+      # --ignore-scripts DOES NOT FIX IT, and v3.1.5 died identically proving
+      # that. npm honours the flag for pack's lifecycle only from npm 11; the
+      # runner ships npm 10.9.8 with node 22, where the flag is accepted,
+      # ignored, and `prepare` runs anyway. Verified against both majors. Do
+      # not reintroduce a stdout-parsing form on the strength of a local test
+      # -- a developer npm is routinely a major ahead of the runner's.
+      #
+      # So: pack a real tarball and inspect THAT. `tar` cannot be polluted by a
+      # build script, the exit status is npm's own, and the bytes examined are
+      # the bytes the next step uploads rather than a second build that happens
+      # to resemble them. SKIP_PSSPARSER_PREPARE is what keeps the lifecycle
+      # from rebuilding the wasm a second time here; correctness no longer
+      # depends on it, only the four minutes do.
+      env:
+        SKIP_PSSPARSER_PREPARE: '1'
       run: |
         set -eu
-        npm pack --dry-run --json --ignore-scripts > /tmp/pack.json
+        rm -rf /tmp/packcheck
+        mkdir -p /tmp/packcheck
+        npm pack --ignore-scripts --pack-destination /tmp/packcheck >/dev/null
+        count=$(ls -1 /tmp/packcheck/*.tgz | wc -l)
+        if [ "$count" -ne 1 ]; then
+          echo "::error::expected exactly one tarball from npm pack, got $count"
+          exit 1
+        fi
+        tgz=$(ls -1 /tmp/packcheck/*.tgz)
+        tar -tzf "$tgz" > /tmp/packcheck/files.txt
+        tar -xzOf "$tgz" package/package.json > /tmp/packcheck/pkg.json
         node -e '
           const fs = require("fs");
           const want = process.env.VERSION_NPM;
           const fail = (m) => { console.error(`::error::${m}`); process.exit(1); };
-          let p;
-          try { p = JSON.parse(fs.readFileSync("/tmp/pack.json", "utf8"))[0]; }
-          catch (e) { fail(`could not parse npm pack --json output: ${e.message}`); }
-          if (!p) fail("npm pack --json produced no package entry");
+          const p = JSON.parse(fs.readFileSync("/tmp/packcheck/pkg.json", "utf8"));
+          // Every tarball entry is prefixed "package/"; strip it so the paths
+          // read as they do in the repo and in `files` in package.json.
+          const files = fs.readFileSync("/tmp/packcheck/files.txt", "utf8")
+            .split("\n").filter(Boolean).map((f) => f.replace(/^package\//, ""));
           if (p.name !== "@psstools/pssparser") fail(`tarball is ${p.name}, expected @psstools/pssparser`);
           if (p.version !== want) fail(`tarball is version ${p.version}, expected ${want}`);
-          const files = (p.files || []).map((f) => f.path);
           if (!files.includes("dist/wasm/pssparser.wasm")) {
             fail("no dist/wasm/pssparser.wasm in the tarball -- the package would install and fail at runtime");
           }
-          console.log(`tarball OK: ${p.name}@${p.version}, ${p.entryCount} files`);
+          console.log(`tarball OK: ${p.name}@${p.version}, ${files.length} files`);
         '
         node --input-type=module -e '
           import { createParser } from "./dist/index.js";
