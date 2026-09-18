@@ -19,7 +19,7 @@
 #
 # HAVING ALL FOUR PLATFORMS IS NOT THE SAME AS SERVING THEM, which v3.1.0 --
 # the first release under this authority -- demonstrated: the manylinux jobs
-# build cp39..cp314 from the interpreters in the manylinux image, but the
+# build every supported interpreter from the manylinux image, but the
 # Windows and macOS jobs each pinned one setup-python version, so that release
 # published six wheels per linux architecture against one Windows wheel
 # (cp311) and one macOS wheel (cp313). Every other Windows and macOS Python
@@ -28,12 +28,31 @@
 # Both jobs are matrices as of 2026-09-02, and `publish-pypi` now checks the
 # platform coverage of what it is about to upload.
 #
-# THEY ARE FOUR-WAY, NOT SIX. cp39 and cp314 were tried on both and neither
-# can build today -- ivpm needs >= 3.10, and `debug-mgr` (a build-time C++
-# dependency with no sdist) has no usable cp314 wheel for either platform.
-# Both bounds are upstream and are documented where they bite, on the
-# `python:` matrix in ci-win32. So a release is 6+6+4+4 = 20 wheels, against
+# THE FLOOR IS PYTHON 3.10 (2026-09-13). cp39 was built and published for
+# linux until then, and the wheels were not installable: `debug-mgr` has
+# never shipped a cp39 aarch64 wheel in ANY release and publishes no sdist, so
+# `pip install pssparser` on aarch64/3.9 ended at "No matching distribution
+# found for debug-mgr". On x86_64 it resolved only by walking back to a
+# debug-mgr from far earlier in the line. ciostream then dropped cp39 in 0.0.2
+# as well. Nothing was served by continuing to build an artifact whose
+# dependencies cannot be satisfied, so 3.9 is gone from the matrices and from
+# `python_requires` in setup.py -- the latter being what turns this into a
+# clear message rather than a confusing build failure.
+#
+# cp314 is linux-only, and that bound is upstream: `debug-mgr` has no usable
+# cp314 wheel for Windows or macOS. It is documented where it bites, on the
+# `python:` matrix in ci-win32. So a release is 5+5+4+4 = 18 wheels, against
 # v3.1.0's 6+6+1+1 = 14.
+#
+# ALL FOUR ARE MATRICES AS OF 2026-09-13. The manylinux jobs kept building
+# their six wheels in a serial loop inside one job long after Windows and macOS
+# were split, and that loop was the entire critical path: 33m and 30m against
+# 5-13m everywhere else, ~70-86% of it in the loop. The split did not change
+# the wheel count -- this is the same work, run per-ABI instead of end to end.
+# It was 20 when the split landed; dropping cp39 above is what took it to 18.
+# See the note on ci-linux for why duplicating the native build is the cheaper
+# side of the trade, and for the -DCMAKE_BUILD_TYPE=Release fix that came with
+# it.
 #
 # The Forgejo publish job is NOT deleted in exchange. It reads the same switch,
 # so it disarms itself the moment the switch says "github", and re-arms if the
@@ -112,55 +131,179 @@ jobs:
           echo "authority=$auth" >> "$GITHUB_OUTPUT"
 
   ci-linux:
+    # ONE JOB PER ABI, as of 2026-09-13. This was a serial
+    # `for py in cp310 ... cp314` loop inside a single job, and that loop was
+    # the whole critical path: 1381s of the job's 1980s, against 5-6 minute
+    # Windows and macOS jobs that have been matrices since 2026-09-02.
+    #
+    # The usual argument against splitting is that the matrix duplicates the
+    # shared native build. Measured, that argument does not hold here: the
+    # cmake/ninja build of the C++ core is ~170s against ~230s PER WHEEL, and
+    # the per-wheel cost is almost entirely one translation unit -- the
+    # Cythonized python/ast.cpp, 556k lines, ~3 minutes of g++ on its own.
+    # That cost is per-ABI and irreducible; it is also perfectly parallel.
+    # Duplicating ~17 CPU-minutes of native build to remove ~23 wall-clock
+    # minutes is the trade, and on a public repo the runners are free.
+    #
+    # The matrix is FIVE wide: linux ships cp310-cp314 where Windows and
+    # macOS ship 3.10-3.13, the extra entry being cp314. The publish job's
+    # per-platform wheel-count floor (>= 5 here) is what pins that.
+    strategy:
+      # OFF so that one broken ABI reports as one broken ABI. With it on the
+      # first failure cancels its siblings, and the log then cannot answer
+      # "was this cp314 only, or everything?" -- same reasoning as ci-win32.
+      fail-fast: false
+      matrix:
+        py: ['cp310-cp310', 'cp311-cp311', 'cp312-cp312', 'cp313-cp313', 'cp314-cp314']
     runs-on: ubuntu-latest
     container: quay.io/pypa/manylinux_2_28_x86_64
     steps:
     - uses: actions/checkout@v4
-    - name: Stamp build version
-      # Tag builds keep the clean BASE version; everything else gets a
-      # .<run-id> dev suffix so an ordinary push can never collide with a
-      # release version on PyPI.
+    - name: Stamp version
+      # THE TAG IS THE VERSION (2026-09-13). On a `v*` build this substitutes
+      # the tag into BASE; everything else gets a .<run-id> dev suffix on the
+      # 0.0.0 placeholder that is committed. There is no version to bump
+      # before tagging, and nothing in the tree to keep in step with the tag.
       #
-      # THE CASE STATEMENT IS NEW (2026-09-01) and it is what makes this forge
-      # able to release at all. This step used to stamp UNCONDITIONALLY, which
-      # was correct while nothing here published: every wheel was an artifact,
-      # and a dev suffix on an artifact costs nothing. The moment `publish-pypi`
-      # below exists, an unconditional stamp turns `v3.1.0` into a PyPI upload
-      # of 3.1.0.<run-id> -- a version number that cannot be reused once taken.
-      # The tag/version check in that job would in fact catch it and fail the
-      # release, which is the recoverable direction, but only after a full
-      # matrix build.
+      # This step used to do the opposite -- leave the committed BASE alone on
+      # a tag and let the publish job REFUSE the release if the two disagreed.
+      # That check was correct and caught nothing useful: the failure it
+      # guarded against was forgetting to hand-edit a file, which is a step
+      # that should not exist. Substituting removes the step and the check
+      # together.
+      #
+      # IDENTICAL ON ALL FOUR PLATFORMS, which the previous form was not: it
+      # used `sed -i`, whose argument handling differs between GNU and BSD, so
+      # macOS carried its own copy with `sed -i ''`. Writing through a temp
+      # file needs no -i and so needs no per-platform variant.
       run: |
+        set -eu
         case "$GITHUB_REF" in
-          refs/tags/*) echo "tag build -- leaving version clean" ;;
-          *) sed -i 's/^SUFFIX = ""$/SUFFIX = ".'"$GITHUB_RUN_ID"'"/' python/pssparser/__version__.py ;;
+          refs/tags/v*)
+            v="${GITHUB_REF#refs/tags/v}"
+            # THE TAG IS SPELLED THE PEP 440 WAY -- v3.2.0, v3.2.0rc1 -- and
+            # goes into this file VERBATIM. Git tag, PyPI version and wheel
+            # filename are then one identical string with no transformation
+            # anywhere between them.
+            #
+            # The two ecosystems do spell a pre-release differently: semver
+            # requires the hyphen, so npm wants `3.2.0-rc1` where Python wants
+            # `3.2.0rc1`. Tagging the PEP 440 way puts that conversion where
+            # it costs nothing, because NPM DOES IT ITSELF -- `npm version
+            # 3.2.0rc1` writes "3.2.0-rc1". setuptools does not reciprocate:
+            # given `3.2.0-rc1` it still names the wheel pssparser-3.2.0rc1-*
+            # while setup.py reports the hyphenated form, so a semver-spelled
+            # tag would leave this workflow hand-converting a version string
+            # and comparing the wrong spelling against wheel filenames.
+            #
+            # So nothing here reformats a version. Each ecosystem normalises
+            # what it is handed, and the publish job cross-checks that the two
+            # spellings denote the same release.
+            #
+            # `rc` only; alpha and beta are not accepted because nothing has
+            # asked for them.
+            bad=0
+            case "$v" in
+              *rc*)
+                core="${v%rc*}"
+                rcnum="${v##*rc}"
+                case "$core"  in ''|*[!0-9.]*) bad=1 ;; esac
+                case "$rcnum" in ''|*[!0-9]*)  bad=1 ;; esac
+                ;;
+              *)
+                case "$v" in ''|*[!0-9.]*) bad=1 ;; esac
+                ;;
+            esac
+            if [ "$bad" -ne 0 ]; then
+              echo "::error::tag v$v is not <major>.<minor>.<patch> or <major>.<minor>.<patch>rc<N> (PEP 440 spelling: v3.2.0rc1, not v3.2.0-rc1)"
+              exit 1
+            fi
+            sed 's/^BASE = .*$/BASE = "'"$v"'"/' python/pssparser/__version__.py > __version__.stamped
+            mv __version__.stamped python/pssparser/__version__.py
+            # ANTI-VACUITY. A sed whose pattern matches nothing exits 0 and
+            # leaves the file untouched, so a rename or reformat of
+            # __version__.py would turn this step into a silent no-op and
+            # ship the 0.0.0 placeholder as a release.
+            grep -q "^BASE = \"$v\"$" python/pssparser/__version__.py || {
+              echo "::error::failed to stamp version $v into python/pssparser/__version__.py"
+              exit 1
+            }
+            ;;
+          *)
+            sed 's/^SUFFIX = ""$/SUFFIX = ".'"$GITHUB_RUN_ID"'"/' python/pssparser/__version__.py > __version__.stamped
+            mv __version__.stamped python/pssparser/__version__.py
+            ;;
         esac
-        grep '^SUFFIX = ' python/pssparser/__version__.py
+        grep -E '^(BASE|SUFFIX) = ' python/pssparser/__version__.py
     - name: Install additional build dependencies
+      # THIS ABI *AND* cp312, and the duplication is load-bearing.
+      #
+      # cp312 is the tooling interpreter and three later steps depend on it:
+      # "Fetch source dependencies" runs `ivpm update` from it, "Build
+      # packages" puts it on PATH and calls ninja, and "Audit Wheels" repairs
+      # with its auditwheel. The serial loop this replaced installed into all
+      # six interpreters, so cp312 came out equipped on every job -- by
+      # accident, not by intent, and nothing said so.
+      #
+      # Narrowing the install to ${{ matrix.py }} alone therefore broke five
+      # jobs out of six on the first real run: every entry except cp312 died
+      # on "No module named ivpm", and would have died on a missing ninja
+      # immediately after. Installing into both costs one extra pip run
+      # against a warm index; the six-interpreter loop it replaced cost six.
       run: |
+        set -eu
         yum install -y libuuid-devel
         yum install -y java-11-openjdk-devel
-        for py in cp39-cp39 cp310-cp310 cp311-cp311 cp312-cp312 cp313-cp313 cp314-cp314; do
-          /opt/python/${py}/bin/python -m pip install ninja wheel cython setuptools ivpm ivpm-build
+        pys="${{ matrix.py }}"
+        [ "$pys" = "cp312-cp312" ] || pys="$pys cp312-cp312"
+        for py in $pys; do
+          echo "=== equipping $py ==="
+          /opt/python/${py}/bin/python -m pip install ninja wheel cython setuptools ivpm ivpm-build build
         done
     - name: Fetch source dependencies
+      # cp312 is the TOOLING interpreter -- ivpm here, auditwheel below -- and
+      # stays cp312 on every matrix entry. It is deliberately not
+      # ${{ matrix.py }}: ivpm and auditwheel are build tools, unrelated to the
+      # ABI being built, so pinning them means the oldest and newest entries run
+      # the same tooling as everything else rather than whatever pip can
+      # resolve for the oldest and newest interpreters.
       run: |
         export IVPM_PYTHON=/opt/python/cp312-cp312/bin/python
         ${IVPM_PYTHON} -m pip install twine auditwheel build
         ${IVPM_PYTHON} -m ivpm update -j 1 -a
     - name: Build packages
+      # -DCMAKE_BUILD_TYPE=Release IS LOAD-BEARING, and its absence was a
+      # silent doubling of the native build (fixed 2026-09-13).
+      #
+      # This step does not stand alone: ivpm_build's BuildExt.build_extensions
+      # runs CmakeBuilder on every `python -m build` whenever CMakeLists.txt
+      # exists, and CmakeBuilder configures THIS SAME build/ directory with
+      # `-DCMAKE_BUILD_TYPE=Release -DPACKAGES_DIR=<proj>/packages
+      # -DCMAKE_INSTALL_PREFIX=<proj>/build`. The latter two match what
+      # CMakeLists.txt already defaults to, so the build type was the only
+      # real difference -- and changing it on an existing cache changes every
+      # compile flag, so the first wheel build rebuilt all 228 objects this
+      # step had just built unoptimised. The logs show the 228-target build
+      # running exactly twice, for exactly that reason.
+      #
+      # So why keep the step at all, rather than let CmakeBuilder do the one
+      # build it was always going to do? Because setup.py computes
+      # `antlr4_rt_lib` by globbing build/lib*/libantlr4-runtime.so* at MODULE
+      # level -- before setup() runs, so before build_ext, so before cmake. On
+      # a fresh runner with no build/ the glob finds nothing, antlr4_rt_lib is
+      # None, and the ANTLR runtime is quietly left out of ivpm_extra_data.
+      # That ordering is a setup.py problem; priming build/ here is what keeps
+      # it from becoming this workflow's problem. Deleting this step needs
+      # that fixed first.
       run: |
         export PATH=/opt/python/cp312-cp312/bin:$PATH
         mkdir build
         cd build
-        cmake .. -GNinja
+        cmake .. -GNinja -DCMAKE_BUILD_TYPE=Release
         ninja
-    - name: Build Python wheels
+    - name: Build Python wheel
       run: |
-        for py in cp39-cp39 cp310-cp310 cp311-cp311 cp312-cp312 cp313-cp313 cp314-cp314; do
-          /opt/python/${py}/bin/python -m pip install build
-          /opt/python/${py}/bin/python -m build --wheel --no-isolation
-        done
+        /opt/python/${{ matrix.py }}/bin/python -m build --wheel --no-isolation
     - name: Audit Wheels
       run: |
         for whl in dist/*.whl; do
@@ -172,9 +315,14 @@ jobs:
           cp wheelhouse/*.whl dist
         fi
     - name: Upload wheels
+      # PER-ABI ARTIFACT NAME, for the reason spelled out on the ci-win32
+      # upload: upload-artifact@v4 rejects a second upload under an existing
+      # name, so a shared `wheels-linux-x86_64` would fail five of the six
+      # entries outright. The publish job collects on `wheels-*` with
+      # merge-multiple, so the split names land back in one dist/.
       uses: actions/upload-artifact@v4
       with:
-        name: wheels-linux-x86_64
+        name: wheels-linux-x86_64-${{ matrix.py }}
         path: dist/*.whl
         if-no-files-found: error
     - name: Check the PSS corpus
@@ -226,69 +374,185 @@ jobs:
       # resolves from the wheel installed below.
       #
       # pyyaml and toposort are astbuilder's own imports (parser.py, linker.py).
+      #
+      # STILL cp312 AND cp313 ONLY, now expressed as a matrix condition rather
+      # than a loop. Widening to all six ABIs is nearly free here -- the
+      # entries run in parallel -- but it is a coverage change, not a
+      # parallelism change, and it does not belong in the same commit as the
+      # split: cp310 and cp314 have never run this suite, so any failure they
+      # turn up would arrive looking like a regression from the matrix.
+      if: matrix.py == 'cp312-cp312' || matrix.py == 'cp313-cp313'
       run: |
-        for py in cp312-cp312 cp313-cp313; do
-          /opt/python/${py}/bin/python -m pip install pytest pyyaml toposort dist/*${py%%-*}*.whl
-          PYTHONPATH="$PWD/packages/pyastbuilder/src" \
-            /opt/python/${py}/bin/python -m pytest tests/python -v --tb=short
-        done
+        /opt/python/${{ matrix.py }}/bin/python -m pip install pytest pyyaml toposort dist/*.whl
+        PYTHONPATH="$PWD/packages/pyastbuilder/src" \
+          /opt/python/${{ matrix.py }}/bin/python -m pytest tests/python -v --tb=short
     - name: System test
+      # Every entry, where this used to be cp313 only: it is four seconds, it
+      # needs no condition, and "the wheel this job just built imports and
+      # parses" is worth asserting per ABI rather than for one of six.
       run: |
-        /opt/python/cp313-cp313/bin/python -m venv /tmp/test-venv
+        /opt/python/${{ matrix.py }}/bin/python -m venv /tmp/test-venv
         source /tmp/test-venv/bin/activate
-        pip install dist/*cp313*.whl
+        pip install dist/*.whl
         python -c "from pssparser import Parser; p = Parser(); assert p.parses([('test.pss', 'component pss_top {}')]); print('System test PASSED')"
 
   ci-linux-aarch64:
+    # Split six ways for the same reasons as ci-linux above, and with the same
+    # measurements behind it: 1554s of this job's 1800s was the serial wheel
+    # loop.
+    strategy:
+      fail-fast: false
+      matrix:
+        py: ['cp310-cp310', 'cp311-cp311', 'cp312-cp312', 'cp313-cp313', 'cp314-cp314']
     runs-on: ubuntu-24.04-arm
     container: quay.io/pypa/manylinux_2_28_aarch64
     steps:
     - uses: actions/checkout@v4
-    - name: Stamp build version
-      # Tag builds keep the clean BASE version; everything else gets a
-      # .<run-id> dev suffix so an ordinary push can never collide with a
-      # release version on PyPI.
+    - name: Stamp version
+      # THE TAG IS THE VERSION (2026-09-13). On a `v*` build this substitutes
+      # the tag into BASE; everything else gets a .<run-id> dev suffix on the
+      # 0.0.0 placeholder that is committed. There is no version to bump
+      # before tagging, and nothing in the tree to keep in step with the tag.
       #
-      # THE CASE STATEMENT IS NEW (2026-09-01) and it is what makes this forge
-      # able to release at all. This step used to stamp UNCONDITIONALLY, which
-      # was correct while nothing here published: every wheel was an artifact,
-      # and a dev suffix on an artifact costs nothing. The moment `publish-pypi`
-      # below exists, an unconditional stamp turns `v3.1.0` into a PyPI upload
-      # of 3.1.0.<run-id> -- a version number that cannot be reused once taken.
-      # The tag/version check in that job would in fact catch it and fail the
-      # release, which is the recoverable direction, but only after a full
-      # matrix build.
+      # This step used to do the opposite -- leave the committed BASE alone on
+      # a tag and let the publish job REFUSE the release if the two disagreed.
+      # That check was correct and caught nothing useful: the failure it
+      # guarded against was forgetting to hand-edit a file, which is a step
+      # that should not exist. Substituting removes the step and the check
+      # together.
+      #
+      # IDENTICAL ON ALL FOUR PLATFORMS, which the previous form was not: it
+      # used `sed -i`, whose argument handling differs between GNU and BSD, so
+      # macOS carried its own copy with `sed -i ''`. Writing through a temp
+      # file needs no -i and so needs no per-platform variant.
       run: |
+        set -eu
         case "$GITHUB_REF" in
-          refs/tags/*) echo "tag build -- leaving version clean" ;;
-          *) sed -i 's/^SUFFIX = ""$/SUFFIX = ".'"$GITHUB_RUN_ID"'"/' python/pssparser/__version__.py ;;
+          refs/tags/v*)
+            v="${GITHUB_REF#refs/tags/v}"
+            # THE TAG IS SPELLED THE PEP 440 WAY -- v3.2.0, v3.2.0rc1 -- and
+            # goes into this file VERBATIM. Git tag, PyPI version and wheel
+            # filename are then one identical string with no transformation
+            # anywhere between them.
+            #
+            # The two ecosystems do spell a pre-release differently: semver
+            # requires the hyphen, so npm wants `3.2.0-rc1` where Python wants
+            # `3.2.0rc1`. Tagging the PEP 440 way puts that conversion where
+            # it costs nothing, because NPM DOES IT ITSELF -- `npm version
+            # 3.2.0rc1` writes "3.2.0-rc1". setuptools does not reciprocate:
+            # given `3.2.0-rc1` it still names the wheel pssparser-3.2.0rc1-*
+            # while setup.py reports the hyphenated form, so a semver-spelled
+            # tag would leave this workflow hand-converting a version string
+            # and comparing the wrong spelling against wheel filenames.
+            #
+            # So nothing here reformats a version. Each ecosystem normalises
+            # what it is handed, and the publish job cross-checks that the two
+            # spellings denote the same release.
+            #
+            # `rc` only; alpha and beta are not accepted because nothing has
+            # asked for them.
+            bad=0
+            case "$v" in
+              *rc*)
+                core="${v%rc*}"
+                rcnum="${v##*rc}"
+                case "$core"  in ''|*[!0-9.]*) bad=1 ;; esac
+                case "$rcnum" in ''|*[!0-9]*)  bad=1 ;; esac
+                ;;
+              *)
+                case "$v" in ''|*[!0-9.]*) bad=1 ;; esac
+                ;;
+            esac
+            if [ "$bad" -ne 0 ]; then
+              echo "::error::tag v$v is not <major>.<minor>.<patch> or <major>.<minor>.<patch>rc<N> (PEP 440 spelling: v3.2.0rc1, not v3.2.0-rc1)"
+              exit 1
+            fi
+            sed 's/^BASE = .*$/BASE = "'"$v"'"/' python/pssparser/__version__.py > __version__.stamped
+            mv __version__.stamped python/pssparser/__version__.py
+            # ANTI-VACUITY. A sed whose pattern matches nothing exits 0 and
+            # leaves the file untouched, so a rename or reformat of
+            # __version__.py would turn this step into a silent no-op and
+            # ship the 0.0.0 placeholder as a release.
+            grep -q "^BASE = \"$v\"$" python/pssparser/__version__.py || {
+              echo "::error::failed to stamp version $v into python/pssparser/__version__.py"
+              exit 1
+            }
+            ;;
+          *)
+            sed 's/^SUFFIX = ""$/SUFFIX = ".'"$GITHUB_RUN_ID"'"/' python/pssparser/__version__.py > __version__.stamped
+            mv __version__.stamped python/pssparser/__version__.py
+            ;;
         esac
-        grep '^SUFFIX = ' python/pssparser/__version__.py
+        grep -E '^(BASE|SUFFIX) = ' python/pssparser/__version__.py
     - name: Install additional build dependencies
+      # THIS ABI *AND* cp312, and the duplication is load-bearing.
+      #
+      # cp312 is the tooling interpreter and three later steps depend on it:
+      # "Fetch source dependencies" runs `ivpm update` from it, "Build
+      # packages" puts it on PATH and calls ninja, and "Audit Wheels" repairs
+      # with its auditwheel. The serial loop this replaced installed into all
+      # six interpreters, so cp312 came out equipped on every job -- by
+      # accident, not by intent, and nothing said so.
+      #
+      # Narrowing the install to ${{ matrix.py }} alone therefore broke five
+      # jobs out of six on the first real run: every entry except cp312 died
+      # on "No module named ivpm", and would have died on a missing ninja
+      # immediately after. Installing into both costs one extra pip run
+      # against a warm index; the six-interpreter loop it replaced cost six.
       run: |
+        set -eu
         yum install -y libuuid-devel
         yum install -y java-11-openjdk-devel
-        for py in cp39-cp39 cp310-cp310 cp311-cp311 cp312-cp312 cp313-cp313 cp314-cp314; do
-          /opt/python/${py}/bin/python -m pip install ninja wheel cython setuptools ivpm ivpm-build
+        pys="${{ matrix.py }}"
+        [ "$pys" = "cp312-cp312" ] || pys="$pys cp312-cp312"
+        for py in $pys; do
+          echo "=== equipping $py ==="
+          /opt/python/${py}/bin/python -m pip install ninja wheel cython setuptools ivpm ivpm-build build
         done
     - name: Fetch source dependencies
+      # cp312 is the TOOLING interpreter -- ivpm here, auditwheel below -- and
+      # stays cp312 on every matrix entry. It is deliberately not
+      # ${{ matrix.py }}: ivpm and auditwheel are build tools, unrelated to the
+      # ABI being built, so pinning them means the oldest and newest entries run
+      # the same tooling as everything else rather than whatever pip can
+      # resolve for the oldest and newest interpreters.
       run: |
         export IVPM_PYTHON=/opt/python/cp312-cp312/bin/python
         ${IVPM_PYTHON} -m pip install twine auditwheel build
         ${IVPM_PYTHON} -m ivpm update -j 1 -a
     - name: Build packages
+      # -DCMAKE_BUILD_TYPE=Release IS LOAD-BEARING, and its absence was a
+      # silent doubling of the native build (fixed 2026-09-13).
+      #
+      # This step does not stand alone: ivpm_build's BuildExt.build_extensions
+      # runs CmakeBuilder on every `python -m build` whenever CMakeLists.txt
+      # exists, and CmakeBuilder configures THIS SAME build/ directory with
+      # `-DCMAKE_BUILD_TYPE=Release -DPACKAGES_DIR=<proj>/packages
+      # -DCMAKE_INSTALL_PREFIX=<proj>/build`. The latter two match what
+      # CMakeLists.txt already defaults to, so the build type was the only
+      # real difference -- and changing it on an existing cache changes every
+      # compile flag, so the first wheel build rebuilt all 228 objects this
+      # step had just built unoptimised. The logs show the 228-target build
+      # running exactly twice, for exactly that reason.
+      #
+      # So why keep the step at all, rather than let CmakeBuilder do the one
+      # build it was always going to do? Because setup.py computes
+      # `antlr4_rt_lib` by globbing build/lib*/libantlr4-runtime.so* at MODULE
+      # level -- before setup() runs, so before build_ext, so before cmake. On
+      # a fresh runner with no build/ the glob finds nothing, antlr4_rt_lib is
+      # None, and the ANTLR runtime is quietly left out of ivpm_extra_data.
+      # That ordering is a setup.py problem; priming build/ here is what keeps
+      # it from becoming this workflow's problem. Deleting this step needs
+      # that fixed first.
       run: |
         export PATH=/opt/python/cp312-cp312/bin:$PATH
         mkdir build
         cd build
-        cmake .. -GNinja
+        cmake .. -GNinja -DCMAKE_BUILD_TYPE=Release
         ninja
-    - name: Build Python wheels
+    - name: Build Python wheel
       run: |
-        for py in cp39-cp39 cp310-cp310 cp311-cp311 cp312-cp312 cp313-cp313 cp314-cp314; do
-          /opt/python/${py}/bin/python -m pip install build
-          /opt/python/${py}/bin/python -m build --wheel --no-isolation
-        done
+        /opt/python/${{ matrix.py }}/bin/python -m build --wheel --no-isolation
     - name: Audit Wheels
       run: |
         for whl in dist/*.whl; do
@@ -300,20 +564,56 @@ jobs:
           cp wheelhouse/*.whl dist
         fi
     - name: Upload wheels
+      # PER-ABI ARTIFACT NAME -- see the note on the ci-linux upload.
       uses: actions/upload-artifact@v4
       with:
-        name: wheels-linux-aarch64
+        name: wheels-linux-aarch64-${{ matrix.py }}
         path: dist/*.whl
         if-no-files-found: error
+
+    # ---- Tests, which this job did not have before 2026-09-13 ------------ #
+    #
+    # aarch64 shipped on a smoke test alone: it built six wheels, uploaded
+    # them, imported one, and parsed one component. The full suite and the
+    # corpus sweep ran on x86_64 only, so an arch-dependent defect -- an
+    # alignment or endianness assumption in the C++ core, a size_t/int narrowing
+    # that only bites on a different ABI -- had no way to show up before a user
+    # hit it. The job names imply symmetry with ci-linux that was not there.
+    #
+    # Adding it was cheap only once this job became a matrix: appended to the
+    # old serial job these steps would have extended an already 30-minute
+    # critical path. In parallel they land inside an entry that is doing
+    # nothing else.
+    - name: Check the PSS corpus
+      # See the ci-linux copy for why this verifies rather than fetches, and
+      # why a missing corpus should fail here rather than in the sweep.
+      run: |
+        set -eu
+        n=$(find packages/pss-corpus/curated -name '*.pss' | wc -l)
+        echo "corpus: $n .pss files"
+        if [ "$n" -lt 50 ]; then
+          echo "::error::corpus resolved but looks wrong ($n files, expected 50+)"
+          exit 1
+        fi
+    - name: Run Python tests
+      # cp312/cp313 to match ci-linux exactly. Same PYTHONPATH reasoning as
+      # there: astbuilder is a build-time tool, absent from the wheel, and
+      # without it test_astbuilder_codegen.py fails at import and takes the
+      # whole collection with it.
+      if: matrix.py == 'cp312-cp312' || matrix.py == 'cp313-cp313'
+      run: |
+        /opt/python/${{ matrix.py }}/bin/python -m pip install pytest pyyaml toposort dist/*.whl
+        PYTHONPATH="$PWD/packages/pyastbuilder/src" \
+          /opt/python/${{ matrix.py }}/bin/python -m pytest tests/python -v --tb=short
     - name: System test
       run: |
-        /opt/python/cp313-cp313/bin/python -m venv /tmp/test-venv
+        /opt/python/${{ matrix.py }}/bin/python -m venv /tmp/test-venv
         source /tmp/test-venv/bin/activate
-        pip install dist/*cp313*.whl
+        pip install dist/*.whl
         python -c "from pssparser import Parser; p = Parser(); assert p.parses([('test.pss', 'component pss_top {}')]); print('System test PASSED')"
 
   ci-win32:
-    # ONE MATRIX ENTRY PER PYTHON, matching the cp39..cp314 loop the manylinux
+    # ONE MATRIX ENTRY PER PYTHON, matching the cp310..cp314 matrix the manylinux
     # jobs run. This job used to build a single 3.11 wheel, which is why
     # v3.1.0 shipped exactly one Windows artifact -- pssparser-3.1.0-cp311-
     # cp311-win_amd64.whl -- and every other Windows Python fell through to a
@@ -333,7 +633,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # 3.10..3.13, NOT cp39..cp314 -- and the bound is `debug-mgr`'s
+        # 3.10..3.13, NOT 3.10..3.14 -- and the bound is `debug-mgr`'s
         # release matrix, not this project's. It is a build-time C++
         # dependency resolved from PyPI, it publishes NO SDIST, so a Python
         # with no compatible wheel has no fallback: ivpm resolves it, nothing
@@ -347,16 +647,16 @@ jobs:
         #     tag" step below exists to stop pssparser shipping.)
         #   * cp314 Windows -- wheels exist, but the line stops at
         #     0.0.2.27891512881 while the project is on ...33288736809.
-        #   * cp39 -- ivpm/ivpm-build themselves need >= 3.10: the build dies
-        #     in `glob(root_dir=)` and `entry_points(group=)`, both 3.10 APIs.
+        # (cp39 used to be listed here too, blocked by ivpm/ivpm-build
+        # needing >= 3.10. It is no longer a special case for these jobs:
+        # 3.10 is the project floor everywhere as of 2026-09-13.)
         #
-        # THE LINUX JOBS BUILD cp39..cp314 ANYWAY, and the difference is
-        # structural rather than lucky. There, cmake runs ONCE under cp312 and
-        # only the extension is compiled per interpreter, so debug-mgr and
-        # ivpm are needed for one modern Python. These jobs run the whole
-        # toolchain under the matrix Python, so every one of its constraints
-        # applies to every entry. Routing these through a fixed driver Python
-        # would recover cp39; cp314 stays blocked upstream either way.
+        # THE LINUX JOBS BUILD cp314 ANYWAY, and the difference is structural
+        # rather than lucky. There, cmake runs ONCE under cp312 and only the
+        # extension is compiled per interpreter, so debug-mgr is needed for
+        # one modern Python. These jobs run the whole toolchain under the
+        # matrix Python, so every one of its constraints applies to every
+        # entry. cp314 stays blocked upstream here either way.
         python: ['3.10', '3.11', '3.12', '3.13']
     runs-on: windows-latest
     defaults:
@@ -374,26 +674,82 @@ jobs:
       with:
         distribution: 'temurin'
         java-version: '11'
-    - name: Stamp build version
-      # Tag builds keep the clean BASE version; everything else gets a
-      # .<run-id> dev suffix so an ordinary push can never collide with a
-      # release version on PyPI.
+    - name: Stamp version
+      # THE TAG IS THE VERSION (2026-09-13). On a `v*` build this substitutes
+      # the tag into BASE; everything else gets a .<run-id> dev suffix on the
+      # 0.0.0 placeholder that is committed. There is no version to bump
+      # before tagging, and nothing in the tree to keep in step with the tag.
       #
-      # THE CASE STATEMENT IS NEW (2026-09-01) and it is what makes this forge
-      # able to release at all. This step used to stamp UNCONDITIONALLY, which
-      # was correct while nothing here published: every wheel was an artifact,
-      # and a dev suffix on an artifact costs nothing. The moment `publish-pypi`
-      # below exists, an unconditional stamp turns `v3.1.0` into a PyPI upload
-      # of 3.1.0.<run-id> -- a version number that cannot be reused once taken.
-      # The tag/version check in that job would in fact catch it and fail the
-      # release, which is the recoverable direction, but only after a full
-      # matrix build.
+      # This step used to do the opposite -- leave the committed BASE alone on
+      # a tag and let the publish job REFUSE the release if the two disagreed.
+      # That check was correct and caught nothing useful: the failure it
+      # guarded against was forgetting to hand-edit a file, which is a step
+      # that should not exist. Substituting removes the step and the check
+      # together.
+      #
+      # IDENTICAL ON ALL FOUR PLATFORMS, which the previous form was not: it
+      # used `sed -i`, whose argument handling differs between GNU and BSD, so
+      # macOS carried its own copy with `sed -i ''`. Writing through a temp
+      # file needs no -i and so needs no per-platform variant.
       run: |
+        set -eu
         case "$GITHUB_REF" in
-          refs/tags/*) echo "tag build -- leaving version clean" ;;
-          *) sed -i 's/^SUFFIX = ""$/SUFFIX = ".'"$GITHUB_RUN_ID"'"/' python/pssparser/__version__.py ;;
+          refs/tags/v*)
+            v="${GITHUB_REF#refs/tags/v}"
+            # THE TAG IS SPELLED THE PEP 440 WAY -- v3.2.0, v3.2.0rc1 -- and
+            # goes into this file VERBATIM. Git tag, PyPI version and wheel
+            # filename are then one identical string with no transformation
+            # anywhere between them.
+            #
+            # The two ecosystems do spell a pre-release differently: semver
+            # requires the hyphen, so npm wants `3.2.0-rc1` where Python wants
+            # `3.2.0rc1`. Tagging the PEP 440 way puts that conversion where
+            # it costs nothing, because NPM DOES IT ITSELF -- `npm version
+            # 3.2.0rc1` writes "3.2.0-rc1". setuptools does not reciprocate:
+            # given `3.2.0-rc1` it still names the wheel pssparser-3.2.0rc1-*
+            # while setup.py reports the hyphenated form, so a semver-spelled
+            # tag would leave this workflow hand-converting a version string
+            # and comparing the wrong spelling against wheel filenames.
+            #
+            # So nothing here reformats a version. Each ecosystem normalises
+            # what it is handed, and the publish job cross-checks that the two
+            # spellings denote the same release.
+            #
+            # `rc` only; alpha and beta are not accepted because nothing has
+            # asked for them.
+            bad=0
+            case "$v" in
+              *rc*)
+                core="${v%rc*}"
+                rcnum="${v##*rc}"
+                case "$core"  in ''|*[!0-9.]*) bad=1 ;; esac
+                case "$rcnum" in ''|*[!0-9]*)  bad=1 ;; esac
+                ;;
+              *)
+                case "$v" in ''|*[!0-9.]*) bad=1 ;; esac
+                ;;
+            esac
+            if [ "$bad" -ne 0 ]; then
+              echo "::error::tag v$v is not <major>.<minor>.<patch> or <major>.<minor>.<patch>rc<N> (PEP 440 spelling: v3.2.0rc1, not v3.2.0-rc1)"
+              exit 1
+            fi
+            sed 's/^BASE = .*$/BASE = "'"$v"'"/' python/pssparser/__version__.py > __version__.stamped
+            mv __version__.stamped python/pssparser/__version__.py
+            # ANTI-VACUITY. A sed whose pattern matches nothing exits 0 and
+            # leaves the file untouched, so a rename or reformat of
+            # __version__.py would turn this step into a silent no-op and
+            # ship the 0.0.0 placeholder as a release.
+            grep -q "^BASE = \"$v\"$" python/pssparser/__version__.py || {
+              echo "::error::failed to stamp version $v into python/pssparser/__version__.py"
+              exit 1
+            }
+            ;;
+          *)
+            sed 's/^SUFFIX = ""$/SUFFIX = ".'"$GITHUB_RUN_ID"'"/' python/pssparser/__version__.py > __version__.stamped
+            mv __version__.stamped python/pssparser/__version__.py
+            ;;
         esac
-        grep '^SUFFIX = ' python/pssparser/__version__.py
+        grep -E '^(BASE|SUFFIX) = ' python/pssparser/__version__.py
     - name: Install Packages
       run: |
         python -m pip install ivpm ivpm-build cython ninja cmake wheel setuptools build
@@ -437,7 +793,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # 3.10..3.13, NOT cp39..cp314 -- and the bound is `debug-mgr`'s
+        # 3.10..3.13, NOT 3.10..3.14 -- and the bound is `debug-mgr`'s
         # release matrix, not this project's. It is a build-time C++
         # dependency resolved from PyPI, it publishes NO SDIST, so a Python
         # with no compatible wheel has no fallback: ivpm resolves it, nothing
@@ -451,16 +807,16 @@ jobs:
         #     tag" step below exists to stop pssparser shipping.)
         #   * cp314 Windows -- wheels exist, but the line stops at
         #     0.0.2.27891512881 while the project is on ...33288736809.
-        #   * cp39 -- ivpm/ivpm-build themselves need >= 3.10: the build dies
-        #     in `glob(root_dir=)` and `entry_points(group=)`, both 3.10 APIs.
+        # (cp39 used to be listed here too, blocked by ivpm/ivpm-build
+        # needing >= 3.10. It is no longer a special case for these jobs:
+        # 3.10 is the project floor everywhere as of 2026-09-13.)
         #
-        # THE LINUX JOBS BUILD cp39..cp314 ANYWAY, and the difference is
-        # structural rather than lucky. There, cmake runs ONCE under cp312 and
-        # only the extension is compiled per interpreter, so debug-mgr and
-        # ivpm are needed for one modern Python. These jobs run the whole
-        # toolchain under the matrix Python, so every one of its constraints
-        # applies to every entry. Routing these through a fixed driver Python
-        # would recover cp39; cp314 stays blocked upstream either way.
+        # THE LINUX JOBS BUILD cp314 ANYWAY, and the difference is structural
+        # rather than lucky. There, cmake runs ONCE under cp312 and only the
+        # extension is compiled per interpreter, so debug-mgr is needed for
+        # one modern Python. These jobs run the whole toolchain under the
+        # matrix Python, so every one of its constraints applies to every
+        # entry. cp314 stays blocked upstream here either way.
         python: ['3.10', '3.11', '3.12', '3.13']
     runs-on: macos-latest
     env:
@@ -493,26 +849,82 @@ jobs:
       _PYTHON_HOST_PLATFORM: 'macosx-13.0-arm64'
     steps:
     - uses: actions/checkout@v4
-    - name: Stamp build version
-      # Tag builds keep the clean BASE version; everything else gets a
-      # .<run-id> dev suffix so an ordinary push can never collide with a
-      # release version on PyPI.
+    - name: Stamp version
+      # THE TAG IS THE VERSION (2026-09-13). On a `v*` build this substitutes
+      # the tag into BASE; everything else gets a .<run-id> dev suffix on the
+      # 0.0.0 placeholder that is committed. There is no version to bump
+      # before tagging, and nothing in the tree to keep in step with the tag.
       #
-      # THE CASE STATEMENT IS NEW (2026-09-01) and it is what makes this forge
-      # able to release at all. This step used to stamp UNCONDITIONALLY, which
-      # was correct while nothing here published: every wheel was an artifact,
-      # and a dev suffix on an artifact costs nothing. The moment `publish-pypi`
-      # below exists, an unconditional stamp turns `v3.1.0` into a PyPI upload
-      # of 3.1.0.<run-id> -- a version number that cannot be reused once taken.
-      # The tag/version check in that job would in fact catch it and fail the
-      # release, which is the recoverable direction, but only after a full
-      # matrix build.
+      # This step used to do the opposite -- leave the committed BASE alone on
+      # a tag and let the publish job REFUSE the release if the two disagreed.
+      # That check was correct and caught nothing useful: the failure it
+      # guarded against was forgetting to hand-edit a file, which is a step
+      # that should not exist. Substituting removes the step and the check
+      # together.
+      #
+      # IDENTICAL ON ALL FOUR PLATFORMS, which the previous form was not: it
+      # used `sed -i`, whose argument handling differs between GNU and BSD, so
+      # macOS carried its own copy with `sed -i ''`. Writing through a temp
+      # file needs no -i and so needs no per-platform variant.
       run: |
+        set -eu
         case "$GITHUB_REF" in
-          refs/tags/*) echo "tag build -- leaving version clean" ;;
-          *) sed -i '' 's/^SUFFIX = ""$/SUFFIX = ".'"$GITHUB_RUN_ID"'"/' python/pssparser/__version__.py ;;
+          refs/tags/v*)
+            v="${GITHUB_REF#refs/tags/v}"
+            # THE TAG IS SPELLED THE PEP 440 WAY -- v3.2.0, v3.2.0rc1 -- and
+            # goes into this file VERBATIM. Git tag, PyPI version and wheel
+            # filename are then one identical string with no transformation
+            # anywhere between them.
+            #
+            # The two ecosystems do spell a pre-release differently: semver
+            # requires the hyphen, so npm wants `3.2.0-rc1` where Python wants
+            # `3.2.0rc1`. Tagging the PEP 440 way puts that conversion where
+            # it costs nothing, because NPM DOES IT ITSELF -- `npm version
+            # 3.2.0rc1` writes "3.2.0-rc1". setuptools does not reciprocate:
+            # given `3.2.0-rc1` it still names the wheel pssparser-3.2.0rc1-*
+            # while setup.py reports the hyphenated form, so a semver-spelled
+            # tag would leave this workflow hand-converting a version string
+            # and comparing the wrong spelling against wheel filenames.
+            #
+            # So nothing here reformats a version. Each ecosystem normalises
+            # what it is handed, and the publish job cross-checks that the two
+            # spellings denote the same release.
+            #
+            # `rc` only; alpha and beta are not accepted because nothing has
+            # asked for them.
+            bad=0
+            case "$v" in
+              *rc*)
+                core="${v%rc*}"
+                rcnum="${v##*rc}"
+                case "$core"  in ''|*[!0-9.]*) bad=1 ;; esac
+                case "$rcnum" in ''|*[!0-9]*)  bad=1 ;; esac
+                ;;
+              *)
+                case "$v" in ''|*[!0-9.]*) bad=1 ;; esac
+                ;;
+            esac
+            if [ "$bad" -ne 0 ]; then
+              echo "::error::tag v$v is not <major>.<minor>.<patch> or <major>.<minor>.<patch>rc<N> (PEP 440 spelling: v3.2.0rc1, not v3.2.0-rc1)"
+              exit 1
+            fi
+            sed 's/^BASE = .*$/BASE = "'"$v"'"/' python/pssparser/__version__.py > __version__.stamped
+            mv __version__.stamped python/pssparser/__version__.py
+            # ANTI-VACUITY. A sed whose pattern matches nothing exits 0 and
+            # leaves the file untouched, so a rename or reformat of
+            # __version__.py would turn this step into a silent no-op and
+            # ship the 0.0.0 placeholder as a release.
+            grep -q "^BASE = \"$v\"$" python/pssparser/__version__.py || {
+              echo "::error::failed to stamp version $v into python/pssparser/__version__.py"
+              exit 1
+            }
+            ;;
+          *)
+            sed 's/^SUFFIX = ""$/SUFFIX = ".'"$GITHUB_RUN_ID"'"/' python/pssparser/__version__.py > __version__.stamped
+            mv __version__.stamped python/pssparser/__version__.py
+            ;;
         esac
-        grep '^SUFFIX = ' python/pssparser/__version__.py
+        grep -E '^(BASE|SUFFIX) = ' python/pssparser/__version__.py
     - uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python }}
@@ -612,17 +1024,34 @@ jobs:
   # are the last two steps, adjacent. That takes the window from five minutes
   # of Emscripten compilation down to the seconds between two HTTP requests.
   #
-  # BOTH UPLOADS ARE IDEMPOTENT, which is what makes the remaining window
-  # survivable. twine has --skip-existing. npm has no equivalent, so the step
-  # asks the registry first and skips a version that is already there. Without
-  # that, a job that published to npm and then failed on twine could not be
-  # re-run: the retry would die on EPUBLISHCONFLICT before reaching the upload
-  # that still needed doing, and the only remaining move would be a new
-  # version number. With it, re-running finishes whatever half is missing.
+  # THE UPLOADS ARE UNCONDITIONAL, and nothing verifies them afterwards
+  # (2026-09-13). A tag is the decision to publish; each upload's exit status
+  # is the verdict on whether it worked. That is the whole contract.
   #
-  # npm goes FIRST for that reason, not by preference: it is the upload with
-  # no native resumption, so it happens while the other one can still be
-  # replayed cheaply.
+  # It replaces a design that tried to be idempotent by inspecting the
+  # registry -- an `npm view` pre-check standing in for twine's
+  # --skip-existing, and a post-upload step that asked both registries to
+  # confirm what they had just been sent. Both consulted npm's READ path,
+  # which is advisory and lags the write path: about five minutes at v3.1.3,
+  # where npm accepted the upload at 15:15:29 and served nothing until 15:20,
+  # to anonymous and authenticated requests alike. The confirm step sampled
+  # fifteen seconds in, concluded npm did not have it, and failed the release
+  # red with BOTH registries correctly populated -- the most misleading
+  # outcome this job can produce. The pre-check had the same flaw pointed the
+  # other way: inside that window it would publish a version already present
+  # and die on EPUBLISHCONFLICT, breaking the very re-run it existed for.
+  #
+  # There is no delay that makes a lagging read reliable, only delays that
+  # make it slower, so the guessing is gone rather than tuned.
+  #
+  # THE COST IS REAL AND ACCEPTED: a re-run of a tag whose npm upload already
+  # succeeded goes red on EPUBLISHCONFLICT. Recovery from a half-landed
+  # release is a new version, not a retry. twine keeps --skip-existing because
+  # that is the uploader's own behaviour rather than a guess about registry
+  # state, so the PyPI half does still tolerate a replay.
+  #
+  # npm still goes FIRST: it is the upload with no native resumption, so it
+  # happens while the other one can still be replayed cheaply.
   # ---------------------------------------------------------------------- #
   publish:
     # `needs: gate` is what makes the second half of this expression readable
@@ -652,28 +1081,91 @@ jobs:
 
     # ---- Everything that can fail, before anything is published ---------- #
 
-    - name: Check the tag, the Python version and the npm version all agree
-      # FIRST, because it costs seconds and everything below costs minutes.
-      # This is also the step that makes lockstep a rule rather than an
-      # intention: the wheel and the wasm are one C++ core built from one
-      # commit, and shipping them under different numbers would leave a bug
-      # report starting with "which pair of versions do you have".
+    - name: Resolve the release version from the tag
+      # FIRST, because everything below is expressed in terms of $VERSION.
+      #
+      # This replaces a step that CHECKED tag == BASE == ts/package.json and
+      # failed the release when they disagreed. With CI substituting the tag
+      # into both files, two of those three are now things this workflow
+      # wrote, and a check that a value equals what you just assigned it is
+      # not a check. What the lockstep rule actually needs -- that the wheels
+      # and the wasm carry ONE version -- is still enforced, but against the
+      # ARTIFACTS rather than against the sources: "Check the wheels" asserts
+      # every wheel filename carries $VERSION, and the npm tarball check
+      # asserts `npm pack` reports it. Those catch a build job whose stamp
+      # silently did nothing, which the source comparison could not.
+      #
+      # VERSION is the tag verbatim, in PEP 440 spelling -- 3.2.0 or 3.2.0rc1
+      # -- which is what the wheels carry and what every wheel-name check
+      # compares against. The npm spelling is NOT derived here; npm produces
+      # it in the next step and it is read back from what npm wrote.
+      #
+      # NPM_TAG is the one thing a pre-release genuinely needs decided: npm
+      # REFUSES to publish a pre-release without --tag ("You must specify a
+      # tag using --tag when publishing a prerelease version"), so this is a
+      # hard requirement rather than a nicety. It does not quietly assign
+      # `latest`, which is the failure mode this would otherwise guard.
       run: |
         set -eu
         tag="${GITHUB_REF#refs/tags/v}"
-        base=$(grep '^BASE = ' python/pssparser/__version__.py | sed 's/.*"\(.*\)".*/\1/')
-        npmv=$(node -p "require('./ts/package.json').version")
-        echo "tag=$tag  BASE=$base  ts/package.json=$npmv"
-        if [ "$tag" != "$base" ]; then
-          echo "::error::tag v$tag does not match BASE $base in python/pssparser/__version__.py"
+        # Same grammar the build jobs apply before stamping. Repeated because
+        # this job does its own stamping below and must not be the one place a
+        # malformed tag gets through.
+        bad=0
+        case "$tag" in
+          *rc*)
+            core="${tag%rc*}"
+            rcnum="${tag##*rc}"
+            case "$core"  in ''|*[!0-9.]*) bad=1 ;; esac
+            case "$rcnum" in ''|*[!0-9]*)  bad=1 ;; esac
+            npmtag=rc
+            ;;
+          *)
+            case "$tag" in ''|*[!0-9.]*) bad=1 ;; esac
+            npmtag=latest
+            ;;
+        esac
+        if [ "$bad" -ne 0 ]; then
+          echo "::error::tag v$tag is not <major>.<minor>.<patch> or <major>.<minor>.<patch>rc<N> (PEP 440 spelling: v3.2.0rc1, not v3.2.0-rc1)"
           exit 1
         fi
-        if [ "$tag" != "$npmv" ]; then
-          echo "::error::tag v$tag does not match version $npmv in ts/package.json -- the npm package and the wheels release together and must carry the same version"
+        echo "releasing $tag under npm dist-tag $npmtag"
+        echo "VERSION=$tag"     >> "$GITHUB_ENV"
+        echo "NPM_TAG=$npmtag"  >> "$GITHUB_ENV"
+
+    - name: Stamp the npm package version
+      # The wheels arrive pre-stamped as build artifacts; the npm package is
+      # built HERE, from this job's checkout, so this is where ts/package.json
+      # has to be given the tag. `npm version` rather than an edit: it is
+      # npm's own mechanism, it updates package-lock.json in step, and it
+      # fails loudly on a malformed version instead of writing it.
+      #
+      # IT IS ALSO THE CONVERTER. Handed the PEP 440 tag `3.2.0rc1`, npm
+      # writes the semver form "3.2.0-rc1" -- so the hyphen is inserted by the
+      # tool that requires it, not by a sed in this file that would have to be
+      # kept in step with semver's rules.
+      #
+      # VERSION_NPM is then read BACK from what npm wrote, rather than
+      # predicted. The cross-check is the assertion that matters: strip
+      # hyphens from npm's spelling and it must equal the PEP 440 VERSION, so
+      # the two registries cannot end up describing different releases even
+      # though they spell this one differently. For a stable release both
+      # sides are already identical and the check is trivially true.
+      #
+      # --no-git-tag-version because we are already on the tag and do not want
+      # npm creating another; --allow-same-version so a re-run against an
+      # already-stamped tree is not an error.
+      working-directory: ts
+      run: |
+        set -eu
+        npm version "$VERSION" --no-git-tag-version --allow-same-version
+        npmv=$(node -p "require('./package.json').version")
+        if [ "$(printf '%s' "$npmv" | tr -d '-')" != "$VERSION" ]; then
+          echo "::error::npm wrote version $npmv, which is not the tag $VERSION in semver spelling"
           exit 1
         fi
-        echo "OK: tag, Python BASE and ts/package.json all say $tag"
-        echo "VERSION=$tag" >> "$GITHUB_ENV"
+        echo "ts/package.json is $npmv (tag $VERSION)"
+        echo "VERSION_NPM=$npmv" >> "$GITHUB_ENV"
 
     - name: Download every platform's wheels
       uses: actions/download-artifact@v4
@@ -716,8 +1208,8 @@ jobs:
             fail=1
           fi
         }
-        check "linux x86_64"  'manylinux.*x86_64'  6
-        check "linux aarch64" 'manylinux.*aarch64' 6
+        check "linux x86_64"  'manylinux.*x86_64'  5
+        check "linux aarch64" 'manylinux.*aarch64' 5
         check "windows"       'win_amd64'          4
         check "macos arm64"   'macosx.*arm64'      4
         # A universal2 tag here means the macOS job's tag pinning came
@@ -757,13 +1249,79 @@ jobs:
       # packs cleanly and throws at the consumer's first parse. Assert the
       # binary is in the tarball, then load it and parse with it.
       working-directory: ts
+      #
+      # The tarball itself, NOT a grep of the `npm notice` listing
+      # (2026-09-13). The listing is human-readable output, not an interface:
+      # npm has changed its shape across majors, and when it next does, this
+      # check does not start failing to find the wasm -- it starts reporting
+      # that the wasm is MISSING, which blocks a release that is perfectly fine
+      # and sends whoever is on the release looking for a build problem that
+      # does not exist. Unpacking the artifact gives name and version as well,
+      # so the check asserts what the tarball IS rather than only that a path
+      # appears somewhere in a log.
+      #
+      # The old form also piped through `tee`, which made the pipeline's exit
+      # status tee's. `npm pack` failing outright was therefore invisible, and
+      # surfaced as the same misleading "no .wasm" message. Not reading npm's
+      # stdout at all lets `set -e` see the real failure.
+      #
+      # NPM'S STDOUT IS NOT AN INTERFACE, and two releases died learning it.
+      # `npm pack` runs the `prepare` lifecycle, and npm writes both its own
+      # `prepare: <cmd>` banner and the script's entire output to STDOUT. With
+      # `--dry-run --json > file`, that file was two and a half minutes of
+      # Emscripten build log with the JSON array appended, and the parse died
+      # on the first token -- v3.1.4 (2026-09-13):
+      #
+      #   could not parse npm pack --json output: Unexpected token 'p',
+      #   "prepare: n"... is not valid JSON
+      #
+      # The grep form this replaced was accidentally immune -- it read the
+      # noise and ignored it -- so the defect arrived with the redirect.
+      #
+      # --ignore-scripts DOES NOT FIX IT, and v3.1.5 died identically proving
+      # that. npm honours the flag for pack's lifecycle only from npm 11; the
+      # runner ships npm 10.9.8 with node 22, where the flag is accepted,
+      # ignored, and `prepare` runs anyway. Verified against both majors. Do
+      # not reintroduce a stdout-parsing form on the strength of a local test
+      # -- a developer npm is routinely a major ahead of the runner's.
+      #
+      # So: pack a real tarball and inspect THAT. `tar` cannot be polluted by a
+      # build script, the exit status is npm's own, and the bytes examined are
+      # the bytes the next step uploads rather than a second build that happens
+      # to resemble them. SKIP_PSSPARSER_PREPARE is what keeps the lifecycle
+      # from rebuilding the wasm a second time here; correctness no longer
+      # depends on it, only the four minutes do.
+      env:
+        SKIP_PSSPARSER_PREPARE: '1'
       run: |
         set -eu
-        npm pack --dry-run 2>&1 | tee /tmp/pack.txt
-        grep -q 'dist/wasm/pssparser\.wasm' /tmp/pack.txt || {
-          echo "::error::no .wasm in the tarball -- the package would install and fail at runtime"
+        rm -rf /tmp/packcheck
+        mkdir -p /tmp/packcheck
+        npm pack --ignore-scripts --pack-destination /tmp/packcheck >/dev/null
+        count=$(ls -1 /tmp/packcheck/*.tgz | wc -l)
+        if [ "$count" -ne 1 ]; then
+          echo "::error::expected exactly one tarball from npm pack, got $count"
           exit 1
-        }
+        fi
+        tgz=$(ls -1 /tmp/packcheck/*.tgz)
+        tar -tzf "$tgz" > /tmp/packcheck/files.txt
+        tar -xzOf "$tgz" package/package.json > /tmp/packcheck/pkg.json
+        node -e '
+          const fs = require("fs");
+          const want = process.env.VERSION_NPM;
+          const fail = (m) => { console.error(`::error::${m}`); process.exit(1); };
+          const p = JSON.parse(fs.readFileSync("/tmp/packcheck/pkg.json", "utf8"));
+          // Every tarball entry is prefixed "package/"; strip it so the paths
+          // read as they do in the repo and in `files` in package.json.
+          const files = fs.readFileSync("/tmp/packcheck/files.txt", "utf8")
+            .split("\n").filter(Boolean).map((f) => f.replace(/^package\//, ""));
+          if (p.name !== "@psstools/pssparser") fail(`tarball is ${p.name}, expected @psstools/pssparser`);
+          if (p.version !== want) fail(`tarball is version ${p.version}, expected ${want}`);
+          if (!files.includes("dist/wasm/pssparser.wasm")) {
+            fail("no dist/wasm/pssparser.wasm in the tarball -- the package would install and fail at runtime");
+          }
+          console.log(`tarball OK: ${p.name}@${p.version}, ${files.length} files`);
+        '
         node --input-type=module -e '
           import { createParser } from "./dist/index.js";
           const p = await createParser();
@@ -775,7 +1333,7 @@ jobs:
           console.log("the built package parses and links");
         '
 
-    # ---- The two uploads, adjacent and each idempotent ------------------- #
+    # ---- The two uploads, adjacent and unconditional ---------------------- #
 
     - name: Publish to npm
       working-directory: ts
@@ -786,32 +1344,33 @@ jobs:
         # added for. It also means the artifact published is the artifact
         # checked, rather than a second build that happens to look the same.
         SKIP_PSSPARSER_PREPARE: '1'
+      # UNCONDITIONAL. The tag is the decision to publish and `npm publish`'s
+      # exit status is the verdict on whether it worked; nothing here inspects
+      # the registry to decide what to do, and nothing re-checks afterwards.
+      #
+      # An `npm view` pre-check used to stand here, meaning to be twine's
+      # --skip-existing by hand. It cost v3.1.3 a red release. The read path it
+      # asked is advisory and lags the write path -- about five minutes that
+      # day -- so it answers "absent" for a version that is present and there
+      # is no delay that makes it reliable, only delays that make it slower.
+      # Guessing at registry state was the whole defect; the fix is to stop,
+      # not to guess more carefully.
+      #
+      # The cost is explicit: EPUBLISHCONFLICT on a re-run is a FAILURE here,
+      # so re-running a tag whose npm upload already succeeded goes red. A
+      # release that half-lands is recovered with a new version, not a retry.
+      #
+      # Access is `public` via publishConfig in ts/package.json. A scoped
+      # package defaults to restricted, and npm does not ask -- a restricted
+      # first publish of a package meant to be public looks like a success.
       run: |
         set -eu
         if [ -z "${NODE_AUTH_TOKEN:-}" ]; then
           echo "::error::NPM_TOKEN is not available to this repository"
           exit 1
         fi
-        # twine's --skip-existing, by hand. npm has no such flag, and without
-        # this a job that got past npm and failed on PyPI could not be re-run:
-        # the retry would die here on EPUBLISHCONFLICT before reaching the
-        # upload that still needed doing.
-        #
-        # Keyed on the VALUE, not on the exit code. `npm view pkg@<version>`
-        # exits 1 for an unmatched version on npm 10, but a version range that
-        # matches nothing has historically exited 0 with empty output -- and
-        # this guard failing open means skipping a publish that had not
-        # happened, which is the failure the whole job exists to prevent.
-        existing=$(npm view "@psstools/pssparser@${VERSION}" version 2>/dev/null || true)
-        if [ "$existing" = "$VERSION" ]; then
-          echo "@psstools/pssparser@${VERSION} is already on the registry; skipping"
-          exit 0
-        fi
-        # Access is `public` via publishConfig in ts/package.json. A scoped
-        # package defaults to restricted, and npm does not ask -- a restricted
-        # first publish of a package meant to be public looks like a success.
-        npm publish
-        echo "published @psstools/pssparser@${VERSION}"
+        npm publish --tag "$NPM_TAG"
+        echo "published @psstools/pssparser@${VERSION_NPM} under dist-tag ${NPM_TAG}"
 
     - name: Publish to PyPI
       env:
@@ -827,31 +1386,6 @@ jobs:
         python -m twine check dist/*.whl
         python -m twine upload --non-interactive --skip-existing dist/*.whl
         echo "published $(ls dist/*.whl | wc -l) wheels"
-
-    - name: Confirm both registries have this version
-      # The release is two uploads and neither step failing proves the pair
-      # landed -- --skip-existing and the npm guard above both exit 0 on a
-      # version that was already there, which is correct for a retry and
-      # indistinguishable from success on a first run. Ask the registries.
-      run: |
-        set -eu
-        sleep 15
-        npmv=$(npm view "@psstools/pssparser@${VERSION}" version 2>/dev/null || true)
-        if [ "$npmv" != "$VERSION" ]; then
-          echo "::error::npm does not serve @psstools/pssparser@${VERSION} after publishing"
-          exit 1
-        fi
-        python - <<'PY'
-        import json, os, sys, urllib.request
-        v = os.environ["VERSION"]
-        with urllib.request.urlopen("https://pypi.org/pypi/pssparser/json", timeout=30) as r:
-            d = json.load(r)
-        if v not in d["releases"]:
-            print(f"::error::PyPI does not list pssparser {v} after publishing")
-            sys.exit(1)
-        print(f"PyPI serves pssparser {v}")
-        PY
-        echo "OK: npm and PyPI both serve ${VERSION}"
 
   docs:
     runs-on: ubuntu-latest

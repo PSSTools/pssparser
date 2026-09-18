@@ -111,16 +111,55 @@ jobs:
         fi
         echo "OK: no internal identifiers in tracked files"
 
-    - name: Stamp build version
-      # Tag builds keep the clean BASE version; everything else gets a
-      # .<run-id> dev suffix so ordinary pushes can never collide with a
-      # release version on PyPI.
+    - name: Stamp version
+      # THE TAG IS THE VERSION (2026-09-13), mirroring the GitHub workflow.
+      #
+      # THIS IS NOT OPTIONAL HERE, even though this forge does not currently
+      # publish. The committed BASE is now a 0.0.0 placeholder, so a workflow
+      # that does not substitute the tag builds 0.0.0 wheels -- and the moment
+      # sync-policy.toml moves release authority back to forgejo, this job's
+      # `publish-pypi` would upload them under a version PyPI keeps forever.
+      # The disarmed publisher is kept honest by the switch, not by being
+      # incapable, so it has to stay correct.
       run: |
+        set -eu
         case "$GITHUB_REF" in
-          refs/tags/*) echo "tag build -- leaving version clean" ;;
-          *) sed -i 's/^SUFFIX = ""$/SUFFIX = ".'"$GITHUB_RUN_ID"'"/' python/pssparser/__version__.py ;;
+          refs/tags/v*)
+            v="${GITHUB_REF#refs/tags/v}"
+            # Same grammar as the GitHub workflow. Tags are spelled the PEP
+            # 440 way (v3.2.0rc1) and go into this file verbatim; this forge
+            # builds no npm package, so the semver spelling never arises here.
+            bad=0
+            case "$v" in
+              *rc*)
+                core="${v%rc*}"
+                rcnum="${v##*rc}"
+                case "$core"  in ''|*[!0-9.]*) bad=1 ;; esac
+                case "$rcnum" in ''|*[!0-9]*)  bad=1 ;; esac
+                ;;
+              *)
+                case "$v" in ''|*[!0-9.]*) bad=1 ;; esac
+                ;;
+            esac
+            if [ "$bad" -ne 0 ]; then
+              echo "::error::tag v$v is not <major>.<minor>.<patch> or <major>.<minor>.<patch>rc<N> (PEP 440 spelling: v3.2.0rc1, not v3.2.0-rc1)"
+              exit 1
+            fi
+            sed 's/^BASE = .*$/BASE = "'"$v"'"/' python/pssparser/__version__.py > __version__.stamped
+            mv __version__.stamped python/pssparser/__version__.py
+            # ANTI-VACUITY: a sed matching nothing exits 0 and would ship the
+            # 0.0.0 placeholder as a release.
+            grep -q "^BASE = \"$v\"$" python/pssparser/__version__.py || {
+              echo "::error::failed to stamp version $v into python/pssparser/__version__.py"
+              exit 1
+            }
+            ;;
+          *)
+            sed 's/^SUFFIX = ""$/SUFFIX = ".'"$GITHUB_RUN_ID"'"/' python/pssparser/__version__.py > __version__.stamped
+            mv __version__.stamped python/pssparser/__version__.py
+            ;;
         esac
-        grep '^SUFFIX = ' python/pssparser/__version__.py
+        grep -E '^(BASE|SUFFIX) = ' python/pssparser/__version__.py
 
     - name: Configure ivpm dependency resolution
       # ivpm.yaml names github.com URLs. Remap them to git.dvkit.org so a build
@@ -162,7 +201,23 @@ jobs:
       run: |
         export PATH=/opt/python/cp312-cp312/bin:$PATH
         mkdir -p build && cd build
-        cmake .. -GNinja
+        # -DCMAKE_BUILD_TYPE=Release IS LOAD-BEARING. ivpm_build's BuildExt
+        # runs CmakeBuilder on every `python -m build`, against THIS build/
+        # directory and with an explicit `-DCMAKE_BUILD_TYPE=Release`. Without
+        # it here the two configures disagree on the build type, which changes
+        # every compile flag, and the first wheel rebuilds all 228 objects this
+        # step just built unoptimised -- the native build ran twice per job.
+        # See the longer note in .github/workflows/ci.yml.
+        #
+        # The GitHub workflow ALSO split its two linux jobs into six-wide
+        # per-ABI matrices on 2026-09-13. That is deliberately NOT mirrored
+        # here: this workflow runs on one self-hosted runner, where six entries
+        # would serialise AND pay the native build six times instead of once.
+        # The loop below is the right shape for a single runner; the matrix is
+        # the right shape for GitHub's per-job ones. The pair rule is about
+        # neither side being missing, and this file has been scoped to linux
+        # x86_64 by decision since 2026-07-28 anyway.
+        cmake .. -GNinja -DCMAKE_BUILD_TYPE=Release
         ninja
 
     # There is no C++ unit-test step. A `ctest --output-on-failure` stood here
@@ -174,7 +229,7 @@ jobs:
 
     - name: Build wheels
       run: |
-        for py in cp39-cp39 cp310-cp310 cp311-cp311 cp312-cp312 cp313-cp313 cp314-cp314; do
+        for py in cp310-cp310 cp311-cp311 cp312-cp312 cp313-cp313 cp314-cp314; do
           echo "=== $py ==="
           /opt/python/${py}/bin/python -m build --wheel --no-isolation
         done
@@ -366,24 +421,33 @@ jobs:
         name: wheels-linux-x86_64
         path: dist
 
-    - name: Check the tag matches the package version
-      # Guards against tagging v3.0.1 while __version__.py still says 3.0.0 --
-      # which would publish a release under the wrong number, unfixably.
+    - name: Check the wheels carry the tag version
+      # WAS a comparison of the tag against BASE in __version__.py, guarding
+      # against tagging v3.0.1 while the file still said 3.0.0. CI substitutes
+      # the tag into that file now, so the comparison would only confirm that
+      # this workflow wrote what it wrote.
+      #
+      # The wheels are still worth checking, and more than they were: they are
+      # the output of the stamp rather than its input, so this is what catches
+      # a stamp that silently did nothing.
       run: |
+        set -eu
         tag="${GITHUB_REF#refs/tags/v}"
-        base=$(grep '^BASE = ' python/pssparser/__version__.py | sed 's/.*"\(.*\)".*/\1/')
-        echo "tag=$tag  BASE=$base"
-        if [ "$tag" != "$base" ]; then
-          echo "::error::tag v$tag does not match BASE $base in python/pssparser/__version__.py"
-          exit 1
-        fi
+        # No conversion: tags are spelled the PEP 440 way (v3.2.0rc1), which
+        # is exactly how setuptools names the wheel.
+        n=0
         for w in dist/*.whl; do
           case "$(basename "$w")" in
-            pssparser-${base}-*) ;;
-            *) echo "::error::wheel $(basename "$w") is not version ${base}"; exit 1 ;;
+            pssparser-${tag}-*) n=$((n+1)) ;;
+            *) echo "::error::wheel $(basename "$w") is not version ${tag}"; exit 1 ;;
           esac
         done
-        echo "OK: tag, source version and all wheels agree on ${base}"
+        # ANTI-VACUITY: an empty dist/ satisfies the loop above trivially.
+        if [ "$n" -eq 0 ]; then
+          echo "::error::no wheels to publish"
+          exit 1
+        fi
+        echo "OK: all ${n} wheels are version ${tag}"
 
     - name: Publish to PyPI
       # Plain twine rather than a third-party action: this is the release path,

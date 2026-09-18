@@ -1,6 +1,14 @@
 import os
 
-BASE = "3.1.3"
+# THE TAG IS THE VERSION. CI substitutes the tag into BASE on a `v*` build,
+# so a release is a tag and nothing else -- there is no version to bump here
+# before tagging, and editing this value does not change what gets released.
+#
+# 0.0.0 is deliberately not a plausible release. It is the baseline for dev
+# artifacts, which CI stamps as 0.0.0.<run-id>: lower than every real release
+# under PEP 440, so a dev wheel can never be resolved in preference to one,
+# and obviously wrong if it ever reaches a registry.
+BASE = "0.0.0"
 SUFFIX = ""
 
 __version__ = (BASE, SUFFIX)
