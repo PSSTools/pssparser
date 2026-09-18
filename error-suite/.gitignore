@@ -1,0 +1,10 @@
+# Run and comparison output is NEVER committed.  See
+# docs/design/error-suite-design.md §2 ("Distribution: the suite is public, the
+# results are not") -- several tool EULAs prohibit publishing benchmark
+# results, and a committed run file is one `git push` away from being one.
+# tests/test_structure.py::test_no_run_file_is_tracked_by_git enforces this
+# mechanically.
+runs/
+compare.*
+.rubric-cache.json
+.scratch/

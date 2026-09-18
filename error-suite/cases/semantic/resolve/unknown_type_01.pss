@@ -1,0 +1,24 @@
+//! case:    SEM-RESOLVE-TYPE-01
+//! class:   semantic.resolve
+//! title:   field declared with a type name that does not exist
+//! expect:  error
+//! detect:  required
+//! at:      21:9
+//! count:   1
+//! lrm:     18.3
+//! tags:    resolve, type, field
+//! fix:     21:         widget_s a;
+//! cause:   unknown, type
+//! not_cause: expected
+//! names:   gadget_s
+package p {
+
+    struct widget_s {
+        int a;
+    }
+
+    struct s {
+        gadget_s a;
+    }
+
+}

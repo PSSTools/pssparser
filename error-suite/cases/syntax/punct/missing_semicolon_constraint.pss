@@ -1,0 +1,18 @@
+//! case:            SYN-PUNCT-MISSING-SEMICOLON-CONSTRAINT
+//! class:           syntax.punct
+//! title:           missing semicolon constraint
+//! expect:          error
+//! detect:          required
+//! lrm:             B
+//! pssparser.id:    PSS028
+//! at:              18:1
+//! pssparser.match: syntax error at '}'
+//! count:           1
+//! fix:            16:        x > 0;
+//! cause:            ;
+struct S {
+    rand int x;
+    constraint {
+        x > 0
+    }
+}

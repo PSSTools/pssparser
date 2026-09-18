@@ -1,0 +1,24 @@
+//! case:    SYN-MULTIFILE-SECOND-01
+//! class:   syntax.multifile
+//! title:   defect in the second of two files; file attribution must be right
+//! expect:  error
+//! detect:  required
+//! at:      20:14
+//! count:   1
+//! lrm:     B.11
+//! requires: multifile
+//! files:   _lib.pss, defect_in_second_file_01.pss
+//! tags:    multifile, attribution
+//! fix:     20:         int b;
+//! cause:   ;
+//! names:   b
+package p {
+
+    import lib::*;
+
+    struct s {
+        int b
+        int c;
+    }
+
+}

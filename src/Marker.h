@@ -70,6 +70,15 @@ public:
 		m_related.push_back(MarkerRelation{loc, label});
 	}
 
+	virtual const std::vector<MarkerFix> &fixes() const override {
+		return m_fixes;
+	}
+
+	virtual void addFix(const ast::Location &span,
+			const std::string &replacement) override {
+		m_fixes.push_back(MarkerFix{span, replacement});
+	}
+
 	virtual IMarker *clone() const override;
 
 
@@ -79,6 +88,7 @@ private:
 	ast::Location				m_loc;
 	std::string					m_id;
 	std::vector<MarkerRelation>	m_related;
+	std::vector<MarkerFix>		m_fixes;
 
 };
 

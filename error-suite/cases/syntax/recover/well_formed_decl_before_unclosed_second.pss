@@ -1,0 +1,22 @@
+//! case:            SYN-RECOVER-WELL-FORMED-DECL-BEFORE-UNCLOSED-SECOND
+//! class:           syntax.recover
+//! title:           well formed decl before unclosed second
+//! expect:          error
+//! detect:          required
+//! lrm:             B
+//! pssparser.id:    PSS021
+//! at:              20:13
+//! pssparser.match: unclosed '{' for component 'D'
+//! also:            23:1 "input ends here"
+//! count:           1
+//! fix:            21:    action B {}
+//! cause:            component
+//! names:            D
+component C {
+    action A {
+    }
+}
+
+component D {
+    action B {
+    }

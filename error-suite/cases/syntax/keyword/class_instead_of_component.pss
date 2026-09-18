@@ -1,0 +1,14 @@
+//! case:            SYN-KEYWORD-CLASS-INSTEAD-OF-COMPONENT
+//! class:           syntax.keyword
+//! title:           class instead of component
+//! expect:          error
+//! detect:          required
+//! lrm:             B
+//! pssparser.id:    PSS024
+//! at:              13:1
+//! pssparser.match: unexpected 'class'
+//! count:           1
+//! cause:            class
+//! names:            C
+class C {
+}

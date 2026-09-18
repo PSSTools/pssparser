@@ -369,6 +369,20 @@ class Parser(object):
             }
             if code:
                 entry["code"] = code
+            # A2: the repair, when the builder could offer a complete one. Its
+            # span is its own -- an insertion has extent 0, which the
+            # diagnostic's span never does -- so it travels as a separate
+            # field rather than being inferred from `col`/`extent`.
+            fixes = m.fixes()
+            if fixes:
+                fix = fixes[0]
+                entry["fix"] = {
+                    "file": self._pathOf(fix["span"].file),
+                    "line": fix["span"].line,
+                    "col": fix["span"].pos,
+                    "extent": fix["extent"],
+                    "replacement": fix["replacement"],
+                }
             result.append(entry)
         # Stable sort by (file, line, col): different passes (parse-time
         # syntax errors, link-time resolution, the post-link completeness
@@ -391,6 +405,8 @@ class Parser(object):
             col: Column number (1-based)
             extent: Length in characters of the primary span (0 if unknown)
             related: list of {file, line, col, label} secondary locations
+            fix: {file, line, col, extent, replacement} machine-applicable
+                 repair; absent when the builder has no complete one to offer
             code: stable marker ID (e.g. "PSS020"); absent if not yet assigned
                   by the emitting checker/builder
         """

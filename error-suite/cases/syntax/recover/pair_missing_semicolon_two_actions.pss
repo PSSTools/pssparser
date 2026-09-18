@@ -1,0 +1,18 @@
+//! case:            SYN-RECOVER-PAIR-MISSING-SEMICOLON-TWO-ACTIONS
+//! class:           syntax.recover
+//! title:           pair missing semicolon two actions
+//! expect:          error
+//! detect:          required
+//! lrm:             B
+//! pssparser.id:    PSS020
+//! at:              16:19
+//! pssparser.match: expected ';' after 'x' in action 'A'
+//! count:           1
+//! fix:            16:        rand int x;
+//! cause:            ;
+//! names:            x
+component C {
+    action A {
+        rand int x
+    }
+}

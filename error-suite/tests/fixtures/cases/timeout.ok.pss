@@ -1,0 +1,5 @@
+//! case:    FX-TIMEOUT
+//! class:   fixture.harness
+//! title:   control
+//! expect:  accept
+struct s { bit[8] a = 8'h20; }

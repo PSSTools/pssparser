@@ -1,0 +1,21 @@
+//! case:            SYN-STMT-REPEAT-COUNT-MISSING-PAREN
+//! class:           syntax.stmt
+//! title:           repeat count missing paren
+//! expect:          error
+//! detect:          recommended
+//! pssparser.id:    PSS028
+//! at:              16:20
+//! pssparser.match: syntax error at '5'
+//! count:           1
+//! cause:            (
+component C {
+    action A {
+    }
+    action B {
+        activity {
+            repeat (5) {
+                do A;
+            }
+        }
+    }
+}

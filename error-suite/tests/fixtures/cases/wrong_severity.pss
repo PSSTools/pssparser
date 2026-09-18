@@ -1,0 +1,9 @@
+//! case:    FX-WRONG-SEVERITY
+//! class:   fixture.harness
+//! title:   right defect, reported as a warning
+//! expect:  error
+//! detect:  recommended
+//! at:      9:23
+//! count:   1
+//FAKE: emit 9:23 warning "assigning 'string' to 'bit[8]'" code=FAKE002
+struct s { bit[8] a = "x"; }

@@ -1,0 +1,15 @@
+//! case:            SYN-PUNCT-MISSING-SEMICOLON-IMPORT
+//! class:           syntax.punct
+//! title:           missing semicolon import
+//! expect:          error
+//! detect:          required
+//! lrm:             B
+//! pssparser.id:    PSS028
+//! at:              15:1
+//! pssparser.match: syntax error at 'component'
+//! count:           1
+//! fix:            14:import std_pkg;
+//! cause:            ;
+//! names:            std_pkg
+import std_pkg
+component C { }

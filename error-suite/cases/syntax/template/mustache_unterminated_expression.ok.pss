@@ -1,0 +1,15 @@
+//! case:            SYN-TEMPLATE-MUSTACHE-UNTERMINATED-EXPRESSION
+//! class:           syntax.template
+//! title:           mustache unterminated expression
+//! expect:          error
+//! detect:          recommended
+//! pssparser.id:    PSS108
+//! at:              14:32
+//! pssparser.match: unterminated mustache expression
+//! count:           1
+//! cause:            mustache, unterminated
+component C {
+    action A {
+        rand int a;
+    }
+}

@@ -1,0 +1,19 @@
+//! case:            SYN-BRACES-UNCLOSED-ACTION-BODY
+//! class:           syntax.braces
+//! title:           unclosed action body
+//! expect:          error
+//! detect:          recommended
+//! pssparser.id:    PSS021
+//! at:              17:1
+//! pssparser.match: unexpected end of input
+//! count:           1
+//! cause:            action
+//! names:            A
+component C {
+    action A {
+        int x;
+        exec body {
+            x = 1;
+        }
+    }
+}

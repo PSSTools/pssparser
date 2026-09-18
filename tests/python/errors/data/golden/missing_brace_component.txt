@@ -1,8 +1,12 @@
-$ pssparser tests/python/errors/data/punct/missing_open_brace_component.pss (exit 1)
+$ pssparser error-suite/cases/syntax/punct/missing_open_brace_component.pss (exit 1)
 --- stdout ---
 --- stderr ---
-tests/python/errors/data/punct/missing_open_brace_component.pss:6:1: error: expected '{' or ':' before 'struct'
- 6 | struct S { }
-   | ^~~~~~
+error-suite/cases/syntax/punct/missing_open_brace_component.pss:14:1: error: expected '{' or ':' before 'struct' in component 'C'
+ 14 | struct S { }
+    | ^~~~~~
+  note: component 'C' begins here
+   --> error-suite/cases/syntax/punct/missing_open_brace_component.pss:13:1
+   13 | component C
+      | ^
 
 1 error in 1 file

@@ -1,0 +1,9 @@
+//! case:    FX-TIMEOUT
+//! class:   fixture.harness
+//! title:   tool hangs and is killed at the deadline
+//! expect:  error
+//! detect:  recommended
+//! at:      9:23
+//! count:   1
+//FAKE: hang
+struct s { bit[8] a = "x"; }

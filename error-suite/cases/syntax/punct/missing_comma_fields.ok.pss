@@ -1,0 +1,13 @@
+//! case:            SYN-PUNCT-MISSING-COMMA-FIELDS
+//! class:           syntax.punct
+//! title:           missing comma fields
+//! expect:          error
+//! detect:          recommended
+//! pssparser.id:    PSS026
+//! at:              13:16
+//! pssparser.match: unexpected keyword 'y'
+//! count:           1
+//! cause:            \,
+//! names:            x
+struct S {
+}

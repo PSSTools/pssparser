@@ -1,0 +1,11 @@
+//! case:            SYN-NAMES-EXPECTED-IDENTIFIER-AFTER-GARBAGE-TOKEN
+//! class:           syntax.names
+//! title:           expected identifier after garbage token
+//! expect:          error
+//! detect:          recommended
+//! pssparser.id:    PSS022
+//! at:              12:49
+//! pssparser.match: expected identifier before '}'
+//! count:           1
+//! cause:            @
+//! names:            x

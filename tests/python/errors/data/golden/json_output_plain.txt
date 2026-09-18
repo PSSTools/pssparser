@@ -1,15 +1,23 @@
-$ pssparser tests/python/errors/data/punct/missing_semicolon_return.pss (exit 1)
+$ pssparser error-suite/cases/syntax/punct/missing_semicolon_return.pss (exit 1)
 --- stdout ---
 {
   "diagnostics": [
     {
-      "file": "tests/python/errors/data/punct/missing_semicolon_return.pss",
-      "line": 9,
+      "file": "error-suite/cases/syntax/punct/missing_semicolon_return.pss",
+      "line": 17,
       "col": 9,
       "severity": "error",
-      "message": "unexpected '}' in this context",
+      "message": "unexpected '}' in an exec body block of action 'A'",
       "end_col": 10,
-      "code": "PSS024"
+      "code": "PSS024",
+      "related": [
+        {
+          "file": "error-suite/cases/syntax/punct/missing_semicolon_return.pss",
+          "line": 15,
+          "col": 19,
+          "label": "an exec body block begins here"
+        }
+      ]
     }
   ],
   "summary": {

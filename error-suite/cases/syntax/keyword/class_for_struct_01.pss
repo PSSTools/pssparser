@@ -1,0 +1,19 @@
+//! case:    SYN-KEYWORD-CLASS-01
+//! class:   syntax.keyword
+//! title:   C++/SystemVerilog habit: 'class' where PSS has 'struct'
+//! expect:  error
+//! detect:  required
+//! at:      15:5
+//! count:   1
+//! lrm:     B.3
+//! tags:    struct, foreign-habit
+//! fix:     15:     struct s {
+//! cause:   class
+//! names:   s
+package p {
+
+    class s {
+        int a;
+    }
+
+}

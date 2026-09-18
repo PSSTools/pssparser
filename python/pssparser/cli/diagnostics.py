@@ -25,6 +25,24 @@ class Relation:
 
 
 @dataclass
+class Fix:
+    """A machine-applicable repair: replace the span with ``replacement``.
+
+    The span is ``extent`` characters starting at ``line``/``col`` (both
+    1-based).  ``extent == 0`` is an insertion, which is the common case --
+    a missing ``;`` replaces nothing.  This is deliberately *not* the
+    diagnostic's own span: the caret has to point at something, so it covers
+    a column the edit must not touch.
+    """
+
+    file: str
+    line: int
+    col: int
+    extent: int
+    replacement: str
+
+
+@dataclass
 class Diagnostic:
     """One diagnostic (error / warning / info / hint)."""
 
@@ -38,6 +56,7 @@ class Diagnostic:
     end_col: Optional[int] = None
     notes: List[str] = field(default_factory=list)
     related: List[Relation] = field(default_factory=list)
+    fix: Optional[Fix] = None
 
     # Set only when a warning was promoted to an error by ``-Werror``; holds
     # the severity the diagnostic was reported with before promotion.
@@ -55,7 +74,26 @@ class Diagnostic:
         severity, message, file, line, col, extent, related, code.
         """
         msg = marker.get("message", "")
-        suggestion = extract_suggestion(msg)
+        # A structured fix from the builder beats the legacy path, which
+        # recovers a replacement by regexing "did you mean 'X'" out of the
+        # message text and has no span of its own at all.
+        raw_fix = marker.get("fix")
+        fix = None
+        if raw_fix:
+            fix = Fix(
+                file=raw_fix.get("file", marker.get("file", "<unknown>")),
+                line=raw_fix.get("line", marker.get("line", 0)),
+                col=raw_fix.get("col", 1),
+                extent=raw_fix.get("extent", 0),
+                replacement=raw_fix.get("replacement", ""),
+            )
+        # `suggestion` is the one-line, human-facing spelling of the repair;
+        # a multi-line replacement (the braces a truncated file is short of)
+        # has no such spelling and travels only as `fix`.
+        if fix is not None and "\n" not in fix.replacement:
+            suggestion = fix.replacement
+        else:
+            suggestion = extract_suggestion(msg)
 
         col = marker.get("col", 1)
         end_col: Optional[int] = None
@@ -90,6 +128,7 @@ class Diagnostic:
             code=marker.get("code"),
             end_col=end_col,
             related=related,
+            fix=fix,
         )
 
 

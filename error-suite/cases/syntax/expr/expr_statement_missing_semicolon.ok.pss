@@ -1,0 +1,20 @@
+//! case:            SYN-EXPR-EXPR-STATEMENT-MISSING-SEMICOLON
+//! class:           syntax.expr
+//! title:           expr statement missing semicolon
+//! expect:          error
+//! detect:          recommended
+//! pssparser.id:    PSS020
+//! at:              15:13
+//! pssparser.match: expected ';' before 'y'
+//! count:           1
+//! cause:            ;
+component C {
+    action A {
+        int x;
+        int y;
+        exec body {
+            x = 1;
+            y = 2;
+        }
+    }
+}

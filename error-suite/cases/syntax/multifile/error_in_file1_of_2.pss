@@ -1,0 +1,20 @@
+//! case:            SYN-MULTIFILE-ERROR-IN-FILE1-OF-2
+//! class:           syntax.multifile
+//! title:           error in file1 of 2
+//! expect:          error
+//! detect:          required
+//! lrm:             B
+//! pssparser.id:    PSS020
+//! at:              18:19
+//! pssparser.match: expected ';' after 'x' in action 'A'
+//! count:           1
+//! files:           error_in_file1_of_2.pss, _error_in_file1_of_2_post.pss
+//! at-file:         error_in_file1_of_2.pss
+//! fix:            18:        rand int x;
+//! cause:            ;
+//! names:            x
+component Main {
+    action A {
+        rand int x
+    }
+}

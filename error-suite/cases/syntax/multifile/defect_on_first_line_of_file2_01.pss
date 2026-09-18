@@ -1,0 +1,15 @@
+//! case:     SYN-MULTIFILE-FILE2-LINE1-01
+//! class:    syntax.multifile
+//! title:    defect on the very first line of a later file
+//! expect:   error
+//! detect:   required
+//! lrm:      B
+//! at:       1:8
+//! count:    1
+//! requires: multifile
+//! files:    _mf_lib.pss, _mf_bad_head.pss, defect_on_first_line_of_file2_01.pss
+//! at-file:  _mf_bad_head.pss
+//! tags:     multifile, attribution
+//! cause:     identifier
+component MfTail {
+}

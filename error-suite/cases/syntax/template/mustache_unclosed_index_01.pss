@@ -1,0 +1,19 @@
+//! case:         SYN-TEMPLATE-INDEX-01
+//! class:        syntax.template
+//! title:        index expression inside a mustache is never closed
+//! expect:       error
+//! detect:       required
+//! lrm:          B
+//! at:           17:36
+//! pssparser.at: 17:32
+//! count:        1
+//! tags:         template, mustache, expr
+//! cause:        [
+//! names:        a
+//! fix:          17:         exec body cpp = """v = {{ a[0] }};""";
+component C {
+    action A {
+        rand array<int, 4> a;
+        exec body cpp = """v = {{ a[0 }};""";
+    }
+}

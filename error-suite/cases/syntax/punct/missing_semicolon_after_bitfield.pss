@@ -1,0 +1,17 @@
+//! case:            SYN-PUNCT-MISSING-SEMICOLON-AFTER-BITFIELD
+//! class:           syntax.punct
+//! title:           missing semicolon after bitfield
+//! expect:          error
+//! detect:          required
+//! lrm:             B
+//! pssparser.id:    PSS020
+//! at:              16:20
+//! pssparser.match: expected ';'
+//! count:           1
+//! fix:            16:    rand bit[7:0] y;
+//! cause:            ;
+//! names:            y
+struct S {
+    int x;
+    rand bit[7:0] y
+}

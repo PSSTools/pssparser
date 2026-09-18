@@ -1,8 +1,12 @@
-$ pssparser tests/python/errors/data/punct/missing_semicolon_return.pss (exit 1)
+$ pssparser error-suite/cases/syntax/punct/missing_semicolon_return.pss (exit 1)
 --- stdout ---
 --- stderr ---
-[1mtests/python/errors/data/punct/missing_semicolon_return.pss:9:9[0m: [1;31merror:[0m unexpected '}' in this context
- [2m9[0m |         }
-   | [1;31m        ^[0m
+[1merror-suite/cases/syntax/punct/missing_semicolon_return.pss:17:9[0m: [1;31merror:[0m unexpected '}' in an exec body block of action 'A'
+ [2m17[0m |         }
+    | [1;31m        ^[0m
+  [2mnote:[0m an exec body block begins here
+   [2m-->[0m error-suite/cases/syntax/punct/missing_semicolon_return.pss:15:19
+   [2m15[0m |         exec body {
+      | [2m                  ^[0m
 
 1 error in 1 file

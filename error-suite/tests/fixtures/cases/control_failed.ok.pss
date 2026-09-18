@@ -1,0 +1,6 @@
+//! case:    FX-CONTROL-FAILED
+//! class:   fixture.harness
+//! title:   a control that does not parse clean
+//! expect:  accept
+//FAKE: emit 6:1 error "the scaffolding itself is rejected" code=FAKE004
+struct s { bit[8] a = 8'h20; }

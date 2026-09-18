@@ -1,0 +1,42 @@
+//! case:                 SYN-VOLUME-CAP-DEFAULT-TWENTY
+//! class:                syntax.volume
+//! title:                cap default twenty
+//! expect:               error
+//! detect:               recommended
+//! requires:             max_errors
+//! pssparser.id:         PSS029
+//! at:                   33:18
+//! pssparser.match:      too many errors (20); stopped reporting further errors for this file
+//! count:                1
+//! pssparser.max-errors: 20
+//! about:                tool
+struct S0 { int x; }
+struct S1 { int x; }
+struct S2 { int x; }
+struct S3 { int x; }
+struct S4 { int x; }
+struct S5 { int x; }
+struct S6 { int x; }
+struct S7 { int x; }
+struct S8 { int x; }
+struct S9 { int x; }
+struct S10 { int x; }
+struct S11 { int x; }
+struct S12 { int x; }
+struct S13 { int x; }
+struct S14 { int x; }
+struct S15 { int x; }
+struct S16 { int x; }
+struct S17 { int x; }
+struct S18 { int x; }
+struct S19 { int x; }
+struct S20 { int x; }
+struct S21 { int x; }
+struct S22 { int x; }
+struct S23 { int x; }
+struct S24 { int x; }
+struct S25 { int x; }
+struct S26 { int x; }
+struct S27 { int x; }
+struct S28 { int x; }
+struct S29 { int x; }

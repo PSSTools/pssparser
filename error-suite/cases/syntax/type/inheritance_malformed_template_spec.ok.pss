@@ -1,0 +1,16 @@
+//! case:            SYN-TYPE-INHERITANCE-MALFORMED-TEMPLATE-SPEC
+//! class:           syntax.type
+//! title:           inheritance malformed template spec
+//! expect:          error
+//! detect:          recommended
+//! pssparser.id:    PSS024
+//! at:              12:24
+//! pssparser.match: unexpected '{' expecting one of ',', '>'
+//! count:           1
+//! cause:            >
+//! names:            C
+component Base {
+}
+
+component C : Base {
+}

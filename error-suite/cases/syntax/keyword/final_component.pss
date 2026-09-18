@@ -1,0 +1,15 @@
+//! case:            SYN-KEYWORD-FINAL-COMPONENT
+//! class:           syntax.keyword
+//! title:           final component
+//! expect:          error
+//! detect:          required
+//! lrm:             B
+//! pssparser.id:    PSS026
+//! at:              14:1
+//! pssparser.match: unexpected 'final' in this context
+//! count:           1
+//! fix:            14: component C {
+//! cause:            final
+//! names:            C
+final component C {
+}

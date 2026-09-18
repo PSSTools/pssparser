@@ -1,0 +1,19 @@
+//! case:         SYN-MULTIFILE-TWO-DEFECTS-01
+//! class:        syntax.multifile
+//! title:        one defect in each of two files
+//! expect:       error
+//! detect:       required
+//! lrm:          B
+//! at:           18:10
+//! pssparser.at: 19:1
+//! count:        2
+//! xfail.pssparser: ES-D3 -- Parser.parses() raises on the first file that fails to parse, so the second file is never read and its defect is never reported; one of two defects is found
+//! requires:     multifile
+//! files:        defect_in_two_files_01.pss, _mf_also_broken.pss
+//! tags:         multifile, attribution
+//! names:        a
+//! fix:          18:     int a;
+//! cause:            ;
+struct mfs1 {
+    int a
+}

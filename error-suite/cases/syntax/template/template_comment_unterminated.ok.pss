@@ -1,0 +1,14 @@
+//! case:            SYN-TEMPLATE-TEMPLATE-COMMENT-UNTERMINATED
+//! class:           syntax.template
+//! title:           template comment unterminated
+//! expect:          error
+//! detect:          recommended
+//! pssparser.id:    PSS110
+//! at:              13:28
+//! pssparser.match: unterminated template comment
+//! count:           1
+//! cause:            comment, unterminated
+component C {
+    action A {
+    }
+}

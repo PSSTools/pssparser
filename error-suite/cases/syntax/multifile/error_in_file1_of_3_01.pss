@@ -1,0 +1,19 @@
+//! case:         SYN-MULTIFILE-FILE1-OF-3-01
+//! class:        syntax.multifile
+//! title:        defect in the first of three files
+//! expect:       error
+//! detect:       required
+//! lrm:          B
+//! at:           17:19
+//! count:        1
+//! requires:     multifile
+//! files:        error_in_file1_of_3_01.pss, _mf_lib.pss, _mf_post.pss
+//! tags:         multifile, attribution
+//! names:        x
+//! fix:          17:         rand int x;
+//! cause:     ;
+component MfMain1 {
+    action A {
+        rand int x
+    }
+}

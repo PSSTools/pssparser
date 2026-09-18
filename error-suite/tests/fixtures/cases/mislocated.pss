@@ -1,0 +1,9 @@
+//! case:    FX-MISLOCATED
+//! class:   fixture.harness
+//! title:   right file, right defect, location pages away
+//! expect:  error
+//! detect:  recommended
+//! at:      9:23
+//! count:   1
+//FAKE: emit 1:1 error "cannot assign 'string' to field 'a' of type 'bit[8]'" code=FAKE001
+struct s { bit[8] a = "x"; }

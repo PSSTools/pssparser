@@ -42,7 +42,13 @@ from test_helpers import parse_collect  # noqa: E402
 
 from .corpus_loader import CorpusCase, collect_cases  # noqa: E402
 
+_SUITE_CASES = (
+    Path(__file__).parent.parent.parent.parent / "error-suite" / "cases"
+)
+
 CASES = [c for c in collect_cases() if not c.xfail]
+if _SUITE_CASES.is_dir():
+    CASES += [c for c in collect_cases(_SUITE_CASES) if not c.xfail]
 
 #: Quoted tokens that are punctuation or token-class jargon rather than source
 #: text.  These can coincidentally match a neighbouring slice and manufacture a
@@ -81,8 +87,18 @@ def _slice_at(text: str, line: int, col: int, extent: int):
     return src[start:start + extent]
 
 
+#: Messages that place the caret *relative to* the name they quote rather than
+#: on it.  "expected ';' after 'a'" underlines the column the ';' belongs in,
+#: which is by construction one past the end of `a` -- exactly the slice this
+#: check reads as the off-by-one signature.  The relationship is stated in the
+#: message, so it is read from the message rather than allowlisted per case.
+_RELATIVE_TO_NAME = re.compile(r"\bafter '")
+
+
 def _classify(marker: dict, sources: dict):
     """Return ('verified'|'misaligned'|'n/a', detail)."""
+    if _RELATIVE_TO_NAME.search(marker.get("message", "")):
+        return "n/a", None
     extent = marker.get("extent") or 0
     col = marker.get("col")
     line = marker.get("line")

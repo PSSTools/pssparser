@@ -1,0 +1,15 @@
+//! case:            SYN-LEX-STRAY-AT-SYMBOL-SILENT
+//! class:           syntax.lex
+//! title:           stray at symbol silent
+//! expect:          error
+//! detect:          required
+//! lrm:             B
+//! pssparser.id:    PSS027
+//! at:              14:1
+//! pssparser.match: unexpected character '@'
+//! count:           1
+//! xfail.pssparser: U-9 -- lexical errors never reach a marker at all; only the parser installs AstBuilderInt as its BaseErrorListener, so a stray '@' at file scope produces zero diagnostics (same root cause as PSS027 staying reserved, see plan.md S:0.5/E-3; tracked as known-issues.md's U-9 entry)
+//! cause:            @
+
+@component C {
+}

@@ -1,7 +1,0 @@
-//! id:     PSS001
-//! at:     6:12
-//! match:  unexpected low bound '2' in an integer width; only '0' is permitted, as in 'bit[7:0]'
-//! count:  1
-struct S {
-    bit[15:2] x;
-}

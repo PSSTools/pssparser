@@ -1,20 +1,23 @@
-$ pssparser tests/python/errors/data/volume/max_errors_cap_fires.pss (exit 1)
+$ pssparser error-suite/cases/syntax/volume/max_errors_cap_fires.pss (exit 1)
 --- stdout ---
 --- stderr ---
-tests/python/errors/data/volume/max_errors_cap_fires.pss:5:17: error: expected identifier before ';'
- 5 | struct S0 { int ; }
-   |                 ^
+error-suite/cases/syntax/volume/max_errors_cap_fires.pss:13:17: error: expected identifier before ';' in struct 'S0'
+ 13 | struct S0 { int ; }
+    |                 ^
+  note: struct 'S0' begins here
 
-tests/python/errors/data/volume/max_errors_cap_fires.pss:6:17: error: expected identifier before ';'
- 6 | struct S1 { int ; }
-   |                 ^
+error-suite/cases/syntax/volume/max_errors_cap_fires.pss:14:17: error: expected identifier before ';' in struct 'S1'
+ 14 | struct S1 { int ; }
+    |                 ^
+  note: struct 'S1' begins here
 
-tests/python/errors/data/volume/max_errors_cap_fires.pss:7:17: error: expected identifier before ';'
- 7 | struct S2 { int ; }
-   |                 ^
+error-suite/cases/syntax/volume/max_errors_cap_fires.pss:15:17: error: expected identifier before ';' in struct 'S2'
+ 15 | struct S2 { int ; }
+    |                 ^
+  note: struct 'S2' begins here
 
-tests/python/errors/data/volume/max_errors_cap_fires.pss:8:17: error: too many errors (3); stopped reporting further errors for this file
- 8 | struct S3 { int ; }
-   |                 ^
+error-suite/cases/syntax/volume/max_errors_cap_fires.pss:16:17: error: too many errors (3); stopped reporting further errors for this file
+ 16 | struct S3 { int ; }
+    |                 ^
 
 4 errors in 1 file

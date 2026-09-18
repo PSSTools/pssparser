@@ -1,0 +1,49 @@
+//! case:    SYN-VOLUME-THIRTY-01
+//! class:   syntax.volume
+//! title:   thirty independent missing-semicolon defects; error-cap behaviour
+//! expect:  error
+//! detect:  recommended
+//! at:      17:16
+//! count:   30
+//! lrm:     B.11
+//! requires: max_errors
+//! tags:    volume, recovery, cap
+//! cause:   ;
+//! pssparser.max_errors: 0
+//! names:                 a00
+package p {
+
+    struct s {
+        int a00
+        int a01
+        int a02
+        int a03
+        int a04
+        int a05
+        int a06
+        int a07
+        int a08
+        int a09
+        int a10
+        int a11
+        int a12
+        int a13
+        int a14
+        int a15
+        int a16
+        int a17
+        int a18
+        int a19
+        int a20
+        int a21
+        int a22
+        int a23
+        int a24
+        int a25
+        int a26
+        int a27
+        int a28
+        int a29
+    }
+
+}

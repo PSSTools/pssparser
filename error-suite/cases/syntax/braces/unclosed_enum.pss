@@ -1,0 +1,15 @@
+//! case:            SYN-BRACES-UNCLOSED-ENUM
+//! class:           syntax.braces
+//! title:           unclosed enum
+//! expect:          error
+//! detect:          required
+//! lrm:             B
+//! pssparser.id:    PSS021
+//! at:              14:8
+//! pssparser.match: unclosed '{' for enum 'E'
+//! count:           1
+//! fix:            15:    A, B}
+//! cause:            enum
+//! names:            E
+enum E {
+    A, B

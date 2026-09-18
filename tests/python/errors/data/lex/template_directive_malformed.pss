@@ -1,9 +1,0 @@
-//! id:     PSS110
-//! at:     7:28
-//! match:  missing '(' at 'a'
-//! count:  1
-component C {
-    action A {
-        exec body cpp = """{% if a) %}x{% endif %}""";
-    }
-}

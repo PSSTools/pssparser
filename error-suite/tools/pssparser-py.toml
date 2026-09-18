@@ -1,0 +1,26 @@
+# Same as pssparser-cli.toml, but running the checkout in-tree via
+# `python -m pssparser`.  Use this one in a development tree, where the
+# `pssparser` console script is usually not installed but `python/` is right
+# there.  Identical in every other respect, so results from the two are
+# comparable.
+[tool]
+name        = "pssparser"
+version_cmd = ["{python}", "-m", "pssparser", "--version"]
+pss         = "3.1"
+
+[invoke]
+argv      = ["{python}", "-m", "pssparser", "--json", "--no-color", "{files}"]
+cwd       = "case"
+timeout_s = 30
+env       = { PYTHONPATH = "{repo_root}/python" }
+max_errors_argv = ["--max-errors", "{maxerrors}"]
+
+[output]
+kind   = "json"
+stream = "stdout"
+
+[capabilities]
+multifile          = true
+max_errors         = true
+json_output        = true
+exit_code_on_error = 1

@@ -1,0 +1,59 @@
+//! case:            SYN-VOLUME-LARGE-VOLUME-FIFTY-DEFECTS
+//! class:           syntax.volume
+//! title:           large volume fifty defects
+//! expect:          error
+//! detect:          recommended
+//! pssparser.id:    PSS022
+//! at:              10:17
+//! pssparser.match: expected identifier before ';'
+//! count:           50
+struct S0 { int x; }
+struct S1 { int x; }
+struct S2 { int x; }
+struct S3 { int x; }
+struct S4 { int x; }
+struct S5 { int x; }
+struct S6 { int x; }
+struct S7 { int x; }
+struct S8 { int x; }
+struct S9 { int x; }
+struct S10 { int x; }
+struct S11 { int x; }
+struct S12 { int x; }
+struct S13 { int x; }
+struct S14 { int x; }
+struct S15 { int x; }
+struct S16 { int x; }
+struct S17 { int x; }
+struct S18 { int x; }
+struct S19 { int x; }
+struct S20 { int x; }
+struct S21 { int x; }
+struct S22 { int x; }
+struct S23 { int x; }
+struct S24 { int x; }
+struct S25 { int x; }
+struct S26 { int x; }
+struct S27 { int x; }
+struct S28 { int x; }
+struct S29 { int x; }
+struct S30 { int x; }
+struct S31 { int x; }
+struct S32 { int x; }
+struct S33 { int x; }
+struct S34 { int x; }
+struct S35 { int x; }
+struct S36 { int x; }
+struct S37 { int x; }
+struct S38 { int x; }
+struct S39 { int x; }
+struct S40 { int x; }
+struct S41 { int x; }
+struct S42 { int x; }
+struct S43 { int x; }
+struct S44 { int x; }
+struct S45 { int x; }
+struct S46 { int x; }
+struct S47 { int x; }
+struct S48 { int x; }
+struct S49 { int x; }

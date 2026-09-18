@@ -17,13 +17,18 @@ from test_helpers import parse_collect, find_markers  # noqa: E402
 
 
 def test_missing_semicolon_message():
-    """Missing semicolon -> message mentions ';', located at the gap."""
+    """Missing semicolon -> message mentions ';', located at the gap.
+
+    The gap is column 17 counting from 1 -- one past `x`, where the ';' goes.
+    It used to be reported at the '}' in column 18, the token the parser
+    reached next (A8).
+    """
     _root, markers = parse_collect('struct S { int x }')
     errs = find_markers(markers, severity="error")
     assert len(errs) == 1
     assert "';'" in errs[0]["message"]
     assert errs[0]["line"] == 1
-    assert errs[0]["col"] == 18
+    assert errs[0]["col"] == 17
 
 
 def test_missing_name_message():
@@ -67,7 +72,7 @@ def test_error_includes_location():
     assert len(errs) == 1
     assert errs[0]["file"] == "test.pss"
     assert errs[0]["line"] == 1
-    assert errs[0]["col"] == 18
+    assert errs[0]["col"] == 17
 
 
 def test_missing_closing_brace():
@@ -79,11 +84,20 @@ def test_missing_closing_brace():
 
 
 def test_invalid_operator_in_constraint():
-    """Invalid operator ('===') -> a syntax error inside the constraint."""
+    """Invalid operator ('===') -> a syntax error inside the constraint.
+
+    The lexer splits `===` into `==` and `=`, so the raw complaint is about a
+    lone `=` two columns to the right of what was typed. A7 rejoins the run
+    and names it, which is why the match text is the operator rather than
+    "syntax error".
+    """
     _root, markers = parse_collect('''
 component pss_top {
     action A { rand int x; constraint { x === 5; } }
 }''')
-    errs = find_markers(markers, severity="error", text="syntax error")
+    errs = find_markers(markers, severity="error", text="'===' is not a PSS operator")
     assert len(errs) == 1
     assert errs[0]["line"] == 3
+    # Column 43 is the first '=', not the third: the message and the caret
+    # describe the operator the user typed.
+    assert errs[0]["col"] == 43

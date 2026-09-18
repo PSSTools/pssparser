@@ -1,0 +1,18 @@
+//! case:    SYN-BRACE-EOF-01
+//! class:   syntax.braces
+//! title:   component body never closed; noticed only at end of file
+//! expect:  error
+//! detect:  required
+//! at:      14:17
+//! count:   1
+//! lrm:     B.8
+//! tags:    component, eof, position
+//! cause:   {
+//! names:   c
+package p {
+
+    component c {
+
+        int a;
+
+}

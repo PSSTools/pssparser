@@ -1,0 +1,17 @@
+//! case:            SYN-EXPR-LEADING-DOUBLE-EQUAL
+//! class:           syntax.expr
+//! title:           leading double equal
+//! expect:          error
+//! detect:          required
+//! lrm:             B
+//! pssparser.id:    PSS028
+//! at:              15:22
+//! pssparser.match: syntax error at '=='
+//! count:           1
+//! cause:            ==
+component C {
+    action A {
+        rand int x;
+        constraint { == x; }
+    }
+}

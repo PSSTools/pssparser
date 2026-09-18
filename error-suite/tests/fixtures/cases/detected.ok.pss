@@ -1,0 +1,5 @@
+//! case:    FX-DETECTED
+//! class:   fixture.harness
+//! title:   diagnostic lands exactly on the defect (control)
+//! expect:  accept
+struct s { bit[8] a = 8'h20; }

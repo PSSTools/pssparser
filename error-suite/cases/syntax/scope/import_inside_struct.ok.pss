@@ -1,0 +1,13 @@
+//! case:            SYN-SCOPE-IMPORT-INSIDE-STRUCT
+//! class:           syntax.scope
+//! title:           import inside struct
+//! expect:          error
+//! detect:          recommended
+//! pssparser.id:    PSS024
+//! at:              13:5
+//! pssparser.match: unexpected 'import' in this context
+//! count:           1
+//! cause:            import
+//! names:            S
+struct S {
+}

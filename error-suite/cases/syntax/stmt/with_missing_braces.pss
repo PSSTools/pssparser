@@ -1,0 +1,23 @@
+//! case:            SYN-STMT-WITH-MISSING-BRACES
+//! class:           syntax.stmt
+//! title:           with missing braces
+//! expect:          error
+//! detect:          required
+//! lrm:             B
+//! pssparser.id:    PSS026
+//! at:              18:13
+//! pssparser.match: unexpected keyword 'with' in an activity
+//! count:           1
+//! fix:            18:             {
+//! cause:            with
+component C {
+    action A {
+    }
+    action B {
+        activity {
+            with {
+                do A;
+            }
+        }
+    }
+}

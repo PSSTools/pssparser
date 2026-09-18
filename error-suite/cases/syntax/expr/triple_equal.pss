@@ -1,0 +1,17 @@
+//! case:            SYN-EXPR-TRIPLE-EQUAL
+//! class:           syntax.expr
+//! title:           triple equal
+//! expect:          error
+//! detect:          required
+//! lrm:             B
+//! pssparser.id:    PSS028
+//! at:              15:24
+//! pssparser.match: '===' is not a PSS operator
+//! count:           1
+//! cause:            ===
+component C {
+    action A {
+        rand int x;
+        constraint { x === 5; }
+    }
+}

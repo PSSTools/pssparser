@@ -1,0 +1,19 @@
+//! case:            SYN-PUNCT-MISSING-SEMICOLON-RETURN
+//! class:           syntax.punct
+//! title:           missing semicolon return
+//! expect:          error
+//! detect:          required
+//! lrm:             B
+//! pssparser.id:    PSS024
+//! at:              17:9
+//! pssparser.match: unexpected '}'
+//! count:           1
+//! fix:            16:            return;
+//! cause:            ;
+component C {
+    action A {
+        exec body {
+            return
+        }
+    }
+}

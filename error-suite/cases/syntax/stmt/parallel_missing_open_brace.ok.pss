@@ -1,0 +1,19 @@
+//! case:            SYN-STMT-PARALLEL-MISSING-OPEN-BRACE
+//! class:           syntax.stmt
+//! title:           parallel missing open brace
+//! expect:          error
+//! detect:          recommended
+//! pssparser.id:    PSS024
+//! at:              17:17
+//! pssparser.match: unexpected 'do' in this context
+//! count:           1
+//! cause:            {
+component C {
+    action A {
+    }
+    action B {
+        activity {
+                do A;
+        }
+    }
+}

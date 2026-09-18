@@ -1,0 +1,19 @@
+//! case:         SYN-MULTIFILE-COMPANION-01
+//! class:        syntax.multifile
+//! title:        the named file is clean; the defect is in the file it imports
+//! expect:       error
+//! detect:       required
+//! lrm:          B
+//! at:           3:14
+//! count:        1
+//! requires:     multifile
+//! files:        _mf_broken_lib.pss, defect_in_companion_01.pss
+//! at-file:      _mf_broken_lib.pss
+//! tags:         multifile, attribution
+//! cause:     ;
+package p2 {
+    import mflib::*;
+    struct s {
+        mfbase b;
+    }
+}

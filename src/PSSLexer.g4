@@ -204,8 +204,16 @@ SL_COMMENT 	: '//' .*? '\r'? ('\n'|EOF) -> channel (11) ;
 
 /*
  * BNF: ML_COMMENT ::= <kw>/*</kw><kw>*\057</kw>
+ *
+ * A6: `EOF` is an accepted terminator so that a comment nobody closed is one
+ * token rather than a lexer failure. Without it the lexer backs off to
+ * matching the '/' as division and the parser reports "unexpected '/'" at the
+ * start of the comment -- a diagnosis about an operator the user did not
+ * write. The non-greedy loop still stops at the first close-comment marker,
+ * so a terminated comment is unaffected; AstBuilderInt::build decides which
+ * ones are unterminated by checking the token's last two characters.
  */
-ML_COMMENT	: '/*' .*? '*/' -> channel (12) ;
+ML_COMMENT	: '/*' .*? ('*/' | EOF) -> channel (12) ;
 //ML_COMMENT	: '/*' .*? '*/' -> skip;
  
 

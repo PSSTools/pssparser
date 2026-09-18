@@ -1,0 +1,18 @@
+//! case:            SYN-SCOPE-COMPONENT-DECL-INSIDE-ACTION-BODY
+//! class:           syntax.scope
+//! title:           component decl inside action body
+//! expect:          error
+//! detect:          recommended
+//! pssparser.id:    PSS026
+//! at:              14:9
+//! pssparser.match: unexpected keyword 'component' in this context
+//! count:           1
+//! cause:            component
+//! names:            D, A
+component D {
+}
+
+component C {
+    action A {
+    }
+}

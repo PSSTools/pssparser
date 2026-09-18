@@ -1,0 +1,16 @@
+//! case:            SEM-TEMPLATE-ARRAY-TEMPLATE-ARITY-EXTRA-ARG
+//! class:           semantic.template
+//! title:           array template arity extra arg
+//! expect:          error
+//! detect:          recommended
+//! lrm:             10
+//! pssparser.id:    PSS001
+//! at:              15:5
+//! pssparser.match: type accepts 2 template parameter(s) but 3 supplied
+//! count:           1
+//! xfail.pssparser: E9-S7-D1 -- template-parameter arity/default diagnostics (TaskBuildParamValList.cpp) carry no marker ID at all (code is None, not even the PSS001 fallback), since core_checker.py's marker_defs has no pattern matching "type accepts N template parameter(s)"
+//! cause:            template parameter
+//! names:            array
+component C {
+    array<int, 4, 5> x;
+}

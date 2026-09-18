@@ -1,0 +1,10 @@
+//! case:    FX-DETECTED
+//! class:   fixture.harness
+//! title:   diagnostic lands exactly on the defect
+//! expect:  error
+//! detect:  recommended
+//! at:      10:23
+//! count:   1
+//! cause:   assign
+//FAKE: emit 10:23 error "cannot assign 'string' to field 'a' of type 'bit[8]'" code=FAKE001 end=26
+struct s { bit[8] a = "x"; }

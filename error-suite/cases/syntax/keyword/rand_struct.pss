@@ -1,0 +1,16 @@
+//! case:            SYN-KEYWORD-RAND-STRUCT
+//! class:           syntax.keyword
+//! title:           rand struct
+//! expect:          error
+//! detect:          required
+//! lrm:             B
+//! pssparser.id:    PSS026
+//! at:              14:1
+//! pssparser.match: unexpected keyword 'rand'
+//! count:           1
+//! fix:            14: struct S {
+//! cause:            rand
+//! names:            S
+rand struct S {
+    int x;
+}

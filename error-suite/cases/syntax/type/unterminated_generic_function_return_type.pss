@@ -1,0 +1,15 @@
+//! case:            SYN-TYPE-UNTERMINATED-GENERIC-FUNCTION-RETURN-TYPE
+//! class:           syntax.type
+//! title:           unterminated generic function return type
+//! expect:          error
+//! detect:          required
+//! lrm:             B
+//! pssparser.id:    PSS024
+//! at:              14:18
+//! pssparser.match: unexpected '<' in function 'list' expecting '('
+//! count:           1
+//! cause:            >
+//! names:            foo
+component C {
+    function list<int foo();
+}

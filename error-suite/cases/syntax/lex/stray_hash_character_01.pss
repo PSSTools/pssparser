@@ -1,0 +1,17 @@
+//! case:   SYN-LEX-STRAY-HASH-01
+//! class:  syntax.lex
+//! title:  character that is not in the language at all
+//! expect: error
+//! detect: required
+//! lrm:    B
+//! at:     15:13
+//! count:  1
+//! tags:   lex
+//! names:  a
+//! fix:    15:         int a;
+//! cause:   #
+package p {
+    struct s {
+        int # a;
+    }
+}

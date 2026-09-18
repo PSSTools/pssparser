@@ -1,0 +1,12 @@
+//! case:            SYN-NAMES-ENUM-NO-NAME
+//! class:           syntax.names
+//! title:           enum no name
+//! expect:          error
+//! detect:          required
+//! lrm:             B
+//! pssparser.id:    PSS025
+//! at:              12:6
+//! pssparser.match: unexpected '{'
+//! count:           1
+//! cause:            enum, identifier
+enum { A, B }

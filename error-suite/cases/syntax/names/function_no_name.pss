@@ -1,0 +1,12 @@
+//! case:            SYN-NAMES-FUNCTION-NO-NAME
+//! class:           syntax.names
+//! title:           function no name
+//! expect:          error
+//! detect:          required
+//! lrm:             B
+//! pssparser.id:    PSS022
+//! at:              12:15
+//! pssparser.match: expected identifier
+//! count:           1
+//! cause:            function, identifier
+function void () { }

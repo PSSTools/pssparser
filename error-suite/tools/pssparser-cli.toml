@@ -1,0 +1,30 @@
+# pssparser through its real user path: the installed console script, the JSON
+# renderer, the checker phase.  This is the descriptor to trust; the in-process
+# one is the fast loop.
+#
+# Note the invocation: there is no `parse` subcommand and no `--format` flag
+# (plan §0.1).  `--version` must be the first argument, which is why
+# version_cmd has nothing before it.
+[tool]
+name        = "pssparser"
+version_cmd = ["pssparser", "--version"]
+pss         = "3.1"
+
+[invoke]
+argv      = ["pssparser", "--json", "--no-color", "{files}"]
+cwd       = "case"
+timeout_s = 30
+# The CLI caps errors at 20 by default.  Cases that care (syntax.volume) set
+# `pssparser.max_errors:` and the runner passes it through here; without this
+# the cap silently truncates and the case measures the cap, not the tool.
+max_errors_argv = ["--max-errors", "{maxerrors}"]
+
+[output]
+kind   = "json"
+stream = "stdout"
+
+[capabilities]
+multifile          = true
+max_errors         = true
+json_output        = true
+exit_code_on_error = 1

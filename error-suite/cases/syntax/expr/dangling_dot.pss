@@ -1,0 +1,18 @@
+//! case:            SYN-EXPR-DANGLING-DOT
+//! class:           syntax.expr
+//! title:           dangling dot
+//! expect:          error
+//! detect:          required
+//! lrm:             B
+//! pssparser.id:    PSS028
+//! at:              16:25
+//! pssparser.match: syntax error at '>'
+//! count:           1
+//! cause:            .
+//! names:            x
+component C {
+    action A {
+        rand int x;
+        constraint { x. > 0; }
+    }
+}

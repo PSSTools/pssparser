@@ -1,0 +1,12 @@
+//! case:            SYN-PUNCT-UNEXPECTED-PUNCTUATION
+//! class:           syntax.punct
+//! title:           unexpected punctuation
+//! expect:          error
+//! detect:          required
+//! lrm:             B
+//! pssparser.id:    PSS025
+//! at:              12:19
+//! pssparser.match: unexpected '*'
+//! count:           1
+//! cause:            *
+struct S { int x; * }

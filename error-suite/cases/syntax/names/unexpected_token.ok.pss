@@ -1,0 +1,11 @@
+//! case:            SYN-NAMES-UNEXPECTED-TOKEN
+//! class:           syntax.names
+//! title:           unexpected token
+//! expect:          error
+//! detect:          recommended
+//! pssparser.id:    PSS022
+//! at:              12:19
+//! pssparser.match: expected identifier before '}'
+//! count:           1
+//! cause:            \,
+//! names:            x

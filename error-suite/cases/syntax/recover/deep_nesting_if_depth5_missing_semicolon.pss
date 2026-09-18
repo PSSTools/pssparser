@@ -1,0 +1,30 @@
+//! case:            SYN-RECOVER-DEEP-NESTING-IF-DEPTH5-MISSING-SEMICOLON
+//! class:           syntax.recover
+//! title:           deep nesting if depth5 missing semicolon
+//! expect:          error
+//! detect:          required
+//! lrm:             B
+//! pssparser.id:    PSS020
+//! at:              23:29
+//! pssparser.match: expected ';' before '}'
+//! count:           1
+//! fix:            22:                                x = 1;
+//! cause:            ;
+component C {
+    action A {
+        rand int x;
+        exec body {
+            if (x == 1) {
+                if (x == 2) {
+                    if (x == 3) {
+                        if (x == 4) {
+                            if (x == 5) {
+                                x = 1
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

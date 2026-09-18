@@ -1,0 +1,17 @@
+//! case:            SYN-BRACES-UNCLOSED-CONSTRAINT-BLOCK
+//! class:           syntax.braces
+//! title:           unclosed constraint block
+//! expect:          error
+//! detect:          recommended
+//! pssparser.id:    PSS021
+//! at:              16:1
+//! pssparser.match: unexpected end of input
+//! count:           1
+//! cause:            constraint
+//! names:            S
+struct S {
+    rand int x;
+    constraint {
+        x > 0;
+}
+}

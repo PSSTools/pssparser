@@ -1,0 +1,12 @@
+//! case:            SYN-LEX-KEYWORD-JARGON
+//! class:           syntax.lex
+//! title:           keyword jargon
+//! expect:          error
+//! detect:          required
+//! lrm:             B
+//! pssparser.id:    PSS028
+//! at:              12:47
+//! pssparser.match: syntax error at '@'
+//! count:           1
+//! cause:            @
+component pss_top { action A { constraint { x @ } } }

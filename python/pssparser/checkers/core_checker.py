@@ -365,15 +365,13 @@ class CoreChecker(CheckerBase):
         # point the message is built), so `patterns` is deliberately left
         # empty -- there is nothing for _assign_core_code to match, and a test
         # in test_marker_ids.py asserts it never fires for one of these IDs.
-        # PSS027 is reserved for lexer-originated errors and is not emitted
-        # yet: the lexer does not install AstBuilderInt as its error listener
-        # (only the parser does), so a lexical error currently goes to
-        # stderr via ANTLR's default listener and never reaches a marker at
-        # all -- see the corpus's `KNOWN_ACCEPTED["pathological/lone_backslash.pss"]`
-        # (defect U-9). PSS027 stays reserved until that listener wiring (and
-        # the exit-status gap it is tangled up with) is fixed. PSS023 is also
-        # reserved, not assigned: see PSS022's detail for why the keyword
-        # sub-case it was meant for turned out to be unreachable.
+        # PSS027 is the lexer's ID, and is live as of A6: AstBuilderInt is now
+        # the lexer's error listener as well as the parser's, so an
+        # unterminated string or block comment is a marker rather than a line
+        # on stderr that no consumer -- including the exit status -- ever saw
+        # (that was the corpus's U-9, now retired). PSS023 is still reserved,
+        # not assigned: see PSS022's detail for why the keyword sub-case it
+        # was meant for turned out to be unreachable.
 
         MarkerDef(
             id="PSS020",
@@ -478,6 +476,27 @@ class CoreChecker(CheckerBase):
                 "* ``unexpected keyword '<token>' in this context``\n"
                 "* ``unexpected '<token>' in this context`` (non-keyword-"
                 "looking offender, e.g. ``123``)"
+            ),
+        ),
+        MarkerDef(
+            id="PSS027",
+            severity="error",
+            summary="Lexical error: the text could not be made into a token",
+            detail=(
+                "The lexer, not the parser, could not read this. It is "
+                "reported where the unreadable run *starts* -- the opening "
+                "quote or ``/*`` -- rather than wherever the parser later "
+                "tripped over what was left, which is usually a line or two "
+                "further on and about the wrong thing entirely.\n\n"
+                "Messages include patterns such as:\n\n"
+                "* ``unterminated string literal``\n"
+                "* ``unterminated triple-quoted string literal``\n"
+                "* ``unterminated block comment``\n"
+                "* ``unexpected character '<c>'``\n\n"
+                "The parse error that a lexical defect provokes immediately "
+                "afterwards is suppressed: an unterminated string swallows "
+                "the rest of its line, so what follows not parsing is the "
+                "same defect, not a second one."
             ),
         ),
         MarkerDef(

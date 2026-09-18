@@ -1,0 +1,15 @@
+//! case:            SYN-RESERVED-INT-ACTION-FIELD
+//! class:           syntax.reserved
+//! title:           int action field
+//! expect:          error
+//! detect:          recommended
+//! pssparser.id:    PSS022
+//! at:              14:13
+//! pssparser.match: expected identifier before 'action'
+//! count:           1
+//! cause:            action
+//! names:            A
+component C {
+    action A {
+    }
+}

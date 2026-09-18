@@ -1,0 +1,22 @@
+//! case:            SYN-STMT-FOREACH-MISSING-COLON
+//! class:           syntax.stmt
+//! title:           foreach missing colon
+//! expect:          error
+//! detect:          recommended
+//! pssparser.id:    PSS028
+//! at:              16:24
+//! pssparser.match: syntax error at 'arr'
+//! count:           1
+//! cause:            :
+component C {
+    action A {
+    }
+    action B {
+        rand array<int, 4> arr;
+        activity {
+            foreach (a : arr) {
+                do A;
+            }
+        }
+    }
+}

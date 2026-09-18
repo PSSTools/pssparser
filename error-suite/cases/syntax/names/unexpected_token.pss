@@ -1,0 +1,13 @@
+//! case:            SYN-NAMES-UNEXPECTED-TOKEN
+//! class:           syntax.names
+//! title:           unexpected token
+//! expect:          error
+//! detect:          required
+//! lrm:             B
+//! pssparser.id:    PSS022
+//! at:              13:19
+//! pssparser.match: expected identifier before '}'
+//! count:           1
+//! cause:            \,
+//! names:            x
+struct S { int x, }

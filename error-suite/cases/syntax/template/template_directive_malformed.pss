@@ -1,0 +1,16 @@
+//! case:            SYN-TEMPLATE-TEMPLATE-DIRECTIVE-MALFORMED
+//! class:           syntax.template
+//! title:           template directive malformed
+//! expect:          error
+//! detect:          required
+//! lrm:             B
+//! pssparser.id:    PSS110
+//! at:              14:28
+//! pssparser.match: expected '(' before 'a'
+//! count:           1
+//! cause:            (
+component C {
+    action A {
+        exec body cpp = """{% if a) %}x{% endif %}""";
+    }
+}

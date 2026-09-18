@@ -137,7 +137,8 @@ def test_marker_ids_are_in_ascending_order():
 #: so `patterns` is deliberately empty and there is nothing to add to
 #: REPRESENTATIVE_MESSAGES for them -- see SYNTAX_BAND_SAMPLES and
 #: test_syntax_band_ids_are_reachable below instead.
-#: PSS023 and PSS027 are reserved, not assigned (see core_checker.py).
+#: PSS023 is reserved, not assigned (see core_checker.py). PSS027 is the
+#: lexer's, and became reachable with A6.
 _SYNTAX_BAND = {"PSS0%02d" % n for n in range(20, 30)}
 
 
@@ -172,15 +173,15 @@ def test_syntax_band_markers_declare_no_patterns():
 def test_assign_core_code_never_fires_for_the_syntax_band():
     """_assign_core_code only fills in a missing code; a syntax-band marker
     must always already carry one by the time Python sees it."""
-    for marker_id in sorted(_SYNTAX_BAND - {"PSS023", "PSS027"}):
+    for marker_id in sorted(_SYNTAX_BAND - {"PSS023"}):
         assigned = _assign_core_code({"message": "some entirely novel diagnostic"})
         assert assigned.get("code") != marker_id
 
 
 #: One real snippet per reachable syntax-band ID, parsed through the actual
 #: C++ parser (not the message-pattern table above -- there is none for these
-#: IDs). PSS023 and PSS027 are reserved/unreachable (see core_checker.py) and
-#: are deliberately absent here. The third element is the --max-errors value
+#: IDs). PSS023 is reserved/unreachable (see core_checker.py) and is
+#: deliberately absent here. The third element is the --max-errors value
 #: to apply before parsing (None = library default, unlimited) -- only
 #: PSS029 needs one, since it is the cap-cutoff marker itself.
 SYNTAX_BAND_SAMPLES = [
@@ -190,6 +191,9 @@ SYNTAX_BAND_SAMPLES = [
     ("PSS024", "class C { }", None),
     ("PSS025", "struct S { int x; * }", None),
     ("PSS026", "enum E { struct };", None),
+    # Lexical, not syntactic: the string never closes, so the lexer is the
+    # one that reports it.
+    ("PSS027", 'struct S { string a = "abc; }', None),
     ("PSS028", "struct S { 123 x; }", None),
     (
         "PSS029",
@@ -225,14 +229,22 @@ def test_syntax_band_samples_cover_every_reachable_id():
 
 def test_every_reachable_syntax_band_id_has_a_corpus_case():
     """Exit criterion for E-3: every PSS020-PSS028 ID that can actually be
-    emitted (excludes the reserved PSS023/PSS027) has >= 1 corpus case under
-    tests/python/errors/data/, queried the same way test_corpus.py does."""
+    emitted (excludes the reserved PSS023/PSS027) has >= 1 corpus case,
+    queried the same way test_corpus.py does -- over both roots, since the L1
+    cases now live in error-suite/cases/ (error-suite design §3.4)."""
     import sys as _sys
     from pathlib import Path as _Path
     _sys.path.insert(0, str(_Path(__file__).parent / "errors"))
     from corpus_loader import collect_cases
 
-    ids_with_cases = {c.id for c in collect_cases() if c.id in _SYNTAX_BAND}
+    roots = [None, _Path(__file__).parents[2] / "error-suite" / "cases"]
+    cases = []
+    for root in roots:
+        if root is None:
+            cases += collect_cases()
+        elif root.is_dir():
+            cases += collect_cases(root)
+    ids_with_cases = {c.id for c in cases if c.id in _SYNTAX_BAND}
     reachable = _SYNTAX_BAND - {"PSS023", "PSS027"}
     assert reachable - ids_with_cases == set(), \
         "reachable syntax-band IDs with no corpus case: %s" % sorted(

@@ -1,0 +1,31 @@
+//! case:            SYN-VOLUME-MANY-INDEPENDENT-MISSING-FIELD-NAMES
+//! class:           syntax.volume
+//! title:           many independent missing field names
+//! expect:          error
+//! detect:          recommended
+//! pssparser.id:    PSS022
+//! at:              12:17
+//! pssparser.match: expected identifier before ';'
+//! count:           20
+//! cause:            identifier
+//! names:            S0
+struct S0 { int x; }
+struct S1 { int x; }
+struct S2 { int x; }
+struct S3 { int x; }
+struct S4 { int x; }
+struct S5 { int x; }
+struct S6 { int x; }
+struct S7 { int x; }
+struct S8 { int x; }
+struct S9 { int x; }
+struct S10 { int x; }
+struct S11 { int x; }
+struct S12 { int x; }
+struct S13 { int x; }
+struct S14 { int x; }
+struct S15 { int x; }
+struct S16 { int x; }
+struct S17 { int x; }
+struct S18 { int x; }
+struct S19 { int x; }

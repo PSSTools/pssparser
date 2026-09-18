@@ -1,0 +1,15 @@
+//! case:            SYN-TEMPLATE-TEMPLATE-DIRECTIVE-UNTERMINATED
+//! class:           syntax.template
+//! title:           template directive unterminated
+//! expect:          error
+//! detect:          recommended
+//! pssparser.id:    PSS110
+//! at:              14:28
+//! pssparser.match: unterminated template directive
+//! count:           1
+//! cause:            directive, unterminated
+component C {
+    action A {
+        rand int a;
+    }
+}

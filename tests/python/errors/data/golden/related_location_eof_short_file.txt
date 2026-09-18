@@ -1,10 +1,10 @@
-$ pssparser tests/python/errors/data/syntax/unexpected_eof.pss (exit 1)
+$ pssparser error-suite/cases/syntax/braces/unexpected_eof.pss (exit 1)
 --- stdout ---
 --- stderr ---
-tests/python/errors/data/syntax/unexpected_eof.pss:6:10: error: unclosed '{' for struct 'S'
- 6 | struct S { int x; 
-   |          ^
+error-suite/cases/syntax/braces/unexpected_eof.pss:15:10: error: unclosed '{' for struct 'S'
+ 15 | struct S { int x; 
+    |          ^
   note: input ends here
-   --> tests/python/errors/data/syntax/unexpected_eof.pss:7:1
+   --> error-suite/cases/syntax/braces/unexpected_eof.pss:16:1
 
 1 error in 1 file

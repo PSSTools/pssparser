@@ -1,0 +1,19 @@
+//! case:            SYN-PUNCT-EXTRA-TRAILING-COMMA-CALL
+//! class:           syntax.punct
+//! title:           extra trailing comma call
+//! expect:          error
+//! detect:          required
+//! lrm:             B
+//! pssparser.id:    PSS024
+//! at:              16:26
+//! pssparser.match: unexpected ')'
+//! count:           1
+//! cause:            \,
+//! names:            foo
+component C {
+    action A {
+        exec body {
+            x = foo(1, 2,);
+        }
+    }
+}

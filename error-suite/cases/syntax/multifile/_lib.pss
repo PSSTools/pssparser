@@ -1,0 +1,7 @@
+package lib {
+
+    struct base_s {
+        int a;
+    }
+
+}

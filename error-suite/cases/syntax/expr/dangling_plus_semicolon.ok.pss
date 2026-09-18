@@ -1,0 +1,16 @@
+//! case:            SYN-EXPR-DANGLING-PLUS-SEMICOLON
+//! class:           syntax.expr
+//! title:           dangling plus semicolon
+//! expect:          error
+//! detect:          recommended
+//! pssparser.id:    PSS028
+//! at:              15:26
+//! pssparser.match: syntax error at ';'
+//! count:           1
+//! cause:            +
+//! names:            x
+component C {
+    action A {
+        rand int x;
+    }
+}

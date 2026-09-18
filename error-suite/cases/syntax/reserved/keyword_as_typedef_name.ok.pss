@@ -1,0 +1,10 @@
+//! case:            SYN-RESERVED-KEYWORD-AS-TYPEDEF-NAME
+//! class:           syntax.reserved
+//! title:           keyword as typedef name
+//! expect:          error
+//! detect:          recommended
+//! pssparser.id:    PSS022
+//! at:              11:13
+//! pssparser.match: expected identifier before 'component'
+//! count:           1
+//! cause:            component

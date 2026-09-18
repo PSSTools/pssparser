@@ -1,0 +1,16 @@
+//! case:            SYN-LEX-BASED-LITERAL-BAD-DIGIT-MISCLASSIFIED
+//! class:           syntax.lex
+//! title:           based literal bad digit misclassified
+//! expect:          error
+//! detect:          recommended
+//! pssparser.id:    PSS011
+//! at:              15:29
+//! pssparser.match: invalid digit 'G' in based literal
+//! count:           1
+//! cause:            digit
+//! names:            x
+component C {
+    action A {
+        rand bit[8] x;
+    }
+}

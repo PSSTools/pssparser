@@ -1,0 +1,21 @@
+//! case:    SEM-31-ENUM-BASE-01
+//! class:   semantic.31
+//! title:   PSS 3.1 enum base type must be an integer type, not 'string'
+//! expect:  error
+//! detect:  required
+//! at:      16:14
+//! count:   1
+//! lrm:     7.5
+//! pss:     3.1
+//! tags:    enum, type, 3.1
+//! fix:     16:     enum e : int {
+//! cause:   enum
+//! names:   e
+package p {
+
+    enum e : string {
+        A,
+        B
+    }
+
+}

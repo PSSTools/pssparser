@@ -1,0 +1,12 @@
+//! case:            SYN-NAMES-PACKAGE-NO-NAME
+//! class:           syntax.names
+//! title:           package no name
+//! expect:          error
+//! detect:          required
+//! lrm:             B
+//! pssparser.id:    PSS022
+//! at:              12:9
+//! pssparser.match: expected identifier
+//! count:           1
+//! cause:            package, identifier
+package { }

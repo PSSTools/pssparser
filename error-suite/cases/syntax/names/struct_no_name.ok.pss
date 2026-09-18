@@ -1,0 +1,10 @@
+//! case:            SYN-NAMES-STRUCT-NO-NAME
+//! class:           syntax.names
+//! title:           struct no name
+//! expect:          error
+//! detect:          recommended
+//! pssparser.id:    PSS022
+//! at:              11:8
+//! pssparser.match: expected identifier
+//! count:           1
+//! cause:            struct, identifier

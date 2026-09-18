@@ -1,0 +1,11 @@
+//! case:            SYN-SCOPE-RAND-FIELD-AT-FILE-SCOPE
+//! class:           syntax.scope
+//! title:           rand field at file scope
+//! expect:          error
+//! detect:          recommended
+//! pssparser.id:    PSS024
+//! at:              12:1
+//! pssparser.match: unexpected 'rand' in this context
+//! count:           1
+//! cause:            rand
+//! names:            x

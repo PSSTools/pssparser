@@ -86,22 +86,25 @@ def test_block_comments_do_not_nest():
         ("ID", "c"), ("TOK_ASTERISK", "*"), ("TOK_DIV", "/")]
 
 
-def test_unterminated_block_comment_lexes_as_operators():
-    """The most dangerous case in this file.
+def test_unterminated_block_comment_is_one_comment_token():
+    """This used to be the most dangerous case in the file.
 
-    `/* a` with no close does **not** produce an error token.  It produces
-    `TOK_DIV`, `TOK_ASTERISK`, `ID` -- three perfectly ordinary tokens, and
-    ``num_errors`` stays 0.
+    `/* a` with no close used to lex as `TOK_DIV`, `TOK_ASTERISK`, `ID` --
+    three perfectly ordinary tokens, with ``num_errors`` at 0.  A formatter
+    that changed spacing around `/` or `*` would turn `/*` into `/ *` and
+    silently uncomment the rest of the file, and nothing in the lexer's own
+    output said otherwise.
 
-    A formatter must therefore not use ``num_errors`` as its "is this file
-    sane" check: this input reports clean, and any rule that changes spacing
-    around `/` or `*` would turn `/*` into `/ *` and silently uncomment the
-    rest of the file.  Detecting it needs the parser, not the lexer.
+    ML_COMMENT now accepts EOF as a terminator (A6), so the run is one comment
+    token and a formatter can see what it is holding.  ``num_errors`` is still
+    0 -- the lexer matched everything it was given; it is
+    ``AstBuilderInt::build`` that calls the missing `*/` an error, by checking
+    the token's last two characters.
     """
     ts = tokens.tokenize("/* a")
     assert ts.num_errors == 0
-    assert [t.type_name for t in ts.code()] == [
-        "TOK_DIV", "TOK_ASTERISK", "ID"]
+    assert ts.code() == []
+    assert types("/* a", tokens.CHANNEL_ML_COMMENT) == [("ML_COMMENT", "/* a")]
 
 
 def test_tabs_inside_comments_are_preserved():

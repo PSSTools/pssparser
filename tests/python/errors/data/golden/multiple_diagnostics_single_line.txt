@@ -1,16 +1,14 @@
-$ pssparser tests/python/errors/data/names/expected_identifier_after_garbage_token.pss (exit 1)
+$ pssparser error-suite/cases/syntax/names/expected_identifier_after_garbage_token.pss (exit 1)
 --- stdout ---
 --- stderr ---
-tests/python/errors/data/names/expected_identifier_after_garbage_token.pss:5:47: error: syntax error at '@'
- 5 | component pss_top { action A { constraint { x @ } } }
-   |                                               ^
+error-suite/cases/syntax/names/expected_identifier_after_garbage_token.pss:13:47: error: syntax error at '@' in a constraint of action 'A'
+ 13 | component pss_top { action A { constraint { x @ } } }
+    |                                               ^
+  note: a constraint begins here
 
-tests/python/errors/data/names/expected_identifier_after_garbage_token.pss:5:49: error: expected identifier before '}'
- 5 | component pss_top { action A { constraint { x @ } } }
-   |                                                 ^
+error-suite/cases/syntax/names/expected_identifier_after_garbage_token.pss:13:49: error: expected identifier before '}' in action 'A'
+ 13 | component pss_top { action A { constraint { x @ } } }
+    |                                                 ^
+  note: action 'A' begins here
 
-tests/python/errors/data/names/expected_identifier_after_garbage_token.pss:5:53: error: unexpected '}' in this context
- 5 | component pss_top { action A { constraint { x @ } } }
-   |                                                     ^
-
-3 errors in 1 file
+2 errors in 1 file

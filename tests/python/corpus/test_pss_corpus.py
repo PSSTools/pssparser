@@ -186,9 +186,6 @@ BROKEN_BUCKETS = _manifest_broken_buckets() or FALLBACK_BROKEN_BUCKETS
 RECORDED_DEFECTS = {
     "U-8b": "`dist` constraints",
     "U-8e": "octal escape in a string literal (\"\\101\")",
-    # Not a U-8: those are valid PSS the grammar will not accept. This is the
-    # opposite direction, and it was found here rather than downstream.
-    "U-9": "lexical errors do not reach the CLI exit status",
 }
 
 #: Corpus files that do not parse today, and why. Cause strings are shared
@@ -222,27 +219,26 @@ KNOWN_UNPARSEABLE = {
 #: opposite promise -- ``KNOWN_UNPARSEABLE`` is the grammar being too narrow,
 #: this is the front end being unsound.
 #:
-#: ``U-9`` is a new identifier, minted here. ``lone_backslash.pss`` is a lone
-#: ``\`` on a line of its own, which begins an escaped identifier that no
-#: whitespace terminates. The lexer sees it correctly and says so on stderr --
-#: ``token recognition error at: '\n'`` -- and then the CLI reports "0 errors"
-#: and exits 0. Lexical errors are not reaching the exit status.
+#: ``U-9`` was the first entry, and is now retired. ``lone_backslash.pss`` is
+#: a lone ``\`` on a line of its own, which begins an escaped identifier that
+#: no whitespace terminates. The lexer saw it correctly and said so on stderr
+#: -- ``token recognition error at: '\n'`` -- and then the CLI reported
+#: "0 errors" and exited 0, because only the parser had an error listener.
 #:
-#: That matters well beyond this file. Exit status is the entire interface for
-#: an editor, a pre-commit hook or ``pssfmt --check``; a file containing
-#: characters the lexer could not tokenize is currently indistinguishable from
-#: a clean one to every caller that does not scrape stderr. Every other file in
+#: That mattered well beyond this file. Exit status is the entire interface
+#: for an editor, a pre-commit hook or ``pssfmt --check``; a file containing
+#: characters the lexer could not tokenize was indistinguishable from a clean
+#: one to every caller that did not scrape stderr. Every other file in
 #: ``pathological/`` exits 1 only because it also trips a *parse* error, which
-#: is what kept the hole hidden -- this file has no second error to mask it.
+#: is what kept the hole hidden -- this file had no second error to mask it.
 #:
 #: Strict xfail, like the others: fixing the exit status turns the case green
-#: and forces this entry out.
-KNOWN_ACCEPTED = {
-    "pathological/lone_backslash.pss":
-        "U-9: lexical errors do not reach the CLI exit status -- the lexer "
-        "reports `token recognition error` on stderr and the run still exits "
-        "0 with `0 errors`",
-}
+#: and forces this entry out. That is what happened -- A6 gave the lexer the
+#: same error listener the parser has, so a lexical error is now a PSS027
+#: marker like any other and reaches the exit status by the ordinary route.
+#: The table is empty rather than deleted: this is the one class of defect
+#: the sweep exists to find, and the next one belongs here.
+KNOWN_ACCEPTED = {}
 
 
 def ident(path):
@@ -370,8 +366,8 @@ def test_broken_input_is_rejected(path):
     """Second promise: say so. Surviving by accepting everything is not a pass.
 
     Exit status rather than stderr, because exit status is what every caller
-    actually keys off -- and ``U-9`` is precisely the case where the two
-    disagree.
+    actually keys off -- and ``U-9`` (now fixed) was precisely the case where
+    the two disagreed.
     """
     res = run_isolated([str(path)], args=["--syntax-only"])
     assert res.rc == 1, (

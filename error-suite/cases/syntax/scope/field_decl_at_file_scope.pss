@@ -1,0 +1,13 @@
+//! case:            SYN-SCOPE-FIELD-DECL-AT-FILE-SCOPE
+//! class:           syntax.scope
+//! title:           field decl at file scope
+//! expect:          error
+//! detect:          required
+//! lrm:             B
+//! pssparser.id:    PSS024
+//! at:              13:1
+//! pssparser.match: unexpected 'int' in this context
+//! count:           1
+//! cause:            int
+//! names:            x
+int x;

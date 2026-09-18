@@ -1,0 +1,22 @@
+//! case:            SYN-STMT-FOREACH-NO-PARENS
+//! class:           syntax.stmt
+//! title:           foreach no parens
+//! expect:          error
+//! detect:          recommended
+//! pssparser.id:    PSS020
+//! at:              16:21
+//! pssparser.match: expected '(' before 'a'
+//! count:           1
+//! cause:            (
+component C {
+    action A {
+    }
+    action B {
+        rand array<int, 4> arr;
+        activity {
+            foreach (a : arr) {
+                do A;
+            }
+        }
+    }
+}

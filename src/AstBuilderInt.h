@@ -1045,6 +1045,16 @@ private:
     ssize_t                                     m_last_syntax_error_token_idx;
     size_t                                      m_last_syntax_error_rule_idx;
 
+    /**
+     * A6: the line of the last lexical error, or -1.
+     *
+     * A lexical defect -- an unterminated string, say -- leaves the parser
+     * reading the wreckage, so the first parse error after one is a
+     * consequence of it rather than a second defect. Reset per `build()`
+     * alongside the two fields above.
+     */
+    ssize_t                                     m_last_lex_error_line;
+
     static dmgr::IDebug                         *m_dbg;
     int32_t                                     m_file_id;
 	bool										m_collectDocStrings;

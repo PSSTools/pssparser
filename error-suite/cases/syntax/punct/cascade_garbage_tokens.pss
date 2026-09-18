@@ -1,0 +1,19 @@
+//! case:            SYN-PUNCT-CASCADE-GARBAGE-TOKENS
+//! class:           syntax.punct
+//! title:           cascade garbage tokens
+//! expect:          error
+//! detect:          required
+//! lrm:             B
+//! at:              16:13
+//! pssparser.at:    16:14
+//! pssparser.id:    PSS022
+//! pssparser.match: expected identifier before '@'
+//! count:           1
+//! cause:            @
+component C {
+    action A {
+        exec body {
+            @@@ !!! ???
+        }
+    }
+}

@@ -1,0 +1,22 @@
+//! case:         SYN-TEMPLATE-MEMBER-01
+//! class:        syntax.template
+//! title:        member select inside a mustache with no field name
+//! expect:       error
+//! detect:       required
+//! lrm:          B
+//! at:           20:36
+//! pssparser.at: 20:32
+//! count:        1
+//! tags:         template, mustache, expr
+//! names:        s
+//! fix:          20:         exec body cpp = """v = {{ s.f }};""";
+//! cause:         identifier
+struct S {
+    int f;
+}
+component C {
+    action A {
+        rand S s;
+        exec body cpp = """v = {{ s. }};""";
+    }
+}

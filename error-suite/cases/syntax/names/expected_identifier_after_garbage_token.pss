@@ -1,0 +1,13 @@
+//! case:            SYN-NAMES-EXPECTED-IDENTIFIER-AFTER-GARBAGE-TOKEN
+//! class:           syntax.names
+//! title:           expected identifier after garbage token
+//! expect:          error
+//! detect:          required
+//! lrm:             B
+//! pssparser.id:    PSS028
+//! at:              13:47
+//! pssparser.match: syntax error at '@'
+//! count:           1
+//! cause:            @
+//! names:            x
+component pss_top { action A { constraint { x @ } } }

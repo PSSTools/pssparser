@@ -1,8 +1,0 @@
-//! id:     PSS020
-//! at:     8:1
-//! match:  expected ';'
-//! count:  1
-struct S {
-    int x;
-    rand bit[7:0] y
-}

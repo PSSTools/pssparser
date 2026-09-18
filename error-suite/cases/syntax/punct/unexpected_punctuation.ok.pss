@@ -1,0 +1,10 @@
+//! case:            SYN-PUNCT-UNEXPECTED-PUNCTUATION
+//! class:           syntax.punct
+//! title:           unexpected punctuation
+//! expect:          error
+//! detect:          recommended
+//! pssparser.id:    PSS025
+//! at:              11:19
+//! pssparser.match: unexpected '*'
+//! count:           1
+//! cause:            *

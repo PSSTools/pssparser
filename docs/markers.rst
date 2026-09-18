@@ -300,6 +300,24 @@ As PSS025, but the extraneous token is not a single punctuation character -- a k
 * ``unexpected keyword '<token>' in this context``
 * ``unexpected '<token>' in this context`` (non-keyword-looking offender, e.g. ``123``)
 
+PSS027
+------
+
+**Severity:** error
+
+Lexical error: the text could not be made into a token
+
+The lexer, not the parser, could not read this. It is reported where the unreadable run *starts* -- the opening quote or ``/*`` -- rather than wherever the parser later tripped over what was left, which is usually a line or two further on and about the wrong thing entirely.
+
+Messages include patterns such as:
+
+* ``unterminated string literal``
+* ``unterminated triple-quoted string literal``
+* ``unterminated block comment``
+* ``unexpected character '<c>'``
+
+The parse error that a lexical defect provokes immediately afterwards is suppressed: an unterminated string swallows the rest of its line, so what follows not parsing is the same defect, not a second one.
+
 PSS028
 ------
 

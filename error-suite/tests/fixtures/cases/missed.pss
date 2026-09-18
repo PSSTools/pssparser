@@ -1,0 +1,9 @@
+//! case:    FX-MISSED
+//! class:   fixture.harness
+//! title:   tool reports nothing on a genuine defect
+//! expect:  error
+//! detect:  required
+//! at:      9:23
+//! count:   1
+//! lrm:     B.11
+struct s { bit[8] a = "x"; }

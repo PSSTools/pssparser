@@ -1,0 +1,15 @@
+//! case:            SYN-TEMPLATE-MUSTACHE-MALFORMED-EXPRESSION
+//! class:           syntax.template
+//! title:           mustache malformed expression
+//! expect:          error
+//! detect:          recommended
+//! pssparser.id:    PSS109
+//! at:              14:32
+//! pssparser.match: malformed mustache expression: unexpected '+'
+//! count:           1
+//! cause:            mustache
+component C {
+    action A {
+        rand int a;
+    }
+}

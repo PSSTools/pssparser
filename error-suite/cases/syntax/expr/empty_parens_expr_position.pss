@@ -1,0 +1,17 @@
+//! case:            SYN-EXPR-EMPTY-PARENS-EXPR-POSITION
+//! class:           syntax.expr
+//! title:           empty parens expr position
+//! expect:          error
+//! detect:          required
+//! lrm:             B
+//! pssparser.id:    PSS028
+//! at:              15:28
+//! pssparser.match: syntax error at ')'
+//! count:           1
+//! cause:            expression
+component C {
+    action A {
+        rand int x;
+        constraint { x == (); }
+    }
+}

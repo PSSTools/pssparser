@@ -1,0 +1,15 @@
+//! case:            SYN-RECOVER-PAIR-KEYWORD-FIELD-NAME-TWO-STRUCTS
+//! class:           syntax.recover
+//! title:           pair keyword field name two structs
+//! expect:          error
+//! detect:          required
+//! lrm:             B
+//! pssparser.id:    PSS022
+//! at:              14:9
+//! pssparser.match: expected identifier before 'action'
+//! count:           1
+//! cause:            action
+//! names:            S
+struct S {
+    int action;
+}

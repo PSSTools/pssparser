@@ -1,0 +1,19 @@
+//! case:            SYN-SCOPE-TYPEDEF-INSIDE-ACTIVITY
+//! class:           syntax.scope
+//! title:           typedef inside activity
+//! expect:          error
+//! detect:          required
+//! lrm:             B
+//! pssparser.id:    PSS024
+//! at:              16:13
+//! pssparser.match: unexpected 'typedef' in an activity
+//! count:           1
+//! cause:            typedef
+//! names:            foo_t
+component C {
+    action A {
+        activity {
+            typedef int foo_t;
+        }
+    }
+}

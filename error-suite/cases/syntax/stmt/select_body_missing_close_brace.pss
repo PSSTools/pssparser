@@ -1,0 +1,23 @@
+//! case:            SYN-STMT-SELECT-BODY-MISSING-CLOSE-BRACE
+//! class:           syntax.stmt
+//! title:           select body missing close brace
+//! expect:          error
+//! detect:          required
+//! lrm:             B
+//! pssparser.id:    PSS021
+//! at:              19:20
+//! pssparser.match: unclosed '{' for select statement
+//! count:           1
+//! xfail.pssparser: E9-S9-D1 -- D8's opener-pointing fix (E-6) is scoped to Component_declarationContext/Struct_declarationContext only; an unclosed 'select { ...' body still misattributes the EOF mismatch to the enclosing component instead of naming the select statement
+//! fix:            20:                A;}
+//! cause:            select
+component C {
+    action A {
+    }
+    action B {
+        activity {
+            select {
+                A;
+        }
+    }
+}

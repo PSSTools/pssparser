@@ -383,6 +383,20 @@ cdef class Marker(object):
             })
         return ret
 
+    cpdef list fixes(self):
+        """Machine-applicable repairs: span (with its own extent) + text."""
+        ret = []
+        cdef const decl.MarkerFix *fix
+        for i in range(self._hndl.fixes().size()):
+            fix = &(self._hndl.fixes()[i])
+            ret.append({
+                "span": Location(fix.span.fileid, fix.span.lineno,
+                                 fix.span.linepos),
+                "extent": fix.span.extent,
+                "replacement": fix.replacement.decode(),
+            })
+        return ret
+
     @staticmethod
     cdef Marker mk(decl.IMarker *hndl, bool owned=True):
         ret = Marker()

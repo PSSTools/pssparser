@@ -1,0 +1,6 @@
+//! case:    FX-SPURIOUS
+//! class:   fixture.harness
+//! title:   false positive on valid input
+//! expect:  accept
+//FAKE: emit 6:12 error "bit vectors are not allowed here" code=FAKE003
+struct s { bit[8] a = 8'h20; }

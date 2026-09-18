@@ -36,6 +36,7 @@ Marker::~Marker() {
 IMarker *Marker::clone() const {
 	Marker *ret = new Marker(m_msg, m_severity, m_loc, m_id);
 	ret->m_related = m_related;
+	ret->m_fixes = m_fixes;
 	return ret;
 }
 

@@ -1,0 +1,17 @@
+//! case:            SYN-EXPR-UNBALANCED-OPEN-PAREN-CONSTRAINT
+//! class:           syntax.expr
+//! title:           unbalanced open paren constraint
+//! expect:          error
+//! detect:          required
+//! lrm:             B
+//! pssparser.id:    PSS028
+//! at:              15:28
+//! pssparser.match: syntax error at ';'
+//! count:           1
+//! cause:            )
+component C {
+    action A {
+        rand int x;
+        constraint { (x > 0; }
+    }
+}

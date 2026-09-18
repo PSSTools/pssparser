@@ -1,0 +1,14 @@
+//! case:            SYN-BRACES-EXTRA-CLOSE-BRACE-AFTER-STRUCT
+//! class:           syntax.braces
+//! title:           extra close brace after struct
+//! expect:          error
+//! detect:          required
+//! lrm:             B
+//! pssparser.id:    PSS025
+//! at:              14:21
+//! pssparser.match: unexpected '}'
+//! count:           1
+//! cause:            }
+//! not_cause:        unterminated, unclosed
+//! names:            S
+struct S { int x; } }

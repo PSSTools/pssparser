@@ -1,8 +1,12 @@
-$ pssparser tests/python/errors/data/punct/cascade_garbage_tokens.pss (exit 1)
+$ pssparser error-suite/cases/syntax/punct/cascade_garbage_tokens.pss (exit 1)
 --- stdout ---
 --- stderr ---
-tests/python/errors/data/punct/cascade_garbage_tokens.pss:7:14: error: expected identifier before '@'
- 7 |             @@@ !!! ???
-   |              ^
+error-suite/cases/syntax/punct/cascade_garbage_tokens.pss:16:14: error: expected identifier before '@' in an exec body block of action 'A'
+ 16 |             @@@ !!! ???
+    |              ^
+  note: an exec body block begins here
+   --> error-suite/cases/syntax/punct/cascade_garbage_tokens.pss:15:19
+   15 |         exec body {
+      |                   ^
 
 1 error in 1 file

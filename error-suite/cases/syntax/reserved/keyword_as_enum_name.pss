@@ -1,0 +1,14 @@
+//! case:            SYN-RESERVED-KEYWORD-AS-ENUM-NAME
+//! class:           syntax.reserved
+//! title:           keyword as enum name
+//! expect:          error
+//! detect:          required
+//! lrm:             B
+//! pssparser.id:    PSS022
+//! at:              12:6
+//! pssparser.match: expected identifier before 'action'
+//! count:           1
+//! cause:            action
+enum action {
+    A, B
+}

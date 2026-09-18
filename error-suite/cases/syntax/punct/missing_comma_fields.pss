@@ -1,0 +1,15 @@
+//! case:            SYN-PUNCT-MISSING-COMMA-FIELDS
+//! class:           syntax.punct
+//! title:           missing comma fields
+//! expect:          error
+//! detect:          required
+//! lrm:             B
+//! pssparser.id:    PSS026
+//! at:              14:16
+//! pssparser.match: unexpected 'y' in struct 'S'
+//! count:           1
+//! cause:            \,
+//! names:            x
+struct S {
+    rand int x y;
+}

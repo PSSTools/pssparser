@@ -1,0 +1,16 @@
+//! case:            SYN-BRACES-UNCLOSED-COMPONENT-OPENER-POINTER
+//! class:           syntax.braces
+//! title:           unclosed component opener pointer
+//! expect:          error
+//! detect:          required
+//! lrm:             B
+//! pssparser.id:    PSS021
+//! at:              15:13
+//! pssparser.match: unclosed '{' for component 'C'
+//! also:            17:1 "input ends here"
+//! count:           1
+//! fix:            16:    action A {} }
+//! cause:            component
+//! names:            C
+component C {
+    action A { }

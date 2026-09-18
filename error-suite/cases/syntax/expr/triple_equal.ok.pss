@@ -1,0 +1,15 @@
+//! case:            SYN-EXPR-TRIPLE-EQUAL
+//! class:           syntax.expr
+//! title:           triple equal
+//! expect:          error
+//! detect:          recommended
+//! pssparser.id:    PSS028
+//! at:              14:26
+//! pssparser.match: syntax error at '='
+//! count:           1
+//! cause:            ===
+component C {
+    action A {
+        rand int x;
+    }
+}

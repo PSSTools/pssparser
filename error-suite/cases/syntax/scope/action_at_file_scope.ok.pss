@@ -1,0 +1,15 @@
+//! case:            SYN-SCOPE-ACTION-AT-FILE-SCOPE
+//! class:           syntax.scope
+//! title:           action at file scope
+//! expect:          error
+//! detect:          recommended
+//! pssparser.id:    PSS024
+//! at:              12:1
+//! pssparser.match: unexpected 'action' in this context
+//! count:           1
+//! cause:            action
+//! names:            A
+component C {
+    action A {
+    }
+}

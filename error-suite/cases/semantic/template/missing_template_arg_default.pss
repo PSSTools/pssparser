@@ -1,0 +1,16 @@
+//! case:            SEM-TEMPLATE-MISSING-TEMPLATE-ARG-DEFAULT
+//! class:           semantic.template
+//! title:           missing template arg default
+//! expect:          error
+//! detect:          recommended
+//! lrm:             10
+//! pssparser.id:    PSS001
+//! at:              15:5
+//! pssparser.match: No default provided for template parameter T
+//! count:           1
+//! xfail.pssparser: E9-S7-D1 -- same uncatalogued-message defect as array_template_arity_extra_arg.pss, different TaskBuildParamValList.cpp message ("No default provided for template parameter %s")
+//! cause:            template parameter
+//! names:            list
+component C {
+    list<> x;
+}

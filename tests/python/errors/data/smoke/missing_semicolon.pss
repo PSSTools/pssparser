@@ -1,5 +1,0 @@
-//! id:     PSS020
-//! at:     5:18
-//! match:  expected ';'
-//! count:  1
-struct S { int x }

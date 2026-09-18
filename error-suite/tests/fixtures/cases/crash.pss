@@ -1,0 +1,9 @@
+//! case:    FX-CRASH
+//! class:   fixture.harness
+//! title:   tool dies on a signal
+//! expect:  error
+//! detect:  recommended
+//! at:      9:23
+//! count:   1
+//FAKE: abort
+struct s { bit[8] a = "x"; }

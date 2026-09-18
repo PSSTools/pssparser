@@ -1,0 +1,20 @@
+//! case:                 SYN-VOLUME-MAX-ERRORS-CAP-FIRES
+//! class:                syntax.volume
+//! title:                max errors cap fires
+//! expect:               error
+//! detect:               recommended
+//! requires:             max_errors
+//! at:                   16:17
+//! pssparser.id:         PSS029
+//! pssparser.match:      too many errors
+//! count:                1
+//! pssparser.max-errors: 3
+//! about:                tool
+struct S0 { int x; }
+struct S1 { int x; }
+struct S2 { int x; }
+struct S3 { int x; }
+struct S4 { int x; }
+struct S5 { int x; }
+struct S6 { int x; }
+struct S7 { int x; }

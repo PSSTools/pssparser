@@ -1,0 +1,16 @@
+//! case:      SYN-TYPE-ENUM-COMMA-01
+//! class:     syntax.type
+//! title:     enum item list with a missing separator
+//! expect:    error
+//! detect:    required
+//! lrm:       B
+//! at:        15:9
+//! count:     1
+//! tags:      enum, separator
+//! not_cause: keyword
+//! names:     GREEN
+//! fix:       15:     RED, GREEN
+//! cause:      \,
+enum E {
+    RED GREEN
+}

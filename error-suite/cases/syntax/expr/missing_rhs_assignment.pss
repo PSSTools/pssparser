@@ -1,0 +1,19 @@
+//! case:            SYN-EXPR-MISSING-RHS-ASSIGNMENT
+//! class:           syntax.expr
+//! title:           missing rhs assignment
+//! expect:          error
+//! detect:          required
+//! lrm:             B
+//! pssparser.id:    PSS024
+//! at:              16:17
+//! pssparser.match: unexpected ';' in an exec body block
+//! count:           1
+//! cause:            expression
+//! names:            x
+component C {
+    action A {
+        exec body {
+            x = ;
+        }
+    }
+}

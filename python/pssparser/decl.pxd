@@ -222,12 +222,17 @@ cdef extern from "pssp/IMarker.h" namespace "pssp":
         ast.Location    loc
         cpp_string      label
 
+    cdef struct MarkerFix:
+        ast.Location    span
+        cpp_string      replacement
+
     cdef cppclass IMarker:
         const cpp_string &msg() const
         MarkerSeverityE severity() const
         const ast.Location &loc() const;
         const cpp_string &id() const
         const cpp_vector[MarkerRelation] &related() const
+        const cpp_vector[MarkerFix] &fixes() const
         IMarker *clone() const
 
 cdef extern from "pssp/IMarkerListener.h" namespace "pssp":

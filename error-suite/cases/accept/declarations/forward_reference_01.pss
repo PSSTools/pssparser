@@ -1,0 +1,18 @@
+//! case:    ACC-DECL-FORWARD-01
+//! class:   accept.forward-ref
+//! title:   a field whose type is declared later in the same package is legal
+//! expect:  accept
+//! detect:  required
+//! lrm:     18.3
+//! tags:    resolve, declaration-order
+package p {
+
+    struct user_s {
+        later_s a;
+    }
+
+    struct later_s {
+        int b;
+    }
+
+}

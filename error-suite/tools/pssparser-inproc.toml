@@ -1,0 +1,20 @@
+# pssparser without a subprocess: the tight gap-finding loop.
+#
+# Not the same tool as pssparser-cli.toml, and the differences are deliberate
+# (plan §0.3): `Parser.parse()` aborts at the first erroring file, and the CLI's
+# checker phase is not reproduced here.  Expect `syntax.multifile`,
+# `syntax.volume` and checker-emitted diagnostics to differ.  Comparing the two
+# is a use of `compare`, not a bug to tune away.
+[tool]
+name    = "pssparser-inproc"
+adapter = "pssparser-inprocess"
+pss     = "3.1"
+
+[invoke]
+timeout_s = 30
+
+[capabilities]
+multifile          = true
+max_errors         = false
+json_output        = false
+exit_code_on_error = 1

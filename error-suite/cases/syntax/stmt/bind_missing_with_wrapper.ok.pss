@@ -1,0 +1,16 @@
+//! case:            SYN-STMT-BIND-MISSING-WITH-WRAPPER
+//! class:           syntax.stmt
+//! title:           bind missing with wrapper
+//! expect:          error
+//! detect:          recommended
+//! pssparser.id:    PSS026
+//! at:              15:9
+//! pssparser.match: unexpected keyword 'bind' in this context
+//! count:           1
+//! cause:            bind
+//! names:            A
+component C {
+    pool A a_pool;
+    action A {
+    }
+}

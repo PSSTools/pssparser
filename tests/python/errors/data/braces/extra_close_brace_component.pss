@@ -1,8 +1,0 @@
-//! id:     PSS025
-//! at:     8:1
-//! match:  unexpected '}'
-//! count:  1
-component C {
-    action A { }
-}
-}

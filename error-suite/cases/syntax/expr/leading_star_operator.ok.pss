@@ -1,0 +1,15 @@
+//! case:            SYN-EXPR-LEADING-STAR-OPERATOR
+//! class:           syntax.expr
+//! title:           leading star operator
+//! expect:          error
+//! detect:          recommended
+//! pssparser.id:    PSS028
+//! at:              14:22
+//! pssparser.match: syntax error at '*'
+//! count:           1
+//! cause:            *
+component C {
+    action A {
+        rand int x;
+    }
+}

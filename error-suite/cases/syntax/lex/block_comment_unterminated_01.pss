@@ -1,0 +1,17 @@
+//! case:   SYN-LEX-BLOCK-COMMENT-01
+//! class:  syntax.lex
+//! title:  block comment with no closing delimiter
+//! expect: error
+//! detect: required
+//! lrm:    B
+//! at:     17:1
+//! count:  1
+//! tags:   comment, lex
+//! cause:  comment
+//! fix:    17: /* trailing comment with no close */
+package p {
+    struct s {
+        int a;
+    }
+}
+/* trailing comment with no close

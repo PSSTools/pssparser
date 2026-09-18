@@ -1,0 +1,18 @@
+//! case:            SYN-BRACES-UNCLOSED-ACTION-BODY
+//! class:           syntax.braces
+//! title:           unclosed action body
+//! expect:          error
+//! detect:          required
+//! lrm:             B
+//! pssparser.id:    PSS021
+//! at:              14:14
+//! pssparser.match: unclosed '{' for action 'A'
+//! count:           1
+//! cause:            action
+//! names:            A
+component C {
+    action A {
+        int x;
+        exec body {
+            x = 1;
+        }

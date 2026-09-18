@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pss-errsuite"
+version = "0.1.0"
+description = "Tool-neutral PSS error-reporting test suite"
+readme = "README.md"
+license = { text = "Apache-2.0" }
+requires-python = ">=3.11"
+# No dependencies, deliberately: the suite must run against someone else's PSS
+# tool on a stock interpreter.  tomllib is stdlib from 3.11, which sets the
+# floor above.  See docs/design/error-suite-plan.md §0.5.
+dependencies = []
+
+[project.scripts]
+pss-errsuite = "pss_errsuite.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["pss_errsuite*"]

@@ -1,0 +1,26 @@
+# The worked example for the README: a tool whose diagnostics have to be
+# scraped out of human-readable output.  Everything a real regex-output tool
+# needs is here and nothing else is.
+[tool]
+name        = "faketool"
+version_cmd = ["{python}", "{suite_root}/tests/fixtures/faketool.py", "--version"]
+version     = "0.1"
+pss         = "3.0"
+
+[invoke]
+argv      = ["{python}", "{suite_root}/tests/fixtures/faketool.py", "{files}"]
+cwd       = "case"
+timeout_s = 5
+max_errors_argv = ["--max-errors", "{maxerrors}"]
+
+[output]
+kind    = "regex"
+stream  = "both"
+pattern = '^(?P<severity>Error|Warning|Note)-(?:\[(?P<code>[^\]]+)\]\s*)?(?P<file>[^:]+):(?P<line>\d+):(?P<col>\d+):\s*(?P<message>.*)$'
+continuation = '^\s{4}(?P<message>.*)$'
+
+[capabilities]
+multifile          = true
+max_errors         = true
+json_output        = false
+exit_code_on_error = 1

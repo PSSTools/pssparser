@@ -1,0 +1,15 @@
+//! case:            SYN-NAMES-ACTION-NUMERIC-NAME
+//! class:           syntax.names
+//! title:           action numeric name
+//! expect:          error
+//! detect:          required
+//! lrm:             B
+//! pssparser.id:    PSS025
+//! at:              14:12
+//! pssparser.match: unexpected '3'
+//! count:           1
+//! cause:            action, identifier
+//! names:            C
+component C {
+    action 3x { }
+}

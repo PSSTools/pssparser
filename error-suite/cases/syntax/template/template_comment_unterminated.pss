@@ -1,0 +1,16 @@
+//! case:            SYN-TEMPLATE-TEMPLATE-COMMENT-UNTERMINATED
+//! class:           syntax.template
+//! title:           template comment unterminated
+//! expect:          error
+//! detect:          required
+//! lrm:             B
+//! pssparser.id:    PSS110
+//! at:              14:28
+//! pssparser.match: unterminated template comment
+//! count:           1
+//! cause:            comment, unterminated
+component C {
+    action A {
+        exec body cpp = """{# comment""";
+    }
+}

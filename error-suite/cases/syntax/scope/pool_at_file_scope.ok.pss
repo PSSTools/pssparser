@@ -1,0 +1,11 @@
+//! case:            SYN-SCOPE-POOL-AT-FILE-SCOPE
+//! class:           syntax.scope
+//! title:           pool at file scope
+//! expect:          error
+//! detect:          recommended
+//! pssparser.id:    PSS024
+//! at:              12:1
+//! pssparser.match: unexpected 'pool' in this context
+//! count:           1
+//! cause:            pool
+//! names:            p_foo

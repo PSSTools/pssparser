@@ -1,0 +1,17 @@
+//! case:            SYN-LEX-UNTERMINATED-STRING-CASCADES
+//! class:           syntax.lex
+//! title:           unterminated string cascades
+//! expect:          error
+//! detect:          required
+//! lrm:             B
+//! pssparser.id:    PSS027
+//! at:              15:20
+//! pssparser.match: unterminated string literal
+//! count:           1
+//! cause:            string
+//! names:            s
+component C {
+    action A {
+        string s = "abc;
+    }
+}

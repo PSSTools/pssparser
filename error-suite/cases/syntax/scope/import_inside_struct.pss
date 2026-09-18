@@ -1,0 +1,15 @@
+//! case:            SYN-SCOPE-IMPORT-INSIDE-STRUCT
+//! class:           syntax.scope
+//! title:           import inside struct
+//! expect:          error
+//! detect:          required
+//! lrm:             B
+//! pssparser.id:    PSS024
+//! at:              14:5
+//! pssparser.match: unexpected 'import' in struct 'S'
+//! count:           1
+//! cause:            import
+//! names:            S
+struct S {
+    import function void foo();
+}

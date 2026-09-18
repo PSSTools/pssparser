@@ -1,0 +1,22 @@
+//! case:    SYN-EXPR-EQEQEQ-01
+//! class:   syntax.expr
+//! title:   '===' is not a PSS operator
+//! expect:  error
+//! detect:  required
+//! at:      18:15
+//! count:   1
+//! lrm:     4.5
+//! tags:    constraint, operator, foreign-habit
+//! fix:     18:             a == 4;
+//! cause:   ===
+//! names:   a
+package p {
+
+    struct s {
+        rand int a;
+        constraint c {
+            a === 4;
+        }
+    }
+
+}

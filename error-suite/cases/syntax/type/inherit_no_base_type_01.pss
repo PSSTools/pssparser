@@ -1,0 +1,15 @@
+//! case:   SYN-TYPE-INHERIT-BASE-01
+//! class:  syntax.type
+//! title:  inheritance clause with no base type
+//! expect: error
+//! detect: required
+//! lrm:    B
+//! at:     13:12
+//! count:  1
+//! tags:   inherit, type
+//! names:  s
+//! fix:    13: struct s {
+//! cause:   identifier
+struct s : {
+    int x;
+}

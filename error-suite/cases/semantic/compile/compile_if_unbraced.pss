@@ -1,0 +1,19 @@
+//! case:            SEM-COMPILE-COMPILE-IF-UNBRACED
+//! class:           semantic.compile
+//! title:           compile if unbraced
+//! expect:          warning
+//! detect:          recommended
+//! lrm:             19.2
+//! pss:             3.1
+//! pssparser.id:    PSS104
+//! at:              18:9-27
+//! pssparser.match: without enclosing braces is deprecated
+//! also:            17:5 "'compile if' begins here"
+//! count:           1
+//! fix:            17:    compile if (X == 1);
+//! cause:            braces, deprecated
+const int X = 1;
+component C {
+    compile if (X == 1)
+        action A { int a; }
+}

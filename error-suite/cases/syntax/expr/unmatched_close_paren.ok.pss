@@ -1,0 +1,15 @@
+//! case:            SYN-EXPR-UNMATCHED-CLOSE-PAREN
+//! class:           syntax.expr
+//! title:           unmatched close paren
+//! expect:          error
+//! detect:          recommended
+//! pssparser.id:    PSS028
+//! at:              14:28
+//! pssparser.match: syntax error at ')'
+//! count:           1
+//! cause:            )
+component C {
+    action A {
+        rand int x;
+    }
+}

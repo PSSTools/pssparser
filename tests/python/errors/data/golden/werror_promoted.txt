@@ -1,12 +1,12 @@
-$ pssparser -Werror=PSS104 tests/python/errors/data/deprecated/compile_if_unbraced.pss (exit 1)
+$ pssparser -Werror=PSS104 error-suite/cases/semantic/compile/compile_if_unbraced.pss (exit 1)
 --- stdout ---
 --- stderr ---
-tests/python/errors/data/deprecated/compile_if_unbraced.pss:10:9: error: 'compile if' branch without enclosing braces is deprecated [-Werror=PSS104]
- 10 |         action A { int a; }
+error-suite/cases/semantic/compile/compile_if_unbraced.pss:18:9: error: 'compile if' branch without enclosing braces is deprecated [-Werror=PSS104]
+ 18 |         action A { int a; }
     |         ^~~~~~~~~~~~~~~~~~~
   note: 'compile if' begins here
-   --> tests/python/errors/data/deprecated/compile_if_unbraced.pss:9:5
-   9 |     compile if (X == 1)
-     |     ^
+   --> error-suite/cases/semantic/compile/compile_if_unbraced.pss:17:5
+   17 |     compile if (X == 1)
+      |     ^
 
 1 error in 1 file

@@ -1,0 +1,13 @@
+//! case:            SYN-RESERVED-KEYWORD-AS-FIELD-NAME-AND-TYPE-COLLISION
+//! class:           syntax.reserved
+//! title:           keyword as field name and type collision
+//! expect:          error
+//! detect:          recommended
+//! pssparser.id:    PSS022
+//! at:              13:9
+//! pssparser.match: expected identifier before 'int'
+//! count:           1
+//! cause:            int
+//! names:            C
+component C {
+}

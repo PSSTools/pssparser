@@ -1,0 +1,17 @@
+//! case:            SYN-BRACES-TRUNCATED-MID-ACTION-BODY
+//! class:           syntax.braces
+//! title:           truncated mid action body
+//! expect:          error
+//! detect:          required
+//! lrm:             B
+//! pssparser.id:    PSS021
+//! at:              16:19
+//! pssparser.match: unclosed '{' for an exec body block
+//! count:           1
+//! cause:            exec
+//! names:            A
+component C {
+    action A {
+        int x;
+        exec body {
+            x = 1;

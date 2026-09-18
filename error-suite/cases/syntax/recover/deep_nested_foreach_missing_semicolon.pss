@@ -1,0 +1,26 @@
+//! case:            SYN-RECOVER-DEEP-NESTED-FOREACH-MISSING-SEMICOLON
+//! class:           syntax.recover
+//! title:           deep nested foreach missing semicolon
+//! expect:          error
+//! detect:          required
+//! lrm:             B
+//! pssparser.id:    PSS024
+//! at:              21:21
+//! pssparser.match: unexpected '}' in an activity of action 'A' expecting one of '{', ';', 'with'
+//! count:           1
+//! fix:            20:                        do A;
+//! cause:            ;
+component C {
+    action A {
+        rand int arr[4];
+        activity {
+            foreach (arr[i]) {
+                foreach (arr[j]) {
+                    foreach (arr[k]) {
+                        do A
+                    }
+                }
+            }
+        }
+    }
+}

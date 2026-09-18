@@ -1,0 +1,17 @@
+//! case:            SYN-TYPE-BIT-LOW-BOUND-NONZERO-ACTION
+//! class:           syntax.type
+//! title:           bit low bound nonzero action
+//! expect:          error
+//! detect:          required
+//! lrm:             B
+//! pssparser.id:    PSS001
+//! at:              15:20
+//! pssparser.match: unexpected low bound '1' in an integer width; only '0' is permitted, as in 'bit[7:0]'
+//! count:           1
+//! cause:            bound
+//! names:            x
+component C {
+    action A {
+        rand bit[7:1] x;
+    }
+}

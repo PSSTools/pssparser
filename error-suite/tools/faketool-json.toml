@@ -1,0 +1,22 @@
+# The same fake tool on its structured-output path, so the JSON adapter has a
+# tool to exercise that is not pssparser.
+[tool]
+name    = "faketool-json"
+version = "0.1"
+pss     = "3.0"
+
+[invoke]
+argv      = ["{python}", "{suite_root}/tests/fixtures/faketool.py", "--json", "{files}"]
+cwd       = "case"
+timeout_s = 5
+max_errors_argv = ["--max-errors", "{maxerrors}"]
+
+[output]
+kind   = "json"
+stream = "stdout"
+
+[capabilities]
+multifile          = true
+max_errors         = true
+json_output        = true
+exit_code_on_error = 1

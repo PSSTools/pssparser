@@ -1,8 +1,0 @@
-//! id:     PSS022
-//! at:     6:12
-//! match:  expected identifier before 'component'
-//! count:  1
-component C {
-    action component {
-    }
-}

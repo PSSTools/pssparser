@@ -1,0 +1,12 @@
+//! case:            SYN-KEYWORD-RESERVED-WORD-AS-FUNCTION-NAME
+//! class:           syntax.keyword
+//! title:           reserved word as function name
+//! expect:          error
+//! detect:          required
+//! lrm:             B
+//! pssparser.id:    PSS022
+//! at:              12:15
+//! pssparser.match: expected identifier before 'return'
+//! count:           1
+//! cause:            return
+function void return() { }

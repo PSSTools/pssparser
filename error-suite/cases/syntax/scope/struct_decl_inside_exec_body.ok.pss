@@ -1,0 +1,17 @@
+//! case:            SYN-SCOPE-STRUCT-DECL-INSIDE-EXEC-BODY
+//! class:           syntax.scope
+//! title:           struct decl inside exec body
+//! expect:          error
+//! detect:          recommended
+//! pssparser.id:    PSS026
+//! at:              15:13
+//! pssparser.match: unexpected keyword 'struct' in this context
+//! count:           1
+//! cause:            struct
+//! names:            S
+component C {
+    action A {
+        exec body {
+        }
+    }
+}

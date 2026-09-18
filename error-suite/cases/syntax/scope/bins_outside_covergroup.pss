@@ -1,0 +1,15 @@
+//! case:            SYN-SCOPE-BINS-OUTSIDE-COVERGROUP
+//! class:           syntax.scope
+//! title:           bins outside covergroup
+//! expect:          error
+//! detect:          required
+//! lrm:             B
+//! pssparser.id:    PSS026
+//! at:              14:5
+//! pssparser.match: unexpected keyword 'bins' in component 'C'
+//! count:           1
+//! cause:            bins
+//! names:            b0, C
+component C {
+    bins b0 = { 0 };
+}

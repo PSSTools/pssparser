@@ -1,0 +1,14 @@
+//! case:            SYN-PUNCT-MISSING-OPEN-BRACE-COMPONENT
+//! class:           syntax.punct
+//! title:           missing open brace component
+//! expect:          error
+//! detect:          required
+//! lrm:             B
+//! pssparser.id:    PSS020
+//! at:              14:1
+//! pssparser.match: expected '{' or ':' before 'struct'
+//! count:           1
+//! cause:            {
+//! names:            C
+component C
+struct S { }

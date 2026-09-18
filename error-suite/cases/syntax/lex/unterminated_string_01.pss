@@ -1,0 +1,19 @@
+//! case:    SYN-LEX-STRING-01
+//! class:   syntax.lex
+//! title:   string literal with no closing quote
+//! expect:  error
+//! detect:  required
+//! at:      16:20
+//! count:   1
+//! lrm:     4.7
+//! tags:    literal, string
+//! fix:     16:         string a = "abc";
+//! cause:   string
+//! names:   a
+package p {
+
+    struct s {
+        string a = "abc;
+    }
+
+}

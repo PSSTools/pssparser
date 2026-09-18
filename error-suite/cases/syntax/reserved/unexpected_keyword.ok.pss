@@ -1,0 +1,11 @@
+//! case:            SYN-RESERVED-UNEXPECTED-KEYWORD
+//! class:           syntax.reserved
+//! title:           unexpected keyword
+//! expect:          error
+//! detect:          recommended
+//! pssparser.id:    PSS026
+//! at:              12:10
+//! pssparser.match: unexpected keyword 'struct'
+//! count:           1
+//! cause:            struct
+//! names:            E

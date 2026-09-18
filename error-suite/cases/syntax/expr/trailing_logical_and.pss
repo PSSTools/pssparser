@@ -1,0 +1,17 @@
+//! case:            SYN-EXPR-TRAILING-LOGICAL-AND
+//! class:           syntax.expr
+//! title:           trailing logical and
+//! expect:          error
+//! detect:          required
+//! lrm:             B
+//! pssparser.id:    PSS028
+//! at:              15:31
+//! pssparser.match: syntax error at ';'
+//! count:           1
+//! cause:            &&
+component C {
+    action A {
+        rand int x;
+        constraint { x == 5 &&; }
+    }
+}

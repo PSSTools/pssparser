@@ -1,0 +1,15 @@
+//! case:            SYN-LEX-UNTERMINATED-TRIPLE-QUOTE-BARE
+//! class:           syntax.lex
+//! title:           unterminated triple quote bare
+//! expect:          error
+//! detect:          recommended
+//! pssparser.id:    PSS020
+//! at:              15:5
+//! pssparser.match: expected ';' before '}'
+//! count:           1
+//! cause:            string
+//! names:            s
+component C {
+    action A {
+    }
+}

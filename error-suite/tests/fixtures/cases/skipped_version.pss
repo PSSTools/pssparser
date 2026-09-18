@@ -1,0 +1,10 @@
+//! case:    FX-SKIPPED-VERSION
+//! class:   fixture.harness
+//! title:   targets PSS 3.1 against a tool declaring 3.0
+//! expect:  error
+//! detect:  recommended
+//! at:      10:23
+//! count:   1
+//! pss:     3.1
+//FAKE: emit 10:23 error "cannot assign 'string' to field 'a'" code=FAKE001
+struct s { bit[8] a = "x"; }

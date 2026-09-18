@@ -29,49 +29,19 @@ from .message_probe import (  # noqa: E402
     load_allowlist,
 )
 
-_JARGON_PHRASES = [
-    "mismatched input",
-    "no viable alternative",
-    "extraneous input",
-]
-# An ANTLR "expecting" token set: '{' followed by comma-separated quoted or
-# bare-uppercase tokens and '}', e.g. "{'::', ID, ESCAPED_ID}". Anchored to
-# "expecting {" (how ANTLR always introduces a raw set) rather than a bare
-# "{ ... }" search -- E-7's mutation sweep found a false positive on a
-# perfectly clean, already-humanized message, "expected '{' before '}'":
-# the quoted '{' and '}' are two *different* single-token literals with
-# ordinary English between them ("before"), and an unanchored search reads
-# that "before" as if it were one comma-separated element of a set.
-_TOKEN_SET_RE = re.compile(
-    r"expecting \{\s*(?:'[^']*'|[A-Z_][A-Z0-9_]*)"
-    r"(?:\s*,\s*(?:'[^']*'|[A-Z_][A-Z0-9_]*))*\s*\}"
+# The predicates themselves live in the tool-neutral suite
+# (``error-suite/pss_errsuite/lint.py``) so that pssparser's markers and
+# another vendor's messages are judged by exactly one implementation -- see
+# docs/design/error-suite-design.md §4.4. The rationale that used to live here
+# (why rule names are not matched, why the token-set regex is anchored to
+# "expecting {") moved with the code.
+from pss_errsuite.lint import (  # noqa: E402
+    JARGON_PHRASES as _JARGON_PHRASES,
+    TOKEN_SET_RE as _TOKEN_SET_RE,
+    jargon_violation as _g3_violation,
+    length_violation as _g7_length_violation,
+    newline_violation as _g7_newline_violation,
 )
-
-
-def _word_re(name: str) -> re.Pattern:
-    return re.compile(r"\b" + re.escape(name) + r"\b")
-
-
-def _g3_violation(message: str, token_names) -> bool:
-    """True if *message* leaks an ANTLR/grammar internal.
-
-    Deliberately does NOT word-match parser rule names from PSSParser.g4:
-    rule names like ``identifier``, ``expression``, ``declaration`` are
-    ordinary English words that a *good* rewritten message is expected to
-    contain, so that check produced overwhelming false positives in
-    practice (see error-testing-plan.md's E-2 "Landed" note). Lexer token
-    names (``ID``, ``ESCAPED_ID``, ``TOK_*``) are unambiguous, since they are
-    always upper-case/underscored and never legitimate English prose.
-    """
-    for phrase in _JARGON_PHRASES:
-        if phrase in message:
-            return True
-    if _TOKEN_SET_RE.search(message):
-        return True
-    for name in token_names:
-        if len(name) > 1 and _word_re(name).search(message):
-            return True
-    return False
 
 
 def _allowed(message: str, patterns) -> bool:
@@ -115,7 +85,8 @@ def test_g7_message_is_one_short_line():
 
     violations = [
         m for m in all_markers()
-        if (len(m["message"]) > 120 or "\n" in m["message"])
+        if (_g7_length_violation(m["message"])
+            or _g7_newline_violation(m["message"]))
         and not _allowed(m["message"], patterns)
     ]
     assert not violations, (
@@ -196,7 +167,8 @@ def test_allowlist_has_no_stale_entries():
         ):
             stale.append(entry)
         elif entry.lint == "G7" and not any(
-            len(m["message"]) > 120 or "\n" in m["message"] for m in matching
+            _g7_length_violation(m["message"])
+            or _g7_newline_violation(m["message"]) for m in matching
         ):
             stale.append(entry)
 

@@ -1,0 +1,15 @@
+//! case:            SYN-EXPR-TERNARY-MISSING-COLON
+//! class:           syntax.expr
+//! title:           ternary missing colon
+//! expect:          error
+//! detect:          recommended
+//! pssparser.id:    PSS028
+//! at:              14:34
+//! pssparser.match: syntax error at '3'
+//! count:           1
+//! cause:            :
+component C {
+    action A {
+        rand int x;
+    }
+}

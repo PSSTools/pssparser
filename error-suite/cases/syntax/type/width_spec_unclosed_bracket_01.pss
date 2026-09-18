@@ -1,0 +1,17 @@
+//! case:   SYN-TYPE-WIDTH-BRACKET-01
+//! class:  syntax.type
+//! title:  bit width specifier with no closing bracket
+//! expect: error
+//! detect: required
+//! lrm:    B
+//! at:     15:19
+//! count:  1
+//! tags:   width, bracket
+//! cause:  ]
+//! names:  x
+//! fix:    15:         rand bit[8] x;
+component C {
+    action A {
+        rand bit[8 x;
+    }
+}

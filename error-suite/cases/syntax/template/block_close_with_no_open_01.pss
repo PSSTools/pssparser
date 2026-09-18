@@ -1,0 +1,16 @@
+//! case:   SYN-TEMPLATE-BLOCK-CLOSE-01
+//! class:  syntax.template
+//! title:  template block close with nothing open
+//! expect: error
+//! detect: required
+//! lrm:    B
+//! at:     14:34
+//! count:  1
+//! tags:   template, directive
+//! fix:    14:         exec body cpp = """v = 1;""";
+//! cause:   endif
+component C {
+    action A {
+        exec body cpp = """v = 1;{% endif %}""";
+    }
+}

@@ -1,0 +1,22 @@
+//! case:            SYN-STMT-IF-NO-PARENS-ACTIVITY
+//! class:           syntax.stmt
+//! title:           if no parens activity
+//! expect:          error
+//! detect:          required
+//! lrm:             B
+//! pssparser.id:    PSS020
+//! at:              17:16
+//! pssparser.match: expected '(' before 'x'
+//! count:           1
+//! cause:            (
+component C {
+    action A {
+    }
+    action B {
+        activity {
+            if x == 1 {
+                do A;
+            }
+        }
+    }
+}

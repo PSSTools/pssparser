@@ -1,0 +1,15 @@
+//! case:            SYN-BRACES-EXTRA-CLOSE-BRACE-COMPONENT
+//! class:           syntax.braces
+//! title:           extra close brace component
+//! expect:          error
+//! detect:          recommended
+//! pssparser.id:    PSS025
+//! at:              16:1
+//! pssparser.match: unexpected '}'
+//! count:           1
+//! cause:            }
+//! not_cause:        unterminated, unclosed
+//! names:            C
+component C {
+    action A { }
+}

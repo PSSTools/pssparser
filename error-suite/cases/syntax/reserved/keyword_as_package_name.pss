@@ -1,0 +1,13 @@
+//! case:            SYN-RESERVED-KEYWORD-AS-PACKAGE-NAME
+//! class:           syntax.reserved
+//! title:           keyword as package name
+//! expect:          error
+//! detect:          required
+//! lrm:             B
+//! pssparser.id:    PSS022
+//! at:              12:9
+//! pssparser.match: expected identifier before 'action'
+//! count:           1
+//! cause:            action
+package action {
+}

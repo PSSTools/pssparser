@@ -1,5 +1,0 @@
-//! id:     PSS020
-//! at:     5:13
-//! match:  expected '{' or ':'
-//! count:  1
-component my-comp { }

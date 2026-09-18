@@ -1,0 +1,15 @@
+//! case:            SYN-BRACES-UNEXPECTED-EOF
+//! class:           syntax.braces
+//! title:           unexpected eof
+//! expect:          error
+//! detect:          required
+//! lrm:             B
+//! pssparser.id:    PSS021
+//! at:              15:10
+//! pssparser.match: unclosed '{' for struct 'S'
+//! also:            16:1 "input ends here"
+//! count:           1
+//! fix:            15:struct S { int x;}
+//! cause:            struct
+//! names:            S
+struct S { int x; 

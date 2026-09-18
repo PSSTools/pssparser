@@ -1,0 +1,5 @@
+package lib {
+    struct base {
+        int v;
+    }
+}

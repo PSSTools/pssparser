@@ -1,0 +1,17 @@
+//! case:    ACC-LIT-BASED-01
+//! class:   accept.literals
+//! title:   unusual-but-legal based literals must not be rejected
+//! expect:  accept
+//! detect:  required
+//! lrm:     4.6.1
+//! tags:    literal, number
+package p {
+
+    struct s {
+        bit[8]  a = 8'hff;
+        bit[8]  b = 8'b1010_1010;
+        bit[16] c = 16'd1_000;
+        int     d = 0;
+    }
+
+}

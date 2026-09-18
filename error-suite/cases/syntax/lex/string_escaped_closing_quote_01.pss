@@ -1,0 +1,17 @@
+//! case:         SYN-LEX-STRING-ESCAPE-01
+//! class:        syntax.lex
+//! title:        string whose closing quote is escaped, so it never closes
+//! expect:       error
+//! detect:       required
+//! lrm:          4.7
+//! at:           15:20
+//! count:        1
+//! tags:         literal, string, lex
+//! cause:        string
+//! names:        a
+//! fix:          15:         string a = "abc";
+package p {
+    struct s {
+        string a = "abc\";
+    }
+}

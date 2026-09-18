@@ -1,0 +1,18 @@
+//! case:            SYN-PUNCT-MISSING-SEMICOLON-FIELD
+//! class:           syntax.punct
+//! title:           missing semicolon field
+//! expect:          error
+//! detect:          required
+//! lrm:             B
+//! pssparser.id:    PSS020
+//! at:              16:10
+//! pssparser.match: expected ';'
+//! count:           1
+//! fix:            16:    int x;
+//! cause:            ;
+//! not_cause:        unknown type
+//! names:            x
+struct S {
+    int x
+    int y;
+}

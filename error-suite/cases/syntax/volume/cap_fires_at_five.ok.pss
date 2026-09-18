@@ -1,0 +1,22 @@
+//! case:                 SYN-VOLUME-CAP-FIRES-AT-FIVE
+//! class:                syntax.volume
+//! title:                cap fires at five
+//! expect:               error
+//! detect:               recommended
+//! requires:             max_errors
+//! pssparser.id:         PSS029
+//! at:                   18:17
+//! pssparser.match:      too many errors (5); stopped reporting further errors for this file
+//! count:                1
+//! pssparser.max-errors: 5
+//! about:                tool
+struct S0 { int x; }
+struct S1 { int x; }
+struct S2 { int x; }
+struct S3 { int x; }
+struct S4 { int x; }
+struct S5 { int x; }
+struct S6 { int x; }
+struct S7 { int x; }
+struct S8 { int x; }
+struct S9 { int x; }

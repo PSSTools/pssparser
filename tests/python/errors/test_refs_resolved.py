@@ -22,8 +22,13 @@ Run the parser out of process where the assertion is about what reached a
 """
 import subprocess
 import sys
+from pathlib import Path
 
 import pytest
+
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from test_helpers import parse_collect  # noqa: E402
 
 
 def _run(tmp_path, sources):
@@ -63,6 +68,31 @@ def test_a_qualified_type_that_does_not_exist_is_reported(tmp_path):
     assert res.returncode == 1
     assert "is never resolved" in _out(res)
     assert "p::nosuch_s" in _out(res)
+
+
+def test_the_unresolved_reference_marker_reaches_the_lint_sink():
+    """The same diagnostic as above, in process, so E-2's global lints see it.
+
+    Every other test in this file runs the CLI out of process, which is right
+    for assertions about what reached a *stream* -- but it means the marker
+    never enters `parse_collect`'s session-wide sink, and so
+    test_message_lints.py's G3/G6/G7 never judge this message. The two
+    lint_allowlist.txt entries recording its debt (no catalogue entry, over
+    G7's 120-char cap) then read as stale to
+    test_allowlist_has_no_stale_entries, which fails on a debt that is
+    entirely real.
+
+    This test exists to feed the sink. Its own assertions are deliberately
+    weak -- the message's *quality* is the lints' business, not this file's.
+    """
+    _root, markers = parse_collect("""
+        package p { struct s { rand bit[8] v; } }
+        component c { p::nosuch_s f; }
+        component pss_top { c c0; }
+    """)
+
+    assert any("is never resolved" in m["message"] for m in markers), \
+        [m["message"] for m in markers]
 
 
 def test_an_unresolved_reference_makes_the_run_exit_nonzero(tmp_path):

@@ -384,7 +384,18 @@ def test_every_double_brace_diagnostic_carries_the_workaround_hint():
 
     The fragment-syntax-error case is the one most likely to regress, by
     forwarding ANTLR's raw message instead of wrapping it.
+
+    The hint lives in a note attached to the diagnostic rather than in the
+    message itself (A9): spliced inline it pushed six of the seven mustache
+    messages past the 120-character message-lint cap, the worst at 149. What
+    D3.3 requires is that the workaround reaches the reader, not which field
+    carries it, so both homes count.
     """
+    def _carriers(marker):
+        return [marker['message']] + [
+            r.get('label', '') for r in marker.get('related', [])
+        ]
+
     cases = [
         'exec body C = """x {{a""";',                       # PSS108, unterminated
         'exec body C = """{{}}""";',                        # empty
@@ -395,8 +406,8 @@ def test_every_double_brace_diagnostic_carries_the_workaround_hint():
     for src in cases:
         m = _markers(src)
         assert m, 'no diagnostic for %r' % src
-        assert "'{ {'" in m[0]['message'], \
-            'hint missing from %r -> %r' % (src, m[0]['message'])
+        assert any("'{ {'" in w for w in _carriers(m[0])), \
+            'hint missing from %r -> %r' % (src, _carriers(m[0]))
 
 
 def test_the_sanctioned_spelling_parses_and_round_trips():

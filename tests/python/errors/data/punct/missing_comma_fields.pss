@@ -1,7 +1,0 @@
-//! id:     PSS026
-//! at:     6:16
-//! match:  unexpected keyword 'y'
-//! count:  1
-struct S {
-    rand int x y;
-}

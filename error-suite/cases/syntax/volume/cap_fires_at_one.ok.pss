@@ -1,0 +1,15 @@
+//! case:                 SYN-VOLUME-CAP-FIRES-AT-ONE
+//! class:                syntax.volume
+//! title:                cap fires at one
+//! expect:               error
+//! detect:               recommended
+//! requires:             max_errors
+//! pssparser.id:         PSS029
+//! at:                   14:17
+//! pssparser.match:      too many errors (1); stopped reporting further errors for this file
+//! count:                1
+//! pssparser.max-errors: 1
+//! about:                tool
+struct S0 { int x; }
+struct S1 { int x; }
+struct S2 { int x; }

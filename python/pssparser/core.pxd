@@ -137,6 +137,8 @@ cdef class Marker(object):
 
     cpdef list related(self)
 
+    cpdef list fixes(self)
+
     @staticmethod
     cdef Marker mk(decl.IMarker *hndl, bool owned=*)
 

@@ -1,0 +1,19 @@
+//! case:            SYN-PUNCT-UNEXPECTED-DOUBLE-EQUAL-STMT
+//! class:           syntax.punct
+//! title:           unexpected double equal stmt
+//! expect:          error
+//! detect:          required
+//! lrm:             B
+//! pssparser.id:    PSS028
+//! at:              16:15
+//! pssparser.match: syntax error at '=='
+//! count:           1
+//! cause:            ==
+//! names:            x
+component C {
+    action A {
+        exec body {
+            x == 5;
+        }
+    }
+}

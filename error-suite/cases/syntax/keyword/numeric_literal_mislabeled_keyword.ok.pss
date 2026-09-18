@@ -1,0 +1,16 @@
+//! case:            SYN-KEYWORD-NUMERIC-LITERAL-MISLABELED-KEYWORD
+//! class:           syntax.keyword
+//! title:           numeric literal mislabeled keyword
+//! expect:          error
+//! detect:          recommended
+//! pssparser.id:    PSS026
+//! at:              14:13
+//! pssparser.match: unexpected '123' in this context
+//! count:           1
+//! cause:            123
+component C {
+    action A {
+        exec body {
+        }
+    }
+}

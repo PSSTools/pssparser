@@ -1,0 +1,20 @@
+//! case:            SYN-RECOVER-DEEP-INDEX-CHAIN-MISSING-SEMICOLON
+//! class:           syntax.recover
+//! title:           deep index chain missing semicolon
+//! expect:          error
+//! detect:          required
+//! lrm:             B
+//! pssparser.id:    PSS028
+//! at:              19:5
+//! pssparser.match: syntax error at '}'
+//! count:           1
+//! fix:            17:            arr[0][0][0][0][0] == 1;
+//! cause:            ;
+component C {
+    action A {
+        rand int arr[4][4][4][4][4];
+        constraint {
+            arr[0][0][0][0][0] == 1
+        }
+    }
+}

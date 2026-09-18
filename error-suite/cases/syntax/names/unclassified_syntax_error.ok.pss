@@ -1,0 +1,11 @@
+//! case:            SYN-NAMES-UNCLASSIFIED-SYNTAX-ERROR
+//! class:           syntax.names
+//! title:           unclassified syntax error
+//! expect:          error
+//! detect:          recommended
+//! pssparser.id:    PSS028
+//! at:              12:17
+//! pssparser.match: syntax error at
+//! count:           1
+//! cause:            type
+//! names:            S

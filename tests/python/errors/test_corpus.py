@@ -15,13 +15,28 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from test_helpers import parse_collect, _assign_codes, ALL_MARKERS, ALL_MARKER_BATCHES  # noqa: E402
 from pssparser import Parser  # noqa: E402
 
-from .corpus_loader import CorpusCase, collect_cases  # noqa: E402
+from .corpus_loader import (  # noqa: E402
+    CorpusCase, asserts_pssparser, collect_cases,
+)
+
+#: Both corpus roots.  `error-suite/cases/` is the tool-neutral suite, which
+#: holds the ported L1 cases; `data/` keeps whatever has not been ported (the
+#: L3 golden fixtures live there and are excluded by the loader).  One corpus,
+#: two readers -- see docs/design/error-suite-design.md §3.4.
+ERROR_SUITE_CASES = (
+    Path(__file__).parent.parent.parent.parent / "error-suite" / "cases"
+)
 
 CASES = collect_cases()
+if ERROR_SUITE_CASES.is_dir():
+    CASES += collect_cases(ERROR_SUITE_CASES)
 
 
 def _case_id(case: CorpusCase) -> str:
-    return case.name
+    try:
+        return str(case.path.relative_to(ERROR_SUITE_CASES))
+    except ValueError:
+        return case.name
 
 
 def _matches(case: CorpusCase, marker: dict) -> bool:
@@ -77,6 +92,25 @@ def test_corpus_case(case: CorpusCase):
     if case.xfail:
         pytest.xfail(case.xfail)
 
+    if case.expect == "accept":
+        # A tool-neutral `accept` case asserts silence, which is an assertion
+        # about us like any other.
+        if case.files is not None:
+            markers = _parse_multi_collect(case)
+        else:
+            _root, markers = parse_collect(case.code, filename=case.path.name)
+        errors = [m for m in markers if m.get("severity") == "error"]
+        assert not errors, (
+            f"{case.name}: expected a clean parse, got "
+            f"{[m.get('message') for m in errors]}")
+        return
+
+    if not asserts_pssparser(case):
+        pytest.skip(
+            "tool-neutral case with no pssparser expectation: its `at:` is "
+            "where a *good* diagnostic points, which is the error suite's "
+            "business, not pytest's (corpus_loader.asserts_pssparser)")
+
     if case.files is not None:
         markers = _parse_multi_collect(case)
     else:
@@ -130,10 +164,17 @@ def test_corpus_case(case: CorpusCase):
             )
 
     if case.hint is not None:
+        # The hint may be in the message or in a note attached to it: advice
+        # that does not fit the one-line message travels as `related` (A9 moved
+        # the mustache `{ {` workaround there to stay under the G7 length
+        # limit). Either home satisfies "the tool told the user how to fix it".
         first = matching[0]
-        assert case.hint in first.get("message", ""), (
+        where = [first.get("message", "")] + [
+            r.get("label", "") for r in first.get("related", [])
+        ]
+        assert any(case.hint in w for w in where), (
             f"{case.name}: expected hint substring {case.hint!r} in "
-            f"{first.get('message')!r}"
+            f"{first.get('message')!r} or its notes {where[1:]!r}"
         )
 
     for expected in case.also:
@@ -152,18 +193,25 @@ def test_corpus_case(case: CorpusCase):
 
 @pytest.mark.parametrize(
     "category", [
-        "punct", "braces", "names", "keywords",
-        "scope", "expr", "types", "lex", "stmts", "reserved",
-        "recover", "multifile", "volume", "deprecated",
+        "syntax.punct", "syntax.braces", "syntax.names", "syntax.keyword",
+        "syntax.scope", "syntax.expr", "syntax.type", "syntax.lex",
+        "syntax.stmt", "syntax.reserved", "syntax.recover",
+        "syntax.multifile", "syntax.volume", "syntax.template",
+        "semantic.compile",
+        # `semantic.template` is deliberately absent: both of its cases are
+        # xfail on E9-S7-D1 (uncatalogued template-arity messages), which is a
+        # known, written-up gap rather than a class nobody has looked at.
     ],
 )
 def test_category_has_a_non_xfail_case(category):
-    """A category directory that is all-xfail is one nobody has looked at."""
-    from .corpus_loader import DATA_DIR
+    """A class that is all-xfail is one nobody has looked at.
 
-    cases = [c for c in CASES if c.path.parent == DATA_DIR / category]
-    assert cases, f"no corpus cases found under data/{category}/"
+    Parametrized over the suite's taxonomy rather than over directory names
+    now that the corpus lives in `error-suite/cases/` (design §3.4).
+    """
+    cases = [c for c in CASES if c.cls == category]
+    assert cases, f"no corpus cases found in class {category}"
     assert any(not c.xfail for c in cases), (
-        f"every case under data/{category}/ is xfail -- add at least one "
-        f"case that documents correct current behaviour"
+        f"every case in {category} is xfail -- add at least one case that "
+        f"documents correct current behaviour"
     )

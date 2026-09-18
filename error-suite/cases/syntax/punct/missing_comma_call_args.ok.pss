@@ -1,0 +1,17 @@
+//! case:            SYN-PUNCT-MISSING-COMMA-CALL-ARGS
+//! class:           syntax.punct
+//! title:           missing comma call args
+//! expect:          error
+//! detect:          recommended
+//! pssparser.id:    PSS025
+//! at:              15:23
+//! pssparser.match: unexpected '2'
+//! count:           1
+//! cause:            \,
+//! names:            foo
+component C {
+    action A {
+        exec body {
+        }
+    }
+}

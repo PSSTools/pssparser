@@ -1,0 +1,18 @@
+//! case:            SYN-LEX-UNTERMINATED-TRIPLE-QUOTE-BARE
+//! class:           syntax.lex
+//! title:           unterminated triple quote bare
+//! expect:          error
+//! detect:          required
+//! lrm:             B
+//! pssparser.id:    PSS027
+//! at:              16:20
+//! pssparser.match: unterminated string literal
+//! pssparser.at:    16:22
+//! count:           1
+//! cause:            string
+//! names:            s
+component C {
+    action A {
+        string s = """abc;
+    }
+}

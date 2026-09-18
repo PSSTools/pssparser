@@ -1,0 +1,20 @@
+//! case:            SYN-STMT-CONSTRAINT-IF-NO-PARENS
+//! class:           syntax.stmt
+//! title:           constraint if no parens
+//! expect:          error
+//! detect:          recommended
+//! pssparser.id:    PSS020
+//! at:              15:16
+//! pssparser.match: expected '(' before 'x'
+//! count:           1
+//! cause:            (
+component C {
+    action A {
+        rand int x;
+        constraint {
+            if (x == 1) {
+                x == 2;
+            }
+        }
+    }
+}

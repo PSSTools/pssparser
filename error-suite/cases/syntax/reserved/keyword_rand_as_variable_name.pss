@@ -1,0 +1,17 @@
+//! case:            SYN-RESERVED-KEYWORD-RAND-AS-VARIABLE-NAME
+//! class:           syntax.reserved
+//! title:           keyword rand as variable name
+//! expect:          error
+//! detect:          required
+//! lrm:             B
+//! pssparser.id:    PSS022
+//! at:              15:13
+//! pssparser.match: expected identifier before 'rand'
+//! count:           1
+//! cause:            rand
+//! names:            A
+component C {
+    action A {
+        int rand;
+    }
+}

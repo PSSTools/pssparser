@@ -1,0 +1,14 @@
+//! case:            SYN-TYPE-NESTED-UNTERMINATED-ANGLE-BRACKETS
+//! class:           syntax.type
+//! title:           nested unterminated angle brackets
+//! expect:          error
+//! detect:          recommended
+//! pssparser.id:    PSS020
+//! at:              14:9
+//! pssparser.match: expected ';' before '<'
+//! count:           1
+//! cause:            >
+//! names:            y
+component C {
+    list<list<int>> x;
+}

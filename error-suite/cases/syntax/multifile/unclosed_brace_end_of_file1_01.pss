@@ -1,0 +1,16 @@
+//! case:     SYN-MULTIFILE-UNCLOSED-FILE1-01
+//! class:    syntax.multifile
+//! title:    a construct left open at the end of the first file
+//! expect:   error
+//! detect:   required
+//! lrm:      B
+//! at:       14:18
+//! count:    1
+//! requires: multifile
+//! files:    unclosed_brace_end_of_file1_01.pss, _mf_next.pss
+//! tags:     multifile, braces, attribution
+//! names:    MfOpen
+//! cause:     component
+component MfOpen {
+    action X {
+    }

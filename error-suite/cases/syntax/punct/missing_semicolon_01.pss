@@ -1,0 +1,20 @@
+//! case:    SYN-PUNCT-SEMI-01
+//! class:   syntax.punct
+//! title:   missing ';' after a struct field declaration
+//! expect:  error
+//! detect:  required
+//! at:      16:14
+//! count:   1
+//! lrm:     B.11
+//! tags:    struct, field, declaration
+//! fix:     16:         int a;
+//! cause:   ;
+//! names:   a
+package p {
+
+    struct s {
+        int a
+        int b;
+    }
+
+}

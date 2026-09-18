@@ -1,0 +1,12 @@
+//! case:            SYN-NAMES-STRUCT-NUMERIC-NAME
+//! class:           syntax.names
+//! title:           struct numeric name
+//! expect:          error
+//! detect:          required
+//! lrm:             B
+//! pssparser.id:    PSS025
+//! at:              12:8
+//! pssparser.match: unexpected '9'
+//! count:           1
+//! cause:            struct, identifier
+struct 9S { int x; }

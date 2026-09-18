@@ -1,0 +1,6 @@
+package mflib {
+    struct mfbase {
+        int v
+        int w;
+    }
+}

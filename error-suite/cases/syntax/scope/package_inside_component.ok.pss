@@ -1,0 +1,16 @@
+//! case:            SYN-SCOPE-PACKAGE-INSIDE-COMPONENT
+//! class:           syntax.scope
+//! title:           package inside component
+//! expect:          error
+//! detect:          recommended
+//! pssparser.id:    PSS026
+//! at:              13:5
+//! pssparser.match: unexpected keyword 'package' in this context
+//! count:           1
+//! cause:            package
+//! names:            P, C
+package P {
+}
+
+component C {
+}

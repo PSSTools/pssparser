@@ -1,0 +1,15 @@
+//! case:            SYN-KEYWORD-STATIC-ON-ACTION
+//! class:           syntax.keyword
+//! title:           static on action
+//! expect:          error
+//! detect:          required
+//! lrm:             B
+//! pssparser.id:    PSS028
+//! at:              14:12
+//! pssparser.match: syntax error at 'action'
+//! count:           1
+//! cause:            static
+//! names:            A
+component C {
+    static action A { }
+}

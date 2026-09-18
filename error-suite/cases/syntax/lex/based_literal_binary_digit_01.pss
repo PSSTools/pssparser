@@ -1,0 +1,18 @@
+//! case:   SYN-LEX-BINARY-DIGIT-01
+//! class:  syntax.lex
+//! title:  digit outside the base of a binary literal
+//! expect: error
+//! detect: required
+//! lrm:    B
+//! at:     16:32
+//! count:  1
+//! tags:   literal, lex
+//! cause:  digit
+//! names:  x
+//! fix:    16:         constraint { x == 4'b101; }
+component C {
+    action A {
+        rand bit[8] x;
+        constraint { x == 4'b102; }
+    }
+}

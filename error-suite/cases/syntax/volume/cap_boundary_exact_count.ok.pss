@@ -1,0 +1,18 @@
+//! case:                 SYN-VOLUME-CAP-BOUNDARY-EXACT-COUNT
+//! class:                syntax.volume
+//! title:                cap boundary exact count
+//! expect:               error
+//! detect:               recommended
+//! requires:             max_errors
+//! pssparser.id:         PSS022
+//! at:                   14:17
+//! pssparser.match:      expected identifier before ';'
+//! count:                5
+//! pssparser.max-errors: 5
+//! cause:                 identifier
+//! names:                 S0
+struct S0 { int x; }
+struct S1 { int x; }
+struct S2 { int x; }
+struct S3 { int x; }
+struct S4 { int x; }

@@ -1,0 +1,19 @@
+//! case:            SYN-STMT-SELECT-NO-BRACES
+//! class:           syntax.stmt
+//! title:           select no braces
+//! expect:          error
+//! detect:          recommended
+//! pssparser.id:    PSS020
+//! at:              17:17
+//! pssparser.match: expected '{' before 'A'
+//! count:           1
+//! cause:            {
+component C {
+    action A {
+    }
+    action B {
+        activity {
+                A;
+        }
+    }
+}

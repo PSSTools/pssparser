@@ -1,0 +1,10 @@
+//! case:            SYN-LEX-KEYWORD-JARGON
+//! class:           syntax.lex
+//! title:           keyword jargon
+//! expect:          error
+//! detect:          recommended
+//! pssparser.id:    PSS022
+//! at:              11:49
+//! pssparser.match: expected identifier before '}'
+//! count:           1
+//! cause:            @

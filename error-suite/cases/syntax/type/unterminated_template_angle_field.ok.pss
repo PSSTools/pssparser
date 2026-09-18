@@ -1,0 +1,13 @@
+//! case:            SYN-TYPE-UNTERMINATED-TEMPLATE-ANGLE-FIELD
+//! class:           syntax.type
+//! title:           unterminated template angle field
+//! expect:          error
+//! detect:          recommended
+//! pssparser.id:    PSS020
+//! at:              13:9
+//! pssparser.match: expected ';' before '<'
+//! count:           1
+//! cause:            >
+//! names:            x
+component C {
+}

@@ -1,0 +1,13 @@
+//! case:            SYN-TYPE-UNTERMINATED-GENERIC-FUNCTION-RETURN-TYPE
+//! class:           syntax.type
+//! title:           unterminated generic function return type
+//! expect:          error
+//! detect:          recommended
+//! pssparser.id:    PSS024
+//! at:              13:18
+//! pssparser.match: unexpected '<' expecting '('
+//! count:           1
+//! cause:            >
+//! names:            foo
+component C {
+}

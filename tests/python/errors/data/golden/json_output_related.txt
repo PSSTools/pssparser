@@ -1,19 +1,27 @@
-$ pssparser tests/python/errors/data/braces/unclosed_component_opener_pointer.pss (exit 1)
+$ pssparser error-suite/cases/syntax/braces/unclosed_component_opener_pointer.pss (exit 1)
 --- stdout ---
 {
   "diagnostics": [
     {
-      "file": "tests/python/errors/data/braces/unclosed_component_opener_pointer.pss",
-      "line": 6,
+      "file": "error-suite/cases/syntax/braces/unclosed_component_opener_pointer.pss",
+      "line": 15,
       "col": 13,
       "severity": "error",
       "message": "unclosed '{' for component 'C'",
       "end_col": 14,
+      "fix": {
+        "file": "error-suite/cases/syntax/braces/unclosed_component_opener_pointer.pss",
+        "line": 16,
+        "col": 17,
+        "end_line": 16,
+        "end_col": 17,
+        "replacement": "\n}"
+      },
       "code": "PSS021",
       "related": [
         {
-          "file": "tests/python/errors/data/braces/unclosed_component_opener_pointer.pss",
-          "line": 8,
+          "file": "error-suite/cases/syntax/braces/unclosed_component_opener_pointer.pss",
+          "line": 17,
           "col": 1,
           "label": "input ends here"
         }

@@ -1,0 +1,12 @@
+//! case:            SYN-NAMES-COMPONENT-DASHED-NAME
+//! class:           syntax.names
+//! title:           component dashed name
+//! expect:          error
+//! detect:          required
+//! lrm:             B
+//! pssparser.id:    PSS020
+//! at:              12:13
+//! pssparser.match: expected '{' or ':'
+//! count:           1
+//! cause:            component, identifier
+component my-comp { }

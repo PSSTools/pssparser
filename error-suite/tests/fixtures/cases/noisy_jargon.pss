@@ -1,0 +1,12 @@
+//! case:    FX-NOISY-JARGON
+//! class:   fixture.harness
+//! title:   one defect, four diagnostics, ANTLR phrasing
+//! expect:  error
+//! detect:  recommended
+//! at:      12:23
+//! count:   1
+//FAKE: emit 12:23 error "mismatched input '\"x\"' expecting {'8', ID}"
+//FAKE: emit 12:26 error "extraneous input ';'"
+//FAKE: emit 12:28 error "no viable alternative at input '}'"
+//FAKE: emit 13:1 error "ID"
+struct s { bit[8] a = "x"; }

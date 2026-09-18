@@ -1,0 +1,14 @@
+//! case:            SYN-NAMES-EXPECTED-IDENTIFIER
+//! class:           syntax.names
+//! title:           expected identifier
+//! expect:          error
+//! detect:          required
+//! lrm:             B
+//! pssparser.id:    PSS022
+//! at:              14:16
+//! pssparser.match: expected identifier
+//! count:           1
+//! fix:            14:struct S { int x; }
+//! cause:            identifier
+//! names:            S
+struct S { int ; }

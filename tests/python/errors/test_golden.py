@@ -57,53 +57,53 @@ class GoldenCase:
 CASES: List[GoldenCase] = [
     GoldenCase(
         "plain_single_diagnostic",
-        "tests/python/errors/data/punct/missing_semicolon_return.pss",
+        "error-suite/cases/syntax/punct/missing_semicolon_return.pss",
     ),
     GoldenCase(
         "related_location_component",
-        "tests/python/errors/data/braces/unclosed_component_opener_pointer.pss",
+        "error-suite/cases/syntax/braces/unclosed_component_opener_pointer.pss",
     ),
     GoldenCase(
         "related_location_struct",
-        "tests/python/errors/data/braces/unclosed_struct_opener_pointer.pss",
+        "error-suite/cases/syntax/braces/unclosed_struct_opener_pointer.pss",
     ),
     GoldenCase(
         "related_location_eof_short_file",
-        "tests/python/errors/data/syntax/unexpected_eof.pss",
+        "error-suite/cases/syntax/braces/unexpected_eof.pss",
     ),
     GoldenCase(
         "multiple_diagnostics_single_line",
-        "tests/python/errors/data/names/expected_identifier_after_garbage_token.pss",
+        "error-suite/cases/syntax/names/expected_identifier_after_garbage_token.pss",
     ),
     GoldenCase(
         "keyword_mislabel",
-        "tests/python/errors/data/keywords/rand_struct.pss",
+        "error-suite/cases/syntax/keyword/rand_struct.pss",
     ),
     GoldenCase(
         "missing_identifier_struct",
-        "tests/python/errors/data/names/struct_no_name.pss",
+        "error-suite/cases/syntax/names/struct_no_name.pss",
     ),
     GoldenCase(
         "missing_brace_component",
-        "tests/python/errors/data/punct/missing_open_brace_component.pss",
+        "error-suite/cases/syntax/punct/missing_open_brace_component.pss",
     ),
     GoldenCase(
         "cascade_suppressed",
-        "tests/python/errors/data/punct/cascade_garbage_tokens.pss",
+        "error-suite/cases/syntax/punct/cascade_garbage_tokens.pss",
     ),
     GoldenCase(
         "volume_cap_pss029",
-        "tests/python/errors/data/volume/max_errors_cap_fires.pss",
+        "error-suite/cases/syntax/volume/max_errors_cap_fires.pss",
         max_errors=3,
     ),
     GoldenCase(
         "json_output_related",
-        "tests/python/errors/data/braces/unclosed_component_opener_pointer.pss",
+        "error-suite/cases/syntax/braces/unclosed_component_opener_pointer.pss",
         use_json=True,
     ),
     GoldenCase(
         "json_output_plain",
-        "tests/python/errors/data/punct/missing_semicolon_return.pss",
+        "error-suite/cases/syntax/punct/missing_semicolon_return.pss",
         use_json=True,
     ),
     GoldenCase(
@@ -117,7 +117,7 @@ CASES: List[GoldenCase] = [
     # five characters short of the branch it underlines.
     GoldenCase(
         "compile_if_unbraced",
-        "tests/python/errors/data/deprecated/compile_if_unbraced.pss",
+        "error-suite/cases/semantic/compile/compile_if_unbraced.pss",
     ),
     # -Werror promotion: the header severity changes, the `[-Werror=PSS104]`
     # suffix appears, the summary line counts it as an error, and the exit
@@ -125,7 +125,7 @@ CASES: List[GoldenCase] = [
     # pins that the code is echoed back verbatim.
     GoldenCase(
         "werror_promoted",
-        "tests/python/errors/data/deprecated/compile_if_unbraced.pss",
+        "error-suite/cases/semantic/compile/compile_if_unbraced.pss",
         argv=["-Werror=PSS104"],
     ),
     GoldenCase(
@@ -142,7 +142,7 @@ CASES: List[GoldenCase] = [
     ),
     GoldenCase(
         "colored_output",
-        "tests/python/errors/data/punct/missing_semicolon_return.pss",
+        "error-suite/cases/syntax/punct/missing_semicolon_return.pss",
         color=True,
     ),
 ]

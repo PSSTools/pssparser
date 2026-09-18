@@ -1,0 +1,9 @@
+//! case:    FX-TOOL-ERROR
+//! class:   fixture.harness
+//! title:   tool exits with an undeclared code and says nothing
+//! expect:  error
+//! detect:  recommended
+//! at:      9:23
+//! count:   1
+//FAKE: exit 3
+struct s { bit[8] a = "x"; }

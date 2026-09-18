@@ -1,0 +1,10 @@
+//! case:    FX-SKIPPED-CAP
+//! class:   fixture.harness
+//! title:   needs structured output, which the regex descriptor lacks
+//! expect:  error
+//! detect:  recommended
+//! at:      10:23
+//! count:   1
+//! requires: json_output
+//FAKE: emit 10:23 error "cannot assign 'string' to field 'a'" code=FAKE001
+struct s { bit[8] a = "x"; }

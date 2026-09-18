@@ -1,0 +1,13 @@
+//! case:            SYN-KEYWORD-VIRTUAL-ACTION
+//! class:           syntax.keyword
+//! title:           virtual action
+//! expect:          error
+//! detect:          recommended
+//! pssparser.id:    PSS028
+//! at:              13:13
+//! pssparser.match: syntax error at 'action'
+//! count:           1
+//! cause:            virtual
+//! names:            A
+component C {
+}

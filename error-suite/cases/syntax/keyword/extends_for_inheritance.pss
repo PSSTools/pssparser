@@ -1,0 +1,18 @@
+//! case:            SYN-KEYWORD-EXTENDS-FOR-INHERITANCE
+//! class:           syntax.keyword
+//! title:           extends for inheritance
+//! expect:          error
+//! detect:          required
+//! lrm:             B
+//! pssparser.id:    PSS020
+//! at:              17:13
+//! pssparser.match: expected '{' or ':'
+//! pssparser.hint:  use ':' for inheritance, not 'extends'
+//! count:           1
+//! cause:            extends
+//! names:            C
+component D {
+}
+
+component C extends D {
+}

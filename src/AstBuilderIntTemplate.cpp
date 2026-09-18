@@ -87,19 +87,48 @@ private:
  * message straight into "malformed mustache expression: <this>".
  */
 static std::string humanizeFragmentError(const std::string &msg, const std::string &sym) {
+    // `<EOF>` is not something the user typed, so it is named rather than
+    // quoted: "before '<EOF>'" reads as though `<EOF>` were in the source.
+    // The main grammar says "end of input" (AstBuilderInt.cpp); here the
+    // input is one mustache, so it is the expression that ends.
+    bool at_eof = (sym == "<EOF>" || sym.empty());
+    std::string before = at_eof ? "at the end of the expression"
+                                : "before '" + sym + "'";
+    std::string unexpected = at_eof ? "the expression ends early"
+                                    : "unexpected '" + sym + "'";
+
+    // ANTLR's single-token-insertion report, "missing X at 'tok'". Without
+    // this branch the raw follow-set -- "missing {ID, ESCAPED_ID} at '<EOF>'"
+    // -- reaches the user, which is the jargon leak D1 exists to prevent. The
+    // mismatched-input shape below was rewritten for E-6; this shape was
+    // simply never produced by a test until the error suite added a case for
+    // a mustache ending in a dangling member select (`{{ s. }}`).
+    if (msg.rfind("missing ", 0) == 0) {
+        size_t at = msg.find(" at ", 8);
+        std::string expected = msg.substr(
+            8, (at == std::string::npos) ? std::string::npos : at - 8);
+        if (expected == "{ID, ESCAPED_ID}" ||
+                expected == "{'::', ID, ESCAPED_ID}") {
+            return "expected identifier " + before;
+        }
+        if (expected.empty() || expected.front() == '{' || expected.size() > 40) {
+            return unexpected;      // a follow-set, not a single token
+        }
+        return "expected " + expected + " " + before;
+    }
     if (msg.find("mismatched input") != std::string::npos) {
         if (msg.find("expecting {ID, ESCAPED_ID}") != std::string::npos ||
                 msg.find("expecting {'::', ID, ESCAPED_ID}") != std::string::npos) {
-            return "expected identifier before '" + sym + "'";
+            return "expected identifier " + before;
         }
         std::string expecting = msg.substr(msg.find("expecting"));
-        if (expecting.size() > 60) {
-            return "unexpected '" + sym + "'";
+        if (at_eof || expecting.size() > 60) {
+            return unexpected;
         }
-        return "unexpected '" + sym + "' " + expecting;
+        return unexpected + " " + expecting;
     }
     if (msg.find("extraneous input") != std::string::npos) {
-        return "unexpected '" + sym + "'";
+        return unexpected;
     }
     return msg;
 }
@@ -306,22 +335,30 @@ void AstBuilderInt::templateMarker(
     }
 
     // D3.3: every diagnostic reachable from a `{{` collision names the
-    // workaround inline. A C programmer who wrote a legal array initializer
-    // and is told only "syntax error in mustache expression" has learned
-    // nothing useful.
+    // workaround. A C programmer who wrote a legal array initializer and is
+    // told only "syntax error in mustache expression" has learned nothing
+    // useful.
+    //
+    // A9: the hint used to be spliced onto the message, which pushed six of
+    // the seven mustache diagnostics past the 120-character line the message
+    // lints draw (G7) -- the worst at 149. The hint is still worth saying; it
+    // is just not part of "what is wrong here", so it now travels as a note
+    // attached to the same location. One-line consumers show the short
+    // message; anything that renders `related` still shows the workaround.
     static const char *HINT =
-        "; if '{{' was intended as literal text, separate the braces ('{ {')";
+        "if '{{' was intended as literal text, separate the braces ('{ {')";
 
     std::string msg;
+    std::string note;
     switch (code) {
         case 108:
             msg = "unterminated mustache expression";
-            msg += HINT;
-            msg += " -- triple-quoted strings have no escape mechanism";
+            note = std::string(HINT)
+                + " -- triple-quoted strings have no escape mechanism";
             break;
         case 109:
             msg = "malformed mustache expression: " + detail;
-            msg += HINT;
+            note = HINT;
             break;
         default:
             // PSS110/PSS111 stay terse. A malformed `{% %}` or `{# #}` cannot
@@ -338,6 +375,9 @@ void AstBuilderInt::templateMarker(
     loc.extent = extent;
 
     Marker m(msg, MarkerSeverityE::Error, loc);
+    if (!note.empty()) {
+        m.addRelated(loc, note);
+    }
     m_marker_l->marker(&m);
 }
 

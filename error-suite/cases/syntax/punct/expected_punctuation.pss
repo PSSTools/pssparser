@@ -1,0 +1,15 @@
+//! case:            SYN-PUNCT-EXPECTED-PUNCTUATION
+//! class:           syntax.punct
+//! title:           expected punctuation
+//! expect:          error
+//! detect:          required
+//! lrm:             B
+//! pssparser.id:    PSS020
+//! at:              15:17
+//! pssparser.match: expected ';'
+//! count:           1
+//! fix:            15:struct S { int x; }
+//! cause:            ;
+//! not_cause:        unknown type
+//! names:            x
+struct S { int x }

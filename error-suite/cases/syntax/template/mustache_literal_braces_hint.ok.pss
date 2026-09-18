@@ -1,0 +1,15 @@
+//! case:            SYN-TEMPLATE-MUSTACHE-LITERAL-BRACES-HINT
+//! class:           syntax.template
+//! title:           mustache literal braces hint
+//! expect:          error
+//! detect:          recommended
+//! pssparser.id:    PSS109
+//! at:              14:42
+//! pssparser.match: malformed mustache expression: unexpected ','
+//! pssparser.hint:  separate the braces
+//! count:           1
+//! cause:            mustache
+component C {
+    action A {
+    }
+}

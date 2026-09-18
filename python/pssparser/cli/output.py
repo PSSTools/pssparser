@@ -117,18 +117,34 @@ class HumanOutput:
             w, diag.file, diag.line, diag.col, diag.end_col, sev_col
         )
 
-        # suggestion replacement
-        if has_src and diag.suggestion:
+        # suggestion replacement, aligned on the column the edit applies to --
+        # which is the fix's, not the caret's, when the two differ
+        # A multi-line replacement (the braces a truncated file is short of)
+        # has no sensible one-line rendering under the caret; it stays in the
+        # JSON, where a consumer can apply it.
+        if has_src and diag.suggestion and "\n" not in diag.suggestion:
+            col = diag.col
+            if (diag.fix is not None and diag.fix.file == diag.file
+                    and diag.fix.line == diag.line):
+                col = diag.fix.col
             gutter_w = len(str(diag.line))
             blank = " " * gutter_w
-            pad = " " * (diag.col - 1)
+            pad = " " * (col - 1)
             w(f" {blank} | {_c(pad + diag.suggestion, _GREEN, c)}\n")
 
         # related locations -- indented `note:` lines, each with its own
         # source line and caret (E-8; closes D5's related-location half).
+        #
+        # A note that lands on the line just printed above is the common case
+        # for "struct 's' begins here" when the whole declaration is one line.
+        # Repeating the same source line under it is pure noise, so such a note
+        # is reduced to its label: the reader can already see where it points.
         for rel in diag.related:
-            note_loc = f"{rel.file}:{rel.line}:{rel.col}"
+            same_line = (rel.file == diag.file and rel.line == diag.line)
             w(f"  {_c('note:', _DIM, c)} {rel.label}\n")
+            if same_line:
+                continue
+            note_loc = f"{rel.file}:{rel.line}:{rel.col}"
             w(f"   {_c('-->', _DIM, c)} {note_loc}\n")
             self._source_block(
                 w, rel.file, rel.line, rel.col, None, _DIM, indent="  "
@@ -191,6 +207,18 @@ class JsonOutput:
             entry["original_severity"] = diag.original_severity
         if diag.suggestion:
             entry["suggestion"] = diag.suggestion
+        # The fix carries its own span, which is what makes it applicable: a
+        # consumer that patched `suggestion` over the diagnostic's span would
+        # delete the character under the caret on every insertion.
+        if diag.fix is not None:
+            entry["fix"] = {
+                "file": diag.fix.file,
+                "line": diag.fix.line,
+                "col": diag.fix.col,
+                "end_line": diag.fix.line,
+                "end_col": diag.fix.col + diag.fix.extent,
+                "replacement": diag.fix.replacement,
+            }
         if diag.code:
             entry["code"] = diag.code
         if diag.related:

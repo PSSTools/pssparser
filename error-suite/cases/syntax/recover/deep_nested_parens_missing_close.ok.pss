@@ -1,0 +1,17 @@
+//! case:            SYN-RECOVER-DEEP-NESTED-PARENS-MISSING-CLOSE
+//! class:           syntax.recover
+//! title:           deep nested parens missing close
+//! expect:          error
+//! detect:          recommended
+//! pssparser.id:    PSS028
+//! at:              15:30
+//! pssparser.match: syntax error at ';'
+//! count:           1
+//! cause:            )
+component C {
+    action A {
+        rand int x;
+        constraint {
+        }
+    }
+}

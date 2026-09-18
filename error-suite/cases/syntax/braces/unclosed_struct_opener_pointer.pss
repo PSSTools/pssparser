@@ -1,0 +1,16 @@
+//! case:            SYN-BRACES-UNCLOSED-STRUCT-OPENER-POINTER
+//! class:           syntax.braces
+//! title:           unclosed struct opener pointer
+//! expect:          error
+//! detect:          required
+//! lrm:             B
+//! pssparser.id:    PSS021
+//! at:              15:10
+//! pssparser.match: unclosed '{' for struct 'S'
+//! also:            17:1 "input ends here"
+//! count:           1
+//! fix:            16:    int x;}
+//! cause:            struct
+//! names:            S
+struct S {
+    int x;

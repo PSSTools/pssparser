@@ -1,0 +1,27 @@
+//! case:            SEM-COMPILE-COMPILE-IF-UNBRACED-CONTEXTS
+//! class:           semantic.compile
+//! title:           compile if unbraced contexts
+//! expect:          warning
+//! detect:          recommended
+//! lrm:             19.2
+//! pss:             3.1
+//! pssparser.id:    PSS104
+//! at:              18:9-28
+//! pssparser.match: without enclosing braces is deprecated
+//! also:            17:5 "'compile if' begins here"
+//! count:           3
+//! fix:            17:    compile if (X == 1);
+//! cause:            braces, deprecated
+const int X = 1;
+package P {
+    compile if (X == 1)
+        struct S1 { int a; }
+}
+component C {
+    compile if (X == 1)
+        action A { int a; }
+}
+struct S2 {
+    compile if (X == 1)
+        int f;
+}

@@ -1,0 +1,17 @@
+//! case:            SYN-TEMPLATE-MUSTACHE-LITERAL-BRACES-HINT
+//! class:           syntax.template
+//! title:           mustache literal braces hint
+//! expect:          error
+//! detect:          required
+//! lrm:             B
+//! pssparser.id:    PSS109
+//! at:              15:42
+//! pssparser.match: malformed mustache expression: unexpected ','
+//! pssparser.hint:  separate the braces
+//! count:           1
+//! cause:            mustache
+component C {
+    action A {
+        exec body cpp = """int m[2][2] = {{1,2},{3,4}};""";
+    }
+}

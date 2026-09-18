@@ -27,11 +27,29 @@ def test_marker_id_is_a_stable_pss_code():
     assert errs[0]["code"].startswith("PSS")
 
 
-def test_full_marker_dict_has_eight_keys():
+def test_full_marker_dict_has_nine_keys():
+    """`fix` is the ninth, and is present only when there is one to offer.
+
+    A missing ';' has one -- insert the character -- so this input carries it.
+    A marker with no machine-applicable repair omits the key entirely rather
+    than carrying an empty one; see `test_marker_without_a_fix_omits_the_key`.
+    """
     _root, markers = parse_collect('struct S { int x }')
     errs = find_markers(markers, severity="error")
     expected = {
         "severity", "message", "file", "line", "col", "extent", "related",
-        "code",
+        "code", "fix",
     }
     assert set(errs[0].keys()) == expected
+    assert errs[0]["fix"]["replacement"] == ";"
+    # An insertion, not a replacement: the ';' goes *between* two characters,
+    # so the span it covers is empty.
+    assert errs[0]["fix"]["extent"] == 0
+
+
+def test_marker_without_a_fix_omits_the_key():
+    _root, markers = parse_collect('struct { int x; }')
+    errs = find_markers(markers, severity="error")
+    # "expected identifier" -- there is no way to invent the name the user
+    # meant, so no fix is offered rather than a guess.
+    assert "fix" not in errs[0]

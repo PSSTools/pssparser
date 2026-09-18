@@ -1,0 +1,14 @@
+//! case:            SYN-TYPE-ENUM-INVALID-BASE-TYPE-KEYWORD
+//! class:           syntax.type
+//! title:           enum invalid base type keyword
+//! expect:          error
+//! detect:          recommended
+//! pssparser.id:    PSS024
+//! at:              12:10
+//! pssparser.match: unexpected 'struct' in this context
+//! count:           1
+//! cause:            struct
+//! names:            E
+enum E : int {
+    A, B
+}

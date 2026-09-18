@@ -1,0 +1,14 @@
+//! case:            SYN-RESERVED-STRUCT-NAMED-COMPONENT
+//! class:           syntax.reserved
+//! title:           struct named component
+//! expect:          error
+//! detect:          required
+//! lrm:             B
+//! pssparser.id:    PSS022
+//! at:              12:8
+//! pssparser.match: expected identifier before 'component'
+//! count:           1
+//! cause:            component
+struct component {
+    int x;
+}

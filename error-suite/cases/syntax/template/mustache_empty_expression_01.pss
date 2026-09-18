@@ -1,0 +1,18 @@
+//! case:   SYN-TEMPLATE-EMPTY-01
+//! class:  syntax.template
+//! title:  mustache with no expression in it
+//! expect: error
+//! detect: required
+//! lrm:    B
+//! at:     16:32
+//! count:  1
+//! tags:   template, mustache
+//! cause:  expression
+//! names:  a
+//! fix:    16:         exec body cpp = """v = {{a}};""";
+component C {
+    action A {
+        rand int a;
+        exec body cpp = """v = {{}};""";
+    }
+}

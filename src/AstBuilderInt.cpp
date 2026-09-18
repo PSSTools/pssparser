@@ -134,10 +134,17 @@ void AstBuilderInt::build(
     // D2 cascade-suppression state is per-file, not per-process.
     m_last_syntax_error_token_idx = -1;
     m_last_syntax_error_rule_idx = static_cast<size_t>(-1);
+    m_last_lex_error_line = -1;
 
     uint64_t parse_s = time_ms();
 	ANTLRInputStream input(*in);
 	PSSLexer lexer(&input);
+	// A6 / U-9: until now only the parser listened, so a lexical error went to
+	// stderr through ANTLR's default listener as "token recognition error at:
+	// ..." and never reached a marker -- invisible to every consumer of the
+	// marker list, and jargon to anyone reading the terminal.
+	lexer.removeErrorListeners();
+	lexer.addErrorListener(this);
 	m_tokens = std::unique_ptr<CommonTokenStream>(new CommonTokenStream(&lexer));
 
 	if (m_collectComments) {
@@ -161,6 +168,32 @@ void AstBuilderInt::build(
 	PSSParser::Compilation_unitContext *ctx = parser.compilation_unit();
     uint64_t parse_e = time_ms();
     DEBUG("Parse time: %lld", (parse_e-parse_s));
+
+    // A6: a block comment nobody closed. The lexer accepts EOF as a
+    // terminator (PSSLexer.g4) so that it produces one comment token instead
+    // of failing; whether it is *terminated* is decided here, on the token's
+    // last two characters. The comment sits on a hidden channel, so this is
+    // the only place the defect can be noticed -- and the only diagnostic the
+    // file gets, since everything after the '/*' was swallowed as comment.
+    if (m_marker_l) {
+        for (Token *t : m_tokens->getTokens()) {
+            if (t->getType() != PSSLexer::ML_COMMENT) {
+                continue;
+            }
+            const std::string &txt = t->getText();
+            if (txt.size() >= 4 && txt.compare(txt.size() - 2, 2, "*/") == 0) {
+                continue;
+            }
+            ast::Location loc;
+            loc.fileid = m_file_id;
+            loc.lineno = t->getLine();
+            loc.linepos = t->getCharPositionInLine() + 1;
+            loc.extent = 2;     // the '/*' that was never matched
+            Marker m("unterminated block comment", MarkerSeverityE::Error,
+                loc, std::string("PSS027"));
+            m_marker_l->marker(&m);
+        }
+    }
 
 	// Only proceed to build out the AST if there are no syntax errors
 	if (!m_marker_l || !m_marker_l->hasSeverity(MarkerSeverityE::Error)) {
@@ -4856,6 +4889,11 @@ struct RewrittenSyntaxError {
     // PSS020-PSS028 sub-band ID, or empty for the PSS001 fallback (an
     // ANTLR message shape this classifier does not (yet) recognize).
     std::string id;
+    // A trailing "; <advice>" clause, kept separate from `msg` so that A1's
+    // enclosing-declaration phrase lands on the diagnosis rather than after
+    // the advice ("...before 'extends' in component 'C'; use ':' ...", not
+    // "...; use ':' for inheritance, not 'extends' in component 'C'").
+    std::string hint;
 };
 
 // D1: ANTLR reports a follow-set containing the bare token name ID (or its
@@ -4985,7 +5023,35 @@ static std::string sanitizeSymForMessage(const std::string &sym) {
     return out;
 }
 
-static RewrittenSyntaxError rewriteSyntaxError(const std::string &msg, const std::string &symRaw) {
+/**
+ * A5: is the offending token actually one of PSS's keywords?
+ *
+ * The predicate this replaced was "starts with a letter or '_'", which calls
+ * every identifier in the language a keyword -- including the enum item in
+ * `enum E { RED GREEN }`, whose diagnostic then told the user that `GREEN`
+ * was a keyword when `GREEN` is a name they had just written themselves.
+ * ANTLR already knows the answer: a token declared in the grammar as a
+ * literal ('component', 'struct', ...) has a literal name in the vocabulary;
+ * ID and ESCAPED_ID do not.
+ */
+static bool symbolIsKeyword(Recognizer *recognizer, Token *offendingSymbol) {
+    if (!recognizer || !offendingSymbol) {
+        return false;
+    }
+    std::string literal(recognizer->getVocabulary().getLiteralName(
+        offendingSymbol->getType()));
+    // Vocabulary literal names arrive quoted ("'struct'"). Punctuation is
+    // spelled as a literal too, so require the first character inside the
+    // quotes to look like the start of a word.
+    if (literal.size() < 3 || literal.front() != '\'') {
+        return false;
+    }
+    char c = literal[1];
+    return isalpha((unsigned char)c) || c == '_';
+}
+
+static RewrittenSyntaxError rewriteSyntaxError(
+        const std::string &msg, const std::string &symRaw, bool symIsKeyword) {
     const std::string sym = sanitizeSymForMessage(symRaw);
     if (msg.rfind("missing ", 0) == 0) {
         // ANTLR's single-token-insertion recovery: "missing 'X' at 'Y'" when
@@ -5037,9 +5103,9 @@ static RewrittenSyntaxError rewriteSyntaxError(const std::string &msg, const std
             msg.find("expecting {'{', ':'}") != std::string::npos) {
             std::string hint;
             if (sym == "extends") {
-                hint = "; use ':' for inheritance, not 'extends'";
+                hint = "use ':' for inheritance, not 'extends'";
             }
-            return {"expected '{' or ':' before '" + sym + "'" + hint, "PSS020"};
+            return {"expected '{' or ':' before '" + sym + "'", "PSS020", hint};
         }
         if (expecting.size() > 60) {
             return {"unexpected '" + sym + "' in this context", "PSS024"};
@@ -5048,18 +5114,17 @@ static RewrittenSyntaxError rewriteSyntaxError(const std::string &msg, const std
             + humanizeSetText(expectingWhat), "PSS024"};
     }
     if (msg.find("extraneous input") != std::string::npos) {
-        // D11: only call the offending token a "keyword" when it looks like
-        // one (starts with a letter or '_'). A numeric literal or a
-        // multi-char punctuation run is neither punctuation-single-char
-        // (the PSS025 case) nor a keyword -- it still belongs to PSS025's
-        // sibling PSS026 bucket (this classifier only has the two), but
-        // should not be *called* a keyword.
-        bool looksLikeKeyword = !sym.empty() &&
-            (isalpha((unsigned char)sym[0]) || sym[0] == '_');
+        // D11: only call the offending token a "keyword" when it *is* one.
+        // A numeric literal or a multi-char punctuation run is neither
+        // punctuation-single-char (the PSS025 case) nor a keyword -- it still
+        // belongs to PSS025's sibling PSS026 bucket (this classifier only has
+        // the two), but should not be *called* a keyword. A5 replaced the
+        // original spelling-based guess with the vocabulary's answer; an
+        // identifier the user chose is never a keyword.
         if (sym.size() == 1 && !isalpha((unsigned char)sym[0])) {
             return {"unexpected '" + sym + "' in this context", "PSS025"};
         }
-        if (looksLikeKeyword) {
+        if (symIsKeyword) {
             return {"unexpected keyword '" + sym + "' in this context", "PSS026"};
         }
         return {"unexpected '" + sym + "' in this context", "PSS026"};
@@ -5070,34 +5135,302 @@ static RewrittenSyntaxError rewriteSyntaxError(const std::string &msg, const std
     return {msg, ""};
 }
 
+
 /**
- * D8: names of the two grammar rules that get "unclosed '{' for KIND 'NAME'"
- * treatment when input runs out while they're still open. Only checked
- * against the innermost active rule at the point of the EOF error -- a
- * truncation several rules deeper (mid-exec-body, say) is a less specific
- * diagnosis than pointing at a distant enclosing component's brace would be,
- * so it deliberately falls through to the generic EOF message instead.
+ * A1/A4: the declaration a syntax error happened *inside*.
+ *
+ * pssparser's syntax messages used to talk only about tokens -- "expected ';'
+ * before 'int'" -- which is a statement about the parser's position, not about
+ * the user's program. The one message that already named a declaration
+ * ("unclosed '{' for struct 'S'", the EOF path below) measured better than
+ * every other family in the error suite, so the same information is now
+ * attached to all of them.
+ *
+ * `open` is the brace that opened the declaration, when it has been matched;
+ * it is offered as a `related` location so the reader can see where the
+ * construct the message names begins. It is null when the error is in the
+ * declaration's own header, before the '{' -- there is a name to report but
+ * no body yet.
  */
-static bool findUnclosedOpener(
-        ParserRuleContext *ctx, std::string &kind, std::string &name, Token *&open) {
-    if (PSSParser::Component_declarationContext *cc =
-            dynamic_cast<PSSParser::Component_declarationContext *>(ctx)) {
-        if (cc->TOK_LCBRACE() && cc->component_identifier()) {
-            kind = "component";
-            name = cc->component_identifier()->getText();
-            open = cc->TOK_LCBRACE()->getSymbol();
-            return true;
+struct EnclosingDecl {
+    std::string kind;       // "struct", "action", "exec body", ...
+    std::string name;       // empty for the constructs PSS does not name
+    Token       *open = nullptr;
+    // The '{' itself, when it has been matched. Distinct from `open`, which
+    // falls back to the declaration's first token: the EOF path says
+    // "unclosed '{'" and may only point at a brace that is really there.
+    Token       *brace = nullptr;
+    // The nearest enclosing declaration that *does* have a name, when this one
+    // has none. "in a constraint" answers "what kind?" but not "which one?",
+    // and a file with eight constraints leaves the reader to find it.
+    std::string owner_kind;
+    std::string owner_name;
+
+    bool known() const { return !kind.empty(); }
+
+    /** This construct alone: `struct 's'`, `an activity`. */
+    std::string kindPhrase() const {
+        if (!name.empty()) {
+            return kind + " '" + name + "'";
         }
-    } else if (PSSParser::Struct_declarationContext *sc =
-            dynamic_cast<PSSParser::Struct_declarationContext *>(ctx)) {
-        if (sc->TOK_LCBRACE() && sc->identifier()) {
-            kind = "struct";
-            name = sc->identifier()->getText();
-            open = sc->TOK_LCBRACE()->getSymbol();
-            return true;
+        return (kind.find_first_of("aeiou") == 0 ? "an " : "a ") + kind;
+    }
+
+    /**
+     * The noun phrase spliced into a message, with the owner where there is
+     * one: `a constraint of action 'A'`.
+     *
+     * The `related` note uses `kindPhrase()` instead: it is attached to the
+     * block's own '{', so "a constraint begins here" is exactly true and
+     * naming the owner there would answer a question the caret already has.
+     */
+    std::string phrase() const {
+        std::string anon = kindPhrase();
+        if (!name.empty() || owner_kind.empty()) {
+            return anon;
+        }
+        return anon + " of " + owner_kind + " '" + owner_name + "'";
+    }
+};
+
+/** Non-null text of an optional sub-rule, or "" if it was never matched. */
+static std::string ctxText(ParserRuleContext *ctx) {
+    return ctx ? ctx->getText() : std::string();
+}
+
+static Token *braceOf(antlr4::tree::TerminalNode *n) {
+    return n ? n->getSymbol() : nullptr;
+}
+
+/** One context: is *this* rule a named declaration? */
+static bool describeContext(ParserRuleContext *ctx, EnclosingDecl &out) {
+    if (auto *c = dynamic_cast<PSSParser::Component_declarationContext *>(ctx)) {
+        out.kind = "component";
+        out.name = ctxText(c->component_identifier());
+        out.open = braceOf(c->TOK_LCBRACE());
+    } else if (auto *c = dynamic_cast<PSSParser::Struct_declarationContext *>(ctx)) {
+        // struct_kind covers 'struct' and the object kinds (buffer, stream,
+        // state, resource), so the message says what the user wrote.
+        out.kind = ctxText(c->struct_kind());
+        if (out.kind.empty()) {
+            out.kind = "struct";
+        }
+        out.name = ctxText(c->identifier());
+        out.open = braceOf(c->TOK_LCBRACE());
+    } else if (auto *c = dynamic_cast<PSSParser::Action_declarationContext *>(ctx)) {
+        out.kind = "action";
+        out.name = ctxText(c->action_identifier());
+        out.open = braceOf(c->TOK_LCBRACE());
+    } else if (auto *c = dynamic_cast<PSSParser::Monitor_declarationContext *>(ctx)) {
+        out.kind = "monitor";
+        out.name = ctxText(c->monitor_identifier());
+        out.open = braceOf(c->TOK_LCBRACE());
+    } else if (auto *c = dynamic_cast<PSSParser::Enum_declarationContext *>(ctx)) {
+        out.kind = "enum";
+        out.name = ctxText(c->enum_identifier());
+        out.open = braceOf(c->TOK_LCBRACE());
+    } else if (auto *c = dynamic_cast<PSSParser::Covergroup_declarationContext *>(ctx)) {
+        out.kind = "covergroup";
+        out.name = ctxText(c->covergroup_identifier());
+        out.open = braceOf(c->TOK_LCBRACE());
+    } else if (auto *c = dynamic_cast<PSSParser::Constraint_declarationContext *>(ctx)) {
+        // An inline `constraint { ... }` has no identifier; naming it
+        // "a constraint" still places the error better than nothing.
+        out.kind = "constraint";
+        out.name = ctxText(c->identifier());
+        PSSParser::Constraint_blockContext *blk = c->constraint_block();
+        if (!blk && c->constraint_set()) {
+            blk = c->constraint_set()->constraint_block();
+        }
+        if (blk) {
+            out.open = braceOf(blk->TOK_LCBRACE());
+        }
+    } else if (auto *c = dynamic_cast<PSSParser::Function_declContext *>(ctx)) {
+        out.kind = "function";
+        if (c->function_prototype()) {
+            out.name = ctxText(c->function_prototype()->function_identifier());
+        }
+        out.open = braceOf(c->TOK_LCBRACE());
+    } else if (auto *c = dynamic_cast<PSSParser::Exec_blockContext *>(ctx)) {
+        std::string ekind = ctxText(c->exec_kind());
+        out.kind = ekind.empty() ? "exec block" : ("exec " + ekind + " block");
+        out.open = braceOf(c->TOK_LCBRACE());
+    } else if (auto *c = dynamic_cast<PSSParser::Activity_declarationContext *>(ctx)) {
+        out.kind = "activity";
+        out.open = braceOf(c->TOK_LCBRACE());
+    } else if (auto *c = dynamic_cast<PSSParser::Package_declarationContext *>(ctx)) {
+        out.kind = "package";
+        out.name = ctxText(c->package_id_path());
+        out.open = braceOf(c->TOK_LCBRACE());
+    } else {
+        return false;
+    }
+    out.brace = out.open;
+    return true;
+}
+
+/**
+ * Innermost enclosing named declaration, or an empty description.
+ *
+ * Innermost wins deliberately: a missing ';' in a struct nested in a component
+ * is about the struct. The walk stops at the first rule that answers, so the
+ * component is only named when nothing closer does.
+ */
+static EnclosingDecl describeEnclosing(ParserRuleContext *ctx) {
+    EnclosingDecl out;
+    for (antlr4::tree::ParseTree *p = ctx; p; p = p->parent) {
+        ParserRuleContext *rule = dynamic_cast<ParserRuleContext *>(p);
+        if (rule && describeContext(rule, out)) {
+            if (out.name.empty()) {
+                // PSS does not name constraints, activities or exec blocks, so
+                // the walk keeps going for something that *is* named -- "a
+                // constraint of action 'A'" locates one of eight constraints,
+                // where "a constraint" only says which keyword to look for.
+                // The innermost construct still owns `open`/`brace`: the
+                // related note must point at the block the message is about.
+                for (antlr4::tree::ParseTree *q = p->parent; q; q = q->parent) {
+                    ParserRuleContext *outer =
+                            dynamic_cast<ParserRuleContext *>(q);
+                    // Fresh each step: describeContext fills `kind` for the
+                    // constructs that have no name and would otherwise leave
+                    // a previous rule's name in place.
+                    EnclosingDecl owner;
+                    if (outer && describeContext(outer, owner)
+                            && !owner.name.empty()) {
+                        out.owner_kind = owner.kind;
+                        out.owner_name = owner.name;
+                        break;
+                    }
+                }
+            }
+            if (!out.open) {
+                // The '{' has not been matched yet (the error is in the
+                // declaration's own header), or the construct keeps its body
+                // in a sub-rule this walk does not reach into. The keyword
+                // that starts the declaration answers the same question --
+                // "which one?" -- so it stands in.
+                out.open = rule->getStart();
+            }
+            break;
         }
     }
-    return false;
+    return out;
+}
+
+/**
+ * Splice the enclosing declaration into a rewritten message.
+ *
+ * "in this context" is the placeholder the old messages used where this
+ * information belongs, so where it appears it is replaced rather than
+ * appended; every other shape takes the phrase as a trailing clause.
+ */
+static std::string contextualize(
+        const std::string &msg, const EnclosingDecl &encl) {
+    if (!encl.known()) {
+        return msg;
+    }
+    static const std::string PLACEHOLDER = " in this context";
+    std::string phrase = " in " + encl.phrase();
+    if (msg.size() > PLACEHOLDER.size() &&
+            msg.compare(msg.size() - PLACEHOLDER.size(),
+                        PLACEHOLDER.size(), PLACEHOLDER) == 0) {
+        return msg.substr(0, msg.size() - PLACEHOLDER.size()) + phrase;
+    }
+    // A message that already carries an "expecting ..." tail reads better with
+    // the location clause before it: "unexpected 'x' in action 'A' expecting
+    // ';'" rather than after the list.
+    size_t expecting = msg.find(" expecting ");
+    if (expecting != std::string::npos) {
+        return msg.substr(0, expecting) + phrase + msg.substr(expecting);
+    }
+    return msg + phrase;
+}
+
+/**
+ * A6: turn ANTLR's lexer complaint into a statement about the source.
+ *
+ * The lexer says `token recognition error at: '"abc;\n'` -- the text it could
+ * not make a token out of, with escapes applied by ANTLR. What the user needs
+ * to hear is what is wrong with that text, reported at the character where it
+ * starts (the opening quote), not wherever the parser later trips over the
+ * wreckage. Returns the message and sets `extent` to the run's length.
+ */
+static std::string describeLexError(const std::string &msg, size_t &extent) {
+    size_t open = msg.find('\'');
+    size_t close = msg.rfind('\'');
+    std::string text = (open != std::string::npos && close > open)
+        ? msg.substr(open + 1, close - open - 1) : std::string();
+
+    // ANTLR renders the newline it ran into as the two characters \ and n.
+    // It is not part of what the user typed and must not be underlined.
+    for (const char *tail : {"\\r\\n", "\\n", "\\r"}) {
+        size_t at = text.rfind(tail);
+        if (at != std::string::npos && at + strlen(tail) == text.size()) {
+            text = text.substr(0, at);
+            break;
+        }
+    }
+    extent = text.empty() ? 1 : text.size();
+
+    if (text.rfind("\"\"\"", 0) == 0 || text.rfind("'''", 0) == 0) {
+        return "unterminated triple-quoted string literal";
+    }
+    if (text.rfind('"', 0) == 0) {
+        return "unterminated string literal";
+    }
+    if (text.rfind("/*", 0) == 0) {
+        return "unterminated block comment";
+    }
+    if (text.empty()) {
+        return "unrecognized input";
+    }
+    if (text.size() == 1) {
+        return "unexpected character '" + text + "'";
+    }
+    return "unexpected input '" + sanitizeSymForMessage(text) + "'";
+}
+
+/** The token before `idx` on the default channel, or null if there is none. */
+static Token *previousDefaultToken(Parser *parser, ssize_t idx) {
+    if (!parser || !parser->getTokenStream() || idx <= 0) {
+        return nullptr;
+    }
+    antlr4::TokenStream *ts = parser->getTokenStream();
+    for (ssize_t i = idx - 1; i >= 0; i--) {
+        Token *t = ts->get(static_cast<size_t>(i));
+        if (t->getChannel() == Token::DEFAULT_CHANNEL) {
+            return t;
+        }
+    }
+    return nullptr;
+}
+
+/**
+ * A7: is this token made only of operator characters?
+ *
+ * PSS has no `===`, so the lexer splits it into `==` and `=` and the parser
+ * complains about the leftover `=` -- two columns to the right of what the
+ * user typed, and describing half a token. Recognizing the run puts the
+ * caret and the message back on `===`.
+ */
+static bool isOperatorRunToken(Token *t) {
+    static const std::string OPS = "=!<>&|+-*/%^~";
+    const std::string &s = t->getText();
+    return !s.empty() && s.find_first_not_of(OPS) == std::string::npos;
+}
+
+/** True for a name the user chose, as opposed to a keyword or punctuation. */
+static bool symbolIsIdentifier(Recognizer *recognizer, Token *tok) {
+    if (!recognizer || !tok) {
+        return false;
+    }
+    std::string name(recognizer->getVocabulary().getSymbolicName(tok->getType()));
+    return name == "ID" || name == "ESCAPED_ID";
+}
+
+/** `msg` plus its "; <advice>" clause, when the rewrite produced one. */
+static std::string withHint(const std::string &msg, const std::string &hint) {
+    return hint.empty() ? msg : msg + "; " + hint;
 }
 
 void AstBuilderInt::syntaxError(
@@ -5114,6 +5447,25 @@ void AstBuilderInt::syntaxError(
 				// otherwise cascade into thousands of recovery errors.
 				return;
 			}
+		}
+
+		// A6: a lexical error arrives with no offending token -- the lexer
+		// could not build one. It is reported where the unrecognized run
+		// starts, and remembered so the parse error it inevitably causes a
+		// line or two later is not counted as a second defect.
+		if (!offendingSymbol) {
+			size_t extent = 1;
+			std::string what = describeLexError(msg, extent);
+			ast::Location lex_loc;
+			lex_loc.fileid = m_file_id;
+			lex_loc.lineno = line;
+			lex_loc.linepos = charPositionInLine + 1;
+			lex_loc.extent = extent;
+			m_last_lex_error_line = static_cast<ssize_t>(line);
+			Marker m(what, MarkerSeverityE::Error, lex_loc,
+				std::string("PSS027"));
+			m_marker_l->marker(&m);
+			return;
 		}
 
 		const std::string sym = offendingSymbol->getText();
@@ -5133,6 +5485,45 @@ void AstBuilderInt::syntaxError(
 			rule_idx == m_last_syntax_error_rule_idx &&
 			tok_idx >= m_last_syntax_error_token_idx &&
 			(tok_idx - m_last_syntax_error_token_idx) <= 2;
+
+		// A3: the same suppression, for the case the token-distance test
+		// cannot see. Recovery from an error inside a block routinely runs to
+		// the block's closing brace and reports *that* as unexpected -- by
+		// which point the parser has popped out to the enclosing rule and is
+		// many tokens away, so neither half of the test above fires. It is
+		// still one defect: a closer that ends a declaration already known to
+		// be broken says nothing the first diagnostic did not.
+		//
+		// What keeps this from swallowing real defects is *what the diagnostic
+		// would have said*. "unexpected '}'" is a complaint about the brace
+		// itself, which after an earlier error means recovery is discarding
+		// it. "expected ';' before '}'" says a token is genuinely absent
+		// before the brace -- a defect in its own right: two actions each
+		// missing a semicolon report the second one exactly this way, and
+		// suppressing by token text alone loses it.
+		RewrittenSyntaxError rewritten = rewriteSyntaxError(
+			msg, sym, symbolIsKeyword(recognizer, offendingSymbol));
+		bool complainsAboutTheCloser =
+			rewritten.msg.rfind("unexpected ", 0) == 0;
+		if (!suppress && m_last_syntax_error_token_idx >= 0 &&
+				tok_idx > m_last_syntax_error_token_idx &&
+				complainsAboutTheCloser &&
+				(sym == "}" || sym == ")" || sym == "]")) {
+			suppress = true;
+		}
+
+		// A6: the first parse error after a lexical one, at or after the line
+		// the lexer choked on, is the parser reading the wreckage the lexer
+		// left behind -- the unterminated string swallowed the rest of the
+		// line, so of course what follows does not parse. Report it once, at
+		// the opening quote, and drop the echo. Only the first: a defect
+		// further down the file is still the user's to hear about.
+		if (!suppress && m_last_lex_error_line >= 0 &&
+				static_cast<ssize_t>(line) >= m_last_lex_error_line) {
+			m_last_lex_error_line = -1;
+			suppress = true;
+		}
+
 		m_last_syntax_error_token_idx = tok_idx;
 		m_last_syntax_error_rule_idx = rule_idx;
 		if (suppress) {
@@ -5145,25 +5536,74 @@ void AstBuilderInt::syntaxError(
 		// ANTLR reports a 0-based character position; `Location.linepos` is
 		// 1-based everywhere else in the builder (see ast/coretypes.yaml).
 		loc.linepos = charPositionInLine + 1;
-        loc.extent = sym.size();
+		loc.extent = sym.size();
+
+		// A2: the repair, filled in by whichever rewrite below knows one. Its
+		// span is separate from `loc` on purpose -- see MarkerFix.
+		ast::Location fix_span;
+		std::string fix_text;
+		bool have_fix = false;
 
         if (sym == "<EOF>") {
-            std::string kind, name;
-            Token *open = nullptr;
-            if (parser && parser->getContext() &&
-                    findUnclosedOpener(parser->getContext(), kind, name, open)) {
+            // A2: the repair for a truncated file is the braces it is short
+            // of, and the token stream says exactly how many -- counting is
+            // more reliable than walking the rule chain, which does not reach
+            // into the block rules that are not declarations. A negative
+            // balance means the file has *too many* closers, which this
+            // diagnostic is not about, so nothing is offered.
+            int brace_balance = 0;
+            if (parser && parser->getTokenStream()) {
+                antlr4::TokenStream *ts = parser->getTokenStream();
+                for (size_t i = 0; i < ts->size(); i++) {
+                    Token *tk = ts->get(i);
+                    if (tk->getChannel() != Token::DEFAULT_CHANNEL) {
+                        continue;
+                    }
+                    if (tk->getText() == "{") {
+                        brace_balance++;
+                    } else if (tk->getText() == "}") {
+                        brace_balance--;
+                    }
+                }
+            }
+            // Anchored to the end of the last real token rather than to the
+            // EOF position: EOF sits on a line that does not exist in the
+            // file (one past the last), and an editor cannot put text there.
+            Token *last = previousDefaultToken(parser, tok_idx);
+            if (brace_balance > 0 && last) {
+                fix_span.fileid = m_file_id;
+                fix_span.lineno = last->getLine();
+                fix_span.linepos = last->getCharPositionInLine()
+                    + last->getText().size() + 1;
+                fix_span.extent = 0;
+                fix_text = std::string("\n") + std::string(brace_balance, '}');
+                have_fix = true;
+            }
+            // A1: the same walk the other messages use. It replaced a version
+            // that recognized only component and struct, so an action, enum or
+            // constraint truncated mid-body fell through to the generic
+            // "missing closing '}'" with no location worth reading.
+            EnclosingDecl encl;
+            if (parser && parser->getContext()) {
+                encl = describeEnclosing(parser->getContext());
+            }
+            if (encl.known() && encl.brace) {
                 ast::Location open_loc;
                 open_loc.fileid = m_file_id;
-                open_loc.lineno = open->getLine();
-                open_loc.linepos = open->getCharPositionInLine() + 1;
+                open_loc.lineno = encl.brace->getLine();
+                open_loc.linepos = encl.brace->getCharPositionInLine() + 1;
                 open_loc.extent = 1;
 
                 Marker m(
-                    "unclosed '{' for " + kind + " '" + name + "'",
+                    "unclosed '{' for " + encl.phrase(),
                     MarkerSeverityE::Error,
                     open_loc,
                     std::string("PSS021"));
                 m.addRelated(loc, "input ends here");
+                if (have_fix) {
+                    fix_span.fileid = m_file_id;
+                    m.addFix(fix_span, fix_text);
+                }
                 m_marker_l->marker(&m);
             } else {
                 Marker m(
@@ -5171,27 +5611,127 @@ void AstBuilderInt::syntaxError(
                     MarkerSeverityE::Error,
                     loc,
                     std::string("PSS021"));
+                if (have_fix) {
+                    fix_span.fileid = m_file_id;
+                    m.addFix(fix_span, fix_text);
+                }
                 m_marker_l->marker(&m);
             }
             return;
         }
 
-		RewrittenSyntaxError rewritten = rewriteSyntaxError(msg, sym);
-
-		if (rewritten.id.empty()) {
-			Marker m(
-					rewritten.msg,
-					MarkerSeverityE::Error,
-					loc);
-			m_marker_l->marker(&m);
-		} else {
-			Marker m(
-					rewritten.msg,
-					MarkerSeverityE::Error,
-					loc,
-					rewritten.id);
-			m_marker_l->marker(&m);
+		// A7: the offending token may be the tail of an operator the lexer had
+		// to split because PSS has no such operator. Walk back over the
+		// immediately adjacent operator tokens and report the whole run.
+		if (isOperatorRunToken(offendingSymbol) && parser &&
+				parser->getTokenStream()) {
+			antlr4::TokenStream *ts = parser->getTokenStream();
+			Token *first = offendingSymbol;
+			std::string run = offendingSymbol->getText();
+			for (ssize_t i = tok_idx - 1; i >= 0; i--) {
+				Token *t = ts->get(static_cast<size_t>(i));
+				if (t->getChannel() != Token::DEFAULT_CHANNEL) {
+					continue;
+				}
+				if (!isOperatorRunToken(t) ||
+						t->getStopIndex() + 1 != first->getStartIndex()) {
+					break;
+				}
+				run = t->getText() + run;
+				first = t;
+			}
+			if (first != offendingSymbol) {
+				rewritten.msg = "'" + run + "' is not a PSS operator";
+				rewritten.id = "PSS028";
+				if (run == "===") {
+					rewritten.hint = "use '==' to compare";
+					fix_text = "==";
+				} else if (run == "!==") {
+					rewritten.hint = "use '!=' to compare";
+					fix_text = "!=";
+				}
+				loc.lineno = first->getLine();
+				loc.linepos = first->getCharPositionInLine() + 1;
+				loc.extent = run.size();
+				// A2: replacing the whole run is the complete repair.
+				if (!fix_text.empty()) {
+					fix_span = loc;
+					have_fix = true;
+				}
+			}
 		}
+
+		// A8: a missing ';' is a defect at the end of the line that lacks it,
+		// not at whatever token the parser reached next -- which is usually on
+		// the following line and has nothing wrong with it. When the token
+		// before the failure is a name the user wrote, both the wording and
+		// the caret move back to it: "expected ';' after 'a'", underlining the
+		// position the ';' belongs in.
+		//
+		// Only when the token ANTLR stopped on could actually begin the next
+		// thing -- a name, a keyword, or the closing brace. `list<int x;` also
+		// reports "expected ';' before '<'", and there the missing token is not
+		// a semicolon at all: inserting one produces `list; <int x;`, and saying
+		// "expected ';' after 'list'" misdescribes an unterminated '<'.
+		bool startsSomething = symbolIsIdentifier(recognizer, offendingSymbol) ||
+			symbolIsKeyword(recognizer, offendingSymbol) || sym == "}";
+		if (startsSomething &&
+				rewritten.msg.rfind("expected ';' before ", 0) == 0) {
+			Token *prev = previousDefaultToken(parser, tok_idx);
+			if (prev && symbolIsIdentifier(recognizer, prev)) {
+				rewritten.msg = "expected ';' after '" + prev->getText() + "'";
+				loc.lineno = prev->getLine();
+				loc.linepos = prev->getCharPositionInLine()
+					+ prev->getText().size() + 1;
+				loc.extent = 1;
+				// A2: an insertion, so the fix span is empty -- the caret above
+				// covers one column only so it has something to point at, and
+				// applying the edit over *that* would delete the character there.
+				fix_span = loc;
+				fix_span.extent = 0;
+				fix_text = ";";
+				have_fix = true;
+			}
+		}
+
+		// A2: `extends` where PSS spells inheritance with ':'. The token is
+		// wrong, not missing, so the span is the token and the repair is exact.
+		if (sym == "extends" &&
+				rewritten.msg.rfind("expected '{' or ':' before ", 0) == 0) {
+			fix_span = loc;
+			fix_text = ":";
+			have_fix = true;
+		}
+
+		// A1/A4: say which declaration this happened in, and point at where
+		// that declaration begins.
+		EnclosingDecl encl;
+		if (parser && parser->getContext()) {
+			encl = describeEnclosing(parser->getContext());
+		}
+
+		Marker m(
+				withHint(contextualize(rewritten.msg, encl), rewritten.hint),
+				MarkerSeverityE::Error,
+				loc,
+				rewritten.id);
+		if (have_fix) {
+			fix_span.fileid = m_file_id;
+			m.addFix(fix_span, fix_text);
+		}
+		// The note is emitted even when the declaration starts on the line
+		// already being underlined -- an IDE still wants the span, and the
+		// text renderer collapses the duplicate snippet (cli/output.py).
+		if (encl.known() && encl.open &&
+				encl.open->getTokenIndex() != offendingSymbol->getTokenIndex()) {
+			ast::Location open_loc;
+			open_loc.fileid = m_file_id;
+			open_loc.lineno = encl.open->getLine();
+			open_loc.linepos = encl.open->getCharPositionInLine() + 1;
+			open_loc.extent = 1;
+			m.addRelated(open_loc, encl.kindPhrase() + " begins here");
+		}
+		m_marker_l->marker(&m);
 	}
 }
 
