@@ -1,6 +1,11 @@
 # CA-T1 caller. The body lives in psstools/.github so there is one place to fix
 # it; do not inline it here.
 #
+# The `reusable-` prefix there is not decoration: this caller is also named
+# dco.yml / icla-significance.yml, and psstools/.github is itself one of the
+# repositories that gets a caller. Without distinct names the caller
+# overwrites the body it calls, and `uses:` resolves to itself.
+#
 # Paired with .forgejo/workflows/contribution-checks.yml -- see that file for
 # why the counterpart exists and why it does nothing.
 name: DCO
@@ -11,4 +16,4 @@ on:
 
 jobs:
   dco:
-    uses: psstools/.github/.github/workflows/dco.yml@main
+    uses: psstools/.github/.github/workflows/reusable-dco.yml@main

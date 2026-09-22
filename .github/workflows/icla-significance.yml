@@ -1,6 +1,11 @@
 # CA-T2 caller. The body lives in psstools/.github so there is one place to fix
 # it; do not inline it here.
 #
+# The `reusable-` prefix there is not decoration: this caller is also named
+# dco.yml / icla-significance.yml, and psstools/.github is itself one of the
+# repositories that gets a caller. Without distinct names the caller
+# overwrites the body it calls, and `uses:` resolves to itself.
+#
 # pull_request_target, not pull_request: labelling and commenting need a write
 # token and a fork PR's `pull_request` token is read-only. The called workflow
 # never checks out the pull request -- it reads diff shape through the API and
@@ -13,4 +18,4 @@ on:
 
 jobs:
   significance:
-    uses: psstools/.github/.github/workflows/significance.yml@main
+    uses: psstools/.github/.github/workflows/reusable-significance.yml@main
