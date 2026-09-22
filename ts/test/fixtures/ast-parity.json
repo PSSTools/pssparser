@@ -20,8 +20,8 @@
        0,
        0,
        3,
-       0,
-       6934
+       1,
+       9115
       ],
       [
        "PackageImportStmt",
@@ -51,15 +51,6 @@
        30
       ],
       [
-       "FunctionPrototype",
-       "set_executor",
-       2,
-       -1,
-       -1,
-       -1,
-       -1
-      ],
-      [
        "Component",
        "addr_space_group_c",
        1,
@@ -67,15 +58,6 @@
        9,
        5,
        111
-      ],
-      [
-       "FunctionPrototype",
-       "set_executor",
-       2,
-       -1,
-       -1,
-       -1,
-       -1
       ],
       [
        "FunctionPrototype",
@@ -120,7 +102,7 @@
        0,
        19,
        5,
-       313
+       320
       ],
       [
        "FunctionPrototype",
@@ -165,7 +147,7 @@
        0,
        29,
        5,
-       55
+       75
       ],
       [
        "Field",
@@ -177,11 +159,20 @@
        4
       ],
       [
+       "Field",
+       "tag",
+       2,
+       0,
+       31,
+       16,
+       3
+      ],
+      [
        "Struct",
        "addr_region_s",
        1,
        0,
-       33,
+       34,
        5,
        129
       ],
@@ -190,7 +181,7 @@
        "trait",
        2,
        0,
-       35,
+       36,
        15,
        5
       ],
@@ -199,7 +190,7 @@
        "transparent_addr_region_s",
        1,
        0,
-       38,
+       39,
        5,
        148
       ],
@@ -208,16 +199,124 @@
        "addr",
        2,
        0,
-       40,
+       41,
        17,
        4
+      ],
+      [
+       "EnumDecl",
+       "alloc_access_mode_e",
+       1,
+       0,
+       45,
+       5,
+       -1
+      ],
+      [
+       "EnumDecl",
+       "alloc_share_mode_e",
+       1,
+       0,
+       46,
+       5,
+       -1
+      ],
+      [
+       "EnumDecl",
+       "alloc_skip_mode_e",
+       1,
+       0,
+       47,
+       5,
+       -1
+      ],
+      [
+       "Struct",
+       "alloc_base_mode_s",
+       1,
+       0,
+       49,
+       5,
+       359
+      ],
+      [
+       "Field",
+       "access",
+       2,
+       0,
+       50,
+       34,
+       6
+      ],
+      [
+       "ConstraintBlock",
+       null,
+       2,
+       0,
+       51,
+       9,
+       -1
+      ],
+      [
+       "Field",
+       "sharing",
+       2,
+       0,
+       52,
+       33,
+       7
+      ],
+      [
+       "ConstraintBlock",
+       null,
+       2,
+       0,
+       53,
+       9,
+       -1
+      ],
+      [
+       "Field",
+       "skipping",
+       2,
+       0,
+       54,
+       32,
+       8
+      ],
+      [
+       "ConstraintBlock",
+       null,
+       2,
+       0,
+       55,
+       9,
+       -1
+      ],
+      [
+       "Field",
+       "tag",
+       2,
+       0,
+       56,
+       18,
+       3
+      ],
+      [
+       "ConstraintBlock",
+       null,
+       2,
+       0,
+       57,
+       9,
+       -1
       ],
       [
        "Struct",
        "addr_claim_base_s",
        1,
        0,
-       43,
+       60,
        5,
        136
       ],
@@ -226,7 +325,7 @@
        "size",
        2,
        0,
-       44,
+       61,
        22,
        4
       ],
@@ -235,7 +334,7 @@
        "permanent",
        2,
        0,
-       45,
+       62,
        19,
        9
       ],
@@ -244,7 +343,7 @@
        null,
        2,
        0,
-       47,
+       64,
        9,
        -1
       ],
@@ -253,16 +352,16 @@
        "addr_claim_s",
        1,
        0,
-       50,
+       67,
        5,
-       981
+       1109
       ],
       [
        "Field",
        "trait",
        2,
        0,
-       51,
+       70,
        20,
        5
       ],
@@ -271,25 +370,34 @@
        "alignment",
        2,
        0,
-       62,
+       81,
        68,
        9
+      ],
+      [
+       "Field",
+       "alloc_mode",
+       2,
+       0,
+       82,
+       25,
+       10
       ],
       [
        "Struct",
        "transparent_addr_claim_s",
        1,
        0,
-       65,
+       85,
        5,
-       151
+       242
       ],
       [
        "Field",
        "addr",
        2,
        0,
-       67,
+       89,
        22,
        4
       ],
@@ -298,7 +406,7 @@
        "nullhandle",
        1,
        0,
-       74,
+       97,
        25,
        47
       ],
@@ -307,7 +415,7 @@
        "sized_addr_handle_s",
        1,
        0,
-       76,
+       99,
        5,
        135
       ],
@@ -316,7 +424,7 @@
        "hndl",
        2,
        0,
-       80,
+       103,
        16,
        4
       ],
@@ -325,7 +433,7 @@
        "make_handle_from_claim",
        1,
        0,
-       82,
+       105,
        1,
        -1
       ],
@@ -334,16 +442,52 @@
        "make_handle_from_handle",
        1,
        0,
-       85,
+       108,
        1,
        -1
+      ],
+      [
+       "Struct",
+       "mem_access_desc_s",
+       1,
+       0,
+       114,
+       1,
+       27
       ],
       [
        "FunctionPrototype",
        "addr_value",
        1,
        0,
-       98,
+       116,
+       1,
+       -1
+      ],
+      [
+       "FunctionPrototype",
+       "addr_value_solve",
+       1,
+       0,
+       117,
+       1,
+       -1
+      ],
+      [
+       "FunctionPrototype",
+       "addr_value_abs",
+       1,
+       0,
+       118,
+       1,
+       -1
+      ],
+      [
+       "FunctionPrototype",
+       "get_tag",
+       1,
+       0,
+       120,
        1,
        -1
       ],
@@ -352,7 +496,7 @@
        "read8",
        1,
        0,
-       99,
+       122,
        1,
        -1
       ],
@@ -361,7 +505,7 @@
        "read16",
        1,
        0,
-       100,
+       123,
        1,
        -1
       ],
@@ -370,7 +514,7 @@
        "read32",
        1,
        0,
-       101,
+       124,
        1,
        -1
       ],
@@ -379,7 +523,7 @@
        "read64",
        1,
        0,
-       102,
+       125,
        1,
        -1
       ],
@@ -388,7 +532,7 @@
        "write8",
        1,
        0,
-       103,
+       126,
        1,
        -1
       ],
@@ -397,7 +541,7 @@
        "write16",
        1,
        0,
-       104,
+       127,
        1,
        -1
       ],
@@ -406,7 +550,7 @@
        "write32",
        1,
        0,
-       105,
+       128,
        1,
        -1
       ],
@@ -415,7 +559,7 @@
        "write64",
        1,
        0,
-       106,
+       129,
        1,
        -1
       ],
@@ -424,7 +568,7 @@
        "read_bytes",
        1,
        0,
-       109,
+       132,
        1,
        -1
       ],
@@ -433,7 +577,7 @@
        "write_bytes",
        1,
        0,
-       111,
+       134,
        1,
        -1
       ],
@@ -442,7 +586,7 @@
        "read_struct",
        1,
        0,
-       112,
+       136,
        1,
        -1
       ],
@@ -451,112 +595,67 @@
        "write_struct",
        1,
        0,
-       113,
+       138,
        1,
        -1
       ],
       [
-       "EnumDecl",
-       "reg_access",
+       "ExtendType",
+       null,
        1,
-       0,
-       130,
-       1,
-       -1
-      ],
-      [
-       "Component",
-       "reg_base_c",
-       1,
-       0,
-       133,
-       1,
-       70
-      ],
-      [
-       "FunctionPrototype",
-       "set_executor",
-       2,
-       -1,
-       -1,
-       -1,
-       -1
-      ],
-      [
-       "FunctionPrototype",
-       "get_handle",
-       2,
-       0,
-       134,
-       5,
-       -1
-      ],
-      [
-       "Component",
-       "reg_sized_c",
-       1,
-       0,
-       139,
-       1,
-       363
-      ],
-      [
-       "FunctionPrototype",
-       "read_val",
-       2,
-       0,
-       140,
-       5,
-       -1
-      ],
-      [
-       "FunctionPrototype",
-       "write_val",
-       2,
-       0,
-       141,
-       5,
-       -1
-      ],
-      [
-       "FunctionPrototype",
-       "write_val_masked",
-       2,
-       0,
-       142,
-       5,
-       -1
-      ],
-      [
-       "FunctionPrototype",
-       "write_field",
-       2,
-       0,
-       143,
-       5,
-       -1
-      ],
-      [
-       "FunctionPrototype",
-       "write_fields",
-       2,
        0,
        144,
+       1,
+       1398
+      ],
+      [
+       "FunctionPrototype",
+       "addr_value",
+       2,
+       0,
+       145,
        5,
        -1
       ],
       [
-       "Component",
-       "reg_c",
-       1,
+       "FunctionPrototype",
+       "addr_value_solve",
+       2,
        0,
-       148,
-       1,
-       246
+       146,
+       5,
+       -1
       ],
       [
        "FunctionPrototype",
-       "read",
+       "addr_value_abs",
+       2,
+       0,
+       147,
+       5,
+       -1
+      ],
+      [
+       "FunctionPrototype",
+       "read8",
+       2,
+       0,
+       148,
+       5,
+       -1
+      ],
+      [
+       "FunctionPrototype",
+       "read16",
+       2,
+       0,
+       149,
+       5,
+       -1
+      ],
+      [
+       "FunctionPrototype",
+       "read32",
        2,
        0,
        150,
@@ -565,7 +664,7 @@
       ],
       [
        "FunctionPrototype",
-       "write",
+       "read64",
        2,
        0,
        151,
@@ -574,7 +673,7 @@
       ],
       [
        "FunctionPrototype",
-       "write_masked",
+       "write8",
        2,
        0,
        152,
@@ -582,116 +681,98 @@
        -1
       ],
       [
-       "Struct",
-       "node_s",
-       1,
+       "FunctionPrototype",
+       "write16",
+       2,
        0,
-       155,
-       1,
-       43
+       153,
+       5,
+       -1
       ],
       [
-       "Field",
-       "name",
+       "FunctionPrototype",
+       "write32",
+       2,
+       0,
+       154,
+       5,
+       -1
+      ],
+      [
+       "FunctionPrototype",
+       "write64",
+       2,
+       0,
+       155,
+       5,
+       -1
+      ],
+      [
+       "FunctionPrototype",
+       "read_bytes",
        2,
        0,
        156,
-       9,
-       4
+       5,
+       -1
       ],
       [
-       "Field",
-       "index",
+       "FunctionPrototype",
+       "write_bytes",
        2,
        0,
        157,
-       6,
-       5
+       5,
+       -1
       ],
       [
-       "Component",
-       "reg_group_c",
+       "EnumDecl",
+       "reg_access",
        1,
        0,
        160,
        1,
-       671
-      ],
-      [
-       "FunctionPrototype",
-       "set_executor",
-       2,
-       -1,
-       -1,
-       -1,
        -1
       ],
       [
-       "FunctionPrototype",
-       "get_offset_of_instance",
-       2,
-       0,
-       161,
-       5,
-       -1
-      ],
-      [
-       "FunctionPrototype",
-       "get_offset_of_instance_array",
-       2,
-       0,
-       162,
-       5,
-       -1
-      ],
-      [
-       "FunctionPrototype",
-       "get_offset_of_path",
-       2,
+       "Component",
+       "reg_base_c",
+       1,
        0,
        163,
-       5,
-       -1
+       1,
+       70
       ],
       [
        "FunctionPrototype",
-       "get_mnemonic_of_instance",
+       "get_handle",
        2,
        0,
-       166,
+       164,
        5,
        -1
       ],
       [
-       "FunctionPrototype",
-       "get_mnemonic_of_instance_array",
-       2,
-       0,
-       167,
-       5,
-       -1
-      ],
-      [
-       "FunctionPrototype",
-       "get_mnemonic_of_path",
-       2,
-       0,
-       168,
-       5,
-       -1
-      ],
-      [
-       "FunctionPrototype",
-       "set_mnemonic",
-       2,
+       "Component",
+       "reg_sized_c",
+       1,
        0,
        169,
+       1,
+       363
+      ],
+      [
+       "FunctionPrototype",
+       "read_val",
+       2,
+       0,
+       170,
        5,
        -1
       ],
       [
        "FunctionPrototype",
-       "set_handle",
+       "write_val",
        2,
        0,
        171,
@@ -700,10 +781,190 @@
       ],
       [
        "FunctionPrototype",
+       "write_val_masked",
+       2,
+       0,
+       172,
+       5,
+       -1
+      ],
+      [
+       "FunctionPrototype",
+       "write_field",
+       2,
+       0,
+       173,
+       5,
+       -1
+      ],
+      [
+       "FunctionPrototype",
+       "write_fields",
+       2,
+       0,
+       174,
+       5,
+       -1
+      ],
+      [
+       "Component",
+       "reg_c",
+       1,
+       0,
+       178,
+       1,
+       246
+      ],
+      [
+       "FunctionPrototype",
+       "read",
+       2,
+       0,
+       180,
+       5,
+       -1
+      ],
+      [
+       "FunctionPrototype",
+       "write",
+       2,
+       0,
+       181,
+       5,
+       -1
+      ],
+      [
+       "FunctionPrototype",
+       "write_masked",
+       2,
+       0,
+       182,
+       5,
+       -1
+      ],
+      [
+       "Struct",
+       "node_s",
+       1,
+       0,
+       185,
+       1,
+       43
+      ],
+      [
+       "Field",
+       "name",
+       2,
+       0,
+       186,
+       9,
+       4
+      ],
+      [
+       "Field",
+       "index",
+       2,
+       0,
+       187,
+       6,
+       5
+      ],
+      [
+       "Component",
+       "reg_group_c",
+       1,
+       0,
+       190,
+       1,
+       678
+      ],
+      [
+       "FunctionPrototype",
+       "get_offset_of_instance",
+       2,
+       0,
+       191,
+       5,
+       -1
+      ],
+      [
+       "FunctionPrototype",
+       "get_offset_of_instance_array",
+       2,
+       0,
+       192,
+       5,
+       -1
+      ],
+      [
+       "FunctionPrototype",
+       "get_offset_of_path",
+       2,
+       0,
+       193,
+       5,
+       -1
+      ],
+      [
+       "FunctionPrototype",
+       "get_mnemonic_of_instance",
+       2,
+       0,
+       196,
+       5,
+       -1
+      ],
+      [
+       "FunctionPrototype",
+       "get_mnemonic_of_instance_array",
+       2,
+       0,
+       197,
+       5,
+       -1
+      ],
+      [
+       "FunctionPrototype",
+       "get_mnemonic_of_path",
+       2,
+       0,
+       198,
+       5,
+       -1
+      ],
+      [
+       "FunctionPrototype",
+       "set_mnemonic",
+       2,
+       0,
+       199,
+       5,
+       -1
+      ],
+      [
+       "FunctionPrototype",
+       "set_handle",
+       2,
+       0,
+       201,
+       5,
+       -1
+      ],
+      [
+       "FunctionPrototype",
+       "get_handle",
+       2,
+       0,
+       202,
+       5,
+       -1
+      ],
+      [
+       "FunctionPrototype",
        "use_symbolic_reg_names",
        1,
        0,
-       176,
+       206,
        1,
        -1
       ],
@@ -713,24 +974,15 @@
        0,
        0,
        3,
-       0,
-       842
-      ],
-      [
-       "PackageImportStmt",
-       null,
        1,
-       0,
-       4,
-       5,
-       -1
+       1610
       ],
       [
        "Struct",
        "executor_trait_s",
        1,
        0,
-       6,
+       5,
        5,
        26
       ],
@@ -739,26 +991,98 @@
        "empty_executor_trait_s",
        1,
        0,
-       8,
+       7,
        5,
        51
+      ],
+      [
+       "EnumDecl",
+       "target_language_e",
+       1,
+       0,
+       12,
+       5,
+       -1
+      ],
+      [
+       "Component",
+       "target_execution_unit_c",
+       1,
+       0,
+       14,
+       5,
+       283
+      ],
+      [
+       "FunctionPrototype",
+       "set_filename",
+       2,
+       0,
+       15,
+       9,
+       -1
+      ],
+      [
+       "FunctionPrototype",
+       "get_filename",
+       2,
+       0,
+       16,
+       9,
+       -1
+      ],
+      [
+       "FunctionPrototype",
+       "set_target_language",
+       2,
+       0,
+       17,
+       9,
+       -1
+      ],
+      [
+       "FunctionPrototype",
+       "get_target_language",
+       2,
+       0,
+       18,
+       9,
+       -1
       ],
       [
        "Component",
        "executor_base_c",
        1,
        0,
-       10,
+       22,
        5,
-       28
+       401
       ],
       [
        "FunctionPrototype",
-       "set_executor",
+       "get_context",
        2,
-       -1,
-       -1,
-       -1,
+       0,
+       25,
+       9,
+       -1
+      ],
+      [
+       "FunctionPrototype",
+       "set_target_execution_unit",
+       2,
+       0,
+       27,
+       9,
+       -1
+      ],
+      [
+       "FunctionPrototype",
+       "get_target_execution_unit",
+       2,
+       0,
+       29,
+       9,
        -1
       ],
       [
@@ -766,7 +1090,7 @@
        "executor_c",
        1,
        0,
-       12,
+       32,
        5,
        134
       ],
@@ -775,7 +1099,7 @@
        "trait",
        2,
        0,
-       14,
+       34,
        15,
        5
       ],
@@ -784,52 +1108,16 @@
        "executor_group_c",
        1,
        0,
-       17,
+       37,
        5,
-       229
-      ],
-      [
-       "FunctionPrototype",
-       "set_executor",
-       2,
-       -1,
-       -1,
-       -1,
-       -1
+       170
       ],
       [
        "FunctionPrototype",
        "add_executor",
        2,
        0,
-       21,
-       9,
-       -1
-      ],
-      [
-       "Component",
-       "executor_group_default_c",
-       1,
-       0,
-       24,
-       5,
-       99
-      ],
-      [
-       "FunctionPrototype",
-       "set_executor",
-       2,
-       -1,
-       -1,
-       -1,
-       -1
-      ],
-      [
-       "FunctionPrototype",
-       "add_executor",
-       2,
-       0,
-       25,
+       39,
        9,
        -1
       ],
@@ -838,7 +1126,7 @@
        "executor_claim_s",
        1,
        0,
-       28,
+       42,
        5,
        124
       ],
@@ -847,7 +1135,7 @@
        "trait",
        2,
        0,
-       30,
+       44,
        20,
        5
       ],
@@ -856,7 +1144,16 @@
        "executor",
        1,
        0,
-       33,
+       47,
+       5,
+       -1
+      ],
+      [
+       "FunctionPrototype",
+       "set_executor",
+       1,
+       0,
+       50,
        5,
        -1
       ],
@@ -866,8 +1163,8 @@
        0,
        0,
        3,
-       0,
-       1528
+       1,
+       4879
       ],
       [
        "EnumDecl",
@@ -916,25 +1213,7 @@
       ],
       [
        "FunctionPrototype",
-       "print",
-       1,
-       0,
-       21,
-       5,
-       -1
-      ],
-      [
-       "EnumDecl",
-       "message_verbosity_e",
-       1,
-       0,
-       23,
-       5,
-       -1
-      ],
-      [
-       "FunctionPrototype",
-       "message",
+       "format",
        1,
        0,
        25,
@@ -943,7 +1222,7 @@
       ],
       [
        "FunctionPrototype",
-       "format",
+       "print",
        1,
        0,
        27,
@@ -955,7 +1234,133 @@
        "format_string",
        1,
        0,
-       29,
+       34,
+       5,
+       -1
+      ],
+      [
+       "EnumDecl",
+       "message_verbosity_e",
+       1,
+       0,
+       36,
+       5,
+       -1
+      ],
+      [
+       "FunctionPrototype",
+       "message",
+       1,
+       0,
+       38,
+       5,
+       -1
+      ],
+      [
+       "TypedefDeclaration",
+       null,
+       1,
+       0,
+       43,
+       5,
+       -1
+      ],
+      [
+       "Field",
+       "nullfilehandle",
+       1,
+       0,
+       44,
+       32,
+       51
+      ],
+      [
+       "EnumDecl",
+       "file_option_e",
+       1,
+       0,
+       46,
+       5,
+       -1
+      ],
+      [
+       "FunctionPrototype",
+       "file_open",
+       1,
+       0,
+       48,
+       5,
+       -1
+      ],
+      [
+       "FunctionPrototype",
+       "file_close",
+       1,
+       0,
+       49,
+       5,
+       -1
+      ],
+      [
+       "FunctionPrototype",
+       "file_exists",
+       1,
+       0,
+       50,
+       5,
+       -1
+      ],
+      [
+       "FunctionPrototype",
+       "file_write",
+       1,
+       0,
+       52,
+       5,
+       -1
+      ],
+      [
+       "FunctionPrototype",
+       "file_read",
+       1,
+       0,
+       53,
+       5,
+       -1
+      ],
+      [
+       "FunctionPrototype",
+       "file_write_lines",
+       1,
+       0,
+       55,
+       5,
+       -1
+      ],
+      [
+       "FunctionPrototype",
+       "file_read_lines",
+       1,
+       0,
+       56,
+       5,
+       -1
+      ],
+      [
+       "FunctionPrototype",
+       "error",
+       1,
+       0,
+       62,
+       5,
+       -1
+      ],
+      [
+       "FunctionPrototype",
+       "fatal",
+       1,
+       0,
+       63,
        5,
        -1
       ],
@@ -964,7 +1369,7 @@
        "urandom",
        1,
        0,
-       31,
+       68,
        5,
        -1
       ],
@@ -973,25 +1378,304 @@
        "urandom_range",
        1,
        0,
-       33,
+       70,
        5,
        -1
       ],
       [
-       "Component",
-       "actor_c",
+       "Struct",
+       "float_base_s",
        1,
        0,
-       36,
+       75,
        5,
-       51
+       177
+      ],
+      [
+       "Field",
+       "mantissa",
+       2,
+       0,
+       76,
+       22,
+       8
+      ],
+      [
+       "Field",
+       "exponent",
+       2,
+       0,
+       77,
+       22,
+       8
+      ],
+      [
+       "Field",
+       "sign",
+       2,
+       0,
+       78,
+       22,
+       4
+      ],
+      [
+       "TypedefDeclaration",
+       null,
+       1,
+       0,
+       82,
+       5,
+       -1
+      ],
+      [
+       "TypedefDeclaration",
+       null,
+       1,
+       0,
+       83,
+       5,
+       -1
+      ],
+      [
+       "FunctionPrototype",
+       "log",
+       1,
+       0,
+       85,
+       5,
+       -1
+      ],
+      [
+       "FunctionPrototype",
+       "log10",
+       1,
+       0,
+       86,
+       5,
+       -1
+      ],
+      [
+       "FunctionPrototype",
+       "exp",
+       1,
+       0,
+       87,
+       5,
+       -1
+      ],
+      [
+       "FunctionPrototype",
+       "sqrt",
+       1,
+       0,
+       88,
+       5,
+       -1
+      ],
+      [
+       "FunctionPrototype",
+       "pow",
+       1,
+       0,
+       89,
+       5,
+       -1
+      ],
+      [
+       "FunctionPrototype",
+       "round",
+       1,
+       0,
+       90,
+       5,
+       -1
+      ],
+      [
+       "FunctionPrototype",
+       "floor",
+       1,
+       0,
+       91,
+       5,
+       -1
+      ],
+      [
+       "FunctionPrototype",
+       "ceil",
+       1,
+       0,
+       92,
+       5,
+       -1
+      ],
+      [
+       "FunctionPrototype",
+       "sin",
+       1,
+       0,
+       93,
+       5,
+       -1
+      ],
+      [
+       "FunctionPrototype",
+       "cos",
+       1,
+       0,
+       94,
+       5,
+       -1
+      ],
+      [
+       "FunctionPrototype",
+       "tan",
+       1,
+       0,
+       95,
+       5,
+       -1
+      ],
+      [
+       "FunctionPrototype",
+       "asin",
+       1,
+       0,
+       96,
+       5,
+       -1
+      ],
+      [
+       "FunctionPrototype",
+       "acos",
+       1,
+       0,
+       97,
+       5,
+       -1
+      ],
+      [
+       "FunctionPrototype",
+       "atan",
+       1,
+       0,
+       98,
+       5,
+       -1
+      ],
+      [
+       "FunctionPrototype",
+       "atan2",
+       1,
+       0,
+       99,
+       5,
+       -1
+      ],
+      [
+       "FunctionPrototype",
+       "hypot",
+       1,
+       0,
+       100,
+       5,
+       -1
+      ],
+      [
+       "FunctionPrototype",
+       "sinh",
+       1,
+       0,
+       101,
+       5,
+       -1
+      ],
+      [
+       "FunctionPrototype",
+       "cosh",
+       1,
+       0,
+       102,
+       5,
+       -1
+      ],
+      [
+       "FunctionPrototype",
+       "tanh",
+       1,
+       0,
+       103,
+       5,
+       -1
+      ],
+      [
+       "FunctionPrototype",
+       "asinh",
+       1,
+       0,
+       104,
+       5,
+       -1
+      ],
+      [
+       "FunctionPrototype",
+       "acosh",
+       1,
+       0,
+       105,
+       5,
+       -1
+      ],
+      [
+       "FunctionPrototype",
+       "atanh",
+       1,
+       0,
+       106,
+       5,
+       -1
+      ],
+      [
+       "FunctionPrototype",
+       "float_mantissa",
+       1,
+       0,
+       108,
+       5,
+       -1
+      ],
+      [
+       "FunctionPrototype",
+       "float_exponent",
+       1,
+       0,
+       109,
+       5,
+       -1
+      ],
+      [
+       "FunctionPrototype",
+       "float_sign",
+       1,
+       0,
+       110,
+       5,
+       -1
+      ],
+      [
+       "FunctionPrototype",
+       "to_float",
+       1,
+       0,
+       111,
+       5,
+       -1
       ],
       [
        "AnnotationDecl",
        "code_doc",
        1,
        0,
-       44,
+       120,
        5,
        48
       ],
@@ -1000,7 +1684,7 @@
        "text",
        2,
        0,
-       45,
+       121,
        16,
        4
       ],
@@ -1009,7 +1693,7 @@
        "doc",
        1,
        0,
-       52,
+       128,
        5,
        43
       ],
@@ -1018,27 +1702,27 @@
        "text",
        2,
        0,
-       53,
+       129,
        16,
        4
-      ],
-      [
-       "PackageImportStmt",
-       null,
-       0,
-       0,
-       2,
-       1,
-       -1
       ],
       [
        "PackageScope",
        null,
        0,
        0,
-       4,
+       3,
+       1,
+       464
+      ],
+      [
+       "PackageImportStmt",
+       null,
+       1,
        0,
-       577
+       4,
+       5,
+       -1
       ],
       [
        "Component",
@@ -1047,16 +1731,7 @@
        0,
        6,
        5,
-       550
-      ],
-      [
-       "FunctionPrototype",
-       "set_executor",
-       2,
-       -1,
-       -1,
-       -1,
-       -1
+       414
       ],
       [
        "FunctionPrototype",
@@ -1093,60 +1768,6 @@
        13,
        9,
        -1
-      ],
-      [
-       "Action",
-       "put_a",
-       2,
-       0,
-       15,
-       9,
-       54
-      ],
-      [
-       "FieldCompRef",
-       "comp",
-       3,
-       -1,
-       -1,
-       -1,
-       -1
-      ],
-      [
-       "Field",
-       "data",
-       3,
-       0,
-       16,
-       25,
-       4
-      ],
-      [
-       "Action",
-       "get_a",
-       2,
-       0,
-       19,
-       9,
-       54
-      ],
-      [
-       "FieldCompRef",
-       "comp",
-       3,
-       -1,
-       -1,
-       -1,
-       -1
-      ],
-      [
-       "Field",
-       "data",
-       3,
-       0,
-       20,
-       25,
-       4
       ]
      ]
     },
@@ -1161,15 +1782,6 @@
        1,
        1,
        38
-      ],
-      [
-       "FunctionPrototype",
-       "set_executor",
-       1,
-       -1,
-       -1,
-       -1,
-       -1
       ],
       [
        "Action",
@@ -1213,7 +1825,7 @@
        0,
        1,
        1,
-       0,
+       1,
        134
       ],
       [
@@ -1224,15 +1836,6 @@
        2,
        5,
        116
-      ],
-      [
-       "FunctionPrototype",
-       "set_executor",
-       2,
-       -1,
-       -1,
-       -1,
-       -1
       ],
       [
        "Action",
@@ -1296,15 +1899,6 @@
        1,
        1,
        124
-      ],
-      [
-       "FunctionPrototype",
-       "set_executor",
-       1,
-       -1,
-       -1,
-       -1,
-       -1
       ],
       [
        "Action",
@@ -1397,15 +1991,6 @@
        145
       ],
       [
-       "FunctionPrototype",
-       "set_executor",
-       1,
-       -1,
-       -1,
-       -1,
-       -1
-      ],
-      [
        "Action",
        "A",
        1,
@@ -1487,15 +2072,6 @@
        120
       ],
       [
-       "FunctionPrototype",
-       "set_executor",
-       1,
-       -1,
-       -1,
-       -1,
-       -1
-      ],
-      [
        "EnumDecl",
        "e_t",
        1,
@@ -1568,15 +2144,6 @@
        58
       ],
       [
-       "FunctionPrototype",
-       "set_executor",
-       1,
-       -1,
-       -1,
-       -1,
-       -1
-      ],
-      [
        "Action",
        "A",
        1,
@@ -1618,7 +2185,7 @@
        0,
        1,
        1,
-       0,
+       1,
        13
       ]
      ]
@@ -1672,7 +2239,7 @@
        0,
        1,
        21,
-       0,
+       1,
        653
       ],
       [
@@ -1726,7 +2293,7 @@
        0,
        1,
        11,
-       0,
+       1,
        713
       ],
       [
@@ -1807,7 +2374,7 @@
        0,
        1,
        23,
-       0,
+       1,
        922
       ],
       [
@@ -2068,7 +2635,7 @@
        0,
        1,
        18,
-       0,
+       1,
        480
       ],
       [
@@ -2113,7 +2680,7 @@
        0,
        1,
        14,
-       0,
+       1,
        332
       ],
       [
@@ -2212,7 +2779,7 @@
        0,
        1,
        29,
-       0,
+       1,
        1447
       ],
       [
@@ -2277,15 +2844,6 @@
        16,
        1,
        2618
-      ],
-      [
-       "FunctionPrototype",
-       "set_executor",
-       1,
-       -1,
-       -1,
-       -1,
-       -1
       ],
       [
        "Field",
@@ -2374,7 +2932,7 @@
        0,
        1,
        8,
-       0,
+       1,
        346
       ],
       [
@@ -2473,7 +3031,7 @@
        0,
        1,
        13,
-       0,
+       1,
        4978
       ],
       [
@@ -2788,7 +3346,7 @@
        0,
        1,
        20,
-       0,
+       1,
        162
       ],
       [
@@ -2824,7 +3382,7 @@
        0,
        1,
        6,
-       0,
+       1,
        3981
       ],
       [
@@ -2977,7 +3535,7 @@
        0,
        1,
        18,
-       0,
+       1,
        400
       ],
       [
@@ -3085,7 +3643,7 @@
        0,
        1,
        18,
-       0,
+       1,
        108
       ],
       [
@@ -3139,7 +3697,7 @@
        0,
        1,
        16,
-       0,
+       1,
        372
       ],
       [
@@ -3193,7 +3751,7 @@
        0,
        1,
        10,
-       0,
+       1,
        445
       ],
       [
@@ -3301,7 +3859,7 @@
        0,
        1,
        17,
-       0,
+       1,
        878
       ],
       [
@@ -3490,7 +4048,7 @@
        0,
        1,
        23,
-       0,
+       1,
        898
       ],
       [
@@ -3645,15 +4203,6 @@
        16,
        1,
        19
-      ],
-      [
-       "FunctionPrototype",
-       "set_executor",
-       1,
-       -1,
-       -1,
-       -1,
-       -1
       ]
      ]
     }
@@ -3679,7 +4228,7 @@
        0,
        1,
        14,
-       0,
+       1,
        309
       ],
       [
@@ -3805,7 +4354,7 @@
        0,
        1,
        7,
-       0,
+       1,
        3563
       ],
       [
@@ -3913,7 +4462,7 @@
        0,
        1,
        16,
-       0,
+       1,
        1007
       ],
       [
@@ -3976,7 +4525,7 @@
        0,
        1,
        9,
-       0,
+       1,
        776
       ],
       [
@@ -4111,7 +4660,7 @@
        0,
        1,
        10,
-       0,
+       1,
        457
       ],
       [
@@ -4237,7 +4786,7 @@
        0,
        1,
        19,
-       0,
+       1,
        504
       ],
       [
@@ -4300,7 +4849,7 @@
        0,
        1,
        22,
-       0,
+       1,
        504
       ],
       [
@@ -4383,15 +4932,6 @@
        18,
        1,
        4036
-      ],
-      [
-       "FunctionPrototype",
-       "set_executor",
-       1,
-       -1,
-       -1,
-       -1,
-       -1
       ],
       [
        "Field",
@@ -4705,7 +5245,7 @@
        0,
        1,
        15,
-       0,
+       1,
        1047
       ],
       [
@@ -4898,15 +5438,6 @@
        1410
       ],
       [
-       "FunctionPrototype",
-       "set_executor",
-       1,
-       -1,
-       -1,
-       -1,
-       -1
-      ],
-      [
        "Field",
        "regs",
        1,
@@ -4984,7 +5515,7 @@
        0,
        1,
        7,
-       0,
+       1,
        355
       ],
       [
@@ -5110,7 +5641,7 @@
        0,
        1,
        13,
-       0,
+       1,
        459
       ],
       [
@@ -5263,7 +5794,7 @@
        0,
        1,
        8,
-       0,
+       1,
        196
       ],
       [
@@ -5353,7 +5884,7 @@
        0,
        1,
        12,
-       0,
+       1,
        289
       ],
       [
@@ -5470,7 +6001,7 @@
        0,
        1,
        6,
-       0,
+       1,
        5662
       ],
       [
@@ -5884,7 +6415,7 @@
        0,
        1,
        4,
-       0,
+       1,
        4724
       ],
       [
@@ -6082,7 +6613,7 @@
        0,
        1,
        18,
-       0,
+       1,
        128
       ],
       [
@@ -6136,7 +6667,7 @@
        0,
        1,
        20,
-       0,
+       1,
        237
       ],
       [
@@ -6172,7 +6703,7 @@
        0,
        1,
        12,
-       0,
+       1,
        410
       ],
       [
@@ -6253,7 +6784,7 @@
        0,
        1,
        19,
-       0,
+       1,
        290
       ],
       [
@@ -6298,7 +6829,7 @@
        0,
        1,
        17,
-       0,
+       1,
        216
       ],
       [
@@ -6334,7 +6865,7 @@
        0,
        1,
        16,
-       0,
+       1,
        56
       ],
       [
@@ -6354,15 +6885,6 @@
        20,
        1,
        3723
-      ],
-      [
-       "FunctionPrototype",
-       "set_executor",
-       1,
-       -1,
-       -1,
-       -1,
-       -1
       ],
       [
        "PackageImportStmt",
@@ -6707,15 +7229,6 @@
        39
       ],
       [
-       "FunctionPrototype",
-       "set_executor",
-       1,
-       -1,
-       -1,
-       -1,
-       -1
-      ],
-      [
        "Field",
        "eng",
        1,
@@ -6748,7 +7261,7 @@
        0,
        1,
        24,
-       0,
+       1,
        112
       ],
       [
@@ -6777,15 +7290,6 @@
        29,
        1,
        205
-      ],
-      [
-       "FunctionPrototype",
-       "set_executor",
-       1,
-       -1,
-       -1,
-       -1,
-       -1
       ],
       [
        "PackageImportStmt",
@@ -6892,7 +7396,7 @@
        0,
        1,
        37,
-       0,
+       1,
        2031
       ],
       [
@@ -7292,15 +7796,6 @@
        821
       ],
       [
-       "FunctionPrototype",
-       "set_executor",
-       1,
-       -1,
-       -1,
-       -1,
-       -1
-      ],
-      [
        "PackageImportStmt",
        null,
        1,
@@ -7351,7 +7846,7 @@
        1,
        1,
        139,
-       4,
+       5,
        281
       ],
       [
@@ -7432,7 +7927,7 @@
        0,
        1,
        16,
-       0,
+       1,
        2152
       ],
       [
@@ -7596,15 +8091,6 @@
        87,
        1,
        1181
-      ],
-      [
-       "FunctionPrototype",
-       "set_executor",
-       1,
-       -1,
-       -1,
-       -1,
-       -1
       ],
       [
        "PackageImportStmt",
@@ -7805,15 +8291,6 @@
        36
       ],
       [
-       "FunctionPrototype",
-       "set_executor",
-       1,
-       -1,
-       -1,
-       -1,
-       -1
-      ],
-      [
        "Field",
        "dma",
        1,
@@ -7846,7 +8323,7 @@
        0,
        1,
        16,
-       0,
+       1,
        1038
       ],
       [
@@ -7902,15 +8379,6 @@
        44,
        1,
        973
-      ],
-      [
-       "FunctionPrototype",
-       "set_executor",
-       1,
-       -1,
-       -1,
-       -1,
-       -1
       ],
       [
        "PackageImportStmt",
@@ -8057,15 +8525,6 @@
        36
       ],
       [
-       "FunctionPrototype",
-       "set_executor",
-       1,
-       -1,
-       -1,
-       -1,
-       -1
-      ],
-      [
        "Field",
        "dma",
        1,
@@ -8082,7 +8541,7 @@
   {
    "files": [
     {
-     "content": "// extension_variants.pss\n//\n// Reuse mechanisms: inheritance, extension, overrides, templates, compile if.\n//\n// The governing distinction: INHERITANCE adds a choice someone must make;\n// EXTENSION removes one -- it changes the type everywhere it is already used.\n// Project configuration is almost always extension, packaged so that a tool\n// can include or exclude it per test.\n//\n// Demonstrates:\n//   - an abstract action as a shared base\n//   - inheritance, and (in comments) super in a derived exec\n//   - extension in its own package, and why a WILDCARD import is required\n//   - type and instance overrides (in comments)\n//   - a template type with a value parameter\n//   - compile if driven by a package-scope constant\n//\n// See: reference/lang/structural/07-inheritance-extension-overrides.md\n//      reference/lang/structural/01-packages-and-name-resolution.md\n\npackage config_pkg {\n    // compile if conditions may reference only package-scope constants, and\n    // only ones declared EARLIER in the processing order.\n    static const bool HAS_FAST_PATH = true;\n    static const int  MAX_LEN       = 4096;\n}\n\npackage base_pkg {\n    import config_pkg::*;\n\n    // An abstract action may be declared outside a component. It captures the\n    // shared fields and constraints and is never traversed directly.\n    abstract action base_xfer {\n        rand bit[16] len;\n        constraint len > 0 && len <= MAX_LEN;\n    }\n}\n\ncomponent dma_c {\n    import base_pkg::*;\n    import config_pkg::*;\n\n    // Inheritance: a NEW type that a traversal site must name explicitly.\n    action xfer : base_xfer {\n        exec body {\n            message(LOW, \"xfer len=%d\", len);\n        }\n    }\n\n    // A derived action's exec block REPLACES the base's. The `super;`\n    // statement splices the base behaviour back in -- omitting it is a silent\n    // loss of behaviour, and is the most damaging inheritance mistake in PSS.\n    // `super;` is legal PSS (LRM 17.1, 20.1.4.2) but is not accepted by every\n    // front end, so it is shown here rather than compiled:\n    //\n    //     action logged_xfer : xfer {\n    //         exec body {\n    //             super;                        // runs xfer's body first\n    //             message(LOW, \"logged\");\n    //         }\n    //     }\n    action logged_xfer : xfer {\n        exec body {\n            message(LOW, \"logged\");\n        }\n    }\n\n    // compile if elaborates declarations conditionally. A disabled branch must\n    // be syntactically valid but is NOT semantically checked -- which is why\n    // package selection is usually the better tool.\n    compile if (config_pkg::HAS_FAST_PATH) {\n        action fast_xfer : xfer {\n            constraint len >= 1024;\n        }\n    }\n\n    action test {\n        activity {\n            do xfer;\n            do logged_xfer;\n        }\n    }\n}\n\n// Configuration for one SoC, in its own package so that it can be included or\n// excluded per test, and so that it may contradict soc_b_pkg freely.\npackage soc_a_pkg {\n    import base_pkg::*;\n\n    extend action dma_c::xfer {\n        rand int in [1, 2, 4, 8] ta_width;      // a NEW attribute\n        constraint ta_width < 4 -> len <= 256;  // and a layered constraint\n    }\n}\n\n// A conflicting configuration. Both packages can exist in the source tree;\n// a tool includes at most one in a given test.\npackage soc_b_pkg {\n    extend action dma_c::xfer {\n        constraint len <= 64;\n    }\n}\n\n// A template type. Angle brackets are required at instantiation even when\n// every parameter has a default.\npackage tmpl_pkg {\n    struct base_payload_s {\n        rand bit[8] core;\n    }\n\n    // A `compile assert (N > 0 && N <= 16, \"N out of range\");` here is the\n    // idiomatic way to validate a template value parameter at elaboration\n    // time (LRM 19.4); not every front end evaluates it correctly inside a\n    // generic template, so it is described rather than compiled.\n    struct wrapper_s <struct T : base_payload_s = base_payload_s, int N = 4> {\n        rand T   payload;\n        rand int in [1..N] count;\n    }\n}\n\ncomponent pss_top {\n    // A WILDCARD import is required to see members introduced in an extension:\n    // extensions are unnamed and cannot be imported explicitly.\n    import soc_a_pkg::*;\n    import tmpl_pkg::*;\n\n    dma_c dma;\n\n    wrapper_s<>               w_default;   // <> required\n    wrapper_s<base_payload_s, 8> w_eight;\n\n    action run {\n        dma_c::xfer x;\n\n        // ta_width is introduced by the extension in soc_a_pkg. It is\n        // referenceable here ONLY because of the wildcard import above -- an\n        // explicit import cannot bring in extensions, because extensions are\n        // unnamed. Front ends differ in how completely they weave extension\n        // members into a type, so the reference is described rather than\n        // compiled:\n        //\n        //     constraint x.ta_width == 4;\n\n        // Overrides substitute a subtype for a declared type.\n        //   override { type dma_c::xfer with dma_c::logged_xfer; }  // all\n        //   override { instance dma.x with dma_c::logged_xfer; }    // one\n        // Resolution: highest in the containment tree wins; within a\n        // container, instance beats type; later beats earlier. Overrides do\n        // NOT apply to input/output/lock/share fields.\n\n        activity {\n            x;\n        }\n    }\n}\n",
+     "content": "// extension_variants.pss\n//\n// Reuse mechanisms: inheritance, extension, overrides, templates, compile if.\n//\n// The governing distinction: INHERITANCE adds a choice someone must make;\n// EXTENSION removes one -- it changes the type everywhere it is already used.\n// Project configuration is almost always extension, packaged so that a tool\n// can include or exclude it per test.\n//\n// Demonstrates:\n//   - an abstract action as a shared base\n//   - inheritance, and (in comments) super in a derived exec\n//   - extension in its own package, and why a WILDCARD import is required\n//   - type and instance overrides (in comments)\n//   - a template type with a value parameter\n//   - compile if driven by a package-scope constant\n//\n// See: reference/lang/structural/07-inheritance-extension-overrides.md\n//      reference/lang/structural/01-packages-and-name-resolution.md\n\npackage config_pkg {\n    // compile if conditions may reference only package-scope constants, and\n    // only ones declared EARLIER in the processing order.\n    static const bool HAS_FAST_PATH = true;\n    static const int  MAX_LEN       = 4096;\n}\n\npackage base_pkg {\n    import config_pkg::*;\n\n    // An abstract action may be declared outside a component. It captures the\n    // shared fields and constraints and is never traversed directly.\n    abstract action base_xfer {\n        rand bit[16] len;\n        constraint len > 0 && len <= MAX_LEN;\n    }\n}\n\ncomponent dma_c {\n    import base_pkg::*;\n    import config_pkg::*;\n    import std_pkg::*;   // for message()\n\n    // Inheritance: a NEW type that a traversal site must name explicitly.\n    action xfer : base_xfer {\n        exec body {\n            message(LOW, \"xfer len=%d\", len);\n        }\n    }\n\n    // A derived action's exec block REPLACES the base's. The `super;`\n    // statement splices the base behaviour back in -- omitting it is a silent\n    // loss of behaviour, and is the most damaging inheritance mistake in PSS.\n    // `super;` is legal PSS (LRM 17.1, 20.1.4.2) but is not accepted by every\n    // front end, so it is shown here rather than compiled:\n    //\n    //     action logged_xfer : xfer {\n    //         exec body {\n    //             super;                        // runs xfer's body first\n    //             message(LOW, \"logged\");\n    //         }\n    //     }\n    action logged_xfer : xfer {\n        exec body {\n            message(LOW, \"logged\");\n        }\n    }\n\n    // compile if elaborates declarations conditionally. A disabled branch must\n    // be syntactically valid but is NOT semantically checked -- which is why\n    // package selection is usually the better tool.\n    compile if (config_pkg::HAS_FAST_PATH) {\n        action fast_xfer : xfer {\n            constraint len >= 1024;\n        }\n    }\n\n    action test {\n        activity {\n            do xfer;\n            do logged_xfer;\n        }\n    }\n}\n\n// Configuration for one SoC, in its own package so that it can be included or\n// excluded per test, and so that it may contradict soc_b_pkg freely.\npackage soc_a_pkg {\n    import base_pkg::*;\n\n    extend action dma_c::xfer {\n        rand int in [1, 2, 4, 8] ta_width;      // a NEW attribute\n        constraint ta_width < 4 -> len <= 256;  // and a layered constraint\n    }\n}\n\n// A conflicting configuration. Both packages can exist in the source tree;\n// a tool includes at most one in a given test.\npackage soc_b_pkg {\n    extend action dma_c::xfer {\n        constraint len <= 64;\n    }\n}\n\n// A template type. Angle brackets are required at instantiation even when\n// every parameter has a default.\npackage tmpl_pkg {\n    struct base_payload_s {\n        rand bit[8] core;\n    }\n\n    // A `compile assert (N > 0 && N <= 16, \"N out of range\");` here is the\n    // idiomatic way to validate a template value parameter at elaboration\n    // time (LRM 19.4); not every front end evaluates it correctly inside a\n    // generic template, so it is described rather than compiled.\n    struct wrapper_s <struct T : base_payload_s = base_payload_s, int N = 4> {\n        rand T   payload;\n        rand int in [1..N] count;\n    }\n}\n\ncomponent pss_top {\n    // A WILDCARD import is required to see members introduced in an extension:\n    // extensions are unnamed and cannot be imported explicitly.\n    import soc_a_pkg::*;\n    import tmpl_pkg::*;\n\n    dma_c dma;\n\n    wrapper_s<>               w_default;   // <> required\n    wrapper_s<base_payload_s, 8> w_eight;\n\n    action run {\n        dma_c::xfer x;\n\n        // ta_width is introduced by the extension in soc_a_pkg. It is\n        // referenceable here ONLY because of the wildcard import above -- an\n        // explicit import cannot bring in extensions, because extensions are\n        // unnamed. Front ends differ in how completely they weave extension\n        // members into a type, so the reference is described rather than\n        // compiled:\n        //\n        //     constraint x.ta_width == 4;\n\n        // Overrides substitute a subtype for a declared type.\n        //   override { type dma_c::xfer with dma_c::logged_xfer; }  // all\n        //   override { instance dma.x with dma_c::logged_xfer; }    // one\n        // Resolution: highest in the containment tree wins; within a\n        // container, instance beats type; later beats earlier. Overrides do\n        // NOT apply to input/output/lock/share fields.\n\n        activity {\n            x;\n        }\n    }\n}\n",
      "name": "language-ref/extension_variants.pss"
     }
    ],
@@ -8098,7 +8557,7 @@
        0,
        1,
        21,
-       0,
+       1,
        246
       ],
       [
@@ -8125,7 +8584,7 @@
        0,
        1,
        28,
-       0,
+       1,
        306
       ],
       [
@@ -8180,16 +8639,7 @@
        1,
        39,
        1,
-       1397
-      ],
-      [
-       "FunctionPrototype",
-       "set_executor",
-       1,
-       -1,
-       -1,
-       -1,
-       -1
+       1439
       ],
       [
        "PackageImportStmt",
@@ -8210,11 +8660,20 @@
        -1
       ],
       [
+       "PackageImportStmt",
+       null,
+       1,
+       1,
+       42,
+       5,
+       -1
+      ],
+      [
        "Action",
        "xfer",
        1,
        1,
-       44,
+       45,
        5,
        107
       ],
@@ -8232,7 +8691,7 @@
        null,
        2,
        1,
-       45,
+       46,
        9,
        67
       ],
@@ -8241,7 +8700,7 @@
        null,
        3,
        1,
-       46,
+       47,
        13,
        -1
       ],
@@ -8250,7 +8709,7 @@
        "logged_xfer",
        1,
        1,
-       62,
+       63,
        5,
        99
       ],
@@ -8268,7 +8727,7 @@
        null,
        2,
        1,
-       63,
+       64,
        9,
        57
       ],
@@ -8277,7 +8736,7 @@
        null,
        3,
        1,
-       64,
+       65,
        13,
        -1
       ],
@@ -8286,7 +8745,7 @@
        "fast_xfer",
        1,
        1,
-       72,
+       73,
        9,
        71
       ],
@@ -8304,7 +8763,7 @@
        null,
        2,
        1,
-       73,
+       74,
        13,
        -1
       ],
@@ -8313,7 +8772,7 @@
        "test",
        1,
        1,
-       77,
+       78,
        5,
        97
       ],
@@ -8331,7 +8790,7 @@
        null,
        2,
        1,
-       78,
+       79,
        9,
        69
       ],
@@ -8340,7 +8799,7 @@
        null,
        3,
        1,
-       79,
+       80,
        13,
        8
       ],
@@ -8349,7 +8808,7 @@
        null,
        3,
        1,
-       80,
+       81,
        13,
        15
       ],
@@ -8358,8 +8817,8 @@
        null,
        0,
        1,
-       87,
-       0,
+       88,
+       1,
        227
       ],
       [
@@ -8367,7 +8826,7 @@
        null,
        1,
        1,
-       88,
+       89,
        5,
        -1
       ],
@@ -8376,8 +8835,8 @@
        null,
        1,
        1,
-       90,
-       4,
+       91,
+       5,
        176
       ],
       [
@@ -8385,7 +8844,7 @@
        "ta_width",
        2,
        1,
-       91,
+       92,
        34,
        8
       ],
@@ -8394,7 +8853,7 @@
        null,
        2,
        1,
-       92,
+       93,
        9,
        -1
       ],
@@ -8403,8 +8862,8 @@
        null,
        0,
        1,
-       98,
-       0,
+       99,
+       1,
        89
       ],
       [
@@ -8412,8 +8871,8 @@
        null,
        1,
        1,
-       99,
-       4,
+       100,
+       5,
        63
       ],
       [
@@ -8421,7 +8880,7 @@
        null,
        2,
        1,
-       100,
+       101,
        9,
        -1
       ],
@@ -8430,8 +8889,8 @@
        null,
        0,
        1,
-       106,
-       0,
+       107,
+       1,
        519
       ],
       [
@@ -8439,7 +8898,7 @@
        "base_payload_s",
        1,
        1,
-       107,
+       108,
        5,
        55
       ],
@@ -8448,7 +8907,7 @@
        "core",
        2,
        1,
-       108,
+       109,
        21,
        4
       ],
@@ -8457,7 +8916,7 @@
        "wrapper_s",
        1,
        1,
-       115,
+       116,
        5,
        140
       ],
@@ -8466,7 +8925,7 @@
        "payload",
        2,
        1,
-       116,
+       117,
        18,
        7
       ],
@@ -8475,7 +8934,7 @@
        "count",
        2,
        1,
-       117,
+       118,
        28,
        5
       ],
@@ -8484,27 +8943,9 @@
        "pss_top",
        0,
        1,
-       121,
+       122,
        1,
        1297
-      ],
-      [
-       "FunctionPrototype",
-       "set_executor",
-       1,
-       -1,
-       -1,
-       -1,
-       -1
-      ],
-      [
-       "PackageImportStmt",
-       null,
-       1,
-       1,
-       124,
-       5,
-       -1
       ],
       [
        "PackageImportStmt",
@@ -8516,11 +8957,20 @@
        -1
       ],
       [
+       "PackageImportStmt",
+       null,
+       1,
+       1,
+       126,
+       5,
+       -1
+      ],
+      [
        "Field",
        "dma",
        1,
        1,
-       127,
+       128,
        11,
        3
       ],
@@ -8529,7 +8979,7 @@
        "w_default",
        1,
        1,
-       129,
+       130,
        31,
        9
       ],
@@ -8538,7 +8988,7 @@
        "w_eight",
        1,
        1,
-       130,
+       131,
        34,
        7
       ],
@@ -8547,7 +8997,7 @@
        "run",
        1,
        1,
-       132,
+       133,
        5,
        959
       ],
@@ -8565,7 +9015,7 @@
        "x",
        2,
        1,
-       133,
+       134,
        21,
        1
       ],
@@ -8574,7 +9024,7 @@
        null,
        2,
        1,
-       151,
+       152,
        9,
        35
       ],
@@ -8583,7 +9033,7 @@
        null,
        3,
        1,
-       152,
+       153,
        13,
        2
       ]
@@ -8611,7 +9061,7 @@
        0,
        1,
        16,
-       0,
+       1,
        1256
       ],
       [
@@ -8750,15 +9200,6 @@
        196
       ],
       [
-       "FunctionPrototype",
-       "set_executor",
-       1,
-       -1,
-       -1,
-       -1,
-       -1
-      ],
-      [
        "PackageImportStmt",
        null,
        1,
@@ -8822,15 +9263,6 @@
        185
       ],
       [
-       "FunctionPrototype",
-       "set_executor",
-       1,
-       -1,
-       -1,
-       -1,
-       -1
-      ],
-      [
        "PackageImportStmt",
        null,
        1,
@@ -8892,15 +9324,6 @@
        75,
        1,
        1448
-      ],
-      [
-       "FunctionPrototype",
-       "set_executor",
-       1,
-       -1,
-       -1,
-       -1,
-       -1
       ],
       [
        "PackageImportStmt",
@@ -9281,15 +9704,6 @@
        53
       ],
       [
-       "FunctionPrototype",
-       "set_executor",
-       1,
-       -1,
-       -1,
-       -1,
-       -1
-      ],
-      [
        "Field",
        "dma0",
        1,
@@ -9331,7 +9745,7 @@
        0,
        1,
        22,
-       0,
+       1,
        2806
       ],
       [
@@ -9450,15 +9864,6 @@
        108,
        1,
        2814
-      ],
-      [
-       "FunctionPrototype",
-       "set_executor",
-       1,
-       -1,
-       -1,
-       -1,
-       -1
       ],
       [
        "PackageImportStmt",
@@ -9740,15 +10145,6 @@
        36
       ],
       [
-       "FunctionPrototype",
-       "set_executor",
-       1,
-       -1,
-       -1,
-       -1,
-       -1
-      ],
-      [
        "Field",
        "dma",
        1,
@@ -9765,7 +10161,7 @@
   {
    "files": [
     {
-     "content": "// regs_and_mem.pss\n//\n// The register model and address spaces, end to end.\n//\n// Demonstrates:\n//   - packed_s layout, and sizeof_s\n//   - reg_c with a struct value type and with a bit-vector value type\n//   - reg_group_c with exactly ONE offset scheme\n//   - an MMIO window added as a NON-allocatable region\n//   - allocatable memory, an address claim, and handle arithmetic\n//   - register and memory access from a target exec\n//\n// See: reference/lang/platform/04-registers.md\n//      reference/lang/platform/03-address-spaces.md\n\npackage dma_regs_pkg {\n    import addr_reg_pkg::*;\n\n    // A packed struct describes the register's bit layout. The FIRST declared\n    // field is at the lowest address. Only numeric types, bool, based enums,\n    // packed structs and arrays of those are allowed.\n    struct csr_s : packed_s<LITTLE_ENDIAN> {\n        bit     en;\n        bit[7]  rsvd;\n        bit[8]  chan;\n        bit[16] len;\n    }\n\n    // READWRITE and SZ = 8*sizeof_s<csr_s>::nbytes = 32 by default.\n    pure component csr_r : reg_c<csr_s> {}\n\n    // A bit-vector register: read()/read_val() are equivalent here.\n    pure component sts_r : reg_c<bit[32], READONLY> {}\n\n    // A register group supplies the offset of every element it contains,\n    // using EITHER get_offset_of_instance + get_offset_of_instance_array,\n    // OR get_offset_of_path. Implementing all three is an error.\n    pure component ch_regs_c : reg_group_c {\n        csr_r csr;\n        sts_r sts;\n        csr_r aux[4];\n\n        function bit[64] get_offset_of_instance(string name) {\n            match (name) {\n                [\"csr\"]: return 0x0;\n                [\"sts\"]: return 0x4;\n                default: return -1;\n            }\n        }\n\n        function bit[64] get_offset_of_instance_array(string name, int index) {\n            match (name) {\n                [\"aux\"]: return 0x10 + index * 4;\n                default: return -1;\n            }\n        }\n    }\n}\n\ncomponent dma_c {\n    import addr_reg_pkg::*;\n    import dma_regs_pkg::*;\n\n    // The top-level register group: the one that gets set_handle().\n    ch_regs_c regs;\n\n    // A transparent space lets a claim's absolute address be constrained\n    // at solve time.\n    transparent_addr_space_c<> sys_mem;\n\n    exec init_up {\n        // Allocatable memory.\n        transparent_addr_region_s<> dram;\n        addr_handle_t               dram_h;\n        dram.size = 0x1000;\n        dram.addr = 0x8000_0000;\n        // A region may also carry a `tag` string, retrievable at run time with\n        // get_tag(handle) -- `dram.tag = \"dram\";`\n        dram_h = sys_mem.add_region(dram);\n\n        // The MMIO window must be NON-allocatable, or the allocator will\n        // hand out register addresses as buffers.\n        transparent_addr_region_s<> mmio;\n        addr_handle_t               mmio_h;\n        mmio.size = 1024;\n        mmio.addr = 0xA000_0000;\n        mmio_h = sys_mem.add_nonallocatable_region(mmio);\n\n        // Associated once, on the top-level group only, from an init exec.\n        regs.set_handle(mmio_h);\n    }\n\n    // Register programming. All register access functions are `target`.\n    action configure {\n        rand bit[8]  chan;\n        rand bit[16] len;\n\n        constraint len > 0;\n\n        exec body {\n            // Whole-register write, by value.\n            comp.regs.csr.write_val((len << 16) | (chan << 8));\n\n            // Read-modify-write forms are the better way to say this, but are\n            // not provided by every core-library implementation:\n            //\n            //   comp.regs.csr.write_fields({\"chan\",\"len\"}, {chan, len});\n            //   comp.regs.csr.write_masked({.en = ~0}, {.en = 1});\n            //\n            // write_field / write_fields take string LITERALS only, name\n            // top-level non-aggregate fields only, and the names must be\n            // unique. In write_masked, `~0` selects every bit of a field and\n            // fields omitted from the literal default to 0, so they are\n            // automatically excluded from the mask.\n        }\n    }\n\n    // A READONLY register may be read but never written.\n    action poll {\n        exec body {\n            bit[32] s;\n            s = comp.regs.sts.read_val();\n        }\n    }\n\n    // Memory allocation and raw access.\n    action fill_buffer {\n        rand transparent_addr_claim_s<> dst;\n\n        constraint dst.size == 256;\n        constraint dst.alignment == 64;\n\n        exec body {\n            addr_handle_t h;\n            addr_handle_t h2;\n            h  = make_handle_from_claim(dst);\n            h2 = make_handle_from_handle(h, 4);\n            write32(h,  0xdead_beef);\n            write32(h2, 0x0000_0000);\n        }\n    }\n}\n\ncomponent pss_top {\n    dma_c dma;\n}\n",
+     "content": "// regs_and_mem.pss\n//\n// The register model and address spaces, end to end.\n//\n// Demonstrates:\n//   - packed_s layout, and sizeof_s\n//   - reg_c with a struct value type and with a bit-vector value type\n//   - reg_group_c with exactly ONE offset scheme\n//   - an MMIO window added as a NON-allocatable region\n//   - allocatable memory, an address claim, and handle arithmetic\n//   - register and memory access from a target exec\n//\n// See: reference/lang/platform/04-registers.md\n//      reference/lang/platform/03-address-spaces.md\n\npackage dma_regs_pkg {\n    import addr_reg_pkg::*;\n    // packed_s and sizeof_s are std_pkg declarations (Annex C.1); import is\n    // not re-export, so importing addr_reg_pkg alone does not bring them in.\n    import std_pkg::*;\n\n    // A packed struct describes the register's bit layout. The FIRST declared\n    // field is at the lowest address. Only numeric types, bool, based enums,\n    // packed structs and arrays of those are allowed.\n    struct csr_s : packed_s<LITTLE_ENDIAN> {\n        bit     en;\n        bit[7]  rsvd;\n        bit[8]  chan;\n        bit[16] len;\n    }\n\n    // READWRITE and SZ = 8*sizeof_s<csr_s>::nbytes = 32 by default.\n    pure component csr_r : reg_c<csr_s> {}\n\n    // A bit-vector register: read()/read_val() are equivalent here.\n    pure component sts_r : reg_c<bit[32], READONLY> {}\n\n    // A register group supplies the offset of every element it contains,\n    // using EITHER get_offset_of_instance + get_offset_of_instance_array,\n    // OR get_offset_of_path. Implementing all three is an error.\n    pure component ch_regs_c : reg_group_c {\n        csr_r csr;\n        sts_r sts;\n        csr_r aux[4];\n\n        function bit[64] get_offset_of_instance(string name) {\n            match (name) {\n                [\"csr\"]: return 0x0;\n                [\"sts\"]: return 0x4;\n                default: return -1;\n            }\n        }\n\n        function bit[64] get_offset_of_instance_array(string name, int index) {\n            match (name) {\n                [\"aux\"]: return 0x10 + index * 4;\n                default: return -1;\n            }\n        }\n    }\n}\n\ncomponent dma_c {\n    import addr_reg_pkg::*;\n    import dma_regs_pkg::*;\n\n    // The top-level register group: the one that gets set_handle().\n    ch_regs_c regs;\n\n    // A transparent space lets a claim's absolute address be constrained\n    // at solve time.\n    transparent_addr_space_c<> sys_mem;\n\n    exec init_up {\n        // Allocatable memory.\n        transparent_addr_region_s<> dram;\n        addr_handle_t               dram_h;\n        dram.size = 0x1000;\n        dram.addr = 0x8000_0000;\n        // A region may also carry a `tag` string, retrievable at run time with\n        // get_tag(handle) -- `dram.tag = \"dram\";`\n        dram_h = sys_mem.add_region(dram);\n\n        // The MMIO window must be NON-allocatable, or the allocator will\n        // hand out register addresses as buffers.\n        transparent_addr_region_s<> mmio;\n        addr_handle_t               mmio_h;\n        mmio.size = 1024;\n        mmio.addr = 0xA000_0000;\n        mmio_h = sys_mem.add_nonallocatable_region(mmio);\n\n        // Associated once, on the top-level group only, from an init exec.\n        regs.set_handle(mmio_h);\n    }\n\n    // Register programming. All register access functions are `target`.\n    action configure {\n        rand bit[8]  chan;\n        rand bit[16] len;\n\n        constraint len > 0;\n\n        exec body {\n            // Whole-register write, by value.\n            comp.regs.csr.write_val((len << 16) | (chan << 8));\n\n            // Read-modify-write forms are the better way to say this, but are\n            // not provided by every core-library implementation:\n            //\n            //   comp.regs.csr.write_fields({\"chan\",\"len\"}, {chan, len});\n            //   comp.regs.csr.write_masked({.en = ~0}, {.en = 1});\n            //\n            // write_field / write_fields take string LITERALS only, name\n            // top-level non-aggregate fields only, and the names must be\n            // unique. In write_masked, `~0` selects every bit of a field and\n            // fields omitted from the literal default to 0, so they are\n            // automatically excluded from the mask.\n        }\n    }\n\n    // A READONLY register may be read but never written.\n    action poll {\n        exec body {\n            bit[32] s;\n            s = comp.regs.sts.read_val();\n        }\n    }\n\n    // Memory allocation and raw access.\n    action fill_buffer {\n        rand transparent_addr_claim_s<> dst;\n\n        constraint dst.size == 256;\n        constraint dst.alignment == 64;\n\n        exec body {\n            addr_handle_t h;\n            addr_handle_t h2;\n            h  = make_handle_from_claim(dst);\n            h2 = make_handle_from_handle(h, 4);\n            write32(h,  0xdead_beef);\n            write32(h2, 0x0000_0000);\n        }\n    }\n}\n\ncomponent pss_top {\n    dma_c dma;\n}\n",
      "name": "language-ref/regs_and_mem.pss"
     }
    ],
@@ -9781,8 +10177,8 @@
        0,
        1,
        16,
-       0,
-       1409
+       1,
+       1587
       ],
       [
        "PackageImportStmt",
@@ -9790,6 +10186,15 @@
        1,
        1,
        17,
+       5,
+       -1
+      ],
+      [
+       "PackageImportStmt",
+       null,
+       1,
+       1,
+       20,
        5,
        -1
       ],
@@ -9798,7 +10203,7 @@
        "csr_s",
        1,
        1,
-       22,
+       25,
        5,
        131
       ],
@@ -9807,7 +10212,7 @@
        "en",
        2,
        1,
-       23,
+       26,
        17,
        2
       ],
@@ -9816,7 +10221,7 @@
        "rsvd",
        2,
        1,
-       24,
+       27,
        17,
        4
       ],
@@ -9825,7 +10230,7 @@
        "chan",
        2,
        1,
-       25,
+       28,
        17,
        4
       ],
@@ -9834,7 +10239,7 @@
        "len",
        2,
        1,
-       26,
+       29,
        17,
        3
       ],
@@ -9843,7 +10248,7 @@
        "csr_r",
        1,
        1,
-       30,
+       33,
        5,
        38
       ],
@@ -9852,7 +10257,7 @@
        "sts_r",
        1,
        1,
-       33,
+       36,
        5,
        50
       ],
@@ -9861,7 +10266,7 @@
        "ch_regs_c",
        1,
        1,
-       38,
+       41,
        5,
        549
       ],
@@ -9870,7 +10275,7 @@
        "csr",
        2,
        1,
-       39,
+       42,
        15,
        3
       ],
@@ -9879,7 +10284,7 @@
        "sts",
        2,
        1,
-       40,
+       43,
        15,
        3
       ],
@@ -9888,7 +10293,7 @@
        "aux",
        2,
        1,
-       41,
+       44,
        15,
        6
       ],
@@ -9897,7 +10302,7 @@
        null,
        2,
        1,
-       43,
+       46,
        9,
        -1
       ],
@@ -9906,7 +10311,7 @@
        null,
        2,
        1,
-       51,
+       54,
        9,
        -1
       ],
@@ -9915,25 +10320,16 @@
        "dma_c",
        0,
        1,
-       60,
+       63,
        1,
        2749
-      ],
-      [
-       "FunctionPrototype",
-       "set_executor",
-       1,
-       -1,
-       -1,
-       -1,
-       -1
       ],
       [
        "PackageImportStmt",
        null,
        1,
        1,
-       61,
+       64,
        5,
        -1
       ],
@@ -9942,7 +10338,7 @@
        null,
        1,
        1,
-       62,
+       65,
        5,
        -1
       ],
@@ -9951,7 +10347,7 @@
        "regs",
        1,
        1,
-       65,
+       68,
        15,
        4
       ],
@@ -9960,7 +10356,7 @@
        "sys_mem",
        1,
        1,
-       69,
+       72,
        32,
        7
       ],
@@ -9969,7 +10365,7 @@
        null,
        1,
        1,
-       71,
+       74,
        5,
        811
       ],
@@ -9978,7 +10374,7 @@
        null,
        2,
        1,
-       73,
+       76,
        9,
        -1
       ],
@@ -9987,7 +10383,7 @@
        null,
        2,
        1,
-       74,
+       77,
        9,
        -1
       ],
@@ -9996,16 +10392,7 @@
        null,
        2,
        1,
-       75,
-       9,
-       -1
-      ],
-      [
-       "ProceduralStmtAssignment",
-       null,
-       2,
-       1,
-       76,
+       78,
        9,
        -1
       ],
@@ -10019,34 +10406,16 @@
        -1
       ],
       [
-       "ProceduralStmtDataDeclaration",
-       null,
-       2,
-       1,
-       83,
-       9,
-       -1
-      ],
-      [
-       "ProceduralStmtDataDeclaration",
-       null,
-       2,
-       1,
-       84,
-       9,
-       -1
-      ],
-      [
        "ProceduralStmtAssignment",
        null,
        2,
        1,
-       85,
+       82,
        9,
        -1
       ],
       [
-       "ProceduralStmtAssignment",
+       "ProceduralStmtDataDeclaration",
        null,
        2,
        1,
@@ -10055,7 +10424,7 @@
        -1
       ],
       [
-       "ProceduralStmtAssignment",
+       "ProceduralStmtDataDeclaration",
        null,
        2,
        1,
@@ -10064,7 +10433,25 @@
        -1
       ],
       [
-       "ProceduralStmtExpr",
+       "ProceduralStmtAssignment",
+       null,
+       2,
+       1,
+       88,
+       9,
+       -1
+      ],
+      [
+       "ProceduralStmtAssignment",
+       null,
+       2,
+       1,
+       89,
+       9,
+       -1
+      ],
+      [
+       "ProceduralStmtAssignment",
        null,
        2,
        1,
@@ -10073,11 +10460,20 @@
        -1
       ],
       [
+       "ProceduralStmtExpr",
+       null,
+       2,
+       1,
+       93,
+       9,
+       -1
+      ],
+      [
        "Action",
        "configure",
        1,
        1,
-       94,
+       97,
        5,
        918
       ],
@@ -10095,7 +10491,7 @@
        "chan",
        2,
        1,
-       95,
+       98,
        22,
        4
       ],
@@ -10104,7 +10500,7 @@
        "len",
        2,
        1,
-       96,
+       99,
        22,
        3
       ],
@@ -10113,7 +10509,7 @@
        null,
        2,
        1,
-       98,
+       101,
        9,
        -1
       ],
@@ -10122,7 +10518,7 @@
        null,
        2,
        1,
-       100,
+       103,
        9,
        802
       ],
@@ -10131,7 +10527,7 @@
        null,
        3,
        1,
-       102,
+       105,
        13,
        -1
       ],
@@ -10140,7 +10536,7 @@
        "poll",
        1,
        1,
-       119,
+       122,
        5,
        114
       ],
@@ -10158,7 +10554,7 @@
        null,
        2,
        1,
-       120,
+       123,
        9,
        86
       ],
@@ -10167,7 +10563,7 @@
        null,
        3,
        1,
-       121,
+       124,
        13,
        -1
       ],
@@ -10176,7 +10572,7 @@
        null,
        3,
        1,
-       122,
+       125,
        13,
        -1
       ],
@@ -10185,7 +10581,7 @@
        "fill_buffer",
        1,
        1,
-       127,
+       130,
        5,
        408
       ],
@@ -10203,7 +10599,7 @@
        "dst",
        2,
        1,
-       128,
+       131,
        41,
        3
       ],
@@ -10212,7 +10608,7 @@
        null,
        2,
        1,
-       130,
+       133,
        9,
        -1
       ],
@@ -10221,7 +10617,7 @@
        null,
        2,
        1,
-       131,
+       134,
        9,
        -1
       ],
@@ -10230,7 +10626,7 @@
        null,
        2,
        1,
-       133,
+       136,
        9,
        250
       ],
@@ -10239,7 +10635,7 @@
        null,
        3,
        1,
-       134,
+       137,
        13,
        -1
       ],
@@ -10248,39 +10644,12 @@
        null,
        3,
        1,
-       135,
-       13,
-       -1
-      ],
-      [
-       "ProceduralStmtAssignment",
-       null,
-       3,
-       1,
-       136,
-       13,
-       -1
-      ],
-      [
-       "ProceduralStmtAssignment",
-       null,
-       3,
-       1,
-       137,
-       13,
-       -1
-      ],
-      [
-       "ProceduralStmtExpr",
-       null,
-       3,
-       1,
        138,
        13,
        -1
       ],
       [
-       "ProceduralStmtExpr",
+       "ProceduralStmtAssignment",
        null,
        3,
        1,
@@ -10289,29 +10658,47 @@
        -1
       ],
       [
+       "ProceduralStmtAssignment",
+       null,
+       3,
+       1,
+       140,
+       13,
+       -1
+      ],
+      [
+       "ProceduralStmtExpr",
+       null,
+       3,
+       1,
+       141,
+       13,
+       -1
+      ],
+      [
+       "ProceduralStmtExpr",
+       null,
+       3,
+       1,
+       142,
+       13,
+       -1
+      ],
+      [
        "Component",
        "pss_top",
        0,
        1,
-       144,
+       147,
        1,
        36
-      ],
-      [
-       "FunctionPrototype",
-       "set_executor",
-       1,
-       -1,
-       -1,
-       -1,
-       -1
       ],
       [
        "Field",
        "dma",
        1,
        1,
-       145,
+       148,
        11,
        3
       ]
@@ -10339,7 +10726,7 @@
        0,
        1,
        22,
-       0,
+       1,
        146
       ],
       [
@@ -10404,15 +10791,6 @@
        32,
        1,
        1199
-      ],
-      [
-       "FunctionPrototype",
-       "set_executor",
-       1,
-       -1,
-       -1,
-       -1,
-       -1
       ],
       [
        "PackageImportStmt",
@@ -10640,15 +11018,6 @@
        705
       ],
       [
-       "FunctionPrototype",
-       "set_executor",
-       1,
-       -1,
-       -1,
-       -1,
-       -1
-      ],
-      [
        "PackageImportStmt",
        null,
        1,
@@ -10819,7 +11188,7 @@
        0,
        1,
        7,
-       0,
+       1,
        349
       ],
       [
@@ -10904,15 +11273,6 @@
        116
       ],
       [
-       "FunctionPrototype",
-       "set_executor",
-       2,
-       -1,
-       -1,
-       -1,
-       -1
-      ],
-      [
        "Action",
        "do-write",
        2,
@@ -10963,7 +11323,7 @@
        0,
        1,
        3,
-       0,
+       1,
        1039
       ],
       [
@@ -11246,41 +11606,8 @@
     }
    ],
    "id": "corpus:pathological/lone_backslash.pss",
-   "raised": null,
-   "units": [
-    {
-     "fileid": 1,
-     "spine": [
-      [
-       "Component",
-       "c",
-       0,
-       1,
-       1,
-       1,
-       36
-      ],
-      [
-       "FunctionPrototype",
-       "set_executor",
-       1,
-       -1,
-       -1,
-       -1,
-       -1
-      ],
-      [
-       "Field",
-       "x",
-       1,
-       1,
-       2,
-       9,
-       5
-      ]
-     ]
-    }
-   ],
+   "raised": "ParseException",
+   "units": [],
    "why": "corpus AST parity"
   },
   {
@@ -11362,7 +11689,7 @@
        0,
        1,
        7,
-       0,
+       1,
        2464
       ],
       [
@@ -11668,7 +11995,7 @@
        0,
        1,
        7,
-       0,
+       1,
        1148
       ],
       [
@@ -11812,7 +12139,7 @@
        0,
        1,
        7,
-       0,
+       1,
        944
       ],
       [
@@ -11929,7 +12256,7 @@
        0,
        1,
        7,
-       0,
+       1,
        1561
       ],
       [
@@ -12082,7 +12409,7 @@
        0,
        1,
        7,
-       0,
+       1,
        1866
       ],
       [
@@ -12253,7 +12580,7 @@
        0,
        1,
        7,
-       0,
+       1,
        4165
       ],
       [
@@ -12712,7 +13039,7 @@
        0,
        1,
        7,
-       0,
+       1,
        4399
       ],
       [
@@ -13243,7 +13570,7 @@
        0,
        1,
        7,
-       0,
+       1,
        4120
       ],
       [
@@ -13702,7 +14029,7 @@
        0,
        1,
        7,
-       0,
+       1,
        2802
       ],
       [
@@ -13981,7 +14308,7 @@
        0,
        1,
        7,
-       0,
+       1,
        1115
       ],
       [
@@ -14134,7 +14461,7 @@
        0,
        1,
        7,
-       0,
+       1,
        932
       ],
       [
@@ -14260,7 +14587,7 @@
        0,
        1,
        7,
-       0,
+       1,
        1358
       ],
       [
@@ -14413,7 +14740,7 @@
        0,
        1,
        7,
-       0,
+       1,
        990
       ],
       [
@@ -14566,7 +14893,7 @@
        0,
        1,
        7,
-       0,
+       1,
        1034
       ],
       [
@@ -14728,7 +15055,7 @@
        0,
        1,
        7,
-       0,
+       1,
        999
       ],
       [
@@ -14881,7 +15208,7 @@
        0,
        1,
        7,
-       0,
+       1,
        1412
       ],
       [
@@ -15070,7 +15397,7 @@
        0,
        1,
        7,
-       0,
+       1,
        999
       ],
       [
@@ -15196,7 +15523,7 @@
        0,
        1,
        7,
-       0,
+       1,
        2170
       ],
       [
@@ -15412,7 +15739,7 @@
        0,
        1,
        7,
-       0,
+       1,
        1304
       ],
       [
@@ -15583,7 +15910,7 @@
        0,
        1,
        7,
-       0,
+       1,
        1474
       ],
       [
@@ -15781,7 +16108,7 @@
        0,
        1,
        7,
-       0,
+       1,
        846
       ],
       [
@@ -15889,7 +16216,7 @@
        0,
        1,
        7,
-       0,
+       1,
        846
       ],
       [
@@ -15997,7 +16324,7 @@
        0,
        1,
        9,
-       0,
+       1,
        494
       ],
       [
@@ -16035,15 +16362,6 @@
        14,
        5,
        383
-      ],
-      [
-       "FunctionPrototype",
-       "set_executor",
-       2,
-       -1,
-       -1,
-       -1,
-       -1
       ],
       [
        "Field",
@@ -16150,7 +16468,7 @@
        0,
        1,
        7,
-       0,
+       1,
        1320
       ],
       [
@@ -16294,7 +16612,7 @@
        0,
        1,
        7,
-       0,
+       1,
        1544
       ],
       [
@@ -16510,7 +16828,7 @@
        0,
        1,
        10,
-       0,
+       1,
        977
       ],
       [
@@ -16593,15 +16911,6 @@
        30,
        5,
        573
-      ],
-      [
-       "FunctionPrototype",
-       "set_executor",
-       2,
-       -1,
-       -1,
-       -1,
-       -1
       ],
       [
        "Action",
@@ -16708,7 +17017,7 @@
        0,
        1,
        10,
-       0,
+       1,
        1624
       ],
       [
@@ -16719,15 +17028,6 @@
        12,
        5,
        1594
-      ],
-      [
-       "FunctionPrototype",
-       "set_executor",
-       2,
-       -1,
-       -1,
-       -1,
-       -1
       ],
       [
        "Action",
@@ -17032,7 +17332,7 @@
        2,
        1,
        62,
-       8,
+       9,
        206
       ],
       [
@@ -17131,7 +17431,7 @@
        0,
        1,
        10,
-       0,
+       1,
        1541
       ],
       [
@@ -17151,15 +17451,6 @@
        16,
        5,
        1461
-      ],
-      [
-       "FunctionPrototype",
-       "set_executor",
-       2,
-       -1,
-       -1,
-       -1,
-       -1
       ],
       [
        "Field",
@@ -17410,7 +17701,7 @@
        0,
        1,
        2,
-       0,
+       1,
        6025
       ],
       [
@@ -17441,15 +17732,6 @@
        30
       ],
       [
-       "FunctionPrototype",
-       "set_executor",
-       2,
-       -1,
-       -1,
-       -1,
-       -1
-      ],
-      [
        "Component",
        "addr_space_group_c",
        1,
@@ -17457,15 +17739,6 @@
        8,
        5,
        111
-      ],
-      [
-       "FunctionPrototype",
-       "set_executor",
-       2,
-       -1,
-       -1,
-       -1,
-       -1
       ],
       [
        "FunctionPrototype",
@@ -17856,15 +18129,6 @@
       ],
       [
        "FunctionPrototype",
-       "set_executor",
-       2,
-       -1,
-       -1,
-       -1,
-       -1
-      ],
-      [
-       "FunctionPrototype",
        "read",
        2,
        1,
@@ -17955,15 +18219,6 @@
       ],
       [
        "FunctionPrototype",
-       "set_executor",
-       2,
-       -1,
-       -1,
-       -1,
-       -1
-      ],
-      [
-       "FunctionPrototype",
        "get_offset_of_instance",
        2,
        1,
@@ -18013,7 +18268,7 @@
        0,
        1,
        2,
-       0,
+       1,
        842
       ],
       [
@@ -18053,15 +18308,6 @@
        28
       ],
       [
-       "FunctionPrototype",
-       "set_executor",
-       2,
-       -1,
-       -1,
-       -1,
-       -1
-      ],
-      [
        "Component",
        "executor_c",
        1,
@@ -18090,15 +18336,6 @@
       ],
       [
        "FunctionPrototype",
-       "set_executor",
-       2,
-       -1,
-       -1,
-       -1,
-       -1
-      ],
-      [
-       "FunctionPrototype",
        "add_executor",
        2,
        1,
@@ -18114,15 +18351,6 @@
        23,
        5,
        99
-      ],
-      [
-       "FunctionPrototype",
-       "set_executor",
-       2,
-       -1,
-       -1,
-       -1,
-       -1
       ],
       [
        "FunctionPrototype",
@@ -18201,7 +18429,7 @@
        0,
        1,
        2,
-       0,
+       1,
        633
       ],
       [
@@ -18309,7 +18537,7 @@
        0,
        1,
        3,
-       0,
+       1,
        203
       ],
       [
@@ -18320,15 +18548,6 @@
        5,
        5,
        176
-      ],
-      [
-       "FunctionPrototype",
-       "set_executor",
-       2,
-       -1,
-       -1,
-       -1,
-       -1
       ],
       [
        "Action",

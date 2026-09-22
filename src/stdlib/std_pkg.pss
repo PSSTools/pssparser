@@ -17,23 +17,99 @@ package std_pkg {
         static const int nbits = /* implementation-specific */ -1;
     };
 
-    function void print(string fmt, type... args);
+    // ---------------------------------------------------------------- 21.1
+    // String formatting. Both are solve-platform only; message() below is
+    // the target-platform facility.
+
+    solve pure function string format(string format_str, type... args);
+
+    solve function void print(string format_str, type... args);
+
+    /**
+     * Non-standard extension. Not a member of std_pkg in PSS 3.1 -- it
+     * appears only in Example 294, as an illustration of varargs. Retained
+     * deliberately; see docs/design/core-library-conformance-plan.md O2.
+     */
+    function string format_string(string format, type... args);
 
     enum message_verbosity_e {NONE, LOW, MEDIUM, HIGH, FULL};
 
     function void message(message_verbosity_e vrb_level, string format_str, type... args);
 
-    solve pure function string format(string format_str, type... args);
+    // ---------------------------------------------------------------- 21.2
+    // File operations. All solve-platform only.
 
-    function string format_string(string format, type... args);
+    typedef chandle file_handle_t;
+    static const file_handle_t nullfilehandle = /* implementation-specific */ null;
+
+    enum file_option_e {TRUNCATE, APPEND, READ};
+
+    solve function file_handle_t file_open(string filename, file_option_e opt);
+    solve function void file_close(file_handle_t file_handle);
+    solve function bool file_exists(string filename);
+
+    solve function void file_write(file_handle_t file_handle, string format_str, type... args);
+    solve function string file_read(file_handle_t file_handle, int size = -1);
+
+    solve function void file_write_lines(string filename, list<string> lines, file_option_e opt);
+    solve function list<string> file_read_lines(string filename);
+
+    // ---------------------------------------------------------------- 21.3
+    // Error reporting. Neither is solve- or target-qualified in Annex C:
+    // both are callable from either platform.
+
+    function void error(string format_str, type... args);
+    function void fatal(int status, string format_str, type... args);
+
+    // ---------------------------------------------------------------- 21.4
+    // Randomization
 
     function bit[32] urandom();
 
     function bit[32] urandom_range(bit[32] min, bit[32] max);
 
-    // An actor is a component that autonomously runs a behavior
-    component actor_c<component Tc, action Ta> : Tc { }
+    // ---------------------------------------------------------------- 21.5
+    // Floating-point storage types and functions
 
+    struct float_base_s <int Wm, int We, endianness_e E=LITTLE_ENDIAN> : packed_s<E> {
+        rand bit[Wm] mantissa;
+        rand bit[We] exponent;
+        rand bit     sign;
+    }
+
+    // Pre-defined storage types to match the computation types float32/float64
+    typedef float_base_s<23, 8> float32_s;
+    typedef float_base_s<52,11> float64_s;
+
+    pure function float64 log(float64 x);
+    pure function float64 log10(float64 x);
+    pure function float64 exp(float64 x);
+    pure function float64 sqrt(float64 x);
+    pure function float64 pow(float64 x, float64 y);
+    pure function float64 round(float64 x);
+    pure function float64 floor(float64 x);
+    pure function float64 ceil(float64 x);
+    pure function float64 sin(float64 x);
+    pure function float64 cos(float64 x);
+    pure function float64 tan(float64 x);
+    pure function float64 asin(float64 x);
+    pure function float64 acos(float64 x);
+    pure function float64 atan(float64 x);
+    pure function float64 atan2(float64 y, float64 x);
+    pure function float64 hypot(float64 x, float64 y);
+    pure function float64 sinh(float64 x);
+    pure function float64 cosh(float64 x);
+    pure function float64 tanh(float64 x);
+    pure function float64 asinh(float64 x);
+    pure function float64 acosh(float64 x);
+    pure function float64 atanh(float64 x);
+
+    pure function bit[52] float_mantissa(float64 fv);
+    pure function bit[11] float_exponent(float64 fv);
+    pure function bit float_sign(float64 fv);
+    pure function float64 to_float(bit[52] mantissa, bit[11] exp, bit sign);
+
+    // ---------------------------------------------------------------- 21.6
     /**
      * Associates implementation-level documentation text with a model element.
      *

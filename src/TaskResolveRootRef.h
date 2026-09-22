@@ -69,11 +69,37 @@ private:
         const ast::IExprId          *id,
         ast::IPackageImportStmt     *imp);
 
+    /**
+     * Look `id` up in the scope that declared the type extension this
+     * reference sits inside, or in that scope's imports. Null when there is
+     * no extension context, or the name is not there. See CL-N1.
+     */
+    ast::ISymbolRefPath *searchExtensionCtxt(const ast::IExprId *id);
+
+    /**
+     * A root-relative path to `s`, or null if one cannot be built.
+     */
+    ast::ISymbolRefPath *absPath(ast::ISymbolScope *s);
+
 private:
     static dmgr::IDebug             *m_dbg;
     bool                            m_search_imp;
     const ast::IExprId              *m_id;
     ast::ISymbolRefPath             *m_ref;
+
+    /**
+     * How many super-type steps the search has taken from the scope the
+     * symbol-table iterator is currently sitting on.
+     *
+     * The iterator walks *lexically* outward and is popped as it goes, so
+     * ``getScopeSymbolPath()`` always names the scope being searched -- except
+     * while ``visitSymbolTypeScope`` is recursing up an inheritance chain,
+     * which the iterator knows nothing about. Each step there needs an
+     * explicit ``ElemKind_Super`` element in the recorded path, or the base
+     * type's child index gets appended to a path naming the *derived* type.
+     * See known-issues CL-N4.
+     */
+    int32_t                         m_super_depth;
 };
 
 }

@@ -29,6 +29,7 @@
 #include "pssp/ast/IField.h"
 #include "pssp/ast/IProceduralStmtDataDeclaration.h"
 #include "TaskResolveFieldRef.h"
+#include "CoreLibraryLookup.h"
 #include "Marker.h"
 
 #include <algorithm>
@@ -220,7 +221,22 @@ void TaskResolveRef::visitTypeIdentifier(ast::ITypeIdentifier *i) {
         }
         std::string suggestion = findCloseMatch(
             name, dynamic_cast<ast::ISymbolScope *>(m_ctxt->root()));
-        if (suggestion.empty()) {
+        // See the matching block in TaskResolveRefs::visitExprRefPathContext:
+        // a core-library type that is simply not imported gets an actionable
+        // message rather than a bare "unknown type".
+        std::string core_pkg = findCoreLibraryPackage(
+            dynamic_cast<ast::ISymbolScope *>(m_ctxt->root()), name);
+
+        if (!core_pkg.empty()) {
+            m_ctxt->addMarker(
+                MarkerSeverityE::Error,
+                i->getElems().at(0)->getId()->getLocation(),
+                "unknown type '%s'; declared in %s -- add "
+                "'import %s::*;'",
+                name.c_str(),
+                core_pkg.c_str(),
+                core_pkg.c_str());
+        } else if (suggestion.empty()) {
             m_ctxt->addMarker(
                 MarkerSeverityE::Error,
                 i->getElems().at(0)->getId()->getLocation(),

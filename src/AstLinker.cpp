@@ -99,7 +99,8 @@ ast::IRootSymbolScope *AstLinker::link(
 
     // Now, apply type extension
     uint64_t apply_ext_s = time_ms();
-    TaskApplyTypeExtensions(m_dmgr, m_factory, marker_l).apply(symtree);
+    TaskApplyTypeExtensions apply_ext(m_dmgr, m_factory, marker_l);
+    apply_ext.apply(symtree);
     uint64_t apply_ext_e = time_ms();
     DEBUG("Apply extensions: %lldms", (apply_ext_e-apply_ext_s));
 
@@ -107,6 +108,12 @@ ast::IRootSymbolScope *AstLinker::link(
 
     uint64_t resolve_s = time_ms();
     ResolveContext ctxt(m_factory, marker_l, symtree);
+
+    // Which package each extension-contributed member came from. The pass
+    // above moved those members into the extended type; this is what lets
+    // TaskResolveRefs put their declaring package back in scope while it
+    // walks them (LRM 17.2, known-issues CL-N1).
+    ctxt.setExtensionDeclScopes(apply_ext.extensionDeclScopes());
 
     // Super types first, so that resolving a reference to an inherited
     // member does not depend on the base type having been declared in an

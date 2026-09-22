@@ -42,6 +42,7 @@ def link(src):
 _TRAIT = """
 package p {
     import addr_reg_pkg::*;
+    import std_pkg::*;
     struct my_trait_s : addr_trait_s { int x; }
     %s
 }
@@ -118,6 +119,7 @@ def test_the_trait_restriction_is_enforced_by_the_real_declaration():
     assert_rejects([("t.pss", """
         package p {
             import addr_reg_pkg::*;
+            import std_pkg::*;
             struct not_a_trait_s { int x; }
             struct Top { addr_region_s<not_a_trait_s> r; }
         }
@@ -131,6 +133,7 @@ def test_the_trait_restriction_is_enforced_by_the_real_declaration():
 _REGS = """
 package p {
     import addr_reg_pkg::*;
+    import std_pkg::*;
     struct my_reg_s : packed_s<> { bit[8] f0; bit[8] f1; }
     %s
 }
@@ -192,6 +195,7 @@ def test_sizeof_of_a_user_type_resolves_the_argument_at_the_use_site():
     assert_clean([("t.pss", """
         package p {
             import addr_reg_pkg::*;
+            import std_pkg::*;
             struct s_s : packed_s<> { bit[16] a; }
             struct Top { int n; constraint { n == sizeof_s<s_s>::nbytes; } }
         }
@@ -205,6 +209,7 @@ def test_sizeof_of_a_builtin_still_resolves():
     assert_clean([("t.pss", """
         package p {
             import addr_reg_pkg::*;
+            import std_pkg::*;
             struct Top { int n; constraint { n == sizeof_s<bit[16]>::nbytes; } }
         }
     """)])
@@ -215,6 +220,7 @@ def test_sizeof_of_a_type_declared_after_the_use_resolves():
     assert_clean([("t.pss", """
         package p {
             import addr_reg_pkg::*;
+            import std_pkg::*;
             struct Top { int n; constraint { n == sizeof_s<s_s>::nbytes; } }
             struct s_s : packed_s<> { bit[16] a; }
         }
@@ -227,6 +233,7 @@ def test_sizeof_of_a_type_that_does_not_exist_is_reported():
     assert_rejects([("t.pss", """
         package p {
             import addr_reg_pkg::*;
+            import std_pkg::*;
             struct Top { int n; constraint { n == sizeof_s<nosuch_s>::nbytes; } }
         }
     """)], "nosuch_s")

@@ -164,6 +164,7 @@ def test_statements_after_super_are_still_resolved():
 SIZEOF_USER_TYPE = """
 package p {
     import addr_reg_pkg::*;
+    import std_pkg::*;
     struct s : packed_s<> { bit[32] v; }
     static const int N = sizeof_s<s>::nbytes;
 }
@@ -173,6 +174,7 @@ component pss_top { }
 SIZEOF_BUILTIN = """
 package p {
     import addr_reg_pkg::*;
+    import std_pkg::*;
     static const int N = sizeof_s<int>::nbytes;
 }
 component pss_top { }
@@ -188,7 +190,8 @@ def test_sizeof_user_type_is_accepted():
     """LRM 21.13.2. This is how a model computes layout without hard-coding it.
 
     Closed by the §4.9 static-ref-path fix, and the cause was not where phase
-    1.3 recorded it. ``sizeof_s`` is declared in ``addr_reg_pkg``, and
+    1.3 recorded it. ``sizeof_s`` was then declared in ``addr_reg_pkg`` (Annex
+    C puts it in ``std_pkg``, which is where it lives now), and
     ``TaskResolveRefs::visitExprRefPathStatic`` never resolved a template
     argument at the *use* site, so the unqualified ``s`` was looked up in
     ``addr_reg_pkg`` rather than in ``p``, where it is declared. Hence the

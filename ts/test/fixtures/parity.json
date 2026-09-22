@@ -49,8 +49,15 @@
      "extent": 1,
      "file": "bad.pss",
      "line": 1,
-     "message": "expected identifier before '}'",
-     "related": [],
+     "message": "expected identifier before '}' in an action of component 'pss_top'",
+     "related": [
+      {
+       "col": 21,
+       "file": "bad.pss",
+       "label": "an action begins here",
+       "line": 1
+      }
+     ],
      "severity": "error"
     }
    ],
@@ -94,8 +101,15 @@
      "extent": 1,
      "file": "b.pss",
      "line": 2,
-     "message": "expected identifier before '}'",
-     "related": [],
+     "message": "expected identifier before '}' in an action of component 'pss_top'",
+     "related": [
+      {
+       "col": 5,
+       "file": "b.pss",
+       "label": "an action begins here",
+       "line": 2
+      }
+     ],
      "severity": "error"
     }
    ],
@@ -141,8 +155,15 @@
      "extent": 1,
      "file": "many.pss",
      "line": 1,
-     "message": "expected identifier before '}'",
-     "related": [],
+     "message": "expected identifier before '}' in an action of component 'c'",
+     "related": [
+      {
+       "col": 15,
+       "file": "many.pss",
+       "label": "an action begins here",
+       "line": 1
+      }
+     ],
      "severity": "error"
     },
     {
@@ -787,7 +808,7 @@
    "id": "corpus:language-ref/constraints.pss",
    "markers": [
     {
-     "col": 14,
+     "col": 13,
      "extent": 9,
      "file": "language-ref/constraints.pss",
      "line": 110,
@@ -819,7 +840,7 @@
    "calls": [
     [
      {
-      "content": "// extension_variants.pss\n//\n// Reuse mechanisms: inheritance, extension, overrides, templates, compile if.\n//\n// The governing distinction: INHERITANCE adds a choice someone must make;\n// EXTENSION removes one -- it changes the type everywhere it is already used.\n// Project configuration is almost always extension, packaged so that a tool\n// can include or exclude it per test.\n//\n// Demonstrates:\n//   - an abstract action as a shared base\n//   - inheritance, and (in comments) super in a derived exec\n//   - extension in its own package, and why a WILDCARD import is required\n//   - type and instance overrides (in comments)\n//   - a template type with a value parameter\n//   - compile if driven by a package-scope constant\n//\n// See: reference/lang/structural/07-inheritance-extension-overrides.md\n//      reference/lang/structural/01-packages-and-name-resolution.md\n\npackage config_pkg {\n    // compile if conditions may reference only package-scope constants, and\n    // only ones declared EARLIER in the processing order.\n    static const bool HAS_FAST_PATH = true;\n    static const int  MAX_LEN       = 4096;\n}\n\npackage base_pkg {\n    import config_pkg::*;\n\n    // An abstract action may be declared outside a component. It captures the\n    // shared fields and constraints and is never traversed directly.\n    abstract action base_xfer {\n        rand bit[16] len;\n        constraint len > 0 && len <= MAX_LEN;\n    }\n}\n\ncomponent dma_c {\n    import base_pkg::*;\n    import config_pkg::*;\n\n    // Inheritance: a NEW type that a traversal site must name explicitly.\n    action xfer : base_xfer {\n        exec body {\n            message(LOW, \"xfer len=%d\", len);\n        }\n    }\n\n    // A derived action's exec block REPLACES the base's. The `super;`\n    // statement splices the base behaviour back in -- omitting it is a silent\n    // loss of behaviour, and is the most damaging inheritance mistake in PSS.\n    // `super;` is legal PSS (LRM 17.1, 20.1.4.2) but is not accepted by every\n    // front end, so it is shown here rather than compiled:\n    //\n    //     action logged_xfer : xfer {\n    //         exec body {\n    //             super;                        // runs xfer's body first\n    //             message(LOW, \"logged\");\n    //         }\n    //     }\n    action logged_xfer : xfer {\n        exec body {\n            message(LOW, \"logged\");\n        }\n    }\n\n    // compile if elaborates declarations conditionally. A disabled branch must\n    // be syntactically valid but is NOT semantically checked -- which is why\n    // package selection is usually the better tool.\n    compile if (config_pkg::HAS_FAST_PATH) {\n        action fast_xfer : xfer {\n            constraint len >= 1024;\n        }\n    }\n\n    action test {\n        activity {\n            do xfer;\n            do logged_xfer;\n        }\n    }\n}\n\n// Configuration for one SoC, in its own package so that it can be included or\n// excluded per test, and so that it may contradict soc_b_pkg freely.\npackage soc_a_pkg {\n    import base_pkg::*;\n\n    extend action dma_c::xfer {\n        rand int in [1, 2, 4, 8] ta_width;      // a NEW attribute\n        constraint ta_width < 4 -> len <= 256;  // and a layered constraint\n    }\n}\n\n// A conflicting configuration. Both packages can exist in the source tree;\n// a tool includes at most one in a given test.\npackage soc_b_pkg {\n    extend action dma_c::xfer {\n        constraint len <= 64;\n    }\n}\n\n// A template type. Angle brackets are required at instantiation even when\n// every parameter has a default.\npackage tmpl_pkg {\n    struct base_payload_s {\n        rand bit[8] core;\n    }\n\n    // A `compile assert (N > 0 && N <= 16, \"N out of range\");` here is the\n    // idiomatic way to validate a template value parameter at elaboration\n    // time (LRM 19.4); not every front end evaluates it correctly inside a\n    // generic template, so it is described rather than compiled.\n    struct wrapper_s <struct T : base_payload_s = base_payload_s, int N = 4> {\n        rand T   payload;\n        rand int in [1..N] count;\n    }\n}\n\ncomponent pss_top {\n    // A WILDCARD import is required to see members introduced in an extension:\n    // extensions are unnamed and cannot be imported explicitly.\n    import soc_a_pkg::*;\n    import tmpl_pkg::*;\n\n    dma_c dma;\n\n    wrapper_s<>               w_default;   // <> required\n    wrapper_s<base_payload_s, 8> w_eight;\n\n    action run {\n        dma_c::xfer x;\n\n        // ta_width is introduced by the extension in soc_a_pkg. It is\n        // referenceable here ONLY because of the wildcard import above -- an\n        // explicit import cannot bring in extensions, because extensions are\n        // unnamed. Front ends differ in how completely they weave extension\n        // members into a type, so the reference is described rather than\n        // compiled:\n        //\n        //     constraint x.ta_width == 4;\n\n        // Overrides substitute a subtype for a declared type.\n        //   override { type dma_c::xfer with dma_c::logged_xfer; }  // all\n        //   override { instance dma.x with dma_c::logged_xfer; }    // one\n        // Resolution: highest in the containment tree wins; within a\n        // container, instance beats type; later beats earlier. Overrides do\n        // NOT apply to input/output/lock/share fields.\n\n        activity {\n            x;\n        }\n    }\n}\n",
+      "content": "// extension_variants.pss\n//\n// Reuse mechanisms: inheritance, extension, overrides, templates, compile if.\n//\n// The governing distinction: INHERITANCE adds a choice someone must make;\n// EXTENSION removes one -- it changes the type everywhere it is already used.\n// Project configuration is almost always extension, packaged so that a tool\n// can include or exclude it per test.\n//\n// Demonstrates:\n//   - an abstract action as a shared base\n//   - inheritance, and (in comments) super in a derived exec\n//   - extension in its own package, and why a WILDCARD import is required\n//   - type and instance overrides (in comments)\n//   - a template type with a value parameter\n//   - compile if driven by a package-scope constant\n//\n// See: reference/lang/structural/07-inheritance-extension-overrides.md\n//      reference/lang/structural/01-packages-and-name-resolution.md\n\npackage config_pkg {\n    // compile if conditions may reference only package-scope constants, and\n    // only ones declared EARLIER in the processing order.\n    static const bool HAS_FAST_PATH = true;\n    static const int  MAX_LEN       = 4096;\n}\n\npackage base_pkg {\n    import config_pkg::*;\n\n    // An abstract action may be declared outside a component. It captures the\n    // shared fields and constraints and is never traversed directly.\n    abstract action base_xfer {\n        rand bit[16] len;\n        constraint len > 0 && len <= MAX_LEN;\n    }\n}\n\ncomponent dma_c {\n    import base_pkg::*;\n    import config_pkg::*;\n    import std_pkg::*;   // for message()\n\n    // Inheritance: a NEW type that a traversal site must name explicitly.\n    action xfer : base_xfer {\n        exec body {\n            message(LOW, \"xfer len=%d\", len);\n        }\n    }\n\n    // A derived action's exec block REPLACES the base's. The `super;`\n    // statement splices the base behaviour back in -- omitting it is a silent\n    // loss of behaviour, and is the most damaging inheritance mistake in PSS.\n    // `super;` is legal PSS (LRM 17.1, 20.1.4.2) but is not accepted by every\n    // front end, so it is shown here rather than compiled:\n    //\n    //     action logged_xfer : xfer {\n    //         exec body {\n    //             super;                        // runs xfer's body first\n    //             message(LOW, \"logged\");\n    //         }\n    //     }\n    action logged_xfer : xfer {\n        exec body {\n            message(LOW, \"logged\");\n        }\n    }\n\n    // compile if elaborates declarations conditionally. A disabled branch must\n    // be syntactically valid but is NOT semantically checked -- which is why\n    // package selection is usually the better tool.\n    compile if (config_pkg::HAS_FAST_PATH) {\n        action fast_xfer : xfer {\n            constraint len >= 1024;\n        }\n    }\n\n    action test {\n        activity {\n            do xfer;\n            do logged_xfer;\n        }\n    }\n}\n\n// Configuration for one SoC, in its own package so that it can be included or\n// excluded per test, and so that it may contradict soc_b_pkg freely.\npackage soc_a_pkg {\n    import base_pkg::*;\n\n    extend action dma_c::xfer {\n        rand int in [1, 2, 4, 8] ta_width;      // a NEW attribute\n        constraint ta_width < 4 -> len <= 256;  // and a layered constraint\n    }\n}\n\n// A conflicting configuration. Both packages can exist in the source tree;\n// a tool includes at most one in a given test.\npackage soc_b_pkg {\n    extend action dma_c::xfer {\n        constraint len <= 64;\n    }\n}\n\n// A template type. Angle brackets are required at instantiation even when\n// every parameter has a default.\npackage tmpl_pkg {\n    struct base_payload_s {\n        rand bit[8] core;\n    }\n\n    // A `compile assert (N > 0 && N <= 16, \"N out of range\");` here is the\n    // idiomatic way to validate a template value parameter at elaboration\n    // time (LRM 19.4); not every front end evaluates it correctly inside a\n    // generic template, so it is described rather than compiled.\n    struct wrapper_s <struct T : base_payload_s = base_payload_s, int N = 4> {\n        rand T   payload;\n        rand int in [1..N] count;\n    }\n}\n\ncomponent pss_top {\n    // A WILDCARD import is required to see members introduced in an extension:\n    // extensions are unnamed and cannot be imported explicitly.\n    import soc_a_pkg::*;\n    import tmpl_pkg::*;\n\n    dma_c dma;\n\n    wrapper_s<>               w_default;   // <> required\n    wrapper_s<base_payload_s, 8> w_eight;\n\n    action run {\n        dma_c::xfer x;\n\n        // ta_width is introduced by the extension in soc_a_pkg. It is\n        // referenceable here ONLY because of the wildcard import above -- an\n        // explicit import cannot bring in extensions, because extensions are\n        // unnamed. Front ends differ in how completely they weave extension\n        // members into a type, so the reference is described rather than\n        // compiled:\n        //\n        //     constraint x.ta_width == 4;\n\n        // Overrides substitute a subtype for a declared type.\n        //   override { type dma_c::xfer with dma_c::logged_xfer; }  // all\n        //   override { instance dma.x with dma_c::logged_xfer; }    // one\n        // Resolution: highest in the containment tree wins; within a\n        // container, instance beats type; later beats earlier. Overrides do\n        // NOT apply to input/output/lock/share fields.\n\n        activity {\n            x;\n        }\n    }\n}\n",
       "name": "language-ref/extension_variants.pss"
      }
     ]
@@ -864,7 +885,7 @@
    "calls": [
     [
      {
-      "content": "// regs_and_mem.pss\n//\n// The register model and address spaces, end to end.\n//\n// Demonstrates:\n//   - packed_s layout, and sizeof_s\n//   - reg_c with a struct value type and with a bit-vector value type\n//   - reg_group_c with exactly ONE offset scheme\n//   - an MMIO window added as a NON-allocatable region\n//   - allocatable memory, an address claim, and handle arithmetic\n//   - register and memory access from a target exec\n//\n// See: reference/lang/platform/04-registers.md\n//      reference/lang/platform/03-address-spaces.md\n\npackage dma_regs_pkg {\n    import addr_reg_pkg::*;\n\n    // A packed struct describes the register's bit layout. The FIRST declared\n    // field is at the lowest address. Only numeric types, bool, based enums,\n    // packed structs and arrays of those are allowed.\n    struct csr_s : packed_s<LITTLE_ENDIAN> {\n        bit     en;\n        bit[7]  rsvd;\n        bit[8]  chan;\n        bit[16] len;\n    }\n\n    // READWRITE and SZ = 8*sizeof_s<csr_s>::nbytes = 32 by default.\n    pure component csr_r : reg_c<csr_s> {}\n\n    // A bit-vector register: read()/read_val() are equivalent here.\n    pure component sts_r : reg_c<bit[32], READONLY> {}\n\n    // A register group supplies the offset of every element it contains,\n    // using EITHER get_offset_of_instance + get_offset_of_instance_array,\n    // OR get_offset_of_path. Implementing all three is an error.\n    pure component ch_regs_c : reg_group_c {\n        csr_r csr;\n        sts_r sts;\n        csr_r aux[4];\n\n        function bit[64] get_offset_of_instance(string name) {\n            match (name) {\n                [\"csr\"]: return 0x0;\n                [\"sts\"]: return 0x4;\n                default: return -1;\n            }\n        }\n\n        function bit[64] get_offset_of_instance_array(string name, int index) {\n            match (name) {\n                [\"aux\"]: return 0x10 + index * 4;\n                default: return -1;\n            }\n        }\n    }\n}\n\ncomponent dma_c {\n    import addr_reg_pkg::*;\n    import dma_regs_pkg::*;\n\n    // The top-level register group: the one that gets set_handle().\n    ch_regs_c regs;\n\n    // A transparent space lets a claim's absolute address be constrained\n    // at solve time.\n    transparent_addr_space_c<> sys_mem;\n\n    exec init_up {\n        // Allocatable memory.\n        transparent_addr_region_s<> dram;\n        addr_handle_t               dram_h;\n        dram.size = 0x1000;\n        dram.addr = 0x8000_0000;\n        // A region may also carry a `tag` string, retrievable at run time with\n        // get_tag(handle) -- `dram.tag = \"dram\";`\n        dram_h = sys_mem.add_region(dram);\n\n        // The MMIO window must be NON-allocatable, or the allocator will\n        // hand out register addresses as buffers.\n        transparent_addr_region_s<> mmio;\n        addr_handle_t               mmio_h;\n        mmio.size = 1024;\n        mmio.addr = 0xA000_0000;\n        mmio_h = sys_mem.add_nonallocatable_region(mmio);\n\n        // Associated once, on the top-level group only, from an init exec.\n        regs.set_handle(mmio_h);\n    }\n\n    // Register programming. All register access functions are `target`.\n    action configure {\n        rand bit[8]  chan;\n        rand bit[16] len;\n\n        constraint len > 0;\n\n        exec body {\n            // Whole-register write, by value.\n            comp.regs.csr.write_val((len << 16) | (chan << 8));\n\n            // Read-modify-write forms are the better way to say this, but are\n            // not provided by every core-library implementation:\n            //\n            //   comp.regs.csr.write_fields({\"chan\",\"len\"}, {chan, len});\n            //   comp.regs.csr.write_masked({.en = ~0}, {.en = 1});\n            //\n            // write_field / write_fields take string LITERALS only, name\n            // top-level non-aggregate fields only, and the names must be\n            // unique. In write_masked, `~0` selects every bit of a field and\n            // fields omitted from the literal default to 0, so they are\n            // automatically excluded from the mask.\n        }\n    }\n\n    // A READONLY register may be read but never written.\n    action poll {\n        exec body {\n            bit[32] s;\n            s = comp.regs.sts.read_val();\n        }\n    }\n\n    // Memory allocation and raw access.\n    action fill_buffer {\n        rand transparent_addr_claim_s<> dst;\n\n        constraint dst.size == 256;\n        constraint dst.alignment == 64;\n\n        exec body {\n            addr_handle_t h;\n            addr_handle_t h2;\n            h  = make_handle_from_claim(dst);\n            h2 = make_handle_from_handle(h, 4);\n            write32(h,  0xdead_beef);\n            write32(h2, 0x0000_0000);\n        }\n    }\n}\n\ncomponent pss_top {\n    dma_c dma;\n}\n",
+      "content": "// regs_and_mem.pss\n//\n// The register model and address spaces, end to end.\n//\n// Demonstrates:\n//   - packed_s layout, and sizeof_s\n//   - reg_c with a struct value type and with a bit-vector value type\n//   - reg_group_c with exactly ONE offset scheme\n//   - an MMIO window added as a NON-allocatable region\n//   - allocatable memory, an address claim, and handle arithmetic\n//   - register and memory access from a target exec\n//\n// See: reference/lang/platform/04-registers.md\n//      reference/lang/platform/03-address-spaces.md\n\npackage dma_regs_pkg {\n    import addr_reg_pkg::*;\n    // packed_s and sizeof_s are std_pkg declarations (Annex C.1); import is\n    // not re-export, so importing addr_reg_pkg alone does not bring them in.\n    import std_pkg::*;\n\n    // A packed struct describes the register's bit layout. The FIRST declared\n    // field is at the lowest address. Only numeric types, bool, based enums,\n    // packed structs and arrays of those are allowed.\n    struct csr_s : packed_s<LITTLE_ENDIAN> {\n        bit     en;\n        bit[7]  rsvd;\n        bit[8]  chan;\n        bit[16] len;\n    }\n\n    // READWRITE and SZ = 8*sizeof_s<csr_s>::nbytes = 32 by default.\n    pure component csr_r : reg_c<csr_s> {}\n\n    // A bit-vector register: read()/read_val() are equivalent here.\n    pure component sts_r : reg_c<bit[32], READONLY> {}\n\n    // A register group supplies the offset of every element it contains,\n    // using EITHER get_offset_of_instance + get_offset_of_instance_array,\n    // OR get_offset_of_path. Implementing all three is an error.\n    pure component ch_regs_c : reg_group_c {\n        csr_r csr;\n        sts_r sts;\n        csr_r aux[4];\n\n        function bit[64] get_offset_of_instance(string name) {\n            match (name) {\n                [\"csr\"]: return 0x0;\n                [\"sts\"]: return 0x4;\n                default: return -1;\n            }\n        }\n\n        function bit[64] get_offset_of_instance_array(string name, int index) {\n            match (name) {\n                [\"aux\"]: return 0x10 + index * 4;\n                default: return -1;\n            }\n        }\n    }\n}\n\ncomponent dma_c {\n    import addr_reg_pkg::*;\n    import dma_regs_pkg::*;\n\n    // The top-level register group: the one that gets set_handle().\n    ch_regs_c regs;\n\n    // A transparent space lets a claim's absolute address be constrained\n    // at solve time.\n    transparent_addr_space_c<> sys_mem;\n\n    exec init_up {\n        // Allocatable memory.\n        transparent_addr_region_s<> dram;\n        addr_handle_t               dram_h;\n        dram.size = 0x1000;\n        dram.addr = 0x8000_0000;\n        // A region may also carry a `tag` string, retrievable at run time with\n        // get_tag(handle) -- `dram.tag = \"dram\";`\n        dram_h = sys_mem.add_region(dram);\n\n        // The MMIO window must be NON-allocatable, or the allocator will\n        // hand out register addresses as buffers.\n        transparent_addr_region_s<> mmio;\n        addr_handle_t               mmio_h;\n        mmio.size = 1024;\n        mmio.addr = 0xA000_0000;\n        mmio_h = sys_mem.add_nonallocatable_region(mmio);\n\n        // Associated once, on the top-level group only, from an init exec.\n        regs.set_handle(mmio_h);\n    }\n\n    // Register programming. All register access functions are `target`.\n    action configure {\n        rand bit[8]  chan;\n        rand bit[16] len;\n\n        constraint len > 0;\n\n        exec body {\n            // Whole-register write, by value.\n            comp.regs.csr.write_val((len << 16) | (chan << 8));\n\n            // Read-modify-write forms are the better way to say this, but are\n            // not provided by every core-library implementation:\n            //\n            //   comp.regs.csr.write_fields({\"chan\",\"len\"}, {chan, len});\n            //   comp.regs.csr.write_masked({.en = ~0}, {.en = 1});\n            //\n            // write_field / write_fields take string LITERALS only, name\n            // top-level non-aggregate fields only, and the names must be\n            // unique. In write_masked, `~0` selects every bit of a field and\n            // fields omitted from the literal default to 0, so they are\n            // automatically excluded from the mask.\n        }\n    }\n\n    // A READONLY register may be read but never written.\n    action poll {\n        exec body {\n            bit[32] s;\n            s = comp.regs.sts.read_val();\n        }\n    }\n\n    // Memory allocation and raw access.\n    action fill_buffer {\n        rand transparent_addr_claim_s<> dst;\n\n        constraint dst.size == 256;\n        constraint dst.alignment == 64;\n\n        exec body {\n            addr_handle_t h;\n            addr_handle_t h2;\n            h  = make_handle_from_claim(dst);\n            h2 = make_handle_from_handle(h, 4);\n            write32(h,  0xdead_beef);\n            write32(h2, 0x0000_0000);\n        }\n    }\n}\n\ncomponent pss_top {\n    dma_c dma;\n}\n",
       "name": "language-ref/regs_and_mem.pss"
      }
     ]
@@ -902,12 +923,22 @@
    "id": "corpus:lexical/comments_and_strings.pss",
    "markers": [
     {
-     "code": "PSS020",
-     "col": 34,
-     "extent": 8,
+     "code": "PSS027",
+     "col": 22,
+     "extent": 10,
      "file": "lexical/comments_and_strings.pss",
      "line": 19,
-     "message": "expected ';' before '\\102\\103'",
+     "message": "unterminated string literal",
+     "related": [],
+     "severity": "error"
+    },
+    {
+     "code": "PSS027",
+     "col": 43,
+     "extent": 2,
+     "file": "lexical/comments_and_strings.pss",
+     "line": 19,
+     "message": "unterminated string literal",
      "related": [],
      "severity": "error"
     }
@@ -963,8 +994,15 @@
      "extent": 1,
      "file": "lexical/operators.pss",
      "line": 9,
-     "message": "syntax error at '='",
-     "related": [],
+     "message": "syntax error at '=' in constraint 'arithmetic'",
+     "related": [
+      {
+       "col": 31,
+       "file": "lexical/operators.pss",
+       "label": "constraint 'arithmetic' begins here",
+       "line": 7
+      }
+     ],
      "severity": "error"
     },
     {
@@ -973,8 +1011,15 @@
      "extent": 1,
      "file": "lexical/operators.pss",
      "line": 10,
-     "message": "syntax error at '='",
-     "related": [],
+     "message": "syntax error at '=' in constraint 'arithmetic'",
+     "related": [
+      {
+       "col": 31,
+       "file": "lexical/operators.pss",
+       "label": "constraint 'arithmetic' begins here",
+       "line": 7
+      }
+     ],
      "severity": "error"
     },
     {
@@ -983,8 +1028,15 @@
      "extent": 1,
      "file": "lexical/operators.pss",
      "line": 11,
-     "message": "syntax error at '='",
-     "related": [],
+     "message": "syntax error at '=' in constraint 'arithmetic'",
+     "related": [
+      {
+       "col": 31,
+       "file": "lexical/operators.pss",
+       "label": "constraint 'arithmetic' begins here",
+       "line": 7
+      }
+     ],
      "severity": "error"
     },
     {
@@ -993,8 +1045,15 @@
      "extent": 1,
      "file": "lexical/operators.pss",
      "line": 12,
-     "message": "syntax error at '='",
-     "related": [],
+     "message": "syntax error at '=' in constraint 'arithmetic'",
+     "related": [
+      {
+       "col": 31,
+       "file": "lexical/operators.pss",
+       "label": "constraint 'arithmetic' begins here",
+       "line": 7
+      }
+     ],
      "severity": "error"
     },
     {
@@ -1003,8 +1062,15 @@
      "extent": 3,
      "file": "lexical/operators.pss",
      "line": 33,
-     "message": "syntax error at 'iff'",
-     "related": [],
+     "message": "syntax error at 'iff' in constraint 'implication'",
+     "related": [
+      {
+       "col": 32,
+       "file": "lexical/operators.pss",
+       "label": "constraint 'implication' begins here",
+       "line": 30
+      }
+     ],
      "severity": "error"
     },
     {
@@ -1013,8 +1079,15 @@
      "extent": 4,
      "file": "lexical/operators.pss",
      "line": 37,
-     "message": "syntax error at 'dist'",
-     "related": [],
+     "message": "syntax error at 'dist' in constraint 'distribution'",
+     "related": [
+      {
+       "col": 33,
+       "file": "lexical/operators.pss",
+       "label": "constraint 'distribution' begins here",
+       "line": 36
+      }
+     ],
      "severity": "error"
     },
     {
@@ -1023,8 +1096,15 @@
      "extent": 2,
      "file": "lexical/operators.pss",
      "line": 37,
-     "message": "syntax error at ':='",
-     "related": [],
+     "message": "syntax error at ':=' in constraint 'distribution'",
+     "related": [
+      {
+       "col": 33,
+       "file": "lexical/operators.pss",
+       "label": "constraint 'distribution' begins here",
+       "line": 36
+      }
+     ],
      "severity": "error"
     },
     {
@@ -1033,28 +1113,15 @@
      "extent": 1,
      "file": "lexical/operators.pss",
      "line": 40,
-     "message": "syntax error at '{'",
-     "related": [],
-     "severity": "error"
-    },
-    {
-     "code": "PSS025",
-     "col": 5,
-     "extent": 1,
-     "file": "lexical/operators.pss",
-     "line": 43,
-     "message": "unexpected '}' in this context",
-     "related": [],
-     "severity": "error"
-    },
-    {
-     "code": "PSS025",
-     "col": 1,
-     "extent": 1,
-     "file": "lexical/operators.pss",
-     "line": 61,
-     "message": "unexpected '}' in this context",
-     "related": [],
+     "message": "syntax error at '{' in package 'operators_pkg'",
+     "related": [
+      {
+       "col": 23,
+       "file": "lexical/operators.pss",
+       "label": "package 'operators_pkg' begins here",
+       "line": 3
+      }
+     ],
      "severity": "error"
     }
    ],
@@ -1079,27 +1146,44 @@
      "extent": 3,
      "file": "pathological/invalid_tokens.pss",
      "line": 2,
-     "message": "unexpected keyword 'xZZ' in this context",
-     "related": [],
+     "message": "unexpected 'xZZ' in component 'c'",
+     "related": [
+      {
+       "col": 13,
+       "file": "pathological/invalid_tokens.pss",
+       "label": "component 'c' begins here",
+       "line": 1
+      }
+     ],
      "severity": "error"
     },
     {
-     "code": "PSS026",
-     "col": 17,
-     "extent": 2,
+     "code": "PSS027",
+     "col": 14,
+     "extent": 3,
      "file": "pathological/invalid_tokens.pss",
      "line": 3,
-     "message": "unexpected '99' in this context",
+     "message": "unexpected input ''sq'",
      "related": [],
      "severity": "error"
     },
     {
-     "code": "PSS025",
-     "col": 5,
-     "extent": 1,
+     "code": "PSS027",
+     "col": 16,
+     "extent": 14,
      "file": "pathological/invalid_tokens.pss",
-     "line": 5,
-     "message": "unexpected '@' in this context",
+     "line": 4,
+     "message": "unterminated string literal",
+     "related": [],
+     "severity": "error"
+    },
+    {
+     "code": "PSS027",
+     "col": 35,
+     "extent": 2,
+     "file": "pathological/invalid_tokens.pss",
+     "line": 4,
+     "message": "unterminated string literal",
      "related": [],
      "severity": "error"
     },
@@ -1109,8 +1193,15 @@
      "extent": 3,
      "file": "pathological/invalid_tokens.pss",
      "line": 6,
-     "message": "unexpected '...' in this context",
-     "related": [],
+     "message": "unexpected '...' in component 'c'",
+     "related": [
+      {
+       "col": 13,
+       "file": "pathological/invalid_tokens.pss",
+       "label": "component 'c' begins here",
+       "line": 1
+      }
+     ],
      "severity": "error"
     }
    ],
@@ -1128,9 +1219,20 @@
     ]
    ],
    "id": "corpus:pathological/lone_backslash.pss",
-   "markers": [],
+   "markers": [
+    {
+     "code": "PSS027",
+     "col": 5,
+     "extent": 1,
+     "file": "pathological/lone_backslash.pss",
+     "line": 3,
+     "message": "unexpected character '\\'",
+     "related": [],
+     "severity": "error"
+    }
+   ],
    "maxErrors": 0,
-   "raised": null,
+   "raised": "ParseException",
    "why": "corpus parity"
   },
   {
@@ -1145,22 +1247,32 @@
    "id": "corpus:pathological/lone_quote.pss",
    "markers": [
     {
-     "code": "PSS020",
-     "col": 5,
-     "extent": 3,
+     "code": "PSS027",
+     "col": 13,
+     "extent": 2,
      "file": "pathological/lone_quote.pss",
-     "line": 4,
-     "message": "expected ';' before 'int'",
+     "line": 2,
+     "message": "unexpected input ''f'",
      "related": [],
      "severity": "error"
     },
     {
-     "code": "PSS024",
-     "col": 1,
-     "extent": 1,
+     "code": "PSS027",
+     "col": 14,
+     "extent": 2,
      "file": "pathological/lone_quote.pss",
-     "line": 5,
-     "message": "unexpected '}' in this context",
+     "line": 3,
+     "message": "unexpected input '';'",
+     "related": [],
+     "severity": "error"
+    },
+    {
+     "code": "PSS027",
+     "col": 13,
+     "extent": 2,
+     "file": "pathological/lone_quote.pss",
+     "line": 4,
+     "message": "unexpected input '';'",
      "related": [],
      "severity": "error"
     }
@@ -1182,12 +1294,26 @@
    "markers": [
     {
      "code": "PSS021",
-     "col": 26,
-     "extent": 5,
+     "col": 18,
+     "extent": 1,
      "file": "pathological/truncated_mid_token.pss",
-     "line": 3,
-     "message": "unexpected end of input; missing closing '}'",
-     "related": [],
+     "fix": {
+      "col": 26,
+      "extent": 0,
+      "file": "pathological/truncated_mid_token.pss",
+      "line": 3,
+      "replacement": "\n}}"
+     },
+     "line": 2,
+     "message": "unclosed '{' for action 'entry'",
+     "related": [
+      {
+       "col": 26,
+       "file": "pathological/truncated_mid_token.pss",
+       "label": "input ends here",
+       "line": 3
+      }
+     ],
      "severity": "error"
     }
    ],
@@ -1207,22 +1333,36 @@
    "id": "corpus:pathological/unclosed_comment.pss",
    "markers": [
     {
-     "code": "PSS024",
-     "col": 5,
+     "code": "PSS021",
+     "col": 13,
      "extent": 1,
      "file": "pathological/unclosed_comment.pss",
-     "line": 2,
-     "message": "unexpected '/' in this context",
-     "related": [],
+     "fix": {
+      "col": 14,
+      "extent": 0,
+      "file": "pathological/unclosed_comment.pss",
+      "line": 1,
+      "replacement": "\n}"
+     },
+     "line": 1,
+     "message": "unclosed '{' for component 'c'",
+     "related": [
+      {
+       "col": 1,
+       "file": "pathological/unclosed_comment.pss",
+       "label": "input ends here",
+       "line": 5
+      }
+     ],
      "severity": "error"
     },
     {
-     "code": "PSS025",
-     "col": 1,
-     "extent": 1,
+     "code": "PSS027",
+     "col": 5,
+     "extent": 2,
      "file": "pathological/unclosed_comment.pss",
-     "line": 4,
-     "message": "unexpected '}' in this context",
+     "line": 2,
+     "message": "unterminated block comment",
      "related": [],
      "severity": "error"
     }
@@ -1269,12 +1409,12 @@
    "id": "corpus:pathological/unclosed_string.pss",
    "markers": [
     {
-     "code": "PSS026",
-     "col": 5,
-     "extent": 3,
+     "code": "PSS027",
+     "col": 16,
+     "extent": 29,
      "file": "pathological/unclosed_string.pss",
-     "line": 3,
-     "message": "unexpected keyword 'int' in this context",
+     "line": 2,
+     "message": "unterminated string literal",
      "related": [],
      "severity": "error"
     },
@@ -1284,8 +1424,15 @@
      "extent": 1,
      "file": "pathological/unclosed_string.pss",
      "line": 3,
-     "message": "expected ';' before '='",
-     "related": [],
+     "message": "expected ';' before '=' in component 'c'",
+     "related": [
+      {
+       "col": 13,
+       "file": "pathological/unclosed_string.pss",
+       "label": "component 'c' begins here",
+       "line": 1
+      }
+     ],
      "severity": "error"
     }
    ],

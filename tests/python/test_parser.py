@@ -109,4 +109,13 @@ component X {
 
         pss_top_u = SymbolScopeUtil(sym_tree_root_u.getQname("pss_top"))
         extensions = pss_top_u.getExtensions()
-        self.assertEqual(len(extensions), 3)
+        # Two `extend component pss_top` blocks, so two extensions.
+        #
+        # This asserted 3 until 2026-09-22. getExtensions() counts the distinct
+        # parents of a scope's children other than the initial declaration, and
+        # the third was the compiler-injected `set_executor` prototype, which
+        # was pushed straight into the component's child list and so carried a
+        # parent belonging to neither the declaration nor an extension. The
+        # injection is gone (known-issues CL-S3) and with it the phantom
+        # extension.
+        self.assertEqual(len(extensions), 2)

@@ -148,6 +148,7 @@ def test_collection_method_call_is_silent():
 
 def test_core_library_call_is_silent():
     pss = """
+    import std_pkg::*;
     component pss_top { exec init_up { print("hi"); } }
     """
     assert_no_marker(pss, severity="error")

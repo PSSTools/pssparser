@@ -43,6 +43,7 @@ def test_sizeof_scalar_template_reference():
     root = assert_parse_ok(
         """
         import addr_reg_pkg::*;
+        import std_pkg::*;
 
         component pss_top {
             int sz = sizeof_s<int>::nbits;
@@ -56,6 +57,7 @@ def test_sizeof_packed_struct_template_reference():
     root = assert_parse_ok(
         """
         import addr_reg_pkg::*;
+        import std_pkg::*;
         struct R : packed_s<> {
             bit[8] a;
             bit[8] b;
@@ -74,6 +76,7 @@ def test_reg_c_template_specialization_links():
     root = assert_parse_ok(
         """
         import addr_reg_pkg::*;
+        import std_pkg::*;
 
         pure component my_regs : reg_group_c {
             reg_c<int> r1;
@@ -91,6 +94,7 @@ def test_nested_template_specializations_link():
     root = assert_parse_ok(
         """
         import addr_reg_pkg::*;
+        import std_pkg::*;
 
         struct addr_region_s<struct TRAIT : addr_trait_s = empty_addr_trait_s> {
             TRAIT trait;

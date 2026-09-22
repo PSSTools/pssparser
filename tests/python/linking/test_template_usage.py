@@ -570,6 +570,7 @@ def test_a_bad_member_of_a_collection_element_is_still_reported(decl, ref):
 def test_sizeof_s_of_scalar():
     assert_clean([("t.pss", """
         import addr_reg_pkg::*;
+        import std_pkg::*;
         component pss_top { int sz = sizeof_s<int>::nbits; }
     """)])
 
@@ -577,6 +578,7 @@ def test_sizeof_s_of_scalar():
 def test_sizeof_s_of_packed_struct():
     assert_clean([("t.pss", """
         import addr_reg_pkg::*;
+        import std_pkg::*;
         struct R : packed_s<> { bit[8] a; bit[8] b; }
         component pss_top { int sz = sizeof_s<R>::nbits; }
     """)])
@@ -585,6 +587,7 @@ def test_sizeof_s_of_packed_struct():
 def test_reg_c_specialization():
     assert_clean([("t.pss", """
         import addr_reg_pkg::*;
+        import std_pkg::*;
         pure component my_regs : reg_group_c { reg_c<int> r1; }
         component pss_top { my_regs regs; }
     """)])
@@ -593,6 +596,7 @@ def test_reg_c_specialization():
 def test_addr_region_s_with_trait():
     assert_clean([("t.pss", """
         import addr_reg_pkg::*;
+        import std_pkg::*;
         struct addr_region_s<struct TRAIT : addr_trait_s = empty_addr_trait_s> {
             TRAIT trait;
         }

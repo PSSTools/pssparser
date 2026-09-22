@@ -49,6 +49,7 @@ ast::ISymbolRefPath *TaskResolveRootRef::resolve(const ast::IExprId *id) {
     // will be traversing it
     m_ctxt->pushCloneSymtab();
     m_id    = id;
+    m_super_depth = 0;
 
     int32_t count = 0;
     while (!m_ref && m_ctxt->symtab()->hasScopes()) {
@@ -80,6 +81,18 @@ ast::ISymbolRefPath *TaskResolveRootRef::resolve(const ast::IExprId *id) {
             m_ctxt->symtab()->popScope();
         }
     }
+
+    // The lexical walk is exhausted. If this reference sits inside a member
+    // contributed by a type extension, the walk went out through the
+    // *extended* type's package -- LRM 17.2 says the extension belongs to the
+    // package that encloses the `extend` statement, so that package and its
+    // imports (17.2.3) get one more try. Deliberately last: the extended
+    // type's own members must still win, which is what makes an extension
+    // able to refer to what it is extending.
+    if (!m_ref) {
+        m_ref = searchExtensionCtxt(m_id);
+    }
+
     m_ctxt->popSymtab();
 
     DEBUG_LEAVE("resolve %p (%d)", m_ref, (m_ref)?m_ref->getPath().size():-1);
@@ -143,7 +156,23 @@ void TaskResolveRootRef::visitSymbolScope(ast::ISymbolScope *i) {
                 DEBUG("Is parameterized");
             }
         }
-        m_ref = m_ctxt->symtab()->getScopeSymbolPath(); // Path to 'i'
+        // Path to the scope the symbol-table iterator is sitting on. That is
+        // 'i' only while m_super_depth is zero; once visitSymbolTypeScope has
+        // recursed up an inheritance chain, 'i' is a *base* of that scope and
+        // the iterator has no idea.
+        m_ref = m_ctxt->symtab()->getScopeSymbolPath();
+
+        // One Super element per step taken up the chain, so that the child
+        // index below is applied to the scope it was actually found in.
+        // Without these the base's index indexed the derived type's children:
+        // index 0 landed on some unrelated child and was reported as "'x' is
+        // not a function", and every higher index fell off the end and
+        // resolved to nothing at all -- which is why an inherited call with
+        // the wrong argument count used to go unreported. See CL-N4.
+        for (int32_t s=0; s<m_super_depth; s++) {
+            m_ref->getPath().push_back({
+                ast::SymbolRefPathElemKind::ElemKind_Super, 0});
+        }
 
         // Now, add in the child element that we just found
         m_ref->getPath().push_back({
@@ -190,8 +219,16 @@ void TaskResolveRootRef::visitSymbolTypeScope(ast::ISymbolTypeScope *i) {
         if ((it=i->getPlist()->getSymtab().find(m_id->getId())) != i->getPlist()->getSymtab().end()) {
             // Target is a parameter value
             m_ref = m_ctxt->symtab()->getScopeSymbolPath();
-            DEBUG("Found %s as a parameter (%d)", 
+            DEBUG("Found %s as a parameter (%d)",
                 m_id->getId().c_str(), it->second);
+
+            // Same super-chain correction as in visitSymbolScope: this branch
+            // is reached for a *base* type's parameter list when the search
+            // has walked up the chain.
+            for (int32_t s=0; s<m_super_depth; s++) {
+                m_ref->getPath().push_back({
+                    ast::SymbolRefPathElemKind::ElemKind_Super, 0});
+            }
 
             m_ref->getPath().push_back({
                 ast::SymbolRefPathElemKind::ElemKind_ParamIdx, 
@@ -215,7 +252,9 @@ void TaskResolveRootRef::visitSymbolTypeScope(ast::ISymbolTypeScope *i) {
                 m_ctxt->getDebugMgr(), m_ctxt->root()
             ).resolve(ts);
             if (super_sc) {
+                m_super_depth++;
                 super_sc->accept(m_this);
+                m_super_depth--;
             }
         }
     }
@@ -250,6 +289,84 @@ void TaskResolveRootRef::visitSymbolFunctionScope(ast::ISymbolFunctionScope *i) 
     }
 
     DEBUG_LEAVE("visitSymbolFunctionScope");
+}
+
+ast::ISymbolRefPath *TaskResolveRootRef::absPath(ast::ISymbolScope *s) {
+    // An absolute path -- rooted, as searchImport's paths are -- built by
+    // walking the symbol tree upward and recording each scope's index in its
+    // parent. There is no ready-made "path to this scope": getScopeSymbolPath()
+    // answers for the iterator's current position, which is exactly the thing
+    // that is wrong here.
+    std::vector<int32_t> idx;
+    ast::ISymbolScope *cur = s;
+
+    while (cur && cur != m_ctxt->root()) {
+        if (cur->getId() < 0) {
+            // Unnamed position. Nothing downstream can index through it, and
+            // a partial path would resolve to the wrong node rather than to
+            // none -- the failure mode ElemKind_ChildIdx's negative-index
+            // guard exists to avoid.
+            DEBUG("absPath: scope %s has no index", cur->getName().c_str());
+            return 0;
+        }
+        idx.push_back(cur->getId());
+        cur = dynamic_cast<ast::ISymbolScope *>(cur->getUpper());
+    }
+
+    if (cur != m_ctxt->root()) {
+        DEBUG("absPath: walk did not reach the root");
+        return 0;
+    }
+
+    ast::ISymbolRefPath *ret =
+        m_ctxt->getFactory()->getAstFactory()->mkSymbolRefPath();
+    for (std::vector<int32_t>::const_reverse_iterator
+        it=idx.rbegin(); it!=idx.rend(); it++) {
+        ret->getPath().push_back({
+            ast::SymbolRefPathElemKind::ElemKind_ChildIdx, *it});
+    }
+    return ret;
+}
+
+ast::ISymbolRefPath *TaskResolveRootRef::searchExtensionCtxt(
+        const ast::IExprId *id) {
+    ast::ISymbolScope *decl_s = m_ctxt->extensionCtxt();
+
+    if (!decl_s) {
+        return 0;
+    }
+
+    DEBUG_ENTER("searchExtensionCtxt %s in %s",
+        id->getId().c_str(), decl_s->getName().c_str());
+
+    ast::ISymbolRefPath *ret = 0;
+    std::unordered_map<std::string,int32_t>::const_iterator it =
+        decl_s->getSymtab().find(id->getId());
+
+    if (it != decl_s->getSymtab().end()) {
+        if ((ret=absPath(decl_s))) {
+            ret->getPath().push_back({
+                TaskGetSymbolRefPathKind(m_ctxt->getDebugMgr()).get(
+                    decl_s->getChildren().at(it->second).get()),
+                it->second});
+        }
+    } else if (m_search_imp && decl_s->getImports()) {
+        // 17.2.3: the imports in effect for an extension body are the ones at
+        // the extension's own declaration site.
+        //
+        // searchImport resolves the import's own absolute path through
+        // m_ctxt->symtab(), and by the time this runs the caller's loop has
+        // popped every scope off the clone it pushed -- resolveAbsPath on an
+        // empty stack segfaults. Give it a fresh iterator at the root, which
+        // is all an absolute path needs.
+        m_ctxt->pushSymtab(
+            m_ctxt->getFactory()->mkAstSymbolTableIterator(m_ctxt->root()));
+        ret = searchImports(id, decl_s->getImports());
+        m_ctxt->popSymtab();
+    }
+
+    DEBUG_LEAVE("searchExtensionCtxt %s %p", id->getId().c_str(), ret);
+    return ret;
 }
 
 ast::ISymbolRefPath *TaskResolveRootRef::searchImports(

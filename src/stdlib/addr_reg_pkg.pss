@@ -17,8 +17,8 @@ package addr_reg_pkg {
 
     component contiguous_addr_space_c<
             struct TRAIT : addr_trait_s = empty_addr_trait_s> : addr_space_base_c {
-        function addr_handle_t add_region(addr_region_s <TRAIT> r);
-        function addr_handle_t add_nonallocatable_region(addr_region_s <TRAIT> r);
+        solve function addr_handle_t add_region(addr_region_s <TRAIT> r);
+        solve function addr_handle_t add_nonallocatable_region(addr_region_s <> r);
         bool byte_addressable = true;
     };
 
@@ -27,6 +27,7 @@ package addr_reg_pkg {
 
     struct addr_region_base_s {
         bit[64] size;
+        string tag;
     };
 
     struct addr_region_s <struct TRAIT : addr_trait_s = empty_addr_trait_s>
@@ -39,6 +40,22 @@ package addr_reg_pkg {
         bit[64] addr;
     };
 
+    // 21.11 allocation modes
+    enum alloc_access_mode_e {EXCLUSIVE, SHARED};
+    enum alloc_share_mode_e {RANDOM, OVERLAP, SAME_ADDRESS};
+    enum alloc_skip_mode_e {DONT_SKIP, SKIP};
+
+    struct alloc_base_mode_s {
+        rand alloc_access_mode_e access;
+        constraint default access == EXCLUSIVE;
+        rand alloc_share_mode_e sharing;
+        constraint default sharing == RANDOM;
+        rand alloc_skip_mode_e skipping;
+        constraint default skipping == DONT_SKIP;
+        rand int tag;
+        constraint default tag == -1;
+    };
+
     struct addr_claim_base_s {
         rand bit[64] size;
         rand bool permanent;
@@ -46,7 +63,9 @@ package addr_reg_pkg {
         constraint default permanent == false;
     };
 
-    struct addr_claim_s <struct TRAIT : addr_trait_s = empty_addr_trait_s> : addr_claim_base_s {
+    struct addr_claim_s <struct TRAIT : addr_trait_s = empty_addr_trait_s,
+                         struct ALLOC_MODE : alloc_base_mode_s = alloc_base_mode_s>
+        : addr_claim_base_s {
         rand TRAIT trait;
         rand bit[64] in [64'd2**0, 64'd2**1, 64'd2**2, 64'd2**3 , 64'd2**4 ,
             64'd2**5 , 64'd2**6 , 64'd2**7 , 64'd2**8 , 64'd2**9 , 64'd2**10,
@@ -59,16 +78,20 @@ package addr_reg_pkg {
             64'd2**47, 64'd2**48, 64'd2**49, 64'd2**50, 64'd2**51, 64'd2**52,
             64'd2**53, 64'd2**54, 64'd2**55, 64'd2**56, 64'd2**57, 64'd2**58,
             64'd2**59, 64'd2**60, 64'd2**61, 64'd2**62, 64'd2**63] alignment;
+        rand ALLOC_MODE alloc_mode;
     };
 
     struct transparent_addr_claim_s<
-            struct TRAIT : addr_trait_s = empty_addr_trait_s> : addr_claim_s<TRAIT> {
+            struct TRAIT : addr_trait_s = empty_addr_trait_s,
+            struct ALLOC_MODE : alloc_base_mode_s = alloc_base_mode_s>
+        : addr_claim_s<TRAIT, ALLOC_MODE> {
         rand bit[64] addr;
     };
 
-    // Note: sizeof_s is declared in std_pkg (21.13.2). It is visible here --
-    // and to users that import addr_reg_pkg::* -- via the std_pkg import above,
-    // which is what the spec's "as if they were the same types" requires.
+    // Note: sizeof_s is declared in std_pkg (21.13.2). The import above makes
+    // it visible *here*, for the reg_c declarations below. It does not make it
+    // visible to a user who imports addr_reg_pkg::* -- import is not re-export
+    // -- so such a model needs `import std_pkg::*;` of its own.
 
     const addr_handle_t nullhandle = /* implementation-specific */ null;
 
@@ -82,49 +105,56 @@ function addr_handle_t make_handle_from_claim (addr_claim_base_s claim,
  bit[64] offset = 0,
  bool sub = false);
 function addr_handle_t make_handle_from_handle (addr_handle_t handle,
- bit[64] offset);
+ bit[64] offset,
+ bool sub = false);
 
-// import target function bit[64] addr_value(addr_handle_t hndl);
-// import target function bit[8] read8(addr_handle_t hndl);
-// import target function bit[16] read16(addr_handle_t hndl);
-// import target function bit[32] read32(addr_handle_t hndl);
-// import target function bit[64] read64(addr_handle_t hndl);
-// import target function void write8 (addr_handle_t hndl, bit[8] data);
-// import target function void write16(addr_handle_t hndl, bit[16] data);
-// import target function void write32(addr_handle_t hndl, bit[32] data);
-// import target function void write64(addr_handle_t hndl, bit[64] data);
+// 21.13.9: the memory-access descriptor. Empty by design -- tools and users
+// extend it to carry access attributes.
+struct mem_access_desc_s {}
 
-function bit[64] addr_value(addr_handle_t hndl);
-function bit[8] read8(addr_handle_t hndl);
-function bit[16] read16(addr_handle_t hndl);
-function bit[32] read32(addr_handle_t hndl);
-function bit[64] read64(addr_handle_t hndl);
-function void write8 (addr_handle_t hndl, bit[8] data);
-function void write16(addr_handle_t hndl, bit[16] data);
-function void write32(addr_handle_t hndl, bit[32] data);
-function void write64(addr_handle_t hndl, bit[64] data);
+target function bit[64] addr_value(addr_handle_t hndl, mem_access_desc_s mem_access_desc = {});
+solve function bit[64] addr_value_solve(addr_handle_t hndl, mem_access_desc_s mem_access_desc = {});
+solve function bool addr_value_abs(addr_handle_t hndl, mem_access_desc_s mem_access_desc = {});
+
+function string get_tag(addr_handle_t hndl);
+
+target function bit[8] read8(addr_handle_t hndl, mem_access_desc_s mem_access_desc = {});
+target function bit[16] read16(addr_handle_t hndl, mem_access_desc_s mem_access_desc = {});
+target function bit[32] read32(addr_handle_t hndl, mem_access_desc_s mem_access_desc = {});
+target function bit[64] read64(addr_handle_t hndl, mem_access_desc_s mem_access_desc = {});
+target function void write8 (addr_handle_t hndl, bit[8] data, mem_access_desc_s mem_access_desc = {});
+target function void write16(addr_handle_t hndl, bit[16] data, mem_access_desc_s mem_access_desc = {});
+target function void write32(addr_handle_t hndl, bit[32] data, mem_access_desc_s mem_access_desc = {});
+target function void write64(addr_handle_t hndl, bit[64] data, mem_access_desc_s mem_access_desc = {});
 
 
-function void read_bytes (addr_handle_t hndl, list<bit[8]> data,
- int size);
-function void write_bytes(addr_handle_t hndl, list<bit[8]> data);
-target function void read_struct (addr_handle_t hndl, struct packed_struct);
-target function void write_struct(addr_handle_t hndl, struct packed_struct);
-// extend component executor_base_c {
-//     function bit[8] read8(addr_handle_t hndl);
-//     function bit[16] read16(addr_handle_t hndl);
-//     function bit[32] read32(addr_handle_t hndl);
-//     function bit[64] read64(addr_handle_t hndl);
-//     function void write8 (addr_handle_t hndl, bit[8] data);
-//     function void write16(addr_handle_t hndl, bit[16] data);
-//     function void write32(addr_handle_t hndl, bit[32] data);
-//     function void write64(addr_handle_t hndl, bit[64] data);
-//  /** TODO: list
-//  function void read_bytes (addr_handle_t hndl, list<bit[8]> data,
-//  int size);
-//  function void write_bytes(addr_handle_t hndl, list<bit[8]> data);
-//   */
-//  };
+target function void read_bytes (addr_handle_t hndl, list<bit[8]> data,
+ int size, mem_access_desc_s mem_access_desc = {});
+target function void write_bytes(addr_handle_t hndl, list<bit[8]> data,
+ mem_access_desc_s mem_access_desc = {});
+target function void read_struct (addr_handle_t hndl, struct packed_struct,
+ mem_access_desc_s mem_access_desc = {});
+target function void write_struct(addr_handle_t hndl, struct packed_struct,
+ mem_access_desc_s mem_access_desc = {});
+
+// Annex C: the whole access API is also available on a specific executor, so
+// that an access may be directed at one. Note the annex does *not* include
+// read_struct/write_struct here.
+extend component executor_base_c {
+    target function bit[64] addr_value(addr_handle_t hndl, mem_access_desc_s mem_access_desc = {});
+    solve function bit[64] addr_value_solve(addr_handle_t hndl, mem_access_desc_s mem_access_desc = {});
+    solve function bool addr_value_abs(addr_handle_t hndl, mem_access_desc_s mem_access_desc = {});
+    target function bit[8] read8 (addr_handle_t hndl, mem_access_desc_s mem_access_desc = {});
+    target function bit[16] read16(addr_handle_t hndl, mem_access_desc_s mem_access_desc = {});
+    target function bit[32] read32(addr_handle_t hndl, mem_access_desc_s mem_access_desc = {});
+    target function bit[64] read64(addr_handle_t hndl, mem_access_desc_s mem_access_desc = {});
+    target function void write8 (addr_handle_t hndl, bit[8] data, mem_access_desc_s mem_access_desc = {});
+    target function void write16(addr_handle_t hndl, bit[16] data, mem_access_desc_s mem_access_desc = {});
+    target function void write32(addr_handle_t hndl, bit[32] data, mem_access_desc_s mem_access_desc = {});
+    target function void write64(addr_handle_t hndl, bit[64] data, mem_access_desc_s mem_access_desc = {});
+    target function void read_bytes(addr_handle_t hndl, list<bit[8]> data, int size, mem_access_desc_s mem_access_desc = {});
+    target function void write_bytes(addr_handle_t hndl, list<bit[8]> data, mem_access_desc_s mem_access_desc = {});
+};
 
 enum reg_access {READWRITE, READONLY, WRITEONLY};
 
@@ -167,8 +197,8 @@ pure component reg_group_c {
     solve pure function string get_mnemonic_of_path(list<node_s> path);
     solve function void        set_mnemonic(string prefix);
 
-    function void set_handle(addr_handle_t addr);
-//    import solve function set_handle;
+    solve function void set_handle(addr_handle_t addr);
+    function addr_handle_t get_handle();
 };
 
 // 21.14.6.2 Syntax163

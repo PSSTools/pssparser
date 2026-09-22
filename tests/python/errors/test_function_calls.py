@@ -168,6 +168,7 @@ def test_the_standard_library_variadics_accept_extra_arguments(call):
     The grammar and the builder both support the form -- only the declaration
     did not use it."""
     assert_clean([("t.pss", """
+        import std_pkg::*;
         component C { action A { exec body { %s; } } }
     """ % call)])
 
@@ -176,6 +177,7 @@ def test_a_non_variadic_standard_library_function_is_still_checked():
     """Control for the above: relaxing two declarations must not relax the
     rest of the standard library."""
     assert_rejects([("t.pss", """
+        import std_pkg::*;
         component C { action A { exec body { bit[32] v; v = urandom_range(1); } } }
     """)], "too few arguments to 'urandom_range': expected 2, got 1")
 
@@ -298,7 +300,10 @@ def test_calling_a_field_or_variable_is_rejected(src, name):
     'bit[32] v; v = urandom();',
 ])
 def test_a_builtin_method_call_is_not_reported_as_a_non_function(body):
+    # `urandom` is the one std_pkg name in the list; the rest are builtin
+    # methods, for which no import exists to write.
     assert_clean([("t.pss", """
+        import std_pkg::*;
         component C { action A { exec body { %s } } }
     """ % body)])
 

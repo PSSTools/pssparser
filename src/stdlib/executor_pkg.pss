@@ -1,12 +1,32 @@
 
 package executor_pkg {
-    import addr_reg_pkg::*;
-    
+
     struct executor_trait_s {};
 
     struct empty_executor_trait_s : executor_trait_s {};
 
-    component executor_base_c {};
+    // ---------------------------------------------------------------- 21.8
+    // Target execution units
+
+    enum target_language_e {C, CPP, SV};
+
+    component target_execution_unit_c {
+        solve function void set_filename(string filename);
+        solve function string get_filename();
+        solve function void set_target_language(target_language_e lang);
+        solve function target_language_e get_target_language();
+    }
+
+    // ---------------------------------------------------------------- 21.7
+    component executor_base_c {
+        // 21.7.1.1.1: identifies the executor context an exported function
+        // is executing in. See Annex D.1.1.
+        target function chandle get_context();
+
+        solve function void set_target_execution_unit(
+            ref target_execution_unit_c target_execution_unit);
+        solve function ref target_execution_unit_c get_target_execution_unit();
+    }
 
     component executor_c<
         struct TRAIT : executor_trait_s = empty_executor_trait_s> : executor_base_c {
@@ -15,14 +35,8 @@ package executor_pkg {
 
     component executor_group_c<
         struct TRAIT : executor_trait_s = empty_executor_trait_s> {
-
-// TODO:       function void add_executor(ref executor_c<TRAIT> exe);
-        function void add_executor(executor_base_c exe);
+        solve function void add_executor(ref executor_c<TRAIT> exe);
     };
-
-    component executor_group_default_c {
-        function void add_executor(executor_base_c exe);
-    }
 
     struct executor_claim_s<
         struct TRAIT : executor_trait_s = empty_executor_trait_s> {
@@ -30,5 +44,8 @@ package executor_pkg {
     };
 
     function ref executor_base_c executor();
+
+    // Syntax 131
+    function void set_executor(ref executor_base_c xtr);
 
 }

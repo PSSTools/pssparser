@@ -114,6 +114,12 @@ public:
 
 //    virtual void visitRootSymbolScope(ast::IRootSymbolScope *i) override;
 
+    /**
+     * Visit one child of a symbol scope, putting an extension's declaring
+     * package back in scope if this child came from one. See CL-N1.
+     */
+    void visitMergedScopeChild(ast::IScopeChild *c);
+
     virtual void visitSymbolScope(ast::ISymbolScope *i) override;
 
     virtual void visitSymbolExtendScope(ast::ISymbolExtendScope *i) override;

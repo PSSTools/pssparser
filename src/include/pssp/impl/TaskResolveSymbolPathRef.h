@@ -131,8 +131,34 @@ public:
                     DEBUG("  scope %p => %p", scope_ts, ret);
                 } break;
                 case ast::SymbolRefPathElemKind::ElemKind_Super: {
+                    // One step up the inheritance chain. Carries no index: a
+                    // type has at most one super type, so depth is spelled as
+                    // repeated Super elements rather than as a count.
+                    //
+                    // Recorded by TaskResolveRootRef when an unqualified name
+                    // is found in a base type's scope. Until this was
+                    // implemented the case fell through with `ret` untouched,
+                    // so `scope` stayed on the *derived* type and the base's
+                    // child index was applied to it. See known-issues CL-N4.
+                    //
+                    // Resolved by re-entering resolve() on the super-type
+                    // reference rather than by calling TaskResolveSuperTypeRef:
+                    // that header includes this one. The difference shows up
+                    // only for a generic inheriting from one of its own type
+                    // parameters (`struct S<type T> : T`), where the binding
+                    // needs one more hop; such a name resolves to nothing here
+                    // rather than to the wrong thing.
+                    DEBUG("Elem: Super");
                     ast::ISymbolTypeScope *scope_ts = scope.getT<ast::ISymbolTypeScope>();
-                    DEBUG_ERROR("TODO: handle super ref");
+                    ast::ITypeScope *ts = scope_ts?
+                        dynamic_cast<ast::ITypeScope *>(scope_ts->getTarget()):0;
+                    if (ts && ts->getSuper_t() && ts->getSuper_t()->getTarget()) {
+                        ret = resolve(ts->getSuper_t()->getTarget());
+                    } else {
+                        DEBUG("No resolvable super type");
+                        ret = 0;
+                    }
+                    DEBUG("  scope %p => %p", scope.get(), ret);
                 } break;
                 case ast::SymbolRefPathElemKind::ElemKind_TypeSpec: {
                     ast::ISymbolTypeScope *scope_ts = scope.getT<ast::ISymbolTypeScope>();

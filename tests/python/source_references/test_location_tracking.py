@@ -515,21 +515,26 @@ def test_function_prototypes_are_located(parser):
     assert protos["defined_f"].getLocation().lineno == 6
 
 
-def test_injected_prototypes_stay_marked(parser):
-    """The compiler-injected executor prototypes keep `lineno == -1`.
+def test_injected_nodes_stay_marked(parser):
+    """A compiler-injected node keeps `lineno == -1`.
 
     This is the other half of the previous test: the -1 marker only means
     "not written by the user" while genuinely-written nodes are all located.
+
+    The subject used to be the `set_executor` / `set_default_executor`
+    prototypes pushed into every base-less component. That injection is gone
+    (known-issues CL-S3) -- `executor_pkg` declares the normative
+    one-parameter `set_executor`, and the parameterless injected one shadowed
+    it. `comp`, the implicit component reference inside an action, is the
+    remaining injected node and carries the same marker.
     """
-    code = """component C { }"""
+    code = """component C { action A { } }"""
     root = parse_pss(code, "test.pss", parser)
     comp = get_symbol(root, "C")
+    action = get_symbol(comp, "A")
 
-    injected = [
-        c for c in comp.getChildren()
-        if _node_name(c) in ("set_executor", "set_default_executor")
-    ]
-    assert injected, "expected the injected executor prototypes"
+    injected = [c for c in action.getChildren() if _node_name(c) == "comp"]
+    assert injected, "expected the injected 'comp' reference"
     for node in injected:
         assert node.getLocation().lineno == -1
 
@@ -576,7 +581,9 @@ def test_no_user_written_node_is_mistaken_for_injected(parser):
     # and does not exist on ScopeChild -- `lineno < 0` is the only signal an
     # AST consumer has, which is precisely why it must stay trustworthy. A new
     # entry here should be a deliberate decision, not a way to quiet the test.
-    KNOWN_INJECTED = {"set_executor", "set_default_executor", "comp"}
+    # `set_executor`/`set_default_executor` were here until 2026-09-22;
+    # the injection that produced them is gone (known-issues CL-S3).
+    KNOWN_INJECTED = {"comp"}
 
     unlocated = []
 
@@ -617,7 +624,9 @@ def test_the_standard_library_has_no_unlocated_declarations(parser):
     """
     root = parse_pss("component pss_top { }", "test.pss", parser)
 
-    KNOWN_INJECTED = {"set_executor", "set_default_executor", "comp"}
+    # `set_executor`/`set_default_executor` were here until 2026-09-22;
+    # the injection that produced them is gone (known-issues CL-S3).
+    KNOWN_INJECTED = {"comp"}
     unlocated = []
     inspected = []
 

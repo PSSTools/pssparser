@@ -384,6 +384,7 @@ def test_annotation_declared_outside_package_scope_is_error():
 @pytest.mark.parametrize("name", ["doc", "code_doc"])
 def test_std_pkg_annotation_is_recognized(name):
     pss = """
+    import std_pkg::*;
     component C {
         @%s {.text = "documented"}
         int a;
@@ -396,6 +397,7 @@ def test_std_pkg_annotation_is_recognized(name):
 def test_std_pkg_annotation_field_is_checked(name):
     """Proves the annotation resolved to the std_pkg declaration, not to nothing."""
     pss = """
+    import std_pkg::*;
     component C {
         @%s {.nosuchfield = "x"}
         int a;
@@ -407,6 +409,7 @@ def test_std_pkg_annotation_field_is_checked(name):
 def test_code_doc_on_procedural_stmt():
     """§21.6.1 Example325 applies @code_doc to a statement inside a function."""
     pss = """
+    import std_pkg::*;
     component C {
         function void f() {
             @code_doc {.text = "Zero the target memory word"}

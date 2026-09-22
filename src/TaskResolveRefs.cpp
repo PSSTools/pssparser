@@ -20,6 +20,7 @@
  */
 #include <set>
 #include "dmgr/impl/DebugMacros.h"
+#include "CoreLibraryLookup.h"
 #include "TaskCheckCallArgs.h"
 #include "TaskExprTypeCat.h"
 #include "TaskCompareTypeRefs.h"
@@ -317,7 +318,7 @@ void TaskResolveRefs::resolve(ast::ISymbolTypeScope *scope) {
     for (std::vector<ast::IScopeChildUP>::const_iterator
         it=scope->getChildren().begin();
         it!=scope->getChildren().end(); it++) {
-        it->get()->accept(m_this);
+        visitMergedScopeChild(it->get());
     }
 
     m_ctxt->symtab()->popScope();
@@ -1050,7 +1051,23 @@ void TaskResolveRefs::visitExprRefPathContext(ast::IExprRefPathContext *i) {
                 suggestion = findCloseMatch_rr(name, scratch->getScope());
             }
         }
-        if (suggestion.empty()) {
+        // A core-library name is the one case where "unknown identifier" is
+        // true but actively misleading: the name exists, the model just did
+        // not import the package that declares it. Preferred over the
+        // edit-distance suggestion, which is a guess where this is a fact.
+        std::string core_pkg = findCoreLibraryPackage(
+            dynamic_cast<ast::ISymbolScope *>(m_ctxt->root()), name);
+
+        if (!core_pkg.empty()) {
+            m_ctxt->addMarker(
+                MarkerSeverityE::Error,
+                i->getHier_id()->getElems().at(0)->getId()->getLocation(),
+                "unknown identifier '%s'; declared in %s -- add "
+                "'import %s::*;'",
+                name.c_str(),
+                core_pkg.c_str(),
+                core_pkg.c_str());
+        } else if (suggestion.empty()) {
             m_ctxt->addMarker(
                 MarkerSeverityE::Error,
                 i->getHier_id()->getElems().at(0)->getId()->getLocation(),
@@ -1498,11 +1515,28 @@ void TaskResolveRefs::visitExprRefPathStatic(ast::IExprRefPathStatic *i) {
                 target = TaskResolveRef(m_ctxt).resolve((*it)->getId());
                 
                 if (!target) {
-                    addMarker(
-                        MarkerSeverityE::Error,
-                        (*it)->getId()->getLocation(),
-                        "failed to resolve symbol %s",
-                        (*it)->getId()->getId().c_str());
+                    // As in visitExprRefPathContext: name the missing import
+                    // when the symbol is a core-library one.
+                    std::string core_pkg = findCoreLibraryPackage(
+                        dynamic_cast<ast::ISymbolScope *>(m_ctxt->root()),
+                        (*it)->getId()->getId());
+
+                    if (!core_pkg.empty()) {
+                        addMarker(
+                            MarkerSeverityE::Error,
+                            (*it)->getId()->getLocation(),
+                            "failed to resolve symbol %s; declared in %s -- "
+                            "add 'import %s::*;'",
+                            (*it)->getId()->getId().c_str(),
+                            core_pkg.c_str(),
+                            core_pkg.c_str());
+                    } else {
+                        addMarker(
+                            MarkerSeverityE::Error,
+                            (*it)->getId()->getLocation(),
+                            "failed to resolve symbol %s",
+                            (*it)->getId()->getId().c_str());
+                    }
                     break;
                 }
 
@@ -2111,6 +2145,25 @@ void TaskResolveRefs::visitTemplateAssign(ast::ITemplateAssign *i) {
     DEBUG_LEAVE("visitTemplateAssign");
 }
 
+void TaskResolveRefs::visitMergedScopeChild(ast::IScopeChild *c) {
+    // A member contributed by a type extension is walked here, in the scope
+    // of the type it was merged into -- so the lexical chain a name inside it
+    // is looked up along runs out through the *extended* type's package. LRM
+    // 17.2 associates the extension with the package that encloses the
+    // `extend` statement, and 17.2.3 applies that package's imports to the
+    // body. Push it as a fallback for the duration of the visit; see
+    // ResolveContext::pushExtensionCtxt and known-issues CL-N1.
+    ast::ISymbolScope *decl_s = m_ctxt->extensionDeclScope(c);
+
+    if (decl_s) {
+        m_ctxt->pushExtensionCtxt(decl_s);
+    }
+    c->accept(m_this);
+    if (decl_s) {
+        m_ctxt->popExtensionCtxt();
+    }
+}
+
 void TaskResolveRefs::visitSymbolScope(ast::ISymbolScope *i) {
     DEBUG_ENTER("visitSymbolScope %s", i->getName().c_str());
     /*
@@ -2140,7 +2193,7 @@ void TaskResolveRefs::visitSymbolScope(ast::ISymbolScope *i) {
         it=i->getChildren().begin();
         it!=i->getChildren().end(); it++) {
         DEBUG_ENTER("visit child");
-        it->get()->accept(this);
+        visitMergedScopeChild(it->get());
         DEBUG_LEAVE("visit child");
     }
     DEBUG_LEAVE("visit children");
@@ -2633,11 +2686,12 @@ void TaskResolveRefs::visitSymbolTypeScope(ast::ISymbolTypeScope *i) {
 
         checkScopeAnnotations(i);
 
-        // Check on children
+        // Check on children. Through visitMergedScopeChild, because a type
+        // scope is where extension-contributed members land.
         for (std::vector<ast::IScopeChildUP>::const_iterator
             it=i->getChildren().begin();
             it!=i->getChildren().end(); it++) {
-            (*it)->accept(m_this);
+            visitMergedScopeChild(it->get());
         }
 
         m_ctxt->symtab()->popScope();
@@ -2771,11 +2825,28 @@ void TaskResolveRefs::visitAnnotation(ast::IAnnotation *i) {
         // annotations". Deliberately not routed through the normal
         // unresolved-type error path: an unknown annotation type must never
         // fail the build, and nothing inside it is checked further.
-        m_ctxt->addMarker(
-            MarkerSeverityE::Warn,
-            i->getLocation(),
-            "unknown annotation type '%s'; annotation disregarded",
-            type_name.c_str());
+        // The standard annotations (@doc, @code_doc) live in std_pkg and are
+        // as import-dependent as any other core-library name, so say which
+        // import is missing rather than implying the annotation is unknown.
+        std::string core_pkg = findCoreLibraryPackage(
+            dynamic_cast<ast::ISymbolScope *>(m_ctxt->root()), type_name);
+
+        if (!core_pkg.empty()) {
+            m_ctxt->addMarker(
+                MarkerSeverityE::Warn,
+                i->getLocation(),
+                "unknown annotation type '%s'; declared in %s -- add "
+                "'import %s::*;'. Annotation disregarded",
+                type_name.c_str(),
+                core_pkg.c_str(),
+                core_pkg.c_str());
+        } else {
+            m_ctxt->addMarker(
+                MarkerSeverityE::Warn,
+                i->getLocation(),
+                "unknown annotation type '%s'; annotation disregarded",
+                type_name.c_str());
+        }
         DEBUG_LEAVE("visitAnnotation (unresolved)");
         return;
     }

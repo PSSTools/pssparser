@@ -20,6 +20,7 @@
  */
 #pragma once
 #include <stdint.h>
+#include <map>
 #include <string>
 #include <set>
 #include <tuple>
@@ -58,6 +59,55 @@ public:
 
     void popInlineCtxt() {
         m_inline_ctxt_s.pop_back();
+    }
+
+    /**
+     * The scope an `extend` body's names resolve in, in addition to the
+     * extended type's.
+     *
+     * LRM 17.2: "every type extension ... is associated with the nearest
+     * package that lexically encloses its definition", and 17.2.3 makes that
+     * package's imports apply to the extension body. But
+     * TaskApplyTypeExtensions re-homes an extension's members into the
+     * *extended* type's symbol scope, and TaskResolveRefs walks them from
+     * there -- so the lexical chain a name is looked up along runs out through
+     * the extended type's package, never the extension's.
+     *
+     * TaskResolveRefs pushes the declaring scope here while visiting a
+     * re-homed member, and TaskResolveRootRef consults it once the ordinary
+     * lexical walk has failed. Deliberately a fallback rather than a
+     * replacement: an extension body must see the extended type's own members
+     * too, which is the whole point of writing one.
+     *
+     * A stack, because an extension may contribute a nested type whose own
+     * body is visited within it.
+     */
+    void pushExtensionCtxt(ast::ISymbolScope *s) {
+        m_ext_ctxt_s.push_back(s);
+    }
+
+    ast::ISymbolScope *extensionCtxt() const {
+        return (m_ext_ctxt_s.size())?m_ext_ctxt_s.back():0;
+    }
+
+    void popExtensionCtxt() {
+        m_ext_ctxt_s.pop_back();
+    }
+
+    /**
+     * Maps a member re-homed by TaskApplyTypeExtensions to the scope that
+     * lexically declared it. Populated by that pass; read by TaskResolveRefs
+     * to know when to push an extension context.
+     */
+    void setExtensionDeclScopes(
+        const std::map<ast::IScopeChild *, ast::ISymbolScope *> &m) {
+        m_ext_decl_scope = m;
+    }
+
+    ast::ISymbolScope *extensionDeclScope(ast::IScopeChild *c) const {
+        std::map<ast::IScopeChild *, ast::ISymbolScope *>::const_iterator it =
+            m_ext_decl_scope.find(c);
+        return (it != m_ext_decl_scope.end())?it->second:0;
     }
 
     IFactory *getFactory() const { return m_factory; }
@@ -125,6 +175,8 @@ public:
 private:
     ast::IRootSymbolScope                           *m_root;
     std::vector<ast::ISymbolScope *>                m_inline_ctxt_s;
+    std::vector<ast::ISymbolScope *>                m_ext_ctxt_s;
+    std::map<ast::IScopeChild *, ast::ISymbolScope *> m_ext_decl_scope;
     IFactory                                        *m_factory;
     IMarkerListener                                 *m_marker_l;
     int32_t                                         m_specialization_depth;

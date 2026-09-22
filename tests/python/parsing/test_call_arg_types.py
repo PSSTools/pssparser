@@ -229,6 +229,7 @@ def test_enum_value_to_int_parameter_is_accepted():
 
 def test_core_library_call_is_silent():
     pss = """
+    import std_pkg::*;
     component pss_top { exec init_up { print("hi"); } }
     """
     assert_no_marker(pss, severity="error")

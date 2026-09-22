@@ -483,6 +483,137 @@ The warning is reported for both branches of a ``compile if``, whichever way the
 condition evaluates: the spelling is deprecated regardless of which branch is
 selected.
 
+Core library changes
+====================
+
+The built-in core library (``std_pkg``, ``executor_pkg``, ``addr_reg_pkg``,
+``sync_pkg``) has been brought into agreement with **Annex C** of the PSS 3.1
+Public Review Draft. Annex C is normative and states that it takes precedence
+over core-library material shown anywhere else in the standard, including the
+Syntax boxes in Clause 21.
+
+Most of the change is additive — the whole file API (21.2), ``error`` and
+``fatal`` (21.3), the floating-point types and functions (21.5),
+``executor_base_c::get_context()`` (21.7.1.1.1), target execution units (21.8),
+the allocation-mode types and ``mem_access_desc_s`` (21.11, 21.13.9) — and
+needs no source change. The items below do.
+
+.. _migration-corelib-import:
+
+The core library is no longer implicitly visible
+------------------------------------------------
+
+**This is the change most likely to need a source edit.**
+
+Previously ``std_pkg`` was visible from the root scope with no ``import``, so
+``print``, ``message``, ``format``, ``sizeof_s``, ``packed_s``, ``urandom`` and
+the ``@doc`` / ``@code_doc`` annotations resolved in a model that imported
+nothing. Clause 21 gives the core library no such visibility, so those models
+parsed here and failed on a conforming tool. They now fail here too:
+
+.. code-block:: text
+
+    t.pss:2:9: error: unknown identifier 'print'; declared in std_pkg -- add 'import std_pkg::*;'
+
+The fix is the import the diagnostic names. The same form is emitted for a
+type, and — as a warning, since §7.13 requires an unrecognized annotation to be
+disregarded rather than to fail the build — for the standard annotations. It
+names whichever of the four packages declares the symbol.
+
+Two points that catch people out:
+
+* **Import is not re-export.** ``addr_reg_pkg`` imports ``std_pkg`` for its own
+  declarations, but a model that writes only ``import addr_reg_pkg::*;`` and
+  then uses ``packed_s`` or ``sizeof_s`` needs ``import std_pkg::*;`` as well.
+* **Only** ``std_pkg`` **was ever implicitly visible.** Models that already use
+  ``executor_pkg``, ``addr_reg_pkg`` or ``sync_pkg`` are unaffected, because
+  they already had to import them.
+
+Removed: non-standard core-library entries
+------------------------------------------
+
+Three things in the previous core library are not part of the PSS 3.1 core
+library at all, and have been removed:
+
+.. list-table::
+   :header-rows: 1
+
+   * - Removed
+     - Was in
+     - Replacement
+   * - ``actor_c<component Tc, action Ta>``
+     - ``std_pkg``
+     - None. A PSS 2.0 leftover; the identifier does not occur in the 3.1
+       draft. Declare the equivalent component in your own package.
+   * - ``executor_group_default_c``
+     - ``executor_pkg``
+     - ``executor_group_c<>`` — the defaulted form of the standard type.
+   * - ``channel_c::put_a`` / ``channel_c::get_a`` actions
+     - ``sync_pkg``
+     - The four target functions ``get``/``put``/``try_get``/``try_put``
+       (Syntax 133), which are what 3.1 provides for channel access.
+
+``std_pkg::format_string`` is **kept**, marked non-standard. It is not a member
+of ``std_pkg`` in the standard — it appears only in Example 294 — but removing
+it would break existing models for no conformance gain.
+
+Signature changes
+-----------------
+
+.. list-table::
+   :header-rows: 1
+
+   * - Declaration
+     - Change
+   * - ``addr_claim_s``, ``transparent_addr_claim_s``
+     - Gained a second template parameter,
+       ``struct ALLOC_MODE : alloc_base_mode_s = alloc_base_mode_s``, and a
+       ``rand ALLOC_MODE alloc_mode`` field. Defaulted, so
+       ``addr_claim_s<my_trait_s>`` is unaffected.
+   * - ``contiguous_addr_space_c::add_nonallocatable_region``
+     - Takes ``addr_region_s<>`` rather than ``addr_region_s<TRAIT>``: a
+       non-allocatable region carries no trait constraint.
+   * - ``make_handle_from_handle``
+     - Gained a third parameter ``bool sub = false``. Defaulted.
+   * - ``addr_value``, ``read8``–``read64``, ``write8``–``write64``,
+       ``read_bytes``, ``write_bytes``, ``read_struct``, ``write_struct``
+     - Gained a trailing ``mem_access_desc_s mem_access_desc = {}``.
+       Defaulted, so every existing call site still matches.
+   * - ``channel_c``
+     - Element type parameter renamed ``Te`` → ``T``. Instantiation is
+       positional, so this is visible only in diagnostics and in the AST.
+   * - ``executor_group_c::add_executor``
+     - Takes ``ref executor_c<TRAIT>`` rather than ``executor_base_c``.
+
+``solve`` and ``target`` qualifiers
+-----------------------------------
+
+The Annex C platform qualifiers have been applied: ``print``, ``add_region``,
+``add_nonallocatable_region`` and ``reg_group_c::set_handle`` are now
+``solve function``; the global ``addr_value``, ``read8``–``read64``,
+``write8``–``write64``, ``read_bytes`` and ``write_bytes`` are now
+``target function``.
+
+.. note::
+
+   The parser does not yet *enforce* platform availability — a ``solve``
+   function called from a target ``exec`` is accepted, and vice versa. The
+   declarations are correct; the check is not implemented. Writing
+   ``print(...)`` in an ``exec body`` is non-conforming PSS (21.1 provides
+   ``message()`` for the target platform) and will be rejected when the check
+   lands, so it is worth correcting now.
+
+``set_executor``
+----------------
+
+``executor_pkg`` now declares
+``function void set_executor(ref executor_base_c xtr);`` (Syntax 131), and the
+parameterless ``set_executor()`` method that was previously injected into every
+component without a base type is gone. Calls of the form
+``set_executor(my_executor)`` inside ``exec init_up``/``init_down`` — which is
+where 21.7.2.6 puts them — now resolve; a bare ``set_executor()`` no longer
+does.
+
 See Also
 ========
 

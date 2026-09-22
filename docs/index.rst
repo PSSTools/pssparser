@@ -46,6 +46,7 @@ Key Features
    :caption: PSS 3.1 Features:
 
    pss31_features
+   pss31_stdlib
 
 .. toctree::
    :maxdepth: 2

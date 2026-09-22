@@ -16,6 +16,7 @@ def test_reg_sized_c_gives_generic_same_width_access():
         """
         package t {
             import addr_reg_pkg::*;
+            import std_pkg::*;
             struct CR : packed_s<> {
                 bit en; bit[11] pad; bit[4] mode; bit[16] coeff;
             }
@@ -37,6 +38,7 @@ def test_reg_base_c_get_handle():
         """
         package t {
             import addr_reg_pkg::*;
+            import std_pkg::*;
             function bit[64] where(ref reg_base_c r) {
                 return addr_value(r.get_handle());
             }
@@ -52,6 +54,7 @@ def test_get_offset_of_path_and_node_s():
         """
         package t {
             import addr_reg_pkg::*;
+            import std_pkg::*;
             pure component g : reg_group_c {
                 pure function bit[64] get_offset_of_path(list<node_s> path) {
                     return 0;
@@ -112,6 +115,7 @@ def test_masked_and_field_wise_writes():
         """
         package t {
             import addr_reg_pkg::*;
+            import std_pkg::*;
             struct CR : packed_s<> {
                 bit en; bit[11] pad; bit[4] mode; bit[16] coeff;
             }
@@ -143,6 +147,7 @@ def test_struct_and_byte_granular_address_access():
         """
         package t {
             import addr_reg_pkg::*;
+            import std_pkg::*;
             struct D : packed_s<> { bit[32] a; }
             component c {
                 exec init_down {
@@ -167,6 +172,7 @@ def test_make_handle_from_claim_takes_sub():
         """
         package t {
             import addr_reg_pkg::*;
+            import std_pkg::*;
             function void f(addr_claim_base_s claim) {
                 addr_handle_t h = make_handle_from_claim(claim, 0, false);
             }

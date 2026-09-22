@@ -432,12 +432,91 @@ def test_same_code_outside_an_extension_works():
     """)
 
 
-for _fn in (
-    test_extension_body_sees_declaring_package_imports,
-):
-    _fn = pytest.mark.xfail(
-        strict=True,
-        reason="phase 3.2: extension body resolves against the target's scope, "
-               "not the declaring package (LRM 17.2.3)",
-    )(_fn)
-    globals()[_fn.__name__] = _fn
+# test_extension_body_sees_declaring_package_imports was xfail(strict) here
+# until 2026-09-22 -- "extension body resolves against the target's scope, not
+# the declaring package (LRM 17.2.3)". Fixed with the core-library conformance
+# work, which needed it: Annex C's `extend component executor_base_c` block
+# lives in addr_reg_pkg and names addr_reg_pkg types. TaskApplyTypeExtensions
+# re-homes an extension's members into the extended type, so the lexical chain
+# they are resolved along ran out through the *extended* type's package;
+# ResolveContext now carries the declaring scope as a fallback. See
+# known-issues CL-N1.
+
+
+# ---------------------------------------------------------------------------
+# CL-N1, widened: the defect was kind-agnostic and cross-package-only
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize("ext", [
+    "extend component base_c { function void f(d_s d); d_s inst; }",
+    "extend struct bs_s { d_s inst; }",
+    "extend action base_c::ba_a { d_s inst; }",
+    "extend buffer bb_s { d_s inst; }",
+])
+def test_any_extension_kind_sees_its_own_packages_types(ext):
+    """An extension body resolves names in the package that declares it.
+
+    LRM 17.2: "every type extension ... is associated with the nearest
+    package that lexically encloses its definition".  All four kinds failed
+    identically before the fix, which is what showed the cause was the
+    re-homing in ``TaskApplyTypeExtensions`` rather than anything about
+    components.
+    """
+    parse_pss("""
+    package p1 {
+        component base_c { action ba_a { } }
+        struct bs_s { }
+        buffer bb_s { }
+    }
+    package p2 {
+        import p1::*;
+        struct d_s { }
+        %s
+    }
+    """ % ext)
+
+
+def test_a_same_package_extension_was_never_broken():
+    """The control that located the defect: only the cross-package case failed.
+
+    Here the declaring package and the extended type's package are the same
+    scope, so the lexical walk found the name either way.
+    """
+    parse_pss("""
+    package p3 {
+        struct e_s { }
+        component base3_c { }
+        extend component base3_c { e_s inst; }
+    }
+    """)
+
+
+def test_an_extension_still_sees_the_extended_types_own_members():
+    """The declaring scope is a *fallback*, not a replacement.
+
+    Resolving an extension body only in its declaring package would break the
+    thing extensions are for.  The extended type's members must still win.
+    """
+    parse_pss("""
+    package p1 { component base_c { int a; struct inner_s { int v; } } }
+    package p2 {
+        import p1::*;
+        extend component base_c {
+            inner_s        from_target;
+            target function int go() { return a; }
+        }
+    }
+    """)
+
+
+def test_a_name_in_neither_scope_is_still_reported():
+    """Widening the search must not swallow a real error."""
+    import pytest as _pytest
+    with _pytest.raises(Exception):
+        parse_pss("""
+        package p1 { component base_c { } }
+        package p2 {
+            import p1::*;
+            extend component base_c { nosuch_s inst; }
+        }
+        """)

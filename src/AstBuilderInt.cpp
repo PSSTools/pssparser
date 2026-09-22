@@ -2215,29 +2215,25 @@ antlrcpp::Any AstBuilderInt::visitComponent_declaration(PSSParser::Component_dec
 
 	push_scope(comp);
 
-    if (!super_t) {
-        // TODO: add in predefined methods
-        DEBUG("Add set_executor() method (%s)", comp->getName()->getId().c_str());
-        ast::IFunctionPrototype *set_executor = m_factory->mkFunctionPrototype(
-            m_factory->mkExprId("set_executor", false),
-            0,
-            false,
-            true);
-        set_executor->setIs_core(true);
-        comp->getChildren().push_back(ast::IScopeChildUP(set_executor));
-    } else {
-        DEBUG("Have base type. Not adding set_executor() method (%s)",
-            comp->getName()->getId().c_str());
-    }
-
-#ifdef UNDEFINED
-    ast::IFunctionPrototype *set_default_executor = m_factory->mkFunctionPrototype(
-        m_factory->mkExprId("set_default_executor", false),
-        0,
-        false,
-        true);
-    addChild(set_default_executor, 0, 0);
-#endif // UNDEFINED
+    // No predefined methods are injected here.
+    //
+    // Until 2026-09-22 a parameterless `set_executor()` prototype was pushed
+    // into every component that had no base type. Syntax 131 declares the real
+    // one in `executor_pkg` with one parameter --
+    // `function void set_executor(ref executor_base_c xtr);` -- and 21.7.2.6
+    // has the component call it from `exec init_up`/`init_down`, which is
+    // exactly where the injected method won the lookup:
+    //
+    //     set_executor(e);   // "too many arguments: expected 0, got 1"
+    //
+    // The injection also fired only for base-less components, so the same call
+    // was accepted or rejected depending on whether the component declared a
+    // super type. It predates the core library carrying `set_executor` at all;
+    // now that `executor_pkg` declares it, the injection is pure shadowing.
+    // Removed with the core-library conformance work (known-issues CL-S3).
+    //
+    // A `set_default_executor` twin sat under `#ifdef UNDEFINED` here and went
+    // with it; it had never been compiled.
 
 	std::vector<PSSParser::Component_body_item_annContext *> body = ctx->component_body_item_ann();
 	for (std::vector<PSSParser::Component_body_item_annContext *>::const_iterator

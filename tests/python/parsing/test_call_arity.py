@@ -172,6 +172,7 @@ def test_varargs_still_requires_the_fixed_parameters():
 
 def test_core_function_is_checked():
     pss = """
+    import std_pkg::*;
     component pss_top { exec init_up { print(); } }
     """
     assert_marker(pss, marker_id="PSS006", text="arguments to 'print'")

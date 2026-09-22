@@ -449,6 +449,7 @@ def test_call_into_the_standard_library_reg_c_is_allowed():
     qualifier also has to survive specialization."""
     assert _tmpl_markers("""
     import addr_reg_pkg::*;
+    import std_pkg::*;
     struct my_r : packed_s<> { bit[32] v; }
     component C {
         reg_c<my_r> r;

@@ -276,9 +276,26 @@ void TaskApplyTypeExtensions::visitSymbolExtendScope(ast::ISymbolExtendScope *i)
     // missing. TaskGetName() answers for every named construct uniformly,
     // and what has no name (an anonymous constraint or exec block) is
     // appended positionally.
+    // The scope that lexically declared the extension -- the package holding
+    // the `extend` statement. Recorded per member so that TaskResolveRefs can
+    // put it back in scope when it walks the member in its new home; see
+    // ResolveContext::pushExtensionCtxt and known-issues CL-N1.
+    //
+    // Taken from the symbol-table iterator rather than from i->getUpper(),
+    // which is null: TaskBuildSymbolTree::addChild does not set `upper` on an
+    // extend scope. The iterator is where this walk tracks its position (see
+    // visitSymbolScope), and the `<extend>` scope is not itself pushed, so
+    // getScope() is the enclosing package -- or the enclosing component, for
+    // the in-component form LRM 17.3 allows, whose own chain reaches the
+    // package anyway.
+    ast::ISymbolScope *decl_s = m_symtab_it?m_symtab_it->getScope():0;
+
     for (std::vector<ast::IScopeChildUP>::const_iterator
         it=i->getChildren().begin();
         it!=i->getChildren().end(); it++) {
+        if (decl_s) {
+            m_ext_decl_scope[it->get()] = decl_s;
+        }
         mergeChild(target_s, it->get());
     }
     m_target_s = 0;

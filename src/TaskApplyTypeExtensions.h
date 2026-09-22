@@ -22,6 +22,7 @@
 #include "dmgr/IDebugMgr.h"
 #include "pssp/IMarkerListener.h"
 #include "pssp/ISymbolTableIterator.h"
+#include <map>
 #include "pssp/IFactory.h"
 #include "pssp/ast/impl/VisitorBase.h"
 
@@ -39,6 +40,19 @@ public:
     virtual ~TaskApplyTypeExtensions();
 
     void apply(ast::IRootSymbolScope *root);
+
+    /**
+     * Each member re-homed into an extended type, mapped to the scope that
+     * lexically declared it.
+     *
+     * Valid only after apply(). Handed to ResolveContext so that a name in an
+     * extension body can still be looked up in the extension's own package --
+     * LRM 17.2 associates an extension with "the nearest package that
+     * lexically encloses its definition", which is not in general the package
+     * the extended type lives in. See known-issues CL-N1.
+     */
+    const std::map<ast::IScopeChild *, ast::ISymbolScope *> &
+        extensionDeclScopes() const { return m_ext_decl_scope; }
 
     virtual void visitExtendEnum(ast::IExtendEnum *i) override;
 
@@ -107,6 +121,7 @@ private:
     // Non-zero while walking inside a type scope, where an `extend` node may
     // in fact be an `override action` and is allowed to fail to resolve.
     int32_t                                 m_type_scope_depth;
+    std::map<ast::IScopeChild *, ast::ISymbolScope *> m_ext_decl_scope;
 
 };
 
