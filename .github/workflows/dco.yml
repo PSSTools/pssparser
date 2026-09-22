@@ -1,0 +1,14 @@
+# CA-T1 caller. The body lives in psstools/.github so there is one place to fix
+# it; do not inline it here.
+#
+# Paired with .forgejo/workflows/contribution-checks.yml -- see that file for
+# why the counterpart exists and why it does nothing.
+name: DCO
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  dco:
+    uses: psstools/.github/.github/workflows/dco.yml@main

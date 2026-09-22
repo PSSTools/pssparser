@@ -1,0 +1,16 @@
+# CA-T2 caller. The body lives in psstools/.github so there is one place to fix
+# it; do not inline it here.
+#
+# pull_request_target, not pull_request: labelling and commenting need a write
+# token and a fork PR's `pull_request` token is read-only. The called workflow
+# never checks out the pull request -- it reads diff shape through the API and
+# executes nothing from the branch. Do not add a checkout step to it.
+name: ICLA significance
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  significance:
+    uses: psstools/.github/.github/workflows/significance.yml@main
