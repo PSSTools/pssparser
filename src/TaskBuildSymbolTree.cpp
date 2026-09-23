@@ -175,7 +175,14 @@ ast::ISymbolTypeScope *TaskBuildSymbolTree::build(ast::ITypeScope *ts) {
 
 void TaskBuildSymbolTree::visitConstraintBlock(ast::IConstraintBlock *i) {
     DEBUG_ENTER("visitConstraintBlock");
-    addChild(i, false);
+    // A named constraint, fixed or `dynamic`, is a member of its type (18.3:
+    // member names are unique, so a second `c` is PSS003), and a `dynamic`
+    // one is referenced by name (13.4.11). Anonymous blocks stay unnamed.
+    if (i->getName() != "") {
+        addChild(i, i->getName(), false);
+    } else {
+        addChild(i, false);
+    }
     for (std::vector<ast::IConstraintStmtUP>::const_iterator
         it=i->getConstraints().begin();
         it!=i->getConstraints().end(); it++) {
@@ -805,9 +812,12 @@ void TaskBuildSymbolTree::visitFunctionImportProto(ast::IFunctionImportProto *i)
     DEBUG_LEAVE("visitFunctionImportProto %s", i->getProto()->getName()->getId().c_str());
 }
 
+// `import C function f;` imports a function declared elsewhere, so it declares
+// nothing. It goes in the tree unnamed, which is what lets TaskResolveRefs
+// reach it and bind the name (U6).
 void TaskBuildSymbolTree::visitFunctionImportType(ast::IFunctionImportType *i) { 
     DEBUG_ENTER("visitFunctionImportType");
-    DEBUG("TODO: visitFunctionImportType");
+    addChild(i, false);
     DEBUG_LEAVE("visitFunctionImportType");
 }
 

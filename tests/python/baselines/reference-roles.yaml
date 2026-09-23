@@ -1,0 +1,128 @@
+# What every name-bearing AST field means (symbol-resolution plan WS3.1,
+# INV-4). A side table, read only by the tests. It is not in ast/, because the
+# AST generator reads every ast/*.yaml and accepts no extra per-field keys.
+#
+# A field is name-bearing when its type is ExprId, ExprHierarchicalId,
+# ExprMemberPathElem, TypeIdentifier, DataTypeUserDefined, ExprRefName or
+# ExprRefPath*, or it is a string field named like a name or path. The rule is in
+# tests/python/test_ast_reference_roles.py, which fails on any such field that
+# is missing here, and on any entry here that names no field.
+#
+# Roles:
+#   ref   a use of a name, which must be bound or reported (INV-3)
+#   decl  a name being declared
+#   part  a piece of a reference whose binding is held by the enclosing node
+#         (the TypeIdentifier, the ExprRefPath) -- not a reference of its own
+#   none  names nothing the linker resolves: a file name, a Python module
+#         path, a built-in option name, a symbol-tree mirror's label
+#
+# `unbindable` lists `ref` fields whose type has nowhere to store a binding
+# (report F §2.3, RC3). The test fails when a new one appears: give it a slot
+# (an ExprRefName or a path) instead of adding it here.
+
+roles:
+  ActionFieldInitializer.path: ref
+  ActivityActionHandleTraversal.target: ref
+  ActivityActionTypeTraversal.target: ref
+  ActivityBindStmt.lhs: ref
+  ActivityBindStmt.rhs: ref
+  ActivityForeach.it_id: decl
+  ActivityForeach.idx_id: decl
+  ActivityForeach.target: ref
+  ActivityJoinSpecBranch.branches: ref
+  ActivityLabeledScope.label: decl
+  ActivityLabeledStmt.label: decl
+  ActivityRepeatCount.loop_var: decl
+  ActivityReplicate.idx_id: decl
+  ActivityReplicate.it_label: decl
+  ActivitySchedulingConstraint.targets: ref
+  ActivitySymbolCall.target: ref
+  Annotation.type: ref
+  AnnotationParam.name: ref
+  ComponentBind.pool_path: ref
+  ComponentBindTarget.type_id: ref
+  ComponentBindTarget.field: ref
+  ComponentPathElem.id: ref
+  ConstraintBlock.name: decl
+  ConstraintStmtDefault.hid: ref
+  ConstraintStmtDefaultDisable.hid: ref
+  ConstraintStmtField.name: decl
+  ConstraintStmtForall.iterator_id: decl
+  ConstraintStmtForall.type_id: ref
+  ConstraintStmtForall.ref_path: ref
+  ConstraintStmtUnique.list: ref
+  CoverStmtInline.label: decl
+  CoverStmtReference.target: ref
+  CoverStmtReference.label: decl
+  CovergroupCross.coverpoint_names: ref
+  CovergroupCrossBins.target: ref
+  CovergroupInstantiation.type: ref
+  CovergroupInstantiation.targets: ref
+  CovergroupOption.name: none        # a built-in option name (weight, at_least, ...)
+  CovergroupPortmap.name: ref
+  CovergroupPortmap.target: ref
+  CoverpointBins.target: ref
+  DataTypeEnum.tid: ref
+  DataTypeRef.type: ref
+  DataTypeUserDefined.type_id: part  # bound on TypeIdentifier.target
+  ExecBlockTag.type: ref
+  ExecTargetTemplateBlock.filename: none
+  ExportAction.target: ref
+  ExportFunction.name: ref
+  ExprAggrStructElem.name: ref
+  ExprCompileHas.ref: ref
+  ExprHierarchicalId.elems: part
+  ExprId.id: part
+  ExprMemberCall.members: part       # method names, checked against the built-ins
+  ExprMemberPathElem.id: part
+  ExprRefName.id: part               # bound on ExprRefName.target
+  ExprRefPathContext.hier_id: part   # bound on ExprRefPath.target
+  ExprRefPathStaticRooted.root: part
+  ExprRefPathStaticRooted.leaf: part
+  ExtendEnum.target: ref
+  ExtendType.target: ref
+  FieldClaim.type: ref
+  FieldCompRef.type: ref
+  FieldPool.type: ref
+  FieldRef.type: ref
+  FunctionImportType.type: ref
+  FunctionParamDecl.name: decl
+  GenericConstraintDeclValue.name: decl
+  GenericConstraintParam.name: decl
+  GlobalScope.filename: none
+  ImportClass.extends: ref
+  InstanceOverride.target: ref
+  InstanceOverride.with_t: ref
+  MonitorActivityLabeledScope.label: decl
+  MonitorActivityLabeledStmt.label: decl
+  NamedScope.name: decl
+  NamedScopeChild.name: decl
+  PackageImportStmt.alias: decl
+  PackageImportStmt.path: ref
+  PackageScope.id: decl
+  ProceduralStmtDataDeclaration.name: decl
+  ProceduralStmtForeach.path: ref
+  ProceduralStmtForeach.it_id: decl
+  ProceduralStmtForeach.idx_id: decl
+  ProceduralStmtRepeat.it_id: decl
+  PyImportFromStmt.path: none        # a Python module path
+  PyImportFromStmt.targets: decl
+  PyImportStmt.path: none            # a Python module path
+  PyImportStmt.alias: decl
+  SymbolChildrenScope.name: none     # the symbol-tree mirror's label
+  TemplateAssign.lhs: ref            # a template local declared earlier (4.7.1.2)
+  TemplateCategoryTypeParamDecl.restriction: ref
+  TemplateForeach.it: decl
+  TemplateForeach.idx: decl
+  TemplateParamDecl.name: decl
+  TemplateRepeat.idx: decl
+  TypeIdentifierElem.id: part
+  TypeOverride.target: ref
+  TypeOverride.with_t: ref
+  TypeScope.super_t: ref
+  TypedefDeclaration.name: decl
+
+# Empty since WS3.2 gave every reference a slot (ExprRefName, or an
+# ExprRefPathContext for a dotted path). A slot is not a binding: which of
+# these are resolved yet is what tests/python/baselines/references.json measures.
+unbindable: {}

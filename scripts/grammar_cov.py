@@ -17,7 +17,7 @@ corpus only about 70 of 337 decisions ever register, including none in
 Usage::
 
     PYTHONPATH=python python3 scripts/grammar_cov.py report
-    PYTHONPATH=python python3 scripts/grammar_cov.py baseline   # docs/coverage/grammar.json
+    PYTHONPATH=python python3 scripts/grammar_cov.py baseline   # tests/python/baselines/grammar.json
 
 Not a gate yet: the plan makes it one once the corpus has closed the obvious
 holes. Regenerate the baseline after a grammar change or a corpus addition.
@@ -33,7 +33,7 @@ from io import StringIO
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-BASELINE = ROOT / "docs" / "coverage" / "grammar.json"
+BASELINE = ROOT / "tests" / "python" / "baselines" / "grammar.json"
 
 sys.path.insert(0, str(ROOT / "scripts"))
 from refcov import corpus_files  # noqa: E402  (same legal corpus)

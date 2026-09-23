@@ -284,9 +284,9 @@ def _bind_target_text(t):
     """
     if t.getIs_wildcard():
         return "*"
-    parts = [e.getId().getId() for e in t.getPathList()]
+    parts = [e.getId().getId().getId() for e in t.getPathList()]
     parts.append(".".join(e.getId().getId() for e in t.getType_id().getElems()))
-    parts.append(t.getField().getId())
+    parts.append(t.getField().getId().getId())
     return ".".join(parts)
 
 
@@ -299,11 +299,17 @@ def _ranges(rl):
             for v in rl.getValues()]
 
 
+def _pool_name(bind):
+    """The pool a bind names, as dotted text (the path is a reference, WS3.2)."""
+    hid = bind.getPool_path().getHier_id()
+    return ".".join(e.getId().getId() for e in hid.getElems())
+
+
 def test_bind_builds_node(parser):
     p = _parse_only(BIND_SRC, parser)
     binds = _find_nodes(p, "ComponentBind")
     assert len(binds) == 2
-    by_pool = {b.getPool_path(): b for b in binds}
+    by_pool = {_pool_name(b): b for b in binds}
 
     wild = by_pool["p"]
     assert wild.getIs_wildcard() is True
@@ -335,22 +341,22 @@ component pss_top {
 def test_bind_target_paths_are_structured(parser):
     """The `[0..3]` on a component-path element must be readable as a range."""
     p = _parse_only(BIND_PATHS_SRC, parser)
-    by_pool = {b.getPool_path(): b for b in _find_nodes(p, "ComponentBind")}
+    by_pool = {_pool_name(b): b for b in _find_nodes(p, "ComponentBind")}
 
     (target,) = by_pool["p"].getTargets()
     (elem,) = target.getPathList()
-    assert elem.getId().getId() == "sub"
+    assert elem.getId().getId().getId() == "sub"
     assert _ranges(elem.getRange()) == [(0, 3)]
     # The bind item itself is separate from the component path.
     assert [e.getId().getId() for e in target.getType_id().getElems()] == ["prod"]
-    assert target.getField().getId() == "out"
+    assert target.getField().getId().getId() == "out"
     assert target.getRange() is None
 
 
 def test_bind_mixed_list_keeps_every_entry(parser):
     """`{ prod.out, * }` is two targets in order, not one target plus a flag."""
     p = _parse_only(BIND_PATHS_SRC, parser)
-    by_pool = {b.getPool_path(): b for b in _find_nodes(p, "ComponentBind")}
+    by_pool = {_pool_name(b): b for b in _find_nodes(p, "ComponentBind")}
 
     bind = by_pool["q"]
     assert [_bind_target_text(t) for t in bind.getTargets()] == ["prod.out", "*"]
@@ -361,7 +367,7 @@ def test_bind_mixed_list_keeps_every_entry(parser):
 def test_bind_item_index_is_captured(parser):
     """An index on the bind item (`prod.out[2]`) is distinct from a path index."""
     p = _parse_only(BIND_PATHS_SRC, parser)
-    by_pool = {b.getPool_path(): b for b in _find_nodes(p, "ComponentBind")}
+    by_pool = {_pool_name(b): b for b in _find_nodes(p, "ComponentBind")}
 
     (target,) = by_pool["r"].getTargets()
     assert target.getPathList() == []
@@ -407,7 +413,7 @@ def test_covergroup_builds_node(parser):
     assert cg.numCrosses() == 1
     cx = cg.getCrosse(0)
     assert cx.getName().getId() == "cr"
-    xnames = [cx.getCoverpoint_name(j).getId() for j in range(cx.numCoverpoint_names())]
+    xnames = [cx.getCoverpoint_name(j).getId().getId() for j in range(cx.numCoverpoint_names())]
     assert xnames == ["cp_x", "cp_y"]
 
 
@@ -555,12 +561,12 @@ def test_default_constraints_build_nodes(parser):
     defaults = _find_nodes(p, "ConstraintStmtDefault")
     assert len(defaults) == 1
     d = defaults[0]
-    assert [e.getId().getId() for e in d.getHid().getElems()] == ["x"]
+    assert [e.getId().getId() for e in d.getHid().getHier_id().getElems()] == ["x"]
     assert d.getExpr() is not None, "the default value expression was dropped"
 
     disables = _find_nodes(p, "ConstraintStmtDefaultDisable")
     assert len(disables) == 1
-    assert [e.getId().getId() for e in disables[0].getHid().getElems()] == ["y"]
+    assert [e.getId().getId() for e in disables[0].getHid().getHier_id().getElems()] == ["y"]
 
 
 def test_default_constraints_are_ordered_within_the_block(parser):
@@ -1116,7 +1122,7 @@ def test_instance_override_target_is_a_path(parser):
     """
     p = _parse_only(OVERRIDE_SRC, parser)
     ovr = _find_nodes(p, "InstanceOverride")[0]
-    assert type(ovr.getTarget()).__name__ == "ExprHierarchicalId"
+    assert type(ovr.getTarget()).__name__ == "ExprRefPathContext"
     assert [e.getId().getId() for e in ovr.getWith_t().getElems()] == ["B"]
 
 
@@ -1186,7 +1192,7 @@ def test_symbol_call_keeps_its_target_and_arguments(parser):
     p = _parse_only(SYMBOL_SRC, parser)
     calls = _find_nodes(p, "ActivitySymbolCall")
     assert len(calls) == 1
-    assert calls[0].getTarget().getId() == "two"
+    assert calls[0].getTarget().getId().getId() == "two"
     assert calls[0].numParams() == 1
 
 
@@ -1317,7 +1323,7 @@ def test_coverpoint_bins_cover_all_three_right_hand_sides(parser):
     assert hi.getRange(0).getRhs() is None
 
     assert mirror.getForm() == ast.CoverpointBinsFormE.Coverpoint
-    assert mirror.getTarget().getId() == "cp_a"
+    assert mirror.getTarget().getId().getId() == "cp_a"
     assert mirror.getWith_expr() is not None
 
     assert rest.getForm() == ast.CoverpointBinsFormE.Default
@@ -1328,13 +1334,13 @@ def test_coverpoint_bins_cover_all_three_right_hand_sides(parser):
 def test_cross_keeps_its_guard_and_bins(parser):
     cg = _cg_type(parser)
     cross = cg.getCrosse(0)
-    assert [n.getId() for n in cross.getCoverpoint_names()] == ["cp_a", "cp_b"]
+    assert [n.getId().getId() for n in cross.getCoverpoint_names()] == ["cp_a", "cp_b"]
     assert cross.getIff() is not None
     assert cross.numBins() == 1
     b = cross.getBin(0)
     assert b.getName().getId() == "same"
     assert b.getKind() == ast.CovergroupBinsKindE.IllegalBins
-    assert b.getTarget().getId() == "ab"
+    assert b.getTarget().getId().getId() == "ab"
     assert b.getWith_expr() is not None
 
 
@@ -1348,7 +1354,7 @@ def test_covergroup_instantiation_distinguishes_named_from_positional(parser):
     named, positional = insts
     assert named.numPortmap() == 2
     assert named.numTargets() == 0
-    assert [m.getName().getId() for m in named.getPortmapList()] == ["a", "b"]
+    assert [m.getName().getId().getId() for m in named.getPortmapList()] == ["a", "b"]
 
     assert positional.numPortmap() == 0
     assert positional.numTargets() == 2

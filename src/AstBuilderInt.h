@@ -444,6 +444,8 @@ public:
 
 	virtual antlrcpp::Any visitExpression(PSSParser::ExpressionContext *ctx) override;
 
+	virtual antlrcpp::Any visitPrimary(PSSParser::PrimaryContext *ctx) override;
+
 	virtual antlrcpp::Any visitBool_literal(PSSParser::Bool_literalContext *ctx) override;
 
 	virtual antlrcpp::Any visitString_literal(PSSParser::String_literalContext *ctx) override;
@@ -927,6 +929,8 @@ private:
 
     ast::IExprMemberPathElem *mkMemberPathElem(PSSParser::Member_path_elemContext *ctx);
 
+    ast::IExprRefName *mkRefName(PSSParser::IdentifierContext *ctx);
+
 	ast::ITypeIdentifier *mkTypeId(
 		PSSParser::Type_identifierContext		*ctx);
 
@@ -957,6 +961,9 @@ private:
 
     ast::ITemplateParamValueList *mkTemplateParamValueList(
         PSSParser::Template_param_value_listContext *ctx);
+
+    /** `foreach (a[i])`: lift `i` out of the greedy subscript, or return 0. */
+    ast::IExprId *liftForeachIndex(ast::IExprRefPathContext *target);
 
     void setLoc(ast::IScopeChild *c, Token *start);
 

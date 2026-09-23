@@ -26,6 +26,8 @@
 #include "pssp/ast/ISymbolScope.h"
 #include "pssp/ast/ISymbolRefPath.h"
 #include "pssp/ast/ISymbolTypeScope.h"
+#include "pssp/ast/ISymbolDeclaration.h"
+#include "pssp/ast/IFunctionParamDecl.h"
 #include "pssp/ast/impl/VisitorBase.h"
 #include "pssp/ISymbolTableIterator.h"
 #include "pssp/impl/ScopeUtil.h"
@@ -106,6 +108,8 @@ public:
                 case ast::SymbolRefPathElemKind::ElemKind_ArgIdx: {
                     DEBUG("Elem: ArgIdx %d", it->idx);
                     ast::ISymbolFunctionScope *fs = scope.getT<ast::ISymbolFunctionScope>();
+                    // A symbol's parameters are addressed the same way (4.4).
+                    ast::ISymbolDeclaration *sd = scope.getT<ast::ISymbolDeclaration>();
                     // `plist` is checked, not assumed: a function scope built
                     // from a bare prototype used to have none at all, and a
                     // stale path recorded against one is better reported as
@@ -113,6 +117,9 @@ public:
                     if (fs && fs->getPlist() &&
                         it->idx < fs->getPlist()->getChildren().size()) {
                         ret = fs->getPlist()->getChildren().at(it->idx).get();
+                    } else if (sd && it->idx >= 0 &&
+                        it->idx < (int32_t)sd->getParams().size()) {
+                        ret = sd->getParams().at(it->idx).get();
                     } else {
                         DEBUG("Out-of-range");
                     }

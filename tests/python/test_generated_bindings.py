@@ -76,7 +76,7 @@ def test_plural_accessor_on_a_nested_list_property():
 
     params = field.getAnnotation(0).getParameters()
     assert all(p is not None for p in params)
-    assert [p.getName().getId() for p in params] == ["text", "owner"]
+    assert [p.getName().getId().getId() for p in params] == ["text", "owner"]
 
 
 # ---------------------------------------------------------------------------

@@ -50,6 +50,10 @@ public:
 
     ast::ISymbolRefPath *resolve(ast::IExpr *ref);
 
+    /// `::x`: `x` in the global package only -- no imports, no enclosing
+    /// scopes (18.1.3). Null when there is none; nothing is reported.
+    ast::ISymbolRefPath *resolveGlobal(const ast::IExprId *id) { return findGlobalRoot(id); }
+
     virtual void visitDataTypeUserDefined(ast::IDataTypeUserDefined *i) override;
 
     virtual void visitExprId(ast::IExprId *i) override;
@@ -77,6 +81,9 @@ public:
 
 private:
     ast::ISymbolRefPath *findRoot(const ast::IExprId *sym);
+
+    /// `::x`: the first element, looked up in the global package only.
+    ast::ISymbolRefPath *findGlobalRoot(const ast::IExprId *sym);
 
     /// Resolve a qualified expression-form template argument. See the
     /// definition for why this is not TaskResolveRefs' version of the walk.

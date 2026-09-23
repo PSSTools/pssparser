@@ -1079,9 +1079,10 @@ monitor_activity_declaration:
     TOK_ACTIVITY TOK_LCBRACE monitor_activity_stmt* TOK_RCBRACE
     ;
 
+// A traversal takes a label (Syntax 76, LRM Ex. 236 `w: do write;`), so it is
+// inside the labelled set, as on the action side (labeled_activity_stmt).
 monitor_activity_stmt:
     (label_identifier TOK_COLON)? labeled_monitor_activity_stmt
-    | activity_action_traversal_stmt
     | action_handle_declaration
     | monitor_activity_constraint_stmt
     | annotation
@@ -1093,7 +1094,8 @@ monitor_activity_stmt:
 // never referenced from anywhere, so `select { ... }` in a monitor activity
 // could not parse.
 labeled_monitor_activity_stmt:
-    monitor_activity_sequence_block_stmt
+    activity_action_traversal_stmt
+    | monitor_activity_sequence_block_stmt
     | monitor_activity_concat_stmt
     | monitor_activity_eventually_stmt
     | monitor_activity_overlap_stmt
@@ -1349,9 +1351,10 @@ enum_item:
 // enum type
 // This parser changes the BNF to only consider an enum_type to
 // require the range restriction
+// The domain takes open ranges (7.5.2: `in [..MODE_B]`, `in [MODE_B..]`),
+// like integer_type's; open_range_list has only closed ranges.
 enum_type:
-//	enum_type_identifier (TOK_IN TOK_LSBRACE open_range_list TOK_RSBRACE)?
-	enum_type_identifier TOK_IN TOK_LSBRACE open_range_list TOK_RSBRACE
+	enum_type_identifier TOK_IN TOK_LSBRACE domain_open_range_list TOK_RSBRACE
 	;
 
 float_type:
@@ -1889,12 +1892,14 @@ collection_expression:
 	expression
 	;
 
+// A method may be called on a string or aggregate literal (7.6.3, 7.9; LRM
+// Ex. 10 `"abc".split("x")`). A call on a name is part of ref_path.
 primary: 
 	number 					
 	| ref_path
-	| aggregate_literal
+	| aggregate_literal (TOK_DOT member_path_elem)*
 	| bool_literal
-	| string_literal
+	| string_literal (TOK_DOT member_path_elem)*
 	| null_ref
 	| paren_expr
 	| cast_expression

@@ -291,7 +291,7 @@ ast::IScopeChild *TaskTemplateCheck::assignTarget(ast::ITemplateAssign *a) {
     // The target was resolved through the template's own symtab (PSS112), so
     // the declaration is one of the locals this pass has already recorded.
     std::map<std::string, ast::IScopeChild *>::const_iterator it =
-        m_locals.find(a->getLhs()->getId());
+        m_locals.find(a->getLhs()->getId()->getId());
     return (it != m_locals.end())?it->second:0;
 }
 

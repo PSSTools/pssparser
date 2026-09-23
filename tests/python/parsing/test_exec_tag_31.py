@@ -176,7 +176,7 @@ def test_tag_literal_is_recorded():
         _ACTION % 'exec header C = tag_s {.name = "n", .id = 1}: "code";').getTag()
     literal = tag.getLiteral()
     assert literal is not None
-    names = [literal.getElem(i).getName().getId()
+    names = [literal.getElem(i).getName().getId().getId()
              for i in range(literal.numElems())]
     assert names == ["name", "id"]
 

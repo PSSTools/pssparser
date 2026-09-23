@@ -156,7 +156,9 @@ def ref_name(refpath):
 
 
 def hier_name(hier_id):
-    """Flatten an ExprHierarchicalId to a dotted name."""
+    """Flatten an ExprHierarchicalId, or the path of a reference, to a dotted name."""
+    if hasattr(hier_id, "getHier_id"):
+        hier_id = hier_id.getHier_id()
     return ".".join(str(hier_id.getElem(i).getId().getId())
                     for i in range(len(hier_id.getElems())))
 

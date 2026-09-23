@@ -89,7 +89,7 @@ classes:
             ActivitySchedule
     data:
     - is_parallel: bool
-    - targets: list<UP<ExprHierarchicalId>>
+    - targets: list<UP<ExprRefPathContext>>
 
 - ActivityBindStmt:
     super: ActivityStmt
@@ -130,8 +130,8 @@ classes:
         See Also:
             FieldRef, FieldCompRef
     data: 
-    - lhs: UP<ExprHierarchicalId>
-    - rhs: list<UP<ExprHierarchicalId>>
+    - lhs: UP<ExprRefPathContext>
+    - rhs: list<UP<ExprRefPathContext>>
 
 - ActivityConstraint:
     super: ActivityStmt
@@ -301,7 +301,7 @@ classes:
         Represents entries such as ``.x = 1`` or ``.cfg.mode = FAST`` used in
         action-handle declarations and action traversal statements.
     data:
-    - path: UP<ExprHierarchicalId>
+    - path: UP<ExprRefPathContext>
     - value: UP<Expr>
 
 - ActivityLabeledScope:
@@ -1203,7 +1203,7 @@ classes:
         See Also:
             SymbolDeclaration
     data:
-    - target: UP<ExprId>
+    - target: UP<ExprRefName>
     - params:
         type: list<UP<Expr>>
         is_ctor: false

@@ -23,6 +23,8 @@
 #include "pssp/ast/IPackageImportStmt.h"
 #include "pssp/impl/TaskGetSymbolRefPathKind.h"
 #include "TaskResolveRootRef.h"
+#include "pssp/ast/ISymbolDeclaration.h"
+#include "pssp/ast/IFunctionParamDecl.h"
 #include "TaskResolveEnumRef.h"
 #include "TaskResolveSuperTypeRef.h"
 #include "pssp/impl/TaskResolveSymbolPathRef.h"
@@ -294,6 +296,28 @@ void TaskResolveRootRef::visitSymbolFunctionScope(ast::ISymbolFunctionScope *i) 
     DEBUG_LEAVE("visitSymbolFunctionScope");
 }
 
+/**
+ * `symbol s(A aa) { aa; }`: a symbol's parameters are in scope in its body
+ * (11.4), addressed by position like a function's (ElemKind_ArgIdx). They are
+ * a list on the declaration, not children, so nothing found them (S1).
+ */
+void TaskResolveRootRef::visitSymbolDeclaration(ast::ISymbolDeclaration *i) {
+    DEBUG_ENTER("visitSymbolDeclaration %s (searching for %s)", i->getName().c_str(), m_id->getId().c_str());
+    for (uint32_t idx=0; idx<i->getParams().size(); idx++) {
+        ast::IFunctionParamDecl *p = i->getParams().at(idx).get();
+        if (p->getName() && p->getName()->getId() == m_id->getId()) {
+            DEBUG("Found as a symbol parameter @ %d", idx);
+            m_ref = m_ctxt->symtab()->getScopeSymbolPath(); // Path to 'i'
+            m_ref->getPath().push_back({
+                ast::SymbolRefPathElemKind::ElemKind_ArgIdx, (int32_t)idx});
+            DEBUG_LEAVE("visitSymbolDeclaration");
+            return;
+        }
+    }
+    visitSymbolScope(i);
+    DEBUG_LEAVE("visitSymbolDeclaration");
+}
+
 ast::ISymbolRefPath *TaskResolveRootRef::absPath(ast::ISymbolScope *s) {
     // An absolute path -- rooted, as searchImport's paths are -- built by
     // walking the symbol tree upward and recording each scope's index in its
@@ -372,29 +396,58 @@ ast::ISymbolRefPath *TaskResolveRootRef::searchExtensionCtxt(
     return ret;
 }
 
+/**
+ * 18.1.3: an explicit import takes precedence over a wildcard import, and a
+ * name that more than one import of the same kind provides is not imported
+ * at all. So the explicit imports are searched first and the wildcards only
+ * when they yield nothing; within a tier, two routes to the *same*
+ * declaration are one match (F18: this compared counts, so `p::*` together
+ * with an explicit `p::s` was "ambiguous"). A real ambiguity is reported and
+ * resolves to nothing, rather than to the first import, which cascaded.
+ * Aliases are 6.4.
+ */
 ast::ISymbolRefPath *TaskResolveRootRef::searchImports(
     const ast::IExprId          *id,
     ast::ISymbolImportSpec      *imp) {
     DEBUG_ENTER("searchImports - %d statements", imp->getImports().size());
     ast::ISymbolRefPath *ret = 0;
-	for (std::vector<ast::IPackageImportStmt *>::const_iterator
-		imp_it=imp->getImports().begin();
-		imp_it!=imp->getImports().end(); imp_it++) {
-        ast::ISymbolRefPath *ret_t = 0;
-		if ((ret_t=searchImport(id, *imp_it))) {
-			// Found it.
-			if (ret) {
-				// Uh-oh. We have ambiguity...
-                m_ctxt->addErrorMarker(
-                    id->getLocation(),
-				    "Ambiguous symbol resolution when looking up %s",
-                    id->getId().c_str());
-				delete ret_t;
-				break;
-			} else {
-				ret = ret_t;
-			}
-		}
+
+    for (int tier=0; tier<2 && !ret; tier++) {
+        bool want_wildcard = (tier == 1);
+        ast::IScopeChild *found = 0;
+        bool ambiguous = false;
+        for (std::vector<ast::IPackageImportStmt *>::const_iterator
+                imp_it=imp->getImports().begin();
+                imp_it!=imp->getImports().end(); imp_it++) {
+            if ((*imp_it)->getWildcard() != want_wildcard) {
+                continue;
+            }
+            ast::ISymbolRefPath *ret_t = searchImport(id, *imp_it);
+            if (!ret_t) {
+                continue;
+            }
+            ast::IScopeChild *node = m_ctxt->resolveSymbolPathRef(ret_t);
+            if (!ret) {
+                ret = ret_t;
+                found = node;
+            } else if (node != found) {
+                ambiguous = true;
+                delete ret_t;
+            } else {
+                delete ret_t;
+            }
+        }
+        if (ambiguous) {
+            m_ctxt->addErrorMarker(
+                id->getLocation(),
+                "ambiguous reference to '%s': more than one %s import provides "
+                "it, so none does (18.1.3); qualify the name",
+                id->getId().c_str(),
+                want_wildcard ? "wildcard" : "explicit");
+            delete ret;
+            ret = 0;
+            break;
+        }
     }
 
     DEBUG_LEAVE("searchImports %p", ret);

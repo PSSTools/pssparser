@@ -7,6 +7,55 @@ revision advances only the patch component.
 
 ## Unreleased
 
+### Changed (AST API) — symbol-resolution R1 schema batch
+
+Consumers that read these fields need updating; see
+`docs/design/cross-repo-followups.md` X-5 to X-7.
+
+- **Every reference now has somewhere to record its binding** (WS3.2). A new
+  node, `ExprRefName` (`id`, `target`, `ctx_unknown`), replaces the bare
+  `ExprId` in `ActivitySymbolCall.target`, `AnnotationParam.name`,
+  `ComponentBindTarget.field`, `ComponentPathElem.id`,
+  `CovergroupCross.coverpoint_names`, `CovergroupCrossBins.target`,
+  `CovergroupPortmap.name`, `CoverpointBins.target`, `ExportFunction.name`,
+  `ExprAggrStructElem.name` and `TemplateAssign.lhs`. Read the name as
+  `x.getId().getId()`; `x.getTarget()` is the binding where one is resolved
+  (symbol calls, exported functions and annotation parameters so far).
+- **Dotted references are `ExprRefPathContext`, not `ExprHierarchicalId`:**
+  `ActionFieldInitializer.path`, `ActivityBindStmt.lhs`/`rhs`,
+  `ActivitySchedulingConstraint.targets`, `ConstraintStmtDefault.hid`,
+  `ConstraintStmtDefaultDisable.hid`, `ConstraintStmtUnique.list`,
+  `CovergroupInstantiation.targets`, `CovergroupPortmap.target` and
+  `InstanceOverride.target`. The old value is `getHier_id()`.
+- **`ComponentBind.pool_path` is an `ExprRefPathContext`,** not the source text
+  of the path.
+- **`DataTypeEnum.in_rangelist` is an `ExprDomainOpenRangeList`** (was
+  `ExprOpenRangeList`), like an integer type's domain, so it can hold the open
+  ranges 7.5.2 allows. It was always null before: the builder dropped it.
+- New: `TypeIdentifier.is_global` (`::x`), `Field.initializers` (the
+  `{.x = v}` list of a handle declared in an action body), and `ExprMemberCall`
+  (a method call on a string or aggregate literal, `"a,b".split(",")`).
+- **`ExprBitSlice.rhs` is the slice's lower bound.** It held a second copy of
+  the upper bound, so `x[7:0]` read as `x[7:7]`.
+
+### Fixed (symbol-resolution R1)
+
+- Legal code no longer rejected: labelled `do` in a monitor activity (LRM Ex.
+  236), enum open-range domains (`in [..B]`, 7.5.2), a method call on a string
+  literal (Ex. 10), `action` data fields (Ex. 83, 137, 173), relative import
+  paths, a root-level `extend` through a root-level import, `derived_c::a` for
+  an inherited `a` (Ex. 242), an explicit import together with a wildcard
+  import of the same name (18.1.3), a repeated default parameter value of equal
+  value (3.1 20.2.4c), and symbol parameters (Ex. 120-style).
+- Now reported where they were silent: unknown names in parameter defaults,
+  procedural `repeat` counts, bit-slice bounds, traversal subscripts and
+  initializer values, enum base types and domains, generic-constraint parameter
+  and return types, `import C function f;` and `export target function f;`,
+  symbol calls (name, kind and argument count), `::x` that is not global,
+  duplicate named constraints, and a subscript on a static path.
+- New codes: PSS017 (ambiguous import, which now resolves to nothing instead of
+  to the first import).
+
 ### Fixed
 
 - **A generic constraint (13.1.2) is now a symbol in its enclosing scope, so

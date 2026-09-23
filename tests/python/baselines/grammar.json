@@ -1,0 +1,761 @@
+{
+ "grammar_sha": "f5fceaa76dc5",
+ "files": 87,
+ "parsed_files": 86,
+ "rules": 354,
+ "rules_used": 255,
+ "unused_rules": [
+  {
+   "rule": "package_import_alias",
+   "grammar_line": 95
+  },
+  {
+   "rule": "pyimport_stmt",
+   "grammar_line": 99
+  },
+  {
+   "rule": "pyimport_single_module",
+   "grammar_line": 104
+  },
+  {
+   "rule": "pyimport_from_module",
+   "grammar_line": 108
+  },
+  {
+   "rule": "pyimport_mod_path",
+   "grammar_line": 112
+  },
+  {
+   "rule": "pyimport_elem_list",
+   "grammar_line": 116
+  },
+  {
+   "rule": "override_action_declaration",
+   "grammar_line": 208
+  },
+  {
+   "rule": "action_handle_array_instance",
+   "grammar_line": 313
+  },
+  {
+   "rule": "action_initializer_list",
+   "grammar_line": 321
+  },
+  {
+   "rule": "action_initializer",
+   "grammar_line": 325
+  },
+  {
+   "rule": "activity_data_field",
+   "grammar_line": 329
+  },
+  {
+   "rule": "exec_super_stmt",
+   "grammar_line": 422
+  },
+  {
+   "rule": "exec_block_tag",
+   "grammar_line": 439
+  },
+  {
+   "rule": "function_parameter_dir",
+   "grammar_line": 513
+  },
+  {
+   "rule": "varargs_parameter",
+   "grammar_line": 519
+  },
+  {
+   "rule": "target_template_function",
+   "grammar_line": 539
+  },
+  {
+   "rule": "import_class_decl",
+   "grammar_line": 543
+  },
+  {
+   "rule": "import_class_extends",
+   "grammar_line": 550
+  },
+  {
+   "rule": "import_class_function_decl",
+   "grammar_line": 554
+  },
+  {
+   "rule": "export_action",
+   "grammar_line": 558
+  },
+  {
+   "rule": "export_function",
+   "grammar_line": 562
+  },
+  {
+   "rule": "component_path_elem",
+   "grammar_line": 766
+  },
+  {
+   "rule": "activity_join_spec",
+   "grammar_line": 867
+  },
+  {
+   "rule": "activity_join_branch_spec",
+   "grammar_line": 874
+  },
+  {
+   "rule": "activity_join_select_spec",
+   "grammar_line": 878
+  },
+  {
+   "rule": "activity_join_none_spec",
+   "grammar_line": 882
+  },
+  {
+   "rule": "activity_join_first_spec",
+   "grammar_line": 886
+  },
+  {
+   "rule": "activity_super_stmt",
+   "grammar_line": 946
+  },
+  {
+   "rule": "activity_constraint_stmt",
+   "grammar_line": 959
+  },
+  {
+   "rule": "symbol_paramlist",
+   "grammar_line": 967
+  },
+  {
+   "rule": "symbol_param",
+   "grammar_line": 971
+  },
+  {
+   "rule": "override_declaration",
+   "grammar_line": 979
+  },
+  {
+   "rule": "override_stmt",
+   "grammar_line": 983
+  },
+  {
+   "rule": "type_override",
+   "grammar_line": 991
+  },
+  {
+   "rule": "instance_override",
+   "grammar_line": 996
+  },
+  {
+   "rule": "access_modifier",
+   "grammar_line": 1020
+  },
+  {
+   "rule": "attr_group",
+   "grammar_line": 1026
+  },
+  {
+   "rule": "monitor_activity_constraint_stmt",
+   "grammar_line": 1159
+  },
+  {
+   "rule": "chandle_type",
+   "grammar_line": 1295
+  },
+  {
+   "rule": "enum_type",
+   "grammar_line": 1356
+  },
+  {
+   "rule": "pyobj_type",
+   "grammar_line": 1365
+  },
+  {
+   "rule": "typedef_declaration",
+   "grammar_line": 1381
+  },
+  {
+   "rule": "generic_constraint_declaration",
+   "grammar_line": 1395
+  },
+  {
+   "rule": "generic_constraint_bool",
+   "grammar_line": 1400
+  },
+  {
+   "rule": "generic_constraint_value",
+   "grammar_line": 1404
+  },
+  {
+   "rule": "generic_constraint_params",
+   "grammar_line": 1409
+  },
+  {
+   "rule": "generic_constraint_param",
+   "grammar_line": 1413
+  },
+  {
+   "rule": "generic_constraint_data_type",
+   "grammar_line": 1417
+  },
+  {
+   "rule": "default_disable_constraint",
+   "grammar_line": 1459
+  },
+  {
+   "rule": "forall_constraint_item",
+   "grammar_line": 1472
+  },
+  {
+   "rule": "soft_constraint_item",
+   "grammar_line": 1486
+  },
+  {
+   "rule": "dist_directive",
+   "grammar_line": 1508
+  },
+  {
+   "rule": "dist_list",
+   "grammar_line": 1512
+  },
+  {
+   "rule": "dist_item",
+   "grammar_line": 1519
+  },
+  {
+   "rule": "dist_weight",
+   "grammar_line": 1523
+  },
+  {
+   "rule": "covergroup_expression",
+   "grammar_line": 1633
+  },
+  {
+   "rule": "covergroup_cross_body_item",
+   "grammar_line": 1647
+  },
+  {
+   "rule": "covergroup_cross_binspec",
+   "grammar_line": 1652
+  },
+  {
+   "rule": "package_body_compile_if",
+   "grammar_line": 1660
+  },
+  {
+   "rule": "annotation_body_compile_if",
+   "grammar_line": 1665
+  },
+  {
+   "rule": "monitor_body_compile_if",
+   "grammar_line": 1670
+  },
+  {
+   "rule": "action_body_compile_if",
+   "grammar_line": 1675
+  },
+  {
+   "rule": "struct_body_compile_if",
+   "grammar_line": 1685
+  },
+  {
+   "rule": "procedural_compile_if",
+   "grammar_line": 1690
+  },
+  {
+   "rule": "constraint_body_compile_if",
+   "grammar_line": 1695
+  },
+  {
+   "rule": "covergroup_body_compile_if",
+   "grammar_line": 1700
+  },
+  {
+   "rule": "override_compile_if",
+   "grammar_line": 1705
+  },
+  {
+   "rule": "package_body_compile_if_item",
+   "grammar_line": 1710
+  },
+  {
+   "rule": "annotation_body_compile_if_item",
+   "grammar_line": 1715
+  },
+  {
+   "rule": "action_body_compile_if_item",
+   "grammar_line": 1720
+  },
+  {
+   "rule": "monitor_body_compile_if_item",
+   "grammar_line": 1732
+  },
+  {
+   "rule": "struct_body_compile_if_item",
+   "grammar_line": 1742
+  },
+  {
+   "rule": "procedural_compile_if_stmt",
+   "grammar_line": 1754
+  },
+  {
+   "rule": "constraint_body_compile_if_item",
+   "grammar_line": 1759
+  },
+  {
+   "rule": "covergroup_body_compile_if_item",
+   "grammar_line": 1764
+  },
+  {
+   "rule": "override_compile_if_stmt",
+   "grammar_line": 1769
+  },
+  {
+   "rule": "compile_has_expr",
+   "grammar_line": 1774
+  },
+  {
+   "rule": "compile_assert_stmt",
+   "grammar_line": 1780
+  },
+  {
+   "rule": "conditional_expr",
+   "grammar_line": 1824
+  },
+  {
+   "rule": "logical_or_op",
+   "grammar_line": 1828
+  },
+  {
+   "rule": "binary_xor_op",
+   "grammar_line": 1831
+  },
+  {
+   "rule": "binary_and_op",
+   "grammar_line": 1832
+  },
+  {
+   "rule": "collection_expression",
+   "grammar_line": 1891
+  },
+  {
+   "rule": "bit_slice",
+   "grammar_line": 1961
+  },
+  {
+   "rule": "symbol_call",
+   "grammar_line": 1974
+  },
+  {
+   "rule": "import_class_identifier",
+   "grammar_line": 2027
+  },
+  {
+   "rule": "struct_identifier",
+   "grammar_line": 2034
+  },
+  {
+   "rule": "symbol_identifier",
+   "grammar_line": 2035
+  },
+  {
+   "rule": "buffer_type_identifier",
+   "grammar_line": 2046
+  },
+  {
+   "rule": "component_type_identifier",
+   "grammar_line": 2047
+  },
+  {
+   "rule": "enum_type_identifier",
+   "grammar_line": 2049
+  },
+  {
+   "rule": "monitor_type_identifier",
+   "grammar_line": 2050
+  },
+  {
+   "rule": "state_type_identifier",
+   "grammar_line": 2052
+  },
+  {
+   "rule": "stream_type_identifier",
+   "grammar_line": 2053
+  },
+  {
+   "rule": "empty_aggregate_literal",
+   "grammar_line": 2115
+  },
+  {
+   "rule": "map_literal",
+   "grammar_line": 2123
+  },
+  {
+   "rule": "map_literal_item",
+   "grammar_line": 2127
+  },
+  {
+   "rule": "struct_literal",
+   "grammar_line": 2131
+  },
+  {
+   "rule": "struct_literal_item",
+   "grammar_line": 2135
+  }
+ ],
+ "rule_counts": {
+  "abstract_action_declaration": 1,
+  "abstract_monitor_declaration": 1,
+  "access_modifier": 0,
+  "action_body_compile_if": 0,
+  "action_body_compile_if_item": 0,
+  "action_body_item": 187,
+  "action_body_item_ann": 187,
+  "action_declaration": 65,
+  "action_field_declaration": 104,
+  "action_handle_array_instance": 0,
+  "action_handle_declaration": 17,
+  "action_handle_single_instance": 18,
+  "action_handle_traversal_stmt": 50,
+  "action_identifier": 83,
+  "action_initializer": 0,
+  "action_initializer_list": 0,
+  "action_instantiation": 18,
+  "action_super_spec": 3,
+  "action_type_identifier": 19,
+  "action_type_traversal_stmt": 39,
+  "activity_action_traversal_stmt": 89,
+  "activity_atomic_block_stmt": 1,
+  "activity_bind_item_or_list": 10,
+  "activity_bind_stmt": 10,
+  "activity_constraint_stmt": 0,
+  "activity_data_field": 0,
+  "activity_declaration": 17,
+  "activity_foreach_stmt": 1,
+  "activity_if_else_stmt": 1,
+  "activity_join_branch_spec": 0,
+  "activity_join_first_spec": 0,
+  "activity_join_none_spec": 0,
+  "activity_join_select_spec": 0,
+  "activity_join_spec": 0,
+  "activity_labeled_stmt": 95,
+  "activity_match_stmt": 1,
+  "activity_parallel_stmt": 6,
+  "activity_repeat_stmt": 3,
+  "activity_replicate_stmt": 3,
+  "activity_schedule_stmt": 3,
+  "activity_scheduling_constraint": 1,
+  "activity_select_stmt": 2,
+  "activity_sequence_block_stmt": 10,
+  "activity_stmt": 111,
+  "activity_stmt_ann": 111,
+  "activity_super_stmt": 0,
+  "add_sub_op": 47,
+  "aggregate_literal": 1,
+  "annotation": 5,
+  "annotation_attr_field": 3,
+  "annotation_body_compile_if": 0,
+  "annotation_body_compile_if_item": 0,
+  "annotation_body_item": 3,
+  "annotation_declaration": 3,
+  "annotation_identifier": 3,
+  "annotation_param_item": 7,
+  "annotation_params_list": 4,
+  "annotation_super_spec": 1,
+  "array_dim": 34,
+  "assign_op": 87,
+  "attr_field": 321,
+  "attr_group": 0,
+  "based_bin_number": 3,
+  "based_dec_number": 68,
+  "based_hex_number": 4,
+  "based_oct_number": 2,
+  "bin_number": 2,
+  "binary_and_op": 0,
+  "binary_or_op": 1,
+  "binary_xor_op": 0,
+  "bins_keyword": 11,
+  "bins_or_empty": 6,
+  "bit_slice": 0,
+  "bool_literal": 6,
+  "bool_type": 8,
+  "buffer_type_identifier": 0,
+  "cast_expression": 13,
+  "casting_type": 13,
+  "category_type_param_decl": 12,
+  "chandle_type": 0,
+  "collection_expression": 0,
+  "compilation_unit": 86,
+  "compile_assert_stmt": 0,
+  "compile_has_expr": 0,
+  "component_body_compile_if": 1,
+  "component_body_compile_if_item": 1,
+  "component_body_item": 385,
+  "component_body_item_ann": 385,
+  "component_data_declaration": 137,
+  "component_declaration": 146,
+  "component_identifier": 146,
+  "component_path_elem": 0,
+  "component_pool_declaration": 10,
+  "component_super_spec": 109,
+  "component_type_identifier": 0,
+  "conditional_expr": 0,
+  "const_field_declaration": 19,
+  "constant_expression": 206,
+  "constraint_block": 36,
+  "constraint_body_compile_if": 0,
+  "constraint_body_compile_if_item": 0,
+  "constraint_body_item": 69,
+  "constraint_declaration": 47,
+  "constraint_set": 33,
+  "cover_stmt": 5,
+  "covercross_identifier": 3,
+  "covergroup_body_compile_if": 0,
+  "covergroup_body_compile_if_item": 0,
+  "covergroup_body_item": 12,
+  "covergroup_coverpoint": 6,
+  "covergroup_coverpoint_binspec": 11,
+  "covergroup_coverpoint_body_item": 11,
+  "covergroup_cross": 3,
+  "covergroup_cross_binspec": 0,
+  "covergroup_cross_body_item": 0,
+  "covergroup_declaration": 2,
+  "covergroup_expression": 0,
+  "covergroup_identifier": 3,
+  "covergroup_instantiation": 3,
+  "covergroup_option": 5,
+  "covergroup_options_or_empty": 1,
+  "covergroup_port": 3,
+  "covergroup_portmap": 2,
+  "covergroup_portmap_list": 1,
+  "covergroup_range_list": 11,
+  "covergroup_type_identifier": 1,
+  "covergroup_type_instantiation": 1,
+  "covergroup_value_range": 11,
+  "coverpoint_bins": 11,
+  "coverpoint_identifier": 12,
+  "cross_item_or_null": 3,
+  "data_declaration": 480,
+  "data_instantiation": 481,
+  "data_type": 1043,
+  "dec_number": 716,
+  "default_constraint": 2,
+  "default_constraint_item": 2,
+  "default_disable_constraint": 0,
+  "dist_directive": 0,
+  "dist_item": 0,
+  "dist_list": 0,
+  "dist_weight": 0,
+  "domain_open_range_list": 5,
+  "domain_open_range_value": 71,
+  "empty_aggregate_literal": 0,
+  "entity_type_identifier": 2,
+  "enum_declaration": 15,
+  "enum_identifier": 15,
+  "enum_item": 40,
+  "enum_type": 0,
+  "enum_type_identifier": 0,
+  "eq_neq_op": 47,
+  "exec_block": 27,
+  "exec_block_stmt": 33,
+  "exec_block_tag": 0,
+  "exec_kind": 31,
+  "exec_stmt": 108,
+  "exec_super_stmt": 0,
+  "exp_op": 64,
+  "export_action": 0,
+  "export_function": 0,
+  "expression": 2017,
+  "expression_constraint_item": 65,
+  "extend_stmt": 32,
+  "filename_string": 1,
+  "float_type": 6,
+  "floating_point_dec_number": 2,
+  "floating_point_number": 6,
+  "floating_point_sci_number": 4,
+  "flow_object_type": 23,
+  "flow_ref_field_declaration": 23,
+  "forall_constraint_item": 0,
+  "foreach_constraint_item": 1,
+  "function_call": 53,
+  "function_decl": 145,
+  "function_identifier": 148,
+  "function_parameter": 218,
+  "function_parameter_dir": 0,
+  "function_parameter_list": 93,
+  "function_parameter_list_prototype": 148,
+  "function_prototype": 148,
+  "function_ref_path": 53,
+  "function_return_type": 148,
+  "generic_constraint_bool": 0,
+  "generic_constraint_data_type": 0,
+  "generic_constraint_declaration": 0,
+  "generic_constraint_param": 0,
+  "generic_constraint_params": 0,
+  "generic_constraint_value": 0,
+  "generic_type_param_decl": 3,
+  "hex_number": 154,
+  "hierarchical_id": 628,
+  "hierarchical_id_list": 1,
+  "identifier": 3499,
+  "if_constraint_item": 1,
+  "implication_constraint_item": 4,
+  "import_class_decl": 0,
+  "import_class_extends": 0,
+  "import_class_function_decl": 0,
+  "import_class_identifier": 0,
+  "import_function": 7,
+  "import_stmt": 148,
+  "in_expression": 6,
+  "index_identifier": 1,
+  "inline_constraints_or_empty": 89,
+  "inline_covergroup": 2,
+  "instance_override": 0,
+  "integer_atom_type": 499,
+  "integer_number": 1007,
+  "integer_type": 499,
+  "iterator_identifier": 2,
+  "label_identifier": 4,
+  "labeled_activity_stmt": 98,
+  "labeled_monitor_activity_stmt": 34,
+  "language_identifier": 7,
+  "logical_and_op": 4,
+  "logical_inequality_op": 19,
+  "logical_or_op": 0,
+  "map_literal": 0,
+  "map_literal_item": 0,
+  "match_choice": 2,
+  "member_path_elem": 897,
+  "member_path_elem_index": 9,
+  "monitor_activity_concat_stmt": 2,
+  "monitor_activity_constraint_stmt": 0,
+  "monitor_activity_declaration": 12,
+  "monitor_activity_eventually_stmt": 2,
+  "monitor_activity_overlap_stmt": 2,
+  "monitor_activity_schedule_stmt": 2,
+  "monitor_activity_select_stmt": 1,
+  "monitor_activity_sequence_block_stmt": 3,
+  "monitor_activity_stmt": 34,
+  "monitor_body_compile_if": 0,
+  "monitor_body_compile_if_item": 0,
+  "monitor_body_item": 35,
+  "monitor_constraint_block": 1,
+  "monitor_constraint_body_item": 5,
+  "monitor_constraint_declaration": 5,
+  "monitor_constraint_set": 4,
+  "monitor_declaration": 10,
+  "monitor_field_declaration": 17,
+  "monitor_identifier": 10,
+  "monitor_super_spec": 1,
+  "monitor_type_identifier": 0,
+  "mul_div_mod_op": 53,
+  "null_ref": 1,
+  "number": 1013,
+  "object_bind_item": 10,
+  "object_bind_item_or_list": 10,
+  "object_bind_item_path": 10,
+  "object_bind_stmt": 10,
+  "object_kind": 11,
+  "object_ref_field": 34,
+  "object_ref_field_declaration": 34,
+  "oct_number": 58,
+  "open_range_list": 115,
+  "open_range_value": 117,
+  "override_action_declaration": 0,
+  "override_compile_if": 0,
+  "override_compile_if_stmt": 0,
+  "override_declaration": 0,
+  "override_stmt": 0,
+  "package_body_compile_if": 0,
+  "package_body_compile_if_item": 0,
+  "package_body_item": 555,
+  "package_body_item_ann": 555,
+  "package_declaration": 56,
+  "package_id_path": 56,
+  "package_identifier": 56,
+  "package_import_alias": 0,
+  "package_import_pattern": 148,
+  "package_import_qualifier": 148,
+  "package_import_wildcard": 148,
+  "paren_expr": 6,
+  "plain_type_category": 10,
+  "platform_qualifier": 22,
+  "portable_stimulus_description": 172,
+  "primary": 1676,
+  "procedural_assignment_stmt": 87,
+  "procedural_break_stmt": 1,
+  "procedural_compile_if": 0,
+  "procedural_compile_if_stmt": 0,
+  "procedural_continue_stmt": 1,
+  "procedural_data_declaration": 34,
+  "procedural_data_instantiation": 34,
+  "procedural_foreach_stmt": 1,
+  "procedural_if_else_stmt": 5,
+  "procedural_match_choice": 199,
+  "procedural_match_stmt": 92,
+  "procedural_randomization_stmt": 1,
+  "procedural_randomization_target": 1,
+  "procedural_randomization_term": 1,
+  "procedural_repeat_stmt": 11,
+  "procedural_return_stmt": 201,
+  "procedural_sequence_block_stmt": 20,
+  "procedural_stmt": 546,
+  "procedural_void_function_call_stmt": 53,
+  "procedural_yield_stmt": 4,
+  "pyimport_elem_list": 0,
+  "pyimport_from_module": 0,
+  "pyimport_mod_path": 0,
+  "pyimport_single_module": 0,
+  "pyimport_stmt": 0,
+  "pyobj_type": 0,
+  "ref_path": 596,
+  "ref_type_category": 2,
+  "reference_type": 2,
+  "resource_object_type": 11,
+  "resource_ref_field_declaration": 11,
+  "resource_type_identifier": 11,
+  "scalar_data_type": 612,
+  "select_branch": 8,
+  "shift_op": 2,
+  "soft_constraint_item": 0,
+  "state_type_identifier": 0,
+  "static_ref_path": 7,
+  "static_ref_path_prefix": 7,
+  "stream_type_identifier": 0,
+  "string_literal": 133,
+  "string_type": 112,
+  "struct_body_compile_if": 0,
+  "struct_body_compile_if_item": 0,
+  "struct_body_item": 265,
+  "struct_declaration": 95,
+  "struct_identifier": 0,
+  "struct_kind": 95,
+  "struct_literal": 0,
+  "struct_literal_item": 0,
+  "struct_super_spec": 62,
+  "symbol_call": 0,
+  "symbol_declaration": 1,
+  "symbol_identifier": 0,
+  "symbol_param": 0,
+  "symbol_paramlist": 0,
+  "target_code_exec_block": 4,
+  "target_file_exec_block": 1,
+  "target_template_function": 0,
+  "template_param_decl": 23,
+  "template_param_decl_list": 16,
+  "template_param_value": 240,
+  "template_param_value_list": 137,
+  "type_category": 12,
+  "type_identifier": 920,
+  "type_identifier_elem": 970,
+  "type_override": 0,
+  "type_param_decl": 15,
+  "type_restriction": 10,
+  "typedef_declaration": 0,
+  "unary_op": 98,
+  "unique_constraint_argument": 1,
+  "unique_constraint_item": 1,
+  "value_list_literal": 1,
+  "value_param_decl": 8,
+  "varargs_parameter": 0
+ }
+}

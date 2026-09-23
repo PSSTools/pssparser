@@ -18645,6 +18645,9 @@
    "why": "corpus link parity"
   },
   {
+   "fileMap": {
+    "1": "lexical/comments_and_strings.pss"
+   },
    "files": [
     {
      "content": "// Clause 4.1 and 4.7 -- every comment form and every legal string escape.\n/* a block comment */\n/**/\n/* a block comment\n   spanning lines, with a lone * and a lone / inside */\n/// A doc comment.\n//! Another doc comment form.\n/** A doc block comment. */\n/*! Another doc block form. */\npackage strings_pkg {\n    struct strings_s {\n        // Every escape in Clause 4.7's table.\n        string s1  = \"single quote: \\' \";\n        string s2  = \"double quote: \\\" \";\n        string s3  = \"question: \\? \";\n        string s4  = \"backslash: \\\\ \";\n        string s5  = \"bell: \\a backspace: \\b formfeed: \\f \";\n        string s6  = \"newline: \\n return: \\r tab: \\t vtab: \\v \";\n        string s7  = \"octal: \\101\\102\\103 \";\n        string s8  = \"\";\n        string s9  = \"a string with // what looks like a comment\";\n        string s10 = \"and /* one of these too */\";\n\n        // Triple-quoted: no escapes, embedded quotes and newlines are content.\n        string t1 = \"\"\"a \"quoted\" word and a lone \" inside\"\"\";\n        string t2 = \"\"\"\n            multiple\n            lines\n        \"\"\";\n        string t3 = \"\"\"\"\"\";\n        string t4 = \"\"\"contains \\n which is two characters, not an escape\"\"\";\n    }\n}\n",
@@ -18653,7 +18656,30 @@
    ],
    "id": "corpus:lexical/comments_and_strings.pss",
    "linkRaised": null,
-   "parseRaised": "ParseException",
+   "parseRaised": null,
+   "refs": {
+    "functionScopes": 138,
+    "importSpecs": 2,
+    "imports": 3,
+    "prototypes": 138
+   },
+   "spineDigest": "857dd15a1ba3fda93469adce64ec0393382428d97e81d2a135f86385abee33e8",
+   "spineLength": 267,
+   "units": [
+    -1,
+    0,
+    1
+   ],
+   "userUnitSpines": [
+    {
+     "digest": "036b7132c1d43d06cd4d85def3c7640275e7e98df1a9e8ea264c6497266c649c",
+     "fileid": 1,
+     "length": 16
+    }
+   ],
+   "userUnits": [
+    1
+   ],
    "why": "corpus link parity"
   },
   {

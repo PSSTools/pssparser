@@ -85,13 +85,14 @@ classes:
         
         Attributes:
             tid: Reference to the user-defined enum type
-            in_rangelist: Optional range restriction expression
+            in_rangelist: Optional domain restriction. A domain, like an
+                integer type's, may have open ranges (7.5.2: `in [..B]`)
         
         See Also:
-            EnumDecl, DataTypeUserDefined, ExprOpenRangeList
+            EnumDecl, DataTypeUserDefined, ExprDomainOpenRangeList
     data: 
     - tid: UP<DataTypeUserDefined>
-    - in_rangelist: UP<ExprOpenRangeList>
+    - in_rangelist: UP<ExprDomainOpenRangeList>
 
 - EnumItem:
     super: NamedScopeChild

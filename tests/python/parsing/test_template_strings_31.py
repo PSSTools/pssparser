@@ -254,7 +254,7 @@ def test_variable_declaration_and_assignment():
         'exec body C = """{% int i = 0; %}{% i = 1; %}""";').getTemplate()
     assert _elem_kinds(t) == ['TemplateVarDecl', 'TemplateAssign']
     assert t.getElem(0).getDecl(0).getName().getId() == 'i'
-    assert t.getElem(1).getLhs().getId() == 'i'
+    assert t.getElem(1).getLhs().getId().getId() == 'i'
 
 
 def test_raw_is_byte_identical_to_the_source():

@@ -35,13 +35,20 @@ classes:
               type: Data type of the field
               attr: Attribute flags (FieldAttr)
               init: Optional initializer expression
+              initializers: An action handle's `{.x = v, ...}` list (11.3.1).
+                  Set only on a handle declared in an action body, which
+                  is built as a Field; in an activity it is an
+                  ActionHandleField
           
           See Also:
-              FieldAttr, DataType, NamedScopeChild
+              FieldAttr, DataType, NamedScopeChild, ActionFieldInitializer
       data:
       - type : UP<DataType>
       - attr : FieldAttr
       - init : UP<Expr>
+      - initializers:
+          type: list<UP<ActionFieldInitializer>>
+          is_ctor: false
   - FieldCompRef:
       super: NamedScopeChild
       doc: |
@@ -181,7 +188,7 @@ classes:
               targets: The bind targets in source order, one
                   ``ComponentBindTarget`` per entry.
       data:
-      - pool_path: string
+      - pool_path: UP<ExprRefPathContext>
       - is_wildcard: bool
       - targets:
           - type: list<UP<ComponentBindTarget>>
@@ -212,7 +219,7 @@ classes:
               range: Optional index / index-range selection; null when the
                   element carries no ``[...]``.
       data:
-      - id: UP<ExprId>
+      - id: UP<ExprRefName>
       - range:
           - type: UP<ExprDomainOpenRangeList>
           - is_ctor: false
@@ -257,7 +264,7 @@ classes:
           - type: UP<TypeIdentifier>
           - is_ctor: false
       - field:
-          - type: UP<ExprId>
+          - type: UP<ExprRefName>
           - is_ctor: false
       - range:
           - type: UP<ExprDomainOpenRangeList>

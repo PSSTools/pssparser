@@ -91,5 +91,5 @@ classes:
           See Also:
               TypeOverride
       data:
-      - target: UP<ExprHierarchicalId>
+      - target: UP<ExprRefPathContext>
       - with_t: UP<TypeIdentifier>

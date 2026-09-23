@@ -176,7 +176,7 @@ def test_element_annotation_attaches_to_following_declaration():
     ann = comp.getAnnotation(0)
     assert ann.getIs_standalone() is False
     assert ann.numParameters() == 2
-    assert [ann.getParameter(i).getName().getId() for i in range(2)] == ["desc", "owner"]
+    assert [ann.getParameter(i).getName().getId().getId() for i in range(2)] == ["desc", "owner"]
 
 
 def test_standalone_annotation_anchors_to_enclosing_scope():

@@ -1,0 +1,517 @@
+{
+ "schema": 1,
+ "summary": {
+  "slots": 85,
+  "slots_by_state": {
+   "reported": 52,
+   "silent": 33
+  },
+  "legal_model": "clean",
+  "corpus_refs": {
+   "bound": 1033,
+   "unbound": 27
+  },
+  "schema_ref_fields": 46,
+  "schema_ref_fields_in_corpus": 19,
+  "schema_ref_fields_in_slots": 41
+ },
+ "schema_ref_fields": {
+  "ActionFieldInitializer.path": {
+   "type": "ExprRefPathContext",
+   "visit": true,
+   "in_corpus": false,
+   "in_slots": true
+  },
+  "ActivityActionHandleTraversal.target": {
+   "type": "ExprRefPathContext",
+   "visit": true,
+   "in_corpus": true,
+   "in_slots": true
+  },
+  "ActivityBindStmt.lhs": {
+   "type": "ExprRefPathContext",
+   "visit": true,
+   "in_corpus": false,
+   "in_slots": true
+  },
+  "ActivityBindStmt.rhs": {
+   "type": "ExprRefPathContext",
+   "visit": true,
+   "in_corpus": false,
+   "in_slots": true
+  },
+  "ActivityForeach.target": {
+   "type": "ExprRefPathContext",
+   "visit": true,
+   "in_corpus": true,
+   "in_slots": true
+  },
+  "ActivityJoinSpecBranch.branches": {
+   "type": "ExprRefPathContext",
+   "visit": true,
+   "in_corpus": false,
+   "in_slots": true
+  },
+  "ActivitySchedulingConstraint.targets": {
+   "type": "ExprRefPathContext",
+   "visit": true,
+   "in_corpus": true,
+   "in_slots": true
+  },
+  "ActivitySymbolCall.target": {
+   "type": "ExprRefName",
+   "visit": true,
+   "in_corpus": false,
+   "in_slots": true
+  },
+  "Annotation.type": {
+   "type": "TypeIdentifier",
+   "visit": true,
+   "in_corpus": true,
+   "in_slots": true
+  },
+  "AnnotationParam.name": {
+   "type": "ExprRefName",
+   "visit": true,
+   "in_corpus": true,
+   "in_slots": true
+  },
+  "ComponentBind.pool_path": {
+   "type": "ExprRefPathContext",
+   "visit": true,
+   "in_corpus": true,
+   "in_slots": true
+  },
+  "ComponentBindTarget.field": {
+   "type": "ExprRefName",
+   "visit": true,
+   "in_corpus": false,
+   "in_slots": true
+  },
+  "ComponentBindTarget.type_id": {
+   "type": "TypeIdentifier",
+   "visit": true,
+   "in_corpus": false,
+   "in_slots": true
+  },
+  "ComponentPathElem.id": {
+   "type": "ExprRefName",
+   "visit": true,
+   "in_corpus": false,
+   "in_slots": true
+  },
+  "ConstraintStmtDefault.hid": {
+   "type": "ExprRefPathContext",
+   "visit": true,
+   "in_corpus": true,
+   "in_slots": true
+  },
+  "ConstraintStmtDefaultDisable.hid": {
+   "type": "ExprRefPathContext",
+   "visit": true,
+   "in_corpus": false,
+   "in_slots": true
+  },
+  "ConstraintStmtForall.ref_path": {
+   "type": "ExprRefPath",
+   "visit": true,
+   "in_corpus": false,
+   "in_slots": false
+  },
+  "ConstraintStmtUnique.list": {
+   "type": "ExprRefPathContext",
+   "visit": true,
+   "in_corpus": true,
+   "in_slots": true
+  },
+  "CoverStmtReference.target": {
+   "type": "TypeIdentifier",
+   "visit": true,
+   "in_corpus": true,
+   "in_slots": true
+  },
+  "CovergroupCross.coverpoint_names": {
+   "type": "ExprRefName",
+   "visit": true,
+   "in_corpus": true,
+   "in_slots": true
+  },
+  "CovergroupCrossBins.target": {
+   "type": "ExprRefName",
+   "visit": true,
+   "in_corpus": false,
+   "in_slots": true
+  },
+  "CovergroupInstantiation.targets": {
+   "type": "ExprRefPathContext",
+   "visit": false,
+   "in_corpus": false,
+   "in_slots": true
+  },
+  "CovergroupInstantiation.type": {
+   "type": "TypeIdentifier",
+   "visit": true,
+   "in_corpus": true,
+   "in_slots": true
+  },
+  "CovergroupPortmap.name": {
+   "type": "ExprRefName",
+   "visit": true,
+   "in_corpus": true,
+   "in_slots": true
+  },
+  "CovergroupPortmap.target": {
+   "type": "ExprRefPathContext",
+   "visit": false,
+   "in_corpus": true,
+   "in_slots": true
+  },
+  "CoverpointBins.target": {
+   "type": "ExprRefName",
+   "visit": true,
+   "in_corpus": false,
+   "in_slots": true
+  },
+  "DataTypeUserDefined.type_id": {
+   "type": "TypeIdentifier",
+   "visit": true,
+   "in_corpus": true,
+   "in_slots": true
+  },
+  "ExecBlockTag.type": {
+   "type": "TypeIdentifier",
+   "visit": true,
+   "in_corpus": false,
+   "in_slots": true
+  },
+  "ExportAction.target": {
+   "type": "TypeIdentifier",
+   "visit": true,
+   "in_corpus": false,
+   "in_slots": true
+  },
+  "ExportFunction.name": {
+   "type": "ExprRefName",
+   "visit": true,
+   "in_corpus": false,
+   "in_slots": true
+  },
+  "ExprAggrStructElem.name": {
+   "type": "ExprRefName",
+   "visit": true,
+   "in_corpus": false,
+   "in_slots": true
+  },
+  "ExprCompileHas.ref": {
+   "type": "ExprRefPathStatic",
+   "visit": true,
+   "in_corpus": false,
+   "in_slots": false
+  },
+  "ExprRefPathStaticRooted.root": {
+   "type": "ExprRefPathStatic",
+   "visit": true,
+   "in_corpus": false,
+   "in_slots": false
+  },
+  "ExtendEnum.target": {
+   "type": "TypeIdentifier",
+   "visit": true,
+   "in_corpus": false,
+   "in_slots": true
+  },
+  "ExtendType.target": {
+   "type": "TypeIdentifier",
+   "visit": true,
+   "in_corpus": true,
+   "in_slots": true
+  },
+  "FunctionImportType.type": {
+   "type": "TypeIdentifier",
+   "visit": true,
+   "in_corpus": false,
+   "in_slots": true
+  },
+  "ImportClass.extends": {
+   "type": "TypeIdentifier",
+   "visit": true,
+   "in_corpus": false,
+   "in_slots": true
+  },
+  "InstanceOverride.target": {
+   "type": "ExprRefPathContext",
+   "visit": true,
+   "in_corpus": false,
+   "in_slots": true
+  },
+  "InstanceOverride.with_t": {
+   "type": "TypeIdentifier",
+   "visit": true,
+   "in_corpus": false,
+   "in_slots": true
+  },
+  "PackageImportStmt.path": {
+   "type": "TypeIdentifier",
+   "visit": true,
+   "in_corpus": true,
+   "in_slots": true
+  },
+  "ProceduralStmtForeach.path": {
+   "type": "ExprRefPath",
+   "visit": true,
+   "in_corpus": true,
+   "in_slots": true
+  },
+  "TemplateAssign.lhs": {
+   "type": "ExprRefName",
+   "visit": true,
+   "in_corpus": false,
+   "in_slots": false
+  },
+  "TemplateCategoryTypeParamDecl.restriction": {
+   "type": "TypeIdentifier",
+   "visit": true,
+   "in_corpus": true,
+   "in_slots": false
+  },
+  "TypeOverride.target": {
+   "type": "TypeIdentifier",
+   "visit": true,
+   "in_corpus": false,
+   "in_slots": true
+  },
+  "TypeOverride.with_t": {
+   "type": "TypeIdentifier",
+   "visit": true,
+   "in_corpus": false,
+   "in_slots": true
+  },
+  "TypeScope.super_t": {
+   "type": "TypeIdentifier",
+   "visit": true,
+   "in_corpus": true,
+   "in_slots": true
+  }
+ },
+ "tmiss": {
+  "00_legal": "clean",
+  "abind_lhs": "silent",
+  "abind_lhs__member": "silent",
+  "abind_rhs": "silent",
+  "aforeach": "reported",
+  "aif": "reported",
+  "amatch": "reported",
+  "ann": "silent",
+  "ann__pname": "reported",
+  "ann__pval": "reported",
+  "arr_dim": "reported",
+  "bins_asize": "silent",
+  "bins_cpref": "silent",
+  "bins_range": "silent",
+  "bins_with": "silent",
+  "bit_w": "reported",
+  "cast_t": "reported",
+  "cg_opt_val": "silent",
+  "cgi_act": "silent",
+  "cgi_act__legal": "silent",
+  "cgi_opt": "silent",
+  "cgi_port": "silent",
+  "cgi_pos": "silent",
+  "cgi_type": "reported",
+  "constr": "reported",
+  "cover_ref": "reported",
+  "cp_dt": "reported",
+  "cp_iff": "silent",
+  "cp_target": "silent",
+  "cross_iff": "silent",
+  "cross_item": "silent",
+  "default": "reported",
+  "default_dis": "reported",
+  "enum_val": "reported",
+  "export_action": "reported",
+  "export_func": "reported",
+  "ext_enum": "reported",
+  "extend_t": "reported",
+  "field_init": "reported",
+  "forall_t": "reported",
+  "func_dflt": "reported",
+  "hinit_name": "silent",
+  "icls_base": "reported",
+  "import_func": "reported",
+  "init_do": "silent",
+  "init_h": "silent",
+  "init_val": "reported",
+  "join_branch": "reported",
+  "join_sel": "reported",
+  "mon_trav": "silent",
+  "mustache": "reported",
+  "ovr_inst": "silent",
+  "ovr_inst__member": "silent",
+  "ovr_type": "reported",
+  "pforeach": "reported",
+  "pkg_import": "reported",
+  "pool_bind_item__atype": "reported",
+  "pool_bind_item__comp": "silent",
+  "pool_bind_item__field": "silent",
+  "pool_bind_item__subpath": "reported",
+  "pool_bind_pool": "silent",
+  "pool_size": "reported",
+  "proc_call": "reported",
+  "proc_lhs": "reported",
+  "rand_tgt": "reported",
+  "repeat_cnt": "reported",
+  "repl_cnt": "reported",
+  "sched_c": "silent",
+  "sel_guard": "reported",
+  "sel_w": "reported",
+  "slit_name": "silent",
+  "slit_val": "reported",
+  "super_t": "reported",
+  "sym_arg": "reported",
+  "sym_call": "reported",
+  "tag_field": "silent",
+  "tag_t": "reported",
+  "tparam_t": "reported",
+  "tparam_v": "reported",
+  "trav_h": "silent",
+  "trav_t": "reported",
+  "trav_with": "reported",
+  "typedef_t": "reported",
+  "unique": "reported",
+  "xbins_tgt": "silent",
+  "xbins_with": "silent"
+ },
+ "bind": {
+  "files": 87,
+  "clean_files": 45,
+  "fields": {
+   "ActivityActionHandleTraversal.target | ExprRefPathContext": {
+    "bound": 28
+   },
+   "ActivityForeach.target | ExprRefPathContext": {
+    "bound": 1
+   },
+   "ActivityIfElse.cond | ExprRefPathContext": {
+    "bound": 1
+   },
+   "ActivityMatch.cond | ExprRefPathContext": {
+    "bound": 1
+   },
+   "ActivityReplicate.count | ExprRefPathContext": {
+    "bound": 3
+   },
+   "ActivitySchedulingConstraint.targets | ExprRefPathContext": {
+    "unbound": 2
+   },
+   "Annotation.type | TypeIdentifier": {
+    "bound": 5
+   },
+   "AnnotationParam.name | ExprRefName": {
+    "bound": 7
+   },
+   "ComponentBind.pool_path | ExprRefPathContext": {
+    "unbound": 5
+   },
+   "ConstraintStmtDefault.hid | ExprRefPathContext": {
+    "bound": 1
+   },
+   "ConstraintStmtForeach.expr | ExprRefPathContext": {
+    "bound": 1
+   },
+   "ConstraintStmtImplication.cond | ExprRefPathContext": {
+    "bound": 2
+   },
+   "ConstraintStmtUnique.list | ExprRefPathContext": {
+    "bound": 1
+   },
+   "CoverStmtReference.target | TypeIdentifier": {
+    "bound": 3
+   },
+   "CovergroupCoverpoint.target[NOVISIT]{UNWALKED} | ExprRefPathContext": {
+    "unbound": 6
+   },
+   "CovergroupCross.coverpoint_names | ExprRefName": {
+    "unbound": 6
+   },
+   "CovergroupInstantiation.type | TypeIdentifier": {
+    "bound": 1
+   },
+   "CovergroupPortmap.name | ExprRefName": {
+    "unbound": 2
+   },
+   "CovergroupPortmap.target[NOVISIT]{UNWALKED} | ExprRefPathContext": {
+    "unbound": 2
+   },
+   "DataTypeUserDefined.type_id | TypeIdentifier": {
+    "bound": 439,
+    "unbound": 1
+   },
+   "ExprBin.lhs | ExprRefPathContext": {
+    "bound": 86
+   },
+   "ExprBin.lhs{UNWALKED} | ExprRefPathContext": {
+    "unbound": 1
+   },
+   "ExprBin.rhs | ExprRefPathContext": {
+    "bound": 29
+   },
+   "ExprBin.rhs{UNWALKED} | ExprRefPathContext": {
+    "unbound": 1
+   },
+   "ExprDomainOpenRangeValue.rhs | ExprRefPathContext": {
+    "unbound": 1
+   },
+   "ExprIn.lhs | ExprRefPathContext": {
+    "bound": 6
+   },
+   "ExprMemberPathElem.subscript | ExprRefPathContext": {
+    "bound": 1
+   },
+   "ExprUnary.rhs | ExprRefPathContext": {
+    "bound": 2
+   },
+   "ExtendType.target | TypeIdentifier": {
+    "bound": 2
+   },
+   "MethodParameterList.parameters | ExprRefPathContext": {
+    "bound": 26
+   },
+   "PackageImportStmt.path | TypeIdentifier": {
+    "bound": 75
+   },
+   "ProceduralStmtAssignment.lhs | ExprRefPathContext": {
+    "bound": 35
+   },
+   "ProceduralStmtAssignment.rhs | ExprRefPathContext": {
+    "bound": 15
+   },
+   "ProceduralStmtExpr.expr | ExprRefPathContext": {
+    "bound": 12
+   },
+   "ProceduralStmtForeach.path | ExprRefPathContext": {
+    "bound": 1
+   },
+   "ProceduralStmtMatch.expr | ExprRefPathContext": {
+    "bound": 87
+   },
+   "ProceduralStmtRandomize.target | ExprRefPathContext": {
+    "bound": 1
+   },
+   "ProceduralStmtReturn.expr | ExprRefPathContext": {
+    "bound": 1
+   },
+   "TemplateCategoryTypeParamDecl.restriction | TypeIdentifier": {
+    "bound": 1
+   },
+   "TemplateExpr.expr | ExprRefPathContext": {
+    "bound": 9
+   },
+   "TemplateForeach.expr | ExprRefPathContext": {
+    "bound": 1
+   },
+   "TypeScope.super_t | TypeIdentifier": {
+    "bound": 149
+   }
+  }
+ }
+}

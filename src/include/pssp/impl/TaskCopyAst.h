@@ -283,13 +283,13 @@ private:
         }
     }
 
-    void copyHierIds(
-        const std::vector<ast::IExprHierarchicalIdUP>   &src,
-        std::vector<ast::IExprHierarchicalIdUP>         &dst) {
-        for (std::vector<ast::IExprHierarchicalIdUP>::const_iterator
+    void copyRefPaths(
+        const std::vector<ast::IExprRefPathContextUP>   &src,
+        std::vector<ast::IExprRefPathContextUP>         &dst) {
+        for (std::vector<ast::IExprRefPathContextUP>::const_iterator
             it=src.begin(); it!=src.end(); it++) {
-            dst.push_back(ast::IExprHierarchicalIdUP(
-                copyT<ast::IExprHierarchicalId>(it->get())));
+            dst.push_back(ast::IExprRefPathContextUP(
+                copyT<ast::IExprRefPathContext>(it->get())));
         }
     }
 
@@ -526,7 +526,7 @@ public:
         for (std::vector<ast::IExprAggrStructElemUP>::const_iterator
             it=i->getElems().begin(); it!=i->getElems().end(); it++) {
             ast::IExprAggrStructElem *e = m_factory->mkExprAggrStructElem(
-                copyT<ast::IExprId>((*it)->getName()),
+                copyT<ast::IExprRefName>((*it)->getName()),
                 copy((*it)->getValue()));
             e->setTarget((*it)->getTarget());
             ic->getElems().push_back(ast::IExprAggrStructElemUP(e));
@@ -544,6 +544,7 @@ public:
 
     virtual void visitTypeIdentifier(ast::ITypeIdentifier *i) {
         ast::ITypeIdentifier *ic = m_factory->mkTypeIdentifier();
+        ic->setIs_global(i->getIs_global());
         for (std::vector<ast::ITypeIdentifierElemUP>::const_iterator
             it=i->getElems().begin();
             it!=i->getElems().end(); it++) {
@@ -630,6 +631,16 @@ public:
         m_expr = ic;
     }
 
+    virtual void visitExprRefName(ast::IExprRefName *i) {
+        ast::IExprRefName *ic = m_factory->mkExprRefName(
+            (i->getId())?copyT<ast::IExprId>(i->getId()):0);
+        if (i->getTarget()) {
+            ic->setTarget(copy(i->getTarget()));
+        }
+        ic->setCtx_unknown(i->getCtx_unknown());
+        m_expr = ic;
+    }
+
     virtual void visitExprId(ast::IExprId *i) {
         ast::IExprId *ic = m_factory->mkExprId(
             i->getId(),
@@ -656,6 +667,18 @@ public:
             elem->getSubscript().push_back(ast::IExprUP(copyT<ast::IExpr>(it->get())));
         }
         m_expr = elem;
+    }
+
+    virtual void visitExprMemberCall(ast::IExprMemberCall *i) {
+        ast::IExprMemberCall *call = m_factory->mkExprMemberCall(
+            copyT<ast::IExpr>(i->getReceiver()));
+        for (std::vector<ast::IExprMemberPathElemUP>::const_iterator
+            it=i->getMembers().begin();
+            it!=i->getMembers().end(); it++) {
+            call->getMembers().push_back(ast::IExprMemberPathElemUP(
+                copyT<ast::IExprMemberPathElem>(it->get())));
+        }
+        m_expr = call;
     }
 
     virtual void visitExprNull(ast::IExprNull *i) {
@@ -762,7 +785,7 @@ public:
     virtual void visitDataTypeEnum(ast::IDataTypeEnum *i) {
         m_dt = fin(i, m_factory->mkDataTypeEnum(
             (i->getTid())?copyT<ast::IDataTypeUserDefined>(i->getTid()):0,
-            (i->getIn_rangelist())?copyT<ast::IExprOpenRangeList>(i->getIn_rangelist()):0
+            (i->getIn_rangelist())?copyT<ast::IExprDomainOpenRangeList>(i->getIn_rangelist()):0
         ));
     }
 
@@ -855,12 +878,14 @@ public:
     // -----------------------------------------------------------------
 
     virtual void visitField(ast::IField *i) {
-        m_sc = fin(i, m_factory->mkField(
+        ast::IField *ic = m_factory->mkField(
             copyT<ast::IExprId>(i->getName()),
             copy(i->getType()),
             i->getAttr(),
             (i->getInit())?copy(i->getInit()):0
-        ));
+        );
+        copyInitializers(i->getInitializers(), ic->getInitializers());
+        m_sc = fin(i, ic);
     }
 
     /**
@@ -911,14 +936,14 @@ public:
 
     virtual void visitActionFieldInitializer(ast::IActionFieldInitializer *i) {
         m_sc = fin(i, m_factory->mkActionFieldInitializer(
-            (i->getPath())?copyT<ast::IExprHierarchicalId>(i->getPath()):0,
+            (i->getPath())?copyT<ast::IExprRefPathContext>(i->getPath()):0,
             (i->getValue())?copy(i->getValue()):0
         ));
     }
 
     virtual void visitComponentBind(ast::IComponentBind *i) {
         ast::IComponentBind *ic = m_factory->mkComponentBind(
-            i->getPool_path(),
+            (i->getPool_path())?copyT<ast::IExprRefPathContext>(i->getPool_path()):0,
             i->getIs_wildcard());
         for (std::vector<ast::IComponentBindTargetUP>::const_iterator
             it=i->getTargets().begin(); it!=i->getTargets().end(); it++) {
@@ -940,7 +965,7 @@ public:
             ic->setType_id(copyT<ast::ITypeIdentifier>(i->getType_id()));
         }
         if (i->getField()) {
-            ic->setField(copyT<ast::IExprId>(i->getField()));
+            ic->setField(copyT<ast::IExprRefName>(i->getField()));
         }
         if (i->getRange()) {
             ic->setRange(copyT<ast::IExprDomainOpenRangeList>(i->getRange()));
@@ -950,7 +975,7 @@ public:
 
     virtual void visitComponentPathElem(ast::IComponentPathElem *i) {
         ast::IComponentPathElem *ic = m_factory->mkComponentPathElem(
-            copyT<ast::IExprId>(i->getId()));
+            copyT<ast::IExprRefName>(i->getId()));
         if (i->getRange()) {
             ic->setRange(copyT<ast::IExprDomainOpenRangeList>(i->getRange()));
         }
@@ -974,7 +999,7 @@ public:
 
     virtual void visitAnnotationParam(ast::IAnnotationParam *i) {
         ast::IAnnotationParam *ic = m_factory->mkAnnotationParam(
-            (i->getName())?copyT<ast::IExprId>(i->getName()):0,
+            (i->getName())?copyT<ast::IExprRefName>(i->getName()):0,
             (i->getValue())?copy(i->getValue()):0);
         ic->setLocation(i->getLocation());
         ic->setIndex(i->getIndex());
@@ -1085,7 +1110,7 @@ public:
     virtual void visitExportFunction(ast::IExportFunction *i) {
         m_sc = fin(i, m_factory->mkExportFunction(
             i->getPlat(),
-            (i->getName())?copyT<ast::IExprId>(i->getName()):0
+            (i->getName())?copyT<ast::IExprRefName>(i->getName()):0
         ));
     }
 
@@ -1151,7 +1176,7 @@ public:
 
     virtual void visitInstanceOverride(ast::IInstanceOverride *i) {
         m_sc = fin(i, m_factory->mkInstanceOverride(
-            (i->getTarget())?copyT<ast::IExprHierarchicalId>(i->getTarget()):0,
+            (i->getTarget())?copyT<ast::IExprRefPathContext>(i->getTarget()):0,
             (i->getWith_t())?copyT<ast::ITypeIdentifier>(i->getWith_t()):0));
     }
 
@@ -1385,20 +1410,20 @@ public:
     virtual void visitConstraintStmtUnique(ast::IConstraintStmtUnique *i) {
         ast::IConstraintStmtUnique *ic = m_factory->mkConstraintStmtUnique();
         ic->setIs_braced(i->getIs_braced());
-        copyHierIds(i->getList(), ic->getList());
+        copyRefPaths(i->getList(), ic->getList());
         m_constraint = fin(i, ic);
     }
 
     virtual void visitConstraintStmtDefault(ast::IConstraintStmtDefault *i) {
         m_constraint = fin(i, m_factory->mkConstraintStmtDefault(
-            (i->getHid())?copyT<ast::IExprHierarchicalId>(i->getHid()):0,
+            (i->getHid())?copyT<ast::IExprRefPathContext>(i->getHid()):0,
             (i->getExpr())?copy(i->getExpr()):0
         ));
     }
 
     virtual void visitConstraintStmtDefaultDisable(ast::IConstraintStmtDefaultDisable *i) {
         m_constraint = fin(i, m_factory->mkConstraintStmtDefaultDisable(
-            (i->getHid())?copyT<ast::IExprHierarchicalId>(i->getHid()):0
+            (i->getHid())?copyT<ast::IExprRefPathContext>(i->getHid()):0
         ));
     }
 
@@ -1580,8 +1605,8 @@ public:
 
     virtual void visitCovergroupPortmap(ast::ICovergroupPortmap *i) {
         m_sc = fin(i, m_factory->mkCovergroupPortmap(
-            (i->getName())?copyT<ast::IExprId>(i->getName()):0,
-            (i->getTarget())?copyT<ast::IExprHierarchicalId>(i->getTarget()):0
+            (i->getName())?copyT<ast::IExprRefName>(i->getName()):0,
+            (i->getTarget())?copyT<ast::IExprRefPathContext>(i->getTarget()):0
         ));
     }
 
@@ -1594,10 +1619,10 @@ public:
             ic->getPortmap().push_back(ast::ICovergroupPortmapUP(
                 copyT<ast::ICovergroupPortmap>(it->get())));
         }
-        for (std::vector<ast::IExprHierarchicalIdUP>::const_iterator
+        for (std::vector<ast::IExprRefPathContextUP>::const_iterator
             it=i->getTargets().begin(); it!=i->getTargets().end(); it++) {
-            ic->getTargets().push_back(ast::IExprHierarchicalIdUP(
-                copyT<ast::IExprHierarchicalId>(it->get())));
+            ic->getTargets().push_back(ast::IExprRefPathContextUP(
+                copyT<ast::IExprRefPathContext>(it->get())));
         }
         copyCovergroupOptions(i->getOptions(), ic->getOptions());
         m_sc = fin(i, ic);
@@ -1618,7 +1643,7 @@ public:
                 copyT<ast::IExprOpenRangeValue>(it->get())));
         }
         if (i->getTarget()) {
-            ic->setTarget(copyT<ast::IExprId>(i->getTarget()));
+            ic->setTarget(copyT<ast::IExprRefName>(i->getTarget()));
         }
         if (i->getWith_expr()) {
             ic->setWith_expr(copy(i->getWith_expr()));
@@ -1630,7 +1655,7 @@ public:
         m_sc = fin(i, m_factory->mkCovergroupCrossBins(
             (i->getName())?copyT<ast::IExprId>(i->getName()):0,
             i->getKind(),
-            (i->getTarget())?copyT<ast::IExprId>(i->getTarget()):0,
+            (i->getTarget())?copyT<ast::IExprRefName>(i->getTarget()):0,
             (i->getWith_expr())?copy(i->getWith_expr()):0
         ));
     }
@@ -1657,11 +1682,11 @@ public:
     virtual void visitCovergroupCross(ast::ICovergroupCross *i) {
         ast::ICovergroupCross *ic = m_factory->mkCovergroupCross(
             (i->getName())?copyT<ast::IExprId>(i->getName()):0);
-        for (std::vector<ast::IExprIdUP>::const_iterator
+        for (std::vector<ast::IExprRefNameUP>::const_iterator
             it=i->getCoverpoint_names().begin();
             it!=i->getCoverpoint_names().end(); it++) {
-            ic->getCoverpoint_names().push_back(ast::IExprIdUP(
-                copyT<ast::IExprId>(it->get())));
+            ic->getCoverpoint_names().push_back(ast::IExprRefNameUP(
+                copyT<ast::IExprRefName>(it->get())));
         }
         if (i->getIff()) {
             ic->setIff(copy(i->getIff()));
@@ -1695,7 +1720,7 @@ public:
 
     virtual void visitActivitySymbolCall(ast::IActivitySymbolCall *i) {
         ast::IActivitySymbolCall *ic = m_factory->mkActivitySymbolCall(
-            (i->getTarget())?copyT<ast::IExprId>(i->getTarget()):0);
+            (i->getTarget())?copyT<ast::IExprRefName>(i->getTarget()):0);
         for (std::vector<ast::IExprUP>::const_iterator
             it=i->getParams().begin(); it!=i->getParams().end(); it++) {
             ic->getParams().push_back(ast::IExprUP(copy(it->get())));
@@ -1741,8 +1766,8 @@ public:
 
     virtual void visitActivityBindStmt(ast::IActivityBindStmt *i) {
         ast::IActivityBindStmt *ic = m_factory->mkActivityBindStmt(
-            (i->getLhs())?copyT<ast::IExprHierarchicalId>(i->getLhs()):0);
-        copyHierIds(i->getRhs(), ic->getRhs());
+            (i->getLhs())?copyT<ast::IExprRefPathContext>(i->getLhs()):0);
+        copyRefPaths(i->getRhs(), ic->getRhs());
         m_sc = fin(i, ic);
     }
 
@@ -1755,7 +1780,7 @@ public:
     virtual void visitActivitySchedulingConstraint(ast::IActivitySchedulingConstraint *i) {
         ast::IActivitySchedulingConstraint *ic =
             m_factory->mkActivitySchedulingConstraint(i->getIs_parallel());
-        copyHierIds(i->getTargets(), ic->getTargets());
+        copyRefPaths(i->getTargets(), ic->getTargets());
         m_sc = fin(i, ic);
     }
 
@@ -2234,7 +2259,7 @@ public:
         } else if (ast::ITemplateAssign *t = dynamic_cast<ast::ITemplateAssign *>(i)) {
             ret = m_factory->mkTemplateAssign(
                 t->getName(), t->getOffset(), t->getExtent(),
-                copyT<ast::IExprId>(t->getLhs()),
+                copyT<ast::IExprRefName>(t->getLhs()),
                 t->getRhs() ? copy(t->getRhs()) : 0);
         } else {
             failed("unhandled template element");

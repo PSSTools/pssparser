@@ -81,6 +81,8 @@ REPRESENTATIVE_MESSAGES = [
     ("PSS015", "sizeof_s argument is a string, which has no packed size"),
     ("PSS016", "reg_c width SZ = 96 has no primitive access function; use 8, "
                "16, 32 or 64 bits"),
+    ("PSS017", "ambiguous reference to 's': more than one wildcard import "
+               "provides it, so none does (18.1.3); qualify the name"),
     ("PSS100", "annotation is not attached to a model element"),
     ("PSS101", "unknown annotation type 'desc_s'; annotation disregarded"),
     ("PSS102", "annotation initializer for 'owner' is not a constant expression"),

@@ -59,6 +59,8 @@ public:
 
     virtual void visitSymbolFunctionScope(ast::ISymbolFunctionScope *i) override;
 
+    virtual void visitSymbolDeclaration(ast::ISymbolDeclaration *i) override;
+
 private:
 
     ast::ISymbolRefPath *searchImports(

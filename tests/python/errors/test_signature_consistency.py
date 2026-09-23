@@ -340,22 +340,33 @@ def test_a_differing_parameter_kind_is_reported():
 
 
 @pytest.mark.parametrize("src", [
-    # LRM 20.2.4 c is explicit that this is illegal "even if the value is the
-    # same", so both spellings are errors and the values are never compared.
-    "function void f(int a = 1); function void f(int a = 1);",
     "function void f(int a = 1); function void f(int a = 2);",
+    'function void f(string s = "x"); function void f(string s = "y");',
+    "function void f(bool b = true); function void f(bool b = false);",
 ])
-def test_a_default_given_twice_is_reported(src):
-    """LRM 20.2.4 c: "A default parameter value shall not be specified in the
-    redeclaration of a function if already declared for the same parameter in a
-    previous declaration, even if the value is the same."
+def test_a_different_default_given_twice_is_reported(src):
+    """LRM 3.1 20.2.4 c: a redeclaration may repeat a default, "but this value
+    shall be equal".
 
-    The message says "more than one declaration" rather than naming an earlier
-    one, because the prototype list is not in lexical order -- a definition's
-    prototype is moved to the front.  The rule is symmetric, so nothing is lost.
+    The message names no earlier declaration, because the prototype list is not
+    in lexical order -- a definition's prototype is moved to the front.  The
+    rule is symmetric, so nothing is lost.
     """
     assert_rejects([("t.pss", src)],
-        "is given a default value by more than one declaration")
+        "disagree about the default value of parameter 1")
+
+
+@pytest.mark.parametrize("src", [
+    # CH20/p25: the same value, repeated. Illegal in 3.0, legal in 3.1 (F24).
+    "function void f(int a = 1); function void f(int a = 1);",
+    # Compared after folding.
+    "function void f(int a = 1+1); function void f(int a = 2);",
+    'function void f(string s = "x"); function void f(string s = "x");',
+    # Does not fold: not known to differ, so accepted.
+    "enum e { A, B } function void f(e v = A); function void f(e v = B);",
+])
+def test_an_equal_or_unknown_default_given_twice_is_accepted(src):
+    assert_clean([("t.pss", src)])
 
 
 def test_a_definition_alone_may_give_a_default():
@@ -392,11 +403,11 @@ def test_a_definition_that_repeats_a_declarations_default_is_still_reported():
     the duplicate registration must not remove the genuine pair.
     """
     assert_rejects([("t.pss",
-        "function void f(int a = 1); function void f(int a = 1) { }")],
-        "is given a default value by more than one declaration")
+        "function void f(int a = 1); function void f(int a = 3) { }")],
+        "disagree about the default value of parameter 1")
     assert_rejects([("t.pss",
         "function void f(int a = 1) { } function void f(int a = 2);")],
-        "is given a default value by more than one declaration")
+        "disagree about the default value of parameter 1")
 
 
 def test_a_definition_and_a_declaration_still_disagree_about_types():

@@ -20,6 +20,8 @@
  */
 #include "dmgr/impl/DebugMacros.h"
 #include "TaskResolveFieldRef.h"
+#include "TaskResolveSuperTypeRef.h"
+#include "pssp/ast/ITypeScope.h"
 #include "pssp/impl/TaskGetName.h"
 
 
@@ -119,16 +121,36 @@ void TaskResolveFieldRef::lookup(ast::ISymbolScope *i) {
 
 void TaskResolveFieldRef::visitSymbolTypeScope(ast::ISymbolTypeScope *i) { 
     DEBUG_ENTER("visitSymbolTypeScope");
-    std::unordered_map<std::string,int32_t>::const_iterator it;
-
-    if ((it=i->getSymtab().find(m_id->getId())) != i->getSymtab().end()) {
-        m_ret = i->getChildren().at(it->second).get();
-        m_path->getPath().push_back({
-            ast::SymbolRefPathElemKind::ElemKind_ChildIdx,
-            it->second
-        });
+    // A qualified step `C::x` finds an inherited `x` too (18.3 b.3; LRM Ex.
+    // 242 `dma_der_c::xfer_a`). Each hop into a base type is recorded as an
+    // ElemKind_Super step, as the unqualified lookup does
+    // (TaskResolveRootRef::visitSymbolTypeScope). Bounded: TaskCheckTypeCycles
+    // marks a ring, and TaskResolveSuperTypeRef stops at a marked type.
+    size_t path_len = m_path->getPath().size();
+    ast::ISymbolTypeScope *ts_s = i;
+    for (int32_t depth=0; ts_s && !m_ret && depth<64; depth++) {
+        std::unordered_map<std::string,int32_t>::const_iterator it;
+        if ((it=ts_s->getSymtab().find(m_id->getId())) != ts_s->getSymtab().end()) {
+            m_ret = ts_s->getChildren().at(it->second).get();
+            m_path->getPath().push_back({
+                ast::SymbolRefPathElemKind::ElemKind_ChildIdx,
+                it->second
+            });
+            break;
+        }
+        ast::ITypeScope *ts = dynamic_cast<ast::ITypeScope *>(ts_s->getTarget());
+        if (!ts || !ts->getSuper_t() || !ts->getSuper_t()->getTarget()) {
+            break;
+        }
+        ts_s = dynamic_cast<ast::ISymbolTypeScope *>(TaskResolveSuperTypeRef(
+            m_ctxt->getDebugMgr(), m_ctxt->root()).resolve(ts));
+        if (ts_s) {
+            m_path->getPath().push_back({ast::SymbolRefPathElemKind::ElemKind_Super, 0});
+        }
     }
-
+    if (!m_ret) {
+        m_path->getPath().resize(path_len);
+    }
     DEBUG_LEAVE("visitSymbolTypeScope");
 }
 

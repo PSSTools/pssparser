@@ -21,6 +21,8 @@
 #include "dmgr/impl/DebugMacros.h"
 #include "ResolveContext.h"
 #include "TaskApplyTypeExtensions.h"
+#include "pssp/ast/IConstraintBlock.h"
+#include "pssp/ast/IGenericConstraintDeclBool.h"
 #include "TaskResolveImports.h"
 #include "TaskResolveRef.h"
 #include "pssp/impl/TaskGetName.h"
@@ -196,6 +198,14 @@ void TaskApplyTypeExtensions::visitExtendType(ast::IExtendType *i) {
 
 void TaskApplyTypeExtensions::visitRootSymbolScope(ast::IRootSymbolScope *i) {
     DEBUG_ENTER("visitRootSymbolScope");
+    // Root-level imports first: a root-level `extend` resolves its target
+    // through them, and they were otherwise left unresolved until a later
+    // pass, so `import p::*; extend struct s {}` failed (F23).
+    if (i->getImports()) {
+        ResolveContext ctxt(m_factory, m_marker_l, m_root);
+        seedCtxtScope(ctxt);
+        TaskResolveImports(&ctxt).resolve(i);
+    }
     for (std::vector<ast::IScopeChildUP>::const_iterator
         it=i->getChildren().begin();
         it!=i->getChildren().end(); it++) {
@@ -349,7 +359,12 @@ void TaskApplyTypeExtensions::visitSymbolScope(ast::ISymbolScope *i) {
 
         if (i->getImports()) {
             DEBUG_ENTER("  Resolve Imports");
+            // Seeded, so an import path resolves from where the import is
+            // written: `import bar::*;` inside P names P::bar (ND-1). The
+            // unseeded context searched from the root only, and the result
+            // is cached, so no later pass got a second chance.
             ResolveContext ctxt(m_factory, m_marker_l, m_root);
+            seedCtxtScope(ctxt);
             TaskResolveImports(&ctxt).resolve(i);
             DEBUG_LEAVE("  Resolve Imports");
         }
@@ -466,6 +481,23 @@ void TaskApplyTypeExtensions::mergeChild(
     // By value: get() returns a reference into the TaskGetName instance, so
     // binding to the temporary's result leaves a dangling reference.
     std::string name = TaskGetName().get(child);
+
+    // A plain constraint whose name the type already has is appended
+    // unnamed, as every constraint was before constraints were named (5.4):
+    // tests/python/linking/test_type_extension_semantics.py pins same-named
+    // constraints from two extensions as conjoining. Whether 17.2.3's
+    // uniqueness rule covers them is open (symbol-resolution-plan §11).
+    ast::IConstraintBlock *cb = dynamic_cast<ast::IConstraintBlock *>(child);
+    if (name.size() && cb
+            && !dynamic_cast<ast::IGenericConstraintDeclBool *>(child)
+            && target->getSymtab().find(name) != target->getSymtab().end()) {
+        ast::IScopeChild *prev = target->getChildren().at(
+            target->getSymtab().find(name)->second).get();
+        if (dynamic_cast<ast::IConstraintBlock *>(prev)
+                && !dynamic_cast<ast::IGenericConstraintDeclBool *>(prev)) {
+            name = "";
+        }
+    }
 
     if (name.size()) {
         addChild(target, child, name);

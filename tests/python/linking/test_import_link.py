@@ -67,7 +67,7 @@ def test_ambiguous_wildcard_import_reports_resolution_error():
         """
     )
     assert err is not None
-    assert "Ambiguous symbol resolution" in err
+    assert "ambiguous reference to 'A'" in err
 
 
 # ---------------------------------------------------------------------------

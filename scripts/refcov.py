@@ -30,7 +30,7 @@ Usage::
     PYTHONPATH=python python3 scripts/refcov.py baseline   # rewrite the baseline
     PYTHONPATH=python python3 scripts/refcov.py check      # compare; exit 1 on drift
 
-The baseline is docs/coverage/references.json. ``check`` (and
+The baseline is tests/python/baselines/references.json. ``check`` (and
 tests/python/test_reference_coverage.py) fails on *any* difference, in either
 direction: a regression is a bug, and an improvement is progress that should
 be recorded by regenerating the baseline in the same change.
@@ -48,29 +48,29 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-BASELINE = ROOT / "docs" / "coverage" / "references.json"
+BASELINE = ROOT / "tests" / "python" / "baselines" / "references.json"
 SCHEMA_VERSION = 1
 
 #: The node classes that carry a resolved target.
-REF_ROOTS = {"TypeIdentifier", "ExprRefPath"}
+REF_ROOTS = {"TypeIdentifier", "ExprRefPath", "ExprRefName"}
 
-#: ExprId contexts that *declare* a name rather than reference one, or that
-#: are the name part of a reference node counted on its own. Anything else
-#: holding a bare ExprId/ExprHierarchicalId is a reference with nowhere to
-#: record its target, and is counted as ``noslot``.
-DECL_ID_CONTEXTS = {
-    "NamedScopeChild.name", "NamedScope.name",
-    "TypeIdentifierElem.id", "ExprMemberPathElem.id",
-    "PackageScope.id",
-    "FunctionParamDecl.name", "TemplateParamDecl.name",
-    "ProceduralStmtDataDeclaration.name", "ConstraintStmtField.name",
-    "ActivityForeach.it_id", "ActivityRepeatCount.loop_var",
-    "ActivityReplicate.idx_id", "ActivityReplicate.it_label",
-    "ActivityLabeledScope.label", "ActivityLabeledStmt.label",
-    "ProceduralStmtForeach.it_id", "ProceduralStmtRepeat.it_id",
-    "TemplateForeach.it",
-    "CoverStmtInline.label", "CoverStmtReference.label",
-}
+#: The role of every name-bearing field (WS3.1), kept by
+#: tests/python/test_ast_reference_roles.py.
+ROLES = ROOT / "tests" / "python" / "baselines" / "reference-roles.yaml"
+
+
+def _decl_id_contexts():
+    """Fields whose ExprId *declares* a name, or is part of a reference node
+    counted on its own, or names nothing: every field whose role is not
+    `ref`. Anything else holding a bare ExprId/ExprHierarchicalId is a
+    reference with nowhere to record its target, and is counted as
+    ``noslot``."""
+    import yaml
+    roles = (yaml.safe_load(ROLES.read_text()) or {}).get("roles", {})
+    return {f for f, r in roles.items() if r != "ref"}
+
+
+DECL_ID_CONTEXTS = _decl_id_contexts()
 
 
 # -- schema ------------------------------------------------------------------

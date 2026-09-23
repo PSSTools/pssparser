@@ -2,7 +2,7 @@
 
 Recomputes scripts/refcov.py's measurements -- the T-miss slot states, the
 bound/unbound counts over the legal corpus, and the schema's reference
-fields -- and requires them to equal docs/coverage/references.json exactly.
+fields -- and requires them to equal tests/python/baselines/references.json exactly.
 
 Both directions fail. A slot going from ``reported`` to ``silent``, or a
 bound count dropping, is a regression. A slot becoming ``reported`` or an
@@ -35,7 +35,7 @@ def test_reference_coverage_matches_baseline(current):
     baseline = json.loads(refcov.BASELINE.read_text())
     d = refcov.diff(baseline, current)
     assert not d, (
-        "reference coverage differs from docs/coverage/references.json "
+        "reference coverage differs from tests/python/baselines/references.json "
         "(regenerate with `scripts/refcov.py baseline` if deliberate):\n  "
         + "\n  ".join(d))
 

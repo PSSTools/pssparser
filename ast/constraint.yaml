@@ -498,7 +498,7 @@ classes:
         - data:
             # LRM has List<HierarchicalId>
 #            - list: list<UP<ExprRefPathContext>>
-            - list: list<UP<ExprHierarchicalId>>
+            - list: list<UP<ExprRefPathContext>>
             - is_braced:
                 type: bool
                 is_ctor: false
@@ -536,7 +536,7 @@ classes:
             See Also:
                 ConstraintStmtDefaultDisable, ConstraintStmtExpr, ExprHierarchicalId
         - data:
-            - hid: UP<ExprHierarchicalId>
+            - hid: UP<ExprRefPathContext>
             - expr: UP<Expr>
     - ConstraintStmtDefaultDisable:
         - super: ConstraintStmt
@@ -572,7 +572,7 @@ classes:
             See Also:
                 ConstraintStmtDefault, ExprHierarchicalId
         - data:
-            - hid: UP<ExprHierarchicalId>
+            - hid: UP<ExprRefPathContext>
             
             
 

@@ -295,7 +295,7 @@ classes:
           Represents a PSS 3.1 ``export target function name;`` declaration.
       data:
         - plat: PlatQual
-        - name: UP<ExprId>
+        - name: UP<ExprRefName>
 
   - ExportAction:
       super: ScopeChild

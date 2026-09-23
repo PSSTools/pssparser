@@ -113,7 +113,7 @@ classes:
           is_ctor: false
           visit: false
       - target:
-          type: UP<ExprId>
+          type: UP<ExprRefName>
           is_ctor: false
       - with_expr:
           - type: UP<Expr>
@@ -151,7 +151,7 @@ classes:
               CovergroupCross, CoverpointBins
       data:
       - kind: CovergroupBinsKindE
-      - target: UP<ExprId>
+      - target: UP<ExprRefName>
       - with_expr:
           - type: UP<Expr>
           - visit: false
@@ -231,7 +231,7 @@ classes:
           See Also:
               Covergroup, CovergroupCoverpoint, CovergroupCrossBins
       data:
-      - coverpoint_names: "list<UP<ExprId>>"
+      - coverpoint_names: "list<UP<ExprRefName>>"
       - iff:
           - type: UP<Expr>
           - is_ctor: false
@@ -341,9 +341,9 @@ classes:
           See Also:
               CovergroupInstantiation
       data:
-      - name: UP<ExprId>
+      - name: UP<ExprRefName>
       - target:
-          - type: UP<ExprHierarchicalId>
+          - type: UP<ExprRefPathContext>
           - visit: false   # coverage metadata; not a link-resolved reference
 
   - CovergroupInstantiation:
@@ -378,7 +378,7 @@ classes:
           type: list<UP<CovergroupPortmap>>
           is_ctor: false
       - targets:
-          type: list<UP<ExprHierarchicalId>>
+          type: list<UP<ExprRefPathContext>>
           is_ctor: false
           visit: false
       - options:

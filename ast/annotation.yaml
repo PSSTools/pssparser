@@ -37,7 +37,7 @@ classes:
               Annotation
       data:
       - name:
-          type: UP<ExprId>
+          type: UP<ExprRefName>
       - value:
           type: UP<Expr>
 

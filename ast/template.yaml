@@ -304,5 +304,5 @@ classes:
           See Also:
               TemplateVarDecl
       data:
-        - lhs: UP<ExprId>
+        - lhs: UP<ExprRefName>
         - rhs: UP<Expr>

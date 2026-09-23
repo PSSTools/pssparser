@@ -184,7 +184,7 @@ classes:
             See Also:
                 ExprAggrStruct, ExprId
         data:
-            - name: UP<ExprId>
+            - name: UP<ExprRefName>
             - target:
                 type: int32_t
                 init: -1
@@ -457,6 +457,38 @@ classes:
             - location:
                 type: Location
                 is_ctor: false
+    - ExprRefName:
+        super: Expr
+        doc: |
+            A reference written as a single name, where the grammar has no
+            path: a symbol call, a function export, a struct-literal field,
+            a coverpoint or bins target, a bind field, a template assignment.
+
+            It exists to hold a binding (symbol-resolution plan WS3.2): those
+            names used to be bare ExprIds, which have nowhere to record what
+            they resolve to, so nothing could check that they had been
+            resolved at all.
+
+            Attributes:
+                id: The name as written
+                target: What it resolves to; null until resolved, or when
+                    its resolution belongs to a later pass
+                ctx_unknown: The name is resolved in a context the linker
+                    cannot yet compute (a struct literal whose type is not
+                    known from its syntax, WS8.9)
+
+            See Also:
+                ExprId, ExprRefPathContext
+        data:
+            - id: UP<ExprId>
+            - target:
+                is_ctor: false
+                type: UP<SymbolRefPath>
+                visit: false
+            - ctx_unknown:
+                is_ctor: false
+                type: bool
+                init: false
     - ExprIn:
         super: Expr
         doc: |
@@ -527,6 +559,29 @@ classes:
 #                is_ctor: false
 #                type: UP<SymbolRefPath>
 #                visit: false
+    - ExprMemberCall:
+        super: Expr
+        doc: |
+            A method call on a receiver that is not a name: a string or
+            aggregate literal (LRM Ex. 10). A call on a name is an
+            ExprRefPathContext, whose path elements carry the calls.
+
+            PSS Example::
+
+                "a,b".split(",")            // receiver ExprString
+                "a,b".split(",").size()     // two members, chained
+
+            Attributes:
+                receiver: The expression the first member is applied to
+                members: The members applied in order, each with its params
+
+            See Also:
+                ExprMemberPathElem, ExprRefPathContext
+        data:
+            - receiver: "UP<Expr>"
+            - members:
+                type: "list<UP<ExprMemberPathElem>>"
+                is_ctor: false
     - ExprNull:
         super: Expr
         doc: |
@@ -1003,6 +1058,12 @@ classes:
                 TypeIdentifierElem, ExprHierarchicalId
         data: 
             - elems : "list<UP<TypeIdentifierElem>>"
+            # `::x` -- a name in the unnamed global package only (18.1.3):
+            # no imports, no enclosing scopes
+            - is_global:
+                is_ctor: false
+                type: bool
+                init: false
             - target:
                 is_ctor: false
                 type: UP<SymbolRefPath>

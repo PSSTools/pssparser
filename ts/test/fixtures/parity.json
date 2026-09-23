@@ -921,30 +921,9 @@
     ]
    ],
    "id": "corpus:lexical/comments_and_strings.pss",
-   "markers": [
-    {
-     "code": "PSS027",
-     "col": 22,
-     "extent": 10,
-     "file": "lexical/comments_and_strings.pss",
-     "line": 19,
-     "message": "unterminated string literal",
-     "related": [],
-     "severity": "error"
-    },
-    {
-     "code": "PSS027",
-     "col": 43,
-     "extent": 2,
-     "file": "lexical/comments_and_strings.pss",
-     "line": 19,
-     "message": "unterminated string literal",
-     "related": [],
-     "severity": "error"
-    }
-   ],
+   "markers": [],
    "maxErrors": 0,
-   "raised": "ParseException",
+   "raised": null,
    "why": "corpus parity"
   },
   {

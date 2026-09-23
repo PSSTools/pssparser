@@ -102,7 +102,7 @@ def test_doc_annotation_and_comment_docstring_coexist():
     assert field.numAnnotations() == 1
     ann = field.getAnnotation(0)
     assert ann.numParameters() == 1
-    assert ann.getParameter(0).getName().getId() == "text"
+    assert ann.getParameter(0).getName().getId().getId() == "text"
 
 
 def test_doc_annotation_alone_leaves_docstring_empty():

@@ -379,14 +379,20 @@ void TaskResolveRef::visitTemplateParamExprValue(ast::ITemplateParamExprValue *i
 
 void TaskResolveRef::visitTypeIdentifier(ast::ITypeIdentifier *i) {
     DEBUG_ENTER("visitTypeIdentifier %s", i->getElems().at(0)->getId()->getId().c_str());
-	// Find the first element
-
-    ast::ISymbolRefPath *root = findRoot(i->getElems().at(0)->getId());
+	// Find the first element. `::x` names the unnamed global package only
+	// (18.1.3): an ordinary lookup found an imported or enclosing `x` first,
+	// and accepted a `::x` that does not exist (F20).
+    ast::ISymbolRefPath *root = i->getIs_global()
+        ? findGlobalRoot(i->getElems().at(0)->getId())
+        : findRoot(i->getElems().at(0)->getId());
 
     if (!root) {
         const std::string &name = i->getElems().at(0)->getId()->getId();
         DEBUG("Note: failed to resolve root symbol %s", name.c_str());
-        if (!m_report_unresolved) {
+        // An ambiguous import (PSS017) resolves to nothing and is already
+        // reported at this name; "unknown type" on top of it is a cascade.
+        if (!m_report_unresolved
+                || m_ctxt->wasReported(i->getElems().at(0)->getId()->getLocation())) {
             return;
         }
         std::string suggestion = findCloseMatch(
@@ -524,6 +530,22 @@ void TaskResolveRef::visitTypeIdentifier(ast::ITypeIdentifier *i) {
 ast::ISymbolRefPath *TaskResolveRef::findRoot(
         const ast::IExprId              *sym) {
     return TaskResolveRootRef(m_ctxt).resolve(sym);
+}
+
+ast::ISymbolRefPath *TaskResolveRef::findGlobalRoot(
+        const ast::IExprId              *sym) {
+    ast::ISymbolScope *root = dynamic_cast<ast::ISymbolScope *>(m_ctxt->root());
+    if (!root) {
+        return 0;
+    }
+    std::unordered_map<std::string,int32_t>::const_iterator it =
+        root->getSymtab().find(sym->getId());
+    if (it == root->getSymtab().end()) {
+        return 0;
+    }
+    ast::ISymbolRefPath *ret = m_ctxt->getFactory()->getAstFactory()->mkSymbolRefPath();
+    ret->getPath().push_back({ast::SymbolRefPathElemKind::ElemKind_ChildIdx, it->second});
+    return ret;
 }
 
 dmgr::IDebug *TaskResolveRef::m_dbg = 0;

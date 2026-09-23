@@ -187,7 +187,8 @@ BROKEN_BUCKETS = _manifest_broken_buckets() or FALLBACK_BROKEN_BUCKETS
 #: ``U-8e`` (octal escape in a string literal, ``"\\101"``) was **fixed** on
 #: 2026-09-23: the lexer lacked LRM 4.7's ``\\ddd`` escape (F1,
 #: symbol-resolution-plan.md 11.1). pssfmt's ``KNOWN_UNPARSEABLE`` entry for
-#: ``lexical/comments_and_strings.pss`` has to go too.
+#: ``lexical/comments_and_strings.pss`` has to go too (X-1 in
+#: docs/design/cross-repo-followups.md).
 RECORDED_DEFECTS = {
     "U-8b": "`dist` constraints",
 }

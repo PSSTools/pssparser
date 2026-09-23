@@ -52,6 +52,30 @@
 #include "pssp/ast/ITemplateGenericTypeParamDecl.h"
 #include "pssp/ast/ITemplateParamDeclList.h"
 #include "pssp/ast/IDataTypeUserDefined.h"
+#include "pssp/ast/IDataTypeEnum.h"
+#include "pssp/ast/IExprBitSlice.h"
+#include "pssp/ast/IFunctionImportType.h"
+#include "pssp/ast/IEnumDecl.h"
+#include "pssp/ast/ISymbolDeclaration.h"
+#include "pssp/ast/IComponentBind.h"
+#include "pssp/ast/IComponentBindTarget.h"
+#include "pssp/ast/IInstanceOverride.h"
+#include "pssp/ast/IExportFunction.h"
+#include "pssp/ast/IExprRefName.h"
+#include "pssp/ast/IActivitySymbolCall.h"
+#include "pssp/ast/IFunctionParamDecl.h"
+#include "pssp/ast/IExprBool.h"
+#include "pssp/impl/TaskEvalExpr.h"
+#include "pssp/IValInt.h"
+#include "pssp/ast/IActionFieldInitializer.h"
+#include "pssp/ast/IExprDomainOpenRangeList.h"
+#include "pssp/ast/IExprMemberCall.h"
+#include "pssp/ast/IExprTemplateString.h"
+#include "pssp/ast/IExprAggrLiteral.h"
+#include "pssp/ast/IDataTypeString.h"
+#include "pssp/ast/ISymbolFunctionScope.h"
+#include "pssp/ast/IFunctionPrototype.h"
+#include "pssp/ast/ISymbolEnumScope.h"
 #include "pssp/ast/ITypeIdentifier.h"
 
 #include <algorithm>
@@ -333,11 +357,41 @@ void TaskResolveRefs::resolve(ast::ISymbolTypeScope *scope) {
     DEBUG_LEAVE("resolve (iterator, scope)");
 }
 
+/**
+ * The parts of a traversal that resolve in the enclosing scope whatever the
+ * target turns out to be: subscripts on the target, and the value side of each
+ * `.x = v` initializer. Neither was walked (3.3). The `.x` side names a member
+ * of the traversed type and is resolved with the traversal rewrite (4.2, U3).
+ */
+void TaskResolveRefs::visitTraversalOperands(
+        ast::IExprRefPathContext                            *target,
+        const std::vector<ast::IActionFieldInitializerUP>   &inits) {
+    if (target) {
+        for (std::vector<ast::IExprMemberPathElemUP>::const_iterator
+                e=target->getHier_id()->getElems().begin();
+                e!=target->getHier_id()->getElems().end(); e++) {
+            for (std::vector<ast::IExprUP>::const_iterator
+                    s=(*e)->getSubscript().begin(); s!=(*e)->getSubscript().end(); s++) {
+                (*s)->accept(m_this);
+            }
+        }
+    }
+    for (std::vector<ast::IActionFieldInitializerUP>::const_iterator
+            it=inits.begin(); it!=inits.end(); it++) {
+        if ((*it)->getValue()) {
+            (*it)->getValue()->accept(m_this);
+        }
+    }
+}
+
 void TaskResolveRefs::visitActivityActionHandleTraversal(ast::IActivityActionHandleTraversal *i) {
     DEBUG_ENTER("visitActivityActionHandleTraversal");
+    visitTraversalOperands(i->getTarget(), i->getInitializers());
+
     ast::ISymbolRefPath *target_ref = TaskResolveRef(m_ctxt).resolve(i->getTarget());
 
     if (!target_ref) {
+        DEBUG_LEAVE("visitActivityActionHandleTraversal -- unresolved");
         return;
     }
 
@@ -349,14 +403,16 @@ void TaskResolveRefs::visitActivityActionHandleTraversal(ast::IActivityActionHan
     }
 
     ast::IField *field = dynamic_cast<ast::IField *>(target);
+    // A symbol parameter (`symbol s(A aa) { aa with {...}; }`) is traversed
+    // like a handle field of its declared type (4.4).
+    ast::IFunctionParamDecl *sym_param = dynamic_cast<ast::IFunctionParamDecl *>(target);
     DEBUG("target=%p field=%p", target, field);
-    if (!field) {
+    if (!field && !sym_param) {
         DEBUG("Failed to resolve traversal target to a field");
         DEBUG_LEAVE("visitActivityActionHandleTraversal");
         return;
     }
-    DEBUG("field: %s", field->getName()->getId().c_str());
-    ast::IDataType *field_t = field->getType();
+    ast::IDataType *field_t = field ? field->getType() : sym_param->getType();
     ast::IDataTypeUserDefined *field_udt = dynamic_cast<ast::IDataTypeUserDefined *>(field_t);
 
     DEBUG("field_t=%p action_t=%p", field_t, field_udt);
@@ -374,7 +430,7 @@ void TaskResolveRefs::visitActivityActionHandleTraversal(ast::IActivityActionHan
     uint32_t n_sub = (elems.size())?elems.back()->getSubscript().size():0;
     if (field_scope && n_sub) {
         field_scope = TaskGetSubscriptSymbolScope(
-            m_ctxt->getDebugMgr(), m_ctxt->root(), n_sub).resolve(field);
+            m_ctxt->getDebugMgr(), m_ctxt->root(), n_sub).resolve(target);
     }
     if (builtinCollectionKind(field_scope) != CollectionKind::None) {
         // A whole array, or a sub-array, of handles. It may be traversed, but
@@ -406,6 +462,7 @@ void TaskResolveRefs::visitActivityActionHandleTraversal(ast::IActivityActionHan
     
 void TaskResolveRefs::visitActivityActionTypeTraversal(ast::IActivityActionTypeTraversal *i) {
     DEBUG_ENTER("visitActivityActionTypeTraversal");
+    visitTraversalOperands(0, i->getInitializers());
     i->getTarget()->accept(m_this);
     ast::IDataTypeUserDefined *field_udt = i->getTarget(); // <ast::IDataTypeUserDefined *>(i->getTarget());
 //    DEBUG("--> resolve field_udt->getType_id()");
@@ -1037,7 +1094,37 @@ namespace {
     };
 }
 
+// Each path visitor resolves the path, then walks the bit slice, which the
+// resolution bodies never reached (F-N5: `x[NOSUCH:0]` was silent). The bodies
+// have many early exits, which is why the slice is walked out here.
+void TaskResolveRefs::visitSlice(ast::IExprBitSlice *slice) {
+    if (!slice) {
+        return;
+    }
+    if (slice->getLhs()) {
+        slice->getLhs()->accept(m_this);
+    }
+    if (slice->getRhs()) {
+        slice->getRhs()->accept(m_this);
+    }
+}
+
 void TaskResolveRefs::visitExprRefPathContext(ast::IExprRefPathContext *i) {
+    resolveExprRefPathContext(i);
+    visitSlice(i->getSlice());
+}
+
+void TaskResolveRefs::visitExprRefPathStatic(ast::IExprRefPathStatic *i) {
+    resolveExprRefPathStatic(i);
+    visitSlice(i->getSlice());
+}
+
+void TaskResolveRefs::visitExprRefPathStaticRooted(ast::IExprRefPathStaticRooted *i) {
+    resolveExprRefPathStaticRooted(i);
+    visitSlice(i->getSlice());
+}
+
+void TaskResolveRefs::resolveExprRefPathContext(ast::IExprRefPathContext *i) {
     DEBUG_ENTER("visitExprRefPathContext %s", i->getHier_id()->getElems().at(0)->getId()->getId().c_str());
 
     // Restored on every exit, of which this function has many (see the
@@ -1061,6 +1148,13 @@ void TaskResolveRefs::visitExprRefPathContext(ast::IExprRefPathContext *i) {
 
     if (!target) {
         const std::string &name = i->getHier_id()->getElems().at(0)->getId()->getId();
+
+        // Already reported here -- an ambiguous import (PSS017) resolves to
+        // nothing, and "unknown identifier" on top of it is a cascade.
+        if (m_ctxt->wasReported(i->getHier_id()->getElems().at(0)->getId()->getLocation())) {
+            DEBUG_LEAVE("visitExprRefPathContext -- already reported");
+            return;
+        }
 
         // Skip resolution errors for generic constraint parameters
         if (isGenericConstraintParam(name)) {
@@ -1539,7 +1633,7 @@ static bool isUnspecializedGeneric(ast::IScopeChild *c) {
         && td->getParams()->getParams().size();
 }
 
-void TaskResolveRefs::visitExprRefPathStatic(ast::IExprRefPathStatic *i) {
+void TaskResolveRefs::resolveExprRefPathStatic(ast::IExprRefPathStatic *i) {
     DEBUG_ENTER("visitExprRefPathStatic size=%d", i->getBase().size());
     // Already resolved at a use site this pass cannot see -- see the matching
     // note in visitExprRefPathContext. `bit[8] a[c_c::N]` is the case:
@@ -1550,10 +1644,9 @@ void TaskResolveRefs::visitExprRefPathStatic(ast::IExprRefPathStatic *i) {
         return;
     }
     ast::ISymbolRefPath *target = 0;
-    if (i->getIs_global()) {
-        DEBUG("TODO: support global-rooted references");
-    } else {
-        // relative root
+    {
+        // `::K` resolves its first element in the global package only
+        // (18.1.3, F20); `::NOPE` used to be accepted silently (ND-2).
         //
         // `target` deliberately assigns to the outer declaration rather than
         // shadowing it. It used to be re-declared here, which left the outer
@@ -1565,7 +1658,9 @@ void TaskResolveRefs::visitExprRefPathStatic(ast::IExprRefPathStatic *i) {
             it=i->getBase().begin();
             it!=i->getBase().end(); it++) {
             if (it==i->getBase().begin()) {
-                target = TaskResolveRef(m_ctxt).resolve((*it)->getId());
+                target = i->getIs_global()
+                    ? TaskResolveRef(m_ctxt).resolveGlobal((*it)->getId())
+                    : TaskResolveRef(m_ctxt).resolve((*it)->getId());
                 
                 if (!target) {
                     // As in visitExprRefPathContext: name the missing import
@@ -1755,7 +1850,7 @@ void TaskResolveRefs::visitExprRefPathStatic(ast::IExprRefPathStatic *i) {
     DEBUG_LEAVE("visitExprRefPathStatic");
 }
 
-void TaskResolveRefs::visitExprRefPathStaticRooted(ast::IExprRefPathStaticRooted *i) {
+void TaskResolveRefs::resolveExprRefPathStaticRooted(ast::IExprRefPathStaticRooted *i) {
     DEBUG_ENTER("visitExprRefPathStaticRooted %s",
         i->getLeaf()->getElems().at(0)->getId()->getId().c_str());
 
@@ -1766,8 +1861,12 @@ void TaskResolveRefs::visitExprRefPathStaticRooted(ast::IExprRefPathStaticRooted
     // operand, and three tests that had nothing to do with void returns
     // started failing on `p::f(1);` and `p::m(1,2);`.
     SaveExpr save_refpath(m_cur_refpath, i);
-    // Resolve the root
-    if (i->getRoot()->getIs_global()) {
+    // Resolve the root. `::p::f()` has a root, `::p`, which resolves in the
+    // global package like any `::` path (resolveExprRefPathStatic), and takes
+    // the general branch. Only `::f()` -- no root elements -- looks its leaf
+    // up in the global package here. This used to be done for both, so
+    // `::p::f()` looked for `f` among the globals (A-N2).
+    if (i->getRoot()->getIs_global() && !i->getRoot()->getBase().size()) {
         ast::IExprId *id = i->getLeaf()->getElems().at(0)->getId();
         DEBUG("Global reference -- first find leaf %s", id->getId().c_str());
         std::unordered_map<std::string,int32_t>::const_iterator it;
@@ -1775,12 +1874,9 @@ void TaskResolveRefs::visitExprRefPathStaticRooted(ast::IExprRefPathStaticRooted
             m_ctxt->symtab()->getRootScope()->getSymtab();
         
         if ((it=symtab.find(id->getId())) == symtab.end()) {
-            // Not reported, and not simply a missing marker: this looks up
-            // the *leaf* (`f` in `::p::f()`) in the global scope instead of
-            // walking the root path, so it misses legal references too. It
-            // printed "Failed to resolve leaf" to stdout; the fix is A-N2
-            // (symbol-resolution-plan.md, with F20).
-            DEBUG("Failed to resolve leaf %s", id->getId().c_str());
+            m_ctxt->addErrorMarker(id->getLocation(),
+                "unknown identifier '%s' in the global package",
+                id->getId().c_str());
         } else {
             ast::ISymbolRefPath *ref = 
                 m_ctxt->getFactory()->getAstFactory()->mkSymbolRefPath();
@@ -1917,6 +2013,16 @@ void TaskResolveRefs::visitField(ast::IField *i) {
             checkConstTemplate(i->getInit(), i->getName()->getLocation());
         }
     }
+    // A handle's `{.x = v}` list: each value is resolved here, in the scope
+    // declaring the handle. The `.x` side names a field of the handle's type
+    // and is resolved with the traversal rewrite (WS4.2, U3).
+    for (std::vector<ast::IActionFieldInitializerUP>::const_iterator
+            it=i->getInitializers().begin();
+            it!=i->getInitializers().end(); it++) {
+        if ((*it)->getValue()) {
+            (*it)->getValue()->accept(m_this);
+        }
+    }
     checkMutableField(i);
     DEBUG_LEAVE("visitField %s", i->getName()->getId().c_str());
 }
@@ -2011,12 +2117,22 @@ void TaskResolveRefs::visitFunctionPrototype(ast::IFunctionPrototype *i) {
         } else {
             // TODO: likely a category type
         }
+        // A default value is an ordinary expression (F-N9: it was never
+        // walked, so `int p = NOSUCH` was silent).
+        if ((*it)->getDflt()) {
+            (*it)->getDflt()->accept(m_this);
+        }
     }
     DEBUG_LEAVE("visitFunctionPrototype");
 } 
 
 void TaskResolveRefs::visitProceduralStmtRepeat(ast::IProceduralStmtRepeat *i) {
     DEBUG_ENTER("visitProceduralStmtRepeat %d", i->getSymtab().size());
+    // The count is outside the loop: the index variable is not in scope in it
+    // (F-N7: it was never walked).
+    if (i->getCount()) {
+        i->getCount()->accept(m_this);
+    }
     m_ctxt->symtab()->pushScope(i);
     // `repeat (...) ;` -- an empty statement -- leaves body null.
     if (i->getBody()) {
@@ -2182,7 +2298,7 @@ void TaskResolveRefs::visitTemplateAssign(ast::ITemplateAssign *i) {
     // the only way to tell them apart is to ask which symtab the name came
     // from -- which is why template locals are real symbols in a real scope
     // rather than a side table.
-    const std::string &name = i->getLhs()->getId();
+    const std::string &name = i->getLhs()->getId()->getId();
 
     bool found = false;
     bool in_template = false;
@@ -2203,13 +2319,13 @@ void TaskResolveRefs::visitTemplateAssign(ast::ITemplateAssign *i) {
     if (!found) {
         m_ctxt->addMarker(
             MarkerSeverityE::Error,
-            i->getLhs()->getLocation(),
+            i->getLhs()->getId()->getLocation(),
             "unknown identifier '%s'",
             name.c_str());
     } else if (!in_template) {
         m_ctxt->addMarker(
             MarkerSeverityE::Error,
-            i->getLhs()->getLocation(),
+            i->getLhs()->getId()->getLocation(),
             "template assignment target '%s' is not declared within this "
             "template string",
             name.c_str());
@@ -2234,6 +2350,155 @@ void TaskResolveRefs::visitMergedScopeChild(ast::IScopeChild *c) {
     c->accept(m_this);
     if (decl_s) {
         m_ctxt->popExtensionCtxt();
+    }
+}
+
+/**
+ * `enum e : byte_t { ... }`. The declaration is reachable only through the
+ * non-visiting `decl` back-pointer (see TaskBuildSymbolTree::visitEnumDecl),
+ * so its base type was never resolved and `enum e : nosuch_t` was silent
+ * (F-N4). It is written in the enclosing scope, so it is resolved before the
+ * enum's own scope is pushed. Whether it is an integer type is CH07-39.
+ */
+void TaskResolveRefs::visitSymbolEnumScope(ast::ISymbolEnumScope *i) {
+    DEBUG_ENTER("visitSymbolEnumScope %s", i->getName().c_str());
+    if (i->getDecl() && i->getDecl()->getBase_type()) {
+        i->getDecl()->getBase_type()->accept(m_this);
+    }
+    visitSymbolScope(i);
+    DEBUG_LEAVE("visitSymbolEnumScope %s", i->getName().c_str());
+}
+
+/** A symbol's parameter types are written in the enclosing scope (4.4). */
+void TaskResolveRefs::visitSymbolDeclaration(ast::ISymbolDeclaration *i) {
+    DEBUG_ENTER("visitSymbolDeclaration %s", i->getName().c_str());
+    for (std::vector<ast::IFunctionParamDeclUP>::const_iterator
+            it=i->getParams().begin(); it!=i->getParams().end(); it++) {
+        if ((*it)->getType()) {
+            (*it)->getType()->accept(m_this);
+        }
+    }
+    visitSymbolScope(i);
+    DEBUG_LEAVE("visitSymbolDeclaration %s", i->getName().c_str());
+}
+
+/**
+ * `s(a1, a2);` inlines symbol `s` (11.4). The name must be a symbol, and the
+ * call must supply one argument per parameter -- a symbol parameter has no
+ * default. Nothing visited the call before (S2), so `nosuch(a1);` linked.
+ * The target is an ExprId, which has no slot for the binding (WS3.2), so it
+ * is checked here and not recorded.
+ */
+void TaskResolveRefs::visitActivitySymbolCall(ast::IActivitySymbolCall *i) {
+    DEBUG_ENTER("visitActivitySymbolCall");
+    for (std::vector<ast::IExprUP>::const_iterator
+            it=i->getParams().begin(); it!=i->getParams().end(); it++) {
+        (*it)->accept(m_this);
+    }
+
+    ast::IExprRefName *rn = i->getTarget();
+    ast::IExprId *id = rn ? rn->getId() : 0;
+    if (!id) {
+        DEBUG_LEAVE("visitActivitySymbolCall -- no target");
+        return;
+    }
+    ast::IExprHierarchicalId *hid = m_ctxt->getFactory()->getAstFactory()->mkExprHierarchicalId();
+    ast::IExprId *id_c = m_ctxt->getFactory()->getAstFactory()->mkExprId(
+        id->getId(), id->getIs_escaped());
+    id_c->setLocation(id->getLocation());
+    hid->getElems().push_back(ast::IExprMemberPathElemUP(
+        m_ctxt->getFactory()->getAstFactory()->mkExprMemberPathElem(id_c, 0)));
+    ast::IExprRefPathContextUP ref(
+        m_ctxt->getFactory()->getAstFactory()->mkExprRefPathContext(hid));
+    ast::ISymbolRefPathUP target(TaskResolveRef(m_ctxt, true, false).resolve(ref.get()));
+    ast::IScopeChild *target_c = target ? m_ctxt->resolveSymbolPathRef(target.get()) : 0;
+    ast::ISymbolDeclaration *sym = dynamic_cast<ast::ISymbolDeclaration *>(target_c);
+
+    if (!target_c) {
+        m_ctxt->addErrorMarker(id->getLocation(),
+            "unknown identifier '%s'", id->getId().c_str());
+    } else if (!sym) {
+        m_ctxt->addErrorMarker(id->getLocation(),
+            "'%s' is not a symbol; only a symbol can be called in an activity",
+            id->getId().c_str());
+    } else {
+        if (sym->getParams().size() != i->getParams().size()) {
+            m_ctxt->addErrorMarker(id->getLocation(),
+                "call to '%s' expects %d argument%s, got %d",
+                id->getId().c_str(),
+                (int)sym->getParams().size(),
+                (sym->getParams().size() == 1) ? "" : "s",
+                (int)i->getParams().size());
+        }
+        if (!rn->getTarget()) {
+            rn->setTarget(target.release());
+        }
+    }
+    DEBUG_LEAVE("visitActivitySymbolCall");
+}
+
+/**
+ * `bind p { a.x, ... };` -- the pool path and the target paths are resolved
+ * along component paths (WS4.5, U2), not by the ordinary lookup. Only the
+ * action type named in a target is resolved here, as before WS3.2.
+ */
+void TaskResolveRefs::visitComponentBind(ast::IComponentBind *i) {
+    for (std::vector<ast::IComponentBindTargetUP>::const_iterator
+            it=i->getTargets().begin(); it!=i->getTargets().end(); it++) {
+        if ((*it)->getType_id()) {
+            (*it)->getType_id()->accept(m_this);
+        }
+    }
+}
+
+/**
+ * `.x = v`: the value resolves here; `.x` names a member of the handle's type
+ * and resolves with the traversal rewrite (WS4.2, U3).
+ */
+void TaskResolveRefs::visitActionFieldInitializer(ast::IActionFieldInitializer *i) {
+    if (i->getValue()) {
+        i->getValue()->accept(m_this);
+    }
+}
+
+/**
+ * `export target function f;` (20.4.2) names a function declared elsewhere.
+ * It was never resolved, so an unknown name linked (F-N12). Only the binding
+ * is checked here; "a static function with a native implementation" is a
+ * semantic check.
+ */
+void TaskResolveRefs::visitExportFunction(ast::IExportFunction *i) {
+    ast::IExprRefName *rn = i->getName();
+    if (!rn || !rn->getId() || rn->getTarget()) {
+        return;
+    }
+    ast::IExprId *id = rn->getId();
+    ast::IExprHierarchicalId *hid = m_ctxt->getFactory()->getAstFactory()->mkExprHierarchicalId();
+    ast::IExprId *id_c = m_ctxt->getFactory()->getAstFactory()->mkExprId(
+        id->getId(), id->getIs_escaped());
+    id_c->setLocation(id->getLocation());
+    hid->getElems().push_back(ast::IExprMemberPathElemUP(
+        m_ctxt->getFactory()->getAstFactory()->mkExprMemberPathElem(id_c, 0)));
+    ast::IExprRefPathContextUP ref(
+        m_ctxt->getFactory()->getAstFactory()->mkExprRefPathContext(hid));
+    ast::ISymbolRefPathUP target(TaskResolveRef(m_ctxt, true, false).resolve(ref.get()));
+    ast::IScopeChild *target_c = target ? m_ctxt->resolveSymbolPathRef(target.get()) : 0;
+
+    if (!target_c) {
+        m_ctxt->addErrorMarker(id->getLocation(),
+            "unknown function '%s'", id->getId().c_str());
+    } else if (!dynamic_cast<ast::ISymbolFunctionScope *>(target_c)) {
+        m_ctxt->addErrorMarker(id->getLocation(),
+            "'%s' is not a function", id->getId().c_str());
+    } else {
+        rn->setTarget(target.release());
+    }
+}
+
+/** `instance a.b with T;` -- the instance path is U5; the type resolves here. */
+void TaskResolveRefs::visitInstanceOverride(ast::IInstanceOverride *i) {
+    if (i->getWith_t()) {
+        i->getWith_t()->accept(m_this);
     }
 }
 
@@ -2493,21 +2758,16 @@ bool TaskResolveRefs::checkParamListConsistency(
             return true;
         }
 
-        // LRM 20.2.4 c: "A default parameter value shall not be specified in
-        // the redeclaration of a function if already declared for the same
-        // parameter in a previous declaration, *even if the value is the
-        // same*." So the values are deliberately not compared -- specifying
-        // one twice is the violation.
-        //
-        // Stated without "earlier"/"previous", because the prototype list is
-        // not in lexical order: a definition's prototype is moved to the
-        // front. The rule is symmetric, so nothing is lost by saying so.
-        if (b->getDflt() && q->getDflt()) {
+        // LRM 3.1 20.2.4 c: a default "may be specified in the redeclaration
+        // ... but this value shall be equal" (3.0 forbade repeating it at
+        // all, which is what this used to enforce -- F24). Only a *certain*
+        // difference is reported: a value that does not fold is accepted.
+        if (b->getDflt() && q->getDflt()
+                && defaultsDiffer(b->getDflt(), q->getDflt())) {
             m_ctxt->addMarker(
                 MarkerSeverityE::Error, loc,
-                "%s of '%s' is given a default value by more than one "
-                "declaration; only one declaration may give it",
-                paramDesc(idx, b).c_str(), fname.c_str());
+                "declarations of '%s' disagree about the default value of %s",
+                fname.c_str(), paramDesc(idx, b).c_str());
             return true;
         }
 
@@ -2522,6 +2782,33 @@ bool TaskResolveRefs::checkParamListConsistency(
     }
 
     return false;
+}
+
+/**
+ * True only when two default values certainly differ: both fold to integers
+ * (TaskEvalExpr), or both are bool or string literals, and the values are not
+ * equal. Anything else -- an enum item, an expression that does not fold -- is
+ * "not known to differ".
+ */
+bool TaskResolveRefs::defaultsDiffer(ast::IExpr *a, ast::IExpr *b) {
+    ast::IExprBool *ba = dynamic_cast<ast::IExprBool *>(a);
+    ast::IExprBool *bb = dynamic_cast<ast::IExprBool *>(b);
+    if (ba && bb) {
+        return ba->getValue() != bb->getValue();
+    }
+    ast::IExprString *sa = dynamic_cast<ast::IExprString *>(a);
+    ast::IExprString *sb = dynamic_cast<ast::IExprString *>(b);
+    if (sa && sb) {
+        return sa->getValue() != sb->getValue();
+    }
+
+    ast::ISymbolScope *root = dynamic_cast<ast::ISymbolScope *>(m_ctxt->root());
+    TaskEvalExpr eval(m_ctxt->getFactory(), root);
+    std::unique_ptr<IVal> va(eval.eval(a));
+    std::unique_ptr<IVal> vb(eval.eval(b));
+    IValInt *ia = dynamic_cast<IValInt *>(va.get());
+    IValInt *ib = dynamic_cast<IValInt *>(vb.get());
+    return ia && ib && ia->getValS() != ib->getValS();
 }
 
 void TaskResolveRefs::visitProceduralStmtReturn(ast::IProceduralStmtReturn *i) {
@@ -2929,7 +3216,7 @@ void TaskResolveRefs::visitAnnotation(ast::IAnnotation *i) {
         if (!param->getName()) {
             continue;
         }
-        const std::string &name = param->getName()->getId();
+        const std::string &name = param->getName()->getId()->getId();
 
         // Use TaskFindPathElem rather than the scope's own symtab: fields
         // contributed by `extend annotation` are not merged into the symbol
@@ -2939,7 +3226,7 @@ void TaskResolveRefs::visitAnnotation(ast::IAnnotation *i) {
         if (decl_s) {
             res = TaskFindPathElem(
                 m_ctxt->getDebugMgr(),
-                m_ctxt->root()).find(decl_s, param->getName());
+                m_ctxt->root()).find(decl_s, param->getName()->getId());
         }
 
         if (decl_s && !res.sym) {
@@ -2949,6 +3236,19 @@ void TaskResolveRefs::visitAnnotation(ast::IAnnotation *i) {
                 name.c_str(),
                 type_name.c_str());
             continue;
+        }
+
+        // Record the binding (WS3.2): the annotation type's path, a Super
+        // step per base type crossed, then the member.
+        if (res.sym && res.idx >= 0 && !param->getName()->getTarget()) {
+            ast::ISymbolRefPath *ref =
+                m_ctxt->getFactory()->getAstFactory()->mkSymbolRefPath();
+            ref->getPath() = type_id->getTarget()->getPath();
+            for (int32_t s=0; s<=res.super_idx; s++) {
+                ref->getPath().push_back({ast::SymbolRefPathElemKind::ElemKind_Super, 0});
+            }
+            ref->getPath().push_back({ast::SymbolRefPathElemKind::ElemKind_ChildIdx, res.idx});
+            param->getName()->setTarget(ref);
         }
 
         if (param->getValue()) {
@@ -3019,6 +3319,206 @@ void TaskResolveRefs::visitDataTypeUserDefined(ast::IDataTypeUserDefined *i) {
 /**
  * Resolve an exec block tag's struct type (20.5.4), exactly once per node.
  */
+// `e_t in [A, ..B]`: a domain is an expected-type context (8.4.3), so a bare
+// name there is first an item of e_t, whatever is lexically visible -- an
+// enum reached through `pkg::e_t` has no items in scope. Anything else, and a
+// name that is not an item, resolves as usual.
+void TaskResolveRefs::visitDataTypeEnum(ast::IDataTypeEnum *i) {
+    DEBUG_ENTER("visitDataTypeEnum");
+    if (i->getTid()) {
+        i->getTid()->accept(m_this);
+    }
+
+    ast::IExprDomainOpenRangeList *dom = i->getIn_rangelist();
+    if (!dom) {
+        DEBUG_LEAVE("visitDataTypeEnum -- no domain");
+        return;
+    }
+
+    ast::ISymbolRefPath *enum_p = (i->getTid() && i->getTid()->getType_id())
+        ? i->getTid()->getType_id()->getTarget() : 0;
+    ast::ISymbolEnumScope *enum_s = enum_p
+        ? dynamic_cast<ast::ISymbolEnumScope *>(m_ctxt->resolveSymbolPathRef(enum_p))
+        : 0;
+
+    auto bind_item = [&](ast::IExpr *e) {
+        ast::IExprRefPathContext *rp = dynamic_cast<ast::IExprRefPathContext *>(e);
+        if (enum_s && rp && !rp->getTarget() && !rp->getIs_super()
+                && rp->getHier_id()->getElems().size() == 1
+                && !rp->getHier_id()->getElems().at(0)->getSubscript().size()
+                && !rp->getHier_id()->getElems().at(0)->getParams()) {
+            auto it = enum_s->getSymtab().find(
+                rp->getHier_id()->getElems().at(0)->getId()->getId());
+            if (it != enum_s->getSymtab().end()) {
+                ast::ISymbolRefPath *ref =
+                    m_ctxt->getFactory()->getAstFactory()->mkSymbolRefPath();
+                ref->getPath() = enum_p->getPath();
+                ref->getPath().push_back({
+                    ast::SymbolRefPathElemKind::ElemKind_ChildIdx, it->second});
+                rp->setTarget(ref);
+            }
+        }
+        e->accept(m_this);
+    };
+
+    for (std::vector<ast::IExprDomainOpenRangeValueUP>::const_iterator
+            it=dom->getValues().begin();
+            it!=dom->getValues().end(); it++) {
+        if ((*it)->getLhs()) bind_item((*it)->getLhs());
+        if ((*it)->getRhs()) bind_item((*it)->getRhs());
+    }
+    DEBUG_LEAVE("visitDataTypeEnum");
+}
+
+// `"a,b".split(",").size()`: the receiver is a literal, so its type is known
+// from its form. A string member is checked against the `string` pseudo-type's
+// prototypes, as a call on a string field is; a collection member is only
+// name-checked (P3-X6d). Once a member's result type is not known here, the
+// rest of the chain is left unchecked rather than guessed at.
+void TaskResolveRefs::visitExprMemberCall(ast::IExprMemberCall *i) {
+    DEBUG_ENTER("visitExprMemberCall");
+    enum class Kind { String, Collection, Unknown };
+
+    if (i->getReceiver()) {
+        i->getReceiver()->accept(m_this);
+    }
+
+    Kind kind = Kind::Unknown;
+    if (dynamic_cast<ast::IExprString *>(i->getReceiver())
+            || dynamic_cast<ast::IExprTemplateString *>(i->getReceiver())) {
+        kind = Kind::String;
+    } else if (dynamic_cast<ast::IExprAggrLiteral *>(i->getReceiver())) {
+        kind = Kind::Collection;
+    }
+
+    for (std::vector<ast::IExprMemberPathElemUP>::const_iterator
+            it=i->getMembers().begin();
+            it!=i->getMembers().end(); it++) {
+        ast::IExprMemberPathElem *elem = it->get();
+        const std::string &name = elem->getId()->getId();
+
+        if (elem->getParams()) {
+            for (auto p=elem->getParams()->getParameters().begin();
+                    p!=elem->getParams()->getParameters().end(); p++) {
+                (*p)->accept(m_this);
+            }
+        }
+        for (auto s=elem->getSubscript().begin(); s!=elem->getSubscript().end(); s++) {
+            (*s)->accept(m_this);
+        }
+
+        if (kind == Kind::Unknown) {
+            continue;
+        }
+
+        ast::IScopeChild *proto = 0;
+        bool found;
+        if (kind == Kind::String) {
+            ast::ISymbolScope *string_s = builtinStringScope_rr(m_ctxt->root());
+            if (string_s) {
+                proto = TaskFindPathElem(
+                    m_ctxt->getDebugMgr(),
+                    m_ctxt->root()).find(string_s, elem->getId()).sym;
+            }
+            found = string_s ? (proto != 0)
+                : (stringMethods().find(name) != stringMethods().end());
+        } else {
+            found = (collectionMethods().find(name) != collectionMethods().end());
+        }
+
+        if (!found) {
+            m_ctxt->addErrorMarker(
+                elem->getId()->getLocation(),
+                "unknown method '%s' on %s",
+                name.c_str(),
+                (kind == Kind::String) ? "string" : "built-in type");
+            break;
+        }
+        if (!elem->getParams()) {
+            m_ctxt->addErrorMarker(
+                elem->getId()->getLocation(),
+                "'%s' is a method; call it as '%s()'",
+                name.c_str(), name.c_str());
+            break;
+        }
+
+        elem->setTarget(-2);    // resolved, not to a child index (as for fields)
+
+        // The next member applies to this one's result.
+        kind = Kind::Unknown;
+        if (proto) {
+            TaskCheckCallArgs(m_ctxt).check(proto, elem);
+            ast::ISymbolFunctionScope *fs = dynamic_cast<ast::ISymbolFunctionScope *>(proto);
+            ast::IFunctionPrototype *fp = (fs && fs->getPrototypes().size())
+                ? fs->getPrototypes().at(0) : 0;
+            ast::IDataType *rt = fp ? fp->getRtype() : 0;
+            if (dynamic_cast<ast::IDataTypeString *>(rt)) {
+                kind = Kind::String;
+            } else if (dynamic_cast<ast::IDataTypeUserDefined *>(rt)) {
+                // BuiltinsFactory spells its results list<...> this way.
+                kind = Kind::Collection;
+            }
+        }
+        if (elem->getSubscript().size()) {
+            kind = Kind::Unknown;
+        }
+    }
+    DEBUG_LEAVE("visitExprMemberCall");
+}
+
+/**
+ * `import [plat] [lang] function f;` -- LRM 20.4.1, Syntax 95 a: the function
+ * is declared separately, and this attaches an import to it. The name is bound
+ * like any type identifier, but must name a function, and the import obeys the
+ * same one-import, not-also-defined rules as the prototype form
+ * (TaskBuildSymbolTree::visitFunctionImportProto).
+ */
+void TaskResolveRefs::visitFunctionImportType(ast::IFunctionImportType *i) {
+    DEBUG_ENTER("visitFunctionImportType");
+    ast::ITypeIdentifier *tid = i->getType();
+    if (!tid || !tid->getElems().size()) {
+        DEBUG_LEAVE("visitFunctionImportType -- no name");
+        return;
+    }
+    const ast::Location &loc = tid->getElems().back()->getId()->getLocation();
+    std::string name = tid->getElems().back()->getId()->getId();
+
+    if (!tid->getTarget()) {
+        tid->setTarget(TaskResolveRef(m_ctxt, true, false).resolve(tid));
+    }
+    ast::IScopeChild *target = tid->getTarget()
+        ? m_ctxt->resolveSymbolPathRef(tid->getTarget()) : 0;
+    ast::ISymbolFunctionScope *func = dynamic_cast<ast::ISymbolFunctionScope *>(target);
+
+    if (!target) {
+        m_ctxt->addErrorMarker(loc,
+            "unknown function '%s': an import of this form needs a separate "
+            "declaration of the function (20.4.1)", name.c_str());
+    } else if (!func) {
+        m_ctxt->addErrorMarker(loc, "'%s' is not a function", name.c_str());
+    } else if (func->getBody()) {
+        m_ctxt->addErrorMarker(loc,
+            "function '%s' cannot be both defined and imported", name.c_str());
+    } else if (func->getImport_specs().size()) {
+        m_ctxt->addErrorMarker(loc,
+            "function '%s' is already imported", name.c_str());
+    } else {
+        func->getImport_specs().push_back(ast::IFunctionImportUP(
+            m_ctxt->getFactory()->getAstFactory()->mkFunctionImport(
+                i->getPlat(), i->getLang())));
+        for (std::vector<ast::IFunctionPrototype *>::const_iterator
+                it=func->getPrototypes().begin();
+                it!=func->getPrototypes().end(); it++) {
+            if (i->getPlat() == ast::PlatQual::PlatQual_Solve) {
+                (*it)->setIs_solve(true);
+            } else if (i->getPlat() == ast::PlatQual::PlatQual_Target) {
+                (*it)->setIs_target(true);
+            }
+        }
+    }
+    DEBUG_LEAVE("visitFunctionImportType");
+}
+
 void TaskResolveRefs::visitExecBlockTag(ast::IExecBlockTag *i) {
     DEBUG_ENTER("visitExecBlockTag");
     if (!m_checked_exec_tags.insert(i).second) {
@@ -3071,9 +3571,14 @@ void TaskResolveRefs::visitStruct(ast::IStruct *i) {
 void TaskResolveRefs::visitGenericConstraintDeclBool(ast::IGenericConstraintDeclBool *i) {
     DEBUG_ENTER("visitGenericConstraintDeclBool");
 
-    // Register parameter names so they are not flagged as unknown
+    // Register parameter names so they are not flagged as unknown. Their
+    // types are resolved in the enclosing scope (F14, minimal fix); binding
+    // the names themselves needs a parameter scope (WS8.7).
     std::set<std::string> saved = m_generic_constraint_params;
     for (auto &p : i->getParameters()) {
+        if (p->getType()) {
+            p->getType()->accept(m_this);
+        }
         if (p->getName()) {
             m_generic_constraint_params.insert(p->getName()->getId());
         }
@@ -3089,8 +3594,17 @@ void TaskResolveRefs::visitGenericConstraintDeclBool(ast::IGenericConstraintDecl
 void TaskResolveRefs::visitGenericConstraintDeclValue(ast::IGenericConstraintDeclValue *i) {
     DEBUG_ENTER("visitGenericConstraintDeclValue");
 
+    // `constraint T f(...) expr;` -- T is written in the enclosing scope. It
+    // was never walked, so an unknown T reached only the completeness gate.
+    if (i->getReturn_type()) {
+        i->getReturn_type()->accept(m_this);
+    }
+
     std::set<std::string> saved = m_generic_constraint_params;
     for (auto &p : i->getParameters()) {
+        if (p->getType()) {
+            p->getType()->accept(m_this);     // see visitGenericConstraintDeclBool
+        }
         if (p->getName()) {
             m_generic_constraint_params.insert(p->getName()->getId());
         }
@@ -3427,7 +3941,7 @@ void TaskResolveRefs::checkRegFieldRefs(
                 continue;
             }
 
-            const std::string &n = (*it)->getName()->getId();
+            const std::string &n = (*it)->getName()->getId()->getId();
 
             if (!findRegField(vs, n)) {
                 std::string suggestion = closestRegField(vs, n);

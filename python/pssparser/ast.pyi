@@ -170,30 +170,30 @@ class FieldAttr(IntEnum):
     Mutable = auto()
     
 class Factory(object):
-    def mkSymbolImportSpec(self) -> 'SymbolImportSpec': ...
     def mkAssocData(self) -> 'AssocData': ...
+    def mkSymbolImportSpec(self) -> 'SymbolImportSpec': ...
     def mkSymbolRefPath(self) -> 'SymbolRefPath': ...
-    def mkTemplateParamDeclList(self) -> 'TemplateParamDeclList': ...
+    def mkScopeChild(self) -> 'ScopeChild': ...
     def mkActivityMatchChoice(self,
         is_default : bool,
         cond : ExprOpenRangeList,
         body : ScopeChild) -> 'ActivityMatchChoice': ...
+    def mkTemplateParamDeclList(self) -> 'TemplateParamDeclList': ...
     def mkTemplateParamValue(self) -> 'TemplateParamValue': ...
-    def mkTemplateParamValueList(self) -> 'TemplateParamValueList': ...
     def mkExpr(self) -> 'Expr': ...
-    def mkScopeChild(self) -> 'ScopeChild': ...
     def mkActivitySelectBranch(self,
         guard : Expr,
         weight : Expr,
         body : ScopeChild) -> 'ActivitySelectBranch': ...
+    def mkTemplateParamValueList(self) -> 'TemplateParamValueList': ...
     def mkExprAggrMapElem(self,
         lhs : Expr,
         rhs : Expr) -> 'ExprAggrMapElem': ...
     def mkExprAggrStructElem(self,
-        name : ExprId,
+        name : ExprRefName,
         value : Expr) -> 'ExprAggrStructElem': ...
     def mkActionFieldInitializer(self,
-        path : ExprHierarchicalId,
+        path : ExprRefPathContext,
         value : Expr) -> 'ActionFieldInitializer': ...
     def mkFunctionDefinition(self,
         proto : FunctionPrototype,
@@ -208,11 +208,8 @@ class Factory(object):
         type : DataType,
         dir : ParamDir,
         dflt : Expr) -> 'FunctionParamDecl': ...
-    def mkTypedefDeclaration(self,
-        name : ExprId,
-        type : DataType) -> 'TypedefDeclaration': ...
-    def mkGenericConstraintDeclValue(self) -> 'GenericConstraintDeclValue': ...
     def mkActivityJoinSpec(self) -> 'ActivityJoinSpec': ...
+    def mkGenericConstraintDeclValue(self) -> 'GenericConstraintDeclValue': ...
     def mkGenericConstraintParam(self,
         name : ExprId,
         is_const : bool,
@@ -225,34 +222,34 @@ class Factory(object):
     def mkActivityStmt(self) -> 'ActivityStmt': ...
     def mkNamedScopeChild(self,
         name : ExprId) -> 'NamedScopeChild': ...
-    def mkOverrideStmt(self) -> 'OverrideStmt': ...
     def mkAnnotation(self,
         type : TypeIdentifier) -> 'Annotation': ...
+    def mkOverrideStmt(self) -> 'OverrideStmt': ...
+    def mkAnnotationParam(self,
+        name : ExprRefName,
+        value : Expr) -> 'AnnotationParam': ...
     def mkPackageImportStmt(self,
         wildcard : bool,
         alias : ExprId) -> 'PackageImportStmt': ...
-    def mkAnnotationParam(self,
-        name : ExprId,
-        value : Expr) -> 'AnnotationParam': ...
     def mkComment(self,
         text : str,
         placement : CommentPlacement) -> 'Comment': ...
     def mkComponentBind(self,
-        pool_path : str,
+        pool_path : ExprRefPathContext,
         is_wildcard : bool) -> 'ComponentBind': ...
     def mkComponentBindTarget(self,
         is_wildcard : bool) -> 'ComponentBindTarget': ...
     def mkComponentPathElem(self,
-        id : ExprId) -> 'ComponentPathElem': ...
+        id : ExprRefName) -> 'ComponentPathElem': ...
+    def mkConstraintStmt(self) -> 'ConstraintStmt': ...
     def mkProceduralStmtIfClause(self,
         cond : Expr,
         body : ScopeChild) -> 'ProceduralStmtIfClause': ...
-    def mkConstraintStmt(self) -> 'ConstraintStmt': ...
     def mkPyImportFromStmt(self) -> 'PyImportFromStmt': ...
     def mkPyImportStmt(self) -> 'PyImportStmt': ...
-    def mkScope(self) -> 'Scope': ...
     def mkCoverStmtReference(self,
         target : TypeIdentifier) -> 'CoverStmtReference': ...
+    def mkScope(self) -> 'Scope': ...
     def mkScopeChildRef(self,
         target : ScopeChild) -> 'ScopeChildRef': ...
     def mkSymbolChild(self) -> 'SymbolChild': ...
@@ -260,8 +257,8 @@ class Factory(object):
         name : ExprId,
         value : Expr) -> 'CovergroupOption': ...
     def mkCovergroupPortmap(self,
-        name : ExprId,
-        target : ExprHierarchicalId) -> 'CovergroupPortmap': ...
+        name : ExprRefName,
+        target : ExprRefPathContext) -> 'CovergroupPortmap': ...
     def mkDataType(self) -> 'DataType': ...
     def mkTargetTemplateFunction(self,
         proto : FunctionPrototype,
@@ -273,12 +270,10 @@ class Factory(object):
     def mkDistWeight(self,
         is_dividing : bool,
         expr : Expr) -> 'DistWeight': ...
-    def mkTemplateParamDecl(self,
-        name : ExprId) -> 'TemplateParamDecl': ...
     def mkExecBlockTag(self,
         type : TypeIdentifier) -> 'ExecBlockTag': ...
-    def mkTemplateParamExprValue(self,
-        value : Expr) -> 'TemplateParamExprValue': ...
+    def mkTemplateParamDecl(self,
+        name : ExprId) -> 'TemplateParamDecl': ...
     def mkExecStmt(self) -> 'ExecStmt': ...
     def mkExecTargetTemplateBlock(self,
         kind : ExecKind,
@@ -288,7 +283,9 @@ class Factory(object):
         target : TypeIdentifier) -> 'ExportAction': ...
     def mkExportFunction(self,
         plat : PlatQual,
-        name : ExprId) -> 'ExportFunction': ...
+        name : ExprRefName) -> 'ExportFunction': ...
+    def mkTemplateParamExprValue(self,
+        value : Expr) -> 'TemplateParamExprValue': ...
     def mkTemplateParamTypeValue(self,
         value : DataType) -> 'TemplateParamTypeValue': ...
     def mkExprAggrLiteral(self) -> 'ExprAggrLiteral': ...
@@ -331,6 +328,8 @@ class Factory(object):
         lhs : Expr,
         rhs : ExprOpenRangeList,
         collection : Expr) -> 'ExprIn': ...
+    def mkExprMemberCall(self,
+        receiver : Expr) -> 'ExprMemberCall': ...
     def mkExprMemberPathElem(self,
         id : ExprId,
         params : MethodParameterList) -> 'ExprMemberPathElem': ...
@@ -340,7 +339,12 @@ class Factory(object):
     def mkExprOpenRangeValue(self,
         lhs : Expr,
         rhs : Expr) -> 'ExprOpenRangeValue': ...
+    def mkExprRefName(self,
+        id : ExprId) -> 'ExprRefName': ...
     def mkExprRefPath(self) -> 'ExprRefPath': ...
+    def mkTypedefDeclaration(self,
+        name : ExprId,
+        type : DataType) -> 'TypedefDeclaration': ...
     def mkExprSliceRange(self) -> 'ExprSliceRange': ...
     def mkExprString(self,
         value : str,
@@ -354,7 +358,7 @@ class Factory(object):
         name : ExprId,
         type : DataType) -> 'ActionHandleField': ...
     def mkActivityBindStmt(self,
-        lhs : ExprHierarchicalId) -> 'ActivityBindStmt': ...
+        lhs : ExprRefPathContext) -> 'ActivityBindStmt': ...
     def mkActivityConstraint(self,
         constraint : ConstraintStmt) -> 'ActivityConstraint': ...
     def mkActivityJoinSpecBranch(self) -> 'ActivityJoinSpecBranch': ...
@@ -365,13 +369,13 @@ class Factory(object):
         count : Expr) -> 'ActivityJoinSpecSelect': ...
     def mkActivityLabeledStmt(self) -> 'ActivityLabeledStmt': ...
     def mkActivitySymbolCall(self,
-        target : ExprId) -> 'ActivitySymbolCall': ...
+        target : ExprRefName) -> 'ActivitySymbolCall': ...
     def mkConstraintScope(self) -> 'ConstraintScope': ...
     def mkConstraintStmtDefault(self,
-        hid : ExprHierarchicalId,
+        hid : ExprRefPathContext,
         expr : Expr) -> 'ConstraintStmtDefault': ...
     def mkConstraintStmtDefaultDisable(self,
-        hid : ExprHierarchicalId) -> 'ConstraintStmtDefaultDisable': ...
+        hid : ExprRefPathContext) -> 'ConstraintStmtDefaultDisable': ...
     def mkConstraintStmtDist(self,
         lhs : Expr) -> 'ConstraintStmtDist': ...
     def mkConstraintStmtExpr(self,
@@ -397,7 +401,7 @@ class Factory(object):
     def mkCovergroupCrossBins(self,
         name : ExprId,
         kind : CovergroupBinsKindE,
-        target : ExprId,
+        target : ExprRefName,
         with_expr : Expr) -> 'CovergroupCrossBins': ...
     def mkCovergroupInstantiation(self,
         name : ExprId,
@@ -410,7 +414,7 @@ class Factory(object):
     def mkDataTypeChandle(self) -> 'DataTypeChandle': ...
     def mkDataTypeEnum(self,
         tid : DataTypeUserDefined,
-        in_rangelist : ExprOpenRangeList) -> 'DataTypeEnum': ...
+        in_rangelist : ExprDomainOpenRangeList) -> 'DataTypeEnum': ...
     def mkDataTypeFloat(self,
         is_float64 : bool) -> 'DataTypeFloat': ...
     def mkDataTypeInt(self,
@@ -491,7 +495,7 @@ class Factory(object):
     def mkGlobalScope(self,
         fileid : int) -> 'GlobalScope': ...
     def mkInstanceOverride(self,
-        target : ExprHierarchicalId,
+        target : ExprRefPathContext,
         with_t : TypeIdentifier) -> 'InstanceOverride': ...
     def mkMonitorActivityLabeledStmt(self) -> 'MonitorActivityLabeledStmt': ...
     def mkMonitorConstraint(self,
@@ -563,8 +567,6 @@ class Factory(object):
         false_s : ScopeChild) -> 'ActivityIfElse': ...
     def mkActivityMatch(self,
         cond : Expr) -> 'ActivityMatch': ...
-    def mkMonitorActivityEventually(self,
-        body : ScopeChild) -> 'MonitorActivityEventually': ...
     def mkActivityRepeatCount(self,
         loop_var : ExprId,
         count : Expr,
@@ -577,25 +579,27 @@ class Factory(object):
         count : Expr,
         it_label : ExprId,
         body : ScopeChild) -> 'ActivityReplicate': ...
+    def mkMonitorActivityEventually(self,
+        body : ScopeChild) -> 'MonitorActivityEventually': ...
     def mkActivitySelect(self) -> 'ActivitySelect': ...
     def mkActivitySuper(self) -> 'ActivitySuper': ...
     def mkConstraintBlock(self,
         name : str,
         is_dynamic : bool) -> 'ConstraintBlock': ...
-    def mkProceduralStmtRepeatWhile(self,
-        body : ScopeChild,
-        expr : Expr) -> 'ProceduralStmtRepeatWhile': ...
     def mkConstraintStmtForall(self,
         iterator_id : ExprId,
         type_id : DataTypeUserDefined,
         ref_path : ExprRefPath) -> 'ConstraintStmtForall': ...
     def mkConstraintStmtForeach(self,
         expr : Expr) -> 'ConstraintStmtForeach': ...
+    def mkProceduralStmtRepeatWhile(self,
+        body : ScopeChild,
+        expr : Expr) -> 'ProceduralStmtRepeatWhile': ...
+    def mkConstraintStmtImplication(self,
+        cond : Expr) -> 'ConstraintStmtImplication': ...
     def mkProceduralStmtWhile(self,
         body : ScopeChild,
         expr : Expr) -> 'ProceduralStmtWhile': ...
-    def mkConstraintStmtImplication(self,
-        cond : Expr) -> 'ConstraintStmtImplication': ...
     def mkSymbolScope(self,
         name : str) -> 'SymbolScope': ...
     def mkTypeScope(self,
@@ -643,13 +647,13 @@ class Factory(object):
         kind : StructKind) -> 'Struct': ...
     def mkSymbolDeclaration(self,
         name : str) -> 'SymbolDeclaration': ...
+    def mkCovergroupType(self,
+        name : ExprId,
+        super_t : TypeIdentifier) -> 'CovergroupType': ...
     def mkSymbolEnumScope(self,
         name : str) -> 'SymbolEnumScope': ...
     def mkSymbolExtendScope(self,
         name : str) -> 'SymbolExtendScope': ...
-    def mkCovergroupType(self,
-        name : ExprId,
-        super_t : TypeIdentifier) -> 'CovergroupType': ...
     def mkSymbolFunctionScope(self,
         name : str) -> 'SymbolFunctionScope': ...
     def mkSymbolTypeScope(self,
@@ -664,16 +668,11 @@ class Factory(object):
     def mkTemplateString(self,
         name : str,
         raw : str) -> 'TemplateString': ...
-    def mkTemplateText(self,
-        name : str,
-        offset : int,
-        extent : int,
-        text : str) -> 'TemplateText': ...
     def mkTemplateAssign(self,
         name : str,
         offset : int,
         extent : int,
-        lhs : ExprId,
+        lhs : ExprRefName,
         rhs : Expr) -> 'TemplateAssign': ...
     def mkProceduralStmtForeach(self,
         name : str,
@@ -695,40 +694,50 @@ class Factory(object):
         offset : int,
         extent : int,
         expr : Expr) -> 'TemplateExpr': ...
+    def mkTemplateText(self,
+        name : str,
+        offset : int,
+        extent : int,
+        text : str) -> 'TemplateText': ...
     def mkProceduralStmtRepeat(self,
         name : str,
         body : ScopeChild,
         it_id : ExprId,
         count : Expr) -> 'ProceduralStmtRepeat': ...
+    def mkExecBlock(self,
+        name : str,
+        kind : ExecKind) -> 'ExecBlock': ...
     def mkTemplateIf(self,
         name : str,
         offset : int,
         extent : int) -> 'TemplateIf': ...
-    def mkExecBlock(self,
-        name : str,
-        kind : ExecKind) -> 'ExecBlock': ...
     def mkMonitorActivityConcat(self,
         name : str) -> 'MonitorActivityConcat': ...
     def mkActivityParallel(self,
         name : str,
         join_spec : ActivityJoinSpec) -> 'ActivityParallel': ...
-    def mkMonitorActivityOverlap(self,
-        name : str) -> 'MonitorActivityOverlap': ...
-    def mkMonitorActivitySchedule(self,
-        name : str) -> 'MonitorActivitySchedule': ...
     def mkActivitySchedule(self,
         name : str,
         join_spec : ActivityJoinSpec) -> 'ActivitySchedule': ...
+    def mkMonitorActivitySchedule(self,
+        name : str) -> 'MonitorActivitySchedule': ...
+    def mkMonitorActivitySelect(self,
+        name : str) -> 'MonitorActivitySelect': ...
     def mkMonitorActivitySequence(self,
         name : str) -> 'MonitorActivitySequence': ...
+    def mkActivitySequence(self,
+        name : str) -> 'ActivitySequence': ...
+    def mkMonitorActivityOverlap(self,
+        name : str) -> 'MonitorActivityOverlap': ...
     def mkTemplateVarDecl(self,
         name : str,
         offset : int,
         extent : int) -> 'TemplateVarDecl': ...
-    def mkActivitySequence(self,
-        name : str) -> 'ActivitySequence': ...
-    def mkMonitorActivitySelect(self,
-        name : str) -> 'MonitorActivitySelect': ...
+    def mkTemplateRepeat(self,
+        name : str,
+        offset : int,
+        extent : int,
+        expr : Expr) -> 'TemplateRepeat': ...
     def mkTemplateIfClause(self,
         name : str,
         offset : int,
@@ -738,13 +747,11 @@ class Factory(object):
         offset : int,
         extent : int,
         expr : Expr) -> 'TemplateForeach': ...
-    def mkTemplateRepeat(self,
-        name : str,
-        offset : int,
-        extent : int,
-        expr : Expr) -> 'TemplateRepeat': ...
     @staticmethod
     def inst() -> 'Factory': ...
+    
+class AssocData(object):
+    pass
     
 class SymbolImportSpec(object):
     pass
@@ -753,9 +760,6 @@ class SymbolImportSpec(object):
         """Returns an iterator over the items"""
     
     def getImports(self) -> List[PackageImportStmt]: ...
-    
-class AssocData(object):
-    pass
     
 class SymbolRefPath(object):
     pass
@@ -770,35 +774,6 @@ class SymbolRefPath(object):
     def addPath(self, i : 'SymbolRefPathElem'): ...
     
     def getPath(self) -> List[SymbolRefPathElem]: ...
-    
-class TemplateParamDeclList(object):
-    pass
-    
-    def params(self) -> ListUtil...
-        """Returns an iterator over the items"""
-    
-    def getParams(self) -> List[TemplateParamDecl]: ...
-    
-class ActivityMatchChoice(object):
-    pass
-    
-    def getCond(self) -> ExprOpenRangeList: ...
-    
-    def getBody(self) -> ScopeChild: ...
-    
-class TemplateParamValue(object):
-    pass
-    
-class TemplateParamValueList(object):
-    pass
-    
-    def values(self) -> ListUtil...
-        """Returns an iterator over the items"""
-    
-    def getValues(self) -> List[TemplateParamValue]: ...
-    
-class Expr(object):
-    pass
     
 class ScopeChild(object):
     pass
@@ -838,6 +813,27 @@ class ScopeChild(object):
     
     def getTrailing_comments(self) -> List[Comment]: ...
     
+class ActivityMatchChoice(object):
+    pass
+    
+    def getCond(self) -> ExprOpenRangeList: ...
+    
+    def getBody(self) -> ScopeChild: ...
+    
+class TemplateParamDeclList(object):
+    pass
+    
+    def params(self) -> ListUtil...
+        """Returns an iterator over the items"""
+    
+    def getParams(self) -> List[TemplateParamDecl]: ...
+    
+class TemplateParamValue(object):
+    pass
+    
+class Expr(object):
+    pass
+    
 class ActivitySelectBranch(object):
     pass
     
@@ -846,6 +842,14 @@ class ActivitySelectBranch(object):
     def getWeight(self) -> Expr: ...
     
     def getBody(self) -> ScopeChild: ...
+    
+class TemplateParamValueList(object):
+    pass
+    
+    def values(self) -> ListUtil...
+        """Returns an iterator over the items"""
+    
+    def getValues(self) -> List[TemplateParamValue]: ...
     
 class ExprAggrMapElem(object):
     pass
@@ -857,7 +861,7 @@ class ExprAggrMapElem(object):
 class ExprAggrStructElem(object):
     pass
     
-    def getName(self) -> ExprId: ...
+    def getName(self) -> ExprRefName: ...
     
     def getValue(self) -> Expr: ...
     
@@ -871,7 +875,7 @@ class ActionFieldInitializer(ScopeChild):
     """
     pass
     
-    def getPath(self) -> ExprHierarchicalId: ...
+    def getPath(self) -> ExprRefPathContext: ...
     
     def getValue(self) -> Expr: ...
     
@@ -1005,34 +1009,6 @@ class FunctionParamDecl(ScopeChild):
     
     def getDflt(self) -> Expr: ...
     
-class TypedefDeclaration(ScopeChild):
-    pass
-    
-    def getName(self) -> ExprId: ...
-    
-    def getType(self) -> DataType: ...
-    
-class GenericConstraintDeclValue(ScopeChild):
-    """
-    Value-returning generic constraint declaration.
-    
-    Represents a declaration of the form
-    ``[static] constraint <type> name(params) expr;``.
-    
-    """
-    pass
-    
-    def getReturn_type(self) -> DataType: ...
-    
-    def getName(self) -> ExprId: ...
-    
-    def parameters(self) -> ListUtil...
-        """Returns an iterator over the items"""
-    
-    def getParameters(self) -> List[GenericConstraintParam]: ...
-    
-    def getExpr(self) -> Expr: ...
-    
 class ActivityJoinSpec(ScopeChild):
     """
     Base class for specifying join semantics in parallel and schedule blocks.
@@ -1061,6 +1037,27 @@ class ActivityJoinSpec(ScopeChild):
     
     """
     pass
+    
+class GenericConstraintDeclValue(ScopeChild):
+    """
+    Value-returning generic constraint declaration.
+    
+    Represents a declaration of the form
+    ``[static] constraint <type> name(params) expr;``.
+    
+    """
+    pass
+    
+    def getReturn_type(self) -> DataType: ...
+    
+    def getName(self) -> ExprId: ...
+    
+    def parameters(self) -> ListUtil...
+        """Returns an iterator over the items"""
+    
+    def getParameters(self) -> List[GenericConstraintParam]: ...
+    
+    def getExpr(self) -> Expr: ...
     
 class GenericConstraintParam(ScopeChild):
     """
@@ -1142,7 +1139,7 @@ class ActivitySchedulingConstraint(ScopeChild):
     def targets(self) -> ListUtil...
         """Returns an iterator over the items"""
     
-    def getTargets(self) -> List[ExprHierarchicalId]: ...
+    def getTargets(self) -> List[ExprRefPathContext]: ...
     
 class MonitorActivityStmt(ScopeChild):
     """
@@ -1234,21 +1231,6 @@ class NamedScopeChild(ScopeChild):
     
     def getName(self) -> ExprId: ...
     
-class OverrideStmt(ScopeChild):
-    """
-    Base class for the two statements an ``override`` block admits.
-    
-    The two differ in what they select -- a type, or one instance -- and
-    share the replacement type. They are separate classes rather than one
-    class with a discriminator because the target is a type identifier in
-    one and a hierarchical instance path in the other.
-    
-    See Also:
-        TypeOverride, InstanceOverride, OverrideDecl
-    
-    """
-    pass
-    
 class Annotation(ScopeChild):
     """
     Applied annotation attached to a model element.
@@ -1274,6 +1256,38 @@ class Annotation(ScopeChild):
         """Returns an iterator over the items"""
     
     def getParameters(self) -> List[AnnotationParam]: ...
+    
+class OverrideStmt(ScopeChild):
+    """
+    Base class for the two statements an ``override`` block admits.
+    
+    The two differ in what they select -- a type, or one instance -- and
+    share the replacement type. They are separate classes rather than one
+    class with a discriminator because the target is a type identifier in
+    one and a hierarchical instance path in the other.
+    
+    See Also:
+        TypeOverride, InstanceOverride, OverrideDecl
+    
+    """
+    pass
+    
+class AnnotationParam(ScopeChild):
+    """
+    Parameter to an applied annotation.
+    
+    ``name`` is the annotation-type field the value is mapped onto. It is
+    always set: PSS 3.1 annotation parameters are name-mapped only.
+    
+    See Also:
+        Annotation
+    
+    """
+    pass
+    
+    def getName(self) -> ExprRefName: ...
+    
+    def getValue(self) -> Expr: ...
     
 class PackageImportStmt(ScopeChild):
     """
@@ -1302,23 +1316,6 @@ class PackageImportStmt(ScopeChild):
     def getAlias(self) -> ExprId: ...
     
     def getPath(self) -> TypeIdentifier: ...
-    
-class AnnotationParam(ScopeChild):
-    """
-    Parameter to an applied annotation.
-    
-    ``name`` is the annotation-type field the value is mapped onto. It is
-    always set: PSS 3.1 annotation parameters are name-mapped only.
-    
-    See Also:
-        Annotation
-    
-    """
-    pass
-    
-    def getName(self) -> ExprId: ...
-    
-    def getValue(self) -> Expr: ...
     
 class Comment(ScopeChild):
     """
@@ -1385,9 +1382,7 @@ class ComponentBind(ScopeChild):
     """
     pass
     
-    def getPool_path(self) -> str: ...
-    
-    def setPool_path(self, v : str): ...
+    def getPool_path(self) -> ExprRefPathContext: ...
     
     def targets(self) -> ListUtil...
         """Returns an iterator over the items"""
@@ -1436,7 +1431,7 @@ class ComponentBindTarget(ScopeChild):
     
     def getType_id(self) -> TypeIdentifier: ...
     
-    def getField(self) -> ExprId: ...
+    def getField(self) -> ExprRefName: ...
     
     def getRange(self) -> ExprDomainOpenRangeList: ...
     
@@ -1468,9 +1463,34 @@ class ComponentPathElem(ScopeChild):
     """
     pass
     
-    def getId(self) -> ExprId: ...
+    def getId(self) -> ExprRefName: ...
     
     def getRange(self) -> ExprDomainOpenRangeList: ...
+    
+class ConstraintStmt(ScopeChild):
+    """
+    Base class for all constraint statement types.
+    
+    Represents any statement that can appear within a constraint block, including
+    expressions, loops, conditionals, implications, and other constraint constructs.
+    All specific constraint statement types derive from this base class.
+    
+    PSS Example::
+    
+        constraint example_c {
+            // Each line below is a different ConstraintStmt subtype
+            value > 0;                    // ConstraintStmtExpr
+            if (mode == 1) {              // ConstraintStmtIf
+                value < 10;
+            }
+            unique { id1, id2, id3 };     // ConstraintStmtUnique
+        }
+    
+    See Also:
+        ConstraintStmtExpr, ConstraintStmtIf, ConstraintStmtForeach, ConstraintStmtForall
+    
+    """
+    pass
     
 class ProceduralStmtIfClause(ScopeChild):
     """
@@ -1508,31 +1528,6 @@ class ProceduralStmtIfClause(ScopeChild):
     def getCond(self) -> Expr: ...
     
     def getBody(self) -> ScopeChild: ...
-    
-class ConstraintStmt(ScopeChild):
-    """
-    Base class for all constraint statement types.
-    
-    Represents any statement that can appear within a constraint block, including
-    expressions, loops, conditionals, implications, and other constraint constructs.
-    All specific constraint statement types derive from this base class.
-    
-    PSS Example::
-    
-        constraint example_c {
-            // Each line below is a different ConstraintStmt subtype
-            value > 0;                    // ConstraintStmtExpr
-            if (mode == 1) {              // ConstraintStmtIf
-                value < 10;
-            }
-            unique { id1, id2, id3 };     // ConstraintStmtUnique
-        }
-    
-    See Also:
-        ConstraintStmtExpr, ConstraintStmtIf, ConstraintStmtForeach, ConstraintStmtForall
-    
-    """
-    pass
     
 class PyImportFromStmt(ScopeChild):
     """
@@ -1594,37 +1589,6 @@ class PyImportStmt(ScopeChild):
     
     def getAlias(self) -> ExprId: ...
     
-class Scope(ScopeChild):
-    """
-    Container for child AST nodes forming a hierarchical scope.
-    
-    Base class for all AST nodes that can contain other nodes. Provides
-    the fundamental tree structure of the AST. Most PSS constructs that
-    use braces create a Scope.
-    
-    PSS Example::
-    
-        component my_comp {      // Creates Scope
-            action a1 { }        // Nested Scope
-            struct s1 { }        // Nested Scope
-        }
-    
-    Attributes:
-        endLocation: Source location of closing brace
-        children: List of child nodes in this scope
-        parent: Parent scope (inherited from ScopeChild)
-    
-    See Also:
-        ScopeChild, NamedScope, GlobalScope
-    
-    """
-    pass
-    
-    def children(self) -> ListUtil...
-        """Returns an iterator over the items"""
-    
-    def getChildren(self) -> List[ScopeChild]: ...
-    
 class CoverStmtReference(ScopeChild):
     """
     Instantiates a named monitor type for behavioral coverage.
@@ -1666,6 +1630,37 @@ class CoverStmtReference(ScopeChild):
     def getTarget(self) -> TypeIdentifier: ...
     
     def getLabel(self) -> ExprId: ...
+    
+class Scope(ScopeChild):
+    """
+    Container for child AST nodes forming a hierarchical scope.
+    
+    Base class for all AST nodes that can contain other nodes. Provides
+    the fundamental tree structure of the AST. Most PSS constructs that
+    use braces create a Scope.
+    
+    PSS Example::
+    
+        component my_comp {      // Creates Scope
+            action a1 { }        // Nested Scope
+            struct s1 { }        // Nested Scope
+        }
+    
+    Attributes:
+        endLocation: Source location of closing brace
+        children: List of child nodes in this scope
+        parent: Parent scope (inherited from ScopeChild)
+    
+    See Also:
+        ScopeChild, NamedScope, GlobalScope
+    
+    """
+    pass
+    
+    def children(self) -> ListUtil...
+        """Returns an iterator over the items"""
+    
+    def getChildren(self) -> List[ScopeChild]: ...
     
 class ScopeChildRef(ScopeChild):
     """
@@ -1759,9 +1754,9 @@ class CovergroupPortmap(ScopeChild):
     """
     pass
     
-    def getName(self) -> ExprId: ...
+    def getName(self) -> ExprRefName: ...
     
-    def getTarget(self) -> ExprHierarchicalId: ...
+    def getTarget(self) -> ExprRefPathContext: ...
     
 class DataType(ScopeChild):
     """
@@ -1887,44 +1882,6 @@ class DistWeight(ScopeChild):
     
     def getExpr(self) -> Expr: ...
     
-class TemplateParamDecl(ScopeChild):
-    """
-    Base class for template parameter declarations.
-    
-    Template parameters allow types and functions to be parameterized, enabling
-    generic programming in PSS. This abstract base class provides the common name
-    field shared by all template parameter types (generic type, category-constrained
-    type, and value parameters).
-    
-    PSS Example::
-    
-        // Generic type parameter T
-        action generic<T> {
-            rand T value;
-        }
-        
-        // Value parameter N
-        action sized<int N> {
-            int array[N];
-        }
-        
-        // Category-constrained parameter T
-        component container<T: action> {
-            T inst;
-        }
-    
-    Attributes:
-        name: Identifier for the template parameter
-    
-    See Also:
-        TemplateGenericTypeParamDecl, TemplateCategoryTypeParamDecl,
-        TemplateValueParamDecl, TemplateParamDeclList
-    
-    """
-    pass
-    
-    def getName(self) -> ExprId: ...
-    
 class ExecBlockTag(ScopeChild):
     """
     Tag on a target-template exec block -- PSS 3.1 §20.5.4.
@@ -1967,51 +1924,43 @@ class ExecBlockTag(ScopeChild):
     
     def getLiteral(self) -> ExprAggrStruct: ...
     
-class TemplateParamExprValue(TemplateParamValue):
+class TemplateParamDecl(ScopeChild):
     """
-    Expression value for template instantiation.
+    Base class for template parameter declarations.
     
-    Represents a compile-time constant expression provided when instantiating a
-    template. This is used to fill in value parameters with concrete values. The
-    expression must be evaluable at compile time and must match the type specified
-    in the corresponding value parameter declaration.
+    Template parameters allow types and functions to be parameterized, enabling
+    generic programming in PSS. This abstract base class provides the common name
+    field shared by all template parameter types (generic type, category-constrained
+    type, and value parameters).
     
     PSS Example::
     
-        // Template with value parameters
-        action sized<int N, int WIDTH> {
-            bit<WIDTH> array[N];
+        // Generic type parameter T
+        action generic<T> {
+            rand T value;
         }
         
-        // Instantiation with expression values
-        sized<16, 8> inst1;  // Literal expressions
-        
-        // Using constants as expression values
-        const int BUFFER_SIZE = 32;
-        const int DATA_WIDTH = 64;
-        sized<BUFFER_SIZE, DATA_WIDTH> inst2;
-        
-        // Expressions can be computed
-        sized<8*4, 2+6> inst3;  // 32 elements, 8 bits wide
-        
-        // Mixed type and expression values
-        action mixed<T, int COUNT> {
-            T values[COUNT];
+        // Value parameter N
+        action sized<int N> {
+            int array[N];
         }
-        mixed<bit<32>, 10> mixed_inst;
-        // First value: bit<32> (TemplateParamTypeValue)
-        // Second value: 10 (TemplateParamExprValue)
+        
+        // Category-constrained parameter T
+        component container<T: action> {
+            T inst;
+        }
     
     Attributes:
-        value: The compile-time constant expression
+        name: Identifier for the template parameter
     
     See Also:
-        TemplateParamValue, TemplateParamTypeValue, Expr, TemplateValueParamDecl
+        TemplateGenericTypeParamDecl, TemplateCategoryTypeParamDecl,
+        TemplateValueParamDecl, TemplateParamDeclList
     
     """
     pass
     
-    def getValue(self) -> Expr: ...
+    def getName(self) -> ExprId: ...
     
 class ExecStmt(ScopeChild):
     """
@@ -2161,7 +2110,53 @@ class ExportFunction(ScopeChild):
     
     def setPlat(self, v : PlatQual): ...
     
-    def getName(self) -> ExprId: ...
+    def getName(self) -> ExprRefName: ...
+    
+class TemplateParamExprValue(TemplateParamValue):
+    """
+    Expression value for template instantiation.
+    
+    Represents a compile-time constant expression provided when instantiating a
+    template. This is used to fill in value parameters with concrete values. The
+    expression must be evaluable at compile time and must match the type specified
+    in the corresponding value parameter declaration.
+    
+    PSS Example::
+    
+        // Template with value parameters
+        action sized<int N, int WIDTH> {
+            bit<WIDTH> array[N];
+        }
+        
+        // Instantiation with expression values
+        sized<16, 8> inst1;  // Literal expressions
+        
+        // Using constants as expression values
+        const int BUFFER_SIZE = 32;
+        const int DATA_WIDTH = 64;
+        sized<BUFFER_SIZE, DATA_WIDTH> inst2;
+        
+        // Expressions can be computed
+        sized<8*4, 2+6> inst3;  // 32 elements, 8 bits wide
+        
+        // Mixed type and expression values
+        action mixed<T, int COUNT> {
+            T values[COUNT];
+        }
+        mixed<bit<32>, 10> mixed_inst;
+        // First value: bit<32> (TemplateParamTypeValue)
+        // Second value: 10 (TemplateParamExprValue)
+    
+    Attributes:
+        value: The compile-time constant expression
+    
+    See Also:
+        TemplateParamValue, TemplateParamTypeValue, Expr, TemplateValueParamDecl
+    
+    """
+    pass
+    
+    def getValue(self) -> Expr: ...
     
 class TemplateParamTypeValue(TemplateParamValue):
     """
@@ -2623,6 +2618,34 @@ class ExprIn(Expr):
     
     def getCollection(self) -> Expr: ...
     
+class ExprMemberCall(Expr):
+    """
+    A method call on a receiver that is not a name: a string or
+    aggregate literal (LRM Ex. 10). A call on a name is an
+    ExprRefPathContext, whose path elements carry the calls.
+    
+    PSS Example::
+    
+        "a,b".split(",")            // receiver ExprString
+        "a,b".split(",").size()     // two members, chained
+    
+    Attributes:
+        receiver: The expression the first member is applied to
+        members: The members applied in order, each with its params
+    
+    See Also:
+        ExprMemberPathElem, ExprRefPathContext
+    
+    """
+    pass
+    
+    def getReceiver(self) -> Expr: ...
+    
+    def members(self) -> ListUtil...
+        """Returns an iterator over the items"""
+    
+    def getMembers(self) -> List[ExprMemberPathElem]: ...
+    
 class ExprMemberPathElem(Expr):
     """
     Represents a single element in a member access path.
@@ -2756,6 +2779,35 @@ class ExprOpenRangeValue(Expr):
     
     def getRhs(self) -> Expr: ...
     
+class ExprRefName(Expr):
+    """
+    A reference written as a single name, where the grammar has no
+    path: a symbol call, a function export, a struct-literal field,
+    a coverpoint or bins target, a bind field, a template assignment.
+    
+    It exists to hold a binding (symbol-resolution plan WS3.2): those
+    names used to be bare ExprIds, which have nowhere to record what
+    they resolve to, so nothing could check that they had been
+    resolved at all.
+    
+    Attributes:
+        id: The name as written
+        target: What it resolves to; null until resolved, or when
+            its resolution belongs to a later pass
+        ctx_unknown: The name is resolved in a context the linker
+            cannot yet compute (a struct literal whose type is not
+            known from its syntax, WS8.9)
+    
+    See Also:
+        ExprId, ExprRefPathContext
+    
+    """
+    pass
+    
+    def getId(self) -> ExprId: ...
+    
+    def getTarget(self) -> SymbolRefPath: ...
+    
 class ExprRefPath(Expr):
     """
     Base class for reference path expressions.
@@ -2780,6 +2832,13 @@ class ExprRefPath(Expr):
     pass
     
     def getTarget(self) -> SymbolRefPath: ...
+    
+class TypedefDeclaration(ScopeChild):
+    pass
+    
+    def getName(self) -> ExprId: ...
+    
+    def getType(self) -> DataType: ...
     
 class ExprSliceRange(Expr):
     """
@@ -2984,12 +3043,12 @@ class ActivityBindStmt(ActivityStmt):
     """
     pass
     
-    def getLhs(self) -> ExprHierarchicalId: ...
+    def getLhs(self) -> ExprRefPathContext: ...
     
     def rhs(self) -> ListUtil...
         """Returns an iterator over the items"""
     
-    def getRhs(self) -> List[ExprHierarchicalId]: ...
+    def getRhs(self) -> List[ExprRefPathContext]: ...
     
 class ActivityConstraint(ActivityStmt):
     """
@@ -3236,7 +3295,7 @@ class ActivitySymbolCall(ActivityStmt):
     """
     pass
     
-    def getTarget(self) -> ExprId: ...
+    def getTarget(self) -> ExprRefName: ...
     
     def params(self) -> ListUtil...
         """Returns an iterator over the items"""
@@ -3310,7 +3369,7 @@ class ConstraintStmtDefault(ConstraintStmt):
     """
     pass
     
-    def getHid(self) -> ExprHierarchicalId: ...
+    def getHid(self) -> ExprRefPathContext: ...
     
     def getExpr(self) -> Expr: ...
     
@@ -3350,7 +3409,7 @@ class ConstraintStmtDefaultDisable(ConstraintStmt):
     """
     pass
     
-    def getHid(self) -> ExprHierarchicalId: ...
+    def getHid(self) -> ExprRefPathContext: ...
     
 class ConstraintStmtDist(ConstraintStmt):
     """
@@ -3596,7 +3655,7 @@ class ConstraintStmtUnique(ConstraintStmt):
     def list(self) -> ListUtil...
         """Returns an iterator over the items"""
     
-    def getList(self) -> List[ExprHierarchicalId]: ...
+    def getList(self) -> List[ExprRefPathContext]: ...
     
 class CoverStmtInline(Scope):
     """
@@ -3769,7 +3828,7 @@ class CovergroupCross(NamedScopeChild):
     def coverpoint_names(self) -> ListUtil...
         """Returns an iterator over the items"""
     
-    def getCoverpoint_names(self) -> List[ExprId]: ...
+    def getCoverpoint_names(self) -> List[ExprRefName]: ...
     
     def getIff(self) -> Expr: ...
     
@@ -3817,7 +3876,7 @@ class CovergroupCrossBins(NamedScopeChild):
     
     def setKind(self, v : CovergroupBinsKindE): ...
     
-    def getTarget(self) -> ExprId: ...
+    def getTarget(self) -> ExprRefName: ...
     
     def getWith_expr(self) -> Expr: ...
     
@@ -3860,7 +3919,7 @@ class CovergroupInstantiation(NamedScopeChild):
     def targets(self) -> ListUtil...
         """Returns an iterator over the items"""
     
-    def getTargets(self) -> List[ExprHierarchicalId]: ...
+    def getTargets(self) -> List[ExprRefPathContext]: ...
     
     def options(self) -> ListUtil...
         """Returns an iterator over the items"""
@@ -3925,7 +3984,7 @@ class CoverpointBins(NamedScopeChild):
     
     def getRanges(self) -> List[ExprOpenRangeValue]: ...
     
-    def getTarget(self) -> ExprId: ...
+    def getTarget(self) -> ExprRefName: ...
     
     def getWith_expr(self) -> Expr: ...
     
@@ -3983,17 +4042,18 @@ class DataTypeEnum(DataType):
     
     Attributes:
         tid: Reference to the user-defined enum type
-        in_rangelist: Optional range restriction expression
+        in_rangelist: Optional domain restriction. A domain, like an
+            integer type's, may have open ranges (7.5.2: `in [..B]`)
     
     See Also:
-        EnumDecl, DataTypeUserDefined, ExprOpenRangeList
+        EnumDecl, DataTypeUserDefined, ExprDomainOpenRangeList
     
     """
     pass
     
     def getTid(self) -> DataTypeUserDefined: ...
     
-    def getIn_rangelist(self) -> ExprOpenRangeList: ...
+    def getIn_rangelist(self) -> ExprDomainOpenRangeList: ...
     
 class DataTypeFloat(DataType):
     """
@@ -4537,9 +4597,13 @@ class Field(NamedScopeChild):
         type: Data type of the field
         attr: Attribute flags (FieldAttr)
         init: Optional initializer expression
+        initializers: An action handle's `{.x = v, ...}` list (11.3.1).
+            Set only on a handle declared in an action body, which
+            is built as a Field; in an activity it is an
+            ActionHandleField
     
     See Also:
-        FieldAttr, DataType, NamedScopeChild
+        FieldAttr, DataType, NamedScopeChild, ActionFieldInitializer
     
     """
     pass
@@ -4549,6 +4613,11 @@ class Field(NamedScopeChild):
     def setAttr(self, v : FieldAttr): ...
     
     def getInit(self) -> Expr: ...
+    
+    def initializers(self) -> ListUtil...
+        """Returns an iterator over the items"""
+    
+    def getInitializers(self) -> List[ActionFieldInitializer]: ...
     
 class FieldClaim(NamedScopeChild):
     """
@@ -4851,7 +4920,7 @@ class InstanceOverride(OverrideStmt):
     """
     pass
     
-    def getTarget(self) -> ExprHierarchicalId: ...
+    def getTarget(self) -> ExprRefPathContext: ...
     
     def getWith_t(self) -> TypeIdentifier: ...
     
@@ -6027,58 +6096,6 @@ class ActivityMatch(ActivityLabeledStmt):
     
     def getChoices(self) -> List[ActivityMatchChoice]: ...
     
-class MonitorActivityEventually(MonitorActivityLabeledStmt):
-    """
-    Eventually operator for liveness properties.
-    
-    ``eventually <stmt>`` requires its operand to be observed at some
-    point in the future, with no bound on when. LRM 16.4.4 makes the
-    operand a full ``monitor_activity_stmt``, so it may be a traversal or
-    a whole block.
-    
-    The class previously carried a ``condition`` expression as well as a
-    body. There is no such expression in the grammar -- ``eventually``
-    takes a statement and nothing else -- and the field was always null.
-    
-    PSS Example::
-    
-        component c {
-            action request { }
-            action response { }
-    
-            monitor liveness_check {
-                request rq;
-                response rs;
-    
-                activity {
-                    sequence {
-                        rq;
-                        eventually rs;
-                    }
-    
-                    eventually {
-                        rq;
-                        rs;
-                    }
-                }
-            }
-        }
-    
-    Attributes:
-        body: The monitor activity statement that must eventually be
-            observed. Typed ScopeChild because a braced operand is a
-            MonitorActivitySequence, which is a scope rather than a
-            MonitorActivityStmt.
-        label: Optional label (inherited from MonitorActivityLabeledStmt)
-    
-    See Also:
-        MonitorActivityStmt, MonitorConstraint
-    
-    """
-    pass
-    
-    def getBody(self) -> ScopeChild: ...
-    
 class ActivityRepeatCount(ActivityLabeledStmt):
     """
     Repeats an activity body a fixed number of times.
@@ -6224,6 +6241,58 @@ class ActivityReplicate(ActivityLabeledStmt):
     
     def getBody(self) -> ScopeChild: ...
     
+class MonitorActivityEventually(MonitorActivityLabeledStmt):
+    """
+    Eventually operator for liveness properties.
+    
+    ``eventually <stmt>`` requires its operand to be observed at some
+    point in the future, with no bound on when. LRM 16.4.4 makes the
+    operand a full ``monitor_activity_stmt``, so it may be a traversal or
+    a whole block.
+    
+    The class previously carried a ``condition`` expression as well as a
+    body. There is no such expression in the grammar -- ``eventually``
+    takes a statement and nothing else -- and the field was always null.
+    
+    PSS Example::
+    
+        component c {
+            action request { }
+            action response { }
+    
+            monitor liveness_check {
+                request rq;
+                response rs;
+    
+                activity {
+                    sequence {
+                        rq;
+                        eventually rs;
+                    }
+    
+                    eventually {
+                        rq;
+                        rs;
+                    }
+                }
+            }
+        }
+    
+    Attributes:
+        body: The monitor activity statement that must eventually be
+            observed. Typed ScopeChild because a braced operand is a
+            MonitorActivitySequence, which is a scope rather than a
+            MonitorActivityStmt.
+        label: Optional label (inherited from MonitorActivityLabeledStmt)
+    
+    See Also:
+        MonitorActivityStmt, MonitorConstraint
+    
+    """
+    pass
+    
+    def getBody(self) -> ScopeChild: ...
+    
 class ActivitySelect(ActivityLabeledStmt):
     """
     Randomly selects and executes one branch from alternatives.
@@ -6354,41 +6423,6 @@ class ConstraintBlock(ConstraintScope):
     
     def setName(self, v : str): ...
     
-class ProceduralStmtRepeatWhile(ProceduralStmtBody):
-    """
-    Post-test loop that executes at least once.
-    
-    ProceduralStmtRepeatWhile represents a repeat-while loop (do-while style)
-    that executes the body at least once, then continues while the condition
-    is true. The condition is evaluated after each iteration.
-    
-    PSS Example::
-    
-        action my_action {
-            exec body {
-                int x = 0;
-                
-                // Executes body first, then checks condition
-                repeat {
-                    x++;
-                    console.log("x = ", x);
-                } while (x < 5);
-                // Executes at least once even if x >= 5 initially
-            }
-        }
-    
-    Attributes:
-        expr: Condition evaluated after each iteration
-        body: Statement(s) to execute (inherited from ProceduralStmtBody)
-    
-    See Also:
-        ProceduralStmtWhile, ProceduralStmtRepeat, ProceduralStmtBody
-    
-    """
-    pass
-    
-    def getExpr(self) -> Expr: ...
-    
 class ConstraintStmtForall(ConstraintScope):
     """
     Universal quantification constraint over typed instances.
@@ -6485,39 +6519,35 @@ class ConstraintStmtForeach(ConstraintScope):
     
     def getSymtab(self) -> ConstraintSymbolScope: ...
     
-class ProceduralStmtWhile(ProceduralStmtBody):
+class ProceduralStmtRepeatWhile(ProceduralStmtBody):
     """
-    Pre-test loop with condition evaluated before each iteration.
+    Post-test loop that executes at least once.
     
-    ProceduralStmtWhile represents a standard while loop that evaluates the
-    condition before executing the body. The body may never execute if the
-    condition is initially false.
+    ProceduralStmtRepeatWhile represents a repeat-while loop (do-while style)
+    that executes the body at least once, then continues while the condition
+    is true. The condition is evaluated after each iteration.
     
     PSS Example::
     
         action my_action {
             exec body {
-                int x = 10;
+                int x = 0;
                 
-                // Standard while loop
-                while (x > 0) {
+                // Executes body first, then checks condition
+                repeat {
+                    x++;
                     console.log("x = ", x);
-                    x--;
-                }
-                
-                // Condition checked first - may not execute
-                while (false) {
-                    console.log("Never executed");
-                }
+                } while (x < 5);
+                // Executes at least once even if x >= 5 initially
             }
         }
     
     Attributes:
-        expr: Condition evaluated before each iteration
+        expr: Condition evaluated after each iteration
         body: Statement(s) to execute (inherited from ProceduralStmtBody)
     
     See Also:
-        ProceduralStmtRepeatWhile, ProceduralStmtRepeat, ProceduralStmtForeach
+        ProceduralStmtWhile, ProceduralStmtRepeat, ProceduralStmtBody
     
     """
     pass
@@ -6565,6 +6595,45 @@ class ConstraintStmtImplication(ConstraintScope):
     pass
     
     def getCond(self) -> Expr: ...
+    
+class ProceduralStmtWhile(ProceduralStmtBody):
+    """
+    Pre-test loop with condition evaluated before each iteration.
+    
+    ProceduralStmtWhile represents a standard while loop that evaluates the
+    condition before executing the body. The body may never execute if the
+    condition is initially false.
+    
+    PSS Example::
+    
+        action my_action {
+            exec body {
+                int x = 10;
+                
+                // Standard while loop
+                while (x > 0) {
+                    console.log("x = ", x);
+                    x--;
+                }
+                
+                // Condition checked first - may not execute
+                while (false) {
+                    console.log("Never executed");
+                }
+            }
+        }
+    
+    Attributes:
+        expr: Condition evaluated before each iteration
+        body: Statement(s) to execute (inherited from ProceduralStmtBody)
+    
+    See Also:
+        ProceduralStmtRepeatWhile, ProceduralStmtRepeat, ProceduralStmtForeach
+    
+    """
+    pass
+    
+    def getExpr(self) -> Expr: ...
     
 class SymbolScope(SymbolChildrenScope):
     """
@@ -7117,52 +7186,6 @@ class SymbolDeclaration(SymbolScope):
     
     def getParams(self) -> List[FunctionParamDecl]: ...
     
-class SymbolEnumScope(SymbolScope):
-    """
-    Symbol scope for enumeration type declarations.
-    
-    Represents an enum definition in the linked symbol tree, managing the
-    namespace for enum items and their associated values. Provides symbol
-    resolution for enum member access during type checking.
-    
-    The scope contains the enum's items as children, enabling qualified
-    name lookup (e.g., MyEnum::ItemName) during compilation.
-    
-    See Also:
-        SymbolScope, EnumDecl, EnumItem
-    
-    Attributes:
-        decl: The EnumDecl this scope was built from. A back-pointer
-            only (visit: false) -- see TaskBuildSymbolTree::visitEnumDecl
-            for why this must not be a traversal edge. Used to reach the
-            enum's base type (packed-struct and sizeof_s checks).
-    
-    """
-    pass
-    
-    def getDecl(self) -> EnumDecl: ...
-    
-class SymbolExtendScope(SymbolScope):
-    """
-    Symbol scope for PSS extend statements.
-    
-    Represents an extend declaration in the linked symbol tree, which adds
-    new members to an existing type. Manages the namespace for extension
-    members and links them back to the base type being extended.
-    
-    During linking, multiple extend declarations targeting the same type
-    are merged into the type's symbol scope, allowing type augmentation
-    across compilation units.
-    
-    Attributes:
-        (inherits from SymbolScope - children contain extension members)
-    
-    See Also:
-        SymbolScope, ExtendType, ExtendEnum
-    
-    """
-    pass
-    
 class CovergroupType(TypeScope):
     """
     A named covergroup *type* -- ``covergroup cg_t(int a) { ... }``.
@@ -7216,6 +7239,52 @@ class CovergroupType(TypeScope):
         """Returns an iterator over the items"""
     
     def getOptions(self) -> List[CovergroupOption]: ...
+    
+class SymbolEnumScope(SymbolScope):
+    """
+    Symbol scope for enumeration type declarations.
+    
+    Represents an enum definition in the linked symbol tree, managing the
+    namespace for enum items and their associated values. Provides symbol
+    resolution for enum member access during type checking.
+    
+    The scope contains the enum's items as children, enabling qualified
+    name lookup (e.g., MyEnum::ItemName) during compilation.
+    
+    See Also:
+        SymbolScope, EnumDecl, EnumItem
+    
+    Attributes:
+        decl: The EnumDecl this scope was built from. A back-pointer
+            only (visit: false) -- see TaskBuildSymbolTree::visitEnumDecl
+            for why this must not be a traversal edge. Used to reach the
+            enum's base type (packed-struct and sizeof_s checks).
+    
+    """
+    pass
+    
+    def getDecl(self) -> EnumDecl: ...
+    
+class SymbolExtendScope(SymbolScope):
+    """
+    Symbol scope for PSS extend statements.
+    
+    Represents an extend declaration in the linked symbol tree, which adds
+    new members to an existing type. Manages the namespace for extension
+    members and links them back to the base type being extended.
+    
+    During linking, multiple extend declarations targeting the same type
+    are merged into the type's symbol scope, allowing type augmentation
+    across compilation units.
+    
+    Attributes:
+        (inherits from SymbolScope - children contain extension members)
+    
+    See Also:
+        SymbolScope, ExtendType, ExtendEnum
+    
+    """
+    pass
     
 class SymbolFunctionScope(SymbolScope):
     """
@@ -7404,23 +7473,6 @@ class TemplateString(SymbolScope):
     
     def getElems(self) -> List[TemplateElem]: ...
     
-class TemplateText(TemplateElem):
-    """
-    A run of literal text between special elements.
-    
-    Attributes:
-        text: The literal text, verbatim
-    
-    See Also:
-        TemplateElem
-    
-    """
-    pass
-    
-    def getText(self) -> str: ...
-    
-    def setText(self, v : str): ...
-    
 class TemplateAssign(TemplateElem):
     """
     A template variable assignment -- §4.7.1.2, Table 5.
@@ -7444,7 +7496,7 @@ class TemplateAssign(TemplateElem):
     """
     pass
     
-    def getLhs(self) -> ExprId: ...
+    def getLhs(self) -> ExprRefName: ...
     
     def getRhs(self) -> Expr: ...
     
@@ -7572,6 +7624,23 @@ class TemplateExpr(TemplateElem):
     
     def getExpr(self) -> Expr: ...
     
+class TemplateText(TemplateElem):
+    """
+    A run of literal text between special elements.
+    
+    Attributes:
+        text: The literal text, verbatim
+    
+    See Also:
+        TemplateElem
+    
+    """
+    pass
+    
+    def getText(self) -> str: ...
+    
+    def setText(self, v : str): ...
+    
 class ProceduralStmtRepeat(ProceduralStmtSymbolBodyScope):
     """
     Fixed-count repeat loop with optional iterator variable.
@@ -7610,28 +7679,6 @@ class ProceduralStmtRepeat(ProceduralStmtSymbolBodyScope):
     def getIt_id(self) -> ExprId: ...
     
     def getCount(self) -> Expr: ...
-    
-class TemplateIf(TemplateElem):
-    """
-    A template if directive with its else-if and else arms -- §4.7.1.2.
-    
-    The clauses are held **flat**, not as a tree of nested ifs.  The
-    source is a flat directive sequence, so nesting would be an invention
-    a formatter would then have to undo.
-    
-    Attributes:
-        clauses: if / else-if / else arms, in source order
-    
-    See Also:
-        TemplateIfClause, TemplateBlock
-    
-    """
-    pass
-    
-    def clauses(self) -> ListUtil...
-        """Returns an iterator over the items"""
-    
-    def getClauses(self) -> List[TemplateIfClause]: ...
     
 class ExecBlock(ExecScope):
     """
@@ -7673,6 +7720,28 @@ class ExecBlock(ExecScope):
     pass
     
     def setKind(self, v : ExecKind): ...
+    
+class TemplateIf(TemplateElem):
+    """
+    A template if directive with its else-if and else arms -- §4.7.1.2.
+    
+    The clauses are held **flat**, not as a tree of nested ifs.  The
+    source is a flat directive sequence, so nesting would be an invention
+    a formatter would then have to undo.
+    
+    Attributes:
+        clauses: if / else-if / else arms, in source order
+    
+    See Also:
+        TemplateIfClause, TemplateBlock
+    
+    """
+    pass
+    
+    def clauses(self) -> ListUtil...
+        """Returns an iterator over the items"""
+    
+    def getClauses(self) -> List[TemplateIfClause]: ...
     
 class MonitorActivityConcat(MonitorActivityLabeledScope):
     """
@@ -7760,82 +7829,6 @@ class ActivityParallel(ActivityLabeledScope):
     
     def getJoin_spec(self) -> ActivityJoinSpec: ...
     
-class MonitorActivityOverlap(MonitorActivityLabeledScope):
-    """
-    Overlap block for concurrent sequence monitoring.
-    
-    ``overlap { a; b; }`` requires its body statements to be observed with
-    overlapping lifetimes, rather than one after another.
-    
-    Like ``concat``, this is an n-ary block and not a binary operator; the
-    former ``lhs``/``rhs`` fields modelled an ``a overlap b`` syntax that
-    PSS does not have.
-    
-    PSS Example::
-    
-        component c {
-            action addr_phase { }
-            action data_phase { }
-    
-            monitor concurrent_check {
-                addr_phase ap;
-                data_phase dp;
-    
-                activity {
-                    overlap {
-                        ap;
-                        dp;
-                    }
-                }
-            }
-        }
-    
-    Attributes:
-        label: Optional identifier expression for the label
-            (inherited from MonitorActivityLabeledScope)
-    
-    See Also:
-        MonitorActivityConcat, MonitorActivitySchedule
-    
-    """
-    pass
-    
-class MonitorActivitySchedule(MonitorActivityLabeledScope):
-    """
-    Defines a scheduled monitoring block with flexible ordering.
-    
-    ``schedule { a; b; }`` permits its body statements to be observed in
-    any order, unlike ``sequence``, which fixes the order.
-    
-    PSS Example::
-    
-        component c {
-            action monitor_addr { }
-            action monitor_data { }
-    
-            monitor flexible_protocol {
-                monitor_addr ma;
-                monitor_data md;
-    
-                activity {
-                    main_check: schedule {
-                        ma;
-                        md;
-                    }
-                }
-            }
-        }
-    
-    Attributes:
-        label: Optional identifier expression for the schedule label
-            (inherited from MonitorActivityLabeledScope)
-    
-    See Also:
-        MonitorActivitySequence, ActivitySchedule
-    
-    """
-    pass
-    
 class ActivitySchedule(ActivityLabeledScope):
     """
     Defines a scheduled execution block with explicit ordering constraints.
@@ -7875,6 +7868,84 @@ class ActivitySchedule(ActivityLabeledScope):
     pass
     
     def getJoin_spec(self) -> ActivityJoinSpec: ...
+    
+class MonitorActivitySchedule(MonitorActivityLabeledScope):
+    """
+    Defines a scheduled monitoring block with flexible ordering.
+    
+    ``schedule { a; b; }`` permits its body statements to be observed in
+    any order, unlike ``sequence``, which fixes the order.
+    
+    PSS Example::
+    
+        component c {
+            action monitor_addr { }
+            action monitor_data { }
+    
+            monitor flexible_protocol {
+                monitor_addr ma;
+                monitor_data md;
+    
+                activity {
+                    main_check: schedule {
+                        ma;
+                        md;
+                    }
+                }
+            }
+        }
+    
+    Attributes:
+        label: Optional identifier expression for the schedule label
+            (inherited from MonitorActivityLabeledScope)
+    
+    See Also:
+        MonitorActivitySequence, ActivitySchedule
+    
+    """
+    pass
+    
+class MonitorActivitySelect(MonitorActivityLabeledScope):
+    """
+    Alternative monitoring paths.
+    
+    ``select { a; b; }`` is satisfied by observing exactly one of its
+    alternatives. The grammar requires at least two.
+    
+    The alternatives are the scope's children. The class previously held a
+    ``branches`` list of MonitorActivitySelectBranch, each with a guard
+    expression -- a guarded form that exists for action ``select`` but not
+    for monitor ``select``, so no branch was ever constructible. That
+    class has been removed.
+    
+    PSS Example::
+    
+        component c {
+            action fast_path { }
+            action slow_path { }
+    
+            monitor protocol_variants {
+                fast_path fp;
+                slow_path sp;
+    
+                activity {
+                    protocol_choice: select {
+                        fp;
+                        sp;
+                    }
+                }
+            }
+        }
+    
+    Attributes:
+        label: Optional identifier expression for the select label
+            (inherited from MonitorActivityLabeledScope)
+    
+    See Also:
+        MonitorActivitySequence, ActivitySelect
+    
+    """
+    pass
     
 class MonitorActivitySequence(MonitorActivityLabeledScope):
     """
@@ -7923,31 +7994,6 @@ class MonitorActivitySequence(MonitorActivityLabeledScope):
     """
     pass
     
-class TemplateVarDecl(TemplateElem):
-    """
-    A template variable declaration -- §4.7.1.2, Table 5.
-    
-    ``{% data_type procedural_data_instantiation { , procedural_data_instantiation } ; %}``
-    
-    The declarations are ProceduralStmtDataDeclaration nodes, the same
-    node a procedural ``int x;`` produces, so both resolve through one
-    path.  They are registered in the enclosing TemplateBlock's (or
-    TemplateString's) symtab.
-    
-    Attributes:
-        decls: The declared variables
-    
-    See Also:
-        TemplateAssign, TemplateBlock
-    
-    """
-    pass
-    
-    def decls(self) -> ListUtil...
-        """Returns an iterator over the items"""
-    
-    def getDecls(self) -> List[ProceduralStmtDataDeclaration]: ...
-    
 class ActivitySequence(ActivityLabeledScope):
     """
     Defines a sequential execution block.
@@ -7994,47 +8040,90 @@ class ActivitySequence(ActivityLabeledScope):
     """
     pass
     
-class MonitorActivitySelect(MonitorActivityLabeledScope):
+class MonitorActivityOverlap(MonitorActivityLabeledScope):
     """
-    Alternative monitoring paths.
+    Overlap block for concurrent sequence monitoring.
     
-    ``select { a; b; }`` is satisfied by observing exactly one of its
-    alternatives. The grammar requires at least two.
+    ``overlap { a; b; }`` requires its body statements to be observed with
+    overlapping lifetimes, rather than one after another.
     
-    The alternatives are the scope's children. The class previously held a
-    ``branches`` list of MonitorActivitySelectBranch, each with a guard
-    expression -- a guarded form that exists for action ``select`` but not
-    for monitor ``select``, so no branch was ever constructible. That
-    class has been removed.
+    Like ``concat``, this is an n-ary block and not a binary operator; the
+    former ``lhs``/``rhs`` fields modelled an ``a overlap b`` syntax that
+    PSS does not have.
     
     PSS Example::
     
         component c {
-            action fast_path { }
-            action slow_path { }
+            action addr_phase { }
+            action data_phase { }
     
-            monitor protocol_variants {
-                fast_path fp;
-                slow_path sp;
+            monitor concurrent_check {
+                addr_phase ap;
+                data_phase dp;
     
                 activity {
-                    protocol_choice: select {
-                        fp;
-                        sp;
+                    overlap {
+                        ap;
+                        dp;
                     }
                 }
             }
         }
     
     Attributes:
-        label: Optional identifier expression for the select label
+        label: Optional identifier expression for the label
             (inherited from MonitorActivityLabeledScope)
     
     See Also:
-        MonitorActivitySequence, ActivitySelect
+        MonitorActivityConcat, MonitorActivitySchedule
     
     """
     pass
+    
+class TemplateVarDecl(TemplateElem):
+    """
+    A template variable declaration -- §4.7.1.2, Table 5.
+    
+    ``{% data_type procedural_data_instantiation { , procedural_data_instantiation } ; %}``
+    
+    The declarations are ProceduralStmtDataDeclaration nodes, the same
+    node a procedural ``int x;`` produces, so both resolve through one
+    path.  They are registered in the enclosing TemplateBlock's (or
+    TemplateString's) symtab.
+    
+    Attributes:
+        decls: The declared variables
+    
+    See Also:
+        TemplateAssign, TemplateBlock
+    
+    """
+    pass
+    
+    def decls(self) -> ListUtil...
+        """Returns an iterator over the items"""
+    
+    def getDecls(self) -> List[ProceduralStmtDataDeclaration]: ...
+    
+class TemplateRepeat(TemplateBlock):
+    """
+    A template repeat directive -- §4.7.1.2, Table 5.
+    
+    ``{% repeat ( [ index_identifier : ] expression ) %}``
+    
+    Attributes:
+        expr: The repeat-count expression
+        idx: Index variable identifier, if written
+    
+    See Also:
+        TemplateBlock, TemplateForeach
+    
+    """
+    pass
+    
+    def getExpr(self) -> Expr: ...
+    
+    def getIdx(self) -> ExprId: ...
     
 class TemplateIfClause(TemplateBlock):
     """
@@ -8075,26 +8164,6 @@ class TemplateForeach(TemplateBlock):
     def getExpr(self) -> Expr: ...
     
     def getIt(self) -> ExprId: ...
-    
-    def getIdx(self) -> ExprId: ...
-    
-class TemplateRepeat(TemplateBlock):
-    """
-    A template repeat directive -- §4.7.1.2, Table 5.
-    
-    ``{% repeat ( [ index_identifier : ] expression ) %}``
-    
-    Attributes:
-        expr: The repeat-count expression
-        idx: Index variable identifier, if written
-    
-    See Also:
-        TemplateBlock, TemplateForeach
-    
-    """
-    pass
-    
-    def getExpr(self) -> Expr: ...
     
     def getIdx(self) -> ExprId: ...
     

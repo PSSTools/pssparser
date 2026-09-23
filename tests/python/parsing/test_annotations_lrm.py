@@ -78,7 +78,7 @@ def test_brace_form_parses_and_names_its_parameter():
         """)
     params = annotations_of(find(root, "C"))[0].getParameters()
     assert len(params) == 1
-    assert params[0].getName().getId() == "desc"
+    assert params[0].getName().getId().getId() == "desc"
 
 
 def test_brace_form_takes_multiple_parameters():
@@ -87,7 +87,7 @@ def test_brace_form_takes_multiple_parameters():
         component C { }
         """)
     params = annotations_of(find(root, "C"))[0].getParameters()
-    assert [p.getName().getId() for p in params] == ["desc", "weight"]
+    assert [p.getName().getId().getId() for p in params] == ["desc", "weight"]
 
 
 def test_the_brace_form_carries_the_parameter_name():
@@ -96,7 +96,7 @@ def test_the_brace_form_carries_the_parameter_name():
     root = link(DECL + '@desc_s {.desc = "x"}\ncomponent C { }\n')
     params = annotations_of(find(root, "C"))[0].getParameters()
     assert len(params) == 1
-    assert params[0].getName().getId() == "desc"
+    assert params[0].getName().getId().getId() == "desc"
 
 
 def test_empty_brace_list_parses():

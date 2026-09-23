@@ -22,6 +22,11 @@
 #include <string>
 #include "pssp/ast/impl/VisitorBase.h"
 #include "pssp/ast/IPyImportStmt.h"
+#include "pssp/ast/IConstraintBlock.h"
+#include "pssp/ast/IActivityLabeledStmt.h"
+#include "pssp/ast/IActivityLabeledScope.h"
+#include "pssp/ast/IMonitorActivityLabeledStmt.h"
+#include "pssp/ast/IMonitorActivityLabeledScope.h"
 #include "pssp/impl/TaskIsUnspecializedGenericType.h"
 
 namespace pssp {
@@ -97,6 +102,30 @@ public:
         } else if (i->getPath().size()) {
             m_ret = i->getPath().front()->getId();
         }
+    }
+
+    /** A constraint's name is a plain string, not an ExprId. "" if anonymous. */
+    virtual void visitConstraintBlock(ast::IConstraintBlock *i) override {
+        m_ret = i->getName();
+    }
+
+    /** A labelled activity statement or block is declared by its label. */
+    virtual void visitActivityLabeledStmt(ast::IActivityLabeledStmt *i) override {
+        if (i->getLabel()) m_ret = i->getLabel()->getId();
+    }
+
+    virtual void visitActivityLabeledScope(ast::IActivityLabeledScope *i) override {
+        if (i->getLabel()) m_ret = i->getLabel()->getId();
+        m_sym_s = i;
+    }
+
+    virtual void visitMonitorActivityLabeledStmt(ast::IMonitorActivityLabeledStmt *i) override {
+        if (i->getLabel()) m_ret = i->getLabel()->getId();
+    }
+
+    virtual void visitMonitorActivityLabeledScope(ast::IMonitorActivityLabeledScope *i) override {
+        if (i->getLabel()) m_ret = i->getLabel()->getId();
+        m_sym_s = i;
     }
 
     virtual void visitRootSymbolScope(ast::IRootSymbolScope *i) override {

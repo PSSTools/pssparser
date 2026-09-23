@@ -62,7 +62,7 @@ def _unique_stmts(body):
 
 def _last_elem(stmt, i=0):
     """The final ExprMemberPathElem of the stmt's i'th operand."""
-    hid = stmt.getList(i)
+    hid = stmt.getList(i).getHier_id()
     return hid.getElem(hid.numElems() - 1)
 
 
@@ -85,7 +85,7 @@ def test_braced_form_is_flagged_as_braced():
 
 def test_braced_form_preserves_operand_order():
     stmt = _unique_stmts("unique { a, b, c };")[0]
-    names = [stmt.getList(i).getElem(0).getId().getId()
+    names = [stmt.getList(i).getHier_id().getElem(0).getId().getId()
              for i in range(stmt.numList())]
     assert names == ["a", "b", "c"]
 
@@ -110,7 +110,7 @@ def test_single_argument_form_is_not_flagged_as_braced():
 
 def test_single_argument_form_names_the_collection():
     stmt = _unique_stmts("unique arr;")[0]
-    assert stmt.getList(0).getElem(0).getId().getId() == "arr"
+    assert stmt.getList(0).getHier_id().getElem(0).getId().getId() == "arr"
 
 
 def test_one_element_forms_are_distinguishable():

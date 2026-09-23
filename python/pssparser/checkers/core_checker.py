@@ -81,6 +81,7 @@ class CoreChecker(CheckerBase):
                 r"^unknown type\b",
                 r"^unknown identifier\b",
                 r"^unknown method\b",
+                r"^unknown function\b",
                 r"\bhas no member named\b",
                 # The same failure as the line above, reached through the
                 # *unqualified* path. The two spellings are one diagnosis and
@@ -95,6 +96,8 @@ class CoreChecker(CheckerBase):
                 "qualifying package or scope)\n"
                 "* ``unknown identifier 'bar'``\n"
                 "* ``unknown method 'baz' on built-in type``\n"
+                "* ``unknown function 'f': an import of this form needs a "
+                "separate declaration of the function (20.4.1)``\n"
                 "* ``'pkg' has no member named 'thing'``\n"
                 "* ``Failed to find elem 'thing'``\n\n"
                 "The last two are the same diagnosis reached through a "
@@ -173,6 +176,9 @@ class CoreChecker(CheckerBase):
                 "* ``too few arguments to 'f': expected 2, got 1``\n"
                 "* ``too many arguments to 'f': expected 1, got 2``\n"
                 "* ``'x' is not a function``\n"
+                "* ``'size' is a method; call it as 'size()'``\n"
+                "* ``'v' is not a symbol; only a symbol can be called in an "
+                "activity``\n"
                 "* ``parameter 'b' has no default, but follows 'a' which "
                 "does``\n"
                 "* ``argument 1 of 'f' is a string, but parameter 'a' is "
@@ -192,6 +198,8 @@ class CoreChecker(CheckerBase):
                 r"^no overload of '.*' accepts\b",
                 r"^'.*' is not a function; it is\b",
                 r"^'.*' is not a function",
+                r"^'.*' is a method; call it as\b",
+                r"^'.*' is not a symbol; only a symbol can be called\b",
                 r"\bhas no default, but follows\b",
                 r"^argument \d+ of\b",
                 r"^argument \d+ to '.*' expects\b",
@@ -283,15 +291,17 @@ class CoreChecker(CheckerBase):
                 "parameter 1 ('a') is``\n"
                 "* ``declarations of 'f' disagree about whether parameter 2 "
                 "('args') is varargs``\n"
-                "* ``parameter 1 ('a') of 'f' is given a default value by "
-                "more than one declaration``\n\n"
+                "* ``declarations of 'f' disagree about the default value "
+                "of parameter 2 ('y')``\n\n"
                 "Reported once per function, against the declaration the "
                 "rest of the tool treats as authoritative: a definition's "
                 "prototype where there is one, otherwise the first.\n\n"
-                "The last of these is LRM 20.2.4 c, which forbids "
-                "respecifying a default \"even if the value is the same\" -- "
-                "so the values are never compared.  A default given by only "
-                "one declaration is in effect for all of them.\n\n"
+                "The last of these is LRM 3.1 20.2.4 c: a redeclaration may "
+                "repeat a default, \"but this value shall be equal\".  The "
+                "values are compared after folding; a default that does not "
+                "fold to a constant is not reported.  (PSS 3.0 forbade "
+                "repeating a default at all.)  A default given by only one "
+                "declaration is in effect for all of them.\n\n"
                 "Only a *certain* difference is reported.  A ``typedef`` "
                 "alias, an integer width that will not fold to a constant, a "
                 "default width against a written one, and a type name that "
@@ -312,7 +322,6 @@ class CoreChecker(CheckerBase):
             ),
             patterns=(
                 r"^declarations of '.*' disagree\b",
-                r"\bis given a default value by more than one declaration\b",
             ),
         ),
         MarkerDef(
@@ -498,9 +507,27 @@ class CoreChecker(CheckerBase):
             ),
         ),
 
+        MarkerDef(
+            id="PSS017",
+            severity="error",
+            summary="Ambiguous name: more than one import provides it",
+            detail=(
+                "LRM 18.1.3: when two imports of the same kind make the same "
+                "name visible, and they name different declarations, the name "
+                "is not imported at all. An explicit import (``import p::s;``) "
+                "takes precedence over a wildcard import (``import p::*;``), "
+                "so only imports of the same kind can conflict. Two imports "
+                "that reach the same declaration do not conflict.  Message: "
+                "``ambiguous reference to 's': more than one wildcard import "
+                "provides it, so none does (18.1.3); qualify the name``. "
+                "Qualify the name (``lib1::s``) or import it explicitly."
+            ),
+            patterns=(r"^ambiguous reference to\b",),
+        ),
+
         # -- Syntax-error sub-band (PSS020-PSS029) ---------------------------
         #
-        # PSS011-PSS019 are held as general-band headroom. Unlike PSS001-PSS010
+        # PSS018-PSS019 are held as general-band headroom. Unlike PSS001-PSS010
         # above, these markers carry their own `code` from the C++ side
         # (AstBuilderInt::syntaxError / rewriteSyntaxError classifies at the
         # point the message is built), so `patterns` is deliberately left

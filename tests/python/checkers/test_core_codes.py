@@ -220,10 +220,8 @@ def test_qualifier_misuse_mapped_to_pss008(msg):
     "declarations of 'f' disagree about what kind of parameter 1 ('a') is",
     "declarations of 'f' disagree about whether parameter 2 ('args')"
         " is varargs",
-    # Not a "disagreement" -- respecifying an identical default violates LRM
-    # 20.2.4 c too -- so it needs its own pattern for the same code.
-    "parameter 1 ('a') of 'f' is given a default value by more than one"
-        " declaration; only one declaration may give it",
+    "declarations of 'f' disagree about the default value of parameter 1"
+        " ('a')",
 ])
 def test_declaration_disagreement_mapped_to_pss009(msg):
     assert _assign_core_code(_m(msg))["code"] == "PSS009"

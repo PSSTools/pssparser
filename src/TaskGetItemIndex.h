@@ -20,6 +20,7 @@
  */
 #pragma once
 #include "pssp/ast/impl/VisitorBase.h"
+#include "pssp/ast/ISymbolDeclaration.h"
 
 namespace pssp {
 
@@ -108,6 +109,13 @@ public:
     }
 
     virtual void visitSymbolFunctionScope(ast::ISymbolFunctionScope *i) override {
+        m_index = i->getId();
+    }
+
+    // Not left to the default, which descends into the parameters: a
+    // parameter's visitScopeChild then overwrote the index with its own -1,
+    // so every path into a symbol body was unaddressable (4.4).
+    virtual void visitSymbolDeclaration(ast::ISymbolDeclaration *i) override {
         m_index = i->getId();
     }
 

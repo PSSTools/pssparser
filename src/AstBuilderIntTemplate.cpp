@@ -687,6 +687,10 @@ void AstBuilderInt::buildTemplateDirective(
             }
             if (ctx->index_identifier()) {
                 node->setIdx(mkId(ctx->index_identifier()->identifier()));
+            } else if (ast::IExprId *idx = liftForeachIndex(
+                    dynamic_cast<ast::IExprRefPathContext *>(node->getExpr()))) {
+                // `{% foreach (l[i]) %}` -- the index parsed as a subscript (F4)
+                node->setIdx(idx);
             }
             m_frag = saved;
         }
@@ -788,7 +792,8 @@ void AstBuilderInt::buildTemplateDirective(
         lhs->setLocation({m_file_id, tok.inner_line, tok.inner_col + lhs_off, lhs_len});
 
         appendTemplateElem(st, m_factory->mkTemplateAssign(
-            "<template-assign>", tok.offset, tok.extent, lhs, rhs_e), tok);
+            "<template-assign>", tok.offset, tok.extent,
+            m_factory->mkExprRefName(lhs), rhs_e), tok);
         return;
     }
 

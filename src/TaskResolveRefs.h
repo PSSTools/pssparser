@@ -29,6 +29,8 @@
 #include "ResolveContext.h"
 #include "TaskCompareTypeRefs.h"
 #include "TaskResolveBase.h"
+#include "pssp/ast/IActionFieldInitializer.h"
+#include "pssp/ast/IExprBitSlice.h"
 
 namespace pssp {
 
@@ -68,6 +70,17 @@ public:
     virtual void visitExprRefPathStatic(ast::IExprRefPathStatic *i) override;
 
     virtual void visitExprRefPathStaticRooted(ast::IExprRefPathStaticRooted *i) override;
+
+private:
+    void resolveExprRefPathContext(ast::IExprRefPathContext *i);
+    void resolveExprRefPathStatic(ast::IExprRefPathStatic *i);
+    void resolveExprRefPathStaticRooted(ast::IExprRefPathStaticRooted *i);
+    void visitSlice(ast::IExprBitSlice *slice);
+    bool defaultsDiffer(ast::IExpr *a, ast::IExpr *b);
+    void visitTraversalOperands(
+        ast::IExprRefPathContext                            *target,
+        const std::vector<ast::IActionFieldInitializerUP>   &inits);
+public:
 
     virtual void visitExtendEnum(ast::IExtendEnum *i) override;
 
@@ -139,6 +152,30 @@ public:
     virtual void visitAnnotation(ast::IAnnotation *i) override;
 
     virtual void visitDataTypeUserDefined(ast::IDataTypeUserDefined *i) override;
+
+    virtual void visitDataTypeEnum(ast::IDataTypeEnum *i) override;
+
+    virtual void visitExprMemberCall(ast::IExprMemberCall *i) override;
+
+    virtual void visitFunctionImportType(ast::IFunctionImportType *i) override;
+
+    virtual void visitSymbolEnumScope(ast::ISymbolEnumScope *i) override;
+
+    virtual void visitSymbolDeclaration(ast::ISymbolDeclaration *i) override;
+
+    // References whose resolution belongs to a later workstream. Since WS3.2
+    // they are bindable paths, which the generic walk would resolve with the
+    // ordinary lookup -- the wrong rules for them -- so each is skipped
+    // explicitly until its own resolver lands. See TaskResolveRefs.cpp.
+    virtual void visitComponentBind(ast::IComponentBind *i) override;
+    virtual void visitActivityBindStmt(ast::IActivityBindStmt *i) override { }
+    virtual void visitActivitySchedulingConstraint(ast::IActivitySchedulingConstraint *i) override { }
+    virtual void visitActionFieldInitializer(ast::IActionFieldInitializer *i) override;
+    virtual void visitInstanceOverride(ast::IInstanceOverride *i) override;
+
+    virtual void visitExportFunction(ast::IExportFunction *i) override;
+
+    virtual void visitActivitySymbolCall(ast::IActivitySymbolCall *i) override;
     
     virtual void visitTypeIdentifier(ast::ITypeIdentifier *i) override;
 

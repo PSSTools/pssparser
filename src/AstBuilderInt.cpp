@@ -33,6 +33,8 @@
 #include "pssp/ast/IEnumItem.h"
 #include "pssp/ast/IEnumDecl.h"
 #include "pssp/ast/IExprId.h"
+#include "pssp/ast/IExprMemberCall.h"
+#include "pssp/ast/IExprRefName.h"
 #include "pssp/ast/IExprIn.h"
 #include "pssp/ast/IExprOpenRangeList.h"
 #include "pssp/ast/IExprOpenRangeValue.h"
@@ -626,7 +628,7 @@ antlrcpp::Any AstBuilderInt::visitAnnotation(PSSParser::AnnotationContext *ctx) 
     if (ctx->annotation_params_list()) {
         for (auto *item : ctx->annotation_params_list()->annotation_param_item()) {
             ast::IAnnotationParam *param = m_factory->mkAnnotationParam(
-                mkId(item->identifier()),
+                mkRefName(item->identifier()),
                 mkExpr(item->constant_expression()->expression()));
             setLoc(param, item->start);
             annotation->getParameters().push_back(ast::IAnnotationParamUP(param));
@@ -830,17 +832,19 @@ antlrcpp::Any AstBuilderInt::visitActivity_bind_stmt(PSSParser::Activity_bind_st
     ast::IExprHierarchicalId *lhs;
 
     lhs = mkHierarchicalId(ctx->hierarchical_id());
-    ast::IActivityBindStmt *stmt = m_factory->mkActivityBindStmt(lhs);
+    ast::IActivityBindStmt *stmt = m_factory->mkActivityBindStmt(
+        m_factory->mkExprRefPathContext(lhs));
 
     if (ctx->activity_bind_item_or_list()->hierarchical_id()) {
-        stmt->getRhs().push_back(
-            mkHierarchicalId(ctx->activity_bind_item_or_list()->hierarchical_id()));
+        stmt->getRhs().push_back(ast::IExprRefPathContextUP(m_factory->mkExprRefPathContext(
+            mkHierarchicalId(ctx->activity_bind_item_or_list()->hierarchical_id()))));
     } else {
         std::vector<PSSParser::Hierarchical_idContext *> items = ctx->activity_bind_item_or_list()->hierarchical_id_list()->hierarchical_id();
         for (std::vector<PSSParser::Hierarchical_idContext *>::const_iterator
             it=items.begin(); 
             it!=items.end(); it++) {
-            stmt->getRhs().push_back(mkHierarchicalId((*it)));
+            stmt->getRhs().push_back(ast::IExprRefPathContextUP(
+                m_factory->mkExprRefPathContext(mkHierarchicalId((*it)))));
         }
     }
     setLoc(stmt, ctx->start);
@@ -961,7 +965,8 @@ antlrcpp::Any AstBuilderInt::visitObject_bind_stmt(PSSParser::Object_bind_stmtCo
 	//   TOK_BIND hierarchical_id object_bind_item_or_list ';'
 	// Targets are structural but unresolved -- no ref resolution happens here,
 	// so the node stays inert during link.
-	std::string pool_path = ctx->hierarchical_id()->getText();
+	ast::IExprRefPathContext *pool_path = m_factory->mkExprRefPathContext(
+		mkHierarchicalId(ctx->hierarchical_id()));
 
 	std::vector<ast::IComponentBindTarget *> targets;
 	bool is_wildcard = false;
@@ -1067,7 +1072,7 @@ ast::ICoverpointBins *AstBuilderInt::mkCoverpointBins(
 	}
 
 	if (form == ast::CoverpointBinsFormE::Coverpoint) {
-		bins->setTarget(mkId(rhs->coverpoint_identifier()->identifier()));
+		bins->setTarget(mkRefName(rhs->coverpoint_identifier()->identifier()));
 	}
 
 	if (rhs->covergroup_expression()) {
@@ -1129,7 +1134,7 @@ ast::ICovergroupCross *AstBuilderInt::mkCovergroupCross(PSSParser::Covergroup_cr
 	std::vector<PSSParser::Coverpoint_identifierContext *> cp_ids = ctx->coverpoint_identifier();
 	for (std::vector<PSSParser::Coverpoint_identifierContext *>::const_iterator
 		it=cp_ids.begin(); it!=cp_ids.end(); it++) {
-		cx->getCoverpoint_names().push_back(ast::IExprIdUP(mkId((*it)->identifier())));
+		cx->getCoverpoint_names().push_back(ast::IExprRefNameUP(mkRefName((*it)->identifier())));
 	}
 
 	std::vector<PSSParser::Covergroup_cross_body_itemContext *> items =
@@ -1144,7 +1149,7 @@ ast::ICovergroupCross *AstBuilderInt::mkCovergroupCross(PSSParser::Covergroup_cr
 			ast::ICovergroupCrossBins *bins = m_factory->mkCovergroupCrossBins(
 				mkId(b->name),
 				binsKind(b->bins_type),
-				mkId(b->covercross_identifier()->identifier()),
+				mkRefName(b->covercross_identifier()->identifier()),
 				mkExpr(b->expr->expression()));
 			setLoc(bins, b->start);
 			setExtent(bins, b->start, b->stop);
@@ -1280,7 +1285,11 @@ antlrcpp::Any AstBuilderInt::visitActivity_data_field(PSSParser::Activity_data_f
 	// D2: `activity_data_field` contributes tokens ahead of the declaration it wraps, so the
 	// comment sits to the left of *this* rule, not of the delegate.
 	DocAnchorScope doc_anchor(this, ctx->start);
+	// In an activity, the field lands in the action (addChild targets the
+	// innermost named scope), like an activity-local action handle. Placing
+	// both in their activity block is WS2.6.
 	m_field_depth++;
+	ctx->data_declaration()->accept(this);
 	m_field_depth--;
 
 	for (std::vector<ast::IField *>::const_iterator
@@ -1743,7 +1752,7 @@ antlrcpp::Any AstBuilderInt::visitExport_function(PSSParser::Export_functionCont
 
     ast::IExportFunction *func = m_factory->mkExportFunction(
         ast::PlatQual::PlatQual_Target,
-        mkId(ctx->function_identifier()->identifier()));
+        mkRefName(ctx->function_identifier()->identifier()));
     setLoc(func, ctx->start);
     addChild(func, ctx->start);
 
@@ -1854,8 +1863,17 @@ antlrcpp::Any AstBuilderInt::visitProcedural_void_function_call_stmt(PSSParser::
         m_exec_stmt_cnt++;
     } else {
         DEBUG("Creating an ExprRefPathContext expression");
-        ast::IProceduralStmtExpr *stmt = m_factory->mkProceduralStmtExpr(
-            m_factory->mkExprRefPathContext(hid));
+        // `super.f();` builds an ExprRefPathSuper, as the expression form does
+        // (mkExprRefPath). Dropping it bound the call to the derived `f`.
+        ast::IExprRefPathContext *ref;
+        if (ctx->function_call()->TOK_SUPER()) {
+            ast::IExprRefPathSuper *sref = m_factory->mkExprRefPathSuper(hid);
+            sref->setIs_super(true);
+            ref = sref;
+        } else {
+            ref = m_factory->mkExprRefPathContext(hid);
+        }
+        ast::IProceduralStmtExpr *stmt = m_factory->mkProceduralStmtExpr(ref);
         m_exec_stmt = stmt;
         m_exec_stmt_cnt++;
     }
@@ -1950,6 +1968,37 @@ antlrcpp::Any AstBuilderInt::visitProcedural_repeat_stmt(PSSParser::Procedural_r
     return 0;
 }
 
+/**
+ * `foreach (a[i])`: expressions are greedy, so the index variable parses as a
+ * subscript of the collection. Lift a trailing single-name subscript back out
+ * and return it as the index identifier, or return 0 and leave `target` as it
+ * is. Shared by the procedural, activity, constraint and template foreach
+ * builders (F4: the template one had no copy of it).
+ */
+ast::IExprId *AstBuilderInt::liftForeachIndex(ast::IExprRefPathContext *target) {
+    if (!target || !target->getHier_id()->getElems().size()) {
+        return 0;
+    }
+    std::vector<ast::IExprUP> &subscript =
+        target->getHier_id()->getElems().back()->getSubscript();
+    if (!subscript.size()) {
+        return 0;
+    }
+    ast::IExprRefPathContext *idx_ref =
+        dynamic_cast<ast::IExprRefPathContext *>(subscript.back().get());
+    if (!idx_ref || idx_ref->getIs_super()
+            || idx_ref->getHier_id()->getElems().size() != 1
+            || idx_ref->getHier_id()->getElems().back()->getSubscript().size()
+            || idx_ref->getHier_id()->getElems().back()->getParams()) {
+        return 0;
+    }
+    ast::IExprId *idx = idx_ref->getHier_id()->getElems().back()->getId();
+    ast::IExprId *ret = m_factory->mkExprId(idx->getId(), idx->getIs_escaped());
+    ret->setLocation(idx->getLocation());
+    subscript.pop_back();
+    return ret;
+}
+
 antlrcpp::Any AstBuilderInt::visitProcedural_foreach_stmt(PSSParser::Procedural_foreach_stmtContext *ctx) {
     DEBUG_ENTER("visitProcedural_foreach_stmt");
 
@@ -1963,19 +2012,9 @@ antlrcpp::Any AstBuilderInt::visitProcedural_foreach_stmt(PSSParser::Procedural_
     ast::IExprId *idx_id = ctx->index_identifier()
                            ? mkId(ctx->index_identifier()->identifier())    : 0;
 
-    // If no explicit index_identifier was parsed, recover it from the trailing
-    // subscript that expression parsing greedily consumed (mirrors
-    // visitForeach_constraint_item).
-    if (!idx_id && path && path->getHier_id()->getElems().back()->getSubscript().size()) {
-        std::vector<ast::IExprUP> &subscript = path->getHier_id()->getElems().back()->getSubscript();
-        ast::IExprRefPathContext *idx_ref = dynamic_cast<ast::IExprRefPathContext *>(subscript.back().get());
-        if (idx_ref && idx_ref->getHier_id()->getElems().size() == 1
-                && !idx_ref->getHier_id()->getElems().back()->getSubscript().size()) {
-            ast::IExprId *idx = idx_ref->getHier_id()->getElems().back()->getId();
-            idx_id = m_factory->mkExprId(idx->getId(), idx->getIs_escaped());
-            idx_id->setLocation(idx->getLocation());
-            subscript.pop_back();
-        }
+    // No explicit index_identifier: recover it from the trailing subscript.
+    if (!idx_id) {
+        idx_id = liftForeachIndex(path);
     }
 
     ast::IScopeChild *body = mkExecStmt(ctx->procedural_stmt());
@@ -2745,11 +2784,14 @@ antlrcpp::Any AstBuilderInt::visitActivity_schedule_stmt(PSSParser::Activity_sch
 
 antlrcpp::Any AstBuilderInt::visitActivity_repeat_stmt(PSSParser::Activity_repeat_stmtContext *ctx) {
 	DEBUG_ENTER("visitActivity_repeat_stmt");
+	// Claim the pending label before building the body: a labelled statement
+	// in the body would otherwise consume, then clear, this one's label (F8(1)).
+	ast::IExprId *label = m_labeled_activity_id;
+	m_labeled_activity_id = 0;
 
 	IActivityLabeledStmt *stmt = 0;
 
 	if (ctx->is_repeat) {
-		ast::IExprId *label = m_labeled_activity_id;
         ast::IScopeChild *body = mkActivityStmt(ctx->activity_stmt_ann());
         if (!body) {
             body = m_factory->mkActivitySequence("");
@@ -2781,9 +2823,8 @@ antlrcpp::Any AstBuilderInt::visitActivity_repeat_stmt(PSSParser::Activity_repea
 		stmt = rw;
 	}
 
-	if (m_labeled_activity_id) {
-		stmt->setLabel(m_labeled_activity_id);
-		m_labeled_activity_id = 0;
+	if (label) {
+		stmt->setLabel(label);
 	}
 
 	// A5: locate the statement at its opening keyword, and extend the range
@@ -2800,6 +2841,10 @@ antlrcpp::Any AstBuilderInt::visitActivity_repeat_stmt(PSSParser::Activity_repea
 
 antlrcpp::Any AstBuilderInt::visitActivity_atomic_block_stmt(PSSParser::Activity_atomic_block_stmtContext *ctx) {
 	DEBUG_ENTER("visitActivity_atomic_block_stmt");
+	// Claim the pending label before building the body: a labelled statement
+	// in the body would otherwise consume, then clear, this one's label (F8(1)).
+	ast::IExprId *label = m_labeled_activity_id;
+	m_labeled_activity_id = 0;
 
 	// Create a sequence to hold the atomic block statements
 	ast::IActivitySequence *seq = m_factory->mkActivitySequence("");
@@ -2814,9 +2859,8 @@ antlrcpp::Any AstBuilderInt::visitActivity_atomic_block_stmt(PSSParser::Activity
 	ast::IActivityAtomicBlock *atomic = m_factory->mkActivityAtomicBlock(seq);
 	setLoc(atomic, ctx->start);
 
-	if (m_labeled_activity_id) {
-		atomic->setLabel(m_labeled_activity_id);
-		m_labeled_activity_id = 0;
+	if (label) {
+		atomic->setLabel(label);
 	}
 
 	m_activity_stmt = atomic;
@@ -2860,6 +2904,10 @@ antlrcpp::Any AstBuilderInt::visitActivity_select_stmt(PSSParser::Activity_selec
 
 antlrcpp::Any AstBuilderInt::visitActivity_if_else_stmt(PSSParser::Activity_if_else_stmtContext *ctx) {
 	DEBUG_ENTER("visitActivity_if_else_stmt");
+	// Claim the pending label before building the body: a labelled statement
+	// in the body would otherwise consume, then clear, this one's label (F8(1)).
+	ast::IExprId *label = m_labeled_activity_id;
+	m_labeled_activity_id = 0;
 
 	ast::IExpr *cond = mkExpr(ctx->expression());
 	ast::IScopeChild *true_body  = mkActivityStmt(ctx->activity_stmt_ann(0));
@@ -2872,9 +2920,8 @@ antlrcpp::Any AstBuilderInt::visitActivity_if_else_stmt(PSSParser::Activity_if_e
 		true_body,
 		false_body);
 
-	if (m_labeled_activity_id) {
-		ife->setLabel(m_labeled_activity_id);
-		m_labeled_activity_id = 0;
+	if (label) {
+		ife->setLabel(label);
 	}
 
 	// A5: locate the statement at its opening keyword, and extend the range
@@ -2927,6 +2974,10 @@ antlrcpp::Any AstBuilderInt::visitActivity_match_stmt(PSSParser::Activity_match_
 
 antlrcpp::Any AstBuilderInt::visitActivity_foreach_stmt(PSSParser::Activity_foreach_stmtContext *ctx) {
 	DEBUG_ENTER("visitActivity_foreach_stmt");
+	// Claim the pending label before building the body: a labelled statement
+	// in the body would otherwise consume, then clear, this one's label (F8(1)).
+	ast::IExprId *label = m_labeled_activity_id;
+	m_labeled_activity_id = 0;
 
 	ast::IExprId *it_id  = ctx->it_id  ? mkId(ctx->it_id->identifier())  : nullptr;
 	ast::IExprId *idx_id = ctx->idx_id ? mkId(ctx->idx_id->identifier()) : nullptr;
@@ -2950,23 +3001,8 @@ antlrcpp::Any AstBuilderInt::visitActivity_foreach_stmt(PSSParser::Activity_fore
 			loc);
 		if (m_marker_l) { m_marker_l->marker(&m); }
 	} else if (!idx_id) {
-		// Expressions are greedy, so `foreach (a[i])` parses the index variable
-		// as a subscript of `a` rather than matching the optional [idx_id].
-		// Lift a trailing single-identifier subscript back out. This mirrors
-		// visitForeach_constraint_item, which has the same grammar shape.
-		std::vector<ast::IExprUP> &subscript =
-			target->getHier_id()->getElems().back()->getSubscript();
-		if (subscript.size()) {
-			ast::IExprRefPathContext *sub_c =
-				dynamic_cast<ast::IExprRefPathContext *>(subscript.back().get());
-			if (sub_c && sub_c->getHier_id()->getElems().size() == 1 &&
-				!sub_c->getHier_id()->getElems().back()->getSubscript().size()) {
-				ast::IExprId *idx = sub_c->getHier_id()->getElems().back()->getId();
-				idx_id = m_factory->mkExprId(idx->getId(), idx->getIs_escaped());
-				idx_id->setLocation(idx->getLocation());
-				subscript.pop_back();
-			}
-		}
+		// `foreach (a[i])`: the index parsed as a subscript of `a`.
+		idx_id = liftForeachIndex(target);
 	}
 
 	ast::IScopeChild *body = mkActivityStmt(ctx->activity_stmt_ann());
@@ -2986,9 +3022,8 @@ antlrcpp::Any AstBuilderInt::visitActivity_foreach_stmt(PSSParser::Activity_fore
 
 	ast::IActivityForeach *fe = m_factory->mkActivityForeach(it_id, idx_id, target, body);
 
-	if (m_labeled_activity_id) {
-		fe->setLabel(m_labeled_activity_id);
-		m_labeled_activity_id = 0;
+	if (label) {
+		fe->setLabel(label);
 	}
 
 	// A5: locate the statement at its opening keyword, and extend the range
@@ -3067,7 +3102,8 @@ antlrcpp::Any AstBuilderInt::visitActivity_scheduling_constraint(PSSParser::Acti
 	for (std::vector<PSSParser::Hierarchical_idContext *>::const_iterator
 		it=targets.begin();
 		it!=targets.end(); it++) {
-		sc->getTargets().push_back(ast::IExprHierarchicalIdUP(mkHierarchicalId(*it)));
+		sc->getTargets().push_back(ast::IExprRefPathContextUP(
+			m_factory->mkExprRefPathContext(mkHierarchicalId(*it))));
 	}
 
 	setLoc(sc, ctx->start);
@@ -3133,6 +3169,17 @@ antlrcpp::Any AstBuilderInt::visitData_declaration(PSSParser::Data_declarationCo
 			type,
 			FieldAttr::NoFlags,
 			init);
+
+		// `A a {.x = 1};` in an action body is a handle declaration that
+		// parses as data (F-N2). The list used to be dropped.
+		if ((*it)->action_initializer_list()) {
+			std::vector<ast::IActionFieldInitializer *> inits =
+				mkActionFieldInitializers((*it)->action_initializer_list());
+			for (std::vector<ast::IActionFieldInitializer *>::const_iterator
+				init_it=inits.begin(); init_it!=inits.end(); init_it++) {
+				field->getInitializers().push_back(ast::IActionFieldInitializerUP(*init_it));
+			}
+		}
 
         // Give the field a location that matches the field identifier
         // Note: we supply the token to use when looking for doc comments
@@ -3335,11 +3382,12 @@ antlrcpp::Any AstBuilderInt::visitEnum_type(PSSParser::Enum_typeContext *ctx) {
 	DEBUG_ENTER("visitEnum_type");
 
 	ast::IDataTypeUserDefined *dt = mkDataTypeUserDefined(ctx->enum_type_identifier()->type_identifier());
-	ast::IExprOpenRangeList *in = 0;
+	ast::IExprDomainOpenRangeList *in = 0;
 
+	// Built by the helper integer_type uses. Accepting the rule here never set
+	// m_expr, so the domain was dropped (F-N3).
 	if (ctx->TOK_IN()) {
-		ctx->open_range_list()->accept(this);
-		in = dynamic_cast<ast::IExprOpenRangeList*>(m_expr);
+		in = mkDomainOpenRangeList(ctx->domain_open_range_list());
 	}
 
 	ast::IDataTypeEnum *type_enum = m_factory->mkDataTypeEnum(dt, in);
@@ -3627,7 +3675,7 @@ antlrcpp::Any AstBuilderInt::visitConstraint_body_compile_if(PSSParser::Constrai
 antlrcpp::Any AstBuilderInt::visitDefault_constraint(PSSParser::Default_constraintContext *ctx) {
 	DEBUG_ENTER("visitDefault_constraint");
 	ast::IConstraintStmtDefault *c = m_factory->mkConstraintStmtDefault(
-		mkHierarchicalId(ctx->hierarchical_id()),
+		m_factory->mkExprRefPathContext(mkHierarchicalId(ctx->hierarchical_id())),
 		mkExpr(ctx->constant_expression()->expression()));
 	setLoc(c, ctx->start);
 	addConstraintStmt(c);
@@ -3638,7 +3686,7 @@ antlrcpp::Any AstBuilderInt::visitDefault_constraint(PSSParser::Default_constrai
 antlrcpp::Any AstBuilderInt::visitDefault_disable_constraint(PSSParser::Default_disable_constraintContext *ctx) {
 	DEBUG_ENTER("visitDefault_disable_constraint");
 	ast::IConstraintStmtDefaultDisable *c = m_factory->mkConstraintStmtDefaultDisable(
-		mkHierarchicalId(ctx->hierarchical_id()));
+		m_factory->mkExprRefPathContext(mkHierarchicalId(ctx->hierarchical_id())));
 	setLoc(c, ctx->start);
 	addConstraintStmt(c);
 	DEBUG_LEAVE("visitDefault_disable_constraint");
@@ -3796,15 +3844,16 @@ antlrcpp::Any AstBuilderInt::visitCovergroup_type_instantiation(PSSParser::Cover
             pm->hierarchical_id_list()->hierarchical_id();
         for (std::vector<PSSParser::Hierarchical_idContext *>::const_iterator
             it=ids.begin(); it!=ids.end(); it++) {
-            cg->getTargets().push_back(ast::IExprHierarchicalIdUP(mkHierarchicalId(*it)));
+            cg->getTargets().push_back(ast::IExprRefPathContextUP(
+                m_factory->mkExprRefPathContext(mkHierarchicalId(*it))));
         }
     } else {
         std::vector<PSSParser::Covergroup_portmapContext *> maps = pm->covergroup_portmap();
         for (std::vector<PSSParser::Covergroup_portmapContext *>::const_iterator
             it=maps.begin(); it!=maps.end(); it++) {
             ast::ICovergroupPortmap *map = m_factory->mkCovergroupPortmap(
-                mkId((*it)->identifier()),
-                mkHierarchicalId((*it)->hierarchical_id()));
+                mkRefName((*it)->identifier()),
+                m_factory->mkExprRefPathContext(mkHierarchicalId((*it)->hierarchical_id())));
             setLoc(map, (*it)->start);
             setExtent(map, (*it)->start, (*it)->stop);
             cg->getPortmap().push_back(ast::ICovergroupPortmapUP(map));
@@ -3868,7 +3917,7 @@ antlrcpp::Any AstBuilderInt::visitSymbol_call(PSSParser::Symbol_callContext *ctx
     // The symbol may be declared after the call, so the target is kept as the
     // name that was written and left for the linker to resolve.
     ast::IActivitySymbolCall *call = m_factory->mkActivitySymbolCall(
-        mkId(ctx->symbol_identifier()->identifier()));
+        mkRefName(ctx->symbol_identifier()->identifier()));
 
     std::vector<PSSParser::ExpressionContext *> args =
         ctx->function_parameter_list()->expression();
@@ -3990,7 +4039,7 @@ antlrcpp::Any AstBuilderInt::visitType_override(PSSParser::Type_overrideContext 
 antlrcpp::Any AstBuilderInt::visitInstance_override(PSSParser::Instance_overrideContext *ctx) {
     DEBUG_ENTER("visitInstance_override");
     ast::IInstanceOverride *ovr = m_factory->mkInstanceOverride(
-        mkHierarchicalId(ctx->target),
+        m_factory->mkExprRefPathContext(mkHierarchicalId(ctx->target)),
         mkTypeId(ctx->override));
     addChild(ovr, ctx->start, 0, 0, ctx->stop);
     DEBUG_LEAVE("visitInstance_override");
@@ -4123,30 +4172,16 @@ antlrcpp::Any AstBuilderInt::visitForeach_constraint_item(PSSParser::Foreach_con
         it->setIndex(symtab->getChildren().size());
         symtab->getChildren().push_back(ast::IScopeChildUP(it, false));
 	} else if (expr_c) {
-        // Expressions are greedy, which means the index variable will end up
-        // being interpreted as an array subscript much of the time.
-        // Fix this up here...
-        if (expr_c->getHier_id()->getElems().back()->getSubscript().size()) {
-            std::vector<ast::IExprUP> &subscript = expr_c->getHier_id()->getElems().back()->getSubscript();
-            ast::IExprRefPathContext *idx_id = dynamic_cast<ast::IExprRefPathContext *>(subscript.back().get());
-            if (idx_id && idx_id->getHier_id()->getElems().size() == 1) {
-                ast::IExprId *idx = idx_id->getHier_id()->getElems().back()->getId();
-                ast::IExprId *idx_i = m_factory->mkExprId(
-                    idx->getId(),
-                    idx->getIs_escaped());
-                idx_i->setLocation(idx->getLocation());
-		        ast::IConstraintStmtField *it = m_factory->mkConstraintStmtField(idx_i, 0);
-        		c->setIdx(it);
-                symtab->getSymtab().insert({
-                    it->getName()->getId(),
-                    symtab->getChildren().size()});
-                DEBUG("Set index of iteration variable: %d", symtab->getChildren().size());
-                it->setIndex(symtab->getChildren().size());
-                symtab->getChildren().push_back(ast::IScopeChildUP(it, false));
-
-                DEBUG("Have a subscript %p", idx);
-                subscript.pop_back();
-            }
+        // `foreach (a[i])`: the index parsed as a subscript of `a`.
+        if (ast::IExprId *idx_i = liftForeachIndex(expr_c)) {
+            ast::IConstraintStmtField *it = m_factory->mkConstraintStmtField(idx_i, 0);
+            c->setIdx(it);
+            symtab->getSymtab().insert({
+                it->getName()->getId(),
+                symtab->getChildren().size()});
+            DEBUG("Set index of iteration variable: %d", symtab->getChildren().size());
+            it->setIndex(symtab->getChildren().size());
+            symtab->getChildren().push_back(ast::IScopeChildUP(it, false));
         }
         // No `else` pushing a placeholder child. One used to stand here --
         // `getChildren().push_back(ast::IScopeChildUP(0))`, "a bit odd, but put
@@ -4316,15 +4351,16 @@ antlrcpp::Any AstBuilderInt::visitUnique_constraint_item(PSSParser::Unique_const
 			it=items.begin();
 			it!=items.end(); it++) {
 			ast::IExprHierarchicalId *hid = mkHierarchicalId(*it);
-			c->getList().push_back(ast::IExprHierarchicalIdUP(hid));
+			c->getList().push_back(ast::IExprRefPathContextUP(
+				m_factory->mkExprRefPathContext(hid)));
 		}
 	} else {
 		// Single-argument form (3.1). A slice, if written, is already part of
 		// the hierarchical_id -- see the grammar comment on
 		// unique_constraint_argument.
 		c->setIs_braced(false);
-		c->getList().push_back(ast::IExprHierarchicalIdUP(
-			mkHierarchicalId(arg->hierarchical_id())));
+		c->getList().push_back(ast::IExprRefPathContextUP(
+			m_factory->mkExprRefPathContext(mkHierarchicalId(arg->hierarchical_id()))));
 	}
 
 	if (m_constraint_s.size() > 0) {
@@ -4521,6 +4557,35 @@ antlrcpp::Any AstBuilderInt::visitExpression(PSSParser::ExpressionContext *ctx) 
 	return 0;
 }
 
+antlrcpp::Any AstBuilderInt::visitPrimary(PSSParser::PrimaryContext *ctx) {
+	DEBUG_ENTER("visitPrimary");
+	std::vector<PSSParser::Member_path_elemContext *> members = ctx->member_path_elem();
+	if (members.empty()) {
+		visitChildren(ctx);
+		DEBUG_LEAVE("visitPrimary");
+		return 0;
+	}
+
+	// `"a,b".split(",")`: only the literal is the receiver. Visiting every
+	// child would let the member elements overwrite m_expr.
+	if (ctx->string_literal()) {
+		ctx->string_literal()->accept(this);
+	} else {
+		ctx->aggregate_literal()->accept(this);
+	}
+	ast::IExpr *receiver = m_expr;
+
+	ast::IExprMemberCall *call = m_factory->mkExprMemberCall(receiver);
+	for (std::vector<PSSParser::Member_path_elemContext *>::const_iterator
+		it=members.begin(); it!=members.end(); it++) {
+		call->getMembers().push_back(ast::IExprMemberPathElemUP(mkMemberPathElem(*it)));
+	}
+	m_expr = call;
+
+	DEBUG_LEAVE("visitPrimary");
+	return 0;
+}
+
 antlrcpp::Any AstBuilderInt::visitBool_literal(PSSParser::Bool_literalContext *ctx) {
 	DEBUG_ENTER("visitBool_literal");
 	m_expr = m_factory->mkExprBool(ctx->TOK_TRUE());
@@ -4621,8 +4686,12 @@ antlrcpp::Any AstBuilderInt::visitIdentifier(PSSParser::IdentifierContext *ctx) 
 	}
 
 	Location loc;
+	loc.fileid = m_file_id;
 	loc.lineno = ctx->start->getLine();
 	loc.linepos = ctx->start->getCharPositionInLine()+1;
+    // A no-op outside a template fragment sub-parse (§4.7.1); inside one, the
+    // token's coordinates are fragment-local (E-N1).
+    rebaseLoc(loc.lineno, loc.linepos);
     // The extent spans the source text, which for an escaped identifier is one
     // character longer than the name now that the backslash has been stripped.
     loc.extent = id->getId().size() + (id->getIs_escaped()?1:0);
@@ -4918,7 +4987,7 @@ antlrcpp::Any AstBuilderInt::visitStruct_literal(PSSParser::Struct_literalContex
         ast::IExprId *id = mkId((*it)->identifier());
         ast::IExpr *val = mkExpr((*it)->expression());
         lval->getElems().push_back(ast::IExprAggrStructElemUP(
-            m_factory->mkExprAggrStructElem(id, val)));
+            m_factory->mkExprAggrStructElem(m_factory->mkExprRefName(id), val)));
     }
 
     m_expr = lval;
@@ -7648,7 +7717,7 @@ ast::IDataTypeUserDefined *AstBuilderInt::mkDataTypeArray(
 ast::IComponentPathElem *AstBuilderInt::mkComponentPathElem(PSSParser::Component_path_elemContext *ctx) {
 	DEBUG_ENTER("mkComponentPathElem");
 	ast::IComponentPathElem *ret = m_factory->mkComponentPathElem(
-		mkId(ctx->component_identifier()->identifier()));
+		mkRefName(ctx->component_identifier()->identifier()));
 	if (ctx->domain_open_range_list()) {
 		ret->setRange(mkDomainOpenRangeList(ctx->domain_open_range_list()));
 	}
@@ -7674,7 +7743,7 @@ ast::IComponentBindTarget *AstBuilderInt::mkComponentBindTarget(PSSParser::Objec
 	// compatible reference, and there is nothing further to name.
 	if (!is_wildcard) {
 		ret->setType_id(mkTypeId(item->action_type_identifier()->type_identifier()));
-		ret->setField(mkId(item->identifier()));
+		ret->setField(mkRefName(item->identifier()));
 		if (item->domain_open_range_list()) {
 			ret->setRange(mkDomainOpenRangeList(item->domain_open_range_list()));
 		}
@@ -7994,11 +8063,16 @@ std::vector<ast::IActionFieldInitializer *> AstBuilderInt::mkActionFieldInitiali
         it=inits.begin();
         it!=inits.end(); it++) {
         ret.push_back(m_factory->mkActionFieldInitializer(
-            mkHierarchicalId((*it)->hierarchical_id()),
+            m_factory->mkExprRefPathContext(mkHierarchicalId((*it)->hierarchical_id())),
             mkExpr((*it)->expression())));
     }
 
     return ret;
+}
+
+/** A single-name reference: an ExprId with a slot for its binding (WS3.2). */
+ast::IExprRefName *AstBuilderInt::mkRefName(PSSParser::IdentifierContext *ctx) {
+    return m_factory->mkExprRefName(mkId(ctx));
 }
 
 IExprId *AstBuilderInt::mkId(PSSParser::IdentifierContext *ctx) {
@@ -8017,6 +8091,7 @@ IExprId *AstBuilderInt::mkId(PSSParser::IdentifierContext *ctx) {
     loc.fileid = m_file_id;
 	loc.lineno = ctx->start->getLine();
 	loc.linepos = ctx->start->getCharPositionInLine()+1;
+    rebaseLoc(loc.lineno, loc.linepos);     // see visitIdentifier (E-N1)
     loc.extent = id->getId().size() + (id->getIs_escaped()?1:0);
 	id->setLocation(loc);
 
@@ -8166,6 +8241,9 @@ ast::ITypeIdentifier *AstBuilderInt::mkTypeId(
     DEBUG_ENTER("mkTypeId");
 	ast::ITypeIdentifier *ret = m_factory->mkTypeIdentifier();
 	std::vector<PSSParser::Type_identifier_elemContext *> elems = ctx->type_identifier_elem();
+	// Kept on the identifier, not only on DataTypeUserDefined: a super type,
+	// an `extend` target or an import path written `::x` lost it (F20).
+	ret->setIs_global(ctx->is_global != 0);
 
 	if (elems.size() == 0) {
 		addInternalError(ctx->getStart(), "empty type identifier");
@@ -8221,9 +8299,11 @@ ast::IExpr *AstBuilderInt::mkExpr(
 
 ast::IExprBitSlice *AstBuilderInt::mkExprBitSlice(
         PSSParser::Bit_sliceContext             *ctx) {
+    // `[msb : lsb]`. The lsb used to be built from the msb's expression too,
+    // so `x[7:0]` read as `x[7:7]` and the lsb was never resolved.
     ast::IExprBitSlice *ret = m_factory->mkExprBitSlice(
         mkExpr(ctx->constant_expression(0)->expression()),
-        mkExpr(ctx->constant_expression(0)->expression())
+        mkExpr(ctx->constant_expression(1)->expression())
     );
 
     return ret;
@@ -8274,8 +8354,15 @@ ast::IExprRefPath *AstBuilderInt::mkExprRefPath(
             DEBUG("!hierarchical_id: ");
             std::vector<PSSParser::Type_identifier_elemContext *> items =
                 ctx->static_ref_path()->type_identifier_elem();
+            // A leaf with a call or a subscript (`p::S::K[i]`) is kept as a
+            // member-path element under an ExprRefPathStaticRooted: a type
+            // identifier element has nowhere to hold either, and the
+            // subscript used to be dropped (F-N6).
+            bool leaf_is_elem =
+                ctx->static_ref_path()->member_path_elem()->function_parameter_list()
+                || ctx->static_ref_path()->member_path_elem()->member_path_elem_index().size();
             if (!ctx->static_ref_path()->static_ref_path_prefix()->is_global && items.size() == 0 && 
-                !ctx->static_ref_path()->member_path_elem()->function_parameter_list()) {
+                !leaf_is_elem) {
                 DEBUG("case1");
                 // static_ref_path_prefix member_path_elem
                 DEBUG("Non-function static reference");
@@ -8312,23 +8399,25 @@ ast::IExprRefPath *AstBuilderInt::mkExprRefPath(
                     ref->getBase().push_back(ast::ITypeIdentifierElemUP(mkTypeIdElem(*it)));
                 }
 
-                if (ctx->static_ref_path()->member_path_elem()->function_parameter_list()) {
-                    // Last element is a function call. Use ExprStaticRooted to express
+                if (leaf_is_elem) {
+                    // Last element is a function call or is subscripted. Use ExprStaticRooted to express
                     ast::IExprRefPathStaticRooted *expr = m_factory->mkExprRefPathStaticRooted(
                         ref,
                         mkHierarchicalId(ctx->static_ref_path()->member_path_elem())
                     );
+                    if (ctx->bit_slice()) {
+                        // The slice applies to the leaf's value, not to the root.
+                        expr->setSlice(mkExprBitSlice(ctx->bit_slice()));
+                    }
                     ret = expr;
                 } else {
                     // Last element is a field/constant reference
                     ref->getBase().push_back(ast::ITypeIdentifierElemUP(
                         mkTypeIdElem(ctx->static_ref_path()->member_path_elem()->identifier())));
+                    if (ctx->bit_slice()) {
+                        ref->setSlice(mkExprBitSlice(ctx->bit_slice()));
+                    }
                     ret = ref;
-                }
-
-                if (ctx->bit_slice()) {
-                    DEBUG("Revisit handling of bit_slice");
-                    ref->setSlice(mkExprBitSlice(ctx->bit_slice()));
                 }
             }
         }

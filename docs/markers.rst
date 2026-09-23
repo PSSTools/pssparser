@@ -57,6 +57,7 @@ The linker could not resolve a named type, identifier, or method.  Messages incl
 * ``unknown type 'Foo' in 'pkg'`` (the name is not in the qualifying package or scope)
 * ``unknown identifier 'bar'``
 * ``unknown method 'baz' on built-in type``
+* ``unknown function 'f': an import of this form needs a separate declaration of the function (20.4.1)``
 * ``'pkg' has no member named 'thing'``
 * ``Failed to find elem 'thing'``
 
@@ -127,6 +128,8 @@ A function call supplies more or fewer arguments than the callee declares, names
 * ``too few arguments to 'f': expected 2, got 1``
 * ``too many arguments to 'f': expected 1, got 2``
 * ``'x' is not a function``
+* ``'size' is a method; call it as 'size()'``
+* ``'v' is not a symbol; only a symbol can be called in an activity``
 * ``parameter 'b' has no default, but follows 'a' which does``
 * ``argument 1 of 'f' is a string, but parameter 'a' is numeric``
 
@@ -188,11 +191,11 @@ A function may be declared more than once -- a prototype and a definition, a pro
 * ``declarations of 'f' disagree about the direction of parameter 1 ('a')``
 * ``declarations of 'f' disagree about what kind of parameter 1 ('a') is``
 * ``declarations of 'f' disagree about whether parameter 2 ('args') is varargs``
-* ``parameter 1 ('a') of 'f' is given a default value by more than one declaration``
+* ``declarations of 'f' disagree about the default value of parameter 2 ('y')``
 
 Reported once per function, against the declaration the rest of the tool treats as authoritative: a definition's prototype where there is one, otherwise the first.
 
-The last of these is LRM 20.2.4 c, which forbids respecifying a default "even if the value is the same" -- so the values are never compared.  A default given by only one declaration is in effect for all of them.
+The last of these is LRM 3.1 20.2.4 c: a redeclaration may repeat a default, "but this value shall be equal".  The values are compared after folding; a default that does not fold to a constant is not reported.  (PSS 3.0 forbade repeating a default at all.)  A default given by only one declaration is in effect for all of them.
 
 Only a *certain* difference is reported.  A ``typedef`` alias, an integer width that will not fold to a constant, a default width against a written one, and a type name that did not resolve are all cases where the two declarations may well agree, and none of them is reported.
 
@@ -289,6 +292,15 @@ PSS016
 Register width has no primitive access function
 
 LRM 21.14.5a translates register reads and writes into the primitive ``read8/16/32/64`` and ``write8/16/32/64`` functions (21.13.9), chosen by the register's size. A register ``SZ`` bits wide, where ``SZ`` is not 8, 16, 32 or 64, has no such function, so its access cannot be translated as the spec describes. Not a "shall" in the spec, so a warning. A packed struct of any size is legal on its own -- a 96-bit DMA descriptor, say; this is only about using one as a register value type. Message: ``reg_c width SZ = 96 has no primitive access function; use 8, 16, 32 or 64 bits``. For a register whose value type is narrower than a primitive, give ``SZ`` explicitly (``reg_c<my12_s, READWRITE, 16>``).
+
+PSS017
+------
+
+**Severity:** error
+
+Ambiguous name: more than one import provides it
+
+LRM 18.1.3: when two imports of the same kind make the same name visible, and they name different declarations, the name is not imported at all. An explicit import (``import p::s;``) takes precedence over a wildcard import (``import p::*;``), so only imports of the same kind can conflict. Two imports that reach the same declaration do not conflict.  Message: ``ambiguous reference to 's': more than one wildcard import provides it, so none does (18.1.3); qualify the name``. Qualify the name (``lib1::s``) or import it explicitly.
 
 PSS020
 ------
