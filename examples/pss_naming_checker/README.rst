@@ -2,7 +2,7 @@ pss_naming_checker — example ``pssparser`` checker plug-in
 ==========================================================
 
 This directory contains a fully-working example of a third-party checker
-plug-in for ``pssparser-linter``.  Read it together with
+plug-in for ``pssparser``.  Read it together with
 ``docs/checker_plugin_guide.rst`` to understand how to build your own.
 
 
@@ -10,18 +10,42 @@ What it does
 ------------
 
 ``NamingConventionChecker`` (id: ``naming-convention``) warns when ``action``
-or ``struct`` type names do not start with an uppercase letter — a common PSS
-coding convention (PascalCase for named types).
+or ``struct`` type names do not follow the configured naming style.  The
+default is PascalCase, a common PSS coding convention for named types.
 
 Markers emitted:
 
 +--------+----------+---------------------------------------------------+
 | Code   | Severity | Meaning                                           |
 +========+==========+===================================================+
-| PSC001 | warning  | An ``action`` name does not start with uppercase  |
+| PSC001 | warning  | An ``action`` name breaks the configured style    |
 +--------+----------+---------------------------------------------------+
-| PSC002 | warning  | A ``struct`` name does not start with uppercase   |
+| PSC002 | warning  | A ``struct`` name breaks the configured style     |
 +--------+----------+---------------------------------------------------+
+
+
+Options
+-------
+
+The checker also demonstrates ``options_schema`` / ``configure()`` — a house
+style is exactly the kind of thing that differs per project, so it belongs in
+configuration rather than in a second checker::
+
+    # .pssparser.toml
+    [checker.naming-convention]
+    style  = "snake_case"      # or "PascalCase" (the default)
+    exempt = ["legacy_*"]      # globs to skip while migrating
+
++------------+-------------+----------------+------------------------------+
+| Option     | Type        | Default        | Meaning                      |
++============+=============+================+==============================+
+| ``style``  | string      | ``PascalCase`` | ``PascalCase``/``snake_case``|
++------------+-------------+----------------+------------------------------+
+| ``exempt`` | string-list | ``[]``         | Glob patterns to skip        |
++------------+-------------+----------------+------------------------------+
+
+``pssparser --describe-checker naming-convention`` prints the same table from
+the schema itself, so it cannot drift from the code.
 
 
 Quick demo
@@ -33,11 +57,11 @@ Install into your environment (editable install works well for development)::
 
 Parse a file and enable the checker::
 
-    pssparser-linter --checker naming-convention my_design.pss
+    pssparser --checker naming-convention my_design.pss
 
-Show all markers the checker can emit::
+Show all markers every registered checker can emit::
 
-    pssparser-linter --list-markers naming-convention
+    pssparser --list-markers
 
 
 Project layout

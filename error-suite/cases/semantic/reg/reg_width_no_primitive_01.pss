@@ -1,0 +1,22 @@
+//! case:         SEM-REG-WIDTH-NO-PRIMITIVE-01
+//! class:        semantic.reg
+//! title:        register width with no primitive read/write function
+//! expect:       warning
+//! detect:       optional
+//! lrm:          21.14.5
+//! pssparser.id: PSS016
+//! at:           21:27
+//! count:        1
+//! fix:          21:    pure component st_c : reg_c<st_s, READWRITE, 32> { }
+//! cause:        8, 16, 32 or 64
+//! tags:         register, packed
+package p {
+    import std_pkg::*;
+    import addr_reg_pkg::*;
+
+    struct st_s : packed_s<> {
+        bit[20] val;
+    }
+
+    pure component st_c : reg_c<st_s> { }
+}

@@ -15,6 +15,27 @@ def factory():
 
 
 @pytest.fixture(autouse=True)
+def _no_installed_extensions(monkeypatch):
+    """Insulate the suite from whatever checker extensions are installed.
+
+    Discovery walks the ``pssparser.extensions`` entry-point group, which is
+    read from every ``.dist-info``/``.egg-info`` on ``sys.path``.  That makes
+    an installed third-party extension able to add diagnostics to *any*
+    in-process test -- and a golden that depends on what a developer happens
+    to have installed is not a golden.
+
+    This is not hypothetical: a stray ``src/*.egg-info`` left behind by
+    building ``examples/pss_rule_collection/`` (and invisible to ``git
+    status``, since ``*.egg-info/`` is gitignored) made that example's PRC001
+    fire inside the unrelated ``stats_clean_model`` golden.
+
+    Tests that exercise discovery opt out by deleting this variable, which
+    the extension fixtures already do.
+    """
+    monkeypatch.setenv("PSSPARSER_NO_EXTENSIONS", "1")
+
+
+@pytest.fixture(autouse=True)
 def _debug_off(factory):
     """Keep parser debug logging disabled unless a test opts in explicitly."""
     factory.getDebugMgr().enable(False)

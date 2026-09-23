@@ -1,0 +1,24 @@
+//! case:         SEM-REG-WIDTH-01
+//! class:        semantic.reg
+//! title:        register width SZ smaller than its value type
+//! expect:       error
+//! detect:       required
+//! lrm:          21.14.1
+//! pssparser.id: PSS014
+//! at:           23:28
+//! count:        1
+//! fix:          23:    pure component ctl_c : reg_c<ctl_s, READWRITE, 64> { }
+//! cause:        SZ, 40 bits
+//! names:        ctl_s
+//! tags:         register, packed
+package p {
+    import std_pkg::*;
+    import addr_reg_pkg::*;
+
+    struct ctl_s : packed_s<> {
+        bit[32] data;
+        bit[8]  tag;
+    }
+
+    pure component ctl_c : reg_c<ctl_s, READWRITE, 32> { }
+}

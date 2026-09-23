@@ -31,6 +31,36 @@ class CheckerBase:
     #: requested (i.e. the linked AST is not available).
     runs_without_link: bool = False
 
+    #: Declared configuration options, as ``{name: spec}``.  Each *spec* is a
+    #: dict with:
+    #:
+    #: ``type``
+    #:     one of ``"string"``, ``"int"``, ``"bool"``, ``"string-list"``
+    #: ``default``
+    #:     the value :meth:`configure` receives when the user sets nothing
+    #: ``help``
+    #:     one line, shown by ``--describe-checker``
+    #: ``choices``
+    #:     optional; for ``"string"``, the permitted values
+    #:
+    #: Declaring the schema is what makes an unknown or mistyped option a
+    #: startup error naming the checker rather than a silently ignored
+    #: table.  A checker that declares nothing accepts nothing, and any
+    #: ``[checker.<name>]`` table aimed at it is an error.
+    options_schema: dict = {}
+
+    def configure(self, options: dict) -> None:
+        """Receive validated options before :meth:`check` is called.
+
+        *options* always carries every key in :attr:`options_schema`, with
+        declared defaults filled in for anything the user did not set, so an
+        implementation never needs ``.get()`` with a second default.
+
+        Optional: the base implementation stores them on ``self.options``,
+        which is enough for a checker that only needs to read them.
+        """
+        self.options = dict(options)
+
     def check(self, context: "CheckContext") -> None:
         """Perform checks and emit diagnostics via *context*.
 

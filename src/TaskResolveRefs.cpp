@@ -1017,9 +1017,20 @@ void TaskResolveRefs::visitExprRefPathContext(ast::IExprRefPathContext *i) {
     // DEBUG_LEAVE calls below), which is why it is a scope guard and not a
     // pair of assignments.
     SaveExpr save_refpath(m_cur_refpath, i);
-    // Find the first path element
-    ast::ISymbolRefPath *target = TaskResolveRef(m_ctxt).resolve(
-        i->getHier_id()->getElems().at(0)->getId());
+    // Find the first path element.
+    //
+    // A target that is already present was resolved somewhere this pass
+    // cannot see -- specifically, at the use site of a template argument,
+    // before the expression was copied into the specialization (CL-N2).
+    // Re-resolving it here would resolve it in the specialization's scope,
+    // which is the generic's declaring scope, and either fail or -- worse --
+    // silently find a different declaration of the same name.
+    ast::ISymbolRefPath *target = i->getTarget();
+
+    if (!target) {
+        target = TaskResolveRef(m_ctxt).resolve(
+            i->getHier_id()->getElems().at(0)->getId());
+    }
 
     if (!target) {
         const std::string &name = i->getHier_id()->getElems().at(0)->getId()->getId();
@@ -1086,8 +1097,12 @@ void TaskResolveRefs::visitExprRefPathContext(ast::IExprRefPathContext *i) {
         return;
     }
 
-    // Set root reference
-    i->setTarget(target);
+    // Set root reference. Guarded against the already-resolved case above:
+    // setTarget owns what it is given, so handing it back the pointer it
+    // already holds would free it and leave the node dangling.
+    if (target != i->getTarget()) {
+        i->setTarget(target);
+    }
 
     ast::IScopeChild *target_c = TaskResolveSymbolPathRef(
         m_ctxt->getDebugMgr(), 
@@ -1496,6 +1511,14 @@ static bool isUnspecializedGeneric(ast::IScopeChild *c) {
 
 void TaskResolveRefs::visitExprRefPathStatic(ast::IExprRefPathStatic *i) {
     DEBUG_ENTER("visitExprRefPathStatic size=%d", i->getBase().size());
+    // Already resolved at a use site this pass cannot see -- see the matching
+    // note in visitExprRefPathContext. `bit[8] a[c_c::N]` is the case:
+    // the path is resolved where it is written, then copied into the builtin
+    // `array` generic's specialization, where `c_c` does not exist.
+    if (i->getTarget()) {
+        DEBUG_LEAVE("visitExprRefPathStatic -- already resolved");
+        return;
+    }
     ast::ISymbolRefPath *target = 0;
     if (i->getIs_global()) {
         DEBUG("TODO: support global-rooted references");
@@ -1649,6 +1672,24 @@ void TaskResolveRefs::visitExprRefPathStatic(ast::IExprRefPathStatic *i) {
                     target->getPath().push_back({
                         ast::SymbolRefPathElemKind::ElemKind_ChildIdx,
                         res.idx});
+
+                    if ((*it)->getParams()) {
+                        // A qualified generic: `std_pkg::sizeof_s<T>::nbits`.
+                        // Only the first element's arguments used to be
+                        // applied, so this bound the *generic's* members --
+                        // sizeof_s's placeholder -1 -- and the argument list
+                        // was resolved and then dropped. Specialize exactly
+                        // as the first element does; the arguments were
+                        // resolved at the use site by the accept() above.
+                        target = TaskSpecializeParameterizedRef(m_ctxt).specialize(
+                            target,
+                            (*it)->getParams(),
+                            (*it)->getId()->getLocation());
+                        if (!target) {
+                            break;
+                        }
+                        target_s = m_ctxt->resolveSymbolPathRef(target);
+                    }
                 } else {
                     // The member is inherited. A symbol path has no way to
                     // encode a step through a base type --

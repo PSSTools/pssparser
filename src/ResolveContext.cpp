@@ -74,10 +74,23 @@ void ResolveContext::addMarker(
         va_list             ap) {
     char tmp[1024];
     vsnprintf(tmp, sizeof(tmp), fmt, ap);
+    addMarker(severity, loc, std::string(tmp),
+        std::vector<std::pair<ast::Location, std::string>>());
+}
+
+void ResolveContext::addMarker(
+        MarkerSeverityE     severity,
+        const ast::Location &loc,
+        const std::string   &msg,
+        const std::vector<std::pair<ast::Location, std::string>> &related) {
     IMarkerUP marker(m_factory->mkMarker(
-        tmp,
+        msg,
         severity,
         loc));
+    for (std::vector<std::pair<ast::Location, std::string>>::const_iterator
+        it=related.begin(); it!=related.end(); it++) {
+        marker->addRelated(it->first, it->second);
+    }
     m_marker_l->marker(marker.get());
 
     // Remember where an error has already been reported, so a later pass can

@@ -63,6 +63,19 @@ REPRESENTATIVE_MESSAGES = [
     ("PSS009", "declarations of 'f' disagree about the return type"),
     ("PSS010", "no field 'chan_en' in register value type 'csr_s'"),
     ("PSS011", "invalid digit 'G' in based literal"),
+    ("PSS012", "field 'mode' of packed struct 'ctrl_s' is enum 'mode_e', "
+               "which has no base type; declare it as 'enum mode_e : bit[N]'"),
+    ("PSS012", "field 'h' of packed struct 's' is a chandle; use "
+               "sized_addr_handle_s<SZ> for an address"),
+    ("PSS012", "field 'f' of packed struct 's' is a string, which cannot be packed"),
+    ("PSS013", "type extension of packed struct 's' adds field 'b'; an "
+               "extension of a packed struct may not add fields"),
+    ("PSS014", "reg_c value type is struct 'cfg_s', which is not packed"),
+    ("PSS014", "reg_c width SZ = 32 is smaller than its value type 'd_s' "
+               "(40 bits)"),
+    ("PSS015", "sizeof_s argument is a string, which has no packed size"),
+    ("PSS016", "reg_c width SZ = 96 has no primitive access function; use 8, "
+               "16, 32 or 64 bits"),
     ("PSS100", "annotation is not attached to a model element"),
     ("PSS101", "unknown annotation type 'desc_s'; annotation disregarded"),
     ("PSS102", "annotation initializer for 'owner' is not a constant expression"),
@@ -141,22 +154,77 @@ def test_marker_ids_are_in_ascending_order():
 #: lexer's, and became reachable with A6.
 _SYNTAX_BAND = {"PSS0%02d" % n for n in range(20, 30)}
 
+#: PSS030-PSS039: tooling & extension infrastructure. Like the syntax band
+#: these carry their code directly rather than acquiring one by message
+#: matching -- but for the opposite reason. Syntax-band markers come from C++
+#: with a code already attached; these are constructed in *Python*, by
+#: CheckerManager's discovery pass (see `CheckerManager.load_diagnostics`), and
+#: never pass through a parser at all.
+#:
+#: A pattern on one of these would be actively harmful: `_build_core_patterns`
+#: exists to recover an ID for C++ markers that have none, so a pattern here
+#: could claim an unrelated parser message and report it as, say, a failed
+#: extension load.
+_TOOLING_BAND = {"PSS0%02d" % n for n in range(30, 40)}
+
+#: IDs whose code is set at construction rather than recovered from the
+#: message text. Neither `patterns` nor a REPRESENTATIVE_MESSAGES entry
+#: applies to them.
+_DIRECT_CODE_BANDS = _SYNTAX_BAND | _TOOLING_BAND
+
 
 def test_every_core_marker_declares_patterns():
     """A core marker with no pattern can never be assigned to a diagnostic."""
     missing = [
         m.id for m in CoreChecker.marker_defs
-        if not m.patterns and m.id not in _SYNTAX_BAND
+        if not m.patterns and m.id not in _DIRECT_CODE_BANDS
     ]
     assert not missing, "core markers with no message patterns: %s" % missing
 
 
 def test_every_marker_has_a_representative_message():
     """Every declared ID must be exercised by the mapping test above."""
-    covered = {mid for mid, _ in REPRESENTATIVE_MESSAGES} | _SYNTAX_BAND
+    covered = {mid for mid, _ in REPRESENTATIVE_MESSAGES} | _DIRECT_CODE_BANDS
     declared = {m.id for m in CoreChecker.marker_defs}
     assert declared - covered == set(), \
         "IDs with no representative message: %s" % sorted(declared - covered)
+
+
+def test_tooling_band_markers_declare_no_patterns():
+    """A tooling-band pattern could shadow a real parser diagnostic."""
+    offenders = [
+        m.id for m in CoreChecker.marker_defs
+        if m.id in _TOOLING_BAND and m.patterns
+    ]
+    assert not offenders, "tooling-band markers with unnecessary patterns: %s" % offenders
+
+
+def test_assign_core_code_never_fires_for_the_tooling_band():
+    """These markers are built with their code; _assign_core_code must not
+    be able to attach one to an unrelated message."""
+    for marker_id in sorted(_TOOLING_BAND):
+        assigned = _assign_core_code({"message": "some entirely novel diagnostic"})
+        assert assigned.get("code") != marker_id
+
+
+def test_the_tooling_band_is_declared_where_the_manager_emits_it():
+    """Every code CheckerManager can emit must be a declared MarkerDef.
+
+    The manager builds these dicts by hand, so nothing else would catch a
+    typo'd or undeclared code until a user hit the failure path.
+    """
+    import re
+    from pathlib import Path
+
+    declared = {m.id for m in CoreChecker.marker_defs}
+    source = Path(__file__).resolve().parents[2] / "python" / "pssparser" / "checkers" / "manager.py"
+    emitted = set(re.findall(r'self\._issue\(\s*"(PSS\d+)"', source.read_text()))
+
+    assert emitted, "no _issue() calls found; has manager.py been restructured?"
+    assert emitted <= declared, \
+        "manager emits undeclared codes: %s" % sorted(emitted - declared)
+    assert emitted <= _TOOLING_BAND, \
+        "manager emits codes outside the tooling band: %s" % sorted(emitted - _TOOLING_BAND)
 
 
 def test_syntax_band_markers_declare_no_patterns():

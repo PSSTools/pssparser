@@ -106,3 +106,48 @@ def test_nested_template_specializations_link():
         """
     )
     assert root is not None
+
+
+def test_a_base_types_template_parameter_is_not_visible_in_a_subtype():
+    """LRM 10.3: "A template parameter may not be referenced from within
+    subtypes that inherit from the template type that originally defined the
+    parameter." So `e` in `s` is the package's enum, not b's parameter `e`.
+
+    The lookup used to search the base type's parameter list on its way up
+    the super chain, and found the parameter first. Every packed struct
+    inherits `packed_s<endianness_e e>`, which is how this surfaced.
+    """
+    from pssparser.core import resolveSymbolPathRef
+    from ..template_helpers import lookup
+    root = assert_parse_ok(
+        """
+        package p {
+            struct b<int e = 1> { }
+            enum e : bit[3] { A, B };
+            struct s : b<> { e f; }
+        }
+        """
+    )
+    f = lookup(root, "p::s").getChild(0)
+    target = resolveSymbolPathRef(root, f.getType().getType_id().getTarget())
+    assert target == lookup(root, "p::e")
+
+
+def test_a_types_own_template_parameter_is_still_visible():
+    """Control for the test above: the fix is scoped to base types.
+
+    Decisive by construction: were `T f` bound to the package's enum `T`,
+    which has no base type, the packed-struct check would reject it (PSS012).
+    Bound to the parameter, it is `bit[4]` and the model is clean.
+    """
+    root = assert_parse_ok(
+        """
+        package p {
+            import std_pkg::*;
+            enum T { A };
+            struct g<type T> : packed_s<> { T f; }
+            struct Top { g<bit[4]> x; }
+        }
+        """
+    )
+    assert root is not None

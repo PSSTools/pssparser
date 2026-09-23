@@ -26,8 +26,12 @@
 #include "TaskResolveRef.h"
 #include "TaskResolveRefs.h"
 #include "TaskResolveRootRef.h"
+#include "pssp/ast/IExprRefPath.h"
+#include "pssp/ast/IExprRefPathContext.h"
+#include "pssp/ast/IExprRefPathStatic.h"
 #include "pssp/ast/IField.h"
 #include "pssp/ast/IProceduralStmtDataDeclaration.h"
+#include "TaskFindPathElem.h"
 #include "TaskResolveFieldRef.h"
 #include "CoreLibraryLookup.h"
 #include "Marker.h"
@@ -202,8 +206,128 @@ void TaskResolveRef::visitTemplateParamTypeValue(ast::ITemplateParamTypeValue *i
     DEBUG_LEAVE("visitTemplateParamTypeValue");
 }
 
+/**
+ * Resolve a qualified expression-form template argument -- `a[c_c::N]`.
+ *
+ * Deliberately *not* TaskResolveRefs::visitExprRefPathStatic, which is where
+ * the general version of this walk lives. That one runs a TaskIsPyRef check
+ * on each element it resolves, and TaskIsPyRef walks the whole type scope it
+ * is handed. Reached from here the walk re-enters the very field whose array
+ * dimension is being resolved, and recurses until the stack runs out: a
+ * component with `bit[2] a[c_c::N]` and any action in it overflowed at
+ * ~182,000 frames.
+ *
+ * So this is the same walk with nothing in it but the lookup: no pyref
+ * probe, no specialization, no diagnostics. A parameterized qualifier
+ * (`Q<8>::N`) is left unresolved rather than specialized here; it behaves as
+ * it did before, and specializing from inside argument resolution is how the
+ * recursion above starts.
+ */
+ast::ISymbolRefPath *TaskResolveRef::resolveStaticArgPath(
+        ast::IExprRefPathStatic *i) {
+    DEBUG_ENTER("resolveStaticArgPath");
+
+    if (i->getIs_global() || !i->getBase().size()) {
+        DEBUG_LEAVE("resolveStaticArgPath -- unsupported form");
+        return 0;
+    }
+
+    ast::ISymbolRefPath *target = 0;
+
+    for (std::vector<ast::ITypeIdentifierElemUP>::const_iterator
+        it=i->getBase().begin(); it!=i->getBase().end(); it++) {
+        if ((*it)->getParams()) {
+            DEBUG("Parameterized qualifier; leaving unresolved");
+            return 0;
+        }
+
+        if (it == i->getBase().begin()) {
+            target = findRoot((*it)->getId());
+
+            if (!target) {
+                DEBUG_LEAVE("resolveStaticArgPath -- root not found");
+                return 0;
+            }
+            continue;
+        }
+
+        ast::ISymbolScope *scope_s = dynamic_cast<ast::ISymbolScope *>(
+            m_ctxt->resolveSymbolPathRef(target));
+
+        if (!scope_s) {
+            DEBUG("Qualifier is not a scope");
+            return 0;
+        }
+
+        TaskFindPathElem::Result res = TaskFindPathElem(
+            m_ctxt->getDebugMgr(), m_ctxt->root()).find(scope_s, (*it)->getId());
+
+        if (!res.sym) {
+            DEBUG("No member named %s", (*it)->getId()->getId().c_str());
+            return 0;
+        }
+
+        if (res.super_idx == 0) {
+            target->getPath().push_back({
+                ast::SymbolRefPathElemKind::ElemKind_ChildIdx,
+                res.idx});
+        } else {
+            // A symbol path cannot encode a step through a base type; see the
+            // same case in TaskResolveRefs::visitExprRefPathStatic.
+            DEBUG("Member is inherited; path not extended");
+        }
+    }
+
+    DEBUG_LEAVE("resolveStaticArgPath %p", target);
+    return target;
+}
+
 void TaskResolveRef::visitTemplateParamExprValue(ast::ITemplateParamExprValue *i) {
     DEBUG_ENTER("visitTemplateParamExprValue");
+    // An expression-form template argument is written at the *use* site and
+    // has to be resolved there, exactly as visitTemplateParamTypeValue does
+    // for the type-form argument. This used to be an empty stub, and the
+    // consequence was CL-N2: the unresolved expression was copied into the
+    // specialization and resolved in the generic's declaring scope instead.
+    // For a declared array -- which AstBuilderInt rewrites into the builtin
+    // `array<T, SZ>` generic, the one generic in the tree whose argument
+    // arrives as an already-parsed expression -- that scope is BuiltinsFactory's
+    // separate global scope, so `bit[32] a[N]` could not see `N` at all.
+    //
+    // Only the target is recorded here; TaskCopyAst carries it into the
+    // specialization under setPreserveExprTargets(), and TaskResolveRefs
+    // honors an already-resolved target rather than resolving again.
+    ast::IExprRefPath *rp = dynamic_cast<ast::IExprRefPath *>(i->getValue());
+
+    if (rp && !rp->getTarget()) {
+        ast::IExprRefPathStatic *rp_s = dynamic_cast<ast::IExprRefPathStatic *>(rp);
+
+        if (rp_s) {
+            ast::ISymbolRefPath *target = resolveStaticArgPath(rp_s);
+
+            if (target) {
+                rp->setTarget(target);
+            }
+        } else {
+            ast::IExprRefPathContext *rp_c =
+                dynamic_cast<ast::IExprRefPathContext *>(rp);
+
+            // Only the single-element form. findRoot is called directly
+            // rather than through resolve(): visitExprRefPathContext logs a
+            // DEBUG_ERROR on a miss, and a miss here is ordinary -- an
+            // argument that does not resolve is reported where it is
+            // normally reported, and a second diagnostic (or a line of
+            // stderr noise) for one name is not an improvement.
+            if (rp_c && rp_c->getHier_id()->getElems().size() == 1) {
+                ast::ISymbolRefPath *target = findRoot(
+                    rp_c->getHier_id()->getElems().at(0)->getId());
+
+                if (target) {
+                    rp->setTarget(target);
+                }
+            }
+        }
+    }
     DEBUG_LEAVE("visitTemplateParamExprValue");
 }
 

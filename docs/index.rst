@@ -38,6 +38,8 @@ Key Features
    comments
    annotations
    checker_plugin_guide
+   example_single_checker
+   example_rule_collection
    pss30_migration
    pss31_migration
 

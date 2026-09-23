@@ -205,7 +205,14 @@ void TaskResolveRootRef::visitSymbolTypeScope(ast::ISymbolTypeScope *i) {
     visitSymbolScope(i); // Look in primary declaration scope
 
     DEBUG("TypeScope: m_ref=%p plist=%p", m_ref, i->getPlist());
-    if (!m_ref && i->getPlist()) {
+    // A type's own template parameters only -- not a base type's, reached
+    // through the super walk below. LRM 10.3: "A template parameter may not
+    // be referenced from within subtypes that inherit from the template type
+    // that originally defined the parameter." Looking there let a base's
+    // parameter shadow an outer name: every packed struct inherits
+    // packed_s<endianness_e e>, so a user type named `e` used inside one
+    // bound to that parameter instead of the type.
+    if (!m_ref && i->getPlist() && m_super_depth == 0) {
         std::unordered_map<std::string,int32_t>::const_iterator it;
 
         if (DEBUG_EN) {
@@ -221,14 +228,6 @@ void TaskResolveRootRef::visitSymbolTypeScope(ast::ISymbolTypeScope *i) {
             m_ref = m_ctxt->symtab()->getScopeSymbolPath();
             DEBUG("Found %s as a parameter (%d)",
                 m_id->getId().c_str(), it->second);
-
-            // Same super-chain correction as in visitSymbolScope: this branch
-            // is reached for a *base* type's parameter list when the search
-            // has walked up the chain.
-            for (int32_t s=0; s<m_super_depth; s++) {
-                m_ref->getPath().push_back({
-                    ast::SymbolRefPathElemKind::ElemKind_Super, 0});
-            }
 
             m_ref->getPath().push_back({
                 ast::SymbolRefPathElemKind::ElemKind_ParamIdx, 

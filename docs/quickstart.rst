@@ -49,3 +49,32 @@ parsing and linking PSS content.
 
 
 
+
+Configuring the checks
+======================
+
+Running the CLI over a file needs no configuration at all::
+
+   pssparser model.pss
+
+When you want the same rules every time — in your editor, in CI, and for
+everyone on the project — put them in a ``.pssparser.toml`` at the root of
+the repository:
+
+.. code-block:: toml
+
+   # .pssparser.toml
+   [warnings]
+   error = true              # warnings fail the build
+
+   [severity]
+   PSS110 = "off"            # ...except this one
+
+pssparser searches upward from the working directory, so the file applies
+from anywhere in the tree.  To see exactly what is in effect and where each
+value came from::
+
+   pssparser --show-config
+
+The full schema — checker selection, per-checker options, and the
+precedence rules — is in :doc:`cli`.

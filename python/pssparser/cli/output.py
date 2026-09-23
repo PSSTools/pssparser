@@ -11,6 +11,7 @@ import os
 import sys
 from typing import IO, List, Optional, TextIO
 
+from pssparser.checkers.extension import NO_FILE
 from .diagnostics import Diagnostic, DiagnosticCollection
 from .source_context import SourceCache, make_caret_line
 
@@ -103,6 +104,15 @@ class HumanOutput:
         c = self._color
 
         sev_col = _SEV_COLORS.get(diag.severity, "")
+
+        # A tool-level diagnostic -- an extension that failed to load -- has no
+        # source location, so it is rendered the way a compiler renders its own
+        # complaints: `pssparser: warning: ...`, with no caret block to follow.
+        if diag.file == NO_FILE:
+            sev = _c(f"{diag.severity}:", sev_col, c)
+            flag = f" [{diag.werror_flag}]" if diag.werror_flag else ""
+            w(f"{_c('pssparser', _BOLD, c)}: {sev} {diag.message}{flag}\n\n")
+            return
 
         # header: file:line:col: severity: message
         loc = f"{diag.file}:{diag.line}:{diag.col}"

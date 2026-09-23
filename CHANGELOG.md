@@ -29,6 +29,94 @@ revision advances only the patch component.
 
 ### Added
 
+- **Configuration files: `.pssparser.toml` and `pyproject.toml`.** Everything
+  that can be set with a flag can now be set in a file, so a project's rules
+  travel with the project. Both spellings carry the same tree; `pyproject.toml`
+  prefixes every table with `[tool.pssparser]`. Discovery walks upward from the
+  working directory — not from the first source file, so
+  `pssparser a/x.pss b/y.pss` cannot silently apply two configurations to two
+  halves of one run — and stops at the first directory carrying a config, at a
+  `.git` directory, or at the filesystem root. A `pyproject.toml` with no
+  `[tool.pssparser]` table does not halt the search, and one that fails to parse
+  is stepped over: it belongs to the whole project, and pssparser is not
+  entitled to refuse to start over another tool's syntax error.
+
+  `--config PATH` replaces discovery rather than layering on it; a missing or
+  unparseable PATH is exit 2, never a silent fall-through. `--no-config` ignores
+  files entirely. `--show-config` prints every resolved value with the layer
+  that set it — with four layers able to set `select`, it is the only
+  supportable answer to "why did this rule run?".
+
+  Arrays replace wholesale and tables merge entry by entry: an array that merged
+  would give no way to *remove* an entry a lower layer set, and a table that
+  replaced would make a one-line `[severity]` override discard the rest.
+  Unknown keys are rejected with a did-you-mean rather than ignored — a silently
+  dropped `[checker.foo]` is a rule the user believes is configured and is not.
+  `checkers = [...]` gets its own explanation, since TOML forbids a key from
+  being both an array and a table and the singular/plural split is what keeps
+  both spellings available. Requires `tomli` on Python 3.10; `tomllib` is stdlib
+  from 3.11.
+
+  Naming something that does not exist is fail-fast, matching `--checker`:
+  `select`, `[checker.<name>]`, `[severity]`, and
+  `[extensions.<name>] enabled = true` all stop the run if the named thing is
+  not installed. `enabled = false` for an absent extension is the exception, so
+  one file can serve a dev machine and a leaner CI image.
+
+- **`[severity]`: per-marker severity overrides, including `off`.** Re-level any
+  diagnostic by marker ID; `off` drops it entirely, so it is not counted and
+  does not affect the exit code. Applied *before* the warning policy, so
+  `-Werror` cannot promote something the configuration already turned off. One
+  restriction: a core `error` cannot be downgraded, and attempting it is a
+  config error naming the key rather than a silent no-op. A core error means the
+  model could not be built — the parse and link failure paths return a forced
+  exit code of 1 with no linked AST — so silencing one would report success for
+  a run that compiled nothing.
+
+- **Per-checker options: `options_schema`, `configure()`, and
+  `--describe-checker`.** A checker declares what it accepts (`type`, `default`,
+  `help`, optional `choices`) and receives it through an optional `configure()`
+  hook; users write `[checker.<name>]`. Validation runs at startup, before any
+  source file is read, so an unknown key, a wrong type, a value outside
+  `choices`, or options aimed at a checker that declares none is exit 2 with a
+  message naming the checker. The table handed to `configure()` is always
+  complete — declared defaults filled in — so an implementation never needs
+  `options.get(key, default)`, which is how a default and its schema entry drift
+  apart. Checkers that declare no schema never have `configure()` called, so
+  everything written before options existed behaves exactly as it did.
+  `--describe-checker NAME` prints the description, contributing extension,
+  markers, and the whole options table. The `naming-convention` example gained
+  real `style` and `exempt` options as a worked demonstration.
+
+- **`pssparser.extensions`: installable collections of checkers.** A single
+  entry point now contributes a whole rule package, instead of one entry point
+  per checker class. The declared module exposes `register(registry)`; the
+  registry takes `add_checker()` plus the `version`/`description` shown by the
+  new `--list-extensions`. `pip install` is all a user does — the rules then
+  run with no flags. The older `pssparser.checkers` group keeps working and is
+  adapted internally into a single-checker extension, so one model serves the
+  CLI. A worked example lives in `examples/pss_rule_collection/`.
+
+  Extensions carry a version contract: `pssparser.checkers.API_VERSION` is
+  bumped only for incompatible changes to the checker-facing surface, an
+  extension declares the minimum it needs as `REQUIRES_API`, and it can probe
+  `reg.api_version` to support several pssparser releases from one package.
+
+  Discovery never aborts the run: a broken extension is reported as `PSS030`
+  and the rest of the registry still loads, since a third-party package is code
+  the user did not write. New diagnostics `PSS030`–`PSS033` (extension failed
+  to load, entry-point key disagrees with the checker's name, API too new,
+  duplicate marker ID) form a `PSS030`–`PSS039` tooling band. They are ordinary
+  diagnostics — present in `--json`, counted, and promotable, so
+  `-Werror=PSS030` makes a failed extension fatal in CI. Extensions load in
+  sorted name order so duplicate-ID reports are reproducible.
+
+- **`--list-extensions` and `--no-extensions`.** The first answers "where did
+  this rule come from?"; the second (also `PSSPARSER_NO_EXTENSIONS=1`) runs the
+  built-in checks only, which is how a run is made reproducible regardless of
+  what is installed alongside pssparser, and the first thing to try when
+  diagnosing unexpected output.
+
 - **`-Werror`, `-Werror=ID`, `-Wno-error=ID`, and `--no-warnings`.** Warnings
   can now be promoted to errors, individually or wholesale, and a promoted
   diagnostic names the flag that promoted it (`[-Werror=PSS104]`) so a reader

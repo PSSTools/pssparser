@@ -356,6 +356,125 @@ class CoreChecker(CheckerBase):
                 r"^invalid digit\b",
             ),
         ),
+        MarkerDef(
+            id="PSS012",
+            severity="error",
+            summary="Packed struct field has a type a packed struct cannot hold",
+            detail=(
+                "A packed struct -- any struct derived, directly or "
+                "indirectly, from ``packed_s`` -- may only have fields of "
+                "numeric types, ``bool``, enumerated types that have a base "
+                "type, packed struct types, or fixed-size arrays of these "
+                "(LRM 21.13.1). Anything else has no defined bit layout. "
+                "Messages take the form ``field '<f>' of packed struct '<s>' "
+                "is <what>; <how to fix it>``, for example:\n\n"
+                "* ``field 'mode' of packed struct 'ctrl_s' is enum 'mode_e', "
+                "which has no base type; declare it as 'enum mode_e : "
+                "bit[N]'``\n"
+                "* ``field 'h' of packed struct 'desc_s' is a chandle; use "
+                "sized_addr_handle_s<SZ> for an address``\n"
+                "* ``field 'q' of packed struct 's' is struct 'q_s', which is "
+                "not packed; derive it from packed_s<>``\n"
+                "* ``field 'l' of packed struct 's' is a list; use a "
+                "fixed-size array, 'T name[N]'``\n"
+                "* ``field 's' of packed struct 'd' is a string, which cannot "
+                "be packed``\n\n"
+                "A width-less enum is not 32 bits wide in a packed struct: it "
+                "is not allowed there at all. A flow or resource object that "
+                "inherits from a packed struct is not itself packed (LRM "
+                "17.1). ``static const`` members are not part of the layout "
+                "and are not checked. A generic packed struct is checked per "
+                "specialization."
+            ),
+            patterns=(
+                r"^field '[^']*' of packed struct '[^']*' is ",
+            ),
+        ),
+        MarkerDef(
+            id="PSS013",
+            severity="error",
+            summary="Type extension adds a field to a packed struct",
+            detail=(
+                "LRM 21.13.1: \"Type extensions of packed structs shall not "
+                "add new fields.\" A packed struct's layout is fixed by its "
+                "declaration; an ``extend`` elsewhere must not change it. "
+                "Constraints, exec blocks and ``static const`` members may "
+                "still be added. Message: ``type extension of packed struct "
+                "'<s>' adds field '<f>'; an extension of a packed struct may "
+                "not add fields``."
+            ),
+            patterns=(
+                r"^type extension of packed struct '[^']*' adds field ",
+            ),
+        ),
+        MarkerDef(
+            id="PSS014",
+            severity="error",
+            summary="Register value type has no size, or is wider than the register",
+            detail=(
+                "``reg_c<R, ACC, SZ>`` (LRM 21.14.1) lays a value of type "
+                "``R`` over a register ``SZ`` bits wide. ``R`` must have a "
+                "known packed size -- a packed struct, or another packable "
+                "type such as ``bit[N]``, ``int[32]`` or an enum with a base "
+                "type -- and ``SZ``, when given, must be at least "
+                "``sizeof_s<R>::nbits``. (Omitting ``SZ`` gives "
+                "``8*sizeof_s<R>::nbytes``, which always fits.) Messages "
+                "include:\n\n"
+                "* ``reg_c value type is struct 'cfg_s', which is not packed; "
+                "derive it from packed_s<>``\n"
+                "* ``reg_c value type is enum 'mode_e', which has no base "
+                "type; ...``\n"
+                "* ``reg_c width SZ = 32 is smaller than its value type "
+                "'desc_s' (40 bits)``\n\n"
+                "Reported where the register type is used (``reg_c<...>`` as "
+                "a field type or a base type), not in the core library."
+            ),
+            patterns=(
+                r"^reg_c value type is ",
+                r"^reg_c width SZ = -?\d+ is smaller than its value type",
+            ),
+        ),
+        MarkerDef(
+            id="PSS015",
+            severity="error",
+            summary="sizeof_s of a type that has no packed size",
+            detail=(
+                "LRM 21.13.2.1: ``sizeof_s<>`` \"shall not be parameterized "
+                "with types other than numeric types, Booleans, enumerated "
+                "types that have a base type, packed structs, and arrays "
+                "thereof.\" Such a specialization has no ``nbits`` or "
+                "``nbytes`` value. Message: ``sizeof_s argument is <what>, which "
+                "has no packed size``, or ``sizeof_s argument is <what>; <how "
+                "to fix it>``. A packed struct with a bad member is reported "
+                "at the member (PSS012), not here."
+            ),
+            patterns=(
+                r"^sizeof_s argument is ",
+            ),
+        ),
+        MarkerDef(
+            id="PSS016",
+            severity="warning",
+            summary="Register width has no primitive access function",
+            detail=(
+                "LRM 21.14.5a translates register reads and writes into the "
+                "primitive ``read8/16/32/64`` and ``write8/16/32/64`` "
+                "functions (21.13.9), chosen by the register's size. A "
+                "register ``SZ`` bits wide, where ``SZ`` is not 8, 16, 32 or "
+                "64, has no such function, so its access cannot be translated "
+                "as the spec describes. Not a \"shall\" in the spec, so a "
+                "warning. A packed struct of any size is legal on its own -- "
+                "a 96-bit DMA descriptor, say; this is only about using one "
+                "as a register value type. Message: ``reg_c width SZ = 96 has "
+                "no primitive access function; use 8, 16, 32 or 64 bits``. "
+                "For a register whose "
+                "value type is narrower than a primitive, give ``SZ`` "
+                "explicitly (``reg_c<my12_s, READWRITE, 16>``)."
+            ),
+            patterns=(
+                r"^reg_c width SZ = -?\d+ has no primitive access function",
+            ),
+        ),
 
         # -- Syntax-error sub-band (PSS020-PSS029) ---------------------------
         #
@@ -527,6 +646,95 @@ class CoreChecker(CheckerBase):
                 "the only way to see what comes after it.\n\n"
                 "Message: ``too many errors (<N>); stopped reporting "
                 "further errors for this file``"
+            ),
+        ),
+
+        # -- Tooling & extension infrastructure (PSS030-PSS039) -------------
+        #
+        # Unlike every other core marker, these originate in *Python* -- in
+        # CheckerManager's discovery pass -- and carry their `code` directly.
+        # They must therefore declare **no** `patterns`: the pattern table
+        # built by `cli.commands._build_core_patterns` exists to recover an ID
+        # for C++ markers that have none, and a pattern here would let one of
+        # these IDs be assigned to an unrelated parser message.
+        #
+        # They also carry no source location; they are reported against the
+        # `NO_FILE` pseudo-path and rendered without a file:line:col prefix.
+
+        MarkerDef(
+            id="PSS030",
+            severity="warning",
+            summary="A checker extension could not be loaded",
+            detail=(
+                "An entry point in the ``pssparser.extensions`` (or legacy "
+                "``pssparser.checkers``) group failed to load. The usual "
+                "causes are an import error inside the extension, an "
+                "exception raised from its ``register()`` function, or a "
+                "module that exposes neither ``register()`` nor the "
+                "``CHECKERS`` shorthand.\n\n"
+                "The run continues: a third-party extension is code you did "
+                "not write, and one broken package must not stop the rest of "
+                "the registry from loading. The consequence is that the rules "
+                "that extension contributes did **not** run, so a clean "
+                "result is not evidence of clean source.\n\n"
+                "Use ``--list-extensions`` to see what did load, and "
+                "``--no-extensions`` (or ``PSSPARSER_NO_EXTENSIONS=1``) to "
+                "confirm the behaviour is the extension's and not "
+                "pssparser's. In CI, ``-Werror=PSS030`` makes a failed "
+                "extension fatal, which is usually what you want."
+            ),
+        ),
+
+        MarkerDef(
+            id="PSS031",
+            severity="warning",
+            summary="Entry-point key disagrees with the checker's declared name",
+            detail=(
+                "A legacy ``pssparser.checkers`` entry point is keyed under "
+                "one name while the class it names declares another in its "
+                "``name`` attribute.\n\n"
+                "The class is authoritative -- it is the name the checker "
+                "reports itself under and the name ``--checker`` and "
+                "``--no-checker`` select -- so the checker is registered "
+                "under the declared name and the entry-point key is ignored. "
+                "Rename the key to match; while they disagree, a command line "
+                "written against the key silently selects nothing."
+            ),
+        ),
+
+        MarkerDef(
+            id="PSS032",
+            severity="warning",
+            summary="Extension requires a newer checker API than this build provides",
+            detail=(
+                "The extension declared ``requires_api = N`` (as a module "
+                "level ``REQUIRES_API`` or on the registry inside "
+                "``register()``) and ``N`` is greater than this build's "
+                "``pssparser.checkers.API_VERSION``.\n\n"
+                "The extension is not loaded, deliberately: refusing here "
+                "produces one clear message, where loading it anyway produces "
+                "an ``AttributeError`` from inside a checker halfway through "
+                "a run. Upgrade pssparser, or install a build of the "
+                "extension made for this API version."
+            ),
+        ),
+
+        MarkerDef(
+            id="PSS033",
+            severity="error",
+            summary="Two checkers declare the same marker ID",
+            detail=(
+                "Marker IDs are globally unique across the core and every "
+                "installed extension. Two rules wearing one ID make "
+                "``--describe``, ``-Werror=ID`` and every per-ID severity "
+                "override ambiguous, so the collision is an error rather "
+                "than a warning.\n\n"
+                "The checker that lost the collision is not registered; "
+                "everything else, including the rest of its extension, still "
+                "loads. The message names both contributors. The fix belongs "
+                "in the extension: pick an unused prefix -- three letters "
+                "plus three digits is the convention, and the ``PSS`` prefix "
+                "is reserved for the built-in core checker."
             ),
         ),
 

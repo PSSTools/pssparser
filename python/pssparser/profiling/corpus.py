@@ -61,16 +61,16 @@ def find_corpus(explicit: Optional[str] = None) -> Tuple[Optional[Path], Optiona
 
 
 def _toml():
-    """A TOML reader, or ``None``.  ``tomllib`` is stdlib only from 3.11."""
-    try:
-        import tomllib
-        return tomllib
-    except ModuleNotFoundError:
-        try:
-            import tomli
-            return tomli
-        except ModuleNotFoundError:
-            return None
+    """A TOML reader, or ``None``.
+
+    Delegates to the single shim in ``pssparser.cli.config``: ``tomllib`` is
+    stdlib only from 3.11 and the declared floor is 3.10, so the fallback to
+    ``tomli`` has to happen somewhere -- and having it happen in exactly one
+    place is what stops a second site from being written without the
+    fallback and working fine on every developer's 3.12.
+    """
+    from pssparser.cli.config import tomllib
+    return tomllib
 
 
 def bucket_policy(repo_root: Optional[Path]) -> Dict[str, bool]:

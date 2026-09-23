@@ -1,6 +1,8 @@
 """PSS naming-convention checker — pssparser plug-in example."""
 from __future__ import annotations
 
+import re
+from fnmatch import fnmatchcase
 from typing import TYPE_CHECKING
 
 import pssparser.ast as pss_ast
@@ -45,21 +47,27 @@ class NamingConventionChecker(CheckerBase):
         MarkerDef(
             id="PSC001",
             severity="warning",
-            summary="Action type name does not start with an uppercase letter",
+            summary="Action type name does not follow the configured style",
             detail=(
                 "PSS convention uses PascalCase for action type names.  "
                 "Rename the action so that its first letter is uppercase, "
-                "e.g. rename ``write_data`` to ``WriteData``."
+                "e.g. rename ``write_data`` to ``WriteData``.\n\n"
+                "The required style is the ``style`` option; set it to "
+                "``snake_case`` under ``[checker.naming-convention]`` to "
+                "invert the rule, and list glob patterns under ``exempt`` "
+                "to skip names you are not ready to rename."
             ),
         ),
         MarkerDef(
             id="PSC002",
             severity="warning",
-            summary="Struct type name does not start with an uppercase letter",
+            summary="Struct type name does not follow the configured style",
             detail=(
                 "PSS convention uses PascalCase for struct type names.  "
                 "Rename the struct so that its first letter is uppercase, "
-                "e.g. rename ``my_packet`` to ``MyPacket``."
+                "e.g. rename ``my_packet`` to ``MyPacket``.\n\n"
+                "See PSC001 for the ``style`` and ``exempt`` options, which "
+                "apply to both markers."
             ),
         ),
     ]
@@ -67,10 +75,54 @@ class NamingConventionChecker(CheckerBase):
     #: Name-checking only needs the parse tree; no linked AST required.
     runs_without_link = True
 
+    #: A house style is exactly the kind of thing that differs per project,
+    #: which is why it is configuration rather than a second checker.
+    options_schema = {
+        "style": {
+            "type": "string",
+            "default": "PascalCase",
+            "choices": ["PascalCase", "snake_case"],
+            "help": "Naming style required for action and struct types.",
+        },
+        "exempt": {
+            "type": "string-list",
+            "default": [],
+            "help": (
+                "Glob patterns for type names to skip, e.g. 'legacy_*'. "
+                "Useful while migrating an existing codebase."
+            ),
+        },
+    }
+
+    #: Filled in by ``configure()``; the class-level value is what applies
+    #: when this checker is constructed directly, as the tests do.
+    options = {"style": "PascalCase", "exempt": []}
+
     def check(self, context: "CheckContext") -> None:
         for global_scope in context.global_scopes:
             filename = context.file_map.get(global_scope.getFileid(), "")
             self._walk(context, global_scope, filename)
+
+    # ------------------------------------------------------------------
+    # Style rules
+    # ------------------------------------------------------------------
+
+    _SNAKE_RE = re.compile(r"^[a-z][a-z0-9]*(_[a-z0-9]+)*$")
+
+    def _conforms(self, name: str) -> bool:
+        if self.options.get("style") == "snake_case":
+            return bool(self._SNAKE_RE.match(name))
+        return name[0].isupper()
+
+    def _expectation(self) -> str:
+        if self.options.get("style") == "snake_case":
+            return "should be lower_snake_case"
+        return "should start with an uppercase letter"
+
+    def _exempt(self, name: str) -> bool:
+        return any(
+            fnmatchcase(name, pat) for pat in self.options.get("exempt", [])
+        )
 
     # ------------------------------------------------------------------
     # Private helpers
@@ -88,8 +140,8 @@ class NamingConventionChecker(CheckerBase):
             if isinstance(child, pss_ast.Scope):
                 self._walk(context, child, filename)
 
-    @staticmethod
     def _check_name(
+        self,
         context: "CheckContext",
         node,
         filename: str,
@@ -98,7 +150,7 @@ class NamingConventionChecker(CheckerBase):
     ) -> None:
         name_expr = node.getName()
         name = name_expr.getId()
-        if not name or name[0].isupper():
+        if not name or self._exempt(name) or self._conforms(name):
             return
         loc = name_expr.getLocation()
         context.add_marker(
@@ -106,5 +158,5 @@ class NamingConventionChecker(CheckerBase):
             file=filename,
             line=loc.lineno,
             col=loc.linepos,
-            message=f"{kind} '{name}' should start with an uppercase letter",
+            message=f"{kind} '{name}' {self._expectation()}",
         )

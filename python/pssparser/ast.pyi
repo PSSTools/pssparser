@@ -7131,8 +7131,16 @@ class SymbolEnumScope(SymbolScope):
     See Also:
         SymbolScope, EnumDecl, EnumItem
     
+    Attributes:
+        decl: The EnumDecl this scope was built from. A back-pointer
+            only (visit: false) -- see TaskBuildSymbolTree::visitEnumDecl
+            for why this must not be a traversal edge. Used to reach the
+            enum's base type (packed-struct and sizeof_s checks).
+    
     """
     pass
+    
+    def getDecl(self) -> EnumDecl: ...
     
 class SymbolExtendScope(SymbolScope):
     """

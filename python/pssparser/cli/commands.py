@@ -29,6 +29,7 @@ def cmd_parse(
     warning_policy: Optional[WarningPolicy] = None,
     show_stats: bool = False,
     stats_timing: bool = True,
+    config=None,
 ) -> int:
     """Run the parse (and optionally link) pipeline, report diagnostics.
 
@@ -53,6 +54,10 @@ def cmd_parse(
         Include wall-clock timings in the stats report.  ``False``
         (``--stats-no-timing``) makes the output byte-stable, which is what
         makes it goldenable and safe to paste into documentation.
+    config:
+        A ``cli.config.ResolvedConfig``, or ``None``.  Carries the severity
+        map and per-checker options; ``checkers``/``no_checkers``/
+        ``warning_policy`` above are already resolved from it by the caller.
     """
     from pssparser.parser import Parser, ParseException
 
@@ -63,6 +68,17 @@ def cmd_parse(
     source_cache = SourceCache()
     coll = DiagnosticCollection()
     coll.set_processed_files(files)
+
+    # Extension-load problems are merged before parsing, not after, so that
+    # the two early-return paths below (parse failure, link failure) still
+    # report them.  "A checker never ran" is exactly the context a user needs
+    # when reading a diagnostic list that came out shorter than expected.
+    if manager is None:
+        from pssparser.checkers import CheckerManager
+        manager = CheckerManager()
+        manager.discover()
+    for load_marker in manager.load_diagnostics:
+        coll.add(Diagnostic.from_marker(load_marker))
 
     if use_json:
         driver = JsonOutput(stream=_stdout)
@@ -80,6 +96,12 @@ def cmd_parse(
         The exit code is computed *after* promotion, so ``-Werror`` moves a
         clean-but-warning run from 0 to 1.
         """
+        # Severity overrides first: they decide what a diagnostic *is*, and
+        # the warning policy then decides what to do with warnings.  Running
+        # them the other way round would let -Werror promote a diagnostic
+        # the config had already turned off.
+        if config is not None:
+            coll.apply_severity_map(config.severity)
         _apply_warning_policy(coll, policy)
         _emit_all(driver, coll, quiet)
         stats = None
@@ -125,6 +147,7 @@ def cmd_parse(
         manager=manager,
         checkers=checkers,
         no_checkers=no_checkers,
+        options=None if config is None else config.checker_options,
     )
     extra_timings["checkers"] = time.perf_counter_ns() - t0
 
@@ -234,6 +257,7 @@ def _run_checkers(
     manager,
     checkers,
     no_checkers,
+    options=None,
 ) -> None:
     """Run the checker phase and merge results into *coll*."""
     from pssparser.checkers import CheckContext, CheckerManager
@@ -243,7 +267,9 @@ def _run_checkers(
         manager.discover()
 
     try:
-        active = manager.active(select=checkers, exclude=no_checkers)
+        active = manager.active(
+            select=checkers, exclude=no_checkers, options=options
+        )
     except ValueError as exc:
         import sys
         sys.stderr.write(f"error: {exc}\n")

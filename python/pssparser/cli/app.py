@@ -5,6 +5,8 @@ import argparse
 import os
 import sys
 
+from . import config as config_mod
+
 
 class _WarningAction(argparse.Action):
     """Parse the GCC-style ``-W...`` family into a ``WarningPolicy``.
@@ -36,6 +38,18 @@ class _WarningAction(argparse.Action):
                 f"unrecognised warning option '-W{spec}' "
                 "(expected -Werror, -Werror=ID, or -Wno-error=ID)"
             )
+
+
+def _report_load_issues(manager, stream) -> None:
+    """Write extension-load problems to *stream* as plain ``severity:`` lines.
+
+    Only for the query-and-exit paths, which never construct a
+    ``DiagnosticCollection``.  The parse path routes the same issues through
+    the normal diagnostic machinery instead, so they are counted, rendered,
+    and included in ``--json`` like anything else.
+    """
+    for marker in manager.load_diagnostics:
+        stream.write(f"{marker['severity']}: {marker['message']}\n")
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -71,6 +85,41 @@ def _build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Print the full definition for marker ID and exit",
     )
+    query_grp.add_argument(
+        "--list-extensions",
+        action="store_true",
+        default=False,
+        help="List installed checker extensions and exit",
+    )
+    query_grp.add_argument(
+        "--describe-checker",
+        metavar="NAME",
+        default=None,
+        help="Print a checker's markers and configurable options, and exit",
+    )
+    query_grp.add_argument(
+        "--show-config",
+        action="store_true",
+        default=False,
+        help="Print the resolved configuration with per-value provenance "
+             "and exit",
+    )
+
+    # -- configuration ----------------------------------------------------
+    cfg_grp = top.add_argument_group("configuration")
+    cfg_grp.add_argument(
+        "--config",
+        metavar="PATH",
+        default=None,
+        help="Read configuration from PATH instead of searching for "
+             f"{config_mod.CONFIG_FILENAME} / pyproject.toml",
+    )
+    cfg_grp.add_argument(
+        "--no-config",
+        action="store_true",
+        default=False,
+        help="Ignore any configuration file",
+    )
 
     # -- checker selection flags ----------------------------------------
     sel_grp = top.add_argument_group("checker selection flags")
@@ -97,6 +146,13 @@ def _build_parser() -> argparse.ArgumentParser:
         dest="load_checkers",
         default=None,
         help="Dynamically load a checker from MODULE:CLASS (may be repeated)",
+    )
+    sel_grp.add_argument(
+        "--no-extensions",
+        action="store_true",
+        default=False,
+        help="Skip installed checker extensions; run the built-in checks only "
+             "(same as PSSPARSER_NO_EXTENSIONS=1)",
     )
     top.add_argument(
         "--syntax-only",
@@ -196,29 +252,86 @@ def main(argv: list[str] | None = None) -> int:
 
     # -- Build and populate CheckerManager --------------------------------
     from pssparser.checkers import CheckerManager
-    from .checker_cmds import cmd_list_checkers, cmd_list_markers, cmd_describe
+    from .checker_cmds import (
+        cmd_describe,
+        cmd_describe_checker,
+        cmd_list_checkers,
+        cmd_list_extensions,
+        cmd_list_markers,
+    )
 
     manager = CheckerManager()
-    manager.discover()
+    manager.discover(load_extensions=not args.no_extensions)
 
-    # Apply any --load-checker specs before handling query flags
-    if args.load_checkers:
-        for spec in args.load_checkers:
-            try:
-                manager.load(spec)
-            except ValueError as exc:
-                sys.stderr.write(f"error: {exc}\n")
-                return 2
+    # -- Configuration ----------------------------------------------------
+    #
+    # Resolved before --load-checker so that `load` from a config file and
+    # --load-checker go through one code path, and before the query flags so
+    # that --list-checkers reflects a config that disabled an extension.
+    try:
+        cfg = config_mod.resolve(args)
+    except config_mod.ConfigError as exc:
+        sys.stderr.write(f"error: {exc}\n")
+        return 2
+
+    for ext_name, enabled in cfg.extensions_enabled.items():
+        if not enabled:
+            manager.disable_extension(ext_name)
+
+    for spec in cfg.load:
+        try:
+            manager.load(spec)
+        except ValueError as exc:
+            # A spec typed on the command line needs no attribution; one
+            # that came from a file does, since the user is not looking at
+            # the file when they read the error.
+            source = cfg.provenance.get("load", "command line")
+            where = "" if source == "command line" else f"{source}: "
+            sys.stderr.write(f"error: {where}{exc}\n")
+            return 2
+
+    try:
+        config_mod.validate_against_registry(cfg, manager)
+    except config_mod.ConfigError as exc:
+        sys.stderr.write(f"error: {exc}\n")
+        return 2
+
+    try:
+        manager.validate_options(cfg.checker_options)
+    except ValueError as exc:
+        sys.stderr.write(f"error: {exc}\n")
+        return 2
+
+    if args.show_config:
+        _report_load_issues(manager, sys.stderr)
+        sys.stdout.write(config_mod.format_show_config(cfg))
+        return 0
 
     # -- Query-and-exit flags (no source files needed) --------------------
+    #
+    # The query paths never build a DiagnosticCollection, so an extension that
+    # failed to load has nowhere to be reported except stderr.  Print it
+    # first: "this extension is missing" is the context that explains a
+    # --list-checkers output with a checker absent from it.
+    if (args.list_checkers or args.list_markers or args.list_extensions
+            or args.describe is not None
+            or args.describe_checker is not None):
+        _report_load_issues(manager, sys.stderr)
+
     if args.list_checkers:
         return cmd_list_checkers(manager)
 
     if args.list_markers:
         return cmd_list_markers(manager)
 
+    if args.list_extensions:
+        return cmd_list_extensions(manager)
+
     if args.describe is not None:
         return cmd_describe(manager, args.describe)
+
+    if args.describe_checker is not None:
+        return cmd_describe_checker(manager, args.describe_checker)
 
     # -- Require source files when no query flag is active ----------------
     if not args.files:
@@ -238,8 +351,10 @@ def main(argv: list[str] | None = None) -> int:
     from .commands import cmd_parse
     from .diagnostics import WarningPolicy
 
+    # The config layer already resolved CLI-versus-file precedence for every
+    # warning setting, so the policy is written from `cfg`, not from `args`.
     policy = args.warning_policy or WarningPolicy()
-    policy.no_warnings = args.no_warnings
+    config_mod.to_warning_policy(cfg, policy)
 
     try:
         return cmd_parse(
@@ -251,9 +366,10 @@ def main(argv: list[str] | None = None) -> int:
             color=args.color,
             max_errors=args.max_errors,
             manager=manager,
-            checkers=args.checkers,
-            no_checkers=args.no_checkers,
+            checkers=cfg.select,
+            no_checkers=cfg.disable,
             warning_policy=policy,
+            config=cfg,
             # --stats-no-timing implies --stats; it is a variant of it, not
             # a modifier that needs both flags spelled out.
             show_stats=args.stats or args.stats_no_timing,

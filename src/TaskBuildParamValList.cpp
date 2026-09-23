@@ -113,10 +113,23 @@ ast::ITemplateParamDeclList *TaskBuildParamValList::build(
                 // parameter, pass down what that parameter is bound to.
                 ast::IExpr *bound = substValueArg();
 
+                // The argument expression means what it means at the use
+                // site, so carry its resolved target into the specialization
+                // rather than letting the copy be re-resolved in the
+                // generic's declaring scope -- see
+                // TaskCopyAst::setPreserveExprTargets and CL-N2. Scoped to
+                // this one copy: the name and the declared type below are
+                // the *declaration's*, and want no such treatment.
+                copier.setPreserveExprTargets(true);
+                ast::IExpr *arg_c = (bound)
+                    ?copier.copy(bound)
+                    :copier.copyT<ast::IExpr>(pval_expr);
+                copier.setPreserveExprTargets(false);
+
                 ast::ITemplateValueParamDecl *p = m_ctxt->getFactory()->getAstFactory()->mkTemplateValueParamDecl(
                     copier.copyT<ast::IExprId>(m_ptype_value->getName()),
                     copier.copyT<ast::IDataType>(m_ptype_value->getType()),
-                    (bound)?copier.copy(bound):copier.copyT<ast::IExpr>(pval_expr));
+                    arg_c);
 
                 m_ret->getParams().push_back(ast::ITemplateParamDeclUP(p));
             } else if (m_ptype_generic_type) {

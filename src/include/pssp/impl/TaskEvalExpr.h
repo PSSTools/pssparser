@@ -19,6 +19,8 @@
  *     Author: 
  */
 #pragma once
+#include <algorithm>
+#include <memory>
 #include "dmgr/IDebugMgr.h"
 #include "dmgr/impl/DebugMacros.h"
 #include "pssp/ast/impl/VisitorBase.h"
@@ -60,11 +62,47 @@ public:
     //     DEBUG_LEAVE("visitExprAggregateLiteral");
     // }
 
+    /**
+     * Integer arithmetic, bitwise and shift operators fold when both
+     * operands do -- enough for widths and template value arguments such as
+     * reg_c's default `SZ = (8*sizeof_s<R>::nbytes)`. Comparisons and logical
+     * operators, and division by zero, leave the result unfolded.
+     */
     virtual void visitExprBin(ast::IExprBin *i) override {
         DEBUG_ENTER("visitExprBin %d", i->getOp());
-        i->getLhs()->accept(m_this);
-        i->getRhs()->accept(m_this);
-        DEBUG("TODO: visitExprBin");
+        std::unique_ptr<IVal> lhs(i->getLhs()?eval(i->getLhs()):0);
+        std::unique_ptr<IVal> rhs(i->getRhs()?eval(i->getRhs()):0);
+        m_val.reset();
+        IValInt *l = dynamic_cast<IValInt *>(lhs.get());
+        IValInt *r = dynamic_cast<IValInt *>(rhs.get());
+        if (l && r) {
+            int64_t a = l->getValS(), b = r->getValS(), v = 0;
+            bool ok = true;
+            switch (i->getOp()) {
+                case ast::ExprBinOp::BinOp_Add:    v = a + b; break;
+                case ast::ExprBinOp::BinOp_Sub:    v = a - b; break;
+                case ast::ExprBinOp::BinOp_Mul:    v = a * b; break;
+                case ast::ExprBinOp::BinOp_Div:    ok = (b != 0); if (ok) v = a / b; break;
+                case ast::ExprBinOp::BinOp_Mod:    ok = (b != 0); if (ok) v = a % b; break;
+                case ast::ExprBinOp::BinOp_Shl:    ok = (b >= 0 && b < 64); if (ok) v = a << b; break;
+                case ast::ExprBinOp::BinOp_Shr:    ok = (b >= 0 && b < 64); if (ok) v = a >> b; break;
+                case ast::ExprBinOp::BinOp_BitAnd: v = a & b; break;
+                case ast::ExprBinOp::BinOp_BitOr:  v = a | b; break;
+                case ast::ExprBinOp::BinOp_BitXor: v = a ^ b; break;
+                case ast::ExprBinOp::BinOp_Exp: {
+                    ok = (b >= 0 && b < 64);
+                    v = 1;
+                    for (int64_t k=0; ok && k<b; k++) { v *= a; }
+                } break;
+                default: ok = false; break;
+            }
+            if (ok) {
+                m_val = IValUP(m_factory->mkValInt(
+                    l->isSigned() && r->isSigned(),
+                    std::max(l->getWidth(), r->getWidth()),
+                    v));
+            }
+        }
         DEBUG_LEAVE("visitExprBin");
     }
 
@@ -199,7 +237,24 @@ public:
 
     virtual void visitExprUnary(ast::IExprUnary *i) override {
         DEBUG_ENTER("visitExprUnary");
-        DEBUG("TODO: visitExprUnary");
+        std::unique_ptr<IVal> rhs(i->getRhs()?eval(i->getRhs()):0);
+        m_val.reset();
+        IValInt *r = dynamic_cast<IValInt *>(rhs.get());
+        if (r) {
+            bool ok = true;
+            int64_t v = r->getValS();
+            switch (i->getOp()) {
+                case ast::ExprUnaryOp::UnaryOp_Plus:   break;
+                case ast::ExprUnaryOp::UnaryOp_Minus:  v = -v; break;
+                case ast::ExprUnaryOp::UnaryOp_BitNeg: v = ~v; break;
+                default: ok = false; break;
+            }
+            if (ok) {
+                m_val = IValUP(m_factory->mkValInt(
+                    r->isSigned() || i->getOp() == ast::ExprUnaryOp::UnaryOp_Minus,
+                    r->getWidth(), v));
+            }
+        }
         DEBUG_LEAVE("visitExprUnary");
     }
 

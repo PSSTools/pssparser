@@ -37,6 +37,16 @@ public:
         ast::ITypeScope         *type) override;
 
 private:
+    /**
+     * Set nbits/nbytes of the specialization from the size of ``arg``.
+     * Returns true when the answer is final -- sized, or not packable -- and
+     * false when it is not known yet.
+     */
+    static bool setSize(
+        ResolveContext          *ctxt,
+        ast::ITypeScope         *type,
+        ast::IDataType          *arg);
+
     static dmgr::IDebug         *m_dbg;
 };
 

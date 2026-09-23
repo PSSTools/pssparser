@@ -20,6 +20,7 @@
  */
 #pragma once
 #include <stdint.h>
+#include <functional>
 #include <map>
 #include <string>
 #include <set>
@@ -166,11 +167,43 @@ public:
         ...);
 
     /**
+     * A marker with related locations -- (location, label) pairs pointing at
+     * the declarations the message is about.
+     */
+    void addMarker(
+        MarkerSeverityE     severity,
+        const ast::Location &loc,
+        const std::string   &msg,
+        const std::vector<std::pair<ast::Location, std::string>> &related);
+
+    /**
      * True if an error has already been reported at this source position.
      * Lets a later pass stay quiet about a failure an earlier one described
      * better -- see TaskCheckRefsResolved.
      */
     bool wasReported(const ast::Location &loc) const;
+
+    /**
+     * Queue work that needs every reference resolved -- the linker runs it
+     * once TaskResolveRefs is done. For a computation made during
+     * specialization, which can run before the types it depends on are
+     * bound (sizeof_s of a struct declared after the use).
+     */
+    void addPostResolveAction(const std::function<void()> &a) {
+        m_post_resolve.push_back(a);
+    }
+
+    /**
+     * Run and clear the queued actions. An action may queue another; it
+     * runs in the same call.
+     */
+    void runPostResolveActions() {
+        for (uint32_t i=0; i<m_post_resolve.size(); i++) {
+            std::function<void()> a = m_post_resolve.at(i);
+            a();
+        }
+        m_post_resolve.clear();
+    }
 
 private:
     ast::IRootSymbolScope                           *m_root;
@@ -186,6 +219,7 @@ private:
     // (fileid, lineno, linepos) of every position that already carries an
     // error marker; see wasReported().
     std::set<std::tuple<int32_t,int32_t,int32_t>>   m_reported;
+    std::vector<std::function<void()>>              m_post_resolve;
 
 };
 

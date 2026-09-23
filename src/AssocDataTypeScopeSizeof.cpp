@@ -20,7 +20,7 @@
  */
 #include "dmgr/impl/DebugMacros.h"
 #include "pssp/impl/TaskGetTemplateParamDeclDefault.h"
-#include "pssp/impl/TaskComputeTypePackedSize.h"
+#include "pssp/impl/TaskClassifyPackable.h"
 #include "AssocDataTypeScopeSizeof.h"
 
 
@@ -51,38 +51,62 @@ void AssocDataTypeScopeSizeof::postSpecialize(
         return;
     }
 
-    // Need to calculate bit-width of 
-    int32_t bits = TaskComputeTypePackedSize(
+    // Size now if we can. A member type that is not bound yet -- the argument
+    // is declared after this use, or is a specialization whose body has not
+    // been resolved -- makes the answer Incomplete rather than wrong; try
+    // again once resolution is finished.
+    if (!setSize(ctxt, type, val.first)) {
+        ast::IDataType *arg = val.first;
+        ctxt->addPostResolveAction([ctxt, type, arg]() {
+            setSize(ctxt, type, arg);
+        });
+    }
+
+    DEBUG_LEAVE("postSpecialize");
+}
+
+bool AssocDataTypeScopeSizeof::setSize(
+        ResolveContext          *ctxt,
+        ast::ITypeScope         *type,
+        ast::IDataType          *arg) {
+    PackableInfo info = TaskClassifyPackable(
         ctxt->getFactory(),
-        ctxt->root()).bits(val.first);
-    DEBUG("bits: %d", bits);
+        ctxt->root()).classify(arg);
+
+    // A type with no packed size -- not packable (21.13.2.1), or not known --
+    // gets no value. The declared placeholder stays, rather than a made-up
+    // number that would silently size a register.
+    if (info.kind != PackableInfo::Ok) {
+        return (info.kind == PackableInfo::NotPackable);
+    }
+
+    int64_t nbits = info.bits;
+    // 21.13.2.2: nbytes rounds up -- sizeof_s<bit[33]>::nbytes == 5.
+    int64_t nbytes = (nbits + 7) / 8;
 
     for (std::vector<ast::IScopeChildUP>::const_iterator
         it=type->getChildren().begin();
         it!=type->getChildren().end(); it++) {
-        ast::IScopeChild *c = it->get();
-        ast::IField *f;
-        if ((f=dynamic_cast<ast::IField *>(c))) {
-            char tmp[16];
-            if (f->getName()->getId() == "nbytes") {
-                DEBUG("Setting nbytes");
-                snprintf(tmp, sizeof(tmp), "%d", bits/8);
-                f->setInit(ctxt->getFactory()->getAstFactory()->mkExprSignedNumber(
-                    tmp,
-                    32,
-                    bits/8));
-            } else if (f->getName()->getId() == "nbits") {
-                DEBUG("Setting nbits");
-                snprintf(tmp, sizeof(tmp), "%d", bits);
-                f->setInit(ctxt->getFactory()->getAstFactory()->mkExprSignedNumber(
-                    tmp,
-                    32,
-                    bits));
-            }
+        ast::IField *f = dynamic_cast<ast::IField *>(it->get());
+        if (!f) {
+            continue;
         }
+        int64_t v;
+        if (f->getName()->getId() == "nbytes") {
+            v = nbytes;
+        } else if (f->getName()->getId() == "nbits") {
+            v = nbits;
+        } else {
+            continue;
+        }
+        char tmp[32];
+        snprintf(tmp, sizeof(tmp), "%lld", (long long)v);
+        f->setInit(ctxt->getFactory()->getAstFactory()->mkExprSignedNumber(
+            tmp,
+            32,
+            v));
     }
-
-    DEBUG_LEAVE("postSpecialize");
+    return true;
 }
 
 dmgr::IDebug *AssocDataTypeScopeSizeof::m_dbg = 0;

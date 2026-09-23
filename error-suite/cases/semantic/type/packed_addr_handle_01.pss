@@ -1,0 +1,22 @@
+//! case:         SEM-TYPE-PACKED-ADDR-HANDLE-01
+//! class:        semantic.type
+//! title:        addr_handle_t field in a packed struct
+//! expect:       error
+//! detect:       required
+//! lrm:          21.13.1, 21.13.3.1
+//! pssparser.id: PSS012
+//! at:           20:9
+//! count:        1
+//! fix:          20:        sized_addr_handle_s<64> next;
+//! cause:        sized_addr_handle_s
+//! names:        next
+//! tags:         packed, address
+package p {
+    import std_pkg::*;
+    import addr_reg_pkg::*;
+
+    struct desc_s : packed_s<> {
+        bit[32] len;
+        addr_handle_t next;
+    }
+}

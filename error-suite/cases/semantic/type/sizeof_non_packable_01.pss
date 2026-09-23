@@ -1,0 +1,19 @@
+//! case:         SEM-TYPE-SIZEOF-01
+//! class:        semantic.type
+//! title:        sizeof_s parameterized with a string
+//! expect:       error
+//! detect:       required
+//! lrm:          21.13.2.1
+//! pssparser.id: PSS015
+//! at:           17:17
+//! count:        1
+//! fix:          17:        int n = sizeof_s<bit[12]>::nbytes;
+//! cause:        sizeof_s, string
+//! tags:         packed, sizeof
+package p {
+    import std_pkg::*;
+
+    struct top_s {
+        int n = sizeof_s<string>::nbytes;
+    }
+}

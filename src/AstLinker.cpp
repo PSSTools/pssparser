@@ -36,6 +36,8 @@
 #include "TaskResolveRefsOverlay.h"
 #include "TaskResolveRefs.h"
 #include "TaskResolveSuperTypes.h"
+#include "TaskCheckPackedStructs.h"
+#include "TaskCheckPackedUses.h"
 #include "TaskCheckRefsResolved.h"
 #include "TaskCheckTypeCycles.h"
 #include "TaskResolveOverrideActions.h"
@@ -136,8 +138,18 @@ ast::IRootSymbolScope *AstLinker::link(
     TaskCheckTypeCycles(&ctxt).check(symtree);
 
     TaskResolveRefs(&ctxt).resolve(symtree);
+
+    // Work deferred from specialization until every reference is bound --
+    // sizing sizeof_s<T> when T's members were not yet resolved.
+    ctxt.runPostResolveActions();
     uint64_t resolve_e = time_ms();
     DEBUG("Resolve: %lldms", (resolve_e-resolve_s));
+
+    // 21.13.1's member rules. After resolution, because they need every
+    // member type bound; before the completeness gate, which has nothing to
+    // say about packing.
+    TaskCheckPackedStructs(&ctxt).check(symtree);
+    TaskCheckPackedUses(&ctxt).check(symtree);
 
     // The completeness gate. Resolution is finished, so a type reference that
     // is still unbound is unbound for good -- report it rather than hand a
@@ -167,6 +179,7 @@ ast::IRootSymbolScope *AstLinker::linkOverlay(
         overlay);
 
     TaskResolveRefsOverlay(&ctxt).resolve(overlay);
+    ctxt.runPostResolveActions();
     /*
      */
 

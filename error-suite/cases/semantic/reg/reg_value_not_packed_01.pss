@@ -1,0 +1,25 @@
+//! case:         SEM-REG-VALUE-TYPE-01
+//! class:        semantic.reg
+//! title:        register value type is a struct that is not packed
+//! expect:       error
+//! detect:       required
+//! lrm:          21.14.1
+//! pssparser.id: PSS014
+//! at:           24:28
+//! count:        1
+//! fix:          19:    struct cfg_s : packed_s<> {
+//! cause:        not packed
+//! not_cause:    unknown type
+//! names:        cfg_s
+//! tags:         register, packed
+package p {
+    import std_pkg::*;
+    import addr_reg_pkg::*;
+
+    struct cfg_s {
+        bit[16] lo;
+        bit[16] hi;
+    }
+
+    pure component cfg_c : reg_c<cfg_s> { }
+}

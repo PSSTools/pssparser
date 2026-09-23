@@ -2449,6 +2449,7 @@ cdef class SymbolEnumScope(SymbolScope):
     cdef ast_decl.ISymbolEnumScope *asSymbolEnumScope(self)
     @staticmethod
     cdef SymbolEnumScope mk(ast_decl.ISymbolEnumScope *hndl, bool owned)
+    cpdef EnumDecl getDecl(self)
 
 cdef class SymbolExtendScope(SymbolScope):
     

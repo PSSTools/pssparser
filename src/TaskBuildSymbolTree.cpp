@@ -331,8 +331,9 @@ void TaskBuildSymbolTree::visitEnumDecl(ast::IEnumDecl *i) {
     //
     // Nothing is lost: reaching the declaration was only ever the route to
     // its documentation, and copyDocInfo below now delivers that directly.
-    // A back-pointer that is not also a traversal edge would be a separate
-    // field, and no consumer has asked for one.
+    // The back-pointer that is *not* a traversal edge is `decl`, which the
+    // packed-struct checks use to reach the base type.
+    ts->setDecl(i);
     copyDocInfo(ts, i);
 
 

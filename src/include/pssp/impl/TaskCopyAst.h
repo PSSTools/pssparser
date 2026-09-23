@@ -61,11 +61,30 @@ namespace pssp {
 class TaskCopyAst : public ast::VisitorBase {
 public:
     TaskCopyAst(IFactory    *factory) :
-        m_factory(factory->getAstFactory()), m_dbg(0) {
+        m_factory(factory->getAstFactory()), m_dbg(0),
+        m_preserve_expr_targets(false) {
         DEBUG_INIT("pssp::TaskCopyAst", factory->getDebugMgr());
     }
 
     virtual ~TaskCopyAst() { }
+
+    /**
+     * Carry an already-resolved ``target`` across on copied reference-path
+     * *expressions*.
+     *
+     * Off by default, and that default is the important half: a reference in a
+     * generic's **body** must be re-resolved against each specialization, so
+     * freezing its target at whatever the unspecialized declaration saw would
+     * bind every specialization to the generic's own scope.
+     *
+     * A template **argument** is the opposite case.  It is written at the use
+     * site and means what it means there; the copy that lands in the
+     * specialization is resolved in the *generic's* declaring scope, which is
+     * the wrong scope and, for the builtin ``array`` generic, is not even in
+     * the user's symbol tree (CL-N2).  TaskBuildParamValList turns this on
+     * for exactly that one copy.
+     */
+    void setPreserveExprTargets(bool v) { m_preserve_expr_targets = v; }
 
     ast::IConstraintStmt *copy(ast::IConstraintStmt *i) {
         DEBUG_ENTER("copy(IConstraintStmt)");
@@ -628,6 +647,9 @@ public:
         if (i->getSlice()) {
             ic->setSlice(copyT<ast::IExprBitSlice>(i->getSlice()));
         }
+        if (m_preserve_expr_targets && i->getTarget()) {
+            ic->setTarget(copy(i->getTarget()));
+        }
         m_expr = ic;
         DEBUG_LEAVE("visitExprRefPathContext");
     }
@@ -644,6 +666,9 @@ public:
         }
         if (i->getSlice()) {
             ic->setSlice(copyT<ast::IExprBitSlice>(i->getSlice()), true);
+        }
+        if (m_preserve_expr_targets && i->getTarget()) {
+            ic->setTarget(copy(i->getTarget()));
         }
         m_expr = ic;
         DEBUG_LEAVE("visitExprRefPathStatic");
@@ -2227,6 +2252,8 @@ private:
 
     ast::IFactory                   *m_factory;
     dmgr::IDebug                    *m_dbg;
+    // See setPreserveExprTargets()
+    bool                            m_preserve_expr_targets;
 
     ast::IConstraintStmt            *m_constraint;
     ast::IDataType                  *m_dt;

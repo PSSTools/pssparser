@@ -28,7 +28,8 @@ Writing a Checker
 
 Below is a complete, real-world example — a naming-convention checker that
 warns when ``action`` or ``struct`` type names do not start with an uppercase
-letter.  The full source lives in ``examples/pss_naming_checker/``.
+letter.  The full source lives in ``examples/pss_naming_checker/``, walked
+through in :doc:`example_single_checker`.
 
 .. code-block:: python
 
@@ -345,12 +346,254 @@ package's ``setup.cfg`` or ``pyproject.toml``:
    naming-convention = "mypkg.pss_rules:NamingConventionChecker"
    unused-imports    = "mypkg.pss_rules:UnusedImportChecker"
 
-The left-hand side (e.g. ``naming-convention``) becomes the registered
-*name* of the checker and is used on the command line with ``--checker`` and
-``--no-checker``.
+The left-hand side (e.g. ``naming-convention``) **must match the class's own**
+``name`` **attribute**.  The class is authoritative: if the two disagree, the
+checker is registered under the name the class declares, the entry-point key
+is ignored, and a ``PSS031`` warning says so.  While they disagree, a command
+line written against the key silently selects nothing.
 
 After installation (``pip install .``), your checker is auto-discovered every
 time ``pssparser`` runs.
+
+Shipping a collection
+=====================
+
+One entry point per checker is fine for one or two rules.  For a package that
+ships a dozen, use the **``pssparser.extensions``** group instead: one entry
+point for the whole distribution, pointing at a module that exposes
+``register(registry)``.
+
+``setup.cfg``:
+
+.. code-block:: ini
+
+   [options.entry_points]
+   pssparser.extensions =
+       acme-rules = acme_pss_rules
+
+``pyproject.toml``:
+
+.. code-block:: toml
+
+   [project.entry-points."pssparser.extensions"]
+   acme-rules = "acme_pss_rules"
+
+.. code-block:: python
+
+   # acme_pss_rules/__init__.py
+   REQUIRES_API = 1
+
+   def register(reg):
+       reg.version = "2.3.0"
+       reg.description = "Acme house rules for PSS"
+
+       from .naming import NamingChecker
+       from .coverage import CoverageChecker
+       reg.add_checker(NamingChecker)
+       reg.add_checker(CoverageChecker)
+
+The key (``acme-rules``) is the *extension* name, shown by
+``pssparser --list-extensions``.  Installing the package is all a user has to
+do: every checker it contributes runs by default, with no flags.
+
+A working example lives in ``examples/pss_rule_collection/``, walked through
+in :doc:`example_rule_collection`.
+
+The registry object
+-------------------
+
+``register()`` receives a :class:`pssparser.checkers.ExtensionRegistry`:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 20 12 68
+
+   * - Attribute
+     - Direction
+     - Meaning
+   * - ``api_version``
+     - in
+     - Checker-API version of the *running* pssparser.
+   * - ``name``
+     - in
+     - The entry-point key this extension was registered under.
+   * - ``add_checker(cls)``
+     - out
+     - Register one ``CheckerBase`` subclass.  Repeatable.
+   * - ``version``
+     - out
+     - Shown by ``--list-extensions``; defaults to the distribution version.
+   * - ``description``
+     - out
+     - One line, shown by ``--list-extensions``.
+   * - ``requires_api``
+     - out
+     - Minimum API version this extension needs.
+
+As a shorthand, a module may expose a ``CHECKERS`` list instead of
+``register()``; it is synthesized into the equivalent ``register()`` call.
+Prefer the function when you need either of the version mechanisms below.
+
+API versioning
+--------------
+
+``pssparser.checkers.API_VERSION`` is an integer, bumped only when the
+checker-facing surface changes *incompatibly* -- a ``CheckContext`` field
+removed, a ``MarkerDef`` field renamed, ``check()``'s signature altered.
+Adding a field or an optional hook does not bump it.
+
+Declare ``REQUIRES_API`` at module level to refuse an incompatible build
+outright.  pssparser checks it *before* importing your rule modules and
+reports ``PSS032`` naming both versions -- one clear message instead of an
+``AttributeError`` from inside a checker halfway through a user's run.
+
+To support several pssparser releases from one package, probe instead:
+
+.. code-block:: python
+
+   def register(reg):
+       reg.add_checker(StableChecker)
+       if reg.api_version >= 2:
+           reg.add_checker(CheckerNeedingTheNewerAPI)
+
+What happens when an extension breaks
+-------------------------------------
+
+Discovery never aborts the run.  A third-party extension is code the user did
+not write, so one broken package must not stop the rest of the registry from
+loading:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 12 12 76
+
+   * - Code
+     - Severity
+     - Cause
+   * - ``PSS030``
+     - warning
+     - Import failed, ``register()`` raised, or neither ``register`` nor
+       ``CHECKERS`` is exposed.
+   * - ``PSS031``
+     - warning
+     - Entry-point key disagrees with the class's ``name``.
+   * - ``PSS032``
+     - warning
+     - ``requires_api`` exceeds this build's ``API_VERSION``.
+   * - ``PSS033``
+     - error
+     - Two checkers declare the same ``MarkerDef`` ID.
+
+These are ordinary diagnostics: they appear in ``--json``, they are counted,
+and ``-Werror`` promotes the warnings among them.  ``-Werror=PSS030`` is the
+usual way to make a failed extension fatal in CI.
+
+``PSS033`` is an error rather than a warning because two rules wearing one ID
+make ``--describe``, ``-Werror=ID``, and every per-ID override ambiguous.  The
+checker that lost the collision is not registered; the rest of its extension
+still loads.  Pick an unused prefix -- three letters plus three digits is the
+convention, and ``PSS`` is reserved for the built-in core checker.
+
+Two practices worth copying from the example:
+
+1. **Import rule modules inside** ``register()``, not at module scope, so a
+   failure in one rule is reported as ``PSS030`` against your extension rather
+   than breaking the import of the package that declares the entry point.
+2. **Keep marker IDs stable.**  Users pin them in ``-Werror=ID`` and in
+   suppression config; renaming one is a breaking change for them.
+
+Turning extensions off
+----------------------
+
+``--no-extensions`` (or ``PSSPARSER_NO_EXTENSIONS=1``) loads the built-in
+checks and nothing else.  It is the first thing to try when diagnosing
+unexpected output, and the way to make a run reproducible regardless of what
+is installed alongside pssparser.
+
+``pssparser --list-extensions`` shows what did load: name, version,
+distribution, and the checkers each one contributed.
+
+A configuration file can turn off one extension without turning off the
+rest:
+
+.. code-block:: toml
+
+   [extensions.acme-rules]
+   enabled = false
+
+Configuring a checker
+=====================
+
+A rule that every project wants to tune slightly — a naming style, a
+threshold, a list of exemptions — should be one checker with options, not
+two checkers or a hardcoded choice.  Declare what you accept in
+``options_schema``:
+
+.. code-block:: python
+
+   class NamingConventionChecker(CheckerBase):
+       name = "naming-convention"
+
+       options_schema = {
+           "style": {
+               "type": "string",
+               "default": "PascalCase",
+               "choices": ["PascalCase", "snake_case"],
+               "help": "Naming style required for action and struct types.",
+           },
+           "exempt": {
+               "type": "string-list",
+               "default": [],
+               "help": "Glob patterns for type names to skip, e.g. 'legacy_*'.",
+           },
+       }
+
+       def configure(self, options):
+           self.options = options       # always complete; see below
+
+Users then write:
+
+.. code-block:: toml
+
+   [checker.naming-convention]
+   style  = "snake_case"
+   exempt = ["legacy_*"]
+
+``type`` is one of ``string``, ``int``, ``bool``, or ``string-list``.
+``choices`` is optional and applies to ``string``.  ``help`` is one line,
+printed by ``--describe-checker``.
+
+Three properties of the contract are worth relying on:
+
+**Options are validated before any source file is read.**  An unknown key,
+a wrong type, a value outside ``choices``, or a ``[checker.<name>]`` table
+aimed at a checker that declares no options are all usage errors (exit 2)
+reported at startup.  Your ``configure()`` never sees an invalid table.
+
+**The table is always complete.**  Declared defaults are filled in for
+anything the user did not set, so an implementation never needs
+``options.get(key, default)`` — which is exactly how a default and its
+schema entry drift apart.  Mutable defaults are copied per instance, so one
+checker cannot mutate the class-level schema.
+
+**The hook is optional.**  A checker that declares no ``options_schema``
+never has ``configure()`` called, so every checker written before options
+existed behaves exactly as it did.
+
+Declaring a schema is also what makes the feature discoverable:
+
+.. code-block:: bash
+
+   pssparser --describe-checker naming-convention
+
+prints the description, the contributing extension, every marker, and the
+whole options table with types, defaults, and permitted values.
+
+A checker cannot supply default severities for markers it does not own.
+Shipping an opinionated profile for your own IDs is reasonable; a
+``pip install`` silently changing the severity of a *core* marker is a large
+amount of authority for a third-party package, so ``[severity]`` remains the
+user's to write.
 
 Ad-hoc Loading
 ==============

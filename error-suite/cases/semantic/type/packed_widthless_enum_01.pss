@@ -1,0 +1,25 @@
+//! case:         SEM-TYPE-PACKED-ENUM-01
+//! class:        semantic.type
+//! title:        packed struct field of an enum type with no base type
+//! expect:       error
+//! detect:       required
+//! lrm:          21.13.1
+//! pss:          3.1
+//! pssparser.id: PSS012
+//! at:           23:9
+//! count:        1
+//! fix:          19:    enum mode_e : bit[2] { IDLE, RUN };
+//! cause:        base type
+//! not_cause:    unknown type
+//! names:        mode_e, mode
+//! tags:         packed, enum
+package p {
+    import std_pkg::*;
+
+    enum mode_e { IDLE, RUN };
+
+    struct ctrl_s : packed_s<> {
+        bit[6] cnt;
+        mode_e mode;
+    }
+}

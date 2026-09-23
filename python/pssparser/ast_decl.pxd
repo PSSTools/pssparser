@@ -2920,7 +2920,9 @@ cdef extern from "pssp/ast/ISymbolDeclaration.h" namespace "pssp::ast":
 
 cdef extern from "pssp/ast/ISymbolEnumScope.h" namespace "pssp::ast":
     cpdef cppclass ISymbolEnumScope(ISymbolScope):
-        pass
+        IEnumDeclP getDecl();
+        
+        void setDecl(IEnumDeclP v)
 
 cdef extern from "pssp/ast/ISymbolExtendScope.h" namespace "pssp::ast":
     cpdef cppclass ISymbolExtendScope(ISymbolScope):

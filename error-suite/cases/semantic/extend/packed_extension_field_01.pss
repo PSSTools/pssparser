@@ -1,0 +1,24 @@
+//! case:         SEM-EXTEND-PACKED-FIELD-01
+//! class:        semantic.extend
+//! title:        type extension adds a field to a packed struct
+//! expect:       error
+//! detect:       required
+//! lrm:          21.13.1
+//! pssparser.id: PSS013
+//! at:           22:18
+//! count:        1
+//! fix:          22:        constraint { cnt < 100; }
+//! cause:        extension, field
+//! names:        ctrl_s, parity
+//! tags:         packed, extend
+package p {
+    import std_pkg::*;
+
+    struct ctrl_s : packed_s<> {
+        rand bit[7] cnt;
+    }
+
+    extend struct ctrl_s {
+        rand bit parity;
+    }
+}

@@ -208,6 +208,15 @@ def _describe(root, node) -> str:
     if kind == "DataTypeBool":
         return "bool"
 
+    if kind == "DataTypeFloat":
+        return "float64" if node.getIs_float64() else "float32"
+
+    if kind == "DataTypeChandle":
+        return "chandle"
+
+    if kind == "DataTypeString":
+        return "string"
+
     if kind == "ExprUnsignedNumber":
         return str(node.getValue())
 
@@ -276,3 +285,33 @@ def find_specialization(root, qname: str, *descs: str):
         % (qname, want, len(matches),
            [bindings(root, s) for s in specializations(root, qname)]))
     return matches[0]
+
+
+# ---------------------------------------------------------------------------
+# sizeof_s values
+# ---------------------------------------------------------------------------
+
+def _int_init(scope, name: str) -> Optional[int]:
+    f = child_by_name(scope, name)
+    init = f.getInit() if f is not None else None
+    if init is None or not hasattr(init, "getValue"):
+        return None
+    return init.getValue()
+
+
+def sizeof_values(root, qname: str = "std_pkg::sizeof_s"):
+    """``{argument: (nbits, nbytes)}`` for every specialization of sizeof_s.
+
+    The argument is described as :func:`binding_desc` describes it (``"int"``,
+    ``"bit[33]"``, ``"my_s"``). A value is None when the linker left the
+    member's declared initializer in place rather than computing one -- which
+    is what a non-packable argument should get, instead of a made-up number.
+    The declared placeholder, -1, is reported as None for the same reason.
+    """
+    out = {}
+    for spec in specializations(root, qname):
+        t = spec.getTarget()
+        vals = tuple(_int_init(t, n) for n in ("nbits", "nbytes"))
+        vals = tuple(None if v == -1 else v for v in vals)
+        out[binding_desc(root, spec, 0)] = vals
+    return out

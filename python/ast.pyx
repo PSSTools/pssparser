@@ -7463,6 +7463,13 @@ cdef class SymbolEnumScope(SymbolScope):
         ret._owned = owned
         return ret
     
+    cpdef EnumDecl getDecl(self):
+        if self.asSymbolEnumScope().getDecl() == NULL:
+            return None
+        else:
+            of = ObjFactory()
+            self.asSymbolEnumScope().getDecl().accept(of._hndl)
+            return <EnumDecl>(of._obj)
 
 cdef class SymbolExtendScope(SymbolScope):
     

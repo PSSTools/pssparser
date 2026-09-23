@@ -5,6 +5,7 @@ import re
 from dataclasses import dataclass, field
 from typing import List, Optional, Set
 
+from pssparser.checkers.extension import NO_FILE
 from .suggestion import extract_suggestion
 
 # Regex to pull the erroneous symbol name from common marker messages so we
@@ -198,6 +199,33 @@ class DiagnosticCollection:
         """
         self._diags = list(diags)
 
+    def apply_severity_map(self, severity_map: dict) -> None:
+        """Re-severity diagnostics by marker ID; ``"off"`` drops them.
+
+        Applied *after* every diagnostic has acquired its ``code`` and
+        *before* the warning policy, so that a configured severity is what
+        ``-Werror`` then sees.  Ordering matters in both directions: a
+        diagnostic with no code yet would be invisible here, and a
+        ``-Werror`` promotion applied first would be undone by an ``"off"``.
+
+        A diagnostic carrying no code is never touched -- there is no key to
+        match it on, and guessing from message text is what
+        ``_assign_core_code`` already did or failed to do upstream.
+        """
+        if not severity_map:
+            return
+        kept: List[Diagnostic] = []
+        for diag in self._diags:
+            new_sev = severity_map.get(diag.code) if diag.code else None
+            if new_sev is None:
+                kept.append(diag)
+                continue
+            if new_sev == "off":
+                continue
+            diag.severity = new_sev
+            kept.append(diag)
+        self._diags = kept
+
     def set_processed_files(self, files: List[str]) -> None:
         """Record the files actually handed to the parser.
 
@@ -222,7 +250,10 @@ class DiagnosticCollection:
 
     @property
     def files(self) -> set:
-        diag_files = {d.file for d in self._diags}
+        # A tool-level diagnostic (an extension that failed to load) carries
+        # the NO_FILE pseudo-path and is not a file that was processed;
+        # counting it would make a one-file run report "2 files".
+        diag_files = {d.file for d in self._diags if d.file != NO_FILE}
         if self._processed_files is not None:
             return diag_files | set(self._processed_files)
         return diag_files

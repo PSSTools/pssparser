@@ -168,7 +168,12 @@ setup_args = dict(
     },
     install_requires=[
         'debug-mgr',
-        'ciostream'
+        'ciostream',
+        # Configuration files are TOML.  `tomllib` is stdlib only from 3.11,
+        # and the floor below is 3.10.  `tomli` is the upstream of `tomllib`
+        # itself, so the parse behaviour is identical on both branches --
+        # `pssparser.cli.config` picks whichever is available.
+        'tomli; python_version < "3.11"',
     ],
     # 3.10 is the floor, and declaring it is what makes that a message rather
     # than a puzzle.  Without python_requires, pip on 3.9 happily selects this

@@ -78,6 +78,10 @@ public:
 private:
     ast::ISymbolRefPath *findRoot(const ast::IExprId *sym);
 
+    /// Resolve a qualified expression-form template argument. See the
+    /// definition for why this is not TaskResolveRefs' version of the walk.
+    ast::ISymbolRefPath *resolveStaticArgPath(ast::IExprRefPathStatic *i);
+
 private:
     static dmgr::IDebug                 *m_dbg;
     bool                                m_search_imp;
