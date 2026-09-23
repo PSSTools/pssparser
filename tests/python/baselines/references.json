@@ -1,14 +1,14 @@
 {
  "schema": 1,
  "summary": {
-  "slots": 85,
+  "slots": 87,
   "slots_by_state": {
-   "reported": 52,
-   "silent": 33
+   "reported": 59,
+   "silent": 28
   },
   "legal_model": "clean",
   "corpus_refs": {
-   "bound": 1059,
+   "bound": 1085,
    "unbound": 27
   },
   "schema_ref_fields": 46,
@@ -335,15 +335,15 @@
   "field_init": "reported",
   "forall_t": "reported",
   "func_dflt": "reported",
-  "hinit_name": "silent",
+  "hinit_name": "reported",
   "icls_base": "reported",
   "import_func": "reported",
-  "init_do": "silent",
-  "init_h": "silent",
+  "init_do": "reported",
+  "init_h": "reported",
   "init_val": "reported",
   "join_branch": "reported",
   "join_sel": "reported",
-  "mon_trav": "silent",
+  "mon_trav": "reported",
   "mustache": "reported",
   "ovr_inst": "silent",
   "ovr_inst__member": "silent",
@@ -366,6 +366,8 @@
   "sel_w": "reported",
   "slit_name": "silent",
   "slit_val": "reported",
+  "super_ref": "reported",
+  "super_ref__own": "reported",
   "super_t": "reported",
   "sym_arg": "reported",
   "sym_call": "reported",
@@ -373,7 +375,7 @@
   "tag_t": "reported",
   "tparam_t": "reported",
   "tparam_v": "reported",
-  "trav_h": "silent",
+  "trav_h": "reported",
   "trav_t": "reported",
   "trav_with": "reported",
   "typedef_t": "reported",
@@ -382,8 +384,8 @@
   "xbins_with": "silent"
  },
  "bind": {
-  "files": 89,
-  "clean_files": 47,
+  "files": 90,
+  "clean_files": 48,
   "fields": {
    "ActivityActionHandleTraversal.target | ExprRefPathContext": {
     "bound": 29
@@ -446,17 +448,23 @@
     "unbound": 2
    },
    "DataTypeUserDefined.type_id | TypeIdentifier": {
-    "bound": 452,
+    "bound": 459,
     "unbound": 1
    },
    "ExprBin.lhs | ExprRefPathContext": {
-    "bound": 92
+    "bound": 94
+   },
+   "ExprBin.lhs | ExprRefPathSuper": {
+    "bound": 1
    },
    "ExprBin.lhs{UNWALKED} | ExprRefPathContext": {
     "unbound": 1
    },
    "ExprBin.rhs | ExprRefPathContext": {
     "bound": 33
+   },
+   "ExprBin.rhs | ExprRefPathSuper": {
+    "bound": 1
    },
    "ExprBin.rhs{UNWALKED} | ExprRefPathContext": {
     "unbound": 1
@@ -477,19 +485,22 @@
     "bound": 2
    },
    "MethodParameterList.parameters | ExprRefPathContext": {
-    "bound": 26
+    "bound": 32
+   },
+   "MethodParameterList.parameters | ExprRefPathSuper": {
+    "bound": 1
    },
    "PackageImportStmt.path | TypeIdentifier": {
-    "bound": 75
+    "bound": 76
    },
    "ProceduralStmtAssignment.lhs | ExprRefPathContext": {
-    "bound": 35
+    "bound": 36
    },
    "ProceduralStmtAssignment.rhs | ExprRefPathContext": {
     "bound": 15
    },
    "ProceduralStmtExpr.expr | ExprRefPathContext": {
-    "bound": 12
+    "bound": 15
    },
    "ProceduralStmtForeach.path | ExprRefPathContext": {
     "bound": 1
@@ -513,7 +524,7 @@
     "bound": 1
    },
    "TypeScope.super_t | TypeIdentifier": {
-    "bound": 150
+    "bound": 153
    }
   }
  }

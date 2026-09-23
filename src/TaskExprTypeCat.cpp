@@ -159,7 +159,7 @@ TypeCatE TaskExprTypeCat::expr(ast::IExpr *e) {
 TypeCatE TaskExprTypeCat::refPath(ast::IExpr *e) {
     ast::IExprRefPathContext *rp = dynamic_cast<ast::IExprRefPathContext *>(e);
 
-    if (!rp || !rp->getTarget() || rp->getIs_super() || !rp->getHier_id()) {
+    if (!rp || !rp->getTarget() || !rp->getHier_id()) {
         return TypeCatE::Unknown;
     }
 

@@ -1142,6 +1142,21 @@
    "calls": [
     [
      {
+      "content": "// ex284_super.pss\n//\n// `super` in derived types (LRM 17.1 Table 27, 20.1.4), modelled on PSS 3.1\n// Example 284 and completed to a whole model.\n//\n// Demonstrates:\n//   - `super;` in a derived action's exec body, before and after the\n//     derived type's own statements\n//   - `super.<name>` reaching a base field the derived type shadows, in a\n//     constraint and in an exec block\n//   - `super.<name>(args)` calling a base component's instance function\n//     that the derived component shadows with a different signature\n\nimport std_pkg::*;\n\ncomponent base_c {\n    function int scale(int v) { return v * 2; }\n}\n\ncomponent der_c : base_c {\n    function int scale() { return super.scale(4) + 1; }\n\n    action A {\n        int a;\n\n        exec pre_solve {\n            a = 1;\n        }\n        exec body {\n            message(LOW, \"Hello from A %d\", a);\n        }\n    }\n\n    action A1 : A {\n        exec body {\n            super;\n            message(LOW, \"Hello from A1 %d\", a);\n        }\n    }\n\n    action A2 : A {\n        rand int a;                     // shadows A::a\n        constraint a > super.a;\n\n        exec body {\n            message(LOW, \"Hello from A2 %d %d\", a, super.a);\n            super;\n        }\n    }\n}\n\ncomponent pss_top {\n    der_c d;\n\n    action test_a {\n        activity {\n            do der_c::A1;\n            do der_c::A2;\n        }\n    }\n}\n",
+      "name": "lrm31/ex284_super.pss"
+     }
+    ]
+   ],
+   "id": "corpus:lrm31/ex284_super.pss",
+   "markers": [],
+   "maxErrors": 0,
+   "raised": null,
+   "why": "corpus parity"
+  },
+  {
+   "calls": [
+    [
+     {
       "content": "component c {\n    int a = 0xZZ;\n    int b = 4'sq99;\n    string s = \"bad escape \\q here\";\n    @;\n    ...\n}\n",
       "name": "pathological/invalid_tokens.pss"
      }

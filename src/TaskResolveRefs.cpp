@@ -28,6 +28,10 @@
 #include "TaskLinkActionCompRefFields.h"
 #include "TaskResolveImports.h"
 #include "TaskResolveRef.h"
+#include "TaskResolveRootRef.h"
+#include "pssp/ast/ITypeScope.h"
+#include "pssp/ast/IProceduralStmtSuper.h"
+#include "pssp/ast/IActivitySuper.h"
 #include "TaskResolveRefs.h"
 #include "TaskTemplateCheck.h"
 #include "pssp/ast/IExprTemplateString.h"
@@ -39,6 +43,13 @@
 #include "pssp/impl/ActivityScopes.h"
 #include "pssp/ast/IProceduralStmtDataDeclaration.h"
 #include "pssp/ast/IActionHandleField.h"
+#include "pssp/ast/IAction.h"
+#include "pssp/ast/IActivityActionHandleTraversal.h"
+#include "pssp/ast/IActivityActionTypeTraversal.h"
+#include "pssp/ast/IActivityLabeledScope.h"
+#include "pssp/ast/IActivityLabeledStmt.h"
+#include "pssp/ast/IConstraintBlock.h"
+#include "pssp/ast/IMonitor.h"
 #include "pssp/impl/TaskGetElemSymbolScope.h"
 #include "pssp/impl/TaskGetSubscriptSymbolScope.h"
 #include "pssp/impl/TaskGetCollectionElemType.h"
@@ -379,6 +390,20 @@ void TaskResolveRefs::resolveCompileConds(ast::IRootSymbolScope *root) {
     DEBUG_LEAVE("resolveCompileConds");
 }
 
+/**
+ * True if `c`, a child of type scope `s`, is only an alias for a labeled
+ * activity statement: registerActivityLabels makes each label a symtab entry of
+ * the action so that a path rooted at it resolves, and the statement itself is
+ * walked where it is written, in its block. Walked again from here, it was
+ * resolved with the action's scope on top instead of its block's, and a
+ * traversal target found in the block got a path that skipped it.
+ */
+static bool isActivityLabelAlias(ast::ISymbolScope *s, ast::IScopeChild *c) {
+    return dynamic_cast<ast::ISymbolTypeScope *>(s)
+        && (dynamic_cast<ast::IActivityLabeledStmt *>(c)
+            || dynamic_cast<ast::IActivityLabeledScope *>(c));
+}
+
 void TaskResolveRefs::resolve(ast::ISymbolTypeScope *scope) {
     // Resolving a specialization's body can specialize again; see
     // TaskGetSpecializedTemplateType for the user-facing depth limit.
@@ -461,7 +486,9 @@ void TaskResolveRefs::resolve(ast::ISymbolTypeScope *scope) {
     for (std::vector<ast::IScopeChildUP>::const_iterator
         it=scope->getChildren().begin();
         it!=scope->getChildren().end(); it++) {
-        visitMergedScopeChild(it->get());
+        if (!isActivityLabelAlias(scope, it->get())) {
+            visitMergedScopeChild(it->get());
+        }
     }
 
     m_ctxt->symtab()->popScope();
@@ -473,145 +500,285 @@ void TaskResolveRefs::resolve(ast::ISymbolTypeScope *scope) {
 }
 
 /**
- * The parts of a traversal that resolve in the enclosing scope whatever the
- * target turns out to be: subscripts on the target, and the value side of each
- * `.x = v` initializer. Neither was walked (3.3). The `.x` side names a member
- * of the traversed type and is resolved with the traversal rewrite (4.2, U3).
+ * True if `s` is an action or monitor type: something a traversal can run,
+ * and whose members a `with` block or an initializer list names.
  */
-void TaskResolveRefs::visitTraversalOperands(
-        ast::IExprRefPathContext                            *target,
-        const std::vector<ast::IActionFieldInitializerUP>   &inits) {
-    if (target) {
-        for (std::vector<ast::IExprMemberPathElemUP>::const_iterator
-                e=target->getHier_id()->getElems().begin();
-                e!=target->getHier_id()->getElems().end(); e++) {
-            for (std::vector<ast::IExprUP>::const_iterator
-                    s=(*e)->getSubscript().begin(); s!=(*e)->getSubscript().end(); s++) {
-                (*s)->accept(m_this);
-            }
-        }
-    }
-    for (std::vector<ast::IActionFieldInitializerUP>::const_iterator
-            it=inits.begin(); it!=inits.end(); it++) {
-        if ((*it)->getValue()) {
-            (*it)->getValue()->accept(m_this);
-        }
-    }
+static bool isTraversableType(ast::ISymbolScope *s) {
+    ast::ISymbolTypeScope *ts = dynamic_cast<ast::ISymbolTypeScope *>(s);
+    ast::IScopeChild *t = ts ? ts->getTarget() : 0;
+    return dynamic_cast<ast::IAction *>(t) || dynamic_cast<ast::IMonitor *>(t);
 }
 
-void TaskResolveRefs::visitActivityActionHandleTraversal(ast::IActivityActionHandleTraversal *i) {
-    DEBUG_ENTER("visitActivityActionHandleTraversal");
-    visitTraversalOperands(i->getTarget(), i->getInitializers());
+/**
+ * The action (or monitor) type a handle traversal runs, given what its target
+ * bound to (4.2, U7/K6). Null when there is no type to resolve a `with` block
+ * or an initializer list in: the target is not a handle, or is a whole array
+ * of them, or its type is unknown.
+ *
+ * With `report`, a target that cannot be traversed at all is diagnosed here
+ * (11.3.1: "identifier names a unique action handle or variable"). What can be:
+ *   - a handle of action or monitor type, however it was declared -- an action
+ *     field, an activity-local handle, a symbol parameter, a foreach iterator
+ *     over handles, or the label of an earlier traversal (11.3.1.1 c, C-N4);
+ *     an element or sub-array of a handle array, or the whole array;
+ *   - a data field with the `action` modifier (11.3.1, Ex. 173), which is
+ *     randomized with no execution;
+ *   - a generic constraint (13.4.11), a `dynamic` one (deprecated, 13.1.1),
+ *     or a symbol with no parameters (Ex. 120).
+ * A fixed constraint cannot be: it always holds (decision Q1).
+ *
+ * A declaration whose type did not resolve is left alone -- that was reported
+ * where the type is written -- and so is one whose type is a template
+ * parameter, which has no scope until the generic is specialized.
+ */
+ast::ISymbolScope *TaskResolveRefs::traversedType(
+        ast::IScopeChild            *decl,
+        ast::IExprId                *id,
+        uint32_t                    n_sub,
+        bool                        report) {
+    const std::string &name = id->getId();
+    const ast::Location &loc = id->getLocation();
 
-    ast::ISymbolRefPath *target_ref = TaskResolveRef(m_ctxt).resolve(i->getTarget());
-
-    if (!target_ref) {
-        DEBUG_LEAVE("visitActivityActionHandleTraversal -- unresolved");
-        return;
+    // Tested first: a generic constraint is a ConstraintBlock too.
+    if (dynamic_cast<ast::IGenericConstraintDeclBool *>(decl)
+            || dynamic_cast<ast::IGenericConstraintDeclValue *>(decl)
+            || dynamic_cast<ast::ISymbolDeclaration *>(decl)) {
+        return 0;
+    }
+    if (ast::IConstraintBlock *cb = dynamic_cast<ast::IConstraintBlock *>(decl)) {
+        if (!report) {
+        } else if (cb->getIs_dynamic()) {
+            m_ctxt->addMarker(
+                MarkerSeverityE::Warn,
+                loc,
+                "traversal of dynamic constraint '%s' is deprecated (13.1.1); "
+                "declare it as a generic constraint, 'constraint %s() { ... }'",
+                name.c_str(), name.c_str());
+        } else {
+            m_ctxt->addMarker(
+                MarkerSeverityE::Error,
+                loc,
+                "'%s' is a fixed constraint, which always holds and cannot be "
+                "traversed; declare it as a generic constraint, "
+                "'constraint %s() { ... }', to apply it here",
+                name.c_str(), name.c_str());
+        }
+        return 0;
     }
 
-    i->getTarget()->setTarget(target_ref);
-    ast::IScopeChild *target = m_ctxt->resolveSymbolPathRef(i->getTarget()->getTarget());
-
-    if (target) {
-        m_ctxt->addRef(i->getLocation().fileid, target->getLocation().fileid);
+    // `T: do A; ... T;` -- a traversal's label is a handle of the traversed
+    // type; `T: a;` is `a` (C-N4).
+    if (ast::IActivityActionTypeTraversal *tt =
+            dynamic_cast<ast::IActivityActionTypeTraversal *>(decl)) {
+        ast::ITypeIdentifier *tid = tt->getTarget() ? tt->getTarget()->getType_id() : 0;
+        ast::IScopeChild *c = (tid && tid->getTarget())
+            ? m_ctxt->resolveSymbolPathRef(tid->getTarget()) : 0;
+        return dynamic_cast<ast::ISymbolScope *>(c);
+    }
+    if (ast::IActivityActionHandleTraversal *ht =
+            dynamic_cast<ast::IActivityActionHandleTraversal *>(decl)) {
+        ast::IExprMemberPathElem *leaf = (ht->getTarget() && ht->getTarget()->getTarget())
+            ? ht->getTarget()->getHier_id()->getElems().back().get() : 0;
+        ast::IScopeChild *c = leaf ? leaf->getId()->getDecl() : 0;
+        return (c && c != decl)
+            ? traversedType(c, leaf->getId(), leaf->getSubscript().size(), false) : 0;
     }
 
-    ast::IField *field = dynamic_cast<ast::IField *>(target);
-    // A handle declared in an activity (`A a; a with {...};`) is an
-    // ActionHandleField, not a Field. Its `with` block went unresolved --
-    // silently, since nothing in it was ever visited -- which the hoisting
-    // into the action hid: the same name usually existed as an action field.
-    ast::IActionHandleField *handle = dynamic_cast<ast::IActionHandleField *>(target);
-    // A symbol parameter (`symbol s(A aa) { aa with {...}; }`) is traversed
-    // like a handle field of its declared type (4.4).
-    ast::IFunctionParamDecl *sym_param = dynamic_cast<ast::IFunctionParamDecl *>(target);
-    // So is a foreach iterator over a collection of handles, typed from the
-    // collection's element (WS4.1, K3).
+    ast::IField *field = dynamic_cast<ast::IField *>(decl);
+    ast::IActionHandleField *handle = dynamic_cast<ast::IActionHandleField *>(decl);
+    ast::IFunctionParamDecl *sym_param = dynamic_cast<ast::IFunctionParamDecl *>(decl);
     ast::IProceduralStmtDataDeclaration *loop_var =
-        dynamic_cast<ast::IProceduralStmtDataDeclaration *>(target);
-    DEBUG("target=%p field=%p", target, field);
-    if (!field && !handle && !sym_param && !loop_var) {
-        DEBUG("Failed to resolve traversal target to a field");
-        DEBUG_LEAVE("visitActivityActionHandleTraversal");
-        return;
-    }
-    ast::IDataType *field_t = field ? field->getType()
+        dynamic_cast<ast::IProceduralStmtDataDeclaration *>(decl);
+    ast::IDataType *type = field ? field->getType()
         : handle ? handle->getType()
-        : sym_param ? sym_param->getType() : loop_var->getDatatype();
-    ast::IDataTypeUserDefined *field_udt = dynamic_cast<ast::IDataTypeUserDefined *>(field_t);
+        : sym_param ? sym_param->getType()
+        : loop_var ? loop_var->getDatatype() : 0;
+    bool is_action_data = field
+        && (field->getAttr() & ast::FieldAttr::Action) != ast::FieldAttr::NoFlags;
 
-    DEBUG("field_t=%p action_t=%p", field_t, field_udt);
-    ast::IScopeChild *field_c = (field_udt && field_udt->getType_id() && field_udt->getType_id()->getTarget())
-        ? m_ctxt->resolveSymbolPathRef(field_udt->getType_id()->getTarget()) : 0;
-    ast::ISymbolScope *field_scope = dynamic_cast<ast::ISymbolScope *>(field_c);
+    if (!type) {
+        if (report) {
+            if (dynamic_cast<ast::ISymbolTypeScope *>(decl)) {
+                m_ctxt->addMarker(
+                    MarkerSeverityE::Error,
+                    loc,
+                    "'%s' is a type, not an action handle; traverse it by type "
+                    "with 'do %s'",
+                    name.c_str(), name.c_str());
+            } else if (dynamic_cast<ast::IActivityLabeledStmt *>(decl)
+                    || dynamic_cast<ast::IActivityLabeledScope *>(decl)) {
+                m_ctxt->addMarker(
+                    MarkerSeverityE::Error,
+                    loc,
+                    "'%s' is an activity label, not an action handle, and "
+                    "cannot be traversed",
+                    name.c_str());
+            } else {
+                m_ctxt->addMarker(
+                    MarkerSeverityE::Error,
+                    loc,
+                    "'%s' is not an action handle, and cannot be traversed; "
+                    "only a handle, or a data field declared with the 'action' "
+                    "modifier, can be",
+                    name.c_str());
+            }
+        }
+        return 0;
+    }
+
+    ast::IDataTypeUserDefined *udt = dynamic_cast<ast::IDataTypeUserDefined *>(type);
+    if (udt && (!udt->getType_id() || !udt->getType_id()->getTarget())) {
+        // Unknown type: already reported at the declaration.
+        return 0;
+    }
+    ast::IScopeChild *type_c = udt
+        ? m_ctxt->resolveSymbolPathRef(udt->getType_id()->getTarget()) : 0;
+    ast::ISymbolScope *type_s = dynamic_cast<ast::ISymbolScope *>(type_c);
+
+    if (udt && !type_s) {
+        // A template parameter, or something else with no scope yet.
+        return 0;
+    }
 
     // `a_arr[1] with {...}` constrains an *element*, so the with-block is
-    // resolved in the element type. Until resolvePath() was retired this
-    // step was unnecessary by accident: that walker read the array
-    // specialization's TypeSpec element as a child index, landed on a
-    // non-scope, and the with-block was never resolved at all.
-    const std::vector<ast::IExprMemberPathElemUP> &elems =
-        i->getTarget()->getHier_id()->getElems();
-    uint32_t n_sub = (elems.size())?elems.back()->getSubscript().size():0;
-    if (field_scope && n_sub) {
-        field_scope = TaskGetSubscriptSymbolScope(
-            m_ctxt->getDebugMgr(), m_ctxt->root(), n_sub).resolve(target);
+    // resolved in the element type.
+    ast::ISymbolScope *elem_s = type_s;
+    if (type_s && n_sub) {
+        elem_s = TaskGetSubscriptSymbolScope(
+            m_ctxt->getDebugMgr(), m_ctxt->root(), n_sub).resolve(decl);
     }
-    if (builtinCollectionKind(field_scope) != CollectionKind::None) {
+
+    if (elem_s && builtinCollectionKind(elem_s) != CollectionKind::None) {
         // A whole array, or a sub-array, of handles. It may be traversed, but
         // LRM 11.3.2 forbids an inline constraint on it (CH11-11, a semantic
         // check for later). There is no element scope to resolve one in, and
         // resolving it in the array's own scope reports every member as
         // unknown.
-        DEBUG_LEAVE("visitActivityActionHandleTraversal -- (sub-)array");
-        return;
+        return 0;
     }
 
-    if (!field_scope) {
-        DEBUG("Failed to resolve field type scope");
-        DEBUG_LEAVE("visitActivityActionHandleTraversal");
-        return;
+    if (elem_s && isTraversableType(elem_s)) {
+        return elem_s;
     }
-    DEBUG("field_c=%p field_scope=%s", field_c, field_scope->getName().c_str());
-    if (i->getWith_c()) {
-        m_ctxt->symtab()->pushScope(field_scope, ast::SymbolRefPathElemKind::ElemKind_Inline);
-        m_ctxt->pushInlineCtxt(field_scope);
+
+    if (is_action_data || !report) {
+        // An `action` data field: randomized, and has no members to name.
+        return 0;
+    }
+
+    if (!elem_s && n_sub) {
+        // The subscripted element's type did not resolve; nothing to say.
+        return 0;
+    }
+
+    m_ctxt->addMarker(
+        MarkerSeverityE::Error,
+        loc,
+        "'%s' is not an action handle, and cannot be traversed; only a "
+        "handle, or a data field declared with the 'action' modifier, can be",
+        name.c_str());
+    return 0;
+}
+
+/**
+ * The parts of a traversal resolved in the traversed type: the `with` block
+ * and the `.x` side of each initializer. The value side of an initializer
+ * resolves in the enclosing scope whatever the type turns out to be.
+ */
+void TaskResolveRefs::resolveTraversalBody(
+        ast::ISymbolScope                                   *type_s,
+        ast::IConstraintStmt                                *with_c,
+        const std::vector<ast::IActionFieldInitializerUP>   &inits) {
+    for (std::vector<ast::IActionFieldInitializerUP>::const_iterator
+            it=inits.begin(); it!=inits.end(); it++) {
+        resolveInitializer(type_s, it->get());
+    }
+    if (type_s && with_c) {
+        m_ctxt->symtab()->pushScope(type_s, ast::SymbolRefPathElemKind::ElemKind_Inline);
+        m_ctxt->pushInlineCtxt(type_s);
         DEBUG_ENTER(" ::getWith()");
-        i->getWith_c()->accept(m_this);
+        with_c->accept(m_this);
         DEBUG_LEAVE(" ::getWith()");
         m_ctxt->popInlineCtxt();
         m_ctxt->symtab()->popScope();
     }
+}
+
+/**
+ * `.x.y = v` (11.3.1: "initialization assignment patterns can refer to
+ * hierarchical paths within the action handle", U3). The value resolves where
+ * it is written. The path resolves in the handle's type, `type_s`, and only
+ * there: `.x` names a member of the traversed action, never a name of the
+ * enclosing scope, so the root is checked against the type before the
+ * ordinary resolver, which would fall back outward, sees it. It is recorded
+ * as a with-block reference is, relative to the traversed action
+ * (ElemKind_Inline).
+ *
+ * With no type (the handle did not resolve), the path is left unbound: the
+ * cause was reported where it is.
+ */
+void TaskResolveRefs::resolveInitializer(
+        ast::ISymbolScope                   *type_s,
+        ast::IActionFieldInitializer        *i) {
+    if (i->getValue()) {
+        i->getValue()->accept(m_this);
+    }
+    ast::IExprRefPathContext *path = i->getPath();
+    if (!type_s || !path || path->getTarget()) {
+        return;
+    }
+    ast::IExprId *root = path->getHier_id()->getElems().at(0)->getId();
+    if (!TaskFindPathElem(m_ctxt->getDebugMgr(), m_ctxt->root()).find(
+            type_s, root).sym) {
+        m_ctxt->addErrorMarker(
+            root->getLocation(),
+            "'%s' has no member named '%s'",
+            type_s->getName().c_str(),
+            root->getId().c_str());
+        return;
+    }
+    m_ctxt->symtab()->pushScope(type_s, ast::SymbolRefPathElemKind::ElemKind_Inline);
+    m_ctxt->pushInlineCtxt(type_s);
+    resolveExprRefPathContext(path);
+    visitSlice(path->getSlice());
+    m_ctxt->popInlineCtxt();
+    m_ctxt->symtab()->popScope();
+}
+
+void TaskResolveRefs::visitActivityActionHandleTraversal(ast::IActivityActionHandleTraversal *i) {
+    DEBUG_ENTER("visitActivityActionHandleTraversal");
+    // The full path resolver: an unknown name is reported (PSS002) and the
+    // subscripts are walked. This was a root-only lookup that returned
+    // silently on a miss (U7/K6).
+    i->getTarget()->accept(m_this);
+
+    ast::IExprMemberPathElem *leaf = i->getTarget()->getHier_id()->getElems().back().get();
+    ast::IScopeChild *decl = (i->getTarget()->getTarget()) ? leaf->getId()->getDecl() : 0;
+    ast::ISymbolScope *type_s = (decl)
+        ? traversedType(decl, leaf->getId(), leaf->getSubscript().size(), true) : 0;
+
+    resolveTraversalBody(type_s, i->getWith_c(), i->getInitializers());
     DEBUG_LEAVE("visitActivityActionHandleTraversal");
 }
-    
+
 void TaskResolveRefs::visitActivityActionTypeTraversal(ast::IActivityActionTypeTraversal *i) {
     DEBUG_ENTER("visitActivityActionTypeTraversal");
-    visitTraversalOperands(0, i->getInitializers());
     i->getTarget()->accept(m_this);
-    ast::IDataTypeUserDefined *field_udt = i->getTarget(); // <ast::IDataTypeUserDefined *>(i->getTarget());
-//    DEBUG("--> resolve field_udt->getType_id()");
-//    field_udt->getType_id()->accept(m_this);
-//    DEBUG("<-- resolve field_udt->getType_id()");
-//    ast::IScopeChild *field_c = m_ctxt->resolveSymbolPathRef(field_udt->getType_id()->getTarget());
-    if (field_udt->getType_id()->getTarget()) {
-        ast::IScopeChild *field_c = m_ctxt->resolveSymbolPathRef(field_udt->getType_id()->getTarget());
-        ast::ISymbolScope *field_scope = dynamic_cast<ast::ISymbolScope *>(field_c);
-        // Mirrors visitActivityActionHandleTraversal just above: the target
-        // failed to resolve to a scope (e.g. a mistyped/undeclared type), so
-        // there is nothing to push -- a marker was already reported by the
-        // resolveSymbolPathRef/accept above.
-        if (field_scope && i->getWith_c()) {
-            m_ctxt->symtab()->pushScope(field_scope, ast::SymbolRefPathElemKind::ElemKind_Inline);
-            m_ctxt->pushInlineCtxt(field_scope);
-            DEBUG_ENTER(" ::getWith()");
-            i->getWith_c()->accept(m_this);
-            DEBUG_LEAVE(" ::getWith()");
-            m_ctxt->popInlineCtxt();
-            m_ctxt->symtab()->popScope();
-        }
+    ast::ITypeIdentifier *tid = i->getTarget()->getType_id();
+    ast::IScopeChild *type_c = (tid && tid->getTarget())
+        ? m_ctxt->resolveSymbolPathRef(tid->getTarget()) : 0;
+    ast::ISymbolScope *type_s = dynamic_cast<ast::ISymbolScope *>(type_c);
+    if (type_s && !isTraversableType(type_s)) {
+        // An unknown type was reported by the accept above; this is a known
+        // one that is not an action.
+        m_ctxt->addMarker(
+            MarkerSeverityE::Error,
+            i->getTarget()->getLocation(),
+            "'%s' is not an action type, and cannot be traversed",
+            type_s->getName().c_str());
+        type_s = 0;
     }
+    resolveTraversalBody(type_s, i->getWith_c(), i->getInitializers());
     DEBUG_LEAVE("visitActivityActionTypeTraversal");
 }
 
@@ -1045,7 +1212,7 @@ TaskResolveRefs::TypeCat TaskResolveRefs::catOfExpr(ast::IExpr *e) {
     // type needs the walk this classification does not do -- left Unknown.
     ast::IExprRefPathContext *rp = dynamic_cast<ast::IExprRefPathContext *>(e);
 
-    if (rp && !rp->getIs_super() && !rp->getSlice()
+    if (rp && !rp->getSlice()
         && rp->getHier_id()->getElems().size() == 1
         && !rp->getHier_id()->getElems().at(0)->getParams()
         && rp->getHier_id()->getElems().at(0)->getSubscript().empty()
@@ -1341,6 +1508,73 @@ void TaskResolveRefs::visitExprRefPathStaticRooted(ast::IExprRefPathStaticRooted
     visitSlice(i->getSlice());
 }
 
+void TaskResolveRefs::visitActivitySuper(ast::IActivitySuper *i) {
+    DEBUG_ENTER("visitActivitySuper");
+    checkSuperStmt(i);
+    DEBUG_LEAVE("visitActivitySuper");
+}
+
+void TaskResolveRefs::visitProceduralStmtSuper(ast::IProceduralStmtSuper *i) {
+    DEBUG_ENTER("visitProceduralStmtSuper");
+    checkSuperStmt(i);
+    DEBUG_LEAVE("visitProceduralStmtSuper");
+}
+
+void TaskResolveRefs::checkSuperStmt(ast::IScopeChild *stmt) {
+    // `super;` runs the base type's activity or exec block (Table 27): with
+    // no base type there is nothing for it to run. An unresolved base is
+    // reported at the declaration.
+    ast::ISymbolTypeScope *type_s = TaskResolveRootRef(m_ctxt).contextType();
+    ast::ITypeScope *ts = (type_s)
+        ? dynamic_cast<ast::ITypeScope *>(type_s->getTarget()) : 0;
+
+    if (type_s && ts && !ts->getSuper_t()) {
+        m_ctxt->addErrorMarker(stmt->getLocation(),
+            "'super;' is only valid inside a type that has a base type, "
+            "and '%s' has none",
+            type_s->getName().c_str());
+    }
+}
+
+void TaskResolveRefs::reportSuperMiss(
+        ast::IExprId                                *id,
+        const TaskResolveRootRef::SuperResult       &res) {
+    typedef TaskResolveRootRef::SuperStatus S;
+    switch (res.status) {
+        case S::NoType:
+            m_ctxt->addErrorMarker(id->getLocation(),
+                "'super' is only valid inside a type: an action, component, "
+                "struct or other type body");
+            break;
+        case S::NoBase:
+            m_ctxt->addErrorMarker(id->getLocation(),
+                "'super' is only valid inside a type that has a base type, "
+                "and '%s' has none",
+                res.type_s->getName().c_str());
+            break;
+        case S::NotFound: {
+            // A member of the type itself, not inherited, is the likely
+            // mistake: `super.x` written for a field the type declares.
+            bool own = res.type_s->getSymtab().find(id->getId())
+                != res.type_s->getSymtab().end();
+            if (own) {
+                m_ctxt->addErrorMarker(id->getLocation(),
+                    "base type '%s' has no member named '%s'; '%s' is "
+                    "declared in '%s' itself, so refer to it without 'super.'",
+                    res.base_s->getName().c_str(), id->getId().c_str(),
+                    id->getId().c_str(), res.type_s->getName().c_str());
+            } else {
+                m_ctxt->addErrorMarker(id->getLocation(),
+                    "base type '%s' has no member named '%s'",
+                    res.base_s->getName().c_str(), id->getId().c_str());
+            }
+        } break;
+        case S::BaseUnresolved:
+        case S::Ok:
+            break;
+    }
+}
+
 void TaskResolveRefs::resolveExprRefPathContext(ast::IExprRefPathContext *i) {
     DEBUG_ENTER("visitExprRefPathContext %s", i->getHier_id()->getElems().at(0)->getId()->getId().c_str());
 
@@ -1358,7 +1592,19 @@ void TaskResolveRefs::resolveExprRefPathContext(ast::IExprRefPathContext *i) {
     // silently find a different declaration of the same name.
     ast::ISymbolRefPath *target = i->getTarget();
 
-    if (!target) {
+    if (!target && i->getIs_super()) {
+        // `super.x` searches the base type only (5.2). A miss is reported
+        // here: the lexical-miss handling below would suggest, or find, a
+        // name the base does not have.
+        TaskResolveRootRef::SuperResult res;
+        target = TaskResolveRootRef(m_ctxt).resolveSuper(
+            i->getHier_id()->getElems().at(0)->getId(), res);
+        if (!target) {
+            reportSuperMiss(i->getHier_id()->getElems().at(0)->getId(), res);
+            DEBUG_LEAVE("visitExprRefPathContext -- super miss");
+            return;
+        }
+    } else if (!target) {
         target = TaskResolveRef(m_ctxt).resolve(
             i->getHier_id()->getElems().at(0)->getId());
     }
@@ -2354,14 +2600,14 @@ void TaskResolveRefs::visitField(ast::IField *i) {
             checkConstTemplate(i->getInit(), i->getName()->getLocation());
         }
     }
-    // A handle's `{.x = v}` list: each value is resolved here, in the scope
-    // declaring the handle. The `.x` side names a field of the handle's type
-    // and is resolved with the traversal rewrite (WS4.2, U3).
-    for (std::vector<ast::IActionFieldInitializerUP>::const_iterator
-            it=i->getInitializers().begin();
-            it!=i->getInitializers().end(); it++) {
-        if ((*it)->getValue()) {
-            (*it)->getValue()->accept(m_this);
+    // A handle's `{.x = v}` list: each value resolves here, in the scope
+    // declaring the handle; each `.x` in the handle's type (U3).
+    if (i->getInitializers().size()) {
+        ast::ISymbolScope *type_s = traversedType(i, i->getName(), 0, false);
+        for (std::vector<ast::IActionFieldInitializerUP>::const_iterator
+                it=i->getInitializers().begin();
+                it!=i->getInitializers().end(); it++) {
+            resolveInitializer(type_s, it->get());
         }
     }
     checkMutableField(i);
@@ -2802,13 +3048,32 @@ void TaskResolveRefs::visitComponentBind(ast::IComponentBind *i) {
 }
 
 /**
- * `.x = v`: the value resolves here; `.x` names a member of the handle's type
- * and resolves with the traversal rewrite (WS4.2, U3).
+ * An initializer is resolved by its handle or traversal, which knows the type
+ * its path names a member of (resolveInitializer). Reached on its own only
+ * where that type is unknown, so only the value is resolved.
  */
 void TaskResolveRefs::visitActionFieldInitializer(ast::IActionFieldInitializer *i) {
-    if (i->getValue()) {
-        i->getValue()->accept(m_this);
+    resolveInitializer(0, i);
+}
+
+/**
+ * A handle declared in an activity (`A b {.x = 1};`): its type, then its
+ * initializers, in the handle's type (U3).
+ */
+void TaskResolveRefs::visitActionHandleField(ast::IActionHandleField *i) {
+    DEBUG_ENTER("visitActionHandleField");
+    if (i->getType()) {
+        i->getType()->accept(m_this);
     }
+    if (i->getInitializers().size()) {
+        ast::ISymbolScope *type_s = traversedType(i, i->getName(), 0, false);
+        for (std::vector<ast::IActionFieldInitializerUP>::const_iterator
+                it=i->getInitializers().begin();
+                it!=i->getInitializers().end(); it++) {
+            resolveInitializer(type_s, it->get());
+        }
+    }
+    DEBUG_LEAVE("visitActionHandleField");
 }
 
 /**
@@ -3390,7 +3655,9 @@ void TaskResolveRefs::visitSymbolTypeScope(ast::ISymbolTypeScope *i) {
         for (std::vector<ast::IScopeChildUP>::const_iterator
             it=i->getChildren().begin();
             it!=i->getChildren().end(); it++) {
-            visitMergedScopeChild(it->get());
+            if (!isActivityLabelAlias(i, it->get())) {
+                visitMergedScopeChild(it->get());
+            }
         }
 
         m_ctxt->symtab()->popScope();

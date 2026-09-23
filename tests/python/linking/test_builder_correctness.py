@@ -156,8 +156,8 @@ def _count_super_refs(root):
 def test_super_call_statement_builds_a_super_reference(call):
     """The statement form builds ExprRefPathSuper, as the expression form does.
 
-    Binding it to the *base* `g` is WS5.2; this pins only that the builder no
-    longer throws the `super` away.
+    The binding to the *base* `g` is pinned by the next test and by
+    linking/test_super.py.
     """
     root = assert_parse_ok("""
 component base_c { function void g(int x) { } }
@@ -168,10 +168,8 @@ component d_c : base_c {
     assert _count_super_refs(root) > 0  # the symbol-tree walk reaches a body more than once
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "WS5.2: `super.f` is still looked up lexically, so it binds to the derived "
-    "`f` and is arity-checked against it (repros/B-builtins/super5.pss)"))
 def test_super_call_binds_to_the_base_function():
+    """It bound to the derived `g`, and was arity-checked against it (5.2)."""
     assert_parse_ok("""
 component base_c { function void g(int x) { } }
 component d_c : base_c {

@@ -7,6 +7,53 @@ revision advances only the patch component.
 
 ## Unreleased
 
+### Fixed — `super` (symbol-resolution 5.2)
+
+- **`super.x` searches the base type only** (LRM 17.1, Table 27). It was
+  looked up like a plain `x`, so the derived type's own `x` won: `super.f(1)`
+  in a component that shadows `f` bound to the derived `f` and was
+  arity-checked against it ("too many arguments"). Now `super.x` binds to the
+  base's `x`, or to one the base inherits, and never to the derived type's
+  members or to an enclosing scope. Inside `a with { ... }` it is the
+  *containing* action's base, matching `this`.
+- **Misuse is reported** (PSS002): `super.x` in a type with no base type
+  (it used to find any `x` in an enclosing scope); `super.x` where the base has
+  no `x` (with a hint when the derived type declares it); `super` outside a
+  type; and a `super;` statement in an activity or exec block of a type with no
+  base type.
+
+### Fixed — action traversals and initializer lists (symbol-resolution 4.2)
+
+- **An unknown traversal target is reported** (PSS002): `nosuch;` in an
+  activity, a `sequence`, a `parallel`, a monitor activity or a symbol body
+  used to link cleanly (it printed a debug line at most). The target now goes
+  through the ordinary path resolver, which also reports a bad subscript
+  (`aa[NOSUCH];`).
+- **What a traversal names is checked** (new **PSS018**, error). LRM 11.3.1
+  allows an action or monitor handle -- however declared: action field,
+  activity-local handle, symbol parameter, foreach iterator, the label of an
+  earlier traversal -- an element, sub-array or whole array of handles, and a
+  data field declared with the `action` modifier (Ex. 173); also a generic
+  constraint and a symbol. Anything else is an error: an `int` or struct
+  variable (`'x' is not an action handle, ...`), a type (`... traverse it by
+  type with 'do A'`), a block label, and `do S` on a struct. A **fixed** named
+  constraint cannot be traversed (decision Q1).
+- **Traversing a `dynamic` constraint is a warning** (new **PSS117**): LRM
+  13.1.1 deprecates dynamic constraints in favour of a generic constraint with
+  no parameters, `constraint c() { ... }`.
+- **Initializer paths resolve** (U3). The `.x` in `a {.x = v}`, `do A {.x = v}`,
+  `A a {.x = v};` (action body or activity) now binds to the member of the
+  traversed action type, including nested paths (`.s.z`); an unknown one is
+  `'A' has no member named 'x'` (PSS002). It is looked up in that type only: a
+  same-named field of the enclosing action does not satisfy it. The value side
+  is still resolved where it is written. `ActionFieldInitializer.path` now has
+  a target, relative to the traversed action as a `with`-block reference is
+  (`ElemKind_Inline`).
+- A labelled activity block (`L1: sequence { A a; a; }`) was resolved a second
+  time from the action's scope, as well as in its place. Harmless until now,
+  it would have given a handle traversal inside it a path that skipped the
+  block.
+
 ### Fixed — locals in procedural `if`, `match` and `while` bodies (symbol-resolution 4.1b)
 
 - A local declared in a braced body of a procedural `if`/`else`, `match`,

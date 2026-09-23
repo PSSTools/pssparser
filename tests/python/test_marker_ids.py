@@ -83,6 +83,25 @@ REPRESENTATIVE_MESSAGES = [
                "16, 32 or 64 bits"),
     ("PSS017", "ambiguous reference to 's': more than one wildcard import "
                "provides it, so none does (18.1.3); qualify the name"),
+    ("PSS018", "'x' is not an action handle, and cannot be traversed; only "
+               "a handle, or a data field declared with the 'action' "
+               "modifier, can be"),
+    ("PSS018", "'A' is a type, not an action handle; traverse it by type "
+               "with 'do A'"),
+    ("PSS018", "'L1' is an activity label, not an action handle, and cannot "
+               "be traversed"),
+    ("PSS018", "'fc' is a fixed constraint, which always holds and cannot be "
+               "traversed; declare it as a generic constraint, "
+               "'constraint fc() { ... }', to apply it here"),
+    ("PSS018", "'S' is not an action type, and cannot be traversed"),
+    ("PSS002", "'A' has no member named 'nosuch'"),
+    ("PSS002", "base type 'B' has no member named 'c'"),
+    ("PSS002", "'super' is only valid inside a type that has a base type, "
+               "and 'S' has none"),
+    ("PSS002", "'super;' is only valid inside a type that has a base type, "
+               "and 'S' has none"),
+    ("PSS002", "'super' is only valid inside a type: an action, component, "
+               "struct or other type body"),
     ("PSS100", "annotation is not attached to a model element"),
     ("PSS101", "unknown annotation type 'desc_s'; annotation disregarded"),
     ("PSS102", "annotation initializer for 'owner' is not a constant expression"),
@@ -115,6 +134,8 @@ REPRESENTATIVE_MESSAGES = [
     ("PSS116",
      "`randomize` is accepted but not represented in the AST: "
      "the `with` constraints are dropped"),
+    ("PSS117", "traversal of dynamic constraint 'dc' is deprecated (13.1.1); "
+               "declare it as a generic constraint, 'constraint dc() { ... }'"),
 ]
 
 
@@ -349,7 +370,7 @@ def test_pss31_band_is_reserved_for_31_diagnostics():
     assert pss31 == ["PSS100", "PSS101", "PSS102",
                      "PSS104", "PSS105", "PSS106", "PSS107",
                      "PSS108", "PSS109", "PSS110", "PSS111", "PSS112",
-                     "PSS113", "PSS114", "PSS115", "PSS116"]
+                     "PSS113", "PSS114", "PSS115", "PSS116", "PSS117"]
 
 
 # -- CLI discoverability (P0-T2 acceptance criterion) ------------------------

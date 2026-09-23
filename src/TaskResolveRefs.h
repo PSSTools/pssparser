@@ -29,6 +29,7 @@
 #include "ResolveContext.h"
 #include "TaskCompareTypeRefs.h"
 #include "TaskResolveBase.h"
+#include "TaskResolveRootRef.h"
 #include "pssp/ast/IActionFieldInitializer.h"
 #include "pssp/ast/IExprBitSlice.h"
 
@@ -102,9 +103,18 @@ private:
     void resolveExprRefPathStaticRooted(ast::IExprRefPathStaticRooted *i);
     void visitSlice(ast::IExprBitSlice *slice);
     bool defaultsDiffer(ast::IExpr *a, ast::IExpr *b);
-    void visitTraversalOperands(
-        ast::IExprRefPathContext                            *target,
+    ast::ISymbolScope *traversedType(
+        ast::IScopeChild            *decl,
+        ast::IExprId                *id,
+        uint32_t                    n_sub,
+        bool                        report);
+    void resolveTraversalBody(
+        ast::ISymbolScope                                   *type_s,
+        ast::IConstraintStmt                                *with_c,
         const std::vector<ast::IActionFieldInitializerUP>   &inits);
+    void resolveInitializer(
+        ast::ISymbolScope                                   *type_s,
+        ast::IActionFieldInitializer                        *i);
 public:
 
     virtual void visitExtendEnum(ast::IExtendEnum *i) override;
@@ -112,6 +122,12 @@ public:
     virtual void visitExtendType(ast::IExtendType *i) override;
 
     virtual void visitField(ast::IField *i) override;
+
+    virtual void visitActionHandleField(ast::IActionHandleField *i) override;
+
+    virtual void visitActivitySuper(ast::IActivitySuper *i) override;
+
+    virtual void visitProceduralStmtSuper(ast::IProceduralStmtSuper *i) override;
 
     /** §9.1.6 b) -- `mutable` is not permitted on a component field. */
     void checkMutableField(ast::IField *i);
@@ -273,6 +289,16 @@ protected:
     void resolveStaticRootedLeaf(ast::IExprRefPathStaticRooted *i);
 
     bool isGenericConstraintParam(const std::string &name) const;
+
+    /**
+     * Reports why `super.<id>` did not resolve. Silent when the base type
+     * itself is unresolved: that is reported at the declaration.
+     */
+    void checkSuperStmt(ast::IScopeChild *stmt);
+
+    void reportSuperMiss(
+        ast::IExprId                                *id,
+        const TaskResolveRootRef::SuperResult       &res);
 
     bool isBuiltinWithMethods(ast::IScopeChild *c);
 

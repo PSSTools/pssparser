@@ -89,6 +89,9 @@ class CoreChecker(CheckerBase):
                 r"^failed to find elem\b",
                 # `this` where there is no enclosing type for it to name.
                 r"^'this' is only valid inside a type\b",
+                # `super.x` with no base type to search, or outside a type;
+                # and `super;` with no base activity or exec block to run.
+                r"^'super;?' is only valid inside a type\b",
             ),
             detail=(
                 "The linker could not resolve a named type, identifier, or "
@@ -103,7 +106,10 @@ class CoreChecker(CheckerBase):
                 "* ``'pkg' has no member named 'thing'``\n"
                 "* ``Failed to find elem 'thing'``\n"
                 "* ``'this' is only valid inside a type: ...`` (``this`` in "
-                "a package-level function)\n\n"
+                "a package-level function)\n"
+                "* ``'super' is only valid inside a type that has a base "
+                "type, and 'S' has none`` (also ``'super;'``)\n"
+                "* ``base type 'B' has no member named 'x'`` (``super.x``)\n\n"
                 "The last two are the same diagnosis reached through a "
                 "qualified and an unqualified path respectively.\n\n"
                 "Ensure the symbol is declared in one of the source files "
@@ -528,10 +534,44 @@ class CoreChecker(CheckerBase):
             ),
             patterns=(r"^ambiguous reference to\b",),
         ),
+        MarkerDef(
+            id="PSS018",
+            severity="error",
+            summary="Traversal of something that is not an action",
+            detail=(
+                "An action traversal statement names something that cannot be "
+                "traversed.  LRM 11.3.1: the identifier \"names a unique "
+                "action handle or variable in the context of the containing "
+                "action type or activity scope\"; a variable may be a data "
+                "field declared with the ``action`` modifier, which is "
+                "randomized with no execution (Example 173).  A generic "
+                "constraint (13.4.11), a deprecated ``dynamic`` constraint "
+                "(see PSS117) and a symbol may also be traversed.  Messages "
+                "include:\n\n"
+                "* ``'x' is not an action handle, and cannot be traversed; "
+                "only a handle, or a data field declared with the 'action' "
+                "modifier, can be``\n"
+                "* ``'A' is a type, not an action handle; traverse it by type "
+                "with 'do A'``\n"
+                "* ``'L1' is an activity label, not an action handle, and "
+                "cannot be traversed``\n"
+                "* ``'c' is a fixed constraint, which always holds and cannot "
+                "be traversed; ...`` -- write it as a generic constraint, "
+                "``constraint c() { ... }``\n"
+                "* ``'S' is not an action type, and cannot be traversed`` "
+                "(``do S`` on a struct or component)\n\n"
+                "A name that is not declared at all is PSS002."
+            ),
+            patterns=(
+                r"\bnot an action handle\b",
+                r"\bis not an action type, and cannot be traversed\b",
+                r"\bis a fixed constraint, which always holds and cannot be traversed\b",
+            ),
+        ),
 
         # -- Syntax-error sub-band (PSS020-PSS029) ---------------------------
         #
-        # PSS018-PSS019 are held as general-band headroom. Unlike PSS001-PSS010
+        # PSS019 is held as general-band headroom. Unlike PSS001-PSS010
         # above, these markers carry their own `code` from the C++ side
         # (AstBuilderInt::syntaxError / rewriteSyntaxError classifies at the
         # point the message is built), so `patterns` is deliberately left
@@ -1138,6 +1178,27 @@ class CoreChecker(CheckerBase):
                 "implemented its PSS116 disappears."
             ),
             patterns=(r"^`[^`]+` is accepted but not represented in the AST",),
+        ),
+        MarkerDef(
+            id="PSS117",
+            severity="warning",
+            summary="Traversal of a deprecated dynamic constraint",
+            detail=(
+                "An activity traverses a ``dynamic`` constraint.  This still "
+                "works, but LRM 13.1.1 deprecates dynamic constraints: \"their "
+                "functionality is replaced by a generic constraint with no "
+                "parameters\".\n\n"
+                "Message: ``traversal of dynamic constraint 'dc' is deprecated "
+                "(13.1.1); declare it as a generic constraint, "
+                "'constraint dc() { ... }'``\n\n"
+                "Before::\n\n"
+                "    dynamic constraint dc { x > 0; }\n\n"
+                "After::\n\n"
+                "    constraint dc() { x > 0; }\n\n"
+                "Reported where the constraint is traversed.  Traversing a "
+                "*fixed* named constraint is an error (PSS018)."
+            ),
+            patterns=(r"^traversal of dynamic constraint '[^']*' is deprecated\b",),
         ),
     ]
 

@@ -61,6 +61,8 @@ The linker could not resolve a named type, identifier, or method.  Messages incl
 * ``'pkg' has no member named 'thing'``
 * ``Failed to find elem 'thing'``
 * ``'this' is only valid inside a type: ...`` (``this`` in a package-level function)
+* ``'super' is only valid inside a type that has a base type, and 'S' has none`` (also ``'super;'``)
+* ``base type 'B' has no member named 'x'`` (``super.x``)
 
 The last two are the same diagnosis reached through a qualified and an unqualified path respectively.
 
@@ -302,6 +304,23 @@ PSS017
 Ambiguous name: more than one import provides it
 
 LRM 18.1.3: when two imports of the same kind make the same name visible, and they name different declarations, the name is not imported at all. An explicit import (``import p::s;``) takes precedence over a wildcard import (``import p::*;``), so only imports of the same kind can conflict. Two imports that reach the same declaration do not conflict.  Message: ``ambiguous reference to 's': more than one wildcard import provides it, so none does (18.1.3); qualify the name``. Qualify the name (``lib1::s``) or import it explicitly.
+
+PSS018
+------
+
+**Severity:** error
+
+Traversal of something that is not an action
+
+An action traversal statement names something that cannot be traversed.  LRM 11.3.1: the identifier "names a unique action handle or variable in the context of the containing action type or activity scope"; a variable may be a data field declared with the ``action`` modifier, which is randomized with no execution (Example 173).  A generic constraint (13.4.11), a deprecated ``dynamic`` constraint (see PSS117) and a symbol may also be traversed.  Messages include:
+
+* ``'x' is not an action handle, and cannot be traversed; only a handle, or a data field declared with the 'action' modifier, can be``
+* ``'A' is a type, not an action handle; traverse it by type with 'do A'``
+* ``'L1' is an activity label, not an action handle, and cannot be traversed``
+* ``'c' is a fixed constraint, which always holds and cannot be traversed; ...`` -- write it as a generic constraint, ``constraint c() { ... }``
+* ``'S' is not an action type, and cannot be traversed`` (``do S`` on a struct or component)
+
+A name that is not declared at all is PSS002.
 
 PSS020
 ------
@@ -707,4 +726,25 @@ Messages take one of two forms, where *construct* is the construct name in backt
 This is a gap in the front end, not a problem with the source: the code is legal PSS.  There is nothing to fix in the input.  Suppress the marker if the construct is not material to how the AST is consumed; otherwise treat any analysis that depends on the named construct as unreliable.
 
 The catalogue of affected constructs, and the plan for closing them, are in ``docs/ast-coverage-gaps.md`` and ``docs/ast-coverage-plan.md``.  As each construct is implemented its PSS116 disappears.
+
+PSS117
+------
+
+**Severity:** warning
+
+Traversal of a deprecated dynamic constraint
+
+An activity traverses a ``dynamic`` constraint.  This still works, but LRM 13.1.1 deprecates dynamic constraints: "their functionality is replaced by a generic constraint with no parameters".
+
+Message: ``traversal of dynamic constraint 'dc' is deprecated (13.1.1); declare it as a generic constraint, 'constraint dc() { ... }'``
+
+Before::
+
+    dynamic constraint dc { x > 0; }
+
+After::
+
+    constraint dc() { x > 0; }
+
+Reported where the constraint is traversed.  Traversing a *fixed* named constraint is an error (PSS018).
 

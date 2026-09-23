@@ -61,7 +61,43 @@ public:
 
     virtual void visitSymbolDeclaration(ast::ISymbolDeclaration *i) override;
 
+    enum class SuperStatus {
+        Ok,
+        NoType,         //!< not inside a type at all
+        NoBase,         //!< the context type declares no base type
+        BaseUnresolved, //!< it does, but the base did not resolve (already reported)
+        NotFound        //!< the base, and what it inherits, has no such member
+    };
+
+    struct SuperResult {
+        SuperStatus             status = SuperStatus::NoType;
+        ast::ISymbolTypeScope   *type_s = 0;    //!< the context type
+        ast::ISymbolScope       *base_s = 0;    //!< its base type's scope
+    };
+
+    /**
+     * `super.<id>`: `id` looked up in the context type's base type, and in
+     * what that inherits -- not in the context type, and not lexically
+     * (17.1, Table 27). The context type is the one `this` names. Null on a
+     * miss, with the reason in `res`.
+     */
+    ast::ISymbolRefPath *resolveSuper(
+        const ast::IExprId          *id,
+        SuperResult                 &res);
+
+    /**
+     * The context type -- what `this` names -- or null outside any type.
+     */
+    ast::ISymbolTypeScope *contextType();
+
 private:
+
+    /**
+     * Pops the (cloned) symbol-table iterator to the context type -- the
+     * innermost enclosing type scope, passing over an inline `with` block's --
+     * and returns it, or null outside any type.
+     */
+    ast::ISymbolTypeScope *seekContextType();
 
     /**
      * `this`: the context type (LRM 13.1.4). The innermost enclosing type
@@ -110,6 +146,12 @@ private:
      * See known-issues CL-N4.
      */
     int32_t                         m_super_depth;
+
+    /**
+     * Set while resolveSuper searches a base type: only members count, so
+     * the enum and import fallbacks in visitSymbolScope are skipped.
+     */
+    bool                            m_member_only;
 };
 
 }

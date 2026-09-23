@@ -3804,7 +3804,7 @@
      "TypedefDeclaration": 4
     },
     "count": 3032,
-    "digest": "205a2c38b9de6edbe7352d37468bd3d682b462448ab607e91163b8b3f4f2c96b"
+    "digest": "84f7f0c893dfbc5520323cc7fa2317c7fda9eb3604150d422594a07c5a6a79b6"
    },
    "units": [
     {
@@ -13155,7 +13155,7 @@
      "TypedefDeclaration": 4
     },
     "count": 3331,
-    "digest": "54dc5e33b70c7e5ac780d82374f22f7f31c5244f56aef3b91925d0b4b996a5df"
+    "digest": "381ca53d61eefd90f13f00b465643276ca0611e45a733a65bde84081afef2dc6"
    },
    "units": [
     {
@@ -13354,7 +13354,7 @@
      "TypedefDeclaration": 4
     },
     "count": 3363,
-    "digest": "2632f259306a92b7fb75a9a773bcc0fed6e0ee5bdfd4590b3c062d56a620829d"
+    "digest": "c5c4e5711e71d42318bcb2a98f12d6d1577dcae31a333b226c0615cb95d2af2e"
    },
    "units": [
     {
@@ -13540,7 +13540,7 @@
      "TypedefDeclaration": 4
     },
     "count": 3336,
-    "digest": "8a16ea3428879d4944bf7c1de946daa3dd52a244f0e953d05f2908c7b830b677"
+    "digest": "080adf679834f8a0a501a674f0b10d7cae927718a1357045e71545939a6df887"
    },
    "units": [
     {
@@ -13906,7 +13906,7 @@
      "TypedefDeclaration": 4
     },
     "count": 3376,
-    "digest": "0c2de3a481135c417f23b092addee000bc4d100468be37c9ceded6d68c38139e"
+    "digest": "aa530a7557d62f1f087bc15eb43c211eff394c573d7171c38d0eaf7b4307afec"
    },
    "units": [
     {
@@ -14094,7 +14094,7 @@
      "TypedefDeclaration": 4
     },
     "count": 3422,
-    "digest": "35f1e0d2f339e92eeded54210f318ec367593395024d0393184acb1aff8161c2"
+    "digest": "e1cbc1545c80f1c8ed1b27f5e4de737a4113ebdd68d14ee735e6bc37e955fc6a"
    },
    "units": [
     {
@@ -15319,7 +15319,7 @@
      "TypedefDeclaration": 4
     },
     "count": 3055,
-    "digest": "3526f033e0b3f62aa30f15dba645a5e69cfd4331b79305ff6e08b6f5cc05d1a4"
+    "digest": "6c31b6d2089b835260d860df2e9fb93948ec0dba50e36c91356f54265208ccd8"
    },
    "units": [
     {
@@ -15560,6 +15560,185 @@
      },
      "count": 101,
      "digest": "7ac65dac507b02c01627d5590ffb7e3f00720de395e3e2e750821d9675c3c3b1",
+     "fileid": 1
+    }
+   ],
+   "why": "corpus census parity"
+  },
+  {
+   "files": [
+    {
+     "content": "// ex284_super.pss\n//\n// `super` in derived types (LRM 17.1 Table 27, 20.1.4), modelled on PSS 3.1\n// Example 284 and completed to a whole model.\n//\n// Demonstrates:\n//   - `super;` in a derived action's exec body, before and after the\n//     derived type's own statements\n//   - `super.<name>` reaching a base field the derived type shadows, in a\n//     constraint and in an exec block\n//   - `super.<name>(args)` calling a base component's instance function\n//     that the derived component shadows with a different signature\n\nimport std_pkg::*;\n\ncomponent base_c {\n    function int scale(int v) { return v * 2; }\n}\n\ncomponent der_c : base_c {\n    function int scale() { return super.scale(4) + 1; }\n\n    action A {\n        int a;\n\n        exec pre_solve {\n            a = 1;\n        }\n        exec body {\n            message(LOW, \"Hello from A %d\", a);\n        }\n    }\n\n    action A1 : A {\n        exec body {\n            super;\n            message(LOW, \"Hello from A1 %d\", a);\n        }\n    }\n\n    action A2 : A {\n        rand int a;                     // shadows A::a\n        constraint a > super.a;\n\n        exec body {\n            message(LOW, \"Hello from A2 %d %d\", a, super.a);\n            super;\n        }\n    }\n}\n\ncomponent pss_top {\n    der_c d;\n\n    action test_a {\n        activity {\n            do der_c::A1;\n            do der_c::A2;\n        }\n    }\n}\n",
+     "name": "lrm31/ex284_super.pss"
+    }
+   ],
+   "id": "corpus:lrm31/ex284_super.pss",
+   "linkRaised": null,
+   "parseRaised": null,
+   "root": {
+    "classes": {
+     "Action": 4,
+     "ActivityActionTypeTraversal": 2,
+     "ActivityDecl": 1,
+     "AnnotationDecl": 2,
+     "Component": 16,
+     "ConstraintBlock": 6,
+     "ConstraintStmtDefault": 5,
+     "ConstraintStmtExpr": 1,
+     "DataTypeBool": 12,
+     "DataTypeChandle": 3,
+     "DataTypeFloat": 51,
+     "DataTypeInt": 100,
+     "DataTypeRef": 7,
+     "DataTypeString": 48,
+     "DataTypeUserDefined": 161,
+     "EnumDecl": 8,
+     "EnumItem": 23,
+     "ExecBlock": 4,
+     "ExecScope": 2,
+     "ExprAggrEmpty": 28,
+     "ExprBin": 68,
+     "ExprBool": 4,
+     "ExprDomainOpenRangeList": 1,
+     "ExprDomainOpenRangeValue": 64,
+     "ExprHierarchicalId": 42,
+     "ExprId": 725,
+     "ExprMemberPathElem": 42,
+     "ExprNull": 2,
+     "ExprRefPathContext": 39,
+     "ExprRefPathStatic": 1,
+     "ExprRefPathSuper": 3,
+     "ExprSignedNumber": 4,
+     "ExprString": 3,
+     "ExprUnary": 4,
+     "ExprUnsignedNumber": 224,
+     "ExtendType": 1,
+     "Field": 38,
+     "FieldCompRef": 4,
+     "FunctionDefinition": 2,
+     "FunctionParamDecl": 190,
+     "FunctionPrototype": 127,
+     "GlobalScope": 3,
+     "MethodParameterList": 4,
+     "PackageImportStmt": 4,
+     "PackageScope": 4,
+     "ProceduralStmtAssignment": 1,
+     "ProceduralStmtExpr": 3,
+     "ProceduralStmtReturn": 2,
+     "ProceduralStmtSuper": 2,
+     "RootSymbolScope": 1,
+     "Struct": 23,
+     "SymbolEnumScope": 8,
+     "SymbolExtendScope": 1,
+     "SymbolFunctionScope": 131,
+     "SymbolImportSpec": 3,
+     "SymbolRefPath": 176,
+     "SymbolScope": 162,
+     "SymbolTypeScope": 53,
+     "TemplateCategoryTypeParamDecl": 11,
+     "TemplateGenericTypeParamDecl": 12,
+     "TemplateParamDeclList": 20,
+     "TemplateParamExprValue": 4,
+     "TemplateParamTypeValue": 23,
+     "TemplateParamValueList": 25,
+     "TemplateValueParamDecl": 19,
+     "TypeIdentifier": 193,
+     "TypeIdentifierElem": 197,
+     "TypeScope": 1,
+     "TypedefDeclaration": 4
+    },
+    "count": 3162,
+    "digest": "a6246f292807a9a8654efee2a4c3256ea8ce3e3dcc24b1ada0a1679fd4789a53"
+   },
+   "units": [
+    {
+     "classes": {
+      "AnnotationDecl": 2,
+      "Component": 13,
+      "ConstraintBlock": 5,
+      "ConstraintStmtDefault": 5,
+      "DataTypeBool": 10,
+      "DataTypeChandle": 3,
+      "DataTypeFloat": 51,
+      "DataTypeInt": 70,
+      "DataTypeRef": 7,
+      "DataTypeString": 33,
+      "DataTypeUserDefined": 142,
+      "EnumDecl": 8,
+      "EnumItem": 23,
+      "ExprAggrEmpty": 28,
+      "ExprBin": 65,
+      "ExprBool": 4,
+      "ExprDomainOpenRangeList": 1,
+      "ExprDomainOpenRangeValue": 64,
+      "ExprHierarchicalId": 20,
+      "ExprId": 598,
+      "ExprMemberPathElem": 20,
+      "ExprNull": 2,
+      "ExprRefPathContext": 20,
+      "ExprRefPathStatic": 1,
+      "ExprUnary": 4,
+      "ExprUnsignedNumber": 202,
+      "ExtendType": 1,
+      "Field": 29,
+      "FunctionParamDecl": 172,
+      "FunctionPrototype": 108,
+      "GlobalScope": 1,
+      "PackageImportStmt": 3,
+      "PackageScope": 4,
+      "Struct": 18,
+      "TemplateCategoryTypeParamDecl": 11,
+      "TemplateGenericTypeParamDecl": 3,
+      "TemplateParamDeclList": 16,
+      "TemplateParamExprValue": 4,
+      "TemplateParamTypeValue": 20,
+      "TemplateParamValueList": 22,
+      "TemplateValueParamDecl": 11,
+      "TypeIdentifier": 170,
+      "TypeIdentifierElem": 172,
+      "TypedefDeclaration": 4
+     },
+     "count": 2170,
+     "digest": "ed78ec897c7cd26897e03331da80b19a3a098d3d1187985a5fdec5240de6c1db",
+     "fileid": 0
+    },
+    {
+     "classes": {
+      "Action": 4,
+      "ActivityActionTypeTraversal": 2,
+      "ActivityDecl": 1,
+      "Component": 3,
+      "ConstraintBlock": 1,
+      "ConstraintStmtExpr": 1,
+      "DataTypeInt": 5,
+      "DataTypeUserDefined": 3,
+      "ExecBlock": 4,
+      "ExecScope": 2,
+      "ExprBin": 3,
+      "ExprHierarchicalId": 15,
+      "ExprId": 41,
+      "ExprMemberPathElem": 15,
+      "ExprRefPathContext": 12,
+      "ExprRefPathSuper": 3,
+      "ExprString": 3,
+      "ExprUnsignedNumber": 9,
+      "Field": 3,
+      "FieldCompRef": 4,
+      "FunctionDefinition": 2,
+      "FunctionParamDecl": 1,
+      "FunctionPrototype": 2,
+      "GlobalScope": 1,
+      "MethodParameterList": 4,
+      "PackageImportStmt": 1,
+      "ProceduralStmtAssignment": 1,
+      "ProceduralStmtExpr": 3,
+      "ProceduralStmtReturn": 2,
+      "ProceduralStmtSuper": 2,
+      "TypeIdentifier": 7,
+      "TypeIdentifierElem": 9
+     },
+     "count": 169,
+     "digest": "f87c06555926655b0a104c751cc20e5d2cf2a5069a5abc13308983cff68c3cc7",
      "fileid": 1
     }
    ],
@@ -20164,7 +20343,7 @@
      "TypedefDeclaration": 4
     },
     "count": 3181,
-    "digest": "6dba12490a6bf5566234dd028c649969d8f8ef609191ec6fe063acdd831f674a"
+    "digest": "71f66cc3ab2eae6f9bd343bdda3bb91ddd4fce52909a15def4fa6b6bf1b84006"
    },
    "units": [
     {
@@ -20356,7 +20535,7 @@
      "TypedefDeclaration": 4
     },
     "count": 3162,
-    "digest": "39301ed483f8bedfde5ad8a6a2e5f5136e747efefa6015bffe5156794dd59b2d"
+    "digest": "e0caf3ce44af3665045c5881c25dc58c43cc4a3c241f4af750e5415315bb9657"
    },
    "units": [
     {

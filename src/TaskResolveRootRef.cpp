@@ -37,7 +37,8 @@ namespace pssp {
 
 TaskResolveRootRef::TaskResolveRootRef(
     ResolveContext      *ctxt,
-    bool                search_imp) : TaskResolveBase(ctxt), m_search_imp(search_imp) {
+    bool                search_imp) : TaskResolveBase(ctxt), m_search_imp(search_imp),
+        m_id(0), m_ref(0), m_super_depth(0), m_member_only(false) {
     DEBUG_INIT("TaskResolveRootRef", ctxt->getDebugMgr());
 }
 
@@ -122,33 +123,92 @@ ast::ISymbolRefPath *TaskResolveRootRef::resolveThis() {
     DEBUG_ENTER("resolveThis");
     ast::ISymbolRefPath *ret = 0;
 
-    // Inside `a with { ... }` the traversed action's scope is pushed on top of
-    // the containing action's (visitActivityActionHandleTraversal). Names
-    // search it first; `this` passes over it, which is the whole point of
-    // `this` there -- reaching a containing-action field the sub-action's
-    // field of the same name shadows.
-    ast::ISymbolScope *skip = m_ctxt->inlineCtxt();
-
     m_ctxt->pushCloneSymtab();
-    while (!ret && m_ctxt->symtab()->hasScopes()) {
-        // See resolve() for why a null scope pops rather than breaks.
-        ast::ISymbolScope *scope = m_ctxt->symtab()->getScope();
-        if (scope && dynamic_cast<ast::ISymbolTypeScope *>(scope)) {
-            if (scope == skip) {
-                skip = 0;
-            } else {
-                ret = m_ctxt->symtab()->getScopeSymbolPath();
-                ret->getPath().push_back({
-                    ast::SymbolRefPathElemKind::ElemKind_This, 0});
-                break;
-            }
-        }
-        m_ctxt->symtab()->popScope();
+    if (seekContextType()) {
+        ret = m_ctxt->symtab()->getScopeSymbolPath();
+        ret->getPath().push_back({
+            ast::SymbolRefPathElemKind::ElemKind_This, 0});
     }
     m_ctxt->popSymtab();
 
     DEBUG_LEAVE("resolveThis %p", ret);
     return ret;
+}
+
+ast::ISymbolRefPath *TaskResolveRootRef::resolveSuper(
+        const ast::IExprId          *id,
+        SuperResult                 &res) {
+    DEBUG_ENTER("resolveSuper %s", id->getId().c_str());
+    res = SuperResult();
+    m_ref = 0;
+
+    m_ctxt->pushCloneSymtab();
+    res.type_s = seekContextType();
+    if (!res.type_s) {
+        res.status = SuperStatus::NoType;
+    } else {
+        ast::ITypeScope *ts = dynamic_cast<ast::ITypeScope *>(res.type_s->getTarget());
+        ast::IScopeChild *base = TaskResolveSuperTypeRef(
+            m_ctxt->getDebugMgr(), m_ctxt->root()).resolve(ts);
+        res.base_s = dynamic_cast<ast::ISymbolScope *>(base);
+
+        if (!ts || !ts->getSuper_t()) {
+            res.status = SuperStatus::NoBase;
+        } else if (!res.base_s) {
+            // Unknown base type (reported at the declaration), an inheritance
+            // ring (reported by TaskCheckTypeCycles), or a parameter with
+            // nothing bound: nothing to search, and nothing new to say.
+            res.status = SuperStatus::BaseUnresolved;
+        } else {
+            // The base, and what it inherits -- never the derived type's own
+            // members, and never the lexical scopes outside it (17.1: the
+            // base type's field "may be referenced as super.<name>"). The
+            // iterator stays on the derived type, so visitSymbolScope prefixes
+            // one ElemKind_Super per step taken, starting with this one.
+            m_id = id;
+            m_super_depth = 1;
+            m_member_only = true;
+            base->accept(m_this);
+            m_member_only = false;
+            m_super_depth = 0;
+            res.status = (m_ref)?SuperStatus::Ok:SuperStatus::NotFound;
+        }
+    }
+    m_ctxt->popSymtab();
+
+    DEBUG_LEAVE("resolveSuper %p", m_ref);
+    return m_ref;
+}
+
+ast::ISymbolTypeScope *TaskResolveRootRef::contextType() {
+    m_ctxt->pushCloneSymtab();
+    ast::ISymbolTypeScope *ret = seekContextType();
+    m_ctxt->popSymtab();
+    return ret;
+}
+
+ast::ISymbolTypeScope *TaskResolveRootRef::seekContextType() {
+    // Inside `a with { ... }` the traversed action's scope is pushed on top of
+    // the containing action's (visitActivityActionHandleTraversal). Names
+    // search it first; `this` and `super` pass over it, which is the whole
+    // point of `this` there -- reaching a containing-action field the
+    // sub-action's field of the same name shadows.
+    ast::ISymbolScope *skip = m_ctxt->inlineCtxt();
+
+    while (m_ctxt->symtab()->hasScopes()) {
+        // See resolve() for why a null scope pops rather than breaks.
+        ast::ISymbolScope *scope = m_ctxt->symtab()->getScope();
+        ast::ISymbolTypeScope *ts = dynamic_cast<ast::ISymbolTypeScope *>(scope);
+        if (ts) {
+            if (scope == skip) {
+                skip = 0;
+            } else {
+                return ts;
+            }
+        }
+        m_ctxt->symtab()->popScope();
+    }
+    return 0;
 }
 
 void TaskResolveRootRef::visitProceduralStmtRepeat(ast::IProceduralStmtRepeat *i) {
@@ -231,6 +291,9 @@ void TaskResolveRootRef::visitSymbolScope(ast::ISymbolScope *i) {
             it->second});
     // If we're inside a typed context, and the type is Enum,
     // then search that enum
+    } else if (m_member_only) {
+        // `super.x`: a member of the base or nothing (resolveSuper).
+        DEBUG("Not a member");
     } else if ((m_ref=TaskResolveEnumRef(m_ctxt).resolve(m_id))) {
         // Found in this scope
         DEBUG("Found symbol as an enumerator");

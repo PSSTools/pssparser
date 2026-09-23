@@ -91,8 +91,6 @@ ALLOWED = {
     "visitExtendType:Scope.children": "merged into the type, walked there",
     # Deliberately not resolved yet: each needs its own rules, and the
     # ordinary lookup would report legal code (see the overrides' comments).
-    "visitActionFieldInitializer:ActionFieldInitializer.path":
-        "a member of the handle's type: WS4.2 (U3)",
     "visitActivityBindStmt:ActivityBindStmt.lhs": "WS4.5 (U2)",
     "visitActivityBindStmt:ActivityBindStmt.rhs": "WS4.5 (U2)",
     "visitActivitySchedulingConstraint:ActivitySchedulingConstraint.targets":
@@ -136,10 +134,12 @@ def _supers(classes, cls):
 
 
 def _bodies(src, qual):
-    """{method name: (param name, param class, body)} for one-node methods."""
+    """{method name: (param name, param class, body)} for methods whose last
+    parameter is a node (a visitor has only that one)."""
     out = {}
     pat = re.compile(
-        r"void\s+%s(\w+)\s*\(\s*ast::I(\w+)\s*\*\s*(\w+)\s*\)[^;{]*\{" % qual)
+        r"void\s+%s(\w+)\s*\((?:[^();{]*,)?\s*ast::I(\w+)\s*\*\s*(\w+)\s*\)[^;{]*\{"
+        % qual)
     for m in pat.finditer(src):
         start, depth = m.end(), 1
         i = start
@@ -154,12 +154,13 @@ def _bodies(src, qual):
 
 
 def _expand(methods, name, seen=None):
-    """A body plus the bodies of member functions it hands its node to."""
+    """A body plus the bodies of member functions it hands its node to, as
+    the last argument."""
     seen = seen or set()
     seen.add(name)
     var, _, body = methods[name]
     text = body
-    for m in re.finditer(r"\b(\w+)\s*\(\s*%s\s*\)" % var, body):
+    for m in re.finditer(r"\b(\w+)\s*\((?:[^();]*,)?\s*%s\s*\)" % var, body):
         callee = m.group(1)
         if callee in methods and callee not in seen and not callee.startswith("visit"):
             text += _expand(methods, callee, seen).replace(methods[callee][0], var)
