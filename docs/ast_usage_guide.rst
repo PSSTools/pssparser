@@ -204,9 +204,9 @@ Extract all random fields from actions:
         for field in rand_fields:
             print(f"  - {field.name.id}")
 
-*********************
+************************
 Working with Expressions
-*********************
+************************
 
 Expression Types
 ================
@@ -452,9 +452,9 @@ AST Structure:
             └── ExprBin (op=BinOp_Gt)
                 └── ExprNumber (0)
 
-**************
+***************
 Advanced Topics
-**************
+***************
 
 Symbol Resolution
 =================
@@ -536,9 +536,9 @@ For complex traversals, implement a visitor class:
     all_constraints = collector.collect(ast_root)
     print(f"Found {len(all_constraints)} constraint expressions")
 
-**********
+**************
 Best Practices
-**********
+**************
 
 1. **Always check node types** - Use `isinstance()` before accessing type-specific attributes
 2. **Handle optional fields** - Many AST nodes have optional children (e.g., `init` expression on Field)
@@ -596,9 +596,9 @@ Get Qualified Name of a Node
     for action in actions:
         print(f"Action: {get_qualified_name(action)}")
 
-*************
+**************
 Error Handling
-*************
+**************
 
 The parser reports errors through a marker listener:
 
