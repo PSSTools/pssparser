@@ -47,7 +47,8 @@ void AssocDataTypeScopeSizeof::postSpecialize(
             type->getParams()->getParams().at(0).get());
 
     if (!val.first) {
-        DEBUG_ERROR("sizeof_s parameter lacking default");
+        ctxt->internalError(type->getLocation(),
+            "sizeof_s has no binding for its type parameter");
         return;
     }
 

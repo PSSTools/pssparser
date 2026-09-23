@@ -229,6 +229,21 @@ def test_ordinary_string_escapes_are_inside_the_token():
     assert only('s = "a\\"b";', '"a\\"b"').type_name == "DOUBLE_QUOTED_STRING"
 
 
+@pytest.mark.parametrize("body", ["A\\101B", "\\000", "\\377\\0770"])
+def test_octal_escape_is_inside_the_token(body):
+    # PSS 4.7 Table 2: `\ddd`, a character given as three octal digits. It
+    # used to end the token at the backslash (F1; corpus U-8e).
+    src = 's = "%s";' % body
+    assert only(src, '"%s"' % body).type_name == "DOUBLE_QUOTED_STRING"
+
+
+@pytest.mark.parametrize("body", ["\\18", "\\8", "\\1"])
+def test_a_short_or_non_octal_escape_is_not_a_string(body):
+    # Exactly three octal digits; anything else after a backslash is illegal.
+    ts = tokens.tokenize('s = "%s";' % body)
+    assert '"%s"' % body not in [t.text for t in ts.code()]
+
+
 # ---------------------------------------------------------------------------
 # `compile if`
 # ---------------------------------------------------------------------------

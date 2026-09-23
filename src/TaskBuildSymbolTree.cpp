@@ -21,6 +21,7 @@
 #include <algorithm>
 #include <set>
 #include "dmgr/impl/DebugMacros.h"
+#include "pssp/impl/InternalError.h"
 #include "pssp/impl/TaskGetName.h"
 #include "BuiltinsFactory.h"
 #include "TaskBuildSymbolTree.h"
@@ -1020,8 +1021,7 @@ void TaskBuildSymbolTree::visitPyImportStmt(ast::IPyImportStmt *i) {
     if (i->getAlias()) {
         // Register the alias name
         if ((it=scope->getSymtab().find(i->getAlias()->getId())) != scope->getSymtab().end()) {
-            // Error: 
-            DEBUG_ERROR("TODO: symbol collision with pyimport %s", i->getAlias()->getId().c_str());
+            reportPyImportCollision(scope, it->second, i);
         } else {
             int32_t id = scope->getChildren().size();
             scope->getChildren().push_back(ast::IScopeChildUP(i, false));
@@ -1033,8 +1033,7 @@ void TaskBuildSymbolTree::visitPyImportStmt(ast::IPyImportStmt *i) {
     } else {
         // Register the basename
         if ((it=scope->getSymtab().find(i->getPath().front()->getId())) != scope->getSymtab().end()) {
-            // Error: 
-            DEBUG_ERROR("TODO: symbol collision with pyimport %s", i->getPath().front()->getId().c_str());
+            reportPyImportCollision(scope, it->second, i);
         } else {
             int32_t id = scope->getChildren().size();
             scope->getChildren().push_back(ast::IScopeChildUP(i, false));
@@ -1045,6 +1044,40 @@ void TaskBuildSymbolTree::visitPyImportStmt(ast::IPyImportStmt *i) {
         }
     }
     DEBUG_LEAVE("visitPyImportStmt");
+}
+
+void TaskBuildSymbolTree::reportPyImportCollision(
+        ast::ISymbolScope       *scope,
+        int32_t                 existing_idx,
+        ast::IPyImportStmt      *i) {
+    ast::IScopeChild *orig = scope->getChildren().at(existing_idx).get();
+
+    // The same module imported under the same name again -- typically by a
+    // second file into the merged global scope -- names the same thing, so
+    // it is not a conflict.
+    if (ast::IPyImportStmt *prev = dynamic_cast<ast::IPyImportStmt *>(orig)) {
+        if (pyImportPath(prev) == pyImportPath(i)) {
+            DEBUG("repeated pyimport of %s", pyImportPath(i).c_str());
+            return;
+        }
+    }
+
+    // Anything else is two declarations of one name, reported like any other
+    // (PSS003). It used to print "TODO: symbol collision with pyimport" to
+    // stdout and keep the first, uncounted.
+    reportDuplicateSymbol(scope, orig, i);
+}
+
+std::string TaskBuildSymbolTree::pyImportPath(ast::IPyImportStmt *i) {
+    std::string ret;
+    for (std::vector<ast::IExprIdUP>::const_iterator
+        it=i->getPath().begin(); it!=i->getPath().end(); it++) {
+        if (!ret.empty()) {
+            ret += ".";
+        }
+        ret += (*it)->getId();
+    }
+    return ret;
 }
 
 void TaskBuildSymbolTree::visitPyImportFromStmt(ast::IPyImportFromStmt *i) {
@@ -1527,7 +1560,7 @@ bool TaskBuildSymbolTree::addChild(
     ast::ISymbolScope *scope = symbolScope();
     owned = false;
     if (c == scope) {
-        DEBUG_ERROR("recursive");
+        throw InternalError("attempt to add a symbol scope to itself");
     }
     std::unordered_map<std::string, int32_t>::const_iterator it =
         scope->getSymtab().find(name);
@@ -1562,7 +1595,7 @@ bool TaskBuildSymbolTree::addChild(
     DEBUG("scope: %s %d (%p)", scope->getName().c_str(), scope->getSymtab().size(), scope);
 
     if (c == scope) {
-        DEBUG_ERROR("recursive");
+        throw InternalError("attempt to add a symbol scope to itself");
     }
     if (name != "") {
         std::unordered_map<std::string, int32_t>::const_iterator it =

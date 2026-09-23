@@ -144,7 +144,7 @@ TaskCompareTypeRefs::Rel TaskCompareTypeRefs::compare(
         default:
             // A data-type kind with no visitor here -- so nothing is known
             // about it, including whether these two instances match.
-            DEBUG_ERROR("TaskCompareTypeRefs: no comparison for %s",
+            DEBUG("TaskCompareTypeRefs: no comparison for %s",
                 typeid(*type1).name());
             ret = Rel::Unsure;
             break;

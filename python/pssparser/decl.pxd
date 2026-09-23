@@ -141,6 +141,9 @@ cdef extern from "pssp/IParseProfileInfo.h" namespace "pssp":
 
     cdef cppclass IParseProfileInfo:
         cpp_vector[IDecisionProfileInfo*] getDecisionInfo()
+        size_t getNumRules()
+        const cpp_string &getRuleName(size_t idx)
+        uint64_t getRuleInvocations(size_t idx)
         cpp_vector[size_t] getLLDecisions()
         int64_t getTotalTimeInPrediction()
         int64_t getTotalSLLLookaheadOps()
@@ -155,9 +158,13 @@ cdef extern from "pssp/IParseProfileInfo.h" namespace "pssp":
 cdef extern from "pssp/IAstBuilder.h" namespace "pssp":
     cdef cppclass IAstBuilder:
 
+        # `except +` on the entry points (INV-1): the C++ side has its own
+        # catch-all, and this is the backstop for anything that still
+        # escapes -- it becomes a Python RuntimeError instead of
+        # std::terminate.
         void build(
             ast.IGlobalScope        *scope,
-            istream                 *in_s)
+            istream                 *in_s) except +
 
         void setMarkerListener(IMarkerListener *)
 
@@ -178,12 +185,12 @@ cdef extern from "pssp/ILinker.h" namespace "pssp":
 
         ast.IRootSymbolScope *link(
             IMarkerListener         *marker_l,
-            const cpp_vector[ast.IGlobalScopeP] &scopes)
+            const cpp_vector[ast.IGlobalScopeP] &scopes) except +
 
         ast.IRootSymbolScope *linkOverlay(
             IMarkerListener         *marker_l,
             ast.IRootSymbolScope    *base_symtab,
-            ast.IGlobalScope        *overlay)
+            ast.IGlobalScope        *overlay) except +
 
         pass
 

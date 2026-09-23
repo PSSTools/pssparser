@@ -19,6 +19,7 @@
  *     Author:
  */
 #include "dmgr/impl/DebugMacros.h"
+#include "pssp/ast/IDataTypeUserDefined.h"
 #include "pssp/impl/TaskCopyAst.h"
 #include "pssp/impl/TaskResolveSymbolPathRef.h"
 #include "TaskBuildParamValList.h"
@@ -167,7 +168,12 @@ ast::ITemplateParamDeclList *TaskBuildParamValList::build(
             } else if (m_ptype_category_type) {
                 DEBUG("Category type parameter");
             } else {
-                DEBUG_ERROR("TODO: expression supplied for value %d, and ptype not set", plist_idx);
+                m_ctxt->internalError(
+                    errLoc(plist->getChildren().at(plist_idx).get()),
+                    "template argument %d is an expression, and no parameter "
+                    "declaration was captured for it", plist_idx);
+                delete m_ret;
+                m_ret = 0;
                 return 0;
             }
         } else { // Type value
@@ -184,15 +190,42 @@ ast::ITemplateParamDeclList *TaskBuildParamValList::build(
             } else if (m_ptype_generic_type) {
                 name = m_ptype_generic_type->getName();
                 type = m_pval_type->getValue();
+            } else if (m_ptype_value
+                    && !dynamic_cast<ast::IDataTypeUserDefined *>(
+                        m_pval_type->getValue())) {
+                // The position declares a *value* parameter and was handed
+                // something that can only be a type -- `P<int>` for `struct
+                // P<int N>`. The mirror of the "expects a type" check above.
+                // This used to print "Value parameter used as a type
+                // parameter" to stdout and carry on, binding the value
+                // parameter to its own declared type: 0 errors (A-N1).
+                //
+                // Only a built-in type is unambiguous. A name -- `P<my_s>`,
+                // or `P<B>` with B an enclosing value parameter -- spells a
+                // type and a constant alike and takes the branch below; see
+                // test_type_supplied_for_a_value_parameter_is_reported.
+                m_ctxt->addErrorMarker(
+                    errLoc(plist->getChildren().at(plist_idx).get()),
+                    "template parameter '%s' expects a value, but the "
+                    "argument supplied is a type",
+                    (m_ptype_value->getName())
+                        ?m_ptype_value->getName()->getId().c_str()
+                        :"<unknown>");
+                delete m_ret;
+                m_ret = 0;
+                return 0;
             } else if (m_ptype_value) {
-                // Note: it is possible to receive both a generic and a value
-                // parameter, but we don't expect to only receive a value
-                // parameter.
-                DEBUG_ERROR("Value parameter used as a type parameter");
+                // A name supplied for a value parameter; see above. What this
+                // does with it is unchanged from before the check existed.
                 name = m_ptype_value->getName();
                 type = m_ptype_value->getType();
             } else {
-                DEBUG_ERROR("TODO: no ptype_decl captured\n");
+                m_ctxt->internalError(
+                    errLoc(plist->getChildren().at(plist_idx).get()),
+                    "template argument %d has no parameter declaration", plist_idx);
+                delete m_ret;
+                m_ret = 0;
+                return 0;
             }
 
             // If the argument names an enclosing specialization's type

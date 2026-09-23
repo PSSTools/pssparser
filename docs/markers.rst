@@ -13,6 +13,20 @@ deliberately have no entry below -- see ``PSS022``'s detail and
 the same information from the command line with ``--list-markers`` and
 ``--describe <ID>``.
 
+PSS000
+------
+
+**Severity:** error
+
+Internal error
+
+pssparser reached a state it believed could not happen.  This is a defect in pssparser, not necessarily in the model, and it should be reported together with the input that triggers it.  The message names the phase or link pass that failed:
+
+* ``internal error in resolving references: ...``
+* ``internal error while building the AST: ...``
+
+Results for the rest of the model are incomplete: the pass that failed stopped, and the passes after it did not run.  The command-line tool exits with status 3 when an internal error is reported.
+
 PSS001
 ------
 

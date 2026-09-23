@@ -47,17 +47,20 @@ namespace pssp {
  * lookup against a participating type and overflowed the stack: a typo turned
  * into a segfault with no diagnostic.
  *
- * Those walkers now carry their own loop guards, so this pass is not what
- * keeps the parser alive. It is what tells the user why their model is
- * wrong. Both are needed and neither substitutes for the other: a guard
- * without this pass silently accepts an illegal model, and this pass without
- * the guards leaves every walker one unchecked path away from the crash
- * again.
+ * So this pass also BREAKS the ring: every type on it is marked
+ * `super_cyclic`, and TaskResolveSuperTypeRef and the Super step of
+ * TaskResolveSymbolPathRef treat a marked type as having no super type. One
+ * mark covers every walker, including ones written later. Not every walker
+ * had its own guard -- TaskResolveRootRef's unqualified-name search did not,
+ * and `action A : A { ... do a; }` overflowed the stack (K4 in
+ * docs/design/symbol-resolution/A-crashes.md). The mark is not a cleared
+ * `super_t` target: that would make TaskCheckRefsResolved report the base
+ * type as unresolved as well, a second message for one mistake.
  *
  * WHERE IT RUNS. After TaskResolveSuperTypes, which is what binds the
  * references this pass follows, and before TaskResolveRefs, which is the pass
  * that would otherwise walk the ring. Reporting a cycle does not stop the
- * link -- the guards make the rest of resolution safe, and stopping early
+ * link -- the mark makes the rest of resolution safe, and stopping early
  * would hide every other diagnostic in the file behind one bad base type.
  *
  * ONE REPORT PER CYCLE, not one per participant: `A -> B -> C -> A` is a
@@ -102,6 +105,9 @@ private:
      * already on it.
      */
     void checkChain(ast::ISymbolTypeScope *i);
+
+    /// Set `super_cyclic` on the type behind `c`; see the class comment.
+    static void markCyclic(ast::IScopeChild *c);
 
     static std::string nameOf(ast::IScopeChild *c);
 

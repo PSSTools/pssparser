@@ -2309,6 +2309,7 @@ cdef class TypeScope(NamedScope):
     cpdef TypeIdentifier getSuper_t(self)
     cpdef TemplateParamDeclList getParams(self)
     cpdef bool getOpaque(self)
+    cpdef bool getSuper_cyclic(self)
 
 cdef class ExprRefPathSuper(ExprRefPathContext):
     

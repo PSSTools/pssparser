@@ -7076,6 +7076,8 @@ cdef class TypeScope(NamedScope):
             return <TemplateParamDeclList>(of._obj)
     cpdef bool getOpaque(self):
         return dynamic_cast[ast_decl.ITypeScopeP](self._hndl).getOpaque()
+    cpdef bool getSuper_cyclic(self):
+        return dynamic_cast[ast_decl.ITypeScopeP](self._hndl).getSuper_cyclic()
 
 cdef class ExprRefPathSuper(ExprRefPathContext):
     

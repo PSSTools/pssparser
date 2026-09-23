@@ -167,6 +167,26 @@ public:
         ...);
 
     /**
+     * Report a defect in pssparser rather than in the model: a PSS000
+     * marker, "internal error: ...". For a state the code believed could
+     * not happen, at a site that can carry on (the reference stays unbound).
+     * A site that cannot carry on throws InternalError instead, and the
+     * linker's catch-all reports it the same way.
+     */
+    void internalError(
+        const ast::Location &loc,
+        const char          *fmt,
+        ...);
+
+    /**
+     * The shared recursion counter for DepthGuard. One per link: every
+     * recursive resolution entry point guards against the same budget, so
+     * runaway mutual recursion between two walkers is caught as surely as
+     * self-recursion within one.
+     */
+    int32_t &depth() { return m_depth; }
+
+    /**
      * A marker with related locations -- (location, label) pairs pointing at
      * the declarations the message is about.
      */
@@ -213,6 +233,7 @@ private:
     IFactory                                        *m_factory;
     IMarkerListener                                 *m_marker_l;
     int32_t                                         m_specialization_depth;
+    int32_t                                         m_depth;
     std::vector<ISymbolTableIteratorUP>             m_symtab_it_s;
     std::vector<std::unordered_set<int32_t>>        m_inbound_refs;
     std::vector<std::unordered_set<int32_t>>        m_outbound_refs;

@@ -182,6 +182,17 @@ protected:
      */
     void copyExtent(ast::IScopeChild *dst, ast::IScopeChild *src);
 
+    /**
+     * A pyimport whose name is already declared in `scope`: silent when it is
+     * the same module again, PSS003 otherwise.
+     */
+    void reportPyImportCollision(
+        ast::ISymbolScope       *scope,
+        int32_t                 existing_idx,
+        ast::IPyImportStmt      *i);
+
+    static std::string pyImportPath(ast::IPyImportStmt *i);
+
     void reportDuplicateSymbol(
         ast::ISymbolScope       *scope,
         ast::IScopeChild        *orig,

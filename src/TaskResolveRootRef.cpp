@@ -19,6 +19,7 @@
  *     Author:
  */
 #include "dmgr/impl/DebugMacros.h"
+#include "pssp/impl/InternalError.h"
 #include "pssp/ast/IPackageImportStmt.h"
 #include "pssp/impl/TaskGetSymbolRefPathKind.h"
 #include "TaskResolveRootRef.h"
@@ -200,6 +201,9 @@ void TaskResolveRootRef::visitSymbolScope(ast::ISymbolScope *i) {
 //}
 
 void TaskResolveRootRef::visitSymbolTypeScope(ast::ISymbolTypeScope *i) {
+    // Recurses up the super chain. TaskCheckTypeCycles' super_cyclic mark
+    // ends a ring; this ends anything else that does not terminate.
+    DepthGuard guard(m_ctxt->depth(), "TaskResolveRootRef (super-type search)");
     DEBUG_ENTER("visitSymbolTypeScope id=%s (%s)", 
         m_id->getId().c_str(), i->getName().c_str());
     visitSymbolScope(i); // Look in primary declaration scope

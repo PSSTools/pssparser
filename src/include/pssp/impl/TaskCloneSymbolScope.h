@@ -19,6 +19,7 @@
  *     Author: 
  */
 #pragma once
+#include "pssp/impl/InternalError.h"
 #include "dmgr/IDebugMgr.h"
 #include "pssp/ast/IFactory.h"
 #include "pssp/ast/impl/VisitorBase.h"
@@ -234,7 +235,7 @@ private:
         i->accept(m_this);
 
         if (!m_ret) {
-            fprintf(stdout, "failed to clone\n");
+            throw InternalError("failed to clone symbol scope '" + i->getName() + "'");
         }
         m_depth = depth;
         return m_ret;

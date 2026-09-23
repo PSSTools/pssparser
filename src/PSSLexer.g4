@@ -231,10 +231,15 @@ fragment SChar:
 
 fragment EscapeSequence:
     SimpleEscapeSequence
-
+    | OctalEscapeSequence
     ;
 
 fragment SimpleEscapeSequence: '\\' ['"?abfnrtv\\];
+
+// LRM 4.7 Table 2: "\ddd -- a character specified in 3 octal digits". Exactly
+// three, as written; any other character after a backslash is illegal. A
+// value above \377 is legal lexically (implementations *may* diagnose it).
+fragment OctalEscapeSequence: '\\' [0-7] [0-7] [0-7];
 
 // TODO: unescaped_character, escaped_character
 

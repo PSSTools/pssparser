@@ -159,6 +159,13 @@ public:
     // owned by this object and die with it.
     virtual std::vector<IDecisionProfileInfo*> getDecisionInfo() = 0;
 
+    // Parser rules, and how many contexts of each the parse tree held -- the
+    // grammar-coverage measure (scripts/grammar_cov.py). Unlike a decision's
+    // invocation count, this is non-zero for every rule the input used.
+    virtual size_t getNumRules() = 0;
+    virtual const std::string &getRuleName(size_t idx) = 0;
+    virtual uint64_t getRuleInvocations(size_t idx) = 0;
+
     // Get decisions that required LL fallback
     virtual std::vector<size_t> getLLDecisions() = 0;
 

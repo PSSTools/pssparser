@@ -19,6 +19,7 @@
  *     Author: 
  */
 #pragma once
+#include <set>
 #include "dmgr/IDebugMgr.h"
 #include "dmgr/impl/DebugMacros.h"
 #include "pssp/ast/impl/VisitorBase.h"
@@ -43,6 +44,7 @@ public:
     bool check(ast::IScopeChild *it) {
         DEBUG_ENTER("check");
         m_is_pyref = false;
+        m_visited.clear();
         it->accept(m_this);
         DEBUG_LEAVE("check %d", m_is_pyref);
         return m_is_pyref;
@@ -60,7 +62,11 @@ public:
             i->getType_id()->getTarget()
         );
         if (target) {
-            target->accept(m_this);
+            // Defence in depth: a typedef chain is the only descent left, and
+            // a cyclic one must not take the walk round forever.
+            if (m_visited.insert(target).second) {
+                target->accept(m_this);
+            }
         } else {
             // Not an error, and specifically not one to print.
             //
@@ -95,9 +101,19 @@ public:
         DEBUG_LEAVE("visitProceduralStmtDataDeclaration");
     }
 
+    /**
+     * A type is never itself a Python reference, whatever it contains.
+     *
+     * This used to walk the type's whole body, answering "is `C::` a pyref?"
+     * with "does C declare a pyobj member anywhere". Worse, the walk never
+     * ended for a component with an action: every action has a synthetic
+     * `comp` field typed as the enclosing component, so it went component ->
+     * action -> comp -> component until the stack overflowed (K1/K2 in
+     * docs/design/symbol-resolution/A-crashes.md). The true roots are a
+     * pyimport and a field or typedef of type pyobj.
+     */
     virtual void visitSymbolTypeScope(ast::ISymbolTypeScope *i) override {
-        DEBUG_ENTER("visitSymbolTypeScope %s", i->getName().c_str());
-        i->getTarget()->accept(m_this);
+        DEBUG_ENTER("visitSymbolTypeScope %s (not a pyref)", i->getName().c_str());
         DEBUG_LEAVE("visitSymbolTypeScope %s", i->getName().c_str());
     }
 
@@ -123,6 +139,7 @@ private:
     dmgr::IDebug            *m_dbg;
     ast::ISymbolScope       *m_root;
     bool                    m_is_pyref;
+    std::set<ast::IScopeChild *> m_visited;
 };
 
 } /* namespace pssp */

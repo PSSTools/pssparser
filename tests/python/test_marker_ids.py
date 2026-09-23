@@ -28,6 +28,11 @@ from pssparser.cli.commands import _assign_core_code
 # messages the not-yet-written C++ code is *required* to emit -- keeping them
 # here means the ID mapping is settled before the emitting code is written.
 REPRESENTATIVE_MESSAGES = [
+    # PSS000 is set on the C++ marker directly; the pattern is the fallback
+    # for a message that reaches Python without its code.
+    ("PSS000", "internal error in resolving references: vector::_M_range_check; "
+               "please report this"),
+    ("PSS000", "internal error while building the AST: boom; please report this"),
     ("PSS001", "expected ';' before '}'"),
     ("PSS001", "unexpected end of input; possible missing closing '}'"),
     ("PSS001", "unknown exec-block kind 'wibble'"),

@@ -117,17 +117,23 @@ ast::ISymbolRefPath *TaskGetSpecializedTemplateType::mk(
     ast::ITypeScope *type_s =
         copier.copyT<ast::ITypeScope>(type_up->getTarget());
 
-    if (!type_s) {
-        // The copier hit a construct it does not handle.  It has already named
-        // the construct on stderr; report the failure against the declaration
-        // and give up on this specialization rather than dereferencing null.
-        m_ctxt->addErrorMarker(
+    if (!type_s || !copier.failure().empty()) {
+        // The copier hit a construct it does not handle -- a gap in pssparser,
+        // not a fault in the model. Name the construct in the diagnostic (it
+        // used to go to stdout, uncounted) and, when the copy as a whole
+        // failed, give up on this specialization rather than dereference null.
+        // A copy that succeeded around a gap is kept: the gap is reported, and
+        // the rest of the specialization is still usable.
+        m_ctxt->internalError(
             type_up->getTarget()->getLocation(),
-            "failed to specialize type '%s': it contains a construct the "
-            "AST copier does not support",
-            type_up->getName().c_str());
-        DEBUG_LEAVE("mk (copy failed)");
-        return 0;
+            "failed to specialize type '%s': the AST copier does not support "
+            "a construct it contains (%s)",
+            type_up->getName().c_str(),
+            copier.failure().empty() ? "unknown" : copier.failure().c_str());
+        if (!type_s) {
+            DEBUG_LEAVE("mk (copy failed)");
+            return 0;
+        }
     }
 
     type_s->setParent(type_up->getTarget()->getParent());

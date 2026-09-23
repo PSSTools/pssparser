@@ -19,6 +19,7 @@
  *     Author:
  */
 #include "dmgr/impl/DebugMacros.h"
+#include "pssp/impl/InternalError.h"
 #include "AstSymbolTableIterator.h"
 #include "TaskGetItemIndex.h"
 #include "TaskGetSymbolScope.h"
@@ -51,7 +52,7 @@ AstSymbolTableIterator::AstSymbolTableIterator(
     m_scope_s(other.m_scope_s.begin(), other.m_scope_s.end()) {
 
     if (m_scope_s.size() == 0) {
-        fprintf(stdout, "Error: initial scope-stack size is 0\n");
+        throw InternalError("symbol-table iterator copied with an empty scope stack");
     }
 
 }
@@ -278,7 +279,7 @@ void AstSymbolTableIterator::popScope() {
         }
          */
     } else {
-        DEBUG_FATAL("attempt to pop an empty stack");
+        throw InternalError("symbol-table iterator: pop of an empty scope stack");
     }
     DEBUG_LEAVE("popScope - sz=%d", m_scope_s.size());
 }

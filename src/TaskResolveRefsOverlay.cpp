@@ -102,7 +102,8 @@ void TaskResolveRefsOverlay::visitTypeScope(ast::ITypeScope *i) {
     std::unordered_map<std::string,int32_t>::const_iterator sym_it;
     sym_it = scope->getSymtab().find(i->getName()->getId());
     if (sym_it == scope->getSymtab().end()) {
-        DEBUG_ERROR("Failed to find %s in %s", 
+        m_ctxt->internalError(i->getLocation(),
+            "overlay type '%s' is not declared in '%s' in the base model",
             i->getName()->getId().c_str(),
             scope->getName().c_str());
         DEBUG_LEAVE("visitTypeScope");

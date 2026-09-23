@@ -2827,6 +2827,9 @@ cdef extern from "pssp/ast/ITypeScope.h" namespace "pssp::ast":
         bool getOpaque()
         
         void setOpaque(bool v)
+        bool getSuper_cyclic()
+        
+        void setSuper_cyclic(bool v)
 
 cdef extern from "pssp/ast/IExprRefPathSuper.h" namespace "pssp::ast":
     cpdef cppclass IExprRefPathSuper(IExprRefPathContext):

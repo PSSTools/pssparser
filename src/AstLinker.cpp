@@ -27,6 +27,7 @@
 #include <sys/time.h>
 #endif
 #include "dmgr/impl/DebugMacros.h"
+#include "pssp/impl/InternalError.h"
 #include "pssp/impl/TaskCloneSymbolScope.h"
 #include "AstLinker.h"
 #include "ResolveContext.h"
@@ -87,12 +88,61 @@ static uint64_t time_ms() {
     return ret;
 }
 
+/**
+ * Report an exception that escaped a link pass as a PSS000 marker. The
+ * location is the thrower's when it had one; otherwise the marker is
+ * location-less, which the Python side renders as a tool-level diagnostic.
+ */
+static void reportInternalError(
+        IFactory            *factory,
+        IMarkerListener     *marker_l,
+        const char          *pass,
+        const char          *what,
+        const ast::Location *loc) {
+    char tmp[1024];
+    snprintf(tmp, sizeof(tmp),
+        "internal error in %s: %s; please report this", pass, what);
+    IMarkerUP marker(factory->mkMarker(
+        tmp,
+        MarkerSeverityE::Error,
+        (loc)?*loc:ast::Location()));
+    marker->setId(INTERNAL_ERROR_ID);
+    marker_l->marker(marker.get());
+}
+
 ast::IRootSymbolScope *AstLinker::link(
         IMarkerListener                         *marker_l,
         const std::vector<ast::IGlobalScope *>  &scopes,
         bool                                    own_scopes) {
+    // The catch-all (INV-1). Any exception that escapes a pass -- an
+    // InternalError, a DEBUG_FATAL, an out-of-range .at() -- becomes one
+    // PSS000 marker naming the pass, and the partially linked tree is
+    // returned as it stands. Without it the exception crossed into Cython,
+    // which had no `except +`, and the process aborted.
+    const char *pass = "building the symbol tree";
+    ast::IRootSymbolScope *symtree = 0;
+    try {
+        linkPasses(marker_l, scopes, own_scopes, symtree, pass);
+    } catch (const InternalError &e) {
+        reportInternalError(m_factory, marker_l, pass, e.what(),
+            (e.hasLoc())?&e.loc():0);
+    } catch (const std::exception &e) {
+        reportInternalError(m_factory, marker_l, pass, e.what(), 0);
+    } catch (...) {
+        reportInternalError(m_factory, marker_l, pass, "unknown exception", 0);
+    }
+    return symtree;
+}
+
+void AstLinker::linkPasses(
+        IMarkerListener                         *marker_l,
+        const std::vector<ast::IGlobalScope *>  &scopes,
+        bool                                    own_scopes,
+        ast::IRootSymbolScope                   *&symtree,
+        const char                              *&pass) {
     uint64_t build_symtree_s = time_ms();
-    ast::IRootSymbolScope *symtree = TaskBuildSymbolTree(
+    pass = "building the symbol tree";
+    symtree = TaskBuildSymbolTree(
         m_dmgr,
         m_ast_factory,
         marker_l).build(scopes, own_scopes);
@@ -101,6 +151,7 @@ ast::IRootSymbolScope *AstLinker::link(
 
     // Now, apply type extension
     uint64_t apply_ext_s = time_ms();
+    pass = "applying type extensions";
     TaskApplyTypeExtensions apply_ext(m_dmgr, m_factory, marker_l);
     apply_ext.apply(symtree);
     uint64_t apply_ext_e = time_ms();
@@ -120,27 +171,31 @@ ast::IRootSymbolScope *AstLinker::link(
     // Super types first, so that resolving a reference to an inherited
     // member does not depend on the base type having been declared in an
     // earlier file than the use. See TaskResolveSuperTypes.
+    pass = "resolving super types";
     TaskResolveSuperTypes(&ctxt).resolve(symtree);
 
     // Then override actions, whose super type is their own name and so has
     // to be looked up in the declaring component's base chain rather than by
     // the ordinary rules. Separate from the pass above because walking more
     // than one level up needs every component's super type already resolved.
+    pass = "resolving override actions";
     TaskResolveOverrideActions(&ctxt).resolve(symtree);
 
     // Between the two on purpose. Super-type references are bound above, so
     // the inheritance graph is readable; TaskResolveRefs below is the pass
-    // that walks it, and a ring in it used to take the member search round
-    // forever on the first failed lookup. The walkers carry loop guards now,
-    // so this does not run for safety -- it runs so the user is told which
-    // types form the ring instead of being left with the unresolved-member
-    // errors that follow from it. See TaskCheckTypeCycles.h.
+    // that walks it. This pass reports the ring, so the user is told which
+    // types form it, and marks every type on it (TypeScope.super_cyclic) so
+    // that every super-chain walker stops there instead of going round it.
+    // See TaskCheckTypeCycles.h.
+    pass = "checking for inheritance cycles";
     TaskCheckTypeCycles(&ctxt).check(symtree);
 
+    pass = "resolving references";
     TaskResolveRefs(&ctxt).resolve(symtree);
 
     // Work deferred from specialization until every reference is bound --
     // sizing sizeof_s<T> when T's members were not yet resolved.
+    pass = "running post-resolve actions";
     ctxt.runPostResolveActions();
     uint64_t resolve_e = time_ms();
     DEBUG("Resolve: %lldms", (resolve_e-resolve_s));
@@ -148,6 +203,7 @@ ast::IRootSymbolScope *AstLinker::link(
     // 21.13.1's member rules. After resolution, because they need every
     // member type bound; before the completeness gate, which has nothing to
     // say about packing.
+    pass = "checking packed structs";
     TaskCheckPackedStructs(&ctxt).check(symtree);
     TaskCheckPackedUses(&ctxt).check(symtree);
 
@@ -157,9 +213,8 @@ ast::IRootSymbolScope *AstLinker::link(
     // structural: it does not know which code path failed to bind a reference,
     // which is what makes it hold for paths that do not exist yet. See
     // TaskCheckRefsResolved.h.
+    pass = "checking that references are resolved";
     TaskCheckRefsResolved(&ctxt).check(symtree, 1 /* the bundled stdlib */);
-
-    return symtree;
 }
 
 ast::IRootSymbolScope *AstLinker::linkOverlay(
@@ -168,28 +223,31 @@ ast::IRootSymbolScope *AstLinker::linkOverlay(
         ast::IGlobalScope                       *overlay,
         bool                                    own_scopes) {
     DEBUG_ENTER("linkOverlay");
-    // First, clone the base symbol table
-    ast::IRootSymbolScope *root = TaskCloneSymbolScope(
-        m_dmgr, m_ast_factory).clone(base_symtab);
+    const char *pass = "cloning the base symbol table";
+    ast::IRootSymbolScope *root = 0;
+    try {
+        // First, clone the base symbol table
+        root = TaskCloneSymbolScope(
+            m_dmgr, m_ast_factory).clone(base_symtab);
 
-    ResolveContext ctxt(m_factory, marker_l, root);
+        ResolveContext ctxt(m_factory, marker_l, root);
 
-    TaskApplyOverlay(m_dmgr, m_ast_factory).apply(
-        root,
-        overlay);
+        pass = "applying the overlay";
+        TaskApplyOverlay(&ctxt).apply(
+            root,
+            overlay);
 
-    TaskResolveRefsOverlay(&ctxt).resolve(overlay);
-    ctxt.runPostResolveActions();
-    /*
-     */
-
-    // Match overlay with original files base fileId
-
-    // Apply the overlay files to the newly-cloned root,
-    // replacing symbol-table references to files whose
-    // content will be overlaid
-
-    // Now, resolve symbols just in the overlay files
+        pass = "resolving overlay references";
+        TaskResolveRefsOverlay(&ctxt).resolve(overlay);
+        ctxt.runPostResolveActions();
+    } catch (const InternalError &e) {
+        reportInternalError(m_factory, marker_l, pass, e.what(),
+            (e.hasLoc())?&e.loc():0);
+    } catch (const std::exception &e) {
+        reportInternalError(m_factory, marker_l, pass, e.what(), 0);
+    } catch (...) {
+        reportInternalError(m_factory, marker_l, pass, "unknown exception", 0);
+    }
 
     DEBUG_LEAVE("linkOverlay");
     return root;

@@ -72,6 +72,11 @@ public:
         if (!ts || !ts->getSuper_t()) {
             return 0;
         }
+        if (ts->getSuper_cyclic()) {
+            // On an inheritance ring, already reported. Treating the super
+            // type as absent is what stops every walker going round it.
+            return 0;
+        }
         return follow(TaskResolveSymbolPathRef(m_dmgr, m_root).resolve(
             ts->getSuper_t()->getTarget()));
     }

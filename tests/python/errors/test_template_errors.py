@@ -173,6 +173,28 @@ def test_value_supplied_for_a_type_parameter_is_reported():
     assert res.rc == 1, "expected a reported error, got %s" % res.describe()
 
 
+def test_builtin_type_supplied_for_a_value_parameter_is_reported():
+    """``S<int>`` for ``struct S<int N>`` -- the unambiguous half of the
+    converse above. A built-in type cannot be a constant, so no resolution is
+    needed to tell. It printed "Value parameter used as a type parameter" to
+    stdout and linked with 0 errors (A-N1)."""
+    res = link("struct S<int N=1> { bit[N] v; } struct Top { S<int> a; }")
+    assert_reports(res, "expects a value, but the argument supplied is a type")
+
+
+def test_enclosing_value_parameter_forwarded_as_an_argument_is_accepted():
+    """``s<B>`` with B a value parameter of the enclosing generic. A bare
+    name takes the type-argument path, so the check above must not fire on
+    it."""
+    res = link("""
+package ps { static const int K = 4;
+    struct s <int A> { rand bit[8] x; constraint x < K + A; } }
+package pw { struct w <int B> { ps::s<B> inner; } }
+component pss_top { pw::w<3> f; }
+""")
+    assert res.rc == 0, res.describe()
+
+
 @pytest.mark.xfail(strict=True, reason=_KIND_UNCHECKED)
 def test_type_supplied_for_a_value_parameter_is_reported():
     res = link("struct S<int N> { bit[N] v; } struct Top { S<my_s> a; }")

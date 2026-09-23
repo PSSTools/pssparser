@@ -18,6 +18,7 @@
  * Created on:
  *     Author:
  */
+#include "pssp/impl/InternalError.h"
 #include "pssp/impl/TaskResolveSymbolPathRef.h"
 #include "AstSymbolTableIterator.h"
 #include "ResolveContext.h"
@@ -32,7 +33,7 @@ ResolveContext::ResolveContext(
     IMarkerListener         *marker_l,
     ast::IRootSymbolScope   *root) : 
     m_factory(factory), m_marker_l(marker_l), m_root(root),
-    m_specialization_depth(0) {
+    m_specialization_depth(0), m_depth(0) {
     m_symtab_it_s.push_back(ISymbolTableIteratorUP(new AstSymbolTableIterator(
         factory->getDebugMgr(),
         factory->getAstFactory(),
@@ -132,6 +133,23 @@ void ResolveContext::addErrorMarker(
         fmt,
         ap);
     va_end(ap);
+}
+
+void ResolveContext::internalError(
+        const ast::Location &loc,
+        const char          *fmt,
+        ...) {
+    char tmp[1024];
+    va_list ap;
+    va_start(ap, fmt);
+    vsnprintf(tmp, sizeof(tmp), fmt, ap);
+    va_end(ap);
+    IMarkerUP marker(m_factory->mkMarker(
+        std::string("internal error: ") + tmp + "; please report this",
+        MarkerSeverityE::Error,
+        loc));
+    marker->setId(INTERNAL_ERROR_ID);
+    m_marker_l->marker(marker.get());
 }
 
 }

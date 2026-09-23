@@ -20,6 +20,7 @@
  */
 #pragma once
 #include "pssp/ast/impl/VisitorBase.h"
+#include "ResolveContext.h"
 #include "TaskResolveRefs.h"
 
 namespace pssp {
@@ -29,9 +30,7 @@ namespace pssp {
 
 class TaskApplyOverlay : ast::VisitorBase {
 public:
-    TaskApplyOverlay(
-        dmgr::IDebugMgr     *dmgr,
-        ast::IFactory       *factory);
+    TaskApplyOverlay(ResolveContext *ctxt);
 
     virtual ~TaskApplyOverlay();
 
@@ -48,6 +47,7 @@ public:
 
 private:
     static dmgr::IDebug                         *m_dbg;
+    ResolveContext                              *m_ctxt;
     ast::IFactory                               *m_factory;
     std::vector<ast::ISymbolScope *>            m_scope_s;
 

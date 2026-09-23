@@ -49,3 +49,32 @@ def test_pyimport_multiple_statements():
         """
     )
     assert root is not None
+
+
+# A pyimport name colliding with another declaration printed "TODO: symbol
+# collision with pyimport" to stdout and kept the first, uncounted (report A,
+# TaskBuildSymbolTree). It is now an ordinary duplicate declaration -- except
+# for the same module imported again, which names the same thing.
+
+def _link_markers(sources):
+    p = Parser()
+    p.parses(sources)
+    try:
+        p.link()
+    except Exception:
+        pass
+    return [m for m in p.markers if m["severity"] == "error"]
+
+
+def test_pyimport_colliding_with_a_type_is_a_duplicate_declaration():
+    errs = _link_markers([("test.pss", "pyimport os;\nstruct os { rand int x; }\n")])
+    assert len(errs) == 1, errs
+    assert "duplicate declaration of 'os'" in errs[0]["message"]
+
+
+def test_the_same_pyimport_in_two_files_is_not_a_collision():
+    errs = _link_markers([
+        ("a.pss", "pyimport mymod;\n"),
+        ("b.pss", "pyimport mymod;\n"),
+    ])
+    assert errs == []

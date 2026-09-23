@@ -1,6 +1,32 @@
 import time
 from io import StringIO
-from typing import Dict, List, Tuple, TextIO
+from typing import Dict, List, Optional, Tuple, TextIO
+
+#: The marker ID of an internal error -- a defect in pssparser, not in the
+#: model (symbol-resolution-plan.md INV-1). Kept in step with
+#: INTERNAL_ERROR_ID in src/include/pssp/impl/InternalError.h.
+INTERNAL_ERROR_CODE = "PSS000"
+
+
+def _no_file() -> str:
+    from pssparser.checkers.extension import NO_FILE
+    return NO_FILE
+
+
+def _internal_error_marker(phase: str, exc: BaseException,
+                           filename: Optional[str] = None) -> dict:
+    """A PSS000 marker dict for a C++ exception that reached Python."""
+    return {
+        "severity": "error",
+        "message": "internal error %s: %s; please report this" % (phase, exc),
+        "file": filename if filename is not None else _no_file(),
+        "line": 0 if filename is not None else -1,
+        "col": 0 if filename is not None else -1,
+        "extent": 0,
+        "related": [],
+        "code": INTERNAL_ERROR_CODE,
+    }
+
 
 class ParseException(Exception):
     def __init__(self, message, markers=None):
@@ -123,7 +149,13 @@ class Parser(object):
             t0 = time.perf_counter_ns()
             with open(f, "r") as fp:
                 ast = self.ast_f.mkGlobalScope(id)
-                builder.build(ast, fp)
+                try:
+                    builder.build(ast, fp)
+                except RuntimeError as exc:
+                    self._markers = self._collectMarkers(marker_l)
+                    m = _internal_error_marker("while parsing", exc, f)
+                    self._markers.append(m)
+                    raise ParseException(m["message"], self._markers)
             self._add_timing("parse (incl. read)", time.perf_counter_ns() - t0)
 
             if marker_l.hasSeverity(zspp.MarkerSeverityE.Error):
@@ -156,7 +188,13 @@ class Parser(object):
             id = len(self._files)
             self._filenames[id] = fname
             ast = self.ast_f.mkGlobalScope(id)
-            builder.build(ast, StringIO(fstr))
+            try:
+                builder.build(ast, StringIO(fstr))
+            except RuntimeError as exc:
+                self._markers = self._collectMarkers(marker_l)
+                m = _internal_error_marker("while parsing", exc, fname)
+                self._markers.append(m)
+                raise ParseException(m["message"], self._markers)
             
             if marker_l.hasSeverity(zspp.MarkerSeverityE.Error):
                 self._markers = self._collectMarkers(marker_l)
@@ -192,7 +230,15 @@ class Parser(object):
         marker_l = self.parser_f.mkMarkerCollector()
         marker_l.setMaxErrors(self._max_errors)
 
-        ret = linker.link(marker_l, self._files)
+        # The C++ linker reports its own failures as PSS000 markers; a
+        # RuntimeError here means something escaped even that catch-all
+        # (`except +` in decl.pxd). Same diagnosis, raised from this side.
+        escaped = None
+        try:
+            ret = linker.link(marker_l, self._files)
+        except RuntimeError as exc:
+            ret = None
+            escaped = _internal_error_marker("while linking", exc)
 
         # Collect unconditionally. This ran only inside the `hasSeverity`
         # branch below, so a link that produced warnings but no errors built
@@ -201,6 +247,8 @@ class Parser(object):
         # 0 files". Both parse paths above already collect on success; only
         # this one did not.
         self._markers.extend(self._collectMarkers(marker_l))
+        if escaped is not None:
+            self._markers.append(escaped)
         # Re-sort: parse-time and link-time markers are each internally
         # sorted by _collectMarkers, but concatenating two sorted lists is
         # not itself sorted (G8).
@@ -252,6 +300,9 @@ class Parser(object):
         # restarts the environment, which matches what just happened -- these
         # units are no longer the Parser's to offer.
         self._builder = None
+
+        if escaped is not None:
+            raise ParseException(escaped["message"], self._markers)
 
         if marker_l.hasSeverity(zspp.MarkerSeverityE.Error):
             err = self._mkErrorMessage(marker_l)
@@ -346,6 +397,10 @@ class Parser(object):
             loc = m.loc()
             filename = self._pathOf(loc.file)
             code = m.id()
+            if code == INTERNAL_ERROR_CODE and loc.file < 0:
+                # A C++ internal error with no source location: render it as
+                # a tool-level diagnostic, not as "<unknown>:-1:-1".
+                filename = _no_file()
             entry = {
                 "severity": severity_names.get(int(m.severity()), "unknown"),
                 "message": m.msg(),

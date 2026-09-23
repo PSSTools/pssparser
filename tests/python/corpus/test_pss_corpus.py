@@ -183,9 +183,13 @@ BROKEN_BUCKETS = _manifest_broken_buckets() or FALLBACK_BROKEN_BUCKETS
 #: idiom were compilable PSS. It is not; see "Completing LRM examples" in
 #: ``PROVENANCE.md``. The identifiers are retired rather than reused, so a
 #: future ``U-8f`` cannot inherit a withdrawn one's history.
+#:
+#: ``U-8e`` (octal escape in a string literal, ``"\\101"``) was **fixed** on
+#: 2026-09-23: the lexer lacked LRM 4.7's ``\\ddd`` escape (F1,
+#: symbol-resolution-plan.md 11.1). pssfmt's ``KNOWN_UNPARSEABLE`` entry for
+#: ``lexical/comments_and_strings.pss`` has to go too.
 RECORDED_DEFECTS = {
     "U-8b": "`dist` constraints",
-    "U-8e": "octal escape in a string literal (\"\\101\")",
 }
 
 #: Corpus files that do not parse today, and why. Cause strings are shared
@@ -204,8 +208,6 @@ RECORDED_DEFECTS = {
 #: files now declare their actions inside a component; see P7-C1 and the
 #: "Completing LRM examples" rule in ``PROVENANCE.md``.
 KNOWN_UNPARSEABLE = {
-    "lexical/comments_and_strings.pss":
-        "U-8e: octal escape in a string literal (\"\\101\")",
     "lexical/operators.pss":
         "U-8b: `dist` constraints. This file also contains deliberately "
         "ungrammatical operator torture (`a = -b` in a constraint), so it may "

@@ -657,3 +657,104 @@ def test_swapped_handle_decl_referenced_in_activity_does_not_segfault():
     mutated = src.replace("step s1, s2;", "s1 step, s2;", 1)
     assert mutated != src, "fixture text not found -- corpus file changed shape"
     assert_no_crash(mutated)
+
+
+# ---------------------------------------------------------------------------
+# Symbol-resolution plan R0 (docs/design/symbol-resolution-plan.md WS1).
+# Each crashed with a signal until 2026-09-23. Crash reports K1-K4 are in
+# docs/design/symbol-resolution/A-crashes.md.
+# ---------------------------------------------------------------------------
+
+def test_k1_static_const_of_a_component_with_an_action():
+    """`C::K` where C declares an action: TaskIsPyRef walked component ->
+    action -> synthetic `comp` field -> component until the stack overflowed.
+    Any component with an action, not only the enclosing one."""
+    assert_clean("""
+component other_c { static const int K = 1; action X {} }
+component pss_top {
+    static const int J = 2;
+    action A { rand int x; constraint x == other_c::K; constraint x < pss_top::J; }
+}
+""")
+
+
+def test_k1_unknown_member_of_a_component_is_one_error():
+    res = assert_rejects("""
+component other_c { static const int K = 1; action X {} }
+component pss_top { action A { rand int x; constraint x == other_c::KK; } }
+""", "KK")
+    assert res.output.count("error:") == 1, res.describe()
+
+
+def test_k2_qualified_enum_item_through_a_component():
+    assert_clean("""
+component my_ip_c {
+    enum mode_e {A, B, C, D};
+    action my_op { rand mode_e mode; }
+}
+component pss_top {
+    action test {
+        my_ip_c::my_op op;
+        constraint op.mode == my_ip_c::mode_e::A;
+        activity { op; }
+    }
+}
+""")
+
+
+def test_k2_unknown_enum_item_through_a_component_is_one_error():
+    res = assert_rejects("""
+component my_ip_c { enum mode_e {A, B}; action my_op { rand mode_e mode; } }
+component pss_top {
+    action test {
+        my_ip_c::my_op op;
+        constraint op.mode == my_ip_c::mode_e::Z;
+        activity { op; }
+    }
+}
+""", "Z")
+    assert res.output.count("error:") == 1, res.describe()
+
+
+@pytest.mark.parametrize("src", [
+    # a self-cycle and a two-cycle, each with a name lookup in the body that
+    # misses the type's own scope -- the lookup is what walked the ring
+    "component pss_top { action a {} action m1 : m1 { activity { do a; } } }",
+    "struct S : S { rand int x; constraint x < 4; rand int y; constraint y < x; }",
+    "component pss_top { action a {} "
+    "action m1 : m2 { activity { do a; } } action m2 : m1 { } }",
+    "component pss_top { monitor mm {} monitor m1 : m1 { activity { mm; } } }",
+    "component c1 : c2 { } component c2 : c1 { } component pss_top { c1 x; }",
+    # a lead-in chain that runs into a ring
+    "struct B : C { } struct C : B { } "
+    "struct A : B { rand int x; constraint x < 3; }",
+], ids=["action-self", "struct-self", "action-pair", "monitor-self",
+        "component-pair", "lead-in"])
+def test_k4_inheritance_cycle_is_reported_once(src):
+    res = assert_rejects(src, "cyclic inheritance")
+    assert res.output.count("cyclic inheritance") == 1, res.describe()
+
+
+def test_k4_unknown_name_in_a_cyclic_type_does_not_recurse():
+    """The first unqualified name that misses the type's own scope is what
+    went round the ring. It is now reported as unknown, once."""
+    res = assert_rejects(
+        "struct S : S { rand int x; constraint x < K; }", "cyclic inheritance")
+    assert "unknown identifier 'K'" in res.output, res.describe()
+
+
+@pytest.mark.parametrize("src", [
+    "component pss_top { action A { rand int f1; } "
+    "action T { activity { repeat (i : 4) { i; } } } }",
+    "component pss_top { action A { rand int f1; } action T { A a_arr[4]; "
+    "activity { foreach (h : a_arr) { h with { f1 == 1; }; } } } }",
+    "component pss_top { action T { int arr[4]; "
+    "activity { foreach (h : arr) { h; } } } }",
+], ids=["repeat-index", "foreach-iter-with", "int-iter"])
+def test_k3_traversal_of_a_loop_variable_does_not_abort(src):
+    """An out-of-range .at() on a ChildIdx -1 path element: rc 134. What these
+    *should* report is WS4 (symbol-resolution-plan.md 4.1/4.2); this pins
+    only that they no longer abort or report an internal error."""
+    res = assert_no_crash(src, args=["--json"])
+    assert res.rc in (0, 1), res.describe()
+    assert "PSS000" not in res.stdout, res.describe()

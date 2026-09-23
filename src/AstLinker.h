@@ -51,6 +51,18 @@ public:
         bool                                    own_scopes) override;
 
 private:
+    /**
+     * The pass sequence. `symtree` is set as soon as it exists and `pass`
+     * names the pass running, so that link()'s catch-all can report which
+     * pass failed and still return the partially linked tree.
+     */
+    void linkPasses(
+        IMarkerListener                         *marker_l,
+        const std::vector<ast::IGlobalScope *>  &scopes,
+        bool                                    own_scopes,
+        ast::IRootSymbolScope                   *&symtree,
+        const char                              *&pass);
+
     static dmgr::IDebug                         *m_dbg;
     dmgr::IDebugMgr                             *m_dmgr;
     IFactory                                    *m_factory;

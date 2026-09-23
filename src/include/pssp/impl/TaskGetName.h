@@ -21,6 +21,7 @@
 #pragma once
 #include <string>
 #include "pssp/ast/impl/VisitorBase.h"
+#include "pssp/ast/IPyImportStmt.h"
 #include "pssp/impl/TaskIsUnspecializedGenericType.h"
 
 namespace pssp {
@@ -87,6 +88,15 @@ public:
 
     virtual void visitNamedScope(ast::INamedScope *i) override {
         m_ret = i->getName()->getId();
+    }
+
+    /** The name a pyimport declares: its alias, else the module's first element. */
+    virtual void visitPyImportStmt(ast::IPyImportStmt *i) override {
+        if (i->getAlias()) {
+            m_ret = i->getAlias()->getId();
+        } else if (i->getPath().size()) {
+            m_ret = i->getPath().front()->getId();
+        }
     }
 
     virtual void visitRootSymbolScope(ast::IRootSymbolScope *i) override {

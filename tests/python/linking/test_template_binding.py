@@ -14,6 +14,7 @@ See ``docs/template-parameter-test-suite.md`` section 4.2.
 """
 import pytest
 
+from ..isolation import run_isolated
 from ..test_helpers import parse_pss, parse_multi_file
 from ..template_helpers import (
     assert_binds_to,
@@ -443,3 +444,52 @@ def test_each_specialization_resolves_its_own_parameter():
     assert bound == ["a_s", "b_s", "c_s"], (
         "each of the three specializations should drive its own Q; Q bound %r"
         % (bound,))
+
+
+# ---------------------------------------------------------------------------
+# Expression arguments resolve at the use site (plan 1.4; K5/F5 in
+# docs/design/symbol-resolution/A-crashes.md). `S<N+1>` used to resolve
+# nothing where it was written; its `N` was resolved inside the new
+# specialization instead, where the callee's own `N` captured it.
+# ---------------------------------------------------------------------------
+
+def _arg_lhs_binding(src):
+    """For every specialization of p::S: the declaration that the left
+    operand of its first (compound) argument binds to, and that
+    declaration's bound value."""
+    from pssparser.core import resolveSymbolPathRef
+    from ..template_helpers import _param
+    root = parse_pss(src)
+    out = []
+    for s in specializations(root, "p::S"):
+        lhs = _param(s, 0).getDflt().getLhs()
+        assert lhs.getTarget() is not None, "argument operand is unbound"
+        decl = resolveSymbolPathRef(root, lhs.getTarget())
+        out.append((type(decl).__name__, decl.getDflt().getValue()))
+    return out
+
+
+@pytest.mark.parametrize("callee_param", ["N", "W"],
+                         ids=["same-name", "different-name"])
+def test_compound_argument_binds_the_callers_parameter(callee_param):
+    src = """
+package p {
+    struct S<int %s=1> { rand bit[%s] v; }
+    struct T<int N=1> { rand S<N+1> s; }
+    struct Top { T<3> t; }
+}
+""" % (callee_param, callee_param)
+    assert _arg_lhs_binding(src) == [("TemplateValueParamDecl", 3)]
+
+
+def test_undefined_name_in_a_compound_argument_is_reported_where_written():
+    """`M` is not in scope where `S<M+1>` is written. S's own parameter is
+    called M, and the argument used to bind to it and link cleanly."""
+    res = run_isolated([("t.pss", """
+struct S<int M=1> { rand bit[M] v; }
+struct T<int N=1> { rand S<M+1> s; }
+component pss_top { action A { rand T<3> t; } }
+""")])
+    assert res.rc == 1, res.describe()
+    assert "t.pss:3:28: error: unknown identifier 'M'" in res.output, res.describe()
+    assert res.output.count("error:") == 1, res.describe()

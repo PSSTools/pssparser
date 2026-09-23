@@ -6,7 +6,7 @@
  */
 #include "dmgr/impl/DebugMacros.h"
 #include "NameResolver.h"
-#include "TaskCollectDeclarations.h"
+#include "pssp/impl/InternalError.h"
 
 namespace pssp {
 
@@ -57,8 +57,7 @@ void NameResolver::visitPackageScope(ast::IPackageScope *i) {
 	DEBUG_ENTER("visitPackage %s", i->getId().at(0)->getId().c_str());
 	// A
 	if (!sym_it()->pushNamedScope(i->getId().at(0)->getId())) {
-		// TODO: internal error
-		fprintf(stdout, "Error: Failed to find package scope %s\n",
+		throw InternalError::fmt("NameResolver: failed to find package scope %s",
 			i->getId().at(0)->getId().c_str());
 	}
 
@@ -76,8 +75,7 @@ void NameResolver::visitPackageScope(ast::IPackageScope *i) {
 void NameResolver::visitComponent(ast::IComponent *i) {
 	DEBUG_ENTER("visitComponent %s", i->getName()->getId().c_str());
 	if (!sym_it()->pushNamedScope(i->getName()->getId())) {
-		// TODO: internal error
-		fprintf(stdout, "Error: Failed to find component scope %s\n",
+		throw InternalError::fmt("NameResolver: failed to find component scope %s",
 			i->getName()->getId().c_str());
 	}
 
@@ -93,8 +91,7 @@ void NameResolver::visitComponent(ast::IComponent *i) {
 
 void NameResolver::visitEnumDecl(ast::IEnumDecl *i) {
 	if (!sym_it()->pushNamedScope(i->getName()->getId())) {
-		// TODO: internal error
-		fprintf(stdout, "Error: Failed to find enum scope %s\n",
+		throw InternalError::fmt("NameResolver: failed to find enum scope %s",
 			i->getName()->getId().c_str());
 	}
 
@@ -109,8 +106,8 @@ void NameResolver::visitEnumDecl(ast::IEnumDecl *i) {
 
 void NameResolver::visitStruct(ast::IStruct *i) {
 	if (!sym_it()->pushNamedScope(i->getName()->getId())) {
-		// TODO: internal error
-		fprintf(stdout, "Error");
+		throw InternalError::fmt("NameResolver: failed to find struct scope %s",
+			i->getName()->getId().c_str());
 	}
 
 	for (std::vector<ast::IScopeChildUP>::const_iterator

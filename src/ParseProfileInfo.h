@@ -9,6 +9,7 @@
 #include "atn/ParseInfo.h"
 #include "atn/DecisionInfo.h"
 #include "Parser.h"
+#include "ParserRuleContext.h"
 
 namespace pssp {
 
@@ -78,6 +79,14 @@ struct ProfileSnapshot {
     std::vector<DecisionSnapshot>   decisions;
     size_t                          dfa_size = 0;
     size_t                          token_count = 0;
+    // Per parser rule, how many contexts of it the parse tree holds. Indexed
+    // like `rule_names`. Filled by countRuleInvocations, not by
+    // mkProfileSnapshot: the decision profile cannot answer "was this rule
+    // used" -- LL(1) decisions are resolved by a generated switch and never
+    // reach the profiling simulator, so they report zero invocations whether
+    // or not the input exercised them.
+    std::vector<std::string>        rule_names;
+    std::vector<uint64_t>           rule_counts;
 };
 
 /**
@@ -87,6 +96,13 @@ struct ProfileSnapshot {
  * snapshot if the parser was not profiling.
  */
 ProfileSnapshot mkProfileSnapshot(antlr4::Parser &parser);
+
+/**
+ * Count the rule contexts in `tree` into `snap.rule_counts`, which must have
+ * been sized by mkProfileSnapshot. Iterative, so a deep tree cannot exhaust
+ * the stack.
+ */
+void countRuleInvocations(antlr4::tree::ParseTree *tree, ProfileSnapshot &snap);
 
 
 class DecisionEventInfo : public IDecisionEventInfo {
@@ -155,8 +171,13 @@ public:
     virtual long long getTotalATNLookaheadOps() override;
     virtual size_t getDFASize() override;
     virtual size_t getTokenCount() override;
+    virtual size_t getNumRules() override { return m_rule_names.size(); }
+    virtual const std::string &getRuleName(size_t idx) override { return m_rule_names.at(idx); }
+    virtual uint64_t getRuleInvocations(size_t idx) override { return m_rule_counts.at(idx); }
 
 private:
+    std::vector<std::string> m_rule_names;
+    std::vector<uint64_t> m_rule_counts;
     // All data is extracted in the constructor from the provided snapshot
     std::vector<IDecisionProfileInfo*> m_decisions;
     std::vector<size_t> m_ll_decisions;

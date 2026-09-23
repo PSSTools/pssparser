@@ -16,6 +16,7 @@
 #include <vector>
 #include <cstdarg>
 #include "dmgr/impl/DebugMacros.h"
+#include "pssp/impl/InternalError.h"
 #include "AstBuilderInt.h"
 #include "PSSLexer.h"
 #include "atn/ParseInfo.h"
@@ -125,6 +126,42 @@ static uint64_t time_ms() {
 void AstBuilderInt::build(
 			ast::IGlobalScope		*global,
 			std::istream 			*in) {
+    // The parse-side catch-all (INV-1): an exception escaping the builder --
+    // a DEBUG_FATAL, an InternalError, an out-of-range .at() -- becomes one
+    // PSS000 marker instead of aborting the process. The unit is left as far
+    // as it got.
+    std::string what;
+    try {
+        buildImpl(global, in);
+        return;
+    } catch (const std::exception &e) {
+        what = e.what();
+    } catch (...) {
+        what = "unknown exception";
+    }
+
+    // Whatever was mid-construction is abandoned; do not let its scopes leak
+    // into the next file built with this builder.
+    m_scopes.clear();
+    m_exec_scope_s.clear();
+    m_access_s.clear();
+
+    if (m_marker_l) {
+        ast::Location loc;
+        loc.fileid = global->getFileid();
+        Marker m(
+            "internal error while building the AST: " + what
+                + "; please report this",
+            MarkerSeverityE::Error,
+            loc,
+            std::string(INTERNAL_ERROR_ID));
+        m_marker_l->marker(&m);
+    }
+}
+
+void AstBuilderInt::buildImpl(
+			ast::IGlobalScope		*global,
+			std::istream 			*in) {
 
     m_file_id = global->getFileid();
 
@@ -220,6 +257,7 @@ void AstBuilderInt::build(
         // use-after-free the moment a second file is parsed.
         m_profile = std::unique_ptr<ProfileSnapshot>(
             new ProfileSnapshot(mkProfileSnapshot(parser)));
+        countRuleInvocations(ctx, *m_profile);
 
         // Log summary for debugging
         for (std::vector<DecisionSnapshot>::const_iterator
@@ -384,7 +422,8 @@ antlrcpp::Any AstBuilderInt::visitExtend_stmt(PSSParser::Extend_stmtContext *ctx
         if (it != ExtendKind_m.end()) {
             kind = it->second;
         } else {
-            DEBUG_ERROR("Error: No match for extend kind");
+            addInternalError(ctx->getStart(), "no match for extend kind '%s'",
+                ctx->struct_kind()->object_kind()->getText().c_str());
         }
     }
 
@@ -466,7 +505,8 @@ antlrcpp::Any AstBuilderInt::visitExtend_stmt(PSSParser::Extend_stmtContext *ctx
 				
 			} break;
             default:
-                DEBUG_ERROR("Error: unhandled extension-type target: %d\n", kind);
+                addInternalError(ctx->getStart(),
+                    "unhandled extension-type target %d", (int)kind);
                 break;
 		}
 
@@ -3409,7 +3449,8 @@ antlrcpp::Any AstBuilderInt::visitReference_type(PSSParser::Reference_typeContex
 	type = dynamic_cast<ast::IDataTypeUserDefined *>(m_type);
 
 	if (!type && m_type) {
-		DEBUG_ERROR("visitReference_type: entity_type_identifier returned non-user-defined type");
+		addInternalError(ctx->getStart(),
+			"reference type is not a user-defined type");
 	}
 
 	ast::IDataTypeRef *ref = m_factory->mkDataTypeRef(type);
@@ -4779,7 +4820,12 @@ antlrcpp::Any AstBuilderInt::visitNumber(PSSParser::NumberContext *ctx_t) {
         int32_t width;
 
         if (!parseIntegerLiteral(img, width, value, is_signed)) {
-            DEBUG_FATAL("Unknown format");
+            // The lexer accepted a spelling the value parser does not.
+            addInternalError(ctx_t->getStart(),
+                "cannot parse the integer literal '%s'", img.c_str());
+            value = 0;
+            width = -1;
+            is_signed = false;
         }
 
         if (is_signed) {
@@ -6411,6 +6457,31 @@ void AstBuilderInt::addErrorMarker(Token *t, const char *fmt, ...) {
     addMarker(MarkerSeverityE::Error, t, "%s", tmp);
 }
 
+void AstBuilderInt::addInternalError(Token *t, const char *fmt, ...) {
+    if (!m_marker_l) {
+        return;
+    }
+
+    char tmp[1024];
+    va_list ap;
+    va_start(ap, fmt);
+    vsnprintf(tmp, sizeof(tmp), fmt, ap);
+    va_end(ap);
+
+    ast::Location loc;
+    loc.fileid = m_file_id;
+    loc.lineno = t ? t->getLine() : 0;
+    loc.linepos = t ? t->getCharPositionInLine()+1 : 0;
+    loc.extent = t ? t->getText().size() : 0;
+
+    Marker m(
+        std::string("internal error: ") + tmp + "; please report this",
+        MarkerSeverityE::Error,
+        loc,
+        std::string(INTERNAL_ERROR_ID));
+    m_marker_l->marker(&m);
+}
+
 void AstBuilderInt::noteUnrepresented(
         Token           *t,
         const char      *construct,
@@ -7312,7 +7383,7 @@ ast::IActivityJoinSpec *AstBuilderInt::mkActivityJoinSpec(PSSParser::Activity_jo
 
 		spec = branch;
 	} else {
-		DEBUG_ERROR("Internal Error: unhandled activity_join_spec alternative");
+		addInternalError(ctx->getStart(), "unhandled activity join specification");
 	}
 
 	if (spec) {
@@ -7509,7 +7580,8 @@ ast::IDataType *AstBuilderInt::mkDataType(PSSParser::Data_typeContext *ctx) {
 	m_type = 0;
 	ctx->accept(this);
     if (!m_type) {
-        DEBUG_ERROR("Internal Error: mkDataType returning null");
+        addInternalError(ctx->getStart(), "no data type built for '%s'",
+            ctx->getText().c_str());
     }
 	return m_type;
 }
@@ -7692,7 +7764,7 @@ ast::IScopeChild *AstBuilderInt::mkExecStmt(PSSParser::Procedural_stmtContext *c
         ctx->accept(this);
 
         if (!m_exec_stmt_cnt) {
-            DEBUG_ERROR("No exec stmt produced");
+            addInternalError(ctx->getStart(), "no exec statement built");
         }
     } else {
         // Null statement
@@ -8096,7 +8168,7 @@ ast::ITypeIdentifier *AstBuilderInt::mkTypeId(
 	std::vector<PSSParser::Type_identifier_elemContext *> elems = ctx->type_identifier_elem();
 
 	if (elems.size() == 0) {
-		DEBUG_ERROR("Error: elems.size==0");
+		addInternalError(ctx->getStart(), "empty type identifier");
 	}
 
 	for (std::vector<PSSParser::Type_identifier_elemContext *>::const_iterator
@@ -8255,7 +8327,7 @@ ast::IExprRefPath *AstBuilderInt::mkExprRefPath(
                 }
 
                 if (ctx->bit_slice()) {
-                    DEBUG_ERROR("Revisit handling of bit_slice");
+                    DEBUG("Revisit handling of bit_slice");
                     ref->setSlice(mkExprBitSlice(ctx->bit_slice()));
                 }
             }

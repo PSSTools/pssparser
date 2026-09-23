@@ -165,8 +165,6 @@ protected:
      */
     void checkScopeAnnotations(ast::ISymbolScope *scope);
 
-    ast::IScopeChild *resolvePath(ast::ISymbolRefPath *path);
-
     /**
      * Resolve the leaf of a package-qualified reference (`p::g(1,2,3)`)
      * against the scope its static root names. See known-issues P3-X6e.

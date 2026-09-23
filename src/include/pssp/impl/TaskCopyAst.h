@@ -19,6 +19,8 @@
  *     Author:
  */
 #pragma once
+#include <cstdarg>
+#include <string>
 #include <typeinfo>
 #include "dmgr/IDebugMgr.h"
 #include "dmgr/impl/DebugMacros.h"
@@ -86,13 +88,22 @@ public:
      */
     void setPreserveExprTargets(bool v) { m_preserve_expr_targets = v; }
 
+    /**
+     * The first construct this copier could not duplicate, or "" if none.
+     * A gap in the copier is a defect in pssparser, so it is not printed: the
+     * caller names it in the diagnostic it reports for the failed copy (see
+     * TaskGetSpecializedTemplateType), where it counts and where --json
+     * output stays parseable.
+     */
+    const std::string &failure() const { return m_failure; }
+
     ast::IConstraintStmt *copy(ast::IConstraintStmt *i) {
         DEBUG_ENTER("copy(IConstraintStmt)");
         m_constraint = 0;
         i->accept(m_this);
 
         if (!m_constraint) {
-            DEBUG_ERROR("copy(IConstraintStmt) failed: no visitor for %s",
+            failed("copy(IConstraintStmt) failed: no visitor for %s",
                 typeid(*i).name());
         }
         DEBUG_LEAVE("copy(IConstraintStmt)");
@@ -105,7 +116,7 @@ public:
         i->accept(m_this);
 
         if (!m_param_val) {
-            DEBUG_ERROR("copy(ITemplateParamValue) failed: no visitor for %s",
+            failed("copy(ITemplateParamValue) failed: no visitor for %s",
                 typeid(*i).name());
         }
         DEBUG_LEAVE("copy(ITemplateParamValue)");
@@ -115,7 +126,7 @@ public:
     template <class T> T *copyT(ast::IConstraintStmt *i) {
         T *ret = dynamic_cast<T *>(copy(i));
         if (!ret) {
-            DEBUG_ERROR("copyT(IConstraintStmt) failed for %s", typeid(*i).name());
+            failed("copyT(IConstraintStmt) failed for %s", typeid(*i).name());
         }
         return ret;
     }
@@ -125,7 +136,7 @@ public:
         m_sc = 0;
         i->accept(m_this);
         if (!m_sc) {
-            DEBUG_ERROR("copy(IScopeChild) failed: no visitor for %s",
+            failed("copy(IScopeChild) failed: no visitor for %s",
                 typeid(*i).name());
         }
         DEBUG_LEAVE("copy(IScopeChild)");
@@ -135,7 +146,7 @@ public:
     template <class T> T *copyT(ast::IScopeChild *i) {
         T *ret = dynamic_cast<T *>(copy(i));
         if (!ret) {
-            DEBUG_ERROR("copyT(IScopeChild) failed for %s", typeid(*i).name());
+            failed("copyT(IScopeChild) failed for %s", typeid(*i).name());
         }
         return ret;
     }
@@ -145,7 +156,7 @@ public:
         m_expr = 0;
         i->accept(m_this);
         if (!m_expr) {
-            DEBUG_ERROR("copy(IExpr) failed: no visitor for %s", typeid(*i).name());
+            failed("copy(IExpr) failed: no visitor for %s", typeid(*i).name());
         }
         DEBUG_LEAVE("copy(IExpr)");
         return m_expr;
@@ -154,7 +165,7 @@ public:
     template <class T> T *copyT(ast::IExpr *i) {
         T *ret = dynamic_cast<T *>(copy(i));
         if (!ret) {
-            DEBUG_ERROR("copyT(IExpr) failed for %s", typeid(*i).name());
+            failed("copyT(IExpr) failed for %s", typeid(*i).name());
         }
         return ret;
     }
@@ -164,7 +175,7 @@ public:
         m_dt = 0;
         i->accept(m_this);
         if (!m_dt) {
-            DEBUG_ERROR("copy(IDataType) failed: no visitor for %s", typeid(*i).name());
+            failed("copy(IDataType) failed: no visitor for %s", typeid(*i).name());
         }
         DEBUG_LEAVE("copy(IDataType)");
         return m_dt;
@@ -173,7 +184,7 @@ public:
     template <class T> T *copyT(ast::IDataType *i) {
         T *ret = dynamic_cast<T *>(copy(i));
         if (!ret) {
-            DEBUG_ERROR("copyT(IDataType) failed for %s", typeid(*i).name());
+            failed("copyT(IDataType) failed for %s", typeid(*i).name());
         }
         return ret;
     }
@@ -190,6 +201,23 @@ public:
 
 private:
 
+    /** Records a copy failure; only the first is kept. */
+    void failed(const char *fmt, ...)
+#ifdef __GNUC__
+        __attribute__((format(printf, 2, 3)))
+#endif
+    {
+        char tmp[512];
+        va_list ap;
+        va_start(ap, fmt);
+        vsnprintf(tmp, sizeof(tmp), fmt, ap);
+        va_end(ap);
+        DEBUG("copy failed: %s", tmp);
+        if (m_failure.empty()) {
+            m_failure = tmp;
+        }
+    }
+
     /**
      * Reports a node kind this copier does not know how to duplicate.
      *
@@ -198,7 +226,7 @@ private:
      * the construct, rather than segfaulting several frames away.
      */
     void unhandled(const char *what) {
-        DEBUG_ERROR("TaskCopyAst: no copy support for %s", what);
+        failed("no copy support for %s", what);
     }
 
     /**
@@ -2209,7 +2237,7 @@ public:
                 copyT<ast::IExprId>(t->getLhs()),
                 t->getRhs() ? copy(t->getRhs()) : 0);
         } else {
-            DEBUG_ERROR("Error: unhandled template element in copy");
+            failed("unhandled template element");
             return 0;
         }
 
@@ -2243,7 +2271,7 @@ private:
         }
         int32_t idx = src->getIndex();
         if (idx < 0 || idx >= (int32_t)scope->getChildren().size()) {
-            DEBUG_ERROR("constraint iteration variable index %d out of range", idx);
+            failed("constraint iteration variable index %d out of range", idx);
             return 0;
         }
         return dynamic_cast<ast::IConstraintStmtField *>(
@@ -2254,6 +2282,7 @@ private:
     dmgr::IDebug                    *m_dbg;
     // See setPreserveExprTargets()
     bool                            m_preserve_expr_targets;
+    std::string                     m_failure;
 
     ast::IConstraintStmt            *m_constraint;
     ast::IDataType                  *m_dt;

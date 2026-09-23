@@ -40,6 +40,7 @@
 #include "pssp/impl/TaskGetSubscriptSymbolScope.h"
 #include "pssp/impl/TaskGetCollectionElemType.h"
 #include "pssp/impl/BuiltinCollectionUtil.h"
+#include "pssp/impl/InternalError.h"
 #include "pssp/impl/TaskIsPyRef.h"
 #include "pssp/ast/IExprAggrList.h"
 #include "pssp/ast/IExprAggrStruct.h"
@@ -240,6 +241,9 @@ void TaskResolveRefs::resolve(ast::ISymbolScope *root) {
 }
 
 void TaskResolveRefs::resolve(ast::ISymbolTypeScope *scope) {
+    // Resolving a specialization's body can specialize again; see
+    // TaskGetSpecializedTemplateType for the user-facing depth limit.
+    DepthGuard guard(m_ctxt->depth(), "TaskResolveRefs::resolve (type scope)");
     DEBUG_ENTER("resolve (iterator, scope) %s", scope->getName().c_str());
 
     if (scope->getPlist()) {
@@ -338,7 +342,7 @@ void TaskResolveRefs::visitActivityActionHandleTraversal(ast::IActivityActionHan
     }
 
     i->getTarget()->setTarget(target_ref);
-    ast::IScopeChild *target = resolvePath(i->getTarget()->getTarget());
+    ast::IScopeChild *target = m_ctxt->resolveSymbolPathRef(i->getTarget()->getTarget());
 
     if (target) {
         m_ctxt->addRef(i->getLocation().fileid, target->getLocation().fileid);
@@ -357,8 +361,31 @@ void TaskResolveRefs::visitActivityActionHandleTraversal(ast::IActivityActionHan
 
     DEBUG("field_t=%p action_t=%p", field_t, field_udt);
     ast::IScopeChild *field_c = (field_udt && field_udt->getType_id() && field_udt->getType_id()->getTarget())
-        ? resolvePath(field_udt->getType_id()->getTarget()) : 0;
+        ? m_ctxt->resolveSymbolPathRef(field_udt->getType_id()->getTarget()) : 0;
     ast::ISymbolScope *field_scope = dynamic_cast<ast::ISymbolScope *>(field_c);
+
+    // `a_arr[1] with {...}` constrains an *element*, so the with-block is
+    // resolved in the element type. Until resolvePath() was retired this
+    // step was unnecessary by accident: that walker read the array
+    // specialization's TypeSpec element as a child index, landed on a
+    // non-scope, and the with-block was never resolved at all.
+    const std::vector<ast::IExprMemberPathElemUP> &elems =
+        i->getTarget()->getHier_id()->getElems();
+    uint32_t n_sub = (elems.size())?elems.back()->getSubscript().size():0;
+    if (field_scope && n_sub) {
+        field_scope = TaskGetSubscriptSymbolScope(
+            m_ctxt->getDebugMgr(), m_ctxt->root(), n_sub).resolve(field);
+    }
+    if (builtinCollectionKind(field_scope) != CollectionKind::None) {
+        // A whole array, or a sub-array, of handles. It may be traversed, but
+        // LRM 11.3.2 forbids an inline constraint on it (CH11-11, a semantic
+        // check for later). There is no element scope to resolve one in, and
+        // resolving it in the array's own scope reports every member as
+        // unknown.
+        DEBUG_LEAVE("visitActivityActionHandleTraversal -- (sub-)array");
+        return;
+    }
+
     if (!field_scope) {
         DEBUG("Failed to resolve field type scope");
         DEBUG_LEAVE("visitActivityActionHandleTraversal");
@@ -384,14 +411,14 @@ void TaskResolveRefs::visitActivityActionTypeTraversal(ast::IActivityActionTypeT
 //    DEBUG("--> resolve field_udt->getType_id()");
 //    field_udt->getType_id()->accept(m_this);
 //    DEBUG("<-- resolve field_udt->getType_id()");
-//    ast::IScopeChild *field_c = resolvePath(field_udt->getType_id()->getTarget());
+//    ast::IScopeChild *field_c = m_ctxt->resolveSymbolPathRef(field_udt->getType_id()->getTarget());
     if (field_udt->getType_id()->getTarget()) {
-        ast::IScopeChild *field_c = resolvePath(field_udt->getType_id()->getTarget());
+        ast::IScopeChild *field_c = m_ctxt->resolveSymbolPathRef(field_udt->getType_id()->getTarget());
         ast::ISymbolScope *field_scope = dynamic_cast<ast::ISymbolScope *>(field_c);
         // Mirrors visitActivityActionHandleTraversal just above: the target
         // failed to resolve to a scope (e.g. a mistyped/undeclared type), so
         // there is nothing to push -- a marker was already reported by the
-        // resolvePath/accept above.
+        // resolveSymbolPathRef/accept above.
         if (field_scope && i->getWith_c()) {
             m_ctxt->symtab()->pushScope(field_scope, ast::SymbolRefPathElemKind::ElemKind_Inline);
             m_ctxt->pushInlineCtxt(field_scope);
@@ -604,7 +631,7 @@ bool TaskResolveRefs::isBuiltinWithMethods(ast::IScopeChild *c) {
         // methods are not its methods.
         ast::ITypeScope *ts = dynamic_cast<ast::ITypeScope *>(
             TaskGetElemSymbolScope(m_ctxt->getDebugMgr(), m_ctxt->root())
-                .resolve(resolvePath(udt->getType_id()->getTarget())));
+                .resolve(m_ctxt->resolveSymbolPathRef(udt->getType_id()->getTarget())));
         if (builtinCollectionKind(ts) != CollectionKind::None) {
             return true;
         }
@@ -663,7 +690,7 @@ TaskResolveRefs::TypeCat TaskResolveRefs::catOfDataType(ast::IDataType *dt) {
     ast::IDataTypeUserDefined *udt = dynamic_cast<ast::IDataTypeUserDefined *>(dt);
 
     if (udt && udt->getType_id() && udt->getType_id()->getTarget()) {
-        ast::IScopeChild *c = resolvePath(udt->getType_id()->getTarget());
+        ast::IScopeChild *c = m_ctxt->resolveSymbolPathRef(udt->getType_id()->getTarget());
 
         // Read the declaration straight off the resolved symbol rather than
         // through TaskGetElemSymbolScope. An enum is an INamedScopeChild, not
@@ -749,7 +776,7 @@ TaskResolveRefs::TypeCat TaskResolveRefs::catOfExpr(ast::IExpr *e) {
         && !rp->getHier_id()->getElems().at(0)->getParams()
         && rp->getHier_id()->getElems().at(0)->getSubscript().empty()
         && rp->getTarget()) {
-        ast::IScopeChild *c = resolvePath(rp->getTarget());
+        ast::IScopeChild *c = m_ctxt->resolveSymbolPathRef(rp->getTarget());
 
         // An enum *item* used as a value, rather than a field of enum type.
         if (dynamic_cast<ast::IEnumItem *>(c)) {
@@ -1438,7 +1465,10 @@ void TaskResolveRefs::visitExprRefPathContext(ast::IExprRefPathContext *i) {
                         break;
                     }
                     if (elem->getSubscript().size() > 1) {
-                        DEBUG_ERROR("Handle multi-dim array subscript");
+                        // Only the first subscript selects the element scope
+                        // searched for the next path element. Not an error:
+                        // a collection of collections takes two.
+                        DEBUG("TODO: multi-subscript element scope");
                     }
                     target_s = TaskGetSubscriptSymbolScope(
                         m_ctxt->getDebugMgr(), m_ctxt->root(),
@@ -1745,10 +1775,12 @@ void TaskResolveRefs::visitExprRefPathStaticRooted(ast::IExprRefPathStaticRooted
             m_ctxt->symtab()->getRootScope()->getSymtab();
         
         if ((it=symtab.find(id->getId())) == symtab.end()) {
-            DEBUG_ERROR("Failed to resolve leaf %s", id->getId().c_str());
-            for (it=symtab.begin(); it!=symtab.end(); it++) {
-                DEBUG("Symbol: %s", it->first.c_str());
-            }
+            // Not reported, and not simply a missing marker: this looks up
+            // the *leaf* (`f` in `::p::f()`) in the global scope instead of
+            // walking the root path, so it misses legal references too. It
+            // printed "Failed to resolve leaf" to stdout; the fix is A-N2
+            // (symbol-resolution-plan.md, with F20).
+            DEBUG("Failed to resolve leaf %s", id->getId().c_str());
         } else {
             ast::ISymbolRefPath *ref = 
                 m_ctxt->getFactory()->getAstFactory()->mkSymbolRefPath();
@@ -2207,18 +2239,7 @@ void TaskResolveRefs::visitMergedScopeChild(ast::IScopeChild *c) {
 
 void TaskResolveRefs::visitSymbolScope(ast::ISymbolScope *i) {
     DEBUG_ENTER("visitSymbolScope %s", i->getName().c_str());
-    /*
-    if (i->getName() != "") {
-        if (m_ctxt->symtab()->pushNamedScope(i->getName()) == -1) {
-            // TODO: internal error
-            fprintf(stdout, "Internal Error: no scope named %s in %s\n", 
-                i->getName().c_str(),
-                m_ctxt->symtab()->getScope()->getName().c_str());
-        }
-    } else {
-        */
-        m_ctxt->symtab()->pushScope(i);
-//    }
+    m_ctxt->symtab()->pushScope(i);
 
     if (i->getImports()) {
         DEBUG_ENTER("  Resolve Imports");
@@ -3088,28 +3109,6 @@ bool TaskResolveRefs::isGenericConstraintParam(const std::string &name) const {
     return m_generic_constraint_params.find(name) != m_generic_constraint_params.end();
 }
 
-ast::IScopeChild *TaskResolveRefs::resolvePath(ast::ISymbolRefPath *path) {
-    ast::ISymbolScope *scope = m_ctxt->root();
-    ast::IScopeChild *ret = m_ctxt->root();
-
-    if (!path) return ret;
-
-    for (std::vector<ast::SymbolRefPathElem>::const_iterator
-        it=path->getPath().begin();
-        it!=path->getPath().end(); it++) {
-        if (!scope || it->idx >= (int32_t)scope->getChildren().size()) {
-            return 0;
-        }
-        ret = scope->getChildren().at(it->idx).get();
-
-        if (it+1 != path->getPath().end()) {
-            scope = dynamic_cast<ast::ISymbolScope *>(ret);
-        }
-    }
-    
-    return ret;
-}
-
 dmgr::IDebug *TaskResolveRefs::m_dbg = 0;
 
 
@@ -3198,7 +3197,7 @@ bool TaskResolveRefs::regValueStruct(
             return false;
         }
 
-        // TaskResolveSymbolPathRef, not resolvePath(): the super of a named
+        // TaskResolveSymbolPathRef, not a bare path walk: the super of a named
         // register type is a *specialization* (`reg_c<csr_s,?,32>`), which
         // lives in the base type's spec_types rather than among its children,
         // so the plain index walk cannot reach it and silently yields null.

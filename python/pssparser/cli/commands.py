@@ -10,6 +10,10 @@ from typing import List, Optional, TextIO
 from .diagnostics import Diagnostic, DiagnosticCollection, WarningPolicy
 from .output import HumanOutput, JsonOutput
 from .source_context import SourceCache
+from pssparser.parser import INTERNAL_ERROR_CODE
+
+#: Exit status when pssparser reported an internal error (PSS000).
+EXIT_INTERNAL_ERROR = 3
 
 
 def cmd_parse(
@@ -33,7 +37,8 @@ def cmd_parse(
 ) -> int:
     """Run the parse (and optionally link) pipeline, report diagnostics.
 
-    Returns an exit code: 0 success, 1 errors found, 2 usage problem.
+    Returns an exit code: 0 success, 1 errors found, 2 usage problem,
+    3 internal error (a ``PSS000`` was reported; it outranks 1).
 
     Parameters
     ----------
@@ -111,6 +116,11 @@ def cmd_parse(
                 timings=extra_timings if stats_timing else None,
             )
         driver.finish(coll, quiet, stats)
+        # An internal error outranks everything else: whatever else was
+        # reported, the run is not trustworthy, and a script must be able to
+        # tell "the model is wrong" (1) from "the tool is wrong" (3).
+        if any(d.code == INTERNAL_ERROR_CODE for d in coll.diagnostics):
+            return EXIT_INTERNAL_ERROR
         if force_rc is not None:
             return force_rc
         return 1 if coll.has_errors else 0

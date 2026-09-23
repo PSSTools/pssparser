@@ -19,6 +19,7 @@
  *     Author:
  */
 #include "dmgr/impl/DebugMacros.h"
+#include "pssp/impl/InternalError.h"
 #include "pssp/ast/IFactory.h"
 #include "pssp/ast/ISymbolScope.h"
 #include "TaskApplyOverlay.h"
@@ -28,10 +29,9 @@ namespace pssp {
 
 
 
-TaskApplyOverlay::TaskApplyOverlay(
-    dmgr::IDebugMgr     *dmgr,
-    ast::IFactory       *factory) : m_factory(factory) {
-    DEBUG_INIT("pssp::TaskApplyOverlay", dmgr);
+TaskApplyOverlay::TaskApplyOverlay(ResolveContext *ctxt) :
+        m_ctxt(ctxt), m_factory(ctxt->getFactory()->getAstFactory()) {
+    DEBUG_INIT("pssp::TaskApplyOverlay", ctxt->getDebugMgr());
 }
 
 TaskApplyOverlay::~TaskApplyOverlay() {
@@ -89,8 +89,10 @@ void TaskApplyOverlay::visitPackageScope(ast::IPackageScope *i) {
         s_it = scope->getSymtab().find((*it)->getId());
 
         if (s_it == scope->getSymtab().end()) {
-            // This means that this package doesn't exist in the base AST
-            DEBUG_ERROR("TODO: handle new-package case");
+            // The package does not exist in the base AST. An overlay may
+            // only revise what the base already declares.
+            throw InternalError(i->getLocation(), "an overlay that adds package '"
+                + (*it)->getId() + "' is not supported");
         } else {
             scope = dynamic_cast<ast::ISymbolScope *>(scope->getChildren().at(s_it->second).get());
         }
@@ -133,8 +135,10 @@ void TaskApplyOverlay::visitTypeScope(ast::ITypeScope *i) {
                     plist->getChildren().push_back(ast::IScopeChildUP(it->get(), false));
                     plist->getSymtab().insert({(*it)->getName()->getId(), id});
                 } else {
-                    // TODO: Find a proper way to report
-                    DEBUG_ERROR("duplicate parameter name");
+                    m_ctxt->addErrorMarker(
+                        (*it)->getName()->getLocation(),
+                        "duplicate parameter name '%s'",
+                        (*it)->getName()->getId().c_str());
                 }
             }
         } else {

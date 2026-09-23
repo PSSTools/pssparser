@@ -170,12 +170,19 @@ void TaskResolveRef::visitExprRefPathContext(ast::IExprRefPathContext *i) {
     ast::ISymbolRefPath *root = findRoot(i->getHier_id()->getElems().at(0)->getId());
     if (root) {
         if (i->getHier_id()->getElems().size() > 1) {
-            DEBUG_ERROR("Handle paths greater than 1 length");
+            DEBUG("TODO: only the first of %d path elements is resolved",
+                (int)i->getHier_id()->getElems().size());
         }
         m_ref = root;
     } else {
-        DEBUG_ERROR("Failed to find root element (%s)",
+        // Not reported here: the caller decides whether a miss is an error.
+        // This printed "Error: ..." to stdout with nothing counted; the
+        // traversal targets that reached it are still silent until the
+        // traversal rewrite (symbol-resolution-plan.md 4.2, K6/U7), and are
+        // tracked as silent T-miss slots meanwhile.
+        DEBUG("Failed to find root element (%s)",
             i->getHier_id()->getElems().at(0)->getId()->getId().c_str());
+        DEBUG_LEAVE("visitExprRefPathContext -- not found");
         return;
     }
 
@@ -297,36 +304,75 @@ void TaskResolveRef::visitTemplateParamExprValue(ast::ITemplateParamExprValue *i
     // Only the target is recorded here; TaskCopyAst carries it into the
     // specialization under setPreserveExprTargets(), and TaskResolveRefs
     // honors an already-resolved target rather than resolving again.
-    ast::IExprRefPath *rp = dynamic_cast<ast::IExprRefPath *>(i->getValue());
+    //
+    // *Every* reference in the argument, not only a bare name: `S<N+1>` used
+    // to resolve nothing here, because the argument is an ExprBin. Its `N`
+    // was then resolved inside the new specialization's own parameter list,
+    // where it found the callee's `N` -- a self-reference that left the
+    // argument unevaluable (`T<?>`) and ended self-recursion silently (K5),
+    // and bound the wrong `N` whenever caller and callee share a parameter
+    // name (F5). See docs/design/symbol-resolution/A-crashes.md.
+    //
+    // The walk stops at a reference: its subscripts and arguments are part
+    // of it and are resolved with it, where they are resolved at all.
+    class ArgRefs : public ast::VisitorBase {
+    public:
+        ArgRefs(TaskResolveRef *r) : m_r(r) { }
 
-    if (rp && !rp->getTarget()) {
-        ast::IExprRefPathStatic *rp_s = dynamic_cast<ast::IExprRefPathStatic *>(rp);
-
-        if (rp_s) {
-            ast::ISymbolRefPath *target = resolveStaticArgPath(rp_s);
-
-            if (target) {
-                rp->setTarget(target);
-            }
-        } else {
-            ast::IExprRefPathContext *rp_c =
-                dynamic_cast<ast::IExprRefPathContext *>(rp);
-
-            // Only the single-element form. findRoot is called directly
-            // rather than through resolve(): visitExprRefPathContext logs a
-            // DEBUG_ERROR on a miss, and a miss here is ordinary -- an
-            // argument that does not resolve is reported where it is
-            // normally reported, and a second diagnostic (or a line of
-            // stderr noise) for one name is not an improvement.
-            if (rp_c && rp_c->getHier_id()->getElems().size() == 1) {
-                ast::ISymbolRefPath *target = findRoot(
-                    rp_c->getHier_id()->getElems().at(0)->getId());
-
+        virtual void visitExprRefPathStatic(ast::IExprRefPathStatic *rp) override {
+            if (!rp->getTarget()) {
+                ast::ISymbolRefPath *target = m_r->resolveStaticArgPath(rp);
                 if (target) {
                     rp->setTarget(target);
                 }
             }
         }
+
+        virtual void visitExprRefPathContext(ast::IExprRefPathContext *rp) override {
+            // Only the single-element form; a member path is resolved later,
+            // in the specialization, as before.
+            if (!rp->getTarget() && rp->getHier_id()->getElems().size() == 1) {
+                const ast::IExprId *id = rp->getHier_id()->getElems().at(0)->getId();
+                ast::ISymbolRefPath *target = m_r->findRoot(id);
+                if (target) {
+                    rp->setTarget(target);
+                } else {
+                    // A name that does not resolve where it is written does
+                    // not resolve at all: an argument cannot refer to the
+                    // callee's parameters. Report it here, and bind it to
+                    // nothing so that resolving the copy inside the
+                    // specialization cannot find the callee's own parameter
+                    // of the same name -- `S<M+1>` with no `M` in scope used
+                    // to bind S's `M` and link cleanly (plan 1.4 (d)).
+                    m_r->m_ctxt->addErrorMarker(
+                        id->getLocation(),
+                        "unknown identifier '%s'",
+                        id->getId().c_str());
+                    rp->setTarget(unresolvable(m_r->m_ctxt));
+                }
+            }
+        }
+
+        /**
+         * A target that resolves to nothing: an element no scope can have.
+         * Distinct from no target at all, which later passes read as "not
+         * yet resolved" and try again.
+         */
+        static ast::ISymbolRefPath *unresolvable(ResolveContext *ctxt) {
+            ast::ISymbolRefPath *ret =
+                ctxt->getFactory()->getAstFactory()->mkSymbolRefPath();
+            ret->getPath().push_back(
+                {ast::SymbolRefPathElemKind::ElemKind_ChildIdx, -1});
+            return ret;
+        }
+
+    private:
+        TaskResolveRef      *m_r;
+    };
+
+    if (i->getValue()) {
+        ArgRefs v(this);
+        i->getValue()->accept(&v);
     }
     DEBUG_LEAVE("visitTemplateParamExprValue");
 }

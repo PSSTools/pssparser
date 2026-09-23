@@ -22,6 +22,7 @@ class CoreChecker(CheckerBase):
 
     #: Marker IDs are allocated in bands:
     #:
+    #:   ``PSS000``             internal error (a defect in pssparser)
     #:   ``PSS001``-``PSS099``  general parse/link diagnostics
     #:   ``PSS100``-``PSS199``  PSS 3.1 language-rule diagnostics
     #:
@@ -30,6 +31,27 @@ class CoreChecker(CheckerBase):
     #: text, so the regexes here and the message strings in ``src/*.cpp`` must
     #: agree.  ``tests/python/test_marker_ids.py`` pins that correspondence.
     marker_defs = [
+        MarkerDef(
+            id="PSS000",
+            severity="error",
+            summary="Internal error",
+            patterns=(
+                r"^internal error\b",
+            ),
+            detail=(
+                "pssparser reached a state it believed could not happen.  "
+                "This is a defect in pssparser, not necessarily in the model, "
+                "and it should be reported together with the input that "
+                "triggers it.  The message names the phase or link pass that "
+                "failed:\n\n"
+                "* ``internal error in resolving references: ...``\n"
+                "* ``internal error while building the AST: ...``\n\n"
+                "Results for the rest of the model are incomplete: the pass "
+                "that failed stopped, and the passes after it did not run.  "
+                "The command-line tool exits with status 3 when an internal "
+                "error is reported."
+            ),
+        ),
         MarkerDef(
             id="PSS001",
             severity="error",

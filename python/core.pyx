@@ -643,6 +643,16 @@ cdef class ParseProfileInfo(object):
     def get_ll_decisions(self):
         return self._hndl.getLLDecisions()
 
+    def get_rule_invocations(self):
+        """``{rule name: contexts in the parse tree}`` for every parser rule,
+        zeros included. The grammar-coverage measure: a decision's
+        invocation count is zero for any LL(1) decision, used or not."""
+        cdef size_t i
+        return {
+            self._hndl.getRuleName(i).decode(): self._hndl.getRuleInvocations(i)
+            for i in range(self._hndl.getNumRules())
+        }
+
     @property
     def total_time_in_prediction(self):
         return self._hndl.getTotalTimeInPrediction()

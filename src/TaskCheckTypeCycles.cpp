@@ -133,6 +133,7 @@ void TaskCheckTypeCycles::checkChain(ast::ISymbolTypeScope *i) {
                 }
                 in_loop = true;
                 m_reported.insert(*it);
+                markCyclic(*it);
                 if (!path.empty()) {
                     path += "' -> '";
                 }
@@ -157,6 +158,16 @@ void TaskCheckTypeCycles::checkChain(ast::ISymbolTypeScope *i) {
     // explored, and re-deriving it would only produce the report this pass
     // deliberately suppresses.
     m_checked.insert(order.begin(), order.end());
+}
+
+void TaskCheckTypeCycles::markCyclic(ast::IScopeChild *c) {
+    ast::ISymbolTypeScope *sym = dynamic_cast<ast::ISymbolTypeScope *>(c);
+    ast::ITypeScope *ts = sym
+        ? dynamic_cast<ast::ITypeScope *>(sym->getTarget())
+        : dynamic_cast<ast::ITypeScope *>(c);
+    if (ts) {
+        ts->setSuper_cyclic(true);
+    }
 }
 
 std::string TaskCheckTypeCycles::nameOf(ast::IScopeChild *c) {

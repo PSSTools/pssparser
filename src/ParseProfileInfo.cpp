@@ -97,8 +97,32 @@ template <class T> void addEvents(
 
 }
 
+void countRuleInvocations(antlr4::tree::ParseTree *tree, ProfileSnapshot &snap) {
+    std::vector<antlr4::tree::ParseTree *> stack;
+    if (tree) {
+        stack.push_back(tree);
+    }
+    while (!stack.empty()) {
+        antlr4::tree::ParseTree *t = stack.back();
+        stack.pop_back();
+        antlr4::ParserRuleContext *ctx = dynamic_cast<antlr4::ParserRuleContext *>(t);
+        if (!ctx) {
+            continue;
+        }
+        size_t idx = ctx->getRuleIndex();
+        if (idx < snap.rule_counts.size()) {
+            snap.rule_counts[idx]++;
+        }
+        for (antlr4::tree::ParseTree *c : ctx->children) {
+            stack.push_back(c);
+        }
+    }
+}
+
 ProfileSnapshot mkProfileSnapshot(antlr4::Parser &parser) {
     ProfileSnapshot ret;
+    ret.rule_names = parser.getRuleNames();
+    ret.rule_counts.assign(ret.rule_names.size(), 0);
 
     antlr4::atn::ParserATNSimulator *sim =
         parser.getInterpreter<antlr4::atn::ParserATNSimulator>();
@@ -219,6 +243,8 @@ ParseProfileInfo::ParseProfileInfo(const ProfileSnapshot &snapshot) {
     m_total_ll_atn_lookahead = 0;
     m_dfa_size = snapshot.dfa_size;
     m_token_count = snapshot.token_count;
+    m_rule_names = snapshot.rule_names;
+    m_rule_counts = snapshot.rule_counts;
 
     for (const DecisionSnapshot &decision : snapshot.decisions) {
         m_decisions.push_back(new DecisionProfileInfo(decision));

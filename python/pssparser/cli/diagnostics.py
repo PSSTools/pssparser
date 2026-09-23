@@ -217,6 +217,10 @@ class DiagnosticCollection:
         kept: List[Diagnostic] = []
         for diag in self._diags:
             new_sev = severity_map.get(diag.code) if diag.code else None
+            if diag.code == "PSS000":
+                # An internal error is not a policy choice: configuring it
+                # away would hide that the rest of the output is incomplete.
+                new_sev = None
             if new_sev is None:
                 kept.append(diag)
                 continue

@@ -43,6 +43,14 @@ public:
 			ast::IGlobalScope	*global,
 			std::istream 		*in);
 
+private:
+	/** build() without the catch-all; see build(). */
+	void buildImpl(
+			ast::IGlobalScope	*global,
+			std::istream 		*in);
+
+public:
+
     pssp::ast::IFactory *getFactory() {
         return m_factory;
     }
@@ -624,6 +632,14 @@ private:
      * Safe when no marker listener is attached.
      */
     void addErrorMarker(Token *t, const char *fmt, ...);
+
+    /**
+     * Report a defect in the builder itself -- a grammar alternative it does
+     * not handle, a state it believed impossible -- as a PSS000 marker at
+     * *t*, and carry on. For a site that cannot carry on, throw
+     * InternalError; build()'s catch-all reports it the same way.
+     */
+    void addInternalError(Token *t, const char *fmt, ...);
 
     /**
      * Report (PSS116) that *construct* was accepted by the grammar but is

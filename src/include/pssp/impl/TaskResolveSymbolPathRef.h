@@ -19,6 +19,7 @@
  *     Author: 
  */
 #pragma once
+#include "pssp/impl/InternalError.h"
 #include <vector>
 #include "dmgr/impl/DebugMacros.h"
 #include "dmgr/IDebugMgr.h"
@@ -30,7 +31,6 @@
 #include "pssp/impl/ScopeUtil.h"
 #include "pssp/impl/TaskIndexTemplateScope.h"
 #include "pssp/impl/TaskGetName.h"
-#include "pssp/impl/TaskResolveSymbolPathRefResult.h"
 
 namespace pssp {
 
@@ -42,13 +42,15 @@ public:
         dmgr::IDebugMgr             *dmgr,
         ast::ISymbolChildrenScope   *root,
         ast::ISymbolChildrenScope   *inline_ctxt=0) : 
-        m_dbg(0), m_root(root), m_inline_ctxt(inline_ctxt) { 
+        m_dbg(0), m_root(root), m_inline_ctxt(inline_ctxt), m_depth(0) { 
         DEBUG_INIT("TaskResolveSymbolPathRef", dmgr);
     }
 
     virtual ~TaskResolveSymbolPathRef() { }
 
     ast::IScopeChild *resolve(const ast::ISymbolRefPath *ref) {
+        // A Super step re-enters resolve() on the super-type reference.
+        DepthGuard guard(m_depth, "TaskResolveSymbolPathRef::resolve");
         DEBUG_ENTER("resolve root=%p", m_root);
         ast::IScopeChild *ret = 0;
 
@@ -152,7 +154,8 @@ public:
                     ast::ISymbolTypeScope *scope_ts = scope.getT<ast::ISymbolTypeScope>();
                     ast::ITypeScope *ts = scope_ts?
                         dynamic_cast<ast::ITypeScope *>(scope_ts->getTarget()):0;
-                    if (ts && ts->getSuper_t() && ts->getSuper_t()->getTarget()) {
+                    if (ts && ts->getSuper_t() && ts->getSuper_t()->getTarget()
+                            && !ts->getSuper_cyclic()) {
                         ret = resolve(ts->getSuper_t()->getTarget());
                     } else {
                         DEBUG("No resolvable super type");
@@ -163,10 +166,8 @@ public:
                 case ast::SymbolRefPathElemKind::ElemKind_TypeSpec: {
                     ast::ISymbolTypeScope *scope_ts = scope.getT<ast::ISymbolTypeScope>();
                     DEBUG("Elem: TypeSpec %d", it->idx);
-                    DEBUG("Scope: %s (%d specializations)",
-                        scope_ts->getName().c_str(),
-                        scope_ts->getSpec_types().size());
-                    if (it->idx < scope_ts->getSpec_types().size()) {
+                    if (scope_ts && it->idx >= 0
+                            && it->idx < scope_ts->getSpec_types().size()) {
                         ret = scope_ts->getSpec_types().at(it->idx).get();
                     } else {
                         DEBUG("Out-of-range");
@@ -174,15 +175,20 @@ public:
                     DEBUG("  scope %p => %p", scope_ts, ret);
                 } break;
                 default:
-                    DEBUG_ERROR("TODO: handle ElemKind %d", (int)it->kind);
-                    break;
+                    throw InternalError::fmt(
+                        "symbol path element kind %d is not handled", (int)it->kind);
             }
             
             if (it+1 != ref->getPath().end()) {
                 ScopeUtil scope_t(ret);
 
                 if (!scope_t.valid()) {
-                    DEBUG_ERROR("Failed to get scope @ %d/%d",
+                    // Null is the answer, and every caller handles it: the
+                    // reference is reported (or, for now, left unbound) where
+                    // it is used. Printing here put "Error: ..." on stdout
+                    // with no error counted. The known causes are the
+                    // unaddressable scopes of RC1 (a ChildIdx -1 element).
+                    DEBUG("Failed to get scope @ %d/%d",
                         (it-ref->getPath().begin()), ref->getPath().size());
                     ret = 0;
                     break;
@@ -201,31 +207,6 @@ public:
         return dynamic_cast<T *>(resolve(ref));
     }
 
-    TaskResolveSymbolPathRefResult resolveFull(const ast::ISymbolRefPath *ref) {
-        TaskResolveSymbolPathRefResult ret;
-
-        ast::IScopeChild *ref_t = resolve(ref);
-        m_ts = 0;
-        m_ss = 0;
-        m_dt = 0;
-        ref_t->accept(m_this);
-
-        if (m_ts) {
-            ret.kind = TaskResolveSymbolPathRefResult::SymbolTypeScope;
-            ret.val.ts = m_ts;
-        } else if (m_ss) {
-            ret.kind = TaskResolveSymbolPathRefResult::SymbolScope;
-            ret.val.ss = m_ss;
-        } else if (m_dt) {
-            ret.kind = TaskResolveSymbolPathRefResult::DataType;
-            ret.val.dt = m_dt;
-        } else {
-            fprintf(stdout, "DEBUG_ERROR: unhandled resolveFull case\n");
-            *((uint32_t *)0) = 1;
-        }
-        return ret;
-    }
-
     ISymbolTableIterator *mkIterator(
             ISymbolTableIterator    *ret,
             const ast::ISymbolRefPath       *ref) {
@@ -239,12 +220,24 @@ public:
             switch (it->kind) {
                 case ast::SymbolRefPathElemKind::ElemKind_ChildIdx: {
                     DEBUG("Elem: ChildIdx %d", it->idx);
-                    ast::IScopeChild *c = scope->getChildren().at(it->idx).get();
-                    if ((scope=dynamic_cast<ast::ISymbolScope *>(c))) {
-                        ret->pushScope(dynamic_cast<ast::ISymbolScope *>(scope));
-                    } else {
-                        break;
+                    // An iterator is built only for a scope that exists, so
+                    // a path that does not lead to one is a defect, not a
+                    // model error. It used to be an unchecked .at() (an
+                    // abort on a -1 element) followed by a null `scope` on
+                    // the next element.
+                    if (!scope || it->idx < 0
+                            || it->idx >= (int32_t)scope->getChildren().size()) {
+                        throw InternalError::fmt(
+                            "symbol path element %d (child %d) does not name a scope",
+                            (int)(it-ref->getPath().begin()), it->idx);
                     }
+                    ast::IScopeChild *c = scope->getChildren().at(it->idx).get();
+                    if (!(scope=dynamic_cast<ast::ISymbolScope *>(c))) {
+                        throw InternalError::fmt(
+                            "symbol path element %d (child %d) is not a scope",
+                            (int)(it-ref->getPath().begin()), it->idx);
+                    }
+                    ret->pushScope(dynamic_cast<ast::ISymbolScope *>(scope));
                     DEBUG("  scope %p => %p", scope, ret);
                 } break;
                 case ast::SymbolRefPathElemKind::ElemKind_ParamIdx: {
@@ -253,21 +246,27 @@ public:
 //                    ret = scope_ts->getPlist()->getChildren().at(it->idx);
 //                    DEBUG("  scope %p => %p", scope_ts, ret);
                 } break;
-                case ast::SymbolRefPathElemKind::ElemKind_Super: {
-                    ast::ISymbolTypeScope *scope_ts = dynamic_cast<ast::ISymbolTypeScope *>(scope);
-                    DEBUG_ERROR("TODO: handle super ref");
-                } break;
                 case ast::SymbolRefPathElemKind::ElemKind_TypeSpec: {
                     ast::ISymbolTypeScope *scope_ts = dynamic_cast<ast::ISymbolTypeScope *>(scope);
                     DEBUG("Elem: TypeSpec %d", it->idx);
+                    if (!scope_ts || it->idx < 0
+                            || it->idx >= (int32_t)scope_ts->getSpec_types().size()) {
+                        throw InternalError::fmt(
+                            "symbol path element %d (specialization %d) does not name a scope",
+                            (int)(it-ref->getPath().begin()), it->idx);
+                    }
                     ast::ISymbolTypeScope *c = scope_ts->getSpec_types().at(it->idx).get();
                     ret->pushScope(c, ast::SymbolRefPathElemKind::ElemKind_TypeSpec);
                     scope = c;
                     DEBUG("  scope %p => %p", scope_ts, ret);
                 } break;
                 default:
-                    DEBUG_ERROR("TODO: handle ElemKind %d", it->kind);
-                    break;
+                    // Super and the rest: an iterator has never been built
+                    // through one, and the scope stack it would need is not
+                    // defined.
+                    throw InternalError::fmt(
+                        "cannot build a symbol-table iterator through path element kind %d",
+                        (int)it->kind);
             }
             
 //            if (it+1 != ref->getPath().end()) {
@@ -354,7 +353,7 @@ public:
                 } break;
                 case ast::SymbolRefPathElemKind::ElemKind_Super: {
                     ast::ISymbolTypeScope *scope_ts = dynamic_cast<ast::ISymbolTypeScope *>(scope);
-                    DEBUG_ERROR("TODO: handle super ref");
+                    DEBUG("TODO: render a super ref");
                 } break;
                 case ast::SymbolRefPathElemKind::ElemKind_TypeSpec: {
                     ast::ISymbolTypeScope *scope_ts = dynamic_cast<ast::ISymbolTypeScope *>(scope);
@@ -364,7 +363,7 @@ public:
                     DEBUG("  scope %p => %p", scope_ts, ret.c_str());
                 } break;
                 default:
-                    DEBUG_ERROR("TODO: handle ElemKind %d", (int)it->kind);
+                    DEBUG("TODO: render ElemKind %d", (int)it->kind);
                     break;
             }
             
@@ -409,7 +408,7 @@ public:
                 } break;
                 case ast::SymbolRefPathElemKind::ElemKind_Super: {
                     ast::ISymbolTypeScope *scope_ts = dynamic_cast<ast::ISymbolTypeScope *>(scope);
-                    DEBUG_ERROR("TODO: handle super ref");
+                    DEBUG("TODO: render a super ref");
                 } break;
                 case ast::SymbolRefPathElemKind::ElemKind_TypeSpec: {
                     ast::ISymbolTypeScope *scope_ts = dynamic_cast<ast::ISymbolTypeScope *>(scope);
@@ -419,7 +418,7 @@ public:
                     DEBUG("  scope %p => %p", scope_ts, ret.c_str());
                 } break;
                 default:
-                    DEBUG_ERROR("TODO: handle ElemKind %d", (int)it->kind);
+                    DEBUG("TODO: render ElemKind %d", (int)it->kind);
                     break;
             }
             
@@ -433,78 +432,11 @@ public:
         return ret;
     }
 
-    virtual void visitDataTypeBool(ast::IDataTypeBool *i) override {
-        m_dt = i;
-    }
-
-    virtual void visitDataTypeChandle(ast::IDataTypeChandle *i) override {
-        m_dt = i;
-    }
-
-    virtual void visitDataTypeEnum(ast::IDataTypeEnum *i) override {
-        m_dt = i;
-    }
-
-    virtual void visitDataTypeInt(ast::IDataTypeInt *i) override {
-        m_dt = i;
-    }
-
-    virtual void visitDataTypeString(ast::IDataTypeString *i) override {
-        m_dt = i;
-    }
-
-    virtual void visitDataTypeUserDefined(ast::IDataTypeUserDefined *i) override {
-        DEBUG_ENTER("visitDataTypeUserDefined");
-        // See where this redirects
-        ast::IScopeChild *ref_t = resolve(i->getType_id()->getTarget());
-        ref_t->accept(m_this);
-        DEBUG_LEAVE("visitDataTypeUserDefined");
-    }
-
-    virtual void visitSymbolEnumScope(ast::ISymbolEnumScope *i) override {
-        DEBUG_ENTER("visitSymbolEnumScope %s", i->getName().c_str());
-        m_ss = i;
-        DEBUG_LEAVE("visitSymbolEnumScope");
-    }
-
-    virtual void visitSymbolExtendScope(ast::ISymbolExtendScope *i) override {
-        DEBUG_ENTER("visitSymbolExtendScope");
-        m_ss = i;
-        DEBUG_LEAVE("visitSymbolExtendScope");
-    }
-
-    virtual void visitSymbolScope(ast::ISymbolScope *i) override {
-        DEBUG_ENTER("visitSymbolScope %s", i->getName().c_str());
-        DEBUG_ERROR("Should not hit symbol scope when resolving a ref");
-        DEBUG_LEAVE("visitSymbolScope");
-    }
-
-    virtual void visitSymbolTypeScope(ast::ISymbolTypeScope *i) override {
-        DEBUG_ENTER("visitSymbolTypeScope");
-        m_ss = i;
-        m_ts = i;
-        DEBUG_LEAVE("visitSymbolTypeScope");
-    }
-
-    virtual void visitTemplateGenericTypeParamDecl(ast::ITemplateGenericTypeParamDecl *i) override {
-        DEBUG_ENTER("visitTemplateGenericTypeParamDecl");
-        i->getDflt()->accept(m_this);
-        DEBUG_LEAVE("visitTemplateGenericTypeParamDecl");
-    }
-
-    virtual void visitTemplateCategoryTypeParamDecl(ast::ITemplateCategoryTypeParamDecl *i) override {
-        DEBUG_ENTER("visitTemplateCategoryTypeParamDecl");
-        i->getDflt()->accept(m_this);
-        DEBUG_LEAVE("visitTemplateCategoryTypeParamDecl");
-    }
-
 private:
     dmgr::IDebug                         *m_dbg;
     ast::ISymbolChildrenScope            *m_root;
     ast::ISymbolChildrenScope            *m_inline_ctxt;
-    ast::ISymbolTypeScope                *m_ts;
-    ast::ISymbolScope                    *m_ss;
-    ast::IDataType                       *m_dt;
+    int32_t                              m_depth;
 
 
 };

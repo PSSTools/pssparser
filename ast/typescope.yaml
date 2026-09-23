@@ -36,6 +36,14 @@ classes:
           type: bool
           is_ctor: false
           init: false
+      # Set by TaskCheckTypeCycles on every type that lies on an inheritance
+      # ring, once the ring has been reported. Every super-chain walk stops at
+      # a marked type, so the ring is broken in one place instead of by a
+      # guard in each walker.
+      - super_cyclic:
+          type: bool
+          is_ctor: false
+          init: false
 
   
 

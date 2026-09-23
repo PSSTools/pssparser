@@ -35,9 +35,6 @@ public:
     int32_t get(ast::IScopeChild *c) {
         m_index = -1;
         c->accept(m_this);
-        // if (m_index == -1) {
-        //     fprintf(stdout, "negative\n");
-        // }
         return m_index;
     }
 
