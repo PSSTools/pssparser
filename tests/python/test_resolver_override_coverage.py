@@ -46,6 +46,14 @@ ACTIVITY_BODY_FIELDS = {
     "ActivityMatch.choices", "MonitorActivityEventually.body",
 }
 
+#: The same for src/include/pssp/impl/ProceduralScopes.h's ``bodies()`` (4.1b).
+#: If-clause and match-choice bodies sit one level down, so only the direct
+#: fields are listed.
+PROCEDURAL_BODY_FIELDS = {
+    "ProceduralStmtIfElse.if_then", "ProceduralStmtIfElse.else_then",
+    "ProceduralStmtMatch.choices", "ProceduralStmtBody.body",
+}
+
 #: Compound activity statements: SymbolScopes (WS4.1) that never carry imports.
 ACTIVITY_SCOPES = (
     "ActivityAtomicBlock", "ActivityForeach", "ActivityIfElse",
@@ -183,10 +191,13 @@ def _unvisited():
         for m in re.finditer(r"VisitorBase::visit(\w+)\s*\(", body):
             covered.update(_supers(classes, m.group(1)))
         via_bodies = "ActivityScopes::bodies(" in body
+        via_proc_bodies = "ProceduralScopes::bodies(" in body
         for owner, fn in _child_fields(classes, cls):
             if owner in covered:
                 continue
             if via_bodies and "%s.%s" % (owner, fn) in ACTIVITY_BODY_FIELDS:
+                continue
+            if via_proc_bodies and "%s.%s" % (owner, fn) in PROCEDURAL_BODY_FIELDS:
                 continue
             getter = "get" + fn[0].upper() + fn[1:]
             if not re.search(r"\b%s\s*\(" % getter, body):

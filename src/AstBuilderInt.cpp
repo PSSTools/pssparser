@@ -2097,6 +2097,18 @@ antlrcpp::Any AstBuilderInt::visitProcedural_if_else_stmt(PSSParser::Procedural_
         DEBUG("No final 'else' clause");
     }
 
+    // Address each body within the statement, as while and repeat do: clause
+    // `k`'s body is `k`, and `else` follows the clauses (plan 4.1b, ScopeUtil).
+    // A body that is an empty statement is null.
+    for (uint32_t k=0; k<stmt->getIf_then().size(); k++) {
+        if (stmt->getIf_then().at(k)->getBody()) {
+            stmt->getIf_then().at(k)->getBody()->setIndex(k);
+        }
+    }
+    if (stmt->getElse_then()) {
+        stmt->getElse_then()->setIndex(stmt->getIf_then().size());
+    }
+
     m_exec_stmt = stmt;
     m_exec_stmt_cnt++;
     DEBUG_LEAVE("visitProcedural_if_else_stmt");
@@ -2115,6 +2127,10 @@ antlrcpp::Any AstBuilderInt::visitProcedural_match_stmt(PSSParser::Procedural_ma
                                         ? nullptr
                                         : mkOpenRangeList(choice->open_range_list());
         ast::IScopeChild *body = mkExecStmt(choice->procedural_stmt());
+        // Choice `k`'s body is addressed as `k` within the statement (4.1b).
+        if (body) {
+            body->setIndex(stmt->getChoices().size());
+        }
         ast::IProceduralStmtMatchChoice *mc = m_factory->mkProceduralStmtMatchChoice(
             is_default, cond, body);
         stmt->getChoices().push_back(ast::IProceduralStmtMatchChoiceUP(mc));

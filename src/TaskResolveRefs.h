@@ -127,6 +127,36 @@ public:
 
     virtual void visitProceduralStmtForeach(ast::IProceduralStmtForeach *i) override;
 
+    // 4.1b -- the procedural compound statements that declare nothing. Each
+    // is a step on the path to a block in one of its bodies; see
+    // pushProcScope.
+    virtual void visitProceduralStmtIfElse(ast::IProceduralStmtIfElse *i) override;
+
+    virtual void visitProceduralStmtMatch(ast::IProceduralStmtMatch *i) override;
+
+    virtual void visitProceduralStmtWhile(ast::IProceduralStmtWhile *i) override;
+
+    virtual void visitProceduralStmtRepeatWhile(ast::IProceduralStmtRepeatWhile *i) override;
+
+    /** Visit a compound statement's bodies, each with `i` pending. */
+    void walkProcBodies(ast::IScopeChild *i);
+
+    /**
+     * Push a procedural scope -- a block, `repeat` or `foreach` -- preceded by
+     * the compound statements pending around it (4.1b).
+     *
+     * A compound statement such as `if` is on the path to a block in its body,
+     * but it cannot simply be pushed around the body: it is not a symbol
+     * scope, and the scope stack drops a non-scope entry the moment a lookup
+     * runs with it on top -- as in `if (c) x = 1;`, or the collection of a
+     * brace-less `if (c) foreach (e : l) ...`. So it is held here until a real
+     * scope opens inside it, and pushed together with that scope.
+     */
+    void pushProcScope(ast::IScopeChild *s);
+
+    /** Pop what the matching pushProcScope pushed, and restore the pending. */
+    void popProcScope();
+
     // 4.7.1 -- template scopes. The generated visitors walk a block's body
     // *after* visitTemplateElem has already pushed and popped the scope, so a
     // foreach iterator would not be visible inside its own block. These push
@@ -433,6 +463,20 @@ private:
     // resolution succeeds -- `getTarget()` short-circuits the second pass --
     // and shows up only as a duplicated diagnostic when it fails.
     std::set<ast::IExecBlockTag *>      m_checked_exec_tags;
+
+    // 4.1b -- compound statements waiting to be pushed (pushProcScope), each
+    // with the scope stack it belongs on; and, per pushed procedural scope,
+    // the pending list to restore and how many entries it pushed.
+    struct PendingProcStmt {
+        ast::IScopeChild        *stmt;
+        ISymbolTableIterator    *symtab;
+    };
+    struct ProcFrame {
+        std::vector<PendingProcStmt>    saved;
+        int32_t                         n_pushed;
+    };
+    std::vector<PendingProcStmt>        m_proc_pending;
+    std::vector<ProcFrame>              m_proc_frames;
 
     // Non-zero while resolving inside a triple-quoted template string.
     //

@@ -7,6 +7,18 @@ revision advances only the patch component.
 
 ## Unreleased
 
+### Fixed — locals in procedural `if`, `match` and `while` bodies (symbol-resolution 4.1b)
+
+- A local declared in a braced body of a procedural `if`/`else`, `match`,
+  `while` or `repeat`...`while` now has a target path that resolves. It used to
+  be bound on paper and dead to every consumer: `pssparser.refs` reported the
+  use against nothing. `while` only worked when the loop was the first
+  statement of its block. No AST class changed; the path to such a local now
+  has one more step, the statement, followed by the body's position in it
+  (an `if`'s clauses in order and then its `else`, a `match`'s choices, a
+  loop's single body). `ProceduralStmtIfClause.body` and
+  `ProceduralStmtMatchChoice.body` now carry that position as their `index`.
+
 ### Fixed — `this` (symbol-resolution 5.2)
 
 - **`this` resolves** (LRM 13.1.4). In a type body it is the enclosing type;

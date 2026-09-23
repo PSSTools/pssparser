@@ -2,7 +2,7 @@
   "mode": "warm",
   "schema": 1,
   "grammar_sha": "f5fceaa76dc5",
-  "corpus_rev": "1c7688f",
+  "corpus_rev": "12808fa",
   "corpus_root": "/home/mballance/projects/psstools/pssparser/packages/pss-corpus/curated",
   "repeat": 1,
   "synthetic": false,
@@ -15,7 +15,7 @@
       "mode": "warm",
       "lines": 5384,
       "tokens": 25994,
-      "parse_wall_ns": 101128378,
+      "parse_wall_ns": 102745550,
       "dfa_size": 1233,
       "syntax_errors": 0,
       "parsed": true,
@@ -39,7 +39,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 242158,
+          "time_ns": 252990,
           "events": []
         },
         {
@@ -61,7 +61,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 29456,
+          "time_ns": 28317,
           "events": []
         },
         {
@@ -83,7 +83,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 2073,
+          "time_ns": 2014,
           "events": []
         },
         {
@@ -105,7 +105,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 993210,
+          "time_ns": 974638,
           "events": []
         },
         {
@@ -127,7 +127,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 13806,
+          "time_ns": 8488,
           "events": []
         },
         {
@@ -149,7 +149,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 431089,
+          "time_ns": 427886,
           "events": []
         },
         {
@@ -171,7 +171,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 42424,
+          "time_ns": 39087,
           "events": []
         },
         {
@@ -193,7 +193,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 36165,
+          "time_ns": 35407,
           "events": []
         },
         {
@@ -215,7 +215,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 1363,
+          "time_ns": 1102,
           "events": []
         },
         {
@@ -237,7 +237,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 510601,
+          "time_ns": 505155,
           "events": []
         },
         {
@@ -259,7 +259,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 27583,
+          "time_ns": 27831,
           "events": []
         },
         {
@@ -281,7 +281,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 1413,
+          "time_ns": 1042,
           "events": []
         },
         {
@@ -303,7 +303,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 52452,
+          "time_ns": 50726,
           "events": []
         },
         {
@@ -325,7 +325,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 3429416,
+          "time_ns": 3235482,
           "events": []
         },
         {
@@ -347,7 +347,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 103976,
+          "time_ns": 102975,
           "events": []
         },
         {
@@ -369,7 +369,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 29506,
+          "time_ns": 28675,
           "events": []
         },
         {
@@ -391,7 +391,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 56249,
+          "time_ns": 54733,
           "events": []
         },
         {
@@ -413,7 +413,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 37511,
+          "time_ns": 37161,
           "events": []
         },
         {
@@ -435,7 +435,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 546052,
+          "time_ns": 535102,
           "events": []
         },
         {
@@ -457,7 +457,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 185565,
+          "time_ns": 186459,
           "events": []
         },
         {
@@ -479,7 +479,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 4921,
+          "time_ns": 4818,
           "events": []
         },
         {
@@ -501,7 +501,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 53173,
+          "time_ns": 51771,
           "events": []
         },
         {
@@ -523,7 +523,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 29244,
+          "time_ns": 29065,
           "events": []
         },
         {
@@ -545,7 +545,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 26442,
+          "time_ns": 25631,
           "events": []
         },
         {
@@ -567,7 +567,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 31821,
+          "time_ns": 31822,
           "events": []
         },
         {
@@ -589,7 +589,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 27743,
+          "time_ns": 24216,
           "events": []
         },
         {
@@ -611,7 +611,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 26610,
+          "time_ns": 26591,
           "events": []
         },
         {
@@ -633,7 +633,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 138224,
+          "time_ns": 139767,
           "events": []
         },
         {
@@ -655,7 +655,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 26280,
+          "time_ns": 25469,
           "events": []
         },
         {
@@ -677,7 +677,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 30538,
+          "time_ns": 29799,
           "events": []
         },
         {
@@ -699,7 +699,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 20810,
+          "time_ns": 18445,
           "events": []
         },
         {
@@ -721,7 +721,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 56946,
+          "time_ns": 53381,
           "events": []
         },
         {
@@ -743,7 +743,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 15634,
+          "time_ns": 13887,
           "events": []
         },
         {
@@ -765,7 +765,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 26239,
+          "time_ns": 25658,
           "events": []
         },
         {
@@ -787,7 +787,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 58731,
+          "time_ns": 58000,
           "events": []
         },
         {
@@ -809,7 +809,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 27852,
+          "time_ns": 28073,
           "events": []
         },
         {
@@ -831,7 +831,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 188752,
+          "time_ns": 184093,
           "events": []
         },
         {
@@ -853,7 +853,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 10227107,
+          "time_ns": 11366365,
           "events": []
         },
         {
@@ -875,7 +875,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 422220,
+          "time_ns": 421029,
           "events": []
         },
         {
@@ -897,7 +897,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 7241,
+          "time_ns": 6971,
           "events": []
         },
         {
@@ -919,7 +919,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 114302,
+          "time_ns": 109510,
           "events": []
         },
         {
@@ -941,7 +941,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 45357,
+          "time_ns": 42611,
           "events": []
         },
         {
@@ -963,7 +963,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 949097,
+          "time_ns": 930799,
           "events": []
         },
         {
@@ -985,7 +985,7 @@
           "context_sensitivities": 0,
           "errors": 28,
           "predicate_evals": 0,
-          "time_ns": 3877682,
+          "time_ns": 3797093,
           "events": []
         },
         {
@@ -1007,7 +1007,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 1342,
+          "time_ns": 981,
           "events": []
         },
         {
@@ -1029,7 +1029,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 29216,
+          "time_ns": 28394,
           "events": []
         },
         {
@@ -1051,7 +1051,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 2632513,
+          "time_ns": 2592799,
           "events": []
         },
         {
@@ -1073,7 +1073,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 37811,
+          "time_ns": 34789,
           "events": []
         },
         {
@@ -1095,7 +1095,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 13215,
+          "time_ns": 12003,
           "events": []
         },
         {
@@ -1117,7 +1117,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 943392,
+          "time_ns": 931307,
           "events": []
         },
         {
@@ -1139,7 +1139,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 84130,
+          "time_ns": 82358,
           "events": []
         },
         {
@@ -1161,7 +1161,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 116883,
+          "time_ns": 118438,
           "events": []
         },
         {
@@ -1183,7 +1183,7 @@
           "context_sensitivities": 3,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 21065598,
+          "time_ns": 21786502,
           "events": []
         },
         {
@@ -1205,7 +1205,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 24797,
+          "time_ns": 24075,
           "events": []
         },
         {
@@ -1227,7 +1227,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 7455,
+          "time_ns": 6672,
           "events": []
         },
         {
@@ -1249,7 +1249,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 256085,
+          "time_ns": 254896,
           "events": []
         },
         {
@@ -1271,7 +1271,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 283221,
+          "time_ns": 279673,
           "events": []
         },
         {
@@ -1293,7 +1293,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 250678,
+          "time_ns": 257684,
           "events": []
         },
         {
@@ -1315,7 +1315,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 8044,
+          "time_ns": 7714,
           "events": []
         },
         {
@@ -1337,7 +1337,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 8327,
+          "time_ns": 7665,
           "events": []
         },
         {
@@ -1359,7 +1359,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 93938,
+          "time_ns": 93691,
           "events": []
         },
         {
@@ -1381,7 +1381,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 1405621,
+          "time_ns": 1400942,
           "events": []
         },
         {
@@ -1403,7 +1403,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 17744,
+          "time_ns": 16830,
           "events": []
         },
         {
@@ -1425,7 +1425,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 2265951,
+          "time_ns": 2152555,
           "events": []
         },
         {
@@ -1447,7 +1447,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 124239,
+          "time_ns": 123631,
           "events": []
         },
         {
@@ -1469,7 +1469,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 173724,
+          "time_ns": 170246,
           "events": []
         },
         {
@@ -1491,7 +1491,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 4526649,
+          "time_ns": 4181069,
           "events": []
         },
         {
@@ -1513,7 +1513,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 10846327,
+          "time_ns": 10842865,
           "events": []
         },
         {
@@ -1535,7 +1535,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 37231,
+          "time_ns": 36941,
           "events": []
         },
         {
@@ -1557,7 +1557,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 222078,
+          "time_ns": 230300,
           "events": []
         },
         {
@@ -1579,7 +1579,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 23945,
+          "time_ns": 23184,
           "events": []
         },
         {
@@ -1601,7 +1601,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 4033035,
+          "time_ns": 4290949,
           "events": []
         },
         {
@@ -1623,7 +1623,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 2333883,
+          "time_ns": 2356690,
           "events": []
         }
       ]

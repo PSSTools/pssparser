@@ -21,6 +21,7 @@
 #pragma once
 #include "pssp/ast/impl/VisitorBase.h"
 #include "pssp/impl/ActivityScopes.h"
+#include "pssp/impl/ProceduralScopes.h"
 
 namespace pssp {
 
@@ -39,6 +40,11 @@ public:
             // The same descent as the overrides below: a compound activity
             // statement's bodies are scopes too, and would answer instead.
             return m_ret;
+        }
+        if (ProceduralScopes::isCompound(i)) {
+            // Not a symbol scope, although its bodies are: without this the
+            // visit descends and answers with the last body's scope (4.1b).
+            return 0;
         }
         i->accept(m_this);
         return m_ret;

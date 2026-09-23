@@ -81,6 +81,7 @@
 #include "pssp/ast/ISymbolEnumScope.h"
 #include "pssp/ast/ITypeIdentifier.h"
 
+#include "pssp/impl/ProceduralScopes.h"
 #include <algorithm>
 
 namespace pssp {
@@ -672,14 +673,105 @@ void TaskResolveRefs::visitConstraintStmtForall(ast::IConstraintStmtForall *i) {
 
 void TaskResolveRefs::visitExecScope(ast::IExecScope *i) {
     DEBUG_ENTER("visitExecScope");
-    m_ctxt->symtab()->pushScope(i);
+    pushProcScope(i);
     for (std::vector<ast::IScopeChildUP>::const_iterator
         it=i->getChildren().begin();
         it!=i->getChildren().end(); it++) {
         (*it)->accept(m_this);
     }
-    m_ctxt->symtab()->popScope();
+    popProcScope();
     DEBUG_LEAVE("visitExecScope");
+}
+
+void TaskResolveRefs::pushProcScope(ast::IScopeChild *s) {
+    ProcFrame frame;
+    frame.saved = m_proc_pending;
+    frame.n_pushed = 0;
+    std::vector<PendingProcStmt> kept;
+    for (std::vector<PendingProcStmt>::const_iterator
+        it=m_proc_pending.begin(); it!=m_proc_pending.end(); it++) {
+        // Only this scope stack's: a nested resolution under another
+        // iterator must not pick up steps that belong to this one.
+        if (it->symtab == m_ctxt->symtab()) {
+            m_ctxt->symtab()->pushScope(it->stmt);
+            frame.n_pushed++;
+        } else {
+            kept.push_back(*it);
+        }
+    }
+    m_ctxt->symtab()->pushScope(s);
+    frame.n_pushed++;
+    m_proc_frames.push_back(frame);
+    m_proc_pending.swap(kept);
+}
+
+void TaskResolveRefs::popProcScope() {
+    for (int32_t k=0; k<m_proc_frames.back().n_pushed; k++) {
+        m_ctxt->symtab()->popScope();
+    }
+    m_proc_pending.swap(m_proc_frames.back().saved);
+    m_proc_frames.pop_back();
+}
+
+void TaskResolveRefs::walkProcBodies(ast::IScopeChild *i) {
+    std::vector<ast::IScopeChild *> bodies;
+    ProceduralScopes::bodies(i, bodies);
+    for (std::vector<ast::IScopeChild *>::const_iterator
+        it=bodies.begin(); it!=bodies.end(); it++) {
+        if (*it) {
+            m_proc_pending.push_back({i, m_ctxt->symtab()});
+            (*it)->accept(m_this);
+            m_proc_pending.pop_back();
+        }
+    }
+}
+
+void TaskResolveRefs::visitProceduralStmtIfElse(ast::IProceduralStmtIfElse *i) {
+    DEBUG_ENTER("visitProceduralStmtIfElse");
+    // The conditions are outside every body.
+    for (std::vector<ast::IProceduralStmtIfClauseUP>::const_iterator
+        it=i->getIf_then().begin(); it!=i->getIf_then().end(); it++) {
+        if ((*it)->getCond()) {
+            (*it)->getCond()->accept(m_this);
+        }
+    }
+    walkProcBodies(i);
+    DEBUG_LEAVE("visitProceduralStmtIfElse");
+}
+
+void TaskResolveRefs::visitProceduralStmtMatch(ast::IProceduralStmtMatch *i) {
+    DEBUG_ENTER("visitProceduralStmtMatch");
+    if (i->getExpr()) {
+        i->getExpr()->accept(m_this);
+    }
+    for (std::vector<ast::IProceduralStmtMatchChoiceUP>::const_iterator
+        it=i->getChoices().begin(); it!=i->getChoices().end(); it++) {
+        if ((*it)->getCond()) {
+            (*it)->getCond()->accept(m_this);
+        }
+    }
+    walkProcBodies(i);
+    DEBUG_LEAVE("visitProceduralStmtMatch");
+}
+
+void TaskResolveRefs::visitProceduralStmtWhile(ast::IProceduralStmtWhile *i) {
+    DEBUG_ENTER("visitProceduralStmtWhile");
+    if (i->getExpr()) {
+        i->getExpr()->accept(m_this);
+    }
+    walkProcBodies(i);
+    DEBUG_LEAVE("visitProceduralStmtWhile");
+}
+
+void TaskResolveRefs::visitProceduralStmtRepeatWhile(ast::IProceduralStmtRepeatWhile *i) {
+    DEBUG_ENTER("visitProceduralStmtRepeatWhile");
+    // The condition follows the body but is outside it: a local of the body
+    // is not in scope in it.
+    walkProcBodies(i);
+    if (i->getExpr()) {
+        i->getExpr()->accept(m_this);
+    }
+    DEBUG_LEAVE("visitProceduralStmtRepeatWhile");
 }
 
 /**
@@ -2382,12 +2474,12 @@ void TaskResolveRefs::visitProceduralStmtRepeat(ast::IProceduralStmtRepeat *i) {
     if (i->getCount()) {
         i->getCount()->accept(m_this);
     }
-    m_ctxt->symtab()->pushScope(i);
+    pushProcScope(i);
     // `repeat (...) ;` -- an empty statement -- leaves body null.
     if (i->getBody()) {
         i->getBody()->accept(m_this);
     }
-    m_ctxt->symtab()->popScope();
+    popProcScope();
     DEBUG_LEAVE("visitProceduralStmtRepeat");
 }
 
@@ -2448,9 +2540,9 @@ void TaskResolveRefs::visitProceduralStmtForeach(ast::IProceduralStmtForeach *i)
     typeForeachIterator(i);
     // Push the foreach scope so the iterator/index variables are visible while
     // resolving references in the body (e.g. `arr[i]`).
-    m_ctxt->symtab()->pushScope(i);
+    pushProcScope(i);
     if (i->getBody()) { i->getBody()->accept(m_this); }
-    m_ctxt->symtab()->popScope();
+    popProcScope();
     DEBUG_LEAVE("visitProceduralStmtForeach");
 }
 

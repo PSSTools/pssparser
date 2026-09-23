@@ -22,6 +22,7 @@
 #include "pssp/ast/IScopeChild.h"
 #include "pssp/ast/impl/VisitorBase.h"
 #include "pssp/impl/ActivityScopes.h"
+#include "pssp/impl/ProceduralScopes.h"
 
 namespace pssp {
 
@@ -36,7 +37,7 @@ public:
         Constraint,
         SymbolChildScope,
         SymbolFuncScope,
-        ProcBodyScope,
+        ProcCompound,
         ProcSymScope,
         ActivityScope,
         Scope
@@ -59,6 +60,12 @@ public:
             m_kind = Kind::ActivityScope;
             m_scope.sym_cs = as;
             ActivityScopes::bodies(c, m_bodies);
+        } else if (ProceduralScopes::isCompound(c)) {
+            // Likewise, and the statement has no children of its own: its
+            // bodies are the whole of its address space (4.1b).
+            m_kind = Kind::ProcCompound;
+            m_scope.proc_c = c;
+            ProceduralScopes::bodies(c, m_bodies);
         } else {
             c->accept(m_this);
         }
@@ -75,7 +82,7 @@ public:
             case Kind::SymbolFuncScope: return m_scope.sym_fs;
             case Kind::Scope: return m_scope.scope;
             case Kind::Constraint: return m_scope.constraint_s;
-            case Kind::ProcBodyScope: return m_scope.proc_body_s;
+            case Kind::ProcCompound: return m_scope.proc_c;
             case Kind::ProcSymScope: return m_scope.proc_sym_s;
             case Kind::ActivityScope: return m_scope.sym_cs;
         }
@@ -108,8 +115,8 @@ public:
                 return m_scope.scope->getChildren().size();
             case Kind::Constraint:
                 return m_scope.constraint_s->getConstraints().size();
-            case Kind::ProcBodyScope:
-                return 1;
+            case Kind::ProcCompound:
+                return m_bodies.size();
             case Kind::ProcSymScope:
                 // 'body' counts as 1
                 return m_scope.proc_sym_s->getChildren().size() + 1;
@@ -145,9 +152,9 @@ public:
                     ret = m_scope.sym_fs->getBody();
                 }
                 break;
-            case Kind::ProcBodyScope:
-                if (idx == 0) {
-                    ret = m_scope.proc_body_s->getBody();
+            case Kind::ProcCompound:
+                if (idx >= 0 && idx < (int32_t)m_bodies.size()) {
+                    ret = m_bodies.at(idx);
                 }
                 break;
             case Kind::ProcSymScope:
@@ -211,16 +218,6 @@ public:
         m_scope.proc_sym_s = i;
     }
 
-    virtual void visitProceduralStmtRepeatWhile(ast::IProceduralStmtRepeatWhile *i) override {
-        m_kind = Kind::ProcBodyScope;
-        m_scope.proc_body_s = i;
-    }
-
-    virtual void visitProceduralStmtWhile(ast::IProceduralStmtWhile *i) override {
-        m_kind = Kind::ProcBodyScope;
-        m_scope.proc_body_s = i;
-    }
-
     virtual void visitRootSymbolScope(ast::IRootSymbolScope *i) override {
         m_kind = Kind::SymbolChildScope;
         m_scope.sym_cs = i;
@@ -273,14 +270,15 @@ public:
 
 private:
     Kind                                m_kind;
-    // Kind::ActivityScope: the compound statement's bodies, in address order.
+    // Kind::ActivityScope and Kind::ProcCompound: the compound statement's
+    // bodies, in address order.
     std::vector<ast::IScopeChild *>     m_bodies;
     union {
         ast::IConstraintScope               *constraint_s;
         ast::ISymbolChildrenScope           *sym_cs;
         ast::ISymbolFunctionScope           *sym_fs;
         ast::IProceduralStmtSymbolBodyScope *proc_sym_s;
-        ast::IProceduralStmtBody            *proc_body_s;
+        ast::IScopeChild                    *proc_c;
         ast::IScope                         *scope;
     }                                   m_scope;
 

@@ -22,6 +22,7 @@
 #include "pssp/ast/impl/VisitorBase.h"
 #include "pssp/ast/ISymbolDeclaration.h"
 #include "pssp/impl/ActivityScopes.h"
+#include "pssp/impl/ProceduralScopes.h"
 
 namespace pssp {
 
@@ -42,6 +43,11 @@ public:
             // those overwrote the index. An activity scope's id is its position
             // in the scope that holds it (TaskBuildSymbolTree, WS4.1).
             return as->getId();
+        }
+        if (ProceduralScopes::isCompound(c)) {
+            // The same descent: the visit would go on into the bodies, and
+            // each of them overwrote the statement's own index (4.1b).
+            return c->getIndex();
         }
         c->accept(m_this);
         return m_index;
