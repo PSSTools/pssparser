@@ -148,6 +148,7 @@ class SymbolRefPathElemKind(IntEnum):
     ElemKind_Super = auto()
     ElemKind_TypeSpec = auto()
     ElemKind_TemplateScope = auto()
+    ElemKind_This = auto()
     
 class TypeCategory(IntEnum):
     Action = auto()

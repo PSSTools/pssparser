@@ -183,6 +183,7 @@ class SymbolRefPathElemKind(IntEnum):
     ElemKind_Super = ast_decl.SymbolRefPathElemKind.SymbolRefPathElemKind_ElemKind_Super
     ElemKind_TypeSpec = ast_decl.SymbolRefPathElemKind.SymbolRefPathElemKind_ElemKind_TypeSpec
     ElemKind_TemplateScope = ast_decl.SymbolRefPathElemKind.SymbolRefPathElemKind_ElemKind_TemplateScope
+    ElemKind_This = ast_decl.SymbolRefPathElemKind.SymbolRefPathElemKind_ElemKind_This
 class TypeCategory(IntEnum):
     Action = ast_decl.TypeCategory.TypeCategory_Action
     Component = ast_decl.TypeCategory.TypeCategory_Component

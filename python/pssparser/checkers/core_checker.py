@@ -87,6 +87,8 @@ class CoreChecker(CheckerBase):
                 # *unqualified* path. The two spellings are one diagnosis and
                 # must carry one code.
                 r"^failed to find elem\b",
+                # `this` where there is no enclosing type for it to name.
+                r"^'this' is only valid inside a type\b",
             ),
             detail=(
                 "The linker could not resolve a named type, identifier, or "
@@ -99,7 +101,9 @@ class CoreChecker(CheckerBase):
                 "* ``unknown function 'f': an import of this form needs a "
                 "separate declaration of the function (20.4.1)``\n"
                 "* ``'pkg' has no member named 'thing'``\n"
-                "* ``Failed to find elem 'thing'``\n\n"
+                "* ``Failed to find elem 'thing'``\n"
+                "* ``'this' is only valid inside a type: ...`` (``this`` in "
+                "a package-level function)\n\n"
                 "The last two are the same diagnosis reached through a "
                 "qualified and an unqualified path respectively.\n\n"
                 "Ensure the symbol is declared in one of the source files "
@@ -598,7 +602,12 @@ class CoreChecker(CheckerBase):
                 "(``struct``, ``return``, ...) lands here too. There is no "
                 "reachable keyword sub-case distinct from this one -- "
                 "**PSS023 is reserved, not assigned**.\n\n"
-                "Message: ``expected identifier before '<token>'``"
+                "Messages:\n\n"
+                "* ``expected identifier before '<token>'``\n"
+                "* ``'this' is a keyword and cannot be used as a declared "
+                "name`` -- the one keyword the lexer returns as an "
+                "identifier, so the grammar accepts it and the declaration "
+                "is rejected afterwards"
             ),
         ),
         MarkerDef(

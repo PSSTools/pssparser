@@ -37,6 +37,8 @@
 #include "pssp/ast/IGenericConstraintParam.h"
 #include "pssp/ast/IProceduralStmtDataDeclaration.h"
 #include "pssp/ast/ISymbolScope.h"
+#include "pssp/ast/INamedScope.h"
+#include "pssp/ast/INamedScopeChild.h"
 #include "Marker.h"
 
 namespace pssp {
@@ -96,6 +98,11 @@ ast::IRootSymbolScope *TaskBuildSymbolTree::build(
     }
 
     DEBUG("%d units", root->getUnits().size());
+
+    for (std::vector<ast::IGlobalScope *>::const_iterator
+        it=roots.begin(); it!=roots.end(); it++) {
+        checkLocalNames(*it);
+    }
 
     popSymbolScope();
 
@@ -1336,6 +1343,70 @@ void TaskBuildSymbolTree::reportDuplicateSymbol(
     }
 }
 
+void TaskBuildSymbolTree::checkReservedName(
+        ast::IScopeChild        *c,
+        const std::string       &name) {
+    if (name != "this"
+            || dynamic_cast<ast::IProceduralStmtDataDeclaration *>(c)) {
+        // A local or loop variable: checked by checkLocalNames(), which is
+        // the one place that sees all of them.
+        return;
+    }
+    ast::IExprId *id = 0;
+    if (ast::INamedScopeChild *n = dynamic_cast<ast::INamedScopeChild *>(c)) {
+        id = n->getName();
+    } else if (ast::INamedScope *n = dynamic_cast<ast::INamedScope *>(c)) {
+        id = n->getName();
+    } else if (ast::ISymbolScope *ss = dynamic_cast<ast::ISymbolScope *>(c)) {
+        if (ast::INamedScope *n = dynamic_cast<ast::INamedScope *>(ss->getTarget())) {
+            id = n->getName();
+        }
+    }
+    if (id && id->getIs_escaped()) {
+        return;
+    }
+    reportReservedName((id)?id->getLocation():c->getLocation());
+}
+
+void TaskBuildSymbolTree::checkLocalNames(ast::IGlobalScope *unit) {
+    // Local and loop variables (procedural, activity and template-string) are
+    // put in their scopes' symbol tables by the AST builder, at a dozen
+    // sites, and the procedural ones are never visited by this pass at all
+    // (see visitProceduralStmtForeach). A full walk of the unit finds every
+    // one of them in one place.
+    class Walker : public ast::VisitorBase {
+    public:
+        Walker(TaskBuildSymbolTree *t) : m_t(t) { }
+        virtual void visitProceduralStmtDataDeclaration(
+                ast::IProceduralStmtDataDeclaration *i) override {
+            if (i->getName() && i->getName()->getId() == "this"
+                    && !i->getName()->getIs_escaped()) {
+                m_t->reportReservedName(i->getName()->getLocation());
+            }
+            ast::VisitorBase::visitProceduralStmtDataDeclaration(i);
+        }
+    private:
+        TaskBuildSymbolTree *m_t;
+    };
+    Walker w(this);
+    unit->accept(&w);
+}
+
+void TaskBuildSymbolTree::reportReservedName(const ast::Location &loc) {
+    // PSS022, set here as the syntax band's codes are (never by message
+    // pattern): a keyword where an identifier belongs.
+    Marker m(
+        "'this' is a keyword and cannot be used as a declared name",
+        MarkerSeverityE::Error,
+        loc,
+        std::string("PSS022"));
+    // As for reportDuplicateSymbol: no listener while building a
+    // specialization, whose declarations were reported on the generic.
+    if (m_marker_l) {
+        m_marker_l->marker(&m);
+    }
+}
+
 void TaskBuildSymbolTree::addFunctionParams(
         ast::ISymbolFunctionScope   *func_sym,
         ast::IFunctionPrototype     *proto) {
@@ -1392,6 +1463,10 @@ void TaskBuildSymbolTree::reportDuplicateParams(ast::IFunctionPrototype *proto) 
         }
 
         const std::string &name = (*it)->getName()->getId();
+
+        if (name == "this" && !(*it)->getName()->getIs_escaped()) {
+            reportReservedName((*it)->getName()->getLocation());
+        }
 
         if (!seen.insert(name).second) {
             Marker m(
@@ -1613,6 +1688,7 @@ bool TaskBuildSymbolTree::addChild(
     if (c == scope) {
         throw InternalError("attempt to add a symbol scope to itself");
     }
+    checkReservedName(c, name);
     std::unordered_map<std::string, int32_t>::const_iterator it =
         scope->getSymtab().find(name);
     
@@ -1649,6 +1725,7 @@ bool TaskBuildSymbolTree::addChild(
         throw InternalError("attempt to add a symbol scope to itself");
     }
     if (name != "") {
+        checkReservedName(c, name);
         std::unordered_map<std::string, int32_t>::const_iterator it =
             scope->getSymtab().find(name);
         

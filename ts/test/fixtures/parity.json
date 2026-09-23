@@ -1112,6 +1112,36 @@
    "calls": [
     [
      {
+      "content": "// ex143_with_name_resolution.pss\n//\n// Name resolution inside an inline `with` constraint block (LRM 13.1.4),\n// modelled on PSS 3.1 Example 143 and completed to a whole model.\n//\n// Demonstrates:\n//   - unqualified names search the traversed sub-action first, then the\n//     containing action\n//   - `this` is the containing action, reaching a field the sub-action's\n//     field of the same name shadows\n//   - `this.comp` is the containing action's component\n\ncomponent subc {\n    action A {\n        rand int f;\n        rand int g;\n    }\n}\n\ncomponent pss_top {\n    subc sub1, sub2;\n\n    action B {\n        rand int f;\n        rand int h;\n        subc::A a;\n\n        activity {\n            a with {\n                f < h;                  // sub-action's f, containing action's h\n                g == this.f;            // sub-action's g, containing action's f\n                comp == this.comp.sub1; // sub-action runs in sub1\n            };\n        }\n    }\n}\n",
+      "name": "lrm31/ex143_with_name_resolution.pss"
+     }
+    ]
+   ],
+   "id": "corpus:lrm31/ex143_with_name_resolution.pss",
+   "markers": [],
+   "maxErrors": 0,
+   "raised": null,
+   "why": "corpus parity"
+  },
+  {
+   "calls": [
+    [
+     {
+      "content": "// ex243_this_comp_inheritance.pss\n//\n// `comp` and `this.comp` with component inheritance (LRM 9.1.5, 13.1.4),\n// modelled on PSS 3.1 Example 243 and completed to a whole model.\n//\n// Demonstrates:\n//   - an action inherited by a derived component, traversed as\n//     dma_der_c::xfer_a\n//   - the static type of the sub-action's `comp` is the base component, so\n//     the derived component's field `j` is reached through the containing\n//     action's `this.comp.dma1` instead\n\ncomponent dma_base_c {\n    action xfer_a {\n        rand int i;\n    }\n}\n\ncomponent dma_der_c : dma_base_c {\n    int j;\n\n    action mult_xfer_a {\n        activity {\n            repeat (3) {\n                do xfer_a;              // dma_base_c::xfer_a\n            }\n        }\n    }\n}\n\ncomponent pss_top {\n    dma_der_c dma1, dma2;\n\n    action test_a {\n        activity {\n            do dma_base_c::xfer_a;\n            do dma_der_c::xfer_a with {\n                comp == this.comp.dma1;\n                (this.comp.dma1.j < 8) -> i > 4;\n            };\n        }\n    }\n}\n",
+      "name": "lrm31/ex243_this_comp_inheritance.pss"
+     }
+    ]
+   ],
+   "id": "corpus:lrm31/ex243_this_comp_inheritance.pss",
+   "markers": [],
+   "maxErrors": 0,
+   "raised": null,
+   "why": "corpus parity"
+  },
+  {
+   "calls": [
+    [
+     {
       "content": "component c {\n    int a = 0xZZ;\n    int b = 4'sq99;\n    string s = \"bad escape \\q here\";\n    @;\n    ...\n}\n",
       "name": "pathological/invalid_tokens.pss"
      }

@@ -60,6 +60,7 @@ The linker could not resolve a named type, identifier, or method.  Messages incl
 * ``unknown function 'f': an import of this form needs a separate declaration of the function (20.4.1)``
 * ``'pkg' has no member named 'thing'``
 * ``Failed to find elem 'thing'``
+* ``'this' is only valid inside a type: ...`` (``this`` in a package-level function)
 
 The last two are the same diagnosis reached through a qualified and an unqualified path respectively.
 
@@ -346,7 +347,10 @@ Expected an identifier before this token
 
 The grammar requires an identifier at this position and the next token is not one. Reached via either of ANTLR's two recovery strategies for the same situation: single-token-insertion (offending token already in the follow set, e.g. ``;``, ``{``, ``=``) or a full mismatched-input exception whose expecting-set is exactly identifier-shaped (``{ID, ESCAPED_ID}``, optionally with a leading ``'::'``) -- which is how a real PSS keyword used where an identifier belongs (``struct``, ``return``, ...) lands here too. There is no reachable keyword sub-case distinct from this one -- **PSS023 is reserved, not assigned**.
 
-Message: ``expected identifier before '<token>'``
+Messages:
+
+* ``expected identifier before '<token>'``
+* ``'this' is a keyword and cannot be used as a declared name`` -- the one keyword the lexer returns as an identifier, so the grammar accepts it and the declaration is rejected afterwards
 
 PSS024
 ------

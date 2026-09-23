@@ -49,6 +49,13 @@ ast::ISymbolRefPath *TaskResolveRootRef::resolve(const ast::IExprId *id) {
     DEBUG_ENTER("resolve %s", id->getId().c_str());
     m_ref = 0;
 
+    // A keyword the lexer returns as an ID. `\this` is an ordinary name.
+    if (id->getId() == "this" && !id->getIs_escaped()) {
+        m_ref = resolveThis();
+        DEBUG_LEAVE("resolve this %p", m_ref);
+        return m_ref;
+    }
+
     // Push a clone of the active symbol table, since we
     // will be traversing it
     m_ctxt->pushCloneSymtab();
@@ -109,6 +116,39 @@ ast::ISymbolRefPath *TaskResolveRootRef::resolve(const ast::IExprId *id) {
     DEBUG_LEAVE("resolve %p (%d)", m_ref, (m_ref)?m_ref->getPath().size():-1);
 
     return m_ref;
+}
+
+ast::ISymbolRefPath *TaskResolveRootRef::resolveThis() {
+    DEBUG_ENTER("resolveThis");
+    ast::ISymbolRefPath *ret = 0;
+
+    // Inside `a with { ... }` the traversed action's scope is pushed on top of
+    // the containing action's (visitActivityActionHandleTraversal). Names
+    // search it first; `this` passes over it, which is the whole point of
+    // `this` there -- reaching a containing-action field the sub-action's
+    // field of the same name shadows.
+    ast::ISymbolScope *skip = m_ctxt->inlineCtxt();
+
+    m_ctxt->pushCloneSymtab();
+    while (!ret && m_ctxt->symtab()->hasScopes()) {
+        // See resolve() for why a null scope pops rather than breaks.
+        ast::ISymbolScope *scope = m_ctxt->symtab()->getScope();
+        if (scope && dynamic_cast<ast::ISymbolTypeScope *>(scope)) {
+            if (scope == skip) {
+                skip = 0;
+            } else {
+                ret = m_ctxt->symtab()->getScopeSymbolPath();
+                ret->getPath().push_back({
+                    ast::SymbolRefPathElemKind::ElemKind_This, 0});
+                break;
+            }
+        }
+        m_ctxt->symtab()->popScope();
+    }
+    m_ctxt->popSymtab();
+
+    DEBUG_LEAVE("resolveThis %p", ret);
+    return ret;
 }
 
 void TaskResolveRootRef::visitProceduralStmtRepeat(ast::IProceduralStmtRepeat *i) {

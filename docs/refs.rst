@@ -114,9 +114,9 @@ Known gaps
 The linker does not yet bind every kind of name. On legal input those are
 reported as ``unresolved`` rather than dropped, and
 ``tests/python/baselines/occurrences.json`` records them for the test corpus:
-activity labels (``L.a``), ``bind`` operands, names inside covergroup bodies,
-and ``this`` (``docs/design/known-issues.md`` R-THIS). A ``symbol``
-declaration's own name has no location yet (R-SYMNAME).
+activity labels (``L.a``), ``bind`` operands and names inside covergroup
+bodies. A ``symbol`` declaration's own name has no location yet
+(``docs/design/known-issues.md`` R-SYMNAME).
 
 ``compile if``
 --------------

@@ -7,6 +7,28 @@ revision advances only the patch component.
 
 ## Unreleased
 
+### Fixed — `this` (symbol-resolution 5.2)
+
+- **`this` resolves** (LRM 13.1.4). In a type body it is the enclosing type;
+  in an inline `with` block it is the *containing* action, so `this.f` reaches
+  a containing-action field the traversed action's `f` shadows, and
+  `this.comp` is the containing action's component (Examples 143, 243). It
+  used to be `unknown identifier 'this'` everywhere. `pssparser.refs` now
+  reports the member after `this` as bound; `this` itself stays `builtin`.
+- `this` outside any type (a package-level function) is reported as
+  `'this' is only valid inside a type ...` (PSS002).
+- Declaring anything named `this` -- a field, type, parameter, local or loop
+  variable -- is an error (PSS022). The lexer returns `this` as an identifier,
+  so the grammar accepted it. An escaped `\this` is still an ordinary name.
+
+### Changed (AST API) — `ElemKind_This`
+
+- New `SymbolRefPathElemKind.ElemKind_This` (value 7, appended; no existing
+  value moved). A `this` reference's target path leads to the context type and
+  ends in this element, so a consumer can tell `this.x` (an instance) from a
+  reference to the type by name. A consumer that switches on the kind needs a
+  case for it; see `docs/design/cross-repo-followups.md` X-11.
+
 ### Added — pss-scrambler requests (FR-001, FR-002)
 
 - **`pssparser.refs.occurrences(parser)`**: every identifier in the user's

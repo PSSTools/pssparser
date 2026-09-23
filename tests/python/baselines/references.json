@@ -8,7 +8,7 @@
   },
   "legal_model": "clean",
   "corpus_refs": {
-   "bound": 1034,
+   "bound": 1059,
    "unbound": 27
   },
   "schema_ref_fields": 46,
@@ -382,11 +382,11 @@
   "xbins_with": "silent"
  },
  "bind": {
-  "files": 87,
-  "clean_files": 45,
+  "files": 89,
+  "clean_files": 47,
   "fields": {
    "ActivityActionHandleTraversal.target | ExprRefPathContext": {
-    "bound": 28
+    "bound": 29
    },
    "ActivityForeach.path | ExprRefPathContext": {
     "bound": 1
@@ -446,17 +446,17 @@
     "unbound": 2
    },
    "DataTypeUserDefined.type_id | TypeIdentifier": {
-    "bound": 439,
+    "bound": 452,
     "unbound": 1
    },
    "ExprBin.lhs | ExprRefPathContext": {
-    "bound": 86
+    "bound": 92
    },
    "ExprBin.lhs{UNWALKED} | ExprRefPathContext": {
     "unbound": 1
    },
    "ExprBin.rhs | ExprRefPathContext": {
-    "bound": 29
+    "bound": 33
    },
    "ExprBin.rhs{UNWALKED} | ExprRefPathContext": {
     "unbound": 1
@@ -513,7 +513,7 @@
     "bound": 1
    },
    "TypeScope.super_t | TypeIdentifier": {
-    "bound": 149
+    "bound": 150
    }
   }
  }

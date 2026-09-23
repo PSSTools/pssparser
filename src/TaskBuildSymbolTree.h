@@ -223,6 +223,18 @@ protected:
         ast::IScopeChild        *dup);
 
     /**
+     * `this` is a keyword (4.3, keyword table) that the lexer returns as an
+     * ID, so the grammar accepts it as any declared name. Reported here, once
+     * per declaration; the declaration is still registered, so nothing
+     * cascades from it. An escaped `\this` is an ordinary name.
+     */
+    void checkReservedName(ast::IScopeChild *c, const std::string &name);
+
+    void reportReservedName(const ast::Location &loc);
+
+    void checkLocalNames(ast::IGlobalScope *unit);
+
+    /**
      * Register a prototype's parameters in the function scope's `<plist>`.
      *
      * All four builders that can create an ISymbolFunctionScope go through

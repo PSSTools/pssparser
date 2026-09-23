@@ -187,8 +187,8 @@ def test_resolution_is_a_closed_string_enum():
 
 
 def test_this_is_builtin():
-    # The linker does not support `this` yet (known-issues.md, R-THIS), so
-    # the member after it is unbound. `this` itself is still a built-in.
+    # `this` binds to the containing action (R-THIS), but it is not a
+    # declaration of that name, so it does not group with the action.
     occs = _occs([("t.pss", """\
 component pss_top {
   action sub_a { rand int g; }
@@ -199,11 +199,12 @@ component pss_top {
     }
   }
 }
-""")], expect_error=True)
+""")])
     this = _at(occs, 1, 6, "this")
     assert this.resolution is Resolution.BUILTIN
     assert this.decl is None
     assert _at(occs, 1, 6, "g").decl_location[:3] == (1, 2, 27)
+    assert _at(occs, 1, 6, "f").decl_location[:3] == (1, 4, 14)
 
 
 # ---------------------------------------------------------------------------

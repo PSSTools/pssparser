@@ -1281,6 +1281,20 @@ void TaskResolveRefs::resolveExprRefPathContext(ast::IExprRefPathContext *i) {
             return;
         }
 
+        // `this` fails only where there is no enclosing type (a package-level
+        // function); "unknown identifier", with a spelling suggestion, would
+        // misdescribe that.
+        if (name == "this"
+                && !i->getHier_id()->getElems().at(0)->getId()->getIs_escaped()) {
+            m_ctxt->addMarker(
+                MarkerSeverityE::Error,
+                i->getHier_id()->getElems().at(0)->getId()->getLocation(),
+                "'this' is only valid inside a type: an action, component, "
+                "struct or other type body");
+            DEBUG_LEAVE("visitExprRefPathContext -- this outside a type");
+            return;
+        }
+
         // Skip resolution errors for generic constraint parameters
         if (isGenericConstraintParam(name)) {
             DEBUG("Skipping resolution for generic constraint param '%s'", name.c_str());

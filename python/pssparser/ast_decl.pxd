@@ -625,6 +625,7 @@ cdef extern from "pssp/ast/SymbolRefPathElemKind.h" namespace "pssp::ast":
         SymbolRefPathElemKind_ElemKind_Super "pssp::ast::SymbolRefPathElemKind::ElemKind_Super"
         SymbolRefPathElemKind_ElemKind_TypeSpec "pssp::ast::SymbolRefPathElemKind::ElemKind_TypeSpec"
         SymbolRefPathElemKind_ElemKind_TemplateScope "pssp::ast::SymbolRefPathElemKind::ElemKind_TemplateScope"
+        SymbolRefPathElemKind_ElemKind_This "pssp::ast::SymbolRefPathElemKind::ElemKind_This"
 cdef extern from "pssp/ast/TypeCategory.h" namespace "pssp::ast":
     cdef enum TypeCategory:
         TypeCategory_Action "pssp::ast::TypeCategory::Action"

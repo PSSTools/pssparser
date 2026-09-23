@@ -2,21 +2,21 @@
   "mode": "warm",
   "schema": 1,
   "grammar_sha": "f5fceaa76dc5",
-  "corpus_rev": "9b4cad9",
+  "corpus_rev": "1c7688f",
   "corpus_root": "/home/mballance/projects/psstools/pssparser/packages/pss-corpus/curated",
   "repeat": 1,
   "synthetic": false,
-  "file_count": 85,
+  "file_count": 87,
   "error_file_count": 1,
   "files": [
     {
       "path": "<merged>",
       "bucket": "<merged>",
       "mode": "warm",
-      "lines": 5303,
-      "tokens": 25690,
-      "parse_wall_ns": 82985964,
-      "dfa_size": 1223,
+      "lines": 5384,
+      "tokens": 25994,
+      "parse_wall_ns": 101128378,
+      "dfa_size": 1233,
       "syntax_errors": 0,
       "parsed": true,
       "decisions": [
@@ -25,8 +25,8 @@
           "rule": "package_body_item",
           "rule_index": 5,
           "grammar_line": 49,
-          "invocations": 558,
-          "sll_look": 1184,
+          "invocations": 563,
+          "sll_look": 1189,
           "sll_min_look": 1,
           "sll_max_look": 4,
           "ll_look": 0,
@@ -39,7 +39,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 206520,
+          "time_ns": 242158,
           "events": []
         },
         {
@@ -61,7 +61,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 22522,
+          "time_ns": 29456,
           "events": []
         },
         {
@@ -83,7 +83,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 2435,
+          "time_ns": 2073,
           "events": []
         },
         {
@@ -91,8 +91,8 @@
           "rule": "action_body_item",
           "rule_index": 27,
           "grammar_line": 228,
-          "invocations": 187,
-          "sll_look": 501,
+          "invocations": 196,
+          "sll_look": 515,
           "sll_min_look": 1,
           "sll_max_look": 13,
           "ll_look": 1,
@@ -105,7 +105,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 756386,
+          "time_ns": 993210,
           "events": []
         },
         {
@@ -127,7 +127,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 7123,
+          "time_ns": 13806,
           "events": []
         },
         {
@@ -149,7 +149,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 340523,
+          "time_ns": 431089,
           "events": []
         },
         {
@@ -171,7 +171,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 33591,
+          "time_ns": 42424,
           "events": []
         },
         {
@@ -193,7 +193,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 27951,
+          "time_ns": 36165,
           "events": []
         },
         {
@@ -215,7 +215,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 1193,
+          "time_ns": 1363,
           "events": []
         },
         {
@@ -237,7 +237,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 413940,
+          "time_ns": 510601,
           "events": []
         },
         {
@@ -259,7 +259,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 23128,
+          "time_ns": 27583,
           "events": []
         },
         {
@@ -281,7 +281,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 1223,
+          "time_ns": 1413,
           "events": []
         },
         {
@@ -303,7 +303,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 46086,
+          "time_ns": 52452,
           "events": []
         },
         {
@@ -325,7 +325,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 2579107,
+          "time_ns": 3429416,
           "events": []
         },
         {
@@ -347,7 +347,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 80733,
+          "time_ns": 103976,
           "events": []
         },
         {
@@ -369,7 +369,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 22333,
+          "time_ns": 29506,
           "events": []
         },
         {
@@ -391,7 +391,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 43753,
+          "time_ns": 56249,
           "events": []
         },
         {
@@ -413,7 +413,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 29236,
+          "time_ns": 37511,
           "events": []
         },
         {
@@ -435,7 +435,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 418458,
+          "time_ns": 546052,
           "events": []
         },
         {
@@ -443,21 +443,21 @@
           "rule": "component_body_item",
           "rule_index": 93,
           "grammar_line": 704,
-          "invocations": 385,
-          "sll_look": 745,
+          "invocations": 393,
+          "sll_look": 757,
           "sll_min_look": 1,
           "sll_max_look": 4,
           "ll_look": 0,
           "ll_min_look": 0,
           "ll_max_look": 0,
-          "sll_atn_transitions": 22,
+          "sll_atn_transitions": 23,
           "ll_atn_transitions": 0,
           "ll_fallback": 0,
           "ambiguities": 0,
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 159372,
+          "time_ns": 185565,
           "events": []
         },
         {
@@ -479,7 +479,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 3929,
+          "time_ns": 4921,
           "events": []
         },
         {
@@ -487,8 +487,8 @@
           "rule": "activity_stmt",
           "rule_index": 102,
           "grammar_line": 788,
-          "invocations": 111,
-          "sll_look": 148,
+          "invocations": 119,
+          "sll_look": 158,
           "sll_min_look": 1,
           "sll_max_look": 3,
           "ll_look": 0,
@@ -501,7 +501,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 42918,
+          "time_ns": 53173,
           "events": []
         },
         {
@@ -509,8 +509,8 @@
           "rule": "activity_labeled_stmt",
           "rule_index": 103,
           "grammar_line": 801,
-          "invocations": 95,
-          "sll_look": 132,
+          "invocations": 101,
+          "sll_look": 140,
           "sll_min_look": 1,
           "sll_max_look": 3,
           "ll_look": 0,
@@ -523,7 +523,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 24362,
+          "time_ns": 29244,
           "events": []
         },
         {
@@ -531,8 +531,8 @@
           "rule": "labeled_activity_stmt",
           "rule_index": 104,
           "grammar_line": 805,
-          "invocations": 98,
-          "sll_look": 132,
+          "invocations": 104,
+          "sll_look": 140,
           "sll_min_look": 1,
           "sll_max_look": 3,
           "ll_look": 0,
@@ -545,7 +545,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 21061,
+          "time_ns": 26442,
           "events": []
         },
         {
@@ -553,8 +553,8 @@
           "rule": "activity_repeat_stmt",
           "rule_index": 118,
           "grammar_line": 890,
-          "invocations": 3,
-          "sll_look": 5,
+          "invocations": 4,
+          "sll_look": 6,
           "sll_min_look": 1,
           "sll_max_look": 3,
           "ll_look": 0,
@@ -567,7 +567,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 24407,
+          "time_ns": 31821,
           "events": []
         },
         {
@@ -575,8 +575,8 @@
           "rule": "activity_repeat_stmt",
           "rule_index": 118,
           "grammar_line": 890,
-          "invocations": 3,
-          "sll_look": 9,
+          "invocations": 4,
+          "sll_look": 12,
           "sll_min_look": 3,
           "sll_max_look": 3,
           "ll_look": 0,
@@ -589,7 +589,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 17855,
+          "time_ns": 27743,
           "events": []
         },
         {
@@ -611,7 +611,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 20439,
+          "time_ns": 26610,
           "events": []
         },
         {
@@ -633,7 +633,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 108206,
+          "time_ns": 138224,
           "events": []
         },
         {
@@ -655,7 +655,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 21391,
+          "time_ns": 26280,
           "events": []
         },
         {
@@ -677,7 +677,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 24556,
+          "time_ns": 30538,
           "events": []
         },
         {
@@ -699,7 +699,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 16511,
+          "time_ns": 20810,
           "events": []
         },
         {
@@ -721,7 +721,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 47551,
+          "time_ns": 56946,
           "events": []
         },
         {
@@ -743,7 +743,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 11286,
+          "time_ns": 15634,
           "events": []
         },
         {
@@ -765,7 +765,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 21067,
+          "time_ns": 26239,
           "events": []
         },
         {
@@ -787,7 +787,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 46077,
+          "time_ns": 58731,
           "events": []
         },
         {
@@ -809,7 +809,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 20018,
+          "time_ns": 27852,
           "events": []
         },
         {
@@ -831,7 +831,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 148432,
+          "time_ns": 188752,
           "events": []
         },
         {
@@ -853,7 +853,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 9258747,
+          "time_ns": 10227107,
           "events": []
         },
         {
@@ -861,8 +861,8 @@
           "rule": "data_type",
           "rule_index": 175,
           "grammar_line": 1268,
-          "invocations": 1042,
-          "sll_look": 1841,
+          "invocations": 1051,
+          "sll_look": 1858,
           "sll_min_look": 1,
           "sll_max_look": 13,
           "ll_look": 0,
@@ -875,7 +875,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 332097,
+          "time_ns": 422220,
           "events": []
         },
         {
@@ -897,7 +897,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 5480,
+          "time_ns": 7241,
           "events": []
         },
         {
@@ -919,7 +919,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 94929,
+          "time_ns": 114302,
           "events": []
         },
         {
@@ -941,7 +941,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 34063,
+          "time_ns": 45357,
           "events": []
         },
         {
@@ -949,21 +949,21 @@
           "rule": "constraint_set",
           "rule_index": 199,
           "grammar_line": 1422,
-          "invocations": 35,
-          "sll_look": 122,
+          "invocations": 38,
+          "sll_look": 143,
           "sll_min_look": 1,
           "sll_max_look": 12,
           "ll_look": 0,
           "ll_min_look": 0,
           "ll_max_look": 0,
-          "sll_atn_transitions": 28,
+          "sll_atn_transitions": 35,
           "ll_atn_transitions": 0,
           "ll_fallback": 0,
           "ambiguities": 0,
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 609801,
+          "time_ns": 949097,
           "events": []
         },
         {
@@ -971,21 +971,21 @@
           "rule": "constraint_body_item",
           "rule_index": 201,
           "grammar_line": 1433,
-          "invocations": 98,
-          "sll_look": 783,
+          "invocations": 104,
+          "sll_look": 838,
           "sll_min_look": 1,
           "sll_max_look": 30,
           "ll_look": 0,
           "ll_min_look": 0,
           "ll_max_look": 0,
-          "sll_atn_transitions": 157,
+          "sll_atn_transitions": 163,
           "ll_atn_transitions": 0,
           "ll_fallback": 0,
           "ambiguities": 0,
           "context_sensitivities": 0,
           "errors": 28,
           "predicate_evals": 0,
-          "time_ns": 2939700,
+          "time_ns": 3877682,
           "events": []
         },
         {
@@ -1007,7 +1007,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 1252,
+          "time_ns": 1342,
           "events": []
         },
         {
@@ -1029,7 +1029,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 22513,
+          "time_ns": 29216,
           "events": []
         },
         {
@@ -1051,7 +1051,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 2051331,
+          "time_ns": 2632513,
           "events": []
         },
         {
@@ -1073,7 +1073,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 30350,
+          "time_ns": 37811,
           "events": []
         },
         {
@@ -1095,7 +1095,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 10309,
+          "time_ns": 13215,
           "events": []
         },
         {
@@ -1117,7 +1117,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 774083,
+          "time_ns": 943392,
           "events": []
         },
         {
@@ -1139,7 +1139,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 63721,
+          "time_ns": 84130,
           "events": []
         },
         {
@@ -1147,8 +1147,8 @@
           "rule": "expression",
           "rule_index": 263,
           "grammar_line": 1793,
-          "invocations": 277,
-          "sll_look": 310,
+          "invocations": 283,
+          "sll_look": 318,
           "sll_min_look": 1,
           "sll_max_look": 3,
           "ll_look": 0,
@@ -1161,7 +1161,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 94052,
+          "time_ns": 116883,
           "events": []
         },
         {
@@ -1169,21 +1169,21 @@
           "rule": "expression",
           "rule_index": 263,
           "grammar_line": 1793,
-          "invocations": 2131,
-          "sll_look": 2800,
+          "invocations": 2151,
+          "sll_look": 2822,
           "sll_min_look": 1,
           "sll_max_look": 32,
-          "ll_look": 368,
+          "ll_look": 374,
           "ll_min_look": 1,
           "ll_max_look": 8,
           "sll_atn_transitions": 89,
-          "ll_atn_transitions": 341,
-          "ll_fallback": 280,
+          "ll_atn_transitions": 347,
+          "ll_fallback": 286,
           "ambiguities": 40,
           "context_sensitivities": 3,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 16923466,
+          "time_ns": 21065598,
           "events": []
         },
         {
@@ -1205,7 +1205,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 19227,
+          "time_ns": 24797,
           "events": []
         },
         {
@@ -1227,7 +1227,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 5280,
+          "time_ns": 7455,
           "events": []
         },
         {
@@ -1249,7 +1249,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 200470,
+          "time_ns": 256085,
           "events": []
         },
         {
@@ -1257,21 +1257,21 @@
           "rule": "primary",
           "rule_index": 282,
           "grammar_line": 1897,
-          "invocations": 1751,
-          "sll_look": 1801,
+          "invocations": 1765,
+          "sll_look": 1817,
           "sll_min_look": 1,
           "sll_max_look": 7,
           "ll_look": 0,
           "ll_min_look": 0,
           "ll_max_look": 0,
-          "sll_atn_transitions": 23,
+          "sll_atn_transitions": 24,
           "ll_atn_transitions": 0,
           "ll_fallback": 0,
           "ambiguities": 0,
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 221918,
+          "time_ns": 283221,
           "events": []
         },
         {
@@ -1293,7 +1293,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 209478,
+          "time_ns": 250678,
           "events": []
         },
         {
@@ -1315,7 +1315,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 7414,
+          "time_ns": 8044,
           "events": []
         },
         {
@@ -1337,7 +1337,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 6772,
+          "time_ns": 8327,
           "events": []
         },
         {
@@ -1345,8 +1345,8 @@
           "rule": "ref_path",
           "rule_index": 287,
           "grammar_line": 1951,
-          "invocations": 646,
-          "sll_look": 646,
+          "invocations": 656,
+          "sll_look": 656,
           "sll_min_look": 1,
           "sll_max_look": 1,
           "ll_look": 0,
@@ -1359,7 +1359,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 74570,
+          "time_ns": 93938,
           "events": []
         },
         {
@@ -1367,8 +1367,8 @@
           "rule": "ref_path",
           "rule_index": 287,
           "grammar_line": 1951,
-          "invocations": 654,
-          "sll_look": 1499,
+          "invocations": 664,
+          "sll_look": 1527,
           "sll_min_look": 2,
           "sll_max_look": 7,
           "ll_look": 7,
@@ -1381,7 +1381,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 1120479,
+          "time_ns": 1405621,
           "events": []
         },
         {
@@ -1403,7 +1403,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 13950,
+          "time_ns": 17744,
           "events": []
         },
         {
@@ -1425,7 +1425,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 1696602,
+          "time_ns": 2265951,
           "events": []
         },
         {
@@ -1433,8 +1433,8 @@
           "rule": "hierarchical_id",
           "rule_index": 295,
           "grammar_line": 1995,
-          "invocations": 903,
-          "sll_look": 903,
+          "invocations": 921,
+          "sll_look": 921,
           "sll_min_look": 1,
           "sll_max_look": 1,
           "ll_look": 0,
@@ -1447,7 +1447,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 101894,
+          "time_ns": 124239,
           "events": []
         },
         {
@@ -1455,8 +1455,8 @@
           "rule": "member_path_elem",
           "rule_index": 296,
           "grammar_line": 1999,
-          "invocations": 955,
-          "sll_look": 995,
+          "invocations": 973,
+          "sll_look": 1013,
           "sll_min_look": 1,
           "sll_max_look": 2,
           "ll_look": 0,
@@ -1469,7 +1469,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 137003,
+          "time_ns": 173724,
           "events": []
         },
         {
@@ -1477,8 +1477,8 @@
           "rule": "member_path_elem",
           "rule_index": 296,
           "grammar_line": 1999,
-          "invocations": 964,
-          "sll_look": 1006,
+          "invocations": 982,
+          "sll_look": 1024,
           "sll_min_look": 1,
           "sll_max_look": 18,
           "ll_look": 3,
@@ -1491,7 +1491,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 3298253,
+          "time_ns": 4526649,
           "events": []
         },
         {
@@ -1499,21 +1499,21 @@
           "rule": "type_identifier",
           "rule_index": 315,
           "grammar_line": 2037,
-          "invocations": 964,
-          "sll_look": 1498,
+          "invocations": 974,
+          "sll_look": 1521,
           "sll_min_look": 1,
           "sll_max_look": 35,
-          "ll_look": 39,
+          "ll_look": 40,
           "ll_min_look": 1,
           "ll_max_look": 1,
-          "sll_atn_transitions": 23,
-          "ll_atn_transitions": 39,
-          "ll_fallback": 39,
+          "sll_atn_transitions": 24,
+          "ll_atn_transitions": 40,
+          "ll_fallback": 40,
           "ambiguities": 0,
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 8406121,
+          "time_ns": 10846327,
           "events": []
         },
         {
@@ -1535,7 +1535,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 37683,
+          "time_ns": 37231,
           "events": []
         },
         {
@@ -1543,8 +1543,8 @@
           "rule": "integer_number",
           "rule_index": 328,
           "grammar_line": 2072,
-          "invocations": 1023,
-          "sll_look": 1841,
+          "invocations": 1026,
+          "sll_look": 1847,
           "sll_min_look": 1,
           "sll_max_look": 3,
           "ll_look": 0,
@@ -1557,7 +1557,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 190280,
+          "time_ns": 222078,
           "events": []
         },
         {
@@ -1579,7 +1579,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 17984,
+          "time_ns": 23945,
           "events": []
         },
         {
@@ -1601,7 +1601,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 4109372,
+          "time_ns": 4033035,
           "events": []
         },
         {
@@ -1623,7 +1623,7 @@
           "context_sensitivities": 0,
           "errors": 0,
           "predicate_evals": 0,
-          "time_ns": 2294865,
+          "time_ns": 2333883,
           "events": []
         }
       ]

@@ -63,6 +63,14 @@ public:
 
 private:
 
+    /**
+     * `this`: the context type (LRM 13.1.4). The innermost enclosing type
+     * scope -- except in an inline `with` block, where the traversed
+     * action's scope is innermost and `this` is the *containing* action.
+     * Null outside any type.
+     */
+    ast::ISymbolRefPath *resolveThis();
+
     ast::ISymbolRefPath *searchImports(
         const ast::IExprId          *id,
         ast::ISymbolImportSpec      *imp);

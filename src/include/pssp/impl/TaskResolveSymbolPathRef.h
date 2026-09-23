@@ -181,6 +181,14 @@ public:
                     }
                     DEBUG("  scope %p => %p", scope_ts, ret);
                 } break;
+                case ast::SymbolRefPathElemKind::ElemKind_This: {
+                    // `this` (13.1.4). The elements before it lead to the
+                    // context type; this one says the reference is to an
+                    // instance of it, not to the type by name. It resolves
+                    // to that same scope.
+                    DEBUG("Elem: This");
+                    ret = scope.get();
+                } break;
                 default:
                     throw InternalError::fmt(
                         "symbol path element kind %d is not handled", (int)it->kind);
@@ -267,6 +275,10 @@ public:
                     scope = c;
                     DEBUG("  scope %p => %p", scope_ts, ret);
                 } break;
+                case ast::SymbolRefPathElemKind::ElemKind_This:
+                    // Names no scope of its own: the iterator already
+                    // stands in the context type.
+                    break;
                 default:
                     // Super and the rest: an iterator has never been built
                     // through one, and the scope stack it would need is not
