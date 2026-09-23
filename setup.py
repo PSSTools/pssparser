@@ -156,6 +156,22 @@ setup_args = dict(
     version=version,
     author="Matthew Ballance",
     author_email="matt.ballance@gmail.com",
+    # SPDX identifier.  Every release up to 3.1.6 shipped with NO license
+    # metadata at all -- neither `License` nor `License-Expression` -- so
+    # anything resolving the package from PyPI alone saw an unlicensed
+    # project, LICENSE in the repository notwithstanding.  A released
+    # version's metadata can never be edited, so this fixes it going forward
+    # only.
+    #
+    # This emits the legacy `License: Apache-2.0`, not PEP 639's
+    # `License-Expression:`.  The expression form comes from a `[project]`
+    # table in pyproject.toml, and setuptools ignores a setup.py `license=`
+    # for that purpose.  Introducing `[project]` here is NOT a drop-in:
+    # setuptools would then ignore every other field this setup.py passes --
+    # author, description, install_requires, python_requires, entry_points --
+    # unless each is restated there or listed as `dynamic`.  That migration is
+    # worth doing and is deliberately not bundled with a metadata fix.
+    license="Apache-2.0",
     description="Provides a PSS parser and related tools",
     long_description="""
     PSSParser - PSS language parser with ANTLR4 backend
