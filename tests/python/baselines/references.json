@@ -8,7 +8,7 @@
   },
   "legal_model": "clean",
   "corpus_refs": {
-   "bound": 1033,
+   "bound": 1034,
    "unbound": 27
   },
   "schema_ref_fields": 46,
@@ -40,7 +40,7 @@
    "in_corpus": false,
    "in_slots": true
   },
-  "ActivityForeach.target": {
+  "ActivityForeach.path": {
    "type": "ExprRefPathContext",
    "visit": true,
    "in_corpus": true,
@@ -203,8 +203,8 @@
    "in_slots": true
   },
   "ExprCompileHas.ref": {
-   "type": "ExprRefPathStatic",
-   "visit": true,
+   "type": "ExprRefPath",
+   "visit": false,
    "in_corpus": false,
    "in_slots": false
   },
@@ -388,7 +388,7 @@
    "ActivityActionHandleTraversal.target | ExprRefPathContext": {
     "bound": 28
    },
-   "ActivityForeach.target | ExprRefPathContext": {
+   "ActivityForeach.path | ExprRefPathContext": {
     "bound": 1
    },
    "ActivityIfElse.cond | ExprRefPathContext": {
@@ -408,6 +408,9 @@
    },
    "AnnotationParam.name | ExprRefName": {
     "bound": 7
+   },
+   "CompileCond.cond{UNWALKED} | ExprRefPathStatic": {
+    "bound": 1
    },
    "ComponentBind.pool_path | ExprRefPathContext": {
     "unbound": 5

@@ -81,6 +81,8 @@ public:
 
     virtual ITaskFindElementByLocation *mkTaskFindElementByLocation() override;
 
+    virtual IOccurrenceCollector *mkOccurrenceCollector() override;
+
     virtual IFmtTokenStream *mkTokenizer(std::istream *in) override;
 
     virtual IFmtCst *mkCstParser(std::istream *in) override;

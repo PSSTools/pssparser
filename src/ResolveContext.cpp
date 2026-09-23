@@ -84,6 +84,9 @@ void ResolveContext::addMarker(
         const ast::Location &loc,
         const std::string   &msg,
         const std::vector<std::pair<ast::Location, std::string>> &related) {
+    if (m_quiet) {
+        return;
+    }
     IMarkerUP marker(m_factory->mkMarker(
         msg,
         severity,

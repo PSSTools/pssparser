@@ -28,6 +28,7 @@
 #include "TaskResolveEnumRef.h"
 #include "TaskResolveSuperTypeRef.h"
 #include "pssp/impl/TaskResolveSymbolPathRef.h"
+#include "pssp/impl/ActivityScopes.h"
 
 
 namespace pssp {
@@ -77,7 +78,14 @@ ast::ISymbolRefPath *TaskResolveRootRef::resolve(const ast::IExprId *id) {
         }
 
         DEBUG_ENTER("processing scope %s", scope->getName().c_str());
-        scope->accept(m_this);
+        if (ActivityScopes::asScope(scope)) {
+            // Searched as the scope it is. Visiting it would go on into a
+            // compound statement's bodies -- each a scope, each searched in
+            // turn, and each able to clear a hit made in this one.
+            visitSymbolScope(scope);
+        } else {
+            scope->accept(m_this);
+        }
         DEBUG_LEAVE("processing scope %s", scope->getName().c_str());
 
         if (!m_ref) {

@@ -47,6 +47,30 @@ public:
     virtual void visitActivityDecl(ast::IActivityDecl *i) override;
 
     void registerActivityLabels(ast::ISymbolScope *scope);
+
+    /**
+     * Build one activity scope -- a declaration, a block or a compound
+     * statement (WS4.1, LRM 11.8.2): push it, register the declarations it
+     * holds (handles, `action` fields, loop variables), give each nested
+     * scope its address, and do the same for every nested scope and body.
+     *
+     * The symtab is rebuilt from nothing. A specialized template action is a
+     * copy of one whose activity was already built, and the copy carries the
+     * original's symtab; registering the handles again on top of it made
+     * each one a duplicate of itself.
+     */
+    void buildActivityScope(ast::ISymbolScope *i);
+
+    /**
+     * One child of an activity scope. A nested activity scope is built
+     * directly, never through accept(): the generated visitor of a compound
+     * statement would go on to walk its bodies a second time, with the
+     * enclosing scope pushed.
+     */
+    void buildActivityScopeChild(
+        ast::IScopeChild        *c,
+        int32_t                 idx,
+        ast::ISymbolScope       *parent);
     virtual void visitConstraintBlock(ast::IConstraintBlock *i) override;
 
     virtual void visitGenericConstraintDeclBool(ast::IGenericConstraintDeclBool *i) override;

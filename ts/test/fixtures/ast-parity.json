@@ -7184,6 +7184,15 @@
        75
       ],
       [
+       "ProceduralStmtDataDeclaration",
+       null,
+       4,
+       1,
+       102,
+       21,
+       2
+      ],
+      [
        "ActivityForeach",
        null,
        3,
@@ -7191,6 +7200,15 @@
        108,
        13,
        78
+      ],
+      [
+       "ProceduralStmtDataDeclaration",
+       null,
+       4,
+       1,
+       108,
+       22,
+       1
       ],
       [
        "ActivityReplicate",
@@ -17099,15 +17117,6 @@
        6
       ],
       [
-       "Annotation",
-       null,
-       3,
-       1,
-       44,
-       17,
-       -1
-      ],
-      [
        "ActivityDecl",
        null,
        3,
@@ -17115,6 +17124,15 @@
        42,
        13,
        163
+      ],
+      [
+       "Annotation",
+       null,
+       4,
+       1,
+       44,
+       17,
+       -1
       ],
       [
        "ActivityActionTypeTraversal",
@@ -17709,6 +17727,15 @@
        32,
        17,
        93
+      ],
+      [
+       "ProceduralStmtDataDeclaration",
+       null,
+       5,
+       1,
+       32,
+       28,
+       1
       ],
       [
        "ActivityReplicate",

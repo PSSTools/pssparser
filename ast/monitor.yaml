@@ -143,6 +143,11 @@ classes:
           distinguishes the five: they differ in temporal semantics, not in
           shape.
 
+          ``eventually`` is a scope too, with its body addressed after its
+          (empty) children -- the ActivityLabeledScope convention -- so that a
+          block in its body is reachable by symbol path. Handles declared in a
+          block are that block's children, not the monitor's (LRM 11.8.2).
+
           PSS Example::
 
               monitor m {
@@ -291,7 +296,7 @@ classes:
 
   # Eventually construct
   - MonitorActivityEventually:
-      super: MonitorActivityLabeledStmt
+      super: MonitorActivityLabeledScope
       doc: |
           Eventually operator for liveness properties.
 

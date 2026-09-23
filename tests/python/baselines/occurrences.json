@@ -1,0 +1,72 @@
+{
+ "files": 87,
+ "gaps": {
+  "packages/pss-corpus/curated/language-ref/activity_shapes.pss": {
+   "unresolved": [
+    "L@129:31",
+    "L@129:36",
+    "R@117:27",
+    "a@129:33",
+    "b@129:38"
+   ]
+  },
+  "packages/pss-corpus/curated/language-ref/behavioral_coverage.pss": {
+   "unresolved": [
+    "cpr@151:30",
+    "cpw@151:25",
+    "lock_mode@150:32",
+    "r@150:30",
+    "w@149:30",
+    "write_mode@149:32"
+   ]
+  },
+  "packages/pss-corpus/curated/language-ref/constraints.pss": {
+   "missing": [
+    "v2@110:27"
+   ]
+  },
+  "packages/pss-corpus/curated/language-ref/coverage.pss": {
+   "unresolved": [
+    "WIDE@67:47",
+    "chan@67:29",
+    "len@27:25",
+    "len@56:21",
+    "len@56:25",
+    "ln@40:29",
+    "m@37:25",
+    "m@56:32",
+    "md@40:25",
+    "mode@56:34",
+    "mode@67:39"
+   ]
+  },
+  "packages/pss-corpus/curated/language-ref/flow_basic.pss": {
+   "unresolved": [
+    "buff_p@84:10",
+    "state_p@86:10",
+    "strm_p@85:10"
+   ]
+  },
+  "packages/pss-corpus/curated/language-ref/resource_arbitration.pss": {
+   "unresolved": [
+    "chan_p@40:10",
+    "core_p@88:10"
+   ]
+  },
+  "packages/pss-corpus/curated/pss31/behavioral_coverage.pss": {
+   "unresolved": [
+    "cp_size@81:29",
+    "cp_size@81:38",
+    "s@75:33"
+   ]
+  },
+  "packages/pss-corpus/curated/pss31/templates_and_activity.pss": {
+   "missing": [
+    "setup_s@25:20"
+   ],
+   "unresolved": [
+    "leg@35:35"
+   ]
+  }
+ }
+}

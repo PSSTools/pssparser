@@ -191,6 +191,93 @@ def test_plural_accessor_does_not_append_the_result_of_accept():
         "plural accessor still appends the (void) result of accept()"
 
 
+def _gen_pyext(doc):
+    """Generate the Python extension for `doc`; return {filename: content}."""
+    from astbuilder.pyext_gen import PyExtGen
+    ast = _load(doc)
+    with tempfile.TemporaryDirectory() as d:
+        PyExtGen(d, "ast", "test.ast", None, None).generate(ast)
+        out = {}
+        for root, _, files in os.walk(d):
+            for f in files:
+                with open(os.path.join(root, f)) as fp:
+                    out[f] = fp.read()
+        return out
+
+
+# ---------------------------------------------------------------------------
+# Visitor exceptions (pss-scrambler BUG-001)
+# ---------------------------------------------------------------------------
+#
+# PyBaseVisitor::visitX ignored the Python callback's result, so a raising
+# override left the error set and the C++ walk carried on. It also leaked a
+# reference to the callback's return value on every call. Behaviour is covered
+# by test_visitor_exceptions.py; this pins the emitted shape.
+
+def test_visitor_checks_callback_result_and_throws():
+    cpp = _gen_pyext(SCHEMA_LIST)["PyBaseVisitor.cpp"]
+    assert "PyObject *ret = ast_call_visitC1(m_proxy, i);" in cpp
+    assert "throw PyErrAlreadySet();" in cpp
+    assert "Py_DECREF(ret);" in cpp
+
+
+def test_visitor_entry_points_translate_cpp_exceptions():
+    decl = _gen_pyext(SCHEMA_LIST)["ast_decl.pxd"]
+    assert "void accept(VisitorBase *v) except +" in decl
+    assert "void py_visitC1Base(IC1 *i) except +" in decl
+    assert "void py_acceptC1(IC1 *i) except +" in decl
+
+
+# ---------------------------------------------------------------------------
+# Type stub (pss-scrambler BUG-002)
+# ---------------------------------------------------------------------------
+
+SCHEMA_STUB = """
+enums:
+- E1:
+    - A
+    - B
+classes:
+- C1:
+    - doc: |
+        Quotes PSS: exec body C = \"\"\" x(); \"\"\";
+    - data:
+        - f1 : int32_t
+        - k : E1
+- C2:
+    - data:
+        - items: list<UP<C1>>
+        - path: list<UP<C1>>
+"""
+
+
+def test_stub_is_valid_python():
+    import ast as pyast
+    pyast.parse(_gen_pyext(SCHEMA_STUB)["ast.pyi"])
+
+
+def test_stub_list_accessors_are_complete_and_unique():
+    pyi = _gen_pyext(SCHEMA_STUB)["ast.pyi"]
+    for line in (
+            "def items(self) -> ListUtil[C1]: ...",
+            "def getItems(self) -> List[C1]: ...",
+            "def getItem(self, i: int) -> C1: ...",
+            "def numItems(self) -> int: ...",
+            # A name with no plural suffix gets `List`, and must not also get
+            # a zero-argument `getPath()` that shadows `getPath(i)`.
+            "def getPathList(self) -> List[C1]: ...",
+            "def getPath(self, i: int) -> C1: ..."):
+        assert line in pyi, line
+    assert "def getPath(self) ->" not in pyi
+    assert "ListUtil..." not in pyi
+
+
+def test_enum_setter_is_generated_not_only_stubbed():
+    out = _gen_pyext(SCHEMA_STUB)
+    assert "cpdef void setK(self, int v):" in out["ast.pyx"]
+    assert "def setK(self, v : E1 | int) -> None: ..." in out["ast.pyi"]
+
+
 # ---------------------------------------------------------------------------
 # gen-wasm: the AST wire format
 # ---------------------------------------------------------------------------

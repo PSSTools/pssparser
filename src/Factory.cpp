@@ -30,6 +30,7 @@
 #include "MarkerCollector.h"
 #include "NameResolver.h"
 #include "TaskFindElementByLocation.h"
+#include "OccurrenceCollector.h"
 #include "TaskLoadStandardLibrary.h"
 #include "TaskLookupLocation.h"
 #include "ValInt.h"
@@ -113,6 +114,10 @@ ISymbolTable *Factory::mkSymbolTable() {
 
 ITaskFindElementByLocation *Factory::mkTaskFindElementByLocation() {
     return new TaskFindElementByLocation(m_dmgr);
+}
+
+IOccurrenceCollector *Factory::mkOccurrenceCollector() {
+    return new OccurrenceCollector(m_dmgr);
 }
 
 IFmtTokenStream *Factory::mkTokenizer(std::istream *in) {

@@ -36,6 +36,9 @@
 #include "pssp/ast/IGenericConstraintParam.h"
 #include "TaskSpecializeParameterizedRef.h"
 #include "pssp/impl/TaskResolveSymbolPathRef.h"
+#include "pssp/impl/ActivityScopes.h"
+#include "pssp/ast/IProceduralStmtDataDeclaration.h"
+#include "pssp/ast/IActionHandleField.h"
 #include "pssp/impl/TaskGetElemSymbolScope.h"
 #include "pssp/impl/TaskGetSubscriptSymbolScope.h"
 #include "pssp/impl/TaskGetCollectionElemType.h"
@@ -264,6 +267,117 @@ void TaskResolveRefs::resolve(ast::ISymbolScope *root) {
     DEBUG_LEAVE("resolve");
 }
 
+namespace {
+
+/** Every Scope in a unit that carries a CompileCond, with the conditions. */
+class CompileCondFinder : public ast::VisitorBase {
+public:
+    std::vector<ast::IScope *>      scopes;
+
+    virtual void visitScope(ast::IScope *i) override {
+        if (i->getCompile_conds().size()) {
+            scopes.push_back(i);
+        }
+        VisitorBase::visitScope(i);
+    }
+};
+
+/** The `compile has(...)` operands under an expression (not walked by the
+ *  generated visitor, which is the point of them). */
+class CompileHasFinder : public ast::VisitorBase {
+public:
+    std::vector<ast::IExprRefPath *> refs;
+
+    virtual void visitExprCompileHas(ast::IExprCompileHas *i) override {
+        if (i->getRef()) {
+            refs.push_back(i->getRef());
+        }
+        VisitorBase::visitExprCompileHas(i);
+    }
+};
+
+/** The symbol scope each AST scope (type, package) stands under. */
+class SymbolScopeMap : public ast::VisitorBase {
+public:
+    std::map<ast::IScopeChild *, ast::ISymbolScope *>   m;
+
+    virtual void visitSymbolScope(ast::ISymbolScope *i) override {
+        if (i->getTarget()) {
+            m.emplace(i->getTarget(), i);
+        }
+        VisitorBase::visitSymbolScope(i);
+    }
+
+    // The symbol tree only, not the AST it points into.
+    virtual void visitScope(ast::IScope *i) override { }
+};
+
+}
+
+void TaskResolveRefs::resolveCompileConds(ast::IRootSymbolScope *root) {
+    DEBUG_ENTER("resolveCompileConds");
+    SymbolScopeMap sym;
+    for (auto it=root->getChildren().begin(); it!=root->getChildren().end(); it++) {
+        (*it)->accept(&sym);
+    }
+
+    m_ctxt->pushQuiet();
+    for (auto u_it=root->getUnits().begin(); u_it!=root->getUnits().end(); u_it++) {
+        CompileCondFinder finder;
+        (*u_it)->accept(&finder);
+
+        for (auto s_it=finder.scopes.begin(); s_it!=finder.scopes.end(); s_it++) {
+            ast::IScope *scope = *s_it;
+
+            // The symbol scope to resolve in. A package's symbol scope has
+            // no AST target (it stands for every block of that name), and an
+            // `extend` block resolves in the type it extends.
+            ast::ISymbolScope *sym_s = 0;
+            auto m_it = sym.m.find(scope);
+            if (m_it != sym.m.end()) {
+                sym_s = m_it->second;
+            } else if (ast::IPackageScope *pkg = dynamic_cast<ast::IPackageScope *>(scope)) {
+                ast::ISymbolScope *s = root;
+                for (auto id_it=pkg->getId().begin(); s && id_it!=pkg->getId().end(); id_it++) {
+                    auto st_it = s->getSymtab().find((*id_it)->getId());
+                    s = (st_it != s->getSymtab().end())
+                        ? dynamic_cast<ast::ISymbolScope *>(s->getChildren().at(st_it->second).get())
+                        : 0;
+                }
+                sym_s = s;
+            } else if (ast::IExtendType *ext = dynamic_cast<ast::IExtendType *>(scope)) {
+                if (ext->getTarget() && ext->getTarget()->getTarget()) {
+                    sym_s = dynamic_cast<ast::ISymbolScope *>(
+                        m_ctxt->resolveSymbolPathRef(ext->getTarget()->getTarget()));
+                }
+            }
+            if (!sym_s) {
+                sym_s = root;
+            }
+
+            m_ctxt->pushSymtab(TaskResolveSymbolPathRef(
+                m_ctxt->getDebugMgr(), root).mkIterator(
+                    m_ctxt->getFactory()->mkAstSymbolTableIterator(root), sym_s));
+            for (auto c_it=scope->getCompile_conds().begin();
+                    c_it!=scope->getCompile_conds().end(); c_it++) {
+                ast::IExpr *cond = (*c_it)->getCond();
+                if (!cond) {
+                    continue;
+                }
+                cond->accept(m_this);
+                CompileHasFinder has;
+                cond->accept(&has);
+                for (auto h_it=has.refs.begin(); h_it!=has.refs.end(); h_it++) {
+                    (*h_it)->accept(m_this);
+                }
+            }
+            m_ctxt->popSymtab();
+        }
+    }
+    m_ctxt->popQuiet();
+    DEBUG_LEAVE("resolveCompileConds");
+}
+
 void TaskResolveRefs::resolve(ast::ISymbolTypeScope *scope) {
     // Resolving a specialization's body can specialize again; see
     // TaskGetSpecializedTemplateType for the user-facing depth limit.
@@ -403,16 +517,27 @@ void TaskResolveRefs::visitActivityActionHandleTraversal(ast::IActivityActionHan
     }
 
     ast::IField *field = dynamic_cast<ast::IField *>(target);
+    // A handle declared in an activity (`A a; a with {...};`) is an
+    // ActionHandleField, not a Field. Its `with` block went unresolved --
+    // silently, since nothing in it was ever visited -- which the hoisting
+    // into the action hid: the same name usually existed as an action field.
+    ast::IActionHandleField *handle = dynamic_cast<ast::IActionHandleField *>(target);
     // A symbol parameter (`symbol s(A aa) { aa with {...}; }`) is traversed
     // like a handle field of its declared type (4.4).
     ast::IFunctionParamDecl *sym_param = dynamic_cast<ast::IFunctionParamDecl *>(target);
+    // So is a foreach iterator over a collection of handles, typed from the
+    // collection's element (WS4.1, K3).
+    ast::IProceduralStmtDataDeclaration *loop_var =
+        dynamic_cast<ast::IProceduralStmtDataDeclaration *>(target);
     DEBUG("target=%p field=%p", target, field);
-    if (!field && !sym_param) {
+    if (!field && !handle && !sym_param && !loop_var) {
         DEBUG("Failed to resolve traversal target to a field");
         DEBUG_LEAVE("visitActivityActionHandleTraversal");
         return;
     }
-    ast::IDataType *field_t = field ? field->getType() : sym_param->getType();
+    ast::IDataType *field_t = field ? field->getType()
+        : handle ? handle->getType()
+        : sym_param ? sym_param->getType() : loop_var->getDatatype();
     ast::IDataTypeUserDefined *field_udt = dynamic_cast<ast::IDataTypeUserDefined *>(field_t);
 
     DEBUG("field_t=%p action_t=%p", field_t, field_udt);
@@ -1230,6 +1355,11 @@ void TaskResolveRefs::resolveExprRefPathContext(ast::IExprRefPathContext *i) {
         m_ctxt->root(),
         m_ctxt->inlineCtxt()).resolve(target);
     ast::ISymbolScope *target_s = 0;
+
+    // Record what each element binds to (pss-scrambler FR-001). The root is
+    // resolved here, with the inline context in hand, which is the only place
+    // a `with { ... }` field can be followed back to its declaration.
+    i->getHier_id()->getElems().at(0)->getId()->setDecl(target_c);
     
     if (target_c) {
         target_s = TaskGetElemSymbolScope(
@@ -1386,6 +1516,9 @@ void TaskResolveRefs::resolveExprRefPathContext(ast::IExprRefPathContext *i) {
                 // scope". The element path stops here either way, so the
                 // prototype is used for checking only and is not recorded.
                 elem->setTarget(-2);
+                // A `string` method binds to its prototype; a collection
+                // method has none, and stays null (FR-001-Q1: "builtin").
+                elem->getId()->setDecl(proto);
                 if (elem->getParams()) {
                     DEBUG_ENTER("Resolve built-in method parameters");
                     for (auto it=elem->getParams()->getParameters().begin();
@@ -1482,6 +1615,7 @@ void TaskResolveRefs::resolveExprRefPathContext(ast::IExprRefPathContext *i) {
             DEBUG("NOTE: Found sub-element %s", elem->getId()->getId().c_str());
             elem->setTarget(res.idx);
             elem->setSuper(res.super_idx);
+            elem->getId()->setDecl(res.sym);
 
             // A member call -- `comp.f(1)`, `pkg::f(1)`.
             checkCallArity(elem, res.sym);
@@ -1596,24 +1730,116 @@ void TaskResolveRefs::visitActivitySequence(ast::IActivitySequence *i) {
     DEBUG_LEAVE("visitActivitySequence");
 }
 
+void TaskResolveRefs::resolveActivityScope(ast::ISymbolScope *i) {
+    DEBUG_ENTER("resolveActivityScope");
+    m_ctxt->symtab()->pushScope(i);
+    for (std::vector<ast::IScopeChildUP>::const_iterator
+        it=i->getChildren().begin(); it!=i->getChildren().end(); it++) {
+        visitMergedScopeChild(it->get());
+    }
+    std::vector<ast::IScopeChild *> bodies;
+    ActivityScopes::bodies(i, bodies);
+    for (std::vector<ast::IScopeChild *>::const_iterator
+        it=bodies.begin(); it!=bodies.end(); it++) {
+        if (*it) {
+            (*it)->accept(m_this);
+        }
+    }
+    m_ctxt->symtab()->popScope();
+    DEBUG_LEAVE("resolveActivityScope");
+}
+
 void TaskResolveRefs::visitActivityForeach(ast::IActivityForeach *i) {
     DEBUG_ENTER("visitActivityForeach");
-    // Push the body scope FIRST so that the index variable (idx_id) is in scope
-    // when resolving the target expression (e.g., `count[j]` where `j` is idx_id).
-    ast::ISymbolScope *body_scope =
-        i->getBody() ? dynamic_cast<ast::ISymbolScope*>(i->getBody()) : nullptr;
-    if (body_scope) {
-        m_ctxt->symtab()->pushScope(body_scope);
+    // The collection is written outside the loop, so it cannot see the loop's
+    // own variables. The index of `foreach (a[j])` is not part of it: the
+    // builder lifts `[j]` out of the path (F4).
+    if (i->getPath()) {
+        i->getPath()->accept(m_this);
     }
-    visitActivityLabeledStmt(i);
-    if (i->getIt_id())  { i->getIt_id()->accept(this); }
-    if (i->getIdx_id()) { i->getIdx_id()->accept(this); }
-    if (i->getTarget()) { i->getTarget()->accept(this); }
-    if (body_scope) {
-        m_ctxt->symtab()->popScope();
-    }
-    if (i->getBody()) { i->getBody()->accept(this); }
+    // Typed now that the collection has resolved, so `foreach (h : handles)
+    // { h; }` traverses an action handle rather than an `int` (K3).
+    typeLoopIterator(i, i->getIt_id(), i->getPath());
+    resolveActivityScope(i);
     DEBUG_LEAVE("visitActivityForeach");
+}
+
+void TaskResolveRefs::visitActivityRepeatCount(ast::IActivityRepeatCount *i) {
+    DEBUG_ENTER("visitActivityRepeatCount");
+    if (i->getCount()) {
+        i->getCount()->accept(m_this);
+    }
+    resolveActivityScope(i);
+    DEBUG_LEAVE("visitActivityRepeatCount");
+}
+
+void TaskResolveRefs::visitActivityRepeatWhile(ast::IActivityRepeatWhile *i) {
+    DEBUG_ENTER("visitActivityRepeatWhile");
+    if (i->getCond()) {
+        i->getCond()->accept(m_this);
+    }
+    resolveActivityScope(i);
+    DEBUG_LEAVE("visitActivityRepeatWhile");
+}
+
+void TaskResolveRefs::visitActivityReplicate(ast::IActivityReplicate *i) {
+    DEBUG_ENTER("visitActivityReplicate");
+    if (i->getCount()) {
+        i->getCount()->accept(m_this);
+    }
+    resolveActivityScope(i);
+    DEBUG_LEAVE("visitActivityReplicate");
+}
+
+void TaskResolveRefs::visitActivityIfElse(ast::IActivityIfElse *i) {
+    DEBUG_ENTER("visitActivityIfElse");
+    if (i->getCond()) {
+        i->getCond()->accept(m_this);
+    }
+    resolveActivityScope(i);
+    DEBUG_LEAVE("visitActivityIfElse");
+}
+
+void TaskResolveRefs::visitActivitySelect(ast::IActivitySelect *i) {
+    DEBUG_ENTER("visitActivitySelect");
+    for (std::vector<ast::IActivitySelectBranchUP>::const_iterator
+        it=i->getBranches().begin(); it!=i->getBranches().end(); it++) {
+        if ((*it)->getGuard()) {
+            (*it)->getGuard()->accept(m_this);
+        }
+        if ((*it)->getWeight()) {
+            (*it)->getWeight()->accept(m_this);
+        }
+    }
+    resolveActivityScope(i);
+    DEBUG_LEAVE("visitActivitySelect");
+}
+
+void TaskResolveRefs::visitActivityMatch(ast::IActivityMatch *i) {
+    DEBUG_ENTER("visitActivityMatch");
+    if (i->getCond()) {
+        i->getCond()->accept(m_this);
+    }
+    for (std::vector<ast::IActivityMatchChoiceUP>::const_iterator
+        it=i->getChoices().begin(); it!=i->getChoices().end(); it++) {
+        if ((*it)->getCond()) {
+            (*it)->getCond()->accept(m_this);
+        }
+    }
+    resolveActivityScope(i);
+    DEBUG_LEAVE("visitActivityMatch");
+}
+
+void TaskResolveRefs::visitActivityAtomicBlock(ast::IActivityAtomicBlock *i) {
+    DEBUG_ENTER("visitActivityAtomicBlock");
+    resolveActivityScope(i);
+    DEBUG_LEAVE("visitActivityAtomicBlock");
+}
+
+void TaskResolveRefs::visitMonitorActivityEventually(ast::IMonitorActivityEventually *i) {
+    DEBUG_ENTER("visitMonitorActivityEventually");
+    resolveActivityScope(i);
+    DEBUG_LEAVE("visitMonitorActivityEventually");
 }
 
 
@@ -1661,6 +1887,12 @@ void TaskResolveRefs::resolveExprRefPathStatic(ast::IExprRefPathStatic *i) {
                 target = i->getIs_global()
                     ? TaskResolveRef(m_ctxt).resolveGlobal((*it)->getId())
                     : TaskResolveRef(m_ctxt).resolve((*it)->getId());
+
+                if (target) {
+                    // Bound before specialization, so a generic names the
+                    // generic's declaration rather than a copy (FR-001).
+                    (*it)->getId()->setDecl(m_ctxt->resolveSymbolPathRef(target));
+                }
                 
                 if (!target) {
                     // As in visitExprRefPathContext: name the missing import
@@ -1792,6 +2024,7 @@ void TaskResolveRefs::resolveExprRefPathStatic(ast::IExprRefPathStatic *i) {
                 }
 
                 target_s = res.sym;
+                (*it)->getId()->setDecl(res.sym);
 
                 if (res.super_idx == 0) {
                     target->getPath().push_back({
@@ -1885,6 +2118,7 @@ void TaskResolveRefs::resolveExprRefPathStaticRooted(ast::IExprRefPathStaticRoot
             elem.idx = it->second;
             ref->getPath().push_back(elem);
             i->getRoot()->setTarget(ref);
+            id->setDecl(m_ctxt->resolveSymbolPathRef(ref));
         }
     } else {
         i->getRoot()->accept(m_this);
@@ -1954,6 +2188,7 @@ void TaskResolveRefs::resolveStaticRootedLeaf(ast::IExprRefPathStaticRooted *i) 
 
         elem->setTarget(res.idx);
         elem->setSuper(res.super_idx);
+        elem->getId()->setDecl(res.sym);
 
         checkCallArity(elem, res.sym);
 
@@ -2143,20 +2378,29 @@ void TaskResolveRefs::visitProceduralStmtRepeat(ast::IProceduralStmtRepeat *i) {
 }
 
 void TaskResolveRefs::typeForeachIterator(ast::IProceduralStmtForeach *i) {
-    if (!i->getIt_id() || !i->getPath() || !i->getPath()->getTarget()) {
+    typeLoopIterator(i, i->getIt_id(), i->getPath());
+}
+
+void TaskResolveRefs::typeLoopIterator(
+        ast::ISymbolScope       *loop,
+        ast::IExprId            *it_id,
+        ast::IExprRefPath       *coll_ref) {
+    if (!it_id || !coll_ref || !coll_ref->getTarget()) {
         DEBUG("No iterator variable, or the collection did not resolve");
         return;
     }
 
-    // The iterator variable the AST builder registered on the foreach node.
+    // The iterator variable registered on the loop node -- by the AST builder
+    // for a procedural loop, by TaskBuildSymbolTree for an activity loop.
     std::unordered_map<std::string, int32_t>::const_iterator it =
-        i->getSymtab().find(i->getIt_id()->getId());
-    if (it == i->getSymtab().end()) {
+        loop->getSymtab().find(it_id->getId());
+    if (it == loop->getSymtab().end()
+            || it->second < 0 || it->second >= (int32_t)loop->getChildren().size()) {
         return;
     }
     ast::IProceduralStmtDataDeclaration *var =
         dynamic_cast<ast::IProceduralStmtDataDeclaration *>(
-            i->getChildren().at(it->second).get());
+            loop->getChildren().at(it->second).get());
     if (!var || var->getDatatype()) {
         return;
     }
@@ -2164,14 +2408,14 @@ void TaskResolveRefs::typeForeachIterator(ast::IProceduralStmtForeach *i) {
     ast::IScopeChild *coll = TaskResolveSymbolPathRef(
         m_ctxt->getDebugMgr(),
         m_ctxt->root(),
-        m_ctxt->inlineCtxt()).resolve(i->getPath()->getTarget());
+        m_ctxt->inlineCtxt()).resolve(coll_ref->getTarget());
 
     ast::IDataType *elem_t = TaskGetCollectionElemType(
         m_ctxt->getDebugMgr(), m_ctxt->root()).resolve(coll);
 
     if (elem_t) {
         DEBUG("Iterator %s takes the collection's element type",
-            i->getIt_id()->getId().c_str());
+            it_id->getId().c_str());
         // Not owned: the type belongs to the collection's specialized
         // parameter list, which outlives the loop that borrows it.
         var->setDatatype(elem_t, false);
@@ -3239,12 +3483,15 @@ void TaskResolveRefs::visitAnnotation(ast::IAnnotation *i) {
         }
 
         // Record the binding (WS3.2): the annotation type's path, a Super
-        // step per base type crossed, then the member.
+        // step per base type crossed, then the member. `super_idx` is the
+        // number of hops -- 0 for the type's own member. One Super too many
+        // left every such binding pointing past the root of the hierarchy,
+        // at nothing (found by refcov's dead-path check).
         if (res.sym && res.idx >= 0 && !param->getName()->getTarget()) {
             ast::ISymbolRefPath *ref =
                 m_ctxt->getFactory()->getAstFactory()->mkSymbolRefPath();
             ref->getPath() = type_id->getTarget()->getPath();
-            for (int32_t s=0; s<=res.super_idx; s++) {
+            for (int32_t s=0; s<res.super_idx; s++) {
                 ref->getPath().push_back({ast::SymbolRefPathElemKind::ElemKind_Super, 0});
             }
             ref->getPath().push_back({ast::SymbolRefPathElemKind::ElemKind_ChildIdx, res.idx});

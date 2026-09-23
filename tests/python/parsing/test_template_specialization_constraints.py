@@ -65,7 +65,8 @@ def constraint_block(type_scope, name):
     target = type_scope.getTarget()
     for i in range(target.numChildren()):
         child = target.getChild(i)
-        if type(child).__name__ == "ConstraintBlock" and child.getName() == name:
+        if type(child).__name__ == "ConstraintBlock" and child.getName() \
+                and child.getName().getId() == name:
             return child
     return None
 

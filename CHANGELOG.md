@@ -7,6 +7,89 @@ revision advances only the patch component.
 
 ## Unreleased
 
+### Added — pss-scrambler requests (FR-001, FR-002)
+
+- **`pssparser.refs.occurrences(parser)`**: every identifier in the user's
+  files, with the declaration it names -- every element of a member path and
+  of a qualified name, parameters, `with { ... }` fields, enum items,
+  `extend` targets, template references, `compile if` conditions. Works after
+  a `link()` that raised. Each occurrence has a `resolution` from a closed
+  set (`pssparser.refs.Resolution`: `user`, `library`, `builtin`,
+  `unresolved`, `dependent`), and a declaration that overrides or shadows one
+  in a base type has `base_decl`. See `docs/refs.rst`.
+- **`Parser.inactive_regions()`**: the branches a `compile if` left out, as
+  `InactiveRegion(fileid, start_line, start_col, end_line, end_col)`.
+- **`ExprId.getDecl()`**: the declaration the linker bound this identifier to,
+  recorded for every element of a member path and of a qualified type name.
+- **`CompileCond`**, on `Scope.compile_conds`: each `compile if` /
+  `compile assert` keeps its condition (bound, never reported) and the source
+  range of each branch not elaborated. Branch selection is unchanged.
+
+### Changed (AST API) — pss-scrambler requests
+
+See `docs/design/cross-repo-followups.md` X-10.
+
+- **`ConstraintBlock.name` is an `ExprId`** with its own location (was a
+  `str`; FR-002 B). `getName()` returns `None` for an unnamed block (was
+  `""`). Applies to `GenericConstraintDeclBool` too. The factory takes an
+  `ExprId` (or null).
+- **`ExprCompileHas.ref` is an `ExprRefPath`** (was `ExprRefPathStatic`, and
+  always null). It is filled in, and is `visit: false`: `compile has(X)` may
+  name something that does not exist, so no pass reports it.
+
+### Fixed — pss-scrambler requests (BUG-001, BUG-002; pyastbuilder)
+
+- An exception raised in a Python `VisitorBase` override propagates unchanged
+  out of `accept()`, and the traversal stops there. It used to be swallowed and
+  replaced by an unrelated `SystemError` or `AttributeError`. Each visitor
+  callback also leaked a reference to `None`.
+- `pssparser/ast.pyi` is valid Python and matches the module: list accessors
+  are typed `ListUtil[T]` (which now also supports `len()` and indexing), the
+  duplicate `SymbolRefPath.getPath` is gone, and enum-field setters
+  (`ExprBin.setOp`, ...) exist at runtime.
+
+### Changed (AST API) — symbol-resolution R2 schema batch (activity scopes)
+
+Consumers that walk activities need updating; see
+`docs/design/cross-repo-followups.md` X-6 to X-8.
+
+- **An action handle or `action` data field declared in an activity is a child
+  of the block that declares it,** not of the enclosing action or monitor
+  (LRM 11.8.2, plan 2.6). A consumer collecting an action's handles has to
+  walk its activity as well; a consumer walking a block's statements now meets
+  `ActionHandleField` and `Field` entries among them. `getParent()` is still the
+  enclosing action or monitor.
+- **Every compound activity statement is a scope.** `ActivityRepeatCount`,
+  `ActivityRepeatWhile`, `ActivityForeach`, `ActivityReplicate`,
+  `ActivityIfElse`, `ActivitySelect`, `ActivityMatch` and `ActivityAtomicBlock`
+  derive from `ActivityLabeledScope` (were `ActivityLabeledStmt`), and
+  `MonitorActivityEventually` from `MonitorActivityLabeledScope`. `getLabel()`
+  and every existing field are unchanged; the factory methods take a leading
+  `name` (pass `""`). A test for "is this an activity statement" that checks
+  `ActivityLabeledStmt` or `ActivityStmt` no longer matches them.
+- **A loop's variables are its children,** as `ProceduralStmtDataDeclaration`
+  (the repeat or replicate index; the foreach iterator, typed from the
+  collection's element, and index). They used to be synthetic `int` fields
+  injected into a braced body, and were absent for a brace-less one.
+- **`ActivityForeach.target` is renamed `path`** (it collided with
+  `SymbolScope.target`). `getTarget()` on a foreach now returns the scope
+  target, which is null.
+
+### Fixed (symbol-resolution R2)
+
+- Legal code no longer rejected: two blocks each declaring a handle of the same
+  name (LRM Ex. 122, 124), a loop index used in a brace-less body (Ex. 113),
+  two sibling loops with the same index name.
+- Now reported where they were silent: a loop variable used after its loop, an
+  action-level reference to a handle declared in the activity (11.8.3), and
+  unknown names in the `with` block of a traversal of an activity-declared
+  handle or of a foreach iterator.
+- Names inside nested activity blocks and loop bodies are now bound to a path
+  that resolves; they used to be bound to a path through an unaddressable scope,
+  which every consumer read as unbound.
+- Annotation parameter names (`@a {.x = 1}`) bind to the member; the binding
+  pointed past the annotation type.
+
 ### Changed (AST API) — symbol-resolution R1 schema batch
 
 Consumers that read these fields need updating; see

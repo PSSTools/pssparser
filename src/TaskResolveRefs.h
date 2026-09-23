@@ -47,6 +47,15 @@ public:
 
     void resolve(ast::ISymbolTypeScope *scope);
 
+    /**
+     * Bind the names in every `compile if` / `compile assert` condition kept
+     * by the builder (CompileCond, pss-scrambler FR-002 case A), each in the
+     * scope it was written in. Reports nothing: the builder has already
+     * evaluated the condition, and `compile has(X)` names things that need
+     * not exist. Runs after resolve().
+     */
+    void resolveCompileConds(ast::IRootSymbolScope *root);
+
     virtual void visitActivityActionHandleTraversal(ast::IActivityActionHandleTraversal *i) override;
     
     virtual void visitActivityActionTypeTraversal(ast::IActivityActionTypeTraversal *i) override;
@@ -55,7 +64,23 @@ public:
 
     virtual void visitActivitySequence(ast::IActivitySequence *i) override;
 
+    // Compound activity statements are scopes (WS4.1): each is pushed while
+    // its bodies resolve, so a loop variable, and a handle declared in a
+    // nested block, are found and recorded with a path that leads somewhere.
+    // What is written outside the loop -- a count, a collection -- resolves
+    // before the push.
     virtual void visitActivityForeach(ast::IActivityForeach *i) override;
+    virtual void visitActivityRepeatCount(ast::IActivityRepeatCount *i) override;
+    virtual void visitActivityRepeatWhile(ast::IActivityRepeatWhile *i) override;
+    virtual void visitActivityReplicate(ast::IActivityReplicate *i) override;
+    virtual void visitActivityIfElse(ast::IActivityIfElse *i) override;
+    virtual void visitActivitySelect(ast::IActivitySelect *i) override;
+    virtual void visitActivityMatch(ast::IActivityMatch *i) override;
+    virtual void visitActivityAtomicBlock(ast::IActivityAtomicBlock *i) override;
+    virtual void visitMonitorActivityEventually(ast::IMonitorActivityEventually *i) override;
+
+    /** Push `i`, resolve its children and then its bodies, pop. */
+    void resolveActivityScope(ast::ISymbolScope *i);
     virtual void visitConstraintBlock(ast::IConstraintBlock *i) override;
 
     virtual void visitConstraintStmtForeach(ast::IConstraintStmtForeach *i) override;
@@ -124,6 +149,15 @@ public:
      * an unresolved path.
      */
     void typeForeachIterator(ast::IProceduralStmtForeach *i);
+
+    /**
+     * The same, for any loop scope: the iterator `it_id` registered in
+     * `loop`'s symtab takes the element type of the collection `coll`.
+     */
+    void typeLoopIterator(
+        ast::ISymbolScope       *loop,
+        ast::IExprId            *it_id,
+        ast::IExprRefPath       *coll);
 
 //    virtual void visitRootSymbolScope(ast::IRootSymbolScope *i) override;
 

@@ -24,6 +24,7 @@
 #include "dmgr/impl/DebugMacros.h"
 #include "pssp/ast/impl/VisitorBase.h"
 #include "pssp/impl/TaskResolveSymbolPathRef.h"
+#include "pssp/impl/ActivityScopes.h"
 
 namespace pssp {
 
@@ -60,7 +61,20 @@ public:
         // guard is kept because the hazard is structural -- resolve() takes a
         // pointer that its callers routinely obtain from resolvePath() -- not
         // because anything currently exercises it.
-        if (c) {
+        if (ast::ISymbolScope *as = ActivityScopes::asScope(c)) {
+            // A labeled activity statement names the scope its handles are
+            // declared in (11.8.3: `my_rep.a`, where `a` is declared in the
+            // repeat's body block). For a compound statement with one block
+            // body that is the body; otherwise the statement itself. Decided
+            // here rather than by visiting, which descended into the bodies
+            // and answered with whichever came last. The named sub-activity
+            // tree that replaces this is WS4.3.
+            std::vector<ast::IScopeChild *> bodies;
+            ActivityScopes::bodies(c, bodies);
+            ast::ISymbolScope *body = (bodies.size() == 1)
+                ? dynamic_cast<ast::ISymbolScope *>(bodies.at(0)) : 0;
+            m_ret = (body) ? body : as;
+        } else if (c) {
             c->accept(m_this);
         }
         return m_ret;

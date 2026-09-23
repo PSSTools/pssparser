@@ -13,10 +13,12 @@
 #else
 #include <sys/time.h>
 #endif
+#include <algorithm>
 #include <vector>
 #include <cstdarg>
 #include "dmgr/impl/DebugMacros.h"
 #include "pssp/impl/InternalError.h"
+#include "pssp/impl/ActivityScopes.h"
 #include "AstBuilderInt.h"
 #include "PSSLexer.h"
 #include "atn/ParseInfo.h"
@@ -146,6 +148,7 @@ void AstBuilderInt::build(
     // into the next file built with this builder.
     m_scopes.clear();
     m_exec_scope_s.clear();
+    m_activity_scope_s.clear();
     m_access_s.clear();
 
     if (m_marker_l) {
@@ -860,11 +863,13 @@ antlrcpp::Any AstBuilderInt::visitActivity_declaration(PSSParser::Activity_decla
     setLoc(activity, ctx->start);
 
 	std::vector<PSSParser::Activity_stmt_annContext *> items = ctx->activity_stmt_ann();
+	m_activity_scope_s.push_back(activity);
 	for (std::vector<PSSParser::Activity_stmt_annContext *>::const_iterator
 		it=items.begin();
 		it!=items.end(); it++) {
         addActivityStmt(activity, *it);
 	}
+	m_activity_scope_s.pop_back();
     
 	m_activity_stmt = activity;
 
@@ -1285,9 +1290,9 @@ antlrcpp::Any AstBuilderInt::visitActivity_data_field(PSSParser::Activity_data_f
 	// D2: `activity_data_field` contributes tokens ahead of the declaration it wraps, so the
 	// comment sits to the left of *this* rule, not of the delegate.
 	DocAnchorScope doc_anchor(this, ctx->start);
-	// In an activity, the field lands in the action (addChild targets the
-	// innermost named scope), like an activity-local action handle. Placing
-	// both in their activity block is WS2.6.
+	// In an activity, the field lands in its activity block, like an
+	// activity-local action handle (addChild, WS2.6); in an action body, in
+	// the action.
 	m_field_depth++;
 	ctx->data_declaration()->accept(this);
 	m_field_depth--;
@@ -2464,7 +2469,9 @@ antlrcpp::Any AstBuilderInt::visitMonitor_activity_declaration(PSSParser::Monito
 
 	addChild(activity, ctx->start, ctx->TOK_RCBRACE()->getSymbol());
 
+	m_activity_scope_s.push_back(activity);
 	addMonitorActivityStmts(activity, ctx->monitor_activity_stmt());
+	m_activity_scope_s.pop_back();
 
 	DEBUG_LEAVE("visitMonitor_activity_declaration");
 	return 0;
@@ -2488,7 +2495,9 @@ antlrcpp::Any AstBuilderInt::visit##RuleName(                                  \
 		m_labeled_activity_id = 0;                                             \
 	}                                                                          \
                                                                                \
+	m_activity_scope_s.push_back(blk);                                         \
 	addMonitorActivityStmts(blk, ctx->monitor_activity_stmt());                \
+	m_activity_scope_s.pop_back();                                             \
                                                                                \
 	setLoc(blk, ctx->start);                                                   \
 	setExtent(blk, ctx->start, ctx->stop);                                     \
@@ -2530,10 +2539,14 @@ antlrcpp::Any AstBuilderInt::visitMonitor_activity_eventually_stmt(PSSParser::Mo
 	ast::IExprId *label = m_labeled_activity_id;
 	m_labeled_activity_id = 0;
 
-	ast::IScopeChild *body = mkMonitorActivityStmt(ctx->monitor_activity_stmt());
-
 	ast::IMonitorActivityEventually *eventually =
-		m_factory->mkMonitorActivityEventually(body);
+		m_factory->mkMonitorActivityEventually("", 0);
+
+	m_activity_scope_s.push_back(eventually);
+	ast::IScopeChild *body = mkMonitorActivityStmt(ctx->monitor_activity_stmt());
+	m_activity_scope_s.pop_back();
+	eventually->setBody(body);
+	indexActivityBodies(eventually);
 	if (label) {
 		eventually->setLabel(label);
 	}
@@ -2695,11 +2708,13 @@ antlrcpp::Any AstBuilderInt::visitActivity_sequence_block_stmt(PSSParser::Activi
 	}
 
 	std::vector<PSSParser::Activity_stmt_annContext *> items = ctx->activity_stmt_ann();
+	m_activity_scope_s.push_back(seq);
 	for (std::vector<PSSParser::Activity_stmt_annContext *>::const_iterator
 		it=items.begin();
 		it!=items.end(); it++) {
         addActivityStmt(seq, *it);
 	}
+	m_activity_scope_s.pop_back();
 
 	// A5: locate the statement at its opening keyword, and extend the range
 	// through ctx->stop -- the closing brace for a braced form, the last body
@@ -2730,11 +2745,13 @@ antlrcpp::Any AstBuilderInt::visitActivity_parallel_stmt(PSSParser::Activity_par
 
 
 	std::vector<PSSParser::Activity_stmt_annContext *> items = ctx->activity_stmt_ann();
+	m_activity_scope_s.push_back(par);
 	for (std::vector<PSSParser::Activity_stmt_annContext *>::const_iterator
 		it=items.begin();
 		it!=items.end(); it++) {
         addActivityStmt(par, *it);
 	}
+	m_activity_scope_s.pop_back();
 
 	// A5: locate the statement at its opening keyword, and extend the range
 	// through ctx->stop -- the closing brace for a braced form, the last body
@@ -2764,11 +2781,13 @@ antlrcpp::Any AstBuilderInt::visitActivity_schedule_stmt(PSSParser::Activity_sch
 	}
 
 	std::vector<PSSParser::Activity_stmt_annContext *> items = ctx->activity_stmt_ann();
+	m_activity_scope_s.push_back(sched);
 	for (std::vector<PSSParser::Activity_stmt_annContext *>::const_iterator
 		it=items.begin();
 		it!=items.end(); it++) {
         addActivityStmt(sched, *it);
 	}
+	m_activity_scope_s.pop_back();
 
 	// A5: locate the statement at its opening keyword, and extend the range
 	// through ctx->stop -- the closing brace for a braced form, the last body
@@ -2789,39 +2808,44 @@ antlrcpp::Any AstBuilderInt::visitActivity_repeat_stmt(PSSParser::Activity_repea
 	ast::IExprId *label = m_labeled_activity_id;
 	m_labeled_activity_id = 0;
 
-	IActivityLabeledStmt *stmt = 0;
+	ast::IActivityLabeledScope *stmt = 0;
 
 	if (ctx->is_repeat) {
+		// The count is outside the loop: the index is not in scope in it.
+		ast::IActivityRepeatCount *rstmt = m_factory->mkActivityRepeatCount(
+			"",
+			(ctx->loop_var)?mkId(ctx->loop_var):0,
+			mkExpr(ctx->expression()),
+            0);
+		// The index belongs to the loop, not to its body (11.5.1.1 b): a
+		// brace-less body has no block to put it in, and it must not be
+		// visible after the loop.
+		addActivityLoopVar(rstmt, rstmt->getLoop_var());
+
+		m_activity_scope_s.push_back(rstmt);
         ast::IScopeChild *body = mkActivityStmt(ctx->activity_stmt_ann());
+		m_activity_scope_s.pop_back();
         if (!body) {
             body = m_factory->mkActivitySequence("");
         }
-
-        // Register the loop variable as a synthetic field in the body scope so
-        // `with` constraints inside the loop body can reference it by name.
-        if (ctx->loop_var) {
-            auto *body_scope = dynamic_cast<ast::ISymbolScope*>(body);
-            if (body_scope) {
-                addSyntheticIntField(body_scope, ctx->loop_var->getText());
-            }
-        }
-
-		ast::IActivityRepeatCount *rstmt = m_factory->mkActivityRepeatCount(
-			(ctx->loop_var)?mkId(ctx->loop_var):0,
-			mkExpr(ctx->expression()),
-            body);
+		rstmt->setBody(body);
         stmt = rstmt;
 	} else {
 		// do { body } while (cond);
+		ast::IActivityRepeatWhile *rw = m_factory->mkActivityRepeatWhile(
+			"",
+			mkExpr(ctx->expression()),
+			0);
+		m_activity_scope_s.push_back(rw);
 		ast::IScopeChild *body = mkActivityStmt(ctx->activity_stmt_ann());
+		m_activity_scope_s.pop_back();
 		if (!body) {
 			body = m_factory->mkActivitySequence("");
 		}
-		ast::IActivityRepeatWhile *rw = m_factory->mkActivityRepeatWhile(
-			mkExpr(ctx->expression()),
-			body);
+		rw->setBody(body);
 		stmt = rw;
 	}
+	indexActivityBodies(stmt);
 
 	if (label) {
 		stmt->setLabel(label);
@@ -2850,13 +2874,16 @@ antlrcpp::Any AstBuilderInt::visitActivity_atomic_block_stmt(PSSParser::Activity
 	ast::IActivitySequence *seq = m_factory->mkActivitySequence("");
 	
 	std::vector<PSSParser::Activity_stmt_annContext *> stmts = ctx->activity_stmt_ann();
+	m_activity_scope_s.push_back(seq);
 	for (std::vector<PSSParser::Activity_stmt_annContext *>::const_iterator
 		it=stmts.begin();
 		it!=stmts.end(); it++) {
 		addActivityStmt(seq, *it);
 	}
+	m_activity_scope_s.pop_back();
 
-	ast::IActivityAtomicBlock *atomic = m_factory->mkActivityAtomicBlock(seq);
+	ast::IActivityAtomicBlock *atomic = m_factory->mkActivityAtomicBlock("", seq);
+	indexActivityBodies(atomic);
 	setLoc(atomic, ctx->start);
 
 	if (label) {
@@ -2872,13 +2899,14 @@ antlrcpp::Any AstBuilderInt::visitActivity_atomic_block_stmt(PSSParser::Activity
 antlrcpp::Any AstBuilderInt::visitActivity_select_stmt(PSSParser::Activity_select_stmtContext *ctx) {
 	DEBUG_ENTER("visitActivity_select_stmt");
 
-	ast::IActivitySelect *sel = m_factory->mkActivitySelect();
+	ast::IActivitySelect *sel = m_factory->mkActivitySelect("");
 
 	if (m_labeled_activity_id) {
 		sel->setLabel(m_labeled_activity_id);
 		m_labeled_activity_id = 0;
 	}
 
+	m_activity_scope_s.push_back(sel);
 	for (auto *b : ctx->select_branch()) {
 		ast::IExpr *guard  = b->guard  ? mkExpr(b->guard)  : nullptr;
 		ast::IExpr *weight = b->weight ? mkExpr(b->weight) : nullptr;
@@ -2889,6 +2917,8 @@ antlrcpp::Any AstBuilderInt::visitActivity_select_stmt(PSSParser::Activity_selec
 		ast::IActivitySelectBranch *branch = m_factory->mkActivitySelectBranch(guard, weight, body);
 		sel->getBranches().push_back(ast::IActivitySelectBranchUP(branch));
 	}
+	m_activity_scope_s.pop_back();
+	indexActivityBodies(sel);
 
 	// A5: locate the statement at its opening keyword, and extend the range
 	// through ctx->stop -- the closing brace for a braced form, the last body
@@ -2910,15 +2940,18 @@ antlrcpp::Any AstBuilderInt::visitActivity_if_else_stmt(PSSParser::Activity_if_e
 	m_labeled_activity_id = 0;
 
 	ast::IExpr *cond = mkExpr(ctx->expression());
+	ast::IActivityIfElse *ife = m_factory->mkActivityIfElse("", cond, 0, 0);
+
+	m_activity_scope_s.push_back(ife);
 	ast::IScopeChild *true_body  = mkActivityStmt(ctx->activity_stmt_ann(0));
 	ast::IScopeChild *false_body = (ctx->activity_stmt_ann().size() > 1)
 	                               ? mkActivityStmt(ctx->activity_stmt_ann(1))
 	                               : nullptr;
+	m_activity_scope_s.pop_back();
 
-	ast::IActivityIfElse *ife = m_factory->mkActivityIfElse(
-		cond,
-		true_body,
-		false_body);
+	ife->setTrue_s(true_body);
+	ife->setFalse_s(false_body);
+	indexActivityBodies(ife);
 
 	if (label) {
 		ife->setLabel(label);
@@ -2940,13 +2973,14 @@ antlrcpp::Any AstBuilderInt::visitActivity_match_stmt(PSSParser::Activity_match_
 	DEBUG_ENTER("visitActivity_match_stmt");
 
 	ast::IExpr *cond_expr = mkExpr(ctx->expression());
-	ast::IActivityMatch *match = m_factory->mkActivityMatch(cond_expr);
+	ast::IActivityMatch *match = m_factory->mkActivityMatch("", cond_expr);
 
 	if (m_labeled_activity_id) {
 		match->setLabel(m_labeled_activity_id);
 		m_labeled_activity_id = 0;
 	}
 
+	m_activity_scope_s.push_back(match);
 	for (auto *choice : ctx->match_choice()) {
 		bool is_default = (choice->is_default != nullptr);
 		ast::IExprOpenRangeList *cond = is_default
@@ -2959,6 +2993,8 @@ antlrcpp::Any AstBuilderInt::visitActivity_match_stmt(PSSParser::Activity_match_
 		ast::IActivityMatchChoice *mc = m_factory->mkActivityMatchChoice(is_default, cond, body);
 		match->getChoices().push_back(ast::IActivityMatchChoiceUP(mc));
 	}
+	m_activity_scope_s.pop_back();
+	indexActivityBodies(match);
 
 	// A5: locate the statement at its opening keyword, and extend the range
 	// through ctx->stop -- the closing brace for a braced form, the last body
@@ -3005,22 +3041,24 @@ antlrcpp::Any AstBuilderInt::visitActivity_foreach_stmt(PSSParser::Activity_fore
 		idx_id = liftForeachIndex(target);
 	}
 
+	ast::IActivityForeach *fe = m_factory->mkActivityForeach("", it_id, idx_id, target, 0);
+
+	// The iterator and index belong to the loop (11.7). Use the resolved
+	// it_id/idx_id nodes rather than the parse context: idx_id may have been
+	// lifted out of a greedy subscript above, in which case ctx->idx_id is
+	// null but the loop still declares an index variable. The iterator is
+	// typed from the collection's element when the target resolves.
+	addActivityLoopVar(fe, it_id);
+	addActivityLoopVar(fe, idx_id);
+
+	m_activity_scope_s.push_back(fe);
 	ast::IScopeChild *body = mkActivityStmt(ctx->activity_stmt_ann());
+	m_activity_scope_s.pop_back();
 	if (!body) {
 		body = m_factory->mkActivitySequence("");
 	}
-
-	// Register iterator and index variables as synthetic fields in the body scope
-	// so `with` constraints inside the loop body can reference them by name.
-	// Use the resolved it_id/idx_id nodes rather than the parse context: idx_id
-	// may have been lifted out of a greedy subscript above, in which case
-	// ctx->idx_id is null but the loop still declares an index variable.
-	if (auto *body_scope = dynamic_cast<ast::ISymbolScope*>(body)) {
-		if (it_id)  addSyntheticIntField(body_scope, it_id->getId());
-		if (idx_id) addSyntheticIntField(body_scope, idx_id->getId());
-	}
-
-	ast::IActivityForeach *fe = m_factory->mkActivityForeach(it_id, idx_id, target, body);
+	fe->setBody(body);
+	indexActivityBodies(fe);
 
 	if (label) {
 		fe->setLabel(label);
@@ -3057,26 +3095,25 @@ antlrcpp::Any AstBuilderInt::visitActivity_replicate_stmt(PSSParser::Activity_re
 	// The optional `lbl[]:` prefix names the array of replicated instances.
 	ast::IExprId *it_label = ctx->identifier() ? mkId(ctx->identifier()) : nullptr;
 
+	ast::IActivityReplicate *rep = m_factory->mkActivityReplicate(
+		"",
+		idx_id,
+		count,
+		it_label,
+		0);
+	// The index is scoped to the replicated statement (11.5.1.1 b).
+	addActivityLoopVar(rep, idx_id);
+
 	m_activity_stmt = 0;
+	m_activity_scope_s.push_back(rep);
 	ctx->labeled_activity_stmt()->accept(this);
+	m_activity_scope_s.pop_back();
 	ast::IScopeChild *body = m_activity_stmt;
 	if (!body) {
 		body = m_factory->mkActivitySequence("");
 	}
-
-	// Register the index variable in the body scope so `with` constraints
-	// inside the body can reference it by name, as for repeat/foreach.
-	if (idx_id) {
-		if (auto *body_scope = dynamic_cast<ast::ISymbolScope *>(body)) {
-			addSyntheticIntField(body_scope, idx_id->getId());
-		}
-	}
-
-	ast::IActivityReplicate *rep = m_factory->mkActivityReplicate(
-		idx_id,
-		count,
-		it_label,
-		body);
+	rep->setBody(body);
+	indexActivityBodies(rep);
 
 	if (label) {
 		rep->setLabel(label);
@@ -3512,14 +3549,10 @@ antlrcpp::Any AstBuilderInt::visitReference_type(PSSParser::Reference_typeContex
 // B.14 Constraints
 antlrcpp::Any AstBuilderInt::visitConstraint_declaration(PSSParser::Constraint_declarationContext *ctx) {
 	DEBUG_ENTER("visitConstraint_declaration");
-	std::string name;
-
-	if (ctx->identifier()) {
-		name = ctx->identifier()->getText();
-	}
-
+	// The name keeps its own location (null for an unnamed block), so tools
+	// can find `lim_c` itself rather than the `constraint` keyword.
 	ast::IConstraintBlock *constraint = m_factory->mkConstraintBlock(
-		name,
+		(ctx->identifier())?mkId(ctx->identifier()):0,
 		ctx->is_dynamic);
 
 	addChild(constraint, ctx->start);
@@ -3564,7 +3597,7 @@ antlrcpp::Any AstBuilderInt::visitGeneric_constraint_bool(PSSParser::Generic_con
     DEBUG_ENTER("visitGeneric_constraint_bool");
 
     ast::IGenericConstraintDeclBool *constraint = m_factory->mkGenericConstraintDeclBool(
-        ctx->identifier()->getText(),
+        mkId(ctx->identifier()),
         false);
     constraint->setIs_static(ctx->is_static);
     setLoc(constraint, ctx->start);
@@ -3903,10 +3936,12 @@ antlrcpp::Any AstBuilderInt::visitSymbol_declaration(PSSParser::Symbol_declarati
     addChild(sym, ctx->start, ctx->TOK_RCBRACE()->getSymbol());
 
     std::vector<PSSParser::Activity_stmt_annContext *> stmts = ctx->activity_stmt_ann();
+    m_activity_scope_s.push_back(sym);
     for (std::vector<PSSParser::Activity_stmt_annContext *>::const_iterator
         it=stmts.begin(); it!=stmts.end(); it++) {
         addActivityStmt(sym, *it);
     }
+    m_activity_scope_s.pop_back();
 
     DEBUG_LEAVE("visitSymbol_declaration");
     return 0;
@@ -4103,12 +4138,8 @@ antlrcpp::Any AstBuilderInt::visitMonitor_constraint_declaration(PSSParser::Moni
     // the same node here that they see in an action or struct. A named block
     // adds its items directly rather than through a wrapping ConstraintScope,
     // for the ref-path-resolution reason documented there.
-    std::string name;
-    if (ctx->identifier()) {
-        name = ctx->identifier()->getText();
-    }
-
-    ast::IConstraintBlock *constraint = m_factory->mkConstraintBlock(name, false);
+    ast::IConstraintBlock *constraint = m_factory->mkConstraintBlock(
+        (ctx->identifier())?mkId(ctx->identifier()):0, false);
 
     addChild(constraint, ctx->start);
     m_constraint_s.push_back(constraint);
@@ -4635,7 +4666,10 @@ antlrcpp::Any AstBuilderInt::visitRef_path(PSSParser::Ref_pathContext *ctx) {
 }
 
 antlrcpp::Any AstBuilderInt::visitCompile_has_expr(PSSParser::Compile_has_exprContext *ctx) {
-    m_expr = m_factory->mkExprCompileHas(0);
+    // The path used to be dropped (null), so the name inside `compile has`
+    // had no location and no binding (pss-scrambler FR-002-Q2).
+    m_expr = m_factory->mkExprCompileHas(
+        (ctx->ref_path())?mkExprRefPath(ctx->ref_path()):0);
     return 0;
 }
 
@@ -5848,8 +5882,17 @@ void AstBuilderInt::syntaxError(
 
 void AstBuilderInt::addChild(ast::IScopeChild *c, Token *t, const ast::Location *loc, Token *ct, Token *stop, Token *trailing_stop) {
     DEBUG_ENTER("addChild (IScopeChild) %p %p", t, loc);
-    c->setIndex(scope()->getChildren().size());
-	scope()->getChildren().push_back(ast::IScopeChildUP(c));
+    if (m_activity_scope_s.size()) {
+        // Declared inside an activity: it belongs to the innermost block
+        // (11.8.2). `parent` stays the enclosing type -- it is an IScope, and
+        // no activity block is one.
+        ast::ISymbolScope *blk = m_activity_scope_s.back();
+        c->setIndex(blk->getChildren().size());
+        blk->getChildren().push_back(ast::IScopeChildUP(c));
+    } else {
+        c->setIndex(scope()->getChildren().size());
+        scope()->getChildren().push_back(ast::IScopeChildUP(c));
+    }
 	c->setParent(scope());
     attachPendingAnnotations(c);
     if (loc) {
@@ -5891,8 +5934,16 @@ void AstBuilderInt::addChild(ast::ISymbolScope *c, Token *start, Token *end) {
 }
 
 void AstBuilderInt::addChild(ast::INamedScopeChild *c, Token *t) {
-    c->setIndex(scope()->getChildren().size());
-	scope()->getChildren().push_back(ast::IScopeChildUP(c));
+    if (m_activity_scope_s.size()) {
+        // An action handle or `action` field declared in an activity: see the
+        // IScopeChild overload above.
+        ast::ISymbolScope *blk = m_activity_scope_s.back();
+        c->setIndex(blk->getChildren().size());
+        blk->getChildren().push_back(ast::IScopeChildUP(c));
+    } else {
+        c->setIndex(scope()->getChildren().size());
+        scope()->getChildren().push_back(ast::IScopeChildUP(c));
+    }
 	c->setParent(scope());
     attachPendingAnnotations(c);
     c->setLocation({
@@ -6580,11 +6631,15 @@ bool AstBuilderInt::evalCompileTimeCond(
         int64_t                                 &val,
         const char                              *construct) {
     if (!ctx) {
+        m_cif_pending = false;
         return false;
     }
+    bool is_if = (std::string(construct) == "compile if");
     if (evalConstantExpression(ctx, val)) {
+        recordCompileCond(ctx, true, val, is_if);
         return true;
     }
+    recordCompileCond(ctx, false, 0, is_if);
 
     // "The value of any compile if expressions must be determinable at compile
     // time" (19.1.3).  Reading an indeterminable condition as false is what
@@ -6879,6 +6934,79 @@ void AstBuilderInt::checkCompileIfBranches(
 
     checkCompileIfBraces(true_body, owner);
     checkCompileIfBraces(false_body, owner);
+
+    m_cif_true = true_body;
+    m_cif_false = false_body;
+    m_cif_pending = true;
+}
+
+void AstBuilderInt::recordCompileCond(
+        PSSParser::Constant_expressionContext   *ctx,
+        bool                                    ok,
+        int64_t                                 val,
+        bool                                    is_if) {
+    antlr4::ParserRuleContext *t_body = (is_if && m_cif_pending)?m_cif_true:0;
+    antlr4::ParserRuleContext *f_body = (is_if && m_cif_pending)?m_cif_false:0;
+    m_cif_pending = false;
+    m_cif_true = 0;
+    m_cif_false = 0;
+
+    if (!m_scopes.size() || !ctx->expression()) {
+        return;
+    }
+
+    ast::ICompileCond *cc = m_factory->mkCompileCond();
+    cc->setKind((is_if)
+        ? ast::CompileCondKind::CompileCondKind_If
+        : ast::CompileCondKind::CompileCondKind_Assert);
+    cc->setCond(mkExpr(ctx->expression()));
+    cc->setEval_failed(!ok);
+
+    if (is_if) {
+        // FR-002-Q3: one range per branch not elaborated; both when the
+        // condition could not be evaluated. A nested `compile if` inside an
+        // unelaborated branch is never visited, so it is covered by this one.
+        int32_t taken = -1;
+        if (ok) {
+            taken = (val)?0:((f_body)?1:-1);
+        }
+        cc->setTaken(taken);
+        if (t_body && taken != 0) {
+            cc->getInactive().push_back(mkSourceRange(t_body));
+        }
+        if (f_body && taken != 1) {
+            cc->getInactive().push_back(mkSourceRange(f_body));
+        }
+    }
+
+    m_scopes.back()->getCompile_conds().push_back(ast::ICompileCondUP(cc));
+}
+
+ast::SourceRange AstBuilderInt::mkSourceRange(antlr4::ParserRuleContext *ctx) {
+    ast::SourceRange r;
+    Token *start = ctx->getStart();
+    Token *stop = ctx->getStop();
+    if (!start || !stop) {
+        return r;
+    }
+    r.fileid = m_file_id;
+    r.start_line = (int32_t)start->getLine();
+    r.start_col = (int32_t)start->getCharPositionInLine()+1;
+    rebaseLoc(r.start_line, r.start_col);
+
+    // Inclusive end: the stop token's last character.
+    r.end_line = (int32_t)stop->getLine();
+    r.end_col = (int32_t)stop->getCharPositionInLine()+1;
+    const std::string text = stop->getText();
+    size_t nl = text.rfind('\n');
+    if (nl == std::string::npos) {
+        r.end_col += (int32_t)(stop->getStopIndex() - stop->getStartIndex());
+    } else {
+        r.end_line += (int32_t)std::count(text.begin(), text.end(), '\n');
+        r.end_col = (int32_t)(text.size() - nl - 1);
+    }
+    rebaseLoc(r.end_line, r.end_col);
+    return r;
 }
 
 void AstBuilderInt::checkCompileIfBraces(
@@ -7471,26 +7599,34 @@ ast::IScopeChild *AstBuilderInt::mkActivityStmt(PSSParser::Activity_stmt_annCont
 	return m_activity_stmt;
 }
 
-// Add a synthetic integer field to a scope's symtab and children vector.
-// Used to register loop variables (repeat, foreach) so the name resolver can
-// find them when resolving `with` constraint expressions inside loop bodies.
-void AstBuilderInt::addSyntheticIntField(ast::ISymbolScope *scope, const std::string &name) {
-    if (!scope || name.empty()) return;
-    if (scope->getSymtab().find(name) != scope->getSymtab().end()) return; // already registered
+void AstBuilderInt::addActivityLoopVar(ast::ISymbolScope *loop, ast::IExprId *id) {
+    if (!loop || !id) {
+        return;
+    }
+    // A fresh name node: the loop statement keeps its own (`loop_var`,
+    // `it_id`, `idx_id`), as the procedural loops do.
+    ast::IExprId *name = m_factory->mkExprId(id->getId(), id->getIs_escaped());
+    name->setLocation(id->getLocation());
+    // Untyped, like a procedural loop variable: an index is an integer by
+    // definition, and a foreach iterator takes the collection's element type
+    // once the collection resolves (TaskResolveRefs).
+    ast::IProceduralStmtDataDeclaration *var =
+        m_factory->mkProceduralStmtDataDeclaration(name, 0, 0);
+    var->setLocation(id->getLocation());
+    var->setIndex(loop->getChildren().size());
+    loop->getChildren().push_back(ast::IScopeChildUP(var));
+}
 
-    ast::IExprId *id = m_factory->mkExprId(name, false);
-    ast::IField *field = m_factory->mkField(
-        id,
-        m_factory->mkDataTypeInt(
-            false,
-            m_factory->mkExprUnsignedNumber("32", 32, 32),
-            nullptr),
-        ast::FieldAttr::NoFlags,
-        nullptr);
-    int32_t idx = scope->getChildren().size();
-    field->setIndex(idx);
-    scope->getSymtab()[name] = idx;
-    scope->getChildren().push_back(ast::IScopeChildUP(field, true));
+void AstBuilderInt::indexActivityBodies(ast::ISymbolScope *stmt) {
+    std::vector<ast::IScopeChild *> bodies;
+    ActivityScopes::bodies(stmt, bodies);
+    int32_t idx = stmt->getChildren().size();
+    for (std::vector<ast::IScopeChild *>::const_iterator
+        it=bodies.begin(); it!=bodies.end(); it++, idx++) {
+        if (*it) {
+            (*it)->setIndex(idx);
+        }
+    }
 }
 
 // Inject the LRM built-in field for a state/resource struct (`initial`:bool /
@@ -7540,8 +7676,7 @@ void AstBuilderInt::addActivityStmt(
         scope->getChildren().push_back(ast::IScopeChildUP(a_stmt));
         // NOTE: Labels (e.g. T1: do tx_data_a) are registered in the action's
         // synthetic type scope by TaskBuildSymbolTree::registerActivityLabels,
-        // not here. Adding them to the immediate activity scope (parallel, etc.)
-        // would build a corrupt symbol-path since activity scopes have getId()=-1.
+        // not here. The named sub-activity tree they belong in is WS4.3.
     }
 }
 
@@ -7579,9 +7714,9 @@ void AstBuilderInt::addMonitorActivityStmts(
 			scope->getChildren().push_back(ast::IScopeChildUP(stmt));
 		}
 		// A null result is not a dropped statement. `action_handle_declaration`
-		// added itself to the enclosing monitor scope via addChild -- the same
-		// placement a handle declared in an action activity gets -- and `;`
-		// and annotations produce no statement at all.
+		// added itself to the innermost activity block via addChild -- the
+		// same placement a handle declared in an action activity gets -- and
+		// `;` and annotations produce no statement at all.
 	}
 }
 

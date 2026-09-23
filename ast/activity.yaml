@@ -310,9 +310,22 @@ classes:
         Base class for labeled activity scopes.
         
         ActivityLabeledScope represents activity constructs that introduce a new
-        scope and can be labeled. This includes sequences, parallel blocks, and
-        schedule blocks. The label can be used for referencing in scheduling
-        constraints.
+        scope and can be labeled: sequence, parallel and schedule blocks, and
+        every compound statement (repeat, repeat-while, foreach, replicate,
+        if-else, select, match, atomic). The label can be used for referencing
+        in scheduling constraints.
+
+        Every activity block is a variable scope (LRM 11.8.2): action handles
+        and ``action`` data fields declared in a block are children of that
+        block, not of the enclosing action.
+
+        A compound statement's ``children`` are the variables it declares -- a
+        loop index or iterator, as ``ProceduralStmtDataDeclaration`` -- and its
+        bodies are data fields. For symbol-path addressing the bodies follow
+        the children, in declaration order: index ``len(children) + k`` names
+        body ``k`` (``true_s`` then ``false_s``; each select branch's or match
+        choice's body in turn), the same convention as
+        ``ProceduralStmtSymbolBodyScope``.
         
         PSS Example::
         
@@ -633,7 +646,7 @@ classes:
     - join_spec: UP<ActivityJoinSpec>
 
 - ActivityRepeatCount:
-    super: ActivityLabeledStmt
+    super: ActivityLabeledScope
     doc: |
         Repeats an activity body a fixed number of times.
         
@@ -677,7 +690,7 @@ classes:
     - body: UP<ScopeChild>
 
 - ActivityRepeatWhile:
-    super: ActivityLabeledStmt
+    super: ActivityLabeledScope
     doc: |
         Repeats an activity body while a condition is true.
         
@@ -719,7 +732,7 @@ classes:
     - body: UP<ScopeChild>
 
 - ActivityForeach:
-    super: ActivityLabeledStmt
+    super: ActivityLabeledScope
     doc: |
         Iterates over elements in a collection.
         
@@ -753,7 +766,9 @@ classes:
         Attributes:
             it_id: Iterator identifier for the current element
             idx_id: Optional index identifier for the current position
-            target: Reference path to the collection being iterated
+            path: Reference path to the collection being iterated (named
+                ``path``, as on ProceduralStmtForeach: ``target`` is the
+                SymbolScope field naming the scope's AST node)
             body: Activity statement body executed for each element
         
         See Also:
@@ -761,11 +776,11 @@ classes:
     data:
     - it_id: UP<ExprId>
     - idx_id: UP<ExprId>
-    - target: UP<ExprRefPathContext>
+    - path: UP<ExprRefPathContext>
     - body: UP<ScopeChild>
 
 - ActivitySelect:
-    super: ActivityLabeledStmt
+    super: ActivityLabeledScope
     doc: |
         Randomly selects and executes one branch from alternatives.
         
@@ -857,7 +872,7 @@ classes:
     - body: UP<ScopeChild>
 
 - ActivityIfElse:
-    super: ActivityLabeledStmt
+    super: ActivityLabeledScope
     doc: |
         Conditional execution of activity branches.
         
@@ -915,7 +930,7 @@ classes:
     - false_s: UP<ScopeChild>
 
 - ActivityMatch:
-    super: ActivityLabeledStmt
+    super: ActivityLabeledScope
     doc: |
         Pattern matching on expression values.
         
@@ -1009,7 +1024,7 @@ classes:
     - body: UP<ScopeChild>
 
 - ActivityReplicate:
-    super: ActivityLabeledStmt
+    super: ActivityLabeledScope
     doc: |
         Replicates an activity N times with concurrent execution.
         
@@ -1094,7 +1109,7 @@ classes:
             ActivityDecl, Action
 
 - ActivityAtomicBlock:
-    super: ActivityLabeledStmt
+    super: ActivityLabeledScope
     doc: |
         Marks a block of activities as atomic for scheduling.
         

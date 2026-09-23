@@ -53,6 +53,8 @@ cdef extern from "pssp/IFactory.h" namespace "pssp":
 
         ITaskFindElementByLocation *mkTaskFindElementByLocation()
 
+        IOccurrenceCollector *mkOccurrenceCollector()
+
         IFmtTokenStream *mkTokenizer(istream *in_s)
 
         IFmtCst *mkCstParser(istream *in_s)
@@ -216,6 +218,27 @@ cdef extern from "pssp/ITaskFindElementByLocation.h" namespace "pssp":
             int32_t                lineno,
             int32_t                linepos,
             int32_t                fuzz)
+
+cdef extern from "pssp/IOccurrenceCollector.h" namespace "pssp":
+    cdef enum OccurrenceResolutionE "pssp::OccurrenceResolution":
+        OccurrenceResolution_User "pssp::OccurrenceResolution::User"
+        OccurrenceResolution_Library "pssp::OccurrenceResolution::Library"
+        OccurrenceResolution_Builtin "pssp::OccurrenceResolution::Builtin"
+        OccurrenceResolution_Unresolved "pssp::OccurrenceResolution::Unresolved"
+        OccurrenceResolution_Dependent "pssp::OccurrenceResolution::Dependent"
+
+    cdef cppclass Occurrence "pssp::Occurrence":
+        ast.IExprId             *id
+        ast.IScopeChild         *decl
+        ast.IExprId             *decl_name
+        ast.IScopeChild         *base_decl
+        bool                    is_decl
+        OccurrenceResolutionE   resolution
+
+    cdef cppclass IOccurrenceCollector:
+        void collect(
+            ast.IRootSymbolScope    *root,
+            cpp_vector[Occurrence]  &out) except +
 
 cdef extern from "pssp/IMarker.h" namespace "pssp":
     cdef enum MarkerSeverityE:

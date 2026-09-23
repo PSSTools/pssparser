@@ -20,6 +20,7 @@
  */
 #pragma once
 #include "pssp/ast/impl/VisitorBase.h"
+#include "pssp/impl/ActivityScopes.h"
 
 namespace pssp {
 
@@ -34,6 +35,11 @@ public:
 
     ast::ISymbolScope *get(ast::IScopeChild *i) {
         m_ret = 0;
+        if ((m_ret=ActivityScopes::asScope(i))) {
+            // The same descent as the overrides below: a compound activity
+            // statement's bodies are scopes too, and would answer instead.
+            return m_ret;
+        }
         i->accept(m_this);
         return m_ret;
     }

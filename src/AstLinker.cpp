@@ -193,6 +193,11 @@ void AstLinker::linkPasses(
     pass = "resolving references";
     TaskResolveRefs(&ctxt).resolve(symtree);
 
+    // `compile if` conditions, which the builder evaluated and set aside.
+    // Bound for tools (find-references, rename); never reported.
+    pass = "binding compile-time conditions";
+    TaskResolveRefs(&ctxt).resolveCompileConds(symtree);
+
     // Work deferred from specialization until every reference is bound --
     // sizing sizeof_s<T> when T's members were not yet resolved.
     pass = "running post-resolve actions";

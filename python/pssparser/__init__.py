@@ -16,7 +16,7 @@ def _add_dll_search_path():
 
 _add_dll_search_path()
 
-from .parser import Parser, ParseException
+from .parser import InactiveRegion, Parser, ParseException
 from .__version__ import __version__, get_version
 
 def get_deps():

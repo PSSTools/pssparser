@@ -1,6 +1,6 @@
 import time
 from io import StringIO
-from typing import Dict, List, Optional, Tuple, TextIO
+from typing import Dict, List, NamedTuple, Optional, Tuple, TextIO
 
 #: The marker ID of an internal error -- a defect in pssparser, not in the
 #: model (symbol-resolution-plan.md INV-1). Kept in step with
@@ -26,6 +26,16 @@ def _internal_error_marker(phase: str, exc: BaseException,
         "related": [],
         "code": INTERNAL_ERROR_CODE,
     }
+
+
+class InactiveRegion(NamedTuple):
+    """A source region left out by `compile if`; see
+    :meth:`Parser.inactive_regions`. Both ends inclusive, 1-based."""
+    fileid: int
+    start_line: int
+    start_col: int
+    end_line: int
+    end_col: int
 
 
 class ParseException(Exception):
@@ -346,6 +356,43 @@ class Parser(object):
                 out.append(u)
         return out
 
+
+    def inactive_regions(self) -> List['InactiveRegion']:
+        """The source regions a `compile if` left out, in the user files.
+
+        One region per branch that was not elaborated -- the `if` branch when
+        the condition is false, the `else` branch when it is true, and both
+        when the condition could not be evaluated (already an error). A
+        region runs from the branch's first token to its last, inclusive
+        (``{`` to ``}`` for a braced branch); the ``else`` keyword is not
+        part of it. A `compile if` nested inside a region is covered by it and
+        not reported separately. Lines and columns are 1-based, as in
+        ``Location``. Sorted by position.
+
+        Names inside a region are not in the AST and are not linked. The
+        condition's own names are: see ``pssparser.refs.occurrences()``.
+
+        Returns an empty list before :meth:`link` has run.
+        """
+        import pssparser.ast as A
+        out = []
+
+        class _V(A.VisitorBase):
+            def visitScope(self, i):
+                for c in range(i.numCompile_conds()):
+                    cc = i.getCompile_cond(c)
+                    for r in range(cc.numInactive()):
+                        rr = cc.getInactive(r)
+                        out.append(InactiveRegion(rr.fileid, rr.start_line,
+                                                  rr.start_col, rr.end_line,
+                                                  rr.end_col))
+                super().visitScope(i)
+
+        v = _V()
+        for u in self.user_units():
+            u.accept(v)
+        out.sort()
+        return out
 
     def _pathOf(self, fileid: int) -> str:
         """Source path for *fileid*, from either the live map or the snapshot.

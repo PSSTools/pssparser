@@ -329,12 +329,16 @@ classes:
                 }
             
             Attributes:
-                ref: Static reference path to check for existence
+                ref: The reference path to check for existence. Not walked
+                    by the generated visitors: the name need not exist, so
+                    no pass may report it.
             
             See Also:
-                ExprRefPathStatic
+                ExprRefPathStatic, CompileCond
         data: 
-            - ref: "UP<ExprRefPathStatic>"
+            - ref:
+                type: UP<ExprRefPath>
+                visit: false
     - ExprCond:
         super: Expr
         doc: |
@@ -448,6 +452,13 @@ classes:
                 id: The identifier string
                 is_escaped: True if identifier is escaped with backslash
                 location: Source location of the identifier
+                decl: The declaration this identifier was bound to by the
+                    linker, where the linker records one: every element of
+                    a member path, and every element of a qualified type
+                    name. Null for a declaration's own name, for a name the
+                    linker did not bind, and before linking. Non-owning; it
+                    may point into the symbol tree or into a template
+                    specialization. pssparser.refs normalizes it.
             
             See Also:
                 ExprHierarchicalId, ExprRefPath, ExprMemberPathElem
@@ -457,6 +468,11 @@ classes:
             - location:
                 type: Location
                 is_ctor: false
+            - decl:
+                type: P<ScopeChild>
+                is_ctor: false
+                init: 0
+                visit: false
     - ExprRefName:
         super: Expr
         doc: |

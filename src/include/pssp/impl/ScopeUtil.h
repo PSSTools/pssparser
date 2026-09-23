@@ -21,6 +21,7 @@
 #pragma once
 #include "pssp/ast/IScopeChild.h"
 #include "pssp/ast/impl/VisitorBase.h"
+#include "pssp/impl/ActivityScopes.h"
 
 namespace pssp {
 
@@ -37,6 +38,7 @@ public:
         SymbolFuncScope,
         ProcBodyScope,
         ProcSymScope,
+        ActivityScope,
         Scope
     };
 
@@ -48,7 +50,16 @@ public:
 
     bool init(ast::IScopeChild *c) {
         m_kind = Kind::Unknown;
-        if (c) {
+        m_bodies.clear();
+        if (!c) {
+            // Nothing to classify.
+        } else if (ast::ISymbolScope *as = ActivityScopes::asScope(c)) {
+            // Classified before the visit, which would descend into a
+            // compound statement's bodies and answer for the last of them.
+            m_kind = Kind::ActivityScope;
+            m_scope.sym_cs = as;
+            ActivityScopes::bodies(c, m_bodies);
+        } else {
             c->accept(m_this);
         }
         return valid();
@@ -65,6 +76,8 @@ public:
             case Kind::Scope: return m_scope.scope;
             case Kind::Constraint: return m_scope.constraint_s;
             case Kind::ProcBodyScope: return m_scope.proc_body_s;
+            case Kind::ProcSymScope: return m_scope.proc_sym_s;
+            case Kind::ActivityScope: return m_scope.sym_cs;
         }
         return 0;
     }
@@ -100,6 +113,9 @@ public:
             case Kind::ProcSymScope:
                 // 'body' counts as 1
                 return m_scope.proc_sym_s->getChildren().size() + 1;
+            case Kind::ActivityScope:
+                // A compound statement's bodies follow its children.
+                return m_scope.sym_cs->getChildren().size() + m_bodies.size();
         }
         return 0;
     }
@@ -141,6 +157,14 @@ public:
                     ret = m_scope.proc_sym_s->getBody();
                 }
                 break;
+            case Kind::ActivityScope: {
+                int32_t n_c = m_scope.sym_cs->getChildren().size();
+                if (idx >= 0 && idx < n_c) {
+                    ret = m_scope.sym_cs->getChildren().at(idx).get();
+                } else if (idx >= n_c && idx-n_c < (int32_t)m_bodies.size()) {
+                    ret = m_bodies.at(idx-n_c);
+                }
+            } break;
         }
 
         return ret;
@@ -150,6 +174,7 @@ public:
         switch (m_kind) {
             case Kind::SymbolChildScope:
             case Kind::SymbolFuncScope:
+            case Kind::ActivityScope:
                 return m_scope.sym_cs->getName();
             case Kind::ProcSymScope:
                 return m_scope.proc_sym_s->getName();
@@ -248,6 +273,8 @@ public:
 
 private:
     Kind                                m_kind;
+    // Kind::ActivityScope: the compound statement's bodies, in address order.
+    std::vector<ast::IScopeChild *>     m_bodies;
     union {
         ast::IConstraintScope               *constraint_s;
         ast::ISymbolChildrenScope           *sym_cs;

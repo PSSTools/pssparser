@@ -85,14 +85,15 @@ classes:
                 }
             
             Attributes:
-                name: The name of the constraint block
+                name: The name of the constraint block, with its source
+                    location; null for an unnamed block
                 is_dynamic: Whether the constraint block can be dynamically enabled/disabled
                 constraints: List of constraint statements in this block (inherited)
             
             See Also:
                 ConstraintScope, ConstraintStmt
         - data:
-            - name: string
+            - name: UP<ExprId>
             - is_dynamic: bool
     - ConstraintScope:
         - super: ConstraintStmt

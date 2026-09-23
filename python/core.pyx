@@ -77,6 +77,27 @@ cdef class Factory(object):
         return TaskFindElementByLocation.mk(
             self._hndl.mkTaskFindElementByLocation(), True)
 
+    cpdef list collectOccurrences(self, ast.RootSymbolScope root):
+        """Raw form of pssparser.refs.occurrences(): one tuple per identifier,
+        (id, decl, decl_name, base_decl, is_decl, resolution). The AST objects
+        are borrowed from `root`, which must outlive them."""
+        cdef decl.IOccurrenceCollector *coll = self._hndl.mkOccurrenceCollector()
+        cdef std_vector[decl.Occurrence] occs
+        cdef list ret = []
+        try:
+            coll.collect(root.asRootSymbolScope(), occs)
+        finally:
+            del coll
+        for i in range(occs.size()):
+            ret.append((
+                _wrapExpr(occs[i].id),
+                _wrapScopeChild(occs[i].decl),
+                _wrapExpr(occs[i].decl_name),
+                _wrapScopeChild(occs[i].base_decl),
+                occs[i].is_decl,
+                int(occs[i].resolution)))
+        return ret
+
     cpdef TokenStream mkTokenizer(self, in_s):
         cdef cistream c_in_s
         cdef decl.IFmtTokenStream *hndl
@@ -326,6 +347,22 @@ cdef class TaskFindElementByLocation(object):
         ret._owned = owned
         return ret
 
+
+cdef object _wrapScopeChild(ast_decl.IScopeChild *p):
+    cdef ast.ObjFactory of
+    if p == NULL:
+        return None
+    of = ast.ObjFactory()
+    p.accept(<ast_decl.VisitorBase *>(of._hndl))
+    return of._obj
+
+cdef object _wrapExpr(ast_decl.IExprId *p):
+    cdef ast.ObjFactory of
+    if p == NULL:
+        return None
+    of = ast.ObjFactory()
+    p.accept(<ast_decl.VisitorBase *>(of._hndl))
+    return of._obj
 
 cdef class TaskFindElementResult(object):
     @property

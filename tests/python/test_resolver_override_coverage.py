@@ -35,6 +35,24 @@ from refcov import load_schema  # noqa: E402
 
 SKIP_TYPES = {"ExprId", "AssocData", "Annotation"}
 
+#: The body fields that src/include/pssp/impl/ActivityScopes.h's ``bodies()``
+#: reads. An override that hands its node to ``ActivityScopes::bodies`` walks
+#: them without naming their getters. Keep in step with that function.
+ACTIVITY_BODY_FIELDS = {
+    "ActivityRepeatCount.body", "ActivityRepeatWhile.body",
+    "ActivityForeach.body", "ActivityReplicate.body",
+    "ActivityAtomicBlock.body", "ActivityIfElse.true_s",
+    "ActivityIfElse.false_s", "ActivitySelect.branches",
+    "ActivityMatch.choices", "MonitorActivityEventually.body",
+}
+
+#: Compound activity statements: SymbolScopes (WS4.1) that never carry imports.
+ACTIVITY_SCOPES = (
+    "ActivityAtomicBlock", "ActivityForeach", "ActivityIfElse",
+    "ActivityMatch", "ActivityRepeatCount", "ActivityRepeatWhile",
+    "ActivityReplicate", "ActivitySelect", "MonitorActivityEventually",
+)
+
 ALLOWED = {
     # Imports exist only on package, component and type scopes; the other
     # scope kinds inherit the field but never populate it.
@@ -49,6 +67,8 @@ ALLOWED = {
     "visitSymbolFunctionScope:SymbolScope.imports": "never populated on a function scope",
     # Loop scopes: `children` holds the loop variable's declaration; the body
     # is walked through getBody().
+    "visitProceduralStmtForeach:SymbolChildrenScope.children":
+        "the loop variables' declarations, typed by typeLoopIterator; the body is getBody()",
     "visitProceduralStmtRepeat:SymbolChildrenScope.children":
         "the loop variable's declaration; the body is getBody()",
     "visitTemplateAssign:SymbolChildrenScope.children":
@@ -81,6 +101,9 @@ ALLOWED = {
     "visitSymbolTypeScope:SymbolTypeScope.plist": "walked through getParams()",
     "visitSymbolTypeScope:SymbolTypeScope.spec_types": "resolved when created",
 }
+ALLOWED.update({
+    "visit%s:SymbolScope.imports" % c: "never populated on an activity scope"
+    for c in ACTIVITY_SCOPES})
 
 
 def _child_fields(classes, cls):
@@ -159,8 +182,11 @@ def _unvisited():
             covered.update(_supers(classes, m.group(1)))
         for m in re.finditer(r"VisitorBase::visit(\w+)\s*\(", body):
             covered.update(_supers(classes, m.group(1)))
+        via_bodies = "ActivityScopes::bodies(" in body
         for owner, fn in _child_fields(classes, cls):
             if owner in covered:
+                continue
+            if via_bodies and "%s.%s" % (owner, fn) in ACTIVITY_BODY_FIELDS:
                 continue
             getter = "get" + fn[0].upper() + fn[1:]
             if not re.search(r"\b%s\s*\(" % getter, body):

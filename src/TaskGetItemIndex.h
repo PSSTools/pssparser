@@ -21,6 +21,7 @@
 #pragma once
 #include "pssp/ast/impl/VisitorBase.h"
 #include "pssp/ast/ISymbolDeclaration.h"
+#include "pssp/impl/ActivityScopes.h"
 
 namespace pssp {
 
@@ -35,6 +36,13 @@ public:
 
     int32_t get(ast::IScopeChild *c) {
         m_index = -1;
+        if (ast::ISymbolScope *as = ActivityScopes::asScope(c)) {
+            // Not visited: the generated visitor goes on into a compound
+            // statement's bodies, and into a parallel's join spec, and each of
+            // those overwrote the index. An activity scope's id is its position
+            // in the scope that holds it (TaskBuildSymbolTree, WS4.1).
+            return as->getId();
+        }
         c->accept(m_this);
         return m_index;
     }

@@ -104,9 +104,9 @@ public:
         }
     }
 
-    /** A constraint's name is a plain string, not an ExprId. "" if anonymous. */
+    /** A constraint's name. "" if anonymous (the name is null). */
     virtual void visitConstraintBlock(ast::IConstraintBlock *i) override {
-        m_ret = i->getName();
+        m_ret = (i->getName())?i->getName()->getId():"";
     }
 
     /** A labelled activity statement or block is declared by its label. */

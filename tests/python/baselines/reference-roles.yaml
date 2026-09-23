@@ -28,7 +28,7 @@ roles:
   ActivityBindStmt.rhs: ref
   ActivityForeach.it_id: decl
   ActivityForeach.idx_id: decl
-  ActivityForeach.target: ref
+  ActivityForeach.path: ref
   ActivityJoinSpecBranch.branches: ref
   ActivityLabeledScope.label: decl
   ActivityLabeledStmt.label: decl

@@ -429,6 +429,11 @@ void TaskResolveRef::visitTypeIdentifier(ast::ITypeIdentifier *i) {
         return;
     }
 
+    // Bound before any specialization below, so `my_tmpl<8>` names the
+    // generic's declaration, not a copy (pss-scrambler FR-001-Q3).
+    i->getElems().at(0)->getId()->setDecl(TaskResolveSymbolPathRef(
+        m_ctxt->getDebugMgr(), m_ctxt->root()).resolve(root));
+
     if (i->getElems().at(0)->getParams()) {
         // Resolve parameter refs
 
@@ -467,6 +472,7 @@ void TaskResolveRef::visitTypeIdentifier(ast::ITypeIdentifier *i) {
 
         if (next) {
             DEBUG("Resolve %s", (*it)->getId()->getId().c_str());
+            (*it)->getId()->setDecl(next);
             if ((*it)->getParams()) {
                root = TaskSpecializeParameterizedRef(m_ctxt).specialize(
                         root, 

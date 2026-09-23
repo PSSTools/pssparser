@@ -31,6 +31,7 @@
 #include "pssp/INameResolver.h"
 #include "pssp/ISymbolTable.h"
 #include "pssp/ITaskFindElementByLocation.h"
+#include "pssp/IOccurrenceCollector.h"
 #include "pssp/IValFactory.h"
 
 namespace pssp {
@@ -86,6 +87,8 @@ public:
     virtual ISymbolTable *mkSymbolTable() = 0;
 
     virtual ITaskFindElementByLocation *mkTaskFindElementByLocation() = 0;
+
+    virtual IOccurrenceCollector *mkOccurrenceCollector() = 0;
 
     /**
      * Lexes *in* without parsing it, and returns the complete token stream --

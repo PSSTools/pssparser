@@ -608,7 +608,7 @@ public:
 
     virtual void visitExprCompileHas(ast::IExprCompileHas *i) {
         m_expr = m_factory->mkExprCompileHas(
-            copyT<ast::IExprRefPathStatic>(i->getRef())
+            (i->getRef())?copyT<ast::IExprRefPath>(i->getRef()):0
         );
     }
 
@@ -1372,7 +1372,7 @@ public:
 
     virtual void visitConstraintBlock(ast::IConstraintBlock *i) {
         ast::IConstraintBlock *ic = m_factory->mkConstraintBlock(
-            i->getName(),
+            (i->getName())?copyT<ast::IExprId>(i->getName()):0,
             i->getIs_dynamic());
         ic->setEndLocation(i->getEndLocation());
         copyConstraints(i->getConstraints(), ic->getConstraints());
@@ -1490,7 +1490,7 @@ public:
 
     virtual void visitGenericConstraintDeclBool(ast::IGenericConstraintDeclBool *i) {
         ast::IGenericConstraintDeclBool *ic = m_factory->mkGenericConstraintDeclBool(
-            i->getName(),
+            (i->getName())?copyT<ast::IExprId>(i->getName()):0,
             i->getIs_dynamic());
         ic->setIs_static(i->getIs_static());
         ic->setEndLocation(i->getEndLocation());
@@ -1836,38 +1836,42 @@ public:
 
     virtual void visitActivityAtomicBlock(ast::IActivityAtomicBlock *i) {
         ast::IActivityAtomicBlock *ic = m_factory->mkActivityAtomicBlock(
+            i->getName(),
             (i->getBody())?copy(i->getBody()):0);
         if (i->getLabel()) {
             ic->setLabel(copyT<ast::IExprId>(i->getLabel()));
         }
-        m_sc = fin(i, ic);
+        m_sc = finSymbolScope(i, ic);
     }
 
     virtual void visitActivityForeach(ast::IActivityForeach *i) {
         ast::IActivityForeach *ic = m_factory->mkActivityForeach(
+            i->getName(),
             (i->getIt_id())?copyT<ast::IExprId>(i->getIt_id()):0,
             (i->getIdx_id())?copyT<ast::IExprId>(i->getIdx_id()):0,
-            (i->getTarget())?copyT<ast::IExprRefPathContext>(i->getTarget()):0,
+            (i->getPath())?copyT<ast::IExprRefPathContext>(i->getPath()):0,
             (i->getBody())?copy(i->getBody()):0);
         if (i->getLabel()) {
             ic->setLabel(copyT<ast::IExprId>(i->getLabel()));
         }
-        m_sc = fin(i, ic);
+        m_sc = finSymbolScope(i, ic);
     }
 
     virtual void visitActivityIfElse(ast::IActivityIfElse *i) {
         ast::IActivityIfElse *ic = m_factory->mkActivityIfElse(
+            i->getName(),
             (i->getCond())?copy(i->getCond()):0,
             (i->getTrue_s())?copyT<ast::IScopeChild>(i->getTrue_s()):0,
             (i->getFalse_s())?copyT<ast::IScopeChild>(i->getFalse_s()):0);
         if (i->getLabel()) {
             ic->setLabel(copyT<ast::IExprId>(i->getLabel()));
         }
-        m_sc = fin(i, ic);
+        m_sc = finSymbolScope(i, ic);
     }
 
     virtual void visitActivityMatch(ast::IActivityMatch *i) {
         ast::IActivityMatch *ic = m_factory->mkActivityMatch(
+            i->getName(),
             (i->getCond())?copy(i->getCond()):0);
         for (std::vector<ast::IActivityMatchChoiceUP>::const_iterator
             it=i->getChoices().begin(); it!=i->getChoices().end(); it++) {
@@ -1880,7 +1884,7 @@ public:
         if (i->getLabel()) {
             ic->setLabel(copyT<ast::IExprId>(i->getLabel()));
         }
-        m_sc = fin(i, ic);
+        m_sc = finSymbolScope(i, ic);
     }
 
     virtual void visitActivityMatchChoice(ast::IActivityMatchChoice *i) { }
@@ -1889,27 +1893,30 @@ public:
 
     virtual void visitActivityRepeatCount(ast::IActivityRepeatCount *i) {
         ast::IActivityRepeatCount *ic = m_factory->mkActivityRepeatCount(
+            i->getName(),
             (i->getLoop_var())?copyT<ast::IExprId>(i->getLoop_var()):0,
             (i->getCount())?copy(i->getCount()):0,
             (i->getBody())?copy(i->getBody()):0);
         if (i->getLabel()) {
             ic->setLabel(copyT<ast::IExprId>(i->getLabel()));
         }
-        m_sc = fin(i, ic);
+        m_sc = finSymbolScope(i, ic);
     }
 
     virtual void visitActivityRepeatWhile(ast::IActivityRepeatWhile *i) {
         ast::IActivityRepeatWhile *ic = m_factory->mkActivityRepeatWhile(
+            i->getName(),
             (i->getCond())?copy(i->getCond()):0,
             (i->getBody())?copy(i->getBody()):0);
         if (i->getLabel()) {
             ic->setLabel(copyT<ast::IExprId>(i->getLabel()));
         }
-        m_sc = fin(i, ic);
+        m_sc = finSymbolScope(i, ic);
     }
 
     virtual void visitActivityReplicate(ast::IActivityReplicate *i) {
         ast::IActivityReplicate *ic = m_factory->mkActivityReplicate(
+            i->getName(),
             (i->getIdx_id())?copyT<ast::IExprId>(i->getIdx_id()):0,
             (i->getCount())?copy(i->getCount()):0,
             (i->getIt_label())?copyT<ast::IExprId>(i->getIt_label()):0,
@@ -1917,11 +1924,11 @@ public:
         if (i->getLabel()) {
             ic->setLabel(copyT<ast::IExprId>(i->getLabel()));
         }
-        m_sc = fin(i, ic);
+        m_sc = finSymbolScope(i, ic);
     }
 
     virtual void visitActivitySelect(ast::IActivitySelect *i) {
-        ast::IActivitySelect *ic = m_factory->mkActivitySelect();
+        ast::IActivitySelect *ic = m_factory->mkActivitySelect(i->getName());
         for (std::vector<ast::IActivitySelectBranchUP>::const_iterator
             it=i->getBranches().begin(); it!=i->getBranches().end(); it++) {
             ic->getBranches().push_back(ast::IActivitySelectBranchUP(
@@ -1933,7 +1940,7 @@ public:
         if (i->getLabel()) {
             ic->setLabel(copyT<ast::IExprId>(i->getLabel()));
         }
-        m_sc = fin(i, ic);
+        m_sc = finSymbolScope(i, ic);
     }
 
     virtual void visitActivitySuper(ast::IActivitySuper *i) {
@@ -2052,11 +2059,12 @@ public:
 
     virtual void visitMonitorActivityEventually(ast::IMonitorActivityEventually *i) {
         ast::IMonitorActivityEventually *ic = m_factory->mkMonitorActivityEventually(
+            i->getName(),
             (i->getBody())?copyT<ast::IScopeChild>(i->getBody()):0);
         if (i->getLabel()) {
             ic->setLabel(copyT<ast::IExprId>(i->getLabel()));
         }
-        m_sc = fin(i, ic);
+        m_sc = finSymbolScope(i, ic);
     }
 
     virtual void visitMonitorConstraint(ast::IMonitorConstraint *i) {

@@ -32,6 +32,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from test_helpers import parse_collect, parse_pss  # noqa: E402
 import pssparser.ast as ast  # noqa: E402
+from pssparser.parser import ParseException  # noqa: E402
 
 
 # ---------------------------------------------------------------------------
@@ -817,7 +818,7 @@ def test_monitor_body_constraint_is_an_ordinary_constraint_block(parser):
     """
     p = _parse_only(MONITOR_ACTIVITY_SRC, parser)
     blocks = [b for b in _find_nodes(p, "ConstraintBlock")
-              if b.getName() == "cb"]
+              if b.getName() and b.getName().getId() == "cb"]
     assert len(blocks) == 1
 
 
@@ -833,9 +834,21 @@ def test_monitor_handle_resolves_in_a_monitor_constraint():
     parse_pss(
         "component c { action A { rand int v; }"
         " monitor M { A a; constraint c1 { a.v < 4; } } }")
-    parse_pss(
-        "component c { action A { rand int v; }"
-        " action B { activity { A h; h; } constraint k { h.v < 4; } } }")
+
+
+def test_activity_handle_is_not_visible_in_the_action_scope():
+    """A handle declared in an activity belongs to its block, not the action.
+
+    LRM 11.8.3: "the top activity scope is unnamed. For an action handle to be
+    directly accessible in the top-level action scope ... it shall be declared
+    at the top-level action scope." This used to link, because the builder
+    hoisted every activity handle into the action (symbol-resolution plan
+    WS2.6).
+    """
+    with pytest.raises(ParseException, match="unknown identifier 'h'"):
+        parse_pss(
+            "component c { action A { rand int v; }"
+            " action B { activity { A h; h; } constraint k { h.v < 4; } } }")
 
 
 def test_monitor_activity_is_not_reported_as_a_gap(parser):

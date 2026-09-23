@@ -688,6 +688,20 @@ private:
     void visitCompileIfItem(antlr4::ParserRuleContext *ctx);
 
     /**
+     * Keep a `compile if` / `compile assert` in the AST after evaluating it
+     * (pss-scrambler FR-002 case A): the condition as an expression, and the
+     * source range of each branch not elaborated. Called by
+     * evalCompileTimeCond, with the branches checkCompileIfBranches saw.
+     */
+    void recordCompileCond(
+        PSSParser::Constant_expressionContext   *ctx,
+        bool                                    ok,
+        int64_t                                 val,
+        bool                                    is_if);
+
+    ast::SourceRange mkSourceRange(antlr4::ParserRuleContext *ctx);
+
+    /**
      * Report the D2 deprecation (PSS104) for any `compile if` branch written
      * without enclosing braces. Called from every `visit*_compile_if` method
      * with both branches, so the diagnostic does not depend on which branch
@@ -772,7 +786,22 @@ private:
         ast::ISymbolScope                   *scope,
         PSSParser::Activity_stmt_annContext *ctx);
 
-    void addSyntheticIntField(ast::ISymbolScope *scope, const std::string &name);
+    /**
+     * Declare a loop variable -- a repeat or replicate index, a foreach
+     * iterator or index -- as a child of the loop statement that owns it
+     * (WS4.1). The loop is a scope, so the variable is visible in the body
+     * whatever the body's form and invisible after the loop. Its symtab entry
+     * is made by TaskBuildSymbolTree, like every other activity declaration.
+     */
+    void addActivityLoopVar(ast::ISymbolScope *loop, ast::IExprId *id);
+
+    /**
+     * Give each body of a compound activity statement its address: body k
+     * sits at index `children.size() + k` (see ActivityLabeledScope). Called
+     * once the bodies are built, because a declaration written as a bare
+     * body (`if (c) A a;`) becomes a child while they are.
+     */
+    void indexActivityBodies(ast::ISymbolScope *stmt);
     void addStructBuiltinField(ast::IStruct *s, ast::StructKind kind);
 	ast::IScopeChild *mkActivityStmt(PSSParser::Activity_stmt_annContext *ctx);
 
@@ -1080,6 +1109,11 @@ private:
 
     static dmgr::IDebug                         *m_dbg;
     int32_t                                     m_file_id;
+    // The branches of the `compile if` being evaluated, from
+    // checkCompileIfBranches to the evalCompileTimeCond that follows it.
+    antlr4::ParserRuleContext                   *m_cif_true = 0;
+    antlr4::ParserRuleContext                   *m_cif_false = 0;
+    bool                                        m_cif_pending = false;
 	bool										m_collectDocStrings;
 	bool										m_report_unrepresented;
 	bool										m_collectComments;
@@ -1113,6 +1147,15 @@ private:
      */
     std::vector<ast::IGlobalScope *>            m_prior_units;
 	ast::IScopeChild							*m_activity_stmt;
+	/**
+	 * The activity scopes being built, innermost last: the activity (or
+	 * monitor activity, or symbol) declaration, then each block and compound
+	 * statement inside it. A declaration made inside an activity -- an action
+	 * handle or an `action` data field -- belongs to the innermost one (LRM
+	 * 11.8.2, WS2.6), so addChild() places it there instead of in the
+	 * enclosing action.
+	 */
+	std::vector<ast::ISymbolScope *>			m_activity_scope_s;
 	ast::IExprId								*m_labeled_activity_id;
 	ast::IConstraintStmt						*m_constraint;
     ast::IScopeChild                            *m_exec_stmt;

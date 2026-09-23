@@ -15,7 +15,12 @@ bind
     ``visit: false`` ones, which the linker never walks), counted per
     (field, class) as bound or unbound. On legal input every reference should
     be bound, so every unbound one is a *silent* failure. Name-bearing nodes
-    that have no target slot at all are counted as ``noslot``.
+    that have no target slot at all are counted as ``noslot``. A reference
+    whose target path resolves to nothing is ``dead``: it looks bound, and
+    reads as unbound to everything downstream (report C, S3 -- the paths
+    recorded inside unaddressable activity scopes). A path that runs through
+    an inline scope (``with {...}``) cannot be followed without that scope,
+    so it counts as ``bound`` unless an element of it is negative.
 
 tmiss
     The slot harness (scripts/refcov_slots.py). For each slot, an undefined
@@ -154,13 +159,28 @@ def _walk_file(fn):
 
     classes = load_schema()
     refcls = _ref_classes(classes)
+    import pssparser.core as zspp
+
     p = Parser()
     p.parse([fn])
     clean = True
+    root = None
     try:
-        p.link()
+        root = p.link()
     except ParseException:
         clean = False
+        root = p._root
+
+    def state_of(t):
+        if t is None:
+            return "unbound"
+        path = [(int(e.kind), e.idx) for e in t.path()]
+        # ElemKind_ChildIdx is 0, ElemKind_Inline is 2 (ast/linking.yaml).
+        if any(k == 0 and i < 0 for k, i in path):
+            return "dead"
+        if root is None or any(k == 2 for k, _ in path):
+            return "bound"
+        return "bound" if zspp.resolveSymbolPathRef(root, t) is not None else "dead"
 
     res = []
 
@@ -194,7 +214,7 @@ def _walk_file(fn):
                 t = n.getTarget()
             except Exception:
                 t = None
-            res.append((tag, cn, "bound" if t is not None else "unbound"))
+            res.append((tag, cn, state_of(t)))
         elif cn == "ExprId" and _field_of_ctx(ctx) not in DECL_ID_CONTEXTS:
             res.append((tag, cn, "noslot"))
         elif cn == "ExprHierarchicalId" and "ExprRefPath" not in ctx:
@@ -260,7 +280,7 @@ def bind(files):
         for ctx, cn, st in r["refs"]:
             key = "%s | %s" % (ctx, cn)
             agg[key][st] += 1
-            if st == "unbound" and len(examples[key]) < 3:
+            if st in ("unbound", "dead") and len(examples[key]) < 3:
                 examples[key].append(os.path.relpath(fn, ROOT))
     table = {k: dict(sorted(v.items())) for k, v in sorted(agg.items())}
     return {"files": len(files), "clean_files": n_clean, "fields": table}, examples
@@ -436,7 +456,7 @@ def main(argv=None):
             print("  %-30s %s" % (k, v))
     print("\nsilently unbound on legal corpus files:")
     for k, v in data["bind"]["fields"].items():
-        if v.get("unbound"):
+        if v.get("unbound") or v.get("dead"):
             print("  %-70s %s  e.g. %s" % (k, v, " ".join(examples.get(k, []))))
     print("\nschema reference fields exercised by neither corpus nor slots:")
     for k, v in data["schema_ref_fields"].items():

@@ -23,6 +23,7 @@
 #include "dmgr/impl/DebugMacros.h"
 #include "pssp/impl/InternalError.h"
 #include "pssp/impl/TaskGetName.h"
+#include "pssp/impl/ActivityScopes.h"
 #include "BuiltinsFactory.h"
 #include "TaskBuildSymbolTree.h"
 #include "pssp/ast/IActivityDecl.h"
@@ -34,6 +35,7 @@
 #include "pssp/ast/IGenericConstraintDeclBool.h"
 #include "pssp/ast/IGenericConstraintDeclValue.h"
 #include "pssp/ast/IGenericConstraintParam.h"
+#include "pssp/ast/IProceduralStmtDataDeclaration.h"
 #include "pssp/ast/ISymbolScope.h"
 #include "Marker.h"
 
@@ -110,17 +112,61 @@ void TaskBuildSymbolTree::visitActivityDecl(ast::IActivityDecl *i) {
     registerActivityLabels(i);
     addChild(i, false);
 
-    pushSymbolScope(i);
-    DEBUG("Children: %d", i->getChildren().size());
-    for (std::vector<ast::IScopeChildUP>::const_iterator
-        it=i->getChildren().begin();
-        it!=i->getChildren().end(); it++) {
-        DEBUG("Child: %p", it->get());
-        it->get()->accept(m_this);
-    }
-    popSymbolScope();
+    buildActivityScope(i);
 
     DEBUG_LEAVE("visitActivityDecl");
+}
+
+void TaskBuildSymbolTree::buildActivityScope(ast::ISymbolScope *i) {
+    DEBUG_ENTER("buildActivityScope");
+    i->getSymtab().clear();
+    pushSymbolScope(i);
+
+    int32_t idx = 0;
+    for (std::vector<ast::IScopeChildUP>::const_iterator
+        it=i->getChildren().begin();
+        it!=i->getChildren().end(); it++, idx++) {
+        buildActivityScopeChild(it->get(), idx, i);
+    }
+
+    // A compound statement's bodies, addressed after its children. The body
+    // is walked with the statement pushed, so a declaration in a brace-less
+    // body -- which the builder made a child of the statement -- and a loop
+    // variable are both in scope in it.
+    std::vector<ast::IScopeChild *> bodies;
+    ActivityScopes::bodies(i, bodies);
+    for (std::vector<ast::IScopeChild *>::const_iterator
+        it=bodies.begin(); it!=bodies.end(); it++, idx++) {
+        if (*it) {
+            buildActivityScopeChild(*it, idx, i);
+        }
+    }
+
+    popSymbolScope();
+    DEBUG_LEAVE("buildActivityScope");
+}
+
+void TaskBuildSymbolTree::buildActivityScopeChild(
+        ast::IScopeChild        *c,
+        int32_t                 idx,
+        ast::ISymbolScope       *parent) {
+    if (ast::ISymbolScope *s = ActivityScopes::asScope(c)) {
+        // Its address in `parent`. registerActivityLabels may have set the id
+        // to the label's slot in the action scope; that slot is reached
+        // through the action's symtab, never through the id.
+        s->setId(idx);
+        s->setUpper(parent);
+        buildActivityScope(s);
+    } else if (ast::IProceduralStmtDataDeclaration *v =
+            dynamic_cast<ast::IProceduralStmtDataDeclaration *>(c)) {
+        // A loop variable. Procedural loop variables are registered by the
+        // AST builder, and visitProceduralStmtDataDeclaration does nothing.
+        if (v->getName()) {
+            addChild(v, v->getName()->getId(), false);
+        }
+    } else {
+        c->accept(m_this);
+    }
 }
 
 void TaskBuildSymbolTree::copyExtent(ast::IScopeChild *dst, ast::IScopeChild *src) {
@@ -178,8 +224,8 @@ void TaskBuildSymbolTree::visitConstraintBlock(ast::IConstraintBlock *i) {
     // A named constraint, fixed or `dynamic`, is a member of its type (18.3:
     // member names are unique, so a second `c` is PSS003), and a `dynamic`
     // one is referenced by name (13.4.11). Anonymous blocks stay unnamed.
-    if (i->getName() != "") {
-        addChild(i, i->getName(), false);
+    if (i->getName() && i->getName()->getId() != "") {
+        addChild(i, i->getName()->getId(), false);
     } else {
         addChild(i, false);
     }
@@ -193,7 +239,7 @@ void TaskBuildSymbolTree::visitConstraintBlock(ast::IConstraintBlock *i) {
 
 void TaskBuildSymbolTree::visitGenericConstraintDeclBool(ast::IGenericConstraintDeclBool *i) {
     DEBUG_ENTER("visitGenericConstraintDeclBool %s",
-        i->getName().c_str());
+        (i->getName())?i->getName()->getId().c_str():"");
 
     // A generic constraint, unlike a fixed one, is *referenced by name*
     // (13.1.2), so it must be a symbol in its enclosing scope. Without this
@@ -203,8 +249,8 @@ void TaskBuildSymbolTree::visitGenericConstraintDeclBool(ast::IGenericConstraint
     // naming it in the symtab. The declaration then linked clean while every
     // reference to it failed with "unknown identifier". Same defect and same
     // fix as visitFieldClaim and visitActionHandleField above.
-    if (i->getName() != "") {
-        addChild(i, i->getName(), false);
+    if (i->getName() && i->getName()->getId() != "") {
+        addChild(i, i->getName()->getId(), false);
     }
 
     for (std::vector<ast::IConstraintStmtUP>::const_iterator
@@ -213,7 +259,8 @@ void TaskBuildSymbolTree::visitGenericConstraintDeclBool(ast::IGenericConstraint
         (*it)->accept(m_this);
     }
 
-    DEBUG_LEAVE("visitGenericConstraintDeclBool %s", i->getName().c_str());
+    DEBUG_LEAVE("visitGenericConstraintDeclBool %s",
+        (i->getName())?i->getName()->getId().c_str():"");
 }
 
 void TaskBuildSymbolTree::visitGenericConstraintDeclValue(ast::IGenericConstraintDeclValue *i) {
@@ -553,14 +600,10 @@ void TaskBuildSymbolTree::visitSymbolDeclaration(ast::ISymbolDeclaration *i) {
     // declaration it has to enter the symbol table. Pushing it first also
     // keeps its body statements and parameters out of the enclosing action --
     // the leak visitMonitorActivityDecl below describes.
+    //
+    // The body is an activity, scoped the same way (WS4.1).
     if (addChild(i, i->getName(), false)) {
-        pushSymbolScope(i);
-        for (std::vector<ast::IScopeChildUP>::const_iterator
-            it=i->getChildren().begin();
-            it!=i->getChildren().end(); it++) {
-            (*it)->accept(m_this);
-        }
-        popSymbolScope();
+        buildActivityScope(i);
     }
     DEBUG_LEAVE("visitSymbolDeclaration %s", i->getName().c_str());
 }
@@ -582,13 +625,7 @@ void TaskBuildSymbolTree::visitMonitorActivityDecl(ast::IMonitorActivityDecl *i)
     // no monitor construct that refers to a monitor activity label.
     addChild(i, false);
 
-    pushSymbolScope(i);
-    for (std::vector<ast::IScopeChildUP>::const_iterator
-        it=i->getChildren().begin();
-        it!=i->getChildren().end(); it++) {
-        (*it)->accept(m_this);
-    }
-    popSymbolScope();
+    buildActivityScope(i);
     DEBUG_LEAVE("visitMonitorActivityDecl");
 }
 
@@ -1292,7 +1329,11 @@ void TaskBuildSymbolTree::reportDuplicateSymbol(
         "duplicate declaration of '" + name + "'",
         MarkerSeverityE::Error,
         loc);
-    m_marker_l->marker(&m);
+    // A specialization's tree is built with no listener: its declarations
+    // are the generic's, already reported there.
+    if (m_marker_l) {
+        m_marker_l->marker(&m);
+    }
 }
 
 void TaskBuildSymbolTree::addFunctionParams(
@@ -1636,9 +1677,10 @@ bool TaskBuildSymbolTree::addChild(
 }
 
 // Recursively scan an activity scope and register labeled activity stmts
-// (e.g. T1: do tx_data_a) as named children in the CURRENT symbol scope.
-// This gives them valid getId() entries so path resolution through the
-// symbol tree works correctly for cross-traversal references (T1.tx_byte).
+// (e.g. T1: do tx_data_a) as named children in the CURRENT symbol scope, so
+// that a path rooted at a label (T1.tx_byte) resolves through the action.
+// Flat, and blind to labels inside loop/if/select/match bodies: the named
+// sub-activity tree of LRM 11.8.3 is WS4.3.
 void TaskBuildSymbolTree::registerActivityLabels(ast::ISymbolScope *scope) {
     if (!scope) return;
     for (auto &child : scope->getChildren()) {
@@ -1656,9 +1698,23 @@ void TaskBuildSymbolTree::registerActivityLabels(ast::ISymbolScope *scope) {
             label = labeled_b->getLabel();
         }
         if (label) {
-            // Register in the CURRENT symbol scope (the action's type scope)
-            // using the addChild that properly sets getId() via setId().
-            addChild(child.get(), label->getId(), false);
+            // Register in the CURRENT symbol scope (the action's type scope),
+            // as a non-owned child reached through its symtab entry. Not
+            // through the ISymbolChild addChild: that sets the scope's id and
+            // upper to this slot, and a labeled block's id is its address in
+            // the block that holds it (buildActivityScope, WS4.1).
+            ast::ISymbolScope *scope = symbolScope();
+            std::unordered_map<std::string, int32_t>::const_iterator it =
+                scope->getSymtab().find(label->getId());
+            if (it != scope->getSymtab().end()) {
+                reportDuplicateSymbol(
+                    scope,
+                    scope->getChildren().at(it->second).get(),
+                    child.get());
+            } else {
+                scope->getSymtab().insert({label->getId(), scope->getChildren().size()});
+                scope->getChildren().push_back(ast::IScopeChildUP(child.get(), false));
+            }
         }
         // Recurse into compound activity scopes (parallel, schedule, sequence)
         auto *nested_scope = dynamic_cast<ast::ISymbolScope*>(child.get());

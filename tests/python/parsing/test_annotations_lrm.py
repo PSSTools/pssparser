@@ -99,6 +99,27 @@ def test_the_brace_form_carries_the_parameter_name():
     assert params[0].getName().getId().getId() == "desc"
 
 
+@pytest.mark.parametrize("ann,member", [
+    ("@desc_s {.weight = 3}", "weight"),
+    ("@owner_s {.team = \"dv\"}", "team"),
+    ("@owner_s {.desc = \"x\"}", "desc"),
+])
+def test_a_parameter_name_binds_to_its_member(ann, member):
+    """`.name` binds to the annotation type's member -- its own, or one it
+    inherits (symbol-resolution plan WS3.2). The binding used to carry one
+    Super step too many, so every one resolved to nothing."""
+    import pssparser.core as zspp
+    root = link(DECL + """
+        annotation owner_s : desc_s { string team; }
+        %s
+        component C { }
+        """ % ann)
+    param = annotations_of(find(root, "C"))[0].getParameters()[0]
+    target = zspp.resolveSymbolPathRef(root, param.getName().getTarget())
+    assert target is not None, "the binding leads nowhere"
+    assert target.getName().getId() == member
+
+
 def test_empty_brace_list_parses():
     root = link(DECL + "@desc_s {}\ncomponent C { }\n")
     assert annotations_of(find(root, "C"))[0].getParameters() == []

@@ -16,7 +16,33 @@ enums:
     - CommentPlacement_Trailing   # Same line, after the construct
     - CommentPlacement_Orphan     # Attached to neither -- recorded on the scope
 
+  - CompileCondKind:
+    - CompileCondKind_If          # compile if (cond) ... [else ...]
+    - CompileCondKind_Assert      # compile assert (cond [, "msg"])
+
 structs:
+- SourceRange:
+    doc: |
+        A span of source text, both ends inclusive. Lines and columns are
+        1-based, like Location; `end_col` is the column of the span's last
+        character.
+    data:
+    - fileid:
+        type: int32_t
+        init: -1
+    - start_line:
+        type: int32_t
+        init: -1
+    - start_col:
+        type: int32_t
+        init: -1
+    - end_line:
+        type: int32_t
+        init: -1
+    - end_col:
+        type: int32_t
+        init: -1
+
 - Location:
     doc: |
         Source code location information for AST nodes.
@@ -54,6 +80,47 @@ structs:
         init: -1
 
 classes:
+    - CompileCond:
+        doc: |
+            A `compile if` or `compile assert`, kept after the builder has
+            evaluated it (pss-scrambler FR-002 case A).
+
+            The builder still decides which branch to elaborate, from the
+            parse tree, exactly as before; this record only keeps what that
+            decision dropped: the condition, with its references, and where
+            each branch that was not elaborated is in the source.
+
+            The linker resolves the condition's references in the enclosing
+            scope without reporting anything -- `compile has(X)` names things
+            that may legitimately not exist.
+
+            Attributes:
+                kind: if or assert
+                cond: The condition, as an ordinary expression
+                taken: Index of the elaborated branch (0: the `if` branch,
+                    1: the `else` branch), or -1 if neither was (the condition
+                    was false with no `else`, or could not be evaluated)
+                eval_failed: The condition could not be evaluated
+                inactive: The branches not elaborated, in source order
+        data:
+        - kind:
+            type: CompileCondKind
+            is_ctor: false
+        - cond:
+            type: UP<Expr>
+            is_ctor: false
+        - taken:
+            type: int32_t
+            is_ctor: false
+            init: -1
+        - eval_failed:
+            type: bool
+            is_ctor: false
+            init: false
+        - inactive:
+            type: list<SourceRange>
+            is_ctor: false
+
     - Comment:
         super: ScopeChild
         doc: |
@@ -124,6 +191,13 @@ classes:
         data:
         # endLocation is inherited from ScopeChild.
         - children: list<UP<ScopeChild>>
+        # Every `compile if` / `compile assert` written directly in this
+        # scope, or in a constraint or exec body inside it. Not walked by the
+        # generated visitors, so no pass sees a condition as ordinary code.
+        - compile_conds:
+            type: list<UP<CompileCond>>
+            is_ctor: false
+            visit: false
 
     - ScopeChild:
         doc: |

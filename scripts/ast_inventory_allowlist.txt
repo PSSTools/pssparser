@@ -11,25 +11,28 @@
 # --- producers -------------------------------------------------------------
 
 producers:AssocData  Reserved extension hook, not a parser product. ScopeChild.assocData exists so a consumer can attach its own data to any node; the parser never sets it, and there is nothing for it to build.
+producers:MonitorActivityLabeledStmt  Abstract base kept for API stability. Its one subclass, MonitorActivityEventually, became a MonitorActivityLabeledScope when compound activity statements became scopes (symbol-resolution plan WS4.1), so nothing derives from it or constructs it.
 
 # --- symtree ---------------------------------------------------------------
 #
-# Group 1: activity and monitor statement bodies. Descending into the body
-# with the enclosing scope current is the intended behavior here -- it is what
-# puts a handle declared inside an activity into the action's type scope.
-# The cost is recorded in the A8 xfail in tests/python/parsing/test_activity_gaps.py:
-# two sibling loops cannot share an index name, because the bodies are not
-# distinct namespaces. That is a scoping decision, not an accidental leak.
+# Group 1: activity and monitor scopes. Not reached through accept():
+# TaskBuildSymbolTree::buildActivityScopeChild builds every activity scope --
+# block or compound statement -- directly, pushing it before its bodies are
+# walked (symbol-resolution plan WS4.1). Select branches and match choices
+# are walked as bodies of their statement, which is pushed. If anything starts
+# accepting one of these with an enclosing scope current, the bodies'
+# declarations land there, and this check will not say so -- hence the reason
+# naming the function.
 
-symtree:ActivityAtomicBlock  Activity statement body; flattened into the enclosing activity scope by design (see A8).
-symtree:ActivityForeach  Activity statement body; flattened into the enclosing activity scope by design (see A8).
-symtree:ActivityIfElse  Activity statement bodies; flattened into the enclosing activity scope by design (see A8).
-symtree:ActivityMatchChoice  Activity statement body; flattened into the enclosing activity scope by design (see A8).
-symtree:ActivityRepeatCount  Activity statement body; flattened into the enclosing activity scope by design (see A8).
-symtree:ActivityRepeatWhile  Activity statement body; flattened into the enclosing activity scope by design (see A8).
-symtree:ActivityReplicate  Activity statement body; flattened into the enclosing activity scope by design (see A8).
-symtree:ActivitySelectBranch  Activity statement body; flattened into the enclosing activity scope by design (see A8).
-symtree:MonitorActivityEventually  Monitor activity statement body; walked inside the scope visitMonitorActivityDecl pushes.
+symtree:ActivityAtomicBlock  Not reached by accept: built by TaskBuildSymbolTree::buildActivityScopeChild, with the statement pushed while its body is walked.
+symtree:ActivityForeach  Not reached by accept: built by TaskBuildSymbolTree::buildActivityScopeChild, with the statement pushed while its body is walked.
+symtree:ActivityIfElse  Not reached by accept: built by TaskBuildSymbolTree::buildActivityScopeChild, with the statement pushed while its bodies are walked.
+symtree:ActivityMatchChoice  Not reached by accept: walked as a body of its ActivityMatch by TaskBuildSymbolTree::buildActivityScope.
+symtree:ActivityRepeatCount  Not reached by accept: built by TaskBuildSymbolTree::buildActivityScopeChild, with the statement pushed while its body is walked.
+symtree:ActivityRepeatWhile  Not reached by accept: built by TaskBuildSymbolTree::buildActivityScopeChild, with the statement pushed while its body is walked.
+symtree:ActivityReplicate  Not reached by accept: built by TaskBuildSymbolTree::buildActivityScopeChild, with the statement pushed while its body is walked.
+symtree:ActivitySelectBranch  Not reached by accept: walked as a body of its ActivitySelect by TaskBuildSymbolTree::buildActivityScope.
+symtree:MonitorActivityEventually  Not reached by accept: built by TaskBuildSymbolTree::buildActivityScopeChild, with the statement pushed while its body is walked.
 
 # Group 2: not reached. The enclosing visitor adds its node and stops, so
 # these are never walked while a symbol scope is current. Each names the

@@ -204,6 +204,14 @@ public:
     bool wasReported(const ast::Location &loc) const;
 
     /**
+     * While quiet, markers are dropped: used to bind names that must not be
+     * diagnosed (a `compile if` condition, which the builder already
+     * evaluated). Nests.
+     */
+    void pushQuiet() { m_quiet++; }
+    void popQuiet() { m_quiet--; }
+
+    /**
      * Queue work that needs every reference resolved -- the linker runs it
      * once TaskResolveRefs is done. For a computation made during
      * specialization, which can run before the types it depends on are
@@ -241,6 +249,7 @@ private:
     // error marker; see wasReported().
     std::set<std::tuple<int32_t,int32_t,int32_t>>   m_reported;
     std::vector<std::function<void()>>              m_post_resolve;
+    int32_t                                         m_quiet = 0;
 
 };
 

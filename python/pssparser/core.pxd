@@ -36,6 +36,8 @@ cdef class Factory(object):
 
     cpdef TaskFindElementByLocation mkTaskFindElementByLocation(self)
 
+    cpdef list collectOccurrences(self, ast.RootSymbolScope root)
+
     cpdef TokenStream mkTokenizer(self, in_s)
 
     cpdef Cst mkCstParser(self, in_s)

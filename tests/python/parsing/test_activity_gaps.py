@@ -27,15 +27,6 @@ from test_helpers import parse_pss, get_symbol
 # the suite rather than passing quietly.
 # ---------------------------------------------------------------------------
 
-xfail_A8 = pytest.mark.xfail(strict=True, reason=(
-    "A8 (pre-existing, out of scope): two loop statements in one activity that "
-    "share an index-variable name collide -- 'duplicate declaration'. The "
-    "synthetic index field is registered per body scope, but activity scopes "
-    "are flattened into the action's type scope, so the two bodies are not "
-    "distinct namespaces. Verified against a pristine baseline build; A3 only "
-    "widened the blast radius by making replicate register its index too."))
-
-
 # ---------------------------------------------------------------------------
 # The probe fixture: one activity exercising every construct in the gaps doc.
 # Individual tests use narrower sources; this one exists so the cross-cutting
@@ -447,16 +438,14 @@ def test_a7_unknown_join_branch_label_is_still_an_error():
 
 
 # ---------------------------------------------------------------------------
-# A8 -- loop index variables are not scoped to their loop body (PRE-EXISTING)
+# A8 -- loop index variables are scoped to their loop
 #
-# Not introduced by this work and not fixed by it. Recorded because A3 makes
-# `replicate` participate: it registers a synthetic index field the same way
-# `foreach`/`repeat` always have, so `foreach (i: ...)` next to
-# `replicate (i: ...)` now collides where before the replicate was not built at
-# all. The two-foreach form below fails identically on a pristine baseline.
+# Fixed by symbol-resolution plan WS4.1: each loop statement is a scope that
+# owns its index and iterator, so sibling loops no longer collide. The index
+# used to be injected into the body block and registered in the enclosing
+# activity, where the second loop's copy was a duplicate of the first.
 # ---------------------------------------------------------------------------
 
-@xfail_A8
 @pytest.mark.parametrize("first,second", [
     ("foreach (i : arr) { a1; }",   "foreach (i : arr) { b1; }"),
     ("foreach (i : arr) { a1; }",   "replicate (i: 4) { b1; }"),
@@ -464,8 +453,8 @@ def test_a7_unknown_join_branch_label_is_still_an_error():
 ])
 def test_a8_sibling_loops_may_share_an_index_name(first, second):
     """
-    Each loop body is its own scope, so reusing an index name in a sibling loop
-    is legal. Today the second declaration is reported as a duplicate.
+    Each loop is its own scope, so reusing an index name in a sibling loop is
+    legal.
     """
     err = _links(wrap("%s\n%s" % (first, second)))
     assert err is None, f"sibling loops could not share an index name: {err}"
