@@ -880,4 +880,3 @@ See Also
 * :doc:`pss30_features` - Feature documentation
 * :doc:`pss30_api` - API reference
 * :doc:`ast_structure` - AST structure details
-* :doc:`../PSS_3.0_UPGRADE_PLAN` - Implementation plan

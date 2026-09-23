@@ -9,9 +9,9 @@ in the PSS AST.
    :local:
    :depth: 2
 
-*******************
+********************
 Inheritance Overview
-*******************
+********************
 
 The PSS AST follows a clear inheritance hierarchy with **ScopeChild** as the
 root base class for most nodes.

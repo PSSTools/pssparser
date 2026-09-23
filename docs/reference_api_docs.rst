@@ -175,9 +175,9 @@ Enumerations
     :undoc-members:
     :show-inheritance:
 
-***********
+************
 Declarations
-***********
+************
 
 Actions and Components
 ======================
@@ -1272,9 +1272,9 @@ Type Extension
     :undoc-members:
     :show-inheritance:
 
-***************
+****************
 Type Identifiers
-***************
+****************
 
 .. autoclass:: pssparser.ast.TypeIdentifier
     :members:
