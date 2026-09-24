@@ -19,6 +19,20 @@
  *     Author:
  */
 #include "dmgr/impl/DebugMacros.h"
+#include "pssp/ast/IExprBin.h"
+#include "pssp/ast/IExprBool.h"
+#include "pssp/ast/IExprCond.h"
+#include "pssp/ast/IExprHierarchicalId.h"
+#include "pssp/ast/IExprMemberPathElem.h"
+#include "pssp/ast/IExprRefPathContext.h"
+#include "pssp/ast/IExprRefPathStatic.h"
+#include "pssp/ast/IExprSignedNumber.h"
+#include "pssp/ast/IExprString.h"
+#include "pssp/ast/IExprUnary.h"
+#include "pssp/ast/IExprUnsignedNumber.h"
+#include "pssp/ast/IField.h"
+#include "pssp/ast/ITypeIdentifier.h"
+#include "pssp/ast/ITypeIdentifierElem.h"
 #include "TaskCompareParamLists.h"
 
 
@@ -30,7 +44,9 @@ TaskCompareParamLists::TaskCompareParamLists(
     IFactory                *factory,
     ast::ISymbolScope       *root) :
     m_factory(factory), m_root(root),
-    m_tref_comp(factory, root) {
+    m_tref_comp(factory, root),
+    m_eval(factory, root),
+    m_comp_val(factory->getDebugMgr()) {
     DEBUG_INIT("TaskCompareParamLists", factory->getDebugMgr());
 
 }
@@ -108,60 +124,194 @@ bool TaskCompareParamLists::valueParamDfltEqual(
         return (e0 == e1);
     }
 
-    // Type-reference value parameters. The element type of a generic such as
-    // array<T,N> is carried as a value parameter whose default expression is
-    // the type-identifier for T. Compare these by their resolved targets so
-    // that, e.g., array<ch_c,N> and array<reg_c,N> are NOT treated as the
-    // same specialization.
-    ast::ITypeIdentifier *t0 = dynamic_cast<ast::ITypeIdentifier *>(e0);
-    ast::ITypeIdentifier *t1 = dynamic_cast<ast::ITypeIdentifier *>(e1);
-    if (t0 || t1) {
-        if (!t0 || !t1) {
-            DEBUG_LEAVE("valueParamDfltEqual (type/non-type mismatch)");
-            return false;
-        }
-        if (!t0->getTarget() || !t1->getTarget()) {
-            bool ret = (t0->getTarget() == t1->getTarget());
-            DEBUG_LEAVE("valueParamDfltEqual (unresolved type) %d", ret);
-            return ret;
-        }
-        TaskResolveSymbolPathRef resolver(m_factory->getDebugMgr(), m_root);
-        ast::IScopeChild *c0 = resolver.resolve(t0->getTarget());
-        ast::IScopeChild *c1 = resolver.resolve(t1->getTarget());
-        bool ret = (c0 && c1 && c0 == c1);
-        DEBUG_LEAVE("valueParamDfltEqual (type %p vs %p) %d", c0, c1, ret);
-        return ret;
+    // Constant value parameters. Two arguments that fold are equal when their
+    // values are (10.4: `S<2+2>`, `S<W>` with W=4, and `S<4>` are one
+    // specialization). One that does not fold -- a reference to an enclosing
+    // generic's parameter, an enum item, a default copied without its
+    // targets -- is compared by its form instead. Nothing is assumed equal:
+    // two defaults that were not supplied are copies of one expression, so
+    // they still match structurally.
+    //
+    // Only one side folding is not yet a difference: a default is copied
+    // without its targets (it may name an earlier parameter, which must bind
+    // to the specialization's), so the copy in a requested list does not fold
+    // while the same default in an existing, resolved specialization does.
+    // The structural compare recognizes that pair by its source location.
+    if (e0 == e1) {
+        DEBUG_LEAVE("valueParamDfltEqual (same) 1");
+        return true;
     }
-
-    // Constant value parameters. Compare structurally on the leaf form rather
-    // than evaluating: some defaults are non-constant, recursive expressions
-    // (e.g. reg_c's SZ2 default `8*sizeof_s<R>::nbytes`) that are unsafe to
-    // evaluate here. Two specializations of the same generic share identical
-    // (copied) default expressions for any parameter not explicitly supplied,
-    // so the explicitly-supplied leaves are what must be distinguished.
-
-    // Integer literals (e.g. the size of array<T,N>).
+    // Two literals, the common case, need no evaluator.
     ast::IExprUnsignedNumber *n0 = dynamic_cast<ast::IExprUnsignedNumber *>(e0);
     ast::IExprUnsignedNumber *n1 = dynamic_cast<ast::IExprUnsignedNumber *>(e1);
-    if (n0 || n1) {
-        bool ret = (n0 && n1 && n0->getValue() == n1->getValue());
-        DEBUG_LEAVE("valueParamDfltEqual (number) %d", ret);
+    if (n0 && n1) {
+        DEBUG_LEAVE("valueParamDfltEqual (literals)");
+        return (n0->getValue() == n1->getValue());
+    }
+    // Two bound references: the same declaration has the same value, and
+    // two declarations that hold no value to fold -- enum items, types -- are
+    // different ones. Resolving a path is costly; this spares the evaluator
+    // from resolving both again.
+    ast::ISymbolRefPath *p0 = refTarget(e0);
+    ast::ISymbolRefPath *p1 = refTarget(e1);
+    if (p0 && p1) {
+        TaskResolveSymbolPathRef resolver(m_factory->getDebugMgr(), m_root);
+        ast::IScopeChild *c0 = resolver.resolve(p0);
+        ast::IScopeChild *c1 = resolver.resolve(p1);
+        if (c0 && c0 == c1) {
+            DEBUG_LEAVE("valueParamDfltEqual (same declaration) 1");
+            return true;
+        }
+        if (c0 && c1 && !holdsValue(c0) && !holdsValue(c1)) {
+            DEBUG_LEAVE("valueParamDfltEqual (different declarations) 0");
+            return false;
+        }
+    }
+    IValUP v0(m_eval.eval(e0));
+    IValUP v1(m_eval.eval(e1));
+    if (v0 && v1) {
+        bool ret = m_comp_val.equal(v0.get(), v1.get());
+        DEBUG_LEAVE("valueParamDfltEqual (value) %d", ret);
         return ret;
     }
 
-    // Identifier references (e.g. an enum value such as READONLY/READWRITE).
-    ast::IExprId *i0 = dynamic_cast<ast::IExprId *>(e0);
-    ast::IExprId *i1 = dynamic_cast<ast::IExprId *>(e1);
-    if (i0 || i1) {
-        bool ret = (i0 && i1 && i0->getId() == i1->getId());
-        DEBUG_LEAVE("valueParamDfltEqual (id) %d", ret);
-        return ret;
+    bool ret = exprEqual(e0, e1);
+    DEBUG_LEAVE("valueParamDfltEqual (structural) %d", ret);
+    return ret;
+}
+
+bool TaskCompareParamLists::exprEqual(ast::IExpr *e0, ast::IExpr *e1) {
+    if (!e0 || !e1) {
+        return (e0 == e1);
+    }
+    if (e0 == e1) {
+        return true;
     }
 
-    // Other expression forms: these are non-explicit, structurally-identical
-    // defaults between two specializations of the same generic, so treat them
-    // as equal (matching the historical behavior) without evaluating.
-    DEBUG_LEAVE("valueParamDfltEqual (other, assume-equal)");
+    if (ast::IExprUnsignedNumber *n0 = dynamic_cast<ast::IExprUnsignedNumber *>(e0)) {
+        ast::IExprUnsignedNumber *n1 = dynamic_cast<ast::IExprUnsignedNumber *>(e1);
+        return (n1 && n0->getValue() == n1->getValue());
+    }
+    if (ast::IExprSignedNumber *n0 = dynamic_cast<ast::IExprSignedNumber *>(e0)) {
+        ast::IExprSignedNumber *n1 = dynamic_cast<ast::IExprSignedNumber *>(e1);
+        return (n1 && n0->getValue() == n1->getValue());
+    }
+    if (ast::IExprBool *b0 = dynamic_cast<ast::IExprBool *>(e0)) {
+        ast::IExprBool *b1 = dynamic_cast<ast::IExprBool *>(e1);
+        return (b1 && b0->getValue() == b1->getValue());
+    }
+    if (ast::IExprString *s0 = dynamic_cast<ast::IExprString *>(e0)) {
+        ast::IExprString *s1 = dynamic_cast<ast::IExprString *>(e1);
+        return (s1 && s0->getValue() == s1->getValue());
+    }
+    if (ast::IExprBin *b0 = dynamic_cast<ast::IExprBin *>(e0)) {
+        ast::IExprBin *b1 = dynamic_cast<ast::IExprBin *>(e1);
+        return (b1 && b0->getOp() == b1->getOp()
+            && exprEqual(b0->getLhs(), b1->getLhs())
+            && exprEqual(b0->getRhs(), b1->getRhs()));
+    }
+    if (ast::IExprUnary *u0 = dynamic_cast<ast::IExprUnary *>(e0)) {
+        ast::IExprUnary *u1 = dynamic_cast<ast::IExprUnary *>(e1);
+        return (u1 && u0->getOp() == u1->getOp()
+            && exprEqual(u0->getRhs(), u1->getRhs()));
+    }
+    if (ast::IExprCond *c0 = dynamic_cast<ast::IExprCond *>(e0)) {
+        ast::IExprCond *c1 = dynamic_cast<ast::IExprCond *>(e1);
+        return (c1 && exprEqual(c0->getCond_e(), c1->getCond_e())
+            && exprEqual(c0->getTrue_e(), c1->getTrue_e())
+            && exprEqual(c0->getFalse_e(), c1->getFalse_e()));
+    }
+    if (ast::IExprId *i0 = dynamic_cast<ast::IExprId *>(e0)) {
+        ast::IExprId *i1 = dynamic_cast<ast::IExprId *>(e1);
+        return (i1 && i0->getId() == i1->getId());
+    }
+
+    // A reference -- to a constant, an enum item, a parameter, or a type
+    // (the element type of array<T,N> is carried as a value parameter whose
+    // default is a type identifier, so array<ch_c,N> and array<reg_c,N> must
+    // differ): the same declaration when both are bound. Otherwise only one
+    // default copied twice is equal to itself -- the same names written at
+    // the same place.
+    ast::ISymbolRefPath *p0 = refTarget(e0);
+    ast::ISymbolRefPath *p1 = refTarget(e1);
+    std::vector<ast::IExprId *> ids0, ids1;
+    bool is_ref0 = refIds(e0, ids0);
+    bool is_ref1 = refIds(e1, ids1);
+    if (is_ref0 || is_ref1 || p0 || p1) {
+        if (p0 && p1) {
+            TaskResolveSymbolPathRef resolver(m_factory->getDebugMgr(), m_root);
+            ast::IScopeChild *c0 = resolver.resolve(p0);
+            ast::IScopeChild *c1 = resolver.resolve(p1);
+            return (c0 && c0 == c1);
+        }
+        if (!is_ref0 || !is_ref1 || ids0.size() != ids1.size() || !ids0.size()) {
+            return false;
+        }
+        for (uint32_t k=0; k<ids0.size(); k++) {
+            const ast::Location &l0 = ids0.at(k)->getLocation();
+            const ast::Location &l1 = ids1.at(k)->getLocation();
+            if (ids0.at(k)->getId() != ids1.at(k)->getId()
+                    || l0.lineno < 0
+                    || l0.fileid != l1.fileid
+                    || l0.lineno != l1.lineno
+                    || l0.linepos != l1.linepos) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    // Any other form -- an aggregate, a call, a cast -- is not known to be
+    // equal, so the two are different specializations.
+    DEBUG("exprEqual: unhandled expression form");
+    return false;
+}
+
+bool TaskCompareParamLists::holdsValue(ast::IScopeChild *c) {
+    return dynamic_cast<ast::IField *>(c)
+        || dynamic_cast<ast::ITemplateValueParamDecl *>(c);
+}
+
+ast::ISymbolRefPath *TaskCompareParamLists::refTarget(ast::IExpr *e) {
+    if (ast::IExprRefPath *r = dynamic_cast<ast::IExprRefPath *>(e)) {
+        return r->getTarget();
+    }
+    if (ast::ITypeIdentifier *t = dynamic_cast<ast::ITypeIdentifier *>(e)) {
+        return t->getTarget();
+    }
+    return 0;
+}
+
+bool TaskCompareParamLists::refIds(ast::IExpr *e, std::vector<ast::IExprId *> &ids) {
+    if (ast::IExprRefPathContext *c = dynamic_cast<ast::IExprRefPathContext *>(e)) {
+        if (!c->getHier_id()) {
+            return false;
+        }
+        for (std::vector<ast::IExprMemberPathElemUP>::const_iterator
+                it=c->getHier_id()->getElems().begin();
+                it!=c->getHier_id()->getElems().end(); it++) {
+            if (!(*it)->getId()) {
+                return false;
+            }
+            ids.push_back((*it)->getId());
+        }
+        return true;
+    }
+    const std::vector<ast::ITypeIdentifierElemUP> *elems = 0;
+    if (ast::IExprRefPathStatic *st = dynamic_cast<ast::IExprRefPathStatic *>(e)) {
+        elems = &st->getBase();
+    } else if (ast::ITypeIdentifier *t = dynamic_cast<ast::ITypeIdentifier *>(e)) {
+        elems = &t->getElems();
+    } else {
+        return false;
+    }
+    for (std::vector<ast::ITypeIdentifierElemUP>::const_iterator
+            it=elems->begin(); it!=elems->end(); it++) {
+        if (!(*it)->getId()) {
+            return false;
+        }
+        ids.push_back((*it)->getId());
+    }
     return true;
 }
 

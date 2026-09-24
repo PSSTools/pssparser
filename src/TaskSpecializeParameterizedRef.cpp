@@ -23,6 +23,7 @@
 #include "TaskSpecializeParameterizedRef.h"
 #include "TaskGetSpecializedTemplateType.h"
 #include "TaskBuildParamValList.h"
+#include "TaskResolveRefs.h"
 
 
 namespace pssp {
@@ -67,6 +68,8 @@ ast::ISymbolRefPath *TaskSpecializeParameterizedRef::specialize(
 
     DEBUG("target: %s", target_c->getName().c_str());
 
+    bindDefaults(target, target_c);
+
     // Form parameter list 
     ast::ITemplateParamDeclList *pdecl_list = TaskBuildParamValList(m_ctxt).build(
             target_c->getPlist(),
@@ -97,6 +100,88 @@ ast::ISymbolRefPath *TaskSpecializeParameterizedRef::specialize(
 
     DEBUG_LEAVE("specialize %p", target_t);
     return target_t;
+}
+
+namespace {
+
+/** Finds template or call arguments anywhere under a node. */
+class HasArgs : public virtual ast::VisitorBase {
+public:
+    HasArgs() : m_ret(false) { }
+
+    bool check(ast::IScopeChild *c) {
+        c->accept(m_this);
+        return m_ret;
+    }
+
+    virtual void visitTypeIdentifierElem(ast::ITypeIdentifierElem *i) override {
+        m_ret |= (i->getParams() != 0);
+    }
+
+    virtual void visitExprMemberPathElem(ast::IExprMemberPathElem *i) override {
+        m_ret |= (i->getParams() != 0);
+        ast::VisitorBase::visitExprMemberPathElem(i);
+    }
+
+private:
+    bool                    m_ret;
+};
+
+}
+
+/**
+ * Bind the references in the generic's value-parameter defaults, in its
+ * declaring scope, before the first use that falls back on one. The copy
+ * TaskBuildParamValList makes of a default then carries its targets, so
+ * `packed_s<>` is found to be the same specialization as
+ * `packed_s<LITTLE_ENDIAN>` (8.3), and never resolves the default at the use
+ * site. A generic declared after its first use -- the core library is linked
+ * after the user's files -- has not been visited yet at that point.
+ *
+ * Quiet: the generic's own visit reports anything wrong with a default.
+ *
+ * Only a generic whose defaults hold no template or call arguments: a type
+ * identifier keeps its target when copied, so binding `sizeof_s<R>` here
+ * would tie every specialization to the generic's own R.
+ */
+void TaskSpecializeParameterizedRef::bindDefaults(
+        ast::ISymbolRefPath                 *target,
+        ast::ISymbolTypeScope               *target_c) {
+    bool any = false;
+    for (std::vector<ast::IScopeChildUP>::const_iterator
+            it=target_c->getPlist()->getChildren().begin();
+            it!=target_c->getPlist()->getChildren().end() && !any; it++) {
+        ast::ITemplateValueParamDecl *v =
+            dynamic_cast<ast::ITemplateValueParamDecl *>(it->get());
+        any = (v && v->getDflt());
+    }
+    if (!any || !m_ctxt->firstDefaultsBinding(target_c)) {
+        return;
+    }
+    for (std::vector<ast::IScopeChildUP>::const_iterator
+            it=target_c->getPlist()->getChildren().begin();
+            it!=target_c->getPlist()->getChildren().end(); it++) {
+        if (HasArgs().check(it->get())) {
+            return;
+        }
+    }
+    DEBUG_ENTER("bindDefaults %s", target_c->getName().c_str());
+
+    // As TaskResolveRefs::resolve(ISymbolTypeScope *) does for the generic
+    // itself: the parameter list, from the scope that declares the type.
+    ISymbolTableIterator *it = TaskResolveSymbolPathRef(
+        m_ctxt->getDebugMgr(), m_ctxt->root()).mkIterator(
+            m_ctxt->getFactory()->mkAstSymbolTableIterator(m_ctxt->root()),
+            target);
+    it->popScope();
+    m_ctxt->pushSymtab(it);
+    m_ctxt->pushQuiet();
+    TaskResolveRefs resolver(m_ctxt);
+    target_c->getPlist()->accept(&resolver);
+    m_ctxt->popQuiet();
+    m_ctxt->popSymtab();
+
+    DEBUG_LEAVE("bindDefaults");
 }
 
 dmgr::IDebug *TaskSpecializeParameterizedRef::m_dbg = 0;

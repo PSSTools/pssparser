@@ -47,6 +47,11 @@ public:
         const ast::Location                 &use_loc);
 
 private:
+    void bindDefaults(
+        ast::ISymbolRefPath                 *target,
+        ast::ISymbolTypeScope               *target_c);
+
+private:
     static dmgr::IDebug                     *m_dbg;
     ResolveContext                          *m_ctxt;
 

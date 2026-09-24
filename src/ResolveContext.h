@@ -291,6 +291,15 @@ public:
     void popQuiet() { m_quiet--; }
 
     /**
+     * True the first time it is asked about generic `t`: its parameter
+     * defaults are then bound, once, ahead of the first use that needs them
+     * (TaskSpecializeParameterizedRef).
+     */
+    bool firstDefaultsBinding(ast::ISymbolTypeScope *t) {
+        return m_dflts_bound.insert(t).second;
+    }
+
+    /**
      * Queue work that needs every reference resolved -- the linker runs it
      * once TaskResolveRefs is done. For a computation made during
      * specialization, which can run before the types it depends on are
@@ -416,6 +425,7 @@ private:
     std::set<std::tuple<int32_t,int32_t,int32_t>>   m_reported;
     std::vector<std::function<void()>>              m_post_resolve;
     int32_t                                         m_quiet = 0;
+    std::unordered_set<ast::ISymbolTypeScope *>     m_dflts_bound;
     const ast::IExprId                              *m_fwd_id = 0;
     ast::IScopeChild                                *m_fwd_decl = 0;
     const ast::IExprId                              *m_static_id = 0;

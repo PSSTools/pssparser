@@ -7,6 +7,20 @@ revision advances only the patch component.
 
 ## Unreleased
 
+### Fixed — distinct template value arguments no longer share one specialization (symbol-resolution 8.3, LRM 10.4)
+
+Two uses of a generic with value arguments of the same *form* -- `S<2+2>` and
+`S<3+7>`, or `S<W+0>` and `S<W2+0>` -- were treated as one specialization, so
+the second use silently saw the first's bindings. Value arguments are now
+compared by value when they fold to a constant, and otherwise by their form,
+and two arguments are never assumed equal. The same value is one
+specialization however it is written: `S<2+2>`, `S<W>` with `W = 4`, and `S<4>`
+are one. Constant folding now also covers comparisons, `&&`/`||`/`!`, `?:` and
+`in`, so `S<(N > 2)>` is `S<true>`.
+
+A self-recursive generic such as `component T<int N=1> { T<N+1> t; }` is now
+reported (the recursion-depth error) instead of linking silently.
+
 ### Changed — an enum item with no expected type is a warning, PSS046 (symbol-resolution 8.2, LRM 7.5 g/i, 18.3)
 
 An enum item belongs to its enumeration type's scope, not to the scope that

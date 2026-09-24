@@ -337,10 +337,19 @@ ast::ITemplateParamDeclList *TaskBuildParamValList::build(
         DEBUG("Add parameter %s", (name)?name->getId().c_str():"<unset>");
         ast::ITemplateParamDecl *p = 0;
         if (value) {
+            // A default means what it means where the generic declares it, so
+            // its targets carry over as an argument's do -- unless it may
+            // depend on a template parameter, which must bind to this
+            // specialization's.
+            // Carried targets are what let `packed_s<>` and
+            // `packed_s<LITTLE_ENDIAN>` compare equal (TaskCompareParamLists).
+            copier.setPreserveExprTargets(!dependsOnParams(value));
+            ast::IExpr *value_c = copier.copy(value);
+            copier.setPreserveExprTargets(false);
             p = m_ctxt->getFactory()->getAstFactory()->mkTemplateValueParamDecl(
                 copier.copyT<ast::IExprId>(name),
                 copier.copy(type),
-                value?copier.copy(value):0
+                value_c
             );
         } else if (m_ptype_value) {
             // A value parameter with no default and no supplied argument.
@@ -489,6 +498,75 @@ ast::IExpr *TaskBuildParamValList::substValueDflt(ast::IExpr *dflt) {
         return v->getDflt();
     }
     return 0;
+}
+
+namespace {
+
+/**
+ * Finds whether an expression holds a reference bound to a template
+ * parameter (or to anything that does not resolve), or one with template or call arguments, which may depend on one
+ * in a way its target does not show (`sizeof_s<R>::nbytes` binds into the
+ * specialization over the generic's own R). An unbound reference does not
+ * count: it is resolved in the specialization either way.
+ */
+class DependsOnParams : public virtual ast::VisitorBase {
+public:
+    DependsOnParams(ResolveContext *ctxt) : m_ctxt(ctxt), m_ret(false) { }
+
+    bool check(ast::IExpr *e) {
+        m_ret = false;
+        e->accept(m_this);
+        return m_ret;
+    }
+
+    virtual void visitExprRefPathContext(ast::IExprRefPathContext *i) override {
+        target(i->getTarget());
+        ast::VisitorBase::visitExprRefPathContext(i);
+    }
+
+    virtual void visitExprRefPathStatic(ast::IExprRefPathStatic *i) override {
+        target(i->getTarget());
+        ast::VisitorBase::visitExprRefPathStatic(i);
+    }
+
+    virtual void visitExprRefPathStaticRooted(ast::IExprRefPathStaticRooted *i) override {
+        target(i->getTarget());
+        ast::VisitorBase::visitExprRefPathStaticRooted(i);
+    }
+
+    virtual void visitTypeIdentifier(ast::ITypeIdentifier *i) override {
+        target(i->getTarget());
+        ast::VisitorBase::visitTypeIdentifier(i);
+    }
+
+    virtual void visitTypeIdentifierElem(ast::ITypeIdentifierElem *i) override {
+        m_ret |= (i->getParams() != 0);
+    }
+
+    virtual void visitExprMemberPathElem(ast::IExprMemberPathElem *i) override {
+        m_ret |= (i->getParams() != 0);
+        ast::VisitorBase::visitExprMemberPathElem(i);
+    }
+
+private:
+    void target(ast::ISymbolRefPath *t) {
+        if (t && !m_ret) {
+            // A path into the generic's own parameter list does not resolve
+            // from the root; nor may other paths that lead nowhere useful.
+            ast::IScopeChild *c = m_ctxt->resolveSymbolPathRef(t);
+            m_ret = (!c || dynamic_cast<ast::ITemplateParamDecl *>(c));
+        }
+    }
+
+private:
+    ResolveContext          *m_ctxt;
+    bool                    m_ret;
+};
+
+}
+
+bool TaskBuildParamValList::dependsOnParams(ast::IExpr *e) {
+    return DependsOnParams(m_ctxt).check(e);
 }
 
 static const char *categoryName(ast::TypeCategory c) {

@@ -109,6 +109,10 @@ private:
     /// name against what has been built so far.
     ast::ITemplateParamDecl *findBuiltParam(const std::string &name);
     ast::IDataType *substTypeDflt(ast::IDataType *dflt);
+    // Whether default `e` may depend on a template parameter: a reference
+    // bound to one, or one with template or call arguments.
+    bool dependsOnParams(ast::IExpr *e);
+
     ast::IExpr *substValueDflt(ast::IExpr *dflt);
 
     /// The single-element, unparameterized name a type reference spells, or
