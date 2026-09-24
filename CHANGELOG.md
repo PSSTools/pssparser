@@ -7,6 +7,36 @@ revision advances only the patch component.
 
 ## Unreleased
 
+### Changed — an import applies only where it is written (symbol-resolution 6.3a, LRM 18.1.3)
+
+An import now applies only inside the statement that contains it: a `package`
+statement, a component declaration or an `extend`. An import in the global
+scope applies to the rest of its file. Previously every import of a namespace
+applied wherever that namespace was open, so an import in one file reached
+other files, and an import in one `package p { }` statement reached every other
+`package p { }`. Models that relied on this are now rejected:
+
+- **A global import does not reach another file.** Add the import to each
+  file that uses it.
+- **An import does not reach another statement of the same package.**
+- **A component's imports do not reach an `extend component`, and an
+  extension's imports do not reach the component declaration.**
+
+The error names the import the model relied on:
+`unknown type 's'; 'import lib::*;' provides it, but an import applies only
+inside the statement it is written in, or to its own file (18.1.3) -- add
+'import lib::*;' here`, with a note at that import.
+
+Two legal models that used to be rejected now link:
+
+- **An import inside `extend component` reaches the extension's own members**,
+  including the types it declares.
+- **A wildcard import reaches the items an `extend enum` in that package
+  adds** (LRM Example 248).
+
+The same import written in two files is no longer merged into one, so it
+applies in both.
+
 ### Changed — name lookup follows the LRM order (symbol-resolution 6.2, LRM 17.2, 18.3)
 
 Every name is now looked up by one procedure in the order that 18.3 gives. The

@@ -30,9 +30,12 @@
 #include <vector>
 #include "dmgr/IDebugMgr.h"
 #include "pssp/ast/IExprId.h"
+#include "pssp/ast/IExtendEnum.h"
+#include "pssp/ast/IPackageImportStmt.h"
 #include "pssp/ast/IRootSymbolScope.h"
 #include "pssp/ast/ISymbolEnumScope.h"
 #include "pssp/ast/ISymbolRefPath.h"
+#include "pssp/ast/ISymbolTypeScope.h"
 #include "pssp/IFactory.h"
 #include "pssp/IMarkerListener.h"
 #include "pssp/ISymbolTableIterator.h"
@@ -230,6 +233,22 @@ public:
     }
 
     /**
+     * Also set by NameLookup after each unqualified lookup that misses: an
+     * import that provides the name but does not apply where it is used,
+     * because it is written in another file or another `package` / component
+     * / `extend` statement (18.1.3, decision Q5); otherwise null. Lets the
+     * site that reports the miss say which import the model relied on.
+     */
+    void setImportLeakHint(const ast::IExprId *id, ast::IPackageImportStmt *imp) {
+        m_leak_id = id;
+        m_leak_imp = imp;
+    }
+
+    ast::IPackageImportStmt *importLeakHint(const ast::IExprId *id) const {
+        return (id == m_leak_id)?m_leak_imp:0;
+    }
+
+    /**
      * True if an error has already been reported at this source position.
      * Lets a later pass stay quiet about a failure an earlier one described
      * better -- see TaskCheckRefsResolved.
@@ -278,35 +297,90 @@ public:
     }
 
     /**
-     * The enums declared directly in `s`. NameLookup asks at every level it
-     * searches, and finding them means a dynamic_cast per child -- costly on
-     * this hierarchy, and most children are not enums. Kept per scope, and
-     * rebuilt when the scope has gained children since.
+     * What `s` declares about enums: the enums declared directly in it, and
+     * the `extend enum` statements written directly in it, whose items are
+     * declared where the statement is (17.2) -- a wildcard import of the
+     * package reaches them (Ex. 248).
      */
-    const std::vector<ast::ISymbolEnumScope *> &enumsOf(ast::ISymbolScope *s) {
+    struct EnumCache {
+        bool                                    valid = false;
+        size_t                                  n_children = 0;
+        std::vector<ast::ISymbolEnumScope *>    enums;
+        std::vector<ast::IExtendEnum *>         exts;
+    };
+
+    /**
+     * NameLookup asks at every level it searches, and finding them means a
+     * dynamic_cast per child -- costly on this hierarchy, and most children
+     * are not enums. Kept per scope, and rebuilt when the scope has gained
+     * children since.
+     */
+    const EnumCache &enumsOf(ast::ISymbolScope *s) {
+        return enumCache(s);
+    }
+
+private:
+    EnumCache &enumCache(ast::ISymbolScope *s) {
         EnumCache &e = m_enum_cache[s];
         if (!e.valid || e.n_children != s->getChildren().size()) {
             e.enums.clear();
-            for (std::vector<ast::IScopeChildUP>::const_iterator
-                    it=s->getChildren().begin();
-                    it!=s->getChildren().end(); it++) {
+            e.exts.clear();
+            // An `extend enum` declares no name, so it is one of the few
+            // children the symtab does not index; only those are cast a second
+            // time, and only where one can be.
+            std::vector<bool> named;
+            if (mayHoldExtensions(s)) {
+                named.resize(s->getChildren().size(), false);
+                for (std::unordered_map<std::string,int32_t>::const_iterator
+                        it=s->getSymtab().begin();
+                        it!=s->getSymtab().end(); it++) {
+                    if (it->second >= 0 && it->second < (int32_t)named.size()) {
+                        named[it->second] = true;
+                    }
+                }
+            }
+            for (uint32_t i=0; i<s->getChildren().size(); i++) {
+                ast::IScopeChild *c = s->getChildren().at(i).get();
                 if (ast::ISymbolEnumScope *es =
-                        dynamic_cast<ast::ISymbolEnumScope *>(it->get())) {
+                        dynamic_cast<ast::ISymbolEnumScope *>(c)) {
                     e.enums.push_back(es);
+                } else if (i < named.size() && !named[i]) {
+                    if (ast::IExtendEnum *ee = dynamic_cast<ast::IExtendEnum *>(c)) {
+                        e.exts.push_back(ee);
+                    }
                 }
             }
             e.n_children = s->getChildren().size();
             e.valid = true;
         }
-        return e.enums;
+        return e;
     }
 
-private:
-    struct EnumCache {
-        bool                                    valid = false;
-        size_t                                  n_children = 0;
-        std::vector<ast::ISymbolEnumScope *>    enums;
-    };
+    /**
+     * True for the scopes whose `extend enum` statements NameLookup needs to
+     * know about: a package and the global scope. One inside a component
+     * extends one of the component's own enums (17.3), whose items the
+     * lookup finds in the enum itself.
+     */
+    bool mayHoldExtensions(ast::ISymbolScope *s) const {
+        if (s == m_root) {
+            return true;
+        }
+        if (dynamic_cast<ast::ISymbolTypeScope *>(s)) {
+            return false;
+        }
+        // A package is a named child of its enclosing scope; a block is not.
+        ast::ISymbolScope *up = s->getUpper();
+        if (!up) {
+            return false;
+        }
+        std::unordered_map<std::string,int32_t>::const_iterator it =
+            up->getSymtab().find(s->getName());
+        return it != up->getSymtab().end()
+            && it->second >= 0
+            && it->second < (int32_t)up->getChildren().size()
+            && up->getChildren().at(it->second).get() == s;
+    }
 
 private:
     ast::IRootSymbolScope                           *m_root;
@@ -330,6 +404,8 @@ private:
     ast::IScopeChild                                *m_fwd_decl = 0;
     const ast::IExprId                              *m_static_id = 0;
     ast::IScopeChild                                *m_static_fn = 0;
+    const ast::IExprId                              *m_leak_id = 0;
+    ast::IPackageImportStmt                         *m_leak_imp = 0;
 
 };
 

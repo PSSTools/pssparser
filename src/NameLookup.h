@@ -62,9 +62,15 @@ namespace pssp {
  * routes to one declaration are one match. More than one distinct target is
  * an ambiguity, reported (PSS017), and resolves to nothing.
  *
- * Not yet (symbol-resolution-plan.md): imports are still searched on the
- * merged namespace, not the lexical statement (6.3a); aliases (6.4); the
- * visibility of extension members by package (6.3, 6.5); step a (8.1).
+ * An import applies only inside the statement it is written in -- a
+ * `package` statement, a component declaration or an `extend` -- or, in the
+ * global scope, to the rest of its file (18.1.3, decision Q5). A namespace's
+ * import list gathers the imports of every statement that opens it; those of
+ * other statements are passed over (appliesAt()), and a miss one of them
+ * would have satisfied leaves the context an import-leak hint.
+ *
+ * Not yet (symbol-resolution-plan.md): aliases (6.4); the visibility of
+ * extension members by package (6.3, 6.5); step a (8.1).
  */
 class NameLookup {
 public:
@@ -164,7 +170,36 @@ public:
         const ast::IScopeChild      *decl,
         const ast::Location         &use);
 
+    /**
+     * True if import `imp` applies at `use`: `use` is inside the statement
+     * the import is written in, or, for an import in the global scope, in
+     * the same file (18.1.3, decision Q5). True when either position is
+     * unknown.
+     */
+    static bool appliesAt(
+        ast::IPackageImportStmt         *imp,
+        const ast::Location             &use);
+
+    /**
+     * Report the miss on `id` as an import that does not reach it, if the
+     * context holds an import-leak hint for it. `kind` is "type" or
+     * "identifier". False, and nothing reported, when there is no hint.
+     */
+    static bool reportImportLeak(
+        ResolveContext                  *ctxt,
+        const ast::IExprId              *id,
+        const char                      *kind);
+
+    /** `imp` as written: `p::q::*`, `p::t` or `p as a`. */
+    static std::string importText(ast::IPackageImportStmt *imp);
+
 private:
+
+    /**
+     * The lexical search for m_id from the context's iterator: every level of
+     * the scope stack, and the extension chain. The hit is in m_ref.
+     */
+    void walk();
 
     /**
      * Search one level of the scope stack -- the scope the iterator is on --
@@ -279,6 +314,18 @@ private:
      */
     ast::ISymbolFunctionScope       *m_static_fn;
     ast::IScopeChild                *m_static_hit;
+
+    /**
+     * Search every import of a namespace, whether or not it applies at the
+     * use: the pre-6.3a lookup, run only to explain a miss.
+     */
+    bool                            m_all_imports;
+
+    /** The walk passed over an import that does not apply at the use. */
+    bool                            m_skipped_imp;
+
+    /** The import the hit in m_ref came through, if it came through one. */
+    ast::IPackageImportStmt         *m_found_imp;
 };
 
 }

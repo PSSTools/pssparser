@@ -434,6 +434,11 @@ public:
         if (i->getPath()) {
             ic->setPath(copyT<ast::ITypeIdentifier>(i->getPath()));
         }
+        // The statement the import is written in, not the copy's new home:
+        // an import applies only inside its own statement (NameLookup::
+        // appliesAt), and a specialization gathers the imports of the
+        // generic's declaration and of every extension of it.
+        ic->setParent(i->getParent());
         m_sc = fin(i, ic);
     }
 

@@ -18,6 +18,7 @@
  * Created on:
  *     Author:
  */
+#include <algorithm>
 #include "dmgr/impl/DebugMacros.h"
 #include "ResolveContext.h"
 #include "TaskApplyTypeExtensions.h"
@@ -239,6 +240,26 @@ void TaskApplyTypeExtensions::applyExtension(
             m_ext_decl_scope[it->get()] = decl_s;
         }
         mergeChild(target_s, it->get(), decl_s);
+    }
+
+    // The extension's imports join the type's, where the type level of a
+    // lookup (18.3 b.4) searches them. They apply only inside the `extend`
+    // statement (NameLookup::appliesAt), so the type's own body and its other
+    // extensions do not see them. Resolved already, from the extension's own
+    // site (TaskResolveImports::resolveAll).
+    if (ext->getImports() && ext->getImports()->getImports().size()) {
+        if (!target_s->getImports()) {
+            target_s->setImports(m_factory->getAstFactory()->mkSymbolImportSpec());
+        }
+        std::vector<ast::IPackageImportStmt *> &dst =
+            target_s->getImports()->getImports();
+        for (std::vector<ast::IPackageImportStmt *>::const_iterator
+                it=ext->getImports()->getImports().begin();
+                it!=ext->getImports()->getImports().end(); it++) {
+            if (std::find(dst.begin(), dst.end(), *it) == dst.end()) {
+                dst.push_back(*it);
+            }
+        }
     }
 
     ast::IExtendType *ast_ext = dynamic_cast<ast::IExtendType *>(ext->getTarget());

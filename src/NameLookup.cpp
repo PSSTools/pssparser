@@ -20,7 +20,10 @@
 #include "pssp/ast/IActivityDecl.h"
 #include "pssp/ast/IActivityLabeledScope.h"
 #include "pssp/ast/IComponent.h"
+#include "pssp/ast/IEnumItem.h"
 #include "pssp/ast/IExecScope.h"
+#include "pssp/ast/IExtendEnum.h"
+#include "pssp/ast/IGlobalScope.h"
 #include "pssp/ast/IFunctionParamDecl.h"
 #include "pssp/ast/IMonitorActivityDecl.h"
 #include "pssp/ast/IMonitorActivityLabeledScope.h"
@@ -71,7 +74,8 @@ ast::ISymbolScope *baseOf(
 
 NameLookup::NameLookup(ResolveContext *ctxt) : m_ctxt(ctxt), m_id(0),
         m_ref(0), m_super_depth(0), m_abs_base(0), m_fwd_decl(0),
-        m_static_fn(0), m_static_hit(0) {
+        m_static_fn(0), m_static_hit(0), m_all_imports(false),
+        m_skipped_imp(false), m_found_imp(0) {
     DEBUG_INIT("pssp::NameLookup", ctxt->getDebugMgr());
 }
 
@@ -90,14 +94,52 @@ ast::ISymbolRefPath *NameLookup::lookupFirst(const ast::IExprId *id) {
         return m_ref;
     }
 
-    // A clone, because the walk pops the iterator as it goes.
-    m_ctxt->pushCloneSymtab();
     m_id = id;
+    m_all_imports = false;
+    m_skipped_imp = false;
+    walk();
+
+    // A miss that passed over a later declaration of the name is reported
+    // as a use before declaration, not as an unknown name (18.2a/b).
+    m_ctxt->setFwdDeclHint(id, (m_ref)?0:m_fwd_decl);
+    m_ctxt->setStaticCtxtHint(id, (m_ref && m_static_hit)?m_static_fn:0);
+
+    // 18.1.3, decision Q5: an import applies only in the file and the
+    // statement it is written in. A miss that some other statement's import
+    // would have satisfied is still a miss, but the report can name that
+    // import -- the model's author almost certainly meant it. Found by
+    // searching again with every import of each namespace, as the linker did
+    // before 6.3a; quietly, so an ambiguity there is not reported.
+    ast::IPackageImportStmt *leak = 0;
+    if (!m_ref && m_skipped_imp) {
+        m_all_imports = true;
+        m_ctxt->pushQuiet();
+        walk();
+        m_ctxt->popQuiet();
+        m_all_imports = false;
+        if (m_ref) {
+            leak = m_found_imp;
+            delete m_ref;
+            m_ref = 0;
+        }
+    }
+    m_ctxt->setImportLeakHint(id, leak);
+
+    DEBUG_LEAVE("lookupFirst %p (%d)", m_ref, (m_ref)?(int)m_ref->getPath().size():-1);
+    return m_ref;
+}
+
+void NameLookup::walk() {
+    m_ref = 0;
     m_super_depth = 0;
     m_abs_base = 0;
     m_fwd_decl = 0;
     m_static_fn = 0;
     m_static_hit = 0;
+    m_found_imp = 0;
+
+    // A clone, because the walk pops the iterator as it goes.
+    m_ctxt->pushCloneSymtab();
 
     // 17.2: a member an `extend` contributed is resolved in the package chain
     // of the `extend` statement, which takes over from the extended type's
@@ -147,15 +189,7 @@ ast::ISymbolRefPath *NameLookup::lookupFirst(const ast::IExprId *id) {
         searchExtensionChain(ext, searched);
     }
 
-    // A miss that passed over a later declaration of the name is reported
-    // as a use before declaration, not as an unknown name (18.2a/b).
-    m_ctxt->setFwdDeclHint(id, (m_ref)?0:m_fwd_decl);
-    m_ctxt->setStaticCtxtHint(id, (m_ref && m_static_hit)?m_static_fn:0);
-
     m_ctxt->popSymtab();
-
-    DEBUG_LEAVE("lookupFirst %p (%d)", m_ref, (m_ref)?(int)m_ref->getPath().size():-1);
-    return m_ref;
 }
 
 ast::ISymbolRefPath *NameLookup::lookupGlobal(const ast::IExprId *id) {
@@ -450,9 +484,9 @@ bool NameLookup::searchMembers(ast::ISymbolScope *s, bool order) {
 }
 
 bool NameLookup::searchEnumItems(ast::ISymbolScope *s) {
-    const std::vector<ast::ISymbolEnumScope *> &enums = m_ctxt->enumsOf(s);
+    const ResolveContext::EnumCache &ec = m_ctxt->enumsOf(s);
     for (std::vector<ast::ISymbolEnumScope *>::const_iterator
-            it=enums.begin(); it!=enums.end(); it++) {
+            it=ec.enums.begin(); it!=ec.enums.end(); it++) {
         ast::ISymbolEnumScope *e = *it;
         std::unordered_map<std::string,int32_t>::const_iterator e_it =
             e->getSymtab().find(m_id->getId());
@@ -467,6 +501,38 @@ bool NameLookup::searchEnumItems(ast::ISymbolScope *s) {
                 ast::SymbolRefPathElemKind::ElemKind_ChildIdx, e_it->second});
             return true;
         }
+    }
+
+    // An item an `extend enum` in `s` contributes is declared here too, though
+    // it lives in the extended enum (17.2; Ex. 248 imports the package that
+    // extends the enum to use the items it adds).
+    for (std::vector<ast::IExtendEnum *>::const_iterator
+            it=ec.exts.begin(); it!=ec.exts.end(); it++) {
+        bool declares = false;
+        for (std::vector<ast::IEnumItemUP>::const_iterator
+                i_it=(*it)->getItems().begin();
+                i_it!=(*it)->getItems().end() && !declares; i_it++) {
+            declares = ((*i_it)->getName()->getId() == m_id->getId());
+        }
+        if (!declares || !(*it)->getTarget()->getTarget()) {
+            continue;
+        }
+        ast::ISymbolEnumScope *e = dynamic_cast<ast::ISymbolEnumScope *>(
+            m_ctxt->resolveSymbolPathRef((*it)->getTarget()->getTarget()));
+        std::unordered_map<std::string,int32_t>::const_iterator e_it =
+            (e)?e->getSymtab().find(m_id->getId()):std::unordered_map<std::string,int32_t>::const_iterator();
+        if (!e || e_it == e->getSymtab().end()) {
+            continue;
+        }
+        DEBUG("Found %s as an item an extension adds to enum %s",
+            m_id->getId().c_str(), e->getName().c_str());
+        m_ref = TaskGetSymbolRefPath(
+            m_ctxt->getDebugMgr(),
+            m_ctxt->root(),
+            m_ctxt->getFactory()->getAstFactory()).mk(e);
+        m_ref->getPath().push_back({
+            ast::SymbolRefPathElemKind::ElemKind_ChildIdx, e_it->second});
+        return true;
     }
     return false;
 }
@@ -628,6 +694,11 @@ ast::ISymbolRefPath *NameLookup::absPath(ast::ISymbolScope *s) {
  * declaration are one match (F18). A real ambiguity is reported and
  * resolves to nothing, rather than to the first import, which cascaded.
  * Aliases are 6.4.
+ *
+ * `imp` holds the imports of every statement that opens the namespace -- each
+ * `package p` statement, a component and all its extensions, every file's
+ * global scope. An import applies only within its own statement (6.3a), so the
+ * rest are passed over; see appliesAt().
  */
 ast::ISymbolRefPath *NameLookup::searchImports(
     const ast::IExprId          *id,
@@ -645,6 +716,12 @@ ast::ISymbolRefPath *NameLookup::searchImports(
             if ((*imp_it)->getWildcard() != want_wildcard) {
                 continue;
             }
+            // The namespace's imports are gathered from every statement that
+            // opens it; only those of a statement around the use apply.
+            if (!m_all_imports && !appliesAt(*imp_it, id->getLocation())) {
+                m_skipped_imp = true;
+                continue;
+            }
             ast::ISymbolRefPath *ret_t = searchImport(id, *imp_it);
             if (!ret_t) {
                 continue;
@@ -653,6 +730,7 @@ ast::ISymbolRefPath *NameLookup::searchImports(
             if (!ret) {
                 ret = ret_t;
                 found = node;
+                m_found_imp = *imp_it;
             } else if (node != found) {
                 ambiguous = true;
                 delete ret_t;
@@ -669,6 +747,7 @@ ast::ISymbolRefPath *NameLookup::searchImports(
                 want_wildcard ? "wildcard" : "explicit");
             delete ret;
             ret = 0;
+            m_found_imp = 0;
             break;
         }
     }
@@ -729,6 +808,83 @@ ast::ISymbolRefPath *NameLookup::searchImport(
     m_ref = 0;
     ast::ISymbolRefPath *ret = (searchEnumItems(target_s))?m_ref:0;
     m_ref = saved;
+    return ret;
+}
+
+bool NameLookup::appliesAt(
+        ast::IPackageImportStmt         *imp,
+        const ast::Location             &use) {
+    // The statement the import is written in: a `package` statement, a
+    // component declaration, an `extend`, or a file's global scope. Extension
+    // merging never re-parents, and a specialization's copy is given the
+    // original's parent (TaskCopyAst), so this is the lexical statement even
+    // when the import was gathered into another namespace's list.
+    ast::IScope *stmt = imp->getParent();
+    if (!stmt || use.fileid < 0 || use.lineno < 0) {
+        // Nowhere to measure from: a synthetic node. Apply it, as before.
+        return true;
+    }
+
+    // 18.1.3: an import in the global scope applies to the rest of its file.
+    if (dynamic_cast<ast::IGlobalScope *>(stmt)) {
+        return imp->getLocation().fileid < 0
+            || imp->getLocation().fileid == use.fileid;
+    }
+
+    const ast::Location &b = stmt->getLocation();
+    const ast::Location &e = stmt->getEndLocation();
+    if (b.lineno < 0 || e.lineno < 0) {
+        return true;
+    }
+    if (b.fileid != use.fileid) {
+        return false;
+    }
+    bool after_b = (use.lineno > b.lineno)
+        || (use.lineno == b.lineno && use.linepos >= b.linepos);
+    bool before_e = (use.lineno < e.lineno)
+        || (use.lineno == e.lineno && use.linepos <= e.linepos);
+    return after_b && before_e;
+}
+
+bool NameLookup::reportImportLeak(
+        ResolveContext                  *ctxt,
+        const ast::IExprId              *id,
+        const char                      *kind) {
+    ast::IPackageImportStmt *imp = ctxt->importLeakHint(id);
+    if (!imp) {
+        return false;
+    }
+    std::string text = importText(imp);
+    ctxt->addMarker(
+        MarkerSeverityE::Error,
+        id->getLocation(),
+        std::string("unknown ") + kind + " '" + id->getId() + "'; 'import "
+            + text + ";' provides it, but an import applies only inside the "
+            + "statement it is written in, or to its own file (18.1.3) -- add "
+            + "'import " + text + ";' here",
+        {{imp->getLocation(), "imported here"}});
+    return true;
+}
+
+std::string NameLookup::importText(ast::IPackageImportStmt *imp) {
+    std::string ret;
+    ast::ITypeIdentifier *path = imp->getPath();
+    if (path) {
+        if (path->getIs_global()) {
+            ret += "::";
+        }
+        for (uint32_t i=0; i<path->getElems().size(); i++) {
+            if (i) {
+                ret += "::";
+            }
+            ret += path->getElems().at(i)->getId()->getId();
+        }
+    }
+    if (imp->getWildcard()) {
+        ret += "::*";
+    } else if (imp->getAlias()) {
+        ret += " as " + imp->getAlias()->getId();
+    }
     return ret;
 }
 

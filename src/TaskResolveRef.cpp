@@ -398,6 +398,11 @@ void TaskResolveRef::visitTypeIdentifier(ast::ITypeIdentifier *i) {
                 || m_ctxt->wasReported(i->getElems().at(0)->getId()->getLocation())) {
             return;
         }
+        // Another statement's import provides it (18.1.3, 6.3a).
+        if (NameLookup::reportImportLeak(
+                m_ctxt, i->getElems().at(0)->getId(), "type")) {
+            return;
+        }
         std::string suggestion = findCloseMatch(
             name, dynamic_cast<ast::ISymbolScope *>(m_ctxt->root()));
         // See the matching block in TaskResolveRefs::visitExprRefPathContext:

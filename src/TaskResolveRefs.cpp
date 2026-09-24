@@ -1756,6 +1756,12 @@ void TaskResolveRefs::resolveExprRefPathContext(ast::IExprRefPathContext *i) {
             return;
         }
 
+        if (NameLookup::reportImportLeak(
+                m_ctxt, i->getHier_id()->getElems().at(0)->getId(), "identifier")) {
+            DEBUG_LEAVE("visitExprRefPathContext -- import out of reach");
+            return;
+        }
+
         // `this` fails only where there is no enclosing type (a package-level
         // function); "unknown identifier", with a spelling suggestion, would
         // misdescribe that.
