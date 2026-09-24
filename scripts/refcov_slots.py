@@ -26,6 +26,7 @@ buffer buf_s { rand int d; }
 resource res_s { }
 struct gs <type T = int, int N = 1> { T f; }
 struct base_s { rand int bf; }
+state st_s { rand int sd; constraint @@PREV_REF@@.sd >= 0; }
 component sub_c { action sa { lock res_s r; } }
 component pss_top {
   import @@PKG_IMPORT@@::*;
@@ -43,6 +44,7 @@ component pss_top {
   action A {
     rand int x; rand bit[4] y; rand S s;
     constraint { @@CONSTR@@; }
+    constraint { @@UID_REF@@ != 0; }
     constraint { unique {x, @@UNIQUE@@}; default @@DEFAULT@@ == 1; default disable @@DEFAULT_DIS@@; }
     constraint { forall (it : @@FORALL_T@@) { it.x > 0; } }
     covergroup {
@@ -106,7 +108,7 @@ extend component @@EXTEND_T@@ { }
 export pss_top::@@EXPORT_ACTION@@();
 '''
 DEF = dict(ICLS_BASE='base_cls', ENUM_VAL='', EXT_ENUM='col_e', PKG_IMPORT='std_pkg', POOL_SIZE='2',
- POOL_BIND_POOL='bp', POOL_BIND_ITEM='s1.*, P.r', TYPEDEF_T='base_s', SUPER_T='base_s', SUPER_REF='bf', BIT_W='4', ARR_DIM='4',
+ POOL_BIND_POOL='bp', POOL_BIND_ITEM='s1.*, P.r', TYPEDEF_T='base_s', SUPER_T='base_s', SUPER_REF='bf', PREV_REF='prev', UID_REF='comp.uid', BIT_W='4', ARR_DIM='4',
  FIELD_INIT='1', TPARAM_T='int', TPARAM_V='2', ANN='@ann_t { .v = 1 }', CONSTR='x > 0', UNIQUE='y', DEFAULT='x', DEFAULT_DIS='x',
  FORALL_T='A', CG_OPT_VAL='2', CP_TARGET='x', CP_IFF='x > 0', BINS_RANGE='3', BINS_WITH='x > 0', BINS_ASIZE='2', BINS_CPREF='cp_x',
  CP_DT='bit[4]', CROSS_ITEM='cp_y', CROSS_IFF='y > 0', XBINS_TGT='xy', XBINS_WITH='x == y', CGI_TYPE='cg_t', CGI_PORT='pa',
@@ -116,7 +118,7 @@ DEF = dict(ICLS_BASE='base_cls', ENUM_VAL='', EXT_ENUM='col_e', PKG_IMPORT='std_
  PROC_LHS='tx', CAST_T='int', PROC_CALL='g', RAND_TGT='tx', PFOREACH='sl.arr', TAG_T='tag_s', TAG_FIELD='nm', MUSTACHE='tx',
  MON_TRAV='mh', COVER_REF='M', FUNC_DFLT='1', EXPORT_FUNC='h', IMPORT_FUNC='ifn', OVR_TYPE='A', OVR_INST='a1', EXTEND_T='pss_top', EXPORT_ACTION='T')
 BAD = dict(ICLS_BASE='nosuch_cls', ENUM_VAL=' = NOSUCH', EXT_ENUM='nosuch_e', PKG_IMPORT='nosuch_pkg', POOL_SIZE='NOSUCH',
- POOL_BIND_POOL='nosuch_pool', TYPEDEF_T='nosuch_t', SUPER_T='nosuch_s', SUPER_REF='nosuch', BIT_W='NOSUCH', ARR_DIM='NOSUCH', FIELD_INIT='NOSUCH',
+ POOL_BIND_POOL='nosuch_pool', TYPEDEF_T='nosuch_t', SUPER_T='nosuch_s', SUPER_REF='nosuch', PREV_REF='nosuch', UID_REF='comp.nosuch', BIT_W='NOSUCH', ARR_DIM='NOSUCH', FIELD_INIT='NOSUCH',
  TPARAM_T='nosuch_t', TPARAM_V='NOSUCH', CONSTR='nosuch > 0', UNIQUE='nosuch', DEFAULT='nosuch', DEFAULT_DIS='nosuch', FORALL_T='nosuch_a',
  CG_OPT_VAL='NOSUCH', CP_TARGET='nosuch', CP_IFF='nosuch', BINS_RANGE='NOSUCH', BINS_WITH='nosuch > 0', BINS_ASIZE='NOSUCH',
  BINS_CPREF='nosuch_cp', CP_DT='nosuch_t', CROSS_ITEM='nosuch_cp', CROSS_IFF='nosuch', XBINS_TGT='nosuch_x', XBINS_WITH='nosuch == y',
@@ -136,4 +138,8 @@ EXTRA = {
  'CGI_ACT:legal': 'tx',
  # Declared in S2 itself, not in its base: `super.` must not find it.
  'SUPER_REF:own': 'own',
+ # The same object's `prev`, reached through `this`: legal.
+ 'PREV_REF:this': 'this.prev',
+ # `s` is a plain struct, which has no `uid`.
+ 'UID_REF:struct': 's.uid',
 }

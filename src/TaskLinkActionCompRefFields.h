@@ -36,6 +36,15 @@ public:
 
     void link(ast::ISymbolScope *root);
 
+    /**
+     * Link the actions inside `scope`, using `it` -- which is already
+     * positioned at `scope` -- to build the paths. A specialization is
+     * reached through an ElemKind_TypeSpec step that only the resolver's own
+     * iterator knows; an iterator rooted at the specialization would build
+     * paths relative to it (B C2). Takes ownership of `it`.
+     */
+    void link(ISymbolTableIterator *it, ast::ISymbolTypeScope *scope);
+
     virtual void visitAction(ast::IAction *i) override;
 
     virtual void visitConstraintBlock(ast::IConstraintBlock *i) override { }
@@ -56,6 +65,13 @@ public:
 
 
     
+private:
+    /**
+     * Target a state's built-in `prev` (TaskBuildSymbolTree::addBuiltinFields)
+     * at the state itself. `m_symtab` must be positioned at `ts`.
+     */
+    void linkPrev(ast::ISymbolTypeScope *ts);
+
 private:
     static dmgr::IDebug             *m_dbg;
     IFactory                        *m_factory;

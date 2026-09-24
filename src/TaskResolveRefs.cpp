@@ -26,6 +26,7 @@
 #include "TaskCompareTypeRefs.h"
 #include "TaskFindPathElem.h"
 #include "TaskLinkActionCompRefFields.h"
+#include "pssp/ast/IFieldCompRef.h"
 #include "TaskResolveImports.h"
 #include "TaskResolveRef.h"
 #include "TaskResolveRootRef.h"
@@ -480,7 +481,8 @@ void TaskResolveRefs::resolve(ast::ISymbolTypeScope *scope) {
         DEBUG_LEAVE("Resolve super type");
     }
 
-    TaskLinkActionCompRefFields(m_ctxt->getFactory()).link(scope);
+    TaskLinkActionCompRefFields(m_ctxt->getFactory()).link(
+        m_ctxt->symtab()->clone(), scope);
 
     // Check on children
     for (std::vector<ast::IScopeChildUP>::const_iterator
@@ -1755,6 +1757,19 @@ void TaskResolveRefs::resolveExprRefPathContext(ast::IExprRefPathContext *i) {
             DEBUG("Root %s has an unresolved type; "
                 "already reported at its declaration",
                 i->getHier_id()->getElems().at(0)->getId()->getId().c_str());
+        } else if (dynamic_cast<ast::IFieldCompRef *>(target_c)
+                && !dynamic_cast<ast::IFieldCompRef *>(target_c)->getType()) {
+            // `comp` is left untyped only in an action with no enclosing
+            // component: an abstract action declared in a package (9.2.1).
+            // Nothing says which component a derived action will land in, so
+            // the body cannot reach through it.
+            ast::ISymbolTypeScope *ctxt_t =
+                TaskResolveRootRef(m_ctxt).contextType();
+            m_ctxt->addErrorMarker(
+                i->getHier_id()->getElems().at(0)->getId()->getLocation(),
+                "'comp' is only valid in an action declared in a component, "
+                "and '%s' is declared outside one",
+                (ctxt_t)?ctxt_t->getName().c_str():"");
         } else {
             m_ctxt->addMarker(
                 MarkerSeverityE::Error,
@@ -1965,6 +1980,26 @@ void TaskResolveRefs::resolveExprRefPathContext(ast::IExprRefPathContext *i) {
             }
         } else {
             DEBUG("NOTE: Found sub-element %s", elem->getId()->getId().c_str());
+
+            // 9.3.3.1g: "prev shall only be available within a state type
+            // declaration or extension". Unqualified -- or through `this`,
+            // which names the same object -- it can only be found there;
+            // as a member of anything else (`i.prev` on an input) it is the
+            // previous state of an object this scope does not own.
+            ast::IField *builtin_f = dynamic_cast<ast::IField *>(res.sym);
+            if (ii && builtin_f
+                    && (builtin_f->getAttr() & ast::FieldAttr::Builtin) != ast::FieldAttr::NoFlags
+                    && builtin_f->getName()->getId() == "prev"
+                    && !(ii == 1 && i->getHier_id()->getElems().at(0)
+                            ->getId()->getId() == "this")) {
+                m_ctxt->addErrorMarker(
+                    elem->getId()->getLocation(),
+                    "'prev' is only valid in a state type or its extension, "
+                    "and cannot be reached as a member of '%s'",
+                    i->getHier_id()->getElems().at(ii-1)->getId()->getId().c_str());
+                break;
+            }
+
             elem->setTarget(res.idx);
             elem->setSuper(res.super_idx);
             elem->getId()->setDecl(res.sym);
@@ -2586,6 +2621,12 @@ void TaskResolveRefs::visitExtendType(ast::IExtendType *i) {
 
 void TaskResolveRefs::visitField(ast::IField *i) {
     DEBUG_ENTER("visitField %s", i->getName()->getId().c_str());
+    if ((i->getAttr() & ast::FieldAttr::Builtin) != ast::FieldAttr::NoFlags) {
+        // `uid`, `prev`, `initial`, `instance_id`: nothing of the user's to
+        // resolve, and `prev`'s type is targeted by TaskLinkActionCompRefFields.
+        DEBUG_LEAVE("visitField %s -- built-in", i->getName()->getId().c_str());
+        return;
+    }
     if (i->getType()) {
         i->getType()->accept(m_this);
     }

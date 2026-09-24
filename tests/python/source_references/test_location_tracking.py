@@ -583,7 +583,9 @@ def test_no_user_written_node_is_mistaken_for_injected(parser):
     # entry here should be a deliberate decision, not a way to quiet the test.
     # `set_executor`/`set_default_executor` were here until 2026-09-22;
     # the injection that produced them is gone (known-issues CL-S3).
-    KNOWN_INJECTED = {"comp"}
+    # `uid` and `prev` are not in the AST at all: they are the linked tree's
+    # built-in members (symbol-resolution 5.1), flagged FieldAttr.Builtin.
+    KNOWN_INJECTED = {"comp", "uid", "prev"}
 
     unlocated = []
 
@@ -626,7 +628,9 @@ def test_the_standard_library_has_no_unlocated_declarations(parser):
 
     # `set_executor`/`set_default_executor` were here until 2026-09-22;
     # the injection that produced them is gone (known-issues CL-S3).
-    KNOWN_INJECTED = {"comp"}
+    # `uid` and `prev` are not in the AST at all: they are the linked tree's
+    # built-in members (symbol-resolution 5.1), flagged FieldAttr.Builtin.
+    KNOWN_INJECTED = {"comp", "uid", "prev"}
     unlocated = []
     inspected = []
 

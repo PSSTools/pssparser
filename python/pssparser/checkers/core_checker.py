@@ -92,6 +92,10 @@ class CoreChecker(CheckerBase):
                 # `super.x` with no base type to search, or outside a type;
                 # and `super;` with no base activity or exec block to run.
                 r"^'super;?' is only valid inside a type\b",
+                # A built-in member where the enclosing type has none:
+                # `comp` in an abstract action declared in a package, and
+                # `prev` reached as a member from outside its state.
+                r"^'(comp|prev)' is only valid in\b",
             ),
             detail=(
                 "The linker could not resolve a named type, identifier, or "
@@ -109,6 +113,10 @@ class CoreChecker(CheckerBase):
                 "a package-level function)\n"
                 "* ``'super' is only valid inside a type that has a base "
                 "type, and 'S' has none`` (also ``'super;'``)\n"
+                "* ``'comp' is only valid in an action declared in a "
+                "component, and 'AB' is declared outside one``\n"
+                "* ``'prev' is only valid in a state type or its extension, "
+                "and cannot be reached as a member of 'i'``\n"
                 "* ``base type 'B' has no member named 'x'`` (``super.x``)\n\n"
                 "The last two are the same diagnosis reached through a "
                 "qualified and an unqualified path respectively.\n\n"

@@ -49,6 +49,12 @@ REPRESENTATIVE_MESSAGES = [
     ("PSS003", "duplicate variable declaration x, previously declared"),
     ("PSS004", "failed to resolve ref-path a.b.c"),
     ("PSS004", "root ref-path element x is not a composite scope"),
+    ("PSS002", "'comp' is only valid in an action declared in a component, "
+               "and 'AB' is declared outside one"),
+    ("PSS002", "'prev' is only valid in a state type or its extension, and "
+               "cannot be reached as a member of 'i'"),
+    ("PSS003", "duplicate declaration of 'uid': every action has a built-in "
+               "'uid'"),
     ("PSS005", "cannot extend unknown type 'Foo'"),
     ("PSS005", "cannot extend unknown enum 'MyEnum'"),
     ("PSS006", "call to 'g' expects 1 argument, got 3"),

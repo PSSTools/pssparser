@@ -246,6 +246,15 @@
      30
     ],
     [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
+     -1
+    ],
+    [
      "SymbolTypeScope",
      null,
      1,
@@ -261,6 +270,15 @@
      0,
      10,
      9,
+     -1
+    ],
+    [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
      -1
     ],
     [
@@ -327,6 +345,15 @@
      23
     ],
     [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
+     -1
+    ],
+    [
      "SymbolTypeScope",
      null,
      1,
@@ -334,6 +361,15 @@
      26,
      5,
      132
+    ],
+    [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
+     -1
     ],
     [
      "SymbolTypeScope",
@@ -1038,6 +1074,15 @@
      -1
     ],
     [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
+     -1
+    ],
+    [
      "SymbolTypeScope",
      null,
      1,
@@ -1092,6 +1137,15 @@
      -1
     ],
     [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
+     -1
+    ],
+    [
      "SymbolTypeScope",
      null,
      1,
@@ -1125,6 +1179,15 @@
      0,
      182,
      5,
+     -1
+    ],
+    [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
      -1
     ],
     [
@@ -1245,6 +1308,15 @@
      -1
     ],
     [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
+     -1
+    ],
+    [
      "SymbolFunctionScope",
      null,
      1,
@@ -1362,6 +1434,15 @@
      -1
     ],
     [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
+     -1
+    ],
+    [
      "SymbolTypeScope",
      null,
      1,
@@ -1395,6 +1476,15 @@
      0,
      29,
      9,
+     -1
+    ],
+    [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
      -1
     ],
     [
@@ -1533,6 +1623,15 @@
      5
     ],
     [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
+     -1
+    ],
+    [
      "SymbolTypeScope",
      null,
      1,
@@ -1548,6 +1647,15 @@
      0,
      39,
      9,
+     -1
+    ],
+    [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
      -1
     ],
     [
@@ -2280,6 +2388,15 @@
      -1
     ],
     [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
+     -1
+    ],
+    [
      "SymbolTypeScope",
      null,
      0,
@@ -2305,10 +2422,28 @@
      -1,
      -1,
      -1
+    ],
+    [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
+     -1
+    ],
+    [
+     "Field",
+     "uid",
+     1,
+     -1,
+     -1,
+     -1,
+     -1
     ]
    ],
-   "spineDigest": "2c9bd8afd559c5a8c2494a8a21157b6bfdb2768e5b47e279a62e2be88798a702",
-   "spineLength": 254,
+   "spineDigest": "e37cc9be2b6789226820f9c85f27a522f7d4271c3e59c6ff8a6f2564c0eb8976",
+   "spineLength": 269,
    "units": [
     -1,
     0,
@@ -2606,6 +2741,15 @@
      30
     ],
     [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
+     -1
+    ],
+    [
      "SymbolTypeScope",
      null,
      1,
@@ -2621,6 +2765,15 @@
      0,
      10,
      9,
+     -1
+    ],
+    [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
      -1
     ],
     [
@@ -2687,6 +2840,15 @@
      23
     ],
     [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
+     -1
+    ],
+    [
      "SymbolTypeScope",
      null,
      1,
@@ -2694,6 +2856,15 @@
      26,
      5,
      132
+    ],
+    [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
+     -1
     ],
     [
      "SymbolTypeScope",
@@ -3398,6 +3569,15 @@
      -1
     ],
     [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
+     -1
+    ],
+    [
      "SymbolTypeScope",
      null,
      1,
@@ -3452,6 +3632,15 @@
      -1
     ],
     [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
+     -1
+    ],
+    [
      "SymbolTypeScope",
      null,
      1,
@@ -3485,6 +3674,15 @@
      0,
      182,
      5,
+     -1
+    ],
+    [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
      -1
     ],
     [
@@ -3605,6 +3803,15 @@
      -1
     ],
     [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
+     -1
+    ],
+    [
      "SymbolFunctionScope",
      null,
      1,
@@ -3722,6 +3929,15 @@
      -1
     ],
     [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
+     -1
+    ],
+    [
      "SymbolTypeScope",
      null,
      1,
@@ -3755,6 +3971,15 @@
      0,
      29,
      9,
+     -1
+    ],
+    [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
      -1
     ],
     [
@@ -3893,6 +4118,15 @@
      5
     ],
     [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
+     -1
+    ],
+    [
      "SymbolTypeScope",
      null,
      1,
@@ -3908,6 +4142,15 @@
      0,
      39,
      9,
+     -1
+    ],
+    [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
      -1
     ],
     [
@@ -4640,6 +4883,15 @@
      -1
     ],
     [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
+     -1
+    ],
+    [
      "SymbolScope",
      null,
      0,
@@ -4683,10 +4935,28 @@
      -1,
      -1,
      -1
+    ],
+    [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
+     -1
+    ],
+    [
+     "Field",
+     "uid",
+     1,
+     -1,
+     -1,
+     -1,
+     -1
     ]
    ],
-   "spineDigest": "b086d5541414c4e6ade017d4a52fe10d0cd0ad1ad8e2b25d3f8915111b494bd2",
-   "spineLength": 256,
+   "spineDigest": "751794091eb4ae3db4f2065ad8f7ff877d8523da203c3f624ccec120ecbe37c1",
+   "spineLength": 271,
    "units": [
     -1,
     0,
@@ -5011,6 +5281,15 @@
      30
     ],
     [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
+     -1
+    ],
+    [
      "SymbolTypeScope",
      null,
      1,
@@ -5026,6 +5305,15 @@
      0,
      10,
      9,
+     -1
+    ],
+    [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
      -1
     ],
     [
@@ -5092,6 +5380,15 @@
      23
     ],
     [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
+     -1
+    ],
+    [
      "SymbolTypeScope",
      null,
      1,
@@ -5099,6 +5396,15 @@
      26,
      5,
      132
+    ],
+    [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
+     -1
     ],
     [
      "SymbolTypeScope",
@@ -5803,6 +6109,15 @@
      -1
     ],
     [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
+     -1
+    ],
+    [
      "SymbolTypeScope",
      null,
      1,
@@ -5857,6 +6172,15 @@
      -1
     ],
     [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
+     -1
+    ],
+    [
      "SymbolTypeScope",
      null,
      1,
@@ -5890,6 +6214,15 @@
      0,
      182,
      5,
+     -1
+    ],
+    [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
      -1
     ],
     [
@@ -6010,6 +6343,15 @@
      -1
     ],
     [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
+     -1
+    ],
+    [
      "SymbolFunctionScope",
      null,
      1,
@@ -6127,6 +6469,15 @@
      -1
     ],
     [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
+     -1
+    ],
+    [
      "SymbolTypeScope",
      null,
      1,
@@ -6160,6 +6511,15 @@
      0,
      29,
      9,
+     -1
+    ],
+    [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
      -1
     ],
     [
@@ -6298,6 +6658,15 @@
      5
     ],
     [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
+     -1
+    ],
+    [
      "SymbolTypeScope",
      null,
      1,
@@ -6313,6 +6682,15 @@
      0,
      39,
      9,
+     -1
+    ],
+    [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
      -1
     ],
     [
@@ -7045,6 +7423,15 @@
      -1
     ],
     [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
+     -1
+    ],
+    [
      "SymbolScope",
      null,
      0,
@@ -7097,10 +7484,28 @@
      3,
      31,
      1
+    ],
+    [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
+     -1
+    ],
+    [
+     "Field",
+     "uid",
+     1,
+     -1,
+     -1,
+     -1,
+     -1
     ]
    ],
-   "spineDigest": "9b1d9360bfe86474aa3c2202c1f963781b4365b9b764d8024bb0914fd2736ab9",
-   "spineLength": 257,
+   "spineDigest": "683b7f0180eed5befb0a16e0c5f622eb3744037a6664240834aba17e719c7f15",
+   "spineLength": 272,
    "units": [
     -1,
     0,
@@ -7443,6 +7848,15 @@
      30
     ],
     [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
+     -1
+    ],
+    [
      "SymbolTypeScope",
      null,
      1,
@@ -7458,6 +7872,15 @@
      0,
      10,
      9,
+     -1
+    ],
+    [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
      -1
     ],
     [
@@ -7524,6 +7947,15 @@
      23
     ],
     [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
+     -1
+    ],
+    [
      "SymbolTypeScope",
      null,
      1,
@@ -7531,6 +7963,15 @@
      26,
      5,
      132
+    ],
+    [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
+     -1
     ],
     [
      "SymbolTypeScope",
@@ -8235,6 +8676,15 @@
      -1
     ],
     [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
+     -1
+    ],
+    [
      "SymbolTypeScope",
      null,
      1,
@@ -8289,6 +8739,15 @@
      -1
     ],
     [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
+     -1
+    ],
+    [
      "SymbolTypeScope",
      null,
      1,
@@ -8322,6 +8781,15 @@
      0,
      182,
      5,
+     -1
+    ],
+    [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
      -1
     ],
     [
@@ -8442,6 +8910,15 @@
      -1
     ],
     [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
+     -1
+    ],
+    [
      "SymbolFunctionScope",
      null,
      1,
@@ -8559,6 +9036,15 @@
      -1
     ],
     [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
+     -1
+    ],
+    [
      "SymbolTypeScope",
      null,
      1,
@@ -8592,6 +9078,15 @@
      0,
      29,
      9,
+     -1
+    ],
+    [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
      -1
     ],
     [
@@ -8730,6 +9225,15 @@
      5
     ],
     [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
+     -1
+    ],
+    [
      "SymbolTypeScope",
      null,
      1,
@@ -8745,6 +9249,15 @@
      0,
      39,
      9,
+     -1
+    ],
+    [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
      -1
     ],
     [
@@ -9477,6 +9990,15 @@
      -1
     ],
     [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
+     -1
+    ],
+    [
      "SymbolScope",
      null,
      0,
@@ -9538,10 +10060,28 @@
      3,
      21,
      1
+    ],
+    [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
+     -1
+    ],
+    [
+     "Field",
+     "uid",
+     1,
+     -1,
+     -1,
+     -1,
+     -1
     ]
    ],
-   "spineDigest": "e0ac00f081026f9d520d1e32435980dd6e1a41219d04c6f9e26a6fdc0bad8a73",
-   "spineLength": 258,
+   "spineDigest": "d283a528ceb3f5af60d979b56f2d444f00153b2ff9725fa1b779427b5cb3c7c2",
+   "spineLength": 273,
    "units": [
     -1,
     0,
@@ -9893,6 +10433,15 @@
      30
     ],
     [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
+     -1
+    ],
+    [
      "SymbolTypeScope",
      null,
      1,
@@ -9908,6 +10457,15 @@
      0,
      10,
      9,
+     -1
+    ],
+    [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
      -1
     ],
     [
@@ -9974,6 +10532,15 @@
      23
     ],
     [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
+     -1
+    ],
+    [
      "SymbolTypeScope",
      null,
      1,
@@ -9981,6 +10548,15 @@
      26,
      5,
      132
+    ],
+    [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
+     -1
     ],
     [
      "SymbolTypeScope",
@@ -10685,6 +11261,15 @@
      -1
     ],
     [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
+     -1
+    ],
+    [
      "SymbolTypeScope",
      null,
      1,
@@ -10739,6 +11324,15 @@
      -1
     ],
     [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
+     -1
+    ],
+    [
      "SymbolTypeScope",
      null,
      1,
@@ -10772,6 +11366,15 @@
      0,
      182,
      5,
+     -1
+    ],
+    [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
      -1
     ],
     [
@@ -10892,6 +11495,15 @@
      -1
     ],
     [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
+     -1
+    ],
+    [
      "SymbolFunctionScope",
      null,
      1,
@@ -11009,6 +11621,15 @@
      -1
     ],
     [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
+     -1
+    ],
+    [
      "SymbolTypeScope",
      null,
      1,
@@ -11042,6 +11663,15 @@
      0,
      29,
      9,
+     -1
+    ],
+    [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
      -1
     ],
     [
@@ -11180,6 +11810,15 @@
      5
     ],
     [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
+     -1
+    ],
+    [
      "SymbolTypeScope",
      null,
      1,
@@ -11195,6 +11834,15 @@
      0,
      39,
      9,
+     -1
+    ],
+    [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
      -1
     ],
     [
@@ -11927,6 +12575,15 @@
      -1
     ],
     [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
+     -1
+    ],
+    [
      "SymbolTypeScope",
      null,
      0,
@@ -11955,12 +12612,30 @@
     ],
     [
      "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
+     -1
+    ],
+    [
+     "Field",
      "x",
      2,
      2,
      2,
      14,
      1
+    ],
+    [
+     "Field",
+     "uid",
+     1,
+     -1,
+     -1,
+     -1,
+     -1
     ],
     [
      "SymbolExtendScope",
@@ -11981,8 +12656,8 @@
      1
     ]
    ],
-   "spineDigest": "0e33ae0901225d0d5ab9991160be854fa581d073b91b2f0ee97a82ffa67780a2",
-   "spineLength": 257,
+   "spineDigest": "429c840c7df54cfacda7851aea12bbe881141a4a7556117ac4ce228d3341b126",
+   "spineLength": 272,
    "units": [
     -1,
     0,
@@ -12302,6 +12977,15 @@
      30
     ],
     [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
+     -1
+    ],
+    [
      "SymbolTypeScope",
      null,
      1,
@@ -12317,6 +13001,15 @@
      0,
      10,
      9,
+     -1
+    ],
+    [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
      -1
     ],
     [
@@ -12383,6 +13076,15 @@
      23
     ],
     [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
+     -1
+    ],
+    [
      "SymbolTypeScope",
      null,
      1,
@@ -12390,6 +13092,15 @@
      26,
      5,
      132
+    ],
+    [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
+     -1
     ],
     [
      "SymbolTypeScope",
@@ -13094,6 +13805,15 @@
      -1
     ],
     [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
+     -1
+    ],
+    [
      "SymbolTypeScope",
      null,
      1,
@@ -13148,6 +13868,15 @@
      -1
     ],
     [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
+     -1
+    ],
+    [
      "SymbolTypeScope",
      null,
      1,
@@ -13181,6 +13910,15 @@
      0,
      182,
      5,
+     -1
+    ],
+    [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
      -1
     ],
     [
@@ -13301,6 +14039,15 @@
      -1
     ],
     [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
+     -1
+    ],
+    [
      "SymbolFunctionScope",
      null,
      1,
@@ -13418,6 +14165,15 @@
      -1
     ],
     [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
+     -1
+    ],
+    [
      "SymbolTypeScope",
      null,
      1,
@@ -13451,6 +14207,15 @@
      0,
      29,
      9,
+     -1
+    ],
+    [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
      -1
     ],
     [
@@ -13589,6 +14354,15 @@
      5
     ],
     [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
+     -1
+    ],
+    [
      "SymbolTypeScope",
      null,
      1,
@@ -13604,6 +14378,15 @@
      0,
      39,
      9,
+     -1
+    ],
+    [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
      -1
     ],
     [
@@ -14336,6 +15119,15 @@
      -1
     ],
     [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
+     -1
+    ],
+    [
      "SymbolScope",
      null,
      0,
@@ -14379,10 +15171,28 @@
      -1,
      -1,
      -1
+    ],
+    [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
+     -1
+    ],
+    [
+     "Field",
+     "uid",
+     1,
+     -1,
+     -1,
+     -1,
+     -1
     ]
    ],
-   "spineDigest": "9f4f17c40ed6274d2088b692ecba2bd7104647bd619baafcbecc288c6571fa35",
-   "spineLength": 256,
+   "spineDigest": "45166f7add3ca682e17415f8e2ce5fe8a74399c2b28b77a213906b04df01c715",
+   "spineLength": 271,
    "units": [
     -1,
     0,
@@ -14693,6 +15503,15 @@
      30
     ],
     [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
+     -1
+    ],
+    [
      "SymbolTypeScope",
      null,
      1,
@@ -14708,6 +15527,15 @@
      0,
      10,
      9,
+     -1
+    ],
+    [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
      -1
     ],
     [
@@ -14774,6 +15602,15 @@
      23
     ],
     [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
+     -1
+    ],
+    [
      "SymbolTypeScope",
      null,
      1,
@@ -14781,6 +15618,15 @@
      26,
      5,
      132
+    ],
+    [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
+     -1
     ],
     [
      "SymbolTypeScope",
@@ -15485,6 +16331,15 @@
      -1
     ],
     [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
+     -1
+    ],
+    [
      "SymbolTypeScope",
      null,
      1,
@@ -15539,6 +16394,15 @@
      -1
     ],
     [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
+     -1
+    ],
+    [
      "SymbolTypeScope",
      null,
      1,
@@ -15572,6 +16436,15 @@
      0,
      182,
      5,
+     -1
+    ],
+    [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
      -1
     ],
     [
@@ -15692,6 +16565,15 @@
      -1
     ],
     [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
+     -1
+    ],
+    [
      "SymbolFunctionScope",
      null,
      1,
@@ -15809,6 +16691,15 @@
      -1
     ],
     [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
+     -1
+    ],
+    [
      "SymbolTypeScope",
      null,
      1,
@@ -15842,6 +16733,15 @@
      0,
      29,
      9,
+     -1
+    ],
+    [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
      -1
     ],
     [
@@ -15980,6 +16880,15 @@
      5
     ],
     [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
+     -1
+    ],
+    [
      "SymbolTypeScope",
      null,
      1,
@@ -15995,6 +16904,15 @@
      0,
      39,
      9,
+     -1
+    ],
+    [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
      -1
     ],
     [
@@ -16727,6 +17645,15 @@
      -1
     ],
     [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
+     -1
+    ],
+    [
      "SymbolTypeScope",
      null,
      0,
@@ -16761,10 +17688,28 @@
      2,
      31,
      1
+    ],
+    [
+     "Field",
+     "uid",
+     2,
+     -1,
+     -1,
+     -1,
+     -1
+    ],
+    [
+     "Field",
+     "uid",
+     1,
+     -1,
+     -1,
+     -1,
+     -1
     ]
    ],
-   "spineDigest": "9a6c2bdb6de20b3c26b18e414f540ad1c6e42a3d218ab8415d86defdfd95ddf7",
-   "spineLength": 255,
+   "spineDigest": "f9108ba6e2447f9c5fb045c0dbf0b4c978f3a0717223eebb126cbd72bac3583c",
+   "spineLength": 270,
    "units": [
     -1,
     0,
@@ -16839,8 +17784,8 @@
     "imports": 6,
     "prototypes": 139
    },
-   "spineDigest": "06ca1ad9d0c3c1162d63927c7b8703607ab1fd5eeabe1bc508cf6ce0b720dfd3",
-   "spineLength": 253,
+   "spineDigest": "12f878f2f1881712decd6546e5d6502a63a66dc57497fe736248d2ea02c9a768",
+   "spineLength": 266,
    "units": [
     -1,
     0,
@@ -16877,8 +17822,8 @@
     "imports": 5,
     "prototypes": 138
    },
-   "spineDigest": "d09bccf748bedbe80f000bded7f223cdc9ce17dece3f62e00a53620665c59521",
-   "spineLength": 258,
+   "spineDigest": "b346d7f581ff468e41b28c87568d2d4cc0dc6b260cb24f623a2a2c8d16172028",
+   "spineLength": 272,
    "units": [
     -1,
     0,
@@ -16915,8 +17860,8 @@
     "imports": 3,
     "prototypes": 138
    },
-   "spineDigest": "f115f999e05cb203e3e16299e1ddffdb3ff1b111ea4a481f02a4e2e77cff0879",
-   "spineLength": 276,
+   "spineDigest": "5b2a3a02d786fb5ab464b9217773e429af04ba4f946fcf40f7289da80766f544",
+   "spineLength": 290,
    "units": [
     -1,
     0,
@@ -16953,8 +17898,8 @@
     "imports": 5,
     "prototypes": 139
    },
-   "spineDigest": "8cdfd3511ccbf808c8dafbdc30836583964c8d72eba5b830ca3d2e4164da48a8",
-   "spineLength": 253,
+   "spineDigest": "0927799a3cf989e687e416b0c72c1bb109b7689491ed2407a426cd75047165ba",
+   "spineLength": 266,
    "units": [
     -1,
     0,
@@ -16991,8 +17936,8 @@
     "imports": 4,
     "prototypes": 138
    },
-   "spineDigest": "a8d9d705be6229a192e93fc3c0123ac35567dbcf470a7bc916b0f79b29ba4a2c",
-   "spineLength": 258,
+   "spineDigest": "016eef060dc85a2512a09368abfa000d78a35dbcfeb9697659ba785b2515c9b3",
+   "spineLength": 272,
    "units": [
     -1,
     0,
@@ -17029,8 +17974,8 @@
     "imports": 5,
     "prototypes": 139
    },
-   "spineDigest": "64a1f944d6ba1ced68f5d1d006e433daa10b2e94e91bfac5c1e1f633f6e02b06",
-   "spineLength": 253,
+   "spineDigest": "cee0ef6ff32344883e1be9b2b22b74ad218e30cdb4fe01aef2aee0e62a3940bf",
+   "spineLength": 266,
    "units": [
     -1,
     0,
@@ -17067,8 +18012,8 @@
     "imports": 6,
     "prototypes": 139
    },
-   "spineDigest": "128e4f53aeac1fc51686594bb7ccbf6348f0d4125c61038650c1df819440b417",
-   "spineLength": 260,
+   "spineDigest": "d97433c3b0eeb953736f429f7d6acaed3e48d9d0e97d0a14343da5f88879c4ac",
+   "spineLength": 274,
    "units": [
     -1,
     0,
@@ -17105,8 +18050,8 @@
     "imports": 4,
     "prototypes": 138
    },
-   "spineDigest": "569a5048320cb5970d2495584917a953d7fd15fd7c9f35807b82e6c8a49d077f",
-   "spineLength": 260,
+   "spineDigest": "579d60e17d2651bf0a9012d72d22afc4db945e9a350a028a3b8f86a03bc94613",
+   "spineLength": 274,
    "units": [
     -1,
     0,
@@ -17143,8 +18088,8 @@
     "imports": 6,
     "prototypes": 140
    },
-   "spineDigest": "f4c1eac07ea15905d2188b485e00834380de6f41b7340414852a763e7be17877",
-   "spineLength": 280,
+   "spineDigest": "481f6e98f4e111d17c8183e3d2b0620de368c1639ff810a8096abca6d37771a2",
+   "spineLength": 297,
    "units": [
     -1,
     0,
@@ -17181,8 +18126,8 @@
     "imports": 4,
     "prototypes": 139
    },
-   "spineDigest": "d41d7612aaf14972715e5cf8a42ebb54a0a103d9993d7ddf9240b5bb9ab42c42",
-   "spineLength": 253,
+   "spineDigest": "56b0de41b2a3a4a73ea4688c4f21aca298e7032f925ab3d30fbd17ff38a2ee1a",
+   "spineLength": 266,
    "units": [
     -1,
     0,
@@ -17219,8 +18164,8 @@
     "imports": 3,
     "prototypes": 138
    },
-   "spineDigest": "53c4b5a0fbd9d7294406a8199fd2dae72e3556351fe6eb7cf31f2b6258a2aa80",
-   "spineLength": 269,
+   "spineDigest": "0c677766aea6a2d61268588c8ca57b681857ab9b210e5aa926faf4f8ab9a2f8e",
+   "spineLength": 283,
    "units": [
     -1,
     0,
@@ -17257,8 +18202,8 @@
     "imports": 5,
     "prototypes": 138
    },
-   "spineDigest": "b36e5056e60a8bfe80b5bb7133701ce8979b4aae70a315372042a76d65f86b6b",
-   "spineLength": 260,
+   "spineDigest": "11f51dc99d5d15377aeadbf8f5a89259b613b6bbd1ef66b6dc08609977a2dd60",
+   "spineLength": 274,
    "units": [
     -1,
     0,
@@ -17295,8 +18240,8 @@
     "imports": 4,
     "prototypes": 139
    },
-   "spineDigest": "d9635edc9989c7948188a0aa2fe6cc17f57fb19106e8b72ce1aa7e6c02259edb",
-   "spineLength": 253,
+   "spineDigest": "ed049edda042d8492fdd280a22e6ae1cf639408aa736cdf4324a85664c809901",
+   "spineLength": 266,
    "units": [
     -1,
     0,
@@ -17333,8 +18278,8 @@
     "imports": 5,
     "prototypes": 139
    },
-   "spineDigest": "baed52f6a5cf390b2cd155edf52126f2decdc63b38ad0c5504bfcbd711d71526",
-   "spineLength": 253,
+   "spineDigest": "b59fcad8f954242f9f83f04b72d98740d71998a77aed4c500e19c38c541b5ee2",
+   "spineLength": 266,
    "units": [
     -1,
     0,
@@ -17371,8 +18316,8 @@
     "imports": 5,
     "prototypes": 138
    },
-   "spineDigest": "cd906bbbcdfdc1b565001247277946086920ae86053f0889fcbe43bf7576c551",
-   "spineLength": 258,
+   "spineDigest": "c5adb66ee17182b5ba24806260ad2aeb6d3076aa7c8893b674cb5c5b2247d45c",
+   "spineLength": 272,
    "units": [
     -1,
     0,
@@ -17409,8 +18354,8 @@
     "imports": 6,
     "prototypes": 138
    },
-   "spineDigest": "004353671a2bd4f6aa07da5af201d53a82876413c5b6c124edc0755a7ee0e0c2",
-   "spineLength": 266,
+   "spineDigest": "23d879701cefed066d543c43d08212b5f303c7ab272678fd289ccb8e2adc1ae4",
+   "spineLength": 280,
    "units": [
     -1,
     0,
@@ -17447,8 +18392,8 @@
     "imports": 7,
     "prototypes": 138
    },
-   "spineDigest": "44ed5d298b7fecae3213363ba3f1fc38ba16b79c01c91a8e80e6660bab8e3349",
-   "spineLength": 266,
+   "spineDigest": "74775a1777e46df2af2c0560ae3235717abc6dd151429e0108725bc4ee61f47c",
+   "spineLength": 280,
    "units": [
     -1,
     0,
@@ -17485,8 +18430,8 @@
     "imports": 3,
     "prototypes": 138
    },
-   "spineDigest": "0e5e237fc976eb4b72494a5be18e2ce3b63aea49c909a359763efc669e357d9d",
-   "spineLength": 252,
+   "spineDigest": "80ba1415a0fc8402454284bf18eb53e3c4b095fe7cf6853650f1963a6833ab7c",
+   "spineLength": 266,
    "units": [
     -1,
     0,
@@ -17523,8 +18468,8 @@
     "imports": 3,
     "prototypes": 138
    },
-   "spineDigest": "0c1582f5221fdcd6df768e671dd4e1d45a13cab56cde5f047e1b69e2d602a22a",
-   "spineLength": 263,
+   "spineDigest": "a2c1248ad67db6e6ca2212fd64c263ec544a4be8933093fcc91f8da391a90357",
+   "spineLength": 277,
    "units": [
     -1,
     0,
@@ -17561,8 +18506,8 @@
     "imports": 4,
     "prototypes": 138
    },
-   "spineDigest": "3aa76c6fd934cd6c6b4d7eb1a24077218be734b718d50b5f13220f89a8b55442",
-   "spineLength": 263,
+   "spineDigest": "7b9af3a25fbf22be3833f202afc7c1b884cdadb6fee7234b122d1c8d7a0fffac",
+   "spineLength": 277,
    "units": [
     -1,
     0,
@@ -17599,8 +18544,8 @@
     "imports": 4,
     "prototypes": 139
    },
-   "spineDigest": "1ff27ef71479788c55c2c361a6825bfc5c54f37efed664c16c77980daa3d2ca6",
-   "spineLength": 253,
+   "spineDigest": "cad38a02d1a45ee4f2e831aa8e395fd66844114abcc0344a63203eab53811591",
+   "spineLength": 266,
    "units": [
     -1,
     0,
@@ -17637,8 +18582,8 @@
     "imports": 6,
     "prototypes": 138
    },
-   "spineDigest": "95b99c37578122737d82ae971f09e22ae71039ed4a508ee91999feb5c206574a",
-   "spineLength": 261,
+   "spineDigest": "7725846c111a767a8acbadae1b242f68c4b5e6b6e5a5fdeff6f390d4d524693e",
+   "spineLength": 275,
    "units": [
     -1,
     0,
@@ -17675,8 +18620,8 @@
     "imports": 6,
     "prototypes": 138
    },
-   "spineDigest": "e26159b61253fdc502afd619d17c0db086c64574c9fc1ed63e94fa910fcf406e",
-   "spineLength": 260,
+   "spineDigest": "c6b4f644fd5e2add587cd3179eb14461e2ed7ce4c4e1ba0e7b39019f1b7c247b",
+   "spineLength": 274,
    "units": [
     -1,
     0,
@@ -17713,8 +18658,8 @@
     "imports": 6,
     "prototypes": 139
    },
-   "spineDigest": "9818c920e147cdb347839b8b1a0e750b586eaf6119a832f9d9c7718bd3c2a521",
-   "spineLength": 253,
+   "spineDigest": "45d44a1874442fe382d9e069a7508e2623d7e25320e3e4c8cccdb721109276a2",
+   "spineLength": 266,
    "units": [
     -1,
     0,
@@ -17751,8 +18696,8 @@
     "imports": 6,
     "prototypes": 139
    },
-   "spineDigest": "74b3be5c16de7dd6102defdaad22c41111758893868da1bd60c35584657666cd",
-   "spineLength": 253,
+   "spineDigest": "a350363266bf9552749dd549c62cb291f07f0ea05fa84c45386d1162c918ea5d",
+   "spineLength": 266,
    "units": [
     -1,
     0,
@@ -17789,8 +18734,8 @@
     "imports": 8,
     "prototypes": 138
    },
-   "spineDigest": "d92e6ed45720c0662c46347b99d1a36d7923d6662164a0ace4e120bbdc1596a9",
-   "spineLength": 284,
+   "spineDigest": "f4a0f962423082cb14dd2d107cb7b88465a2f8eefd3cc154e3a75c11217ab77d",
+   "spineLength": 298,
    "units": [
     -1,
     0,
@@ -17827,8 +18772,8 @@
     "imports": 7,
     "prototypes": 138
    },
-   "spineDigest": "6467f615181671ad0400d1d007edd309d35bef57a8006107935dea472e3ddadc",
-   "spineLength": 267,
+   "spineDigest": "ad0b4049acf3b8ef76f0d2b3731dfd3f8a465bd6dbada9765f600dc41986c425",
+   "spineLength": 281,
    "units": [
     -1,
     0,
@@ -17865,8 +18810,8 @@
     "imports": 6,
     "prototypes": 139
    },
-   "spineDigest": "564df403cde07373e7729fb33f7da14a5207ca0a4350d128852806befce4f056",
-   "spineLength": 262,
+   "spineDigest": "2d168697f2f5358cb9a1472b6b6910a36d17d851c8eee36e1812941e8e8083b0",
+   "spineLength": 276,
    "units": [
     -1,
     0,
@@ -17903,8 +18848,8 @@
     "imports": 3,
     "prototypes": 138
    },
-   "spineDigest": "6a4775ebee6832f59db4ca2388591e7abf258b9a221c8d70cfc87619ca957edf",
-   "spineLength": 263,
+   "spineDigest": "77f7f64ad5f7b1ac8e3489792d8b30feeb6750b68bfa725ce745ec5f63989d3b",
+   "spineLength": 277,
    "units": [
     -1,
     0,
@@ -17941,8 +18886,8 @@
     "imports": 3,
     "prototypes": 138
    },
-   "spineDigest": "3368e48bfe2c373eb30a94093a25c23ef66073e13d7072281134acfd04407f12",
-   "spineLength": 266,
+   "spineDigest": "15c263429be86dabd4ce747d0353c7098c95cb0584ec79b73be1e85182851d01",
+   "spineLength": 280,
    "units": [
     -1,
     0,
@@ -17979,8 +18924,8 @@
     "imports": 3,
     "prototypes": 138
    },
-   "spineDigest": "a7b92e7eaef484ca882c9bdb649a72f4661850d682e6de9f83573a1e59147e52",
-   "spineLength": 259,
+   "spineDigest": "35ba53c8af9a14656fa2e8ff52cfd142b74347942cfeab6a41c163192c8d2e44",
+   "spineLength": 273,
    "units": [
     -1,
     0,
@@ -18017,8 +18962,8 @@
     "imports": 3,
     "prototypes": 138
    },
-   "spineDigest": "9997a39c86e855147e7f4395646318939794ce9b40a346c12b4a391e2c18d027",
-   "spineLength": 262,
+   "spineDigest": "0c9df3e266ab27574344cac14e89730d5555347bdacbfa535bdc4ffcd9c81bb3",
+   "spineLength": 276,
    "units": [
     -1,
     0,
@@ -18055,8 +19000,8 @@
     "imports": 6,
     "prototypes": 140
    },
-   "spineDigest": "4f0a58af7cf91fa669d57e62168a54e61016df00b87f7cc41e20a152a9557a92",
-   "spineLength": 292,
+   "spineDigest": "3f8d154f9207e8ee62a7f2cc7bd5f2e55561f120caa96d06d87422a5e68d35bf",
+   "spineLength": 312,
    "units": [
     -1,
     0,
@@ -18093,8 +19038,8 @@
     "imports": 3,
     "prototypes": 138
    },
-   "spineDigest": "bf713a1ff8f49d1c649da5238d38ae4dbf5b59afb2ec69a1e225972d576b65d4",
-   "spineLength": 276,
+   "spineDigest": "d5f6cd5cd3eadefe0987da267d2433a77e0d30c0198dcc3a4d4f1210a9a4d47c",
+   "spineLength": 293,
    "units": [
     -1,
     0,
@@ -18131,8 +19076,8 @@
     "imports": 4,
     "prototypes": 139
    },
-   "spineDigest": "87c3a97cb44ac75f22a315c63ae2f795a2b480b2d8365fbb1552b7374ad44959",
-   "spineLength": 253,
+   "spineDigest": "9460497482fc076c73fef1f34de15c810545b0c5eb8920ab54bc1702147bc71b",
+   "spineLength": 266,
    "units": [
     -1,
     0,
@@ -18169,8 +19114,8 @@
     "imports": 5,
     "prototypes": 139
    },
-   "spineDigest": "1fb0aa8167091320fe7761dfe580e293ddabdacb0bdff4270323fba982078d7e",
-   "spineLength": 253,
+   "spineDigest": "c0b2c663d3d79f0f92c16da23c35c7ae91cd8b37907e71527ed203902a3dcad2",
+   "spineLength": 266,
    "units": [
     -1,
     0,
@@ -18207,8 +19152,8 @@
     "imports": 3,
     "prototypes": 138
    },
-   "spineDigest": "79ab5c12e24afae99b5234aa9113d7f6478fbdd53d16aadc56daeaf0c944cbf6",
-   "spineLength": 256,
+   "spineDigest": "d1f7a68fd7667f6841404be579f6209bbd58884535e48e5ee071f3ec21329ff8",
+   "spineLength": 270,
    "units": [
     -1,
     0,
@@ -18245,8 +19190,8 @@
     "imports": 5,
     "prototypes": 139
    },
-   "spineDigest": "e073237e002419eaf1205adea166a850752fe79bb2784aa49bf902f03608a3b8",
-   "spineLength": 253,
+   "spineDigest": "f80c179ed6502453e77b23e32246a4bd23263f4ce5eafc0dc79d9aab8911ce6c",
+   "spineLength": 266,
    "units": [
     -1,
     0,
@@ -18283,8 +19228,8 @@
     "imports": 4,
     "prototypes": 139
    },
-   "spineDigest": "c71f1da2ebf7369505a4f5136a4c203a19ee74a86e13830bc5dfc0f734889ddf",
-   "spineLength": 253,
+   "spineDigest": "96ac283bcdb73a6283cef2e0e7110385ae366159da32b8674dd7f36047f21d30",
+   "spineLength": 266,
    "units": [
     -1,
     0,
@@ -18321,8 +19266,8 @@
     "imports": 4,
     "prototypes": 138
    },
-   "spineDigest": "128b87ef582e5f274162626d7d09f5da5d10edd0a60bb5de75b9c50d1e4f0ac2",
-   "spineLength": 301,
+   "spineDigest": "0d50cfbbde95fb885c3c2bdab237a239be95eaef053533d83975d12c0ebb2a6a",
+   "spineLength": 320,
    "units": [
     -1,
     0,
@@ -18359,8 +19304,8 @@
     "imports": 7,
     "prototypes": 138
    },
-   "spineDigest": "27f5419222b2896aebf41d026eb30e3cc14be0d2d9ee4494079fd79bfa061f49",
-   "spineLength": 323,
+   "spineDigest": "101150ed3888fc384da4488413a66cfedb5537a7c8bcb7ee612f2df0a5fe9608",
+   "spineLength": 347,
    "units": [
     -1,
     0,
@@ -18397,8 +19342,8 @@
     "imports": 4,
     "prototypes": 138
    },
-   "spineDigest": "8281789b6120e276545b9dd27a733579c0d9cb9639ce9c9d6b420359891c1bcc",
-   "spineLength": 294,
+   "spineDigest": "1d471d8efab3aca5130feef328126d0e93db71521dc7b06d34bc3c14ac4b506d",
+   "spineLength": 311,
    "units": [
     -1,
     0,
@@ -18435,8 +19380,8 @@
     "imports": 4,
     "prototypes": 138
    },
-   "spineDigest": "b7085fbb44be6481f8c80a734bfb497ed5714573dc302597f04389b8571e63e3",
-   "spineLength": 278,
+   "spineDigest": "abd1ce14f7c6e93bb281541cd16d9a8fa9fb144e8af3af98d0b4f0594ef0f8df",
+   "spineLength": 296,
    "units": [
     -1,
     0,
@@ -18473,8 +19418,8 @@
     "imports": 10,
     "prototypes": 138
    },
-   "spineDigest": "85620d80173183e1ebabd03ad812835690419ae3cd0c48ec239869947a207550",
-   "spineLength": 301,
+   "spineDigest": "46d5cbb21c2f43498b92a6794c161b6188cda5197d04a0af73244153d733ca0a",
+   "spineLength": 322,
    "units": [
     -1,
     0,
@@ -18511,8 +19456,8 @@
     "imports": 6,
     "prototypes": 138
    },
-   "spineDigest": "f21cbf54a83f68d118ad5bed00383ed93d8d31aad612dc4dc2bc7d2f03771c17",
-   "spineLength": 331,
+   "spineDigest": "3471a9d482c8b8c8df4d45e9b8e989865d43cf1fb15e258fdda4a32ee2c456ca",
+   "spineLength": 360,
    "units": [
     -1,
     0,
@@ -18549,8 +19494,8 @@
     "imports": 6,
     "prototypes": 147
    },
-   "spineDigest": "e317f8e63d43179066e7c8121b38ce6ebd21674b9782bcacb7323417e265f465",
-   "spineLength": 294,
+   "spineDigest": "e4cb2d5c0c5069144605c38737586b8b05473819a90c49150eb989c7303fc720",
+   "spineLength": 311,
    "units": [
     -1,
     0,
@@ -18587,8 +19532,8 @@
     "imports": 7,
     "prototypes": 140
    },
-   "spineDigest": "1575f192ef18810465d9891c1c0e94fc9c5162b6b8f1648c635fafc8f747a310",
-   "spineLength": 306,
+   "spineDigest": "c37531a07f5fe91a5c84e2d0d3bb22baeffdd8df34fc0e47bdd7a77da584706e",
+   "spineLength": 327,
    "units": [
     -1,
     0,
@@ -18625,8 +19570,8 @@
     "imports": 5,
     "prototypes": 140
    },
-   "spineDigest": "6343390893be5380b498c8188ba884e4cf9efa8d1edbe15d39aad8f17b032141",
-   "spineLength": 301,
+   "spineDigest": "2e4214cbbb15ebdbd8060091eeffebbd5d883dcc51446dc725619feea8faff23",
+   "spineLength": 322,
    "units": [
     -1,
     0,
@@ -18663,8 +19608,8 @@
     "imports": 3,
     "prototypes": 138
    },
-   "spineDigest": "857dd15a1ba3fda93469adce64ec0393382428d97e81d2a135f86385abee33e8",
-   "spineLength": 267,
+   "spineDigest": "ec33673d0d641f88aa35690ec0bcb7952529880ca689ae68277cab7311d9de96",
+   "spineLength": 280,
    "units": [
     -1,
     0,
@@ -18701,8 +19646,8 @@
     "imports": 3,
     "prototypes": 138
    },
-   "spineDigest": "449b3916806ddfa9aa535102a75076d22204e641cfbe9e79a1c85cf59a0bed7f",
-   "spineLength": 264,
+   "spineDigest": "2b5b7ae4fb85ed50fd216e49468a6a68411fd82dc3e49cc03a281e90c2acd0b9",
+   "spineLength": 279,
    "units": [
     -1,
     0,
@@ -18739,8 +19684,8 @@
     "imports": 3,
     "prototypes": 138
    },
-   "spineDigest": "d7a199802dceadaedc1f37aedc5e4fcc7c84180388c46abf7da56eb288a3f95c",
-   "spineLength": 279,
+   "spineDigest": "73df8d273e3d43766036cb413b985df3f17cf019064a756bf5b20f2a7359be60",
+   "spineLength": 292,
    "units": [
     -1,
     0,
@@ -18789,8 +19734,8 @@
     "imports": 3,
     "prototypes": 138
    },
-   "spineDigest": "ce481cc88382b81a8ab83db95ec75e0af4d3e14e757dc6a10ef1bd2556059bcc",
-   "spineLength": 266,
+   "spineDigest": "2e632978844c1120ec9e90a0832a768847c13ee8534734b2a97eefd4d36a1576",
+   "spineLength": 283,
    "units": [
     -1,
     0,
@@ -18801,6 +19746,44 @@
      "digest": "04333e7e48d378d4d07c19118d61d757f6c4447ef51ddd4915efd04372e68602",
      "fileid": 1,
      "length": 15
+    }
+   ],
+   "userUnits": [
+    1
+   ],
+   "why": "corpus link parity"
+  },
+  {
+   "fileMap": {
+    "1": "lrm31/ex170_prev_sequencing.pss"
+   },
+   "files": [
+    {
+     "content": "// ex170_prev_sequencing.pss\n//\n// Sequencing constraints on state objects through `prev` (LRM 9.3.3.1g,\n// 13.3), modelled on PSS 3.1 Example 170 and completed to a whole model.\n//\n// Demonstrates:\n//   - `prev.<field>` in a state type's constraints, relating this state to\n//     the previous one in the pool\n//   - `prev` in an extension of the state type, which is also allowed\n//   - two actions outputting the state, one constraining the next state\n//   - `uid`, the built-in bit[32] identifier of every modeling element, on\n//     an action handle and on `comp`\n\nstate power_state_s {\n    rand int in [0..3] domain_A, domain_B, domain_C;\n\n    constraint domain_B in { prev.domain_B - 1,\n                             prev.domain_B,\n                             prev.domain_B + 1 };\n\n    constraint prev.domain_C == 0 -> domain_C in [0, 1] || domain_B == 0;\n}\n\nextend state power_state_s {\n    constraint domain_A != prev.domain_A -> domain_C == prev.domain_C;\n}\n\ncomponent power_ctrl_c {\n    pool power_state_s psvar;\n    bind psvar *;\n\n    action power_trans1 {\n        output power_state_s next_state;\n    }\n\n    action power_trans2 {\n        output power_state_s next_state;\n        constraint next_state.domain_C == 0;\n    }\n}\n\ncomponent pss_top {\n    power_ctrl_c ctrl;\n\n    action test_a {\n        power_ctrl_c::power_trans1 t1;\n        power_ctrl_c::power_trans2 t2;\n        rand bit[32] tag;\n\n        constraint tag != t1.uid;\n        constraint tag != comp.uid;\n\n        activity {\n            t1;\n            t2;\n        }\n    }\n}\n",
+     "name": "lrm31/ex170_prev_sequencing.pss"
+    }
+   ],
+   "id": "corpus:lrm31/ex170_prev_sequencing.pss",
+   "linkRaised": null,
+   "parseRaised": null,
+   "refs": {
+    "functionScopes": 138,
+    "importSpecs": 2,
+    "imports": 3,
+    "prototypes": 138
+   },
+   "spineDigest": "a18101da8bfb4a06416ed39e2f0a1094f4697f079d759a840379706984f777a7",
+   "spineLength": 305,
+   "units": [
+    -1,
+    0,
+    1
+   ],
+   "userUnitSpines": [
+    {
+     "digest": "6a61b71ad846df36f546aa8ef171613b4033437e060755466f0d9279aff5458c",
+     "fileid": 1,
+     "length": 31
     }
    ],
    "userUnits": [
@@ -18827,8 +19810,8 @@
     "imports": 3,
     "prototypes": 138
    },
-   "spineDigest": "481756cb5a1b5a5ff9f658ebaf7028dc0286fdcb017dfec57421dfc7e3fbc990",
-   "spineLength": 269,
+   "spineDigest": "51c442308ea800763cf5af9af068d08ac6a8de837e1f0e6eb68faecf6b3d2de3",
+   "spineLength": 288,
    "units": [
     -1,
     0,
@@ -18865,8 +19848,8 @@
     "imports": 4,
     "prototypes": 140
    },
-   "spineDigest": "04365a1e063f8e1ba54f8437abf73637dba4d27d6733cbfff699650cf329aeba",
-   "spineLength": 281,
+   "spineDigest": "d98448b813e2767e7fdc17fdcbe872e7ef9c95490736c945347f98aa09661720",
+   "spineLength": 301,
    "units": [
     -1,
     0,
@@ -18987,8 +19970,8 @@
     "imports": 5,
     "prototypes": 140
    },
-   "spineDigest": "2ac0cb99ac69635a78647b8d129e654b8b5e88c834d5193acd1c8f3032f811cd",
-   "spineLength": 281,
+   "spineDigest": "0c4deedb0fa9ec857d7b979671a7440ec7925e9183a5cda9f4e396e6adf348c5",
+   "spineLength": 300,
    "units": [
     -1,
     0,
@@ -19025,8 +20008,8 @@
     "imports": 5,
     "prototypes": 140
    },
-   "spineDigest": "bcbe086051bd0918a6c878c432b9c62d33f0f5d5252e6b565c5d3fa2cc60874b",
-   "spineLength": 263,
+   "spineDigest": "2f44495a4aef9a58f046cd62b5aab7a4d29f876b69774eababe47a7fafa1033d",
+   "spineLength": 279,
    "units": [
     -1,
     0,
@@ -19063,8 +20046,8 @@
     "imports": 5,
     "prototypes": 140
    },
-   "spineDigest": "31b8bd36f86407ea52cdb25764d0994b925e99379cec7cb4833ee3ed209586c9",
-   "spineLength": 260,
+   "spineDigest": "3e741000ecf8b2f9a9a53488a55ef15c60d39ed8cf674cc9a75ceb1bb164cc49",
+   "spineLength": 275,
    "units": [
     -1,
     0,
@@ -19101,8 +20084,8 @@
     "imports": 5,
     "prototypes": 142
    },
-   "spineDigest": "4e98281d80b2daf11c4e3706d577e093b41b6e615d49048c3748bd8efbbd1d98",
-   "spineLength": 264,
+   "spineDigest": "21475e4005b2a0614b7a59a54b1079b317160ae0b4ea5f70a2c18a82ea904b2a",
+   "spineLength": 280,
    "units": [
     -1,
     0,
@@ -19139,8 +20122,8 @@
     "imports": 5,
     "prototypes": 144
    },
-   "spineDigest": "6ff78ca9ab637bf5aea457d0feb54dfcfc8c641efa93a95a6234b95d806267e0",
-   "spineLength": 266,
+   "spineDigest": "60456d0ab82fbc03c7b8079d6e47d5f278a4180f43218a241bcaa7f08134dcd5",
+   "spineLength": 282,
    "units": [
     -1,
     0,
@@ -19177,8 +20160,8 @@
     "imports": 5,
     "prototypes": 146
    },
-   "spineDigest": "b79aa7cbd1f84915315a7bf82ebcd4637c71d31e2fd085225651b00bea95aa7e",
-   "spineLength": 298,
+   "spineDigest": "f2992611ad0d16db6000fd1cb768e89e8f7644942d052b154ea63f24cd853ec7",
+   "spineLength": 320,
    "units": [
     -1,
     0,
@@ -19215,8 +20198,8 @@
     "imports": 5,
     "prototypes": 146
    },
-   "spineDigest": "01cbfab7598bff06b9573cd59a17b0ab8e88c7133c7be75c9032a110cf00fb9f",
-   "spineLength": 306,
+   "spineDigest": "fe864d0b8aef91431024b3add470876cd162037a8b56752eb578b7bec512d6e6",
+   "spineLength": 329,
    "units": [
     -1,
     0,
@@ -19253,8 +20236,8 @@
     "imports": 5,
     "prototypes": 146
    },
-   "spineDigest": "f25fa379c8b1697dfc84dd68ccc8c772c7af98adf54bd54cb155ba9526685e77",
-   "spineLength": 298,
+   "spineDigest": "83d31143307272eb05af71396cf9fbebd74979281c390821f168920d7f359672",
+   "spineLength": 320,
    "units": [
     -1,
     0,
@@ -19291,8 +20274,8 @@
     "imports": 5,
     "prototypes": 146
    },
-   "spineDigest": "e4f0849ce671b814eefa76dc47525eaf1bc2c714f4d85d1de2959cf56c276bb2",
-   "spineLength": 278,
+   "spineDigest": "02508afe791586f30b1ebab60f5edc5a0dd79a5d356d3e60bd8caea5fd0483db",
+   "spineLength": 296,
    "units": [
     -1,
     0,
@@ -19329,8 +20312,8 @@
     "imports": 5,
     "prototypes": 140
    },
-   "spineDigest": "2b560838930012022eb719392bb1e976c254f2f416bf224e31b9941e3617a968",
-   "spineLength": 264,
+   "spineDigest": "f8f47c2bb5479a74ace01c5d5cb904f3cf76258ca878a17e532c87df5f8f75f7",
+   "spineLength": 279,
    "units": [
     -1,
     0,
@@ -19367,8 +20350,8 @@
     "imports": 5,
     "prototypes": 140
    },
-   "spineDigest": "71e29c38aac8e9e351e2417454eba6e82b99d863ce61c2dfc507c463a9c9d899",
-   "spineLength": 261,
+   "spineDigest": "ec83234ace8bd92455968539ece374c90e7404c81c8afe646906c6160d424658",
+   "spineLength": 276,
    "units": [
     -1,
     0,
@@ -19405,8 +20388,8 @@
     "imports": 5,
     "prototypes": 142
    },
-   "spineDigest": "603c36d007c8a89f10b4468a7112a162b5e90726e2efd28c2a93a22cb916ee7b",
-   "spineLength": 264,
+   "spineDigest": "fc4fa294a90acfddc09c30f48b9b6aa8b91a0d5cf6cc0f3c766b4b8e924424b1",
+   "spineLength": 280,
    "units": [
     -1,
     0,
@@ -19443,8 +20426,8 @@
     "imports": 5,
     "prototypes": 140
    },
-   "spineDigest": "df289b15d7e090e30fb4203d45ff782468b9d91d7942f3121711aa6148e22711",
-   "spineLength": 264,
+   "spineDigest": "46626b3f924d8745181fb04c16d0ecc3c9f58b5ee33fc47c8fb99ff54339bd48",
+   "spineLength": 279,
    "units": [
     -1,
     0,
@@ -19481,8 +20464,8 @@
     "imports": 5,
     "prototypes": 140
    },
-   "spineDigest": "4a248f5f68d0b5ff4fec75e9d478f3a6b23d3be7b586a57a768b4c02825ede4d",
-   "spineLength": 265,
+   "spineDigest": "a59cfc6cf9e3ddd526bcc75b2a9c574bd0789e68306ecad49c164a4352857311",
+   "spineLength": 280,
    "units": [
     -1,
     0,
@@ -19519,8 +20502,8 @@
     "imports": 5,
     "prototypes": 140
    },
-   "spineDigest": "d1ca3b2a44dc0ef1e4076e2754d3e3155f01f8bfd6bc098b03af04a6b879aec6",
-   "spineLength": 264,
+   "spineDigest": "092555e3f0e51c82abc432124b3c033449f9167d8f5d9ffd55a91ad708c75d4d",
+   "spineLength": 279,
    "units": [
     -1,
     0,
@@ -19557,8 +20540,8 @@
     "imports": 5,
     "prototypes": 140
    },
-   "spineDigest": "ac65cac7be4adb0af7f20faddfbf87aef82ca9dbc4b90702919c18f391f9e819",
-   "spineLength": 268,
+   "spineDigest": "688a2c586001694fd2dc31c612b25a44f5197dd65d0cf6ce5b065942f94cf06b",
+   "spineLength": 284,
    "units": [
     -1,
     0,
@@ -19595,8 +20578,8 @@
     "imports": 5,
     "prototypes": 140
    },
-   "spineDigest": "72618373b00c00b9aaf79af7a1a99241d3a626f1c08d34bf899f6a9bf4a94205",
-   "spineLength": 261,
+   "spineDigest": "808c5e6159f101485b73bc5d7e0c87680a04d0e3e9afc0d22f1de5717913706b",
+   "spineLength": 276,
    "units": [
     -1,
     0,
@@ -19633,8 +20616,8 @@
     "imports": 5,
     "prototypes": 144
    },
-   "spineDigest": "f01126f4e5a517a7d5099703982e5a90fc25f713ec8318bc70e7fd62667927b4",
-   "spineLength": 271,
+   "spineDigest": "f754201ed9a5884014b84a080bcb62b838601d4ad1728c6096b77f748948d641",
+   "spineLength": 289,
    "units": [
     -1,
     0,
@@ -19671,8 +20654,8 @@
     "imports": 5,
     "prototypes": 140
    },
-   "spineDigest": "2be839f7c278cae13695d5ff5269c5b6a8478bac792ddd371d42f4df68259545",
-   "spineLength": 266,
+   "spineDigest": "4bc9e7f8ccbb8042011d35db504750d081d956e45a2bf349fa772a67c4c92a93",
+   "spineLength": 282,
    "units": [
     -1,
     0,
@@ -19709,8 +20692,8 @@
     "imports": 5,
     "prototypes": 140
    },
-   "spineDigest": "3f58675b4ddd02f0b3f229ddb9a5f1114c6fb23e59f80e2f368e1ebe18232087",
-   "spineLength": 269,
+   "spineDigest": "eee4b6f88cd1bb2095af318007d0bd2d467fc3294384608c659a0004e80af6b2",
+   "spineLength": 285,
    "units": [
     -1,
     0,
@@ -19747,8 +20730,8 @@
     "imports": 5,
     "prototypes": 140
    },
-   "spineDigest": "3ab9c2ce701c6d9ca52a4c2b138d781f9969fa8ff4c3ab33cd5fceabbf5ed1dc",
-   "spineLength": 259,
+   "spineDigest": "5d7979faa2739e98a9de534df8ccdd2f64cec9ebe7612da8a02cfff3603a3972",
+   "spineLength": 274,
    "units": [
     -1,
     0,
@@ -19785,8 +20768,8 @@
     "imports": 5,
     "prototypes": 140
    },
-   "spineDigest": "3ab9c2ce701c6d9ca52a4c2b138d781f9969fa8ff4c3ab33cd5fceabbf5ed1dc",
-   "spineLength": 259,
+   "spineDigest": "5d7979faa2739e98a9de534df8ccdd2f64cec9ebe7612da8a02cfff3603a3972",
+   "spineLength": 274,
    "units": [
     -1,
     0,
@@ -19823,8 +20806,8 @@
     "imports": 6,
     "prototypes": 138
    },
-   "spineDigest": "7481c827ecc57d873689304aa95e5f843aee49419ca17148c2eedd1637e35fac",
-   "spineLength": 262,
+   "spineDigest": "4642e292fa7d04eef78b546bd6d65fa0fd563268c62b51400f1d15ed48600306",
+   "spineLength": 276,
    "units": [
     -1,
     0,
@@ -19861,8 +20844,8 @@
     "imports": 5,
     "prototypes": 142
    },
-   "spineDigest": "5aa43571fd978760e4c28db761f702d60690c5d53e02453b94b7ec6e9fea295c",
-   "spineLength": 263,
+   "spineDigest": "978284ac63d66a1e9e6f8930aa1243c5025f385472f074a031d9b756e4ca3ebf",
+   "spineLength": 279,
    "units": [
     -1,
     0,
@@ -19899,8 +20882,8 @@
     "imports": 5,
     "prototypes": 140
    },
-   "spineDigest": "91472e03bee85006b20d1263ff5a30ce4969abccb2f7e8f54f0cc3ecdd4652e4",
-   "spineLength": 271,
+   "spineDigest": "969b776f2dd4d60dc28b519bb13c6b266726b2d81b5c3a569a753060cf57266a",
+   "spineLength": 289,
    "units": [
     -1,
     0,
@@ -19937,8 +20920,8 @@
     "imports": 3,
     "prototypes": 138
    },
-   "spineDigest": "f8673eff89348c3cfbea4142f9d602938fd7b6957b7a245bf7537b92cbde3ed9",
-   "spineLength": 270,
+   "spineDigest": "651366dd10f22d4e209cfbabce2cb6b96400e99aea8dd2133824b7884fa029e8",
+   "spineLength": 287,
    "units": [
     -1,
     0,
@@ -19975,8 +20958,8 @@
     "imports": 3,
     "prototypes": 138
    },
-   "spineDigest": "c3747311b9c37745e6e8470ab7c782082bce34a6e54aba2b04a5b7b85b954eba",
-   "spineLength": 295,
+   "spineDigest": "6706cf97bcae7a09d88ca58be5053f8a35a685ddec05251546cea536e52a40e1",
+   "spineLength": 316,
    "units": [
     -1,
     0,
@@ -20013,8 +20996,8 @@
     "imports": 3,
     "prototypes": 139
    },
-   "spineDigest": "3f9ac5a2060fecd52279dda9db0ce5d3997cbfd27b3a50809fa0206ac3e8a64f",
-   "spineLength": 280,
+   "spineDigest": "f283044ed21a4803ea1a9b01b42c572f677fec9f4c416f7358448ee23f9ea597",
+   "spineLength": 299,
    "units": [
     -1,
     0,
@@ -20051,8 +21034,8 @@
     "imports": 3,
     "prototypes": 149
    },
-   "spineDigest": "0798fa6aeffdf5260324362c0b76347e046346c3e06ecbea8ca9aac715184dfd",
-   "spineLength": 254,
+   "spineDigest": "ef20423c5ec15e4da29a43ed1c3fb2353ac9ee336be060eb6c2c8b21d7f0ebdc",
+   "spineLength": 267,
    "units": [
     -1,
     0,
@@ -20089,8 +21072,8 @@
     "imports": 4,
     "prototypes": 140
    },
-   "spineDigest": "2dad11dfa5710e60cf6d3999cf35fcb54e578f71f0c553c05a96e32da43db06d",
-   "spineLength": 253,
+   "spineDigest": "3d98cee872a82521dc9fb6af480ecd6fc24490852a3e7dae306bf80af43a1d39",
+   "spineLength": 267,
    "units": [
     -1,
     0,
@@ -20127,8 +21110,8 @@
     "imports": 3,
     "prototypes": 138
    },
-   "spineDigest": "8c1d566854b835f97bd7e03183700135c5218c55e69715125c1b3f8063f8e654",
-   "spineLength": 251,
+   "spineDigest": "7132caff038e0652e422a1bd8d8569b5c47cbf3e8314c78a2ef102e8e1aadae0",
+   "spineLength": 264,
    "units": [
     -1,
     0,
@@ -20165,8 +21148,8 @@
     "imports": 3,
     "prototypes": 142
    },
-   "spineDigest": "4baa5ee1b448f671f844d74baeed2b3d4c709837a44b749e531fc2c55c0782ab",
-   "spineLength": 252,
+   "spineDigest": "9f04429ef0bee9df2a80034b243ebd94fea244d0509254a1b1227ff9d889d4ac",
+   "spineLength": 266,
    "units": [
     -1,
     0,
@@ -20203,8 +21186,8 @@
     "imports": 4,
     "prototypes": 138
    },
-   "spineDigest": "8c1d566854b835f97bd7e03183700135c5218c55e69715125c1b3f8063f8e654",
-   "spineLength": 251,
+   "spineDigest": "7132caff038e0652e422a1bd8d8569b5c47cbf3e8314c78a2ef102e8e1aadae0",
+   "spineLength": 264,
    "units": [
     -1,
     0,

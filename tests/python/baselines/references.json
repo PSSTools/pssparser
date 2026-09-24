@@ -1,15 +1,15 @@
 {
  "schema": 1,
  "summary": {
-  "slots": 87,
+  "slots": 91,
   "slots_by_state": {
-   "reported": 59,
-   "silent": 28
+   "reported": 62,
+   "silent": 29
   },
   "legal_model": "clean",
   "corpus_refs": {
-   "bound": 1085,
-   "unbound": 27
+   "bound": 1113,
+   "unbound": 28
   },
   "schema_ref_fields": 46,
   "schema_ref_fields_in_corpus": 19,
@@ -356,6 +356,8 @@
   "pool_bind_item__subpath": "reported",
   "pool_bind_pool": "silent",
   "pool_size": "reported",
+  "prev_ref": "reported",
+  "prev_ref__this": "silent",
   "proc_call": "reported",
   "proc_lhs": "reported",
   "rand_tgt": "reported",
@@ -379,16 +381,18 @@
   "trav_t": "reported",
   "trav_with": "reported",
   "typedef_t": "reported",
+  "uid_ref": "reported",
+  "uid_ref__struct": "reported",
   "unique": "reported",
   "xbins_tgt": "silent",
   "xbins_with": "silent"
  },
  "bind": {
-  "files": 90,
-  "clean_files": 48,
+  "files": 91,
+  "clean_files": 49,
   "fields": {
    "ActivityActionHandleTraversal.target | ExprRefPathContext": {
-    "bound": 29
+    "bound": 31
    },
    "ActivityForeach.path | ExprRefPathContext": {
     "bound": 1
@@ -415,7 +419,7 @@
     "bound": 1
    },
    "ComponentBind.pool_path | ExprRefPathContext": {
-    "unbound": 5
+    "unbound": 6
    },
    "ConstraintStmtDefault.hid | ExprRefPathContext": {
     "bound": 1
@@ -448,11 +452,14 @@
     "unbound": 2
    },
    "DataTypeUserDefined.type_id | TypeIdentifier": {
-    "bound": 459,
+    "bound": 468,
     "unbound": 1
    },
+   "ExprAggrList.elems | ExprRefPathContext": {
+    "bound": 1
+   },
    "ExprBin.lhs | ExprRefPathContext": {
-    "bound": 94
+    "bound": 103
    },
    "ExprBin.lhs | ExprRefPathSuper": {
     "bound": 1
@@ -461,7 +468,7 @@
     "unbound": 1
    },
    "ExprBin.rhs | ExprRefPathContext": {
-    "bound": 33
+    "bound": 37
    },
    "ExprBin.rhs | ExprRefPathSuper": {
     "bound": 1
@@ -473,7 +480,7 @@
     "unbound": 1
    },
    "ExprIn.lhs | ExprRefPathContext": {
-    "bound": 6
+    "bound": 8
    },
    "ExprMemberPathElem.subscript | ExprRefPathContext": {
     "bound": 1
@@ -482,7 +489,7 @@
     "bound": 2
    },
    "ExtendType.target | TypeIdentifier": {
-    "bound": 2
+    "bound": 3
    },
    "MethodParameterList.parameters | ExprRefPathContext": {
     "bound": 32

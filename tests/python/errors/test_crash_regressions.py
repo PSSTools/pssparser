@@ -259,8 +259,6 @@ component pss_top { c c0; }
 """
 
 
-# PLAN: phase 1.5/3.7 -- `prev` is not registered as a built-in state reference
-@pytest.mark.xfail(strict=True, reason="phase 3.7: `prev` does not resolve")
 def test_prev_reference_is_accepted():
     """`prev` refers to the previous state object (LRM 9.3.3.1 g)."""
     assert_clean(PREV_CONSTRAINT)

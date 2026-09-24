@@ -21,6 +21,7 @@
 #include "dmgr/impl/DebugMacros.h"
 #include "ResolveContext.h"
 #include "TaskApplyTypeExtensions.h"
+#include "TaskBuildSymbolTree.h"
 #include "pssp/ast/IConstraintBlock.h"
 #include "pssp/ast/IGenericConstraintDeclBool.h"
 #include "TaskResolveImports.h"
@@ -564,6 +565,19 @@ void TaskApplyTypeExtensions::addChild(
     } else {
         std::string msg = "Type extension of ";
         msg += name + " conflicts with an existing declaration";
+
+        ast::IField *orig = dynamic_cast<ast::IField *>(
+            target->getChildren().at(it->second).get());
+        ast::ISymbolTypeScope *target_t =
+            dynamic_cast<ast::ISymbolTypeScope *>(target);
+        if (orig && target_t
+                && (orig->getAttr() & ast::FieldAttr::Builtin) != ast::FieldAttr::NoFlags) {
+            // The same diagnosis as redeclaring it in the type's own body.
+            const char *kind = TaskBuildSymbolTree::builtinKind(
+                dynamic_cast<ast::ITypeScope *>(target_t->getTarget()));
+            msg = "duplicate declaration of '" + name + "': every "
+                + ((kind)?kind:"type") + " has a built-in '" + name + "'";
+        }
 
         IMarkerUP marker(m_factory->mkMarker(
             msg,

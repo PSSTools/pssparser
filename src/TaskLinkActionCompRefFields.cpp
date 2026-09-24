@@ -40,11 +40,27 @@ void TaskLinkActionCompRefFields::link(ast::ISymbolScope *root) {
     root->accept(m_this);
 }
 
+void TaskLinkActionCompRefFields::link(
+        ISymbolTableIterator        *it,
+        ast::ISymbolTypeScope       *scope) {
+    m_symtab = ISymbolTableIteratorUP(it);
+    linkPrev(scope);
+    for (std::vector<ast::IScopeChildUP>::const_iterator
+        c_it=scope->getChildren().begin();
+        c_it!=scope->getChildren().end(); c_it++) {
+        c_it->get()->accept(m_this);
+    }
+}
+
 void TaskLinkActionCompRefFields::visitAction(ast::IAction *i) {
     DEBUG_ENTER("visitAction %s", i->getName()->getId().c_str());
 
-    if (!i->getIs_abstract()) {
-        ast::ISymbolScope *comp_s = m_symtab->getScope(1);
+    // `comp` is typed by the enclosing component. The abstract flag is not the
+    // test (B C1): an abstract action in a package has no component, and one
+    // declared in a component has that component as its `comp`.
+    ast::ISymbolTypeScope *comp_s = dynamic_cast<ast::ISymbolTypeScope *>(
+        m_symtab->getScope(1));
+    if (comp_s && dynamic_cast<ast::IComponent *>(comp_s->getTarget())) {
         ast::IFieldCompRef *comp_f = dynamic_cast<ast::IFieldCompRef *>(
             i->getChildren().at(0).get());
         ast::ITypeIdentifier *comp_tid = m_factory->getAstFactory()->mkTypeIdentifier();
@@ -138,6 +154,7 @@ void TaskLinkActionCompRefFields::visitSymbolExtendScope(ast::ISymbolExtendScope
 void TaskLinkActionCompRefFields::visitSymbolTypeScope(ast::ISymbolTypeScope *i) {
     DEBUG_ENTER("visitSymbolTypeScope %s", i->getName().c_str());
     m_symtab->pushScope(i);
+    linkPrev(i);
     i->getTarget()->accept(m_this);
 
     for (std::vector<ast::IScopeChildUP>::const_iterator
@@ -148,6 +165,26 @@ void TaskLinkActionCompRefFields::visitSymbolTypeScope(ast::ISymbolTypeScope *i)
 
     m_symtab->popScope();
     DEBUG_LEAVE("visitSymbolTypeScope %s", i->getName().c_str());
+}
+
+void TaskLinkActionCompRefFields::linkPrev(ast::ISymbolTypeScope *ts) {
+    std::unordered_map<std::string,int32_t>::const_iterator it =
+        ts->getSymtab().find("prev");
+    if (it == ts->getSymtab().end()) {
+        return;
+    }
+    ast::IField *f = dynamic_cast<ast::IField *>(
+        ts->getChildren().at(it->second).get());
+    if (!f || (f->getAttr() & ast::FieldAttr::Builtin) == ast::FieldAttr::NoFlags) {
+        return;
+    }
+    ast::IDataTypeUserDefined *type =
+        dynamic_cast<ast::IDataTypeUserDefined *>(f->getType());
+    if (type) {
+        // Always rebuilt: a specialization's tree starts from a copy, and
+        // its own path goes through an ElemKind_TypeSpec step.
+        type->getType_id()->setTarget(m_symtab->getScopeSymbolPath(0));
+    }
 }
 
 dmgr::IDebug *TaskLinkActionCompRefFields::m_dbg = 0;

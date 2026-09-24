@@ -981,7 +981,9 @@ def test_monitor_activity_statements_do_not_leak_into_the_monitor(parser):
     monitor = find(root, "M")
     assert monitor is not None
     kinds = [type(c).__name__ for c in monitor.getChildren()]
-    assert kinds == ["ActionHandleField", "MonitorActivityDecl"]
+    # The trailing Field is the built-in `uid` (symbol-resolution 5.1), which
+    # lives in the linked tree only.
+    assert kinds == ["ActionHandleField", "MonitorActivityDecl", "Field"]
 
 
 def test_cover_target_is_resolved():
@@ -1230,7 +1232,8 @@ def test_symbol_body_does_not_leak_into_the_action():
     top = find(root, "top")
     assert top is not None
     kinds = [type(c).__name__ for c in top.getChildren()]
-    assert kinds == ["FieldCompRef", "SymbolDeclaration", "ActivityDecl"]
+    # The trailing Field is the built-in `uid` (symbol-resolution 5.1).
+    assert kinds == ["FieldCompRef", "SymbolDeclaration", "ActivityDecl", "Field"]
 
 
 def test_static_qualifier_is_kept_on_both_function_forms(parser):

@@ -7,6 +7,34 @@ revision advances only the patch component.
 
 ## Unreleased
 
+### Fixed — built-in members `uid`, `prev` and `comp` (symbol-resolution 5.1, 5.3)
+
+- **`uid` resolves** (clause 9): `comp.uid`, `r.uid` on a resource or flow
+  object reference, `h.uid` and `s[1].uid` on action handles, `this.uid`, and
+  `uid` unqualified inside the type. It is a `bit[32]` member of every action,
+  monitor, component, buffer, stream, state and resource, and not of a plain
+  struct. These all used to fail with "Failed to find elem uid".
+- **`prev` resolves** in a state type and its extensions (9.3.3.1g, 13.3),
+  typed as the state itself, so in a derived state `prev` has the derived
+  type. LRM Example 170 now links. `prev` reached as a member of another
+  object (`i.prev` on an input) is an error (PSS002).
+- `uid` and `prev` are members of the **linked symbol tree only**, flagged
+  `FieldAttr.Builtin` with no source location; they are not AST nodes, and
+  the occurrence API reports uses of them as `builtin`. A walk of a linked
+  type's `children()` now sees one more `Field` (two in a state).
+- **Redeclaring a built-in member is PSS003**: a user `uid`, `prev`,
+  `initial` or `instance_id` ("duplicate declaration of 'uid': every action
+  has a built-in 'uid'"), also through an `extend`. A user `initial` or
+  `instance_id` used to replace the built-in silently. The AST-injected
+  `initial`/`instance_id` fields now carry `FieldAttr.Builtin`.
+- **`comp` is typed in two more places:** an abstract action declared in a
+  component (it was left untyped: "root ref-path element comp is not a
+  composite scope"), and every action of a specialized template component
+  (`c_t<8> c;`), where the type path was built relative to the
+  specialization. `comp` in an abstract action declared in a package is
+  reported as "'comp' is only valid in an action declared in a component"
+  (PSS002).
+
 ### Fixed — `super` (symbol-resolution 5.2)
 
 - **`super.x` searches the base type only** (LRM 17.1, Table 27). It was

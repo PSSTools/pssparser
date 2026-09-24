@@ -50,6 +50,10 @@ class SymbolScopeUtil(SymbolChildrenScopeUtil):
         
         for c in self.obj.children():
             parent = c.getParent()
+            # A built-in member (`uid`, `prev`) lives only in the symbol tree
+            # and has no parent; it belongs to no extension.
+            if parent is None:
+                continue
             if parent != init_def_target and parent not in extensions_s:
                 extensions_s.add(parent)
                 extensions.append(parent)

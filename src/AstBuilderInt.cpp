@@ -7648,7 +7648,7 @@ void AstBuilderInt::indexActivityBodies(ast::ISymbolScope *stmt) {
 // Inject the LRM built-in field for a state/resource struct (`initial`:bool /
 // `instance_id`:int) so the name resolver can resolve references to it (e.g.
 // `constraint initial -> ...`). Skips injection when the user already declares
-// a field of that name. Field resolution for type members walks getChildren()
+// a field of that name; TaskBuildSymbolTree reports that declaration. Field resolution for type members walks getChildren()
 // (cf. the synthetic `comp` field added to actions), so no symtab entry is
 // needed.
 void AstBuilderInt::addStructBuiltinField(ast::IStruct *s, ast::StructKind kind) {
@@ -7676,7 +7676,7 @@ void AstBuilderInt::addStructBuiltinField(ast::IStruct *s, ast::StructKind kind)
     ast::IField *field = m_factory->mkField(
         m_factory->mkExprId(name, false),
         type,
-        ast::FieldAttr::NoFlags,
+        ast::FieldAttr::Builtin,
         nullptr);
     field->setIndex(s->getChildren().size());
     s->getChildren().push_back(ast::IScopeChildUP(field));

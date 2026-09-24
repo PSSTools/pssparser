@@ -39,6 +39,10 @@
 #include "pssp/ast/ISymbolScope.h"
 #include "pssp/ast/INamedScope.h"
 #include "pssp/ast/INamedScopeChild.h"
+#include "pssp/ast/IAction.h"
+#include "pssp/ast/IComponent.h"
+#include "pssp/ast/IMonitor.h"
+#include "pssp/ast/IStruct.h"
 #include "Marker.h"
 
 namespace pssp {
@@ -1297,12 +1301,137 @@ void TaskBuildSymbolTree::visitTypeScope(ast::ITypeScope *i) {
             it!=i->getChildren().end(); it++) {
             (*it)->accept(m_this);
         }
+        addBuiltinFields(ts, i);
         popSymbolScope();
     }
 
     DEBUG_LEAVE("visitTypeScope %s %d children", 
         i->getName()->getId().c_str(),
         ts->getChildren().size());
+}
+
+const char *TaskBuildSymbolTree::builtinKind(ast::ITypeScope *i) {
+    // Clause 9 intro: every modeling element -- action, monitor, component,
+    // flow or resource object -- has a `uid`. A plain struct does not.
+    if (dynamic_cast<ast::IAction *>(i)) {
+        return "action";
+    } else if (dynamic_cast<ast::IMonitor *>(i)) {
+        return "monitor";
+    } else if (dynamic_cast<ast::IComponent *>(i)) {
+        return "component";
+    } else if (ast::IStruct *st = dynamic_cast<ast::IStruct *>(i)) {
+        switch (st->getKind()) {
+            case ast::StructKind::Buffer: return "buffer";
+            case ast::StructKind::Stream: return "stream";
+            case ast::StructKind::State: return "state";
+            case ast::StructKind::Resource: return "resource";
+            default: break;
+        }
+    }
+    return 0;
+}
+
+void TaskBuildSymbolTree::addBuiltinFields(
+        ast::ISymbolTypeScope   *ts,
+        ast::ITypeScope         *i) {
+    const char *kind = builtinKind(i);
+    ast::IStruct *st = dynamic_cast<ast::IStruct *>(i);
+
+    if (!kind) {
+        return;
+    }
+
+    if (st && st->getKind() == ast::StructKind::State) {
+        checkBuiltinRedeclared(ts, "initial", kind);
+    } else if (st && st->getKind() == ast::StructKind::Resource) {
+        checkBuiltinRedeclared(ts, "instance_id", kind);
+    }
+
+    addBuiltinField(ts, "uid", kind,
+        m_factory->mkDataTypeInt(
+            false, m_factory->mkExprUnsignedNumber("32", 32, 32), 0));
+
+    if (st && st->getKind() == ast::StructKind::State) {
+        // 9.3.3.1g: "a reference to the same type as this state object" --
+        // this type, so a derived state's `prev` has the derived type. The
+        // name is only a label: TaskLinkActionCompRefFields sets the target
+        // from the scope itself, which is right for a specialization too.
+        ast::ITypeIdentifier *tid = m_factory->mkTypeIdentifier();
+        tid->getElems().push_back(ast::ITypeIdentifierElemUP(
+            m_factory->mkTypeIdentifierElem(
+                m_factory->mkExprId(ts->getName(), false), 0)));
+        addBuiltinField(ts, "prev", kind,
+            m_factory->mkDataTypeUserDefined(false, tid));
+    }
+}
+
+void TaskBuildSymbolTree::addBuiltinField(
+        ast::ISymbolTypeScope   *ts,
+        const std::string       &name,
+        const char              *kind,
+        ast::IDataType          *type) {
+    std::unordered_map<std::string,int32_t>::const_iterator it =
+        ts->getSymtab().find(name);
+
+    if (it != ts->getSymtab().end()) {
+        reportBuiltinRedeclared(
+            ts->getChildren().at(it->second).get(), name, kind);
+        delete type;
+        return;
+    }
+
+    // Owned by the symbol scope: nothing in the AST holds it. The name has
+    // no location, which is what makes the occurrence collector classify a
+    // use of it as `builtin`.
+    ast::IField *f = m_factory->mkField(
+        m_factory->mkExprId(name, false),
+        type,
+        ast::FieldAttr::Builtin,
+        0);
+    int32_t id = ts->getChildren().size();
+    ts->getChildren().push_back(ast::IScopeChildUP(f, true));
+    ts->getSymtab().insert({name, id});
+}
+
+void TaskBuildSymbolTree::checkBuiltinRedeclared(
+        ast::ISymbolTypeScope   *ts,
+        const std::string       &name,
+        const char              *kind) {
+    std::unordered_map<std::string,int32_t>::const_iterator it =
+        ts->getSymtab().find(name);
+
+    if (it == ts->getSymtab().end()) {
+        return;
+    }
+
+    ast::IField *f = dynamic_cast<ast::IField *>(
+        ts->getChildren().at(it->second).get());
+    if (!f || (f->getAttr() & ast::FieldAttr::Builtin) == ast::FieldAttr::NoFlags) {
+        // The builder skips its injection when the type declares the name
+        // itself, so what is here is the user's.
+        reportBuiltinRedeclared(
+            ts->getChildren().at(it->second).get(), name, kind);
+    }
+}
+
+void TaskBuildSymbolTree::reportBuiltinRedeclared(
+        ast::IScopeChild        *decl,
+        const std::string       &name,
+        const char              *kind) {
+    ast::Location loc = decl->getLocation();
+    if (ast::INamedScopeChild *n = dynamic_cast<ast::INamedScopeChild *>(decl)) {
+        loc = n->getName()->getLocation();
+    }
+    Marker m(
+        "duplicate declaration of '" + name + "': every " + kind
+            + " has a built-in '" + name + "'",
+        MarkerSeverityE::Error,
+        loc);
+    // As for reportDuplicateSymbol: no listener while building a
+    // specialization, whose declarations were reported on the generic.
+    if (m_marker_l) {
+        m_marker_l->marker(&m);
+    }
 }
 
 void TaskBuildSymbolTree::reportDuplicateSymbol(

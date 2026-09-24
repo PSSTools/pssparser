@@ -20,7 +20,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 95,
+     "DataTypeInt": 110,
      "DataTypeRef": 7,
      "DataTypeString": 48,
      "DataTypeUserDefined": 155,
@@ -32,16 +32,16 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 27,
-     "ExprId": 684,
+     "ExprId": 699,
      "ExprMemberPathElem": 27,
      "ExprNull": 2,
      "ExprRefPathContext": 27,
      "ExprRefPathStatic": 1,
      "ExprSignedNumber": 4,
      "ExprUnary": 4,
-     "ExprUnsignedNumber": 215,
+     "ExprUnsignedNumber": 230,
      "ExtendType": 1,
-     "Field": 35,
+     "Field": 50,
      "FieldCompRef": 1,
      "FunctionParamDecl": 189,
      "FunctionPrototype": 125,
@@ -69,8 +69,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 2953,
-    "digest": "45034767adb71fa3a337fd07df860567ef47b522a5014a23bf2a208c8e82f8f4"
+    "count": 3013,
+    "digest": "2dd85a3653ab11d37a62b8aa33fdc3ec6eb7d8db2d05fdaa5eb676923ba4f0b6"
    },
    "units": [
     {
@@ -317,7 +317,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 97,
+     "DataTypeInt": 112,
      "DataTypeRef": 7,
      "DataTypeString": 48,
      "DataTypeUserDefined": 155,
@@ -330,7 +330,7 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 35,
-     "ExprId": 695,
+     "ExprId": 710,
      "ExprIn": 1,
      "ExprMemberPathElem": 35,
      "ExprNull": 2,
@@ -340,9 +340,9 @@
      "ExprRefPathStatic": 1,
      "ExprSignedNumber": 4,
      "ExprUnary": 6,
-     "ExprUnsignedNumber": 226,
+     "ExprUnsignedNumber": 241,
      "ExtendType": 1,
-     "Field": 37,
+     "Field": 52,
      "FieldCompRef": 1,
      "FunctionParamDecl": 189,
      "FunctionPrototype": 125,
@@ -370,8 +370,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 3031,
-    "digest": "5e32a3a99678423cae061a8c013cbc7b31b7597376e5b830667b32aabb0ea434"
+    "count": 3091,
+    "digest": "639bb7b6d10f077bc3002ed5da68cf3af4ad79316afcb3c09c3aeeb6386df1b6"
    },
    "units": [
     {
@@ -1317,7 +1317,7 @@
      "DataTypeBool": 13,
      "DataTypeChandle": 3,
      "DataTypeFloat": 53,
-     "DataTypeInt": 98,
+     "DataTypeInt": 113,
      "DataTypeRef": 7,
      "DataTypeString": 49,
      "DataTypeUserDefined": 155,
@@ -1330,7 +1330,7 @@
      "ExprDomainOpenRangeValue": 64,
      "ExprFloatLiteral": 2,
      "ExprHierarchicalId": 27,
-     "ExprId": 692,
+     "ExprId": 707,
      "ExprMemberPathElem": 27,
      "ExprNull": 2,
      "ExprRefPathContext": 27,
@@ -1338,9 +1338,9 @@
      "ExprSignedNumber": 4,
      "ExprString": 1,
      "ExprUnary": 5,
-     "ExprUnsignedNumber": 221,
+     "ExprUnsignedNumber": 236,
      "ExtendType": 1,
-     "Field": 42,
+     "Field": 57,
      "FieldCompRef": 1,
      "FunctionParamDecl": 189,
      "FunctionPrototype": 125,
@@ -1368,8 +1368,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 2988,
-    "digest": "8ef700676fb7c801cca95132cdde763f868ea46e9da4b555cb8060764412c1cc"
+    "count": 3048,
+    "digest": "fffc164cc9eaa7a53f05eed5d0779bfbfcb516694bded17db77d3043554995d9"
    },
    "units": [
     {
@@ -2191,7 +2191,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 100,
+     "DataTypeInt": 115,
      "DataTypeRef": 7,
      "DataTypeString": 48,
      "DataTypeUserDefined": 155,
@@ -2205,16 +2205,16 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 38,
-     "ExprId": 701,
+     "ExprId": 716,
      "ExprMemberPathElem": 38,
      "ExprNull": 2,
      "ExprRefPathContext": 38,
      "ExprRefPathStatic": 1,
      "ExprSignedNumber": 4,
      "ExprUnary": 4,
-     "ExprUnsignedNumber": 224,
+     "ExprUnsignedNumber": 239,
      "ExtendType": 1,
-     "Field": 36,
+     "Field": 51,
      "FieldCompRef": 1,
      "FunctionDefinition": 1,
      "FunctionParamDecl": 191,
@@ -2249,8 +2249,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 3053,
-    "digest": "da34bff21f67315d3af92b3a645f80ebce664d799d83522180321e617bcc0b39"
+    "count": 3113,
+    "digest": "50971eb11799a4c83a6e1d6a27adeedf91a2cf2ac393af84ba620541749ca95a"
    },
    "units": [
     {
@@ -3754,7 +3754,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 95,
+     "DataTypeInt": 112,
      "DataTypeRef": 7,
      "DataTypeString": 48,
      "DataTypeUserDefined": 160,
@@ -3766,16 +3766,16 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 32,
-     "ExprId": 701,
+     "ExprId": 718,
      "ExprMemberPathElem": 32,
      "ExprNull": 2,
      "ExprRefPathContext": 32,
      "ExprRefPathStatic": 1,
      "ExprSignedNumber": 4,
      "ExprUnary": 4,
-     "ExprUnsignedNumber": 216,
+     "ExprUnsignedNumber": 233,
      "ExtendType": 1,
-     "Field": 38,
+     "Field": 55,
      "FieldCompRef": 3,
      "FunctionParamDecl": 189,
      "FunctionPrototype": 125,
@@ -3803,8 +3803,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 3032,
-    "digest": "84f7f0c893dfbc5520323cc7fa2317c7fda9eb3604150d422594a07c5a6a79b6"
+    "count": 3100,
+    "digest": "55042d48c6c04dfbce3313f09f1066bc9824d320a12d783f398cd0d9a38be474"
    },
    "units": [
     {
@@ -5000,7 +5000,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 97,
+     "DataTypeInt": 112,
      "DataTypeRef": 7,
      "DataTypeString": 48,
      "DataTypeUserDefined": 155,
@@ -5012,7 +5012,7 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 29,
-     "ExprId": 696,
+     "ExprId": 711,
      "ExprMemberPathElem": 29,
      "ExprNull": 2,
      "ExprOpenRangeValue": 2,
@@ -5021,9 +5021,9 @@
      "ExprRefPathStatic": 1,
      "ExprSignedNumber": 4,
      "ExprUnary": 4,
-     "ExprUnsignedNumber": 221,
+     "ExprUnsignedNumber": 236,
      "ExtendType": 1,
-     "Field": 37,
+     "Field": 52,
      "FieldCompRef": 1,
      "FunctionParamDecl": 189,
      "FunctionPrototype": 125,
@@ -5051,8 +5051,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 2991,
-    "digest": "b3a77046de5042ae101ad3e6c30a15786ace3a959bdf02dc75e40ae210728a8c"
+    "count": 3051,
+    "digest": "1c4befa158b6cbdc777f4409483efe33e84650d21c4632b97d02775a8dd7e8da"
    },
    "units": [
     {
@@ -5847,7 +5847,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 97,
+     "DataTypeInt": 112,
      "DataTypeRef": 7,
      "DataTypeString": 48,
      "DataTypeUserDefined": 155,
@@ -5859,16 +5859,16 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 27,
-     "ExprId": 690,
+     "ExprId": 705,
      "ExprMemberPathElem": 27,
      "ExprNull": 2,
      "ExprRefPathContext": 27,
      "ExprRefPathStatic": 2,
      "ExprSignedNumber": 4,
      "ExprUnary": 4,
-     "ExprUnsignedNumber": 217,
+     "ExprUnsignedNumber": 232,
      "ExtendType": 1,
-     "Field": 37,
+     "Field": 52,
      "FieldCompRef": 1,
      "FunctionParamDecl": 189,
      "FunctionPrototype": 125,
@@ -5896,8 +5896,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 2977,
-    "digest": "0809eade6b86559d70b2e466515da9430660ec75a8d1f974d142e2b165524565"
+    "count": 3037,
+    "digest": "edc1718af03ae8fb616ea4f0a46d46efbd77e61d5d20830a1a23f57bf85eead9"
    },
    "units": [
     {
@@ -6472,7 +6472,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 95,
+     "DataTypeInt": 110,
      "DataTypeRef": 7,
      "DataTypeString": 48,
      "DataTypeUserDefined": 156,
@@ -6484,16 +6484,16 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 27,
-     "ExprId": 686,
+     "ExprId": 701,
      "ExprMemberPathElem": 27,
      "ExprNull": 2,
      "ExprRefPathContext": 27,
      "ExprRefPathStatic": 1,
      "ExprSignedNumber": 4,
      "ExprUnary": 4,
-     "ExprUnsignedNumber": 215,
+     "ExprUnsignedNumber": 230,
      "ExtendType": 1,
-     "Field": 36,
+     "Field": 51,
      "FieldCompRef": 1,
      "FunctionParamDecl": 189,
      "FunctionPrototype": 125,
@@ -6521,8 +6521,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 2959,
-    "digest": "db3ae19c9968b68c153ea946e66013bee60ffc25511b532da497773465ec240e"
+    "count": 3019,
+    "digest": "85ded918026a6b902aa4900232ae3006d62c74702c3fdca96e84fe5709249e51"
    },
    "units": [
     {
@@ -6860,7 +6860,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 100,
+     "DataTypeInt": 113,
      "DataTypeRef": 7,
      "DataTypeString": 48,
      "DataTypeUserDefined": 156,
@@ -6873,7 +6873,7 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 46,
-     "ExprId": 715,
+     "ExprId": 728,
      "ExprMemberPathElem": 46,
      "ExprNull": 2,
      "ExprRefPathContext": 46,
@@ -6881,9 +6881,9 @@
      "ExprSignedNumber": 4,
      "ExprString": 1,
      "ExprUnary": 4,
-     "ExprUnsignedNumber": 222,
+     "ExprUnsignedNumber": 235,
      "ExtendType": 2,
-     "Field": 35,
+     "Field": 48,
      "FunctionDefinition": 1,
      "FunctionParamDecl": 193,
      "FunctionPrototype": 126,
@@ -6919,8 +6919,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 3096,
-    "digest": "cc020f27d849e295d94ae6dd291f9eef8e142aa91a2407acdf61b07f354cb027"
+    "count": 3148,
+    "digest": "1ca74dadf53ea66b61d0a58e9502eb9929700fe1801855e97fa627b1cfef4679"
    },
    "units": [
     {
@@ -7031,7 +7031,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 96,
+     "DataTypeInt": 110,
      "DataTypeRef": 7,
      "DataTypeString": 48,
      "DataTypeUserDefined": 155,
@@ -7045,16 +7045,16 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 35,
-     "ExprId": 703,
+     "ExprId": 717,
      "ExprMemberPathElem": 42,
      "ExprNull": 2,
      "ExprRefPathContext": 35,
      "ExprRefPathStatic": 1,
      "ExprSignedNumber": 4,
      "ExprUnary": 4,
-     "ExprUnsignedNumber": 216,
+     "ExprUnsignedNumber": 230,
      "ExtendType": 2,
-     "Field": 35,
+     "Field": 49,
      "FieldCompRef": 1,
      "FieldRef": 1,
      "FunctionParamDecl": 189,
@@ -7085,8 +7085,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 3023,
-    "digest": "b01f8069d620fd095150c57ca1178d20becc77a05e2a6f3d290264e01838478e"
+    "count": 3079,
+    "digest": "a2aa1f125f0352c85c3df4f9ebb94b5df31eb8b5ace71f5248f8749d19af483e"
    },
    "units": [
     {
@@ -7198,7 +7198,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 95,
+     "DataTypeInt": 109,
      "DataTypeRef": 7,
      "DataTypeString": 48,
      "DataTypeUserDefined": 161,
@@ -7210,16 +7210,16 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 42,
-     "ExprId": 727,
+     "ExprId": 741,
      "ExprMemberPathElem": 50,
      "ExprNull": 2,
      "ExprRefPathContext": 42,
      "ExprRefPathStatic": 1,
      "ExprSignedNumber": 4,
      "ExprUnary": 4,
-     "ExprUnsignedNumber": 215,
+     "ExprUnsignedNumber": 229,
      "ExtendType": 2,
-     "Field": 42,
+     "Field": 56,
      "FieldCompRef": 1,
      "FunctionParamDecl": 189,
      "FunctionPrototype": 125,
@@ -7247,8 +7247,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 3097,
-    "digest": "cfb8232bbdbb0c95a59a4975442660ff616dfcec257edee09b7d1f94c6c9c248"
+    "count": 3153,
+    "digest": "8602e3fd980b2aab06a5ca149f332047e45af0f5248eed5907b610615db0a938"
    },
    "units": [
     {
@@ -7349,7 +7349,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 96,
+     "DataTypeInt": 109,
      "DataTypeRef": 7,
      "DataTypeString": 48,
      "DataTypeUserDefined": 157,
@@ -7363,16 +7363,16 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 45,
-     "ExprId": 725,
+     "ExprId": 738,
      "ExprMemberPathElem": 62,
      "ExprNull": 2,
      "ExprRefPathContext": 45,
      "ExprRefPathStatic": 1,
      "ExprSignedNumber": 4,
      "ExprUnary": 4,
-     "ExprUnsignedNumber": 218,
+     "ExprUnsignedNumber": 231,
      "ExtendType": 2,
-     "Field": 35,
+     "Field": 48,
      "FunctionDefinition": 1,
      "FunctionParamDecl": 190,
      "FunctionPrototype": 126,
@@ -7404,8 +7404,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 3101,
-    "digest": "6d9606a966e178eaf1e36403646e292c2bdccd284e09c403128d39968baa9d38"
+    "count": 3153,
+    "digest": "a306d0297494d87598eb592e0e657bce015991c4f5704450e114e76fd2417db2"
    },
    "units": [
     {
@@ -7511,7 +7511,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 95,
+     "DataTypeInt": 109,
      "DataTypeRef": 7,
      "DataTypeString": 48,
      "DataTypeUserDefined": 155,
@@ -7524,16 +7524,16 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 30,
-     "ExprId": 693,
+     "ExprId": 707,
      "ExprMemberPathElem": 33,
      "ExprNull": 2,
      "ExprRefPathContext": 30,
      "ExprRefPathStatic": 1,
      "ExprSignedNumber": 4,
      "ExprUnary": 4,
-     "ExprUnsignedNumber": 215,
+     "ExprUnsignedNumber": 229,
      "ExtendType": 2,
-     "Field": 35,
+     "Field": 49,
      "FieldCompRef": 1,
      "FieldRef": 1,
      "FunctionParamDecl": 189,
@@ -7564,8 +7564,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 2985,
-    "digest": "6c5af7488444b722f466f384301a710860fd8856337c4d44db069c3345145d00"
+    "count": 3041,
+    "digest": "8fe3c6fe9e3311b2ab883ef0717eebd056703755f9021b4dc1b8ae95da629659"
    },
    "units": [
     {
@@ -7666,7 +7666,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 98,
+     "DataTypeInt": 111,
      "DataTypeRef": 7,
      "DataTypeString": 48,
      "DataTypeUserDefined": 156,
@@ -7680,7 +7680,7 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 66,
-     "ExprId": 755,
+     "ExprId": 768,
      "ExprMemberPathElem": 93,
      "ExprNull": 2,
      "ExprOpenRangeList": 3,
@@ -7689,9 +7689,9 @@
      "ExprRefPathStatic": 1,
      "ExprSignedNumber": 4,
      "ExprUnary": 4,
-     "ExprUnsignedNumber": 223,
+     "ExprUnsignedNumber": 236,
      "ExtendType": 2,
-     "Field": 35,
+     "Field": 48,
      "FunctionDefinition": 1,
      "FunctionParamDecl": 191,
      "FunctionPrototype": 126,
@@ -7725,8 +7725,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 3234,
-    "digest": "552800b8084ef0b1c6e37cc350a93a8f025528f6e4e452f3046811f1d142410b"
+    "count": 3286,
+    "digest": "75780ef697ee90357ce9840db582103e5ef6c34eaf8eda3473a37b76d3197ba8"
    },
    "units": [
     {
@@ -7836,7 +7836,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 99,
+     "DataTypeInt": 113,
      "DataTypeRef": 7,
      "DataTypeString": 48,
      "DataTypeUserDefined": 157,
@@ -7849,16 +7849,16 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 34,
-     "ExprId": 705,
+     "ExprId": 719,
      "ExprMemberPathElem": 35,
      "ExprNull": 2,
      "ExprRefPathContext": 34,
      "ExprRefPathStatic": 2,
      "ExprSignedNumber": 4,
      "ExprUnary": 4,
-     "ExprUnsignedNumber": 219,
+     "ExprUnsignedNumber": 233,
      "ExtendType": 1,
-     "Field": 38,
+     "Field": 52,
      "FieldPool": 1,
      "FunctionDefinition": 1,
      "FunctionParamDecl": 192,
@@ -7890,8 +7890,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 3044,
-    "digest": "d494c8cb9a45c180d1cb96ae25c5a4eb2c89ed6ca4ef8cdf84d0c19a9caf15e3"
+    "count": 3100,
+    "digest": "434b5bfd8da08f54bfd451e38f55d0ab2fdd94843c57bd91223067234fddf154"
    },
    "units": [
     {
@@ -8000,7 +8000,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 95,
+     "DataTypeInt": 109,
      "DataTypeRef": 7,
      "DataTypeString": 48,
      "DataTypeUserDefined": 157,
@@ -8013,16 +8013,16 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 32,
-     "ExprId": 701,
+     "ExprId": 715,
      "ExprMemberPathElem": 37,
      "ExprNull": 2,
      "ExprRefPathContext": 32,
      "ExprRefPathStatic": 1,
      "ExprSignedNumber": 4,
      "ExprUnary": 4,
-     "ExprUnsignedNumber": 215,
+     "ExprUnsignedNumber": 229,
      "ExtendType": 2,
-     "Field": 35,
+     "Field": 49,
      "FieldClaim": 1,
      "FieldCompRef": 1,
      "FieldRef": 2,
@@ -8054,8 +8054,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 3010,
-    "digest": "9ceb2bf54464cf0bbdd85dbd03b6a15e867e95c8dd061b0a091652219e9c536b"
+    "count": 3066,
+    "digest": "74642a66d3cf46b4f465295a1675adabcca758e320a9c5b1aef80e307af11207"
    },
    "units": [
     {
@@ -8157,7 +8157,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 124,
+     "DataTypeInt": 145,
      "DataTypeRef": 7,
      "DataTypeString": 52,
      "DataTypeUserDefined": 190,
@@ -8170,7 +8170,7 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 50,
-     "ExprId": 827,
+     "ExprId": 848,
      "ExprMemberPathElem": 50,
      "ExprNull": 2,
      "ExprOpenRangeList": 5,
@@ -8180,9 +8180,9 @@
      "ExprSignedNumber": 4,
      "ExprString": 5,
      "ExprUnary": 6,
-     "ExprUnsignedNumber": 254,
+     "ExprUnsignedNumber": 275,
      "ExtendType": 1,
-     "Field": 55,
+     "Field": 76,
      "FunctionDefinition": 2,
      "FunctionParamDecl": 209,
      "FunctionPrototype": 127,
@@ -8213,8 +8213,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 3647,
-    "digest": "511768cdf7c15eac64ce1362ca10a4d7a792656bfee7534ac4a2dfdbc4d1a3f1"
+    "count": 3731,
+    "digest": "5012e5ea8160342ac54478a166ab34e183888c44aa0bef85b5e7584f9e25025c"
    },
    "units": [
     {
@@ -8329,7 +8329,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 96,
+     "DataTypeInt": 109,
      "DataTypeRef": 7,
      "DataTypeString": 48,
      "DataTypeUserDefined": 155,
@@ -8342,16 +8342,16 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 31,
-     "ExprId": 690,
+     "ExprId": 703,
      "ExprMemberPathElem": 31,
      "ExprNull": 2,
      "ExprRefPathContext": 31,
      "ExprRefPathStatic": 1,
      "ExprSignedNumber": 4,
      "ExprUnary": 4,
-     "ExprUnsignedNumber": 216,
+     "ExprUnsignedNumber": 229,
      "ExtendType": 2,
-     "Field": 35,
+     "Field": 48,
      "FunctionDefinition": 1,
      "FunctionParamDecl": 191,
      "FunctionPrototype": 126,
@@ -8381,8 +8381,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 2986,
-    "digest": "bd1aa0b905aa9e3c00296a4dca4555c815bbff8e5f35226a73429848ae1da3a0"
+    "count": 3038,
+    "digest": "75d3a0b8c7a393795fdcaafa81b6019450ce653cd1c339d062041cd87ac90c4d"
    },
    "units": [
     {
@@ -8483,7 +8483,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 104,
+     "DataTypeInt": 118,
      "DataTypeRef": 7,
      "DataTypeString": 48,
      "DataTypeUserDefined": 155,
@@ -8495,16 +8495,16 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 27,
-     "ExprId": 699,
+     "ExprId": 713,
      "ExprMemberPathElem": 27,
      "ExprNull": 2,
      "ExprRefPathContext": 27,
      "ExprRefPathStatic": 1,
      "ExprSignedNumber": 4,
      "ExprUnary": 4,
-     "ExprUnsignedNumber": 232,
+     "ExprUnsignedNumber": 246,
      "ExtendType": 1,
-     "Field": 43,
+     "Field": 57,
      "FunctionParamDecl": 189,
      "FunctionPrototype": 125,
      "GlobalScope": 3,
@@ -8531,8 +8531,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 3012,
-    "digest": "82c278ad94375e4c54ced11a26e3edc18f55cac274bcf5a138008e50af4c592e"
+    "count": 3068,
+    "digest": "6e8d3adb4ffbc4a168c176e7a7c450e21e0c8b2845db6f20441b858d5f332119"
    },
    "units": [
     {
@@ -8602,7 +8602,7 @@
       "TypeIdentifierElem": 1
      },
      "count": 67,
-     "digest": "b4f0c6169f92aa3a5c051e6999b9bf6b7a433a71f36dd8e2f85c30c9fb0b7501",
+     "digest": "d3fae19368a503b1b2ba7612f1541adf205c9e89fbefbe5d4791a38fb185d902",
      "fileid": 1
     }
    ],
@@ -8629,7 +8629,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 95,
+     "DataTypeInt": 109,
      "DataTypeRef": 7,
      "DataTypeString": 48,
      "DataTypeUserDefined": 157,
@@ -8642,16 +8642,16 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 32,
-     "ExprId": 702,
+     "ExprId": 716,
      "ExprMemberPathElem": 37,
      "ExprNull": 2,
      "ExprRefPathContext": 32,
      "ExprRefPathStatic": 1,
      "ExprSignedNumber": 4,
      "ExprUnary": 4,
-     "ExprUnsignedNumber": 215,
+     "ExprUnsignedNumber": 229,
      "ExtendType": 2,
-     "Field": 35,
+     "Field": 49,
      "FieldClaim": 1,
      "FieldCompRef": 1,
      "FieldRef": 2,
@@ -8683,8 +8683,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 3014,
-    "digest": "a14f10fcb77767735b7145adcdec8a402983572ef1b6350309830ca1a2104a01"
+    "count": 3070,
+    "digest": "17c5b171579967bb3a0579abf0c1cbc7dab0bf61dbf1f6f56e8ad4a32ab68a0a"
    },
    "units": [
     {
@@ -8786,7 +8786,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 95,
+     "DataTypeInt": 108,
      "DataTypeRef": 7,
      "DataTypeString": 48,
      "DataTypeUserDefined": 154,
@@ -8799,7 +8799,7 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 28,
-     "ExprId": 686,
+     "ExprId": 699,
      "ExprMemberPathElem": 30,
      "ExprNull": 2,
      "ExprRefPathContext": 28,
@@ -8807,9 +8807,9 @@
      "ExprSignedNumber": 4,
      "ExprString": 1,
      "ExprUnary": 4,
-     "ExprUnsignedNumber": 216,
+     "ExprUnsignedNumber": 229,
      "ExtendType": 2,
-     "Field": 35,
+     "Field": 48,
      "FunctionDefinition": 1,
      "FunctionParamDecl": 189,
      "FunctionPrototype": 126,
@@ -8839,8 +8839,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 2968,
-    "digest": "9ffa3140534777348e04ebd4fb6398866c792afdd144c1cef569d5681e7baa04"
+    "count": 3020,
+    "digest": "ca25fb35c4d7650292206ee780cd22a022cd89f584c164a8d0143268f2f5576a"
    },
    "units": [
     {
@@ -8939,7 +8939,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 98,
+     "DataTypeInt": 111,
      "DataTypeRef": 7,
      "DataTypeString": 48,
      "DataTypeUserDefined": 156,
@@ -8952,16 +8952,16 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 37,
-     "ExprId": 703,
+     "ExprId": 716,
      "ExprMemberPathElem": 37,
      "ExprNull": 2,
      "ExprRefPathContext": 37,
      "ExprRefPathStatic": 1,
      "ExprSignedNumber": 4,
      "ExprUnary": 4,
-     "ExprUnsignedNumber": 220,
+     "ExprUnsignedNumber": 233,
      "ExtendType": 2,
-     "Field": 35,
+     "Field": 48,
      "FunctionDefinition": 1,
      "FunctionParamDecl": 193,
      "FunctionPrototype": 126,
@@ -8993,8 +8993,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 3038,
-    "digest": "03004a2d495c70c5048146b1e158831f49710f80733a5b463a4d79677b83f97b"
+    "count": 3090,
+    "digest": "3d6295727aed9af148327e19fb08580940c14c5ccc30e6b694cfac62d12a666b"
    },
    "units": [
     {
@@ -9100,7 +9100,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 96,
+     "DataTypeInt": 110,
      "DataTypeRef": 7,
      "DataTypeString": 48,
      "DataTypeUserDefined": 155,
@@ -9114,16 +9114,16 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 35,
-     "ExprId": 703,
+     "ExprId": 717,
      "ExprMemberPathElem": 42,
      "ExprNull": 2,
      "ExprRefPathContext": 35,
      "ExprRefPathStatic": 1,
      "ExprSignedNumber": 4,
      "ExprUnary": 4,
-     "ExprUnsignedNumber": 216,
+     "ExprUnsignedNumber": 230,
      "ExtendType": 2,
-     "Field": 35,
+     "Field": 49,
      "FieldCompRef": 1,
      "FieldRef": 1,
      "FunctionParamDecl": 189,
@@ -9154,8 +9154,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 3023,
-    "digest": "e181dca07a74cae0c944d64a840fa41f4c48be01271023de719a84293890f328"
+    "count": 3079,
+    "digest": "8d1978f21f74186e6d6d1f53411eccb870da518ff041898bf190573bfb4b6291"
    },
    "units": [
     {
@@ -9262,7 +9262,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 97,
+     "DataTypeInt": 111,
      "DataTypeRef": 7,
      "DataTypeString": 48,
      "DataTypeUserDefined": 158,
@@ -9276,16 +9276,16 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 50,
-     "ExprId": 738,
+     "ExprId": 752,
      "ExprMemberPathElem": 69,
      "ExprNull": 2,
      "ExprRefPathContext": 50,
      "ExprRefPathStatic": 1,
      "ExprSignedNumber": 4,
      "ExprUnary": 4,
-     "ExprUnsignedNumber": 217,
+     "ExprUnsignedNumber": 231,
      "ExtendType": 2,
-     "Field": 35,
+     "Field": 49,
      "FieldClaim": 1,
      "FieldCompRef": 1,
      "FieldRef": 2,
@@ -9319,8 +9319,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 3147,
-    "digest": "5f156cfe8f624395881933473b764e3c12d24d30e6e4b03e5d755842ef2e3577"
+    "count": 3203,
+    "digest": "dc84e167d43cd512af92b83712085f8735095d1dc4c297e1bdaffc55db093bab"
    },
    "units": [
     {
@@ -9430,7 +9430,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 97,
+     "DataTypeInt": 111,
      "DataTypeRef": 7,
      "DataTypeString": 48,
      "DataTypeUserDefined": 158,
@@ -9444,16 +9444,16 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 44,
-     "ExprId": 728,
+     "ExprId": 742,
      "ExprMemberPathElem": 58,
      "ExprNull": 2,
      "ExprRefPathContext": 44,
      "ExprRefPathStatic": 1,
      "ExprSignedNumber": 4,
      "ExprUnary": 4,
-     "ExprUnsignedNumber": 217,
+     "ExprUnsignedNumber": 231,
      "ExtendType": 2,
-     "Field": 35,
+     "Field": 49,
      "FieldClaim": 1,
      "FieldCompRef": 1,
      "FieldRef": 2,
@@ -9487,8 +9487,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 3111,
-    "digest": "ebee80059ae9e19561eaadc3e045e4a363dddfeca39716cc180fcd82fac14679"
+    "count": 3167,
+    "digest": "83699390dfd646b13bcdfb6365700a5a9dea9d39b99d6e8d3010d68ec272387d"
    },
    "units": [
     {
@@ -9596,7 +9596,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 95,
+     "DataTypeInt": 109,
      "DataTypeRef": 7,
      "DataTypeString": 48,
      "DataTypeUserDefined": 154,
@@ -9608,16 +9608,16 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 27,
-     "ExprId": 681,
+     "ExprId": 695,
      "ExprMemberPathElem": 27,
      "ExprNull": 2,
      "ExprRefPathContext": 27,
      "ExprRefPathStatic": 1,
      "ExprSignedNumber": 4,
      "ExprUnary": 4,
-     "ExprUnsignedNumber": 215,
+     "ExprUnsignedNumber": 229,
      "ExtendType": 1,
-     "Field": 35,
+     "Field": 49,
      "FunctionParamDecl": 189,
      "FunctionPrototype": 125,
      "GlobalScope": 3,
@@ -9644,8 +9644,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 2943,
-    "digest": "e409aeb1800388843c829708191a40d4cacf2f9afe64547d834863ae4d99af7b"
+    "count": 2999,
+    "digest": "3dbfedf648618cd90a95cdbaa231a14ac417c1b882fe93561f516bd730d7b874"
    },
    "units": [
     {
@@ -9735,7 +9735,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 95,
+     "DataTypeInt": 109,
      "DataTypeRef": 7,
      "DataTypeString": 48,
      "DataTypeUserDefined": 157,
@@ -9747,16 +9747,16 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 34,
-     "ExprId": 703,
+     "ExprId": 717,
      "ExprMemberPathElem": 38,
      "ExprNull": 2,
      "ExprRefPathContext": 34,
      "ExprRefPathStatic": 1,
      "ExprSignedNumber": 4,
      "ExprUnary": 4,
-     "ExprUnsignedNumber": 215,
+     "ExprUnsignedNumber": 229,
      "ExtendType": 2,
-     "Field": 38,
+     "Field": 52,
      "FieldCompRef": 1,
      "FunctionParamDecl": 189,
      "FunctionPrototype": 125,
@@ -9784,8 +9784,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 3016,
-    "digest": "ea4c8fc7317f4b90ab71fd69c6192e3d3b5b861a5c4fd320f00242daf55e19b6"
+    "count": 3072,
+    "digest": "70d760eac974a3c9971ac7cb16275e647a0aea50e8294d49c8c3da8fa4939718"
    },
    "units": [
     {
@@ -9884,7 +9884,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 98,
+     "DataTypeInt": 112,
      "DataTypeRef": 7,
      "DataTypeString": 48,
      "DataTypeUserDefined": 162,
@@ -9896,7 +9896,7 @@
      "ExprDomainOpenRangeList": 2,
      "ExprDomainOpenRangeValue": 128,
      "ExprHierarchicalId": 30,
-     "ExprId": 715,
+     "ExprId": 729,
      "ExprIn": 1,
      "ExprMemberPathElem": 33,
      "ExprNull": 2,
@@ -9906,9 +9906,9 @@
      "ExprRefPathStatic": 1,
      "ExprSignedNumber": 4,
      "ExprUnary": 4,
-     "ExprUnsignedNumber": 351,
+     "ExprUnsignedNumber": 365,
      "ExtendType": 1,
-     "Field": 42,
+     "Field": 56,
      "FunctionParamDecl": 189,
      "FunctionPrototype": 125,
      "GlobalScope": 3,
@@ -9935,8 +9935,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 3332,
-    "digest": "68f4b9825e367bd04c2242800d337cc74bfe4d9fcbc1999b35fe4efbc41df4ca"
+    "count": 3388,
+    "digest": "4f4dd822e8721c8b0cb8386a44fd5d5217f714ca9a5bc4c684aad716ac2e1fe5"
    },
    "units": [
     {
@@ -10042,7 +10042,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 98,
+     "DataTypeInt": 111,
      "DataTypeRef": 7,
      "DataTypeString": 48,
      "DataTypeUserDefined": 155,
@@ -10055,7 +10055,7 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 35,
-     "ExprId": 695,
+     "ExprId": 708,
      "ExprMemberPathElem": 35,
      "ExprNull": 2,
      "ExprOpenRangeList": 3,
@@ -10064,9 +10064,9 @@
      "ExprRefPathStatic": 1,
      "ExprSignedNumber": 4,
      "ExprUnary": 4,
-     "ExprUnsignedNumber": 221,
+     "ExprUnsignedNumber": 234,
      "ExtendType": 2,
-     "Field": 35,
+     "Field": 48,
      "FunctionDefinition": 1,
      "FunctionParamDecl": 192,
      "FunctionPrototype": 126,
@@ -10097,8 +10097,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 3025,
-    "digest": "f797077ff7b666a24d18368796d1690235c478752598b8974aa677fbb679b6db"
+    "count": 3077,
+    "digest": "777450bb153094f8784ae121ed7b3054b78d5c852536d548dabc6f3188d23044"
    },
    "units": [
     {
@@ -10205,7 +10205,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 96,
+     "DataTypeInt": 110,
      "DataTypeRef": 7,
      "DataTypeString": 48,
      "DataTypeUserDefined": 157,
@@ -10219,16 +10219,16 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 35,
-     "ExprId": 710,
+     "ExprId": 724,
      "ExprMemberPathElem": 43,
      "ExprNull": 2,
      "ExprRefPathContext": 35,
      "ExprRefPathStatic": 1,
      "ExprSignedNumber": 4,
      "ExprUnary": 5,
-     "ExprUnsignedNumber": 216,
+     "ExprUnsignedNumber": 230,
      "ExtendType": 2,
-     "Field": 35,
+     "Field": 49,
      "FieldClaim": 1,
      "FieldCompRef": 1,
      "FieldRef": 2,
@@ -10260,8 +10260,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 3046,
-    "digest": "795ad1d7668446fc914177a3531b37c3f9e63c366098046a3bdd94567ebff571"
+    "count": 3102,
+    "digest": "c0c2eefcc1ab6589e877ddc13c9c51b6fa2d7924ee47f384072af64d56087b82"
    },
    "units": [
     {
@@ -10370,7 +10370,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 96,
+     "DataTypeInt": 110,
      "DataTypeRef": 7,
      "DataTypeString": 48,
      "DataTypeUserDefined": 157,
@@ -10384,16 +10384,16 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 33,
-     "ExprId": 706,
+     "ExprId": 720,
      "ExprMemberPathElem": 40,
      "ExprNull": 2,
      "ExprRefPathContext": 33,
      "ExprRefPathStatic": 1,
      "ExprSignedNumber": 4,
      "ExprUnary": 5,
-     "ExprUnsignedNumber": 216,
+     "ExprUnsignedNumber": 230,
      "ExtendType": 2,
-     "Field": 35,
+     "Field": 49,
      "FieldClaim": 1,
      "FieldCompRef": 1,
      "FieldRef": 2,
@@ -10425,8 +10425,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 3032,
-    "digest": "f7a3214dce2b06eb4a0576b4aaffb46744d6d92ea53dc1ef889dd41695aa0b05"
+    "count": 3088,
+    "digest": "8ed86ff7202b75e5f82b55daa4476ea0c1fbafbe817cea35ba2c5fa4ced86faf"
    },
    "units": [
     {
@@ -10532,7 +10532,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 97,
+     "DataTypeInt": 110,
      "DataTypeRef": 7,
      "DataTypeString": 48,
      "DataTypeUserDefined": 156,
@@ -10545,16 +10545,16 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 41,
-     "ExprId": 712,
+     "ExprId": 725,
      "ExprMemberPathElem": 46,
      "ExprNull": 2,
      "ExprRefPathContext": 41,
      "ExprRefPathStatic": 1,
      "ExprSignedNumber": 4,
      "ExprUnary": 4,
-     "ExprUnsignedNumber": 220,
+     "ExprUnsignedNumber": 233,
      "ExtendType": 2,
-     "Field": 35,
+     "Field": 48,
      "FunctionDefinition": 1,
      "FunctionParamDecl": 191,
      "FunctionPrototype": 126,
@@ -10589,8 +10589,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 3075,
-    "digest": "01d5242d45c83cc0d468ef43ef4887ae34149824ebd57e44fd1377aa76d8ed0c"
+    "count": 3127,
+    "digest": "1b93ecff39be0d1dce3cecd1301804563727d9b2ea32de4c2f7f1ce12a77b2d5"
    },
    "units": [
     {
@@ -10697,7 +10697,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 97,
+     "DataTypeInt": 110,
      "DataTypeRef": 7,
      "DataTypeString": 48,
      "DataTypeUserDefined": 156,
@@ -10710,16 +10710,16 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 41,
-     "ExprId": 712,
+     "ExprId": 725,
      "ExprMemberPathElem": 46,
      "ExprNull": 2,
      "ExprRefPathContext": 41,
      "ExprRefPathStatic": 1,
      "ExprSignedNumber": 4,
      "ExprUnary": 4,
-     "ExprUnsignedNumber": 220,
+     "ExprUnsignedNumber": 233,
      "ExtendType": 2,
-     "Field": 35,
+     "Field": 48,
      "FunctionDefinition": 1,
      "FunctionParamDecl": 191,
      "FunctionPrototype": 126,
@@ -10754,8 +10754,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 3075,
-    "digest": "3eaa5095687ca343770ee19039a524ef84153fd552ac94cf5ab3cf5f0b63ce15"
+    "count": 3127,
+    "digest": "63abac140843524852e3791218f670e1c155d0eef026c5fe67a2886c86df7832"
    },
    "units": [
     {
@@ -10864,7 +10864,7 @@
      "DataTypeBool": 13,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 100,
+     "DataTypeInt": 116,
      "DataTypeRef": 7,
      "DataTypeString": 48,
      "DataTypeUserDefined": 172,
@@ -10877,16 +10877,16 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 57,
-     "ExprId": 768,
+     "ExprId": 784,
      "ExprMemberPathElem": 68,
      "ExprNull": 2,
      "ExprRefPathContext": 57,
      "ExprRefPathStatic": 1,
      "ExprSignedNumber": 4,
      "ExprUnary": 4,
-     "ExprUnsignedNumber": 224,
+     "ExprUnsignedNumber": 240,
      "ExtendType": 1,
-     "Field": 46,
+     "Field": 62,
      "FieldPool": 2,
      "FunctionParamDecl": 191,
      "FunctionPrototype": 125,
@@ -10918,8 +10918,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 3316,
-    "digest": "8413c876fd1f9d7ceb8761221bd59e9b8f5b0bcca121f62a0d031d99d77e6d10"
+    "count": 3380,
+    "digest": "360b738936e5bd4e5c5ac7d39a884f597af787d37881e5088f836a42954eb1f4"
    },
    "units": [
     {
@@ -11027,7 +11027,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 96,
+     "DataTypeInt": 110,
      "DataTypeRef": 7,
      "DataTypeString": 48,
      "DataTypeUserDefined": 158,
@@ -11041,16 +11041,16 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 46,
-     "ExprId": 731,
+     "ExprId": 745,
      "ExprMemberPathElem": 60,
      "ExprNull": 2,
      "ExprRefPathContext": 46,
      "ExprRefPathStatic": 1,
      "ExprSignedNumber": 4,
      "ExprUnary": 4,
-     "ExprUnsignedNumber": 216,
+     "ExprUnsignedNumber": 230,
      "ExtendType": 2,
-     "Field": 35,
+     "Field": 49,
      "FieldClaim": 1,
      "FieldCompRef": 1,
      "FieldRef": 2,
@@ -11084,8 +11084,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 3120,
-    "digest": "c17c40892ce58210870b1f9f9fa1406f88095db28d025a5e79c66d20fd81208d"
+    "count": 3176,
+    "digest": "664cfcec1a6226db8c6798e097016476d6751925af2553a4346290e492684851"
    },
    "units": [
     {
@@ -11195,7 +11195,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 95,
+     "DataTypeInt": 109,
      "DataTypeRef": 7,
      "DataTypeString": 48,
      "DataTypeUserDefined": 158,
@@ -11208,16 +11208,16 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 31,
-     "ExprId": 698,
+     "ExprId": 712,
      "ExprMemberPathElem": 32,
      "ExprNull": 2,
      "ExprRefPathContext": 31,
      "ExprRefPathStatic": 1,
      "ExprSignedNumber": 4,
      "ExprUnary": 4,
-     "ExprUnsignedNumber": 216,
+     "ExprUnsignedNumber": 230,
      "ExtendType": 1,
-     "Field": 36,
+     "Field": 50,
      "FieldPool": 2,
      "FunctionDefinition": 1,
      "FunctionParamDecl": 190,
@@ -11248,8 +11248,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 3014,
-    "digest": "576105cfd1b66b2be7cfa51e4b1f1362201ba3f7b3c8c4a5d78888d441424e11"
+    "count": 3070,
+    "digest": "2ea23dc79c7f9220e2f4c9e6f74ccb21e8e8bc06297854477680080f5fcb7032"
    },
    "units": [
     {
@@ -11358,7 +11358,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 95,
+     "DataTypeInt": 109,
      "DataTypeRef": 7,
      "DataTypeString": 48,
      "DataTypeUserDefined": 157,
@@ -11370,16 +11370,16 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 32,
-     "ExprId": 699,
+     "ExprId": 713,
      "ExprMemberPathElem": 34,
      "ExprNull": 2,
      "ExprRefPathContext": 32,
      "ExprRefPathStatic": 1,
      "ExprSignedNumber": 4,
      "ExprUnary": 4,
-     "ExprUnsignedNumber": 215,
+     "ExprUnsignedNumber": 229,
      "ExtendType": 2,
-     "Field": 38,
+     "Field": 52,
      "FieldCompRef": 1,
      "FunctionParamDecl": 189,
      "FunctionPrototype": 125,
@@ -11407,8 +11407,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 3004,
-    "digest": "8207a27d4252d48fca568c9ef69754af660ba754df275c60b3b2667027d1303f"
+    "count": 3060,
+    "digest": "9a90103e62a429f429c801b2106b923074641fde03645833fc40934d561ec756"
    },
    "units": [
     {
@@ -11512,7 +11512,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 95,
+     "DataTypeInt": 109,
      "DataTypeRef": 7,
      "DataTypeString": 48,
      "DataTypeUserDefined": 158,
@@ -11524,16 +11524,16 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 35,
-     "ExprId": 707,
+     "ExprId": 721,
      "ExprMemberPathElem": 39,
      "ExprNull": 2,
      "ExprRefPathContext": 35,
      "ExprRefPathStatic": 1,
      "ExprSignedNumber": 4,
      "ExprUnary": 4,
-     "ExprUnsignedNumber": 215,
+     "ExprUnsignedNumber": 229,
      "ExtendType": 2,
-     "Field": 39,
+     "Field": 53,
      "FieldCompRef": 1,
      "FunctionParamDecl": 189,
      "FunctionPrototype": 125,
@@ -11561,8 +11561,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 3030,
-    "digest": "1bad7b39de7b35ae33ad1df7374fce0bba02dd7af744aff4aa92787a4064b738"
+    "count": 3086,
+    "digest": "4750a4e6611fafcf6af20dea34dd0c1727cc86b58853c211029ec6e9e12fd4c2"
    },
    "units": [
     {
@@ -11664,7 +11664,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 95,
+     "DataTypeInt": 109,
      "DataTypeRef": 7,
      "DataTypeString": 48,
      "DataTypeUserDefined": 156,
@@ -11676,16 +11676,16 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 29,
-     "ExprId": 691,
+     "ExprId": 705,
      "ExprMemberPathElem": 29,
      "ExprNull": 2,
      "ExprRefPathContext": 29,
      "ExprRefPathStatic": 1,
      "ExprSignedNumber": 4,
      "ExprUnary": 4,
-     "ExprUnsignedNumber": 215,
+     "ExprUnsignedNumber": 229,
      "ExtendType": 2,
-     "Field": 37,
+     "Field": 51,
      "FieldCompRef": 1,
      "FunctionParamDecl": 189,
      "FunctionPrototype": 125,
@@ -11713,8 +11713,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 2977,
-    "digest": "b70ed2b727ab3ec29fd065cd51234bb5ce42c154911b78b68da6402e9811f833"
+    "count": 3033,
+    "digest": "4aed6f0d145fd4bfc3c1b3d095d2ae28cfe98c62e5d9ad5f74140a4c842f6922"
    },
    "units": [
     {
@@ -11815,7 +11815,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 95,
+     "DataTypeInt": 109,
      "DataTypeRef": 7,
      "DataTypeString": 48,
      "DataTypeUserDefined": 157,
@@ -11827,16 +11827,16 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 32,
-     "ExprId": 699,
+     "ExprId": 713,
      "ExprMemberPathElem": 34,
      "ExprNull": 2,
      "ExprRefPathContext": 32,
      "ExprRefPathStatic": 1,
      "ExprSignedNumber": 4,
      "ExprUnary": 4,
-     "ExprUnsignedNumber": 215,
+     "ExprUnsignedNumber": 229,
      "ExtendType": 2,
-     "Field": 38,
+     "Field": 52,
      "FieldCompRef": 1,
      "FunctionParamDecl": 189,
      "FunctionPrototype": 125,
@@ -11864,8 +11864,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 3003,
-    "digest": "e9b5000e52e91abc162efa737e5162a2d1f57bd3ce2f36a5ee44100e6102d62a"
+    "count": 3059,
+    "digest": "900c30d79e08fc547d565f66e3a05ae66e6d6c464b4ac35c5e63a0f1d0928054"
    },
    "units": [
     {
@@ -11963,7 +11963,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 137,
+     "DataTypeInt": 164,
      "DataTypeRef": 7,
      "DataTypeString": 52,
      "DataTypeUserDefined": 201,
@@ -11976,7 +11976,7 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 40,
-     "ExprId": 849,
+     "ExprId": 876,
      "ExprMemberPathElem": 40,
      "ExprNull": 2,
      "ExprOpenRangeList": 6,
@@ -11986,9 +11986,9 @@
      "ExprSignedNumber": 4,
      "ExprString": 6,
      "ExprUnary": 6,
-     "ExprUnsignedNumber": 273,
+     "ExprUnsignedNumber": 300,
      "ExtendType": 1,
-     "Field": 63,
+     "Field": 90,
      "FunctionDefinition": 2,
      "FunctionParamDecl": 218,
      "FunctionPrototype": 127,
@@ -12019,8 +12019,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 3750,
-    "digest": "da661044aa71fce310cf6bd1439e78f1ef78e67f99fa0fd7d7f50a8b0cdd16c4"
+    "count": 3858,
+    "digest": "0b342886a01efb133360faeaf5f84ca2c766af845edea83f833cb9c433424ffa"
    },
    "units": [
     {
@@ -12135,10 +12135,10 @@
      "DataTypeBool": 16,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 101,
+     "DataTypeInt": 117,
      "DataTypeRef": 7,
      "DataTypeString": 48,
-     "DataTypeUserDefined": 156,
+     "DataTypeUserDefined": 157,
      "EnumDecl": 10,
      "EnumItem": 29,
      "ExprAggrEmpty": 28,
@@ -12147,7 +12147,7 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 33,
-     "ExprId": 715,
+     "ExprId": 733,
      "ExprIn": 1,
      "ExprMemberPathElem": 35,
      "ExprNull": 2,
@@ -12157,9 +12157,9 @@
      "ExprRefPathStatic": 1,
      "ExprSignedNumber": 4,
      "ExprUnary": 6,
-     "ExprUnsignedNumber": 232,
+     "ExprUnsignedNumber": 248,
      "ExtendType": 1,
-     "Field": 45,
+     "Field": 62,
      "FunctionParamDecl": 189,
      "FunctionPrototype": 125,
      "GlobalScope": 3,
@@ -12171,7 +12171,7 @@
      "SymbolExtendScope": 1,
      "SymbolFunctionScope": 129,
      "SymbolImportSpec": 2,
-     "SymbolRefPath": 158,
+     "SymbolRefPath": 159,
      "SymbolScope": 161,
      "SymbolTypeScope": 50,
      "TemplateCategoryTypeParamDecl": 11,
@@ -12181,13 +12181,13 @@
      "TemplateParamTypeValue": 23,
      "TemplateParamValueList": 25,
      "TemplateValueParamDecl": 19,
-     "TypeIdentifier": 184,
-     "TypeIdentifierElem": 186,
+     "TypeIdentifier": 185,
+     "TypeIdentifierElem": 187,
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 3082,
-    "digest": "b86e08e875283ad0d9ea5c9f4560711277c3a00182ea3eb589effc15ad4b8222"
+    "count": 3153,
+    "digest": "f270cd3630727a035e5eb8e14e5f0321834983d5075ff58b4b79ea3348d12e5e"
    },
    "units": [
     {
@@ -12269,7 +12269,7 @@
       "TypeIdentifierElem": 2
      },
      "count": 128,
-     "digest": "4c0155d787957121c2c9c21f1e9fca6fdae515332c4e24b215e3e7dffd20b196",
+     "digest": "38ff3a339dcc2744a27547cee2e725a75dee6b668e0d9c59f4ccc294385af4a4",
      "fileid": 1
     }
    ],
@@ -12294,7 +12294,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 96,
+     "DataTypeInt": 109,
      "DataTypeRef": 7,
      "DataTypeString": 48,
      "DataTypeUserDefined": 154,
@@ -12307,7 +12307,7 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 29,
-     "ExprId": 688,
+     "ExprId": 701,
      "ExprMemberPathElem": 31,
      "ExprNull": 2,
      "ExprRefPathContext": 29,
@@ -12315,9 +12315,9 @@
      "ExprSignedNumber": 4,
      "ExprString": 1,
      "ExprUnary": 4,
-     "ExprUnsignedNumber": 217,
+     "ExprUnsignedNumber": 230,
      "ExtendType": 2,
-     "Field": 35,
+     "Field": 48,
      "FunctionDefinition": 1,
      "FunctionParamDecl": 190,
      "FunctionPrototype": 126,
@@ -12347,8 +12347,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 2976,
-    "digest": "a8e5aaff52605107d73aac64a444fe268bc9f8300472b33d2c713ec5c33846e4"
+    "count": 3028,
+    "digest": "5afefedee4e50f894a6115b51e0b1fff6ff96fff0562658e871ff046a08e3b33"
    },
    "units": [
     {
@@ -12449,7 +12449,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 97,
+     "DataTypeInt": 110,
      "DataTypeRef": 7,
      "DataTypeString": 48,
      "DataTypeUserDefined": 155,
@@ -12463,7 +12463,7 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 32,
-     "ExprId": 698,
+     "ExprId": 711,
      "ExprMemberPathElem": 38,
      "ExprNull": 2,
      "ExprRefPathContext": 32,
@@ -12471,9 +12471,9 @@
      "ExprSignedNumber": 4,
      "ExprString": 2,
      "ExprUnary": 4,
-     "ExprUnsignedNumber": 218,
+     "ExprUnsignedNumber": 231,
      "ExtendType": 2,
-     "Field": 35,
+     "Field": 48,
      "FunctionDefinition": 1,
      "FunctionParamDecl": 191,
      "FunctionPrototype": 126,
@@ -12503,8 +12503,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 3014,
-    "digest": "3cf9cf34a9082f07c56171e108d4ade820918381beb87a8ea85f85589da35904"
+    "count": 3066,
+    "digest": "da901336fa717e611ee7e0c6ad238b9be464d4f3fb47db87e2d6e64ff0c08a04"
    },
    "units": [
     {
@@ -12614,7 +12614,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 95,
+     "DataTypeInt": 109,
      "DataTypeRef": 7,
      "DataTypeString": 48,
      "DataTypeUserDefined": 160,
@@ -12626,16 +12626,16 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 27,
-     "ExprId": 689,
+     "ExprId": 703,
      "ExprMemberPathElem": 27,
      "ExprNull": 2,
      "ExprRefPathContext": 27,
      "ExprRefPathStatic": 1,
      "ExprSignedNumber": 4,
      "ExprUnary": 4,
-     "ExprUnsignedNumber": 216,
+     "ExprUnsignedNumber": 230,
      "ExtendType": 2,
-     "Field": 35,
+     "Field": 49,
      "FieldCompRef": 1,
      "FunctionParamDecl": 189,
      "FunctionPrototype": 125,
@@ -12663,8 +12663,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 2991,
-    "digest": "4c9470fed0f5f501b38e1c3b8830450d9e6d26589628b75d4b0439cbd4470adb"
+    "count": 3047,
+    "digest": "315a50fdfb82f44221a48e0cc7c37b4c360f39e15e4a2b2fafaed7c9aff66744"
    },
    "units": [
     {
@@ -12762,7 +12762,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 96,
+     "DataTypeInt": 109,
      "DataTypeRef": 7,
      "DataTypeString": 48,
      "DataTypeUserDefined": 155,
@@ -12775,7 +12775,7 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 38,
-     "ExprId": 698,
+     "ExprId": 711,
      "ExprMemberPathElem": 38,
      "ExprNull": 2,
      "ExprRefPathContext": 38,
@@ -12783,9 +12783,9 @@
      "ExprSignedNumber": 4,
      "ExprString": 1,
      "ExprUnary": 5,
-     "ExprUnsignedNumber": 216,
+     "ExprUnsignedNumber": 229,
      "ExtendType": 2,
-     "Field": 35,
+     "Field": 48,
      "FunctionDefinition": 1,
      "FunctionParamDecl": 191,
      "FunctionPrototype": 126,
@@ -12817,8 +12817,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 3029,
-    "digest": "87186e19193eb0fab2157222e9ecd527778cec7783207ccc46cbd9af29d0b32a"
+    "count": 3081,
+    "digest": "589b236081d9eeb476b21b1c41f88e7497b55b2ced9e88bac78bf9b04aa89c0e"
    },
    "units": [
     {
@@ -12923,7 +12923,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 95,
+     "DataTypeInt": 108,
      "DataTypeRef": 7,
      "DataTypeString": 48,
      "DataTypeUserDefined": 155,
@@ -12936,16 +12936,16 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 30,
-     "ExprId": 691,
+     "ExprId": 704,
      "ExprMemberPathElem": 33,
      "ExprNull": 2,
      "ExprRefPathContext": 30,
      "ExprRefPathStatic": 1,
      "ExprSignedNumber": 4,
      "ExprUnary": 4,
-     "ExprUnsignedNumber": 216,
+     "ExprUnsignedNumber": 229,
      "ExtendType": 2,
-     "Field": 35,
+     "Field": 48,
      "FunctionDefinition": 1,
      "FunctionParamDecl": 189,
      "FunctionPrototype": 126,
@@ -12978,8 +12978,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 2987,
-    "digest": "893c724b825612ea5ec4159ce34ef6e335d9525c7fbf2abaef39702538b4fe41"
+    "count": 3039,
+    "digest": "f49bca0eb7511dc40582006fa6dcfff1657810a0a590c241a4b68a639c6896c1"
    },
    "units": [
     {
@@ -13101,7 +13101,7 @@
      "DataTypeBool": 13,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 101,
+     "DataTypeInt": 120,
      "DataTypeRef": 7,
      "DataTypeString": 48,
      "DataTypeUserDefined": 182,
@@ -13114,7 +13114,7 @@
      "ExprDomainOpenRangeList": 2,
      "ExprDomainOpenRangeValue": 65,
      "ExprHierarchicalId": 42,
-     "ExprId": 761,
+     "ExprId": 780,
      "ExprMemberPathElem": 44,
      "ExprNull": 2,
      "ExprOpenRangeList": 2,
@@ -13123,9 +13123,9 @@
      "ExprRefPathStatic": 1,
      "ExprSignedNumber": 4,
      "ExprUnary": 4,
-     "ExprUnsignedNumber": 237,
+     "ExprUnsignedNumber": 256,
      "ExtendType": 1,
-     "Field": 44,
+     "Field": 63,
      "FieldCompRef": 4,
      "FunctionParamDecl": 189,
      "FunctionPrototype": 125,
@@ -13154,8 +13154,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 3331,
-    "digest": "381ca53d61eefd90f13f00b465643276ca0611e45a733a65bde84081afef2dc6"
+    "count": 3407,
+    "digest": "7127b50306f5f8c0021a63036c326ac0a5e19af5414f4fd9b99b2be0961af5c7"
    },
    "units": [
     {
@@ -13295,7 +13295,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 97,
+     "DataTypeInt": 121,
      "DataTypeRef": 7,
      "DataTypeString": 48,
      "DataTypeUserDefined": 174,
@@ -13307,7 +13307,7 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 47,
-     "ExprId": 793,
+     "ExprId": 817,
      "ExprMemberPathElem": 56,
      "ExprNull": 2,
      "ExprRefName": 2,
@@ -13315,9 +13315,9 @@
      "ExprRefPathStatic": 1,
      "ExprSignedNumber": 4,
      "ExprUnary": 4,
-     "ExprUnsignedNumber": 217,
+     "ExprUnsignedNumber": 241,
      "ExtendType": 1,
-     "Field": 40,
+     "Field": 64,
      "FieldCompRef": 3,
      "FunctionParamDecl": 189,
      "FunctionPrototype": 125,
@@ -13353,8 +13353,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 3363,
-    "digest": "c5c4e5711e71d42318bcb2a98f12d6d1577dcae31a333b226c0615cb95d2af2e"
+    "count": 3459,
+    "digest": "e5a977f98ddfcc81a186dfe1314b4c13ed34e36f6ad0ea949600d0a1282ccedc"
    },
    "units": [
     {
@@ -13486,7 +13486,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 104,
+     "DataTypeInt": 121,
      "DataTypeRef": 7,
      "DataTypeString": 48,
      "DataTypeUserDefined": 165,
@@ -13499,16 +13499,16 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 56,
-     "ExprId": 768,
+     "ExprId": 785,
      "ExprMemberPathElem": 66,
      "ExprNull": 2,
      "ExprRefPathContext": 56,
      "ExprRefPathStatic": 1,
      "ExprSignedNumber": 4,
      "ExprUnary": 4,
-     "ExprUnsignedNumber": 241,
+     "ExprUnsignedNumber": 258,
      "ExtendType": 1,
-     "Field": 48,
+     "Field": 65,
      "FieldCompRef": 2,
      "FunctionParamDecl": 189,
      "FunctionPrototype": 125,
@@ -13539,8 +13539,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 3336,
-    "digest": "080adf679834f8a0a501a674f0b10d7cae927718a1357045e71545939a6df887"
+    "count": 3404,
+    "digest": "d8670de4ece46ffd8c596de604dc59fa3183d851899cbcf37620b6cdcbc78aac"
    },
    "units": [
     {
@@ -13672,7 +13672,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 98,
+     "DataTypeInt": 116,
      "DataTypeRef": 7,
      "DataTypeString": 48,
      "DataTypeUserDefined": 162,
@@ -13684,7 +13684,7 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 35,
-     "ExprId": 743,
+     "ExprId": 761,
      "ExprIn": 1,
      "ExprMemberPathElem": 35,
      "ExprNull": 2,
@@ -13696,9 +13696,9 @@
      "ExprSignedNumber": 4,
      "ExprString": 1,
      "ExprUnary": 4,
-     "ExprUnsignedNumber": 235,
+     "ExprUnsignedNumber": 253,
      "ExtendType": 1,
-     "Field": 43,
+     "Field": 61,
      "FieldCompRef": 3,
      "FunctionParamDecl": 189,
      "FunctionPrototype": 125,
@@ -13726,8 +13726,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 3163,
-    "digest": "6851d86730410abe07702c685cbd37851b7a9200b006dad5b4e813fb419c8928"
+    "count": 3235,
+    "digest": "36003ae4b002314338924ff395d57eaf41d3dc29b0b9a197bde57f0cb629f014"
    },
    "units": [
     {
@@ -13852,7 +13852,7 @@
      "DataTypeBool": 13,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 105,
+     "DataTypeInt": 126,
      "DataTypeRef": 7,
      "DataTypeString": 48,
      "DataTypeUserDefined": 172,
@@ -13865,7 +13865,7 @@
      "ExprDomainOpenRangeList": 5,
      "ExprDomainOpenRangeValue": 71,
      "ExprHierarchicalId": 43,
-     "ExprId": 774,
+     "ExprId": 795,
      "ExprMemberPathElem": 43,
      "ExprNull": 2,
      "ExprRefPathContext": 43,
@@ -13873,9 +13873,9 @@
      "ExprSignedNumber": 4,
      "ExprString": 2,
      "ExprUnary": 4,
-     "ExprUnsignedNumber": 242,
+     "ExprUnsignedNumber": 263,
      "ExtendType": 3,
-     "Field": 50,
+     "Field": 71,
      "FieldCompRef": 6,
      "FunctionParamDecl": 189,
      "FunctionPrototype": 125,
@@ -13905,8 +13905,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 3376,
-    "digest": "aa530a7557d62f1f087bc15eb43c211eff394c573d7171c38d0eaf7b4307afec"
+    "count": 3460,
+    "digest": "c56815d7f0f545bae03cfc9c921a56888ae258c9bb57b8040d313768038d708b"
    },
    "units": [
     {
@@ -14039,10 +14039,10 @@
      "DataTypeBool": 13,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 98,
+     "DataTypeInt": 126,
      "DataTypeRef": 7,
      "DataTypeString": 48,
-     "DataTypeUserDefined": 185,
+     "DataTypeUserDefined": 186,
      "EnumDecl": 9,
      "EnumItem": 26,
      "ExprAggrEmpty": 28,
@@ -14051,7 +14051,7 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 48,
-     "ExprId": 802,
+     "ExprId": 832,
      "ExprIn": 1,
      "ExprMemberPathElem": 59,
      "ExprNull": 2,
@@ -14061,9 +14061,9 @@
      "ExprRefPathStatic": 1,
      "ExprSignedNumber": 4,
      "ExprUnary": 4,
-     "ExprUnsignedNumber": 222,
+     "ExprUnsignedNumber": 250,
      "ExtendType": 1,
-     "Field": 50,
+     "Field": 79,
      "FieldCompRef": 8,
      "FieldPool": 3,
      "FieldRef": 6,
@@ -14078,7 +14078,7 @@
      "SymbolExtendScope": 1,
      "SymbolFunctionScope": 129,
      "SymbolImportSpec": 5,
-     "SymbolRefPath": 202,
+     "SymbolRefPath": 203,
      "SymbolScope": 161,
      "SymbolTypeScope": 62,
      "TemplateCategoryTypeParamDecl": 11,
@@ -14088,13 +14088,13 @@
      "TemplateParamTypeValue": 23,
      "TemplateParamValueList": 25,
      "TemplateValueParamDecl": 19,
-     "TypeIdentifier": 216,
-     "TypeIdentifierElem": 221,
+     "TypeIdentifier": 217,
+     "TypeIdentifierElem": 222,
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 3422,
-    "digest": "e1cbc1545c80f1c8ed1b27f5e4de737a4113ebdd68d14ee735e6bc37e955fc6a"
+    "count": 3541,
+    "digest": "fbc488d41a5dfa04a992258af4a6f247ef0cda9e4836d08b6b374b129d18bba5"
    },
    "units": [
     {
@@ -14187,7 +14187,7 @@
       "TypeIdentifierElem": 29
      },
      "count": 378,
-     "digest": "ed35eda59021943ad37a5ff2d501939de6c975f0510c857e9a642184f510e34f",
+     "digest": "ba98fdc8215092e508303c898f214de0cefc92914e2445ccf3f24a7037765e8e",
      "fileid": 1
     }
    ],
@@ -14214,7 +14214,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 126,
+     "DataTypeInt": 143,
      "DataTypeRef": 7,
      "DataTypeString": 48,
      "DataTypeUserDefined": 161,
@@ -14229,7 +14229,7 @@
      "ExprDomainOpenRangeList": 2,
      "ExprDomainOpenRangeValue": 65,
      "ExprHierarchicalId": 90,
-     "ExprId": 810,
+     "ExprId": 827,
      "ExprIn": 1,
      "ExprMemberPathElem": 96,
      "ExprNull": 2,
@@ -14240,9 +14240,9 @@
      "ExprSignedNumber": 4,
      "ExprString": 1,
      "ExprUnary": 4,
-     "ExprUnsignedNumber": 282,
+     "ExprUnsignedNumber": 299,
      "ExtendType": 1,
-     "Field": 45,
+     "Field": 62,
      "FieldCompRef": 2,
      "FunctionDefinition": 7,
      "FunctionImport": 2,
@@ -14292,8 +14292,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 3665,
-    "digest": "d2a891a435212b630af48385950920ff58115dc50110cabd242a2d14f58a4815"
+    "count": 3733,
+    "digest": "59cfd87a0ac7cbc51fe56a2103d1d6b24081a2e0e8feaa37002c507bfb53f5cc"
    },
    "units": [
     {
@@ -14433,7 +14433,7 @@
      "DataTypeBool": 13,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 125,
+     "DataTypeInt": 151,
      "DataTypeRef": 7,
      "DataTypeString": 52,
      "DataTypeUserDefined": 206,
@@ -14447,7 +14447,7 @@
      "ExprDomainOpenRangeList": 2,
      "ExprDomainOpenRangeValue": 128,
      "ExprHierarchicalId": 67,
-     "ExprId": 889,
+     "ExprId": 915,
      "ExprMemberPathElem": 82,
      "ExprNull": 2,
      "ExprOpenRangeList": 3,
@@ -14457,9 +14457,9 @@
      "ExprSignedNumber": 8,
      "ExprString": 3,
      "ExprUnary": 6,
-     "ExprUnsignedNumber": 390,
+     "ExprUnsignedNumber": 416,
      "ExtendType": 1,
-     "Field": 59,
+     "Field": 85,
      "FieldCompRef": 3,
      "FunctionDefinition": 2,
      "FunctionParamDecl": 208,
@@ -14495,8 +14495,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 4176,
-    "digest": "3fc94507dd9aebd523fc8df6746f45e6a178d5d34018709f0492c2ce1b301a1b"
+    "count": 4280,
+    "digest": "8b59fdb304be148ea263920560cad75f37eadf0603784c91313e033b0dda427d"
    },
    "units": [
     {
@@ -14626,7 +14626,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 106,
+     "DataTypeInt": 127,
      "DataTypeRef": 7,
      "DataTypeString": 48,
      "DataTypeUserDefined": 171,
@@ -14640,7 +14640,7 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 45,
-     "ExprId": 763,
+     "ExprId": 784,
      "ExprIn": 1,
      "ExprMemberPathElem": 54,
      "ExprNull": 2,
@@ -14650,9 +14650,9 @@
      "ExprRefPathStatic": 1,
      "ExprSignedNumber": 4,
      "ExprUnary": 4,
-     "ExprUnsignedNumber": 241,
+     "ExprUnsignedNumber": 262,
      "ExtendType": 1,
-     "Field": 43,
+     "Field": 64,
      "FieldClaim": 4,
      "FieldCompRef": 4,
      "FieldPool": 2,
@@ -14689,8 +14689,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 3310,
-    "digest": "04ec48d9bf3792f1d1cd9ac783df17cc152b11656e7de8b20431c3b2c7a85eb1"
+    "count": 3394,
+    "digest": "eaf8e0985156dd2afdb9893023eec6c474e69e66b39f5baf079e01c05a737c28"
    },
    "units": [
     {
@@ -14791,7 +14791,7 @@
       "TypeIdentifierElem": 17
      },
      "count": 291,
-     "digest": "7d07748fea62e6258a5062d24f36ad9de80aa2f46ee9e1c5fa08365d7b43aa6f",
+     "digest": "95b77115ac7c138f649d5be8ce50c9c5a606d3cc296e7272ae84f4dc51a450fc",
      "fileid": 1
     }
    ],
@@ -14816,7 +14816,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 95,
+     "DataTypeInt": 108,
      "DataTypeRef": 7,
      "DataTypeString": 62,
      "DataTypeUserDefined": 154,
@@ -14828,7 +14828,7 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 27,
-     "ExprId": 696,
+     "ExprId": 709,
      "ExprMemberPathElem": 27,
      "ExprNull": 2,
      "ExprRefPathContext": 27,
@@ -14836,9 +14836,9 @@
      "ExprSignedNumber": 4,
      "ExprString": 14,
      "ExprUnary": 4,
-     "ExprUnsignedNumber": 215,
+     "ExprUnsignedNumber": 228,
      "ExtendType": 1,
-     "Field": 49,
+     "Field": 62,
      "FunctionParamDecl": 189,
      "FunctionPrototype": 125,
      "GlobalScope": 3,
@@ -14865,8 +14865,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 3002,
-    "digest": "e3ecde408b1e241b9a7fcd3a3c603a17456531b649786bcf8e6a24cc809a9487"
+    "count": 3054,
+    "digest": "1f2ebabb3a08f2d886c925bb2d20a75db6e1f9835dd911af004da6eca92895f6"
    },
    "units": [
     {
@@ -14958,7 +14958,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 102,
+     "DataTypeInt": 117,
      "DataTypeRef": 7,
      "DataTypeString": 48,
      "DataTypeUserDefined": 155,
@@ -14970,16 +14970,16 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 28,
-     "ExprId": 695,
+     "ExprId": 710,
      "ExprMemberPathElem": 28,
      "ExprNull": 2,
      "ExprRefPathContext": 28,
      "ExprRefPathStatic": 1,
      "ExprSignedNumber": 4,
      "ExprUnary": 4,
-     "ExprUnsignedNumber": 223,
+     "ExprUnsignedNumber": 238,
      "ExtendType": 1,
-     "Field": 42,
+     "Field": 57,
      "FieldCompRef": 1,
      "FunctionParamDecl": 189,
      "FunctionPrototype": 125,
@@ -15007,8 +15007,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 2996,
-    "digest": "c6f1abc8dbfbd5d831c106fd75de7794fc78a972ac6c23566018939731b1d0d9"
+    "count": 3056,
+    "digest": "30c991a50574e31c49d8cf7756caed499747546842ddb43105c3bcff4cab498b"
    },
    "units": [
     {
@@ -15107,7 +15107,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 57,
-     "DataTypeInt": 115,
+     "DataTypeInt": 128,
      "DataTypeRef": 7,
      "DataTypeString": 48,
      "DataTypeUserDefined": 154,
@@ -15120,16 +15120,16 @@
      "ExprDomainOpenRangeValue": 64,
      "ExprFloatLiteral": 6,
      "ExprHierarchicalId": 27,
-     "ExprId": 708,
+     "ExprId": 721,
      "ExprMemberPathElem": 27,
      "ExprNull": 2,
      "ExprRefPathContext": 27,
      "ExprRefPathStatic": 1,
      "ExprSignedNumber": 7,
      "ExprUnary": 4,
-     "ExprUnsignedNumber": 252,
+     "ExprUnsignedNumber": 265,
      "ExtendType": 1,
-     "Field": 61,
+     "Field": 74,
      "FunctionParamDecl": 189,
      "FunctionPrototype": 125,
      "GlobalScope": 3,
@@ -15156,8 +15156,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 3070,
-    "digest": "3b36ad4d38ca41b4b1429e31d12fa5d940da723d81cad457a6e042fed361f126"
+    "count": 3122,
+    "digest": "2dbeaacb0385aa4fdb80f9c402a987f6fe3c0827faf939dccb888df70cdc2ad9"
    },
    "units": [
     {
@@ -15269,7 +15269,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 99,
+     "DataTypeInt": 116,
      "DataTypeRef": 7,
      "DataTypeString": 48,
      "DataTypeUserDefined": 159,
@@ -15281,16 +15281,16 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 34,
-     "ExprId": 709,
+     "ExprId": 726,
      "ExprMemberPathElem": 37,
      "ExprNull": 2,
      "ExprRefPathContext": 34,
      "ExprRefPathStatic": 1,
      "ExprSignedNumber": 4,
      "ExprUnary": 4,
-     "ExprUnsignedNumber": 219,
+     "ExprUnsignedNumber": 236,
      "ExtendType": 1,
-     "Field": 42,
+     "Field": 59,
      "FieldCompRef": 2,
      "FunctionParamDecl": 189,
      "FunctionPrototype": 125,
@@ -15318,8 +15318,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 3055,
-    "digest": "6c31b6d2089b835260d860df2e9fb93948ec0dba50e36c91356f54265208ccd8"
+    "count": 3123,
+    "digest": "a7fe16a468fe76b057e66fab569c03f73551884b6a87a5161884ec27fdbfc3e1"
    },
    "units": [
     {
@@ -15405,6 +15405,185 @@
   {
    "files": [
     {
+     "content": "// ex170_prev_sequencing.pss\n//\n// Sequencing constraints on state objects through `prev` (LRM 9.3.3.1g,\n// 13.3), modelled on PSS 3.1 Example 170 and completed to a whole model.\n//\n// Demonstrates:\n//   - `prev.<field>` in a state type's constraints, relating this state to\n//     the previous one in the pool\n//   - `prev` in an extension of the state type, which is also allowed\n//   - two actions outputting the state, one constraining the next state\n//   - `uid`, the built-in bit[32] identifier of every modeling element, on\n//     an action handle and on `comp`\n\nstate power_state_s {\n    rand int in [0..3] domain_A, domain_B, domain_C;\n\n    constraint domain_B in { prev.domain_B - 1,\n                             prev.domain_B,\n                             prev.domain_B + 1 };\n\n    constraint prev.domain_C == 0 -> domain_C in [0, 1] || domain_B == 0;\n}\n\nextend state power_state_s {\n    constraint domain_A != prev.domain_A -> domain_C == prev.domain_C;\n}\n\ncomponent power_ctrl_c {\n    pool power_state_s psvar;\n    bind psvar *;\n\n    action power_trans1 {\n        output power_state_s next_state;\n    }\n\n    action power_trans2 {\n        output power_state_s next_state;\n        constraint next_state.domain_C == 0;\n    }\n}\n\ncomponent pss_top {\n    power_ctrl_c ctrl;\n\n    action test_a {\n        power_ctrl_c::power_trans1 t1;\n        power_ctrl_c::power_trans2 t2;\n        rand bit[32] tag;\n\n        constraint tag != t1.uid;\n        constraint tag != comp.uid;\n\n        activity {\n            t1;\n            t2;\n        }\n    }\n}\n",
+     "name": "lrm31/ex170_prev_sequencing.pss"
+    }
+   ],
+   "id": "corpus:lrm31/ex170_prev_sequencing.pss",
+   "linkRaised": null,
+   "parseRaised": null,
+   "root": {
+    "classes": {
+     "Action": 3,
+     "ActivityActionHandleTraversal": 2,
+     "ActivityDecl": 1,
+     "AnnotationDecl": 2,
+     "Component": 15,
+     "ComponentBind": 1,
+     "ComponentBindTarget": 1,
+     "ConstraintBlock": 11,
+     "ConstraintStmtDefault": 5,
+     "ConstraintStmtExpr": 6,
+     "ConstraintStmtImplication": 2,
+     "DataTypeBool": 13,
+     "DataTypeChandle": 3,
+     "DataTypeFloat": 51,
+     "DataTypeInt": 118,
+     "DataTypeRef": 7,
+     "DataTypeString": 48,
+     "DataTypeUserDefined": 164,
+     "EnumDecl": 8,
+     "EnumItem": 23,
+     "ExprAggrEmpty": 28,
+     "ExprAggrList": 1,
+     "ExprBin": 75,
+     "ExprBool": 4,
+     "ExprDomainOpenRangeList": 4,
+     "ExprDomainOpenRangeValue": 67,
+     "ExprHierarchicalId": 46,
+     "ExprId": 761,
+     "ExprIn": 2,
+     "ExprMemberPathElem": 55,
+     "ExprNull": 2,
+     "ExprOpenRangeList": 2,
+     "ExprOpenRangeValue": 2,
+     "ExprRefPathContext": 46,
+     "ExprRefPathStatic": 1,
+     "ExprSignedNumber": 4,
+     "ExprUnary": 4,
+     "ExprUnsignedNumber": 251,
+     "ExtendType": 2,
+     "Field": 63,
+     "FieldCompRef": 3,
+     "FieldPool": 1,
+     "FieldRef": 2,
+     "FunctionParamDecl": 189,
+     "FunctionPrototype": 125,
+     "GlobalScope": 3,
+     "PackageImportStmt": 3,
+     "PackageScope": 4,
+     "RootSymbolScope": 1,
+     "Struct": 24,
+     "SymbolEnumScope": 8,
+     "SymbolExtendScope": 2,
+     "SymbolFunctionScope": 129,
+     "SymbolImportSpec": 2,
+     "SymbolRefPath": 179,
+     "SymbolScope": 160,
+     "SymbolTypeScope": 52,
+     "TemplateCategoryTypeParamDecl": 11,
+     "TemplateGenericTypeParamDecl": 12,
+     "TemplateParamDeclList": 20,
+     "TemplateParamExprValue": 4,
+     "TemplateParamTypeValue": 23,
+     "TemplateParamValueList": 25,
+     "TemplateValueParamDecl": 19,
+     "TypeIdentifier": 193,
+     "TypeIdentifierElem": 197,
+     "TypeScope": 1,
+     "TypedefDeclaration": 4
+    },
+    "count": 3300,
+    "digest": "952035c0b059cf21abc3ea87409ffb491f5521961e2b5e8e1e899675a41709bf"
+   },
+   "units": [
+    {
+     "classes": {
+      "AnnotationDecl": 2,
+      "Component": 13,
+      "ConstraintBlock": 5,
+      "ConstraintStmtDefault": 5,
+      "DataTypeBool": 10,
+      "DataTypeChandle": 3,
+      "DataTypeFloat": 51,
+      "DataTypeInt": 70,
+      "DataTypeRef": 7,
+      "DataTypeString": 33,
+      "DataTypeUserDefined": 142,
+      "EnumDecl": 8,
+      "EnumItem": 23,
+      "ExprAggrEmpty": 28,
+      "ExprBin": 65,
+      "ExprBool": 4,
+      "ExprDomainOpenRangeList": 1,
+      "ExprDomainOpenRangeValue": 64,
+      "ExprHierarchicalId": 20,
+      "ExprId": 598,
+      "ExprMemberPathElem": 20,
+      "ExprNull": 2,
+      "ExprRefPathContext": 20,
+      "ExprRefPathStatic": 1,
+      "ExprUnary": 4,
+      "ExprUnsignedNumber": 202,
+      "ExtendType": 1,
+      "Field": 29,
+      "FunctionParamDecl": 172,
+      "FunctionPrototype": 108,
+      "GlobalScope": 1,
+      "PackageImportStmt": 3,
+      "PackageScope": 4,
+      "Struct": 18,
+      "TemplateCategoryTypeParamDecl": 11,
+      "TemplateGenericTypeParamDecl": 3,
+      "TemplateParamDeclList": 16,
+      "TemplateParamExprValue": 4,
+      "TemplateParamTypeValue": 20,
+      "TemplateParamValueList": 22,
+      "TemplateValueParamDecl": 11,
+      "TypeIdentifier": 170,
+      "TypeIdentifierElem": 172,
+      "TypedefDeclaration": 4
+     },
+     "count": 2170,
+     "digest": "ed78ec897c7cd26897e03331da80b19a3a098d3d1187985a5fdec5240de6c1db",
+     "fileid": 0
+    },
+    {
+     "classes": {
+      "Action": 3,
+      "ActivityActionHandleTraversal": 2,
+      "ActivityDecl": 1,
+      "Component": 2,
+      "ComponentBind": 1,
+      "ComponentBindTarget": 1,
+      "ConstraintBlock": 6,
+      "ConstraintStmtExpr": 6,
+      "ConstraintStmtImplication": 2,
+      "DataTypeBool": 1,
+      "DataTypeInt": 4,
+      "DataTypeUserDefined": 6,
+      "ExprAggrList": 1,
+      "ExprBin": 10,
+      "ExprDomainOpenRangeList": 3,
+      "ExprDomainOpenRangeValue": 3,
+      "ExprHierarchicalId": 19,
+      "ExprId": 57,
+      "ExprIn": 2,
+      "ExprMemberPathElem": 28,
+      "ExprOpenRangeList": 2,
+      "ExprOpenRangeValue": 2,
+      "ExprRefPathContext": 19,
+      "ExprUnsignedNumber": 17,
+      "ExtendType": 1,
+      "Field": 8,
+      "FieldCompRef": 3,
+      "FieldPool": 1,
+      "FieldRef": 2,
+      "GlobalScope": 1,
+      "Struct": 1,
+      "TypeIdentifier": 7,
+      "TypeIdentifierElem": 9
+     },
+     "count": 231,
+     "digest": "df9860eae6271a41dc65d5029b907bd65504ab9309d88d23806a776465f9d1b3",
+     "fileid": 1
+    }
+   ],
+   "why": "corpus census parity"
+  },
+  {
+   "files": [
+    {
      "content": "// ex243_this_comp_inheritance.pss\n//\n// `comp` and `this.comp` with component inheritance (LRM 9.1.5, 13.1.4),\n// modelled on PSS 3.1 Example 243 and completed to a whole model.\n//\n// Demonstrates:\n//   - an action inherited by a derived component, traversed as\n//     dma_der_c::xfer_a\n//   - the static type of the sub-action's `comp` is the base component, so\n//     the derived component's field `j` is reached through the containing\n//     action's `this.comp.dma1` instead\n\ncomponent dma_base_c {\n    action xfer_a {\n        rand int i;\n    }\n}\n\ncomponent dma_der_c : dma_base_c {\n    int j;\n\n    action mult_xfer_a {\n        activity {\n            repeat (3) {\n                do xfer_a;              // dma_base_c::xfer_a\n            }\n        }\n    }\n}\n\ncomponent pss_top {\n    dma_der_c dma1, dma2;\n\n    action test_a {\n        activity {\n            do dma_base_c::xfer_a;\n            do dma_der_c::xfer_a with {\n                comp == this.comp.dma1;\n                (this.comp.dma1.j < 8) -> i > 4;\n            };\n        }\n    }\n}\n",
      "name": "lrm31/ex243_this_comp_inheritance.pss"
     }
@@ -15429,7 +15608,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 97,
+     "DataTypeInt": 116,
      "DataTypeRef": 7,
      "DataTypeString": 48,
      "DataTypeUserDefined": 162,
@@ -15441,16 +15620,16 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 31,
-     "ExprId": 713,
+     "ExprId": 732,
      "ExprMemberPathElem": 36,
      "ExprNull": 2,
      "ExprRefPathContext": 31,
      "ExprRefPathStatic": 1,
      "ExprSignedNumber": 4,
      "ExprUnary": 4,
-     "ExprUnsignedNumber": 220,
+     "ExprUnsignedNumber": 239,
      "ExtendType": 1,
-     "Field": 39,
+     "Field": 58,
      "FieldCompRef": 3,
      "FunctionParamDecl": 189,
      "FunctionPrototype": 125,
@@ -15478,8 +15657,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 3071,
-    "digest": "e6e75cdba49cb375306d2974368de073d48399d8226862eea56e29728fae43f2"
+    "count": 3147,
+    "digest": "30fe7f5ae2c414e839981c51839be51de3d77e7ef4b7cb9ef4233ce3cc54107b"
    },
    "units": [
     {
@@ -15588,7 +15767,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 100,
+     "DataTypeInt": 120,
      "DataTypeRef": 7,
      "DataTypeString": 48,
      "DataTypeUserDefined": 161,
@@ -15602,7 +15781,7 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 42,
-     "ExprId": 725,
+     "ExprId": 745,
      "ExprMemberPathElem": 42,
      "ExprNull": 2,
      "ExprRefPathContext": 39,
@@ -15611,9 +15790,9 @@
      "ExprSignedNumber": 4,
      "ExprString": 3,
      "ExprUnary": 4,
-     "ExprUnsignedNumber": 224,
+     "ExprUnsignedNumber": 244,
      "ExtendType": 1,
-     "Field": 38,
+     "Field": 58,
      "FieldCompRef": 4,
      "FunctionDefinition": 2,
      "FunctionParamDecl": 190,
@@ -15647,8 +15826,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 3162,
-    "digest": "a6246f292807a9a8654efee2a4c3256ea8ce3e3dcc24b1ada0a1679fd4789a53"
+    "count": 3242,
+    "digest": "49b901218f69d716b826a33002c9406a9feb7d0fe95decf13d825f23ee3104f7"
    },
    "units": [
     {
@@ -15861,7 +16040,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 121,
+     "DataTypeInt": 146,
      "DataTypeRef": 7,
      "DataTypeString": 52,
      "DataTypeUserDefined": 203,
@@ -15874,7 +16053,7 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 35,
-     "ExprId": 830,
+     "ExprId": 855,
      "ExprMemberPathElem": 35,
      "ExprNull": 2,
      "ExprOpenRangeList": 5,
@@ -15884,9 +16063,9 @@
      "ExprSignedNumber": 4,
      "ExprString": 5,
      "ExprUnary": 6,
-     "ExprUnsignedNumber": 253,
+     "ExprUnsignedNumber": 278,
      "ExtendType": 1,
-     "Field": 51,
+     "Field": 76,
      "FunctionDefinition": 2,
      "FunctionParamDecl": 215,
      "FunctionPrototype": 127,
@@ -15917,8 +16096,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 3664,
-    "digest": "8ae4c5efcab5b9f9e4593ef886ee149eab9e86b164f889871a68599df9f3853b"
+    "count": 3764,
+    "digest": "a062e76701efd9eebb755b376c10f52e154ad72d7482c83f8cf708b070c80ba0"
    },
    "units": [
     {
@@ -16031,7 +16210,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 109,
+     "DataTypeInt": 128,
      "DataTypeRef": 7,
      "DataTypeString": 52,
      "DataTypeUserDefined": 176,
@@ -16044,7 +16223,7 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 35,
-     "ExprId": 758,
+     "ExprId": 777,
      "ExprMemberPathElem": 35,
      "ExprNull": 2,
      "ExprOpenRangeList": 2,
@@ -16054,9 +16233,9 @@
      "ExprSignedNumber": 4,
      "ExprString": 2,
      "ExprUnary": 6,
-     "ExprUnsignedNumber": 232,
+     "ExprUnsignedNumber": 251,
      "ExtendType": 1,
-     "Field": 39,
+     "Field": 58,
      "FunctionDefinition": 2,
      "FunctionParamDecl": 206,
      "FunctionPrototype": 127,
@@ -16087,8 +16266,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 3325,
-    "digest": "5782aef71544c6123570f8b32a1c025d2b858780fcc0842f3e18d7e0132a839a"
+    "count": 3401,
+    "digest": "0a49802fddc72a1d4816da337eb1e16a7f5b9d25e715e3a3c93b78f917f7e7a4"
    },
    "units": [
     {
@@ -16201,7 +16380,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 109,
+     "DataTypeInt": 126,
      "DataTypeRef": 7,
      "DataTypeString": 52,
      "DataTypeUserDefined": 172,
@@ -16214,7 +16393,7 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 37,
-     "ExprId": 748,
+     "ExprId": 765,
      "ExprMemberPathElem": 37,
      "ExprNull": 2,
      "ExprOpenRangeList": 2,
@@ -16224,9 +16403,9 @@
      "ExprSignedNumber": 4,
      "ExprString": 2,
      "ExprUnary": 6,
-     "ExprUnsignedNumber": 236,
+     "ExprUnsignedNumber": 253,
      "ExtendType": 1,
-     "Field": 38,
+     "Field": 55,
      "FunctionDefinition": 2,
      "FunctionParamDecl": 203,
      "FunctionPrototype": 127,
@@ -16257,8 +16436,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 3295,
-    "digest": "7855d1f201ba568fb6acebc4fc42e536c929ccf514d749d025fbd17f6a911f81"
+    "count": 3363,
+    "digest": "01726c09853ad9d8de2eed41f12d81f5e1b28f1a7511f703f46ad56416e1223e"
    },
    "units": [
     {
@@ -16372,7 +16551,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 112,
+     "DataTypeInt": 130,
      "DataTypeRef": 7,
      "DataTypeString": 54,
      "DataTypeUserDefined": 173,
@@ -16385,7 +16564,7 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 39,
-     "ExprId": 759,
+     "ExprId": 777,
      "ExprMemberPathElem": 39,
      "ExprNull": 2,
      "ExprOpenRangeList": 3,
@@ -16395,9 +16574,9 @@
      "ExprSignedNumber": 4,
      "ExprString": 3,
      "ExprUnary": 8,
-     "ExprUnsignedNumber": 242,
+     "ExprUnsignedNumber": 260,
      "ExtendType": 1,
-     "Field": 39,
+     "Field": 57,
      "FunctionDefinition": 4,
      "FunctionParamDecl": 206,
      "FunctionPrototype": 129,
@@ -16428,8 +16607,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 3361,
-    "digest": "cada4617745d9773866bd9eaf4ec9927806d2ec7ef035be54c1fb3d448adca95"
+    "count": 3433,
+    "digest": "89e5f84c40b8b282fabd487affc702ea02a3dc2b821397264efc29f3e3f202dd"
    },
    "units": [
     {
@@ -16543,7 +16722,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 119,
+     "DataTypeInt": 137,
      "DataTypeRef": 7,
      "DataTypeString": 54,
      "DataTypeUserDefined": 173,
@@ -16556,7 +16735,7 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 44,
-     "ExprId": 771,
+     "ExprId": 789,
      "ExprMemberPathElem": 44,
      "ExprNull": 2,
      "ExprOpenRangeList": 3,
@@ -16566,9 +16745,9 @@
      "ExprSignedNumber": 4,
      "ExprString": 3,
      "ExprUnary": 8,
-     "ExprUnsignedNumber": 252,
+     "ExprUnsignedNumber": 270,
      "ExtendType": 1,
-     "Field": 39,
+     "Field": 57,
      "FunctionDefinition": 6,
      "FunctionParamDecl": 211,
      "FunctionPrototype": 131,
@@ -16599,8 +16778,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 3433,
-    "digest": "29c95ad418ed648ffb847c6301ae15d2ce3a828a21995e2090b082cc0475cf54"
+    "count": 3505,
+    "digest": "e9daf200637b06a915a08cda8f163ab2f3cb5487758607acc7511b093b5c599c"
    },
    "units": [
     {
@@ -16714,7 +16893,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 137,
+     "DataTypeInt": 165,
      "DataTypeRef": 7,
      "DataTypeString": 58,
      "DataTypeUserDefined": 213,
@@ -16727,7 +16906,7 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 44,
-     "ExprId": 884,
+     "ExprId": 912,
      "ExprMemberPathElem": 44,
      "ExprNull": 2,
      "ExprOpenRangeList": 9,
@@ -16737,9 +16916,9 @@
      "ExprSignedNumber": 4,
      "ExprString": 9,
      "ExprUnary": 12,
-     "ExprUnsignedNumber": 288,
+     "ExprUnsignedNumber": 316,
      "ExtendType": 1,
-     "Field": 59,
+     "Field": 87,
      "FunctionDefinition": 8,
      "FunctionParamDecl": 224,
      "FunctionPrototype": 133,
@@ -16770,8 +16949,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 3984,
-    "digest": "d04db83be3f43656b18a2ac78c0137bee5ae22d922059ce07843b9233f271494"
+    "count": 4096,
+    "digest": "5507c9fcbf09bd03a7d81feb5e53e46888bc24b917748859ba0b1f2a33257a7f"
    },
    "units": [
     {
@@ -16885,7 +17064,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 144,
+     "DataTypeInt": 174,
      "DataTypeRef": 7,
      "DataTypeString": 58,
      "DataTypeUserDefined": 221,
@@ -16898,7 +17077,7 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 44,
-     "ExprId": 909,
+     "ExprId": 939,
      "ExprMemberPathElem": 44,
      "ExprNull": 2,
      "ExprOpenRangeList": 9,
@@ -16908,9 +17087,9 @@
      "ExprSignedNumber": 4,
      "ExprString": 9,
      "ExprUnary": 12,
-     "ExprUnsignedNumber": 297,
+     "ExprUnsignedNumber": 327,
      "ExtendType": 1,
-     "Field": 65,
+     "Field": 95,
      "FunctionDefinition": 8,
      "FunctionParamDecl": 227,
      "FunctionPrototype": 133,
@@ -16941,8 +17120,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 4096,
-    "digest": "29ce505b1aebcae7af2c8fc9ec419fce145b2b81daa2b87c6eab3b6458c2646a"
+    "count": 4216,
+    "digest": "86c37e06d31acf3d828c85935f1b5f031cbec7c78c9b705795623a41287a0d60"
    },
    "units": [
     {
@@ -17056,7 +17235,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 137,
+     "DataTypeInt": 165,
      "DataTypeRef": 7,
      "DataTypeString": 58,
      "DataTypeUserDefined": 213,
@@ -17069,7 +17248,7 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 44,
-     "ExprId": 884,
+     "ExprId": 912,
      "ExprMemberPathElem": 44,
      "ExprNull": 2,
      "ExprOpenRangeList": 9,
@@ -17079,9 +17258,9 @@
      "ExprSignedNumber": 4,
      "ExprString": 9,
      "ExprUnary": 12,
-     "ExprUnsignedNumber": 288,
+     "ExprUnsignedNumber": 316,
      "ExtendType": 1,
-     "Field": 59,
+     "Field": 87,
      "FunctionDefinition": 8,
      "FunctionParamDecl": 224,
      "FunctionPrototype": 133,
@@ -17112,8 +17291,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 3984,
-    "digest": "fa6ea81d30c3c1983b8592b11c2b532ce5c25010a61affdd627c6828aed7af76"
+    "count": 4096,
+    "digest": "40a799d6fad29f63ccb6f6717b8a2d43a64590078fcda2323a7bd4b6afd740c9"
    },
    "units": [
     {
@@ -17227,7 +17406,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 120,
+     "DataTypeInt": 140,
      "DataTypeRef": 7,
      "DataTypeString": 58,
      "DataTypeUserDefined": 185,
@@ -17240,7 +17419,7 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 45,
-     "ExprId": 803,
+     "ExprId": 823,
      "ExprMemberPathElem": 45,
      "ExprNull": 2,
      "ExprOpenRangeList": 11,
@@ -17250,9 +17429,9 @@
      "ExprSignedNumber": 4,
      "ExprString": 11,
      "ExprUnary": 12,
-     "ExprUnsignedNumber": 268,
+     "ExprUnsignedNumber": 288,
      "ExtendType": 1,
-     "Field": 47,
+     "Field": 67,
      "FunctionDefinition": 8,
      "FunctionParamDecl": 212,
      "FunctionPrototype": 133,
@@ -17283,8 +17462,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 3633,
-    "digest": "294274885cf9c00dc36a2df54c83235c286ab79d9a9141ff604291b2379593b3"
+    "count": 3713,
+    "digest": "463504128bbeeafc2aeea5c6cdbe597ad313752e3eaec2da67d7d6890605ebe7"
    },
    "units": [
     {
@@ -17398,7 +17577,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 112,
+     "DataTypeInt": 129,
      "DataTypeRef": 7,
      "DataTypeString": 52,
      "DataTypeUserDefined": 167,
@@ -17411,7 +17590,7 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 35,
-     "ExprId": 741,
+     "ExprId": 758,
      "ExprMemberPathElem": 35,
      "ExprNull": 2,
      "ExprOpenRangeList": 1,
@@ -17421,9 +17600,9 @@
      "ExprSignedNumber": 4,
      "ExprString": 1,
      "ExprUnary": 6,
-     "ExprUnsignedNumber": 235,
+     "ExprUnsignedNumber": 252,
      "ExtendType": 1,
-     "Field": 42,
+     "Field": 59,
      "FunctionDefinition": 2,
      "FunctionParamDecl": 203,
      "FunctionPrototype": 127,
@@ -17454,8 +17633,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 3243,
-    "digest": "9233deadeaed4a394d8fe0d7321f48e13873b23b171766ec56ee420e4a734cbe"
+    "count": 3311,
+    "digest": "79c1d6838261803ed71ff7630f06aa3368281403f1c3093d5da0ea0a22947c77"
    },
    "units": [
     {
@@ -17568,7 +17747,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 109,
+     "DataTypeInt": 126,
      "DataTypeRef": 7,
      "DataTypeString": 52,
      "DataTypeUserDefined": 167,
@@ -17581,7 +17760,7 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 35,
-     "ExprId": 738,
+     "ExprId": 755,
      "ExprMemberPathElem": 35,
      "ExprNull": 2,
      "ExprOpenRangeList": 1,
@@ -17591,9 +17770,9 @@
      "ExprSignedNumber": 4,
      "ExprString": 1,
      "ExprUnary": 6,
-     "ExprUnsignedNumber": 229,
+     "ExprUnsignedNumber": 246,
      "ExtendType": 1,
-     "Field": 39,
+     "Field": 56,
      "FunctionDefinition": 2,
      "FunctionParamDecl": 203,
      "FunctionPrototype": 127,
@@ -17624,8 +17803,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 3228,
-    "digest": "aabb66b63d2e31554c7e7d307111c405dea978b6499546d8c981153065e61f42"
+    "count": 3296,
+    "digest": "febdcbac425d5039f47038e7c34c736664840d395a878ac99af24b84e59ed99e"
    },
    "units": [
     {
@@ -17738,7 +17917,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 110,
+     "DataTypeInt": 128,
      "DataTypeRef": 7,
      "DataTypeString": 54,
      "DataTypeUserDefined": 169,
@@ -17751,7 +17930,7 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 37,
-     "ExprId": 749,
+     "ExprId": 767,
      "ExprMemberPathElem": 37,
      "ExprNull": 2,
      "ExprOpenRangeList": 3,
@@ -17761,9 +17940,9 @@
      "ExprSignedNumber": 4,
      "ExprString": 3,
      "ExprUnary": 8,
-     "ExprUnsignedNumber": 234,
+     "ExprUnsignedNumber": 252,
      "ExtendType": 1,
-     "Field": 39,
+     "Field": 57,
      "FunctionDefinition": 4,
      "FunctionParamDecl": 206,
      "FunctionPrototype": 129,
@@ -17794,8 +17973,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 3299,
-    "digest": "c0de9e06cc14240d2ecaacf9cf33d8764ad6a1281dc141a73a9d1b66b3fed51a"
+    "count": 3371,
+    "digest": "aef29e2f759097262472c1042f64ac3ee0af837d04674cd7050d29a9c3badb22"
    },
    "units": [
     {
@@ -17908,7 +18087,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 112,
+     "DataTypeInt": 129,
      "DataTypeRef": 7,
      "DataTypeString": 52,
      "DataTypeUserDefined": 167,
@@ -17921,7 +18100,7 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 35,
-     "ExprId": 741,
+     "ExprId": 758,
      "ExprMemberPathElem": 35,
      "ExprNull": 2,
      "ExprOpenRangeList": 1,
@@ -17931,9 +18110,9 @@
      "ExprSignedNumber": 4,
      "ExprString": 1,
      "ExprUnary": 6,
-     "ExprUnsignedNumber": 232,
+     "ExprUnsignedNumber": 249,
      "ExtendType": 1,
-     "Field": 42,
+     "Field": 59,
      "FunctionDefinition": 2,
      "FunctionParamDecl": 203,
      "FunctionPrototype": 127,
@@ -17964,8 +18143,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 3240,
-    "digest": "cdef2e85b902fb1b0bae4ed7d19ed0b52b3dcd27fe1a2edfa8d88d09ff2d31cc"
+    "count": 3308,
+    "digest": "97a2e1d36d0d734b3b7c87b663b71b586b91f595a134b995c243727538e531e5"
    },
    "units": [
     {
@@ -18078,7 +18257,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 113,
+     "DataTypeInt": 130,
      "DataTypeRef": 7,
      "DataTypeString": 52,
      "DataTypeUserDefined": 167,
@@ -18091,7 +18270,7 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 35,
-     "ExprId": 742,
+     "ExprId": 759,
      "ExprMemberPathElem": 35,
      "ExprNull": 2,
      "ExprOpenRangeList": 1,
@@ -18101,9 +18280,9 @@
      "ExprSignedNumber": 4,
      "ExprString": 1,
      "ExprUnary": 6,
-     "ExprUnsignedNumber": 233,
+     "ExprUnsignedNumber": 250,
      "ExtendType": 1,
-     "Field": 43,
+     "Field": 60,
      "FunctionDefinition": 2,
      "FunctionParamDecl": 203,
      "FunctionPrototype": 127,
@@ -18134,8 +18313,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 3244,
-    "digest": "2faebc49fa1ff825cc36d3f092a336cb5c130a91bd024910e4678969442ee0c6"
+    "count": 3312,
+    "digest": "42c6cbc21d175cceaa43f6af3b4b300652b148c026f01ba384fc611ca252950d"
    },
    "units": [
     {
@@ -18248,7 +18427,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 112,
+     "DataTypeInt": 129,
      "DataTypeRef": 7,
      "DataTypeString": 52,
      "DataTypeUserDefined": 167,
@@ -18261,7 +18440,7 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 35,
-     "ExprId": 741,
+     "ExprId": 758,
      "ExprMemberPathElem": 35,
      "ExprNull": 2,
      "ExprOpenRangeList": 1,
@@ -18271,9 +18450,9 @@
      "ExprSignedNumber": 4,
      "ExprString": 1,
      "ExprUnary": 6,
-     "ExprUnsignedNumber": 232,
+     "ExprUnsignedNumber": 249,
      "ExtendType": 1,
-     "Field": 42,
+     "Field": 59,
      "FunctionDefinition": 2,
      "FunctionParamDecl": 203,
      "FunctionPrototype": 127,
@@ -18304,8 +18483,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 3240,
-    "digest": "ecb6fe168f9e5daf6a8901809f2a0e9c246b4c194616266d25db9c884e6816f7"
+    "count": 3308,
+    "digest": "06fe97c4ffc4c2d39b29357eaea2a77ea1a26ec9fd75e21096ae76534badef1c"
    },
    "units": [
     {
@@ -18418,7 +18597,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 114,
+     "DataTypeInt": 133,
      "DataTypeRef": 7,
      "DataTypeString": 52,
      "DataTypeUserDefined": 176,
@@ -18431,7 +18610,7 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 35,
-     "ExprId": 763,
+     "ExprId": 782,
      "ExprMemberPathElem": 35,
      "ExprNull": 2,
      "ExprOpenRangeList": 2,
@@ -18441,9 +18620,9 @@
      "ExprSignedNumber": 4,
      "ExprString": 2,
      "ExprUnary": 6,
-     "ExprUnsignedNumber": 237,
+     "ExprUnsignedNumber": 256,
      "ExtendType": 1,
-     "Field": 44,
+     "Field": 63,
      "FunctionDefinition": 2,
      "FunctionParamDecl": 206,
      "FunctionPrototype": 127,
@@ -18474,8 +18653,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 3345,
-    "digest": "9e58268e83999abfc0cf19b7648285cb5cc6e1d77761ae9dfce83854ede357ca"
+    "count": 3421,
+    "digest": "18709abffc01fa002b180a5c5cbf2bf74203045c72b66f4fbd2bfd2e248bd11a"
    },
    "units": [
     {
@@ -18588,7 +18767,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 109,
+     "DataTypeInt": 126,
      "DataTypeRef": 7,
      "DataTypeString": 52,
      "DataTypeUserDefined": 167,
@@ -18601,7 +18780,7 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 35,
-     "ExprId": 738,
+     "ExprId": 755,
      "ExprMemberPathElem": 35,
      "ExprNull": 2,
      "ExprOpenRangeList": 1,
@@ -18611,9 +18790,9 @@
      "ExprSignedNumber": 4,
      "ExprString": 1,
      "ExprUnary": 6,
-     "ExprUnsignedNumber": 229,
+     "ExprUnsignedNumber": 246,
      "ExtendType": 1,
-     "Field": 39,
+     "Field": 56,
      "FunctionDefinition": 2,
      "FunctionParamDecl": 203,
      "FunctionPrototype": 127,
@@ -18644,8 +18823,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 3228,
-    "digest": "eebe4d32692d45290ccc71e6c776d85278ed878b64f6d6a123b1891e05da6d3b"
+    "count": 3296,
+    "digest": "7ff4fdde4ae1acfb6cb57c509487ab72d4edc841b9b3ed85f4b13a47c0c5a9d5"
    },
    "units": [
     {
@@ -18758,7 +18937,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 117,
+     "DataTypeInt": 138,
      "DataTypeRef": 7,
      "DataTypeString": 56,
      "DataTypeUserDefined": 182,
@@ -18771,7 +18950,7 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 41,
-     "ExprId": 790,
+     "ExprId": 811,
      "ExprMemberPathElem": 41,
      "ExprNull": 2,
      "ExprOpenRangeList": 4,
@@ -18781,9 +18960,9 @@
      "ExprSignedNumber": 4,
      "ExprString": 4,
      "ExprUnary": 10,
-     "ExprUnsignedNumber": 252,
+     "ExprUnsignedNumber": 273,
      "ExtendType": 1,
-     "Field": 41,
+     "Field": 62,
      "FunctionDefinition": 6,
      "FunctionParamDecl": 212,
      "FunctionPrototype": 131,
@@ -18814,8 +18993,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 3519,
-    "digest": "aa26c019f1dfef2a6457aa9a2ea6d17a29e62362a238051e5f6a0a3001958078"
+    "count": 3603,
+    "digest": "5fb5e86ce1f963e31f1af01f17014d44797be684be2e4723cb8b233820255325"
    },
    "units": [
     {
@@ -18929,7 +19108,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 111,
+     "DataTypeInt": 130,
      "DataTypeRef": 7,
      "DataTypeString": 52,
      "DataTypeUserDefined": 180,
@@ -18942,7 +19121,7 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 36,
-     "ExprId": 768,
+     "ExprId": 787,
      "ExprMemberPathElem": 36,
      "ExprNull": 2,
      "ExprOpenRangeList": 4,
@@ -18952,9 +19131,9 @@
      "ExprSignedNumber": 4,
      "ExprString": 4,
      "ExprUnary": 6,
-     "ExprUnsignedNumber": 239,
+     "ExprUnsignedNumber": 258,
      "ExtendType": 1,
-     "Field": 42,
+     "Field": 61,
      "FunctionDefinition": 2,
      "FunctionParamDecl": 206,
      "FunctionPrototype": 127,
@@ -18985,8 +19164,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 3386,
-    "digest": "b1dcfa54acc63228986002c97761152dcb48527c2ca81e2e1a4abb1b42a95555"
+    "count": 3462,
+    "digest": "858f639227b6fceec60932d9c9483014e6a5c2d73ad93936f1c22be22a8e89e9"
    },
    "units": [
     {
@@ -19100,7 +19279,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 114,
+     "DataTypeInt": 133,
      "DataTypeRef": 7,
      "DataTypeString": 52,
      "DataTypeUserDefined": 180,
@@ -19113,7 +19292,7 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 36,
-     "ExprId": 771,
+     "ExprId": 790,
      "ExprMemberPathElem": 36,
      "ExprNull": 2,
      "ExprOpenRangeList": 4,
@@ -19123,9 +19302,9 @@
      "ExprSignedNumber": 4,
      "ExprString": 4,
      "ExprUnary": 6,
-     "ExprUnsignedNumber": 245,
+     "ExprUnsignedNumber": 264,
      "ExtendType": 1,
-     "Field": 45,
+     "Field": 64,
      "FunctionDefinition": 2,
      "FunctionParamDecl": 206,
      "FunctionPrototype": 127,
@@ -19156,8 +19335,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 3401,
-    "digest": "088beb32ff5c7777b615fc0baf384a923bf79937bfcf74dead34b57fc165fba6"
+    "count": 3477,
+    "digest": "1527ed00c846045fe6356fe8f08b016b21de04c39804756f7f1f148292fae87c"
    },
    "units": [
     {
@@ -19271,7 +19450,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 107,
+     "DataTypeInt": 124,
      "DataTypeRef": 7,
      "DataTypeString": 52,
      "DataTypeUserDefined": 167,
@@ -19284,7 +19463,7 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 35,
-     "ExprId": 736,
+     "ExprId": 753,
      "ExprMemberPathElem": 35,
      "ExprNull": 2,
      "ExprOpenRangeList": 1,
@@ -19294,9 +19473,9 @@
      "ExprSignedNumber": 4,
      "ExprString": 1,
      "ExprUnary": 6,
-     "ExprUnsignedNumber": 227,
+     "ExprUnsignedNumber": 244,
      "ExtendType": 1,
-     "Field": 37,
+     "Field": 54,
      "FunctionDefinition": 2,
      "FunctionParamDecl": 203,
      "FunctionPrototype": 127,
@@ -19327,8 +19506,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 3220,
-    "digest": "7f34a4ed00a9fb8c8ec05078984a3b159d65d2dbff829ea82b41d9865837648a"
+    "count": 3288,
+    "digest": "74fe027c305d6dc3968c0ef8d55db3f0afeceb045469ec5f167cbce28bca8e8f"
    },
    "units": [
     {
@@ -19441,7 +19620,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 107,
+     "DataTypeInt": 124,
      "DataTypeRef": 7,
      "DataTypeString": 52,
      "DataTypeUserDefined": 167,
@@ -19454,7 +19633,7 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 35,
-     "ExprId": 736,
+     "ExprId": 753,
      "ExprMemberPathElem": 35,
      "ExprNull": 2,
      "ExprOpenRangeList": 1,
@@ -19464,9 +19643,9 @@
      "ExprSignedNumber": 4,
      "ExprString": 1,
      "ExprUnary": 6,
-     "ExprUnsignedNumber": 227,
+     "ExprUnsignedNumber": 244,
      "ExtendType": 1,
-     "Field": 37,
+     "Field": 54,
      "FunctionDefinition": 2,
      "FunctionParamDecl": 203,
      "FunctionPrototype": 127,
@@ -19497,8 +19676,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 3220,
-    "digest": "7f34a4ed00a9fb8c8ec05078984a3b159d65d2dbff829ea82b41d9865837648a"
+    "count": 3288,
+    "digest": "74fe027c305d6dc3968c0ef8d55db3f0afeceb045469ec5f167cbce28bca8e8f"
    },
    "units": [
     {
@@ -19611,7 +19790,7 @@
      "DataTypeBool": 13,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 96,
+     "DataTypeInt": 112,
      "DataTypeRef": 7,
      "DataTypeString": 48,
      "DataTypeUserDefined": 166,
@@ -19624,16 +19803,16 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 34,
-     "ExprId": 721,
+     "ExprId": 737,
      "ExprMemberPathElem": 38,
      "ExprNull": 2,
      "ExprRefPathContext": 34,
      "ExprRefPathStatic": 1,
      "ExprSignedNumber": 4,
      "ExprUnary": 4,
-     "ExprUnsignedNumber": 218,
+     "ExprUnsignedNumber": 234,
      "ExtendType": 1,
-     "Field": 40,
+     "Field": 56,
      "FunctionParamDecl": 191,
      "FunctionPrototype": 125,
      "GlobalScope": 3,
@@ -19664,8 +19843,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 3118,
-    "digest": "740bd1f3bd55e2fb84226ca99b4c309312c21fbb42a85dae34fdb58389566529"
+    "count": 3182,
+    "digest": "8ba8d867169d1c35532408ec972319864e7145679bd3e27fc26b75e6fd892b4d"
    },
    "units": [
     {
@@ -19767,7 +19946,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 112,
+     "DataTypeInt": 130,
      "DataTypeRef": 7,
      "DataTypeString": 54,
      "DataTypeUserDefined": 172,
@@ -19780,7 +19959,7 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 39,
-     "ExprId": 757,
+     "ExprId": 775,
      "ExprMemberPathElem": 39,
      "ExprNull": 2,
      "ExprOpenRangeList": 2,
@@ -19790,9 +19969,9 @@
      "ExprSignedNumber": 4,
      "ExprString": 2,
      "ExprUnary": 8,
-     "ExprUnsignedNumber": 241,
+     "ExprUnsignedNumber": 259,
      "ExtendType": 1,
-     "Field": 38,
+     "Field": 56,
      "FunctionDefinition": 4,
      "FunctionParamDecl": 206,
      "FunctionPrototype": 129,
@@ -19823,8 +20002,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 3348,
-    "digest": "fd116ebf27e939038d83ec1d9e6b0e3ffd6c05e5321add2f8abe8574ddc02bc8"
+    "count": 3420,
+    "digest": "c422341b266689d00668585f68777686f6c411f21222e3b621ffedf5b702fc2c"
    },
    "units": [
     {
@@ -19938,7 +20117,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 133,
+     "DataTypeInt": 159,
      "DataTypeRef": 7,
      "DataTypeString": 58,
      "DataTypeUserDefined": 202,
@@ -19951,7 +20130,7 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 53,
-     "ExprId": 856,
+     "ExprId": 882,
      "ExprMemberPathElem": 53,
      "ExprNull": 2,
      "ExprOpenRangeList": 4,
@@ -19961,9 +20140,9 @@
      "ExprSignedNumber": 4,
      "ExprString": 4,
      "ExprUnary": 6,
-     "ExprUnsignedNumber": 247,
+     "ExprUnsignedNumber": 273,
      "ExtendType": 1,
-     "Field": 43,
+     "Field": 69,
      "FunctionDefinition": 2,
      "FunctionParamDecl": 235,
      "FunctionPrototype": 127,
@@ -19994,8 +20173,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 3805,
-    "digest": "a80b5850300536998e9965533b69094ab2ed93626abab40cf87a46bbaaf7b4eb"
+    "count": 3909,
+    "digest": "c171896b7abde79d979d9e6028665454367d995328a106953da53d70cea79681"
    },
    "units": [
     {
@@ -20113,7 +20292,7 @@
      "DataTypeBool": 13,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 100,
+     "DataTypeInt": 117,
      "DataTypeRef": 7,
      "DataTypeString": 50,
      "DataTypeUserDefined": 158,
@@ -20125,7 +20304,7 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 27,
-     "ExprId": 715,
+     "ExprId": 732,
      "ExprMemberPathElem": 27,
      "ExprNull": 2,
      "ExprRefName": 7,
@@ -20134,9 +20313,9 @@
      "ExprSignedNumber": 4,
      "ExprString": 5,
      "ExprUnary": 4,
-     "ExprUnsignedNumber": 224,
+     "ExprUnsignedNumber": 241,
      "ExtendType": 1,
-     "Field": 41,
+     "Field": 58,
      "FieldCompRef": 2,
      "FunctionParamDecl": 189,
      "FunctionPrototype": 125,
@@ -20164,8 +20343,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 3090,
-    "digest": "6ea70c66bc900259b45f32a6863730b9a3b50a018249d46dfe1bcc9249712e6f"
+    "count": 3158,
+    "digest": "00f63c1c30219bdbccf28ab6436c71045d195a23e0457de982fc513c64690909"
    },
    "units": [
     {
@@ -20284,7 +20463,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 98,
+     "DataTypeInt": 119,
      "DataTypeRef": 7,
      "DataTypeString": 48,
      "DataTypeUserDefined": 165,
@@ -20296,7 +20475,7 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 38,
-     "ExprId": 741,
+     "ExprId": 762,
      "ExprMemberPathElem": 40,
      "ExprNull": 2,
      "ExprOpenRangeValue": 4,
@@ -20305,9 +20484,9 @@
      "ExprRefPathStatic": 1,
      "ExprSignedNumber": 4,
      "ExprUnary": 5,
-     "ExprUnsignedNumber": 224,
+     "ExprUnsignedNumber": 245,
      "ExtendType": 1,
-     "Field": 38,
+     "Field": 59,
      "FieldCompRef": 3,
      "FunctionParamDecl": 189,
      "FunctionPrototype": 125,
@@ -20342,8 +20521,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 3181,
-    "digest": "71f66cc3ab2eae6f9bd343bdda3bb91ddd4fce52909a15def4fa6b6bf1b84006"
+    "count": 3265,
+    "digest": "369749bb4346adc4ec2743debf308908f111565cee30a701045cbbe075d50a91"
    },
    "units": [
     {
@@ -20473,7 +20652,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 98,
+     "DataTypeInt": 117,
      "DataTypeRef": 7,
      "DataTypeString": 50,
      "DataTypeUserDefined": 163,
@@ -20487,16 +20666,16 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 41,
-     "ExprId": 726,
+     "ExprId": 745,
      "ExprMemberPathElem": 41,
      "ExprNull": 2,
      "ExprRefPathContext": 41,
      "ExprRefPathStatic": 1,
      "ExprSignedNumber": 4,
      "ExprUnary": 4,
-     "ExprUnsignedNumber": 219,
+     "ExprUnsignedNumber": 238,
      "ExtendType": 1,
-     "Field": 40,
+     "Field": 59,
      "FieldCompRef": 5,
      "FunctionDefinition": 1,
      "FunctionParamDecl": 189,
@@ -20534,8 +20713,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 3162,
-    "digest": "e0caf3ce44af3665045c5881c25dc58c43cc4a3c241f4af750e5415315bb9657"
+    "count": 3238,
+    "digest": "e15204517e4fadd63162e2fa87c5d8eb50a14a84a3adad445745cf99c16f3ddb"
    },
    "units": [
     {
@@ -20656,7 +20835,7 @@
      "DataTypeBool": 14,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 121,
+     "DataTypeInt": 134,
      "DataTypeRef": 8,
      "DataTypeString": 50,
      "DataTypeUserDefined": 195,
@@ -20668,16 +20847,16 @@
      "ExprDomainOpenRangeList": 2,
      "ExprDomainOpenRangeValue": 128,
      "ExprHierarchicalId": 32,
-     "ExprId": 844,
+     "ExprId": 857,
      "ExprMemberPathElem": 32,
      "ExprNull": 3,
      "ExprRefPathContext": 32,
      "ExprRefPathStatic": 2,
      "ExprSignedNumber": 4,
      "ExprUnary": 6,
-     "ExprUnsignedNumber": 372,
+     "ExprUnsignedNumber": 385,
      "ExtendType": 1,
-     "Field": 48,
+     "Field": 61,
      "FunctionImportType": 4,
      "FunctionParamDecl": 215,
      "FunctionPrototype": 147,
@@ -20705,8 +20884,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 3750,
-    "digest": "aa88ea4fab1c254369eee1163da618bf6b040bfbef7a625286dc591125413903"
+    "count": 3802,
+    "digest": "f516b90d771630e65956eb60431972d544b41781fa914766abd012ea644b3b32"
    },
    "units": [
     {
@@ -20827,7 +21006,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 95,
+     "DataTypeInt": 109,
      "DataTypeRef": 8,
      "DataTypeString": 48,
      "DataTypeUserDefined": 162,
@@ -20839,16 +21018,16 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 27,
-     "ExprId": 712,
+     "ExprId": 726,
      "ExprMemberPathElem": 27,
      "ExprNull": 2,
      "ExprRefPathContext": 27,
      "ExprRefPathStatic": 1,
      "ExprSignedNumber": 4,
      "ExprUnary": 4,
-     "ExprUnsignedNumber": 215,
+     "ExprUnsignedNumber": 229,
      "ExtendType": 1,
-     "Field": 37,
+     "Field": 51,
      "FunctionParamDecl": 191,
      "FunctionPrototype": 128,
      "GlobalScope": 3,
@@ -20875,8 +21054,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 3038,
-    "digest": "4d3b442d461d4eeeac90373232503a17dda789272fcf22a5b85d64b42d58e9d5"
+    "count": 3094,
+    "digest": "6545bc6a4a6e8df3a236d1c94d09a74734973e6f3c904b78cc9495e47e0ee5bf"
    },
    "units": [
     {
@@ -20974,7 +21153,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 95,
+     "DataTypeInt": 108,
      "DataTypeRef": 7,
      "DataTypeString": 48,
      "DataTypeUserDefined": 154,
@@ -20986,16 +21165,16 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 27,
-     "ExprId": 680,
+     "ExprId": 693,
      "ExprMemberPathElem": 27,
      "ExprNull": 2,
      "ExprRefPathContext": 27,
      "ExprRefPathStatic": 1,
      "ExprSignedNumber": 4,
      "ExprUnary": 4,
-     "ExprUnsignedNumber": 215,
+     "ExprUnsignedNumber": 228,
      "ExtendType": 1,
-     "Field": 35,
+     "Field": 48,
      "FunctionParamDecl": 189,
      "FunctionPrototype": 125,
      "GlobalScope": 3,
@@ -21022,8 +21201,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 2940,
-    "digest": "9e38b99c94bc16fcfaec6b4ca08f15b762bff6d9e6fc6ca7b40ebaf27b40d350"
+    "count": 2992,
+    "digest": "78cab02081cf9bcf0dfc193924f0922cd2b1892c13c67e24e9dbab95ff339c58"
    },
    "units": [
     {
@@ -21107,7 +21286,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 99,
+     "DataTypeInt": 113,
      "DataTypeRef": 7,
      "DataTypeString": 50,
      "DataTypeUserDefined": 156,
@@ -21119,16 +21298,16 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 28,
-     "ExprId": 708,
+     "ExprId": 722,
      "ExprMemberPathElem": 28,
      "ExprNull": 2,
      "ExprRefPathContext": 28,
      "ExprRefPathStatic": 1,
      "ExprSignedNumber": 4,
      "ExprUnary": 4,
-     "ExprUnsignedNumber": 219,
+     "ExprUnsignedNumber": 233,
      "ExtendType": 1,
-     "Field": 35,
+     "Field": 49,
      "FunctionParamDecl": 194,
      "FunctionPrototype": 129,
      "GlobalScope": 3,
@@ -21155,8 +21334,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 3018,
-    "digest": "4ea47aae19ce239bc6ebd651cfe5f089fc2d6393c852827bbbeb776aa91d17a1"
+    "count": 3074,
+    "digest": "75a5a90f2b0d777d55f1efc668444a620fa4af0f662a45826dc5a2ed47a7b0de"
    },
    "units": [
     {
@@ -21261,7 +21440,7 @@
      "DataTypeBool": 12,
      "DataTypeChandle": 3,
      "DataTypeFloat": 51,
-     "DataTypeInt": 96,
+     "DataTypeInt": 109,
      "DataTypeRef": 7,
      "DataTypeString": 48,
      "DataTypeUserDefined": 156,
@@ -21273,16 +21452,16 @@
      "ExprDomainOpenRangeList": 1,
      "ExprDomainOpenRangeValue": 64,
      "ExprHierarchicalId": 27,
-     "ExprId": 693,
+     "ExprId": 706,
      "ExprMemberPathElem": 27,
      "ExprNull": 2,
      "ExprRefPathContext": 27,
      "ExprRefPathStatic": 1,
      "ExprSignedNumber": 4,
      "ExprUnary": 4,
-     "ExprUnsignedNumber": 217,
+     "ExprUnsignedNumber": 230,
      "ExtendType": 1,
-     "Field": 37,
+     "Field": 50,
      "FieldCompRef": 2,
      "FunctionParamDecl": 189,
      "FunctionPrototype": 125,
@@ -21310,8 +21489,8 @@
      "TypeScope": 1,
      "TypedefDeclaration": 4
     },
-    "count": 2978,
-    "digest": "5ef3bc20cdfb380a9d8b1ad4bbec81b93251173c157ad4ae0a73087c788852b4"
+    "count": 3030,
+    "digest": "6ab78118c654c7e111c27a52c0f1e2476b61c4bd0856a2c9a074c68eeae418f0"
    },
    "units": [
     {

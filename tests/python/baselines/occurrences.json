@@ -1,5 +1,5 @@
 {
- "files": 90,
+ "files": 91,
  "gaps": {
   "packages/pss-corpus/curated/language-ref/activity_shapes.pss": {
    "unresolved": [
@@ -51,6 +51,11 @@
    "unresolved": [
     "chan_p@40:10",
     "core_p@88:10"
+   ]
+  },
+  "packages/pss-corpus/curated/lrm31/ex170_prev_sequencing.pss": {
+   "unresolved": [
+    "psvar@30:10"
    ]
   },
   "packages/pss-corpus/curated/pss31/behavioral_coverage.pss": {

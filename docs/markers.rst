@@ -62,6 +62,8 @@ The linker could not resolve a named type, identifier, or method.  Messages incl
 * ``Failed to find elem 'thing'``
 * ``'this' is only valid inside a type: ...`` (``this`` in a package-level function)
 * ``'super' is only valid inside a type that has a base type, and 'S' has none`` (also ``'super;'``)
+* ``'comp' is only valid in an action declared in a component, and 'AB' is declared outside one``
+* ``'prev' is only valid in a state type or its extension, and cannot be reached as a member of 'i'``
 * ``base type 'B' has no member named 'x'`` (``super.x``)
 
 The last two are the same diagnosis reached through a qualified and an unqualified path respectively.

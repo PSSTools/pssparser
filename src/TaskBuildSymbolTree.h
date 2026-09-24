@@ -235,6 +235,43 @@ protected:
     void checkLocalNames(ast::IGlobalScope *unit);
 
     /**
+     * The per-kind built-in data members (symbol-resolution 5.1, B A1):
+     * `uid` on every modeling-element type and `prev` on a state. They live
+     * in the symbol tree only, as owned `FieldAttr::Builtin` fields with no
+     * source location, and never in the AST.
+     *
+     * `initial` and `instance_id` stay injected into the AST by the builder,
+     * because pssc lowers them from there; this only reports a user
+     * declaration that the builder let stand in their place.
+     */
+    void addBuiltinFields(ast::ISymbolTypeScope *ts, ast::ITypeScope *i);
+
+public:
+    /**
+     * The modeling-element kind of `i` -- "action", "state", ... -- or null
+     * for a type with no built-in members (a plain struct, an enum).
+     */
+    static const char *builtinKind(ast::ITypeScope *i);
+
+protected:
+
+    void addBuiltinField(
+        ast::ISymbolTypeScope   *ts,
+        const std::string       &name,
+        const char              *kind,
+        ast::IDataType          *type);
+
+    void checkBuiltinRedeclared(
+        ast::ISymbolTypeScope   *ts,
+        const std::string       &name,
+        const char              *kind);
+
+    void reportBuiltinRedeclared(
+        ast::IScopeChild        *decl,
+        const std::string       &name,
+        const char              *kind);
+
+    /**
      * Register a prototype's parameters in the function scope's `<plist>`.
      *
      * All four builders that can create an ISymbolFunctionScope go through

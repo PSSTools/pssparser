@@ -1127,6 +1127,21 @@
    "calls": [
     [
      {
+      "content": "// ex170_prev_sequencing.pss\n//\n// Sequencing constraints on state objects through `prev` (LRM 9.3.3.1g,\n// 13.3), modelled on PSS 3.1 Example 170 and completed to a whole model.\n//\n// Demonstrates:\n//   - `prev.<field>` in a state type's constraints, relating this state to\n//     the previous one in the pool\n//   - `prev` in an extension of the state type, which is also allowed\n//   - two actions outputting the state, one constraining the next state\n//   - `uid`, the built-in bit[32] identifier of every modeling element, on\n//     an action handle and on `comp`\n\nstate power_state_s {\n    rand int in [0..3] domain_A, domain_B, domain_C;\n\n    constraint domain_B in { prev.domain_B - 1,\n                             prev.domain_B,\n                             prev.domain_B + 1 };\n\n    constraint prev.domain_C == 0 -> domain_C in [0, 1] || domain_B == 0;\n}\n\nextend state power_state_s {\n    constraint domain_A != prev.domain_A -> domain_C == prev.domain_C;\n}\n\ncomponent power_ctrl_c {\n    pool power_state_s psvar;\n    bind psvar *;\n\n    action power_trans1 {\n        output power_state_s next_state;\n    }\n\n    action power_trans2 {\n        output power_state_s next_state;\n        constraint next_state.domain_C == 0;\n    }\n}\n\ncomponent pss_top {\n    power_ctrl_c ctrl;\n\n    action test_a {\n        power_ctrl_c::power_trans1 t1;\n        power_ctrl_c::power_trans2 t2;\n        rand bit[32] tag;\n\n        constraint tag != t1.uid;\n        constraint tag != comp.uid;\n\n        activity {\n            t1;\n            t2;\n        }\n    }\n}\n",
+      "name": "lrm31/ex170_prev_sequencing.pss"
+     }
+    ]
+   ],
+   "id": "corpus:lrm31/ex170_prev_sequencing.pss",
+   "markers": [],
+   "maxErrors": 0,
+   "raised": null,
+   "why": "corpus parity"
+  },
+  {
+   "calls": [
+    [
+     {
       "content": "// ex243_this_comp_inheritance.pss\n//\n// `comp` and `this.comp` with component inheritance (LRM 9.1.5, 13.1.4),\n// modelled on PSS 3.1 Example 243 and completed to a whole model.\n//\n// Demonstrates:\n//   - an action inherited by a derived component, traversed as\n//     dma_der_c::xfer_a\n//   - the static type of the sub-action's `comp` is the base component, so\n//     the derived component's field `j` is reached through the containing\n//     action's `this.comp.dma1` instead\n\ncomponent dma_base_c {\n    action xfer_a {\n        rand int i;\n    }\n}\n\ncomponent dma_der_c : dma_base_c {\n    int j;\n\n    action mult_xfer_a {\n        activity {\n            repeat (3) {\n                do xfer_a;              // dma_base_c::xfer_a\n            }\n        }\n    }\n}\n\ncomponent pss_top {\n    dma_der_c dma1, dma2;\n\n    action test_a {\n        activity {\n            do dma_base_c::xfer_a;\n            do dma_der_c::xfer_a with {\n                comp == this.comp.dma1;\n                (this.comp.dma1.j < 8) -> i > 4;\n            };\n        }\n    }\n}\n",
       "name": "lrm31/ex243_this_comp_inheritance.pss"
      }
