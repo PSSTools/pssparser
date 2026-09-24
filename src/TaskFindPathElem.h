@@ -35,6 +35,17 @@ public:
         ast::IScopeChild        *sym;
         int32_t                 idx;
         int32_t                 super_idx;
+        /** See NameLookup::Member::fwd_pkg. */
+        int32_t                 fwd_pkg;
+
+        /** Append this step to `path`, the path to the scope searched. */
+        void appendTo(ast::ISymbolRefPath *path) const {
+            NameLookup::Member m;
+            m.idx = idx;
+            m.super_depth = super_idx;
+            m.fwd_pkg = fwd_pkg;
+            m.appendTo(path);
+        }
     };
 
     TaskFindPathElem(
@@ -52,11 +63,11 @@ public:
         ast::ISymbolScope       *src,
         ast::IExprId            *id) {
         if (!src || !id) {
-            return {0, -1, -1};
+            return {0, -1, -1, -1};
         }
         NameLookup::Member m = NameLookup::lookupMember(
             m_dmgr, m_root, src, id->getId());
-        return {m.sym, m.idx, m.super_depth};
+        return {m.sym, m.idx, m.super_depth, m.fwd_pkg};
     }
 
 private:

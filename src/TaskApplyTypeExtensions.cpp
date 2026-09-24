@@ -33,6 +33,7 @@
 #include "pssp/ast/IFieldRef.h"
 #include "pssp/ast/IFunctionPrototype.h"
 #include "pssp/ast/IGenericConstraintDeclBool.h"
+#include "pssp/ast/ISymbolExtMember.h"
 #include "pssp/ast/ITypedefDeclaration.h"
 #include "TaskResolveRef.h"
 #include "TaskResolveRootRef.h"
@@ -643,8 +644,7 @@ void TaskApplyTypeExtensions::addChild(
         int32_t id = target->getChildren().size();
         appendChild(target, child);
         target->getSymtab().insert({name, id});
-        m_ext_pkg[child] = pkg;
-        m_ext_members[target][name].push_back({id, pkg});
+        recordExtMember(target, name, id, pkg);
         DEBUG_LEAVE("addChild %s to %s", name.c_str(), target->getName().c_str());
         return;
     }
@@ -664,8 +664,21 @@ void TaskApplyTypeExtensions::addChild(
 
     ast::IField *orig_fld = dynamic_cast<ast::IField *>(orig);
     ast::ISymbolTypeScope *target_t = dynamic_cast<ast::ISymbolTypeScope *>(target);
-    std::map<ast::IScopeChild *, ast::ISymbolScope *>::const_iterator o_it =
-        m_ext_pkg.find(orig);
+
+    // Every earlier extension contribution of the name. The symtab's entry
+    // is among them unless it is the initial definition's.
+    std::vector<ast::ISymbolExtMember *> prev;
+    bool orig_is_ext = false;
+    if (target_t) {
+        for (std::vector<ast::ISymbolExtMemberUP>::const_iterator
+            e_it=target_t->getExt_members().begin();
+            e_it!=target_t->getExt_members().end(); e_it++) {
+            if ((*e_it)->getName() == name) {
+                prev.push_back(e_it->get());
+                orig_is_ext |= ((*e_it)->getIdx() == it->second);
+            }
+        }
+    }
 
     if (orig_fld && target_t
             && (orig_fld->getAttr() & ast::FieldAttr::Builtin) != ast::FieldAttr::NoFlags) {
@@ -675,7 +688,7 @@ void TaskApplyTypeExtensions::addChild(
         reportDuplicate(child, 0,
             "duplicate declaration of '" + name + "': every "
             + ((kind)?kind:"type") + " has a built-in '" + name + "'");
-    } else if (o_it == m_ext_pkg.end()) {
+    } else if (!orig_is_ext) {
         // 17.2.3: an extension may not redeclare a member of the initial
         // definition, from any package.
         reportDuplicate(child, orig,
@@ -687,13 +700,12 @@ void TaskApplyTypeExtensions::addChild(
         // or type of one name (17.2.3); within one package, the name must be
         // unique. Every earlier contribution of the name is checked, not only
         // the one in the symtab.
-        const std::vector<ExtMember> &prev = m_ext_members[target][name];
         ast::IScopeChild *same = 0;
         bool all_field_or_type = isFieldOrType(child);
-        for (std::vector<ExtMember>::const_iterator
+        for (std::vector<ast::ISymbolExtMember *>::const_iterator
             p_it=prev.begin(); p_it!=prev.end(); p_it++) {
-            ast::IScopeChild *pc = target->getChildren().at(p_it->idx).get();
-            if (p_it->pkg == pkg && !same) {
+            ast::IScopeChild *pc = target->getChildren().at((*p_it)->getIdx()).get();
+            if ((*p_it)->getPkg() == pkg && !same) {
                 same = pc;
             }
             if (!isFieldOrType(pc)) {
@@ -715,14 +727,24 @@ void TaskApplyTypeExtensions::addChild(
         } else {
             // Legal. The type's layout is the union of every contribution,
             // so the member is appended; the symtab keeps the first, and
-            // m_ext_members records this one for lookup (WS6).
+            // ext_members records this one for lookup (WS6).
             int32_t id = target->getChildren().size();
             appendChild(target, child);
-            m_ext_pkg[child] = pkg;
-            m_ext_members[target][name].push_back({id, pkg});
+            recordExtMember(target, name, id, pkg);
         }
     }
     DEBUG_LEAVE("addChild %s to %s", name.c_str(), target->getName().c_str());
+}
+
+void TaskApplyTypeExtensions::recordExtMember(
+        ast::ISymbolScope       *target,
+        const std::string       &name,
+        int32_t                 idx,
+        ast::ISymbolScope       *pkg) {
+    if (ast::ISymbolTypeScope *target_t = dynamic_cast<ast::ISymbolTypeScope *>(target)) {
+        target_t->getExt_members().push_back(ast::ISymbolExtMemberUP(
+            m_factory->getAstFactory()->mkSymbolExtMember(name, idx, pkg)));
+    }
 }
 
 void TaskApplyTypeExtensions::mergeFunctionScope(

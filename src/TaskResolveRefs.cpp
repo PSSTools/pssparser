@@ -2569,13 +2569,7 @@ void TaskResolveRefs::resolveExprRefPathStatic(ast::IExprRefPathStatic *i) {
 
                 // An inherited member: one ElemKind_Super per base type
                 // crossed, then its index in the base that declares it.
-                for (int32_t s=0; s<res.super_idx; s++) {
-                    target->getPath().push_back({
-                        ast::SymbolRefPathElemKind::ElemKind_Super, 0});
-                }
-                target->getPath().push_back({
-                    ast::SymbolRefPathElemKind::ElemKind_ChildIdx,
-                    res.idx});
+                res.appendTo(target);
 
                 if ((*it)->getParams()) {
                     // A qualified generic: `std_pkg::sizeof_s<T>::nbits`.
@@ -4309,7 +4303,7 @@ void TaskResolveRefs::visitAnnotation(ast::IAnnotation *i) {
         // contributed by `extend annotation` are not merged into the symbol
         // scope's children, and a plain symtab lookup would report them as
         // unknown.
-        TaskFindPathElem::Result res = {0, -1, -1};
+        TaskFindPathElem::Result res = {0, -1, -1, -1};
         if (decl_s) {
             res = TaskFindPathElem(
                 m_ctxt->getDebugMgr(),

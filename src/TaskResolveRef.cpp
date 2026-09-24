@@ -279,13 +279,7 @@ ast::ISymbolRefPath *TaskResolveRef::resolveStaticArgPath(
 
         (*it)->getId()->setDecl(res.sym);
 
-        for (int32_t s=0; s<res.super_idx; s++) {
-            target->getPath().push_back({
-                ast::SymbolRefPathElemKind::ElemKind_Super, 0});
-        }
-        target->getPath().push_back({
-            ast::SymbolRefPathElemKind::ElemKind_ChildIdx,
-            res.idx});
+        res.appendTo(target);
     }
 
     DEBUG_LEAVE("resolveStaticArgPath %p", target);
@@ -481,12 +475,7 @@ void TaskResolveRef::visitTypeIdentifier(ast::ITypeIdentifier *i) {
                 m_ctxt->getDebugMgr(), m_ctxt->root(), ns,
                 (*it)->getId()->getId());
             if (m.sym) {
-                for (int32_t s=0; s<m.super_depth; s++) {
-                    root->getPath().push_back({
-                        ast::SymbolRefPathElemKind::ElemKind_Super, 0});
-                }
-                root->getPath().push_back({
-                    ast::SymbolRefPathElemKind::ElemKind_ChildIdx, m.idx});
+                m.appendTo(root);
                 next = m.sym;
             }
         }

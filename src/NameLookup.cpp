@@ -70,6 +70,55 @@ ast::ISymbolScope *baseOf(
         TaskResolveSuperTypeRef(dmgr, root).resolve(ts));
 }
 
+/**
+ * The package `name` in `ns` forwards to, as its index in `root`; -1 if none.
+ *
+ * LRM 21.13, footnotes 1 and 2 (F28): PSS 2.0 declared `endianness_e`,
+ * `packed_s` and `sizeof_s` in addr_reg_pkg. They are std_pkg's now, and
+ * "tools shall support referencing these declarations in either std_pkg or
+ * addr_reg_pkg as if they were the same types". So addr_reg_pkg forwards
+ * them: a qualified step or an import that misses them in addr_reg_pkg finds
+ * std_pkg's. The enum items come with `endianness_e`, for a wildcard import.
+ */
+int32_t forwardOf(
+        ast::ISymbolScope   *root,
+        ast::ISymbolScope   *ns,
+        const std::string   &name) {
+    static const std::set<std::string> names = {
+        "endianness_e", "LITTLE_ENDIAN", "BIG_ENDIAN", "packed_s", "sizeof_s"
+    };
+    if (!root || ns->getName() != "addr_reg_pkg" || !names.count(name)) {
+        return -1;
+    }
+    std::unordered_map<std::string, int32_t>::const_iterator from =
+        root->getSymtab().find("addr_reg_pkg");
+    std::unordered_map<std::string, int32_t>::const_iterator to =
+        root->getSymtab().find("std_pkg");
+    if (from == root->getSymtab().end() || to == root->getSymtab().end()
+            || from->second < 0
+            || from->second >= (int32_t)root->getChildren().size()
+            || root->getChildren().at(from->second).get() != ns
+            || to->second < 0
+            || to->second >= (int32_t)root->getChildren().size()
+            || !dynamic_cast<ast::ISymbolScope *>(
+                root->getChildren().at(to->second).get())) {
+        return -1;
+    }
+    return to->second;
+}
+
+}
+
+void NameLookup::Member::appendTo(ast::ISymbolRefPath *path) const {
+    if (fwd_pkg >= 0) {
+        path->getPath().clear();
+        path->getPath().push_back({
+            ast::SymbolRefPathElemKind::ElemKind_ChildIdx, fwd_pkg});
+    }
+    for (int32_t s=0; s<super_depth; s++) {
+        path->getPath().push_back({ast::SymbolRefPathElemKind::ElemKind_Super, 0});
+    }
+    path->getPath().push_back({ast::SymbolRefPathElemKind::ElemKind_ChildIdx, idx});
 }
 
 NameLookup::NameLookup(ResolveContext *ctxt) : m_ctxt(ctxt), m_id(0),
@@ -258,6 +307,18 @@ NameLookup::Member NameLookup::lookupMember(
             break;
         }
         chain.push_back(ns);
+    }
+
+    // A name addr_reg_pkg forwards to std_pkg (F28). Enum items are not
+    // package members here; a wildcard import finds those (searchImport).
+    int32_t fwd;
+    if (!ret.sym && (fwd=forwardOf(root, start, name)) >= 0) {
+        ret = lookupMember(dmgr, root,
+            dynamic_cast<ast::ISymbolScope *>(root->getChildren().at(fwd).get()),
+            name);
+        if (ret.sym) {
+            ret.fwd_pkg = fwd;
+        }
     }
 
     return ret;
@@ -802,6 +863,23 @@ ast::ISymbolRefPath *NameLookup::searchImport(
         ret->getPath().push_back({
             ast::SymbolRefPathElemKind::ElemKind_ChildIdx, it->second});
         return ret;
+    }
+
+    // A name addr_reg_pkg forwards (F28) is std_pkg's, item or type. It is
+    // the same declaration, so importing both packages is not ambiguous.
+    int32_t fwd = forwardOf(m_ctxt->root(), target_s, id->getId());
+    if (fwd >= 0) {
+        ast::ISymbolScope *fwd_s = dynamic_cast<ast::ISymbolScope *>(
+            m_ctxt->root()->getChildren().at(fwd).get());
+        it = fwd_s->getSymtab().find(id->getId());
+        if (it != fwd_s->getSymtab().end()) {
+            ast::ISymbolRefPath *ret = m_ctxt->getFactory()->getAstFactory()->mkSymbolRefPath();
+            ret->getPath().push_back({ast::SymbolRefPathElemKind::ElemKind_ChildIdx, fwd});
+            ret->getPath().push_back({
+                ast::SymbolRefPathElemKind::ElemKind_ChildIdx, it->second});
+            return ret;
+        }
+        target_s = fwd_s;
     }
 
     ast::ISymbolRefPath *saved = m_ref;

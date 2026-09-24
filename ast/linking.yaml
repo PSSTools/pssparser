@@ -310,6 +310,35 @@ classes:
       - plist:
         - type: UP<SymbolScope>
       - spec_types: list<UP<SymbolTypeScope>>
+      - ext_members:
+        - doc: |
+            Every named member an extension contributed to this type, in merge
+            order, with the package of its extension (LRM 17.2, 17.2.3).
+            Two packages may each add a field or type of one name, so the
+            single-valued symtab cannot hold them all: it keeps the initial
+            definition's members and the first extension member of each
+            name. Empty for a type no extension added a named member to.
+        - type: list<UP<SymbolExtMember>>
+        - is_ctor: false
+        - visit: false
+
+- SymbolExtMember:
+    doc: |
+        A member an extension contributed to a type (SymbolTypeScope.ext_members).
+
+        Attributes:
+            name: The member's name
+            idx: Its index in the type's children
+            pkg: The nearest package enclosing the extension statement (17.2);
+                the root scope for an extension outside any package
+    data:
+    - name:
+      - type: string
+    - idx:
+      - type: int32_t
+    - pkg:
+      - type: P<SymbolScope>
+      - visit: false
 
 - SymbolFunctionScope:
     doc: |

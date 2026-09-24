@@ -7,6 +7,23 @@ revision advances only the patch component.
 
 ## Unreleased
 
+### Added — addr_reg_pkg forwards endianness_e, packed_s and sizeof_s (symbol-resolution 6.3, LRM 21.13)
+
+PSS 2.0 declared `endianness_e`, `packed_s` and `sizeof_s` in `addr_reg_pkg`;
+they are now `std_pkg`'s, and LRM 21.13 requires tools to accept either
+package "as if they were the same types". `addr_reg_pkg::packed_s<>`,
+`import addr_reg_pkg::packed_s;` and `import addr_reg_pkg::*;` now reach
+`std_pkg`'s declarations (the enum items `LITTLE_ENDIAN` and `BIG_ENDIAN` come
+with a wildcard import). Importing both packages is not ambiguous. Previously a
+model that used only `addr_reg_pkg` got "unknown type 'packed_s'".
+
+### Changed — extension members are recorded in the AST
+
+`SymbolTypeScope.ext_members` lists every named member an extension
+contributed to a type, with the package of its extension (LRM 17.2.3), as
+`SymbolExtMember {name, idx, pkg}` nodes. It replaces a side table that was
+private to the linker. Lookup does not consult it yet.
+
 ### Changed — an import applies only where it is written (symbol-resolution 6.3a, LRM 18.1.3)
 
 An import now applies only inside the statement that contains it: a `package`

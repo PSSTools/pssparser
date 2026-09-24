@@ -32,22 +32,24 @@ ctypedef IExprAggrStructElem *IExprAggrStructElemP
 ctypedef UP[IExprAggrStructElem] IExprAggrStructElemUP
 ctypedef IAssocData *IAssocDataP
 ctypedef UP[IAssocData] IAssocDataUP
-ctypedef ITemplateParamValueList *ITemplateParamValueListP
-ctypedef UP[ITemplateParamValueList] ITemplateParamValueListUP
+ctypedef ISymbolExtMember *ISymbolExtMemberP
+ctypedef UP[ISymbolExtMember] ISymbolExtMemberUP
 ctypedef ICompileCond *ICompileCondP
 ctypedef UP[ICompileCond] ICompileCondUP
 ctypedef ISymbolImportSpec *ISymbolImportSpecP
 ctypedef UP[ISymbolImportSpec] ISymbolImportSpecUP
 ctypedef ISymbolRefPath *ISymbolRefPathP
 ctypedef UP[ISymbolRefPath] ISymbolRefPathUP
+ctypedef ITemplateParamValue *ITemplateParamValueP
+ctypedef UP[ITemplateParamValue] ITemplateParamValueUP
 ctypedef IActivityMatchChoice *IActivityMatchChoiceP
 ctypedef UP[IActivityMatchChoice] IActivityMatchChoiceUP
 ctypedef ITemplateParamDeclList *ITemplateParamDeclListP
 ctypedef UP[ITemplateParamDeclList] ITemplateParamDeclListUP
-ctypedef ITemplateParamValue *ITemplateParamValueP
-ctypedef UP[ITemplateParamValue] ITemplateParamValueUP
 ctypedef IExpr *IExprP
 ctypedef UP[IExpr] IExprUP
+ctypedef ITemplateParamValueList *ITemplateParamValueListP
+ctypedef UP[ITemplateParamValueList] ITemplateParamValueListUP
 ctypedef IActivitySelectBranch *IActivitySelectBranchP
 ctypedef UP[IActivitySelectBranch] IActivitySelectBranchUP
 ctypedef IScopeChild *IScopeChildP
@@ -124,8 +126,6 @@ ctypedef IDistWeight *IDistWeightP
 ctypedef UP[IDistWeight] IDistWeightUP
 ctypedef IExecBlockTag *IExecBlockTagP
 ctypedef UP[IExecBlockTag] IExecBlockTagUP
-ctypedef ITemplateParamDecl *ITemplateParamDeclP
-ctypedef UP[ITemplateParamDecl] ITemplateParamDeclUP
 ctypedef IExecStmt *IExecStmtP
 ctypedef UP[IExecStmt] IExecStmtUP
 ctypedef IExecTargetTemplateBlock *IExecTargetTemplateBlockP
@@ -134,6 +134,8 @@ ctypedef IExportAction *IExportActionP
 ctypedef UP[IExportAction] IExportActionUP
 ctypedef IExportFunction *IExportFunctionP
 ctypedef UP[IExportFunction] IExportFunctionUP
+ctypedef ITemplateParamDecl *ITemplateParamDeclP
+ctypedef UP[ITemplateParamDecl] ITemplateParamDeclUP
 ctypedef ITemplateParamExprValue *ITemplateParamExprValueP
 ctypedef UP[ITemplateParamExprValue] ITemplateParamExprValueUP
 ctypedef ITemplateParamTypeValue *ITemplateParamTypeValueP
@@ -142,8 +144,6 @@ ctypedef IExprAggrLiteral *IExprAggrLiteralP
 ctypedef UP[IExprAggrLiteral] IExprAggrLiteralUP
 ctypedef ITypeIdentifier *ITypeIdentifierP
 ctypedef UP[ITypeIdentifier] ITypeIdentifierUP
-ctypedef ITypeIdentifierElem *ITypeIdentifierElemP
-ctypedef UP[ITypeIdentifierElem] ITypeIdentifierElemUP
 ctypedef IExprBin *IExprBinP
 ctypedef UP[IExprBin] IExprBinUP
 ctypedef IExprBitSlice *IExprBitSliceP
@@ -184,12 +184,14 @@ ctypedef IExprRefName *IExprRefNameP
 ctypedef UP[IExprRefName] IExprRefNameUP
 ctypedef IExprRefPath *IExprRefPathP
 ctypedef UP[IExprRefPath] IExprRefPathUP
-ctypedef ITypedefDeclaration *ITypedefDeclarationP
-ctypedef UP[ITypedefDeclaration] ITypedefDeclarationUP
+ctypedef ITypeIdentifierElem *ITypeIdentifierElemP
+ctypedef UP[ITypeIdentifierElem] ITypeIdentifierElemUP
 ctypedef IExprSliceRange *IExprSliceRangeP
 ctypedef UP[IExprSliceRange] IExprSliceRangeUP
 ctypedef IExprString *IExprStringP
 ctypedef UP[IExprString] IExprStringUP
+ctypedef ITypedefDeclaration *ITypedefDeclarationP
+ctypedef UP[ITypedefDeclaration] ITypedefDeclarationUP
 ctypedef IExprUnary *IExprUnaryP
 ctypedef UP[IExprUnary] IExprUnaryUP
 ctypedef IExtendEnum *IExtendEnumP
@@ -354,12 +356,12 @@ ctypedef ITemplateValueParamDecl *ITemplateValueParamDeclP
 ctypedef UP[ITemplateValueParamDecl] ITemplateValueParamDeclUP
 ctypedef ITypeOverride *ITypeOverrideP
 ctypedef UP[ITypeOverride] ITypeOverrideUP
-ctypedef ITypeScope *ITypeScopeP
-ctypedef UP[ITypeScope] ITypeScopeUP
 ctypedef IActivityActionHandleTraversal *IActivityActionHandleTraversalP
 ctypedef UP[IActivityActionHandleTraversal] IActivityActionHandleTraversalUP
 ctypedef IActivityActionTypeTraversal *IActivityActionTypeTraversalP
 ctypedef UP[IActivityActionTypeTraversal] IActivityActionTypeTraversalUP
+ctypedef ITypeScope *ITypeScopeP
+ctypedef UP[ITypeScope] ITypeScopeUP
 ctypedef ISymbolScope *ISymbolScopeP
 ctypedef UP[ISymbolScope] ISymbolScopeUP
 ctypedef IConstraintBlock *IConstraintBlockP
@@ -673,13 +675,17 @@ cdef extern from "pssp/ast/IFactory.h" namespace "pssp::ast":
                 IExprP value)
         IAssocData *mkAssocData(
                 )
-        ITemplateParamValueList *mkTemplateParamValueList(
-                )
+        ISymbolExtMember *mkSymbolExtMember(
+                std_string name,
+                int32_t idx,
+                ISymbolScopeP pkg)
         ICompileCond *mkCompileCond(
                 )
         ISymbolImportSpec *mkSymbolImportSpec(
                 )
         ISymbolRefPath *mkSymbolRefPath(
+                )
+        ITemplateParamValue *mkTemplateParamValue(
                 )
         IActivityMatchChoice *mkActivityMatchChoice(
                 bool is_default,
@@ -687,9 +693,9 @@ cdef extern from "pssp/ast/IFactory.h" namespace "pssp::ast":
                 IScopeChildP body)
         ITemplateParamDeclList *mkTemplateParamDeclList(
                 )
-        ITemplateParamValue *mkTemplateParamValue(
-                )
         IExpr *mkExpr(
+                )
+        ITemplateParamValueList *mkTemplateParamValueList(
                 )
         IActivitySelectBranch *mkActivitySelectBranch(
                 IExprP guard,
@@ -792,8 +798,6 @@ cdef extern from "pssp/ast/IFactory.h" namespace "pssp::ast":
                 IExprP expr)
         IExecBlockTag *mkExecBlockTag(
                 ITypeIdentifierP type)
-        ITemplateParamDecl *mkTemplateParamDecl(
-                IExprIdP name)
         IExecStmt *mkExecStmt(
                 )
         IExecTargetTemplateBlock *mkExecTargetTemplateBlock(
@@ -805,6 +809,8 @@ cdef extern from "pssp/ast/IFactory.h" namespace "pssp::ast":
         IExportFunction *mkExportFunction(
                 PlatQual plat,
                 IExprRefNameP name)
+        ITemplateParamDecl *mkTemplateParamDecl(
+                IExprIdP name)
         ITemplateParamExprValue *mkTemplateParamExprValue(
                 IExprP value)
         ITemplateParamTypeValue *mkTemplateParamTypeValue(
@@ -813,9 +819,6 @@ cdef extern from "pssp/ast/IFactory.h" namespace "pssp::ast":
                 )
         ITypeIdentifier *mkTypeIdentifier(
                 )
-        ITypeIdentifierElem *mkTypeIdentifierElem(
-                IExprIdP id,
-                ITemplateParamValueListP params)
         IExprBin *mkExprBin(
                 IExprP lhs,
                 ExprBinOp op,
@@ -871,14 +874,17 @@ cdef extern from "pssp/ast/IFactory.h" namespace "pssp::ast":
                 IExprIdP id)
         IExprRefPath *mkExprRefPath(
                 )
-        ITypedefDeclaration *mkTypedefDeclaration(
-                IExprIdP name,
-                IDataTypeP type)
+        ITypeIdentifierElem *mkTypeIdentifierElem(
+                IExprIdP id,
+                ITemplateParamValueListP params)
         IExprSliceRange *mkExprSliceRange(
                 )
         IExprString *mkExprString(
                 std_string value,
                 bool is_raw)
+        ITypedefDeclaration *mkTypedefDeclaration(
+                IExprIdP name,
+                IDataTypeP type)
         IExprUnary *mkExprUnary(
                 ExprUnaryOp op,
                 IExprP rhs)
@@ -1099,15 +1105,15 @@ cdef extern from "pssp/ast/IFactory.h" namespace "pssp::ast":
         ITypeOverride *mkTypeOverride(
                 ITypeIdentifierP target,
                 ITypeIdentifierP with_t)
-        ITypeScope *mkTypeScope(
-                IExprIdP name,
-                ITypeIdentifierP super_t)
         IActivityActionHandleTraversal *mkActivityActionHandleTraversal(
                 IExprRefPathContextP target,
                 IConstraintStmtP with_c)
         IActivityActionTypeTraversal *mkActivityActionTypeTraversal(
                 IDataTypeUserDefinedP target,
                 IConstraintStmtP with_c)
+        ITypeScope *mkTypeScope(
+                IExprIdP name,
+                ITypeIdentifierP super_t)
         ISymbolScope *mkSymbolScope(
                 std_string name)
         IConstraintBlock *mkConstraintBlock(
@@ -1326,9 +1332,17 @@ cdef extern from "pssp/ast/IAssocData.h" namespace "pssp::ast":
         pass
         void accept(VisitorBase *v) except +
 
-cdef extern from "pssp/ast/ITemplateParamValueList.h" namespace "pssp::ast":
-    cpdef cppclass ITemplateParamValueList:
-        std_vector[UP[ITemplateParamValue]] & getValues();
+cdef extern from "pssp/ast/ISymbolExtMember.h" namespace "pssp::ast":
+    cpdef cppclass ISymbolExtMember:
+        const std_string &getName()
+        
+        void setName(const std_string & v)
+        int32_t getIdx()
+        
+        void setIdx(int32_t v)
+        ISymbolScopeP getPkg();
+        
+        void setPkg(ISymbolScopeP v)
         void accept(VisitorBase *v) except +
 
 cdef extern from "pssp/ast/ICompileCond.h" namespace "pssp::ast":
@@ -1362,6 +1376,11 @@ cdef extern from "pssp/ast/ISymbolRefPath.h" namespace "pssp::ast":
         void setPyref_idx(int32_t v)
         void accept(VisitorBase *v) except +
 
+cdef extern from "pssp/ast/ITemplateParamValue.h" namespace "pssp::ast":
+    cpdef cppclass ITemplateParamValue:
+        pass
+        void accept(VisitorBase *v) except +
+
 cdef extern from "pssp/ast/IActivityMatchChoice.h" namespace "pssp::ast":
     cpdef cppclass IActivityMatchChoice:
         bool getIs_default()
@@ -1383,14 +1402,14 @@ cdef extern from "pssp/ast/ITemplateParamDeclList.h" namespace "pssp::ast":
         void setSpecialized(bool v)
         void accept(VisitorBase *v) except +
 
-cdef extern from "pssp/ast/ITemplateParamValue.h" namespace "pssp::ast":
-    cpdef cppclass ITemplateParamValue:
-        pass
-        void accept(VisitorBase *v) except +
-
 cdef extern from "pssp/ast/IExpr.h" namespace "pssp::ast":
     cpdef cppclass IExpr:
         pass
+        void accept(VisitorBase *v) except +
+
+cdef extern from "pssp/ast/ITemplateParamValueList.h" namespace "pssp::ast":
+    cpdef cppclass ITemplateParamValueList:
+        std_vector[UP[ITemplateParamValue]] & getValues();
         void accept(VisitorBase *v) except +
 
 cdef extern from "pssp/ast/IActivitySelectBranch.h" namespace "pssp::ast":
@@ -1770,12 +1789,6 @@ cdef extern from "pssp/ast/IExecBlockTag.h" namespace "pssp::ast":
         
         void setLiteral(IExprAggrStruct *v)
 
-cdef extern from "pssp/ast/ITemplateParamDecl.h" namespace "pssp::ast":
-    cpdef cppclass ITemplateParamDecl(IScopeChild):
-        IExprId *getName()
-        
-        void setName(IExprId *v)
-
 cdef extern from "pssp/ast/IExecStmt.h" namespace "pssp::ast":
     cpdef cppclass IExecStmt(IScopeChild):
         ISymbolScopeP getUpper();
@@ -1825,6 +1838,12 @@ cdef extern from "pssp/ast/IExportFunction.h" namespace "pssp::ast":
         
         void setName(IExprRefName *v)
 
+cdef extern from "pssp/ast/ITemplateParamDecl.h" namespace "pssp::ast":
+    cpdef cppclass ITemplateParamDecl(IScopeChild):
+        IExprId *getName()
+        
+        void setName(IExprId *v)
+
 cdef extern from "pssp/ast/ITemplateParamExprValue.h" namespace "pssp::ast":
     cpdef cppclass ITemplateParamExprValue(ITemplateParamValue):
         IExpr *getValue()
@@ -1850,15 +1869,6 @@ cdef extern from "pssp/ast/ITypeIdentifier.h" namespace "pssp::ast":
         ISymbolRefPath *getTarget()
         
         void setTarget(ISymbolRefPath *v)
-
-cdef extern from "pssp/ast/ITypeIdentifierElem.h" namespace "pssp::ast":
-    cpdef cppclass ITypeIdentifierElem(IExpr):
-        IExprId *getId()
-        
-        void setId(IExprId *v)
-        ITemplateParamValueList *getParams()
-        
-        void setParams(ITemplateParamValueList *v)
 
 cdef extern from "pssp/ast/IExprBin.h" namespace "pssp::ast":
     cpdef cppclass IExprBin(IExpr):
@@ -2038,14 +2048,14 @@ cdef extern from "pssp/ast/IExprRefPath.h" namespace "pssp::ast":
         
         void setTarget(ISymbolRefPath *v)
 
-cdef extern from "pssp/ast/ITypedefDeclaration.h" namespace "pssp::ast":
-    cpdef cppclass ITypedefDeclaration(IScopeChild):
-        IExprId *getName()
+cdef extern from "pssp/ast/ITypeIdentifierElem.h" namespace "pssp::ast":
+    cpdef cppclass ITypeIdentifierElem(IExpr):
+        IExprId *getId()
         
-        void setName(IExprId *v)
-        IDataType *getType()
+        void setId(IExprId *v)
+        ITemplateParamValueList *getParams()
         
-        void setType(IDataType *v)
+        void setParams(ITemplateParamValueList *v)
 
 cdef extern from "pssp/ast/IExprSliceRange.h" namespace "pssp::ast":
     cpdef cppclass IExprSliceRange(IExpr):
@@ -2064,6 +2074,15 @@ cdef extern from "pssp/ast/IExprString.h" namespace "pssp::ast":
         bool getIs_raw()
         
         void setIs_raw(bool v)
+
+cdef extern from "pssp/ast/ITypedefDeclaration.h" namespace "pssp::ast":
+    cpdef cppclass ITypedefDeclaration(IScopeChild):
+        IExprId *getName()
+        
+        void setName(IExprId *v)
+        IDataType *getType()
+        
+        void setType(IDataType *v)
 
 cdef extern from "pssp/ast/IExprUnary.h" namespace "pssp::ast":
     cpdef cppclass IExprUnary(IExpr):
@@ -2712,21 +2731,6 @@ cdef extern from "pssp/ast/ITypeOverride.h" namespace "pssp::ast":
         
         void setWith_t(ITypeIdentifier *v)
 
-cdef extern from "pssp/ast/ITypeScope.h" namespace "pssp::ast":
-    cpdef cppclass ITypeScope(INamedScope):
-        ITypeIdentifier *getSuper_t()
-        
-        void setSuper_t(ITypeIdentifier *v)
-        ITemplateParamDeclList *getParams()
-        
-        void setParams(ITemplateParamDeclList *v)
-        bool getOpaque()
-        
-        void setOpaque(bool v)
-        bool getSuper_cyclic()
-        
-        void setSuper_cyclic(bool v)
-
 cdef extern from "pssp/ast/IActivityActionHandleTraversal.h" namespace "pssp::ast":
     cpdef cppclass IActivityActionHandleTraversal(IActivityLabeledStmt):
         IExprRefPathContext *getTarget()
@@ -2746,6 +2750,21 @@ cdef extern from "pssp/ast/IActivityActionTypeTraversal.h" namespace "pssp::ast"
         
         void setWith_c(IConstraintStmt *v)
         std_vector[UP[IActionFieldInitializer]] & getInitializers();
+
+cdef extern from "pssp/ast/ITypeScope.h" namespace "pssp::ast":
+    cpdef cppclass ITypeScope(INamedScope):
+        ITypeIdentifier *getSuper_t()
+        
+        void setSuper_t(ITypeIdentifier *v)
+        ITemplateParamDeclList *getParams()
+        
+        void setParams(ITemplateParamDeclList *v)
+        bool getOpaque()
+        
+        void setOpaque(bool v)
+        bool getSuper_cyclic()
+        
+        void setSuper_cyclic(bool v)
 
 cdef extern from "pssp/ast/ISymbolScope.h" namespace "pssp::ast":
     cpdef cppclass ISymbolScope(ISymbolChildrenScope):
@@ -2947,6 +2966,7 @@ cdef extern from "pssp/ast/ISymbolTypeScope.h" namespace "pssp::ast":
         
         void setPlist(ISymbolScope *v)
         std_vector[UP[ISymbolTypeScope]] & getSpec_types();
+        std_vector[UP[ISymbolExtMember]] & getExt_members();
 
 cdef extern from "pssp/ast/ITemplateElem.h" namespace "pssp::ast":
     cpdef cppclass ITemplateElem(ISymbolScope):
@@ -3196,14 +3216,15 @@ cdef extern from 'pssp/ast/impl/VisitorBase.h' namespace 'pssp::ast':
     cpdef cppclass VisitorBase:
         void visitExprAggrStructElem(IExprAggrStructElemP i)
         void visitAssocData(IAssocDataP i)
-        void visitTemplateParamValueList(ITemplateParamValueListP i)
+        void visitSymbolExtMember(ISymbolExtMemberP i)
         void visitCompileCond(ICompileCondP i)
         void visitSymbolImportSpec(ISymbolImportSpecP i)
         void visitSymbolRefPath(ISymbolRefPathP i)
+        void visitTemplateParamValue(ITemplateParamValueP i)
         void visitActivityMatchChoice(IActivityMatchChoiceP i)
         void visitTemplateParamDeclList(ITemplateParamDeclListP i)
-        void visitTemplateParamValue(ITemplateParamValueP i)
         void visitExpr(IExprP i)
+        void visitTemplateParamValueList(ITemplateParamValueListP i)
         void visitActivitySelectBranch(IActivitySelectBranchP i)
         void visitScopeChild(IScopeChildP i)
         void visitExprAggrMapElem(IExprAggrMapElemP i)
@@ -3242,16 +3263,15 @@ cdef extern from 'pssp/ast/impl/VisitorBase.h' namespace 'pssp::ast':
         void visitDistItem(IDistItemP i)
         void visitDistWeight(IDistWeightP i)
         void visitExecBlockTag(IExecBlockTagP i)
-        void visitTemplateParamDecl(ITemplateParamDeclP i)
         void visitExecStmt(IExecStmtP i)
         void visitExecTargetTemplateBlock(IExecTargetTemplateBlockP i)
         void visitExportAction(IExportActionP i)
         void visitExportFunction(IExportFunctionP i)
+        void visitTemplateParamDecl(ITemplateParamDeclP i)
         void visitTemplateParamExprValue(ITemplateParamExprValueP i)
         void visitTemplateParamTypeValue(ITemplateParamTypeValueP i)
         void visitExprAggrLiteral(IExprAggrLiteralP i)
         void visitTypeIdentifier(ITypeIdentifierP i)
-        void visitTypeIdentifierElem(ITypeIdentifierElemP i)
         void visitExprBin(IExprBinP i)
         void visitExprBitSlice(IExprBitSliceP i)
         void visitExprBool(IExprBoolP i)
@@ -3272,9 +3292,10 @@ cdef extern from 'pssp/ast/impl/VisitorBase.h' namespace 'pssp::ast':
         void visitExprOpenRangeValue(IExprOpenRangeValueP i)
         void visitExprRefName(IExprRefNameP i)
         void visitExprRefPath(IExprRefPathP i)
-        void visitTypedefDeclaration(ITypedefDeclarationP i)
+        void visitTypeIdentifierElem(ITypeIdentifierElemP i)
         void visitExprSliceRange(IExprSliceRangeP i)
         void visitExprString(IExprStringP i)
+        void visitTypedefDeclaration(ITypedefDeclarationP i)
         void visitExprUnary(IExprUnaryP i)
         void visitExtendEnum(IExtendEnumP i)
         void visitActionHandleField(IActionHandleFieldP i)
@@ -3357,9 +3378,9 @@ cdef extern from 'pssp/ast/impl/VisitorBase.h' namespace 'pssp::ast':
         void visitTemplateGenericTypeParamDecl(ITemplateGenericTypeParamDeclP i)
         void visitTemplateValueParamDecl(ITemplateValueParamDeclP i)
         void visitTypeOverride(ITypeOverrideP i)
-        void visitTypeScope(ITypeScopeP i)
         void visitActivityActionHandleTraversal(IActivityActionHandleTraversalP i)
         void visitActivityActionTypeTraversal(IActivityActionTypeTraversalP i)
+        void visitTypeScope(ITypeScopeP i)
         void visitSymbolScope(ISymbolScopeP i)
         void visitConstraintBlock(IConstraintBlockP i)
         void visitConstraintStmtForall(IConstraintStmtForallP i)
@@ -3427,27 +3448,29 @@ cdef extern from 'PyBaseVisitor.h' namespace 'pssp::ast':
         PyBaseVisitor(cpy_ref.PyObject *)
         void py_acceptExprAggrStructElem(IExprAggrStructElem *i) except +
         void py_acceptAssocData(IAssocData *i) except +
-        void py_acceptTemplateParamValueList(ITemplateParamValueList *i) except +
+        void py_acceptSymbolExtMember(ISymbolExtMember *i) except +
         void py_acceptCompileCond(ICompileCond *i) except +
         void py_acceptSymbolImportSpec(ISymbolImportSpec *i) except +
         void py_acceptSymbolRefPath(ISymbolRefPath *i) except +
+        void py_acceptTemplateParamValue(ITemplateParamValue *i) except +
         void py_acceptActivityMatchChoice(IActivityMatchChoice *i) except +
         void py_acceptTemplateParamDeclList(ITemplateParamDeclList *i) except +
-        void py_acceptTemplateParamValue(ITemplateParamValue *i) except +
         void py_acceptExpr(IExpr *i) except +
+        void py_acceptTemplateParamValueList(ITemplateParamValueList *i) except +
         void py_acceptActivitySelectBranch(IActivitySelectBranch *i) except +
         void py_acceptScopeChild(IScopeChild *i) except +
         void py_acceptExprAggrMapElem(IExprAggrMapElem *i) except +
         void py_visitExprAggrStructElemBase(IExprAggrStructElem *i) except +
         void py_visitAssocDataBase(IAssocData *i) except +
-        void py_visitTemplateParamValueListBase(ITemplateParamValueList *i) except +
+        void py_visitSymbolExtMemberBase(ISymbolExtMember *i) except +
         void py_visitCompileCondBase(ICompileCond *i) except +
         void py_visitSymbolImportSpecBase(ISymbolImportSpec *i) except +
         void py_visitSymbolRefPathBase(ISymbolRefPath *i) except +
+        void py_visitTemplateParamValueBase(ITemplateParamValue *i) except +
         void py_visitActivityMatchChoiceBase(IActivityMatchChoice *i) except +
         void py_visitTemplateParamDeclListBase(ITemplateParamDeclList *i) except +
-        void py_visitTemplateParamValueBase(ITemplateParamValue *i) except +
         void py_visitExprBase(IExpr *i) except +
+        void py_visitTemplateParamValueListBase(ITemplateParamValueList *i) except +
         void py_visitActivitySelectBranchBase(IActivitySelectBranch *i) except +
         void py_visitScopeChildBase(IScopeChild *i) except +
         void py_visitExprAggrMapElemBase(IExprAggrMapElem *i) except +
@@ -3486,16 +3509,15 @@ cdef extern from 'PyBaseVisitor.h' namespace 'pssp::ast':
         void py_visitDistItemBase(IDistItem *i) except +
         void py_visitDistWeightBase(IDistWeight *i) except +
         void py_visitExecBlockTagBase(IExecBlockTag *i) except +
-        void py_visitTemplateParamDeclBase(ITemplateParamDecl *i) except +
         void py_visitExecStmtBase(IExecStmt *i) except +
         void py_visitExecTargetTemplateBlockBase(IExecTargetTemplateBlock *i) except +
         void py_visitExportActionBase(IExportAction *i) except +
         void py_visitExportFunctionBase(IExportFunction *i) except +
+        void py_visitTemplateParamDeclBase(ITemplateParamDecl *i) except +
         void py_visitTemplateParamExprValueBase(ITemplateParamExprValue *i) except +
         void py_visitTemplateParamTypeValueBase(ITemplateParamTypeValue *i) except +
         void py_visitExprAggrLiteralBase(IExprAggrLiteral *i) except +
         void py_visitTypeIdentifierBase(ITypeIdentifier *i) except +
-        void py_visitTypeIdentifierElemBase(ITypeIdentifierElem *i) except +
         void py_visitExprBinBase(IExprBin *i) except +
         void py_visitExprBitSliceBase(IExprBitSlice *i) except +
         void py_visitExprBoolBase(IExprBool *i) except +
@@ -3516,9 +3538,10 @@ cdef extern from 'PyBaseVisitor.h' namespace 'pssp::ast':
         void py_visitExprOpenRangeValueBase(IExprOpenRangeValue *i) except +
         void py_visitExprRefNameBase(IExprRefName *i) except +
         void py_visitExprRefPathBase(IExprRefPath *i) except +
-        void py_visitTypedefDeclarationBase(ITypedefDeclaration *i) except +
+        void py_visitTypeIdentifierElemBase(ITypeIdentifierElem *i) except +
         void py_visitExprSliceRangeBase(IExprSliceRange *i) except +
         void py_visitExprStringBase(IExprString *i) except +
+        void py_visitTypedefDeclarationBase(ITypedefDeclaration *i) except +
         void py_visitExprUnaryBase(IExprUnary *i) except +
         void py_visitExtendEnumBase(IExtendEnum *i) except +
         void py_visitActionHandleFieldBase(IActionHandleField *i) except +
@@ -3601,9 +3624,9 @@ cdef extern from 'PyBaseVisitor.h' namespace 'pssp::ast':
         void py_visitTemplateGenericTypeParamDeclBase(ITemplateGenericTypeParamDecl *i) except +
         void py_visitTemplateValueParamDeclBase(ITemplateValueParamDecl *i) except +
         void py_visitTypeOverrideBase(ITypeOverride *i) except +
-        void py_visitTypeScopeBase(ITypeScope *i) except +
         void py_visitActivityActionHandleTraversalBase(IActivityActionHandleTraversal *i) except +
         void py_visitActivityActionTypeTraversalBase(IActivityActionTypeTraversal *i) except +
+        void py_visitTypeScopeBase(ITypeScope *i) except +
         void py_visitSymbolScopeBase(ISymbolScope *i) except +
         void py_visitConstraintBlockBase(IConstraintBlock *i) except +
         void py_visitConstraintStmtForallBase(IConstraintStmtForall *i) except +

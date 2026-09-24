@@ -70,7 +70,8 @@ namespace pssp {
  * would have satisfied leaves the context an import-leak hint.
  *
  * Not yet (symbol-resolution-plan.md): aliases (6.4); the visibility of
- * extension members by package (6.3, 6.5); step a (8.1).
+ * extension members by package, from SymbolTypeScope.ext_members (6.5);
+ * step a (8.1).
  */
 class NameLookup {
 public:
@@ -101,12 +102,21 @@ public:
         int32_t             idx = -1;
         /** How many base types were crossed to find it; 0 for `ns` itself. */
         int32_t             super_depth = -1;
+        /**
+         * For a name `ns` forwards to another package (F28), that package's
+         * index in the root, where the path restarts; -1 otherwise.
+         */
+        int32_t             fwd_pkg = -1;
+
+        /** Append this step to `path`, the path to `ns`. */
+        void appendTo(ast::ISymbolRefPath *path) const;
     };
 
     /**
      * `name` as a member of `ns`. For a type, its own members and then each
      * base type's, transitively (18.3 b.1-b.3; Ex. 242). For a package, its
-     * members -- never its imports (Ex. 271). Bounded on an inheritance ring,
+     * members -- never its imports (Ex. 271) -- and the names it forwards
+     * (F28: addr_reg_pkg to std_pkg). Bounded on an inheritance ring,
      * which TaskCheckTypeCycles reports.
      */
     static Member lookupMember(
