@@ -190,7 +190,7 @@ def test_import_solve_function(parser):
     """Test imported function with solve keyword in component"""
     code = """
     component my_c {
-        import function int alloc_resource(int size);
+        import static function int alloc_resource(int size);
     }
     """
     assert_parse_ok(code, parser)
@@ -200,7 +200,7 @@ def test_import_target_function(parser):
     """Test imported target function with body"""
     code = """
     component my_c {
-        import target function void write_register(bit[32] addr, bit[32] data);
+        import target static function void write_register(bit[32] addr, bit[32] data);
     }
     """
     assert_parse_ok(code, parser)

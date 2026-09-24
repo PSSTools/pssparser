@@ -250,7 +250,7 @@ _SHADOW = """
 package q {
     struct base_q { int b; }
     struct s_s : base_q { bit[8] z; }
-    struct Q<struct T : base_q> { int nbytes; }
+    struct Q<struct T : base_q> { static const int nbytes = 4; }
 }
 package p {
     import q::*;
@@ -299,7 +299,7 @@ def test_an_explicitly_qualified_local_argument_is_still_checked():
 
 
 _COUNT = """
-package q { struct P<type T, int N> { int nbytes; } }
+package q { struct P<type T, int N> { static const int nbytes = 4; } }
 package p {
     import q::*;
     %s
@@ -420,7 +420,7 @@ def test_an_inherited_member_is_found_through_a_static_path():
     """
     assert_clean([("t.pss", """
         package q {
-            struct base_q { int nbytes; }
+            struct base_q { static const int nbytes = 4; }
             struct Q<type T> : base_q { int own; }
         }
         package p {

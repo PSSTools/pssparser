@@ -7,6 +7,95 @@ revision advances only the patch component.
 
 ## Unreleased
 
+### Fixed — static and instance members (symbol-resolution 7.3, LRM 18.3, 20.2, 20.4)
+
+The linker used to ignore `static`. Models that relied on that now get
+errors; each one is fixed by adding `static`, or by going through an
+instance.
+
+- **New marker PSS040, "Instance member used without an instance".**
+  - `T::m` can name only a type's types, static constants, static functions
+    and enum items (18.3). `sub_c::inst_f()` and `sub_c::fld` used to be
+    accepted. They are still accepted inside `sub_c`, a subtype of it, or an
+    extension of either.
+  - A static component function has no instance (20.2). Its body can no
+    longer read the component's non-static fields or call its instance
+    functions, whether they are its own or inherited. This also applies to
+    `{{...}}` in a static target template.
+- **Instance functions cannot be imported** (20.4), reported as PSS019.
+  - In a component, `import C function void f(int a);` must say `static`,
+    whether `f` is declared anywhere else or not (20.4.1.1 b.1).
+  - `import C function f;` is an error when no declaration of `f` says
+    `static`.
+  - Package functions are always static, so they are not affected.
+  - LRM Example 289 omits `static` here. The normative text wins, and a
+    correction has been filed with the working group.
+- **New marker PSS041, "Static member used through 'comp'"** (9.1.4.1 f).
+  `comp.f()` or `comp.K` in an action, where `f` or `K` is static, is now an
+  error. So is a static member of a sub-component reached through
+  `comp.sub`. Name the member without `comp.`, or through its type
+  (`sub_c::f`).
+
+### Fixed — function definitions and imports (symbol-resolution 7.2, LRM 20.2, 20.4.1, 20.6)
+
+- **A definition may name its parameters differently from the declaration**
+  (20.2). `function int f(int a); function int f(int b) { return b; }` used to
+  report "unknown identifier 'b'" and let `a` resolve in the body instead.
+  The body now uses its own names, also when the definition comes from an
+  extension, and a target template's mustaches use the template's names.
+- **A target template is an implementation.** Giving a function both a target
+  template and a PSS body, or a target template and an import, is now PSS003
+  ("function 'f' is already defined" / "cannot be both defined and
+  imported"). It used to be silent.
+- **New marker PSS019, "Function cannot be imported here"** (20.4.1). A
+  function declared in a component can be imported only in that component
+  type or an extension of it, not in a derived component, another component
+  or a package. A function declared in a template component cannot be
+  imported at all. Both used to be silent.
+
+### Fixed — merging type extensions (symbol-resolution 7.1, LRM 17.2.3, 17.3)
+
+- **A function declared in a type may be defined in an extension**, or the
+  other way round (20.3): the two are one function. This used to be "Type
+  extension of f conflicts with an existing declaration". Implementing it twice
+  is still an error (PSS003, "function 'f' is already defined"), including
+  from two packages.
+- **Two packages may each add a field or type of the same name** to one type
+  (17.2.3), and both are kept. Lookup does not yet tell them apart by package:
+  a reference binds to the first one merged (known-issues L-05).
+- **Conflicting extension members are PSS003 and say which rule applies**:
+  "its initial definition already declares it" or "another extension in
+  package 'p' already declares it". A note points at the first declaration.
+- **A duplicate enum item in `extend enum` is an error** (PSS003, 7.5.1),
+  whether it repeats the enum, another extension in any package, or the same
+  extension. It used to be silent.
+- **An `extend` inside `extend component` is applied** (17.3). It used to be
+  dropped silently. Its target must be a type the component declares (PSS005
+  otherwise). An `extend` of an unknown type written directly in a component
+  is reported too (PSS002), where it used to be silent.
+- **"cannot extend 'x': it is not an extendable type" and "... as an enum: it
+  is not an enum type" have a code**, PSS005.
+
+### Fixed — declaration order (symbol-resolution WS9, LRM 18.2)
+
+- **In a block, a name is visible only after its declaration** (18.2a/b,
+  4.7.1.2): in exec, activity and monitor-activity blocks and in template
+  strings. A use before a local's declaration used to bind to that later
+  local; it now binds to whatever the name means outside the block
+  (`bit[8] x; exec init_up { x = 1; string x; }` assigns the field), and
+  where nothing outside declares it, it is an error (PSS002, "'x' is used
+  before its declaration on line N"). This includes `{% x = 1; %}` before
+  `{% int x; %}`. Type, package and global scopes are unchanged: a member may
+  still be used before it is declared (Example 262).
+- **Constant initializers are ordered** (18.2c/d, 4.7.2 Example 1; new
+  **PSS118**, error): a constant or enum item used in another constant's
+  initializer, template strings included, must be declared first. Across files
+  the order the files are given in applies, as it already does for
+  `compile if`. A package-level constant may reference only package-level
+  constants (`const int A = C::K;` is an error).
+- **A constant used in a type width before its declaration is a warning**
+  (new **PSS119**): the rule is in the prose under Example 264 only.
+
 ### Fixed — built-in members `uid`, `prev` and `comp` (symbol-resolution 5.1, 5.3)
 
 - **`uid` resolves** (clause 9): `comp.uid`, `r.uid` on a resource or flow

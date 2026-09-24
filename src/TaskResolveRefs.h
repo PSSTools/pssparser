@@ -135,6 +135,33 @@ public:
     /** PSS115 -- `e` is a template string that is not a constant expression. */
     void checkConstTemplate(ast::IExpr *e, const ast::Location &loc);
 
+    /**
+     * PSS118 -- 18.2c/d: a constant's initializer references a constant or
+     * enum item declared after it, or, at package level, a constant declared
+     * in a type.
+     */
+    void checkConstInitRefs(ast::IField *i);
+
+    virtual void visitDataTypeInt(ast::IDataTypeInt *i) override;
+
+    /**
+     * A constant or enum item that `path` binds to, or null if it binds to
+     * anything else. PSS118/PSS119 are about these only.
+     */
+    ast::IScopeChild *constTarget(ast::ISymbolRefPath *path);
+
+    /**
+     * True if `target`, used at `use`, comes later in the model: later in the
+     * same file, or in a file given after the use's file (decision Q8).
+     */
+    bool declaredLater(ast::IScopeChild *target, const ast::Location &use);
+
+    /**
+     * "on line N", or "in a file given later" when `target` is in another
+     * file.
+     */
+    std::string declSite(ast::IScopeChild *target, const ast::Location &use);
+
     virtual void visitFieldCompRef(ast::IFieldCompRef *i) override;
 
     virtual void visitFunctionPrototype(ast::IFunctionPrototype *i) override;
@@ -212,6 +239,8 @@ public:
      * package back in scope if this child came from one. See CL-N1.
      */
     void visitMergedScopeChild(ast::IScopeChild *c);
+
+    ast::ISymbolTypeScope *componentScopeOf(ast::ISymbolScope *s);
 
     virtual void visitSymbolScope(ast::ISymbolScope *i) override;
 
@@ -299,6 +328,61 @@ protected:
     void reportSuperMiss(
         ast::IExprId                                *id,
         const TaskResolveRootRef::SuperResult       &res);
+
+    /**
+     * If the lookup of `id` that just missed passed over a later declaration
+     * of it (18.2a/b), reports the use as coming before that declaration and
+     * returns true. Otherwise reports nothing.
+     */
+    bool reportUseBeforeDecl(const ast::IExprId *id);
+
+    /**
+     * If the lookup of `id` that just succeeded left a static function to
+     * reach an instance member of the component (the static-context hint),
+     * reports it.
+     */
+    void reportStaticContext(const ast::IExprId *id);
+
+    /**
+     * `T::m`, where `scope` is the type T and `member` is m. 18.3: a type
+     * namespace holds "types, static constants, static functions, and enum
+     * items", so an instance member is reported -- unless the reference is
+     * written inside T, a subtype of T, or an extension of either, where a
+     * qualified call to a base member is a common idiom and the LRM does not
+     * say otherwise. Returns true if it reported.
+     */
+    bool checkTypeMember(
+        ast::ISymbolScope       *scope,
+        ast::IScopeChild        *member,
+        const ast::IExprId      *id);
+
+    /**
+     * True if a scope enclosing the current position is `t`, derives from
+     * it, or extends either.
+     */
+    bool insideTypeOrSubtype(ast::ISymbolTypeScope *t);
+
+    /**
+     * `comp.<...>.m`, where `scope` is the component searched and `member`
+     * is m. 9.1.4.1 f: "It shall be illegal to access static component
+     * members using the comp handle." Reports, and the name stays bound.
+     */
+    void checkStaticViaComp(
+        ast::ISymbolScope       *scope,
+        ast::IScopeChild        *member,
+        const ast::IExprId      *id,
+        bool                    direct);
+
+    /**
+     * The lookup `{% x = expr; %}` makes for its target: the innermost scope
+     * declaring `x` before the assignment. True if found; `in_template` says
+     * whether that scope is the template string's own. `fwd_decl` is a later
+     * declaration of `x` passed over on the way, if any.
+     */
+    bool findTemplateAssignTarget(
+        const ast::IExprId          *id,
+        bool                        &in_template,
+        ast::IScopeChild            *&fwd_decl);
 
     bool isBuiltinWithMethods(ast::IScopeChild *c);
 

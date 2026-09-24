@@ -144,10 +144,11 @@ component pss_top {
 # ---------------------------------------------------------------------------
 
 def test_import_function_by_name_links():
-    """LRM Ex. 297 style: declare, then import by name."""
+    """LRM Ex. 297 style: declare, then import by name. `static`, since an
+    instance function cannot be imported (20.4)."""
     assert_parse_ok("""
 component pss_top {
-  function void f(int a);
+  static function void f(int a);
   import target C function f;
 }
 """)
@@ -156,8 +157,8 @@ component pss_top {
 @pytest.mark.parametrize("decl,imp,marker_id,text", [
     ("", "import C function nosuch_f;", "PSS002", "unknown function 'nosuch_f'"),
     ("int notfn;", "import C function notfn;", "PSS006", "'notfn' is not a function"),
-    ("function void d() { }", "import C function d;", "PSS003", "cannot be both defined and imported"),
-    ("function void g(); import C function g;", "import solve function g;", "PSS003", "already imported"),
+    ("static function void d() { }", "import C function d;", "PSS003", "cannot be both defined and imported"),
+    ("static function void g(); import C function g;", "import solve function g;", "PSS003", "already imported"),
 ])
 def test_import_function_by_name_is_checked(decl, imp, marker_id, text):
     assert_marker("""

@@ -208,9 +208,8 @@ Core IDs are allocated in bands:
     of parser recovery (missing punctuation, unexpected end of input, a
     keyword where an identifier was expected, ...), classified in
     ``AstBuilderInt::syntaxError`` and carried on the marker itself rather
-    than recovered from message-pattern matching. ``PSS011``–``PSS019`` are
-    held as headroom; ``PSS023`` and ``PSS027`` within the sub-band are
-    reserved, not assigned (see ``core_checker.py`` for why). ``PSS029`` is
+    than recovered from message-pattern matching. ``PSS023`` within the
+    sub-band is reserved, not assigned (see ``core_checker.py`` for why). ``PSS029`` is
     the ``--max-errors`` cutoff marker (``MarkerCollector::marker`` in C++),
     emitted once per capped file.
 

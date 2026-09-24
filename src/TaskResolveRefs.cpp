@@ -31,6 +31,14 @@
 #include "TaskResolveRef.h"
 #include "TaskResolveRootRef.h"
 #include "pssp/ast/ITypeScope.h"
+#include "pssp/ast/IDataTypeInt.h"
+#include "pssp/ast/IEnumItem.h"
+#include "pssp/ast/IExtendType.h"
+#include "FunctionScopeUtil.h"
+#include "TaskResolveSuperTypeRef.h"
+#include "pssp/ast/INamedScope.h"
+#include "pssp/ast/IRootSymbolScope.h"
+#include "pssp/ast/ITypeIdentifierElem.h"
 #include "pssp/ast/IProceduralStmtSuper.h"
 #include "pssp/ast/IActivitySuper.h"
 #include "TaskResolveRefs.h"
@@ -1538,6 +1546,127 @@ void TaskResolveRefs::checkSuperStmt(ast::IScopeChild *stmt) {
     }
 }
 
+bool TaskResolveRefs::reportUseBeforeDecl(const ast::IExprId *id) {
+    ast::IScopeChild *decl = m_ctxt->fwdDeclHint(id);
+    if (!decl) {
+        return false;
+    }
+    const ast::Location &dl = TaskResolveRootRef::declLocation(decl);
+    m_ctxt->addMarker(
+        MarkerSeverityE::Error,
+        id->getLocation(),
+        "'" + id->getId() + "' is used before its declaration on line "
+            + std::to_string(dl.lineno)
+            + "; in a block, a name is visible only after it is declared",
+        {{dl, "declared here"}});
+    return true;
+}
+
+/**
+ * 20.2: a static function "is not associated with a specific instance", so
+ * its body has no instance members to reach. The name stays bound -- the
+ * lookup found what the author meant -- and this is the one report.
+ */
+void TaskResolveRefs::reportStaticContext(const ast::IExprId *id) {
+    ast::IScopeChild *fn = m_ctxt->staticCtxtHint(id);
+    if (!fn) {
+        return;
+    }
+    m_ctxt->addErrorMarker(id->getLocation(),
+        "cannot reference instance member '%s' from static function '%s': "
+        "a static function has no component instance (20.2)",
+        id->getId().c_str(),
+        dynamic_cast<ast::ISymbolScope *>(fn)->getName().c_str());
+}
+
+bool TaskResolveRefs::insideTypeOrSubtype(ast::ISymbolTypeScope *t) {
+    ISymbolTableIteratorUP scratch(m_ctxt->cloneSymtab());
+    if (!scratch) {
+        return false;
+    }
+    while (scratch->hasScopes()) {
+        // See TaskResolveRootRef::resolve() for why a null scope pops.
+        ast::ISymbolScope *s = scratch->getScope();
+        if (s) {
+            ast::ISymbolScope *ts = s;
+            if (ast::ISymbolExtendScope *es =
+                    dynamic_cast<ast::ISymbolExtendScope *>(s)) {
+                ast::IExtendType *ext =
+                    dynamic_cast<ast::IExtendType *>(es->getTarget());
+                ts = (ext && ext->getTarget() && ext->getTarget()->getTarget())
+                    ? dynamic_cast<ast::ISymbolScope *>(
+                        m_ctxt->resolveSymbolPathRef(ext->getTarget()->getTarget()))
+                    : 0;
+            }
+            // Up the inheritance chain; bounded, since TaskCheckTypeCycles has
+            // not necessarily cut every ring by the time this runs.
+            for (int32_t n=0; ts && n<64; n++) {
+                if (ts == t) {
+                    return true;
+                }
+                ast::ISymbolTypeScope *sts =
+                    dynamic_cast<ast::ISymbolTypeScope *>(ts);
+                ast::ITypeScope *tt = (sts)?
+                    dynamic_cast<ast::ITypeScope *>(sts->getTarget()) : 0;
+                ts = (tt)? dynamic_cast<ast::ISymbolScope *>(
+                    TaskResolveSuperTypeRef(
+                        m_ctxt->getDebugMgr(), m_ctxt->root()).resolve(tt)) : 0;
+            }
+        }
+        scratch->popScope();
+    }
+    return false;
+}
+
+void TaskResolveRefs::checkStaticViaComp(
+        ast::ISymbolScope       *scope,
+        ast::IScopeChild        *member,
+        const ast::IExprId      *id,
+        bool                    direct) {
+    ast::ISymbolTypeScope *ts = dynamic_cast<ast::ISymbolTypeScope *>(scope);
+    if (!ts || !dynamic_cast<ast::IComponent *>(ts->getTarget())
+            || !isStaticMember(member)) {
+        return;
+    }
+    // Once per location: an action in a template component is walked once
+    // per specialization.
+    if (m_ctxt->wasReported(id->getLocation())) {
+        return;
+    }
+    // A specialization's symbol name carries its argument list in a form
+    // that is not PSS syntax, so it is shown without it.
+    std::string tname = ts->getName().substr(0, ts->getName().find('<'));
+    bool is_tmpl = (tname.size() != ts->getName().size());
+    std::string fix;
+    if (direct) {
+        // An action lives in its component or an extension of it, so the
+        // plain name finds the member.
+        fix = "; name it without 'comp.', as '" + id->getId() + "'";
+    } else if (!is_tmpl) {
+        fix = "; name it through the type instead, as '" + tname + "::"
+            + id->getId() + "'";
+    }
+    m_ctxt->addErrorMarker(id->getLocation(),
+        "cannot reach static member '%s' of '%s' through 'comp'%s (9.1.4.1 f)",
+        id->getId().c_str(), tname.c_str(), fix.c_str());
+}
+
+bool TaskResolveRefs::checkTypeMember(
+        ast::ISymbolScope       *scope,
+        ast::IScopeChild        *member,
+        const ast::IExprId      *id) {
+    ast::ISymbolTypeScope *ts = dynamic_cast<ast::ISymbolTypeScope *>(scope);
+    if (!ts || !isInstanceMember(member) || insideTypeOrSubtype(ts)) {
+        return false;
+    }
+    m_ctxt->addErrorMarker(id->getLocation(),
+        "'%s' is an instance member of '%s' and cannot be referenced through "
+        "the type; only types, static constants, static functions and enum "
+        "items can (18.3)",
+        id->getId().c_str(), scope->getName().c_str());
+    return true;
+}
+
 void TaskResolveRefs::reportSuperMiss(
         ast::IExprId                                *id,
         const TaskResolveRootRef::SuperResult       &res) {
@@ -1609,6 +1738,9 @@ void TaskResolveRefs::resolveExprRefPathContext(ast::IExprRefPathContext *i) {
     } else if (!target) {
         target = TaskResolveRef(m_ctxt).resolve(
             i->getHier_id()->getElems().at(0)->getId());
+        if (target) {
+            reportStaticContext(i->getHier_id()->getElems().at(0)->getId());
+        }
     }
 
     if (!target) {
@@ -1618,6 +1750,11 @@ void TaskResolveRefs::resolveExprRefPathContext(ast::IExprRefPathContext *i) {
         // nothing, and "unknown identifier" on top of it is a cascade.
         if (m_ctxt->wasReported(i->getHier_id()->getElems().at(0)->getId()->getLocation())) {
             DEBUG_LEAVE("visitExprRefPathContext -- already reported");
+            return;
+        }
+
+        if (reportUseBeforeDecl(i->getHier_id()->getElems().at(0)->getId())) {
+            DEBUG_LEAVE("visitExprRefPathContext -- use before declaration");
             return;
         }
 
@@ -1784,6 +1921,12 @@ void TaskResolveRefs::resolveExprRefPathContext(ast::IExprRefPathContext *i) {
 
     // Target already points to the first elem
     i->getHier_id()->getElems().at(0)->setTarget(-1);
+
+    // `comp.<...>`: the path starts at the action's component handle, which
+    // may not be used to reach a static component member (9.1.4.1 f).
+    bool via_comp = i->getHier_id()->getElems().at(0)->getId()->getId() == "comp"
+        && !i->getHier_id()->getElems().at(0)->getId()->getIs_escaped()
+        && dynamic_cast<ast::IFieldCompRef *>(target_c);
 
     for (uint32_t ii=0; ii<i->getHier_id()->getElems().size(); ii++) {
         ast::IExprMemberPathElem *elem = i->getHier_id()->getElems().at(ii).get();
@@ -2003,6 +2146,10 @@ void TaskResolveRefs::resolveExprRefPathContext(ast::IExprRefPathContext *i) {
             elem->setTarget(res.idx);
             elem->setSuper(res.super_idx);
             elem->getId()->setDecl(res.sym);
+
+            if (via_comp) {
+                checkStaticViaComp(target_s, res.sym, elem->getId(), ii == 1);
+            }
 
             // A member call -- `comp.f(1)`, `pkg::f(1)`.
             checkCallArity(elem, res.sym);
@@ -2410,6 +2557,8 @@ void TaskResolveRefs::resolveExprRefPathStatic(ast::IExprRefPathStatic *i) {
                     break;
                 }
 
+                checkTypeMember(scope_s, res.sym, (*it)->getId());
+
                 target_s = res.sym;
                 (*it)->getId()->setDecl(res.sym);
 
@@ -2573,6 +2722,12 @@ void TaskResolveRefs::resolveStaticRootedLeaf(ast::IExprRefPathStaticRooted *i) 
             break;
         }
 
+        // The first element only: after it the path runs through a value,
+        // where `.` is the right operator and nothing here applies.
+        if (ii == 0) {
+            checkTypeMember(target_s, res.sym, elem->getId());
+        }
+
         elem->setTarget(res.idx);
         elem->setSuper(res.super_idx);
         elem->getId()->setDecl(res.sym);
@@ -2639,6 +2794,7 @@ void TaskResolveRefs::visitField(ast::IField *i) {
         // computes `is_const`.
         if ((i->getAttr() & ast::FieldAttr::Const) != ast::FieldAttr::NoFlags) {
             checkConstTemplate(i->getInit(), i->getName()->getLocation());
+            checkConstInitRefs(i);
         }
     }
     // A handle's `{.x = v}` list: each value resolves here, in the scope
@@ -2674,6 +2830,183 @@ void TaskResolveRefs::checkConstTemplate(
             loc,
             "template string with non-constant elements is not a constant "
             "expression");
+    }
+}
+
+namespace {
+
+/**
+ * Every reference in an expression, with the name it is reported at:
+ * a bare or dotted name (its root), and a static path (its leaf; the root of
+ * an ExprRefPathStaticRooted is one of these). Descends into subscripts,
+ * arguments and template-string elements.
+ */
+class ExprRefCollector : public ast::VisitorBase {
+public:
+    std::vector<std::pair<ast::IExprId *, ast::ISymbolRefPath *>> refs;
+
+    virtual void visitExprRefPathContext(ast::IExprRefPathContext *r) override {
+        if (r->getTarget() && r->getHier_id()
+                && r->getHier_id()->getElems().size()) {
+            refs.push_back({
+                r->getHier_id()->getElems().at(0)->getId(), r->getTarget()});
+        }
+        ast::VisitorBase::visitExprRefPathContext(r);
+    }
+
+    virtual void visitExprRefPathStatic(ast::IExprRefPathStatic *r) override {
+        if (r->getTarget() && r->getBase().size()) {
+            refs.push_back({r->getBase().back()->getId(), r->getTarget()});
+        }
+        ast::VisitorBase::visitExprRefPathStatic(r);
+    }
+};
+
+/**
+ * Declared in a type (or a type extension), as opposed to a package or the
+ * global scope.
+ */
+bool isTypeLevel(ast::IScopeChild *c) {
+    ast::IScope *p = c->getParent();
+    return dynamic_cast<ast::ITypeScope *>(p) != 0
+        || dynamic_cast<ast::IExtendType *>(p) != 0;
+}
+
+}
+
+ast::IScopeChild *TaskResolveRefs::constTarget(ast::ISymbolRefPath *path) {
+    ast::IScopeChild *t = m_ctxt->resolveSymbolPathRef(path);
+    if (dynamic_cast<ast::IEnumItem *>(t)) {
+        return t;
+    }
+    ast::IField *f = dynamic_cast<ast::IField *>(t);
+    if (f && (f->getAttr() & ast::FieldAttr::Const) != ast::FieldAttr::NoFlags
+            && (f->getAttr() & ast::FieldAttr::Builtin) == ast::FieldAttr::NoFlags) {
+        return t;
+    }
+    return 0;
+}
+
+bool TaskResolveRefs::declaredLater(
+        ast::IScopeChild        *target,
+        const ast::Location     &use) {
+    const ast::Location &d = TaskResolveRootRef::declLocation(target);
+    if (d.lineno < 0 || use.lineno < 0) {
+        return false;
+    }
+    if (d.fileid == use.fileid) {
+        return TaskResolveRootRef::declaredAfter(target, use);
+    }
+    // Decision Q8: across files, constants follow the order the files are
+    // given in -- the unit order.
+    ast::IRootSymbolScope *root = dynamic_cast<ast::IRootSymbolScope *>(m_ctxt->root());
+    if (!root) {
+        return false;
+    }
+    auto d_it = root->getId2idx().find(d.fileid);
+    auto u_it = root->getId2idx().find(use.fileid);
+    return d_it != root->getId2idx().end() && u_it != root->getId2idx().end()
+        && d_it->second > u_it->second;
+}
+
+std::string TaskResolveRefs::declSite(
+        ast::IScopeChild        *target,
+        const ast::Location     &use) {
+    const ast::Location &d = TaskResolveRootRef::declLocation(target);
+    if (d.fileid != use.fileid) {
+        // The root has no file names to offer; the "declared here" note
+        // carries the file.
+        return "in a file given later";
+    }
+    return "on line " + std::to_string(d.lineno);
+}
+
+/**
+ * PSS118 -- LRM 18.2:
+ *   c) "A constant or enum item may be referenced in the initialization
+ *      assignment expression of another constant only after its declaration."
+ *   d) "A package-level constant may only reference other package-level
+ *      constants in its initialization assignment expression."
+ *
+ * Checked here rather than by hiding at lookup time (as 18.2a/b are, in
+ * TaskResolveRootRef): a type or package scope is not ordered for anything
+ * else, a qualified `p::C` never takes the lexical walk, and there is no
+ * outer declaration for the use to fall back to. Across files, the file
+ * order applies (decision Q8), as it does for `compile if`.
+ */
+void TaskResolveRefs::checkConstInitRefs(ast::IField *i) {
+    ExprRefCollector c;
+    i->getInit()->accept(&c);
+    bool pkg_level = !isTypeLevel(i);
+
+    for (std::vector<std::pair<ast::IExprId *, ast::ISymbolRefPath *>>::const_iterator
+            it=c.refs.begin(); it!=c.refs.end(); it++) {
+        ast::IScopeChild *t = constTarget(it->second);
+        if (!t) {
+            continue;
+        }
+        const ast::Location &use = it->first->getLocation();
+        const char *kind = (dynamic_cast<ast::IEnumItem *>(t))?"enum item":"constant";
+
+        if (t == i) {
+            m_ctxt->addMarker(
+                MarkerSeverityE::Error,
+                use,
+                std::string("constant '") + it->first->getId()
+                    + "' is used in the initializer of '" + i->getName()->getId()
+                    + "', which is itself (18.2)",
+                std::vector<std::pair<ast::Location, std::string>>());
+        } else if (declaredLater(t, use)) {
+            m_ctxt->addMarker(
+                MarkerSeverityE::Error,
+                use,
+                std::string(kind) + " '" + it->first->getId()
+                    + "' is used in the initializer of '" + i->getName()->getId()
+                    + "' before its declaration " + declSite(t, use)
+                    + "; declare it first (18.2)",
+                {{TaskResolveRootRef::declLocation(t), "declared here"}});
+        } else if (pkg_level && dynamic_cast<ast::IField *>(t) && isTypeLevel(t)) {
+            ast::INamedScope *owner = dynamic_cast<ast::INamedScope *>(t->getParent());
+            std::string owner_name = (owner && owner->getName())
+                ? owner->getName()->getId() : std::string("?");
+            m_ctxt->addMarker(
+                MarkerSeverityE::Error,
+                use,
+                "package-level constant '" + i->getName()->getId()
+                    + "' may reference only package-level constants; '"
+                    + it->first->getId() + "' is declared in type '"
+                    + owner_name + "' (18.2)",
+                {{TaskResolveRootRef::declLocation(t), "declared here"}});
+        }
+    }
+}
+
+/**
+ * PSS119, a warning -- the prose under Example 264 extends 18.2c to "a
+ * type-width expression": `bit[W] f;` with `const int W` declared later.
+ * Only prose, and models do write it, so a warning first (plan §8).
+ */
+void TaskResolveRefs::visitDataTypeInt(ast::IDataTypeInt *i) {
+    ast::VisitorBase::visitDataTypeInt(i);
+    if (!i->getWidth()) {
+        return;
+    }
+    ExprRefCollector c;
+    i->getWidth()->accept(&c);
+    for (std::vector<std::pair<ast::IExprId *, ast::ISymbolRefPath *>>::const_iterator
+            it=c.refs.begin(); it!=c.refs.end(); it++) {
+        ast::IScopeChild *t = constTarget(it->second);
+        const ast::Location &use = it->first->getLocation();
+        if (t && declaredLater(t, use)) {
+            m_ctxt->addMarker(
+                MarkerSeverityE::Warn,
+                use,
+                std::string((dynamic_cast<ast::IEnumItem *>(t))?"enum item":"constant")
+                    + " '" + it->first->getId()
+                    + "' is used in a type width before its declaration "
+                    + declSite(t, use) + "; declare it first (18.2)",
+                {{TaskResolveRootRef::declLocation(t), "declared here"}});
+        }
     }
 }
 
@@ -2922,6 +3255,39 @@ void TaskResolveRefs::visitTemplateIfClause(ast::ITemplateIfClause *i) {
     DEBUG_LEAVE("visitTemplateIfClause");
 }
 
+bool TaskResolveRefs::findTemplateAssignTarget(
+        const ast::IExprId          *id,
+        bool                        &in_template,
+        ast::IScopeChild            *&fwd_decl) {
+    const std::string &name = id->getId();
+    in_template = false;
+    fwd_decl = 0;
+    for (int32_t off=0; ; off++) {
+        ast::ISymbolScope *scope = m_ctxt->symtab()->getScope(off);
+        if (!scope) {
+            break;
+        }
+        std::unordered_map<std::string,int32_t>::const_iterator it =
+            scope->getSymtab().find(name);
+        if (it != scope->getSymtab().end()) {
+            // A later `{% int x; %}` is not a previous declaration.
+            ast::IScopeChild *c = scope->getChildren().at(it->second).get();
+            if (TaskResolveRootRef::isOrderSensitive(scope)
+                    && TaskResolveRootRef::declaredAfter(c, id->getLocation())) {
+                if (!fwd_decl) {
+                    fwd_decl = c;
+                }
+                continue;
+            }
+            in_template =
+                dynamic_cast<ast::ITemplateString *>(scope) != 0 ||
+                dynamic_cast<ast::ITemplateBlock *>(scope) != 0;
+            return true;
+        }
+    }
+    return false;
+}
+
 void TaskResolveRefs::visitTemplateAssign(ast::ITemplateAssign *i) {
     DEBUG_ENTER("visitTemplateAssign");
 
@@ -2937,23 +3303,16 @@ void TaskResolveRefs::visitTemplateAssign(ast::ITemplateAssign *i) {
     // rather than a side table.
     const std::string &name = i->getLhs()->getId()->getId();
 
-    bool found = false;
     bool in_template = false;
-    for (int32_t off=0; ; off++) {
-        ast::ISymbolScope *scope = m_ctxt->symtab()->getScope(off);
-        if (!scope) {
-            break;
-        }
-        if (scope->getSymtab().find(name) != scope->getSymtab().end()) {
-            found = true;
-            in_template =
-                dynamic_cast<ast::ITemplateString *>(scope) != 0 ||
-                dynamic_cast<ast::ITemplateBlock *>(scope) != 0;
-            break;
-        }
-    }
+    ast::IScopeChild *fwd_decl = 0;
+    bool found = findTemplateAssignTarget(
+        i->getLhs()->getId(), in_template, fwd_decl);
 
-    if (!found) {
+    if (fwd_decl && !in_template) {
+        m_ctxt->setFwdDeclHint(i->getLhs()->getId(), fwd_decl);
+        reportUseBeforeDecl(i->getLhs()->getId());
+        m_ctxt->setFwdDeclHint(0, 0);
+    } else if (!found) {
         m_ctxt->addMarker(
             MarkerSeverityE::Error,
             i->getLhs()->getId()->getLocation(),
@@ -3052,8 +3411,10 @@ void TaskResolveRefs::visitActivitySymbolCall(ast::IActivitySymbolCall *i) {
     ast::ISymbolDeclaration *sym = dynamic_cast<ast::ISymbolDeclaration *>(target_c);
 
     if (!target_c) {
-        m_ctxt->addErrorMarker(id->getLocation(),
-            "unknown identifier '%s'", id->getId().c_str());
+        if (!reportUseBeforeDecl(id)) {
+            m_ctxt->addErrorMarker(id->getLocation(),
+                "unknown identifier '%s'", id->getId().c_str());
+        }
     } else if (!sym) {
         m_ctxt->addErrorMarker(id->getLocation(),
             "'%s' is not a symbol; only a symbol can be called in an activity",
@@ -3544,7 +3905,9 @@ void TaskResolveRefs::visitSymbolFunctionScope(ast::ISymbolFunctionScope *i) {
             if (i->getPrototypes().size()) {
                 m_func_s.push_back(i->getPrototypes().front());
             }
-            i->getBody()->accept(m_this);
+            // Through visitMergedScopeChild: a body an extension supplied
+            // still sees its own package (CL-N1).
+            visitMergedScopeChild(i->getBody());
             if (i->getPrototypes().size()) {
                 m_func_s.pop_back();
             }
@@ -4128,11 +4491,29 @@ void TaskResolveRefs::visitExprMemberCall(ast::IExprMemberCall *i) {
 }
 
 /**
+ * The component type scope `s` contributes to: a component's own scope, or an
+ * `extend component` of one (whose target TaskApplyTypeExtensions recorded).
+ * Null for a package, the root, or any other kind of type.
+ */
+ast::ISymbolTypeScope *TaskResolveRefs::componentScopeOf(ast::ISymbolScope *s) {
+    if (ast::ISymbolExtendScope *es = dynamic_cast<ast::ISymbolExtendScope *>(s)) {
+        ast::IExtendType *ext = dynamic_cast<ast::IExtendType *>(es->getTarget());
+        if (!ext || !ext->getTarget() || !ext->getTarget()->getTarget()) {
+            return 0;
+        }
+        s = dynamic_cast<ast::ISymbolScope *>(
+            m_ctxt->resolveSymbolPathRef(ext->getTarget()->getTarget()));
+    }
+    ast::ISymbolTypeScope *ts = dynamic_cast<ast::ISymbolTypeScope *>(s);
+    return (ts && dynamic_cast<ast::IComponent *>(ts->getTarget()))? ts : 0;
+}
+
+/**
  * `import [plat] [lang] function f;` -- LRM 20.4.1, Syntax 95 a: the function
  * is declared separately, and this attaches an import to it. The name is bound
  * like any type identifier, but must name a function, and the import obeys the
  * same one-import, not-also-defined rules as the prototype form
- * (TaskBuildSymbolTree::visitFunctionImportProto).
+ * (functionImplementationConflict).
  */
 void TaskResolveRefs::visitFunctionImportType(ast::IFunctionImportType *i) {
     DEBUG_ENTER("visitFunctionImportType");
@@ -4151,18 +4532,47 @@ void TaskResolveRefs::visitFunctionImportType(ast::IFunctionImportType *i) {
         ? m_ctxt->resolveSymbolPathRef(tid->getTarget()) : 0;
     ast::ISymbolFunctionScope *func = dynamic_cast<ast::ISymbolFunctionScope *>(target);
 
+    // 20.4.1: a function declared in a component is imported in that
+    // component type -- not a derived one, not another -- and not at all if
+    // the component is a template.
+    ast::ISymbolTypeScope *home = (func)?
+        componentScopeOf(func->getUpper()) : 0;
+    ast::ITypeScope *home_t = (home)?
+        dynamic_cast<ast::ITypeScope *>(home->getTarget()) : 0;
+    std::string conflict = (func)?
+        functionImplementationConflict(func, FunctionImpl::Import) : "";
+
     if (!target) {
         m_ctxt->addErrorMarker(loc,
             "unknown function '%s': an import of this form needs a separate "
             "declaration of the function (20.4.1)", name.c_str());
     } else if (!func) {
         m_ctxt->addErrorMarker(loc, "'%s' is not a function", name.c_str());
-    } else if (func->getBody()) {
+    } else if (home_t && home_t->getParams()) {
+        // Only a specialization is walked, one per distinct argument list.
+        // Report once, naming the template itself.
+        if (!m_ctxt->wasReported(loc)) {
+            std::string tname = home->getName().substr(
+                0, home->getName().find('<'));
+            m_ctxt->addErrorMarker(loc,
+                "cannot import function '%s': it is declared in template "
+                "component '%s' (20.4.1)",
+                name.c_str(), tname.c_str());
+        }
+    } else if (home && componentScopeOf(m_ctxt->symtab()->getScope()) != home) {
         m_ctxt->addErrorMarker(loc,
-            "function '%s' cannot be both defined and imported", name.c_str());
-    } else if (func->getImport_specs().size()) {
+            "cannot import function '%s' here: it is declared in component "
+            "'%s', and may be imported only in that component type (20.4.1)",
+            name.c_str(), home->getName().c_str());
+    } else if (home && !declaredStatic(func)) {
+        // Checked here, after extensions have merged, so a `static`
+        // declaration in any of them counts.
         m_ctxt->addErrorMarker(loc,
-            "function '%s' is already imported", name.c_str());
+            "cannot import function '%s': it is an instance function of "
+            "component '%s', and instance functions cannot be imported (20.4)",
+            name.c_str(), home->getName().c_str());
+    } else if (conflict.size()) {
+        m_ctxt->addErrorMarker(loc, "%s", conflict.c_str());
     } else {
         func->getImport_specs().push_back(ast::IFunctionImportUP(
             m_ctxt->getFactory()->getAstFactory()->mkFunctionImport(

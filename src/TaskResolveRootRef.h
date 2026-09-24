@@ -90,6 +90,25 @@ public:
      */
     ast::ISymbolTypeScope *contextType();
 
+    /**
+     * True for a scope in which a name is visible only after its declaration
+     * (18.2a/b, 4.7.1.2): exec and activity blocks, and template strings.
+     */
+    static bool isOrderSensitive(const ast::ISymbolScope *s);
+
+    /**
+     * Where `c` declares its name: the name's own location when it has one.
+     */
+    static const ast::Location &declLocation(const ast::IScopeChild *c);
+
+    /**
+     * True if `decl` is declared after `use`, in the same file. False when
+     * either position is unknown.
+     */
+    static bool declaredAfter(
+        const ast::IScopeChild      *decl,
+        const ast::Location         &use);
+
 private:
 
     /**
@@ -152,6 +171,21 @@ private:
      * the enum and import fallbacks in visitSymbolScope are skipped.
      */
     bool                            m_member_only;
+
+    /**
+     * The innermost declaration of the name hidden because it comes after the
+     * reference (visitSymbolScope). Handed to the context when the whole
+     * search misses, so the miss can be reported as a use before declaration.
+     */
+    ast::IScopeChild                *m_fwd_decl;
+
+    /**
+     * The static component function the walk has passed out of, and the
+     * instance member of the component it then found (20.2). Handed to the
+     * context as the static-context hint; see ResolveContext.
+     */
+    ast::ISymbolFunctionScope       *m_static_fn;
+    ast::IScopeChild                *m_static_hit;
 };
 
 }

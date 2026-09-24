@@ -96,6 +96,9 @@ class CoreChecker(CheckerBase):
                 # `comp` in an abstract action declared in a package, and
                 # `prev` reached as a member from outside its state.
                 r"^'(comp|prev)' is only valid in\b",
+                # A name in an exec, activity or template block used before
+                # the block declares it (18.2a/b, 4.7.1.2).
+                r"\bis used before its declaration\b",
             ),
             detail=(
                 "The linker could not resolve a named type, identifier, or "
@@ -145,7 +148,12 @@ class CoreChecker(CheckerBase):
                 "* ``duplicate parameter name 'a'``\n"
                 "* ``function 'f' is already defined``\n"
                 "* ``function 'f' cannot be both defined and imported``\n"
-                "* ``function 'f' is already imported``\n\n"
+                "* ``function 'f' is already imported``\n"
+                "* ``duplicate declaration of 'a' in an extension of 'S': "
+                "its initial definition already declares it (17.2.3)``\n"
+                "* ``duplicate declaration of enum item 'B' in 'e': an enum "
+                "item must be unique across the enum and all its extensions "
+                "(7.5.1)``\n\n"
                 "Rename one of the declarations to resolve the conflict.\n\n"
                 "Note that ``duplicate declaration of '...'`` is currently "
                 "emitted as a *warning* while the others are errors."            ),
@@ -172,12 +180,21 @@ class CoreChecker(CheckerBase):
             id="PSS005",
             severity="error",
             summary="Cannot extend unknown type or enum",
-            patterns=(r"^cannot extend unknown\b",),
+            patterns=(
+                r"^cannot extend unknown\b",
+                r"^cannot extend '[^']*'(?: as an enum)?: it is not an\b",
+            ),
             detail=(
                 "An ``extend`` declaration targets a type or enum that does "
-                "not exist.  Messages include patterns such as:\n\n"
+                "not exist, or a name that is not a type of the kind "
+                "extended.  Messages include patterns such as:\n\n"
                 "* ``cannot extend unknown type 'Foo'``\n"
-                "* ``cannot extend unknown enum 'MyEnum'``\n\n"
+                "* ``cannot extend unknown enum 'MyEnum'``\n"
+                "* ``cannot extend unknown type 'a' in 'C'; an extension "
+                "inside a component may extend only a type the component "
+                "declares (17.3)``\n"
+                "* ``cannot extend 'x': it is not an extendable type``\n"
+                "* ``cannot extend 's' as an enum: it is not an enum type``\n\n"
                 "Ensure the base type is declared before or alongside the "
                 "extend block."
             ),
@@ -577,12 +594,51 @@ class CoreChecker(CheckerBase):
             ),
         ),
 
+        MarkerDef(
+            id="PSS019",
+            severity="error",
+            summary="Function cannot be imported here",
+            patterns=(
+                r"^cannot import function\b",
+            ),
+            detail=(
+                "An ``import ... function`` names a function that the LRM "
+                "does not allow to be imported from where the import is "
+                "written.  Messages include patterns such as:\n\n"
+                "* ``cannot import function 'f' here: it is declared in "
+                "component 'base_c', and may be imported only in that "
+                "component type (20.4.1)``\n"
+                "* ``cannot import function 'f': it is declared in template "
+                "component 't_c' (20.4.1)``\n"
+                "* ``cannot import function 'f': it is an instance function "
+                "of component 'c', and instance functions cannot be imported "
+                "(20.4)``\n"
+                "* ``cannot import function 'f': a component function must "
+                "be declared 'static' to be imported; instance functions "
+                "cannot be imported (20.4)``\n\n"
+                "LRM 20.4.1: a static function declared in a component can "
+                "be imported only in the scope of that same component type "
+                "-- not in a derived component, an unrelated one, or a "
+                "package -- and a function declared in a template component "
+                "cannot be imported at all.  Declare the function where it "
+                "is imported, or move the import next to the declaration.  "
+                "A function declared in a package can be imported anywhere "
+                "it is visible.\n\n"
+                "LRM 20.4: an instance (non-static) function cannot be "
+                "imported.  In a component, the prototype form of the import "
+                "must say ``static`` (20.4.1.1 b.1), so ``import C function "
+                "void f(int a);`` there is reported whether or not ``f`` is "
+                "declared ``static`` elsewhere; the name form (``import C "
+                "function f;``) is reported when no declaration of ``f`` "
+                "says ``static``."
+            ),
+        ),
+
         # -- Syntax-error sub-band (PSS020-PSS029) ---------------------------
         #
-        # PSS019 is held as general-band headroom. Unlike PSS001-PSS010
-        # above, these markers carry their own `code` from the C++ side
-        # (AstBuilderInt::syntaxError / rewriteSyntaxError classifies at the
-        # point the message is built), so `patterns` is deliberately left
+        # Unlike PSS001-PSS019 above, these markers carry their own `code`
+        # from the C++ side (AstBuilderInt::syntaxError / rewriteSyntaxError
+        # classifies at the point the message is built), so `patterns` is deliberately left
         # empty -- there is nothing for _assign_core_code to match, and a test
         # in test_marker_ids.py asserts it never fires for one of these IDs.
         # PSS027 is the lexer's ID, and is live as of A6: AstBuilderInt is now
@@ -841,6 +897,73 @@ class CoreChecker(CheckerBase):
                 "in the extension: pick an unused prefix -- three letters "
                 "plus three digits is the convention, and the ``PSS`` prefix "
                 "is reserved for the built-in core checker."
+            ),
+        ),
+
+        # -- General band, continued (PSS040-PSS099) -----------------------
+        #
+        # PSS001-PSS019 filled up; PSS020-PSS039 are the syntax and tooling
+        # sub-bands above. Pattern-matched like PSS001-PSS019.
+
+        MarkerDef(
+            id="PSS040",
+            severity="error",
+            summary="Instance member used without an instance",
+            patterns=(
+                r"^'.*' is an instance member of\b",
+                r"^cannot reference instance member\b",
+            ),
+            detail=(
+                "A reference reaches a field or function that belongs to an "
+                "instance of a type from a place that has no instance to "
+                "take it from.  Messages include patterns such as:\n\n"
+                "* ``'fld' is an instance member of 'sub_c' and cannot be "
+                "referenced through the type; only types, static constants, "
+                "static functions and enum items can (18.3)``\n"
+                "* ``cannot reference instance member 'fld' from static "
+                "function 'st_f': a static function has no component "
+                "instance (20.2)``\n\n"
+                "LRM 18.3: a type's namespace holds types, static "
+                "constants, static functions and enum items, so ``T::m`` "
+                "cannot name an ordinary field or an instance function; "
+                "reach it through an instance with ``.`` instead.  A "
+                "reference written inside ``T``, a subtype of ``T`` or an "
+                "extension of either is not reported, since a "
+                "base-qualified call there has an instance to use.  A "
+                "``const`` field is treated as a constant.\n\n"
+                "LRM 20.2: a static component function is not associated "
+                "with an instance, so its body cannot read the component's "
+                "non-static fields or call its instance functions.  Make "
+                "the member static, pass the value in as a parameter, or "
+                "drop ``static`` from the function."
+            ),
+        ),
+
+        MarkerDef(
+            id="PSS041",
+            severity="error",
+            summary="Static member used through 'comp'",
+            patterns=(
+                r"^cannot reach static member '.*' of '.*' through 'comp'",
+            ),
+            detail=(
+                "An action reaches a static function or static constant of "
+                "a component through its ``comp`` handle.  Messages include "
+                "patterns such as:\n\n"
+                "* ``cannot reach static member 'f' of 'my_c' through "
+                "'comp'; name it without 'comp.', as 'f' (9.1.4.1 f)``\n"
+                "* ``cannot reach static member 'K' of 'sub_c' through "
+                "'comp'; name it through the type instead, as 'sub_c::K' "
+                "(9.1.4.1 f)``\n\n"
+                "LRM 9.1.4.1 f: \"It shall be illegal to access static "
+                "component members using the comp handle.\"  ``comp`` is an "
+                "instance; a static member belongs to the component type "
+                "(20.2.1.1 c).  A member of the action's own component is "
+                "found by its plain name, since the action is declared "
+                "inside that component or an extension of it; a member of a "
+                "sub-component is named through its type, ``sub_c::f``.  "
+                "Reported for every path that starts at ``comp``, including "
+                "``comp.sub.f()``."
             ),
         ),
 
@@ -1207,6 +1330,61 @@ class CoreChecker(CheckerBase):
                 "*fixed* named constraint is an error (PSS018)."
             ),
             patterns=(r"^traversal of dynamic constraint '[^']*' is deprecated\b",),
+        ),
+        MarkerDef(
+            id="PSS118",
+            severity="error",
+            summary="Constant initializer references a later or type-level constant",
+            detail=(
+                "LRM 18.2c: a constant or enum item may be referenced in the "
+                "initializer of another constant only after its declaration. "
+                "LRM 18.2d: a package-level constant may reference only other "
+                "package-level constants.  Messages:\n\n"
+                "* ``constant 'C' is used in the initializer of 'A' before its "
+                "declaration on line 4; declare it first (18.2)`` (or ``enum "
+                "item 'E_X' ...``, or ``... in a file given later``)\n"
+                "* ``constant 'A' is used in the initializer of 'A', which is "
+                "itself (18.2)``\n"
+                "* ``package-level constant 'A' may reference only "
+                "package-level constants; 'K' is declared in type 'C' "
+                "(18.2)``\n\n"
+                "Before::\n\n"
+                "    package my {\n"
+                "      const int A = C;\n"
+                "      const int C = 3;\n"
+                "    }\n\n"
+                "After::\n\n"
+                "    package my {\n"
+                "      const int C = 3;\n"
+                "      const int A = C;\n"
+                "    }\n\n"
+                "Across files, the order the files are given in applies, as it "
+                "does for ``compile if``.  Elsewhere in a type or package, "
+                "declaration order does not matter (Example 262).  A name used "
+                "before its declaration in an exec or activity block is "
+                "PSS002; in a type width, PSS119."
+            ),
+            patterns=(
+                r"^(constant|enum item) '[^']*' is used in the initializer of\b",
+                r"^package-level constant '[^']*' may reference only "
+                r"package-level constants\b",
+            ),
+        ),
+        MarkerDef(
+            id="PSS119",
+            severity="warning",
+            summary="Type width references a constant declared later",
+            detail=(
+                "The prose under LRM Example 264 extends 18.2c to type-width "
+                "expressions: a constant used in ``bit[W]`` must be declared "
+                "before it.  Message: ``constant 'W' is used in a type width "
+                "before its declaration on line 5; declare it first (18.2)``."
+                "\n\nA warning rather than an error, because the rule is "
+                "stated only in prose and existing models write it.  Move the "
+                "constant's declaration above its first use."
+            ),
+            patterns=(r"^(constant|enum item) '[^']*' is used in a type width "
+                      r"before its declaration\b",),
         ),
     ]
 

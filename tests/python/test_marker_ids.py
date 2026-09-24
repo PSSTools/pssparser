@@ -55,8 +55,39 @@ REPRESENTATIVE_MESSAGES = [
                "cannot be reached as a member of 'i'"),
     ("PSS003", "duplicate declaration of 'uid': every action has a built-in "
                "'uid'"),
+    # Extension merging (symbol-resolution 7.1).
+    ("PSS003", "duplicate declaration of 'a' in an extension of 'S': its "
+               "initial definition already declares it (17.2.3)"),
+    ("PSS003", "duplicate declaration of 'b' in an extension of 'S': another "
+               "extension in package 'p' already declares it (17.2.3)"),
+    ("PSS003", "duplicate declaration of enum item 'B' in 'e1': an enum item "
+               "must be unique across the enum and all its extensions (7.5.1)"),
     ("PSS005", "cannot extend unknown type 'Foo'"),
     ("PSS005", "cannot extend unknown enum 'MyEnum'"),
+    ("PSS005", "cannot extend unknown type 'a' in 'C'; an extension inside a "
+               "component may extend only a type the component declares (17.3)"),
+    ("PSS005", "cannot extend 'x': it is not an extendable type"),
+    ("PSS005", "cannot extend 's' as an enum: it is not an enum type"),
+    ("PSS019", "cannot import function 'f' here: it is declared in component "
+               "'base_c', and may be imported only in that component type "
+               "(20.4.1)"),
+    ("PSS019", "cannot import function 'f': it is declared in template "
+               "component 't_c' (20.4.1)"),
+    ("PSS019", "cannot import function 'f': it is an instance function of "
+               "component 'pss_top', and instance functions cannot be "
+               "imported (20.4)"),
+    ("PSS019", "cannot import function 's': a component function must be "
+               "declared 'static' to be imported; instance functions cannot "
+               "be imported (20.4)"),
+    ("PSS040", "'fld' is an instance member of 'sub_c' and cannot be "
+               "referenced through the type; only types, static constants, "
+               "static functions and enum items can (18.3)"),
+    ("PSS040", "cannot reference instance member 'fld' from static function "
+               "'st_f': a static function has no component instance (20.2)"),
+    ("PSS041", "cannot reach static member 'st' of 'my_ip_c' through "
+               "'comp'; name it without 'comp.', as 'st' (9.1.4.1 f)"),
+    ("PSS041", "cannot reach static member 'SK' of 'sub_c' through 'comp'; "
+               "name it through the type instead, as 'sub_c::SK' (9.1.4.1 f)"),
     ("PSS006", "call to 'g' expects 1 argument, got 3"),
     ("PSS006", "call to 'g' expects 1 to 2 arguments, got 0"),
     ("PSS006", "call to 'g' expects at least 1 argument, got 0"),
@@ -142,6 +173,18 @@ REPRESENTATIVE_MESSAGES = [
      "the `with` constraints are dropped"),
     ("PSS117", "traversal of dynamic constraint 'dc' is deprecated (13.1.1); "
                "declare it as a generic constraint, 'constraint dc() { ... }'"),
+    ("PSS002", "'x' is used before its declaration on line 4; in a block, a "
+               "name is visible only after it is declared"),
+    ("PSS118", "constant 'C' is used in the initializer of 'A' before its "
+               "declaration on line 4; declare it first (18.2)"),
+    ("PSS118", "enum item 'E_X' is used in the initializer of 'A' before its "
+               "declaration in a file given later; declare it first (18.2)"),
+    ("PSS118", "constant 'A' is used in the initializer of 'A', which is "
+               "itself (18.2)"),
+    ("PSS118", "package-level constant 'A' may reference only package-level "
+               "constants; 'K' is declared in type 'C' (18.2)"),
+    ("PSS119", "constant 'W' is used in a type width before its declaration "
+               "on line 5; declare it first (18.2)"),
 ]
 
 
@@ -376,7 +419,8 @@ def test_pss31_band_is_reserved_for_31_diagnostics():
     assert pss31 == ["PSS100", "PSS101", "PSS102",
                      "PSS104", "PSS105", "PSS106", "PSS107",
                      "PSS108", "PSS109", "PSS110", "PSS111", "PSS112",
-                     "PSS113", "PSS114", "PSS115", "PSS116", "PSS117"]
+                     "PSS113", "PSS114", "PSS115", "PSS116", "PSS117",
+                     "PSS118", "PSS119"]
 
 
 # -- CLI discoverability (P0-T2 acceptance criterion) ------------------------

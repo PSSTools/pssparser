@@ -75,14 +75,17 @@ def test_platform_qualifier_both_example():
 def test_reactive_control_flow_example():
     root = assert_parse_ok(
         """
-        component my_ip_c {
-            function int sample_DUT_state();
-            import target C function sample_DUT_state;
+        // As corrected by Mantis: the public-review draft imports this
+        // inside my_ip_c without `static` -- an instance function, which
+        // 20.4 says cannot be imported -- and calls it as `comp.`. At global
+        // scope it is static (20.2) and is called unqualified.
+        import target C function int sample_DUT_state();
 
+        component my_ip_c {
             action check_state {
                 int curr_val;
                 exec body {
-                    curr_val = comp.sample_DUT_state();
+                    curr_val = sample_DUT_state();
                 }
             };
 

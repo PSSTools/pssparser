@@ -24,6 +24,7 @@
 #include "pssp/IMarkerListener.h"
 #include "pssp/ast/IFactory.h"
 #include "pssp/ast/impl/VisitorBase.h"
+#include "FunctionScopeUtil.h"
 
 namespace pssp {
 
@@ -296,6 +297,15 @@ protected:
      * of its own -- both live on its name node.
      */
     void reportDuplicateParams(ast::IFunctionPrototype *proto);
+
+    /**
+     * Report giving `func_sym` a second implementation (functionImplementation
+     * Conflict), at `proto`'s name. The contribution is still recorded.
+     */
+    void reportImplementationConflict(
+        ast::ISymbolFunctionScope   *func_sym,
+        FunctionImpl                kind,
+        ast::IFunctionPrototype     *proto);
 
     /**
      * Report a parameter with no default that follows one that has a default.

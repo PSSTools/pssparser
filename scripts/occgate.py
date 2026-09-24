@@ -43,7 +43,7 @@ EXEC_KINDS = {"body", "header", "declaration", "run_start", "run_end",
 def _exempt(code):
     """Indexes of ID tokens that are contextual keywords, not names:
     `exec <kind>`, the language in `exec <kind> <lang> = ...`, and the
-    language in `import [target|solve] <lang> function ...`."""
+    language in `import [target|solve] <lang> [static] function ...`."""
     out = set()
     for i, t in enumerate(code):
         if t.type_name != "ID":
@@ -54,7 +54,7 @@ def _exempt(code):
             out.add(i)
         elif i - 1 in out and nxt == "=":
             out.add(i)
-        elif nxt == "function" and prev in ("import", "target", "solve"):
+        elif nxt in ("function", "static") and prev in ("import", "target", "solve"):
             out.add(i)
     return out
 

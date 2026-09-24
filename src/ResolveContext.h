@@ -28,6 +28,7 @@
 #include <unordered_set>
 #include <vector>
 #include "dmgr/IDebugMgr.h"
+#include "pssp/ast/IExprId.h"
 #include "pssp/ast/IRootSymbolScope.h"
 #include "pssp/ast/ISymbolRefPath.h"
 #include "pssp/IFactory.h"
@@ -197,6 +198,36 @@ public:
         const std::vector<std::pair<ast::Location, std::string>> &related);
 
     /**
+     * Set by TaskResolveRootRef after each unqualified lookup: the later
+     * declaration of `id` the lookup passed over (18.2a/b), when the lookup
+     * found nothing else; otherwise null. Lets the site that reports the miss
+     * say "used before its declaration" instead of "unknown identifier".
+     */
+    void setFwdDeclHint(const ast::IExprId *id, ast::IScopeChild *decl) {
+        m_fwd_id = id;
+        m_fwd_decl = decl;
+    }
+
+    ast::IScopeChild *fwdDeclHint(const ast::IExprId *id) const {
+        return (id == m_fwd_id)?m_fwd_decl:0;
+    }
+
+    /**
+     * Also set by TaskResolveRootRef after each unqualified lookup: the static
+     * function the lookup passed out of on its way to an instance member of
+     * the component (20.2), or null. The lookup keeps its answer, so the use
+     * is bound and the report is one error, not a cascade.
+     */
+    void setStaticCtxtHint(const ast::IExprId *id, ast::IScopeChild *fn) {
+        m_static_id = id;
+        m_static_fn = fn;
+    }
+
+    ast::IScopeChild *staticCtxtHint(const ast::IExprId *id) const {
+        return (id == m_static_id)?m_static_fn:0;
+    }
+
+    /**
      * True if an error has already been reported at this source position.
      * Lets a later pass stay quiet about a failure an earlier one described
      * better -- see TaskCheckRefsResolved.
@@ -250,6 +281,10 @@ private:
     std::set<std::tuple<int32_t,int32_t,int32_t>>   m_reported;
     std::vector<std::function<void()>>              m_post_resolve;
     int32_t                                         m_quiet = 0;
+    const ast::IExprId                              *m_fwd_id = 0;
+    ast::IScopeChild                                *m_fwd_decl = 0;
+    const ast::IExprId                              *m_static_id = 0;
+    ast::IScopeChild                                *m_static_fn = 0;
 
 };
 

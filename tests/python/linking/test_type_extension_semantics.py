@@ -123,7 +123,7 @@ def test_extension_field_colliding_with_an_existing_one_is_reported():
         struct S { int a; }
         extend struct S { int a; }
         """,
-        text="conflicts with an existing declaration")
+        text="its initial definition already declares it")
 
 
 # ---------------------------------------------------------------------------

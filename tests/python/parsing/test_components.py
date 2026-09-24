@@ -332,8 +332,8 @@ def test_component_with_import_functions(parser):
     """Test component with import functions"""
     code = """
         component pss_top {
-            import function void external_init();
-            import function int external_compute(int val);
+            import static function void external_init();
+            import static function int external_compute(int val);
         }
     """
     assert_parse_ok(code, parser)

@@ -23,12 +23,23 @@
 #include "pssp/ast/IPackageImportStmt.h"
 #include "pssp/impl/TaskGetSymbolRefPathKind.h"
 #include "TaskResolveRootRef.h"
+#include "FunctionScopeUtil.h"
+#include "pssp/ast/IComponent.h"
 #include "pssp/ast/ISymbolDeclaration.h"
 #include "pssp/ast/IFunctionParamDecl.h"
 #include "TaskResolveEnumRef.h"
 #include "TaskResolveSuperTypeRef.h"
 #include "pssp/impl/TaskResolveSymbolPathRef.h"
 #include "pssp/impl/ActivityScopes.h"
+#include "pssp/ast/IActivityDecl.h"
+#include "pssp/ast/IActivityLabeledScope.h"
+#include "pssp/ast/IExecScope.h"
+#include "pssp/ast/IMonitorActivityDecl.h"
+#include "pssp/ast/IMonitorActivityLabeledScope.h"
+#include "pssp/ast/INamedScopeChild.h"
+#include "pssp/ast/IProceduralStmtDataDeclaration.h"
+#include "pssp/ast/ITemplateElem.h"
+#include "pssp/ast/ITemplateString.h"
 
 
 namespace pssp {
@@ -38,7 +49,8 @@ namespace pssp {
 TaskResolveRootRef::TaskResolveRootRef(
     ResolveContext      *ctxt,
     bool                search_imp) : TaskResolveBase(ctxt), m_search_imp(search_imp),
-        m_id(0), m_ref(0), m_super_depth(0), m_member_only(false) {
+        m_id(0), m_ref(0), m_super_depth(0), m_member_only(false),
+        m_fwd_decl(0), m_static_fn(0), m_static_hit(0) {
     DEBUG_INIT("TaskResolveRootRef", ctxt->getDebugMgr());
 }
 
@@ -62,6 +74,9 @@ ast::ISymbolRefPath *TaskResolveRootRef::resolve(const ast::IExprId *id) {
     m_ctxt->pushCloneSymtab();
     m_id    = id;
     m_super_depth = 0;
+    m_fwd_decl = 0;
+    m_static_fn = 0;
+    m_static_hit = 0;
 
     int32_t count = 0;
     while (!m_ref && m_ctxt->symtab()->hasScopes()) {
@@ -111,6 +126,11 @@ ast::ISymbolRefPath *TaskResolveRootRef::resolve(const ast::IExprId *id) {
     if (!m_ref) {
         m_ref = searchExtensionCtxt(m_id);
     }
+
+    // A miss that passed over a later declaration of the name is reported
+    // as a use before declaration, not as an unknown name (18.2a/b).
+    m_ctxt->setFwdDeclHint(id, (m_ref)?0:m_fwd_decl);
+    m_ctxt->setStaticCtxtHint(id, (m_ref && m_static_hit)?m_static_fn:0);
 
     m_ctxt->popSymtab();
 
@@ -255,11 +275,23 @@ void TaskResolveRootRef::visitSymbolScope(ast::ISymbolScope *i) {
         i->getSymtab().size(),
         i);
     std::unordered_map<std::string,int32_t>::const_iterator it = i->getSymtab().find(m_id->getId());
+    ast::IScopeChild *c = (it != i->getSymtab().end())
+        ? i->getChildren().at(it->second).get() : 0;
+
+    // 18.2a/b, 4.7.1.2: in a block, a name is declared from its declaration
+    // on. A later declaration is not in scope here, so the search carries on
+    // outward -- `x = 1; string x;` assigns an outer `x` if there is one.
+    if (c && isOrderSensitive(i) && declaredAfter(c, m_id->getLocation())) {
+        DEBUG("Symbol %s is declared after the reference; hidden", m_id->getId().c_str());
+        if (!m_fwd_decl) {
+            m_fwd_decl = c;
+        }
+        c = 0;
+    }
 
     DEBUG("imports: %p", i->getImports());
-    if (it != i->getSymtab().end()) {
+    if (c) {
         DEBUG("Found symbol %s @ index %d", m_id->getId().c_str(), it->second);
-        ast::IScopeChild *c = i->getChildren().at(it->second).get();
 
         if (dynamic_cast<ast::ISymbolTypeScope *>(c)) {
             DEBUG("Is a type scope");
@@ -289,6 +321,15 @@ void TaskResolveRootRef::visitSymbolScope(ast::ISymbolScope *i) {
         m_ref->getPath().push_back({
             TaskGetSymbolRefPathKind(m_ctxt->getDebugMgr()).get(c),
             it->second});
+
+        // A static function has no instance to take a member from (20.2).
+        // The walk reaches the component's own members only by leaving the
+        // function, so this is a member of the component or of a base.
+        ast::ISymbolTypeScope *ts = dynamic_cast<ast::ISymbolTypeScope *>(i);
+        if (m_static_fn && ts && dynamic_cast<ast::IComponent *>(ts->getTarget())
+                && isInstanceMember(c)) {
+            m_static_hit = c;
+        }
     // If we're inside a typed context, and the type is Enum,
     // then search that enum
     } else if (m_member_only) {
@@ -380,6 +421,12 @@ void TaskResolveRootRef::visitSymbolTypeScope(ast::ISymbolTypeScope *i) {
 
 void TaskResolveRootRef::visitSymbolFunctionScope(ast::ISymbolFunctionScope *i) {
     DEBUG_ENTER("visitSymbolFunctionScope %s (searching for %s)", i->getName().c_str(), m_id->getId().c_str());
+
+    // Only a component function can be static and have instance members
+    // around it; a package function's walk never reaches a component.
+    if (!m_static_fn && declaredStatic(i)) {
+        m_static_fn = i;
+    }
 
     // A function scope built from a bare prototype has no plist -- see
     // TaskBuildSymbolTree::visitFunctionPrototype. That scope becomes reachable
@@ -628,6 +675,47 @@ ast::ISymbolRefPath *TaskResolveRootRef::searchImport(
 
 	DEBUG_LEAVE("searchImport %s %p", id->getId().c_str(), ret);
 	return ret;
+}
+
+bool TaskResolveRootRef::isOrderSensitive(const ast::ISymbolScope *s) {
+    // Exec and activity blocks, and template strings (Table G.1 of report G).
+    // Type, package and global scopes are not: a member may be used before
+    // it is declared (Examples 261, 262). A loop's own scope declares its
+    // variables before its body, so there is nothing there to hide.
+    return dynamic_cast<const ast::IExecScope *>(s)
+        || dynamic_cast<const ast::IActivityDecl *>(s)
+        || dynamic_cast<const ast::IActivityLabeledScope *>(s)
+        || dynamic_cast<const ast::IMonitorActivityDecl *>(s)
+        || dynamic_cast<const ast::IMonitorActivityLabeledScope *>(s)
+        || dynamic_cast<const ast::ITemplateString *>(s)
+        || dynamic_cast<const ast::ITemplateElem *>(s);
+}
+
+const ast::Location &TaskResolveRootRef::declLocation(const ast::IScopeChild *c) {
+    // The declared *name*, not the statement: `int a = 1, b = a;` sees `a`,
+    // and `int x = x;` sees itself, as in C and SystemVerilog.
+    const ast::INamedScopeChild *n = dynamic_cast<const ast::INamedScopeChild *>(c);
+    if (n && n->getName()) {
+        return n->getName()->getLocation();
+    }
+    const ast::IProceduralStmtDataDeclaration *d =
+        dynamic_cast<const ast::IProceduralStmtDataDeclaration *>(c);
+    if (d && d->getName()) {
+        return d->getName()->getLocation();
+    }
+    return c->getLocation();
+}
+
+bool TaskResolveRootRef::declaredAfter(
+        const ast::IScopeChild      *decl,
+        const ast::Location         &use) {
+    const ast::Location &d = declLocation(decl);
+    // No order across files, and none where a position is unknown.
+    if (d.fileid != use.fileid || d.lineno < 0 || use.lineno < 0) {
+        return false;
+    }
+    return (d.lineno > use.lineno)
+        || (d.lineno == use.lineno && d.linepos > use.linepos);
 }
 
 dmgr::IDebug *TaskResolveRootRef::m_dbg = 0;

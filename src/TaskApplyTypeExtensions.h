@@ -23,6 +23,8 @@
 #include "pssp/IMarkerListener.h"
 #include "pssp/ISymbolTableIterator.h"
 #include <map>
+#include <string>
+#include <vector>
 #include "pssp/IFactory.h"
 #include "pssp/ast/impl/VisitorBase.h"
 
@@ -54,9 +56,31 @@ public:
     const std::map<ast::IScopeChild *, ast::ISymbolScope *> &
         extensionDeclScopes() const { return m_ext_decl_scope; }
 
-    virtual void visitExtendEnum(ast::IExtendEnum *i) override;
+    /**
+     * One member an extension contributed to a type: its index in the
+     * type's children, and the package the extension belongs to (the root
+     * for an extension outside any package).
+     */
+    struct ExtMember {
+        int32_t                 idx;
+        ast::ISymbolScope       *pkg;
+    };
 
-    virtual void visitExtendType(ast::IExtendType *i) override;
+    /**
+     * Every named member extensions contributed to each type, by name, in
+     * merge order. LRM 17.2.3 lets two packages each add a field or type of
+     * the same name, so a type's single-valued symtab cannot hold them all:
+     * it keeps the initial definition's members and the *first* extension
+     * member of each name, and this holds the rest. Lookup does not read it
+     * yet -- filtering by the package of the reference is WS6 (6.3, 6.5) --
+     * so a reference binds to the first-merged member (known-issues L-05).
+     *
+     * Valid only after apply().
+     */
+    const std::map<ast::ISymbolScope *, std::map<std::string, std::vector<ExtMember>>> &
+        extensionMembers() const { return m_ext_members; }
+
+    virtual void visitExtendEnum(ast::IExtendEnum *i) override;
 
     virtual void visitRootSymbolScope(ast::IRootSymbolScope *i) override;
 
@@ -76,13 +100,7 @@ public:
 
     virtual void visitEnumItem(ast::IEnumItem *i) override;
 
-    virtual void visitTypeScope(ast::ITypeScope *i) override;
-
 protected:
-    /**
-     * Contribute one member of an `extend` body to the extended type's
-     * logical scope, keyed by name when it has one.
-     */
     /**
      * Put the enclosing scopes back in scope for an `extend` target lookup.
      *
@@ -90,9 +108,58 @@ protected:
      */
     void seedCtxtScope(ResolveContext &ctxt);
 
+    /**
+     * Merge the body of one `extend` into the type it extends: members
+     * first, then any `extend` nested in the body (LRM 17.3), whose target
+     * may be one of those members.
+     */
+    void applyExtension(
+        ast::ISymbolExtendScope *ext,
+        ast::ISymbolScope       *target_s,
+        ast::ISymbolRefPath     *target_p,
+        ast::ISymbolScope       *decl_s);
+
+    /**
+     * An `extend` or `extend enum` written inside an `extend component`. LRM
+     * 17.3 allows it only for a type defined in the component, so the target
+     * is looked up among the component's own members.
+     */
+    void applyNestedExtension(
+        ast::IScopeChild        *nested,
+        ast::ISymbolScope       *target_s,
+        ast::ISymbolRefPath     *target_p,
+        ast::ISymbolScope       *decl_s);
+
+    void applyEnumExtension(
+        ast::IExtendEnum        *i,
+        ast::ISymbolEnumScope   *target_s);
+
+    /**
+     * Contribute one member of an `extend` body to the extended type's
+     * logical scope, keyed by name when it has one.
+     */
     void mergeChild(
         ast::ISymbolScope       *target,
-        ast::IScopeChild        *child);
+        ast::IScopeChild        *child,
+        ast::ISymbolScope       *decl_s);
+
+    /**
+     * A function declared or defined in an extension joins the function of
+     * the same name in the extended type (LRM 20.3): a prototype in one and
+     * the body in the other is one function.
+     */
+    void mergeFunctionScope(
+        ast::ISymbolFunctionScope   *existing,
+        ast::ISymbolFunctionScope   *incoming);
+
+    /**
+     * The package an extension belongs to: "the nearest package that
+     * lexically encloses its definition" (17.2). The root stands for the
+     * global package.
+     */
+    ast::ISymbolScope *packageOf(ast::ISymbolScope *decl_s) const;
+
+    std::string packageDesc(ast::ISymbolScope *pkg) const;
 
     /**
      * Also contribute an extension body to a *generic* type's AST scope.
@@ -108,7 +175,25 @@ protected:
     void addChild(
         ast::ISymbolScope       *target,
         ast::IScopeChild        *child,
-        const std::string       &name);
+        const std::string       &name,
+        ast::ISymbolScope       *pkg=0);
+
+    void appendChild(
+        ast::ISymbolScope       *target,
+        ast::IScopeChild        *child);
+
+    /**
+     * PSS003 at `dup`, with a "first declared here" note at `orig`.
+     */
+    void reportDuplicate(
+        ast::IScopeChild        *dup,
+        ast::IScopeChild        *orig,
+        const std::string       &msg);
+
+    void reportDuplicate(
+        const ast::Location     &loc,
+        const ast::Location     *orig,
+        const std::string       &msg);
 
 
 private:
@@ -117,11 +202,11 @@ private:
     IMarkerListener                         *m_marker_l;
     ast::IRootSymbolScope                   *m_root;
     ISymbolTableIteratorUP                  m_symtab_it;
-    ast::ISymbolScope                       *m_target_s;
-    // Non-zero while walking inside a type scope, where an `extend` node may
-    // in fact be an `override action` and is allowed to fail to resolve.
-    int32_t                                 m_type_scope_depth;
     std::map<ast::IScopeChild *, ast::ISymbolScope *> m_ext_decl_scope;
+    // The package of each member an extension contributed; a member of a
+    // type's initial definition has no entry.
+    std::map<ast::IScopeChild *, ast::ISymbolScope *> m_ext_pkg;
+    std::map<ast::ISymbolScope *, std::map<std::string, std::vector<ExtMember>>> m_ext_members;
 
 };
 

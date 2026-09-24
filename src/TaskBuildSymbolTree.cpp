@@ -23,6 +23,7 @@
 #include "dmgr/impl/DebugMacros.h"
 #include "pssp/impl/InternalError.h"
 #include "pssp/impl/TaskGetName.h"
+#include "FunctionScopeUtil.h"
 #include "pssp/impl/ActivityScopes.h"
 #include "BuiltinsFactory.h"
 #include "TaskBuildSymbolTree.h"
@@ -41,6 +42,9 @@
 #include "pssp/ast/INamedScopeChild.h"
 #include "pssp/ast/IAction.h"
 #include "pssp/ast/IComponent.h"
+#include "pssp/ast/IExtendType.h"
+#include "pssp/ast/ITemplateParamDeclList.h"
+#include "pssp/ast/ITypeScope.h"
 #include "pssp/ast/IMonitor.h"
 #include "pssp/ast/IStruct.h"
 #include "Marker.h"
@@ -730,21 +734,11 @@ void TaskBuildSymbolTree::visitFunctionDefinition(ast::IFunctionDefinition *i) {
     // A function has at most one implementation. Two bodies, or a body
     // alongside an `import`, both leave the tool with no way to say which one
     // runs -- and the second silently overwrote the first via setBody() below.
-    if (func_sym->getBody()) {
-        Marker m(
-            "function '" + i->getProto()->getName()->getId()
-                + "' is already defined",
-            MarkerSeverityE::Error,
-            i->getProto()->getName()->getLocation());
-        m_marker_l->marker(&m);
-    } else if (func_sym->getImport_specs().size()) {
-        Marker m(
-            "function '" + i->getProto()->getName()->getId()
-                + "' cannot be both defined and imported",
-            MarkerSeverityE::Error,
-            i->getProto()->getName()->getLocation());
-        m_marker_l->marker(&m);
-    }
+    reportImplementationConflict(func_sym, FunctionImpl::Native, i->getProto());
+
+    // The body is written against this prototype's parameter names, which
+    // need not be the declaration's (G-N1).
+    resetFunctionParams(func_sym, i->getProto());
 
     // Build the body (and subscopes) symbol scopes
     int32_t id = func_sym->getChildren().size();
@@ -801,6 +795,51 @@ void TaskBuildSymbolTree::visitFunctionImportProto(ast::IFunctionImportProto *i)
 
     reportDuplicateParams(i->getProto());
 
+    // 20.4.1: "illegal to import a function declared in a template component
+    // type". The import declares the function if nothing else does, so it is
+    // declared there either way. Reported on the generic only: each
+    // specialization is a copy of it.
+    ast::ITypeScope *enc_t = dynamic_cast<ast::ITypeScope *>(
+        symbolScope()->getTarget());
+    bool tmpl_reported = false;
+    if (dynamic_cast<ast::IComponent *>(enc_t) && enc_t->getParams()
+            && !enc_t->getParams()->getSpecialized()) {
+        tmpl_reported = true;
+        Marker m(
+            "cannot import function '" + i->getProto()->getName()->getId()
+                + "': it is declared in template component '"
+                + enc_t->getName()->getId() + "' (20.4.1)",
+            MarkerSeverityE::Error,
+            i->getProto()->getName()->getLocation());
+        m_marker_l->marker(&m);
+    }
+
+    // In a component, the prototype form must say `static`. Without it the
+    // import either names an instance function, which "cannot be imported"
+    // (20.4), or restates a static one without the qualifier 20.4.1.1 b.1
+    // requires. Both are fixed by the same word, so they are one diagnosis,
+    // and neither depends on declarations this scope has not reached yet.
+    // Not on top of the template report: that one is the reason there.
+    ast::IExtendType *enc_ext = dynamic_cast<ast::IExtendType *>(
+        symbolScope()->getTarget());
+    if (tmpl_reported
+            || (enc_t && enc_t->getParams()
+                && enc_t->getParams()->getSpecialized())) {
+        // Nothing to add, or a specialization's copy of an import the
+        // generic already answered for.
+    } else if (!i->getProto()->getIs_static()
+            && (dynamic_cast<ast::IComponent *>(enc_t)
+                || (enc_ext
+                    && enc_ext->getKind() == ast::ExtendTargetE::Component))) {
+        Marker m(
+            "cannot import function '" + i->getProto()->getName()->getId()
+                + "': a component function must be declared 'static' to be "
+                "imported; instance functions cannot be imported (20.4)",
+            MarkerSeverityE::Error,
+            i->getProto()->getName()->getLocation());
+        m_marker_l->marker(&m);
+    }
+
     ast::IScopeChild *ex_func_b = findSymbol(i->getProto()->getName()->getId());
     ast::ISymbolFunctionScope *func_sym = dynamic_cast<ast::ISymbolFunctionScope *>(ex_func_b);
 
@@ -828,21 +867,7 @@ void TaskBuildSymbolTree::visitFunctionImportProto(ast::IFunctionImportProto *i)
     // The mirror of the check in visitFunctionDefinition, for the other
     // declaration order. Two imports are the same conflict: the second
     // import_spec is appended and nothing ever chooses between them.
-    if (func_sym->getBody()) {
-        Marker m(
-            "function '" + i->getProto()->getName()->getId()
-                + "' cannot be both defined and imported",
-            MarkerSeverityE::Error,
-            i->getProto()->getName()->getLocation());
-        m_marker_l->marker(&m);
-    } else if (func_sym->getImport_specs().size()) {
-        Marker m(
-            "function '" + i->getProto()->getName()->getId()
-                + "' is already imported",
-            MarkerSeverityE::Error,
-            i->getProto()->getName()->getLocation());
-        m_marker_l->marker(&m);
-    }
+    reportImplementationConflict(func_sym, FunctionImpl::Import, i->getProto());
 
     i->getProto()->accept(m_this);
 
@@ -909,49 +934,12 @@ void TaskBuildSymbolTree::visitFunctionPrototype(ast::IFunctionPrototype *i) {
     // can still supply the docstring the definition lacked.
     copyDocInfo(func_sym, i);
 
-    // Build the parameter list. This visitor did not, which left a bare
-    // prototype's function scope with a **null** plist -- the only one of the
-    // three forms without one. Two things followed:
-    //
-    //  - TaskResolveRootRef::visitSymbolFunctionScope opens with
-    //    `i->getPlist()->getSymtab()`, unguarded, and
-    //    TaskResolveSymbolPathRef does the same for ElemKind_ArgIdx;
-    //  - a prototype followed by a definition of the same function left the
-    //    parameters registered in neither place, because
-    //    visitFunctionDefinition only builds them when it is the visitor that
-    //    creates the scope. The body was still walked, but nothing in it
-    //    resolved: `function void f(int a); function void f(int a) { v =
-    //    nosuch; }` reported nothing at all.
-    //
-    // Populating it here also settles which of the two stores is canonical:
-    // the plist is what ElemKind_ArgIdx resolves through, so it is.
-    if (!func_sym->getPlist()) {
-        func_sym->setPlist(m_factory->mkSymbolScope("<plist>"));
-    }
-
-    for (std::vector<ast::IFunctionParamDeclUP>::const_iterator
-        it=i->getParameters().begin();
-        it!=i->getParameters().end(); it++) {
-        if (!(*it)->getName()) {
-            continue;
-        }
-
-        const std::string &name = (*it)->getName()->getId();
-        int32_t id = func_sym->getPlist()->getChildren().size();
-
-        if (func_sym->getPlist()->getSymtab().find(name)
-            != func_sym->getPlist()->getSymtab().end()) {
-            // Already registered -- a repeated prototype, or a duplicate
-            // parameter name, which reportDuplicateParams() above has
-            // already reported.
-            continue;
-        }
-
-        (*it)->setIndex(id);
-        func_sym->getPlist()->getSymtab().insert({name, id});
-        func_sym->getPlist()->getChildren().push_back(
-            ast::IScopeChildUP(it->get(), false));
-    }
+    // The plist was built on the creation branch above (a bare prototype once
+    // had none, and TaskResolveRootRef and TaskResolveSymbolPathRef read it
+    // unguarded). A later prototype adds nothing to it: its parameters are
+    // the same ones, by position, under names the body does not use. This
+    // loop used to append each name it had not seen, so `function int f(int
+    // b) {...}` then `function int f(int a);` gave a two-entry plist.
 
     func_sym->getPrototypes().push_back(i);
     DEBUG_LEAVE("visitFunctionPrototype %s", i->getName()->getId().c_str());
@@ -988,6 +976,14 @@ void TaskBuildSymbolTree::visitTargetTemplateFunction(ast::ITargetTemplateFuncti
         func_sym->setSynthetic(true);
 
         addFunctionParams(func_sym, i->getProto());
+    } else {
+        // A mustache names the template's own parameters (G-N1). Not after a
+        // conflict: a PSS body is still walked, against the plist it has.
+        if (functionImplementation(func_sym) == FunctionImpl::None) {
+            resetFunctionParams(func_sym, i->getProto());
+        }
+        reportImplementationConflict(
+            func_sym, FunctionImpl::TargetTemplate, i->getProto());
     }
 
     func_sym->getPrototypes().push_back(i->getProto());
@@ -1575,6 +1571,17 @@ void TaskBuildSymbolTree::addFunctionParams(
     }
 
     DEBUG_LEAVE("addFunctionParams %s", func_sym->getName().c_str());
+}
+
+void TaskBuildSymbolTree::reportImplementationConflict(
+        ast::ISymbolFunctionScope   *func_sym,
+        FunctionImpl                kind,
+        ast::IFunctionPrototype     *proto) {
+    std::string msg = functionImplementationConflict(func_sym, kind);
+    if (msg.size()) {
+        Marker m(msg, MarkerSeverityE::Error, proto->getName()->getLocation());
+        m_marker_l->marker(&m);
+    }
 }
 
 void TaskBuildSymbolTree::reportDuplicateParams(ast::IFunctionPrototype *proto) {

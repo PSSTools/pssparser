@@ -502,22 +502,20 @@ def test_declared_template_variable_is_visible_to_later_elements():
         'exec body C = """{% int x = 1; %}{{x}}""";')) == []
 
 
-@pytest.mark.xfail(reason="no declaration-order checking anywhere in the linker "
-                          "-- see known-issues P5-X1", strict=True)
 def test_declared_variable_is_not_visible_before_its_declaration():
     """§4.7.1.2 says a template variable can be referenced *after* its
-    declaration directive.  We resolve it before, too.
-
-    Not a template-specific defect: template locals are registered while the
-    AST is built, and resolution runs afterwards over the finished symtab, so
-    position within the template is not information the resolver has.  The
-    linker order-checks declarations in **no** context today -- §4.7.2
-    Example1, a `static const string` whose initializer mustache names a
-    constant declared later in the same scope, is the same gap.  Closing it is
-    a new linker capability, not a template feature.
+    declaration directive, and not before (symbol-resolution plan 9.1).
     """
     m = _markers('exec body C = """{{x}}{% int x = 1; %}""";')
     assert _codes(m) == ['PSS002']
+    assert "used before its declaration" in m[0]['message']
+
+
+def test_assignment_before_the_declaration_is_not_to_a_template_local():
+    """`{% x = 1; %}` needs x *previously* declared in the string."""
+    m = _markers('exec body C = """{% x = 1; %}{% int x = 0; %}""";')
+    assert _codes(m) == ['PSS002']
+    assert "used before its declaration" in m[0]['message']
 
 
 def test_variable_declared_in_a_block_is_not_visible_after_it():

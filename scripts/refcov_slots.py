@@ -99,7 +99,7 @@ component pss_top {
   cv1 : cover @@COVER_REF@@;
   function void g(int p = @@FUNC_DFLT@@) { }
   function bit h() { return 1; }
-  function void ifn(int a);
+  static function void ifn(int a);
   export target function @@EXPORT_FUNC@@;
   import C function @@IMPORT_FUNC@@;
   override { type @@OVR_TYPE@@ with A; instance @@OVR_INST@@ with sub_c; }

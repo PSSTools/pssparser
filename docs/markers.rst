@@ -87,6 +87,8 @@ A symbol with this name is already declared in the same scope.  Messages include
 * ``function 'f' is already defined``
 * ``function 'f' cannot be both defined and imported``
 * ``function 'f' is already imported``
+* ``duplicate declaration of 'a' in an extension of 'S': its initial definition already declares it (17.2.3)``
+* ``duplicate declaration of enum item 'B' in 'e': an enum item must be unique across the enum and all its extensions (7.5.1)``
 
 Rename one of the declarations to resolve the conflict.
 
@@ -114,10 +116,13 @@ PSS005
 
 Cannot extend unknown type or enum
 
-An ``extend`` declaration targets a type or enum that does not exist.  Messages include patterns such as:
+An ``extend`` declaration targets a type or enum that does not exist, or a name that is not a type of the kind extended.  Messages include patterns such as:
 
 * ``cannot extend unknown type 'Foo'``
 * ``cannot extend unknown enum 'MyEnum'``
+* ``cannot extend unknown type 'a' in 'C'; an extension inside a component may extend only a type the component declares (17.3)``
+* ``cannot extend 'x': it is not an extendable type``
+* ``cannot extend 's' as an enum: it is not an enum type``
 
 Ensure the base type is declared before or alongside the extend block.
 
@@ -324,6 +329,24 @@ An action traversal statement names something that cannot be traversed.  LRM 11.
 
 A name that is not declared at all is PSS002.
 
+PSS019
+------
+
+**Severity:** error
+
+Function cannot be imported here
+
+An ``import ... function`` names a function that the LRM does not allow to be imported from where the import is written.  Messages include patterns such as:
+
+* ``cannot import function 'f' here: it is declared in component 'base_c', and may be imported only in that component type (20.4.1)``
+* ``cannot import function 'f': it is declared in template component 't_c' (20.4.1)``
+* ``cannot import function 'f': it is an instance function of component 'c', and instance functions cannot be imported (20.4)``
+* ``cannot import function 'f': a component function must be declared 'static' to be imported; instance functions cannot be imported (20.4)``
+
+LRM 20.4.1: a static function declared in a component can be imported only in the scope of that same component type -- not in a derived component, an unrelated one, or a package -- and a function declared in a template component cannot be imported at all.  Declare the function where it is imported, or move the import next to the declaration.  A function declared in a package can be imported anywhere it is visible.
+
+LRM 20.4: an instance (non-static) function cannot be imported.  In a component, the prototype form of the import must say ``static`` (20.4.1.1 b.1), so ``import C function void f(int a);`` there is reported whether or not ``f`` is declared ``static`` elsewhere; the name form (``import C function f;``) is reported when no declaration of ``f`` says ``static``.
+
 PSS020
 ------
 
@@ -497,6 +520,36 @@ Two checkers declare the same marker ID
 Marker IDs are globally unique across the core and every installed extension. Two rules wearing one ID make ``--describe``, ``-Werror=ID`` and every per-ID severity override ambiguous, so the collision is an error rather than a warning.
 
 The checker that lost the collision is not registered; everything else, including the rest of its extension, still loads. The message names both contributors. The fix belongs in the extension: pick an unused prefix -- three letters plus three digits is the convention, and the ``PSS`` prefix is reserved for the built-in core checker.
+
+PSS040
+------
+
+**Severity:** error
+
+Instance member used without an instance
+
+A reference reaches a field or function that belongs to an instance of a type from a place that has no instance to take it from.  Messages include patterns such as:
+
+* ``'fld' is an instance member of 'sub_c' and cannot be referenced through the type; only types, static constants, static functions and enum items can (18.3)``
+* ``cannot reference instance member 'fld' from static function 'st_f': a static function has no component instance (20.2)``
+
+LRM 18.3: a type's namespace holds types, static constants, static functions and enum items, so ``T::m`` cannot name an ordinary field or an instance function; reach it through an instance with ``.`` instead.  A reference written inside ``T``, a subtype of ``T`` or an extension of either is not reported, since a base-qualified call there has an instance to use.  A ``const`` field is treated as a constant.
+
+LRM 20.2: a static component function is not associated with an instance, so its body cannot read the component's non-static fields or call its instance functions.  Make the member static, pass the value in as a parameter, or drop ``static`` from the function.
+
+PSS041
+------
+
+**Severity:** error
+
+Static member used through 'comp'
+
+An action reaches a static function or static constant of a component through its ``comp`` handle.  Messages include patterns such as:
+
+* ``cannot reach static member 'f' of 'my_c' through 'comp'; name it without 'comp.', as 'f' (9.1.4.1 f)``
+* ``cannot reach static member 'K' of 'sub_c' through 'comp'; name it through the type instead, as 'sub_c::K' (9.1.4.1 f)``
+
+LRM 9.1.4.1 f: "It shall be illegal to access static component members using the comp handle."  ``comp`` is an instance; a static member belongs to the component type (20.2.1.1 c).  A member of the action's own component is found by its plain name, since the action is declared inside that component or an extension of it; a member of a sub-component is named through its type, ``sub_c::f``.  Reported for every path that starts at ``comp``, including ``comp.sub.f()``.
 
 PSS100
 ------
@@ -749,4 +802,44 @@ After::
     constraint dc() { x > 0; }
 
 Reported where the constraint is traversed.  Traversing a *fixed* named constraint is an error (PSS018).
+
+PSS118
+------
+
+**Severity:** error
+
+Constant initializer references a later or type-level constant
+
+LRM 18.2c: a constant or enum item may be referenced in the initializer of another constant only after its declaration. LRM 18.2d: a package-level constant may reference only other package-level constants.  Messages:
+
+* ``constant 'C' is used in the initializer of 'A' before its declaration on line 4; declare it first (18.2)`` (or ``enum item 'E_X' ...``, or ``... in a file given later``)
+* ``constant 'A' is used in the initializer of 'A', which is itself (18.2)``
+* ``package-level constant 'A' may reference only package-level constants; 'K' is declared in type 'C' (18.2)``
+
+Before::
+
+    package my {
+      const int A = C;
+      const int C = 3;
+    }
+
+After::
+
+    package my {
+      const int C = 3;
+      const int A = C;
+    }
+
+Across files, the order the files are given in applies, as it does for ``compile if``.  Elsewhere in a type or package, declaration order does not matter (Example 262).  A name used before its declaration in an exec or activity block is PSS002; in a type width, PSS119.
+
+PSS119
+------
+
+**Severity:** warning
+
+Type width references a constant declared later
+
+The prose under LRM Example 264 extends 18.2c to type-width expressions: a constant used in ``bit[W]`` must be declared before it.  Message: ``constant 'W' is used in a type width before its declaration on line 5; declare it first (18.2)``.
+
+A warning rather than an error, because the rule is stated only in prose and existing models write it.  Move the constant's declaration above its first use.
 

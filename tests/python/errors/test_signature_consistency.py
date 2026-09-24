@@ -503,11 +503,33 @@ def test_differing_parameter_names_are_not_a_disagreement():
     supplied by name at a call site").  That was wrong, and checking the
     grammar took one grep.
 
-    What *is* broken here is separate and worse: see
-    ``test_a_definitions_own_parameter_name_does_not_resolve_in_its_body``.
+    The body resolves against the definition's own names: see
+    ``test_a_definition_body_uses_its_own_parameter_names``.
     """
     assert_clean([("t.pss",
         "function void f(int a); function void f(int b);")])
+
+
+@pytest.mark.parametrize("src", [
+    "function int f(int a); function int f(int b) { return b; }",
+    # The other order: a later prototype does not add its names.
+    "function int f(int b) { return b; } function int f(int a);",
+    "component pss_top { function int f(int a); } "
+    "extend component pss_top { function int f(int b) { return b; } }",
+    "component pss_top { target function void f(int a); "
+    "target C function void f(int b) = \"\"\" x({{b}}); \"\"\"; }",
+])
+def test_a_definition_body_uses_its_own_parameter_names(src):
+    """G-N1: the plist was keyed by the first declaration's names, so ``b``
+    was an unknown identifier in the body and ``a`` resolved instead --
+    exactly backwards.  The implementation's prototype now owns it."""
+    assert_clean([("t.pss", src)])
+
+
+def test_a_declarations_parameter_name_does_not_resolve_in_the_body():
+    assert_rejects([("t.pss",
+        "function int f(int a); function int f(int b) { return a; }")],
+        "unknown identifier 'a'")
 
 
 @pytest.mark.parametrize("src", [
@@ -553,26 +575,6 @@ def test_a_static_function_may_be_shadowed_with_a_different_signature():
 # ---------------------------------------------------------------------------
 # Recorded, not fixed
 # ---------------------------------------------------------------------------
-
-def test_a_definitions_own_parameter_name_does_not_resolve_in_its_body():
-    """``function void f(int a); function void f(int b) { v = b; }`` reports
-    ``unknown identifier 'b'`` -- and ``v = a`` resolves instead.  Exactly
-    backwards: the name the definition wrote is rejected, and a name from a
-    declaration that is not this body's is accepted.
-
-    A consequence of §36: the plist is built by whichever visitor creates the
-    function's scope, which for a declaration-then-definition pair is the
-    declaration.  The fix is to make a body resolve against its own
-    prototype's names, not to report the mismatch -- see
-    ``test_differing_parameter_names_are_not_a_disagreement`` for why the
-    mismatch is legal.
-    """
-    assert_rejects([("t.pss",
-        "function void f(int a); function void f(int b) { int v; v = b; }")],
-        "unknown identifier 'b'")
-    assert_clean([("t.pss",
-        "function void f(int a); function void f(int b) { int v; v = a; }")])
-
 
 def test_the_const_qualifier_is_not_part_of_the_compared_signature():
     """LRM 20.2.3 c: "The const qualifier is an essential part of the function

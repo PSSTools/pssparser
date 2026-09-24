@@ -8,11 +8,11 @@
   },
   "legal_model": "clean",
   "corpus_refs": {
-   "bound": 1113,
-   "unbound": 28
+   "bound": 1214,
+   "unbound": 31
   },
   "schema_ref_fields": 46,
-  "schema_ref_fields_in_corpus": 19,
+  "schema_ref_fields_in_corpus": 21,
   "schema_ref_fields_in_slots": 41
  },
  "schema_ref_fields": {
@@ -211,13 +211,13 @@
   "ExprRefPathStaticRooted.root": {
    "type": "ExprRefPathStatic",
    "visit": true,
-   "in_corpus": false,
+   "in_corpus": true,
    "in_slots": false
   },
   "ExtendEnum.target": {
    "type": "TypeIdentifier",
    "visit": true,
-   "in_corpus": false,
+   "in_corpus": true,
    "in_slots": true
   },
   "ExtendType.target": {
@@ -388,11 +388,11 @@
   "xbins_with": "silent"
  },
  "bind": {
-  "files": 91,
-  "clean_files": 49,
+  "files": 95,
+  "clean_files": 53,
   "fields": {
    "ActivityActionHandleTraversal.target | ExprRefPathContext": {
-    "bound": 31
+    "bound": 38
    },
    "ActivityForeach.path | ExprRefPathContext": {
     "bound": 1
@@ -419,7 +419,7 @@
     "bound": 1
    },
    "ComponentBind.pool_path | ExprRefPathContext": {
-    "unbound": 6
+    "unbound": 8
    },
    "ConstraintStmtDefault.hid | ExprRefPathContext": {
     "bound": 1
@@ -452,14 +452,14 @@
     "unbound": 2
    },
    "DataTypeUserDefined.type_id | TypeIdentifier": {
-    "bound": 468,
+    "bound": 507,
     "unbound": 1
    },
    "ExprAggrList.elems | ExprRefPathContext": {
     "bound": 1
    },
    "ExprBin.lhs | ExprRefPathContext": {
-    "bound": 103
+    "bound": 117
    },
    "ExprBin.lhs | ExprRefPathSuper": {
     "bound": 1
@@ -468,7 +468,7 @@
     "unbound": 1
    },
    "ExprBin.rhs | ExprRefPathContext": {
-    "bound": 37
+    "bound": 44
    },
    "ExprBin.rhs | ExprRefPathSuper": {
     "bound": 1
@@ -480,16 +480,25 @@
     "unbound": 1
    },
    "ExprIn.lhs | ExprRefPathContext": {
-    "bound": 8
+    "bound": 10
    },
    "ExprMemberPathElem.subscript | ExprRefPathContext": {
+    "bound": 1
+   },
+   "ExprOpenRangeValue.lhs | ExprRefPathContext": {
+    "bound": 6
+   },
+   "ExprRefPathStaticRooted.root | ExprRefPathStatic": {
     "bound": 1
    },
    "ExprUnary.rhs | ExprRefPathContext": {
     "bound": 2
    },
+   "ExtendEnum.target | TypeIdentifier": {
+    "bound": 2
+   },
    "ExtendType.target | TypeIdentifier": {
-    "bound": 3
+    "bound": 7
    },
    "MethodParameterList.parameters | ExprRefPathContext": {
     "bound": 32
@@ -498,13 +507,16 @@
     "bound": 1
    },
    "PackageImportStmt.path | TypeIdentifier": {
-    "bound": 76
+    "bound": 82
    },
    "ProceduralStmtAssignment.lhs | ExprRefPathContext": {
-    "bound": 36
+    "bound": 44
    },
    "ProceduralStmtAssignment.rhs | ExprRefPathContext": {
-    "bound": 15
+    "bound": 20
+   },
+   "ProceduralStmtAssignment.rhs | ExprRefPathStaticRooted": {
+    "unbound": 1
    },
    "ProceduralStmtExpr.expr | ExprRefPathContext": {
     "bound": 15
