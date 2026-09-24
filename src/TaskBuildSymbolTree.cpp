@@ -1038,13 +1038,16 @@ void TaskBuildSymbolTree::visitPackageImportStmt(ast::IPackageImportStmt *i) {
     // See if this import already exists. Only in the same statement: an
     // import applies only within the statement it is written in (18.1.3), so
     // the same import written in another `package` statement or file is
-    // another import, needed there.
+    // another import, needed there. An alias is never a duplicate:
+    // `import a; import a as x;` are two imports, and two aliases of one
+    // name are an error TaskResolveImports reports (18.1.4).
     bool exists = false;
     for (std::vector<ast::IPackageImportStmt *>::const_iterator
         it=scope->getImports()->getImports().begin();
         it!=scope->getImports()->getImports().end(); it++) {
         if (i->getWildcard() == (*it)->getWildcard()
-                && i->getParent() == (*it)->getParent()) {
+                && i->getParent() == (*it)->getParent()
+                && !i->getAlias() && !(*it)->getAlias()) {
             // Compare the paths
             if (i->getPath()->getElems().size() == (*it)->getPath()->getElems().size()) {
                 uint32_t ii;

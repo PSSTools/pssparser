@@ -564,6 +564,20 @@ The linker finished without binding a name, although the model declares somethin
 
 Reported by the completeness check that runs after linking (symbol-resolution plan 3.5), so that a consumer is never handed a reference with no target in silence.  It is reported only on a model with no other error; with one, an unbound name is far more likely a consequence of that error.  A name that nothing in the model declares is PSS002 instead.  Some constructs are not checked yet: covergroup bodies and port maps, pool and activity binds, scheduling constraints, instance overrides, struct-literal member names, and the parameters of a generic constraint.
 
+PSS043
+------
+
+**Severity:** error
+
+Illegal package alias declaration
+
+LRM 18.1.4 restricts the name of a package alias (``import pkg1::a::b as p1;``).  Messages:
+
+* ``package alias 'X' is already declared in this scope; two aliases in one scope shall not share a name (18.1.4)``
+* ``package alias 'foo' has the same name as a package declared in package 'P'; rename the alias (18.1.4)``
+
+Two aliases in one lexical scope -- one ``package`` statement, component declaration or extension, or one file's global scope -- shall not have the same name; the same name in two statements of one package is legal.  An alias shall not take the name of a package declared in the same namespace in this source unit or an earlier one (Example 260).  A package of that name added in a later source unit is legal, and from then on a reference finds the package rather than the alias (18.3 c.1 before c.2.i).
+
 PSS100
 ------
 

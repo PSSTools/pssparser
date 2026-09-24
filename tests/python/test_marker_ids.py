@@ -90,6 +90,10 @@ REPRESENTATIVE_MESSAGES = [
                "name it through the type instead, as 'sub_c::SK' (9.1.4.1 f)"),
     ("PSS042", "'x' was left unbound by pssparser, although the model "
                "declares it: a pssparser defect, please report it"),
+    ("PSS043", "package alias 'X' is already declared in this scope; two "
+               "aliases in one scope shall not share a name (18.1.4)"),
+    ("PSS043", "package alias 'foo' has the same name as a package declared "
+               "in package 'P'; rename the alias (18.1.4)"),
     ("PSS006", "call to 'g' expects 1 argument, got 3"),
     ("PSS006", "call to 'g' expects 1 to 2 arguments, got 0"),
     ("PSS006", "call to 'g' expects at least 1 argument, got 0"),

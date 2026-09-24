@@ -7,6 +7,26 @@ revision advances only the patch component.
 
 ## Unreleased
 
+### Fixed — package aliases (symbol-resolution 6.4, LRM 18.1.4)
+
+`import pkg1::a::b as p1;` now makes `p1::name` refer to `pkg1::a::b::name`.
+Previously the alias was ignored in name lookup: `p1` was unknown, and the
+import made the target's own name (`b`) visible instead. An alias:
+
+- applies only inside the statement it is written in, like any import (6.3a);
+- is not a member of its package (`consumer_pkg::p1` is an error), and a
+  wildcard import of the package does not carry it;
+- takes precedence over explicit and wildcard imports, in a package
+  (18.3 c.2.i) and in a component (Example 273).
+
+`import A; import A as X;` are no longer merged as one import.
+
+### Added — PSS043, illegal package alias declarations (LRM 18.1.4)
+
+Two aliases of one name in one scope, and an alias with the name of a package
+declared in the same namespace in this source unit or an earlier one (Example
+260). A package of that name added in a later source unit is legal.
+
 ### Added — addr_reg_pkg forwards endianness_e, packed_s and sizeof_s (symbol-resolution 6.3, LRM 21.13)
 
 PSS 2.0 declared `endianness_e`, `packed_s` and `sizeof_s` in `addr_reg_pkg`;

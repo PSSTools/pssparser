@@ -754,7 +754,12 @@ ast::ISymbolRefPath *NameLookup::absPath(ast::ISymbolScope *s) {
  * when they yield nothing; within a tier, two routes to the *same*
  * declaration are one match (F18). A real ambiguity is reported and
  * resolves to nothing, rather than to the first import, which cascaded.
- * Aliases are 6.4.
+ *
+ * Package aliases come before both (18.3 c.2.i; decision Q3). 18.3 b.4 does
+ * not list them for a component, but Ex. 273 needs alias over wildcard there
+ * too. Two aliases of one name in one statement are an error reported where
+ * they are declared (TaskResolveImports, 18.1.4), and only one statement's
+ * imports apply at a use, so the first alias that matches is the answer.
  *
  * `imp` holds the imports of every statement that opens the namespace -- each
  * `package p` statement, a component and all its extensions, every file's
@@ -767,14 +772,17 @@ ast::ISymbolRefPath *NameLookup::searchImports(
     DEBUG_ENTER("searchImports - %d statements", (int)imp->getImports().size());
     ast::ISymbolRefPath *ret = 0;
 
-    for (int tier=0; tier<2 && !ret; tier++) {
-        bool want_wildcard = (tier == 1);
+    // Tier 0: aliases; 1: explicit imports; 2: wildcard imports.
+    for (int tier=0; tier<3 && !ret; tier++) {
+        bool want_wildcard = (tier == 2);
+        bool want_alias = (tier == 0);
         ast::IScopeChild *found = 0;
         bool ambiguous = false;
         for (std::vector<ast::IPackageImportStmt *>::const_iterator
                 imp_it=imp->getImports().begin();
                 imp_it!=imp->getImports().end(); imp_it++) {
-            if ((*imp_it)->getWildcard() != want_wildcard) {
+            if ((*imp_it)->getWildcard() != want_wildcard
+                    || ((*imp_it)->getAlias() != 0) != want_alias) {
                 continue;
             }
             // The namespace's imports are gathered from every statement that
@@ -786,6 +794,11 @@ ast::ISymbolRefPath *NameLookup::searchImports(
             ast::ISymbolRefPath *ret_t = searchImport(id, *imp_it);
             if (!ret_t) {
                 continue;
+            }
+            if (want_alias) {
+                ret = ret_t;
+                m_found_imp = *imp_it;
+                break;
             }
             ast::IScopeChild *node = m_ctxt->resolveSymbolPathRef(ret_t);
             if (!ret) {
@@ -829,10 +842,15 @@ ast::ISymbolRefPath *NameLookup::searchImport(
 
     // A single-symbol import names the symbol; it does not open it as a
     // scope. `import p::t;` matches `t` and hands back the import's own path.
+    // `import p::q as a;` matches `a` only: an alias does not make `q`
+    // visible (18.1.4).
     if (!imp->getWildcard()) {
         const std::vector<ast::ITypeIdentifierElemUP> &elems =
             imp->getPath()->getElems();
-        if (elems.empty() || elems.back()->getId()->getId() != id->getId()) {
+        const std::string &name = (imp->getAlias())
+            ? imp->getAlias()->getId()
+            : (elems.empty() ? std::string() : elems.back()->getId()->getId());
+        if (name.empty() || name != id->getId()) {
             return 0;
         }
         ast::ISymbolRefPath *ret = m_ctxt->getFactory()->getAstFactory()->mkSymbolRefPath();

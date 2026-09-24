@@ -58,9 +58,22 @@ public:
 private:
     void walk(ast::ISymbolScope *s);
 
+    /**
+     * 18.1.4's rules for the package aliases among `s`'s imports: two
+     * aliases in one statement shall not share a name, and an alias in a
+     * package or the global scope shall not take the name of a package
+     * declared there, in this source unit or an earlier one. Run by
+     * resolveAll only, so a specialization's copies are not checked again.
+     */
+    void checkAliases(ast::ISymbolScope *s);
+
+    /** The source unit `fileid` was linked as, or -1 if unknown. */
+    int32_t unitOf(int32_t fileid) const;
+
 private:
     static dmgr::IDebug         *m_dbg;
     std::set<ast::ISymbolScope *>   m_visited;
+    ast::IRootSymbolScope           *m_root;
 
 };
 

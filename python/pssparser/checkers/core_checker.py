@@ -994,6 +994,33 @@ class CoreChecker(CheckerBase):
             ),
         ),
 
+        MarkerDef(
+            id="PSS043",
+            severity="error",
+            summary="Illegal package alias declaration",
+            patterns=(
+                r"^package alias '[^']*' is already declared in this scope\b",
+                r"^package alias '[^']*' has the same name as a package\b",
+            ),
+            detail=(
+                "LRM 18.1.4 restricts the name of a package alias "
+                "(``import pkg1::a::b as p1;``).  Messages:\n\n"
+                "* ``package alias 'X' is already declared in this scope; two "
+                "aliases in one scope shall not share a name (18.1.4)``\n"
+                "* ``package alias 'foo' has the same name as a package "
+                "declared in package 'P'; rename the alias (18.1.4)``\n\n"
+                "Two aliases in one lexical scope -- one ``package`` "
+                "statement, component declaration or extension, or one "
+                "file's global scope -- shall not have the same name; the "
+                "same name in two statements of one package is legal.  An "
+                "alias shall not take the name of a package declared in the "
+                "same namespace in this source unit or an earlier one (Example "
+                "260).  A package of that name added in a later source unit "
+                "is legal, and from then on a reference finds the package "
+                "rather than the alias (18.3 c.1 before c.2.i)."
+            ),
+        ),
+
         # -- PSS 3.1 language-rule diagnostics (PSS100-PSS199) --------------
         #
         # These IDs are reserved ahead of the C++ code that emits them, so that

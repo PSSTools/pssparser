@@ -58,9 +58,12 @@ namespace pssp {
  * are found after its members. That is not 18.3 -- step a looks enum items up
  * by the expected type, which is 8.1 -- and 8.2 retires it.
  *
- * Imports are tiered (18.1.3): explicit before wildcard, and within a tier two
+ * Imports are tiered (18.1.3, 18.3 c.2): package aliases, then explicit
+ * imports, then wildcard imports; within the explicit and wildcard tiers two
  * routes to one declaration are one match. More than one distinct target is
- * an ambiguity, reported (PSS017), and resolves to nothing.
+ * an ambiguity, reported (PSS017), and resolves to nothing. An alias names
+ * its target and nothing else: `import p::q as a;` does not make `q`
+ * visible (18.1.4).
  *
  * An import applies only inside the statement it is written in -- a
  * `package` statement, a component declaration or an `extend` -- or, in the
@@ -69,7 +72,7 @@ namespace pssp {
  * other statements are passed over (appliesAt()), and a miss one of them
  * would have satisfied leaves the context an import-leak hint.
  *
- * Not yet (symbol-resolution-plan.md): aliases (6.4); the visibility of
+ * Not yet (symbol-resolution-plan.md): the visibility of
  * extension members by package, from SymbolTypeScope.ext_members (6.5);
  * step a (8.1).
  */
