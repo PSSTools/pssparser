@@ -750,6 +750,17 @@ bool anyTakesExpected(ast::IExprOpenRangeList *l) {
     return false;
 }
 
+/** takesExpected() for any element of an aggregate literal. */
+bool anyTakesExpected(ast::IExprAggrList *l) {
+    for (std::vector<ast::IExprUP>::const_iterator
+            it=l->getElems().begin(); it!=l->getElems().end(); it++) {
+        if (takesExpected(it->get())) {
+            return true;
+        }
+    }
+    return false;
+}
+
 /** What `c` is, for a message: "the field 'A'". */
 std::string declDescription(ast::IScopeChild *c, const std::string &name) {
     const char *kind = "declaration";
@@ -1600,6 +1611,15 @@ void TaskResolveRefs::visitExpecting(
     m_expected.erase(e);
 }
 
+void TaskResolveRefs::visitAggrExpecting(
+        ast::IExprAggrList          *l,
+        ast::ISymbolEnumScope       *elem) {
+    for (std::vector<ast::IExprUP>::const_iterator
+            it=l->getElems().begin(); it!=l->getElems().end(); it++) {
+        visitExpecting(it->get(), (takesExpected(it->get())) ? elem : 0);
+    }
+}
+
 void TaskResolveRefs::visitRangesExpecting(
         ast::IExprOpenRangeList     *l,
         ast::ISymbolEnumScope       *expected) {
@@ -1622,24 +1642,19 @@ ast::ISymbolEnumScope *TaskResolveRefs::expectedFor(ast::IExpr *e) const {
     return (it != m_expected.end()) ? it->second : 0;
 }
 
-ast::IScopeChild *TaskResolveRefs::peekLexical(
-        const ast::IExprId          *id,
-        ast::ISymbolRefPath         **path) {
+ast::IScopeChild *TaskResolveRefs::peekLexical(const ast::IExprId *id) {
     m_ctxt->pushQuiet();
     ast::ISymbolRefPathUP ref(TaskResolveRef(m_ctxt).resolve(
         const_cast<ast::IExprId *>(id)));
     m_ctxt->popQuiet();
-    if (!ref) {
+    // The path resolution is the costly part; the fallback needs none.
+    if (!ref || m_ctxt->enumItemHint(id)) {
         return 0;
     }
-    ast::IScopeChild *ret = TaskResolveSymbolPathRef(
+    return TaskResolveSymbolPathRef(
         m_ctxt->getDebugMgr(),
         m_ctxt->root(),
         m_ctxt->inlineCtxt()).resolve(ref.get());
-    if (path) {
-        *path = ref.release();
-    }
-    return ret;
 }
 
 ast::ISymbolRefPath *TaskResolveRefs::lookupExpectedItem(
@@ -1667,8 +1682,8 @@ ast::ISymbolRefPath *TaskResolveRefs::lookupExpectedItem(
 
     // Step a comes before the lexical steps (18.3), so a field or variable
     // of the same name is hidden here -- which its author may not expect.
-    // An enum item found lexically is not hidden: that is the injection 8.2
-    // retires, and the expected type is the better reading of it.
+    // An enum item the lookup falls back to is no declaration of the name
+    // (8.2), so there is nothing hidden.
     ast::IScopeChild *lex = peekLexical(id);
     if (lex && !dynamic_cast<ast::IEnumItem *>(lex)) {
         m_ctxt->addMarker(
@@ -1691,16 +1706,13 @@ void TaskResolveRefs::resolveBareComparison(
     ast::IExprId *r_id = rhs->getHier_id()->getElems().at(0)->getId();
     ExprTypeOf type_of(m_ctxt);
 
-    // Each side's own type: the type of what it binds to lexically.
-    ast::ISymbolRefPath *l_path = 0, *r_path = 0;
-    ast::IScopeChild *l_lex = peekLexical(l_id, &l_path);
-    ast::IScopeChild *r_lex = peekLexical(r_id, &r_path);
-    ast::ISymbolEnumScope *l_t = (dynamic_cast<ast::IEnumItem *>(l_lex))
-        ? type_of.enumOfItemPath(l_path) : type_of.enumOfDecl(l_lex);
-    ast::ISymbolEnumScope *r_t = (dynamic_cast<ast::IEnumItem *>(r_lex))
-        ? type_of.enumOfItemPath(r_path) : type_of.enumOfDecl(r_lex);
-    delete l_path;
-    delete r_path;
+    // Each side's own type: the type of what it binds to lexically. A name
+    // that is only an enum item of an enclosing scope binds to nothing by
+    // 18.3 (8.2), so it has no type to offer the other side.
+    ast::IScopeChild *l_lex = peekLexical(l_id);
+    ast::IScopeChild *r_lex = peekLexical(r_id);
+    ast::ISymbolEnumScope *l_t = type_of.enumOfDecl(l_lex);
+    ast::ISymbolEnumScope *r_t = type_of.enumOfDecl(r_lex);
 
     // A reading matters only where it changes what a name binds to: the
     // item the other side's type offers, when that is not the name's lexical
@@ -1731,8 +1743,8 @@ void TaskResolveRefs::resolveBareComparison(
         rhs->accept(m_this);
         return;
     }
-    visitExpecting(lhs, (l_changes) ? r_t : 0);
-    visitExpecting(rhs, (r_changes) ? l_t : 0);
+    visitExpecting(lhs, (l_item) ? r_t : 0);
+    visitExpecting(rhs, (r_item) ? l_t : 0);
 }
 
 void TaskResolveRefs::visitExprBin(ast::IExprBin *i) {
@@ -1778,6 +1790,26 @@ void TaskResolveRefs::visitExprIn(ast::IExprIn *i) {
     } else if (i->getCollection()) {
         i->getCollection()->accept(m_this);
     }
+}
+
+void TaskResolveRefs::visitConstraintStmtDefault(ast::IConstraintStmtDefault *i) {
+    // `default x == v` is an equality (13.1.11): the field's type is the
+    // value's expected type (8.4.3).
+    if (i->getHid()) {
+        i->getHid()->accept(m_this);
+    }
+    visitExpecting(i->getExpr(), (i->getHid() && takesExpected(i->getExpr()))
+        ? ExprTypeOf(m_ctxt).enumOf(i->getHid()) : 0);
+}
+
+void TaskResolveRefs::visitTemplateValueParamDecl(ast::ITemplateValueParamDecl *i) {
+    // A default value is an initialization: the parameter's type is its
+    // expected type (8.4.3), as it is for an argument (8.4).
+    if (i->getType()) {
+        i->getType()->accept(m_this);
+    }
+    visitExpecting(i->getDflt(), (i->getType() && takesExpected(i->getDflt()))
+        ? ExprTypeOf(m_ctxt).enumOfType(i->getType()) : 0);
 }
 
 void TaskResolveRefs::visitExprCast(ast::IExprCast *i) {
@@ -1840,8 +1872,17 @@ void TaskResolveRefs::visitCallArgs(
                 : (formals->back()->getIs_varargs()) ? formals->back().get() : 0;
         }
         ast::IExpr *arg = params->getParameters().at(k).get();
-        visitExpecting(arg, (formal && takesExpected(arg))
-            ? type_of.enumOfType(formal->getType()) : 0);
+        ast::ISymbolEnumScope *e = (formal && takesExpected(arg))
+            ? type_of.enumOfType(formal->getType()) : 0;
+        ast::IDataTypeUserDefined *udt = (formal && !e && bareName(arg))
+            ? dynamic_cast<ast::IDataTypeUserDefined *>(formal->getType()) : 0;
+        if (udt && udt->getType_id() && !udt->getType_id()->getTarget()) {
+            m_pending_formal[arg] = formal;
+            arg->accept(m_this);
+            m_pending_formal.erase(arg);
+        } else {
+            visitExpecting(arg, e);
+        }
     }
 }
 
@@ -1849,6 +1890,11 @@ void TaskResolveRefs::visitProceduralStmtAssignment(ast::IProceduralStmtAssignme
     visitExecStmt(i);
     if (i->getLhs()) {
         i->getLhs()->accept(m_this);
+    }
+    if (ast::IExprAggrList *aggr = dynamic_cast<ast::IExprAggrList *>(i->getRhs())) {
+        visitAggrExpecting(aggr, (anyTakesExpected(aggr))
+            ? ExprTypeOf(m_ctxt).elemEnumOf(i->getLhs()) : 0);
+        return;
     }
     visitExpecting(i->getRhs(), (takesExpected(i->getRhs()))
         ? ExprTypeOf(m_ctxt).enumOf(i->getLhs()) : 0);
@@ -1861,6 +1907,11 @@ void TaskResolveRefs::visitProceduralStmtDataDeclaration(ast::IProceduralStmtDat
     }
     if (i->getDatatype()) {
         i->getDatatype()->accept(m_this);
+    }
+    if (ast::IExprAggrList *aggr = dynamic_cast<ast::IExprAggrList *>(i->getInit())) {
+        visitAggrExpecting(aggr, (anyTakesExpected(aggr))
+            ? ExprTypeOf(m_ctxt).enumOfDecl(i, 1) : 0);
+        return;
     }
     visitExpecting(i->getInit(), (takesExpected(i->getInit()))
         ? ExprTypeOf(m_ctxt).enumOfType(i->getDatatype()) : 0);
@@ -1915,6 +1966,56 @@ bool TaskResolveRefs::reportUseBeforeDecl(const ast::IExprId *id) {
  * its body has no instance members to reach. The name stays bound -- the
  * lookup found what the author meant -- and this is the one report.
  */
+namespace {
+
+void warnEnumItemFallback(
+        ResolveContext              *ctxt,
+        const ast::IExprId          *id,
+        ast::ISymbolEnumScope       *e,
+        ast::ISymbolEnumScope       *expected) {
+    std::string where = (expected)
+        ? "'" + expected->getName() + "' is expected, but it is an item of '"
+            + e->getName() + "'"
+        : std::string("no enumeration type is expected");
+    ctxt->addMarker(
+        MarkerSeverityE::Warn,
+        id->getLocation(),
+        "enum item '" + id->getId() + "' is used where " + where
+            + " (7.5 i, 8.4.3); qualify it as '" + e->getName() + "::"
+            + id->getId() + "'",
+        {});
+}
+
+}
+
+void TaskResolveRefs::reportEnumItemFallback(
+        ast::IExprRefPathContext    *ref,
+        ast::ISymbolEnumScope       *expected) {
+    const ast::IExprId *id = ref->getHier_id()->getElems().at(0)->getId();
+    ast::ISymbolEnumScope *e = m_ctxt->enumItemHint(id);
+    if (!e) {
+        return;
+    }
+
+    std::unordered_map<ast::IExpr *, ast::IFunctionParamDecl *>::const_iterator
+        it = (m_pending_formal.empty()) ? m_pending_formal.end() : m_pending_formal.find(ref);
+    if (it == m_pending_formal.end()) {
+        warnEnumItemFallback(m_ctxt, id, e, expected);
+        return;
+    }
+
+    // The formal's type is bound by the end of resolution. If it is the
+    // item's own enum, step a finds the same item, and there is nothing to say.
+    ResolveContext *ctxt = m_ctxt;
+    ast::IFunctionParamDecl *formal = it->second;
+    ctxt->addPostResolveAction([ctxt, id, e, formal]() {
+        ast::ISymbolEnumScope *f_e = ExprTypeOf(ctxt).enumOfType(formal->getType());
+        if (f_e != e) {
+            warnEnumItemFallback(ctxt, id, e, f_e);
+        }
+    });
+}
+
 void TaskResolveRefs::reportStaticContext(const ast::IExprId *id) {
     ast::IScopeChild *fn = m_ctxt->staticCtxtHint(id);
     if (!fn) {
@@ -2095,6 +2196,7 @@ void TaskResolveRefs::resolveExprRefPathContext(ast::IExprRefPathContext *i) {
                 i->getHier_id()->getElems().at(0)->getId());
             if (target) {
                 reportStaticContext(i->getHier_id()->getElems().at(0)->getId());
+                reportEnumItemFallback(i, expected);
             }
         }
     }
@@ -3145,10 +3247,14 @@ void TaskResolveRefs::visitField(ast::IField *i) {
     if (i->getType()) {
         i->getType()->accept(m_this);
     }
-    if (i->getInit()) {
+    if (ast::IExprAggrList *aggr = dynamic_cast<ast::IExprAggrList *>(i->getInit())) {
+        visitAggrExpecting(aggr, (anyTakesExpected(aggr))
+            ? ExprTypeOf(m_ctxt).enumOfDecl(i, 1) : 0);
+    } else if (i->getInit()) {
         visitExpecting(i->getInit(), (takesExpected(i->getInit()))
             ? ExprTypeOf(m_ctxt).enumOfType(i->getType()) : 0);
-
+    }
+    if (i->getInit()) {
         // PSS115. §4.7: a template whose special elements reference
         // non-constants is not a constant expression, so it cannot initialize
         // a `const` field. Checked after the descent above, which is what

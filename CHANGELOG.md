@@ -7,6 +7,34 @@ revision advances only the patch component.
 
 ## Unreleased
 
+### Changed — an enum item with no expected type is a warning, PSS046 (symbol-resolution 8.2, LRM 7.5 g/i, 18.3)
+
+An enum item belongs to its enumeration type's scope, not to the scope that
+declares the enum (7.5 g). Unqualified, 18.3 finds it only through the
+expected type (step a). pssparser used to find the items of every enum declared
+in an enclosing scope, or in a package a wildcard import names, as if they were
+declarations there. Now:
+
+- such an item is taken only when the name means nothing else, and the use is
+  warned about (PSS046): "enum item 'ORANGE' is used where no enumeration type
+  is expected (7.5 i, 8.4.3); qualify it as 'color_e::ORANGE'", or "... where
+  'mode_e' is expected, but it is an item of 'color_e' ...". Example 37's
+  `print_num((int)ORANGE)` is the LRM's case. This becomes an error in a later
+  release (warn-first);
+- **a declaration of the same name further out now takes precedence**: with
+  `const int X` in a package and `enum e {X}` in a component inside it,
+  `int y = X;` in the component refers to the constant, where it used to be
+  `e::X`. With `e v = X;` step a still picks the item, and PSS044 says the
+  constant is hidden.
+
+More contexts give an expected type (8.4.2, 8.4.3), so these link without a
+warning: the elements of an aggregate literal assigned to or initializing an
+array or collection of an enum (`list<e> l = {A, B};`), a default value
+constraint (`constraint default f == A;`), and a template value parameter's
+default (`<mode_e m = B>`, as in `std_pkg`'s `packed_s`). A call argument whose
+formal parameter's type is declared in a later file is checked once that type
+is bound.
+
 ### Fixed — unqualified enum items take their enum from the expected type (symbol-resolution 8.1, LRM 8.4.3, 18.3 a)
 
 An unqualified enum item is now looked up in the enum its context expects
@@ -26,8 +54,7 @@ So:
   not the field.
 
 `==`/`!=` read both ways (`A == op.mode` is legal too). Enum items found
-lexically with no enum type expected still resolve; that leniency is retired
-separately (8.2).
+lexically with no enum type expected still resolve; see 8.2 above.
 
 ### Added — PSS044 and PSS045, enum item readings (LRM 18.3 a)
 

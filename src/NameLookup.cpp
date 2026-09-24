@@ -124,7 +124,8 @@ void NameLookup::Member::appendTo(ast::ISymbolRefPath *path) const {
 NameLookup::NameLookup(ResolveContext *ctxt) : m_ctxt(ctxt), m_id(0),
         m_ref(0), m_super_depth(0), m_abs_base(0), m_fwd_decl(0),
         m_static_fn(0), m_static_hit(0), m_all_imports(false),
-        m_skipped_imp(false), m_found_imp(0) {
+        m_skipped_imp(false), m_found_imp(0), m_enum_cand(0),
+        m_enum_cand_e(0), m_enum_cand_imp(0), m_enum_hit(0) {
     DEBUG_INIT("pssp::NameLookup", ctxt->getDebugMgr());
 }
 
@@ -152,6 +153,7 @@ ast::ISymbolRefPath *NameLookup::lookupFirst(const ast::IExprId *id) {
     // as a use before declaration, not as an unknown name (18.2a/b).
     m_ctxt->setFwdDeclHint(id, (m_ref)?0:m_fwd_decl);
     m_ctxt->setStaticCtxtHint(id, (m_ref && m_static_hit)?m_static_fn:0);
+    m_ctxt->setEnumItemHint(id, (m_ref)?m_enum_hit:0);
 
     // 18.1.3, decision Q5: an import applies only in the file and the
     // statement it is written in. A miss that some other statement's import
@@ -186,6 +188,10 @@ void NameLookup::walk() {
     m_static_fn = 0;
     m_static_hit = 0;
     m_found_imp = 0;
+    m_enum_cand = 0;
+    m_enum_cand_e = 0;
+    m_enum_cand_imp = 0;
+    m_enum_hit = 0;
 
     // A clone, because the walk pops the iterator as it goes.
     m_ctxt->pushCloneSymtab();
@@ -237,6 +243,21 @@ void NameLookup::walk() {
     if (!m_ref && ext_pending) {
         searchExtensionChain(ext, searched);
     }
+
+    // An enum item declared in a scope on the way out is taken only when the
+    // name means nothing else (8.2): it is not in that scope (7.5 g), so a
+    // declaration further out is the name's meaning by 18.3. Kept for now,
+    // with a warning where it is used (warn-first, plan §8).
+    if (m_ref) {
+        delete m_enum_cand;
+    } else if (m_enum_cand) {
+        DEBUG("%s is only an enum item of %s",
+            m_id->getId().c_str(), m_enum_cand_e->getName().c_str());
+        m_ref = m_enum_cand;
+        m_enum_hit = m_enum_cand_e;
+        m_found_imp = m_enum_cand_imp;
+    }
+    m_enum_cand = 0;
 
     m_ctxt->popSymtab();
 }
@@ -545,6 +566,31 @@ bool NameLookup::searchMembers(ast::ISymbolScope *s, bool order) {
 }
 
 bool NameLookup::searchEnumItems(ast::ISymbolScope *s) {
+    ast::ISymbolEnumScope *e = 0;
+    ast::ISymbolRefPath *ref = findEnumItem(s, &e);
+    if (ref) {
+        offerEnumItem(ref, e, 0);
+    }
+    return false;
+}
+
+void NameLookup::offerEnumItem(
+        ast::ISymbolRefPath         *ref,
+        ast::ISymbolEnumScope       *e,
+        ast::IPackageImportStmt     *imp) {
+    // The innermost is the one the lookup has always taken.
+    if (m_enum_cand) {
+        delete ref;
+        return;
+    }
+    m_enum_cand = ref;
+    m_enum_cand_e = e;
+    m_enum_cand_imp = imp;
+}
+
+ast::ISymbolRefPath *NameLookup::findEnumItem(
+        ast::ISymbolScope           *s,
+        ast::ISymbolEnumScope       **e_p) {
     const ResolveContext::EnumCache &ec = m_ctxt->enumsOf(s);
     for (std::vector<ast::ISymbolEnumScope *>::const_iterator
             it=ec.enums.begin(); it!=ec.enums.end(); it++) {
@@ -554,13 +600,16 @@ bool NameLookup::searchEnumItems(ast::ISymbolScope *s) {
         if (e_it != e->getSymtab().end()) {
             DEBUG("Found %s as an item of enum %s",
                 m_id->getId().c_str(), e->getName().c_str());
-            m_ref = TaskGetSymbolRefPath(
+            ast::ISymbolRefPath *ref = TaskGetSymbolRefPath(
                 m_ctxt->getDebugMgr(),
                 m_ctxt->root(),
                 m_ctxt->getFactory()->getAstFactory()).mk(e);
-            m_ref->getPath().push_back({
-                ast::SymbolRefPathElemKind::ElemKind_ChildIdx, e_it->second});
-            return true;
+            if (ref) {
+                ref->getPath().push_back({
+                    ast::SymbolRefPathElemKind::ElemKind_ChildIdx, e_it->second});
+                *e_p = e;
+            }
+            return ref;
         }
     }
 
@@ -587,15 +636,18 @@ bool NameLookup::searchEnumItems(ast::ISymbolScope *s) {
         }
         DEBUG("Found %s as an item an extension adds to enum %s",
             m_id->getId().c_str(), e->getName().c_str());
-        m_ref = TaskGetSymbolRefPath(
+        ast::ISymbolRefPath *ref = TaskGetSymbolRefPath(
             m_ctxt->getDebugMgr(),
             m_ctxt->root(),
             m_ctxt->getFactory()->getAstFactory()).mk(e);
-        m_ref->getPath().push_back({
-            ast::SymbolRefPathElemKind::ElemKind_ChildIdx, e_it->second});
-        return true;
+        if (ref) {
+            ref->getPath().push_back({
+                ast::SymbolRefPathElemKind::ElemKind_ChildIdx, e_it->second});
+            *e_p = e;
+        }
+        return ref;
     }
-    return false;
+    return 0;
 }
 
 bool NameLookup::searchBases(ast::ISymbolScope *s, bool members_only) {
@@ -900,11 +952,14 @@ ast::ISymbolRefPath *NameLookup::searchImport(
         target_s = fwd_s;
     }
 
-    ast::ISymbolRefPath *saved = m_ref;
-    m_ref = 0;
-    ast::ISymbolRefPath *ret = (searchEnumItems(target_s))?m_ref:0;
-    m_ref = saved;
-    return ret;
+    // An item of an enum the package declares: not a member of the package
+    // (7.5 g), so only a candidate, taken when nothing else answers (8.2).
+    ast::ISymbolEnumScope *e = 0;
+    ast::ISymbolRefPath *ref = findEnumItem(target_s, &e);
+    if (ref) {
+        offerEnumItem(ref, e, imp);
+    }
+    return 0;
 }
 
 bool NameLookup::appliesAt(

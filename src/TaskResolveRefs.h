@@ -109,6 +109,10 @@ public:
     virtual void visitExprBin(ast::IExprBin *i) override;
     virtual void visitExprIn(ast::IExprIn *i) override;
     virtual void visitExprCast(ast::IExprCast *i) override;
+
+    virtual void visitConstraintStmtDefault(ast::IConstraintStmtDefault *i) override;
+
+    virtual void visitTemplateValueParamDecl(ast::ITemplateValueParamDecl *i) override;
     virtual void visitExprCond(ast::IExprCond *i) override;
     virtual void visitConstraintStmtDist(ast::IConstraintStmtDist *i) override;
     virtual void visitProceduralStmtAssignment(ast::IProceduralStmtAssignment *i) override;
@@ -131,6 +135,12 @@ private:
 
     /** Each value and bound of `l` expects `expected` (an `in` or a `match`). */
     void visitRangesExpecting(ast::IExprOpenRangeList *l, ast::ISymbolEnumScope *expected);
+
+    /**
+     * Each element of an aggregate literal expects `elem`, the element type
+     * of the array or collection it is assigned to (8.4.2, 8.4.3).
+     */
+    void visitAggrExpecting(ast::IExprAggrList *l, ast::ISymbolEnumScope *elem);
 
     /**
      * A call's arguments, each expecting its formal parameter's type
@@ -163,9 +173,10 @@ private:
 
     /**
      * What `id` binds to lexically, without step a and without reporting
-     * anything. The caller owns nothing: the path is freed here.
+     * anything. Null for an enum item the lookup settled for only because
+     * nothing else of the name is in scope: by 18.3 that is no binding (8.2).
      */
-    ast::IScopeChild *peekLexical(const ast::IExprId *id, ast::ISymbolRefPath **path=0);
+    ast::IScopeChild *peekLexical(const ast::IExprId *id);
 
     void resolveExprRefPathContext(ast::IExprRefPathContext *i);
     void resolveExprRefPathStatic(ast::IExprRefPathStatic *i);
@@ -420,6 +431,16 @@ protected:
      * reports it.
      */
     void reportStaticContext(const ast::IExprId *id);
+
+    /**
+     * If the lookup of `id` that just succeeded settled for an enum item
+     * because nothing else of the name is in scope (the enum-item hint),
+     * warns (PSS046): 18.3 finds an item unqualified only by the expected
+     * type, `expected`, which did not have it (8.2).
+     */
+    void reportEnumItemFallback(
+        ast::IExprRefPathContext    *ref,
+        ast::ISymbolEnumScope       *expected);
 
     /**
      * `T::m`, where `scope` is the type T and `member` is m. 18.3: a type
@@ -687,6 +708,14 @@ private:
 
     /** Expected types in force, by operand; see visitExpecting(). */
     std::unordered_map<ast::IExpr *, ast::ISymbolEnumScope *> m_expected;
+
+    /**
+     * A bare call argument whose formal parameter's type is not bound yet --
+     * declared in a later file, which the order of resolution allows. Its
+     * expected type is known only once resolution is done, so PSS046 on the
+     * argument is decided then (reportEnumItemFallback).
+     */
+    std::unordered_map<ast::IExpr *, ast::IFunctionParamDecl *> m_pending_formal;
 
 };
 

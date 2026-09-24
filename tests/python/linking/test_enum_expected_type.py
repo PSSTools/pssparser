@@ -13,8 +13,11 @@ would be read as an item of the other's type, the comparison is ambiguous
 (PSS045). Where the item hides a field or variable the name also has, that is
 a warning (PSS044).
 
-Enum items found lexically, with no expected type, still resolve: retiring
-that is 8.2.
+An enum item is not in the scope that declares its enum (7.5 g), so with no
+expected type it has no binding by 18.3. The lookup still falls back to the
+item of an enum declared in a scope on the way out, when the name means nothing
+else, and warns (PSS046; plan 8.2, warn-first). A declaration further out is
+what the name means.
 """
 import pytest
 
@@ -75,7 +78,7 @@ component pss_top {
 
 
 def test_ex37_the_legal_lines():
-    assert errors("""
+    assert markers("""
 enum color_e {RED, GREEN, ORANGE};
 function void print_color(color_e c);
 function void print_num(int n);
@@ -345,3 +348,190 @@ component pss_top {
   }
 }
 """) == []
+
+
+# ---------------------------------------------------------------------------
+# An item with no expected type (8.2): the lexical fallback, and PSS046
+# ---------------------------------------------------------------------------
+
+
+def _pss046(code):
+    return [msg for sev, msg in markers(code)
+            if sev == "warning" and msg.startswith("enum item ")]
+
+
+def test_ex37_the_illegal_line_warns():
+    """Ex. 37 line 3: the cast's type is `int`, so `ORANGE` expects no enum.
+    Still bound to the item: the fallback is a warning for now."""
+    code = """\
+component pss_top {
+  enum color_e {RED, GREEN, ORANGE};
+  function void print_num(int n);
+  exec init_down { print_num((int)ORANGE); }
+}
+"""
+    assert markers(code) == [(
+        "warning",
+        "enum item 'ORANGE' is used where no enumeration type is expected "
+        "(7.5 i, 8.4.3); qualify it as 'color_e::ORANGE'")]
+    assert bindings(code, "ORANGE") == [(4, "EnumItem", 2)]
+
+
+@pytest.mark.parametrize("stmt", [
+    "int x = APPLE;",                       # an int initializer (CH08/e53)
+    "if (APPLE in [f]) { }",                # the left of `in` (CH08/e45)
+    "if (f < APPLE) { }",                   # relational: not an 8.4.3 context
+    "if (APPLE == APPLE) { }",              # neither side has a known type
+])
+def test_no_expected_type_warns(stmt):
+    assert _pss046("""
+component pss_top {
+  enum fruit_e {APPLE, ORANGE};
+  exec init_down { fruit_e f; %s }
+}
+""" % stmt)
+
+
+def test_in_a_template_string():
+    """A template string's embedded expression expects no type (report E)."""
+    assert _pss046('''
+component pss_top {
+  enum fruit_e {APPLE, ORANGE};
+  action A { exec body C = """{{APPLE}}"""; }
+}
+''')
+
+
+def test_an_item_of_another_enum_than_the_expected_one():
+    assert markers("""
+component pss_top {
+  enum color_e {RED, GREEN};
+  enum fruit_e {APPLE, ORANGE};
+  exec init_down { color_e c = APPLE; }
+}
+""") == [(
+        "warning",
+        "enum item 'APPLE' is used where 'color_e' is expected, but it is an "
+        "item of 'fruit_e' (7.5 i, 8.4.3); qualify it as 'fruit_e::APPLE'")]
+
+
+def test_through_a_wildcard_import():
+    """A wildcard import makes the package's enum visible, not its items."""
+    code = """
+package q { enum e {Z, W}; }
+component pss_top {
+  import q::*;
+  exec init_down {
+    int y = Z;
+    e v = W;
+  }
+}
+"""
+    assert _pss046(code) == [
+        "enum item 'Z' is used where no enumeration type is expected "
+        "(7.5 i, 8.4.3); qualify it as 'e::Z'"]
+
+
+def test_a_declaration_further_out_is_the_names_meaning():
+    """`X` is not in `c`'s scope as an item of `e`; the package's `X` is the
+    first declaration of the name (18.3 b/c). It used to bind to `e::X`."""
+    code = """\
+package p {
+  const int X = 7;
+  component c {
+    enum e {X, Y};
+    exec init_down { int y = X; }
+  }
+}
+component pss_top { }
+"""
+    assert markers(code) == []
+    assert bindings(code, "X") == [(5, "Field", 2)]
+
+
+def test_step_a_still_finds_the_item_past_an_outer_declaration():
+    code = """\
+package p {
+  const int X = 7;
+  component c {
+    enum e {X, Y};
+    exec init_down { e v = X; }
+  }
+}
+component pss_top { }
+"""
+    assert markers(code) == [(
+        "warning",
+        "'X' is read as the enum item e::X, which hides the field 'X' "
+        "(18.3 a); qualify one of them")]
+    assert bindings(code, "X") == [(5, "EnumItem", 4)]
+
+
+# Contexts with an expected type that the 8.2 sweep found unmodelled.
+
+
+@pytest.mark.parametrize("decl", [
+    "list<fruit_e> l = {APPLE, ORANGE};",                   # a field initializer
+    "fruit_e a[2] = {APPLE, ORANGE};",
+    "exec init_down { list<fruit_e> l = {APPLE}; }",        # a local
+    "list<fruit_e> l; exec init_down { l = {ORANGE, APPLE}; }",  # an assignment
+    "action A { rand fruit_e f; constraint default f == APPLE; }",  # 13.1.11
+])
+def test_an_aggregate_or_default_expects_the_element_type(decl):
+    assert markers("""
+component pss_top {
+  enum fruit_e {APPLE, ORANGE};
+  %s
+}
+""" % decl) == []
+
+
+def test_a_template_value_parameter_default_expects_its_type():
+    """`packed_s<endianness_e e = LITTLE_ENDIAN>`, in std_pkg itself."""
+    assert markers("""
+import std_pkg::*;
+import addr_reg_pkg::*;
+component pss_top {
+  enum mode_e {A, B};
+  struct s<mode_e m = B> { }
+  s<> v;
+}
+""") == []
+
+
+def _link(files):
+    p = pssparser.Parser()
+    try:
+        p.parses(files)
+        p.link()
+        return [(m["severity"], m["message"]) for m in p.markers]
+    except Exception as e:
+        ms = getattr(e, "markers", None)
+        if ms is None:
+            raise
+        return [(m["severity"], m["message"]) for m in ms]
+
+
+@pytest.mark.parametrize("formal,expect", [
+    ("mode_e", []),
+    ("other_e", ["enum item 'A' is used where 'other_e' is expected, but it "
+                 "is an item of 'mode_e' (7.5 i, 8.4.3); qualify it as "
+                 "'mode_e::A'"]),
+])
+def test_a_formal_whose_type_is_bound_in_a_later_file(formal, expect):
+    """psstools example/2: the call is resolved before the file declaring the
+    callee, so the formal's type is not bound yet; PSS046 waits for it."""
+    ms = _link([
+        ("a.pss", """
+component pss_top {
+  enum mode_e {A, B};
+  exec init_down { f(A); }
+}
+"""),
+        ("b.pss", """
+extend component pss_top {
+  enum other_e {C};
+  function void f(%s m) { }
+}
+""" % formal)])
+    assert [msg for sev, msg in ms if sev == "warning"] == expect

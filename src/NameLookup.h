@@ -23,6 +23,7 @@
 #include "pssp/ast/IExprId.h"
 #include "pssp/ast/IPackageImportStmt.h"
 #include "pssp/ast/ISymbolDeclaration.h"
+#include "pssp/ast/ISymbolEnumScope.h"
 #include "pssp/ast/ISymbolFunctionScope.h"
 #include "pssp/ast/ISymbolImportSpec.h"
 #include "pssp/ast/ISymbolRefPath.h"
@@ -54,10 +55,13 @@ namespace pssp {
  * - **A package or the global scope** (c.1-c.3): its members, then its
  *   imports.
  *
- * At every level, the enum items of an enum declared directly in that scope
- * are found after its members. That is not 18.3, and 8.2 retires it. Step a
- * -- enum items by the expected type -- runs before this lookup, in
- * TaskResolveRefs, which knows the expression around the name (8.1).
+ * An enum item is not in the scope that declares its enum (7.5 g); 18.3
+ * finds it unqualified only by the expected type (step a), which runs before
+ * this lookup, in TaskResolveRefs, which knows the expression around the
+ * name (8.1). The lookup still takes the item of an enum declared in a scope
+ * on the way out, or in a package a wildcard import names, but only when the
+ * name means nothing else, and says so (ResolveContext::enumItemHint), so
+ * that the use is warned about (8.2).
  *
  * Imports are tiered (18.1.3, 18.3 c.2): package aliases, then explicit
  * imports, then wildcard imports; within the explicit and wildcard tiers two
@@ -237,8 +241,28 @@ private:
      */
     bool searchMembers(ast::ISymbolScope *s, bool order);
 
-    /** Items of an enum declared directly in `s` (see the class comment). */
+    /**
+     * Items of an enum declared directly in `s` (see the class comment):
+     * offered as the fallback candidate, never a hit. Always false.
+     */
     bool searchEnumItems(ast::ISymbolScope *s);
+
+    /**
+     * The path to the item m_id of an enum declared directly in `s`, or of
+     * one an `extend enum` in `s` adds to; its enum in `e`. Null if none.
+     */
+    ast::ISymbolRefPath *findEnumItem(
+        ast::ISymbolScope           *s,
+        ast::ISymbolEnumScope       **e);
+
+    /**
+     * Keep `ref` as the fallback candidate unless there already is one, the
+     * innermost; `imp` is the import it came through, if any. Takes `ref`.
+     */
+    void offerEnumItem(
+        ast::ISymbolRefPath         *ref,
+        ast::ISymbolEnumScope       *e,
+        ast::IPackageImportStmt     *imp);
 
     /**
      * b.3: `s`'s base types, transitively, members and enum items only.
@@ -339,6 +363,18 @@ private:
 
     /** The import the hit in m_ref came through, if it came through one. */
     ast::IPackageImportStmt         *m_found_imp;
+
+    /**
+     * The fallback candidate: the innermost enum item of the name the walk
+     * passed, its enum, and the import it came through. Taken at the end of
+     * the walk only if nothing else was found (8.2).
+     */
+    ast::ISymbolRefPath             *m_enum_cand;
+    ast::ISymbolEnumScope           *m_enum_cand_e;
+    ast::IPackageImportStmt         *m_enum_cand_imp;
+
+    /** The enum of the item in m_ref, when m_ref is the fallback candidate. */
+    ast::ISymbolEnumScope           *m_enum_hit;
 };
 
 }

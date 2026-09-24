@@ -94,6 +94,27 @@ public:
         return 0;
     }
 
+    /**
+     * The enumeration type of an *element* of `e`, a reference to an array or
+     * a collection: what an aggregate literal assigned to it expects of each
+     * value (8.4.2, 8.4.3). Null otherwise.
+     */
+    ast::ISymbolEnumScope *elemEnumOf(ast::IExpr *e) {
+        ast::IExprMemberPathElem *last = 0;
+        if (ast::IExprRefPathContext *r = dynamic_cast<ast::IExprRefPathContext *>(e)) {
+            if (r->getTarget() && !r->getSlice() && r->getHier_id()->getElems().size()) {
+                last = r->getHier_id()->getElems().back().get();
+            }
+        } else if (ast::IExprRefPathStaticRooted *r = dynamic_cast<ast::IExprRefPathStaticRooted *>(e)) {
+            if (r->getTarget() && !r->getSlice() && r->getLeaf()
+                    && r->getLeaf()->getElems().size()) {
+                last = r->getLeaf()->getElems().back().get();
+            }
+        }
+        return (last)
+            ? enumOfDecl(last->getId()->getDecl(), last->getSubscript().size()+1) : 0;
+    }
+
     /** The enumeration type `t` names, through typedefs; null otherwise. */
     ast::ISymbolEnumScope *enumOfType(ast::IDataType *t) {
         // An enum is always named: only a user-defined type -- which is also

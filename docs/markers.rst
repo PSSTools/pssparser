@@ -604,6 +604,20 @@ In ``a == b`` or ``a != b`` each side's type is the other side's expected type, 
 
 Qualify the item, as ``e1::B``.
 
+PSS046
+------
+
+**Severity:** warning
+
+Enum item used where its enumeration type is not expected
+
+An enum item belongs to its enumeration type's scope, not to the scope that declares the enum (7.5 g).  Unqualified, it is found only where the expression's expected type is that enumeration type (7.5 i, 8.4.3, 18.3 a): an assignment or initializer, a call argument, a ``return``, the other side of ``==``/``!=``, the values of ``in``, a cast to the enum, and the arms of ``?:``.  pssparser still accepts an item declared in an enclosing scope, or in a package a wildcard import names, when the name means nothing else there, and warns; this becomes an error in a later release.  A declaration of the same name further out is what the name means, and no longer the item.  Messages:
+
+* ``enum item 'ORANGE' is used where no enumeration type is expected (7.5 i, 8.4.3); qualify it as 'color_e::ORANGE'``
+* ``enum item 'RED' is used where 'mode_e' is expected, but it is an item of 'color_e' (7.5 i, 8.4.3); qualify it as 'color_e::RED'``
+
+Qualify the item.  LRM Example 37: ``print_num((int)ORANGE)`` is an error, because the cast's type is ``int``.
+
 PSS100
 ------
 

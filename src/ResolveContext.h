@@ -249,6 +249,22 @@ public:
     }
 
     /**
+     * Also set by NameLookup after each unqualified lookup: the enumeration
+     * type whose item the lookup settled for because nothing else of the name
+     * is in scope, or null. An enum item is not in the scope that declares
+     * its enum (7.5 g); 18.3 finds it unqualified only by the expected type
+     * (step a). Lets TaskResolveRefs warn about the use (8.2).
+     */
+    void setEnumItemHint(const ast::IExprId *id, ast::ISymbolEnumScope *e) {
+        m_enum_item_id = id;
+        m_enum_item_e = e;
+    }
+
+    ast::ISymbolEnumScope *enumItemHint(const ast::IExprId *id) const {
+        return (id == m_enum_item_id)?m_enum_item_e:0;
+    }
+
+    /**
      * True if an error has already been reported at this source position.
      * Lets a later pass stay quiet about a failure an earlier one described
      * better -- see TaskCheckRefsResolved.
@@ -406,6 +422,8 @@ private:
     ast::IScopeChild                                *m_static_fn = 0;
     const ast::IExprId                              *m_leak_id = 0;
     ast::IPackageImportStmt                         *m_leak_imp = 0;
+    const ast::IExprId                              *m_enum_item_id = 0;
+    ast::ISymbolEnumScope                           *m_enum_item_e = 0;
 
 };
 
