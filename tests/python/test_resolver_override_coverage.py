@@ -71,7 +71,9 @@ ALLOWED = {
     "visitTemplateBlock:SymbolScope.imports": "never populated on a template scope",
     "visitTemplateString:SymbolScope.imports": "never populated on a template scope",
     "visitSymbolExtendScope:SymbolScope.imports":
-        "an extension's imports are resolved by TaskApplyTypeExtensions",
+        "every import is resolved before this pass (TaskResolveImports::resolveAll)",
+    "visitSymbolScope:SymbolScope.imports":
+        "every import is resolved before this pass (TaskResolveImports::resolveAll)",
     "visitSymbolFunctionScope:SymbolScope.imports": "never populated on a function scope",
     # Loop scopes: `children` holds the loop variable's declaration; the body
     # is walked through getBody().
@@ -87,7 +89,8 @@ ALLOWED = {
     "visitExtendEnum:ExtendEnum.target": "resolved by TaskApplyTypeExtensions",
     "visitExtendEnum:ExtendEnum.items": "merged into the enum, walked there",
     "visitExtendType:ExtendType.target": "resolved by TaskApplyTypeExtensions",
-    "visitExtendType:ExtendType.imports": "resolved by TaskApplyTypeExtensions",
+    "visitExtendType:ExtendType.imports":
+        "every import is resolved before this pass (TaskResolveImports::resolveAll)",
     "visitExtendType:Scope.children": "merged into the type, walked there",
     # Deliberately not resolved yet: each needs its own rules, and the
     # ordinary lookup would report legal code (see the overrides' comments).

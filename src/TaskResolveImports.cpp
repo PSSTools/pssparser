@@ -21,6 +21,10 @@
 #include "dmgr/impl/DebugMacros.h"
 #include "TaskResolveImports.h"
 #include "TaskResolveRef.h"
+#include "pssp/ast/ISymbolEnumScope.h"
+#include "pssp/ast/ISymbolExtendScope.h"
+#include "pssp/ast/ISymbolFunctionScope.h"
+#include "pssp/ast/ISymbolTypeScope.h"
 
 namespace pssp {
 
@@ -33,6 +37,67 @@ TaskResolveImports::TaskResolveImports(ResolveContext *ctxt) : TaskResolveBase(c
 
 TaskResolveImports::~TaskResolveImports() {
 
+}
+
+void TaskResolveImports::resolveAll(ast::IRootSymbolScope *root) {
+    DEBUG_ENTER("resolveAll");
+    m_ctxt->pushSymtab(m_ctxt->getFactory()->mkAstSymbolTableIterator(root));
+    m_visited.clear();
+    m_visited.insert(root);
+    resolve(root);
+    for (std::vector<ast::IScopeChildUP>::const_iterator
+        it=root->getChildren().begin();
+        it!=root->getChildren().end(); it++) {
+        if (ast::ISymbolScope *c = dynamic_cast<ast::ISymbolScope *>(it->get())) {
+            walk(c);
+        }
+    }
+    m_ctxt->popSymtab();
+    DEBUG_LEAVE("resolveAll");
+}
+
+void TaskResolveImports::walk(ast::ISymbolScope *s) {
+    // An import is a package, component or extension body item (Annex B), so
+    // the walk goes only where one can be: a package holds the others, and a
+    // type or an extension holds none of them. The visited set guards a scope
+    // reachable twice (a hoisted child).
+    if (!m_visited.insert(s).second) {
+        return;
+    }
+
+    if (dynamic_cast<ast::ISymbolTypeScope *>(s)
+            || dynamic_cast<ast::ISymbolExtendScope *>(s)) {
+        // Pushed for its own imports' sake: an import path resolves from
+        // where it is written. An extension has no index to address it by, so
+        // its imports resolve from the scope around it.
+        bool pushed = (s->getId() >= 0);
+        if (pushed) {
+            m_ctxt->symtab()->pushScope(s);
+        }
+        resolve(s);
+        if (pushed) {
+            m_ctxt->symtab()->popScope();
+        }
+        return;
+    }
+
+    if (dynamic_cast<ast::ISymbolFunctionScope *>(s)
+            || dynamic_cast<ast::ISymbolEnumScope *>(s)
+            || s->getId() < 0) {
+        return;
+    }
+
+    // A package.
+    m_ctxt->symtab()->pushScope(s);
+    resolve(s);
+    for (std::vector<ast::IScopeChildUP>::const_iterator
+        it=s->getChildren().begin();
+        it!=s->getChildren().end(); it++) {
+        if (ast::ISymbolScope *c = dynamic_cast<ast::ISymbolScope *>(it->get())) {
+            walk(c);
+        }
+    }
+    m_ctxt->symtab()->popScope();
 }
 
 void TaskResolveImports::resolve(ast::ISymbolScope *sym_scope) {

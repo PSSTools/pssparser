@@ -269,12 +269,6 @@ void TaskResolveRefs::resolve(ast::ISymbolScope *root) {
     // Phases:
     // - 
 
-    if (root->getImports()) {
-        DEBUG_ENTER("  Resolve Imports");
-        TaskResolveImports(m_ctxt).resolve(root);
-        DEBUG_LEAVE("  Resolve Imports");
-    }
-
     DEBUG("resolve ==> process children");
     for (std::vector<ast::IScopeChildUP>::const_iterator
         it=root->getChildren().begin();
@@ -1589,7 +1583,7 @@ bool TaskResolveRefs::insideTypeOrSubtype(ast::ISymbolTypeScope *t) {
         return false;
     }
     while (scratch->hasScopes()) {
-        // See TaskResolveRootRef::resolve() for why a null scope pops.
+        // See NameLookup::lookupFirst() for why a null scope pops.
         ast::ISymbolScope *s = scratch->getScope();
         if (s) {
             ast::ISymbolScope *ts = s;
@@ -1788,7 +1782,7 @@ void TaskResolveRefs::resolveExprRefPathContext(ast::IExprRefPathContext *i) {
         if (suggestion.empty() && m_ctxt->symtab()) {
             // getScope() walks backward from the top of the stack it is
             // given and silently *erases* every non-ISymbolScope entry it
-            // passes over (by design -- TaskResolveRootRef::resolve() relies
+            // passes over (by design -- NameLookup::lookupFirst() relies
             // on this to converge its root-ref search, and always calls it
             // on a throwaway clone). Calling it directly on the live active
             // stack here corrupted it whenever the innermost frame was a
@@ -1796,7 +1790,7 @@ void TaskResolveRefs::resolveExprRefPathContext(ast::IExprRefPathContext *i) {
             // silently dropping a frame a caller further up (visitConstraintBlock)
             // still owns and will pop itself, eventually popping the wrong
             // scope or an empty stack (E7-D14). Use a scratch clone instead,
-            // exactly as TaskResolveRootRef::resolve() does for the same
+            // exactly as NameLookup::lookupFirst() does for the same
             // reason.
             ISymbolTableIteratorUP scratch(m_ctxt->cloneSymtab());
             if (scratch) {
@@ -2567,39 +2561,32 @@ void TaskResolveRefs::resolveExprRefPathStatic(ast::IExprRefPathStatic *i) {
                 target_s = res.sym;
                 (*it)->getId()->setDecl(res.sym);
 
-                if (res.super_idx == 0) {
+                // An inherited member: one ElemKind_Super per base type
+                // crossed, then its index in the base that declares it.
+                for (int32_t s=0; s<res.super_idx; s++) {
                     target->getPath().push_back({
-                        ast::SymbolRefPathElemKind::ElemKind_ChildIdx,
-                        res.idx});
+                        ast::SymbolRefPathElemKind::ElemKind_Super, 0});
+                }
+                target->getPath().push_back({
+                    ast::SymbolRefPathElemKind::ElemKind_ChildIdx,
+                    res.idx});
 
-                    if ((*it)->getParams()) {
-                        // A qualified generic: `std_pkg::sizeof_s<T>::nbits`.
-                        // Only the first element's arguments used to be
-                        // applied, so this bound the *generic's* members --
-                        // sizeof_s's placeholder -1 -- and the argument list
-                        // was resolved and then dropped. Specialize exactly
-                        // as the first element does; the arguments were
-                        // resolved at the use site by the accept() above.
-                        target = TaskSpecializeParameterizedRef(m_ctxt).specialize(
-                            target,
-                            (*it)->getParams(),
-                            (*it)->getId()->getLocation());
-                        if (!target) {
-                            break;
-                        }
-                        target_s = m_ctxt->resolveSymbolPathRef(target);
+                if ((*it)->getParams()) {
+                    // A qualified generic: `std_pkg::sizeof_s<T>::nbits`.
+                    // Only the first element's arguments used to be
+                    // applied, so this bound the *generic's* members --
+                    // sizeof_s's placeholder -1 -- and the argument list
+                    // was resolved and then dropped. Specialize exactly
+                    // as the first element does; the arguments were
+                    // resolved at the use site by the accept() above.
+                    target = TaskSpecializeParameterizedRef(m_ctxt).specialize(
+                        target,
+                        (*it)->getParams(),
+                        (*it)->getId()->getLocation());
+                    if (!target) {
+                        break;
                     }
-                } else {
-                    // The member is inherited. A symbol path has no way to
-                    // encode a step through a base type --
-                    // TaskResolveSymbolPathRef leaves ElemKind_Super as a
-                    // TODO -- so extending it with the base's child index
-                    // would resolve to whatever child sits at that index in
-                    // the derived type. Leave the path at the enclosing type;
-                    // the member is checked either way, which is what this
-                    // branch is here for.
-                    DEBUG("Member %s is inherited (super_idx=%d); path not extended",
-                        (*it)->getId()->getId().c_str(), res.super_idx);
+                    target_s = m_ctxt->resolveSymbolPathRef(target);
                 }
             } else {
                 DEBUG("element is inside a pyref path");
@@ -2934,7 +2921,7 @@ std::string TaskResolveRefs::declSite(
  *      constants in its initialization assignment expression."
  *
  * Checked here rather than by hiding at lookup time (as 18.2a/b are, in
- * TaskResolveRootRef): a type or package scope is not ordered for anything
+ * NameLookup): a type or package scope is not ordered for anything
  * else, a qualified `p::C` never takes the lexical walk, and there is no
  * outer declaration for the use to fall back to. Across files, the file
  * order applies (decision Q8), as it does for `compile if`.
@@ -3538,12 +3525,6 @@ void TaskResolveRefs::visitSymbolScope(ast::ISymbolScope *i) {
     DEBUG_ENTER("visitSymbolScope %s", i->getName().c_str());
     m_ctxt->symtab()->pushScope(i);
 
-    if (i->getImports()) {
-        DEBUG_ENTER("  Resolve Imports");
-        TaskResolveImports(m_ctxt).resolve(i);
-        DEBUG_LEAVE("  Resolve Imports");
-    }
-
     checkScopeAnnotations(i);
 
     DEBUG("Have %d children", i->getChildren().size());
@@ -4074,10 +4055,11 @@ void TaskResolveRefs::visitSymbolTypeScope(ast::ISymbolTypeScope *i) {
             DEBUG("No super type");
         }
 
-        if (i->getImports()) {
-            DEBUG_ENTER("  Resolve Imports");
+        // A specialization's imports are copies, made after every import in
+        // the source was resolved (TaskResolveImports::resolveAll). Any other
+        // type's are resolved, or reported, already.
+        if (i->getImports() && m_ctxt->specializationDepth()) {
             TaskResolveImports(m_ctxt).resolve(i);
-            DEBUG_LEAVE("  Resolve Imports");
         }
 
         checkScopeAnnotations(i);

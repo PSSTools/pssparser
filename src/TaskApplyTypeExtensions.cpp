@@ -33,7 +33,6 @@
 #include "pssp/ast/IFunctionPrototype.h"
 #include "pssp/ast/IGenericConstraintDeclBool.h"
 #include "pssp/ast/ITypedefDeclaration.h"
-#include "TaskResolveImports.h"
 #include "TaskResolveRef.h"
 #include "TaskResolveRootRef.h"
 #include "pssp/impl/TaskGetName.h"
@@ -66,7 +65,7 @@ void TaskApplyTypeExtensions::apply(ast::IRootSymbolScope *root) {
  * Resolve an `extend` target from where the `extend` statement is written.
  *
  * A bare ResolveContext starts its symbol-table iterator at the root, and
- * TaskResolveRootRef resolves an unqualified name by walking that iterator's
+ * NameLookup resolves an unqualified name by walking that iterator's
  * scope stack outward. With nothing on the stack but the root, the only names
  * in scope were the package names -- which is why `package p { struct S {}
  * extend struct S {} }` reported "unknown type 'S'; did you mean 'p'?" and only
@@ -132,14 +131,8 @@ void TaskApplyTypeExtensions::visitExtendEnum(ast::IExtendEnum *i) {
 
 void TaskApplyTypeExtensions::visitRootSymbolScope(ast::IRootSymbolScope *i) {
     DEBUG_ENTER("visitRootSymbolScope");
-    // Root-level imports first: a root-level `extend` resolves its target
-    // through them, and they were otherwise left unresolved until a later
-    // pass, so `import p::*; extend struct s {}` failed (F23).
-    if (i->getImports()) {
-        ResolveContext ctxt(m_factory, m_marker_l, m_root);
-        seedCtxtScope(ctxt);
-        TaskResolveImports(&ctxt).resolve(i);
-    }
+    // Every import is already resolved (TaskResolveImports::resolveAll), so a
+    // root-level `extend` sees the root-level imports (F23).
     for (std::vector<ast::IScopeChildUP>::const_iterator
         it=i->getChildren().begin();
         it!=i->getChildren().end(); it++) {
@@ -379,18 +372,6 @@ void TaskApplyTypeExtensions::visitSymbolScope(ast::ISymbolScope *i) {
     {
         if (i->getId() >= 0) {
             m_symtab_it->pushScope(i);
-        }
-
-        if (i->getImports()) {
-            DEBUG_ENTER("  Resolve Imports");
-            // Seeded, so an import path resolves from where the import is
-            // written: `import bar::*;` inside P names P::bar (ND-1). The
-            // unseeded context searched from the root only, and the result
-            // is cached, so no later pass got a second chance.
-            ResolveContext ctxt(m_factory, m_marker_l, m_root);
-            seedCtxtScope(ctxt);
-            TaskResolveImports(&ctxt).resolve(i);
-            DEBUG_LEAVE("  Resolve Imports");
         }
 
         for (std::vector<ast::IScopeChildUP>::const_iterator

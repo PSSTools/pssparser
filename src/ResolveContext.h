@@ -25,11 +25,13 @@
 #include <string>
 #include <set>
 #include <tuple>
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 #include "dmgr/IDebugMgr.h"
 #include "pssp/ast/IExprId.h"
 #include "pssp/ast/IRootSymbolScope.h"
+#include "pssp/ast/ISymbolEnumScope.h"
 #include "pssp/ast/ISymbolRefPath.h"
 #include "pssp/IFactory.h"
 #include "pssp/IMarkerListener.h"
@@ -76,10 +78,10 @@ public:
      * the extended type's package, never the extension's.
      *
      * TaskResolveRefs pushes the declaring scope here while visiting a
-     * re-homed member, and TaskResolveRootRef consults it once the ordinary
-     * lexical walk has failed. Deliberately a fallback rather than a
-     * replacement: an extension body must see the extended type's own members
-     * too, which is the whole point of writing one.
+     * re-homed member, and NameLookup searches that scope's package chain
+     * where the extended type's levels end. After them, not instead of them:
+     * an extension body must see the extended type's own members, which is
+     * the whole point of writing one.
      *
      * A stack, because an extension may contribute a nested type whose own
      * body is visited within it.
@@ -198,7 +200,7 @@ public:
         const std::vector<std::pair<ast::Location, std::string>> &related);
 
     /**
-     * Set by TaskResolveRootRef after each unqualified lookup: the later
+     * Set by NameLookup after each unqualified lookup: the later
      * declaration of `id` the lookup passed over (18.2a/b), when the lookup
      * found nothing else; otherwise null. Lets the site that reports the miss
      * say "used before its declaration" instead of "unknown identifier".
@@ -213,7 +215,7 @@ public:
     }
 
     /**
-     * Also set by TaskResolveRootRef after each unqualified lookup: the static
+     * Also set by NameLookup after each unqualified lookup: the static
      * function the lookup passed out of on its way to an instance member of
      * the component (20.2), or null. The lookup keeps its answer, so the use
      * is bound and the report is one error, not a cascade.
@@ -275,8 +277,40 @@ public:
         m_post_resolve.clear();
     }
 
+    /**
+     * The enums declared directly in `s`. NameLookup asks at every level it
+     * searches, and finding them means a dynamic_cast per child -- costly on
+     * this hierarchy, and most children are not enums. Kept per scope, and
+     * rebuilt when the scope has gained children since.
+     */
+    const std::vector<ast::ISymbolEnumScope *> &enumsOf(ast::ISymbolScope *s) {
+        EnumCache &e = m_enum_cache[s];
+        if (!e.valid || e.n_children != s->getChildren().size()) {
+            e.enums.clear();
+            for (std::vector<ast::IScopeChildUP>::const_iterator
+                    it=s->getChildren().begin();
+                    it!=s->getChildren().end(); it++) {
+                if (ast::ISymbolEnumScope *es =
+                        dynamic_cast<ast::ISymbolEnumScope *>(it->get())) {
+                    e.enums.push_back(es);
+                }
+            }
+            e.n_children = s->getChildren().size();
+            e.valid = true;
+        }
+        return e.enums;
+    }
+
+private:
+    struct EnumCache {
+        bool                                    valid = false;
+        size_t                                  n_children = 0;
+        std::vector<ast::ISymbolEnumScope *>    enums;
+    };
+
 private:
     ast::IRootSymbolScope                           *m_root;
+    std::unordered_map<ast::ISymbolScope *, EnumCache> m_enum_cache;
     std::vector<ast::ISymbolScope *>                m_inline_ctxt_s;
     std::vector<ast::ISymbolScope *>                m_ext_ctxt_s;
     std::map<ast::IScopeChild *, ast::ISymbolScope *> m_ext_decl_scope;

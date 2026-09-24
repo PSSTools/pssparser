@@ -7,6 +7,36 @@ revision advances only the patch component.
 
 ## Unreleased
 
+### Changed — name lookup follows the LRM order (symbol-resolution 6.2, LRM 17.2, 18.3)
+
+Every name is now looked up by one procedure in the order that 18.3 gives. The
+order used to depend on which kind of scope the name was in. Legal models that
+used to be rejected now link:
+
+- **An inherited member hides a component import.** In a derived component,
+  a member of the base component is found before anything the derived
+  component imports (18.3 b.3 before b.4).
+- **A type's own template parameter hides a component import.** In
+  `component c<type T> { import P::*; ... }`, `T` is the parameter, even when
+  `P` declares a `T`.
+- **An extension sees its own package first.** Names in an `extend` are looked
+  up in the package that encloses the `extend` statement and its outer
+  packages, and then globally (17.2). A global name used to shadow the
+  extension's package, and outer packages were not searched at all.
+- **An enum item declared in a base component** can be used unqualified in a
+  derived component.
+- **Imports inside `extend component` are resolved** (LRM Example 248). Each
+  one used to be reported as unbound.
+
+One model that used to be accepted is now an error: **a base component's
+imports no longer reach a derived component.** The LRM searches a base type's
+members, not its imports (18.3 b.3). Add the import to the derived component.
+
+A qualified name that reaches an inherited member, such as `der_c::N` where
+`N` is declared in `base_c`, now binds to the member itself. Its target used
+to stop at `der_c`. An import that names nothing is reported once, not once
+per linker pass.
+
 ### Changed — the completeness check covers every reference (symbol-resolution 3.5)
 
 After linking, pssparser used to check only user-defined type references for

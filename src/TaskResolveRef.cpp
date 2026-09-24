@@ -32,7 +32,7 @@
 #include "pssp/ast/IField.h"
 #include "pssp/ast/IProceduralStmtDataDeclaration.h"
 #include "TaskFindPathElem.h"
-#include "TaskResolveFieldRef.h"
+#include "NameLookup.h"
 #include "CoreLibraryLookup.h"
 #include "Marker.h"
 
@@ -279,15 +279,13 @@ ast::ISymbolRefPath *TaskResolveRef::resolveStaticArgPath(
 
         (*it)->getId()->setDecl(res.sym);
 
-        if (res.super_idx == 0) {
+        for (int32_t s=0; s<res.super_idx; s++) {
             target->getPath().push_back({
-                ast::SymbolRefPathElemKind::ElemKind_ChildIdx,
-                res.idx});
-        } else {
-            // A symbol path cannot encode a step through a base type; see the
-            // same case in TaskResolveRefs::visitExprRefPathStatic.
-            DEBUG("Member is inherited; path not extended");
+                ast::SymbolRefPathElemKind::ElemKind_Super, 0});
         }
+        target->getPath().push_back({
+            ast::SymbolRefPathElemKind::ElemKind_ChildIdx,
+            res.idx});
     }
 
     DEBUG_LEAVE("resolveStaticArgPath %p", target);
@@ -470,10 +468,23 @@ void TaskResolveRef::visitTypeIdentifier(ast::ITypeIdentifier *i) {
     for (std::vector<ast::ITypeIdentifierElemUP>::const_iterator
         it=i->getElems().begin()+1;
         it!=i->getElems().end(); it++) {
-        ast::IScopeChild *next = TaskResolveFieldRef(m_ctxt).resolve(
-            (*it)->getId(),
-            root_t,
-            root);
+        // A step into a type finds an inherited member too, one
+        // ElemKind_Super per base type crossed (18.3 b.3; Ex. 242).
+        ast::IScopeChild *next = 0;
+        if (ast::ISymbolScope *ns = dynamic_cast<ast::ISymbolScope *>(root_t)) {
+            NameLookup::Member m = NameLookup::lookupMember(
+                m_ctxt->getDebugMgr(), m_ctxt->root(), ns,
+                (*it)->getId()->getId());
+            if (m.sym) {
+                for (int32_t s=0; s<m.super_depth; s++) {
+                    root->getPath().push_back({
+                        ast::SymbolRefPathElemKind::ElemKind_Super, 0});
+                }
+                root->getPath().push_back({
+                    ast::SymbolRefPathElemKind::ElemKind_ChildIdx, m.idx});
+                next = m.sym;
+            }
+        }
 
         if (next) {
             DEBUG("Resolve %s", (*it)->getId()->getId().c_str());
@@ -540,23 +551,12 @@ void TaskResolveRef::visitTypeIdentifier(ast::ITypeIdentifier *i) {
 
 ast::ISymbolRefPath *TaskResolveRef::findRoot(
         const ast::IExprId              *sym) {
-    return TaskResolveRootRef(m_ctxt).resolve(sym);
+    return NameLookup(m_ctxt).lookupFirst(sym);
 }
 
 ast::ISymbolRefPath *TaskResolveRef::findGlobalRoot(
         const ast::IExprId              *sym) {
-    ast::ISymbolScope *root = dynamic_cast<ast::ISymbolScope *>(m_ctxt->root());
-    if (!root) {
-        return 0;
-    }
-    std::unordered_map<std::string,int32_t>::const_iterator it =
-        root->getSymtab().find(sym->getId());
-    if (it == root->getSymtab().end()) {
-        return 0;
-    }
-    ast::ISymbolRefPath *ret = m_ctxt->getFactory()->getAstFactory()->mkSymbolRefPath();
-    ret->getPath().push_back({ast::SymbolRefPathElemKind::ElemKind_ChildIdx, it->second});
-    return ret;
+    return NameLookup(m_ctxt).lookupGlobal(sym);
 }
 
 dmgr::IDebug *TaskResolveRef::m_dbg = 0;

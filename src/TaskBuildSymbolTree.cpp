@@ -935,7 +935,7 @@ void TaskBuildSymbolTree::visitFunctionPrototype(ast::IFunctionPrototype *i) {
     copyDocInfo(func_sym, i);
 
     // The plist was built on the creation branch above (a bare prototype once
-    // had none, and TaskResolveRootRef and TaskResolveSymbolPathRef read it
+    // had none, and NameLookup and TaskResolveSymbolPathRef read it
     // unguarded). A later prototype adds nothing to it: its parameters are
     // the same ones, by position, under names the body does not use. This
     // loop used to append each name it had not seen, so `function int f(int
