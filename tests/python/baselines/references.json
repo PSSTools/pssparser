@@ -1,19 +1,22 @@
 {
  "schema": 1,
  "summary": {
-  "slots": 91,
+  "slots": 96,
   "slots_by_state": {
-   "reported": 62,
-   "silent": 29
+   "clean": 2,
+   "errors": 1,
+   "reported": 67,
+   "silent": 26
   },
   "legal_model": "clean",
   "corpus_refs": {
-   "bound": 1214,
-   "unbound": 31
+   "bound": 1215,
+   "dependent": 2,
+   "unbound": 28
   },
   "schema_ref_fields": 46,
   "schema_ref_fields_in_corpus": 21,
-  "schema_ref_fields_in_slots": 41
+  "schema_ref_fields_in_slots": 45
  },
  "schema_ref_fields": {
   "ActionFieldInitializer.path": {
@@ -116,7 +119,7 @@
    "type": "ExprRefPath",
    "visit": true,
    "in_corpus": false,
-   "in_slots": false
+   "in_slots": true
   },
   "ConstraintStmtUnique.list": {
    "type": "ExprRefPathContext",
@@ -212,7 +215,7 @@
    "type": "ExprRefPathStatic",
    "visit": true,
    "in_corpus": true,
-   "in_slots": false
+   "in_slots": true
   },
   "ExtendEnum.target": {
    "type": "TypeIdentifier",
@@ -266,13 +269,13 @@
    "type": "ExprRefName",
    "visit": true,
    "in_corpus": false,
-   "in_slots": false
+   "in_slots": true
   },
   "TemplateCategoryTypeParamDecl.restriction": {
    "type": "TypeIdentifier",
    "visit": true,
    "in_corpus": true,
-   "in_slots": false
+   "in_slots": true
   },
   "TypeOverride.target": {
    "type": "TypeIdentifier",
@@ -301,7 +304,7 @@
   "aforeach": "reported",
   "aif": "reported",
   "amatch": "reported",
-  "ann": "silent",
+  "ann": "reported",
   "ann__pname": "reported",
   "ann__pval": "reported",
   "arr_dim": "reported",
@@ -313,7 +316,7 @@
   "cast_t": "reported",
   "cg_opt_val": "silent",
   "cgi_act": "silent",
-  "cgi_act__legal": "silent",
+  "cgi_act__legal": "clean",
   "cgi_opt": "silent",
   "cgi_port": "silent",
   "cgi_pos": "silent",
@@ -333,6 +336,7 @@
   "ext_enum": "reported",
   "extend_t": "reported",
   "field_init": "reported",
+  "forall_in": "reported",
   "forall_t": "reported",
   "func_dflt": "reported",
   "hinit_name": "reported",
@@ -353,13 +357,15 @@
   "pool_bind_item__atype": "reported",
   "pool_bind_item__comp": "silent",
   "pool_bind_item__field": "silent",
-  "pool_bind_item__subpath": "reported",
+  "pool_bind_item__subpath": "errors",
   "pool_bind_pool": "silent",
   "pool_size": "reported",
   "prev_ref": "reported",
-  "prev_ref__this": "silent",
+  "prev_ref__this": "clean",
   "proc_call": "reported",
   "proc_lhs": "reported",
+  "qcall_leaf": "reported",
+  "qcall_root": "reported",
   "rand_tgt": "reported",
   "repeat_cnt": "reported",
   "repl_cnt": "reported",
@@ -375,6 +381,8 @@
   "sym_call": "reported",
   "tag_field": "silent",
   "tag_t": "reported",
+  "tmpl_assign": "reported",
+  "tparam_restr": "reported",
   "tparam_t": "reported",
   "tparam_v": "reported",
   "trav_h": "reported",
@@ -453,7 +461,7 @@
    },
    "DataTypeUserDefined.type_id | TypeIdentifier": {
     "bound": 507,
-    "unbound": 1
+    "dependent": 1
    },
    "ExprAggrList.elems | ExprRefPathContext": {
     "bound": 1
@@ -477,7 +485,7 @@
     "unbound": 1
    },
    "ExprDomainOpenRangeValue.rhs | ExprRefPathContext": {
-    "unbound": 1
+    "dependent": 1
    },
    "ExprIn.lhs | ExprRefPathContext": {
     "bound": 10
@@ -516,7 +524,7 @@
     "bound": 20
    },
    "ProceduralStmtAssignment.rhs | ExprRefPathStaticRooted": {
-    "unbound": 1
+    "bound": 1
    },
    "ProceduralStmtExpr.expr | ExprRefPathContext": {
     "bound": 15

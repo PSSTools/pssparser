@@ -3,7 +3,9 @@
 ``BASE`` is a legal model with ``@@KEY@@`` placeholders. ``DEF`` fills each
 with a legal name; ``BAD`` fills one at a time with an undefined one, and
 ``EXTRA`` holds further variants of a slot as ``KEY:tag``. A slot is
-*reported* when linking the BAD variant yields an error on the slot's line.
+*reported* when linking the BAD variant yields an error on the slot's line
+(a warning, for the slots in ``WARN``). ``LEGAL`` holds variants that must
+link cleanly.
 See scripts/refcov.py and docs/design/symbol-resolution-plan.md §3.
 
 Hand-authored for now: the plan's INV-4 wants the slots generated from the
@@ -25,6 +27,8 @@ extend enum @@EXT_ENUM@@ { BLUE };
 buffer buf_s { rand int d; }
 resource res_s { }
 struct gs <type T = int, int N = 1> { T f; }
+struct gr <struct T : @@TPARAM_RESTR@@ = base_s> { T f; }
+package qp { function int qf() { return 1; } }
 struct base_s { rand int bf; }
 state st_s { rand int sd; constraint @@PREV_REF@@.sd >= 0; }
 component sub_c { action sa { lock res_s r; } }
@@ -39,14 +43,16 @@ component pss_top {
   struct S : @@SUPER_T@@ { rand int a; rand bit[@@BIT_W@@] b; int arr[@@ARR_DIM@@]; int iv = @@FIELD_INIT@@; gs<@@TPARAM_T@@, @@TPARAM_V@@> g; }
   struct S2 : base_s { rand int bf; rand int own; constraint super.@@SUPER_REF@@ < bf; }
   @@ANN@@
-  action P { output buf_s o; lock res_s r; rand int px; }
+  action P { output buf_s o; lock res_s r; rand int px;
+    exec body C = """{% int ti = 0; %}{% @@TMPL_ASSIGN@@ = 1; %}"""; }
   action C { input buf_s i; }
   action A {
-    rand int x; rand bit[4] y; rand S s;
+    rand int x; rand bit[4] y; rand S s; rand S sa[2];
     constraint { @@CONSTR@@; }
     constraint { @@UID_REF@@ != 0; }
     constraint { unique {x, @@UNIQUE@@}; default @@DEFAULT@@ == 1; default disable @@DEFAULT_DIS@@; }
     constraint { forall (it : @@FORALL_T@@) { it.x > 0; } }
+    constraint { forall (e : S in @@FORALL_IN@@) { e.a > 0; } }
     covergroup {
       option.weight = @@CG_OPT_VAL@@;
       cp_x : coverpoint @@CP_TARGET@@ iff (@@CP_IFF@@) {
@@ -90,6 +96,7 @@ component pss_top {
       @@PROC_LHS@@ = 1;
       tx = (@@CAST_T@@)tx;
       @@PROC_CALL@@();
+      tx = @@QCALL_ROOT@@::@@QCALL_LEAF@@();
       randomize @@RAND_TGT@@;
       foreach (e : @@PFOREACH@@) { tx += e; }
     }
@@ -116,7 +123,7 @@ DEF = dict(ICLS_BASE='base_cls', ENUM_VAL='', EXT_ENUM='col_e', PKG_IMPORT='std_
  INIT_DO='x', INIT_H='x', INIT_VAL='1', JOIN_BRANCH='L2', JOIN_SEL='1', SCHED_C='a2', SYM_CALL='sym', SYM_ARG='a1',
  REPEAT_CNT='2', REPL_CNT='2', AFOREACH='sl.arr', SEL_GUARD='tx > 0', SEL_W='1', AIF='tx > 0', AMATCH='tx', SLIT_NAME='a', SLIT_VAL='2',
  PROC_LHS='tx', CAST_T='int', PROC_CALL='g', RAND_TGT='tx', PFOREACH='sl.arr', TAG_T='tag_s', TAG_FIELD='nm', MUSTACHE='tx',
- MON_TRAV='mh', COVER_REF='M', FUNC_DFLT='1', EXPORT_FUNC='h', IMPORT_FUNC='ifn', OVR_TYPE='A', OVR_INST='a1', EXTEND_T='pss_top', EXPORT_ACTION='T')
+ MON_TRAV='mh', TPARAM_RESTR='base_s', TMPL_ASSIGN='ti', FORALL_IN='sa', QCALL_ROOT='qp', QCALL_LEAF='qf', COVER_REF='M', FUNC_DFLT='1', EXPORT_FUNC='h', IMPORT_FUNC='ifn', OVR_TYPE='A', OVR_INST='a1', EXTEND_T='pss_top', EXPORT_ACTION='T')
 BAD = dict(ICLS_BASE='nosuch_cls', ENUM_VAL=' = NOSUCH', EXT_ENUM='nosuch_e', PKG_IMPORT='nosuch_pkg', POOL_SIZE='NOSUCH',
  POOL_BIND_POOL='nosuch_pool', TYPEDEF_T='nosuch_t', SUPER_T='nosuch_s', SUPER_REF='nosuch', PREV_REF='nosuch', UID_REF='comp.nosuch', BIT_W='NOSUCH', ARR_DIM='NOSUCH', FIELD_INIT='NOSUCH',
  TPARAM_T='nosuch_t', TPARAM_V='NOSUCH', CONSTR='nosuch > 0', UNIQUE='nosuch', DEFAULT='nosuch', DEFAULT_DIS='nosuch', FORALL_T='nosuch_a',
@@ -127,19 +134,27 @@ BAD = dict(ICLS_BASE='nosuch_cls', ENUM_VAL=' = NOSUCH', EXT_ENUM='nosuch_e', PK
  INIT_VAL='nosuch', JOIN_BRANCH='NOLBL', JOIN_SEL='nosuch', SCHED_C='nosuch', SYM_CALL='nosuch_sym', SYM_ARG='nosuch',
  REPEAT_CNT='nosuch', REPL_CNT='nosuch', AFOREACH='nosuch', SEL_GUARD='nosuch', SEL_W='nosuch', AIF='nosuch', AMATCH='nosuch',
  SLIT_NAME='nosuch', SLIT_VAL='nosuch', PROC_LHS='nosuch', CAST_T='nosuch_t', PROC_CALL='nosuch_f', RAND_TGT='nosuch', PFOREACH='nosuch',
- TAG_T='nosuch_s', TAG_FIELD='nosuch', MUSTACHE='nosuch', MON_TRAV='nosuch', COVER_REF='NosuchM', FUNC_DFLT='NOSUCH',
+ TAG_T='nosuch_s', TAG_FIELD='nosuch', MUSTACHE='nosuch', MON_TRAV='nosuch', TPARAM_RESTR='nosuch_s', TMPL_ASSIGN='nosuch', FORALL_IN='nosuch', QCALL_ROOT='nosuch_p', QCALL_LEAF='nosuch_f', COVER_REF='NosuchM', FUNC_DFLT='NOSUCH',
  EXPORT_FUNC='nosuch_f', IMPORT_FUNC='nosuch_f', OVR_TYPE='nosuch_a', OVR_INST='nosuch', EXTEND_T='nosuch_c', EXPORT_ACTION='Nosuch',
  ANN='@nosuch_ann', )
 EXTRA = {
  'POOL_BIND_ITEM:comp': 'nosuch.*, P.r', 'POOL_BIND_ITEM:atype': 's1.*, nosuch_a.r', 'POOL_BIND_ITEM:field': 's1.*, P.nosuch',
- 'POOL_BIND_ITEM:subpath': 's1.sa.r, P.r',
  'ANN:pname': '@ann_t { .nosuch = 1 }', 'ANN:pval': '@ann_t { .v = NOSUCH }',
  'ABIND_LHS:member': 'p1.nosuch', 'OVR_INST:member': 'a1.nosuch',
- 'CGI_ACT:legal': 'tx',
  # Declared in S2 itself, not in its base: `super.` must not find it.
  'SUPER_REF:own': 'own',
- # The same object's `prev`, reached through `this`: legal.
- 'PREV_REF:this': 'this.prev',
  # `s` is a plain struct, which has no `uid`.
  'UID_REF:struct': 's.uid',
 }
+#: Legal variants of a slot, as ``KEY:tag``: each must link with no error.
+LEGAL = {
+ 'CGI_ACT:legal': 'tx',
+ # The same object's `prev`, reached through `this`.
+ 'PREV_REF:this': 'this.prev',
+ # A component path, then an action type in that component (F-N15).
+ 'POOL_BIND_ITEM:subpath': 's1.sa.r, P.r',
+}
+#: Slots whose undefined name is a warning by the LRM, not an error: an
+#: annotation of an unknown type is disregarded, with a warning (7.13). A
+#: warning on the slot's line counts as reported.
+WARN = {'ANN'}
