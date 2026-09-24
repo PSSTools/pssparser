@@ -235,6 +235,17 @@ public:
     bool wasReported(const ast::Location &loc) const;
 
     /**
+     * True if a marker of any severity -- a warning included -- has been
+     * reported at this position, by any of the linker's passes.
+     */
+    bool wasNoted(const ast::Location &loc) const;
+
+    /** True if any error has been reported to the listener, by any pass. */
+    bool hasErrors() const {
+        return m_marker_l && m_marker_l->hasSeverity(MarkerSeverityE::Error);
+    }
+
+    /**
      * While quiet, markers are dropped: used to bind names that must not be
      * diagnosed (a `compile if` condition, which the builder already
      * evaluated). Nests.

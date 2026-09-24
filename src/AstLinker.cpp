@@ -30,6 +30,7 @@
 #include "pssp/impl/InternalError.h"
 #include "pssp/impl/TaskCloneSymbolScope.h"
 #include "AstLinker.h"
+#include "MarkerLocationRecorder.h"
 #include "ResolveContext.h"
 #include "TaskApplyOverlay.h"
 #include "TaskApplyTypeExtensions.h"
@@ -140,6 +141,11 @@ void AstLinker::linkPasses(
         bool                                    own_scopes,
         ast::IRootSymbolScope                   *&symtree,
         const char                              *&pass) {
+    // Every pass reports through this, so the completeness gate at the end
+    // knows what has already been said, whichever pass said it.
+    MarkerLocationRecorder recorder(marker_l);
+    marker_l = &recorder;
+
     uint64_t build_symtree_s = time_ms();
     pass = "building the symbol tree";
     symtree = TaskBuildSymbolTree(

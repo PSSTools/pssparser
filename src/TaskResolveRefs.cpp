@@ -880,6 +880,10 @@ void TaskResolveRefs::pushProcScope(ast::IScopeChild *s) {
     frame.n_pushed++;
     m_proc_frames.push_back(frame);
     m_proc_pending.swap(kept);
+
+    // Annotations on the statements in this block (`@code_doc {...} f();`,
+    // Example 323), under the block's own scope.
+    checkBlockAnnotations(dynamic_cast<ast::IScope *>(s));
 }
 
 void TaskResolveRefs::popProcScope() {
@@ -2267,6 +2271,7 @@ void TaskResolveRefs::visitActivitySequence(ast::IActivitySequence *i) {
 void TaskResolveRefs::resolveActivityScope(ast::ISymbolScope *i) {
     DEBUG_ENTER("resolveActivityScope");
     m_ctxt->symtab()->pushScope(i);
+    checkScopeAnnotations(i);
     for (std::vector<ast::IScopeChildUP>::const_iterator
         it=i->getChildren().begin(); it!=i->getChildren().end(); it++) {
         visitMergedScopeChild(it->get());
@@ -3258,9 +3263,11 @@ void TaskResolveRefs::visitTemplateIfClause(ast::ITemplateIfClause *i) {
 bool TaskResolveRefs::findTemplateAssignTarget(
         const ast::IExprId          *id,
         bool                        &in_template,
+        ast::IScopeChild            *&decl,
         ast::IScopeChild            *&fwd_decl) {
     const std::string &name = id->getId();
     in_template = false;
+    decl = 0;
     fwd_decl = 0;
     for (int32_t off=0; ; off++) {
         ast::ISymbolScope *scope = m_ctxt->symtab()->getScope(off);
@@ -3282,6 +3289,7 @@ bool TaskResolveRefs::findTemplateAssignTarget(
             in_template =
                 dynamic_cast<ast::ITemplateString *>(scope) != 0 ||
                 dynamic_cast<ast::ITemplateBlock *>(scope) != 0;
+            decl = c;
             return true;
         }
     }
@@ -3304,9 +3312,16 @@ void TaskResolveRefs::visitTemplateAssign(ast::ITemplateAssign *i) {
     const std::string &name = i->getLhs()->getId()->getId();
 
     bool in_template = false;
+    ast::IScopeChild *decl = 0;
     ast::IScopeChild *fwd_decl = 0;
     bool found = findTemplateAssignTarget(
-        i->getLhs()->getId(), in_template, fwd_decl);
+        i->getLhs()->getId(), in_template, decl, fwd_decl);
+
+    // Bound whether or not it is legal: an attribute assigned in error is
+    // still that attribute, for a tool that follows the name.
+    if (found) {
+        i->getLhs()->getId()->setDecl(decl);
+    }
 
     if (fwd_decl && !in_template) {
         m_ctxt->setFwdDeclHint(i->getLhs()->getId(), fwd_decl);
@@ -3886,6 +3901,19 @@ void TaskResolveRefs::visitSymbolFunctionScope(ast::ISymbolFunctionScope *i) {
 //    if (i->getBody()) {
         DEBUG("Push function scope %s", i->getName().c_str());
         m_ctxt->symtab()->pushScope(i);
+
+        // The function's own annotations -- and, since the builder attaches a
+        // body statement's annotation to the definition, those too (Example
+        // 323). The enclosing scope's collector stops at this one.
+        for (std::vector<ast::IFunctionPrototype *>::const_iterator
+            it=i->getPrototypes().begin();
+            it!=i->getPrototypes().end(); it++) {
+            checkAnnotations((*it)->getAnnotations());
+        }
+        if (i->getTarget()) {
+            // The definition (TaskBuildSymbolTree::visitFunctionDefinition).
+            checkAnnotations(i->getTarget()->getAnnotations());
+        }
 //        m_ctxt->symtab()->pushScope(i->getPlist());
 //        DEBUG("Push function body scope");
 //        m_ctxt->symtab()->pushScope(i->getBody());
@@ -4098,6 +4126,22 @@ public:
         }
     }
 
+    /**
+     * A symbol scope that is an AST node itself (an ActivityDecl, a
+     * MonitorActivityDecl) holds its statements as symbol-scope children,
+     * not as an IScope's.
+     */
+    void collect(ast::ISymbolChildrenScope *s) {
+        if (!s) {
+            return;
+        }
+        for (std::vector<ast::IScopeChildUP>::const_iterator
+            it=s->getChildren().begin();
+            it!=s->getChildren().end(); it++) {
+            (*it)->accept(this);
+        }
+    }
+
     virtual void visitAnnotation(ast::IAnnotation *i) override {
         annotations.push_back(i);
     }
@@ -4146,9 +4190,34 @@ std::string typeIdName(ast::ITypeIdentifier *type_id) {
 
 }
 
+void TaskResolveRefs::checkAnnotations(const std::vector<ast::IAnnotationUP> &anns) {
+    for (std::vector<ast::IAnnotationUP>::const_iterator
+        it=anns.begin(); it!=anns.end(); it++) {
+        if (m_checked_annotations.insert(it->get()).second) {
+            (*it)->accept(m_this);
+        }
+    }
+}
+
+void TaskResolveRefs::checkBlockAnnotations(ast::IScope *scope) {
+    AnnotationCollector collector;
+    collector.collect(scope);
+    for (std::vector<ast::IAnnotation *>::const_iterator
+        it=collector.annotations.begin();
+        it!=collector.annotations.end(); it++) {
+        if (m_checked_annotations.insert(*it).second) {
+            (*it)->accept(m_this);
+        }
+    }
+}
+
 void TaskResolveRefs::checkScopeAnnotations(ast::ISymbolScope *scope) {
     AnnotationCollector collector;
-    collector.collect(dynamic_cast<ast::IScope *>(scope));
+    if (dynamic_cast<ast::IScope *>(scope)) {
+        collector.collect(dynamic_cast<ast::IScope *>(scope));
+    } else {
+        collector.collect(static_cast<ast::ISymbolChildrenScope *>(scope));
+    }
 
     // An annotation on the declaration itself hangs off the wrapped AST node.
     // Its type is resolved from inside the declaration's scope rather than the
@@ -4161,6 +4230,15 @@ void TaskResolveRefs::checkScopeAnnotations(ast::ISymbolScope *scope) {
             it!=scope->getTarget()->getAnnotations().end(); it++) {
             collector.annotations.push_back(it->get());
         }
+    }
+
+    // And one on the scope itself, when it is an AST node rather than a
+    // symbol-tree wrapper: an ActivityDecl, which is where the builder puts
+    // the annotation of an activity statement.
+    for (std::vector<ast::IAnnotationUP>::const_iterator
+        it=scope->getAnnotations().begin();
+        it!=scope->getAnnotations().end(); it++) {
+        collector.annotations.push_back(it->get());
     }
 
     for (std::vector<ast::IAnnotation *>::const_iterator

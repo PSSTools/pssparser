@@ -312,6 +312,15 @@ protected:
     void checkScopeAnnotations(ast::ISymbolScope *scope);
 
     /**
+     * The same for a block that is not a symbol scope of its own kind (a
+     * procedural block, a loop body): the annotations on its statements.
+     */
+    void checkBlockAnnotations(ast::IScope *scope);
+
+    /** Resolve each of `anns` not already resolved. */
+    void checkAnnotations(const std::vector<ast::IAnnotationUP> &anns);
+
+    /**
      * Resolve the leaf of a package-qualified reference (`p::g(1,2,3)`)
      * against the scope its static root names. See known-issues P3-X6e.
      */
@@ -376,12 +385,14 @@ protected:
     /**
      * The lookup `{% x = expr; %}` makes for its target: the innermost scope
      * declaring `x` before the assignment. True if found; `in_template` says
-     * whether that scope is the template string's own. `fwd_decl` is a later
-     * declaration of `x` passed over on the way, if any.
+     * whether that scope is the template string's own, and `decl` is what
+     * was found. `fwd_decl` is a later declaration of `x` passed over on the
+     * way, if any.
      */
     bool findTemplateAssignTarget(
         const ast::IExprId          *id,
         bool                        &in_template,
+        ast::IScopeChild            *&decl,
         ast::IScopeChild            *&fwd_decl);
 
     bool isBuiltinWithMethods(ast::IScopeChild *c);

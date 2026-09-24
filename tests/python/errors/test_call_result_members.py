@@ -302,21 +302,19 @@ def test_the_definitions_return_type_wins_over_a_declarations():
 # Recorded, not fixed
 # ---------------------------------------------------------------------------
 
-def test_builtin_methods_are_unchecked_on_a_qualified_path():
+def test_builtin_methods_on_a_qualified_path():
     """``resolveStaticRootedLeaf`` has no built-in or collection method
     handling -- the ``is_builtin_with_methods`` machinery lives only in
-    ``visitExprRefPathContext``.  So the qualified spelling of a case the
-    unqualified spelling reports is accepted silently.
-
-    Pinned rather than fixed: the gap is not specific to call results, and
-    closing it means giving the static-rooted leaf loop the whole built-in
-    method path.  See ``test_an_unknown_string_method_on_a_call_result_is_reported``
-    for the unqualified form that *is* reported.
+    ``visitExprRefPathContext``.  The qualified spelling of a case the
+    unqualified spelling reports used to be accepted silently; the
+    completeness gate (symbol-resolution 3.5) now reports it, in its own
+    words.  See ``test_an_unknown_string_method_on_a_call_result_is_reported``
+    for the unqualified form.
     """
-    assert_clean([("t.pss", """
+    assert_rejects([("t.pss", """
         package p { function string f(); }
         function void g() { int v; v = p::f().nosuchmeth(); }
-    """)])
+    """)], "'f' has no member named 'nosuchmeth'")
 
 
 def test_a_member_of_a_call_result_is_not_a_statement():

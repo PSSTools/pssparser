@@ -255,6 +255,9 @@ ast::ISymbolRefPath *TaskResolveRef::resolveStaticArgPath(
                 DEBUG_LEAVE("resolveStaticArgPath -- root not found");
                 return 0;
             }
+            // What each name binds to, as resolveExprRefPathStatic records
+            // it: the path alone says only where the whole reference ends.
+            (*it)->getId()->setDecl(m_ctxt->resolveSymbolPathRef(target));
             continue;
         }
 
@@ -273,6 +276,8 @@ ast::ISymbolRefPath *TaskResolveRef::resolveStaticArgPath(
             DEBUG("No member named %s", (*it)->getId()->getId().c_str());
             return 0;
         }
+
+        (*it)->getId()->setDecl(res.sym);
 
         if (res.super_idx == 0) {
             target->getPath().push_back({

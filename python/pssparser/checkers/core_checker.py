@@ -966,6 +966,33 @@ class CoreChecker(CheckerBase):
                 "``comp.sub.f()``."
             ),
         ),
+        MarkerDef(
+            id="PSS042",
+            severity="error",
+            summary="Reference left unbound (pssparser defect)",
+            patterns=(
+                r"\bwas left unbound by pssparser\b",
+            ),
+            detail=(
+                "The linker finished without binding a name, although the "
+                "model declares something of that name, and without saying "
+                "why.  This is a defect in pssparser, not necessarily in the "
+                "model: please report it together with the input.  Message:"
+                "\n\n"
+                "* ``'x' was left unbound by pssparser, although the model "
+                "declares it: a pssparser defect, please report it``\n\n"
+                "Reported by the completeness check that runs after linking "
+                "(symbol-resolution plan 3.5), so that a consumer is never "
+                "handed a reference with no target in silence.  It is "
+                "reported only on a model with no other error; with one, an "
+                "unbound name is far more likely a consequence of that error.  "
+                "A name that nothing in the model declares is PSS002 instead.  "
+                "Some constructs are not checked yet: covergroup bodies and "
+                "port maps, pool and activity binds, scheduling constraints, "
+                "instance overrides, struct-literal member names, and the "
+                "parameters of a generic constraint."
+            ),
+        ),
 
         # -- PSS 3.1 language-rule diagnostics (PSS100-PSS199) --------------
         #

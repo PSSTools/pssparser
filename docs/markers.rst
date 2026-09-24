@@ -551,6 +551,19 @@ An action reaches a static function or static constant of a component through it
 
 LRM 9.1.4.1 f: "It shall be illegal to access static component members using the comp handle."  ``comp`` is an instance; a static member belongs to the component type (20.2.1.1 c).  A member of the action's own component is found by its plain name, since the action is declared inside that component or an extension of it; a member of a sub-component is named through its type, ``sub_c::f``.  Reported for every path that starts at ``comp``, including ``comp.sub.f()``.
 
+PSS042
+------
+
+**Severity:** error
+
+Reference left unbound (pssparser defect)
+
+The linker finished without binding a name, although the model declares something of that name, and without saying why.  This is a defect in pssparser, not necessarily in the model: please report it together with the input.  Message:
+
+* ``'x' was left unbound by pssparser, although the model declares it: a pssparser defect, please report it``
+
+Reported by the completeness check that runs after linking (symbol-resolution plan 3.5), so that a consumer is never handed a reference with no target in silence.  It is reported only on a model with no other error; with one, an unbound name is far more likely a consequence of that error.  A name that nothing in the model declares is PSS002 instead.  Some constructs are not checked yet: covergroup bodies and port maps, pool and activity binds, scheduling constraints, instance overrides, struct-literal member names, and the parameters of a generic constraint.
+
 PSS100
 ------
 

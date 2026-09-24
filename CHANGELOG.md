@@ -7,6 +7,41 @@ revision advances only the patch component.
 
 ## Unreleased
 
+### Changed — the completeness check covers every reference (symbol-resolution 3.5)
+
+After linking, pssparser used to check only user-defined type references for
+a missing binding. It now checks every name the resolver is meant to bind:
+types, expression names and paths, qualified paths, annotation types and
+parameters, and template-string assignment targets. A name left unbound with
+nothing said about it is now reported:
+
+- **PSS002** when nothing in the model declares that name. For example,
+  `p::f().nosuchmeth()` on a string-returning `f` used to be accepted; the
+  unqualified `f().nosuchmeth()` was already an error.
+- **New marker PSS042, "Reference left unbound (pssparser defect)"**, when
+  something of that name is declared but the resolver did not bind it. This
+  is a bug in pssparser; please report it with the input. It is reported only
+  on a model that has no other error.
+
+One mistake still gets one message. Nothing new is reported where an error
+already exists, inside an `extend` whose target is unknown, or after a name
+whose type or base type is unknown. Constructs that pssparser does not resolve
+yet are not checked: covergroup bodies and port maps, pool and activity binds,
+scheduling constraints, instance overrides, struct-literal member names, and a
+generic constraint's parameters.
+
+The old message `type 'X' is never resolved: ...` is gone. The check found
+several resolver gaps on legal code, now fixed:
+
+- **Annotations on statements are resolved.** Annotations in activities,
+  monitor activities and procedural blocks, and on functions, used to be
+  skipped (Example 323). An unknown parameter name in one of them is now
+  PSS002, as it already was elsewhere.
+- **`{% x = ...; %}` binds `x`** to the template local it assigns.
+  Find-references and rename now see it.
+- **A qualified array dimension binds every element.** In `a[sizes::N]`, the
+  `sizes` part now binds too, not only `N`.
+
 ### Fixed — static and instance members (symbol-resolution 7.3, LRM 18.3, 20.2, 20.4)
 
 The linker used to ignore `static`. Models that relied on that now get

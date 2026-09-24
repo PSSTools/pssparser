@@ -22,6 +22,7 @@
 #include "pssp/impl/TaskResolveSymbolPathRef.h"
 #include "AstSymbolTableIterator.h"
 #include "ResolveContext.h"
+#include "MarkerLocationRecorder.h"
 
 
 namespace pssp {
@@ -109,8 +110,21 @@ void ResolveContext::addMarker(
 }
 
 bool ResolveContext::wasReported(const ast::Location &loc) const {
-    return m_reported.find(
-        std::make_tuple(loc.fileid, loc.lineno, loc.linepos)) != m_reported.end();
+    if (m_reported.find(std::make_tuple(
+            loc.fileid, loc.lineno, loc.linepos)) != m_reported.end()) {
+        return true;
+    }
+    // Reported through another context: the linker's passes share a
+    // recording listener (AstLinker::linkPasses).
+    const MarkerLocationRecorder *rec =
+        dynamic_cast<const MarkerLocationRecorder *>(m_marker_l);
+    return rec && rec->wasReported(loc);
+}
+
+bool ResolveContext::wasNoted(const ast::Location &loc) const {
+    const MarkerLocationRecorder *rec =
+        dynamic_cast<const MarkerLocationRecorder *>(m_marker_l);
+    return wasReported(loc) || (rec && rec->wasNoted(loc));
 }
 
 void ResolveContext::addMarker(

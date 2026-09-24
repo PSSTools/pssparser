@@ -88,6 +88,8 @@ REPRESENTATIVE_MESSAGES = [
                "'comp'; name it without 'comp.', as 'st' (9.1.4.1 f)"),
     ("PSS041", "cannot reach static member 'SK' of 'sub_c' through 'comp'; "
                "name it through the type instead, as 'sub_c::SK' (9.1.4.1 f)"),
+    ("PSS042", "'x' was left unbound by pssparser, although the model "
+               "declares it: a pssparser defect, please report it"),
     ("PSS006", "call to 'g' expects 1 argument, got 3"),
     ("PSS006", "call to 'g' expects 1 to 2 arguments, got 0"),
     ("PSS006", "call to 'g' expects at least 1 argument, got 0"),
