@@ -27,6 +27,8 @@ from pathlib import Path
 
 import pytest
 
+from .isolation import _parent_package_root
+
 ROOT = Path(__file__).resolve().parents[2]
 
 #: (label, root, required). A required root that is missing is a failure; the
@@ -48,7 +50,9 @@ _OK_RC = {0, 1, 3}
 
 def _run(path: Path) -> dict:
     env = dict(os.environ)
-    env["PYTHONPATH"] = str(ROOT / "python") + os.pathsep + env.get("PYTHONPATH", "")
+    # The child imports the parser this run is testing: the wheel in CI, not
+    # the source tree, which has no compiled extension there.
+    env["PYTHONPATH"] = _parent_package_root() + os.pathsep + env.get("PYTHONPATH", "")
     env["PSSPARSER_NO_EXTENSIONS"] = "1"
     p = subprocess.run(
         [sys.executable, "-m", "pssparser", "--json", str(path)],

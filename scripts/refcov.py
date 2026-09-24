@@ -153,8 +153,11 @@ def _fields_of(classes, cls):
 
 
 def _walk_file(fn):
-    """Link *fn* and classify every reference node under its units."""
-    sys.path.insert(0, str(ROOT / "python"))
+    """Link *fn* and classify every reference node under its units.
+
+    Imports whatever ``pssparser`` is on the path: `_run_child` pins it for a
+    child, and an in-process caller has already imported its own.
+    """
     from pssparser.parser import Parser, ParseException
 
     classes = load_schema()
@@ -235,9 +238,35 @@ def _walk_file(fn):
     return {"clean": clean, "refs": res}
 
 
+
+def _pssparser_root():
+    """The directory a child process must import ``pssparser`` from.
+
+    The child has to test the same parser as this run. That is the working
+    tree when the compiled extension is built in it (``build_ext --inplace``,
+    a developer machine), and otherwise the copy this process imports -- in CI,
+    the installed wheel: there the tree holds only the Python sources, and
+    putting it first made every child fail with ``No module named
+    'pssparser.core'``. Same rule as tests/python/isolation.py's
+    ``_parent_package_root``, with the tree preferred so that a plain
+    ``python scripts/...`` run never picks up another checkout (P7-X1).
+    """
+    tree = ROOT / "python"
+    if any((tree / "pssparser").glob("core*.so")) \
+            or any((tree / "pssparser").glob("core*.pyd")):
+        return str(tree)
+    try:
+        import pssparser
+        if getattr(pssparser, "__file__", None):
+            return str(Path(pssparser.__file__).resolve().parents[1])
+    except ImportError:
+        pass
+    return str(tree)
+
+
 def _run_child(fn):
     env = dict(os.environ)
-    env["PYTHONPATH"] = str(ROOT / "python") + os.pathsep + env.get("PYTHONPATH", "")
+    env["PYTHONPATH"] = _pssparser_root() + os.pathsep + env.get("PYTHONPATH", "")
     env["PSSPARSER_NO_EXTENSIONS"] = "1"
     r = subprocess.run([sys.executable, __file__, "_walk", fn],
                        capture_output=True, text=True, env=env, timeout=300)
@@ -298,7 +327,7 @@ def _slot_lines(base):
 
 def _classify(path, slot_line):
     env = dict(os.environ)
-    env["PYTHONPATH"] = str(ROOT / "python") + os.pathsep + env.get("PYTHONPATH", "")
+    env["PYTHONPATH"] = _pssparser_root() + os.pathsep + env.get("PYTHONPATH", "")
     env["PSSPARSER_NO_EXTENSIONS"] = "1"
     r = subprocess.run([sys.executable, "-m", "pssparser", "--json", "--max-errors", "0", path],
                        capture_output=True, text=True, env=env, timeout=300)

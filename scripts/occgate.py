@@ -60,7 +60,7 @@ def _exempt(code):
 
 
 def check_file(fn):
-    sys.path.insert(0, str(ROOT / "python"))
+    # The path is pinned by _run_child (see _pssparser_root).
     import pssparser
     from pssparser import refs, tokens
 
@@ -112,9 +112,35 @@ def check_file(fn):
     }
 
 
+
+def _pssparser_root():
+    """The directory a child process must import ``pssparser`` from.
+
+    The child has to test the same parser as this run. That is the working
+    tree when the compiled extension is built in it (``build_ext --inplace``,
+    a developer machine), and otherwise the copy this process imports -- in CI,
+    the installed wheel: there the tree holds only the Python sources, and
+    putting it first made every child fail with ``No module named
+    'pssparser.core'``. Same rule as tests/python/isolation.py's
+    ``_parent_package_root``, with the tree preferred so that a plain
+    ``python scripts/...`` run never picks up another checkout (P7-X1).
+    """
+    tree = ROOT / "python"
+    if any((tree / "pssparser").glob("core*.so")) \
+            or any((tree / "pssparser").glob("core*.pyd")):
+        return str(tree)
+    try:
+        import pssparser
+        if getattr(pssparser, "__file__", None):
+            return str(Path(pssparser.__file__).resolve().parents[1])
+    except ImportError:
+        pass
+    return str(tree)
+
+
 def _run_child(fn):
     env = dict(os.environ)
-    env["PYTHONPATH"] = str(ROOT / "python") + os.pathsep + env.get("PYTHONPATH", "")
+    env["PYTHONPATH"] = _pssparser_root() + os.pathsep + env.get("PYTHONPATH", "")
     env["PSSPARSER_NO_EXTENSIONS"] = "1"
     r = subprocess.run([sys.executable, __file__, "_file", fn],
                        capture_output=True, text=True, env=env, timeout=300)

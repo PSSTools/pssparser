@@ -22,6 +22,8 @@ import textwrap
 
 import pytest
 
+from ..isolation import _parent_package_root
+
 pytestmark = pytest.mark.needs_install
 
 _REPO = os.path.abspath(
@@ -56,9 +58,13 @@ def _install(source: str, target: str) -> None:
 
 
 def _run_in_subprocess(target: str, code: str) -> str:
-    """Run *code* with *target* and the repo's python/ on PYTHONPATH."""
+    """Run *code* with *target* and this run's ``pssparser`` on PYTHONPATH.
+
+    That is the working tree on a developer machine and the installed wheel in
+    CI, where the tree has no compiled extension (see isolation.py).
+    """
     env = dict(os.environ)
-    env["PYTHONPATH"] = os.pathsep.join([os.path.join(_REPO, "python"), target])
+    env["PYTHONPATH"] = os.pathsep.join([_parent_package_root(), target])
     env.pop("PSSPARSER_NO_EXTENSIONS", None)
     result = subprocess.run(
         [sys.executable, "-c", textwrap.dedent(code)],
