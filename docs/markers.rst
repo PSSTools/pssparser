@@ -578,6 +578,32 @@ LRM 18.1.4 restricts the name of a package alias (``import pkg1::a::b as p1;``).
 
 Two aliases in one lexical scope -- one ``package`` statement, component declaration or extension, or one file's global scope -- shall not have the same name; the same name in two statements of one package is legal.  An alias shall not take the name of a package declared in the same namespace in this source unit or an earlier one (Example 260).  A package of that name added in a later source unit is legal, and from then on a reference finds the package rather than the alias (18.3 c.1 before c.2.i).
 
+PSS044
+------
+
+**Severity:** warning
+
+Enum item hides a declaration of the same name
+
+Where an expression's expected type is an enumeration type (8.4.3), an unqualified name is looked up among that enum's items before any scope (18.3 a).  A field, variable or parameter of the same name is then hidden, which is legal but rarely intended.  Message:
+
+* ``'A' is read as the enum item mode_e::A, which hides the field 'A' (18.3 a); qualify one of them``
+
+Write ``mode_e::A`` for the item, or rename the field.
+
+PSS045
+------
+
+**Severity:** error
+
+Ambiguous enum item in a comparison
+
+In ``a == b`` or ``a != b`` each side's type is the other side's expected type, so an unqualified name on either side may be an item of the other side's enum.  When both sides are bare names and each could be read that way, there is no telling which was meant.  Message:
+
+* ``ambiguous comparison of 'A' and 'B': either 'A' is e2::A or 'B' is e1::B; qualify the enum item (8.4.3, 18.3 a)``
+
+Qualify the item, as ``e1::B``.
+
 PSS100
 ------
 

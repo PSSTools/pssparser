@@ -26,12 +26,23 @@
 #include "pssp/ast/ISymbolScope.h"
 #include "pssp/ast/impl/VisitorBase.h"
 #include <set>
+#include <unordered_map>
 #include "ResolveContext.h"
 #include "TaskCompareTypeRefs.h"
 #include "TaskResolveBase.h"
 #include "TaskResolveRootRef.h"
 #include "pssp/ast/IActionFieldInitializer.h"
 #include "pssp/ast/IExprBitSlice.h"
+#include "pssp/ast/IExprBin.h"
+#include "pssp/ast/IExprCast.h"
+#include "pssp/ast/IExprCond.h"
+#include "pssp/ast/IExprIn.h"
+#include "pssp/ast/IMethodParameterList.h"
+#include "pssp/ast/IExprOpenRangeList.h"
+#include "pssp/ast/IConstraintStmtDist.h"
+#include "pssp/ast/IProceduralStmtAssignment.h"
+#include "pssp/ast/IProceduralStmtDataDeclaration.h"
+#include "pssp/ast/ISymbolEnumScope.h"
 
 namespace pssp {
 
@@ -90,6 +101,19 @@ public:
 
     virtual void visitExecScope(ast::IExecScope *i) override;
 
+    /**
+     * The 8.4.3 contexts: each gives one operand an expected type, which
+     * step a of 18.3 reads (symbol-resolution plan 8.1). Only enumeration
+     * types are carried for now.
+     */
+    virtual void visitExprBin(ast::IExprBin *i) override;
+    virtual void visitExprIn(ast::IExprIn *i) override;
+    virtual void visitExprCast(ast::IExprCast *i) override;
+    virtual void visitExprCond(ast::IExprCond *i) override;
+    virtual void visitConstraintStmtDist(ast::IConstraintStmtDist *i) override;
+    virtual void visitProceduralStmtAssignment(ast::IProceduralStmtAssignment *i) override;
+    virtual void visitProceduralStmtDataDeclaration(ast::IProceduralStmtDataDeclaration *i) override;
+
     virtual void visitExprRefPathContext(ast::IExprRefPathContext *i) override;
 
 
@@ -98,6 +122,51 @@ public:
     virtual void visitExprRefPathStaticRooted(ast::IExprRefPathStaticRooted *i) override;
 
 private:
+    /**
+     * Visit `e` with `expected` as its expected type (8.4.3). The type
+     * reaches `e` itself and nothing inside it, apart from both arms of a
+     * `?:`. A null `expected` visits `e` plainly.
+     */
+    void visitExpecting(ast::IExpr *e, ast::ISymbolEnumScope *expected);
+
+    /** Each value and bound of `l` expects `expected` (an `in` or a `match`). */
+    void visitRangesExpecting(ast::IExprOpenRangeList *l, ast::ISymbolEnumScope *expected);
+
+    /**
+     * A call's arguments, each expecting its formal parameter's type
+     * (8.4.3). `callee` is what the call names; anything other than a
+     * function visits them plainly.
+     */
+    void visitCallArgs(ast::IMethodParameterList *params, ast::IScopeChild *callee);
+
+    /** The expected type visitExpecting() gave `e`, or null. */
+    ast::ISymbolEnumScope *expectedFor(ast::IExpr *e) const;
+
+    /**
+     * Step a of 18.3: the bare name `i` as an item of its expected type
+     * `e`. Null when it is not one. Warns (PSS044) when the item hides a
+     * declaration the name has lexically.
+     */
+    ast::ISymbolRefPath *lookupExpectedItem(
+        ast::IExprRefPathContext    *i,
+        ast::ISymbolEnumScope       *e);
+
+    /**
+     * `a == b` with both sides bare names (decision Q2): each side's own
+     * type -- the type of its lexical binding -- is the expected type of
+     * the other. Reported (PSS045) when both readings would change what a
+     * name binds to.
+     */
+    void resolveBareComparison(
+        ast::IExprRefPathContext    *lhs,
+        ast::IExprRefPathContext    *rhs);
+
+    /**
+     * What `id` binds to lexically, without step a and without reporting
+     * anything. The caller owns nothing: the path is freed here.
+     */
+    ast::IScopeChild *peekLexical(const ast::IExprId *id, ast::ISymbolRefPath **path=0);
+
     void resolveExprRefPathContext(ast::IExprRefPathContext *i);
     void resolveExprRefPathStatic(ast::IExprRefPathStatic *i);
     void resolveExprRefPathStaticRooted(ast::IExprRefPathStaticRooted *i);
@@ -615,6 +684,9 @@ private:
      * empty is left alone rather than reported.
      */
     std::vector<ast::IFunctionPrototype *> m_func_s;
+
+    /** Expected types in force, by operand; see visitExpecting(). */
+    std::unordered_map<ast::IExpr *, ast::ISymbolEnumScope *> m_expected;
 
 };
 

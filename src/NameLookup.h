@@ -55,8 +55,9 @@ namespace pssp {
  *   imports.
  *
  * At every level, the enum items of an enum declared directly in that scope
- * are found after its members. That is not 18.3 -- step a looks enum items up
- * by the expected type, which is 8.1 -- and 8.2 retires it.
+ * are found after its members. That is not 18.3, and 8.2 retires it. Step a
+ * -- enum items by the expected type -- runs before this lookup, in
+ * TaskResolveRefs, which knows the expression around the name (8.1).
  *
  * Imports are tiered (18.1.3, 18.3 c.2): package aliases, then explicit
  * imports, then wildcard imports; within the explicit and wildcard tiers two
@@ -73,8 +74,7 @@ namespace pssp {
  * would have satisfied leaves the context an import-leak hint.
  *
  * Not yet (symbol-resolution-plan.md): the visibility of
- * extension members by package, from SymbolTypeScope.ext_members (6.5);
- * step a (8.1).
+ * extension members by package, from SymbolTypeScope.ext_members (6.5).
  */
 class NameLookup {
 public:

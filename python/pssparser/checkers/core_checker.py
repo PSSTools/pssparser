@@ -1021,6 +1021,44 @@ class CoreChecker(CheckerBase):
             ),
         ),
 
+        MarkerDef(
+            id="PSS044",
+            severity="warning",
+            summary="Enum item hides a declaration of the same name",
+            patterns=(
+                r"^'[^']*' is read as the enum item\b",
+            ),
+            detail=(
+                "Where an expression's expected type is an enumeration type "
+                "(8.4.3), an unqualified name is looked up among that "
+                "enum's items before any scope (18.3 a).  A field, variable "
+                "or parameter of the same name is then hidden, which is "
+                "legal but rarely intended.  Message:\n\n"
+                "* ``'A' is read as the enum item mode_e::A, which hides the "
+                "field 'A' (18.3 a); qualify one of them``\n\n"
+                "Write ``mode_e::A`` for the item, or rename the field."
+            ),
+        ),
+        MarkerDef(
+            id="PSS045",
+            severity="error",
+            summary="Ambiguous enum item in a comparison",
+            patterns=(
+                r"^ambiguous comparison of '[^']*' and '[^']*'",
+            ),
+            detail=(
+                "In ``a == b`` or ``a != b`` each side's type is the other "
+                "side's expected type, so an unqualified name on either side "
+                "may be an item of the other side's enum.  When both sides "
+                "are bare names and each could be read that way, there is "
+                "no telling which was meant.  Message:\n\n"
+                "* ``ambiguous comparison of 'A' and 'B': either 'A' is "
+                "e2::A or 'B' is e1::B; qualify the enum item (8.4.3, "
+                "18.3 a)``\n\n"
+                "Qualify the item, as ``e1::B``."
+            ),
+        ),
+
         # -- PSS 3.1 language-rule diagnostics (PSS100-PSS199) --------------
         #
         # These IDs are reserved ahead of the C++ code that emits them, so that

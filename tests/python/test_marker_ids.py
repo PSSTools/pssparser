@@ -94,6 +94,10 @@ REPRESENTATIVE_MESSAGES = [
                "aliases in one scope shall not share a name (18.1.4)"),
     ("PSS043", "package alias 'foo' has the same name as a package declared "
                "in package 'P'; rename the alias (18.1.4)"),
+    ("PSS044", "'A' is read as the enum item mode_e::A, which hides the "
+               "field 'A' (18.3 a); qualify one of them"),
+    ("PSS045", "ambiguous comparison of 'A' and 'B': either 'A' is e2::A or "
+               "'B' is e1::B; qualify the enum item (8.4.3, 18.3 a)"),
     ("PSS006", "call to 'g' expects 1 argument, got 3"),
     ("PSS006", "call to 'g' expects 1 to 2 arguments, got 0"),
     ("PSS006", "call to 'g' expects at least 1 argument, got 0"),

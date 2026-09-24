@@ -7,6 +7,36 @@ revision advances only the patch component.
 
 ## Unreleased
 
+### Fixed — unqualified enum items take their enum from the expected type (symbol-resolution 8.1, LRM 8.4.3, 18.3 a)
+
+An unqualified enum item is now looked up in the enum its context expects
+before any scope is searched (18.3 step a). The contexts are those of 8.4.3:
+the left side of an assignment or initializer (field, variable, parameter
+default, handle initializer), a function's formal parameter and return type,
+the other side of `==`/`!=`, the left side of `in`, a cast's target type, and
+both arms of `?:`. `match` choices and `dist` items follow the `in` rule.
+So:
+
+- `op.mode == A` and `op.mode in [A, C, D]` link when `mode_e` is declared in
+  another component (Example 272), as does `sub.f(A)` against a formal
+  declared elsewhere. These were "unknown identifier" errors.
+- With two enums declaring `A`, `x == A` binds to the item of `x`'s type;
+  it used to bind to whichever enum was declared last.
+- `m == A` with a field `A` in scope binds to the enum item, as 18.3 requires,
+  not the field.
+
+`==`/`!=` read both ways (`A == op.mode` is legal too). Enum items found
+lexically with no enum type expected still resolve; that leniency is retired
+separately (8.2).
+
+### Added — PSS044 and PSS045, enum item readings (LRM 18.3 a)
+
+- PSS044 (warning): an enum item picked by its expected type hides a field,
+  variable or parameter of the same name: "'A' is read as the enum item
+  mode_e::A, which hides the field 'A' (18.3 a); qualify one of them".
+- PSS045 (error): `A == B` with both sides bare names, each of which could be
+  an item of the other side's enum.
+
 ### Fixed — package aliases (symbol-resolution 6.4, LRM 18.1.4)
 
 `import pkg1::a::b as p1;` now makes `p1::name` refer to `pkg1::a::b::name`.
