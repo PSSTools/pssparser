@@ -1052,6 +1052,9 @@ class FunctionParamDecl(ScopeChild):
         dir: Parameter direction (Default, In, Out, InOut)
         dflt: Optional default value expression
         is_varargs: True if this is a variadic parameter (...)
+        is_const: True if declared `const` (LRM 20.2.3): read-only in
+          the function, and the only kind of parameter an aggregate
+          constant or literal may be passed to
     
     See Also:
         FunctionPrototype, FunctionParamDeclKind, ParamDir, DataType

@@ -452,7 +452,6 @@ public:
 
 	virtual antlrcpp::Any visitNull_ref(PSSParser::Null_refContext *ctx) override;
 
-	virtual antlrcpp::Any visitCast_expression(PSSParser::Cast_expressionContext *ctx) override;
 
 	virtual antlrcpp::Any visitRef_path(PSSParser::Ref_pathContext *ctx) override;
 
