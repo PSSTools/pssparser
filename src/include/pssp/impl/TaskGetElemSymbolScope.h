@@ -114,6 +114,15 @@ public:
         DEBUG_LEAVE("visitFunctionParamDecl");
     }
 
+    // And a generic constraint's (13.1.2). A `numeric` one has no type.
+    virtual void visitGenericConstraintParam(ast::IGenericConstraintParam *i) override {
+        DEBUG_ENTER("visitGenericConstraintParam %s", i->getName()->getId().c_str());
+        if (i->getType()) {
+            i->getType()->accept(m_this);
+        }
+        DEBUG_LEAVE("visitGenericConstraintParam");
+    }
+
     // forall iterator variable: map it to its type's scope so member access
     // through the iterator (`it.field`) resolves.
     virtual void visitConstraintStmtField(ast::IConstraintStmtField *i) override {

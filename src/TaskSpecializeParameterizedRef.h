@@ -19,9 +19,12 @@
  *     Author: 
  */
 #pragma once
+#include <functional>
 #include "dmgr/IDebugMgr.h"
 #include "pssp/ast/ISymbolRefPath.h"
+#include "pssp/ast/ISymbolEnumScope.h"
 #include "pssp/ast/ITemplateParamValueList.h"
+#include "pssp/ast/ITemplateValueParamDecl.h"
 #include "pssp/IFactory.h"
 #include "pssp/IMarkerListener.h"
 #include "ResolveContext.h"
@@ -46,7 +49,22 @@ public:
         ast::ITemplateParamValueList        *pvals,
         const ast::Location                 &use_loc);
 
+    /**
+     * The enumeration type value parameter `p` of the generic `target` is
+     * declared with, or null. Its type is bound first, in the generic's
+     * declaring scope, if nothing has bound it yet: the generic may be
+     * declared after the use (the core library is linked last).
+     */
+    ast::ISymbolEnumScope *paramEnum(
+        ast::ISymbolRefPath                 *target,
+        ast::ITemplateValueParamDecl        *p);
+
 private:
+    /** Run `f` with the scope that declares `target` as the symbol table. */
+    void inDeclScope(
+        ast::ISymbolRefPath                 *target,
+        const std::function<void()>         &f);
+
     void bindDefaults(
         ast::ISymbolRefPath                 *target,
         ast::ISymbolTypeScope               *target_c);

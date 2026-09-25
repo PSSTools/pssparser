@@ -145,15 +145,6 @@ public:
     /** Instance-override targets (U5). */
     virtual void visitInstanceOverride(ast::IInstanceOverride *i) override { }
 
-    /**
-     * A generic constraint's parameters, used in its body, are skipped by
-     * name (8.7): they have no scope of their own yet. Everything else in
-     * the body is checked.
-     */
-    virtual void visitGenericConstraintDeclBool(ast::IGenericConstraintDeclBool *i) override;
-
-    virtual void visitGenericConstraintDeclValue(ast::IGenericConstraintDeclValue *i) override;
-
     /** Struct-literal member names (U4, 8.9). The values are checked. */
     virtual void visitExprAggrStructElem(ast::IExprAggrStructElem *i) override;
 
@@ -201,7 +192,6 @@ private:
     std::set<std::string>                           m_names;
     std::unordered_set<ast::IExpr *>                m_checked;
     std::vector<ast::ITypeScope *>                  m_type_s;
-    std::set<std::string>                           m_generic_params;
     bool                                            m_had_errors;
 };
 

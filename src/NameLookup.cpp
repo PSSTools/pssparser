@@ -25,6 +25,9 @@
 #include "pssp/ast/IExtendEnum.h"
 #include "pssp/ast/IGlobalScope.h"
 #include "pssp/ast/IFunctionParamDecl.h"
+#include "pssp/ast/IGenericConstraintDeclBool.h"
+#include "pssp/ast/IGenericConstraintDeclValue.h"
+#include "pssp/ast/IGenericConstraintParam.h"
 #include "pssp/ast/IMonitorActivityDecl.h"
 #include "pssp/ast/IMonitorActivityLabeledScope.h"
 #include "pssp/ast/INamedScopeChild.h"
@@ -36,6 +39,7 @@
 #include "pssp/impl/TaskGetName.h"
 #include "pssp/impl/TaskGetSymbolRefPath.h"
 #include "pssp/impl/TaskGetSymbolRefPathKind.h"
+#include "pssp/impl/TaskResolveSymbolPathRef.h"
 #include "FunctionScopeUtil.h"
 #include "NameLookup.h"
 #include "TaskResolveSuperTypeRef.h"
@@ -110,6 +114,10 @@ int32_t forwardOf(
 }
 
 void NameLookup::Member::appendTo(ast::ISymbolRefPath *path) const {
+    if (abs_path.size()) {
+        path->getPath() = abs_path;
+        return;
+    }
     if (fwd_pkg >= 0) {
         path->getPath().clear();
         path->getPath().push_back({
@@ -119,6 +127,9 @@ void NameLookup::Member::appendTo(ast::ISymbolRefPath *path) const {
         path->getPath().push_back({ast::SymbolRefPathElemKind::ElemKind_Super, 0});
     }
     path->getPath().push_back({ast::SymbolRefPathElemKind::ElemKind_ChildIdx, idx});
+    if (item_idx >= 0) {
+        path->getPath().push_back({ast::SymbolRefPathElemKind::ElemKind_ChildIdx, item_idx});
+    }
 }
 
 NameLookup::NameLookup(ResolveContext *ctxt) : m_ctxt(ctxt), m_id(0),
@@ -207,6 +218,14 @@ void NameLookup::walk() {
     std::set<ast::ISymbolScope *> searched;
 
     while (!m_ref && m_ctxt->symtab()->hasScopes()) {
+        // A generic constraint's frame is never below another frame that is
+        // not a symbol scope (only a foreach or forall scope is pushed in its
+        // body), so it is on top when it is reached.
+        if (m_ctxt->inGenericConstraint()
+                && searchGenericConstraint(m_ctxt->symtab()->getTopScope())) {
+            break;
+        }
+
         // hasScopes() and getScope() do not answer the same question, and the
         // gap between them used to be a segfault (P7-X3). getScope() returns
         // the innermost entry that *is* a symbol scope, or 0 when there is
@@ -281,7 +300,8 @@ NameLookup::Member NameLookup::lookupMember(
         dmgr::IDebugMgr             *dmgr,
         ast::ISymbolScope           *root,
         ast::ISymbolScope           *ns,
-        const std::string           &name) {
+        const std::string           &name,
+        bool                        enum_items) {
     Member ret;
     // Allocated only once there is a base type: most lookups have none.
     std::vector<ast::ISymbolScope *> chain;
@@ -330,18 +350,85 @@ NameLookup::Member NameLookup::lookupMember(
         chain.push_back(ns);
     }
 
-    // A name addr_reg_pkg forwards to std_pkg (F28). Enum items are not
-    // package members here; a wildcard import finds those (searchImport).
+    // `ns::ITEM`: an item of an enum ns declares, or one of its bases does,
+    // as `ITEM` alone finds it inside ns (18.3). Only on a miss: a member of
+    // the same name is what the name means.
+    if (!ret.sym && enum_items) {
+        ret = lookupEnumItemMember(dmgr, root, start, chain, name);
+    }
+
+    // A name addr_reg_pkg forwards to std_pkg (F28), the endian items
+    // included when the caller asks for items.
     int32_t fwd;
     if (!ret.sym && (fwd=forwardOf(root, start, name)) >= 0) {
         ret = lookupMember(dmgr, root,
             dynamic_cast<ast::ISymbolScope *>(root->getChildren().at(fwd).get()),
-            name);
+            name, enum_items);
         if (ret.sym) {
             ret.fwd_pkg = fwd;
         }
     }
 
+    return ret;
+}
+
+NameLookup::Member NameLookup::lookupEnumItemMember(
+        dmgr::IDebugMgr                     *dmgr,
+        ast::ISymbolScope                   *root,
+        ast::ISymbolScope                   *ns,
+        const std::vector<ast::ISymbolScope *> &bases,
+        const std::string                   &name) {
+    Member ret;
+    // A miss is rare on this path, so no cache: one cast per child, of the
+    // namespace and then of each base, as the member walk went.
+    for (int32_t depth=0; depth<=(int32_t)bases.size(); depth++) {
+        ast::ISymbolScope *s = (depth) ? bases.at(depth-1) : ns;
+        if (!s) {
+            break;
+        }
+        for (int32_t ci=0; ci<(int32_t)s->getChildren().size(); ci++) {
+            ast::IScopeChild *c = s->getChildren().at(ci).get();
+            if (ast::ISymbolEnumScope *e = dynamic_cast<ast::ISymbolEnumScope *>(c)) {
+                std::unordered_map<std::string,int32_t>::const_iterator it =
+                    e->getSymtab().find(name);
+                if (it != e->getSymtab().end() && it->second >= 0
+                        && it->second < (int32_t)e->getChildren().size()) {
+                    ret.sym = e->getChildren().at(it->second).get();
+                    ret.idx = ci;
+                    ret.item_idx = it->second;
+                    ret.super_depth = depth;
+                    return ret;
+                }
+            } else if (ast::IExtendEnum *ee = dynamic_cast<ast::IExtendEnum *>(c)) {
+                // Declared here, living in the extended enum (17.2; Ex. 248).
+                bool declares = false;
+                for (std::vector<ast::IEnumItemUP>::const_iterator
+                        i_it=ee->getItems().begin();
+                        i_it!=ee->getItems().end() && !declares; i_it++) {
+                    declares = ((*i_it)->getName()->getId() == name);
+                }
+                if (!declares || !ee->getTarget() || !ee->getTarget()->getTarget()) {
+                    continue;
+                }
+                ast::ISymbolEnumScope *e = dynamic_cast<ast::ISymbolEnumScope *>(
+                    TaskResolveSymbolPathRef(dmgr, root).resolve(
+                        ee->getTarget()->getTarget()));
+                std::unordered_map<std::string,int32_t>::const_iterator it;
+                if (!e || (it=e->getSymtab().find(name)) == e->getSymtab().end()
+                        || it->second < 0
+                        || it->second >= (int32_t)e->getChildren().size()) {
+                    continue;
+                }
+                ret.sym = e->getChildren().at(it->second).get();
+                ret.idx = it->second;
+                ret.super_depth = 0;
+                ret.abs_path = ee->getTarget()->getTarget()->getPath();
+                ret.abs_path.push_back({
+                    ast::SymbolRefPathElemKind::ElemKind_ChildIdx, it->second});
+                return ret;
+            }
+        }
+    }
     return ret;
 }
 
@@ -540,6 +627,34 @@ bool NameLookup::searchSymbolDecl(ast::ISymbolDeclaration *s) {
         }
     }
     return searchBlock(s);
+}
+
+bool NameLookup::searchGenericConstraint(ast::IScopeChild *c) {
+    // `constraint g(P p) { p.a > 0; }`: the parameters are in scope in the
+    // body, and hide a member of the same name. Addressed by position, as a
+    // symbol's are (searchSymbolDecl).
+    const std::vector<ast::IGenericConstraintParamUP> *params = 0;
+    if (ast::IGenericConstraintDeclBool *b =
+            dynamic_cast<ast::IGenericConstraintDeclBool *>(c)) {
+        params = &b->getParameters();
+    } else if (ast::IGenericConstraintDeclValue *v =
+            dynamic_cast<ast::IGenericConstraintDeclValue *>(c)) {
+        params = &v->getParameters();
+    } else {
+        return false;
+    }
+    for (uint32_t idx=0; idx<params->size(); idx++) {
+        ast::IGenericConstraintParam *p = params->at(idx).get();
+        if (p->getName() && p->getName()->getId() == m_id->getId()) {
+            DEBUG("Found %s as a generic-constraint parameter @ %d",
+                m_id->getId().c_str(), idx);
+            m_ref = m_ctxt->symtab()->getScopeSymbolPath();
+            m_ref->getPath().push_back({
+                ast::SymbolRefPathElemKind::ElemKind_ArgIdx, (int32_t)idx});
+            return true;
+        }
+    }
+    return false;
 }
 
 bool NameLookup::searchMembers(ast::ISymbolScope *s, bool order) {

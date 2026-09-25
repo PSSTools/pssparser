@@ -85,6 +85,18 @@ private:
     /// `::x`: the first element, looked up in the global package only.
     ast::ISymbolRefPath *findGlobalRoot(const ast::IExprId *sym);
 
+    /// Resolve a generic's arguments where they are written.
+    void resolveArgs(
+        ast::ISymbolRefPath                 *generic,
+        ast::IScopeChild                    *generic_decl,
+        ast::ITemplateParamValueList        *args);
+
+    /// A name given for a value parameter `p` of `generic` (PF-A1, 8.4).
+    void resolveValueArg(
+        ast::ISymbolRefPath                 *generic,
+        ast::ITemplateValueParamDecl        *p,
+        ast::ITemplateParamTypeValue        *v);
+
     /// Resolve a qualified expression-form template argument. See the
     /// definition for why this is not TaskResolveRefs' version of the walk.
     ast::ISymbolRefPath *resolveStaticArgPath(ast::IExprRefPathStatic *i);
@@ -94,6 +106,9 @@ private:
     bool                                m_search_imp;
     bool                                m_report_unresolved;
     ast::ISymbolRefPath                 *m_ref;
+    /// What a miss is reported as: an unknown "type", or "identifier" for
+    /// a name in a value parameter's position.
+    const char                          *m_kind;
 
 };
 

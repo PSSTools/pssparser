@@ -52,6 +52,7 @@
 #include "pssp/ast/IExprUnary.h"
 #include "pssp/ast/IField.h"
 #include "pssp/ast/IFunctionParamDecl.h"
+#include "pssp/ast/IGenericConstraintParam.h"
 #include "pssp/ast/IProceduralStmtDataDeclaration.h"
 #include "pssp/ast/ITypedefDeclaration.h"
 #include "pssp/impl/TaskResolveSymbolPathRef.h"
@@ -198,6 +199,10 @@ TypeCatE TaskExprTypeCat::declared(ast::IScopeChild *c, TaskExprTypeCat *self) {
         return self->dataType(d->getDatatype());
     } else if (ast::IFunctionParamDecl *p =
         dynamic_cast<ast::IFunctionParamDecl *>(c)) {
+        return self->dataType(p->getType());
+    } else if (ast::IGenericConstraintParam *p =
+        dynamic_cast<ast::IGenericConstraintParam *>(c)) {
+        // A `numeric` parameter has no type: it is integer or float (13.1.2).
         return self->dataType(p->getType());
     }
 

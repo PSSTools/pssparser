@@ -291,6 +291,15 @@ public:
     void popQuiet() { m_quiet--; }
 
     /**
+     * Held while a generic constraint's body is resolved, so NameLookup
+     * looks for its parameters (13.1.2) only then: the check is on every
+     * frame of every lookup otherwise. Nests.
+     */
+    void enterGenericConstraint() { m_generic_constraint++; }
+    void leaveGenericConstraint() { m_generic_constraint--; }
+    bool inGenericConstraint() const { return m_generic_constraint > 0; }
+
+    /**
      * True the first time it is asked about generic `t`: its parameter
      * defaults are then bound, once, ahead of the first use that needs them
      * (TaskSpecializeParameterizedRef).
@@ -425,6 +434,7 @@ private:
     std::set<std::tuple<int32_t,int32_t,int32_t>>   m_reported;
     std::vector<std::function<void()>>              m_post_resolve;
     int32_t                                         m_quiet = 0;
+    int32_t                                         m_generic_constraint = 0;
     std::unordered_set<ast::ISymbolTypeScope *>     m_dflts_bound;
     const ast::IExprId                              *m_fwd_id = 0;
     ast::IScopeChild                                *m_fwd_decl = 0;

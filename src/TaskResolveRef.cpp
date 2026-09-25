@@ -30,6 +30,9 @@
 #include "pssp/ast/IExprRefPathContext.h"
 #include "pssp/ast/IExprRefPathStatic.h"
 #include "pssp/ast/IField.h"
+#include "pssp/ast/ITemplateCategoryTypeParamDecl.h"
+#include "pssp/ast/ITemplateGenericTypeParamDecl.h"
+#include "pssp/ast/ITypedefDeclaration.h"
 #include "pssp/ast/IProceduralStmtDataDeclaration.h"
 #include "TaskFindPathElem.h"
 #include "NameLookup.h"
@@ -79,7 +82,7 @@ TaskResolveRef::TaskResolveRef(
     bool                            search_imp,
     bool                            report_unresolved) : 
         TaskResolveBase(ctxt), m_search_imp(search_imp),
-        m_report_unresolved(report_unresolved) {
+        m_report_unresolved(report_unresolved), m_kind("type") {
     DEBUG_INIT("TaskResolveRef", ctxt->getDebugMgr());
     m_ref = 0;
 }
@@ -270,7 +273,7 @@ ast::ISymbolRefPath *TaskResolveRef::resolveStaticArgPath(
         }
 
         TaskFindPathElem::Result res = TaskFindPathElem(
-            m_ctxt->getDebugMgr(), m_ctxt->root()).find(scope_s, (*it)->getId());
+            m_ctxt->getDebugMgr(), m_ctxt->root()).find(scope_s, (*it)->getId(), true);
 
         if (!res.sym) {
             DEBUG("No member named %s", (*it)->getId()->getId().c_str());
@@ -394,11 +397,23 @@ void TaskResolveRef::visitTypeIdentifier(ast::ITypeIdentifier *i) {
         }
         // Another statement's import provides it (18.1.3, 6.3a).
         if (NameLookup::reportImportLeak(
-                m_ctxt, i->getElems().at(0)->getId(), "type")) {
+                m_ctxt, i->getElems().at(0)->getId(), m_kind)) {
             return;
         }
-        std::string suggestion = findCloseMatch(
-            name, dynamic_cast<ast::ISymbolScope *>(m_ctxt->root()));
+        std::string suggestion;
+        if (m_kind != std::string("type") && m_ctxt->symtab()) {
+            // A value is usually a constant or parameter of the enclosing
+            // scope, so that comes first. A scratch clone: see
+            // TaskResolveRefs::visitExprRefPathContext.
+            ISymbolTableIteratorUP scratch(m_ctxt->cloneSymtab());
+            if (scratch) {
+                suggestion = findCloseMatch(name, scratch->getScope());
+            }
+        }
+        if (suggestion.empty()) {
+            suggestion = findCloseMatch(
+                name, dynamic_cast<ast::ISymbolScope *>(m_ctxt->root()));
+        }
         // See the matching block in TaskResolveRefs::visitExprRefPathContext:
         // a core-library type that is simply not imported gets an actionable
         // message rather than a bare "unknown type".
@@ -409,8 +424,9 @@ void TaskResolveRef::visitTypeIdentifier(ast::ITypeIdentifier *i) {
             m_ctxt->addMarker(
                 MarkerSeverityE::Error,
                 i->getElems().at(0)->getId()->getLocation(),
-                "unknown type '%s'; declared in %s -- add "
+                "unknown %s '%s'; declared in %s -- add "
                 "'import %s::*;'",
+                m_kind,
                 name.c_str(),
                 core_pkg.c_str(),
                 core_pkg.c_str());
@@ -418,13 +434,15 @@ void TaskResolveRef::visitTypeIdentifier(ast::ITypeIdentifier *i) {
             m_ctxt->addMarker(
                 MarkerSeverityE::Error,
                 i->getElems().at(0)->getId()->getLocation(),
-                "unknown type '%s'",
+                "unknown %s '%s'",
+                m_kind,
                 name.c_str());
         } else {
             m_ctxt->addMarker(
                 MarkerSeverityE::Error,
                 i->getElems().at(0)->getId()->getLocation(),
-                "unknown type '%s'; did you mean '%s'?",
+                "unknown %s '%s'; did you mean '%s'?",
+                m_kind,
                 name.c_str(),
                 suggestion.c_str());
         }
@@ -437,15 +455,9 @@ void TaskResolveRef::visitTypeIdentifier(ast::ITypeIdentifier *i) {
         m_ctxt->getDebugMgr(), m_ctxt->root()).resolve(root));
 
     if (i->getElems().at(0)->getParams()) {
-        // Resolve parameter refs
-
-        DEBUG_ENTER("resolve parameter references");
-        for (std::vector<ast::ITemplateParamValueUP>::const_iterator
-            it=i->getElems().at(0)->getParams()->getValues().begin();
-            it!=i->getElems().at(0)->getParams()->getValues().end(); it++) {
-            (*it)->accept(m_this);
-        }
-        DEBUG_LEAVE("resolve parameter references");
+        resolveArgs(root,
+            i->getElems().at(0)->getId()->getDecl(),
+            i->getElems().at(0)->getParams());
 
         ast::ISymbolRefPath *root_s = TaskSpecializeParameterizedRef(m_ctxt).specialize(
                 root, 
@@ -471,9 +483,12 @@ void TaskResolveRef::visitTypeIdentifier(ast::ITypeIdentifier *i) {
         // ElemKind_Super per base type crossed (18.3 b.3; Ex. 242).
         ast::IScopeChild *next = 0;
         if (ast::ISymbolScope *ns = dynamic_cast<ast::ISymbolScope *>(root_t)) {
+            // An enum item only in a value position: `S<pkg::ITEM>`. As a
+            // type, `pkg::ITEM` is still no type.
             NameLookup::Member m = NameLookup::lookupMember(
                 m_ctxt->getDebugMgr(), m_ctxt->root(), ns,
-                (*it)->getId()->getId());
+                (*it)->getId()->getId(),
+                m_kind != std::string("type"));
             if (m.sym) {
                 m.appendTo(root);
                 next = m.sym;
@@ -484,6 +499,9 @@ void TaskResolveRef::visitTypeIdentifier(ast::ITypeIdentifier *i) {
             DEBUG("Resolve %s", (*it)->getId()->getId().c_str());
             (*it)->getId()->setDecl(next);
             if ((*it)->getParams()) {
+               // At the use site, as for the first element: resolved inside
+               // the specialization, `p::N<K>` looked for K in p.
+               resolveArgs(root, next, (*it)->getParams());
                root = TaskSpecializeParameterizedRef(m_ctxt).specialize(
                         root, 
                         (*it)->getParams(),
@@ -513,7 +531,10 @@ void TaskResolveRef::visitTypeIdentifier(ast::ITypeIdentifier *i) {
                 dynamic_cast<ast::IField *>(root_t) != 0
                 || dynamic_cast<ast::IProceduralStmtDataDeclaration *>(root_t) != 0;
 
-            if (m_report_unresolved && !qualifier_is_instance) {
+            // Reported once: a super type is resolved twice, by
+            // TaskResolveSuperTypes and again by TaskResolveRefs.
+            if (m_report_unresolved && !qualifier_is_instance
+                    && !m_ctxt->wasReported((*it)->getId()->getLocation())) {
                 // Name the whole qualifying prefix, not just the root: with a
                 // nested package `p::q::Nope`, "in 'p'" would point at the
                 // wrong scope.
@@ -528,7 +549,8 @@ void TaskResolveRef::visitTypeIdentifier(ast::ITypeIdentifier *i) {
                 m_ctxt->addMarker(
                     MarkerSeverityE::Error,
                     (*it)->getId()->getLocation(),
-                    "unknown type '%s' in '%s'",
+                    "unknown %s '%s' in '%s'",
+                    m_kind,
                     (*it)->getId()->getId().c_str(),
                     scope_name.c_str());
             }
@@ -541,6 +563,109 @@ void TaskResolveRef::visitTypeIdentifier(ast::ITypeIdentifier *i) {
     m_ref = root;
     
     DEBUG_LEAVE("visitTypeIdentifier %p", m_ref);
+}
+
+/**
+ * The arguments of `generic` (its path) / `generic_decl`, where they are
+ * written. Paired with the generic's parameter declarations: a name given for
+ * a value parameter parses as a type (PF-A1), and is resolved here as the
+ * value it must be.
+ */
+void TaskResolveRef::resolveArgs(
+        ast::ISymbolRefPath                 *generic,
+        ast::IScopeChild                    *generic_decl,
+        ast::ITemplateParamValueList        *args) {
+    DEBUG_ENTER("resolveArgs");
+    ast::ISymbolTypeScope *generic_s = dynamic_cast<ast::ISymbolTypeScope *>(generic_decl);
+    ast::ISymbolScope *plist = (generic_s) ? generic_s->getPlist() : 0;
+    uint32_t k = 0;
+    for (std::vector<ast::ITemplateParamValueUP>::const_iterator
+        it=args->getValues().begin(); it!=args->getValues().end(); it++, k++) {
+        ast::ITemplateValueParamDecl *vp = (plist && k < plist->getChildren().size())
+            ? dynamic_cast<ast::ITemplateValueParamDecl *>(plist->getChildren().at(k).get())
+            : 0;
+        ast::ITemplateParamTypeValue *tv =
+            dynamic_cast<ast::ITemplateParamTypeValue *>(it->get());
+        if (vp && tv) {
+            resolveValueArg(generic, vp, tv);
+        } else {
+            (*it)->accept(m_this);
+        }
+    }
+    DEBUG_LEAVE("resolveArgs");
+}
+
+/**
+ * `S<X>` where S declares a value parameter in X's position (PF-A1). `X`
+ * parses as a type, since a type and a constant are spelled alike, but it
+ * can only be a value, so it is looked up as one (8.4):
+ * - step a of 18.3 first, when the parameter's type is an enumeration: `S<B>`
+ *   for `S<mode_e m>` is mode_e::B whatever else B names (PSS044 if that
+ *   hides something);
+ * - otherwise the ordinary lookup, with an enum item found only as the
+ *   fallback reported as PSS046, as for any other expression;
+ * - a miss is an unknown *identifier*, not an unknown type;
+ * - a name that is a type is reported: the position wants a value.
+ * The argument stays a type identifier in the tree; TaskBuildParamValList
+ * reads its target as the value.
+ */
+void TaskResolveRef::resolveValueArg(
+        ast::ISymbolRefPath                 *generic,
+        ast::ITemplateValueParamDecl        *p,
+        ast::ITemplateParamTypeValue        *v) {
+    ast::IDataTypeUserDefined *udt =
+        dynamic_cast<ast::IDataTypeUserDefined *>(v->getValue());
+    if (!udt || !udt->getType_id() || udt->getType_id()->getTarget()) {
+        // A built-in type: TaskBuildParamValList reports it.
+        v->accept(m_this);
+        return;
+    }
+    DEBUG_ENTER("resolveValueArg");
+    ast::ITypeIdentifier *tid = udt->getType_id();
+    ast::IExprId *id = tid->getElems().at(0)->getId();
+    bool bare = (tid->getElems().size() == 1)
+        && !tid->getElems().at(0)->getParams()
+        && !tid->getIs_global();
+
+    ast::ISymbolEnumScope *expected =
+        TaskSpecializeParameterizedRef(m_ctxt).paramEnum(generic, p);
+
+    ast::ISymbolRefPath *target = (bare && expected)
+        ? TaskResolveRefs::expectedItem(m_ctxt, id, expected) : 0;
+
+    if (!target) {
+        TaskResolveRef r(m_ctxt, true, m_report_unresolved);
+        r.m_kind = "identifier";
+        target = r.resolve(tid);
+        ast::ISymbolEnumScope *hint = (target && bare) ? m_ctxt->enumItemHint(id) : 0;
+        if (hint) {
+            TaskResolveRefs::warnEnumItemFallback(m_ctxt, id, hint, expected);
+        }
+    }
+
+    if (!target) {
+        DEBUG_LEAVE("resolveValueArg -- not found");
+        return;
+    }
+    tid->setTarget(target);
+
+    ast::IScopeChild *decl = m_ctxt->resolveSymbolPathRef(target);
+    bool is_type = dynamic_cast<ast::ISymbolTypeScope *>(decl)
+        || dynamic_cast<ast::ISymbolEnumScope *>(decl)
+        || dynamic_cast<ast::ITypedefDeclaration *>(decl)
+        || dynamic_cast<ast::ITemplateGenericTypeParamDecl *>(decl)
+        || dynamic_cast<ast::ITemplateCategoryTypeParamDecl *>(decl);
+    if (m_report_unresolved
+            && (is_type || dynamic_cast<ast::ISymbolScope *>(decl))) {
+        const ast::IExprId *last = tid->getElems().back()->getId();
+        m_ctxt->addErrorMarker(
+            last->getLocation(),
+            "template parameter '%s' expects a value, but '%s' %s",
+            (p->getName()) ? p->getName()->getId().c_str() : "<unknown>",
+            last->getId().c_str(),
+            (is_type) ? "is a type" : "is not a value");
+    }
+    DEBUG_LEAVE("resolveValueArg");
 }
 
 ast::ISymbolRefPath *TaskResolveRef::findRoot(

@@ -24,6 +24,8 @@
 #include "TaskGetSpecializedTemplateType.h"
 #include "TaskBuildParamValList.h"
 #include "TaskResolveRefs.h"
+#include "TaskResolveRef.h"
+#include "ExprTypeOf.h"
 
 
 namespace pssp {
@@ -167,8 +169,48 @@ void TaskSpecializeParameterizedRef::bindDefaults(
     }
     DEBUG_ENTER("bindDefaults %s", target_c->getName().c_str());
 
+    inDeclScope(target, [&]() {
+        TaskResolveRefs resolver(m_ctxt);
+        target_c->getPlist()->accept(&resolver);
+    });
+
+    DEBUG_LEAVE("bindDefaults");
+}
+
+ast::ISymbolEnumScope *TaskSpecializeParameterizedRef::paramEnum(
+        ast::ISymbolRefPath                 *target,
+        ast::ITemplateValueParamDecl        *p) {
+    ast::IDataTypeUserDefined *udt =
+        dynamic_cast<ast::IDataTypeUserDefined *>(p->getType());
+    if (!udt || !udt->getType_id()) {
+        return 0;
+    }
+    ast::ITypeIdentifier *tid = udt->getType_id();
+    if (!tid->getTarget()) {
+        // An enum takes no template arguments; a type that does is none of
+        // this function's business, and binding it here would specialize.
+        for (std::vector<ast::ITypeIdentifierElemUP>::const_iterator
+                it=tid->getElems().begin(); it!=tid->getElems().end(); it++) {
+            if ((*it)->getParams()) {
+                return 0;
+            }
+        }
+        inDeclScope(target, [&]() {
+            ast::ISymbolRefPath *t = TaskResolveRef(m_ctxt, true, false).resolve(tid);
+            if (t) {
+                tid->setTarget(t);
+            }
+        });
+    }
+    return ExprTypeOf(m_ctxt).enumOfType(udt);
+}
+
+void TaskSpecializeParameterizedRef::inDeclScope(
+        ast::ISymbolRefPath                 *target,
+        const std::function<void()>         &f) {
     // As TaskResolveRefs::resolve(ISymbolTypeScope *) does for the generic
     // itself: the parameter list, from the scope that declares the type.
+    // Quiet: the generic's own visit reports anything wrong in it.
     ISymbolTableIterator *it = TaskResolveSymbolPathRef(
         m_ctxt->getDebugMgr(), m_ctxt->root()).mkIterator(
             m_ctxt->getFactory()->mkAstSymbolTableIterator(m_ctxt->root()),
@@ -176,12 +218,9 @@ void TaskSpecializeParameterizedRef::bindDefaults(
     it->popScope();
     m_ctxt->pushSymtab(it);
     m_ctxt->pushQuiet();
-    TaskResolveRefs resolver(m_ctxt);
-    target_c->getPlist()->accept(&resolver);
+    f();
     m_ctxt->popQuiet();
     m_ctxt->popSymtab();
-
-    DEBUG_LEAVE("bindDefaults");
 }
 
 dmgr::IDebug *TaskSpecializeParameterizedRef::m_dbg = 0;

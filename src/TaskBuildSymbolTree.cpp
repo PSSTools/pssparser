@@ -265,7 +265,7 @@ void TaskBuildSymbolTree::visitGenericConstraintDeclBool(ast::IGenericConstraint
     // reference to it failed with "unknown identifier". Same defect and same
     // fix as visitFieldClaim and visitActionHandleField above.
     if (i->getName() && i->getName()->getId() != "") {
-        addChild(i, i->getName()->getId(), false);
+        addGenericConstraint(i, i->getName()->getId());
     }
 
     for (std::vector<ast::IConstraintStmtUP>::const_iterator
@@ -286,10 +286,28 @@ void TaskBuildSymbolTree::visitGenericConstraintDeclValue(ast::IGenericConstrain
     // this scope through visitScopeChild rather than visitConstraintBlock, but
     // it was equally absent from the symtab.
     if (i->getName()) {
-        addChild(i, i->getName()->getId(), false);
+        addGenericConstraint(i, i->getName()->getId());
     }
 
     DEBUG_LEAVE("visitGenericConstraintDeclValue");
+}
+
+void TaskBuildSymbolTree::addGenericConstraint(
+        ast::IScopeChild        *i,
+        const std::string       &name) {
+    if (!addChild(i, name, false)) {
+        return;
+    }
+    // In a synthetic scope -- a package, or the global scope -- the child is
+    // appended at a position of the scope's own, and index still holds its
+    // position in its file. index is the ChildIdx step for a path into the
+    // body (TaskGetItemIndex), so a parameter used there resolved to
+    // whatever sat at that position instead. addFunctionParams re-indexes
+    // a parameter for the same reason.
+    ast::ISymbolScope *scope = symbolScope();
+    if (scope->getSynthetic()) {
+        i->setIndex(scope->getSymtab().find(name)->second);
+    }
 }
 
 void TaskBuildSymbolTree::visitConstraintScope(ast::IConstraintScope *i) {

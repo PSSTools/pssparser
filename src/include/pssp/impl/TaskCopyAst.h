@@ -1269,8 +1269,11 @@ public:
     }
 
     virtual void visitProceduralStmtRandomize(ast::IProceduralStmtRandomize *i) {
-        ast::IProceduralStmtRandomize *ic = m_factory->mkProceduralStmtRandomize(
-            (i->getTarget())?copy(i->getTarget()):0);
+        ast::IProceduralStmtRandomize *ic = m_factory->mkProceduralStmtRandomize();
+        for (std::vector<ast::IExprUP>::const_iterator
+                it=i->getTargets().begin(); it!=i->getTargets().end(); it++) {
+            ic->getTargets().push_back(ast::IExprUP(copy(it->get())));
+        }
         copyConstraints(i->getConstraints(), ic->getConstraints());
         m_sc = fin(i, ic);
     }

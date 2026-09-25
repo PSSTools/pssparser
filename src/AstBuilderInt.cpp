@@ -2249,24 +2249,14 @@ antlrcpp::Any AstBuilderInt::visitProcedural_yield_stmt(PSSParser::Procedural_yi
 antlrcpp::Any AstBuilderInt::visitProcedural_randomization_stmt(PSSParser::Procedural_randomization_stmtContext *ctx) {
     DEBUG_ENTER("visitProcedural_randomization_stmt");
 
-    // `randomize a, b, c with { ... };`. The grammar takes a comma-separated
-    // list of targets, but ProceduralStmtRandomize has a single `target`
-    // expression, so only the first is representable; see O-4.
-    ast::IExpr *target = 0;
-    std::vector<PSSParser::Hierarchical_idContext *> targets =
-        ctx->procedural_randomization_target()->hierarchical_id();
-
-    if (targets.size()) {
-        target = m_factory->mkExprRefPathContext(mkHierarchicalId(targets[0]));
+    // `randomize a, b, c with { ... };`: every target, in source order (O-4;
+    // this kept only the first).
+    ast::IProceduralStmtRandomize *rand_stmt = m_factory->mkProceduralStmtRandomize();
+    for (PSSParser::Hierarchical_idContext *t :
+            ctx->procedural_randomization_target()->hierarchical_id()) {
+        rand_stmt->getTargets().push_back(ast::IExprUP(
+            m_factory->mkExprRefPathContext(mkHierarchicalId(t))));
     }
-    if (targets.size() > 1) {
-        noteUnrepresented(
-            ctx->start,
-            "randomize",
-            "only the first of several randomization targets is kept");
-    }
-
-    ast::IProceduralStmtRandomize *rand_stmt = m_factory->mkProceduralStmtRandomize(target);
     setLoc(rand_stmt, ctx->start);
 
     // `with { ... }` -- one constraint set, appended to the statement's
@@ -3627,8 +3617,21 @@ antlrcpp::Any AstBuilderInt::visitGeneric_constraint_bool(PSSParser::Generic_con
         constraint->getParameters().push_back(ast::IGenericConstraintParamUP(*it));
     }
 
+    // A brace block's items are added directly, as visitConstraint_declaration
+    // does, and for the same reason: a wrapping ConstraintScope desyncs a path
+    // into the body from the symbol tree, so a `foreach` iterator in the body
+    // was left unbound.
     m_constraint_s.push_back(constraint);
-    ctx->constraint_set()->accept(this);
+    if (ctx->constraint_set()->constraint_block()) {
+        std::vector<PSSParser::Constraint_body_itemContext *> items =
+            ctx->constraint_set()->constraint_block()->constraint_body_item();
+        for (std::vector<PSSParser::Constraint_body_itemContext *>::const_iterator
+            it=items.begin(); it!=items.end(); it++) {
+            (*it)->accept(this);
+        }
+    } else {
+        ctx->constraint_set()->accept(this);
+    }
     m_constraint_s.pop_back();
 
     m_constraint = constraint;

@@ -177,32 +177,6 @@ void TaskCheckRefsResolved::visitTypeScope(ast::ITypeScope *i) {
     m_type_s.pop_back();
 }
 
-void TaskCheckRefsResolved::visitGenericConstraintDeclBool(
-        ast::IGenericConstraintDeclBool *i) {
-    std::set<std::string> saved = m_generic_params;
-    for (std::vector<ast::IGenericConstraintParamUP>::const_iterator
-        it=i->getParameters().begin(); it!=i->getParameters().end(); it++) {
-        if ((*it)->getName()) {
-            m_generic_params.insert((*it)->getName()->getId());
-        }
-    }
-    ast::VisitorBase::visitGenericConstraintDeclBool(i);
-    m_generic_params.swap(saved);
-}
-
-void TaskCheckRefsResolved::visitGenericConstraintDeclValue(
-        ast::IGenericConstraintDeclValue *i) {
-    std::set<std::string> saved = m_generic_params;
-    for (std::vector<ast::IGenericConstraintParamUP>::const_iterator
-        it=i->getParameters().begin(); it!=i->getParameters().end(); it++) {
-        if ((*it)->getName()) {
-            m_generic_params.insert((*it)->getName()->getId());
-        }
-    }
-    ast::VisitorBase::visitGenericConstraintDeclValue(i);
-    m_generic_params.swap(saved);
-}
-
 void TaskCheckRefsResolved::visitAnnotation(ast::IAnnotation *i) {
     if (i->getType() && !i->getType()->getTarget()
             && m_ctxt->wasNoted(i->getLocation())) {
@@ -273,10 +247,6 @@ void TaskCheckRefsResolved::checkRef(
 
         const std::string &name = id->getId();
         bool declared = (m_names.find(name) != m_names.end());
-
-        if (ii == 0 && m_generic_params.find(name) != m_generic_params.end()) {
-            return;
-        }
 
         if (is_type && ii > 0 && dynamic_cast<ast::IField *>(prev)) {
             // `tx::send_pkt s;` in an activity, where `tx` is a component
@@ -354,6 +324,9 @@ bool TaskCheckRefsResolved::hasUnboundType(ast::IScopeChild *decl) {
     } else if (ast::IFunctionParamDecl *p =
             dynamic_cast<ast::IFunctionParamDecl *>(decl)) {
         t = p->getType();
+    } else if (ast::IGenericConstraintParam *p =
+            dynamic_cast<ast::IGenericConstraintParam *>(decl)) {
+        t = p->getType();
     }
     ast::IDataTypeUserDefined *ut = dynamic_cast<ast::IDataTypeUserDefined *>(t);
     return ut && ut->getType_id() && !ut->getType_id()->getTarget();
@@ -369,6 +342,9 @@ bool TaskCheckRefsResolved::reachesUnknownBase(ast::IScopeChild *decl) {
         dt = d->getDatatype();
     } else if (ast::IFunctionParamDecl *p =
             dynamic_cast<ast::IFunctionParamDecl *>(decl)) {
+        dt = p->getType();
+    } else if (ast::IGenericConstraintParam *p =
+            dynamic_cast<ast::IGenericConstraintParam *>(decl)) {
         dt = p->getType();
     }
     if (dt) {

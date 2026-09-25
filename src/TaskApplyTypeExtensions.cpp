@@ -33,6 +33,7 @@
 #include "pssp/ast/IFieldRef.h"
 #include "pssp/ast/IFunctionPrototype.h"
 #include "pssp/ast/IGenericConstraintDeclBool.h"
+#include "pssp/ast/IGenericConstraintDeclValue.h"
 #include "pssp/ast/ISymbolExtMember.h"
 #include "pssp/ast/ITypedefDeclaration.h"
 #include "TaskResolveRef.h"
@@ -537,10 +538,7 @@ void TaskApplyTypeExtensions::mergeChild(
         // It has no symtab entry to make, but it still belongs to the
         // extended type's logical body.
         DEBUG("Appending anonymous %s child", "extension");
-        if (dynamic_cast<ast::ISymbolChild *>(child)) {
-            dynamic_cast<ast::ISymbolChild *>(child)->setUpper(target);
-        }
-        target->getChildren().push_back(ast::IScopeChildUP(child, false));
+        appendChild(target, child);
     }
 }
 
@@ -605,6 +603,13 @@ void TaskApplyTypeExtensions::appendChild(
         // extension then resolved to whatever sat at that index in the
         // extended type, and paths through it dead-ended.
         sc->setId(id);
+    } else if (dynamic_cast<ast::IConstraintBlock *>(child)
+            || dynamic_cast<ast::IGenericConstraintDeclValue *>(child)) {
+        // Likewise for a constraint, whose ChildIdx step is its index
+        // (TaskGetItemIndex): a path into its body -- a foreach iterator, a
+        // generic constraint's parameter -- pointed into the `<extend>`
+        // scope, and did not resolve.
+        child->setIndex(id);
     }
     // Non-owning: the logical (symbol) view borrows from the physical
     // view, which keeps the sole owning reference in its GlobalScope.

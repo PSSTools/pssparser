@@ -51,6 +51,7 @@
 #include "pssp/impl/TaskResolveSymbolPathRef.h"
 #include "pssp/impl/ActivityScopes.h"
 #include "pssp/ast/IProceduralStmtDataDeclaration.h"
+#include "pssp/ast/IProceduralStmtRandomize.h"
 #include "pssp/ast/IActionHandleField.h"
 #include "pssp/ast/IAction.h"
 #include "pssp/ast/IActivityActionHandleTraversal.h"
@@ -768,7 +769,8 @@ std::string declDescription(ast::IScopeChild *c, const std::string &name) {
         kind = "field";
     } else if (dynamic_cast<ast::IProceduralStmtDataDeclaration *>(c)) {
         kind = "variable";
-    } else if (dynamic_cast<ast::IFunctionParamDecl *>(c)) {
+    } else if (dynamic_cast<ast::IFunctionParamDecl *>(c)
+            || dynamic_cast<ast::IGenericConstraintParam *>(c)) {
         kind = "parameter";
     } else if (dynamic_cast<ast::ITemplateValueParamDecl *>(c)) {
         kind = "template parameter";
@@ -820,6 +822,65 @@ void TaskResolveRefs::resolveInitializer(
     visitExpecting(i->getValue(),
         (path && path->getTarget() && takesExpected(i->getValue()))
             ? ExprTypeOf(m_ctxt).enumOf(path) : 0);
+}
+
+/**
+ * The struct type a `randomize` target's `with` block resolves in, or null:
+ * the target did not resolve, or is not of struct type (a scalar, a
+ * collection), or its type is not known yet. `s.arr[i]` is an element, so the
+ * element type.
+ */
+ast::ISymbolScope *TaskResolveRefs::randomizedType(ast::IExpr *target) {
+    ast::IExprRefPathContext *ref = dynamic_cast<ast::IExprRefPathContext *>(target);
+    if (!ref || !ref->getTarget()) {
+        return 0;
+    }
+    ast::IExprMemberPathElem *leaf = ref->getHier_id()->getElems().back().get();
+    ast::IScopeChild *decl = leaf->getId()->getDecl();
+    if (!decl) {
+        return 0;
+    }
+    uint32_t n_sub = leaf->getSubscript().size();
+    ast::ISymbolScope *type_s = (n_sub)
+        ? TaskGetSubscriptSymbolScope(
+            m_ctxt->getDebugMgr(), m_ctxt->root(), n_sub).resolve(decl)
+        : TaskGetElemSymbolScope(m_ctxt->getDebugMgr(), m_ctxt->root()).resolve(decl);
+    ast::ISymbolTypeScope *ts = dynamic_cast<ast::ISymbolTypeScope *>(type_s);
+    return (ts && dynamic_cast<ast::IStruct *>(ts->getTarget())) ? type_s : 0;
+}
+
+/**
+ * `randomize x, y with { ... }` (13.4.6, F15). Every target resolves where it
+ * is written. The LRM says nothing about how names in the `with` block
+ * resolve; its two examples are the evidence. In Ex. 161 (`randomize f2 with
+ * { soft x < f1.x; }`) `x` is `f2.x` and `f1` is the action's field, the
+ * inline-`with` rule of 13.1.4: the target type's members first, then the
+ * enclosing scope. So a single struct target is pushed as a traversal's type
+ * is (ElemKind_Inline). Ex. 177 writes its two targets' members fully
+ * qualified (`v1.f1.a < v2`): with several targets, or one that is not a
+ * struct, the block resolves lexically only.
+ */
+void TaskResolveRefs::visitProceduralStmtRandomize(ast::IProceduralStmtRandomize *i) {
+    DEBUG_ENTER("visitProceduralStmtRandomize");
+    for (std::vector<ast::IExprUP>::const_iterator
+            it=i->getTargets().begin(); it!=i->getTargets().end(); it++) {
+        (*it)->accept(m_this);
+    }
+    ast::ISymbolScope *type_s = (i->getTargets().size() == 1)
+        ? randomizedType(i->getTargets().at(0).get()) : 0;
+    if (type_s) {
+        m_ctxt->symtab()->pushScope(type_s, ast::SymbolRefPathElemKind::ElemKind_Inline);
+        m_ctxt->pushInlineCtxt(type_s);
+    }
+    for (std::vector<ast::IConstraintStmtUP>::const_iterator
+            it=i->getConstraints().begin(); it!=i->getConstraints().end(); it++) {
+        (*it)->accept(m_this);
+    }
+    if (type_s) {
+        m_ctxt->popInlineCtxt();
+        m_ctxt->symtab()->popScope();
+    }
+    DEBUG_LEAVE("visitProceduralStmtRandomize");
 }
 
 void TaskResolveRefs::visitActivityActionHandleTraversal(ast::IActivityActionHandleTraversal *i) {
@@ -1642,19 +1703,21 @@ ast::ISymbolEnumScope *TaskResolveRefs::expectedFor(ast::IExpr *e) const {
     return (it != m_expected.end()) ? it->second : 0;
 }
 
-ast::IScopeChild *TaskResolveRefs::peekLexical(const ast::IExprId *id) {
-    m_ctxt->pushQuiet();
-    ast::ISymbolRefPathUP ref(TaskResolveRef(m_ctxt).resolve(
+ast::IScopeChild *TaskResolveRefs::peekLexical(
+        ResolveContext              *ctxt,
+        const ast::IExprId          *id) {
+    ctxt->pushQuiet();
+    ast::ISymbolRefPathUP ref(TaskResolveRef(ctxt).resolve(
         const_cast<ast::IExprId *>(id)));
-    m_ctxt->popQuiet();
+    ctxt->popQuiet();
     // The path resolution is the costly part; the fallback needs none.
-    if (!ref || m_ctxt->enumItemHint(id)) {
+    if (!ref || ctxt->enumItemHint(id)) {
         return 0;
     }
     return TaskResolveSymbolPathRef(
-        m_ctxt->getDebugMgr(),
-        m_ctxt->root(),
-        m_ctxt->inlineCtxt()).resolve(ref.get());
+        ctxt->getDebugMgr(),
+        ctxt->root(),
+        ctxt->inlineCtxt()).resolve(ref.get());
 }
 
 ast::ISymbolRefPath *TaskResolveRefs::lookupExpectedItem(
@@ -1663,30 +1726,34 @@ ast::ISymbolRefPath *TaskResolveRefs::lookupExpectedItem(
     if (!bareName(i)) {
         return 0;
     }
-    const ast::IExprId *id = i->getHier_id()->getElems().at(0)->getId();
+    return expectedItem(m_ctxt, i->getHier_id()->getElems().at(0)->getId(), e);
+}
+
+ast::ISymbolRefPath *TaskResolveRefs::expectedItem(
+        ResolveContext              *ctxt,
+        const ast::IExprId          *id,
+        ast::ISymbolEnumScope       *e) {
     std::unordered_map<std::string,int32_t>::const_iterator it =
         e->getSymtab().find(id->getId());
     if (it == e->getSymtab().end()) {
         return 0;
     }
     ast::ISymbolRefPath *ref = TaskGetSymbolRefPath(
-        m_ctxt->getDebugMgr(),
-        m_ctxt->root(),
-        m_ctxt->getFactory()->getAstFactory()).mk(e);
+        ctxt->getDebugMgr(),
+        ctxt->root(),
+        ctxt->getFactory()->getAstFactory()).mk(e);
     if (!ref) {
         return 0;
     }
     ref->getPath().push_back({ast::SymbolRefPathElemKind::ElemKind_ChildIdx, it->second});
-    DEBUG("Step a: %s is an item of the expected type %s",
-        id->getId().c_str(), e->getName().c_str());
 
     // Step a comes before the lexical steps (18.3), so a field or variable
     // of the same name is hidden here -- which its author may not expect.
     // An enum item the lookup falls back to is no declaration of the name
     // (8.2), so there is nothing hidden.
-    ast::IScopeChild *lex = peekLexical(id);
+    ast::IScopeChild *lex = peekLexical(ctxt, id);
     if (lex && !dynamic_cast<ast::IEnumItem *>(lex)) {
-        m_ctxt->addMarker(
+        ctxt->addMarker(
             MarkerSeverityE::Warn,
             id->getLocation(),
             "'" + id->getId() + "' is read as the enum item " + e->getName()
@@ -1709,8 +1776,8 @@ void TaskResolveRefs::resolveBareComparison(
     // Each side's own type: the type of what it binds to lexically. A name
     // that is only an enum item of an enclosing scope binds to nothing by
     // 18.3 (8.2), so it has no type to offer the other side.
-    ast::IScopeChild *l_lex = peekLexical(l_id);
-    ast::IScopeChild *r_lex = peekLexical(r_id);
+    ast::IScopeChild *l_lex = peekLexical(m_ctxt, l_id);
+    ast::IScopeChild *r_lex = peekLexical(m_ctxt, r_id);
     ast::ISymbolEnumScope *l_t = type_of.enumOfDecl(l_lex);
     ast::ISymbolEnumScope *r_t = type_of.enumOfDecl(r_lex);
 
@@ -1961,14 +2028,7 @@ bool TaskResolveRefs::reportUseBeforeDecl(const ast::IExprId *id) {
     return true;
 }
 
-/**
- * 20.2: a static function "is not associated with a specific instance", so
- * its body has no instance members to reach. The name stays bound -- the
- * lookup found what the author meant -- and this is the one report.
- */
-namespace {
-
-void warnEnumItemFallback(
+void TaskResolveRefs::warnEnumItemFallback(
         ResolveContext              *ctxt,
         const ast::IExprId          *id,
         ast::ISymbolEnumScope       *e,
@@ -1984,8 +2044,6 @@ void warnEnumItemFallback(
             + " (7.5 i, 8.4.3); qualify it as '" + e->getName() + "::"
             + id->getId() + "'",
         {});
-}
-
 }
 
 void TaskResolveRefs::reportEnumItemFallback(
@@ -2016,6 +2074,11 @@ void TaskResolveRefs::reportEnumItemFallback(
     });
 }
 
+/**
+ * 20.2: a static function "is not associated with a specific instance", so
+ * its body has no instance members to reach. The name stays bound -- the
+ * lookup found what the author meant -- and this is the one report.
+ */
 void TaskResolveRefs::reportStaticContext(const ast::IExprId *id) {
     ast::IScopeChild *fn = m_ctxt->staticCtxtHint(id);
     if (!fn) {
@@ -2233,13 +2296,6 @@ void TaskResolveRefs::resolveExprRefPathContext(ast::IExprRefPathContext *i) {
                 "'this' is only valid inside a type: an action, component, "
                 "struct or other type body");
             DEBUG_LEAVE("visitExprRefPathContext -- this outside a type");
-            return;
-        }
-
-        // Skip resolution errors for generic constraint parameters
-        if (isGenericConstraintParam(name)) {
-            DEBUG("Skipping resolution for generic constraint param '%s'", name.c_str());
-            DEBUG_LEAVE("visitExprRefPathContext -- generic param");
             return;
         }
 
@@ -3017,9 +3073,10 @@ void TaskResolveRefs::resolveExprRefPathStatic(ast::IExprRefPathStatic *i) {
                     break;
                 }
 
+                // `pkg::ITEM` too: the whole path is appended below.
                 TaskFindPathElem::Result res = TaskFindPathElem(
                     m_ctxt->getDebugMgr(),
-                    m_ctxt->root()).find(scope_s, (*it)->getId());
+                    m_ctxt->root()).find(scope_s, (*it)->getId(), true);
 
                 if (!res.sym) {
                     addMarker(
@@ -5181,23 +5238,19 @@ void TaskResolveRefs::visitStruct(ast::IStruct *i) {
 void TaskResolveRefs::visitGenericConstraintDeclBool(ast::IGenericConstraintDeclBool *i) {
     DEBUG_ENTER("visitGenericConstraintDeclBool");
 
-    // Register parameter names so they are not flagged as unknown. Their
-    // types are resolved in the enclosing scope (F14, minimal fix); binding
-    // the names themselves needs a parameter scope (WS8.7).
-    std::set<std::string> saved = m_generic_constraint_params;
+    // The parameter types are written in the enclosing scope. The names are
+    // in scope in the body, which visitConstraintBlock pushes the declaration
+    // for: NameLookup finds them on it (8.7).
     for (auto &p : i->getParameters()) {
         if (p->getType()) {
             p->getType()->accept(m_this);
         }
-        if (p->getName()) {
-            m_generic_constraint_params.insert(p->getName()->getId());
-        }
     }
 
-    // Visit constraint body
+    m_ctxt->enterGenericConstraint();
     visitConstraintBlock(i);
+    m_ctxt->leaveGenericConstraint();
 
-    m_generic_constraint_params = saved;
     DEBUG_LEAVE("visitGenericConstraintDeclBool");
 }
 
@@ -5210,27 +5263,22 @@ void TaskResolveRefs::visitGenericConstraintDeclValue(ast::IGenericConstraintDec
         i->getReturn_type()->accept(m_this);
     }
 
-    std::set<std::string> saved = m_generic_constraint_params;
     for (auto &p : i->getParameters()) {
         if (p->getType()) {
             p->getType()->accept(m_this);     // see visitGenericConstraintDeclBool
         }
-        if (p->getName()) {
-            m_generic_constraint_params.insert(p->getName()->getId());
-        }
     }
 
-    // Visit the return expression
+    // The expression, with the parameters in scope.
     if (i->getExpr()) {
+        m_ctxt->symtab()->pushScope(i);
+        m_ctxt->enterGenericConstraint();
         i->getExpr()->accept(m_this);
+        m_ctxt->leaveGenericConstraint();
+        m_ctxt->symtab()->popScope();
     }
 
-    m_generic_constraint_params = saved;
     DEBUG_LEAVE("visitGenericConstraintDeclValue");
-}
-
-bool TaskResolveRefs::isGenericConstraintParam(const std::string &name) const {
-    return m_generic_constraint_params.find(name) != m_generic_constraint_params.end();
 }
 
 dmgr::IDebug *TaskResolveRefs::m_dbg = 0;

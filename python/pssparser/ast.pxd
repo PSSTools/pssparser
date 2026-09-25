@@ -406,8 +406,7 @@ cdef class Factory(object):
     bool is_default,
     ExprOpenRangeList cond,
     ScopeChild body)
-    cpdef ProceduralStmtRandomize mkProceduralStmtRandomize(self,
-    Expr target)
+    cpdef ProceduralStmtRandomize mkProceduralStmtRandomize(self)
     cpdef ProceduralStmtReturn mkProceduralStmtReturn(self,
     Expr expr)
     cpdef ProceduralStmtSuper mkProceduralStmtSuper(self)
@@ -2162,7 +2161,10 @@ cdef class ProceduralStmtRandomize(ExecStmt):
     cdef ast_decl.IProceduralStmtRandomize *asProceduralStmtRandomize(self)
     @staticmethod
     cdef ProceduralStmtRandomize mk(ast_decl.IProceduralStmtRandomize *hndl, bool owned)
-    cpdef Expr getTarget(self)
+    cpdef getTargets(self)
+    cpdef getTarget(self, i)
+    cpdef void addTarget(self, Expr i)
+    cpdef numTargets(self)
     cpdef getConstraints(self)
     cpdef getConstraint(self, i)
     cpdef void addConstraint(self, ConstraintStmt i)

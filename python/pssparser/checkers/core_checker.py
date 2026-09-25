@@ -1088,6 +1088,32 @@ class CoreChecker(CheckerBase):
                 "is an error, because the cast's type is ``int``."
             ),
         ),
+        MarkerDef(
+            id="PSS047",
+            severity="error",
+            summary="Template argument of the wrong kind",
+            patterns=(
+                r"^template parameter '[^']*' expects a (value|type)\b",
+            ),
+            detail=(
+                "A template parameter is either a value parameter or a type "
+                "parameter (10.3), and its argument has to be of the same "
+                "kind.  A name spells a type and a constant alike, so "
+                "``S<X>`` is decided by what ``X`` names: for a value "
+                "parameter, ``X`` is looked up as a value -- an enum item of "
+                "the parameter's enumeration type first (18.3 a), then the "
+                "usual scopes -- and a type found there is reported.  "
+                "Messages:\n\n"
+                "* ``template parameter 'N' expects a value, but 'my_s' is a "
+                "type``\n"
+                "* ``template parameter 'N' expects a value, but the argument "
+                "supplied is a type`` (a built-in type, ``S<int>``)\n"
+                "* ``template parameter 'T' expects a type, but the argument "
+                "supplied is a value`` (``S<4>`` for ``S<type T>``)\n\n"
+                "A name that is not declared at all is PSS002 (``unknown "
+                "identifier``)."
+            ),
+        ),
 
         # -- PSS 3.1 language-rule diagnostics (PSS100-PSS199) --------------
         #
