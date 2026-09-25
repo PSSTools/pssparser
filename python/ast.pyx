@@ -2342,6 +2342,8 @@ cdef class FunctionParamDecl(ScopeChild):
             return <Expr>(of._obj)
     cpdef bool getIs_varargs(self):
         return dynamic_cast[ast_decl.IFunctionParamDeclP](self._hndl).getIs_varargs()
+    cpdef bool getIs_const(self):
+        return dynamic_cast[ast_decl.IFunctionParamDeclP](self._hndl).getIs_const()
 
 cdef class ActivityJoinSpec(ScopeChild):
     

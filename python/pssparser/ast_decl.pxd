@@ -1500,6 +1500,9 @@ cdef extern from "pssp/ast/IFunctionParamDecl.h" namespace "pssp::ast":
         bool getIs_varargs()
         
         void setIs_varargs(bool v)
+        bool getIs_const()
+        
+        void setIs_const(bool v)
 
 cdef extern from "pssp/ast/IActivityJoinSpec.h" namespace "pssp::ast":
     cpdef cppclass IActivityJoinSpec(IScopeChild):

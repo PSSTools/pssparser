@@ -4534,6 +4534,11 @@ antlrcpp::Any AstBuilderInt::visitExpression(PSSParser::ExpressionContext *ctx) 
 		m_expr = m_factory->mkExprUnary(
 			prv_str2unop.find(ctx->unary_op()->getText())->second,
 			lhs);
+	} else if (ctx->cast_expression()) {
+		ast::IExpr *lhs = mkExpr(ctx->lhs);
+
+		ctx->cast_expression()->casting_type()->accept(this);
+		m_expr = m_factory->mkExprCast(m_type, lhs);
 	} else if (ctx->lhs && ctx->rhs) {
 		// It's some form of binary op
 		ast::IExpr *lhs = mkExpr(ctx->lhs);
@@ -4687,19 +4692,6 @@ antlrcpp::Any AstBuilderInt::visitCompile_has_expr(PSSParser::Compile_has_exprCo
     m_expr = m_factory->mkExprCompileHas(
         (ctx->ref_path())?mkExprRefPath(ctx->ref_path()):0);
     return 0;
-}
-
-antlrcpp::Any AstBuilderInt::visitCast_expression(PSSParser::Cast_expressionContext *ctx) {
-	DEBUG_ENTER("visitCast_expression");
-	ast::IExpr *expr = mkExpr(ctx->expression());
-
-	ctx->casting_type()->accept(this);
-	ast::IDataType *type = m_type;
-
-	m_expr = m_factory->mkExprCast(type, expr);
-
-	DEBUG_LEAVE("visitCast_expression");
-	return 0;
 }
 
 // B.18 Identifiers
@@ -6677,7 +6669,11 @@ bool AstBuilderInt::evalConstantExpression(PSSParser::Constant_expressionContext
 }
 
 bool AstBuilderInt::evalExpression(PSSParser::ExpressionContext *ctx, int64_t &val) {
-    if (ctx->unary_op()) {
+    if (ctx->cast_expression()) {
+        // The value, not converted to the cast's type: what this has always
+        // done for a cast in a constant expression.
+        return evalExpression(ctx->lhs, val);
+    } else if (ctx->unary_op()) {
         int64_t rhs = 0;
         if (!evalExpression(ctx->lhs, rhs)) {
             return false;
@@ -6778,8 +6774,6 @@ bool AstBuilderInt::evalExpression(PSSParser::ExpressionContext *ctx, int64_t &v
         } else if (ctx->primary()->ref_path()) {
             ast::IScopeChild *target = resolveRefPathTarget(ctx->primary()->ref_path());
             return target ? evalScopeChildValue(target, val) : false;
-        } else if (ctx->primary()->cast_expression()) {
-            return evalExpression(ctx->primary()->cast_expression()->expression(), val);
         }
     }
     return false;
@@ -8195,6 +8189,9 @@ ast::IFunctionParamDecl *AstBuilderInt::mkFunctionParamDecl(PSSParser::Function_
         type,
         dir,
         dflt);
+    // `const` (LRM 20.2.3) is part of the signature: an aggregate literal
+    // may be passed only to a const parameter.
+    ret->setIs_const(ctx->TOK_CONST() != 0);
     attachDocstring(ret, ctx->start);
 
     DEBUG_LEAVE("mkFunctionParamDecl");

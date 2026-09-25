@@ -1793,6 +1793,7 @@ constant_expression: expression;
 expression:
 	primary                                             |
 	unary_op lhs=expression								|
+	cast_expression lhs=expression						|
 	lhs=expression exp_op rhs=expression 				|
 	lhs=expression mul_div_mod_op rhs=expression 		|
 	lhs=expression add_sub_op rhs=expression			|
@@ -1902,7 +1903,6 @@ primary:
 	| string_literal (TOK_DOT member_path_elem)*
 	| null_ref
 	| paren_expr
-	| cast_expression
 	| compile_has_expr
 	;
 
@@ -1916,8 +1916,13 @@ paren_expr:
 	TOK_LPAREN expression TOK_RPAREN
 	;
 
+// Only the `( casting_type )` prefix. Its operand is the `lhs` of the
+// `expression` alternative that uses it, so the cast binds at the unary level
+// (Table 11: cast is precedence 2, right-associative, with the unary
+// operators): `(bit[4])b + c` is `((bit[4])b) + c`. Taking a whole
+// `expression` here made the cast swallow everything to its right.
 cast_expression:
-	TOK_LPAREN casting_type TOK_RPAREN expression
+	TOK_LPAREN casting_type TOK_RPAREN
 	;
 
 //ref_path:

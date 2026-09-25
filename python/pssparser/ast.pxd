@@ -870,6 +870,7 @@ cdef class FunctionParamDecl(ScopeChild):
     cpdef void setDir(self, int v)
     cpdef Expr getDflt(self)
     cpdef bool getIs_varargs(self)
+    cpdef bool getIs_const(self)
 
 cdef class ActivityJoinSpec(ScopeChild):
     
