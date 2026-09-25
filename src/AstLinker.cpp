@@ -30,6 +30,7 @@
 #include "pssp/impl/InternalError.h"
 #include "pssp/impl/TaskCloneSymbolScope.h"
 #include "AstLinker.h"
+#include "MarkerLocationRecorder.h"
 #include "ResolveContext.h"
 #include "TaskApplyOverlay.h"
 #include "TaskApplyTypeExtensions.h"
@@ -37,6 +38,7 @@
 #include "TaskResolveRefsOverlay.h"
 #include "TaskResolveRefs.h"
 #include "TaskResolveSuperTypes.h"
+#include "TaskResolveImports.h"
 #include "TaskCheckPackedStructs.h"
 #include "TaskCheckPackedUses.h"
 #include "TaskCheckRefsResolved.h"
@@ -140,6 +142,11 @@ void AstLinker::linkPasses(
         bool                                    own_scopes,
         ast::IRootSymbolScope                   *&symtree,
         const char                              *&pass) {
+    // Every pass reports through this, so the completeness gate at the end
+    // knows what has already been said, whichever pass said it.
+    MarkerLocationRecorder recorder(marker_l);
+    marker_l = &recorder;
+
     uint64_t build_symtree_s = time_ms();
     pass = "building the symbol tree";
     symtree = TaskBuildSymbolTree(
@@ -148,6 +155,14 @@ void AstLinker::linkPasses(
         marker_l).build(scopes, own_scopes);
     uint64_t build_symtree_e = time_ms();
     DEBUG("Build symtree: %lldms", (build_symtree_e-build_symtree_s));
+
+    // Every import's target, each from where the import is written, before
+    // any pass that looks a name up (symbol-resolution-plan.md 6.2).
+    pass = "resolving imports";
+    {
+        ResolveContext imp_ctxt(m_factory, marker_l, symtree);
+        TaskResolveImports(&imp_ctxt).resolveAll(symtree);
+    }
 
     // Now, apply type extension
     uint64_t apply_ext_s = time_ms();

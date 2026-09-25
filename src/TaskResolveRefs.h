@@ -26,12 +26,23 @@
 #include "pssp/ast/ISymbolScope.h"
 #include "pssp/ast/impl/VisitorBase.h"
 #include <set>
+#include <unordered_map>
 #include "ResolveContext.h"
 #include "TaskCompareTypeRefs.h"
 #include "TaskResolveBase.h"
 #include "TaskResolveRootRef.h"
 #include "pssp/ast/IActionFieldInitializer.h"
 #include "pssp/ast/IExprBitSlice.h"
+#include "pssp/ast/IExprBin.h"
+#include "pssp/ast/IExprCast.h"
+#include "pssp/ast/IExprCond.h"
+#include "pssp/ast/IExprIn.h"
+#include "pssp/ast/IMethodParameterList.h"
+#include "pssp/ast/IExprOpenRangeList.h"
+#include "pssp/ast/IConstraintStmtDist.h"
+#include "pssp/ast/IProceduralStmtAssignment.h"
+#include "pssp/ast/IProceduralStmtDataDeclaration.h"
+#include "pssp/ast/ISymbolEnumScope.h"
 
 namespace pssp {
 
@@ -90,6 +101,23 @@ public:
 
     virtual void visitExecScope(ast::IExecScope *i) override;
 
+    /**
+     * The 8.4.3 contexts: each gives one operand an expected type, which
+     * step a of 18.3 reads (symbol-resolution plan 8.1). Only enumeration
+     * types are carried for now.
+     */
+    virtual void visitExprBin(ast::IExprBin *i) override;
+    virtual void visitExprIn(ast::IExprIn *i) override;
+    virtual void visitExprCast(ast::IExprCast *i) override;
+
+    virtual void visitConstraintStmtDefault(ast::IConstraintStmtDefault *i) override;
+
+    virtual void visitTemplateValueParamDecl(ast::ITemplateValueParamDecl *i) override;
+    virtual void visitExprCond(ast::IExprCond *i) override;
+    virtual void visitConstraintStmtDist(ast::IConstraintStmtDist *i) override;
+    virtual void visitProceduralStmtAssignment(ast::IProceduralStmtAssignment *i) override;
+    virtual void visitProceduralStmtDataDeclaration(ast::IProceduralStmtDataDeclaration *i) override;
+
     virtual void visitExprRefPathContext(ast::IExprRefPathContext *i) override;
 
 
@@ -98,6 +126,58 @@ public:
     virtual void visitExprRefPathStaticRooted(ast::IExprRefPathStaticRooted *i) override;
 
 private:
+    /**
+     * Visit `e` with `expected` as its expected type (8.4.3). The type
+     * reaches `e` itself and nothing inside it, apart from both arms of a
+     * `?:`. A null `expected` visits `e` plainly.
+     */
+    void visitExpecting(ast::IExpr *e, ast::ISymbolEnumScope *expected);
+
+    /** Each value and bound of `l` expects `expected` (an `in` or a `match`). */
+    void visitRangesExpecting(ast::IExprOpenRangeList *l, ast::ISymbolEnumScope *expected);
+
+    /**
+     * Each element of an aggregate literal expects `elem`, the element type
+     * of the array or collection it is assigned to (8.4.2, 8.4.3).
+     */
+    void visitAggrExpecting(ast::IExprAggrList *l, ast::ISymbolEnumScope *elem);
+
+    /**
+     * A call's arguments, each expecting its formal parameter's type
+     * (8.4.3). `callee` is what the call names; anything other than a
+     * function visits them plainly.
+     */
+    void visitCallArgs(ast::IMethodParameterList *params, ast::IScopeChild *callee);
+
+    /** The expected type visitExpecting() gave `e`, or null. */
+    ast::ISymbolEnumScope *expectedFor(ast::IExpr *e) const;
+
+    /**
+     * Step a of 18.3: the bare name `i` as an item of its expected type
+     * `e`. Null when it is not one. Warns (PSS044) when the item hides a
+     * declaration the name has lexically.
+     */
+    ast::ISymbolRefPath *lookupExpectedItem(
+        ast::IExprRefPathContext    *i,
+        ast::ISymbolEnumScope       *e);
+
+    /**
+     * `a == b` with both sides bare names (decision Q2): each side's own
+     * type -- the type of its lexical binding -- is the expected type of
+     * the other. Reported (PSS045) when both readings would change what a
+     * name binds to.
+     */
+    void resolveBareComparison(
+        ast::IExprRefPathContext    *lhs,
+        ast::IExprRefPathContext    *rhs);
+
+    /**
+     * What `id` binds to lexically, without step a and without reporting
+     * anything. Null for an enum item the lookup settled for only because
+     * nothing else of the name is in scope: by 18.3 that is no binding (8.2).
+     */
+    ast::IScopeChild *peekLexical(const ast::IExprId *id);
+
     void resolveExprRefPathContext(ast::IExprRefPathContext *i);
     void resolveExprRefPathStatic(ast::IExprRefPathStatic *i);
     void resolveExprRefPathStaticRooted(ast::IExprRefPathStaticRooted *i);
@@ -312,6 +392,15 @@ protected:
     void checkScopeAnnotations(ast::ISymbolScope *scope);
 
     /**
+     * The same for a block that is not a symbol scope of its own kind (a
+     * procedural block, a loop body): the annotations on its statements.
+     */
+    void checkBlockAnnotations(ast::IScope *scope);
+
+    /** Resolve each of `anns` not already resolved. */
+    void checkAnnotations(const std::vector<ast::IAnnotationUP> &anns);
+
+    /**
      * Resolve the leaf of a package-qualified reference (`p::g(1,2,3)`)
      * against the scope its static root names. See known-issues P3-X6e.
      */
@@ -342,6 +431,16 @@ protected:
      * reports it.
      */
     void reportStaticContext(const ast::IExprId *id);
+
+    /**
+     * If the lookup of `id` that just succeeded settled for an enum item
+     * because nothing else of the name is in scope (the enum-item hint),
+     * warns (PSS046): 18.3 finds an item unqualified only by the expected
+     * type, `expected`, which did not have it (8.2).
+     */
+    void reportEnumItemFallback(
+        ast::IExprRefPathContext    *ref,
+        ast::ISymbolEnumScope       *expected);
 
     /**
      * `T::m`, where `scope` is the type T and `member` is m. 18.3: a type
@@ -376,12 +475,14 @@ protected:
     /**
      * The lookup `{% x = expr; %}` makes for its target: the innermost scope
      * declaring `x` before the assignment. True if found; `in_template` says
-     * whether that scope is the template string's own. `fwd_decl` is a later
-     * declaration of `x` passed over on the way, if any.
+     * whether that scope is the template string's own, and `decl` is what
+     * was found. `fwd_decl` is a later declaration of `x` passed over on the
+     * way, if any.
      */
     bool findTemplateAssignTarget(
         const ast::IExprId          *id,
         bool                        &in_template,
+        ast::IScopeChild            *&decl,
         ast::IScopeChild            *&fwd_decl);
 
     bool isBuiltinWithMethods(ast::IScopeChild *c);
@@ -604,6 +705,17 @@ private:
      * empty is left alone rather than reported.
      */
     std::vector<ast::IFunctionPrototype *> m_func_s;
+
+    /** Expected types in force, by operand; see visitExpecting(). */
+    std::unordered_map<ast::IExpr *, ast::ISymbolEnumScope *> m_expected;
+
+    /**
+     * A bare call argument whose formal parameter's type is not bound yet --
+     * declared in a later file, which the order of resolution allows. Its
+     * expected type is known only once resolution is done, so PSS046 on the
+     * argument is decided then (reportEnumItemFallback).
+     */
+    std::unordered_map<ast::IExpr *, ast::IFunctionParamDecl *> m_pending_formal;
 
 };
 

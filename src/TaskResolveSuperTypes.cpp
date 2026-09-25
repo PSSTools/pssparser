@@ -21,7 +21,6 @@
 #include "dmgr/impl/DebugMacros.h"
 #include "TaskResolveSuperTypes.h"
 #include "TaskResolveRef.h"
-#include "TaskResolveImports.h"
 #include "pssp/ast/ITypeScope.h"
 #include "pssp/ast/IAction.h"
 
@@ -37,14 +36,8 @@ void TaskResolveSuperTypes::resolve(ast::IRootSymbolScope *root) {
     DEBUG_ENTER("resolve");
     m_ctxt->pushSymtab(m_ctxt->getFactory()->mkAstSymbolTableIterator(root));
 
-    // Imports must be resolved before super-type identifiers, since a super
-    // type is routinely named through one. TaskApplyTypeExtensions already
-    // resolves package-level imports and TaskResolveRefs resolves them again,
-    // so this pass repeating the work is consistent with existing behaviour.
-    if (root->getImports()) {
-        TaskResolveImports(m_ctxt).resolve(root);
-    }
-
+    // A super type is routinely named through an import; every import is
+    // resolved before this pass (TaskResolveImports::resolveAll).
     visitScopeChildren(root);
 
     m_ctxt->popSymtab();
@@ -67,9 +60,6 @@ void TaskResolveSuperTypes::visitScopeChildren(ast::ISymbolScope *i) {
 void TaskResolveSuperTypes::visitSymbolScope(ast::ISymbolScope *i) {
     DEBUG_ENTER("visitSymbolScope %s", i->getName().c_str());
     m_ctxt->symtab()->pushScope(i);
-    if (i->getImports()) {
-        TaskResolveImports(m_ctxt).resolve(i);
-    }
     visitScopeChildren(i);
     m_ctxt->symtab()->popScope();
     DEBUG_LEAVE("visitSymbolScope %s", i->getName().c_str());
@@ -94,12 +84,6 @@ void TaskResolveSuperTypes::visitSymbolTypeScope(ast::ISymbolTypeScope *i) {
     }
 
     m_ctxt->symtab()->pushScope(i);
-
-    // A type scope's own imports matter here: a super type is routinely
-    // named through one (`component c { import p::*; action a : base_a {} }`).
-    if (i->getImports()) {
-        TaskResolveImports(m_ctxt).resolve(i);
-    }
 
     ast::IAction *i_a = dynamic_cast<ast::IAction *>(i_ts);
 

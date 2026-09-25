@@ -19,66 +19,60 @@
  *     Author: 
  */
 #pragma once
-#include <set>
 #include "dmgr/IDebugMgr.h"
 #include "pssp/ast/ISymbolScope.h"
-#include "pssp/ast/impl/VisitorBase.h"
+#include "NameLookup.h"
 
 namespace pssp {
 
-
-
-
-class TaskFindPathElem : public virtual ast::VisitorBase {
+/**
+ * A qualified step: `id` as a member of `src`, its base types included.
+ * Kept so that callers need not change; see NameLookup::lookupMember.
+ */
+class TaskFindPathElem {
 public:
     struct Result {
         ast::IScopeChild        *sym;
         int32_t                 idx;
         int32_t                 super_idx;
+        /** See NameLookup::Member::fwd_pkg. */
+        int32_t                 fwd_pkg;
+
+        /** Append this step to `path`, the path to the scope searched. */
+        void appendTo(ast::ISymbolRefPath *path) const {
+            NameLookup::Member m;
+            m.idx = idx;
+            m.super_depth = super_idx;
+            m.fwd_pkg = fwd_pkg;
+            m.appendTo(path);
+        }
     };
 
     TaskFindPathElem(
         dmgr::IDebugMgr         *dmgr,
-        ast::ISymbolScope       *root);
+        ast::ISymbolScope       *root) : m_dmgr(dmgr), m_root(root) { }
 
-    virtual ~TaskFindPathElem();
-
-    Result find(
-        ast::ISymbolScope       *src,
-        ast::IExprId            *id);
-
-    virtual void visitSymbolScope(ast::ISymbolScope *i) override;
-
-    virtual void visitSymbolTypeScope(ast::ISymbolTypeScope *i) override;
-
-    virtual void visitTypeScope(ast::ITypeScope *i) override;
-
-private:
-    static dmgr::IDebug             *m_dbg;
-    dmgr::IDebugMgr                 *m_dmgr;
-    ast::ISymbolScope               *m_root;
-    ast::IExprId                    *m_id;
-    Result                          m_ret;
-    int32_t                         m_super_depth;
+    virtual ~TaskFindPathElem() { }
 
     /**
-     * Type scopes on the current super-type chain.
-     *
-     * The search walks from a type to its base and keeps going until it finds
-     * the name or runs out of bases. "Runs out of bases" assumes the chain
-     * ends, and inheritance is a reference the user wrote, so it need not:
-     * `struct A : B {}; struct B : A {};` is a ring.
-     *
-     * Note that only a search that FAILS goes round it -- one that finds the
-     * name stops at the scope holding it. So the crash this prevents is not
-     * reached by the cyclic declaration itself, but by the first typo against
-     * a type that participates in one, which is why it survived so long.
-     *
-     * m_super_depth is not this guard and cannot become it: it is reported to
-     * the caller as `super_idx`, the number of hops the name was found at.
+     * `sym` is null on a miss, and also when the model is incomplete and a
+     * caller has no scope to search. `super_idx` is the number of base types
+     * crossed.
      */
-    std::set<ast::IScopeChild *>    m_super_chain;
+    Result find(
+        ast::ISymbolScope       *src,
+        ast::IExprId            *id) {
+        if (!src || !id) {
+            return {0, -1, -1, -1};
+        }
+        NameLookup::Member m = NameLookup::lookupMember(
+            m_dmgr, m_root, src, id->getId());
+        return {m.sym, m.idx, m.super_depth, m.fwd_pkg};
+    }
 
+private:
+    dmgr::IDebugMgr             *m_dmgr;
+    ast::ISymbolScope           *m_root;
 };
 
 }

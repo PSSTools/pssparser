@@ -144,7 +144,7 @@ public:
                     // type has at most one super type, so depth is spelled as
                     // repeated Super elements rather than as a count.
                     //
-                    // Recorded by TaskResolveRootRef when an unqualified name
+                    // Recorded by NameLookup when an unqualified name
                     // is found in a base type's scope. Until this was
                     // implemented the case fell through with `ret` untouched,
                     // so `scope` stayed on the *derived* type and the base's

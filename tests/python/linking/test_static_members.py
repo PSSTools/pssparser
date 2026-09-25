@@ -88,10 +88,8 @@ component pss_top {
     "component pss_top { int fld; function int g() { return pss_top::fld; } }\n"
     "extend component pss_top { function int h() { return pss_top::fld; } }",
 ])
-def test_through_the_type_where_allowed(decls):
-    # Not assert_links_and_binds: its reference walk counts every qualified
-    # *call* (`p::f(1)`) as unbound, 7.3 or no, while resolution binds it.
-    assert errors(decls) == []
+def test_through_the_type_where_allowed(tmp_path, decls):
+    assert_links_and_binds(tmp_path, decls)
 
 
 # ---------------------------------------------------------------------------

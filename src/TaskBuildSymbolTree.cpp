@@ -935,7 +935,7 @@ void TaskBuildSymbolTree::visitFunctionPrototype(ast::IFunctionPrototype *i) {
     copyDocInfo(func_sym, i);
 
     // The plist was built on the creation branch above (a bare prototype once
-    // had none, and TaskResolveRootRef and TaskResolveSymbolPathRef read it
+    // had none, and NameLookup and TaskResolveSymbolPathRef read it
     // unguarded). A later prototype adds nothing to it: its parameters are
     // the same ones, by position, under names the body does not use. This
     // loop used to append each name it had not seen, so `function int f(int
@@ -1035,12 +1035,19 @@ void TaskBuildSymbolTree::visitPackageImportStmt(ast::IPackageImportStmt *i) {
 
     DEBUG("Add import to scope %s", scope->getName().c_str());
 
-    // See if this import already exists
+    // See if this import already exists. Only in the same statement: an
+    // import applies only within the statement it is written in (18.1.3), so
+    // the same import written in another `package` statement or file is
+    // another import, needed there. An alias is never a duplicate:
+    // `import a; import a as x;` are two imports, and two aliases of one
+    // name are an error TaskResolveImports reports (18.1.4).
     bool exists = false;
     for (std::vector<ast::IPackageImportStmt *>::const_iterator
         it=scope->getImports()->getImports().begin();
         it!=scope->getImports()->getImports().end(); it++) {
-        if (i->getWildcard() == (*it)->getWildcard()) {
+        if (i->getWildcard() == (*it)->getWildcard()
+                && i->getParent() == (*it)->getParent()
+                && !i->getAlias() && !(*it)->getAlias()) {
             // Compare the paths
             if (i->getPath()->getElems().size() == (*it)->getPath()->getElems().size()) {
                 uint32_t ii;

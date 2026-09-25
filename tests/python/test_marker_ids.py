@@ -88,6 +88,21 @@ REPRESENTATIVE_MESSAGES = [
                "'comp'; name it without 'comp.', as 'st' (9.1.4.1 f)"),
     ("PSS041", "cannot reach static member 'SK' of 'sub_c' through 'comp'; "
                "name it through the type instead, as 'sub_c::SK' (9.1.4.1 f)"),
+    ("PSS042", "'x' was left unbound by pssparser, although the model "
+               "declares it: a pssparser defect, please report it"),
+    ("PSS043", "package alias 'X' is already declared in this scope; two "
+               "aliases in one scope shall not share a name (18.1.4)"),
+    ("PSS043", "package alias 'foo' has the same name as a package declared "
+               "in package 'P'; rename the alias (18.1.4)"),
+    ("PSS044", "'A' is read as the enum item mode_e::A, which hides the "
+               "field 'A' (18.3 a); qualify one of them"),
+    ("PSS045", "ambiguous comparison of 'A' and 'B': either 'A' is e2::A or "
+               "'B' is e1::B; qualify the enum item (8.4.3, 18.3 a)"),
+    ("PSS046", "enum item 'ORANGE' is used where no enumeration type is "
+               "expected (7.5 i, 8.4.3); qualify it as 'color_e::ORANGE'"),
+    ("PSS046", "enum item 'RED' is used where 'mode_e' is expected, but it is "
+               "an item of 'color_e' (7.5 i, 8.4.3); qualify it as "
+               "'color_e::RED'"),
     ("PSS006", "call to 'g' expects 1 argument, got 3"),
     ("PSS006", "call to 'g' expects 1 to 2 arguments, got 0"),
     ("PSS006", "call to 'g' expects at least 1 argument, got 0"),

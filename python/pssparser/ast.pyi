@@ -194,17 +194,21 @@ class Factory(object):
         name : ExprRefName,
         value : Expr) -> 'ExprAggrStructElem': ...
     def mkAssocData(self) -> 'AssocData': ...
-    def mkTemplateParamValueList(self) -> 'TemplateParamValueList': ...
+    def mkSymbolExtMember(self,
+        name : str,
+        idx : int,
+        pkg : SymbolScope) -> 'SymbolExtMember': ...
     def mkCompileCond(self) -> 'CompileCond': ...
     def mkSymbolImportSpec(self) -> 'SymbolImportSpec': ...
     def mkSymbolRefPath(self) -> 'SymbolRefPath': ...
+    def mkTemplateParamValue(self) -> 'TemplateParamValue': ...
     def mkActivityMatchChoice(self,
         is_default : bool,
         cond : ExprOpenRangeList,
         body : ScopeChild) -> 'ActivityMatchChoice': ...
     def mkTemplateParamDeclList(self) -> 'TemplateParamDeclList': ...
-    def mkTemplateParamValue(self) -> 'TemplateParamValue': ...
     def mkExpr(self) -> 'Expr': ...
+    def mkTemplateParamValueList(self) -> 'TemplateParamValueList': ...
     def mkActivitySelectBranch(self,
         guard : Expr,
         weight : Expr,
@@ -293,8 +297,6 @@ class Factory(object):
         expr : Expr) -> 'DistWeight': ...
     def mkExecBlockTag(self,
         type : TypeIdentifier) -> 'ExecBlockTag': ...
-    def mkTemplateParamDecl(self,
-        name : ExprId) -> 'TemplateParamDecl': ...
     def mkExecStmt(self) -> 'ExecStmt': ...
     def mkExecTargetTemplateBlock(self,
         kind : ExecKind,
@@ -305,15 +307,14 @@ class Factory(object):
     def mkExportFunction(self,
         plat : PlatQual,
         name : ExprRefName) -> 'ExportFunction': ...
+    def mkTemplateParamDecl(self,
+        name : ExprId) -> 'TemplateParamDecl': ...
     def mkTemplateParamExprValue(self,
         value : Expr) -> 'TemplateParamExprValue': ...
     def mkTemplateParamTypeValue(self,
         value : DataType) -> 'TemplateParamTypeValue': ...
     def mkExprAggrLiteral(self) -> 'ExprAggrLiteral': ...
     def mkTypeIdentifier(self) -> 'TypeIdentifier': ...
-    def mkTypeIdentifierElem(self,
-        id : ExprId,
-        params : TemplateParamValueList) -> 'TypeIdentifierElem': ...
     def mkExprBin(self,
         lhs : Expr,
         op : ExprBinOp,
@@ -363,13 +364,16 @@ class Factory(object):
     def mkExprRefName(self,
         id : ExprId) -> 'ExprRefName': ...
     def mkExprRefPath(self) -> 'ExprRefPath': ...
-    def mkTypedefDeclaration(self,
-        name : ExprId,
-        type : DataType) -> 'TypedefDeclaration': ...
+    def mkTypeIdentifierElem(self,
+        id : ExprId,
+        params : TemplateParamValueList) -> 'TypeIdentifierElem': ...
     def mkExprSliceRange(self) -> 'ExprSliceRange': ...
     def mkExprString(self,
         value : str,
         is_raw : bool) -> 'ExprString': ...
+    def mkTypedefDeclaration(self,
+        name : ExprId,
+        type : DataType) -> 'TypedefDeclaration': ...
     def mkExprUnary(self,
         op : ExprUnaryOp,
         rhs : Expr) -> 'ExprUnary': ...
@@ -569,15 +573,15 @@ class Factory(object):
     def mkTypeOverride(self,
         target : TypeIdentifier,
         with_t : TypeIdentifier) -> 'TypeOverride': ...
-    def mkTypeScope(self,
-        name : ExprId,
-        super_t : TypeIdentifier) -> 'TypeScope': ...
     def mkActivityActionHandleTraversal(self,
         target : ExprRefPathContext,
         with_c : ConstraintStmt) -> 'ActivityActionHandleTraversal': ...
     def mkActivityActionTypeTraversal(self,
         target : DataTypeUserDefined,
         with_c : ConstraintStmt) -> 'ActivityActionTypeTraversal': ...
+    def mkTypeScope(self,
+        name : ExprId,
+        super_t : TypeIdentifier) -> 'TypeScope': ...
     def mkSymbolScope(self,
         name : str) -> 'SymbolScope': ...
     def mkConstraintBlock(self,
@@ -790,14 +794,14 @@ class ExprAggrStructElem(object):
 class AssocData(object):
     pass
     
-class TemplateParamValueList(object):
+class SymbolExtMember(object):
     pass
     
-    def values(self) -> ListUtil[TemplateParamValue]: ...
-    def getValues(self) -> List[TemplateParamValue]: ...
-    def getValue(self, i: int) -> TemplateParamValue: ...
-    def addValue(self, i: TemplateParamValue) -> None: ...
-    def numValues(self) -> int: ...
+    def getName(self) -> str: ...
+    
+    def setName(self, v : str): ...
+    
+    def getPkg(self) -> SymbolScope: ...
     
 class CompileCond(object):
     pass
@@ -831,6 +835,9 @@ class SymbolRefPath(object):
     def addPath(self, i: SymbolRefPathElem) -> None: ...
     def numPath(self) -> int: ...
     
+class TemplateParamValue(object):
+    pass
+    
 class ActivityMatchChoice(object):
     pass
     
@@ -847,11 +854,17 @@ class TemplateParamDeclList(object):
     def addParam(self, i: TemplateParamDecl) -> None: ...
     def numParams(self) -> int: ...
     
-class TemplateParamValue(object):
-    pass
-    
 class Expr(object):
     pass
+    
+class TemplateParamValueList(object):
+    pass
+    
+    def values(self) -> ListUtil[TemplateParamValue]: ...
+    def getValues(self) -> List[TemplateParamValue]: ...
+    def getValue(self, i: int) -> TemplateParamValue: ...
+    def addValue(self, i: TemplateParamValue) -> None: ...
+    def numValues(self) -> int: ...
     
 class ActivitySelectBranch(object):
     pass
@@ -1994,44 +2007,6 @@ class ExecBlockTag(ScopeChild):
     
     def getLiteral(self) -> ExprAggrStruct: ...
     
-class TemplateParamDecl(ScopeChild):
-    """
-    Base class for template parameter declarations.
-    
-    Template parameters allow types and functions to be parameterized, enabling
-    generic programming in PSS. This abstract base class provides the common name
-    field shared by all template parameter types (generic type, category-constrained
-    type, and value parameters).
-    
-    PSS Example::
-    
-        // Generic type parameter T
-        action generic<T> {
-            rand T value;
-        }
-        
-        // Value parameter N
-        action sized<int N> {
-            int array[N];
-        }
-        
-        // Category-constrained parameter T
-        component container<T: action> {
-            T inst;
-        }
-    
-    Attributes:
-        name: Identifier for the template parameter
-    
-    See Also:
-        TemplateGenericTypeParamDecl, TemplateCategoryTypeParamDecl,
-        TemplateValueParamDecl, TemplateParamDeclList
-    
-    """
-    pass
-    
-    def getName(self) -> ExprId: ...
-    
 class ExecStmt(ScopeChild):
     """
     Base class for all procedural statements in exec blocks.
@@ -2186,6 +2161,44 @@ class ExportFunction(ScopeChild):
     
     def getName(self) -> ExprRefName: ...
     
+class TemplateParamDecl(ScopeChild):
+    """
+    Base class for template parameter declarations.
+    
+    Template parameters allow types and functions to be parameterized, enabling
+    generic programming in PSS. This abstract base class provides the common name
+    field shared by all template parameter types (generic type, category-constrained
+    type, and value parameters).
+    
+    PSS Example::
+    
+        // Generic type parameter T
+        action generic<T> {
+            rand T value;
+        }
+        
+        // Value parameter N
+        action sized<int N> {
+            int array[N];
+        }
+        
+        // Category-constrained parameter T
+        component container<T: action> {
+            T inst;
+        }
+    
+    Attributes:
+        name: Identifier for the template parameter
+    
+    See Also:
+        TemplateGenericTypeParamDecl, TemplateCategoryTypeParamDecl,
+        TemplateValueParamDecl, TemplateParamDeclList
+    
+    """
+    pass
+    
+    def getName(self) -> ExprId: ...
+    
 class TemplateParamExprValue(TemplateParamValue):
     """
     Expression value for template instantiation.
@@ -2324,32 +2337,6 @@ class TypeIdentifier(Expr):
     def numElems(self) -> int: ...
     
     def getTarget(self) -> SymbolRefPath: ...
-    
-class TypeIdentifierElem(Expr):
-    """
-    Represents a single element in a type identifier path.
-    
-    Building block for type identifiers. Contains an identifier and optional
-    template parameters. Multiple elements are chained for qualified type names.
-    
-    PSS Example::
-    
-        my_pkg          // Simple element
-        container<int>  // Element with template parameters
-    
-    Attributes:
-        id: The identifier name
-        params: Template parameter value list if present
-    
-    See Also:
-        TypeIdentifier, ExprId, TemplateParamValueList
-    
-    """
-    pass
-    
-    def getId(self) -> ExprId: ...
-    
-    def getParams(self) -> TemplateParamValueList: ...
     
 class ExprBin(Expr):
     """
@@ -2926,12 +2913,31 @@ class ExprRefPath(Expr):
     
     def getTarget(self) -> SymbolRefPath: ...
     
-class TypedefDeclaration(ScopeChild):
+class TypeIdentifierElem(Expr):
+    """
+    Represents a single element in a type identifier path.
+    
+    Building block for type identifiers. Contains an identifier and optional
+    template parameters. Multiple elements are chained for qualified type names.
+    
+    PSS Example::
+    
+        my_pkg          // Simple element
+        container<int>  // Element with template parameters
+    
+    Attributes:
+        id: The identifier name
+        params: Template parameter value list if present
+    
+    See Also:
+        TypeIdentifier, ExprId, TemplateParamValueList
+    
+    """
     pass
     
-    def getName(self) -> ExprId: ...
+    def getId(self) -> ExprId: ...
     
-    def getType(self) -> DataType: ...
+    def getParams(self) -> TemplateParamValueList: ...
     
 class ExprSliceRange(Expr):
     """
@@ -3005,6 +3011,13 @@ class ExprString(Expr):
     def getValue(self) -> str: ...
     
     def setValue(self, v : str): ...
+    
+class TypedefDeclaration(ScopeChild):
+    pass
+    
+    def getName(self) -> ExprId: ...
+    
+    def getType(self) -> DataType: ...
     
 class ExprUnary(Expr):
     """
@@ -5921,40 +5934,6 @@ class TypeOverride(OverrideStmt):
     
     def getWith_t(self) -> TypeIdentifier: ...
     
-class TypeScope(NamedScope):
-    """
-    Base class for named type declarations (actions, components, structs).
-    
-    Represents PSS types that can be parameterized with templates,
-    extended through inheritance, and used in type references. Provides
-    common infrastructure for type system features.
-    
-    PSS Example::
-    
-        component my_comp : base_comp {     // TypeScope with super_t
-            // ...
-        }
-        
-        action my_action<T> {               // TypeScope with params
-            // ...
-        }
-    
-    Attributes:
-        name: Type name (inherited from NamedScope)
-        super_t: Optional base type for inheritance
-        params: Template parameter declarations
-        opaque: True if type body is hidden (forward declaration)
-    
-    See Also:
-        Action, Component, Struct, NamedScope
-    
-    """
-    pass
-    
-    def getSuper_t(self) -> TypeIdentifier: ...
-    
-    def getParams(self) -> TemplateParamDeclList: ...
-    
 class ActivityActionHandleTraversal(ActivityLabeledStmt):
     """
     Traverses a specific action instance (handle).
@@ -6060,6 +6039,40 @@ class ActivityActionTypeTraversal(ActivityLabeledStmt):
     def getInitializer(self, i: int) -> ActionFieldInitializer: ...
     def addInitializer(self, i: ActionFieldInitializer) -> None: ...
     def numInitializers(self) -> int: ...
+    
+class TypeScope(NamedScope):
+    """
+    Base class for named type declarations (actions, components, structs).
+    
+    Represents PSS types that can be parameterized with templates,
+    extended through inheritance, and used in type references. Provides
+    common infrastructure for type system features.
+    
+    PSS Example::
+    
+        component my_comp : base_comp {     // TypeScope with super_t
+            // ...
+        }
+        
+        action my_action<T> {               // TypeScope with params
+            // ...
+        }
+    
+    Attributes:
+        name: Type name (inherited from NamedScope)
+        super_t: Optional base type for inheritance
+        params: Template parameter declarations
+        opaque: True if type body is hidden (forward declaration)
+    
+    See Also:
+        Action, Component, Struct, NamedScope
+    
+    """
+    pass
+    
+    def getSuper_t(self) -> TypeIdentifier: ...
+    
+    def getParams(self) -> TemplateParamDeclList: ...
     
 class SymbolScope(SymbolChildrenScope):
     """
@@ -7042,23 +7055,12 @@ class SymbolFunctionScope(SymbolScope):
     
 class SymbolTypeScope(SymbolScope):
     """
-    Symbol scope for type declarations (actions, components, structs).
-    
-    Represents a user-defined type in the linked symbol tree, managing its
-    members, methods, and constraints. Supports template specialization by
-    tracking parameter lists and specialized type instantiations.
-    
-    During linking, type declarations from multiple files can be merged
-    (for extend statements) and specialized instances are tracked separately.
-    The plist holds template parameters, while spec_types contains any
-    specialized/instantiated versions of this generic type.
-    
-    Attributes:
-        plist: Template parameter list scope (if this is a generic type)
-        spec_types: List of specialized/instantiated versions of this type
-    
-    See Also:
-        SymbolScope, Action, Component, Struct, SymbolExtendScope
+    Every named member an extension contributed to this type, in merge
+    order, with the package of its extension (LRM 17.2, 17.2.3).
+    Two packages may each add a field or type of one name, so the
+    single-valued symtab cannot hold them all: it keeps the initial
+    definition's members and the first extension member of each
+    name. Empty for a type no extension added a named member to.
     
     """
     pass
@@ -7070,6 +7072,12 @@ class SymbolTypeScope(SymbolScope):
     def getSpec_type(self, i: int) -> SymbolTypeScope: ...
     def addSpec_type(self, i: SymbolTypeScope) -> None: ...
     def numSpec_types(self) -> int: ...
+    
+    def ext_members(self) -> ListUtil[SymbolExtMember]: ...
+    def getExt_members(self) -> List[SymbolExtMember]: ...
+    def getExt_member(self, i: int) -> SymbolExtMember: ...
+    def addExt_member(self, i: SymbolExtMember) -> None: ...
+    def numExt_members(self) -> int: ...
     
 class TemplateElem(SymbolScope):
     """

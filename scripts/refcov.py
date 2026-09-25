@@ -20,7 +20,9 @@ bind
     reads as unbound to everything downstream (report C, S3 -- the paths
     recorded inside unaddressable activity scopes). A path that runs through
     an inline scope (``with {...}``) cannot be followed without that scope,
-    so it counts as ``bound`` unless an element of it is negative.
+    so it counts as ``bound`` unless an element of it is negative. An unbound
+    reference inside the body of a generic type is ``dependent``: it binds
+    per specialization.
 
 tmiss
     The slot harness (scripts/refcov_slots.py). For each slot, an undefined
@@ -152,8 +154,21 @@ def _fields_of(classes, cls):
     return out
 
 
+def _supers(classes, cls):
+    """`cls` and every class it derives from."""
+    out = []
+    while cls in classes:
+        out.append(cls)
+        cls = classes[cls][1]
+    return out
+
+
 def _walk_file(fn):
     """Link *fn* and classify every reference node under its units.
+
+    Returns ``{"clean": bool, "refs": [(context, class, state, origin)]}``:
+    `context` is the owning field, and `origin` the first ``visit: false``
+    field above the node, or "" when the linker's walk reaches it.
 
     Imports whatever ``pssparser`` is on the path: `_run_child` pins it for a
     child, and an in-process caller has already imported its own.
@@ -207,21 +222,47 @@ def _walk_file(fn):
             return list(v)
         return [v]
 
-    def walk(n, ctx, unwalked):
+    def rooted_state(n):
+        # A qualified reference with a leaf, `p::f(1)`, keeps its binding in
+        # its parts: the root path (counted on its own, as the `root` field)
+        # and the leaf element looked up against it. Its own `target` is not
+        # set, and reading it counted every qualified call as unbound.
+        try:
+            elems = n.getLeaf().getElems()
+            return "bound" if len(elems) and elems[0].getTarget() != -1 else "unbound"
+        except Exception:
+            return "unbound"
+
+    # `origin` is the first `visit: false` field on the way down ("" when
+    # there is none): where the linker's own walk stops.
+    def walk(n, ctx, origin, generic):
         if n is None:
             return
         cn = type(n).__name__
-        tag = ctx + ("{UNWALKED}" if unwalked else "")
+        tag = ctx + ("{UNWALKED}" if origin else "")
         if cn in refcls:
-            try:
-                t = n.getTarget()
-            except Exception:
-                t = None
-            res.append((tag, cn, state_of(t)))
+            if cn == "ExprRefPathStaticRooted":
+                st = rooted_state(n)
+            else:
+                try:
+                    t = n.getTarget()
+                except Exception:
+                    t = None
+                st = state_of(t)
+            if st == "unbound" and generic:
+                # In the body of a generic type, a name that depends on a
+                # parameter binds per specialization, not in the template.
+                st = "dependent"
+            res.append((tag, cn, st, origin))
         elif cn == "ExprId" and _field_of_ctx(ctx) not in DECL_ID_CONTEXTS:
-            res.append((tag, cn, "noslot"))
+            res.append((tag, cn, "noslot", origin))
         elif cn == "ExprHierarchicalId" and "ExprRefPath" not in ctx:
-            res.append((tag, cn, "noslot"))
+            res.append((tag, cn, "noslot", origin))
+        if not generic and "TypeScope" in _supers(classes, cn):
+            try:
+                generic = n.getParams() is not None
+            except Exception:
+                pass
         for (dc, fname, ftype, vis) in _fields_of(classes, cn):
             if not ftype or not any(ftype.startswith(pfx) for pfx in ("UP<", "list<UP<")):
                 continue
@@ -230,11 +271,11 @@ def _walk_file(fn):
                 continue
             sub = "%s.%s%s" % (dc, fname, "" if vis else "[NOVISIT]")
             for c in vals:
-                walk(c, sub, unwalked or not vis)
+                walk(c, sub, origin or ("" if vis else "%s.%s" % (dc, fname)), generic)
 
     for u in p.user_units():
         for c in u.getChildren():
-            walk(c, "GlobalScope.children", False)
+            walk(c, "GlobalScope.children", "", False)
     return {"clean": clean, "refs": res}
 
 
@@ -306,13 +347,14 @@ def bind(files):
         if not r["clean"]:
             continue
         n_clean += 1
-        for ctx, cn, st in r["refs"]:
+        for ctx, cn, st, _ in r["refs"]:
             key = "%s | %s" % (ctx, cn)
             agg[key][st] += 1
             if st in ("unbound", "dead") and len(examples[key]) < 3:
                 examples[key].append(os.path.relpath(fn, ROOT))
     table = {k: dict(sorted(v.items())) for k, v in sorted(agg.items())}
-    return {"files": len(files), "clean_files": n_clean, "fields": table}, examples
+    per_file = {os.path.relpath(fn, ROOT): r for fn, r in zip(files, results)}
+    return {"files": len(files), "clean_files": n_clean, "fields": table}, examples, per_file
 
 
 # -- tmiss -------------------------------------------------------------------
@@ -325,7 +367,7 @@ def _slot_lines(base):
     return lines
 
 
-def _classify(path, slot_line):
+def _classify(path, slot_line, severities=("error",)):
     env = dict(os.environ)
     env["PYTHONPATH"] = _pssparser_root() + os.pathsep + env.get("PYTHONPATH", "")
     env["PSSPARSER_NO_EXTENSIONS"] = "1"
@@ -341,9 +383,10 @@ def _classify(path, slot_line):
         return "raw"
     if any(d.get("code") == "PSS000" for d in diags):
         return "internal"
-    errs = [d for d in diags if d.get("severity") == "error"]
-    if slot_line is None:            # the legal model
+    if slot_line is None:            # a legal model
+        errs = [d for d in diags if d.get("severity") == "error"]
         return "clean" if not errs else "errors"
+    errs = [d for d in diags if d.get("severity") in severities]
     if not errs:
         return "silent"
     if any(d.get("line") == slot_line for d in errs):
@@ -361,29 +404,34 @@ def tmiss():
         return re.sub(r"@@(\w+)@@", lambda m: d[m.group(1)], S.BASE)
 
     lines = _slot_lines(S.BASE)
-    jobs = [("00_legal", render({}), None)]
+    jobs = [("00_legal", render({}), None, None)]
     for k, v in S.BAD.items():
-        jobs.append((k.lower(), render({k: v}), lines[k]))
+        sev = ("error", "warning") if k in S.WARN else ("error",)
+        jobs.append((k.lower(), render({k: v}), lines[k], sev))
     for k, v in S.EXTRA.items():
         key, tag = k.split(":")
-        jobs.append(("%s__%s" % (key.lower(), tag), render({key: v}), lines[key]))
+        jobs.append(("%s__%s" % (key.lower(), tag), render({key: v}), lines[key], ("error",)))
+    for k, v in S.LEGAL.items():
+        key, tag = k.split(":")
+        jobs.append(("%s__%s" % (key.lower(), tag), render({key: v}), None, None))
 
     with tempfile.TemporaryDirectory() as d:
         paths = []
-        for name, text, _ in jobs:
+        for name, text, _, _ in jobs:
             p = os.path.join(d, name + ".pss")
             with open(p, "w") as fp:
                 fp.write(text)
             paths.append(p)
         with ThreadPoolExecutor(max_workers=os.cpu_count() or 4) as ex:
             states = list(ex.map(lambda a: _classify(*a),
-                                 [(p, j[2]) for p, j in zip(paths, jobs)]))
+                                 [(p, j[2]) + ((j[3],) if j[3] else ())
+                                  for p, j in zip(paths, jobs)]))
         # Which reference fields the legal model exercises -- the slots'
         # coverage of the schema (INV-4's gap list).
         legal = _run_child(paths[0])
-    exercised = sorted({ctx for ctx, cn, st in legal["refs"]
+    exercised = sorted({ctx for ctx, cn, st, _ in legal["refs"]
                         if cn != "ExprId" and cn != "ExprHierarchicalId"})
-    return {name: st for (name, _, _), st in zip(jobs, states)}, exercised
+    return {name: st for (name, _, _, _), st in zip(jobs, states)}, exercised
 
 
 # -- baseline ----------------------------------------------------------------
@@ -392,10 +440,29 @@ def _field_of_ctx(ctx):
     return ctx.split("[")[0].split("{")[0]
 
 
+_FULL = None
+
+
+def compute_full():
+    """Everything `compute` measures, plus each corpus file's walk
+    (``per_file``, keyed by path relative to the repository). Computed once
+    per process: the gate and the completeness tests share one run."""
+    global _FULL
+    if _FULL is None:
+        _FULL = _compute()
+    return _FULL
+
+
 def compute():
+    """(the baseline data, example files for each unbound reference kind)."""
+    full = compute_full()
+    return full["data"], full["examples"]
+
+
+def _compute():
     classes = load_schema()
     schema = ref_fields(classes)
-    bind_tbl, examples = bind(corpus_files())
+    bind_tbl, examples, per_file = bind(corpus_files())
     slots, template_ctx = tmiss()
 
     corpus_fields = {_field_of_ctx(k.split(" | ")[0]) for k in bind_tbl["fields"]
@@ -425,7 +492,7 @@ def compute():
         "tmiss": dict(sorted(slots.items())),
         "bind": bind_tbl,
     }
-    return data, examples
+    return {"data": data, "examples": examples, "per_file": per_file}
 
 
 def diff(old, new):

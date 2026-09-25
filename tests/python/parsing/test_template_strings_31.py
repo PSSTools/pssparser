@@ -767,7 +767,8 @@ package p {
 
 
 def test_template_over_constants_is_constant():
-    assert _is_const(_CONST_PKG % '{{K}} {{E_A}}') is True
+    # Qualified: an unqualified item has no expected type here (8.2).
+    assert _is_const(_CONST_PKG % '{{K}} {{e_t::E_A}}') is True
 
 
 def test_template_with_no_specials_at_all_is_constant():

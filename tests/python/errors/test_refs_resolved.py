@@ -1,7 +1,10 @@
-"""The completeness gate: no type reference may survive linking unbound.
+"""The completeness gate: no reference may survive linking unbound in silence.
 
-`TaskCheckRefsResolved` runs after resolution and reports every user-defined
-type reference whose target is still null. It exists because the front end's
+`TaskCheckRefsResolved` runs after resolution and checks every reference in the
+user units -- type identifiers, names and paths, the `role: ref` fields of the
+schema (symbol-resolution plan 3.5, INV-3). A name left unbound with nothing
+said about it is reported: PSS002 when nothing in the model declares it, PSS042
+(a pssparser defect) when something does. It exists because the front end's
 silent-drop defects all had one shape -- a resolution path that fails, writes
 nothing to the marker listener, and leaves a null target behind:
 
@@ -53,11 +56,10 @@ def _out(res):
 # it fires
 
 def test_a_qualified_type_that_does_not_exist_is_reported(tmp_path):
-    """The reference this check was written for.
+    """The reference this check was first written for.
 
     `p::nosuch_s` used to link clean, exit 0, and hand every consumer a field
-    with no type: the qualified form does not go through the "unknown type"
-    path that the bare form does.
+    with no type. The resolver reports it itself now; the gate stays quiet.
     """
     res = _run(tmp_path, {"m": """
         package p { struct s { rand bit[8] v; } }
@@ -66,33 +68,74 @@ def test_a_qualified_type_that_does_not_exist_is_reported(tmp_path):
     """})
 
     assert res.returncode == 1
-    assert "is never resolved" in _out(res)
-    assert "p::nosuch_s" in _out(res)
+    assert "unknown type 'nosuch_s' in 'p'" in _out(res)
+    assert "1 error in 1 file" in _out(res)
 
 
-def test_the_unresolved_reference_marker_reaches_the_lint_sink():
-    """The same diagnostic as above, in process, so E-2's global lints see it.
+def _errors(src):
+    _root, markers = parse_collect(src)
+    return [(m["line"], m.get("code"), m["message"])
+            for m in markers if m["severity"] == "error"]
 
-    Every other test in this file runs the CLI out of process, which is right
-    for assertions about what reached a *stream* -- but it means the marker
-    never enters `parse_collect`'s session-wide sink, and so
-    test_message_lints.py's G3/G6/G7 never judge this message. The two
-    lint_allowlist.txt entries recording its debt (no catalogue entry, over
-    G7's 120-char cap) then read as stale to
-    test_allowlist_has_no_stale_entries, which fails on a debt that is
-    entirely real.
 
-    This test exists to feed the sink. Its own assertions are deliberately
-    weak -- the message's *quality* is the lints' business, not this file's.
-    """
-    _root, markers = parse_collect("""
-        package p { struct s { rand bit[8] v; } }
-        component c { p::nosuch_s f; }
-        component pss_top { c c0; }
-    """)
+def test_a_name_the_resolver_skips_is_reported():
+    """`resolveStaticRootedLeaf` has no built-in method handling, so the
+    qualified spelling of an unknown string method was accepted silently.
+    Nothing declares `nosuchmeth`, so it is PSS002."""
+    assert _errors("""
+package p { function string f(); }
+function void g() { int v; v = p::f().nosuchmeth(); }
+""") == [(3, "PSS002", "'f' has no member named 'nosuchmeth'")]
 
-    assert any("is never resolved" in m["message"] for m in markers), \
-        [m["message"] for m in markers]
+
+def test_the_body_of_an_extension_of_an_unknown_type_is_not_reported():
+    """Its names were never looked up; the target is the one report."""
+    assert [c for _, c, _ in _errors("""
+component pss_top {
+    extend component nosuch_c {
+        action a_a { activity { do nosuch_a; } }
+    }
+}
+""")] == ["PSS002"]
+
+
+@pytest.mark.parametrize("src", [
+    # A template local assigned in `{% %}`: bound, where it used to be found
+    # and dropped.
+    'component pss_top { action A { exec body C = """{% int i = 0; %}'
+    '{% i = 1; %}"""; } }',
+    # Annotations on activity and procedural statements (Example 323): they
+    # used to be skipped by the resolver entirely.
+    "import std_pkg::*;\n"
+    "component pss_top { action A { }\n"
+    "  action B { activity { @code_doc {.text=\"x\"} do A; } }\n"
+    "  function void f() { repeat (i : 2) { @code_doc {.text=\"y\"} } } }",
+    # A qualified array dimension: every element of the path is bound, not
+    # only the last.
+    "package sizes { const int N = 4; }\n"
+    "component pss_top { static const int K = 2;\n"
+    "  bit[8] a[sizes::N]; bit[8] b[pss_top::K]; }",
+])
+def test_legal_references_the_gate_found_unbound(src):
+    """Each of these was left unbound by the resolver on legal input; the
+    gate reported them as PSS042 until the resolver was fixed."""
+    assert _errors(src) == []
+
+
+def test_an_unknown_annotation_parameter_in_an_activity_is_reported():
+    """Reachable only now that annotations in activities are resolved: an
+    ActivityDecl holds its statement's annotation, and a MonitorActivityDecl
+    its statements as symbol-scope children. Once each: the gate does not
+    repeat the resolver's report."""
+    assert _errors("""
+annotation ann_t { int v; }
+component pss_top { action A { }
+  action B { activity { @ann_t {.nosuch = 1} do A; } }
+  monitor M { activity { @ann_t {.nosuch2 = 1} A a; } } }
+""") == [
+        (4, "PSS002", "unknown identifier 'nosuch' in annotation type 'ann_t'"),
+        (5, "PSS002", "unknown identifier 'nosuch2' in annotation type 'ann_t'"),
+    ]
 
 
 def test_an_unresolved_reference_makes_the_run_exit_nonzero(tmp_path):
@@ -266,3 +309,14 @@ def test_an_unknown_bare_type_is_reported_once(tmp_path):
     assert res.returncode == 1
     assert "1 error in 1 file" in _out(res)
     assert "unknown type 'unknown_t'" in _out(res)
+
+
+def test_an_unknown_annotation_parameter_on_a_function_is_reported():
+    """A function's own annotations were never resolved: the enclosing
+    scope's collector stops at the function's symbol scope."""
+    assert _errors("""
+import std_pkg::*;
+@code_doc {.nosuch = "x"}
+function void h();
+""") == [(3, "PSS002",
+          "unknown identifier 'nosuch' in annotation type 'code_doc'")]

@@ -56,29 +56,6 @@ public:
     const std::map<ast::IScopeChild *, ast::ISymbolScope *> &
         extensionDeclScopes() const { return m_ext_decl_scope; }
 
-    /**
-     * One member an extension contributed to a type: its index in the
-     * type's children, and the package the extension belongs to (the root
-     * for an extension outside any package).
-     */
-    struct ExtMember {
-        int32_t                 idx;
-        ast::ISymbolScope       *pkg;
-    };
-
-    /**
-     * Every named member extensions contributed to each type, by name, in
-     * merge order. LRM 17.2.3 lets two packages each add a field or type of
-     * the same name, so a type's single-valued symtab cannot hold them all:
-     * it keeps the initial definition's members and the *first* extension
-     * member of each name, and this holds the rest. Lookup does not read it
-     * yet -- filtering by the package of the reference is WS6 (6.3, 6.5) --
-     * so a reference binds to the first-merged member (known-issues L-05).
-     *
-     * Valid only after apply().
-     */
-    const std::map<ast::ISymbolScope *, std::map<std::string, std::vector<ExtMember>>> &
-        extensionMembers() const { return m_ext_members; }
 
     virtual void visitExtendEnum(ast::IExtendEnum *i) override;
 
@@ -183,6 +160,16 @@ protected:
         ast::IScopeChild        *child);
 
     /**
+     * Record child `idx` of `target`, named `name`, as contributed by an
+     * extension in package `pkg` (SymbolTypeScope.ext_members).
+     */
+    void recordExtMember(
+        ast::ISymbolScope       *target,
+        const std::string       &name,
+        int32_t                 idx,
+        ast::ISymbolScope       *pkg);
+
+    /**
      * PSS003 at `dup`, with a "first declared here" note at `orig`.
      */
     void reportDuplicate(
@@ -203,10 +190,6 @@ private:
     ast::IRootSymbolScope                   *m_root;
     ISymbolTableIteratorUP                  m_symtab_it;
     std::map<ast::IScopeChild *, ast::ISymbolScope *> m_ext_decl_scope;
-    // The package of each member an extension contributed; a member of a
-    // type's initial definition has no entry.
-    std::map<ast::IScopeChild *, ast::ISymbolScope *> m_ext_pkg;
-    std::map<ast::ISymbolScope *, std::map<std::string, std::vector<ExtMember>>> m_ext_members;
 
 };
 

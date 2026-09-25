@@ -8,11 +8,6 @@
 # session produced, that line must be deleted (this file IS the debt list --
 # its shrinking line count is progress metric 2, see error-testing-plan.md §9).
 
-# TaskCheckRefsResolved's completeness-gate diagnosis (tests/python/errors/
-# test_refs_resolved.py) has no MarkerDef / catalogue entry at all yet, not
-# just a missing pattern -- allocating it an ID belongs to E-3.
-G6: is never resolved: the reference is left unbound after linking  # E-3//no catalogue entry yet for this diagnosis
-
 # Surfaced by the D4-e extent sweep, which added the first test to exercise a
 # failing `compile assert` (tests/python/errors/test_marker_extent.py). The
 # diagnostic has no MarkerDef and no `patterns` entry, so it renders with no
@@ -28,7 +23,6 @@ G6: compile assert failed  # D4-e//no catalogue entry yet; needs an ID allocated
 # supports one; revisit then rather than truncating today.
 G7: has no subsequent element in this scope to attach to  # E-6//long but not jargon; revisit when multi-line messages are supported
 G7: Expect one of (body, header, declaration  # E-6//long but not jargon; revisit when multi-line messages are supported
-G7: is never resolved: the reference is left unbound after linking  # E-3//same message as the G6 entry above; also over 120 chars
 
 # The two mustache entries that used to live here (PSS108/PSS109) are gone:
 # A9 moved the shared `{ {` workaround out of the message and into a note

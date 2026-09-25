@@ -38,7 +38,7 @@ public:
     TaskEvalExpr(
         IFactory                *factory,
         ast::ISymbolScope       *root) : 
-        m_dbg(0), m_factory(factory), m_root(root) {
+        m_dbg(0), m_factory(factory), m_root(root), m_depth(0) {
         DEBUG_INIT("pssp::TaskEvalExpr", factory->getDebugMgr());
     }
 
@@ -63,10 +63,11 @@ public:
     // }
 
     /**
-     * Integer arithmetic, bitwise and shift operators fold when both
-     * operands do -- enough for widths and template value arguments such as
-     * reg_c's default `SZ = (8*sizeof_s<R>::nbytes)`. Comparisons and logical
-     * operators, and division by zero, leave the result unfolded.
+     * Integer arithmetic, bitwise, shift, comparison and logical operators
+     * fold when both operands do -- enough for widths and template value
+     * arguments such as reg_c's default `SZ = (8*sizeof_s<R>::nbytes)` or
+     * `S<(N > 2)>`. A comparison or logical operator gives a bool, carried as
+     * an unsigned 1-bit integer. Division by zero leaves the result unfolded.
      */
     virtual void visitExprBin(ast::IExprBin *i) override {
         DEBUG_ENTER("visitExprBin %d", i->getOp());
@@ -89,6 +90,14 @@ public:
                 case ast::ExprBinOp::BinOp_BitAnd: v = a & b; break;
                 case ast::ExprBinOp::BinOp_BitOr:  v = a | b; break;
                 case ast::ExprBinOp::BinOp_BitXor: v = a ^ b; break;
+                case ast::ExprBinOp::BinOp_Eq:     v = (a == b); break;
+                case ast::ExprBinOp::BinOp_Ne:     v = (a != b); break;
+                case ast::ExprBinOp::BinOp_Lt:     v = (a < b); break;
+                case ast::ExprBinOp::BinOp_Le:     v = (a <= b); break;
+                case ast::ExprBinOp::BinOp_Gt:     v = (a > b); break;
+                case ast::ExprBinOp::BinOp_Ge:     v = (a >= b); break;
+                case ast::ExprBinOp::BinOp_LogAnd: v = (a && b); break;
+                case ast::ExprBinOp::BinOp_LogOr:  v = (a || b); break;
                 case ast::ExprBinOp::BinOp_Exp: {
                     ok = (b >= 0 && b < 64);
                     v = 1;
@@ -96,7 +105,9 @@ public:
                 } break;
                 default: ok = false; break;
             }
-            if (ok) {
+            if (ok && isBoolOp(i->getOp())) {
+                m_val = IValUP(mkBool(v));
+            } else if (ok) {
                 m_val = IValUP(m_factory->mkValInt(
                     l->isSigned() && r->isSigned(),
                     std::max(l->getWidth(), r->getWidth()),
@@ -114,7 +125,7 @@ public:
 
     virtual void visitExprBool(ast::IExprBool *i) override {
         DEBUG_ENTER("visitExprBool");
-        DEBUG("TODO: visitExprBool");
+        m_val = IValUP(mkBool(i->getValue()));
         DEBUG_LEAVE("visitExprBool");
     }
 
@@ -132,7 +143,14 @@ public:
 
     virtual void visitExprCond(ast::IExprCond *i) override {
         DEBUG_ENTER("visitExprCond");
-        DEBUG("TODO: visitExprCond");
+        std::unique_ptr<IVal> cond(i->getCond_e()?eval(i->getCond_e()):0);
+        m_val.reset();
+        if (IValInt *c = dynamic_cast<IValInt *>(cond.get())) {
+            ast::IExpr *arm = (c->getValS())?i->getTrue_e():i->getFalse_e();
+            if (arm) {
+                m_val = IValUP(eval(arm));
+            }
+        }
         DEBUG_LEAVE("visitExprCond");
     }
 
@@ -154,9 +172,44 @@ public:
         DEBUG_LEAVE("visitExprId");
     }
 
+    /**
+     * `x in [a, b..c]` folds when `x` and every bound do. A collection
+     * operand, or an open range (`..c`, `a..`) bound, folds the same way;
+     * anything else leaves the result unfolded.
+     */
     virtual void visitExprIn(ast::IExprIn *i) override {
         DEBUG_ENTER("visitExprIn");
-        DEBUG("TODO: visitExprIn");
+        std::unique_ptr<IVal> lhs(i->getLhs()?eval(i->getLhs()):0);
+        m_val.reset();
+        IValInt *x = dynamic_cast<IValInt *>(lhs.get());
+        if (!x || !i->getRhs() || i->getCollection()) {
+            DEBUG_LEAVE("visitExprIn (not foldable)");
+            return;
+        }
+        bool hit = false;
+        for (std::vector<ast::IExprOpenRangeValueUP>::const_iterator
+                it=i->getRhs()->getValues().begin();
+                it!=i->getRhs()->getValues().end(); it++) {
+            ast::IExpr *lo_e = (*it)->getLhs();
+            ast::IExpr *hi_e = (*it)->getRhs();
+            std::unique_ptr<IVal> lo(lo_e?eval(lo_e):0);
+            std::unique_ptr<IVal> hi(hi_e?eval(hi_e):0);
+            IValInt *l = dynamic_cast<IValInt *>(lo.get());
+            IValInt *h = dynamic_cast<IValInt *>(hi.get());
+            if ((lo_e && !l) || (hi_e && !h)) {
+                m_val.reset();
+                DEBUG_LEAVE("visitExprIn (bound not foldable)");
+                return;
+            }
+            if (!hi_e) {
+                // A single value, not a range.
+                hit |= (l && x->getValS() == l->getValS());
+            } else {
+                hit |= ((!l || x->getValS() >= l->getValS())
+                    && x->getValS() <= h->getValS());
+            }
+        }
+        m_val = IValUP(mkBool(hit));
         DEBUG_LEAVE("visitExprIn");
     }
 
@@ -207,6 +260,23 @@ public:
         DEBUG_LEAVE("visitExprRefPathContext");
     }
 
+    /**
+     * `S<W>` parses `W` as a type identifier. It folds only when it names a
+     * constant or a value parameter: visiting a type would walk its body.
+     */
+    virtual void visitTypeIdentifier(ast::ITypeIdentifier *i) override {
+        DEBUG_ENTER("visitTypeIdentifier");
+        ast::IScopeChild *target = i->getTarget()?
+            TaskResolveSymbolPathRef(
+                m_factory->getDebugMgr(),
+                m_root).resolve(i->getTarget()):0;
+        if (dynamic_cast<ast::IField *>(target)
+                || dynamic_cast<ast::ITemplateValueParamDecl *>(target)) {
+            target->accept(m_this);
+        }
+        DEBUG_LEAVE("visitTypeIdentifier");
+    }
+
     virtual void visitExprNull(ast::IExprNull *i) override {
         DEBUG_ENTER("visitExprNull");
         DEBUG("TODO: visitExprNull");
@@ -227,8 +297,12 @@ public:
 
     virtual void visitField(ast::IField *i) override {
         DEBUG_ENTER("visitField %s", i->getName()->getId().c_str());
-        if (i->getInit()) {
+        if (i->getInit() && m_depth < MAX_DEPTH) {
+            // A constant defined in terms of itself, directly or not, must
+            // not recurse without bound: it simply does not fold.
+            m_depth++;
             i->getInit()->accept(m_this);
+            m_depth--;
         } else {
             DEBUG("TODO: Field doesn't have an initial value");
         }
@@ -247,9 +321,12 @@ public:
                 case ast::ExprUnaryOp::UnaryOp_Plus:   break;
                 case ast::ExprUnaryOp::UnaryOp_Minus:  v = -v; break;
                 case ast::ExprUnaryOp::UnaryOp_BitNeg: v = ~v; break;
+                case ast::ExprUnaryOp::UnaryOp_LogNot: v = !v; break;
                 default: ok = false; break;
             }
-            if (ok) {
+            if (ok && i->getOp() == ast::ExprUnaryOp::UnaryOp_LogNot) {
+                m_val = IValUP(mkBool(v));
+            } else if (ok) {
                 m_val = IValUP(m_factory->mkValInt(
                     r->isSigned() || i->getOp() == ast::ExprUnaryOp::UnaryOp_Minus,
                     r->getWidth(), v));
@@ -289,18 +366,38 @@ public:
 
     virtual void visitTemplateValueParamDecl(ast::ITemplateValueParamDecl *i) override {
         DEBUG_ENTER("visitTemplateValueParamDecl");
-        if (i->getDflt()) {
+        if (i->getDflt() && m_depth < MAX_DEPTH) {
+            m_depth++;
             i->getDflt()->accept(m_this);
+            m_depth--;
         }
-        DEBUG("TODO: visitTemplateValueParamDecl");
         DEBUG_LEAVE("visitTemplateValueParamDecl");
     }
 
 private:
+    static bool isBoolOp(ast::ExprBinOp op) {
+        switch (op) {
+            case ast::ExprBinOp::BinOp_Eq: case ast::ExprBinOp::BinOp_Ne:
+            case ast::ExprBinOp::BinOp_Lt: case ast::ExprBinOp::BinOp_Le:
+            case ast::ExprBinOp::BinOp_Gt: case ast::ExprBinOp::BinOp_Ge:
+            case ast::ExprBinOp::BinOp_LogAnd: case ast::ExprBinOp::BinOp_LogOr:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    IValInt *mkBool(bool v) {
+        return m_factory->mkValInt(false, 1, (v)?1:0);
+    }
+
+private:
+    static const uint32_t              MAX_DEPTH = 64;
     dmgr::IDebug                       *m_dbg;
     IFactory                           *m_factory;
     ast::ISymbolScope                  *m_root;
     IValUP                             m_val;
+    uint32_t                           m_depth;
 
 };
 

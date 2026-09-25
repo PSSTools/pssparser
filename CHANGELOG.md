@@ -7,6 +7,209 @@ revision advances only the patch component.
 
 ## Unreleased
 
+### Fixed — distinct template value arguments no longer share one specialization (symbol-resolution 8.3, LRM 10.4)
+
+Two uses of a generic with value arguments of the same *form* -- `S<2+2>` and
+`S<3+7>`, or `S<W+0>` and `S<W2+0>` -- were treated as one specialization, so
+the second use silently saw the first's bindings. Value arguments are now
+compared by value when they fold to a constant, and otherwise by their form,
+and two arguments are never assumed equal. The same value is one
+specialization however it is written: `S<2+2>`, `S<W>` with `W = 4`, and `S<4>`
+are one. Constant folding now also covers comparisons, `&&`/`||`/`!`, `?:` and
+`in`, so `S<(N > 2)>` is `S<true>`.
+
+A self-recursive generic such as `component T<int N=1> { T<N+1> t; }` is now
+reported (the recursion-depth error) instead of linking silently.
+
+### Changed — an enum item with no expected type is a warning, PSS046 (symbol-resolution 8.2, LRM 7.5 g/i, 18.3)
+
+An enum item belongs to its enumeration type's scope, not to the scope that
+declares the enum (7.5 g). Unqualified, 18.3 finds it only through the
+expected type (step a). pssparser used to find the items of every enum declared
+in an enclosing scope, or in a package a wildcard import names, as if they were
+declarations there. Now:
+
+- such an item is taken only when the name means nothing else, and the use is
+  warned about (PSS046): "enum item 'ORANGE' is used where no enumeration type
+  is expected (7.5 i, 8.4.3); qualify it as 'color_e::ORANGE'", or "... where
+  'mode_e' is expected, but it is an item of 'color_e' ...". Example 37's
+  `print_num((int)ORANGE)` is the LRM's case. This becomes an error in a later
+  release (warn-first);
+- **a declaration of the same name further out now takes precedence**: with
+  `const int X` in a package and `enum e {X}` in a component inside it,
+  `int y = X;` in the component refers to the constant, where it used to be
+  `e::X`. With `e v = X;` step a still picks the item, and PSS044 says the
+  constant is hidden.
+
+More contexts give an expected type (8.4.2, 8.4.3), so these link without a
+warning: the elements of an aggregate literal assigned to or initializing an
+array or collection of an enum (`list<e> l = {A, B};`), a default value
+constraint (`constraint default f == A;`), and a template value parameter's
+default (`<mode_e m = B>`, as in `std_pkg`'s `packed_s`). A call argument whose
+formal parameter's type is declared in a later file is checked once that type
+is bound.
+
+### Fixed — unqualified enum items take their enum from the expected type (symbol-resolution 8.1, LRM 8.4.3, 18.3 a)
+
+An unqualified enum item is now looked up in the enum its context expects
+before any scope is searched (18.3 step a). The contexts are those of 8.4.3:
+the left side of an assignment or initializer (field, variable, parameter
+default, handle initializer), a function's formal parameter and return type,
+the other side of `==`/`!=`, the left side of `in`, a cast's target type, and
+both arms of `?:`. `match` choices and `dist` items follow the `in` rule.
+So:
+
+- `op.mode == A` and `op.mode in [A, C, D]` link when `mode_e` is declared in
+  another component (Example 272), as does `sub.f(A)` against a formal
+  declared elsewhere. These were "unknown identifier" errors.
+- With two enums declaring `A`, `x == A` binds to the item of `x`'s type;
+  it used to bind to whichever enum was declared last.
+- `m == A` with a field `A` in scope binds to the enum item, as 18.3 requires,
+  not the field.
+
+`==`/`!=` read both ways (`A == op.mode` is legal too). Enum items found
+lexically with no enum type expected still resolve; see 8.2 above.
+
+### Added — PSS044 and PSS045, enum item readings (LRM 18.3 a)
+
+- PSS044 (warning): an enum item picked by its expected type hides a field,
+  variable or parameter of the same name: "'A' is read as the enum item
+  mode_e::A, which hides the field 'A' (18.3 a); qualify one of them".
+- PSS045 (error): `A == B` with both sides bare names, each of which could be
+  an item of the other side's enum.
+
+### Fixed — package aliases (symbol-resolution 6.4, LRM 18.1.4)
+
+`import pkg1::a::b as p1;` now makes `p1::name` refer to `pkg1::a::b::name`.
+Previously the alias was ignored in name lookup: `p1` was unknown, and the
+import made the target's own name (`b`) visible instead. An alias:
+
+- applies only inside the statement it is written in, like any import (6.3a);
+- is not a member of its package (`consumer_pkg::p1` is an error), and a
+  wildcard import of the package does not carry it;
+- takes precedence over explicit and wildcard imports, in a package
+  (18.3 c.2.i) and in a component (Example 273).
+
+`import A; import A as X;` are no longer merged as one import.
+
+### Added — PSS043, illegal package alias declarations (LRM 18.1.4)
+
+Two aliases of one name in one scope, and an alias with the name of a package
+declared in the same namespace in this source unit or an earlier one (Example
+260). A package of that name added in a later source unit is legal.
+
+### Added — addr_reg_pkg forwards endianness_e, packed_s and sizeof_s (symbol-resolution 6.3, LRM 21.13)
+
+PSS 2.0 declared `endianness_e`, `packed_s` and `sizeof_s` in `addr_reg_pkg`;
+they are now `std_pkg`'s, and LRM 21.13 requires tools to accept either
+package "as if they were the same types". `addr_reg_pkg::packed_s<>`,
+`import addr_reg_pkg::packed_s;` and `import addr_reg_pkg::*;` now reach
+`std_pkg`'s declarations (the enum items `LITTLE_ENDIAN` and `BIG_ENDIAN` come
+with a wildcard import). Importing both packages is not ambiguous. Previously a
+model that used only `addr_reg_pkg` got "unknown type 'packed_s'".
+
+### Changed — extension members are recorded in the AST
+
+`SymbolTypeScope.ext_members` lists every named member an extension
+contributed to a type, with the package of its extension (LRM 17.2.3), as
+`SymbolExtMember {name, idx, pkg}` nodes. It replaces a side table that was
+private to the linker. Lookup does not consult it yet.
+
+### Changed — an import applies only where it is written (symbol-resolution 6.3a, LRM 18.1.3)
+
+An import now applies only inside the statement that contains it: a `package`
+statement, a component declaration or an `extend`. An import in the global
+scope applies to the rest of its file. Previously every import of a namespace
+applied wherever that namespace was open, so an import in one file reached
+other files, and an import in one `package p { }` statement reached every other
+`package p { }`. Models that relied on this are now rejected:
+
+- **A global import does not reach another file.** Add the import to each
+  file that uses it.
+- **An import does not reach another statement of the same package.**
+- **A component's imports do not reach an `extend component`, and an
+  extension's imports do not reach the component declaration.**
+
+The error names the import the model relied on:
+`unknown type 's'; 'import lib::*;' provides it, but an import applies only
+inside the statement it is written in, or to its own file (18.1.3) -- add
+'import lib::*;' here`, with a note at that import.
+
+Two legal models that used to be rejected now link:
+
+- **An import inside `extend component` reaches the extension's own members**,
+  including the types it declares.
+- **A wildcard import reaches the items an `extend enum` in that package
+  adds** (LRM Example 248).
+
+The same import written in two files is no longer merged into one, so it
+applies in both.
+
+### Changed — name lookup follows the LRM order (symbol-resolution 6.2, LRM 17.2, 18.3)
+
+Every name is now looked up by one procedure in the order that 18.3 gives. The
+order used to depend on which kind of scope the name was in. Legal models that
+used to be rejected now link:
+
+- **An inherited member hides a component import.** In a derived component,
+  a member of the base component is found before anything the derived
+  component imports (18.3 b.3 before b.4).
+- **A type's own template parameter hides a component import.** In
+  `component c<type T> { import P::*; ... }`, `T` is the parameter, even when
+  `P` declares a `T`.
+- **An extension sees its own package first.** Names in an `extend` are looked
+  up in the package that encloses the `extend` statement and its outer
+  packages, and then globally (17.2). A global name used to shadow the
+  extension's package, and outer packages were not searched at all.
+- **An enum item declared in a base component** can be used unqualified in a
+  derived component.
+- **Imports inside `extend component` are resolved** (LRM Example 248). Each
+  one used to be reported as unbound.
+
+One model that used to be accepted is now an error: **a base component's
+imports no longer reach a derived component.** The LRM searches a base type's
+members, not its imports (18.3 b.3). Add the import to the derived component.
+
+A qualified name that reaches an inherited member, such as `der_c::N` where
+`N` is declared in `base_c`, now binds to the member itself. Its target used
+to stop at `der_c`. An import that names nothing is reported once, not once
+per linker pass.
+
+### Changed — the completeness check covers every reference (symbol-resolution 3.5)
+
+After linking, pssparser used to check only user-defined type references for
+a missing binding. It now checks every name the resolver is meant to bind:
+types, expression names and paths, qualified paths, annotation types and
+parameters, and template-string assignment targets. A name left unbound with
+nothing said about it is now reported:
+
+- **PSS002** when nothing in the model declares that name. For example,
+  `p::f().nosuchmeth()` on a string-returning `f` used to be accepted; the
+  unqualified `f().nosuchmeth()` was already an error.
+- **New marker PSS042, "Reference left unbound (pssparser defect)"**, when
+  something of that name is declared but the resolver did not bind it. This
+  is a bug in pssparser; please report it with the input. It is reported only
+  on a model that has no other error.
+
+One mistake still gets one message. Nothing new is reported where an error
+already exists, inside an `extend` whose target is unknown, or after a name
+whose type or base type is unknown. Constructs that pssparser does not resolve
+yet are not checked: covergroup bodies and port maps, pool and activity binds,
+scheduling constraints, instance overrides, struct-literal member names, and a
+generic constraint's parameters.
+
+The old message `type 'X' is never resolved: ...` is gone. The check found
+several resolver gaps on legal code, now fixed:
+
+- **Annotations on statements are resolved.** Annotations in activities,
+  monitor activities and procedural blocks, and on functions, used to be
+  skipped (Example 323). An unknown parameter name in one of them is now
+  PSS002, as it already was elsewhere.
+- **`{% x = ...; %}` binds `x`** to the template local it assigns.
+  Find-references and rename now see it.
+- **A qualified array dimension binds every element.** In `a[sizes::N]`, the
+  `sizes` part now binds too, not only `N`.
+
 ### Fixed — static and instance members (symbol-resolution 7.3, LRM 18.3, 20.2, 20.4)
 
 The linker used to ignore `static`. Models that relied on that now get

@@ -102,6 +102,9 @@
 #include "pssp/ast/ITypeIdentifier.h"
 
 #include "pssp/impl/ProceduralScopes.h"
+#include "pssp/impl/TaskGetSymbolRefPath.h"
+#include "pssp/ast/ITemplateValueParamDecl.h"
+#include "ExprTypeOf.h"
 #include <algorithm>
 
 namespace pssp {
@@ -268,12 +271,6 @@ void TaskResolveRefs::resolve(ast::ISymbolScope *root) {
 
     // Phases:
     // - 
-
-    if (root->getImports()) {
-        DEBUG_ENTER("  Resolve Imports");
-        TaskResolveImports(m_ctxt).resolve(root);
-        DEBUG_LEAVE("  Resolve Imports");
-    }
 
     DEBUG("resolve ==> process children");
     for (std::vector<ast::IScopeChildUP>::const_iterator
@@ -714,6 +711,75 @@ void TaskResolveRefs::resolveTraversalBody(
     }
 }
 
+namespace {
+
+/**
+ * `e` as a name step a of 18.3 can apply to: one unqualified identifier, not
+ * yet resolved, with no call, subscript or slice. Null otherwise.
+ */
+ast::IExprRefPathContext *bareName(ast::IExpr *e) {
+    ast::IExprRefPathContext *r = dynamic_cast<ast::IExprRefPathContext *>(e);
+    if (!r || r->getTarget() || r->getIs_super() || r->getSlice()
+            || r->getHier_id()->getElems().size() != 1) {
+        return 0;
+    }
+    ast::IExprMemberPathElem *elem = r->getHier_id()->getElems().at(0).get();
+    return (elem->getParams() || elem->getSubscript().size()) ? 0 : r;
+}
+
+/**
+ * True if an expected type could change what `e` means: a bare name, which
+ * step a applies to, or a `?:`, which passes it to its arms. Working out the
+ * type costs a path resolution, so the other operands skip it.
+ */
+bool takesExpected(ast::IExpr *e) {
+    return bareName(e) || dynamic_cast<ast::IExprCond *>(e);
+}
+
+/** takesExpected() for any value or bound of a range list. */
+bool anyTakesExpected(ast::IExprOpenRangeList *l) {
+    if (!l) {
+        return false;
+    }
+    for (std::vector<ast::IExprOpenRangeValueUP>::const_iterator
+            it=l->getValues().begin(); it!=l->getValues().end(); it++) {
+        if (takesExpected((*it)->getLhs()) || takesExpected((*it)->getRhs())) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/** takesExpected() for any element of an aggregate literal. */
+bool anyTakesExpected(ast::IExprAggrList *l) {
+    for (std::vector<ast::IExprUP>::const_iterator
+            it=l->getElems().begin(); it!=l->getElems().end(); it++) {
+        if (takesExpected(it->get())) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/** What `c` is, for a message: "the field 'A'". */
+std::string declDescription(ast::IScopeChild *c, const std::string &name) {
+    const char *kind = "declaration";
+    if (dynamic_cast<ast::IField *>(c)) {
+        kind = "field";
+    } else if (dynamic_cast<ast::IProceduralStmtDataDeclaration *>(c)) {
+        kind = "variable";
+    } else if (dynamic_cast<ast::IFunctionParamDecl *>(c)) {
+        kind = "parameter";
+    } else if (dynamic_cast<ast::ITemplateValueParamDecl *>(c)) {
+        kind = "template parameter";
+    } else if (dynamic_cast<ast::ISymbolFunctionScope *>(c)) {
+        kind = "function";
+    }
+    return std::string("the ") + kind + " '" + name + "'";
+}
+
+}
+
 /**
  * `.x.y = v` (11.3.1: "initialization assignment patterns can refer to
  * hierarchical paths within the action handle", U3). The value resolves where
@@ -730,29 +796,30 @@ void TaskResolveRefs::resolveTraversalBody(
 void TaskResolveRefs::resolveInitializer(
         ast::ISymbolScope                   *type_s,
         ast::IActionFieldInitializer        *i) {
-    if (i->getValue()) {
-        i->getValue()->accept(m_this);
-    }
+    // The member first: an initialization assignment, whose left side's type
+    // is the value's expected type (8.4.3).
     ast::IExprRefPathContext *path = i->getPath();
-    if (!type_s || !path || path->getTarget()) {
-        return;
+    if (type_s && path && !path->getTarget()) {
+        ast::IExprId *root = path->getHier_id()->getElems().at(0)->getId();
+        if (!TaskFindPathElem(m_ctxt->getDebugMgr(), m_ctxt->root()).find(
+                type_s, root).sym) {
+            m_ctxt->addErrorMarker(
+                root->getLocation(),
+                "'%s' has no member named '%s'",
+                type_s->getName().c_str(),
+                root->getId().c_str());
+        } else {
+            m_ctxt->symtab()->pushScope(type_s, ast::SymbolRefPathElemKind::ElemKind_Inline);
+            m_ctxt->pushInlineCtxt(type_s);
+            resolveExprRefPathContext(path);
+            visitSlice(path->getSlice());
+            m_ctxt->popInlineCtxt();
+            m_ctxt->symtab()->popScope();
+        }
     }
-    ast::IExprId *root = path->getHier_id()->getElems().at(0)->getId();
-    if (!TaskFindPathElem(m_ctxt->getDebugMgr(), m_ctxt->root()).find(
-            type_s, root).sym) {
-        m_ctxt->addErrorMarker(
-            root->getLocation(),
-            "'%s' has no member named '%s'",
-            type_s->getName().c_str(),
-            root->getId().c_str());
-        return;
-    }
-    m_ctxt->symtab()->pushScope(type_s, ast::SymbolRefPathElemKind::ElemKind_Inline);
-    m_ctxt->pushInlineCtxt(type_s);
-    resolveExprRefPathContext(path);
-    visitSlice(path->getSlice());
-    m_ctxt->popInlineCtxt();
-    m_ctxt->symtab()->popScope();
+    visitExpecting(i->getValue(),
+        (path && path->getTarget() && takesExpected(i->getValue()))
+            ? ExprTypeOf(m_ctxt).enumOf(path) : 0);
 }
 
 void TaskResolveRefs::visitActivityActionHandleTraversal(ast::IActivityActionHandleTraversal *i) {
@@ -880,6 +947,10 @@ void TaskResolveRefs::pushProcScope(ast::IScopeChild *s) {
     frame.n_pushed++;
     m_proc_frames.push_back(frame);
     m_proc_pending.swap(kept);
+
+    // Annotations on the statements in this block (`@code_doc {...} f();`,
+    // Example 323), under the block's own scope.
+    checkBlockAnnotations(dynamic_cast<ast::IScope *>(s));
 }
 
 void TaskResolveRefs::popProcScope() {
@@ -921,11 +992,17 @@ void TaskResolveRefs::visitProceduralStmtMatch(ast::IProceduralStmtMatch *i) {
     if (i->getExpr()) {
         i->getExpr()->accept(m_this);
     }
+    // A choice is an open range list tested against the match expression,
+    // as an `in` is: not listed in 8.4.3, but the same rule (plan 8.1).
+    bool any = false;
+    for (std::vector<ast::IProceduralStmtMatchChoiceUP>::const_iterator
+        it=i->getChoices().begin(); it!=i->getChoices().end() && !any; it++) {
+        any = anyTakesExpected((*it)->getCond());
+    }
+    ast::ISymbolEnumScope *t = (any) ? ExprTypeOf(m_ctxt).enumOf(i->getExpr()) : 0;
     for (std::vector<ast::IProceduralStmtMatchChoiceUP>::const_iterator
         it=i->getChoices().begin(); it!=i->getChoices().end(); it++) {
-        if ((*it)->getCond()) {
-            (*it)->getCond()->accept(m_this);
-        }
+        visitRangesExpecting((*it)->getCond(), t);
     }
     walkProcBodies(i);
     DEBUG_LEAVE("visitProceduralStmtMatch");
@@ -1518,6 +1595,328 @@ void TaskResolveRefs::visitExprRefPathStaticRooted(ast::IExprRefPathStaticRooted
     visitSlice(i->getSlice());
 }
 
+
+void TaskResolveRefs::visitExpecting(
+        ast::IExpr                  *e,
+        ast::ISymbolEnumScope       *expected) {
+    if (!e) {
+        return;
+    }
+    if (!expected) {
+        e->accept(m_this);
+        return;
+    }
+    m_expected[e] = expected;
+    e->accept(m_this);
+    m_expected.erase(e);
+}
+
+void TaskResolveRefs::visitAggrExpecting(
+        ast::IExprAggrList          *l,
+        ast::ISymbolEnumScope       *elem) {
+    for (std::vector<ast::IExprUP>::const_iterator
+            it=l->getElems().begin(); it!=l->getElems().end(); it++) {
+        visitExpecting(it->get(), (takesExpected(it->get())) ? elem : 0);
+    }
+}
+
+void TaskResolveRefs::visitRangesExpecting(
+        ast::IExprOpenRangeList     *l,
+        ast::ISymbolEnumScope       *expected) {
+    if (!l) {
+        return;
+    }
+    for (std::vector<ast::IExprOpenRangeValueUP>::const_iterator
+            it=l->getValues().begin(); it!=l->getValues().end(); it++) {
+        visitExpecting((*it)->getLhs(), expected);
+        visitExpecting((*it)->getRhs(), expected);
+    }
+}
+
+ast::ISymbolEnumScope *TaskResolveRefs::expectedFor(ast::IExpr *e) const {
+    if (m_expected.empty()) {
+        return 0;
+    }
+    std::unordered_map<ast::IExpr *, ast::ISymbolEnumScope *>::const_iterator
+        it = m_expected.find(e);
+    return (it != m_expected.end()) ? it->second : 0;
+}
+
+ast::IScopeChild *TaskResolveRefs::peekLexical(const ast::IExprId *id) {
+    m_ctxt->pushQuiet();
+    ast::ISymbolRefPathUP ref(TaskResolveRef(m_ctxt).resolve(
+        const_cast<ast::IExprId *>(id)));
+    m_ctxt->popQuiet();
+    // The path resolution is the costly part; the fallback needs none.
+    if (!ref || m_ctxt->enumItemHint(id)) {
+        return 0;
+    }
+    return TaskResolveSymbolPathRef(
+        m_ctxt->getDebugMgr(),
+        m_ctxt->root(),
+        m_ctxt->inlineCtxt()).resolve(ref.get());
+}
+
+ast::ISymbolRefPath *TaskResolveRefs::lookupExpectedItem(
+        ast::IExprRefPathContext    *i,
+        ast::ISymbolEnumScope       *e) {
+    if (!bareName(i)) {
+        return 0;
+    }
+    const ast::IExprId *id = i->getHier_id()->getElems().at(0)->getId();
+    std::unordered_map<std::string,int32_t>::const_iterator it =
+        e->getSymtab().find(id->getId());
+    if (it == e->getSymtab().end()) {
+        return 0;
+    }
+    ast::ISymbolRefPath *ref = TaskGetSymbolRefPath(
+        m_ctxt->getDebugMgr(),
+        m_ctxt->root(),
+        m_ctxt->getFactory()->getAstFactory()).mk(e);
+    if (!ref) {
+        return 0;
+    }
+    ref->getPath().push_back({ast::SymbolRefPathElemKind::ElemKind_ChildIdx, it->second});
+    DEBUG("Step a: %s is an item of the expected type %s",
+        id->getId().c_str(), e->getName().c_str());
+
+    // Step a comes before the lexical steps (18.3), so a field or variable
+    // of the same name is hidden here -- which its author may not expect.
+    // An enum item the lookup falls back to is no declaration of the name
+    // (8.2), so there is nothing hidden.
+    ast::IScopeChild *lex = peekLexical(id);
+    if (lex && !dynamic_cast<ast::IEnumItem *>(lex)) {
+        m_ctxt->addMarker(
+            MarkerSeverityE::Warn,
+            id->getLocation(),
+            "'" + id->getId() + "' is read as the enum item " + e->getName()
+                + "::" + id->getId() + ", which hides "
+                + declDescription(lex, id->getId())
+                + " (18.3 a); qualify one of them",
+            {{NameLookup::declLocation(lex), declDescription(lex, id->getId())
+                + " is declared here"}});
+    }
+    return ref;
+}
+
+void TaskResolveRefs::resolveBareComparison(
+        ast::IExprRefPathContext    *lhs,
+        ast::IExprRefPathContext    *rhs) {
+    ast::IExprId *l_id = lhs->getHier_id()->getElems().at(0)->getId();
+    ast::IExprId *r_id = rhs->getHier_id()->getElems().at(0)->getId();
+    ExprTypeOf type_of(m_ctxt);
+
+    // Each side's own type: the type of what it binds to lexically. A name
+    // that is only an enum item of an enclosing scope binds to nothing by
+    // 18.3 (8.2), so it has no type to offer the other side.
+    ast::IScopeChild *l_lex = peekLexical(l_id);
+    ast::IScopeChild *r_lex = peekLexical(r_id);
+    ast::ISymbolEnumScope *l_t = type_of.enumOfDecl(l_lex);
+    ast::ISymbolEnumScope *r_t = type_of.enumOfDecl(r_lex);
+
+    // A reading matters only where it changes what a name binds to: the
+    // item the other side's type offers, when that is not the name's lexical
+    // binding already.
+    auto itemOf = [](ast::ISymbolEnumScope *t, const std::string &name) -> ast::IScopeChild * {
+        if (!t) {
+            return 0;
+        }
+        std::unordered_map<std::string,int32_t>::const_iterator it =
+            t->getSymtab().find(name);
+        return (it != t->getSymtab().end())
+            ? t->getChildren().at(it->second).get() : 0;
+    };
+    ast::IScopeChild *r_item = itemOf(l_t, r_id->getId());
+    ast::IScopeChild *l_item = itemOf(r_t, l_id->getId());
+    bool r_changes = (r_item && r_item != r_lex);
+    bool l_changes = (l_item && l_item != l_lex);
+
+    if (r_changes && l_changes) {
+        m_ctxt->addErrorMarker(
+            l_id->getLocation(),
+            "ambiguous comparison of '%s' and '%s': either '%s' is %s::%s or "
+            "'%s' is %s::%s; qualify the enum item (8.4.3, 18.3 a)",
+            l_id->getId().c_str(), r_id->getId().c_str(),
+            l_id->getId().c_str(), r_t->getName().c_str(), l_id->getId().c_str(),
+            r_id->getId().c_str(), l_t->getName().c_str(), r_id->getId().c_str());
+        lhs->accept(m_this);
+        rhs->accept(m_this);
+        return;
+    }
+    visitExpecting(lhs, (l_item) ? r_t : 0);
+    visitExpecting(rhs, (r_item) ? l_t : 0);
+}
+
+void TaskResolveRefs::visitExprBin(ast::IExprBin *i) {
+    if (i->getOp() != ast::ExprBinOp::BinOp_Eq
+            && i->getOp() != ast::ExprBinOp::BinOp_Ne) {
+        ast::VisitorBase::visitExprBin(i);
+        return;
+    }
+    // 8.4.3 makes the left side's type the right side's expected type.
+    // Decision Q2 reads it both ways for an unqualified enum item, as
+    // Ex. 272's prose does ("the other side").
+    ast::IExprRefPathContext *l_bare = bareName(i->getLhs());
+    ast::IExprRefPathContext *r_bare = bareName(i->getRhs());
+    ExprTypeOf type_of(m_ctxt);
+
+    if (l_bare && r_bare) {
+        resolveBareComparison(l_bare, r_bare);
+    } else if (l_bare) {
+        i->getRhs()->accept(m_this);
+        visitExpecting(i->getLhs(), type_of.enumOf(i->getRhs()));
+    } else {
+        i->getLhs()->accept(m_this);
+        visitExpecting(i->getRhs(), (takesExpected(i->getRhs()))
+            ? type_of.enumOf(i->getLhs()) : 0);
+    }
+}
+
+void TaskResolveRefs::visitExprIn(ast::IExprIn *i) {
+    // The left side's type is the expected type of each value in the range
+    // list, or of each element of an aggregate on the right (8.4.3).
+    if (i->getLhs()) {
+        i->getLhs()->accept(m_this);
+    }
+    ast::IExprAggrList *aggr = dynamic_cast<ast::IExprAggrList *>(i->getCollection());
+    ast::ISymbolEnumScope *t = (anyTakesExpected(i->getRhs()) || aggr)
+        ? ExprTypeOf(m_ctxt).enumOf(i->getLhs()) : 0;
+    visitRangesExpecting(i->getRhs(), t);
+    if (aggr && t) {
+        for (std::vector<ast::IExprUP>::const_iterator
+                it=aggr->getElems().begin(); it!=aggr->getElems().end(); it++) {
+            visitExpecting(it->get(), t);
+        }
+    } else if (i->getCollection()) {
+        i->getCollection()->accept(m_this);
+    }
+}
+
+void TaskResolveRefs::visitConstraintStmtDefault(ast::IConstraintStmtDefault *i) {
+    // `default x == v` is an equality (13.1.11): the field's type is the
+    // value's expected type (8.4.3).
+    if (i->getHid()) {
+        i->getHid()->accept(m_this);
+    }
+    visitExpecting(i->getExpr(), (i->getHid() && takesExpected(i->getExpr()))
+        ? ExprTypeOf(m_ctxt).enumOf(i->getHid()) : 0);
+}
+
+void TaskResolveRefs::visitTemplateValueParamDecl(ast::ITemplateValueParamDecl *i) {
+    // A default value is an initialization: the parameter's type is its
+    // expected type (8.4.3), as it is for an argument (8.4).
+    if (i->getType()) {
+        i->getType()->accept(m_this);
+    }
+    visitExpecting(i->getDflt(), (i->getType() && takesExpected(i->getDflt()))
+        ? ExprTypeOf(m_ctxt).enumOfType(i->getType()) : 0);
+}
+
+void TaskResolveRefs::visitExprCast(ast::IExprCast *i) {
+    if (i->getCasting_type()) {
+        i->getCasting_type()->accept(m_this);
+    }
+    visitExpecting(i->getExpr(), (takesExpected(i->getExpr()))
+        ? ExprTypeOf(m_ctxt).enumOfType(i->getCasting_type()) : 0);
+}
+
+void TaskResolveRefs::visitExprCond(ast::IExprCond *i) {
+    // The expected type of `?:` is the expected type of both arms, and of
+    // neither the condition (8.4.3).
+    ast::ISymbolEnumScope *t = expectedFor(i);
+    if (i->getCond_e()) {
+        i->getCond_e()->accept(m_this);
+    }
+    visitExpecting(i->getTrue_e(), t);
+    visitExpecting(i->getFalse_e(), t);
+}
+
+void TaskResolveRefs::visitConstraintStmtDist(ast::IConstraintStmtDist *i) {
+    // Not an 8.4.3 context, but a dist item is an open-range value tested
+    // against the left side exactly as an `in` is (plan 8.1).
+    if (i->getLhs()) {
+        i->getLhs()->accept(m_this);
+    }
+    bool any = false;
+    for (std::vector<ast::IDistItemUP>::const_iterator
+            it=i->getItems().begin(); it!=i->getItems().end() && !any; it++) {
+        any = (*it)->getRange() && (takesExpected((*it)->getRange()->getLhs())
+            || takesExpected((*it)->getRange()->getRhs()));
+    }
+    ast::ISymbolEnumScope *t = (any) ? ExprTypeOf(m_ctxt).enumOf(i->getLhs()) : 0;
+    for (std::vector<ast::IDistItemUP>::const_iterator
+            it=i->getItems().begin(); it!=i->getItems().end(); it++) {
+        if ((*it)->getRange()) {
+            visitExpecting((*it)->getRange()->getLhs(), t);
+            visitExpecting((*it)->getRange()->getRhs(), t);
+        }
+        if ((*it)->getWeight()) {
+            (*it)->getWeight()->accept(m_this);
+        }
+    }
+}
+
+void TaskResolveRefs::visitCallArgs(
+        ast::IMethodParameterList   *params,
+        ast::IScopeChild            *callee) {
+    ast::ISymbolFunctionScope *fn = dynamic_cast<ast::ISymbolFunctionScope *>(callee);
+    const std::vector<ast::IFunctionParamDeclUP> *formals =
+        (fn && fn->getPrototypes().size())
+            ? &fn->getPrototypes().at(0)->getParameters() : 0;
+    ExprTypeOf type_of(m_ctxt);
+    for (uint32_t k=0; k<params->getParameters().size(); k++) {
+        ast::IFunctionParamDecl *formal = 0;
+        if (formals && formals->size()) {
+            // Arguments past the last formal belong to a varargs formal.
+            formal = (k < formals->size()) ? formals->at(k).get()
+                : (formals->back()->getIs_varargs()) ? formals->back().get() : 0;
+        }
+        ast::IExpr *arg = params->getParameters().at(k).get();
+        ast::ISymbolEnumScope *e = (formal && takesExpected(arg))
+            ? type_of.enumOfType(formal->getType()) : 0;
+        ast::IDataTypeUserDefined *udt = (formal && !e && bareName(arg))
+            ? dynamic_cast<ast::IDataTypeUserDefined *>(formal->getType()) : 0;
+        if (udt && udt->getType_id() && !udt->getType_id()->getTarget()) {
+            m_pending_formal[arg] = formal;
+            arg->accept(m_this);
+            m_pending_formal.erase(arg);
+        } else {
+            visitExpecting(arg, e);
+        }
+    }
+}
+
+void TaskResolveRefs::visitProceduralStmtAssignment(ast::IProceduralStmtAssignment *i) {
+    visitExecStmt(i);
+    if (i->getLhs()) {
+        i->getLhs()->accept(m_this);
+    }
+    if (ast::IExprAggrList *aggr = dynamic_cast<ast::IExprAggrList *>(i->getRhs())) {
+        visitAggrExpecting(aggr, (anyTakesExpected(aggr))
+            ? ExprTypeOf(m_ctxt).elemEnumOf(i->getLhs()) : 0);
+        return;
+    }
+    visitExpecting(i->getRhs(), (takesExpected(i->getRhs()))
+        ? ExprTypeOf(m_ctxt).enumOf(i->getLhs()) : 0);
+}
+
+void TaskResolveRefs::visitProceduralStmtDataDeclaration(ast::IProceduralStmtDataDeclaration *i) {
+    visitExecStmt(i);
+    if (i->getName()) {
+        i->getName()->accept(m_this);
+    }
+    if (i->getDatatype()) {
+        i->getDatatype()->accept(m_this);
+    }
+    if (ast::IExprAggrList *aggr = dynamic_cast<ast::IExprAggrList *>(i->getInit())) {
+        visitAggrExpecting(aggr, (anyTakesExpected(aggr))
+            ? ExprTypeOf(m_ctxt).enumOfDecl(i, 1) : 0);
+        return;
+    }
+    visitExpecting(i->getInit(), (takesExpected(i->getInit()))
+        ? ExprTypeOf(m_ctxt).enumOfType(i->getDatatype()) : 0);
+}
+
 void TaskResolveRefs::visitActivitySuper(ast::IActivitySuper *i) {
     DEBUG_ENTER("visitActivitySuper");
     checkSuperStmt(i);
@@ -1567,6 +1966,56 @@ bool TaskResolveRefs::reportUseBeforeDecl(const ast::IExprId *id) {
  * its body has no instance members to reach. The name stays bound -- the
  * lookup found what the author meant -- and this is the one report.
  */
+namespace {
+
+void warnEnumItemFallback(
+        ResolveContext              *ctxt,
+        const ast::IExprId          *id,
+        ast::ISymbolEnumScope       *e,
+        ast::ISymbolEnumScope       *expected) {
+    std::string where = (expected)
+        ? "'" + expected->getName() + "' is expected, but it is an item of '"
+            + e->getName() + "'"
+        : std::string("no enumeration type is expected");
+    ctxt->addMarker(
+        MarkerSeverityE::Warn,
+        id->getLocation(),
+        "enum item '" + id->getId() + "' is used where " + where
+            + " (7.5 i, 8.4.3); qualify it as '" + e->getName() + "::"
+            + id->getId() + "'",
+        {});
+}
+
+}
+
+void TaskResolveRefs::reportEnumItemFallback(
+        ast::IExprRefPathContext    *ref,
+        ast::ISymbolEnumScope       *expected) {
+    const ast::IExprId *id = ref->getHier_id()->getElems().at(0)->getId();
+    ast::ISymbolEnumScope *e = m_ctxt->enumItemHint(id);
+    if (!e) {
+        return;
+    }
+
+    std::unordered_map<ast::IExpr *, ast::IFunctionParamDecl *>::const_iterator
+        it = (m_pending_formal.empty()) ? m_pending_formal.end() : m_pending_formal.find(ref);
+    if (it == m_pending_formal.end()) {
+        warnEnumItemFallback(m_ctxt, id, e, expected);
+        return;
+    }
+
+    // The formal's type is bound by the end of resolution. If it is the
+    // item's own enum, step a finds the same item, and there is nothing to say.
+    ResolveContext *ctxt = m_ctxt;
+    ast::IFunctionParamDecl *formal = it->second;
+    ctxt->addPostResolveAction([ctxt, id, e, formal]() {
+        ast::ISymbolEnumScope *f_e = ExprTypeOf(ctxt).enumOfType(formal->getType());
+        if (f_e != e) {
+            warnEnumItemFallback(ctxt, id, e, f_e);
+        }
+    });
+}
+
 void TaskResolveRefs::reportStaticContext(const ast::IExprId *id) {
     ast::IScopeChild *fn = m_ctxt->staticCtxtHint(id);
     if (!fn) {
@@ -1585,7 +2034,7 @@ bool TaskResolveRefs::insideTypeOrSubtype(ast::ISymbolTypeScope *t) {
         return false;
     }
     while (scratch->hasScopes()) {
-        // See TaskResolveRootRef::resolve() for why a null scope pops.
+        // See NameLookup::lookupFirst() for why a null scope pops.
         ast::ISymbolScope *s = scratch->getScope();
         if (s) {
             ast::ISymbolScope *ts = s;
@@ -1736,10 +2185,19 @@ void TaskResolveRefs::resolveExprRefPathContext(ast::IExprRefPathContext *i) {
             return;
         }
     } else if (!target) {
-        target = TaskResolveRef(m_ctxt).resolve(
-            i->getHier_id()->getElems().at(0)->getId());
-        if (target) {
-            reportStaticContext(i->getHier_id()->getElems().at(0)->getId());
+        // Step a of 18.3: with an enumeration type expected, the enum's items
+        // come before any lexical scope (8.1).
+        ast::ISymbolEnumScope *expected = expectedFor(i);
+        if (expected) {
+            target = lookupExpectedItem(i, expected);
+        }
+        if (!target) {
+            target = TaskResolveRef(m_ctxt).resolve(
+                i->getHier_id()->getElems().at(0)->getId());
+            if (target) {
+                reportStaticContext(i->getHier_id()->getElems().at(0)->getId());
+                reportEnumItemFallback(i, expected);
+            }
         }
     }
 
@@ -1755,6 +2213,12 @@ void TaskResolveRefs::resolveExprRefPathContext(ast::IExprRefPathContext *i) {
 
         if (reportUseBeforeDecl(i->getHier_id()->getElems().at(0)->getId())) {
             DEBUG_LEAVE("visitExprRefPathContext -- use before declaration");
+            return;
+        }
+
+        if (NameLookup::reportImportLeak(
+                m_ctxt, i->getHier_id()->getElems().at(0)->getId(), "identifier")) {
+            DEBUG_LEAVE("visitExprRefPathContext -- import out of reach");
             return;
         }
 
@@ -1784,7 +2248,7 @@ void TaskResolveRefs::resolveExprRefPathContext(ast::IExprRefPathContext *i) {
         if (suggestion.empty() && m_ctxt->symtab()) {
             // getScope() walks backward from the top of the stack it is
             // given and silently *erases* every non-ISymbolScope entry it
-            // passes over (by design -- TaskResolveRootRef::resolve() relies
+            // passes over (by design -- NameLookup::lookupFirst() relies
             // on this to converge its root-ref search, and always calls it
             // on a throwaway clone). Calling it directly on the live active
             // stack here corrupted it whenever the innermost frame was a
@@ -1792,7 +2256,7 @@ void TaskResolveRefs::resolveExprRefPathContext(ast::IExprRefPathContext *i) {
             // silently dropping a frame a caller further up (visitConstraintBlock)
             // still owns and will pop itself, eventually popping the wrong
             // scope or an empty stack (E7-D14). Use a scratch clone instead,
-            // exactly as TaskResolveRootRef::resolve() does for the same
+            // exactly as NameLookup::lookupFirst() does for the same
             // reason.
             ISymbolTableIteratorUP scratch(m_ctxt->cloneSymtab());
             if (scratch) {
@@ -1937,14 +2401,18 @@ void TaskResolveRefs::resolveExprRefPathContext(ast::IExprRefPathContext *i) {
             elem->getSubscript().size(), 
             elem->getParams());
 
-        // Ensure we resolve expression references in function parameters
+        // Ensure we resolve expression references in function parameters.
+        // Each formal parameter's type is its argument's expected type
+        // (8.4.3): the callee is the root's target, or the member this
+        // element names in the scope the path has reached.
         if (elem->getParams()) {
             DEBUG_ENTER("Resolve parameter references");
-            for (std::vector<ast::IExprUP>::const_iterator
-                it=elem->getParams()->getParameters().begin();
-                it!=elem->getParams()->getParameters().end(); it++) {
-                (*it)->accept(m_this);
-            }
+            ast::IScopeChild *callee = (!ii) ? target_c
+                : (target_s && !target_s->getOpaque())
+                    ? TaskFindPathElem(m_ctxt->getDebugMgr(), m_ctxt->root()).find(
+                        target_s, elem->getId()).sym
+                    : 0;
+            visitCallArgs(elem->getParams(), callee);
             DEBUG_LEAVE("Resolve parameter references");
         }
 
@@ -2267,6 +2735,7 @@ void TaskResolveRefs::visitActivitySequence(ast::IActivitySequence *i) {
 void TaskResolveRefs::resolveActivityScope(ast::ISymbolScope *i) {
     DEBUG_ENTER("resolveActivityScope");
     m_ctxt->symtab()->pushScope(i);
+    checkScopeAnnotations(i);
     for (std::vector<ast::IScopeChildUP>::const_iterator
         it=i->getChildren().begin(); it!=i->getChildren().end(); it++) {
         visitMergedScopeChild(it->get());
@@ -2354,11 +2823,17 @@ void TaskResolveRefs::visitActivityMatch(ast::IActivityMatch *i) {
     if (i->getCond()) {
         i->getCond()->accept(m_this);
     }
+    // As for a procedural match: each choice expects the match expression's
+    // type.
+    bool any = false;
+    for (std::vector<ast::IActivityMatchChoiceUP>::const_iterator
+        it=i->getChoices().begin(); it!=i->getChoices().end() && !any; it++) {
+        any = anyTakesExpected((*it)->getCond());
+    }
+    ast::ISymbolEnumScope *t = (any) ? ExprTypeOf(m_ctxt).enumOf(i->getCond()) : 0;
     for (std::vector<ast::IActivityMatchChoiceUP>::const_iterator
         it=i->getChoices().begin(); it!=i->getChoices().end(); it++) {
-        if ((*it)->getCond()) {
-            (*it)->getCond()->accept(m_this);
-        }
+        visitRangesExpecting((*it)->getCond(), t);
     }
     resolveActivityScope(i);
     DEBUG_LEAVE("visitActivityMatch");
@@ -2562,39 +3037,26 @@ void TaskResolveRefs::resolveExprRefPathStatic(ast::IExprRefPathStatic *i) {
                 target_s = res.sym;
                 (*it)->getId()->setDecl(res.sym);
 
-                if (res.super_idx == 0) {
-                    target->getPath().push_back({
-                        ast::SymbolRefPathElemKind::ElemKind_ChildIdx,
-                        res.idx});
+                // An inherited member: one ElemKind_Super per base type
+                // crossed, then its index in the base that declares it.
+                res.appendTo(target);
 
-                    if ((*it)->getParams()) {
-                        // A qualified generic: `std_pkg::sizeof_s<T>::nbits`.
-                        // Only the first element's arguments used to be
-                        // applied, so this bound the *generic's* members --
-                        // sizeof_s's placeholder -1 -- and the argument list
-                        // was resolved and then dropped. Specialize exactly
-                        // as the first element does; the arguments were
-                        // resolved at the use site by the accept() above.
-                        target = TaskSpecializeParameterizedRef(m_ctxt).specialize(
-                            target,
-                            (*it)->getParams(),
-                            (*it)->getId()->getLocation());
-                        if (!target) {
-                            break;
-                        }
-                        target_s = m_ctxt->resolveSymbolPathRef(target);
+                if ((*it)->getParams()) {
+                    // A qualified generic: `std_pkg::sizeof_s<T>::nbits`.
+                    // Only the first element's arguments used to be
+                    // applied, so this bound the *generic's* members --
+                    // sizeof_s's placeholder -1 -- and the argument list
+                    // was resolved and then dropped. Specialize exactly
+                    // as the first element does; the arguments were
+                    // resolved at the use site by the accept() above.
+                    target = TaskSpecializeParameterizedRef(m_ctxt).specialize(
+                        target,
+                        (*it)->getParams(),
+                        (*it)->getId()->getLocation());
+                    if (!target) {
+                        break;
                     }
-                } else {
-                    // The member is inherited. A symbol path has no way to
-                    // encode a step through a base type --
-                    // TaskResolveSymbolPathRef leaves ElemKind_Super as a
-                    // TODO -- so extending it with the base's child index
-                    // would resolve to whatever child sits at that index in
-                    // the derived type. Leave the path at the enclosing type;
-                    // the member is checked either way, which is what this
-                    // branch is here for.
-                    DEBUG("Member %s is inherited (super_idx=%d); path not extended",
-                        (*it)->getId()->getId().c_str(), res.super_idx);
+                    target_s = m_ctxt->resolveSymbolPathRef(target);
                 }
             } else {
                 DEBUG("element is inside a pyref path");
@@ -2785,9 +3247,14 @@ void TaskResolveRefs::visitField(ast::IField *i) {
     if (i->getType()) {
         i->getType()->accept(m_this);
     }
+    if (ast::IExprAggrList *aggr = dynamic_cast<ast::IExprAggrList *>(i->getInit())) {
+        visitAggrExpecting(aggr, (anyTakesExpected(aggr))
+            ? ExprTypeOf(m_ctxt).enumOfDecl(i, 1) : 0);
+    } else if (i->getInit()) {
+        visitExpecting(i->getInit(), (takesExpected(i->getInit()))
+            ? ExprTypeOf(m_ctxt).enumOfType(i->getType()) : 0);
+    }
     if (i->getInit()) {
-        i->getInit()->accept(m_this);
-
         // PSS115. §4.7: a template whose special elements reference
         // non-constants is not a constant expression, so it cannot initialize
         // a `const` field. Checked after the descent above, which is what
@@ -2929,7 +3396,7 @@ std::string TaskResolveRefs::declSite(
  *      constants in its initialization assignment expression."
  *
  * Checked here rather than by hiding at lookup time (as 18.2a/b are, in
- * TaskResolveRootRef): a type or package scope is not ordered for anything
+ * NameLookup): a type or package scope is not ordered for anything
  * else, a qualified `p::C` never takes the lexical walk, and there is no
  * outer declaration for the use to fall back to. Across files, the file
  * order applies (decision Q8), as it does for `compile if`.
@@ -3081,7 +3548,8 @@ void TaskResolveRefs::visitFunctionPrototype(ast::IFunctionPrototype *i) {
         // A default value is an ordinary expression (F-N9: it was never
         // walked, so `int p = NOSUCH` was silent).
         if ((*it)->getDflt()) {
-            (*it)->getDflt()->accept(m_this);
+            visitExpecting((*it)->getDflt(), (takesExpected((*it)->getDflt()))
+                ? ExprTypeOf(m_ctxt).enumOfType((*it)->getType()) : 0);
         }
     }
     DEBUG_LEAVE("visitFunctionPrototype");
@@ -3258,9 +3726,11 @@ void TaskResolveRefs::visitTemplateIfClause(ast::ITemplateIfClause *i) {
 bool TaskResolveRefs::findTemplateAssignTarget(
         const ast::IExprId          *id,
         bool                        &in_template,
+        ast::IScopeChild            *&decl,
         ast::IScopeChild            *&fwd_decl) {
     const std::string &name = id->getId();
     in_template = false;
+    decl = 0;
     fwd_decl = 0;
     for (int32_t off=0; ; off++) {
         ast::ISymbolScope *scope = m_ctxt->symtab()->getScope(off);
@@ -3282,6 +3752,7 @@ bool TaskResolveRefs::findTemplateAssignTarget(
             in_template =
                 dynamic_cast<ast::ITemplateString *>(scope) != 0 ||
                 dynamic_cast<ast::ITemplateBlock *>(scope) != 0;
+            decl = c;
             return true;
         }
     }
@@ -3304,9 +3775,16 @@ void TaskResolveRefs::visitTemplateAssign(ast::ITemplateAssign *i) {
     const std::string &name = i->getLhs()->getId()->getId();
 
     bool in_template = false;
+    ast::IScopeChild *decl = 0;
     ast::IScopeChild *fwd_decl = 0;
     bool found = findTemplateAssignTarget(
-        i->getLhs()->getId(), in_template, fwd_decl);
+        i->getLhs()->getId(), in_template, decl, fwd_decl);
+
+    // Bound whether or not it is legal: an attribute assigned in error is
+    // still that attribute, for a tool that follows the name.
+    if (found) {
+        i->getLhs()->getId()->setDecl(decl);
+    }
 
     if (fwd_decl && !in_template) {
         m_ctxt->setFwdDeclHint(i->getLhs()->getId(), fwd_decl);
@@ -3522,12 +4000,6 @@ void TaskResolveRefs::visitInstanceOverride(ast::IInstanceOverride *i) {
 void TaskResolveRefs::visitSymbolScope(ast::ISymbolScope *i) {
     DEBUG_ENTER("visitSymbolScope %s", i->getName().c_str());
     m_ctxt->symtab()->pushScope(i);
-
-    if (i->getImports()) {
-        DEBUG_ENTER("  Resolve Imports");
-        TaskResolveImports(m_ctxt).resolve(i);
-        DEBUG_LEAVE("  Resolve Imports");
-    }
 
     checkScopeAnnotations(i);
 
@@ -3830,8 +4302,11 @@ bool TaskResolveRefs::defaultsDiffer(ast::IExpr *a, ast::IExpr *b) {
 
 void TaskResolveRefs::visitProceduralStmtReturn(ast::IProceduralStmtReturn *i) {
     // Resolve the returned expression first, whatever the verdict below: a
-    // bad reference inside it should be reported on its own terms.
-    ast::VisitorBase::visitProceduralStmtReturn(i);
+    // bad reference inside it should be reported on its own terms. The
+    // return type is its expected type (8.4.3).
+    visitExecStmt(i);
+    visitExpecting(i->getExpr(), (m_func_s.empty() || !takesExpected(i->getExpr())) ? 0
+        : ExprTypeOf(m_ctxt).enumOfType(m_func_s.back()->getRtype()));
 
     if (m_func_s.empty()) {
         // A `return` outside any function body. The grammar admits one in an
@@ -3886,6 +4361,19 @@ void TaskResolveRefs::visitSymbolFunctionScope(ast::ISymbolFunctionScope *i) {
 //    if (i->getBody()) {
         DEBUG("Push function scope %s", i->getName().c_str());
         m_ctxt->symtab()->pushScope(i);
+
+        // The function's own annotations -- and, since the builder attaches a
+        // body statement's annotation to the definition, those too (Example
+        // 323). The enclosing scope's collector stops at this one.
+        for (std::vector<ast::IFunctionPrototype *>::const_iterator
+            it=i->getPrototypes().begin();
+            it!=i->getPrototypes().end(); it++) {
+            checkAnnotations((*it)->getAnnotations());
+        }
+        if (i->getTarget()) {
+            // The definition (TaskBuildSymbolTree::visitFunctionDefinition).
+            checkAnnotations(i->getTarget()->getAnnotations());
+        }
 //        m_ctxt->symtab()->pushScope(i->getPlist());
 //        DEBUG("Push function body scope");
 //        m_ctxt->symtab()->pushScope(i->getBody());
@@ -4046,10 +4534,11 @@ void TaskResolveRefs::visitSymbolTypeScope(ast::ISymbolTypeScope *i) {
             DEBUG("No super type");
         }
 
-        if (i->getImports()) {
-            DEBUG_ENTER("  Resolve Imports");
+        // A specialization's imports are copies, made after every import in
+        // the source was resolved (TaskResolveImports::resolveAll). Any other
+        // type's are resolved, or reported, already.
+        if (i->getImports() && m_ctxt->specializationDepth()) {
             TaskResolveImports(m_ctxt).resolve(i);
-            DEBUG_LEAVE("  Resolve Imports");
         }
 
         checkScopeAnnotations(i);
@@ -4088,6 +4577,22 @@ public:
     std::vector<ast::IAnnotation *> annotations;
 
     void collect(ast::IScope *s) {
+        if (!s) {
+            return;
+        }
+        for (std::vector<ast::IScopeChildUP>::const_iterator
+            it=s->getChildren().begin();
+            it!=s->getChildren().end(); it++) {
+            (*it)->accept(this);
+        }
+    }
+
+    /**
+     * A symbol scope that is an AST node itself (an ActivityDecl, a
+     * MonitorActivityDecl) holds its statements as symbol-scope children,
+     * not as an IScope's.
+     */
+    void collect(ast::ISymbolChildrenScope *s) {
         if (!s) {
             return;
         }
@@ -4146,9 +4651,34 @@ std::string typeIdName(ast::ITypeIdentifier *type_id) {
 
 }
 
+void TaskResolveRefs::checkAnnotations(const std::vector<ast::IAnnotationUP> &anns) {
+    for (std::vector<ast::IAnnotationUP>::const_iterator
+        it=anns.begin(); it!=anns.end(); it++) {
+        if (m_checked_annotations.insert(it->get()).second) {
+            (*it)->accept(m_this);
+        }
+    }
+}
+
+void TaskResolveRefs::checkBlockAnnotations(ast::IScope *scope) {
+    AnnotationCollector collector;
+    collector.collect(scope);
+    for (std::vector<ast::IAnnotation *>::const_iterator
+        it=collector.annotations.begin();
+        it!=collector.annotations.end(); it++) {
+        if (m_checked_annotations.insert(*it).second) {
+            (*it)->accept(m_this);
+        }
+    }
+}
+
 void TaskResolveRefs::checkScopeAnnotations(ast::ISymbolScope *scope) {
     AnnotationCollector collector;
-    collector.collect(dynamic_cast<ast::IScope *>(scope));
+    if (dynamic_cast<ast::IScope *>(scope)) {
+        collector.collect(dynamic_cast<ast::IScope *>(scope));
+    } else {
+        collector.collect(static_cast<ast::ISymbolChildrenScope *>(scope));
+    }
 
     // An annotation on the declaration itself hangs off the wrapped AST node.
     // Its type is resolved from inside the declaration's scope rather than the
@@ -4161,6 +4691,15 @@ void TaskResolveRefs::checkScopeAnnotations(ast::ISymbolScope *scope) {
             it!=scope->getTarget()->getAnnotations().end(); it++) {
             collector.annotations.push_back(it->get());
         }
+    }
+
+    // And one on the scope itself, when it is an AST node rather than a
+    // symbol-tree wrapper: an ActivityDecl, which is where the builder puts
+    // the annotation of an activity statement.
+    for (std::vector<ast::IAnnotationUP>::const_iterator
+        it=scope->getAnnotations().begin();
+        it!=scope->getAnnotations().end(); it++) {
+        collector.annotations.push_back(it->get());
     }
 
     for (std::vector<ast::IAnnotation *>::const_iterator
@@ -4243,7 +4782,7 @@ void TaskResolveRefs::visitAnnotation(ast::IAnnotation *i) {
         // contributed by `extend annotation` are not merged into the symbol
         // scope's children, and a plain symtab lookup would report them as
         // unknown.
-        TaskFindPathElem::Result res = {0, -1, -1};
+        TaskFindPathElem::Result res = {0, -1, -1, -1};
         if (decl_s) {
             res = TaskFindPathElem(
                 m_ctxt->getDebugMgr(),

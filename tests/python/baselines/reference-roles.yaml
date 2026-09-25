@@ -110,6 +110,7 @@ roles:
   PyImportStmt.path: none            # a Python module path
   PyImportStmt.alias: decl
   SymbolChildrenScope.name: none     # the symbol-tree mirror's label
+  SymbolExtMember.name: none         # a copy of the member's own name, for lookup
   TemplateAssign.lhs: ref            # a template local declared earlier (4.7.1.2)
   TemplateCategoryTypeParamDecl.restriction: ref
   TemplateForeach.it: decl

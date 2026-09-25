@@ -551,6 +551,73 @@ An action reaches a static function or static constant of a component through it
 
 LRM 9.1.4.1 f: "It shall be illegal to access static component members using the comp handle."  ``comp`` is an instance; a static member belongs to the component type (20.2.1.1 c).  A member of the action's own component is found by its plain name, since the action is declared inside that component or an extension of it; a member of a sub-component is named through its type, ``sub_c::f``.  Reported for every path that starts at ``comp``, including ``comp.sub.f()``.
 
+PSS042
+------
+
+**Severity:** error
+
+Reference left unbound (pssparser defect)
+
+The linker finished without binding a name, although the model declares something of that name, and without saying why.  This is a defect in pssparser, not necessarily in the model: please report it together with the input.  Message:
+
+* ``'x' was left unbound by pssparser, although the model declares it: a pssparser defect, please report it``
+
+Reported by the completeness check that runs after linking (symbol-resolution plan 3.5), so that a consumer is never handed a reference with no target in silence.  It is reported only on a model with no other error; with one, an unbound name is far more likely a consequence of that error.  A name that nothing in the model declares is PSS002 instead.  Some constructs are not checked yet: covergroup bodies and port maps, pool and activity binds, scheduling constraints, instance overrides, struct-literal member names, and the parameters of a generic constraint.
+
+PSS043
+------
+
+**Severity:** error
+
+Illegal package alias declaration
+
+LRM 18.1.4 restricts the name of a package alias (``import pkg1::a::b as p1;``).  Messages:
+
+* ``package alias 'X' is already declared in this scope; two aliases in one scope shall not share a name (18.1.4)``
+* ``package alias 'foo' has the same name as a package declared in package 'P'; rename the alias (18.1.4)``
+
+Two aliases in one lexical scope -- one ``package`` statement, component declaration or extension, or one file's global scope -- shall not have the same name; the same name in two statements of one package is legal.  An alias shall not take the name of a package declared in the same namespace in this source unit or an earlier one (Example 260).  A package of that name added in a later source unit is legal, and from then on a reference finds the package rather than the alias (18.3 c.1 before c.2.i).
+
+PSS044
+------
+
+**Severity:** warning
+
+Enum item hides a declaration of the same name
+
+Where an expression's expected type is an enumeration type (8.4.3), an unqualified name is looked up among that enum's items before any scope (18.3 a).  A field, variable or parameter of the same name is then hidden, which is legal but rarely intended.  Message:
+
+* ``'A' is read as the enum item mode_e::A, which hides the field 'A' (18.3 a); qualify one of them``
+
+Write ``mode_e::A`` for the item, or rename the field.
+
+PSS045
+------
+
+**Severity:** error
+
+Ambiguous enum item in a comparison
+
+In ``a == b`` or ``a != b`` each side's type is the other side's expected type, so an unqualified name on either side may be an item of the other side's enum.  When both sides are bare names and each could be read that way, there is no telling which was meant.  Message:
+
+* ``ambiguous comparison of 'A' and 'B': either 'A' is e2::A or 'B' is e1::B; qualify the enum item (8.4.3, 18.3 a)``
+
+Qualify the item, as ``e1::B``.
+
+PSS046
+------
+
+**Severity:** warning
+
+Enum item used where its enumeration type is not expected
+
+An enum item belongs to its enumeration type's scope, not to the scope that declares the enum (7.5 g).  Unqualified, it is found only where the expression's expected type is that enumeration type (7.5 i, 8.4.3, 18.3 a): an assignment or initializer, a call argument, a ``return``, the other side of ``==``/``!=``, the values of ``in``, a cast to the enum, and the arms of ``?:``.  pssparser still accepts an item declared in an enclosing scope, or in a package a wildcard import names, when the name means nothing else there, and warns; this becomes an error in a later release.  A declaration of the same name further out is what the name means, and no longer the item.  Messages:
+
+* ``enum item 'ORANGE' is used where no enumeration type is expected (7.5 i, 8.4.3); qualify it as 'color_e::ORANGE'``
+* ``enum item 'RED' is used where 'mode_e' is expected, but it is an item of 'color_e' (7.5 i, 8.4.3); qualify it as 'color_e::RED'``
+
+Qualify the item.  LRM Example 37: ``print_num((int)ORANGE)`` is an error, because the cast's type is ``int``.
+
 PSS100
 ------
 

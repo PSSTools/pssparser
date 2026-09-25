@@ -260,6 +260,20 @@ def test_unbounded_self_specialization_is_diagnosed_not_crashed():
     assert "S" in res.output
 
 
+def test_unbounded_value_recursion_is_diagnosed():
+    """K5: ``component T<int N=1> { T<N+1> t; }`` has no fixed point either.
+
+    It used to be *silent*: specialization identity treated two compound value
+    arguments as equal, so ``T<N+1>`` collapsed onto the first ``T<?>`` and
+    the chain stopped there. Arguments are now compared by value
+    (symbol-resolution 8.3), so each step is new and the depth limit reports.
+    """
+    assert_rejects(
+        "component T<int N=1> { T<N+1> t; } component pss_top { T<1> t; }",
+        "recursive specialization",
+    )
+
+
 def test_generic_used_inside_its_own_default_is_diagnosed_not_crashed():
     """``struct S<type T, type U = S<int>>`` -- the same non-terminating chain.
 
