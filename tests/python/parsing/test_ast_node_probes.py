@@ -1066,9 +1066,27 @@ def test_randomize_keeps_its_target_and_constraints(parser):
     nodes = _find_nodes_deep(p, "ProceduralStmtRandomize")
     assert len(nodes) == 1
     r = nodes[0]
-    assert r.getTarget() is not None
+    assert r.numTargets() == 1
+    assert r.getTarget(0) is not None
     assert r.numConstraints() == 1
     assert r.getConstraint(0).numConstraints() == 2
+
+
+def test_randomize_keeps_every_target(parser):
+    """`randomize v, w` -- "one or more variables" (13.4.6) -- kept only the
+    first target, and said so (PSS116). Every target is kept, in order."""
+    p = _parse_only(
+        "package p { struct s { rand int x; } }"
+        " component c { function void f() { p::s v; p::s w;"
+        " randomize v, w with { v.x < 4; } } }", parser)
+    nodes = _find_nodes_deep(p, "ProceduralStmtRandomize")
+    assert len(nodes) == 1
+    r = nodes[0]
+    assert r.numTargets() == 2
+    names = [r.getTarget(i).getHier_id().getElem(0).getId().getId()
+             for i in range(r.numTargets())]
+    assert names == ["v", "w"]
+    assert r.numConstraints() == 1
 
 
 def test_super_reference_is_distinguishable_from_a_plain_reference(parser):

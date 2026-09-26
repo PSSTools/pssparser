@@ -32,14 +32,6 @@ from test_helpers import find_markers, parse_collect  # noqa: E402
 # the detail to distinguish partials that share a construct name.
 UNREPRESENTED = [
     # -- Phase 5: qualifiers lost on nodes that are built --------------------
-    # The single-target form is fully represented; only the list is not.
-    # ProceduralStmtRandomize has one `target` expression and the grammar takes
-    # a comma-separated list -- see open question O-4.
-    ("randomize_multi_target",
-     "package p { struct s { rand int x; } }"
-     " component c { function void f() { p::s v; p::s w;"
-     " randomize v, w with { v.x < 4; } } }",
-     "only the first of several randomization targets is kept"),
 ]
 
 _IDS = [c[0] for c in UNREPRESENTED]
