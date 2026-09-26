@@ -79,6 +79,12 @@ public:
         }
     }
 
+    virtual void visitGenericConstraintParam(ast::IGenericConstraintParam *i) override {
+        if (i->getType()) {
+            i->getType()->accept(m_this);
+        }
+    }
+
     virtual void visitDataTypeUserDefined(ast::IDataTypeUserDefined *i) override {
         if (i->getType_id()) {
             i->getType_id()->accept(m_this);

@@ -1081,7 +1081,7 @@ cdef extern from "pssp/ast/IFactory.h" namespace "pssp::ast":
                 IExprOpenRangeListP cond,
                 IScopeChildP body)
         IProceduralStmtRandomize *mkProceduralStmtRandomize(
-                IExprP target)
+                )
         IProceduralStmtReturn *mkProceduralStmtReturn(
                 IExprP expr)
         IProceduralStmtSuper *mkProceduralStmtSuper(
@@ -2669,9 +2669,7 @@ cdef extern from "pssp/ast/IProceduralStmtMatchChoice.h" namespace "pssp::ast":
 
 cdef extern from "pssp/ast/IProceduralStmtRandomize.h" namespace "pssp::ast":
     cpdef cppclass IProceduralStmtRandomize(IExecStmt):
-        IExpr *getTarget()
-        
-        void setTarget(IExpr *v)
+        std_vector[UP[IExpr]] & getTargets();
         std_vector[UP[IConstraintStmt]] & getConstraints();
 
 cdef extern from "pssp/ast/IProceduralStmtReturn.h" namespace "pssp::ast":

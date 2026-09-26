@@ -1048,10 +1048,9 @@ cdef class Factory(object):
                 is_default,
                 cond.asExprOpenRangeList(),
                 body.asScopeChild()), True)
-    cpdef ProceduralStmtRandomize mkProceduralStmtRandomize(self,
-            Expr target):
+    cpdef ProceduralStmtRandomize mkProceduralStmtRandomize(self):
         return ProceduralStmtRandomize.mk(self._hndl.mkProceduralStmtRandomize(
-                target.asExpr()), True)
+), True)
     cpdef ProceduralStmtReturn mkProceduralStmtReturn(self,
             Expr expr):
         return ProceduralStmtReturn.mk(self._hndl.mkProceduralStmtReturn(
@@ -6561,13 +6560,29 @@ cdef class ProceduralStmtRandomize(ExecStmt):
         ret._owned = owned
         return ret
     
-    cpdef Expr getTarget(self):
-        if self.asProceduralStmtRandomize().getTarget() == NULL:
-            return None
-        else:
+    def targets(self) -> ListUtil:
+        return ListUtil(self.numTargets, self.getTarget)
+    
+    cpdef getTargets(self):
+        cdef const std_vector[ast_decl.IExprUP] *__lp = &self.asProceduralStmtRandomize().getTargets()
+        cdef ast_decl.IExpr *__ep;
+        ret = []
+        for __i in range(__lp.size()):
+            __ep = __lp.at(__i).get()
             of = ObjFactory()
-            self.asProceduralStmtRandomize().getTarget().accept(of._hndl)
-            return <Expr>(of._obj)
+            __ep.accept(of._hndl)
+            ret.append(of._obj)
+        return ret
+    cpdef getTarget(self, i):
+        cdef ast_decl.IExpr *__ep = self.asProceduralStmtRandomize().getTargets().at(i).get();
+        of = ObjFactory()
+        __ep.accept(of._hndl)
+        return of._obj
+    cpdef void addTarget(self, Expr i):
+        i._owned = False
+        self.asProceduralStmtRandomize().getTargets().push_back(ast_decl.IExprUP(i.asExpr(), True))
+    cpdef numTargets(self):
+        return self.asProceduralStmtRandomize().getTargets().size()
     def constraints(self) -> ListUtil:
         return ListUtil(self.numConstraints, self.getConstraint)
     

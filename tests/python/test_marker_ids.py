@@ -103,6 +103,11 @@ REPRESENTATIVE_MESSAGES = [
     ("PSS046", "enum item 'RED' is used where 'mode_e' is expected, but it is "
                "an item of 'color_e' (7.5 i, 8.4.3); qualify it as "
                "'color_e::RED'"),
+    ("PSS047", "template parameter 'N' expects a value, but 'my_s' is a type"),
+    ("PSS047", "template parameter 'N' expects a value, but the argument "
+               "supplied is a type"),
+    ("PSS047", "template parameter 'T' expects a type, but the argument "
+               "supplied is a value"),
     ("PSS006", "call to 'g' expects 1 argument, got 3"),
     ("PSS006", "call to 'g' expects 1 to 2 arguments, got 0"),
     ("PSS006", "call to 'g' expects at least 1 argument, got 0"),

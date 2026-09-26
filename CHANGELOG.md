@@ -30,6 +30,68 @@ specified for native functions only, and the LRM's own
 `write_fields({"mode", "coeff"}, ...)` passes literals to parameters it cannot
 mark. Checked on both call-argument paths (`TaskCheckCallArgs::checkConstArg`).
 
+### Fixed — a generic constraint's parameters are resolved in its body (symbol-resolution 8.7, LRM 13.1.2)
+
+The parameters of `constraint g(P p, bit[8] v) { ... }` used to be skipped by
+name in the body, so a reference to one was never bound. They are now in scope
+there, and a reference to one binds to its `GenericConstraintParam`:
+
+- a member of a parameter is checked against the parameter's type, so
+  `p.nosuch` is an error ("Failed to find elem nosuch", PSS002) where it used
+  to link silently;
+- a parameter hides a field of the same name. `v` in the example used to bind
+  to a field `v` of the enclosing type, if there was one;
+- an enum-typed parameter is the expected type for an item compared with it,
+  so `v == B` no longer warns PSS046;
+- `l.size()`, `l[i]` and `foreach (e : l)` work on a collection parameter.
+  `foreach` over one used to report an internal "left unbound" error.
+
+This applies to both forms (a constraint block, and `constraint T f(...) expr;`),
+and to generic constraints in packages, in the global scope, in extensions and
+in parameterized types.
+
+For tools reading the linked AST: a parameter reference's target path ends in
+an `ElemKind_ArgIdx` step on the generic-constraint declaration, as a `symbol`
+parameter's does. A generic constraint block's statements are now its direct
+`constraints`, as for a named constraint block; they used to be wrapped in one
+`ConstraintScope`. A constraint an `extend` contributes now has the index of its
+position in the extended type, so a path into its body resolves (a `foreach`
+iterator in one was unbound).
+
+### Fixed — a name given for a template value parameter is resolved as a value (symbol-resolution 8.4, LRM 8.4.3, 10.3, 18.3 a)
+
+A bare name in a template argument list, `S<X>`, parses as a type whichever
+kind of parameter it is given for, since a type and a constant are spelled
+alike. Where the parameter is a value parameter, `X` is now looked up as the
+value it must be:
+
+- the parameter's type is the argument's expected type, so for
+  `struct S<mode_e m>`, `S<B>` is `mode_e::B` even where the enum is not
+  visible or `B` also names a constant (which PSS044 reports as hidden). An
+  item of another enum, or of any enum for an `int` parameter, is PSS046, as
+  in any other expression;
+- a name that is not declared is reported as "unknown identifier 'X'" (PSS002),
+  not "unknown type 'X'";
+- a type -- a struct, an enum, a typedef or a type parameter -- is now an
+  error, where it used to link silently: "template parameter 'N' expects a
+  value, but 'my_s' is a type". This and the other argument-kind mismatches
+  ("expects a value/type, but the argument supplied is a ...") are now coded
+  **PSS047**.
+
+The arguments of a generic named by a qualified path, `p::N<K>`, are now
+resolved where they are written. They were resolved inside the specialization,
+so a constant or type visible only at the use site -- `K` a field of the
+enclosing component -- was reported as unknown.
+
+An enum item can now be qualified by the package or type that declares its
+enum, `pkg::ITEM`, as well as by the enum, `pkg::enum_e::ITEM`: 18.3 counts
+enum items among a namespace's static members, and `ITEM` alone is found
+inside the package. This covers items an `extend enum` in the package adds,
+items of an enum a base component declares (`sub_c::HI`), and the
+`addr_reg_pkg::LITTLE_ENDIAN`/`BIG_ENDIAN` forms of 21.13. A member of the
+same name comes first. It is accepted in expressions and in template
+arguments, and is still not a type.
+
 ### Fixed — distinct template value arguments no longer share one specialization (symbol-resolution 8.3, LRM 10.4)
 
 Two uses of a generic with value arguments of the same *form* -- `S<2+2>` and

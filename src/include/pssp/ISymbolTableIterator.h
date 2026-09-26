@@ -64,6 +64,13 @@ public:
 
     virtual bool hasScopes() = 0;
 
+    /**
+     * The innermost entry, whether or not it is a symbol scope. Null when
+     * the stack is empty. getScope() passes over (and drops) the entries
+     * that are not, such as a constraint block.
+     */
+    virtual ast::IScopeChild *getTopScope() const = 0;
+
     virtual ISymbolTableIterator *clone() const = 0;
 
 };

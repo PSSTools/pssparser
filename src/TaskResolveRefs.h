@@ -74,6 +74,8 @@ public:
 
     virtual void visitActivityDecl(ast::IActivityDecl *i) override;
 
+    virtual void visitProceduralStmtRandomize(ast::IProceduralStmtRandomize *i) override;
+
     virtual void visitActivitySequence(ast::IActivitySequence *i) override;
 
     // Compound activity statements are scopes (WS4.1): each is pushed while
@@ -125,6 +127,27 @@ public:
 
     virtual void visitExprRefPathStaticRooted(ast::IExprRefPathStaticRooted *i) override;
 
+    /**
+     * Step a of 18.3: `id`, a bare name, as an item of its expected type
+     * `e`. Null when it is not one. Warns (PSS044) when the item hides a
+     * declaration the name has lexically. Also used by TaskResolveRef for
+     * a template value argument (8.4).
+     */
+    static ast::ISymbolRefPath *expectedItem(
+        ResolveContext              *ctxt,
+        const ast::IExprId          *id,
+        ast::ISymbolEnumScope       *e);
+
+    /**
+     * PSS046: `id` bound to an item of `e` only because nothing else of the
+     * name is in scope, where `expected` (possibly null) did not have it.
+     */
+    static void warnEnumItemFallback(
+        ResolveContext              *ctxt,
+        const ast::IExprId          *id,
+        ast::ISymbolEnumScope       *e,
+        ast::ISymbolEnumScope       *expected);
+
 private:
     /**
      * Visit `e` with `expected` as its expected type (8.4.3). The type
@@ -153,9 +176,7 @@ private:
     ast::ISymbolEnumScope *expectedFor(ast::IExpr *e) const;
 
     /**
-     * Step a of 18.3: the bare name `i` as an item of its expected type
-     * `e`. Null when it is not one. Warns (PSS044) when the item hides a
-     * declaration the name has lexically.
+     * expectedItem() for `i`, when it is a bare name.
      */
     ast::ISymbolRefPath *lookupExpectedItem(
         ast::IExprRefPathContext    *i,
@@ -176,7 +197,7 @@ private:
      * anything. Null for an enum item the lookup settled for only because
      * nothing else of the name is in scope: by 18.3 that is no binding (8.2).
      */
-    ast::IScopeChild *peekLexical(const ast::IExprId *id);
+    static ast::IScopeChild *peekLexical(ResolveContext *ctxt, const ast::IExprId *id);
 
     void resolveExprRefPathContext(ast::IExprRefPathContext *i);
 
@@ -204,6 +225,7 @@ private:
         ast::IExprId                *id,
         uint32_t                    n_sub,
         bool                        report);
+    ast::ISymbolScope *randomizedType(ast::IExpr *target);
     void resolveTraversalBody(
         ast::ISymbolScope                                   *type_s,
         ast::IConstraintStmt                                *with_c,
@@ -421,8 +443,6 @@ protected:
      * against the scope its static root names. See known-issues P3-X6e.
      */
     void resolveStaticRootedLeaf(ast::IExprRefPathStaticRooted *i);
-
-    bool isGenericConstraintParam(const std::string &name) const;
 
     /**
      * Reports why `super.<id>` did not resolve. Silent when the base type
@@ -681,7 +701,6 @@ private:
     ast::IExpr                          *m_cur_refpath = 0;
 
     static dmgr::IDebug                 *m_dbg;
-    std::set<std::string>               m_generic_constraint_params;
     std::set<ast::IAnnotation *>        m_checked_annotations;
 
     // Same reason as m_checked_annotations: a declaration is reachable both

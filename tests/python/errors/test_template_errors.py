@@ -150,14 +150,6 @@ def test_bare_use_of_a_generic_is_reported():
 #: valid code.  Telling them apart means classifying the *resolved target* as
 #: type-denoting or value-denoting, which ``probe`` does not do today (it
 #: recognizes only ``IEnumItem``).
-_KIND_UNCHECKED = (
-    "a type supplied where a value parameter is declared is accepted "
-    "silently: a type reference and a constant reference are spelled alike, "
-    "so the argument is optimistically taken as a value. Remove this marker "
-    "when the resolved target is classified as type- or value-denoting."
-)
-
-
 def test_value_supplied_for_a_type_parameter_is_reported():
     """``S<4>`` for ``struct S<type T>``.
 
@@ -165,8 +157,7 @@ def test_value_supplied_for_a_type_parameter_is_reported():
     a type, and that null used to be passed straight into the parameter,
     binding the type parameter to nothing.  It is now diagnosed.
 
-    The converse -- a type supplied for a *value* parameter -- is still open;
-    see :func:`test_type_supplied_for_a_value_parameter_is_reported`.
+    The converse is :func:`test_type_supplied_for_a_value_parameter_is_reported`.
     """
     res = link("struct S<type T> { T v; } struct Top { S<4> a; }")
     assert not res.crashed, res.describe()
@@ -195,11 +186,14 @@ component pss_top { pw::w<3> f; }
     assert res.rc == 0, res.describe()
 
 
-@pytest.mark.xfail(strict=True, reason=_KIND_UNCHECKED)
 def test_type_supplied_for_a_value_parameter_is_reported():
-    res = link("struct S<int N> { bit[N] v; } struct Top { S<my_s> a; }")
-    assert not res.crashed, res.describe()
-    assert res.rc == 1, "expected a reported error, got %s" % res.describe()
+    """``S<my_s>`` for ``struct S<int N>``, with my_s a struct. A name spells
+    a type and a constant alike, so the argument parses as a type either way;
+    the parameter's kind decides, and a type is reported (8.4, PF-A1). It used
+    to be taken optimistically as a value and linked silently."""
+    res = link("struct my_s { int x; } struct S<int N> { bit[N] v; } "
+               "struct Top { S<my_s> a; }")
+    assert_reports(res, "template parameter 'N' expects a value, but 'my_s' is a type")
 
 
 # ---------------------------------------------------------------------------

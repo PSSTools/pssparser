@@ -58,6 +58,16 @@ public:
         m_index = i->getIndex();
     }
 
+    // Likewise not left to the default, which descends into the parameters
+    // (see visitSymbolDeclaration).
+    virtual void visitGenericConstraintDeclBool(ast::IGenericConstraintDeclBool *i) override {
+        m_index = i->getIndex();
+    }
+
+    virtual void visitGenericConstraintDeclValue(ast::IGenericConstraintDeclValue *i) override {
+        m_index = i->getIndex();
+    }
+
     virtual void visitConstraintSymbolScope(ast::IConstraintSymbolScope *i) override {
         m_index = i->getConstraint()->getIndex();
     }

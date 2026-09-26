@@ -28,6 +28,9 @@
 #include "pssp/ast/ISymbolTypeScope.h"
 #include "pssp/ast/ISymbolDeclaration.h"
 #include "pssp/ast/IFunctionParamDecl.h"
+#include "pssp/ast/IGenericConstraintDeclBool.h"
+#include "pssp/ast/IGenericConstraintDeclValue.h"
+#include "pssp/ast/IGenericConstraintParam.h"
 #include "pssp/ast/impl/VisitorBase.h"
 #include "pssp/ISymbolTableIterator.h"
 #include "pssp/impl/ScopeUtil.h"
@@ -120,6 +123,12 @@ public:
                     } else if (sd && it->idx >= 0 &&
                         it->idx < (int32_t)sd->getParams().size()) {
                         ret = sd->getParams().at(it->idx).get();
+                    } else if (const std::vector<ast::IGenericConstraintParamUP> *gp =
+                            genericConstraintParams(scope.get())) {
+                        // And a generic constraint's (13.1.2).
+                        if (it->idx >= 0 && it->idx < (int32_t)gp->size()) {
+                            ret = gp->at(it->idx).get();
+                        }
                     } else {
                         DEBUG("Out-of-range");
                     }
@@ -449,6 +458,20 @@ public:
         DEBUG_LEAVE("mkQName");
 
         return ret;
+    }
+
+private:
+    /** `c`'s parameters, when it is a generic constraint; otherwise null. */
+    static const std::vector<ast::IGenericConstraintParamUP> *genericConstraintParams(
+            ast::IScopeChild *c) {
+        if (ast::IGenericConstraintDeclBool *b =
+                dynamic_cast<ast::IGenericConstraintDeclBool *>(c)) {
+            return &b->getParameters();
+        } else if (ast::IGenericConstraintDeclValue *v =
+                dynamic_cast<ast::IGenericConstraintDeclValue *>(c)) {
+            return &v->getParameters();
+        }
+        return 0;
     }
 
 private:

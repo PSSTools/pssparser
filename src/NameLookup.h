@@ -114,6 +114,17 @@ public:
          * index in the root, where the path restarts; -1 otherwise.
          */
         int32_t             fwd_pkg = -1;
+        /**
+         * For an enum item found through its enum (`pkg::ITEM`), the item's
+         * index in the enum; `idx` is then the enum's. -1 otherwise.
+         */
+        int32_t             item_idx = -1;
+        /**
+         * For an item an `extend enum` in `ns` adds, the whole path to the
+         * item, which lives in the extended enum elsewhere. Replaces the path
+         * to `ns` when appended.
+         */
+        std::vector<ast::SymbolRefPathElem> abs_path;
 
         /** Append this step to `path`, the path to `ns`. */
         void appendTo(ast::ISymbolRefPath *path) const;
@@ -125,13 +136,31 @@ public:
      * members -- never its imports (Ex. 271) -- and the names it forwards
      * (F28: addr_reg_pkg to std_pkg). Bounded on an inheritance ring,
      * which TaskCheckTypeCycles reports.
+     *
+     * With `enum_items`, a name that is no member is also looked for among
+     * the items of the enums `ns` (or a base) declares, and those its
+     * `extend enum` statements add: `pkg::ITEM` names what `ITEM` names
+     * inside pkg (18.3: a namespace's static members include enum items).
+     * Only for a caller that appends the whole Member, since an item is two
+     * steps; a `.` member step is one.
      */
     static Member lookupMember(
         dmgr::IDebugMgr             *dmgr,
         ast::ISymbolScope           *root,
         ast::ISymbolScope           *ns,
-        const std::string           &name);
+        const std::string           &name,
+        bool                        enum_items=false);
 
+private:
+    /** lookupMember()'s enum-item step; `bases` are ns's, nearest first. */
+    static Member lookupEnumItemMember(
+        dmgr::IDebugMgr                     *dmgr,
+        ast::ISymbolScope                   *root,
+        ast::ISymbolScope                   *ns,
+        const std::vector<ast::ISymbolScope *> &bases,
+        const std::string                   &name);
+
+public:
     enum class SuperStatus {
         Ok,
         NoType,         //!< not inside a type at all
@@ -233,6 +262,13 @@ private:
     bool searchFunction(ast::ISymbolFunctionScope *s);
 
     bool searchSymbolDecl(ast::ISymbolDeclaration *s);
+
+    /**
+     * A generic constraint's parameters, when `c` is the constraint (13.1.2).
+     * The declaration is not a symbol scope, so it is looked at before
+     * getScope() drops it.
+     */
+    bool searchGenericConstraint(ast::IScopeChild *c);
 
     /**
      * `s`'s own declarations. `order` applies 18.2a/b: in a block, a later

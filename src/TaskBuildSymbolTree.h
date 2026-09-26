@@ -354,6 +354,14 @@ protected:
         const std::string   &name,
         bool                owned=true);
 
+    /**
+     * A generic constraint is named in its scope (13.1.2), and its index is
+     * made its position there -- see the definition.
+     */
+    void addGenericConstraint(
+        ast::IScopeChild    *i,
+        const std::string   &name);
+
 private:
     static dmgr::IDebug                         *m_dbg;
     ast::IFactory                               *m_factory;

@@ -66,6 +66,10 @@ public:
 
     virtual bool hasScopes() override;
 
+    virtual ast::IScopeChild *getTopScope() const override {
+        return (m_scope_s.size())?m_scope_s.back():0;
+    }
+
     virtual ISymbolTableIterator *clone() const override;
 
 private:

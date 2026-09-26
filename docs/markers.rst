@@ -618,6 +618,21 @@ An enum item belongs to its enumeration type's scope, not to the scope that decl
 
 Qualify the item.  LRM Example 37: ``print_num((int)ORANGE)`` is an error, because the cast's type is ``int``.
 
+PSS047
+------
+
+**Severity:** error
+
+Template argument of the wrong kind
+
+A template parameter is either a value parameter or a type parameter (10.3), and its argument has to be of the same kind.  A name spells a type and a constant alike, so ``S<X>`` is decided by what ``X`` names: for a value parameter, ``X`` is looked up as a value -- an enum item of the parameter's enumeration type first (18.3 a), then the usual scopes -- and a type found there is reported.  Messages:
+
+* ``template parameter 'N' expects a value, but 'my_s' is a type``
+* ``template parameter 'N' expects a value, but the argument supplied is a type`` (a built-in type, ``S<int>``)
+* ``template parameter 'T' expects a type, but the argument supplied is a value`` (``S<4>`` for ``S<type T>``)
+
+A name that is not declared at all is PSS002 (``unknown identifier``).
+
 PSS100
 ------
 

@@ -20,6 +20,7 @@
  */
 #pragma once
 #include "pssp/ast/IScopeChild.h"
+#include "pssp/ast/IGenericConstraintDeclValue.h"
 #include "pssp/ast/impl/VisitorBase.h"
 #include "pssp/impl/ActivityScopes.h"
 #include "pssp/impl/ProceduralScopes.h"
@@ -40,6 +41,9 @@ public:
         ProcCompound,
         ProcSymScope,
         ActivityScope,
+        // A value generic constraint (13.1.2): its parameters, reached by
+        // ElemKind_ArgIdx, and no children.
+        GenericConstraint,
         Scope
     };
 
@@ -85,6 +89,7 @@ public:
             case Kind::ProcCompound: return m_scope.proc_c;
             case Kind::ProcSymScope: return m_scope.proc_sym_s;
             case Kind::ActivityScope: return m_scope.sym_cs;
+            case Kind::GenericConstraint: return m_scope.proc_c;
         }
         return 0;
     }
@@ -192,6 +197,17 @@ public:
     virtual void visitConstraintBlock(ast::IConstraintBlock *i) override {
         m_kind = Kind::Constraint;
         m_scope.constraint_s = i;
+    }
+
+    // Explicit, so the visit does not go on into the parameters.
+    virtual void visitGenericConstraintDeclBool(ast::IGenericConstraintDeclBool *i) override {
+        m_kind = Kind::Constraint;
+        m_scope.constraint_s = i;
+    }
+
+    virtual void visitGenericConstraintDeclValue(ast::IGenericConstraintDeclValue *i) override {
+        m_kind = Kind::GenericConstraint;
+        m_scope.proc_c = i;
     }
 
     virtual void visitConstraintScope(ast::IConstraintScope *i) override {

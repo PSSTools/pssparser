@@ -827,7 +827,7 @@ classes:
                   
                   exec body {
                       // Randomize with inline constraints
-                      randomize (x, y) with {
+                      randomize x, y with {
                           x > 0;
                           y < 100;
                           x + y < 50;
@@ -838,13 +838,14 @@ classes:
               }
           
           Attributes:
-              target: Expression identifying what to randomize
+              targets: The variables to randomize, in source order (13.4.6:
+                  "one or more variables of plain-data type")
               constraints: List of inline constraint statements
           
           See Also:
               ConstraintStmt, ConstraintBlock, Field
       data:
-      - target: UP<Expr>
+      - targets: list<UP<Expr>>
       - constraints: list<UP<ConstraintStmt>>
   - ProceduralStmtSymbolBodyScope:
       super: SymbolScope
