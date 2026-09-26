@@ -21,11 +21,14 @@
 #include "dmgr/impl/DebugMacros.h"
 #include "pssp/ast/IFunctionDefinition.h"
 #include "pssp/ast/IFunctionImportProto.h"
+#include "pssp/ast/IExprAggrLiteral.h"
 #include "pssp/ast/IField.h"
 #include "pssp/ast/IFunctionParamDecl.h"
 #include "pssp/ast/IMethodParameterList.h"
 #include "pssp/ast/IProceduralStmtDataDeclaration.h"
 #include "pssp/ast/ISymbolFunctionScope.h"
+#include "pssp/ast/IExprId.h"
+#include "FunctionScopeUtil.h"
 #include "TaskCheckCallArgs.h"
 #include "TaskExprTypeCat.h"
 
@@ -85,7 +88,7 @@ void TaskCheckCallArgs::check(
                 // With an overload set there is no single parameter list to
                 // compare against, and picking one would mean implementing
                 // overload resolution.
-                checkArgTypes(*it, elem);
+                checkArgTypes(*it, elem, isNative(target));
             }
             DEBUG_LEAVE("check -- %s accepts %d args", name.c_str(), n_args);
             return;
@@ -235,9 +238,43 @@ const char *TaskCheckCallArgs::valueKind(ast::IScopeChild *target) {
     return 0;
 }
 
+bool TaskCheckCallArgs::checkConstArg(
+    ResolveContext              *ctxt,
+    ast::IExprMemberPathElem    *elem,
+    uint32_t                    idx,
+    ast::IFunctionParamDecl     *param,
+    ast::IExpr                  *arg,
+    bool                        native) {
+    // A non-const aggregate parameter is a handle the callee may write
+    // through (20.3.2); a literal has nothing to write back to.
+    if (!native || !param || param->getIs_const()
+            || !dynamic_cast<ast::IExprAggrLiteral *>(arg)) {
+        return false;
+    }
+    // IExpr carries no location: the call site, and the argument by position.
+    ctxt->addErrorMarker(
+        elem->getId()->getLocation(),
+        "argument %d of '%s' is an aggregate literal, so parameter '%s' must "
+        "be declared const (LRM 20.2.3)",
+        idx+1,
+        elem->getId()->getId().c_str(),
+        param->getName() ? param->getName()->getId().c_str() : "?");
+    return true;
+}
+
+bool TaskCheckCallArgs::isNative(ast::IScopeChild *target) {
+    if (ast::ISymbolFunctionScope *fs =
+            dynamic_cast<ast::ISymbolFunctionScope *>(target)) {
+        // `definition` is not populated; the body is on the scope.
+        return functionImplementation(fs) == FunctionImpl::Native;
+    }
+    return dynamic_cast<ast::IFunctionDefinition *>(target) != 0;
+}
+
 void TaskCheckCallArgs::checkArgTypes(
     ast::IFunctionPrototype     *proto,
-    ast::IExprMemberPathElem    *elem) {
+    ast::IExprMemberPathElem    *elem,
+    bool                        native) {
     DEBUG_ENTER("checkArgTypes");
 
     const std::vector<ast::IFunctionParamDeclUP> &params = proto->getParameters();
@@ -255,6 +292,9 @@ void TaskCheckCallArgs::checkArgTypes(
         }
 
         if (!param || !param->getType()) {
+            continue;
+        }
+        if (checkConstArg(m_ctxt, elem, ii, param, args.at(ii).get(), native)) {
             continue;
         }
         if (param->getKind() != ast::FunctionParamDeclKind::ParamKind_DataType) {

@@ -47,6 +47,29 @@ through the statement that holds a `with` block, an activity or monitor
 `constraint`, or a `randomize`. A free-standing constraint set, and each `if`
 branch, now has the index of its position in what holds it.
 
+### Fixed — a path through a member whose type is declared in a later file resolves
+
+Resolution runs in file order, so in `regs.r.w(k)`, with `regs`'s type declared
+in a later file, the walk reached `r` before `r`'s own type reference had been
+visited. It stopped there without a diagnostic, leaving `w` and every argument
+of the call unbound; since the completeness check (below) each was reported as
+"left unbound by pssparser ... a pssparser defect". Such a path is now walked
+again once every declaration is bound (`TaskResolveRefs::deferUntilTypesBound`),
+once: a type still unbound then is reported where it is declared. The retry
+reports only what the first walk did not reach (`ResolveContext::pushNoRepeat`).
+Arrays of such members (`regs.rs[1].w(k)`) are covered too.
+
+### Added — `const` function parameters are recorded, and an aggregate literal needs one (LRM 20.2.3)
+
+`const` on a function parameter was parsed and dropped. `FunctionParamDecl`
+now carries `is_const`. An aggregate literal passed to a parameter of a native
+function (one defined in PSS) that is not `const` is an error: "argument 2 of
+'f' is an aggregate literal, so parameter 'w' must be declared const (LRM
+20.2.3)". Core-library and imported functions are exempt -- `const` can be
+specified for native functions only, and the LRM's own
+`write_fields({"mode", "coeff"}, ...)` passes literals to parameters it cannot
+mark. Checked on both call-argument paths (`TaskCheckCallArgs::checkConstArg`).
+
 ### Fixed — a generic constraint's parameters are resolved in its body (symbol-resolution 8.7, LRM 13.1.2)
 
 The parameters of `constraint g(P p, bit[8] v) { ... }` used to be skipped by

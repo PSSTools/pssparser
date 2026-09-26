@@ -291,6 +291,16 @@ public:
     void popQuiet() { m_quiet--; }
 
     /**
+     * While pushed, a marker at a position that already carries one is
+     * dropped. For a pass that walks a construct a second time -- the
+     * retry of a reference path deferred until every type is bound
+     * (TaskResolveRefs::resolveDeferred) -- and must report only what the
+     * first walk did not reach.
+     */
+    void pushNoRepeat() { m_no_repeat++; }
+    void popNoRepeat() { m_no_repeat--; }
+
+    /**
      * Held while a generic constraint's body is resolved, so NameLookup
      * looks for its parameters (13.1.2) only then: the check is on every
      * frame of every lookup otherwise. Nests.
@@ -434,6 +444,7 @@ private:
     std::set<std::tuple<int32_t,int32_t,int32_t>>   m_reported;
     std::vector<std::function<void()>>              m_post_resolve;
     int32_t                                         m_quiet = 0;
+    int32_t                                         m_no_repeat = 0;
     int32_t                                         m_generic_constraint = 0;
     std::unordered_set<ast::ISymbolTypeScope *>     m_dflts_bound;
     const ast::IExprId                              *m_fwd_id = 0;

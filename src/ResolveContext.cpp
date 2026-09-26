@@ -88,6 +88,9 @@ void ResolveContext::addMarker(
     if (m_quiet) {
         return;
     }
+    if (m_no_repeat && wasNoted(loc)) {
+        return;
+    }
     IMarkerUP marker(m_factory->mkMarker(
         msg,
         severity,
