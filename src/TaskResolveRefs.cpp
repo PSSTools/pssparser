@@ -1371,6 +1371,12 @@ void TaskResolveRefs::checkCallArgTypes(
             continue;
         }
 
+        if (TaskCheckCallArgs::checkConstArg(
+                m_ctxt, elem, ii, p, args.at(ii).get(),
+                TaskCheckCallArgs::isNative(fn))) {
+            continue;
+        }
+
         if (p->getKind() != ast::FunctionParamDeclKind::ParamKind_DataType) {
             // A `type` parameter takes a type name, and a `ref` parameter
             // takes a handle. Neither is an ordinary value, and neither is

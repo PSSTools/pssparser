@@ -69,6 +69,33 @@ public:
         ast::IScopeChild                            *target,
         std::vector<ast::IFunctionPrototype *>      &protos);
 
+    /**
+     * LRM 20.2.3: an aggregate literal is a constant in the context of the
+     * call, and a constant aggregate may be passed only to a `const`
+     * parameter. Reports argument `idx` (0-based) of the call `elem` if it
+     * breaks that, and says whether it did.
+     *
+     * Only for a NATIVE callee -- one defined in PSS with a body. `const` can
+     * be specified for native functions only (20.2.3), and the LRM's own core
+     * library takes literals in parameters it cannot mark: `write_fields(
+     * {"mode", "coeff"}, {mode, coeff})` against `write_fields(list<string>
+     * names, ...)`.
+     *
+     * Public and static because call arguments are checked on two paths
+     * (here and `TaskResolveRefs::checkCallArgTypes`), and the rule must not
+     * exist twice.
+     */
+    static bool checkConstArg(
+        ResolveContext              *ctxt,
+        ast::IExprMemberPathElem    *elem,
+        uint32_t                    idx,
+        ast::IFunctionParamDecl     *param,
+        ast::IExpr                  *arg,
+        bool                        native);
+
+    /** Is `target` a function defined in PSS (with a body)? */
+    static bool isNative(ast::IScopeChild *target);
+
 private:
 
     /** The [min,max] argument count `proto` accepts; max is -1 for varargs. */
@@ -94,7 +121,8 @@ private:
      */
     void checkArgTypes(
         ast::IFunctionPrototype     *proto,
-        ast::IExprMemberPathElem    *elem);
+        ast::IExprMemberPathElem    *elem,
+        bool                        native);
 
 private:
     static dmgr::IDebug             *m_dbg;

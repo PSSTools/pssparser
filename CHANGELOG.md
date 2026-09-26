@@ -7,6 +7,17 @@ revision advances only the patch component.
 
 ## Unreleased
 
+### Added — `const` function parameters are recorded, and an aggregate literal needs one (LRM 20.2.3)
+
+`const` on a function parameter was parsed and dropped. `FunctionParamDecl`
+now carries `is_const`. An aggregate literal passed to a parameter of a native
+function (one defined in PSS) that is not `const` is an error: "argument 2 of
+'f' is an aggregate literal, so parameter 'w' must be declared const (LRM
+20.2.3)". Core-library and imported functions are exempt -- `const` can be
+specified for native functions only, and the LRM's own
+`write_fields({"mode", "coeff"}, ...)` passes literals to parameters it cannot
+mark. Checked on both call-argument paths (`TaskCheckCallArgs::checkConstArg`).
+
 ### Fixed — distinct template value arguments no longer share one specialization (symbol-resolution 8.3, LRM 10.4)
 
 Two uses of a generic with value arguments of the same *form* -- `S<2+2>` and
