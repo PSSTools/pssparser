@@ -7,6 +7,18 @@ revision advances only the patch component.
 
 ## Unreleased
 
+### Fixed — a path through a member whose type is declared in a later file resolves
+
+Resolution runs in file order, so in `regs.r.w(k)`, with `regs`'s type declared
+in a later file, the walk reached `r` before `r`'s own type reference had been
+visited. It stopped there without a diagnostic, leaving `w` and every argument
+of the call unbound; since the completeness check (below) each was reported as
+"left unbound by pssparser ... a pssparser defect". Such a path is now walked
+again once every declaration is bound (`TaskResolveRefs::deferUntilTypesBound`),
+once: a type still unbound then is reported where it is declared. The retry
+reports only what the first walk did not reach (`ResolveContext::pushNoRepeat`).
+Arrays of such members (`regs.rs[1].w(k)`) are covered too.
+
 ### Added — `const` function parameters are recorded, and an aggregate literal needs one (LRM 20.2.3)
 
 `const` on a function parameter was parsed and dropped. `FunctionParamDecl`

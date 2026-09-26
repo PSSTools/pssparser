@@ -280,6 +280,10 @@ void TaskResolveRefs::resolve(ast::ISymbolScope *root) {
     }
     DEBUG("resolve <== process children");
 
+    // Every declaration has now been visited, so every type that will ever
+    // be bound is: walk again the paths that stopped short of one.
+    resolveDeferred();
+
     m_ctxt->popSymtab();
 
     DEBUG_LEAVE("resolve");
@@ -2161,6 +2165,52 @@ void TaskResolveRefs::reportSuperMiss(
     }
 }
 
+bool TaskResolveRefs::deferUntilTypesBound(ast::IExprRefPathContext *i) {
+    if (m_retrying || !m_ctxt->symtab()) {
+        return false;
+    }
+    DeferredRefPath d;
+    d.ref = i;
+    d.symtab = ISymbolTableIteratorUP(m_ctxt->cloneSymtab());
+    d.is_stmt = (m_stmt_expr == i);
+    d.template_depth = m_template_depth;
+    d.func_s = m_func_s;
+    m_deferred.push_back(std::move(d));
+    return true;
+}
+
+void TaskResolveRefs::resolveDeferred() {
+    std::vector<DeferredRefPath> work;
+    work.swap(m_deferred);
+    if (work.empty()) {
+        return;
+    }
+    DEBUG_ENTER("resolveDeferred %d", work.size());
+    m_retrying = true;
+    // The walk revisits what it reached the first time; only what it did not
+    // may add a diagnostic.
+    m_ctxt->pushNoRepeat();
+    for (std::vector<DeferredRefPath>::iterator
+        it=work.begin(); it!=work.end(); it++) {
+        m_ctxt->pushSymtab(it->symtab.release());
+        ast::IExpr *prev_stmt = m_stmt_expr;
+        int32_t prev_depth = m_template_depth;
+        m_stmt_expr = (it->is_stmt) ? it->ref : 0;
+        m_template_depth = it->template_depth;
+        m_func_s.swap(it->func_s);
+
+        resolveExprRefPathContext(it->ref);
+
+        m_func_s.swap(it->func_s);
+        m_template_depth = prev_depth;
+        m_stmt_expr = prev_stmt;
+        m_ctxt->popSymtab();
+    }
+    m_ctxt->popNoRepeat();
+    m_retrying = false;
+    DEBUG_LEAVE("resolveDeferred");
+}
+
 void TaskResolveRefs::resolveExprRefPathContext(ast::IExprRefPathContext *i) {
     DEBUG_ENTER("visitExprRefPathContext %s", i->getHier_id()->getElems().at(0)->getId()->getId().c_str());
 
@@ -2354,6 +2404,10 @@ void TaskResolveRefs::resolveExprRefPathContext(ast::IExprRefPathContext *i) {
             // runs -- suppressing the composite-scope message without also
             // making the call reported nothing at all.
             checkCallArity(i->getHier_id()->getElems().at(0).get(), target_c);
+        } else if (target_c && hasUnresolvedUserDefinedType(target_c)
+                && deferUntilTypesBound(i)) {
+            DEBUG("Root %s: type not bound yet; deferred",
+                i->getHier_id()->getElems().at(0)->getId()->getId().c_str());
         } else if (target_c && hasUnresolvedUserDefinedType(target_c)) {
             // The root's type never resolved, and `unknown type '<name>'` was
             // already reported at its declaration. Reporting again here gives
@@ -2670,7 +2724,11 @@ void TaskResolveRefs::resolveExprRefPathContext(ast::IExprRefPathContext *i) {
                         continue;
                     }
 
-                    if (isScalarWithoutMembers(target_c)) {
+                    if (hasUnresolvedUserDefinedType(target_c)
+                            && deferUntilTypesBound(i)) {
+                        DEBUG("No scope for %s yet; deferred",
+                            elem->getId()->getId().c_str());
+                    } else if (isScalarWithoutMembers(target_c)) {
                         m_ctxt->addMarker(
                             MarkerSeverityE::Error,
                             i->getHier_id()->getElems().at(ii+1)

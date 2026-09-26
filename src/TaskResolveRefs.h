@@ -179,6 +179,22 @@ private:
     ast::IScopeChild *peekLexical(const ast::IExprId *id);
 
     void resolveExprRefPathContext(ast::IExprRefPathContext *i);
+
+    /**
+     * Queue `i` to be walked again once every declaration is bound, and say
+     * whether it was queued. For a path that stopped at an element whose
+     * user-defined type is not bound YET: resolution runs in file order, so
+     * `regs.r.write(v)` in one file, with `regs`'s type declared in a later
+     * one, reaches `r` before `r`'s own type reference has been visited.
+     * Stopping there left the rest of the path, and every argument of its
+     * calls, unbound with no diagnostic. A path is retried once; a type that
+     * is still unbound then is unbound for good, and is reported where it
+     * is declared.
+     */
+    bool deferUntilTypesBound(ast::IExprRefPathContext *i);
+
+    /** Walk every path deferUntilTypesBound() queued, in its own context. */
+    void resolveDeferred();
     void resolveExprRefPathStatic(ast::IExprRefPathStatic *i);
     void resolveExprRefPathStaticRooted(ast::IExprRefPathStaticRooted *i);
     void visitSlice(ast::IExprBitSlice *slice);
@@ -716,6 +732,22 @@ private:
      * argument is decided then (reportEnumItemFallback).
      */
     std::unordered_map<ast::IExpr *, ast::IFunctionParamDecl *> m_pending_formal;
+
+    /**
+     * A reference path waiting for its types (deferUntilTypesBound), with
+     * what its walk depends on besides the path itself: the scopes it sees
+     * (a clone of the symbol-table stack, locals and parameters included),
+     * whether it is a statement, and the function and template it is in.
+     */
+    struct DeferredRefPath {
+        ast::IExprRefPathContext                *ref;
+        ISymbolTableIteratorUP                  symtab;
+        bool                                    is_stmt;
+        int32_t                                 template_depth;
+        std::vector<ast::IFunctionPrototype *>  func_s;
+    };
+    std::vector<DeferredRefPath>        m_deferred;
+    bool                                m_retrying = false;
 
 };
 
