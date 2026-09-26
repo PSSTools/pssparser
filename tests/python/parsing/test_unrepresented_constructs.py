@@ -31,15 +31,9 @@ from test_helpers import find_markers, parse_collect  # noqa: E402
 # The substring is the construct name as the builder spells it, plus enough of
 # the detail to distinguish partials that share a construct name.
 UNREPRESENTED = [
-    # -- Phase 5: qualifiers lost on nodes that are built --------------------
-    # The single-target form is fully represented; only the list is not.
-    # ProceduralStmtRandomize has one `target` expression and the grammar takes
-    # a comma-separated list -- see open question O-4.
-    ("randomize_multi_target",
-     "package p { struct s { rand int x; } }"
-     " component c { function void f() { p::s v; p::s w;"
-     " randomize v, w with { v.x < 4; } } }",
-     "only the first of several randomization targets is kept"),
+    # Empty since symbol-resolution 8.8 kept every `randomize` target: no
+    # construct the builder knows of is partially represented. A new partial
+    # goes here with its PSS116 message.
 ]
 
 _IDS = [c[0] for c in UNREPRESENTED]
@@ -79,6 +73,11 @@ CLOSED_CASES = [
     ("import_function_two_step",
      "package p { function void f(); import function p::f; }"),
     # -- Phase 5 -------------------------------------------------------------
+    # ProceduralStmtRandomize keeps every target (O-4, symbol-resolution 8.8).
+    ("randomize_multi_target",
+     "package p { struct s { rand int x; } }"
+     " component c { function void f() { p::s v; p::s w;"
+     " randomize v, w with { v.x < 4; } } }"),
     ("import_function_language",
      "package p { import C function void g(); }"),
     # The marker here fired on *every* object bind, including the wildcard form

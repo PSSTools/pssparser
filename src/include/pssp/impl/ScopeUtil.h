@@ -23,6 +23,7 @@
 #include "pssp/ast/IGenericConstraintDeclValue.h"
 #include "pssp/ast/impl/VisitorBase.h"
 #include "pssp/impl/ActivityScopes.h"
+#include "pssp/impl/ConstraintScopes.h"
 #include "pssp/impl/ProceduralScopes.h"
 
 namespace pssp {
@@ -44,6 +45,9 @@ public:
         // A value generic constraint (13.1.2): its parameters, reached by
         // ElemKind_ArgIdx, and no children.
         GenericConstraint,
+        // A `foreach` constraint: its body statements, then its iterators
+        // (ConstraintScopes::iteratorBase, SR-F1).
+        ConstraintForeach,
         Scope
     };
 
@@ -90,6 +94,7 @@ public:
             case Kind::ProcSymScope: return m_scope.proc_sym_s;
             case Kind::ActivityScope: return m_scope.sym_cs;
             case Kind::GenericConstraint: return m_scope.proc_c;
+            case Kind::ConstraintForeach: return m_scope.constraint_s;
         }
         return 0;
     }
@@ -120,6 +125,9 @@ public:
                 return m_scope.scope->getChildren().size();
             case Kind::Constraint:
                 return m_scope.constraint_s->getConstraints().size();
+            case Kind::ConstraintForeach:
+                return m_scope.constraint_s->getConstraints().size()
+                    + foreachSymtab()->getChildren().size();
             case Kind::ProcCompound:
                 return m_bodies.size();
             case Kind::ProcSymScope:
@@ -140,6 +148,16 @@ public:
                     ret = m_scope.constraint_s->getConstraints().at(idx).get();
                 }
                 break;
+            case Kind::ConstraintForeach: {
+                int32_t n_c = m_scope.constraint_s->getConstraints().size();
+                ast::IConstraintSymbolScope *st = foreachSymtab();
+                if (idx >= 0 && idx < n_c) {
+                    ret = m_scope.constraint_s->getConstraints().at(idx).get();
+                } else if (st && idx >= n_c
+                        && idx-n_c < (int32_t)st->getChildren().size()) {
+                    ret = st->getChildren().at(idx-n_c).get();
+                }
+            } break;
             case Kind::Scope:
                 if (idx < m_scope.scope->getChildren().size()) {
                     ret = m_scope.scope->getChildren().at(idx).get();
@@ -208,6 +226,22 @@ public:
     virtual void visitGenericConstraintDeclValue(ast::IGenericConstraintDeclValue *i) override {
         m_kind = Kind::GenericConstraint;
         m_scope.proc_c = i;
+    }
+
+    // The nodes that hold a constraint set (ConstraintScopes, SR-F1): the
+    // same shape as a compound procedural statement. By visit rather than by
+    // a test ahead of it, which cost every path step a string of casts.
+    virtual void visitConstraintStmtIf(ast::IConstraintStmtIf *i) override { owner(i); }
+    virtual void visitActivityActionHandleTraversal(ast::IActivityActionHandleTraversal *i) override { owner(i); }
+    virtual void visitActivityActionTypeTraversal(ast::IActivityActionTypeTraversal *i) override { owner(i); }
+    virtual void visitActivityConstraint(ast::IActivityConstraint *i) override { owner(i); }
+    virtual void visitMonitorConstraint(ast::IMonitorConstraint *i) override { owner(i); }
+    virtual void visitProceduralStmtRandomize(ast::IProceduralStmtRandomize *i) override { owner(i); }
+
+    // Explicit, so the visit does not go on into the body.
+    virtual void visitConstraintStmtForeach(ast::IConstraintStmtForeach *i) override {
+        m_kind = Kind::ConstraintForeach;
+        m_scope.constraint_s = i;
     }
 
     virtual void visitConstraintScope(ast::IConstraintScope *i) override {
@@ -282,6 +316,18 @@ public:
     virtual void visitTypeScope(ast::ITypeScope *i) override {
         m_kind = Kind::Scope;
         m_scope.scope = i;
+    }
+
+private:
+    void owner(ast::IScopeChild *c) {
+        m_kind = Kind::ProcCompound;
+        m_scope.proc_c = c;
+        ConstraintScopes::bodies(c, m_bodies);
+    }
+
+    ast::IConstraintSymbolScope *foreachSymtab() const {
+        return dynamic_cast<ast::IConstraintStmtForeach *>(
+            m_scope.constraint_s)->getSymtab();
     }
 
 private:

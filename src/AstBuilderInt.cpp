@@ -4306,10 +4306,16 @@ antlrcpp::Any AstBuilderInt::visitForall_constraint_item(PSSParser::Forall_const
 	// forall.getChild(0); the real body constraints follow at index 1+. The
 	// symtab.getChildren() also references it (non-owning) so the resolver's
 	// scope walk can read the declaration when looking the name up.
+	ast::IExprId *it_name = m_factory->mkExprId(
+		iterator_id->getId(), iterator_id->getIs_escaped());
+	// Where it is written: the declaration `refs` reports, and what a use
+	// is taken back to (SR-F1).
+	it_name->setLocation(iterator_id->getLocation());
 	ast::IConstraintStmtField *it = m_factory->mkConstraintStmtField(
-		m_factory->mkExprId(iterator_id->getId(), iterator_id->getIs_escaped()),
+		it_name,
 		mkDataTypeUserDefined(ctx->type_identifier())
 	);
+	it->setLocation(iterator_id->getLocation());
 	it->setIndex(0);
 	symtab->getSymtab().insert({it->getName()->getId(), 0});
 	symtab->getChildren().push_back(ast::IScopeChildUP(it, false)); // non-owning ref
@@ -4346,6 +4352,13 @@ antlrcpp::Any AstBuilderInt::visitIf_constraint_item(PSSParser::If_constraint_it
 		m_constraint_s.push_back(false_c);
 		visitConstraintSetItems(ctx->constraint_set(1));
 		m_constraint_s.pop_back();
+	}
+
+	// A branch's index is its position among the `if`'s bodies
+	// (ConstraintScopes), so a path can step into it (SR-F1).
+	true_c->setIndex(0);
+	if (false_c) {
+		false_c->setIndex(1);
 	}
 
 	IConstraintStmtIf *c = m_factory->mkConstraintStmtIf(
@@ -7755,6 +7768,10 @@ ast::IConstraintStmt *AstBuilderInt::mkMonitorConstraintSet(PSSParser::Monitor_c
 	} else {
 		ctx->monitor_constraint_body_item()->accept(this);
 	}
+	if (m_constraint && !m_constraint_s.size()) {
+		// The MonitorConstraint's one body (ConstraintScopes).
+		m_constraint->setIndex(0);
+	}
 
 	DEBUG_LEAVE("mkMonitorConstraintSet");
 	return m_constraint;
@@ -7763,6 +7780,11 @@ ast::IConstraintStmt *AstBuilderInt::mkMonitorConstraintSet(PSSParser::Monitor_c
 ast::IConstraintStmt *AstBuilderInt::mkConstraintSet(PSSParser::Constraint_setContext *ctx) {
 	m_constraint = 0;
 	ctx->accept(this);
+	if (m_constraint && !m_constraint_s.size()) {
+		// Free-standing: the one body of the node that holds it -- a `with`
+		// block, an activity `constraint`, a `randomize` (ConstraintScopes).
+		m_constraint->setIndex(0);
+	}
 	return m_constraint;
 }
 

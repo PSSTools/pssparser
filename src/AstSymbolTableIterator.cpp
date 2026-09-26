@@ -149,6 +149,14 @@ ast::ISymbolRefPath *AstSymbolTableIterator::getScopeSymbolPath(int32_t off) con
             DEBUG("Add template-scope %d (idx=%d..%d)", idx, i, last);
 
             i = last;
+        } else if (m_path.at(i).kind == ast::SymbolRefPathElemKind::ElemKind_Inline
+                && i < n-1) {
+            // A `with` block's scope (a `foreach` in it) is under the inline
+            // frame, but is not a member of the type the frame stands for:
+            // the path to it goes through the statement that holds the block,
+            // pushed just before (ConstraintScopes, SR-F1). The inline element
+            // is only for a name found in the type itself.
+            DEBUG("Skip inline frame at index %d", i);
         } else if (m_path.at(i).idx >= 0) {
             ret->getPath().push_back(m_path.at(i));
             DEBUG("Add child-idx %d (idx=%d)", m_path.at(i).idx, i);

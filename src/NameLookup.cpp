@@ -36,12 +36,14 @@
 #include "pssp/ast/ISymbolExtendScope.h"
 #include "pssp/ast/ITemplateElem.h"
 #include "pssp/ast/ITemplateString.h"
+#include "pssp/impl/ConstraintScopes.h"
 #include "pssp/impl/TaskGetName.h"
 #include "pssp/impl/TaskGetSymbolRefPath.h"
 #include "pssp/impl/TaskGetSymbolRefPathKind.h"
 #include "pssp/impl/TaskResolveSymbolPathRef.h"
 #include "FunctionScopeUtil.h"
 #include "NameLookup.h"
+#include "TaskGetSymbolScope.h"
 #include "TaskResolveSuperTypeRef.h"
 
 
@@ -218,11 +220,7 @@ void NameLookup::walk() {
     std::set<ast::ISymbolScope *> searched;
 
     while (!m_ref && m_ctxt->symtab()->hasScopes()) {
-        // A generic constraint's frame is never below another frame that is
-        // not a symbol scope (only a foreach or forall scope is pushed in its
-        // body), so it is on top when it is reached.
-        if (m_ctxt->inGenericConstraint()
-                && searchGenericConstraint(m_ctxt->symtab()->getTopScope())) {
+        if (m_ctxt->inGenericConstraint() && searchGenericConstraintFrames()) {
             break;
         }
 
@@ -540,7 +538,9 @@ bool NameLookup::searchLevel(ast::ISymbolScope *s) {
 }
 
 bool NameLookup::searchBlock(ast::ISymbolScope *s) {
-    if (searchMembers(s, isOrderSensitive(s)) || searchEnumItems(s)) {
+    // A `foreach` constraint's iterators follow its body statements
+    // (ConstraintScopes::iteratorBase, SR-F1). Only a block can be one.
+    if (searchMembers(s, isOrderSensitive(s), true) || searchEnumItems(s)) {
         return true;
     }
     if (s->getImports() && (m_ref=searchImports(m_id, s->getImports()))) {
@@ -629,6 +629,24 @@ bool NameLookup::searchSymbolDecl(ast::ISymbolDeclaration *s) {
     return searchBlock(s);
 }
 
+bool NameLookup::searchGenericConstraintFrames() {
+    // The frames above the innermost symbol scope, which getScope() would
+    // drop unseen: a generic constraint's own, and the constraint scopes of
+    // its body it may be under (an `if` branch, an implication; SR-F1). Each
+    // is dropped here instead, once it has been looked at.
+    ast::IScopeChild *top;
+    while ((top=m_ctxt->symtab()->getTopScope())) {
+        if (searchGenericConstraint(top)) {
+            return true;
+        }
+        if (TaskGetSymbolScope().get(top)) {
+            return false;
+        }
+        m_ctxt->symtab()->popScope();
+    }
+    return false;
+}
+
 bool NameLookup::searchGenericConstraint(ast::IScopeChild *c) {
     // `constraint g(P p) { p.a > 0; }`: the parameters are in scope in the
     // body, and hide a member of the same name. Addressed by position, as a
@@ -657,7 +675,7 @@ bool NameLookup::searchGenericConstraint(ast::IScopeChild *c) {
     return false;
 }
 
-bool NameLookup::searchMembers(ast::ISymbolScope *s, bool order) {
+bool NameLookup::searchMembers(ast::ISymbolScope *s, bool order, bool block) {
     std::unordered_map<std::string,int32_t>::const_iterator it =
         s->getSymtab().find(m_id->getId());
     if (it == s->getSymtab().end()) {
@@ -676,7 +694,8 @@ bool NameLookup::searchMembers(ast::ISymbolScope *s, bool order) {
         return false;
     }
 
-    hit(s, c, TaskGetSymbolRefPathKind(m_ctxt->getDebugMgr()).get(c), it->second);
+    hit(s, c, TaskGetSymbolRefPathKind(m_ctxt->getDebugMgr()).get(c),
+        it->second + ((block)?ConstraintScopes::iteratorBase(s):0));
     return (m_ref != 0);
 }
 

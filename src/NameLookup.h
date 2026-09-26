@@ -268,6 +268,7 @@ private:
      * The declaration is not a symbol scope, so it is looked at before
      * getScope() drops it.
      */
+    bool searchGenericConstraintFrames();
     bool searchGenericConstraint(ast::IScopeChild *c);
 
     /**
@@ -275,7 +276,7 @@ private:
      * declaration is not in scope. `s` is m_super_depth base types above the
      * scope the iterator is on.
      */
-    bool searchMembers(ast::ISymbolScope *s, bool order);
+    bool searchMembers(ast::ISymbolScope *s, bool order, bool block=false);
 
     /**
      * Items of an enum declared directly in `s` (see the class comment):

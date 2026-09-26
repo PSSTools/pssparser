@@ -97,6 +97,18 @@ public:
     void resolveActivityScope(ast::ISymbolScope *i);
     virtual void visitConstraintBlock(ast::IConstraintBlock *i) override;
 
+    // Each constraint scope is pushed while its body resolves, so a path to
+    // a `foreach` iterator in it can step through it (SR-F1).
+    virtual void visitConstraintScope(ast::IConstraintScope *i) override;
+
+    virtual void visitConstraintStmtIf(ast::IConstraintStmtIf *i) override;
+
+    virtual void visitConstraintStmtImplication(ast::IConstraintStmtImplication *i) override;
+
+    virtual void visitActivityConstraint(ast::IActivityConstraint *i) override;
+
+    virtual void visitMonitorConstraint(ast::IMonitorConstraint *i) override;
+
     virtual void visitConstraintStmtForeach(ast::IConstraintStmtForeach *i) override;
 
     virtual void visitConstraintStmtForall(ast::IConstraintStmtForall *i) override;
@@ -210,7 +222,9 @@ private:
         uint32_t                    n_sub,
         bool                        report);
     ast::ISymbolScope *randomizedType(ast::IExpr *target);
+    void resolveConstraints(ast::IConstraintScope *i);
     void resolveTraversalBody(
+        ast::IScopeChild                                    *owner,
         ast::ISymbolScope                                   *type_s,
         ast::IConstraintStmt                                *with_c,
         const std::vector<ast::IActionFieldInitializerUP>   &inits);

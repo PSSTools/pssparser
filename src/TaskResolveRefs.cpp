@@ -52,6 +52,10 @@
 #include "pssp/impl/ActivityScopes.h"
 #include "pssp/ast/IProceduralStmtDataDeclaration.h"
 #include "pssp/ast/IProceduralStmtRandomize.h"
+#include "pssp/ast/IActivityConstraint.h"
+#include "pssp/ast/IConstraintStmtIf.h"
+#include "pssp/ast/IConstraintStmtImplication.h"
+#include "pssp/ast/IMonitorConstraint.h"
 #include "pssp/ast/IActionHandleField.h"
 #include "pssp/ast/IAction.h"
 #include "pssp/ast/IActivityActionHandleTraversal.h"
@@ -694,6 +698,7 @@ ast::ISymbolScope *TaskResolveRefs::traversedType(
  * resolves in the enclosing scope whatever the type turns out to be.
  */
 void TaskResolveRefs::resolveTraversalBody(
+        ast::IScopeChild                                    *owner,
         ast::ISymbolScope                                   *type_s,
         ast::IConstraintStmt                                *with_c,
         const std::vector<ast::IActionFieldInitializerUP>   &inits) {
@@ -702,12 +707,16 @@ void TaskResolveRefs::resolveTraversalBody(
         resolveInitializer(type_s, it->get());
     }
     if (type_s && with_c) {
+        // The statement first: a scope in the block (a `foreach`) is reached
+        // through it, the inline frame being passed over (SR-F1).
+        m_ctxt->symtab()->pushScope(owner);
         m_ctxt->symtab()->pushScope(type_s, ast::SymbolRefPathElemKind::ElemKind_Inline);
         m_ctxt->pushInlineCtxt(type_s);
         DEBUG_ENTER(" ::getWith()");
         with_c->accept(m_this);
         DEBUG_LEAVE(" ::getWith()");
         m_ctxt->popInlineCtxt();
+        m_ctxt->symtab()->popScope();
         m_ctxt->symtab()->popScope();
     }
 }
@@ -868,6 +877,8 @@ void TaskResolveRefs::visitProceduralStmtRandomize(ast::IProceduralStmtRandomize
     }
     ast::ISymbolScope *type_s = (i->getTargets().size() == 1)
         ? randomizedType(i->getTargets().at(0).get()) : 0;
+    // Pushed for a scope in the block (SR-F1), as a traversal's is.
+    m_ctxt->symtab()->pushScope(i);
     if (type_s) {
         m_ctxt->symtab()->pushScope(type_s, ast::SymbolRefPathElemKind::ElemKind_Inline);
         m_ctxt->pushInlineCtxt(type_s);
@@ -880,6 +891,7 @@ void TaskResolveRefs::visitProceduralStmtRandomize(ast::IProceduralStmtRandomize
         m_ctxt->popInlineCtxt();
         m_ctxt->symtab()->popScope();
     }
+    m_ctxt->symtab()->popScope();
     DEBUG_LEAVE("visitProceduralStmtRandomize");
 }
 
@@ -895,7 +907,7 @@ void TaskResolveRefs::visitActivityActionHandleTraversal(ast::IActivityActionHan
     ast::ISymbolScope *type_s = (decl)
         ? traversedType(decl, leaf->getId(), leaf->getSubscript().size(), true) : 0;
 
-    resolveTraversalBody(type_s, i->getWith_c(), i->getInitializers());
+    resolveTraversalBody(i, type_s, i->getWith_c(), i->getInitializers());
     DEBUG_LEAVE("visitActivityActionHandleTraversal");
 }
 
@@ -916,16 +928,69 @@ void TaskResolveRefs::visitActivityActionTypeTraversal(ast::IActivityActionTypeT
             type_s->getName().c_str());
         type_s = 0;
     }
-    resolveTraversalBody(type_s, i->getWith_c(), i->getInitializers());
+    resolveTraversalBody(i, type_s, i->getWith_c(), i->getInitializers());
     DEBUG_LEAVE("visitActivityActionTypeTraversal");
 }
 
 void TaskResolveRefs::visitConstraintBlock(ast::IConstraintBlock *i) {
     DEBUG_ENTER("visitConstraintBlock (idx=%d)", i->getIndex());
     m_ctxt->symtab()->pushScope(i);
-    VisitorBase::visitConstraintBlock(i);
+    // Not VisitorBase::visitConstraintBlock, which goes through
+    // visitConstraintScope and would push the block a second time.
+    resolveConstraints(i);
     m_ctxt->symtab()->popScope();
     DEBUG_LEAVE("visitConstraintBlock");
+}
+
+void TaskResolveRefs::resolveConstraints(ast::IConstraintScope *i) {
+    for (std::vector<ast::IConstraintStmtUP>::const_iterator
+            it=i->getConstraints().begin(); it!=i->getConstraints().end(); it++) {
+        (*it)->accept(m_this);
+    }
+}
+
+void TaskResolveRefs::visitConstraintScope(ast::IConstraintScope *i) {
+    m_ctxt->symtab()->pushScope(i);
+    resolveConstraints(i);
+    m_ctxt->symtab()->popScope();
+}
+
+void TaskResolveRefs::visitConstraintStmtIf(ast::IConstraintStmtIf *i) {
+    if (i->getCond()) {
+        i->getCond()->accept(m_this);
+    }
+    // The branches are its bodies (ConstraintScopes); each pushes itself.
+    m_ctxt->symtab()->pushScope(i);
+    if (i->getTrue_c()) {
+        i->getTrue_c()->accept(m_this);
+    }
+    if (i->getFalse_c()) {
+        i->getFalse_c()->accept(m_this);
+    }
+    m_ctxt->symtab()->popScope();
+}
+
+void TaskResolveRefs::visitConstraintStmtImplication(ast::IConstraintStmtImplication *i) {
+    if (i->getCond()) {
+        i->getCond()->accept(m_this);
+    }
+    visitConstraintScope(i);
+}
+
+void TaskResolveRefs::visitActivityConstraint(ast::IActivityConstraint *i) {
+    m_ctxt->symtab()->pushScope(i);
+    if (i->getConstraint()) {
+        i->getConstraint()->accept(m_this);
+    }
+    m_ctxt->symtab()->popScope();
+}
+
+void TaskResolveRefs::visitMonitorConstraint(ast::IMonitorConstraint *i) {
+    m_ctxt->symtab()->pushScope(i);
+    if (i->getConstraint()) {
+        i->getConstraint()->accept(m_this);
+    }
+    m_ctxt->symtab()->popScope();
 }
 
 void TaskResolveRefs::visitConstraintStmtForeach(ast::IConstraintStmtForeach *i) {

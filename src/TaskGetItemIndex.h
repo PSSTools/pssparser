@@ -22,6 +22,7 @@
 #include "pssp/ast/impl/VisitorBase.h"
 #include "pssp/ast/ISymbolDeclaration.h"
 #include "pssp/impl/ActivityScopes.h"
+#include "pssp/impl/ConstraintScopes.h"
 #include "pssp/impl/ProceduralScopes.h"
 
 namespace pssp {
@@ -55,6 +56,43 @@ public:
 
 
     virtual void visitConstraintBlock(ast::IConstraintBlock *i) override {
+        m_index = i->getIndex();
+    }
+
+    // A nested constraint scope -- an `if` branch, an implication, a `with`
+    // block -- is its position in what holds it. Not left to the default,
+    // which descends into the body (SR-F1).
+    virtual void visitConstraintScope(ast::IConstraintScope *i) override {
+        m_index = i->getIndex();
+    }
+
+    virtual void visitConstraintStmtImplication(ast::IConstraintStmtImplication *i) override {
+        m_index = i->getIndex();
+    }
+
+    // The nodes that hold a constraint set (ConstraintScopes), for the same
+    // reason: the visit would go on into the set.
+    virtual void visitConstraintStmtIf(ast::IConstraintStmtIf *i) override {
+        m_index = i->getIndex();
+    }
+
+    virtual void visitActivityActionHandleTraversal(ast::IActivityActionHandleTraversal *i) override {
+        m_index = i->getIndex();
+    }
+
+    virtual void visitActivityActionTypeTraversal(ast::IActivityActionTypeTraversal *i) override {
+        m_index = i->getIndex();
+    }
+
+    virtual void visitActivityConstraint(ast::IActivityConstraint *i) override {
+        m_index = i->getIndex();
+    }
+
+    virtual void visitMonitorConstraint(ast::IMonitorConstraint *i) override {
+        m_index = i->getIndex();
+    }
+
+    virtual void visitProceduralStmtRandomize(ast::IProceduralStmtRandomize *i) override {
         m_index = i->getIndex();
     }
 

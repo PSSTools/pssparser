@@ -20,11 +20,6 @@
     "write_mode@149:32"
    ]
   },
-  "packages/pss-corpus/curated/language-ref/constraints.pss": {
-   "missing": [
-    "v2@110:27"
-   ]
-  },
   "packages/pss-corpus/curated/language-ref/coverage.pss": {
    "unresolved": [
     "WIDE@67:47",

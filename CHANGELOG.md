@@ -7,6 +7,46 @@ revision advances only the patch component.
 
 ## Unreleased
 
+### Fixed — `randomize` keeps every target, and its `with` block sees the target's members (symbol-resolution 8.8, LRM 13.4.6)
+
+`randomize v1, v2 with { ... }` used to keep only `v1`, with a PSS116 "only the
+first of several randomization targets is kept" warning. Every target is now
+kept and resolved, so an unknown second target is reported.
+
+With one target of struct type, a name in the `with` block is looked up in the
+target's type first, then in the enclosing scope, as in a traversal's `with`
+block. So LRM Example 161, `randomize f2 with { soft x < f1.x; }`, now links:
+`x` is `f2.x` and `f1` is the action's field. It used to report "unknown
+identifier 'x'". With several targets, or one that is not a struct, names
+resolve in the enclosing scope only (Example 177 writes `v1.f1.a < v2`).
+
+For tools reading the AST: `ProceduralStmtRandomize.target` is replaced by
+`targets`, a list (`getTargets()`; in Python `numTargets()` and
+`getTarget(i)`).
+
+### Fixed — a constraint `foreach` or `forall` iterator binds to its declaration
+
+A use of a `foreach` iterator was bound to the wrong node. In a plain
+constraint it bound to one of the loop's body statements, and
+`pssparser.refs` reported it as `BUILTIN`. Inside an `if` branch, an
+implication (`->`) or a nested `foreach`, it bound to the enclosing
+statement. Inside a traversal's `with` block, an activity `constraint`
+statement or a `randomize ... with` block, it was reported as an internal
+error: "'e' was left unbound by pssparser ... a pssparser defect". Every use
+now binds to the iterator. `refs` also used to report the `foreach`
+statement, and any statement around it, as the declaration of the iterator's
+name; that is fixed too. A `forall` iterator's declaration now has its source
+location, so `refs` reports it once as a declaration and takes its uses back
+to it.
+
+For tools that walk target paths themselves: a `foreach` constraint is
+addressed as its body statements followed by its iterators, so an iterator's
+last path step is the body's size plus the iterator's position. A path now
+also steps through a constraint `if` (branch 0 is the `if`, 1 the `else`) and
+through the statement that holds a `with` block, an activity or monitor
+`constraint`, or a `randomize`. A free-standing constraint set, and each `if`
+branch, now has the index of its position in what holds it.
+
 ### Fixed — a generic constraint's parameters are resolved in its body (symbol-resolution 8.7, LRM 13.1.2)
 
 The parameters of `constraint g(P p, bit[8] v) { ... }` used to be skipped by

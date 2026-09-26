@@ -10,7 +10,7 @@
   },
   "legal_model": "clean",
   "corpus_refs": {
-   "bound": 1215,
+   "bound": 1216,
    "dependent": 2,
    "unbound": 28
   },
@@ -535,8 +535,8 @@
    "ProceduralStmtMatch.expr | ExprRefPathContext": {
     "bound": 87
    },
-   "ProceduralStmtRandomize.target | ExprRefPathContext": {
-    "bound": 1
+   "ProceduralStmtRandomize.targets | ExprRefPathContext": {
+    "bound": 2
    },
    "ProceduralStmtReturn.expr | ExprRefPathContext": {
     "bound": 1

@@ -19,6 +19,8 @@
 #include <set>
 #include <unordered_set>
 #include "pssp/ast/impl/VisitorBase.h"
+#include "pssp/ast/IConstraintStmtForall.h"
+#include "pssp/ast/IConstraintStmtForeach.h"
 #include "pssp/impl/TaskResolveSymbolPathRef.h"
 #include "OccurrenceCollector.h"
 
@@ -74,6 +76,13 @@ public:
 
     // Containers: never walked.
     virtual void visitScope(ast::IScope *i) override { }
+    // A constraint scope has no name of its own. Walked, a `foreach` (and so
+    // an `if`, a `with` block or a `randomize` around one) took its
+    // iterator's, and `refs` reported every use of the iterator as a use of
+    // the statement (SR-F1).
+    virtual void visitConstraintScope(ast::IConstraintScope *i) override { }
+    virtual void visitConstraintStmtForeach(ast::IConstraintStmtForeach *i) override { }
+    virtual void visitConstraintStmtForall(ast::IConstraintStmtForall *i) override { }
     virtual void visitSymbolChildrenScope(ast::ISymbolChildrenScope *i) override { }
     virtual void visitExpr(ast::IExpr *i) override { }
     virtual void visitDataType(ast::IDataType *i) override { }
