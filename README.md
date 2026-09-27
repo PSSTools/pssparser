@@ -5,6 +5,16 @@ It also provides an AST (data model) for processing the result of the parser.
 
 [![Build Status](https://dev.azure.com/mballance/psstools/_apis/build/status/PSSTools.pssparser?branchName=master)](https://dev.azure.com/mballance/psstools/_build/latest?definitionId=15&branchName=master)
 
+## Agent skills
+
+The wheel ships agent skills that teach a coding agent to use pssparser:
+`pssparser` (check and lint PSS), `pssparser-checkers` (write lint checks) and
+`pssparser-api` (build tools on the Python API).  They are registered in the
+`agent.skills` entry-point group, so `ivpm update` installs them into
+`.claude/skills/` and the other agent directories.  The sources are in
+[skills/](skills/), with `pssparser-dev`, a fourth skill for work on
+pssparser itself that is not shipped.
+
 ## Checker Plug-ins
 
 `pssparser` supports a plug-in system for custom Python-based checkers that

@@ -151,6 +151,10 @@ setup_args = dict(
             # the compiled-in copy, and an installed wheel is the only place it
             # can look.  See pssparser.get_stdlib_dir().
             "stdlib/*.pss",
+            # Agent skills (pssparser.skills).  A source build copies them in
+            # through ivpm_extra_data below; listing them here keeps them in a
+            # build that already has the copy in place.
+            "share/skills/**/*",
         ]
     },
     version=version,
@@ -180,6 +184,15 @@ setup_args = dict(
     entry_points={
         "console_scripts": [
             "pssparser = pssparser.cli.app:main",
+        ],
+        # One entry point per skill: IVPM names an entry-point skill after the
+        # entry-point name, so a single callable returning several
+        # directories would name them all "pssparser".  Each name equals the
+        # skill's directory and its SKILL.md `name`.
+        "agent.skills": [
+            "pssparser = pssparser.skills:pssparser_skill",
+            "pssparser-checkers = pssparser.skills:checkers_skill",
+            "pssparser-api = pssparser.skills:api_skill",
         ],
     },
     install_requires=[
@@ -257,13 +270,25 @@ if isSrcBuild:
         for f in sorted(glob.glob(os.path.join(proj_dir, "src", "stdlib", "*.pss")))
     ]
 
+    # Ship the agent skills under pssparser/share/skills/<name>.  Only the
+    # SHIPPED ones: skills/pssparser-dev is for work on pssparser itself and
+    # must stay out of the wheel.  A directory source is copied to
+    # <dst>/<basename>, hence "share/skills" and not ".../<name>".
+    _skills_glb = {}
+    with open(os.path.join(proj_dir, "python", "pssparser", "skills.py")) as f:
+        exec(f.read(), _skills_glb)
+    _skills_data = [
+        (os.path.join("skills", name), os.path.join("share", "skills"))
+        for name in _skills_glb["SHIPPED"]
+    ]
+
     extra_data = _stdlib_data + [
         ("build/include", "share"),
         ("build/{libdir}/{libpref}ast{dllext}", ""),
         ("build/{libdir}/{libpref}pssparser{dllext}", ""),
         ("python/PyBaseVisitor.h", "share/include"),
         ("python/PyParserUtils.h", "share/include"),
-    ]
+    ] + _skills_data
 
     if antlr4_rt_lib is not None:
         extra_data.insert(len(_stdlib_data) + 1, (antlr4_rt_lib, ""))

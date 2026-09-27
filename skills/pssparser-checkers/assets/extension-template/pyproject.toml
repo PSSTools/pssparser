@@ -1,0 +1,26 @@
+# A minimal pssparser checker extension.  Rename three things before use:
+#   * the distribution name (`name` below),
+#   * the package directory (src/my_pss_rules) and its references here,
+#   * the entry-point key (`my-pss-rules`), which users see in
+#     `pssparser --list-extensions` and write in `[extensions.<key>]`.
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "my-pss-rules"
+version = "0.1.0"
+description = "House lint rules for PSS, as a pssparser extension"
+requires-python = ">=3.10"
+dependencies = ["pssparser"]
+
+[project.optional-dependencies]
+test = ["pytest"]
+
+# One entry point for the whole collection: key = extension name, value = the
+# module that exposes register(reg).
+[project.entry-points."pssparser.extensions"]
+my-pss-rules = "my_pss_rules"
+
+[tool.setuptools.packages.find]
+where = ["src"]

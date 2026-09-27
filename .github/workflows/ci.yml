@@ -395,6 +395,7 @@ jobs:
         source /tmp/test-venv/bin/activate
         pip install dist/*.whl
         python -c "from pssparser import Parser; p = Parser(); assert p.parses([('test.pss', 'component pss_top {}')]); print('System test PASSED')"
+        python scripts/check_wheel_skills.py
 
   ci-linux-aarch64:
     # Split six ways for the same reasons as ci-linux above, and with the same
@@ -611,6 +612,7 @@ jobs:
         source /tmp/test-venv/bin/activate
         pip install dist/*.whl
         python -c "from pssparser import Parser; p = Parser(); assert p.parses([('test.pss', 'component pss_top {}')]); print('System test PASSED')"
+        python scripts/check_wheel_skills.py
 
   ci-win32:
     # ONE MATRIX ENTRY PER PYTHON, matching the cp310..cp314 matrix the manylinux
@@ -777,6 +779,7 @@ jobs:
         python -m venv /c/test-venv
         /c/test-venv/Scripts/pip install dist/*.whl
         /c/test-venv/Scripts/python -c "from pssparser import Parser; p = Parser(); assert p.parses([('test.pss', 'component pss_top {}')]); print('System test PASSED')"
+        /c/test-venv/Scripts/python scripts/check_wheel_skills.py
 
   ci-macos:
     # SAME MATRIX SHAPE AND SAME REASONS as ci-win32 above: this built 3.13
@@ -972,6 +975,7 @@ jobs:
         source /tmp/test-venv/bin/activate
         pip install dist/*.whl
         python -c "from pssparser import Parser; p = Parser(); assert p.parses([('test.pss', 'component pss_top {}')]); print('System test PASSED')"
+        python scripts/check_wheel_skills.py
 
   # ---------------------------------------------------------------------- #
   # THE RELEASE. Restored 2026-09-01, on the authority move described in this

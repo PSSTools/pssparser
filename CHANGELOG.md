@@ -7,6 +7,30 @@ revision advances only the patch component.
 
 ## Unreleased
 
+### Added — agent skills ship in the wheel
+
+The wheel now carries three agent skills under `pssparser/share/skills/`, each
+registered in the `agent.skills` entry-point group, so `ivpm update` (or any
+other consumer of that group) links them into `.claude/skills/`,
+`.agents/skills/` and so on:
+
+- **pssparser**: checking and linting PSS with the `pssparser` command,
+  diagnostics, configuration, and CI.
+- **pssparser-checkers**: writing lint checks and packaging them as a
+  `pssparser.extensions` extension, with an installable template.
+- **pssparser-api**: building tools on the Python API: parsing, linking,
+  walking the AST, and resolving references.
+
+A fourth, `pssparser-dev`, covers work on pssparser itself. It lives in the
+repository's `skills/` only and is not in the wheel.
+
+### Changed — `import pssparser` no longer loads the native libraries
+
+`Parser`, `ParseException` and `InactiveRegion` are still importable from
+`pssparser`, but are resolved on first use (PEP 562). Importing a pure-Python
+submodule, such as `pssparser.skills`, no longer loads `pssparser.core`, and
+so no longer fails where the native libraries cannot load.
+
 ### Added — `extend monitor` (symbol-resolution 11.5, LRM 17.2.1)
 
 `extend monitor m { ... }` now parses and adds its members to the monitor, as

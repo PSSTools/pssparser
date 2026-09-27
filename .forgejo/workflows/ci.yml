@@ -315,6 +315,7 @@ jobs:
         /opt/python/cp313-cp313/bin/python -m venv /tmp/systest
         /tmp/systest/bin/pip install -q dist/*cp313*.whl
         /tmp/systest/bin/python -c "from pssparser import Parser; p = Parser(); assert p.parses([('test.pss', 'component pss_top {}')]); print('System test PASSED')"
+        /tmp/systest/bin/python scripts/check_wheel_skills.py
 
   docs:
     # Depends on the build job on purpose. docs/conf.py uses sphinx.ext.autodoc,
