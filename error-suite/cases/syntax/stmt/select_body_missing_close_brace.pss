@@ -9,7 +9,7 @@
 //! pssparser.match: unclosed '{' for select statement
 //! count:           1
 //! xfail.pssparser: E9-S9-D1 -- D8's opener-pointing fix (E-6) is scoped to Component_declarationContext/Struct_declarationContext only; an unclosed 'select { ...' body still misattributes the EOF mismatch to the enclosing component instead of naming the select statement
-//! fix:            20:                A;}
+//! fix:            20:                do A;}
 //! cause:            select
 component C {
     action A {

@@ -13,7 +13,7 @@ component C {
     }
     action B {
         activity {
-                A;
+                do A;
         }
     }
 }
