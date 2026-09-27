@@ -16,8 +16,28 @@ def _add_dll_search_path():
 
 _add_dll_search_path()
 
-from .parser import InactiveRegion, Parser, ParseException
 from .__version__ import __version__, get_version
+
+# Parser, ParseException and InactiveRegion load the native libraries, so they
+# are resolved on first use (PEP 562) rather than at import.  Importing a
+# pure-Python submodule -- pssparser.skills, which agent-skill discovery calls
+# in a subprocess -- must not pay for, or fail on, loading pssparser.core.
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from .parser import InactiveRegion, Parser, ParseException
+
+_LAZY = {"Parser", "ParseException", "InactiveRegion"}
+
+
+def __getattr__(name):
+    if name in _LAZY:
+        from . import parser as _parser
+        return getattr(_parser, name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+def __dir__():
+    return sorted(set(globals()) | _LAZY)
 
 def get_deps():
     return []
@@ -33,11 +53,14 @@ def get_libdirs():
 def get_incdirs():
     import os
     pkg_dir = os.path.dirname(os.path.abspath(__file__))
-    if os.path.isdir(os.path.join(pkg_dir, "include")):
-        return [os.path.join(pkg_dir, "include")]
-    else:
-        root_dir = os.path.abspath(os.path.join(pkg_dir, "../.."))
-        return [os.path.join(root_dir, "src", "include")]
+    # A wheel installs the headers under share/include (setup.py copies
+    # build/include there); pkg_dir/include is kept for older layouts.
+    for d in (os.path.join(pkg_dir, "share", "include"),
+              os.path.join(pkg_dir, "include")):
+        if os.path.isdir(d):
+            return [d]
+    root_dir = os.path.abspath(os.path.join(pkg_dir, "../.."))
+    return [os.path.join(root_dir, "src", "include")]
 
 
 def get_stdlib_dir():
