@@ -6,6 +6,9 @@ Root causes and LRM references: ``docs/design/symbol-resolution/D-namespaces.md`
 """
 import pytest
 
+import pssparser
+from pssparser import refs
+
 from ..test_helpers import assert_marker, assert_parse_ok, parse_collect, find_markers
 
 
@@ -72,6 +75,39 @@ package top {
   struct my_s : ::s { rand int x; constraint x == ::K; constraint g == 1; }
 }
 """)
+
+
+def test_lrm_example_258():
+    """The whole of Ex. 258: `s` is the imported `p1::s`, `::s` the global
+    one, `t` the global `t`, and `p2::u` goes through the imported nested
+    package."""
+    code = """\
+package p1 {
+   struct s { }
+   package p2 {
+       struct u { }
+   }
+}
+struct t { }
+struct s { }
+package top {
+   import p1::*;
+   struct my_s {
+       s     v1;
+       ::s   v2;
+       t     v3;
+       p2::u v4;
+   }
+}
+"""
+    p = pssparser.Parser()
+    p.parses([("t.pss", code)])
+    p.link()
+    assert p.markers == []
+    assert [(o.line, o.text, o.decl_location.line)
+            for o in refs.occurrences(p)
+            if not o.is_declaration and o.text in ("s", "t", "p2", "u")] == [
+        (12, "s", 2), (13, "s", 8), (14, "t", 7), (15, "p2", 3), (15, "u", 4)]
 
 
 def test_global_prefix_field_type_binds_the_global_type():

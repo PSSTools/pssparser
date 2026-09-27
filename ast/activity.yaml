@@ -345,13 +345,26 @@ classes:
         
         Attributes:
             label: Optional identifier expression for the label
-        
+            sub_activity: The named sub-activity this statement introduces
+                (LRM 11.8), built by the linker: a synthetic scope whose
+                target is this statement. Its members are non-owned: the
+                action handles and ``action`` fields declared directly under
+                the statement, and the labeled statements whose nearest
+                labeled ancestor it is. ``b1.my_seq.my_rep.a`` walks these
+                scopes. Null on an unlabeled statement, except the body of a
+                ``replicate`` with a label array, which is named by that
+                array. Not walked by the generated visitors.
+
         See Also:
             ActivitySequence, ActivityParallel, ActivitySchedule
     data:
-    - label: 
+    - label:
         - type: UP<ExprId>
         - is_ctor: false
+    - sub_activity:
+        - type: UP<SymbolScope>
+        - is_ctor: false
+        - visit: false
 
 - ActivitySequence:
     super: ActivityLabeledScope

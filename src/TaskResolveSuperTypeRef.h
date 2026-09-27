@@ -25,6 +25,7 @@
 #include "pssp/ast/ITemplateGenericTypeParamDecl.h"
 #include "pssp/ast/ITemplateCategoryTypeParamDecl.h"
 #include "pssp/impl/TaskResolveSymbolPathRef.h"
+#include "pssp/impl/NodeKind.h"
 
 namespace pssp {
 
@@ -92,10 +93,10 @@ public:
         for (uint32_t depth=0; sc && depth<32; depth++) {
             ast::IDataType *bound = 0;
             if (ast::ITemplateGenericTypeParamDecl *g =
-                    dynamic_cast<ast::ITemplateGenericTypeParamDecl *>(sc)) {
+                    NodeKind::cast<ast::ITemplateGenericTypeParamDecl>(sc)) {
                 bound = g->getDflt();
             } else if (ast::ITemplateCategoryTypeParamDecl *c =
-                    dynamic_cast<ast::ITemplateCategoryTypeParamDecl *>(sc)) {
+                    NodeKind::cast<ast::ITemplateCategoryTypeParamDecl>(sc)) {
                 // Arguments are specialized as generic parameters, so this
                 // arm is reached only for a declaration that still carries
                 // its category -- but reading the same slot costs nothing and
@@ -106,7 +107,7 @@ public:
             }
 
             ast::IDataTypeUserDefined *ud =
-                dynamic_cast<ast::IDataTypeUserDefined *>(bound);
+                NodeKind::cast<ast::IDataTypeUserDefined>(bound);
             if (!ud || !ud->getType_id()) {
                 // Unbound, or bound to something that is not a type
                 // reference -- `S<int> : T` is not inheritable either way.

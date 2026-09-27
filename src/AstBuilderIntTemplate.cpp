@@ -41,6 +41,7 @@
 #include "pssp/ast/IFactory.h"
 #include "dmgr/impl/DebugMacros.h"
 #include <cstring>
+#include "pssp/impl/NodeKind.h"
 
 namespace pssp {
 
@@ -688,7 +689,7 @@ void AstBuilderInt::buildTemplateDirective(
             if (ctx->index_identifier()) {
                 node->setIdx(mkId(ctx->index_identifier()->identifier()));
             } else if (ast::IExprId *idx = liftForeachIndex(
-                    dynamic_cast<ast::IExprRefPathContext *>(node->getExpr()))) {
+                    NodeKind::cast<ast::IExprRefPathContext>(node->getExpr()))) {
                 // `{% foreach (l[i]) %}` -- the index parsed as a subscript (F4)
                 node->setIdx(idx);
             }

@@ -23,6 +23,7 @@
 #include "pssp/impl/TaskResolveSymbolPathRef.h"
 #include "TaskResolveRef.h"
 #include "TaskResolveRefsOverlay.h"
+#include "pssp/impl/NodeKind.h"
 
 
 namespace pssp {
@@ -73,7 +74,7 @@ void TaskResolveRefsOverlay::visitPackageScope(ast::IPackageScope *i) {
         it!=i->getId().end(); it++) {
         std::unordered_map<std::string,int32_t>::const_iterator sym_it;
         sym_it = scope->getSymtab().find((*it)->getId());
-        scope = dynamic_cast<ast::ISymbolScope *>(
+        scope = NodeKind::cast<ast::ISymbolScope>(
             scope->getChildren().at(sym_it->second).get());
         m_ctxt->symtab()->pushScope(scope);
     }
@@ -109,7 +110,7 @@ void TaskResolveRefsOverlay::visitTypeScope(ast::ITypeScope *i) {
         DEBUG_LEAVE("visitTypeScope");
         return;
     }
-    ast::ISymbolScope *i_s = dynamic_cast<ast::ISymbolScope *>(
+    ast::ISymbolScope *i_s = NodeKind::cast<ast::ISymbolScope>(
         scope->getChildren().at(sym_it->second).get());
     m_ctxt->symtab()->pushScope(i_s);
 

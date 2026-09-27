@@ -165,9 +165,13 @@ classes:
           Binds a pool to a set of action object-reference fields, or to all
           compatible references via the wildcard form. Every target -- including
           a wildcard -- is a ``ComponentBindTarget``, so a mixed list such as
-          ``bind p { a.x, * }`` keeps both entries in source order. Paths are
-          not resolved to references, so this node is inert during link (no ref
-          resolution, no traversal cycles).
+          ``bind p { a.x, * }`` keeps both entries in source order.
+
+          The pool is an ordinary reference from the binding component. A
+          target's path elements, action type and field are resolved along
+          the component path (LRM 12.3): each element in the component the
+          previous one reaches, the action type in the last component
+          reached, the field in that action type.
 
           PSS Example::
 
@@ -179,7 +183,7 @@ classes:
               }
 
           Attributes:
-              pool_path: Hierarchical id of the bound pool (e.g. ``"p"``).
+              pool_path: Path to the bound pool (e.g. ``p``, ``gfx0.pool``).
               is_wildcard: True if *any* target is a wildcard -- for the bare
                   ``bind p *;`` form, and for a mixed list containing ``*``.
                   Equivalent to ``any(t.is_wildcard for t in targets)``, and

@@ -34,7 +34,25 @@ public:
 
     virtual ~TaskGetSymbolScope() { }
 
+    /**
+     * `i` as a symbol scope, or null. That is all this answers: `i` itself,
+     * never a scope nested in it. NodeKind classifies without descending,
+     * which the visitor below could not (see its overrides). With
+     * PSSP_NODEKIND_CHECK the visitor still runs, and a disagreement is an
+     * InternalError.
+     */
     ast::ISymbolScope *get(ast::IScopeChild *i) {
+        ast::ISymbolScope *ret = NodeKind::cast<ast::ISymbolScope>(i);
+#ifdef PSSP_NODEKIND_CHECK
+        if (i && ret != legacyGet(i)) {
+            throw InternalError("TaskGetSymbolScope: NodeKind disagrees with the visitor");
+        }
+#endif
+        return ret;
+    }
+
+private:
+    ast::ISymbolScope *legacyGet(ast::IScopeChild *i) {
         m_ret = 0;
         if ((m_ret=ActivityScopes::asScope(i))) {
             // The same descent as the overrides below: a compound activity
@@ -50,6 +68,7 @@ public:
         return m_ret;
     }
 
+public:
     virtual void visitExecScope(ast::IExecScope *i) override {
         m_ret = i;
     }

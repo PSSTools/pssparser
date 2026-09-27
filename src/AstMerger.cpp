@@ -19,6 +19,7 @@
  *     Author:
  */
 #include "AstMerger.h"
+#include "pssp/impl/NodeKind.h"
 
 namespace pssp {
 
@@ -68,7 +69,7 @@ void AstMerger::visitPackageScope(ast::IPackageScope *i) {
             m_scope_s.back()->getOwned().push_back(ast::IScopeChildUP(pkg));
             m_scope_s.push_back(pkg);
         } else {
-            m_scope_s.push_back(dynamic_cast<ast::IAggregateSymbolScope *>(
+            m_scope_s.push_back(NodeKind::cast<ast::IAggregateSymbolScope>(
                 m_scope_s.back()->getChildren().at(p_it->second)));
         }
     }

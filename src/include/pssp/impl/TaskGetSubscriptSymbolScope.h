@@ -25,6 +25,7 @@
 #include "TaskResolveSymbolPathRef.h"
 #include "pssp/impl/TaskGetElemSymbolScope.h"
 #include "pssp/impl/BuiltinCollectionUtil.h"
+#include "pssp/impl/NodeKind.h"
 
 namespace pssp {
 
@@ -67,7 +68,7 @@ public:
         DEBUG_ENTER("visitSymbolTypeScope \"%s\" (%d subscript(s) left)",
             i->getName().c_str(), m_n_subscript);
 
-        ast::ITypeScope *type = dynamic_cast<ast::ITypeScope *>(i->getTarget());
+        ast::ITypeScope *type = NodeKind::cast<ast::ITypeScope>(i->getTarget());
 
         // Which collection this is -- decided from the declaration, not from
         // the scope's name. A specialization is named `array<>` whatever it

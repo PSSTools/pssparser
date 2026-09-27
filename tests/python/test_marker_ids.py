@@ -108,6 +108,40 @@ REPRESENTATIVE_MESSAGES = [
                "supplied is a type"),
     ("PSS047", "template parameter 'T' expects a type, but the argument "
                "supplied is a value"),
+    ("PSS048", "struct literal names 'a' more than once (4.8.4)"),
+    ("PSS048", "struct literal names 'c1', which is not a data attribute of "
+               "'S1' (4.8.4)"),
+    ("PSS049", "bind names 'x', which is not a pool (12.3)"),
+    ("PSS049", "bind names 'x', which is not a component instance of 'C' "
+               "(12.3)"),
+    ("PSS049", "bind names 'x', which is not an action type of 'C' (12.3)"),
+    ("PSS049", "bind names 'x', which is not an input, output or "
+               "resource-claim field of 'A' (12.3)"),
+    ("PSS050", "cross 'X' names 'f', which is not a coverpoint or a data "
+               "field (15.4)"),
+    ("PSS050", "bins 'b' names 'a', which is not its own coverpoint 'c' "
+               "(15.3.3.3)"),
+    ("PSS050", "bins 'b' names 'Y', which is not its own cross 'X' (15.4.3)"),
+    ("PSS002", "covergroup 'cg_t' has no port named 'x'"),
+    ("PSS051", "'b' is declared by an extension of 'S' in package 'p', which "
+               "is not visible here (17.2.3); add 'import p::*;'"),
+    ("PSS051", "'b' is declared by an extension of 'S' in package 'p' and "
+               "package 'q', none of which is visible here (17.2.3); add "
+               "'import p::*;'"),
+    ("PSS051", "'B' is an item an extension of 'E' in package 'p' adds, which "
+               "is not visible here (17.2.3); add 'import p::*;'"),
+    ("PSS052", "'import lib::s;' names 's', which package 'p' already "
+               "declares; an explicit import shall not name a declaration of "
+               "the importing namespace (18.1.3)"),
+    ("PSS052", "'s' is already imported explicitly in this scope, by 'import "
+               "lib1::s;'; the same name shall not be imported explicitly "
+               "from two packages (18.1.3)"),
+    ("PSS053", "'import lib::*;' follows a declaration; imports shall come "
+               "first in a package, a component, an extension or a file "
+               "(18.1.3)"),
+    ("PSS017", "ambiguous reference to 'b': extensions of 'S' in package 'p' "
+               "and package 'q' each declare it, and each package is imported "
+               "here (17.2.3); import only one"),
     ("PSS006", "call to 'g' expects 1 argument, got 3"),
     ("PSS006", "call to 'g' expects 1 to 2 arguments, got 0"),
     ("PSS006", "call to 'g' expects at least 1 argument, got 0"),

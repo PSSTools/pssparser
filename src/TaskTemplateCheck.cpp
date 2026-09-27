@@ -41,6 +41,7 @@
 #include "TaskCheckCallArgs.h"
 #include "TaskExprTypeCat.h"
 #include "TaskTemplateCheck.h"
+#include "pssp/impl/NodeKind.h"
 
 namespace pssp {
 
@@ -90,7 +91,7 @@ public:
 private:
     static bool isCall(ast::IExprRefPath *i) {
         ast::IExprRefPathContext *rc =
-            dynamic_cast<ast::IExprRefPathContext *>(i);
+            NodeKind::cast<ast::IExprRefPathContext>(i);
         if (rc && rc->getHier_id()) {
             for (std::vector<ast::IExprMemberPathElemUP>::const_iterator
                 it=rc->getHier_id()->getElems().begin();
@@ -118,7 +119,7 @@ private:
         const std::string *name = 0;
 
         if (ast::IExprRefPathContext *rc =
-            dynamic_cast<ast::IExprRefPathContext *>(i)) {
+            NodeKind::cast<ast::IExprRefPathContext>(i)) {
             // Only a bare `x`. `x.a` is a member of something a template local
             // cannot be -- a local is scalar -- so it is not one of these.
             if (!rc->getIs_super() && rc->getHier_id() &&
@@ -143,14 +144,14 @@ private:
             // template is constant on the strength of a reference that is not.
             return false;
         }
-        if (dynamic_cast<ast::IEnumItem *>(c)) {
+        if (NodeKind::cast<ast::IEnumItem>(c)) {
             return true;
         }
-        if (dynamic_cast<ast::ITemplateValueParamDecl *>(c)) {
+        if (NodeKind::cast<ast::ITemplateValueParamDecl>(c)) {
             // A type template's value parameter is fixed at specialization.
             return true;
         }
-        if (ast::IField *f = dynamic_cast<ast::IField *>(c)) {
+        if (ast::IField *f = NodeKind::cast<ast::IField>(c)) {
             return (f->getAttr() & ast::FieldAttr::Const) !=
                 ast::FieldAttr::NoFlags;
         }
@@ -200,26 +201,26 @@ void TaskTemplateCheck::elem(ast::ITemplateElem *e) {
     // Ordered most-derived first: TemplateIfClause, TemplateForeach and
     // TemplateRepeat are all TemplateBlocks, and the block arm is the
     // catch-all.
-    if (ast::ITemplateExpr *x = dynamic_cast<ast::ITemplateExpr *>(e)) {
+    if (ast::ITemplateExpr *x = NodeKind::cast<ast::ITemplateExpr>(e)) {
         // The element carries the location, not the expression: ast::IExpr has
         // none, and the mustache's own span is the more useful thing to point
         // at anyway.
         expr(x->getExpr(), &x->getLocation());
         return;
     }
-    if (ast::ITemplateIf *x = dynamic_cast<ast::ITemplateIf *>(e)) {
+    if (ast::ITemplateIf *x = NodeKind::cast<ast::ITemplateIf>(e)) {
         for (std::vector<ast::ITemplateIfClauseUP>::const_iterator
             it=x->getClauses().begin(); it!=x->getClauses().end(); it++) {
             elem(it->get());
         }
         return;
     }
-    if (ast::ITemplateIfClause *x = dynamic_cast<ast::ITemplateIfClause *>(e)) {
+    if (ast::ITemplateIfClause *x = NodeKind::cast<ast::ITemplateIfClause>(e)) {
         expr(x->getCond(), 0);
         elems(x->getBody());
         return;
     }
-    if (ast::ITemplateForeach *x = dynamic_cast<ast::ITemplateForeach *>(e)) {
+    if (ast::ITemplateForeach *x = NodeKind::cast<ast::ITemplateForeach>(e)) {
         bool c = expr(x->getExpr(), 0);
         // The iterator and index take their values from the collection, so
         // they are constant exactly when it is.
@@ -227,13 +228,13 @@ void TaskTemplateCheck::elem(ast::ITemplateElem *e) {
         elems(x->getBody());
         return;
     }
-    if (ast::ITemplateRepeat *x = dynamic_cast<ast::ITemplateRepeat *>(e)) {
+    if (ast::ITemplateRepeat *x = NodeKind::cast<ast::ITemplateRepeat>(e)) {
         bool c = expr(x->getExpr(), 0);
         loopVars(x, c);
         elems(x->getBody());
         return;
     }
-    if (ast::ITemplateVarDecl *x = dynamic_cast<ast::ITemplateVarDecl *>(e)) {
+    if (ast::ITemplateVarDecl *x = NodeKind::cast<ast::ITemplateVarDecl>(e)) {
         for (std::vector<ast::IProceduralStmtDataDeclarationUP>::const_iterator
             it=x->getDecls().begin(); it!=x->getDecls().end(); it++) {
             addLocal(it->get());
@@ -245,7 +246,7 @@ void TaskTemplateCheck::elem(ast::ITemplateElem *e) {
         }
         return;
     }
-    if (ast::ITemplateAssign *x = dynamic_cast<ast::ITemplateAssign *>(e)) {
+    if (ast::ITemplateAssign *x = NodeKind::cast<ast::ITemplateAssign>(e)) {
         if (!expr(x->getRhs(), 0)) {
             // PSS112 has already reported an assignment to anything that is
             // not a template local, so an unresolved target needs no second
@@ -255,7 +256,7 @@ void TaskTemplateCheck::elem(ast::ITemplateElem *e) {
         }
         return;
     }
-    if (ast::ITemplateBlock *x = dynamic_cast<ast::ITemplateBlock *>(e)) {
+    if (ast::ITemplateBlock *x = NodeKind::cast<ast::ITemplateBlock>(e)) {
         elems(x->getBody());
         return;
     }
@@ -276,7 +277,7 @@ void TaskTemplateCheck::loopVars(ast::ITemplateBlock *b, bool is_const) {
 
 void TaskTemplateCheck::addLocal(ast::IScopeChild *decl) {
     ast::IProceduralStmtDataDeclaration *d =
-        dynamic_cast<ast::IProceduralStmtDataDeclaration *>(decl);
+        NodeKind::cast<ast::IProceduralStmtDataDeclaration>(decl);
     if (d && d->getName()) {
         // A later declaration of the same name shadows an earlier one, which
         // is also the order a reference resolves in.
@@ -331,7 +332,7 @@ bool TaskTemplateCheck::expr(ast::IExpr *e, const ast::Location *loc) {
 }
 
 bool TaskTemplateCheck::inPureComponent(ast::IScopeChild *target) {
-    ast::ISymbolChild *sc = dynamic_cast<ast::ISymbolChild *>(target);
+    ast::ISymbolChild *sc = NodeKind::cast<ast::ISymbolChild>(target);
 
     if (!sc) {
         return false;
@@ -340,13 +341,13 @@ bool TaskTemplateCheck::inPureComponent(ast::IScopeChild *target) {
     // One level, not the whole chain. `pure component` says every function *of
     // the component* is pure; it says nothing about a function of an action
     // declared inside it, which is a type of its own.
-    ast::ISymbolTypeScope *ts = dynamic_cast<ast::ISymbolTypeScope *>(sc->getUpper());
+    ast::ISymbolTypeScope *ts = NodeKind::cast<ast::ISymbolTypeScope>(sc->getUpper());
 
     if (!ts) {
         return false;
     }
 
-    ast::IComponent *comp = dynamic_cast<ast::IComponent *>(ts->getTarget());
+    ast::IComponent *comp = NodeKind::cast<ast::IComponent>(ts->getTarget());
 
     // Deliberately the *enclosing* type rather than the one the call was
     // written against. A function inherited from a pure component is pure

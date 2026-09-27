@@ -32,6 +32,7 @@
 #include "pssp/ast/IMonitorActivityDecl.h"
 #include "pssp/ast/IMonitorActivityEventually.h"
 #include "pssp/ast/IMonitorActivityLabeledScope.h"
+#include "pssp/impl/NodeKind.h"
 
 namespace pssp {
 
@@ -44,12 +45,12 @@ namespace pssp {
  * body `k` is child index `children.size() + k`. That is what makes a block
  * nested in a loop or an `if` reachable by symbol path.
  *
- * Deliberately not a visitor. The generated visitors descend into a scope's
- * data fields after visiting the scope itself, so a visitor asked "what is
- * this node?" of a compound statement goes on to answer for its bodies too --
- * the failure TaskGetSymbolScope, TaskGetItemIndex and ScopeUtil each
- * document for the procedural loops and the template scopes. The query
- * visitors call these first instead.
+ * Not built on the generated visitors, which descend into a scope's data
+ * fields after visiting the scope itself: a visitor asked "what is this
+ * node?" of a compound statement goes on to answer for its bodies too -- the
+ * failure TaskGetSymbolScope, TaskGetItemIndex and ScopeUtil each document
+ * for the procedural loops and the template scopes. The query visitors call
+ * these first instead. NodeKind classifies without descending.
  */
 class ActivityScopes {
 public:
@@ -60,13 +61,11 @@ public:
      * and null otherwise.
      */
     static ast::ISymbolScope *asScope(ast::IScopeChild *c) {
-        if (dynamic_cast<ast::IActivityLabeledScope *>(c)
-                || dynamic_cast<ast::IActivityDecl *>(c)
-                || dynamic_cast<ast::IMonitorActivityLabeledScope *>(c)
-                || dynamic_cast<ast::IMonitorActivityDecl *>(c)) {
-            return dynamic_cast<ast::ISymbolScope *>(c);
-        }
-        return 0;
+        NodeKind nk(c);
+        return (nk.is<ast::IActivityLabeledScope>() || nk.is<ast::IActivityDecl>()
+                || nk.is<ast::IMonitorActivityLabeledScope>()
+                || nk.is<ast::IMonitorActivityDecl>())
+            ? nk.as<ast::ISymbolScope>() : 0;
     }
 
     /**
@@ -75,33 +74,81 @@ public:
      * every other body does not depend on it. Empty for a block.
      */
     static void bodies(ast::IScopeChild *c, std::vector<ast::IScopeChild *> &out) {
-        if (ast::IActivityRepeatCount *s = dynamic_cast<ast::IActivityRepeatCount *>(c)) {
+        if (ast::IActivityRepeatCount *s = NodeKind::cast<ast::IActivityRepeatCount>(c)) {
             out.push_back(s->getBody());
-        } else if (ast::IActivityRepeatWhile *s = dynamic_cast<ast::IActivityRepeatWhile *>(c)) {
+        } else if (ast::IActivityRepeatWhile *s = NodeKind::cast<ast::IActivityRepeatWhile>(c)) {
             out.push_back(s->getBody());
-        } else if (ast::IActivityForeach *s = dynamic_cast<ast::IActivityForeach *>(c)) {
+        } else if (ast::IActivityForeach *s = NodeKind::cast<ast::IActivityForeach>(c)) {
             out.push_back(s->getBody());
-        } else if (ast::IActivityReplicate *s = dynamic_cast<ast::IActivityReplicate *>(c)) {
+        } else if (ast::IActivityReplicate *s = NodeKind::cast<ast::IActivityReplicate>(c)) {
             out.push_back(s->getBody());
-        } else if (ast::IActivityAtomicBlock *s = dynamic_cast<ast::IActivityAtomicBlock *>(c)) {
+        } else if (ast::IActivityAtomicBlock *s = NodeKind::cast<ast::IActivityAtomicBlock>(c)) {
             out.push_back(s->getBody());
-        } else if (ast::IActivityIfElse *s = dynamic_cast<ast::IActivityIfElse *>(c)) {
+        } else if (ast::IActivityIfElse *s = NodeKind::cast<ast::IActivityIfElse>(c)) {
             out.push_back(s->getTrue_s());
             out.push_back(s->getFalse_s());
-        } else if (ast::IActivitySelect *s = dynamic_cast<ast::IActivitySelect *>(c)) {
+        } else if (ast::IActivitySelect *s = NodeKind::cast<ast::IActivitySelect>(c)) {
             for (std::vector<ast::IActivitySelectBranchUP>::const_iterator
                 it=s->getBranches().begin(); it!=s->getBranches().end(); it++) {
                 out.push_back((*it)->getBody());
             }
-        } else if (ast::IActivityMatch *s = dynamic_cast<ast::IActivityMatch *>(c)) {
+        } else if (ast::IActivityMatch *s = NodeKind::cast<ast::IActivityMatch>(c)) {
             for (std::vector<ast::IActivityMatchChoiceUP>::const_iterator
                 it=s->getChoices().begin(); it!=s->getChoices().end(); it++) {
                 out.push_back((*it)->getBody());
             }
         } else if (ast::IMonitorActivityEventually *s =
-                dynamic_cast<ast::IMonitorActivityEventually *>(c)) {
+                NodeKind::cast<ast::IMonitorActivityEventually>(c)) {
             out.push_back(s->getBody());
         }
+    }
+
+    /**
+     * The child indices that lead from activity scope `from` down to `target`,
+     * a statement or declaration somewhere in its blocks and bodies, in the
+     * addressing above. False if `target` is not under `from`. Used for a
+     * name found in a named sub-activity (WS4.3), which is addressed where it
+     * is written.
+     */
+    static bool pathTo(
+            ast::IScopeChild            *from,
+            ast::IScopeChild            *target,
+            std::vector<int32_t>        &idx) {
+        ast::ISymbolScope *s = asScope(from);
+        if (!s) {
+            return false;
+        }
+        int32_t i = 0;
+        for (std::vector<ast::IScopeChildUP>::const_iterator
+            it=s->getChildren().begin(); it!=s->getChildren().end(); it++, i++) {
+            if (step(it->get(), i, target, idx)) {
+                return true;
+            }
+        }
+        std::vector<ast::IScopeChild *> b;
+        bodies(from, b);
+        for (std::vector<ast::IScopeChild *>::const_iterator
+            it=b.begin(); it!=b.end(); it++, i++) {
+            if (*it && step(*it, i, target, idx)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+private:
+
+    static bool step(
+            ast::IScopeChild            *c,
+            int32_t                     i,
+            ast::IScopeChild            *target,
+            std::vector<int32_t>        &idx) {
+        idx.push_back(i);
+        if (c == target || pathTo(c, target, idx)) {
+            return true;
+        }
+        idx.pop_back();
+        return false;
     }
 
 };

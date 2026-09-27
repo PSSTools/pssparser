@@ -21,6 +21,7 @@
 #include "dmgr/impl/DebugMacros.h"
 #include "pssp/impl/InternalError.h"
 #include "AstSymbolTableIterator.h"
+#include "pssp/impl/NodeKind.h"
 #include "TaskGetItemIndex.h"
 #include "TaskGetSymbolScope.h"
 #include "pssp/impl/TaskIndexTemplateScope.h"
@@ -93,8 +94,8 @@ ast::ISymbolRefPath *AstSymbolTableIterator::findLocalSymbolPath(const std::stri
 }
 
 bool AstSymbolTableIterator::isTemplateScope(ast::IScopeChild *c) {
-    return dynamic_cast<ast::ITemplateString *>(c) != 0 ||
-        dynamic_cast<ast::ITemplateElem *>(c) != 0;
+    NodeKind nk(c);
+    return nk.is<ast::ITemplateString>() || nk.is<ast::ITemplateElem>();
 }
 
 bool AstSymbolTableIterator::isPlistOf(
@@ -104,13 +105,14 @@ bool AstSymbolTableIterator::isPlistOf(
     // gets no path element of its own: the element that follows it is an
     // ElemKind_ParamIdx or ElemKind_ArgIdx, and resolving one of those steps
     // into the plist itself. Emitting the plist as well would step in twice.
-    ast::ISymbolTypeScope *ts = dynamic_cast<ast::ISymbolTypeScope *>(outer);
+    NodeKind nk(outer);
+    ast::ISymbolTypeScope *ts = nk.as<ast::ISymbolTypeScope>();
 
     if (ts && ts->getPlist() == c) {
         return true;
     }
 
-    ast::ISymbolFunctionScope *fs = dynamic_cast<ast::ISymbolFunctionScope *>(outer);
+    ast::ISymbolFunctionScope *fs = nk.as<ast::ISymbolFunctionScope>();
 
     return fs && fs->getPlist() == c;
 }
@@ -216,7 +218,7 @@ ast::IScopeChild *AstSymbolTableIterator::resolveAbsPath(const ast::ISymbolRefPa
         ast::IScopeChild *next = scope->getChildren().at(elem.idx).get();
 
         if (i+1 < path->getPath().size()) {
-            if (!(scope=dynamic_cast<ast::ISymbolScope *>(next))) {
+            if (!(scope=NodeKind::cast<ast::ISymbolScope>(next))) {
                 DEBUG("Path element %d of %d does not name a symbol scope",
                     i, (int32_t)path->getPath().size());
                 return 0;
@@ -236,7 +238,7 @@ int32_t AstSymbolTableIterator::pushNamedScope(const std::string &name) {
         ss->getSymtab().find(name);
 
     if (it != ss->getSymtab().end()) {
-        ast::ISymbolScope *scope = dynamic_cast<ast::ISymbolScope *>(
+        ast::ISymbolScope *scope = NodeKind::cast<ast::ISymbolScope>(
             ss->getChildren().at(it->second).get());
         if (scope) {
             m_scope_s.push_back(scope);
@@ -257,13 +259,14 @@ int32_t AstSymbolTableIterator::pushNamedScope(const std::string &name) {
 void AstSymbolTableIterator::pushScope(
         ast::IScopeChild            *s,
         ast::SymbolRefPathElemKind  kind) {
+    ast::ISymbolScope *ss = NodeKind::cast<ast::ISymbolScope>(s);
     DEBUG_ENTER("pushScope %s %d %p",
-        (dynamic_cast<ast::ISymbolScope *>(s))?dynamic_cast<ast::ISymbolScope *>(s)->getName().c_str():"<unknown>",
-        (dynamic_cast<ast::ISymbolScope *>(s))?dynamic_cast<ast::ISymbolScope *>(s)->getSymtab().size():-1,
+        (ss)?ss->getName().c_str():"<unknown>",
+        (ss)?ss->getSymtab().size():-1,
         s);
-    int32_t idx = (dynamic_cast<ast::ISymbolScope *>(s))?dynamic_cast<ast::ISymbolScope *>(s)->getId():-1;
+    int32_t idx = (ss)?ss->getId():-1;
     int32_t idx1 = TaskGetItemIndex().get(s);
-    if (!dynamic_cast<ast::ISymbolScope *>(s)) {
+    if (!ss) {
         DEBUG("Not a symbol scope");
     }
     if (idx != idx1) {

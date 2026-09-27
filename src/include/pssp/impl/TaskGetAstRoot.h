@@ -22,6 +22,7 @@
 #include "dmgr/IDebugMgr.h"
 #include "dmgr/impl/DebugMacros.h"
 #include "pssp/ast/impl/VisitorBase.h"
+#include "pssp/impl/NodeKind.h"
 
 namespace pssp {
 
@@ -40,7 +41,7 @@ public:
     ast::IGlobalScope *root(ast::IScopeChild *i) {
         m_ret = 0;
         i->accept(m_this);
-        return dynamic_cast<ast::IGlobalScope *>(m_ret);
+        return NodeKind::cast<ast::IGlobalScope>(m_ret);
     }
 
     virtual void visitScopeChild(ast::IScopeChild *i) override {
@@ -51,7 +52,7 @@ public:
             c = c->getParent();
         }
 
-        m_ret = dynamic_cast<ast::IScope *>(c);
+        m_ret = NodeKind::cast<ast::IScope>(c);
 
         DEBUG_LEAVE("visitScopeChild");
     }

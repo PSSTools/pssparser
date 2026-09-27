@@ -27,6 +27,7 @@
 #include "pssp/ast/IFunctionParamDecl.h"
 #include "pssp/ast/ISymbolFunctionScope.h"
 #include "pssp/ast/ITargetTemplateFunction.h"
+#include "pssp/impl/NodeKind.h"
 
 namespace pssp {
 
@@ -51,7 +52,7 @@ inline FunctionImpl functionImplementation(ast::ISymbolFunctionScope *f) {
     for (std::vector<ast::IScopeChildUP>::const_iterator
         it=f->getChildren().begin();
         it!=f->getChildren().end(); it++) {
-        if (dynamic_cast<ast::ITargetTemplateFunction *>(it->get())) {
+        if (NodeKind::cast<ast::ITargetTemplateFunction>(it->get())) {
             return FunctionImpl::TargetTemplate;
         }
     }
@@ -140,7 +141,7 @@ inline bool declaredStatic(ast::ISymbolFunctionScope *f) {
         it=f->getChildren().begin();
         it!=f->getChildren().end(); it++) {
         ast::ITargetTemplateFunction *tf =
-            dynamic_cast<ast::ITargetTemplateFunction *>(it->get());
+            NodeKind::cast<ast::ITargetTemplateFunction>(it->get());
         if (tf && tf->getIs_static()) {
             return true;
         }
@@ -160,14 +161,14 @@ inline bool declaredStatic(ast::ISymbolFunctionScope *f) {
  */
 inline bool isInstanceMember(ast::IScopeChild *c) {
     if (ast::ISymbolFunctionScope *f =
-            dynamic_cast<ast::ISymbolFunctionScope *>(c)) {
+            NodeKind::cast<ast::ISymbolFunctionScope>(c)) {
         return !declaredStatic(f);
     }
-    if (ast::IField *f = dynamic_cast<ast::IField *>(c)) {
+    if (ast::IField *f = NodeKind::cast<ast::IField>(c)) {
         return (f->getAttr() & (ast::FieldAttr::Static|ast::FieldAttr::Const))
             == ast::FieldAttr::NoFlags;
     }
-    return dynamic_cast<ast::IFieldCompRef *>(c) != 0;
+    return NodeKind::cast<ast::IFieldCompRef>(c) != 0;
 }
 
 /**
@@ -178,10 +179,10 @@ inline bool isInstanceMember(ast::IScopeChild *c) {
  */
 inline bool isStaticMember(ast::IScopeChild *c) {
     if (ast::ISymbolFunctionScope *f =
-            dynamic_cast<ast::ISymbolFunctionScope *>(c)) {
+            NodeKind::cast<ast::ISymbolFunctionScope>(c)) {
         return declaredStatic(f);
     }
-    if (ast::IField *f = dynamic_cast<ast::IField *>(c)) {
+    if (ast::IField *f = NodeKind::cast<ast::IField>(c)) {
         return (f->getAttr() & ast::FieldAttr::Static) != ast::FieldAttr::NoFlags;
     }
     return false;

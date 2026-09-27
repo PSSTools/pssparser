@@ -24,6 +24,7 @@
 #include "pssp/ast/IComponent.h"
 #include "pssp/ast/ITypeScope.h"
 #include "pssp/ast/ISymbolTypeScope.h"
+#include "pssp/impl/NodeKind.h"
 
 namespace pssp {
 
@@ -47,7 +48,7 @@ void TaskResolveOverrideActions::visitScopeChildren(ast::ISymbolScope *i) {
         // Only scopes can contain (or be) an override action. Restricting the
         // walk keeps this pass away from expressions entirely, so it cannot
         // perturb what the main resolution pass does.
-        if (dynamic_cast<ast::ISymbolScope *>(it->get())) {
+        if (NodeKind::cast<ast::ISymbolScope>(it->get())) {
             it->get()->accept(m_this);
         }
     }
@@ -58,7 +59,7 @@ void TaskResolveOverrideActions::visitSymbolScope(ast::ISymbolScope *i) {
 }
 
 void TaskResolveOverrideActions::visitSymbolTypeScope(ast::ISymbolTypeScope *i) {
-    ast::ITypeScope *ts = dynamic_cast<ast::ITypeScope *>(i->getTarget());
+    ast::ITypeScope *ts = NodeKind::cast<ast::ITypeScope>(i->getTarget());
 
     if (!ts) {
         return;
@@ -70,7 +71,7 @@ void TaskResolveOverrideActions::visitSymbolTypeScope(ast::ISymbolTypeScope *i) 
         return;
     }
 
-    ast::IAction *a = dynamic_cast<ast::IAction *>(ts);
+    ast::IAction *a = NodeKind::cast<ast::IAction>(ts);
 
     if (a) {
         if (a->getIs_override()) {
@@ -80,7 +81,7 @@ void TaskResolveOverrideActions::visitSymbolTypeScope(ast::ISymbolTypeScope *i) 
         }
     }
 
-    bool is_comp = (dynamic_cast<ast::IComponent *>(ts) != 0);
+    bool is_comp = (NodeKind::cast<ast::IComponent>(ts) != 0);
 
     if (is_comp) {
         m_comp_s.push_back(i);
@@ -105,9 +106,9 @@ TaskResolveOverrideActions::Found TaskResolveOverrideActions::findInBaseChain(
     // A cycle in a super-type chain is diagnosed elsewhere; bound the walk so
     // that a malformed model cannot spin here.
     for (int32_t depth=0; cur && depth<100; depth++) {
-        ast::ITypeScope *cur_ts = dynamic_cast<ast::ITypeScope *>(
-            dynamic_cast<ast::ISymbolTypeScope *>(cur)
-                ? dynamic_cast<ast::ISymbolTypeScope *>(cur)->getTarget()
+        ast::ITypeScope *cur_ts = NodeKind::cast<ast::ITypeScope>(
+            NodeKind::cast<ast::ISymbolTypeScope>(cur)
+                ? NodeKind::cast<ast::ISymbolTypeScope>(cur)->getTarget()
                 : 0);
 
         if (!cur_ts || !cur_ts->getSuper_t() || !cur_ts->getSuper_t()->getTarget()) {
@@ -115,7 +116,7 @@ TaskResolveOverrideActions::Found TaskResolveOverrideActions::findInBaseChain(
         }
 
         ast::ISymbolRefPath *base_p = cur_ts->getSuper_t()->getTarget();
-        ast::ISymbolScope *base_s = dynamic_cast<ast::ISymbolScope *>(
+        ast::ISymbolScope *base_s = NodeKind::cast<ast::ISymbolScope>(
             m_ctxt->resolveSymbolPathRef(base_p));
 
         if (!base_s) {
@@ -127,10 +128,10 @@ TaskResolveOverrideActions::Found TaskResolveOverrideActions::findInBaseChain(
 
         if (it != base_s->getSymtab().end()
             && it->second < (int32_t)base_s->getChildren().size()) {
-            ast::ISymbolTypeScope *cand_s = dynamic_cast<ast::ISymbolTypeScope *>(
+            ast::ISymbolTypeScope *cand_s = NodeKind::cast<ast::ISymbolTypeScope>(
                 base_s->getChildren().at(it->second).get());
             ast::IAction *cand = cand_s
-                ? dynamic_cast<ast::IAction *>(cand_s->getTarget()) : 0;
+                ? NodeKind::cast<ast::IAction>(cand_s->getTarget()) : 0;
 
             if (cand) {
                 res.scope = base_s;

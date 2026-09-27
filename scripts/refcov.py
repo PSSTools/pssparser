@@ -163,6 +163,19 @@ def _supers(classes, cls):
     return out
 
 
+#: Owned fields the linker fills with a view of nodes owned elsewhere in the
+#: tree. Walking one would count each of those nodes' references twice.
+LINKER_VIEWS = {
+    # The named sub-activity (WS4.3): its members are the activity's own
+    # statements and handles, which are walked where they are written.
+    "ActivityLabeledScope.sub_activity",
+    # A covergroup's body scope (10.1): its members are the covergroup's own
+    # coverpoints and crosses.
+    "Covergroup.body",
+    "CovergroupType.body",
+}
+
+
 def _walk_file(fn):
     """Link *fn* and classify every reference node under its units.
 
@@ -265,6 +278,8 @@ def _walk_file(fn):
                 pass
         for (dc, fname, ftype, vis) in _fields_of(classes, cn):
             if not ftype or not any(ftype.startswith(pfx) for pfx in ("UP<", "list<UP<")):
+                continue
+            if "%s.%s" % (dc, fname) in LINKER_VIEWS:
                 continue
             vals = getter_values(n, fname)
             if not vals:

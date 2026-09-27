@@ -57,8 +57,9 @@ PROCEDURAL_BODY_FIELDS = {
 #: Compound activity statements: SymbolScopes (WS4.1) that never carry imports.
 ACTIVITY_SCOPES = (
     "ActivityAtomicBlock", "ActivityForeach", "ActivityIfElse",
-    "ActivityMatch", "ActivityRepeatCount", "ActivityRepeatWhile",
-    "ActivityReplicate", "ActivitySelect", "MonitorActivityEventually",
+    "ActivityMatch", "ActivityParallel", "ActivityRepeatCount",
+    "ActivityRepeatWhile", "ActivityReplicate", "ActivitySchedule",
+    "ActivitySelect", "MonitorActivityEventually",
 )
 
 ALLOWED = {
@@ -94,12 +95,19 @@ ALLOWED = {
     "visitExtendType:Scope.children": "merged into the type, walked there",
     # Deliberately not resolved yet: each needs its own rules, and the
     # ordinary lookup would report legal code (see the overrides' comments).
-    "visitActivityBindStmt:ActivityBindStmt.lhs": "WS4.5 (U2)",
-    "visitActivityBindStmt:ActivityBindStmt.rhs": "WS4.5 (U2)",
-    "visitActivitySchedulingConstraint:ActivitySchedulingConstraint.targets":
-        "label paths: WS4.3 (F-N11)",
-    "visitComponentBind:ComponentBind.pool_path": "component paths: WS4.5 (U2)",
     "visitInstanceOverride:InstanceOverride.target": "instance paths: U5",
+    # A covergroup is resolved through its body scope, which the symbol tree
+    # puts beside it (TaskResolveRefs::resolveCovergroupBody, 10.1): the
+    # generic walk would resolve its expressions in the wrong scope.
+    "visitCovergroup:Covergroup.coverpoints": "resolveCovergroupBody",
+    "visitCovergroup:Covergroup.crosses": "resolveCovergroupBody",
+    "visitCovergroup:Covergroup.options": "resolveCovergroupBody",
+    "visitCovergroupType:CovergroupType.coverpoints": "resolveCovergroupBody",
+    "visitCovergroupType:CovergroupType.crosses": "resolveCovergroupBody",
+    "visitCovergroupType:CovergroupType.options": "resolveCovergroupBody",
+    "visitCovergroupType:Scope.children": "walked through its SymbolTypeScope",
+    "visitCovergroupType:TypeScope.params": "walked through its SymbolTypeScope",
+    "visitCovergroupType:TypeScope.super_t": "walked through its SymbolTypeScope",
     # `comp` is typed by TaskLinkActionCompRefFields (WS5.3 for its gaps).
     "visitFieldCompRef:FieldCompRef.type": "typed by TaskLinkActionCompRefFields",
     # An import spec carries a platform and a language, no names.

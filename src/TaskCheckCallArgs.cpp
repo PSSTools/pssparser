@@ -31,6 +31,7 @@
 #include "FunctionScopeUtil.h"
 #include "TaskCheckCallArgs.h"
 #include "TaskExprTypeCat.h"
+#include "pssp/impl/NodeKind.h"
 
 
 namespace pssp {
@@ -120,7 +121,7 @@ void TaskCheckCallArgs::collectPrototypes(
     ast::IScopeChild                            *target,
     std::vector<ast::IFunctionPrototype *>      &protos) {
     ast::ISymbolFunctionScope *fs =
-        dynamic_cast<ast::ISymbolFunctionScope *>(target);
+        NodeKind::cast<ast::ISymbolFunctionScope>(target);
 
     if (fs) {
         // Prototypes, the definition, and imports all describe the same
@@ -141,18 +142,18 @@ void TaskCheckCallArgs::collectPrototypes(
             it=fs->getImport_specs().begin();
             it!=fs->getImport_specs().end(); it++) {
             ast::IFunctionImportProto *ip =
-                dynamic_cast<ast::IFunctionImportProto *>(it->get());
+                NodeKind::cast<ast::IFunctionImportProto>(it->get());
             if (ip && ip->getProto()) {
                 protos.push_back(ip->getProto());
             }
         }
     } else if (ast::IFunctionDefinition *fd =
-        dynamic_cast<ast::IFunctionDefinition *>(target)) {
+        NodeKind::cast<ast::IFunctionDefinition>(target)) {
         if (fd->getProto()) {
             protos.push_back(fd->getProto());
         }
     } else if (ast::IFunctionPrototype *fp =
-        dynamic_cast<ast::IFunctionPrototype *>(target)) {
+        NodeKind::cast<ast::IFunctionPrototype>(target)) {
         protos.push_back(fp);
     }
 
@@ -227,11 +228,11 @@ const char *TaskCheckCallArgs::valueKind(ast::IScopeChild *target) {
     // purpose: this must not fire on a construct the linker merely models
     // badly, and the set of things `TaskResolveSymbolPathRef` can hand back is
     // wider than the set of things this pass understands.
-    if (dynamic_cast<ast::IFunctionParamDecl *>(target)) {
+    if (NodeKind::cast<ast::IFunctionParamDecl>(target)) {
         return "a parameter";
-    } else if (dynamic_cast<ast::IProceduralStmtDataDeclaration *>(target)) {
+    } else if (NodeKind::cast<ast::IProceduralStmtDataDeclaration>(target)) {
         return "a variable";
-    } else if (dynamic_cast<ast::IField *>(target)) {
+    } else if (NodeKind::cast<ast::IField>(target)) {
         return "a field";
     }
 
@@ -248,7 +249,7 @@ bool TaskCheckCallArgs::checkConstArg(
     // A non-const aggregate parameter is a handle the callee may write
     // through (20.3.2); a literal has nothing to write back to.
     if (!native || !param || param->getIs_const()
-            || !dynamic_cast<ast::IExprAggrLiteral *>(arg)) {
+            || !NodeKind::cast<ast::IExprAggrLiteral>(arg)) {
         return false;
     }
     // IExpr carries no location: the call site, and the argument by position.
@@ -264,11 +265,11 @@ bool TaskCheckCallArgs::checkConstArg(
 
 bool TaskCheckCallArgs::isNative(ast::IScopeChild *target) {
     if (ast::ISymbolFunctionScope *fs =
-            dynamic_cast<ast::ISymbolFunctionScope *>(target)) {
+            NodeKind::cast<ast::ISymbolFunctionScope>(target)) {
         // `definition` is not populated; the body is on the scope.
         return functionImplementation(fs) == FunctionImpl::Native;
     }
-    return dynamic_cast<ast::IFunctionDefinition *>(target) != 0;
+    return NodeKind::cast<ast::IFunctionDefinition>(target) != 0;
 }
 
 void TaskCheckCallArgs::checkArgTypes(

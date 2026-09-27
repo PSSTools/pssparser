@@ -22,6 +22,7 @@
 #include "pssp/ast/IProceduralStmtIfElse.h"
 #include "pssp/ast/IProceduralStmtMatch.h"
 #include "pssp/ast/IProceduralStmtMatchChoice.h"
+#include "pssp/impl/NodeKind.h"
 
 namespace pssp {
 
@@ -39,16 +40,16 @@ namespace pssp {
  * `repeat` and `foreach` are not here: they declare their loop variables, so
  * they are symbol scopes, with the body after the variables.
  *
- * Deliberately not a visitor, for the reason ActivityScopes gives: the
- * generated visitors descend into the bodies and answer for them instead.
+ * Not built on the generated visitors, for the reason ActivityScopes gives:
+ * they descend into the bodies and answer for them instead.
  */
 class ProceduralScopes {
 public:
 
     static bool isCompound(ast::IScopeChild *c) {
-        return dynamic_cast<ast::IProceduralStmtIfElse *>(c)
-            || dynamic_cast<ast::IProceduralStmtMatch *>(c)
-            || dynamic_cast<ast::IProceduralStmtBody *>(c);
+        NodeKind nk(c);
+        return nk.is<ast::IProceduralStmtIfElse>() || nk.is<ast::IProceduralStmtMatch>()
+            || nk.is<ast::IProceduralStmtBody>();
     }
 
     /**
@@ -57,18 +58,18 @@ public:
      * off the end.
      */
     static void bodies(ast::IScopeChild *c, std::vector<ast::IScopeChild *> &out) {
-        if (ast::IProceduralStmtIfElse *s = dynamic_cast<ast::IProceduralStmtIfElse *>(c)) {
+        if (ast::IProceduralStmtIfElse *s = NodeKind::cast<ast::IProceduralStmtIfElse>(c)) {
             for (std::vector<ast::IProceduralStmtIfClauseUP>::const_iterator
                 it=s->getIf_then().begin(); it!=s->getIf_then().end(); it++) {
                 out.push_back((*it)->getBody());
             }
             out.push_back(s->getElse_then());
-        } else if (ast::IProceduralStmtMatch *s = dynamic_cast<ast::IProceduralStmtMatch *>(c)) {
+        } else if (ast::IProceduralStmtMatch *s = NodeKind::cast<ast::IProceduralStmtMatch>(c)) {
             for (std::vector<ast::IProceduralStmtMatchChoiceUP>::const_iterator
                 it=s->getChoices().begin(); it!=s->getChoices().end(); it++) {
                 out.push_back((*it)->getBody());
             }
-        } else if (ast::IProceduralStmtBody *s = dynamic_cast<ast::IProceduralStmtBody *>(c)) {
+        } else if (ast::IProceduralStmtBody *s = NodeKind::cast<ast::IProceduralStmtBody>(c)) {
             out.push_back(s->getBody());
         }
     }

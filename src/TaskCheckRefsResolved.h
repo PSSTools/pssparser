@@ -123,30 +123,8 @@ public:
 
     // Exemptions: constructs the resolver does not bind yet.
 
-    /** Coverage (WS10, R4): the covergroup's body is `visit: false`. */
-    virtual void visitCovergroup(ast::ICovergroup *i) override { }
-
-    /** Coverage (WS10, R4): a covergroup type's body. */
-    virtual void visitCovergroupType(ast::ICovergroupType *i) override { }
-
-    /** Coverage (WS10, R4): port-map names and options. */
-    virtual void visitCovergroupInstantiation(ast::ICovergroupInstantiation *i) override;
-
-    /** Pool binds (4.5, R4). */
-    virtual void visitComponentBind(ast::IComponentBind *i) override { }
-
-    /** Activity binds (4.5, R4). */
-    virtual void visitActivityBindStmt(ast::IActivityBindStmt *i) override { }
-
-    /** Scheduling constraints name labelled sub-activities (4.3, R4). */
-    virtual void visitActivitySchedulingConstraint(
-        ast::IActivitySchedulingConstraint *i) override { }
-
     /** Instance-override targets (U5). */
     virtual void visitInstanceOverride(ast::IInstanceOverride *i) override { }
-
-    /** Struct-literal member names (U4, 8.9). The values are checked. */
-    virtual void visitExprAggrStructElem(ast::IExprAggrStructElem *i) override;
 
     /**
      * A parameter *declaration* list is not checked.

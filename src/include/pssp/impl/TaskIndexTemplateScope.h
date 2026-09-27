@@ -25,6 +25,7 @@
 #include "pssp/ast/ITemplateElem.h"
 #include "pssp/ast/impl/VisitorBase.h"
 #include "pssp/impl/ScopeUtil.h"
+#include "pssp/impl/NodeKind.h"
 
 namespace pssp {
 
@@ -131,9 +132,9 @@ private:
      * relative to it.
      */
     static bool isBoundary(ast::IScopeChild *c) {
-        return dynamic_cast<ast::ISymbolScope *>(c) != 0 &&
-            dynamic_cast<ast::ITemplateString *>(c) == 0 &&
-            dynamic_cast<ast::ITemplateElem *>(c) == 0;
+        return NodeKind::cast<ast::ISymbolScope>(c) != 0 &&
+            NodeKind::cast<ast::ITemplateString>(c) == 0 &&
+            NodeKind::cast<ast::ITemplateElem>(c) == 0;
     }
 
 private:

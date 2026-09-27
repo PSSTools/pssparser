@@ -55,7 +55,14 @@ public:
 
     TaskFindPathElem(
         dmgr::IDebugMgr         *dmgr,
-        ast::ISymbolScope       *root) : m_dmgr(dmgr), m_root(root) { }
+        ast::ISymbolScope       *root) : m_dmgr(dmgr), m_root(root), m_ctxt(0) { }
+
+    /**
+     * With a context, a member an extension contributes is the one visible
+     * at the use (17.2.3), and a use that sees none is reported.
+     */
+    TaskFindPathElem(ResolveContext *ctxt) :
+        m_dmgr(ctxt->getDebugMgr()), m_root(ctxt->root()), m_ctxt(ctxt) { }
 
     virtual ~TaskFindPathElem() { }
 
@@ -73,13 +80,14 @@ public:
             return {0, -1, -1, -1};
         }
         NameLookup::Member m = NameLookup::lookupMember(
-            m_dmgr, m_root, src, id->getId(), enum_items);
+            m_dmgr, m_root, src, id->getId(), enum_items, m_ctxt, id);
         return {m.sym, m.idx, m.super_depth, m.fwd_pkg, m.item_idx, m.abs_path};
     }
 
 private:
     dmgr::IDebugMgr             *m_dmgr;
     ast::ISymbolScope           *m_root;
+    ResolveContext              *m_ctxt;
 };
 
 }

@@ -36,6 +36,7 @@
 #include "pssp/impl/ScopeUtil.h"
 #include "pssp/impl/TaskIndexTemplateScope.h"
 #include "pssp/impl/TaskGetName.h"
+#include "pssp/impl/NodeKind.h"
 
 namespace pssp {
 
@@ -169,7 +170,7 @@ public:
                     DEBUG("Elem: Super");
                     ast::ISymbolTypeScope *scope_ts = scope.getT<ast::ISymbolTypeScope>();
                     ast::ITypeScope *ts = scope_ts?
-                        dynamic_cast<ast::ITypeScope *>(scope_ts->getTarget()):0;
+                        NodeKind::cast<ast::ITypeScope>(scope_ts->getTarget()):0;
                     if (ts && ts->getSuper_t() && ts->getSuper_t()->getTarget()
                             && !ts->getSuper_cyclic()) {
                         ret = resolve(ts->getSuper_t()->getTarget());
@@ -256,22 +257,22 @@ public:
                             (int)(it-ref->getPath().begin()), it->idx);
                     }
                     ast::IScopeChild *c = scope->getChildren().at(it->idx).get();
-                    if (!(scope=dynamic_cast<ast::ISymbolScope *>(c))) {
+                    if (!(scope=NodeKind::cast<ast::ISymbolScope>(c))) {
                         throw InternalError::fmt(
                             "symbol path element %d (child %d) is not a scope",
                             (int)(it-ref->getPath().begin()), it->idx);
                     }
-                    ret->pushScope(dynamic_cast<ast::ISymbolScope *>(scope));
+                    ret->pushScope(NodeKind::cast<ast::ISymbolScope>(scope));
                     DEBUG("  scope %p => %p", scope, ret);
                 } break;
                 case ast::SymbolRefPathElemKind::ElemKind_ParamIdx: {
                     DEBUG("Elem: ParamIdx %d", it->idx);
-//                    ast::ISymbolTypeScope *scope_ts = dynamic_cast<ast::ISymbolTypeScope *>(scope);
+//                    ast::ISymbolTypeScope *scope_ts = NodeKind::cast<ast::ISymbolTypeScope>(scope);
 //                    ret = scope_ts->getPlist()->getChildren().at(it->idx);
 //                    DEBUG("  scope %p => %p", scope_ts, ret);
                 } break;
                 case ast::SymbolRefPathElemKind::ElemKind_TypeSpec: {
-                    ast::ISymbolTypeScope *scope_ts = dynamic_cast<ast::ISymbolTypeScope *>(scope);
+                    ast::ISymbolTypeScope *scope_ts = NodeKind::cast<ast::ISymbolTypeScope>(scope);
                     DEBUG("Elem: TypeSpec %d", it->idx);
                     if (!scope_ts || it->idx < 0
                             || it->idx >= (int32_t)scope_ts->getSpec_types().size()) {
@@ -298,7 +299,7 @@ public:
             }
             
 //            if (it+1 != ref->getPath().end()) {
-//                scope = dynamic_cast<ast::ISymbolScope *>(ret);
+//                scope = NodeKind::cast<ast::ISymbolScope>(ret);
 //            }
         }
 
@@ -335,9 +336,9 @@ public:
             // and struct -- so walking out of a parameterized type nested in a
             // component dereferenced null and crashed the linker.
             bool is_spec = false;
-            ast::ISymbolTypeScope *ts = dynamic_cast<ast::ISymbolTypeScope *>(*it);
+            ast::ISymbolTypeScope *ts = NodeKind::cast<ast::ISymbolTypeScope>(*it);
             if (ts) {
-                ast::ITypeScope *tst = dynamic_cast<ast::ITypeScope *>(ts->getTarget());
+                ast::ITypeScope *tst = NodeKind::cast<ast::ITypeScope>(ts->getTarget());
                 is_spec = (tst && tst->getParams() && tst->getParams()->getSpecialized());
             }
 
@@ -369,22 +370,22 @@ public:
                     DEBUG("Elem: ChildIdx %d", it->idx);
                     item = scope->getChildren().at(it->idx).get();
                     ret = TaskGetName().get(item);
-                    if (!(scope=dynamic_cast<ast::ISymbolScope *>(item))) {
+                    if (!(scope=NodeKind::cast<ast::ISymbolScope>(item))) {
                         break;
                     }
                 } break;
                 case ast::SymbolRefPathElemKind::ElemKind_ParamIdx: {
                     DEBUG("Elem: ParamIdx %d", it->idx);
-//                    ast::ISymbolTypeScope *scope_ts = dynamic_cast<ast::ISymbolTypeScope *>(scope);
+//                    ast::ISymbolTypeScope *scope_ts = NodeKind::cast<ast::ISymbolTypeScope>(scope);
 //                    ret = scope_ts->getPlist()->getChildren().at(it->idx);
 //                    DEBUG("  scope %p => %p", scope_ts, ret);
                 } break;
                 case ast::SymbolRefPathElemKind::ElemKind_Super: {
-                    ast::ISymbolTypeScope *scope_ts = dynamic_cast<ast::ISymbolTypeScope *>(scope);
+                    ast::ISymbolTypeScope *scope_ts = NodeKind::cast<ast::ISymbolTypeScope>(scope);
                     DEBUG("TODO: render a super ref");
                 } break;
                 case ast::SymbolRefPathElemKind::ElemKind_TypeSpec: {
-                    ast::ISymbolTypeScope *scope_ts = dynamic_cast<ast::ISymbolTypeScope *>(scope);
+                    ast::ISymbolTypeScope *scope_ts = NodeKind::cast<ast::ISymbolTypeScope>(scope);
                     DEBUG("Elem: TypeSpec %d", it->idx);
 //                    ast::ISymbolTypeScope *c = scope_ts->getSpec_types().at(it->idx).get();
 //                    ret->pushScope(c);
@@ -396,7 +397,7 @@ public:
             }
             
 //            if (it+1 != ref->getPath().end()) {
-//                scope = dynamic_cast<ast::ISymbolScope *>(i);
+//                scope = NodeKind::cast<ast::ISymbolScope>(i);
 //            }
         }
 
@@ -424,22 +425,22 @@ public:
                         ret += "::";
                     }
                     ret += TaskGetName().get(item);
-                    if (!(scope=dynamic_cast<ast::ISymbolScope *>(item))) {
+                    if (!(scope=NodeKind::cast<ast::ISymbolScope>(item))) {
                         break;
                     }
                 } break;
                 case ast::SymbolRefPathElemKind::ElemKind_ParamIdx: {
                     DEBUG("Elem: ParamIdx %d", it->idx);
-//                    ast::ISymbolTypeScope *scope_ts = dynamic_cast<ast::ISymbolTypeScope *>(scope);
+//                    ast::ISymbolTypeScope *scope_ts = NodeKind::cast<ast::ISymbolTypeScope>(scope);
 //                    ret = scope_ts->getPlist()->getChildren().at(it->idx);
 //                    DEBUG("  scope %p => %p", scope_ts, ret);
                 } break;
                 case ast::SymbolRefPathElemKind::ElemKind_Super: {
-                    ast::ISymbolTypeScope *scope_ts = dynamic_cast<ast::ISymbolTypeScope *>(scope);
+                    ast::ISymbolTypeScope *scope_ts = NodeKind::cast<ast::ISymbolTypeScope>(scope);
                     DEBUG("TODO: render a super ref");
                 } break;
                 case ast::SymbolRefPathElemKind::ElemKind_TypeSpec: {
-                    ast::ISymbolTypeScope *scope_ts = dynamic_cast<ast::ISymbolTypeScope *>(scope);
+                    ast::ISymbolTypeScope *scope_ts = NodeKind::cast<ast::ISymbolTypeScope>(scope);
                     DEBUG("Elem: TypeSpec %d", it->idx);
 //                    ast::ISymbolTypeScope *c = scope_ts->getSpec_types().at(it->idx).get();
 //                    ret->pushScope(c);
@@ -451,7 +452,7 @@ public:
             }
             
 //            if (it+1 != ref->getPath().end()) {
-//                scope = dynamic_cast<ast::ISymbolScope *>(i);
+//                scope = NodeKind::cast<ast::ISymbolScope>(i);
 //            }
         }
 
@@ -465,10 +466,10 @@ private:
     static const std::vector<ast::IGenericConstraintParamUP> *genericConstraintParams(
             ast::IScopeChild *c) {
         if (ast::IGenericConstraintDeclBool *b =
-                dynamic_cast<ast::IGenericConstraintDeclBool *>(c)) {
+                NodeKind::cast<ast::IGenericConstraintDeclBool>(c)) {
             return &b->getParameters();
         } else if (ast::IGenericConstraintDeclValue *v =
-                dynamic_cast<ast::IGenericConstraintDeclValue *>(c)) {
+                NodeKind::cast<ast::IGenericConstraintDeclValue>(c)) {
             return &v->getParameters();
         }
         return 0;

@@ -1675,6 +1675,7 @@ cdef class Covergroup(NamedScopeChild):
     cpdef getOption(self, i)
     cpdef void addOption(self, CovergroupOption i)
     cpdef numOptions(self)
+    cpdef SymbolScope getBody(self)
 
 cdef class CovergroupCoverpoint(NamedScopeChild):
     
@@ -2373,6 +2374,7 @@ cdef class ActivityLabeledScope(SymbolScope):
     @staticmethod
     cdef ActivityLabeledScope mk(ast_decl.IActivityLabeledScope *hndl, bool owned)
     cpdef ExprId getLabel(self)
+    cpdef SymbolScope getSub_activity(self)
 
 cdef class ImportClass(TypeScope):
     
@@ -2488,6 +2490,7 @@ cdef class CovergroupType(TypeScope):
     cpdef getOption(self, i)
     cpdef void addOption(self, CovergroupOption i)
     cpdef numOptions(self)
+    cpdef SymbolScope getBody(self)
 
 cdef class SymbolEnumScope(SymbolScope):
     

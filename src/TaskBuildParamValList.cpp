@@ -25,6 +25,7 @@
 #include "TaskBuildParamValList.h"
 #include "TaskExpr2DataType.h"
 #include "TaskResolveSuperTypeRef.h"
+#include "pssp/impl/NodeKind.h"
 
 
 namespace pssp {
@@ -191,7 +192,7 @@ ast::ITemplateParamDeclList *TaskBuildParamValList::build(
                 name = m_ptype_generic_type->getName();
                 type = m_pval_type->getValue();
             } else if (m_ptype_value
-                    && !dynamic_cast<ast::IDataTypeUserDefined *>(
+                    && !NodeKind::cast<ast::IDataTypeUserDefined>(
                         m_pval_type->getValue())) {
                 // The position declares a *value* parameter and was handed
                 // something that can only be a type -- `P<int>` for `struct
@@ -405,21 +406,21 @@ void TaskBuildParamValList::probe(ast::IScopeChild *target) {
     // the argument as a reference to U -- binding T to int, the argument of
     // the *inner* generic, instead of to Q<int>.
     if (ast::ITemplateParamDecl *pd =
-            dynamic_cast<ast::ITemplateParamDecl *>(target)) {
+            NodeKind::cast<ast::ITemplateParamDecl>(target)) {
         m_pval_param_ref = pd;
         return;
     }
 
     // The only other thing worth knowing is whether an id that parses as a
     // type reference actually names a value.
-    if (dynamic_cast<ast::IEnumItem *>(target)) {
+    if (NodeKind::cast<ast::IEnumItem>(target)) {
         m_pval_type_isval = true;
     }
 }
 
 ast::IDataType *TaskBuildParamValList::substTypeArg() {
     ast::ITemplateGenericTypeParamDecl *g =
-        dynamic_cast<ast::ITemplateGenericTypeParamDecl *>(m_pval_param_ref);
+        NodeKind::cast<ast::ITemplateGenericTypeParamDecl>(m_pval_param_ref);
     if (g && g->getDflt()) {
         // On a specialized parameter list the dflt slot holds the bound
         // argument. On an unspecialized one it holds the declared default,
@@ -434,7 +435,7 @@ ast::IDataType *TaskBuildParamValList::substTypeArg() {
 
 ast::IExpr *TaskBuildParamValList::substValueArg() {
     ast::ITemplateValueParamDecl *v =
-        dynamic_cast<ast::ITemplateValueParamDecl *>(m_pval_param_ref);
+        NodeKind::cast<ast::ITemplateValueParamDecl>(m_pval_param_ref);
     if (v && v->getDflt()) {
         DEBUG("substValueArg: parameter %s is bound",
             (v->getName())?v->getName()->getId().c_str():"<unnamed>");
@@ -444,7 +445,7 @@ ast::IExpr *TaskBuildParamValList::substValueArg() {
 }
 
 std::string TaskBuildParamValList::simpleTypeName(ast::IDataType *dt) {
-    ast::IDataTypeUserDefined *ud = dynamic_cast<ast::IDataTypeUserDefined *>(dt);
+    ast::IDataTypeUserDefined *ud = NodeKind::cast<ast::IDataTypeUserDefined>(dt);
     if (!ud || !ud->getType_id()) {
         return "";
     }
@@ -474,7 +475,7 @@ ast::ITemplateParamDecl *TaskBuildParamValList::findBuiltParam(
 
 ast::IDataType *TaskBuildParamValList::substTypeDflt(ast::IDataType *dflt) {
     ast::ITemplateGenericTypeParamDecl *g =
-        dynamic_cast<ast::ITemplateGenericTypeParamDecl *>(
+        NodeKind::cast<ast::ITemplateGenericTypeParamDecl>(
             findBuiltParam(simpleTypeName(dflt)));
     if (g && g->getDflt()) {
         DEBUG("substTypeDflt: default names bound parameter %s",
@@ -486,12 +487,12 @@ ast::IDataType *TaskBuildParamValList::substTypeDflt(ast::IDataType *dflt) {
 
 ast::IExpr *TaskBuildParamValList::substValueDflt(ast::IExpr *dflt) {
     // A value default naming an earlier parameter is spelled as a plain id.
-    ast::IExprId *id = dynamic_cast<ast::IExprId *>(dflt);
+    ast::IExprId *id = NodeKind::cast<ast::IExprId>(dflt);
     if (!id) {
         return 0;
     }
     ast::ITemplateValueParamDecl *v =
-        dynamic_cast<ast::ITemplateValueParamDecl *>(findBuiltParam(id->getId()));
+        NodeKind::cast<ast::ITemplateValueParamDecl>(findBuiltParam(id->getId()));
     if (v && v->getDflt()) {
         DEBUG("substValueDflt: default names bound parameter %s",
             v->getName()->getId().c_str());
@@ -554,7 +555,7 @@ private:
             // A path into the generic's own parameter list does not resolve
             // from the root; nor may other paths that lead nowhere useful.
             ast::IScopeChild *c = m_ctxt->resolveSymbolPathRef(t);
-            m_ret = (!c || dynamic_cast<ast::ITemplateParamDecl *>(c));
+            m_ret = (!c || NodeKind::cast<ast::ITemplateParamDecl>(c));
         }
     }
 
@@ -591,7 +592,7 @@ static const char *categoryName(ast::TypeCategory c) {
  * reject valid code.
  */
 static bool categoryOf(ast::ITypeScope *ts, ast::TypeCategory &cat) {
-    if (ast::IStruct *s = dynamic_cast<ast::IStruct *>(ts)) {
+    if (ast::IStruct *s = NodeKind::cast<ast::IStruct>(ts)) {
         switch (s->getKind()) {
             case ast::StructKind::Buffer:   cat = ast::TypeCategory::Buffer; break;
             case ast::StructKind::Resource: cat = ast::TypeCategory::Resource; break;
@@ -601,10 +602,10 @@ static bool categoryOf(ast::ITypeScope *ts, ast::TypeCategory &cat) {
             default: return false;
         }
         return true;
-    } else if (dynamic_cast<ast::IAction *>(ts)) {
+    } else if (NodeKind::cast<ast::IAction>(ts)) {
         cat = ast::TypeCategory::Action;
         return true;
-    } else if (dynamic_cast<ast::IComponent *>(ts)) {
+    } else if (NodeKind::cast<ast::IComponent>(ts)) {
         cat = ast::TypeCategory::Component;
         return true;
     }
@@ -628,14 +629,14 @@ ast::ITypeScope *TaskBuildParamValList::asTypeScope(ast::IScopeChild *sc) {
     // A resolved reference lands on the symbol-tree node, which carries the
     // declaration as its target.
     if (ast::ISymbolChildrenScope *ss =
-            dynamic_cast<ast::ISymbolChildrenScope *>(sc)) {
+            NodeKind::cast<ast::ISymbolChildrenScope>(sc)) {
         sc = ss->getTarget();
     }
-    return dynamic_cast<ast::ITypeScope *>(sc);
+    return NodeKind::cast<ast::ITypeScope>(sc);
 }
 
 ast::ITypeScope *TaskBuildParamValList::argTypeScope(ast::IDataType *arg) {
-    ast::IDataTypeUserDefined *ud = dynamic_cast<ast::IDataTypeUserDefined *>(arg);
+    ast::IDataTypeUserDefined *ud = NodeKind::cast<ast::IDataTypeUserDefined>(arg);
     if (!ud || !ud->getType_id()) {
         return 0;
     }

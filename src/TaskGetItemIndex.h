@@ -24,6 +24,7 @@
 #include "pssp/impl/ActivityScopes.h"
 #include "pssp/impl/ConstraintScopes.h"
 #include "pssp/impl/ProceduralScopes.h"
+#include "pssp/impl/NodeKind.h"
 
 namespace pssp {
 
@@ -186,7 +187,7 @@ public:
     }
 
     virtual void visitSymbolTypeScope(ast::ISymbolTypeScope *i) override {
-        ast::ITypeScope *ts = dynamic_cast<ast::ITypeScope *>(i->getTarget());
+        ast::ITypeScope *ts = NodeKind::cast<ast::ITypeScope>(i->getTarget());
         if (ts && ts->getParams() && ts->getParams()->getSpecialized()) {
             // A specialization is not a child of any scope: it is addressed
             // by its position in the generic's spec_types vector, and that

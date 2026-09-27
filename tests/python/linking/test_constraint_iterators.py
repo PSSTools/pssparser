@@ -215,3 +215,65 @@ component pss_top {
 }
 """
     check(code, "e")
+
+
+# -- Member access through the iterator (known-issues SR-F2) -------------------
+#
+# The iterator was built untyped and never given the collection's element
+# type, so `s.f` reported "root ref-path element s is not a composite scope".
+# And every loop -- procedural, activity or constraint -- read a
+# multi-element collection path's *root* as the collection (`h.l` as `h`).
+
+MEMBERS = """\
+struct E { rand int f; }
+buffer B { rand int f; }
+struct H { rand E l[2]; }
+component pss_top {
+  pool B bp;
+  bind bp *;
+  action A {
+    rand int v;
+    rand E xs[2];
+    rand H h;
+    input B bs[2];
+    constraint { foreach (s : xs) { s.f < v; } }
+    constraint { foreach (s : h.l) { s.f < v; } }
+    constraint { foreach (s : bs) { s.f < v; } }
+    exec post_solve {
+      foreach (e : xs) { e.f = 1; }
+      foreach (e : h.l) { e.f = 1; }
+    }
+  }
+}
+"""
+
+
+def test_member_access_through_the_iterator():
+    assert markers(MEMBERS) == []
+    assert bindings(MEMBERS, "f") == [
+        ("f", 12, "Field", 1), ("f", 13, "Field", 1), ("f", 14, "Field", 2),
+        ("f", 16, "Field", 1), ("f", 17, "Field", 1)]
+
+
+def test_member_access_through_the_iterator_in_a_struct():
+    code = """\
+struct E { rand int f; }
+struct T {
+  rand E xs[2];
+  constraint { foreach (s : xs) { s.f == 1; } }
+}
+"""
+    assert markers(code) == []
+    assert bindings(code, "f") == [("f", 4, "Field", 1)]
+
+
+def test_an_unknown_member_through_the_iterator():
+    code = """\
+struct E { rand int f; }
+struct T {
+  rand E xs[2];
+  constraint { foreach (s : xs) { s.nosuch == 1; } }
+}
+"""
+    # markers() counts the prepended import line; bindings() does not.
+    assert markers(code) == [("error", 5, "Failed to find elem nosuch")]

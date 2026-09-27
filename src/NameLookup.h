@@ -77,8 +77,9 @@ namespace pssp {
  * other statements are passed over (appliesAt()), and a miss one of them
  * would have satisfied leaves the context an import-leak hint.
  *
- * Not yet (symbol-resolution-plan.md): the visibility of
- * extension members by package, from SymbolTypeScope.ext_members (6.5).
+ * Where extensions in several packages contribute a member of one name to
+ * a type, a reference sees the one its own package declares, else the one a
+ * wildcard import brings in (17.2.3; visibleExtMember(), 6.5).
  */
 class NameLookup {
 public:
@@ -149,7 +150,33 @@ public:
         ast::ISymbolScope           *root,
         ast::ISymbolScope           *ns,
         const std::string           &name,
-        bool                        enum_items=false);
+        bool                        enum_items=false,
+        ResolveContext              *ctxt=0,
+        const ast::IExprId          *use=0);
+
+    /**
+     * 17.2.3: of the members named `id` that extensions in different
+     * packages contribute to `t`, the one visible where `id` is written;
+     * `idx` is t's symtab entry for the name, returned when no extension
+     * contributes it. A use that sees none is warned about (PSS051) and one
+     * that two imported packages offer is an error (PSS017); either keeps
+     * the binding it has always had. See ExtMemberVisibility.
+     */
+    static int32_t visibleExtMember(
+        ResolveContext              *ctxt,
+        ast::ISymbolTypeScope       *t,
+        const ast::IExprId          *id,
+        int32_t                     idx);
+
+    /**
+     * Warn (PSS051) if item `idx` of `e`, named by `id`, is one an `extend
+     * enum` in a package not visible at `id` adds (17.2.3, p46c).
+     */
+    static void checkExtItem(
+        ResolveContext              *ctxt,
+        ast::ISymbolEnumScope       *e,
+        const ast::IExprId          *id,
+        int32_t                     idx);
 
 private:
     /** lookupMember()'s enum-item step; `bases` are ns's, nearest first. */
@@ -255,6 +282,16 @@ private:
 
     /** A block, a package or the global scope: members, enum items, imports. */
     bool searchBlock(ast::ISymbolScope *s);
+
+    /**
+     * A labeled activity statement's named sub-activity (WS4.3): the labels
+     * under it, which no block declares. The hit is addressed by its place
+     * in the activity, from `s`.
+     */
+    bool searchSubActivity(ast::ISymbolScope *s);
+
+    /** The walk has passed the enclosing type (see searchLevel). */
+    bool                            m_past_type = false;
 
     /** b.1-b.4 for the type the iterator is on. */
     bool searchType(ast::ISymbolTypeScope *s);

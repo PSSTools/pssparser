@@ -20,8 +20,10 @@
  */
 #pragma once
 #include <stdint.h>
+#include <algorithm>
 #include <functional>
 #include <map>
+#include <memory>
 #include <string>
 #include <set>
 #include <tuple>
@@ -29,6 +31,7 @@
 #include <unordered_set>
 #include <vector>
 #include "dmgr/IDebugMgr.h"
+#include "pssp/ast/IActivityLabeledScope.h"
 #include "pssp/ast/IExprId.h"
 #include "pssp/ast/IExtendEnum.h"
 #include "pssp/ast/IPackageImportStmt.h"
@@ -39,6 +42,8 @@
 #include "pssp/IFactory.h"
 #include "pssp/IMarkerListener.h"
 #include "pssp/ISymbolTableIterator.h"
+#include "pssp/impl/NodeKind.h"
+#include "ExtMemberVisibility.h"
 
 namespace pssp {
 
@@ -56,6 +61,17 @@ public:
 
     ast::ISymbolScope *root() const { return m_root; }
 
+    /**
+     * Which extension contributions a reference sees (17.2.3); built on
+     * first use.
+     */
+    ExtMemberVisibility &extVisibility() {
+        if (!m_ext_vis) {
+            m_ext_vis.reset(new ExtMemberVisibility(getDebugMgr(), m_root));
+        }
+        return *m_ext_vis;
+    }
+
     void pushInlineCtxt(ast::ISymbolScope *s) {
         m_inline_ctxt_s.push_back(s);
     }
@@ -66,6 +82,12 @@ public:
 
     void popInlineCtxt() {
         m_inline_ctxt_s.pop_back();
+    }
+
+    /** `s` is the type of a `with` block being resolved, at any depth. */
+    bool isInlineCtxt(ast::ISymbolScope *s) const {
+        return std::find(m_inline_ctxt_s.begin(), m_inline_ctxt_s.end(), s)
+            != m_inline_ctxt_s.end();
     }
 
     /**
@@ -363,6 +385,23 @@ public:
         return enumCache(s);
     }
 
+    /**
+     * `s` as a labeled activity statement or block, or null: the scopes
+     * NameLookup searches a named sub-activity at (WS4.3). Asked at every
+     * level of every lookup, so the cast is made once per scope. The
+     * statement's `sub_activity` is read live -- a rebuilt tree replaces it.
+     */
+    ast::IActivityLabeledScope *activityLabeledScope(ast::ISymbolScope *s) {
+        std::unordered_map<ast::ISymbolScope *, ast::IActivityLabeledScope *>::const_iterator
+            it = m_labeled_scope_cache.find(s);
+        if (it != m_labeled_scope_cache.end()) {
+            return it->second;
+        }
+        ast::IActivityLabeledScope *ret = NodeKind::cast<ast::IActivityLabeledScope>(s);
+        m_labeled_scope_cache.insert({s, ret});
+        return ret;
+    }
+
 private:
     EnumCache &enumCache(ast::ISymbolScope *s) {
         EnumCache &e = m_enum_cache[s];
@@ -386,10 +425,10 @@ private:
             for (uint32_t i=0; i<s->getChildren().size(); i++) {
                 ast::IScopeChild *c = s->getChildren().at(i).get();
                 if (ast::ISymbolEnumScope *es =
-                        dynamic_cast<ast::ISymbolEnumScope *>(c)) {
+                        NodeKind::cast<ast::ISymbolEnumScope>(c)) {
                     e.enums.push_back(es);
                 } else if (i < named.size() && !named[i]) {
-                    if (ast::IExtendEnum *ee = dynamic_cast<ast::IExtendEnum *>(c)) {
+                    if (ast::IExtendEnum *ee = NodeKind::cast<ast::IExtendEnum>(c)) {
                         e.exts.push_back(ee);
                     }
                 }
@@ -410,7 +449,7 @@ private:
         if (s == m_root) {
             return true;
         }
-        if (dynamic_cast<ast::ISymbolTypeScope *>(s)) {
+        if (NodeKind::cast<ast::ISymbolTypeScope>(s)) {
             return false;
         }
         // A package is a named child of its enclosing scope; a block is not.
@@ -429,6 +468,8 @@ private:
 private:
     ast::IRootSymbolScope                           *m_root;
     std::unordered_map<ast::ISymbolScope *, EnumCache> m_enum_cache;
+    std::unique_ptr<ExtMemberVisibility>            m_ext_vis;
+    std::unordered_map<ast::ISymbolScope *, ast::IActivityLabeledScope *> m_labeled_scope_cache;
     std::vector<ast::ISymbolScope *>                m_inline_ctxt_s;
     std::vector<ast::ISymbolScope *>                m_ext_ctxt_s;
     std::map<ast::IScopeChild *, ast::ISymbolScope *> m_ext_decl_scope;

@@ -27,6 +27,7 @@
 #include "pssp/IFactory.h"
 #include "pssp/IVal.h"
 #include "pssp/impl/TaskResolveSymbolPathRef.h"
+#include "pssp/impl/NodeKind.h"
 
 namespace pssp {
 
@@ -270,8 +271,8 @@ public:
             TaskResolveSymbolPathRef(
                 m_factory->getDebugMgr(),
                 m_root).resolve(i->getTarget()):0;
-        if (dynamic_cast<ast::IField *>(target)
-                || dynamic_cast<ast::ITemplateValueParamDecl *>(target)) {
+        if (NodeKind::cast<ast::IField>(target)
+                || NodeKind::cast<ast::ITemplateValueParamDecl>(target)) {
             target->accept(m_this);
         }
         DEBUG_LEAVE("visitTypeIdentifier");

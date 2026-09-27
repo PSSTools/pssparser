@@ -47,6 +47,7 @@
 #include "DocAnchorScope.h"
 #include "Marker.h"
 #include "pssp/IMarkerCollector.h"
+#include "pssp/impl/NodeKind.h"
 
 namespace pssp {
 
@@ -772,7 +773,7 @@ antlrcpp::Any AstBuilderInt::visitAbstract_action_declaration(PSSParser::Abstrac
 	// comment sits to the left of *this* rule, not of the delegate.
 	DocAnchorScope doc_anchor(this, ctx->start);
 	ctx->action_declaration()->accept(this);
-	ast::IAction *action = dynamic_cast<ast::IAction *>(scope()->getChildren().back().get());
+	ast::IAction *action = NodeKind::cast<ast::IAction>(scope()->getChildren().back().get());
 	action->setIs_abstract(true);
     setLoc(action, ctx->start);
 	DEBUG_LEAVE("visitAbstract_action_declaration");
@@ -1506,7 +1507,7 @@ ast::IExecBlockTag *AstBuilderInt::mkExecBlockTag(
 
     if (ctx->struct_literal()) {
         ctx->struct_literal()->accept(this);
-        tag->setLiteral(dynamic_cast<ast::IExprAggrStruct *>(m_expr));
+        tag->setLiteral(NodeKind::cast<ast::IExprAggrStruct>(m_expr));
         m_expr = 0;
     }
 
@@ -1990,7 +1991,7 @@ ast::IExprId *AstBuilderInt::liftForeachIndex(ast::IExprRefPathContext *target) 
         return 0;
     }
     ast::IExprRefPathContext *idx_ref =
-        dynamic_cast<ast::IExprRefPathContext *>(subscript.back().get());
+        NodeKind::cast<ast::IExprRefPathContext>(subscript.back().get());
     if (!idx_ref || idx_ref->getIs_super()
             || idx_ref->getHier_id()->getElems().size() != 1
             || idx_ref->getHier_id()->getElems().back()->getSubscript().size()
@@ -2010,7 +2011,7 @@ antlrcpp::Any AstBuilderInt::visitProcedural_foreach_stmt(PSSParser::Procedural_
     // Collection reference. Grammar uses a general `expression`, which (being
     // greedy) folds a trailing `[idx]` into a subscript on the path.
     ast::IExpr *expr = mkExpr(ctx->expression());
-    ast::IExprRefPathContext *path = dynamic_cast<ast::IExprRefPathContext *>(expr);
+    ast::IExprRefPathContext *path = NodeKind::cast<ast::IExprRefPathContext>(expr);
 
     ast::IExprId *it_id  = ctx->iterator_identifier()
                            ? mkId(ctx->iterator_identifier()->identifier()) : 0;
@@ -2648,7 +2649,7 @@ antlrcpp::Any AstBuilderInt::visitActivity_action_traversal_stmt(PSSParser::Acti
             ctx->action_type_traversal_stmt()->action_initializer_list();
         if (init_l) {
             std::vector<ast::IActionFieldInitializer *> inits = mkActionFieldInitializers(init_l);
-            ast::IActivityActionTypeTraversal *typed = dynamic_cast<ast::IActivityActionTypeTraversal *>(stmt);
+            ast::IActivityActionTypeTraversal *typed = NodeKind::cast<ast::IActivityActionTypeTraversal>(stmt);
             for (std::vector<ast::IActionFieldInitializer *>::const_iterator
                 it=inits.begin();
                 it!=inits.end(); it++) {
@@ -2678,7 +2679,7 @@ antlrcpp::Any AstBuilderInt::visitActivity_action_traversal_stmt(PSSParser::Acti
             ctx->action_handle_traversal_stmt()->action_initializer_list();
         if (init_l) {
             std::vector<ast::IActionFieldInitializer *> inits = mkActionFieldInitializers(init_l);
-            ast::IActivityActionHandleTraversal *typed = dynamic_cast<ast::IActivityActionHandleTraversal *>(stmt);
+            ast::IActivityActionHandleTraversal *typed = NodeKind::cast<ast::IActivityActionHandleTraversal>(stmt);
             for (std::vector<ast::IActionFieldInitializer *>::const_iterator
                 it=inits.begin();
                 it!=inits.end(); it++) {
@@ -3029,7 +3030,7 @@ antlrcpp::Any AstBuilderInt::visitActivity_foreach_stmt(PSSParser::Activity_fore
 	// a collection, which is what ExprRefPathContext models.
 	ast::IExpr *target_e = mkExpr(ctx->expression());
 	ast::IExprRefPathContext *target =
-		dynamic_cast<ast::IExprRefPathContext *>(target_e);
+		NodeKind::cast<ast::IExprRefPathContext>(target_e);
 
 	if (!target) {
 		ast::Location loc;
@@ -3302,7 +3303,7 @@ ast::IExpr *AstBuilderInt::mkMsbWidth(
 		PSSParser::ExpressionContext *lsb_ctx) {
 	ast::IExpr *lsb = mkExpr(lsb_ctx);
 	ast::IExprUnsignedNumber *lsb_n =
-		dynamic_cast<ast::IExprUnsignedNumber *>(lsb);
+		NodeKind::cast<ast::IExprUnsignedNumber>(lsb);
 
 	if (!lsb_n || lsb_n->getValue() != 0) {
 		ast::Location loc;
@@ -3332,7 +3333,7 @@ ast::IExpr *AstBuilderInt::mkMsbWidth(
 	// addition is left for the width to be evaluated with, which is what
 	// happens to `bit[W]` anyway.
 	ast::IExprUnsignedNumber *msb_n =
-		dynamic_cast<ast::IExprUnsignedNumber *>(msb);
+		NodeKind::cast<ast::IExprUnsignedNumber>(msb);
 
 	if (msb_n) {
 		char img[32];
@@ -3537,7 +3538,7 @@ antlrcpp::Any AstBuilderInt::visitReference_type(PSSParser::Reference_typeContex
 
 	ast::IDataTypeUserDefined *type = 0;
 	ctx->entity_type_identifier()->accept(this);
-	type = dynamic_cast<ast::IDataTypeUserDefined *>(m_type);
+	type = NodeKind::cast<ast::IDataTypeUserDefined>(m_type);
 
 	if (!type && m_type) {
 		addInternalError(ctx->getStart(),
@@ -4204,7 +4205,7 @@ antlrcpp::Any AstBuilderInt::visitForeach_constraint_item(PSSParser::Foreach_con
     ast::IExpr *expr = mkExpr(ctx->expression());
 	ast::IConstraintStmtForeach *c = m_factory->mkConstraintStmtForeach(expr);
     ast::IConstraintSymbolScope *symtab = m_factory->mkConstraintSymbolScope("<foreach>");
-    ast::IExprRefPathContext *expr_c = dynamic_cast<ast::IExprRefPathContext *>(expr);
+    ast::IExprRefPathContext *expr_c = NodeKind::cast<ast::IExprRefPathContext>(expr);
 
     c->setSymtab(symtab);
     symtab->setConstraint(c);
@@ -6800,33 +6801,33 @@ bool AstBuilderInt::evalAstExpression(ast::IScope *eval_scope, ast::IExpr *expr,
         return false;
     }
 
-    if (ast::IExprBool *b = dynamic_cast<ast::IExprBool *>(expr)) {
+    if (ast::IExprBool *b = NodeKind::cast<ast::IExprBool>(expr)) {
         val = b->getValue();
         return true;
-    } else if (ast::IExprSignedNumber *n = dynamic_cast<ast::IExprSignedNumber *>(expr)) {
+    } else if (ast::IExprSignedNumber *n = NodeKind::cast<ast::IExprSignedNumber>(expr)) {
         val = n->getValue();
         return true;
-    } else if (ast::IExprUnsignedNumber *n = dynamic_cast<ast::IExprUnsignedNumber *>(expr)) {
+    } else if (ast::IExprUnsignedNumber *n = NodeKind::cast<ast::IExprUnsignedNumber>(expr)) {
         val = n->getValue();
         return true;
-    } else if (ast::IExprCast *c = dynamic_cast<ast::IExprCast *>(expr)) {
+    } else if (ast::IExprCast *c = NodeKind::cast<ast::IExprCast>(expr)) {
         return evalAstExpression(eval_scope, c->getExpr(), val);
-    } else if (ast::IExprCond *c = dynamic_cast<ast::IExprCond *>(expr)) {
+    } else if (ast::IExprCond *c = NodeKind::cast<ast::IExprCond>(expr)) {
         int64_t cond = 0;
         if (!evalAstExpression(eval_scope, c->getCond_e(), cond)) {
             return false;
         }
         return evalAstExpression(eval_scope, cond ? c->getTrue_e() : c->getFalse_e(), val);
-    } else if (ast::IExprCompileHas *h = dynamic_cast<ast::IExprCompileHas *>(expr)) {
+    } else if (ast::IExprCompileHas *h = NodeKind::cast<ast::IExprCompileHas>(expr)) {
         if (!h->getRef()) {
             return false;
         }
         val = resolveRefPathTarget(eval_scope, h->getRef()) ? 1 : 0;
         return true;
-    } else if (ast::IExprRefPath *rp = dynamic_cast<ast::IExprRefPath *>(expr)) {
+    } else if (ast::IExprRefPath *rp = NodeKind::cast<ast::IExprRefPath>(expr)) {
         ast::IScopeChild *target = resolveRefPathTarget(eval_scope, rp);
         return target ? evalScopeChildValue(target, val) : false;
-    } else if (ast::IExprBin *b = dynamic_cast<ast::IExprBin *>(expr)) {
+    } else if (ast::IExprBin *b = NodeKind::cast<ast::IExprBin>(expr)) {
         int64_t lhs = 0, rhs = 0;
         if (b->getOp() == ast::ExprBinOp::BinOp_Eq || b->getOp() == ast::ExprBinOp::BinOp_Ne) {
             if (evalAstExpression(eval_scope, b->getLhs(), lhs) && evalAstExpression(eval_scope, b->getRhs(), rhs)) {
@@ -6916,18 +6917,18 @@ bool AstBuilderInt::evalAstExpression(ast::IScope *eval_scope, ast::IExpr *expr,
         return false;
     }
 
-    if (ast::IExprString *s = dynamic_cast<ast::IExprString *>(expr)) {
+    if (ast::IExprString *s = NodeKind::cast<ast::IExprString>(expr)) {
         val = s->getValue();
         return true;
-    } else if (ast::IExprCast *c = dynamic_cast<ast::IExprCast *>(expr)) {
+    } else if (ast::IExprCast *c = NodeKind::cast<ast::IExprCast>(expr)) {
         return evalAstExpression(eval_scope, c->getExpr(), val);
-    } else if (ast::IExprCond *c = dynamic_cast<ast::IExprCond *>(expr)) {
+    } else if (ast::IExprCond *c = NodeKind::cast<ast::IExprCond>(expr)) {
         int64_t cond = 0;
         if (!evalAstExpression(eval_scope, c->getCond_e(), cond)) {
             return false;
         }
         return evalAstExpression(eval_scope, cond ? c->getTrue_e() : c->getFalse_e(), val);
-    } else if (ast::IExprRefPath *rp = dynamic_cast<ast::IExprRefPath *>(expr)) {
+    } else if (ast::IExprRefPath *rp = NodeKind::cast<ast::IExprRefPath>(expr)) {
         ast::IScopeChild *target = resolveRefPathTarget(eval_scope, rp);
         return target ? evalScopeChildValue(target, val) : false;
     }
@@ -7092,15 +7093,15 @@ ast::IScopeChild *AstBuilderInt::findNamedChild(ast::IScope *scope, const std::s
     for (std::vector<ast::IScopeChildUP>::const_iterator
         it=scope->getChildren().begin();
         it!=scope->getChildren().end(); it++) {
-        ast::IPackageScope *pkg = dynamic_cast<ast::IPackageScope *>(it->get());
+        ast::IPackageScope *pkg = NodeKind::cast<ast::IPackageScope>(it->get());
         if (pkg && pkg->getId().size() && pkg->getId().back()->getId() == name) {
             return it->get();
         }
-        ast::INamedScope *ns = dynamic_cast<ast::INamedScope *>(it->get());
+        ast::INamedScope *ns = NodeKind::cast<ast::INamedScope>(it->get());
         if (ns && ns->getName() && ns->getName()->getId() == name) {
             return it->get();
         }
-        ast::INamedScopeChild *nsc = dynamic_cast<ast::INamedScopeChild *>(it->get());
+        ast::INamedScopeChild *nsc = NodeKind::cast<ast::INamedScopeChild>(it->get());
         if (nsc && nsc->getName() && nsc->getName()->getId() == name) {
             return it->get();
         }
@@ -7132,7 +7133,7 @@ ast::IScopeChild *AstBuilderInt::findPackagePath(
     for (std::vector<ast::IScopeChildUP>::const_iterator
         it=scope->getChildren().begin();
         it!=scope->getChildren().end(); it++) {
-        ast::IPackageScope *pkg = dynamic_cast<ast::IPackageScope *>(it->get());
+        ast::IPackageScope *pkg = NodeKind::cast<ast::IPackageScope>(it->get());
         if (!pkg || pkg->getId().size() == 0 || pkg->getId().size() > path.size()) {
             continue;
         }
@@ -7173,7 +7174,7 @@ static bool appendTypeIdentifierPath(
 }
 
 ast::IScope *AstBuilderInt::resolveDataTypeScope(ast::IDataType *type) {
-    ast::IDataTypeUserDefined *ud = dynamic_cast<ast::IDataTypeUserDefined *>(type);
+    ast::IDataTypeUserDefined *ud = NodeKind::cast<ast::IDataTypeUserDefined>(type);
     if (!ud || !ud->getType_id() || !ud->getType_id()->getElems().size()) {
         return 0;
     }
@@ -7184,14 +7185,14 @@ ast::IScope *AstBuilderInt::resolveDataTypeScope(ast::IDataType *type) {
         if (i == 0) {
             target = ud->getIs_global() ? findNamedChild(getGlobalScope(start), elem) : findNamedChildUp(start, elem);
         } else {
-            ast::IScope *scope_t = dynamic_cast<ast::IScope *>(target);
+            ast::IScope *scope_t = NodeKind::cast<ast::IScope>(target);
             target = findNamedChild(scope_t, elem);
         }
         if (!target) {
             return 0;
         }
     }
-    return dynamic_cast<ast::IScope *>(target);
+    return NodeKind::cast<ast::IScope>(target);
 }
 
 ast::IScopeChild *AstBuilderInt::findImportedPathTarget(
@@ -7206,7 +7207,7 @@ ast::IScopeChild *AstBuilderInt::findImportedPathTarget(
         for (std::vector<ast::IScopeChildUP>::const_iterator
             it=scope_it->getChildren().begin();
             it!=scope_it->getChildren().end(); it++) {
-            ast::IPackageImportStmt *imp = dynamic_cast<ast::IPackageImportStmt *>(it->get());
+            ast::IPackageImportStmt *imp = NodeKind::cast<ast::IPackageImportStmt>(it->get());
             if (!imp || !imp->getPath()) {
                 continue;
             }
@@ -7312,7 +7313,7 @@ ast::IScopeChild *AstBuilderInt::walkPathMembers(
 
     for (; path_i<path.size(); path_i++) {
         // Handle enum item lookup: IEnumDecl is not a scope
-        if (ast::IEnumDecl *edecl = dynamic_cast<ast::IEnumDecl *>(target)) {
+        if (ast::IEnumDecl *edecl = NodeKind::cast<ast::IEnumDecl>(target)) {
             target = 0;
             for (auto &item : edecl->getItems()) {
                 if (item->getName() && item->getName()->getId() == path.at(path_i)) {
@@ -7323,17 +7324,17 @@ ast::IScopeChild *AstBuilderInt::walkPathMembers(
             if (!target) return 0;
             continue;
         }
-        ast::IScope *scope_t = dynamic_cast<ast::IScope *>(target);
+        ast::IScope *scope_t = NodeKind::cast<ast::IScope>(target);
         if (!scope_t) {
-            if (ast::IField *f = dynamic_cast<ast::IField *>(target)) {
+            if (ast::IField *f = NodeKind::cast<ast::IField>(target)) {
                 scope_t = resolveDataTypeScope(f->getType());
-            } else if (ast::IActionHandleField *f = dynamic_cast<ast::IActionHandleField *>(target)) {
+            } else if (ast::IActionHandleField *f = NodeKind::cast<ast::IActionHandleField>(target)) {
                 scope_t = resolveDataTypeScope(f->getType());
-            } else if (ast::IFieldCompRef *f = dynamic_cast<ast::IFieldCompRef *>(target)) {
+            } else if (ast::IFieldCompRef *f = NodeKind::cast<ast::IFieldCompRef>(target)) {
                 scope_t = resolveDataTypeScope(f->getType());
-            } else if (ast::IFieldRef *f = dynamic_cast<ast::IFieldRef *>(target)) {
+            } else if (ast::IFieldRef *f = NodeKind::cast<ast::IFieldRef>(target)) {
                 scope_t = resolveDataTypeScope(f->getType());
-            } else if (ast::IFieldClaim *f = dynamic_cast<ast::IFieldClaim *>(target)) {
+            } else if (ast::IFieldClaim *f = NodeKind::cast<ast::IFieldClaim>(target)) {
                 scope_t = resolveDataTypeScope(f->getType());
             }
         }
@@ -7468,17 +7469,17 @@ ast::IScopeChild *AstBuilderInt::resolveRefPathTarget(
     bool is_global = false;
     ast::IScope *start_scope = eval_scope ? eval_scope : scope();
 
-    if (ast::IExprRefPathStaticRooted *rooted = dynamic_cast<ast::IExprRefPathStaticRooted *>(expr)) {
+    if (ast::IExprRefPathStaticRooted *rooted = NodeKind::cast<ast::IExprRefPathStaticRooted>(expr)) {
         is_global = rooted->getRoot()->getIs_global();
         if (!appendStaticRefPath(path, rooted->getRoot()) || !appendHierarchicalIdPath(path, rooted->getLeaf())) {
             return 0;
         }
-    } else if (ast::IExprRefPathStatic *static_ref = dynamic_cast<ast::IExprRefPathStatic *>(expr)) {
+    } else if (ast::IExprRefPathStatic *static_ref = NodeKind::cast<ast::IExprRefPathStatic>(expr)) {
         is_global = static_ref->getIs_global();
         if (!appendStaticRefPath(path, static_ref)) {
             return 0;
         }
-    } else if (ast::IExprRefPathContext *context_ref = dynamic_cast<ast::IExprRefPathContext *>(expr)) {
+    } else if (ast::IExprRefPathContext *context_ref = NodeKind::cast<ast::IExprRefPathContext>(expr)) {
         if (context_ref->getIs_super() && start_scope) {
             start_scope = start_scope->getParent();
         }
@@ -7506,7 +7507,7 @@ bool AstBuilderInt::evalEnumItemExpression(
     }
 
     // Handle binary expressions with enum item references
-    if (ast::IExprBin *b = dynamic_cast<ast::IExprBin *>(expr)) {
+    if (ast::IExprBin *b = NodeKind::cast<ast::IExprBin>(expr)) {
         int64_t lhs = 0, rhs = 0;
         if (!evalEnumItemExpression(decl, b->getLhs(), lhs) ||
             !evalEnumItemExpression(decl, b->getRhs(), rhs)) {
@@ -7528,7 +7529,7 @@ bool AstBuilderInt::evalEnumItemExpression(
     }
 
     // Check if the expression is a reference to another enum item
-    if (ast::IExprRefPathContext *rp = dynamic_cast<ast::IExprRefPathContext *>(expr)) {
+    if (ast::IExprRefPathContext *rp = NodeKind::cast<ast::IExprRefPathContext>(expr)) {
         if (rp->getHier_id() && rp->getHier_id()->getElems().size() == 1) {
             std::string name = rp->getHier_id()->getElems().at(0)->getId()->getId();
             for (auto &item : decl->getItems()) {
@@ -7546,11 +7547,11 @@ bool AstBuilderInt::evalEnumItemExpression(
 }
 
 bool AstBuilderInt::evalScopeChildValue(ast::IScopeChild *target, int64_t &val) {
-    if (ast::IField *f = dynamic_cast<ast::IField *>(target)) {
+    if (ast::IField *f = NodeKind::cast<ast::IField>(target)) {
         if (f->getInit()) {
             return evalAstExpression(f->getParent(), f->getInit(), val);
         }
-    } else if (ast::IEnumItem *e = dynamic_cast<ast::IEnumItem *>(target)) {
+    } else if (ast::IEnumItem *e = NodeKind::cast<ast::IEnumItem>(target)) {
         // Prefer pre-computed index (set during enum declaration)
         if (e->getIndex() >= 0) {
             val = e->getIndex();
@@ -7563,7 +7564,7 @@ bool AstBuilderInt::evalScopeChildValue(ast::IScopeChild *target, int64_t &val) 
 }
 
 bool AstBuilderInt::evalScopeChildValue(ast::IScopeChild *target, std::string &val) {
-    if (ast::IField *f = dynamic_cast<ast::IField *>(target)) {
+    if (ast::IField *f = NodeKind::cast<ast::IField>(target)) {
         if (f->getInit()) {
             return evalAstExpression(f->getParent(), f->getInit(), val);
         }
@@ -7673,7 +7674,7 @@ void AstBuilderInt::addStructBuiltinField(ast::IStruct *s, ast::StructKind kind)
     }
 
     for (auto &ch : s->getChildren()) {
-        ast::IField *f = dynamic_cast<ast::IField *>(ch.get());
+        ast::IField *f = NodeKind::cast<ast::IField>(ch.get());
         if (f && f->getName() && f->getName()->getId() == name) {
             return; // user-declared; leave it alone
         }
@@ -7700,9 +7701,9 @@ void AstBuilderInt::addActivityStmt(
         int32_t idx = scope->getChildren().size();
         a_stmt->setIndex(idx);
         scope->getChildren().push_back(ast::IScopeChildUP(a_stmt));
-        // NOTE: Labels (e.g. T1: do tx_data_a) are registered in the action's
-        // synthetic type scope by TaskBuildSymbolTree::registerActivityLabels,
-        // not here. The named sub-activity tree they belong in is WS4.3.
+        // NOTE: Labels (e.g. T1: do tx_data_a) are registered by the linker,
+        // in the named sub-activity tree (TaskBuildSymbolTree::
+        // buildSubActivities, WS4.3), not here.
     }
 }
 

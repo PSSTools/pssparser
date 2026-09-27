@@ -22,6 +22,7 @@
 #include "pssp/impl/TaskGetTemplateParamDeclDefault.h"
 #include "pssp/impl/TaskClassifyPackable.h"
 #include "AssocDataTypeScopeSizeof.h"
+#include "pssp/impl/NodeKind.h"
 
 
 namespace pssp {
@@ -88,7 +89,7 @@ bool AssocDataTypeScopeSizeof::setSize(
     for (std::vector<ast::IScopeChildUP>::const_iterator
         it=type->getChildren().begin();
         it!=type->getChildren().end(); it++) {
-        ast::IField *f = dynamic_cast<ast::IField *>(it->get());
+        ast::IField *f = NodeKind::cast<ast::IField>(it->get());
         if (!f) {
             continue;
         }

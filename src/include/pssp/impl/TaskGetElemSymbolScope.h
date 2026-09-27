@@ -25,6 +25,7 @@
 #include "pssp/ast/impl/VisitorBase.h"
 #include "pssp/impl/TaskResolveSymbolPathRef.h"
 #include "pssp/impl/ActivityScopes.h"
+#include "pssp/impl/NodeKind.h"
 
 namespace pssp {
 
@@ -62,17 +63,20 @@ public:
         // pointer that its callers routinely obtain from resolvePath() -- not
         // because anything currently exercises it.
         if (ast::ISymbolScope *as = ActivityScopes::asScope(c)) {
-            // A labeled activity statement names the scope its handles are
-            // declared in (11.8.3: `my_rep.a`, where `a` is declared in the
-            // repeat's body block). For a compound statement with one block
-            // body that is the body; otherwise the statement itself. Decided
-            // here rather than by visiting, which descended into the bodies
-            // and answered with whichever came last. The named sub-activity
-            // tree that replaces this is WS4.3.
+            // A labeled activity statement names its named sub-activity
+            // (11.8.3, WS4.3): `my_seq.my_rep.a` walks those levels, not the
+            // blocks they are written in. An unlabeled statement is on no
+            // path. Answered here rather than by visiting, which descended
+            // into the bodies and answered with whichever came last.
+            ast::IActivityLabeledScope *ls = NodeKind::cast<ast::IActivityLabeledScope>(c);
+            if (ls && ls->getSub_activity()) {
+                m_ret = ls->getSub_activity();
+                return m_ret;
+            }
             std::vector<ast::IScopeChild *> bodies;
             ActivityScopes::bodies(c, bodies);
             ast::ISymbolScope *body = (bodies.size() == 1)
-                ? dynamic_cast<ast::ISymbolScope *>(bodies.at(0)) : 0;
+                ? NodeKind::cast<ast::ISymbolScope>(bodies.at(0)) : 0;
             m_ret = (body) ? body : as;
         } else if (c) {
             c->accept(m_this);
@@ -86,6 +90,16 @@ public:
             i->getType()->accept(m_this);
         }
         DEBUG_LEAVE("visitField %s", i->getName()->getId().c_str());
+    }
+
+    // An action handle declared in an activity block. Its type only: the
+    // default walk went on into its initializers.
+    virtual void visitActionHandleField(ast::IActionHandleField *i) override {
+        DEBUG_ENTER("visitActionHandleField");
+        if (i->getType()) {
+            i->getType()->accept(m_this);
+        }
+        DEBUG_LEAVE("visitActionHandleField");
     }
 
     // A procedural local (`my_struct_s v;` inside an exec or function body)
@@ -146,10 +160,24 @@ public:
 
     // Labeled handle traversal (e.g., `T1: cfg` where cfg is a declared handle).
     // Resolve the handle's action type scope so `T1.field` paths work.
+    //
+    // Decision C-N4: `T: a;` makes `T.x` mean `a.x`. The handle is what the
+    // target's last element bound to; before the traversal itself has been
+    // resolved, a plain `a` is followed from its root path.
     virtual void visitActivityActionHandleTraversal(ast::IActivityActionHandleTraversal *i) override {
         DEBUG_ENTER("visitActivityActionHandleTraversal");
-        // The target is an ExprRefPathContext -- defer; resolution happens
-        // via the field lookup path in visitExprRefPathContext.
+        ast::IExprRefPathContext *t = i->getTarget();
+        ast::IScopeChild *h = 0;
+        if (t && t->getHier_id() && t->getHier_id()->getElems().size()) {
+            h = t->getHier_id()->getElems().back()->getId()->getDecl();
+            if (!h && t->getHier_id()->getElems().size() == 1 && t->getTarget()) {
+                h = m_path_resolver.resolve(t->getTarget());
+            }
+        }
+        if (h && enter(i)) {
+            h->accept(m_this);
+            leave(i);
+        }
         DEBUG_LEAVE("visitActivityActionHandleTraversal");
     }
 

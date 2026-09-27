@@ -45,40 +45,12 @@ import refcov_slots  # noqa: E402
 #: the reference or by the ``visit: false`` field it sits under (the walk's
 #: origin). The value is the plan item that binds them.
 UNBOUND = {
-    "ActivitySchedulingConstraint.targets":
-        "4.3: scheduling constraints name labelled sub-activities",
-    "ComponentBind.pool_path":
-        "4.5: pool binds resolve along component paths",
-    "CovergroupCross.coverpoint_names": "10.1: the covergroup body scope",
-    "CovergroupPortmap.name": "10.1: covergroup instantiation port maps",
-    "CovergroupPortmap.target": "10.1: covergroup instantiation port maps",
-    "CovergroupCoverpoint.target": "10.1: coverage expressions are not walked",
-    "CovergroupCoverpoint.iff": "10.1: coverage expressions are not walked",
 }
 
 #: T-miss slots that are not reported yet, and the plan item that makes them.
 SILENT = {
-    "abind_lhs": "4.5: activity binds",
-    "abind_lhs__member": "4.5: activity binds",
-    "abind_rhs": "4.5: activity binds",
-    "pool_bind_pool": "4.5: pool binds",
-    "pool_bind_item__comp": "4.5: pool binds",
-    "pool_bind_item__field": "4.5: pool binds",
-    "sched_c": "4.3: scheduling-constraint targets",
-    "slit_name": "8.9: struct-literal member names",
-    "tag_field": "8.9: struct-literal member names (exec-block tag)",
     "ovr_inst": "U5: instance-override targets (no tracker item yet)",
     "ovr_inst__member": "U5: instance-override targets (no tracker item yet)",
-    "bins_asize": "10.1: coverage", "bins_cpref": "10.1: coverage",
-    "bins_range": "10.1: coverage", "bins_with": "10.1: coverage",
-    "cg_opt_val": "10.1: coverage", "cgi_act": "10.1: coverage",
-    "cgi_opt": "10.1: coverage", "cgi_port": "10.1: coverage",
-    "cgi_pos": "10.1: coverage", "cp_iff": "10.1: coverage",
-    "cp_target": "10.1: coverage", "cross_iff": "10.1: coverage",
-    "cross_item": "10.1: coverage", "xbins_tgt": "10.1: coverage",
-    "xbins_with": "10.1: coverage",
-    # Legal, and rejected: "unknown type 'sa'" (F-N15).
-    "pool_bind_item__subpath": "4.5: a pool bind through a component path",
 }
 
 #: Reference fields that cannot have a T-miss slot, and why.

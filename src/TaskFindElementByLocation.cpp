@@ -22,6 +22,7 @@
 #include "dmgr/impl/DebugMacros.h"
 #include "pssp/impl/TaskResolveSymbolPathRef.h"
 #include "TaskFindElementByLocation.h"
+#include "pssp/impl/NodeKind.h"
 
 
 namespace pssp {
@@ -80,8 +81,8 @@ void TaskFindElementByLocation::visitExprId(ast::IExprId *i) {
             m_result.source.e.ctxt = m_ctxt_s.back().expr;
             m_result.source.e.elem = i;
             DEBUG("Upper is an expression");
-            if (dynamic_cast<ast::ITypeIdentifier *>(m_ctxt_s.back().expr)) {
-                ast::ITypeIdentifier *t = dynamic_cast<ast::ITypeIdentifier *>(m_ctxt_s.back().expr);
+            if (NodeKind::cast<ast::ITypeIdentifier>(m_ctxt_s.back().expr)) {
+                ast::ITypeIdentifier *t = NodeKind::cast<ast::ITypeIdentifier>(m_ctxt_s.back().expr);
                 if (i == t->getElems().back().get()->getId()) {
                     // We're pointing at the last element of a path
                     DEBUG("Last Element");
@@ -94,8 +95,8 @@ void TaskFindElementByLocation::visitExprId(ast::IExprId *i) {
                     if (t->getTarget()) {
                         ast::IScopeChild *target = TaskResolveSymbolPathRef(
                             m_dmgr, m_root).resolve(t->getTarget());
-                        if (dynamic_cast<ast::ISymbolScope *>(target)) {
-                            m_result.target = dynamic_cast<ast::ISymbolScope *>(target)->getTarget();
+                        if (NodeKind::cast<ast::ISymbolScope>(target)) {
+                            m_result.target = NodeKind::cast<ast::ISymbolScope>(target)->getTarget();
                         } else {
                             m_result.target = target;
                         }
@@ -107,14 +108,14 @@ void TaskFindElementByLocation::visitExprId(ast::IExprId *i) {
                 }
             }
         } else {
-            if (dynamic_cast<ast::ITypeScope *>(m_ctxt_s.back().child)) {
-                ast::ITypeScope *t = dynamic_cast<ast::ITypeScope *>(m_ctxt_s.back().child);
+            if (NodeKind::cast<ast::ITypeScope>(m_ctxt_s.back().child)) {
+                ast::ITypeScope *t = NodeKind::cast<ast::ITypeScope>(m_ctxt_s.back().child);
                 DEBUG("Upper is a type declaration (%s)", t->getName()->getId().c_str()); 
                 m_result.sourceKind = ElemKind::Expr;
                 m_result.targetKind = ElemKind::Type;
                 m_result.target = t;
-            } else if (dynamic_cast<ast::IField *>(m_ctxt_s.back().child)) {
-                ast::IField *t = dynamic_cast<ast::IField *>(m_ctxt_s.back().child);
+            } else if (NodeKind::cast<ast::IField>(m_ctxt_s.back().child)) {
+                ast::IField *t = NodeKind::cast<ast::IField>(m_ctxt_s.back().child);
                 DEBUG("Upper is a field (%s)", t->getName()->getId().c_str());
                 m_result.sourceKind = ElemKind::Expr;
                 m_result.targetKind = ElemKind::Field;

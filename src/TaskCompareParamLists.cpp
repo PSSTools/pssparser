@@ -34,6 +34,7 @@
 #include "pssp/ast/ITypeIdentifier.h"
 #include "pssp/ast/ITypeIdentifierElem.h"
 #include "TaskCompareParamLists.h"
+#include "pssp/impl/NodeKind.h"
 
 
 namespace pssp {
@@ -142,8 +143,8 @@ bool TaskCompareParamLists::valueParamDfltEqual(
         return true;
     }
     // Two literals, the common case, need no evaluator.
-    ast::IExprUnsignedNumber *n0 = dynamic_cast<ast::IExprUnsignedNumber *>(e0);
-    ast::IExprUnsignedNumber *n1 = dynamic_cast<ast::IExprUnsignedNumber *>(e1);
+    ast::IExprUnsignedNumber *n0 = NodeKind::cast<ast::IExprUnsignedNumber>(e0);
+    ast::IExprUnsignedNumber *n1 = NodeKind::cast<ast::IExprUnsignedNumber>(e1);
     if (n0 && n1) {
         DEBUG_LEAVE("valueParamDfltEqual (literals)");
         return (n0->getValue() == n1->getValue());
@@ -188,41 +189,41 @@ bool TaskCompareParamLists::exprEqual(ast::IExpr *e0, ast::IExpr *e1) {
         return true;
     }
 
-    if (ast::IExprUnsignedNumber *n0 = dynamic_cast<ast::IExprUnsignedNumber *>(e0)) {
-        ast::IExprUnsignedNumber *n1 = dynamic_cast<ast::IExprUnsignedNumber *>(e1);
+    if (ast::IExprUnsignedNumber *n0 = NodeKind::cast<ast::IExprUnsignedNumber>(e0)) {
+        ast::IExprUnsignedNumber *n1 = NodeKind::cast<ast::IExprUnsignedNumber>(e1);
         return (n1 && n0->getValue() == n1->getValue());
     }
-    if (ast::IExprSignedNumber *n0 = dynamic_cast<ast::IExprSignedNumber *>(e0)) {
-        ast::IExprSignedNumber *n1 = dynamic_cast<ast::IExprSignedNumber *>(e1);
+    if (ast::IExprSignedNumber *n0 = NodeKind::cast<ast::IExprSignedNumber>(e0)) {
+        ast::IExprSignedNumber *n1 = NodeKind::cast<ast::IExprSignedNumber>(e1);
         return (n1 && n0->getValue() == n1->getValue());
     }
-    if (ast::IExprBool *b0 = dynamic_cast<ast::IExprBool *>(e0)) {
-        ast::IExprBool *b1 = dynamic_cast<ast::IExprBool *>(e1);
+    if (ast::IExprBool *b0 = NodeKind::cast<ast::IExprBool>(e0)) {
+        ast::IExprBool *b1 = NodeKind::cast<ast::IExprBool>(e1);
         return (b1 && b0->getValue() == b1->getValue());
     }
-    if (ast::IExprString *s0 = dynamic_cast<ast::IExprString *>(e0)) {
-        ast::IExprString *s1 = dynamic_cast<ast::IExprString *>(e1);
+    if (ast::IExprString *s0 = NodeKind::cast<ast::IExprString>(e0)) {
+        ast::IExprString *s1 = NodeKind::cast<ast::IExprString>(e1);
         return (s1 && s0->getValue() == s1->getValue());
     }
-    if (ast::IExprBin *b0 = dynamic_cast<ast::IExprBin *>(e0)) {
-        ast::IExprBin *b1 = dynamic_cast<ast::IExprBin *>(e1);
+    if (ast::IExprBin *b0 = NodeKind::cast<ast::IExprBin>(e0)) {
+        ast::IExprBin *b1 = NodeKind::cast<ast::IExprBin>(e1);
         return (b1 && b0->getOp() == b1->getOp()
             && exprEqual(b0->getLhs(), b1->getLhs())
             && exprEqual(b0->getRhs(), b1->getRhs()));
     }
-    if (ast::IExprUnary *u0 = dynamic_cast<ast::IExprUnary *>(e0)) {
-        ast::IExprUnary *u1 = dynamic_cast<ast::IExprUnary *>(e1);
+    if (ast::IExprUnary *u0 = NodeKind::cast<ast::IExprUnary>(e0)) {
+        ast::IExprUnary *u1 = NodeKind::cast<ast::IExprUnary>(e1);
         return (u1 && u0->getOp() == u1->getOp()
             && exprEqual(u0->getRhs(), u1->getRhs()));
     }
-    if (ast::IExprCond *c0 = dynamic_cast<ast::IExprCond *>(e0)) {
-        ast::IExprCond *c1 = dynamic_cast<ast::IExprCond *>(e1);
+    if (ast::IExprCond *c0 = NodeKind::cast<ast::IExprCond>(e0)) {
+        ast::IExprCond *c1 = NodeKind::cast<ast::IExprCond>(e1);
         return (c1 && exprEqual(c0->getCond_e(), c1->getCond_e())
             && exprEqual(c0->getTrue_e(), c1->getTrue_e())
             && exprEqual(c0->getFalse_e(), c1->getFalse_e()));
     }
-    if (ast::IExprId *i0 = dynamic_cast<ast::IExprId *>(e0)) {
-        ast::IExprId *i1 = dynamic_cast<ast::IExprId *>(e1);
+    if (ast::IExprId *i0 = NodeKind::cast<ast::IExprId>(e0)) {
+        ast::IExprId *i1 = NodeKind::cast<ast::IExprId>(e1);
         return (i1 && i0->getId() == i1->getId());
     }
 
@@ -268,22 +269,22 @@ bool TaskCompareParamLists::exprEqual(ast::IExpr *e0, ast::IExpr *e1) {
 }
 
 bool TaskCompareParamLists::holdsValue(ast::IScopeChild *c) {
-    return dynamic_cast<ast::IField *>(c)
-        || dynamic_cast<ast::ITemplateValueParamDecl *>(c);
+    return NodeKind::cast<ast::IField>(c)
+        || NodeKind::cast<ast::ITemplateValueParamDecl>(c);
 }
 
 ast::ISymbolRefPath *TaskCompareParamLists::refTarget(ast::IExpr *e) {
-    if (ast::IExprRefPath *r = dynamic_cast<ast::IExprRefPath *>(e)) {
+    if (ast::IExprRefPath *r = NodeKind::cast<ast::IExprRefPath>(e)) {
         return r->getTarget();
     }
-    if (ast::ITypeIdentifier *t = dynamic_cast<ast::ITypeIdentifier *>(e)) {
+    if (ast::ITypeIdentifier *t = NodeKind::cast<ast::ITypeIdentifier>(e)) {
         return t->getTarget();
     }
     return 0;
 }
 
 bool TaskCompareParamLists::refIds(ast::IExpr *e, std::vector<ast::IExprId *> &ids) {
-    if (ast::IExprRefPathContext *c = dynamic_cast<ast::IExprRefPathContext *>(e)) {
+    if (ast::IExprRefPathContext *c = NodeKind::cast<ast::IExprRefPathContext>(e)) {
         if (!c->getHier_id()) {
             return false;
         }
@@ -298,9 +299,9 @@ bool TaskCompareParamLists::refIds(ast::IExpr *e, std::vector<ast::IExprId *> &i
         return true;
     }
     const std::vector<ast::ITypeIdentifierElemUP> *elems = 0;
-    if (ast::IExprRefPathStatic *st = dynamic_cast<ast::IExprRefPathStatic *>(e)) {
+    if (ast::IExprRefPathStatic *st = NodeKind::cast<ast::IExprRefPathStatic>(e)) {
         elems = &st->getBase();
-    } else if (ast::ITypeIdentifier *t = dynamic_cast<ast::ITypeIdentifier *>(e)) {
+    } else if (ast::ITypeIdentifier *t = NodeKind::cast<ast::ITypeIdentifier>(e)) {
         elems = &t->getElems();
     } else {
         return false;

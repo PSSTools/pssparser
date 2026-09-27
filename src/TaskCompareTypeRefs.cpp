@@ -25,6 +25,7 @@
 #include "pssp/impl/TaskResolveSymbolPathRef.h"
 #include "TaskCompareTypeRefs.h"
 #include "TaskCompareVal.h"
+#include "pssp/impl/NodeKind.h"
 
 
 namespace pssp {
@@ -106,21 +107,21 @@ TaskCompareTypeRefs::Rel TaskCompareTypeRefs::compare(
     switch (kind1) {
         case Kind::Int:
             ret = intEqual(
-                dynamic_cast<ast::IDataTypeInt *>(type1),
-                dynamic_cast<ast::IDataTypeInt *>(type2));
+                NodeKind::cast<ast::IDataTypeInt>(type1),
+                NodeKind::cast<ast::IDataTypeInt>(type2));
             break;
 
         case Kind::UserDefined:
             ret = userDefinedEqual(
-                dynamic_cast<ast::IDataTypeUserDefined *>(type1),
-                dynamic_cast<ast::IDataTypeUserDefined *>(type2));
+                NodeKind::cast<ast::IDataTypeUserDefined>(type1),
+                NodeKind::cast<ast::IDataTypeUserDefined>(type2));
             break;
 
         case Kind::Ref:
             // A reference type is identified by what it refers to.
             ret = userDefinedEqual(
-                dynamic_cast<ast::IDataTypeRef *>(type1)->getType(),
-                dynamic_cast<ast::IDataTypeRef *>(type2)->getType());
+                NodeKind::cast<ast::IDataTypeRef>(type1)->getType(),
+                NodeKind::cast<ast::IDataTypeRef>(type2)->getType());
             break;
 
         case Kind::Enum:
@@ -128,8 +129,8 @@ TaskCompareTypeRefs::Rel TaskCompareTypeRefs::compare(
             // in-rangelist narrows the legal values but does not make a
             // different type.
             ret = userDefinedEqual(
-                dynamic_cast<ast::IDataTypeEnum *>(type1)->getTid(),
-                dynamic_cast<ast::IDataTypeEnum *>(type2)->getTid());
+                NodeKind::cast<ast::IDataTypeEnum>(type1)->getTid(),
+                NodeKind::cast<ast::IDataTypeEnum>(type2)->getTid());
             break;
 
         case Kind::Bool:
@@ -155,17 +156,17 @@ TaskCompareTypeRefs::Rel TaskCompareTypeRefs::compare(
 }
 
 bool TaskCompareTypeRefs::isTypedefRef(ast::IDataType *t) {
-    ast::IDataTypeUserDefined *ud = dynamic_cast<ast::IDataTypeUserDefined *>(t);
+    ast::IDataTypeUserDefined *ud = NodeKind::cast<ast::IDataTypeUserDefined>(t);
     if (!ud || !ud->getType_id() || !ud->getType_id()->getTarget()) {
         return false;
     }
     TaskResolveSymbolPathRef resolver(m_factory->getDebugMgr(), m_root);
-    return (dynamic_cast<ast::ITypedefDeclaration *>(
+    return (NodeKind::cast<ast::ITypedefDeclaration>(
         resolver.resolve(ud->getType_id()->getTarget())) != 0);
 }
 
 bool TaskCompareTypeRefs::isUnresolvedRef(ast::IDataType *t) {
-    ast::IDataTypeUserDefined *ud = dynamic_cast<ast::IDataTypeUserDefined *>(t);
+    ast::IDataTypeUserDefined *ud = NodeKind::cast<ast::IDataTypeUserDefined>(t);
     if (!ud) {
         return false;
     }

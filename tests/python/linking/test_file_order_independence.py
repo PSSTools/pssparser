@@ -133,3 +133,15 @@ def test_an_error_before_the_deferred_element_is_not_repeated(use_first):
         files.reverse()
     res = assert_rejects(files, "nope")
     assert res.output.count("unknown identifier 'nope'") == 1, res.describe()
+
+
+def test_lrm_example_261():
+    """Ex. 261: a supertype declared later in the same source unit, whose own
+    supertype is in an earlier one. The reverse file order links too (decision
+    Q8: only const initializers and `compile if` depend on file order)."""
+    file1 = "component lib_base_c { }\n"
+    file2 = ("component my_a_c : my_base_c { }\n"
+             "component my_base_c : lib_base_c { }\n"
+             "component pss_top { my_a_c a; }\n")
+    parse_multi_file([("file1.pss", file1), ("file2.pss", file2)])
+    parse_multi_file([("file2.pss", file2), ("file1.pss", file1)])

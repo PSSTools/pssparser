@@ -23,6 +23,7 @@
 #include "dmgr/impl/DebugMacros.h"
 #include "pssp/ast/IFactory.h"
 #include "pssp/ast/impl/VisitorBase.h"
+#include "pssp/impl/NodeKind.h"
 
 namespace pssp {
 
@@ -74,16 +75,19 @@ public:
     
     virtual void visitSymbolTypeScope(ast::ISymbolTypeScope *i) override {
         DEBUG_ENTER("visitSymbolTypeScope %s", i->getName().c_str());
-        ast::ITypeScope *ts = dynamic_cast<ast::ITypeScope *>(i->getTarget());
-        m_ret->getPath().push_back({
-            ast::SymbolRefPathElemKind::ElemKind_ChildIdx,
-            i->getId()
-        });
-        if (ts->getParams() && ts->getParams()->getSpecialized()) {
+        ast::ITypeScope *ts = NodeKind::cast<ast::ITypeScope>(i->getTarget());
+        if (ts && ts->getParams() && ts->getParams()->getSpecialized()) {
+            // A specialization is not a child of anything: its upper scope is
+            // the generic, which holds it in spec_types at its index.
             DEBUG("Specialized parameterization");
             m_ret->getPath().push_back({
                 ast::SymbolRefPathElemKind::ElemKind_TypeSpec,
                 ts->getIndex()
+            });
+        } else {
+            m_ret->getPath().push_back({
+                ast::SymbolRefPathElemKind::ElemKind_ChildIdx,
+                i->getId()
             });
         }
         DEBUG_LEAVE("visitSymbolTypeScope %s", i->getName().c_str());

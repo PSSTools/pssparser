@@ -25,6 +25,7 @@
 #include "pssp/impl/ActivityScopes.h"
 #include "pssp/impl/ConstraintScopes.h"
 #include "pssp/impl/ProceduralScopes.h"
+#include "pssp/impl/NodeKind.h"
 
 namespace pssp {
 
@@ -326,7 +327,7 @@ private:
     }
 
     ast::IConstraintSymbolScope *foreachSymtab() const {
-        return dynamic_cast<ast::IConstraintStmtForeach *>(
+        return NodeKind::cast<ast::IConstraintStmtForeach>(
             m_scope.constraint_s)->getSymtab();
     }
 

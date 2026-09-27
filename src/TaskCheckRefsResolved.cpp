@@ -34,6 +34,7 @@
 #include "pssp/ast/IProceduralStmtDataDeclaration.h"
 #include "pssp/ast/ISymbolChildrenScope.h"
 #include "pssp/ast/ISymbolScope.h"
+#include "pssp/impl/NodeKind.h"
 
 namespace pssp {
 
@@ -111,7 +112,12 @@ void TaskCheckRefsResolved::visitTypeIdentifier(ast::ITypeIdentifier *i) {
 }
 
 void TaskCheckRefsResolved::visitExprRefName(ast::IExprRefName *i) {
-    checkRef({i->getId()}, false);
+    // Exempt where the resolver could not know the scope the name is in: a
+    // struct literal of unknown type (8.9), a bind path past an unbound or
+    // generic component (4.5).
+    if (!i->getCtx_unknown()) {
+        checkRef({i->getId()}, false);
+    }
 }
 
 void TaskCheckRefsResolved::visitExprRefPathContext(ast::IExprRefPathContext *i) {
@@ -194,20 +200,6 @@ void TaskCheckRefsResolved::visitAnnotationParam(ast::IAnnotationParam *i) {
     }
 }
 
-void TaskCheckRefsResolved::visitCovergroupInstantiation(ast::ICovergroupInstantiation *i) {
-    // The covergroup type is an ordinary type reference; the port map and
-    // options are not bound yet (WS10).
-    if (i->getType()) {
-        i->getType()->accept(m_this);
-    }
-}
-
-void TaskCheckRefsResolved::visitExprAggrStructElem(ast::IExprAggrStructElem *i) {
-    if (i->getValue()) {
-        i->getValue()->accept(m_this);
-    }
-}
-
 void TaskCheckRefsResolved::checkRef(
         const std::vector<ast::IExprId *>   &ids,
         bool                                is_type) {
@@ -248,7 +240,7 @@ void TaskCheckRefsResolved::checkRef(
         const std::string &name = id->getId();
         bool declared = (m_names.find(name) != m_names.end());
 
-        if (is_type && ii > 0 && dynamic_cast<ast::IField *>(prev)) {
+        if (is_type && ii > 0 && NodeKind::cast<ast::IField>(prev)) {
             // `tx::send_pkt s;` in an activity, where `tx` is a component
             // *instance*: the path is resolved by instance, not by scope, and
             // this node never receives a target. pssc resolves it the same
@@ -316,45 +308,45 @@ bool TaskCheckRefsResolved::hasUnboundType(ast::IScopeChild *decl) {
         return false;
     }
     ast::IDataType *t = 0;
-    if (ast::IField *f = dynamic_cast<ast::IField *>(decl)) {
+    if (ast::IField *f = NodeKind::cast<ast::IField>(decl)) {
         t = f->getType();
     } else if (ast::IProceduralStmtDataDeclaration *d =
-            dynamic_cast<ast::IProceduralStmtDataDeclaration *>(decl)) {
+            NodeKind::cast<ast::IProceduralStmtDataDeclaration>(decl)) {
         t = d->getDatatype();
     } else if (ast::IFunctionParamDecl *p =
-            dynamic_cast<ast::IFunctionParamDecl *>(decl)) {
+            NodeKind::cast<ast::IFunctionParamDecl>(decl)) {
         t = p->getType();
     } else if (ast::IGenericConstraintParam *p =
-            dynamic_cast<ast::IGenericConstraintParam *>(decl)) {
+            NodeKind::cast<ast::IGenericConstraintParam>(decl)) {
         t = p->getType();
     }
-    ast::IDataTypeUserDefined *ut = dynamic_cast<ast::IDataTypeUserDefined *>(t);
+    ast::IDataTypeUserDefined *ut = NodeKind::cast<ast::IDataTypeUserDefined>(t);
     return ut && ut->getType_id() && !ut->getType_id()->getTarget();
 }
 
 bool TaskCheckRefsResolved::reachesUnknownBase(ast::IScopeChild *decl) {
     ast::IScopeChild *t = decl;
     ast::IDataType *dt = 0;
-    if (ast::IField *f = dynamic_cast<ast::IField *>(decl)) {
+    if (ast::IField *f = NodeKind::cast<ast::IField>(decl)) {
         dt = f->getType();
     } else if (ast::IProceduralStmtDataDeclaration *d =
-            dynamic_cast<ast::IProceduralStmtDataDeclaration *>(decl)) {
+            NodeKind::cast<ast::IProceduralStmtDataDeclaration>(decl)) {
         dt = d->getDatatype();
     } else if (ast::IFunctionParamDecl *p =
-            dynamic_cast<ast::IFunctionParamDecl *>(decl)) {
+            NodeKind::cast<ast::IFunctionParamDecl>(decl)) {
         dt = p->getType();
     } else if (ast::IGenericConstraintParam *p =
-            dynamic_cast<ast::IGenericConstraintParam *>(decl)) {
+            NodeKind::cast<ast::IGenericConstraintParam>(decl)) {
         dt = p->getType();
     }
     if (dt) {
-        ast::IDataTypeUserDefined *ut = dynamic_cast<ast::IDataTypeUserDefined *>(dt);
+        ast::IDataTypeUserDefined *ut = NodeKind::cast<ast::IDataTypeUserDefined>(dt);
         if (!ut || !ut->getType_id() || !ut->getType_id()->getTarget()) {
             return false;
         }
         t = m_coll.unwrap(m_ctxt->resolveSymbolPathRef(ut->getType_id()->getTarget()));
     }
-    return hasUnknownBase(dynamic_cast<ast::ITypeScope *>(t));
+    return hasUnknownBase(NodeKind::cast<ast::ITypeScope>(t));
 }
 
 bool TaskCheckRefsResolved::hasUnknownBase(ast::ITypeScope *ts) {
@@ -366,7 +358,7 @@ bool TaskCheckRefsResolved::hasUnknownBase(ast::ITypeScope *ts) {
         if (!ts->getSuper_t()->getTarget()) {
             return true;
         }
-        ts = dynamic_cast<ast::ITypeScope *>(m_coll.unwrap(
+        ts = NodeKind::cast<ast::ITypeScope>(m_coll.unwrap(
             m_ctxt->resolveSymbolPathRef(ts->getSuper_t()->getTarget())));
     }
     return false;
@@ -390,16 +382,16 @@ void TaskCheckRefsResolved::collectSymtabNames(
     if (!c || !seen.insert(c).second) {
         return;
     }
-    if (ast::ISymbolScope *s = dynamic_cast<ast::ISymbolScope *>(c)) {
+    if (ast::ISymbolScope *s = NodeKind::cast<ast::ISymbolScope>(c)) {
         for (std::unordered_map<std::string,int32_t>::const_iterator
             it=s->getSymtab().begin(); it!=s->getSymtab().end(); it++) {
             m_names.insert(it->first);
         }
     }
-    if (ast::ISymbolChildrenScope *s = dynamic_cast<ast::ISymbolChildrenScope *>(c)) {
+    if (ast::ISymbolChildrenScope *s = NodeKind::cast<ast::ISymbolChildrenScope>(c)) {
         for (std::vector<ast::IScopeChildUP>::const_iterator
             it=s->getChildren().begin(); it!=s->getChildren().end(); it++) {
-            if (dynamic_cast<ast::ISymbolChildrenScope *>(it->get())) {
+            if (NodeKind::cast<ast::ISymbolChildrenScope>(it->get())) {
                 collectSymtabNames(it->get(), seen);
             }
         }

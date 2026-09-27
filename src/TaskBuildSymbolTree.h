@@ -47,7 +47,53 @@ public:
 
     virtual void visitActivityDecl(ast::IActivityDecl *i) override;
 
-    void registerActivityLabels(ast::ISymbolScope *scope);
+    /**
+     * The named sub-activity tree (WS4.3, LRM 11.8). Each labeled statement
+     * gets a synthetic scope, its `sub_activity`, holding what a path through
+     * its label reaches: the handles and `action` fields declared directly
+     * under it, and the labeled statements whose nearest labeled ancestor it
+     * is. Unlabeled statements are not a level (11.8.2). The action's own
+     * type scope is the tree's root, so a top-level label is a member of the
+     * action. Label uniqueness (11.8.2) is checked as each level is filled.
+     *
+     * Decision Q4: a `replicate` exposes only its label array; a labeled
+     * `if`/`select`/`match` exposes its branches' labels but not their
+     * handles; monitor labels form no paths.
+     */
+    void buildSubActivities(ast::IActivityDecl *i);
+
+    /**
+     * The scope of a covergroup's coverpoint and cross names (10.1): a
+     * synthetic SymbolScope, target `cg`, owned by `cg` (`setBody`), added as
+     * an unnamed child of the current scope so that it is addressable.
+     */
+    ast::ISymbolScope *buildCovergroupBody(
+        ast::IScopeChild                                    *cg,
+        const std::vector<ast::ICovergroupCoverpointUP>     &coverpoints,
+        const std::vector<ast::ICovergroupCrossUP>          &crosses);
+
+    /** Build `s`'s named sub-activity, named `name`, and fill it. */
+    void buildSubActivity(ast::IActivityLabeledScope *s, ast::IExprId *name);
+
+    /**
+     * Add to level `m` what statement `c` contributes: its label (and its own
+     * level) if it has one; otherwise, for an unlabeled compound statement,
+     * what its children and bodies contribute. `handles` says whether a
+     * handle or `action` field declared by `c` is on `m`'s path.
+     */
+    void addSubActivityMembers(
+        ast::ISymbolScope       *m,
+        ast::IScopeChild        *c,
+        bool                    handles);
+
+    /** Add `r`'s label array, if it has one, to level `m` (11.5.1.1 e). */
+    void addLabelArray(ast::ISymbolScope *m, ast::IActivityReplicate *r);
+
+    /** Add `c` to level `m` as `name`, or report the clash (11.8.2). */
+    void addSubActivityMember(
+        ast::ISymbolScope       *m,
+        ast::IExprId            *name,
+        ast::IScopeChild        *c);
 
     /**
      * Build one activity scope -- a declaration, a block or a compound
@@ -111,6 +157,10 @@ public:
     virtual void visitFieldRef(ast::IFieldRef *i) override;
 
     virtual void visitFieldClaim(ast::IFieldClaim *i) override;
+
+    virtual void visitFieldPool(ast::IFieldPool *i) override;
+
+    virtual void visitComponentBind(ast::IComponentBind *i) override;
 
     virtual void visitActionHandleField(ast::IActionHandleField *i) override;
 
@@ -218,10 +268,17 @@ protected:
 
     static std::string pyImportPath(ast::IPyImportStmt *i);
 
+    /**
+     * `name` is the name both share, when the caller has it: a labeled
+     * statement's name is its label, which TaskGetName cannot see. `at`, if
+     * set, is where to report instead of `dup`'s location.
+     */
     void reportDuplicateSymbol(
         ast::ISymbolScope       *scope,
         ast::IScopeChild        *orig,
-        ast::IScopeChild        *dup);
+        ast::IScopeChild        *dup,
+        const std::string       &name="",
+        const ast::Location     *at=0);
 
     /**
      * `this` is a keyword (4.3, keyword table) that the lexer returns as an

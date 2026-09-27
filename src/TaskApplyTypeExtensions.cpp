@@ -39,6 +39,7 @@
 #include "TaskResolveRef.h"
 #include "TaskResolveRootRef.h"
 #include "pssp/impl/TaskGetName.h"
+#include "pssp/impl/NodeKind.h"
 
 namespace pssp {
 
@@ -109,7 +110,7 @@ void TaskApplyTypeExtensions::visitExtendEnum(ast::IExtendEnum *i) {
     i->getTarget()->setTarget(target_p);
 
     ast::IScopeChild *target = m_symtab_it->resolveAbsPath(i->getTarget()->getTarget());
-    ast::ISymbolEnumScope *target_s = dynamic_cast<ast::ISymbolEnumScope *>(target);
+    ast::ISymbolEnumScope *target_s = NodeKind::cast<ast::ISymbolEnumScope>(target);
 
     // The name resolved, but not to an enum: `extend enum s` where s is a
     // struct or a component. The cast is then null and the loop below writes
@@ -151,7 +152,7 @@ void TaskApplyTypeExtensions::visitSymbolEnumScope(ast::ISymbolEnumScope *i) {
 
 void TaskApplyTypeExtensions::visitSymbolExtendScope(ast::ISymbolExtendScope *i) {
     DEBUG_ENTER("visitSymbolExtendScope");
-    ast::IExtendType *ast_target = dynamic_cast<ast::IExtendType *>(i->getTarget());
+    ast::IExtendType *ast_target = NodeKind::cast<ast::IExtendType>(i->getTarget());
 
     // A failed lookup is reported wherever the `extend` is written. Inside a
     // type scope it used to be swallowed, because `override action A` was
@@ -171,7 +172,7 @@ void TaskApplyTypeExtensions::visitSymbolExtendScope(ast::ISymbolExtendScope *i)
 
     ast_target->getTarget()->setTarget(target_p);
     ast::IScopeChild *ext_target = m_symtab_it->resolveAbsPath(target_p);
-    ast::ISymbolScope *target_s = dynamic_cast<ast::ISymbolScope *>(ext_target);
+    ast::ISymbolScope *target_s = NodeKind::cast<ast::ISymbolScope>(ext_target);
     if (!target_s) {
         // The path resolved to something that is not a scope. A template
         // instance extension (`extend struct S<int>`) does this: its
@@ -230,8 +231,8 @@ void TaskApplyTypeExtensions::applyExtension(
     for (std::vector<ast::IScopeChildUP>::const_iterator
         it=ext->getChildren().begin();
         it!=ext->getChildren().end(); it++) {
-        if (dynamic_cast<ast::ISymbolExtendScope *>(it->get())
-                || dynamic_cast<ast::IExtendEnum *>(it->get())) {
+        if (NodeKind::cast<ast::ISymbolExtendScope>(it->get())
+                || NodeKind::cast<ast::IExtendEnum>(it->get())) {
             // Not a member: an `extend` of one of the target's own types.
             // Merged into the target, it was a stray child that nothing
             // applied (report F, N1).
@@ -264,7 +265,7 @@ void TaskApplyTypeExtensions::applyExtension(
         }
     }
 
-    ast::IExtendType *ast_ext = dynamic_cast<ast::IExtendType *>(ext->getTarget());
+    ast::IExtendType *ast_ext = NodeKind::cast<ast::IExtendType>(ext->getTarget());
     if (ast_ext) {
         mergeIntoGenericAst(target_s, ast_ext);
     }
@@ -282,10 +283,10 @@ void TaskApplyTypeExtensions::applyNestedExtension(
         ast::ISymbolScope       *target_s,
         ast::ISymbolRefPath     *target_p,
         ast::ISymbolScope       *decl_s) {
-    ast::ISymbolExtendScope *ext = dynamic_cast<ast::ISymbolExtendScope *>(nested);
-    ast::IExtendEnum *ext_e = dynamic_cast<ast::IExtendEnum *>(nested);
+    ast::ISymbolExtendScope *ext = NodeKind::cast<ast::ISymbolExtendScope>(nested);
+    ast::IExtendEnum *ext_e = NodeKind::cast<ast::IExtendEnum>(nested);
     ast::ITypeIdentifier *tid = (ext)?
-        dynamic_cast<ast::IExtendType *>(ext->getTarget())->getTarget() :
+        NodeKind::cast<ast::IExtendType>(ext->getTarget())->getTarget() :
         ext_e->getTarget();
     const char *kind = (ext)?"type":"enum";
 
@@ -318,7 +319,7 @@ void TaskApplyTypeExtensions::applyNestedExtension(
     tid->setTarget(path);
 
     if (ext) {
-        ast::ISymbolTypeScope *ts = dynamic_cast<ast::ISymbolTypeScope *>(c);
+        ast::ISymbolTypeScope *ts = NodeKind::cast<ast::ISymbolTypeScope>(c);
         if (!ts) {
             m_marker_l->marker(IMarkerUP(m_factory->mkMarker(
                 "cannot extend '" + tid->getElems().back()->getId()->getId()
@@ -329,7 +330,7 @@ void TaskApplyTypeExtensions::applyNestedExtension(
         }
         applyExtension(ext, ts, path, decl_s);
     } else {
-        ast::ISymbolEnumScope *es = dynamic_cast<ast::ISymbolEnumScope *>(c);
+        ast::ISymbolEnumScope *es = NodeKind::cast<ast::ISymbolEnumScope>(c);
         if (!es) {
             m_marker_l->marker(IMarkerUP(m_factory->mkMarker(
                 "cannot extend '" + tid->getElems().back()->getId()->getId()
@@ -468,7 +469,7 @@ void TaskApplyTypeExtensions::mergeIntoGenericAst(
     // Non-templated types are left alone: they are never copied, so the symbol
     // merge above is the whole story for them, and adding the same nodes twice
     // would only create a second path to them.
-    ast::ITypeScope *target_ast = dynamic_cast<ast::ITypeScope *>(
+    ast::ITypeScope *target_ast = NodeKind::cast<ast::ITypeScope>(
         target_s->getTarget());
 
     if (!target_ast || !target_ast->getParams()) {
@@ -493,15 +494,15 @@ namespace {
  * different packages each declare under one name.
  */
 bool isFieldOrType(ast::IScopeChild *c) {
-    return dynamic_cast<ast::IField *>(c)
-        || dynamic_cast<ast::IFieldRef *>(c)
-        || dynamic_cast<ast::IFieldCompRef *>(c)
-        || dynamic_cast<ast::IFieldClaim *>(c)
-        || dynamic_cast<ast::IActionHandleField *>(c)
-        || dynamic_cast<ast::ICovergroupInstantiation *>(c)
-        || dynamic_cast<ast::ISymbolTypeScope *>(c)
-        || dynamic_cast<ast::ISymbolEnumScope *>(c)
-        || dynamic_cast<ast::ITypedefDeclaration *>(c);
+    return NodeKind::cast<ast::IField>(c)
+        || NodeKind::cast<ast::IFieldRef>(c)
+        || NodeKind::cast<ast::IFieldCompRef>(c)
+        || NodeKind::cast<ast::IFieldClaim>(c)
+        || NodeKind::cast<ast::IActionHandleField>(c)
+        || NodeKind::cast<ast::ICovergroupInstantiation>(c)
+        || NodeKind::cast<ast::ISymbolTypeScope>(c)
+        || NodeKind::cast<ast::ISymbolEnumScope>(c)
+        || NodeKind::cast<ast::ITypedefDeclaration>(c);
 }
 
 }
@@ -519,14 +520,14 @@ void TaskApplyTypeExtensions::mergeChild(
     // tests/python/linking/test_type_extension_semantics.py pins same-named
     // constraints from two extensions as conjoining. Whether 17.2.3's
     // uniqueness rule covers them is open (symbol-resolution-plan §11).
-    ast::IConstraintBlock *cb = dynamic_cast<ast::IConstraintBlock *>(child);
+    ast::IConstraintBlock *cb = NodeKind::cast<ast::IConstraintBlock>(child);
     if (name.size() && cb
-            && !dynamic_cast<ast::IGenericConstraintDeclBool *>(child)
+            && !NodeKind::cast<ast::IGenericConstraintDeclBool>(child)
             && target->getSymtab().find(name) != target->getSymtab().end()) {
         ast::IScopeChild *prev = target->getChildren().at(
             target->getSymtab().find(name)->second).get();
-        if (dynamic_cast<ast::IConstraintBlock *>(prev)
-                && !dynamic_cast<ast::IGenericConstraintDeclBool *>(prev)) {
+        if (NodeKind::cast<ast::IConstraintBlock>(prev)
+                && !NodeKind::cast<ast::IGenericConstraintDeclBool>(prev)) {
             name = "";
         }
     }
@@ -547,14 +548,14 @@ ast::ISymbolScope *TaskApplyTypeExtensions::packageOf(ast::ISymbolScope *decl_s)
     // form (17.3); a component's `upper` leads out to its package. A package
     // is a plain symbol scope, with no declaration of its own to point at.
     ast::ISymbolScope *s = decl_s;
-    while (s && dynamic_cast<ast::ISymbolTypeScope *>(s)) {
+    while (s && NodeKind::cast<ast::ISymbolTypeScope>(s)) {
         s = s->getUpper();
     }
     return (s)?s:m_root;
 }
 
 std::string TaskApplyTypeExtensions::packageDesc(ast::ISymbolScope *pkg) const {
-    if (!pkg || dynamic_cast<ast::IRootSymbolScope *>(pkg)) {
+    if (!pkg || NodeKind::cast<ast::IRootSymbolScope>(pkg)) {
         return "outside any package";
     }
     return "in package '" + pkg->getName() + "'";
@@ -568,7 +569,7 @@ void TaskApplyTypeExtensions::reportDuplicate(
     // name is where the report belongs.
     struct Decl {
         static ast::IScopeChild *of(ast::IScopeChild *c) {
-            ast::ISymbolScope *ss = dynamic_cast<ast::ISymbolScope *>(c);
+            ast::ISymbolScope *ss = NodeKind::cast<ast::ISymbolScope>(c);
             return (ss && ss->getTarget())?ss->getTarget():c;
         }
     };
@@ -593,8 +594,8 @@ void TaskApplyTypeExtensions::appendChild(
         ast::ISymbolScope       *target,
         ast::IScopeChild        *child) {
     int32_t id = target->getChildren().size();
-    if (dynamic_cast<ast::ISymbolChild *>(child)) {
-        ast::ISymbolChild *sc = dynamic_cast<ast::ISymbolChild *>(child);
+    if (NodeKind::cast<ast::ISymbolChild>(child)) {
+        ast::ISymbolChild *sc = NodeKind::cast<ast::ISymbolChild>(child);
         sc->setUpper(target);
         // Re-index into the target. getId() is what
         // AstSymbolTableIterator emits as the ChildIdx step for this
@@ -603,8 +604,8 @@ void TaskApplyTypeExtensions::appendChild(
         // extension then resolved to whatever sat at that index in the
         // extended type, and paths through it dead-ended.
         sc->setId(id);
-    } else if (dynamic_cast<ast::IConstraintBlock *>(child)
-            || dynamic_cast<ast::IGenericConstraintDeclValue *>(child)) {
+    } else if (NodeKind::cast<ast::IConstraintBlock>(child)
+            || NodeKind::cast<ast::IGenericConstraintDeclValue>(child)) {
         // Likewise for a constraint, whose ChildIdx step is its index
         // (TaskGetItemIndex): a path into its body -- a foreach iterator, a
         // generic constraint's parameter -- pointed into the `<extend>`
@@ -659,16 +660,16 @@ void TaskApplyTypeExtensions::addChild(
     // A prototype in one place and the body in another is one function
     // (F25), whichever package each is in. Two bodies are still an error;
     // mergeFunctionScope reports it.
-    ast::ISymbolFunctionScope *orig_f = dynamic_cast<ast::ISymbolFunctionScope *>(orig);
-    ast::ISymbolFunctionScope *child_f = dynamic_cast<ast::ISymbolFunctionScope *>(child);
+    ast::ISymbolFunctionScope *orig_f = NodeKind::cast<ast::ISymbolFunctionScope>(orig);
+    ast::ISymbolFunctionScope *child_f = NodeKind::cast<ast::ISymbolFunctionScope>(child);
     if (orig_f && child_f) {
         mergeFunctionScope(orig_f, child_f);
         DEBUG_LEAVE("addChild %s to %s -- function", name.c_str(), target->getName().c_str());
         return;
     }
 
-    ast::IField *orig_fld = dynamic_cast<ast::IField *>(orig);
-    ast::ISymbolTypeScope *target_t = dynamic_cast<ast::ISymbolTypeScope *>(target);
+    ast::IField *orig_fld = NodeKind::cast<ast::IField>(orig);
+    ast::ISymbolTypeScope *target_t = NodeKind::cast<ast::ISymbolTypeScope>(target);
 
     // Every earlier extension contribution of the name. The symtab's entry
     // is among them unless it is the initial definition's.
@@ -689,7 +690,7 @@ void TaskApplyTypeExtensions::addChild(
             && (orig_fld->getAttr() & ast::FieldAttr::Builtin) != ast::FieldAttr::NoFlags) {
         // The same diagnosis as redeclaring it in the type's own body.
         const char *kind = TaskBuildSymbolTree::builtinKind(
-            dynamic_cast<ast::ITypeScope *>(target_t->getTarget()));
+            NodeKind::cast<ast::ITypeScope>(target_t->getTarget()));
         reportDuplicate(child, 0,
             "duplicate declaration of '" + name + "': every "
             + ((kind)?kind:"type") + " has a built-in '" + name + "'");
@@ -746,7 +747,7 @@ void TaskApplyTypeExtensions::recordExtMember(
         const std::string       &name,
         int32_t                 idx,
         ast::ISymbolScope       *pkg) {
-    if (ast::ISymbolTypeScope *target_t = dynamic_cast<ast::ISymbolTypeScope *>(target)) {
+    if (ast::ISymbolTypeScope *target_t = NodeKind::cast<ast::ISymbolTypeScope>(target)) {
         target_t->getExt_members().push_back(ast::ISymbolExtMemberUP(
             m_factory->getAstFactory()->mkSymbolExtMember(name, idx, pkg)));
     }
@@ -785,7 +786,7 @@ void TaskApplyTypeExtensions::mergeFunctionScope(
             it=incoming->getChildren().begin();
             it!=incoming->getChildren().end(); it++) {
             ast::ITargetTemplateFunction *tt =
-                dynamic_cast<ast::ITargetTemplateFunction *>(it->get());
+                NodeKind::cast<ast::ITargetTemplateFunction>(it->get());
             if (tt) {
                 resetFunctionParams(existing, tt->getProto());
                 break;

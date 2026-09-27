@@ -17,6 +17,7 @@
  */
 #include "dmgr/impl/DebugMacros.h"
 #include "TaskCheckPackedStructs.h"
+#include "pssp/impl/NodeKind.h"
 
 
 namespace pssp {
@@ -46,17 +47,17 @@ void TaskCheckPackedStructs::walk(ast::ISymbolScope *s) {
         it=s->getChildren().begin();
         it!=s->getChildren().end(); it++) {
         if (ast::ISymbolTypeScope *ts =
-                dynamic_cast<ast::ISymbolTypeScope *>(it->get())) {
+                NodeKind::cast<ast::ISymbolTypeScope>(it->get())) {
             checkTypeScope(ts);
         } else if (ast::ISymbolScope *cs =
-                dynamic_cast<ast::ISymbolScope *>(it->get())) {
+                NodeKind::cast<ast::ISymbolScope>(it->get())) {
             walk(cs);
         }
     }
 }
 
 void TaskCheckPackedStructs::checkTypeScope(ast::ISymbolTypeScope *s) {
-    ast::ITypeScope *ts = dynamic_cast<ast::ITypeScope *>(s->getTarget());
+    ast::ITypeScope *ts = NodeKind::cast<ast::ITypeScope>(s->getTarget());
 
     // Types nested in this one (a struct declared in a component).
     walk(s);
@@ -109,7 +110,7 @@ void TaskCheckPackedStructs::checkMembers(ast::ISymbolTypeScope *s) {
     for (std::vector<ast::IScopeChildUP>::const_iterator
         it=s->getChildren().begin();
         it!=s->getChildren().end(); it++) {
-        ast::IField *f = dynamic_cast<ast::IField *>(it->get());
+        ast::IField *f = NodeKind::cast<ast::IField>(it->get());
         if (!f) {
             continue;
         }
@@ -153,7 +154,7 @@ void TaskCheckPackedStructs::checkExtensionFields(ast::ISymbolTypeScope *s) {
     for (std::vector<ast::IScopeChildUP>::const_iterator
         it=s->getChildren().begin();
         it!=s->getChildren().end(); it++) {
-        ast::IField *f = dynamic_cast<ast::IField *>(it->get());
+        ast::IField *f = NodeKind::cast<ast::IField>(it->get());
         if (!f || !m_ctxt->extensionDeclScope(f)) {
             continue;
         }
@@ -188,7 +189,7 @@ void TaskCheckPackedStructs::report(
 }
 
 std::string TaskCheckPackedStructs::typeName(ast::ISymbolTypeScope *s) {
-    ast::ITypeScope *ts = dynamic_cast<ast::ITypeScope *>(s->getTarget());
+    ast::ITypeScope *ts = NodeKind::cast<ast::ITypeScope>(s->getTarget());
     return (ts && ts->getName())?ts->getName()->getId():s->getName();
 }
 

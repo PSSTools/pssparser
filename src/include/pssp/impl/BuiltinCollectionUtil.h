@@ -19,6 +19,7 @@
 #include <string>
 #include "pssp/ast/ISymbolScope.h"
 #include "pssp/ast/ITypeScope.h"
+#include "pssp/impl/NodeKind.h"
 
 namespace pssp {
 
@@ -74,7 +75,7 @@ static inline CollectionKind builtinCollectionKind(ast::ITypeScope *ts) {
 
 static inline CollectionKind builtinCollectionKind(ast::ISymbolScope *s) {
     return (s)?builtinCollectionKind(
-        dynamic_cast<ast::ITypeScope *>(s->getTarget())):CollectionKind::None;
+        NodeKind::cast<ast::ITypeScope>(s->getTarget())):CollectionKind::None;
 }
 
 /**

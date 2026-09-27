@@ -48,6 +48,7 @@
 #include "pssp/ast/IMonitor.h"
 #include "pssp/ast/IStruct.h"
 #include "Marker.h"
+#include "pssp/impl/NodeKind.h"
 
 namespace pssp {
 
@@ -120,11 +121,10 @@ ast::IRootSymbolScope *TaskBuildSymbolTree::build(
 
 void TaskBuildSymbolTree::visitActivityDecl(ast::IActivityDecl *i) {
     DEBUG_ENTER("visitActivityDecl");
-    // Before adding the activity decl as an opaque child, register any labeled
-    // activity stmts (e.g. T1: do tx_data_a) as NAMED children in the PARENT
-    // scope (the action type scope). This gives them valid getId() values via
-    // setId(), which is needed for correct symbol path resolution (T1.tx_byte).
-    registerActivityLabels(i);
+    // The top-level labels are members of the action (11.8.3: `b1.my_seq`,
+    // `T1.tx_byte`, `do X with { xfer.size > 10; }`), added before the
+    // activity itself as they always have been.
+    buildSubActivities(i);
     addChild(i, false);
 
     buildActivityScope(i);
@@ -166,14 +166,13 @@ void TaskBuildSymbolTree::buildActivityScopeChild(
         int32_t                 idx,
         ast::ISymbolScope       *parent) {
     if (ast::ISymbolScope *s = ActivityScopes::asScope(c)) {
-        // Its address in `parent`. registerActivityLabels may have set the id
-        // to the label's slot in the action scope; that slot is reached
-        // through the action's symtab, never through the id.
+        // Its address in `parent`. A label's slot in a named sub-activity is
+        // reached through that level's symtab, never through the id.
         s->setId(idx);
         s->setUpper(parent);
         buildActivityScope(s);
     } else if (ast::IProceduralStmtDataDeclaration *v =
-            dynamic_cast<ast::IProceduralStmtDataDeclaration *>(c)) {
+            NodeKind::cast<ast::IProceduralStmtDataDeclaration>(c)) {
         // A loop variable. Procedural loop variables are registered by the
         // AST builder, and visitProceduralStmtDataDeclaration does nothing.
         if (v->getName()) {
@@ -227,7 +226,7 @@ ast::ISymbolTypeScope *TaskBuildSymbolTree::build(ast::ITypeScope *ts) {
 
     popSymbolScope();
 
-    ret = dynamic_cast<ast::ISymbolTypeScope *>(root->getChildren().at(0).get());
+    ret = NodeKind::cast<ast::ISymbolTypeScope>(root->getChildren().at(0).get());
     root->getChildren().at(0).release();
 
     DEBUG_LEAVE("build");
@@ -349,7 +348,7 @@ void TaskBuildSymbolTree::visitPackageScope(ast::IPackageScope *i) {
         id_it=i->getId().begin();
         id_it!=i->getId().end(); id_it++) {
         DEBUG("  process name-elem %s", (*id_it)->getId().c_str());
-        ast::ISymbolScope *scope = dynamic_cast<ast::ISymbolScope *>(symbolScope());
+        ast::ISymbolScope *scope = NodeKind::cast<ast::ISymbolScope>(symbolScope());
         DEBUG("Scope %s has %d symbols", scope->getName().c_str(), scope->getSymtab().size());
         std::unordered_map<std::string,int32_t>::const_iterator p_it;
         p_it = scope->getSymtab().find((*id_it)->getId());
@@ -371,7 +370,7 @@ void TaskBuildSymbolTree::visitPackageScope(ast::IPackageScope *i) {
             scope = pkg;
         } else {
             ast::ISymbolScope *new_scope =
-                dynamic_cast<ast::ISymbolScope *>(scope->getChildren().at(p_it->second).get());
+                NodeKind::cast<ast::ISymbolScope>(scope->getChildren().at(p_it->second).get());
             new_scope->setUpper(symbolScope());
             // The re-opened branch: a package declared in more than one file,
             // or an intermediate scope that a later declaration documents.
@@ -445,7 +444,7 @@ void TaskBuildSymbolTree::visitTypedefDeclaration(ast::ITypedefDeclaration *i) {
 
 void TaskBuildSymbolTree::visitEnumItem(ast::IEnumItem *i) {
     DEBUG_ENTER("visitEnumItem %s", i->getName()->getId().c_str());
-    i->setUpper(dynamic_cast<ast::ISymbolEnumScope *>(symbolScope()));
+    i->setUpper(NodeKind::cast<ast::ISymbolEnumScope>(symbolScope()));
     addChild(i, i->getName()->getId(), false);
     DEBUG_LEAVE("visitEnumItem %s", i->getName()->getId().c_str());
 }
@@ -474,8 +473,8 @@ void TaskBuildSymbolTree::visitExecScope(ast::IExecScope *i) {
         it=i->getChildren().begin();
         it!=i->getChildren().end(); it++) {
         DEBUG("Child: %p", it->get());
-        if (dynamic_cast<ast::ISymbolScope *>(it->get())) {
-            dynamic_cast<ast::ISymbolScope *>(it->get())->setId(it-i->getChildren().begin());
+        if (NodeKind::cast<ast::ISymbolScope>(it->get())) {
+            NodeKind::cast<ast::ISymbolScope>(it->get())->setId(it-i->getChildren().begin());
         }
         it->get()->accept(m_this);
     }
@@ -567,6 +566,26 @@ void TaskBuildSymbolTree::visitFieldClaim(ast::IFieldClaim *i) {
     DEBUG_LEAVE("visitFieldClaim %s", i->getName()->getId().c_str());
 }
 
+void TaskBuildSymbolTree::visitComponentBind(ast::IComponentBind *i) {
+    DEBUG_ENTER("visitComponentBind");
+    // Add the bind and stop. Its targets and their path elements are
+    // ScopeChild too, and the generated visitor reached each through
+    // visitScopeChild, which made them loose children of the component: the
+    // resolver then resolved each target's action type in the binding
+    // component, not the component its path reaches (F-N15).
+    addChild(i, false);
+    DEBUG_LEAVE("visitComponentBind");
+}
+
+void TaskBuildSymbolTree::visitFieldPool(ast::IFieldPool *i) {
+    DEBUG_ENTER("visitFieldPool %s", i->getName()->getId().c_str());
+    // A `bind` names its pool (12.3), `bind p *;` or through a component
+    // path, `bind gfx0.power_state_var ...` (Ex. 132). Without this the pool
+    // was a child of the component but not a name in it.
+    addChild(i, i->getName()->getId(), false);
+    DEBUG_LEAVE("visitFieldPool %s", i->getName()->getId().c_str());
+}
+
 void TaskBuildSymbolTree::visitActionHandleField(ast::IActionHandleField *i) {
     DEBUG_ENTER("visitActionHandleField %s", i->getName()->getId().c_str());
     // Same defect as visitFieldClaim above, and the same fix. Without an
@@ -592,11 +611,58 @@ void TaskBuildSymbolTree::visitCovergroup(ast::ICovergroup *i) {
     // struct holding one covergroup linked to a struct holding the covergroup
     // plus a loose copy of every coverpoint and cross inside it.
     //
-    // The covergroup body is not a scope: a coverpoint name is not resolved
-    // through the symbol table, which is also why the coverage expressions
-    // carry `visit: false` in ast/coverage.yaml.
+    // The body's names are in a scope of their own, beside the covergroup
+    // (buildCovergroupBody).
     addChild(i, false);
+    i->setBody(buildCovergroupBody(i, i->getCoverpoints(), i->getCrosses()));
     DEBUG_LEAVE("visitCovergroup");
+}
+
+ast::ISymbolScope *TaskBuildSymbolTree::buildCovergroupBody(
+        ast::IScopeChild                                    *cg,
+        const std::vector<ast::ICovergroupCoverpointUP>     &coverpoints,
+        const std::vector<ast::ICovergroupCrossUP>          &crosses) {
+    DEBUG_ENTER("buildCovergroupBody");
+    ast::ISymbolScope *body = m_factory->mkSymbolScope("<covergroup>");
+    body->setSynthetic(true);
+    copyExtent(body, cg);
+    body->setTarget(cg);
+
+    // A coverpoint is named by its label, or else by the variable it covers
+    // (15.3 a; the builder names it so); a cross by its label (15.4.1 a).
+    std::vector<ast::INamedScopeChild *> items;
+    for (std::vector<ast::ICovergroupCoverpointUP>::const_iterator
+            it=coverpoints.begin(); it!=coverpoints.end(); it++) {
+        items.push_back(it->get());
+    }
+    for (std::vector<ast::ICovergroupCrossUP>::const_iterator
+            it=crosses.begin(); it!=crosses.end(); it++) {
+        items.push_back(it->get());
+    }
+    for (std::vector<ast::INamedScopeChild *>::const_iterator
+            it=items.begin(); it!=items.end(); it++) {
+        ast::IExprId *name = (*it)->getName();
+        if (!name) {
+            continue;
+        }
+        std::unordered_map<std::string, int32_t>::const_iterator s_it =
+            body->getSymtab().find(name->getId());
+        if (s_it != body->getSymtab().end()) {
+            reportDuplicateSymbol(body,
+                body->getChildren().at(s_it->second).get(), *it,
+                name->getId(), &name->getLocation());
+            continue;
+        }
+        body->getSymtab().insert({name->getId(), (int32_t)body->getChildren().size()});
+        body->getChildren().push_back(ast::IScopeChildUP(*it, false));
+    }
+
+    // Unnamed, and not owned: `cg` owns it. Its upper scope is what a
+    // symbol path to a coverpoint climbs through (TaskGetSymbolRefPath).
+    body->setUpper(symbolScope());
+    addChild(body, false);
+    DEBUG_LEAVE("buildCovergroupBody");
+    return body;
 }
 
 void TaskBuildSymbolTree::visitCovergroupType(ast::ICovergroupType *i) {
@@ -710,7 +776,7 @@ void TaskBuildSymbolTree::visitFunctionDefinition(ast::IFunctionDefinition *i) {
     reportDuplicateParams(i->getProto());
 
     ast::IScopeChild *ex_func_b = findSymbol(i->getProto()->getName()->getId());
-    ast::ISymbolFunctionScope *func_sym = dynamic_cast<ast::ISymbolFunctionScope *>(ex_func_b);
+    ast::ISymbolFunctionScope *func_sym = NodeKind::cast<ast::ISymbolFunctionScope>(ex_func_b);
 
     // If the existing symbol isn't a FunctionScope, then we have
     // a duplicate symbol
@@ -817,10 +883,10 @@ void TaskBuildSymbolTree::visitFunctionImportProto(ast::IFunctionImportProto *i)
     // type". The import declares the function if nothing else does, so it is
     // declared there either way. Reported on the generic only: each
     // specialization is a copy of it.
-    ast::ITypeScope *enc_t = dynamic_cast<ast::ITypeScope *>(
+    ast::ITypeScope *enc_t = NodeKind::cast<ast::ITypeScope>(
         symbolScope()->getTarget());
     bool tmpl_reported = false;
-    if (dynamic_cast<ast::IComponent *>(enc_t) && enc_t->getParams()
+    if (NodeKind::cast<ast::IComponent>(enc_t) && enc_t->getParams()
             && !enc_t->getParams()->getSpecialized()) {
         tmpl_reported = true;
         Marker m(
@@ -838,7 +904,7 @@ void TaskBuildSymbolTree::visitFunctionImportProto(ast::IFunctionImportProto *i)
     // requires. Both are fixed by the same word, so they are one diagnosis,
     // and neither depends on declarations this scope has not reached yet.
     // Not on top of the template report: that one is the reason there.
-    ast::IExtendType *enc_ext = dynamic_cast<ast::IExtendType *>(
+    ast::IExtendType *enc_ext = NodeKind::cast<ast::IExtendType>(
         symbolScope()->getTarget());
     if (tmpl_reported
             || (enc_t && enc_t->getParams()
@@ -846,7 +912,7 @@ void TaskBuildSymbolTree::visitFunctionImportProto(ast::IFunctionImportProto *i)
         // Nothing to add, or a specialization's copy of an import the
         // generic already answered for.
     } else if (!i->getProto()->getIs_static()
-            && (dynamic_cast<ast::IComponent *>(enc_t)
+            && (NodeKind::cast<ast::IComponent>(enc_t)
                 || (enc_ext
                     && enc_ext->getKind() == ast::ExtendTargetE::Component))) {
         Marker m(
@@ -859,7 +925,7 @@ void TaskBuildSymbolTree::visitFunctionImportProto(ast::IFunctionImportProto *i)
     }
 
     ast::IScopeChild *ex_func_b = findSymbol(i->getProto()->getName()->getId());
-    ast::ISymbolFunctionScope *func_sym = dynamic_cast<ast::ISymbolFunctionScope *>(ex_func_b);
+    ast::ISymbolFunctionScope *func_sym = NodeKind::cast<ast::ISymbolFunctionScope>(ex_func_b);
 
     // If the existing symbol isn't a FunctionScope, then we have
     // a duplicate symbol
@@ -921,7 +987,7 @@ void TaskBuildSymbolTree::visitFunctionPrototype(ast::IFunctionPrototype *i) {
     reportDuplicateParams(i);
 
     ast::IScopeChild *ex_func_b = findSymbol(i->getName()->getId());
-    ast::ISymbolFunctionScope *func_sym = dynamic_cast<ast::ISymbolFunctionScope *>(ex_func_b);
+    ast::ISymbolFunctionScope *func_sym = NodeKind::cast<ast::ISymbolFunctionScope>(ex_func_b);
 
     // If the existing symbol isn't a FunctionScope, then we have
     // a duplicate symbol
@@ -980,7 +1046,7 @@ void TaskBuildSymbolTree::visitTargetTemplateFunction(ast::ITargetTemplateFuncti
 
     ast::IScopeChild *ex_func_b = findSymbol(name);
     ast::ISymbolFunctionScope *func_sym =
-        dynamic_cast<ast::ISymbolFunctionScope *>(ex_func_b);
+        NodeKind::cast<ast::ISymbolFunctionScope>(ex_func_b);
 
     if (ex_func_b && !func_sym) {
         reportDuplicateSymbol(symbolScope(), ex_func_b, i);
@@ -1053,41 +1119,11 @@ void TaskBuildSymbolTree::visitPackageImportStmt(ast::IPackageImportStmt *i) {
 
     DEBUG("Add import to scope %s", scope->getName().c_str());
 
-    // See if this import already exists. Only in the same statement: an
-    // import applies only within the statement it is written in (18.1.3), so
-    // the same import written in another `package` statement or file is
-    // another import, needed there. An alias is never a duplicate:
-    // `import a; import a as x;` are two imports, and two aliases of one
-    // name are an error TaskResolveImports reports (18.1.4).
-    bool exists = false;
-    for (std::vector<ast::IPackageImportStmt *>::const_iterator
-        it=scope->getImports()->getImports().begin();
-        it!=scope->getImports()->getImports().end(); it++) {
-        if (i->getWildcard() == (*it)->getWildcard()
-                && i->getParent() == (*it)->getParent()
-                && !i->getAlias() && !(*it)->getAlias()) {
-            // Compare the paths
-            if (i->getPath()->getElems().size() == (*it)->getPath()->getElems().size()) {
-                uint32_t ii;
-                for (ii=0; ii<i->getPath()->getElems().size(); ii++) {
-                    if (i->getPath()->getElems().at(ii)->getId()->getId() !=
-                        (*it)->getPath()->getElems().at(ii)->getId()->getId()) {
-                        break;
-                    }
-                }
-                exists = (ii == i->getPath()->getElems().size());
-            }
-        }
-        if (exists) {
-            break;
-        }
-    }
-
-    if (!exists) {
-        scope->getImports()->getImports().push_back(i);
-    } else {
-        DEBUG("Skip duplicate import");
-    }
+    // Every import is kept, a repeated one too. Lookup counts two routes to
+    // one declaration as one match (NameLookup::searchImports), and an import
+    // left out of the list is never resolved, so its path stayed unbound
+    // (PSS042) -- which is what dropping `import p::s; import p::s;` did.
+    scope->getImports()->getImports().push_back(i);
 
     DEBUG_LEAVE("visitPackageImportStmt");
 }
@@ -1134,7 +1170,7 @@ void TaskBuildSymbolTree::reportPyImportCollision(
     // The same module imported under the same name again -- typically by a
     // second file into the merged global scope -- names the same thing, so
     // it is not a conflict.
-    if (ast::IPyImportStmt *prev = dynamic_cast<ast::IPyImportStmt *>(orig)) {
+    if (ast::IPyImportStmt *prev = NodeKind::cast<ast::IPyImportStmt>(orig)) {
         if (pyImportPath(prev) == pyImportPath(i)) {
             DEBUG("repeated pyimport of %s", pyImportPath(i).c_str());
             return;
@@ -1323,6 +1359,10 @@ void TaskBuildSymbolTree::visitTypeScope(ast::ITypeScope *i) {
             (*it)->accept(m_this);
         }
         addBuiltinFields(ts, i);
+        if (ast::ICovergroupType *cgt = NodeKind::cast<ast::ICovergroupType>(i)) {
+            // After the ports: the body scope sits inside the type's scope.
+            cgt->setBody(buildCovergroupBody(cgt, cgt->getCoverpoints(), cgt->getCrosses()));
+        }
         popSymbolScope();
     }
 
@@ -1334,13 +1374,13 @@ void TaskBuildSymbolTree::visitTypeScope(ast::ITypeScope *i) {
 const char *TaskBuildSymbolTree::builtinKind(ast::ITypeScope *i) {
     // Clause 9 intro: every modeling element -- action, monitor, component,
     // flow or resource object -- has a `uid`. A plain struct does not.
-    if (dynamic_cast<ast::IAction *>(i)) {
+    if (NodeKind::cast<ast::IAction>(i)) {
         return "action";
-    } else if (dynamic_cast<ast::IMonitor *>(i)) {
+    } else if (NodeKind::cast<ast::IMonitor>(i)) {
         return "monitor";
-    } else if (dynamic_cast<ast::IComponent *>(i)) {
+    } else if (NodeKind::cast<ast::IComponent>(i)) {
         return "component";
-    } else if (ast::IStruct *st = dynamic_cast<ast::IStruct *>(i)) {
+    } else if (ast::IStruct *st = NodeKind::cast<ast::IStruct>(i)) {
         switch (st->getKind()) {
             case ast::StructKind::Buffer: return "buffer";
             case ast::StructKind::Stream: return "stream";
@@ -1356,7 +1396,7 @@ void TaskBuildSymbolTree::addBuiltinFields(
         ast::ISymbolTypeScope   *ts,
         ast::ITypeScope         *i) {
     const char *kind = builtinKind(i);
-    ast::IStruct *st = dynamic_cast<ast::IStruct *>(i);
+    ast::IStruct *st = NodeKind::cast<ast::IStruct>(i);
 
     if (!kind) {
         return;
@@ -1425,7 +1465,7 @@ void TaskBuildSymbolTree::checkBuiltinRedeclared(
         return;
     }
 
-    ast::IField *f = dynamic_cast<ast::IField *>(
+    ast::IField *f = NodeKind::cast<ast::IField>(
         ts->getChildren().at(it->second).get());
     if (!f || (f->getAttr() & ast::FieldAttr::Builtin) == ast::FieldAttr::NoFlags) {
         // The builder skips its injection when the type declares the name
@@ -1440,7 +1480,7 @@ void TaskBuildSymbolTree::reportBuiltinRedeclared(
         const std::string       &name,
         const char              *kind) {
     ast::Location loc = decl->getLocation();
-    if (ast::INamedScopeChild *n = dynamic_cast<ast::INamedScopeChild *>(decl)) {
+    if (ast::INamedScopeChild *n = NodeKind::cast<ast::INamedScopeChild>(decl)) {
         loc = n->getName()->getLocation();
     }
     Marker m(
@@ -1458,8 +1498,10 @@ void TaskBuildSymbolTree::reportBuiltinRedeclared(
 void TaskBuildSymbolTree::reportDuplicateSymbol(
         ast::ISymbolScope       *scope,
         ast::IScopeChild        *orig,
-        ast::IScopeChild        *dup) {
-    std::string name = TaskGetName().get(orig);
+        ast::IScopeChild        *dup,
+        const std::string       &name_p,
+        const ast::Location     *at) {
+    std::string name = (name_p != "") ? name_p : TaskGetName().get(orig);
 
     // DEBUG rather than DEBUG_ERROR: with no debug manager installed --
     // i.e. in every ordinary run -- DEBUG_ERROR prints straight to stdout,
@@ -1469,7 +1511,7 @@ void TaskBuildSymbolTree::reportDuplicateSymbol(
     // the report.
     DEBUG("Duplicate declaration: %s", name.c_str());
 
-    ast::Location loc = dup->getLocation();
+    ast::Location loc = (at) ? *at : dup->getLocation();
     if (loc.lineno < 0 && orig) {
         loc = orig->getLocation();
     }
@@ -1497,18 +1539,18 @@ void TaskBuildSymbolTree::checkReservedName(
         ast::IScopeChild        *c,
         const std::string       &name) {
     if (name != "this"
-            || dynamic_cast<ast::IProceduralStmtDataDeclaration *>(c)) {
+            || NodeKind::cast<ast::IProceduralStmtDataDeclaration>(c)) {
         // A local or loop variable: checked by checkLocalNames(), which is
         // the one place that sees all of them.
         return;
     }
     ast::IExprId *id = 0;
-    if (ast::INamedScopeChild *n = dynamic_cast<ast::INamedScopeChild *>(c)) {
+    if (ast::INamedScopeChild *n = NodeKind::cast<ast::INamedScopeChild>(c)) {
         id = n->getName();
-    } else if (ast::INamedScope *n = dynamic_cast<ast::INamedScope *>(c)) {
+    } else if (ast::INamedScope *n = NodeKind::cast<ast::INamedScope>(c)) {
         id = n->getName();
-    } else if (ast::ISymbolScope *ss = dynamic_cast<ast::ISymbolScope *>(c)) {
-        if (ast::INamedScope *n = dynamic_cast<ast::INamedScope *>(ss->getTarget())) {
+    } else if (ast::ISymbolScope *ss = NodeKind::cast<ast::ISymbolScope>(c)) {
+        if (ast::INamedScope *n = NodeKind::cast<ast::INamedScope>(ss->getTarget())) {
             id = n->getName();
         }
     }
@@ -1793,7 +1835,7 @@ void TaskBuildSymbolTree::pushSymbolScope(ast::ISymbolChild *s) {
 
 ast::ISymbolScope *TaskBuildSymbolTree::symbolScope() {
     if (m_scope_s.size()) {
-        return dynamic_cast<ast::ISymbolScope *>(m_scope_s.back());
+        return NodeKind::cast<ast::ISymbolScope>(m_scope_s.back());
     } else {
         return 0;
     }
@@ -1807,16 +1849,16 @@ void TaskBuildSymbolTree::addChild(
     ast::IScopeChild    *c,
     bool                owned) {
     DEBUG_ENTER("addChild(ScopeChild)");
-    if (dynamic_cast<ast::ISymbolScope *>(m_scope_s.back())) {
-        ast::ISymbolScope *scope = dynamic_cast<ast::ISymbolScope *>(m_scope_s.back());
+    if (NodeKind::cast<ast::ISymbolScope>(m_scope_s.back())) {
+        ast::ISymbolScope *scope = NodeKind::cast<ast::ISymbolScope>(m_scope_s.back());
         DEBUG("Scope: isSynth=%d", scope->getSynthetic());
         if (scope->getSynthetic()) {
             scope->getChildren().push_back(ast::IScopeChildUP(c, owned));
         }
-//        dynamic_cast<ast::ISymbolChildrenScope *>(m_scope_s.back())->getChildren().push_back(
+//        NodeKind::cast<ast::ISymbolChildrenScope>(m_scope_s.back())->getChildren().push_back(
 //            ast::IScopeChildUP(c, owned));
     }/* else {
-        ast::ISymbolCondConnector *cond = dynamic_cast<ast::ISymbolCondConnector *>(m_scope_s.back());
+        ast::ISymbolCondConnector *cond = NodeKind::cast<ast::ISymbolCondConnector>(m_scope_s.back());
         DEBUG("Setting cond-connector target");
         cond->setStmt(c);
     } */
@@ -1828,12 +1870,12 @@ void TaskBuildSymbolTree::addChild(
     bool                owned) {
     DEBUG_ENTER("addChild(ScopeChild)");
     owned = false;
-    if (dynamic_cast<ast::ISymbolChildrenScope *>(m_scope_s.back())) {
-        ast::ISymbolChildrenScope *scs = dynamic_cast<ast::ISymbolChildrenScope *>(m_scope_s.back());
+    if (NodeKind::cast<ast::ISymbolChildrenScope>(m_scope_s.back())) {
+        ast::ISymbolChildrenScope *scs = NodeKind::cast<ast::ISymbolChildrenScope>(m_scope_s.back());
         c->setId(scs->getChildren().size());
         scs->getChildren().push_back(ast::IScopeChildUP(c, owned));
     } /*else {
-        ast::ISymbolCondConnector *cond = dynamic_cast<ast::ISymbolCondConnector *>(m_scope_s.back());
+        ast::ISymbolCondConnector *cond = NodeKind::cast<ast::ISymbolCondConnector>(m_scope_s.back());
         DEBUG("Setting cond-connector target");
         cond->setStmt(c);
     }*/
@@ -1914,51 +1956,184 @@ bool TaskBuildSymbolTree::addChild(
     return true;
 }
 
-// Recursively scan an activity scope and register labeled activity stmts
-// (e.g. T1: do tx_data_a) as named children in the CURRENT symbol scope, so
-// that a path rooted at a label (T1.tx_byte) resolves through the action.
-// Flat, and blind to labels inside loop/if/select/match bodies: the named
-// sub-activity tree of LRM 11.8.3 is WS4.3.
-void TaskBuildSymbolTree::registerActivityLabels(ast::ISymbolScope *scope) {
-    if (!scope) return;
-    for (auto &child : scope->getChildren()) {
-        // A label can hang off either branch of the hierarchy: a leaf statement
-        // is an ActivityLabeledStmt, but a *block* (sequence/parallel/schedule)
-        // is an ActivityLabeledScope, which descends from SymbolScope instead
-        // and shares no common labeled base. Handling only the first branch
-        // left block labels unregistered, so `join_branch(L)` naming a
-        // top-level block branch -- the case LRM 10.5.2 specifically describes
-        // -- failed to resolve, while a deeper leaf label inside it resolved.
-        ast::IExprId *label = 0;
-        if (auto *labeled_s = dynamic_cast<ast::IActivityLabeledStmt*>(child.get())) {
-            label = labeled_s->getLabel();
-        } else if (auto *labeled_b = dynamic_cast<ast::IActivityLabeledScope*>(child.get())) {
-            label = labeled_b->getLabel();
-        }
-        if (label) {
-            // Register in the CURRENT symbol scope (the action's type scope),
-            // as a non-owned child reached through its symtab entry. Not
-            // through the ISymbolChild addChild: that sets the scope's id and
-            // upper to this slot, and a labeled block's id is its address in
-            // the block that holds it (buildActivityScope, WS4.1).
-            ast::ISymbolScope *scope = symbolScope();
-            std::unordered_map<std::string, int32_t>::const_iterator it =
-                scope->getSymtab().find(label->getId());
-            if (it != scope->getSymtab().end()) {
-                reportDuplicateSymbol(
-                    scope,
-                    scope->getChildren().at(it->second).get(),
-                    child.get());
-            } else {
-                scope->getSymtab().insert({label->getId(), scope->getChildren().size()});
-                scope->getChildren().push_back(ast::IScopeChildUP(child.get(), false));
+/**
+ * The label of an activity statement, leaf or compound, or null. A leaf is an
+ * ActivityLabeledStmt; a block or compound statement is an
+ * ActivityLabeledScope, a SymbolScope; the two share no labeled base.
+ */
+static ast::IExprId *activityLabel(ast::IScopeChild *c) {
+    if (ast::IActivityLabeledStmt *l = NodeKind::cast<ast::IActivityLabeledStmt>(c)) {
+        return l->getLabel();
+    } else if (ast::IActivityLabeledScope *l = NodeKind::cast<ast::IActivityLabeledScope>(c)) {
+        return l->getLabel();
+    }
+    return 0;
+}
+
+void TaskBuildSymbolTree::buildSubActivities(ast::IActivityDecl *i) {
+    DEBUG_ENTER("buildSubActivities");
+    // The root level is the action scope, pushed now. The top activity scope
+    // is unnamed (11.8.3), so its handles are not added.
+    ast::ISymbolScope *root = symbolScope();
+    for (std::vector<ast::IScopeChildUP>::const_iterator
+        it=i->getChildren().begin(); it!=i->getChildren().end(); it++) {
+        addSubActivityMembers(root, it->get(), false);
+    }
+    DEBUG_LEAVE("buildSubActivities");
+}
+
+void TaskBuildSymbolTree::buildSubActivity(
+        ast::IActivityLabeledScope  *s,
+        ast::IExprId                *name) {
+    DEBUG_ENTER("buildSubActivity %s", name->getId().c_str());
+    ast::ISymbolScope *m = m_factory->mkSymbolScope(name->getId());
+    m->setSynthetic(true);
+    copyExtent(m, s);
+    m->setTarget(s);
+    // Owned by the statement. A specialization's copy of the statement has
+    // none (TaskCopyAst), and gets its own here.
+    s->setSub_activity(m);
+
+    std::vector<ast::IScopeChild *> bodies;
+    ActivityScopes::bodies(s, bodies);
+
+    if (ast::IActivityReplicate *r = NodeKind::cast<ast::IActivityReplicate>(s)) {
+        // Q4: only the label array is on the path. Its elements are the
+        // expansions of the body, all statically alike, so the array is
+        // the body's level: `R.RL[k].a`.
+        addLabelArray(m, r);
+    } else if (NodeKind::cast<ast::IActivityIfElse>(s)
+            || NodeKind::cast<ast::IActivitySelect>(s)
+            || NodeKind::cast<ast::IActivityMatch>(s)) {
+        // Q4: the branches' labels are under this label (11.8.2), their
+        // handles are not on the path.
+        for (std::vector<ast::IScopeChild *>::const_iterator
+            it=bodies.begin(); it!=bodies.end(); it++) {
+            if (*it) {
+                addSubActivityMembers(m, *it, false);
             }
         }
-        // Recurse into compound activity scopes (parallel, schedule, sequence)
-        auto *nested_scope = dynamic_cast<ast::ISymbolScope*>(child.get());
-        if (nested_scope) {
-            registerActivityLabels(nested_scope);
+    } else {
+        // A block's handles are declared directly under it. A loop or an
+        // `atomic` block declares them in its body block (Ex. 124,
+        // `my_rep.a`); a brace-less body's are children of the statement.
+        for (std::vector<ast::IScopeChildUP>::const_iterator
+            it=s->getChildren().begin(); it!=s->getChildren().end(); it++) {
+            addSubActivityMembers(m, it->get(), true);
         }
+        for (std::vector<ast::IScopeChild *>::const_iterator
+            it=bodies.begin(); it!=bodies.end(); it++) {
+            if (!*it) {
+                continue;
+            }
+            ast::ISymbolScope *b = ActivityScopes::asScope(*it);
+            if (b && !activityLabel(*it)
+                    && !NodeKind::cast<ast::IActivityReplicate>(*it)) {
+                std::vector<ast::IScopeChild *> b_bodies;
+                ActivityScopes::bodies(*it, b_bodies);
+                if (b_bodies.empty()) {
+                    // A plain block: it is the loop's own block.
+                    for (std::vector<ast::IScopeChildUP>::const_iterator
+                        c_it=b->getChildren().begin();
+                        c_it!=b->getChildren().end(); c_it++) {
+                        addSubActivityMembers(m, c_it->get(), true);
+                    }
+                    continue;
+                }
+            }
+            addSubActivityMembers(m, *it, false);
+        }
+    }
+    DEBUG_LEAVE("buildSubActivity %s", name->getId().c_str());
+}
+
+void TaskBuildSymbolTree::addSubActivityMembers(
+        ast::ISymbolScope       *m,
+        ast::IScopeChild        *c,
+        bool                    handles) {
+    if (NodeKind::cast<ast::IActionHandleField>(c)
+            || NodeKind::cast<ast::IField>(c)) {
+        if (handles) {
+            addSubActivityMember(m,
+                NodeKind::cast<ast::INamedScopeChild>(c)->getName(), c);
+        }
+        return;
+    }
+
+    ast::IExprId *label = activityLabel(c);
+    if (label) {
+        addSubActivityMember(m, label, c);
+        if (ast::IActivityLabeledScope *s = NodeKind::cast<ast::IActivityLabeledScope>(c)) {
+            buildSubActivity(s, label);
+        }
+        return;
+    }
+
+    if (ast::IActivityReplicate *r = NodeKind::cast<ast::IActivityReplicate>(c)) {
+        addLabelArray(m, r);
+        return;
+    }
+
+    // An unlabeled statement is not a level (11.8.2): the labels under it
+    // belong to `m`. Its handles are in an unnamed scope (11.8.3).
+    if (ast::ISymbolScope *s = ActivityScopes::asScope(c)) {
+        for (std::vector<ast::IScopeChildUP>::const_iterator
+            it=s->getChildren().begin(); it!=s->getChildren().end(); it++) {
+            addSubActivityMembers(m, it->get(), false);
+        }
+        std::vector<ast::IScopeChild *> bodies;
+        ActivityScopes::bodies(c, bodies);
+        for (std::vector<ast::IScopeChild *>::const_iterator
+            it=bodies.begin(); it!=bodies.end(); it++) {
+            if (*it) {
+                addSubActivityMembers(m, *it, false);
+            }
+        }
+    }
+}
+
+void TaskBuildSymbolTree::addLabelArray(
+        ast::ISymbolScope       *m,
+        ast::IActivityReplicate *r) {
+    // 11.5.1.1 e: `RL[]:` names each expansion of the body. Without it
+    // nothing under the replicate is on the path (Q4); a label there is a
+    // clash between the expansions (11.5.1.1 f), a semantic check.
+    ast::IScopeChild *body = r->getBody();
+    if (!r->getIt_label() || !body) {
+        return;
+    }
+    addSubActivityMember(m, r->getIt_label(), body);
+    ast::IActivityLabeledScope *b = NodeKind::cast<ast::IActivityLabeledScope>(body);
+    if (b && !b->getLabel()) {
+        buildSubActivity(b, r->getIt_label());
+    }
+}
+
+void TaskBuildSymbolTree::addSubActivityMember(
+        ast::ISymbolScope       *m,
+        ast::IExprId            *name,
+        ast::IScopeChild        *c) {
+    if (!name || name->getId() == "") {
+        return;
+    }
+    // Non-owned, and not through addChild: that would set `c`'s id and upper
+    // to this slot, and a statement's id is its address in its block
+    // (buildActivityScope, WS4.1). The level is reached through its symtab.
+    std::unordered_map<std::string, int32_t>::const_iterator it =
+        m->getSymtab().find(name->getId());
+    if (it != m->getSymtab().end()) {
+        // 11.8.2: a label is unique in its named sub-activity, and does not
+        // clash with a handle there (Ex. 122, 123). At the root the other
+        // declaration may be any member of the action.
+        reportDuplicateSymbol(
+            m,
+            m->getChildren().at(it->second).get(),
+            c,
+            name->getId(),
+            &name->getLocation());
+    } else {
+        m->getSymtab().insert({name->getId(), (int32_t)m->getChildren().size()});
+        m->getChildren().push_back(ast::IScopeChildUP(c, false));
     }
 }
 

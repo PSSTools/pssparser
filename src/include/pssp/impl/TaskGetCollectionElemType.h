@@ -21,6 +21,7 @@
 #include "pssp/ast/impl/VisitorBase.h"
 #include "pssp/impl/BuiltinCollectionUtil.h"
 #include "pssp/impl/TaskResolveSymbolPathRef.h"
+#include "pssp/impl/NodeKind.h"
 
 namespace pssp {
 
@@ -102,7 +103,7 @@ public:
 
     virtual void visitSymbolTypeScope(ast::ISymbolTypeScope *i) override {
         DEBUG_ENTER("visitSymbolTypeScope \"%s\"", i->getName().c_str());
-        ast::ITypeScope *type = dynamic_cast<ast::ITypeScope *>(i->getTarget());
+        ast::ITypeScope *type = NodeKind::cast<ast::ITypeScope>(i->getTarget());
         int32_t param_idx = collectionIterParam(builtinCollectionKind(type));
 
         if (param_idx >= 0 && type->getParams() &&

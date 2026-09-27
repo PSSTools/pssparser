@@ -23,6 +23,7 @@
 #include "pssp/ast/IFactory.h"
 #include "pssp/ast/ISymbolScope.h"
 #include "TaskApplyOverlay.h"
+#include "pssp/impl/NodeKind.h"
 
 
 namespace pssp {
@@ -94,7 +95,7 @@ void TaskApplyOverlay::visitPackageScope(ast::IPackageScope *i) {
             throw InternalError(i->getLocation(), "an overlay that adds package '"
                 + (*it)->getId() + "' is not supported");
         } else {
-            scope = dynamic_cast<ast::ISymbolScope *>(scope->getChildren().at(s_it->second).get());
+            scope = NodeKind::cast<ast::ISymbolScope>(scope->getChildren().at(s_it->second).get());
         }
     }
 
@@ -157,7 +158,7 @@ void TaskApplyOverlay::visitTypeScope(ast::ITypeScope *i) {
     } else {
         DEBUG("Found type %s in type %s", 
             i->getName()->getId().c_str(), scope->getName().c_str());
-        scope_i = dynamic_cast<ast::ISymbolScope *>(
+        scope_i = NodeKind::cast<ast::ISymbolScope>(
             scope->getChildren().at(it_i->second).get());
         if (!scope_i) {
             DEBUG("Not a symbol scope");

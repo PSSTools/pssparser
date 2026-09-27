@@ -18,6 +18,7 @@
 #include <memory>
 #include "dmgr/impl/DebugMacros.h"
 #include "TaskCheckPackedUses.h"
+#include "pssp/impl/NodeKind.h"
 
 
 namespace pssp {
@@ -47,7 +48,7 @@ void TaskCheckPackedUses::check(ast::IRootSymbolScope *root) {
 }
 
 void TaskCheckPackedUses::visitSymbolTypeScope(ast::ISymbolTypeScope *i) {
-    ast::ITypeScope *ts = dynamic_cast<ast::ITypeScope *>(i->getTarget());
+    ast::ITypeScope *ts = NodeKind::cast<ast::ITypeScope>(i->getTarget());
 
     // A generic's body is checked through its specializations, where the
     // arguments are bound. The body itself names parameters, not types.
@@ -78,7 +79,7 @@ void TaskCheckPackedUses::visitTypeIdentifier(ast::ITypeIdentifier *i) {
     }
 
     if (i->getTarget() && i->getElems().size()) {
-        ast::ISymbolTypeScope *spec = dynamic_cast<ast::ISymbolTypeScope *>(
+        ast::ISymbolTypeScope *spec = NodeKind::cast<ast::ISymbolTypeScope>(
             m_resolver.resolve(i->getTarget()));
         if (spec) {
             // An expression carries no position of its own; its first
@@ -112,7 +113,7 @@ void TaskCheckPackedUses::visitExprRefPathStatic(ast::IExprRefPathStatic *i) {
             spec_p->getPath().insert(
                 spec_p->getPath().begin(),
                 path.begin(), path.begin()+last+1);
-            ast::ISymbolTypeScope *spec = dynamic_cast<ast::ISymbolTypeScope *>(
+            ast::ISymbolTypeScope *spec = NodeKind::cast<ast::ISymbolTypeScope>(
                 m_resolver.resolve(spec_p.get()));
             if (spec) {
                 const ast::Location &loc =
@@ -133,7 +134,7 @@ void TaskCheckPackedUses::checkUse(
     if (loc.fileid <= 0) {
         return;
     }
-    ast::ITypeScope *ts = dynamic_cast<ast::ITypeScope *>(spec->getTarget());
+    ast::ITypeScope *ts = NodeKind::cast<ast::ITypeScope>(spec->getTarget());
     if (!ts || !ts->getParams() || !ts->getParams()->getSpecialized()) {
         return;
     }
@@ -219,7 +220,7 @@ ast::IDataType *TaskCheckPackedUses::typeParam(
         it=spec->getParams()->getParams().begin();
         it!=spec->getParams()->getParams().end(); it++) {
         ast::ITemplateGenericTypeParamDecl *tp =
-            dynamic_cast<ast::ITemplateGenericTypeParamDecl *>(it->get());
+            NodeKind::cast<ast::ITemplateGenericTypeParamDecl>(it->get());
         if (tp && tp->getName() && tp->getName()->getId() == name) {
             return tp->getDflt();
         }
@@ -245,7 +246,7 @@ void TaskCheckPackedUses::report(
 }
 
 std::string TaskCheckPackedUses::typeDesc(ast::IDataType *t) {
-    ast::IDataTypeUserDefined *ut = dynamic_cast<ast::IDataTypeUserDefined *>(t);
+    ast::IDataTypeUserDefined *ut = NodeKind::cast<ast::IDataTypeUserDefined>(t);
     if (ut && ut->getType_id() && ut->getType_id()->getElems().size()) {
         return "'" + ut->getType_id()->getElems().back()->getId()->getId() + "'";
     }

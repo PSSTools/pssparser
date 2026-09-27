@@ -22,6 +22,7 @@
 #include "TaskCheckTypeCycles.h"
 #include "TaskResolveSuperTypeRef.h"
 #include "pssp/ast/ITypeScope.h"
+#include "pssp/impl/NodeKind.h"
 
 namespace pssp {
 
@@ -45,7 +46,7 @@ void TaskCheckTypeCycles::visitScopeChildren(ast::ISymbolScope *i) {
     for (std::vector<ast::IScopeChildUP>::const_iterator
         it=i->getChildren().begin();
         it!=i->getChildren().end(); it++) {
-        if (dynamic_cast<ast::ISymbolScope *>(it->get())) {
+        if (NodeKind::cast<ast::ISymbolScope>(it->get())) {
             it->get()->accept(m_this);
         }
     }
@@ -65,7 +66,7 @@ void TaskCheckTypeCycles::visitSymbolTypeScope(ast::ISymbolTypeScope *i) {
 }
 
 void TaskCheckTypeCycles::checkChain(ast::ISymbolTypeScope *i) {
-    ast::ITypeScope *ts = dynamic_cast<ast::ITypeScope *>(i->getTarget());
+    ast::ITypeScope *ts = NodeKind::cast<ast::ITypeScope>(i->getTarget());
 
     if (!ts || !ts->getSuper_t()) {
         return;
@@ -85,10 +86,10 @@ void TaskCheckTypeCycles::checkChain(ast::ISymbolTypeScope *i) {
     TaskResolveSuperTypeRef resolver(m_ctxt->getDebugMgr(), m_root);
 
     while (true) {
-        ast::ISymbolTypeScope *cur_sym = dynamic_cast<ast::ISymbolTypeScope *>(cur);
+        ast::ISymbolTypeScope *cur_sym = NodeKind::cast<ast::ISymbolTypeScope>(cur);
         ast::ITypeScope *cur_ts = cur_sym
-            ? dynamic_cast<ast::ITypeScope *>(cur_sym->getTarget())
-            : dynamic_cast<ast::ITypeScope *>(cur);
+            ? NodeKind::cast<ast::ITypeScope>(cur_sym->getTarget())
+            : NodeKind::cast<ast::ITypeScope>(cur);
 
         if (!cur_ts) {
             return;         // not a type scope: nothing inherits from here
@@ -161,21 +162,21 @@ void TaskCheckTypeCycles::checkChain(ast::ISymbolTypeScope *i) {
 }
 
 void TaskCheckTypeCycles::markCyclic(ast::IScopeChild *c) {
-    ast::ISymbolTypeScope *sym = dynamic_cast<ast::ISymbolTypeScope *>(c);
+    ast::ISymbolTypeScope *sym = NodeKind::cast<ast::ISymbolTypeScope>(c);
     ast::ITypeScope *ts = sym
-        ? dynamic_cast<ast::ITypeScope *>(sym->getTarget())
-        : dynamic_cast<ast::ITypeScope *>(c);
+        ? NodeKind::cast<ast::ITypeScope>(sym->getTarget())
+        : NodeKind::cast<ast::ITypeScope>(c);
     if (ts) {
         ts->setSuper_cyclic(true);
     }
 }
 
 std::string TaskCheckTypeCycles::nameOf(ast::IScopeChild *c) {
-    if (ast::ISymbolTypeScope *sym = dynamic_cast<ast::ISymbolTypeScope *>(c)) {
+    if (ast::ISymbolTypeScope *sym = NodeKind::cast<ast::ISymbolTypeScope>(c)) {
         return sym->getName();
-    } else if (ast::ISymbolScope *sc = dynamic_cast<ast::ISymbolScope *>(c)) {
+    } else if (ast::ISymbolScope *sc = NodeKind::cast<ast::ISymbolScope>(c)) {
         return sc->getName();
-    } else if (ast::ITypeScope *ts = dynamic_cast<ast::ITypeScope *>(c)) {
+    } else if (ast::ITypeScope *ts = NodeKind::cast<ast::ITypeScope>(c)) {
         if (ts->getName()) {
             return ts->getName()->getId();
         }

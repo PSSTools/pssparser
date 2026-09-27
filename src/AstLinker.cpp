@@ -41,6 +41,7 @@
 #include "TaskResolveImports.h"
 #include "TaskCheckPackedStructs.h"
 #include "TaskCheckPackedUses.h"
+#include "TaskCheckImports.h"
 #include "TaskCheckRefsResolved.h"
 #include "TaskCheckTypeCycles.h"
 #include "TaskResolveOverrideActions.h"
@@ -171,6 +172,14 @@ void AstLinker::linkPasses(
     apply_ext.apply(symtree);
     uint64_t apply_ext_e = time_ms();
     DEBUG("Apply extensions: %lldms", (apply_ext_e-apply_ext_s));
+
+    // 18.1.3's rules on where an import is written. After the merge, when a
+    // component's import list also holds its extensions'.
+    pass = "checking imports";
+    {
+        ResolveContext chk_ctxt(m_factory, marker_l, symtree);
+        TaskCheckImports(&chk_ctxt).check(symtree, 1 /* the bundled stdlib */);
+    }
 
     // Finally, resolve remaining names
 

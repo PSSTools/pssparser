@@ -26,6 +26,7 @@
 #include "TaskResolveRefs.h"
 #include "TaskResolveRef.h"
 #include "ExprTypeOf.h"
+#include "pssp/impl/NodeKind.h"
 
 
 namespace pssp {
@@ -154,7 +155,7 @@ void TaskSpecializeParameterizedRef::bindDefaults(
             it=target_c->getPlist()->getChildren().begin();
             it!=target_c->getPlist()->getChildren().end() && !any; it++) {
         ast::ITemplateValueParamDecl *v =
-            dynamic_cast<ast::ITemplateValueParamDecl *>(it->get());
+            NodeKind::cast<ast::ITemplateValueParamDecl>(it->get());
         any = (v && v->getDflt());
     }
     if (!any || !m_ctxt->firstDefaultsBinding(target_c)) {
@@ -181,7 +182,7 @@ ast::ISymbolEnumScope *TaskSpecializeParameterizedRef::paramEnum(
         ast::ISymbolRefPath                 *target,
         ast::ITemplateValueParamDecl        *p) {
     ast::IDataTypeUserDefined *udt =
-        dynamic_cast<ast::IDataTypeUserDefined *>(p->getType());
+        NodeKind::cast<ast::IDataTypeUserDefined>(p->getType());
     if (!udt || !udt->getType_id()) {
         return 0;
     }

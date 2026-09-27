@@ -18,6 +18,7 @@
 #include <cstdint>
 #include <unordered_map>
 #include "CoreLibraryLookup.h"
+#include "pssp/impl/NodeKind.h"
 
 namespace pssp {
 
@@ -48,7 +49,7 @@ std::string findCoreLibraryPackage(
         // The package's own symbol scope. A user package of the same name
         // merges into this one, which is fine: the suggestion is still to
         // import that package.
-        ast::ISymbolScope *pkg_s = dynamic_cast<ast::ISymbolScope *>(
+        ast::ISymbolScope *pkg_s = NodeKind::cast<ast::ISymbolScope>(
             root->getChildren().at(p_it->second).get());
 
         if (pkg_s && pkg_s->getSymtab().find(name) != pkg_s->getSymtab().end()) {

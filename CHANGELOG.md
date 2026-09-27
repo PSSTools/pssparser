@@ -7,6 +7,186 @@ revision advances only the patch component.
 
 ## Unreleased
 
+### Added — import and extension-visibility warnings (symbol-resolution 6.5)
+
+New warnings for rules the linker did not check. Each is a warning for one
+release, then becomes an error.
+
+- **PSS051: an extension member used where it is not visible** (LRM 17.2.3).
+  A field, type or enum item an `extend` in package `p` adds is visible in
+  `p`, and elsewhere only where `p` is wildcard-imported: "'b' is declared
+  by an extension of 'S' in package 'p', which is not visible here
+  (17.2.3); add 'import p::*;'". Extensions in the global scope, or in the
+  package that declares the type, are visible wherever the type is.
+- **PSS052: an explicit import that conflicts** (18.1.3): one naming
+  something the importing package or component already declares, or a name
+  another explicit import in the same scope takes from another package.
+- **PSS053: an import after a declaration** (18.1.3). Imports come first in
+  a file, a `package` statement, a component or an extension. A scope that
+  holds a `compile if` is not checked.
+
+### Fixed — a field two packages' extensions share binds by package (17.2.3)
+
+Two packages may each add a field or type of one name to a type. Every
+reference used to bind to whichever extension was merged first, even inside
+the other package. A reference now binds to its own package's member, else to
+the one a wildcard import brings in. Where two imported packages both add it,
+the reference is an error (PSS017), as 17.2.3 requires.
+
+### Fixed — covergroup bodies are resolved (symbol-resolution 10.1, LRM 15)
+
+Nothing inside a covergroup was looked up, so a misspelled coverpoint
+target, `iff` guard, bin range or size, `with` expression, cross item,
+option value or instantiation argument linked without a word. Each is now
+resolved where the LRM puts it:
+
+- A coverpoint's target and `iff`, its bin ranges and sizes, a cross's
+  `iff`, and option values are written in the covergroup's context: its
+  ports, or the fields of the type that encloses it. Coverpoint labels are
+  not in view there, so `c : coverpoint c;` covers the port `c` (Example
+  199).
+- A cross item is a coverpoint of the covergroup, or else a variable, which
+  becomes an implicit coverpoint (Example 198).
+- In a bin's `with` expression, and in `bins b = cp with (...)`, the
+  coverpoint's name stands for the candidate value (Examples 204 and 205). A
+  cross bin's `with` names the crossed coverpoints (Example 210).
+- An instantiation's port names are looked up among the covergroup type's
+  ports, and its actuals in the instantiating scope.
+
+Unknown names are PSS002; an unknown port is "covergroup 'cg_t' has no port
+named 'x'". Two coverpoints or crosses of the same name are PSS003. A new
+marker, PSS050 "Invalid coverage reference", reports a cross item that is
+neither a coverpoint nor a data field, and a bin that names a coverpoint or
+cross other than its own.
+
+For tools reading the AST: the coverage expressions are no longer
+`visit: false`, so the generated visitors now walk them. `Covergroup` and
+`CovergroupType` have a new field, `body`, which the linker sets: a symbol
+scope holding the coverpoint and cross names, whose members are not owned.
+
+### Fixed — member access through a `foreach` iterator (known-issues SR-F2)
+
+`foreach (s : xs) { s.level == 1; }` in a constraint reported "root ref-path
+element s is not a composite scope": the iterator was never given the
+element type of what it iterates. It now is. The same error hit procedural
+and activity loops over a collection reached through a path,
+`foreach (e : h.list) { e.f = 1; }`, which read `h` as the collection; the
+last element of the path is now used.
+
+### Changed — linking is about ten times faster
+
+About 95% of link time was spent in `dynamic_cast` on AST nodes. The AST
+interfaces use virtual inheritance, so each cast searched the class graph
+and compared type names as strings, at about 1,900 instructions a cast. Every
+such cast in the parser and linker now goes through a generated visitor,
+`NodeKind`, which classifies a node with one virtual call. Linking the curated
+corpus takes 0.95G instructions instead of 9.94G, with identical results.
+Parsing is unchanged, and is now most of the time a parse-and-link takes.
+
+### Fixed — `bind` operands are resolved (symbol-resolution 4.5, LRM 11.9 and 12.3)
+
+Nothing in a `bind` was looked up, apart from the action type in a pool
+bind's target, and that one in the wrong component. So:
+
+- `bind p { s1.sa.r }`, where `sa` is an action of `s1`'s component, was a
+  false "unknown type 'sa'". The action type is now looked up in the
+  component that the path reaches. The same applies to the LRM's
+  `sub[0..3].prod.out` form.
+- A misspelled pool, component instance or field linked without a word, in a
+  pool bind and in an activity bind (`bind p1.out c1.inp;`) alike. Each is
+  now PSS002.
+- Pools were not names in their component, so a pool path through an
+  instance, `bind gfx0.power_state_var ...` (Example 132), could not have
+  been resolved.
+
+A pool bind now resolves its pool as an ordinary path from the binding
+component. Each target is resolved in order: every path element is a component
+instance (an array is named whole or by a range), the action type is an action
+of the last component reached, and the field is a member of that action.
+Targets are resolved after every declaration, so file order does not matter.
+An activity bind's operands are ordinary paths in the activity, labels
+included.
+
+A new marker, PSS049 "Invalid bind operand", reports a name of the wrong kind:
+a pool that is not a pool, a path element that is not a component instance,
+an action type that is not an action, or a field that is not an input, output
+or resource claim.
+
+The completeness check (PSS042) now covers binds and scheduling constraints.
+
+### Fixed — paths through activity labels follow the named sub-activities (symbol-resolution 4.3, LRM 11.8)
+
+A path through labels, `b1.my_seq.my_rep.a.x`, now walks the named
+sub-activities that the labels make (11.8.3). Only a labeled statement is a
+level. Every label used to be a member of the action itself, which caused
+these errors:
+
+- `b1.my_rep.a`, which skips `my_seq`, was accepted. It is now an error.
+- The same label in two different sub-activities,
+  `L1: { X: do A; } L2: { X: do A; }`, was a false "duplicate declaration of
+  'X'". It is now accepted.
+- Two labels that do clash, such as the second `L2` in Example 122, were not
+  reported. Nor was a label with the same name as a handle beside it
+  (Example 123). Both are now PSS003, naming the label. The message used to
+  read `''`.
+- A label under an unlabeled `repeat` or `select` was not found. So Example
+  82's `do mem2mem_chain with { xfer.size > 10; }` was rejected; it now links.
+- A replicate label array was not found, which rejected Example 115's
+  `RL[count-1].a.x` and `RL[0].a.x`. Both now link.
+
+Scheduling constraints, `constraint parallel {L.a, L.b}`, now resolve their
+targets, so an unknown one is reported (PSS002). `join_branch` finds a
+branch's label inside its own labeled block.
+
+`T.x` on a labeled handle traversal `T: a;` now means `a.x`, even when the
+constraint comes before the activity. It used to report "root ref-path element
+T is not a composite scope".
+
+What a label exposes:
+
+- A labeled block or loop exposes the handles declared directly in it, or in
+  the loop's body block.
+- A labeled `if`, `select` or `match` exposes the labels in its branches, but
+  not their handles.
+- A `replicate` exposes only its label array.
+- Monitor activity labels form no paths.
+
+`pssparser.refs` reports a label array (`RL[]:`) as declaring the replicated
+body. It no longer reports a label inside an unlabeled `select`, `if` or
+`match` as declaring that statement.
+
+For tools reading the AST: `ActivityLabeledScope` has a new field,
+`sub_activity`, which the linker sets on each labeled statement. It is a
+synthetic scope whose members are not owned. The generated visitors do not
+walk it.
+
+### Fixed — a struct literal's member names are checked (symbol-resolution 8.9, LRM 4.8.4)
+
+The names in a struct literal, `{.a = 1, .b = 2}`, were never looked up, so a
+misspelled one linked without a word. Each is now resolved as an attribute
+of the literal's type, its own or inherited, and an unknown one is reported
+(PSS002, "'S' has no member named 'x'"). The type is taken from:
+
+- the field or variable the literal initializes;
+- an exec block's tag (`exec header C = tag_s { .nm = "x" } ...`);
+- the left-hand side of an assignment;
+- the parameter it is passed for, or the function's return type;
+- the member it initializes, for a literal nested in another (Examples 6
+  and 7).
+
+The type is also the expected type of the value, so an enum-typed attribute
+takes an unqualified item of its enum (`{.c = GREEN}`) without the PSS046
+warning.
+
+New PSS048 for a name given twice ("struct literal names 'a' more than once")
+and for a name that is not a data attribute, such as a constraint. A literal
+whose type is not known from where it is written, such as an operand of
+`==`, is not checked yet: its names are left unbound and marked
+`ctx_unknown`.
+
+`pssparser.refs` now binds each member name to its attribute; it used to
+report them as unresolved.
+
 ### Fixed — `randomize` keeps every target, and its `with` block sees the target's members (symbol-resolution 8.8, LRM 13.4.6)
 
 `randomize v1, v2 with { ... }` used to keep only `v1`, with a PSS116 "only the

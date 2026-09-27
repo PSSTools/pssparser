@@ -57,6 +57,7 @@
 #include "pssp/ast/ITypedefDeclaration.h"
 #include "pssp/impl/TaskResolveSymbolPathRef.h"
 #include "TaskExprTypeCat.h"
+#include "pssp/impl/NodeKind.h"
 
 
 namespace pssp {
@@ -78,26 +79,26 @@ TypeCatE TaskExprTypeCat::expr(ast::IExpr *e) {
     }
 
     // Literals -- the cases that motivated this in the first place.
-    if (dynamic_cast<ast::IExprString *>(e)) {
+    if (NodeKind::cast<ast::IExprString>(e)) {
         return TypeCatE::String;
-    } else if (dynamic_cast<ast::IExprBool *>(e)) {
+    } else if (NodeKind::cast<ast::IExprBool>(e)) {
         return TypeCatE::Bool;
-    } else if (dynamic_cast<ast::IExprFloatLiteral *>(e)) {
+    } else if (NodeKind::cast<ast::IExprFloatLiteral>(e)) {
         return TypeCatE::Float;
-    } else if (dynamic_cast<ast::IExprNumber *>(e)) {
+    } else if (NodeKind::cast<ast::IExprNumber>(e)) {
         return TypeCatE::Int;
-    } else if (dynamic_cast<ast::IExprNull *>(e)) {
+    } else if (NodeKind::cast<ast::IExprNull>(e)) {
         return TypeCatE::Null;
-    } else if (dynamic_cast<ast::IExprAggrLiteral *>(e)) {
+    } else if (NodeKind::cast<ast::IExprAggrLiteral>(e)) {
         return TypeCatE::Aggregate;
     }
 
     // A cast states the category outright.
-    if (ast::IExprCast *c = dynamic_cast<ast::IExprCast *>(e)) {
+    if (ast::IExprCast *c = NodeKind::cast<ast::IExprCast>(e)) {
         return dataType(c->getCasting_type());
     }
 
-    if (ast::IExprUnary *u = dynamic_cast<ast::IExprUnary *>(e)) {
+    if (ast::IExprUnary *u = NodeKind::cast<ast::IExprUnary>(e)) {
         m_depth++;
         TypeCatE ret;
         switch (u->getOp()) {
@@ -118,7 +119,7 @@ TypeCatE TaskExprTypeCat::expr(ast::IExpr *e) {
         return ret;
     }
 
-    if (ast::IExprBin *b = dynamic_cast<ast::IExprBin *>(e)) {
+    if (ast::IExprBin *b = NodeKind::cast<ast::IExprBin>(e)) {
         switch (b->getOp()) {
             case ast::ExprBinOp::BinOp_LogOr:
             case ast::ExprBinOp::BinOp_LogAnd:
@@ -143,14 +144,14 @@ TypeCatE TaskExprTypeCat::expr(ast::IExpr *e) {
         }
     }
 
-    if (ast::IExprCond *c = dynamic_cast<ast::IExprCond *>(e)) {
+    if (ast::IExprCond *c = NodeKind::cast<ast::IExprCond>(e)) {
         m_depth++;
         TypeCatE ret = merge(expr(c->getTrue_e()), expr(c->getFalse_e()));
         m_depth--;
         return ret;
     }
 
-    if (dynamic_cast<ast::IExprIn *>(e)) {
+    if (NodeKind::cast<ast::IExprIn>(e)) {
         return TypeCatE::Bool;
     }
 
@@ -158,7 +159,7 @@ TypeCatE TaskExprTypeCat::expr(ast::IExpr *e) {
 }
 
 TypeCatE TaskExprTypeCat::refPath(ast::IExpr *e) {
-    ast::IExprRefPathContext *rp = dynamic_cast<ast::IExprRefPathContext *>(e);
+    ast::IExprRefPathContext *rp = NodeKind::cast<ast::IExprRefPathContext>(e);
 
     if (!rp || !rp->getTarget() || !rp->getHier_id()) {
         return TypeCatE::Unknown;
@@ -190,18 +191,18 @@ TypeCatE TaskExprTypeCat::declared(ast::IScopeChild *c, TaskExprTypeCat *self) {
         return TypeCatE::Unknown;
     }
 
-    if (dynamic_cast<ast::IEnumItem *>(c)) {
+    if (NodeKind::cast<ast::IEnumItem>(c)) {
         return TypeCatE::Enum;
-    } else if (ast::IField *f = dynamic_cast<ast::IField *>(c)) {
+    } else if (ast::IField *f = NodeKind::cast<ast::IField>(c)) {
         return self->dataType(f->getType());
     } else if (ast::IProceduralStmtDataDeclaration *d =
-        dynamic_cast<ast::IProceduralStmtDataDeclaration *>(c)) {
+        NodeKind::cast<ast::IProceduralStmtDataDeclaration>(c)) {
         return self->dataType(d->getDatatype());
     } else if (ast::IFunctionParamDecl *p =
-        dynamic_cast<ast::IFunctionParamDecl *>(c)) {
+        NodeKind::cast<ast::IFunctionParamDecl>(c)) {
         return self->dataType(p->getType());
     } else if (ast::IGenericConstraintParam *p =
-        dynamic_cast<ast::IGenericConstraintParam *>(c)) {
+        NodeKind::cast<ast::IGenericConstraintParam>(c)) {
         // A `numeric` parameter has no type: it is integer or float (13.1.2).
         return self->dataType(p->getType());
     }
@@ -214,17 +215,17 @@ TypeCatE TaskExprTypeCat::dataType(ast::IDataType *dt) {
         return TypeCatE::Unknown;
     }
 
-    if (dynamic_cast<ast::IDataTypeString *>(dt)) {
+    if (NodeKind::cast<ast::IDataTypeString>(dt)) {
         return TypeCatE::String;
-    } else if (dynamic_cast<ast::IDataTypeBool *>(dt)) {
+    } else if (NodeKind::cast<ast::IDataTypeBool>(dt)) {
         return TypeCatE::Bool;
-    } else if (dynamic_cast<ast::IDataTypeFloat *>(dt)) {
+    } else if (NodeKind::cast<ast::IDataTypeFloat>(dt)) {
         return TypeCatE::Float;
-    } else if (dynamic_cast<ast::IDataTypeInt *>(dt)) {
+    } else if (NodeKind::cast<ast::IDataTypeInt>(dt)) {
         return TypeCatE::Int;
-    } else if (dynamic_cast<ast::IDataTypeEnum *>(dt)) {
+    } else if (NodeKind::cast<ast::IDataTypeEnum>(dt)) {
         return TypeCatE::Enum;
-    } else if (dynamic_cast<ast::IDataTypeChandle *>(dt)) {
+    } else if (NodeKind::cast<ast::IDataTypeChandle>(dt)) {
         return TypeCatE::Chandle;
     }
 
@@ -232,7 +233,7 @@ TypeCatE TaskExprTypeCat::dataType(ast::IDataType *dt) {
     // enough to place the ones that matter. What is left genuinely Unknown --
     // a template parameter, an unresolved name -- stays that way, and Unknown
     // is compatible with everything.
-    ast::IDataTypeUserDefined *udt = dynamic_cast<ast::IDataTypeUserDefined *>(dt);
+    ast::IDataTypeUserDefined *udt = NodeKind::cast<ast::IDataTypeUserDefined>(dt);
 
     if (udt && udt->getType_id() && udt->getType_id()->getTarget()) {
         ast::IScopeChild *c =
@@ -241,18 +242,18 @@ TypeCatE TaskExprTypeCat::dataType(ast::IDataType *dt) {
         // An enum resolves to an ISymbolEnumScope, which is an ISymbolScope
         // and *not* an ISymbolTypeScope, so neither the type-scope route nor
         // TaskGetElemSymbolScope produces an IEnumDecl from one.
-        if (dynamic_cast<ast::ISymbolEnumScope *>(c)) {
+        if (NodeKind::cast<ast::ISymbolEnumScope>(c)) {
             return TypeCatE::Enum;
         }
 
-        ast::ISymbolTypeScope *sts = dynamic_cast<ast::ISymbolTypeScope *>(c);
+        ast::ISymbolTypeScope *sts = NodeKind::cast<ast::ISymbolTypeScope>(c);
         ast::IScopeChild *decl = sts?sts->getTarget():c;
 
-        if (dynamic_cast<ast::IEnumDecl *>(decl)) {
+        if (NodeKind::cast<ast::IEnumDecl>(decl)) {
             return TypeCatE::Enum;
         }
 
-        ast::ITypeScope *ts = dynamic_cast<ast::ITypeScope *>(decl);
+        ast::ITypeScope *ts = NodeKind::cast<ast::ITypeScope>(decl);
 
         if (ts) {
             // A built-in collection stays Unknown: `list<int>` against an
@@ -264,9 +265,9 @@ TypeCatE TaskExprTypeCat::dataType(ast::IDataType *dt) {
                 return TypeCatE::Unknown;
             }
 
-            if (dynamic_cast<ast::IStruct *>(ts)
-                || dynamic_cast<ast::IComponent *>(ts)
-                || dynamic_cast<ast::IAction *>(ts)) {
+            if (NodeKind::cast<ast::IStruct>(ts)
+                || NodeKind::cast<ast::IComponent>(ts)
+                || NodeKind::cast<ast::IAction>(ts)) {
                 return TypeCatE::Aggregate;
             }
         }
@@ -344,7 +345,7 @@ const char *TaskExprTypeCat::name(TypeCatE c) {
 
 const char *TaskExprTypeCat::dataTypeName(ast::IDataType *dt, TypeCatE c) {
     if (c == TypeCatE::Int) {
-        ast::IDataTypeInt *i = dynamic_cast<ast::IDataTypeInt *>(dt);
+        ast::IDataTypeInt *i = NodeKind::cast<ast::IDataTypeInt>(dt);
         if (i && !i->getIs_signed()) {
             return "bit";
         }

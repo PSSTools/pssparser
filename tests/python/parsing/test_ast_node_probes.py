@@ -1408,12 +1408,15 @@ def test_inline_covergroup_keeps_its_options(parser):
 
 
 def test_covergroup_body_does_not_leak_into_the_enclosing_scope():
-    """A covergroup body is not a scope, so nothing in it names anything.
+    """A covergroup's coverpoints and crosses are named in a scope of their
+    own, not in the enclosing one.
 
     Without symbol-tree visitors the generated ones descend into the
     coverpoint, cross, option and port-map lists with the enclosing scope
     still current, so a struct with one covergroup linked to a struct holding
-    the covergroup plus a loose copy of everything inside it.
+    the covergroup plus a loose copy of everything inside it. Since
+    symbol-resolution 10.1 the names are in the covergroup's body scope, an
+    unnamed synthetic child next to the covergroup (LRM 15.3 a, 15.4).
     """
     root = parse_pss(COVERGROUP_FULL_SRC)
 
@@ -1430,7 +1433,14 @@ def test_covergroup_body_does_not_leak_into_the_enclosing_scope():
     assert st is not None
     kinds = [type(c).__name__ for c in st.getChildren()]
     assert kinds == ["Field", "Field", "CovergroupInstantiation",
-                     "CovergroupInstantiation", "Covergroup"]
+                     "CovergroupInstantiation", "Covergroup", "SymbolScope"]
+
+    # The body scope: the inline covergroup's coverpoint and cross, and
+    # nothing else.
+    body = st.getChildren()[-1]
+    assert [type(c).__name__ for c in body.getChildren()] == [
+        "CovergroupCoverpoint", "CovergroupCross"]
+    assert type(body.getTarget()).__name__ == "Covergroup"
 
     # The type is named, so `cg_t cg1(...)` can resolve it.
     assert find(root, "cg_t") is not None

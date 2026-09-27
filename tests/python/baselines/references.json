@@ -3,16 +3,14 @@
  "summary": {
   "slots": 96,
   "slots_by_state": {
-   "clean": 2,
-   "errors": 1,
-   "reported": 67,
-   "silent": 26
+   "clean": 3,
+   "reported": 91,
+   "silent": 2
   },
   "legal_model": "clean",
   "corpus_refs": {
-   "bound": 1216,
-   "dependent": 2,
-   "unbound": 28
+   "bound": 1244,
+   "dependent": 2
   },
   "schema_ref_fields": 46,
   "schema_ref_fields_in_corpus": 21,
@@ -147,7 +145,7 @@
   },
   "CovergroupInstantiation.targets": {
    "type": "ExprRefPathContext",
-   "visit": false,
+   "visit": true,
    "in_corpus": false,
    "in_slots": true
   },
@@ -165,7 +163,7 @@
   },
   "CovergroupPortmap.target": {
    "type": "ExprRefPathContext",
-   "visit": false,
+   "visit": true,
    "in_corpus": true,
    "in_slots": true
   },
@@ -298,9 +296,9 @@
  },
  "tmiss": {
   "00_legal": "clean",
-  "abind_lhs": "silent",
-  "abind_lhs__member": "silent",
-  "abind_rhs": "silent",
+  "abind_lhs": "reported",
+  "abind_lhs__member": "reported",
+  "abind_rhs": "reported",
   "aforeach": "reported",
   "aif": "reported",
   "amatch": "reported",
@@ -308,26 +306,26 @@
   "ann__pname": "reported",
   "ann__pval": "reported",
   "arr_dim": "reported",
-  "bins_asize": "silent",
-  "bins_cpref": "silent",
-  "bins_range": "silent",
-  "bins_with": "silent",
+  "bins_asize": "reported",
+  "bins_cpref": "reported",
+  "bins_range": "reported",
+  "bins_with": "reported",
   "bit_w": "reported",
   "cast_t": "reported",
-  "cg_opt_val": "silent",
-  "cgi_act": "silent",
+  "cg_opt_val": "reported",
+  "cgi_act": "reported",
   "cgi_act__legal": "clean",
-  "cgi_opt": "silent",
-  "cgi_port": "silent",
-  "cgi_pos": "silent",
+  "cgi_opt": "reported",
+  "cgi_port": "reported",
+  "cgi_pos": "reported",
   "cgi_type": "reported",
   "constr": "reported",
   "cover_ref": "reported",
   "cp_dt": "reported",
-  "cp_iff": "silent",
-  "cp_target": "silent",
-  "cross_iff": "silent",
-  "cross_item": "silent",
+  "cp_iff": "reported",
+  "cp_target": "reported",
+  "cross_iff": "reported",
+  "cross_item": "reported",
   "default": "reported",
   "default_dis": "reported",
   "enum_val": "reported",
@@ -355,10 +353,10 @@
   "pforeach": "reported",
   "pkg_import": "reported",
   "pool_bind_item__atype": "reported",
-  "pool_bind_item__comp": "silent",
-  "pool_bind_item__field": "silent",
-  "pool_bind_item__subpath": "errors",
-  "pool_bind_pool": "silent",
+  "pool_bind_item__comp": "reported",
+  "pool_bind_item__field": "reported",
+  "pool_bind_item__subpath": "clean",
+  "pool_bind_pool": "reported",
   "pool_size": "reported",
   "prev_ref": "reported",
   "prev_ref__this": "clean",
@@ -369,17 +367,17 @@
   "rand_tgt": "reported",
   "repeat_cnt": "reported",
   "repl_cnt": "reported",
-  "sched_c": "silent",
+  "sched_c": "reported",
   "sel_guard": "reported",
   "sel_w": "reported",
-  "slit_name": "silent",
+  "slit_name": "reported",
   "slit_val": "reported",
   "super_ref": "reported",
   "super_ref__own": "reported",
   "super_t": "reported",
   "sym_arg": "reported",
   "sym_call": "reported",
-  "tag_field": "silent",
+  "tag_field": "reported",
   "tag_t": "reported",
   "tmpl_assign": "reported",
   "tparam_restr": "reported",
@@ -392,8 +390,8 @@
   "uid_ref": "reported",
   "uid_ref__struct": "reported",
   "unique": "reported",
-  "xbins_tgt": "silent",
-  "xbins_with": "silent"
+  "xbins_tgt": "reported",
+  "xbins_with": "reported"
  },
  "bind": {
   "files": 95,
@@ -415,7 +413,7 @@
     "bound": 3
    },
    "ActivitySchedulingConstraint.targets | ExprRefPathContext": {
-    "unbound": 2
+    "bound": 2
    },
    "Annotation.type | TypeIdentifier": {
     "bound": 5
@@ -427,7 +425,7 @@
     "bound": 1
    },
    "ComponentBind.pool_path | ExprRefPathContext": {
-    "unbound": 8
+    "bound": 8
    },
    "ConstraintStmtDefault.hid | ExprRefPathContext": {
     "bound": 1
@@ -444,20 +442,20 @@
    "CoverStmtReference.target | TypeIdentifier": {
     "bound": 3
    },
-   "CovergroupCoverpoint.target[NOVISIT]{UNWALKED} | ExprRefPathContext": {
-    "unbound": 6
+   "CovergroupCoverpoint.target | ExprRefPathContext": {
+    "bound": 6
    },
    "CovergroupCross.coverpoint_names | ExprRefName": {
-    "unbound": 6
+    "bound": 6
    },
    "CovergroupInstantiation.type | TypeIdentifier": {
     "bound": 1
    },
    "CovergroupPortmap.name | ExprRefName": {
-    "unbound": 2
+    "bound": 2
    },
-   "CovergroupPortmap.target[NOVISIT]{UNWALKED} | ExprRefPathContext": {
-    "unbound": 2
+   "CovergroupPortmap.target | ExprRefPathContext": {
+    "bound": 2
    },
    "DataTypeUserDefined.type_id | TypeIdentifier": {
     "bound": 507,
@@ -467,22 +465,16 @@
     "bound": 1
    },
    "ExprBin.lhs | ExprRefPathContext": {
-    "bound": 117
+    "bound": 118
    },
    "ExprBin.lhs | ExprRefPathSuper": {
     "bound": 1
    },
-   "ExprBin.lhs{UNWALKED} | ExprRefPathContext": {
-    "unbound": 1
-   },
    "ExprBin.rhs | ExprRefPathContext": {
-    "bound": 44
+    "bound": 45
    },
    "ExprBin.rhs | ExprRefPathSuper": {
     "bound": 1
-   },
-   "ExprBin.rhs{UNWALKED} | ExprRefPathContext": {
-    "unbound": 1
    },
    "ExprDomainOpenRangeValue.rhs | ExprRefPathContext": {
     "dependent": 1

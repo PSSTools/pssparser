@@ -26,6 +26,7 @@
 #include "pssp/ast/ISymbolFunctionScope.h"
 #include "pssp/ast/ISymbolTypeScope.h"
 #include "pssp/ast/ISymbolDeclaration.h"
+#include "pssp/impl/NodeKind.h"
 
 namespace pssp {
 
@@ -52,7 +53,7 @@ void TaskResolveImports::resolveAll(ast::IRootSymbolScope *root) {
     for (std::vector<ast::IScopeChildUP>::const_iterator
         it=root->getChildren().begin();
         it!=root->getChildren().end(); it++) {
-        if (ast::ISymbolScope *c = dynamic_cast<ast::ISymbolScope *>(it->get())) {
+        if (ast::ISymbolScope *c = NodeKind::cast<ast::ISymbolScope>(it->get())) {
             walk(c);
         }
     }
@@ -69,8 +70,8 @@ void TaskResolveImports::walk(ast::ISymbolScope *s) {
         return;
     }
 
-    if (dynamic_cast<ast::ISymbolTypeScope *>(s)
-            || dynamic_cast<ast::ISymbolExtendScope *>(s)) {
+    if (NodeKind::cast<ast::ISymbolTypeScope>(s)
+            || NodeKind::cast<ast::ISymbolExtendScope>(s)) {
         // Pushed for its own imports' sake: an import path resolves from
         // where it is written. An extension has no index to address it by, so
         // its imports resolve from the scope around it.
@@ -86,8 +87,8 @@ void TaskResolveImports::walk(ast::ISymbolScope *s) {
         return;
     }
 
-    if (dynamic_cast<ast::ISymbolFunctionScope *>(s)
-            || dynamic_cast<ast::ISymbolEnumScope *>(s)
+    if (NodeKind::cast<ast::ISymbolFunctionScope>(s)
+            || NodeKind::cast<ast::ISymbolEnumScope>(s)
             || s->getId() < 0) {
         return;
     }
@@ -99,7 +100,7 @@ void TaskResolveImports::walk(ast::ISymbolScope *s) {
     for (std::vector<ast::IScopeChildUP>::const_iterator
         it=s->getChildren().begin();
         it!=s->getChildren().end(); it++) {
-        if (ast::ISymbolScope *c = dynamic_cast<ast::ISymbolScope *>(it->get())) {
+        if (ast::ISymbolScope *c = NodeKind::cast<ast::ISymbolScope>(it->get())) {
             walk(c);
         }
     }
@@ -137,8 +138,8 @@ void TaskResolveImports::checkAliases(ast::ISymbolScope *s) {
     }
     const std::vector<ast::IPackageImportStmt *> &imps = s->getImports()->getImports();
     // A package or the global scope can hold a package; a type cannot.
-    bool pkg_level = !dynamic_cast<ast::ISymbolTypeScope *>(s)
-        && !dynamic_cast<ast::ISymbolExtendScope *>(s);
+    bool pkg_level = !NodeKind::cast<ast::ISymbolTypeScope>(s)
+        && !NodeKind::cast<ast::ISymbolExtendScope>(s);
 
     for (uint32_t k=0; k<imps.size(); k++) {
         ast::IPackageImportStmt *imp = imps.at(k);
@@ -177,14 +178,14 @@ void TaskResolveImports::checkAliases(ast::ISymbolScope *s) {
                 || it->second >= (int32_t)s->getChildren().size()) {
             continue;
         }
-        ast::ISymbolScope *pkg = dynamic_cast<ast::ISymbolScope *>(
+        ast::ISymbolScope *pkg = NodeKind::cast<ast::ISymbolScope>(
             s->getChildren().at(it->second).get());
         if (!pkg
-                || dynamic_cast<ast::ISymbolTypeScope *>(pkg)
-                || dynamic_cast<ast::ISymbolEnumScope *>(pkg)
-                || dynamic_cast<ast::ISymbolFunctionScope *>(pkg)
-                || dynamic_cast<ast::ISymbolExtendScope *>(pkg)
-                || dynamic_cast<ast::ISymbolDeclaration *>(pkg)) {
+                || NodeKind::cast<ast::ISymbolTypeScope>(pkg)
+                || NodeKind::cast<ast::ISymbolEnumScope>(pkg)
+                || NodeKind::cast<ast::ISymbolFunctionScope>(pkg)
+                || NodeKind::cast<ast::ISymbolExtendScope>(pkg)
+                || NodeKind::cast<ast::ISymbolDeclaration>(pkg)) {
             continue;
         }
         // A package's location is its first declaration's, in the earliest

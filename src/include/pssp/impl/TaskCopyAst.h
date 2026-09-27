@@ -31,6 +31,7 @@
 #include "pssp/ast/ITemplateParamValueList.h"
 #include "pssp/ast/ITemplateParamValue.h"
 #include "pssp/IFactory.h"
+#include "pssp/impl/NodeKind.h"
 
 namespace pssp {
 
@@ -2213,19 +2214,19 @@ public:
     ast::ITemplateElem *copyTemplateElem(ast::ITemplateElem *i) {
         ast::ITemplateElem *ret = 0;
 
-        if (ast::ITemplateText *t = dynamic_cast<ast::ITemplateText *>(i)) {
+        if (ast::ITemplateText *t = NodeKind::cast<ast::ITemplateText>(i)) {
             ret = m_factory->mkTemplateText(
                 t->getName(), t->getOffset(), t->getExtent(), t->getText());
-        } else if (ast::ITemplateExpr *t = dynamic_cast<ast::ITemplateExpr *>(i)) {
+        } else if (ast::ITemplateExpr *t = NodeKind::cast<ast::ITemplateExpr>(i)) {
             ret = m_factory->mkTemplateExpr(
                 t->getName(), t->getOffset(), t->getExtent(),
                 t->getExpr() ? copy(t->getExpr()) : 0);
-        } else if (ast::ITemplateComment *t = dynamic_cast<ast::ITemplateComment *>(i)) {
+        } else if (ast::ITemplateComment *t = NodeKind::cast<ast::ITemplateComment>(i)) {
             ast::ITemplateComment *c = m_factory->mkTemplateComment(
                 t->getName(), t->getOffset(), t->getExtent(), t->getText());
             c->setIs_line(t->getIs_line());
             ret = c;
-        } else if (ast::ITemplateIf *t = dynamic_cast<ast::ITemplateIf *>(i)) {
+        } else if (ast::ITemplateIf *t = NodeKind::cast<ast::ITemplateIf>(i)) {
             ast::ITemplateIf *n = m_factory->mkTemplateIf(
                 t->getName(), t->getOffset(), t->getExtent());
             for (std::vector<ast::ITemplateIfClauseUP>::const_iterator
@@ -2242,7 +2243,7 @@ public:
                 n->getClauses().push_back(ast::ITemplateIfClauseUP(c));
             }
             ret = n;
-        } else if (ast::ITemplateForeach *t = dynamic_cast<ast::ITemplateForeach *>(i)) {
+        } else if (ast::ITemplateForeach *t = NodeKind::cast<ast::ITemplateForeach>(i)) {
             ast::ITemplateForeach *n = m_factory->mkTemplateForeach(
                 t->getName(), t->getOffset(), t->getExtent(),
                 t->getExpr() ? copy(t->getExpr()) : 0);
@@ -2254,7 +2255,7 @@ public:
             }
             copyTemplateBody(t, n);
             ret = n;
-        } else if (ast::ITemplateRepeat *t = dynamic_cast<ast::ITemplateRepeat *>(i)) {
+        } else if (ast::ITemplateRepeat *t = NodeKind::cast<ast::ITemplateRepeat>(i)) {
             ast::ITemplateRepeat *n = m_factory->mkTemplateRepeat(
                 t->getName(), t->getOffset(), t->getExtent(),
                 t->getExpr() ? copy(t->getExpr()) : 0);
@@ -2263,7 +2264,7 @@ public:
             }
             copyTemplateBody(t, n);
             ret = n;
-        } else if (ast::ITemplateVarDecl *t = dynamic_cast<ast::ITemplateVarDecl *>(i)) {
+        } else if (ast::ITemplateVarDecl *t = NodeKind::cast<ast::ITemplateVarDecl>(i)) {
             ast::ITemplateVarDecl *n = m_factory->mkTemplateVarDecl(
                 t->getName(), t->getOffset(), t->getExtent());
             for (std::vector<ast::IProceduralStmtDataDeclarationUP>::const_iterator
@@ -2272,7 +2273,7 @@ public:
                     copyT<ast::IProceduralStmtDataDeclaration>(it->get()), false));
             }
             ret = n;
-        } else if (ast::ITemplateAssign *t = dynamic_cast<ast::ITemplateAssign *>(i)) {
+        } else if (ast::ITemplateAssign *t = NodeKind::cast<ast::ITemplateAssign>(i)) {
             ret = m_factory->mkTemplateAssign(
                 t->getName(), t->getOffset(), t->getExtent(),
                 copyT<ast::IExprRefName>(t->getLhs()),
@@ -2315,7 +2316,7 @@ private:
             failed("constraint iteration variable index %d out of range", idx);
             return 0;
         }
-        return dynamic_cast<ast::IConstraintStmtField *>(
+        return NodeKind::cast<ast::IConstraintStmtField>(
             scope->getChildren().at(idx).get());
     }
 

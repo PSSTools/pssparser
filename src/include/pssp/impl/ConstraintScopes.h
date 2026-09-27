@@ -26,6 +26,7 @@
 #include "pssp/ast/IConstraintSymbolScope.h"
 #include "pssp/ast/IMonitorConstraint.h"
 #include "pssp/ast/IProceduralStmtRandomize.h"
+#include "pssp/impl/NodeKind.h"
 
 namespace pssp {
 
@@ -48,21 +49,21 @@ public:
      * end.
      */
     static void bodies(ast::IScopeChild *c, std::vector<ast::IScopeChild *> &out) {
-        if (ast::IConstraintStmtIf *s = dynamic_cast<ast::IConstraintStmtIf *>(c)) {
+        if (ast::IConstraintStmtIf *s = NodeKind::cast<ast::IConstraintStmtIf>(c)) {
             out.push_back(s->getTrue_c());
             out.push_back(s->getFalse_c());
         } else if (ast::IActivityActionHandleTraversal *s =
-                dynamic_cast<ast::IActivityActionHandleTraversal *>(c)) {
+                NodeKind::cast<ast::IActivityActionHandleTraversal>(c)) {
             out.push_back(s->getWith_c());
         } else if (ast::IActivityActionTypeTraversal *s =
-                dynamic_cast<ast::IActivityActionTypeTraversal *>(c)) {
+                NodeKind::cast<ast::IActivityActionTypeTraversal>(c)) {
             out.push_back(s->getWith_c());
-        } else if (ast::IActivityConstraint *s = dynamic_cast<ast::IActivityConstraint *>(c)) {
+        } else if (ast::IActivityConstraint *s = NodeKind::cast<ast::IActivityConstraint>(c)) {
             out.push_back(s->getConstraint());
-        } else if (ast::IMonitorConstraint *s = dynamic_cast<ast::IMonitorConstraint *>(c)) {
+        } else if (ast::IMonitorConstraint *s = NodeKind::cast<ast::IMonitorConstraint>(c)) {
             out.push_back(s->getConstraint());
         } else if (ast::IProceduralStmtRandomize *s =
-                dynamic_cast<ast::IProceduralStmtRandomize *>(c)) {
+                NodeKind::cast<ast::IProceduralStmtRandomize>(c)) {
             for (std::vector<ast::IConstraintStmtUP>::const_iterator
                     it=s->getConstraints().begin(); it!=s->getConstraints().end(); it++) {
                 out.push_back(it->get());
@@ -77,9 +78,9 @@ public:
      * the body, stays what the builder gave it. Zero for any other scope.
      */
     static int32_t iteratorBase(ast::ISymbolScope *s) {
-        ast::IConstraintSymbolScope *cs = dynamic_cast<ast::IConstraintSymbolScope *>(s);
+        ast::IConstraintSymbolScope *cs = NodeKind::cast<ast::IConstraintSymbolScope>(s);
         ast::IConstraintStmtForeach *fe = (cs)
-            ? dynamic_cast<ast::IConstraintStmtForeach *>(cs->getConstraint()) : 0;
+            ? NodeKind::cast<ast::IConstraintStmtForeach>(cs->getConstraint()) : 0;
         return (fe) ? (int32_t)fe->getConstraints().size() : 0;
     }
 

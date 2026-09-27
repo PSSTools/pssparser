@@ -40,6 +40,7 @@
 #include "Marker.h"
 
 #include <algorithm>
+#include "pssp/impl/NodeKind.h"
 
 namespace pssp {
 
@@ -264,7 +265,7 @@ ast::ISymbolRefPath *TaskResolveRef::resolveStaticArgPath(
             continue;
         }
 
-        ast::ISymbolScope *scope_s = dynamic_cast<ast::ISymbolScope *>(
+        ast::ISymbolScope *scope_s = NodeKind::cast<ast::ISymbolScope>(
             m_ctxt->resolveSymbolPathRef(target));
 
         if (!scope_s) {
@@ -272,8 +273,7 @@ ast::ISymbolRefPath *TaskResolveRef::resolveStaticArgPath(
             return 0;
         }
 
-        TaskFindPathElem::Result res = TaskFindPathElem(
-            m_ctxt->getDebugMgr(), m_ctxt->root()).find(scope_s, (*it)->getId(), true);
+        TaskFindPathElem::Result res = TaskFindPathElem(m_ctxt).find(scope_s, (*it)->getId(), true);
 
         if (!res.sym) {
             DEBUG("No member named %s", (*it)->getId()->getId().c_str());
@@ -412,13 +412,13 @@ void TaskResolveRef::visitTypeIdentifier(ast::ITypeIdentifier *i) {
         }
         if (suggestion.empty()) {
             suggestion = findCloseMatch(
-                name, dynamic_cast<ast::ISymbolScope *>(m_ctxt->root()));
+                name, NodeKind::cast<ast::ISymbolScope>(m_ctxt->root()));
         }
         // See the matching block in TaskResolveRefs::visitExprRefPathContext:
         // a core-library type that is simply not imported gets an actionable
         // message rather than a bare "unknown type".
         std::string core_pkg = findCoreLibraryPackage(
-            dynamic_cast<ast::ISymbolScope *>(m_ctxt->root()), name);
+            NodeKind::cast<ast::ISymbolScope>(m_ctxt->root()), name);
 
         if (!core_pkg.empty()) {
             m_ctxt->addMarker(
@@ -482,13 +482,14 @@ void TaskResolveRef::visitTypeIdentifier(ast::ITypeIdentifier *i) {
         // A step into a type finds an inherited member too, one
         // ElemKind_Super per base type crossed (18.3 b.3; Ex. 242).
         ast::IScopeChild *next = 0;
-        if (ast::ISymbolScope *ns = dynamic_cast<ast::ISymbolScope *>(root_t)) {
+        if (ast::ISymbolScope *ns = NodeKind::cast<ast::ISymbolScope>(root_t)) {
             // An enum item only in a value position: `S<pkg::ITEM>`. As a
             // type, `pkg::ITEM` is still no type.
             NameLookup::Member m = NameLookup::lookupMember(
                 m_ctxt->getDebugMgr(), m_ctxt->root(), ns,
                 (*it)->getId()->getId(),
-                m_kind != std::string("type"));
+                m_kind != std::string("type"),
+                m_ctxt, (*it)->getId());
             if (m.sym) {
                 m.appendTo(root);
                 next = m.sym;
@@ -528,8 +529,8 @@ void TaskResolveRef::visitTypeIdentifier(ast::ITypeIdentifier *i) {
             // TaskCheckRefsResolved exempts the same shape, and for the same
             // reason (see its last-segment lookup).
             bool qualifier_is_instance =
-                dynamic_cast<ast::IField *>(root_t) != 0
-                || dynamic_cast<ast::IProceduralStmtDataDeclaration *>(root_t) != 0;
+                NodeKind::cast<ast::IField>(root_t) != 0
+                || NodeKind::cast<ast::IProceduralStmtDataDeclaration>(root_t) != 0;
 
             // Reported once: a super type is resolved twice, by
             // TaskResolveSuperTypes and again by TaskResolveRefs.
@@ -576,16 +577,16 @@ void TaskResolveRef::resolveArgs(
         ast::IScopeChild                    *generic_decl,
         ast::ITemplateParamValueList        *args) {
     DEBUG_ENTER("resolveArgs");
-    ast::ISymbolTypeScope *generic_s = dynamic_cast<ast::ISymbolTypeScope *>(generic_decl);
+    ast::ISymbolTypeScope *generic_s = NodeKind::cast<ast::ISymbolTypeScope>(generic_decl);
     ast::ISymbolScope *plist = (generic_s) ? generic_s->getPlist() : 0;
     uint32_t k = 0;
     for (std::vector<ast::ITemplateParamValueUP>::const_iterator
         it=args->getValues().begin(); it!=args->getValues().end(); it++, k++) {
         ast::ITemplateValueParamDecl *vp = (plist && k < plist->getChildren().size())
-            ? dynamic_cast<ast::ITemplateValueParamDecl *>(plist->getChildren().at(k).get())
+            ? NodeKind::cast<ast::ITemplateValueParamDecl>(plist->getChildren().at(k).get())
             : 0;
         ast::ITemplateParamTypeValue *tv =
-            dynamic_cast<ast::ITemplateParamTypeValue *>(it->get());
+            NodeKind::cast<ast::ITemplateParamTypeValue>(it->get());
         if (vp && tv) {
             resolveValueArg(generic, vp, tv);
         } else {
@@ -614,7 +615,7 @@ void TaskResolveRef::resolveValueArg(
         ast::ITemplateValueParamDecl        *p,
         ast::ITemplateParamTypeValue        *v) {
     ast::IDataTypeUserDefined *udt =
-        dynamic_cast<ast::IDataTypeUserDefined *>(v->getValue());
+        NodeKind::cast<ast::IDataTypeUserDefined>(v->getValue());
     if (!udt || !udt->getType_id() || udt->getType_id()->getTarget()) {
         // A built-in type: TaskBuildParamValList reports it.
         v->accept(m_this);
@@ -650,13 +651,13 @@ void TaskResolveRef::resolveValueArg(
     tid->setTarget(target);
 
     ast::IScopeChild *decl = m_ctxt->resolveSymbolPathRef(target);
-    bool is_type = dynamic_cast<ast::ISymbolTypeScope *>(decl)
-        || dynamic_cast<ast::ISymbolEnumScope *>(decl)
-        || dynamic_cast<ast::ITypedefDeclaration *>(decl)
-        || dynamic_cast<ast::ITemplateGenericTypeParamDecl *>(decl)
-        || dynamic_cast<ast::ITemplateCategoryTypeParamDecl *>(decl);
+    bool is_type = NodeKind::cast<ast::ISymbolTypeScope>(decl)
+        || NodeKind::cast<ast::ISymbolEnumScope>(decl)
+        || NodeKind::cast<ast::ITypedefDeclaration>(decl)
+        || NodeKind::cast<ast::ITemplateGenericTypeParamDecl>(decl)
+        || NodeKind::cast<ast::ITemplateCategoryTypeParamDecl>(decl);
     if (m_report_unresolved
-            && (is_type || dynamic_cast<ast::ISymbolScope *>(decl))) {
+            && (is_type || NodeKind::cast<ast::ISymbolScope>(decl))) {
         const ast::IExprId *last = tid->getElems().back()->getId();
         m_ctxt->addErrorMarker(
             last->getLocation(),

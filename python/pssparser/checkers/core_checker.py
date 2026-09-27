@@ -83,6 +83,9 @@ class CoreChecker(CheckerBase):
                 r"^unknown method\b",
                 r"^unknown function\b",
                 r"\bhas no member named\b",
+                # A named port map entry for a port the covergroup type does
+                # not declare (15.2).
+                r"^covergroup '[^']*' has no port named\b",
                 # The same failure as the line above, reached through the
                 # *unqualified* path. The two spellings are one diagnosis and
                 # must carry one code.
@@ -555,7 +558,13 @@ class CoreChecker(CheckerBase):
                 "that reach the same declaration do not conflict.  Message: "
                 "``ambiguous reference to 's': more than one wildcard import "
                 "provides it, so none does (18.1.3); qualify the name``. "
-                "Qualify the name (``lib1::s``) or import it explicitly."
+                "Qualify the name (``lib1::s``) or import it explicitly.  "
+                "The same holds for a field or type that extensions in "
+                "two packages add to one type, where both packages are "
+                "wildcard-imported (17.2.3): ``ambiguous reference to 'b': "
+                "extensions of 'S' in package 'p' and package 'q' each "
+                "declare it, and each package is imported here (17.2.3); "
+                "import only one``."
             ),
             patterns=(r"^ambiguous reference to\b",),
         ),
@@ -988,9 +997,10 @@ class CoreChecker(CheckerBase):
                 "unbound name is far more likely a consequence of that error.  "
                 "A name that nothing in the model declares is PSS002 instead.  "
                 "Some constructs are not checked yet: covergroup bodies and "
-                "port maps, pool and activity binds, scheduling constraints, "
-                "instance overrides, struct-literal member names, and the "
-                "parameters of a generic constraint."
+                "port maps, instance overrides, the member names of a struct "
+                "literal whose type is not known from where it is written, "
+                "and a bind target past a component whose type is unknown "
+                "or generic."
             ),
         ),
 
@@ -1112,6 +1122,153 @@ class CoreChecker(CheckerBase):
                 "supplied is a value`` (``S<4>`` for ``S<type T>``)\n\n"
                 "A name that is not declared at all is PSS002 (``unknown "
                 "identifier``)."
+            ),
+        ),
+
+        MarkerDef(
+            id="PSS048",
+            severity="error",
+            summary="Invalid struct literal member",
+            patterns=(
+                r"^struct literal names '[^']*'",
+            ),
+            detail=(
+                "A struct literal names the data attributes of its context "
+                "type (4.8.4): the type of the field or variable it "
+                "initializes, the left-hand side of the assignment, the "
+                "parameter it is passed for, the function's return type, an "
+                "exec block's tag type, or the enclosing literal's member "
+                "(4.8.5).  Each attribute may be named once.  Messages:\n\n"
+                "* ``struct literal names 'a' more than once (4.8.4)``\n"
+                "* ``struct literal names 'c1', which is not a data "
+                "attribute of 'S1' (4.8.4)`` (a constraint, say)\n\n"
+                "A name the context type does not declare at all is PSS002 "
+                "(``'S1' has no member named 'x'``)."
+            ),
+        ),
+
+        MarkerDef(
+            id="PSS049",
+            severity="error",
+            summary="Invalid bind operand",
+            patterns=(
+                r"^bind names '[^']*', which is not\b",
+            ),
+            detail=(
+                "A pool bind (12.3) names a pool, then for each target a "
+                "path of component instances from the binding component, an "
+                "action type of the last component reached, and an input, "
+                "output or resource-claim field of that action type.  "
+                "Messages:\n\n"
+                "* ``bind names 'x', which is not a pool (12.3)``\n"
+                "* ``bind names 'x', which is not a component instance of "
+                "'C' (12.3)``\n"
+                "* ``bind names 'x', which is not an action type of 'C' "
+                "(12.3)``\n"
+                "* ``bind names 'x', which is not an input, output or "
+                "resource-claim field of 'A' (12.3)``\n\n"
+                "A name that is not declared where it is looked up is PSS002 "
+                "(``'C' has no member named 'x'``)."
+            ),
+        ),
+
+        MarkerDef(
+            id="PSS050",
+            severity="error",
+            summary="Invalid coverage reference",
+            patterns=(
+                r"^cross '[^']*' names '[^']*', which is not\b",
+                r"^bins '[^']*' names '[^']*', which is not its own\b",
+            ),
+            detail=(
+                "A cross crosses coverpoints of its covergroup, or variables, "
+                "each of which is an implicit coverpoint (15.1 d, 15.4).  A "
+                "bin written ``bins b = cp with (...)`` names its own "
+                "coverpoint (15.3.3.3), and a cross bin its own cross "
+                "(15.4.3).  Messages:\n\n"
+                "* ``cross 'X' names 'f', which is not a coverpoint or a data "
+                "field (15.4)``\n"
+                "* ``bins 'b' names 'a', which is not its own coverpoint 'c' "
+                "(15.3.3.3)``\n"
+                "* ``bins 'b' names 'Y', which is not its own cross 'X' "
+                "(15.4.3)``\n\n"
+                "A name that is not declared at all is PSS002."
+            ),
+        ),
+
+        MarkerDef(
+            id="PSS051",
+            severity="warning",
+            summary="Extension member not visible here",
+            patterns=(
+                r"^'[^']*' is declared by an extension of '[^']*' in .*, "
+                r"(which is not|none of which is) visible here\b",
+                r"^'[^']*' is an item an extension of '[^']*' in .* adds, "
+                r"which is not visible here\b",
+            ),
+            detail=(
+                "A member an extension adds to a type is accessible in the "
+                "package the extension is written in, and elsewhere only "
+                "where that package is wildcard-imported (17.2.3, 18.1.3).  "
+                "An extension in the global scope, or in the package that "
+                "declares the type, is visible wherever the type is.  "
+                "Messages:\n\n"
+                "* ``'b' is declared by an extension of 'S' in package 'p', "
+                "which is not visible here (17.2.3); add 'import p::*;'``\n"
+                "* ``'B' is an item an extension of 'E' in package 'p' adds, "
+                "which is not visible here (17.2.3); add 'import p::*;'``\n\n"
+                "The use still binds to the member.  A warning for now; it "
+                "becomes an error after one release (symbol-resolution plan "
+                "§8).  Where two imported packages each add the name, the "
+                "use is ambiguous: PSS017."
+            ),
+        ),
+
+        MarkerDef(
+            id="PSS052",
+            severity="warning",
+            summary="Explicit import conflicts with a declaration or import",
+            patterns=(
+                r"^'import [^']*;' names '[^']*', which .* already declares\b",
+                r"^'[^']*' is already imported explicitly in this scope\b",
+            ),
+            detail=(
+                "18.1.3: it shall be illegal to explicitly import an "
+                "identifier the importing namespace already declares, or to "
+                "explicitly import the same identifier from two different "
+                "packages.  Messages:\n\n"
+                "* ``'import lib::s;' names 's', which package 'p' already "
+                "declares; an explicit import shall not name a declaration "
+                "of the importing namespace (18.1.3)``\n"
+                "* ``'s' is already imported explicitly in this scope, by "
+                "'import lib1::s;'; the same name shall not be imported "
+                "explicitly from two packages (18.1.3)``\n\n"
+                "The namespace is every statement of a package, or a "
+                "component and its extensions; two imports conflict only "
+                "within one statement.  A warning for now (plan §8); a use "
+                "of a name two explicit imports provide is already an error "
+                "(PSS017)."
+            ),
+        ),
+
+        MarkerDef(
+            id="PSS053",
+            severity="warning",
+            summary="Import after a declaration",
+            patterns=(
+                r"^'import [^']*;' follows a declaration\b",
+            ),
+            detail=(
+                "18.1.3: import specifications shall appear first in their "
+                "lexical scope -- a file's global scope, a ``package`` "
+                "statement, or a component declaration or extension.  Only "
+                "another import or a ``compile if`` may precede one.  "
+                "Message:\n\n"
+                "* ``'import lib::*;' follows a declaration; imports shall "
+                "come first in a package, a component, an extension or a "
+                "file (18.1.3)``\n\n"
+                "Not checked in a scope that holds a ``compile if``.  A "
+                "warning for now (plan §8)."
             ),
         ),
 

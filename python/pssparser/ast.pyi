@@ -1426,9 +1426,13 @@ class ComponentBind(ScopeChild):
     Binds a pool to a set of action object-reference fields, or to all
     compatible references via the wildcard form. Every target -- including
     a wildcard -- is a ``ComponentBindTarget``, so a mixed list such as
-    ``bind p { a.x, * }`` keeps both entries in source order. Paths are
-    not resolved to references, so this node is inert during link (no ref
-    resolution, no traversal cycles).
+    ``bind p { a.x, * }`` keeps both entries in source order.
+    
+    The pool is an ordinary reference from the binding component. A
+    target's path elements, action type and field are resolved along
+    the component path (LRM 12.3): each element in the component the
+    previous one reaches, the action type in the last component
+    reached, the field in that action type.
     
     PSS Example::
     
@@ -1440,7 +1444,7 @@ class ComponentBind(ScopeChild):
         }
     
     Attributes:
-        pool_path: Hierarchical id of the bound pool (e.g. ``"p"``).
+        pool_path: Path to the bound pool (e.g. ``p``, ``gfx0.pool``).
         is_wildcard: True if *any* target is a wildcard -- for the bare
             ``bind p *;`` form, and for a mixed list containing ``*``.
             Equivalent to ``any(t.is_wildcard for t in targets)``, and
@@ -3839,6 +3843,13 @@ class Covergroup(NamedScopeChild):
         coverpoints: The covergroup's coverpoints
         crosses: The covergroup's crosses
         options: ``option.x = y;`` settings from the covergroup body
+        body: Set by the linker: the scope of the coverpoint and cross
+            names (LRM 15.3 a, 15.4), a synthetic symbol scope whose
+            target is this covergroup and whose members are the
+            coverpoints and crosses, not owned. Cross items, bin
+            targets and ``with`` expressions are resolved with it in
+            view; coverpoint targets, ``iff`` guards and bin ranges
+            are not. Not walked by the generated visitors.
     
     See Also:
         CovergroupType, CovergroupCoverpoint, CovergroupCross
@@ -3863,6 +3874,8 @@ class Covergroup(NamedScopeChild):
     def getOption(self, i: int) -> CovergroupOption: ...
     def addOption(self, i: CovergroupOption) -> None: ...
     def numOptions(self) -> int: ...
+    
+    def getBody(self) -> SymbolScope: ...
     
 class CovergroupCoverpoint(NamedScopeChild):
     """
@@ -6514,6 +6527,15 @@ class ActivityLabeledScope(SymbolScope):
     
     Attributes:
         label: Optional identifier expression for the label
+        sub_activity: The named sub-activity this statement introduces
+            (LRM 11.8), built by the linker: a synthetic scope whose
+            target is this statement. Its members are non-owned: the
+            action handles and ``action`` fields declared directly under
+            the statement, and the labeled statements whose nearest
+            labeled ancestor it is. ``b1.my_seq.my_rep.a`` walks these
+            scopes. Null on an unlabeled statement, except the body of a
+            ``replicate`` with a label array, which is named by that
+            array. Not walked by the generated visitors.
     
     See Also:
         ActivitySequence, ActivityParallel, ActivitySchedule
@@ -6522,6 +6544,8 @@ class ActivityLabeledScope(SymbolScope):
     pass
     
     def getLabel(self) -> ExprId: ...
+    
+    def getSub_activity(self) -> SymbolScope: ...
     
 class ImportClass(TypeScope):
     """
@@ -6942,6 +6966,13 @@ class CovergroupType(TypeScope):
         coverpoints: The covergroup's coverpoints
         crosses: The covergroup's crosses
         options: ``option.x = y;`` settings from the covergroup body
+        body: Set by the linker: the scope of the coverpoint and cross
+            names (LRM 15.3 a, 15.4), a synthetic symbol scope whose
+            target is this covergroup and whose members are the
+            coverpoints and crosses, not owned. Cross items, bin
+            targets and ``with`` expressions are resolved with it in
+            view; coverpoint targets, ``iff`` guards and bin ranges
+            are not. Not walked by the generated visitors.
     
     See Also:
         Covergroup, CovergroupInstantiation
@@ -6966,6 +6997,8 @@ class CovergroupType(TypeScope):
     def getOption(self, i: int) -> CovergroupOption: ...
     def addOption(self, i: CovergroupOption) -> None: ...
     def numOptions(self) -> int: ...
+    
+    def getBody(self) -> SymbolScope: ...
     
 class SymbolEnumScope(SymbolScope):
     """

@@ -2233,6 +2233,9 @@ cdef extern from "pssp/ast/ICovergroup.h" namespace "pssp::ast":
         std_vector[UP[ICovergroupCoverpoint]] & getCoverpoints();
         std_vector[UP[ICovergroupCross]] & getCrosses();
         std_vector[UP[ICovergroupOption]] & getOptions();
+        ISymbolScope *getBody()
+        
+        void setBody(ISymbolScope *v)
 
 cdef extern from "pssp/ast/ICovergroupCoverpoint.h" namespace "pssp::ast":
     cpdef cppclass ICovergroupCoverpoint(INamedScopeChild):
@@ -2870,6 +2873,9 @@ cdef extern from "pssp/ast/IActivityLabeledScope.h" namespace "pssp::ast":
         IExprId *getLabel()
         
         void setLabel(IExprId *v)
+        ISymbolScope *getSub_activity()
+        
+        void setSub_activity(ISymbolScope *v)
 
 cdef extern from "pssp/ast/IImportClass.h" namespace "pssp::ast":
     cpdef cppclass IImportClass(ITypeScope):
@@ -2936,6 +2942,9 @@ cdef extern from "pssp/ast/ICovergroupType.h" namespace "pssp::ast":
         std_vector[UP[ICovergroupCoverpoint]] & getCoverpoints();
         std_vector[UP[ICovergroupCross]] & getCrosses();
         std_vector[UP[ICovergroupOption]] & getOptions();
+        ISymbolScope *getBody()
+        
+        void setBody(ISymbolScope *v)
 
 cdef extern from "pssp/ast/ISymbolEnumScope.h" namespace "pssp::ast":
     cpdef cppclass ISymbolEnumScope(ISymbolScope):

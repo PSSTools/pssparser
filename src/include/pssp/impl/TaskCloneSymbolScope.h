@@ -23,6 +23,7 @@
 #include "dmgr/IDebugMgr.h"
 #include "pssp/ast/IFactory.h"
 #include "pssp/ast/impl/VisitorBase.h"
+#include "pssp/impl/NodeKind.h"
 
 namespace pssp {
 
@@ -45,9 +46,9 @@ public:
         m_scope_s.clear();
         m_depth = 1;
         scope->accept(m_this);
-        DEBUG_LEAVE("clone %p", dynamic_cast<ast::IRootSymbolScope *>(m_ret));
+        DEBUG_LEAVE("clone %p", NodeKind::cast<ast::IRootSymbolScope>(m_ret));
 
-        return dynamic_cast<ast::IRootSymbolScope *>(m_ret);
+        return NodeKind::cast<ast::IRootSymbolScope>(m_ret);
     }
 
     virtual void visitRootSymbolScope(ast::IRootSymbolScope *i) override {
@@ -58,7 +59,7 @@ public:
             ic->setTarget(i->getTarget());
             m_scope_s.push_back(ic);
         } else {
-            ic = dynamic_cast<ast::IRootSymbolScope *>(m_scope_s.back());
+            ic = NodeKind::cast<ast::IRootSymbolScope>(m_scope_s.back());
         }
         visitSymbolScope(i);
 
@@ -143,7 +144,7 @@ public:
             ic = m_factory->mkSymbolFunctionScope(i->getName());
             m_scope_s.push_back(ic);
         } else {
-            ic = dynamic_cast<ast::ISymbolFunctionScope *>(m_scope_s.back());
+            ic = NodeKind::cast<ast::ISymbolFunctionScope>(m_scope_s.back());
         }
 
         // Copy prototype references
@@ -192,7 +193,7 @@ public:
             ic->setTarget(i->getTarget());
             m_scope_s.push_back(ic);
         } else {
-            ic = dynamic_cast<ast::ISymbolTypeScope *>(m_scope_s.back());
+            ic = NodeKind::cast<ast::ISymbolTypeScope>(m_scope_s.back());
         }
 
         DEBUG_ENTER("call visitSymbolScope(%d %d)", m_scope_s.size(), m_depth);

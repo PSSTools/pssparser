@@ -4969,6 +4969,13 @@ cdef class Covergroup(NamedScopeChild):
         self.asCovergroup().getOptions().push_back(ast_decl.ICovergroupOptionUP(i.asCovergroupOption(), True))
     cpdef numOptions(self):
         return self.asCovergroup().getOptions().size()
+    cpdef SymbolScope getBody(self):
+        if self.asCovergroup().getBody() == NULL:
+            return None
+        else:
+            of = ObjFactory()
+            self.asCovergroup().getBody().accept(of._hndl)
+            return <SymbolScope>(of._obj)
 
 cdef class CovergroupCoverpoint(NamedScopeChild):
     
@@ -7243,6 +7250,13 @@ cdef class ActivityLabeledScope(SymbolScope):
             of = ObjFactory()
             self.asActivityLabeledScope().getLabel().accept(of._hndl)
             return <ExprId>(of._obj)
+    cpdef SymbolScope getSub_activity(self):
+        if self.asActivityLabeledScope().getSub_activity() == NULL:
+            return None
+        else:
+            of = ObjFactory()
+            self.asActivityLabeledScope().getSub_activity().accept(of._hndl)
+            return <SymbolScope>(of._obj)
 
 cdef class ImportClass(TypeScope):
     
@@ -7600,6 +7614,13 @@ cdef class CovergroupType(TypeScope):
         self.asCovergroupType().getOptions().push_back(ast_decl.ICovergroupOptionUP(i.asCovergroupOption(), True))
     cpdef numOptions(self):
         return self.asCovergroupType().getOptions().size()
+    cpdef SymbolScope getBody(self):
+        if self.asCovergroupType().getBody() == NULL:
+            return None
+        else:
+            of = ObjFactory()
+            self.asCovergroupType().getBody().accept(of._hndl)
+            return <SymbolScope>(of._obj)
 
 cdef class SymbolEnumScope(SymbolScope):
     

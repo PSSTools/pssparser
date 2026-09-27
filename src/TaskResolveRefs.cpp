@@ -87,6 +87,10 @@
 #include "pssp/ast/ISymbolDeclaration.h"
 #include "pssp/ast/IComponentBind.h"
 #include "pssp/ast/IComponentBindTarget.h"
+#include "pssp/ast/IComponentPathElem.h"
+#include "pssp/ast/IFieldClaim.h"
+#include "pssp/ast/IFieldPool.h"
+#include "pssp/ast/IFieldRef.h"
 #include "pssp/ast/IInstanceOverride.h"
 #include "pssp/ast/IExportFunction.h"
 #include "pssp/ast/IExprRefName.h"
@@ -111,6 +115,7 @@
 #include "pssp/ast/ITemplateValueParamDecl.h"
 #include "ExprTypeOf.h"
 #include <algorithm>
+#include "pssp/impl/NodeKind.h"
 
 namespace pssp {
 
@@ -195,7 +200,7 @@ static ast::ISymbolScope *builtinStringScope_rr(ast::ISymbolScope *root) {
     std::unordered_map<std::string, int32_t>::const_iterator it =
         root->getSymtab().find("string");
     if (it == root->getSymtab().end()) return 0;
-    return dynamic_cast<ast::ISymbolScope *>(
+    return NodeKind::cast<ast::ISymbolScope>(
         root->getChildren().at(it->second).get());
 }
 
@@ -215,7 +220,7 @@ static std::string findCloseMatch_rr(
     }
     for (auto &child : scope->getChildren()) {
         ast::ISymbolEnumScope *enum_s =
-            dynamic_cast<ast::ISymbolEnumScope *>(child.get());
+            NodeKind::cast<ast::ISymbolEnumScope>(child.get());
         if (enum_s) {
             for (auto &entry : enum_s->getSymtab()) {
                 int d = editDistance_rr(name, entry.first);
@@ -244,7 +249,7 @@ static bool hasSliceSubscript_rr(ast::IExprMemberPathElem *elem) {
     for (std::vector<ast::IExprUP>::const_iterator
         it=elem->getSubscript().begin();
         it!=elem->getSubscript().end(); it++) {
-        if (dynamic_cast<ast::IExprSliceRange *>(it->get())) {
+        if (NodeKind::cast<ast::IExprSliceRange>(it->get())) {
             return true;
         }
     }
@@ -288,6 +293,7 @@ void TaskResolveRefs::resolve(ast::ISymbolScope *root) {
     // Every declaration has now been visited, so every type that will ever
     // be bound is: walk again the paths that stopped short of one.
     resolveDeferred();
+    resolvePoolBinds();
 
     m_ctxt->popSymtab();
 
@@ -363,18 +369,18 @@ void TaskResolveRefs::resolveCompileConds(ast::IRootSymbolScope *root) {
             auto m_it = sym.m.find(scope);
             if (m_it != sym.m.end()) {
                 sym_s = m_it->second;
-            } else if (ast::IPackageScope *pkg = dynamic_cast<ast::IPackageScope *>(scope)) {
+            } else if (ast::IPackageScope *pkg = NodeKind::cast<ast::IPackageScope>(scope)) {
                 ast::ISymbolScope *s = root;
                 for (auto id_it=pkg->getId().begin(); s && id_it!=pkg->getId().end(); id_it++) {
                     auto st_it = s->getSymtab().find((*id_it)->getId());
                     s = (st_it != s->getSymtab().end())
-                        ? dynamic_cast<ast::ISymbolScope *>(s->getChildren().at(st_it->second).get())
+                        ? NodeKind::cast<ast::ISymbolScope>(s->getChildren().at(st_it->second).get())
                         : 0;
                 }
                 sym_s = s;
-            } else if (ast::IExtendType *ext = dynamic_cast<ast::IExtendType *>(scope)) {
+            } else if (ast::IExtendType *ext = NodeKind::cast<ast::IExtendType>(scope)) {
                 if (ext->getTarget() && ext->getTarget()->getTarget()) {
-                    sym_s = dynamic_cast<ast::ISymbolScope *>(
+                    sym_s = NodeKind::cast<ast::ISymbolScope>(
                         m_ctxt->resolveSymbolPathRef(ext->getTarget()->getTarget()));
                 }
             }
@@ -407,16 +413,17 @@ void TaskResolveRefs::resolveCompileConds(ast::IRootSymbolScope *root) {
 
 /**
  * True if `c`, a child of type scope `s`, is only an alias for a labeled
- * activity statement: registerActivityLabels makes each label a symtab entry of
- * the action so that a path rooted at it resolves, and the statement itself is
+ * activity statement: a top-level label is a member of the action, the root of
+ * the named sub-activity tree (TaskBuildSymbolTree::buildSubActivities), so
+ * that a path rooted at it resolves, and the statement itself is
  * walked where it is written, in its block. Walked again from here, it was
  * resolved with the action's scope on top instead of its block's, and a
  * traversal target found in the block got a path that skipped it.
  */
 static bool isActivityLabelAlias(ast::ISymbolScope *s, ast::IScopeChild *c) {
-    return dynamic_cast<ast::ISymbolTypeScope *>(s)
-        && (dynamic_cast<ast::IActivityLabeledStmt *>(c)
-            || dynamic_cast<ast::IActivityLabeledScope *>(c));
+    return NodeKind::cast<ast::ISymbolTypeScope>(s)
+        && (NodeKind::cast<ast::IActivityLabeledStmt>(c)
+            || NodeKind::cast<ast::IActivityLabeledScope>(c));
 }
 
 void TaskResolveRefs::resolve(ast::ISymbolTypeScope *scope) {
@@ -447,7 +454,7 @@ void TaskResolveRefs::resolve(ast::ISymbolTypeScope *scope) {
 
     ast::SymbolRefPathElemKind kind = ast::SymbolRefPathElemKind::ElemKind_ChildIdx;
 
-    ast::ITypeScope *i_ts = dynamic_cast<ast::ITypeScope *>(scope->getTarget());
+    ast::ITypeScope *i_ts = NodeKind::cast<ast::ITypeScope>(scope->getTarget());
     if (i_ts->getParams() && i_ts->getParams()->getSpecialized()) {
             kind = ast::SymbolRefPathElemKind::ElemKind_TypeSpec;
             DEBUG("Processing specialization depth=%d", m_ctxt->specializationDepth());
@@ -488,7 +495,7 @@ void TaskResolveRefs::resolve(ast::ISymbolTypeScope *scope) {
     // where it means nothing -- which is why a generic like that could be
     // specialized directly, where a different path pushes the scope first, but
     // not from inside another generic's body, which comes through here.
-    ast::ITypeScope *target_s = dynamic_cast<ast::ITypeScope *>(scope->getTarget());
+    ast::ITypeScope *target_s = NodeKind::cast<ast::ITypeScope>(scope->getTarget());
     if (target_s->getSuper_t()) {
         DEBUG_ENTER("Resolve super type");
         target_s->getSuper_t()->accept(m_this);
@@ -509,6 +516,9 @@ void TaskResolveRefs::resolve(ast::ISymbolTypeScope *scope) {
 
     m_ctxt->symtab()->popScope();
 
+    // A specialization's own binds: its instances' types are bound by now.
+    resolvePoolBinds();
+
     DEBUG("Removing symbol iterator for body");
     m_ctxt->popSymtab();
 
@@ -520,9 +530,9 @@ void TaskResolveRefs::resolve(ast::ISymbolTypeScope *scope) {
  * and whose members a `with` block or an initializer list names.
  */
 static bool isTraversableType(ast::ISymbolScope *s) {
-    ast::ISymbolTypeScope *ts = dynamic_cast<ast::ISymbolTypeScope *>(s);
+    ast::ISymbolTypeScope *ts = NodeKind::cast<ast::ISymbolTypeScope>(s);
     ast::IScopeChild *t = ts ? ts->getTarget() : 0;
-    return dynamic_cast<ast::IAction *>(t) || dynamic_cast<ast::IMonitor *>(t);
+    return NodeKind::cast<ast::IAction>(t) || NodeKind::cast<ast::IMonitor>(t);
 }
 
 /**
@@ -556,12 +566,12 @@ ast::ISymbolScope *TaskResolveRefs::traversedType(
     const ast::Location &loc = id->getLocation();
 
     // Tested first: a generic constraint is a ConstraintBlock too.
-    if (dynamic_cast<ast::IGenericConstraintDeclBool *>(decl)
-            || dynamic_cast<ast::IGenericConstraintDeclValue *>(decl)
-            || dynamic_cast<ast::ISymbolDeclaration *>(decl)) {
+    if (NodeKind::cast<ast::IGenericConstraintDeclBool>(decl)
+            || NodeKind::cast<ast::IGenericConstraintDeclValue>(decl)
+            || NodeKind::cast<ast::ISymbolDeclaration>(decl)) {
         return 0;
     }
-    if (ast::IConstraintBlock *cb = dynamic_cast<ast::IConstraintBlock *>(decl)) {
+    if (ast::IConstraintBlock *cb = NodeKind::cast<ast::IConstraintBlock>(decl)) {
         if (!report) {
         } else if (cb->getIs_dynamic()) {
             m_ctxt->addMarker(
@@ -585,14 +595,14 @@ ast::ISymbolScope *TaskResolveRefs::traversedType(
     // `T: do A; ... T;` -- a traversal's label is a handle of the traversed
     // type; `T: a;` is `a` (C-N4).
     if (ast::IActivityActionTypeTraversal *tt =
-            dynamic_cast<ast::IActivityActionTypeTraversal *>(decl)) {
+            NodeKind::cast<ast::IActivityActionTypeTraversal>(decl)) {
         ast::ITypeIdentifier *tid = tt->getTarget() ? tt->getTarget()->getType_id() : 0;
         ast::IScopeChild *c = (tid && tid->getTarget())
             ? m_ctxt->resolveSymbolPathRef(tid->getTarget()) : 0;
-        return dynamic_cast<ast::ISymbolScope *>(c);
+        return NodeKind::cast<ast::ISymbolScope>(c);
     }
     if (ast::IActivityActionHandleTraversal *ht =
-            dynamic_cast<ast::IActivityActionHandleTraversal *>(decl)) {
+            NodeKind::cast<ast::IActivityActionHandleTraversal>(decl)) {
         ast::IExprMemberPathElem *leaf = (ht->getTarget() && ht->getTarget()->getTarget())
             ? ht->getTarget()->getHier_id()->getElems().back().get() : 0;
         ast::IScopeChild *c = leaf ? leaf->getId()->getDecl() : 0;
@@ -600,11 +610,11 @@ ast::ISymbolScope *TaskResolveRefs::traversedType(
             ? traversedType(c, leaf->getId(), leaf->getSubscript().size(), false) : 0;
     }
 
-    ast::IField *field = dynamic_cast<ast::IField *>(decl);
-    ast::IActionHandleField *handle = dynamic_cast<ast::IActionHandleField *>(decl);
-    ast::IFunctionParamDecl *sym_param = dynamic_cast<ast::IFunctionParamDecl *>(decl);
+    ast::IField *field = NodeKind::cast<ast::IField>(decl);
+    ast::IActionHandleField *handle = NodeKind::cast<ast::IActionHandleField>(decl);
+    ast::IFunctionParamDecl *sym_param = NodeKind::cast<ast::IFunctionParamDecl>(decl);
     ast::IProceduralStmtDataDeclaration *loop_var =
-        dynamic_cast<ast::IProceduralStmtDataDeclaration *>(decl);
+        NodeKind::cast<ast::IProceduralStmtDataDeclaration>(decl);
     ast::IDataType *type = field ? field->getType()
         : handle ? handle->getType()
         : sym_param ? sym_param->getType()
@@ -614,15 +624,15 @@ ast::ISymbolScope *TaskResolveRefs::traversedType(
 
     if (!type) {
         if (report) {
-            if (dynamic_cast<ast::ISymbolTypeScope *>(decl)) {
+            if (NodeKind::cast<ast::ISymbolTypeScope>(decl)) {
                 m_ctxt->addMarker(
                     MarkerSeverityE::Error,
                     loc,
                     "'%s' is a type, not an action handle; traverse it by type "
                     "with 'do %s'",
                     name.c_str(), name.c_str());
-            } else if (dynamic_cast<ast::IActivityLabeledStmt *>(decl)
-                    || dynamic_cast<ast::IActivityLabeledScope *>(decl)) {
+            } else if (NodeKind::cast<ast::IActivityLabeledStmt>(decl)
+                    || NodeKind::cast<ast::IActivityLabeledScope>(decl)) {
                 m_ctxt->addMarker(
                     MarkerSeverityE::Error,
                     loc,
@@ -642,14 +652,14 @@ ast::ISymbolScope *TaskResolveRefs::traversedType(
         return 0;
     }
 
-    ast::IDataTypeUserDefined *udt = dynamic_cast<ast::IDataTypeUserDefined *>(type);
+    ast::IDataTypeUserDefined *udt = NodeKind::cast<ast::IDataTypeUserDefined>(type);
     if (udt && (!udt->getType_id() || !udt->getType_id()->getTarget())) {
         // Unknown type: already reported at the declaration.
         return 0;
     }
     ast::IScopeChild *type_c = udt
         ? m_ctxt->resolveSymbolPathRef(udt->getType_id()->getTarget()) : 0;
-    ast::ISymbolScope *type_s = dynamic_cast<ast::ISymbolScope *>(type_c);
+    ast::ISymbolScope *type_s = NodeKind::cast<ast::ISymbolScope>(type_c);
 
     if (udt && !type_s) {
         // A template parameter, or something else with no scope yet.
@@ -732,7 +742,7 @@ namespace {
  * yet resolved, with no call, subscript or slice. Null otherwise.
  */
 ast::IExprRefPathContext *bareName(ast::IExpr *e) {
-    ast::IExprRefPathContext *r = dynamic_cast<ast::IExprRefPathContext *>(e);
+    ast::IExprRefPathContext *r = NodeKind::cast<ast::IExprRefPathContext>(e);
     if (!r || r->getTarget() || r->getIs_super() || r->getSlice()
             || r->getHier_id()->getElems().size() != 1) {
         return 0;
@@ -747,7 +757,7 @@ ast::IExprRefPathContext *bareName(ast::IExpr *e) {
  * type costs a path resolution, so the other operands skip it.
  */
 bool takesExpected(ast::IExpr *e) {
-    return bareName(e) || dynamic_cast<ast::IExprCond *>(e);
+    return bareName(e) || NodeKind::cast<ast::IExprCond>(e);
 }
 
 /** takesExpected() for any value or bound of a range list. */
@@ -778,16 +788,16 @@ bool anyTakesExpected(ast::IExprAggrList *l) {
 /** What `c` is, for a message: "the field 'A'". */
 std::string declDescription(ast::IScopeChild *c, const std::string &name) {
     const char *kind = "declaration";
-    if (dynamic_cast<ast::IField *>(c)) {
+    if (NodeKind::cast<ast::IField>(c)) {
         kind = "field";
-    } else if (dynamic_cast<ast::IProceduralStmtDataDeclaration *>(c)) {
+    } else if (NodeKind::cast<ast::IProceduralStmtDataDeclaration>(c)) {
         kind = "variable";
-    } else if (dynamic_cast<ast::IFunctionParamDecl *>(c)
-            || dynamic_cast<ast::IGenericConstraintParam *>(c)) {
+    } else if (NodeKind::cast<ast::IFunctionParamDecl>(c)
+            || NodeKind::cast<ast::IGenericConstraintParam>(c)) {
         kind = "parameter";
-    } else if (dynamic_cast<ast::ITemplateValueParamDecl *>(c)) {
+    } else if (NodeKind::cast<ast::ITemplateValueParamDecl>(c)) {
         kind = "template parameter";
-    } else if (dynamic_cast<ast::ISymbolFunctionScope *>(c)) {
+    } else if (NodeKind::cast<ast::ISymbolFunctionScope>(c)) {
         kind = "function";
     }
     return std::string("the ") + kind + " '" + name + "'";
@@ -816,7 +826,7 @@ void TaskResolveRefs::resolveInitializer(
     ast::IExprRefPathContext *path = i->getPath();
     if (type_s && path && !path->getTarget()) {
         ast::IExprId *root = path->getHier_id()->getElems().at(0)->getId();
-        if (!TaskFindPathElem(m_ctxt->getDebugMgr(), m_ctxt->root()).find(
+        if (!TaskFindPathElem(m_ctxt).find(
                 type_s, root).sym) {
             m_ctxt->addErrorMarker(
                 root->getLocation(),
@@ -844,7 +854,7 @@ void TaskResolveRefs::resolveInitializer(
  * element type.
  */
 ast::ISymbolScope *TaskResolveRefs::randomizedType(ast::IExpr *target) {
-    ast::IExprRefPathContext *ref = dynamic_cast<ast::IExprRefPathContext *>(target);
+    ast::IExprRefPathContext *ref = NodeKind::cast<ast::IExprRefPathContext>(target);
     if (!ref || !ref->getTarget()) {
         return 0;
     }
@@ -858,8 +868,8 @@ ast::ISymbolScope *TaskResolveRefs::randomizedType(ast::IExpr *target) {
         ? TaskGetSubscriptSymbolScope(
             m_ctxt->getDebugMgr(), m_ctxt->root(), n_sub).resolve(decl)
         : TaskGetElemSymbolScope(m_ctxt->getDebugMgr(), m_ctxt->root()).resolve(decl);
-    ast::ISymbolTypeScope *ts = dynamic_cast<ast::ISymbolTypeScope *>(type_s);
-    return (ts && dynamic_cast<ast::IStruct *>(ts->getTarget())) ? type_s : 0;
+    ast::ISymbolTypeScope *ts = NodeKind::cast<ast::ISymbolTypeScope>(type_s);
+    return (ts && NodeKind::cast<ast::IStruct>(ts->getTarget())) ? type_s : 0;
 }
 
 /**
@@ -921,7 +931,7 @@ void TaskResolveRefs::visitActivityActionTypeTraversal(ast::IActivityActionTypeT
     ast::ITypeIdentifier *tid = i->getTarget()->getType_id();
     ast::IScopeChild *type_c = (tid && tid->getTarget())
         ? m_ctxt->resolveSymbolPathRef(tid->getTarget()) : 0;
-    ast::ISymbolScope *type_s = dynamic_cast<ast::ISymbolScope *>(type_c);
+    ast::ISymbolScope *type_s = NodeKind::cast<ast::ISymbolScope>(type_c);
     if (type_s && !isTraversableType(type_s)) {
         // An unknown type was reported by the accept above; this is a known
         // one that is not an action.
@@ -1001,6 +1011,9 @@ void TaskResolveRefs::visitConstraintStmtForeach(ast::IConstraintStmtForeach *i)
     DEBUG_ENTER("visitConstraintStmtForeach %d", i->getSymtab()->getSymtab().size());
     // Resolve symbols in the array path
     i->getExpr()->accept(m_this);
+    // Then give the iterator the element type, so `s.f` through it resolves
+    // (SR-F2).
+    typeConstraintIterator(i);
 
     m_ctxt->symtab()->pushScope(i->getSymtab());
     for (std::vector<ast::IConstraintStmtUP>::const_iterator
@@ -1029,7 +1042,7 @@ void TaskResolveRefs::visitConstraintStmtForall(ast::IConstraintStmtForall *i) {
             it=i->getSymtab()->getChildren().begin();
             it!=i->getSymtab()->getChildren().end(); it++) {
             ast::IConstraintStmtField *f =
-                dynamic_cast<ast::IConstraintStmtField *>(it->get());
+                NodeKind::cast<ast::IConstraintStmtField>(it->get());
             if (f && f->getType()) {
                 f->getType()->accept(m_this);
             }
@@ -1080,7 +1093,7 @@ void TaskResolveRefs::pushProcScope(ast::IScopeChild *s) {
 
     // Annotations on the statements in this block (`@code_doc {...} f();`,
     // Example 323), under the block's own scope.
-    checkBlockAnnotations(dynamic_cast<ast::IScope *>(s));
+    checkBlockAnnotations(NodeKind::cast<ast::IScope>(s));
 }
 
 void TaskResolveRefs::popProcScope() {
@@ -1171,13 +1184,13 @@ void TaskResolveRefs::visitProceduralStmtRepeatWhile(ast::IProceduralStmtRepeatW
  * The declared type of `c`, if it is a field or a local variable.
  */
 static ast::IDataType *declaredTypeOf(ast::IScopeChild *c) {
-    ast::IField *field = dynamic_cast<ast::IField *>(c);
+    ast::IField *field = NodeKind::cast<ast::IField>(c);
     if (field && field->getType()) {
         return field->getType();
     }
 
     ast::IProceduralStmtDataDeclaration *var_decl =
-        dynamic_cast<ast::IProceduralStmtDataDeclaration *>(c);
+        NodeKind::cast<ast::IProceduralStmtDataDeclaration>(c);
     if (var_decl) {
         return var_decl->getDatatype();
     }
@@ -1189,7 +1202,7 @@ static ast::IDataType *declaredTypeOf(ast::IScopeChild *c) {
     // "root ref-path element f is not a composite scope" rather than being
     // recognized as a built-in method call, and `f().x` on an int-returning
     // `f` got the same message instead of the scalar one.
-    ast::ISymbolFunctionScope *fn = dynamic_cast<ast::ISymbolFunctionScope *>(c);
+    ast::ISymbolFunctionScope *fn = NodeKind::cast<ast::ISymbolFunctionScope>(c);
     if (fn) {
         for (std::vector<ast::IFunctionPrototype *>::const_iterator
             it=fn->getPrototypes().begin(); it!=fn->getPrototypes().end(); it++) {
@@ -1217,9 +1230,9 @@ static ast::IDataType *declaredTypeOf(ast::IScopeChild *c) {
 static bool isScalarWithoutMembers(ast::IScopeChild *c) {
     ast::IDataType *type = declaredTypeOf(c);
     return type
-        && (dynamic_cast<ast::IDataTypeInt *>(type)
-            || dynamic_cast<ast::IDataTypeBool *>(type)
-            || dynamic_cast<ast::IDataTypeChandle *>(type));
+        && (NodeKind::cast<ast::IDataTypeInt>(type)
+            || NodeKind::cast<ast::IDataTypeBool>(type)
+            || NodeKind::cast<ast::IDataTypeChandle>(type));
 }
 
 /**
@@ -1251,7 +1264,7 @@ static bool isScalarWithoutMembers(ast::IScopeChild *c) {
  * has a better thing to say.
  */
 static bool isVoidFunction(ast::IScopeChild *c) {
-    ast::ISymbolFunctionScope *fn = dynamic_cast<ast::ISymbolFunctionScope *>(c);
+    ast::ISymbolFunctionScope *fn = NodeKind::cast<ast::ISymbolFunctionScope>(c);
     if (!fn || !fn->getPrototypes().size()) {
         return false;
     }
@@ -1265,8 +1278,15 @@ static bool isVoidFunction(ast::IScopeChild *c) {
 }
 
 static bool hasUnresolvedUserDefinedType(ast::IScopeChild *c) {
-    ast::IDataTypeUserDefined *udt =
-        dynamic_cast<ast::IDataTypeUserDefined *>(declaredTypeOf(c));
+    ast::IDataType *t = declaredTypeOf(c);
+    if (!t) {
+        // A handle declared in an activity block, reached through a label
+        // (`RL[0].a.x`, WS4.3) before its action has been resolved. Not in
+        // declaredTypeOf, which is on the hot path of every expression.
+        ast::IActionHandleField *h = NodeKind::cast<ast::IActionHandleField>(c);
+        t = (h) ? h->getType() : 0;
+    }
+    ast::IDataTypeUserDefined *udt = NodeKind::cast<ast::IDataTypeUserDefined>(t);
     return udt && (!udt->getType_id() || !udt->getType_id()->getTarget());
 }
 
@@ -1277,17 +1297,17 @@ bool TaskResolveRefs::isBuiltinWithMethods(ast::IScopeChild *c) {
         return false;
     }
 
-    if (dynamic_cast<ast::IDataTypeString *>(type)) {
+    if (NodeKind::cast<ast::IDataTypeString>(type)) {
         return true;
     }
 
     ast::IDataTypeUserDefined *udt =
-        dynamic_cast<ast::IDataTypeUserDefined *>(type);
+        NodeKind::cast<ast::IDataTypeUserDefined>(type);
     if (udt && udt->getType_id()) {
         // Resolve the reference rather than reading the name the user
         // wrote: a package may declare its own `array`, and the built-in's
         // methods are not its methods.
-        ast::ITypeScope *ts = dynamic_cast<ast::ITypeScope *>(
+        ast::ITypeScope *ts = NodeKind::cast<ast::ITypeScope>(
             TaskGetElemSymbolScope(m_ctxt->getDebugMgr(), m_ctxt->root())
                 .resolve(m_ctxt->resolveSymbolPathRef(udt->getType_id()->getTarget())));
         if (builtinCollectionKind(ts) != CollectionKind::None) {
@@ -1331,7 +1351,7 @@ TaskResolveRefs::TypeCat TaskResolveRefs::catOfDataType(ast::IDataType *dt) {
         return TypeCat::Unknown;
     }
 
-    if (dynamic_cast<ast::IDataTypeString *>(dt)) {
+    if (NodeKind::cast<ast::IDataTypeString>(dt)) {
         return TypeCat::Str;
     }
 
@@ -1339,13 +1359,13 @@ TaskResolveRefs::TypeCat TaskResolveRefs::catOfDataType(ast::IDataType *dt) {
     // with an integer. Lumping them together means this never has an opinion
     // about width or signedness, which is the part that would need real
     // compatibility rules.
-    if (dynamic_cast<ast::IDataTypeInt *>(dt)
-        || dynamic_cast<ast::IDataTypeBool *>(dt)
-        || dynamic_cast<ast::IDataTypeEnum *>(dt)) {
+    if (NodeKind::cast<ast::IDataTypeInt>(dt)
+        || NodeKind::cast<ast::IDataTypeBool>(dt)
+        || NodeKind::cast<ast::IDataTypeEnum>(dt)) {
         return TypeCat::Numeric;
     }
 
-    ast::IDataTypeUserDefined *udt = dynamic_cast<ast::IDataTypeUserDefined *>(dt);
+    ast::IDataTypeUserDefined *udt = NodeKind::cast<ast::IDataTypeUserDefined>(dt);
 
     if (udt && udt->getType_id() && udt->getType_id()->getTarget()) {
         ast::IScopeChild *c = m_ctxt->resolveSymbolPathRef(udt->getType_id()->getTarget());
@@ -1362,18 +1382,18 @@ TaskResolveRefs::TypeCat TaskResolveRefs::catOfDataType(ast::IDataType *dt) {
         // not fire; enum-typed values classified as Unknown and every enum
         // control in the suite passed vacuously. Found by printing the RTTI
         // name of what the path actually resolved to.
-        if (dynamic_cast<ast::ISymbolEnumScope *>(c)) {
+        if (NodeKind::cast<ast::ISymbolEnumScope>(c)) {
             return TypeCat::Numeric;
         }
 
-        ast::ISymbolTypeScope *sts = dynamic_cast<ast::ISymbolTypeScope *>(c);
+        ast::ISymbolTypeScope *sts = NodeKind::cast<ast::ISymbolTypeScope>(c);
         ast::IScopeChild *decl = sts?sts->getTarget():c;
 
-        if (dynamic_cast<ast::IEnumDecl *>(decl)) {
+        if (NodeKind::cast<ast::IEnumDecl>(decl)) {
             return TypeCat::Numeric;
         }
 
-        ast::ITypeScope *ts = dynamic_cast<ast::ITypeScope *>(decl);
+        ast::ITypeScope *ts = NodeKind::cast<ast::ITypeScope>(decl);
 
         // A built-in collection is left Unknown. `list<int>` against an
         // `int` parameter is a genuine mismatch, but "is a composite type"
@@ -1396,9 +1416,9 @@ TaskResolveRefs::TypeCat TaskResolveRefs::catOfDataType(ast::IDataType *dt) {
             return TypeCat::Unknown;
         }
 
-        if (dynamic_cast<ast::IStruct *>(ts)
-            || dynamic_cast<ast::IComponent *>(ts)
-            || dynamic_cast<ast::IAction *>(ts)) {
+        if (NodeKind::cast<ast::IStruct>(ts)
+            || NodeKind::cast<ast::IComponent>(ts)
+            || NodeKind::cast<ast::IAction>(ts)) {
             return TypeCat::Aggregate;
         }
     }
@@ -1412,22 +1432,22 @@ TaskResolveRefs::TypeCat TaskResolveRefs::catOfExpr(ast::IExpr *e) {
         return TypeCat::Unknown;
     }
 
-    if (dynamic_cast<ast::IExprString *>(e)) {
+    if (NodeKind::cast<ast::IExprString>(e)) {
         return TypeCat::Str;
     }
 
-    if (dynamic_cast<ast::IExprNumber *>(e)
-        || dynamic_cast<ast::IExprBool *>(e)) {
+    if (NodeKind::cast<ast::IExprNumber>(e)
+        || NodeKind::cast<ast::IExprBool>(e)) {
         return TypeCat::Numeric;
     }
 
-    if (dynamic_cast<ast::IExprAggrLiteral *>(e)) {
+    if (NodeKind::cast<ast::IExprAggrLiteral>(e)) {
         return TypeCat::Aggregate;
     }
 
     // A bare name. Anything longer than one element is a member path, whose
     // type needs the walk this classification does not do -- left Unknown.
-    ast::IExprRefPathContext *rp = dynamic_cast<ast::IExprRefPathContext *>(e);
+    ast::IExprRefPathContext *rp = NodeKind::cast<ast::IExprRefPathContext>(e);
 
     if (rp && !rp->getSlice()
         && rp->getHier_id()->getElems().size() == 1
@@ -1437,7 +1457,7 @@ TaskResolveRefs::TypeCat TaskResolveRefs::catOfExpr(ast::IExpr *e) {
         ast::IScopeChild *c = m_ctxt->resolveSymbolPathRef(rp->getTarget());
 
         // An enum *item* used as a value, rather than a field of enum type.
-        if (dynamic_cast<ast::IEnumItem *>(c)) {
+        if (NodeKind::cast<ast::IEnumItem>(c)) {
             return TypeCat::Numeric;
         }
 
@@ -1562,10 +1582,10 @@ void TaskResolveRefs::checkCallArity(
     {
         int32_t n_params = -1;
         if (ast::IGenericConstraintDeclBool *gc =
-                dynamic_cast<ast::IGenericConstraintDeclBool *>(target)) {
+                NodeKind::cast<ast::IGenericConstraintDeclBool>(target)) {
             n_params = (int32_t)gc->getParameters().size();
         } else if (ast::IGenericConstraintDeclValue *gv =
-                dynamic_cast<ast::IGenericConstraintDeclValue *>(target)) {
+                NodeKind::cast<ast::IGenericConstraintDeclValue>(target)) {
             n_params = (int32_t)gv->getParameters().size();
         }
         if (n_params >= 0) {
@@ -1585,7 +1605,7 @@ void TaskResolveRefs::checkCallArity(
     }
 
     ast::ISymbolFunctionScope *fn =
-        dynamic_cast<ast::ISymbolFunctionScope *>(target);
+        NodeKind::cast<ast::ISymbolFunctionScope>(target);
 
     if (!fn) {
         // Report whenever the callee resolved to *something* that is not a
@@ -1822,12 +1842,16 @@ ast::ISymbolRefPath *TaskResolveRefs::expectedItem(
     }
     ref->getPath().push_back({ast::SymbolRefPathElemKind::ElemKind_ChildIdx, it->second});
 
+    // An item an `extend enum` adds is visible as an extension's field is
+    // (17.2.3).
+    NameLookup::checkExtItem(ctxt, e, id, it->second);
+
     // Step a comes before the lexical steps (18.3), so a field or variable
     // of the same name is hidden here -- which its author may not expect.
     // An enum item the lookup falls back to is no declaration of the name
     // (8.2), so there is nothing hidden.
     ast::IScopeChild *lex = peekLexical(ctxt, id);
-    if (lex && !dynamic_cast<ast::IEnumItem *>(lex)) {
+    if (lex && !NodeKind::cast<ast::IEnumItem>(lex)) {
         ctxt->addMarker(
             MarkerSeverityE::Warn,
             id->getLocation(),
@@ -1920,7 +1944,7 @@ void TaskResolveRefs::visitExprIn(ast::IExprIn *i) {
     if (i->getLhs()) {
         i->getLhs()->accept(m_this);
     }
-    ast::IExprAggrList *aggr = dynamic_cast<ast::IExprAggrList *>(i->getCollection());
+    ast::IExprAggrList *aggr = NodeKind::cast<ast::IExprAggrList>(i->getCollection());
     ast::ISymbolEnumScope *t = (anyTakesExpected(i->getRhs()) || aggr)
         ? ExprTypeOf(m_ctxt).enumOf(i->getLhs()) : 0;
     visitRangesExpecting(i->getRhs(), t);
@@ -2001,7 +2025,7 @@ void TaskResolveRefs::visitConstraintStmtDist(ast::IConstraintStmtDist *i) {
 void TaskResolveRefs::visitCallArgs(
         ast::IMethodParameterList   *params,
         ast::IScopeChild            *callee) {
-    ast::ISymbolFunctionScope *fn = dynamic_cast<ast::ISymbolFunctionScope *>(callee);
+    ast::ISymbolFunctionScope *fn = NodeKind::cast<ast::ISymbolFunctionScope>(callee);
     const std::vector<ast::IFunctionParamDeclUP> *formals =
         (fn && fn->getPrototypes().size())
             ? &fn->getPrototypes().at(0)->getParameters() : 0;
@@ -2014,10 +2038,14 @@ void TaskResolveRefs::visitCallArgs(
                 : (formals->back()->getIs_varargs()) ? formals->back().get() : 0;
         }
         ast::IExpr *arg = params->getParameters().at(k).get();
+        if (holdsStructLiteral(arg)) {
+            setLiteralTypes(arg, (formal) ? type_of.structOfDecl(formal) : 0,
+                (formal) ? type_of.structOfDecl(formal, 1) : 0);
+        }
         ast::ISymbolEnumScope *e = (formal && takesExpected(arg))
             ? type_of.enumOfType(formal->getType()) : 0;
         ast::IDataTypeUserDefined *udt = (formal && !e && bareName(arg))
-            ? dynamic_cast<ast::IDataTypeUserDefined *>(formal->getType()) : 0;
+            ? NodeKind::cast<ast::IDataTypeUserDefined>(formal->getType()) : 0;
         if (udt && udt->getType_id() && !udt->getType_id()->getTarget()) {
             m_pending_formal[arg] = formal;
             arg->accept(m_this);
@@ -2033,7 +2061,12 @@ void TaskResolveRefs::visitProceduralStmtAssignment(ast::IProceduralStmtAssignme
     if (i->getLhs()) {
         i->getLhs()->accept(m_this);
     }
-    if (ast::IExprAggrList *aggr = dynamic_cast<ast::IExprAggrList *>(i->getRhs())) {
+    if (holdsStructLiteral(i->getRhs())) {
+        ExprTypeOf type_of(m_ctxt);
+        setLiteralTypes(i->getRhs(),
+            type_of.structOf(i->getLhs()), type_of.structOf(i->getLhs(), 1));
+    }
+    if (ast::IExprAggrList *aggr = NodeKind::cast<ast::IExprAggrList>(i->getRhs())) {
         visitAggrExpecting(aggr, (anyTakesExpected(aggr))
             ? ExprTypeOf(m_ctxt).elemEnumOf(i->getLhs()) : 0);
         return;
@@ -2050,7 +2083,11 @@ void TaskResolveRefs::visitProceduralStmtDataDeclaration(ast::IProceduralStmtDat
     if (i->getDatatype()) {
         i->getDatatype()->accept(m_this);
     }
-    if (ast::IExprAggrList *aggr = dynamic_cast<ast::IExprAggrList *>(i->getInit())) {
+    if (holdsStructLiteral(i->getInit())) {
+        ExprTypeOf type_of(m_ctxt);
+        setLiteralTypes(i->getInit(), type_of.structOfDecl(i), type_of.structOfDecl(i, 1));
+    }
+    if (ast::IExprAggrList *aggr = NodeKind::cast<ast::IExprAggrList>(i->getInit())) {
         visitAggrExpecting(aggr, (anyTakesExpected(aggr))
             ? ExprTypeOf(m_ctxt).enumOfDecl(i, 1) : 0);
         return;
@@ -2077,7 +2114,7 @@ void TaskResolveRefs::checkSuperStmt(ast::IScopeChild *stmt) {
     // reported at the declaration.
     ast::ISymbolTypeScope *type_s = TaskResolveRootRef(m_ctxt).contextType();
     ast::ITypeScope *ts = (type_s)
-        ? dynamic_cast<ast::ITypeScope *>(type_s->getTarget()) : 0;
+        ? NodeKind::cast<ast::ITypeScope>(type_s->getTarget()) : 0;
 
     if (type_s && ts && !ts->getSuper_t()) {
         m_ctxt->addErrorMarker(stmt->getLocation(),
@@ -2163,7 +2200,7 @@ void TaskResolveRefs::reportStaticContext(const ast::IExprId *id) {
         "cannot reference instance member '%s' from static function '%s': "
         "a static function has no component instance (20.2)",
         id->getId().c_str(),
-        dynamic_cast<ast::ISymbolScope *>(fn)->getName().c_str());
+        NodeKind::cast<ast::ISymbolScope>(fn)->getName().c_str());
 }
 
 bool TaskResolveRefs::insideTypeOrSubtype(ast::ISymbolTypeScope *t) {
@@ -2177,11 +2214,11 @@ bool TaskResolveRefs::insideTypeOrSubtype(ast::ISymbolTypeScope *t) {
         if (s) {
             ast::ISymbolScope *ts = s;
             if (ast::ISymbolExtendScope *es =
-                    dynamic_cast<ast::ISymbolExtendScope *>(s)) {
+                    NodeKind::cast<ast::ISymbolExtendScope>(s)) {
                 ast::IExtendType *ext =
-                    dynamic_cast<ast::IExtendType *>(es->getTarget());
+                    NodeKind::cast<ast::IExtendType>(es->getTarget());
                 ts = (ext && ext->getTarget() && ext->getTarget()->getTarget())
-                    ? dynamic_cast<ast::ISymbolScope *>(
+                    ? NodeKind::cast<ast::ISymbolScope>(
                         m_ctxt->resolveSymbolPathRef(ext->getTarget()->getTarget()))
                     : 0;
             }
@@ -2192,10 +2229,10 @@ bool TaskResolveRefs::insideTypeOrSubtype(ast::ISymbolTypeScope *t) {
                     return true;
                 }
                 ast::ISymbolTypeScope *sts =
-                    dynamic_cast<ast::ISymbolTypeScope *>(ts);
+                    NodeKind::cast<ast::ISymbolTypeScope>(ts);
                 ast::ITypeScope *tt = (sts)?
-                    dynamic_cast<ast::ITypeScope *>(sts->getTarget()) : 0;
-                ts = (tt)? dynamic_cast<ast::ISymbolScope *>(
+                    NodeKind::cast<ast::ITypeScope>(sts->getTarget()) : 0;
+                ts = (tt)? NodeKind::cast<ast::ISymbolScope>(
                     TaskResolveSuperTypeRef(
                         m_ctxt->getDebugMgr(), m_ctxt->root()).resolve(tt)) : 0;
             }
@@ -2210,8 +2247,8 @@ void TaskResolveRefs::checkStaticViaComp(
         ast::IScopeChild        *member,
         const ast::IExprId      *id,
         bool                    direct) {
-    ast::ISymbolTypeScope *ts = dynamic_cast<ast::ISymbolTypeScope *>(scope);
-    if (!ts || !dynamic_cast<ast::IComponent *>(ts->getTarget())
+    ast::ISymbolTypeScope *ts = NodeKind::cast<ast::ISymbolTypeScope>(scope);
+    if (!ts || !NodeKind::cast<ast::IComponent>(ts->getTarget())
             || !isStaticMember(member)) {
         return;
     }
@@ -2242,7 +2279,7 @@ bool TaskResolveRefs::checkTypeMember(
         ast::ISymbolScope       *scope,
         ast::IScopeChild        *member,
         const ast::IExprId      *id) {
-    ast::ISymbolTypeScope *ts = dynamic_cast<ast::ISymbolTypeScope *>(scope);
+    ast::ISymbolTypeScope *ts = NodeKind::cast<ast::ISymbolTypeScope>(scope);
     if (!ts || !isInstanceMember(member) || insideTypeOrSubtype(ts)) {
         return false;
     }
@@ -2293,6 +2330,14 @@ void TaskResolveRefs::reportSuperMiss(
     }
 }
 
+bool TaskResolveRefs::isPendingHandleTraversal(ast::IScopeChild *c) {
+    ast::IActivityActionHandleTraversal *t =
+        NodeKind::cast<ast::IActivityActionHandleTraversal>(c);
+    return t && t->getTarget() && t->getTarget()->getHier_id()
+        && t->getTarget()->getHier_id()->getElems().size()
+        && !t->getTarget()->getHier_id()->getElems().back()->getId()->getDecl();
+}
+
 bool TaskResolveRefs::deferUntilTypesBound(ast::IExprRefPathContext *i) {
     if (m_retrying || !m_ctxt->symtab()) {
         return false;
@@ -2303,6 +2348,7 @@ bool TaskResolveRefs::deferUntilTypesBound(ast::IExprRefPathContext *i) {
     d.is_stmt = (m_stmt_expr == i);
     d.template_depth = m_template_depth;
     d.func_s = m_func_s;
+    d.inline_ctxt = m_ctxt->inlineCtxt();
     m_deferred.push_back(std::move(d));
     return true;
 }
@@ -2326,9 +2372,15 @@ void TaskResolveRefs::resolveDeferred() {
         m_stmt_expr = (it->is_stmt) ? it->ref : 0;
         m_template_depth = it->template_depth;
         m_func_s.swap(it->func_s);
+        if (it->inline_ctxt) {
+            m_ctxt->pushInlineCtxt(it->inline_ctxt);
+        }
 
         resolveExprRefPathContext(it->ref);
 
+        if (it->inline_ctxt) {
+            m_ctxt->popInlineCtxt();
+        }
         m_func_s.swap(it->func_s);
         m_template_depth = prev_depth;
         m_stmt_expr = prev_stmt;
@@ -2421,7 +2473,7 @@ void TaskResolveRefs::resolveExprRefPathContext(ast::IExprRefPathContext *i) {
         }
 
         std::string suggestion = findCloseMatch_rr(
-            name, dynamic_cast<ast::ISymbolScope *>(m_ctxt->root()));
+            name, NodeKind::cast<ast::ISymbolScope>(m_ctxt->root()));
         if (suggestion.empty() && m_ctxt->symtab()) {
             // getScope() walks backward from the top of the stack it is
             // given and silently *erases* every non-ISymbolScope entry it
@@ -2445,7 +2497,7 @@ void TaskResolveRefs::resolveExprRefPathContext(ast::IExprRefPathContext *i) {
         // not import the package that declares it. Preferred over the
         // edit-distance suggestion, which is a guess where this is a fact.
         std::string core_pkg = findCoreLibraryPackage(
-            dynamic_cast<ast::ISymbolScope *>(m_ctxt->root()), name);
+            NodeKind::cast<ast::ISymbolScope>(m_ctxt->root()), name);
 
         if (!core_pkg.empty()) {
             m_ctxt->addMarker(
@@ -2509,7 +2561,7 @@ void TaskResolveRefs::resolveExprRefPathContext(ast::IExprRefPathContext *i) {
     // prototypes and is resolved against them, while a collection method is
     // still only name-checked.
     bool is_string_target = is_builtin_with_methods
-        && dynamic_cast<ast::IDataTypeString *>(declaredTypeOf(target_c));
+        && NodeKind::cast<ast::IDataTypeString>(declaredTypeOf(target_c));
 
     // The element index at which a member is checked against the built-in
     // method list rather than looked up in a scope: the one directly after
@@ -2525,6 +2577,12 @@ void TaskResolveRefs::resolveExprRefPathContext(ast::IExprRefPathContext *i) {
             // runs -- suppressing the composite-scope message without also
             // making the call reported nothing at all.
             checkCallArity(i->getHier_id()->getElems().at(0).get(), target_c);
+        } else if (target_c && isPendingHandleTraversal(target_c)
+                && deferUntilTypesBound(i)) {
+            // `T.x` on `T: a;` (C-N4), written before the activity: `T`
+            // means `a`, which is not resolved until the activity is.
+            DEBUG("Root %s: a traversal not resolved yet; deferred",
+                i->getHier_id()->getElems().at(0)->getId()->getId().c_str());
         } else if (target_c && hasUnresolvedUserDefinedType(target_c)
                 && deferUntilTypesBound(i)) {
             DEBUG("Root %s: type not bound yet; deferred",
@@ -2539,8 +2597,8 @@ void TaskResolveRefs::resolveExprRefPathContext(ast::IExprRefPathContext *i) {
             DEBUG("Root %s has an unresolved type; "
                 "already reported at its declaration",
                 i->getHier_id()->getElems().at(0)->getId()->getId().c_str());
-        } else if (dynamic_cast<ast::IFieldCompRef *>(target_c)
-                && !dynamic_cast<ast::IFieldCompRef *>(target_c)->getType()) {
+        } else if (NodeKind::cast<ast::IFieldCompRef>(target_c)
+                && !NodeKind::cast<ast::IFieldCompRef>(target_c)->getType()) {
             // `comp` is left untyped only in an action with no enclosing
             // component: an abstract action declared in a package (9.2.1).
             // Nothing says which component a derived action will land in, so
@@ -2571,7 +2629,7 @@ void TaskResolveRefs::resolveExprRefPathContext(ast::IExprRefPathContext *i) {
     // may not be used to reach a static component member (9.1.4.1 f).
     bool via_comp = i->getHier_id()->getElems().at(0)->getId()->getId() == "comp"
         && !i->getHier_id()->getElems().at(0)->getId()->getIs_escaped()
-        && dynamic_cast<ast::IFieldCompRef *>(target_c);
+        && NodeKind::cast<ast::IFieldCompRef>(target_c);
 
     for (uint32_t ii=0; ii<i->getHier_id()->getElems().size(); ii++) {
         ast::IExprMemberPathElem *elem = i->getHier_id()->getElems().at(ii).get();
@@ -2590,7 +2648,7 @@ void TaskResolveRefs::resolveExprRefPathContext(ast::IExprRefPathContext *i) {
             DEBUG_ENTER("Resolve parameter references");
             ast::IScopeChild *callee = (!ii) ? target_c
                 : (target_s && !target_s->getOpaque())
-                    ? TaskFindPathElem(m_ctxt->getDebugMgr(), m_ctxt->root()).find(
+                    ? TaskFindPathElem(m_ctxt).find(
                         target_s, elem->getId()).sym
                     : 0;
             visitCallArgs(elem->getParams(), callee);
@@ -2659,9 +2717,7 @@ void TaskResolveRefs::resolveExprRefPathContext(ast::IExprRefPathContext *i) {
             if (is_string_target) {
                 ast::ISymbolScope *string_s = builtinStringScope_rr(m_ctxt->root());
                 if (string_s) {
-                    proto = TaskFindPathElem(
-                        m_ctxt->getDebugMgr(),
-                        m_ctxt->root()).find(string_s, elem->getId()).sym;
+                    proto = TaskFindPathElem(m_ctxt).find(string_s, elem->getId()).sym;
                     found = (proto != 0);
                 }
             } else {
@@ -2725,9 +2781,7 @@ void TaskResolveRefs::resolveExprRefPathContext(ast::IExprRefPathContext *i) {
             return;
         }
 
-        TaskFindPathElem::Result res = TaskFindPathElem(
-            m_ctxt->getDebugMgr(),
-            m_ctxt->root()).find(
+        TaskFindPathElem::Result res = TaskFindPathElem(m_ctxt).find(
                 target_s,
                 elem->getId()
             );
@@ -2778,7 +2832,7 @@ void TaskResolveRefs::resolveExprRefPathContext(ast::IExprRefPathContext *i) {
             // which names the same object -- it can only be found there;
             // as a member of anything else (`i.prev` on an input) it is the
             // previous state of an object this scope does not own.
-            ast::IField *builtin_f = dynamic_cast<ast::IField *>(res.sym);
+            ast::IField *builtin_f = NodeKind::cast<ast::IField>(res.sym);
             if (ii && builtin_f
                     && (builtin_f->getAttr() & ast::FieldAttr::Builtin) != ast::FieldAttr::NoFlags
                     && builtin_f->getName()->getId() == "prev"
@@ -2834,7 +2888,7 @@ void TaskResolveRefs::resolveExprRefPathContext(ast::IExprRefPathContext *i) {
                         // element against the method list, exactly as the
                         // root case does.
                         is_builtin_with_methods = true;
-                        is_string_target = (dynamic_cast<ast::IDataTypeString *>(
+                        is_string_target = (NodeKind::cast<ast::IDataTypeString>(
                             declaredTypeOf(target_c)) != 0);
                         builtin_method_ii = ii+1;
                         DEBUG("Element %s is a built-in with methods; "
@@ -2917,7 +2971,37 @@ void TaskResolveRefs::visitActivitySequence(ast::IActivitySequence *i) {
     DEBUG_LEAVE("visitActivitySequence");
 }
 
-void TaskResolveRefs::resolveActivityScope(ast::ISymbolScope *i) {
+void TaskResolveRefs::visitActivityParallel(ast::IActivityParallel *i) {
+    DEBUG_ENTER("visitActivityParallel");
+    ast::IActivityJoinSpec *join = i->getJoin_spec();
+    resolveActivityScope(join, i);
+    DEBUG_LEAVE("visitActivityParallel");
+}
+
+void TaskResolveRefs::visitActivitySchedule(ast::IActivitySchedule *i) {
+    DEBUG_ENTER("visitActivitySchedule");
+    ast::IActivityJoinSpec *join = i->getJoin_spec();
+    resolveActivityScope(join, i);
+    DEBUG_LEAVE("visitActivitySchedule");
+}
+
+void TaskResolveRefs::visitActivitySchedulingConstraint(
+        ast::IActivitySchedulingConstraint *i) {
+    DEBUG_ENTER("visitActivitySchedulingConstraint");
+    // `constraint parallel {L.a, L.b}` (13.2, Ex. 123): each target is a
+    // path through the named sub-activity tree, rooted at a label visible
+    // here. Resolved as any other path is; that the targets are action
+    // handles or labels is a semantic check.
+    for (std::vector<ast::IExprRefPathContextUP>::const_iterator
+        it=i->getTargets().begin(); it!=i->getTargets().end(); it++) {
+        (*it)->accept(m_this);
+    }
+    DEBUG_LEAVE("visitActivitySchedulingConstraint");
+}
+
+void TaskResolveRefs::resolveActivityScope(
+        ast::IActivityJoinSpec  *join,
+        ast::ISymbolScope       *i) {
     DEBUG_ENTER("resolveActivityScope");
     m_ctxt->symtab()->pushScope(i);
     checkScopeAnnotations(i);
@@ -2932,6 +3016,9 @@ void TaskResolveRefs::resolveActivityScope(ast::ISymbolScope *i) {
         if (*it) {
             (*it)->accept(m_this);
         }
+    }
+    if (join) {
+        join->accept(m_this);
     }
     m_ctxt->symtab()->popScope();
     DEBUG_LEAVE("resolveActivityScope");
@@ -2948,7 +3035,7 @@ void TaskResolveRefs::visitActivityForeach(ast::IActivityForeach *i) {
     // Typed now that the collection has resolved, so `foreach (h : handles)
     // { h; }` traverses an action handle rather than an `int` (K3).
     typeLoopIterator(i, i->getIt_id(), i->getPath());
-    resolveActivityScope(i);
+    resolveActivityScope(0, i);
     DEBUG_LEAVE("visitActivityForeach");
 }
 
@@ -2957,7 +3044,7 @@ void TaskResolveRefs::visitActivityRepeatCount(ast::IActivityRepeatCount *i) {
     if (i->getCount()) {
         i->getCount()->accept(m_this);
     }
-    resolveActivityScope(i);
+    resolveActivityScope(0, i);
     DEBUG_LEAVE("visitActivityRepeatCount");
 }
 
@@ -2966,7 +3053,7 @@ void TaskResolveRefs::visitActivityRepeatWhile(ast::IActivityRepeatWhile *i) {
     if (i->getCond()) {
         i->getCond()->accept(m_this);
     }
-    resolveActivityScope(i);
+    resolveActivityScope(0, i);
     DEBUG_LEAVE("visitActivityRepeatWhile");
 }
 
@@ -2975,7 +3062,7 @@ void TaskResolveRefs::visitActivityReplicate(ast::IActivityReplicate *i) {
     if (i->getCount()) {
         i->getCount()->accept(m_this);
     }
-    resolveActivityScope(i);
+    resolveActivityScope(0, i);
     DEBUG_LEAVE("visitActivityReplicate");
 }
 
@@ -2984,7 +3071,7 @@ void TaskResolveRefs::visitActivityIfElse(ast::IActivityIfElse *i) {
     if (i->getCond()) {
         i->getCond()->accept(m_this);
     }
-    resolveActivityScope(i);
+    resolveActivityScope(0, i);
     DEBUG_LEAVE("visitActivityIfElse");
 }
 
@@ -2999,7 +3086,7 @@ void TaskResolveRefs::visitActivitySelect(ast::IActivitySelect *i) {
             (*it)->getWeight()->accept(m_this);
         }
     }
-    resolveActivityScope(i);
+    resolveActivityScope(0, i);
     DEBUG_LEAVE("visitActivitySelect");
 }
 
@@ -3020,19 +3107,19 @@ void TaskResolveRefs::visitActivityMatch(ast::IActivityMatch *i) {
         it=i->getChoices().begin(); it!=i->getChoices().end(); it++) {
         visitRangesExpecting((*it)->getCond(), t);
     }
-    resolveActivityScope(i);
+    resolveActivityScope(0, i);
     DEBUG_LEAVE("visitActivityMatch");
 }
 
 void TaskResolveRefs::visitActivityAtomicBlock(ast::IActivityAtomicBlock *i) {
     DEBUG_ENTER("visitActivityAtomicBlock");
-    resolveActivityScope(i);
+    resolveActivityScope(0, i);
     DEBUG_LEAVE("visitActivityAtomicBlock");
 }
 
 void TaskResolveRefs::visitMonitorActivityEventually(ast::IMonitorActivityEventually *i) {
     DEBUG_ENTER("visitMonitorActivityEventually");
-    resolveActivityScope(i);
+    resolveActivityScope(0, i);
     DEBUG_LEAVE("visitMonitorActivityEventually");
 }
 
@@ -3045,8 +3132,8 @@ void TaskResolveRefs::visitMonitorActivityEventually(ast::IMonitorActivityEventu
  * `P<8>` and for references written inside a specialized copy.
  */
 static bool isUnspecializedGeneric(ast::IScopeChild *c) {
-    ast::ISymbolTypeScope *ts = dynamic_cast<ast::ISymbolTypeScope *>(c);
-    ast::ITypeScope *td = ts?dynamic_cast<ast::ITypeScope *>(ts->getTarget()):0;
+    ast::ISymbolTypeScope *ts = NodeKind::cast<ast::ISymbolTypeScope>(c);
+    ast::ITypeScope *td = ts?NodeKind::cast<ast::ITypeScope>(ts->getTarget()):0;
     return td
         && td->getParams()
         && !td->getParams()->getSpecialized()
@@ -3092,7 +3179,7 @@ void TaskResolveRefs::resolveExprRefPathStatic(ast::IExprRefPathStatic *i) {
                     // As in visitExprRefPathContext: name the missing import
                     // when the symbol is a core-library one.
                     std::string core_pkg = findCoreLibraryPackage(
-                        dynamic_cast<ast::ISymbolScope *>(m_ctxt->root()),
+                        NodeKind::cast<ast::ISymbolScope>(m_ctxt->root()),
                         (*it)->getId()->getId());
 
                     if (!core_pkg.empty()) {
@@ -3190,7 +3277,7 @@ void TaskResolveRefs::resolveExprRefPathStatic(ast::IExprRefPathStatic *i) {
                 // result was discarded, so `Q<ok_s>::nosuch` linked cleanly:
                 // only the root of a static path was ever checked.
                 ast::ISymbolScope *scope_s =
-                    dynamic_cast<ast::ISymbolScope *>(target_s);
+                    NodeKind::cast<ast::ISymbolScope>(target_s);
 
                 if (!scope_s) {
                     // The preceding element is not a scope -- a static path
@@ -3203,9 +3290,7 @@ void TaskResolveRefs::resolveExprRefPathStatic(ast::IExprRefPathStatic *i) {
                 }
 
                 // `pkg::ITEM` too: the whole path is appended below.
-                TaskFindPathElem::Result res = TaskFindPathElem(
-                    m_ctxt->getDebugMgr(),
-                    m_ctxt->root()).find(scope_s, (*it)->getId(), true);
+                TaskFindPathElem::Result res = TaskFindPathElem(m_ctxt).find(scope_s, (*it)->getId(), true);
 
                 if (!res.sym) {
                     addMarker(
@@ -3354,9 +3439,7 @@ void TaskResolveRefs::resolveStaticRootedLeaf(ast::IExprRefPathStaticRooted *i) 
     for (uint32_t ii=0; ii<i->getLeaf()->getElems().size(); ii++) {
         ast::IExprMemberPathElem *elem = i->getLeaf()->getElems().at(ii).get();
 
-        TaskFindPathElem::Result res = TaskFindPathElem(
-            m_ctxt->getDebugMgr(),
-            m_ctxt->root()).find(target_s, elem->getId());
+        TaskFindPathElem::Result res = TaskFindPathElem(m_ctxt).find(target_s, elem->getId());
 
         if (!res.sym) {
             // Same wording as the member-path loop above: one phrasing for
@@ -3433,7 +3516,11 @@ void TaskResolveRefs::visitField(ast::IField *i) {
     if (i->getType()) {
         i->getType()->accept(m_this);
     }
-    if (ast::IExprAggrList *aggr = dynamic_cast<ast::IExprAggrList *>(i->getInit())) {
+    if (holdsStructLiteral(i->getInit())) {
+        ExprTypeOf type_of(m_ctxt);
+        setLiteralTypes(i->getInit(), type_of.structOfDecl(i), type_of.structOfDecl(i, 1));
+    }
+    if (ast::IExprAggrList *aggr = NodeKind::cast<ast::IExprAggrList>(i->getInit())) {
         visitAggrExpecting(aggr, (anyTakesExpected(aggr))
             ? ExprTypeOf(m_ctxt).enumOfDecl(i, 1) : 0);
     } else if (i->getInit()) {
@@ -3476,7 +3563,7 @@ void TaskResolveRefs::visitField(ast::IField *i) {
 void TaskResolveRefs::checkConstTemplate(
     ast::IExpr              *e,
     const ast::Location     &loc) {
-    ast::IExprTemplateString *ts = dynamic_cast<ast::IExprTemplateString *>(e);
+    ast::IExprTemplateString *ts = NodeKind::cast<ast::IExprTemplateString>(e);
 
     if (ts && ts->getTemplate() && !ts->getTemplate()->getIs_const()) {
         m_ctxt->addErrorMarker(
@@ -3521,18 +3608,18 @@ public:
  */
 bool isTypeLevel(ast::IScopeChild *c) {
     ast::IScope *p = c->getParent();
-    return dynamic_cast<ast::ITypeScope *>(p) != 0
-        || dynamic_cast<ast::IExtendType *>(p) != 0;
+    return NodeKind::cast<ast::ITypeScope>(p) != 0
+        || NodeKind::cast<ast::IExtendType>(p) != 0;
 }
 
 }
 
 ast::IScopeChild *TaskResolveRefs::constTarget(ast::ISymbolRefPath *path) {
     ast::IScopeChild *t = m_ctxt->resolveSymbolPathRef(path);
-    if (dynamic_cast<ast::IEnumItem *>(t)) {
+    if (NodeKind::cast<ast::IEnumItem>(t)) {
         return t;
     }
-    ast::IField *f = dynamic_cast<ast::IField *>(t);
+    ast::IField *f = NodeKind::cast<ast::IField>(t);
     if (f && (f->getAttr() & ast::FieldAttr::Const) != ast::FieldAttr::NoFlags
             && (f->getAttr() & ast::FieldAttr::Builtin) == ast::FieldAttr::NoFlags) {
         return t;
@@ -3552,7 +3639,7 @@ bool TaskResolveRefs::declaredLater(
     }
     // Decision Q8: across files, constants follow the order the files are
     // given in -- the unit order.
-    ast::IRootSymbolScope *root = dynamic_cast<ast::IRootSymbolScope *>(m_ctxt->root());
+    ast::IRootSymbolScope *root = NodeKind::cast<ast::IRootSymbolScope>(m_ctxt->root());
     if (!root) {
         return false;
     }
@@ -3599,7 +3686,7 @@ void TaskResolveRefs::checkConstInitRefs(ast::IField *i) {
             continue;
         }
         const ast::Location &use = it->first->getLocation();
-        const char *kind = (dynamic_cast<ast::IEnumItem *>(t))?"enum item":"constant";
+        const char *kind = (NodeKind::cast<ast::IEnumItem>(t))?"enum item":"constant";
 
         if (t == i) {
             m_ctxt->addMarker(
@@ -3618,8 +3705,8 @@ void TaskResolveRefs::checkConstInitRefs(ast::IField *i) {
                     + "' before its declaration " + declSite(t, use)
                     + "; declare it first (18.2)",
                 {{TaskResolveRootRef::declLocation(t), "declared here"}});
-        } else if (pkg_level && dynamic_cast<ast::IField *>(t) && isTypeLevel(t)) {
-            ast::INamedScope *owner = dynamic_cast<ast::INamedScope *>(t->getParent());
+        } else if (pkg_level && NodeKind::cast<ast::IField>(t) && isTypeLevel(t)) {
+            ast::INamedScope *owner = NodeKind::cast<ast::INamedScope>(t->getParent());
             std::string owner_name = (owner && owner->getName())
                 ? owner->getName()->getId() : std::string("?");
             m_ctxt->addMarker(
@@ -3654,7 +3741,7 @@ void TaskResolveRefs::visitDataTypeInt(ast::IDataTypeInt *i) {
             m_ctxt->addMarker(
                 MarkerSeverityE::Warn,
                 use,
-                std::string((dynamic_cast<ast::IEnumItem *>(t))?"enum item":"constant")
+                std::string((NodeKind::cast<ast::IEnumItem>(t))?"enum item":"constant")
                     + " '" + it->first->getId()
                     + "' is used in a type width before its declaration "
                     + declSite(t, use) + "; declare it first (18.2)",
@@ -3684,7 +3771,7 @@ void TaskResolveRefs::checkMutableField(ast::IField *i) {
     }
 
     ast::IDataTypeUserDefined *ud =
-        dynamic_cast<ast::IDataTypeUserDefined *>(i->getType());
+        NodeKind::cast<ast::IDataTypeUserDefined>(i->getType());
     if (!ud || !ud->getType_id() || !ud->getType_id()->getTarget()) {
         return;
     }
@@ -3697,12 +3784,12 @@ void TaskResolveRefs::checkMutableField(ast::IField *i) {
 
     // Type references resolve to the wrapping symbol scope, not the
     // declaration -- the same indirection annotations hit in Phase 2.
-    ast::ISymbolTypeScope *ts = dynamic_cast<ast::ISymbolTypeScope *>(target_c);
+    ast::ISymbolTypeScope *ts = NodeKind::cast<ast::ISymbolTypeScope>(target_c);
     if (ts && ts->getTarget()) {
         target_c = ts->getTarget();
     }
 
-    if (dynamic_cast<ast::IComponent *>(target_c)) {
+    if (NodeKind::cast<ast::IComponent>(target_c)) {
         m_ctxt->addErrorMarker(
             i->getName()->getLocation(),
             "illegal 'mutable' qualifier: not permitted on component field '%s'",
@@ -3779,19 +3866,16 @@ void TaskResolveRefs::typeLoopIterator(
         return;
     }
     ast::IProceduralStmtDataDeclaration *var =
-        dynamic_cast<ast::IProceduralStmtDataDeclaration *>(
+        NodeKind::cast<ast::IProceduralStmtDataDeclaration>(
             loop->getChildren().at(it->second).get());
     if (!var || var->getDatatype()) {
         return;
     }
 
-    ast::IScopeChild *coll = TaskResolveSymbolPathRef(
-        m_ctxt->getDebugMgr(),
-        m_ctxt->root(),
-        m_ctxt->inlineCtxt()).resolve(coll_ref->getTarget());
+    ast::IScopeChild *coll = collectionOf(coll_ref);
 
-    ast::IDataType *elem_t = TaskGetCollectionElemType(
-        m_ctxt->getDebugMgr(), m_ctxt->root()).resolve(coll);
+    ast::IDataType *elem_t = (coll) ? TaskGetCollectionElemType(
+        m_ctxt->getDebugMgr(), m_ctxt->root()).resolve(coll) : 0;
 
     if (elem_t) {
         DEBUG("Iterator %s takes the collection's element type",
@@ -3799,6 +3883,62 @@ void TaskResolveRefs::typeLoopIterator(
         // Not owned: the type belongs to the collection's specialized
         // parameter list, which outlives the loop that borrows it.
         var->setDatatype(elem_t, false);
+    }
+}
+
+ast::IScopeChild *TaskResolveRefs::collectionOf(ast::IExpr *coll) {
+    ast::IExprRefPath *ref = 0;
+    ast::IExprHierarchicalId *hid = 0;
+    NodeKind nk(coll);
+    if (ast::IExprRefPathContext *r = nk.as<ast::IExprRefPathContext>()) {
+        ref = r;
+        hid = r->getHier_id();
+        if (r->getSlice()) {
+            return 0;
+        }
+    } else if (ast::IExprRefPathStaticRooted *r = nk.as<ast::IExprRefPathStaticRooted>()) {
+        ref = r;
+        hid = r->getLeaf();
+        if (r->getSlice()) {
+            return 0;
+        }
+    } else {
+        ref = nk.as<ast::IExprRefPath>();
+    }
+    if (!ref || !ref->getTarget()) {
+        return 0;
+    }
+
+    ast::IExprMemberPathElem *last = (hid && hid->getElems().size())
+        ? hid->getElems().back().get() : 0;
+    if (last && last->getSubscript().size()) {
+        // An element of the collection, not the collection.
+        return 0;
+    }
+    if (last && hid->getElems().size() > 1) {
+        return last->getId()->getDecl();
+    }
+    // One element, or none past a static root: the path's target is the
+    // collection itself.
+    return TaskResolveSymbolPathRef(
+        m_ctxt->getDebugMgr(),
+        m_ctxt->root(),
+        m_ctxt->inlineCtxt()).resolve(ref->getTarget());
+}
+
+void TaskResolveRefs::typeConstraintIterator(ast::IConstraintStmtForeach *i) {
+    ast::IConstraintStmtField *it = i->getIt();
+    if (!it || it->getType()) {
+        return;
+    }
+    ast::IScopeChild *coll = collectionOf(i->getExpr());
+    ast::IDataType *elem_t = (coll) ? TaskGetCollectionElemType(
+        m_ctxt->getDebugMgr(), m_ctxt->root()).resolve(coll) : 0;
+    if (elem_t) {
+        DEBUG("Constraint iterator %s takes the collection's element type",
+            it->getName()->getId().c_str());
+        // Not owned, as for a procedural loop's iterator.
+        it->setType(elem_t, false);
     }
 }
 
@@ -3936,8 +4076,8 @@ bool TaskResolveRefs::findTemplateAssignTarget(
                 continue;
             }
             in_template =
-                dynamic_cast<ast::ITemplateString *>(scope) != 0 ||
-                dynamic_cast<ast::ITemplateBlock *>(scope) != 0;
+                NodeKind::cast<ast::ITemplateString>(scope) != 0 ||
+                NodeKind::cast<ast::ITemplateBlock>(scope) != 0;
             decl = c;
             return true;
         }
@@ -4072,7 +4212,7 @@ void TaskResolveRefs::visitActivitySymbolCall(ast::IActivitySymbolCall *i) {
         m_ctxt->getFactory()->getAstFactory()->mkExprRefPathContext(hid));
     ast::ISymbolRefPathUP target(TaskResolveRef(m_ctxt, true, false).resolve(ref.get()));
     ast::IScopeChild *target_c = target ? m_ctxt->resolveSymbolPathRef(target.get()) : 0;
-    ast::ISymbolDeclaration *sym = dynamic_cast<ast::ISymbolDeclaration *>(target_c);
+    ast::ISymbolDeclaration *sym = NodeKind::cast<ast::ISymbolDeclaration>(target_c);
 
     if (!target_c) {
         if (!reportUseBeforeDecl(id)) {
@@ -4100,17 +4240,463 @@ void TaskResolveRefs::visitActivitySymbolCall(ast::IActivitySymbolCall *i) {
 }
 
 /**
- * `bind p { a.x, ... };` -- the pool path and the target paths are resolved
- * along component paths (WS4.5, U2), not by the ordinary lookup. Only the
- * action type named in a target is resolved here, as before WS3.2.
+ * `bind p { a.x, ... };` (12.3). The pool is an ordinary path from the
+ * binding component. The targets are walked along component paths, which
+ * needs every component instance's type bound, so they wait for the end of
+ * the walk (resolvePoolBinds).
  */
 void TaskResolveRefs::visitComponentBind(ast::IComponentBind *i) {
-    for (std::vector<ast::IComponentBindTargetUP>::const_iterator
-            it=i->getTargets().begin(); it!=i->getTargets().end(); it++) {
-        if ((*it)->getType_id()) {
-            (*it)->getType_id()->accept(m_this);
+    DEBUG_ENTER("visitComponentBind");
+    if (i->getPool_path()) {
+        ast::IExprRefPathContext *ref = i->getPool_path();
+        ref->accept(m_this);
+        ast::IExprId *id = ref->getHier_id()->getElems().back()->getId();
+        ast::IScopeChild *pool = id->getDecl();
+        if (!pool && ref->getHier_id()->getElems().size() == 1 && ref->getTarget()) {
+            pool = m_ctxt->resolveSymbolPathRef(ref->getTarget());
+        }
+        if (pool && !NodeKind::cast<ast::IFieldPool>(pool)) {
+            m_ctxt->addErrorMarker(id->getLocation(),
+                "bind names '%s', which is not a pool (12.3)",
+                id->getId().c_str());
         }
     }
+    if (i->getTargets().size() && m_ctxt->symtab()) {
+        PendingPoolBind b;
+        b.bind = i;
+        b.symtab = ISymbolTableIteratorUP(m_ctxt->cloneSymtab());
+        m_pool_binds.push_back(std::move(b));
+    }
+    DEBUG_LEAVE("visitComponentBind");
+}
+
+void TaskResolveRefs::resolvePoolBinds() {
+    std::vector<PendingPoolBind> work;
+    work.swap(m_pool_binds);
+    for (std::vector<PendingPoolBind>::iterator
+            it=work.begin(); it!=work.end(); it++) {
+        m_ctxt->pushSymtab(it->symtab.release());
+        ast::ISymbolTypeScope *comp = componentScopeOf(m_ctxt->symtab()->getScope());
+        for (std::vector<ast::IComponentBindTargetUP>::const_iterator
+                t_it=it->bind->getTargets().begin();
+                t_it!=it->bind->getTargets().end(); t_it++) {
+            resolvePoolBindTarget(comp, t_it->get());
+        }
+        m_ctxt->popSymtab();
+    }
+}
+
+namespace {
+
+/** Mark the names of `t` from path element `from` on as not resolvable. */
+void markBindTargetUnknown(ast::IComponentBindTarget *t, uint32_t from) {
+    for (uint32_t ii=from; ii<t->getPath().size(); ii++) {
+        if (ast::IExprRefName *rn = t->getPath().at(ii)->getId()) {
+            rn->setCtx_unknown(true);
+        }
+    }
+    if (t->getField()) {
+        t->getField()->setCtx_unknown(true);
+    }
+}
+
+}
+
+/**
+ * `[c1[0..1].c2.]A.f`: each path element is a component instance of the
+ * component reached so far, starting from the binding component; `A` is an
+ * action type of the last component reached (F-N15), and `f` an input,
+ * output or resource-claim field of `A` (12.3.1 a). Index ranges are
+ * expressions of the binding scope.
+ */
+void TaskResolveRefs::resolvePoolBindTarget(
+        ast::ISymbolTypeScope       *comp,
+        ast::IComponentBindTarget   *t) {
+    DEBUG_ENTER("resolvePoolBindTarget");
+    TaskFindPathElem find(m_ctxt->getDebugMgr(), m_ctxt->root());
+    ExprTypeOf type_of(m_ctxt);
+    TaskGetSymbolRefPath mk_path(
+        m_ctxt->getDebugMgr(),
+        m_ctxt->root(),
+        m_ctxt->getFactory()->getAstFactory());
+
+    for (uint32_t ii=0; ii<t->getPath().size(); ii++) {
+        ast::IComponentPathElem *e = t->getPath().at(ii).get();
+        if (e->getRange()) {
+            e->getRange()->accept(m_this);
+        }
+        ast::IExprRefName *rn = e->getId();
+        if (!rn || !rn->getId()) {
+            continue;
+        }
+        if (!comp) {
+            // A generic component, or a type that failed to resolve.
+            markBindTargetUnknown(t, ii);
+            break;
+        }
+        ast::IExprId *id = rn->getId();
+        TaskFindPathElem::Result res = find.find(comp, id);
+        if (!res.sym) {
+            m_ctxt->addErrorMarker(id->getLocation(),
+                "'%s' has no member named '%s'",
+                comp->getName().c_str(), id->getId().c_str());
+            markBindTargetUnknown(t, ii+1);
+            comp = 0;
+            break;
+        }
+        // An array of instances is named whole or by a range of any of its
+        // dimensions (12.3 b): its component is the element type's.
+        ast::ISymbolScope *type_s = 0;
+        ast::ISymbolTypeScope *sub = 0;
+        if (NodeKind::cast<ast::IField>(res.sym)) {
+            for (uint32_t n=0; !sub; n++) {
+                type_s = type_of.scopeOfDecl(res.sym, n);
+                sub = (type_s) ? componentScopeOf(type_s) : 0;
+                if (!type_s || builtinCollectionKind(type_s) != CollectionKind::Array) {
+                    break;
+                }
+            }
+        }
+        if (!sub && !hasUnresolvedUserDefinedType(res.sym)) {
+            m_ctxt->addErrorMarker(id->getLocation(),
+                "bind names '%s', which is not a component instance of "
+                "'%s' (12.3)",
+                id->getId().c_str(), comp->getName().c_str());
+            markBindTargetUnknown(t, ii+1);
+            comp = 0;
+            break;
+        }
+        if (!rn->getTarget()) {
+            ast::ISymbolRefPath *ref = mk_path.mk(comp);
+            res.appendTo(ref);
+            rn->setTarget(ref);
+        }
+        rn->setCtx_unknown(false);
+        comp = sub;
+        if (!comp) {
+            // The instance's own type is unbound, and reported there.
+            markBindTargetUnknown(t, ii+1);
+            break;
+        }
+    }
+
+    if (t->getRange()) {
+        t->getRange()->accept(m_this);
+    }
+    if (t->getIs_wildcard() || !t->getType_id()) {
+        DEBUG_LEAVE("resolvePoolBindTarget -- wildcard");
+        return;
+    }
+
+    // The action type. With no path it is written in the binding component,
+    // and resolves like any type there; a qualified name does too.
+    ast::ITypeIdentifier *type_id = t->getType_id();
+    if (!t->getPath().size() || type_id->getElems().size() != 1
+            || type_id->getElems().front()->getParams()) {
+        type_id->accept(m_this);
+    } else if (!comp) {
+        DEBUG_LEAVE("resolvePoolBindTarget -- path unresolved");
+        return;
+    } else if (!type_id->getTarget()) {
+        ast::IExprId *id = type_id->getElems().front()->getId();
+        TaskFindPathElem::Result res = find.find(comp, id);
+        ast::ISymbolTypeScope *ts = NodeKind::cast<ast::ISymbolTypeScope>(res.sym);
+        if (!res.sym) {
+            m_ctxt->addErrorMarker(id->getLocation(),
+                "'%s' has no member named '%s'",
+                comp->getName().c_str(), id->getId().c_str());
+        } else if (!ts || !NodeKind::cast<ast::IAction>(ts->getTarget())) {
+            m_ctxt->addErrorMarker(id->getLocation(),
+                "bind names '%s', which is not an action type of '%s' (12.3)",
+                id->getId().c_str(), comp->getName().c_str());
+        } else {
+            ast::ISymbolRefPath *ref = mk_path.mk(comp);
+            res.appendTo(ref);
+            type_id->setTarget(ref);
+            m_ctxt->addRef(id->getLocation().fileid, ts->getLocation().fileid);
+        }
+    }
+
+    // The field, in the action type.
+    ast::IExprRefName *rn = t->getField();
+    ast::ISymbolTypeScope *action_s = (type_id->getTarget())
+        ? NodeKind::cast<ast::ISymbolTypeScope>(
+            m_ctxt->resolveSymbolPathRef(type_id->getTarget()))
+        : 0;
+    if (!rn || !rn->getId() || rn->getTarget()) {
+        DEBUG_LEAVE("resolvePoolBindTarget");
+        return;
+    }
+    if (!action_s) {
+        rn->setCtx_unknown(true);
+        DEBUG_LEAVE("resolvePoolBindTarget -- no action type");
+        return;
+    }
+    ast::IExprId *id = rn->getId();
+    TaskFindPathElem::Result res = find.find(action_s, id);
+    if (!res.sym) {
+        m_ctxt->addErrorMarker(id->getLocation(),
+            "'%s' has no member named '%s'",
+            action_s->getName().c_str(), id->getId().c_str());
+    } else if (!NodeKind::cast<ast::IFieldRef>(res.sym)
+            && !NodeKind::cast<ast::IFieldClaim>(res.sym)) {
+        m_ctxt->addErrorMarker(id->getLocation(),
+            "bind names '%s', which is not an input, output or "
+            "resource-claim field of '%s' (12.3)",
+            id->getId().c_str(), action_s->getName().c_str());
+    } else {
+        ast::ISymbolRefPath *ref = mk_path.mk(action_s);
+        res.appendTo(ref);
+        rn->setTarget(ref);
+        rn->setCtx_unknown(false);
+    }
+    DEBUG_LEAVE("resolvePoolBindTarget");
+}
+
+bool TaskResolveRefs::isCovergroupBody(ast::ISymbolScope *s) {
+    if (!s->getSynthetic() || !s->getTarget()
+            || NodeKind(s).id() != NodeKind::Id::SymbolScope) {
+        return false;
+    }
+    NodeKind t(s->getTarget());
+    return t.is<ast::ICovergroup>() || t.is<ast::ICovergroupType>();
+}
+
+void TaskResolveRefs::resolveCovergroupBody(ast::ISymbolScope *body) {
+    DEBUG_ENTER("resolveCovergroupBody");
+    NodeKind t(body->getTarget());
+    const std::vector<ast::ICovergroupCoverpointUP> *coverpoints = 0;
+    const std::vector<ast::ICovergroupCrossUP> *crosses = 0;
+    const std::vector<ast::ICovergroupOptionUP> *options = 0;
+    if (ast::ICovergroup *cg = t.as<ast::ICovergroup>()) {
+        coverpoints = &cg->getCoverpoints();
+        crosses = &cg->getCrosses();
+        options = &cg->getOptions();
+    } else if (ast::ICovergroupType *cg = t.as<ast::ICovergroupType>()) {
+        coverpoints = &cg->getCoverpoints();
+        crosses = &cg->getCrosses();
+        options = &cg->getOptions();
+    } else {
+        DEBUG_LEAVE("resolveCovergroupBody -- not a covergroup");
+        return;
+    }
+
+    resolveCoverageOptions(*options);
+    for (std::vector<ast::ICovergroupCoverpointUP>::const_iterator
+            it=coverpoints->begin(); it!=coverpoints->end(); it++) {
+        resolveCoverpoint(body, it->get());
+    }
+    for (std::vector<ast::ICovergroupCrossUP>::const_iterator
+            it=crosses->begin(); it!=crosses->end(); it++) {
+        resolveCross(body, it->get());
+    }
+    DEBUG_LEAVE("resolveCovergroupBody");
+}
+
+void TaskResolveRefs::resolveCoverageOptions(
+        const std::vector<ast::ICovergroupOptionUP> &options) {
+    // `option.name = value;`: the name is one of Table 25's, not a reference
+    // (checking it is SC-Q); the value is a constant expression.
+    for (std::vector<ast::ICovergroupOptionUP>::const_iterator
+            it=options.begin(); it!=options.end(); it++) {
+        if ((*it)->getValue()) {
+            (*it)->getValue()->accept(m_this);
+        }
+    }
+}
+
+void TaskResolveRefs::resolveCoverpoint(
+        ast::ISymbolScope           *body,
+        ast::ICovergroupCoverpoint  *cp) {
+    DEBUG_ENTER("resolveCoverpoint");
+    // What is covered, and when, is written in terms of the covergroup's
+    // context: its ports or the enclosing type's fields. The coverpoint names
+    // are not in view -- `c : coverpoint c;` covers the port `c` (Ex. 199).
+    if (cp->getData_type()) {
+        cp->getData_type()->accept(m_this);
+    }
+    if (cp->getTarget()) {
+        cp->getTarget()->accept(m_this);
+    }
+    if (cp->getIff()) {
+        cp->getIff()->accept(m_this);
+    }
+    resolveCoverageOptions(cp->getOptions());
+
+    for (std::vector<ast::ICoverpointBinsUP>::const_iterator
+            it=cp->getBins().begin(); it!=cp->getBins().end(); it++) {
+        ast::ICoverpointBins *b = it->get();
+        if (b->getArray_size()) {
+            b->getArray_size()->accept(m_this);
+        }
+        for (std::vector<ast::IExprOpenRangeValueUP>::const_iterator
+                r_it=b->getRanges().begin(); r_it!=b->getRanges().end(); r_it++) {
+            (*r_it)->accept(m_this);
+        }
+        // `bins b = a with (...)`: only the bin's own coverpoint (15.3.3.3).
+        if (b->getTarget() && b->getTarget()->getId() && !b->getTarget()->getTarget()) {
+            ast::IScopeChild *c = bindMemberName(body, b->getTarget());
+            if (c && c != cp) {
+                m_ctxt->addErrorMarker(b->getTarget()->getId()->getLocation(),
+                    "bins '%s' names '%s', which is not its own coverpoint '%s' "
+                    "(15.3.3.3)",
+                    b->getName() ? b->getName()->getId().c_str() : "",
+                    b->getTarget()->getId()->getId().c_str(),
+                    cp->getName() ? cp->getName()->getId().c_str() : "");
+            }
+        }
+        // In `with`, the coverpoint's name is the candidate value.
+        if (b->getWith_expr()) {
+            m_ctxt->symtab()->pushScope(body);
+            b->getWith_expr()->accept(m_this);
+            m_ctxt->symtab()->popScope();
+        }
+    }
+    DEBUG_LEAVE("resolveCoverpoint");
+}
+
+void TaskResolveRefs::resolveCross(
+        ast::ISymbolScope       *body,
+        ast::ICovergroupCross   *x) {
+    DEBUG_ENTER("resolveCross");
+    // An item is a coverpoint of this covergroup, or else a variable, which
+    // is an implicit coverpoint (15.1 d, 15.4): the body first, then outward.
+    m_ctxt->symtab()->pushScope(body);
+    for (std::vector<ast::IExprRefNameUP>::const_iterator
+            it=x->getCoverpoint_names().begin();
+            it!=x->getCoverpoint_names().end(); it++) {
+        ast::IExprRefName *rn = it->get();
+        if (!rn || !rn->getId() || rn->getTarget()) {
+            continue;
+        }
+        ast::IExprId *id = rn->getId();
+        ast::IExprHierarchicalId *hid = m_ctxt->getFactory()->getAstFactory()->mkExprHierarchicalId();
+        ast::IExprId *id_c = m_ctxt->getFactory()->getAstFactory()->mkExprId(
+            id->getId(), id->getIs_escaped());
+        id_c->setLocation(id->getLocation());
+        hid->getElems().push_back(ast::IExprMemberPathElemUP(
+            m_ctxt->getFactory()->getAstFactory()->mkExprMemberPathElem(id_c, 0)));
+        ast::IExprRefPathContextUP ref(
+            m_ctxt->getFactory()->getAstFactory()->mkExprRefPathContext(hid));
+        ast::ISymbolRefPathUP target(TaskResolveRef(m_ctxt, true, false).resolve(ref.get()));
+        ast::IScopeChild *target_c = target ? m_ctxt->resolveSymbolPathRef(target.get()) : 0;
+
+        NodeKind nk(target_c);
+        if (!target_c) {
+            m_ctxt->addErrorMarker(id->getLocation(),
+                "unknown identifier '%s'", id->getId().c_str());
+        } else if (!nk.is<ast::ICovergroupCoverpoint>() && !nk.is<ast::IField>()) {
+            m_ctxt->addErrorMarker(id->getLocation(),
+                "cross '%s' names '%s', which is not a coverpoint or a data "
+                "field (15.4)",
+                x->getName() ? x->getName()->getId().c_str() : "",
+                id->getId().c_str());
+        } else {
+            rn->setTarget(target.release());
+        }
+    }
+    m_ctxt->symtab()->popScope();
+
+    if (x->getIff()) {
+        x->getIff()->accept(m_this);
+    }
+    resolveCoverageOptions(x->getOptions());
+
+    for (std::vector<ast::ICovergroupCrossBinsUP>::const_iterator
+            it=x->getBins().begin(); it!=x->getBins().end(); it++) {
+        ast::ICovergroupCrossBins *b = it->get();
+        // `bins b = X with (...)`: only the bin's own cross (15.4.3).
+        if (b->getTarget() && b->getTarget()->getId() && !b->getTarget()->getTarget()) {
+            ast::IScopeChild *c = bindMemberName(body, b->getTarget());
+            if (c && c != x) {
+                m_ctxt->addErrorMarker(b->getTarget()->getId()->getLocation(),
+                    "bins '%s' names '%s', which is not its own cross '%s' "
+                    "(15.4.3)",
+                    b->getName() ? b->getName()->getId().c_str() : "",
+                    b->getTarget()->getId()->getId().c_str(),
+                    x->getName() ? x->getName()->getId().c_str() : "");
+            }
+        }
+        // The crossed coverpoints' names are in view (15.4.3).
+        if (b->getWith_expr()) {
+            m_ctxt->symtab()->pushScope(body);
+            b->getWith_expr()->accept(m_this);
+            m_ctxt->symtab()->popScope();
+        }
+    }
+    DEBUG_LEAVE("resolveCross");
+}
+
+ast::IScopeChild *TaskResolveRefs::bindMemberName(
+        ast::ISymbolScope   *scope,
+        ast::IExprRefName   *rn) {
+    ast::IExprId *id = rn->getId();
+    TaskFindPathElem::Result res = TaskFindPathElem(m_ctxt).find(scope, id);
+    if (!res.sym) {
+        m_ctxt->addErrorMarker(id->getLocation(),
+            "unknown identifier '%s'", id->getId().c_str());
+        return 0;
+    }
+    ast::ISymbolRefPath *ref = TaskGetSymbolRefPath(
+        m_ctxt->getDebugMgr(),
+        m_ctxt->root(),
+        m_ctxt->getFactory()->getAstFactory()).mk(scope);
+    res.appendTo(ref);
+    rn->setTarget(ref);
+    rn->setCtx_unknown(false);
+    return res.sym;
+}
+
+/**
+ * `cg_t cg(.p(x));` or `cg_t cg(x);` (15.2). The type is an ordinary type
+ * reference; a port name is looked up among the type's ports; the actuals
+ * and the instance options are written in the instantiating scope.
+ */
+void TaskResolveRefs::visitCovergroupInstantiation(ast::ICovergroupInstantiation *i) {
+    DEBUG_ENTER("visitCovergroupInstantiation");
+    if (i->getType()) {
+        i->getType()->accept(m_this);
+    }
+    ast::ISymbolTypeScope *cg_t = (i->getType() && i->getType()->getTarget())
+        ? NodeKind::cast<ast::ISymbolTypeScope>(
+            m_ctxt->resolveSymbolPathRef(i->getType()->getTarget()))
+        : 0;
+    if (cg_t && !NodeKind::cast<ast::ICovergroupType>(cg_t->getTarget())) {
+        cg_t = 0;
+    }
+    for (std::vector<ast::ICovergroupPortmapUP>::const_iterator
+            it=i->getPortmap().begin(); it!=i->getPortmap().end(); it++) {
+        ast::IExprRefName *rn = (*it)->getName();
+        if (rn && rn->getId() && !rn->getTarget()) {
+            if (!cg_t) {
+                // The type failed to resolve, and was reported.
+                rn->setCtx_unknown(true);
+            } else {
+                TaskFindPathElem::Result res = TaskFindPathElem(m_ctxt).find(cg_t, rn->getId());
+                if (!res.sym || !NodeKind::cast<ast::IField>(res.sym)) {
+                    m_ctxt->addErrorMarker(rn->getId()->getLocation(),
+                        "covergroup '%s' has no port named '%s'",
+                        cg_t->getName().c_str(), rn->getId()->getId().c_str());
+                } else {
+                    ast::ISymbolRefPath *ref = TaskGetSymbolRefPath(
+                        m_ctxt->getDebugMgr(),
+                        m_ctxt->root(),
+                        m_ctxt->getFactory()->getAstFactory()).mk(cg_t);
+                    res.appendTo(ref);
+                    rn->setTarget(ref);
+                }
+            }
+        }
+        if ((*it)->getTarget()) {
+            (*it)->getTarget()->accept(m_this);
+        }
+    }
+    for (std::vector<ast::IExprRefPathContextUP>::const_iterator
+            it=i->getTargets().begin(); it!=i->getTargets().end(); it++) {
+        (*it)->accept(m_this);
+    }
+    resolveCoverageOptions(i->getOptions());
+    DEBUG_LEAVE("visitCovergroupInstantiation");
 }
 
 /**
@@ -4168,7 +4754,7 @@ void TaskResolveRefs::visitExportFunction(ast::IExportFunction *i) {
     if (!target_c) {
         m_ctxt->addErrorMarker(id->getLocation(),
             "unknown function '%s'", id->getId().c_str());
-    } else if (!dynamic_cast<ast::ISymbolFunctionScope *>(target_c)) {
+    } else if (!NodeKind::cast<ast::ISymbolFunctionScope>(target_c)) {
         m_ctxt->addErrorMarker(id->getLocation(),
             "'%s' is not a function", id->getId().c_str());
     } else {
@@ -4184,6 +4770,10 @@ void TaskResolveRefs::visitInstanceOverride(ast::IInstanceOverride *i) {
 }
 
 void TaskResolveRefs::visitSymbolScope(ast::ISymbolScope *i) {
+    if (isCovergroupBody(i)) {
+        resolveCovergroupBody(i);
+        return;
+    }
     DEBUG_ENTER("visitSymbolScope %s", i->getName().c_str());
     m_ctxt->symtab()->pushScope(i);
 
@@ -4466,18 +5056,18 @@ bool TaskResolveRefs::checkParamListConsistency(
  * "not known to differ".
  */
 bool TaskResolveRefs::defaultsDiffer(ast::IExpr *a, ast::IExpr *b) {
-    ast::IExprBool *ba = dynamic_cast<ast::IExprBool *>(a);
-    ast::IExprBool *bb = dynamic_cast<ast::IExprBool *>(b);
+    ast::IExprBool *ba = NodeKind::cast<ast::IExprBool>(a);
+    ast::IExprBool *bb = NodeKind::cast<ast::IExprBool>(b);
     if (ba && bb) {
         return ba->getValue() != bb->getValue();
     }
-    ast::IExprString *sa = dynamic_cast<ast::IExprString *>(a);
-    ast::IExprString *sb = dynamic_cast<ast::IExprString *>(b);
+    ast::IExprString *sa = NodeKind::cast<ast::IExprString>(a);
+    ast::IExprString *sb = NodeKind::cast<ast::IExprString>(b);
     if (sa && sb) {
         return sa->getValue() != sb->getValue();
     }
 
-    ast::ISymbolScope *root = dynamic_cast<ast::ISymbolScope *>(m_ctxt->root());
+    ast::ISymbolScope *root = NodeKind::cast<ast::ISymbolScope>(m_ctxt->root());
     TaskEvalExpr eval(m_ctxt->getFactory(), root);
     std::unique_ptr<IVal> va(eval.eval(a));
     std::unique_ptr<IVal> vb(eval.eval(b));
@@ -4491,6 +5081,12 @@ void TaskResolveRefs::visitProceduralStmtReturn(ast::IProceduralStmtReturn *i) {
     // bad reference inside it should be reported on its own terms. The
     // return type is its expected type (8.4.3).
     visitExecStmt(i);
+    if (holdsStructLiteral(i->getExpr()) && !m_func_s.empty()) {
+        ExprTypeOf type_of(m_ctxt);
+        setLiteralTypes(i->getExpr(),
+            type_of.structOfDecl(m_func_s.back()->getRtype()),
+            type_of.structOfDecl(m_func_s.back()->getRtype(), 1));
+    }
     visitExpecting(i->getExpr(), (m_func_s.empty() || !takesExpected(i->getExpr())) ? 0
         : ExprTypeOf(m_ctxt).enumOfType(m_func_s.back()->getRtype()));
 
@@ -4614,7 +5210,7 @@ void TaskResolveRefs::visitSymbolFunctionScope(ast::ISymbolFunctionScope *i) {
 static bool namesTemplateParam(
         ast::ITemplateParamDeclList *plist,
         ast::IDataType              *dt) {
-    ast::IDataTypeUserDefined *ud = dynamic_cast<ast::IDataTypeUserDefined *>(dt);
+    ast::IDataTypeUserDefined *ud = NodeKind::cast<ast::IDataTypeUserDefined>(dt);
     if (!ud || !ud->getType_id() ||
         ud->getType_id()->getElems().size() != 1 ||
         !ud->getType_id()->getElems().at(0)->getId()) {
@@ -4632,7 +5228,7 @@ static bool namesTemplateParam(
 }
 
 void TaskResolveRefs::visitSymbolTypeScope(ast::ISymbolTypeScope *i) {
-    ast::ITypeScope *i_ts = dynamic_cast<ast::ITypeScope *>(i->getTarget());
+    ast::ITypeScope *i_ts = NodeKind::cast<ast::ITypeScope>(i->getTarget());
     DEBUG_ENTER("visitSymbolTypeScope %s (param=%s specialized=%s)", 
         i->getName().c_str(),
         (i_ts->getParams())?"true":"false",
@@ -4655,7 +5251,7 @@ void TaskResolveRefs::visitSymbolTypeScope(ast::ISymbolTypeScope *i) {
             it=i_ts->getParams()->getParams().begin();
             it!=i_ts->getParams()->getParams().end(); it++) {
             ast::ITemplateCategoryTypeParamDecl *cat =
-                dynamic_cast<ast::ITemplateCategoryTypeParamDecl *>(it->get());
+                NodeKind::cast<ast::ITemplateCategoryTypeParamDecl>(it->get());
             if (!cat) {
                 continue;
             }
@@ -4713,9 +5309,9 @@ void TaskResolveRefs::visitSymbolTypeScope(ast::ISymbolTypeScope *i) {
         m_ctxt->symtab()->pushScope(i, kind);
 
         // Resolve the super class (if any)
-        if (dynamic_cast<ast::ITypeScope *>(i->getTarget())->getSuper_t()) {
+        if (NodeKind::cast<ast::ITypeScope>(i->getTarget())->getSuper_t()) {
             DEBUG("%s Has a super type ... resolving", i->getName().c_str());
-            dynamic_cast<ast::ITypeScope *>(i->getTarget())->getSuper_t()->accept(this);
+            NodeKind::cast<ast::ITypeScope>(i->getTarget())->getSuper_t()->accept(this);
         } else {
             DEBUG("No super type");
         }
@@ -4860,8 +5456,8 @@ void TaskResolveRefs::checkBlockAnnotations(ast::IScope *scope) {
 
 void TaskResolveRefs::checkScopeAnnotations(ast::ISymbolScope *scope) {
     AnnotationCollector collector;
-    if (dynamic_cast<ast::IScope *>(scope)) {
-        collector.collect(dynamic_cast<ast::IScope *>(scope));
+    if (NodeKind::cast<ast::IScope>(scope)) {
+        collector.collect(NodeKind::cast<ast::IScope>(scope));
     } else {
         collector.collect(static_cast<ast::ISymbolChildrenScope *>(scope));
     }
@@ -4871,7 +5467,7 @@ void TaskResolveRefs::checkScopeAnnotations(ast::ISymbolScope *scope) {
     // enclosing one; annotation types are package-scope only (§7.13b), so the
     // outward lookup reaches the same declaration either way.
     if (scope->getTarget()) {
-        collector.collect(dynamic_cast<ast::IScope *>(scope->getTarget()));
+        collector.collect(NodeKind::cast<ast::IScope>(scope->getTarget()));
         for (std::vector<ast::IAnnotationUP>::const_iterator
             it=scope->getTarget()->getAnnotations().begin();
             it!=scope->getTarget()->getAnnotations().end(); it++) {
@@ -4924,7 +5520,7 @@ void TaskResolveRefs::visitAnnotation(ast::IAnnotation *i) {
         // as import-dependent as any other core-library name, so say which
         // import is missing rather than implying the annotation is unknown.
         std::string core_pkg = findCoreLibraryPackage(
-            dynamic_cast<ast::ISymbolScope *>(m_ctxt->root()), type_name);
+            NodeKind::cast<ast::ISymbolScope>(m_ctxt->root()), type_name);
 
         if (!core_pkg.empty()) {
             m_ctxt->addMarker(
@@ -4952,7 +5548,7 @@ void TaskResolveRefs::visitAnnotation(ast::IAnnotation *i) {
     VisitorBase::visitAnnotation(i);
 
     ast::IScopeChild *target_c = m_ctxt->resolveSymbolPathRef(type_id->getTarget());
-    ast::ISymbolScope *decl_s = dynamic_cast<ast::ISymbolScope *>(target_c);
+    ast::ISymbolScope *decl_s = NodeKind::cast<ast::ISymbolScope>(target_c);
 
     for (std::vector<ast::IAnnotationParamUP>::const_iterator
         it=i->getParameters().begin();
@@ -4970,9 +5566,7 @@ void TaskResolveRefs::visitAnnotation(ast::IAnnotation *i) {
         // unknown.
         TaskFindPathElem::Result res = {0, -1, -1, -1};
         if (decl_s) {
-            res = TaskFindPathElem(
-                m_ctxt->getDebugMgr(),
-                m_ctxt->root()).find(decl_s, param->getName()->getId());
+            res = TaskFindPathElem(m_ctxt).find(decl_s, param->getName()->getId());
         }
 
         if (decl_s && !res.sym) {
@@ -5005,7 +5599,7 @@ void TaskResolveRefs::visitAnnotation(ast::IAnnotation *i) {
             // (PSS115) and is not put through the crude walker below, which
             // would see the references *inside* the mustaches and report a
             // constant template as non-constant.
-            if (dynamic_cast<ast::IExprTemplateString *>(param->getValue())) {
+            if (NodeKind::cast<ast::IExprTemplateString>(param->getValue())) {
                 checkConstTemplate(param->getValue(), param->getLocation());
                 continue;
             }
@@ -5087,11 +5681,11 @@ void TaskResolveRefs::visitDataTypeEnum(ast::IDataTypeEnum *i) {
     ast::ISymbolRefPath *enum_p = (i->getTid() && i->getTid()->getType_id())
         ? i->getTid()->getType_id()->getTarget() : 0;
     ast::ISymbolEnumScope *enum_s = enum_p
-        ? dynamic_cast<ast::ISymbolEnumScope *>(m_ctxt->resolveSymbolPathRef(enum_p))
+        ? NodeKind::cast<ast::ISymbolEnumScope>(m_ctxt->resolveSymbolPathRef(enum_p))
         : 0;
 
     auto bind_item = [&](ast::IExpr *e) {
-        ast::IExprRefPathContext *rp = dynamic_cast<ast::IExprRefPathContext *>(e);
+        ast::IExprRefPathContext *rp = NodeKind::cast<ast::IExprRefPathContext>(e);
         if (enum_s && rp && !rp->getTarget() && !rp->getIs_super()
                 && rp->getHier_id()->getElems().size() == 1
                 && !rp->getHier_id()->getElems().at(0)->getSubscript().size()
@@ -5133,10 +5727,10 @@ void TaskResolveRefs::visitExprMemberCall(ast::IExprMemberCall *i) {
     }
 
     Kind kind = Kind::Unknown;
-    if (dynamic_cast<ast::IExprString *>(i->getReceiver())
-            || dynamic_cast<ast::IExprTemplateString *>(i->getReceiver())) {
+    if (NodeKind::cast<ast::IExprString>(i->getReceiver())
+            || NodeKind::cast<ast::IExprTemplateString>(i->getReceiver())) {
         kind = Kind::String;
-    } else if (dynamic_cast<ast::IExprAggrLiteral *>(i->getReceiver())) {
+    } else if (NodeKind::cast<ast::IExprAggrLiteral>(i->getReceiver())) {
         kind = Kind::Collection;
     }
 
@@ -5165,9 +5759,7 @@ void TaskResolveRefs::visitExprMemberCall(ast::IExprMemberCall *i) {
         if (kind == Kind::String) {
             ast::ISymbolScope *string_s = builtinStringScope_rr(m_ctxt->root());
             if (string_s) {
-                proto = TaskFindPathElem(
-                    m_ctxt->getDebugMgr(),
-                    m_ctxt->root()).find(string_s, elem->getId()).sym;
+                proto = TaskFindPathElem(m_ctxt).find(string_s, elem->getId()).sym;
             }
             found = string_s ? (proto != 0)
                 : (stringMethods().find(name) != stringMethods().end());
@@ -5197,13 +5789,13 @@ void TaskResolveRefs::visitExprMemberCall(ast::IExprMemberCall *i) {
         kind = Kind::Unknown;
         if (proto) {
             TaskCheckCallArgs(m_ctxt).check(proto, elem);
-            ast::ISymbolFunctionScope *fs = dynamic_cast<ast::ISymbolFunctionScope *>(proto);
+            ast::ISymbolFunctionScope *fs = NodeKind::cast<ast::ISymbolFunctionScope>(proto);
             ast::IFunctionPrototype *fp = (fs && fs->getPrototypes().size())
                 ? fs->getPrototypes().at(0) : 0;
             ast::IDataType *rt = fp ? fp->getRtype() : 0;
-            if (dynamic_cast<ast::IDataTypeString *>(rt)) {
+            if (NodeKind::cast<ast::IDataTypeString>(rt)) {
                 kind = Kind::String;
-            } else if (dynamic_cast<ast::IDataTypeUserDefined *>(rt)) {
+            } else if (NodeKind::cast<ast::IDataTypeUserDefined>(rt)) {
                 // BuiltinsFactory spells its results list<...> this way.
                 kind = Kind::Collection;
             }
@@ -5221,16 +5813,16 @@ void TaskResolveRefs::visitExprMemberCall(ast::IExprMemberCall *i) {
  * Null for a package, the root, or any other kind of type.
  */
 ast::ISymbolTypeScope *TaskResolveRefs::componentScopeOf(ast::ISymbolScope *s) {
-    if (ast::ISymbolExtendScope *es = dynamic_cast<ast::ISymbolExtendScope *>(s)) {
-        ast::IExtendType *ext = dynamic_cast<ast::IExtendType *>(es->getTarget());
+    if (ast::ISymbolExtendScope *es = NodeKind::cast<ast::ISymbolExtendScope>(s)) {
+        ast::IExtendType *ext = NodeKind::cast<ast::IExtendType>(es->getTarget());
         if (!ext || !ext->getTarget() || !ext->getTarget()->getTarget()) {
             return 0;
         }
-        s = dynamic_cast<ast::ISymbolScope *>(
+        s = NodeKind::cast<ast::ISymbolScope>(
             m_ctxt->resolveSymbolPathRef(ext->getTarget()->getTarget()));
     }
-    ast::ISymbolTypeScope *ts = dynamic_cast<ast::ISymbolTypeScope *>(s);
-    return (ts && dynamic_cast<ast::IComponent *>(ts->getTarget()))? ts : 0;
+    ast::ISymbolTypeScope *ts = NodeKind::cast<ast::ISymbolTypeScope>(s);
+    return (ts && NodeKind::cast<ast::IComponent>(ts->getTarget()))? ts : 0;
 }
 
 /**
@@ -5255,7 +5847,7 @@ void TaskResolveRefs::visitFunctionImportType(ast::IFunctionImportType *i) {
     }
     ast::IScopeChild *target = tid->getTarget()
         ? m_ctxt->resolveSymbolPathRef(tid->getTarget()) : 0;
-    ast::ISymbolFunctionScope *func = dynamic_cast<ast::ISymbolFunctionScope *>(target);
+    ast::ISymbolFunctionScope *func = NodeKind::cast<ast::ISymbolFunctionScope>(target);
 
     // 20.4.1: a function declared in a component is imported in that
     // component type -- not a derived one, not another -- and not at all if
@@ -5263,7 +5855,7 @@ void TaskResolveRefs::visitFunctionImportType(ast::IFunctionImportType *i) {
     ast::ISymbolTypeScope *home = (func)?
         componentScopeOf(func->getUpper()) : 0;
     ast::ITypeScope *home_t = (home)?
-        dynamic_cast<ast::ITypeScope *>(home->getTarget()) : 0;
+        NodeKind::cast<ast::ITypeScope>(home->getTarget()) : 0;
     std::string conflict = (func)?
         functionImplementationConflict(func, FunctionImpl::Import) : "";
 
@@ -5325,9 +5917,129 @@ void TaskResolveRefs::visitExecBlockTag(ast::IExecBlockTag *i) {
         i->getType()->accept(m_this);
     }
     if (i->getLiteral()) {
+        // The tag type is the literal's context type (20.5.4).
+        ast::ISymbolTypeScope *type_s = (i->getType() && i->getType()->getTarget())
+            ? NodeKind::cast<ast::ISymbolTypeScope>(
+                m_ctxt->resolveSymbolPathRef(i->getType()->getTarget())) : 0;
+        setLiteralTypes(i->getLiteral(),
+            (type_s && NodeKind::cast<ast::IStruct>(type_s->getTarget())) ? type_s : 0, 0);
         i->getLiteral()->accept(m_this);
     }
     DEBUG_LEAVE("visitExecBlockTag");
+}
+
+bool TaskResolveRefs::holdsStructLiteral(ast::IExpr *e) {
+    if (NodeKind::cast<ast::IExprAggrStruct>(e)) {
+        return true;
+    }
+    if (ast::IExprAggrList *l = NodeKind::cast<ast::IExprAggrList>(e)) {
+        for (std::vector<ast::IExprUP>::const_iterator
+                it=l->getElems().begin(); it!=l->getElems().end(); it++) {
+            if (NodeKind::cast<ast::IExprAggrStruct>(it->get())) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+void TaskResolveRefs::setLiteralTypes(
+        ast::IExpr                  *e,
+        ast::ISymbolTypeScope       *type_s,
+        ast::ISymbolTypeScope       *elem_s) {
+    if (NodeKind::cast<ast::IExprAggrStruct>(e)) {
+        m_lit_type[e] = type_s;
+    } else if (ast::IExprAggrList *l = NodeKind::cast<ast::IExprAggrList>(e)) {
+        for (std::vector<ast::IExprUP>::const_iterator
+                it=l->getElems().begin(); it!=l->getElems().end(); it++) {
+            if (NodeKind::cast<ast::IExprAggrStruct>(it->get())) {
+                m_lit_type[it->get()] = elem_s;
+            }
+        }
+    }
+}
+
+/**
+ * A struct literal's member names (4.8.4, U4; symbol-resolution plan 8.9).
+ * Each names a data attribute of the literal's context type (8.7.1) -- its
+ * own or inherited -- once at most. The context type is set by whatever holds
+ * the literal (setLiteralTypes()): a declaration's initializer, an exec
+ * block's tag, the right-hand side of an assignment, a call argument, a
+ * `return`, or an enclosing literal's member. Anywhere else it is not known,
+ * and the names are marked `ctx_unknown` rather than reported.
+ */
+void TaskResolveRefs::visitExprAggrStruct(ast::IExprAggrStruct *i) {
+    DEBUG_ENTER("visitExprAggrStruct");
+    ast::ISymbolTypeScope *type_s = 0;
+    std::unordered_map<ast::IExpr *, ast::ISymbolTypeScope *>::iterator t_it =
+        m_lit_type.find(i);
+    if (t_it != m_lit_type.end()) {
+        type_s = t_it->second;
+        m_lit_type.erase(t_it);
+    }
+
+    ExprTypeOf type_of(m_ctxt);
+    std::set<std::string> seen;
+    for (std::vector<ast::IExprAggrStructElemUP>::const_iterator
+            it=i->getElems().begin(); it!=i->getElems().end(); it++) {
+        ast::IExprRefName *rn = (*it)->getName();
+        ast::IScopeChild *field = 0;
+
+        if (rn && rn->getId() && !type_s) {
+            rn->setCtx_unknown(true);
+        } else if (rn && rn->getId()) {
+            ast::IExprId *id = rn->getId();
+            if (rn->getTarget()) {
+                field = m_ctxt->resolveSymbolPathRef(rn->getTarget());
+            } else {
+                TaskFindPathElem::Result res = TaskFindPathElem(m_ctxt).find(type_s, id);
+                if (!res.sym) {
+                    m_ctxt->addErrorMarker(id->getLocation(),
+                        "'%s' has no member named '%s'",
+                        type_s->getName().c_str(), id->getId().c_str());
+                } else if (!NodeKind::cast<ast::IField>(res.sym)) {
+                    m_ctxt->addErrorMarker(id->getLocation(),
+                        "struct literal names '%s', which is not a data "
+                        "attribute of '%s' (4.8.4)",
+                        id->getId().c_str(), type_s->getName().c_str());
+                } else {
+                    ast::ISymbolRefPath *ref = TaskGetSymbolRefPath(
+                        m_ctxt->getDebugMgr(),
+                        m_ctxt->root(),
+                        m_ctxt->getFactory()->getAstFactory()).mk(type_s);
+                    res.appendTo(ref);
+                    rn->setTarget(ref);
+                    field = res.sym;
+                }
+            }
+            if (!seen.insert(id->getId()).second) {
+                m_ctxt->addErrorMarker(id->getLocation(),
+                    "struct literal names '%s' more than once (4.8.4)",
+                    id->getId().c_str());
+            }
+        }
+
+        // The member's type is the value's expected type (8.4.3), and the
+        // context type of a literal nested in it (4.8.5).
+        ast::IExpr *value = (*it)->getValue();
+        if (!value) {
+            continue;
+        }
+        if (field && holdsStructLiteral(value)) {
+            setLiteralTypes(value,
+                type_of.structOfDecl(field), type_of.structOfDecl(field, 1));
+        } else if (!field && holdsStructLiteral(value)) {
+            setLiteralTypes(value, 0, 0);
+        }
+        if (ast::IExprAggrList *aggr = NodeKind::cast<ast::IExprAggrList>(value)) {
+            visitAggrExpecting(aggr, (field && anyTakesExpected(aggr))
+                ? type_of.enumOfDecl(field, 1) : 0);
+        } else {
+            visitExpecting(value, (field && takesExpected(value))
+                ? type_of.enumOfDecl(field) : 0);
+        }
+    }
+    DEBUG_LEAVE("visitExprAggrStruct");
 }
 
 void TaskResolveRefs::visitTypeIdentifier(ast::ITypeIdentifier *i) {
@@ -5436,12 +6148,12 @@ bool TaskResolveRefs::regValueStruct(
         ast::ISymbolScope  *recv_s,
         ast::IStruct      **vs) {
     *vs = 0;
-    ast::ISymbolTypeScope *ts = dynamic_cast<ast::ISymbolTypeScope *>(recv_s);
+    ast::ISymbolTypeScope *ts = NodeKind::cast<ast::ISymbolTypeScope>(recv_s);
 
     // Bounded rather than "until the super is null": a super chain is a handful
     // of links, and a cycle here would hang the parse instead of diagnosing it.
     for (int32_t depth=0; ts && depth<32; depth++) {
-        ast::ITypeScope *decl = dynamic_cast<ast::ITypeScope *>(ts->getTarget());
+        ast::ITypeScope *decl = NodeKind::cast<ast::ITypeScope>(ts->getTarget());
 
         if (!decl) {
             return false;
@@ -5462,7 +6174,7 @@ bool TaskResolveRefs::regValueStruct(
                 // declaration and replaces the parameter list with the bound
                 // one, so a specialization's default IS its argument.
                 ast::ITemplateGenericTypeParamDecl *tp =
-                    dynamic_cast<ast::ITemplateGenericTypeParamDecl *>(it->get());
+                    NodeKind::cast<ast::ITemplateGenericTypeParamDecl>(it->get());
 
                 if (!tp || !tp->getDflt()) {
                     // The unspecialized declaration: nothing is bound, so
@@ -5471,7 +6183,7 @@ bool TaskResolveRefs::regValueStruct(
                 }
 
                 ast::IDataTypeUserDefined *udt =
-                    dynamic_cast<ast::IDataTypeUserDefined *>(tp->getDflt());
+                    NodeKind::cast<ast::IDataTypeUserDefined>(tp->getDflt());
 
                 if (!udt || !udt->getType_id()) {
                     // reg_c<bit[32]>: a register, but with no named fields.
@@ -5484,7 +6196,7 @@ bool TaskResolveRefs::regValueStruct(
                     .resolveT<ast::ISymbolTypeScope>(
                         udt->getType_id()->getTarget());
                 *vs = sts
-                    ? dynamic_cast<ast::IStruct *>(sts->getTarget())
+                    ? NodeKind::cast<ast::IStruct>(sts->getTarget())
                     : 0;
                 return true;
             }
@@ -5514,7 +6226,7 @@ bool TaskResolveRefs::regValueStruct(
 static ast::IField *findRegField(ast::IStruct *vs, const std::string &n) {
     for (std::vector<ast::IScopeChildUP>::const_iterator
         it=vs->getChildren().begin(); it!=vs->getChildren().end(); it++) {
-        ast::IField *f = dynamic_cast<ast::IField *>(it->get());
+        ast::IField *f = NodeKind::cast<ast::IField>(it->get());
         if (f && f->getName() && f->getName()->getId() == n) {
             return f;
         }
@@ -5528,7 +6240,7 @@ static std::string closestRegField(ast::IStruct *vs, const std::string &n) {
     int bestDist = 3;
     for (std::vector<ast::IScopeChildUP>::const_iterator
         it=vs->getChildren().begin(); it!=vs->getChildren().end(); it++) {
-        ast::IField *f = dynamic_cast<ast::IField *>(it->get());
+        ast::IField *f = NodeKind::cast<ast::IField>(it->get());
         if (!f || !f->getName()) {
             continue;
         }
@@ -5551,7 +6263,7 @@ ast::IField *TaskResolveRefs::resolveRegField(
         ast::IExpr               *name_e) {
     const std::string &method = elem->getId()->getId();
 
-    ast::IExprString *lit = dynamic_cast<ast::IExprString *>(name_e);
+    ast::IExprString *lit = NodeKind::cast<ast::IExprString>(name_e);
 
     if (!lit) {
         // §21.14.1(a). Reported here rather than left to the compiler because
@@ -5666,9 +6378,9 @@ void TaskResolveRefs::checkRegFieldRefs(
         }
 
         ast::IExprAggrList *names =
-            dynamic_cast<ast::IExprAggrList *>(args.at(0).get());
+            NodeKind::cast<ast::IExprAggrList>(args.at(0).get());
         ast::IExprAggrList *vals =
-            dynamic_cast<ast::IExprAggrList *>(args.at(1).get());
+            NodeKind::cast<ast::IExprAggrList>(args.at(1).get());
 
         if (!names) {
             m_ctxt->addErrorMarker(
@@ -5714,7 +6426,7 @@ void TaskResolveRefs::checkRegFieldRefs(
     // argument is a whole value and has nothing to check.
     for (uint32_t ai=0; ai<args.size() && ai<2; ai++) {
         ast::IExprAggrStruct *sl =
-            dynamic_cast<ast::IExprAggrStruct *>(args.at(ai).get());
+            NodeKind::cast<ast::IExprAggrStruct>(args.at(ai).get());
 
         if (!sl) {
             continue;

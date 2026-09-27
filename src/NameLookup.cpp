@@ -36,6 +36,7 @@
 #include "pssp/ast/ISymbolExtendScope.h"
 #include "pssp/ast/ITemplateElem.h"
 #include "pssp/ast/ITemplateString.h"
+#include "pssp/impl/ActivityScopes.h"
 #include "pssp/impl/ConstraintScopes.h"
 #include "pssp/impl/TaskGetName.h"
 #include "pssp/impl/TaskGetSymbolRefPath.h"
@@ -45,6 +46,7 @@
 #include "NameLookup.h"
 #include "TaskGetSymbolScope.h"
 #include "TaskResolveSuperTypeRef.h"
+#include "pssp/impl/NodeKind.h"
 
 
 namespace pssp {
@@ -66,13 +68,13 @@ ast::ISymbolScope *baseOf(
         dmgr::IDebugMgr     *dmgr,
         ast::ISymbolScope   *root,
         ast::ISymbolScope   *s) {
-    ast::ISymbolTypeScope *ts_s = dynamic_cast<ast::ISymbolTypeScope *>(s);
+    ast::ISymbolTypeScope *ts_s = NodeKind::cast<ast::ISymbolTypeScope>(s);
     ast::ITypeScope *ts = (ts_s)
-        ? dynamic_cast<ast::ITypeScope *>(ts_s->getTarget()) : 0;
+        ? NodeKind::cast<ast::ITypeScope>(ts_s->getTarget()) : 0;
     if (!ts || !ts->getSuper_t() || !ts->getSuper_t()->getTarget()) {
         return 0;
     }
-    return dynamic_cast<ast::ISymbolScope *>(
+    return NodeKind::cast<ast::ISymbolScope>(
         TaskResolveSuperTypeRef(dmgr, root).resolve(ts));
 }
 
@@ -106,7 +108,7 @@ int32_t forwardOf(
             || root->getChildren().at(from->second).get() != ns
             || to->second < 0
             || to->second >= (int32_t)root->getChildren().size()
-            || !dynamic_cast<ast::ISymbolScope *>(
+            || !NodeKind::cast<ast::ISymbolScope>(
                 root->getChildren().at(to->second).get())) {
         return -1;
     }
@@ -217,6 +219,7 @@ void NameLookup::walk() {
     ast::ISymbolScope *ext = m_ctxt->extensionCtxt();
     bool ext_pending = (ext != 0);
     bool seen_type = false;
+    m_past_type = false;
     std::set<ast::ISymbolScope *> searched;
 
     while (!m_ref && m_ctxt->symtab()->hasScopes()) {
@@ -244,8 +247,9 @@ void NameLookup::walk() {
         }
 
         if (!searched.count(scope)) {
-            if (dynamic_cast<ast::ISymbolTypeScope *>(scope)) {
+            if (NodeKind::cast<ast::ISymbolTypeScope>(scope)) {
                 seen_type = true;
+                m_past_type = m_past_type || !m_ctxt->isInlineCtxt(scope);
             }
             DEBUG_ENTER("search %s", scope->getName().c_str());
             searchLevel(scope);
@@ -299,7 +303,9 @@ NameLookup::Member NameLookup::lookupMember(
         ast::ISymbolScope           *root,
         ast::ISymbolScope           *ns,
         const std::string           &name,
-        bool                        enum_items) {
+        bool                        enum_items,
+        ResolveContext              *ctxt,
+        const ast::IExprId          *use) {
     Member ret;
     // Allocated only once there is a base type: most lookups have none.
     std::vector<ast::ISymbolScope *> chain;
@@ -318,7 +324,7 @@ NameLookup::Member NameLookup::lookupMember(
             // child has in the *physical* scope that declared it, which need
             // not line up. Confirm the candidate by name and fall back to a
             // scan; a type's symtab is exact, and this is the hot path.
-            if (!dynamic_cast<ast::ISymbolTypeScope *>(ns)
+            if (!NodeKind::cast<ast::ISymbolTypeScope>(ns)
                     && (!c || TaskGetName().get(c) != name)) {
                 for (int32_t ci=0; ci<(int32_t)ns->getChildren().size(); ci++) {
                     ast::IScopeChild *cc = ns->getChildren().at(ci).get();
@@ -328,6 +334,15 @@ NameLookup::Member NameLookup::lookupMember(
                         break;
                     }
                 }
+            }
+
+            // 17.2.3: which package's contribution, when several add it.
+            ast::ISymbolTypeScope *ns_t;
+            if (c && ctxt && use
+                    && (ns_t=NodeKind::cast<ast::ISymbolTypeScope>(ns))
+                    && ns_t->getExt_members().size()) {
+                idx = visibleExtMember(ctxt, ns_t, use, idx);
+                c = ns->getChildren().at(idx).get();
             }
 
             if (c) {
@@ -360,7 +375,7 @@ NameLookup::Member NameLookup::lookupMember(
     int32_t fwd;
     if (!ret.sym && (fwd=forwardOf(root, start, name)) >= 0) {
         ret = lookupMember(dmgr, root,
-            dynamic_cast<ast::ISymbolScope *>(root->getChildren().at(fwd).get()),
+            NodeKind::cast<ast::ISymbolScope>(root->getChildren().at(fwd).get()),
             name, enum_items);
         if (ret.sym) {
             ret.fwd_pkg = fwd;
@@ -368,6 +383,79 @@ NameLookup::Member NameLookup::lookupMember(
     }
 
     return ret;
+}
+
+int32_t NameLookup::visibleExtMember(
+        ResolveContext              *ctxt,
+        ast::ISymbolTypeScope       *t,
+        const ast::IExprId          *id,
+        int32_t                     idx) {
+    ExtMemberVisibility &vis = ctxt->extVisibility();
+    ExtMemberVisibility::Choice ch = vis.choose(
+        t, id->getId(), idx, id->getLocation());
+    if (ch.status == ExtMemberVisibility::Status::Visible
+            || ctxt->wasNoted(id->getLocation())) {
+        return ch.idx;
+    }
+
+    std::vector<std::pair<ast::Location, std::string>> related;
+    std::string pkgs;
+    for (uint32_t k=0; k<ch.members.size(); k++) {
+        ast::ISymbolExtMember *m = ch.members.at(k);
+        std::string desc = vis.packageDesc(m->getPkg());
+        if (k) {
+            pkgs += (k+1 == ch.members.size()) ? " and " : ", ";
+        }
+        pkgs += desc;
+        if (m->getIdx() >= 0 && m->getIdx() < (int32_t)t->getChildren().size()) {
+            related.push_back({
+                declLocation(t->getChildren().at(m->getIdx()).get()),
+                "declared by an extension in " + desc});
+        }
+    }
+
+    if (ch.status == ExtMemberVisibility::Status::Ambiguous) {
+        ctxt->addMarker(
+            MarkerSeverityE::Error,
+            id->getLocation(),
+            "ambiguous reference to '" + id->getId() + "': extensions of '"
+                + t->getName() + "' in " + pkgs + " each declare it, and "
+                "each package is imported here (17.2.3); import only one",
+            related);
+    } else {
+        ctxt->addMarker(
+            MarkerSeverityE::Warn,
+            id->getLocation(),
+            "'" + id->getId() + "' is declared by an extension of '"
+                + t->getName() + "' in " + pkgs
+                + ((ch.members.size() > 1)
+                    ? ", none of which is visible here" : ", which is not visible here")
+                + " (17.2.3); add '"
+                + vis.importFor(ch.members.front()->getPkg()) + "'",
+            related);
+    }
+    return ch.idx;
+}
+
+void NameLookup::checkExtItem(
+        ResolveContext              *ctxt,
+        ast::ISymbolEnumScope       *e,
+        const ast::IExprId          *id,
+        int32_t                     idx) {
+    ast::ISymbolScope *pkg = 0;
+    if (!ctxt->extVisibility().itemHidden(e, idx, id->getLocation(), pkg)
+            || ctxt->wasNoted(id->getLocation())) {
+        return;
+    }
+    ExtMemberVisibility &vis = ctxt->extVisibility();
+    ctxt->addMarker(
+        MarkerSeverityE::Warn,
+        id->getLocation(),
+        "'" + id->getId() + "' is an item an extension of '" + e->getName()
+            + "' in " + vis.packageDesc(pkg) + " adds, which is not visible "
+            "here (17.2.3); add '" + vis.importFor(pkg) + "'",
+        {{e->getChildren().at(idx)->getLocation(),
+            "added by an extension in " + vis.packageDesc(pkg)}});
 }
 
 NameLookup::Member NameLookup::lookupEnumItemMember(
@@ -386,7 +474,7 @@ NameLookup::Member NameLookup::lookupEnumItemMember(
         }
         for (int32_t ci=0; ci<(int32_t)s->getChildren().size(); ci++) {
             ast::IScopeChild *c = s->getChildren().at(ci).get();
-            if (ast::ISymbolEnumScope *e = dynamic_cast<ast::ISymbolEnumScope *>(c)) {
+            if (ast::ISymbolEnumScope *e = NodeKind::cast<ast::ISymbolEnumScope>(c)) {
                 std::unordered_map<std::string,int32_t>::const_iterator it =
                     e->getSymtab().find(name);
                 if (it != e->getSymtab().end() && it->second >= 0
@@ -397,7 +485,7 @@ NameLookup::Member NameLookup::lookupEnumItemMember(
                     ret.super_depth = depth;
                     return ret;
                 }
-            } else if (ast::IExtendEnum *ee = dynamic_cast<ast::IExtendEnum *>(c)) {
+            } else if (ast::IExtendEnum *ee = NodeKind::cast<ast::IExtendEnum>(c)) {
                 // Declared here, living in the extended enum (17.2; Ex. 248).
                 bool declares = false;
                 for (std::vector<ast::IEnumItemUP>::const_iterator
@@ -408,7 +496,7 @@ NameLookup::Member NameLookup::lookupEnumItemMember(
                 if (!declares || !ee->getTarget() || !ee->getTarget()->getTarget()) {
                     continue;
                 }
-                ast::ISymbolEnumScope *e = dynamic_cast<ast::ISymbolEnumScope *>(
+                ast::ISymbolEnumScope *e = NodeKind::cast<ast::ISymbolEnumScope>(
                     TaskResolveSymbolPathRef(dmgr, root).resolve(
                         ee->getTarget()->getTarget()));
                 std::unordered_map<std::string,int32_t>::const_iterator it;
@@ -461,8 +549,8 @@ ast::ISymbolRefPath *NameLookup::lookupSuper(
     if (!res.type_s) {
         res.status = SuperStatus::NoType;
     } else {
-        ast::ITypeScope *ts = dynamic_cast<ast::ITypeScope *>(res.type_s->getTarget());
-        res.base_s = dynamic_cast<ast::ISymbolScope *>(TaskResolveSuperTypeRef(
+        ast::ITypeScope *ts = NodeKind::cast<ast::ITypeScope>(res.type_s->getTarget());
+        res.base_s = NodeKind::cast<ast::ISymbolScope>(TaskResolveSuperTypeRef(
             m_ctxt->getDebugMgr(), m_ctxt->root()).resolve(ts));
 
         if (!ts || !ts->getSuper_t()) {
@@ -509,7 +597,7 @@ ast::ISymbolTypeScope *NameLookup::seekContextType() {
     while (m_ctxt->symtab()->hasScopes()) {
         // See lookupFirst() for why a null scope pops rather than breaks.
         ast::ISymbolScope *scope = m_ctxt->symtab()->getScope();
-        ast::ISymbolTypeScope *ts = dynamic_cast<ast::ISymbolTypeScope *>(scope);
+        ast::ISymbolTypeScope *ts = NodeKind::cast<ast::ISymbolTypeScope>(scope);
         if (ts) {
             if (scope == skip) {
                 skip = 0;
@@ -526,14 +614,19 @@ bool NameLookup::searchLevel(ast::ISymbolScope *s) {
     // Dispatched by kind here rather than through a visitor: the generated
     // visitor's default for a compound scope (a loop, a template block)
     // descends into its bodies, and a hit in one of those is not in scope.
-    if (ast::ISymbolFunctionScope *f = dynamic_cast<ast::ISymbolFunctionScope *>(s)) {
+    if (ast::ISymbolFunctionScope *f = NodeKind::cast<ast::ISymbolFunctionScope>(s)) {
         return searchFunction(f);
-    } else if (ast::ISymbolTypeScope *t = dynamic_cast<ast::ISymbolTypeScope *>(s)) {
+    } else if (ast::ISymbolTypeScope *t = NodeKind::cast<ast::ISymbolTypeScope>(s)) {
         return searchType(t);
-    } else if (ast::ISymbolDeclaration *d = dynamic_cast<ast::ISymbolDeclaration *>(s)) {
+    } else if (ast::ISymbolDeclaration *d = NodeKind::cast<ast::ISymbolDeclaration>(s)) {
         return searchSymbolDecl(d);
+    } else if (searchBlock(s) || m_ref) {
+        return true;
     } else {
-        return searchBlock(s);
+        // Past the enclosing type -- not a `with` block's type, which is
+        // pushed above the activity it is written in -- no named
+        // sub-activity is left to search.
+        return !m_past_type && searchSubActivity(s);
     }
 }
 
@@ -548,6 +641,34 @@ bool NameLookup::searchBlock(ast::ISymbolScope *s) {
         return true;
     }
     return false;
+}
+
+bool NameLookup::searchSubActivity(ast::ISymbolScope *s) {
+    ast::IActivityLabeledScope *ls = m_ctxt->activityLabeledScope(s);
+    ast::ISymbolScope *m = (ls) ? ls->getSub_activity() : 0;
+    if (!m) {
+        return false;
+    }
+    std::unordered_map<std::string,int32_t>::const_iterator it =
+        m->getSymtab().find(m_id->getId());
+    if (it == m->getSymtab().end()) {
+        return false;
+    }
+    std::vector<int32_t> idx;
+    if (!ActivityScopes::pathTo(s, m->getChildren().at(it->second).get(), idx)) {
+        return false;
+    }
+    DEBUG("Found %s in the sub-activity of %s", m_id->getId().c_str(),
+        m->getName().c_str());
+    m_ref = m_ctxt->symtab()->getScopeSymbolPath();
+    if (!m_ref) {
+        return false;
+    }
+    for (std::vector<int32_t>::const_iterator
+        i_it=idx.begin(); i_it!=idx.end(); i_it++) {
+        m_ref->getPath().push_back({ast::SymbolRefPathElemKind::ElemKind_ChildIdx, *i_it});
+    }
+    return true;
 }
 
 bool NameLookup::searchType(ast::ISymbolTypeScope *s) {
@@ -653,10 +774,10 @@ bool NameLookup::searchGenericConstraint(ast::IScopeChild *c) {
     // symbol's are (searchSymbolDecl).
     const std::vector<ast::IGenericConstraintParamUP> *params = 0;
     if (ast::IGenericConstraintDeclBool *b =
-            dynamic_cast<ast::IGenericConstraintDeclBool *>(c)) {
+            NodeKind::cast<ast::IGenericConstraintDeclBool>(c)) {
         params = &b->getParameters();
     } else if (ast::IGenericConstraintDeclValue *v =
-            dynamic_cast<ast::IGenericConstraintDeclValue *>(c)) {
+            NodeKind::cast<ast::IGenericConstraintDeclValue>(c)) {
         params = &v->getParameters();
     } else {
         return false;
@@ -681,7 +802,14 @@ bool NameLookup::searchMembers(ast::ISymbolScope *s, bool order, bool block) {
     if (it == s->getSymtab().end()) {
         return false;
     }
-    ast::IScopeChild *c = s->getChildren().at(it->second).get();
+    int32_t idx = it->second;
+
+    // 17.2.3: which package's contribution, when several add it.
+    ast::ISymbolTypeScope *t = NodeKind::cast<ast::ISymbolTypeScope>(s);
+    if (t && t->getExt_members().size()) {
+        idx = visibleExtMember(m_ctxt, t, m_id, idx);
+    }
+    ast::IScopeChild *c = s->getChildren().at(idx).get();
 
     // 18.2a/b, 4.7.1.2: in a block, a name is declared from its declaration
     // on. A later declaration is not in scope here, so the search carries on
@@ -695,7 +823,7 @@ bool NameLookup::searchMembers(ast::ISymbolScope *s, bool order, bool block) {
     }
 
     hit(s, c, TaskGetSymbolRefPathKind(m_ctxt->getDebugMgr()).get(c),
-        it->second + ((block)?ConstraintScopes::iteratorBase(s):0));
+        idx + ((block)?ConstraintScopes::iteratorBase(s):0));
     return (m_ref != 0);
 }
 
@@ -761,7 +889,7 @@ ast::ISymbolRefPath *NameLookup::findEnumItem(
         if (!declares || !(*it)->getTarget()->getTarget()) {
             continue;
         }
-        ast::ISymbolEnumScope *e = dynamic_cast<ast::ISymbolEnumScope *>(
+        ast::ISymbolEnumScope *e = NodeKind::cast<ast::ISymbolEnumScope>(
             m_ctxt->resolveSymbolPathRef((*it)->getTarget()->getTarget()));
         std::unordered_map<std::string,int32_t>::const_iterator e_it =
             (e)?e->getSymtab().find(m_id->getId()):std::unordered_map<std::string,int32_t>::const_iterator();
@@ -844,11 +972,11 @@ bool NameLookup::isPackageLevel(ast::ISymbolScope *s) const {
             return true;
         }
         if (n > MAX_SUPER_DEPTH
-                || dynamic_cast<ast::ISymbolTypeScope *>(s)
-                || dynamic_cast<ast::ISymbolFunctionScope *>(s)
-                || dynamic_cast<ast::ISymbolExtendScope *>(s)
-                || dynamic_cast<ast::ISymbolEnumScope *>(s)
-                || dynamic_cast<ast::ISymbolDeclaration *>(s)) {
+                || NodeKind::cast<ast::ISymbolTypeScope>(s)
+                || NodeKind::cast<ast::ISymbolFunctionScope>(s)
+                || NodeKind::cast<ast::ISymbolExtendScope>(s)
+                || NodeKind::cast<ast::ISymbolEnumScope>(s)
+                || NodeKind::cast<ast::ISymbolDeclaration>(s)) {
             return false;
         }
         // A package is a named child of a package or of the global scope; a
@@ -893,8 +1021,8 @@ void NameLookup::hit(
     // A static function has no instance to take a member from (20.2). The
     // walk reaches the component's own members only by leaving the function,
     // so this is a member of the component or of a base.
-    ast::ISymbolTypeScope *ts = dynamic_cast<ast::ISymbolTypeScope *>(found_in);
-    if (m_static_fn && ts && dynamic_cast<ast::IComponent *>(ts->getTarget())
+    ast::ISymbolTypeScope *ts = NodeKind::cast<ast::ISymbolTypeScope>(found_in);
+    if (m_static_fn && ts && NodeKind::cast<ast::IComponent>(ts->getTarget())
             && isInstanceMember(c)) {
         m_static_hit = c;
     }
@@ -1049,7 +1177,7 @@ ast::ISymbolRefPath *NameLookup::searchImport(
 
     // A wildcard import: a member of the package it names -- never that
     // package's imports (Ex. 271) -- or an item of an enum declared in it.
-    ast::ISymbolScope *target_s = dynamic_cast<ast::ISymbolScope *>(
+    ast::ISymbolScope *target_s = NodeKind::cast<ast::ISymbolScope>(
         m_ctxt->resolveSymbolPathRef(target));
     if (!target_s) {
         return 0;
@@ -1073,7 +1201,7 @@ ast::ISymbolRefPath *NameLookup::searchImport(
     // the same declaration, so importing both packages is not ambiguous.
     int32_t fwd = forwardOf(m_ctxt->root(), target_s, id->getId());
     if (fwd >= 0) {
-        ast::ISymbolScope *fwd_s = dynamic_cast<ast::ISymbolScope *>(
+        ast::ISymbolScope *fwd_s = NodeKind::cast<ast::ISymbolScope>(
             m_ctxt->root()->getChildren().at(fwd).get());
         it = fwd_s->getSymtab().find(id->getId());
         if (it != fwd_s->getSymtab().end()) {
@@ -1111,7 +1239,7 @@ bool NameLookup::appliesAt(
     }
 
     // 18.1.3: an import in the global scope applies to the rest of its file.
-    if (dynamic_cast<ast::IGlobalScope *>(stmt)) {
+    if (NodeKind::cast<ast::IGlobalScope>(stmt)) {
         return imp->getLocation().fileid < 0
             || imp->getLocation().fileid == use.fileid;
     }
@@ -1178,24 +1306,24 @@ bool NameLookup::isOrderSensitive(const ast::ISymbolScope *s) {
     // Type, package and global scopes are not: a member may be used before
     // it is declared (Examples 261, 262). A loop's own scope declares its
     // variables before its body, so there is nothing there to hide.
-    return dynamic_cast<const ast::IExecScope *>(s)
-        || dynamic_cast<const ast::IActivityDecl *>(s)
-        || dynamic_cast<const ast::IActivityLabeledScope *>(s)
-        || dynamic_cast<const ast::IMonitorActivityDecl *>(s)
-        || dynamic_cast<const ast::IMonitorActivityLabeledScope *>(s)
-        || dynamic_cast<const ast::ITemplateString *>(s)
-        || dynamic_cast<const ast::ITemplateElem *>(s);
+    return NodeKind::cast<ast::IExecScope>(s)
+        || NodeKind::cast<ast::IActivityDecl>(s)
+        || NodeKind::cast<ast::IActivityLabeledScope>(s)
+        || NodeKind::cast<ast::IMonitorActivityDecl>(s)
+        || NodeKind::cast<ast::IMonitorActivityLabeledScope>(s)
+        || NodeKind::cast<ast::ITemplateString>(s)
+        || NodeKind::cast<ast::ITemplateElem>(s);
 }
 
 const ast::Location &NameLookup::declLocation(const ast::IScopeChild *c) {
     // The declared *name*, not the statement: `int a = 1, b = a;` sees `a`,
     // and `int x = x;` sees itself, as in C and SystemVerilog.
-    const ast::INamedScopeChild *n = dynamic_cast<const ast::INamedScopeChild *>(c);
+    const ast::INamedScopeChild *n = NodeKind::cast<ast::INamedScopeChild>(c);
     if (n && n->getName()) {
         return n->getName()->getLocation();
     }
     const ast::IProceduralStmtDataDeclaration *d =
-        dynamic_cast<const ast::IProceduralStmtDataDeclaration *>(c);
+        NodeKind::cast<ast::IProceduralStmtDataDeclaration>(c);
     if (d && d->getName()) {
         return d->getName()->getLocation();
     }

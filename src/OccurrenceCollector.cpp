@@ -23,6 +23,7 @@
 #include "pssp/ast/IConstraintStmtForeach.h"
 #include "pssp/impl/TaskResolveSymbolPathRef.h"
 #include "OccurrenceCollector.h"
+#include "pssp/impl/NodeKind.h"
 
 namespace pssp {
 
@@ -67,9 +68,31 @@ public:
             set(i->getId().back().get());
         }
     }
-    virtual void visitActivityLabeledScope(ast::IActivityLabeledScope *i) override { set(i->getLabel()); }
     virtual void visitActivityLabeledStmt(ast::IActivityLabeledStmt *i) override { set(i->getLabel()); }
+
+    // A block or compound statement is named by its label only. The
+    // generated visitor for each goes on into its bodies, where an unlabeled
+    // `select` took the label of a statement in a branch: Ex. 82's `xfer`
+    // was reported as declaring the `select`.
+    virtual void visitActivityLabeledScope(ast::IActivityLabeledScope *i) override { labeled(i); }
+    virtual void visitActivityAtomicBlock(ast::IActivityAtomicBlock *i) override { labeled(i); }
+    virtual void visitActivityForeach(ast::IActivityForeach *i) override { labeled(i); }
+    virtual void visitActivityIfElse(ast::IActivityIfElse *i) override { labeled(i); }
+    virtual void visitActivityMatch(ast::IActivityMatch *i) override { labeled(i); }
+    virtual void visitActivityParallel(ast::IActivityParallel *i) override { labeled(i); }
+    virtual void visitActivityRepeatCount(ast::IActivityRepeatCount *i) override { labeled(i); }
+    virtual void visitActivityRepeatWhile(ast::IActivityRepeatWhile *i) override { labeled(i); }
+    virtual void visitActivityReplicate(ast::IActivityReplicate *i) override { labeled(i); }
+    virtual void visitActivitySchedule(ast::IActivitySchedule *i) override { labeled(i); }
+    virtual void visitActivitySelect(ast::IActivitySelect *i) override { labeled(i); }
+    virtual void visitActivitySequence(ast::IActivitySequence *i) override { labeled(i); }
     virtual void visitMonitorActivityLabeledScope(ast::IMonitorActivityLabeledScope *i) override { set(i->getLabel()); }
+    virtual void visitMonitorActivityConcat(ast::IMonitorActivityConcat *i) override { set(i->getLabel()); }
+    virtual void visitMonitorActivityEventually(ast::IMonitorActivityEventually *i) override { set(i->getLabel()); }
+    virtual void visitMonitorActivityOverlap(ast::IMonitorActivityOverlap *i) override { set(i->getLabel()); }
+    virtual void visitMonitorActivitySchedule(ast::IMonitorActivitySchedule *i) override { set(i->getLabel()); }
+    virtual void visitMonitorActivitySelect(ast::IMonitorActivitySelect *i) override { set(i->getLabel()); }
+    virtual void visitMonitorActivitySequence(ast::IMonitorActivitySequence *i) override { set(i->getLabel()); }
     virtual void visitMonitorActivityLabeledStmt(ast::IMonitorActivityLabeledStmt *i) override { set(i->getLabel()); }
     virtual void visitCoverStmtInline(ast::ICoverStmtInline *i) override { set(i->getLabel()); }
     virtual void visitCoverStmtReference(ast::ICoverStmtReference *i) override { set(i->getLabel()); }
@@ -91,6 +114,17 @@ private:
     void set(ast::IExprId *id) {
         if (!m_ret) {
             m_ret = id;
+        }
+    }
+
+    // The body of a `replicate` with a label array is named by the array
+    // (11.5.1.1 e): `RL` in `RL[0].a` names it.
+    void labeled(ast::IActivityLabeledScope *i) {
+        ast::IActivityReplicate *r = NodeKind::cast<ast::IActivityReplicate>(i->getUpper());
+        if (i->getLabel()) {
+            set(i->getLabel());
+        } else if (r && r->getBody() == i) {
+            set(r->getIt_label());
         }
     }
 
@@ -234,53 +268,12 @@ public:
         VisitorBase::visitExprMemberPathElem(i);
     }
 
-    // Covergroup bodies are not walked by the generated visitor (their
-    // fields are `visit: false`: symbol-resolution plan 10.1). Their names
-    // are still occurrences.
-    virtual void visitCovergroupCoverpoint(ast::ICovergroupCoverpoint *i) override {
-        VisitorBase::visitCovergroupCoverpoint(i);
-        acceptOpt(i->getTarget());
-        acceptOpt(i->getIff());
-    }
-
-    virtual void visitCovergroupCross(ast::ICovergroupCross *i) override {
-        VisitorBase::visitCovergroupCross(i);
-        acceptOpt(i->getIff());
-    }
-
-    virtual void visitCoverpointBins(ast::ICoverpointBins *i) override {
-        VisitorBase::visitCoverpointBins(i);
-        acceptOpt(i->getArray_size());
-        for (auto it=i->getRanges().begin(); it!=i->getRanges().end(); it++) {
-            acceptOpt(it->get());
-        }
-        acceptOpt(i->getWith_expr());
-    }
-
-    virtual void visitCovergroupCrossBins(ast::ICovergroupCrossBins *i) override {
-        VisitorBase::visitCovergroupCrossBins(i);
-        acceptOpt(i->getWith_expr());
-    }
-
     virtual void visitCovergroupOption(ast::ICovergroupOption *i) override {
         // `option.<name>`: a built-in option, not a declaration anywhere.
         if (i->getName()) {
             m_builtin.insert(i->getName());
         }
         VisitorBase::visitCovergroupOption(i);
-        acceptOpt(i->getValue());
-    }
-
-    virtual void visitCovergroupPortmap(ast::ICovergroupPortmap *i) override {
-        VisitorBase::visitCovergroupPortmap(i);
-        acceptOpt(i->getTarget());
-    }
-
-    virtual void visitCovergroupInstantiation(ast::ICovergroupInstantiation *i) override {
-        VisitorBase::visitCovergroupInstantiation(i);
-        for (auto it=i->getTargets().begin(); it!=i->getTargets().end(); it++) {
-            acceptOpt(it->get());
-        }
     }
 
 protected:
@@ -398,7 +391,7 @@ public:
 
         const std::string &text = i->getId();
         if (!occ.is_decl && (text == "this" || text == "comp")
-                && (!decl || dynamic_cast<ast::ITypeScope *>(decl))) {
+                && (!decl || NodeKind::cast<ast::ITypeScope>(decl))) {
             // `this` binds to the enclosing type, and `comp` to a synthetic
             // field. Neither is a declaration of that name (FR-001-Q2).
             occ.resolution = OccurrenceResolution::Builtin;
@@ -478,7 +471,8 @@ ast::IExprId *OccurrenceCollector::nameOf(ast::IScopeChild *c) {
 
 ast::IScopeChild *OccurrenceCollector::unwrap(ast::IScopeChild *c) {
     for (int32_t depth=0; c && depth<16; depth++) {
-        ast::ISymbolFunctionScope *fs = dynamic_cast<ast::ISymbolFunctionScope *>(c);
+        NodeKind nk(c);
+        ast::ISymbolFunctionScope *fs = nk.as<ast::ISymbolFunctionScope>();
         if (fs) {
             if (fs->getPrototypes().size()) {
                 return fs->getPrototypes().front();
@@ -486,23 +480,23 @@ ast::IScopeChild *OccurrenceCollector::unwrap(ast::IScopeChild *c) {
                 return fs->getDefinition()->getProto();
             }
         }
-        ast::ISymbolEnumScope *es = dynamic_cast<ast::ISymbolEnumScope *>(c);
+        ast::ISymbolEnumScope *es = nk.as<ast::ISymbolEnumScope>();
         if (es && es->getDecl()) {
             return es->getDecl();
         }
-        ast::ISymbolChildrenScope *sc = dynamic_cast<ast::ISymbolChildrenScope *>(c);
+        ast::ISymbolChildrenScope *sc = nk.as<ast::ISymbolChildrenScope>();
         if (sc && sc->getTarget() && sc->getTarget() != c) {
             c = sc->getTarget();
             continue;
         }
-        ast::ISymbolScope *ss = dynamic_cast<ast::ISymbolScope *>(c);
+        ast::ISymbolScope *ss = nk.as<ast::ISymbolScope>();
         if (ss && !ss->getTarget() && ss->getUpper()) {
             auto it = m_packages.find(qname(ss));
             if (it != m_packages.end()) {
                 return it->second;
             }
         }
-        ast::IFunctionDefinition *fd = dynamic_cast<ast::IFunctionDefinition *>(c);
+        ast::IFunctionDefinition *fd = nk.as<ast::IFunctionDefinition>();
         if (fd && fd->getProto()) {
             return fd->getProto();
         }
@@ -523,7 +517,7 @@ void OccurrenceCollector::addPackage(ast::IPackageScope *p) {
 std::string OccurrenceCollector::qname(ast::IPackageScope *p) {
     std::string ret;
     for (ast::IScope *s=p; s; s=s->getParent()) {
-        ast::IPackageScope *ps = dynamic_cast<ast::IPackageScope *>(s);
+        ast::IPackageScope *ps = NodeKind::cast<ast::IPackageScope>(s);
         if (!ps) {
             continue;
         }
@@ -603,17 +597,17 @@ ast::IScopeChild *OccurrenceCollector::baseDecl(ast::IScopeChild *d) {
         return 0;
     }
     ast::IScope *parent = d->getParent();
-    if (!parent && dynamic_cast<ast::IFunctionPrototype *>(d)) {
+    if (!parent && NodeKind::cast<ast::IFunctionPrototype>(d)) {
         // A prototype owned by its definition; the definition is the member.
         return 0;
     }
-    ast::ITypeScope *ts = dynamic_cast<ast::ITypeScope *>(parent);
+    ast::ITypeScope *ts = NodeKind::cast<ast::ITypeScope>(parent);
     std::set<ast::ITypeScope *> seen;
     while (ts && seen.insert(ts).second && !ts->getSuper_cyclic()) {
         if (!ts->getSuper_t() || !ts->getSuper_t()->getTarget()) {
             return 0;
         }
-        ast::ITypeScope *base = dynamic_cast<ast::ITypeScope *>(unwrap(
+        ast::ITypeScope *base = NodeKind::cast<ast::ITypeScope>(unwrap(
             TaskResolveSymbolPathRef(0, m_root).resolve(
                 ts->getSuper_t()->getTarget())));
         if (!base) {

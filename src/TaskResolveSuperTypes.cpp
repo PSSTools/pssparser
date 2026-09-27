@@ -23,6 +23,7 @@
 #include "TaskResolveRef.h"
 #include "pssp/ast/ITypeScope.h"
 #include "pssp/ast/IAction.h"
+#include "pssp/impl/NodeKind.h"
 
 namespace pssp {
 
@@ -51,7 +52,7 @@ void TaskResolveSuperTypes::visitScopeChildren(ast::ISymbolScope *i) {
         // Only scopes carry (or contain) super-type references. Restricting
         // the walk here keeps the pass away from expressions and statements
         // entirely, so it cannot perturb anything the main pass does.
-        if (dynamic_cast<ast::ISymbolScope *>(it->get())) {
+        if (NodeKind::cast<ast::ISymbolScope>(it->get())) {
             it->get()->accept(m_this);
         }
     }
@@ -66,7 +67,7 @@ void TaskResolveSuperTypes::visitSymbolScope(ast::ISymbolScope *i) {
 }
 
 void TaskResolveSuperTypes::visitSymbolTypeScope(ast::ISymbolTypeScope *i) {
-    ast::ITypeScope *i_ts = dynamic_cast<ast::ITypeScope *>(i->getTarget());
+    ast::ITypeScope *i_ts = NodeKind::cast<ast::ITypeScope>(i->getTarget());
 
     if (!i_ts) {
         return;
@@ -85,7 +86,7 @@ void TaskResolveSuperTypes::visitSymbolTypeScope(ast::ISymbolTypeScope *i) {
 
     m_ctxt->symtab()->pushScope(i);
 
-    ast::IAction *i_a = dynamic_cast<ast::IAction *>(i_ts);
+    ast::IAction *i_a = NodeKind::cast<ast::IAction>(i_ts);
 
     if (i_a && i_a->getIs_override()) {
         // An override action's super type spells its own name (LRM 19.2.2),

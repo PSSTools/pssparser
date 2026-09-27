@@ -26,6 +26,7 @@
 #include "TaskBuildSymbolTree.h"
 #include "TaskCompareParamLists.h"
 #include "TaskResolveRefs.h"
+#include "pssp/impl/NodeKind.h"
 
 
 namespace pssp {
@@ -61,7 +62,7 @@ ast::ISymbolRefPath *TaskGetSpecializedTemplateType::find(
     DEBUG("There are %d existing specializations", type_up->getSpec_types().size());
     for (int32_t i=0; i<type_up->getSpec_types().size(); i++) {
         ast::ISymbolTypeScope *sym_type_s_t = type_up->getSpec_types().at(i).get();
-        ast::ITypeScope *type_s_t = dynamic_cast<ast::ITypeScope  *>(sym_type_s_t->getTarget());
+        ast::ITypeScope *type_s_t = NodeKind::cast<ast::ITypeScope>(sym_type_s_t->getTarget());
 
         if (p_comp.equal(params, type_s_t->getParams())) {
             // Have a match!
@@ -227,7 +228,7 @@ ast::ISymbolRefPath *TaskGetSpecializedTemplateType::mk(
         if (ad) {
             ad->postSpecialize(
                 m_ctxt, 
-                dynamic_cast<ast::ITypeScope *>(type_ss->getTarget()));
+                NodeKind::cast<ast::ITypeScope>(type_ss->getTarget()));
         }
     }
 
@@ -270,13 +271,13 @@ std::string TaskGetSpecializedTemplateType::argName(ast::IDataType *dt) {
     }
 
     if (ast::IDataTypeUserDefined *ud =
-            dynamic_cast<ast::IDataTypeUserDefined *>(dt)) {
+            NodeKind::cast<ast::IDataTypeUserDefined>(dt)) {
         if (ud->getType_id()) {
             ast::IScopeChild *sc = TaskResolveSymbolPathRef(
                 m_ctxt->getDebugMgr(),
                 m_ctxt->root()).resolve(ud->getType_id()->getTarget());
             if (ast::ISymbolChildrenScope *ss =
-                    dynamic_cast<ast::ISymbolChildrenScope *>(sc)) {
+                    NodeKind::cast<ast::ISymbolChildrenScope>(sc)) {
                 return ss->getName();
             }
             // Unresolved: fall back to what was written.
@@ -285,18 +286,18 @@ std::string TaskGetSpecializedTemplateType::argName(ast::IDataType *dt) {
                 return ud->getType_id()->getElems().back()->getId()->getId();
             }
         }
-    } else if (ast::IDataTypeInt *i = dynamic_cast<ast::IDataTypeInt *>(dt)) {
+    } else if (ast::IDataTypeInt *i = NodeKind::cast<ast::IDataTypeInt>(dt)) {
         std::string base = (i->getIs_signed())?"int":"bit";
         if (ast::IExprUnsignedNumber *w =
-                dynamic_cast<ast::IExprUnsignedNumber *>(i->getWidth())) {
+                NodeKind::cast<ast::IExprUnsignedNumber>(i->getWidth())) {
             return base + "[" + std::to_string(w->getValue()) + "]";
         }
         return base;
-    } else if (dynamic_cast<ast::IDataTypeBool *>(dt)) {
+    } else if (NodeKind::cast<ast::IDataTypeBool>(dt)) {
         return "bool";
-    } else if (dynamic_cast<ast::IDataTypeString *>(dt)) {
+    } else if (NodeKind::cast<ast::IDataTypeString>(dt)) {
         return "string";
-    } else if (dynamic_cast<ast::IDataTypeChandle *>(dt)) {
+    } else if (NodeKind::cast<ast::IDataTypeChandle>(dt)) {
         return "chandle";
     }
 
@@ -312,12 +313,12 @@ std::string TaskGetSpecializedTemplateType::argName(ast::IExpr *e) {
         return "?";
     }
     if (ast::IExprUnsignedNumber *n =
-            dynamic_cast<ast::IExprUnsignedNumber *>(e)) {
+            NodeKind::cast<ast::IExprUnsignedNumber>(e)) {
         return std::to_string(n->getValue());
     } else if (ast::IExprSignedNumber *n =
-            dynamic_cast<ast::IExprSignedNumber *>(e)) {
+            NodeKind::cast<ast::IExprSignedNumber>(e)) {
         return std::to_string(n->getValue());
-    } else if (ast::IExprId *id = dynamic_cast<ast::IExprId *>(e)) {
+    } else if (ast::IExprId *id = NodeKind::cast<ast::IExprId>(e)) {
         return id->getId();
     }
     return "?";
@@ -352,13 +353,13 @@ std::string TaskGetSpecializedTemplateType::mkTypename(
             }
             // On a specialized list the dflt slot holds the bound argument.
             if (ast::ITemplateValueParamDecl *v =
-                    dynamic_cast<ast::ITemplateValueParamDecl *>(it->get())) {
+                    NodeKind::cast<ast::ITemplateValueParamDecl>(it->get())) {
                 name += argName(v->getDflt());
             } else if (ast::ITemplateGenericTypeParamDecl *g =
-                    dynamic_cast<ast::ITemplateGenericTypeParamDecl *>(it->get())) {
+                    NodeKind::cast<ast::ITemplateGenericTypeParamDecl>(it->get())) {
                 name += argName(g->getDflt());
             } else if (ast::ITemplateCategoryTypeParamDecl *c =
-                    dynamic_cast<ast::ITemplateCategoryTypeParamDecl *>(it->get())) {
+                    NodeKind::cast<ast::ITemplateCategoryTypeParamDecl>(it->get())) {
                 name += argName(c->getDflt());
             } else {
                 name += "?";

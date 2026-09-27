@@ -27,6 +27,7 @@
 #include "pssp/impl/BuiltinCollectionUtil.h"
 #include "pssp/impl/TaskEvalExpr.h"
 #include "pssp/impl/TaskResolveSymbolPathRef.h"
+#include "pssp/impl/NodeKind.h"
 
 namespace pssp {
 
@@ -122,13 +123,13 @@ public:
         if (!c) {
             return PackableInfo::incomplete("unresolved type");
         }
-        if (ast::ISymbolTypeScope *ts = dynamic_cast<ast::ISymbolTypeScope *>(c)) {
+        if (ast::ISymbolTypeScope *ts = NodeKind::cast<ast::ISymbolTypeScope>(c)) {
             return classifyTypeScope(ts);
         }
-        if (ast::ISymbolEnumScope *es = dynamic_cast<ast::ISymbolEnumScope *>(c)) {
+        if (ast::ISymbolEnumScope *es = NodeKind::cast<ast::ISymbolEnumScope>(c)) {
             return classifyEnum(es);
         }
-        if (ast::ITypedefDeclaration *td = dynamic_cast<ast::ITypedefDeclaration *>(c)) {
+        if (ast::ITypedefDeclaration *td = NodeKind::cast<ast::ITypedefDeclaration>(c)) {
             return classify(td->getType());
         }
         // A member typed by a template parameter (`T v;`) resolves to the
@@ -138,11 +139,11 @@ public:
         // only for parameter lists known to be bound (see bindParams).
         if (m_bound.find(c) != m_bound.end()) {
             if (ast::ITemplateGenericTypeParamDecl *tp =
-                    dynamic_cast<ast::ITemplateGenericTypeParamDecl *>(c)) {
+                    NodeKind::cast<ast::ITemplateGenericTypeParamDecl>(c)) {
                 return classify(tp->getDflt());
             }
             if (ast::ITemplateCategoryTypeParamDecl *tp =
-                    dynamic_cast<ast::ITemplateCategoryTypeParamDecl *>(c)) {
+                    NodeKind::cast<ast::ITemplateCategoryTypeParamDecl>(c)) {
                 return classify(tp->getDflt());
             }
         }
@@ -171,7 +172,7 @@ public:
      * (17.1, R2).
      */
     bool isPackedStruct(ast::ISymbolTypeScope *s) {
-        ast::IStruct *st = s?dynamic_cast<ast::IStruct *>(s->getTarget()):0;
+        ast::IStruct *st = s?NodeKind::cast<ast::IStruct>(s->getTarget()):0;
         if (!st || st->getKind() != ast::StructKind::Struct) {
             return false;
         }
@@ -196,7 +197,7 @@ public:
      * ``packed_s`` of their own.
      */
     static bool isCoreLibStruct(ast::ISymbolTypeScope *s, const char *name) {
-        ast::ITypeScope *ts = s?dynamic_cast<ast::ITypeScope *>(s->getTarget()):0;
+        ast::ITypeScope *ts = s?NodeKind::cast<ast::ITypeScope>(s->getTarget()):0;
         return ts && ts->getName() && ts->getName()->getId() == name
             && ts->getLocation().fileid <= 0;
     }
@@ -229,7 +230,7 @@ public:
             it=ts->getParams()->getParams().begin();
             it!=ts->getParams()->getParams().end(); it++) {
             ast::ITemplateValueParamDecl *vp =
-                dynamic_cast<ast::ITemplateValueParamDecl *>(it->get());
+                NodeKind::cast<ast::ITemplateValueParamDecl>(it->get());
             if (vp && vp->getName() && vp->getName()->getId() == name) {
                 return evalInt(vp->getDflt(), val);
             }
@@ -310,7 +311,7 @@ private:
     }
 
     PackableInfo classifyTypeScope(ast::ISymbolTypeScope *s) {
-        ast::ITypeScope *ts = dynamic_cast<ast::ITypeScope *>(s->getTarget());
+        ast::ITypeScope *ts = NodeKind::cast<ast::ITypeScope>(s->getTarget());
         if (!ts) {
             return PackableInfo::incomplete("not a type");
         }
@@ -328,7 +329,7 @@ private:
             default: break;
         }
 
-        ast::IStruct *st = dynamic_cast<ast::IStruct *>(ts);
+        ast::IStruct *st = NodeKind::cast<ast::IStruct>(ts);
         std::string name = ts->getName()?ts->getName()->getId():s->getName();
         if (!st) {
             return PackableInfo::notPackable("'" + name + "'", ts,
@@ -370,9 +371,9 @@ private:
             return PackableInfo::incomplete("malformed array");
         }
         ast::ITemplateGenericTypeParamDecl *tp =
-            dynamic_cast<ast::ITemplateGenericTypeParamDecl *>(params.at(0).get());
+            NodeKind::cast<ast::ITemplateGenericTypeParamDecl>(params.at(0).get());
         ast::ITemplateValueParamDecl *np =
-            dynamic_cast<ast::ITemplateValueParamDecl *>(params.at(1).get());
+            NodeKind::cast<ast::ITemplateValueParamDecl>(params.at(1).get());
         if (!tp || !np) {
             return PackableInfo::incomplete("malformed array");
         }
@@ -433,7 +434,7 @@ private:
     void bindParams(ast::ISymbolTypeScope *s) {
         std::set<ast::ISymbolTypeScope *> seen;
         while (s && seen.insert(s).second) {
-            ast::ITypeScope *ts = dynamic_cast<ast::ITypeScope *>(s->getTarget());
+            ast::ITypeScope *ts = NodeKind::cast<ast::ITypeScope>(s->getTarget());
             if (ts && ts->getParams() && ts->getParams()->getSpecialized()) {
                 for (std::vector<ast::ITemplateParamDeclUP>::const_iterator
                     it=ts->getParams()->getParams().begin();
@@ -457,11 +458,11 @@ private:
     }
 
     ast::ISymbolTypeScope *superOf(ast::ISymbolTypeScope *s) {
-        ast::ITypeScope *ts = dynamic_cast<ast::ITypeScope *>(s->getTarget());
+        ast::ITypeScope *ts = NodeKind::cast<ast::ITypeScope>(s->getTarget());
         if (!ts || !ts->getSuper_t() || !ts->getSuper_t()->getTarget()) {
             return 0;
         }
-        return dynamic_cast<ast::ISymbolTypeScope *>(
+        return NodeKind::cast<ast::ISymbolTypeScope>(
             m_resolver.resolve(ts->getSuper_t()->getTarget()));
     }
 
@@ -479,7 +480,7 @@ private:
         for (std::vector<ast::IScopeChildUP>::const_iterator
             it=s->getChildren().begin();
             it!=s->getChildren().end(); it++) {
-            ast::IField *f = dynamic_cast<ast::IField *>(it->get());
+            ast::IField *f = NodeKind::cast<ast::IField>(it->get());
             if (f && (f->getAttr() & ast::FieldAttr::Static)
                     == ast::FieldAttr::NoFlags) {
                 fields.push_back(f);

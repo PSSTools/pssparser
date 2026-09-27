@@ -20,6 +20,7 @@
  */
 #include "dmgr/impl/DebugMacros.h"
 #include "TaskLinkActionCompRefFields.h"
+#include "pssp/impl/NodeKind.h"
 
 
 namespace pssp {
@@ -58,10 +59,10 @@ void TaskLinkActionCompRefFields::visitAction(ast::IAction *i) {
     // `comp` is typed by the enclosing component. The abstract flag is not the
     // test (B C1): an abstract action in a package has no component, and one
     // declared in a component has that component as its `comp`.
-    ast::ISymbolTypeScope *comp_s = dynamic_cast<ast::ISymbolTypeScope *>(
+    ast::ISymbolTypeScope *comp_s = NodeKind::cast<ast::ISymbolTypeScope>(
         m_symtab->getScope(1));
-    if (comp_s && dynamic_cast<ast::IComponent *>(comp_s->getTarget())) {
-        ast::IFieldCompRef *comp_f = dynamic_cast<ast::IFieldCompRef *>(
+    if (comp_s && NodeKind::cast<ast::IComponent>(comp_s->getTarget())) {
+        ast::IFieldCompRef *comp_f = NodeKind::cast<ast::IFieldCompRef>(
             i->getChildren().at(0).get());
         ast::ITypeIdentifier *comp_tid = m_factory->getAstFactory()->mkTypeIdentifier();
         comp_tid->getElems().push_back(ast::ITypeIdentifierElemUP(
@@ -93,7 +94,7 @@ void TaskLinkActionCompRefFields::visitExtendType(ast::IExtendType *i) {
     if (i->getTarget() && i->getTarget()->getTarget()) {
         ast::IScopeChild *ext_target = m_symtab->resolveAbsPath(
             i->getTarget()->getTarget());
-        ast::ISymbolScope *target_s = dynamic_cast<ast::ISymbolScope *>(ext_target);
+        ast::ISymbolScope *target_s = NodeKind::cast<ast::ISymbolScope>(ext_target);
         if (target_s) {
             m_symtab->pushScope(target_s);
             VisitorBase::visitExtendType(i);
@@ -134,10 +135,10 @@ void TaskLinkActionCompRefFields::visitSymbolScope(ast::ISymbolScope *i) {
 
 void TaskLinkActionCompRefFields::visitSymbolExtendScope(ast::ISymbolExtendScope *i) {
     DEBUG_ENTER("visitSymbolExtendScope");
-    ast::IExtendType *ext = dynamic_cast<ast::IExtendType *>(i->getTarget());
+    ast::IExtendType *ext = NodeKind::cast<ast::IExtendType>(i->getTarget());
     if (ext && ext->getTarget() && ext->getTarget()->getTarget()) {
         ast::IScopeChild *ext_target = m_symtab->resolveAbsPath(ext->getTarget()->getTarget());
-        ast::ISymbolScope *target_s = dynamic_cast<ast::ISymbolScope *>(ext_target);
+        ast::ISymbolScope *target_s = NodeKind::cast<ast::ISymbolScope>(ext_target);
         if (target_s) {
             m_symtab->pushScope(target_s);
             for (std::vector<ast::IScopeChildUP>::const_iterator
@@ -173,13 +174,13 @@ void TaskLinkActionCompRefFields::linkPrev(ast::ISymbolTypeScope *ts) {
     if (it == ts->getSymtab().end()) {
         return;
     }
-    ast::IField *f = dynamic_cast<ast::IField *>(
+    ast::IField *f = NodeKind::cast<ast::IField>(
         ts->getChildren().at(it->second).get());
     if (!f || (f->getAttr() & ast::FieldAttr::Builtin) == ast::FieldAttr::NoFlags) {
         return;
     }
     ast::IDataTypeUserDefined *type =
-        dynamic_cast<ast::IDataTypeUserDefined *>(f->getType());
+        NodeKind::cast<ast::IDataTypeUserDefined>(f->getType());
     if (type) {
         // Always rebuilt: a specialization's tree starts from a copy, and
         // its own path goes through an ElemKind_TypeSpec step.

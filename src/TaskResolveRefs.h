@@ -93,8 +93,17 @@ public:
     virtual void visitActivityAtomicBlock(ast::IActivityAtomicBlock *i) override;
     virtual void visitMonitorActivityEventually(ast::IMonitorActivityEventually *i) override;
 
-    /** Push `i`, resolve its children and then its bodies, pop. */
-    void resolveActivityScope(ast::ISymbolScope *i);
+    // A `join_branch` names a branch of its own block (11.3.6.1 a.1), so it
+    // resolves with the block pushed: a label under a labeled `parallel` is
+    // found in that block's named sub-activity (WS4.3).
+    virtual void visitActivityParallel(ast::IActivityParallel *i) override;
+    virtual void visitActivitySchedule(ast::IActivitySchedule *i) override;
+
+    /**
+     * Push `i`, resolve its children, then its bodies, then `join` (a
+     * `parallel`'s or `schedule`'s join specification) if given, pop.
+     */
+    void resolveActivityScope(ast::IActivityJoinSpec *join, ast::ISymbolScope *i);
     virtual void visitConstraintBlock(ast::IConstraintBlock *i) override;
 
     // Each constraint scope is pushed while its body resolves, so a path to
@@ -188,6 +197,25 @@ private:
     ast::ISymbolEnumScope *expectedFor(ast::IExpr *e) const;
 
     /**
+     * Whether `e` is a struct literal, or an aggregate literal with one
+     * among its elements: what setLiteralTypes() applies to.
+     */
+    static bool holdsStructLiteral(ast::IExpr *e);
+
+    /**
+     * The context type (8.7.1) of the struct literals `e` is or holds, for
+     * visitExprAggrStruct() to resolve their member names against: `type_s`
+     * for `e` itself, `elem_s` for the elements of an aggregate literal. A
+     * null leaves a literal's names unresolved and marked `ctx_unknown`.
+     * Each entry is taken when its literal is visited, so this is called
+     * right before `e` is.
+     */
+    void setLiteralTypes(
+        ast::IExpr                  *e,
+        ast::ISymbolTypeScope       *type_s,
+        ast::ISymbolTypeScope       *elem_s);
+
+    /**
      * expectedItem() for `i`, when it is a bare name.
      */
     ast::ISymbolRefPath *lookupExpectedItem(
@@ -226,8 +254,45 @@ private:
      */
     bool deferUntilTypesBound(ast::IExprRefPathContext *i);
 
+    /** `c` is a handle traversal whose target is not resolved yet (C-N4). */
+    static bool isPendingHandleTraversal(ast::IScopeChild *c);
+
     /** Walk every path deferUntilTypesBound() queued, in its own context. */
     void resolveDeferred();
+
+    /**
+     * Walk the targets of every pool bind visitComponentBind() queued: each
+     * component path from its binding component, the action type in the
+     * component reached, the field in that action type (12.3, WS4.5).
+     */
+    void resolvePoolBinds();
+
+    /** `s` is a covergroup's body scope (TaskBuildSymbolTree::buildCovergroupBody). */
+    static bool isCovergroupBody(ast::ISymbolScope *s);
+
+    /**
+     * A covergroup's body (LRM 15, symbol-resolution 10.1), with the scope
+     * that encloses the body current: the enclosing type for an inline
+     * covergroup, the covergroup type's own scope (its ports) for an explicit
+     * one. Coverpoint targets, `iff` guards, bin ranges and sizes and option
+     * values resolve there; cross items, bin targets and `with` expressions
+     * with the body's names in view as well.
+     */
+    void resolveCovergroupBody(ast::ISymbolScope *body);
+    void resolveCoverpoint(ast::ISymbolScope *body, ast::ICovergroupCoverpoint *cp);
+    void resolveCross(ast::ISymbolScope *body, ast::ICovergroupCross *x);
+    void resolveCoverageOptions(const std::vector<ast::ICovergroupOptionUP> &options);
+
+    /**
+     * Bind `rn` to a member of `scope` (only), and return it; null, with an
+     * error, when `scope` has none of that name.
+     */
+    ast::IScopeChild *bindMemberName(ast::ISymbolScope *scope, ast::IExprRefName *rn);
+
+    /** One `bind` target, in the scope of the bind's component `comp`. */
+    void resolvePoolBindTarget(
+        ast::ISymbolTypeScope       *comp,
+        ast::IComponentBindTarget   *t);
     void resolveExprRefPathStatic(ast::IExprRefPathStatic *i);
     void resolveExprRefPathStaticRooted(ast::IExprRefPathStaticRooted *i);
     void visitSlice(ast::IExprBitSlice *slice);
@@ -364,6 +429,20 @@ public:
         ast::IExprId            *it_id,
         ast::IExprRefPath       *coll);
 
+    /**
+     * The same for a constraint `foreach (s : xs)` (SR-F2): its iterator is
+     * a ConstraintStmtField, built untyped.
+     */
+    void typeConstraintIterator(ast::IConstraintStmtForeach *i);
+
+    /**
+     * The collection a loop iterates: what the last element of `coll`
+     * names. A multi-element path's own target addresses only its root.
+     * Null for a slice, an element of an array (`a[0]`), or an unresolved
+     * path.
+     */
+    ast::IScopeChild *collectionOf(ast::IExpr *coll);
+
 //    virtual void visitRootSymbolScope(ast::IRootSymbolScope *i) override;
 
     /**
@@ -375,6 +454,14 @@ public:
     ast::ISymbolTypeScope *componentScopeOf(ast::ISymbolScope *s);
 
     virtual void visitSymbolScope(ast::ISymbolScope *i) override;
+
+    /** Resolved through its body scope (resolveCovergroupBody), 10.1. */
+    virtual void visitCovergroup(ast::ICovergroup *i) override { }
+
+    /** Resolved through its type scope and body scope, 10.1. */
+    virtual void visitCovergroupType(ast::ICovergroupType *i) override { }
+
+    virtual void visitCovergroupInstantiation(ast::ICovergroupInstantiation *i) override;
 
     virtual void visitSymbolExtendScope(ast::ISymbolExtendScope *i) override;
 
@@ -404,13 +491,12 @@ public:
 
     virtual void visitSymbolDeclaration(ast::ISymbolDeclaration *i) override;
 
-    // References whose resolution belongs to a later workstream. Since WS3.2
-    // they are bindable paths, which the generic walk would resolve with the
-    // ordinary lookup -- the wrong rules for them -- so each is skipped
-    // explicitly until its own resolver lands. See TaskResolveRefs.cpp.
+    // References with rules of their own. Since WS3.2 they are bindable
+    // paths, which the generic walk would resolve with the ordinary lookup --
+    // the wrong rules for some of them -- so each is handled explicitly. See
+    // TaskResolveRefs.cpp.
     virtual void visitComponentBind(ast::IComponentBind *i) override;
-    virtual void visitActivityBindStmt(ast::IActivityBindStmt *i) override { }
-    virtual void visitActivitySchedulingConstraint(ast::IActivitySchedulingConstraint *i) override { }
+    virtual void visitActivitySchedulingConstraint(ast::IActivitySchedulingConstraint *i) override;
     virtual void visitActionFieldInitializer(ast::IActionFieldInitializer *i) override;
     virtual void visitInstanceOverride(ast::IInstanceOverride *i) override;
 
@@ -421,6 +507,8 @@ public:
     virtual void visitTypeIdentifier(ast::ITypeIdentifier *i) override;
 
     virtual void visitExecBlockTag(ast::IExecBlockTag *i) override;
+
+    virtual void visitExprAggrStruct(ast::IExprAggrStruct *i) override;
 
     virtual void visitStruct(ast::IStruct *i) override;
 
@@ -758,6 +846,9 @@ private:
     /** Expected types in force, by operand; see visitExpecting(). */
     std::unordered_map<ast::IExpr *, ast::ISymbolEnumScope *> m_expected;
 
+    /** Struct literals' context types, by literal; see setLiteralTypes(). */
+    std::unordered_map<ast::IExpr *, ast::ISymbolTypeScope *> m_lit_type;
+
     /**
      * A bare call argument whose formal parameter's type is not bound yet --
      * declared in a later file, which the order of resolution allows. Its
@@ -778,8 +869,21 @@ private:
         bool                                    is_stmt;
         int32_t                                 template_depth;
         std::vector<ast::IFunctionPrototype *>  func_s;
+        // The `with` block's type, when the path is written in one: its
+        // root path starts with an ElemKind_Inline step.
+        ast::ISymbolScope                       *inline_ctxt;
     };
     std::vector<DeferredRefPath>        m_deferred;
+
+    /**
+     * A pool bind, waiting for every component instance's type to be bound
+     * (resolvePoolBinds), with the scopes its range expressions see.
+     */
+    struct PendingPoolBind {
+        ast::IComponentBind                     *bind;
+        ISymbolTableIteratorUP                  symtab;
+    };
+    std::vector<PendingPoolBind>        m_pool_binds;
     bool                                m_retrying = false;
 
 };
