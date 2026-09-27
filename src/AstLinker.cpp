@@ -191,6 +191,7 @@ void AstLinker::linkPasses(
     // TaskResolveRefs put their declaring package back in scope while it
     // walks them (LRM 17.2, known-issues CL-N1).
     ctxt.setExtensionDeclScopes(apply_ext.extensionDeclScopes());
+    ctxt.setInstanceExtensions(apply_ext.instanceExtensions());
 
     // Super types first, so that resolving a reference to an inherited
     // member does not depend on the base type having been declared in an
@@ -216,6 +217,11 @@ void AstLinker::linkPasses(
 
     pass = "resolving references";
     TaskResolveRefs(&ctxt).resolve(symtree);
+
+    // `extend struct S<2>` bodies where they are written. Each matching
+    // specialization has already bound its own copy.
+    pass = "resolving instance extensions";
+    TaskResolveRefs(&ctxt).resolveInstanceExtensions();
 
     // `compile if` conditions, which the builder evaluated and set aside.
     // Bound for tools (find-references, rename); never reported.

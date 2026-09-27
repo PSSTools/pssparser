@@ -137,6 +137,7 @@ class ExtendTargetE(IntEnum):
     State = ast_decl.ExtendTargetE.ExtendTargetE_State
     Stream = ast_decl.ExtendTargetE.ExtendTargetE_Stream
     Struct = ast_decl.ExtendTargetE.ExtendTargetE_Struct
+    Monitor = ast_decl.ExtendTargetE.ExtendTargetE_Monitor
 class FunctionParamDeclKind(IntEnum):
     ParamKind_DataType = ast_decl.FunctionParamDeclKind.FunctionParamDeclKind_ParamKind_DataType
     ParamKind_Type = ast_decl.FunctionParamDeclKind.FunctionParamDeclKind_ParamKind_Type
@@ -1724,6 +1725,14 @@ cdef class CompileCond(object):
         self.asCompileCond().getInactive().push_back(i._val)
     cpdef numInactive(self):
         return self.asCompileCond().getInactive().size()
+    cpdef Location getLocation(self):
+        return Location.wrap(dynamic_cast[ast_decl.ICompileCondP](self._hndl).getLocation())
+    cpdef str getMsg(self):
+        return dynamic_cast[ast_decl.ICompileCondP](self._hndl).getMsg().decode()
+    cpdef void setMsg(self, str v):
+        dynamic_cast[ast_decl.ICompileCondP](self._hndl).setMsg(v.encode())
+    cpdef bool getDeferred(self):
+        return dynamic_cast[ast_decl.ICompileCondP](self._hndl).getDeferred()
 
 cdef class SymbolImportSpec(object):
     

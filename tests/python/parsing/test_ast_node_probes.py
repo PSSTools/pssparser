@@ -1465,3 +1465,20 @@ def test_covergroup_is_not_reported_as_a_gap(parser):
                      if "not represented in the AST" in m["message"]]
     assert not unrepresented, \
         "\n".join(m["message"] for m in unrepresented)
+
+
+# ---------------------------------------------------------------------------
+# `extend monitor` (Syntax 85; symbol-resolution plan 11.5, F27)
+# ---------------------------------------------------------------------------
+
+def test_extend_monitor_builds_a_monitor_extension(parser):
+    _parse_only("""
+component pss_top {
+    action A { }
+    monitor m { A a; }
+    extend monitor m { constraint { true; } }
+}
+""", parser)
+    exts = _find_nodes(parser, "ExtendType")
+    assert [e.getKind() for e in exts] == [ast.ExtendTargetE.Monitor]
+    assert exts[0].getTarget().getElem(0).getId().getId() == "m"

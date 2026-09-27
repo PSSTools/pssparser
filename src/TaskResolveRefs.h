@@ -68,6 +68,13 @@ public:
      */
     void resolveCompileConds(ast::IRootSymbolScope *root);
 
+    /**
+     * Make the instance each unapplied instance extension (`extend struct
+     * S<2>` with no use of `S<2>`, 17.2.6b) names, so that its body is bound
+     * and checked. Runs after resolve(), when every use has made its own.
+     */
+    void resolveInstanceExtensions();
+
     virtual void visitActivityActionHandleTraversal(ast::IActivityActionHandleTraversal *i) override;
     
     virtual void visitActivityActionTypeTraversal(ast::IActivityActionTypeTraversal *i) override;

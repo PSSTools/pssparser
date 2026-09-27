@@ -19,25 +19,33 @@
  *     Author:
  */
 #include <algorithm>
+#include <cstring>
 #include "dmgr/impl/DebugMacros.h"
 #include "ResolveContext.h"
 #include "TaskApplyTypeExtensions.h"
 #include "FunctionScopeUtil.h"
 #include "TaskBuildSymbolTree.h"
+#include "pssp/ast/IAction.h"
 #include "pssp/ast/IActionHandleField.h"
+#include "pssp/ast/IAnnotationDecl.h"
+#include "pssp/ast/IComponent.h"
 #include "pssp/ast/IConstraintBlock.h"
+#include "pssp/ast/IEnumDecl.h"
 #include "pssp/ast/ICovergroupInstantiation.h"
 #include "pssp/ast/IExecScope.h"
 #include "pssp/ast/IFieldClaim.h"
 #include "pssp/ast/IFieldCompRef.h"
 #include "pssp/ast/IFieldRef.h"
 #include "pssp/ast/IFunctionPrototype.h"
+#include "pssp/ast/IMonitor.h"
+#include "pssp/ast/IStruct.h"
 #include "pssp/ast/IGenericConstraintDeclBool.h"
 #include "pssp/ast/IGenericConstraintDeclValue.h"
 #include "pssp/ast/ISymbolExtMember.h"
 #include "pssp/ast/ITypedefDeclaration.h"
 #include "TaskResolveRef.h"
 #include "TaskResolveRootRef.h"
+#include "TaskSpecializeParameterizedRef.h"
 #include "pssp/impl/TaskGetName.h"
 #include "pssp/impl/NodeKind.h"
 
@@ -162,6 +170,13 @@ void TaskApplyTypeExtensions::visitSymbolExtendScope(ast::ISymbolExtendScope *i)
     // (report F, N1).
     ResolveContext ctxt(m_factory, m_marker_l, m_root);
     seedCtxtScope(ctxt);
+
+    if (ast_target->getTarget()->getElems().back()->getParams()) {
+        applyInstanceExtension(i, ast_target, ctxt);
+        DEBUG_LEAVE("visitSymbolExtendScope - instance extension");
+        return;
+    }
+
     ast::ISymbolRefPath *target_p = TaskResolveRef(&ctxt).resolve(
         ast_target->getTarget());
 
@@ -174,19 +189,13 @@ void TaskApplyTypeExtensions::visitSymbolExtendScope(ast::ISymbolExtendScope *i)
     ast::IScopeChild *ext_target = m_symtab_it->resolveAbsPath(target_p);
     ast::ISymbolScope *target_s = NodeKind::cast<ast::ISymbolScope>(ext_target);
     if (!target_s) {
-        // The path resolved to something that is not a scope. A template
-        // instance extension (`extend struct S<int>`) does this: its
-        // reference path ends in an ElemKind_TypeSpec step, and no
-        // specialization exists yet at this point in the link -- extensions
-        // are applied before TaskResolveRefs creates any -- so the step
-        // indexes into the generic's (empty) specialization list and lands on
-        // an unrelated node. That node was then written to as though it were a
-        // scope, which is the segfault. See visitSymbolExtendScope's caller
-        // and TaskGetSpecializedTemplateType::mk.
+        // The path resolved to something that is not a scope: a type inside
+        // an instance, `extend struct outer<1>::inner`. Its path steps
+        // through a specialization, which this walk's iterator cannot
+        // follow. An instance of the type itself is applyInstanceExtension's.
         m_marker_l->marker(IMarkerUP(m_factory->mkMarker(
-            "cannot extend a template instance: extending a specific "
-            "specialization (LRM 17.2.6b) is not supported; extend the "
-            "generic type instead, which applies to every instance",
+            "cannot extend a type declared inside a template instance: "
+            "not supported by pssparser (17.2.6)",
             MarkerSeverityE::Error,
             ast_target->getTarget()->getElems().back()->getId()->getLocation())).get());
         DEBUG_LEAVE("visitSymbolExtendScope - target is not a scope");
@@ -213,12 +222,175 @@ void TaskApplyTypeExtensions::visitSymbolExtendScope(ast::ISymbolExtendScope *i)
     DEBUG_LEAVE("visitSymbolExtendScope");
 }
 
+/**
+ * `extend struct S<2> { ... }` (17.2.6b): the extension applies to every
+ * instance of S "instantiated with the same set of parameter values", and to
+ * no other. No specialization exists yet, so the extension is registered on
+ * the generic, with its arguments' full parameter list (defaults filled in,
+ * so `S<2>` is `S<2,7>`), and TaskGetSpecializedTemplateType::mk adds its
+ * members to the specialization whose list is equal -- the same comparison
+ * that decides whether two uses share a specialization (8.3). They are
+ * resolved there, where the parameters are bound.
+ */
+void TaskApplyTypeExtensions::applyInstanceExtension(
+        ast::ISymbolExtendScope *i,
+        ast::IExtendType        *ast_target,
+        ResolveContext          &ctxt) {
+    DEBUG_ENTER("applyInstanceExtension");
+    ast::ITypeIdentifier *tid = ast_target->getTarget();
+    const ast::Location &loc = tid->getElems().back()->getId()->getLocation();
+
+    TaskResolveRef resolver(&ctxt);
+    resolver.setGenericOnly(true);
+    ast::ISymbolRefPath *generic_p = resolver.resolve(tid);
+    if (!generic_p) {
+        DEBUG_LEAVE("applyInstanceExtension - resolution failure");
+        return;
+    }
+
+    ast::ISymbolTypeScope *generic = NodeKind::cast<ast::ISymbolTypeScope>(
+        m_symtab_it->resolveAbsPath(generic_p));
+    if (!generic) {
+        m_marker_l->marker(IMarkerUP(m_factory->mkMarker(
+            "cannot extend '" + tid->getElems().back()->getId()->getId()
+                + "': it is not an extendable type",
+            MarkerSeverityE::Error,
+            loc)).get());
+        delete generic_p;
+        DEBUG_LEAVE("applyInstanceExtension - not a type");
+        return;
+    }
+
+    if (!checkExtendKind(ast_target, generic->getTarget())) {
+        delete generic_p;
+        DEBUG_LEAVE("applyInstanceExtension - kind mismatch");
+        return;
+    }
+
+    // Reports a non-generic (PSS056) and a wrong argument
+    // list, as a use would.
+    ast::ITemplateParamDeclList *params = TaskSpecializeParameterizedRef(
+        &ctxt).buildParams(generic_p, tid->getElems().back()->getParams(), loc);
+    if (!params) {
+        delete generic_p;
+        DEBUG_LEAVE("applyInstanceExtension - bad argument list");
+        return;
+    }
+
+    // The target names the generic: there is no one specialization to name,
+    // and there may be none at all.
+    tid->setTarget(generic_p);
+
+    // 17.3's nested `extend` of a type the component declares. Its target
+    // would be a type inside the instance, as with `extend struct C<2>::s`.
+    for (std::vector<ast::IScopeChildUP>::const_iterator
+            it=ast_target->getChildren().begin();
+            it!=ast_target->getChildren().end(); it++) {
+        ast::ITypeIdentifier *n_tid = 0;
+        if (ast::IExtendType *n = NodeKind::cast<ast::IExtendType>(it->get())) {
+            n_tid = n->getTarget();
+        } else if (ast::IExtendEnum *n = NodeKind::cast<ast::IExtendEnum>(it->get())) {
+            n_tid = n->getTarget();
+        }
+        if (n_tid) {
+            m_marker_l->marker(IMarkerUP(m_factory->mkMarker(
+                "cannot extend a type declared inside a template instance: "
+                "not supported by pssparser (17.2.6)",
+                MarkerSeverityE::Error,
+                n_tid->getElems().back()->getId()->getLocation())).get());
+        }
+    }
+
+    m_inst_exts[generic].push_back({
+        ast_target,
+        std::shared_ptr<ast::ITemplateParamDeclList>(params),
+        m_symtab_it?m_symtab_it->getScope():0});
+    DEBUG_LEAVE("applyInstanceExtension");
+}
+
+namespace {
+
+/**
+ * The keyword that declares `t`, for comparing with an `extend`'s kind. Null
+ * for anything else (a package, a typedef), which is left to the checks
+ * that already answer for it.
+ */
+const char *declKind(ast::IScopeChild *t) {
+    if (!t) {
+        return 0;
+    } else if (NodeKind::cast<ast::IAction>(t)) {
+        return "action";
+    } else if (NodeKind::cast<ast::IComponent>(t)) {
+        return "component";
+    } else if (NodeKind::cast<ast::IMonitor>(t)) {
+        return "monitor";
+    } else if (NodeKind::cast<ast::IAnnotationDecl>(t)) {
+        return "annotation";
+    } else if (NodeKind::cast<ast::IEnumDecl>(t)) {
+        return "enum";
+    } else if (ast::IStruct *st = NodeKind::cast<ast::IStruct>(t)) {
+        switch (st->getKind()) {
+            case ast::StructKind::Buffer: return "buffer";
+            case ast::StructKind::Resource: return "resource";
+            case ast::StructKind::State: return "state";
+            case ast::StructKind::Stream: return "stream";
+            case ast::StructKind::Struct: return "struct";
+        }
+    }
+    return 0;
+}
+
+const char *extendKind(ast::ExtendTargetE k) {
+    switch (k) {
+        case ast::ExtendTargetE::Action: return "action";
+        case ast::ExtendTargetE::Annotation: return "annotation";
+        case ast::ExtendTargetE::Buffer: return "buffer";
+        case ast::ExtendTargetE::Component: return "component";
+        case ast::ExtendTargetE::Enum: return "enum";
+        case ast::ExtendTargetE::Monitor: return "monitor";
+        case ast::ExtendTargetE::Resource: return "resource";
+        case ast::ExtendTargetE::State: return "state";
+        case ast::ExtendTargetE::Stream: return "stream";
+        case ast::ExtendTargetE::Struct: return "struct";
+    }
+    return 0;
+}
+
+}
+
+bool TaskApplyTypeExtensions::checkExtendKind(
+        ast::IExtendType        *ext,
+        ast::IScopeChild        *type) {
+    const char *decl_k = declKind(type);
+    const char *ext_k = extendKind(ext->getKind());
+    if (!decl_k || !ext_k || !strcmp(decl_k, ext_k)) {
+        return true;
+    }
+    const std::string &name = ext->getTarget()->getElems().back()->getId()->getId();
+    const char *art = strchr("aeiou", decl_k[0])?"an":"a";
+    m_marker_l->marker(IMarkerUP(m_factory->mkMarker(
+        std::string("'extend ") + ext_k + "' names '" + name + "', which is "
+            + art + " " + decl_k + "; write 'extend " + decl_k + " " + name
+            + "' (17.2)",
+        MarkerSeverityE::Error,
+        ext->getTarget()->getElems().back()->getId()->getLocation())).get());
+    return false;
+}
+
 void TaskApplyTypeExtensions::applyExtension(
         ast::ISymbolExtendScope *ext,
         ast::ISymbolScope       *target_s,
         ast::ISymbolRefPath     *target_p,
         ast::ISymbolScope       *decl_s) {
     DEBUG_ENTER("applyExtension %s", target_s->getName().c_str());
+    // An enum scope names its declaration in `decl`, not `target`
+    // (TaskBuildSymbolTree::visitEnumDecl).
+    ast::ISymbolEnumScope *enum_s = NodeKind::cast<ast::ISymbolEnumScope>(target_s);
+    if (!checkExtendKind(NodeKind::cast<ast::IExtendType>(ext->getTarget()),
+            (enum_s)?enum_s->getDecl():target_s->getTarget())) {
+        DEBUG_LEAVE("applyExtension - kind mismatch");
+        return;
+    }
     DEBUG("%d children in extension scope", ext->getChildren().size());
 
     // Merge by name rather than by node type. Dispatching through accept()
@@ -480,6 +652,12 @@ void TaskApplyTypeExtensions::mergeIntoGenericAst(
     for (std::vector<ast::IScopeChildUP>::const_iterator
         it=ext->getChildren().begin();
         it!=ext->getChildren().end(); it++) {
+        // An `extend` nested in the body is not a member (applyExtension).
+        // Copied into a specialization, it crashed building its symbol tree.
+        if (NodeKind::cast<ast::IExtendType>(it->get())
+                || NodeKind::cast<ast::IExtendEnum>(it->get())) {
+            continue;
+        }
         // Non-owning, for the reason spelled out in addChild: the `extend`
         // statement holds the sole owning reference.
         target_ast->getChildren().push_back(ast::IScopeChildUP(it->get(), false));

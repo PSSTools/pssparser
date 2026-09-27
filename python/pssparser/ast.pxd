@@ -693,6 +693,10 @@ cdef class CompileCond(object):
     cpdef SourceRange getInactive(self, i)
     cpdef void addInactive(self, SourceRange i)
     cpdef numInactive(self)
+    cpdef Location getLocation(self)
+    cpdef str getMsg(self)
+    cpdef void setMsg(self, str v)
+    cpdef bool getDeferred(self)
 
 cdef class SymbolImportSpec(object):
     cdef ast_decl.ISymbolImportSpec    *_hndl

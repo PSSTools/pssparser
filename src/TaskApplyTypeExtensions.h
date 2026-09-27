@@ -27,10 +27,10 @@
 #include <vector>
 #include "pssp/IFactory.h"
 #include "pssp/ast/impl/VisitorBase.h"
+#include "ResolveContext.h"
 
 namespace pssp {
 
-class ResolveContext;
 
 class TaskApplyTypeExtensions : public ast::VisitorBase {
 public:
@@ -55,6 +55,12 @@ public:
      */
     const std::map<ast::IScopeChild *, ast::ISymbolScope *> &
         extensionDeclScopes() const { return m_ext_decl_scope; }
+
+    /**
+     * Each generic's instance extensions (17.2.6b), which specialization
+     * applies. Valid only after apply(); handed to ResolveContext.
+     */
+    const InstanceExtensionMap &instanceExtensions() const { return m_inst_exts; }
 
 
     virtual void visitExtendEnum(ast::IExtendEnum *i) override;
@@ -95,6 +101,23 @@ protected:
         ast::ISymbolScope       *target_s,
         ast::ISymbolRefPath     *target_p,
         ast::ISymbolScope       *decl_s);
+
+    /**
+     * LRM 17.2: the kind an `extend` names "shall agree with the specific
+     * type named". Reports a mismatch (PSS058) and returns false.
+     */
+    bool checkExtendKind(
+        ast::IExtendType        *ext,
+        ast::IScopeChild        *type);
+
+    /**
+     * `extend struct S<2>`: register the extension on the generic S for
+     * TaskGetSpecializedTemplateType::mk to apply (17.2.6b).
+     */
+    void applyInstanceExtension(
+        ast::ISymbolExtendScope *i,
+        ast::IExtendType        *ast_target,
+        ResolveContext          &ctxt);
 
     /**
      * An `extend` or `extend enum` written inside an `extend component`. LRM
@@ -190,6 +213,7 @@ private:
     ast::IRootSymbolScope                   *m_root;
     ISymbolTableIteratorUP                  m_symtab_it;
     std::map<ast::IScopeChild *, ast::ISymbolScope *> m_ext_decl_scope;
+    InstanceExtensionMap                    m_inst_exts;
 
 };
 

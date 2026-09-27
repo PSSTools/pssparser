@@ -575,6 +575,7 @@ cdef extern from "pssp/ast/ExtendTargetE.h" namespace "pssp::ast":
         ExtendTargetE_State "pssp::ast::ExtendTargetE::State"
         ExtendTargetE_Stream "pssp::ast::ExtendTargetE::Stream"
         ExtendTargetE_Struct "pssp::ast::ExtendTargetE::Struct"
+        ExtendTargetE_Monitor "pssp::ast::ExtendTargetE::Monitor"
 cdef extern from "pssp/ast/FunctionParamDeclKind.h" namespace "pssp::ast":
     cdef enum FunctionParamDeclKind:
         FunctionParamDeclKind_ParamKind_DataType "pssp::ast::FunctionParamDeclKind::ParamKind_DataType"
@@ -1360,6 +1361,15 @@ cdef extern from "pssp/ast/ICompileCond.h" namespace "pssp::ast":
         
         void setEval_failed(bool v)
         std_vector[SourceRange] & getInactive();
+        const Location & getLocation()
+        
+        void setLocation(const Location &)
+        const std_string &getMsg()
+        
+        void setMsg(const std_string & v)
+        bool getDeferred()
+        
+        void setDeferred(bool v)
         void accept(VisitorBase *v) except +
 
 cdef extern from "pssp/ast/ISymbolImportSpec.h" namespace "pssp::ast":

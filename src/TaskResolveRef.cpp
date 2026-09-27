@@ -83,7 +83,8 @@ TaskResolveRef::TaskResolveRef(
     bool                            search_imp,
     bool                            report_unresolved) : 
         TaskResolveBase(ctxt), m_search_imp(search_imp),
-        m_report_unresolved(report_unresolved), m_kind("type") {
+        m_report_unresolved(report_unresolved), m_generic_only(false),
+        m_kind("type") {
     DEBUG_INIT("TaskResolveRef", ctxt->getDebugMgr());
     m_ref = 0;
 }
@@ -458,7 +459,10 @@ void TaskResolveRef::visitTypeIdentifier(ast::ITypeIdentifier *i) {
         resolveArgs(root,
             i->getElems().at(0)->getId()->getDecl(),
             i->getElems().at(0)->getParams());
+    }
 
+    if (i->getElems().at(0)->getParams()
+            && !(m_generic_only && i->getElems().size() == 1)) {
         ast::ISymbolRefPath *root_s = TaskSpecializeParameterizedRef(m_ctxt).specialize(
                 root, 
                 i->getElems().at(0)->getParams(),
@@ -503,6 +507,9 @@ void TaskResolveRef::visitTypeIdentifier(ast::ITypeIdentifier *i) {
                // At the use site, as for the first element: resolved inside
                // the specialization, `p::N<K>` looked for K in p.
                resolveArgs(root, next, (*it)->getParams());
+            }
+            if ((*it)->getParams()
+                    && !(m_generic_only && it+1 == i->getElems().end())) {
                root = TaskSpecializeParameterizedRef(m_ctxt).specialize(
                         root, 
                         (*it)->getParams(),

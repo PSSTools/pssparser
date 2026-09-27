@@ -20,12 +20,20 @@
  */
 #include "dmgr/impl/DebugMacros.h"
 #include "TaskGetSpecializedTemplateType.h"
+#include <memory>
+#include <map>
+#include <set>
 #include "pssp/impl/TaskCopyAst.h"
+#include "pssp/impl/TaskEvalExpr.h"
 #include "pssp/impl/TaskResolveSymbolPathRef.h"
 #include "AssocDataTypeScope.h"
 #include "TaskBuildSymbolTree.h"
 #include "TaskCompareParamLists.h"
 #include "TaskResolveRefs.h"
+#include "TaskResolveRootRef.h"
+#include "pssp/impl/TaskGetName.h"
+#include "pssp/ast/IExtendEnum.h"
+#include "pssp/ast/IExtendType.h"
 #include "pssp/impl/NodeKind.h"
 
 
@@ -90,7 +98,8 @@ ast::ISymbolRefPath *TaskGetSpecializedTemplateType::find(
 
 ast::ISymbolRefPath *TaskGetSpecializedTemplateType::mk(
     const ast::ISymbolRefPath           *type,
-    ast::ITemplateParamDeclList         *params) {
+    ast::ITemplateParamDeclList         *params,
+    const ast::Location                 &use_loc) {
     DEBUG_ENTER("mk params=%p (%d)", params, (params)?params->getParams().size():-1);
     ast::ISymbolTypeScope *type_up = TaskResolveSymbolPathRef(
         m_ctxt->getDebugMgr(), m_ctxt->root()).resolveT<ast::ISymbolTypeScope>(type);
@@ -153,6 +162,10 @@ ast::ISymbolRefPath *TaskGetSpecializedTemplateType::mk(
     // Note: UP takes care of freeing previous
     type_s->setParams(params);
 
+    std::map<ast::IScopeChild *, ast::ISymbolScope *> inst_members;
+    applyInstanceExtensions(
+        type_up, type_s, params, inst_members);
+
     // Have the specialized type point to the unspecialized
     // parameterized type as its super type
     ast::ITypeIdentifier *super_t = m_ctxt->getFactory()->getAstFactory()->mkTypeIdentifier();
@@ -163,6 +176,21 @@ ast::ISymbolRefPath *TaskGetSpecializedTemplateType::mk(
         m_ctxt->getDebugMgr(),
         m_ctxt->getFactory()->getAstFactory(),
         0).build(type_s);
+
+    if (inst_members.size()) {
+        // A member an instance extension added resolves with the extension's
+        // package in scope too (17.2, CL-N1), as a generic extension's does.
+        for (std::vector<ast::IScopeChildUP>::const_iterator
+                it=type_ss->getChildren().begin();
+                it!=type_ss->getChildren().end(); it++) {
+            ast::ISymbolScope *ss = NodeKind::cast<ast::ISymbolScope>(it->get());
+            std::map<ast::IScopeChild *, ast::ISymbolScope *>::const_iterator
+                m_it = inst_members.find((ss)?ss->getTarget():it->get());
+            if (m_it != inst_members.end() && m_it->second) {
+                m_ctxt->addExtensionDeclScope(it->get(), m_it->second);
+            }
+        }
+    }
 
     // Give the new type an appropriate name
 
@@ -232,6 +260,8 @@ ast::ISymbolRefPath *TaskGetSpecializedTemplateType::mk(
         }
     }
 
+    queueAsserts(type, type_up, type_ss, use_loc);
+
     ast::ISymbolRefPath *ret = m_ctxt->getFactory()->getAstFactory()->mkSymbolRefPath();
 
     // Copy over initial path
@@ -255,6 +285,220 @@ ast::ISymbolRefPath *TaskGetSpecializedTemplateType::mk(
     DEBUG_LEAVE("mk %p", ret);
 
     return ret;
+}
+
+/**
+ * Add the members of each instance extension of the generic whose parameter
+ * list equals `params` (17.2.6b) to `type_s`, the new specialization's AST,
+ * before its symbol tree is built. They are the extension's own nodes, not
+ * copies: specializations with equal lists are one (8.3), so this is the only
+ * one the extension applies to, and the statement is then bound where it is
+ * written, as a generic extension's body is. A second match would be a
+ * defect in that identity; it gets copies rather than a share.
+ *
+ * `members` maps each member to the scope that declares its extension. More
+ * than one extension of the same instance is applied, in the order they were
+ * registered.
+ */
+void TaskGetSpecializedTemplateType::applyInstanceExtensions(
+        ast::ISymbolTypeScope               *type_up,
+        ast::ITypeScope                     *type_s,
+        ast::ITemplateParamDeclList         *params,
+        std::map<ast::IScopeChild *, ast::ISymbolScope *> &members) {
+    const std::vector<InstanceExtension> *exts =
+        m_ctxt->instanceExtensions(type_up);
+    if (!exts) {
+        return;
+    }
+    TaskCompareParamLists p_comp(m_ctxt->getFactory(), m_ctxt->root());
+    // What the type declares, its generic extensions included (they are in
+    // the generic's AST): 17.2.3 makes a second declaration of one an error.
+    std::map<std::string, ast::IScopeChild *> names;
+    bool have_names = false;
+    for (std::vector<InstanceExtension>::const_iterator
+            it=exts->begin(); it!=exts->end(); it++) {
+        if (!p_comp.equal(it->params.get(), params)) {
+            continue;
+        }
+        DEBUG("Apply instance extension to %s", type_up->getName().c_str());
+        if (!have_names) {
+            for (std::vector<ast::IScopeChildUP>::const_iterator
+                    c_it=type_s->getChildren().begin();
+                    c_it!=type_s->getChildren().end(); c_it++) {
+                std::string name = TaskGetName().get(c_it->get());
+                if (name.size()) {
+                    names.insert({name, c_it->get()});
+                }
+            }
+            have_names = true;
+        }
+        bool share = m_ctxt->applyInstanceExtension(it->ext);
+        for (std::vector<ast::IScopeChildUP>::const_iterator
+                c_it=it->ext->getChildren().begin();
+                c_it!=it->ext->getChildren().end(); c_it++) {
+            ast::IScopeChild *c = c_it->get();
+            if (NodeKind::cast<ast::IExtendType>(c)
+                    || NodeKind::cast<ast::IExtendEnum>(c)) {
+                // Reported by TaskApplyTypeExtensions::applyInstanceExtension.
+                continue;
+            }
+            // A constraint of a name the type has conjoins with it, as in a
+            // generic extension (TaskApplyTypeExtensions::mergeChild).
+            std::string name = TaskGetName().get(c);
+            if (name.size() && !NodeKind::cast<ast::IConstraintBlock>(c)) {
+                std::map<std::string, ast::IScopeChild *>::const_iterator n_it =
+                    names.find(name);
+                if (n_it != names.end()) {
+                    if (share) {
+                        std::vector<std::pair<ast::Location, std::string>> related;
+                        related.push_back({
+                            TaskResolveRootRef::declLocation(n_it->second),
+                            "first declared here"});
+                        m_ctxt->addMarker(
+                            MarkerSeverityE::Error,
+                            TaskResolveRootRef::declLocation(c),
+                            "duplicate declaration of '" + name + "' in an "
+                                "extension of an instance of '" + type_up->getName()
+                                + "': the type already declares it (17.2.3)",
+                            related);
+                    }
+                    continue;
+                }
+                names.insert({name, c});
+            }
+            if (share) {
+                // Non-owning: the `extend` statement owns its members
+                // (TaskApplyTypeExtensions::mergeIntoGenericAst).
+                type_s->getChildren().push_back(ast::IScopeChildUP(c, false));
+            } else {
+                TaskCopyAst copier(m_ctxt->getFactory());
+                c = copier.copy(c_it->get());
+                if (!c) {
+                    continue;
+                }
+                c->setParent(type_s);
+                type_s->getChildren().push_back(ast::IScopeChildUP(c));
+            }
+            // Its index is its place in the type: a path into a constraint's
+            // body steps through it (TaskGetItemIndex), and the builder
+            // numbered it in the `extend` statement.
+            c->setIndex(type_s->getChildren().size()-1);
+            members[c] = it->decl_s;
+        }
+    }
+}
+
+void TaskGetSpecializedTemplateType::queueAsserts(
+        const ast::ISymbolRefPath           *type,
+        ast::ISymbolTypeScope               *type_up,
+        ast::ISymbolTypeScope               *type_ss,
+        const ast::Location                 &use_loc) {
+    ast::IScope *generic = NodeKind::cast<ast::IScope>(type_up->getTarget());
+    if (!generic) {
+        return;
+    }
+    std::shared_ptr<ast::ISymbolRefPath> path;
+    for (std::vector<ast::ICompileCondUP>::const_iterator
+            it=generic->getCompile_conds().begin();
+            it!=generic->getCompile_conds().end(); it++) {
+        ast::ICompileCond *cc = it->get();
+        if (!cc->getDeferred() || !cc->getCond()) {
+            continue;
+        }
+        if (!path) {
+            // The caller's path may not outlive this call.
+            path.reset(m_ctxt->getFactory()->getAstFactory()->mkSymbolRefPath());
+            path->getPath() = type->getPath();
+        }
+        ResolveContext *ctxt = m_ctxt;
+        ast::Location loc = (use_loc.fileid >= 0)?use_loc:cc->getLocation();
+        m_ctxt->addPostResolveAction([ctxt, path, type_ss, cc, loc]() {
+            checkAssert(ctxt, path.get(), type_ss, cc, loc);
+        });
+    }
+}
+
+void TaskGetSpecializedTemplateType::checkAssert(
+        ResolveContext                      *ctxt,
+        const ast::ISymbolRefPath           *type,
+        ast::ISymbolTypeScope               *type_ss,
+        ast::ICompileCond                   *cc,
+        const ast::Location                 &use_loc) {
+    DEBUG_ENTER("checkAssert %s", type_ss->getName().c_str());
+    // The generic's condition is bound to the generic's parameters; a copy
+    // (which drops the bindings) is bound to this specialization's, as its
+    // body was in mk().
+    TaskCopyAst copier(ctxt->getFactory());
+    std::unique_ptr<ast::IExpr> cond(copier.copy(cc->getCond()));
+
+    IValInt *val = 0;
+    std::unique_ptr<IVal> val_h;
+    if (cond && copier.failure().empty()) {
+        ISymbolTableIterator *it = TaskResolveSymbolPathRef(
+            ctxt->getDebugMgr(), ctxt->root()).mkIterator(
+                ctxt->getFactory()->mkAstSymbolTableIterator(ctxt->root()),
+                type);
+        it->pushScope(type_ss, ast::SymbolRefPathElemKind::ElemKind_TypeSpec);
+        ctxt->pushSymtab(it);
+        ctxt->pushQuiet();
+        TaskResolveRefs resolver(ctxt);
+        cond->accept(&resolver);
+        ctxt->popQuiet();
+        ctxt->popSymtab();
+
+        val_h.reset(TaskEvalExpr(ctxt->getFactory(), ctxt->root()).eval(cond.get()));
+        val = dynamic_cast<IValInt *>(val_h.get());
+    }
+
+    // The specialization's name leaves a default that depends on another
+    // parameter as '?' (`a<0,?>`); every value is known by now.
+    std::string name = type_ss->getName();
+    ast::ITypeScope *spec = NodeKind::cast<ast::ITypeScope>(type_ss->getTarget());
+    if (spec && spec->getParams() && name.find('?') != std::string::npos) {
+        std::string args;
+        bool ok = true;
+        for (std::vector<ast::ITemplateParamDeclUP>::const_iterator
+                it=spec->getParams()->getParams().begin();
+                ok && it!=spec->getParams()->getParams().end(); it++) {
+            std::string arg = "?";
+            if (ast::ITemplateValueParamDecl *v =
+                    NodeKind::cast<ast::ITemplateValueParamDecl>(it->get())) {
+                std::unique_ptr<IVal> pv(v->getDflt()
+                    ? TaskEvalExpr(ctxt->getFactory(), ctxt->root()).eval(v->getDflt()) : 0);
+                if (IValInt *iv = dynamic_cast<IValInt *>(pv.get())) {
+                    arg = std::to_string(iv->getValS());
+                } else {
+                    ok = false;
+                }
+            } else {
+                ok = false;
+            }
+            args += ((args.size())?",":"") + arg;
+        }
+        if (ok) {
+            name = name.substr(0, name.find('<')) + "<" + args + ">";
+        }
+    }
+
+    std::vector<std::pair<ast::Location, std::string>> related;
+    related.push_back({cc->getLocation(), "the assertion"});
+    if (!val) {
+        ctxt->addMarker(
+            MarkerSeverityE::Error,
+            use_loc,
+            "compile assert condition cannot be evaluated for '" + name
+                + "': a compile-time expression may reference only constants and "
+                "template parameters (19.4)",
+            related);
+    } else if (!val->getValS()) {
+        ctxt->addMarker(
+            MarkerSeverityE::Error,
+            use_loc,
+            "compile assert failed for '" + name + "'"
+                + ((cc->getMsg().size())?": " + cc->getMsg():std::string()),
+            related);
+    }
+    DEBUG_LEAVE("checkAssert");
 }
 
 /**

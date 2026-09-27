@@ -701,6 +701,13 @@ private:
     ast::SourceRange mkSourceRange(antlr4::ParserRuleContext *ctx);
 
     /**
+     * True if `ctx` names a value or type parameter of a generic type whose
+     * body is being built. Such a condition has no value until the type is
+     * specialized, so a `compile assert` on it is left to the linker (8.5).
+     */
+    bool refsTemplateParam(antlr4::tree::ParseTree *ctx);
+
+    /**
      * Report the D2 deprecation (PSS104) for any `compile if` branch written
      * without enclosing braces. Called from every `visit*_compile_if` method
      * with both branches, so the diagnostic does not depend on which branch

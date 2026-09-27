@@ -96,6 +96,7 @@ class ExtendTargetE(IntEnum):
     State = auto()
     Stream = auto()
     Struct = auto()
+    Monitor = auto()
     
 class FunctionParamDeclKind(IntEnum):
     ParamKind_DataType = auto()
@@ -815,6 +816,12 @@ class CompileCond(object):
     def getInactive(self, i: int) -> SourceRange: ...
     def addInactive(self, i: SourceRange) -> None: ...
     def numInactive(self) -> int: ...
+    
+    def getLocation(self) -> 'Location': ...
+    
+    def getMsg(self) -> str: ...
+    
+    def setMsg(self, v : str): ...
     
 class SymbolImportSpec(object):
     pass

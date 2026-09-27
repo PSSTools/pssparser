@@ -139,6 +139,24 @@ REPRESENTATIVE_MESSAGES = [
     ("PSS053", "'import lib::*;' follows a declaration; imports shall come "
                "first in a package, a component, an extension or a file "
                "(18.1.3)"),
+    ("PSS054", "compile assert failed: too wide"),
+    ("PSS054", "compile assert failed for 'S<64>': too wide"),
+    ("PSS055", "compile if condition cannot be evaluated at compile time: "
+               "'X>1'. Compile-time expressions may reference only types and "
+               "constants declared in this source unit or in a "
+               "previously-processed one (PSS 3.1 19.1.2)"),
+    ("PSS055", "compile assert condition cannot be evaluated for 'S<4>': a "
+               "compile-time expression may reference only constants and "
+               "template parameters (19.4)"),
+    ("PSS056", "'t' is not a generic type, so it takes no template arguments"),
+    ("PSS057", "cannot extend a type declared inside a template instance: "
+               "not supported by pssparser (17.2.6)"),
+    ("PSS058", "'extend action' names 'M', which is a monitor; "
+               "write 'extend monitor M' (17.2)"),
+    ("PSS058", "'extend monitor' names 'A', which is an action; "
+               "write 'extend action A' (17.2)"),
+    ("PSS003", "duplicate declaration of 'attr' in an extension of an "
+               "instance of 'domain_s': the type already declares it (17.2.3)"),
     ("PSS017", "ambiguous reference to 'b': extensions of 'S' in package 'p' "
                "and package 'q' each declare it, and each package is imported "
                "here (17.2.3); import only one"),

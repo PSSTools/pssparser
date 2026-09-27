@@ -1271,6 +1271,96 @@ class CoreChecker(CheckerBase):
                 "warning for now (plan §8)."
             ),
         ),
+        MarkerDef(
+            id="PSS054",
+            severity="error",
+            summary="compile assert failed",
+            patterns=(
+                r"^compile assert failed\b",
+            ),
+            detail=(
+                "19.4: a ``compile assert`` whose condition is false.  "
+                "Messages:\n\n"
+                "* ``compile assert failed: too wide`` -- the condition "
+                "folded when the file was read; the string is the "
+                "assertion's own message, when it has one\n"
+                "* ``compile assert failed for 'S<64>': too wide`` -- an "
+                "assertion in a generic type's body that names a template "
+                "parameter (Ex. 71-73).  It has a value only in a "
+                "specialization, so each specialization is checked once "
+                "linked, and reported at the first use that creates it, with "
+                "a related location at the assertion.  The generic itself is "
+                "never checked."
+            ),
+        ),
+        MarkerDef(
+            id="PSS055",
+            severity="error",
+            summary="Compile-time condition cannot be evaluated",
+            patterns=(
+                r"^compile (if|assert) condition cannot be evaluated\b",
+            ),
+            detail=(
+                "19.1.3, 19.4: the condition of a ``compile if`` or "
+                "``compile assert`` must be determinable at compile time.  "
+                "Messages:\n\n"
+                "* ``compile if condition cannot be evaluated at compile "
+                "time: 'X>1'. ...`` -- it names something that is not a "
+                "constant, or one declared in a later file (19.1.2)\n"
+                "* ``compile assert condition cannot be evaluated for "
+                "'S<4>': ...`` -- an assertion on a template parameter "
+                "that does not fold in that specialization"
+            ),
+        ),
+        MarkerDef(
+            id="PSS056",
+            severity="error",
+            summary="Template arguments given to a type that is not generic",
+            patterns=(
+                r"^'.*' is not a generic type\b",
+            ),
+            detail=(
+                "A type that declares no template parameters was written "
+                "with an argument list, in a use (``t<1> f;``) or in an "
+                "instance extension (``extend struct t<1>``, 17.2.6b).  "
+                "Message: ``'t' is not a generic type, so it takes no "
+                "template arguments``.  Remove the argument list."
+            ),
+        ),
+        MarkerDef(
+            id="PSS057",
+            severity="error",
+            summary="Extension of a type inside a template instance",
+            patterns=(
+                r"^cannot extend a type declared inside a template instance\b",
+            ),
+            detail=(
+                "``extend struct C<2>::s``, or an ``extend struct s`` "
+                "written inside ``extend component C<2>``, extends a type "
+                "declared in one instance of a generic component.  pssparser "
+                "does not support this.  An extension of the instance's own "
+                "members (``extend component C<2> { int x; }``) is supported "
+                "(17.2.6b)."
+            ),
+        ),
+        MarkerDef(
+            id="PSS058",
+            severity="error",
+            summary="Extension kind does not match the type",
+            patterns=(
+                r"^'extend \w+' names '.*', which is an? \w+\b",
+            ),
+            detail=(
+                "An ``extend`` statement names the kind of type it extends, "
+                "and LRM 17.2 requires it to agree with the type: "
+                "``extend action M`` where ``M`` is a monitor, or "
+                "``extend struct b`` where ``b`` is a buffer, or "
+                "``extend struct e`` where ``e`` is an enum.  The message "
+                "gives the kind to write.  ``extend enum s`` where ``s`` is "
+                "not an enum is PSS005.  The extension's members are not "
+                "added to the type."
+            ),
+        ),
 
         # -- PSS 3.1 language-rule diagnostics (PSS100-PSS199) --------------
         #

@@ -123,6 +123,10 @@ extend_stmt:
 				action_body_item_ann*
 				TOK_RCBRACE
 			) | 
+			(TOK_EXTEND is_monitor=TOK_MONITOR type_identifier TOK_LCBRACE
+				monitor_body_item*
+				TOK_RCBRACE
+			) |
 			(TOK_EXTEND is_component=TOK_COMPONENT type_identifier TOK_LCBRACE
 				component_body_item_ann*
 				TOK_RCBRACE

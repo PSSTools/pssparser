@@ -14,6 +14,7 @@
 #include <sys/time.h>
 #endif
 #include <algorithm>
+#include <set>
 #include <vector>
 #include <cstdarg>
 #include "dmgr/impl/DebugMacros.h"
@@ -377,6 +378,7 @@ static std::map<std::string,ast::ExtendTargetE> ExtendKind_m = {
 	{"buffer", ast::ExtendTargetE::Buffer},
 	{"component", ast::ExtendTargetE::Component},
 	{"enum", ast::ExtendTargetE::Enum},
+	{"monitor", ast::ExtendTargetE::Monitor},
 	{"resource", ast::ExtendTargetE::Resource},
 	{"state", ast::ExtendTargetE::State},
 	{"stream", ast::ExtendTargetE::Stream},
@@ -418,6 +420,10 @@ antlrcpp::Any AstBuilderInt::visitExtend_stmt(PSSParser::Extend_stmtContext *ctx
         kind = ast::ExtendTargetE::Annotation;
     } else if (ctx->is_component) {
         kind = ast::ExtendTargetE::Component;
+    } else if (ctx->is_monitor) {
+        // Syntax 85 (17.2.1). Annex B's extend_stmt omits this form; see
+        // pss31-prd-spec-comments item 9.
+        kind = ast::ExtendTargetE::Monitor;
     } else if (ctx->is_enum) {
         kind = ast::ExtendTargetE::Enum;
     } else if (ctx->struct_kind() && ctx->struct_kind()->img) {
@@ -490,6 +496,16 @@ antlrcpp::Any AstBuilderInt::visitExtend_stmt(PSSParser::Extend_stmtContext *ctx
 					ctx->component_body_item_ann();
                 DEBUG("Extend Component: %d items", items.size());
 				for (std::vector<PSSParser::Component_body_item_annContext *>::const_iterator
+					it=items.begin();
+					it!=items.end(); it++) {
+					(*it)->accept(this);
+				}
+			} break;
+			case ast::ExtendTargetE::Monitor: {
+				std::vector<PSSParser::Monitor_body_itemContext *> items =
+					ctx->monitor_body_item();
+                DEBUG("Extend Monitor: %d items", items.size());
+				for (std::vector<PSSParser::Monitor_body_itemContext *>::const_iterator
 					it=items.begin();
 					it!=items.end(); it++) {
 					(*it)->accept(this);
@@ -695,31 +711,92 @@ antlrcpp::Any AstBuilderInt::visitConst_field_declaration(PSSParser::Const_field
 }
 
 antlrcpp::Any AstBuilderInt::visitCompile_assert_stmt(PSSParser::Compile_assert_stmtContext *ctx) {
+    std::string msg;
+    if (ctx->msg) {
+        msg = ctx->msg->getText();
+        if (msg.size() >= 2) {
+            msg = msg.substr(1, msg.size()-2);
+        }
+    }
+    ast::Location loc;
+    loc.fileid = m_file_id;
+    loc.lineno = ctx->start->getLine();
+    loc.linepos = ctx->start->getCharPositionInLine()+1;
+    rebaseLoc(loc.lineno, loc.linepos);
+    loc.extent = ctxExtent(ctx);
+
+    if (ctx->cond && refsTemplateParam(ctx->cond)) {
+        // A template parameter has a value only in a specialization (10.3.1
+        // a): each one evaluates its own copy once linked (8.5), and the
+        // generic itself is never asserted on.
+        recordCompileCond(ctx->cond, false, 0, false);
+        if (m_scopes.size() && ctx->cond->expression()) {
+            ast::ICompileCond *cc = m_scopes.back()->getCompile_conds().back().get();
+            cc->setDeferred(true);
+            cc->setLocation(loc);
+            cc->setMsg(msg);
+        }
+        return 0;
+    }
+
     int64_t cond = 0;
-    if (!evalCompileTimeCond(ctx->cond, cond, "compile assert")) {
+    bool ok = evalCompileTimeCond(ctx->cond, cond, "compile assert");
+    if (ctx->cond && ctx->cond->expression() && m_scopes.size()) {
+        ast::ICompileCond *cc = m_scopes.back()->getCompile_conds().back().get();
+        cc->setLocation(loc);
+        cc->setMsg(msg);
+    }
+    if (!ok) {
         // Indeterminable: already reported, and distinct from a condition that
         // evaluated to false.  Reporting it as a plain assertion failure is
         // what made a cross-file `static const` look like a failing assert.
     } else if (!cond) {
         if (m_marker_l) {
-            ast::Location loc;
-            loc.fileid = m_file_id;
-            loc.lineno = ctx->start->getLine();
-            loc.linepos = ctx->start->getCharPositionInLine()+1;
-            loc.extent = ctxExtent(ctx);
-            std::string msg = "compile assert failed";
-            if (ctx->msg) {
-                std::string text = ctx->msg->getText();
-                if (text.size() >= 2) {
-                    text = text.substr(1, text.size()-2);
-                }
-                msg += ": " + text;
-            }
-            Marker m(msg, MarkerSeverityE::Error, loc);
+            Marker m(
+                (msg.size()) ? "compile assert failed: " + msg : "compile assert failed",
+                MarkerSeverityE::Error, loc);
             m_marker_l->marker(&m);
         }
     }
     return 0;
+}
+
+bool AstBuilderInt::refsTemplateParam(antlr4::tree::ParseTree *ctx) {
+    std::set<std::string> names;
+    for (std::vector<ast::IScope *>::const_reverse_iterator
+            it=m_scopes.rbegin(); it!=m_scopes.rend(); it++) {
+        ast::ITypeScope *t = NodeKind::cast<ast::ITypeScope>(*it);
+        if (!t || !t->getParams()) {
+            continue;
+        }
+        for (std::vector<ast::ITemplateParamDeclUP>::const_iterator
+                p_it=t->getParams()->getParams().begin();
+                p_it!=t->getParams()->getParams().end(); p_it++) {
+            if ((*p_it)->getName()) {
+                names.insert((*p_it)->getName()->getId());
+            }
+        }
+    }
+    if (names.empty()) {
+        return false;
+    }
+
+    // Any identifier will do: a parameter shadows whatever else it names,
+    // and a path that merely starts with one has no value before
+    // specialization either.
+    std::vector<antlr4::tree::ParseTree *> work(1, ctx);
+    while (work.size()) {
+        antlr4::tree::ParseTree *n = work.back();
+        work.pop_back();
+        if (PSSParser::IdentifierContext *id = dynamic_cast<PSSParser::IdentifierContext *>(n)) {
+            if (names.count(id->getText())) {
+                return true;
+            }
+            continue;
+        }
+        work.insert(work.end(), n->children.begin(), n->children.end());
+    }
+    return false;
 }
 
 // B.2 Action declaration

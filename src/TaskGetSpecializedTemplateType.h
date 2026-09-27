@@ -19,9 +19,13 @@
  *     Author: 
  */
 #pragma once
+#include <map>
+#include <set>
 #include "dmgr/IDebugMgr.h"
 #include "pssp/IFactory.h"
+#include "pssp/ast/ICompileCond.h"
 #include "pssp/ast/ISymbolScope.h"
+#include "pssp/ast/ISymbolTypeScope.h"
 #include "ResolveContext.h"
 
 namespace pssp {
@@ -50,9 +54,14 @@ public:
         const ast::ISymbolRefPath           *type,
         const ast::ITemplateParamDeclList   *params);
 
+    /**
+     * Create the specialization. `use_loc` is the first reference to it,
+     * where a `compile assert` it fails is reported.
+     */
     ast::ISymbolRefPath *mk(
         const ast::ISymbolRefPath           *type,
-        ast::ITemplateParamDeclList         *params);
+        ast::ITemplateParamDeclList         *params,
+        const ast::Location                 &use_loc=ast::Location());
 
     /// Render one bound argument for the specialization's name.
     std::string argName(ast::IDataType *dt);
@@ -61,6 +70,36 @@ public:
     std::string mkTypename(
         const ast::ISymbolRefPath           *type,
         ast::ITemplateParamDeclList         *params);
+
+private:
+    /**
+     * Copy the instance extensions (17.2.6b) that match `params` into the
+     * specialization's AST; `members` maps each copy to the scope that
+     * declares its extension.
+     */
+    void applyInstanceExtensions(
+        ast::ISymbolTypeScope               *type_up,
+        ast::ITypeScope                     *type_s,
+        ast::ITemplateParamDeclList         *params,
+        std::map<ast::IScopeChild *, ast::ISymbolScope *> &members);
+
+    /**
+     * Queue the check of each `compile assert` the builder deferred in the
+     * generic's body (8.5): once every reference is bound, a copy of the
+     * condition is resolved in the specialization and evaluated there.
+     */
+    void queueAsserts(
+        const ast::ISymbolRefPath           *type,
+        ast::ISymbolTypeScope               *type_up,
+        ast::ISymbolTypeScope               *type_ss,
+        const ast::Location                 &use_loc);
+
+    static void checkAssert(
+        ResolveContext                      *ctxt,
+        const ast::ISymbolRefPath           *type,
+        ast::ISymbolTypeScope               *type_ss,
+        ast::ICompileCond                   *cc,
+        const ast::Location                 &use_loc);
 
 private:
     static dmgr::IDebug                 *m_dbg;

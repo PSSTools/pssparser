@@ -411,6 +411,29 @@ void TaskResolveRefs::resolveCompileConds(ast::IRootSymbolScope *root) {
     DEBUG_LEAVE("resolveCompileConds");
 }
 
+void TaskResolveRefs::resolveInstanceExtensions() {
+    DEBUG_ENTER("resolveInstanceExtensions");
+    for (InstanceExtensionMap::const_iterator
+            it=m_ctxt->instanceExtensions().begin();
+            it!=m_ctxt->instanceExtensions().end(); it++) {
+        for (std::vector<InstanceExtension>::const_iterator
+                e_it=it->second.begin(); e_it!=it->second.end(); e_it++) {
+            if (m_ctxt->instanceExtensionApplied(e_it->ext)) {
+                continue;
+            }
+            // No use names this instance. The `extend` statement does, so it
+            // is made here, and the body is bound (and checked) in it.
+            ast::ITypeIdentifier *tid = e_it->ext->getTarget();
+            ast::ISymbolRefPath *spec = TaskSpecializeParameterizedRef(m_ctxt).specialize(
+                tid->getTarget(),
+                tid->getElems().back()->getParams(),
+                tid->getElems().back()->getId()->getLocation());
+            delete spec;
+        }
+    }
+    DEBUG_LEAVE("resolveInstanceExtensions");
+}
+
 /**
  * True if `c`, a child of type scope `s`, is only an alias for a labeled
  * activity statement: a top-level label is a member of the action, the root of

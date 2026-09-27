@@ -34,11 +34,13 @@
 #include "pssp/ast/IActivityLabeledScope.h"
 #include "pssp/ast/IExprId.h"
 #include "pssp/ast/IExtendEnum.h"
+#include "pssp/ast/IExtendType.h"
 #include "pssp/ast/IPackageImportStmt.h"
 #include "pssp/ast/IRootSymbolScope.h"
 #include "pssp/ast/ISymbolEnumScope.h"
 #include "pssp/ast/ISymbolRefPath.h"
 #include "pssp/ast/ISymbolTypeScope.h"
+#include "pssp/ast/ITemplateParamDeclList.h"
 #include "pssp/IFactory.h"
 #include "pssp/IMarkerListener.h"
 #include "pssp/ISymbolTableIterator.h"
@@ -49,6 +51,23 @@ namespace pssp {
 
 
 
+
+/**
+ * An extension of one instance of a generic (`extend struct S<2>`, 17.2.6b).
+ * Registered on the generic by TaskApplyTypeExtensions; its members join the
+ * specialization whose parameter list equals `params`, when
+ * TaskGetSpecializedTemplateType::mk makes it.
+ */
+struct InstanceExtension {
+    ast::IExtendType                                *ext;
+    /// Every parameter's value, defaults filled in, as a use's list is.
+    std::shared_ptr<ast::ITemplateParamDeclList>    params;
+    /// The scope that lexically declares the `extend` (CL-N1).
+    ast::ISymbolScope                               *decl_s;
+};
+
+typedef std::map<ast::ISymbolTypeScope *, std::vector<InstanceExtension>>
+    InstanceExtensionMap;
 
 class ResolveContext {
 public:
@@ -131,6 +150,37 @@ public:
     void setExtensionDeclScopes(
         const std::map<ast::IScopeChild *, ast::ISymbolScope *> &m) {
         m_ext_decl_scope = m;
+    }
+
+    /** A member an instance extension contributed to a specialization. */
+    void addExtensionDeclScope(ast::IScopeChild *c, ast::ISymbolScope *s) {
+        m_ext_decl_scope[c] = s;
+    }
+
+    void setInstanceExtensions(const InstanceExtensionMap &m) {
+        m_inst_exts = m;
+    }
+
+    const InstanceExtensionMap &instanceExtensions() const { return m_inst_exts; }
+
+    /** The instance extensions of `generic`, or null when there are none. */
+    const std::vector<InstanceExtension> *instanceExtensions(
+            ast::ISymbolTypeScope *generic) const {
+        InstanceExtensionMap::const_iterator it = m_inst_exts.find(generic);
+        return (it != m_inst_exts.end())?&it->second:0;
+    }
+
+    /**
+     * Mark instance extension `e` applied; false if it already was. Its
+     * members join one specialization, not copies of them: two uses whose
+     * lists are equal share one (8.3), so at most one ever matches.
+     */
+    bool applyInstanceExtension(ast::IExtendType *e) {
+        return m_inst_applied.insert(e).second;
+    }
+
+    bool instanceExtensionApplied(ast::IExtendType *e) const {
+        return m_inst_applied.count(e);
     }
 
     ast::ISymbolScope *extensionDeclScope(ast::IScopeChild *c) const {
@@ -473,6 +523,8 @@ private:
     std::vector<ast::ISymbolScope *>                m_inline_ctxt_s;
     std::vector<ast::ISymbolScope *>                m_ext_ctxt_s;
     std::map<ast::IScopeChild *, ast::ISymbolScope *> m_ext_decl_scope;
+    InstanceExtensionMap                            m_inst_exts;
+    std::set<ast::IExtendType *>                    m_inst_applied;
     IFactory                                        *m_factory;
     IMarkerListener                                 *m_marker_l;
     int32_t                                         m_specialization_depth;

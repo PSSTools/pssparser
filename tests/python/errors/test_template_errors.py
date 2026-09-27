@@ -84,7 +84,7 @@ def test_arguments_on_a_non_generic_type_is_reported():
     res = link("struct S { int v; } struct Top { S<int> a; }")
     assert not res.crashed, res.describe()
     assert res.rc == 1, "expected a reported error, got %s" % res.describe()
-    assert "not templated" in res.output, res.describe()
+    assert "is not a generic type" in res.output, res.describe()
 
 
 # ---------------------------------------------------------------------------

@@ -7,6 +7,61 @@ revision advances only the patch component.
 
 ## Unreleased
 
+### Added — `extend monitor` (symbol-resolution 11.5, LRM 17.2.1)
+
+`extend monitor m { ... }` now parses and adds its members to the monitor, as
+Syntax 85 gives it and LRM Ex. 246 uses it. Annex B's `extend_stmt` leaves
+this form out, and pssparser had followed Annex B. The AST's `ExtendTargetE`
+gains `Monitor`.
+
+### Added — the kind an `extend` names must match the type (LRM 17.2)
+
+`extend action S` where `S` is a struct, `extend struct B` where `B` is a
+buffer, or `extend struct E` where `E` is an enum used to link silently, and
+merged the members anyway. Each is now **PSS058**, the message names the kind
+to write, and the members are not added. (`extend enum S` on a struct was
+already reported, as PSS005.)
+
+### Added — extending a template instance (symbol-resolution 8.6, LRM 17.2.6b)
+
+`extend struct domain_s<2> { ... }` now applies to every instance of
+`domain_s` with the same parameter values, defaults included: here
+`domain_s<2,7>` gets the members and `domain_s<2,8>` does not. It used to be
+refused as "not supported", and LRM Ex. 249 failed to link. The body binds
+the template parameters, and its arguments may be constants
+(`extend struct d<N>` matches `d<2>` when `N` is 2). An extension that no use
+matches is still checked. New codes:
+
+- **PSS056**: template arguments on a type that is not generic. Also
+  applies to a use, `t<1> f;`; it reworded the uncoded "Type t is not
+  templated".
+- **PSS057**: extending a type declared inside a template instance
+  (`extend struct C<2>::s`). pssparser does not support this.
+
+A member that duplicates one the type already declares is PSS003.
+
+### Fixed — segfault on an `extend` nested in an extension of a generic component
+
+`extend component C { extend struct s { ... } }`, with `C` generic, crashed
+when `C` was specialized. It no longer crashes, but the nested extension
+still does not reach the instances (known issue SR-F3).
+
+### Fixed — `compile assert` on a template parameter (symbol-resolution 8.5, LRM 10.3.1)
+
+An assertion in a generic type's body that names one of its parameters, as
+in LRM Ex. 71-73 (`action a<int n = 4> { compile assert (n in [1..16]); }`),
+was rejected when the file was read ("condition cannot be evaluated"), so
+every such model failed to parse. It is now checked in each
+specialization, once linked, and a failure is reported at the first use
+that creates the specialization:
+
+    compile assert failed for 'my_consumer_action<17>'
+
+The generic itself is not checked. A parameter also shadows a constant of
+its name in the condition, which the old evaluator would have read instead.
+"compile assert failed" is now PSS054, and "condition cannot be evaluated"
+PSS055.
+
 ### Added — import and extension-visibility warnings (symbol-resolution 6.5)
 
 New warnings for rules the linker did not check. Each is a warning for one

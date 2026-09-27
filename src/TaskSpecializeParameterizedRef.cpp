@@ -47,10 +47,41 @@ ast::ISymbolRefPath *TaskSpecializeParameterizedRef::specialize(
         ast::ITemplateParamValueList        *pvals,
         const ast::Location                 &use_loc) {
     DEBUG_ENTER("specialize");
+    ast::ITemplateParamDeclList *pdecl_list = buildParams(target, pvals, use_loc);
+
+    if (!pdecl_list) {
+        // Encountered an error while building out the param list
+        DEBUG_LEAVE("specialize (no params)");
+        return 0;
+    }
+
+    TaskGetSpecializedTemplateType typespec_getter(m_ctxt);
+    ast::ISymbolRefPath *target_t = typespec_getter.find(
+        target, 
+        pdecl_list);
+
+    if (target_t) {
+        // The new parameter list that we created is no longer needed
+        DEBUG("Specialization already exists");
+        delete pdecl_list;
+    } else {
+        DEBUG("Must create new specialization");
+        target_t = typespec_getter.mk(
+            target, 
+            pdecl_list,
+            use_loc);
+    }
+    
+
+    DEBUG_LEAVE("specialize %p", target_t);
+    return target_t;
+}
+
+ast::ITemplateParamDeclList *TaskSpecializeParameterizedRef::buildParams(
+        ast::ISymbolRefPath                 *target,
+        ast::ITemplateParamValueList        *pvals,
+        const ast::Location                 &use_loc) {
     // Find the base type
-    ast::IScopeChild *target_sc = TaskResolveSymbolPathRef(
-        m_ctxt->getDebugMgr(), 
-        m_ctxt->root()).resolve(target);
     ast::ISymbolTypeScope *target_c = 
         TaskResolveSymbolPathRef(
             m_ctxt->getDebugMgr(), 
@@ -64,7 +95,7 @@ ast::ISymbolRefPath *TaskSpecializeParameterizedRef::specialize(
     if (!target_c->getPlist()) {
         m_ctxt->addErrorMarker(
             use_loc,
-            "Type %s is not templated",
+            "'%s' is not a generic type, so it takes no template arguments",
             target_c->getName().c_str());
         return 0;
     }
@@ -74,35 +105,10 @@ ast::ISymbolRefPath *TaskSpecializeParameterizedRef::specialize(
     bindDefaults(target, target_c);
 
     // Form parameter list 
-    ast::ITemplateParamDeclList *pdecl_list = TaskBuildParamValList(m_ctxt).build(
+    return TaskBuildParamValList(m_ctxt).build(
             target_c->getPlist(),
             pvals,
             use_loc);
-    TaskGetSpecializedTemplateType typespec_getter(m_ctxt);
-
-    if (!pdecl_list) {
-        // Encountered an error while building out the param list
-        return 0;
-    }
-
-    ast::ISymbolRefPath *target_t = typespec_getter.find(
-        target, 
-        pdecl_list);
-
-    if (target_t) {
-        // The new parameter list that we created is no longer needed
-        DEBUG("Specialization already exists");
-        delete pdecl_list;
-    } else {
-        DEBUG("Must create new specialization");
-        target_t = typespec_getter.mk(
-            target, 
-            pdecl_list);
-    }
-    
-
-    DEBUG_LEAVE("specialize %p", target_t);
-    return target_t;
 }
 
 namespace {

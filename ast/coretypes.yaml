@@ -102,6 +102,12 @@ classes:
                     was false with no `else`, or could not be evaluated)
                 eval_failed: The condition could not be evaluated
                 inactive: The branches not elaborated, in source order
+                location: Where the statement starts
+                msg: An assert's message, unquoted; empty if none
+                deferred: An assert on a template parameter, in a generic
+                    type's body. The builder leaves it alone; each
+                    specialization evaluates its own copy after linking
+                    (symbol-resolution plan 8.5)
         data:
         - kind:
             type: CompileCondKind
@@ -120,6 +126,16 @@ classes:
         - inactive:
             type: list<SourceRange>
             is_ctor: false
+        - location:
+            type: Location
+            is_ctor: false
+        - msg:
+            type: string
+            is_ctor: false
+        - deferred:
+            type: bool
+            is_ctor: false
+            init: false
 
     - Comment:
         super: ScopeChild

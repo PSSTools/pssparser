@@ -50,6 +50,16 @@ public:
         const ast::Location                 &use_loc);
 
     /**
+     * The full parameter list `pvals` gives the generic `target`, with every
+     * default filled in: what `specialize` looks the specialization up by.
+     * Null, reported, when the list is wrong or `target` is not a generic.
+     */
+    ast::ITemplateParamDeclList *buildParams(
+        ast::ISymbolRefPath                 *target,
+        ast::ITemplateParamValueList        *pvals,
+        const ast::Location                 &use_loc);
+
+    /**
      * The enumeration type value parameter `p` of the generic `target` is
      * declared with, or null. Its type is bound first, in the generic's
      * declaring scope, if nothing has bound it yet: the generic may be

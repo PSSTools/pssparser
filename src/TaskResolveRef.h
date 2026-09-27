@@ -50,6 +50,14 @@ public:
 
     ast::ISymbolRefPath *resolve(ast::IExpr *ref);
 
+    /**
+     * Resolve the last element of a type identifier to the generic itself:
+     * its arguments are resolved where they are written, but not specialized.
+     * An instance extension (`extend struct S<2>`, 17.2.6b) is registered on
+     * the generic and applied when a matching specialization is made.
+     */
+    void setGenericOnly(bool g) { m_generic_only = g; }
+
     /// `::x`: `x` in the global package only -- no imports, no enclosing
     /// scopes (18.1.3). Null when there is none; nothing is reported.
     ast::ISymbolRefPath *resolveGlobal(const ast::IExprId *id) { return findGlobalRoot(id); }
@@ -105,6 +113,7 @@ private:
     static dmgr::IDebug                 *m_dbg;
     bool                                m_search_imp;
     bool                                m_report_unresolved;
+    bool                                m_generic_only;
     ast::ISymbolRefPath                 *m_ref;
     /// What a miss is reported as: an unknown "type", or "identifier" for
     /// a name in a value parameter's position.

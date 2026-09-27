@@ -15,8 +15,9 @@ reported "Failed to find elem added".
 specialization exists yet when extensions are applied -- they are created later,
 by ``TaskResolveRefs`` -- so the step indexed into an empty list and landed on
 an unrelated node, which was then written to as though it were a scope.  The
-LRM's own Example247 segfaulted.  It is now diagnosed; instance extension
-remains unimplemented.
+LRM's own Example247 segfaulted.  It was diagnosed as unsupported until
+symbol-resolution plan 8.6 implemented it; ``test_instance_extensions.py``
+covers the feature itself.
 
 **An unqualified extend target never resolved.**  Nothing to do with
 templates: ``package p { struct S {} extend struct S {} }`` reported "unknown
@@ -187,33 +188,28 @@ def test_an_extension_constraint_may_reference_a_value_parameter():
     ["p::S<int>", "p::S<>"],
     ids=["explicit-arg", "empty-arg-list"],
 )
-def test_extending_a_template_instance_is_diagnosed_not_crashed(target):
+def test_extending_a_template_instance_links(target):
     """This was a segfault, so it is checked out of process.
 
-    Instance extension (LRM 17.2.6b) is unimplemented.  What must not happen
-    is what did happen: the reference path ends in a specialization step, no
-    specialization exists when extensions are applied, and the step resolved to
-    an unrelated node that was then written to.
+    The reference path ended in a specialization step, no specialization
+    existed when extensions were applied, and the step resolved to an
+    unrelated node that was then written to. An instance extension is now
+    registered on the generic and applied to the matching specialization.
     """
     res = link("""
         package p {
             struct S<type T = int> { T v; }
             extend struct %s { int added; }
-            struct Top { S<int> s; }
+            struct Top { S<int> s; constraint { s.added > 0; } }
         }
     """ % target)
     assert not res.crashed, res.describe()
-    assert res.rc == 1, res.describe()
-    assert "cannot extend a template instance" in res.output, res.describe()
+    assert res.rc == 0, res.describe()
 
 
-def test_the_lrm_template_extension_example_does_not_crash():
-    """LRM Example247, whole.
-
-    Its generic extension must work; its instance extension is diagnosed.  The
-    point of keeping the example intact is that it is the standard's own
-    statement of what this feature means.
-    """
+def test_the_lrm_template_extension_example_links():
+    """LRM Example247 (Example 249 in 3.1), whole but for its deliberate
+    error, with a use of each added member."""
     res = link("""
         package p {
             struct domain_s <int LB = 4, int UB = 7> {
@@ -223,6 +219,8 @@ def test_the_lrm_template_extension_example_does_not_crash():
             struct container_s {
                 domain_s<2, 7> domA;
                 domain_s<2, 8> domB;
+                constraint domA.attr_all == domB.attr_all;
+                constraint domA.attr_2_7 == 3;
             }
             extend struct p::domain_s {
                 rand int attr_all;
@@ -235,10 +233,7 @@ def test_the_lrm_template_extension_example_does_not_crash():
         }
     """)
     assert not res.crashed, res.describe()
-    assert "cannot extend a template instance" in res.output, res.describe()
-    # Only the instance extension is refused: the generic half of the example
-    # links, so `attr_all` and its constraint are not among the complaints.
-    assert "attr_all" not in res.output, res.describe()
+    assert res.rc == 0, res.describe()
 
 
 def test_the_generic_half_of_the_lrm_example_links_on_its_own():
