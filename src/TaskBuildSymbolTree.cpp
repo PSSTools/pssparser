@@ -28,6 +28,7 @@
 #include "BuiltinsFactory.h"
 #include "TaskBuildSymbolTree.h"
 #include "pssp/ast/IActivityDecl.h"
+#include "pssp/ast/IActivityLabeledScope.h"
 #include "pssp/ast/IActivityLabeledStmt.h"
 #include "pssp/ast/IActivityActionTypeTraversal.h"
 #include "pssp/ast/IActivityParallel.h"
@@ -1495,6 +1496,22 @@ void TaskBuildSymbolTree::reportBuiltinRedeclared(
     }
 }
 
+/**
+ * Where a declaration's name is written: a label or name if it has one, else
+ * the node. A labeled block's own location is its `{`.
+ */
+static ast::Location declNameLoc(ast::IScopeChild *c) {
+    ast::IExprId *n = 0;
+    if (ast::INamedScopeChild *nc = NodeKind::cast<ast::INamedScopeChild>(c)) {
+        n = nc->getName();
+    } else if (ast::IActivityLabeledStmt *l = NodeKind::cast<ast::IActivityLabeledStmt>(c)) {
+        n = l->getLabel();
+    } else if (ast::IActivityLabeledScope *l = NodeKind::cast<ast::IActivityLabeledScope>(c)) {
+        n = l->getLabel();
+    }
+    return (n && n->getLocation().lineno > 0)?n->getLocation():c->getLocation();
+}
+
 void TaskBuildSymbolTree::reportDuplicateSymbol(
         ast::ISymbolScope       *scope,
         ast::IScopeChild        *orig,
@@ -1528,6 +1545,15 @@ void TaskBuildSymbolTree::reportDuplicateSymbol(
         "duplicate declaration of '" + name + "'",
         MarkerSeverityE::Error,
         loc);
+    // And where the one it collides with is, which is the other half of
+    // what the reader has to look at.
+    ast::Location orig_loc = (orig)?declNameLoc(orig):ast::Location();
+    if (orig && orig_loc.lineno > 0
+            && (orig_loc.fileid != loc.fileid
+                || orig_loc.lineno != loc.lineno
+                || orig_loc.linepos != loc.linepos)) {
+        m.addRelated(orig_loc, "first declared here");
+    }
     // A specialization's tree is built with no listener: its declarations
     // are the generic's, already reported there.
     if (m_marker_l) {

@@ -170,12 +170,15 @@ component pss_top { }
 
 
 def test_distinct_enum_items_from_two_packages(tmp_path):
-    """Example 248's shape."""
+    """Example 248's shape: the items are visible where their packages are
+    imported (17.2.3)."""
     assert_links_and_binds(tmp_path, """
 enum E { A }
 package p { extend enum E { B } }
 package q { extend enum E { C } }
 component pss_top {
+    import p::*;
+    import q::*;
     exec init_up { E v; v = B; v = C; }
 }
 """)

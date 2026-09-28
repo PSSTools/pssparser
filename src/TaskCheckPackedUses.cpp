@@ -78,12 +78,15 @@ void TaskCheckPackedUses::visitTypeIdentifier(ast::ITypeIdentifier *i) {
         return;
     }
 
-    if (i->getTarget() && i->getElems().size()) {
+    // An expression carries no position of its own; its first identifier
+    // does. checkUse() looks only at user files, so a reference elsewhere,
+    // or one whose path cannot reach a specialization, is not resolved.
+    if (i->getTarget() && i->getElems().size()
+            && i->getElems().front()->getId()->getLocation().fileid > 0
+            && mayNameSpecialization(i->getTarget())) {
         ast::ISymbolTypeScope *spec = NodeKind::cast<ast::ISymbolTypeScope>(
             m_resolver.resolve(i->getTarget()));
         if (spec) {
-            // An expression carries no position of its own; its first
-            // identifier does.
             const ast::Location &loc = i->getElems().front()->getId()->getLocation();
             checkUse(spec, loc);
         }
@@ -124,6 +127,19 @@ void TaskCheckPackedUses::visitExprRefPathStatic(ast::IExprRefPathStatic *i) {
     }
 
     ast::VisitorBase::visitExprRefPathStatic(i);
+}
+
+bool TaskCheckPackedUses::mayNameSpecialization(const ast::ISymbolRefPath *ref) {
+    // A specialization is reached only through its generic's TypeSpec step,
+    // or through a Super step that re-enters a base type's own reference.
+    for (std::vector<ast::SymbolRefPathElem>::const_iterator
+        it=ref->getPath().begin(); it!=ref->getPath().end(); it++) {
+        if (it->kind == ast::SymbolRefPathElemKind::ElemKind_TypeSpec
+                || it->kind == ast::SymbolRefPathElemKind::ElemKind_Super) {
+            return true;
+        }
+    }
+    return false;
 }
 
 void TaskCheckPackedUses::checkUse(

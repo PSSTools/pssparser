@@ -23,6 +23,7 @@
 #include <memory>
 #include "dmgr/IDebugMgr.h"
 #include "dmgr/impl/DebugMacros.h"
+#include "pssp/impl/DebugInitCached.h"
 #include "pssp/ast/impl/VisitorBase.h"
 #include "pssp/IFactory.h"
 #include "pssp/IVal.h"
@@ -40,7 +41,7 @@ public:
         IFactory                *factory,
         ast::ISymbolScope       *root) : 
         m_dbg(0), m_factory(factory), m_root(root), m_depth(0) {
-        DEBUG_INIT("pssp::TaskEvalExpr", factory->getDebugMgr());
+        DEBUG_INIT_CACHED("pssp::TaskEvalExpr", factory->getDebugMgr());
     }
 
     virtual ~TaskEvalExpr() {}

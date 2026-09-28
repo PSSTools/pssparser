@@ -21,6 +21,7 @@
 #pragma once
 #include "dmgr/IDebugMgr.h"
 #include "dmgr/impl/DebugMacros.h"
+#include "pssp/impl/DebugInitCached.h"
 #include "pssp/ast/impl/VisitorBase.h"
 
 namespace pssp {
@@ -32,7 +33,7 @@ class TaskGetTemplateParamDeclDefault : public virtual ast::VisitorBase {
 public:
 
     TaskGetTemplateParamDeclDefault(dmgr::IDebugMgr *dmgr) : m_dbg(0) {
-        DEBUG_INIT("pssp::TaskGetTemplateParamDeclDefault", dmgr);
+        DEBUG_INIT_CACHED("pssp::TaskGetTemplateParamDeclDefault", dmgr);
     }
 
     virtual ~TaskGetTemplateParamDeclDefault() { }

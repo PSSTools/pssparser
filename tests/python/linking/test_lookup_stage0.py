@@ -118,7 +118,7 @@ package top {
   import p1::*;
   struct my_s { rand ::s v2; constraint v2.a == 1; }
 }
-""", marker_id="PSS002", text="elem a")
+""", marker_id="PSS002", text="has no member named 'a'")
 
 
 @pytest.mark.parametrize("decl,marker_id,name", [
@@ -237,6 +237,14 @@ package p {
   struct t { s f; }
 }
 """ % imports)
-    assert errs == [("PSS017",
-        "ambiguous reference to 's': more than one %s import provides it, "
-        "so none does (18.1.3); qualify the name" % kind)], errs
+    if kind == "explicit":
+        # Reported where the imports are written (PSS052), and not again at
+        # the use.
+        assert errs == [("PSS052",
+            "'s' is already imported explicitly in this scope, by 'import "
+            "lib1::s;'; the same name shall not be imported explicitly from "
+            "two packages (18.1.3)")], errs
+    else:
+        assert errs == [("PSS017",
+            "ambiguous reference to 's': more than one %s import provides it, "
+            "so none does (18.1.3); qualify the name" % kind)], errs

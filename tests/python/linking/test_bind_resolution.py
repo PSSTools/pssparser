@@ -383,4 +383,4 @@ def test_an_activity_bind_to_an_unknown_handle():
 
 def test_an_activity_bind_to_an_unknown_field():
     assert markers(ABIND % "bind p1.out c1.nosuch;") == [
-        ("PSS002", 9, "Failed to find elem nosuch")]
+        ("PSS002", 9, "'c1' has no member named 'nosuch'")]

@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 #pragma once
+#include <unordered_set>
 #include <set>
 #include <string>
 #include <tuple>
@@ -67,6 +68,9 @@ public:
     virtual void visitExprRefPathStatic(ast::IExprRefPathStatic *i) override;
 
 private:
+    /** Whether resolving `ref` could land on a template specialization. */
+    static bool mayNameSpecialization(const ast::ISymbolRefPath *ref);
+
     void checkUse(ast::ISymbolTypeScope *spec, const ast::Location &loc);
 
     void checkSizeof(ast::ITypeScope *spec, const ast::Location &loc);
@@ -90,7 +94,7 @@ private:
     TaskResolveSymbolPathRef                            m_resolver;
     // Each node once: it is reachable both as a symbol-scope child and
     // through the scope's AST target.
-    std::set<void *>                                    m_visited;
+    std::unordered_set<void *>                          m_visited;
     std::set<std::tuple<int32_t,int32_t,int32_t,std::string>> m_reported;
 };
 

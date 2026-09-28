@@ -102,7 +102,7 @@ component pss_top {
 }
 """
     assert markers(code) == [
-        ("error", 4, "unknown identifier 'zz'; did you mean 'S1'?")]
+        ("error", 4, "unknown identifier 'zz'")]
 
 
 def test_several_targets_do_not_open_a_members_scope():
@@ -117,7 +117,7 @@ component pss_top {
 }
 """
     assert markers(code) == [
-        ("error", 4, "unknown identifier 'a'; did you mean 'S1'?")]
+        ("error", 4, "unknown identifier 'a'")]
 
 
 def test_a_scalar_target():

@@ -22,6 +22,7 @@
 #include <set>
 #include "dmgr/IDebugMgr.h"
 #include "dmgr/impl/DebugMacros.h"
+#include "pssp/impl/DebugInitCached.h"
 #include "pssp/ast/impl/VisitorBase.h"
 #include "pssp/impl/TaskResolveSymbolPathRef.h"
 #include "pssp/impl/ActivityScopes.h"
@@ -37,7 +38,12 @@ public:
         ast::ISymbolScope       *root,
         const std::string       &logid="pssp::TaskGetElemSymbolScope") : 
         m_dbg(0), m_path_resolver(dmgr, root) {
-        DEBUG_INIT(logid.c_str(), dmgr);
+        // Only the default name is cached; the cache is per class.
+        if (logid == "pssp::TaskGetElemSymbolScope") {
+            DEBUG_INIT_CACHED("pssp::TaskGetElemSymbolScope", dmgr);
+        } else {
+            DEBUG_INIT(logid.c_str(), dmgr);
+        }
     }
 
     virtual ~TaskGetElemSymbolScope() { }

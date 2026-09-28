@@ -35,6 +35,7 @@
 #include "pssp/ast/ISymbolChildrenScope.h"
 #include "pssp/ast/ISymbolScope.h"
 #include "pssp/impl/NodeKind.h"
+#include "pssp/impl/TaskResolveSymbolPathRef.h"
 
 namespace pssp {
 
@@ -66,7 +67,8 @@ private:
 }
 
 TaskCheckRefsResolved::TaskCheckRefsResolved(ResolveContext *ctxt) :
-    m_ctxt(ctxt), m_coll(ctxt->getDebugMgr()), m_had_errors(false) {
+    m_ctxt(ctxt), m_coll(ctxt->getDebugMgr()), m_had_errors(false),
+    m_root(0), m_probe(false), m_suspect(false), m_generic_depth(0) {
     DEBUG_INIT("pssp::TaskCheckRefsResolved", ctxt->getDebugMgr());
 }
 
@@ -80,6 +82,24 @@ void TaskCheckRefsResolved::check(
     m_names.clear();
     m_checked.clear();
     m_had_errors = m_ctxt->hasErrors();
+    m_root = root;
+
+    // The probe. What makes this check exact -- the occurrence table and
+    // the set of every declared name -- is a walk of the whole model,
+    // stdlib included, and costs as much as resolving it did (a third of
+    // the link). Neither is needed to find that a reference is bound, only
+    // to say why one is not. So walk the user units once asking only
+    // "certainly bound?", and build the tables only when some reference is
+    // not. On a legal model none is.
+    m_probe = true;
+    m_suspect = false;
+    walkUnits(root, n_builtin_units);
+    m_probe = false;
+    m_checked.clear();
+    if (!m_suspect) {
+        DEBUG_LEAVE("check");
+        return;
+    }
 
     std::vector<Occurrence> occs;
     m_coll.collect(root, occs);
@@ -90,14 +110,23 @@ void TaskCheckRefsResolved::check(
 
     collectNames(root);
 
+    walkUnits(root, n_builtin_units);
+
+    DEBUG_LEAVE("check");
+}
+
+void TaskCheckRefsResolved::walkUnits(
+        ast::IRootSymbolScope   *root,
+        uint32_t                n_builtin_units) {
     for (uint32_t i=n_builtin_units; i<root->getUnits().size(); i++) {
         ast::IGlobalScope *unit = root->getUnits().at(i).get();
+        if (m_probe && m_suspect) {
+            break;
+        }
         if (unit->getFileid() >= 1) {
             unit->accept(m_this);
         }
     }
-
-    DEBUG_LEAVE("check");
 }
 
 void TaskCheckRefsResolved::visitTypeIdentifier(ast::ITypeIdentifier *i) {
@@ -106,7 +135,9 @@ void TaskCheckRefsResolved::visitTypeIdentifier(ast::ITypeIdentifier *i) {
         it=i->getElems().begin(); it!=i->getElems().end(); it++) {
         ids.push_back((*it)->getId());
     }
-    checkRef(ids, true);
+    checkRef(ids, true,
+        (ids.size())?ids.back():0,
+        i->getTarget());
     // On into the template arguments, which are references of their own.
     ast::VisitorBase::visitTypeIdentifier(i);
 }
@@ -116,7 +147,7 @@ void TaskCheckRefsResolved::visitExprRefName(ast::IExprRefName *i) {
     // struct literal of unknown type (8.9), a bind path past an unbound or
     // generic component (4.5).
     if (!i->getCtx_unknown()) {
-        checkRef({i->getId()}, false);
+        checkRef({i->getId()}, false, i->getId(), i->getTarget());
     }
 }
 
@@ -129,7 +160,9 @@ void TaskCheckRefsResolved::visitExprRefPathContext(ast::IExprRefPathContext *i)
             ids.push_back((*it)->getId());
         }
     }
-    checkRef(ids, false);
+    checkRef(ids, false,
+        (ids.size())?ids.front():0,
+        i->getTarget());
     // On into subscripts and call arguments.
     ast::VisitorBase::visitExprRefPathContext(i);
 }
@@ -141,7 +174,9 @@ void TaskCheckRefsResolved::visitExprRefPathStatic(ast::IExprRefPathStatic *i) {
             it=i->getBase().begin(); it!=i->getBase().end(); it++) {
             ids.push_back((*it)->getId());
         }
-        checkRef(ids, false);
+        checkRef(ids, false,
+            (ids.size())?ids.back():0,
+            i->getTarget());
     }
     ast::VisitorBase::visitExprRefPathStatic(i);
 }
@@ -150,6 +185,8 @@ void TaskCheckRefsResolved::visitExprRefPathStaticRooted(ast::IExprRefPathStatic
     // One reference, `p::T::f(1).x`: the root and the leaf are its two
     // halves, and a miss in the root means the leaf was never looked up.
     std::vector<ast::IExprId *> ids;
+    ast::IExprId *fallback = 0;
+    ast::ISymbolRefPath *target = 0;
     if (i->getRoot()) {
         for (std::vector<ast::ITypeIdentifierElemUP>::const_iterator
             it=i->getRoot()->getBase().begin();
@@ -157,6 +194,8 @@ void TaskCheckRefsResolved::visitExprRefPathStaticRooted(ast::IExprRefPathStatic
             ids.push_back((*it)->getId());
         }
         m_checked.insert(i->getRoot());
+        fallback = (ids.size())?ids.back():0;
+        target = i->getRoot()->getTarget();
     }
     if (i->getLeaf()) {
         for (std::vector<ast::IExprMemberPathElemUP>::const_iterator
@@ -165,7 +204,7 @@ void TaskCheckRefsResolved::visitExprRefPathStaticRooted(ast::IExprRefPathStatic
             ids.push_back((*it)->getId());
         }
     }
-    checkRef(ids, false);
+    checkRef(ids, false, fallback, target);
     ast::VisitorBase::visitExprRefPathStaticRooted(i);
 }
 
@@ -178,9 +217,12 @@ void TaskCheckRefsResolved::visitExtendType(ast::IExtendType *i) {
 }
 
 void TaskCheckRefsResolved::visitTypeScope(ast::ITypeScope *i) {
+    bool generic = OccurrenceCollector::isGeneric(i);
+    m_generic_depth += generic;
     m_type_s.push_back(i);
     ast::VisitorBase::visitTypeScope(i);
     m_type_s.pop_back();
+    m_generic_depth -= generic;
 }
 
 void TaskCheckRefsResolved::visitAnnotation(ast::IAnnotation *i) {
@@ -202,7 +244,15 @@ void TaskCheckRefsResolved::visitAnnotationParam(ast::IAnnotationParam *i) {
 
 void TaskCheckRefsResolved::checkRef(
         const std::vector<ast::IExprId *>   &ids,
-        bool                                is_type) {
+        bool                                is_type,
+        ast::IExprId                        *fallback,
+        ast::ISymbolRefPath                 *target) {
+    if (m_probe) {
+        if (!m_suspect && !probeBound(ids, fallback, target)) {
+            m_suspect = true;
+        }
+        return;
+    }
     for (std::vector<ast::IExprId *>::const_iterator
         it=ids.begin(); it!=ids.end(); it++) {
         if (*it && m_ctxt->wasReported((*it)->getLocation())) {
@@ -301,6 +351,44 @@ void TaskCheckRefsResolved::checkRef(
         }
         return;
     }
+}
+
+bool TaskCheckRefsResolved::probeBound(
+        const std::vector<ast::IExprId *>   &ids,
+        ast::IExprId                        *fallback,
+        ast::ISymbolRefPath                 *target) {
+    // Each rule is one under which OccurrenceCollector never classifies a
+    // name Unresolved, so the full check would not report the reference.
+    for (std::vector<ast::IExprId *>::const_iterator
+        it=ids.begin(); it!=ids.end(); it++) {
+        if (*it && m_ctxt->wasReported((*it)->getLocation())) {
+            return true;
+        }
+    }
+    if (m_generic_depth) {
+        // Bound in every specialization alike, or Dependent.
+        return true;
+    }
+    for (std::vector<ast::IExprId *>::const_iterator
+        it=ids.begin(); it!=ids.end(); it++) {
+        ast::IExprId *id = *it;
+        if (!id || !OccurrenceCollector::isKeyable(id)) {
+            return true;
+        }
+        if (id->getDecl()) {
+            continue;
+        }
+        if (id == fallback && target
+                && TaskResolveSymbolPathRef(0, m_root).resolve(target)) {
+            continue;
+        }
+        const std::string &text = id->getId();
+        if (text == "this" || text == "comp") {
+            continue;
+        }
+        return false;
+    }
+    return true;
 }
 
 bool TaskCheckRefsResolved::hasUnboundType(ast::IScopeChild *decl) {

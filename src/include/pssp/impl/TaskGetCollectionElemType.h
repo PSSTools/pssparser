@@ -18,6 +18,7 @@
 #pragma once
 #include "dmgr/IDebugMgr.h"
 #include "dmgr/impl/DebugMacros.h"
+#include "pssp/impl/DebugInitCached.h"
 #include "pssp/ast/impl/VisitorBase.h"
 #include "pssp/impl/BuiltinCollectionUtil.h"
 #include "pssp/impl/TaskResolveSymbolPathRef.h"
@@ -48,7 +49,7 @@ public:
         dmgr::IDebugMgr         *dmgr,
         ast::ISymbolScope       *root) :
         m_dbg(0), m_path_resolver(dmgr, root), m_ret(0) {
-        DEBUG_INIT("pssp::TaskGetCollectionElemType", dmgr);
+        DEBUG_INIT_CACHED("pssp::TaskGetCollectionElemType", dmgr);
     }
 
     virtual ~TaskGetCollectionElemType() { }

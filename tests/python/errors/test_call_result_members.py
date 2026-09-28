@@ -102,12 +102,12 @@ def test_a_parameter_name_is_not_a_member_of_the_call_result():
     resolve while ``x`` -- which *is* a member of the return type -- did not."""
     assert_rejects([("t.pss",
         STRUCT + "function S f(int p); function void g() { int v; v = f(1).p; }")],
-        "Failed to find elem p")
+        "'f()' has no member named 'p'")
 
 
 @pytest.mark.parametrize("src,expected", [
     (STRUCT + "function S f(); function void g() { int v; v = f().zzz; }",
-     "Failed to find elem zzz"),
+     "'f()' has no member named 'zzz'"),
     ("package p { struct S { int x; } function S f(); }\n"
         "function void g() { int v; v = p::f().zzz; }",
      "'S' has no member named 'zzz'"),
@@ -217,7 +217,7 @@ def test_a_collection_method_on_a_call_result_resolves():
 def test_an_unknown_collection_method_on_a_call_result_is_reported():
     assert_rejects([("t.pss",
         "function list<int> f(); function void g() { f().nosuchmeth(1); }")],
-        "Failed to find elem nosuchmeth")
+        "'f()' has no member named 'nosuchmeth'")
 
 
 def test_a_member_of_a_scalar_call_result_is_reported():

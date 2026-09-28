@@ -638,13 +638,24 @@ void TaskApplyTypeExtensions::mergeIntoGenericAst(
     // into each specialization and resolved there -- one shared node merged
     // into the generic could only ever have one binding.
     //
-    // Non-templated types are left alone: they are never copied, so the symbol
-    // merge above is the whole story for them, and adding the same nodes twice
-    // would only create a second path to them.
+    // The same holds for a type declared *inside* a generic, at any depth:
+    // `extend struct C::s` where C is generic. A specialization of C copies
+    // C's AST, s with it, so s's extension has to be in that AST too (SR-F3).
+    //
+    // Types outside every generic are left alone: they are never copied, so
+    // the symbol merge above is the whole story for them, and adding the same
+    // nodes twice would only create a second path to them.
     ast::ITypeScope *target_ast = NodeKind::cast<ast::ITypeScope>(
         target_s->getTarget());
 
-    if (!target_ast || !target_ast->getParams()) {
+    bool in_generic = false;
+    int32_t depth = 0;
+    for (ast::IScopeChild *c=target_ast; c && !in_generic && depth<64;
+            c=c->getParent(), depth++) {
+        ast::ITypeScope *ts = NodeKind::cast<ast::ITypeScope>(c);
+        in_generic = (ts && ts->getParams() && !ts->getParams()->getSpecialized());
+    }
+    if (!target_ast || !in_generic) {
         return;
     }
 

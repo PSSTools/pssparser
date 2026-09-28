@@ -52,6 +52,36 @@
 
 namespace pssp {
 
+/**
+ * What the user wrote for `ctx`, from the input rather than from the tokens:
+ * getText() joins tokens with nothing between them, so `X > 1` read as
+ * 'X>1'. Runs of whitespace, a line break among them, become one space.
+ */
+static std::string sourceText(antlr4::ParserRuleContext *ctx) {
+    if (!ctx || !ctx->start || !ctx->stop
+            || ctx->stop->getStopIndex() < ctx->start->getStartIndex()
+            || !ctx->start->getInputStream()) {
+        return (ctx)?ctx->getText():std::string();
+    }
+    std::string raw = ctx->start->getInputStream()->getText(
+        antlr4::misc::Interval(
+            ctx->start->getStartIndex(), ctx->stop->getStopIndex()));
+    std::string ret;
+    bool ws = false;
+    for (std::string::const_iterator it=raw.begin(); it!=raw.end(); it++) {
+        if (*it == ' ' || *it == '\t' || *it == '\n' || *it == '\r') {
+            ws = true;
+            continue;
+        }
+        if (ws && ret.size()) {
+            ret.push_back(' ');
+        }
+        ws = false;
+        ret.push_back(*it);
+    }
+    return ret;
+}
+
 
 
 using namespace ast;
@@ -3393,7 +3423,7 @@ ast::IExpr *AstBuilderInt::mkMsbWidth(
 		snprintf(tmp, sizeof(tmp),
 			"unexpected low bound '%s' in an integer width; "
 			"only '0' is permitted, as in 'bit[7:0]'",
-			lsb_ctx->getText().c_str());
+			sourceText(lsb_ctx).c_str());
 
 		Marker m(tmp, MarkerSeverityE::Error, loc);
 		if (m_marker_l) { m_marker_l->marker(&m); }
@@ -6753,7 +6783,7 @@ bool AstBuilderInt::evalCompileTimeCond(
         "Compile-time expressions may reference only types and constants declared "
         "in this source unit or in a previously-processed one (PSS 3.1 19.1.2)",
         construct,
-        ctx->getText().c_str());
+        sourceText(ctx).c_str());
 
     return false;
 }
@@ -7898,7 +7928,7 @@ ast::IDataType *AstBuilderInt::mkDataType(PSSParser::Data_typeContext *ctx) {
 	ctx->accept(this);
     if (!m_type) {
         addInternalError(ctx->getStart(), "no data type built for '%s'",
-            ctx->getText().c_str());
+            sourceText(ctx).c_str());
     }
 	return m_type;
 }

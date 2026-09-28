@@ -22,6 +22,7 @@
 #include <set>
 #include "dmgr/IDebugMgr.h"
 #include "dmgr/impl/DebugMacros.h"
+#include "pssp/impl/DebugInitCached.h"
 #include "pssp/ast/impl/VisitorBase.h"
 #include "pssp/impl/TaskResolveSymbolPathRef.h"
 
@@ -36,7 +37,7 @@ public:
     TaskIsPyRef(
         dmgr::IDebugMgr     *dmgr,
         ast::ISymbolScope   *root) : m_dmgr(dmgr), m_dbg(0), m_root(root) {
-        DEBUG_INIT("pssp::TaskIsPyRef", dmgr);
+        DEBUG_INIT_CACHED("pssp::TaskIsPyRef", dmgr);
     }
 
     virtual ~TaskIsPyRef() { }

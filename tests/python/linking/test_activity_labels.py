@@ -88,7 +88,7 @@ def test_lrm_example_124():
 def test_a_path_may_not_skip_a_level():
     """`my_rep` is reachable only as `my_seq.my_rep` (11.8.3)."""
     code = EX124.replace("b1.my_seq.my_rep.a.x == 3", "b1.my_rep.a.x == 3")
-    assert markers(code) == [("PSS002", 27, "Failed to find elem my_rep")]
+    assert markers(code) == [("PSS002", 27, "'b1' has no member named 'my_rep'; did you mean 'my_seq'?")]
 
 
 EX115 = """\
@@ -299,7 +299,7 @@ component pss_top {
   action C { B b; constraint b.I.L.x == 1; constraint b.I.h.x == 1; activity { b; } }
 }
 """
-    assert markers(code) == [("PSS002", 4, "Failed to find elem h")]
+    assert markers(code) == [("PSS002", 4, "'I' has no member named 'h'")]
 
 
 def test_a_replicate_exposes_only_its_label_array():
@@ -316,7 +316,7 @@ component pss_top {
   }
 }
 """
-    assert markers(code) == [("PSS002", 7, "Failed to find elem h")]
+    assert markers(code) == [("PSS002", 7, "'R' has no member named 'h'")]
 
 
 def test_monitor_labels_form_no_paths():
@@ -327,7 +327,7 @@ component pss_top {
   monitor N { M m1; constraint m1.S.a.x == 1; activity { m1; } }
 }
 """
-    assert markers(code) == [("PSS002", 4, "Failed to find elem S")]
+    assert markers(code) == [("PSS002", 4, "'m1' has no member named 'S'")]
 
 
 # -- Decision C-N4 -------------------------------------------------------------
@@ -353,7 +353,7 @@ component pss_top {
   action B { A a; activity { T: a; } constraint T.nosuch < 3; }
 }
 """
-    assert markers(code) == [("PSS002", 3, "Failed to find elem nosuch")]
+    assert markers(code) == [("PSS002", 3, "'T' has no member named 'nosuch'")]
 
 
 def test_a_label_path_into_an_action_declared_later():
@@ -369,4 +369,4 @@ component pss_top {
     assert markers(code) == []
     assert bindings(code, "x")[-1] == ("x", 3, "Field", 2)
     code = code.replace("RL[0].a.x", "RL[0].a.nosuch")
-    assert markers(code) == [("PSS002", 3, "Failed to find elem nosuch")]
+    assert markers(code) == [("PSS002", 3, "'a' has no member named 'nosuch'")]

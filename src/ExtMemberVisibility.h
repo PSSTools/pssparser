@@ -51,8 +51,9 @@ namespace pssp {
  *    the type's own, and because warning on them would fire on nearly every
  *    model that extends a type where it is declared.
  *
- * Anything else is not visible at R. Such a use still binds, to the member
- * the linker has always bound, and is warned about (warn-first, plan §8).
+ * Anything else is not visible at R. Such a use is an error (PSS051; a
+ * warning in 3.1.7), and still binds, to the member the linker has always
+ * bound, so that what follows is checked against it.
  *
  * The same rule applies to an enum item an `extend enum` adds (p46c): its
  * package is that of the statement it is written in.

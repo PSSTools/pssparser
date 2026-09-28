@@ -21,6 +21,7 @@
 #pragma once
 #include "dmgr/IDebugMgr.h"
 #include "dmgr/impl/DebugMacros.h"
+#include "pssp/impl/DebugInitCached.h"
 #include "pssp/ast/impl/VisitorBase.h"
 #include "pssp/impl/TaskResolveSymbolPathRef.h"
 
@@ -36,7 +37,7 @@ public:
         dmgr::IDebugMgr     *dmgr,
         ast::ISymbolScope   *root_scope) : 
         m_dmgr(dmgr), m_dbg(0), m_root_scope(root_scope) {
-        DEBUG_INIT("pssp::TaskIndexField", dmgr);
+        DEBUG_INIT_CACHED("pssp::TaskIndexField", dmgr);
     }
 
     virtual ~TaskIndexField() { }

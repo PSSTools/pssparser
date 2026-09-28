@@ -67,11 +67,13 @@ public:
      *   nor ``IExpr`` carries a location, so the individual argument cannot be
      *   pointed at; the reference that spells the argument list can, and the
      *   message names the parameter.
+     * @param type_name the generic's name, for the messages that name it.
      */
     ast::ITemplateParamDeclList *build(
         ast::ISymbolScope               *plist,
         ast::ITemplateParamValueList    *pvals,
-        const ast::Location             &use_loc);
+        const ast::Location             &use_loc,
+        const std::string               &type_name="");
 
     virtual void visitDataTypeEnum(ast::IDataTypeEnum *i) override;
 

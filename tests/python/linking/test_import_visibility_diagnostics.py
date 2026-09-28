@@ -35,7 +35,10 @@ def bindings(code, *names):
     """(name, line of use, line its declaration's name is on) per use."""
     p = pssparser.Parser()
     p.parses([("t.pss", code)])
-    p.link()
+    try:
+        p.link()
+    except pssparser.ParseException:
+        pass    # an error model still binds (refs takes a failed link)
     return [(o.text, o.line, o.decl_location.line if o.decl_location else None)
             for o in refs.occurrences(p)
             if o.text in names and not o.is_declaration]
@@ -92,7 +95,8 @@ package p {
 
 
 def test_two_explicit_imports_of_one_name_used():
-    """The use is still the error it was; the import pair is a warning."""
+    """The import pair is the error; the use it makes ambiguous is not
+    reported again (one mistake, one message)."""
     code = """\
 package lib1 { struct s { } }
 package lib2 { struct s { } }
@@ -102,7 +106,7 @@ package p {
   struct t { s f; }
 }
 """
-    assert markers(code) == [("PSS052", 5), ("PSS017", 6)]
+    assert markers(code) == [("PSS052", 5)]
 
 
 def test_explicit_imports_that_do_not_conflict():
@@ -288,7 +292,10 @@ def test_an_import_in_another_file_does_not_make_it_visible():
                   "  action A { rand S v; constraint v.b == 1; }\n"
                   "}\n"),
     ])
-    p.link()
+    try:
+        p.link()
+    except pssparser.ParseException:
+        pass
     assert [(m["file"], m["line"], m["message"].split(" (")[0])
             for m in p.markers] == [
         ("b.pss", 2, "'b' is declared by an extension of 'S' in package "

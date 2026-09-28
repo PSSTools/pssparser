@@ -49,8 +49,6 @@ UNBOUND = {
 
 #: T-miss slots that are not reported yet, and the plan item that makes them.
 SILENT = {
-    "ovr_inst": "U5: instance-override targets (no tracker item yet)",
-    "ovr_inst__member": "U5: instance-override targets (no tracker item yet)",
 }
 
 #: Reference fields that cannot have a T-miss slot, and why.

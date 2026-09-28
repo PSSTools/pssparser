@@ -344,6 +344,17 @@ public:
     bool wasReported(const ast::Location &loc) const;
 
     /**
+     * Records `loc` as reported without reporting anything: the error there
+     * is a consequence of one already given elsewhere, which explains it.
+     * Later passes then stay quiet about it, as for wasReported().
+     */
+    void markExplained(const ast::Location &loc) {
+        if (!m_quiet) {
+            m_reported.insert(std::make_tuple(loc.fileid, loc.lineno, loc.linepos));
+        }
+    }
+
+    /**
      * True if a marker of any severity -- a warning included -- has been
      * reported at this position, by any of the linker's passes.
      */

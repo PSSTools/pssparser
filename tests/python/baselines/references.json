@@ -4,16 +4,15 @@
   "slots": 96,
   "slots_by_state": {
    "clean": 3,
-   "reported": 91,
-   "silent": 2
+   "reported": 93
   },
   "legal_model": "clean",
   "corpus_refs": {
-   "bound": 1244,
+   "bound": 1313,
    "dependent": 2
   },
   "schema_ref_fields": 46,
-  "schema_ref_fields_in_corpus": 21,
+  "schema_ref_fields_in_corpus": 26,
   "schema_ref_fields_in_slots": 45
  },
  "schema_ref_fields": {
@@ -200,7 +199,7 @@
   "ExprAggrStructElem.name": {
    "type": "ExprRefName",
    "visit": true,
-   "in_corpus": false,
+   "in_corpus": true,
    "in_slots": true
   },
   "ExprCompileHas.ref": {
@@ -242,13 +241,13 @@
   "InstanceOverride.target": {
    "type": "ExprRefPathContext",
    "visit": true,
-   "in_corpus": false,
+   "in_corpus": true,
    "in_slots": true
   },
   "InstanceOverride.with_t": {
    "type": "TypeIdentifier",
    "visit": true,
-   "in_corpus": false,
+   "in_corpus": true,
    "in_slots": true
   },
   "PackageImportStmt.path": {
@@ -278,13 +277,13 @@
   "TypeOverride.target": {
    "type": "TypeIdentifier",
    "visit": true,
-   "in_corpus": false,
+   "in_corpus": true,
    "in_slots": true
   },
   "TypeOverride.with_t": {
    "type": "TypeIdentifier",
    "visit": true,
-   "in_corpus": false,
+   "in_corpus": true,
    "in_slots": true
   },
   "TypeScope.super_t": {
@@ -347,8 +346,8 @@
   "join_sel": "reported",
   "mon_trav": "reported",
   "mustache": "reported",
-  "ovr_inst": "silent",
-  "ovr_inst__member": "silent",
+  "ovr_inst": "reported",
+  "ovr_inst__member": "reported",
   "ovr_type": "reported",
   "pforeach": "reported",
   "pkg_import": "reported",
@@ -394,11 +393,11 @@
   "xbins_with": "reported"
  },
  "bind": {
-  "files": 95,
-  "clean_files": 53,
+  "files": 99,
+  "clean_files": 57,
   "fields": {
    "ActivityActionHandleTraversal.target | ExprRefPathContext": {
-    "bound": 38
+    "bound": 43
    },
    "ActivityForeach.path | ExprRefPathContext": {
     "bound": 1
@@ -458,35 +457,44 @@
     "bound": 2
    },
    "DataTypeUserDefined.type_id | TypeIdentifier": {
-    "bound": 507,
+    "bound": 537,
     "dependent": 1
    },
    "ExprAggrList.elems | ExprRefPathContext": {
     "bound": 1
    },
+   "ExprAggrStructElem.name | ExprRefName": {
+    "bound": 2
+   },
    "ExprBin.lhs | ExprRefPathContext": {
-    "bound": 118
+    "bound": 122
    },
    "ExprBin.lhs | ExprRefPathSuper": {
     "bound": 1
    },
    "ExprBin.rhs | ExprRefPathContext": {
-    "bound": 45
+    "bound": 46
+   },
+   "ExprBin.rhs | ExprRefPathStatic": {
+    "bound": 1
    },
    "ExprBin.rhs | ExprRefPathSuper": {
+    "bound": 1
+   },
+   "ExprCast.expr | ExprRefPathStatic": {
     "bound": 1
    },
    "ExprDomainOpenRangeValue.rhs | ExprRefPathContext": {
     "dependent": 1
    },
    "ExprIn.lhs | ExprRefPathContext": {
-    "bound": 10
+    "bound": 11
    },
    "ExprMemberPathElem.subscript | ExprRefPathContext": {
     "bound": 1
    },
    "ExprOpenRangeValue.lhs | ExprRefPathContext": {
-    "bound": 6
+    "bound": 9
    },
    "ExprRefPathStaticRooted.root | ExprRefPathStatic": {
     "bound": 1
@@ -500,14 +508,20 @@
    "ExtendType.target | TypeIdentifier": {
     "bound": 7
    },
+   "InstanceOverride.target | ExprRefPathContext": {
+    "bound": 2
+   },
+   "InstanceOverride.with_t | TypeIdentifier": {
+    "bound": 2
+   },
    "MethodParameterList.parameters | ExprRefPathContext": {
-    "bound": 32
+    "bound": 33
    },
    "MethodParameterList.parameters | ExprRefPathSuper": {
     "bound": 1
    },
    "PackageImportStmt.path | TypeIdentifier": {
-    "bound": 82
+    "bound": 86
    },
    "ProceduralStmtAssignment.lhs | ExprRefPathContext": {
     "bound": 44
@@ -518,8 +532,11 @@
    "ProceduralStmtAssignment.rhs | ExprRefPathStaticRooted": {
     "bound": 1
    },
+   "ProceduralStmtDataDeclaration.init | ExprRefPathContext": {
+    "bound": 1
+   },
    "ProceduralStmtExpr.expr | ExprRefPathContext": {
-    "bound": 15
+    "bound": 17
    },
    "ProceduralStmtForeach.path | ExprRefPathContext": {
     "bound": 1
@@ -542,8 +559,14 @@
    "TemplateForeach.expr | ExprRefPathContext": {
     "bound": 1
    },
+   "TypeOverride.target | TypeIdentifier": {
+    "bound": 2
+   },
+   "TypeOverride.with_t | TypeIdentifier": {
+    "bound": 2
+   },
    "TypeScope.super_t | TypeIdentifier": {
-    "bound": 153
+    "bound": 158
    }
   }
  }

@@ -47,7 +47,7 @@ component der_c : base_c {
   struct w { rand s f; }
 }
 component pss_top { der_c d; }
-""") == ["unknown type 's'; did you mean 'P'?"]
+""") == ["unknown type 's'"]
 
 
 def test_own_template_parameter_hides_a_component_import():

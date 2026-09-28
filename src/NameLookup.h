@@ -158,8 +158,8 @@ public:
      * 17.2.3: of the members named `id` that extensions in different
      * packages contribute to `t`, the one visible where `id` is written;
      * `idx` is t's symtab entry for the name, returned when no extension
-     * contributes it. A use that sees none is warned about (PSS051) and one
-     * that two imported packages offer is an error (PSS017); either keeps
+     * contributes it. A use that sees none is an error (PSS051), and so is
+     * one that two imported packages offer (PSS017); either keeps
      * the binding it has always had. See ExtMemberVisibility.
      */
     static int32_t visibleExtMember(
@@ -169,7 +169,7 @@ public:
         int32_t                     idx);
 
     /**
-     * Warn (PSS051) if item `idx` of `e`, named by `id`, is one an `extend
+     * Report (PSS051) if item `idx` of `e`, named by `id`, is one an `extend
      * enum` in a package not visible at `id` adds (17.2.3, p46c).
      */
     static void checkExtItem(

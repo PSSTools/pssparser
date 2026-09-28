@@ -311,7 +311,7 @@ package p {
     "use,expect",
     [
         ("struct Top { int n; constraint { n == P<int,1,2,3>::nbytes; } }",
-         "type accepts 2 template parameter(s) but 4 supplied"),
+         "'P' takes 2 template arguments, but 4 are given"),
         ("struct Top { int n; constraint { n == P<int>::nbytes; } }",
          "no value supplied for template parameter 'N'"),
     ],

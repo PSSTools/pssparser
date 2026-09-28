@@ -7,6 +7,81 @@ revision advances only the patch component.
 
 ## Unreleased
 
+### Changed — two import-visibility warnings are now errors (LRM 17.2.3, 18.1.3)
+
+After a release as warnings:
+
+- **PSS051**: using a member or enum item that an extension in another package
+  adds, where that package is not imported.
+- **PSS052**: an explicit import of a name the namespace already declares, or
+  of one name from two packages. A use of the name the clashing imports make
+  ambiguous is no longer also reported (PSS017).
+
+PSS046 (an enum item where no enum type is expected) and PSS053 (an import
+after a declaration) remain warnings.
+
+### Changed — linking is about twice as fast on large models
+
+Link time on an 800-file model fell from 1.59G to 0.79G instructions (wall
+clock at 1,600 files: 880 ms to 445 ms), with every diagnostic unchanged. The
+completeness check builds its whole-model tables only when some reference is
+left unbound; a path step no longer classifies its scope twice, nor walks a
+package's imports to do it; the per-reference tasks look up their debug scope
+once; and the packed-use and `compile if` passes skip what cannot concern them.
+
+### Added — codes for the last uncoded linker diagnostics (symbol-resolution 12.1)
+
+Every diagnostic the linker issues now has a code:
+
+- **PSS059**: cyclic inheritance.
+- **PSS060**: a template argument list that does not match the parameters.
+  Reworded: "type accepts 2 template parameter(s) but 3 supplied" is now
+  "'array' takes 2 template arguments, but 3 are given", and "No default
+  provided for template parameter T" is now "no type supplied for template
+  parameter 'T', and it has no default".
+- **PSS061**: a type argument of the wrong category, or outside its
+  parameter's restriction.
+- **PSS062**: a recursive specialization that does not terminate.
+- **PSS063**: an invalid `override action`.
+- "cannot resolve 'y': the enclosing scope is unknown" is PSS002.
+
+### Changed — clearer resolution messages (symbol-resolution 12.2)
+
+- "Failed to find elem x" is now "'s' has no member named 'x'", naming what
+  precedes the dot (`'f()'` for a call's result), with "did you mean" when a
+  member is spelled close to it.
+- A "did you mean" suggestion is no longer offered for a one- or two-letter
+  name that merely happens to be close to another (`'a1'` suggested `'gs'`);
+  swapped neighbouring letters count as one edit (`IDEL` suggests `IDLE`).
+- PSS003, a duplicate declaration, points at the first declaration too.
+- A `compile if` or `compile assert` condition is quoted as written
+  (`'X > 1'`, was `'X>1'`).
+
+### Added — instance-override paths are checked (LRM 17.5)
+
+In `instance xlator.axi_action with T;` the path was never resolved, so a
+misspelled one was accepted. It now resolves as a field path from the type
+the `override` block is in, and a name that is not there is PSS002.
+
+### Added — a struct literal compared with `==` or `!=` is checked (LRM 8.4.2)
+
+`s == {.a = 2}` takes the literal's type from the other operand, as LRM
+Ex. 36 describes, so an unknown member name in it is reported (PSS002). It
+used to go unchecked.
+
+### Fixed — an extension of a type nested in a generic reaches its instances
+
+`extend struct C::s { ... }` and `extend component C { extend struct s
+{ ... } }`, with `C` generic, now add their members to `s` in every instance
+of `C`, binding `C`'s parameters per instance (known issue SR-F3).
+
+### Fixed — `pssparser.refs` and the leading names of `package a::b::c`
+
+`a` and `b` in `package a::b::c { }` were reported unresolved, and a use of
+`a::` elsewhere as a built-in with no declaration. Each now names its
+package: the first such name declares a package that no `package`
+statement of its own declares.
+
 ### Added — agent skills ship in the wheel
 
 The wheel now carries three agent skills under `pssparser/share/skills/`, each

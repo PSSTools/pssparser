@@ -64,7 +64,7 @@ struct S {
 }
 """
     assert markers(code) == [
-        ("error", 4, "Failed to find elem nosuch"),
+        ("error", 4, "'p' has no member named 'nosuch'"),
         ("error", 4, "unknown identifier 'zzz'"),
     ]
 
@@ -78,7 +78,7 @@ struct S {
   constraint { ok(p1); }
 }
 """
-    assert markers(code) == [("error", 5, "Failed to find elem zz")]
+    assert markers(code) == [("error", 5, "'p' has no member named 'zz'")]
     assert bindings(code.replace("p.zz", "p.a"), "p") == [
         (4, "GenericConstraintParam", 4), (5, "GenericConstraintParam", 5)]
 
@@ -105,7 +105,7 @@ struct S {
 }
 """
     assert markers(code) == [
-        ("error", 4, "unknown identifier 'v'; did you mean 'S'?")]
+        ("error", 4, "unknown identifier 'v'")]
 
 
 def test_an_enum_parameter_is_the_expected_type():
@@ -184,7 +184,7 @@ struct S <int W = 4> {
 struct T { S<8> s; }
 """
     assert [m for m in markers(code) if m[0] == "error"] == [
-        ("error", 4, "Failed to find elem nosuch")]
+        ("error", 4, "'p' has no member named 'nosuch'")]
 
 
 def test_a_package_scope_generic_constraint():

@@ -21,6 +21,7 @@
 #include <string>
 #include "dmgr/IDebugMgr.h"
 #include "dmgr/impl/DebugMacros.h"
+#include "pssp/impl/DebugInitCached.h"
 #include "pssp/IFactory.h"
 #include "pssp/IValInt.h"
 #include "pssp/ast/impl/VisitorBase.h"
@@ -94,7 +95,7 @@ public:
         ast::ISymbolScope       *root) :
             m_dbg(0), m_factory(factory), m_root(root),
             m_resolver(factory->getDebugMgr(), root) {
-        DEBUG_INIT("pssp::TaskClassifyPackable", factory->getDebugMgr());
+        DEBUG_INIT_CACHED("pssp::TaskClassifyPackable", factory->getDebugMgr());
     }
 
     virtual ~TaskClassifyPackable() { }

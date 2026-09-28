@@ -97,7 +97,7 @@ def test_plain_struct_has_no_uid():
     assert errors("""
 struct S { rand int a; }
 component pss_top { action A { rand S s; rand bit[32] t; constraint t == s.uid; } }
-""") == [("PSS002", "Failed to find elem uid")]
+""") == [("PSS002", "'s' has no member named 'uid'")]
 
 
 @pytest.mark.parametrize("code,name,kind", [
@@ -167,7 +167,7 @@ def test_prev_member_miss_in_a_specialization():
     assert errors("""
 state S <int W=4> { rand bit[W] d; constraint prev.nosuch <= d; }
 component pss_top { pool S<8> p; }""") == [
-        ("PSS002", "Failed to find elem nosuch")]
+        ("PSS002", "'prev' has no member named 'nosuch'")]
 
 
 def test_prev_in_a_derived_state_has_the_derived_type():
@@ -265,7 +265,7 @@ component c_t <int W=4> {
   action A { rand bit[W] y; constraint y == comp.nosuch; }
 }
 component pss_top { c_t<8> c; }
-""") == [("PSS002", "Failed to find elem nosuch")]
+""") == [("PSS002", "'comp' has no member named 'nosuch'")]
 
 
 def test_comp_in_an_abstract_action_outside_a_component():

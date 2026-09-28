@@ -155,6 +155,28 @@ REPRESENTATIVE_MESSAGES = [
                "write 'extend monitor M' (17.2)"),
     ("PSS058", "'extend monitor' names 'A', which is an action; "
                "write 'extend action A' (17.2)"),
+    ("PSS059", "cyclic inheritance: 'A' -> 'B' -> 'A'"),
+    ("PSS060", "'array' takes 2 template arguments, but 3 are given"),
+    ("PSS060", "'list' takes 1 template argument, but 2 are given"),
+    ("PSS060", "no value supplied for template parameter 'N', and it has "
+               "no default"),
+    ("PSS060", "no type supplied for template parameter 'T', and it has "
+               "no default"),
+    ("PSS060", "template type 'P' requires a template argument list"),
+    ("PSS061", "template parameter 'T' requires an argument of type category "
+               "'struct', but the argument 'c' is of category 'component'"),
+    ("PSS061", "template parameter 'T' is restricted to 'base_s' and its "
+               "subtypes, but the argument 'x_s' does not derive from "
+               "'base_s'"),
+    ("PSS062", "recursive specialization of 'S' exceeded the maximum depth "
+               "of 32: each step specializes on a larger argument than the "
+               "last, so the chain does not terminate"),
+    ("PSS063", "cannot override action 'A': no action of that name is "
+               "declared in a base component of 'C'"),
+    ("PSS063", "cannot override template action 'A'"),
+    ("PSS063", "action 'A' must be declared 'override': 'C' declares it as "
+               "an override action"),
+    ("PSS002", "cannot resolve 'y': the enclosing scope is unknown"),
     ("PSS003", "duplicate declaration of 'attr' in an extension of an "
                "instance of 'domain_s': the type already declares it (17.2.3)"),
     ("PSS017", "ambiguous reference to 'b': extensions of 'S' in package 'p' "

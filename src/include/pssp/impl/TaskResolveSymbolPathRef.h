@@ -22,6 +22,7 @@
 #include "pssp/impl/InternalError.h"
 #include <vector>
 #include "dmgr/impl/DebugMacros.h"
+#include "pssp/impl/DebugInitCached.h"
 #include "dmgr/IDebugMgr.h"
 #include "pssp/ast/ISymbolScope.h"
 #include "pssp/ast/ISymbolRefPath.h"
@@ -49,7 +50,7 @@ public:
         ast::ISymbolChildrenScope   *root,
         ast::ISymbolChildrenScope   *inline_ctxt=0) : 
         m_dbg(0), m_root(root), m_inline_ctxt(inline_ctxt), m_depth(0) { 
-        DEBUG_INIT("TaskResolveSymbolPathRef", dmgr);
+        DEBUG_INIT_CACHED("TaskResolveSymbolPathRef", dmgr);
     }
 
     virtual ~TaskResolveSymbolPathRef() { }
@@ -205,9 +206,7 @@ public:
             }
             
             if (it+1 != ref->getPath().end()) {
-                ScopeUtil scope_t(ret);
-
-                if (!scope_t.valid()) {
+                if (!scope.init(ret)) {
                     // Null is the answer, and every caller handles it: the
                     // reference is reported (or, for now, left unbound) where
                     // it is used. Printing here put "Error: ..." on stdout
@@ -217,8 +216,6 @@ public:
                         (it-ref->getPath().begin()), ref->getPath().size());
                     ret = 0;
                     break;
-                } else {
-                    scope.init(ret);
                 }
             }
         }
@@ -229,7 +226,7 @@ public:
     }
 
     template <class T> T *resolveT(const ast::ISymbolRefPath *ref) {
-        return dynamic_cast<T *>(resolve(ref));
+        return NodeKind::cast<T>(resolve(ref));
     }
 
     ISymbolTableIterator *mkIterator(

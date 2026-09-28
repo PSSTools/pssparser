@@ -188,7 +188,7 @@ extend struct t<1> { rand int x; }
 
 def test_a_wrong_argument_list_and_an_unknown_argument():
     assert [c for c, _ in markers(DOMAIN + "extend struct domain_s<1,2,3> { }\n")] \
-        == [None]   # E9-S7-D1: the arity message has no code yet
+        == ["PSS060"]
     assert markers(DOMAIN + "extend struct domain_s<nosuch> { }\n") == [
         ("PSS002", 5)]
 

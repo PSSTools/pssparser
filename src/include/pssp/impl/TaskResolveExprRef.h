@@ -21,6 +21,7 @@
 #pragma once
 #include "dmgr/IDebugMgr.h"
 #include "dmgr/impl/DebugMacros.h"
+#include "pssp/impl/DebugInitCached.h"
 #include "pssp/ast/impl/VisitorBase.h"
 
 
@@ -34,7 +35,7 @@ public:
         dmgr::IDebugMgr                 *dmgr,
         ast::ISymbolChildrenScope       *root) :
         m_dbg(0), m_dmgr(dmgr), m_root(root), m_ret(0) {
-        DEBUG_INIT("pssp::TaskResolveExprRef", dmgr);
+        DEBUG_INIT_CACHED("pssp::TaskResolveExprRef", dmgr);
     }
 
     virtual ~TaskResolveExprRef() { }

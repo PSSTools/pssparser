@@ -19,9 +19,12 @@
 #include <map>
 #include <string>
 #include <tuple>
+#include <vector>
 #include <unordered_map>
 #include "dmgr/IDebugMgr.h"
 #include "pssp/IOccurrenceCollector.h"
+#include "pssp/ast/ITemplateParamDeclList.h"
+#include "pssp/ast/ITypeScope.h"
 
 namespace pssp {
 
@@ -69,6 +72,13 @@ public:
         return hasLocation(id) && id->getLocation().fileid >= 1;
     }
 
+    /** A generic template: parameters, and not a specialization. */
+    static bool isGeneric(ast::ITypeScope *ts) {
+        return ts && ts->getParams()
+            && !ts->getParams()->getSpecialized()
+            && ts->getParams()->getParams().size();
+    }
+
     /** The name a declaration is declared by, or null. */
     ast::IExprId *nameOf(ast::IScopeChild *c);
 
@@ -88,6 +98,9 @@ public:
     void addDecl(ast::IScopeChild *c);
 
     void addPackage(ast::IPackageScope *p);
+
+    /** Binds the leading names of every `package a::b::c` (see addPackage). */
+    void bindPackagePrefixes();
 
     std::map<LocKey, ast::IScopeChild *> &decls() { return m_decls; }
 
@@ -114,6 +127,14 @@ private:
     // A package's symbol scope has no AST target: it stands for every
     // `package` block of that name. The first block is the declaration.
     std::map<std::string, ast::IPackageScope *>     m_packages;
+    // `package a::b::c`: the leading names, a and b, each with the qualified
+    // name of the package it names ("a", "a::b"). Bound once every package
+    // statement has been seen (bindPackagePrefixes).
+    std::vector<std::pair<std::string, ast::IExprId *>> m_pkg_prefixes;
+    // A package no `package` statement names by itself -- `a` above, when
+    // there is no `package a` -- is declared by the first name that
+    // introduces it.
+    std::map<ast::IScopeChild *, ast::IExprId *>    m_implicit_pkgs;
     struct SpecBinding {
         ast::IScopeChild    *decl;
         bool                conflict;

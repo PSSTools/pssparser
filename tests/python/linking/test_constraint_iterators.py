@@ -276,4 +276,4 @@ struct T {
 }
 """
     # markers() counts the prepended import line; bindings() does not.
-    assert markers(code) == [("error", 5, "Failed to find elem nosuch")]
+    assert markers(code) == [("error", 5, "'s' has no member named 'nosuch'")]

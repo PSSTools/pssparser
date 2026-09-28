@@ -21,6 +21,7 @@
 #pragma once
 #include "pssp/impl/InternalError.h"
 #include "dmgr/IDebugMgr.h"
+#include "pssp/impl/DebugInitCached.h"
 #include "pssp/ast/IFactory.h"
 #include "pssp/ast/impl/VisitorBase.h"
 #include "pssp/impl/NodeKind.h"
@@ -36,7 +37,7 @@ public:
     TaskCloneSymbolScope(
         dmgr::IDebugMgr     *dmgr,
         ast::IFactory       *factory) : m_dbg(0), m_factory(factory) {
-        DEBUG_INIT("pssp::TaskCloneSymbolScope", dmgr);
+        DEBUG_INIT_CACHED("pssp::TaskCloneSymbolScope", dmgr);
     }
 
     virtual ~TaskCloneSymbolScope() { }

@@ -54,6 +54,10 @@ static int editDistance(const std::string &a, const std::string &b) {
         for (int j = 1; j <= n; j++) {
             int cost = (a[i-1] != b[j-1]) ? 1 : 0;
             dp[i][j] = std::min({dp[i-1][j]+1, dp[i][j-1]+1, dp[i-1][j-1]+cost});
+            // Two neighbours swapped is one edit (`IDEL` for `IDLE`).
+            if (i > 1 && j > 1 && a[i-1] == b[j-2] && a[i-2] == b[j-1]) {
+                dp[i][j] = std::min(dp[i][j], dp[i-2][j-2]+1);
+            }
         }
     }
     return dp[m][n];
@@ -63,12 +67,16 @@ static std::string findCloseMatch(
         const std::string &name,
         ast::ISymbolScope *scope,
         int maxDist = 2) {
+    // One edit in three, and at least one: `a1` is two edits from `gs`, so
+    // a short name drew a suggestion that was no help. Ties go to the first
+    // in name order, not the hash table's.
+    maxDist = std::min<int>(maxDist, std::max<int>(1, name.size()/3));
     std::string best;
     int bestDist = maxDist + 1;
-    if (!scope) return best;
+    if (!scope || name.size() < 2) return best;
     for (auto &entry : scope->getSymtab()) {
         int d = editDistance(name, entry.first);
-        if (d > 0 && d < bestDist) {
+        if (d > 0 && (d < bestDist || (d == bestDist && entry.first < best))) {
             bestDist = d;
             best = entry.first;
         }

@@ -61,12 +61,12 @@ def assert_has_location(res):
 
 def test_too_many_arguments_is_reported():
     res = link("struct S<type T, int N> { T v; } struct Top { S<int,4,8> a; }")
-    assert_reports(res, "type accepts 2 template parameter(s) but 3 supplied")
+    assert_reports(res, "'S' takes 2 template arguments, but 3 are given")
 
 
 def test_no_arguments_where_none_default_is_reported():
     res = link("struct S<type T> { T v; } struct Top { S<> a; }")
-    assert_reports(res, "No default provided for template parameter T")
+    assert_reports(res, "no type supplied for template parameter 'T', and it has no default")
 
 
 def test_undefined_argument_type_is_reported():
@@ -97,7 +97,7 @@ def test_arguments_on_a_non_generic_type_is_reported():
 #: no default, ``value`` is null but ``type`` is not, so control reaches the
 #: ``else if (type)`` branch and quietly manufactures a **generic type
 #: parameter** out of the value parameter's declared type.  The
-#: "No default provided" error is only reachable when *both* are null, which is
+#: "no type supplied" error is only reachable when *both* are null, which is
 #: the type-parameter case.
 #:
 #: So a missing argument for a value parameter is not merely undiagnosed -- it
@@ -105,7 +105,7 @@ def test_arguments_on_a_non_generic_type_is_reported():
 #: The apply-defaults case above is fixed.  What remains is narrower: a
 #: generic used with *no argument list at all* -- ``S a;`` rather than ``S<>``
 #: -- is accepted for both parameter kinds.  ``S<>`` does reach the
-#: "No default provided" error, so the check exists; a bare use never gets to
+#: "no type supplied" error, so the check exists; a bare use never gets to
 #: it, because argument validation runs only when there is an argument list to
 #: validate.
 _MISSING_VALUE_ARG = (
@@ -486,7 +486,7 @@ def test_a_bad_argument_list_does_not_suppress_later_errors():
         "struct S<type T, int N> { T v; } "
         "struct Top { S<int,4,8> a; nosuch_t b; }")
     assert not res.crashed, res.describe()
-    assert "type accepts 2 template parameter(s) but 3 supplied" in res.output, \
+    assert "'S' takes 2 template arguments, but 3 are given" in res.output, \
         res.describe()
     assert "nosuch_t" in res.output, (
         "the unrelated later error was suppressed by the template error: %s"

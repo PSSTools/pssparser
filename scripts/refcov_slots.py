@@ -123,7 +123,7 @@ DEF = dict(ICLS_BASE='base_cls', ENUM_VAL='', EXT_ENUM='col_e', PKG_IMPORT='std_
  INIT_DO='x', INIT_H='x', INIT_VAL='1', JOIN_BRANCH='L2', JOIN_SEL='1', SCHED_C='a2', SYM_CALL='sym', SYM_ARG='a1',
  REPEAT_CNT='2', REPL_CNT='2', AFOREACH='sl.arr', SEL_GUARD='tx > 0', SEL_W='1', AIF='tx > 0', AMATCH='tx', SLIT_NAME='a', SLIT_VAL='2',
  PROC_LHS='tx', CAST_T='int', PROC_CALL='g', RAND_TGT='tx', PFOREACH='sl.arr', TAG_T='tag_s', TAG_FIELD='nm', MUSTACHE='tx',
- MON_TRAV='mh', TPARAM_RESTR='base_s', TMPL_ASSIGN='ti', FORALL_IN='sa', QCALL_ROOT='qp', QCALL_LEAF='qf', COVER_REF='M', FUNC_DFLT='1', EXPORT_FUNC='h', IMPORT_FUNC='ifn', OVR_TYPE='A', OVR_INST='a1', EXTEND_T='pss_top', EXPORT_ACTION='T')
+ MON_TRAV='mh', TPARAM_RESTR='base_s', TMPL_ASSIGN='ti', FORALL_IN='sa', QCALL_ROOT='qp', QCALL_LEAF='qf', COVER_REF='M', FUNC_DFLT='1', EXPORT_FUNC='h', IMPORT_FUNC='ifn', OVR_TYPE='A', OVR_INST='s1', EXTEND_T='pss_top', EXPORT_ACTION='T')
 BAD = dict(ICLS_BASE='nosuch_cls', ENUM_VAL=' = NOSUCH', EXT_ENUM='nosuch_e', PKG_IMPORT='nosuch_pkg', POOL_SIZE='NOSUCH',
  POOL_BIND_POOL='nosuch_pool', TYPEDEF_T='nosuch_t', SUPER_T='nosuch_s', SUPER_REF='nosuch', PREV_REF='nosuch', UID_REF='comp.nosuch', BIT_W='NOSUCH', ARR_DIM='NOSUCH', FIELD_INIT='NOSUCH',
  TPARAM_T='nosuch_t', TPARAM_V='NOSUCH', CONSTR='nosuch > 0', UNIQUE='nosuch', DEFAULT='nosuch', DEFAULT_DIS='nosuch', FORALL_T='nosuch_a',
@@ -140,7 +140,7 @@ BAD = dict(ICLS_BASE='nosuch_cls', ENUM_VAL=' = NOSUCH', EXT_ENUM='nosuch_e', PK
 EXTRA = {
  'POOL_BIND_ITEM:comp': 'nosuch.*, P.r', 'POOL_BIND_ITEM:atype': 's1.*, nosuch_a.r', 'POOL_BIND_ITEM:field': 's1.*, P.nosuch',
  'ANN:pname': '@ann_t { .nosuch = 1 }', 'ANN:pval': '@ann_t { .v = NOSUCH }',
- 'ABIND_LHS:member': 'p1.nosuch', 'OVR_INST:member': 'a1.nosuch',
+ 'ABIND_LHS:member': 'p1.nosuch', 'OVR_INST:member': 's1.nosuch',
  # Declared in S2 itself, not in its base: `super.` must not find it.
  'SUPER_REF:own': 'own',
  # `s` is a plain struct, which has no `uid`.

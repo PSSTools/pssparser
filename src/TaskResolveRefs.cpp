@@ -181,6 +181,10 @@ static int editDistance_rr(const std::string &a, const std::string &b) {
         for (int j = 1; j <= n; j++) {
             int cost = (a[i-1] != b[j-1]) ? 1 : 0;
             dp[i][j] = std::min({dp[i-1][j]+1, dp[i][j-1]+1, dp[i-1][j-1]+cost});
+            // Two neighbours swapped is one edit (`IDEL` for `IDLE`).
+            if (i > 1 && j > 1 && a[i-1] == b[j-2] && a[i-2] == b[j-1]) {
+                dp[i][j] = std::min(dp[i][j], dp[i-2][j-2]+1);
+            }
         }
     }
     return dp[m][n];
@@ -208,12 +212,16 @@ static std::string findCloseMatch_rr(
         const std::string &name,
         ast::ISymbolScope *scope,
         int maxDist = 2) {
+    // One edit in three, and at least one: `a1` is two edits from `gs`, so
+    // a short name drew a suggestion that was no help. Ties go to the first
+    // in name order, not the hash table's.
+    maxDist = std::min<int>(maxDist, std::max<int>(1, name.size()/3));
     std::string best;
     int bestDist = maxDist + 1;
-    if (!scope) return best;
+    if (!scope || name.size() < 2) return best;
     for (auto &entry : scope->getSymtab()) {
         int d = editDistance_rr(name, entry.first);
-        if (d > 0 && d < bestDist) {
+        if (d > 0 && (d < bestDist || (d == bestDist && entry.first < best))) {
             bestDist = d;
             best = entry.first;
         }
@@ -224,11 +232,34 @@ static std::string findCloseMatch_rr(
         if (enum_s) {
             for (auto &entry : enum_s->getSymtab()) {
                 int d = editDistance_rr(name, entry.first);
-                if (d > 0 && d < bestDist) {
+                if (d > 0 && (d < bestDist || (d == bestDist && entry.first < best))) {
                     bestDist = d;
                     best = entry.first;
                 }
             }
+        }
+    }
+    return best;
+}
+
+/**
+ * The closest member name of `scope` to `name`, for a "did you mean" after a
+ * `.`: members only, not the enum items findCloseMatch_rr also offers.
+ */
+static std::string closestMember_rr(
+        const std::string &name,
+        ast::ISymbolScope *scope) {
+    // One edit in three, and at least one: every one-letter name is one edit
+    // from every other, so `p` would suggest whatever `x` the type has.
+    int maxDist = std::min<int>(2, std::max<int>(1, name.size()/3));
+    std::string best;
+    int bestDist = maxDist + 1;
+    if (!scope || name.size() < 2) return best;
+    for (auto &entry : scope->getSymtab()) {
+        int d = editDistance_rr(name, entry.first);
+        if (d > 0 && (d < bestDist || (d == bestDist && entry.first < best))) {
+            bestDist = d;
+            best = entry.first;
         }
     }
     return best;
@@ -349,16 +380,23 @@ public:
 
 void TaskResolveRefs::resolveCompileConds(ast::IRootSymbolScope *root) {
     DEBUG_ENTER("resolveCompileConds");
+    CompileCondFinder finder;
+    for (auto u_it=root->getUnits().begin(); u_it!=root->getUnits().end(); u_it++) {
+        (*u_it)->accept(&finder);
+    }
+    if (finder.scopes.empty()) {
+        // The usual case, and then the map below is not worth building.
+        DEBUG_LEAVE("resolveCompileConds");
+        return;
+    }
+
     SymbolScopeMap sym;
     for (auto it=root->getChildren().begin(); it!=root->getChildren().end(); it++) {
         (*it)->accept(&sym);
     }
 
     m_ctxt->pushQuiet();
-    for (auto u_it=root->getUnits().begin(); u_it!=root->getUnits().end(); u_it++) {
-        CompileCondFinder finder;
-        (*u_it)->accept(&finder);
-
+    {
         for (auto s_it=finder.scopes.begin(); s_it!=finder.scopes.end(); s_it++) {
             ast::IScope *scope = *s_it;
 
@@ -1942,12 +1980,27 @@ void TaskResolveRefs::visitExprBin(ast::IExprBin *i) {
         ast::VisitorBase::visitExprBin(i);
         return;
     }
+    ExprTypeOf type_of(m_ctxt);
+
+    // An aggregate literal takes its type from the other side (8.4.2,
+    // Ex. 36: `s == {.a = 2}`), so that side is resolved first, whichever
+    // side it is on.
+    bool l_aggr = holdsStructLiteral(i->getLhs());
+    bool r_aggr = holdsStructLiteral(i->getRhs());
+    if (l_aggr != r_aggr) {
+        ast::IExpr *lit = (l_aggr)?i->getLhs():i->getRhs();
+        ast::IExpr *other = (l_aggr)?i->getRhs():i->getLhs();
+        other->accept(m_this);
+        setLiteralTypes(lit, type_of.structOf(other), type_of.structOf(other, 1));
+        lit->accept(m_this);
+        return;
+    }
+
     // 8.4.3 makes the left side's type the right side's expected type.
     // Decision Q2 reads it both ways for an unqualified enum item, as
     // Ex. 272's prose does ("the other side").
     ast::IExprRefPathContext *l_bare = bareName(i->getLhs());
     ast::IExprRefPathContext *r_bare = bareName(i->getRhs());
-    ExprTypeOf type_of(m_ctxt);
 
     if (l_bare && r_bare) {
         resolveBareComparison(l_bare, r_bare);
@@ -2838,13 +2891,25 @@ void TaskResolveRefs::resolveExprRefPathContext(ast::IExprRefPathContext *i) {
             if (!is_collection_method) {
             DEBUG("Not collection method. target_s=%p name='%s'",
                 target_s, target_s ? target_s->getName().c_str() : "<null>");
-            m_ctxt->addErrorMarker(
-                elem->getId()->getLocation(),
-                "Failed to find elem %s", 
-                elem->getId()->getId().c_str());
-            DEBUG("ERROR: Failed to find elem %s (ii=%d)", 
-                elem->getId()->getId().c_str(),
-                ii);
+            // Named by what the user wrote before the dot, the same wording
+            // as the completeness gate's (TaskCheckRefsResolved).
+            const std::string &name = elem->getId()->getId();
+            ast::IExprMemberPathElem *prev_e = i->getHier_id()->getElems().at(ii-1).get();
+            // `f(1).p`: the member is looked up in what f returns.
+            std::string prev = prev_e->getId()->getId()
+                + ((prev_e->getParams())?"()":"");
+            std::string suggestion = closestMember_rr(name, target_s);
+            if (suggestion.empty()) {
+                m_ctxt->addErrorMarker(
+                    elem->getId()->getLocation(),
+                    "'%s' has no member named '%s'",
+                    prev.c_str(), name.c_str());
+            } else {
+                m_ctxt->addErrorMarker(
+                    elem->getId()->getLocation(),
+                    "'%s' has no member named '%s'; did you mean '%s'?",
+                    prev.c_str(), name.c_str(), suggestion.c_str());
+            }
             break;
             }
         } else {
@@ -4785,8 +4850,15 @@ void TaskResolveRefs::visitExportFunction(ast::IExportFunction *i) {
     }
 }
 
-/** `instance a.b with T;` -- the instance path is U5; the type resolves here. */
+/**
+ * `instance a.b with T;` (17.5). The instance path is a field path from the
+ * type the `override` block is in, `a` possibly inherited, and resolves as any
+ * other path written there does (U5).
+ */
 void TaskResolveRefs::visitInstanceOverride(ast::IInstanceOverride *i) {
+    if (i->getTarget()) {
+        i->getTarget()->accept(m_this);
+    }
     if (i->getWith_t()) {
         i->getWith_t()->accept(m_this);
     }

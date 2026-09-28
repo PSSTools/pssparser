@@ -108,7 +108,8 @@ ast::ITemplateParamDeclList *TaskSpecializeParameterizedRef::buildParams(
     return TaskBuildParamValList(m_ctxt).build(
             target_c->getPlist(),
             pvals,
-            use_loc);
+            use_loc,
+            target_c->getName());
 }
 
 namespace {

@@ -34,9 +34,8 @@ namespace pssp {
  * - imports come first in their scope: only another import or a `compile
  *   if` may precede one (CH17-34) -- PSS053.
  *
- * Both are warnings for now (warn-first, plan §8): the linker has always
- * accepted these models, and a use of an ambiguous name is already an error
- * where it is written (PSS017).
+ * PSS052 is an error. PSS053 stays a warning (decided 2026-09-28, plan
+ * §8).
  *
  * Runs after the extensions are merged, when a component's import list also
  * holds those of its `extend component` statements, whose namespace is the

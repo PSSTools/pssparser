@@ -96,7 +96,7 @@ void TaskCheckImports::checkScope(ast::ISymbolScope *s) {
             ast::IScopeChild *decl = s->getChildren().at(it->second).get();
             if (decl != target) {
                 m_ctxt->addMarker(
-                    MarkerSeverityE::Warn,
+                    MarkerSeverityE::Error,
                     at,
                     "'import " + NameLookup::importText(imp) + ";' names '"
                         + name + "', which " + scopeDesc(s) + " already "
@@ -119,7 +119,7 @@ void TaskCheckImports::checkScope(ast::ISymbolScope *s) {
                 continue;
             }
             m_ctxt->addMarker(
-                MarkerSeverityE::Warn,
+                MarkerSeverityE::Error,
                 at,
                 "'" + name + "' is already imported explicitly in this scope, "
                     "by 'import " + NameLookup::importText(prev) + ";'; the same "

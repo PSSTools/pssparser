@@ -131,12 +131,6 @@ private:
     ast::IExprId        *m_ret;
 };
 
-bool isGeneric(ast::ITypeScope *ts) {
-    return ts && ts->getParams()
-        && !ts->getParams()->getSpecialized()
-        && ts->getParams()->getParams().size();
-}
-
 bool isSpecialization(ast::ITypeScope *ts) {
     return ts && ts->getParams() && ts->getParams()->getSpecialized();
 }
@@ -367,7 +361,7 @@ public:
     }
 
     virtual void visitTypeScope(ast::ITypeScope *i) override {
-        bool generic = isGeneric(i);
+        bool generic = OccurrenceCollector::isGeneric(i);
         m_generic_depth += generic;
         VisitorBase::visitTypeScope(i);
         m_generic_depth -= generic;
@@ -437,10 +431,14 @@ void OccurrenceCollector::collect(
     m_packages.clear();
     m_spec_bindings.clear();
 
+    m_pkg_prefixes.clear();
+    m_implicit_pkgs.clear();
+
     DeclWalker decls(this);
     for (auto it=root->getUnits().begin(); it!=root->getUnits().end(); it++) {
         (*it)->accept(&decls);
     }
+    bindPackagePrefixes();
 
     AliasWalker aliases(this);
     for (auto it=root->getChildren().begin(); it!=root->getChildren().end(); it++) {
@@ -466,7 +464,9 @@ void OccurrenceCollector::collect(
 }
 
 ast::IExprId *OccurrenceCollector::nameOf(ast::IScopeChild *c) {
-    return TaskGetNameId().get(unwrap(c));
+    ast::IScopeChild *u = unwrap(c);
+    auto it = m_implicit_pkgs.find(u);
+    return (it != m_implicit_pkgs.end())?it->second:TaskGetNameId().get(u);
 }
 
 ast::IScopeChild *OccurrenceCollector::unwrap(ast::IScopeChild *c) {
@@ -506,11 +506,68 @@ ast::IScopeChild *OccurrenceCollector::unwrap(ast::IScopeChild *c) {
 }
 
 void OccurrenceCollector::addPackage(ast::IPackageScope *p) {
-    auto ins = m_packages.emplace(qname(p), p);
+    std::string full = qname(p);
+    auto ins = m_packages.emplace(full, p);
     ast::IExprId *n = nameOf(p);
     if (!ins.second && isKeyable(n)) {
         // A later `package p { ... }` block names the same package.
         m_decls[key(n->getLocation())] = ins.first->second;
+    }
+
+    // `package a::b::c`: a and b name packages too. Their qualified names
+    // are this one's, cut after each.
+    const std::vector<ast::IExprIdUP> &ids = p->getId();
+    if (ids.size() < 2) {
+        return;
+    }
+    std::string written;
+    for (auto it=ids.begin(); it!=ids.end(); it++) {
+        written += (written.size()?"::":"") + (*it)->getId();
+    }
+    std::string prefix = full.substr(0, full.size() - written.size());
+    for (uint32_t k=0; k+1<ids.size(); k++) {
+        prefix += ((k)?"::":"") + ids.at(k)->getId();
+        m_pkg_prefixes.push_back({prefix, ids.at(k).get()});
+    }
+}
+
+void OccurrenceCollector::bindPackagePrefixes() {
+    for (auto it=m_pkg_prefixes.begin(); it!=m_pkg_prefixes.end(); it++) {
+        if (!isKeyable(it->second)) {
+            continue;
+        }
+        // A `package a` statement, if there is one, is the declaration.
+        // Otherwise the symbol tree's scope for `a` stands for it, declared
+        // by the first leading name that introduces it (units in order).
+        ast::IScopeChild *decl = 0;
+        auto p_it = m_packages.find(it->first);
+        if (p_it != m_packages.end()) {
+            decl = p_it->second;
+        } else {
+            ast::ISymbolScope *s = m_root;
+            std::string::size_type pos = 0;
+            while (s && pos <= it->first.size()) {
+                std::string::size_type end = it->first.find("::", pos);
+                std::string part = it->first.substr(pos,
+                    (end == std::string::npos)?std::string::npos:end-pos);
+                auto st_it = s->getSymtab().find(part);
+                s = (st_it != s->getSymtab().end())
+                    ? NodeKind::cast<ast::ISymbolScope>(
+                        s->getChildren().at(st_it->second).get())
+                    : 0;
+                if (end == std::string::npos) {
+                    break;
+                }
+                pos = end + 2;
+            }
+            decl = s;
+            if (s) {
+                m_implicit_pkgs.emplace(s, it->second);
+            }
+        }
+        if (decl) {
+            m_decls.emplace(key(it->second->getLocation()), decl);
+        }
     }
 }
 

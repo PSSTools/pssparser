@@ -21,6 +21,7 @@
 #pragma once
 #include "dmgr/IDebugMgr.h"
 #include "dmgr/impl/DebugMacros.h"
+#include "pssp/impl/DebugInitCached.h"
 #include "pssp/ast/impl/VisitorBase.h"
 #include "pssp/impl/NodeKind.h"
 
@@ -33,7 +34,7 @@ class TaskGetAstRoot : public virtual ast::VisitorBase {
 public:
 
     TaskGetAstRoot(dmgr::IDebugMgr *dmgr) : m_dbg(0) {
-        DEBUG_INIT("pssp::TaskGetAstRoot", dmgr);
+        DEBUG_INIT_CACHED("pssp::TaskGetAstRoot", dmgr);
     }
 
     virtual ~TaskGetAstRoot() { }

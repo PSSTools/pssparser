@@ -58,15 +58,13 @@ The linker could not resolve a named type, identifier, or method.  Messages incl
 * ``unknown identifier 'bar'``
 * ``unknown method 'baz' on built-in type``
 * ``unknown function 'f': an import of this form needs a separate declaration of the function (20.4.1)``
-* ``'pkg' has no member named 'thing'``
-* ``Failed to find elem 'thing'``
+* ``'pkg' has no member named 'thing'``, or ``'f()' has no member named 'thing'`` for a member of a call's result; with ``; did you mean 'thang'?`` when a member is spelled close to it
 * ``'this' is only valid inside a type: ...`` (``this`` in a package-level function)
 * ``'super' is only valid inside a type that has a base type, and 'S' has none`` (also ``'super;'``)
 * ``'comp' is only valid in an action declared in a component, and 'AB' is declared outside one``
 * ``'prev' is only valid in a state type or its extension, and cannot be reached as a member of 'i'``
 * ``base type 'B' has no member named 'x'`` (``super.x``)
-
-The last two are the same diagnosis reached through a qualified and an unqualified path respectively.
+* ``cannot resolve 'y': the enclosing scope is unknown`` (``x[0].y`` where x's element type did not resolve)
 
 Ensure the symbol is declared in one of the source files passed to pssparser, or that the correct package is imported.  When a close match exists, a ``did you mean '...'?`` suggestion is appended.
 
@@ -681,7 +679,7 @@ A name that is not declared at all is PSS002.
 PSS051
 ------
 
-**Severity:** warning
+**Severity:** error
 
 Extension member not visible here
 
@@ -690,12 +688,12 @@ A member an extension adds to a type is accessible in the package the extension 
 * ``'b' is declared by an extension of 'S' in package 'p', which is not visible here (17.2.3); add 'import p::*;'``
 * ``'B' is an item an extension of 'E' in package 'p' adds, which is not visible here (17.2.3); add 'import p::*;'``
 
-The use still binds to the member.  A warning for now; it becomes an error after one release (symbol-resolution plan §8).  Where two imported packages each add the name, the use is ambiguous: PSS017.
+The use still binds to the member, so later diagnostics are measured against it.  A warning in 3.1.7; an error since (symbol-resolution plan §8).  Where two imported packages each add the name, the use is ambiguous: PSS017.
 
 PSS052
 ------
 
-**Severity:** warning
+**Severity:** error
 
 Explicit import conflicts with a declaration or import
 
@@ -704,7 +702,7 @@ Explicit import conflicts with a declaration or import
 * ``'import lib::s;' names 's', which package 'p' already declares; an explicit import shall not name a declaration of the importing namespace (18.1.3)``
 * ``'s' is already imported explicitly in this scope, by 'import lib1::s;'; the same name shall not be imported explicitly from two packages (18.1.3)``
 
-The namespace is every statement of a package, or a component and its extensions; two imports conflict only within one statement.  A warning for now (plan §8); a use of a name two explicit imports provide is already an error (PSS017).
+The namespace is every statement of a package, or a component and its extensions; two imports conflict only within one statement.  A warning in 3.1.7; an error since (plan §8).  A use of a name two explicit imports provide is PSS017.
 
 PSS053
 ------
@@ -740,7 +738,7 @@ Compile-time condition cannot be evaluated
 
 19.1.3, 19.4: the condition of a ``compile if`` or ``compile assert`` must be determinable at compile time.  Messages:
 
-* ``compile if condition cannot be evaluated at compile time: 'X>1'. ...`` -- it names something that is not a constant, or one declared in a later file (19.1.2)
+* ``compile if condition cannot be evaluated at compile time: 'X > 1'. ...`` -- it names something that is not a constant, or one declared in a later file (19.1.2)
 * ``compile assert condition cannot be evaluated for 'S<4>': ...`` -- an assertion on a template parameter that does not fold in that specialization
 
 PSS056
@@ -769,6 +767,65 @@ PSS058
 Extension kind does not match the type
 
 An ``extend`` statement names the kind of type it extends, and LRM 17.2 requires it to agree with the type: ``extend action M`` where ``M`` is a monitor, or ``extend struct b`` where ``b`` is a buffer, or ``extend struct e`` where ``e`` is an enum.  The message gives the kind to write.  ``extend enum s`` where ``s`` is not an enum is PSS005.  The extension's members are not added to the type.
+
+PSS059
+------
+
+**Severity:** error
+
+Cyclic inheritance
+
+A type inherits, directly or through its base types, from itself: ``struct S : S``, or ``A : B`` and ``B : A``.  Message: ``cyclic inheritance: 'A' -> 'B' -> 'A'``, which names every type on the ring, in inheritance order.  It is reported once per ring.  Names looked up through the inheritance chain of a type on the ring are not searched past it.
+
+PSS060
+------
+
+**Severity:** error
+
+Template argument list does not match the parameters
+
+A use of a generic type supplies the wrong number of template arguments (LRM 10).  Messages:
+
+* ``'array' takes 2 template arguments, but 3 are given`` -- too many
+* ``no value supplied for template parameter 'N', and it has no default`` -- too few, for a value parameter
+* ``no type supplied for template parameter 'T', and it has no default`` -- too few, for a type parameter (``list<> x;``)
+* ``template type 'P' requires a template argument list`` -- a generic named with no list at all, as the qualifier of ``P::nbytes``
+
+Supply an argument for each parameter that has no default.
+
+PSS061
+------
+
+**Severity:** error
+
+Template argument does not satisfy its parameter
+
+A type argument is of the wrong kind for its parameter (LRM 10.3.2).  Messages:
+
+* ``template parameter 'T' requires an argument of type category 'struct', but the argument 'c' is of category 'component'`` -- the parameter was declared ``struct T``
+* ``template parameter 'T' is restricted to 'base_s' and its subtypes, but the argument 'x_s' does not derive from 'base_s'`` -- the parameter was declared ``struct T : base_s``
+
+PSS062
+------
+
+**Severity:** error
+
+Recursive template specialization does not terminate
+
+Specializing a generic type specializes it again with a strictly larger argument, so the chain never reaches a specialization that already exists: ``struct S<type T> { S<S<T>> next; }``.  pssparser stops at a fixed depth and reports it at the generic's declaration.  Message: ``recursive specialization of 'S' exceeded the maximum depth of N: ...``
+
+PSS063
+------
+
+**Severity:** error
+
+Invalid override action
+
+An action declared ``override`` in a component replaces the action of that name in a base component (LRM 9.2.2).  Messages:
+
+* ``cannot override action 'A': no action of that name is declared in a base component of 'C'``
+* ``cannot override template action 'A'`` -- a generic action cannot be overridden
+* ``action 'A' must be declared 'override': 'C' declares it as an override action`` -- an action that redeclares an override action's name needs the keyword too
 
 PSS100
 ------

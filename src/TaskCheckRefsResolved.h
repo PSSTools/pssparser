@@ -121,10 +121,7 @@ public:
     /** Tracks the enclosing types, for hasUnknownBase(). */
     virtual void visitTypeScope(ast::ITypeScope *i) override;
 
-    // Exemptions: constructs the resolver does not bind yet.
-
-    /** Instance-override targets (U5). */
-    virtual void visitInstanceOverride(ast::IInstanceOverride *i) override { }
+    // Exemptions.
 
     /**
      * A parameter *declaration* list is not checked.
@@ -139,11 +136,27 @@ public:
 private:
     /**
      * Checks one reference: `ids` are its names in order. `is_type` selects
-     * the "unknown type" wording.
+     * the "unknown type" wording. `fallback` is the name whose binding the
+     * node's `target` records, for a name the resolver did not bind itself.
      */
     void checkRef(
         const std::vector<ast::IExprId *>   &ids,
-        bool                                is_type);
+        bool                                is_type,
+        ast::IExprId                        *fallback,
+        ast::ISymbolRefPath                 *target);
+
+    /**
+     * The probe's test: whether every name of the reference is certainly
+     * bound, by the same rules OccurrenceCollector applies. False only means
+     * "not certain"; the full check decides.
+     */
+    bool probeBound(
+        const std::vector<ast::IExprId *>   &ids,
+        ast::IExprId                        *fallback,
+        ast::ISymbolRefPath                 *target);
+
+    /** Walks the user units, checking each reference. */
+    void walkUnits(ast::IRootSymbolScope *root, uint32_t n_builtin_units);
 
     /** Whether `decl` has a declared type that failed to resolve. */
     static bool hasUnboundType(ast::IScopeChild *decl);
@@ -171,6 +184,12 @@ private:
     std::unordered_set<ast::IExpr *>                m_checked;
     std::vector<ast::ITypeScope *>                  m_type_s;
     bool                                            m_had_errors;
+    ast::IRootSymbolScope                           *m_root;
+    // The probe (see check()): set while it runs, and set once it finds a
+    // reference it cannot show bound.
+    bool                                            m_probe;
+    bool                                            m_suspect;
+    int32_t                                         m_generic_depth;
 };
 
 }

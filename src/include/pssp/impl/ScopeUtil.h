@@ -101,7 +101,7 @@ public:
     }
 
     template <class T> T *getT() const {
-        return dynamic_cast<T *>(get());
+        return NodeKind::cast<T>(get());
     }
 
 /*
@@ -277,6 +277,13 @@ public:
     virtual void visitSymbolChildrenScope(ast::ISymbolChildrenScope *i) override {
         m_kind = Kind::SymbolChildScope;
         m_scope.sym_cs = i;
+    }
+
+    // Explicit, so the visit does not go on into the scope's imports: a
+    // package's import list was walked on every path step through it, which
+    // was most of what a step cost. Nothing an import holds is a scope.
+    virtual void visitSymbolScope(ast::ISymbolScope *i) override {
+        visitSymbolChildrenScope(i);
     }
 
     virtual void visitSymbolFunctionScope(ast::ISymbolFunctionScope *i) override {

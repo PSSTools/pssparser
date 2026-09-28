@@ -218,15 +218,26 @@ struct T { S s = {.c1 = 1}; }
                      "attribute of 'S' (4.8.4)")]
 
 
-# -- Not checked --------------------------------------------------------------
+# -- An operand of `==` (Ex. 36) ----------------------------------------------
 
-def test_no_context_type_is_not_reported():
-    """An operand of `==` has no context type yet (case b of U4)."""
+def test_an_operand_of_equality_takes_the_other_sides_type():
+    """Case b of U4: the other operand is the literal's context type (8.4.2)."""
+    code = """\
+struct S { bit[8] a; }
+struct T { rand S s; constraint s == {.a = 1}; constraint {.a = 2} != s; }
+"""
+    assert markers(code) == []
+
+
+def test_an_unknown_member_in_an_equality_operand_is_reported():
     code = """\
 struct S { bit[8] a; }
 struct T { rand S s; constraint s == {.nosuch = 1}; }
 """
-    assert markers(code) == []
+    assert markers(code) == [("error", 2, "'S' has no member named 'nosuch'")]
+
+
+# -- Not checked --------------------------------------------------------------
 
 
 def test_a_collection_is_not_a_context_type():

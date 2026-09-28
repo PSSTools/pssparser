@@ -421,3 +421,54 @@ def test_an_override_declares_the_action_in_the_declaring_component():
             }
         }
     """)])
+
+
+# ---------------------------------------------------------------------------
+# SR-F3 -- an extension of a type nested in a generic reaches its instances
+# ---------------------------------------------------------------------------
+
+def test_an_extension_of_a_type_nested_in_a_generic_reaches_its_instances():
+    assert_clean([("t.pss", """
+component C<int N=1> { struct s { } }
+extend struct C::s { rand int x; }
+component pss_top { action A { rand C<2>::s v; constraint v.x == 1; } }
+""")])
+
+
+def test_a_nested_extension_in_a_generic_extension_reaches_its_instances():
+    assert_clean([("t.pss", """
+component C<int N=1> { struct s { } }
+extend component C { extend struct s { rand int x; } }
+component pss_top { action A { rand C<2>::s v; constraint v.x == 1; } }
+""")])
+
+
+def test_a_nested_extension_binds_the_parameter_per_instance():
+    # N is 2 in one instance and 4 in the other: the member is copied into
+    # each, not shared.
+    assert_clean([("t.pss", """
+component C<int N=1> { struct s { rand bit[N] w; } }
+extend struct C::s { rand bit[N] x; constraint x < w; }
+component pss_top {
+  action A {
+    rand C<2>::s v; rand C<4>::s u;
+    constraint v.x == 1; constraint u.x == 9;
+  }
+}
+""")])
+
+
+def test_a_member_no_extension_adds_is_still_reported():
+    assert_rejects([("t.pss", """
+component C<int N=1> { struct s { } }
+extend struct C::s { rand int x; }
+component pss_top { action A { rand C<2>::s v; constraint v.y == 1; } }
+""")], "'v' has no member named 'y'")
+
+
+def test_a_nested_extension_that_duplicates_a_member_is_reported():
+    assert_rejects([("t.pss", """
+component C<int N=1> { struct s { rand int x; } }
+extend struct C::s { rand int x; }
+component pss_top { action A { rand C<2>::s v; } }
+""")], "duplicate declaration of 'x'")

@@ -424,7 +424,7 @@ int32_t NameLookup::visibleExtMember(
             related);
     } else {
         ctxt->addMarker(
-            MarkerSeverityE::Warn,
+            MarkerSeverityE::Error,
             id->getLocation(),
             "'" + id->getId() + "' is declared by an extension of '"
                 + t->getName() + "' in " + pkgs
@@ -449,7 +449,7 @@ void NameLookup::checkExtItem(
     }
     ExtMemberVisibility &vis = ctxt->extVisibility();
     ctxt->addMarker(
-        MarkerSeverityE::Warn,
+        MarkerSeverityE::Error,
         id->getLocation(),
         "'" + id->getId() + "' is an item an extension of '" + e->getName()
             + "' in " + vis.packageDesc(pkg) + " adds, which is not visible "
@@ -1092,6 +1092,8 @@ ast::ISymbolRefPath *NameLookup::searchImports(
         bool want_alias = (tier == 0);
         ast::IScopeChild *found = 0;
         bool ambiguous = false;
+        // PSS052 already reported one of the explicit imports that clash.
+        bool explained = false;
         for (std::vector<ast::IPackageImportStmt *>::const_iterator
                 imp_it=imp->getImports().begin();
                 imp_it!=imp->getImports().end(); imp_it++) {
@@ -1115,6 +1117,11 @@ ast::ISymbolRefPath *NameLookup::searchImports(
                 break;
             }
             ast::IScopeChild *node = m_ctxt->resolveSymbolPathRef(ret_t);
+            if (!want_wildcard && (*imp_it)->getPath()
+                    && (*imp_it)->getPath()->getElems().size()) {
+                explained = explained || m_ctxt->wasReported(
+                    (*imp_it)->getPath()->getElems().back()->getId()->getLocation());
+            }
             if (!ret) {
                 ret = ret_t;
                 found = node;
@@ -1126,7 +1133,15 @@ ast::ISymbolRefPath *NameLookup::searchImports(
                 delete ret_t;
             }
         }
-        if (ambiguous) {
+        if (ambiguous && explained) {
+            // One mistake, one message: the clash was reported where the
+            // imports are written (TaskCheckImports).
+            m_ctxt->markExplained(id->getLocation());
+            delete ret;
+            ret = 0;
+            m_found_imp = 0;
+            break;
+        } else if (ambiguous) {
             m_ctxt->addErrorMarker(
                 id->getLocation(),
                 "ambiguous reference to '%s': more than one %s import provides "

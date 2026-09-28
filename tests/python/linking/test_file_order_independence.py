@@ -119,7 +119,7 @@ def test_a_missing_member_past_a_deferred_element_is_reported_once(use_first):
     if not use_first:
         files.reverse()
     res = assert_rejects(files, "nosuch")
-    assert res.output.count("Failed to find elem nosuch") == 1, res.describe()
+    assert res.output.count("'r' has no member named 'nosuch'") == 1, res.describe()
 
 
 @pytest.mark.parametrize("use_first", [False, True], ids=["def-first", "use-first"])

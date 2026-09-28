@@ -21,6 +21,7 @@
 #pragma once
 #include "dmgr/IDebugMgr.h"
 #include "dmgr/impl/DebugMacros.h"
+#include "pssp/impl/DebugInitCached.h"
 #include "pssp/ast/impl/VisitorBase.h"
 
 namespace pssp {
@@ -29,7 +30,7 @@ namespace pssp {
 class TaskGetSymbolRefPathKind : public virtual ast::VisitorBase {
 public:
     TaskGetSymbolRefPathKind(dmgr::IDebugMgr *dmgr) : m_dbg(0) {
-        DEBUG_INIT("pssp::TaskGetSymbolRefPathKind", dmgr);
+        DEBUG_INIT_CACHED("pssp::TaskGetSymbolRefPathKind", dmgr);
     }
 
     virtual ~TaskGetSymbolRefPathKind() { }

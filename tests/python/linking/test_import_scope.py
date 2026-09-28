@@ -153,3 +153,37 @@ package p { import lib::s; }
 package p { struct t { rand s f; } }
 component pss_top { }
 """) == [leak("type", "s", "lib::s")]
+
+
+# ---------------------------------------------------------------------------
+# F23 (report D; plan 12.2): a root-scope `extend` sees the file's imports, and
+# the "add import" hint is never given where the import is already in effect.
+# ---------------------------------------------------------------------------
+
+def test_a_root_extend_of_an_imported_type():
+    assert errors("""
+import executor_pkg::*;
+import addr_reg_pkg::*;
+extend component executor_base_c { function void foo(); }
+extend struct mem_access_desc_s { rand bool single_write; }
+""") == []
+
+
+def test_a_root_extend_after_the_use():
+    assert errors("""
+import addr_reg_pkg::*;
+component pss_top {
+  action A { mem_access_desc_s d; }
+}
+extend struct mem_access_desc_s { rand bool a; }
+""") == []
+
+
+def test_no_import_hint_where_the_import_is_in_effect():
+    # A misspelled core-library name, with its package imported: the
+    # suggestion is the spelling, never the import that is already there.
+    msgs = errors("""
+import addr_reg_pkg::*;
+component pss_top { addr_handle_tt h; }
+""")
+    assert msgs and all("add 'import" not in m for m in msgs), msgs

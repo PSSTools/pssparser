@@ -93,9 +93,6 @@ ALLOWED = {
     "visitExtendType:ExtendType.imports":
         "every import is resolved before this pass (TaskResolveImports::resolveAll)",
     "visitExtendType:Scope.children": "merged into the type, walked there",
-    # Deliberately not resolved yet: each needs its own rules, and the
-    # ordinary lookup would report legal code (see the overrides' comments).
-    "visitInstanceOverride:InstanceOverride.target": "instance paths: U5",
     # A covergroup is resolved through its body scope, which the symbol tree
     # puts beside it (TaskResolveRefs::resolveCovergroupBody, 10.1): the
     # generic walk would resolve its expressions in the wrong scope.

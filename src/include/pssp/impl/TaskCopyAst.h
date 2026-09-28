@@ -24,6 +24,7 @@
 #include <typeinfo>
 #include "dmgr/IDebugMgr.h"
 #include "dmgr/impl/DebugMacros.h"
+#include "pssp/impl/DebugInitCached.h"
 #include "pssp/ast/impl/VisitorBase.h"
 #include "pssp/ast/IExprRefPathStatic.h"
 #include "pssp/ast/IFactory.h"
@@ -66,7 +67,7 @@ public:
     TaskCopyAst(IFactory    *factory) :
         m_factory(factory->getAstFactory()), m_dbg(0),
         m_preserve_expr_targets(false) {
-        DEBUG_INIT("pssp::TaskCopyAst", factory->getDebugMgr());
+        DEBUG_INIT_CACHED("pssp::TaskCopyAst", factory->getDebugMgr());
     }
 
     virtual ~TaskCopyAst() { }

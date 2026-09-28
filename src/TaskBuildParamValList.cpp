@@ -51,7 +51,8 @@ const ast::Location &TaskBuildParamValList::errLoc(ast::IScopeChild *pdecl) {
 ast::ITemplateParamDeclList *TaskBuildParamValList::build(
         ast::ISymbolScope               *plist,
         ast::ITemplateParamValueList    *pvals,
-        const ast::Location             &use_loc) {
+        const ast::Location             &use_loc,
+        const std::string               &type_name) {
     m_use_loc = use_loc;
     DEBUG_ENTER("build plist=%d n_pvals=%d", 
         plist->getChildren().size(),
@@ -66,14 +67,13 @@ ast::ITemplateParamDeclList *TaskBuildParamValList::build(
     m_visited.clear();  // Clear visited set for each build
 
     if (pvals->getValues().size() > plist->getChildren().size()) {
-        char buf[256];
-        snprintf(buf, sizeof(buf),
-            "type accepts %d template parameter(s) but %d supplied",
-            (int)plist->getChildren().size(),
-            (int)pvals->getValues().size());
+        int32_t n_p = plist->getChildren().size();
+        int32_t n_v = pvals->getValues().size();
         m_ctxt->addErrorMarker(
             errLoc(plist->getChildren().at(0).get()),
-            "%s", buf);
+            "'%s' takes %d template argument%s, but %d are given",
+            (type_name.size())?type_name.c_str():"type",
+            n_p, (n_p == 1)?"":"s", n_v);
         return 0;
     }
 
@@ -378,7 +378,8 @@ ast::ITemplateParamDeclList *TaskBuildParamValList::build(
         } else {
             m_ctxt->addErrorMarker(
                 errLoc(plist->getChildren().at(plist_idx).get()),
-                "No default provided for template parameter %s",
+                "no type supplied for template parameter '%s', and it has "
+                "no default",
                 (name)?name->getId().c_str():"<unknown>"
             );
             delete m_ret;

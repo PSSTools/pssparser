@@ -40,8 +40,8 @@ def test_syntax_error_mapped_to_pss001(msg):
     # The leaf of a static-rooted path, once it is resolved at all
     "'p' has no member named 'nosuch_f'",
     # The same failure reached through an unqualified path -- `f().zzz`
-    "Failed to find elem zzz",
-    "Failed to find elem nosuchmeth",
+    "'f()' has no member named 'zzz'",
+    "'s' has no member named 'nosuch'; did you mean 'nosuc'?",
 ])
 def test_unknown_symbol_mapped_to_pss002(msg):
     assert _assign_core_code(_m(msg))["code"] == "PSS002"
