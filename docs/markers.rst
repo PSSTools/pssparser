@@ -1119,3 +1119,14 @@ The prose under LRM Example 264 extends 18.2c to type-width expressions: a const
 
 A warning rather than an error, because the rule is stated only in prose and existing models write it.  Move the constant's declaration above its first use.
 
+PSS120
+------
+
+**Severity:** warning
+
+Exported function is a component instance function
+
+20.4.2 allows ``export target function f;`` to name only a static function: a package function or a component's ``static`` one.  Naming a component's INSTANCE function is an extension, meaning the function is run on the instance the environment calls it through.  pssc's operation models take their API from it.  Message: ``exported function 'f' is not static; exporting a component's instance function is an extension to 20.4.2``.
+
+A warning, not an error: the export is bound all the same, so a tool that implements the extension can use it.  A strictly conforming model declares the function ``static``.
+

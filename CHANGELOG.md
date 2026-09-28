@@ -341,6 +341,16 @@ whose type is not known from where it is written, such as an operand of
 `pssparser.refs` now binds each member name to its attribute; it used to
 report them as unresolved.
 
+### Added — PSS120: exporting a component's instance function (LRM 20.4.2)
+
+`export target function f;` may name only a static function (20.4.2). When it
+names a component's instance function, declared in the component, a base or an
+extension, the export is now reported as PSS120, a warning: "exported function
+'f' is not static; exporting a component's instance function is an extension
+to 20.4.2". The export is still bound, so a tool that implements the extension
+(the function runs on the instance the environment calls it through) can use
+it. Before, such an export linked without a word.
+
 ### Fixed — `randomize` keeps every target, and its `with` block sees the target's members (symbol-resolution 8.8, LRM 13.4.6)
 
 `randomize v1, v2 with { ... }` used to keep only `v1`, with a PSS116 "only the

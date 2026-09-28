@@ -4846,6 +4846,19 @@ void TaskResolveRefs::visitExportFunction(ast::IExportFunction *i) {
         m_ctxt->addErrorMarker(id->getLocation(),
             "'%s' is not a function", id->getId().c_str());
     } else {
+        // 20.4.2 exports only static functions. Exporting a component's
+        // INSTANCE function -- run on the instance the environment calls it
+        // through -- is an extension (PSS120): pssc's operation models take
+        // their API from it. Linked all the same, so a tool that accepts the
+        // extension sees the binding; one that does not has the location.
+        ast::ISymbolFunctionScope *fs =
+            NodeKind::cast<ast::ISymbolFunctionScope>(target_c);
+        if (componentScopeOf(fs->getUpper()) && isInstanceMember(fs)) {
+            m_ctxt->addMarker(MarkerSeverityE::Warn, id->getLocation(),
+                "exported function '%s' is not static; exporting a "
+                "component's instance function is an extension to 20.4.2",
+                id->getId().c_str());
+        }
         rn->setTarget(target.release());
     }
 }

@@ -279,6 +279,8 @@ REPRESENTATIVE_MESSAGES = [
                "constants; 'K' is declared in type 'C' (18.2)"),
     ("PSS119", "constant 'W' is used in a type width before its declaration "
                "on line 5; declare it first (18.2)"),
+    ("PSS120", "exported function 'bump' is not static; exporting a "
+               "component's instance function is an extension to 20.4.2"),
 ]
 
 
@@ -514,7 +516,7 @@ def test_pss31_band_is_reserved_for_31_diagnostics():
                      "PSS104", "PSS105", "PSS106", "PSS107",
                      "PSS108", "PSS109", "PSS110", "PSS111", "PSS112",
                      "PSS113", "PSS114", "PSS115", "PSS116", "PSS117",
-                     "PSS118", "PSS119"]
+                     "PSS118", "PSS119", "PSS120"]
 
 
 # -- CLI discoverability (P0-T2 acceptance criterion) ------------------------

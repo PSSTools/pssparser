@@ -1883,6 +1883,25 @@ class CoreChecker(CheckerBase):
             patterns=(r"^(constant|enum item) '[^']*' is used in a type width "
                       r"before its declaration\b",),
         ),
+        MarkerDef(
+            id="PSS120",
+            severity="warning",
+            summary="Exported function is a component instance function",
+            detail=(
+                "20.4.2 allows ``export target function f;`` to name only a "
+                "static function: a package function or a component's "
+                "``static`` one.  Naming a component's INSTANCE function is "
+                "an extension, meaning the function is run on the instance "
+                "the environment calls it through.  pssc's operation models "
+                "take their API from it.  Message: ``exported function 'f' "
+                "is not static; exporting a component's instance function is "
+                "an extension to 20.4.2``.\n\n"
+                "A warning, not an error: the export is bound all the same, "
+                "so a tool that implements the extension can use it.  A "
+                "strictly conforming model declares the function ``static``."
+            ),
+            patterns=(r"^exported function '[^']*' is not static\b",),
+        ),
     ]
 
     def check(self, context) -> None:  # noqa: D102
