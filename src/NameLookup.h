@@ -289,6 +289,7 @@ private:
      * in the activity, from `s`.
      */
     bool searchSubActivity(ast::ISymbolScope *s);
+    bool searchSubActivity(ast::ISymbolScope *s, ast::ISymbolScope *m);
 
     /** The walk has passed the enclosing type (see searchLevel). */
     bool                            m_past_type = false;

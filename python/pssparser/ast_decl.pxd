@@ -2946,6 +2946,9 @@ cdef extern from "pssp/ast/IStruct.h" namespace "pssp::ast":
 cdef extern from "pssp/ast/ISymbolDeclaration.h" namespace "pssp::ast":
     cpdef cppclass ISymbolDeclaration(ISymbolScope):
         std_vector[UP[IFunctionParamDecl]] & getParams();
+        ISymbolScope *getSub_activity()
+        
+        void setSub_activity(ISymbolScope *v)
 
 cdef extern from "pssp/ast/ICovergroupType.h" namespace "pssp::ast":
     cpdef cppclass ICovergroupType(ITypeScope):

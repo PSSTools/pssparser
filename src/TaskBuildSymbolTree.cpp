@@ -703,6 +703,19 @@ void TaskBuildSymbolTree::visitSymbolDeclaration(ast::ISymbolDeclaration *i) {
     //
     // The body is an activity, scoped the same way (WS4.1).
     if (addChild(i, i->getName(), false)) {
+        // Its labels, as an activity's are (11.8): the symbol is the root
+        // level, as the action is for its activity, but a symbol's own
+        // children are its statements, so the level is a scope of its own.
+        // Its handles are the symbol's members already.
+        ast::ISymbolScope *m = m_factory->mkSymbolScope(i->getName());
+        m->setSynthetic(true);
+        copyExtent(m, i);
+        m->setTarget(i);
+        i->setSub_activity(m);
+        for (std::vector<ast::IScopeChildUP>::const_iterator
+            it=i->getChildren().begin(); it!=i->getChildren().end(); it++) {
+            addSubActivityMembers(m, it->get(), false);
+        }
         buildActivityScope(i);
     }
     DEBUG_LEAVE("visitSymbolDeclaration %s", i->getName().c_str());

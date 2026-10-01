@@ -115,9 +115,18 @@ public:
             ast::IScopeChild            *target,
             std::vector<int32_t>        &idx) {
         ast::ISymbolScope *s = asScope(from);
-        if (!s) {
-            return false;
-        }
+        return s && pathFrom(s, target, idx);
+    }
+
+    /**
+     * pathTo from a scope already known to hold activity statements -- also
+     * a symbol's body, which asScope does not count as an activity scope.
+     */
+    static bool pathFrom(
+            ast::ISymbolScope           *s,
+            ast::IScopeChild            *target,
+            std::vector<int32_t>        &idx) {
+        ast::IScopeChild *from = s;
         int32_t i = 0;
         for (std::vector<ast::IScopeChildUP>::const_iterator
             it=s->getChildren().begin(); it!=s->getChildren().end(); it++, i++) {

@@ -7541,6 +7541,13 @@ cdef class SymbolDeclaration(SymbolScope):
         self.asSymbolDeclaration().getParams().push_back(ast_decl.IFunctionParamDeclUP(i.asFunctionParamDecl(), True))
     cpdef numParams(self):
         return self.asSymbolDeclaration().getParams().size()
+    cpdef SymbolScope getSub_activity(self):
+        if self.asSymbolDeclaration().getSub_activity() == NULL:
+            return None
+        else:
+            of = ObjFactory()
+            self.asSymbolDeclaration().getSub_activity().accept(of._hndl)
+            return <SymbolScope>(of._obj)
 
 cdef class CovergroupType(TypeScope):
     

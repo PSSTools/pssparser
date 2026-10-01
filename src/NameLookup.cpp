@@ -645,7 +645,10 @@ bool NameLookup::searchBlock(ast::ISymbolScope *s) {
 
 bool NameLookup::searchSubActivity(ast::ISymbolScope *s) {
     ast::IActivityLabeledScope *ls = m_ctxt->activityLabeledScope(s);
-    ast::ISymbolScope *m = (ls) ? ls->getSub_activity() : 0;
+    return searchSubActivity(s, (ls) ? ls->getSub_activity() : 0);
+}
+
+bool NameLookup::searchSubActivity(ast::ISymbolScope *s, ast::ISymbolScope *m) {
     if (!m) {
         return false;
     }
@@ -655,7 +658,7 @@ bool NameLookup::searchSubActivity(ast::ISymbolScope *s) {
         return false;
     }
     std::vector<int32_t> idx;
-    if (!ActivityScopes::pathTo(s, m->getChildren().at(it->second).get(), idx)) {
+    if (!ActivityScopes::pathFrom(s, m->getChildren().at(it->second).get(), idx)) {
         return false;
     }
     DEBUG("Found %s in the sub-activity of %s", m_id->getId().c_str(),
@@ -747,7 +750,8 @@ bool NameLookup::searchSymbolDecl(ast::ISymbolDeclaration *s) {
             return true;
         }
     }
-    return searchBlock(s);
+    // Then its handles, and the labels of its body (11.8).
+    return searchBlock(s) || m_ref || searchSubActivity(s, s->getSub_activity());
 }
 
 bool NameLookup::searchGenericConstraintFrames() {

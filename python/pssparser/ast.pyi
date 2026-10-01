@@ -6928,6 +6928,13 @@ class SymbolDeclaration(SymbolScope):
     
     Attributes:
         params: The declared parameters, in order
+        sub_activity: The labels of the body (LRM 11.8), built by the
+            linker as for a labeled statement's: a synthetic scope whose
+            target is this symbol, holding the labeled statements whose
+            nearest labeled ancestor is the symbol, non-owned. So
+            ``l1: do A; constraint { l1.x < 3; }`` resolves in a symbol
+            body as it does in an activity. Not walked by the generated
+            visitors.
     
     See Also:
         ActivitySymbolCall, ActivityDecl
@@ -6940,6 +6947,8 @@ class SymbolDeclaration(SymbolScope):
     def getParam(self, i: int) -> FunctionParamDecl: ...
     def addParam(self, i: FunctionParamDecl) -> None: ...
     def numParams(self) -> int: ...
+    
+    def getSub_activity(self) -> SymbolScope: ...
     
 class CovergroupType(TypeScope):
     """

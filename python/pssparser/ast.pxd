@@ -2476,6 +2476,7 @@ cdef class SymbolDeclaration(SymbolScope):
     cpdef getParam(self, i)
     cpdef void addParam(self, FunctionParamDecl i)
     cpdef numParams(self)
+    cpdef SymbolScope getSub_activity(self)
 
 cdef class CovergroupType(TypeScope):
     

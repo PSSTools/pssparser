@@ -370,3 +370,63 @@ component pss_top {
     assert bindings(code, "x")[-1] == ("x", 3, "Field", 2)
     code = code.replace("RL[0].a.x", "RL[0].a.nosuch")
     assert markers(code) == [("PSS002", 3, "'a' has no member named 'nosuch'")]
+
+
+# -- symbols (11.7) ------------------------------------------------------------
+
+def test_a_label_in_a_symbol_body_is_visible_in_the_body():
+    """A symbol's body is an activity: its labels name its statements there,
+    as an activity's do (`sub_activity` of the SymbolDeclaration)."""
+    code = """\
+component pss_top {
+  action A { rand int x; }
+  action B {
+    symbol s() { T: do A; do A with { x == T.x; }; constraint { T.x < 3; } }
+    activity { s(); }
+  }
+}
+"""
+    assert markers(code) == []
+    assert bindings(code, "T") == [("T", 4, "ActivityActionTypeTraversal", 4),
+                                   ("T", 4, "ActivityActionTypeTraversal", 4)]
+
+
+def test_a_label_in_a_symbol_body_under_a_labeled_block():
+    code = """\
+component pss_top {
+  action A { rand int x; }
+  action B {
+    symbol s() { L: sequence { T: do A; } do A with { x == L.T.x; }; }
+    activity { s(); }
+  }
+}
+"""
+    assert markers(code) == []
+    assert [b[0] for b in bindings(code, "L", "T")] == ["L", "T"]
+
+
+def test_a_label_in_a_symbol_body_is_unique_there_only():
+    code = """\
+component pss_top {
+  action A { }
+  action B {
+    symbol s() { T: do A; T: do A; }
+    symbol r() { T: do A; }
+    activity { T: do A; s(); r(); }
+  }
+}
+"""
+    assert markers(code) == [("PSS003", 4, "duplicate declaration of 'T'")]
+
+
+def test_a_symbol_label_is_not_visible_in_the_action():
+    code = """\
+component pss_top {
+  action A { rand int x; }
+  action B {
+    symbol s() { T: do A; }
+    activity { s(); do A with { x == T.x; }; }
+  }
+}
+"""
+    assert [ln for _, ln, _ in markers(code)] == [5]
