@@ -13,11 +13,25 @@ proj_dir = os.path.dirname(os.path.abspath(__file__))
 pythondir = os.path.join(proj_dir, "python")
 
 def _get_version():
+    """The version from python/pssparser/__version__.py (see compute_version
+    there), recorded in python/pssparser/_version.py so that an installed
+    build reports it without running git."""
     version_file = os.path.join(proj_dir, "python", "pssparser", "__version__.py")
     glb = {}
     with open(version_file) as f:
         exec(f.read(), glb)
-    return glb["_pkg_version"]
+    v = glb["compute_version"](proj_dir)
+    recorded = os.path.join(proj_dir, "python", "pssparser", "_version.py")
+    text = "# Written by setup.py; not tracked.\nversion = %r\n" % v
+    try:
+        with open(recorded) as f:
+            current = f.read()
+    except OSError:
+        current = None
+    if current != text:
+        with open(recorded, "w") as f:
+            f.write(text)
+    return v
 
 version = _get_version()
 

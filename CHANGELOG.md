@@ -41,6 +41,21 @@ reported "'val' was left unbound by pssparser … a pssparser defect", and
 PSS018: "'s' is a symbol, not an action handle; a symbol takes no 'with'
 constraints (11.7)". `s;` (Example 120) is unchanged.
 
+### Changed — a source tree reports a dev version, not 0.0.0 (sphinx-pss V1)
+
+An unstamped checkout used to report `0.0.0`, so any downstream floor
+(`pssparser>=3.1.0`) rejected a source build, and installing a dependent
+replaced an editable pssparser with PyPI's. It now reports a PEP 440 dev
+release of the next patch, from `git describe`: `3.1.8.dev2+g1ec757b`, with
+`.dirty` for a dirty tree, or the tag itself on a clean tagged commit.
+`setup.py` records it in `python/pssparser/_version.py` (not tracked), which
+`get_version()` and `pssparser --version` read, so an installed build does not
+run git. `$PSSPARSER_VERSION` overrides it. A tag build is still exactly the
+tag. A CI branch build, which used to be `0.0.0.<run-id>`, is now
+`3.1.8.dev<run-id>+gh.g<sha>` (`+fj.` on Forgejo): the CI checkouts fetch tags,
+and a branch build with no reachable `v*` tag fails rather than ship `0.0.0`.
+The local segment keeps a CI wheel off PyPI, which rejects it.
+
 ### Added — symbol arguments and recursion are checked (pssc Q4)
 
 - A symbol call's arguments are checked against the parameters' kinds (PSS006).

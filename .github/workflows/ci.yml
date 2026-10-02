@@ -159,10 +159,13 @@ jobs:
     container: quay.io/pypa/manylinux_2_28_x86_64
     steps:
     - uses: actions/checkout@v4
+      with:
+        # Tags, for the dev version of a branch build (Stamp version).
+        fetch-depth: 0
     - name: Stamp version
       # THE TAG IS THE VERSION (2026-09-13). On a `v*` build this substitutes
-      # the tag into BASE; everything else gets a .<run-id> dev suffix on the
-      # 0.0.0 placeholder that is committed. There is no version to bump
+      # the tag into BASE; everything else is a dev release of the next patch,
+      # derived from the last tag (see the branch case). There is no version to bump
       # before tagging, and nothing in the tree to keep in step with the tag.
       #
       # This step used to do the opposite -- leave the committed BASE alone on
@@ -230,8 +233,39 @@ jobs:
             }
             ;;
           *)
-            sed 's/^SUFFIX = ""$/SUFFIX = ".'"$GITHUB_RUN_ID"'"/' python/pssparser/__version__.py > __version__.stamped
+            # A BRANCH BUILD IS A DEV RELEASE OF THE NEXT PATCH (sphinx-pss V1):
+            # v3.1.7 plus commits builds 3.1.8.dev<run-id>+gh.g<sha>. It sorts
+            # above 3.1.7, so a downstream floor accepts it, and below 3.1.8. The
+            # local segment (+gh.g<sha>) is the DVKit convention: PyPI rejects
+            # it outright, so this artifact can never be uploaded, and the forge
+            # tag keeps the two forges' run ids from colliding.
+            #
+            # It needs the tags, hence `fetch-depth: 0` on the checkout, and git
+            # refuses a repository owned by another user, which a container
+            # checkout is. With no reachable tag this FAILS rather than fall
+            # back to 0.0.0: that fallback is exactly what V1 removed.
+            git config --global --add safe.directory "$GITHUB_WORKSPACE"
+            desc=$(git describe --tags --long --match 'v[0-9]*') || {
+              echo "::error::no v* tag is reachable from HEAD, so the dev version cannot be derived (is the checkout shallow?)"
+              exit 1
+            }
+            tag="${desc%-*-g*}"
+            tag="${tag#v}"
+            case "$tag" in
+              *rc*) next="${tag%rc*}rc$(( ${tag##*rc} + 1 ))" ;;
+              *)    next="${tag%.*}.$(( ${tag##*.} + 1 ))" ;;
+            esac
+            stamp=".dev${GITHUB_RUN_ID}+gh.g$(git rev-parse --short=7 HEAD)"
+            sed -e 's/^BASE = .*$/BASE = "'"$next"'"/' \
+                -e 's/^SUFFIX = ""$/SUFFIX = "'"$stamp"'"/' \
+                python/pssparser/__version__.py > __version__.stamped
             mv __version__.stamped python/pssparser/__version__.py
+            # ANTI-VACUITY, as for a tag.
+            grep -q "^BASE = \"$next\"$" python/pssparser/__version__.py &&
+            grep -q "^SUFFIX = \"$stamp\"$" python/pssparser/__version__.py || {
+              echo "::error::failed to stamp version $next$stamp into python/pssparser/__version__.py"
+              exit 1
+            }
             ;;
         esac
         grep -E '^(BASE|SUFFIX) = ' python/pssparser/__version__.py
@@ -409,10 +443,13 @@ jobs:
     container: quay.io/pypa/manylinux_2_28_aarch64
     steps:
     - uses: actions/checkout@v4
+      with:
+        # Tags, for the dev version of a branch build (Stamp version).
+        fetch-depth: 0
     - name: Stamp version
       # THE TAG IS THE VERSION (2026-09-13). On a `v*` build this substitutes
-      # the tag into BASE; everything else gets a .<run-id> dev suffix on the
-      # 0.0.0 placeholder that is committed. There is no version to bump
+      # the tag into BASE; everything else is a dev release of the next patch,
+      # derived from the last tag (see the branch case). There is no version to bump
       # before tagging, and nothing in the tree to keep in step with the tag.
       #
       # This step used to do the opposite -- leave the committed BASE alone on
@@ -480,8 +517,39 @@ jobs:
             }
             ;;
           *)
-            sed 's/^SUFFIX = ""$/SUFFIX = ".'"$GITHUB_RUN_ID"'"/' python/pssparser/__version__.py > __version__.stamped
+            # A BRANCH BUILD IS A DEV RELEASE OF THE NEXT PATCH (sphinx-pss V1):
+            # v3.1.7 plus commits builds 3.1.8.dev<run-id>+gh.g<sha>. It sorts
+            # above 3.1.7, so a downstream floor accepts it, and below 3.1.8. The
+            # local segment (+gh.g<sha>) is the DVKit convention: PyPI rejects
+            # it outright, so this artifact can never be uploaded, and the forge
+            # tag keeps the two forges' run ids from colliding.
+            #
+            # It needs the tags, hence `fetch-depth: 0` on the checkout, and git
+            # refuses a repository owned by another user, which a container
+            # checkout is. With no reachable tag this FAILS rather than fall
+            # back to 0.0.0: that fallback is exactly what V1 removed.
+            git config --global --add safe.directory "$GITHUB_WORKSPACE"
+            desc=$(git describe --tags --long --match 'v[0-9]*') || {
+              echo "::error::no v* tag is reachable from HEAD, so the dev version cannot be derived (is the checkout shallow?)"
+              exit 1
+            }
+            tag="${desc%-*-g*}"
+            tag="${tag#v}"
+            case "$tag" in
+              *rc*) next="${tag%rc*}rc$(( ${tag##*rc} + 1 ))" ;;
+              *)    next="${tag%.*}.$(( ${tag##*.} + 1 ))" ;;
+            esac
+            stamp=".dev${GITHUB_RUN_ID}+gh.g$(git rev-parse --short=7 HEAD)"
+            sed -e 's/^BASE = .*$/BASE = "'"$next"'"/' \
+                -e 's/^SUFFIX = ""$/SUFFIX = "'"$stamp"'"/' \
+                python/pssparser/__version__.py > __version__.stamped
             mv __version__.stamped python/pssparser/__version__.py
+            # ANTI-VACUITY, as for a tag.
+            grep -q "^BASE = \"$next\"$" python/pssparser/__version__.py &&
+            grep -q "^SUFFIX = \"$stamp\"$" python/pssparser/__version__.py || {
+              echo "::error::failed to stamp version $next$stamp into python/pssparser/__version__.py"
+              exit 1
+            }
             ;;
         esac
         grep -E '^(BASE|SUFFIX) = ' python/pssparser/__version__.py
@@ -666,6 +734,9 @@ jobs:
         shell: bash
     steps:
     - uses: actions/checkout@v4
+      with:
+        # Tags, for the dev version of a branch build (Stamp version).
+        fetch-depth: 0
     - uses: ilammy/msvc-dev-cmd@v1
     - uses: actions/setup-python@v5
       with:
@@ -678,8 +749,8 @@ jobs:
         java-version: '11'
     - name: Stamp version
       # THE TAG IS THE VERSION (2026-09-13). On a `v*` build this substitutes
-      # the tag into BASE; everything else gets a .<run-id> dev suffix on the
-      # 0.0.0 placeholder that is committed. There is no version to bump
+      # the tag into BASE; everything else is a dev release of the next patch,
+      # derived from the last tag (see the branch case). There is no version to bump
       # before tagging, and nothing in the tree to keep in step with the tag.
       #
       # This step used to do the opposite -- leave the committed BASE alone on
@@ -747,8 +818,39 @@ jobs:
             }
             ;;
           *)
-            sed 's/^SUFFIX = ""$/SUFFIX = ".'"$GITHUB_RUN_ID"'"/' python/pssparser/__version__.py > __version__.stamped
+            # A BRANCH BUILD IS A DEV RELEASE OF THE NEXT PATCH (sphinx-pss V1):
+            # v3.1.7 plus commits builds 3.1.8.dev<run-id>+gh.g<sha>. It sorts
+            # above 3.1.7, so a downstream floor accepts it, and below 3.1.8. The
+            # local segment (+gh.g<sha>) is the DVKit convention: PyPI rejects
+            # it outright, so this artifact can never be uploaded, and the forge
+            # tag keeps the two forges' run ids from colliding.
+            #
+            # It needs the tags, hence `fetch-depth: 0` on the checkout, and git
+            # refuses a repository owned by another user, which a container
+            # checkout is. With no reachable tag this FAILS rather than fall
+            # back to 0.0.0: that fallback is exactly what V1 removed.
+            git config --global --add safe.directory "$GITHUB_WORKSPACE"
+            desc=$(git describe --tags --long --match 'v[0-9]*') || {
+              echo "::error::no v* tag is reachable from HEAD, so the dev version cannot be derived (is the checkout shallow?)"
+              exit 1
+            }
+            tag="${desc%-*-g*}"
+            tag="${tag#v}"
+            case "$tag" in
+              *rc*) next="${tag%rc*}rc$(( ${tag##*rc} + 1 ))" ;;
+              *)    next="${tag%.*}.$(( ${tag##*.} + 1 ))" ;;
+            esac
+            stamp=".dev${GITHUB_RUN_ID}+gh.g$(git rev-parse --short=7 HEAD)"
+            sed -e 's/^BASE = .*$/BASE = "'"$next"'"/' \
+                -e 's/^SUFFIX = ""$/SUFFIX = "'"$stamp"'"/' \
+                python/pssparser/__version__.py > __version__.stamped
             mv __version__.stamped python/pssparser/__version__.py
+            # ANTI-VACUITY, as for a tag.
+            grep -q "^BASE = \"$next\"$" python/pssparser/__version__.py &&
+            grep -q "^SUFFIX = \"$stamp\"$" python/pssparser/__version__.py || {
+              echo "::error::failed to stamp version $next$stamp into python/pssparser/__version__.py"
+              exit 1
+            }
             ;;
         esac
         grep -E '^(BASE|SUFFIX) = ' python/pssparser/__version__.py
@@ -852,10 +954,13 @@ jobs:
       _PYTHON_HOST_PLATFORM: 'macosx-13.0-arm64'
     steps:
     - uses: actions/checkout@v4
+      with:
+        # Tags, for the dev version of a branch build (Stamp version).
+        fetch-depth: 0
     - name: Stamp version
       # THE TAG IS THE VERSION (2026-09-13). On a `v*` build this substitutes
-      # the tag into BASE; everything else gets a .<run-id> dev suffix on the
-      # 0.0.0 placeholder that is committed. There is no version to bump
+      # the tag into BASE; everything else is a dev release of the next patch,
+      # derived from the last tag (see the branch case). There is no version to bump
       # before tagging, and nothing in the tree to keep in step with the tag.
       #
       # This step used to do the opposite -- leave the committed BASE alone on
@@ -923,8 +1028,39 @@ jobs:
             }
             ;;
           *)
-            sed 's/^SUFFIX = ""$/SUFFIX = ".'"$GITHUB_RUN_ID"'"/' python/pssparser/__version__.py > __version__.stamped
+            # A BRANCH BUILD IS A DEV RELEASE OF THE NEXT PATCH (sphinx-pss V1):
+            # v3.1.7 plus commits builds 3.1.8.dev<run-id>+gh.g<sha>. It sorts
+            # above 3.1.7, so a downstream floor accepts it, and below 3.1.8. The
+            # local segment (+gh.g<sha>) is the DVKit convention: PyPI rejects
+            # it outright, so this artifact can never be uploaded, and the forge
+            # tag keeps the two forges' run ids from colliding.
+            #
+            # It needs the tags, hence `fetch-depth: 0` on the checkout, and git
+            # refuses a repository owned by another user, which a container
+            # checkout is. With no reachable tag this FAILS rather than fall
+            # back to 0.0.0: that fallback is exactly what V1 removed.
+            git config --global --add safe.directory "$GITHUB_WORKSPACE"
+            desc=$(git describe --tags --long --match 'v[0-9]*') || {
+              echo "::error::no v* tag is reachable from HEAD, so the dev version cannot be derived (is the checkout shallow?)"
+              exit 1
+            }
+            tag="${desc%-*-g*}"
+            tag="${tag#v}"
+            case "$tag" in
+              *rc*) next="${tag%rc*}rc$(( ${tag##*rc} + 1 ))" ;;
+              *)    next="${tag%.*}.$(( ${tag##*.} + 1 ))" ;;
+            esac
+            stamp=".dev${GITHUB_RUN_ID}+gh.g$(git rev-parse --short=7 HEAD)"
+            sed -e 's/^BASE = .*$/BASE = "'"$next"'"/' \
+                -e 's/^SUFFIX = ""$/SUFFIX = "'"$stamp"'"/' \
+                python/pssparser/__version__.py > __version__.stamped
             mv __version__.stamped python/pssparser/__version__.py
+            # ANTI-VACUITY, as for a tag.
+            grep -q "^BASE = \"$next\"$" python/pssparser/__version__.py &&
+            grep -q "^SUFFIX = \"$stamp\"$" python/pssparser/__version__.py || {
+              echo "::error::failed to stamp version $next$stamp into python/pssparser/__version__.py"
+              exit 1
+            }
             ;;
         esac
         grep -E '^(BASE|SUFFIX) = ' python/pssparser/__version__.py

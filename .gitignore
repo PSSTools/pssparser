@@ -167,3 +167,6 @@ gen/
 /.claude/
 /.codex/
 /.cursor/
+
+# Written by setup.py (__version__.compute_version)
+python/pssparser/_version.py
