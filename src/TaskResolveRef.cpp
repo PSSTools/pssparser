@@ -491,6 +491,32 @@ void TaskResolveRef::visitTypeIdentifier(ast::ITypeIdentifier *i) {
     for (std::vector<ast::ITypeIdentifierElemUP>::const_iterator
         it=i->getElems().begin()+1;
         it!=i->getElems().end(); it++) {
+        // 18.3: only a namespace -- a package or a type -- qualifies a name.
+        // A field, variable, function or symbol does not, even when its type
+        // declares the name: `tx::send_a` for a `tx_c tx;` is illegal, and is
+        // spelled `tx_c::send_a` (9.1.3, Example 47). Reported at the
+        // qualifier, which is what is wrong (pssc P1).
+        NameLookup::NotNamespace nn = NameLookup::describeNonNamespace(
+            m_ctxt, root_t, (*it)->getId()->getId());
+        if (nn.kind) {
+            ast::IExprId *qual = (*(it-1))->getId();
+            // Reported once: a super type is resolved twice, by
+            // TaskResolveSuperTypes and again by TaskResolveRefs. The first
+            // time, the qualifier's own type may not be bound yet; the
+            // second report then says what it is.
+            if (m_report_unresolved && !nn.type_pending
+                    && !m_ctxt->wasReported(qual->getLocation())) {
+                m_ctxt->addMarker(
+                    MarkerSeverityE::Error,
+                    qual->getLocation(),
+                    "%s",
+                    NameLookup::notNamespaceMessage(qual->getId(), nn).c_str());
+            }
+            delete root;
+            root = 0;
+            break;
+        }
+
         // A step into a type finds an inherited member too, one
         // ElemKind_Super per base type crossed (18.3 b.3; Ex. 242).
         ast::IScopeChild *next = 0;
@@ -536,20 +562,9 @@ void TaskResolveRef::visitTypeIdentifier(ast::ITypeIdentifier *i) {
             // name genuinely is not in the qualifying scope.
             DEBUG("Note: failed to resolve element %s", (*it)->getId()->getId().c_str());
 
-            // A qualifier that is a component *instance* rather than a scope
-            // is left alone. `tx::send_pkt s;` in an activity, with `tx` a
-            // `tx_c` field, is legal PSS: the path is resolved by instance,
-            // which this scope walk does not do, so the miss here says nothing
-            // about the model. Reporting it rejected working models --
-            // TaskCheckRefsResolved exempts the same shape, and for the same
-            // reason (see its last-segment lookup).
-            bool qualifier_is_instance =
-                NodeKind::cast<ast::IField>(root_t) != 0
-                || NodeKind::cast<ast::IProceduralStmtDataDeclaration>(root_t) != 0;
-
             // Reported once: a super type is resolved twice, by
             // TaskResolveSuperTypes and again by TaskResolveRefs.
-            if (m_report_unresolved && !qualifier_is_instance
+            if (m_report_unresolved
                     && !m_ctxt->wasReported((*it)->getId()->getLocation())) {
                 // Name the whole qualifying prefix, not just the root: with a
                 // nested package `p::q::Nope`, "in 'p'" would point at the

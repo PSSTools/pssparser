@@ -248,15 +248,14 @@ def test_a_template_parameter_default_is_not_reported(tmp_path):
     assert res.returncode == 0, _out(res)
 
 
-def test_an_instance_qualified_action_reference_is_not_reported(tmp_path):
+def test_an_instance_qualified_action_reference_is_reported(tmp_path):
     """`tx::send_pkt` in an activity, where `tx` is a component *instance*.
 
-    Legal PSS, and this node never receives a target because the path is
-    resolved by instance rather than by scope. The first version of this check
-    reported it and broke five working models -- the failure mode that gets a
-    check switched off. Kept as a test rather than a comment because the
-    exemption is generous (any qualified name whose last element names a
-    declared type) and something has to hold it to that shape.
+    This used to be exempt, as "legal PSS resolved by instance". It is not
+    legal: 18.3 says only a namespace (a package or a type) qualifies a name,
+    and 9.1.3 and Example 47 write `uart_c::write`, not `s1::write`, for an
+    instance `s1` (pssc request P1, 2026-09-30). It is now reported at the
+    qualifier, with the type to write instead.
     """
     res = _run(tmp_path, {"m": """
         buffer packet_s { rand bit[8] v; }
@@ -266,6 +265,25 @@ def test_an_instance_qualified_action_reference_is_not_reported(tmp_path):
             pool packet_s pkt_pool;
             bind pkt_pool *;
             action do_transfer { activity { tx::send_pkt s; } }
+        }
+    """})
+
+    assert res.returncode != 0, _out(res)
+    assert ("'tx' is a component instance, not a type or package; "
+            "did you mean 'tx_c'?") in _out(res), _out(res)
+    assert "pssparser defect" not in _out(res), _out(res)
+
+
+def test_a_type_qualified_action_reference_is_not_reported(tmp_path):
+    """The legal spelling of the test above."""
+    res = _run(tmp_path, {"m": """
+        buffer packet_s { rand bit[8] v; }
+        component tx_c { action send_pkt { output packet_s pkt; } }
+        component pss_top {
+            tx_c tx;
+            pool packet_s pkt_pool;
+            bind pkt_pool *;
+            action do_transfer { activity { tx_c::send_pkt s; } }
         }
     """})
 

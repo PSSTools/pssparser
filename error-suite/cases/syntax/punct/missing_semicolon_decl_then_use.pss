@@ -1,0 +1,22 @@
+//! case:            SYN-PUNCT-MISSING-SEMICOLON-DECL-THEN-USE
+//! class:           syntax.punct
+//! title:           missing semicolon after a declaration, before a declaration that uses it
+//! expect:          error
+//! detect:          required
+//! lrm:             B.7
+//! pssparser.id:    PSS020
+//! at:              18:13
+//! pssparser.match: expected ';' before 'int'
+//! count:           1
+//! fix:             17:            int x = 1;
+//! cause:           ;
+//! names:           x
+component C {
+    action A {
+        exec body {
+            int x = 1
+            int y = x;
+            y = 3;
+        }
+    }
+}

@@ -19,6 +19,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import pytest
 from test_helpers import parse_pss, get_symbol
+from activity_walk import activity_nodes
 
 
 # ---------------------------------------------------------------------------
@@ -539,19 +540,143 @@ def test_a5_locations_are_monotonic_across_the_probe():
     assert lines == sorted(lines) and len(set(lines)) == len(lines), lines
 
 
-def test_a5_nested_statements_have_locations():
-    act = activity_of(PROBE_PSS)
+# A multi-line twin of PROBE_PSS. A one-line statement cannot tell a missing
+# end line from a correct one, which is how R1 and R2 (sphinx-pss
+# 2026-09-28) went unnoticed: `atomic` and `bind` had no end location.
+MULTILINE_PSS = """
+component C {
+    action A { rand int x; }
+    action B { rand int y; }
 
-    def walk(node, out):
-        for c in _children(node):
-            if _tname(c).startswith("Activity"):
-                out.append(c)
-                walk(c, out)
-        return out
+    action Top {
+        A a1, a2;
+        B b1;
+        rand int c;
+        rand int arr[4];
 
-    missing = [_tname(n) for n in walk(act, [])
+        activity {
+            lbl_seq: sequence {
+                a1;
+                b1;
+            }
+            if (c > 1) {
+                a1;
+            } else {
+                b1;
+            }
+            parallel {
+                a1;
+                b1;
+            }
+            schedule {
+                a1;
+                b1;
+            }
+            select {
+                (c > 2) [3]: a1;
+                b1;
+            }
+            match (c) {
+                [0..3]: a1;
+                default: b1;
+            }
+            repeat (c) {
+                a1;
+            }
+            foreach (i : arr) {
+                a1;
+            }
+            atomic {
+                a1;
+                b1;
+            }
+            bind a1.x
+                a2.x;
+            L: atomic {
+                a1;
+            }
+        }
+    }
+}
+"""
+
+#: (statement type, start line, end line) in MULTILINE_PSS, for the two
+#: statements R1 and R2 fixed, and the atomic's body.
+_ATOMIC_LINE, _ATOMIC_END = 44, 47
+_BIND_LINE, _BIND_END = 48, 49
+
+
+@pytest.mark.parametrize("src", [PROBE_PSS, MULTILINE_PSS], ids=["probe", "multiline"])
+def test_a5_nested_statements_have_locations(src):
+    """Follows body accessors too: `atomic`'s body is reached only through
+    `getBody()`, and had no location at all (R1)."""
+    act = activity_of(src)
+    missing = [_tname(n) for n in activity_nodes(act)
                if n.getLocation() is None or n.getLocation().lineno <= 0]
     assert not missing, f"nested statements with no location (A5): {missing}"
+
+
+def test_a5_nested_blocks_have_an_end_location():
+    act = activity_of(MULTILINE_PSS)
+    nodes = activity_nodes(act)
+    assert nodes
+    bad = [(_tname(n), n.getLocation().lineno,
+            n.getEndLocation().lineno if n.getEndLocation() else None)
+           for n in nodes
+           if _tname(n) != "ActivityActionHandleTraversal"
+           and (n.getEndLocation() is None
+                or n.getEndLocation().lineno < n.getLocation().lineno)]
+    assert not bad, f"statements with no or backwards end location: {bad}"
+
+
+def test_r1_atomic_and_its_body_are_located():
+    stmts = _children(activity_of(MULTILINE_PSS))
+    atomic = [s for s in stmts if _tname(s) == "ActivityAtomicBlock"][0]
+    assert atomic.getLocation().lineno == _ATOMIC_LINE
+    assert atomic.getEndLocation().lineno == _ATOMIC_END
+    body = atomic.getBody()
+    assert (body.getLocation().lineno, body.getLocation().linepos) == (_ATOMIC_LINE, 20)
+    assert body.getEndLocation().lineno == _ATOMIC_END
+
+
+def test_r2_bind_has_an_end_location():
+    stmts = _children(activity_of(MULTILINE_PSS))
+    bind = [s for s in stmts if _tname(s) == "ActivityBindStmt"][0]
+    assert bind.getLocation().lineno == _BIND_LINE
+    assert bind.getEndLocation().lineno == _BIND_END
+
+
+def test_r1_a_labeled_atomic_keeps_its_label():
+    """The body's location must not swallow the label, which the atomic
+    claims before building its body (F8(1))."""
+    stmts = _children(activity_of(MULTILINE_PSS))
+    atomic = [s for s in stmts if _tname(s) == "ActivityAtomicBlock"][-1]
+    assert atomic.getLabel() is not None and atomic.getLabel().getId() == "L"
+    assert atomic.getBody().getLocation().linepos > atomic.getLocation().linepos
+
+
+def test_a5_source_slices_start_and_end_on_the_right_tokens():
+    """What sphinx-pss does with a location: slice the source between the
+    start and end. A location copied from the wrong token shows up here even
+    when it is present."""
+    lines = MULTILINE_PSS.split("\n")
+
+    def text(loc, end):
+        # Lines are 1-based and MULTILINE_PSS starts with a newline, so
+        # line n is lines[n-1]. Columns are 1-based; end is one past.
+        if loc.lineno == end.lineno:
+            return lines[loc.lineno - 1][loc.linepos - 1:end.linepos - 1]
+        first = lines[loc.lineno - 1][loc.linepos - 1:]
+        last = lines[end.lineno - 1][:end.linepos - 1]
+        return first + "\n".join([""] + lines[loc.lineno:end.lineno - 1] + [last])
+
+    for s in _children(activity_of(MULTILINE_PSS)):
+        if _tname(s) not in ("ActivityAtomicBlock", "ActivityBindStmt"):
+            continue
+        t = text(s.getLocation(), s.getEndLocation()).strip()
+        kw = "bind" if _tname(s) == "ActivityBindStmt" else "atomic"
+        assert t.startswith(kw), t
+        assert t.endswith("}" if kw == "atomic" else ";"), t
 
 
 def test_a5_block_statements_have_an_end_location():
@@ -563,7 +688,8 @@ def test_a5_block_statements_have_an_end_location():
     blocks = [c for c in _children(act) if _tname(c) in (
         "ActivitySequence", "ActivityParallel", "ActivitySchedule",
         "ActivitySelect", "ActivityMatch", "ActivityRepeatCount",
-        "ActivityForeach", "ActivityIfElse")]
+        "ActivityForeach", "ActivityIfElse", "ActivityAtomicBlock",
+        "ActivityBindStmt")]
     assert blocks, "probe built no block statements"
     missing = [_tname(b) for b in blocks
                if b.getEndLocation() is None or b.getEndLocation().lineno <= 0]

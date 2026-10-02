@@ -326,6 +326,11 @@ enums and their items, functions and their parameters, template parameters,
 constraint blocks, exec blocks, pools, bind statements, and fields -- qualified
 (``rand``, ``static const``, ``private``, ``instance``) or not.
 
+They also attach to statements: procedural statements in a function or
+``exec`` body, and activity statements, including a labeled statement and the
+body of a ``select`` branch or ``match`` choice. See :doc:`comments` for where
+each comment lands.
+
 
 Changes in Release A
 ====================

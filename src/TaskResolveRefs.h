@@ -32,6 +32,8 @@
 #include "TaskResolveBase.h"
 #include "TaskResolveRootRef.h"
 #include "pssp/ast/IActionFieldInitializer.h"
+#include "pssp/ast/IActivitySymbolCall.h"
+#include "pssp/ast/ISymbolDeclaration.h"
 #include "pssp/ast/IExprBitSlice.h"
 #include "pssp/ast/IExprBin.h"
 #include "pssp/ast/IExprCast.h"
@@ -273,6 +275,19 @@ private:
      * component reached, the field in that action type (12.3, WS4.5).
      */
     void resolvePoolBinds();
+
+    /**
+     * After the walk, when every symbol's parameter types are bound: each
+     * symbol call's arguments against its parameters' kinds, and the
+     * activation graph for a symbol that activates itself (11.7; pssc Q4).
+     */
+    void checkSymbolCalls();
+
+    /**
+     * `id` (in the symbol being walked, if any) activates `to`: a call
+     * `to(...)`, or the `to;` form of Example 120.
+     */
+    void addSymbolActivation(ast::ISymbolDeclaration *to, ast::IExprId *id);
 
     /** `s` is a covergroup's body scope (TaskBuildSymbolTree::buildCovergroupBody). */
     static bool isCovergroupBody(ast::ISymbolScope *s);
@@ -891,6 +906,23 @@ private:
         ISymbolTableIteratorUP                  symtab;
     };
     std::vector<PendingPoolBind>        m_pool_binds;
+
+    /** A symbol call whose arguments checkSymbolCalls() checks. */
+    struct PendingSymbolCall {
+        ast::IActivitySymbolCall                *call;
+        ast::ISymbolDeclaration                 *sym;
+    };
+    std::vector<PendingSymbolCall>      m_symbol_calls;
+
+    /** One activation of `to`, written at `id`, inside symbol `from`. */
+    struct SymbolActivation {
+        ast::ISymbolDeclaration                 *from;
+        ast::ISymbolDeclaration                 *to;
+        ast::IExprId                            *id;
+    };
+    std::vector<SymbolActivation>       m_symbol_activations;
+    /** The symbol whose body the walk is in, or null. */
+    ast::ISymbolDeclaration             *m_cur_symbol = 0;
     bool                                m_retrying = false;
 
 };

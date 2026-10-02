@@ -7,6 +7,93 @@ revision advances only the patch component.
 
 ## Unreleased
 
+### Fixed (behaviour change) — a procedural declaration needs its `;` (pssc Q1)
+
+`int x = 1` followed by `int y = 2;` in a function or `exec` body was
+accepted with no diagnostic. The grammar rule for a procedural data
+declaration left off the `;` that LRM B.7 gives it, and the empty statement
+`;` matched it instead. It is now PSS020 "expected ';' before 'int'" (or
+"expected ';' after 'x'" when the line ends in a name). **Models that relied
+on this now fail to parse.** A census of every Annex B production that ends in
+`;` against the grammar (`scripts/grammar_semicolon_census.py`) found no other
+rule with the same shape.
+
+### Fixed (behaviour change) — an instance cannot qualify a name (pssc P1)
+
+`tx::send_a`, where `tx` is a component instance, linked with no error, and a
+`bind` through such a handle then reported "'i' was left unbound by
+pssparser … a pssparser defect". The exemption was deliberate but wrong: 18.3
+says only a namespace (a package or a type) qualifies a name, and 9.1.3 and
+Example 47 write `uart_c::write` for an instance of `uart_c`. Any qualifier
+that is not a namespace is now PSS002 at the qualifier, in type positions
+(fields, parameters, handles, `do`, super types, typedefs) and value positions
+(`tx::N`, `tx::M0`, `tx::sg()`): "'tx' is a component instance, not a type or
+package; did you mean 'tx_c'?". The message also names a constant, an array, a
+function, an action handle or a variable. The suggestion is offered only when
+that type declares the name, and the name is not an instance member. **Models
+that relied on this now fail to link** (pssc's fixtures: X-23).
+
+### Fixed — `with` or an initializer on a symbol (pssc Q3)
+
+`s with { val == 1; }` and `s {.val = 1}`, where `s` is an activity symbol,
+reported "'val' was left unbound by pssparser … a pssparser defect", and
+`s with { 1 < 2; }` was accepted. A symbol has no fields, so each is now
+PSS018: "'s' is a symbol, not an action handle; a symbol takes no 'with'
+constraints (11.7)". `s;` (Example 120) is unchanged.
+
+### Added — symbol arguments and recursion are checked (pssc Q4)
+
+- A symbol call's arguments are checked against the parameters' kinds (PSS006).
+  An action-handle parameter takes a handle of that action type or a subtype,
+  or an element of an array of them. A data parameter takes a value of a
+  compatible type, as a function parameter does: "argument 1 of 's' is a
+  value, but parameter 'h' is a handle of action 'A'".
+- **PSS064**: a symbol that activates itself, directly or through other
+  symbols, is an error at the activation that closes the cycle, naming the
+  chain: "symbol 's1' activates itself: s1 -> s2 -> s1 (11.7)". Both the call
+  form and the `s;` form of Example 120 count.
+
+### Added — comments on activity statements (sphinx-pss AC1–AC5)
+
+With `collect_comments`, activity statements now carry their leading, trailing
+and orphan comments, as procedural statements do. None did before, contrary to
+`docs/comments.rst`. A comment above a labeled or annotated statement belongs to
+it. A comment above a `select` branch or `match` choice lands on the branch's
+body. A comment after a block's last statement lands on that block's
+`getTrailing_comments()` (`activity`, `sequence`, `parallel`, `schedule`,
+`select`, `match`, and an `atomic` block's body). In procedural code and
+activities alike, the trailing comment of a statement that ends in `;` on a
+later line (`repeat { … } while (c); // note`, or a call split across lines)
+is no longer lost. See `docs/comments.rst`, "Activities".
+
+### Fixed — locations: `atomic`, `bind`, and every constraint statement
+
+- An `atomic` block has an end location, and its body `ActivitySequence` is
+  located at the `{`. The body had no location at all, so a consumer treating
+  `lineno < 0` as compiler-injected dropped its contents (sphinx-pss R1).
+- A `bind` statement has an end location (sphinx-pss R2).
+- Every constraint statement is located, with an end location: expression,
+  `if`, implication, `foreach`, `forall` and `dist` statements had none. Only
+  `unique`, `soft` and the `default` forms did (pssc P2, which asked for `dist`).
+- A traversal's `with` block is located at `with`.
+
+### Fixed — a statement missing its `;` before the next line (pssc Q2)
+
+`message(NONE, "a")` then `message(NONE, "b");` reported "unexpected 'NONE' …
+expecting 'void'" inside the first (correct) call, followed by "syntax error
+at 'message'". It is now one PSS020, "expected ';' before 'message'", at the
+second call. The same applies to method calls, activity symbol calls, and
+`int a = 1, b = 2` followed by another statement.
+
+### Changed — parsing and linking are faster (sphinx-pss PERF-1)
+
+The token stream is now lexed in full before parsing, rather than only when
+comments are collected. On generated 2000- and 8000-function models (one core,
+best of five), this change on its own cut parse time by 6–15% and link time by
+33–34%. The grammar fix above cut parse time by a further 19–20%. Together, the
+8000-function model went from 819 to 612 ms to parse and from 261 to 188 ms to
+link.
+
 ### Changed — two import-visibility warnings are now errors (LRM 17.2.3, 18.1.3)
 
 After a release as warnings:

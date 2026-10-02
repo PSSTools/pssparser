@@ -231,6 +231,39 @@ public:
     static bool isOrderSensitive(const ast::ISymbolScope *s);
 
     /**
+     * What `c` is, when it is used as the qualifier of `c::name` but is not a
+     * namespace. 18.3: "the term namespace refers to either a package or a
+     * type", so a field, a variable, a function or a symbol cannot qualify a
+     * name, even when its type declares that name (9.1.3, Example 47:
+     * `uart_c::write`, not `s1::write` for an instance `s1`).
+     */
+    struct NotNamespace {
+        /** "component instance", "constant", "function", ...; null when `c`
+         *  is a namespace, or a kind this does not classify. */
+        const char          *kind = 0;
+        /** The qualifier to write instead: the declared type of `c`, when it
+         *  is a user type that declares `next`. Empty otherwise. */
+        std::string         suggestion;
+        /** The declared type of `c` is a user type not bound yet (a super
+         *  type is resolved before field types are), so `kind` and
+         *  `suggestion` may be incomplete. */
+        bool                type_pending = false;
+    };
+
+    static NotNamespace describeNonNamespace(
+        ResolveContext              *ctxt,
+        ast::IScopeChild            *c,
+        const std::string           &next);
+
+    /**
+     * The marker text for `describeNonNamespace`'s result: "'tx' is a
+     * component instance, not a type or package; did you mean 'tx_c'?".
+     */
+    static std::string notNamespaceMessage(
+        const std::string           &name,
+        const NotNamespace          &nn);
+
+    /**
      * Where `c` declares its name: the name's own location when it has one.
      */
     static const ast::Location &declLocation(const ast::IScopeChild *c);

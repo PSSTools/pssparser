@@ -1,0 +1,22 @@
+//! case:            SYN-PUNCT-MISSING-SEMICOLON-METHOD-CALL
+//! class:           syntax.punct
+//! title:           missing semicolon after a method call
+//! expect:          error
+//! detect:          required
+//! lrm:             B.7
+//! pssparser.id:    PSS020
+//! at:              19:13
+//! pssparser.match: expected ';' before 'comp'
+//! count:           1
+//! fix:             18:            comp.cf(1);
+//! cause:           ;
+//! names:           cf
+component C {
+    function void cf(int a) { }
+    action A {
+        exec body {
+            comp.cf(1)
+            comp.cf(2);
+        }
+    }
+}

@@ -17,9 +17,17 @@
  */
 #include <algorithm>
 #include "dmgr/impl/DebugMacros.h"
+#include "pssp/ast/IAction.h"
+#include "pssp/ast/IActionHandleField.h"
 #include "pssp/ast/IActivityDecl.h"
 #include "pssp/ast/IActivityLabeledScope.h"
 #include "pssp/ast/IComponent.h"
+#include "pssp/ast/IConstraintBlock.h"
+#include "pssp/ast/IDataTypeUserDefined.h"
+#include "pssp/ast/IField.h"
+#include "pssp/ast/IFieldClaim.h"
+#include "pssp/ast/IFieldCompRef.h"
+#include "pssp/ast/IFieldRef.h"
 #include "pssp/ast/IEnumItem.h"
 #include "pssp/ast/IExecScope.h"
 #include "pssp/ast/IExtendEnum.h"
@@ -36,6 +44,8 @@
 #include "pssp/ast/ISymbolExtendScope.h"
 #include "pssp/ast/ITemplateElem.h"
 #include "pssp/ast/ITemplateString.h"
+#include "pssp/ast/ITypeIdentifier.h"
+#include "pssp/ast/ITypeIdentifierElem.h"
 #include "pssp/impl/ActivityScopes.h"
 #include "pssp/impl/ConstraintScopes.h"
 #include "pssp/impl/TaskGetName.h"
@@ -1332,6 +1342,131 @@ bool NameLookup::isOrderSensitive(const ast::ISymbolScope *s) {
         || NodeKind::cast<ast::IMonitorActivityLabeledScope>(s)
         || NodeKind::cast<ast::ITemplateString>(s)
         || NodeKind::cast<ast::ITemplateElem>(s);
+}
+
+namespace {
+
+/** `T` as written: `tx_c`, `pkg::tx_c`. Empty for a built-in type. */
+std::string typeText(ast::IDataType *t) {
+    ast::IDataTypeUserDefined *ut = NodeKind::cast<ast::IDataTypeUserDefined>(t);
+    if (!ut || !ut->getType_id()) {
+        return "";
+    }
+    std::string ret;
+    for (std::vector<ast::ITypeIdentifierElemUP>::const_iterator
+            it=ut->getType_id()->getElems().begin();
+            it!=ut->getType_id()->getElems().end(); it++) {
+        if (ret.size()) {
+            ret += "::";
+        }
+        ret += (*it)->getId()->getId();
+    }
+    return ret;
+}
+
+}
+
+NameLookup::NotNamespace NameLookup::describeNonNamespace(
+        ResolveContext              *ctxt,
+        ast::IScopeChild            *c,
+        const std::string           &next) {
+    NotNamespace ret;
+    if (!c) {
+        return ret;
+    }
+    ast::IDataType *type = 0;
+    if (ast::IField *f = NodeKind::cast<ast::IField>(c)) {
+        type = f->getType();
+        ret.kind = (((int)f->getAttr() & (int)ast::FieldAttr::Const) != 0)
+            ? "constant" : "field";
+    } else if (ast::IActionHandleField *h = NodeKind::cast<ast::IActionHandleField>(c)) {
+        type = h->getType();
+        ret.kind = "action handle";
+    } else if (NodeKind::cast<ast::IFieldCompRef>(c)) {
+        ret.kind = "component reference";
+    } else if (ast::IFieldRef *r = NodeKind::cast<ast::IFieldRef>(c)) {
+        type = r->getType();
+        ret.kind = (r->getIs_input()) ? "input" : "output";
+    } else if (ast::IFieldClaim *cl = NodeKind::cast<ast::IFieldClaim>(c)) {
+        type = cl->getType();
+        ret.kind = "resource claim";
+    } else if (ast::IProceduralStmtDataDeclaration *d =
+            NodeKind::cast<ast::IProceduralStmtDataDeclaration>(c)) {
+        type = d->getDatatype();
+        ret.kind = "variable";
+    } else if (ast::IFunctionParamDecl *p = NodeKind::cast<ast::IFunctionParamDecl>(c)) {
+        type = p->getType();
+        ret.kind = "parameter";
+    } else if (NodeKind::cast<ast::ISymbolFunctionScope>(c)) {
+        ret.kind = "function";
+    } else if (NodeKind::cast<ast::ISymbolDeclaration>(c)) {
+        ret.kind = "symbol";
+    } else if (NodeKind::cast<ast::IConstraintBlock>(c)) {
+        ret.kind = "constraint";
+    } else if (NodeKind::cast<ast::IEnumItem>(c)) {
+        ret.kind = "enum item";
+    } else if (NodeKind::cast<ast::IActivityLabeledScope>(c)
+            || NodeKind::cast<ast::IMonitorActivityLabeledScope>(c)) {
+        ret.kind = "label";
+    } else {
+        return ret;
+    }
+
+    std::string text = typeText(type);
+    if (text == "array" || text == "list" || text == "map" || text == "set") {
+        // A collection names its own kind; its element type is not what the
+        // qualifier was meant to be, so nothing is suggested.
+        static const char *const kinds[] = {"array", "list", "map", "set"};
+        for (const char *k : kinds) {
+            if (text == k) {
+                ret.kind = k;
+            }
+        }
+        return ret;
+    }
+
+    ast::IDataTypeUserDefined *ut = NodeKind::cast<ast::IDataTypeUserDefined>(type);
+    ret.type_pending = ut && ut->getType_id() && !ut->getType_id()->getTarget();
+    ast::IScopeChild *t = (ctxt && ut && ut->getType_id() && ut->getType_id()->getTarget())
+        ? ctxt->resolveSymbolPathRef(ut->getType_id()->getTarget()) : 0;
+    ast::ISymbolScope *ts = NodeKind::cast<ast::ISymbolScope>(t);
+    if (!ts) {
+        return ret;
+    }
+    ast::IScopeChild *decl = 0;
+    if (ast::ISymbolChildrenScope *cs = NodeKind::cast<ast::ISymbolChildrenScope>(ts)) {
+        decl = cs->getTarget();
+    }
+    if (std::string(ret.kind) == "field") {
+        if (NodeKind::cast<ast::IComponent>(decl)) {
+            ret.kind = "component instance";
+        } else if (NodeKind::cast<ast::IAction>(decl)) {
+            ret.kind = "action handle";
+        }
+    }
+    // Suggested only when it is right: the type declares `next`.
+    Member m = lookupMember(ctxt->getDebugMgr(),
+        NodeKind::cast<ast::ISymbolScope>(ctxt->root()), ts, next, true);
+    // An instance member cannot be named through the type either, so the
+    // suggestion would only trade one error for another.
+    if (m.sym && !isInstanceMember(m.sym)) {
+        ret.suggestion = text;
+    }
+    return ret;
+}
+
+std::string NameLookup::notNamespaceMessage(
+        const std::string           &name,
+        const NotNamespace          &nn) {
+    std::string kind(nn.kind);
+    const char *art = (kind.size() && std::string("aeiou").find(kind[0]) != std::string::npos)
+        ? "an" : "a";
+    std::string msg = "'" + name + "' is " + art + " " + kind
+        + ", not a type or package";
+    if (nn.suggestion.size()) {
+        msg += "; did you mean '" + nn.suggestion + "'?";
+    }
+    return msg;
 }
 
 const ast::Location &NameLookup::declLocation(const ast::IScopeChild *c) {

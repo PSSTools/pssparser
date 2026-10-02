@@ -176,6 +176,15 @@ REPRESENTATIVE_MESSAGES = [
     ("PSS063", "cannot override template action 'A'"),
     ("PSS063", "action 'A' must be declared 'override': 'C' declares it as "
                "an override action"),
+    ("PSS064", "symbol 's1' activates itself: s1 -> s2 -> s1 (11.7)"),
+    ("PSS006", "argument 1 of 's' is a value, but parameter 'h' is a handle "
+               "of action 'A'"),
+    ("PSS006", "argument 1 of 't' is an action handle, but parameter 'n' is "
+               "numeric"),
+    ("PSS002", "'tx' is a component instance, not a type or package; did you "
+               "mean 'tx_c'?"),
+    ("PSS018", "'s' is a symbol, not an action handle; a symbol takes no "
+               "'with' constraints (11.7)"),
     ("PSS002", "cannot resolve 'y': the enclosing scope is unknown"),
     ("PSS003", "duplicate declaration of 'attr' in an extension of an "
                "instance of 'domain_s': the type already declares it (17.2.3)"),

@@ -1,0 +1,25 @@
+//! case:            SEM-RESOLVE-INSTANCE-QUALIFIER-01
+//! class:           semantic.resolve
+//! title:           a component instance used as the qualifier of a traversed action type
+//! expect:          error
+//! detect:          required
+//! lrm:             18.3, 9.1.3
+//! pssparser.id:    PSS002
+//! pssparser.match: 'tx' is a component instance, not a type or package
+//! at:              22:16
+//! count:           1
+//! fix:             22:            do tx_c::send_a;
+//! cause:           instance, type
+//! names:           tx
+//! tags:            resolve, qualifier, activity
+component tx_c {
+    action send_a { }
+}
+component pss_top {
+    tx_c tx;
+    action A {
+        activity {
+            do tx::send_a;
+        }
+    }
+}

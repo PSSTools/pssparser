@@ -1,0 +1,24 @@
+//! case:            SEM-RESOLVE-INSTANCE-QUALIFIER-03
+//! class:           semantic.resolve
+//! title:           a component instance used as the qualifier of a static constant
+//! expect:          error
+//! detect:          required
+//! lrm:             18.3
+//! pssparser.id:    PSS002
+//! pssparser.match: 'tx' is a component instance, not a type or package
+//! at:              22:24
+//! count:           1
+//! fix:             22:        constraint y < tx_c::N;
+//! cause:           instance, type
+//! names:           tx
+//! tags:            resolve, qualifier, constraint
+component tx_c {
+    static const int N = 3;
+}
+component pss_top {
+    tx_c tx;
+    action A {
+        rand int y;
+        constraint y < tx::N;
+    }
+}

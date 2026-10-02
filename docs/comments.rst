@@ -84,6 +84,55 @@ without deleting it.
 Comments that no construct can claim -- at the end of a block, after the last
 statement -- land on the enclosing scope's ``getTrailing_comments()``.
 
+A statement that ends in ``;`` on a later line than it starts -- ``repeat { ...
+} while (c);``, or a call split across lines -- has its trailing comment after
+that ``;``.
+
+Activities
+----------
+
+Activity statements carry comments the way procedural statements do: every
+statement in an ``activity`` block, in a ``symbol`` body, and in each nested
+body, by the same placement rules::
+
+    activity {
+        /// Step: Configure the channel
+        setup: sequence {
+            cfg_a;
+            cfg_b;    // trailing, on cfg_b
+        }
+        select {
+            /// Step: Fast path
+            (c > 2) [3]: fast;
+            slow;
+        }
+        repeat (n) {  // trailing, on the repeat
+            xfer;
+        }
+        /// Step: closing note -- on the activity's getTrailing_comments()
+    }
+
+* A comment above a **labeled** statement belongs to that statement. The label
+  is the statement's first token, so ``setup:`` does not cut the comment off.
+* A comment above an **annotated** statement (``@a`` on the line before it)
+  belongs to the statement.
+* A comment above a ``select`` branch or a ``match`` choice lands on that
+  branch's **body**. Branches and choices are not ``ScopeChild`` nodes, so they
+  hold no comments themselves. The guard or ``[range]:`` comes first, so the
+  comment is looked for from the branch's start, not the body's.
+* A comment after a block's last statement, before its ``}``, lands on that
+  block's ``getTrailing_comments()``: the ``ActivityDecl``, a ``sequence`` or a
+  bare ``{ }`` block, ``parallel``, ``schedule``, ``select``, ``match``, or the
+  body sequence of an ``atomic`` block.
+* A bare ``{ }`` body (``repeat (n) {``, ``if (c) {``) claims no comments of its
+  own. A comment on its opening brace's line trails the statement.
+* A comment between ``}`` and ``else`` has no owner and is dropped. Put it
+  inside the ``else`` body instead.
+
+``getDocRaw()`` is filled for an activity statement with a doc comment above
+it, as for a declaration (needs ``collect_docstrings``, which
+``collect_comments`` implies).
+
 Normalization
 -------------
 

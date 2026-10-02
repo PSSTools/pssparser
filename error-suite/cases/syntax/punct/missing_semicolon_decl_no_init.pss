@@ -1,0 +1,21 @@
+//! case:            SYN-PUNCT-MISSING-SEMICOLON-DECL-NO-INIT
+//! class:           syntax.punct
+//! title:           missing semicolon after a declaration with no initializer
+//! expect:          error
+//! detect:          required
+//! lrm:             B.7
+//! pssparser.id:    PSS020
+//! at:              17:18
+//! pssparser.match: expected ';' after 'x'
+//! count:           1
+//! fix:             17:            int x;
+//! cause:           ;
+//! names:           x
+component C {
+    action A {
+        exec body {
+            int x
+            int y;
+        }
+    }
+}

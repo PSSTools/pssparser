@@ -808,7 +808,6 @@ void AstBuilderInt::buildTemplateDirective(
                 tok.line, tok.col, tok.extent);
             return;
         }
-        frag_text[semi] = ' ';      // the rule does not include the `;`
 
         FragmentParser fp(frag_text);
         PSSParser::Procedural_data_declarationContext *ctx =

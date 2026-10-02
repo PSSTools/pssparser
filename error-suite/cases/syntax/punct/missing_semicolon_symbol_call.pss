@@ -1,0 +1,23 @@
+//! case:            SYN-PUNCT-MISSING-SEMICOLON-SYMBOL-CALL
+//! class:           syntax.punct
+//! title:           missing semicolon after an activity symbol call
+//! expect:          error
+//! detect:          required
+//! lrm:             B.7
+//! pssparser.id:    PSS020
+//! at:              20:13
+//! pssparser.match: expected ';' before 's'
+//! count:           1
+//! fix:             19:            s(1);
+//! cause:           ;
+//! names:           s
+component C {
+    action A { }
+    action T {
+        symbol s(int n) { do A; }
+        activity {
+            s(1)
+            s(2);
+        }
+    }
+}

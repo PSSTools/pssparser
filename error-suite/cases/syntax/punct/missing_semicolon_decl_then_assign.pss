@@ -1,0 +1,21 @@
+//! case:            SYN-PUNCT-MISSING-SEMICOLON-DECL-THEN-ASSIGN
+//! class:           syntax.punct
+//! title:           missing semicolon after a declaration, before an assignment
+//! expect:          error
+//! detect:          required
+//! lrm:             B.7
+//! pssparser.id:    PSS020
+//! at:              18:13
+//! pssparser.match: expected ';' before 'x'
+//! count:           1
+//! fix:             17:            int x = 1;
+//! cause:           ;
+//! names:           x
+component C {
+    action A {
+        exec body {
+            int x = 1
+            x = 2;
+        }
+    }
+}

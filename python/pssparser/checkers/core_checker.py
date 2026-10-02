@@ -101,6 +101,9 @@ class CoreChecker(CheckerBase):
                 # A name after one whose type did not resolve: `x.y` where
                 # x's type is unknown, so y has no scope to be looked up in.
                 r"^cannot resolve '.*': the enclosing scope is unknown\b",
+                # A qualifier that is not a namespace (18.3): `tx::send_a`
+                # for a component instance `tx` (pssc P1).
+                r"^'[^']*' is an? [a-z ]+, not a type or package\b",
             ),
             detail=(
                 "The linker could not resolve a named type, identifier, or "
@@ -126,7 +129,13 @@ class CoreChecker(CheckerBase):
                 "and cannot be reached as a member of 'i'``\n"
                 "* ``base type 'B' has no member named 'x'`` (``super.x``)\n"
                 "* ``cannot resolve 'y': the enclosing scope is unknown`` "
-                "(``x[0].y`` where x's element type did not resolve)\n\n"
+                "(``x[0].y`` where x's element type did not resolve)\n"
+                "* ``'tx' is a component instance, not a type or package; did "
+                "you mean 'tx_c'?`` -- 18.3: only a package or a type "
+                "qualifies a name, so an instance, field, variable, function "
+                "or symbol cannot, even where its type declares the name "
+                "(9.1.3, Example 47).  The suggestion is the qualifier's "
+                "declared type, offered only when it declares the name\n\n"
                 "Ensure the symbol is declared in one of the source files "
                 "passed to pssparser, or that the correct package is imported."
                 "  When a close match exists, a ``did you mean '...'?`` "
@@ -221,10 +230,16 @@ class CoreChecker(CheckerBase):
                 "* ``parameter 'b' has no default, but follows 'a' which "
                 "does``\n"
                 "* ``argument 1 of 'f' is a string, but parameter 'a' is "
-                "numeric``\n\n"
+                "numeric``\n"
+                "* ``argument 1 of 's' is a value, but parameter 'h' is a "
+                "handle of action 'A'`` -- a symbol's action-handle parameter "
+                "takes a handle of that action type or a subtype, or an "
+                "element of an array of them (11.7)\n\n"
                 "Argument types are compared only by broad category -- "
                 "numeric, string, composite.  Widths, signedness and struct "
-                "subtyping are deliberately not judged.\n\n"
+                "subtyping are deliberately not judged, except that a "
+                "symbol's handle argument must be of the parameter's action "
+                "type or a subtype.\n\n"
                 "Parameters with a default may be omitted, which is why the "
                 "bound is reported as ``at least``/``at most`` when the two "
                 "differ.  A ``type... args`` parameter removes the upper "
@@ -594,7 +609,11 @@ class CoreChecker(CheckerBase):
                 "be traversed; ...`` -- write it as a generic constraint, "
                 "``constraint c() { ... }``\n"
                 "* ``'S' is not an action type, and cannot be traversed`` "
-                "(``do S`` on a struct or component)\n\n"
+                "(``do S`` on a struct or component)\n"
+                "* ``'s' is a symbol, not an action handle; a symbol takes no "
+                "'with' constraints (11.7)`` (also ``no initializer list``): "
+                "``s;`` activates a symbol, but it has no fields to constrain "
+                "or set\n\n"
                 "A name that is not declared at all is PSS002."
             ),
             patterns=(
@@ -673,7 +692,15 @@ class CoreChecker(CheckerBase):
                 "* ``expected '{' or ':' before 'extends'; use ':' for "
                 "inheritance, not 'extends'``\n\n"
                 "Insert the missing punctuation, or (for the last case) "
-                "replace ``extends`` with ``:``."
+                "replace ``extends`` with ``:``.\n\n"
+                "``expected ';' before '<token>'`` is also reported when a "
+                "statement that could have ended with ``;`` is followed, on "
+                "the next line, by a token that starts another statement: "
+                "``int a = 1, b = 2`` or ``f(1)`` with no ``;`` before the "
+                "next line.  The marker is on the next line's first token, "
+                "since that is where the parser noticed.  When the line ends "
+                "in a name, the marker moves to the end of that line instead "
+                "(``expected ';' after '<name>'``)."
             ),
         ),
         MarkerDef(
@@ -1461,6 +1488,23 @@ class CoreChecker(CheckerBase):
                 "* ``action 'A' must be declared 'override': 'C' declares it "
                 "as an override action`` -- an action that redeclares an "
                 "override action's name needs the keyword too"
+            ),
+        ),
+        MarkerDef(
+            id="PSS064",
+            severity="error",
+            summary="A symbol activates itself",
+            patterns=(
+                r"^symbol '.*' activates itself\b",
+            ),
+            detail=(
+                "LRM 11.7: \"A symbol may activate another symbol, but symbols "
+                "are not recursive and may not activate themselves.\"  The "
+                "activations are the calls ``s(...)`` and the ``s;`` form of "
+                "Example 120 in a symbol's body.  A cycle is reported once, at "
+                "the activation that closes it, naming the chain:\n\n"
+                "* ``symbol 's1' activates itself: s1 -> s2 -> s1 (11.7)``\n"
+                "* ``symbol 's' activates itself: s -> s (11.7)``"
             ),
         ),
 

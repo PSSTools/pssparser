@@ -385,6 +385,17 @@ public:
 
 	virtual antlrcpp::Any visitExpression_constraint_item(PSSParser::Expression_constraint_itemContext *ctx) override;
 
+	virtual antlrcpp::Any visitConstraint_body_item(PSSParser::Constraint_body_itemContext *ctx) override;
+
+	virtual antlrcpp::Any visitMonitor_constraint_body_item(PSSParser::Monitor_constraint_body_itemContext *ctx) override;
+
+	/**
+	 * Accept one constraint body item, then locate whatever statements it
+	 * added to the enclosing constraint scope that its builder did not
+	 * (pssc P2): from the item's first token through its last.
+	 */
+	void acceptLocatedConstraintItem(antlr4::ParserRuleContext *ctx);
+
     virtual antlrcpp::Any visitProcedural_compile_if(PSSParser::Procedural_compile_ifContext *ctx) override;
 
     virtual antlrcpp::Any visitCovergroup_body_compile_if(PSSParser::Covergroup_body_compile_ifContext *ctx) override;
@@ -525,7 +536,7 @@ private:
      * carries its own comment; taking the enclosing anchor would give every
      * item in the list the declaration's docstring.
      */
-    void attachDocstring(ast::IScopeChild *c, Token *t);
+    void attachDocstring(ast::IScopeChild *c, Token *t, Token *stop=0);
 
     /** Record text, raw source, form and comment location on *c* (E4). */
     void applyDocComment(ast::IScopeChild *c, const DocComment &dc);
@@ -578,8 +589,13 @@ private:
      *
      * Does nothing unless comment collection is enabled; the docstring comes
      * from the DocCommentExtractor, not from this partition.
+     *
+     * *stop*, when given, is the construct's last token. A construct that
+     * ends in `;` on a later line than *t* -- `repeat { ... } while (b);`,
+     * or a call split over two lines -- has its trailing comment after that
+     * `;`, not on *t*'s line (sphinx-pss AC5).
      */
-    void attachComments(ast::IScopeChild *c, Token *t);
+    void attachComments(ast::IScopeChild *c, Token *t, Token *stop=0);
 
     /**
      * Claim a comment that starts on *t*'s line, after it, as *c*'s trailing
@@ -809,7 +825,21 @@ private:
      */
     void indexActivityBodies(ast::ISymbolScope *stmt);
     void addStructBuiltinField(ast::IStruct *s, ast::StructKind kind);
-	ast::IScopeChild *mkActivityStmt(PSSParser::Activity_stmt_annContext *ctx);
+	/**
+	 * Build one activity statement, and attach its comments (sphinx-pss AC1).
+	 * They are looked up from *anchor* when given -- the start of a `select`
+	 * branch or `match` choice, whose guard precedes the body (AC3) -- and
+	 * otherwise from the statement's first token, a label included.
+	 */
+	ast::IScopeChild *mkActivityStmt(
+		PSSParser::Activity_stmt_annContext *ctx,
+		Token *anchor=0);
+
+	/**
+	 * After the last statement of a braced activity block: the comments
+	 * before its *closer* go to *scope*'s trailing comments (AC2).
+	 */
+	void closeActivityBlock(ast::IScopeChild *scope, Token *closer);
 
 	ast::IConstraintStmt *mkConstraintSet(PSSParser::Constraint_setContext *ctx);
 
@@ -1113,6 +1143,19 @@ private:
      */
     ssize_t                                     m_last_lex_error_line;
 
+    /**
+     * Q2: the token span, [first, last), of the last statement ANTLR could not
+     * predict at all (no viable alternative), or -1/-1.
+     *
+     * Recovery from such an error resyncs *inside* that span, at whatever
+     * token could start a statement -- the `(` of a call, since `(void) f();`
+     * starts with one -- and re-reads the same tokens. Whatever it then
+     * reports is debris from the error already reported, not a second
+     * defect. Reset per `build()` alongside the fields above.
+     */
+    ssize_t                                     m_noviable_start_idx;
+    ssize_t                                     m_noviable_end_idx;
+
     static dmgr::IDebug                         *m_dbg;
     int32_t                                     m_file_id;
     // The branches of the `compile if` being evaluated, from
@@ -1153,6 +1196,9 @@ private:
      */
     std::vector<ast::IGlobalScope *>            m_prior_units;
 	ast::IScopeChild							*m_activity_stmt;
+	/** The first token of an annotation statement in an activity, held for
+	 *  the statement it annotates: a comment above `@a` belongs there. */
+	Token										*m_activity_ann_anchor;
 	/**
 	 * The activity scopes being built, innermost last: the activity (or
 	 * monitor activity, or symbol) declaration, then each block and compound

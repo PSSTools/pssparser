@@ -1,0 +1,24 @@
+//! case:            SEM-RESOLVE-SYMBOL-RECURSION-01
+//! class:           semantic.resolve
+//! title:           two symbols that activate each other
+//! expect:          error
+//! detect:          required
+//! lrm:             11.7
+//! pssparser.id:    PSS064
+//! pssparser.match: symbol 's1' activates itself
+//! at:              19:28
+//! count:           1
+//! fix:             19:        symbol s2(int n) { repeat (n) { do A; } }
+//! cause:           activates, itself
+//! names:           s1
+//! tags:            resolve, symbol, activity
+component pss_top {
+    action A { }
+    action T {
+        symbol s1(int n) { s2(n); }
+        symbol s2(int n) { s1(n); }
+        activity {
+            s1(1);
+        }
+    }
+}

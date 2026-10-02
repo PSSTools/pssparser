@@ -290,15 +290,6 @@ void TaskCheckRefsResolved::checkRef(
         const std::string &name = id->getId();
         bool declared = (m_names.find(name) != m_names.end());
 
-        if (is_type && ii > 0 && NodeKind::cast<ast::IField>(prev)) {
-            // `tx::send_pkt s;` in an activity, where `tx` is a component
-            // *instance*: the path is resolved by instance, not by scope, and
-            // this node never receives a target. pssc resolves it the same
-            // way (targets/sv/context.py).
-            DEBUG("Note: '%s' is qualified by an instance", name.c_str());
-            return;
-        }
-
         if (ii > 0 && hasUnboundType(prev)) {
             // `x.f` where x's own type failed to resolve: that failure has
             // its own report, and f was never looked up.

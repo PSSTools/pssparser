@@ -19,6 +19,7 @@
  *     Author:
  */
 #include <set>
+#include <functional>
 #include "dmgr/impl/DebugMacros.h"
 #include "CoreLibraryLookup.h"
 #include "TaskCheckCallArgs.h"
@@ -58,6 +59,8 @@
 #include "pssp/ast/IMonitorConstraint.h"
 #include "pssp/ast/IActionHandleField.h"
 #include "pssp/ast/IAction.h"
+#include "pssp/ast/ITemplateParamValueList.h"
+#include "pssp/ast/ITemplateParamTypeValue.h"
 #include "pssp/ast/IActivityActionHandleTraversal.h"
 #include "pssp/ast/IActivityActionTypeTraversal.h"
 #include "pssp/ast/IActivityLabeledScope.h"
@@ -325,6 +328,7 @@ void TaskResolveRefs::resolve(ast::ISymbolScope *root) {
     // be bound is: walk again the paths that stopped short of one.
     resolveDeferred();
     resolvePoolBinds();
+    checkSymbolCalls();
 
     m_ctxt->popSymtab();
 
@@ -579,6 +583,7 @@ void TaskResolveRefs::resolve(ast::ISymbolTypeScope *scope) {
 
     // A specialization's own binds: its instances' types are bound by now.
     resolvePoolBinds();
+    checkSymbolCalls();
 
     DEBUG("Removing symbol iterator for body");
     m_ctxt->popSymtab();
@@ -979,6 +984,28 @@ void TaskResolveRefs::visitActivityActionHandleTraversal(ast::IActivityActionHan
 
     ast::IExprMemberPathElem *leaf = i->getTarget()->getHier_id()->getElems().back().get();
     ast::IScopeChild *decl = (i->getTarget()->getTarget()) ? leaf->getId()->getDecl() : 0;
+
+    // `s with {...}` or `s {.x = 1}` on a symbol (11.7): Example 120's `s;`
+    // activates the symbol, but a symbol is no action, so it has no fields
+    // for the block to constrain or set. Their names are left unresolved;
+    // this error stands for them (pssc Q3).
+    if (ast::ISymbolDeclaration *sym = NodeKind::cast<ast::ISymbolDeclaration>(decl)) {
+        addSymbolActivation(sym, leaf->getId());
+    }
+    if (NodeKind::cast<ast::ISymbolDeclaration>(decl)
+            && (i->getWith_c() || i->getInitializers().size())) {
+        const ast::Location &loc = (i->getWith_c()
+                && i->getWith_c()->getLocation().lineno > 0)
+            ? i->getWith_c()->getLocation() : leaf->getId()->getLocation();
+        m_ctxt->addErrorMarker(loc,
+            "'%s' is a symbol, not an action handle; a symbol takes no %s "
+            "(11.7)",
+            leaf->getId()->getId().c_str(),
+            (i->getWith_c()) ? "'with' constraints" : "initializer list");
+        DEBUG_LEAVE("visitActivityActionHandleTraversal -- with on a symbol");
+        return;
+    }
+
     ast::ISymbolScope *type_s = (decl)
         ? traversedType(decl, leaf->getId(), leaf->getSubscript().size(), true) : 0;
 
@@ -3364,6 +3391,24 @@ void TaskResolveRefs::resolveExprRefPathStatic(ast::IExprRefPathStatic *i) {
                 // Until now the accept() above was the whole of it and its
                 // result was discarded, so `Q<ok_s>::nosuch` linked cleanly:
                 // only the root of a static path was ever checked.
+                // 18.3: only a package or a type qualifies a name, so
+                // `tx::N` for an instance `tx` is an error at `tx` (pssc P1,
+                // F3), as `tx::send_a` is in a type position.
+                NameLookup::NotNamespace nn = NameLookup::describeNonNamespace(
+                    m_ctxt, target_s, (*it)->getId()->getId());
+                if (nn.kind) {
+                    ast::IExprId *qual = (*(it-1))->getId();
+                    if (!m_ctxt->wasReported(qual->getLocation())) {
+                        addMarker(
+                            MarkerSeverityE::Error,
+                            qual->getLocation(),
+                            "%s",
+                            NameLookup::notNamespaceMessage(qual->getId(), nn).c_str());
+                    }
+                    target = 0;
+                    break;
+                }
+
                 ast::ISymbolScope *scope_s =
                     NodeKind::cast<ast::ISymbolScope>(target_s);
 
@@ -3510,6 +3555,23 @@ void TaskResolveRefs::resolveStaticRootedLeaf(ast::IExprRefPathStaticRooted *i) 
     if (!target_c) {
         DEBUG_LEAVE("resolveStaticRootedLeaf -- root path does not resolve");
         return;
+    }
+
+    // `tx::g()` for an instance `tx`: only a package or a type qualifies a
+    // name (18.3; pssc P1, F3). The lookup below would otherwise go through
+    // the instance's type.
+    if (i->getRoot()->getBase().size() && i->getLeaf()->getElems().size()) {
+        NameLookup::NotNamespace nn = NameLookup::describeNonNamespace(
+            m_ctxt, target_c, i->getLeaf()->getElems().at(0)->getId()->getId());
+        if (nn.kind) {
+            ast::IExprId *qual = i->getRoot()->getBase().back()->getId();
+            if (!m_ctxt->wasReported(qual->getLocation())) {
+                m_ctxt->addErrorMarker(qual->getLocation(), "%s",
+                    NameLookup::notNamespaceMessage(qual->getId(), nn).c_str());
+            }
+            DEBUG_LEAVE("resolveStaticRootedLeaf -- root is not a namespace");
+            return;
+        }
     }
 
     ast::ISymbolScope *target_s = TaskGetElemSymbolScope(
@@ -4266,7 +4328,10 @@ void TaskResolveRefs::visitSymbolDeclaration(ast::ISymbolDeclaration *i) {
             (*it)->getType()->accept(m_this);
         }
     }
+    ast::ISymbolDeclaration *prev = m_cur_symbol;
+    m_cur_symbol = i;
     visitSymbolScope(i);
+    m_cur_symbol = prev;
     DEBUG_LEAVE("visitSymbolDeclaration %s", i->getName().c_str());
 }
 
@@ -4319,12 +4384,217 @@ void TaskResolveRefs::visitActivitySymbolCall(ast::IActivitySymbolCall *i) {
                 (int)sym->getParams().size(),
                 (sym->getParams().size() == 1) ? "" : "s",
                 (int)i->getParams().size());
+        } else {
+            m_symbol_calls.push_back({i, sym});
         }
+        addSymbolActivation(sym, id);
         if (!rn->getTarget()) {
             rn->setTarget(target.release());
         }
     }
     DEBUG_LEAVE("visitActivitySymbolCall");
+}
+
+namespace {
+
+/** The declared type of a field, handle, variable or parameter. */
+ast::IDataType *declaredType(ast::IScopeChild *c) {
+    if (ast::IField *f = NodeKind::cast<ast::IField>(c)) {
+        return f->getType();
+    } else if (ast::IActionHandleField *h = NodeKind::cast<ast::IActionHandleField>(c)) {
+        return h->getType();
+    } else if (ast::IProceduralStmtDataDeclaration *d =
+            NodeKind::cast<ast::IProceduralStmtDataDeclaration>(c)) {
+        return d->getDatatype();
+    } else if (ast::IFunctionParamDecl *p = NodeKind::cast<ast::IFunctionParamDecl>(c)) {
+        return p->getType();
+    }
+    return 0;
+}
+
+/** `array<T,N>` or `list<T>`: T. Null for anything else. */
+ast::IDataType *collectionElemType(ast::IDataType *t) {
+    ast::IDataTypeUserDefined *ut = NodeKind::cast<ast::IDataTypeUserDefined>(t);
+    if (!ut || !ut->getType_id() || ut->getType_id()->getElems().size() != 1) {
+        return 0;
+    }
+    ast::ITypeIdentifierElem *e = ut->getType_id()->getElems().at(0).get();
+    const std::string &name = e->getId()->getId();
+    if ((name != "array" && name != "list") || !e->getParams()
+            || !e->getParams()->getValues().size()) {
+        return 0;
+    }
+    ast::ITemplateParamTypeValue *v = NodeKind::cast<ast::ITemplateParamTypeValue>(
+        e->getParams()->getValues().at(0).get());
+    return (v) ? v->getValue() : 0;
+}
+
+}
+
+/** The action type `t` names, or null when it is not an action type. */
+static ast::IAction *actionTypeOf(ResolveContext *ctxt, ast::IDataType *t) {
+    ast::IDataTypeUserDefined *ut = NodeKind::cast<ast::IDataTypeUserDefined>(t);
+    if (!ut || !ut->getType_id() || !ut->getType_id()->getTarget()) {
+        return 0;
+    }
+    ast::IScopeChild *c = ctxt->resolveSymbolPathRef(ut->getType_id()->getTarget());
+    if (ast::ISymbolChildrenScope *ss = NodeKind::cast<ast::ISymbolChildrenScope>(c)) {
+        c = ss->getTarget();
+    }
+    return NodeKind::cast<ast::IAction>(c);
+}
+
+void TaskResolveRefs::addSymbolActivation(ast::ISymbolDeclaration *to, ast::IExprId *id) {
+    if (m_cur_symbol && to) {
+        m_symbol_activations.push_back({m_cur_symbol, to, id});
+    }
+}
+
+void TaskResolveRefs::checkSymbolCalls() {
+    DEBUG_ENTER("checkSymbolCalls");
+    std::vector<PendingSymbolCall> calls;
+    calls.swap(m_symbol_calls);
+    TaskExprTypeCat cat(m_ctxt);
+
+    // Argument kinds (11.7): a handle parameter takes a handle of that action
+    // type or a subtype, and a data parameter a value of a compatible type,
+    // as a function parameter does.
+    for (std::vector<PendingSymbolCall>::const_iterator
+            it=calls.begin(); it!=calls.end(); it++) {
+        ast::IExprId *id = it->call->getTarget()->getId();
+        if (m_ctxt->wasReported(id->getLocation())) {
+            continue;
+        }
+        const std::vector<ast::IFunctionParamDeclUP> &params = it->sym->getParams();
+        const std::vector<ast::IExprUP> &args = it->call->getParams();
+        for (uint32_t ii=0; ii<params.size() && ii<args.size(); ii++) {
+            ast::IFunctionParamDecl *p = params.at(ii).get();
+            ast::IExpr *arg = args.at(ii).get();
+            const char *p_name = (p->getName()) ? p->getName()->getId().c_str() : "?";
+
+            // What the argument is: a handle (or an element of an array of
+            // handles), or a value.
+            ast::IAction *arg_action = 0;
+            ast::IExprRefPathContext *ref = NodeKind::cast<ast::IExprRefPathContext>(arg);
+            if (ref && ref->getTarget()) {
+                ast::IExprMemberPathElem *leaf = ref->getHier_id()->getElems().back().get();
+                ast::IScopeChild *decl = leaf->getId()->getDecl();
+                ast::IDataType *dt = declaredType(decl);
+                if (dt && leaf->getSubscript().size()) {
+                    dt = collectionElemType(dt);
+                }
+                arg_action = actionTypeOf(m_ctxt, dt);
+            }
+
+            ast::IAction *p_action = actionTypeOf(m_ctxt, p->getType());
+            if (p_action) {
+                bool ok = false;
+                ast::ITypeScope *ts = arg_action;
+                for (uint32_t depth=0; ts && depth<64; depth++) {
+                    if (ts == p_action) {
+                        ok = true;
+                        break;
+                    }
+                    if (!ts->getSuper_t()) {
+                        break;
+                    }
+                    ast::IScopeChild *sc = TaskResolveSuperTypeRef(
+                        m_ctxt->getDebugMgr(), m_ctxt->root()).resolve(ts);
+                    if (ast::ISymbolChildrenScope *ss = NodeKind::cast<ast::ISymbolChildrenScope>(sc)) {
+                        sc = ss->getTarget();
+                    }
+                    ts = NodeKind::cast<ast::ITypeScope>(sc);
+                }
+                if (!ok) {
+                    std::string got = (arg_action)
+                        ? "a handle of action '" + arg_action->getName()->getId() + "'"
+                        : std::string("a value");
+                    m_ctxt->addErrorMarker(id->getLocation(),
+                        "argument %d of '%s' is %s, but parameter '%s' is a handle "
+                        "of action '%s'",
+                        ii+1, id->getId().c_str(), got.c_str(), p_name,
+                        p_action->getName()->getId().c_str());
+                }
+                continue;
+            }
+
+            if (p->getKind() != ast::FunctionParamDeclKind::ParamKind_DataType) {
+                continue;
+            }
+            TypeCatE want = cat.dataType(p->getType());
+            if (want == TypeCatE::Unknown) {
+                continue;
+            }
+            if (arg_action) {
+                m_ctxt->addErrorMarker(id->getLocation(),
+                    "argument %d of '%s' is an action handle, but parameter '%s' is %s",
+                    ii+1, id->getId().c_str(), p_name, argCatName(want));
+                continue;
+            }
+            TypeCatE got = cat.expr(arg);
+            if (!TaskExprTypeCat::compatible(want, got)) {
+                m_ctxt->addErrorMarker(id->getLocation(),
+                    "argument %d of '%s' is %s, but parameter '%s' is %s",
+                    ii+1, id->getId().c_str(), argCatName(got), p_name,
+                    argCatName(want));
+            }
+        }
+    }
+
+    // Recursion (11.7: "symbols are not recursive and may not activate
+    // themselves"): a depth-first walk of the activation graph, reported once
+    // per cycle, at the activation that closes it.
+    std::vector<SymbolActivation> acts;
+    acts.swap(m_symbol_activations);
+    std::vector<ast::ISymbolDeclaration *> order;
+    std::unordered_map<ast::ISymbolDeclaration *, std::vector<const SymbolActivation *>> out;
+    for (std::vector<SymbolActivation>::const_iterator
+            it=acts.begin(); it!=acts.end(); it++) {
+        if (out.find(it->from) == out.end()) {
+            order.push_back(it->from);
+        }
+        out[it->from].push_back(&(*it));
+    }
+    // 0: not visited; 1: on the stack; 2: done.
+    std::unordered_map<ast::ISymbolDeclaration *, int> state;
+    std::vector<ast::ISymbolDeclaration *> stack;
+    std::function<void(ast::ISymbolDeclaration *)> dfs =
+            [&](ast::ISymbolDeclaration *s) {
+        state[s] = 1;
+        stack.push_back(s);
+        auto o = out.find(s);
+        if (o != out.end()) {
+            for (const SymbolActivation *a : o->second) {
+                int st = state[a->to];
+                if (st == 1) {
+                    std::string chain;
+                    bool on = false;
+                    for (ast::ISymbolDeclaration *x : stack) {
+                        on |= (x == a->to);
+                        if (on) {
+                            chain += x->getName() + " -> ";
+                        }
+                    }
+                    chain += a->to->getName();
+                    if (!m_ctxt->wasReported(a->id->getLocation())) {
+                        m_ctxt->addErrorMarker(a->id->getLocation(),
+                            "symbol '%s' activates itself: %s (11.7)",
+                            a->to->getName().c_str(), chain.c_str());
+                    }
+                } else if (st == 0) {
+                    dfs(a->to);
+                }
+            }
+        }
+        stack.pop_back();
+        state[s] = 2;
+    };
+    for (ast::ISymbolDeclaration *s : order) {
+        if (state[s] == 0) {
+            dfs(s);
+        }
+    }
+    DEBUG_LEAVE("checkSymbolCalls");
 }
 
 /**

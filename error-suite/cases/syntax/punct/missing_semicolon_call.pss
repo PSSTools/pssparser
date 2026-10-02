@@ -1,0 +1,22 @@
+//! case:            SYN-PUNCT-MISSING-SEMICOLON-CALL
+//! class:           syntax.punct
+//! title:           missing semicolon after a call, before another call
+//! expect:          error
+//! detect:          required
+//! lrm:             B.7
+//! pssparser.id:    PSS020
+//! at:              19:13
+//! pssparser.match: expected ';' before 'message'
+//! count:           1
+//! fix:             18:            message(NONE, "a");
+//! cause:           ;
+//! names:           message
+import std_pkg::*;
+component C {
+    action A {
+        exec body {
+            message(NONE, "a")
+            message(NONE, "b");
+        }
+    }
+}

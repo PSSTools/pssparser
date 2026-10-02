@@ -609,8 +609,11 @@ procedural_sequence_block_stmt:
 	;
 
 // EMPTYSTR: data_type may match empty string
+// The `;` belongs to the rule (LRM B.7). It used to be left off, and the
+// empty-statement alternative of procedural_stmt then consumed it, so
+// `int x = 1` followed by `int y = 2;` was a legal parse and reported nothing.
 procedural_data_declaration:
-	data_type procedural_data_instantiation (TOK_COMMA procedural_data_instantiation)*
+	data_type procedural_data_instantiation (TOK_COMMA procedural_data_instantiation)* TOK_SEMICOLON
 	;
 
 // B.12: `identifier { array_dim } [ = expression ]`

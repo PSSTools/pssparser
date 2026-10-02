@@ -12,6 +12,8 @@ Generator-source assertions live in test_astbuilder_codegen.py; this module
 covers what is observable through a parsed AST.
 """
 import sys
+
+import pytest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
@@ -170,3 +172,32 @@ def _find_pre_link(parser, pred):
                 if init is not None and pred(init):
                     return init
     return None
+
+
+# ---------------------------------------------------------------------------
+# P1-G2b (closed 2026-10-01): a SymbolRefPath can be inspected
+# ---------------------------------------------------------------------------
+#
+# `path()` used to raise AttributeError: numPath/getPath were not generated
+# for a list of plain structs. They are, and ListUtil supports len() and
+# indexing (pyastbuilder 7a636ee). sphinx-pss walks these paths in
+# production (sphinx-pss request R3), so this pins the whole surface.
+
+def test_symbol_ref_path_is_inspectable():
+    root = _link("package p { struct S { int a; } component C { S s; } }")
+    field = _find(root, lambda n: type(n).__name__ == "Field"
+                  and n.getName().getId() == "s")
+    assert field is not None
+    ref = field.getType().getType_id().getTarget()
+    assert ref is not None
+
+    path = ref.path()
+    n = ref.numPath()
+    assert n > 0
+    assert len(path) == n
+    assert [(e.kind, e.idx) for e in path] == \
+        [(ref.getPath(i).kind, ref.getPath(i).idx) for i in range(n)]
+    assert (path[0].kind, path[0].idx) == (ref.getPath(0).kind, ref.getPath(0).idx)
+    assert (path[-1].kind, path[-1].idx) == (ref.getPath(n - 1).kind, ref.getPath(n - 1).idx)
+    with pytest.raises(IndexError):
+        path[n]

@@ -1,0 +1,24 @@
+//! case:            SEM-RESOLVE-SYMBOL-ARG-KIND-01
+//! class:           semantic.resolve
+//! title:           a value passed for a symbol's action-handle parameter
+//! expect:          error
+//! detect:          required
+//! lrm:             11.7
+//! pssparser.id:    PSS006
+//! pssparser.match: argument 1 of 's' is a value, but parameter 'h' is a handle of action 'A'
+//! at:              21:13
+//! count:           1
+//! fix:             21:            s(a);
+//! cause:           handle
+//! names:           s
+//! tags:            resolve, symbol, activity
+component pss_top {
+    action A { }
+    action T {
+        A a;
+        symbol s(A h) { h; }
+        activity {
+            s(3);
+        }
+    }
+}

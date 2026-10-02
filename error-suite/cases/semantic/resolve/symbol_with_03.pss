@@ -1,0 +1,23 @@
+//! case:            SEM-RESOLVE-SYMBOL-WITH-03
+//! class:           semantic.resolve
+//! title:           inline constraints naming nothing on a symbol activation
+//! expect:          error
+//! detect:          required
+//! lrm:             11.7
+//! pssparser.id:    PSS018
+//! pssparser.match: 's' is a symbol, not an action handle
+//! at:              20:15
+//! count:           1
+//! fix:             20:            s;
+//! cause:           symbol
+//! names:           s
+//! tags:            resolve, symbol, activity
+component pss_top {
+    action A { rand bit[4] val; }
+    action T {
+        symbol s { do A; }
+        activity {
+            s with { 1 < 2; };
+        }
+    }
+}

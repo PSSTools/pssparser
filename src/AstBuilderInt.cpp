@@ -23,6 +23,7 @@
 #include "AstBuilderInt.h"
 #include "PSSLexer.h"
 #include "atn/ParseInfo.h"
+#include "NoViableAltException.h"
 #include "pssp/ast/IFactory.h"
 #include "pssp/ast/IAction.h"
 #include "pssp/ast/IComponent.h"
@@ -120,9 +121,12 @@ AstBuilderInt::AstBuilderInt(
     m_enableProfile = false;
 	m_field_depth = 0;
 	m_labeled_activity_id = 0;
+	m_activity_ann_anchor = 0;
 	m_constraint = 0;
 	m_last_syntax_error_token_idx = -1;
 	m_last_syntax_error_rule_idx = static_cast<size_t>(-1);
+	m_noviable_start_idx = -1;
+	m_noviable_end_idx = -1;
 
 }
 
@@ -209,6 +213,9 @@ void AstBuilderInt::buildImpl(
     m_last_syntax_error_token_idx = -1;
     m_last_syntax_error_rule_idx = static_cast<size_t>(-1);
     m_last_lex_error_line = -1;
+    m_noviable_start_idx = -1;
+    m_noviable_end_idx = -1;
+    m_activity_ann_anchor = 0;
 
     uint64_t parse_s = time_ms();
 	ANTLRInputStream input(*in);
@@ -221,14 +228,13 @@ void AstBuilderInt::buildImpl(
 	lexer.addErrorListener(this);
 	m_tokens = std::unique_ptr<CommonTokenStream>(new CommonTokenStream(&lexer));
 
-	if (m_collectComments) {
-		// A trailing comment sits to the *right* of the construct that owns
-		// it, and the stream only buffers as far as the parser's lookahead
-		// has reached -- which, mid-rule, is short of it. Buffer the lot up
-		// front. Leading comments never needed this, which is why the
-		// docstring path has always worked without it.
-		m_tokens->fill();
-	}
+	// Lex the whole file up front. This is faster than ANTLR's lazy stream,
+	// which interleaves the lexer with the parser's lookahead (sphinx-pss
+	// PERF-1: parse -13%, link -18..24%, no measurable memory cost). Trailing
+	// comment collection also depends on it: a trailing comment sits to the
+	// *right* of the construct that owns it, past where the parser's
+	// lookahead has buffered mid-rule.
+	m_tokens->fill();
 
 	m_doc_extractor = std::unique_ptr<DocCommentExtractor>(
 		new DocCommentExtractor(m_tokens.get(), m_file_id, m_doc_opts));
@@ -959,6 +965,7 @@ antlrcpp::Any AstBuilderInt::visitActivity_bind_stmt(PSSParser::Activity_bind_st
         }
     }
     setLoc(stmt, ctx->start);
+    setExtent(stmt, ctx->start, ctx->stop);
     m_activity_stmt = stmt;
     
     DEBUG_LEAVE("visitActivity_bind_stmt");
@@ -978,6 +985,7 @@ antlrcpp::Any AstBuilderInt::visitActivity_declaration(PSSParser::Activity_decla
         addActivityStmt(activity, *it);
 	}
 	m_activity_scope_s.pop_back();
+	closeActivityBlock(activity, ctx->TOK_RCBRACE()->getSymbol());
     
 	m_activity_stmt = activity;
 
@@ -2745,6 +2753,12 @@ antlrcpp::Any AstBuilderInt::visitActivity_action_traversal_stmt(PSSParser::Acti
 
 	if (with_ctx->constraint_set()) {
 		with_c = mkConstraintSet(with_ctx->constraint_set());
+		// Located at `with`, so a diagnostic about the block as a whole (a
+		// `with` on a symbol, pssc Q3) has somewhere to point.
+		if (with_c && with_c->getLocation().lineno <= 0) {
+			setLoc(with_c, with_ctx->TOK_WITH()->getSymbol());
+			setExtent(with_c, with_ctx->TOK_WITH()->getSymbol(), with_ctx->stop);
+		}
 	}
 
 	if (ctx->action_type_traversal_stmt()) {
@@ -2829,6 +2843,7 @@ antlrcpp::Any AstBuilderInt::visitActivity_sequence_block_stmt(PSSParser::Activi
         addActivityStmt(seq, *it);
 	}
 	m_activity_scope_s.pop_back();
+	closeActivityBlock(seq, ctx->stop);
 
 	// A5: locate the statement at its opening keyword, and extend the range
 	// through ctx->stop -- the closing brace for a braced form, the last body
@@ -2866,6 +2881,7 @@ antlrcpp::Any AstBuilderInt::visitActivity_parallel_stmt(PSSParser::Activity_par
         addActivityStmt(par, *it);
 	}
 	m_activity_scope_s.pop_back();
+	closeActivityBlock(par, ctx->stop);
 
 	// A5: locate the statement at its opening keyword, and extend the range
 	// through ctx->stop -- the closing brace for a braced form, the last body
@@ -2902,6 +2918,7 @@ antlrcpp::Any AstBuilderInt::visitActivity_schedule_stmt(PSSParser::Activity_sch
         addActivityStmt(sched, *it);
 	}
 	m_activity_scope_s.pop_back();
+	closeActivityBlock(sched, ctx->stop);
 
 	// A5: locate the statement at its opening keyword, and extend the range
 	// through ctx->stop -- the closing brace for a braced form, the last body
@@ -2995,10 +3012,17 @@ antlrcpp::Any AstBuilderInt::visitActivity_atomic_block_stmt(PSSParser::Activity
 		addActivityStmt(seq, *it);
 	}
 	m_activity_scope_s.pop_back();
+	closeActivityBlock(seq, ctx->TOK_RCBRACE()->getSymbol());
+
+	// The braces belong to the `atomic` rule, so the body is located from
+	// them, as the braced body of any other statement is (sphinx-pss R1).
+	setLoc(seq, ctx->TOK_LCBRACE()->getSymbol());
+	setExtent(seq, ctx->TOK_LCBRACE()->getSymbol(), ctx->TOK_RCBRACE()->getSymbol());
 
 	ast::IActivityAtomicBlock *atomic = m_factory->mkActivityAtomicBlock("", seq);
 	indexActivityBodies(atomic);
 	setLoc(atomic, ctx->start);
+	setExtent(atomic, ctx->start, ctx->stop);
 
 	if (label) {
 		atomic->setLabel(label);
@@ -3024,7 +3048,9 @@ antlrcpp::Any AstBuilderInt::visitActivity_select_stmt(PSSParser::Activity_selec
 	for (auto *b : ctx->select_branch()) {
 		ast::IExpr *guard  = b->guard  ? mkExpr(b->guard)  : nullptr;
 		ast::IExpr *weight = b->weight ? mkExpr(b->weight) : nullptr;
-		ast::IScopeChild *body = mkActivityStmt(b->activity_stmt_ann());
+		// The comment above a branch precedes its guard, so the body's
+		// comments are looked up from the branch's start (AC3).
+		ast::IScopeChild *body = mkActivityStmt(b->activity_stmt_ann(), b->start);
 		if (!body) {
 			body = m_factory->mkActivitySequence("");
 		}
@@ -3032,6 +3058,7 @@ antlrcpp::Any AstBuilderInt::visitActivity_select_stmt(PSSParser::Activity_selec
 		sel->getBranches().push_back(ast::IActivitySelectBranchUP(branch));
 	}
 	m_activity_scope_s.pop_back();
+	closeActivityBlock(sel, ctx->stop);
 	indexActivityBodies(sel);
 
 	// A5: locate the statement at its opening keyword, and extend the range
@@ -3100,7 +3127,8 @@ antlrcpp::Any AstBuilderInt::visitActivity_match_stmt(PSSParser::Activity_match_
 		ast::IExprOpenRangeList *cond = is_default
 		                               ? nullptr
 		                               : mkOpenRangeList(choice->open_range_list());
-		ast::IScopeChild *body = mkActivityStmt(choice->activity_stmt_ann());
+		// As for a select branch: from the `[` or `default` (AC3).
+		ast::IScopeChild *body = mkActivityStmt(choice->activity_stmt_ann(), choice->start);
 		if (!body) {
 			body = m_factory->mkActivitySequence("");
 		}
@@ -3108,6 +3136,7 @@ antlrcpp::Any AstBuilderInt::visitActivity_match_stmt(PSSParser::Activity_match_
 		match->getChoices().push_back(ast::IActivityMatchChoiceUP(mc));
 	}
 	m_activity_scope_s.pop_back();
+	closeActivityBlock(match, ctx->stop);
 	indexActivityBodies(match);
 
 	// A5: locate the statement at its opening keyword, and extend the range
@@ -3851,6 +3880,41 @@ antlrcpp::Any AstBuilderInt::visitDefault_disable_constraint(PSSParser::Default_
 	addConstraintStmt(c);
 	DEBUG_LEAVE("visitDefault_disable_constraint");
 	return 0;
+}
+
+antlrcpp::Any AstBuilderInt::visitConstraint_body_item(PSSParser::Constraint_body_itemContext *ctx) {
+	acceptLocatedConstraintItem(ctx);
+	return 0;
+}
+
+antlrcpp::Any AstBuilderInt::visitMonitor_constraint_body_item(PSSParser::Monitor_constraint_body_itemContext *ctx) {
+	acceptLocatedConstraintItem(ctx);
+	return 0;
+}
+
+void AstBuilderInt::acceptLocatedConstraintItem(antlr4::ParserRuleContext *ctx) {
+	ast::IConstraintScope *scope = (m_constraint_s.size()) ? m_constraint_s.back() : 0;
+	size_t n_before = (scope) ? scope->getConstraints().size() : 0;
+
+	visitChildren(ctx);
+
+	// Most constraint statements used to be built with no location: only
+	// `unique`, `soft` and the two `default` forms had one, so a consumer
+	// could not say where a `dist` or an expression constraint was written.
+	// Located here once rather than in each builder; a builder that already
+	// located its statement (at a keyword it knows better) is left alone.
+	if (!scope) {
+		return;
+	}
+	for (size_t i=n_before; i<scope->getConstraints().size(); i++) {
+		ast::IConstraintStmt *c = scope->getConstraints().at(i).get();
+		if (c->getLocation().lineno <= 0) {
+			setLoc(c, ctx->start);
+		}
+		if (c->getEndLocation().lineno <= 0) {
+			setExtent(c, ctx->start, ctx->stop);
+		}
+	}
 }
 
 antlrcpp::Any AstBuilderInt::visitExpression_constraint_item(PSSParser::Expression_constraint_itemContext *ctx) {
@@ -5801,6 +5865,22 @@ void AstBuilderInt::syntaxError(
 			suppress = true;
 		}
 
+		// Q2: recovery re-reading a statement already rejected as a whole.
+		if (!suppress && m_noviable_start_idx >= 0 &&
+				tok_idx >= m_noviable_start_idx && tok_idx < m_noviable_end_idx) {
+			suppress = true;
+		}
+
+		// Q2: the start of a statement ANTLR could not predict at all.
+		Token *noviable_start = 0;
+		if (e) {
+			try {
+				std::rethrow_exception(e);
+			} catch (antlr4::NoViableAltException &nva) {
+				noviable_start = nva.getStartToken();
+			} catch (...) {
+			}
+		}
 		m_last_syntax_error_token_idx = tok_idx;
 		m_last_syntax_error_rule_idx = rule_idx;
 		if (suppress) {
@@ -5952,6 +6032,57 @@ void AstBuilderInt::syntaxError(
 		// "expected ';' after 'list'" misdescribes an unterminated '<'.
 		bool startsSomething = symbolIsIdentifier(recognizer, offendingSymbol) ||
 			symbolIsKeyword(recognizer, offendingSymbol) || sym == "}";
+
+		// A9: `int a = 1, b = 2` then `int c;` on the next line. After `2` the
+		// parser could also take an operator, so ANTLR's expected set is long,
+		// and A8's "expecting ';'" test does not match it. The message then
+		// blames the next line's first token ("unexpected keyword 'int'"),
+		// which is not wrong. When ';' is one of the tokens that would have
+		// been accepted, and the offending token starts a new line and could
+		// start a statement, the line before it is missing its ';'.
+		if (startsSomething && sym != "}" && parser &&
+				rewritten.msg.rfind("expected ", 0) != 0 &&
+				(msg.find("mismatched input") != std::string::npos ||
+				 msg.find("extraneous input") != std::string::npos)) {
+			Token *prev = previousDefaultToken(parser, tok_idx);
+			if (prev && prev->getLine() < offendingSymbol->getLine() &&
+					prev->getText() != ";" && prev->getText() != "{" &&
+					prev->getText() != "}" &&
+					parser->getExpectedTokens().contains((size_t)PSSParser::TOK_SEMICOLON)) {
+				rewritten.msg = "expected ';' before '"
+					+ sanitizeSymForMessage(sym) + "'";
+				rewritten.id = "PSS020";
+				rewritten.hint.clear();
+			}
+		}
+
+		// Q2: `message(NONE, "a")` then `message(NONE, "b");`. Two calls in
+		// a row with no ';' between them match no statement alternative, and
+		// ANTLR reports that as "no viable alternative" at the second call.
+		// When the rejected statement ends a line with a token that can end
+		// an expression, and the offending token starts the next line, the
+		// first line is missing its ';'.
+		if (noviable_start && startsSomething && sym != "}" &&
+				(rule_idx == PSSParser::RuleProcedural_stmt ||
+				 rule_idx == PSSParser::RuleLabeled_activity_stmt ||
+				 rule_idx == PSSParser::RuleActivity_stmt)) {
+			Token *prev = previousDefaultToken(parser, tok_idx);
+			if (prev && prev->getLine() < offendingSymbol->getLine() &&
+					(prev->getText() == ")" || prev->getText() == "]" ||
+					 symbolIsIdentifier(recognizer, prev))) {
+				rewritten.msg = "expected ';' before '"
+					+ sanitizeSymForMessage(sym) + "'";
+				rewritten.id = "PSS020";
+				rewritten.hint.clear();
+				// The whole statement is diagnosed. Drop what recovery reports
+				// while it re-reads it (above). Only here: when the statement
+				// is not a missing ';', recovery often finds the real defect.
+				m_noviable_start_idx =
+					static_cast<ssize_t>(noviable_start->getTokenIndex());
+				m_noviable_end_idx = tok_idx;
+			}
+		}
+
 		if (startsSomething &&
 				rewritten.msg.rfind("expected ';' before ", 0) == 0) {
 			Token *prev = previousDefaultToken(parser, tok_idx);
@@ -6398,7 +6529,7 @@ void AstBuilderInt::setExtent(ast::IScopeChild *c, Token *start, Token *stop) {
 	}
 }
 
-void AstBuilderInt::attachDocstring(ast::IScopeChild *c, Token *t) {
+void AstBuilderInt::attachDocstring(ast::IScopeChild *c, Token *t, Token *stop) {
 	if (!m_collectDocStrings || !c || !t || !m_doc_extractor) {
 		return;
 	}
@@ -6406,10 +6537,10 @@ void AstBuilderInt::attachDocstring(ast::IScopeChild *c, Token *t) {
 	if (m_doc_extractor->extractLeading(t, dc)) {
 		applyDocComment(c, dc);
 	}
-	attachComments(c, t);
+	attachComments(c, t, stop);
 }
 
-void AstBuilderInt::attachComments(ast::IScopeChild *c, Token *t) {
+void AstBuilderInt::attachComments(ast::IScopeChild *c, Token *t, Token *stop) {
 	DEBUG_ENTER("attachComments");
 
 	if (!m_collectComments || !t || !c) {
@@ -6417,7 +6548,9 @@ void AstBuilderInt::attachComments(ast::IScopeChild *c, Token *t) {
 		return;
 	}
 
-	attachTrailingComment(c, t);
+	attachTrailingComment(c,
+		(stop && stop->getText() == ";" && tokenEndLine(stop) > tokenEndLine(t))
+			? stop : t);
 
 	size_t idx = t->getTokenIndex();
 	if (idx == 0) {
@@ -6486,7 +6619,9 @@ std::string AstBuilderInt::attachTrailingComment(ast::IScopeChild *c, Token *t) 
 
 	int32_t line = tokenEndLine(t);
 	size_t n = m_tokens->size();
-	bool past_terminator = false;
+	// Handed the construct's own `;` (attachComments' *stop*): the next
+	// on-channel token already opens the following construct.
+	bool past_terminator = (t->getText() == ";");
 
 	// Callers hand us the construct's *start* token, so walk forward to find
 	// the comment that trails its end. The construct runs to its `;`; once
@@ -7725,10 +7860,53 @@ ast::IActivityJoinSpec *AstBuilderInt::mkActivityJoinSpec(PSSParser::Activity_jo
 	return spec;
 }
 
-ast::IScopeChild *AstBuilderInt::mkActivityStmt(PSSParser::Activity_stmt_annContext *ctx) {
+void AstBuilderInt::closeActivityBlock(ast::IScopeChild *scope, Token *closer) {
+	// An annotation as a block's last statement has nothing left to attach
+	// to; its comment must not drift into the next block.
+	m_activity_ann_anchor = 0;
+	// Comments after a block's last statement, before its `}`: the block's
+	// own closing comments, as procedural blocks collect them (AC2).
+	if (m_collectComments) {
+		collectScopeTrailingComments(scope, closer);
+	}
+}
+
+ast::IScopeChild *AstBuilderInt::mkActivityStmt(
+		PSSParser::Activity_stmt_annContext *ctx,
+		Token *anchor) {
 	DEBUG_ENTER("mkActivityStmt");
+	// Taken before the statement is built, so that a statement nested in its
+	// body cannot claim the annotation's comment.
+	Token *ann_anchor = m_activity_ann_anchor;
+	m_activity_ann_anchor = 0;
+
 	m_activity_stmt = 0;
 	ctx->accept(this);
+
+	Token *start = (anchor) ? anchor : ctx->getStart();
+	if (!m_activity_stmt) {
+		// An annotation builds nothing and becomes pending for the next
+		// statement. So does the comment above it. A declaration builds
+		// through addChild, which attaches its own comments.
+		if (ctx->activity_stmt() && ctx->activity_stmt()->annotation()) {
+			m_activity_ann_anchor = (ann_anchor) ? ann_anchor : start;
+		}
+		DEBUG_LEAVE("mkActivityStmt -- nothing built");
+		return 0;
+	}
+
+	// Every activity statement is built through here, nested bodies and
+	// branch bodies included, as every procedural statement is built through
+	// mkExecStmt. Activity statements carried no comments before (AC1).
+	//
+	// A bare `{ ... }` body claims none: a comment on its brace's line
+	// trails the statement header (`repeat (c) { // note`), which claims it,
+	// as the procedural `repeat` does.
+	bool bare_body = (!anchor && !ann_anchor && start && start->getText() == "{");
+	if (m_collectDocStrings && !bare_body) {
+		attachDocstring(m_activity_stmt,
+			(ann_anchor) ? ann_anchor : start, ctx->getStop());
+	}
 	DEBUG_LEAVE("mkActivityStmt");
 	return m_activity_stmt;
 }
@@ -8131,7 +8309,7 @@ ast::IScopeChild *AstBuilderInt::mkExecStmt(PSSParser::Procedural_stmtContext *c
             });
         }
         if (m_collectDocStrings) {
-            attachDocstring(m_exec_stmt, start);
+            attachDocstring(m_exec_stmt, start, ctx->getStop());
         }
     }
 

@@ -1,0 +1,24 @@
+//! case:            SEM-RESOLVE-SYMBOL-ARG-KIND-02
+//! class:           semantic.resolve
+//! title:           an action handle passed for a symbol's data parameter
+//! expect:          error
+//! detect:          required
+//! lrm:             11.7
+//! pssparser.id:    PSS006
+//! pssparser.match: argument 1 of 't' is an action handle, but parameter 'n' is numeric
+//! at:              21:13
+//! count:           1
+//! fix:             21:            t(2);
+//! cause:           handle
+//! names:           t
+//! tags:            resolve, symbol, activity
+component pss_top {
+    action A { }
+    action T {
+        A a;
+        symbol t(int n) { repeat (n) { do A; } }
+        activity {
+            t(a);
+        }
+    }
+}
