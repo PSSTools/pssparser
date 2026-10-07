@@ -339,7 +339,7 @@ if __name__ == "__main__":
 # alternatives, matching the other five.
 #
 # Per decision D2, the brace-less single-item form stays legal, but is reported
-# as deprecated (PSS104). The check lives in one shared builder helper,
+# as deprecated (LINT601). The check lives in one shared builder helper,
 # AstBuilderInt::checkCompileIfBranches, so the message and severity are
 # identical across all ten scopes -- which is what the parametrization below is
 # really asserting.
@@ -391,20 +391,20 @@ def test_compile_if_braced_branch_accepted(name, template, item):
     """The conforming form parses, and parses silently."""
     src = template % ("{ %s }" % item)
     assert_parse_ok(src)
-    # PSS104 is what this test is about: the braced form must not draw the
+    # LINT601 is what this test is about: the braced form must not draw the
     # brace-less deprecation warning.  It is asserted by ID rather than by
     # severity because the covergroup and override scopes independently emit
-    # PSS116 -- the enclosing construct is not represented in the AST at all
+    # PSSP101 -- the enclosing construct is not represented in the AST at all
     # (docs/ast-coverage-plan.md, phases 2 and 4).  Widen this back to
     # severity="warning" once those land.
-    assert_no_marker(src, marker_id="PSS104")
+    assert_no_marker(src, marker_id="LINT601")
 
 
 @pytest.mark.parametrize("name,template,item", COMPILE_IF_SCOPES, ids=_SCOPE_IDS)
 def test_compile_if_bare_branch_warns_but_parses(name, template, item):
     """D2: the brace-less form stays legal, and warns."""
     src = template % item
-    assert_parse_ok_with_warning(src, marker_id="PSS104")
+    assert_parse_ok_with_warning(src, marker_id="LINT601")
 
 
 @pytest.mark.parametrize("name,template,item", COMPILE_IF_SCOPES, ids=_SCOPE_IDS)
@@ -420,7 +420,7 @@ def test_compile_if_deprecation_message_is_uniform(name, template, item):
     message. A scope that grew its own copy would drift.
     """
     _, markers = parse_collect(template % item)
-    warnings = find_markers(markers, marker_id="PSS104")
+    warnings = find_markers(markers, marker_id="LINT601")
     assert len(warnings) == 1
     assert warnings[0]["message"] == \
         "'compile if' branch without enclosing braces is deprecated"
@@ -477,13 +477,13 @@ def test_compile_if_else_bare_branch_warns_even_when_not_taken():
     """
     _, markers = parse_collect(
         "component C { compile if (1) { int a; } else int b; }")
-    assert len(find_markers(markers, marker_id="PSS104")) == 1
+    assert len(find_markers(markers, marker_id="LINT601")) == 1
 
 
 def test_compile_if_both_branches_bare_warns_twice():
     _, markers = parse_collect(
         "component C { compile if (1) int a; else int b; }")
-    assert len(find_markers(markers, marker_id="PSS104")) == 2
+    assert len(find_markers(markers, marker_id="LINT601")) == 2
 
 
 # -- procedural scope: braces are grouping, not a sequence block --------------
@@ -504,7 +504,7 @@ def test_procedural_compile_if_braces_are_not_a_sequence_block():
     """
     assert_no_marker(
         "component C { function void f() { compile if (1) { int a; } } }",
-        marker_id="PSS104")
+        marker_id="LINT601")
 
 
 def test_procedural_compile_if_explicit_sequence_block_still_parses():
@@ -515,4 +515,4 @@ def test_procedural_compile_if_explicit_sequence_block_still_parses():
 def test_procedural_compile_if_bare_stmt_warns():
     assert_parse_ok_with_warning(
         "component C { function void f() { compile if (1) int a; } }",
-        marker_id="PSS104")
+        marker_id="LINT601")

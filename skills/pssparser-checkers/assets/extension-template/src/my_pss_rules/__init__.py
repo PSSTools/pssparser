@@ -5,7 +5,7 @@ The whole contract with pssparser is ``register(reg)``, reached through the
 """
 
 #: Minimum pssparser checker-API version this extension needs.  pssparser
-#: reads it before calling register() and refuses the extension (PSS032)
+#: reads it before calling register() and refuses the extension (PSSP003)
 #: if the running build is older.
 REQUIRES_API = 1
 
@@ -18,7 +18,7 @@ def register(reg) -> None:
     reg.description = "House lint rules for PSS"
 
     # Import rule modules here, not at module scope: a broken rule module is
-    # then reported as PSS030 against this extension instead of breaking the
+    # then reported as PSSP001 against this extension instead of breaking the
     # import of the package that declares the entry point.
     from .field_names import FieldNameLengthChecker
 

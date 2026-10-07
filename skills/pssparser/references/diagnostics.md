@@ -134,8 +134,8 @@ Most diagnostics are about the model. These are about the tool:
   triggers it.
 - `PSS042`: a reference was left unbound. The summary says "(pssparser
   defect)". The model may be fine.
-- `PSS030`: an installed checker extension failed to load, so its rules did
-  not run. A clean result does not mean every rule ran. `-Werror=PSS030`
+- `PSSP001`: an installed checker extension failed to load, so its rules did
+  not run. A clean result does not mean every rule ran. `-Werror=PSSP001`
   makes this fatal.
 
 Run `pssparser --describe` on any of them for details. If you suspect a

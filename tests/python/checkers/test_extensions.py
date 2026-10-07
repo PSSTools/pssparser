@@ -232,7 +232,7 @@ def test_requires_api_too_new_is_refused_with_pss032(eps):
     m = CheckerManager()
     m.discover()
 
-    assert codes(m) == ["PSS032"]
+    assert codes(m) == ["PSSP003"]
     assert "acme-naming" not in m._registered
     assert m.list_extensions() == []
     # Refusal is not a crash: core is still usable.
@@ -252,7 +252,7 @@ def test_module_level_requires_api_refuses_before_register_runs(eps):
     m = CheckerManager()
     m.discover()
 
-    assert codes(m) == ["PSS032"]
+    assert codes(m) == ["PSSP003"]
     assert ran["register"] is False
 
 
@@ -288,7 +288,7 @@ def test_import_failure_is_pss030_and_does_not_abort(eps):
     m = CheckerManager()
     m.discover()
 
-    assert codes(m) == ["PSS030"]
+    assert codes(m) == ["PSSP001"]
     assert "broken-dist" in messages(m)
     # The healthy extension still loaded.
     assert "good-checker" in m._registered
@@ -309,7 +309,7 @@ def test_register_raising_is_pss030_and_does_not_abort(eps):
     m = CheckerManager()
     m.discover()
 
-    assert codes(m) == ["PSS030"]
+    assert codes(m) == ["PSSP001"]
     assert "kaboom" in messages(m)
     assert "good-checker" in m._registered
 
@@ -320,7 +320,7 @@ def test_module_without_register_or_checkers_is_pss030(eps):
     m = CheckerManager()
     m.discover()
 
-    assert codes(m) == ["PSS030"]
+    assert codes(m) == ["PSSP001"]
     # The message must name the missing contract, not just "failed".
     assert "register" in messages(m)
     assert "CHECKERS" in messages(m)
@@ -336,7 +336,7 @@ def test_add_checker_misuse_is_reported_not_raised(eps):
 
     m = CheckerManager()
     m.discover()
-    assert codes(m) == ["PSS030"]
+    assert codes(m) == ["PSSP001"]
     assert "CheckerBase subclass" in messages(m)
 
 
@@ -364,7 +364,9 @@ def test_duplicate_marker_id_is_pss033_naming_both_extensions(eps):
     assert "second-checker" not in m._registered
 
 
-def test_duplicate_with_a_core_id_is_rejected(eps):
+def test_a_core_id_is_refused_as_a_reserved_namespace(eps):
+    """Every core ID is in a reserved namespace, so squatting one is caught
+    as PSSP005 before the duplicate-ID check (PSS033) is reached."""
     def register(reg):
         reg.add_checker(make_checker("squatter", "PSS001"))
 
@@ -375,7 +377,7 @@ def test_duplicate_with_a_core_id_is_rejected(eps):
     m = CheckerManager()
     m.discover()
 
-    assert codes(m) == ["PSS033"]
+    assert codes(m) == ["PSSP005"]
     assert "squatter" not in m._registered
 
 
@@ -518,7 +520,7 @@ def test_key_mismatch_registers_under_the_declared_name(eps):
 
     assert "naming-convention" in m._registered
     assert "naming" not in m._registered
-    assert codes(m) == ["PSS031"]
+    assert codes(m) == ["PSSP002"]
     text = messages(m)
     assert "naming" in text and "naming-convention" in text
 
@@ -565,7 +567,7 @@ def test_legacy_entry_point_with_empty_name_is_pss030(eps):
 
     m = CheckerManager()
     m.discover()
-    assert codes(m) == ["PSS030"]
+    assert codes(m) == ["PSSP001"]
     assert "empty 'name'" in messages(m)
 
 
@@ -582,8 +584,8 @@ def test_load_diagnostics_carry_the_no_file_pseudo_path(eps):
 
     diag = m.load_diagnostics[0]
     assert diag["file"] == NO_FILE
-    assert diag["code"] == "PSS030"
-    assert diag["message"].startswith("[PSS030] ")
+    assert diag["code"] == "PSSP001"
+    assert diag["message"].startswith("[PSSP001] ")
     assert diag["severity"] == "warning"
 
 

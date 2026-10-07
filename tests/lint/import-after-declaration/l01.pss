@@ -1,0 +1,6 @@
+// expect: LINT402 @ 5:3
+package lib { struct s {} }
+package p {
+  struct t {}
+  import lib::*;
+}

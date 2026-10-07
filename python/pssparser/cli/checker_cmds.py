@@ -35,7 +35,11 @@ def cmd_list_markers(
         return 0
     # Column widths
     id_w = max(len(m["id"]) for m in markers)
-    sev_w = max(len(m["severity"]) for m in markers)
+    sev_w = max(
+        len(m["status"] if m.get("status") in ("retired", "reserved")
+            else m["severity"])
+        for m in markers
+    )
     checker_w = max(len(m["checker"]) for m in markers)
     id_w = max(id_w, 2)
     sev_w = max(sev_w, 3)
@@ -44,8 +48,13 @@ def cmd_list_markers(
     out.write(header + "\n")
     out.write("-" * len(header) + "\n")
     for m in markers:
+        # A retired or reserved code is listed -- it is still a valid thing
+        # to look up -- but its column says it is never reported.
+        sev = m["severity"]
+        if m.get("status") in ("retired", "reserved"):
+            sev = m["status"]
         out.write(
-            f"{m['id']:<{id_w}}  {m['severity']:<{sev_w}}  "
+            f"{m['id']:<{id_w}}  {sev:<{sev_w}}  "
             f"{m['checker']:<{checker_w}}  {m['summary']}\n"
         )
     return 0
@@ -75,6 +84,8 @@ def cmd_list_extensions(
         if info["dist"] and info["dist"] != info["name"]:
             dist = f" [{info['dist']}]"
         legacy = " (single-checker entry point)" if info["legacy"] else ""
+        if info.get("bundled"):
+            legacy = " (bundled with pssparser)"
         out.write(f"  {info['name']}{version}{dist}{legacy}\n")
         out.write(f"    {info['description']}\n")
         names = ", ".join(info["checkers"]) if info["checkers"] else "(none)"
@@ -179,8 +190,110 @@ def cmd_describe(
             "use --list-markers to see available IDs\n"
         )
         return 2
-    out.write(f"{info['id']}  [{info['severity']}]  checker: {info['checker']}\n")
+    if info.get("status") in ("retired", "reserved"):
+        state = info["status"]
+        if info.get("replaced_by"):
+            state += " -> " + ", ".join(info["replaced_by"])
+        out.write(f"{info['id']}  [{state}]  checker: {info['checker']}\n")
+    else:
+        out.write(
+            f"{info['id']}  [{info['severity']}]  checker: {info['checker']}\n"
+        )
     out.write(f"{info['summary']}\n")
+    facts = []
+    if info.get("name"):
+        facts.append(f"name: {info['name']}")
+    if info.get("tier"):
+        facts.append(f"tier: {info['tier']}")
+    if info.get("family"):
+        facts.append(f"family: {info['family']}")
+    if info.get("aliases"):
+        facts.append("formerly: " + ", ".join(info["aliases"]))
+    if facts:
+        out.write("  ".join(facts) + "\n")
     if info.get("detail"):
         out.write(f"\n{info['detail']}\n")
+    return 0
+
+
+def cmd_explain(
+    manager: CheckerManager,
+    selector: str,
+    stdout: TextIO | None = None,
+    stderr: TextIO | None = None,
+) -> int:
+    """Explain one rule, by ID, old ID or name (``--explain``).
+
+    Where ``--describe`` prints the catalogue entry, this is written for the
+    person deciding what to do about a finding: what the rule is for, where
+    it sits (tier, family, default severity), the LRM clauses, the bad and
+    good examples, its options, and whether it can fix the code.
+    """
+    from pssparser.checkers import taxonomy
+    from .suggestion import suggest
+
+    out = stdout or sys.stdout
+    err = stderr or sys.stderr
+
+    aliases = manager.alias_map()
+    wanted = aliases.get(selector, selector)
+    md = None
+    for cand in manager.all_marker_defs():
+        if cand.emittable and (cand.id == wanted or (cand.name and cand.name == wanted)):
+            md = cand
+            break
+    if md is None:
+        names = sorted(
+            {c.id for c in manager.all_marker_defs() if c.emittable}
+            | {c.name for c in manager.all_marker_defs() if c.name})
+        hint = suggest(selector, names)
+        detail = (f"did you mean '{hint}'?" if hint
+                  else "use --list-markers to see the declared IDs")
+        err.write(f"error: unknown rule {selector!r}; {detail}\n")
+        return 2
+
+    title = f"{md.id} {md.name}".rstrip()
+    out.write(f"{title}\n{md.summary}\n\n")
+    rows = []
+    if md.tier:
+        rows.append(("tier", md.tier))
+    if md.family:
+        rows.append(("family", md.family))
+    if md.level:
+        rows.append(("analysis level", md.level))
+    rows.append(("default severity", md.severity))
+    if md.since:
+        rows.append(("since", md.since))
+    if md.aliases:
+        rows.append(("formerly", ", ".join(md.aliases)))
+    if md.lrm:
+        rows.append(("LRM", ", ".join(md.lrm)))
+    rows.append(("fix", md.fix if md.fix != "none" else "none available"))
+    if taxonomy.namespace_of(md.id) == "LINT":
+        rows.append(("docs", taxonomy.doc_url(md.id)))
+    for key, value in rows:
+        out.write(f"  {key + ':':<18} {value}\n")
+    if selector != md.id and selector in aliases:
+        out.write(f"\n{selector} is the old ID of {md.id}; write {md.id}.\n")
+    if md.detail:
+        out.write(f"\n{md.detail}\n")
+    for ex in md.examples:
+        label = "Flagged" if ex.expect else "Not flagged"
+        if ex.note:
+            label += f" ({ex.note})"
+        out.write(f"\n{label}:\n\n")
+        out.write("".join(f"    {line}\n" for line in ex.code.splitlines()))
+        if ex.fixed:
+            out.write("\nAfter the fix:\n\n")
+            out.write("".join(f"    {line}\n" for line in ex.fixed.splitlines()))
+    if md.options_schema:
+        out.write("\nOptions:\n")
+        for key in sorted(md.options_schema):
+            spec = md.options_schema[key] or {}
+            out.write(f"  {key:<16} {spec.get('type', 'string'):<12} "
+                      f"default: {_render_default(spec.get('default'))}\n")
+            if spec.get("help"):
+                out.write(f"    {spec['help']}\n")
+        name = md.name or md.id
+        out.write(f"\nSet these under [lint.rule.{name}].\n")
     return 0

@@ -36,6 +36,25 @@ def _no_installed_extensions(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _no_bundled_lint_rules(monkeypatch):
+    """Keep pssparser's bundled lint *runner* rules out of unrelated tests.
+
+    Separate from ``PSSPARSER_NO_EXTENSIONS`` on purpose: the bundled lint
+    extension is part of pssparser, and a test that checks "third-party
+    extensions are off" must still be able to see it.  The core-emitted LINT
+    warnings are unaffected -- they come from the linker -- so existing tests
+    keep seeing them.  Lint tests opt in with the ``lint_enabled`` fixture.
+    """
+    monkeypatch.setenv("PSSPARSER_NO_LINT", "1")
+
+
+@pytest.fixture
+def lint_enabled(monkeypatch):
+    """Load the bundled lint extension in this test."""
+    monkeypatch.delenv("PSSPARSER_NO_LINT", raising=False)
+
+
+@pytest.fixture(autouse=True)
 def _debug_off(factory):
     """Keep parser debug logging disabled unless a test opts in explicitly."""
     factory.getDebugMgr().enable(False)

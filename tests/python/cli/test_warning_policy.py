@@ -19,7 +19,7 @@ from pssparser.cli.diagnostics import (
 )
 
 
-# A model whose only diagnostic is the PSS104 `compile if` brace warning.
+# A model whose only diagnostic is the LINT601 `compile if` brace warning.
 WARN_SRC = """const int X = 1;
 component C {
     compile if (X == 1)
@@ -68,15 +68,15 @@ class TestAcceptanceTable:
         assert "1 error in 1 file" in err
 
     def test_werror_by_code_promotes(self, warn_file):
-        rc, _, err = _run(warn_file, warning_policy=_policy(["-Werror=PSS104"]))
+        rc, _, err = _run(warn_file, warning_policy=_policy(["-Werror=LINT601"]))
         assert rc == 1
-        assert "[-Werror=PSS104]" in err
+        assert "[-Werror=LINT601]" in err
         assert "1 error in 1 file" in err
 
     def test_wno_error_exempts_from_blanket_werror(self, warn_file):
         rc, _, err = _run(
             warn_file,
-            warning_policy=_policy(["-Werror", "-Wno-error=PSS104"]),
+            warning_policy=_policy(["-Werror", "-Wno-error=LINT601"]),
         )
         assert rc == 0
         assert "warning:" in err
@@ -133,8 +133,8 @@ class TestArgumentParsing:
         assert args.files == ["x.pss"]
 
     def test_repeated_codes_accumulate(self):
-        p = _policy(["-Werror=PSS104", "-Werror=PSS020", "-Wno-error=PSS001"])
-        assert p.error_codes == {"PSS104", "PSS020"}
+        p = _policy(["-Werror=LINT601", "-Werror=PSS020", "-Wno-error=PSS001"])
+        assert p.error_codes == {"LINT601", "PSS020"}
         assert p.no_error_codes == {"PSS001"}
         assert not p.error_all
 
@@ -159,7 +159,7 @@ def _warning(code=None, severity="warning"):
 class TestPolicyPass:
     def test_default_policy_leaves_the_collection_alone(self):
         coll = DiagnosticCollection()
-        d = _warning("PSS104")
+        d = _warning("LINT601")
         coll.add(d)
         _apply_warning_policy(coll, WarningPolicy())
         assert coll.diagnostics[0].severity == "warning"
@@ -179,7 +179,7 @@ class TestPolicyPass:
         coll = DiagnosticCollection()
         coll.add(_warning("PSS001", severity="info"))
         coll.add(_warning("PSS002", severity="hint"))
-        coll.add(_warning("PSS104"))
+        coll.add(_warning("LINT601"))
         _apply_warning_policy(coll, WarningPolicy(no_warnings=True))
         assert [d.severity for d in coll.diagnostics] == ["info", "hint"]
 
@@ -187,7 +187,7 @@ class TestPolicyPass:
         """A marker with no code cannot be named, so only ``-Werror`` hits it."""
         coll = DiagnosticCollection()
         coll.add(_warning(None))
-        _apply_warning_policy(coll, WarningPolicy(error_codes={"PSS104"}))
+        _apply_warning_policy(coll, WarningPolicy(error_codes={"LINT601"}))
         assert coll.diagnostics[0].severity == "warning"
 
         coll = DiagnosticCollection()
@@ -197,7 +197,7 @@ class TestPolicyPass:
 
     def test_counts_and_has_errors_move_with_promotion(self):
         coll = DiagnosticCollection()
-        coll.add(_warning("PSS104"))
+        coll.add(_warning("LINT601"))
         assert coll.warning_count == 1 and not coll.has_errors
         _apply_warning_policy(coll, WarningPolicy(error_all=True))
         assert coll.error_count == 1

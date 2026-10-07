@@ -159,7 +159,7 @@ public:
 
     /**
      * Step a of 18.3: `id`, a bare name, as an item of its expected type
-     * `e`. Null when it is not one. Warns (PSS044) when the item hides a
+     * `e`. Null when it is not one. Warns (LINT401) when the item hides a
      * declaration the name has lexically. Also used by TaskResolveRef for
      * a template value argument (8.4).
      */
@@ -169,7 +169,7 @@ public:
         ast::ISymbolEnumScope       *e);
 
     /**
-     * PSS046: `id` bound to an item of `e` only because nothing else of the
+     * LINT101: `id` bound to an item of `e` only because nothing else of the
      * name is in scope, where `expected` (possibly null) did not have it.
      */
     static void warnEnumItemFallback(
@@ -365,7 +365,7 @@ public:
 
     /**
      * A constant or enum item that `path` binds to, or null if it binds to
-     * anything else. PSS118/PSS119 are about these only.
+     * anything else. PSS118/LINT404 are about these only.
      */
     ast::IScopeChild *constTarget(ast::ISymbolRefPath *path);
 
@@ -595,7 +595,7 @@ protected:
     /**
      * If the lookup of `id` that just succeeded settled for an enum item
      * because nothing else of the name is in scope (the enum-item hint),
-     * warns (PSS046): 18.3 finds an item unqualified only by the expected
+     * warns (LINT101): 18.3 finds an item unqualified only by the expected
      * type, `expected`, which did not have it (8.2).
      */
     void reportEnumItemFallback(
@@ -874,7 +874,7 @@ private:
     /**
      * A bare call argument whose formal parameter's type is not bound yet --
      * declared in a later file, which the order of resolution allows. Its
-     * expected type is known only once resolution is done, so PSS046 on the
+     * expected type is known only once resolution is done, so LINT101 on the
      * argument is decided then (reportEnumItemFallback).
      */
     std::unordered_map<ast::IExpr *, ast::IFunctionParamDecl *> m_pending_formal;

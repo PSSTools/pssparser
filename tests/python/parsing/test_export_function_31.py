@@ -60,7 +60,7 @@ def test_export_function_names_a_function_not_a_field():
     """, "'do_work' is not a function")
 
 
-# -- An instance function is an extension (PSS120) ---------------------------
+# -- An instance function is an extension (LINT301) ---------------------------
 
 def _markers(code):
     from test_helpers import parse_collect
@@ -77,7 +77,7 @@ component pss_top {
     target function void bump(int k) { n += k; }
     export target function bump;
 }
-""") == [(5, "PSS120", "warning")]
+""") == [(5, "LINT301", "warning")]
 
 
 def test_exporting_a_static_component_function_is_clean():
@@ -107,7 +107,7 @@ component base_c {
 component pss_top : base_c {
     export target function go;
 }
-""") == [(6, "PSS120", "warning")]
+""") == [(6, "LINT301", "warning")]
 
 
 def test_an_extension_contributes_an_instance_function_export():
@@ -117,4 +117,4 @@ extend component pss_top {
     target function void go() { }
     export target function go;
 }
-""") == [(5, "PSS120", "warning")]
+""") == [(5, "LINT301", "warning")]

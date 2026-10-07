@@ -1,0 +1,6 @@
+// expect: none
+import addr_reg_pkg::*;
+struct r32_s : packed_s<> { bit[32] v; }
+component regs_c : reg_group_c {
+  reg_c<r32_s> r;
+}

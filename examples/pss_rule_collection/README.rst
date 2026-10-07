@@ -102,14 +102,14 @@ shown by ``--list-extensions``; the value is the module exposing
 Three details worth copying:
 
 1. **Import the rule modules inside** ``register()``, not at module scope.  A
-   failure in one rule module is then reported as a ``PSS030`` against this
+   failure in one rule module is then reported as a ``PSSP001`` against this
    extension, instead of breaking the import of the package that declares the
    entry point.
 
 2. **Declare** ``REQUIRES_API`` **at module level.**  It lets pssparser refuse
    an incompatible extension before ``register()`` runs, which is the only
    point at which refusing is free of side effects.  The result is one clear
-   ``PSS032`` message naming both versions, rather than an ``AttributeError``
+   ``PSSP003`` message naming both versions, rather than an ``AttributeError``
    from inside a checker halfway through a run.
 
 3. **Probe with** ``reg.api_version`` **for anything newer than**

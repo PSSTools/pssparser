@@ -276,7 +276,7 @@ def test_the_sizes_follow_the_same_rules():
 
 
 # ---------------------------------------------------------------------------
-# PSS014 / PSS016: register value type and width (21.14.1, 21.14.5)
+# PSS014 / LINT501: register value type and width (21.14.1, 21.14.5)
 # ---------------------------------------------------------------------------
 
 def _regs(decls, fields):
@@ -367,7 +367,7 @@ def test_a_register_whose_value_type_has_a_bad_member_is_reported_at_the_member(
 ])
 def test_a_register_width_without_a_primitive_is_a_warning(decls, fields, sz):
     root, markers = _regs(decls, fields)
-    m = _only(markers, "PSS016")
+    m = _only(markers, "LINT501")
     assert m["severity"] == "warning"
     assert m["message"].startswith(
         "reg_c width SZ = %d has no primitive access function" % sz)

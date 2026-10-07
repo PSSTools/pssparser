@@ -14,12 +14,19 @@ To add a diagnostic:
    identifier, and say what to write instead where there is one. Keep it under
    120 characters (lint G7). Attach related locations rather than lengthening
    the message.
-2. Allocate the next free ID in the right band and add a `MarkerDef`: `id`,
-   `severity`, `summary`, `patterns` (anchored regexes), `detail` (what
-   `--describe` prints). Bands, per `docs/markers.rst`: the general band
-   starts at PSS001 (PSS020–PSS028 is its syntax sub-band); PSS100 onwards
-   holds the PSS 3.1 language rules. Check the tracker you are working from for
-   the next free code, and grep `core_checker.py` to confirm it is unused.
+2. Choose the namespace first. `PSS` is only for LRM violations, and every
+   active `PSS` marker is an error. A warning about legal code is lint: a
+   `LINT` rule in `python/pssparser/lint/catalog.py` (`CORE_EMITTED` when the
+   linker raises it), with `name`, `tier`, `family` and `since`. A diagnostic
+   about pssparser itself is `PSSP`, tier `tool`, at the end of
+   `core_checker.py`. Then allocate the next free ID in the right band and
+   add a `MarkerDef`: `id`, `severity`, `summary`, `patterns` (anchored
+   regexes), `detail` (what `--describe` prints). Bands, per
+   `docs/markers.rst`: the general band starts at PSS001 (PSS020–PSS029 is its
+   syntax sub-band); PSS100 onwards holds the PSS 3.1 language rules;
+   `LINT1xx`–`6xx` follow the rule families. Check the tracker you are working
+   from for the next free code, and grep for it to confirm it is unused.
+   Append the new code to `tests/data/core-codes.lock`.
 3. Add a representative message to `REPRESENTATIVE_MESSAGES` in
    `tests/python/test_marker_ids.py`: it proves the message maps to the ID and
    that no other pattern shadows it.
@@ -28,6 +35,14 @@ To add a diagnostic:
    (`tests/python/cli/test_marker_docs.py` fails if `docs/markers.rst` is stale).
 5. Add a test that triggers it from a real model and asserts the code, line and
    column. Then add a CHANGELOG entry naming the code.
+
+Never delete or renumber a published code: mark it `status="retired"` with
+`replaced_by`, and give the new definition `aliases` naming the old one
+(`tests/python/test_core_codes_lock.py` enforces this). A core-emitted `LINT`
+rule also needs a fixture directory `tests/lint/<rule-name>/` (`l*.pss` with
+`// expect: ID @ L:C`, `ok_*.pss` with `// expect: none`; see
+`pssparser.checkers.testing`) and `python scripts/gen_lint_rules.py` to
+regenerate `docs/lint-rules.rst`.
 
 Rewording an existing message: check its `MarkerDef` pattern still matches,
 then run `tests/python/errors` (goldens, corpus) and the error suite. A message

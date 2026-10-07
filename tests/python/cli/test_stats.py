@@ -176,9 +176,9 @@ class TestDiagnosticsByCode:
     def test_known_mix(self):
         hist = diagnostics_by_code([
             _diag("PSS022"), _diag("PSS022"), _diag("PSS029"),
-            _diag("PSS104", severity="warning"),
+            _diag("LINT601", severity="warning"),
         ])
-        assert hist == {"PSS022": 2, "PSS029": 1, "PSS104": 1}
+        assert hist == {"PSS022": 2, "PSS029": 1, "LINT601": 1}
 
     def test_uncoded_markers_are_bucketed_not_dropped(self):
         """A message the pattern table does not recognise still gets counted.
@@ -194,8 +194,8 @@ class TestDiagnosticsByCode:
         assert diagnostics_by_code([]) == {}
 
     def test_keys_are_sorted(self):
-        hist = diagnostics_by_code([_diag("PSS104"), _diag("PSS001")])
-        assert list(hist) == ["PSS001", "PSS104"]
+        hist = diagnostics_by_code([_diag("LINT601"), _diag("PSS001")])
+        assert list(hist) == ["LINT601", "PSS001"]
 
 
 class TestCollectStats:

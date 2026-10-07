@@ -42,6 +42,19 @@ class CheckContext:
     #: Populated by CheckerManager before invoking any checker.
     _marker_index: Dict[str, Any] = field(default_factory=dict, repr=False)
 
+    #: Internal – codes turned off for this run, by ``[severity] = "off"``
+    #: or by lint selection.  Read through :meth:`is_enabled`.
+    _disabled: frozenset = field(default_factory=frozenset, repr=False)
+
+    def is_enabled(self, code: str) -> bool:
+        """False when *code* is turned off for this run.
+
+        A checker with several rules can skip the work for a disabled one.
+        Checking is optional: :meth:`add_marker` drops a disabled code
+        anyway, so a checker that never asks is still correct, only slower.
+        """
+        return code not in self._disabled
+
     def add_marker(
         self,
         *,
@@ -94,6 +107,8 @@ class CheckContext:
                 f"Unknown marker code {code!r}; it must be declared in a "
                 "checker's marker_defs before it can be emitted."
             )
+        if code in self._disabled:
+            return
         entry = {
             "severity": severity if severity is not None else self._lookup_severity(code),
             "message": f"[{code}] {message}",

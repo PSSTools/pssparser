@@ -1,0 +1,8 @@
+// expect: none
+// Declaring a dynamic constraint is not reported; traversing one is.
+component pss_top {
+  action a {
+    rand int x;
+    dynamic constraint dc { x > 0; }
+  }
+}

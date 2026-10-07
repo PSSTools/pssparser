@@ -293,7 +293,7 @@ def test_unknown_annotation_type_warns_and_parse_succeeds():
         int a;
     }
     """
-    assert_parse_ok_with_warning(pss, marker_id="PSS101")
+    assert_parse_ok_with_warning(pss, marker_id="LINT403")
 
 
 def test_known_annotation_type_does_not_warn():
@@ -305,7 +305,7 @@ def test_known_annotation_type_does_not_warn():
         int a;
     }
     """
-    assert_no_marker(pss, marker_id="PSS101")
+    assert_no_marker(pss, marker_id="LINT403")
 
 
 def test_unknown_annotation_param_is_error():
@@ -390,7 +390,7 @@ def test_std_pkg_annotation_is_recognized(name):
         int a;
     }
     """ % name
-    assert_no_marker(pss, marker_id="PSS101")
+    assert_no_marker(pss, marker_id="LINT403")
 
 
 @pytest.mark.parametrize("name", ["doc", "code_doc"])
@@ -417,7 +417,7 @@ def test_code_doc_on_procedural_stmt():
         }
     }
     """
-    assert_no_marker(pss, marker_id="PSS101")
+    assert_no_marker(pss, marker_id="LINT403")
 
 
 def test_package_qualified_annotation_type_resolves():
@@ -432,7 +432,7 @@ def test_package_qualified_annotation_type_resolves():
         int a;
     }
     """
-    assert_no_marker(pss, marker_id="PSS101")
+    assert_no_marker(pss, marker_id="LINT403")
 
 
 # ---------------------------------------------------------------------------

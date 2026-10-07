@@ -5,7 +5,7 @@
 //! detect:          recommended
 //! lrm:             19.2
 //! pss:             3.1
-//! pssparser.id:    PSS104
+//! pssparser.id:    LINT601
 //! at:              18:9-28
 //! pssparser.match: without enclosing braces is deprecated
 //! also:            17:5 "'compile if' begins here"

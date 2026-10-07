@@ -110,7 +110,7 @@ apply a `fix` object when one is present: it is an exact edit.
 ## Lint
 
 The built-in `core` checker is always present. Its warnings (for example
-`PSS053`, an import after a declaration) are lint findings. Installed
+`LINT402`, an import after a declaration) are lint findings. Installed
 extensions add more checkers. Find out what is available before configuring:
 
 ```bash

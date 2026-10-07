@@ -7,7 +7,7 @@ it is given for. For a value parameter the name is looked up as a value:
 - the argument initializes the parameter, so the parameter's type is its
   expected type (8.4.3), and step a of 18.3 searches that enum's items first;
 - otherwise the ordinary lookup, where an enum item found only as the fallback
-  warns (PSS046), as in any other expression (8.2);
+  warns (LINT101), as in any other expression (8.2);
 - a miss is an unknown *identifier* (PSS002), not an unknown type;
 - a type is reported (PSS047).
 

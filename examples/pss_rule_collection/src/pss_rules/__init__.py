@@ -17,7 +17,7 @@ from __future__ import annotations
 #:
 #: Declared at module level so pssparser can refuse an incompatible build
 #: *before* importing the rule modules -- the only point at which refusing has
-#: no side effects.  Refusing produces one clear PSS032 message; loading
+#: no side effects.  Refusing produces one clear PSSP003 message; loading
 #: anyway would produce an AttributeError from inside a checker halfway
 #: through somebody's run.
 REQUIRES_API = 1
@@ -37,7 +37,7 @@ def register(reg) -> None:
     reg.description = "Example rule collection: component and package naming"
 
     # Imported inside register() rather than at module scope so that a syntax
-    # error or bad dependency in one rule module is reported as a PSS030
+    # error or bad dependency in one rule module is reported as a PSSP001
     # against this extension, instead of breaking the import of the package
     # that declares the entry point.
     from .component_naming import ComponentNamingChecker

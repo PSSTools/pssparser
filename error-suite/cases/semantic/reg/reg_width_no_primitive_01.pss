@@ -4,7 +4,7 @@
 //! expect:       warning
 //! detect:       optional
 //! lrm:          21.14.5
-//! pssparser.id: PSS016
+//! pssparser.id: LINT501
 //! at:           21:27
 //! count:        1
 //! fix:          21:    pure component st_c : reg_c<st_s, READWRITE, 32> { }

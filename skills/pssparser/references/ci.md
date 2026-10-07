@@ -23,8 +23,8 @@
    upward from the working directory, so run pssparser from inside the
    checkout. Confirm with `pssparser --show-config` in the job log.
 6. **Make a failed extension fatal.** If an installed extension fails to
-   load, pssparser warns (`PSS030`) and runs without its rules. Add
-   `-Werror=PSS030`, or list it under `[warnings] error`, so a broken install
+   load, pssparser warns (`PSSP001`) and runs without its rules. Add
+   `-Werror=PSSP001`, or list it under `[warnings] error`, so a broken install
    cannot pass silently.
 
 ## Install
@@ -44,7 +44,7 @@ Replace `X.Y.Z` with the version the project has tested against.
 set -e
 python -m pip install "pssparser==X.Y.Z"
 pssparser --show-config
-pssparser -Werror=PSS030 src/pkg.pss src/top.pss
+pssparser -Werror=PSSP001 src/pkg.pss src/top.pss
 ```
 
 ## Machine-readable output

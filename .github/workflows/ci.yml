@@ -417,7 +417,7 @@ jobs:
       # turn up would arrive looking like a regression from the matrix.
       if: matrix.py == 'cp312-cp312' || matrix.py == 'cp313-cp313'
       run: |
-        /opt/python/${{ matrix.py }}/bin/python -m pip install pytest pyyaml toposort dist/*.whl
+        /opt/python/${{ matrix.py }}/bin/python -m pip install pytest pyyaml toposort jsonschema dist/*.whl
         PYTHONPATH="$PWD/packages/pyastbuilder/src" \
           /opt/python/${{ matrix.py }}/bin/python -m pytest tests/python -v --tb=short
     - name: System test
@@ -671,7 +671,7 @@ jobs:
       # whole collection with it.
       if: matrix.py == 'cp312-cp312' || matrix.py == 'cp313-cp313'
       run: |
-        /opt/python/${{ matrix.py }}/bin/python -m pip install pytest pyyaml toposort dist/*.whl
+        /opt/python/${{ matrix.py }}/bin/python -m pip install pytest pyyaml toposort jsonschema dist/*.whl
         PYTHONPATH="$PWD/packages/pyastbuilder/src" \
           /opt/python/${{ matrix.py }}/bin/python -m pytest tests/python -v --tb=short
     - name: System test

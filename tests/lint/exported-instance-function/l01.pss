@@ -1,0 +1,5 @@
+// expect: LINT301 @ 4:26
+component pss_top {
+  function void bump();
+  export target function bump;
+}

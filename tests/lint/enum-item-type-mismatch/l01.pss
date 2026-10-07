@@ -1,0 +1,6 @@
+// expect: LINT101 @ 5:22
+enum color_e { RED, ORANGE }
+component pss_top {
+  function void f(int x) { }
+  exec init_down { f(ORANGE); }
+}

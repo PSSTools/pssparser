@@ -39,11 +39,11 @@ disable = ["acme-experimental"]   # like --no-checker
 load    = ["mypkg.rules:MyRule"]  # like --load-checker (module:Class)
 
 [severity]                        # re-level a diagnostic by ID
-PSS053 = "error"                  # error | warning | info | hint | off
+LINT402 = "error"                  # error | warning | info | hint | off
 
 [warnings]
-error    = true                   # -Werror; or a list of IDs: ["PSS053"]
-no-error = ["PSS104"]             # -Wno-error=ID
+error    = true                   # -Werror; or a list of IDs: ["LINT402"]
+no-error = ["LINT601"]             # -Wno-error=ID
 none     = false                  # --no-warnings
 
 [checker.acme-naming]             # one checker's options (singular "checker")
@@ -143,10 +143,10 @@ version = 1
 
 [warnings]
 error    = true
-no-error = ["PSS104"]
+no-error = ["LINT601"]
 
 [severity]
-PSS053 = "off"
+LINT402 = "off"
 ```
 
 Check it:
@@ -157,5 +157,5 @@ pssparser src/*.pss
 ```
 
 `--show-config` should list `warnings.error = true`, `warnings.no-error =
-PSS104`, and `severity.PSS053 = off`, each with `.pssparser.toml` as the
+LINT601`, and `severity.LINT402 = off`, each with `.pssparser.toml` as the
 source.

@@ -34,6 +34,9 @@ def cmd_parse(
     show_stats: bool = False,
     stats_timing: bool = True,
     config=None,
+    show_hints: Optional[bool] = None,
+    output_format: Optional[str] = None,
+    statistics: bool = False,
 ) -> int:
     """Run the parse (and optionally link) pipeline, report diagnostics.
 
@@ -63,6 +66,16 @@ def cmd_parse(
         A ``cli.config.ResolvedConfig``, or ``None``.  Carries the severity
         map and per-checker options; ``checkers``/``no_checkers``/
         ``warning_policy`` above are already resolved from it by the caller.
+        Also carries the lint selection; with no config the default profile
+        applies.
+    show_hints:
+        Print ``hint`` diagnostics in text output.  ``None`` takes the
+        config's ``[output] show-hints``.
+    output_format:
+        ``"text"``, ``"json"``, ``"sarif"`` or ``"github"``.  ``None`` means
+        ``"json"`` when the deprecated *use_json* is set, else ``"text"``.
+    statistics:
+        Print a per-code count table (``--statistics``).
     """
     from pssparser.parser import Parser, ParseException
 
@@ -84,11 +97,32 @@ def cmd_parse(
         manager.discover()
     for load_marker in manager.load_diagnostics:
         coll.add(Diagnostic.from_marker(load_marker))
+    if config is not None:
+        from .config import alias_note_markers
+        for note in alias_note_markers(config):
+            coll.add(Diagnostic.from_marker(note))
 
-    if use_json:
-        driver = JsonOutput(stream=_stdout)
+    if show_hints is None:
+        show_hints = bool(getattr(config, "show_hints", False))
+    if output_format is None:
+        output_format = "json" if use_json else "text"
+    lint_enabled, lint_ids = _lint_selection(config, manager)
+    lint_dropped = 0
+    catalog = {md.id: md for md in manager.all_marker_defs()}
+    if output_format == "json":
+        driver = JsonOutput(stream=_stdout, catalog=catalog,
+                            statistics=statistics)
+    elif output_format == "sarif":
+        from .sarif import SarifOutput
+        driver = SarifOutput(stream=_stdout, catalog=catalog,
+                             enabled_rules=sorted(lint_enabled))
+    elif output_format == "github":
+        from .github import GithubOutput
+        driver = GithubOutput(stream=_stdout)
     else:
-        driver = HumanOutput(source_cache, stream=_stderr, color=color)
+        driver = HumanOutput(source_cache, stream=_stderr, color=color,
+                             show_hints=show_hints, statistics=statistics,
+                             catalog=catalog)
 
     parser = Parser()
     parser.set_max_errors(max_errors)
@@ -101,7 +135,12 @@ def cmd_parse(
         The exit code is computed *after* promotion, so ``-Werror`` moves a
         clean-but-warning run from 0 to 1.
         """
-        # Severity overrides first: they decide what a diagnostic *is*, and
+        nonlocal lint_dropped
+        # Lint selection first: a rule the profile does not enable, or a
+        # finding outside the user's own files, is not a diagnostic at all.
+        lint_dropped = coll.apply_lint_selection(
+            lint_enabled, lint_ids, owned=_owned_files(files))
+        # Severity overrides next: they decide what a diagnostic *is*, and
         # the warning policy then decides what to do with warnings.  Running
         # them the other way round would let -Werror promote a diagnostic
         # the config had already turned off.
@@ -115,6 +154,7 @@ def cmd_parse(
                 parser, files, coll,
                 timings=extra_timings if stats_timing else None,
             )
+            stats.lint_dropped = lint_dropped
         driver.finish(coll, quiet, stats)
         # An internal error outranks everything else: whatever else was
         # reported, the run is not trustworthy, and a script must be able to
@@ -158,6 +198,7 @@ def cmd_parse(
         checkers=checkers,
         no_checkers=no_checkers,
         options=None if config is None else config.checker_options,
+        disabled=_disabled_codes(config, lint_enabled, lint_ids),
     )
     extra_timings["checkers"] = time.perf_counter_ns() - t0
 
@@ -173,14 +214,53 @@ def cmd_parse(
     return _finish()
 
 
+# -- Lint selection -----------------------------------------------------------
+
+def _lint_selection(config, manager) -> tuple:
+    """``(enabled_ids, lint_ids)`` for this run.
+
+    The config layer resolves the selection once the registry is loaded;
+    a caller that passes no config (the library path, most tests) gets the
+    default profile.
+    """
+    enabled = getattr(config, "lint_enabled", None)
+    if enabled is not None:
+        return set(enabled), set(config.lint_ids)
+    from pssparser.checkers import taxonomy
+    from pssparser.checkers.selectors import RuleSet
+
+    rules = RuleSet(manager.all_marker_defs())
+    return rules.resolve(taxonomy.DEFAULT_PROFILE), {md.id for md in rules.lint}
+
+
+def _disabled_codes(config, lint_enabled: set, lint_ids: set) -> frozenset:
+    """Codes that must not run: ``off`` in ``[severity]``, or lint rules the
+    selection leaves out."""
+    off = {code for code, sev in (getattr(config, "severity", None) or {}).items()
+           if sev == "off"}
+    return frozenset(off | (lint_ids - lint_enabled))
+
+
+def _owned_files(files: List[str]) -> set:
+    """Real paths of the files whose lint findings are reported.
+
+    Today that is exactly the files on the command line: the CLI parses no
+    other user file (no search path), so this excludes only the built-in
+    standard library.
+    """
+    import os
+
+    return {os.path.realpath(f) for f in files}
+
+
 # -- Core-marker code assignment -------------------------------------------
 
-# Ordered list of (compiled-regex, PSS-code) pairs.  The first match wins.
+# Ordered list of (compiled-regex, code) pairs.  The first match wins.
 _CORE_CODE_PATTERNS: list = []
 
 
 def _build_core_patterns() -> list:
-    """Compile and return the message-to-PSS-code pattern table.
+    """Compile and return the message-to-code pattern table.
 
     The table is derived from ``CoreChecker.marker_defs`` so that a marker's
     ID, severity, documentation, and message patterns are declared together in
@@ -188,25 +268,63 @@ def _build_core_patterns() -> list:
     and the first match wins; ``tests/python/test_marker_ids.py`` pins the
     resulting mapping so that a newly-added pattern cannot silently shadow an
     existing code.
+
+    A code that moved namespace (``PSS104`` -> ``LINT601``) is tried at the
+    position of its retired row, under its new ID, so moving a code never
+    changes which pattern wins.
     """
     from pssparser.checkers.core_checker import CoreChecker
 
+    defs = CoreChecker.marker_defs
+    by_id = {mdef.id: mdef for mdef in defs}
+    moved = {
+        mdef.replaced_by[0] for mdef in defs
+        if mdef.status == "retired" and mdef.replaced_by
+        and mdef.replaced_by[0] in by_id
+    }
+    order = []
+    for mdef in defs:
+        if mdef.status == "retired":
+            if mdef.replaced_by and mdef.replaced_by[0] in by_id:
+                order.append(by_id[mdef.replaced_by[0]])
+        elif mdef.id not in moved:
+            order.append(mdef)
     return [
         (re.compile(pat, re.IGNORECASE), mdef.id)
-        for mdef in CoreChecker.marker_defs
+        for mdef in order
         for pat in mdef.patterns
     ]
+
+
+_MOVED_CODES: Optional[dict] = None
+
+
+def _moved_codes() -> dict:
+    """``{retired_code: current_code}`` for core codes that moved."""
+    global _MOVED_CODES
+    if _MOVED_CODES is None:
+        from pssparser.checkers.core_checker import CoreChecker
+        _MOVED_CODES = {
+            mdef.id: mdef.replaced_by[0] for mdef in CoreChecker.marker_defs
+            if mdef.status == "retired" and mdef.replaced_by
+        }
+    return _MOVED_CODES
 
 
 def _assign_core_code(marker: dict) -> dict:
     """Return a copy of *marker* with a ``'code'`` field set if absent.
 
     Uses message-pattern matching against the known C++ diagnostic strings to
-    assign a ``PSS001``–``PSS005`` code.  Markers that already carry a
+    assign a core code (``PSS``, or ``LINT``/``PSSP`` for the warnings that
+    moved).  Markers that already carry a
     ``'code'`` key are returned unchanged.
     """
-    if marker.get("code"):
-        return marker
+    code = marker.get("code")
+    if code:
+        # A code set in C++ that has since moved namespace is reported
+        # under its current ID; the retired one never reaches output.
+        current = _moved_codes().get(code)
+        return {**marker, "code": current} if current else marker
 
     global _CORE_CODE_PATTERNS
     if not _CORE_CODE_PATTERNS:
@@ -268,6 +386,7 @@ def _run_checkers(
     checkers,
     no_checkers,
     options=None,
+    disabled: frozenset = frozenset(),
 ) -> None:
     """Run the checker phase and merge results into *coll*."""
     from pssparser.checkers import CheckContext, CheckerManager
@@ -278,7 +397,8 @@ def _run_checkers(
 
     try:
         active = manager.active(
-            select=checkers, exclude=no_checkers, options=options
+            select=checkers, exclude=no_checkers, options=options,
+            disabled=disabled,
         )
     except ValueError as exc:
         import sys
@@ -298,6 +418,7 @@ def _run_checkers(
         global_scopes=global_scopes,
         file_map=file_map,
         _marker_index=marker_index,
+        _disabled=disabled,
     )
 
     for checker in active:

@@ -1,0 +1,2 @@
+// expect: LINT601 @ 2:16
+compile if (1) struct q {}

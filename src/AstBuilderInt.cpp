@@ -4014,7 +4014,7 @@ antlrcpp::Any AstBuilderInt::visitCovergroup_body_item(PSSParser::Covergroup_bod
 // ---------------------------------------------------------------------------
 // Constructs the grammar accepts that the builder does not represent.
 //
-// Each visitor below reports PSS116 and then walks children exactly as the
+// Each visitor below reports PSSP101 and then walks children exactly as the
 // default visitor would, so behaviour is unchanged apart from the diagnostic.
 // The catalogue is docs/ast-coverage-gaps.md; the plan for closing it is
 // docs/ast-coverage-plan.md.  As each construct is implemented, its visitor
@@ -7307,7 +7307,7 @@ void AstBuilderInt::checkCompileIfBraces(
         "'compile if' branch without enclosing braces is deprecated",
         MarkerSeverityE::Warn,
         loc,
-        std::string("PSS104"));
+        std::string("LINT601"));
 
     if (owner && owner->start) {
         ast::Location kw_loc;

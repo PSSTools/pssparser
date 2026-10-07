@@ -22,7 +22,7 @@ them is closed. New notes use ``# COVERAGE:``.
 
 The companion file ``test_unrepresented_constructs.py`` asserts the *other*
 side of the same contract: that an unimplemented construct is at least loud
-(PSS116) rather than silent. A construct closed here should lose its case
+(PSSP101) rather than silent. A construct closed here should lose its case
 there in the same commit.
 """
 import pytest
@@ -1074,7 +1074,7 @@ def test_randomize_keeps_its_target_and_constraints(parser):
 
 def test_randomize_keeps_every_target(parser):
     """`randomize v, w` -- "one or more variables" (13.4.6) -- kept only the
-    first target, and said so (PSS116). Every target is kept, in order."""
+    first target, and said so (PSSP101). Every target is kept, in order."""
     p = _parse_only(
         "package p { struct s { rand int x; } }"
         " component c { function void f() { p::s v; p::s w;"

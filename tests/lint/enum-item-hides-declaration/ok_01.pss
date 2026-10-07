@@ -1,0 +1,9 @@
+// expect: none
+enum mode_e { A, B }
+component pss_top {
+  action a {
+    rand mode_e m;
+    rand int A_val;
+    constraint { m == A; }
+  }
+}

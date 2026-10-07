@@ -109,7 +109,7 @@ struct S {
 
 
 def test_an_enum_parameter_is_the_expected_type():
-    """No PSS046: the parameter's enum is the expected type (8.4.3)."""
+    """No LINT101: the parameter's enum is the expected type (8.4.3)."""
     code = """\
 enum e_t {A, B};
 struct S {

@@ -16,7 +16,7 @@ used before it is declared (Examples 261, 262).
 9.2 -- constant initializers (18.2c/d) and type widths. Checked after
 resolution, not at lookup: a type or package scope is not otherwise ordered,
 and a qualified `p::C` never takes the lexical walk. PSS118 is an error; a
-forward reference in a width is PSS119, a warning first (plan section 8).
+forward reference in a width is LINT404, a warning first (plan section 8).
 Across files, the order the files are given in applies (decision Q8).
 """
 import pytest
@@ -278,9 +278,9 @@ component pss_top { }
 
 @pytest.mark.parametrize("decls,expect", [
     # Enum item declared later (CH17/p36b). An `int` initializer expects no
-    # enumeration type, so the bare item is also PSS046 (8.2).
-    ("const int A = E_X;\n enum e { E_X = 1 }", [(3, "PSS046"), (3, "PSS118")]),
-    ("enum e { E_X = 1 }\n const int A = E_X;", [(4, "PSS046")]),
+    # enumeration type, so the bare item is also LINT101 (8.2).
+    ("const int A = E_X;\n enum e { E_X = 1 }", [(3, "LINT101"), (3, "PSS118")]),
+    ("enum e { E_X = 1 }\n const int A = E_X;", [(4, "LINT101")]),
     # Qualified: the lexical walk is not involved.
     ("const int A = my::C;\n const int C = 3;", [(3, "PSS118")]),
     # Itself.
@@ -370,7 +370,7 @@ package my {
 component pss_top { }
 """)
     assert [(m["line"], m.get("code"), m["severity"]) for m in markers] == \
-        [(3, "PSS119", "warning")]
+        [(3, "LINT404", "warning")]
 
 
 def test_width_after_declaration_is_clean():

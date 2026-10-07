@@ -10,7 +10,7 @@ filter dimension.
 The PSS fragments below are chosen because they exercise diagnostics that
 already exist today:
 
-* ``unknown annotation type 'nosuch_ann'`` -- PSS101, severity *warning*,
+* ``unknown annotation type 'nosuch_ann'`` -- LINT403, severity *warning*,
   emitted while the parse still succeeds. PSS 3.1 7.13 requires that an
   unrecognized annotation be disregarded rather than rejected, which is exactly
   the shape the deprecation warnings take.
@@ -212,7 +212,7 @@ def test_assert_no_marker_fails_when_present():
 def test_assert_no_marker_by_id():
     assert_no_marker(DUP_WARNING, marker_id="PSS002")
     with pytest.raises(AssertionError):
-        assert_no_marker(DUP_WARNING, marker_id="PSS101")
+        assert_no_marker(DUP_WARNING, marker_id="LINT403")
 
 
 def test_assert_no_marker_requires_a_criterion():
@@ -225,7 +225,7 @@ def test_assert_no_marker_requires_a_criterion():
 # =============================================================================
 
 def test_assert_parse_ok_with_warning_happy_path():
-    root = assert_parse_ok_with_warning(DUP_WARNING, marker_id="PSS101")
+    root = assert_parse_ok_with_warning(DUP_WARNING, marker_id="LINT403")
     assert root is not None
 
 
@@ -236,7 +236,7 @@ def test_assert_parse_ok_with_warning_matches_by_text():
 def test_assert_parse_ok_with_warning_fails_without_warning():
     """Half the assertion: the parse succeeded but nothing warned."""
     with pytest.raises(AssertionError, match="expected warning was not emitted"):
-        assert_parse_ok_with_warning(CLEAN, marker_id="PSS101")
+        assert_parse_ok_with_warning(CLEAN, marker_id="LINT403")
 
 
 def test_assert_parse_ok_with_warning_fails_on_error():

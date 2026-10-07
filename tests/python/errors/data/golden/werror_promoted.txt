@@ -1,7 +1,7 @@
-$ pssparser -Werror=PSS104 error-suite/cases/semantic/compile/compile_if_unbraced.pss (exit 1)
+$ pssparser -Werror=LINT601 error-suite/cases/semantic/compile/compile_if_unbraced.pss (exit 1)
 --- stdout ---
 --- stderr ---
-error-suite/cases/semantic/compile/compile_if_unbraced.pss:18:9: error: 'compile if' branch without enclosing braces is deprecated [-Werror=PSS104]
+error-suite/cases/semantic/compile/compile_if_unbraced.pss:18:9: error: 'compile if' branch without enclosing braces is deprecated [-Werror=LINT601]
  18 |         action A { int a; }
     |         ^~~~~~~~~~~~~~~~~~~
   note: 'compile if' begins here

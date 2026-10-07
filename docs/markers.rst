@@ -1,20 +1,51 @@
 Marker Reference
 ================
 
-Every diagnostic the built-in core checker can emit, generated from
+Every diagnostic the built-in core can emit, generated from
 ``CoreChecker.marker_defs`` by ``scripts/gen_marker_docs.py`` -- do not edit
-this file by hand, it will be overwritten.
+this file by hand, it will be overwritten.  Query the same information from
+the command line with ``--list-markers`` and ``--describe <ID>``.
 
-``PSS001``-``PSS099`` is the general band, ``PSS020``-``PSS028`` its syntax
-sub-band, and ``PSS100``-``PSS199`` is the PSS 3.1 language-rule band.
-``PSS023`` and ``PSS027`` are reserved within the syntax sub-band and
-deliberately have no entry below -- see ``PSS022``'s detail and
-``core_checker.py``'s syntax-band comment (U-9) respectively for why. Query
-the same information from the command line with ``--list-markers`` and
-``--describe <ID>``.
+Namespaces
+----------
+
+``PSS``
+   Normative PSS: the model violates the language reference manual.
+   ``PSS001``-``PSS099`` is the general band, ``PSS020``-``PSS029`` its
+   syntax sub-band, and ``PSS100``-``PSS199`` the PSS 3.1 language-rule band.
+``LINT``
+   Lint: legal PSS that is probably not what the author meant.  The rules
+   listed here are raised by the core linker; the full rule reference,
+   grouped by family, is :doc:`lint-rules`.
+``PSSP``
+   pssparser itself: an extension failed to load, a construct is accepted
+   but not represented in the AST, an old ID was used in a configuration.
+
+Several warnings that used to carry ``PSS`` IDs moved to ``LINT`` or
+``PSSP``.  Their old IDs are listed under *Retired and reserved codes*; they
+are still accepted wherever an ID is typed (configuration, ``-W``,
+``--describe``) and are never reused.
+
+Severities
+----------
+
+``error``
+   The model is invalid, or a finding was promoted with ``-Werror``.  Sets
+   exit status 1.
+``warning``
+   Probably wrong; fix or waive it.  Exit status 0 unless ``-Werror``.
+``info``
+   Worth knowing, no action required.  Counted as a *note*; not promoted by
+   a bare ``-Werror`` (use ``-Werror=info`` or ``-Werror=ID``).
+``hint``
+   An editor nudge.  Hidden at the command line unless ``--show-hints``;
+   always present in machine-readable output.
+
+PSS: LRM violations
+-------------------
 
 PSS000
-------
+~~~~~~
 
 **Severity:** error
 
@@ -28,7 +59,7 @@ pssparser reached a state it believed could not happen.  This is a defect in pss
 Results for the rest of the model are incomplete: the pass that failed stopped, and the passes after it did not run.  The command-line tool exits with status 3 when an internal error is reported.
 
 PSS001
-------
+~~~~~~
 
 **Severity:** error
 
@@ -45,7 +76,7 @@ The parser encountered a token it did not expect.  Messages include patterns suc
 Check that the surrounding PSS syntax is well-formed.
 
 PSS002
-------
+~~~~~~
 
 **Severity:** error
 
@@ -70,7 +101,7 @@ The linker could not resolve a named type, identifier, or method.  Messages incl
 Ensure the symbol is declared in one of the source files passed to pssparser, or that the correct package is imported.  When a close match exists, a ``did you mean '...'?`` suggestion is appended.
 
 PSS003
-------
+~~~~~~
 
 **Severity:** error
 
@@ -94,7 +125,7 @@ Rename one of the declarations to resolve the conflict.
 Note that ``duplicate declaration of '...'`` is currently emitted as a *warning* while the others are errors.
 
 PSS004
-------
+~~~~~~
 
 **Severity:** error
 
@@ -109,7 +140,7 @@ A symbol or reference path could not be resolved during linking.  Messages inclu
 Check that all referenced symbols are declared and that composite-type fields are used correctly.
 
 PSS005
-------
+~~~~~~
 
 **Severity:** error
 
@@ -126,7 +157,7 @@ An ``extend`` declaration targets a type or enum that does not exist, or a name 
 Ensure the base type is declared before or alongside the extend block.
 
 PSS006
-------
+~~~~~~
 
 **Severity:** error
 
@@ -148,7 +179,7 @@ Argument types are compared only by broad category -- numeric, string, composite
 Parameters with a default may be omitted, which is why the bound is reported as ``at least``/``at most`` when the two differ.  A ``type... args`` parameter removes the upper bound entirely.
 
 PSS007
-------
+~~~~~~
 
 **Severity:** error
 
@@ -167,7 +198,7 @@ Taking a member of a call result counts as using it, so ``f().x`` on a void ``f`
 Whether a non-void function returns on *every* path is not checked.
 
 PSS008
-------
+~~~~~~
 
 **Severity:** error
 
@@ -186,7 +217,7 @@ Direction modifiers (LRM 20.2.2, 20.3.2) mark a function as importable only; a f
 The ``const`` parameter qualifier (LRM 20.2.3) is parsed and discarded rather than checked -- no AST node records it.
 
 PSS009
-------
+~~~~~~
 
 **Severity:** error
 
@@ -214,7 +245,7 @@ Three things are deliberately **not** compared. Parameter *names*, because PSS c
 A *static* function shadowed in a derived component may differ freely (LRM 20.2) and is not reported.  An *instance* function shadowed in a derived component must match, and that is not checked.
 
 PSS010
-------
+~~~~~~
 
 **Severity:** error
 
@@ -236,7 +267,7 @@ A duplicate name matters more than it looks: the plural form writes its fields i
 Which **bits** a resolved field occupies is deliberately not decided here.  ``packed_s<>`` layout is a target representation -- backends order it oppositely on purpose -- so the compiler folds the mask.  This checks *which field*; the compiler answers *which bits*.
 
 PSS011
-------
+~~~~~~
 
 **Severity:** error
 
@@ -245,7 +276,7 @@ Digit out of range for a based literal's radix
 A based literal (LRM B.19, e.g. ``'hFF``, ``8'b1010``) contains a digit that is not valid for its radix -- for example a hex literal spelled with a letter past ``f``/``F``. The lexer accepts any alphanumeric run after the radix character so a typo still lexes as one literal token (rather than a lexical error splitting the trailing characters into an unrelated token); this check then validates the digits against the radix. Only the first invalid digit is reported. Message: ``invalid digit '<c>' in based literal``.
 
 PSS012
-------
+~~~~~~
 
 **Severity:** error
 
@@ -262,7 +293,7 @@ A packed struct -- any struct derived, directly or indirectly, from ``packed_s``
 A width-less enum is not 32 bits wide in a packed struct: it is not allowed there at all. A flow or resource object that inherits from a packed struct is not itself packed (LRM 17.1). ``static const`` members are not part of the layout and are not checked. A generic packed struct is checked per specialization.
 
 PSS013
-------
+~~~~~~
 
 **Severity:** error
 
@@ -271,7 +302,7 @@ Type extension adds a field to a packed struct
 LRM 21.13.1: "Type extensions of packed structs shall not add new fields." A packed struct's layout is fixed by its declaration; an ``extend`` elsewhere must not change it. Constraints, exec blocks and ``static const`` members may still be added. Message: ``type extension of packed struct '<s>' adds field '<f>'; an extension of a packed struct may not add fields``.
 
 PSS014
-------
+~~~~~~
 
 **Severity:** error
 
@@ -286,7 +317,7 @@ Register value type has no size, or is wider than the register
 Reported where the register type is used (``reg_c<...>`` as a field type or a base type), not in the core library.
 
 PSS015
-------
+~~~~~~
 
 **Severity:** error
 
@@ -294,17 +325,8 @@ sizeof_s of a type that has no packed size
 
 LRM 21.13.2.1: ``sizeof_s<>`` "shall not be parameterized with types other than numeric types, Booleans, enumerated types that have a base type, packed structs, and arrays thereof." Such a specialization has no ``nbits`` or ``nbytes`` value. Message: ``sizeof_s argument is <what>, which has no packed size``, or ``sizeof_s argument is <what>; <how to fix it>``. A packed struct with a bad member is reported at the member (PSS012), not here.
 
-PSS016
-------
-
-**Severity:** warning
-
-Register width has no primitive access function
-
-LRM 21.14.5a translates register reads and writes into the primitive ``read8/16/32/64`` and ``write8/16/32/64`` functions (21.13.9), chosen by the register's size. A register ``SZ`` bits wide, where ``SZ`` is not 8, 16, 32 or 64, has no such function, so its access cannot be translated as the spec describes. Not a "shall" in the spec, so a warning. A packed struct of any size is legal on its own -- a 96-bit DMA descriptor, say; this is only about using one as a register value type. Message: ``reg_c width SZ = 96 has no primitive access function; use 8, 16, 32 or 64 bits``. For a register whose value type is narrower than a primitive, give ``SZ`` explicitly (``reg_c<my12_s, READWRITE, 16>``).
-
 PSS017
-------
+~~~~~~
 
 **Severity:** error
 
@@ -313,13 +335,13 @@ Ambiguous name: more than one import provides it
 LRM 18.1.3: when two imports of the same kind make the same name visible, and they name different declarations, the name is not imported at all. An explicit import (``import p::s;``) takes precedence over a wildcard import (``import p::*;``), so only imports of the same kind can conflict. Two imports that reach the same declaration do not conflict.  Message: ``ambiguous reference to 's': more than one wildcard import provides it, so none does (18.1.3); qualify the name``. Qualify the name (``lib1::s``) or import it explicitly.  The same holds for a field or type that extensions in two packages add to one type, where both packages are wildcard-imported (17.2.3): ``ambiguous reference to 'b': extensions of 'S' in package 'p' and package 'q' each declare it, and each package is imported here (17.2.3); import only one``.
 
 PSS018
-------
+~~~~~~
 
 **Severity:** error
 
 Traversal of something that is not an action
 
-An action traversal statement names something that cannot be traversed.  LRM 11.3.1: the identifier "names a unique action handle or variable in the context of the containing action type or activity scope"; a variable may be a data field declared with the ``action`` modifier, which is randomized with no execution (Example 173).  A generic constraint (13.4.11), a deprecated ``dynamic`` constraint (see PSS117) and a symbol may also be traversed.  Messages include:
+An action traversal statement names something that cannot be traversed.  LRM 11.3.1: the identifier "names a unique action handle or variable in the context of the containing action type or activity scope"; a variable may be a data field declared with the ``action`` modifier, which is randomized with no execution (Example 173).  A generic constraint (13.4.11), a deprecated ``dynamic`` constraint (see LINT602) and a symbol may also be traversed.  Messages include:
 
 * ``'x' is not an action handle, and cannot be traversed; only a handle, or a data field declared with the 'action' modifier, can be``
 * ``'A' is a type, not an action handle; traverse it by type with 'do A'``
@@ -331,7 +353,7 @@ An action traversal statement names something that cannot be traversed.  LRM 11.
 A name that is not declared at all is PSS002.
 
 PSS019
-------
+~~~~~~
 
 **Severity:** error
 
@@ -349,7 +371,7 @@ LRM 20.4.1: a static function declared in a component can be imported only in th
 LRM 20.4: an instance (non-static) function cannot be imported.  In a component, the prototype form of the import must say ``static`` (20.4.1.1 b.1), so ``import C function void f(int a);`` there is reported whether or not ``f`` is declared ``static`` elsewhere; the name form (``import C function f;``) is reported when no declaration of ``f`` says ``static``.
 
 PSS020
-------
+~~~~~~
 
 **Severity:** error
 
@@ -366,7 +388,7 @@ Insert the missing punctuation, or (for the last case) replace ``extends`` with 
 ``expected ';' before '<token>'`` is also reported when a statement that could have ended with ``;`` is followed, on the next line, by a token that starts another statement: ``int a = 1, b = 2`` or ``f(1)`` with no ``;`` before the next line.  The marker is on the next line's first token, since that is where the parser noticed.  When the line ends in a name, the marker moves to the end of that line instead (``expected ';' after '<name>'``).
 
 PSS021
-------
+~~~~~~
 
 **Severity:** error
 
@@ -386,7 +408,7 @@ Otherwise -- a deeper truncation, or any other brace-opening construct (``enum``
 For the fallback case, count braces from the point the parser last made progress; the true cause is often several lines above the file's last line, not at it.
 
 PSS022
-------
+~~~~~~
 
 **Severity:** error
 
@@ -400,7 +422,7 @@ Messages:
 * ``'this' is a keyword and cannot be used as a declared name`` -- the one keyword the lexer returns as an identifier, so the grammar accepts it and the declaration is rejected afterwards
 
 PSS024
-------
+~~~~~~
 
 **Severity:** error
 
@@ -412,7 +434,7 @@ A general ``mismatched input`` case that PSS020, PSS021, and PSS022 do not cover
 * ``unexpected '<token>' expecting {<alternatives>}`` (the expecting set was small enough to show)
 
 PSS025
-------
+~~~~~~
 
 **Severity:** error
 
@@ -425,7 +447,7 @@ Message: ``unexpected '<token>' in this context``
 The same wording as PSS024's first pattern; the two differ only in which ANTLR exception produced them (``extraneous input`` here, ``mismatched input`` there).
 
 PSS026
-------
+~~~~~~
 
 **Severity:** error
 
@@ -437,7 +459,7 @@ As PSS025, but the extraneous token is not a single punctuation character -- a k
 * ``unexpected '<token>' in this context`` (non-keyword-looking offender, e.g. ``123``)
 
 PSS027
-------
+~~~~~~
 
 **Severity:** error
 
@@ -455,7 +477,7 @@ Messages include patterns such as:
 The parse error that a lexical defect provokes immediately afterwards is suppressed: an unterminated string swallows the rest of its line, so what follows not parsing is the same defect, not a second one.
 
 PSS028
-------
+~~~~~~
 
 **Severity:** error
 
@@ -468,7 +490,7 @@ Message: ``syntax error at '<token>'``
 The message does not say what was expected; work outward from the enclosing construct to find the mistake.
 
 PSS029
-------
+~~~~~~
 
 **Severity:** error
 
@@ -478,43 +500,8 @@ Too many errors; stopped reporting further errors
 
 Message: ``too many errors (<N>); stopped reporting further errors for this file``
 
-PSS030
-------
-
-**Severity:** warning
-
-A checker extension could not be loaded
-
-An entry point in the ``pssparser.extensions`` (or legacy ``pssparser.checkers``) group failed to load. The usual causes are an import error inside the extension, an exception raised from its ``register()`` function, or a module that exposes neither ``register()`` nor the ``CHECKERS`` shorthand.
-
-The run continues: a third-party extension is code you did not write, and one broken package must not stop the rest of the registry from loading. The consequence is that the rules that extension contributes did **not** run, so a clean result is not evidence of clean source.
-
-Use ``--list-extensions`` to see what did load, and ``--no-extensions`` (or ``PSSPARSER_NO_EXTENSIONS=1``) to confirm the behaviour is the extension's and not pssparser's. In CI, ``-Werror=PSS030`` makes a failed extension fatal, which is usually what you want.
-
-PSS031
-------
-
-**Severity:** warning
-
-Entry-point key disagrees with the checker's declared name
-
-A legacy ``pssparser.checkers`` entry point is keyed under one name while the class it names declares another in its ``name`` attribute.
-
-The class is authoritative -- it is the name the checker reports itself under and the name ``--checker`` and ``--no-checker`` select -- so the checker is registered under the declared name and the entry-point key is ignored. Rename the key to match; while they disagree, a command line written against the key silently selects nothing.
-
-PSS032
-------
-
-**Severity:** warning
-
-Extension requires a newer checker API than this build provides
-
-The extension declared ``requires_api = N`` (as a module level ``REQUIRES_API`` or on the registry inside ``register()``) and ``N`` is greater than this build's ``pssparser.checkers.API_VERSION``.
-
-The extension is not loaded, deliberately: refusing here produces one clear message, where loading it anyway produces an ``AttributeError`` from inside a checker halfway through a run. Upgrade pssparser, or install a build of the extension made for this API version.
-
 PSS033
-------
+~~~~~~
 
 **Severity:** error
 
@@ -525,7 +512,7 @@ Marker IDs are globally unique across the core and every installed extension. Tw
 The checker that lost the collision is not registered; everything else, including the rest of its extension, still loads. The message names both contributors. The fix belongs in the extension: pick an unused prefix -- three letters plus three digits is the convention, and the ``PSS`` prefix is reserved for the built-in core checker.
 
 PSS040
-------
+~~~~~~
 
 **Severity:** error
 
@@ -541,7 +528,7 @@ LRM 18.3: a type's namespace holds types, static constants, static functions and
 LRM 20.2: a static component function is not associated with an instance, so its body cannot read the component's non-static fields or call its instance functions.  Make the member static, pass the value in as a parameter, or drop ``static`` from the function.
 
 PSS041
-------
+~~~~~~
 
 **Severity:** error
 
@@ -555,7 +542,7 @@ An action reaches a static function or static constant of a component through it
 LRM 9.1.4.1 f: "It shall be illegal to access static component members using the comp handle."  ``comp`` is an instance; a static member belongs to the component type (20.2.1.1 c).  A member of the action's own component is found by its plain name, since the action is declared inside that component or an extension of it; a member of a sub-component is named through its type, ``sub_c::f``.  Reported for every path that starts at ``comp``, including ``comp.sub.f()``.
 
 PSS042
-------
+~~~~~~
 
 **Severity:** error
 
@@ -568,7 +555,7 @@ The linker finished without binding a name, although the model declares somethin
 Reported by the completeness check that runs after linking (symbol-resolution plan 3.5), so that a consumer is never handed a reference with no target in silence.  It is reported only on a model with no other error; with one, an unbound name is far more likely a consequence of that error.  A name that nothing in the model declares is PSS002 instead.  Some constructs are not checked yet: covergroup bodies and port maps, instance overrides, the member names of a struct literal whose type is not known from where it is written, and a bind target past a component whose type is unknown or generic.
 
 PSS043
-------
+~~~~~~
 
 **Severity:** error
 
@@ -581,21 +568,8 @@ LRM 18.1.4 restricts the name of a package alias (``import pkg1::a::b as p1;``).
 
 Two aliases in one lexical scope -- one ``package`` statement, component declaration or extension, or one file's global scope -- shall not have the same name; the same name in two statements of one package is legal.  An alias shall not take the name of a package declared in the same namespace in this source unit or an earlier one (Example 260).  A package of that name added in a later source unit is legal, and from then on a reference finds the package rather than the alias (18.3 c.1 before c.2.i).
 
-PSS044
-------
-
-**Severity:** warning
-
-Enum item hides a declaration of the same name
-
-Where an expression's expected type is an enumeration type (8.4.3), an unqualified name is looked up among that enum's items before any scope (18.3 a).  A field, variable or parameter of the same name is then hidden, which is legal but rarely intended.  Message:
-
-* ``'A' is read as the enum item mode_e::A, which hides the field 'A' (18.3 a); qualify one of them``
-
-Write ``mode_e::A`` for the item, or rename the field.
-
 PSS045
-------
+~~~~~~
 
 **Severity:** error
 
@@ -607,22 +581,8 @@ In ``a == b`` or ``a != b`` each side's type is the other side's expected type, 
 
 Qualify the item, as ``e1::B``.
 
-PSS046
-------
-
-**Severity:** warning
-
-Enum item used where its enumeration type is not expected
-
-An enum item belongs to its enumeration type's scope, not to the scope that declares the enum (7.5 g).  Unqualified, it is found only where the expression's expected type is that enumeration type (7.5 i, 8.4.3, 18.3 a): an assignment or initializer, a call argument, a ``return``, the other side of ``==``/``!=``, the values of ``in``, a cast to the enum, and the arms of ``?:``.  pssparser still accepts an item declared in an enclosing scope, or in a package a wildcard import names, when the name means nothing else there, and warns; this becomes an error in a later release.  A declaration of the same name further out is what the name means, and no longer the item.  Messages:
-
-* ``enum item 'ORANGE' is used where no enumeration type is expected (7.5 i, 8.4.3); qualify it as 'color_e::ORANGE'``
-* ``enum item 'RED' is used where 'mode_e' is expected, but it is an item of 'color_e' (7.5 i, 8.4.3); qualify it as 'color_e::RED'``
-
-Qualify the item.  LRM Example 37: ``print_num((int)ORANGE)`` is an error, because the cast's type is ``int``.
-
 PSS047
-------
+~~~~~~
 
 **Severity:** error
 
@@ -637,7 +597,7 @@ A template parameter is either a value parameter or a type parameter (10.3), and
 A name that is not declared at all is PSS002 (``unknown identifier``).
 
 PSS048
-------
+~~~~~~
 
 **Severity:** error
 
@@ -651,7 +611,7 @@ A struct literal names the data attributes of its context type (4.8.4): the type
 A name the context type does not declare at all is PSS002 (``'S1' has no member named 'x'``).
 
 PSS049
-------
+~~~~~~
 
 **Severity:** error
 
@@ -667,7 +627,7 @@ A pool bind (12.3) names a pool, then for each target a path of component instan
 A name that is not declared where it is looked up is PSS002 (``'C' has no member named 'x'``).
 
 PSS050
-------
+~~~~~~
 
 **Severity:** error
 
@@ -682,7 +642,7 @@ A cross crosses coverpoints of its covergroup, or variables, each of which is an
 A name that is not declared at all is PSS002.
 
 PSS051
-------
+~~~~~~
 
 **Severity:** error
 
@@ -696,7 +656,7 @@ A member an extension adds to a type is accessible in the package the extension 
 The use still binds to the member, so later diagnostics are measured against it.  A warning in 3.1.7; an error since (symbol-resolution plan §8).  Where two imported packages each add the name, the use is ambiguous: PSS017.
 
 PSS052
-------
+~~~~~~
 
 **Severity:** error
 
@@ -709,21 +669,8 @@ Explicit import conflicts with a declaration or import
 
 The namespace is every statement of a package, or a component and its extensions; two imports conflict only within one statement.  A warning in 3.1.7; an error since (plan §8).  A use of a name two explicit imports provide is PSS017.
 
-PSS053
-------
-
-**Severity:** warning
-
-Import after a declaration
-
-18.1.3: import specifications shall appear first in their lexical scope -- a file's global scope, a ``package`` statement, or a component declaration or extension.  Only another import or a ``compile if`` may precede one.  Message:
-
-* ``'import lib::*;' follows a declaration; imports shall come first in a package, a component, an extension or a file (18.1.3)``
-
-Not checked in a scope that holds a ``compile if``.  A warning for now (plan §8).
-
 PSS054
-------
+~~~~~~
 
 **Severity:** error
 
@@ -735,7 +682,7 @@ compile assert failed
 * ``compile assert failed for 'S<64>': too wide`` -- an assertion in a generic type's body that names a template parameter (Ex. 71-73).  It has a value only in a specialization, so each specialization is checked once linked, and reported at the first use that creates it, with a related location at the assertion.  The generic itself is never checked.
 
 PSS055
-------
+~~~~~~
 
 **Severity:** error
 
@@ -747,7 +694,7 @@ Compile-time condition cannot be evaluated
 * ``compile assert condition cannot be evaluated for 'S<4>': ...`` -- an assertion on a template parameter that does not fold in that specialization
 
 PSS056
-------
+~~~~~~
 
 **Severity:** error
 
@@ -756,7 +703,7 @@ Template arguments given to a type that is not generic
 A type that declares no template parameters was written with an argument list, in a use (``t<1> f;``) or in an instance extension (``extend struct t<1>``, 17.2.6b).  Message: ``'t' is not a generic type, so it takes no template arguments``.  Remove the argument list.
 
 PSS057
-------
+~~~~~~
 
 **Severity:** error
 
@@ -765,7 +712,7 @@ Extension of a type inside a template instance
 ``extend struct C<2>::s``, or an ``extend struct s`` written inside ``extend component C<2>``, extends a type declared in one instance of a generic component.  pssparser does not support this.  An extension of the instance's own members (``extend component C<2> { int x; }``) is supported (17.2.6b).
 
 PSS058
-------
+~~~~~~
 
 **Severity:** error
 
@@ -774,7 +721,7 @@ Extension kind does not match the type
 An ``extend`` statement names the kind of type it extends, and LRM 17.2 requires it to agree with the type: ``extend action M`` where ``M`` is a monitor, or ``extend struct b`` where ``b`` is a buffer, or ``extend struct e`` where ``e`` is an enum.  The message gives the kind to write.  ``extend enum s`` where ``s`` is not an enum is PSS005.  The extension's members are not added to the type.
 
 PSS059
-------
+~~~~~~
 
 **Severity:** error
 
@@ -783,7 +730,7 @@ Cyclic inheritance
 A type inherits, directly or through its base types, from itself: ``struct S : S``, or ``A : B`` and ``B : A``.  Message: ``cyclic inheritance: 'A' -> 'B' -> 'A'``, which names every type on the ring, in inheritance order.  It is reported once per ring.  Names looked up through the inheritance chain of a type on the ring are not searched past it.
 
 PSS060
-------
+~~~~~~
 
 **Severity:** error
 
@@ -799,7 +746,7 @@ A use of a generic type supplies the wrong number of template arguments (LRM 10)
 Supply an argument for each parameter that has no default.
 
 PSS061
-------
+~~~~~~
 
 **Severity:** error
 
@@ -811,7 +758,7 @@ A type argument is of the wrong kind for its parameter (LRM 10.3.2).  Messages:
 * ``template parameter 'T' is restricted to 'base_s' and its subtypes, but the argument 'x_s' does not derive from 'base_s'`` -- the parameter was declared ``struct T : base_s``
 
 PSS062
-------
+~~~~~~
 
 **Severity:** error
 
@@ -820,7 +767,7 @@ Recursive template specialization does not terminate
 Specializing a generic type specializes it again with a strictly larger argument, so the chain never reaches a specialization that already exists: ``struct S<type T> { S<S<T>> next; }``.  pssparser stops at a fixed depth and reports it at the generic's declaration.  Message: ``recursive specialization of 'S' exceeded the maximum depth of N: ...``
 
 PSS063
-------
+~~~~~~
 
 **Severity:** error
 
@@ -833,7 +780,7 @@ An action declared ``override`` in a component replaces the action of that name 
 * ``action 'A' must be declared 'override': 'C' declares it as an override action`` -- an action that redeclares an override action's name needs the keyword too
 
 PSS064
-------
+~~~~~~
 
 **Severity:** error
 
@@ -845,7 +792,7 @@ LRM 11.7: "A symbol may activate another symbol, but symbols are not recursive a
 * ``symbol 's' activates itself: s -> s (11.7)``
 
 PSS100
-------
+~~~~~~
 
 **Severity:** error
 
@@ -857,21 +804,8 @@ Message: ``annotation is not attached to a model element``
 
 Either follow the annotation with the element it describes, or make it a standalone annotation by terminating it with ``;``, which attaches it to the enclosing scope.
 
-PSS101
-------
-
-**Severity:** warning
-
-Unknown annotation type (annotation disregarded)
-
-An annotation names a type that is not declared.  This is a warning rather than an error: PSS 3.1 §7.13 requires that *PSS processing tools shall disregard unrecognized annotations*, so the surrounding source still compiles.
-
-Message: ``unknown annotation type '<T>'; annotation disregarded``
-
-If the annotation was meant to be recognized, check that its ``annotation`` declaration is visible -- annotation types must be declared at package scope.
-
 PSS102
-------
+~~~~~~
 
 **Severity:** error
 
@@ -881,31 +815,10 @@ An annotation parameter was given a value that cannot be evaluated at elaboratio
 
 Message: ``annotation initializer for '<field>' is not a constant expression``
 
-This check applies only to recognized annotation types; the contents of an unknown annotation are disregarded (PSS101).
-
-PSS104
-------
-
-**Severity:** warning
-
-Deprecated brace-less 'compile if' branch
-
-A ``compile if`` branch consists of a single item that is not surrounded by braces.  This form remains supported, but is deprecated: prefer the braced form, which is unambiguous when the branch later grows to more than one item.
-
-Message: ``'compile if' branch without enclosing braces is deprecated``
-
-Before::
-
-    compile if (X) component C { }
-
-After::
-
-    compile if (X) { component C { } }
-
-The diagnostic underlines the whole unbraced branch and carries a related location pointing at the ``compile if`` keyword that owns it, which disambiguates the two warnings raised for an ``if``/``else`` pair.  Both branches are reported regardless of which one the condition selects: the spelling is deprecated either way, and warning only on the taken branch would make the diagnostic appear and disappear as unrelated configuration changed.
+This check applies only to recognized annotation types; the contents of an unknown annotation are disregarded (LINT403).
 
 PSS105
-------
+~~~~~~
 
 **Severity:** error
 
@@ -916,7 +829,7 @@ The ``mutable`` qualifier (PSS 3.1 §9.1.6) was applied where it is not permitte
 Message: ``illegal 'mutable' qualifier: <reason>``
 
 PSS106
-------
+~~~~~~
 
 **Severity:** error
 
@@ -927,7 +840,7 @@ An exec block tag (PSS 3.1 §5.1) was written on an exec kind that does not acce
 Message: ``exec block tag is not permitted on '<kind>' exec blocks``
 
 PSS107
-------
+~~~~~~
 
 **Severity:** error
 
@@ -940,7 +853,7 @@ Message: ``member selection is not permitted on a slice of '<name>'``
 Slices and plain indexes reach the resolver through the same subscript list, so before PSS 3.1 support a slice was silently resolved as though it were an index.
 
 PSS108
-------
+~~~~~~
 
 **Severity:** error
 
@@ -955,7 +868,7 @@ The hint is not decoration.  PSS 3.1 makes ``{{`` open a mustache inside ``"""..
 Note only the *opening* delimiter is special.  A stray ``}}`` in text is literal and is never reported, which is why C and C++ closing braces are unaffected.
 
 PSS109
-------
+~~~~~~
 
 **Severity:** error
 
@@ -970,7 +883,7 @@ Syntax errors from the sub-parse are wrapped in this diagnostic rather than forw
 An unparseable mustache is deliberately an **error** and never silently-literal text.  Treating it as text would let a genuinely malformed ``{{ x + }}`` through unnoticed.
 
 PSS110
-------
+~~~~~~
 
 **Severity:** error
 
@@ -988,7 +901,7 @@ Messages:
 These carry no ``{ {`` hint, unlike PSS108/PSS109.  A malformed ``{%`` or ``{#`` cannot be produced by ordinary target code the way ``{{`` can, so the hint would be noise.
 
 PSS111
-------
+~~~~~~
 
 **Severity:** error
 
@@ -1004,7 +917,7 @@ Messages:
 Note a *duplicate* template-local declaration is reported as ``PSS003`` rather than here: it is the same defect as any other duplicate declaration and shares that message shape.
 
 PSS112
-------
+~~~~~~
 
 **Severity:** error
 
@@ -1017,7 +930,7 @@ Message: ``template assignment target '<name>' is not declared within this templ
 Nothing about the syntax distinguishes a legal template-local assignment from an illegal attribute assignment -- the only way to tell them apart is which symbol table the name resolved through.  Declare the variable with ``{% int x; %}`` inside the template, or drop the assignment.
 
 PSS113
-------
+~~~~~~
 
 **Severity:** error
 
@@ -1030,7 +943,7 @@ Message: ``template expression is not of scalar type``
 Classification is the same coarse categoriser the argument checks use (PSS007), and it inherits that pass's known gaps (see ``known-issues.md`` P3-X6c): member paths, subscripts, nested calls and user-defined types are classified as *unknown*, and nothing is reported for an unknown category.  So this fires on a literal aggregate and on a field whose declared type is plainly aggregate, and stays silent elsewhere rather than guessing.
 
 PSS114
-------
+~~~~~~
 
 **Severity:** error
 
@@ -1045,7 +958,7 @@ Declare the function ``pure function ...`` if it is free of side effects, or com
 A function declared in a ``pure component`` is pure without carrying the qualifier itself, and is not reported.  Purity follows the type a function is *declared* in, so deriving from a pure component does not make the derived component's own functions pure.
 
 PSS115
-------
+~~~~~~
 
 **Severity:** error
 
@@ -1057,47 +970,8 @@ Message: ``template string with non-constant elements is not a constant expressi
 
 Reported at the point of *use*, not at the template: the same template text is perfectly legal in an exec body.  A template is constant when every expression under every special element references only constants -- ``const`` fields, enum items, type template value parameters, and template locals derived from those.  A call is never constant, even to a ``pure`` function: this front end does not evaluate function bodies.
 
-PSS116
-------
-
-**Severity:** warning
-
-Construct is accepted but not represented in the AST
-
-The grammar accepts this construct and the parse is sound, but the AST builder does not build a node for it -- or builds one that omits part of what was written.  A consumer walking the AST will not see the construct at all, or will see it without the detail named in the message.
-
-Messages take one of two forms, where *construct* is the construct name in backticks:
-
-* *construct* ``is accepted but not represented in the AST`` -- nothing is built for the construct.
-* *construct* ``is accepted but not represented in the AST:`` *detail* -- a node is built, and *detail* names the part that is dropped.
-
-This is a gap in the front end, not a problem with the source: the code is legal PSS.  There is nothing to fix in the input.  Suppress the marker if the construct is not material to how the AST is consumed; otherwise treat any analysis that depends on the named construct as unreliable.
-
-The catalogue of affected constructs, and the plan for closing them, are in ``docs/ast-coverage-gaps.md`` and ``docs/ast-coverage-plan.md``.  As each construct is implemented its PSS116 disappears.
-
-PSS117
-------
-
-**Severity:** warning
-
-Traversal of a deprecated dynamic constraint
-
-An activity traverses a ``dynamic`` constraint.  This still works, but LRM 13.1.1 deprecates dynamic constraints: "their functionality is replaced by a generic constraint with no parameters".
-
-Message: ``traversal of dynamic constraint 'dc' is deprecated (13.1.1); declare it as a generic constraint, 'constraint dc() { ... }'``
-
-Before::
-
-    dynamic constraint dc { x > 0; }
-
-After::
-
-    constraint dc() { x > 0; }
-
-Reported where the constraint is traversed.  Traversing a *fixed* named constraint is an error (PSS018).
-
 PSS118
-------
+~~~~~~
 
 **Severity:** error
 
@@ -1123,12 +997,93 @@ After::
       const int A = C;
     }
 
-Across files, the order the files are given in applies, as it does for ``compile if``.  Elsewhere in a type or package, declaration order does not matter (Example 262).  A name used before its declaration in an exec or activity block is PSS002; in a type width, PSS119.
+Across files, the order the files are given in applies, as it does for ``compile if``.  Elsewhere in a type or package, declaration order does not matter (Example 262).  A name used before its declaration in an exec or activity block is PSS002; in a type width, LINT404.
 
-PSS119
-------
+LINT: core-emitted lint
+-----------------------
+
+LINT101
+~~~~~~~
 
 **Severity:** warning
+
+**Name:** ``enum-item-type-mismatch``; **Tier:** suspicious; **Family:** constraint; **Formerly:** ``PSS046``
+
+Enum item used where its enumeration type is not expected
+
+An enum item belongs to its enumeration type's scope, not to the scope that declares the enum (7.5 g).  Unqualified, it is found only where the expression's expected type is that enumeration type (7.5 i, 8.4.3, 18.3 a): an assignment or initializer, a call argument, a ``return``, the other side of ``==``/``!=``, the values of ``in``, a cast to the enum, and the arms of ``?:``.  pssparser still accepts an item declared in an enclosing scope, or in a package a wildcard import names, when the name means nothing else there, and warns; this becomes an error in a later release.  A declaration of the same name further out is what the name means, and no longer the item.  Messages:
+
+* ``enum item 'ORANGE' is used where no enumeration type is expected (7.5 i, 8.4.3); qualify it as 'color_e::ORANGE'``
+* ``enum item 'RED' is used where 'mode_e' is expected, but it is an item of 'color_e' (7.5 i, 8.4.3); qualify it as 'color_e::RED'``
+
+Qualify the item.  LRM Example 37: ``print_num((int)ORANGE)`` is an error, because the cast's type is ``int``.
+
+LINT301
+~~~~~~~
+
+**Severity:** warning
+
+**Name:** ``exported-instance-function``; **Tier:** suspicious; **Family:** exec; **Formerly:** ``PSS120``
+
+Exported function is a component instance function
+
+20.4.2 allows ``export target function f;`` to name only a static function: a package function or a component's ``static`` one.  Naming a component's INSTANCE function is an extension, meaning the function is run on the instance the environment calls it through.  pssc's operation models take their API from it.  Message: ``exported function 'f' is not static; exporting a component's instance function is an extension to 20.4.2``.
+
+A warning, not an error: the export is bound all the same, so a tool that implements the extension can use it.  A strictly conforming model declares the function ``static``.
+
+LINT401
+~~~~~~~
+
+**Severity:** warning
+
+**Name:** ``enum-item-hides-declaration``; **Tier:** suspicious; **Family:** decl; **Formerly:** ``PSS044``
+
+Enum item hides a declaration of the same name
+
+Where an expression's expected type is an enumeration type (8.4.3), an unqualified name is looked up among that enum's items before any scope (18.3 a).  A field, variable or parameter of the same name is then hidden, which is legal but rarely intended.  Message:
+
+* ``'A' is read as the enum item mode_e::A, which hides the field 'A' (18.3 a); qualify one of them``
+
+Write ``mode_e::A`` for the item, or rename the field.
+
+LINT402
+~~~~~~~
+
+**Severity:** warning
+
+**Name:** ``import-after-declaration``; **Tier:** style; **Family:** import; **Formerly:** ``PSS053``
+
+Import after a declaration
+
+18.1.3: import specifications shall appear first in their lexical scope -- a file's global scope, a ``package`` statement, or a component declaration or extension.  Only another import or a ``compile if`` may precede one.  Message:
+
+* ``'import lib::*;' follows a declaration; imports shall come first in a package, a component, an extension or a file (18.1.3)``
+
+Not checked in a scope that holds a ``compile if``.
+
+Severity: ``warning``, although the ``style`` tier defaults to ``hint``.  This was a core warning before lint existed, and the ``minimal`` profile keeps the output it always had.
+
+LINT403
+~~~~~~~
+
+**Severity:** warning
+
+**Name:** ``unknown-annotation``; **Tier:** portability; **Family:** decl; **Formerly:** ``PSS101``
+
+Unknown annotation type (annotation disregarded)
+
+An annotation names a type that is not declared.  This is a warning rather than an error: PSS 3.1 §7.13 requires that *PSS processing tools shall disregard unrecognized annotations*, so the surrounding source still compiles.
+
+Message: ``unknown annotation type '<T>'; annotation disregarded``
+
+If the annotation was meant to be recognized, check that its ``annotation`` declaration is visible -- annotation types must be declared at package scope.
+
+LINT404
+~~~~~~~
+
+**Severity:** warning
+
+**Name:** ``width-references-later-constant``; **Tier:** portability; **Family:** decl; **Formerly:** ``PSS119``
 
 Type width references a constant declared later
 
@@ -1136,14 +1091,308 @@ The prose under LRM Example 264 extends 18.2c to type-width expressions: a const
 
 A warning rather than an error, because the rule is stated only in prose and existing models write it.  Move the constant's declaration above its first use.
 
-PSS120
-------
+LINT501
+~~~~~~~
 
 **Severity:** warning
 
-Exported function is a component instance function
+**Name:** ``reg-width-no-access-function``; **Tier:** suspicious; **Family:** register; **Formerly:** ``PSS016``
 
-20.4.2 allows ``export target function f;`` to name only a static function: a package function or a component's ``static`` one.  Naming a component's INSTANCE function is an extension, meaning the function is run on the instance the environment calls it through.  pssc's operation models take their API from it.  Message: ``exported function 'f' is not static; exporting a component's instance function is an extension to 20.4.2``.
+Register width has no primitive access function
 
-A warning, not an error: the export is bound all the same, so a tool that implements the extension can use it.  A strictly conforming model declares the function ``static``.
+LRM 21.14.5a translates register reads and writes into the primitive ``read8/16/32/64`` and ``write8/16/32/64`` functions (21.13.9), chosen by the register's size. A register ``SZ`` bits wide, where ``SZ`` is not 8, 16, 32 or 64, has no such function, so its access cannot be translated as the spec describes. Not a "shall" in the spec, so a warning. A packed struct of any size is legal on its own -- a 96-bit DMA descriptor, say; this is only about using one as a register value type. Message: ``reg_c width SZ = 96 has no primitive access function; use 8, 16, 32 or 64 bits``. For a register whose value type is narrower than a primitive, give ``SZ`` explicitly (``reg_c<my12_s, READWRITE, 16>``).
+
+LINT601
+~~~~~~~
+
+**Severity:** warning
+
+**Name:** ``deprecated-braceless-compile-if``; **Tier:** portability; **Family:** evolution; **Formerly:** ``PSS104``
+
+Deprecated brace-less 'compile if' branch
+
+A ``compile if`` branch consists of a single item that is not surrounded by braces.  This form remains supported, but is deprecated: prefer the braced form, which is unambiguous when the branch later grows to more than one item.
+
+Message: ``'compile if' branch without enclosing braces is deprecated``
+
+Before::
+
+    compile if (X) component C { }
+
+After::
+
+    compile if (X) { component C { } }
+
+The diagnostic underlines the whole unbraced branch and carries a related location pointing at the ``compile if`` keyword that owns it, which disambiguates the two warnings raised for an ``if``/``else`` pair.  Both branches are reported regardless of which one the condition selects: the spelling is deprecated either way, and warning only on the taken branch would make the diagnostic appear and disappear as unrelated configuration changed.
+
+LINT602
+~~~~~~~
+
+**Severity:** warning
+
+**Name:** ``deprecated-dynamic-constraint-traversal``; **Tier:** portability; **Family:** evolution; **Formerly:** ``PSS117``
+
+Traversal of a deprecated dynamic constraint
+
+An activity traverses a ``dynamic`` constraint.  This still works, but LRM 13.1.1 deprecates dynamic constraints: "their functionality is replaced by a generic constraint with no parameters".
+
+Message: ``traversal of dynamic constraint 'dc' is deprecated (13.1.1); declare it as a generic constraint, 'constraint dc() { ... }'``
+
+Before::
+
+    dynamic constraint dc { x > 0; }
+
+After::
+
+    constraint dc() { x > 0; }
+
+Reported where the constraint is traversed.  Traversing a *fixed* named constraint is an error (PSS018).
+
+PSSP: the tool's own diagnostics
+--------------------------------
+
+PSSP001
+~~~~~~~
+
+**Severity:** warning
+
+**Name:** ``extension-load-failed``; **Tier:** tool; **Formerly:** ``PSS030``
+
+A checker extension could not be loaded
+
+An entry point in the ``pssparser.extensions`` (or legacy ``pssparser.checkers``) group failed to load. The usual causes are an import error inside the extension, an exception raised from its ``register()`` function, or a module that exposes neither ``register()`` nor the ``CHECKERS`` shorthand.
+
+The run continues: a third-party extension is code you did not write, and one broken package must not stop the rest of the registry from loading. The consequence is that the rules that extension contributes did **not** run, so a clean result is not evidence of clean source.
+
+Use ``--list-extensions`` to see what did load, and ``--no-extensions`` (or ``PSSPARSER_NO_EXTENSIONS=1``) to confirm the behaviour is the extension's and not pssparser's. In CI, ``-Werror=PSSP001`` makes a failed extension fatal, which is usually what you want.
+
+PSSP002
+~~~~~~~
+
+**Severity:** warning
+
+**Name:** ``entry-point-name-mismatch``; **Tier:** tool; **Formerly:** ``PSS031``
+
+Entry-point key disagrees with the checker's declared name
+
+A legacy ``pssparser.checkers`` entry point is keyed under one name while the class it names declares another in its ``name`` attribute.
+
+The class is authoritative -- it is the name the checker reports itself under and the name ``--checker`` and ``--no-checker`` select -- so the checker is registered under the declared name and the entry-point key is ignored. Rename the key to match; while they disagree, a command line written against the key silently selects nothing.
+
+PSSP003
+~~~~~~~
+
+**Severity:** warning
+
+**Name:** ``extension-api-too-new``; **Tier:** tool; **Formerly:** ``PSS032``
+
+Extension requires a newer checker API than this build provides
+
+The extension declared ``requires_api = N`` (as a module level ``REQUIRES_API`` or on the registry inside ``register()``) and ``N`` is greater than this build's ``pssparser.checkers.API_VERSION``.
+
+The extension is not loaded, deliberately: refusing here produces one clear message, where loading it anyway produces an ``AttributeError`` from inside a checker halfway through a run. Upgrade pssparser, or install a build of the extension made for this API version.
+
+PSSP004
+~~~~~~~
+
+**Severity:** info
+
+**Name:** ``deprecated-alias``; **Tier:** tool
+
+An old marker ID was used where an ID is accepted
+
+A configuration key, ``-W`` flag or other ID-accepting input named a code that has moved -- for example ``PSS104``, which is now ``LINT601``.  The old code still works: it is rewritten to the new one, and this note says so once per spelling, naming where it was written.  Update the input to the new ID to silence the note.
+
+Codes move when their meaning is reclassified: a warning about legal code is lint (``LINT``), and a diagnostic about pssparser itself is ``PSSP``; ``PSS`` is kept for LRM violations.
+
+PSSP005
+~~~~~~~
+
+**Severity:** error
+
+**Name:** ``reserved-namespace``; **Tier:** tool
+
+A checker declares a marker ID in a reserved namespace
+
+The ``PSS``, ``LINT``, ``PSSP`` and ``PSSX`` namespaces belong to pssparser.  A checker from an installed extension that declares an ID in one of them is not registered; the rest of its extension still loads.  Choose a namespace of your own -- two to five capital letters, then three digits (``PRC001``).
+
+PSSP006
+~~~~~~~
+
+**Severity:** warning
+
+**Name:** ``malformed-marker-id``; **Tier:** tool
+
+A checker declares a marker ID that does not fit the ID grammar
+
+Marker IDs are a namespace of two to five capital letters followed by three digits (``PRC001``).  An ID that does not fit still loads, for now, but cannot be selected by namespace or band and will be refused in a later release.  Rename it.
+
+PSSP101
+~~~~~~~
+
+**Severity:** warning
+
+**Name:** ``construct-not-represented``; **Tier:** tool; **Formerly:** ``PSS116``
+
+Construct is accepted but not represented in the AST
+
+The grammar accepts this construct and the parse is sound, but the AST builder does not build a node for it -- or builds one that omits part of what was written.  A consumer walking the AST will not see the construct at all, or will see it without the detail named in the message.
+
+Messages take one of two forms, where *construct* is the construct name in backticks:
+
+* *construct* ``is accepted but not represented in the AST`` -- nothing is built for the construct.
+* *construct* ``is accepted but not represented in the AST:`` *detail* -- a node is built, and *detail* names the part that is dropped.
+
+This is a gap in the front end, not a problem with the source: the code is legal PSS.  There is nothing to fix in the input.  Suppress the marker if the construct is not material to how the AST is consumed; otherwise treat any analysis that depends on the named construct as unreliable.
+
+The catalogue of affected constructs, and the plan for closing them, are in ``docs/ast-coverage-gaps.md`` and ``docs/ast-coverage-plan.md``.  As each construct is implemented its PSSP101 disappears.
+
+PSSP201
+~~~~~~~
+
+**Severity:** warning
+
+**Name:** ``bad-rule-metadata``; **Tier:** tool
+
+A lint rule's metadata is invalid
+
+A ``MarkerDef`` with lint metadata breaks one of the rules in the plug-in guide's *Rule metadata* section: a name that is not unique or not kebab-case, a tier, family or level outside its closed set, a ``LINT`` ID with no tier, a ``nursery`` rule with no ``since``, a fix with no example showing it, or a severity that differs from the tier's default without a ``Severity:`` paragraph in ``detail``.  The message names the field.  The checker is not registered.
+
+Retired and reserved codes
+--------------------------
+
+PSS016
+~~~~~~
+
+**Retired: replaced by ``LINT501``**
+
+Register width has no primitive access function (moved to LINT501)
+
+A lint rule, not an LRM violation, so it moved to the ``LINT`` namespace as ``LINT501`` (``reg-width-no-access-function``). ``PSS016`` is still accepted wherever an ID is typed -- configuration, ``-W``, ``--describe`` -- and is never reused.
+
+PSS023
+~~~~~~
+
+**Reserved**
+
+Reserved: keyword used where an identifier is expected
+
+Allocated for a keyword-used-as-identifier sub-case of the syntax band, which turned out to be unreachable: the case is reported as PSS022.  Reserved, not assigned.
+
+PSS030
+~~~~~~
+
+**Retired: replaced by ``PSSP001``**
+
+A checker extension could not be loaded (moved to PSSP001)
+
+A diagnostic about pssparser itself, not about the model, so it moved to the ``PSSP`` namespace as ``PSSP001`` (``extension-load-failed``). ``PSS030`` is still accepted wherever an ID is typed, and is never reused.
+
+PSS031
+~~~~~~
+
+**Retired: replaced by ``PSSP002``**
+
+Entry-point key disagrees with the checker's declared name (moved to PSSP002)
+
+A diagnostic about pssparser itself, not about the model, so it moved to the ``PSSP`` namespace as ``PSSP002`` (``entry-point-name-mismatch``). ``PSS031`` is still accepted wherever an ID is typed, and is never reused.
+
+PSS032
+~~~~~~
+
+**Retired: replaced by ``PSSP003``**
+
+Extension requires a newer checker API than this build provides (moved to PSSP003)
+
+A diagnostic about pssparser itself, not about the model, so it moved to the ``PSSP`` namespace as ``PSSP003`` (``extension-api-too-new``). ``PSS032`` is still accepted wherever an ID is typed, and is never reused.
+
+PSS044
+~~~~~~
+
+**Retired: replaced by ``LINT401``**
+
+Enum item hides a declaration of the same name (moved to LINT401)
+
+A lint rule, not an LRM violation, so it moved to the ``LINT`` namespace as ``LINT401`` (``enum-item-hides-declaration``). ``PSS044`` is still accepted wherever an ID is typed -- configuration, ``-W``, ``--describe`` -- and is never reused.
+
+PSS046
+~~~~~~
+
+**Retired: replaced by ``LINT101``**
+
+Enum item used where its enumeration type is not expected (moved to LINT101)
+
+A lint rule, not an LRM violation, so it moved to the ``LINT`` namespace as ``LINT101`` (``enum-item-type-mismatch``). ``PSS046`` is still accepted wherever an ID is typed -- configuration, ``-W``, ``--describe`` -- and is never reused.
+
+PSS053
+~~~~~~
+
+**Retired: replaced by ``LINT402``**
+
+Import after a declaration (moved to LINT402)
+
+A lint rule, not an LRM violation, so it moved to the ``LINT`` namespace as ``LINT402`` (``import-after-declaration``). ``PSS053`` is still accepted wherever an ID is typed -- configuration, ``-W``, ``--describe`` -- and is never reused.
+
+PSS101
+~~~~~~
+
+**Retired: replaced by ``LINT403``**
+
+Unknown annotation type (annotation disregarded) (moved to LINT403)
+
+A lint rule, not an LRM violation, so it moved to the ``LINT`` namespace as ``LINT403`` (``unknown-annotation``). ``PSS101`` is still accepted wherever an ID is typed -- configuration, ``-W``, ``--describe`` -- and is never reused.
+
+PSS103
+~~~~~~
+
+**Retired**
+
+Retired: annotation type declared outside package scope
+
+Allocated for an annotation type declared outside package scope (7.13b), but the grammar reaches ``annotation_declaration`` only from ``package_body_item``, so the construct is a syntax error before any linker check could run.  Never emitted, and never reused.
+
+PSS104
+~~~~~~
+
+**Retired: replaced by ``LINT601``**
+
+Deprecated brace-less 'compile if' branch (moved to LINT601)
+
+A lint rule, not an LRM violation, so it moved to the ``LINT`` namespace as ``LINT601`` (``deprecated-braceless-compile-if``). ``PSS104`` is still accepted wherever an ID is typed -- configuration, ``-W``, ``--describe`` -- and is never reused.
+
+PSS116
+~~~~~~
+
+**Retired: replaced by ``PSSP101``**
+
+Construct is accepted but not represented in the AST (moved to PSSP101)
+
+A diagnostic about pssparser itself, not about the model, so it moved to the ``PSSP`` namespace as ``PSSP101`` (``construct-not-represented``). ``PSS116`` is still accepted wherever an ID is typed, and is never reused.
+
+PSS117
+~~~~~~
+
+**Retired: replaced by ``LINT602``**
+
+Traversal of a deprecated dynamic constraint (moved to LINT602)
+
+A lint rule, not an LRM violation, so it moved to the ``LINT`` namespace as ``LINT602`` (``deprecated-dynamic-constraint-traversal``). ``PSS117`` is still accepted wherever an ID is typed -- configuration, ``-W``, ``--describe`` -- and is never reused.
+
+PSS119
+~~~~~~
+
+**Retired: replaced by ``LINT404``**
+
+Type width references a constant declared later (moved to LINT404)
+
+A lint rule, not an LRM violation, so it moved to the ``LINT`` namespace as ``LINT404`` (``width-references-later-constant``). ``PSS119`` is still accepted wherever an ID is typed -- configuration, ``-W``, ``--describe`` -- and is never reused.
+
+PSS120
+~~~~~~
+
+**Retired: replaced by ``LINT301``**
+
+Exported function is a component instance function (moved to LINT301)
+
+A lint rule, not an LRM violation, so it moved to the ``LINT`` namespace as ``LINT301`` (``exported-instance-function``). ``PSS120`` is still accepted wherever an ID is typed -- configuration, ``-W``, ``--describe`` -- and is never reused.
 

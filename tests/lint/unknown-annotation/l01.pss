@@ -1,0 +1,5 @@
+// expect: LINT403 @ 3:3
+component pss_top {
+  @desc_s
+  action a { }
+}

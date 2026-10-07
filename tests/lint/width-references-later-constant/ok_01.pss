@@ -1,0 +1,5 @@
+// expect: none
+component pss_top {
+  static const int W = 8;
+  struct s { bit[W] f; }
+}

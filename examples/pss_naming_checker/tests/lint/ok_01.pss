@@ -1,0 +1,5 @@
+// expect: none
+component pss_top {
+  action WriteData { }
+  struct Packet { }
+}

@@ -33,6 +33,7 @@ Key Features
    quickstart
    typescript_api
    cli
+   lint
    source_tools
    refs
    doc_comments
@@ -74,4 +75,6 @@ Key Features
 
    reference_api_docs
    markers
+   lint-rules
+   diagnostics-json
 

@@ -4,7 +4,7 @@
   name something the importing namespace declares (CH17-30, PSS052), nor
   take a name another explicit import in the same scope takes from another
   package (CH17-31, PSS052); imports come first in their scope (CH17-34,
-  PSS053).
+  LINT402).
 - **Extension-member visibility (17.2.3, L-05).** A member an extension in
   package p adds to a type is visible in p, and elsewhere only where p is
   wildcard-imported (PSS051); where two packages each add one of a name, a
@@ -122,7 +122,7 @@ package q { import lib1::*; struct s { } }
     assert markers(code) == []
 
 
-# -- CH17-34: imports come first (PSS053) ---------------------------------------
+# -- CH17-34: imports come first (LINT402) ---------------------------------------
 
 def test_an_import_after_a_declaration_in_a_package_and_a_component():
     code = """\
@@ -137,10 +137,10 @@ component pss_top {
 }
 """
     assert messages(code) == [
-        ("PSS053", 4,
+        ("LINT402", 4,
          "'import lib::*;' follows a declaration; imports shall come first in "
          "a package, a component, an extension or a file (18.1.3)"),
-        ("PSS053", 8,
+        ("LINT402", 8,
          "'import lib::*;' follows a declaration; imports shall come first in "
          "a package, a component, an extension or a file (18.1.3)")]
 
@@ -152,7 +152,7 @@ struct t { }
 import lib::*;
 component pss_top { s f; }
 """
-    assert markers(code) == [("PSS053", 3)]
+    assert markers(code) == [("LINT402", 3)]
 
 
 def test_an_import_after_a_declaration_in_a_component_extension():
@@ -164,7 +164,7 @@ extend component c {
   import lib::*;
 }
 """
-    assert markers(code) == [("PSS053", 5)]
+    assert markers(code) == [("LINT402", 5)]
 
 
 def test_imports_first_is_legal():

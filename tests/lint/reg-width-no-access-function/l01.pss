@@ -1,0 +1,6 @@
+// expect: LINT501 @ 5:3
+import addr_reg_pkg::*;
+struct r96_s : packed_s<> { bit[96] v; }
+component regs_c : reg_group_c {
+  reg_c<r96_s> r;
+}

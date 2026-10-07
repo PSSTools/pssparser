@@ -63,6 +63,7 @@ Pick the row that matches the change, then read its reference.
 | Grammar change | edit `.g4` → build → re-bless `docs/profiling/baseline.json` and `tests/python/baselines/grammar.json` | `references/grammar.md` |
 | Name resolution, linking, extensions, templates | which pass, `NameLookup`, `NodeKind` instead of `dynamic_cast` | `references/linker.md` |
 | New or changed diagnostic | message → core marker ID in `core_checker.py` → `docs/markers.rst` → goldens | `references/error-suites.md` |
+| New or changed lint rule (`LINT`) | `PSS` vs `LINT` → `lint/catalog.py` → `tests/lint/<name>/` fixtures → `docs/lint-rules.rst` | `references/lint-rules.md` |
 | Error-suite case or corpus edit | header edits shift line numbers; use the tools | `references/error-suites.md` |
 | Tests: where, how, subprocesses, corpus | suite layout, isolation rules, baselines | `references/testing.md` |
 | Recording status, deferring a defect, cross-repo work, CHANGELOG | where each kind of note goes | `references/conventions.md` |

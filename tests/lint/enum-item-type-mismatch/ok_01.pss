@@ -1,0 +1,6 @@
+// expect: none
+enum color_e { RED, ORANGE }
+component pss_top {
+  function void f(color_e x) { }
+  exec init_down { f(ORANGE); }
+}

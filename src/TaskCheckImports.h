@@ -32,9 +32,9 @@ namespace pssp {
  *   declares (CH17-30), nor the same name another explicit import in the
  *   same scope takes from a different package (CH17-31) -- PSS052;
  * - imports come first in their scope: only another import or a `compile
- *   if` may precede one (CH17-34) -- PSS053.
+ *   if` may precede one (CH17-34) -- LINT402.
  *
- * PSS052 is an error. PSS053 stays a warning (decided 2026-09-28, plan
+ * PSS052 is an error. LINT402 stays a warning (decided 2026-09-28, plan
  * §8).
  *
  * Runs after the extensions are merged, when a component's import list also

@@ -46,7 +46,7 @@ void TaskLoadStandardLibrary::load(
     // The standard library itself uses constructs the builder does not yet
     // represent (`default` constraints in addr_reg_pkg, for one).  Those are
     // real gaps, but they are not the user's source and the user cannot act
-    // on them, so PSS116 is suppressed for the duration of the load.
+    // on them, so PSSP101 is suppressed for the duration of the load.
     bool report_unrepresented = ast_builder->getReportUnrepresented();
     ast_builder->setReportUnrepresented(false);
 

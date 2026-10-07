@@ -100,7 +100,7 @@ Unknown annotation types are a warning
 
 §7.13 requires that *PSS processing tools shall disregard unrecognized
 annotations*. An annotation naming an undeclared type therefore produces a
-warning (``PSS101``) and the source still compiles. Nothing inside an
+warning (``LINT403``) and the source still compiles. Nothing inside an
 unrecognized annotation is checked — no parameter-name or constant-expression
 diagnostics are reported for it.
 
@@ -468,7 +468,7 @@ Brace-less ``compile if`` branches
 ----------------------------------
 
 A ``compile if`` branch consisting of a single unbraced item remains legal but
-is deprecated, and now produces a warning (``PSS104``). This form will continue
+is deprecated, and now produces a warning (``LINT601``). This form will continue
 to be accepted; there is no plan to remove it.
 
 .. code-block:: pss

@@ -5,7 +5,7 @@ Tests for package-qualified type identifiers (known issue P2-A5a).
 elements after the root through `TaskResolveFieldRef`, whose `visitSymbolScope`
 was an empty stub.  A package is an ordinary `ISymbolScope`, so the lookup
 silently produced nothing and the reference was left unresolved -- with no
-marker anywhere except an annotation, which reported it as ``PSS101``.
+marker anywhere except an annotation, which reported it as ``LINT403``.
 
 The silence is why this went unnoticed for so long, so the tests below check
 both halves: that a good reference resolves, *and* that a bad one is now

@@ -1,6 +1,7 @@
 $ pssparser error-suite/cases/syntax/braces/unclosed_component_opener_pointer.pss (exit 1)
 --- stdout ---
 {
+  "schema": "pssparser-diagnostics/2",
   "diagnostics": [
     {
       "file": "error-suite/cases/syntax/braces/unclosed_component_opener_pointer.pss",
@@ -31,6 +32,8 @@ $ pssparser error-suite/cases/syntax/braces/unclosed_component_opener_pointer.ps
   "summary": {
     "errors": 1,
     "warnings": 0,
+    "notes": 0,
+    "hints": 0,
     "files": 1
   }
 }

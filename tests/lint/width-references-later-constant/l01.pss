@@ -1,0 +1,5 @@
+// expect: LINT404 @ 3:18
+component pss_top {
+  struct s { bit[W] f; }
+  static const int W = 8;
+}

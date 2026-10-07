@@ -94,6 +94,8 @@ class RunStats:
     timings_ns: Dict[str, int] = field(default_factory=dict)
     # Marker ID -> count.  Uncoded markers bucket under ``<uncoded>``.
     diagnostics_by_code: Dict[str, int] = field(default_factory=dict)
+    # Lint findings dropped because they were outside the user's files.
+    lint_dropped: int = 0
 
 
 def make_visitor():
@@ -248,6 +250,12 @@ def render_human(stats: RunStats) -> str:
         items = [f"{code} x{n}" for code, n in stats.diagnostics_by_code.items()]
         lines.append("  diagnostics:  " + ", ".join(items))
 
+    if stats.lint_dropped:
+        lines.append(
+            "  lint:         "
+            + _plural(stats.lint_dropped, "finding", "findings")
+            + " outside owned files dropped")
+
     if stats.timings_ns:
         items = [f"{name} {_fmt_ns(ns)}" for name, ns in stats.timings_ns.items()]
         lines.append("  timing:       " + ", ".join(items))
@@ -263,6 +271,8 @@ def to_json(stats: RunStats) -> dict:
         "decls": {k: stats.decls.get(k, 0) for k in DECL_KEYS},
         "diagnostics_by_code": dict(stats.diagnostics_by_code),
     }
+    if stats.lint_dropped:
+        doc["lint_dropped"] = stats.lint_dropped
     if stats.timings_ns:
         doc["timing_ms"] = {
             name: round(ns / 1_000_000.0, 3)

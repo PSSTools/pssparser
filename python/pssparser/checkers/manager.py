@@ -8,6 +8,7 @@ from typing import Dict, List, Optional, Type
 
 from pssparser.cli.suggestion import suggest
 
+from . import taxonomy
 from .base import CheckerBase
 from .extension import (
     API_VERSION,
@@ -25,6 +26,8 @@ EXTENSION_GROUP = "pssparser.extensions"
 #: Legacy entry-point group: one entry point per checker class.  Still
 #: supported; adapted into a synthetic single-checker extension on load.
 CHECKER_GROUP = "pssparser.checkers"
+
+from pssparser.lint import NO_LINT_ENV  # noqa: E402  (re-exported)
 
 #: Environment escape hatch, equivalent to ``--no-extensions``.  Set it to
 #: make a run reproducible, or to find out whether an installed extension is
@@ -170,6 +173,47 @@ def resolve_options(checker: CheckerBase, user_options: Optional[dict]):
     return resolved
 
 
+def metadata_problem(md) -> Optional[str]:
+    """Return why one ``MarkerDef``'s lint metadata is invalid, or ``None``.
+
+    The rules are lint-framework L2's; the plug-in guide's *Rule metadata*
+    section states them for authors.  The message names the ID and field.
+    """
+    if md.status not in taxonomy.STATUSES:
+        return (f"{md.id}: status {md.status!r} is not one of "
+                f"{', '.join(taxonomy.STATUSES)}")
+    if md.name and not taxonomy.is_kebab(md.name):
+        return f"{md.id}: name {md.name!r} is not kebab-case"
+    if md.tier and md.tier not in taxonomy.TIERS:
+        return (f"{md.id}: tier {md.tier!r} is not one of "
+                f"{', '.join(taxonomy.TIERS)}")
+    if md.family and md.family not in taxonomy.FAMILIES:
+        return (f"{md.id}: family {md.family!r} is not one of "
+                f"{', '.join(taxonomy.FAMILIES)}")
+    if md.level and md.level not in taxonomy.LEVELS:
+        return (f"{md.id}: level {md.level!r} is not one of "
+                f"{', '.join(taxonomy.LEVELS)}")
+    if md.fix not in taxonomy.FIX_KINDS:
+        return (f"{md.id}: fix {md.fix!r} is not one of "
+                f"{', '.join(taxonomy.FIX_KINDS)}")
+    if md.since and taxonomy.parse_rules_version(md.since) is None:
+        return f"{md.id}: since {md.since!r} is not of the form 'YYYY.N'"
+    if taxonomy.namespace_of(md.id) == "LINT" and not md.tier:
+        return f"{md.id}: a LINT rule must declare a tier"
+    if md.tier == "nursery" and not md.since:
+        return f"{md.id}: a nursery rule must declare 'since'"
+    if md.fix != "none" and not any(ex.fixed for ex in md.examples):
+        return (f"{md.id}: fix is {md.fix!r} but no example shows the "
+                f"fixed form")
+    if md.tier and md.status in ("active", "deprecated"):
+        derived = taxonomy.TIER_SEVERITY[md.tier]
+        if md.severity != derived and "Severity:" not in (md.detail or ""):
+            return (f"{md.id}: severity {md.severity!r} differs from the "
+                    f"{md.tier!r} tier's default {derived!r}; say why in a "
+                    f"'Severity:' paragraph of detail")
+    return None
+
+
 class CheckerManager:
     """Manages discovery, filtering, and invocation of checker plug-ins.
 
@@ -229,6 +273,11 @@ class CheckerManager:
             for md in CoreChecker.marker_defs:
                 self._marker_owner.setdefault(md.id, "checker 'core'")
 
+        # The bundled lint extension is part of pssparser, not a third-party
+        # package: --no-extensions does not skip it, PSSPARSER_NO_LINT does.
+        if "lint" not in self._extensions and not os.environ.get(NO_LINT_ENV):
+            self._load_bundled_lint()
+
         if not load_extensions or os.environ.get(NO_EXTENSIONS_ENV):
             return
 
@@ -249,6 +298,25 @@ class CheckerManager:
 
     # -- extension loading ---------------------------------------------
 
+    def _load_bundled_lint(self) -> None:
+        """Register ``pssparser.lint`` as the bundled extension ``lint``."""
+        from pssparser.__version__ import get_version
+
+        reg = make_registry("lint", dist="pssparser", version=get_version())
+        try:
+            from pssparser.lint import register
+            register(reg)
+        except Exception as exc:  # pragma: no cover - a defect in pssparser
+            self._issue(
+                "PSSP001",
+                "warning",
+                f"the bundled lint extension failed to load: "
+                f"{type(exc).__name__}: {exc}",
+            )
+            return
+        self._accept_extension("lint", reg, "pssparser", legacy=False,
+                               bundled=True)
+
     def _load_extension_ep(self, ep_name: str, ep) -> None:
         """Load one ``pssparser.extensions`` entry point."""
         dist = _ep_dist(ep)
@@ -256,7 +324,7 @@ class CheckerManager:
             obj = ep.load()
         except Exception as exc:
             self._issue(
-                "PSS030",
+                "PSSP001",
                 "warning",
                 f"extension {_origin(ep_name, dist)} failed to import: "
                 f"{type(exc).__name__}: {exc}",
@@ -266,7 +334,7 @@ class CheckerManager:
         register, module = self._resolve_register(obj)
         if register is None:
             self._issue(
-                "PSS030",
+                "PSSP001",
                 "warning",
                 f"extension {_origin(ep_name, dist)} exposes neither a "
                 f"register(registry) function nor a CHECKERS list; one of the "
@@ -287,14 +355,14 @@ class CheckerManager:
             register(reg)
         except ExtensionError as exc:
             self._issue(
-                "PSS030",
+                "PSSP001",
                 "warning",
                 f"extension {_origin(ep_name, dist)} misused the checker API: {exc}",
             )
             return
         except Exception as exc:
             self._issue(
-                "PSS030",
+                "PSSP001",
                 "warning",
                 f"extension {_origin(ep_name, dist)} raised during register(): "
                 f"{type(exc).__name__}: {exc}",
@@ -341,7 +409,7 @@ class CheckerManager:
         """Adapt one legacy ``pssparser.checkers`` entry point.
 
         The class -- not the entry-point key -- is the authority on the
-        checker's name (CK-X1).  A disagreement is reported as ``PSS031``
+        checker's name (CK-X1).  A disagreement is reported as ``PSSP002``
         rather than silently resolved, because the two spellings select
         different things on the command line.
         """
@@ -350,7 +418,7 @@ class CheckerManager:
             cls = ep.load()
         except Exception as exc:
             self._issue(
-                "PSS030",
+                "PSSP001",
                 "warning",
                 f"checker entry point {_origin(ep_name, dist)} failed to import: "
                 f"{type(exc).__name__}: {exc}",
@@ -362,7 +430,7 @@ class CheckerManager:
             reg.add_checker(cls)
         except ExtensionError as exc:
             self._issue(
-                "PSS030",
+                "PSSP001",
                 "warning",
                 f"checker entry point {_origin(ep_name, dist)} is not usable: {exc}",
             )
@@ -371,7 +439,7 @@ class CheckerManager:
         declared = getattr(cls, "name", "")
         if declared != ep_name:
             self._issue(
-                "PSS031",
+                "PSSP002",
                 "warning",
                 f"entry point {ep_name!r} declares checker name {declared!r}; "
                 f"the class is authoritative, so it is registered as "
@@ -388,11 +456,12 @@ class CheckerManager:
         dist: Optional[str],
         *,
         legacy: bool,
+        bundled: bool = False,
     ) -> None:
         """Fold a populated registry into this manager."""
         accepted: List[str] = []
         for cls in reg.checkers:
-            if self._accept_checker(cls, ep_name, dist):
+            if self._accept_checker(cls, ep_name, dist, bundled=bundled):
                 accepted.append(cls.name)
 
         self._extensions[ep_name] = ExtensionInfo(
@@ -402,6 +471,7 @@ class CheckerManager:
             dist=dist,
             checkers=accepted,
             legacy=legacy,
+            bundled=bundled,
         )
 
     def _accept_checker(
@@ -409,6 +479,8 @@ class CheckerManager:
         cls: Type[CheckerBase],
         ext_name: str,
         dist: Optional[str],
+        *,
+        bundled: bool = False,
     ) -> bool:
         """Register one checker class unless its marker IDs already exist.
 
@@ -420,12 +492,24 @@ class CheckerManager:
         owner = f"checker {checker_name!r} from extension {ext_name!r}"
 
         try:
-            marker_ids = [md.id for md in cls().marker_defs]
+            mdefs = list(cls().marker_defs)
         except Exception as exc:
             self._issue(
-                "PSS030",
+                "PSSP001",
                 "warning",
                 f"{owner} could not be instantiated: {type(exc).__name__}: {exc}",
+            )
+            return False
+        marker_ids = [md.id for md in mdefs]
+
+        if not self._check_namespaces(mdefs, owner, bundled=bundled):
+            return False
+        problem = self._metadata_problem(mdefs)
+        if problem is not None:
+            self._issue(
+                "PSSP201",
+                "warning",
+                f"{owner} was not registered: {problem}",
             )
             return False
 
@@ -445,7 +529,7 @@ class CheckerManager:
 
         if checker_name in self._registered:
             self._issue(
-                "PSS030",
+                "PSSP001",
                 "warning",
                 f"checker name {checker_name!r} is already registered by "
                 f"{self._provenance.get(checker_name, 'an earlier extension')!r}; "
@@ -459,9 +543,64 @@ class CheckerManager:
             self._marker_owner[mid] = owner
         return True
 
+    def _check_namespaces(self, mdefs, owner: str, *, bundled: bool) -> bool:
+        """Refuse reserved namespaces; warn about IDs outside the grammar.
+
+        The ``PSS``/``LINT``/``PSSP``/``PSSX`` namespaces belong to pssparser
+        (``PSSP005``, an error: the checker is not registered).  An ID that
+        does not parse as ``[A-Z]{2,5}[0-9]{3}`` still loads, with
+        ``PSSP006``, so an extension written before the grammar existed keeps
+        working while it is renamed.
+        """
+        for md in mdefs:
+            ns = taxonomy.namespace_of(md.id)
+            if not ns:
+                self._issue(
+                    "PSSP006",
+                    "warning",
+                    f"{owner} declares marker ID {md.id!r}, which is not a "
+                    f"namespace of 2-5 capital letters followed by 3 digits "
+                    f"(e.g. 'PRC001'); rename it",
+                )
+                continue
+            if ns in taxonomy.RESERVED_NAMESPACES and not bundled:
+                self._issue(
+                    "PSSP005",
+                    "error",
+                    f"{owner} declares marker ID {md.id!r} in the reserved "
+                    f"namespace {ns!r}; {owner.split(' from ')[0]} was not "
+                    f"registered. The {', '.join(taxonomy.RESERVED_NAMESPACES)} "
+                    f"namespaces belong to pssparser; choose one of your own",
+                )
+                return False
+        return True
+
+    def _metadata_problem(self, mdefs) -> Optional[str]:
+        """Return why *mdefs*' lint metadata is invalid, or ``None``.
+
+        A legacy checker that sets none of the lint fields always passes.
+        Names are checked for uniqueness against everything registered so
+        far, core included.
+        """
+        known_names = {
+            md.name for cls in self._registered.values()
+            for md in cls().marker_defs if md.name
+        }
+        seen = set()
+        for md in mdefs:
+            problem = metadata_problem(md)
+            if problem is not None:
+                return problem
+            if md.name:
+                if md.name in known_names or md.name in seen:
+                    return (f"{md.id}: rule name {md.name!r} is already "
+                            f"used by another rule")
+                seen.add(md.name)
+        return None
+
     def _report_api_mismatch(self, ep_name: str, dist: Optional[str], needs: int) -> None:
         self._issue(
-            "PSS032",
+            "PSSP003",
             "warning",
             f"extension {_origin(ep_name, dist)} requires checker API version "
             f"{needs}, but this pssparser provides {API_VERSION}; the extension "
@@ -627,6 +766,20 @@ class CheckerManager:
             raise ValueError(
                 f"Checker {cls.__name__!r} loaded from {spec!r} has an empty 'name' attribute"
             )
+        for md in instance.marker_defs:
+            ns = taxonomy.namespace_of(md.id)
+            if ns in taxonomy.RESERVED_NAMESPACES:
+                raise ValueError(
+                    f"Checker {instance.name!r} loaded from {spec!r} declares "
+                    f"{md.id!r} in the reserved namespace {ns!r}; the "
+                    f"{', '.join(taxonomy.RESERVED_NAMESPACES)} namespaces "
+                    f"belong to pssparser"
+                )
+            problem = metadata_problem(md)
+            if problem is not None:
+                raise ValueError(
+                    f"Checker {instance.name!r} loaded from {spec!r}: {problem}"
+                )
         # Re-loading a class that discovery already registered is a no-op
         # rather than a duplicate-ID failure: before CK-X1 was fixed the two
         # paths keyed the registry differently, so the same class could land
@@ -653,6 +806,7 @@ class CheckerManager:
         select: Optional[List[str]],
         exclude: Optional[List[str]],
         options: Optional[Dict[str, dict]] = None,
+        disabled: Optional[set] = None,
     ) -> List[CheckerBase]:
         """Return instantiated active checkers after applying filters.
 
@@ -671,6 +825,11 @@ class CheckerManager:
             ``{checker_name: {option: value}}`` from the configuration.
             Validated against each checker's ``options_schema`` and passed
             to its ``configure()``.
+        disabled:
+            Marker IDs turned off for this run.  A checker whose every
+            declared ID is disabled is not instantiated at all -- ``off``
+            means the rule does not run, not that its output is hidden
+            (lint-framework L1).
 
         Raises
         ------
@@ -696,6 +855,10 @@ class CheckerManager:
 
         instances = []
         for n in names:
+            if disabled:
+                ids = [md.id for md in self._registered[n]().marker_defs]
+                if ids and all(i in disabled for i in ids):
+                    continue
             inst = self._registered[n]()
             resolved = resolve_options(inst, (options or {}).get(n))
             if resolved is not None:
@@ -731,6 +894,7 @@ class CheckerManager:
                 "dist": info.dist,
                 "checkers": list(info.checkers),
                 "legacy": info.legacy,
+                "bundled": info.bundled,
             }
             for info in sorted(self._extensions.values(), key=lambda i: i.name)
         ]
@@ -745,22 +909,58 @@ class CheckerManager:
                     "severity": md.severity,
                     "checker": name,
                     "summary": md.summary,
+                    "status": md.status,
+                    "replaced_by": list(md.replaced_by),
+                    "tier": md.tier,
+                    "name": md.name,
                 })
         return result
 
     def describe_marker(self, marker_id: str) -> Optional[dict]:
-        """Return a full description dict for *marker_id*, or ``None``."""
+        """Return a full description dict for *marker_id*, or ``None``.
+
+        *marker_id* may also be a rule name (``import-after-declaration``).
+        """
         for name, cls in self._registered.items():
             for md in cls().marker_defs:
-                if md.id == marker_id:
+                if md.id == marker_id or (md.name and md.name == marker_id):
                     return {
                         "id": md.id,
                         "severity": md.severity,
                         "checker": name,
                         "summary": md.summary,
                         "detail": md.detail,
+                        "status": md.status,
+                        "replaced_by": list(md.replaced_by),
+                        "aliases": list(md.aliases),
+                        "name": md.name,
+                        "tier": md.tier,
+                        "family": md.family,
                     }
         return None
+
+    def all_marker_defs(self) -> List:
+        """Every ``MarkerDef`` of every registered checker, core first."""
+        return [md for cls in self._registered.values() for md in cls().marker_defs]
+
+    def alias_map(self) -> Dict[str, str]:
+        """``{old_code: current_code}`` for every code that has moved.
+
+        Built from ``aliases`` on the current definition and from
+        ``replaced_by`` on a retired row; either one is enough.
+        """
+        result: Dict[str, str] = {}
+        for md in self.all_marker_defs():
+            for alias in md.aliases:
+                result[alias] = md.id
+        for md in self.all_marker_defs():
+            if md.status == "retired" and md.replaced_by:
+                result.setdefault(md.id, md.replaced_by[0])
+        return result
+
+    def canonical_id(self, code: str) -> str:
+        """The current code for *code*: itself, unless it has moved."""
+        return self.alias_map().get(code, code)
 
     def build_marker_index(self, active_checkers: List[CheckerBase]) -> dict:
         """Build a ``{marker_id: MarkerDef}`` index for the given checkers.

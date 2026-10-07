@@ -407,7 +407,7 @@ public:
     virtual antlrcpp::Any visitCovergroup_body_item(PSSParser::Covergroup_body_itemContext *ctx) override;
 
     // Constructs the grammar accepts that the builder does not represent.
-    // Each of these exists only to report PSS116 and then walk children
+    // Each of these exists only to report PSSP101 and then walk children
     // exactly as the default visitor would; see docs/ast-coverage-plan.md.
     // Remove the visitor -- or replace its body -- as each is implemented.
 
@@ -659,7 +659,7 @@ private:
     void addInternalError(Token *t, const char *fmt, ...);
 
     /**
-     * Report (PSS116) that *construct* was accepted by the grammar but is
+     * Report (PSSP101) that *construct* was accepted by the grammar but is
      * not represented in the AST.  When *detail* is non-null it names the
      * specific part that is dropped, for constructs that are represented
      * only partially.
@@ -724,7 +724,7 @@ private:
     bool refsTemplateParam(antlr4::tree::ParseTree *ctx);
 
     /**
-     * Report the D2 deprecation (PSS104) for any `compile if` branch written
+     * Report the D2 deprecation (LINT601) for any `compile if` branch written
      * without enclosing braces. Called from every `visit*_compile_if` method
      * with both branches, so the diagnostic does not depend on which branch
      * the condition selects.

@@ -107,6 +107,20 @@ _ROOT_SCHEMA: Dict[str, Tuple[type, str]] = {
     "warnings": (dict, "warning-policy table"),
     "checker": (dict, "table of per-checker option tables"),
     "extensions": (dict, "table of per-extension tables"),
+    "lint": (dict, "lint profile, rule selection and per-rule options"),
+    "output": (dict, "output settings"),
+}
+
+_LINT_SCHEMA: Dict[str, Tuple[tuple, str]] = {
+    "profile": ((str,), "minimal | recommended | library | strict | all | none"),
+    "select": ((list,), "array of rule selectors added to the profile"),
+    "ignore": ((list,), "array of rule selectors removed from the profile"),
+    "rules-version": ((str,), "'YYYY.N': rules newer than this stay out of profiles"),
+    "rule": ((dict,), "table of per-rule option tables"),
+}
+
+_OUTPUT_SCHEMA: Dict[str, Tuple[tuple, str]] = {
+    "show-hints": ((bool,), "true to print hint diagnostics"),
 }
 
 _WARNINGS_SCHEMA: Dict[str, Tuple[tuple, str]] = {
@@ -167,6 +181,27 @@ class ResolvedConfig:
     warnings_error_codes: List[str] = field(default_factory=list)
     warnings_no_error_codes: List[str] = field(default_factory=list)
     no_warnings: bool = False
+    #: ``-Werror=info``: promote ``info`` too (lint-framework D-4).
+    warnings_error_info: bool = False
+
+    #: ``[lint]``.  ``lint_profile`` is ``None`` when nothing chose one, in
+    #: which case :data:`~pssparser.checkers.taxonomy.DEFAULT_PROFILE` applies.
+    lint_profile: Optional[str] = None
+    lint_select: List[str] = field(default_factory=list)
+    lint_ignore: List[str] = field(default_factory=list)
+    rules_version: str = ""
+    lint_rule_options: Dict[str, Dict[str, Any]] = field(default_factory=dict)
+    show_hints: bool = False
+
+    #: Resolved by :func:`validate_against_registry`: the enabled lint rule
+    #: IDs, and every lint rule ID (so a disabled one can be recognised).
+    lint_enabled: Optional[set] = None
+    lint_ids: set = field(default_factory=set)
+    #: Rules the ``rules-version`` pin keeps out of the profile.
+    lint_held_back: List[str] = field(default_factory=list)
+    #: ``-Werror`` group spelling per promoted ID, e.g. ``LINT104 ->
+    #: "correctness"``, so a promoted diagnostic names the flag as typed.
+    werror_spelling: Dict[str, str] = field(default_factory=dict)
 
     #: Files that contributed, lowest-precedence first, as display paths.
     sources: List[str] = field(default_factory=list)
@@ -175,6 +210,10 @@ class ResolvedConfig:
     #: Keys a config file set that a CLI flag then overrode -- the PSS034
     #: population.  Display keys, sorted.
     overridden: List[str] = field(default_factory=list)
+
+    #: Old IDs rewritten to their current code, as ``(source, key, old,
+    #: new)``; each becomes one ``PSSP004`` note in the run's output.
+    alias_notes: List[Tuple[str, str, str, str]] = field(default_factory=list)
 
     @property
     def is_empty(self) -> bool:
@@ -352,8 +391,56 @@ def _validate_table(data: Dict[str, Any], source: str) -> Dict[str, Any]:
     _validate_warnings(data.get("warnings"), source)
     _validate_checker(data.get("checker"), source)
     _validate_extensions(data.get("extensions"), source)
+    _validate_lint(data.get("lint"), source)
+    _validate_flat("output", data.get("output"), _OUTPUT_SCHEMA, source)
 
     return data
+
+
+def _validate_flat(name: str, table: Any, schema, source: str) -> None:
+    """Validate a table of scalar settings against *schema*."""
+    if table is None:
+        return
+    for key, value in table.items():
+        if key not in schema:
+            raise _unknown_key(f"[{name}]", key, schema, source)
+        expected, _ = schema[key]
+        if not isinstance(value, expected):
+            raise ConfigError(
+                f"{source}: '{name}.{key}' must be "
+                f"{_type_name(expected)}, got {_describe(value)}"
+            )
+
+
+def _validate_lint(table: Any, source: str) -> None:
+    if table is None:
+        return
+    from pssparser.checkers import taxonomy
+
+    _validate_flat("lint", table, _LINT_SCHEMA, source)
+    for key in ("select", "ignore"):
+        if key in table:
+            _require_str_list(table[key], f"lint.{key}", source)
+    profile = table.get("profile")
+    if profile is not None and profile not in taxonomy.PROFILES:
+        hint = suggest(profile, list(taxonomy.PROFILES))
+        detail = f"did you mean '{hint}'?" if hint else (
+            "one of " + ", ".join(taxonomy.PROFILES))
+        raise ConfigError(
+            f"{source}: 'lint.profile' names unknown profile '{profile}'; {detail}"
+        )
+    pin = table.get("rules-version")
+    if pin is not None and taxonomy.parse_rules_version(pin) is None:
+        raise ConfigError(
+            f"{source}: 'lint.rules-version' must look like '2026.1' "
+            f"(year.release); got {pin!r}"
+        )
+    for name, options in (table.get("rule") or {}).items():
+        if not isinstance(options, dict):
+            raise ConfigError(
+                f"{source}: '[lint.rule.{name}]' must be a table of options, "
+                f"got {_describe(options)}"
+            )
 
 
 def _validate_severity(table: Any, source: str) -> None:
@@ -522,6 +609,28 @@ def _merge(cfg: ResolvedConfig, table: Dict[str, Any], source: str) -> None:
             cfg.extensions_enabled[name] = settings["enabled"]
             cfg.provenance[f"extensions.{name}.enabled"] = source
 
+    lint = table.get("lint") or {}
+    if "profile" in lint:
+        cfg.lint_profile = lint["profile"]
+        cfg.provenance["lint.profile"] = source
+    for key, attr in (("select", "lint_select"), ("ignore", "lint_ignore")):
+        if key in lint:
+            setattr(cfg, attr, list(lint[key]))
+            cfg.provenance[f"lint.{key}"] = source
+    if "rules-version" in lint:
+        cfg.rules_version = lint["rules-version"]
+        cfg.provenance["lint.rules-version"] = source
+    for name, options in (lint.get("rule") or {}).items():
+        bucket = cfg.lint_rule_options.setdefault(name, {})
+        for opt, value in options.items():
+            bucket[opt] = value
+            cfg.provenance[f"lint.rule.{name}.{opt}"] = source
+
+    output = table.get("output") or {}
+    if "show-hints" in output:
+        cfg.show_hints = output["show-hints"]
+        cfg.provenance["output.show-hints"] = source
+
     if source not in cfg.sources:
         cfg.sources.append(source)
 
@@ -580,8 +689,17 @@ def _apply_cli_overrides(cfg: ResolvedConfig, args) -> None:
     take("disable", getattr(args, "no_checkers", None), "disable")
     take("load", getattr(args, "load_checkers", None), "load")
 
+    profile = getattr(args, "lint_profile", None)
+    if getattr(args, "no_lint", False):
+        profile = "none"
+    take("lint.profile", profile, "lint_profile")
+    if getattr(args, "show_hints", False):
+        take("output.show-hints", True, "show_hints")
+
     policy = getattr(args, "warning_policy", None)
     if policy is not None:
+        if getattr(policy, "error_info", False):
+            cfg.warnings_error_info = True
         if policy.error_all or policy.error_codes:
             if "warnings.error" in cfg.provenance:
                 overridden.append("warnings.error")
@@ -623,11 +741,82 @@ def to_warning_policy(cfg: ResolvedConfig, policy) -> None:
     policy.error_codes = set(cfg.warnings_error_codes)
     policy.no_error_codes = set(cfg.warnings_no_error_codes)
     policy.no_warnings = cfg.no_warnings
+    policy.error_info = cfg.warnings_error_info
+    policy.flag_spelling = dict(getattr(cfg, "werror_spelling", {}) or {})
 
 
 # ----------------------------------------------------------------------
 # Registry-dependent validation
 # ----------------------------------------------------------------------
+
+
+def _canonicalize_ids(cfg: ResolvedConfig, manager) -> None:
+    """Rewrite moved IDs (``PSS104`` -> ``LINT601``) wherever *cfg* holds one.
+
+    The old spelling keeps working -- that is the promise made when a code
+    moves namespace -- but every use is recorded in ``cfg.alias_notes`` so
+    the run can say, once, where to update it.
+    """
+    aliases = manager.alias_map()
+    if not aliases:
+        return
+
+    seen = set()
+
+    def note(source: str, key: str, old: str, new: str) -> None:
+        if (source, key, old) not in seen:
+            seen.add((source, key, old))
+            cfg.alias_notes.append((source, key, old, new))
+
+    severity: Dict[str, str] = {}
+    for code, sev in cfg.severity.items():
+        new = aliases.get(code)
+        if new is None:
+            severity[code] = sev
+            continue
+        source = cfg.provenance.pop(f"severity.{code}", "configuration")
+        note(source, f"severity.{code}", code, new)
+        severity[new] = sev
+        cfg.provenance[f"severity.{new}"] = source
+    cfg.severity = severity
+
+    for attr, key in (("warnings_error_codes", "warnings.error"),
+                      ("warnings_no_error_codes", "warnings.no-error")):
+        codes = []
+        for code in getattr(cfg, attr):
+            new = aliases.get(code)
+            if new is not None:
+                source = cfg.provenance.get(key, "configuration")
+                flag = ("-Werror=" if key == "warnings.error"
+                        else "-Wno-error=") + code
+                note(source, flag if source == "command line" else key,
+                     code, new)
+                code = new
+            if code not in codes:
+                codes.append(code)
+        setattr(cfg, attr, codes)
+
+
+def alias_note_markers(cfg: ResolvedConfig) -> List[dict]:
+    """``PSSP004`` marker dicts for every old ID *cfg* rewrote."""
+    from pssparser.checkers.extension import NO_FILE
+
+    markers = []
+    for source, key, old, new in getattr(cfg, "alias_notes", ()):
+        markers.append({
+            "severity": "info",
+            "message": (
+                f"[PSSP004] {source}: '{key}' uses {old}, which is now "
+                f"{new}; {old} still works, but write {new}"
+            ),
+            "file": NO_FILE,
+            "line": 0,
+            "col": 0,
+            "code": "PSSP004",
+            "extent": 0,
+            "related": [],
+        })
+    return markers
 
 
 def validate_against_registry(cfg: ResolvedConfig, manager) -> None:
@@ -642,9 +831,10 @@ def validate_against_registry(cfg: ResolvedConfig, manager) -> None:
     exists to prevent, and a hard stop names the missing checker where a
     warning gets lost in the diagnostic stream.
     """
+    _canonicalize_ids(cfg, manager)
+
     known_checkers = set(manager.registered)
     all_markers = manager.list_all_markers()
-    known_markers = {md["id"] for md in all_markers}
     core_errors = {
         md["id"] for md in all_markers
         if md["checker"] == "core" and md["severity"] == "error"
@@ -699,17 +889,22 @@ def validate_against_registry(cfg: ResolvedConfig, manager) -> None:
             f"not installed; {detail}"
         )
 
+    # -- selectors: [severity] keys and -W groups (lint-framework L3) -----
+    from pssparser.checkers.selectors import RuleSet, SelectorError
+    from pssparser.checkers import taxonomy
+
+    rules = RuleSet(manager.all_marker_defs(), rules_version=cfg.rules_version)
+    rules.aliases = manager.alias_map()
+
+    def parse_or_fail(text: str, key: str, where: str):
+        try:
+            return rules.parse(text)
+        except SelectorError as exc:
+            source = cfg.provenance.get(key, "configuration")
+            raise ConfigError(f"{source}: {where} {exc}") from None
+
     for code in cfg.severity:
-        if code not in known_markers:
-            source = cfg.provenance.get(f"severity.{code}", "configuration")
-            hint = suggest(code, sorted(known_markers))
-            detail = f"did you mean '{hint}'?" if hint else (
-                "run --list-markers to see the declared IDs"
-            )
-            raise ConfigError(
-                f"{source}: '[severity]' names unknown marker '{code}'; "
-                f"{detail}"
-            )
+        parse_or_fail(code, f"severity.{code}", "'[severity]' names an")
 
     # A core error is a statement that the model could not be built.  The
     # parse- and link-failure paths return a forced exit code of 1 with no
@@ -728,6 +923,86 @@ def validate_against_registry(cfg: ResolvedConfig, manager) -> None:
                 f"produced nothing. Use --no-warnings or a narrower "
                 f"'select' if the goal is a quieter report"
             )
+
+    # Expand group keys ("correctness", "family:constraint", "LINT1") to
+    # concrete IDs, most specific key per ID, so apply_severity_map stays
+    # an ID lookup.  Exact IDs keep their own entry.
+    expanded = rules.expand(cfg.severity)
+    severity: Dict[str, str] = {}
+    for mid, (text, _) in expanded.items():
+        severity[mid] = cfg.severity[text]
+        if text != mid:
+            cfg.provenance.setdefault(
+                f"severity.{mid}",
+                f"{cfg.provenance.get(f'severity.{text}', 'configuration')} "
+                f"(via '{text}')")
+    # Exact IDs not in the rule set (a plug-in that is not loaded is
+    # refused above, so this is only retired codes already rewritten).
+    for code, sev in cfg.severity.items():
+        severity.setdefault(code, sev)
+    cfg.severity = severity
+
+    def expand_codes(codes, key):
+        out: List[str] = []
+        spelling: Dict[str, str] = {}
+        for text in codes:
+            if text == "info":
+                continue
+            parse_or_fail(text, key, f"'{key}' names an")
+            for mid in rules.expand([text]):
+                if mid not in out:
+                    out.append(mid)
+                    spelling.setdefault(mid, text)
+        return out, spelling
+
+    if "info" in cfg.warnings_error_codes:
+        cfg.warnings_error_info = True
+    cfg.warnings_error_codes, cfg.werror_spelling = expand_codes(
+        cfg.warnings_error_codes, "warnings.error")
+    cfg.warnings_no_error_codes, _ = expand_codes(
+        cfg.warnings_no_error_codes, "warnings.no-error")
+
+    # -- lint selection ---------------------------------------------------
+    for key, texts in (("lint.select", cfg.lint_select),
+                       ("lint.ignore", cfg.lint_ignore)):
+        for text in texts:
+            parse_or_fail(text, key, f"'{key}' names an")
+    profile = cfg.lint_profile or taxonomy.DEFAULT_PROFILE
+    cfg.lint_ids = {md.id for md in rules.lint}
+    cfg.lint_enabled = rules.resolve(profile, cfg.lint_select, cfg.lint_ignore)
+    cfg.lint_held_back = rules.held_back(profile)
+
+    for name, options in cfg.lint_rule_options.items():
+        md = rules.by_name.get(name) or rules.by_id.get(name)
+        source = cfg.provenance.get(
+            f"lint.rule.{name}." + next(iter(options), ""), "configuration")
+        if md is None or not md.is_lint:
+            hint = suggest(name, sorted(n for n, m in rules.by_name.items()
+                                        if m.is_lint))
+            detail = f"did you mean '{hint}'?" if hint else (
+                "run --list-markers to see the rule names")
+            raise ConfigError(
+                f"{source}: '[lint.rule.{name}]' configures an unknown lint "
+                f"rule; {detail}")
+        try:
+            _check_rule_options(md, options)
+        except ValueError as exc:
+            raise ConfigError(f"{source}: {exc}") from None
+
+
+def _check_rule_options(md, options: Dict[str, Any]) -> None:
+    """Validate ``[lint.rule.<name>]`` against the rule's ``options_schema``."""
+    from pssparser.checkers.manager import resolve_options
+
+    class _Rule:
+        name = md.name or md.id
+        options_schema = md.options_schema
+
+    try:
+        resolve_options(_Rule(), options)
+    except ValueError as exc:
+        raise ValueError(str(exc).replace("checker ", "rule ", 1)
+                         .replace("[checker.", "[lint.rule.")) from None
 
 
 # ----------------------------------------------------------------------
@@ -771,6 +1046,25 @@ def format_show_config(cfg: ResolvedConfig) -> str:
     row("warnings.no-error", ", ".join(cfg.warnings_no_error_codes) or "(none)")
     row("warnings.none", "true" if cfg.no_warnings else "false")
 
+    from pssparser.checkers import taxonomy
+
+    lines.append("")
+    lines.append("Lint:")
+    row("lint.profile", cfg.lint_profile or f"{taxonomy.DEFAULT_PROFILE}")
+    row("lint.select", ", ".join(cfg.lint_select) or "(none)")
+    row("lint.ignore", ", ".join(cfg.lint_ignore) or "(none)")
+    row("lint.rules-version", cfg.rules_version or "(unpinned)")
+    row("output.show-hints", "true" if cfg.show_hints else "false")
+    if cfg.lint_enabled is not None:
+        lines.append(f"  enabled rules: {_collapse(sorted(cfg.lint_enabled))}")
+    if cfg.lint_held_back:
+        lines.append(f"  held back by rules-version: "
+                     f"{', '.join(cfg.lint_held_back)}")
+    for name in sorted(cfg.lint_rule_options):
+        for opt in sorted(cfg.lint_rule_options[name]):
+            row(f"lint.rule.{name}.{opt}",
+                _render(cfg.lint_rule_options[name][opt]))
+
     if cfg.severity:
         lines.append("")
         lines.append("Severity overrides:")
@@ -799,6 +1093,40 @@ def format_show_config(cfg: ResolvedConfig) -> str:
             lines.append(f"  {key}")
 
     return "\n".join(lines) + "\n"
+
+
+def _collapse(ids: List[str]) -> str:
+    """``LINT101, LINT102, LINT301`` -> ``LINT101-102, LINT301``."""
+    if not ids:
+        return "(none)"
+    from pssparser.checkers.taxonomy import split_code
+
+    out: List[str] = []
+    run: List[Tuple[str, int, str]] = []
+
+    def flush() -> None:
+        if not run:
+            return
+        if len(run) == 1:
+            out.append(run[0][2])
+        else:
+            out.append(f"{run[0][2]}-{run[-1][1]:03d}")
+        run.clear()
+
+    for code in ids:
+        parts = split_code(code)
+        if parts is None:
+            flush()
+            out.append(code)
+            continue
+        ns, num = parts
+        if run and run[-1][0] == ns and run[-1][1] == num - 1:
+            run.append((ns, num, code))
+        else:
+            flush()
+            run.append((ns, num, code))
+    flush()
+    return ", ".join(out)
 
 
 def _render(value: Any) -> str:

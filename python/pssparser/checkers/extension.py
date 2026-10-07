@@ -46,7 +46,7 @@ NO_FILE = "<pssparser>"
 class ExtensionError(Exception):
     """Raised by ``ExtensionRegistry`` when an extension misuses the API.
 
-    Caught by the manager and reported as ``PSS030``; it never escapes
+    Caught by the manager and reported as ``PSSP001``; it never escapes
     discovery.
     """
 
@@ -135,6 +135,9 @@ class ExtensionInfo:
     #: True for a ``pssparser.checkers`` entry point adapted into an
     #: extension, so ``--list-extensions`` can say where it came from.
     legacy: bool = False
+    #: True for the lint extension shipped inside pssparser itself, which is
+    #: the one extension allowed to use the reserved ``LINT`` namespace.
+    bundled: bool = False
 
 
 @dataclass

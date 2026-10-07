@@ -1,8 +1,9 @@
 """Output format drivers for diagnostic rendering.
 
-Two drivers:
   - ``HumanOutput`` -- coloured, Rust/Clang-style diagnostics to stderr.
-  - ``JsonOutput``  -- machine-readable JSON to stdout.
+  - ``JsonOutput``  -- machine-readable JSON to stdout (schema
+    ``pssparser-diagnostics/2``; documented in ``docs/diagnostics-json.rst``).
+  - ``SarifOutput`` (``sarif.py``) and ``GithubOutput`` (``github.py``).
 """
 from __future__ import annotations
 
@@ -14,6 +15,29 @@ from typing import IO, List, Optional, TextIO
 from pssparser.checkers.extension import NO_FILE
 from .diagnostics import Diagnostic, DiagnosticCollection
 from .source_context import SourceCache, make_caret_line
+
+#: Identifies the JSON document's shape.  Version 2 added this key, the
+#: ``notes``/``hints`` counts and the per-diagnostic rule metadata; every
+#: version-1 key is unchanged.
+JSON_SCHEMA = "pssparser-diagnostics/2"
+
+
+def statistics_rows(coll: DiagnosticCollection, catalog=None) -> List[dict]:
+    """One row per code: count, rule name and tier, most frequent first."""
+    counts: dict = {}
+    for d in coll.diagnostics:
+        key = d.code or "<uncoded>"
+        counts[key] = counts.get(key, 0) + 1
+    rows = []
+    for code, n in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0])):
+        md = (catalog or {}).get(code)
+        rows.append({
+            "code": code,
+            "count": n,
+            "name": getattr(md, "name", "") or "",
+            "tier": getattr(md, "tier", "") or "",
+        })
+    return rows
 
 
 # -- ANSI helpers ----------------------------------------------------------
@@ -55,10 +79,18 @@ class HumanOutput:
         source_cache: SourceCache,
         stream: TextIO | None = None,
         color: Optional[bool] = None,
+        show_hints: bool = False,
+        statistics: bool = False,
+        catalog=None,
     ) -> None:
+        self._statistics = statistics
+        self._catalog = catalog or {}
         self._src = source_cache
         self._stream = stream or sys.stderr
         self._color = _use_color(self._stream, color)
+        #: ``hint`` is an editor nudge (lint-framework L1): hidden at the
+        #: command line unless asked for, always present in JSON.
+        self._show_hints = show_hints
 
     def _source_block(
         self,
@@ -100,6 +132,8 @@ class HumanOutput:
         return True
 
     def emit(self, diag: Diagnostic) -> None:
+        if diag.severity == "hint" and not self._show_hints:
+            return
         w = self._stream.write
         c = self._color
 
@@ -168,24 +202,43 @@ class HumanOutput:
         ``-q --stats`` is a supported combination: the summary line is
         suppressed but the stats block still appears.
         """
+        if self._statistics:
+            self._write_statistics(coll)
         if not quiet:
             self.summary(coll)
         if stats is not None:
             from .stats import render_human
             self._stream.write(render_human(stats))
 
+    def _write_statistics(self, coll: DiagnosticCollection) -> None:
+        rows = statistics_rows(coll, self._catalog)
+        if not rows:
+            return
+        width = max(len(r["code"]) for r in rows)
+        for r in rows:
+            label = r["name"] + (f" [{r['tier']}]" if r["tier"] else "")
+            self._stream.write(
+                f"{r['count']:>6}  {r['code']:<{width}}  {label}".rstrip() + "\n")
+        self._stream.write("\n")
+
     def summary(self, coll: DiagnosticCollection) -> None:
         parts = []
         ec = coll.error_count
         wc = coll.warning_count
+        nc = coll.info_count
         if ec:
             parts.append(f"{ec} error{'s' if ec != 1 else ''}")
         if wc:
             parts.append(f"{wc} warning{'s' if wc != 1 else ''}")
+        if nc:
+            parts.append(f"{nc} note{'s' if nc != 1 else ''}")
         if not parts:
             parts.append("0 errors")
         nf = len(coll.files)
         msg = ", ".join(parts) + f" in {nf} file{'s' if nf != 1 else ''}"
+        hc = coll.hint_count
+        if hc and not self._show_hints:
+            msg += f" ({hc} hint{'s' if hc != 1 else ''} hidden)"
         self._stream.write(msg + "\n")
 
 
@@ -197,10 +250,14 @@ class JsonOutput:
     def __init__(
         self,
         stream: TextIO | None = None,
+        catalog=None,
+        statistics: bool = False,
     ) -> None:
         self._stream = stream or sys.stdout
         self._items: List[dict] = []
         self._files: set = set()
+        self._catalog = catalog or {}
+        self._statistics = statistics
 
     def emit(self, diag: Diagnostic) -> None:
         self._files.add(diag.file)
@@ -231,6 +288,16 @@ class JsonOutput:
             }
         if diag.code:
             entry["code"] = diag.code
+            md = self._catalog.get(diag.code)
+            if md is not None:
+                if getattr(md, "name", ""):
+                    entry["rule"] = md.name
+                if getattr(md, "tier", ""):
+                    entry["tier"] = md.tier
+                if getattr(md, "family", ""):
+                    entry["family"] = md.family
+                if getattr(md, "lrm", ()):
+                    entry["lrm"] = list(md.lrm)
         if diag.related:
             entry["related"] = [
                 {"file": r.file, "line": r.line, "col": r.col, "label": r.label}
@@ -250,13 +317,18 @@ class JsonOutput:
 
     def summary(self, coll: DiagnosticCollection, stats=None) -> None:
         doc = {
+            "schema": JSON_SCHEMA,
             "diagnostics": self._items,
             "summary": {
                 "errors": coll.error_count,
                 "warnings": coll.warning_count,
+                "notes": coll.info_count,
+                "hints": coll.hint_count,
                 "files": len(coll.files),
             },
         }
+        if self._statistics:
+            doc["statistics"] = statistics_rows(coll, self._catalog)
         if stats is not None:
             from .stats import to_json
             doc["stats"] = to_json(stats)

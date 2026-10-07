@@ -144,7 +144,7 @@ component pss_top { H<S1> h1; H<S2> h2; }
 
 
 def test_an_enum_attribute_expects_its_enum():
-    """The attribute's type is the value's expected type (8.4.3): no PSS046."""
+    """The attribute's type is the value's expected type (8.4.3): no LINT101."""
     code = """\
 enum color_e { RED, GREEN }
 struct S { color_e c; }

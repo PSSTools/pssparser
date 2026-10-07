@@ -1,0 +1,198 @@
+####
+Lint
+####
+
+pssparser reports three kinds of diagnostic, told apart by the namespace of
+their ID:
+
+``PSS``
+   The model violates the language reference manual.  These are errors;
+   they cannot be turned off, and a run with one exits 1.
+``LINT``
+   The model is legal PSS, but something in it is probably not what the
+   author meant: a constraint that cannot fire, an import in the wrong
+   place, a deprecated form.  This page is about these.
+``PSSP``
+   pssparser itself has something to say: an extension failed to load, a
+   construct is accepted but not represented in the AST, a configuration
+   uses an old ID.
+
+Every lint rule is listed, with examples, in :doc:`lint-rules`.
+``pssparser --explain <ID or name>`` prints one entry at the command line.
+
+Enabling lint
+=============
+
+Lint runs with every parse.  Which rules report is chosen by a **profile**:
+
+.. list-table::
+   :header-rows: 1
+
+   * - Profile
+     - Enables
+   * - ``minimal`` (default)
+     - The warnings pssparser reported before lint existed (``LINT101``,
+       ``LINT301``, ``LINT401``-``404``, ``LINT501``, ``LINT601``-``602``).
+       The default output is what it always was.
+   * - ``recommended``
+     - ``minimal`` plus the ``correctness``, ``suspicious``,
+       ``portability`` and ``simplify`` tiers.
+   * - ``library``
+     - As ``recommended``; reserved for rules that judge a library
+       differently from a top-level model.
+   * - ``strict``
+     - ``recommended`` plus ``pedantic``.
+   * - ``all``
+     - Every tier except ``nursery``.
+   * - ``none``
+     - No lint at all.  LRM errors and ``PSSP`` diagnostics still report.
+
+Every profile except ``none`` includes ``minimal``, so moving to a larger
+profile never drops a warning you already saw.  ``nursery`` rules are new
+and not yet measured; select them by name to try one.
+
+Choose a profile on the command line or in the configuration file:
+
+.. code-block:: bash
+
+   pssparser --lint-profile recommended model.pss
+   pssparser --no-lint model.pss            # same as --lint-profile none
+
+.. code-block:: toml
+
+   # .pssparser.toml
+   [lint]
+   profile = "recommended"
+   select  = ["pedantic"]                 # add a tier
+   ignore  = ["import-after-declaration"] # remove one rule
+
+``select`` and ``ignore`` take any selector -- an ID, a rule name, a tier,
+``family:<name>``, an ID prefix -- and the most specific one wins (see
+*Selecting rules* in :doc:`cli`).
+
+Severity
+========
+
+Each rule's **tier** gives its default severity:
+
+* ``correctness``, ``suspicious``, ``portability``, ``pedantic``,
+  ``restriction`` and ``nursery`` rules are ``warning``;
+* ``simplify`` rules are ``info`` (reported as *notes*);
+* ``style`` rules are ``hint`` (hidden unless ``--show-hints``).
+
+Lint never defaults to ``error``: an error means the LRM says so.  To make
+lint fail a build, promote it -- for everything, a tier, or one rule:
+
+.. code-block:: bash
+
+   pssparser -Werror model.pss
+   pssparser -Werror=correctness model.pss
+
+.. code-block:: toml
+
+   [severity]
+   suspicious = "error"
+   LINT402    = "off"        # "off" means the rule does not run
+
+Pinning the rule set
+====================
+
+A new pssparser release can add rules to a profile.  So that an upgrade
+never fails a CI job by itself, pin the rule set:
+
+.. code-block:: toml
+
+   [lint]
+   profile = "recommended"
+   rules-version = "2026.1"
+
+Every rule records the rules version it was added in (``since``).  A rule
+newer than the pin is left out of the profile -- though it can still be
+selected by name -- and ``pssparser --show-config`` lists what the pin is
+holding back.  Bump the pin when you are ready to see the new rules.
+
+Which files are linted
+======================
+
+Lint findings are reported only in the files named on the command line.
+A finding in the built-in standard library is never reported: it is not
+yours to fix.  LRM errors and ``PSSP`` diagnostics are reported wherever
+they occur.
+
+IDs that moved from PSS to LINT
+===============================
+
+Before lint existed, nine warnings about legal code carried ``PSS`` IDs, and
+four diagnostics about pssparser itself did too.  They moved, so that a
+``PSS`` ID always means an LRM violation:
+
+.. list-table::
+   :header-rows: 1
+
+   * - Old
+     - New
+     - Name
+   * - ``PSS046``
+     - ``LINT101``
+     - ``enum-item-type-mismatch``
+   * - ``PSS120``
+     - ``LINT301``
+     - ``exported-instance-function``
+   * - ``PSS044``
+     - ``LINT401``
+     - ``enum-item-hides-declaration``
+   * - ``PSS053``
+     - ``LINT402``
+     - ``import-after-declaration``
+   * - ``PSS101``
+     - ``LINT403``
+     - ``unknown-annotation``
+   * - ``PSS119``
+     - ``LINT404``
+     - ``width-references-later-constant``
+   * - ``PSS016``
+     - ``LINT501``
+     - ``reg-width-no-access-function``
+   * - ``PSS104``
+     - ``LINT601``
+     - ``deprecated-braceless-compile-if``
+   * - ``PSS117``
+     - ``LINT602``
+     - ``deprecated-dynamic-constraint-traversal``
+   * - ``PSS030``
+     - ``PSSP001``
+     - ``extension-load-failed``
+   * - ``PSS031``
+     - ``PSSP002``
+     - ``entry-point-name-mismatch``
+   * - ``PSS032``
+     - ``PSSP003``
+     - ``extension-api-too-new``
+   * - ``PSS116``
+     - ``PSSP101``
+     - ``construct-not-represented``
+
+The messages and locations are unchanged; only the ID is new.  The old IDs
+still work wherever you type an ID -- ``[severity]``, ``[warnings]``,
+``-Werror=``, ``--describe``, ``--explain`` -- and each use prints one
+``PSSP004`` note naming where to update it.  Output always shows the new ID.
+The old IDs are retired and will never be reused.
+
+CI integration
+==============
+
+GitHub code scanning, from SARIF:
+
+.. code-block:: yaml
+
+   - run: pssparser --format sarif --lint-profile recommended src/*.pss > pssparser.sarif
+     continue-on-error: true
+   - uses: github/codeql-action/upload-sarif@v3
+     with:
+       sarif_file: pssparser.sarif
+
+Plain pull-request annotations, with no upload step:
+
+.. code-block:: yaml
+
+   - run: pssparser --format github --lint-profile recommended src/*.pss

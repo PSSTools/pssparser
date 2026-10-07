@@ -188,7 +188,7 @@ def test_a_broken_sibling_does_not_disturb_a_healthy_extension(
     data = json.loads(out)
 
     # The broken one is reported...
-    assert [d["code"] for d in data["issues"]] == ["PSS030"]
+    assert [d["code"] for d in data["issues"]] == ["PSSP001"]
     assert "broken-rules" in data["issues"][0]["message"]
     assert "pss-broken-rules" in data["issues"][0]["message"]
 

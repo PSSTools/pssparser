@@ -1,0 +1,6 @@
+// expect: none
+package lib { struct s {} }
+package p {
+  import lib::*;
+  struct t {}
+}

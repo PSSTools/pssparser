@@ -26,9 +26,14 @@ class _WarningAction(argparse.Action):
             policy = WarningPolicy()
             setattr(namespace, "warning_policy", policy)
 
+        # The text after '=' may be any rule selector -- an ID, a rule
+        # name, a tier, 'family:x', a prefix -- or 'info'.  Selectors are
+        # resolved to IDs once the registry is loaded (config layer).
         spec = values
         if spec == "error":
             policy.error_all = True
+        elif spec == "error=info":
+            policy.error_info = True
         elif spec.startswith("error="):
             policy.error_codes.add(spec[len("error="):])
         elif spec.startswith("no-error="):
@@ -36,7 +41,7 @@ class _WarningAction(argparse.Action):
         else:
             parser.error(
                 f"unrecognised warning option '-W{spec}' "
-                "(expected -Werror, -Werror=ID, or -Wno-error=ID)"
+                "(expected -Werror, -Werror=SELECTOR, or -Wno-error=SELECTOR)"
             )
 
 
@@ -84,6 +89,13 @@ def _build_parser() -> argparse.ArgumentParser:
         metavar="ID",
         default=None,
         help="Print the full definition for marker ID and exit",
+    )
+    query_grp.add_argument(
+        "--explain",
+        metavar="RULE",
+        default=None,
+        help="Explain a rule -- by ID, old ID, or name -- with its tier, "
+             "LRM references and examples, and exit",
     )
     query_grp.add_argument(
         "--list-extensions",
@@ -167,10 +179,24 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Write the linked AST to OUT as JSON",
     )
     top.add_argument(
+        "--format",
+        choices=("text", "json", "sarif", "github"),
+        default=None,
+        dest="output_format",
+        help="Output format: text (default, to stderr), or json, sarif or "
+             "github (GitHub Actions annotations), to stdout",
+    )
+    top.add_argument(
         "--json",
         action="store_true",
         default=False,
-        help="Emit diagnostics as JSON to stdout",
+        help="Same as --format json",
+    )
+    top.add_argument(
+        "--statistics",
+        action="store_true",
+        default=False,
+        help="Print a per-code count of the diagnostics reported",
     )
     top.add_argument("-q", "--quiet", action="store_true", default=False)
     top.add_argument(
@@ -194,8 +220,32 @@ def _build_parser() -> argparse.ArgumentParser:
         dest="warning_policy",
         default=None,
         metavar="SPEC",
-        help="-Werror (all warnings are errors), -Werror=ID (only ID), "
-             "-Wno-error=ID (exempt ID from -Werror)",
+        help="-Werror (all warnings are errors), -Werror=SEL (only rules "
+             "matching SEL: an ID, rule name, tier, family:NAME, ID prefix, "
+             "or 'info'), -Wno-error=SEL (exempt SEL from -Werror)",
+    )
+    # -- lint ---------------------------------------------------------------
+    lint_grp = top.add_argument_group("lint")
+    lint_grp.add_argument(
+        "--lint-profile",
+        metavar="NAME",
+        default=None,
+        choices=("minimal", "recommended", "library", "strict", "all", "none"),
+        help="Lint profile: minimal (default), recommended, library, strict, "
+             "all, or none",
+    )
+    lint_grp.add_argument(
+        "--no-lint",
+        action="store_true",
+        default=False,
+        help="Report no lint findings (same as --lint-profile none); "
+             "LRM errors and the tool's own diagnostics are unaffected",
+    )
+    lint_grp.add_argument(
+        "--show-hints",
+        action="store_true",
+        default=False,
+        help="Print 'hint' diagnostics, which are hidden by default",
     )
     warn_grp.add_argument(
         "--no-warnings",
@@ -255,6 +305,7 @@ def main(argv: list[str] | None = None) -> int:
     from .checker_cmds import (
         cmd_describe,
         cmd_describe_checker,
+        cmd_explain,
         cmd_list_checkers,
         cmd_list_extensions,
         cmd_list_markers,
@@ -314,7 +365,7 @@ def main(argv: list[str] | None = None) -> int:
     # first: "this extension is missing" is the context that explains a
     # --list-checkers output with a checker absent from it.
     if (args.list_checkers or args.list_markers or args.list_extensions
-            or args.describe is not None
+            or args.describe is not None or args.explain is not None
             or args.describe_checker is not None):
         _report_load_issues(manager, sys.stderr)
 
@@ -329,6 +380,9 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.describe is not None:
         return cmd_describe(manager, args.describe)
+
+    if args.explain is not None:
+        return cmd_explain(manager, args.explain)
 
     if args.describe_checker is not None:
         return cmd_describe_checker(manager, args.describe_checker)
@@ -351,6 +405,14 @@ def main(argv: list[str] | None = None) -> int:
     from .commands import cmd_parse
     from .diagnostics import WarningPolicy
 
+    output_format = args.output_format
+    if args.json:
+        if output_format not in (None, "json"):
+            sys.stderr.write(
+                f"error: --json conflicts with --format {output_format}\n")
+            return 2
+        output_format = "json"
+
     # The config layer already resolved CLI-versus-file precedence for every
     # warning setting, so the policy is written from `cfg`, not from `args`.
     policy = args.warning_policy or WarningPolicy()
@@ -361,7 +423,8 @@ def main(argv: list[str] | None = None) -> int:
             files=args.files,
             syntax_only=args.syntax_only,
             dump_ast=args.dump_ast,
-            use_json=args.json,
+            output_format=output_format or "text",
+            statistics=args.statistics,
             quiet=args.quiet,
             color=args.color,
             max_errors=args.max_errors,

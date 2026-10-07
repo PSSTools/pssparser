@@ -1,0 +1,210 @@
+Lint Rule Reference
+===================
+
+Every ``LINT`` rule shipped with pssparser, generated from
+``pssparser.lint.catalog`` by ``scripts/gen_lint_rules.py`` -- do not edit
+this file by hand, it will be overwritten.  ``pssparser --explain <ID or
+name>`` prints the same entry at the command line; :doc:`lint` explains
+profiles, selection and configuration.
+
+Each rule has a **tier**, which sets its default severity and the profiles
+that enable it:
+
+.. list-table::
+   :header-rows: 1
+
+   * - Tier
+     - Default severity
+     - Profiles
+   * - ``correctness``
+     - warning
+     - ``recommended``, ``library``, ``strict``, ``all``
+   * - ``suspicious``
+     - warning
+     - ``recommended``, ``library``, ``strict``, ``all``
+   * - ``portability``
+     - warning
+     - ``recommended``, ``library``, ``strict``, ``all``
+   * - ``simplify``
+     - info
+     - ``recommended``, ``library``, ``strict``, ``all``
+   * - ``style``
+     - hint
+     - ``all``
+   * - ``pedantic``
+     - warning
+     - ``strict``, ``all``
+   * - ``restriction``
+     - warning
+     - ``all``
+   * - ``nursery``
+     - warning
+     - (none; select explicitly)
+
+Every profile except ``none`` also includes the ``minimal`` rules: the
+warnings pssparser reported before lint existed.
+
+Constraints
+-----------
+
+.. _lint101:
+
+LINT101: ``enum-item-type-mismatch``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Tier:** suspicious; **Default severity:** warning; **Since:** 2026.1; **Formerly:** ``PSS046``
+
+Enum item used where its enumeration type is not expected
+
+An enum item belongs to its enumeration type's scope, not to the scope that declares the enum (7.5 g).  Unqualified, it is found only where the expression's expected type is that enumeration type (7.5 i, 8.4.3, 18.3 a): an assignment or initializer, a call argument, a ``return``, the other side of ``==``/``!=``, the values of ``in``, a cast to the enum, and the arms of ``?:``.  pssparser still accepts an item declared in an enclosing scope, or in a package a wildcard import names, when the name means nothing else there, and warns; this becomes an error in a later release.  A declaration of the same name further out is what the name means, and no longer the item.  Messages:
+
+* ``enum item 'ORANGE' is used where no enumeration type is expected (7.5 i, 8.4.3); qualify it as 'color_e::ORANGE'``
+* ``enum item 'RED' is used where 'mode_e' is expected, but it is an item of 'color_e' (7.5 i, 8.4.3); qualify it as 'color_e::RED'``
+
+Qualify the item.  LRM Example 37: ``print_num((int)ORANGE)`` is an error, because the cast's type is ``int``.
+
+Exec blocks and functions
+-------------------------
+
+.. _lint301:
+
+LINT301: ``exported-instance-function``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Tier:** suspicious; **Default severity:** warning; **Since:** 2026.1; **Formerly:** ``PSS120``
+
+Exported function is a component instance function
+
+20.4.2 allows ``export target function f;`` to name only a static function: a package function or a component's ``static`` one.  Naming a component's INSTANCE function is an extension, meaning the function is run on the instance the environment calls it through.  pssc's operation models take their API from it.  Message: ``exported function 'f' is not static; exporting a component's instance function is an extension to 20.4.2``.
+
+A warning, not an error: the export is bound all the same, so a tool that implements the extension can use it.  A strictly conforming model declares the function ``static``.
+
+Declarations
+------------
+
+.. _lint401:
+
+LINT401: ``enum-item-hides-declaration``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Tier:** suspicious; **Default severity:** warning; **Since:** 2026.1; **Formerly:** ``PSS044``
+
+Enum item hides a declaration of the same name
+
+Where an expression's expected type is an enumeration type (8.4.3), an unqualified name is looked up among that enum's items before any scope (18.3 a).  A field, variable or parameter of the same name is then hidden, which is legal but rarely intended.  Message:
+
+* ``'A' is read as the enum item mode_e::A, which hides the field 'A' (18.3 a); qualify one of them``
+
+Write ``mode_e::A`` for the item, or rename the field.
+
+.. _lint403:
+
+LINT403: ``unknown-annotation``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Tier:** portability; **Default severity:** warning; **Since:** 2026.1; **Formerly:** ``PSS101``
+
+Unknown annotation type (annotation disregarded)
+
+An annotation names a type that is not declared.  This is a warning rather than an error: PSS 3.1 §7.13 requires that *PSS processing tools shall disregard unrecognized annotations*, so the surrounding source still compiles.
+
+Message: ``unknown annotation type '<T>'; annotation disregarded``
+
+If the annotation was meant to be recognized, check that its ``annotation`` declaration is visible -- annotation types must be declared at package scope.
+
+.. _lint404:
+
+LINT404: ``width-references-later-constant``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Tier:** portability; **Default severity:** warning; **Since:** 2026.1; **Formerly:** ``PSS119``
+
+Type width references a constant declared later
+
+The prose under LRM Example 264 extends 18.2c to type-width expressions: a constant used in ``bit[W]`` must be declared before it.  Message: ``constant 'W' is used in a type width before its declaration on line 5; declare it first (18.2)``.
+
+A warning rather than an error, because the rule is stated only in prose and existing models write it.  Move the constant's declaration above its first use.
+
+Imports and packages
+--------------------
+
+.. _lint402:
+
+LINT402: ``import-after-declaration``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Tier:** style; **Default severity:** warning; **Since:** 2026.1; **Formerly:** ``PSS053``
+
+Import after a declaration
+
+18.1.3: import specifications shall appear first in their lexical scope -- a file's global scope, a ``package`` statement, or a component declaration or extension.  Only another import or a ``compile if`` may precede one.  Message:
+
+* ``'import lib::*;' follows a declaration; imports shall come first in a package, a component, an extension or a file (18.1.3)``
+
+Not checked in a scope that holds a ``compile if``.
+
+Severity: ``warning``, although the ``style`` tier defaults to ``hint``.  This was a core warning before lint existed, and the ``minimal`` profile keeps the output it always had.
+
+Registers
+---------
+
+.. _lint501:
+
+LINT501: ``reg-width-no-access-function``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Tier:** suspicious; **Default severity:** warning; **Since:** 2026.1; **Formerly:** ``PSS016``
+
+Register width has no primitive access function
+
+LRM 21.14.5a translates register reads and writes into the primitive ``read8/16/32/64`` and ``write8/16/32/64`` functions (21.13.9), chosen by the register's size. A register ``SZ`` bits wide, where ``SZ`` is not 8, 16, 32 or 64, has no such function, so its access cannot be translated as the spec describes. Not a "shall" in the spec, so a warning. A packed struct of any size is legal on its own -- a 96-bit DMA descriptor, say; this is only about using one as a register value type. Message: ``reg_c width SZ = 96 has no primitive access function; use 8, 16, 32 or 64 bits``. For a register whose value type is narrower than a primitive, give ``SZ`` explicitly (``reg_c<my12_s, READWRITE, 16>``).
+
+Deprecated forms
+----------------
+
+.. _lint601:
+
+LINT601: ``deprecated-braceless-compile-if``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Tier:** portability; **Default severity:** warning; **Since:** 2026.1; **Formerly:** ``PSS104``
+
+Deprecated brace-less 'compile if' branch
+
+A ``compile if`` branch consists of a single item that is not surrounded by braces.  This form remains supported, but is deprecated: prefer the braced form, which is unambiguous when the branch later grows to more than one item.
+
+Message: ``'compile if' branch without enclosing braces is deprecated``
+
+Before::
+
+    compile if (X) component C { }
+
+After::
+
+    compile if (X) { component C { } }
+
+The diagnostic underlines the whole unbraced branch and carries a related location pointing at the ``compile if`` keyword that owns it, which disambiguates the two warnings raised for an ``if``/``else`` pair.  Both branches are reported regardless of which one the condition selects: the spelling is deprecated either way, and warning only on the taken branch would make the diagnostic appear and disappear as unrelated configuration changed.
+
+.. _lint602:
+
+LINT602: ``deprecated-dynamic-constraint-traversal``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Tier:** portability; **Default severity:** warning; **Since:** 2026.1; **Formerly:** ``PSS117``
+
+Traversal of a deprecated dynamic constraint
+
+An activity traverses a ``dynamic`` constraint.  This still works, but LRM 13.1.1 deprecates dynamic constraints: "their functionality is replaced by a generic constraint with no parameters".
+
+Message: ``traversal of dynamic constraint 'dc' is deprecated (13.1.1); declare it as a generic constraint, 'constraint dc() { ... }'``
+
+Before::
+
+    dynamic constraint dc { x > 0; }
+
+After::
+
+    constraint dc() { x > 0; }
+
+Reported where the constraint is traversed.  Traversing a *fixed* named constraint is an error (PSS018).
+

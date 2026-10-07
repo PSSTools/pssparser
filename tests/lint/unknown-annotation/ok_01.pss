@@ -1,0 +1,8 @@
+// expect: none
+package p {
+  annotation desc_s { }
+}
+component pss_top {
+  @p::desc_s
+  action a { }
+}

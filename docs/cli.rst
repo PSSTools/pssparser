@@ -17,7 +17,11 @@ Common options
 ==============
 
 - ``--syntax-only`` parses without performing linking / symbol resolution
-- ``--json`` emits diagnostics as JSON
+- ``--format {text,json,sarif,github}`` chooses the output format (see
+  `Output formats`_); ``--json`` is the same as ``--format json``
+- ``--lint-profile NAME`` / ``--no-lint`` choose which lint rules report
+  (see :doc:`lint`); ``--show-hints`` prints ``hint`` diagnostics
+- ``--statistics`` prints a per-code count of the diagnostics reported
 - ``--dump-ast OUT`` writes a JSON dump of the linked AST
 - ``--quiet`` suppresses normal diagnostic output
 - ``-Werror`` / ``-Werror=ID`` / ``-Wno-error=ID`` / ``--no-warnings`` control
@@ -138,11 +142,23 @@ These flags do **not** require source files.
 ``--describe ID``
     Print the full definition (summary, severity, detail, owning checker) for
     the marker with the given ID, then exit with code 0.  Exits with code 2
-    and an error message if the ID is not found.
+    and an error message if the ID is not found.  A rule name works too, and
+    an old ID that has moved (``PSS053``) prints its retired entry, which
+    names the new one.
 
     .. code-block:: bash
 
        pssparser --describe PSS020
+
+``--explain RULE``
+    Explain one rule -- by ID, old ID, or name -- for the person deciding
+    what to do about a finding: tier, family, default severity, LRM
+    references, the rule's detail, its examples, its options, whether it can
+    fix the code, and a link to :doc:`lint-rules`.
+
+    .. code-block:: bash
+
+       pssparser --explain import-after-declaration
 
 ``--list-extensions``
     Print the installed checker extensions — name, version, distribution,
@@ -261,11 +277,11 @@ Checkers reach pssparser three ways, in decreasing order of permanence:
 3. **``--load-checker``.**  A one-off for development, requiring no
    installation.
 
-An extension that fails to load is reported as a diagnostic (``PSS030``) and
+An extension that fails to load is reported as a diagnostic (``PSSP001``) and
 the run continues with the rest of the registry — so a clean result is not
-by itself evidence that every rule ran.  ``-Werror=PSS030`` makes a failed
+by itself evidence that every rule ran.  ``-Werror=PSSP001`` makes a failed
 extension fatal, which is usually what a CI job wants.  See
-:doc:`checker_plugin_guide` for the full contract and for ``PSS031``–
+:doc:`checker_plugin_guide` for the full contract and for ``PSSP002``–
 ``PSS033``.
 
 
@@ -414,7 +430,11 @@ A configuration naming something that does not exist is fail-fast, matching
 
 * ``select`` naming an uninstalled checker
 * ``[checker.<name>]`` for an uninstalled checker
-* ``[severity]`` naming an unknown marker ID
+* ``[severity]``, ``[warnings]`` or ``-W`` naming an unknown marker ID or
+  selector
+* ``[lint] select``/``ignore`` naming an unknown selector, or
+  ``[lint.rule.<name>]`` for an unknown rule or with an option it does not
+  declare
 * ``[extensions.<name>] enabled = true`` for an uninstalled extension
 
 The cost is real — a configuration listing a locally-installed extension
@@ -427,6 +447,121 @@ for nothing that is not already true, so one configuration file can serve a
 development machine that has an optional extension and a CI image that does
 not.
 
+
+Severity levels
+===============
+
+A diagnostic has one of four severities.  Severity says how loud a finding
+is and what it does to the run; what *kind* of finding it is (an LRM error,
+a lint rule, a tool problem) is its ID's namespace -- see :doc:`markers`.
+
+.. list-table::
+   :header-rows: 1
+
+   * - Severity
+     - Meaning
+     - Shown
+     - Summary line
+     - Exit code
+     - ``-Werror``
+   * - ``error``
+     - The model is invalid, or a finding was promoted
+     - yes
+     - ``N errors``
+     - 1
+     - --
+   * - ``warning``
+     - Probably wrong; fix or waive it
+     - yes
+     - ``N warnings``
+     - 0
+     - promoted
+   * - ``info``
+     - Worth knowing, no action required
+     - yes
+     - ``N notes``
+     - 0
+     - only with ``-Werror=info`` or ``-Werror=ID``
+   * - ``hint``
+     - An editor nudge
+     - only with ``--show-hints``
+     - ``(N hints hidden)``
+     - 0
+     - never
+
+``off`` is not a severity a diagnostic carries: set in ``[severity]``, it
+means the rule does not run at all (a checker whose every rule is ``off`` is
+never called), not that its output is hidden.
+
+Machine-readable formats always carry ``hint`` diagnostics, and the JSON
+``summary`` counts ``notes`` and ``hints`` separately.
+
+Selecting rules
+===============
+
+Everywhere an ID is accepted -- ``[severity]`` keys, ``-Werror=``,
+``-Wno-error=``, ``[lint] select`` and ``ignore`` -- a **selector** is
+accepted too:
+
+.. list-table::
+   :header-rows: 1
+
+   * - Form
+     - Example
+     - Matches
+   * - ID
+     - ``LINT402``
+     - one rule
+   * - old ID
+     - ``PSS053``
+     - the rule it moved to (with a ``PSSP004`` note)
+   * - name
+     - ``import-after-declaration``
+     - one rule
+   * - prefix
+     - ``LINT4``
+     - an ID band
+   * - namespace
+     - ``PRC``
+     - every code an extension declares
+   * - family
+     - ``family:constraint``
+     - every rule in the family
+   * - tier
+     - ``suspicious``
+     - every rule in the tier
+   * - profile
+     - ``recommended``
+     - every rule the profile enables
+
+When several selectors match one rule, the most specific wins: ID or name,
+then prefix (longer is more specific), namespace, family, tier, profile.  A
+tie between ``select`` and ``ignore`` goes to ``ignore``.  A broad selector
+never reaches a core error: ``[severity] PSS = "warning"`` leaves every LRM
+error an error.
+
+Selectors are resolved once, at startup; an unknown one stops the run with a
+did-you-mean.
+
+Lint and output settings
+------------------------
+
+.. code-block:: toml
+
+   [lint]
+   profile = "recommended"        # minimal (default) | recommended | library | strict | all | none
+   select  = ["pedantic"]         # added on top of the profile
+   ignore  = ["LINT402"]          # removed from it
+   rules-version = "2026.1"       # rules newer than this stay out of profiles
+
+   [lint.rule.some-rule]          # options for one rule, if it declares any
+   threshold = 3
+
+   [output]
+   show-hints = true              # like --show-hints
+
+``--lint-profile`` and ``--no-lint`` override ``lint.profile``.  :doc:`lint`
+describes the profiles, pinning, and which files are linted.
 
 Warning policy
 ==============
@@ -443,18 +578,26 @@ flag families change that.
 
        pssparser -Werror model.pss
 
-``-Werror=ID``
-    Promote only the named marker.  The suffix echoes the ID back:
-    ``[-Werror=PSS104]``.  May be repeated.
+``-Werror=SELECTOR``
+    Promote only the matching markers -- an ID, a rule name, or any group
+    selector (see `Selecting rules`_), e.g. ``-Werror=correctness`` or
+    ``-Werror=family:constraint``.  The suffix echoes the selector as
+    typed: ``[-Werror=LINT601]``, ``[-Werror=correctness]``.  May be
+    repeated.
 
-``-Wno-error=ID``
-    Exempt the named marker from a blanket ``-Werror``.  A code-specific
+``-Werror=info``
+    Also promote ``info`` diagnostics.  A bare ``-Werror`` never does;
+    naming an ``info`` rule with ``-Werror=ID`` does, since that is an
+    explicit opt-in.  ``hint`` is never promoted.
+
+``-Wno-error=SELECTOR``
+    Exempt the matching markers from ``-Werror``.  A code-specific
     exemption always wins over the blanket promotion — that is the only way
     to spell an exception.
 
     .. code-block:: bash
 
-       pssparser -Werror -Wno-error=PSS104 model.pss
+       pssparser -Werror -Wno-error=LINT601 model.pss
 
 ``--no-warnings``
     Drop warnings entirely.  Applied *before* promotion, so
@@ -475,6 +618,35 @@ Two consequences worth stating outright:
   by the C++ marker collector while parsing, long before promotion happens,
   so ``-Werror --max-errors 3`` can legitimately print more than three
   errors.  The cap exists to stop parser cascades, not to bound the report.
+
+Output formats
+==============
+
+``--format text``
+    The default: Rust/Clang-style diagnostics with source context, to
+    stderr.
+
+``--format json`` (or ``--json``)
+    One JSON document on stdout; the schema is :doc:`diagnostics-json`.
+
+``--format sarif``
+    A SARIF 2.1.0 log on stdout, for code-scanning tools.  ``tool.driver.rules``
+    lists every rule enabled for the run plus every ID that appears in a
+    result; lint rules carry a ``helpUri`` into :doc:`lint-rules`.  Severity
+    maps to ``level`` as ``error``/``warning``/``note`` (``info``)/``none``
+    (``hint``).  A diagnostic about the tool itself (an extension that failed
+    to load) has no ``locations``.
+
+``--format github``
+    GitHub Actions workflow commands on stdout -- one ``::error``,
+    ``::warning`` or ``::notice`` line per diagnostic, which GitHub shows as
+    pull-request annotations.  ``hint`` diagnostics are not emitted.
+
+Paths in SARIF and GitHub output are relative to the working directory when
+the file lies below it.  The exit code is the same in every format.
+
+``--statistics`` adds a per-code table -- count, rule name, tier -- after the
+diagnostics in text output, and a ``statistics`` array in JSON.
 
 Run statistics
 ==============

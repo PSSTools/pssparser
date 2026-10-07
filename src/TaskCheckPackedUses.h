@@ -35,7 +35,7 @@ namespace pssp {
  * - ``sizeof_s<T>``: T must be packable (21.13.2.1, PSS015).
  * - ``reg_c<R, ACC, SZ>``: R must have a size, and SZ must be at least that
  *   size (21.14.1, PSS014). An SZ with no primitive access function -- not 8,
- *   16, 32 or 64 -- is a warning (21.14.5, PSS016).
+ *   16, 32 or 64 -- is a warning (21.14.5, LINT501).
  *
  * The specialization itself cannot report these: it is made once per
  * distinct argument list, has no use-site location, and lives in the core

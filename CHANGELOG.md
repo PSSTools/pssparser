@@ -7,6 +7,61 @@ revision advances only the patch component.
 
 ## Unreleased
 
+### Changed (breaking) — warning IDs move to `LINT` and `PSSP`; lint profiles
+
+A `PSS` ID now always means an LRM violation, and every active `PSS` marker is
+an error. Warnings about legal code are **lint** (`LINT`), and diagnostics
+about pssparser itself are `PSSP`:
+
+| Old | New | Name |
+|---|---|---|
+| PSS046 | LINT101 | `enum-item-type-mismatch` |
+| PSS120 | LINT301 | `exported-instance-function` |
+| PSS044 | LINT401 | `enum-item-hides-declaration` |
+| PSS053 | LINT402 | `import-after-declaration` |
+| PSS101 | LINT403 | `unknown-annotation` |
+| PSS119 | LINT404 | `width-references-later-constant` |
+| PSS016 | LINT501 | `reg-width-no-access-function` |
+| PSS104 | LINT601 | `deprecated-braceless-compile-if` |
+| PSS117 | LINT602 | `deprecated-dynamic-constraint-traversal` |
+| PSS030 | PSSP001 | `extension-load-failed` |
+| PSS031 | PSSP002 | `entry-point-name-mismatch` |
+| PSS032 | PSSP003 | `extension-api-too-new` |
+| PSS116 | PSSP101 | `construct-not-represented` |
+
+Messages and locations are unchanged. **The old IDs are still accepted
+wherever an ID is typed** -- `[severity]`, `[warnings]`, `-Werror=`,
+`--describe`, `--explain` -- with one `PSSP004` note naming where to update
+it; output (text, JSON `code`, `Parser.markers`) shows only the new IDs. The
+old IDs are retired and will never be reused. Anything that matched an old ID
+in pssparser's *output* needs updating.
+
+With this come lint profiles and rule selection (`docs/lint.rst`):
+
+- `--lint-profile minimal|recommended|library|strict|all|none` and
+  `--no-lint`; `[lint] profile/select/ignore/rules-version` and
+  `[lint.rule.<name>]` in the configuration. The default, `minimal`, is
+  exactly the nine warnings above, so default output is unchanged.
+- Selectors -- a rule name, tier, `family:<name>`, ID prefix or namespace --
+  wherever an ID is accepted: `[severity] suspicious = "error"`,
+  `-Werror=correctness`.
+- Lint findings are reported only in files named on the command line.
+- `info` diagnostics are counted as *notes* in the summary line; `hint`
+  diagnostics are hidden unless `--show-hints`. `-Werror=info` promotes
+  `info`; a bare `-Werror` does not.
+- A checker whose every rule is `off` is no longer run.
+- `--format text|json|sarif|github` (SARIF 2.1.0 and GitHub Actions
+  annotations; `--json` stays), `--statistics`, and `--explain RULE`.
+- The JSON document gains `"schema": "pssparser-diagnostics/2"`, `notes`
+  and `hints` counts, and per-diagnostic `rule`/`tier`/`family`; every
+  existing key is unchanged (`docs/diagnostics-json.rst`).
+- Checker extensions: IDs in the reserved `PSS`/`LINT`/`PSSP`/`PSSX`
+  namespaces are refused (`PSSP005`), IDs outside the `[A-Z]{2,5}[0-9]{3}`
+  grammar warn (`PSSP006`), and `MarkerDef` gains lint metadata (`name`,
+  `tier`, `family`, `since`, `examples`, ...) validated at load
+  (`PSSP201`). `CheckContext.is_enabled()` lets a checker skip a disabled
+  rule. `pssparser.checkers.testing` is a fixture harness for rule tests.
+
 ### Fixed (behaviour change) — a procedural declaration needs its `;` (pssc Q1)
 
 `int x = 1` followed by `int y = 2;` in a function or `exec` body was

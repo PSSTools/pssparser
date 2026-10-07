@@ -119,10 +119,10 @@ def test_no_extensions_suppresses_a_load_failure(eps):
         FakeEP("broken", None, raises=ImportError("nope"))
     ]
     _, _, err = _run(["--list-checkers"])
-    assert "PSS030" in err
+    assert "PSSP001" in err
 
     _, _, err = _run(["--no-extensions", "--list-checkers"])
-    assert "PSS030" not in err
+    assert "PSSP001" not in err
 
 
 def test_no_extensions_env_var_is_honoured(eps, monkeypatch):
@@ -142,17 +142,17 @@ def test_query_path_reports_load_failure_on_stderr(eps):
     ]
     code, out, err = _run(["--list-checkers"])
     assert code == 0                      # the query still answers
-    assert "PSS030" in err
+    assert "PSSP001" in err
     assert "broken-dist" in err
     # The report goes to stderr only; stdout carries the query's answer.
-    # (PSS030 itself appears in stdout as one of core's marker IDs, which is
+    # (PSSP001 itself appears in stdout as one of core's marker IDs, which is
     # why this asserts on the failure text rather than on the bare code.)
     assert "broken-dist" not in out
     assert "failed to import" not in out
 
 
 def test_describe_documents_the_new_band(eps):
-    for code_id in ("PSS030", "PSS031", "PSS032", "PSS033"):
+    for code_id in ("PSSP001", "PSSP002", "PSSP003", "PSS033"):
         rc, out, _ = _run(["--describe", code_id])
         assert rc == 0
         assert code_id in out
@@ -160,7 +160,7 @@ def test_describe_documents_the_new_band(eps):
 
 def test_list_markers_includes_the_new_band(eps):
     _, out, _ = _run(["--list-markers"])
-    for code_id in ("PSS030", "PSS031", "PSS032", "PSS033"):
+    for code_id in ("PSSP001", "PSSP002", "PSSP003", "PSS033"):
         assert code_id in out
 
 
@@ -173,7 +173,7 @@ def test_load_failure_is_a_diagnostic_on_the_parse_path(eps, valid_pss):
     code, _, err = _run([valid_pss])
     # A warning does not fail the run.
     assert code == 0
-    assert "PSS030" in err
+    assert "PSSP001" in err
     # Rendered as a tool-level diagnostic: no file:line:col prefix.
     assert "pssparser: warning:" in err
     assert "<pssparser>:0:0" not in err
@@ -189,7 +189,7 @@ def test_load_failure_appears_in_json(eps, valid_pss):
     eps[EXTENSION_GROUP] = [FakeEP("broken", None, raises=ImportError("nope"))]
     code, out, _ = _run(["--json", valid_pss])
     doc = json.loads(out)
-    entry = next(d for d in doc["diagnostics"] if d.get("code") == "PSS030")
+    entry = next(d for d in doc["diagnostics"] if d.get("code") == "PSSP001")
     assert entry["severity"] == "warning"
     assert doc["summary"]["warnings"] == 1
     assert doc["summary"]["files"] == 1
@@ -204,7 +204,7 @@ def test_werror_promotes_a_load_failure(eps, valid_pss):
 
 def test_werror_code_promotes_a_load_failure(eps, valid_pss):
     eps[EXTENSION_GROUP] = [FakeEP("broken", None, raises=ImportError("nope"))]
-    code, _, _ = _run(["-Werror=PSS030", valid_pss])
+    code, _, _ = _run(["-Werror=PSSP001", valid_pss])
     assert code == 1
 
 
@@ -226,7 +226,7 @@ def test_a_load_failure_still_reports_on_a_failed_parse(eps, tmp_path):
     eps[EXTENSION_GROUP] = [FakeEP("broken", None, raises=ImportError("nope"))]
     code, _, err = _run([str(bad)])
     assert code == 1
-    assert "PSS030" in err
+    assert "PSSP001" in err
 
 
 # ---------------------------------------------------------------------------

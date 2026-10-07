@@ -1,4 +1,4 @@
-"""PSS116: constructs the grammar accepts but the AST does not represent.
+"""PSSP101: constructs the grammar accepts but the AST does not represent.
 
 This file is the ledger for docs/ast-coverage-plan.md. Every construct the
 builder discards -- or represents only partially -- must say so, so that
@@ -26,14 +26,14 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from test_helpers import find_markers, parse_collect  # noqa: E402
 
 
-# (id, source, expected substring of the PSS116 message)
+# (id, source, expected substring of the PSSP101 message)
 #
 # The substring is the construct name as the builder spells it, plus enough of
 # the detail to distinguish partials that share a construct name.
 UNREPRESENTED = [
     # Empty since symbol-resolution 8.8 kept every `randomize` target: no
     # construct the builder knows of is partially represented. A new partial
-    # goes here with its PSS116 message.
+    # goes here with its PSSP101 message.
 ]
 
 _IDS = [c[0] for c in UNREPRESENTED]
@@ -49,17 +49,17 @@ def test_unrepresented_construct_is_reported(name, src, expected):
         "expected a clean parse, got errors:\n%s" % "\n".join(
             m["message"] for m in errors)
 
-    pss116 = find_markers(markers, marker_id="PSS116")
-    assert pss116, "no PSS116 emitted; the gap is silent again"
+    pss116 = find_markers(markers, marker_id="PSSP101")
+    assert pss116, "no PSSP101 emitted; the gap is silent again"
 
     matching = [m for m in pss116 if expected in m["message"]]
     assert matching, \
-        "no PSS116 mentioning %r; got:\n%s" % (
+        "no PSSP101 mentioning %r; got:\n%s" % (
             expected, "\n".join(m["message"] for m in pss116))
 
 
 # Constructs that *were* on the ledger above and have since been implemented.
-# Each must now parse with no PSS116 at all -- the other half of the "no silent
+# Each must now parse with no PSSP101 at all -- the other half of the "no silent
 # partials" rule: a construct never returns to silence, and once it is
 # represented it must stop claiming to be a gap.
 CLOSED_CASES = [
@@ -181,13 +181,13 @@ CLOSED_CASES = [
     "case_id,source", CLOSED_CASES, ids=[c[0] for c in CLOSED_CASES])
 def test_closed_construct_is_clean(case_id, source):
     _, markers = parse_collect(source)
-    assert not find_markers(markers, marker_id="PSS116"), \
+    assert not find_markers(markers, marker_id="PSSP101"), \
         "%s is implemented but still reports a gap:\n%s" % (
             case_id, "\n".join(m["message"] for m in markers))
 
 
 def test_a_fully_represented_construct_is_clean():
-    """PSS116 must not fire on source the builder does represent."""
+    """PSSP101 must not fire on source the builder does represent."""
     src = """
         component c {
             action A { int x; }
@@ -200,8 +200,8 @@ def test_a_fully_represented_construct_is_clean():
         }
     """
     _, markers = parse_collect(src)
-    assert not find_markers(markers, marker_id="PSS116"), \
-        "PSS116 on a represented construct:\n" + "\n".join(
+    assert not find_markers(markers, marker_id="PSSP101"), \
+        "PSSP101 on a represented construct:\n" + "\n".join(
             m["message"] for m in markers)
 
 
@@ -209,10 +209,10 @@ def test_the_standard_library_does_not_report_gaps():
     """
     The stdlib itself uses unrepresented constructs (`default` constraints in
     addr_reg_pkg). Those are real gaps, but they are not the user's source and
-    the user cannot act on them, so the loader suppresses PSS116 -- otherwise
+    the user cannot act on them, so the loader suppresses PSSP101 -- otherwise
     every parse of every file would carry the same warnings.
     """
     _, markers = parse_collect("component c { action A { int x; } }")
-    assert not find_markers(markers, marker_id="PSS116"), \
-        "stdlib PSS116 leaked into a user parse:\n" + "\n".join(
+    assert not find_markers(markers, marker_id="PSSP101"), \
+        "stdlib PSSP101 leaked into a user parse:\n" + "\n".join(
             m["message"] for m in markers)

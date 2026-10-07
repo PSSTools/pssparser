@@ -132,7 +132,7 @@ python -m pytest tests
 ```
 
 Entry-point details, `REQUIRES_API`, the legacy `pssparser.checkers` group,
-and the load diagnostics (`PSS030`-`PSS033`) are in `references/packaging.md`.
+and the load diagnostics (`PSSP001`-`PSS033`) are in `references/packaging.md`.
 
 ## 5. Test it
 

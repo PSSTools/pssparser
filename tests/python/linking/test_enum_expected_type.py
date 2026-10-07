@@ -11,12 +11,12 @@ Decision Q2 reads `==`/`!=` both ways for an unqualified item, as Ex. 272's
 prose does: `A == op.mode` is legal. Where both sides are bare names and each
 would be read as an item of the other's type, the comparison is ambiguous
 (PSS045). Where the item hides a field or variable the name also has, that is
-a warning (PSS044).
+a warning (LINT401).
 
 An enum item is not in the scope that declares its enum (7.5 g), so with no
 expected type it has no binding by 18.3. The lookup still falls back to the
 item of an enum declared in a scope on the way out, when the name means nothing
-else, and warns (PSS046; plan 8.2, warn-first). A declaration further out is
+else, and warns (LINT101; plan 8.2, warn-first). A declaration further out is
 what the name means.
 """
 import pytest
@@ -351,7 +351,7 @@ component pss_top {
 
 
 # ---------------------------------------------------------------------------
-# An item with no expected type (8.2): the lexical fallback, and PSS046
+# An item with no expected type (8.2): the lexical fallback, and LINT101
 # ---------------------------------------------------------------------------
 
 
@@ -520,7 +520,7 @@ def _link(files):
 ])
 def test_a_formal_whose_type_is_bound_in_a_later_file(formal, expect):
     """psstools example/2: the call is resolved before the file declaring the
-    callee, so the formal's type is not bound yet; PSS046 waits for it."""
+    callee, so the formal's type is not bound yet; LINT101 waits for it."""
     ms = _link([
         ("a.pss", """
 component pss_top {

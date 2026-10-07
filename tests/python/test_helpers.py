@@ -431,7 +431,7 @@ def assert_parse_ok_with_warning(code: str, marker_id: Optional[str] = None,
 
     Args:
         code: PSS source code
-        marker_id: Expected warning code (e.g. "PSS101")
+        marker_id: Expected warning code (e.g. "LINT403")
         text: Substring expected in the warning message
 
     Returns:

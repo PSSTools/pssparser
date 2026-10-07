@@ -147,7 +147,7 @@ class TestCliIntegration:
                           stats_timing=False)
         assert rc == 0
         doc = json.loads(out)
-        assert set(doc) == {"diagnostics", "summary", "stats"}
+        assert set(doc) == {"schema", "diagnostics", "summary", "stats"}
         assert doc["stats"]["decls"]["actions"] == 1
 
     def test_json_has_no_stats_key_unless_asked(self, model):

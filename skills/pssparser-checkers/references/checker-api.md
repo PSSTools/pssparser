@@ -144,5 +144,5 @@ A checker cannot set default severities for other checkers' IDs, or for core
 | `description` | out | One line, shown by `--list-extensions`. |
 | `requires_api` | out | Minimum API version needed. Prefer the module-level `REQUIRES_API`. |
 
-`add_checker` raises (reported as `PSS030`) for a non-`CheckerBase` class, an
+`add_checker` raises (reported as `PSSP001`) for a non-`CheckerBase` class, an
 empty `name`, or the same class added twice. Packaging: `packaging.md`.

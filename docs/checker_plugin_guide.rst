@@ -176,22 +176,110 @@ list:
        detail="Longer explanation shown by --describe PSC001",
    )
 
-**ID naming convention**: use a three-letter prefix (e.g. ``PSC`` for your
-checker package) followed by a zero-padded three-digit number (``PSC001``).
-The ``PSS`` prefix is reserved for the built-in ``CoreChecker``.  Choose a
-unique prefix and register it in your project's documentation to avoid future
-collisions.
+**ID grammar**: a *namespace* of two to five capital letters, then a
+three-digit number -- ``PSC001``, ``PRC042``.  Digits never appear in the
+namespace, so an ID splits unambiguously, and a user can select every rule
+of yours with the namespace alone (``-Werror=PSC``).  An ID that does not
+fit still loads, with a ``PSSP006`` warning; it will be refused in a later
+release.
+
+**Reserved namespaces**: ``PSS`` (LRM violations), ``LINT`` (pssparser's
+lint rules), ``PSSP`` (the tool's own diagnostics) and ``PSSX`` belong to
+pssparser.  A checker that declares an ID in one of them is not registered,
+with a ``PSSP005`` error.  Choose a namespace of your own and keep it.
 
 The :class:`~pssparser.checkers.CheckerManager` enforces globally unique IDs
 across all registered checkers at discovery time.
+
+Rule metadata
+-------------
+
+A checker whose markers are *lint* -- legal PSS that is probably a mistake --
+should describe each rule fully, so that profiles, ``--explain``, the SARIF
+output and selectors work for it the way they do for pssparser's own rules.
+Every field is optional, and a ``MarkerDef`` that sets none of them loads
+exactly as before.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 18 82
+
+   * - Field
+     - Meaning
+   * - ``name``
+     - Kebab-case rule name, unique across everything installed.  Accepted
+       wherever an ID is.
+   * - ``tier``
+     - ``correctness``, ``suspicious``, ``portability``, ``simplify``,
+       ``style``, ``pedantic``, ``restriction`` or ``nursery``.  Sets the
+       default severity and the profiles that enable the rule.
+   * - ``family``
+     - ``constraint``, ``activity``, ``exec``, ``decl``, ``import``,
+       ``register``, ``evolution``, ``naming`` or ``metric``.
+   * - ``level``
+     - Analysis level ``L0``-``L5``: how much of the model the rule needs.
+   * - ``since``
+     - The rules version the rule was added in, ``"YYYY.N"``.  Drives
+       ``rules-version`` pinning.  Required for ``nursery`` rules.
+   * - ``default_enabled``
+     - ``False`` keeps the rule out of its tier's profiles until selected.
+   * - ``fix``
+     - ``"none"``, ``"safe"`` or ``"unsafe"``.  Anything but ``none`` needs
+       an example with its ``fixed`` form.
+   * - ``lrm``
+     - LRM clause references, e.g. ``("11.4.6",)``.
+   * - ``examples``
+     - :class:`~pssparser.checkers.markerdef.Example` records: ``code``, the
+       ``expect`` positions (empty for a "good" example), ``fixed``, ``note``.
+   * - ``options_schema``
+     - The rule's options, configured under ``[lint.rule.<name>]``.
+   * - ``status``, ``replaced_by``, ``aliases``
+     - Lifecycle: ``active``, ``deprecated``, ``retired`` or ``reserved``;
+       the successor of a retired code; old codes that now mean this one.
+
+Leave ``severity=""`` to take the tier's default:
+
+.. list-table::
+   :header-rows: 1
+
+   * - Tier
+     - Default severity
+   * - ``correctness``, ``suspicious``, ``portability``, ``pedantic``,
+       ``restriction``, ``nursery``
+     - ``warning``
+   * - ``simplify``
+     - ``info``
+   * - ``style``
+     - ``hint``
+
+A severity that differs from the tier's default must say why, in a
+paragraph of ``detail`` beginning ``Severity:``.  Metadata that breaks one
+of these rules -- an unknown tier, a duplicate name, a fix with no example --
+refuses the checker with a ``PSSP201`` warning naming the field.
+
+Skipping disabled rules
+-----------------------
+
+A user can turn a rule off (``[severity] ID = "off"``, or by leaving it out
+of their lint profile).  A checker whose every ID is off is not called at
+all.  A checker with several rules can skip the work for one that is off:
+
+.. code-block:: python
+
+   def check(self, context):
+       if context.is_enabled("PSC002"):
+           self._check_structs(context)
+
+Asking is optional: ``add_marker`` drops a disabled code anyway, so a
+checker that never asks is still correct, only slower.
 
 .. _core-marker-catalogue:
 
 Built-in Marker Catalogue
 =========================
 
-The ``PSS`` prefix is reserved for the built-in ``CoreChecker``.  Because core
-diagnostics originate in C++ — where the marker object carries no ID — the ID
+The ``PSS``, ``LINT`` and ``PSSP`` namespaces belong to the built-in
+``CoreChecker``.  Because most core diagnostics originate in C++ — where the marker object carries no ID — the ID
 is recovered by matching the message text against the ``patterns`` declared on
 each :class:`~pssparser.checkers.MarkerDef`.  ID, severity, documentation, and
 patterns are therefore all declared together in
@@ -215,6 +303,18 @@ Core IDs are allocated in bands:
 
 ``PSS100``–``PSS199``
     PSS 3.1 language-rule diagnostics.
+
+``LINT``
+    Lint the core linker raises: legal PSS that is probably a mistake.  Nine
+    of these were ``PSS`` warnings before lint existed; their old IDs are
+    retired rows that point at the new ones.  See :doc:`lint`.
+
+``PSSP``
+    The tool's own diagnostics: ``PSSP0xx`` extensions, configuration and
+    marker IDs; ``PSSP1xx`` parser coverage; ``PSSP2xx`` lint
+    infrastructure.
+
+A ``PSS`` ID is always an error.
 
 The table below is a representative sample, not the full catalogue --
 :doc:`markers` is generated straight from ``marker_defs`` and cannot drift.
@@ -262,15 +362,9 @@ The table below is a representative sample, not the full catalogue --
    * - ``PSS100``
      - error
      - Annotation is not attached to a model element
-   * - ``PSS101``
-     - warning
-     - Unknown annotation type (annotation disregarded)
    * - ``PSS102``
      - error
      - Annotation initializer is not a constant expression
-   * - ``PSS104``
-     - warning
-     - Deprecated brace-less ``compile if`` branch
    * - ``PSS105``
      - error
      - Illegal ``mutable`` qualifier
@@ -312,10 +406,10 @@ The table below is a representative sample, not the full catalogue --
 hint about the ``{{`` collision, because the overwhelmingly common cause is
 target code that meant two literal braces -- see :doc:`pss31_migration`.
 
-Two of these are warnings by deliberate design rather than by leniency.
-``PSS101`` must not be an error because PSS 3.1 §7.13 requires that
+Two related warnings are lint rather than errors by deliberate design.
+``LINT403`` must not be an error because PSS 3.1 §7.13 requires that
 unrecognized annotations be *disregarded*, so source using a tool-specific
-annotation stays portable.  ``PSS104`` marks a form that remains legal and is
+annotation stays portable.  ``LINT601`` marks a form that remains legal and is
 never scheduled for removal.
 
 Run ``pssparser --list-markers`` for the live catalogue and
@@ -348,7 +442,7 @@ package's ``setup.cfg`` or ``pyproject.toml``:
 The left-hand side (e.g. ``naming-convention``) **must match the class's own**
 ``name`` **attribute**.  The class is authoritative: if the two disagree, the
 checker is registered under the name the class declares, the entry-point key
-is ignored, and a ``PSS031`` warning says so.  While they disagree, a command
+is ignored, and a ``PSSP002`` warning says so.  While they disagree, a command
 line written against the key silently selects nothing.
 
 After installation (``pip install .``), your checker is auto-discovered every
@@ -443,7 +537,7 @@ Adding a field or an optional hook does not bump it.
 
 Declare ``REQUIRES_API`` at module level to refuse an incompatible build
 outright.  pssparser checks it *before* importing your rule modules and
-reports ``PSS032`` naming both versions -- one clear message instead of an
+reports ``PSSP003`` naming both versions -- one clear message instead of an
 ``AttributeError`` from inside a checker halfway through a user's run.
 
 To support several pssparser releases from one package, probe instead:
@@ -469,34 +563,42 @@ loading:
    * - Code
      - Severity
      - Cause
-   * - ``PSS030``
+   * - ``PSSP001``
      - warning
      - Import failed, ``register()`` raised, or neither ``register`` nor
        ``CHECKERS`` is exposed.
-   * - ``PSS031``
+   * - ``PSSP002``
      - warning
      - Entry-point key disagrees with the class's ``name``.
-   * - ``PSS032``
+   * - ``PSSP003``
      - warning
      - ``requires_api`` exceeds this build's ``API_VERSION``.
    * - ``PSS033``
      - error
      - Two checkers declare the same ``MarkerDef`` ID.
+   * - ``PSSP005``
+     - error
+     - A checker declares an ID in a reserved namespace.
+   * - ``PSSP006``
+     - warning
+     - A checker declares an ID outside the ID grammar.
+   * - ``PSSP201``
+     - warning
+     - A checker's rule metadata is invalid.
 
 These are ordinary diagnostics: they appear in ``--json``, they are counted,
-and ``-Werror`` promotes the warnings among them.  ``-Werror=PSS030`` is the
+and ``-Werror`` promotes the warnings among them.  ``-Werror=PSSP001`` is the
 usual way to make a failed extension fatal in CI.
 
 ``PSS033`` is an error rather than a warning because two rules wearing one ID
 make ``--describe``, ``-Werror=ID``, and every per-ID override ambiguous.  The
 checker that lost the collision is not registered; the rest of its extension
-still loads.  Pick an unused prefix -- three letters plus three digits is the
-convention, and ``PSS`` is reserved for the built-in core checker.
+still loads.  Pick an unused namespace -- see *ID grammar* above.
 
 Two practices worth copying from the example:
 
 1. **Import rule modules inside** ``register()``, not at module scope, so a
-   failure in one rule is reported as ``PSS030`` against your extension rather
+   failure in one rule is reported as ``PSSP001`` against your extension rather
    than breaking the import of the package that declares the entry point.
 2. **Keep marker IDs stable.**  Users pin them in ``-Werror=ID`` and in
    suppression config; renaming one is a breaking change for them.
@@ -696,3 +798,65 @@ If your checker only needs the *parse tree* (not the linked AST), set
 ``runs_without_link = True`` on the class.  The checker will then run even
 when ``--syntax-only`` is passed.  When ``runs_without_link = False``
 (the default), the checker is skipped in ``--syntax-only`` mode.
+
+Testing your rules
+==================
+
+``pssparser.checkers.testing`` ships in the wheel, so an extension's own
+test suite can use the harness pssparser tests its lint rules with.
+
+Write **fixture files**: ``.pss`` sources whose expected findings are stated
+in them.  ``l*.pss`` files must report exactly what their ``// expect:``
+lines say -- same IDs, same line and column, nothing more -- and
+``ok_*.pss`` files must report nothing:
+
+.. code-block:: pss
+
+   // expect: PSC001 @ 4:10, PSC002 @ 5:10
+   component pss_top {
+     action Good { }
+     action write_data { }
+     struct packet { }
+   }
+
+.. code-block:: pss
+
+   // expect: none
+   component pss_top {
+     action WriteData { }
+   }
+
+Only the IDs of the rules under test are compared, so an unrelated core
+warning does not break a fixture.  A malformed ``expect`` line fails with its
+file and line.
+
+Then check a directory of them:
+
+.. code-block:: python
+
+   from pssparser.checkers.testing import check_fixture_dir
+   from my_rules.checker import NamingConventionChecker
+
+   def test_fixtures():
+       check_fixture_dir("tests/lint", checkers=[NamingConventionChecker])
+
+``check_fixture_dir`` raises ``AssertionError`` listing every failing file,
+with the missing and unexpected findings of each.  ``checkers=`` registers a
+checker that is not installed; ``rules=`` takes selectors for lint rules to
+enable, since tiered lint rules otherwise report only when their profile
+does.
+
+Also available:
+
+``run_rules(paths, rules, checkers=..., config_text=...)``
+    Parse, link and run, returning the diagnostics as JSON-shaped dicts.
+``check_examples(CheckerClass)``
+    Run every ``MarkerDef.examples`` entry: a "bad" example must report its
+    ID at exactly its ``expect`` positions, a "good" one nothing.  This keeps
+    the examples ``--explain`` prints honest.
+``check_messages(diagnostics)``
+    The message-quality rules core diagnostics are held to: one line, at
+    most 120 characters, a code, no parser jargon.
+
+With pytest, ``-p pssparser.checkers.testing`` provides the same function as
+a ``lint_fixture`` fixture.

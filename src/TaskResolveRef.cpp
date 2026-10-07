@@ -631,10 +631,10 @@ void TaskResolveRef::resolveArgs(
  * parses as a type, since a type and a constant are spelled alike, but it
  * can only be a value, so it is looked up as one (8.4):
  * - step a of 18.3 first, when the parameter's type is an enumeration: `S<B>`
- *   for `S<mode_e m>` is mode_e::B whatever else B names (PSS044 if that
+ *   for `S<mode_e m>` is mode_e::B whatever else B names (LINT401 if that
  *   hides something);
  * - otherwise the ordinary lookup, with an enum item found only as the
- *   fallback reported as PSS046, as for any other expression;
+ *   fallback reported as LINT101, as for any other expression;
  * - a miss is an unknown *identifier*, not an unknown type;
  * - a name that is a type is reported: the position wants a value.
  * The argument stays a type identifier in the tree; TaskBuildParamValList

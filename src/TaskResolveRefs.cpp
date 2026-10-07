@@ -3872,7 +3872,7 @@ void TaskResolveRefs::checkConstInitRefs(ast::IField *i) {
 }
 
 /**
- * PSS119, a warning -- the prose under Example 264 extends 18.2c to "a
+ * LINT404, a warning -- the prose under Example 264 extends 18.2c to "a
  * type-width expression": `bit[W] f;` with `const int W` declared later.
  * Only prose, and models do write it, so a warning first (plan §8).
  */
@@ -5118,7 +5118,7 @@ void TaskResolveRefs::visitExportFunction(ast::IExportFunction *i) {
     } else {
         // 20.4.2 exports only static functions. Exporting a component's
         // INSTANCE function -- run on the instance the environment calls it
-        // through -- is an extension (PSS120): pssc's operation models take
+        // through -- is an extension (LINT301): pssc's operation models take
         // their API from it. Linked all the same, so a tool that accepts the
         // extension sees the binding; one that does not has the location.
         ast::ISymbolFunctionScope *fs =

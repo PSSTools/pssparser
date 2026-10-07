@@ -146,6 +146,13 @@ class WarningPolicy:
     error_all: bool = False
     error_codes: Set[str] = field(default_factory=set)
     no_error_codes: Set[str] = field(default_factory=set)
+    #: ``-Werror=info``: promote ``info`` diagnostics too.  A bare
+    #: ``-Werror`` never does (lint-framework D-4); ``-Werror=ID`` on an
+    #: ``info`` rule does, because naming the rule is opting in.
+    error_info: bool = False
+    #: ID -> the selector the user typed (``LINT104 -> "correctness"``), so
+    #: a promotion by group names the flag as written.
+    flag_spelling: dict = field(default_factory=dict)
 
     @property
     def is_default(self) -> bool:
@@ -154,21 +161,25 @@ class WarningPolicy:
             or self.error_all
             or self.error_codes
             or self.no_error_codes
+            or self.error_info
         )
 
     def promotion_flag(self, diag: Diagnostic) -> Optional[str]:
         """Return the flag spelling that promotes *diag*, or ``None``.
 
         A code-specific ``-Wno-error=ID`` always wins over a blanket
-        ``-Werror``; that is the only way to spell an exception.
+        ``-Werror``; that is the only way to spell an exception.  ``hint``
+        is never promoted.
         """
-        if diag.severity != "warning":
+        if diag.severity not in ("warning", "info"):
             return None
         code = diag.code
         if code and code in self.no_error_codes:
             return None
         if code and code in self.error_codes:
-            return f"-Werror={code}"
+            return f"-Werror={self.flag_spelling.get(code, code)}"
+        if diag.severity == "info":
+            return "-Werror=info" if self.error_info else None
         if self.error_all:
             return "-Werror"
         return None
@@ -230,6 +241,34 @@ class DiagnosticCollection:
             kept.append(diag)
         self._diags = kept
 
+    def apply_lint_selection(
+        self,
+        enabled: Set[str],
+        lint_ids: Set[str],
+        owned: Optional[Set[str]] = None,
+    ) -> int:
+        """Drop lint findings the selection disables or that lie outside
+        the user's files; return how many were dropped for ownership.
+
+        Only codes in *lint_ids* are touched: LRM errors and the tool's own
+        diagnostics are never filtered here (lint-framework L3).  *owned* is
+        a set of real paths; ``None`` disables the ownership check.
+        """
+        import os
+
+        kept: List[Diagnostic] = []
+        outside = 0
+        for diag in self._diags:
+            if diag.code in lint_ids:
+                if diag.code not in enabled:
+                    continue
+                if owned is not None and os.path.realpath(diag.file) not in owned:
+                    outside += 1
+                    continue
+            kept.append(diag)
+        self._diags = kept
+        return outside
+
     def set_processed_files(self, files: List[str]) -> None:
         """Record the files actually handed to the parser.
 
@@ -251,6 +290,15 @@ class DiagnosticCollection:
     @property
     def warning_count(self) -> int:
         return sum(1 for d in self._diags if d.severity == "warning")
+
+    @property
+    def info_count(self) -> int:
+        """``info`` diagnostics, reported as *notes* in the summary line."""
+        return sum(1 for d in self._diags if d.severity == "info")
+
+    @property
+    def hint_count(self) -> int:
+        return sum(1 for d in self._diags if d.severity == "hint")
 
     @property
     def files(self) -> set:

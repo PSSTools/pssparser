@@ -1,0 +1,2 @@
+// expect: none
+compile if (1) { struct q {} }

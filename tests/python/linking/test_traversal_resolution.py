@@ -9,7 +9,7 @@ resolved at all, on a traversal or on a handle declaration.
 
 Now the target goes through the ordinary path resolver (PSS002 for an unknown
 name), what it bound to is checked (PSS018 for something that cannot be
-traversed, PSS117 for a deprecated `dynamic` constraint), and each initializer
+traversed, LINT602 for a deprecated `dynamic` constraint), and each initializer
 path is resolved in the traversed type and nowhere else (11.3.1).
 """
 import pytest
@@ -173,7 +173,7 @@ component pss_top {
 
 
 # ---------------------------------------------------------------------------
-# What the target bound to (PSS018, PSS117)
+# What the target bound to (PSS018, LINT602)
 # ---------------------------------------------------------------------------
 
 NOT_A_HANDLE = ("is not an action handle, and cannot be traversed; only a "
@@ -219,7 +219,7 @@ def test_a_fixed_constraint_cannot_be_traversed():
 
 def test_a_dynamic_constraint_traversal_is_deprecated():
     assert diagnostics(model("dc;", "dynamic constraint dc { tx > 0; }")) == [
-        ("warning", "PSS117",
+        ("warning", "LINT602",
          "traversal of dynamic constraint 'dc' is deprecated (13.1.1); "
          "declare it as a generic constraint, 'constraint dc() { ... }'")]
 

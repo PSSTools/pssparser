@@ -1,0 +1,9 @@
+// expect: LINT401 @ 7:23
+enum mode_e { A, B }
+component pss_top {
+  action a {
+    rand mode_e m;
+    rand int A;
+    constraint { m == A; }
+  }
+}

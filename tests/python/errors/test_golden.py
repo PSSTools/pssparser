@@ -119,14 +119,14 @@ CASES: List[GoldenCase] = [
         "compile_if_unbraced",
         "error-suite/cases/semantic/compile/compile_if_unbraced.pss",
     ),
-    # -Werror promotion: the header severity changes, the `[-Werror=PSS104]`
+    # -Werror promotion: the header severity changes, the `[-Werror=LINT601]`
     # suffix appears, the summary line counts it as an error, and the exit
     # code moves 0 -> 1. Uses the code-specific spelling so the golden also
     # pins that the code is echoed back verbatim.
     GoldenCase(
         "werror_promoted",
         "error-suite/cases/semantic/compile/compile_if_unbraced.pss",
-        argv=["-Werror=PSS104"],
+        argv=["-Werror=LINT601"],
     ),
     GoldenCase(
         "clean_file_zero_errors",

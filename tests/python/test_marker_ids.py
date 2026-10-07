@@ -94,13 +94,13 @@ REPRESENTATIVE_MESSAGES = [
                "aliases in one scope shall not share a name (18.1.4)"),
     ("PSS043", "package alias 'foo' has the same name as a package declared "
                "in package 'P'; rename the alias (18.1.4)"),
-    ("PSS044", "'A' is read as the enum item mode_e::A, which hides the "
+    ("LINT401", "'A' is read as the enum item mode_e::A, which hides the "
                "field 'A' (18.3 a); qualify one of them"),
     ("PSS045", "ambiguous comparison of 'A' and 'B': either 'A' is e2::A or "
                "'B' is e1::B; qualify the enum item (8.4.3, 18.3 a)"),
-    ("PSS046", "enum item 'ORANGE' is used where no enumeration type is "
+    ("LINT101", "enum item 'ORANGE' is used where no enumeration type is "
                "expected (7.5 i, 8.4.3); qualify it as 'color_e::ORANGE'"),
-    ("PSS046", "enum item 'RED' is used where 'mode_e' is expected, but it is "
+    ("LINT101", "enum item 'RED' is used where 'mode_e' is expected, but it is "
                "an item of 'color_e' (7.5 i, 8.4.3); qualify it as "
                "'color_e::RED'"),
     ("PSS047", "template parameter 'N' expects a value, but 'my_s' is a type"),
@@ -136,7 +136,7 @@ REPRESENTATIVE_MESSAGES = [
     ("PSS052", "'s' is already imported explicitly in this scope, by 'import "
                "lib1::s;'; the same name shall not be imported explicitly "
                "from two packages (18.1.3)"),
-    ("PSS053", "'import lib::*;' follows a declaration; imports shall come "
+    ("LINT402", "'import lib::*;' follows a declaration; imports shall come "
                "first in a package, a component, an extension or a file "
                "(18.1.3)"),
     ("PSS054", "compile assert failed: too wide"),
@@ -219,7 +219,7 @@ REPRESENTATIVE_MESSAGES = [
     ("PSS014", "reg_c width SZ = 32 is smaller than its value type 'd_s' "
                "(40 bits)"),
     ("PSS015", "sizeof_s argument is a string, which has no packed size"),
-    ("PSS016", "reg_c width SZ = 96 has no primitive access function; use 8, "
+    ("LINT501", "reg_c width SZ = 96 has no primitive access function; use 8, "
                "16, 32 or 64 bits"),
     ("PSS017", "ambiguous reference to 's': more than one wildcard import "
                "provides it, so none does (18.1.3); qualify the name"),
@@ -243,9 +243,9 @@ REPRESENTATIVE_MESSAGES = [
     ("PSS002", "'super' is only valid inside a type: an action, component, "
                "struct or other type body"),
     ("PSS100", "annotation is not attached to a model element"),
-    ("PSS101", "unknown annotation type 'desc_s'; annotation disregarded"),
+    ("LINT403", "unknown annotation type 'desc_s'; annotation disregarded"),
     ("PSS102", "annotation initializer for 'owner' is not a constant expression"),
-    ("PSS104", "'compile if' branch without enclosing braces is deprecated"),
+    ("LINT601", "'compile if' branch without enclosing braces is deprecated"),
     ("PSS105", "illegal 'mutable' qualifier: not permitted on a rand field"),
     ("PSS106", "exec block tag is not permitted on 'body' exec blocks"),
     ("PSS107", "member selection is not permitted on a slice of 'arr'"),
@@ -270,11 +270,11 @@ REPRESENTATIVE_MESSAGES = [
     ("PSS114", "call to non-pure function 'f' in a template string"),
     ("PSS115",
      "template string with non-constant elements is not a constant expression"),
-    ("PSS116", "`override` is accepted but not represented in the AST"),
-    ("PSS116",
+    ("PSSP101", "`override` is accepted but not represented in the AST"),
+    ("PSSP101",
      "`randomize` is accepted but not represented in the AST: "
      "the `with` constraints are dropped"),
-    ("PSS117", "traversal of dynamic constraint 'dc' is deprecated (13.1.1); "
+    ("LINT602", "traversal of dynamic constraint 'dc' is deprecated (13.1.1); "
                "declare it as a generic constraint, 'constraint dc() { ... }'"),
     ("PSS002", "'x' is used before its declaration on line 4; in a block, a "
                "name is visible only after it is declared"),
@@ -286,9 +286,9 @@ REPRESENTATIVE_MESSAGES = [
                "itself (18.2)"),
     ("PSS118", "package-level constant 'A' may reference only package-level "
                "constants; 'K' is declared in type 'C' (18.2)"),
-    ("PSS119", "constant 'W' is used in a type width before its declaration "
+    ("LINT404", "constant 'W' is used in a type width before its declaration "
                "on line 5; declare it first (18.2)"),
-    ("PSS120", "exported function 'bump' is not static; exporting a "
+    ("LINT301", "exported function 'bump' is not static; exporting a "
                "component's instance function is an extension to 20.4.2"),
 ]
 
@@ -321,9 +321,22 @@ def test_marker_ids_are_unique():
 
 
 def test_marker_ids_are_in_ascending_order():
-    """Patterns are tried in declaration order, so keep that order legible."""
+    """Patterns are tried in declaration order, so keep that order legible.
+
+    PSS rows come first, then the PSSP rows, then the core-emitted LINT
+    rules appended from ``pssparser.lint.catalog``; each run is ascending.
+    A code that moved keeps a retired row at its old position, which is
+    where its patterns are tried (``_build_core_patterns``).
+    """
+    from pssparser.checkers.taxonomy import split_code
+
     ids = [m.id for m in CoreChecker.marker_defs]
-    assert ids == sorted(ids)
+    namespaces = [split_code(i)[0] for i in ids]
+    runs = [ns for k, ns in enumerate(namespaces) if k == 0 or ns != namespaces[k - 1]]
+    assert runs == ["PSS", "PSSP", "LINT"]
+    for ns in runs:
+        nums = [split_code(i)[1] for i in ids if split_code(i)[0] == ns]
+        assert nums == sorted(nums), ns
 
 
 #: PSS020-PSS029: syntax-classification sub-band, plus PSS029 (the
@@ -336,23 +349,29 @@ def test_marker_ids_are_in_ascending_order():
 #: lexer's, and became reachable with A6.
 _SYNTAX_BAND = {"PSS0%02d" % n for n in range(20, 30)}
 
-#: PSS030-PSS039: tooling & extension infrastructure. Like the syntax band
-#: these carry their code directly rather than acquiring one by message
-#: matching -- but for the opposite reason. Syntax-band markers come from C++
-#: with a code already attached; these are constructed in *Python*, by
-#: CheckerManager's discovery pass (see `CheckerManager.load_diagnostics`), and
-#: never pass through a parser at all.
+#: The tool's own diagnostics: PSS030-PSS039 (now retired rows, plus PSS033)
+#: and every PSSP code but PSSP101. Like the syntax band these carry their
+#: code directly rather than acquiring one by message matching -- but for the
+#: opposite reason. Syntax-band markers come from C++ with a code already
+#: attached; these are constructed in *Python* (CheckerManager's discovery
+#: pass, the config layer) and never pass through a parser at all.
 #:
 #: A pattern on one of these would be actively harmful: `_build_core_patterns`
 #: exists to recover an ID for C++ markers that have none, so a pattern here
 #: could claim an unrelated parser message and report it as, say, a failed
-#: extension load.
-_TOOLING_BAND = {"PSS0%02d" % n for n in range(30, 40)}
+#: extension load.  PSSP101 is the exception: it comes from the C++ builder.
+_TOOLING_BAND = {"PSS0%02d" % n for n in range(30, 40)} | {
+    m.id for m in CoreChecker.marker_defs
+    if m.id.startswith("PSSP") and m.id != "PSSP101"
+}
+
+#: Codes that are never emitted: retired (moved or withdrawn) and reserved.
+_NOT_EMITTED = {m.id for m in CoreChecker.marker_defs if not m.emittable}
 
 #: IDs whose code is set at construction rather than recovered from the
-#: message text. Neither `patterns` nor a REPRESENTATIVE_MESSAGES entry
-#: applies to them.
-_DIRECT_CODE_BANDS = _SYNTAX_BAND | _TOOLING_BAND
+#: message text, or that are never emitted. Neither `patterns` nor a
+#: REPRESENTATIVE_MESSAGES entry applies to them.
+_DIRECT_CODE_BANDS = _SYNTAX_BAND | _TOOLING_BAND | _NOT_EMITTED
 
 
 def test_every_core_marker_declares_patterns():
@@ -400,7 +419,7 @@ def test_the_tooling_band_is_declared_where_the_manager_emits_it():
 
     declared = {m.id for m in CoreChecker.marker_defs}
     source = Path(__file__).resolve().parents[2] / "python" / "pssparser" / "checkers" / "manager.py"
-    emitted = set(re.findall(r'self\._issue\(\s*"(PSS\d+)"', source.read_text()))
+    emitted = set(re.findall(r'self\._issue\(\s*"((?:PSSP|PSS|LINT)\d+)"', source.read_text()))
 
     assert emitted, "no _issue() calls found; has manager.py been restructured?"
     assert emitted <= declared, \
@@ -517,15 +536,43 @@ def test_severities_are_valid():
 def test_pss31_band_is_reserved_for_31_diagnostics():
     """PSS100-PSS199 is the PSS 3.1 band; PSS001-PSS099 the general one."""
     pss31 = [m.id for m in CoreChecker.marker_defs
-             if 100 <= int(m.id[3:]) <= 199]
+             if m.id.startswith("PSS") and not m.id.startswith("PSSP")
+             and 100 <= int(m.id[3:]) <= 199]
     # PSS103 is retired (see core_checker.py): §7.13b is enforced by the
     # grammar, so no linker check can emit it. The gap is deliberate -- the ID
-    # must not be reused.
-    assert pss31 == ["PSS100", "PSS101", "PSS102",
+    # must not be reused. PSS101, 104, 116, 117, 119 and 120 are retired
+    # rows too: those warnings moved to LINT/PSSP (lint-framework D-1, D-6).
+    assert pss31 == ["PSS100", "PSS101", "PSS102", "PSS103",
                      "PSS104", "PSS105", "PSS106", "PSS107",
                      "PSS108", "PSS109", "PSS110", "PSS111", "PSS112",
                      "PSS113", "PSS114", "PSS115", "PSS116", "PSS117",
                      "PSS118", "PSS119", "PSS120"]
+
+
+def test_every_active_pss_marker_is_an_error():
+    """PSS means an LRM violation; a warning is lint (LINT) or about the
+    tool (PSSP). The retired rows point at where each warning went."""
+    offenders = [
+        m.id for m in CoreChecker.marker_defs
+        if m.id.startswith("PSS") and not m.id.startswith("PSSP")
+        and m.emittable and m.severity != "error"
+    ]
+    assert offenders == []
+
+
+def test_moved_codes_point_at_a_declared_successor():
+    by_id = {m.id: m for m in CoreChecker.marker_defs}
+    for m in CoreChecker.marker_defs:
+        if m.status == "retired" and m.replaced_by:
+            target = by_id[m.replaced_by[0]]
+            assert m.id in target.aliases, (m.id, target.id)
+
+
+def test_pssp_markers_are_tool_tier():
+    assert all(
+        m.tier == "tool" for m in CoreChecker.marker_defs
+        if m.id.startswith("PSSP")
+    )
 
 
 # -- CLI discoverability (P0-T2 acceptance criterion) ------------------------

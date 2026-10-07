@@ -1,0 +1,6 @@
+// expect: PSC001 @ 4:10, PSC002 @ 5:10
+component pss_top {
+  action Good { }
+  action write_data { }
+  struct packet { }
+}
