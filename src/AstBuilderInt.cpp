@@ -376,6 +376,7 @@ antlrcpp::Any AstBuilderInt::visitImport_stmt(PSSParser::Import_stmtContext *ctx
 
 	imp->setPath(mkTypeId(ctx->package_import_pattern()->type_identifier()));
 	addChild(imp, ctx->start);
+	setEndLoc(imp, ctx->stop);
 	DEBUG_LEAVE("visitImport_stmt");
 	return 0;
 }
@@ -1402,6 +1403,7 @@ antlrcpp::Any AstBuilderInt::visitAction_handle_declaration(PSSParser::Action_ha
         }
 
         addChild(field, ctx->start);
+        setEndLoc(field, ctx->stop);
 	}
 
 	DEBUG_LEAVE("visitAction_handle_declaration");
@@ -1832,6 +1834,7 @@ antlrcpp::Any AstBuilderInt::visitFunction_decl(PSSParser::Function_declContext 
     );
 
     addChild(func, ctx->start);
+    setEndLoc(func, ctx->stop);
     DEBUG_LEAVE("visitFunction_decl (definition)");
     return 0;
 }
@@ -1867,6 +1870,8 @@ antlrcpp::Any AstBuilderInt::visitImport_function(PSSParser::Import_functionCont
             mkTypeId(ctx->type_identifier()));
         setLoc(func, ctx->start);
         addChild(func, ctx->start);
+        setEndLoc(func, ctx->stop);
+    setEndLoc(func, ctx->stop);
     } else {
         // One-step import specification
 
@@ -1881,6 +1886,8 @@ antlrcpp::Any AstBuilderInt::visitImport_function(PSSParser::Import_functionCont
 
         setLoc(func, ctx->start);
         addChild(func, ctx->start);
+        setEndLoc(func, ctx->stop);
+    setEndLoc(func, ctx->stop);
     }
     DEBUG_LEAVE("visitImport_function");
     return 0;
@@ -1894,6 +1901,7 @@ antlrcpp::Any AstBuilderInt::visitExport_function(PSSParser::Export_functionCont
         mkRefName(ctx->function_identifier()->identifier()));
     setLoc(func, ctx->start);
     addChild(func, ctx->start);
+    setEndLoc(func, ctx->stop);
 
     DEBUG_LEAVE("visitExport_function");
     return 0;
@@ -2331,6 +2339,7 @@ antlrcpp::Any AstBuilderInt::visitProcedural_data_declaration(PSSParser::Procedu
                 attachDocstring(decl, ctx->getStart());
             }
         }
+        setEndLoc(decl, ctx->getStop());
 
         m_exec_scope_s.back()->getChildren().push_back(ast::IScopeChildUP(decl));
 
@@ -6566,6 +6575,19 @@ ast::DocCommentForm AstBuilderInt::toAstDocForm(pssp::DocCommentForm form) {
 	}
 }
 
+void AstBuilderInt::setEndLoc(ast::IScopeChild *c, Token *stop) {
+	if (!c || !stop) {
+		return;
+	}
+	// As setExtent, but leaves Location::extent alone: a diagnostic's caret
+	// is drawn from the extent, and these nodes' carets are not to widen.
+	c->setEndLocation({
+		m_file_id,
+		(int32_t)stop->getLine(),
+		(int32_t)stop->getCharPositionInLine() + 1 + (int32_t)stop->getText().size()
+	});
+}
+
 void AstBuilderInt::setExtent(ast::IScopeChild *c, Token *start, Token *stop) {
 	if (!c || !start || !stop) {
 		return;
@@ -8455,6 +8477,9 @@ ast::IScopeChild *AstBuilderInt::mkExecStmt(PSSParser::Procedural_stmtContext *c
                 (int32_t)start->getLine(),
                 (int32_t)start->getCharPositionInLine()+1
             });
+        }
+        if (m_exec_stmt->getEndLocation().lineno < 0) {
+            setEndLoc(m_exec_stmt, ctx->getStop());
         }
         if (m_collectDocStrings) {
             attachDocstring(m_exec_stmt, start, ctx->getStop());

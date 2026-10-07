@@ -1,0 +1,25 @@
+/**
+ * pssparser's source waivers (docs/waivers.rst).
+ *
+ * Not part of the PSS core library.  Visible without an import, like the
+ * core packages; write the annotation fully qualified:
+ * `@lint_pkg::waive {.id = "LINT401", .reason = "BURST is legacy"}`.
+ *
+ * Another tool disregards the annotation (LRM 7.13).  To compile a model on
+ * a tool that wants the package declared, copy this declaration.
+ */
+package lint_pkg {
+
+    /**
+     * Waive a diagnostic within the element that follows, or, written as a
+     * standalone annotation (terminated by `;`), to the end of the
+     * enclosing scope.
+     */
+    annotation waive {
+        // A marker ID, rule name or rule selector.
+        string id;
+        // Why the finding is intended.
+        string reason;
+    }
+
+}

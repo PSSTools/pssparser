@@ -551,6 +551,9 @@ private:
      */
     void setExtent(ast::IScopeChild *c, Token *start, Token *stop);
 
+    /** Set only *c*'s end location, from *stop*; see setExtent. */
+    void setEndLoc(ast::IScopeChild *c, Token *stop);
+
     /**
      * The token a doc comment is looked up from: the innermost anchor
      * established by a DocAnchorScope, or *fallback* (the token the

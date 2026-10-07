@@ -760,6 +760,9 @@ def test_standard_library_sources_are_locatable():
     assert names == [
         "addr_reg_pkg.pss",
         "executor_pkg.pss",
+        # pssparser's source-waiver package (docs/waivers.rst); not part of
+        # the PSS core library, but shipped and compiled in with it.
+        "lint_pkg.pss",
         "std_pkg.pss",
         "sync_pkg.pss",
     ]

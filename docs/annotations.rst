@@ -123,6 +123,14 @@ standard ``code_doc`` annotation is for (PSS 3.1 §21.6.1):
        }
    }
 
+An annotation on any statement -- activity,
+procedural, or a constraint item such as ``if`` or ``foreach`` -- attaches to
+that statement, and an annotation with nothing after it at the end of a
+statement body is an error, as at the end of any scope.
+
+pssparser's own ``@lint_pkg::waive`` annotation waives a diagnostic within
+the element it is applied to: see :doc:`waivers`.
+
 
 Not supported: ``//@``
 ======================

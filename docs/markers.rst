@@ -1258,6 +1258,50 @@ A lint rule's metadata is invalid
 
 A ``MarkerDef`` with lint metadata breaks one of the rules in the plug-in guide's *Rule metadata* section: a name that is not unique or not kebab-case, a tier, family or level outside its closed set, a ``LINT`` ID with no tier, a ``nursery`` rule with no ``since``, a fix with no example showing it, or a severity that differs from the tier's default without a ``Severity:`` paragraph in ``detail``.  The message names the field.  The checker is not registered.
 
+PSSP202
+~~~~~~~
+
+**Severity:** warning
+
+**Name:** ``unused-waiver``; **Tier:** tool
+
+A waiver matched no diagnostic
+
+A ``@lint_pkg::waive`` annotation or ``// pssparser waive`` comment covered no diagnostic, although a rule it names ran on this run.  Usually the code it excused has been fixed: delete the waiver.  A waiver for a rule that did not run -- turned off, outside the lint profile, or from a checker that was not loaded -- is not reported, so a waiver does not flap with the configuration.
+
+PSSP203
+~~~~~~~
+
+**Severity:** warning
+
+**Name:** ``unknown-waiver-rule``; **Tier:** tool
+
+A waiver names no known rule
+
+The ``id`` of a ``@lint_pkg::waive`` annotation, or an ID in a ``// pssparser waive`` comment, is not a marker ID, rule name or selector that any loaded checker declares.  Usually a typo; the message suggests the nearest match.  A rule from an extension that is not installed looks the same.
+
+PSSP204
+~~~~~~~
+
+**Severity:** warning
+
+**Name:** ``waiver-on-error``; **Tier:** tool
+
+A waiver names an error that cannot be waived
+
+An LRM error means the model was not built, so waiving it would report success for a run that compiled nothing.  The waiver has no effect.  Fix the error, and delete the waiver.
+
+PSSP205
+~~~~~~~
+
+**Severity:** warning
+
+**Name:** ``waiver-without-reason``; **Tier:** tool
+
+A waiver gives no reason
+
+Every waiver says why: ``.reason`` in the annotation, or the text after ``:`` in the comment.  The waiver still applies; this asks for the reason.
+
 Retired and reserved codes
 --------------------------
 

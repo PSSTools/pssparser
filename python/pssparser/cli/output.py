@@ -82,8 +82,11 @@ class HumanOutput:
         show_hints: bool = False,
         statistics: bool = False,
         catalog=None,
+        show_waived: bool = False,
     ) -> None:
         self._statistics = statistics
+        #: ``--show-waived``: the audit view of what source waivers hid.
+        self._show_waived = show_waived
         self._catalog = catalog or {}
         self._src = source_cache
         self._stream = stream or sys.stderr
@@ -154,6 +157,8 @@ class HumanOutput:
         # A promoted warning names the flag that promoted it, so the reader
         # can tell "this is an error" from "you asked for this to be an error".
         flag = f" [{diag.werror_flag}]" if diag.werror_flag else ""
+        if diag.waiver is not None:
+            flag += f" [waived: {diag.waiver.get('reason') or 'no reason given'}]"
         w(f"{_c(loc, _BOLD, c)}: {sev} {diag.message}{flag}\n")
 
         # source context line + caret
@@ -202,6 +207,9 @@ class HumanOutput:
         ``-q --stats`` is a supported combination: the summary line is
         suppressed but the stats block still appears.
         """
+        if self._show_waived and not quiet:
+            for diag in getattr(coll, "waived", []):
+                self.emit(diag)
         if self._statistics:
             self._write_statistics(coll)
         if not quiet:
@@ -239,6 +247,9 @@ class HumanOutput:
         hc = coll.hint_count
         if hc and not self._show_hints:
             msg += f" ({hc} hint{'s' if hc != 1 else ''} hidden)"
+        wc = len(getattr(coll, "waived", []))
+        if wc:
+            msg += f" ({wc} waived)"
         self._stream.write(msg + "\n")
 
 
@@ -261,6 +272,9 @@ class JsonOutput:
 
     def emit(self, diag: Diagnostic) -> None:
         self._files.add(diag.file)
+        self._items.append(self._entry(diag))
+
+    def _entry(self, diag: Diagnostic) -> dict:
         entry: dict = {
             "file": diag.file,
             "line": diag.line,
@@ -303,7 +317,9 @@ class JsonOutput:
                 {"file": r.file, "line": r.line, "col": r.col, "label": r.label}
                 for r in diag.related
             ]
-        self._items.append(entry)
+        if diag.waiver is not None:
+            entry["waiver"] = dict(diag.waiver)
+        return entry
 
     def finish(self, coll: DiagnosticCollection, quiet: bool, stats=None) -> None:
         """Emit the JSON document.
@@ -327,6 +343,12 @@ class JsonOutput:
                 "files": len(coll.files),
             },
         }
+        # Waived diagnostics stay out of "diagnostics" and the summary
+        # counts, so a consumer that ignores waivers sees what the exit code
+        # saw; the key is present only when something was waived.
+        waived = getattr(coll, "waived", [])
+        if waived:
+            doc["waived"] = [self._entry(d) for d in waived]
         if self._statistics:
             doc["statistics"] = statistics_rows(coll, self._catalog)
         if stats is not None:

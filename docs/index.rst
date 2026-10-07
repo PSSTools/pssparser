@@ -34,6 +34,7 @@ Key Features
    typescript_api
    cli
    lint
+   waivers
    source_tools
    refs
    doc_comments

@@ -51,6 +51,9 @@ style = "snake_case"
 
 [extensions.acme-rules]
 enabled = false                   # skip every checker from this extension
+
+[waivers]
+source = false                    # ignore waivers written in the PSS source
 ```
 
 The checker and extension names above are placeholders. Take real names from
@@ -118,6 +121,7 @@ Choose the narrowest tool:
 
 | You want | Use |
 |---|---|
+| One finding, at one place, accepted | a source waiver (below) |
 | One ID never reported | `[severity]` `ID = "off"` |
 | One ID reported but never fatal | `ID = "info"`, or `-Wno-error=ID` under `-Werror` |
 | All of one extension's checkers off | `[extensions.<name>] enabled = false` |
@@ -131,6 +135,21 @@ for those.
 Before silencing, run `pssparser --describe ID`: many warnings point at
 real problems (an import after a declaration, an enum item that hides a
 declaration).
+
+A source waiver accepts one finding where it is, with a reason:
+
+```pss no-check
+@lint_pkg::waive {.id = "import-after-declaration", .reason = "generated"}
+import vendor::*;               // element form: covers the next element
+
+import other::*;   // pssparser waive LINT402: vendor header order
+```
+
+`.id` takes an ID, a rule name or any selector. `lint_pkg` needs no import;
+write it fully qualified. A standalone `@lint_pkg::waive {...};` covers to the
+end of the enclosing scope. Errors are never waived (`PSSP204`); an unused
+waiver is `PSSP202`, an unknown rule `PSSP203`, no reason `PSSP205`.
+`--show-waived` prints what was waived; JSON lists it under `waived`.
 
 ## Worked example
 

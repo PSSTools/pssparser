@@ -109,6 +109,7 @@ _ROOT_SCHEMA: Dict[str, Tuple[type, str]] = {
     "extensions": (dict, "table of per-extension tables"),
     "lint": (dict, "lint profile, rule selection and per-rule options"),
     "output": (dict, "output settings"),
+    "waivers": (dict, "source-waiver settings"),
 }
 
 _LINT_SCHEMA: Dict[str, Tuple[tuple, str]] = {
@@ -121,6 +122,10 @@ _LINT_SCHEMA: Dict[str, Tuple[tuple, str]] = {
 
 _OUTPUT_SCHEMA: Dict[str, Tuple[tuple, str]] = {
     "show-hints": ((bool,), "true to print hint diagnostics"),
+}
+
+_WAIVERS_SCHEMA: Dict[str, Tuple[tuple, str]] = {
+    "source": ((bool,), "false to ignore every waiver written in the source"),
 }
 
 _WARNINGS_SCHEMA: Dict[str, Tuple[tuple, str]] = {
@@ -192,6 +197,8 @@ class ResolvedConfig:
     rules_version: str = ""
     lint_rule_options: Dict[str, Dict[str, Any]] = field(default_factory=dict)
     show_hints: bool = False
+    #: ``[waivers] source``: apply waivers written in the PSS source.
+    source_waivers: bool = True
 
     #: Resolved by :func:`validate_against_registry`: the enabled lint rule
     #: IDs, and every lint rule ID (so a disabled one can be recognised).
@@ -393,6 +400,7 @@ def _validate_table(data: Dict[str, Any], source: str) -> Dict[str, Any]:
     _validate_extensions(data.get("extensions"), source)
     _validate_lint(data.get("lint"), source)
     _validate_flat("output", data.get("output"), _OUTPUT_SCHEMA, source)
+    _validate_flat("waivers", data.get("waivers"), _WAIVERS_SCHEMA, source)
 
     return data
 
@@ -630,6 +638,11 @@ def _merge(cfg: ResolvedConfig, table: Dict[str, Any], source: str) -> None:
     if "show-hints" in output:
         cfg.show_hints = output["show-hints"]
         cfg.provenance["output.show-hints"] = source
+
+    waivers = table.get("waivers") or {}
+    if "source" in waivers:
+        cfg.source_waivers = waivers["source"]
+        cfg.provenance["waivers.source"] = source
 
     if source not in cfg.sources:
         cfg.sources.append(source)
@@ -1055,6 +1068,7 @@ def format_show_config(cfg: ResolvedConfig) -> str:
     row("lint.ignore", ", ".join(cfg.lint_ignore) or "(none)")
     row("lint.rules-version", cfg.rules_version or "(unpinned)")
     row("output.show-hints", "true" if cfg.show_hints else "false")
+    row("waivers.source", "true" if cfg.source_waivers else "false")
     if cfg.lint_enabled is not None:
         lines.append(f"  enabled rules: {_collapse(sorted(cfg.lint_enabled))}")
     if cfg.lint_held_back:

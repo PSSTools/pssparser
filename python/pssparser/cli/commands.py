@@ -37,6 +37,7 @@ def cmd_parse(
     show_hints: Optional[bool] = None,
     output_format: Optional[str] = None,
     statistics: bool = False,
+    show_waived: bool = False,
 ) -> int:
     """Run the parse (and optionally link) pipeline, report diagnostics.
 
@@ -76,6 +77,9 @@ def cmd_parse(
         ``"json"`` when the deprecated *use_json* is set, else ``"text"``.
     statistics:
         Print a per-code count table (``--statistics``).
+    show_waived:
+        Print diagnostics that a source waiver covered (``--show-waived``),
+        marked as waived; the exit code is unaffected.
     """
     from pssparser.parser import Parser, ParseException
 
@@ -122,12 +126,16 @@ def cmd_parse(
     else:
         driver = HumanOutput(source_cache, stream=_stderr, color=color,
                              show_hints=show_hints, statistics=statistics,
-                             catalog=catalog)
+                             catalog=catalog, show_waived=show_waived)
 
     parser = Parser()
     parser.set_max_errors(max_errors)
     linked_root = None
     extra_timings: dict = {}
+    # What the waiver pass may rely on: whether the AST exists (annotation
+    # waivers need it), and which rules ran (the unused-waiver marker needs
+    # that; unknown on a failed parse or link).
+    waiver_state: dict = {"ast": False, "ran": None}
 
     def _finish(force_rc: Optional[int] = None) -> int:
         """Apply the warning policy, emit everything, return the exit code.
@@ -146,6 +154,12 @@ def cmd_parse(
         # the config had already turned off.
         if config is not None:
             coll.apply_severity_map(config.severity)
+        # Waivers after the severity map, so a waiver covers a rule the
+        # config promoted, and before the warning policy, so -Werror never
+        # promotes a waived diagnostic (docs/waivers.rst).
+        if config is None or getattr(config, "source_waivers", True):
+            _apply_waivers(coll, parser, files, manager, config,
+                           ast=waiver_state["ast"], ran=waiver_state["ran"])
         _apply_warning_policy(coll, policy)
         _emit_all(driver, coll, quiet)
         stats = None
@@ -155,6 +169,7 @@ def cmd_parse(
                 timings=extra_timings if stats_timing else None,
             )
             stats.lint_dropped = lint_dropped
+            stats.waived_by_code = _waived_by_code(coll)
         driver.finish(coll, quiet, stats)
         # An internal error outranks everything else: whatever else was
         # reported, the run is not trustworthy, and a script must be able to
@@ -172,6 +187,10 @@ def cmd_parse(
         _collect(coll, getattr(exc, "markers", []), parser)
         return _finish(force_rc=1)
 
+    # The AST exists once the parse succeeded, linked or not: a waiver
+    # annotation is recognised by its spelled name, so it needs no link.
+    waiver_state["ast"] = True
+
     # -- link phase (unless --syntax-only) ----------------------------------
     if not syntax_only:
         t0 = time.perf_counter_ns()
@@ -188,7 +207,7 @@ def cmd_parse(
 
     # -- checker phase ------------------------------------------------------
     t0 = time.perf_counter_ns()
-    _run_checkers(
+    active = _run_checkers(
         coll=coll,
         files=files,
         parser=parser,
@@ -201,6 +220,9 @@ def cmd_parse(
         disabled=_disabled_codes(config, lint_enabled, lint_ids),
     )
     extra_timings["checkers"] = time.perf_counter_ns() - t0
+    if not syntax_only:
+        waiver_state["ran"] = _codes_that_ran(
+            manager, active, config, lint_enabled, lint_ids)
 
     # -- dump-ast -----------------------------------------------------------
     if dump_ast and linked_root is not None:
@@ -403,10 +425,10 @@ def _run_checkers(
     except ValueError as exc:
         import sys
         sys.stderr.write(f"error: {exc}\n")
-        return
+        return []
 
     if not active:
-        return
+        return []
 
     global_scopes, file_map = _user_global_scopes(parser, files)
 
@@ -433,6 +455,78 @@ def _run_checkers(
 
     for m in context._markers:
         coll.add(Diagnostic.from_marker(m))
+    return active
+
+
+# -- Source waivers ------------------------------------------------------------
+
+def _codes_that_ran(manager, active, config, lint_enabled: set, lint_ids: set) -> set:
+    """Codes whose rule ran: the core's (the link ran), the active checkers',
+    and the lint rules the selection enabled -- less any ``off``.
+
+    The unused-waiver marker (PSSP202) fires only for a waiver naming one of
+    these, so a waiver for a rule turned off here is not "unused".
+    """
+    from pssparser.checkers.core_checker import CoreChecker
+
+    ran = {md.id for md in CoreChecker.marker_defs if md.status == "active"}
+    for checker in active or []:
+        ran |= {md.id for md in getattr(checker, "marker_defs", ())}
+    ran -= (lint_ids - lint_enabled)
+    off = {c for c, sev in (getattr(config, "severity", None) or {}).items()
+           if sev == "off"}
+    return ran - off
+
+
+def _apply_waivers(coll: DiagnosticCollection, parser, files: List[str],
+                   manager, config, *, ast: bool, ran) -> None:
+    """Remove waived diagnostics from *coll*, record them in ``coll.waived``,
+    and add the waiver hygiene diagnostics."""
+    from pssparser import waivers as waivers_mod
+    from pssparser.checkers.selectors import RuleSet, _is_core_error
+
+    try:
+        found = waivers_mod.collect(parser if ast else None, files)
+    except Exception as exc:  # pragma: no cover - defensive
+        sys.stderr.write(f"warning: could not read source waivers: {exc}\n")
+        return
+    if not found:
+        return
+
+    mdefs = list(manager.all_marker_defs())
+    catalog = {md.id: md for md in mdefs}
+    aliases = {md.id: md.replaced_by[0] for md in mdefs
+               if md.status == "retired" and md.replaced_by}
+
+    def is_core_error(code: str) -> bool:
+        md = catalog.get(code)
+        return md is not None and _is_core_error(md)
+
+    result = waivers_mod.apply(
+        coll.diagnostics, found, rules=RuleSet(mdefs),
+        is_core_error=is_core_error, ran=ran, aliases=aliases)
+    coll.replace_diagnostics(result.kept)
+    for diag, waiver in result.waived:
+        diag.waiver = waiver.to_json()
+    coll.waived = [diag for diag, _ in result.waived]
+
+    severity = (getattr(config, "severity", None) or {})
+    for marker in result.markers:
+        sev = severity.get(marker["code"])
+        if sev == "off":
+            continue
+        diag = Diagnostic.from_marker(marker)
+        if sev:
+            diag.severity = sev
+        coll.add(diag)
+
+
+def _waived_by_code(coll: DiagnosticCollection) -> dict:
+    counts: dict = {}
+    for d in coll.waived:
+        key = d.code or "<uncoded>"
+        counts[key] = counts.get(key, 0) + 1
+    return dict(sorted(counts.items()))
 
 
 def _collect(

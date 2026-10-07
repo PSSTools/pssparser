@@ -247,6 +247,13 @@ def _build_parser() -> argparse.ArgumentParser:
         default=False,
         help="Print 'hint' diagnostics, which are hidden by default",
     )
+    lint_grp.add_argument(
+        "--show-waived",
+        action="store_true",
+        default=False,
+        help="Also print diagnostics that a source waiver covered, marked "
+             "[waived: <reason>]; the exit code is unaffected",
+    )
     warn_grp.add_argument(
         "--no-warnings",
         action="store_true",
@@ -425,6 +432,7 @@ def main(argv: list[str] | None = None) -> int:
             dump_ast=args.dump_ast,
             output_format=output_format or "text",
             statistics=args.statistics,
+            show_waived=args.show_waived,
             quiet=args.quiet,
             color=args.color,
             max_errors=args.max_errors,

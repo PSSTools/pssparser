@@ -66,6 +66,9 @@ class Diagnostic:
     # Human output renders it as a trailing ``[...]``; JSON does not, since
     # ``original_severity`` already carries the machine-readable fact.
     werror_flag: Optional[str] = None
+    # Set only on a diagnostic a source waiver covered: the waiver, as
+    # ``Waiver.to_json()`` (form, id, file, line, col, reason).
+    waiver: Optional[dict] = None
 
     @classmethod
     def from_marker(cls, marker: dict) -> "Diagnostic":
@@ -197,6 +200,9 @@ class DiagnosticCollection:
     def __init__(self) -> None:
         self._diags: List[Diagnostic] = []
         self._processed_files: Optional[List[str]] = None
+        #: Diagnostics a source waiver covered; not counted, not in the
+        #: exit code.  Each carries its ``waiver``.
+        self.waived: List[Diagnostic] = []
 
     def add(self, diag: Diagnostic) -> None:
         self._diags.append(diag)

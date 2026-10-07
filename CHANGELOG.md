@@ -62,6 +62,34 @@ With this come lint profiles and rule selection (`docs/lint.rst`):
   (`PSSP201`). `CheckContext.is_enabled()` lets a checker skip a disabled
   rule. `pssparser.checkers.testing` is a fixture harness for rule tests.
 
+### Added — source waivers (`@lint_pkg::waive`, `// pssparser waive`)
+
+Accept one finding where it is, with a reason, instead of turning its rule
+off everywhere (`docs/waivers.rst`):
+
+```pss
+@lint_pkg::waive {.id = "import-after-declaration", .reason = "generated"}
+import vendor::*;
+import other::*;   // pssparser waive LINT402: vendor header order
+```
+
+- `.id` takes an ID, a rule name or any rule selector. An element annotation
+  covers the element after it; a standalone one (`...;`) covers to the end of
+  the enclosing scope; the comment covers its line, or the next line of code.
+- `lint_pkg` is a new built-in package (`src/stdlib/lint_pkg.pss`), visible
+  without an import. It is not part of the PSS core library; other tools
+  disregard the annotation (LRM 7.13).
+- Errors are never waived. New markers: `PSSP202` unused waiver, `PSSP203`
+  unknown rule, `PSSP204` waiver on an error, `PSSP205` no reason.
+- Waivers apply after `[severity]` and before `-Werror`. `--show-waived`
+  prints waived findings; `--format json` lists them under a new top-level
+  `waived` key (absent when empty), outside `diagnostics` and the counts;
+  SARIF reports them as suppressed results; `--stats` counts them;
+  `[waivers] source = false` turns them off.
+- Library: `pssparser.waivers.collect()` / `apply()`.
+- Function definitions, procedural statements, `import`s and action handles
+  now have an end location (`getEndLocation()`).
+
 ### Fixed (behaviour change) — annotations attach to the statement they precede
 
 An element annotation attaches to the next model element (LRM 7.13). On a

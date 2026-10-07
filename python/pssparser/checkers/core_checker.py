@@ -2063,6 +2063,65 @@ class CoreChecker(CheckerBase):
                 "registered."
             ),
         ),
+
+        # -- Source waivers (docs/waivers.rst).  A source waiver cannot
+        # waive these four: it could otherwise hide the warning that it is
+        # itself unused.  [severity] can re-level them.
+        MarkerDef(
+            id="PSSP202",
+            name="unused-waiver",
+            tier="tool",
+            severity="warning",
+            summary="A waiver matched no diagnostic",
+            detail=(
+                "A ``@lint_pkg::waive`` annotation or ``// pssparser waive`` "
+                "comment covered no diagnostic, although a rule it names ran "
+                "on this run.  Usually the code it excused has been fixed: "
+                "delete the waiver.  A waiver for a rule that did not run -- "
+                "turned off, outside the lint profile, or from a checker "
+                "that was not loaded -- is not reported, so a waiver does "
+                "not flap with the configuration."
+            ),
+        ),
+        MarkerDef(
+            id="PSSP203",
+            name="unknown-waiver-rule",
+            tier="tool",
+            severity="warning",
+            summary="A waiver names no known rule",
+            detail=(
+                "The ``id`` of a ``@lint_pkg::waive`` annotation, or an ID in "
+                "a ``// pssparser waive`` comment, is not a marker ID, rule "
+                "name or selector that any loaded checker declares.  Usually "
+                "a typo; the message suggests the nearest match.  A rule from "
+                "an extension that is not installed looks the same."
+            ),
+        ),
+        MarkerDef(
+            id="PSSP204",
+            name="waiver-on-error",
+            tier="tool",
+            severity="warning",
+            summary="A waiver names an error that cannot be waived",
+            detail=(
+                "An LRM error means the model was not built, so waiving it "
+                "would report success for a run that compiled nothing.  The "
+                "waiver has no effect.  Fix the error, and delete the "
+                "waiver."
+            ),
+        ),
+        MarkerDef(
+            id="PSSP205",
+            name="waiver-without-reason",
+            tier="tool",
+            severity="warning",
+            summary="A waiver gives no reason",
+            detail=(
+                "Every waiver says why: ``.reason`` in the annotation, or the "
+                "text after ``:`` in the comment.  The waiver still applies; "
+                "this asks for the reason."
+            ),
+        ),
     ] + list(_CORE_EMITTED_LINT)
 
     def check(self, context) -> None:  # noqa: D102

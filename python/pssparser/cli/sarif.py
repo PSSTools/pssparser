@@ -8,6 +8,8 @@ Severity maps to ``level`` per lint-framework L1: ``error`` -> ``error``,
 ``warning`` -> ``warning``, ``info`` -> ``note``, ``hint`` -> ``none``.
 Tool diagnostics (an extension that failed to load) have no source location
 and are reported as results without ``locations``, which SARIF permits.
+A diagnostic a source waiver covered is a result with an ``inSource``
+suppression whose justification is the waiver's reason.
 """
 from __future__ import annotations
 
@@ -74,6 +76,9 @@ class SarifOutput:
     def finish(self, coll: DiagnosticCollection, quiet: bool, stats=None) -> None:
         if quiet:
             return
+        # A waived finding is still a result in SARIF, marked suppressed: a
+        # code-scanning UI shows it as dismissed, with the reason.
+        self._diags.extend(getattr(coll, "waived", []))
         json.dump(self.document(), self._stream, indent=2)
         self._stream.write("\n")
 
@@ -149,6 +154,11 @@ class SarifOutput:
                     "originalSeverity": diag.original_severity,
                     "promotedBy": diag.werror_flag,
                 }
+            if diag.waiver is not None:
+                result["suppressions"] = [{
+                    "kind": "inSource",
+                    "justification": diag.waiver.get("reason", ""),
+                }]
             results.append(result)
 
         return {

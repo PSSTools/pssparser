@@ -20,7 +20,9 @@ Common options
 - ``--format {text,json,sarif,github}`` chooses the output format (see
   `Output formats`_); ``--json`` is the same as ``--format json``
 - ``--lint-profile NAME`` / ``--no-lint`` choose which lint rules report
-  (see :doc:`lint`); ``--show-hints`` prints ``hint`` diagnostics
+  (see :doc:`lint`); ``--show-hints`` prints ``hint`` diagnostics;
+  ``--show-waived`` prints the findings a source waiver covered (see
+  :doc:`waivers`)
 - ``--statistics`` prints a per-code count of the diagnostics reported
 - ``--dump-ast OUT`` writes a JSON dump of the linked AST
 - ``--quiet`` suppresses normal diagnostic output
@@ -560,6 +562,9 @@ Lint and output settings
    [output]
    show-hints = true              # like --show-hints
 
+   [waivers]
+   source = false                 # ignore waivers written in the source (docs: waivers)
+
 ``--lint-profile`` and ``--no-lint`` override ``lint.profile``.  :doc:`lint`
 describes the profiles, pinning, and which files are linted.
 
@@ -567,7 +572,8 @@ Warning policy
 ==============
 
 Warnings are reported as warnings and do not affect the exit code.  Two
-flag families change that.
+flag families change that.  A finding a source waiver covers is removed
+first, so it is never promoted (:doc:`waivers`).
 
 ``-Werror``
     Report every warning as an error.  The rendered message gains a

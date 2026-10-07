@@ -178,6 +178,22 @@ still work wherever you type an ID -- ``[severity]``, ``[warnings]``,
 ``PSSP004`` note naming where to update it.  Output always shows the new ID.
 The old IDs are retired and will never be reused.
 
+Waiving a finding
+=================
+
+To accept one finding where it is, rather than turning its rule off
+everywhere, waive it in the source:
+
+.. code-block:: pss
+
+   @lint_pkg::waive {.id = "import-after-declaration", .reason = "generated"}
+   import vendor::*;
+
+   import other::*;   // pssparser waive LINT402: vendor header order
+
+:doc:`waivers` covers both forms, what each covers, and the markers that
+keep waivers honest.
+
 CI integration
 ==============
 

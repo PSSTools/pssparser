@@ -19,6 +19,7 @@ Document
      "schema": "pssparser-diagnostics/2",
      "diagnostics": [],
      "summary": {"errors": 0, "warnings": 1, "notes": 0, "hints": 0, "files": 1},
+     "waived": [],
      "statistics": [],
      "stats": {}
    }
@@ -32,6 +33,11 @@ Document
    Counts by severity after the warning policy ran: ``errors``,
    ``warnings``, ``notes`` (``info``; *new in 2*), ``hints`` (*new in 2*),
    and ``files`` (files processed).
+``waived``
+   Present when a source waiver covered at least one diagnostic: those
+   diagnostics, each with a ``waiver`` key (below).  They are not in
+   ``diagnostics`` and not in the ``summary`` counts, so a consumer that
+   ignores this key sees what the exit code saw.  See :doc:`waivers`.
 ``statistics``
    Present with ``--statistics``: one object per code, most frequent first,
    with ``code``, ``count``, ``name`` and ``tier`` (empty strings when the
@@ -86,3 +92,7 @@ Diagnostic
 ``related``
    Secondary locations, each with ``file``, ``line``, ``col`` and
    ``label``.
+``waiver``
+   Only in the ``waived`` array: the waiver that covered it, with ``form``
+   (``"annotation"`` or ``"pragma"``), ``id`` as written, ``file``,
+   ``line``, ``col`` (where the waiver is written) and ``reason``.

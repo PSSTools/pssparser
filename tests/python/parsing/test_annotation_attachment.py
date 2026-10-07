@@ -10,7 +10,9 @@ location.  These are lint-framework-plan F2.0, source-waivers W0-a/b/c:
   ``ActivityDecl``; one on a procedural statement attached to the enclosing
   function; one on a compound constraint (``if``, ``foreach``, ``->``) to the
   first item in its body.
-* W0-b: a ``constraint c { ... }`` block had no end location.
+* W0-b: a ``constraint c { ... }`` block, a function definition, a
+  procedural statement, an ``import`` and an action handle had no end
+  location; a waiver on one covered nothing past its first token.
 * W0-c: an annotation on ``import`` linked with PSS042 ("left unbound ... a
   pssparser defect"), and a standalone annotation counted as the first
   declaration for the import-order warning (LINT402).
@@ -124,25 +126,25 @@ ATTACH = {
     # Procedural statements (21.6.1, Example 323)
     "proc_call": (
         "component C { function void g() {} function void f() { @A g(); } }",
-        ("ProceduralStmtExpr", "g(); } }")),
+        ("ProceduralStmtExpr", "g();")),
     "proc_assignment": (
         "component C { function void f() { int a; @A a = 1; } }",
-        ("ProceduralStmtAssignment", "a = 1; } }")),
+        ("ProceduralStmtAssignment", "a = 1;")),
     "proc_data_declaration": (
         "component C { function void f() { @A int a, b; } }",
-        ("ProceduralStmtDataDeclaration", "int a, b; } }")),
+        ("ProceduralStmtDataDeclaration", "int a, b;")),
     "proc_if": (
         "component C { function void f() { int a; @A if (a > 0) { a = 1; } } }",
-        ("ProceduralStmtIfElse", "if (a > 0) { a = 1; } } }")),
+        ("ProceduralStmtIfElse", "if (a > 0) { a = 1; }")),
     "proc_nested": (
         "component C { function void f() { int a; repeat (2) { @A a = 1; } } }",
-        ("ProceduralStmtAssignment", "a = 1; } } }")),
+        ("ProceduralStmtAssignment", "a = 1;")),
     "proc_exec_body": (
         "component C { action A { int a; exec post_solve { @A a = 1; } } }",
-        ("ProceduralStmtAssignment", "a = 1; } } }")),
+        ("ProceduralStmtAssignment", "a = 1;")),
     "function_whole": (
         "component C { @A function void f() { int a; a = 1; } }",
-        ("FunctionDefinition", "function void f() { int a; a = 1; } }")),
+        ("FunctionDefinition", "function void f() { int a; a = 1; }")),
     "exec_whole": (
         "component C { action A { int a; @A exec post_solve { a = 1; } } }",
         ("ExecBlock", "exec post_solve { a = 1; }")),
@@ -233,7 +235,7 @@ def test_bad_annotation_parameter_on_a_statement_is_reported_once(stmt):
 def test_annotation_on_an_import_is_resolved():
     p = _link_clean("package lib { struct s {} }\n"
                     "package p { @A import lib::*; struct t {} }")
-    assert _annotated(p) == [("PackageImportStmt", "import lib::*; struct t {} }")]
+    assert _annotated(p) == [("PackageImportStmt", "import lib::*;")]
 
 
 def _warnings(body):
