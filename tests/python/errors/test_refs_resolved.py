@@ -105,11 +105,12 @@ component pss_top {
     'component pss_top { action A { exec body C = """{% int i = 0; %}'
     '{% i = 1; %}"""; } }',
     # Annotations on activity and procedural statements (Example 323): they
-    # used to be skipped by the resolver entirely.
+    # used to be skipped by the resolver entirely. Each is followed by the
+    # statement it attaches to: one with nothing after it is an error (7.13).
     "import std_pkg::*;\n"
     "component pss_top { action A { }\n"
     "  action B { activity { @code_doc {.text=\"x\"} do A; } }\n"
-    "  function void f() { repeat (i : 2) { @code_doc {.text=\"y\"} } } }",
+    "  function void f() { repeat (i : 2) { @code_doc {.text=\"y\"} int j = i; } } }",
     # A qualified array dimension: every element of the path is bound, not
     # only the last.
     "package sizes { const int N = 4; }\n"

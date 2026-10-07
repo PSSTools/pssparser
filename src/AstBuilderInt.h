@@ -625,6 +625,24 @@ private:
     void attachPendingAnnotations(ast::IScopeChild *c);
     void discardPendingAnnotations(size_t mark);
 
+    /**
+     * Statement annotations (LRM 7.13: activity statements; 21.6.1: procedural
+     * statements). A statement is not added through addChild, so nothing
+     * attached its pending annotations, and they went to the next declaration
+     * built -- the enclosing activity or function. The statement builder takes
+     * them before building the statement, so a statement nested in its body
+     * cannot claim them, and gives them to the statement it built.
+     */
+    struct PendingAnnotations {
+        std::vector<ast::IAnnotation *> anns;
+        Token                          *tok = 0;
+    };
+    PendingAnnotations takePendingAnnotations();
+    /** Report every pending annotation as having nothing to attach to (7.13). */
+    void reportPendingAnnotations();
+    /** Attach *p* to *stmt*, or return it to the pending list if *stmt* is null. */
+    void attachStmtAnnotations(ast::IScopeChild *stmt, PendingAnnotations &p);
+
     /** Where the docstring scan should start for the child now being added. */
     Token *docstringAnchor(Token *t);
 

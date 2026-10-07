@@ -149,7 +149,11 @@ void TaskCheckImports::checkFirst(ast::IPackageImportStmt *imp) {
         if (c == imp) {
             return;
         }
-        if (NodeKind::cast<ast::IPackageImportStmt>(c) || NodeKind::cast<ast::IComment>(c)) {
+        // A standalone annotation (`@a {...};`) is not a declaration, and
+        // 18.1.3 orders imports before declarations. Counting it made a
+        // waiver for this very warning, written above the import, raise it.
+        if (NodeKind::cast<ast::IPackageImportStmt>(c) || NodeKind::cast<ast::IComment>(c)
+                || NodeKind::cast<ast::IAnnotation>(c)) {
             continue;
         }
         m_ctxt->addMarker(

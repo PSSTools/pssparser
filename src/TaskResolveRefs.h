@@ -557,7 +557,7 @@ protected:
      * The same for a block that is not a symbol scope of its own kind (a
      * procedural block, a loop body): the annotations on its statements.
      */
-    void checkBlockAnnotations(ast::IScope *scope);
+    void checkBlockAnnotations(ast::IScopeChild *scope);
 
     /** Resolve each of `anns` not already resolved. */
     void checkAnnotations(const std::vector<ast::IAnnotationUP> &anns);

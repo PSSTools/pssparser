@@ -1181,7 +1181,7 @@ void TaskResolveRefs::pushProcScope(ast::IScopeChild *s) {
 
     // Annotations on the statements in this block (`@code_doc {...} f();`,
     // Example 323), under the block's own scope.
-    checkBlockAnnotations(NodeKind::cast<ast::IScope>(s));
+    checkBlockAnnotations(s);
 }
 
 void TaskResolveRefs::popProcScope() {
@@ -5522,9 +5522,9 @@ void TaskResolveRefs::visitSymbolFunctionScope(ast::ISymbolFunctionScope *i) {
         DEBUG("Push function scope %s", i->getName().c_str());
         m_ctxt->symtab()->pushScope(i);
 
-        // The function's own annotations -- and, since the builder attaches a
-        // body statement's annotation to the definition, those too (Example
-        // 323). The enclosing scope's collector stops at this one.
+        // The function's own annotations. The enclosing scope's collector
+        // stops at this one. A body statement's annotation is on the
+        // statement and is checked with its block (pushProcScope).
         for (std::vector<ast::IFunctionPrototype *>::const_iterator
             it=i->getPrototypes().begin();
             it!=i->getPrototypes().end(); it++) {
@@ -5743,6 +5743,7 @@ public:
         for (std::vector<ast::IScopeChildUP>::const_iterator
             it=s->getChildren().begin();
             it!=s->getChildren().end(); it++) {
+            own(it->get());
             (*it)->accept(this);
         }
     }
@@ -5759,20 +5760,40 @@ public:
         for (std::vector<ast::IScopeChildUP>::const_iterator
             it=s->getChildren().begin();
             it!=s->getChildren().end(); it++) {
+            own(it->get());
             (*it)->accept(this);
         }
     }
+
+    // A child's own annotations are taken directly: not every statement's
+    // generated visit reaches them (a procedural `if` did not). The checker
+    // de-duplicates (TaskResolveRefs::visitAnnotation), so one also found
+    // through visitAnnotation is checked once.
 
     virtual void visitAnnotation(ast::IAnnotation *i) override {
         annotations.push_back(i);
     }
 
-    virtual void visitSymbolScope(ast::ISymbolScope *i) override { }
-    virtual void visitSymbolTypeScope(ast::ISymbolTypeScope *i) override { }
-    virtual void visitSymbolEnumScope(ast::ISymbolEnumScope *i) override { }
-    virtual void visitSymbolExtendScope(ast::ISymbolExtendScope *i) override { }
-    virtual void visitSymbolFunctionScope(ast::ISymbolFunctionScope *i) override { }
-    virtual void visitSymbolChildrenScope(ast::ISymbolChildrenScope *i) override { }
+    // A nested symbol scope's children are its own pass's, but an annotation
+    // on the scope node itself sits in this scope: a procedural `if` or
+    // `repeat` is a symbol scope, and nothing else collects the annotation
+    // written in front of it. Annotation types are package-scope only
+    // (7.13 b), so resolving it from here finds the same declaration.
+    virtual void visitSymbolScope(ast::ISymbolScope *i) override { own(i); }
+    virtual void visitSymbolTypeScope(ast::ISymbolTypeScope *i) override { own(i); }
+    virtual void visitSymbolEnumScope(ast::ISymbolEnumScope *i) override { own(i); }
+    virtual void visitSymbolExtendScope(ast::ISymbolExtendScope *i) override { own(i); }
+    virtual void visitSymbolFunctionScope(ast::ISymbolFunctionScope *i) override { own(i); }
+    virtual void visitSymbolChildrenScope(ast::ISymbolChildrenScope *i) override { own(i); }
+
+private:
+    void own(ast::IScopeChild *i) {
+        for (std::vector<ast::IAnnotationUP>::const_iterator
+            it=i->getAnnotations().begin();
+            it!=i->getAnnotations().end(); it++) {
+            annotations.push_back(it->get());
+        }
+    }
 };
 
 class IsNonConstantExpr : public ast::VisitorBase {
@@ -5814,21 +5835,27 @@ std::string typeIdName(ast::ITypeIdentifier *type_id) {
 void TaskResolveRefs::checkAnnotations(const std::vector<ast::IAnnotationUP> &anns) {
     for (std::vector<ast::IAnnotationUP>::const_iterator
         it=anns.begin(); it!=anns.end(); it++) {
-        if (m_checked_annotations.insert(it->get()).second) {
-            (*it)->accept(m_this);
-        }
+        (*it)->accept(m_this);
     }
 }
 
-void TaskResolveRefs::checkBlockAnnotations(ast::IScope *scope) {
+void TaskResolveRefs::checkBlockAnnotations(ast::IScopeChild *scope) {
+    // A procedural block is an ExecScope, which is a symbol scope rather than
+    // an IScope. Cast only to IScope, this found nothing in any exec or
+    // function body: a statement's annotation was checked only if the
+    // statement's generated visit happened to reach it, which a procedural
+    // `if` or `repeat` does not.
     AnnotationCollector collector;
-    collector.collect(scope);
+    if (ast::IScope *s = NodeKind::cast<ast::IScope>(scope)) {
+        collector.collect(s);
+    } else if (ast::ISymbolChildrenScope *s =
+            NodeKind::cast<ast::ISymbolChildrenScope>(scope)) {
+        collector.collect(s);
+    }
     for (std::vector<ast::IAnnotation *>::const_iterator
         it=collector.annotations.begin();
         it!=collector.annotations.end(); it++) {
-        if (m_checked_annotations.insert(*it).second) {
-            (*it)->accept(m_this);
-        }
+        (*it)->accept(m_this);
     }
 }
 
@@ -5853,9 +5880,24 @@ void TaskResolveRefs::checkScopeAnnotations(ast::ISymbolScope *scope) {
         }
     }
 
+    // An import is not a symbol child: the symbol tree keeps it in the
+    // scope's import list (TaskBuildSymbolTree::visitPackageImportStmt), so
+    // nothing collected an annotation written in front of one (W0-c).
+    if (scope->getImports()) {
+        for (std::vector<ast::IPackageImportStmt *>::const_iterator
+            it=scope->getImports()->getImports().begin();
+            it!=scope->getImports()->getImports().end(); it++) {
+            for (std::vector<ast::IAnnotationUP>::const_iterator
+                at=(*it)->getAnnotations().begin();
+                at!=(*it)->getAnnotations().end(); at++) {
+                collector.annotations.push_back(at->get());
+            }
+        }
+    }
+
     // And one on the scope itself, when it is an AST node rather than a
-    // symbol-tree wrapper: an ActivityDecl, which is where the builder puts
-    // the annotation of an activity statement.
+    // symbol-tree wrapper: an ActivityDecl. (The builder used to put an
+    // activity statement's annotation there; it now goes on the statement.)
     for (std::vector<ast::IAnnotationUP>::const_iterator
         it=scope->getAnnotations().begin();
         it!=scope->getAnnotations().end(); it++) {
@@ -5865,14 +5907,18 @@ void TaskResolveRefs::checkScopeAnnotations(ast::ISymbolScope *scope) {
     for (std::vector<ast::IAnnotation *>::const_iterator
         it=collector.annotations.begin();
         it!=collector.annotations.end(); it++) {
-        if (m_checked_annotations.insert(*it).second) {
-            (*it)->accept(m_this);
-        }
+        (*it)->accept(m_this);
     }
 }
 
 void TaskResolveRefs::visitAnnotation(ast::IAnnotation *i) {
     DEBUG_ENTER("visitAnnotation");
+    // Reachable both from the annotation checks of the enclosing block and
+    // from a statement's own generated visit; checked, and reported, once.
+    if (!m_checked_annotations.insert(i).second) {
+        DEBUG_LEAVE("visitAnnotation (already checked)");
+        return;
+    }
     ast::ITypeIdentifier *type_id = i->getType();
     if (!type_id) {
         DEBUG_LEAVE("visitAnnotation (no type)");

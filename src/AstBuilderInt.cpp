@@ -977,6 +977,11 @@ antlrcpp::Any AstBuilderInt::visitActivity_declaration(PSSParser::Activity_decla
     ast::IActivityDecl *activity = m_factory->mkActivityDecl("");
     setLoc(activity, ctx->start);
 
+	// The body is built before the declaration is added, so its first
+	// statement would take the activity's own annotations. Held back here,
+	// and given to the declaration by addChild.
+	PendingAnnotations outer = takePendingAnnotations();
+
 	std::vector<PSSParser::Activity_stmt_annContext *> items = ctx->activity_stmt_ann();
 	m_activity_scope_s.push_back(activity);
 	for (std::vector<PSSParser::Activity_stmt_annContext *>::const_iterator
@@ -985,6 +990,8 @@ antlrcpp::Any AstBuilderInt::visitActivity_declaration(PSSParser::Activity_decla
         addActivityStmt(activity, *it);
 	}
 	m_activity_scope_s.pop_back();
+	reportPendingAnnotations();
+	attachStmtAnnotations(0, outer);
 	closeActivityBlock(activity, ctx->TOK_RCBRACE()->getSymbol());
     
 	m_activity_stmt = activity;
@@ -1561,6 +1568,10 @@ antlrcpp::Any AstBuilderInt::visitExec_block(PSSParser::Exec_blockContext *ctx) 
         "<exec>",
         kind_it->second);
 
+    // As visitActivity_declaration: the block's own annotations wait for
+    // addChild, and the body's statements do not see them.
+    PendingAnnotations outer = takePendingAnnotations();
+
     m_exec_scope_s.push_back(exec);
     std::vector<PSSParser::Exec_stmtContext *> items = ctx->exec_stmt();
     for (std::vector<PSSParser::Exec_stmtContext *>::const_iterator
@@ -1584,6 +1595,8 @@ antlrcpp::Any AstBuilderInt::visitExec_block(PSSParser::Exec_blockContext *ctx) 
         addExecStmt((*it)->procedural_stmt());
     }
     m_exec_scope_s.pop_back();
+    reportPendingAnnotations();
+    attachStmtAnnotations(0, outer);
 
     addChild(exec, ctx->start, ctx->TOK_RCBRACE()->getSymbol());
 
@@ -1787,6 +1800,9 @@ antlrcpp::Any AstBuilderInt::visitFunction_decl(PSSParser::Function_declContext 
     ast::IExecScope *body = m_factory->mkExecScope("<func-body>");
     std::vector<PSSParser::Procedural_stmtContext *> items = ctx->procedural_stmt();
     DEBUG("Function has %d statements", items.size());
+    // As visitActivity_declaration: the function's own annotations wait for
+    // addChild, and the body's statements do not see them.
+    PendingAnnotations outer = takePendingAnnotations();
     m_exec_scope_s.push_back(body);
     for (std::vector<PSSParser::Procedural_stmtContext *>::const_iterator
         it=items.begin();
@@ -1794,6 +1810,8 @@ antlrcpp::Any AstBuilderInt::visitFunction_decl(PSSParser::Function_declContext 
         addExecStmt(*it);
     }
     m_exec_scope_s.pop_back();
+    reportPendingAnnotations();
+    attachStmtAnnotations(0, outer);
     collectScopeTrailingComments(body, ctx->stop);
     DEBUG("Result is %d statements in body", body->getChildren().size());
 
@@ -2594,6 +2612,7 @@ antlrcpp::Any AstBuilderInt::visitMonitor_activity_declaration(PSSParser::Monito
 	m_activity_scope_s.push_back(activity);
 	addMonitorActivityStmts(activity, ctx->monitor_activity_stmt());
 	m_activity_scope_s.pop_back();
+	reportPendingAnnotations();
 
 	DEBUG_LEAVE("visitMonitor_activity_declaration");
 	return 0;
@@ -3699,6 +3718,9 @@ antlrcpp::Any AstBuilderInt::visitConstraint_declaration(PSSParser::Constraint_d
 		ctx->is_dynamic);
 
 	addChild(constraint, ctx->start);
+	// The block's extent (W0-b): addChild records only the start, so a
+	// consumer could not tell where `constraint c { ... }` ends.
+	setExtent(constraint, ctx->start, ctx->stop);
 	m_constraint_s.push_back(constraint);
 
 	if (ctx->constraint_set()) {
@@ -3731,6 +3753,7 @@ antlrcpp::Any AstBuilderInt::visitConstraint_declaration(PSSParser::Constraint_d
 	}
 
 	m_constraint_s.pop_back();
+	reportPendingAnnotations();
 
 	DEBUG_LEAVE("visitConstraint_declaration");
 	return 0;
@@ -3896,7 +3919,37 @@ void AstBuilderInt::acceptLocatedConstraintItem(antlr4::ParserRuleContext *ctx) 
 	ast::IConstraintScope *scope = (m_constraint_s.size()) ? m_constraint_s.back() : 0;
 	size_t n_before = (scope) ? scope->getConstraints().size() : 0;
 
+	// A compound item (`if`, `foreach`, `->`, a nested block) builds its body
+	// before itself, so the first item in the body used to take the pending
+	// annotations written in front of the compound one. Take them first and
+	// give them to the item this builds. An annotation, `;` or `compile if`
+	// builds nothing of its own, so it leaves them pending.
+	antlr4::tree::ParseTree *item = (ctx->children.size()) ? ctx->children.at(0) : 0;
+	bool is_stmt = item
+		&& !dynamic_cast<PSSParser::AnnotationContext *>(item)
+		&& !dynamic_cast<PSSParser::Constraint_body_compile_ifContext *>(item)
+		&& !dynamic_cast<antlr4::tree::TerminalNode *>(item);
+	PendingAnnotations anns;
+	if (is_stmt) {
+		anns = takePendingAnnotations();
+		if (!scope) {
+			m_constraint = 0;
+		}
+	}
+
 	visitChildren(ctx);
+
+	if (is_stmt) {
+		ast::IScopeChild *built = (scope)
+			? ((scope->getConstraints().size() > n_before)
+				? scope->getConstraints().at(n_before).get() : 0)
+			: m_constraint;
+		if (built) {
+			// Left pending at the end of the item's own body.
+			reportPendingAnnotations();
+		}
+		attachStmtAnnotations(built, anns);
+	}
 
 	// Most constraint statements used to be built with no location: only
 	// `unique`, `soft` and the two `default` forms had one, so a consumer
@@ -4448,7 +4501,8 @@ antlrcpp::Any AstBuilderInt::visitForeach_constraint_item(PSSParser::Foreach_con
         c->setIndex(m_constraint_s.back()->getConstraints().size());
 		m_constraint_s.back()->getConstraints().push_back(ast::IConstraintStmtUP(c));
 	}
-	attachPendingAnnotations(c);
+	// Annotations: acceptLocatedConstraintItem, which takes them before
+	// the body is built.
 	DEBUG_LEAVE("visitForeach_constraint_item");
 	return 0;
 }
@@ -4502,7 +4556,8 @@ antlrcpp::Any AstBuilderInt::visitForall_constraint_item(PSSParser::Forall_const
 		c->setIndex(m_constraint_s.back()->getConstraints().size());
 		m_constraint_s.back()->getConstraints().push_back(ast::IConstraintStmtUP(c));
 	}
-	attachPendingAnnotations(c);
+	// Annotations: acceptLocatedConstraintItem, which takes them before
+	// the body is built.
 
 	DEBUG_LEAVE("visitForall_constraint_item");
 	return 0;
@@ -4544,7 +4599,8 @@ antlrcpp::Any AstBuilderInt::visitIf_constraint_item(PSSParser::If_constraint_it
 		m_constraint_s.back()->getConstraints().push_back(
 			IConstraintStmtUP(c));
 	}
-	attachPendingAnnotations(c);
+	// Annotations: acceptLocatedConstraintItem, which takes them before
+	// the body is built.
 
 	DEBUG_LEAVE("visitIf_constraint_item");
 	return 0;
@@ -4563,7 +4619,8 @@ antlrcpp::Any AstBuilderInt::visitImplication_constraint_item(PSSParser::Implica
         c->setIndex(m_constraint_s.back()->getConstraints().size());
 		m_constraint_s.back()->getConstraints().push_back(ast::IConstraintStmtUP(c));
 	}
-	attachPendingAnnotations(c);
+	// Annotations: acceptLocatedConstraintItem, which takes them before
+	// the body is built.
 
 	DEBUG_LEAVE("visitImplication_constraint_item");
 	return 0;
@@ -6761,6 +6818,62 @@ void AstBuilderInt::attachPendingAnnotations(ast::IScopeChild *c) {
     }
 }
 
+void AstBuilderInt::reportPendingAnnotations() {
+    if (!m_pending_annotations.empty()) {
+        // LRM 7.13: an element annotation "is attached to the next PSS model
+        // element declared in the scope.  It is an error if no subsequent
+        // element is present in the scope."  These were dropped silently, so
+        // Example32's third case -- an annotation at the end of a scope -- was
+        // accepted.  Standalone annotations never reach here: visitAnnotation
+        // recognizes them by their terminating `;` and does not queue them.
+        DEBUG("Reporting %d unattached annotations",
+            (int)m_pending_annotations.size());
+        for (std::vector<ast::IAnnotation *>::const_iterator
+            it=m_pending_annotations.begin();
+            it!=m_pending_annotations.end(); it++) {
+            reportUnattachedAnnotation(*it);
+            delete *it;
+        }
+        m_pending_annotations.clear();
+        m_pending_annotation_tok = 0;
+    }
+}
+
+AstBuilderInt::PendingAnnotations AstBuilderInt::takePendingAnnotations() {
+    PendingAnnotations p;
+    p.anns.swap(m_pending_annotations);
+    p.tok = m_pending_annotation_tok;
+    m_pending_annotation_tok = 0;
+    return p;
+}
+
+void AstBuilderInt::attachStmtAnnotations(
+        ast::IScopeChild    *stmt,
+        PendingAnnotations  &p) {
+    if (p.anns.empty()) {
+        return;
+    }
+    if (stmt) {
+        // Not through attachPendingAnnotations: that also sets the docstring
+        // anchor for the next declaration, and the statement builders anchor
+        // their own comments.
+        for (std::vector<ast::IAnnotation *>::const_iterator
+            it=p.anns.begin(); it!=p.anns.end(); it++) {
+            stmt->getAnnotations().push_back(ast::IAnnotationUP(*it));
+        }
+    } else {
+        // Nothing was built: the annotations stay pending, ahead of any that
+        // the statement queued itself.
+        p.anns.insert(p.anns.end(),
+            m_pending_annotations.begin(), m_pending_annotations.end());
+        m_pending_annotations.swap(p.anns);
+        if (p.tok) {
+            m_pending_annotation_tok = p.tok;
+        }
+    }
+    p.anns.clear();
+}
+
 Token *AstBuilderInt::docstringAnchor(Token *t) {
     Token *anchor = m_attached_annotation_tok;
     m_attached_annotation_tok = 0;
@@ -6781,24 +6894,7 @@ void AstBuilderInt::push_scope(ast::IScope *s) {
 
 void AstBuilderInt::pop_scope() { 
 	DEBUG("-- pop_scope");
-    if (!m_pending_annotations.empty()) {
-        // LRM 7.13: an element annotation "is attached to the next PSS model
-        // element declared in the scope.  It is an error if no subsequent
-        // element is present in the scope."  These were dropped silently, so
-        // Example32's third case -- an annotation at the end of a scope -- was
-        // accepted.  Standalone annotations never reach here: visitAnnotation
-        // recognizes them by their terminating `;` and does not queue them.
-        DEBUG("Reporting %d unattached annotations at scope pop",
-            (int)m_pending_annotations.size());
-        for (std::vector<ast::IAnnotation *>::const_iterator
-            it=m_pending_annotations.begin();
-            it!=m_pending_annotations.end(); it++) {
-            reportUnattachedAnnotation(*it);
-            delete *it;
-        }
-        m_pending_annotations.clear();
-        m_pending_annotation_tok = 0;
-    }
+    reportPendingAnnotations();
 	popDocAnchor();
 	if (!m_access_s.empty()) {
 		m_access_s.pop_back();
@@ -7880,8 +7976,24 @@ ast::IScopeChild *AstBuilderInt::mkActivityStmt(
 	Token *ann_anchor = m_activity_ann_anchor;
 	m_activity_ann_anchor = 0;
 
+	// A declaration attaches its own annotations (addChild); an annotation or
+	// `;` builds nothing. Any other statement takes the pending ones.
+	PSSParser::Activity_stmtContext *as = ctx->activity_stmt();
+	bool is_stmt = as && !as->activity_data_field()
+		&& !as->action_handle_declaration() && !as->annotation()
+		&& !as->TOK_SEMICOLON();
+	PendingAnnotations anns;
+	if (is_stmt) {
+		anns = takePendingAnnotations();
+	}
+
 	m_activity_stmt = 0;
 	ctx->accept(this);
+	if (is_stmt && m_activity_stmt) {
+		// Left pending at the end of the statement's own body.
+		reportPendingAnnotations();
+	}
+	attachStmtAnnotations(m_activity_stmt, anns);
 
 	Token *start = (anchor) ? anchor : ctx->getStart();
 	if (!m_activity_stmt) {
@@ -8005,7 +8117,19 @@ ast::IScopeChild *AstBuilderInt::mkMonitorActivityStmt(PSSParser::Monitor_activi
 		? mkId(ctx->label_identifier()->identifier())
 		: 0;
 
+	// As mkActivityStmt: only a statement takes the pending annotations.
+	PendingAnnotations anns;
+	if (ctx->labeled_monitor_activity_stmt()
+			|| ctx->monitor_activity_constraint_stmt()) {
+		anns = takePendingAnnotations();
+	}
+
 	ctx->accept(this);
+	if (m_activity_stmt && (ctx->labeled_monitor_activity_stmt()
+			|| ctx->monitor_activity_constraint_stmt())) {
+		reportPendingAnnotations();
+	}
+	attachStmtAnnotations(m_activity_stmt, anns);
 
 	// Nothing claimed it (a bare `;`, or an annotation): do not leak it into
 	// the next statement.
@@ -8285,8 +8409,32 @@ ast::IScopeChild *AstBuilderInt::mkExecStmt(PSSParser::Procedural_stmtContext *c
         return 0;
     }
 
+    // Taken before the statement is built, so a statement in its body cannot
+    // claim them. A data declaration pushes its variables straight into the
+    // exec scope, so it gets them through the first variable it adds.
+    PendingAnnotations anns;
+    size_t n_before = 0;
+    if (!ctx->TOK_SEMICOLON()) {
+        anns = takePendingAnnotations();
+        if (!m_exec_scope_s.empty()) {
+            n_before = m_exec_scope_s.back()->getChildren().size();
+        }
+    }
+
     if (!ctx->TOK_SEMICOLON()) {
         ctx->accept(this);
+
+        ast::IScopeChild *target = m_exec_stmt;
+        if (!target && ctx->procedural_data_declaration()
+                && !m_exec_scope_s.empty()
+                && m_exec_scope_s.back()->getChildren().size() > n_before) {
+            target = m_exec_scope_s.back()->getChildren().at(n_before).get();
+        }
+        if (target) {
+            // Left pending at the end of the statement's own body.
+            reportPendingAnnotations();
+        }
+        attachStmtAnnotations(target, anns);
 
         if (!m_exec_stmt_cnt) {
             addInternalError(ctx->getStart(), "no exec statement built");

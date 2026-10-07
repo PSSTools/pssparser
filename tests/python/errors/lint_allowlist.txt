@@ -14,6 +14,7 @@
 # supports one; revisit then rather than truncating today.
 G7: has no subsequent element in this scope to attach to  # E-6//long but not jargon; revisit when multi-line messages are supported
 G7: Expect one of (body, header, declaration  # E-6//long but not jargon; revisit when multi-line messages are supported
+G7: follows a declaration; imports shall come first in a package  # LINT402//long but not jargon; first emitted under parse_collect by test_annotation_attachment.py; candidate for a primary + note split
 
 # The two mustache entries that used to live here (PSS108/PSS109) are gone:
 # A9 moved the shared `{ {` workaround out of the message and into a note

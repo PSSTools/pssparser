@@ -62,6 +62,31 @@ With this come lint profiles and rule selection (`docs/lint.rst`):
   (`PSSP201`). `CheckContext.is_enabled()` lets a checker skip a disabled
   rule. `pssparser.checkers.testing` is a fixture harness for rule tests.
 
+### Fixed (behaviour change) — annotations attach to the statement they precede
+
+An element annotation attaches to the next model element (LRM 7.13). On a
+statement it went elsewhere:
+
+- on an activity statement, to the enclosing `activity`;
+- on a procedural statement, to the enclosing function or exec block;
+- on a compound constraint (`if`, `foreach`, `->`), to the first item in its
+  body.
+
+Each now attaches to the statement itself (`getAnnotations()` on the
+`Activity*`, `ProceduralStmt*` or `ConstraintStmt*` node). An annotation on the
+whole `activity`, function or exec block still attaches there. Also:
+
+- An annotation with nothing after it at the end of a statement body
+  (`sequence { do A; @a {...} }`, a function, a `repeat`, a constraint `if`)
+  is now an error, as at the end of any other scope. It used to slide onto the
+  next statement or onto the enclosing declaration.
+- An annotation on a compound procedural statement (`if`, `repeat`, `while`,
+  `foreach`, `match`, a `{ }` block) and on an `import` is now checked; it
+  used to fail with PSS042 ("left unbound ... a pssparser defect").
+- A standalone annotation (`@a {...};`) before an `import` no longer counts as
+  a declaration for LINT402.
+- `constraint c { ... }` has an end location.
+
 ### Fixed (behaviour change) — a procedural declaration needs its `;` (pssc Q1)
 
 `int x = 1` followed by `int y = 2;` in a function or `exec` body was

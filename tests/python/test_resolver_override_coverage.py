@@ -54,14 +54,6 @@ PROCEDURAL_BODY_FIELDS = {
     "ProceduralStmtMatch.choices", "ProceduralStmtBody.body",
 }
 
-#: Compound activity statements: SymbolScopes (WS4.1) that never carry imports.
-ACTIVITY_SCOPES = (
-    "ActivityAtomicBlock", "ActivityForeach", "ActivityIfElse",
-    "ActivityMatch", "ActivityParallel", "ActivityRepeatCount",
-    "ActivityRepeatWhile", "ActivityReplicate", "ActivitySchedule",
-    "ActivitySelect", "MonitorActivityEventually",
-)
-
 ALLOWED = {
     # Imports exist only on package, component and type scopes; the other
     # scope kinds inherit the field but never populate it.
@@ -72,8 +64,6 @@ ALLOWED = {
     "visitTemplateBlock:SymbolScope.imports": "never populated on a template scope",
     "visitTemplateString:SymbolScope.imports": "never populated on a template scope",
     "visitSymbolExtendScope:SymbolScope.imports":
-        "every import is resolved before this pass (TaskResolveImports::resolveAll)",
-    "visitSymbolScope:SymbolScope.imports":
         "every import is resolved before this pass (TaskResolveImports::resolveAll)",
     "visitSymbolFunctionScope:SymbolScope.imports": "never populated on a function scope",
     # Loop scopes: `children` holds the loop variable's declaration; the body
@@ -115,9 +105,6 @@ ALLOWED = {
     "visitSymbolTypeScope:SymbolTypeScope.plist": "walked through getParams()",
     "visitSymbolTypeScope:SymbolTypeScope.spec_types": "resolved when created",
 }
-ALLOWED.update({
-    "visit%s:SymbolScope.imports" % c: "never populated on an activity scope"
-    for c in ACTIVITY_SCOPES})
 
 
 def _child_fields(classes, cls):
