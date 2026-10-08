@@ -24,22 +24,22 @@ def test_cap_stops_reporting_and_emits_pss029_last():
     _root, markers = parse_collect(_many_defects(30), max_errors=20)
     errors = [m for m in markers if m.get("severity") == "error"]
     assert len(errors) == 21
-    assert [m.get("code") for m in errors].count("PSS029") == 1
-    assert errors[-1].get("code") == "PSS029"
+    assert [m.get("code") for m in errors].count("PSSP007") == 1
+    assert errors[-1].get("code") == "PSSP007"
 
 
 def test_max_errors_zero_is_unlimited():
     _root, markers = parse_collect(_many_defects(30), max_errors=0)
     errors = [m for m in markers if m.get("severity") == "error"]
     assert len(errors) == 30
-    assert "PSS029" not in [m.get("code") for m in errors]
+    assert "PSSP007" not in [m.get("code") for m in errors]
 
 
 def test_max_errors_one():
     _root, markers = parse_collect(_many_defects(30), max_errors=1)
     errors = [m for m in markers if m.get("severity") == "error"]
     assert len(errors) == 2
-    assert errors[-1].get("code") == "PSS029"
+    assert errors[-1].get("code") == "PSSP007"
 
 
 def test_cap_does_not_fire_on_a_clean_file():
@@ -47,7 +47,7 @@ def test_cap_does_not_fire_on_a_clean_file():
         "component pss_top {\n    action A {}\n}\n", max_errors=1
     )
     codes = [m.get("code") for m in markers]
-    assert "PSS029" not in codes
+    assert "PSSP007" not in codes
 
 
 def test_cli_max_errors_changes_reported_error_count(tmp_path):

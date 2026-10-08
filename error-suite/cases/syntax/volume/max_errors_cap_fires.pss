@@ -5,7 +5,7 @@
 //! detect:               recommended
 //! requires:             max_errors
 //! at:                   16:17
-//! pssparser.id:         PSS029
+//! pssparser.id:         PSSP007
 //! pssparser.match:      too many errors
 //! count:                1
 //! pssparser.max-errors: 3

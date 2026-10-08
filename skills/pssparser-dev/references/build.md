@@ -74,7 +74,7 @@ confirm the loaded `.so` paths are under this checkout.
 
 Crashes that appear only under pytest, not standalone, are usually lifetime
 bugs in the Python caller: see "AST lifetime" in `testing.md`. A crash in the
-linker should instead surface as a PSS000 marker: `AstLinker::link` catches
+linker should instead surface as a PSSP000 marker: `AstLinker::link` catches
 every exception and reports the pass it escaped from. A process abort means an
 exception crossed into Cython without `except +`.
 

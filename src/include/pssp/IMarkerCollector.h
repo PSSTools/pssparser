@@ -36,7 +36,7 @@ public:
 	virtual const std::vector<IMarkerUP> &markers() const = 0;
 
 	// 0 (the default) means unlimited. Only Error-severity markers count
-	// against the cap; a collector that has reached it emits one PSS029
+	// against the cap; a collector that has reached it emits one PSSP007
 	// marker and silently drops further errors (see MarkerCollector::marker).
 	virtual void setMaxErrors(int32_t max) = 0;
 

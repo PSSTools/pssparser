@@ -11,7 +11,7 @@ revision advances only the patch component.
 
 A `PSS` ID now always means an LRM violation, and every active `PSS` marker is
 an error. Warnings about legal code are **lint** (`LINT`), and diagnostics
-about pssparser itself are `PSSP`:
+about pssparser itself -- warnings and errors -- are `PSSP`:
 
 | Old | New | Name |
 |---|---|---|
@@ -28,6 +28,14 @@ about pssparser itself are `PSSP`:
 | PSS031 | PSSP002 | `entry-point-name-mismatch` |
 | PSS032 | PSSP003 | `extension-api-too-new` |
 | PSS116 | PSSP101 | `construct-not-represented` |
+| PSS000 | PSSP000 | `internal-error` |
+| PSS029 | PSSP007 | `too-many-errors` |
+| PSS033 | PSSP008 | `duplicate-marker-id` |
+
+The internal error is now **`PSSP000`**: a script that checks for `PSS000`
+must check for `PSSP000` (exit status 3 is unchanged). `PSSP000`, `PSSP007`
+and `PSSP008` are errors and, like `PSS` errors, cannot be downgraded or
+turned off; a group selector (`PSSP`, `tool`) skips them.
 
 Messages and locations are unchanged. **The old IDs are still accepted
 wherever an ID is typed** -- `[severity]`, `[warnings]`, `-Werror=`,
@@ -61,6 +69,15 @@ With this come lint profiles and rule selection (`docs/lint.rst`):
   `tier`, `family`, `since`, `examples`, ...) validated at load
   (`PSSP201`). `CheckContext.is_enabled()` lets a checker skip a disabled
   rule. `pssparser.checkers.testing` is a fixture harness for rule tests.
+
+### Added — the enclosing declaration of a finding
+
+- `context.facts.decl_path(loc)` gives a checker the qualified path of the
+  declaration around a location, e.g. `p::C::A::constraint c`
+  (`pssparser.lint.declpath`). Baseline fingerprints will be built on it.
+- SARIF results name it as the location's `logicalLocations`.
+- Enum, `extend enum`, typedef, function prototype, target-template function
+  and monitor `constraint` declarations now have end locations.
 
 ### Added — source waivers (`@lint_pkg::waive`, `// pssparser waive`)
 

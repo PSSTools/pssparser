@@ -103,7 +103,7 @@ pssparser --json top.pss | jq -r '.diagnostics[] | "\(.code) \(.file):\(.line) \
 | `0` | No error-severity diagnostics. Warnings may have been reported. |
 | `1` | At least one error, including warnings promoted by `-Werror`. |
 | `2` | Usage error: unknown option, missing source file, no source file given, unknown checker name, invalid configuration file, unknown `--describe` ID. Nothing was checked. |
-| `3` | Internal error in pssparser (`PSS000`). The result is not trustworthy. |
+| `3` | Internal error in pssparser (`PSSP000`; formerly `PSS000`). The result is not trustworthy. |
 | `130` | Interrupted. |
 
 `--stats` never changes the exit code.
@@ -130,7 +130,7 @@ usually faster than reasoning from the message alone.
 
 Most diagnostics are about the model. These are about the tool:
 
-- `PSS000`: internal error. Exit code 3. Report it with the input that
+- `PSSP000` (formerly `PSS000`): internal error. Exit code 3. Report it with the input that
   triggers it.
 - `PSS042`: a reference was left unbound. The summary says "(pssparser
   defect)". The model may be fine.

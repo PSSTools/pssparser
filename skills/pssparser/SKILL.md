@@ -35,7 +35,7 @@ The run has three phases, and each runs only if the one before it succeeded:
 
 `--syntax-only` stops after phase 1. `--max-errors N` caps the errors
 reported per file (default 20; `0` means no limit); a capped file ends with
-`PSS029`.
+`PSSP007`.
 
 ### Import the core library
 
@@ -90,7 +90,7 @@ with `pssparser --list-markers`.
 
 Exit codes: `0` no errors (warnings allowed), `1` at least one error, `2`
 usage error (bad flag, missing file, bad configuration), `3` internal error
-in pssparser (`PSS000`; report it, do not work around it in the model).
+in pssparser (`PSSP000`; report it, do not work around it in the model).
 
 For the JSON format, every field, and the query commands, read
 `references/diagnostics.md`.

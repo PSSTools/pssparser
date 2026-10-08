@@ -24,16 +24,16 @@ class CoreChecker(CheckerBase):
 
     #: Marker IDs are allocated in bands:
     #:
-    #:   ``PSS000``             internal error (a defect in pssparser)
     #:   ``PSS001``-``PSS099``  general parse/link diagnostics
     #:   ``PSS100``-``PSS199``  PSS 3.1 language-rule diagnostics
     #:   ``PSSP...``            the tool's own diagnostics (end of the list)
     #:   ``LINT...``            core-emitted lint, defined in
     #:                          ``pssparser.lint.catalog`` and appended last
     #:
-    #: ``PSS`` means an LRM violation.  The warnings that used to share it moved
-    #: out (lint-framework D-1, D-6); their ``PSS`` rows stay, ``retired``,
-    #: with ``replaced_by`` naming the new code.
+    #: ``PSS`` means an LRM violation.  The warnings and tool errors that used
+    #: to share it moved out (lint-framework D-1, D-6); their ``PSS`` rows
+    #: stay, ``retired``, with ``replaced_by`` naming the new code.  The
+    #: internal error, once ``PSS000``, is ``PSSP000``.
     #:
     #: Core markers originate in C++, which does not carry an ID on the marker
     #: object.  The ID is recovered by matching ``patterns`` against the message
@@ -43,22 +43,14 @@ class CoreChecker(CheckerBase):
         MarkerDef(
             id="PSS000",
             severity="error",
-            summary="Internal error",
-            patterns=(
-                r"^internal error\b",
-            ),
+            summary="Internal error (moved to PSSP000)",
+            status="retired",
+            replaced_by=("PSSP000",),
             detail=(
-                "pssparser reached a state it believed could not happen.  "
-                "This is a defect in pssparser, not necessarily in the model, "
-                "and it should be reported together with the input that "
-                "triggers it.  The message names the phase or link pass that "
-                "failed:\n\n"
-                "* ``internal error in resolving references: ...``\n"
-                "* ``internal error while building the AST: ...``\n\n"
-                "Results for the rest of the model are incomplete: the pass "
-                "that failed stopped, and the passes after it did not run.  "
-                "The command-line tool exits with status 3 when an internal "
-                "error is reported."
+                "A diagnostic about pssparser itself, not about the "
+                "model, so it moved to the ``PSSP`` namespace as "
+                "``PSSP000`` (``internal-error``). ``PSS000`` is still accepted "
+                "wherever an ID is typed, and is never reused."
             ),
         ),
         MarkerDef(
@@ -844,18 +836,14 @@ class CoreChecker(CheckerBase):
         MarkerDef(
             id="PSS029",
             severity="error",
-            summary="Too many errors; stopped reporting further errors",
+            summary="Too many errors; stopped reporting further errors (moved to PSSP007)",
+            status="retired",
+            replaced_by=("PSSP007",),
             detail=(
-                "``--max-errors`` (default 20; ``0`` disables the cap) was "
-                "reached for this file. Only error-severity markers count "
-                "against it -- warnings and hints never trigger it, and a "
-                "clean file never sees it. Emitted once, at the location of "
-                "the error that pushed the count over the limit; every "
-                "further error in that file is dropped, not merely hidden, "
-                "so re-running with a higher (or ``0``) ``--max-errors`` is "
-                "the only way to see what comes after it.\n\n"
-                "Message: ``too many errors (<N>); stopped reporting "
-                "further errors for this file``"
+                "A diagnostic about pssparser itself, not about the "
+                "model, so it moved to the ``PSSP`` namespace as "
+                "``PSSP007`` (``too-many-errors``). ``PSS029`` is still accepted "
+                "wherever an ID is typed, and is never reused."
             ),
         ),
 
@@ -864,8 +852,7 @@ class CoreChecker(CheckerBase):
         # The tool's own diagnostics moved to the PSSP namespace (lint-
         # framework D-6); see the PSSP section at the end of this list.  The
         # retired rows stay so that --describe explains the move and the IDs
-        # are never reused.  PSS033 (duplicate marker ID) is still here: tool
-        # *errors* have not moved (plan F1.3a open point).
+        # are never reused.
 
         MarkerDef(
             id="PSS030",
@@ -912,19 +899,14 @@ class CoreChecker(CheckerBase):
         MarkerDef(
             id="PSS033",
             severity="error",
-            summary="Two checkers declare the same marker ID",
+            summary="Two checkers declare the same marker ID (moved to PSSP008)",
+            status="retired",
+            replaced_by=("PSSP008",),
             detail=(
-                "Marker IDs are globally unique across the core and every "
-                "installed extension. Two rules wearing one ID make "
-                "``--describe``, ``-Werror=ID`` and every per-ID severity "
-                "override ambiguous, so the collision is an error rather "
-                "than a warning.\n\n"
-                "The checker that lost the collision is not registered; "
-                "everything else, including the rest of its extension, still "
-                "loads. The message names both contributors. The fix belongs "
-                "in the extension: pick an unused prefix -- three letters "
-                "plus three digits is the convention, and the ``PSS`` prefix "
-                "is reserved for the built-in core checker."
+                "A diagnostic about pssparser itself, not about the "
+                "model, so it moved to the ``PSSP`` namespace as "
+                "``PSSP008`` (``duplicate-marker-id``). ``PSS033`` is still accepted "
+                "wherever an ID is typed, and is never reused."
             ),
         ),
 
@@ -1883,16 +1865,42 @@ class CoreChecker(CheckerBase):
 
         # -- PSSP: the tool's own diagnostics (lint-framework D-6) ----------
         #
-        # PSSP0xx  extensions, configuration and marker IDs
+        # PSSP000  internal error (a defect in pssparser)
+        # PSSP0xx  extensions, configuration, marker IDs and run limits
         # PSSP1xx  parser coverage: constructs accepted but not represented
         # PSSP2xx  lint infrastructure (rule metadata, waivers, baselines)
         #
         # Every PSSP marker has tier "tool": no lint profile selects or hides
         # it, and the ownership filter and baselines never drop it.  Most
-        # originate in Python and carry their code directly, so they declare
-        # no `patterns`.  PSSP101 is the exception: it comes from the C++
-        # builder and is pattern-matched, at the position of its retired
-        # PSS116 row, so pattern precedence is unchanged.
+        # carry their code directly (set in Python, or by C++ for PSSP000 and
+        # PSSP007), so they declare no `patterns`.  PSSP000 and PSSP101 are
+        # also pattern-matched, at the position of their retired PSS000 and
+        # PSS116 rows, so pattern precedence is unchanged.
+
+        MarkerDef(
+            id="PSSP000",
+            name="internal-error",
+            tier="tool",
+            aliases=("PSS000",),
+            severity="error",
+            summary="Internal error",
+            patterns=(
+                r"^internal error\b",
+            ),
+            detail=(
+                "pssparser reached a state it believed could not happen.  "
+                "This is a defect in pssparser, not necessarily in the model, "
+                "and it should be reported together with the input that "
+                "triggers it.  The message names the phase or link pass that "
+                "failed:\n\n"
+                "* ``internal error in resolving references: ...``\n"
+                "* ``internal error while building the AST: ...``\n\n"
+                "Results for the rest of the model are incomplete: the pass "
+                "that failed stopped, and the passes after it did not run.  "
+                "The command-line tool exits with status 3 when an internal "
+                "error is reported."
+            ),
+        ),
 
         MarkerDef(
             id="PSSP001",
@@ -2009,6 +2017,50 @@ class CoreChecker(CheckerBase):
                 "fit still loads, for now, but cannot be selected by "
                 "namespace or band and will be refused in a later release.  "
                 "Rename it."
+            ),
+        ),
+
+        MarkerDef(
+            id="PSSP007",
+            name="too-many-errors",
+            tier="tool",
+            aliases=("PSS029",),
+            severity="error",
+            summary="Too many errors; stopped reporting further errors",
+            detail=(
+                "``--max-errors`` (default 20; ``0`` disables the cap) was "
+                "reached for this file. Only error-severity markers count "
+                "against it -- warnings and hints never trigger it, and a "
+                "clean file never sees it. Emitted once, at the location of "
+                "the error that pushed the count over the limit; every "
+                "further error in that file is dropped, not merely hidden, "
+                "so re-running with a higher (or ``0``) ``--max-errors`` is "
+                "the only way to see what comes after it.\n\n"
+                "Message: ``too many errors (<N>); stopped reporting "
+                "further errors for this file``"
+            ),
+        ),
+
+        MarkerDef(
+            id="PSSP008",
+            name="duplicate-marker-id",
+            tier="tool",
+            aliases=("PSS033",),
+            severity="error",
+            summary="Two checkers declare the same marker ID",
+            detail=(
+                "Marker IDs are globally unique across the core and every "
+                "installed extension. Two rules wearing one ID make "
+                "``--describe``, ``-Werror=ID`` and every per-ID severity "
+                "override ambiguous, so the collision is an error rather "
+                "than a warning.\n\n"
+                "The checker that lost the collision is not registered; "
+                "everything else, including the rest of its extension, still "
+                "loads. The message names both contributors. The fix belongs "
+                "in the extension: pick an unused namespace -- two to five "
+                "capital letters, then three digits (``PRC001``).  The "
+                "``PSS``, ``LINT``, ``PSSP`` and ``PSSX`` namespaces belong "
+                "to pssparser (``PSSP005``)."
             ),
         ),
 

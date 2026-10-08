@@ -12,7 +12,7 @@ from .output import HumanOutput, JsonOutput
 from .source_context import SourceCache
 from pssparser.parser import INTERNAL_ERROR_CODE
 
-#: Exit status when pssparser reported an internal error (PSS000).
+#: Exit status when pssparser reported an internal error (PSSP000).
 EXIT_INTERNAL_ERROR = 3
 
 
@@ -42,7 +42,7 @@ def cmd_parse(
     """Run the parse (and optionally link) pipeline, report diagnostics.
 
     Returns an exit code: 0 success, 1 errors found, 2 usage problem,
-    3 internal error (a ``PSS000`` was reported; it outranks 1).
+    3 internal error (a ``PSSP000`` was reported; it outranks 1).
 
     Parameters
     ----------
@@ -161,6 +161,8 @@ def cmd_parse(
             _apply_waivers(coll, parser, files, manager, config,
                            ast=waiver_state["ast"], ran=waiver_state["ran"])
         _apply_warning_policy(coll, policy)
+        if output_format == "sarif" and waiver_state["ast"]:
+            _assign_decl_paths(coll, parser, files)
         _emit_all(driver, coll, quiet)
         stats = None
         if show_stats:
@@ -519,6 +521,20 @@ def _apply_waivers(coll: DiagnosticCollection, parser, files: List[str],
         if sev:
             diag.severity = sev
         coll.add(diag)
+
+
+def _assign_decl_paths(coll: DiagnosticCollection, parser, files: List[str]) -> None:
+    """Set each diagnostic's enclosing declaration (SARIF logical location)."""
+    from pssparser.lint.declpath import index_for
+
+    index = index_for(parser, files)
+    for diag in list(coll.diagnostics) + list(coll.waived):
+        if diag.line < 1:
+            continue
+        scope = index.scope_at(diag.file, diag.line, diag.col)
+        if scope is not None:
+            diag.decl = {"path": scope.path, "name": scope.name,
+                         "kind": scope.kind}
 
 
 def _waived_by_code(coll: DiagnosticCollection) -> dict:

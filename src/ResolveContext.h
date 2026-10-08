@@ -245,7 +245,7 @@ public:
         ...);
 
     /**
-     * Report a defect in pssparser rather than in the model: a PSS000
+     * Report a defect in pssparser rather than in the model: a PSSP000
      * marker, "internal error: ...". For a state the code believed could
      * not happen, at a site that can carry on (the reference stays unbound).
      * A site that cannot carry on throws InternalError instead, and the

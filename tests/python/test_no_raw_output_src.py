@@ -3,7 +3,7 @@
 A diagnostic that is printed instead of reported is invisible to every
 consumer of the marker list, uncounted in the exit status, and -- because the
 dmgr macros print to *stdout* -- it corrupts ``--json`` output. Every such
-site in ``src/`` has been converted: to a marker, to a PSS000 internal error
+site in ``src/`` has been converted: to a marker, to a PSSP000 internal error
 (``InternalError`` / ``ResolveContext::internalError``), or to ``DEBUG``,
 which prints only when debug output is enabled. See
 docs/design/symbol-resolution-plan.md INV-2 and WS0.4.

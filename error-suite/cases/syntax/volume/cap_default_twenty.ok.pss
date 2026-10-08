@@ -4,7 +4,7 @@
 //! expect:               error
 //! detect:               recommended
 //! requires:             max_errors
-//! pssparser.id:         PSS029
+//! pssparser.id:         PSSP007
 //! at:                   33:18
 //! pssparser.match:      too many errors (20); stopped reporting further errors for this file
 //! count:                1

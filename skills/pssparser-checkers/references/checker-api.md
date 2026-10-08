@@ -49,6 +49,7 @@ Choosing IDs and severities: `marker-ids.md`.
 | `global_scopes` | One `GlobalScope` per user file, core library excluded. Walk these for per-file rules. |
 | `files` | The source paths from the command line, in order. |
 | `file_map` | `{fileid: path}`. Map `unit.getFileid()` (and any `Location.fileid`) to the path to report. Do not use `GlobalScope.getFilename()`; it may be empty. |
+| `facts` | Derived facts, computed on first use and cached for the run. `facts.decl_path(loc)` gives the enclosing declaration's qualified path (`pkg::C::A::constraint c`; `""` at global scope) for a marker dict, an object with `file`/`line`/`col`, or a `(file, line, col)` tuple. `facts.decl_paths` is the `pssparser.lint.declpath.DeclPathIndex`. |
 
 ### `add_marker`
 

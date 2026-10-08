@@ -152,7 +152,7 @@ def test_query_path_reports_load_failure_on_stderr(eps):
 
 
 def test_describe_documents_the_new_band(eps):
-    for code_id in ("PSSP001", "PSSP002", "PSSP003", "PSS033"):
+    for code_id in ("PSSP001", "PSSP002", "PSSP003", "PSSP008"):
         rc, out, _ = _run(["--describe", code_id])
         assert rc == 0
         assert code_id in out
@@ -160,7 +160,7 @@ def test_describe_documents_the_new_band(eps):
 
 def test_list_markers_includes_the_new_band(eps):
     _, out, _ = _run(["--list-markers"])
-    for code_id in ("PSSP001", "PSSP002", "PSSP003", "PSS033"):
+    for code_id in ("PSSP001", "PSSP002", "PSSP003", "PSSP008"):
         assert code_id in out
 
 
@@ -214,8 +214,8 @@ def test_duplicate_marker_id_fails_the_run(eps, valid_pss):
         _extension("zzz-second", "second-checker", "DUP001"),
     ]
     code, _, err = _run([valid_pss])
-    assert code == 1                      # PSS033 is an error
-    assert "PSS033" in err
+    assert code == 1                      # PSSP008 is an error
+    assert "PSSP008" in err
     assert "aaa-first" in err and "zzz-second" in err
 
 

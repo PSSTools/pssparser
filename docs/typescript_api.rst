@@ -297,7 +297,7 @@ duplicates the last pass. Call ``clearMarkers()`` between parses:
 Stop reporting further errors for a file after *n*. ``0`` (the default) is
 unlimited: a library caller wants every diagnostic, and the cap is a
 terminal-output affordance a CLI opts into. Only error-severity markers count
-against it, and a file that reaches it gets one extra ``PSS029`` marker
+against it, and a file that reaches it gets one extra ``PSSP007`` marker
 announcing the cutoff.
 
 ``enableProfiling(enable?)`` and ``getProfileInfo()``

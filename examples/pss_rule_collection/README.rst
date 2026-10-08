@@ -118,7 +118,7 @@ Three details worth copying:
    releases of pssparser by guarding the newer paths.
 
 **Choosing marker IDs.**  IDs are globally unique across the core and every
-installed extension; a collision is a ``PSS033`` **error** and costs the
+installed extension; a collision is a ``PSSP008`` **error** and costs the
 losing checker its registration.  Pick an unused prefix — three letters plus
 three digits is the convention, ``PRC001`` here.  The ``PSS`` prefix is
 reserved for the built-in core checker.

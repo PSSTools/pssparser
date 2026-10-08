@@ -1,6 +1,6 @@
-"""PSS000: an internal error is reported, never suppressed, and exits 3.
+"""PSSP000: an internal error is reported, never suppressed, and exits 3.
 
-The C++ side reports its own failures as PSS000 markers (the catch-all in
+The C++ side reports its own failures as PSSP000 markers (the catch-all in
 AstLinker::link and AstBuilderInt::build); the Python side turns anything
 that escapes even that into the same marker (`except +` in decl.pxd, then
 Parser.link/parse). Every known internal error has been fixed, so these tests

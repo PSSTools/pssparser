@@ -28,11 +28,11 @@ from pssparser.cli.commands import _assign_core_code
 # messages the not-yet-written C++ code is *required* to emit -- keeping them
 # here means the ID mapping is settled before the emitting code is written.
 REPRESENTATIVE_MESSAGES = [
-    # PSS000 is set on the C++ marker directly; the pattern is the fallback
+    # PSSP000 is set on the C++ marker directly; the pattern is the fallback
     # for a message that reaches Python without its code.
-    ("PSS000", "internal error in resolving references: vector::_M_range_check; "
+    ("PSSP000", "internal error in resolving references: vector::_M_range_check; "
                "please report this"),
-    ("PSS000", "internal error while building the AST: boom; please report this"),
+    ("PSSP000", "internal error while building the AST: boom; please report this"),
     ("PSS001", "expected ';' before '}'"),
     ("PSS001", "unexpected end of input; possible missing closing '}'"),
     ("PSS001", "unknown exec-block kind 'wibble'"),
@@ -339,18 +339,18 @@ def test_marker_ids_are_in_ascending_order():
         assert nums == sorted(nums), ns
 
 
-#: PSS020-PSS029: syntax-classification sub-band, plus PSS029 (the
-#: --max-errors cutoff marker, MarkerCollector::marker in C++). These IDs
+#: PSS020-PSS028: syntax-classification sub-band (PSS029, the --max-errors
+#: cutoff, is now PSSP007; it is set by MarkerCollector::marker in C++). These IDs
 #: arrive on the marker directly from C++, not via message-pattern matching,
 #: so `patterns` is deliberately empty and there is nothing to add to
 #: REPRESENTATIVE_MESSAGES for them -- see SYNTAX_BAND_SAMPLES and
 #: test_syntax_band_ids_are_reachable below instead.
 #: PSS023 is reserved, not assigned (see core_checker.py). PSS027 is the
 #: lexer's, and became reachable with A6.
-_SYNTAX_BAND = {"PSS0%02d" % n for n in range(20, 30)}
+_SYNTAX_BAND = {"PSS0%02d" % n for n in range(20, 29)} | {"PSSP007"}
 
-#: The tool's own diagnostics: PSS030-PSS039 (now retired rows, plus PSS033)
-#: and every PSSP code but PSSP101. Like the syntax band these carry their
+#: The tool's own diagnostics: PSS030-PSS039 (now retired rows) and every
+#: PSSP code but PSSP000, PSSP007 and PSSP101. Like the syntax band these carry their
 #: code directly rather than acquiring one by message matching -- but for the
 #: opposite reason. Syntax-band markers come from C++ with a code already
 #: attached; these are constructed in *Python* (CheckerManager's discovery
@@ -359,10 +359,12 @@ _SYNTAX_BAND = {"PSS0%02d" % n for n in range(20, 30)}
 #: A pattern on one of these would be actively harmful: `_build_core_patterns`
 #: exists to recover an ID for C++ markers that have none, so a pattern here
 #: could claim an unrelated parser message and report it as, say, a failed
-#: extension load.  PSSP101 is the exception: it comes from the C++ builder.
+#: extension load.  The exceptions come from C++: PSSP000 (internal error,
+#: code set directly, pattern as a fallback), PSSP007 (counted with the
+#: syntax band above) and PSSP101 (the builder; pattern-matched).
 _TOOLING_BAND = {"PSS0%02d" % n for n in range(30, 40)} | {
     m.id for m in CoreChecker.marker_defs
-    if m.id.startswith("PSSP") and m.id != "PSSP101"
+    if m.id.startswith("PSSP") and m.id not in ("PSSP000", "PSSP007", "PSSP101")
 }
 
 #: Codes that are never emitted: retired (moved or withdrawn) and reserved.
@@ -452,7 +454,7 @@ def test_assign_core_code_never_fires_for_the_syntax_band():
 #: IDs). PSS023 is reserved/unreachable (see core_checker.py) and is
 #: deliberately absent here. The third element is the --max-errors value
 #: to apply before parsing (None = library default, unlimited) -- only
-#: PSS029 needs one, since it is the cap-cutoff marker itself.
+#: PSSP007 needs one, since it is the cap-cutoff marker itself.
 SYNTAX_BAND_SAMPLES = [
     ("PSS020", "struct S { int x }", None),
     ("PSS021", "struct S { int x; ", None),
@@ -465,7 +467,7 @@ SYNTAX_BAND_SAMPLES = [
     ("PSS027", 'struct S { string a = "abc; }', None),
     ("PSS028", "struct S { 123 x; }", None),
     (
-        "PSS029",
+        "PSSP007",
         "\n".join("struct S%d { int ; }" % i for i in range(5)),
         2,
     ),

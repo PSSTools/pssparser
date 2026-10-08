@@ -170,7 +170,7 @@ export class Parser {
    *
    * A library caller wants every diagnostic; the cap is a terminal-output
    * affordance a CLI opts into. Only error-severity markers count against it,
-   * and a file that reaches it gets one extra PSS029 marker announcing the
+   * and a file that reaches it gets one extra PSSP007 marker announcing the
    * cutoff.
    */
   setMaxErrors(n: number): void {

@@ -11,7 +11,7 @@ Namespaces
 
 ``PSS``
    Normative PSS: the model violates the language reference manual.
-   ``PSS001``-``PSS099`` is the general band, ``PSS020``-``PSS029`` its
+   ``PSS001``-``PSS099`` is the general band, ``PSS020``-``PSS028`` its
    syntax sub-band, and ``PSS100``-``PSS199`` the PSS 3.1 language-rule band.
 ``LINT``
    Lint: legal PSS that is probably not what the author meant.  The rules
@@ -43,20 +43,6 @@ Severities
 
 PSS: LRM violations
 -------------------
-
-PSS000
-~~~~~~
-
-**Severity:** error
-
-Internal error
-
-pssparser reached a state it believed could not happen.  This is a defect in pssparser, not necessarily in the model, and it should be reported together with the input that triggers it.  The message names the phase or link pass that failed:
-
-* ``internal error in resolving references: ...``
-* ``internal error while building the AST: ...``
-
-Results for the rest of the model are incomplete: the pass that failed stopped, and the passes after it did not run.  The command-line tool exits with status 3 when an internal error is reported.
 
 PSS001
 ~~~~~~
@@ -488,28 +474,6 @@ ANTLR could not decide among the grammar's alternatives at this point (a ``no vi
 Message: ``syntax error at '<token>'``
 
 The message does not say what was expected; work outward from the enclosing construct to find the mistake.
-
-PSS029
-~~~~~~
-
-**Severity:** error
-
-Too many errors; stopped reporting further errors
-
-``--max-errors`` (default 20; ``0`` disables the cap) was reached for this file. Only error-severity markers count against it -- warnings and hints never trigger it, and a clean file never sees it. Emitted once, at the location of the error that pushed the count over the limit; every further error in that file is dropped, not merely hidden, so re-running with a higher (or ``0``) ``--max-errors`` is the only way to see what comes after it.
-
-Message: ``too many errors (<N>); stopped reporting further errors for this file``
-
-PSS033
-~~~~~~
-
-**Severity:** error
-
-Two checkers declare the same marker ID
-
-Marker IDs are globally unique across the core and every installed extension. Two rules wearing one ID make ``--describe``, ``-Werror=ID`` and every per-ID severity override ambiguous, so the collision is an error rather than a warning.
-
-The checker that lost the collision is not registered; everything else, including the rest of its extension, still loads. The message names both contributors. The fix belongs in the extension: pick an unused prefix -- three letters plus three digits is the convention, and the ``PSS`` prefix is reserved for the built-in core checker.
 
 PSS040
 ~~~~~~
@@ -1151,6 +1115,22 @@ Reported where the constraint is traversed.  Traversing a *fixed* named constrai
 PSSP: the tool's own diagnostics
 --------------------------------
 
+PSSP000
+~~~~~~~
+
+**Severity:** error
+
+**Name:** ``internal-error``; **Tier:** tool; **Formerly:** ``PSS000``
+
+Internal error
+
+pssparser reached a state it believed could not happen.  This is a defect in pssparser, not necessarily in the model, and it should be reported together with the input that triggers it.  The message names the phase or link pass that failed:
+
+* ``internal error in resolving references: ...``
+* ``internal error while building the AST: ...``
+
+Results for the rest of the model are incomplete: the pass that failed stopped, and the passes after it did not run.  The command-line tool exits with status 3 when an internal error is reported.
+
 PSSP001
 ~~~~~~~
 
@@ -1226,6 +1206,32 @@ PSSP006
 A checker declares a marker ID that does not fit the ID grammar
 
 Marker IDs are a namespace of two to five capital letters followed by three digits (``PRC001``).  An ID that does not fit still loads, for now, but cannot be selected by namespace or band and will be refused in a later release.  Rename it.
+
+PSSP007
+~~~~~~~
+
+**Severity:** error
+
+**Name:** ``too-many-errors``; **Tier:** tool; **Formerly:** ``PSS029``
+
+Too many errors; stopped reporting further errors
+
+``--max-errors`` (default 20; ``0`` disables the cap) was reached for this file. Only error-severity markers count against it -- warnings and hints never trigger it, and a clean file never sees it. Emitted once, at the location of the error that pushed the count over the limit; every further error in that file is dropped, not merely hidden, so re-running with a higher (or ``0``) ``--max-errors`` is the only way to see what comes after it.
+
+Message: ``too many errors (<N>); stopped reporting further errors for this file``
+
+PSSP008
+~~~~~~~
+
+**Severity:** error
+
+**Name:** ``duplicate-marker-id``; **Tier:** tool; **Formerly:** ``PSS033``
+
+Two checkers declare the same marker ID
+
+Marker IDs are globally unique across the core and every installed extension. Two rules wearing one ID make ``--describe``, ``-Werror=ID`` and every per-ID severity override ambiguous, so the collision is an error rather than a warning.
+
+The checker that lost the collision is not registered; everything else, including the rest of its extension, still loads. The message names both contributors. The fix belongs in the extension: pick an unused namespace -- two to five capital letters, then three digits (``PRC001``).  The ``PSS``, ``LINT``, ``PSSP`` and ``PSSX`` namespaces belong to pssparser (``PSSP005``).
 
 PSSP101
 ~~~~~~~
@@ -1305,6 +1311,15 @@ Every waiver says why: ``.reason`` in the annotation, or the text after ``:`` in
 Retired and reserved codes
 --------------------------
 
+PSS000
+~~~~~~
+
+**Retired: replaced by ``PSSP000``**
+
+Internal error (moved to PSSP000)
+
+A diagnostic about pssparser itself, not about the model, so it moved to the ``PSSP`` namespace as ``PSSP000`` (``internal-error``). ``PSS000`` is still accepted wherever an ID is typed, and is never reused.
+
 PSS016
 ~~~~~~
 
@@ -1322,6 +1337,15 @@ PSS023
 Reserved: keyword used where an identifier is expected
 
 Allocated for a keyword-used-as-identifier sub-case of the syntax band, which turned out to be unreachable: the case is reported as PSS022.  Reserved, not assigned.
+
+PSS029
+~~~~~~
+
+**Retired: replaced by ``PSSP007``**
+
+Too many errors; stopped reporting further errors (moved to PSSP007)
+
+A diagnostic about pssparser itself, not about the model, so it moved to the ``PSSP`` namespace as ``PSSP007`` (``too-many-errors``). ``PSS029`` is still accepted wherever an ID is typed, and is never reused.
 
 PSS030
 ~~~~~~
@@ -1349,6 +1373,15 @@ PSS032
 Extension requires a newer checker API than this build provides (moved to PSSP003)
 
 A diagnostic about pssparser itself, not about the model, so it moved to the ``PSSP`` namespace as ``PSSP003`` (``extension-api-too-new``). ``PSS032`` is still accepted wherever an ID is typed, and is never reused.
+
+PSS033
+~~~~~~
+
+**Retired: replaced by ``PSSP008``**
+
+Two checkers declare the same marker ID (moved to PSSP008)
+
+A diagnostic about pssparser itself, not about the model, so it moved to the ``PSSP`` namespace as ``PSSP008`` (``duplicate-marker-id``). ``PSS033`` is still accepted wherever an ID is typed, and is never reused.
 
 PSS044
 ~~~~~~

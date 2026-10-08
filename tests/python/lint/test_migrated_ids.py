@@ -1,5 +1,5 @@
 """The nine core warnings that moved from PSS to LINT, and the four tool
-warnings that moved to PSSP (plan F1.3, F1.3a).
+warnings and three tool errors that moved to PSSP (plan F1.3, F1.3a, F1.3b).
 
 Each moved warning is still raised by the C++ linker with the same message and
 location; only its ID changed, and it is now governed by lint selection.  The
@@ -169,6 +169,37 @@ def test_tool_warning_old_id_is_accepted(probe):
     _, doc, _ = _json(["-Werror=PSS030", probe("component pss_top { }\n")])
     notes = [d for d in doc["diagnostics"] if d["code"] == "PSSP004"]
     assert len(notes) == 1 and "PSSP001" in notes[0]["message"]
+
+
+def test_the_error_cap_is_pssp007(probe):
+    src = "".join("struct S%d { int ; }\n" % i for i in range(3))
+    rc, doc, _ = _json(["--max-errors", "1", probe(src)])
+    assert [d["code"] for d in doc["diagnostics"]] == ["PSS022", "PSSP007"]
+    assert rc == 1
+
+
+def test_tool_error_old_id_is_still_a_core_error(probe, tmp_path, monkeypatch):
+    """PSS033 rewrites to PSSP008, which -- like a PSS error -- cannot be
+    downgraded."""
+    (tmp_path / ".pssparser.toml").write_text('[severity]\nPSS033 = "warning"\n')
+    monkeypatch.chdir(tmp_path)
+    rc, _, err = _run([probe("component pss_top { }\n")])
+    assert rc == 2
+    assert "'PSSP008' is a core error" in err
+
+
+def test_a_tool_group_selector_skips_tool_errors():
+    """`tool = "warning"` reaches the tool warnings, never the tool errors."""
+    from pssparser.checkers import CheckerManager
+    from pssparser.checkers.selectors import RuleSet
+
+    manager = CheckerManager()
+    manager.discover()
+    rules = RuleSet(manager.all_marker_defs())
+    for group in ("tool", "PSSP", "PSSP00"):
+        ids = set(rules.expand([group]))
+        assert "PSSP001" in ids, group
+        assert not ids & {"PSSP000", "PSSP005", "PSSP007", "PSSP008"}, group
 
 
 def test_a_lint_finding_outside_the_users_files_is_dropped(probe):

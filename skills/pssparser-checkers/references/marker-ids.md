@@ -24,7 +24,7 @@ pssparser --list-markers | grep '^MPR'
 Uniqueness is enforced at load time, per ID:
 
 - An installed extension whose checker declares an ID already owned (by the
-  core or by an extension loaded earlier) gets `PSS033`, an **error**, and
+  core or by an extension loaded earlier) gets `PSSP008`, an **error**, and
   that checker is not registered. The rest of the extension still loads.
 - `--load-checker` with a clashing ID stops the run with exit code 2 and
   `error: Duplicate MarkerDef ID`.

@@ -355,7 +355,7 @@ def test_duplicate_marker_id_is_pss033_naming_both_extensions(eps):
     m = CheckerManager()
     m.discover()
 
-    assert codes(m) == ["PSS033"]
+    assert codes(m) == ["PSSP008"]
     text = messages(m)
     assert "aaa-first" in text and "zzz-second" in text
     assert "DUP001" in text
@@ -366,7 +366,7 @@ def test_duplicate_marker_id_is_pss033_naming_both_extensions(eps):
 
 def test_a_core_id_is_refused_as_a_reserved_namespace(eps):
     """Every core ID is in a reserved namespace, so squatting one is caught
-    as PSSP005 before the duplicate-ID check (PSS033) is reached."""
+    as PSSP005 before the duplicate-ID check (PSSP008) is reached."""
     def register(reg):
         reg.add_checker(make_checker("squatter", "PSS001"))
 

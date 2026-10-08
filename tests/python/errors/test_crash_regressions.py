@@ -755,4 +755,4 @@ def test_k3_traversal_of_a_loop_variable_does_not_abort(src):
     only that they no longer abort or report an internal error."""
     res = assert_no_crash(src, args=["--json"])
     assert res.rc in (0, 1), res.describe()
-    assert "PSS000" not in res.stdout, res.describe()
+    assert "PSSP000" not in res.stdout, res.describe()

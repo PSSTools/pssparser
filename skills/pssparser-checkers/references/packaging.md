@@ -99,7 +99,7 @@ the summary, and respond to `-W`:
 | `PSSP001` | warning | Import failed, `register()` raised, or the module has neither `register` nor `CHECKERS`. |
 | `PSSP002` | warning | A legacy entry-point key differs from the class's `name`. |
 | `PSSP003` | warning | `REQUIRES_API` is newer than this pssparser. The extension is skipped. |
-| `PSS033` | error | Two checkers declare the same marker ID. The core registers first, then extensions in entry-point-name order; the checker that loses is dropped. |
+| `PSSP008` | error | Two checkers declare the same marker ID. The core registers first, then extensions in entry-point-name order; the checker that loses is dropped. |
 
 `pssparser --describe PSSP001` (and so on) gives the full text. Tell your users
 to add `-Werror=PSSP001` in CI so a broken install fails the build instead of

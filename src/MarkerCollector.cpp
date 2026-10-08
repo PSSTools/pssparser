@@ -24,7 +24,7 @@ MarkerCollector::~MarkerCollector() {
 
 void MarkerCollector::marker(const IMarker *m) {
 	if (m_stopped) {
-		// Cap already announced via PSS029; drop everything further so a
+		// Cap already announced via PSSP007; drop everything further so a
 		// hopelessly-broken file cannot flood the caller with cascades.
 		return;
 	}
@@ -37,7 +37,7 @@ void MarkerCollector::marker(const IMarker *m) {
 					"); stopped reporting further errors for this file",
 					MarkerSeverityE::Error,
 					m->loc(),
-					"PSS029");
+					"PSSP007");
 			m_markers.push_back(IMarkerUP(cap.clone()));
 			m_count[static_cast<uint32_t>(MarkerSeverityE::Error)]++;
 			m_stopped = true;

@@ -2,7 +2,7 @@
 # tests/python/test_core_codes_lock.py fails if a code disappears instead of
 # becoming 'retired', or if a retired code comes back. Append; never delete.
 # Regenerate the states with: PYTHONPATH=python python tests/python/test_core_codes_lock.py --write
-PSS000 active
+PSS000 retired
 PSS001 active
 PSS002 active
 PSS003 active
@@ -31,11 +31,11 @@ PSS025 active
 PSS026 active
 PSS027 active
 PSS028 active
-PSS029 active
+PSS029 retired
 PSS030 retired
 PSS031 retired
 PSS032 retired
-PSS033 active
+PSS033 retired
 PSS040 active
 PSS041 active
 PSS042 active
@@ -82,12 +82,15 @@ PSS117 retired
 PSS118 active
 PSS119 retired
 PSS120 retired
+PSSP000 active
 PSSP001 active
 PSSP002 active
 PSSP003 active
 PSSP004 active
 PSSP005 active
 PSSP006 active
+PSSP007 active
+PSSP008 active
 PSSP101 active
 PSSP201 active
 PSSP202 active

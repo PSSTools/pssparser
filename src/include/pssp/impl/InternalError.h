@@ -27,7 +27,7 @@ namespace pssp {
 /**
  * A defect in pssparser itself, not in the model: a state the code believed
  * could not happen. Thrown rather than printed, so that the catch-all at the
- * linker and parser boundaries turns it into a PSS000 marker -- a diagnostic
+ * linker and parser boundaries turns it into a PSSP000 marker -- a diagnostic
  * every consumer sees -- instead of a line on stdout that corrupts --json, or
  * an abort (symbol-resolution-plan.md INV-1/INV-2).
  *
@@ -73,7 +73,7 @@ private:
  * rather than recovered from the message text, so that it cannot be
  * shadowed by a message pattern belonging to another code.
  */
-static constexpr const char *INTERNAL_ERROR_ID = "PSS000";
+static constexpr const char *INTERNAL_ERROR_ID = "PSSP000";
 
 /**
  * Keeps recursive resolution from exhausting the stack. A stack overflow

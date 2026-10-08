@@ -69,6 +69,9 @@ class Diagnostic:
     # Set only on a diagnostic a source waiver covered: the waiver, as
     # ``Waiver.to_json()`` (form, id, file, line, col, reason).
     waiver: Optional[dict] = None
+    # The enclosing declaration, ``{"path", "name", "kind"}`` from
+    # ``pssparser.lint.declpath``; set only when an output needs it.
+    decl: Optional[dict] = None
 
     @classmethod
     def from_marker(cls, marker: dict) -> "Diagnostic":
@@ -193,7 +196,7 @@ class DiagnosticCollection:
 
     ``--max-errors`` is enforced upstream, by the C++ marker collector (see
     ``Parser.set_max_errors``): a capped file's marker list already contains
-    at most ``max_errors`` errors plus one PSS029 marker announcing the
+    at most ``max_errors`` errors plus one PSSP007 marker announcing the
     cutoff. This collection just holds whatever it is handed.
     """
 
@@ -234,7 +237,7 @@ class DiagnosticCollection:
         kept: List[Diagnostic] = []
         for diag in self._diags:
             new_sev = severity_map.get(diag.code) if diag.code else None
-            if diag.code == "PSS000":
+            if diag.code == "PSSP000":
                 # An internal error is not a policy choice: configuring it
                 # away would hide that the rest of the output is incomplete.
                 new_sev = None

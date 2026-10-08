@@ -26,7 +26,7 @@ Ordering matters. A pass that needs super types must run after
 `TaskResolveSuperTypes`; the completeness gate is last on purpose.
 
 **No exception escapes `link`.** Each pass runs under a catch-all that turns
-an exception into one PSS000 marker naming the current pass (the `pass`
+an exception into one PSSP000 marker naming the current pass (the `pass`
 string). Set `pass` for any new pass, so an internal error says where it came
 from.
 

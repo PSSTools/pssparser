@@ -673,7 +673,7 @@ private:
 
     /**
      * Report a defect in the builder itself -- a grammar alternative it does
-     * not handle, a state it believed impossible -- as a PSS000 marker at
+     * not handle, a state it believed impossible -- as a PSSP000 marker at
      * *t*, and carry on. For a site that cannot carry on, throw
      * InternalError; build()'s catch-all reports it the same way.
      */

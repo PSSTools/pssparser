@@ -168,7 +168,7 @@ void AstBuilderInt::build(
 			std::istream 			*in) {
     // The parse-side catch-all (INV-1): an exception escaping the builder --
     // a DEBUG_FATAL, an InternalError, an out-of-range .at() -- becomes one
-    // PSS000 marker instead of aborting the process. The unit is left as far
+    // PSSP000 marker instead of aborting the process. The unit is left as far
     // as it got.
     std::string what;
     try {
@@ -499,6 +499,7 @@ antlrcpp::Any AstBuilderInt::visitExtend_stmt(PSSParser::Extend_stmtContext *ctx
 		}
 		
 		addChild(ext, ctx->start);
+		setEndLoc(ext, ctx->stop);
 	} else {
 		IExtendType *ext = m_factory->mkExtendType(
 			kind,
@@ -1755,6 +1756,7 @@ antlrcpp::Any AstBuilderInt::visitTarget_template_function(
     fn->setTemplate(mkTemplateString(ctx->string_literal()));
 
     addChild(fn, ctx->start);
+    setEndLoc(fn, ctx->stop);
 
     DEBUG_LEAVE("visitTarget_template_function");
     return 0;
@@ -1795,6 +1797,7 @@ antlrcpp::Any AstBuilderInt::visitFunction_decl(PSSParser::Function_declContext 
     if (ctx->TOK_SEMICOLON()) {
         // A prototype: declared here, defined elsewhere (LRM 20.2.1).
         addChild(proto, ctx->start);
+        setEndLoc(proto, ctx->stop);
         DEBUG_LEAVE("visitFunction_decl (prototype)");
         return 0;
     }
@@ -3668,6 +3671,7 @@ antlrcpp::Any AstBuilderInt::visitEnum_declaration(PSSParser::Enum_declarationCo
 	}
 
 	addChild(decl, ctx->start);
+	setEndLoc(decl, ctx->stop);
 
 	DEBUG_LEAVE("visitEnum_declaration");
 	return 0;
@@ -3691,6 +3695,7 @@ antlrcpp::Any AstBuilderInt::visitTypedef_declaration(PSSParser::Typedef_declara
 	if (name) {
 		ast::ITypedefDeclaration *decl = m_factory->mkTypedefDeclaration(name, type);
 		addChild(decl, ctx->start);
+		setEndLoc(decl, ctx->stop);
 	}
 
 	DEBUG_LEAVE("visitTypedef_declaration");
@@ -4289,6 +4294,7 @@ antlrcpp::Any AstBuilderInt::visitImport_class_decl(PSSParser::Import_class_decl
         it=decls.begin(); it!=decls.end(); it++) {
         ast::IFunctionPrototype *proto = mkFunctionPrototype((*it)->function_prototype(), 0);
         addChild(proto, (*it)->start);
+        setEndLoc(proto, (*it)->stop);
     }
 
     pop_scope();
@@ -4395,6 +4401,7 @@ antlrcpp::Any AstBuilderInt::visitMonitor_constraint_declaration(PSSParser::Moni
         (ctx->identifier())?mkId(ctx->identifier()):0, false);
 
     addChild(constraint, ctx->start);
+    setExtent(constraint, ctx->start, ctx->stop);
     m_constraint_s.push_back(constraint);
 
     std::vector<PSSParser::Monitor_constraint_body_itemContext *> items;
@@ -5850,7 +5857,7 @@ void AstBuilderInt::syntaxError(
 	if (m_marker_l) {
 		if (IMarkerCollector *coll = dynamic_cast<IMarkerCollector *>(m_marker_l)) {
 			if (coll->maxErrorsExceeded()) {
-				// PSS029 already announced; a hopelessly-broken file can
+				// PSSP007 already announced; a hopelessly-broken file can
 				// otherwise cascade into thousands of recovery errors.
 				return;
 			}

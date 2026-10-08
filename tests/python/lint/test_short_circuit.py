@@ -100,6 +100,6 @@ def test_internal_error_cannot_be_turned_off():
 
     coll = DiagnosticCollection()
     coll.add(Diagnostic(file="f", line=1, col=1, severity="error",
-                        message="internal error", code="PSS000"))
-    coll.apply_severity_map({"PSS000": "off"})
-    assert [d.code for d in coll.diagnostics] == ["PSS000"]
+                        message="internal error", code="PSSP000"))
+    coll.apply_severity_map({"PSSP000": "off"})
+    assert [d.code for d in coll.diagnostics] == ["PSSP000"]

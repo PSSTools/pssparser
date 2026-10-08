@@ -259,5 +259,7 @@ class RuleSet:
 
 
 def _is_core_error(md) -> bool:
-    return (md.severity == "error" and not md.tier
+    # Tool errors (PSSP000, PSSP008 ...) carry tier "tool"; a `tool = "warning"`
+    # key must not reach them any more than `PSS = "warning"` reaches PSS002.
+    return (md.severity == "error" and md.tier in ("", "tool")
             and taxonomy.namespace_of(md.id) in ("PSS", "PSSP"))

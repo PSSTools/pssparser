@@ -104,5 +104,5 @@ The output lists your extension name, version, description, and checkers.
 ## CI
 
 - Run the tests against the oldest and newest pssparser you support.
-- Fail the job on `PSSP001`-`PSS033` in a smoke run:
+- Fail the job on `PSSP001`-`PSSP008` in a smoke run:
   `pssparser -Werror=PSSP001 -Werror=PSSP002 -Werror=PSSP003 model.pss`.

@@ -5,8 +5,8 @@ that a crash is observed rather than suffered. For each one:
 
 * **INV-1, no crash.** The exit status is 0, 1 or 3 -- never a signal (a
   segfault from runaway recursion) or an abort (an uncaught C++ exception).
-  An internal failure must surface as a ``PSS000`` marker instead, and
-  ``PSS000`` itself is allowed only for inputs listed in ``PSS000_XFAIL``.
+  An internal failure must surface as a ``PSSP000`` marker instead, and
+  ``PSSP000`` itself is allowed only for inputs listed in ``PSSP000_XFAIL``.
 * **INV-2, no raw output.** stdout is exactly one JSON document and stderr is
   empty. The dmgr ``DEBUG_ERROR`` macro used to print ``Error: ...`` lines to
   stdout, ahead of the JSON, with nothing counted.
@@ -40,9 +40,9 @@ INPUT_ROOTS = [
     ("resolution-repros", ROOT / "docs" / "design" / "symbol-resolution" / "repros", False),
 ]
 
-#: Inputs, relative to ROOT, that are known to produce PSS000. Each entry is
+#: Inputs, relative to ROOT, that are known to produce PSSP000. Each entry is
 #: a defect to fix; keep the reason next to it. Empty since R0 (2026-09-23).
-PSS000_XFAIL: dict = {}
+PSSP000_XFAIL: dict = {}
 
 #: Exit statuses the CLI may return: clean, errors reported, internal error.
 _OK_RC = {0, 1, 3}
@@ -95,20 +95,20 @@ def test_no_crash_and_no_raw_output(label, root, required):
         if not r["json_ok"] or r["stderr"]:
             raw.append("%s: %r" % (
                 r["file"], (r["stderr"] or r["stdout_head"])[:160]))
-        has_pss000 = "PSS000" in r["codes"]
-        if has_pss000 and r["file"] not in PSS000_XFAIL:
+        has_pss000 = "PSSP000" in r["codes"]
+        if has_pss000 and r["file"] not in PSSP000_XFAIL:
             internal.append(r["file"])
-        if not has_pss000 and r["file"] in PSS000_XFAIL:
+        if not has_pss000 and r["file"] in PSSP000_XFAIL:
             unexpected_ok.append(r["file"])
 
     problems = []
     if crashed:
         problems.append("crashed (INV-1):\n  " + "\n  ".join(crashed))
     if internal:
-        problems.append("internal error PSS000 (INV-1):\n  " + "\n  ".join(internal))
+        problems.append("internal error PSSP000 (INV-1):\n  " + "\n  ".join(internal))
     if raw:
         problems.append("raw output / unparseable --json (INV-2):\n  " + "\n  ".join(raw))
     if unexpected_ok:
-        problems.append("in PSS000_XFAIL but now clean -- remove the entry:\n  "
+        problems.append("in PSSP000_XFAIL but now clean -- remove the entry:\n  "
                         + "\n  ".join(unexpected_ok))
     assert not problems, "%s: %d files\n%s" % (label, len(files), "\n".join(problems))

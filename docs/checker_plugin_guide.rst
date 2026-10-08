@@ -273,6 +273,23 @@ all.  A checker with several rules can skip the work for one that is off:
 Asking is optional: ``add_marker`` drops a disabled code anyway, so a
 checker that never asks is still correct, only slower.
 
+Where a location is in the model
+--------------------------------
+
+``context.facts.decl_path(loc)`` returns the qualified path of the
+declaration enclosing a location -- ``pkg::C::A::constraint c``, or ``""`` at
+global scope.  *loc* is a marker dict, anything with ``file``, ``line`` and
+``col`` attributes, or a ``(file, line, col)`` tuple.  The index behind it is
+built the first time a checker asks, and shared for the rest of the run.
+
+A path segment is a declaration's name; a function, constraint block, exec
+block, activity or activity symbol is written with its keyword
+(``function f``, ``constraint c``, ``exec body``, ``activity``,
+``symbol s``); an unnamed constraint is ``constraint``; an extension is
+``extend action C::A``, as written.  A segment that repeats in one scope is
+numbered from the second: ``constraint#2``, ``exec body#2``.  The same index
+is ``pssparser.lint.declpath.index_for(parser, files)`` outside a checker.
+
 .. _core-marker-catalogue:
 
 Built-in Marker Catalogue
@@ -291,15 +308,14 @@ Core IDs are allocated in bands:
 ``PSS001``–``PSS099``
     General parse and link diagnostics.
 
-``PSS020``–``PSS029``
+``PSS020``–``PSS028``
     Syntax-error sub-band of the general band above: each ID names one shape
     of parser recovery (missing punctuation, unexpected end of input, a
     keyword where an identifier was expected, ...), classified in
     ``AstBuilderInt::syntaxError`` and carried on the marker itself rather
     than recovered from message-pattern matching. ``PSS023`` within the
-    sub-band is reserved, not assigned (see ``core_checker.py`` for why). ``PSS029`` is
-    the ``--max-errors`` cutoff marker (``MarkerCollector::marker`` in C++),
-    emitted once per capped file.
+    sub-band is reserved, not assigned (see ``core_checker.py`` for why).
+    ``PSS029``, the ``--max-errors`` cutoff, is now ``PSSP007``.
 
 ``PSS100``–``PSS199``
     PSS 3.1 language-rule diagnostics.
@@ -573,15 +589,15 @@ loading:
    * - ``PSSP003``
      - warning
      - ``requires_api`` exceeds this build's ``API_VERSION``.
-   * - ``PSS033``
-     - error
-     - Two checkers declare the same ``MarkerDef`` ID.
    * - ``PSSP005``
      - error
      - A checker declares an ID in a reserved namespace.
    * - ``PSSP006``
      - warning
      - A checker declares an ID outside the ID grammar.
+   * - ``PSSP008``
+     - error
+     - Two checkers declare the same ``MarkerDef`` ID.
    * - ``PSSP201``
      - warning
      - A checker's rule metadata is invalid.
@@ -590,7 +606,7 @@ These are ordinary diagnostics: they appear in ``--json``, they are counted,
 and ``-Werror`` promotes the warnings among them.  ``-Werror=PSSP001`` is the
 usual way to make a failed extension fatal in CI.
 
-``PSS033`` is an error rather than a warning because two rules wearing one ID
+``PSSP008`` is an error rather than a warning because two rules wearing one ID
 make ``--describe``, ``-Werror=ID``, and every per-ID override ambiguous.  The
 checker that lost the collision is not registered; the rest of its extension
 still loads.  Pick an unused namespace -- see *ID grammar* above.

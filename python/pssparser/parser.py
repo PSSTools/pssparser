@@ -5,7 +5,7 @@ from typing import Dict, List, NamedTuple, Optional, Tuple, TextIO
 #: The marker ID of an internal error -- a defect in pssparser, not in the
 #: model (symbol-resolution-plan.md INV-1). Kept in step with
 #: INTERNAL_ERROR_ID in src/include/pssp/impl/InternalError.h.
-INTERNAL_ERROR_CODE = "PSS000"
+INTERNAL_ERROR_CODE = "PSSP000"
 
 
 def _no_file() -> str:
@@ -15,7 +15,7 @@ def _no_file() -> str:
 
 def _internal_error_marker(phase: str, exc: BaseException,
                            filename: Optional[str] = None) -> dict:
-    """A PSS000 marker dict for a C++ exception that reached Python."""
+    """A PSSP000 marker dict for a C++ exception that reached Python."""
     return {
         "severity": "error",
         "message": "internal error %s: %s; please report this" % (phase, exc),
@@ -103,7 +103,7 @@ class Parser(object):
         ``0`` (the default) means unlimited. Applies to every marker
         collector this Parser creates from this point on (parse/parses/link).
         Only error-severity markers count against the cap; a file that hits
-        it gets one extra PSS029 marker announcing the cutoff.
+        it gets one extra PSSP007 marker announcing the cutoff.
         """
         self._max_errors = max_errors
 
@@ -240,7 +240,7 @@ class Parser(object):
         marker_l = self.parser_f.mkMarkerCollector()
         marker_l.setMaxErrors(self._max_errors)
 
-        # The C++ linker reports its own failures as PSS000 markers; a
+        # The C++ linker reports its own failures as PSSP000 markers; a
         # RuntimeError here means something escaped even that catch-all
         # (`except +` in decl.pxd). Same diagnosis, raised from this side.
         escaped = None

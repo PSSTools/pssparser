@@ -92,7 +92,7 @@ static uint64_t time_ms() {
 }
 
 /**
- * Report an exception that escaped a link pass as a PSS000 marker. The
+ * Report an exception that escaped a link pass as a PSSP000 marker. The
  * location is the thrower's when it had one; otherwise the marker is
  * location-less, which the Python side renders as a tool-level diagnostic.
  */
@@ -119,7 +119,7 @@ ast::IRootSymbolScope *AstLinker::link(
         bool                                    own_scopes) {
     // The catch-all (INV-1). Any exception that escapes a pass -- an
     // InternalError, a DEBUG_FATAL, an out-of-range .at() -- becomes one
-    // PSS000 marker naming the pass, and the partially linked tree is
+    // PSSP000 marker naming the pass, and the partially linked tree is
     // returned as it stands. Without it the exception crossed into Cython,
     // which had no `except +`, and the process aborted.
     const char *pass = "building the symbol tree";

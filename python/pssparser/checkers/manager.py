@@ -517,7 +517,7 @@ class CheckerManager:
         if clashes:
             first = clashes[0]
             self._issue(
-                "PSS033",
+                "PSSP008",
                 "error",
                 f"duplicate marker ID {first!r}: declared by both "
                 f"{self._marker_owner[first]} and {owner}. "

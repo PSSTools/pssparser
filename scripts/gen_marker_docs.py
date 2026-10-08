@@ -38,7 +38,7 @@ Namespaces
 
 ``PSS``
    Normative PSS: the model violates the language reference manual.
-   ``PSS001``-``PSS099`` is the general band, ``PSS020``-``PSS029`` its
+   ``PSS001``-``PSS099`` is the general band, ``PSS020``-``PSS028`` its
    syntax sub-band, and ``PSS100``-``PSS199`` the PSS 3.1 language-rule band.
 ``LINT``
    Lint: legal PSS that is probably not what the author meant.  The rules

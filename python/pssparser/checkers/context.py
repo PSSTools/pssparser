@@ -46,6 +46,16 @@ class CheckContext:
     #: or by lint selection.  Read through :meth:`is_enabled`.
     _disabled: frozenset = field(default_factory=frozenset, repr=False)
 
+    #: Internal – built on first use of :attr:`facts`.
+    _facts: Optional["Facts"] = field(default=None, repr=False)
+
+    @property
+    def facts(self) -> "Facts":
+        """Derived, cached facts about the model (see :class:`Facts`)."""
+        if self._facts is None:
+            self._facts = Facts(self)
+        return self._facts
+
     def is_enabled(self, code: str) -> bool:
         """False when *code* is turned off for this run.
 
@@ -127,3 +137,34 @@ class CheckContext:
         if md is not None:
             return md.severity
         return "error"  # safe fallback
+
+
+class Facts:
+    """Facts derived from the AST on demand and cached for the run.
+
+    Each is computed the first time a checker asks, so a run whose checkers
+    never ask pays nothing.
+    """
+
+    def __init__(self, ctx: CheckContext):
+        self._ctx = ctx
+        self._decl_paths = None
+
+    @property
+    def decl_paths(self):
+        """The :class:`pssparser.lint.declpath.DeclPathIndex` for the run."""
+        if self._decl_paths is None:
+            from pssparser.lint.declpath import DeclPathIndex
+            self._decl_paths = DeclPathIndex(self._ctx.global_scopes,
+                                             self._ctx.file_map)
+        return self._decl_paths
+
+    def decl_path(self, loc) -> str:
+        """The qualified path of the declaration enclosing *loc*, e.g.
+        ``pkg::C::A::constraint c``; ``""`` at global scope.
+
+        *loc* is a marker dict, anything with ``file``/``line``/``col``
+        attributes, or a ``(file, line, col)`` tuple.
+        """
+        from pssparser.lint.declpath import location_of
+        return self.decl_paths.path_at(*location_of(loc))

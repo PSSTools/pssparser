@@ -51,7 +51,7 @@ class GoldenCase:
 # multi-line source context (error several lines into a nested body); an
 # error at the very start of a line; JSON rendering (plain and with a related
 # location, to pin that JsonOutput also serialises `related`); a warning
-# (not just `error`); the `--max-errors` cap firing (PSS029, several
+# (not just `error`); the `--max-errors` cap firing (PSSP007, several
 # diagnostics); a completely clean file (0 errors, exit 0); and forced-color
 # output, to pin the ANSI escape sequences.
 CASES: List[GoldenCase] = [

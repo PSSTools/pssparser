@@ -88,7 +88,7 @@ INLINE_CASES = [
     },
     {
         "id": "max-errors",
-        "why": "setMaxErrors(1) caps error markers and adds the PSS029 notice",
+        "why": "setMaxErrors(1) caps error markers and adds the PSSP007 notice",
         "max_errors": 1,
         "files": [("many.pss", "component c { action } action } action }\n")],
     },

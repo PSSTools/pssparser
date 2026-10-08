@@ -49,6 +49,26 @@ def artifact_uri(path: str) -> str:
     return Path(os.path.abspath(path)).as_uri()
 
 
+#: ``DeclScope.kind`` -> SARIF ``logicalLocation.kind`` (SARIF 3.33.7).
+_LOGICAL_KINDS = {
+    "package": "namespace",
+    "function": "function",
+    "constraint": "member",
+    "exec": "member",
+    "activity": "member",
+    "symbol": "member",
+}
+
+
+def _logical(diag: Diagnostic) -> dict:
+    """The enclosing declaration as a SARIF logical location."""
+    return {
+        "name": diag.decl["name"],
+        "fullyQualifiedName": diag.decl["path"],
+        "kind": _LOGICAL_KINDS.get(diag.decl["kind"], "type"),
+    }
+
+
 def _region(line: int, col: int, end_col: Optional[int]) -> dict:
     region = {"startLine": max(line, 1), "startColumn": max(col, 1)}
     if end_col is not None and end_col > col:
@@ -131,12 +151,15 @@ class SarifOutput:
                 result["ruleId"] = diag.code
                 result["ruleIndex"] = index[diag.code]
             if diag.file != NO_FILE:
-                result["locations"] = [{
+                location: dict = {
                     "physicalLocation": {
                         "artifactLocation": {"uri": artifact_uri(diag.file)},
                         "region": _region(diag.line, diag.col, diag.end_col),
                     }
-                }]
+                }
+                if diag.decl:
+                    location["logicalLocations"] = [_logical(diag)]
+                result["locations"] = [location]
             if diag.related:
                 result["relatedLocations"] = [
                     {

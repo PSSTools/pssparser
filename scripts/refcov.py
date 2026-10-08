@@ -28,7 +28,7 @@ tmiss
     The slot harness (scripts/refcov_slots.py). For each slot, an undefined
     name is substituted into an otherwise legal model and the result
     classified: ``reported`` (an error on the slot's line), ``wrong_line``,
-    ``silent`` (no error at all), ``internal`` (PSS000), ``crash`` or
+    ``silent`` (no error at all), ``internal`` (PSSP000), ``crash`` or
     ``raw`` (unparseable --json).
 
 Usage::
@@ -396,7 +396,7 @@ def _classify(path, slot_line, severities=("error",)):
         return "raw"
     if r.stderr.strip():
         return "raw"
-    if any(d.get("code") == "PSS000" for d in diags):
+    if any(d.get("code") == "PSSP000" for d in diags):
         return "internal"
     if slot_line is None:            # a legal model
         errs = [d for d in diags if d.get("severity") == "error"]

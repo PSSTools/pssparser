@@ -119,12 +119,13 @@ A finding in the built-in standard library is never reported: it is not
 yours to fix.  LRM errors and ``PSSP`` diagnostics are reported wherever
 they occur.
 
-IDs that moved from PSS to LINT
-===============================
+IDs that moved out of PSS
+=========================
 
 Before lint existed, nine warnings about legal code carried ``PSS`` IDs, and
-four diagnostics about pssparser itself did too.  They moved, so that a
-``PSS`` ID always means an LRM violation:
+seven diagnostics about pssparser itself did too -- including the internal
+error, ``PSS000``, now ``PSSP000``.  They moved, so that a ``PSS`` ID always
+means an LRM violation:
 
 .. list-table::
    :header-rows: 1
@@ -171,6 +172,15 @@ four diagnostics about pssparser itself did too.  They moved, so that a
    * - ``PSS116``
      - ``PSSP101``
      - ``construct-not-represented``
+   * - ``PSS000``
+     - ``PSSP000``
+     - ``internal-error``
+   * - ``PSS029``
+     - ``PSSP007``
+     - ``too-many-errors``
+   * - ``PSS033``
+     - ``PSSP008``
+     - ``duplicate-marker-id``
 
 The messages and locations are unchanged; only the ID is new.  The old IDs
 still work wherever you type an ID -- ``[severity]``, ``[warnings]``,

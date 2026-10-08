@@ -33,7 +33,7 @@ Common options
 - ``--max-errors N`` stops reporting further errors for a file after ``N``
   (default 20; ``0`` disables the cap). Only error-severity diagnostics count
   against it — warnings never trigger it, and a clean file never sees it.
-  A capped file gets one extra marker, ``PSS029``, announcing the cutoff;
+  A capped file gets one extra marker, ``PSSP007``, announcing the cutoff;
   everything past it is dropped, not merely hidden, so re-run with a higher
   (or ``0``) ``--max-errors`` to see what comes after. The Python API
   (:class:`pssparser.Parser`) defaults to unlimited — the cap is a
@@ -284,7 +284,7 @@ the run continues with the rest of the registry — so a clean result is not
 by itself evidence that every rule ran.  ``-Werror=PSSP001`` makes a failed
 extension fatal, which is usually what a CI job wants.  See
 :doc:`checker_plugin_guide` for the full contract and for ``PSSP002``–
-``PSS033``.
+``PSSP008``.
 
 
 Configuration
@@ -640,8 +640,10 @@ Output formats
     lists every rule enabled for the run plus every ID that appears in a
     result; lint rules carry a ``helpUri`` into :doc:`lint-rules`.  Severity
     maps to ``level`` as ``error``/``warning``/``note`` (``info``)/``none``
-    (``hint``).  A diagnostic about the tool itself (an extension that failed
-    to load) has no ``locations``.
+    (``hint``).  Each location carries a ``logicalLocations`` entry naming
+    the enclosing declaration (``p::C::A::constraint c``, kind ``member``)
+    unless the location is at global scope.  A diagnostic about the tool
+    itself (an extension that failed to load) has no ``locations``.
 
 ``--format github``
     GitHub Actions workflow commands on stdout -- one ``::error``,
