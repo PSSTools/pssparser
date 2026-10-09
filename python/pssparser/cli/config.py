@@ -118,6 +118,7 @@ _LINT_SCHEMA: Dict[str, Tuple[tuple, str]] = {
     "ignore": ((list,), "array of rule selectors removed from the profile"),
     "rules-version": ((str,), "'YYYY.N': rules newer than this stay out of profiles"),
     "rule": ((dict,), "table of per-rule option tables"),
+    "baseline": ((str,), "path to a baseline file, relative to this file"),
 }
 
 _OUTPUT_SCHEMA: Dict[str, Tuple[tuple, str]] = {
@@ -199,6 +200,9 @@ class ResolvedConfig:
     show_hints: bool = False
     #: ``[waivers] source``: apply waivers written in the PSS source.
     source_waivers: bool = True
+    #: ``lint.baseline`` / ``--baseline``: the baseline file, resolved
+    #: against the config file's directory; ``None`` for no baseline.
+    baseline: Optional[str] = None
 
     #: Resolved by :func:`validate_against_registry`: the enabled lint rule
     #: IDs, and every lint rule ID (so a disabled one can be recognised).
@@ -570,7 +574,8 @@ def load_config_file(path: Path, *, required: bool = False) -> Tuple[Dict[str, A
 # ----------------------------------------------------------------------
 
 
-def _merge(cfg: ResolvedConfig, table: Dict[str, Any], source: str) -> None:
+def _merge(cfg: ResolvedConfig, table: Dict[str, Any], source: str,
+           base: Optional[Path] = None) -> None:
     """Fold one file's table into *cfg*, overwriting lower layers.
 
     Scalars and arrays replace wholesale -- an array that merged would give
@@ -628,6 +633,14 @@ def _merge(cfg: ResolvedConfig, table: Dict[str, Any], source: str) -> None:
     if "rules-version" in lint:
         cfg.rules_version = lint["rules-version"]
         cfg.provenance["lint.rules-version"] = source
+    if "baseline" in lint:
+        # Relative to the file that names it, so the setting means the same
+        # thing whichever directory pssparser runs from.
+        path = Path(lint["baseline"]).expanduser()
+        if base is not None and not path.is_absolute():
+            path = base / path
+        cfg.baseline = _display_path(path)
+        cfg.provenance["lint.baseline"] = source
     for name, options in (lint.get("rule") or {}).items():
         bucket = cfg.lint_rule_options.setdefault(name, {})
         for opt, value in options.items():
@@ -670,12 +683,12 @@ def resolve(
         explicit = getattr(args, "config", None)
         if explicit:
             table, display = load_config_file(Path(explicit), required=True)
-            _merge(cfg, table, display)
+            _merge(cfg, table, display, Path(explicit).parent)
         else:
             for path in discover_config_files(start):
                 table, display = load_config_file(path)
                 if table:
-                    _merge(cfg, table, display)
+                    _merge(cfg, table, display, path.parent)
 
     _apply_cli_overrides(cfg, args)
     return cfg
@@ -706,6 +719,12 @@ def _apply_cli_overrides(cfg: ResolvedConfig, args) -> None:
     if getattr(args, "no_lint", False):
         profile = "none"
     take("lint.profile", profile, "lint_profile")
+    take("lint.baseline", getattr(args, "baseline", None), "baseline")
+    if getattr(args, "no_baseline", False):
+        if "lint.baseline" in cfg.provenance:
+            overridden.append("lint.baseline")
+        cfg.baseline = None
+        cfg.provenance["lint.baseline"] = "command line"
     if getattr(args, "show_hints", False):
         take("output.show-hints", True, "show_hints")
 
@@ -1067,6 +1086,7 @@ def format_show_config(cfg: ResolvedConfig) -> str:
     row("lint.select", ", ".join(cfg.lint_select) or "(none)")
     row("lint.ignore", ", ".join(cfg.lint_ignore) or "(none)")
     row("lint.rules-version", cfg.rules_version or "(unpinned)")
+    row("lint.baseline", cfg.baseline or "(none)")
     row("output.show-hints", "true" if cfg.show_hints else "false")
     row("waivers.source", "true" if cfg.source_waivers else "false")
     if cfg.lint_enabled is not None:

@@ -72,6 +72,12 @@ class Diagnostic:
     # The enclosing declaration, ``{"path", "name", "kind"}`` from
     # ``pssparser.lint.declpath``; set only when an output needs it.
     decl: Optional[dict] = None
+    # ``pssparser.lint.fingerprint``: set when a baseline is in use, when one
+    # is being written, and for SARIF.
+    fingerprint: Optional[str] = None
+    # With a baseline in use: ``"new"`` or ``"unchanged"`` (SARIF
+    # ``baselineState``); ``None`` when no baseline applies to it.
+    baseline_state: Optional[str] = None
 
     @classmethod
     def from_marker(cls, marker: dict) -> "Diagnostic":
@@ -206,6 +212,11 @@ class DiagnosticCollection:
         #: Diagnostics a source waiver covered; not counted, not in the
         #: exit code.  Each carries its ``waiver``.
         self.waived: List[Diagnostic] = []
+        #: Findings a baseline covered; likewise not counted.
+        self.baselined: List[Diagnostic] = []
+        #: Files diagnostics may point into that are not model sources (the
+        #: baseline file), so not counted in "N files".
+        self.non_source_files: Set[str] = set()
 
     def add(self, diag: Diagnostic) -> None:
         self._diags.append(diag)
@@ -314,7 +325,8 @@ class DiagnosticCollection:
         # A tool-level diagnostic (an extension that failed to load) carries
         # the NO_FILE pseudo-path and is not a file that was processed;
         # counting it would make a one-file run report "2 files".
-        diag_files = {d.file for d in self._diags if d.file != NO_FILE}
+        diag_files = {d.file for d in self._diags
+                      if d.file != NO_FILE and d.file not in self.non_source_files}
         if self._processed_files is not None:
             return diag_files | set(self._processed_files)
         return diag_files

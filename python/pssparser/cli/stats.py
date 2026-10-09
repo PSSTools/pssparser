@@ -98,6 +98,8 @@ class RunStats:
     lint_dropped: int = 0
     # Marker ID -> diagnostics a source waiver covered.
     waived_by_code: Dict[str, int] = field(default_factory=dict)
+    # Marker ID -> findings a baseline covered.
+    baselined_by_code: Dict[str, int] = field(default_factory=dict)
 
 
 def make_visitor():
@@ -262,6 +264,10 @@ def render_human(stats: RunStats) -> str:
         items = [f"{code} x{n}" for code, n in stats.waived_by_code.items()]
         lines.append("  waived:       " + ", ".join(items))
 
+    if stats.baselined_by_code:
+        items = [f"{code} x{n}" for code, n in stats.baselined_by_code.items()]
+        lines.append("  baselined:    " + ", ".join(items))
+
     if stats.timings_ns:
         items = [f"{name} {_fmt_ns(ns)}" for name, ns in stats.timings_ns.items()]
         lines.append("  timing:       " + ", ".join(items))
@@ -281,6 +287,8 @@ def to_json(stats: RunStats) -> dict:
         doc["lint_dropped"] = stats.lint_dropped
     if stats.waived_by_code:
         doc["waived_by_code"] = dict(stats.waived_by_code)
+    if stats.baselined_by_code:
+        doc["baselined_by_code"] = dict(stats.baselined_by_code)
     if stats.timings_ns:
         doc["timing_ms"] = {
             name: round(ns / 1_000_000.0, 3)

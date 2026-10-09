@@ -204,6 +204,92 @@ everywhere, waive it in the source:
 :doc:`waivers` covers both forms, what each covers, and the markers that
 keep waivers honest.
 
+Adopting lint on an existing model
+==================================
+
+Switching a profile on over a model that already exists usually reports
+more findings than anyone will fix in one go.  A *baseline* records the
+findings you have today, so that CI fails only on new ones while the old
+ones are worked off.
+
+1. Choose the profile, and check that the model has no errors: a baseline
+   records lint findings, never errors.
+
+   .. code-block:: toml
+
+      # .pssparser.toml
+      [lint]
+      profile = "recommended"
+
+2. Record today's findings:
+
+   .. code-block:: bash
+
+      pssparser --write-baseline lint-baseline.json src/*.pss
+
+   This writes every finding the run reports to ``lint-baseline.json`` and
+   exits 0.  Commit the file.
+
+3. Point the configuration at it.  The path is relative to the
+   configuration file, so it works from any directory:
+
+   .. code-block:: toml
+
+      [lint]
+      profile = "recommended"
+      baseline = "lint-baseline.json"
+
+4. Gate CI as usual.  Findings the baseline records are not printed, not
+   counted and not promoted by ``-Werror``; anything new is:
+
+   .. code-block:: yaml
+
+      - run: pssparser -Werror src/*.pss
+
+How findings are matched
+------------------------
+
+A finding is recorded by its rule, its file and a *fingerprint*: a hash of
+the declaration that contains it (such as ``pkg::C::A::constraint c``) and
+the code it flags, with whitespace and comments ignored.  It does not
+include the line number, so a recorded finding stays recorded when code is
+added above it, when the file is reformatted, or when a comment is added
+inside it.  It becomes a new finding when the flagged code itself changes,
+or when it moves into another declaration.
+
+Identical findings in one declaration have the same fingerprint, and the
+baseline records how many there were.  If it recorded three and the run
+finds four, one is reported: the last in the file.
+
+Keeping the baseline current
+----------------------------
+
+When a recorded finding is fixed, its entry no longer matches anything, and
+the run reports a ``PSSP206`` note at that entry in the baseline file.
+Re-run ``--write-baseline`` to drop it, so that the finding cannot return
+unnoticed.  The note appears only when the run checked the entry's file and
+ran its rule: checking a subset of the files, or turning a rule off, does
+not make entries stale.  ``[severity] PSSP206 = "off"`` silences it.
+
+The file lists one finding per line, sorted, so a pull request that changes
+it shows exactly which findings were added or removed.  Paths in it are
+relative to the baseline file.
+
+The summary line counts what the baseline hid, ``1 warning in 3 files (12
+baselined)``, and ``--stats`` adds a ``baselined:`` row with a count per ID.
+``--no-baseline`` ignores the configured baseline for one run, to see every
+finding.  ``--baseline PATH`` uses another file.  In JSON output the
+baselined findings are in a separate ``baselined`` array; SARIF reports
+them as results with ``baselineState: "unchanged"`` (see
+:doc:`diagnostics-json` and :doc:`cli`).
+
+What a baseline never covers
+----------------------------
+
+LRM errors and pssparser's own diagnostics (``PSSP``) are never recorded and
+never matched.  ``--write-baseline`` refuses to write anything, and exits 1,
+when the model has errors.
+
 CI integration
 ==============
 

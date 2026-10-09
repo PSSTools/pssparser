@@ -26,6 +26,10 @@
    load, pssparser warns (`PSSP001`) and runs without its rules. Add
    `-Werror=PSSP001`, or list it under `[warnings] error`, so a broken install
    cannot pass silently.
+7. **Gate only new lint findings on an existing model.** Commit a baseline
+   (`pssparser --write-baseline lint-baseline.json ...`) and name it under
+   `[lint] baseline`; CI then fails only on findings the baseline does not
+   record. See `lint-config.md`, "Adopting lint on an existing model".
 
 ## Install
 

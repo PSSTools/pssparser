@@ -9,7 +9,10 @@ Severity maps to ``level`` per lint-framework L1: ``error`` -> ``error``,
 Tool diagnostics (an extension that failed to load) have no source location
 and are reported as results without ``locations``, which SARIF permits.
 A diagnostic a source waiver covered is a result with an ``inSource``
-suppression whose justification is the waiver's reason.
+suppression whose justification is the waiver's reason.  Every result with a
+fingerprint carries it in ``partialFingerprints`` (key ``pssparser/v1``); with
+a baseline in use, a finding the baseline records is a result with
+``baselineState: "unchanged"`` and any other lint finding is ``"new"``.
 """
 from __future__ import annotations
 
@@ -99,6 +102,7 @@ class SarifOutput:
         # A waived finding is still a result in SARIF, marked suppressed: a
         # code-scanning UI shows it as dismissed, with the reason.
         self._diags.extend(getattr(coll, "waived", []))
+        self._diags.extend(getattr(coll, "baselined", []))
         json.dump(self.document(), self._stream, indent=2)
         self._stream.write("\n")
 
@@ -177,6 +181,11 @@ class SarifOutput:
                     "originalSeverity": diag.original_severity,
                     "promotedBy": diag.werror_flag,
                 }
+            if diag.fingerprint:
+                from pssparser.lint.fingerprint import SCHEME
+                result["partialFingerprints"] = {SCHEME: diag.fingerprint}
+            if diag.baseline_state:
+                result["baselineState"] = diag.baseline_state
             if diag.waiver is not None:
                 result["suppressions"] = [{
                     "kind": "inSource",

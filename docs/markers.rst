@@ -1308,6 +1308,17 @@ A waiver gives no reason
 
 Every waiver says why: ``.reason`` in the annotation, or the text after ``:`` in the comment.  The waiver still applies; this asks for the reason.
 
+PSSP206
+~~~~~~~
+
+**Severity:** info
+
+**Name:** ``stale-baseline-entry``; **Tier:** tool
+
+A baseline entry matched fewer findings than it recorded
+
+The baseline records a finding that this run no longer reports: it was fixed, or the code changed enough to be a different finding.  The diagnostic points at the entry in the baseline file.  Rewrite the baseline with ``--write-baseline`` so that the finding cannot come back unnoticed.  It is reported only for an entry whose file was checked and whose rule ran, so checking a subset of the files, or turning a rule off, does not make entries stale.
+
 Retired and reserved codes
 --------------------------
 

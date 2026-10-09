@@ -250,6 +250,9 @@ class HumanOutput:
         wc = len(getattr(coll, "waived", []))
         if wc:
             msg += f" ({wc} waived)"
+        bc = len(getattr(coll, "baselined", []))
+        if bc:
+            msg += f" ({bc} baselined)"
         self._stream.write(msg + "\n")
 
 
@@ -319,6 +322,8 @@ class JsonOutput:
             ]
         if diag.waiver is not None:
             entry["waiver"] = dict(diag.waiver)
+        if diag.fingerprint:
+            entry["fingerprint"] = diag.fingerprint
         return entry
 
     def finish(self, coll: DiagnosticCollection, quiet: bool, stats=None) -> None:
@@ -349,6 +354,10 @@ class JsonOutput:
         waived = getattr(coll, "waived", [])
         if waived:
             doc["waived"] = [self._entry(d) for d in waived]
+        # Likewise the findings a baseline covered.
+        baselined = getattr(coll, "baselined", [])
+        if baselined:
+            doc["baselined"] = [self._entry(d) for d in baselined]
         if self._statistics:
             doc["statistics"] = statistics_rows(coll, self._catalog)
         if stats is not None:

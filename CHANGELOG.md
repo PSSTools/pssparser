@@ -70,11 +70,38 @@ With this come lint profiles and rule selection (`docs/lint.rst`):
   (`PSSP201`). `CheckContext.is_enabled()` lets a checker skip a disabled
   rule. `pssparser.checkers.testing` is a fixture harness for rule tests.
 
+### Added — lint baselines (`--write-baseline`, `--baseline`)
+
+Switch lint on over an existing model and gate CI on new findings only:
+
+- `pssparser --write-baseline lint-baseline.json src/*.pss` records every lint
+  finding of the run and exits 0. It writes nothing, and exits 1, when the
+  model has errors, and refuses a path ending in `.pss`.
+- `--baseline PATH`, or `[lint] baseline = "..."` (relative to the
+  configuration file), then leaves the recorded findings out of the text
+  output, the counts and the exit code; `-Werror` does not promote them.
+  `--no-baseline` ignores the configured one. A baseline that cannot be read
+  is a usage error (exit 2).
+- A finding is matched by rule, file and a **fingerprint** of its enclosing
+  declaration and the code it flags, never its line, so it stays matched
+  through edits elsewhere and reformatting by `pssfmt`
+  (`pssparser.lint.fingerprint`). Identical findings in one declaration are
+  counted.
+- A recorded finding that is gone is reported as **`PSSP206`**
+  (`stale-baseline-entry`, info) at its entry in the baseline file.
+- LRM errors and `PSSP` diagnostics are never recorded or matched.
+- JSON lists baselined findings in a `baselined` array and gives each finding
+  a `fingerprint` when a baseline is in use. SARIF results carry
+  `partialFingerprints` and, with a baseline, `baselineState` (`new` or
+  `unchanged`). The text summary adds `(N baselined)`; `--stats` adds a
+  `baselined:` row.
+- See "Adopting lint on an existing model" in `docs/lint.rst`.
+
 ### Added — the enclosing declaration of a finding
 
 - `context.facts.decl_path(loc)` gives a checker the qualified path of the
   declaration around a location, e.g. `p::C::A::constraint c`
-  (`pssparser.lint.declpath`). Baseline fingerprints will be built on it.
+  (`pssparser.lint.declpath`). Baseline fingerprints are built on it.
 - SARIF results name it as the location's `logicalLocations`.
 - Enum, `extend enum`, typedef, function prototype, target-template function
   and monitor `constraint` declarations now have end locations.

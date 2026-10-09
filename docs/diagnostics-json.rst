@@ -20,6 +20,7 @@ Document
      "diagnostics": [],
      "summary": {"errors": 0, "warnings": 1, "notes": 0, "hints": 0, "files": 1},
      "waived": [],
+     "baselined": [],
      "statistics": [],
      "stats": {}
    }
@@ -38,6 +39,11 @@ Document
    diagnostics, each with a ``waiver`` key (below).  They are not in
    ``diagnostics`` and not in the ``summary`` counts, so a consumer that
    ignores this key sees what the exit code saw.  See :doc:`waivers`.
+``baselined``
+   Present when a baseline (``--baseline`` / ``[lint] baseline``) covered at
+   least one finding, or ``--write-baseline`` recorded one: those findings.
+   Like ``waived``, they are not in ``diagnostics`` or the counts.  See
+   "Adopting lint on an existing model" in :doc:`lint`.
 ``statistics``
    Present with ``--statistics``: one object per code, most frequent first,
    with ``code``, ``count``, ``name`` and ``tier`` (empty strings when the
@@ -92,6 +98,12 @@ Diagnostic
 ``related``
    Secondary locations, each with ``file``, ``line``, ``col`` and
    ``label``.
+``fingerprint``
+   Present when a baseline is in use or being written: the finding's
+   fingerprint (16 hex digits), which a baseline matches on.  It hashes the
+   code, the enclosing declaration and the flagged code with whitespace and
+   comments ignored, never the line, so it survives edits elsewhere and
+   reformatting.
 ``waiver``
    Only in the ``waived`` array: the waiver that covered it, with ``form``
    (``"annotation"`` or ``"pragma"``), ``id`` as written, ``file``,

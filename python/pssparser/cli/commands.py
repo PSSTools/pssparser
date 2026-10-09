@@ -38,6 +38,8 @@ def cmd_parse(
     output_format: Optional[str] = None,
     statistics: bool = False,
     show_waived: bool = False,
+    baseline: Optional[str] = None,
+    write_baseline: Optional[str] = None,
 ) -> int:
     """Run the parse (and optionally link) pipeline, report diagnostics.
 
@@ -80,6 +82,14 @@ def cmd_parse(
     show_waived:
         Print diagnostics that a source waiver covered (``--show-waived``),
         marked as waived; the exit code is unaffected.
+    baseline:
+        A baseline file (``--baseline`` / ``[lint] baseline``): findings it
+        records are left out of the text output, the counts and the exit
+        code.  A file that cannot be read is a usage error (2).
+    write_baseline:
+        Record this run's lint findings in this file (``--write-baseline``)
+        instead.  Exits 0, unless the model has errors, which a baseline
+        cannot record: then nothing is written and the exit code is 1.
     """
     from pssparser.parser import Parser, ParseException
 
@@ -105,6 +115,16 @@ def cmd_parse(
         from .config import alias_note_markers
         for note in alias_note_markers(config):
             coll.add(Diagnostic.from_marker(note))
+
+    baseline_doc = None
+    if baseline is not None:
+        from pssparser.lint import baseline as baseline_mod
+        try:
+            baseline_doc = baseline_mod.load(
+                baseline, aliases=_retired_aliases(manager))
+        except baseline_mod.BaselineError as exc:
+            _stderr.write(f"error: {exc}\n")
+            return 2
 
     if show_hints is None:
         show_hints = bool(getattr(config, "show_hints", False))
@@ -160,9 +180,31 @@ def cmd_parse(
         if config is None or getattr(config, "source_waivers", True):
             _apply_waivers(coll, parser, files, manager, config,
                            ast=waiver_state["ast"], ran=waiver_state["ran"])
+        # The baseline after waivers (a waived finding is not recorded) and
+        # before the warning policy, so -Werror never promotes a finding the
+        # baseline accepted.
+        index = None
+        if waiver_state["ast"] and (
+                output_format == "sarif" or baseline_doc is not None
+                or write_baseline is not None):
+            from pssparser.lint.declpath import index_for
+            index = index_for(parser, files)
+        if (output_format == "sarif" or baseline_doc is not None
+                or write_baseline is not None):
+            _assign_fingerprints(coll, index)
+        written = None
+        write_error = None
+        if write_baseline is not None:
+            written, write_error = _write_baseline(
+                coll, write_baseline, manager, config)
+            if write_error is not None:
+                force_rc = 1
+        elif baseline_doc is not None:
+            _apply_baseline(coll, baseline_doc, manager, config, files,
+                            ran=waiver_state["ran"])
         _apply_warning_policy(coll, policy)
-        if output_format == "sarif" and waiver_state["ast"]:
-            _assign_decl_paths(coll, parser, files)
+        if output_format == "sarif" and index is not None:
+            _assign_decl_paths(coll, index)
         _emit_all(driver, coll, quiet)
         stats = None
         if show_stats:
@@ -171,8 +213,19 @@ def cmd_parse(
                 timings=extra_timings if stats_timing else None,
             )
             stats.lint_dropped = lint_dropped
-            stats.waived_by_code = _waived_by_code(coll)
+            stats.waived_by_code = _by_code(coll.waived)
+            stats.baselined_by_code = _by_code(coll.baselined)
         driver.finish(coll, quiet, stats)
+        # After the diagnostics, so the last line says what happened.
+        if write_error is not None:
+            _stderr.write(f"error: {write_error}\n")
+        elif written is not None:
+            n = written.total()
+            _stderr.write(
+                f"pssparser: recorded {n} finding{'s' if n != 1 else ''} "
+                f"in {write_baseline}\n")
+            if force_rc is None:
+                force_rc = 0
         # An internal error outranks everything else: whatever else was
         # reported, the run is not trustworthy, and a script must be able to
         # tell "the model is wrong" (1) from "the tool is wrong" (3).
@@ -523,12 +576,9 @@ def _apply_waivers(coll: DiagnosticCollection, parser, files: List[str],
         coll.add(diag)
 
 
-def _assign_decl_paths(coll: DiagnosticCollection, parser, files: List[str]) -> None:
+def _assign_decl_paths(coll: DiagnosticCollection, index) -> None:
     """Set each diagnostic's enclosing declaration (SARIF logical location)."""
-    from pssparser.lint.declpath import index_for
-
-    index = index_for(parser, files)
-    for diag in list(coll.diagnostics) + list(coll.waived):
+    for diag in list(coll.diagnostics) + list(coll.waived) + list(coll.baselined):
         if diag.line < 1:
             continue
         scope = index.scope_at(diag.file, diag.line, diag.col)
@@ -537,9 +587,119 @@ def _assign_decl_paths(coll: DiagnosticCollection, parser, files: List[str]) -> 
                          "kind": scope.kind}
 
 
-def _waived_by_code(coll: DiagnosticCollection) -> dict:
+# -- Baselines -----------------------------------------------------------------
+
+def _retired_aliases(manager) -> dict:
+    """``{retired_id: successor}`` across every loaded marker definition."""
+    return {md.id: md.replaced_by[0] for md in manager.all_marker_defs()
+            if md.status == "retired" and md.replaced_by}
+
+
+def _baseline_eligible(manager):
+    """A predicate: may a baseline record or match this diagnostic?"""
+    from pssparser.lint import baseline as baseline_mod
+    from pssparser.checkers.selectors import _is_core_error
+
+    catalog = {md.id: md for md in manager.all_marker_defs()}
+
+    def is_core_error(code: str) -> bool:
+        md = catalog.get(code)
+        return md is not None and _is_core_error(md)
+
+    return lambda d: baseline_mod.eligible(d, is_core_error)
+
+
+def _assign_fingerprints(coll: DiagnosticCollection, index) -> None:
+    from pssparser.lint.fingerprint import Fingerprinter, assign
+
+    fp = Fingerprinter(index)
+    assign(list(coll.diagnostics) + list(coll.waived), fp)
+
+
+def _write_baseline(coll: DiagnosticCollection, path: str, manager,
+                    config) -> tuple:
+    """Record the run's eligible findings in *path*.
+
+    Returns ``(baseline, None)``, or ``(None, message)`` when nothing was
+    written: the model has errors, or the file cannot be written.
+    """
+    from pssparser.lint import baseline as baseline_mod
+
+    eligible = _baseline_eligible(manager)
+    recorded = [d for d in coll.diagnostics if eligible(d)]
+    if any(d.severity == "error" and not eligible(d) for d in coll.diagnostics):
+        return None, (
+            f"not writing the baseline {path}: the model has errors, and a "
+            "baseline records lint findings, not errors; fix the errors "
+            "first")
+    doc = baseline_mod.build(
+        path, recorded, rules_version=getattr(config, "rules_version", "") or None)
+    try:
+        baseline_mod.write(doc)
+    except OSError as exc:
+        return None, f"cannot write the baseline {path}: {exc}"
+    keep = set(map(id, recorded))
+    coll.replace_diagnostics([d for d in coll.diagnostics if id(d) not in keep])
+    coll.baselined = recorded
+    return doc, None
+
+
+def _apply_baseline(coll: DiagnosticCollection, doc, manager, config,
+                    files: List[str], *, ran) -> None:
+    """Move the findings *doc* records out of *coll*, and report its stale
+    entries (PSSP206)."""
+    import os
+    from pssparser.lint import baseline as baseline_mod
+
+    eligible = _baseline_eligible(manager)
+    owned = _owned_files(files)
+
+    def checked(entry) -> bool:
+        # An entry can be stale only if this run could have reported it:
+        # its file was checked and its rule ran.
+        if ran is None or entry.code not in ran:
+            return False
+        path = os.path.realpath(os.path.join(doc.directory, entry.file))
+        return path in owned
+
+    result = baseline_mod.match(coll.diagnostics, doc, is_eligible=eligible,
+                                checked=checked)
+    for d in result.new:
+        if eligible(d):
+            d.baseline_state = "new"
+    for d in result.baselined:
+        d.baseline_state = "unchanged"
+    coll.replace_diagnostics(result.new)
+    coll.baselined = result.baselined
+
+    severity = (getattr(config, "severity", None) or {})
+    sev = severity.get("PSSP206")
+    if sev == "off":
+        return
+    if result.stale:
+        coll.non_source_files.add(doc.path)
+    for entry, missing in result.stale:
+        if missing == entry.count:
+            what = ("its finding is" if entry.count == 1
+                    else f"all {entry.count} of its findings are")
+        else:
+            what = f"{missing} of its {entry.count} findings are"
+        diag = Diagnostic.from_marker({
+            "severity": sev or "info",
+            "code": "PSSP206",
+            "file": doc.path,
+            "line": entry.line,
+            "col": 1,
+            "message": (f"[PSSP206] stale baseline entry: {what} no longer "
+                        f"reported ({entry.code} in {entry.file}); rewrite "
+                        "the baseline with --write-baseline"),
+        })
+        coll.add(diag)
+
+
+def _by_code(diags) -> dict:
     counts: dict = {}
-    for d in coll.waived:
+    for d in diags:
         key = d.code or "<uncoded>"
         counts[key] = counts.get(key, 0) + 1
     return dict(sorted(counts.items()))

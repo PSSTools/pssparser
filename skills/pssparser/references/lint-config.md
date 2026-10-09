@@ -56,6 +56,9 @@ enabled = false                   # skip every checker from this extension
 source = false                    # ignore waivers written in the PSS source
 ```
 
+`[lint] baseline = "lint-baseline.json"` (relative to the config file) names
+a baseline; see "Adopting lint on an existing model" below.
+
 The checker and extension names above are placeholders. Take real names from
 `pssparser --list-checkers` and `pssparser --list-extensions`, and a
 checker's options from `pssparser --describe-checker NAME`.
@@ -122,6 +125,7 @@ Choose the narrowest tool:
 | You want | Use |
 |---|---|
 | One finding, at one place, accepted | a source waiver (below) |
+| Today's findings deferred, new ones gated | a baseline (below) |
 | One ID never reported | `[severity]` `ID = "off"` |
 | One ID reported but never fatal | `ID = "info"`, or `-Wno-error=ID` under `-Werror` |
 | All of one extension's checkers off | `[extensions.<name>] enabled = false` |
@@ -150,6 +154,25 @@ write it fully qualified. A standalone `@lint_pkg::waive {...};` covers to the
 end of the enclosing scope. Errors are never waived (`PSSP204`); an unused
 waiver is `PSSP202`, an unknown rule `PSSP203`, no reason `PSSP205`.
 `--show-waived` prints what was waived; JSON lists it under `waived`.
+
+## Adopting lint on an existing model
+
+A baseline records today's findings so that CI fails only on new ones:
+
+```sh
+pssparser --write-baseline lint-baseline.json src/*.pss   # exits 0; commit the file
+```
+
+then add `baseline = "lint-baseline.json"` under `[lint]` (or pass
+`--baseline PATH`). Recorded findings are not printed, counted or promoted by
+`-Werror`; JSON lists them under `baselined`, SARIF marks them
+`baselineState: "unchanged"`. A finding is matched by rule, file and a
+fingerprint of its declaration path and flagged code (not its line), so
+edits elsewhere and reformatting keep it matched. A fixed finding leaves a
+stale entry, reported as `PSSP206` (info) at the entry: re-run
+`--write-baseline`. Errors and `PSSP` diagnostics are never baselined, and
+`--write-baseline` writes nothing (exit 1) when the model has errors.
+`--no-baseline` shows everything for one run.
 
 ## Worked example
 

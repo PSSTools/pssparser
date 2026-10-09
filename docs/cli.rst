@@ -23,6 +23,13 @@ Common options
   (see :doc:`lint`); ``--show-hints`` prints ``hint`` diagnostics;
   ``--show-waived`` prints the findings a source waiver covered (see
   :doc:`waivers`)
+- ``--write-baseline PATH`` records the run's lint findings in a baseline
+  file and exits 0; ``--baseline PATH`` then reports only findings it does
+  not record, and ``--no-baseline`` ignores a configured one (see
+  :doc:`lint`, "Adopting lint on an existing model").  A baseline that
+  cannot be read is a usage error (exit 2).  ``--write-baseline`` refuses a
+  path ending in ``.pss``, and writes nothing (exit 1) when the model has
+  errors
 - ``--statistics`` prints a per-code count of the diagnostics reported
 - ``--dump-ast OUT`` writes a JSON dump of the linked AST
 - ``--quiet`` suppresses normal diagnostic output
@@ -555,6 +562,7 @@ Lint and output settings
    select  = ["pedantic"]         # added on top of the profile
    ignore  = ["LINT402"]          # removed from it
    rules-version = "2026.1"       # rules newer than this stay out of profiles
+   baseline = "lint-baseline.json"  # relative to this file; like --baseline
 
    [lint.rule.some-rule]          # options for one rule, if it declares any
    threshold = 3
@@ -565,8 +573,9 @@ Lint and output settings
    [waivers]
    source = false                 # ignore waivers written in the source (docs: waivers)
 
-``--lint-profile`` and ``--no-lint`` override ``lint.profile``.  :doc:`lint`
-describes the profiles, pinning, and which files are linted.
+``--lint-profile`` and ``--no-lint`` override ``lint.profile``;
+``--baseline`` and ``--no-baseline`` override ``lint.baseline``.  :doc:`lint`
+describes the profiles, pinning, baselines, and which files are linted.
 
 Warning policy
 ==============
@@ -643,7 +652,11 @@ Output formats
     (``hint``).  Each location carries a ``logicalLocations`` entry naming
     the enclosing declaration (``p::C::A::constraint c``, kind ``member``)
     unless the location is at global scope.  A diagnostic about the tool
-    itself (an extension that failed to load) has no ``locations``.
+    itself (an extension that failed to load) has no ``locations``.  Each
+    result with a source location has ``partialFingerprints``
+    (``{"pssparser/v1": "..."}``), the fingerprint a baseline matches on.
+    With a baseline in use, the findings it records are results too, with
+    ``baselineState: "unchanged"``; other lint findings have ``"new"``.
 
 ``--format github``
     GitHub Actions workflow commands on stdout -- one ``::error``,

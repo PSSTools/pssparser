@@ -2174,6 +2174,26 @@ class CoreChecker(CheckerBase):
                 "this asks for the reason."
             ),
         ),
+
+        # -- Baselines (docs/lint.rst, "Adopting lint on an existing
+        # model").
+        MarkerDef(
+            id="PSSP206",
+            name="stale-baseline-entry",
+            tier="tool",
+            severity="info",
+            summary="A baseline entry matched fewer findings than it recorded",
+            detail=(
+                "The baseline records a finding that this run no longer "
+                "reports: it was fixed, or the code changed enough to be a "
+                "different finding.  The diagnostic points at the entry in "
+                "the baseline file.  Rewrite the baseline with "
+                "``--write-baseline`` so that the finding cannot come back "
+                "unnoticed.  It is reported only for an entry whose file was "
+                "checked and whose rule ran, so checking a subset of the "
+                "files, or turning a rule off, does not make entries stale."
+            ),
+        ),
     ] + list(_CORE_EMITTED_LINT)
 
     def check(self, context) -> None:  # noqa: D102

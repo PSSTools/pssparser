@@ -254,6 +254,26 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Also print diagnostics that a source waiver covered, marked "
              "[waived: <reason>]; the exit code is unaffected",
     )
+    lint_grp.add_argument(
+        "--baseline",
+        metavar="PATH",
+        default=None,
+        help="Report only findings that the baseline file PATH does not "
+             "record (overrides [lint] baseline)",
+    )
+    lint_grp.add_argument(
+        "--no-baseline",
+        action="store_true",
+        default=False,
+        help="Ignore the configured baseline and report every finding",
+    )
+    lint_grp.add_argument(
+        "--write-baseline",
+        metavar="PATH",
+        default=None,
+        help="Record every lint finding of this run in the baseline file "
+             "PATH and exit 0",
+    )
     warn_grp.add_argument(
         "--no-warnings",
         action="store_true",
@@ -412,6 +432,22 @@ def main(argv: list[str] | None = None) -> int:
     from .commands import cmd_parse
     from .diagnostics import WarningPolicy
 
+    write_baseline = args.write_baseline
+    if write_baseline is not None and (
+            write_baseline.endswith(".pss") or write_baseline in args.files):
+        # `--write-baseline m.pss` most likely forgot the PATH; writing a
+        # baseline over a source file would destroy it.
+        sys.stderr.write(
+            f"error: --write-baseline would overwrite the source file "
+            f"{write_baseline}; give the baseline file's path, e.g. "
+            f"--write-baseline lint-baseline.json\n")
+        return 2
+    if write_baseline is not None and (args.baseline or args.no_baseline):
+        sys.stderr.write(
+            "error: --write-baseline conflicts with --baseline and "
+            "--no-baseline\n")
+        return 2
+
     output_format = args.output_format
     if args.json:
         if output_format not in (None, "json"):
@@ -433,6 +469,8 @@ def main(argv: list[str] | None = None) -> int:
             output_format=output_format or "text",
             statistics=args.statistics,
             show_waived=args.show_waived,
+            baseline=None if write_baseline is not None else cfg.baseline,
+            write_baseline=write_baseline,
             quiet=args.quiet,
             color=args.color,
             max_errors=args.max_errors,

@@ -139,7 +139,10 @@ Whether a marker originates in the C++ parser/linker or from
     case the CLI falls back to underlining a single column. Pass it whenever
     you know the width of the offending token or name — it is the difference
     between an underline that covers ``my_bad_name`` and one that covers only
-    its first letter.
+    its first letter.  It is also what a baseline fingerprint hashes
+    (:doc:`lint`, "How findings are matched"): with no extent, only the token
+    at ``col`` is hashed, and two findings that start with the same token in
+    one declaration are told apart only by counting them.
 ``related``
     A list of secondary locations, each ``{"file", "line", "col", "label"}``.
     Use this for a diagnostic that only makes sense with a second point of
