@@ -149,7 +149,7 @@ def run_case(cid, paths, inline, sources, req):
     except ParseException:
         pass
     errors = sum(1 for m in p.markers if m["severity"] == "error")
-    r = e.run(p.user_units(), native_request(req, errors))
+    r = e.run(p.user_units(), native_request(req, errors), model=p._root)
     assert r["ok"], r
     return {
         "id": "run:" + cid,

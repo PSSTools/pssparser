@@ -36,9 +36,10 @@ public:
     virtual std::string celFunctions() override;
     virtual std::string celCheck(const std::string &name, const std::string &text) override;
     virtual std::string celCheckNode(const std::string &name, const std::string &text,
-        ast::IScopeChild *root) override;
+        ast::IScopeChild *root, ast::IRootSymbolScope *model) override;
     virtual std::string celEvalNode(const std::string &text, ast::IScopeChild *root,
-        const std::string &bindings, uint64_t max_steps) override;
+        const std::string &bindings, uint64_t max_steps,
+        ast::IRootSymbolScope *model) override;
     virtual std::string ruleLoad(const std::string &name, const std::string &text,
         bool builtin) override;
     virtual std::string rulesSchema() override;
@@ -52,7 +53,9 @@ public:
     virtual std::string lintRun(const std::string &name, const std::string &text,
         const std::vector<ast::IScopeChild *> &roots, bool allEnabled,
         const std::vector<std::string> &enabled, uint64_t maxSteps,
-        uint32_t gateErrors) override;
+        uint32_t gateErrors, ast::IRootSymbolScope *model) override;
+
+    virtual std::string declPaths(ast::IScopeChild *root) override;
 };
 
 }

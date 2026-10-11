@@ -31,6 +31,7 @@
 
 namespace pssp {
 namespace ast {
+class IRootSymbolScope;
 class IScopeChild;
 }
 namespace lint {
@@ -91,9 +92,13 @@ public:
      */
     virtual std::string celCheck(const std::string &name, const std::string &text) = 0;
 
-    /** celCheck with `node` bound to `root`, typed as its class. Native only. */
+    /**
+     * celCheck with `node` bound to `root`, typed as its class; the library
+     * sees `root` as the one owned file, and `model` (if any) as the linked
+     * model it belongs to. Native only.
+     */
     virtual std::string celCheckNode(const std::string &name, const std::string &text,
-        ast::IScopeChild *root) = 0;
+        ast::IScopeChild *root, ast::IRootSymbolScope *model=nullptr) = 0;
 
     /**
      * celEval with `node` bound to `root` (C3.1: node values, fields,
@@ -101,7 +106,8 @@ public:
      * reads comes with the runner (C5).
      */
     virtual std::string celEvalNode(const std::string &text, ast::IScopeChild *root,
-        const std::string &bindings, uint64_t max_steps) = 0;
+        const std::string &bindings, uint64_t max_steps,
+        ast::IRootSymbolScope *model=nullptr) = 0;
 
     /**
      * The reflection tables (C1.3): {"classes":[{"name","super","fields":[...]}],
@@ -157,7 +163,14 @@ public:
     virtual std::string lintRun(const std::string &name, const std::string &text,
         const std::vector<ast::IScopeChild *> &roots, bool allEnabled,
         const std::vector<std::string> &enabled, uint64_t maxSteps,
-        uint32_t gateErrors) = 0;
+        uint32_t gateErrors, ast::IRootSymbolScope *model=nullptr) = 0;
+
+    /**
+     * Every scope under `root` that has a path of its own in
+     * lint/declpath.py's sense (C6.2), in walk order:
+     * [{"path","class","line","col"}]. Native only.
+     */
+    virtual std::string declPaths(ast::IScopeChild *root) = 0;
 
     /** {"ok":true,"match":b,"steps":N,"size":n} or {"ok":false,"error":{...}} */
     virtual std::string regexSearch(const std::string &pattern, const std::string &text) = 0;

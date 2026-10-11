@@ -48,11 +48,12 @@ def test_an_erroring_rule_does_not_stop_the_others(hooks, units):
     r = _run(hooks, [units[1]],
              _rule("ACME001", extra=[_BAD_WHERE]),
              _rule("ACME002", message="${node}"))
-    assert [(f["id"], f["msg"]) for f in r["findings"]] == [("ACME002", "A"), ("ACME002", "B")]
+    assert [(f["id"], f["msg"]) for f in r["findings"]] == [
+        ("ACME002", "pss_top::A"), ("ACME002", "pss_top::B")]
     (f,) = r["failures"]
     assert (f["id"], f["rule"], f["in"], f["severity"]) == ("PSSP220", "ACME001", "where", "warning")
     assert (f["line"], f["col"]) == (3, 3)
-    assert f["msg"].startswith("rule ACME001 (rule-acme001) failed in its where at Action 'A': ")
+    assert f["msg"].startswith("rule ACME001 (rule-acme001) failed in its where at Action 'pss_top::A': ")
     assert "super_t" in f["msg"]
     assert f["msg"].endswith("; the rule is skipped for the rest of this file")
     s = _stats(r)
@@ -81,7 +82,7 @@ def test_message_error_keeps_the_finding_and_ends_the_file(hooks, units):
     # A's message fails (no base): its finding stands with `?`, and B is not
     # evaluated.
     r = _run(hooks, [units[1]], _rule(message="${node} base ${size(node.super_t.elems)}"))
-    assert [f["msg"] for f in r["findings"]] == ["A base ?"]
+    assert [f["msg"] for f in r["findings"]] == ["pss_top::A base ?"]
     (f,) = r["failures"]
     assert (f["in"], f["line"]) == ("message", 3)
     assert _stats(r)["ACME001"]["matches"] == 1
@@ -92,7 +93,7 @@ def test_let_error_fails_only_through_its_use(hooks, units):
         "let:",
         "  base: node.super_t.elems",
         "where: \"node.name.id == 'B'\""]))
-    assert [f["msg"] for f in r["findings"]] == ["B"]
+    assert [f["msg"] for f in r["findings"]] == ["pss_top::B"]
     assert r["failures"] == []
 
 
@@ -123,7 +124,7 @@ def test_budget_trips_at_a_known_step_count(hooks, units):
     assert (f["id"], f["rule"], f["in"], f["line"]) == ("PSSP221", "ACME001", "where", 5)
     assert f["msg"] == (
         "rule ACME001 (rule-acme001) used its budget of %d evaluation steps for this "
-        "file, in its where at Field 'b'; the rule is skipped for the rest of this file"
+        "file, in its where at Field 'pss_top::A::b'; the rule is skipped for the rest of this file"
         % (3 * k - 1))
     s = r["stats"][0]
     # Steps are counted up to the budget, not past it.
@@ -137,7 +138,8 @@ def test_budget_is_per_file(hooks, units):
     r = _run(hooks, [units[1]], rule)
     k = r["stats"][0]["steps"] // 2
     r = _run(hooks, [units[1], units[2]], rule, max_steps=2 * k)
-    assert [f["msg"] for f in r["findings"]] == ["A", "B", "C", "D"]
+    assert [f["msg"] for f in r["findings"]] == [
+        "pss_top::A", "pss_top::B", "other_c::C", "other_c::D"]
     assert r["failures"] == []
     assert r["stats"][0]["steps"] == 4 * k
 

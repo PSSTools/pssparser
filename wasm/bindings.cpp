@@ -589,7 +589,7 @@ public:
                 }
             }
         }
-        return ensureLintEngine()->run(roots, requestJson);
+        return ensureLintEngine()->run(roots, requestJson, m_root);
     }
 
 private:

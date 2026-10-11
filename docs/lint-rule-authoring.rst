@@ -130,8 +130,9 @@ A rule
    One line, shown in rule lists.
 ``message``
    The diagnostic, with ``${expression}`` for values from the model.
-   ``$${`` is a literal ``${``. A node is shown by its name (a declaration),
-   its text (an identifier or a literal), or else its kind and position.
+   ``$${`` is a literal ``${``. A declaration is shown by its declaration
+   path (``pss_top::A::x``, as ``decl_path`` gives it), an identifier, type
+   name or literal by its text, and any other node by its kind and position.
 ``match``
    Which syntax-tree nodes the rule looks at: ``kind`` (one node kind or a
    list; subclasses match), and optionally ``inside`` and ``not_inside`` (an
@@ -180,6 +181,16 @@ node's class, subclasses included. After ``n.isa(K) &&``, or
    where: >-
      enclosing(node, Action) != null
      && enclosing(node, Action).name.id.endsWith("_test")
+
+The symbol functions read the linked model: ``resolves_to(r)`` is the
+declaration a reference names (``resolves_to(node.type)``,
+``resolves_to(node.super_t)``), ``decl_path(n)`` a node's qualified path, and
+``is_owned(n)`` and ``in_library(n)`` say whose file it is in.
+``refs(d)`` lists the uses of a declaration across the whole model, and
+``is_read(r)`` and ``is_written(r)`` say what a use does; a rule that calls
+``refs`` is re-run on any change to the model, not only to its file. Like every
+rule, one that calls them runs only on a model that parsed and linked
+without errors.
 
 The tree is the source as written. An ``extend``'s members belong to the
 ``extend``, not to the type it extends, and nodes that pssparser adds itself,

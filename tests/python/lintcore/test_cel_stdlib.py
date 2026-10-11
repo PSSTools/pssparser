@@ -388,7 +388,8 @@ def test_registry_shape(registry):
         assert f["display"], f["id"]
         assert f["cost"] in ("constant", "linear", "custom")
         # The standard library needs nothing but the syntax tree.
-        assert (f["level"], f["scope"]) == ("L0", "file"), f["id"]
+        if f["library"] == "cel":
+            assert (f["level"], f["scope"]) == ("L0", "file"), f["id"]
         if f["kind"] == "macro":
             assert f["params"] == [] and f["result"] == ""
         else:

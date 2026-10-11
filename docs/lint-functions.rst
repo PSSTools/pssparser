@@ -1253,3 +1253,161 @@ The other elements of the list that holds the node (the statements of its block,
      - ``index_of_node``
 
 The node's position, from 0, in the list that holds it, as ``siblings`` defines it; ``-1`` when it is not a list element. One step per element of that list.
+
+Symbols
+-------
+
+.. _lint-fn-decl-path-node:
+
+``decl_path``
+~~~~~~~~~~~~~
+
+**Level:** L0; **Scope:** file
+
+.. list-table::
+   :header-rows: 1
+
+   * - Signature
+     - Cost
+     - Overload
+   * - ``decl_path(node) -> string``
+     - custom
+     - ``decl_path_node``
+
+The node's declaration path, as fingerprints and SARIF logical locations use it: ``p::C::A``, ``p::C::A::constraint c``, ``p::C::A::exec body#2`` (the second in its scope), ``p::C::A::f`` for a field, ``extend action p::C::A`` for an extension (where it is written, not the type it extends). A node that declares nothing has the path of the declaration it is in, and so does a declaration inside a function, exec, constraint or activity; a node at file level has ``""``. Lexical: it needs no link. One step per enclosing node.
+
+.. _lint-fn-resolves-to-node:
+
+``resolves_to``
+~~~~~~~~~~~~~~~
+
+**Level:** L1; **Scope:** file
+
+.. list-table::
+   :header-rows: 1
+
+   * - Signature
+     - Cost
+     - Overload
+   * - ``resolves_to(node) -> node``
+     - constant
+     - ``resolves_to_node``
+
+The declaration a reference names, as the linker bound it: an identifier, a type (``p::S``, ``node.super_t``, a field's ``DataTypeUserDefined``), or a path (``a.b.c`` gives ``c``'s declaration). ``null`` when the name is unbound or a built-in with no declaration (``comp``, ``this``), and for a node that is not a reference. Two references to one declaration give the same node, so ``resolves_to(a) == resolves_to(b)`` compares declarations. ``null`` in gives ``null`` out, so ``resolves_to(node.super_t)`` needs no ``has()`` first. An error when the model is not linked.
+
+.. _lint-fn-is-owned-node:
+
+``is_owned``
+~~~~~~~~~~~~
+
+**Level:** L0; **Scope:** file
+
+.. list-table::
+   :header-rows: 1
+
+   * - Signature
+     - Cost
+     - Overload
+   * - ``is_owned(node) -> bool``
+     - constant
+     - ``is_owned_node``
+
+Whether the node is in one of the files being checked: false for the standard library, and for user files that were only read (a library directory, an ``--include`` path the run does not own). ``false`` for ``null``.
+
+.. _lint-fn-in-library-node:
+
+``in_library``
+~~~~~~~~~~~~~~
+
+**Level:** L0; **Scope:** file
+
+.. list-table::
+   :header-rows: 1
+
+   * - Signature
+     - Cost
+     - Overload
+   * - ``in_library(node) -> bool``
+     - constant
+     - ``in_library_node``
+
+Whether the node is in the standard library (``std_pkg``, the core library) or in a unit the linker adds itself. Use it on what ``resolves_to`` returns: ``in_library(resolves_to(node.type))``. ``false`` for ``null`` (a type that is not a reference, such as ``int``).
+
+References
+----------
+
+.. _lint-fn-is-read-node:
+
+``is_read``
+~~~~~~~~~~~
+
+**Level:** L0; **Scope:** file
+
+.. list-table::
+   :header-rows: 1
+
+   * - Signature
+     - Cost
+     - Overload
+   * - ``is_read(node) -> bool``
+     - custom
+     - ``is_read_node``
+
+Whether this use of a name reads it: every use except the target of a plain ``=`` assignment or of a traversal's field initializer (``do A(.x = 1)``). A compound assignment (``x += 1``) both reads and writes. In a path (``a.b.c = 1``) only the last name is assigned; ``a`` and ``b`` are read. A use in a ``with`` constraint is a read: a constraint relates values, it does not assign one. Takes an identifier or a reference (its last name); ``false`` for a declaration's own name or another node. One step per enclosing node.
+
+.. _lint-fn-is-written-node:
+
+``is_written``
+~~~~~~~~~~~~~~
+
+**Level:** L0; **Scope:** file
+
+.. list-table::
+   :header-rows: 1
+
+   * - Signature
+     - Cost
+     - Overload
+   * - ``is_written(node) -> bool``
+     - custom
+     - ``is_written_node``
+
+Whether this use of a name assigns it: the last name of an assignment's left-hand side (any of ``=``, ``+=``, ...), or of a traversal's field initializer. Takes an identifier or a reference, as ``is_read`` does. One step per enclosing node.
+
+.. _lint-fn-refs-node:
+
+``refs``
+~~~~~~~~
+
+**Level:** L4; **Scope:** model
+
+.. list-table::
+   :header-rows: 1
+
+   * - Signature
+     - Cost
+     - Overload
+   * - ``refs(node) -> list(ExprId)``
+     - custom
+     - ``refs_node``
+
+Every use of a declaration: the identifiers (``ExprId``) that name it, in every user file of the model (owned or not), in file, line and column order. The declaration's own name is not a use. A function's uses are its calls, whether the definition or its prototype is passed (calls resolve to the prototype). Built once per run, the first time a rule asks, so a call is a lookup. ``[]`` for ``null``. Whole-model: a rule that calls it is re-run on any change. An error when the model is not linked. One step per element.
+
+.. _lint-fn-used-only-by-itself-node:
+
+``used_only_by_itself``
+~~~~~~~~~~~~~~~~~~~~~~~
+
+**Level:** L4; **Scope:** model
+
+.. list-table::
+   :header-rows: 1
+
+   * - Signature
+     - Cost
+     - Overload
+   * - ``used_only_by_itself(node) -> bool``
+     - custom
+     - ``used_only_by_itself_node``
+
+Whether a declaration has uses, and every one is inside the declaration itself: a function that only calls itself, a field read only in its own initializer. With ``size(refs(d)) == 0``, this is how a rule asks "is it unused?". Whole-model. One step per use looked at.

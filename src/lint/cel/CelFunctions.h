@@ -118,6 +118,10 @@ struct Overload {
     // With classArg: the result is a node of that class, not `result`'s
     // (`enclosing(n, Action)` is an Action).
     bool                resultIsClass = false;
+    // A node operand may be null (an unset field, a `resolves_to` that
+    // found nothing), which the function takes as "no node": is_owned(null)
+    // is false. Without it, a null operand is a "no matching overload" error.
+    bool                nullable = false;
 
     /** Whether run-time operands fit the parameter types. */
     bool admits(const Value *target, const Value *args, size_t n) const;

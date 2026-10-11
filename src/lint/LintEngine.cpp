@@ -125,7 +125,7 @@ void markerJson(JsonWriter &w, const IMarker &m) {
 }
 
 std::string LintEngine::run(const std::vector<ast::IScopeChild *> &roots,
-        const std::string &requestJson) {
+        const std::string &requestJson, ast::IRootSymbolScope *model) {
     using NK = yaml::Node::Kind;
     JsonWriter w;
     yaml::NodeUP req;
@@ -173,7 +173,23 @@ std::string LintEngine::run(const std::vector<ast::IScopeChild *> &roots,
         problems.push_back("enabled: not a list of rule IDs");
     }
 
+    // Unlinked: a rule that needs symbols would fail on every file, or
+    // worse, find nothing; it is not run, and says so.
+    if (!model) {
+        std::vector<const rules::Rule *> runnable;
+        for (const rules::Rule *r : on) {
+            if (r->m_level >= cel::Level::L1) {
+                problems.push_back("rule " + r->m_id + " needs a linked model (level "
+                    + cel::levelName(r->m_level) + "); not run");
+            } else {
+                runnable.push_back(r);
+            }
+        }
+        on.swap(runnable);
+    }
+
     run::RunOptions opts;
+    opts.model = model;
     if (const yaml::Node *ms = req->get("max_steps")) {
         if (ms->kind == NK::Int && ms->i > 0) {
             opts.maxSteps = static_cast<uint64_t>(ms->i);

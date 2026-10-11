@@ -222,7 +222,7 @@ pss-rules:
     assert rc == 0
     (d,) = doc["diagnostics"]
     assert (d["code"], d["severity"], d["line"]) == ("PSSP220", "warning", 2)
-    assert "rule ACME003 (base-elems) failed in its where at Action 'A'" in d["message"]
+    assert "rule ACME003 (base-elems) failed in its where at Action 'pss_top::A'" in d["message"]
 
 
 def test_stats_breakdown(lint_enabled, files):

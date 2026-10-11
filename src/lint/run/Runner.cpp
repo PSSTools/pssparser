@@ -65,6 +65,7 @@ MarkerSeverityE ruleSeverity(const rules::Rule &r) {
 Runner::Runner(const std::vector<const rules::Rule *> &rules, const RunOptions &opts) :
         m_opts(opts), m_dispatch(rules), m_walker(m_dispatch), m_stats(rules.size()),
         m_file(rules.size()) {
+    m_ctx.setModel(opts.model);
     for (size_t i=0; i<rules.size(); i++) {
         m_index.emplace(rules[i], i);
     }
@@ -266,8 +267,16 @@ std::string Runner::describeNode(const rf::Node &n) {
 }
 
 std::string Runner::renderNode(const rf::Node &n) {
-    // A declaration's name, a path element's identifier, an identifier's
-    // or a literal's text.
+    // A declaration's path (format §3.4), else a declaration's name, a path
+    // element's identifier, an identifier's or a literal's text.
+    std::string path;
+    if (m_ctx.declares(n) && m_ctx.namedPath(n, path) && !path.empty()) {
+        return path;
+    }
+    std::string type = lib::spelledType(n);
+    if (!type.empty()) {
+        return type;
+    }
     cel::Value v = nodeValue(n);
     uint64_t elems = 0;
     for (const char *f : {"name", "id"}) {

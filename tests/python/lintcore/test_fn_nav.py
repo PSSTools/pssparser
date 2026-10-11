@@ -287,7 +287,8 @@ def test_run_reports_extend_member_in_its_own_file(hooks):
     r = hooks.lint_run("r.yaml", _RUN_RULE % "Field", units)
     assert r["diagnostics"] == []
     assert [(f["line"], f["msg"]) for f in r["findings"]] == [
-        (3, "a in S, 3 deep"), (2, "x in ExtendType at 1:1, 2 deep"), (4, "s in pss_top, 2 deep")]
+        (3, "a in p::S, 3 deep"), (2, "x in extend struct p::S, 2 deep"),
+        (4, "s in pss_top, 2 deep")]
 
 
 def test_run_never_matches_the_implicit_comp(hooks, unit):

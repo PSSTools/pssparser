@@ -30,6 +30,7 @@
 
 namespace pssp {
 namespace ast {
+class IRootSymbolScope;
 class IScopeChild;
 }
 namespace lint {
@@ -119,9 +120,15 @@ public:
      * prefix. `problems` lists request entries that were ignored: an
      * unknown ID or option, or a value of the wrong type. A request that is
      * not a JSON object gives {"ok":false,"error":"..."}.
+     *
+     * `model` is the linked root the files belong to (C6.2): the symbol
+     * functions (resolves_to, refs, ...) read it, and navigation reaches
+     * the model's other files through it. Without one (an unlinked parse),
+     * the rules that need symbols (level L1 or above) are not run, and
+     * each is listed in `problems`.
      */
     virtual std::string run(const std::vector<ast::IScopeChild *> &roots,
-        const std::string &requestJson) = 0;
+        const std::string &requestJson, ast::IRootSymbolScope *model=nullptr) = 0;
 };
 
 }

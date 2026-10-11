@@ -95,6 +95,9 @@ struct RuleStats {
 struct RunOptions {
     // Evaluation steps per rule per file. Q-E5: the real number comes from C8.
     uint64_t            maxSteps = 1000000;
+    // The linked model, for the symbol functions (lib::Context); null when
+    // the files are not linked.
+    ast::IRootSymbolScope   *model = nullptr;
     // Option values the host set (`[lint.rule.<name>]`), by rule; an option
     // not listed takes its `default:`.
     std::unordered_map<const rules::Rule *,
@@ -157,8 +160,9 @@ public:
     static IMarker *skippedMarker(uint32_t nErrors);
 
     /**
-     * A node as a message shows it (format §3.4). Until decl_path (C6.2): a
-     * declaration's name, an identifier's or literal's text, else
+     * A node as a message shows it (format §3.4): a declaration's path
+     * (C6.2: decl_path, when the path names the node), else a declaration's
+     * name, an identifier's, type identifier's or literal's text, else
      * "Kind at L:C".
      */
     std::string renderNode(const rf::Node &n);

@@ -144,11 +144,15 @@ bool Overload::admits(const Value *target, const Value *args, size_t n) const {
     if (params.size() != n + off) {
         return false;
     }
-    if (receiver && !params[0].admits(*target)) {
+    auto fits = [this](const Type &t, const Value &v) {
+        return t.admits(v) || (nullable && t.kind == Type::Kind::Node
+            && v.kind == Value::Kind::Null);
+    };
+    if (receiver && !fits(params[0], *target)) {
         return false;
     }
     for (size_t i=0; i<n; i++) {
-        if (!params[i + off].admits(args[i])) {
+        if (!fits(params[i + off], args[i])) {
             return false;
         }
     }

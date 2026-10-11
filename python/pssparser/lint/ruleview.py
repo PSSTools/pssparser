@@ -150,7 +150,8 @@ def run(engine, mdefs: List[MarkerDef], context) -> None:
                if i in enabled and o}
     request = {"enabled": enabled, "options": options,
                "gate_errors": context._gate_errors}
-    result = engine.run([] if context._gate_errors else context.global_scopes, request)
+    result = engine.run([] if context._gate_errors else context.global_scopes, request,
+                        model=context.root)
     for m in result.get("markers", ()):
         located = m["fileid"] >= 0 and m["line"] > 0
         context.add_marker(

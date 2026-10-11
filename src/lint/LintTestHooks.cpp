@@ -727,7 +727,7 @@ std::string LintTestHooks::celFunctions() {
 }
 
 std::string LintTestHooks::celEvalNode(const std::string &text, ast::IScopeChild *root,
-        const std::string &bindings, uint64_t max_steps) {
+        const std::string &bindings, uint64_t max_steps, ast::IRootSymbolScope *model) {
     std::vector<std::pair<std::string, cel::Value>> vars = parseBindings(bindings);
     rf::Node n = rf::classify(root);
     cel::NodeRef ref;
@@ -736,6 +736,7 @@ std::string LintTestHooks::celEvalNode(const std::string &text, ast::IScopeChild
     vars.emplace_back("node", cel::Value::mkNode(ref));
     // The library sees the tree under `root`, as a run would.
     lib::Context ctx;
+    ctx.setModel(model);
     ctx.index(n);
     return evalWith(text, vars, max_steps, &ctx);
 }
@@ -993,15 +994,42 @@ std::string LintTestHooks::celCheck(const std::string &name, const std::string &
 }
 
 std::string LintTestHooks::celCheckNode(const std::string &name, const std::string &text,
-        ast::IScopeChild *root) {
+        ast::IScopeChild *root, ast::IRootSymbolScope *model) {
     rf::Node n = rf::classify(root);
     cel::NodeRef ref;
     ref.kind = n.kind;
     ref.ptr = n.ptr;
     cel::Value v = cel::Value::mkNode(ref);
     lib::Context ctx;
+    ctx.setModel(model);
     ctx.index(n);
     return checkDoc(name, text, &v, &ctx);
+}
+
+std::string LintTestHooks::declPaths(ast::IScopeChild *root) {
+    lib::Context ctx;
+    rf::Node r = rf::classify(root);
+    ctx.index(r);
+    JsonWriter w;
+    w.beginArray();
+    std::vector<rf::Node> work{r}, kids;
+    while (!work.empty()) {
+        rf::Node n = work.back();
+        work.pop_back();
+        if (n != r && ctx.ownPath(n)) {
+            int32_t fileid, line, col;
+            run::Walker::location(n, fileid, line, col);
+            uint64_t steps = 0;
+            w.beginObject().kv("path", ctx.declPath(n, steps))
+                .kv("class", rf::classes[n.kind].name).kv("line", line).kv("col", col)
+                .endObject();
+        }
+        kids.clear();
+        run::Walker::children(n, kids);
+        work.insert(work.end(), kids.rbegin(), kids.rend());
+    }
+    w.endArray();
+    return w.str();
 }
 
 std::string LintTestHooks::reflectSchema() {
@@ -1111,7 +1139,8 @@ std::string LintTestHooks::lintWalk(const std::string &name, const std::string &
 
 std::string LintTestHooks::lintRun(const std::string &name, const std::string &text,
         const std::vector<ast::IScopeChild *> &roots, bool allEnabled,
-        const std::vector<std::string> &enabled, uint64_t maxSteps, uint32_t gateErrors) {
+        const std::vector<std::string> &enabled, uint64_t maxSteps, uint32_t gateErrors,
+        ast::IRootSymbolScope *model) {
     static const char *sevNames[] = {"error", "warning", "info", "hint"};
     LintEngine e;
     LintSource src;
@@ -1129,6 +1158,7 @@ std::string LintTestHooks::lintRun(const std::string &name, const std::string &t
     if (maxSteps) {
         opts.maxSteps = maxSteps;
     }
+    opts.model = model;
     run::Runner runner(on, opts);
     std::unique_ptr<IMarker> skipped;
     if (gateErrors) {

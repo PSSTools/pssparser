@@ -100,7 +100,7 @@ def run_example(engine, rule: dict, example: dict) -> ExampleResult:
         return out
 
     names = parser.file_map
-    result = engine.run(parser.user_units(), {"enabled": [rid]})
+    result = engine.run(parser.user_units(), {"enabled": [rid]}, model=parser._root)
     for m in result["markers"]:
         m = dict(m)
         m["file"] = names.get(m.pop("fileid"), "")

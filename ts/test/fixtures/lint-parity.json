@@ -2,6 +2,8 @@
  "generator": "ts/scripts/gen-lint-parity-fixture.py",
  "ruleFiles": [
   "tests/data/lint-examples/fn-navigation.yaml",
+  "tests/data/lint-examples/fn-refs.yaml",
+  "tests/data/lint-examples/fn-symbols.yaml",
   "tests/data/lint-examples/naming.yaml",
   "tests/data/lint-examples/structure.yaml"
  ],
@@ -40,7 +42,7 @@
     {
      "code": "TEST-NAV002",
      "severity": "hint",
-     "message": "exec in A",
+     "message": "exec in pss_top::A",
      "file": "example.pss",
      "line": 4,
      "col": 5,
@@ -103,11 +105,137 @@
     {
      "code": "TEST-NAV005",
      "severity": "hint",
-     "message": "b at 1 after a",
+     "message": "b at 1 after pss_top::A::a",
      "file": "example.pss",
      "line": 4,
      "col": 14,
      "extent": 1
+    }
+   ]
+  },
+  {
+   "id": "example:TEST-REF001:example 1",
+   "kind": "example",
+   "rule": "TEST-REF001",
+   "name": "example 1",
+   "file": "tests/data/lint-examples/fn-refs.yaml",
+   "line": 17,
+   "col": 11,
+   "ok": true,
+   "markers": [
+    {
+     "code": "TEST-REF001",
+     "severity": "warning",
+     "message": "pss_top::A::lonely is never used",
+     "file": "top.pss",
+     "line": 5,
+     "col": 14,
+     "extent": 6
+    }
+   ]
+  },
+  {
+   "id": "example:TEST-REF002:example 1",
+   "kind": "example",
+   "rule": "TEST-REF002",
+   "name": "example 1",
+   "file": "tests/data/lint-examples/fn-refs.yaml",
+   "line": 39,
+   "col": 11,
+   "ok": true,
+   "markers": [
+    {
+     "code": "TEST-REF002",
+     "severity": "warning",
+     "message": "pss_top::A::w is written but never read",
+     "file": "example.pss",
+     "line": 3,
+     "col": 9,
+     "extent": 1
+    }
+   ]
+  },
+  {
+   "id": "example:TEST-REF003:example 1",
+   "kind": "example",
+   "rule": "TEST-REF003",
+   "name": "example 1",
+   "file": "tests/data/lint-examples/fn-refs.yaml",
+   "line": 60,
+   "col": 11,
+   "ok": true,
+   "markers": [
+    {
+     "code": "TEST-REF003",
+     "severity": "warning",
+     "message": "pss_top::function rec is only called by itself",
+     "file": "example.pss",
+     "line": 2,
+     "col": 3,
+     "extent": -1
+    }
+   ]
+  },
+  {
+   "id": "example:TEST-SYM001:example 1",
+   "kind": "example",
+   "rule": "TEST-SYM001",
+   "name": "example 1",
+   "file": "tests/data/lint-examples/fn-symbols.yaml",
+   "line": 17,
+   "col": 11,
+   "ok": true,
+   "markers": [
+    {
+     "code": "TEST-SYM001",
+     "severity": "hint",
+     "message": "pss_top::A::h has the library type addr_reg_pkg::addr_handle_t",
+     "file": "example.pss",
+     "line": 7,
+     "col": 19,
+     "extent": 1
+    }
+   ]
+  },
+  {
+   "id": "example:TEST-SYM002:example 1",
+   "kind": "example",
+   "rule": "TEST-SYM002",
+   "name": "example 1",
+   "file": "tests/data/lint-examples/fn-symbols.yaml",
+   "line": 40,
+   "col": 11,
+   "ok": true,
+   "markers": [
+    {
+     "code": "TEST-SYM002",
+     "severity": "hint",
+     "message": "pss_top::a2 derives from base_c::base_a, declared elsewhere",
+     "file": "top.pss",
+     "line": 4,
+     "col": 3,
+     "extent": 30
+    }
+   ]
+  },
+  {
+   "id": "example:TEST-SYM003:example 1",
+   "kind": "example",
+   "rule": "TEST-SYM003",
+   "name": "example 1",
+   "file": "tests/data/lint-examples/fn-symbols.yaml",
+   "line": 59,
+   "col": 11,
+   "ok": true,
+   "markers": [
+    {
+     "code": "TEST-SYM003",
+     "severity": "hint",
+     "message": "pss_top::A::exec body#2",
+     "file": "example.pss",
+     "line": 4,
+     "col": 5,
+     "extent": 13
     }
    ]
   },
@@ -257,7 +385,7 @@
     {
      "code": "ACME-NET001",
      "severity": "warning",
-     "message": "Derived derives from a base type",
+     "message": "pss_top::Derived derives from a base type",
      "file": "example.pss",
      "line": 3,
      "col": 20,
@@ -302,6 +430,8 @@
    "kind": "run",
    "ruleFiles": [
     "tests/data/lint-examples/fn-navigation.yaml",
+    "tests/data/lint-examples/fn-refs.yaml",
+    "tests/data/lint-examples/fn-symbols.yaml",
     "tests/data/lint-examples/naming.yaml",
     "tests/data/lint-examples/structure.yaml"
    ],
@@ -314,6 +444,15 @@
    ],
    "request": {},
    "markers": [
+    {
+     "code": "TEST-REF001",
+     "severity": "warning",
+     "message": "pss_top::count is never used",
+     "file": "m.pss",
+     "line": 2,
+     "col": 7,
+     "extent": 5
+    },
     {
      "code": "ACME001",
      "severity": "hint",
@@ -342,6 +481,15 @@
      "extent": 5
     },
     {
+     "code": "TEST-REF001",
+     "severity": "warning",
+     "message": "pss_top::write_burst::m_len is never used",
+     "file": "m.pss",
+     "line": 4,
+     "col": 17,
+     "extent": 5
+    },
+    {
      "code": "ACME002",
      "severity": "hint",
      "message": "field 'len' does not start with 'm_'",
@@ -362,7 +510,7 @@
     {
      "code": "TEST-NAV005",
      "severity": "hint",
-     "message": "len at 1 after m_len",
+     "message": "len at 1 after pss_top::write_burst::m_len",
      "file": "m.pss",
      "line": 5,
      "col": 17,
@@ -380,7 +528,7 @@
     {
      "code": "TEST-NAV002",
      "severity": "hint",
-     "message": "exec in write_burst",
+     "message": "exec in pss_top::write_burst",
      "file": "m.pss",
      "line": 7,
      "col": 5,
@@ -407,7 +555,7 @@
     {
      "code": "ACME-NET001",
      "severity": "warning",
-     "message": "Ab derives from a base type",
+     "message": "pss_top::Ab derives from a base type",
      "file": "m.pss",
      "line": 11,
      "col": 15,
@@ -460,6 +608,48 @@
      "errors": 0
     },
     {
+     "id": "TEST-REF001",
+     "matches": 3,
+     "findings": 2,
+     "steps": 28,
+     "errors": 0
+    },
+    {
+     "id": "TEST-REF002",
+     "matches": 3,
+     "findings": 0,
+     "steps": 47,
+     "errors": 0
+    },
+    {
+     "id": "TEST-REF003",
+     "matches": 0,
+     "findings": 0,
+     "steps": 0,
+     "errors": 0
+    },
+    {
+     "id": "TEST-SYM001",
+     "matches": 3,
+     "findings": 0,
+     "steps": 12,
+     "errors": 0
+    },
+    {
+     "id": "TEST-SYM002",
+     "matches": 2,
+     "findings": 0,
+     "steps": 51,
+     "errors": 0
+    },
+    {
+     "id": "TEST-SYM003",
+     "matches": 1,
+     "findings": 0,
+     "steps": 8,
+     "errors": 0
+    },
+    {
      "id": "ACME001",
      "matches": 2,
      "findings": 1,
@@ -502,6 +692,8 @@
    "kind": "run",
    "ruleFiles": [
     "tests/data/lint-examples/fn-navigation.yaml",
+    "tests/data/lint-examples/fn-refs.yaml",
+    "tests/data/lint-examples/fn-symbols.yaml",
     "tests/data/lint-examples/naming.yaml",
     "tests/data/lint-examples/structure.yaml"
    ],
@@ -587,6 +779,8 @@
    "kind": "run",
    "ruleFiles": [
     "tests/data/lint-examples/fn-navigation.yaml",
+    "tests/data/lint-examples/fn-refs.yaml",
+    "tests/data/lint-examples/fn-symbols.yaml",
     "tests/data/lint-examples/naming.yaml",
     "tests/data/lint-examples/structure.yaml"
    ],
@@ -642,6 +836,8 @@
    "kind": "run",
    "ruleFiles": [
     "tests/data/lint-examples/fn-navigation.yaml",
+    "tests/data/lint-examples/fn-refs.yaml",
+    "tests/data/lint-examples/fn-symbols.yaml",
     "tests/data/lint-examples/naming.yaml",
     "tests/data/lint-examples/structure.yaml"
    ],
@@ -688,7 +884,7 @@
     {
      "code": "ACME-NET001",
      "severity": "warning",
-     "message": "b derives from a base type",
+     "message": "pss_top::b derives from a base type",
      "file": "top.pss",
      "line": 4,
      "col": 14,
@@ -707,6 +903,15 @@
      "code": "TEST-NAV003",
      "severity": "hint",
      "message": "s is 3 deep",
+     "file": "top.pss",
+     "line": 4,
+     "col": 23,
+     "extent": 1
+    },
+    {
+     "code": "TEST-REF001",
+     "severity": "warning",
+     "message": "pss_top::b::s is never used",
      "file": "top.pss",
      "line": 4,
      "col": 23,
@@ -759,6 +964,48 @@
      "errors": 0
     },
     {
+     "id": "TEST-REF001",
+     "matches": 1,
+     "findings": 1,
+     "steps": 9,
+     "errors": 0
+    },
+    {
+     "id": "TEST-REF002",
+     "matches": 1,
+     "findings": 0,
+     "steps": 6,
+     "errors": 0
+    },
+    {
+     "id": "TEST-REF003",
+     "matches": 0,
+     "findings": 0,
+     "steps": 0,
+     "errors": 0
+    },
+    {
+     "id": "TEST-SYM001",
+     "matches": 1,
+     "findings": 0,
+     "steps": 4,
+     "errors": 0
+    },
+    {
+     "id": "TEST-SYM002",
+     "matches": 2,
+     "findings": 0,
+     "steps": 51,
+     "errors": 0
+    },
+    {
+     "id": "TEST-SYM003",
+     "matches": 0,
+     "findings": 0,
+     "steps": 0,
+     "errors": 0
+    },
+    {
      "id": "ACME001",
      "matches": 2,
      "findings": 2,
@@ -801,6 +1048,8 @@
    "kind": "run",
    "ruleFiles": [
     "tests/data/lint-examples/fn-navigation.yaml",
+    "tests/data/lint-examples/fn-refs.yaml",
+    "tests/data/lint-examples/fn-symbols.yaml",
     "tests/data/lint-examples/naming.yaml",
     "tests/data/lint-examples/structure.yaml"
    ],
@@ -821,7 +1070,7 @@
     {
      "code": "PSSP221",
      "severity": "warning",
-     "message": "rule ACME002 (field-prefix) used its budget of 5 evaluation steps for this file, in its where at Field 'm_len'; the rule is skipped for the rest of this file",
+     "message": "rule ACME002 (field-prefix) used its budget of 5 evaluation steps for this file, in its where at Field 'pss_top::write_burst::m_len'; the rule is skipped for the rest of this file",
      "file": "m.pss",
      "line": 4,
      "col": 17,
@@ -860,7 +1109,7 @@
     {
      "code": "PSSP220",
      "severity": "warning",
-     "message": "rule ACME009 (base-elems) failed in its where at Action 'write_burst': field 'elems' of unset 'super_t'; the rule is skipped for the rest of this file",
+     "message": "rule ACME009 (base-elems) failed in its where at Action 'pss_top::write_burst': field 'elems' of unset 'super_t'; the rule is skipped for the rest of this file",
      "file": "m.pss",
      "line": 3,
      "col": 3,
@@ -883,6 +1132,8 @@
    "kind": "run",
    "ruleFiles": [
     "tests/data/lint-examples/fn-navigation.yaml",
+    "tests/data/lint-examples/fn-refs.yaml",
+    "tests/data/lint-examples/fn-symbols.yaml",
     "tests/data/lint-examples/naming.yaml",
     "tests/data/lint-examples/structure.yaml"
    ],
@@ -942,6 +1193,48 @@
      "errors": 0
     },
     {
+     "id": "TEST-REF001",
+     "matches": 0,
+     "findings": 0,
+     "steps": 0,
+     "errors": 0
+    },
+    {
+     "id": "TEST-REF002",
+     "matches": 0,
+     "findings": 0,
+     "steps": 0,
+     "errors": 0
+    },
+    {
+     "id": "TEST-REF003",
+     "matches": 0,
+     "findings": 0,
+     "steps": 0,
+     "errors": 0
+    },
+    {
+     "id": "TEST-SYM001",
+     "matches": 0,
+     "findings": 0,
+     "steps": 0,
+     "errors": 0
+    },
+    {
+     "id": "TEST-SYM002",
+     "matches": 0,
+     "findings": 0,
+     "steps": 0,
+     "errors": 0
+    },
+    {
+     "id": "TEST-SYM003",
+     "matches": 0,
+     "findings": 0,
+     "steps": 0,
+     "errors": 0
+    },
+    {
      "id": "ACME001",
      "matches": 0,
      "findings": 0,
@@ -984,6 +1277,8 @@
    "kind": "run",
    "ruleFiles": [
     "tests/data/lint-examples/fn-navigation.yaml",
+    "tests/data/lint-examples/fn-refs.yaml",
+    "tests/data/lint-examples/fn-symbols.yaml",
     "tests/data/lint-examples/naming.yaml",
     "tests/data/lint-examples/structure.yaml"
    ],

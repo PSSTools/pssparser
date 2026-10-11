@@ -1,0 +1,68 @@
+# The reference functions (lint-core-plan.md C6.3), each used by a rule whose
+# examples pin its behaviour, so the WebAssembly build is checked against the
+# native one through the lint-parity fixture.
+pss-rules:
+  defaults:
+    family: decl
+    tier: suspicious
+
+  rules:
+    - id: TEST-REF001
+      name: ref-unused-field
+      summary: A field nothing uses.
+      message: "${node} is never used"
+      match: { kind: Field }
+      where: is_owned(node) && size(refs(node)) == 0
+      examples:
+        - files:
+            top.pss: |
+              component pss_top {
+                int used_elsewhere;
+                action A {
+                  rand int a;
+                  rand int lonely;   // expect: TEST-REF001
+                  constraint { a > 0; }
+                }
+              }
+            other.pss: |
+              extend component pss_top {
+                exec init_down { used_elsewhere = 1; }
+              }
+
+    - id: TEST-REF002
+      name: ref-write-only
+      summary: A field that is assigned but never read.
+      message: "${node} is written but never read"
+      match: { kind: Field }
+      where: size(refs(node)) > 0 && refs(node).all(r, is_written(r) && !is_read(r))
+      examples:
+        - code: |
+            component pss_top {
+              action A {
+                int w;     // expect: TEST-REF002
+                int acc;
+                int r;
+                exec post_solve {
+                  w = 1;
+                  acc += 1;
+                  w = r;
+                }
+              }
+            }
+
+    - id: TEST-REF003
+      name: ref-self-only
+      summary: A function that only calls itself.
+      message: "${node} is only called by itself"
+      match: { kind: FunctionDefinition }
+      where: used_only_by_itself(node)
+      examples:
+        - code: |
+            component pss_top {
+              function int rec(int n) {   // expect: TEST-REF003
+                if (n > 0) { return rec(n - 1); }
+                return 0;
+              }
+              function int f() { return 1; }
+              function int g() { return f(); }
+            }

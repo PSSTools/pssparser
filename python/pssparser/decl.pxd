@@ -89,7 +89,7 @@ cdef extern from "pssp/lint/ILintEngine.h" namespace "pssp::lint":
         uint32_t loadBuiltinRules()
         uint32_t numBuiltinRuleFiles()
         RuleProbeE probeRules(const cpp_string &text)
-        cpp_string run(const cpp_vector[ast.IScopeChildP] &roots, const cpp_string &requestJson)
+        cpp_string run(const cpp_vector[ast.IScopeChildP] &roots, const cpp_string &requestJson, ast.IRootSymbolScope *model)
         cpp_string diagnosticsJson()
         cpp_string rulesJson()
 
@@ -102,15 +102,16 @@ cdef extern from "pssp/lint/ILintTestHooks.h" namespace "pssp::lint":
         cpp_string celEval(const cpp_string &text, const cpp_string &bindings, uint64_t max_steps)
         cpp_string celFunctions()
         cpp_string celCheck(const cpp_string &name, const cpp_string &text)
-        cpp_string celCheckNode(const cpp_string &name, const cpp_string &text, ast.IScopeChild *root)
-        cpp_string celEvalNode(const cpp_string &text, ast.IScopeChild *root, const cpp_string &bindings, uint64_t max_steps)
+        cpp_string celCheckNode(const cpp_string &name, const cpp_string &text, ast.IScopeChild *root, ast.IRootSymbolScope *model)
+        cpp_string celEvalNode(const cpp_string &text, ast.IScopeChild *root, const cpp_string &bindings, uint64_t max_steps, ast.IRootSymbolScope *model)
         cpp_string ruleLoad(const cpp_string &name, const cpp_string &text, bool builtin)
         cpp_string rulesSchema()
         cpp_string regexSearch(const cpp_string &pattern, const cpp_string &text)
         cpp_string reflectSchema()
         cpp_string reflectCensus(ast.IScopeChild *root)
         cpp_string lintWalk(const cpp_string &name, const cpp_string &text, const cpp_vector[ast.IScopeChildP] &roots)
-        cpp_string lintRun(const cpp_string &name, const cpp_string &text, const cpp_vector[ast.IScopeChildP] &roots, bool allEnabled, const cpp_vector[cpp_string] &enabled, uint64_t maxSteps, uint32_t gateErrors)
+        cpp_string lintRun(const cpp_string &name, const cpp_string &text, const cpp_vector[ast.IScopeChildP] &roots, bool allEnabled, const cpp_vector[cpp_string] &enabled, uint64_t maxSteps, uint32_t gateErrors, ast.IRootSymbolScope *model)
+        cpp_string declPaths(ast.IScopeChild *root)
 
 cdef extern from "pssp/IFmtTokenStream.h" namespace "pssp":
     cdef enum FmtTokenChannelE:

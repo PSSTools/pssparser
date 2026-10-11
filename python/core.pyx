@@ -1057,6 +1057,15 @@ cdef class Cst(object):
         return self.tokens.text
 
 
+cdef ast_decl.IRootSymbolScope *_model(model) except? NULL:
+    """The C++ root of a linked model (a RootSymbolScope), or NULL for None."""
+    cdef ast.RootSymbolScope m
+    if model is None:
+        return NULL
+    m = model
+    return m.asRootSymbolScope()
+
+
 cdef class LintEngine(object):
     """The C++ lint engine (lint-core-plan.md). Owns the rule sets loaded
     into it."""
@@ -1129,19 +1138,22 @@ cdef class LintEngine(object):
         import json
         return json.loads(self._hndl.rulesJson().decode("utf-8"))
 
-    def run(self, roots, request=None):
+    def run(self, roots, request=None, model=None):
         """Runs the loaded rules over `roots` (the GlobalScope of each file
         the caller owns) (lint-core-plan.md C5.4). `request` is a dict:
         ``enabled`` (rule IDs; absent or None: all), ``options``
-        (``{id: {name: value}}``), ``max_steps``, ``gate_errors``. Returns
-        ``{"ok", "markers", "stats", "problems"}``; see ILintEngine::run."""
+        (``{id: {name: value}}``), ``max_steps``, ``gate_errors``. `model`
+        is the linked ``RootSymbolScope`` (``Parser.link()``'s result) the
+        files belong to; without it, rules that need symbols are not run
+        (C6.2). Returns ``{"ok", "markers", "stats", "problems"}``; see
+        ILintEngine::run."""
         import json
         cdef std_vector[ast_decl.IScopeChildP] v
         cdef ast.ScopeChild r
         for r in roots:
             v.push_back(r.asScopeChild())
         text = json.dumps(request or {}).encode("utf-8")
-        return json.loads(self._hndl.run(v, text).decode("utf-8"))
+        return json.loads(self._hndl.run(v, text, _model(model)).decode("utf-8"))
 
 
 cdef class LintTestHooks(object):
@@ -1196,21 +1208,29 @@ cdef class LintTestHooks(object):
         return LintTestHooks._decode(self._hndl.celCheck(
             name.encode("utf-8"), LintTestHooks._doc(doc)))
 
-    def cel_check_node(self, doc, ast.ScopeChild root, str name="check.yaml"):
-        """cel_check with `node` bound to `root` (native only)."""
+    def cel_check_node(self, doc, ast.ScopeChild root, str name="check.yaml", model=None):
+        """cel_check with `node` bound to `root` (native only); `model` is
+        the linked RootSymbolScope, for the symbol functions."""
         return LintTestHooks._decode(self._hndl.celCheckNode(
-            name.encode("utf-8"), LintTestHooks._doc(doc), root.asScopeChild()))
+            name.encode("utf-8"), LintTestHooks._doc(doc), root.asScopeChild(),
+            _model(model)))
+
+    def decl_paths(self, ast.ScopeChild root):
+        """Every scope under `root` with a declaration path of its own:
+        [{"path", "class", "line", "col"}] (C6.2)."""
+        return LintTestHooks._decode(self._hndl.declPaths(root.asScopeChild()))
 
     @staticmethod
     def _doc(doc):
         import json
         return (doc if isinstance(doc, str) else json.dumps(doc)).encode("utf-8")
 
-    def cel_eval_node(self, str text, ast.ScopeChild root, max_steps=0, bindings=None):
+    def cel_eval_node(self, str text, ast.ScopeChild root, max_steps=0, bindings=None,
+                      model=None):
         """cel_eval with `node` bound to `root` (native only)."""
         return LintTestHooks._decode(self._hndl.celEvalNode(
             text.encode("utf-8"), root.asScopeChild(), LintTestHooks._bindings(bindings),
-            max_steps))
+            max_steps, _model(model)))
 
     @staticmethod
     def _bindings(bindings):
@@ -1249,7 +1269,7 @@ cdef class LintTestHooks(object):
             name.encode("utf-8"), text.encode("utf-8"), v))
 
     def lint_run(self, str name, str text, roots, enabled=None, int max_steps=0,
-                 int gate_errors=0):
+                 int gate_errors=0, model=None):
         """Loads one rule file and runs its rules over `roots` (GlobalScope
         nodes, one per file) (C5.2, C5.3): the findings, the rule failures,
         and per-rule counts and first error. `enabled` lists the IDs that
@@ -1265,7 +1285,7 @@ cdef class LintTestHooks(object):
             ids.push_back(i.encode("utf-8"))
         return LintTestHooks._decode(self._hndl.lintRun(
             name.encode("utf-8"), text.encode("utf-8"), v, enabled is None, ids,
-            max_steps, gate_errors))
+            max_steps, gate_errors, _model(model)))
 
     def raw(self, str fn, *args):
         """The undecoded JSON text of one call, for the native/WASM parity

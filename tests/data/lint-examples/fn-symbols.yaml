@@ -1,0 +1,65 @@
+# The symbol functions (lint-core-plan.md C6.2), each used by a rule whose
+# examples pin its behaviour, so the WebAssembly build is checked against the
+# native one through the lint-parity fixture.
+pss-rules:
+  defaults:
+    family: decl
+    tier: style
+
+  rules:
+    - id: TEST-SYM001
+      name: sym-library-type
+      summary: A field whose type comes from the standard library.
+      message: "${node} has the library type ${resolves_to(node.type)}"
+      match: { kind: Field }
+      where: in_library(resolves_to(node.type))
+      examples:
+        - code: |
+            import addr_reg_pkg::*;
+            struct S { rand int v; }
+            component pss_top {
+              action A {
+                S s;
+                rand int x;
+                addr_handle_t h;   // expect: TEST-SYM001
+              }
+            }
+
+    - id: TEST-SYM002
+      name: sym-derives-from-other-file
+      summary: An action whose base is declared in another file.
+      message: "${node} derives from ${resolves_to(node.super_t)}, declared elsewhere"
+      match: { kind: Action }
+      where: >-
+        resolves_to(node.super_t) != null
+        && other_file(node, resolves_to(node.super_t))
+      define:
+        file_of(n): ancestors(n)[size(ancestors(n)) - 1]
+        other_file(a, b): file_of(a) != file_of(b)
+      examples:
+        - files:
+            base.pss: |
+              component base_c {
+                abstract action base_a { }
+              }
+            top.pss: |
+              component pss_top {
+                action local_a { }
+                action a1 : local_a { }
+                action a2 : base_c::base_a { }   // expect: TEST-SYM002
+              }
+
+    - id: TEST-SYM003
+      name: sym-decl-path
+      summary: Report every exec block by its declaration path.
+      message: "${decl_path(node)}"
+      match: { kind: ExecBlock }
+      where: decl_path(node).endsWith("#2")
+      examples:
+        - code: |
+            component pss_top {
+              action A {
+                exec body { }
+                exec body { }   // expect: TEST-SYM003
+              }
+            }

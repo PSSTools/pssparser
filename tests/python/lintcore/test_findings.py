@@ -64,14 +64,15 @@ def _found(r):
 
 
 def test_default_report_is_the_node(hooks, unit):
+    # A declaration renders as its declaration path (format §3.4, C6.2).
     r = _run(hooks, unit, _rule(message="action ${node}"))
-    assert _found(r) == [("ACME001", 3, "action A"), ("ACME001", 8, "action B")]
+    assert _found(r) == [("ACME001", 3, "action pss_top::A"), ("ACME001", 8, "action pss_top::B")]
     assert {f["severity"] for f in r["findings"]} == {"hint"}
 
 
 def test_where_filters(hooks, unit):
     r = _run(hooks, unit, _rule(message="${node}", extra=["where: has(node.super_t)"]))
-    assert _found(r) == [("ACME001", 8, "B")]
+    assert _found(r) == [("ACME001", 8, "pss_top::B")]
     (s,) = r["stats"]
     assert (s["matches"], s["findings"], s["errors"]) == (2, 1, 0)
 
@@ -80,7 +81,8 @@ def test_report_several_findings(hooks, unit):
     r = _run(hooks, unit, _rule(
         message="field ${finding} of ${node}",
         extra=["report: node.children.filter(c, type(c) == Field)"]))
-    assert _found(r) == [("ACME001", 4, "field a of A"), ("ACME001", 5, "field b of A")]
+    assert _found(r) == [("ACME001", 4, "field pss_top::A::a of pss_top::A"),
+                         ("ACME001", 5, "field pss_top::A::b of pss_top::A")]
     assert [f["kind"] for f in r["findings"]] == ["Field", "Field"]
 
 
@@ -113,12 +115,12 @@ def test_interpolation_kinds(hooks, unit):
         message="s=${node.name.id} n=${node} i=${size(node.name.id) + 1} "
                 "d=${1.5} b=${has(node.init)}",
         extra=["where: node.name.id == 'a'"]))
-    assert _found(r) == [("ACME001", 4, "s=a n=a i=2 d=1.5 b=false")]
+    assert _found(r) == [("ACME001", 4, "s=a n=pss_top::A::a i=2 d=1.5 b=false")]
 
 
 def test_dollar_dollar_brace_is_literal(hooks, unit):
     r = _run(hooks, unit, _rule(message="use $${x} for ${node}", extra=["where: \"node.name.id == 'A'\""]))
-    assert _found(r) == [("ACME001", 3, "use ${x} for A")]
+    assert _found(r) == [("ACME001", 3, "use ${x} for pss_top::A")]
 
 
 def test_options_are_bound(hooks, unit):
@@ -126,7 +128,7 @@ def test_options_are_bound(hooks, unit):
         "options:",
         "  prefix: { type: string, default: 'act_', help: h }",
         "where: \"!node.name.id.startsWith(options.prefix)\""]))
-    assert _found(r) == [("ACME001", 3, "act_A"), ("ACME001", 8, "act_B")]
+    assert _found(r) == [("ACME001", 3, "act_pss_top::A"), ("ACME001", 8, "act_pss_top::B")]
 
 
 def test_severity_from_tier_and_override(hooks, unit):
@@ -163,8 +165,10 @@ def test_node_reported_twice_is_one_finding(hooks, unit):
              _rule("ACME002", match="{ kind: Field }", message="${finding}",
                    extra=["report: '[node, node]'"]))
     assert [f["msg"] for f in r["findings"] if f["id"] == "ACME001"] == [
-        "cf via cf", "a via A", "b via A"]
-    assert [f["msg"] for f in r["findings"] if f["id"] == "ACME002"] == ["cf", "a", "b"]
+        "pss_top::cf via pss_top::cf", "pss_top::A::a via pss_top::A",
+        "pss_top::A::b via pss_top::A"]
+    assert [f["msg"] for f in r["findings"] if f["id"] == "ACME002"] == [
+        "pss_top::cf", "pss_top::A::a", "pss_top::A::b"]
 
 
 def test_expression_location_falls_back_to_its_first_identifier(hooks, unit):
