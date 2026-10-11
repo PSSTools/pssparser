@@ -188,7 +188,11 @@ declaration a reference names (``resolves_to(node.type)``,
 ``is_owned(n)`` and ``in_library(n)`` say whose file it is in.
 ``refs(d)`` lists the uses of a declaration across the whole model, and
 ``is_read(r)`` and ``is_written(r)`` say what a use does; a rule that calls
-``refs`` is re-run on any change to the model, not only to its file. Like every
+``refs`` is re-run on any change to the model, not only to its file.
+``const_int(e)`` and ``const_bool(e)`` give an expression's value when it is
+a constant, and ``optional.none()`` otherwise; so
+``const_bool(node.expr).orValue(true) == false`` finds a constraint that can
+never hold. Like every
 rule, one that calls them runs only on a model that parsed and linked
 without errors.
 

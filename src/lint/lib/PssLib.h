@@ -114,6 +114,15 @@ public:
      */
     const std::vector<rf::Node> *usesOf(const rf::Node &decl) const;
 
+    /**
+     * Folds `n` to a constant (C6.4; ConstEval.h): an expression, a `const`
+     * field (its initializer) or a bound template value parameter. False
+     * when it does not fold, or folds to an integer wider than 64 bits or
+     * an unsigned one above INT64_MAX. `isBool` is set for a 1-bit unsigned
+     * result, which is how the folder carries a bool. Needs the model.
+     */
+    bool constFold(const rf::Node &n, int64_t &v, bool &isBool) const;
+
     /** Whether `n` is `anc` or under it. */
     bool within(const rf::Node &n, const rf::Node &anc) const;
 

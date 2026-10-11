@@ -1765,8 +1765,8 @@
    "id": "cel-functions",
    "fn": "CelFunctions",
    "args": [],
-   "sha256": "fbb9c0b0957fe79bef50eb663412bc0b0abc08934810a86f7acc69c788a64b44",
-   "len": 44510
+   "sha256": "f9854e63fddcb471083f6a69821d0f2371a799d1f9b8d871046a015783ab08f7",
+   "len": 46000
   },
   {
    "id": "cel-check:ok.yaml",

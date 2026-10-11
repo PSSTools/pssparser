@@ -1,6 +1,7 @@
 {
  "generator": "ts/scripts/gen-lint-parity-fixture.py",
  "ruleFiles": [
+  "tests/data/lint-examples/fn-const.yaml",
   "tests/data/lint-examples/fn-navigation.yaml",
   "tests/data/lint-examples/fn-refs.yaml",
   "tests/data/lint-examples/fn-symbols.yaml",
@@ -8,6 +9,57 @@
   "tests/data/lint-examples/structure.yaml"
  ],
  "cases": [
+  {
+   "id": "example:TEST-CONST001:example 1",
+   "kind": "example",
+   "rule": "TEST-CONST001",
+   "name": "example 1",
+   "file": "tests/data/lint-examples/fn-const.yaml",
+   "line": 17,
+   "col": 11,
+   "ok": true,
+   "markers": [
+    {
+     "code": "TEST-CONST001",
+     "severity": "warning",
+     "message": "this constraint is always false",
+     "file": "example.pss",
+     "line": 7,
+     "col": 7,
+     "extent": 6
+    },
+    {
+     "code": "TEST-CONST001",
+     "severity": "warning",
+     "message": "this constraint is always true",
+     "file": "example.pss",
+     "line": 8,
+     "col": 7,
+     "extent": 6
+    }
+   ]
+  },
+  {
+   "id": "example:TEST-CONST002:example 1",
+   "kind": "example",
+   "rule": "TEST-CONST002",
+   "name": "example 1",
+   "file": "tests/data/lint-examples/fn-const.yaml",
+   "line": 37,
+   "col": 11,
+   "ok": true,
+   "markers": [
+    {
+     "code": "TEST-CONST002",
+     "severity": "warning",
+     "message": "the width of DataTypeInt at 4:14 is 0",
+     "file": "example.pss",
+     "line": 4,
+     "col": 14,
+     "extent": 1
+    }
+   ]
+  },
   {
    "id": "example:TEST-NAV001:example 1",
    "kind": "example",
@@ -429,6 +481,7 @@
    "id": "run:all-rules",
    "kind": "run",
    "ruleFiles": [
+    "tests/data/lint-examples/fn-const.yaml",
     "tests/data/lint-examples/fn-navigation.yaml",
     "tests/data/lint-examples/fn-refs.yaml",
     "tests/data/lint-examples/fn-symbols.yaml",
@@ -573,6 +626,20 @@
    ],
    "stats": [
     {
+     "id": "TEST-CONST001",
+     "matches": 1,
+     "findings": 0,
+     "steps": 4,
+     "errors": 0
+    },
+    {
+     "id": "TEST-CONST002",
+     "matches": 3,
+     "findings": 0,
+     "steps": 27,
+     "errors": 0
+    },
+    {
      "id": "TEST-NAV001",
      "matches": 1,
      "findings": 1,
@@ -691,6 +758,7 @@
    "id": "run:enabled-and-options",
    "kind": "run",
    "ruleFiles": [
+    "tests/data/lint-examples/fn-const.yaml",
     "tests/data/lint-examples/fn-navigation.yaml",
     "tests/data/lint-examples/fn-refs.yaml",
     "tests/data/lint-examples/fn-symbols.yaml",
@@ -778,6 +846,7 @@
    "id": "run:request-problems",
    "kind": "run",
    "ruleFiles": [
+    "tests/data/lint-examples/fn-const.yaml",
     "tests/data/lint-examples/fn-navigation.yaml",
     "tests/data/lint-examples/fn-refs.yaml",
     "tests/data/lint-examples/fn-symbols.yaml",
@@ -835,6 +904,7 @@
    "id": "run:two-files",
    "kind": "run",
    "ruleFiles": [
+    "tests/data/lint-examples/fn-const.yaml",
     "tests/data/lint-examples/fn-navigation.yaml",
     "tests/data/lint-examples/fn-refs.yaml",
     "tests/data/lint-examples/fn-symbols.yaml",
@@ -928,6 +998,20 @@
     }
    ],
    "stats": [
+    {
+     "id": "TEST-CONST001",
+     "matches": 0,
+     "findings": 0,
+     "steps": 0,
+     "errors": 0
+    },
+    {
+     "id": "TEST-CONST002",
+     "matches": 0,
+     "findings": 0,
+     "steps": 0,
+     "errors": 0
+    },
     {
      "id": "TEST-NAV001",
      "matches": 0,
@@ -1047,6 +1131,7 @@
    "id": "run:budget",
    "kind": "run",
    "ruleFiles": [
+    "tests/data/lint-examples/fn-const.yaml",
     "tests/data/lint-examples/fn-navigation.yaml",
     "tests/data/lint-examples/fn-refs.yaml",
     "tests/data/lint-examples/fn-symbols.yaml",
@@ -1131,6 +1216,7 @@
    "id": "run:gate",
    "kind": "run",
    "ruleFiles": [
+    "tests/data/lint-examples/fn-const.yaml",
     "tests/data/lint-examples/fn-navigation.yaml",
     "tests/data/lint-examples/fn-refs.yaml",
     "tests/data/lint-examples/fn-symbols.yaml",
@@ -1157,6 +1243,20 @@
     }
    ],
    "stats": [
+    {
+     "id": "TEST-CONST001",
+     "matches": 0,
+     "findings": 0,
+     "steps": 0,
+     "errors": 0
+    },
+    {
+     "id": "TEST-CONST002",
+     "matches": 0,
+     "findings": 0,
+     "steps": 0,
+     "errors": 0
+    },
     {
      "id": "TEST-NAV001",
      "matches": 0,
@@ -1276,6 +1376,7 @@
    "id": "run:gate-nothing-enabled",
    "kind": "run",
    "ruleFiles": [
+    "tests/data/lint-examples/fn-const.yaml",
     "tests/data/lint-examples/fn-navigation.yaml",
     "tests/data/lint-examples/fn-refs.yaml",
     "tests/data/lint-examples/fn-symbols.yaml",

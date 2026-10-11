@@ -24,7 +24,12 @@
 #include "PssLib.h"
 #include "pssp/ast/IGlobalScope.h"
 #include "pssp/ast/IRootSymbolScope.h"
+#include "pssp/IValInt.h"
+#include "pssp/ast/IField.h"
+#include "pssp/ast/ITemplateValueParamDecl.h"
+#include "../../Factory.h"
 #include "../../OccurrenceCollector.h"
+#include "ConstEval.h"
 #include "../cel/CelNode.h"
 #include "../run/Walker.h"
 
@@ -352,6 +357,42 @@ const std::vector<rf::Node> *Context::usesOf(const rf::Node &decl) const {
     collectSymbols();
     auto it = m_uses.find(decl.ptr);
     return (it == m_uses.end()) ? &none : &it->second;
+}
+
+bool Context::constFold(const rf::Node &n, int64_t &v, bool &isBool) const {
+    if (!m_model || !n) {
+        return false;
+    }
+    // A template value parameter is bound in a specialization, which the
+    // linker makes outside every file; in a file it is the generic one.
+    ConstEval ev(Factory::inst(), m_model, [this](ast::ITemplateValueParamDecl *p) {
+        return !rootOf(rf::classify(static_cast<ast::IScopeChild *>(p)));
+    });
+    std::unique_ptr<IVal> val;
+    if (ast::IExpr *e = rf::asExpr(n)) {
+        val.reset(ev.eval(e));
+    } else if (ast::IScopeChild *c = rf::asScopeChild(n)) {
+        // A declaration: what a reference to it would fold to.
+        if (ast::IField *f = NodeKind::cast<ast::IField>(c)) {
+            if ((f->getAttr() & ast::FieldAttr::Const) != ast::FieldAttr::NoFlags
+                    && f->getInit()) {
+                val.reset(ev.eval(f->getInit()));
+            }
+        } else if (ast::ITemplateValueParamDecl *p =
+                NodeKind::cast<ast::ITemplateValueParamDecl>(c)) {
+            if (p->getDflt() && !rootOf(n)) {
+                val.reset(ev.eval(p->getDflt()));
+            }
+        }
+    }
+    IValInt *iv = dynamic_cast<IValInt *>(val.get());
+    if (!iv || iv->getWidth() > 64
+            || (!iv->isSigned() && iv->getValU() > static_cast<uint64_t>(INT64_MAX))) {
+        return false;
+    }
+    v = iv->getValS();
+    isBool = (!iv->isSigned() && iv->getWidth() == 1);
+    return true;
 }
 
 bool Context::within(const rf::Node &n, const rf::Node &anc) const {
@@ -792,6 +833,40 @@ Value usedOnlyByItselfImpl(CallArgs &c) {
     }
     return Value::boolean(all);
 }
+
+//* Constants
+
+Value constIntImpl(CallArgs &c) {
+    const Context *ctx = context(c);
+    if (!ctx) {
+        return noContext("const_int");
+    }
+    if (!ctx->model()) {
+        return Value::error("const_int() needs a linked model, and this run has none");
+    }
+    int64_t v;
+    bool isBool;
+    if (c[0].kind == Value::Kind::Node && ctx->constFold(toNode(c[0]), v, isBool)) {
+        return Value::some(Value::integer(v));
+    }
+    return Value::none();
+}
+
+Value constBoolImpl(CallArgs &c) {
+    const Context *ctx = context(c);
+    if (!ctx) {
+        return noContext("const_bool");
+    }
+    if (!ctx->model()) {
+        return Value::error("const_bool() needs a linked model, and this run has none");
+    }
+    int64_t v;
+    bool isBool;
+    if (c[0].kind == Value::Kind::Node && ctx->constFold(toNode(c[0]), v, isBool) && isBool) {
+        return Value::some(Value::boolean(v != 0));
+    }
+    return Value::none();
+}
 }
 
 namespace cel {
@@ -905,6 +980,25 @@ void registerPssLib(FunctionRegistry &r) {
         "a function that only calls itself, a field read only in its own initializer. With "
         "`size(refs(d)) == 0`, this is how a rule asks \"is it unused?\". Whole-model. One "
         "step per use looked at.");
+
+    r.group("Constants");
+    r.level(Level::L3, Scope::File);
+    r.add("const_int_node", "const_int(node) -> optional(int)", &constIntImpl, C::Constant,
+        "The value of a constant integer expression, as the linker folds it: literals, "
+        "arithmetic, bitwise, shift and comparison operators, `?:` and `in`, through "
+        "`const` fields and **bound** template value parameters (a specialization's "
+        "arguments). `optional.none()` when it does not fold: a non-`const` field, an enum "
+        "item, a call, a string, a bit slice, a template parameter in the generic template "
+        "(its default is not its value), and an integer that does not fit `int` (wider than "
+        "64 bits, or unsigned above 2^63-1) -- never a truncated value. A `const` field or a "
+        "template value parameter may be passed itself. A comparison folds to 0 or 1. Never "
+        "an error, except without a linked model.")
+        .nullable = true;
+    r.add("const_bool_node", "const_bool(node) -> optional(bool)", &constBoolImpl, C::Constant,
+        "`const_int` for a boolean expression: `true`, `false`, a comparison, `!`, `&&`, "
+        "`||`, `in`, or a `const bool`. `optional.none()` when it does not fold or is not "
+        "boolean (a 1-bit unsigned value counts as one).")
+        .nullable = true;
 }
 
 }

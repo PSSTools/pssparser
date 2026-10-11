@@ -1411,3 +1411,44 @@ Every use of a declaration: the identifiers (``ExprId``) that name it, in every 
      - ``used_only_by_itself_node``
 
 Whether a declaration has uses, and every one is inside the declaration itself: a function that only calls itself, a field read only in its own initializer. With ``size(refs(d)) == 0``, this is how a rule asks "is it unused?". Whole-model. One step per use looked at.
+
+Constants
+---------
+
+.. _lint-fn-const-int-node:
+
+``const_int``
+~~~~~~~~~~~~~
+
+**Level:** L3; **Scope:** file
+
+.. list-table::
+   :header-rows: 1
+
+   * - Signature
+     - Cost
+     - Overload
+   * - ``const_int(node) -> optional(int)``
+     - constant
+     - ``const_int_node``
+
+The value of a constant integer expression, as the linker folds it: literals, arithmetic, bitwise, shift and comparison operators, ``?:`` and ``in``, through ``const`` fields and **bound** template value parameters (a specialization's arguments). ``optional.none()`` when it does not fold: a non-``const`` field, an enum item, a call, a string, a bit slice, a template parameter in the generic template (its default is not its value), and an integer that does not fit ``int`` (wider than 64 bits, or unsigned above 2^63-1) -- never a truncated value. A ``const`` field or a template value parameter may be passed itself. A comparison folds to 0 or 1. Never an error, except without a linked model.
+
+.. _lint-fn-const-bool-node:
+
+``const_bool``
+~~~~~~~~~~~~~~
+
+**Level:** L3; **Scope:** file
+
+.. list-table::
+   :header-rows: 1
+
+   * - Signature
+     - Cost
+     - Overload
+   * - ``const_bool(node) -> optional(bool)``
+     - constant
+     - ``const_bool_node``
+
+``const_int`` for a boolean expression: ``true``, ``false``, a comparison, ``!``, ``&&``, ``||``, ``in``, or a ``const bool``. ``optional.none()`` when it does not fold or is not boolean (a 1-bit unsigned value counts as one).

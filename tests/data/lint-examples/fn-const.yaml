@@ -1,0 +1,44 @@
+# The constant functions (lint-core-plan.md C6.4), each used by a rule whose
+# examples pin its behaviour, so the WebAssembly build is checked against the
+# native one through the lint-parity fixture.
+pss-rules:
+  defaults:
+    family: constraint
+    tier: suspicious
+
+  rules:
+    - id: TEST-CONST001
+      name: const-constraint
+      summary: A constraint whose value is known.
+      message: "this constraint is always ${const_bool(node.expr).value()}"
+      match: { kind: ConstraintStmtExpr }
+      where: const_bool(node.expr).hasValue()
+      examples:
+        - code: |
+            component pss_top {
+              static const bool DEBUG = false;
+              action A {
+                rand int x;
+                constraint {
+                  x > 0;
+                  DEBUG;          // expect: TEST-CONST001
+                  2 > 1;          // expect: TEST-CONST001
+                }
+              }
+            }
+
+    - id: TEST-CONST002
+      name: const-zero-width
+      summary: A bit width that folds to zero or less.
+      message: "the width of ${node} is ${const_int(node.width).value()}"
+      match: { kind: DataTypeInt }
+      where: has(node.width) && const_int(node.width).orValue(1) <= 0
+      examples:
+        - code: |
+            component pss_top {
+              static const int N = 2;
+              action A {
+                rand bit[N - 2] z;   // expect: TEST-CONST002
+                rand bit[N] ok;
+              }
+            }
