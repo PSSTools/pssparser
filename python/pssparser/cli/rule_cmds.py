@@ -45,6 +45,27 @@ def report_skipped(load: RuleLoad, stream: TextIO) -> None:
         stream.write(f"pssparser: skipped {path}: {reason}\n")
 
 
+def example_markers(load: RuleLoad) -> List[dict]:
+    """``PSSP222`` markers for the failing examples of the rules in
+    *load*'s files: one per problem, at the example."""
+    from pssparser.lint.examples import run_examples
+
+    out = []
+    for r in run_examples(load.engine, files=load.files, skip=load.refused):
+        for p in r.problems:
+            out.append({
+                "severity": "error",
+                "message": f"[PSSP222] example '{r.name}' of {r.rule}: {p}",
+                "file": r.file,
+                "line": r.line,
+                "col": r.col,
+                "code": "PSSP222",
+                "extent": 0,
+                "related": [],
+            })
+    return out
+
+
 def cmd_check_rules(
     paths: Sequence[str],
     *,
@@ -69,7 +90,9 @@ def cmd_check_rules(
     caller has loaded them (the command line does, before checking its
     configuration against the registry).
 
-    Running each rule's ``examples:`` comes with the runner (C5).
+    Each rule's ``examples:`` then run (lint-core-plan C5.5), for the
+    rules in the files checked (not the built-in ones): a failing example
+    is a ``PSSP222`` error at the example.
     """
     from .output import HumanOutput, JsonOutput
     from .source_context import SourceCache
@@ -98,6 +121,8 @@ def cmd_check_rules(
     coll = DiagnosticCollection()
     coll.set_processed_files(load.files)
     for marker in load.diagnostics:
+        coll.add(Diagnostic.from_marker(marker))
+    for marker in example_markers(load):
         coll.add(Diagnostic.from_marker(marker))
 
     catalog = {md.id: md for md in manager.all_marker_defs()}

@@ -412,7 +412,8 @@ def main(argv: list[str] | None = None) -> int:
         sys.stderr.write(f"error: {exc}\n")
         return 2
     manager.add_rule_view(
-        ruleview.marker_defs(rule_load.engine.rules(), rule_load.refused))
+        ruleview.marker_defs(rule_load.engine.rules(), rule_load.refused),
+        engine=rule_load.engine)
 
     try:
         config_mod.validate_against_registry(cfg, manager)

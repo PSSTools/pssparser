@@ -75,6 +75,29 @@ bool isReservedNamespace(const std::string &ns) {
     return org == "PSS" || org == "PSSP" || org == "PSSX" || org == "LINT";
 }
 
+bool optionValue(const RuleOption &o, const yaml::Node *v, cel::Value &out) {
+    using NK = yaml::Node::Kind;
+    if (o.type == "string" && v->kind == NK::String) {
+        out = cel::Value::string(v->s);
+    } else if (o.type == "int" && v->kind == NK::Int) {
+        out = cel::Value::integer(v->i);
+    } else if (o.type == "bool" && v->kind == NK::Bool) {
+        out = cel::Value::boolean(v->b);
+    } else if (o.type == "string-list" && v->kind == NK::Seq) {
+        cel::ValueList l;
+        for (const yaml::NodeUP &i : v->items) {
+            if (i->kind != NK::String) {
+                return false;
+            }
+            l.push_back(cel::Value::string(i->s));
+        }
+        out = cel::Value::mkList(std::move(l));
+    } else {
+        return false;
+    }
+    return true;
+}
+
 namespace {
 
 using yaml::Node;
@@ -800,29 +823,6 @@ private:
         return ok;
     }
 
-    // The value of option `o` in node `v`, if it has the option's type.
-    bool optionValue(const RuleOption &o, const Node *v, cel::Value &out) {
-        if (o.type == "string" && v->kind == NK::String) {
-            out = cel::Value::string(v->s);
-        } else if (o.type == "int" && v->kind == NK::Int) {
-            out = cel::Value::integer(v->i);
-        } else if (o.type == "bool" && v->kind == NK::Bool) {
-            out = cel::Value::boolean(v->b);
-        } else if (o.type == "string-list" && v->kind == NK::Seq) {
-            cel::ValueList l;
-            for (const yaml::NodeUP &i : v->items) {
-                if (i->kind != NK::String) {
-                    return false;
-                }
-                l.push_back(cel::Value::string(i->s));
-            }
-            out = cel::Value::mkList(std::move(l));
-        } else {
-            return false;
-        }
-        return true;
-    }
-
     bool loadOptions(const Node *n, Rule &r) {
         if (n->kind != NK::Map) {
             diag(code::FieldInvalid, n->mark, "'options' must be a mapping of option names to "
@@ -882,7 +882,7 @@ private:
                 }
                 for (const yaml::NodeUP &i : c->items) {
                     cel::Value v;
-                    if (!optionValue(o, i.get(), v)) {
+                    if (!rules::optionValue(o, i.get(), v)) {
                         diag(code::FieldInvalid, i->mark, "option '" + m.key + "' is of type "
                             + o.type + ", but this choice is " + what(i.get()));
                     } else {
@@ -894,7 +894,7 @@ private:
             if (!d) {
                 diag(code::FieldInvalid, spec->mark, "option '" + m.key + "' has no 'default'; "
                     "a rule's expressions need a value for every option");
-            } else if (!optionValue(o, d, o.def)) {
+            } else if (!rules::optionValue(o, d, o.def)) {
                 diag(code::FieldInvalid, d->mark, "option '" + m.key + "' is of type " + o.type
                     + ", but its default is " + what(d));
             } else if (!o.choices.empty()) {

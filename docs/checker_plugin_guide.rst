@@ -14,6 +14,15 @@ C++.  The **checker plug-in system** lets you — or any third-party package —
 add custom Python checks that run as a third phase, after a successful parse
 and link.
 
+.. note::
+
+   Prefer a ``pss-rules`` file (:doc:`lint-rule-authoring`) for a rule that
+   can be written as one. Declarative rules run in pssparser's core, so they
+   run the same way in the CLI, in CI and in the editor (through the
+   TypeScript API); a Python checker runs only where Python does -- the
+   CLI and the Python API -- and so never in the editor. Write a Python
+   checker for what a rule file cannot express.
+
 Each checker is a Python class that inherits from
 :class:`pssparser.checkers.CheckerBase`.  Checkers receive a
 :class:`pssparser.checkers.CheckContext` object that provides read access to
@@ -873,8 +882,13 @@ does.
 
 Also available:
 
-``run_rules(paths, rules, checkers=..., config_text=...)``
+``run_rules(paths, rules, checkers=..., config_text=..., rule_files=...)``
     Parse, link and run, returning the diagnostics as JSON-shaped dicts.
+    ``rule_files=`` loads ``pss-rules`` files (or directories) after the
+    built-in ones, so the same fixtures test declarative rules:
+    ``check_fixture_dir("tests/lint/field-prefix", ["field-prefix"],
+    rule_files=["lint/rules/"])``.  ``check_fixture`` and
+    ``check_fixture_dir`` take it too.
 ``check_examples(CheckerClass)``
     Run every ``MarkerDef.examples`` entry: a "bad" example must report its
     ID at exactly its ``expect`` positions, a "good" one nothing.  This keeps

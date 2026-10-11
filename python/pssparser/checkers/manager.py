@@ -799,7 +799,7 @@ class CheckerManager:
         for md in instance.marker_defs:
             self._marker_owner.setdefault(md.id, f"checker {instance.name!r}")
 
-    def add_rule_view(self, mdefs: List) -> None:
+    def add_rule_view(self, mdefs: List, engine=None) -> None:
         """Register the rules loaded from ``pss-rules`` files (lint-core-plan
         C4.4), as one metadata-only checker named
         :data:`pssparser.lint.ruleview.CHECKER_NAME`, so every registry
@@ -807,7 +807,8 @@ class CheckerManager:
 
         *mdefs* must already exclude the rules that clash with a Python
         checker (:func:`pssparser.lint.rulefiles.conflicts` refused them), so
-        no ID here is claimed twice.
+        no ID here is claimed twice.  With the *engine* that loaded them, the
+        checker runs them (C5.4); without, it is metadata only.
         """
         from pssparser.lint import ruleview
 
@@ -817,7 +818,7 @@ class CheckerManager:
                 self._marker_owner.pop(md.id, None)
         if not mdefs:
             return
-        self._registered[ruleview.CHECKER_NAME] = ruleview.checker_class(mdefs)
+        self._registered[ruleview.CHECKER_NAME] = ruleview.checker_class(mdefs, engine)
         for md in mdefs:
             self._marker_owner.setdefault(md.id, f"rule file '{md.source.rsplit(':', 2)[0]}'")
 

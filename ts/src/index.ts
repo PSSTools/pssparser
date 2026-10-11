@@ -43,6 +43,13 @@ export {
   type MarkerSeverity,
 } from './Marker.js';
 
+export {
+  NO_FILE,
+  type LintRequest,
+  type LintResult,
+  type LintRuleStats,
+} from './Lint.js';
+
 export { initPssParser, type InitOptions } from './wasm/loader.js';
 
 export { AST_SCHEMA_HASH } from './wasm/schemaHash.js';

@@ -1,0 +1,81 @@
+# Naming rules, in the style of a site's own rule file.
+pss-rules:
+  defaults:
+    family: naming
+    tier: style
+
+  define:
+    upper_camel(s): s.matches('^[A-Z][A-Za-z0-9]*$')
+
+  rules:
+    - id: ACME001
+      name: action-name-upper-camel
+      summary: Action type names are UpperCamelCase.
+      message: "action '${node.name.id}' is not UpperCamelCase"
+      match: { kind: Action }
+      where: "!upper_camel(node.name.id)"
+      examples:
+        - name: lower-case name
+          code: |
+            component pss_top {
+              action write_burst { }   // expect: ACME001
+            }
+        - name: UpperCamelCase is fine
+          code: |
+            component pss_top {
+              action WriteBurst { }
+            }
+
+    - id: ACME002
+      name: field-prefix
+      summary: Fields in an action start with a configured prefix.
+      message: "field '${node.name.id}' does not start with '${options.prefix}'"
+      match:
+        kind: Field
+        inside: { kind: Action, stop: [Action, Struct] }
+      where: "!node.name.id.startsWith(options.prefix)"
+      options:
+        prefix: { type: string, default: "m_", help: The prefix action fields take. }
+      examples:
+        - code: |
+            component pss_top {
+              int count;                       // not in an action
+              action A {
+                rand bit[8] m_ok;
+                rand bit[8] bad;               // expect: ACME002 @ 5:17
+                rand bit[8] x; rand bit[8] y;  // expect: ACME002, ACME002
+              }
+            }
+        - code: |
+            component pss_top {
+              action A { rand bit[8] m_a; }  // expect: none
+            }
+
+    - id: ACME003
+      name: no-short-names
+      summary: Type names are longer than a configured length.
+      message: "${type(node) == Action ? 'action' : 'struct'} '${n}' is shorter than ${options.min} characters"
+      match: { kind: [Action, Struct] }
+      let:
+        n: node.name.id
+      where: n.size() < options.min
+      options:
+        min: { type: int, default: 3, help: The shortest name allowed. }
+      examples:
+        - name: a short action and a short struct
+          code: |
+            component pss_top {
+              action Ab { }  /* expect: ACME003 */ struct Xy { }  // expect: ACME003
+              struct Long_enough { }
+            }
+        - name: names in two files
+          files:
+            types.pss: |
+              package p {
+                struct Pq { }   // expect: ACME003
+              }
+            top.pss: |
+              import p::*;
+              component pss_top {
+                action Abc { Pq s; }
+              }

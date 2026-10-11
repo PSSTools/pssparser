@@ -1,0 +1,46 @@
+# Rules that report somewhere other than the matched node.
+pss-rules:
+  defaults:
+    family: decl
+    tier: suspicious
+
+  rules:
+    - id: ACME-NET001
+      name: derived-action-base
+      summary: Report the base type of a derived action.
+      message: "${node} derives from a base type"
+      match: { kind: Action }
+      where: has(node.super_t)
+      report: "[node.super_t]"
+      examples:
+        - name: base reported at the reference
+          code: |
+            component pss_top {
+              action Base { }
+              action Derived : Base { }   // expect: ACME-NET001 @ 3:20
+            }
+        - name: no base
+          code: |
+            component pss_top {
+              action Base { }
+            }
+
+    - id: ACME-NET002
+      name: equality-in-constraint
+      summary: Equality comparisons outside constraints.
+      message: "'==' outside a constraint"
+      match:
+        kind: ExprBin
+        not_inside: { kind: ConstraintBlock }
+      where: node.op == ExprBinOp.BinOp_Eq
+      examples:
+        - code: |
+            component pss_top {
+              action A {
+                rand bit[4] v;
+                constraint { v == 1; }
+                exec post_solve {
+                  if (v == 2) { }   // expect: ACME-NET002
+                }
+              }
+            }

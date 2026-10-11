@@ -49,6 +49,7 @@
     "gen:census": "node scripts/astbuilder.mjs gen-census -astdir ../ast -py scripts/generated -ts test/generated",
     "gen:census-parity-fixture": "cd .. && PYTHONPATH=python packages/python/bin/python ts/scripts/gen-census-parity-fixture.py -o ts/test/fixtures/census-parity.json",
     "gen:lintcore-parity-fixture": "cd .. && PYTHONPATH=python packages/python/bin/python ts/scripts/gen-lintcore-parity-fixture.py -o ts/test/fixtures/lintcore-parity.json",
+    "gen:lint-parity-fixture": "cd .. && PYTHONPATH=python packages/python/bin/python ts/scripts/gen-lint-parity-fixture.py -o ts/test/fixtures/lint-parity.json",
     "gen:link-parity-fixture": "cd .. && PYTHONPATH=python packages/python/bin/python ts/scripts/gen-link-parity-fixture.py -o ts/test/fixtures/link-parity.json",
     "gen:parity-fixture": "cd .. && PYTHONPATH=python packages/python/bin/python ts/scripts/gen-parity-fixture.py -o ts/test/fixtures/parity.json",
     "gen:wasm": "node scripts/build-wasm.mjs",

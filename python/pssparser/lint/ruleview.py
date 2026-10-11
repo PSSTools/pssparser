@@ -9,8 +9,10 @@ rules.  The engine stays the owner: the view is rebuilt from
 :meth:`pssparser.core.LintEngine.rules`, never edited.
 
 The view is registered with the :class:`~pssparser.checkers.CheckerManager`
-as one metadata-only checker, :data:`CHECKER_NAME`, like the core's: it is
-never run as a Python checker (the runner, C5, runs the rules in the core).
+as one checker, :data:`CHECKER_NAME`. Running it (C5.4) runs the enabled
+rules in the core engine, in one walk, and turns the engine's results into
+markers; selection, ``[severity]``, waivers and the baseline then treat them
+as they treat any checker's.
 """
 from __future__ import annotations
 
@@ -104,18 +106,60 @@ def is_builtin(md: MarkerDef) -> bool:
     return md.source.startswith(BUILTIN_PREFIX)
 
 
-def checker_class(mdefs: List[MarkerDef]) -> Type[CheckerBase]:
-    """A metadata-only checker class whose ``marker_defs`` are *mdefs*."""
+def checker_class(mdefs: List[MarkerDef], engine=None) -> Type[CheckerBase]:
+    """The checker class for the declarative rules: its ``marker_defs`` are
+    *mdefs*, and it runs them in *engine* (the
+    :class:`pssparser.core.LintEngine` that loaded them). Without an engine
+    it is metadata only."""
 
     class DeclarativeRules(CheckerBase):
         name = CHECKER_NAME
         description = "Declarative rules from pss-rules files"
-        #: Metadata only: never instantiated for a run (as the core's).
-        is_builtin = True
+        #: Metadata only when there is no engine to run the rules in.
+        is_builtin = engine is None
         is_declarative = True
         marker_defs = list(mdefs)
 
-        def check(self, context) -> None:  # pragma: no cover - never run
-            pass
+        def check(self, context) -> None:
+            run(engine, self.marker_defs, context)
 
     return DeclarativeRules
+
+
+def run(engine, mdefs: List[MarkerDef], context) -> None:
+    """Run the enabled rules among *mdefs* in *engine* over the context's
+    files, and add their markers to *context*.
+
+    A rule is enabled unless the context turned its ID off (lint selection,
+    ``[severity] = "off"``): a rule left out is never evaluated. When the
+    context carries a gate count (errors from parse, link and the semantic
+    checks), nothing runs and the engine's one PSSP230 marker is added,
+    provided some rule was enabled. ``PSSPARSER_NO_LINT`` runs nothing.
+    """
+    import os
+
+    from pssparser.checkers.extension import NO_FILE
+    from pssparser.lint import NO_LINT_ENV
+
+    if engine is None or os.environ.get(NO_LINT_ENV):
+        return
+    enabled = [md.id for md in mdefs if context.is_enabled(md.id)]
+    if not enabled:
+        return
+    options = {i: o for i, o in (context._lint_options or {}).items()
+               if i in enabled and o}
+    request = {"enabled": enabled, "options": options,
+               "gate_errors": context._gate_errors}
+    result = engine.run([] if context._gate_errors else context.global_scopes, request)
+    for m in result.get("markers", ()):
+        located = m["fileid"] >= 0 and m["line"] > 0
+        context.add_marker(
+            code=m["code"],
+            file=context.file_map.get(m["fileid"], NO_FILE) if located else NO_FILE,
+            line=m["line"] if located else 0,
+            col=m["col"] if located else 0,
+            message=m["message"],
+            severity=m["severity"],
+            extent=max(m["extent"], 0),
+        )
+    context.lint_stats = list(result.get("stats", ()))

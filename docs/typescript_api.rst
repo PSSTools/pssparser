@@ -367,7 +367,35 @@ host that lists a rules directory: files that are not rule files are skipped
 there. Text that is not valid YAML counts as a rule file when a line starts
 ``pss-rules:``, so that loading it reports the YAML error.
 
-Rules are loaded and checked, but not yet run over a model.
+``runLint(request?)``
+^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: typescript
+
+   runLint(request?: LintRequest): LintResult;
+
+   interface LintRequest {
+     enabled?: string[];       // rule IDs to run; omitted: every loaded rule
+     options?: Record<string, Record<string, string | number | boolean | string[]>>;
+     maxSteps?: number;        // evaluation steps per rule per file; default 10^6
+     gateErrors?: number;      // default: the error markers this Parser holds
+   }
+   interface LintResult {
+     markers: Marker[];        // findings, PSSP220/221 failures, or PSSP230
+     stats: LintRuleStats[];   // { id, matches, findings, steps, ns, errors }
+     problems: string[];       // request entries that were ignored
+   }
+
+Runs the loaded rules over the linked user files, in the core, with the same
+engine as the CLI, so an editor and CI report the same findings. Call it after
+``link()``. Selection by profile, tier or namespace is the host's job:
+``enabled`` takes its result, and a rule not listed is never evaluated.
+
+The gate: with any error marker from parse or link (or ``gateErrors`` above
+0), no rule runs, and the one marker is ``PSSP230``, "lint skipped: N errors",
+with ``file`` ``'<pssparser>'`` (exported as ``NO_FILE``) and line 0. The
+markers are returned, not added to ``markers``. Their messages carry no
+``[ID]`` prefix; ``code`` is the rule's ID.
 
 ``dispose()``
 ^^^^^^^^^^^^^

@@ -3,7 +3,8 @@
 Shipped in the wheel, so an extension's own test suite can use it:
 
 * :func:`run_rules` -- parse, link, run only the named rules, return
-  diagnostics.
+  diagnostics.  Python checkers and declarative rules (``pss-rules``
+  files: the built-in ones, and any named with ``rule_files``) alike.
 * :func:`check_fixture_dir` -- run every fixture in a directory against its
   ``// expect:`` comments, exactly.
 * :func:`check_examples` -- run every ``MarkerDef.examples`` entry, so the
@@ -118,6 +119,7 @@ def run_rules(
     *,
     checkers: Sequence[type] = (),
     config_text: str = "",
+    rule_files: Sequence[str] = (),
 ) -> list:
     """Parse and link *paths*, run the lint/checker phase, return diagnostics.
 
@@ -125,20 +127,22 @@ def run_rules(
     ``none``, so only the rules under test report -- plus every non-lint
     diagnostic (LRM errors, checker markers).  *checkers* are extra checker
     classes to register, for testing a checker that is not installed.
-    *config_text* is an optional ``.pssparser.toml`` body.
+    *config_text* is an optional ``.pssparser.toml`` body.  *rule_files*
+    are ``pss-rules`` files or directories to load after the built-in ones,
+    as ``--rules`` does; a problem in one raises ``ValueError``.
+
+    The selected declarative rules run even under ``PSSPARSER_NO_LINT``,
+    which keeps lint out of unrelated tests, not out of a rule's own.
     """
     import io
     import json
     import tempfile
 
-    from pssparser.checkers import CheckerManager
     from pssparser.cli import config as config_mod
     from pssparser.cli.commands import cmd_parse
+    from pssparser.lint import NO_LINT_ENV
 
-    manager = CheckerManager()
-    manager.discover()
-    for cls in checkers:
-        manager._accept_checker(cls, "(test)", None, bundled=True)
+    manager = _manager(checkers, rule_files)
 
     with tempfile.TemporaryDirectory() as tmp:
         cfg_path = Path(tmp) / ".pssparser.toml"
@@ -164,19 +168,47 @@ def run_rules(
         config_mod.validate_against_registry(cfg, manager)
 
         out = io.StringIO()
-        cmd_parse([str(p) for p in paths], output_format="json", stdout=out,
-                  stderr=io.StringIO(), manager=manager, config=cfg)
+        no_lint = os.environ.pop(NO_LINT_ENV, None)
+        try:
+            cmd_parse([str(p) for p in paths], output_format="json", stdout=out,
+                      stderr=io.StringIO(), manager=manager, config=cfg)
+        finally:
+            if no_lint is not None:
+                os.environ[NO_LINT_ENV] = no_lint
     return json.loads(out.getvalue())["diagnostics"]
 
 
+def _manager(checkers: Sequence[type] = (), rule_files: Sequence[str] = ()):
+    """A checker manager with the installed extensions, *checkers*, and the
+    rules of the built-in rule files and *rule_files*."""
+    from pssparser.checkers import CheckerManager
+    from pssparser.lint import rulefiles, ruleview
+
+    manager = CheckerManager()
+    manager.discover()
+    for cls in checkers:
+        manager._accept_checker(cls, "(test)", None, bundled=True)
+    load = rulefiles.load([rulefiles.RulePath(str(p), "rule_files") for p in rule_files],
+                          manager.all_marker_defs(), manager.owner_of)
+    errors = [d for d in load.diagnostics if d["severity"] == "error"]
+    if errors:
+        raise ValueError("\n".join(f"{d['file']}:{d['line']}:{d['col']}: {d['message']}"
+                                    for d in errors))
+    manager.add_rule_view(ruleview.marker_defs(load.engine.rules(), load.refused),
+                          engine=load.engine)
+    return manager
+
+
 def check_fixture(path: str, rules: Sequence[str] = (), *,
-                  checkers: Sequence[type] = (), config_text: str = "") -> FixtureResult:
+                  checkers: Sequence[type] = (), config_text: str = "",
+                  rule_files: Sequence[str] = ()) -> FixtureResult:
     """Run one fixture file and compare against its expectations exactly."""
     text = Path(path).read_text()
     exp = parse_expectations(text, path)
-    diags = run_rules([path], rules, checkers=checkers, config_text=config_text)
+    diags = run_rules([path], rules, checkers=checkers, config_text=config_text,
+                      rule_files=rule_files)
     real = os.path.realpath(path)
-    ids = {f[0] for f in exp.findings} | _ids_for(rules, checkers)
+    ids = {f[0] for f in exp.findings} | _ids_for(rules, checkers, rule_files)
     got = sorted(
         (d["code"], d["line"], d["col"]) for d in diags
         if d.get("code") in ids and os.path.realpath(d["file"]) == real
@@ -189,16 +221,13 @@ def check_fixture(path: str, rules: Sequence[str] = (), *,
     )
 
 
-def _ids_for(rules: Sequence[str], checkers: Sequence[type]) -> set:
+def _ids_for(rules: Sequence[str], checkers: Sequence[type],
+             rule_files: Sequence[str] = ()) -> set:
     """The concrete IDs that *rules* and *checkers* stand for."""
-    from pssparser.checkers import CheckerManager
     from pssparser.checkers.selectors import RuleSet
 
-    manager = CheckerManager()
-    manager.discover()
+    manager = _manager(checkers, rule_files)
     defs = manager.all_marker_defs()
-    for cls in checkers:
-        defs += list(cls().marker_defs)
     ruleset = RuleSet(defs)
     ruleset.aliases = manager.alias_map()
     ids = set(ruleset.expand(rules, include_core_errors=True)) if rules else set()
@@ -217,7 +246,8 @@ def fixture_files(directory: str) -> List[Path]:
 
 def check_fixture_dir(directory: str, rules: Sequence[str] = (), *,
                       checkers: Sequence[type] = (),
-                      config_text: str = "") -> List[FixtureResult]:
+                      config_text: str = "",
+                      rule_files: Sequence[str] = ()) -> List[FixtureResult]:
     """Run every fixture in *directory*; return one result per file.
 
     Raises ``AssertionError`` listing every failing file, so it can be
@@ -228,7 +258,8 @@ def check_fixture_dir(directory: str, rules: Sequence[str] = (), *,
     if not files:
         raise AssertionError(f"{directory}: no fixture files (l*.pss, ok_*.pss)")
     results = [check_fixture(str(f), rules, checkers=checkers,
-                             config_text=config_text) for f in files]
+                             config_text=config_text, rule_files=rule_files)
+               for f in files]
     failed = [r for r in results if not r.ok]
     if failed:
         raise AssertionError("\n".join(r.describe() for r in failed))

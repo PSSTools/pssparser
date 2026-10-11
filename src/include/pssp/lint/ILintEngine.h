@@ -29,6 +29,9 @@
 #include "pssp/lint/RuleDiagnostic.h"
 
 namespace pssp {
+namespace ast {
+class IScopeChild;
+}
 namespace lint {
 
 /**
@@ -98,6 +101,27 @@ public:
      * one the Python metadata view (C4.4) and the WASM API (C4.3) read.
      */
     virtual std::string rulesJson() const = 0;
+
+    /**
+     * Runs the loaded rules over the trees under `roots`, one GlobalScope
+     * per file the host owns (lint-core-plan.md C5.4). The request is JSON:
+     *   {"enabled": ["ID", ...],          absent or null: every loaded rule
+     *    "options": {"ID": {"name": value}},   overriding `default:`
+     *    "max_steps": N,                  per rule per file; absent: 10^6
+     *    "gate_errors": N}                > 0: run nothing (the gate)
+     * The result is JSON:
+     *   {"ok":true,"markers":[{"severity","message","fileid","line","col",
+     *    "extent","related":[],"code"}],"stats":[{"id","matches","findings",
+     *    "steps","ns","errors"}],"problems":["..."]}
+     * Markers are the findings (walk order) then the rule failures
+     * (PSSP220, PSSP221); with `gate_errors` > 0 and a rule enabled, the one
+     * PSSP230 marker (no location: fileid -1). Messages carry no "[ID]"
+     * prefix. `problems` lists request entries that were ignored: an
+     * unknown ID or option, or a value of the wrong type. A request that is
+     * not a JSON object gives {"ok":false,"error":"..."}.
+     */
+    virtual std::string run(const std::vector<ast::IScopeChild *> &roots,
+        const std::string &requestJson) = 0;
 };
 
 }

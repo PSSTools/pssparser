@@ -2388,6 +2388,25 @@ class CoreChecker(CheckerBase):
             ),
         ),
         MarkerDef(
+            id="PSSP222",
+            name="rule-example-failed",
+            tier="tool",
+            severity="error",
+            summary="A lint rule's example does not give the findings it expects",
+            detail=(
+                "``pssparser --check-rules`` runs each rule's ``examples:``: "
+                "every example is parsed and linked on its own, and only its "
+                "rule runs.  The rule must report exactly where the "
+                "example's ``// expect:`` comments say, and nowhere else; an "
+                "example with no ``expect`` must report nothing.  An example "
+                "that does not parse or link, or on which the rule fails, "
+                "fails too.  The marker is at the example in the rule file, "
+                "and its message gives the position in the example's text.  "
+                "Fix the rule or the example: an example is the rule's "
+                "documentation, so the two must agree."
+            ),
+        ),
+        MarkerDef(
             id="PSSP230",
             name="lint-skipped",
             tier="tool",

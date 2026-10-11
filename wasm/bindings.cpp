@@ -54,6 +54,7 @@
 #include "pssp/ast/IFactory.h"
 #include "pssp/ast/IGlobalScope.h"
 #include "pssp/ast/IRootSymbolScope.h"
+#include "pssp/ast/IScopeChild.h"
 #include "pssp/lint/ILintEngine.h"
 #include "AstSerializer.h"
 
@@ -569,6 +570,28 @@ public:
         return ensureLintEngine()->rulesJson();
     }
 
+    /*
+     * Runs the session's rules over the linked model's user files (every
+     * unit but the standard library, fileid 0) (lint-core-plan.md C5.4).
+     * The request and result are ILintEngine::run()'s JSON; markers carry
+     * fileids, as markersJson()'s do. Before link() there is no model, and
+     * the result has no markers.
+     */
+    std::string runLint(const std::string &requestJson) {
+        // The user's files only, as Parser.user_units() natively: the
+        // standard library is fileid 0, and the built-in units the linker
+        // adds are -1 (lint-core-plan.md C5.5 found them walked here).
+        std::vector<pssp::ast::IScopeChild *> roots;
+        if (m_root) {
+            for (const pssp::ast::IGlobalScopeUP &u : m_root->getUnits()) {
+                if (u->getFileid() > 0) {
+                    roots.push_back(dynamic_cast<pssp::ast::IScopeChild *>(u.get()));
+                }
+            }
+        }
+        return ensureLintEngine()->run(roots, requestJson);
+    }
+
 private:
     /*
      * The engine is created on first use, with the built-in rules loaded
@@ -751,5 +774,6 @@ EMSCRIPTEN_BINDINGS(pssparser) {
         .function("loadRuleFile", &ParserSession::loadRuleFile)
         .function("probeRules", &ParserSession::probeRules)
         .function("ruleDiagnosticsJson", &ParserSession::ruleDiagnosticsJson)
-        .function("rulesJson", &ParserSession::rulesJson);
+        .function("rulesJson", &ParserSession::rulesJson)
+        .function("runLint", &ParserSession::runLint);
 }

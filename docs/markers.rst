@@ -1451,6 +1451,17 @@ A lint rule used up its evaluation budget for a file
 
 Each rule may spend a fixed number of evaluation steps on each file, counted across every node it matches, so a costly rule cannot stall the editor.  A rule that runs out is skipped for the rest of that file; the findings it already made stand, and the other rules still run.  The message names the rule and the node it was evaluating.  Make the rule cheaper: a narrower ``match``, or a ``where`` that rejects early.
 
+PSSP222
+~~~~~~~
+
+**Severity:** error
+
+**Name:** ``rule-example-failed``; **Tier:** tool
+
+A lint rule's example does not give the findings it expects
+
+``pssparser --check-rules`` runs each rule's ``examples:``: every example is parsed and linked on its own, and only its rule runs.  The rule must report exactly where the example's ``// expect:`` comments say, and nowhere else; an example with no ``expect`` must report nothing.  An example that does not parse or link, or on which the rule fails, fails too.  The marker is at the example in the rule file, and its message gives the position in the example's text.  Fix the rule or the example: an example is the rule's documentation, so the two must agree.
+
 PSSP230
 ~~~~~~~
 

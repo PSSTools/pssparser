@@ -33,6 +33,7 @@
 #include "pssp/lint/LintRequest.h"
 #include "pssp/lint/RuleDiagnostic.h"
 #include "Rule.h"
+#include "../yaml/YamlDoc.h"
 
 namespace pssp {
 namespace lint {
@@ -113,6 +114,13 @@ std::string namespaceOf(const std::string &code);
 
 /** True for `PSS`, `PSSP`, `PSSX` and `LINT`, which only pssparser may use. */
 bool isReservedNamespace(const std::string &ns);
+
+/**
+ * The value of option `o` in `v`, when `v` has the option's type: a string,
+ * an int, a bool, or a list of strings. Used for an option's `default:` and
+ * for the values a host sets for a run (C5.4).
+ */
+bool optionValue(const RuleOption &o, const yaml::Node *v, cel::Value &out);
 
 /** Whether `text` is a rule file (ILintEngine::probeRules()). */
 RuleProbe probeRuleText(const std::string &text);

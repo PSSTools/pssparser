@@ -57,6 +57,9 @@ public:
 
     virtual std::string rulesJson() const override;
 
+    virtual std::string run(const std::vector<ast::IScopeChild *> &roots,
+        const std::string &requestJson) override;
+
     /** Every loaded rule, in load order: what the runner (C5) dispatches. */
     std::vector<const rules::Rule *> ruleList() const;
 

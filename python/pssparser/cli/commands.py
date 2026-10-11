@@ -165,6 +165,8 @@ def cmd_parse(
     # waivers need it), and which rules ran (the unused-waiver marker needs
     # that; unknown on a failed parse or link).
     waiver_state: dict = {"ast": False, "ran": None}
+    # What the declarative rules' run reported, for --stats (C5.4).
+    lint_run: dict = {}
 
     def _finish(force_rc: Optional[int] = None) -> int:
         """Apply the warning policy, emit everything, return the exit code.
@@ -222,6 +224,7 @@ def cmd_parse(
                 timings=extra_timings if stats_timing else None,
             )
             stats.lint_dropped = lint_dropped
+            stats.lint_rules = lint_run.get("stats", []) if lint_run else []
             stats.waived_by_code = _by_code(coll.waived)
             stats.baselined_by_code = _by_code(coll.baselined)
         driver.finish(coll, quiet, stats)
@@ -245,10 +248,18 @@ def cmd_parse(
         return 1 if coll.has_errors else 0
 
     # -- parse phase --------------------------------------------------------
+    lint_args = dict(
+        manager=manager, checkers=checkers, no_checkers=no_checkers,
+        options=None if config is None else config.checker_options,
+        disabled=_disabled_codes(config, lint_enabled, lint_ids),
+        lint_options=_lint_rule_options(config, manager),
+    )
     try:
         parser.parse(files)
     except ParseException as exc:
         _collect(coll, getattr(exc, "markers", []), parser)
+        if not syntax_only:
+            _report_lint_skipped(coll, _error_count(exc), **lint_args)
         return _finish(force_rc=1)
 
     # The AST exists once the parse succeeded, linked or not: a waiver
@@ -263,6 +274,7 @@ def cmd_parse(
         except ParseException as exc:
             extra_timings["link"] = time.perf_counter_ns() - t0
             _collect(coll, getattr(exc, "markers", []), parser)
+            _report_lint_skipped(coll, _error_count(exc), **lint_args)
             return _finish(force_rc=1)
         extra_timings["link"] = time.perf_counter_ns() - t0
 
@@ -277,13 +289,13 @@ def cmd_parse(
         parser=parser,
         linked_root=linked_root,
         syntax_only=syntax_only,
-        manager=manager,
-        checkers=checkers,
-        no_checkers=no_checkers,
-        options=None if config is None else config.checker_options,
-        disabled=_disabled_codes(config, lint_enabled, lint_ids),
+        gate_errors=sum(1 for m in parser.markers if m.get("severity") == "error"),
+        lint_run=lint_run,
+        **lint_args,
     )
     extra_timings["checkers"] = time.perf_counter_ns() - t0
+    if "ns" in lint_run:
+        extra_timings["lint"] = lint_run["ns"]
     if not syntax_only:
         waiver_state["ran"] = _codes_that_ran(
             manager, active, config, lint_enabled, lint_ids)
@@ -337,6 +349,55 @@ def _owned_files(files: List[str]) -> set:
     import os
 
     return {os.path.realpath(f) for f in files}
+
+
+def _lint_rule_options(config, manager) -> dict:
+    """``[lint.rule.<name>]`` values keyed by rule ID (the table may name a
+    rule by its name or its ID; the config layer checked both)."""
+    tables = getattr(config, "lint_rule_options", None) or {}
+    if not tables:
+        return {}
+    ids = {}
+    for md in manager.all_marker_defs():
+        ids[md.id] = md.id
+        if md.name:
+            ids.setdefault(md.name, md.id)
+    return {ids.get(key, key): dict(opts) for key, opts in tables.items()}
+
+
+def _error_count(exc) -> int:
+    """Errors among a failed parse's or link's markers."""
+    return sum(1 for m in getattr(exc, "markers", []) or []
+               if m.get("severity") == "error")
+
+
+def _report_lint_skipped(coll: DiagnosticCollection, errors: int, *, manager,
+                         checkers, no_checkers, options, disabled,
+                         lint_options) -> None:
+    """The lint gate (design L8.1) on a run that stopped at a parse or link
+    error: the declarative rules do not run, and when any of them would
+    have, the engine's PSSP230 note says so."""
+    from pssparser.checkers import CheckContext
+    from pssparser.lint import ruleview
+
+    if not errors or manager is None:
+        return
+    try:
+        active = manager.active(select=checkers, exclude=no_checkers,
+                                options=options, disabled=disabled)
+    except ValueError:
+        return  # reported by the checker phase's own call; it never runs here
+    for checker in active:
+        if checker.name != ruleview.CHECKER_NAME:
+            continue
+        context = CheckContext(
+            root=None, files=[], global_scopes=[], file_map={},
+            _marker_index=manager.build_marker_index([checker]),
+            _disabled=disabled, _gate_errors=errors,
+            _lint_options=dict(lint_options or {}))
+        checker.check(context)
+        for m in context._markers:
+            coll.add(Diagnostic.from_marker(m))
 
 
 # -- Core-marker code assignment -------------------------------------------
@@ -473,8 +534,17 @@ def _run_checkers(
     no_checkers,
     options=None,
     disabled: frozenset = frozenset(),
+    gate_errors: int = 0,
+    lint_options: Optional[dict] = None,
+    lint_run: Optional[dict] = None,
 ) -> None:
-    """Run the checker phase and merge results into *coll*."""
+    """Run the checker phase and merge results into *coll*.
+
+    *gate_errors* is the number of errors parse, link and the semantic
+    checks reported: the declarative rules do not run when it is non-zero
+    (they report PSSP230 instead).  *lint_run*, when given, receives their
+    per-rule ``stats`` and the ``ns`` they took.
+    """
     from pssparser.checkers import CheckContext, CheckerManager
 
     if manager is None:
@@ -505,12 +575,19 @@ def _run_checkers(
         file_map=file_map,
         _marker_index=marker_index,
         _disabled=disabled,
+        _gate_errors=gate_errors,
+        _lint_options=dict(lint_options or {}),
     )
 
+    from pssparser.lint import ruleview
     for checker in active:
         if not syntax_only or checker.runs_without_link:
             try:
+                t0 = time.perf_counter_ns()
                 checker.check(context)
+                if checker.name == ruleview.CHECKER_NAME and lint_run is not None:
+                    lint_run["ns"] = time.perf_counter_ns() - t0
+                    lint_run["stats"] = context.lint_stats
             except Exception as exc:
                 import sys
                 sys.stderr.write(

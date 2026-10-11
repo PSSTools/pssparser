@@ -35,6 +35,7 @@ FIXTURE_SPECS = [
     ("link-parity", True),
     ("census-parity", True),
     ("lintcore-parity", False),
+    ("lint-parity", False),
 ]
 
 

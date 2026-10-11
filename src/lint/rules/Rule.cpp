@@ -124,7 +124,7 @@ void Rule::toJson(JsonWriter &w) const {
 
     w.key("examples").beginArray();
     for (const Example &x : m_examples) {
-        w.beginObject().kv("name", x.name);
+        w.beginObject().kv("name", x.name).kv("line", x.mark.line).kv("col", x.mark.col);
         w.key("files").beginArray();
         for (const ExampleFile &f : x.files) {
             w.beginObject().kv("name", f.name).kv("text", f.text);

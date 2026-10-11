@@ -94,6 +94,10 @@ struct RuleStats {
 struct RunOptions {
     // Evaluation steps per rule per file. Q-E5: the real number comes from C8.
     uint64_t            maxSteps = 1000000;
+    // Option values the host set (`[lint.rule.<name>]`), by rule; an option
+    // not listed takes its `default:`.
+    std::unordered_map<const rules::Rule *,
+        std::vector<std::pair<std::string, cel::Value>>>    options;
 };
 
 /** The severity a rule's findings get: its `severity:`, else its tier's. */

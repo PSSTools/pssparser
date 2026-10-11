@@ -46,6 +46,17 @@ class CheckContext:
     #: or by lint selection.  Read through :meth:`is_enabled`.
     _disabled: frozenset = field(default_factory=frozenset, repr=False)
 
+    #: Internal – errors from parse, link and the semantic checks: when
+    #: non-zero, the declarative rules do not run (the lint gate, L8.1).
+    _gate_errors: int = field(default=0, repr=False)
+
+    #: Internal – ``[lint.rule.<name>]`` option values, by rule ID.
+    _lint_options: Dict[str, dict] = field(default_factory=dict, repr=False)
+
+    #: Per-rule counts from the declarative rules' run, for ``--stats``:
+    #: ``[{"id", "matches", "findings", "steps", "ns", "errors"}]``.
+    lint_stats: List[dict] = field(default_factory=list, repr=False)
+
     #: Internal – built on first use of :attr:`facts`.
     _facts: Optional["Facts"] = field(default=None, repr=False)
 

@@ -32,13 +32,17 @@ Common options
   errors
 - ``--rules PATH`` loads ``pss-rules`` files from PATH, a file or a
   directory, after those named by ``[lint] rules`` (repeatable);
-  ``--check-rules [PATH...]`` loads and validates rule files and exits: 0
-  clean, 1 a rule file has an error, 2 a usage error (see
-  :doc:`lint-rule-authoring`).  A rule path that does not exist is a usage
+  ``--check-rules [PATH...]`` loads and validates rule files, runs each of
+  their rules' ``examples:`` (a failing one is a ``PSSP222`` error), and
+  exits: 0 clean, 1 a rule file has an error or a failing example, 2 a
+  usage error (see :doc:`lint-rule-authoring`).  A rule path that does not exist is a usage
   error (exit 2) in any run.  Rule files load before the configuration is
   checked, so their rules may be named by selectors, ``[severity]`` and
   ``[lint.rule.<name>]``, and are shown by ``--explain``, ``--describe``
-  and ``--list-markers`` (under the checker ``pss-rules``)
+  and ``--list-markers`` (under the checker ``pss-rules``).  The rules the
+  lint selection enables run after a clean link, in the core, in one walk
+  over the files on the command line; a model with errors is not linted,
+  and a ``PSSP230`` note says so
 - ``-v`` / ``--verbose`` also lists the files in a rules directory that were
   skipped because they are not rule files, with the reason
 - ``--statistics`` prints a per-code count of the diagnostics reported
@@ -700,6 +704,22 @@ Run statistics
        stats: 1 file processed
          declarations: 1 package, 1 component, 2 actions, 1 buffer, 4 fields, 1 constraint block
          timing:       stdlib 21.4ms, parse (incl. read) 2.7ms, link 0.8ms, checkers 0.1ms
+
+    When rules from ``pss-rules`` files ran, a ``lint rules`` block lists
+    each enabled rule with the nodes it matched, its findings, the
+    evaluation steps it used and (with timing) its time; any failures
+    (``PSSP220``, ``PSSP221``) are counted too, and the timing row gains a
+    ``lint`` phase (part of ``checkers``):
+
+    .. code-block:: text
+
+         lint rules:
+           ACME001: 2 matches, 1 finding, 16 steps, 0.1ms
+           ACME002: 0 matches, 0 findings, 0 steps, 0.0ms
+
+    Under ``--json`` the same rows are ``"lint_rules"``: ``id``,
+    ``matches``, ``findings``, ``steps``, ``errors``, and ``ms`` with
+    timing.
 
 ``--stats-no-timing``
     As ``--stats``, but omit the timing row.  Wall times are not

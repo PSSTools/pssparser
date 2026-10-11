@@ -1129,6 +1129,20 @@ cdef class LintEngine(object):
         import json
         return json.loads(self._hndl.rulesJson().decode("utf-8"))
 
+    def run(self, roots, request=None):
+        """Runs the loaded rules over `roots` (the GlobalScope of each file
+        the caller owns) (lint-core-plan.md C5.4). `request` is a dict:
+        ``enabled`` (rule IDs; absent or None: all), ``options``
+        (``{id: {name: value}}``), ``max_steps``, ``gate_errors``. Returns
+        ``{"ok", "markers", "stats", "problems"}``; see ILintEngine::run."""
+        import json
+        cdef std_vector[ast_decl.IScopeChildP] v
+        cdef ast.ScopeChild r
+        for r in roots:
+            v.push_back(r.asScopeChild())
+        text = json.dumps(request or {}).encode("utf-8")
+        return json.loads(self._hndl.run(v, text).decode("utf-8"))
+
 
 cdef class LintTestHooks(object):
     """PRIVATE test entry points into the C++ lint engine's internals (YAML

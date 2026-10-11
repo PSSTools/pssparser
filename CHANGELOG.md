@@ -70,6 +70,37 @@ With this come lint profiles and rule selection (`docs/lint.rst`):
   (`PSSP201`). `CheckContext.is_enabled()` lets a checker skip a disabled
   rule. `pssparser.checkers.testing` is a fixture harness for rule tests.
 
+### Added — site lint rules in YAML (`pss-rules` files)
+
+A site can write its own lint rules without Python: a `pss-rules` YAML file
+declares each rule, its conditions written in a subset of CEL, the Common
+Expression Language. pssparser's C++ core loads and runs the files, so the
+command line and the WebAssembly build (the editor) give the same findings.
+See `docs/lint-rule-authoring.rst` and `docs/lint-functions.rst`.
+
+- `[lint] rules = [...]` in the configuration, and `--rules PATH`, load rule
+  files or directories of them. Their rules join the registry: selectors,
+  `[severity]`, `[lint.rule.<name>]` options, waivers, baselines, SARIF,
+  `--explain`, `--describe` and `--list-markers` (checker `pss-rules`) all
+  know them. A rule runs when the lint selection enables it; the default
+  profile enables none of a site's rules.
+- `pssparser --check-rules [PATH...]` validates rule files and runs each
+  rule's `examples:`; `--format github` annotates a rules repository's pull
+  requests. A JSON Schema, `pss-rules.schema.json`, gives editors
+  completion.
+- Rules run only on a model with no errors; otherwise a `PSSP230` note says
+  "lint skipped: N errors". A rule that fails on a model, or uses up its
+  evaluation budget for a file, is a `PSSP220`/`PSSP221` warning and is
+  skipped for the rest of that file. `--stats` lists what each rule did.
+- New `PSSP` codes: `PSSP210`–`PSSP219` (problems in a rule file),
+  `PSSP220`, `PSSP221`, `PSSP222` (a failing example) and `PSSP230`.
+- TypeScript: `Parser.loadRules()`, `ruleDiagnostics`, `probeRules()` and
+  `runLint()`.
+- `pssparser.checkers.testing`: `run_rules`, `check_fixture` and
+  `check_fixture_dir` take `rule_files=`, so fixture directories test
+  declarative rules; `pssparser.lint.examples` runs rules' examples.
+- pssparser ships no built-in YAML rules yet.
+
 ### Added — lint baselines (`--write-baseline`, `--baseline`)
 
 Switch lint on over an existing model and gate CI on new findings only:

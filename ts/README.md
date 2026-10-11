@@ -130,19 +130,20 @@ test/link-parity.test.ts the *linked* tree must equal the native bindings'.
 test/census-parity.test.ts every node, every field: the same comparison past
                        the declaration spine, 132k nodes per run
 test/lint.test.ts      the lint engine: Parser.loadRules, ruleDiagnostics,
-                       probeRules
+                       probeRules, runLint
 test/lintcore-parity.test.ts the lint engine's YAML, CEL and rule loader must
                        equal the native bindings', case by case
 ```
 
-All five sets of parity expectations are generated, not written:
+All six sets of parity expectations are generated, not written:
 
 ```bash
 npm run gen:parity-fixture           # markers
 npm run gen:ast-parity-fixture       # the AST, per unit
 npm run gen:link-parity-fixture      # the linked tree
 npm run gen:census-parity-fixture    # every node, every field
-npm run gen:lintcore-parity-fixture  # the lint engine
+npm run gen:lintcore-parity-fixture  # the lint engine's pieces
+npm run gen:lint-parity-fixture      # lint rules run: rule examples, findings
 ```
 
 The output is committed, so the suite needs no Python, no native build and no
@@ -153,7 +154,7 @@ Both halves of the parity contract are gated. The Python suite's
 parser under test and fails if one differs from the committed copy, naming the
 script to run. So a change to the native parser, or to a file a fixture reads
 (the lintcore fixture hashes the repository's YAML files, CI workflows
-included), must come with its regenerated fixture. The `ts` job in
+included; the lint fixture runs `tests/data/lint-examples/`), must come with its regenerated fixture. The `ts` job in
 `.github/workflows/ci.yml` then builds the wasm and runs `npm test` against
 those fixtures, and a release cannot publish without it. Until 2026-10-11
 neither check existed. The fixtures went three weeks stale, and the 246

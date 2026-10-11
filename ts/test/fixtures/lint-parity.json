@@ -1,0 +1,724 @@
+{
+ "generator": "ts/scripts/gen-lint-parity-fixture.py",
+ "ruleFiles": [
+  "tests/data/lint-examples/naming.yaml",
+  "tests/data/lint-examples/structure.yaml"
+ ],
+ "cases": [
+  {
+   "id": "example:ACME001:lower-case name",
+   "kind": "example",
+   "rule": "ACME001",
+   "name": "lower-case name",
+   "file": "tests/data/lint-examples/naming.yaml",
+   "line": 18,
+   "col": 11,
+   "ok": true,
+   "markers": [
+    {
+     "code": "ACME001",
+     "severity": "hint",
+     "message": "action 'write_burst' is not UpperCamelCase",
+     "file": "example.pss",
+     "line": 2,
+     "col": 3,
+     "extent": 22
+    }
+   ]
+  },
+  {
+   "id": "example:ACME001:UpperCamelCase is fine",
+   "kind": "example",
+   "rule": "ACME001",
+   "name": "UpperCamelCase is fine",
+   "file": "tests/data/lint-examples/naming.yaml",
+   "line": 23,
+   "col": 11,
+   "ok": true,
+   "markers": []
+  },
+  {
+   "id": "example:ACME002:example 1",
+   "kind": "example",
+   "rule": "ACME002",
+   "name": "example 1",
+   "file": "tests/data/lint-examples/naming.yaml",
+   "line": 40,
+   "col": 11,
+   "ok": true,
+   "markers": [
+    {
+     "code": "ACME002",
+     "severity": "hint",
+     "message": "field 'bad' does not start with 'm_'",
+     "file": "example.pss",
+     "line": 5,
+     "col": 17,
+     "extent": 3
+    },
+    {
+     "code": "ACME002",
+     "severity": "hint",
+     "message": "field 'x' does not start with 'm_'",
+     "file": "example.pss",
+     "line": 6,
+     "col": 17,
+     "extent": 1
+    },
+    {
+     "code": "ACME002",
+     "severity": "hint",
+     "message": "field 'y' does not start with 'm_'",
+     "file": "example.pss",
+     "line": 6,
+     "col": 32,
+     "extent": 1
+    }
+   ]
+  },
+  {
+   "id": "example:ACME002:example 2",
+   "kind": "example",
+   "rule": "ACME002",
+   "name": "example 2",
+   "file": "tests/data/lint-examples/naming.yaml",
+   "line": 49,
+   "col": 11,
+   "ok": true,
+   "markers": []
+  },
+  {
+   "id": "example:ACME003:a short action and a short struct",
+   "kind": "example",
+   "rule": "ACME003",
+   "name": "a short action and a short struct",
+   "file": "tests/data/lint-examples/naming.yaml",
+   "line": 65,
+   "col": 11,
+   "ok": true,
+   "markers": [
+    {
+     "code": "ACME003",
+     "severity": "hint",
+     "message": "action 'Ab' is shorter than 3 characters",
+     "file": "example.pss",
+     "line": 2,
+     "col": 3,
+     "extent": 13
+    },
+    {
+     "code": "ACME003",
+     "severity": "hint",
+     "message": "struct 'Xy' is shorter than 3 characters",
+     "file": "example.pss",
+     "line": 2,
+     "col": 40,
+     "extent": 13
+    }
+   ]
+  },
+  {
+   "id": "example:ACME003:names in two files",
+   "kind": "example",
+   "rule": "ACME003",
+   "name": "names in two files",
+   "file": "tests/data/lint-examples/naming.yaml",
+   "line": 71,
+   "col": 11,
+   "ok": true,
+   "markers": [
+    {
+     "code": "ACME003",
+     "severity": "hint",
+     "message": "struct 'Pq' is shorter than 3 characters",
+     "file": "types.pss",
+     "line": 2,
+     "col": 3,
+     "extent": 13
+    }
+   ]
+  },
+  {
+   "id": "example:ACME-NET001:base reported at the reference",
+   "kind": "example",
+   "rule": "ACME-NET001",
+   "name": "base reported at the reference",
+   "file": "tests/data/lint-examples/structure.yaml",
+   "line": 16,
+   "col": 11,
+   "ok": true,
+   "markers": [
+    {
+     "code": "ACME-NET001",
+     "severity": "warning",
+     "message": "Derived derives from a base type",
+     "file": "example.pss",
+     "line": 3,
+     "col": 20,
+     "extent": 4
+    }
+   ]
+  },
+  {
+   "id": "example:ACME-NET001:no base",
+   "kind": "example",
+   "rule": "ACME-NET001",
+   "name": "no base",
+   "file": "tests/data/lint-examples/structure.yaml",
+   "line": 22,
+   "col": 11,
+   "ok": true,
+   "markers": []
+  },
+  {
+   "id": "example:ACME-NET002:example 1",
+   "kind": "example",
+   "rule": "ACME-NET002",
+   "name": "example 1",
+   "file": "tests/data/lint-examples/structure.yaml",
+   "line": 37,
+   "col": 11,
+   "ok": true,
+   "markers": [
+    {
+     "code": "ACME-NET002",
+     "severity": "warning",
+     "message": "'==' outside a constraint",
+     "file": "example.pss",
+     "line": 6,
+     "col": 11,
+     "extent": 1
+    }
+   ]
+  },
+  {
+   "id": "run:all-rules",
+   "kind": "run",
+   "ruleFiles": [
+    "tests/data/lint-examples/naming.yaml",
+    "tests/data/lint-examples/structure.yaml"
+   ],
+   "ruleTexts": [],
+   "sources": [
+    {
+     "name": "m.pss",
+     "text": "component pss_top {\n  int count;\n  action write_burst {\n    rand bit[8] m_len;\n    rand bit[8] len;\n    constraint { len == 2; }\n    exec post_solve {\n      if (len == 3) { }\n    }\n  }\n  action Ab : write_burst { }\n  struct Xy { }\n}\n"
+    }
+   ],
+   "request": {},
+   "markers": [
+    {
+     "code": "ACME001",
+     "severity": "hint",
+     "message": "action 'write_burst' is not UpperCamelCase",
+     "file": "m.pss",
+     "line": 3,
+     "col": 3,
+     "extent": 149
+    },
+    {
+     "code": "ACME002",
+     "severity": "hint",
+     "message": "field 'len' does not start with 'm_'",
+     "file": "m.pss",
+     "line": 5,
+     "col": 17,
+     "extent": 3
+    },
+    {
+     "code": "ACME-NET002",
+     "severity": "warning",
+     "message": "'==' outside a constraint",
+     "file": "m.pss",
+     "line": 8,
+     "col": 11,
+     "extent": 3
+    },
+    {
+     "code": "ACME003",
+     "severity": "hint",
+     "message": "action 'Ab' is shorter than 3 characters",
+     "file": "m.pss",
+     "line": 11,
+     "col": 3,
+     "extent": 27
+    },
+    {
+     "code": "ACME-NET001",
+     "severity": "warning",
+     "message": "Ab derives from a base type",
+     "file": "m.pss",
+     "line": 11,
+     "col": 15,
+     "extent": 11
+    },
+    {
+     "code": "ACME003",
+     "severity": "hint",
+     "message": "struct 'Xy' is shorter than 3 characters",
+     "file": "m.pss",
+     "line": 12,
+     "col": 3,
+     "extent": 13
+    }
+   ],
+   "stats": [
+    {
+     "id": "ACME001",
+     "matches": 2,
+     "findings": 1,
+     "steps": 21,
+     "errors": 0
+    },
+    {
+     "id": "ACME002",
+     "matches": 2,
+     "findings": 1,
+     "steps": 16,
+     "errors": 0
+    },
+    {
+     "id": "ACME003",
+     "matches": 3,
+     "findings": 2,
+     "steps": 37,
+     "errors": 0
+    },
+    {
+     "id": "ACME-NET001",
+     "matches": 2,
+     "findings": 1,
+     "steps": 8,
+     "errors": 0
+    },
+    {
+     "id": "ACME-NET002",
+     "matches": 1,
+     "findings": 1,
+     "steps": 4,
+     "errors": 0
+    }
+   ],
+   "problems": []
+  },
+  {
+   "id": "run:enabled-and-options",
+   "kind": "run",
+   "ruleFiles": [
+    "tests/data/lint-examples/naming.yaml",
+    "tests/data/lint-examples/structure.yaml"
+   ],
+   "ruleTexts": [],
+   "sources": [
+    {
+     "name": "m.pss",
+     "text": "component pss_top {\n  int count;\n  action write_burst {\n    rand bit[8] m_len;\n    rand bit[8] len;\n    constraint { len == 2; }\n    exec post_solve {\n      if (len == 3) { }\n    }\n  }\n  action Ab : write_burst { }\n  struct Xy { }\n}\n"
+    }
+   ],
+   "request": {
+    "enabled": [
+     "ACME002",
+     "ACME003"
+    ],
+    "options": {
+     "ACME002": {
+      "prefix": "le"
+     },
+     "ACME003": {
+      "min": 12
+     }
+    }
+   },
+   "markers": [
+    {
+     "code": "ACME003",
+     "severity": "hint",
+     "message": "action 'write_burst' is shorter than 12 characters",
+     "file": "m.pss",
+     "line": 3,
+     "col": 3,
+     "extent": 149
+    },
+    {
+     "code": "ACME002",
+     "severity": "hint",
+     "message": "field 'm_len' does not start with 'le'",
+     "file": "m.pss",
+     "line": 4,
+     "col": 17,
+     "extent": 5
+    },
+    {
+     "code": "ACME003",
+     "severity": "hint",
+     "message": "action 'Ab' is shorter than 12 characters",
+     "file": "m.pss",
+     "line": 11,
+     "col": 3,
+     "extent": 27
+    },
+    {
+     "code": "ACME003",
+     "severity": "hint",
+     "message": "struct 'Xy' is shorter than 12 characters",
+     "file": "m.pss",
+     "line": 12,
+     "col": 3,
+     "extent": 13
+    }
+   ],
+   "stats": [
+    {
+     "id": "ACME002",
+     "matches": 2,
+     "findings": 1,
+     "steps": 16,
+     "errors": 0
+    },
+    {
+     "id": "ACME003",
+     "matches": 3,
+     "findings": 3,
+     "steps": 45,
+     "errors": 0
+    }
+   ],
+   "problems": []
+  },
+  {
+   "id": "run:request-problems",
+   "kind": "run",
+   "ruleFiles": [
+    "tests/data/lint-examples/naming.yaml",
+    "tests/data/lint-examples/structure.yaml"
+   ],
+   "ruleTexts": [],
+   "sources": [
+    {
+     "name": "m.pss",
+     "text": "component pss_top {\n  int count;\n  action write_burst {\n    rand bit[8] m_len;\n    rand bit[8] len;\n    constraint { len == 2; }\n    exec post_solve {\n      if (len == 3) { }\n    }\n  }\n  action Ab : write_burst { }\n  struct Xy { }\n}\n"
+    }
+   ],
+   "request": {
+    "enabled": [
+     "NOPE",
+     "ACME001"
+    ],
+    "options": {
+     "ACME001": {
+      "x": 1
+     },
+     "ACME002": {
+      "prefix": 1
+     }
+    }
+   },
+   "markers": [
+    {
+     "code": "ACME001",
+     "severity": "hint",
+     "message": "action 'write_burst' is not UpperCamelCase",
+     "file": "m.pss",
+     "line": 3,
+     "col": 3,
+     "extent": 149
+    }
+   ],
+   "stats": [
+    {
+     "id": "ACME001",
+     "matches": 2,
+     "findings": 1,
+     "steps": 21,
+     "errors": 0
+    }
+   ],
+   "problems": [
+    "enabled: no rule 'NOPE' is loaded",
+    "options: rule ACME001 has no option 'x'",
+    "options: ACME002.prefix must be string"
+   ]
+  },
+  {
+   "id": "run:two-files",
+   "kind": "run",
+   "ruleFiles": [
+    "tests/data/lint-examples/naming.yaml",
+    "tests/data/lint-examples/structure.yaml"
+   ],
+   "ruleTexts": [],
+   "sources": [
+    {
+     "name": "types.pss",
+     "text": "package p {\n  struct Pq { }\n}\n"
+    },
+    {
+     "name": "top.pss",
+     "text": "import p::*;\ncomponent pss_top {\n  abstract action q_a { }\n  action b : q_a { Pq s; }\n}\n"
+    }
+   ],
+   "request": {},
+   "markers": [
+    {
+     "code": "ACME001",
+     "severity": "hint",
+     "message": "action 'q_a' is not UpperCamelCase",
+     "file": "top.pss",
+     "line": 3,
+     "col": 3,
+     "extent": -1
+    },
+    {
+     "code": "ACME001",
+     "severity": "hint",
+     "message": "action 'b' is not UpperCamelCase",
+     "file": "top.pss",
+     "line": 4,
+     "col": 3,
+     "extent": 24
+    },
+    {
+     "code": "ACME003",
+     "severity": "hint",
+     "message": "action 'b' is shorter than 3 characters",
+     "file": "top.pss",
+     "line": 4,
+     "col": 3,
+     "extent": 24
+    },
+    {
+     "code": "ACME-NET001",
+     "severity": "warning",
+     "message": "b derives from a base type",
+     "file": "top.pss",
+     "line": 4,
+     "col": 14,
+     "extent": 3
+    },
+    {
+     "code": "ACME002",
+     "severity": "hint",
+     "message": "field 's' does not start with 'm_'",
+     "file": "top.pss",
+     "line": 4,
+     "col": 23,
+     "extent": 1
+    },
+    {
+     "code": "ACME003",
+     "severity": "hint",
+     "message": "struct 'Pq' is shorter than 3 characters",
+     "file": "types.pss",
+     "line": 2,
+     "col": 3,
+     "extent": 13
+    }
+   ],
+   "stats": [
+    {
+     "id": "ACME001",
+     "matches": 2,
+     "findings": 2,
+     "steps": 24,
+     "errors": 0
+    },
+    {
+     "id": "ACME002",
+     "matches": 1,
+     "findings": 1,
+     "steps": 10,
+     "errors": 0
+    },
+    {
+     "id": "ACME003",
+     "matches": 3,
+     "findings": 2,
+     "steps": 37,
+     "errors": 0
+    },
+    {
+     "id": "ACME-NET001",
+     "matches": 2,
+     "findings": 1,
+     "steps": 8,
+     "errors": 0
+    },
+    {
+     "id": "ACME-NET002",
+     "matches": 0,
+     "findings": 0,
+     "steps": 0,
+     "errors": 0
+    }
+   ],
+   "problems": []
+  },
+  {
+   "id": "run:budget",
+   "kind": "run",
+   "ruleFiles": [
+    "tests/data/lint-examples/naming.yaml",
+    "tests/data/lint-examples/structure.yaml"
+   ],
+   "ruleTexts": [],
+   "sources": [
+    {
+     "name": "m.pss",
+     "text": "component pss_top {\n  int count;\n  action write_burst {\n    rand bit[8] m_len;\n    rand bit[8] len;\n    constraint { len == 2; }\n    exec post_solve {\n      if (len == 3) { }\n    }\n  }\n  action Ab : write_burst { }\n  struct Xy { }\n}\n"
+    }
+   ],
+   "request": {
+    "enabled": [
+     "ACME002"
+    ],
+    "maxSteps": 5
+   },
+   "markers": [
+    {
+     "code": "PSSP221",
+     "severity": "warning",
+     "message": "rule ACME002 (field-prefix) used its budget of 5 evaluation steps for this file, in its where at Field 'm_len'; the rule is skipped for the rest of this file",
+     "file": "m.pss",
+     "line": 4,
+     "col": 17,
+     "extent": 5
+    }
+   ],
+   "stats": [
+    {
+     "id": "ACME002",
+     "matches": 1,
+     "findings": 0,
+     "steps": 5,
+     "errors": 1
+    }
+   ],
+   "problems": []
+  },
+  {
+   "id": "run:failure",
+   "kind": "run",
+   "ruleFiles": [],
+   "ruleTexts": [
+    {
+     "name": "failing.yaml",
+     "text": "pss-rules:\n  rules:\n    - id: ACME009\n      name: base-elems\n      tier: suspicious\n      summary: s\n      message: m\n      match: { kind: Action }\n      where: size(node.super_t.elems) > 0\n"
+    }
+   ],
+   "sources": [
+    {
+     "name": "m.pss",
+     "text": "component pss_top {\n  int count;\n  action write_burst {\n    rand bit[8] m_len;\n    rand bit[8] len;\n    constraint { len == 2; }\n    exec post_solve {\n      if (len == 3) { }\n    }\n  }\n  action Ab : write_burst { }\n  struct Xy { }\n}\n"
+    }
+   ],
+   "request": {},
+   "markers": [
+    {
+     "code": "PSSP220",
+     "severity": "warning",
+     "message": "rule ACME009 (base-elems) failed in its where at Action 'write_burst': field 'elems' of unset 'super_t'; the rule is skipped for the rest of this file",
+     "file": "m.pss",
+     "line": 3,
+     "col": 3,
+     "extent": 149
+    }
+   ],
+   "stats": [
+    {
+     "id": "ACME009",
+     "matches": 1,
+     "findings": 0,
+     "steps": 5,
+     "errors": 1
+    }
+   ],
+   "problems": []
+  },
+  {
+   "id": "run:gate",
+   "kind": "run",
+   "ruleFiles": [
+    "tests/data/lint-examples/naming.yaml",
+    "tests/data/lint-examples/structure.yaml"
+   ],
+   "ruleTexts": [],
+   "sources": [
+    {
+     "name": "bad.pss",
+     "text": "component pss_top { action b : Missing { } }\n"
+    }
+   ],
+   "request": {},
+   "markers": [
+    {
+     "code": "PSSP230",
+     "severity": "info",
+     "message": "lint skipped: 1 error",
+     "file": "<pssparser>",
+     "line": 0,
+     "col": 0,
+     "extent": 0
+    }
+   ],
+   "stats": [
+    {
+     "id": "ACME001",
+     "matches": 0,
+     "findings": 0,
+     "steps": 0,
+     "errors": 0
+    },
+    {
+     "id": "ACME002",
+     "matches": 0,
+     "findings": 0,
+     "steps": 0,
+     "errors": 0
+    },
+    {
+     "id": "ACME003",
+     "matches": 0,
+     "findings": 0,
+     "steps": 0,
+     "errors": 0
+    },
+    {
+     "id": "ACME-NET001",
+     "matches": 0,
+     "findings": 0,
+     "steps": 0,
+     "errors": 0
+    },
+    {
+     "id": "ACME-NET002",
+     "matches": 0,
+     "findings": 0,
+     "steps": 0,
+     "errors": 0
+    }
+   ],
+   "problems": []
+  },
+  {
+   "id": "run:gate-nothing-enabled",
+   "kind": "run",
+   "ruleFiles": [
+    "tests/data/lint-examples/naming.yaml",
+    "tests/data/lint-examples/structure.yaml"
+   ],
+   "ruleTexts": [],
+   "sources": [
+    {
+     "name": "bad.pss",
+     "text": "component pss_top { action b : Missing { } }\n"
+    }
+   ],
+   "request": {
+    "enabled": []
+   },
+   "markers": [],
+   "stats": [],
+   "problems": []
+  }
+ ]
+}

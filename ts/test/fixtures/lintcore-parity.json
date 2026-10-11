@@ -2138,8 +2138,8 @@
    ],
    "file": "tests/data/pss-rules/builtin-requirements.yaml",
    "fileArg": 1,
-   "sha256": "a91b584f521eabac42080069ba4cb8dfd310201a5be686eae0f063e3e1dfe2b3",
-   "len": 1578
+   "sha256": "c1e06f1c6d290683a65f5edef4f0879ecf16c38e085df5e432df4b2a1eb864de",
+   "len": 1616
   },
   {
    "id": "rule-load:defaults-bad.yaml",
@@ -2177,8 +2177,8 @@
    ],
    "file": "tests/data/pss-rules/examples.yaml",
    "fileArg": 1,
-   "sha256": "d1aea73117fddb4d91f4ae824f5c033391f00ebe1e96d72e65f0a744920c67dc",
-   "len": 2061
+   "sha256": "e37014a649d6f586810149ed2c2766434feaaf2aba64344d15707ad8802724b9",
+   "len": 2118
   },
   {
    "id": "rule-load:expr-limit.yaml",
@@ -2281,8 +2281,8 @@
    ],
    "file": "tests/data/pss-rules/ids-builtin.yaml",
    "fileArg": 1,
-   "sha256": "80cdf850891aa3dcd9850b69bca5dc51b3a735da27b280d0855ff348a993aeae",
-   "len": 1189
+   "sha256": "9f5bbb9b2520fee71422b25f5a19aecee14d3fb262fe5e2b00f4a1da5c091650",
+   "len": 1227
   },
   {
    "id": "rule-load:ids-duplicate.yaml",

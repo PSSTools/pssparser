@@ -89,6 +89,7 @@ cdef extern from "pssp/lint/ILintEngine.h" namespace "pssp::lint":
         uint32_t loadBuiltinRules()
         uint32_t numBuiltinRuleFiles()
         RuleProbeE probeRules(const cpp_string &text)
+        cpp_string run(const cpp_vector[ast.IScopeChildP] &roots, const cpp_string &requestJson)
         cpp_string diagnosticsJson()
         cpp_string rulesJson()
 

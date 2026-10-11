@@ -7,14 +7,6 @@ declares rules in YAML, with their conditions written as expressions. The
 same file works in the command line, the editor and CI, because pssparser's
 core loads it in every one of them.
 
-.. note::
-
-   This release **loads and checks** rule files: every problem described
-   below is reported, and ``--check-rules`` validates a rules repository in
-   CI. Running the rules over a model, and running each rule's
-   ``examples:``, come with the lint runner in a later release. Until then a
-   rule file has no findings to report.
-
 A first rule file
 =================
 
@@ -66,6 +58,34 @@ Name it in the configuration, and check it:
    $ pssparser --check-rules
    0 errors in 1 file
    pssparser: 1 rule loaded from 1 file
+
+That also ran the rule's two examples, and both gave what their
+``// expect:`` comments say (see `Examples`_).
+
+Then turn it on. A rule runs when the lint selection enables it, like any
+other lint rule: by its tier through a profile, or by name. The default
+profile, ``minimal``, enables none of a site's rules, so select them:
+
+.. code-block:: toml
+
+   [lint]
+   rules = ["lint/rules/"]
+   select = ["ACME"]          # every ACME rule; or "action-name-upper-camel"
+
+.. code-block:: console
+
+   $ pssparser --show-hints top.pss
+   top.pss:2:3: hint: [ACME001] action 'write_burst' is not UpperCamelCase; the ACME style guide names action types like 'WriteBurst'
+    2 |   action write_burst { }
+      |   ^~~~~~~~~~~~~~~~~~~~~~
+
+   0 errors in 1 file
+
+A ``style`` rule reports hints, which the terminal output hides unless
+asked (``--show-hints``, or ``show-hints = true`` under ``[output]``). A rule
+left out of the selection is never evaluated. Rules run only on a model that
+parsed and linked without errors. ``--stats`` lists what each rule did (see
+:doc:`cli`).
 
 The file
 ========
@@ -136,7 +156,8 @@ A rule
 ``examples``
    Small models, each with ``// expect: ID`` on the lines that must report.
    An example without an ``expect`` must report nothing. Use ``code:`` for
-   one file, or ``files:`` for several.
+   one file, or ``files:`` for several. ``--check-rules`` runs them (see
+   `Examples`_).
 ``family``, ``doc``, ``lrm``, ``since``, ``status``, ``aliases``, ``replaced_by``, ``severity``, ``default_enabled``
    Metadata, as for the built-in rules.
 
@@ -181,16 +202,85 @@ A path may name a file or a directory.
 
 A path that does not exist is a usage error (exit 2).
 
+Examples
+========
+
+A rule's ``examples:`` are its tests, and its documentation. Each one is a
+complete model: give it a component scope, and ``import std_pkg::*;`` when
+it uses the standard library.
+
+.. code-block:: yaml
+
+   examples:
+     - name: two fields in one action
+       code: |
+         component pss_top {
+           action A {
+             rand bit[8] m_ok;
+             rand bit[8] bad;                // expect: ACME002 @ 4:17
+             rand bit[8] x; rand bit[8] y;   // expect: ACME002, ACME002
+           }
+         }
+     - name: types in two files
+       files:
+         types.pss: |
+           package p {
+             struct Pq { }   // expect: ACME003
+           }
+         top.pss: |
+           import p::*;
+           component pss_top { action Abc { Pq s; } }
+
+* ``// expect: ID`` expects one finding of the rule on that line, at any
+  column; ``ID @ line:col`` expects it at that position of the example's
+  text (line 1 is the first line of ``code:``, or of that file). One
+  comment may list several, separated by commas, and ``/* expect: ID */``
+  works too, which leaves the rest of the line to code.
+* An example with no ``expect`` comment, or with ``// expect: none``, must
+  report nothing: a near miss, which is how a rule shows what it leaves
+  alone.
+* An ``expect`` may name only the rule's own ID.
+
+``pssparser --check-rules`` runs every example of the rules in the files it
+checks. An example runs on its own: its files are parsed and linked by a
+fresh parser, only its rule runs, and the rule's options are at their
+defaults. It passes when the rule reports exactly what the ``expect``
+comments say: a finding missing, or one too many, fails it. So does an
+example that does not parse or link, and one on which the rule fails
+(``PSSP220``, ``PSSP221``). Each problem is a ``PSSP222`` error at the
+example, and the message says what went wrong where in the example's text.
+Had the first rule's firing example named its action ``WriteBurst``:
+
+.. code-block:: console
+
+   $ pssparser --check-rules lint/rules/acme-naming.yaml
+   lint/rules/acme-naming.yaml:22:11: error: [PSSP222] example 'lower-case name' of ACME001: expected ACME001 at line 2, but it was not reported
+    22 |         - name: lower-case name
+       |           ^
+
+   1 error in 1 file
+   pssparser: 1 rule loaded from 1 file
+
+Built-in rules need at least one example that reports and one that does
+not.
+
+For larger sets of cases, write fixture files and run them from pytest with
+``pssparser.checkers.testing``, which loads rule files with ``rule_files=``
+(see :doc:`checker_plugin_guide`, "Testing your rules"). From Python,
+``pssparser.lint.examples.check_examples(engine)`` runs the examples of the
+rules loaded in a :class:`~pssparser.core.LintEngine` and raises
+``AssertionError`` listing every failure.
+
 Checking rule files
 ===================
 
 ``pssparser --check-rules [PATH...]`` loads rule files, reports every
-problem, and exits. With PATHs it checks those; without, it checks
-``[lint] rules`` and ``--rules``. The built-in rules are always loaded
-first, so a clash with one of them is found.
+problem, runs their rules' examples, and exits. With PATHs it checks those;
+without, it checks ``[lint] rules`` and ``--rules``. The built-in rules are
+always loaded first, so a clash with one of them is found.
 
 * exit 0: no errors (notes do not count);
-* exit 1: a rule file has an error;
+* exit 1: a rule file has an error, or an example fails;
 * exit 2: a usage error, such as a path that does not exist, or nothing to
   check.
 
@@ -311,6 +401,8 @@ What is reported
      - A warning: a rule failed while running on the model (see above).
    * - ``PSSP221``
      - A warning: a rule used up its evaluation budget for a file.
+   * - ``PSSP222``
+     - An example does not give the findings it expects (see `Examples`_).
    * - ``PSSP230``
      - A note: lint did not run, because the model has errors.
 

@@ -30,8 +30,10 @@ extension that does is refused with `PSSP005`.
 ```text
 python/pssparser/lint/
   __init__.py     register(reg): the bundled extension, loaded by manager.discover
-  catalog.py      every LINT MarkerDef, as data (CORE_EMITTED + runner rules)
-  rules/          checker classes the runner executes; rules.CHECKERS lists them
+  catalog.py      every LINT MarkerDef, as data (CORE_EMITTED)
+  rulefiles.py    finding and loading pss-rules files ([lint] rules, --rules)
+  ruleview.py     the loaded rules as MarkerDefs, and the pss-rules checker
+  examples.py     runs the rules' examples: (--check-rules, tests)
 ```
 
 - **Core-emitted rules** (`catalog.CORE_EMITTED`): the C++ linker raises the
@@ -39,11 +41,13 @@ python/pssparser/lint/
   Each one replaced a retired `PSS` row and sits at that row's position, so
   the order in which patterns are tried is unchanged. The old ID is kept in
   `aliases`. Changing the C++ message text means changing the pattern too.
-- **Runner rules** (`rules/`): ordinary checker classes, so they use the same
-  API a third-party extension uses. If a rule needs something the API lacks,
-  add it to the API rather than reaching around it. The definition still goes
-  in `catalog.py`, so `--explain`, profiles and the generated reference work
-  without importing a rule (and under `PSSPARSER_NO_LINT`).
+- **Declarative rules** (`pss-rules` files in `rules/` at the repository
+  root, compiled into the core): run by the C++ lint engine
+  (`docs/design/lint-core-plan.md`), not by Python. The registry sees them
+  through `pssparser.lint.ruleview`, as the checker `pss-rules`, whose
+  `check()` calls `LintEngine.run` with the enabled IDs, the
+  `[lint.rule.<name>]` options and the gate count. There are no Python
+  runner rules any more (`lint/rules/` was deleted in C5.4).
 
 The bundled extension is registered in-process, not through an entry point,
 so `PYTHONPATH=python` trees see it (plan §10 Dv-1).
@@ -117,18 +121,39 @@ exist.
 
 Other helpers in `pssparser.checkers.testing`, shipped in the wheel:
 
-- `run_rules(paths, rules=[...])`: parse, link, run only the named rules
-  (profile `none` plus the selectors given) and return the diagnostics.
+- `run_rules(paths, rules=[...], rule_files=[...])`: parse, link, run only
+  the named rules (profile `none` plus the selectors given) and return the
+  diagnostics. The built-in rule files are always loaded; `rule_files` adds
+  others, as `--rules` does. Selected declarative rules run even under
+  `PSSPARSER_NO_LINT`. `check_fixture(_dir)` take `rule_files` too.
 - `check_examples(checker_cls)`: runs every `MarkerDef.examples` entry.
 - `check_messages(diags)`: the error suite's message lints when
   `pss_errsuite` is importable; otherwise one line, at most 120 characters,
   a code, no grammar jargon. The definition of done also asks that the message
   name the construct and the consequence in one sentence; nothing checks that.
 
+## Declarative rules' examples
+
+A `pss-rules` rule's `examples:` run in `pssparser.lint.examples`
+(`run_examples`, `check_examples(engine)`): each example parsed and linked by
+a fresh `Parser`, only its rule enabled, options at their defaults, findings
+compared with its `// expect:` comments (no `@ L:C`: anywhere on the line).
+An example with errors, or one where the rule fails (PSSP220/221), fails.
+
+- `--check-rules` runs the examples of the files it checks (not the built-in
+  ones); each problem is a `PSSP222` error at the example.
+- `tests/python/lintcore/test_examples.py` runs every built-in rule's
+  examples and those of `tests/data/lint-examples/*.yaml`.
+- The same examples, plus some whole runs, run in WASM:
+  `ts/test/lint-parity.test.ts` against `ts/test/fixtures/lint-parity.json`.
+  After changing a built-in rule file or anything under
+  `tests/data/lint-examples/`, run `npm run gen:lint-parity-fixture` in
+  `ts/`; `tests/python/test_ts_fixtures_current.py` fails until you do.
+
 ## Test isolation
 
-`tests/python/conftest.py` sets `PSSPARSER_NO_LINT=1` (autouse), so runner rules
-never fire in the other suites. A lint test opts in with the `lint_enabled`
+`tests/python/conftest.py` sets `PSSPARSER_NO_LINT=1` (autouse), so no
+declarative rule (built-in or from `--rules`) runs in the other suites. A lint test opts in with the `lint_enabled`
 fixture. `PSSPARSER_NO_LINT` does not affect the core-emitted rules: the lint
 profile governs those, and the default profile (`minimal`) is exactly those
 nine, so the existing suites keep seeing them.

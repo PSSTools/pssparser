@@ -62,6 +62,9 @@ export interface ParserSessionHandle {
   ruleDiagnosticsJson(): string;
   /** Every loaded rule, as JSON. */
   rulesJson(): string;
+  /** Run the loaded rules over the linked user files: `ILintEngine::run`'s
+   *  request and result JSON. */
+  runLint(requestJson: string): string;
   /** Embind's destructor. Frees the C++ object; the handle is dead after. */
   delete(): void;
 }

@@ -17,6 +17,7 @@ import {
   type Marker,
   type RawMarker,
 } from './Marker.js';
+import { lintRequestJson, parseLintResult, type LintRequest, type LintResult } from './Lint.js';
 import { deserialize } from './ast/generated/deserialize.js';
 import { GlobalScope, RootSymbolScope } from './ast/generated/index.js';
 import { initPssParser, type ParserSessionHandle, type InitOptions } from './wasm/loader.js';
@@ -303,7 +304,7 @@ export class Parser {
    *
    * The same loader as the CLI's `--rules`: an ID or name already taken by
    * an earlier file, built-in or not, is refused (`PSSP217`). Loading rules
-   * does not run them yet (lint-core-plan.md C5).
+   * does not run them: `runLint()` does.
    */
   loadRules(files: RuleFile[]): RuleDiagnostic[] {
     const session = this.#require();
@@ -312,6 +313,23 @@ export class Parser {
       session.loadRuleFile(f.name, f.text);
     }
     return this.ruleDiagnostics.slice(before);
+  }
+
+  /**
+   * Run the loaded rules over the linked model's files (lint-core-plan.md
+   * C5.4), in one walk in the core: the same engine, and so the same
+   * findings, as the CLI. Call after `link()`; before it there is no model
+   * and the result has no markers.
+   *
+   * The gate: unless `request.gateErrors` says otherwise, the error markers
+   * this Parser holds (parse and link) count, and with any of them no rule
+   * runs; the result's one marker is `PSSP230`, "lint skipped: N errors".
+   * The markers are returned, not added to `markers`.
+   */
+  runLint(request: LintRequest = {}): LintResult {
+    const session = this.#require();
+    const errors = this.#markers.filter((m) => m.severity === 'error').length;
+    return parseLintResult(session.runLint(lintRequestJson(request, errors)), this.#fileMap);
   }
 
   /** Every rule-file diagnostic of this Parser, built-in files included. */

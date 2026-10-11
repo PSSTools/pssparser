@@ -100,6 +100,9 @@ class RunStats:
     waived_by_code: Dict[str, int] = field(default_factory=dict)
     # Marker ID -> findings a baseline covered.
     baselined_by_code: Dict[str, int] = field(default_factory=dict)
+    # The declarative rules that ran, in load order: {"id", "matches",
+    # "findings", "steps", "ns", "errors"} (lint-core-plan C5.4).
+    lint_rules: List[dict] = field(default_factory=list)
 
 
 def make_visitor():
@@ -268,6 +271,19 @@ def render_human(stats: RunStats) -> str:
         items = [f"{code} x{n}" for code, n in stats.baselined_by_code.items()]
         lines.append("  baselined:    " + ", ".join(items))
 
+    if stats.lint_rules:
+        lines.append("  lint rules:")
+        for r in stats.lint_rules:
+            row = (f"    {r['id']}: "
+                   + _plural(r["matches"], "match", "matches") + ", "
+                   + _plural(r["findings"], "finding", "findings") + ", "
+                   + _plural(r["steps"], "step", "steps"))
+            if r["errors"]:
+                row += ", " + _plural(r["errors"], "failure", "failures")
+            if stats.timings_ns:
+                row += ", " + _fmt_ns(r["ns"])
+            lines.append(row)
+
     if stats.timings_ns:
         items = [f"{name} {_fmt_ns(ns)}" for name, ns in stats.timings_ns.items()]
         lines.append("  timing:       " + ", ".join(items))
@@ -289,6 +305,14 @@ def to_json(stats: RunStats) -> dict:
         doc["waived_by_code"] = dict(stats.waived_by_code)
     if stats.baselined_by_code:
         doc["baselined_by_code"] = dict(stats.baselined_by_code)
+    if stats.lint_rules:
+        rows = []
+        for r in stats.lint_rules:
+            row = {k: r[k] for k in ("id", "matches", "findings", "steps", "errors")}
+            if stats.timings_ns:
+                row["ms"] = round(r["ns"] / 1_000_000.0, 3)
+            rows.append(row)
+        doc["lint_rules"] = rows
     if stats.timings_ns:
         doc["timing_ms"] = {
             name: round(ns / 1_000_000.0, 3)

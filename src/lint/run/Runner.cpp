@@ -98,8 +98,17 @@ void Runner::evaluate(size_t idx, const rules::Rule &r, const rf::Node &n) {
 
     Vars vars;
     vars.emplace_back("node", nodeValue(n));
+    auto set = m_opts.options.find(&r);
     for (const rules::RuleOption &o : r.m_options) {
-        vars.emplace_back("options." + o.name, o.def);
+        const cel::Value *v = &o.def;
+        if (set != m_opts.options.end()) {
+            for (const auto &kv : set->second) {
+                if (kv.first == o.name) {
+                    v = &kv.second;
+                }
+            }
+        }
+        vars.emplace_back("options." + o.name, *v);
     }
     // Each let sees the ones before it. An error is kept as the value: it
     // matters only if where: or report: depends on it.

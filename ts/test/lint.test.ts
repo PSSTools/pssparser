@@ -59,3 +59,103 @@ describe('Parser.loadRules', () => {
     expect(parser.ruleDiagnostics).toEqual([]);
   });
 });
+
+const ACME = `pss-rules:
+  rules:
+    - id: ACME001
+      name: action-upper
+      tier: suspicious
+      summary: Action names start upper-case
+      message: "action '\${node.name.id}' should start with \${options.first}"
+      match: { kind: Action }
+      where: "!node.name.id.startsWith(options.first)"
+      options:
+        first: { type: string, default: "A", help: The first letter }
+    - id: ACME002
+      name: every-field
+      tier: style
+      summary: Every field
+      message: "field \${node}"
+      match: { kind: Field }
+`;
+
+const MODEL = 'component pss_top {\n  action A { }\n  action b { int x; }\n}\n';
+
+describe('Parser.runLint (C5.4)', () => {
+  it('runs the loaded rules over the linked model', async () => {
+    using parser = await createParser();
+    expect(parser.loadRules([{ name: 'acme.yaml', text: ACME }])).toEqual([]);
+    parser.parseSources([{ name: 'm.pss', content: MODEL }]);
+    parser.link();
+    const r = parser.runLint();
+    expect(r.markers.map((m) => [m.code, m.file, m.line, m.col, m.severity, m.message])).toEqual([
+      ['ACME001', 'm.pss', 3, 3, 'warning', "action 'b' should start with A"],
+      ['ACME002', 'm.pss', 3, 18, 'hint', 'field x'],
+    ]);
+    expect(r.stats.map((s) => [s.id, s.matches, s.findings, s.errors])).toEqual([
+      ['ACME001', 2, 1, 0],
+      ['ACME002', 1, 1, 0],
+    ]);
+    expect(r.problems).toEqual([]);
+  });
+
+  it('runs only the enabled rules, with option values', async () => {
+    using parser = await createParser();
+    parser.loadRules([{ name: 'acme.yaml', text: ACME }]);
+    parser.parseSources([{ name: 'm.pss', content: MODEL }]);
+    parser.link();
+    const r = parser.runLint({ enabled: ['ACME001'], options: { ACME001: { first: 'b' } } });
+    expect(r.markers.map((m) => m.message)).toEqual(["action 'A' should start with b"]);
+    expect(r.stats.map((s) => s.id)).toEqual(['ACME001']);
+  });
+
+  it('reports ignored request entries', async () => {
+    using parser = await createParser();
+    parser.loadRules([{ name: 'acme.yaml', text: ACME }]);
+    parser.parseSources([{ name: 'm.pss', content: MODEL }]);
+    parser.link();
+    const r = parser.runLint({ enabled: ['NOPE'], options: { ACME001: { first: 1 } } });
+    expect(r.problems).toEqual([
+      "enabled: no rule 'NOPE' is loaded",
+      'options: ACME001.first must be string',
+    ]);
+  });
+
+  it('is gated by the error markers the parser holds', async () => {
+    using parser = await createParser();
+    parser.loadRules([{ name: 'acme.yaml', text: ACME }]);
+    parser.parseSources([{ name: 'm.pss', content: 'component pss_top { action b : Missing { } }\n' }]);
+    expect(() => parser.link()).toThrow();
+    const r = parser.runLint();
+    expect(r.markers).toEqual([
+      {
+        severity: 'info',
+        message: 'lint skipped: 1 error',
+        file: '<pssparser>',
+        line: 0,
+        col: 0,
+        extent: 0,
+        related: [],
+        code: 'PSSP230',
+      },
+    ]);
+    expect(r.stats.every((s) => s.matches === 0)).toBe(true);
+  });
+
+  it('reports a rule failure', async () => {
+    using parser = await createParser();
+    parser.loadRules([
+      {
+        name: 'bad.yaml',
+        text:
+          'pss-rules:\n  rules:\n    - id: ACME003\n      name: base-elems\n' +
+          '      tier: suspicious\n      summary: s\n      message: m\n' +
+          '      match: { kind: Action }\n      where: size(node.super_t.elems) > 0\n',
+      },
+    ]);
+    parser.parseSources([{ name: 'm.pss', content: MODEL }]);
+    parser.link();
+    const [m] = parser.runLint().markers;
+    expect([m.code, m.line, m.severity]).toEqual(['PSSP220', 2, 'warning']);
+  });
+});
