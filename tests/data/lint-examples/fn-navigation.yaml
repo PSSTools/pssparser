@@ -1,0 +1,90 @@
+# The navigation and kind-test functions (lint-core-plan.md C6.1), each used
+# by a rule whose examples pin its behaviour, so the WebAssembly build is
+# checked against the native one through the lint-parity fixture.
+pss-rules:
+  defaults:
+    family: decl
+    tier: style
+
+  rules:
+    - id: TEST-NAV001
+      name: nav-enclosing-action
+      summary: A constraint item reports the action that encloses it.
+      message: "constraint item in ${enclosing(node, Action).name.id}"
+      match: { kind: ConstraintStmtExpr }
+      where: enclosing(node, Action) != null
+      examples:
+        - code: |
+            struct S {
+              rand int v;
+              constraint { v > 0; }
+            }
+            component pss_top {
+              action A {
+                rand int a;
+                constraint { a > 0; }   // expect: TEST-NAV001
+              }
+            }
+
+    - id: TEST-NAV002
+      name: nav-parent-isa
+      summary: An exec block whose parent is an action.
+      message: "exec in ${parent(node)}"
+      match: { kind: ExecBlock }
+      where: parent(node).isa(Action)
+      examples:
+        - code: |
+            component pss_top {
+              exec init_down { }
+              action A {
+                exec post_solve { }   // expect: TEST-NAV002
+              }
+            }
+
+    - id: TEST-NAV003
+      name: nav-ancestors
+      summary: A field three or more owners deep.
+      message: "${node.name.id} is ${size(ancestors(node))} deep"
+      match: { kind: Field }
+      where: size(ancestors(node)) >= 3
+      examples:
+        - code: |
+            component pss_top {
+              int top_f;
+              action A {
+                rand int a_f;   // expect: TEST-NAV003
+              }
+            }
+
+    - id: TEST-NAV004
+      name: nav-children-descendants
+      summary: An action with more descendants than children.
+      message: "${node.name.id}: ${size(children(node))} children, ${size(descendants(node))} descendants"
+      match: { kind: Action }
+      where: >-
+        size(descendants(node)) > size(children(node))
+        && children(node).exists(c, c.isa(ConstraintBlock))
+      examples:
+        - code: |
+            component pss_top {
+              action A {   // expect: TEST-NAV004
+                rand int a;
+                constraint { a > 0; }
+              }
+              action B { }
+            }
+
+    - id: TEST-NAV005
+      name: nav-siblings-index
+      summary: A field that is not the first item of its scope.
+      message: "${node.name.id} at ${index_of(node)} after ${siblings(node)[0]}"
+      match: { kind: Field }
+      where: index_of(node) > 0
+      examples:
+        - code: |
+            component pss_top {
+              action A {
+                rand int a;
+                rand int b;   // expect: TEST-NAV005
+              }
+            }

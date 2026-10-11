@@ -223,6 +223,10 @@ std::string LintEngine::run(const std::vector<ast::IScopeChild *> &roots,
     if (gateErrors && !on.empty()) {
         skipped.reset(run::Runner::skippedMarker(gateErrors));
     } else if (!gateErrors) {
+        // Every file first: navigation may cross from one file to another.
+        for (ast::IScopeChild *r : roots) {
+            runner.index(ast::reflect::classify(r));
+        }
         for (ast::IScopeChild *r : roots) {
             runner.run(ast::reflect::classify(r));
         }

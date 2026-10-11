@@ -1,10 +1,116 @@
 {
  "generator": "ts/scripts/gen-lint-parity-fixture.py",
  "ruleFiles": [
+  "tests/data/lint-examples/fn-navigation.yaml",
   "tests/data/lint-examples/naming.yaml",
   "tests/data/lint-examples/structure.yaml"
  ],
  "cases": [
+  {
+   "id": "example:TEST-NAV001:example 1",
+   "kind": "example",
+   "rule": "TEST-NAV001",
+   "name": "example 1",
+   "file": "tests/data/lint-examples/fn-navigation.yaml",
+   "line": 17,
+   "col": 11,
+   "ok": true,
+   "markers": [
+    {
+     "code": "TEST-NAV001",
+     "severity": "hint",
+     "message": "constraint item in A",
+     "file": "example.pss",
+     "line": 8,
+     "col": 18,
+     "extent": 6
+    }
+   ]
+  },
+  {
+   "id": "example:TEST-NAV002:example 1",
+   "kind": "example",
+   "rule": "TEST-NAV002",
+   "name": "example 1",
+   "file": "tests/data/lint-examples/fn-navigation.yaml",
+   "line": 36,
+   "col": 11,
+   "ok": true,
+   "markers": [
+    {
+     "code": "TEST-NAV002",
+     "severity": "hint",
+     "message": "exec in A",
+     "file": "example.pss",
+     "line": 4,
+     "col": 5,
+     "extent": 19
+    }
+   ]
+  },
+  {
+   "id": "example:TEST-NAV003:example 1",
+   "kind": "example",
+   "rule": "TEST-NAV003",
+   "name": "example 1",
+   "file": "tests/data/lint-examples/fn-navigation.yaml",
+   "line": 51,
+   "col": 11,
+   "ok": true,
+   "markers": [
+    {
+     "code": "TEST-NAV003",
+     "severity": "hint",
+     "message": "a_f is 3 deep",
+     "file": "example.pss",
+     "line": 4,
+     "col": 14,
+     "extent": 3
+    }
+   ]
+  },
+  {
+   "id": "example:TEST-NAV004:example 1",
+   "kind": "example",
+   "rule": "TEST-NAV004",
+   "name": "example 1",
+   "file": "tests/data/lint-examples/fn-navigation.yaml",
+   "line": 68,
+   "col": 11,
+   "ok": true,
+   "markers": [
+    {
+     "code": "TEST-NAV004",
+     "severity": "hint",
+     "message": "A: 3 children, 14 descendants",
+     "file": "example.pss",
+     "line": 2,
+     "col": 3,
+     "extent": 81
+    }
+   ]
+  },
+  {
+   "id": "example:TEST-NAV005:example 1",
+   "kind": "example",
+   "rule": "TEST-NAV005",
+   "name": "example 1",
+   "file": "tests/data/lint-examples/fn-navigation.yaml",
+   "line": 84,
+   "col": 11,
+   "ok": true,
+   "markers": [
+    {
+     "code": "TEST-NAV005",
+     "severity": "hint",
+     "message": "b at 1 after a",
+     "file": "example.pss",
+     "line": 4,
+     "col": 14,
+     "extent": 1
+    }
+   ]
+  },
   {
    "id": "example:ACME001:lower-case name",
    "kind": "example",
@@ -195,6 +301,7 @@
    "id": "run:all-rules",
    "kind": "run",
    "ruleFiles": [
+    "tests/data/lint-examples/fn-navigation.yaml",
     "tests/data/lint-examples/naming.yaml",
     "tests/data/lint-examples/structure.yaml"
    ],
@@ -217,6 +324,24 @@
      "extent": 149
     },
     {
+     "code": "TEST-NAV004",
+     "severity": "hint",
+     "message": "write_burst: 5 children, 29 descendants",
+     "file": "m.pss",
+     "line": 3,
+     "col": 3,
+     "extent": 149
+    },
+    {
+     "code": "TEST-NAV003",
+     "severity": "hint",
+     "message": "m_len is 3 deep",
+     "file": "m.pss",
+     "line": 4,
+     "col": 17,
+     "extent": 5
+    },
+    {
      "code": "ACME002",
      "severity": "hint",
      "message": "field 'len' does not start with 'm_'",
@@ -224,6 +349,42 @@
      "line": 5,
      "col": 17,
      "extent": 3
+    },
+    {
+     "code": "TEST-NAV003",
+     "severity": "hint",
+     "message": "len is 3 deep",
+     "file": "m.pss",
+     "line": 5,
+     "col": 17,
+     "extent": 3
+    },
+    {
+     "code": "TEST-NAV005",
+     "severity": "hint",
+     "message": "len at 1 after m_len",
+     "file": "m.pss",
+     "line": 5,
+     "col": 17,
+     "extent": 3
+    },
+    {
+     "code": "TEST-NAV001",
+     "severity": "hint",
+     "message": "constraint item in write_burst",
+     "file": "m.pss",
+     "line": 6,
+     "col": 18,
+     "extent": 9
+    },
+    {
+     "code": "TEST-NAV002",
+     "severity": "hint",
+     "message": "exec in write_burst",
+     "file": "m.pss",
+     "line": 7,
+     "col": 5,
+     "extent": 47
     },
     {
      "code": "ACME-NET002",
@@ -263,6 +424,41 @@
     }
    ],
    "stats": [
+    {
+     "id": "TEST-NAV001",
+     "matches": 1,
+     "findings": 1,
+     "steps": 14,
+     "errors": 0
+    },
+    {
+     "id": "TEST-NAV002",
+     "matches": 1,
+     "findings": 1,
+     "steps": 6,
+     "errors": 0
+    },
+    {
+     "id": "TEST-NAV003",
+     "matches": 3,
+     "findings": 2,
+     "steps": 41,
+     "errors": 0
+    },
+    {
+     "id": "TEST-NAV004",
+     "matches": 2,
+     "findings": 1,
+     "steps": 166,
+     "errors": 0
+    },
+    {
+     "id": "TEST-NAV005",
+     "matches": 3,
+     "findings": 1,
+     "steps": 40,
+     "errors": 0
+    },
     {
      "id": "ACME001",
      "matches": 2,
@@ -305,6 +501,7 @@
    "id": "run:enabled-and-options",
    "kind": "run",
    "ruleFiles": [
+    "tests/data/lint-examples/fn-navigation.yaml",
     "tests/data/lint-examples/naming.yaml",
     "tests/data/lint-examples/structure.yaml"
    ],
@@ -389,6 +586,7 @@
    "id": "run:request-problems",
    "kind": "run",
    "ruleFiles": [
+    "tests/data/lint-examples/fn-navigation.yaml",
     "tests/data/lint-examples/naming.yaml",
     "tests/data/lint-examples/structure.yaml"
    ],
@@ -443,6 +641,7 @@
    "id": "run:two-files",
    "kind": "run",
    "ruleFiles": [
+    "tests/data/lint-examples/fn-navigation.yaml",
     "tests/data/lint-examples/naming.yaml",
     "tests/data/lint-examples/structure.yaml"
    ],
@@ -505,6 +704,15 @@
      "extent": 1
     },
     {
+     "code": "TEST-NAV003",
+     "severity": "hint",
+     "message": "s is 3 deep",
+     "file": "top.pss",
+     "line": 4,
+     "col": 23,
+     "extent": 1
+    },
+    {
      "code": "ACME003",
      "severity": "hint",
      "message": "struct 'Pq' is shorter than 3 characters",
@@ -515,6 +723,41 @@
     }
    ],
    "stats": [
+    {
+     "id": "TEST-NAV001",
+     "matches": 0,
+     "findings": 0,
+     "steps": 0,
+     "errors": 0
+    },
+    {
+     "id": "TEST-NAV002",
+     "matches": 0,
+     "findings": 0,
+     "steps": 0,
+     "errors": 0
+    },
+    {
+     "id": "TEST-NAV003",
+     "matches": 1,
+     "findings": 1,
+     "steps": 17,
+     "errors": 0
+    },
+    {
+     "id": "TEST-NAV004",
+     "matches": 2,
+     "findings": 0,
+     "steps": 68,
+     "errors": 0
+    },
+    {
+     "id": "TEST-NAV005",
+     "matches": 1,
+     "findings": 0,
+     "steps": 5,
+     "errors": 0
+    },
     {
      "id": "ACME001",
      "matches": 2,
@@ -557,6 +800,7 @@
    "id": "run:budget",
    "kind": "run",
    "ruleFiles": [
+    "tests/data/lint-examples/fn-navigation.yaml",
     "tests/data/lint-examples/naming.yaml",
     "tests/data/lint-examples/structure.yaml"
    ],
@@ -638,6 +882,7 @@
    "id": "run:gate",
    "kind": "run",
    "ruleFiles": [
+    "tests/data/lint-examples/fn-navigation.yaml",
     "tests/data/lint-examples/naming.yaml",
     "tests/data/lint-examples/structure.yaml"
    ],
@@ -661,6 +906,41 @@
     }
    ],
    "stats": [
+    {
+     "id": "TEST-NAV001",
+     "matches": 0,
+     "findings": 0,
+     "steps": 0,
+     "errors": 0
+    },
+    {
+     "id": "TEST-NAV002",
+     "matches": 0,
+     "findings": 0,
+     "steps": 0,
+     "errors": 0
+    },
+    {
+     "id": "TEST-NAV003",
+     "matches": 0,
+     "findings": 0,
+     "steps": 0,
+     "errors": 0
+    },
+    {
+     "id": "TEST-NAV004",
+     "matches": 0,
+     "findings": 0,
+     "steps": 0,
+     "errors": 0
+    },
+    {
+     "id": "TEST-NAV005",
+     "matches": 0,
+     "findings": 0,
+     "steps": 0,
+     "errors": 0
+    },
     {
      "id": "ACME001",
      "matches": 0,
@@ -703,6 +983,7 @@
    "id": "run:gate-nothing-enabled",
    "kind": "run",
    "ruleFiles": [
+    "tests/data/lint-examples/fn-navigation.yaml",
     "tests/data/lint-examples/naming.yaml",
     "tests/data/lint-examples/structure.yaml"
    ],

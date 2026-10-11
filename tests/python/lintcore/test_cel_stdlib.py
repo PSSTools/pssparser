@@ -162,8 +162,9 @@ def test_evaluator_overload(hooks, oid, text, typ, value):
 
 
 def test_every_overload_has_a_case(registry):
+    # CEL's standard library; the PSS library's functions have test_fn_*.py.
     covered = {c[0] for c in CASES} | {c[0] for c in EVALUATOR_CASES}
-    callable_ = {f["id"] for f in registry if f["kind"] != "macro"}
+    callable_ = {f["id"] for f in registry if f["kind"] != "macro" and f["library"] == "cel"}
     assert callable_ - covered == set(), "overloads without a test case"
     assert covered - callable_ == set(), "cases for overloads that do not exist"
     assert {c[0] for c in EVALUATOR_CASES} == {f["id"] for f in registry if f["evaluator"]}

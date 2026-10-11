@@ -654,7 +654,8 @@ std::string LintTestHooks::celParse(const std::string &text) {
 }
 
 static std::string evalWith(const std::string &text,
-        const std::vector<std::pair<std::string, cel::Value>> &vars, uint64_t max_steps) {
+        const std::vector<std::pair<std::string, cel::Value>> &vars, uint64_t max_steps,
+        const cel::Host *host=nullptr) {
     try {
         cel::CelParser p(text);
         cel::ExprUP e = p.parse();
@@ -662,6 +663,7 @@ static std::string evalWith(const std::string &text,
         if (max_steps) {
             opts.maxSteps = max_steps;
         }
+        opts.host = host;
         cel::CelEval ev(opts);
         std::vector<const cel::Overload *> trace;
         ev.setTrace(&trace);
@@ -710,7 +712,7 @@ std::string LintTestHooks::celFunctions() {
         }
         w.endArray();
         w.kv("result", o->kind == cel::FnKind::Macro ? std::string() : o->result.str());
-        w.kv("display", o->display).kv("group", o->group);
+        w.kv("display", o->display).kv("group", o->group).kv("library", o->library);
         w.kv("level", cel::levelName(o->level)).kv("scope", cel::scopeName(o->scope));
         w.kv("cost", cel::costName(o->cost)).kv("doc", o->doc);
         w.kv("in_profile", o->inProfile);
@@ -732,13 +734,16 @@ std::string LintTestHooks::celEvalNode(const std::string &text, ast::IScopeChild
     ref.kind = n.kind;
     ref.ptr = n.ptr;
     vars.emplace_back("node", cel::Value::mkNode(ref));
-    return evalWith(text, vars, max_steps);
+    // The library sees the tree under `root`, as a run would.
+    lib::Context ctx;
+    ctx.index(n);
+    return evalWith(text, vars, max_steps, &ctx);
 }
 
 // A small rule-shaped document for the checker (C3.3), located through the
 // YAML source maps (C2.2) as the rule loader (C4.1) will locate its errors.
 static std::string checkDoc(const std::string &name, const std::string &text,
-        const cel::Value *node) {
+        const cel::Value *node, const cel::Host *host=nullptr) {
     JsonWriter w;
     w.beginObject();
     yaml::NodeUP root;
@@ -938,6 +943,7 @@ static std::string checkDoc(const std::string &name, const std::string &text,
         if (max_steps) {
             eopts.maxSteps = max_steps;
         }
+        eopts.host = host;
         w.key("values").beginObject();
         std::vector<std::pair<std::string, cel::Value>> vars = values;
         std::vector<std::pair<std::string, std::vector<std::string>>> calls;
@@ -993,7 +999,9 @@ std::string LintTestHooks::celCheckNode(const std::string &name, const std::stri
     ref.kind = n.kind;
     ref.ptr = n.ptr;
     cel::Value v = cel::Value::mkNode(ref);
-    return checkDoc(name, text, &v);
+    lib::Context ctx;
+    ctx.index(n);
+    return checkDoc(name, text, &v, &ctx);
 }
 
 std::string LintTestHooks::reflectSchema() {
@@ -1126,6 +1134,9 @@ std::string LintTestHooks::lintRun(const std::string &name, const std::string &t
     if (gateErrors) {
         skipped.reset(run::Runner::skippedMarker(gateErrors));
     } else {
+        for (ast::IScopeChild *r : roots) {
+            runner.index(rf::classify(r));
+        }
         for (ast::IScopeChild *r : roots) {
             runner.run(rf::classify(r));
         }

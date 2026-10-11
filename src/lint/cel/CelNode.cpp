@@ -19,6 +19,7 @@
 #include <vector>
 #include "Reflect.h"
 #include "CelNode.h"
+#include "../run/Walker.h"
 
 namespace pssp {
 namespace lint {
@@ -164,7 +165,11 @@ Value readList(const rf::FieldInfo &f, const rf::Node &n, uint64_t &elems) {
     out.reserve(sz);
     for (uint32_t i=0; i<sz; i++) {
         rf::Value v = f.at(n.ptr, n.kind, i);
-        if (v.kind == rf::Value::Kind::Node && !v.n) {
+        if (v.kind == rf::Value::Kind::Node && (v.borrowed || run::Walker::implicit(v.n))) {
+            // Listed here, owned elsewhere, or not in the source: as for
+            // children() (Walker.h).
+            continue;
+        } else if (v.kind == rf::Value::Kind::Node && !v.n) {
             out.push_back(Value::null());
         } else {
             out.push_back(convert(v, f.name, elems));

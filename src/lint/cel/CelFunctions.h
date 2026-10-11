@@ -64,6 +64,17 @@ enum class Cost : uint8_t { Constant, Linear, Custom };
 
 enum class FnKind : uint8_t { Operator, Function, Macro };
 
+/**
+ * What the evaluator's caller supplies to the functions that need more than
+ * their operands: the PSS library (lib/PssLib.h) derives its run context
+ * from this. The CEL layer only passes it through; a call made without one
+ * (CelEval used on its own) gets null, and such a function returns an error.
+ */
+class Host {
+public:
+    virtual ~Host();
+};
+
 struct CallArgs {
     const Value     *target = nullptr;      // the receiver, for a receiver-style call
     const Value     *args = nullptr;
@@ -71,6 +82,7 @@ struct CallArgs {
     uint64_t        steps = 0;              // Cost::Custom: the implementation's charge
     // matches(): the pattern, when the checker compiled it (a literal)
     const regex::Regex  *regex = nullptr;
+    const Host          *host = nullptr;        // EvalOptions::host
 
     const Value &operator[](size_t i) const { return args[i]; }
 };
@@ -92,12 +104,20 @@ struct Overload {
     Scope               scope = Scope::File;
     Cost                cost = Cost::Constant;
     std::string         group;
+    // "cel": CEL's standard library; "pss": the PSS library (lib/PssLib.cpp).
+    std::string         library;
     std::string         doc;
     std::string         display;            // "string.contains(string) -> bool"
     // False: accepted by the evaluator (the conformance suite uses it) but
     // outside the pss-rules profile, so the checker refuses it and the
     // generated reference leaves it out.
     bool                inProfile = true;
+    // When >= 0, this operand (the receiver counts as 0) is a `type` that
+    // must name a node class (`n.isa(Action)`), which the checker verifies.
+    int8_t              classArg = -1;
+    // With classArg: the result is a node of that class, not `result`'s
+    // (`enclosing(n, Action)` is an Action).
+    bool                resultIsClass = false;
 
     /** Whether run-time operands fit the parameter types. */
     bool admits(const Value *target, const Value *args, size_t n) const;
@@ -123,9 +143,10 @@ public:
     const Overload *resolve(const std::string &function, const Value *target,
         const Value *args, size_t n) const;
 
-    //* Registration (CelStdLib.cpp; the PSS library joins in C6). The group,
+    //* Registration (CelStdLib.cpp, lib/PssLib.cpp). The library, group,
     //* level and scope set here apply to the entries added after them.
     void group(const std::string &name) { m_group = name; }
+    void library(const std::string &name) { m_library = name; }
     void level(Level l, Scope s) { m_level = l; m_scope = s; }
 
     /**
@@ -145,12 +166,16 @@ private:
     std::vector<std::unique_ptr<Overload>>                              m_all;
     std::unordered_map<std::string, std::vector<const Overload *>>      m_by_name;
     std::string                                                         m_group;
+    std::string                                                         m_library = "cel";
     Level                                                               m_level = Level::L0;
     Scope                                                               m_scope = Scope::File;
 };
 
 /** Registers the standard library (CelStdLib.cpp). */
 void registerStdLib(FunctionRegistry &r);
+
+/** Registers the PSS function library (lib/PssLib.cpp; lint-core-plan.md C6). */
+void registerPssLib(FunctionRegistry &r);
 
 /** A double as string(double) gives it: Go's shortest 'g' form ("1e+06"). */
 std::string formatDouble(double d);

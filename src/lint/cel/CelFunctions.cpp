@@ -160,8 +160,11 @@ const FunctionRegistry &FunctionRegistry::get() {
     return inst;
 }
 
+Host::~Host() { }
+
 FunctionRegistry::FunctionRegistry() {
     registerStdLib(*this);
+    registerPssLib(*this);
 }
 
 const std::vector<const Overload *> *FunctionRegistry::find(const std::string &function) const {
@@ -219,6 +222,7 @@ Overload &FunctionRegistry::add(const char *id, const char *sig, Impl impl, Cost
     o->cost = cost;
     o->doc = doc;
     o->group = m_group;
+    o->library = m_library;
     o->level = m_level;
     o->scope = m_scope;
 
@@ -272,6 +276,7 @@ Overload &FunctionRegistry::macro(const char *id, const char *function, const ch
     o->display = display;
     o->doc = doc;
     o->group = m_group;
+    o->library = m_library;
     o->level = m_level;
     o->scope = m_scope;
     m_by_name[o->function].push_back(o.get());

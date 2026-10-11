@@ -8,10 +8,12 @@ overwritten.
 
 Rule expressions are written in a subset of `CEL
 <https://github.com/google/cel-spec>`_, the Common Expression Language. The
-functions below behave as the CEL specification defines them, and as cel-go
-does where the specification leaves a detail open. Types are written as in
-CEL: ``list(A)`` is a list whose elements have type ``A``, ``A`` and ``B`` are
-type parameters, and ``node`` is any PSS syntax-tree node.
+standard functions below behave as the CEL specification defines them, and as
+cel-go does where the specification leaves a detail open. The groups from
+*Kind tests* on are the PSS library, which CEL does not have: pss-rules adds
+them. Types are written as in CEL: ``list(A)`` is a list whose elements have
+type ``A``, ``A`` and ``B`` are type parameters, and ``node`` is any PSS
+syntax-tree node.
 
 Each entry gives:
 
@@ -1093,3 +1095,161 @@ The elements for which the predicate holds.
 ``cel.bind(x, A, B) -> B``
 
 Evaluates the second argument once, binds it to ``x``, and evaluates the third. A rule's ``let:`` entries are this macro.
+
+Kind tests
+----------
+
+.. _lint-fn-node-isa:
+
+``isa``
+~~~~~~~
+
+**Level:** L0; **Scope:** file
+
+.. list-table::
+   :header-rows: 1
+
+   * - Signature
+     - Cost
+     - Overload
+   * - ``node.isa(type) -> bool``
+     - constant
+     - ``node_isa``
+
+Whether the node is of the class named, or of a class deriving from it: ``node.isa(ConstraintStmt)``. The argument must be a node class. Unlike ``type(n) == K``, which tests the exact class, ``isa`` follows the ``super:`` chains of the AST schema. Like ``type(n) == K``, it narrows: on the right of ``&&``, and in the first result of ``?:``, ``n`` has class ``K``.
+
+Navigation
+----------
+
+.. _lint-fn-parent-node:
+
+``parent``
+~~~~~~~~~~
+
+**Level:** L0; **Scope:** file
+
+.. list-table::
+   :header-rows: 1
+
+   * - Signature
+     - Cost
+     - Overload
+   * - ``parent(node) -> node``
+     - constant
+     - ``parent_node``
+
+The node that owns this one: the scope holding a declaration, the expression holding an operand. ``null`` for a file's root, and for a node outside the files the run covers.
+
+.. _lint-fn-ancestors-node:
+
+``ancestors``
+~~~~~~~~~~~~~
+
+**Level:** L0; **Scope:** file
+
+.. list-table::
+   :header-rows: 1
+
+   * - Signature
+     - Cost
+     - Overload
+   * - ``ancestors(node) -> list(node)``
+     - custom
+     - ``ancestors_node``
+
+The node's owners, nearest first, ending with the file's root; empty for a root. One step per element.
+
+.. _lint-fn-enclosing-node-type:
+
+``enclosing``
+~~~~~~~~~~~~~
+
+**Level:** L0; **Scope:** file
+
+.. list-table::
+   :header-rows: 1
+
+   * - Signature
+     - Cost
+     - Overload
+   * - ``enclosing(node, type) -> node``
+     - custom
+     - ``enclosing_node_type``
+
+The nearest owner of the class named, or of a class deriving from it: ``enclosing(node, Action)``. The result has that class, so its fields can be read directly (``enclosing(node, Action).name``). ``null`` when there is none; reading a field through ``null`` is an error, so test ``enclosing(node, K) != null`` first where there may be none. The node itself is not considered. One step per owner visited.
+
+.. _lint-fn-children-node:
+
+``children``
+~~~~~~~~~~~~
+
+**Level:** L0; **Scope:** file
+
+.. list-table::
+   :header-rows: 1
+
+   * - Signature
+     - Cost
+     - Overload
+   * - ``children(node) -> list(node)``
+     - custom
+     - ``children_node``
+
+The nodes this one owns, in source order: each node field and list element of the node's class, inherited fields first. References to declarations elsewhere are not children. One step per element.
+
+.. _lint-fn-descendants-node:
+
+``descendants``
+~~~~~~~~~~~~~~~
+
+**Level:** L0; **Scope:** file
+
+.. list-table::
+   :header-rows: 1
+
+   * - Signature
+     - Cost
+     - Overload
+   * - ``descendants(node) -> list(node)``
+     - custom
+     - ``descendants_node``
+
+Every node under this one, in pre-order (a node, then its children's subtrees), not including the node itself. One step per element.
+
+.. _lint-fn-siblings-node:
+
+``siblings``
+~~~~~~~~~~~~
+
+**Level:** L0; **Scope:** file
+
+.. list-table::
+   :header-rows: 1
+
+   * - Signature
+     - Cost
+     - Overload
+   * - ``siblings(node) -> list(node)``
+     - custom
+     - ``siblings_node``
+
+The other elements of the list that holds the node (the statements of its block, the items of its scope), in order and without the node itself. Empty when the node is not a list element (``ExprBin.lhs``) or is a root. One step per element.
+
+.. _lint-fn-index-of-node:
+
+``index_of``
+~~~~~~~~~~~~
+
+**Level:** L0; **Scope:** file
+
+.. list-table::
+   :header-rows: 1
+
+   * - Signature
+     - Cost
+     - Overload
+   * - ``index_of(node) -> int``
+     - custom
+     - ``index_of_node``
+
+The node's position, from 0, in the list that holds it, as ``siblings`` defines it; ``-1`` when it is not a list element. One step per element of that list.

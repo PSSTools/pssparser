@@ -21,7 +21,10 @@
  * - A node's fields are its class's schema fields, inherited ones included.
  * - An unset node field reads as null, marked with the field's name, so that
  *   navigating through it is the D-C6 error "field 'lhs' of unset 'rhs'".
- * - list<...> fields are CEL lists; enum and flags fields are ints (CEL
+ * - list<...> fields are CEL lists, without the elements that do not own
+ *   their node (the linker lists an `extend`'s members in a template's body
+ *   that way; they belong to the `extend`) and the builder's implicit nodes
+ *   (run::Walker::implicit); enum and flags fields are ints (CEL
  *   enums are ints); Location and the other schema structs are struct values
  *   with their members as fields.
  * - has() is proto3 presence: a node field is present when set, a list when

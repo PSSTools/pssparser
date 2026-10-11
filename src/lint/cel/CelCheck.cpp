@@ -684,9 +684,25 @@ private:
         return false;
     }
 
-    // The facts a true `cond` establishes: its `type(x) == K` terms, through `&&`.
+    // The facts a true `cond` establishes: its `type(x) == K` and
+    // `x.isa(K)` terms, through `&&`.
     void factsOf(const Expr *cond, std::vector<Fact> &out) const {
-        if (cond->kind != ExprKind::Call || cond->operand) {
+        if (cond->kind != ExprKind::Call) {
+            return;
+        }
+        if (cond->operand) {
+            const Expr *cls = cond->args.empty() ? nullptr : cond->args[0].get();
+            uint16_t k;
+            Fact f;
+            if (cond->name == "isa" && cond->args.size() == 1 && cls->kind == ExprKind::Ident
+                    && lookup(cls->name) < 0 && lookupClass(cls->name, k)
+                    && pathOf(cond->operand.get(), f.path, f.root)) {
+                f.scope = lookup(f.root);
+                f.cls = k;
+                if (f.scope >= 0) {
+                    out.push_back(f);
+                }
+            }
             return;
         }
         if (cond->name == op::LogicalAnd) {
@@ -1055,10 +1071,35 @@ private:
             return c;
         }
         t = resolveCall(e, name, target != nullptr, types, *cands, c->overload);
+        if (c->overload && c->overload->classArg >= 0 && t.kind != Type::Kind::Error) {
+            classOperand(e, *c->overload, types, t);
+        }
         if (name == "matches" && t.kind != Type::Kind::Error) {
             literalPattern(target ? e->args[0].get() : e->args[1].get(), *c, t);
         }
         return c;
+    }
+
+    // `n.isa(Action)`, `enclosing(n, Action)`: the operand must be a node
+    // class, known here; enclosing()'s result is a node of that class.
+    void classOperand(const Expr *e, const Overload &o, const std::vector<Type> &types,
+            Type &t) {
+        size_t i = static_cast<size_t>(o.classArg);
+        const Expr *arg = e->operand ? (i ? e->args[i-1].get() : e->operand.get())
+            : e->args[i].get();
+        Type r = resolve(types[i]);
+        uint16_t cls;
+        if (r.kind != Type::Kind::TypeType || !lookupClass(r.param, cls)) {
+            std::string what = (r.kind == Type::Kind::TypeType && !r.param.empty()) ?
+                "'" + r.param + "'" : "a '" + r.str() + "' value";
+            error(arg->begin, surfaceName(o.function) + "() needs a node class, such as Action, "
+                "written out; " + what + " is not one");
+            t = Type(Type::Kind::Error);
+            return;
+        }
+        if (o.resultIsClass) {
+            t = Type::node(cls);
+        }
     }
 
     // matches() with a literal pattern: compiled now, once, so a pattern

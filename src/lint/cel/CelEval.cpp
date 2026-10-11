@@ -577,6 +577,7 @@ Value CelEval::callOverload(const Overload *o, const Value *target,
     c.args = args.data();
     c.n = args.size();
     c.regex = call->regex.get();
+    c.host = m_opts.host;
     Value ret = o->impl(c);
     if (o->cost == Cost::Linear) {
         uint64_t n = 0;

@@ -52,6 +52,7 @@
 #include "pssp/ast/Location.h"
 #include "../cel/CelAst.h"
 #include "../cel/CelValue.h"
+#include "../lib/PssLib.h"
 #include "Walker.h"
 
 namespace pssp {
@@ -114,10 +115,21 @@ public:
     ~Runner();
 
     /**
+     * Makes the tree under `root` known to the library (parent links), so
+     * that navigation from a node in one file reaches the nodes of another.
+     * run() indexes its own root; index every root first when the rules
+     * may navigate across files.
+     */
+    void index(const rf::Node &root) { m_ctx.index(root); }
+
+    /**
      * Walks and evaluates the tree under `root`. Call once per owned root:
      * each is a file, with its own budget per rule.
      */
     void run(const rf::Node &root);
+
+    /** What the library functions read: the run's model. */
+    const lib::Context &context() const { return m_ctx; }
 
     /** The rule failures so far, at most one per rule per file. */
     const std::vector<RuleFailure> &failures() const { return m_failures; }
@@ -175,6 +187,7 @@ private:
 
 private:
     RunOptions                                          m_opts;
+    lib::Context                                        m_ctx;
     Dispatch                                            m_dispatch;
     Walker                                              m_walker;
     std::unordered_map<const rules::Rule *, size_t>     m_index;

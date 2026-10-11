@@ -168,6 +168,23 @@ reported at its line and column in the YAML file. pssparser works out each
 rule's analysis level and scope from the functions it calls; a rule does not
 declare them.
 
+Besides a node's own fields, the library's navigation functions move around
+the tree: ``parent(n)``, ``ancestors(n)``, ``children(n)``,
+``descendants(n)``, ``siblings(n)``, ``index_of(n)``, and
+``enclosing(n, Action)``, the nearest enclosing action. ``n.isa(K)`` tests a
+node's class, subclasses included. After ``n.isa(K) &&``, or
+``type(n) == K &&``, the expression can read ``K``'s fields:
+
+.. code-block:: yaml
+
+   where: >-
+     enclosing(node, Action) != null
+     && enclosing(node, Action).name.id.endsWith("_test")
+
+The tree is the source as written. An ``extend``'s members belong to the
+``extend``, not to the type it extends, and nodes that pssparser adds itself,
+such as each action's ``comp`` handle, are not in it.
+
 IDs
 ===
 

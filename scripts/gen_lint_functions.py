@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Generate docs/lint-functions.rst from the lint engine's function registry.
 
-The registry is C++ (src/lint/cel/CelStdLib.cpp, and the PSS library as it
-is added); this script reads it through the built module, so build first.
-Run after any change to a registered function.
+The registry is C++ (src/lint/cel/CelStdLib.cpp, and the PSS library in
+src/lint/lib/PssLib.cpp); this script reads it through the built module, so
+build first. Run after any change to a registered function.
 ``tests/python/lintcore/test_lint_functions_doc.py`` fails when the committed
 file is stale.
 
@@ -32,10 +32,12 @@ overwritten.
 
 Rule expressions are written in a subset of `CEL
 <https://github.com/google/cel-spec>`_, the Common Expression Language. The
-functions below behave as the CEL specification defines them, and as cel-go
-does where the specification leaves a detail open. Types are written as in
-CEL: ``list(A)`` is a list whose elements have type ``A``, ``A`` and ``B`` are
-type parameters, and ``node`` is any PSS syntax-tree node.
+standard functions below behave as the CEL specification defines them, and as
+cel-go does where the specification leaves a detail open. The groups from
+*Kind tests* on are the PSS library, which CEL does not have: pss-rules adds
+them. Types are written as in CEL: ``list(A)`` is a list whose elements have
+type ``A``, ``A`` and ``B`` are type parameters, and ``node`` is any PSS
+syntax-tree node.
 
 Each entry gives:
 

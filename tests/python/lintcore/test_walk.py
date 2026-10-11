@@ -133,11 +133,18 @@ def test_root_is_visited_and_has_no_parent(hooks, units):
     assert [(m["kind"], m["ancestors"]) for m in r["matches"]] == [("GlobalScope", [])]
 
 
+def _census(hooks, unit):
+    """The census's node count, less what the walk leaves out: each action's
+    implicit `comp` (a FieldCompRef and, unlinked, its name; Walker::implicit)."""
+    c = hooks.reflect_census(unit)
+    return c["count"] - 2 * c["classes"].get("FieldCompRef", 0)
+
+
 def test_each_owned_node_is_visited_once(hooks, units):
     # The census walks the same owned children: the counts agree, so a
     # reference (B's base type, resolved to A) is not followed.
     r = _walk(hooks, units, ("ACME001", "{ kind: Action }"))
-    assert r["visited"] == hooks.reflect_census(units[1])["count"]
+    assert r["visited"] == _census(hooks, units[1])
     assert [m["line"] for m in r["matches"]] == [3, 8]
 
 
@@ -147,8 +154,8 @@ def test_node_not_owned_by_the_run_is_not_visited(hooks, units):
     both = _walk(hooks, units, rule, roots=[units[1], units[2]])
     assert [m["line"] for m in only_top["matches"]] == [3, 8]
     assert [m["line"] for m in both["matches"]] == [3, 8, 2]
-    assert both["visited"] == (hooks.reflect_census(units[1])["count"]
-                               + hooks.reflect_census(units[2])["count"])
+    assert both["visited"] == (_census(hooks, units[1])
+                               + _census(hooks, units[2]))
     # The standard library's unit is never a root, so nothing in it fires.
     assert all(m["ancestors"][-1] == "GlobalScope" for m in both["matches"])
 
@@ -161,7 +168,7 @@ def test_root_given_twice_is_walked_once(hooks, units):
 def test_no_rules_still_walks(hooks, units):
     r = hooks.lint_walk("r.yaml", "pss-rules:\n  version: 1\n  rules: []\n", [units[1]])
     assert r["matches"] == []
-    assert r["visited"] == hooks.reflect_census(units[1])["count"]
+    assert r["visited"] == _census(hooks, units[1])
 
 
 def test_deep_expression_does_not_recurse(hooks):

@@ -48,11 +48,15 @@ namespace lint {
 namespace cel {
 
 struct Overload;
+class Host;
 
 struct EvalOptions {
     // Every node evaluated and every comprehension iteration costs one step
     // (lint-rule-expressions.md §5). Q-E5: the real number comes from C8.
     uint64_t        maxSteps = 1000000;
+    // Passed to every function call (CallArgs::host): the lint run, for the
+    // PSS library's functions. Not owned.
+    const Host      *host = nullptr;
 };
 
 class CelEval {

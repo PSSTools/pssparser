@@ -122,9 +122,29 @@ public:
 
     /**
      * The owned children of `n`, in walk order: base class fields first,
-     * each class's in declaration order, list elements in order.
+     * each class's in declaration order, list elements in order. A list
+     * element that does not own its node (reflection's `borrowed`) is not
+     * a child, nor is an implicit() node.
      */
     static void children(const rf::Node &n, std::vector<rf::Node> &out);
+
+    /**
+     * Whether `n` is a node the builder adds that the source does not have:
+     * the `comp` handle (FieldCompRef, no location) it puts first in every
+     * action's items. Such a node is not a child: it is not walked, and
+     * navigation and list-field reads leave it out, so a rule never reports
+     * it and positions count only what was written.
+     */
+    static bool implicit(const rf::Node &n);
+
+    /**
+     * When `n` is an element of one of `parent`'s owning list fields: that
+     * list's (non-null) elements in order, and `n`'s position among them.
+     * False, with nothing set, when `n` is held by a single-node field or is
+     * not `parent`'s child.
+     */
+    static bool listOf(const rf::Node &parent, const rf::Node &n,
+        std::vector<rf::Node> &elems, int32_t &index);
 
     /**
      * The node's `location` (1-based line and column), or false when its

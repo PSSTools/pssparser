@@ -75,6 +75,7 @@ Runner::~Runner() { }
 void Runner::run(const rf::Node &root) {
     // A root is a file: each rule starts it with a fresh budget.
     std::fill(m_file.begin(), m_file.end(), FileState());
+    m_ctx.index(root);
     m_walker.walk(root, [this](const rules::Rule &r, const rf::Node &n) {
         match(r, n);
     });
@@ -178,6 +179,7 @@ cel::Value Runner::eval(const cel::Expr *e, const Vars &vars, size_t idx, bool &
     FileState &fs = m_file[idx];
     cel::EvalOptions opts;
     opts.maxSteps = (fs.steps < m_opts.maxSteps) ? m_opts.maxSteps - fs.steps : 0;
+    opts.host = &m_ctx;
     cel::CelEval ev(opts);
     cel::Value v = ev.eval(e, vars);
     uint64_t used = std::min(ev.steps(), opts.maxSteps);

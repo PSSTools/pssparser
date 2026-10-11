@@ -301,7 +301,8 @@ def test_check_rules_passes_good_examples():
     rc, out, err = _main(["--check-rules"] + [str(p) for p in RULE_FILES])
     assert rc == 0, err
     assert "0 errors" in err
-    assert "5 rules loaded from 2 files" in err
+    n = len(_engine(*[(str(p), p.read_text()) for p in RULE_FILES]).rules())
+    assert "%d rules loaded from %d files" % (n, len(RULE_FILES)) in err
 
 
 def test_check_rules_skips_a_refused_rule(tmp_path):

@@ -355,7 +355,7 @@ def _node(hooks, unit, text, max_steps=0):
     ("ex.op == ExprBinOp.BinOp_Gt", ("bool", True)),
     ("type(ex.lhs) == ExprRefPathContext && type(ex.rhs) == ExprUnsignedNumber",
      ("bool", True)),
-    ("A.children.size()", ("int", 3)),
+    ("A.children.size()", ("int", 2)),     # not the implicit `comp`
     ("A.children.exists(c, type(c) == ConstraintBlock)", ("bool", True)),
     ("A.is_abstract", ("bool", False)),
     ("A == A", ("bool", True)),                         # identity
@@ -432,5 +432,7 @@ def _node_steps(hooks, unit, text):
 def test_cel_node_linked_root(hooks, unit):
     p, _ = unit
     root = p.link()
-    r = hooks.cel_eval_node("node.children.size() > 0 && type(node) == RootSymbolScope", root)
+    # Its `children` are the linker's borrowed view of the files, which
+    # reads as empty (CelNode.h); `units` are its own.
+    r = hooks.cel_eval_node("node.units.size() > 0 && type(node) == RootSymbolScope", root)
     assert r["result"] == {"type": "bool", "value": True}

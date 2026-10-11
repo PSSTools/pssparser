@@ -158,13 +158,56 @@ void Walker::children(const rf::Node &n, std::vector<rf::Node> &out) {
         } else {
             uint32_t sz = f.size(n.ptr, n.kind);
             for (uint32_t i=0; i<sz; i++) {
+                // A borrowed element is a node another list owns: the linker
+                // lists an `extend`'s members in a template's body this way.
                 rf::Value v = f.at(n.ptr, n.kind, i);
-                if (v.n) {
+                if (v.n && !v.borrowed && !implicit(v.n)) {
                     out.push_back(v.n);
                 }
             }
         }
     }
+}
+
+bool Walker::implicit(const rf::Node &n) {
+    static const uint16_t compRef = [] {
+        uint16_t k = 0;
+        cel::lookupClass("FieldCompRef", k);
+        return k;
+    }();
+    int32_t fileid, line, col;
+    return n.kind == compRef && !location(n, fileid, line, col);
+}
+
+bool Walker::listOf(const rf::Node &parent, const rf::Node &n,
+        std::vector<rf::Node> &elems, int32_t &index) {
+    if (!parent || parent.kind > rf::NumClasses) {
+        return false;
+    }
+    for (uint16_t fi : childFields()[parent.kind]) {
+        const rf::FieldInfo &f = rf::fields[fi];
+        if (f.type != rf::FieldType::List) {
+            continue;
+        }
+        std::vector<rf::Node> list;
+        int32_t at = -1;
+        uint32_t sz = f.size(parent.ptr, parent.kind);
+        for (uint32_t i=0; i<sz; i++) {
+            rf::Value v = f.at(parent.ptr, parent.kind, i);
+            if (v.n && !v.borrowed && !implicit(v.n)) {
+                if (v.n.ptr == n.ptr) {
+                    at = static_cast<int32_t>(list.size());
+                }
+                list.push_back(v.n);
+            }
+        }
+        if (at >= 0) {
+            elems.swap(list);
+            index = at;
+            return true;
+        }
+    }
+    return false;
 }
 
 void Walker::walk(const rf::Node &root, const MatchFn &fn) {
