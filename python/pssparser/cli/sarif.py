@@ -32,7 +32,7 @@ SARIF_VERSION = "2.1.0"
 
 LEVELS = {"error": "error", "warning": "warning", "info": "note", "hint": "none"}
 
-_CODE_PREFIX = re.compile(r"^\[[A-Z]{2,5}[0-9]{3}\]\s*")
+_CODE_PREFIX = re.compile(r"^\[" + taxonomy.NAMESPACE_PATTERN + r"[0-9]{3}\]\s*")
 
 
 def strip_code(message: str) -> str:

@@ -1,0 +1,722 @@
+{
+ "source": "string.textproto",
+ "cel_spec": "v0.25.3",
+ "tests": [
+  {
+   "section": "size",
+   "name": "empty",
+   "expr": "size('')",
+   "fields": {
+    "value": [
+     {
+      "int64_value": [
+       "0"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "size",
+   "name": "one_ascii",
+   "expr": "size('A')",
+   "fields": {
+    "value": [
+     {
+      "int64_value": [
+       "1"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "size",
+   "name": "one_unicode",
+   "expr": "size('ÿ')",
+   "fields": {
+    "value": [
+     {
+      "int64_value": [
+       "1"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "size",
+   "name": "ascii",
+   "expr": "size('four')",
+   "fields": {
+    "value": [
+     {
+      "int64_value": [
+       "4"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "size",
+   "name": "unicode",
+   "expr": "size('πέντε')",
+   "fields": {
+    "value": [
+     {
+      "int64_value": [
+       "5"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "size",
+   "name": "bytes_empty",
+   "expr": "size(b'')",
+   "fields": {
+    "value": [
+     {
+      "int64_value": [
+       "0"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "size",
+   "name": "bytes",
+   "expr": "size(b'abc')",
+   "fields": {
+    "value": [
+     {
+      "int64_value": [
+       "3"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "starts_with",
+   "name": "basic_true",
+   "expr": "'foobar'.startsWith('foo')",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "starts_with",
+   "name": "basic_false",
+   "expr": "'foobar'.startsWith('bar')",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "false"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "starts_with",
+   "name": "empty_target",
+   "expr": "''.startsWith('foo')",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "false"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "starts_with",
+   "name": "empty_arg",
+   "expr": "'foobar'.startsWith('')",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "starts_with",
+   "name": "empty_empty",
+   "expr": "''.startsWith('')",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "starts_with",
+   "name": "unicode",
+   "expr": "'завтра'.startsWith('за')",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "starts_with",
+   "name": "unicode_smp",
+   "expr": "'🐱😀😛'.startsWith('🐱')",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "ends_with",
+   "name": "basic_true",
+   "expr": "'foobar'.endsWith('bar')",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "ends_with",
+   "name": "basic_false",
+   "expr": "'foobar'.endsWith('foo')",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "false"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "ends_with",
+   "name": "empty_target",
+   "expr": "''.endsWith('foo')",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "false"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "ends_with",
+   "name": "empty_arg",
+   "expr": "'foobar'.endsWith('')",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "ends_with",
+   "name": "empty_empty",
+   "expr": "''.endsWith('')",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "ends_with",
+   "name": "unicode",
+   "expr": "'forté'.endsWith('té')",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "ends_with",
+   "name": "unicode_smp",
+   "expr": "'🐱😀😛'.endsWith('😛')",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "matches",
+   "name": "basic",
+   "expr": "'hubba'.matches('ubb')",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "matches",
+   "name": "empty_target",
+   "expr": "''.matches('foo|bar')",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "false"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "matches",
+   "name": "empty_arg",
+   "expr": "'cows'.matches('')",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "matches",
+   "name": "empty_empty",
+   "expr": "''.matches('')",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "matches",
+   "name": "re_concat",
+   "expr": "'abcd'.matches('bc')",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "matches",
+   "name": "re_alt",
+   "expr": "'grey'.matches('gr(a|e)y')",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "matches",
+   "name": "re_rep",
+   "expr": "'banana'.matches('ba(na)*')",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "matches",
+   "name": "unicode",
+   "expr": "'mañana'.matches('a+ñ+a+')",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "matches",
+   "name": "unicode_smp",
+   "expr": "'🐱😀😀'.matches('(a|😀){2}')",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "concatenation",
+   "name": "concat_true",
+   "expr": "'he' + 'llo'",
+   "fields": {
+    "value": [
+     {
+      "string_value": [
+       "hello"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "concatenation",
+   "name": "concat_with_spaces",
+   "expr": "'hello' + ' ' == 'hello'",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "false"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "concatenation",
+   "name": "concat_empty_string_beginning",
+   "expr": "'' + 'abc'",
+   "fields": {
+    "value": [
+     {
+      "string_value": [
+       "abc"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "concatenation",
+   "name": "concat_empty_string_end",
+   "expr": "'abc' + ''",
+   "fields": {
+    "value": [
+     {
+      "string_value": [
+       "abc"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "concatenation",
+   "name": "concat_empty_with_empty",
+   "expr": "'' + ''",
+   "fields": {
+    "value": [
+     {
+      "string_value": [
+       ""
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "concatenation",
+   "name": "unicode_unicode",
+   "expr": "'¢' + 'ÿ' + 'Ȁ'",
+   "fields": {
+    "value": [
+     {
+      "string_value": [
+       "¢ÿȀ"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "concatenation",
+   "name": "ascii_unicode",
+   "expr": "'r' + 'ô' + 'le'",
+   "fields": {
+    "value": [
+     {
+      "string_value": [
+       "rôle"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "concatenation",
+   "name": "ascii_unicode_unicode_smp",
+   "expr": "'a' + 'ÿ' + '🐱'",
+   "fields": {
+    "value": [
+     {
+      "string_value": [
+       "aÿ🐱"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "concatenation",
+   "name": "empty_unicode",
+   "expr": "'' + 'Ω' + ''",
+   "fields": {
+    "value": [
+     {
+      "string_value": [
+       "Ω"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "contains",
+   "name": "contains_true",
+   "expr": "'hello'.contains('he')",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "contains",
+   "name": "contains_empty",
+   "expr": "'hello'.contains('')",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "contains",
+   "name": "contains_false",
+   "expr": "'hello'.contains('ol')",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "false"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "contains",
+   "name": "contains_multiple",
+   "expr": "'abababc'.contains('ababc')",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "contains",
+   "name": "contains_unicode",
+   "expr": "'Straße'.contains('aß')",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "contains",
+   "name": "contains_unicode_smp",
+   "expr": "'🐱😀😁'.contains('😀')",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "contains",
+   "name": "empty_contains",
+   "expr": "''.contains('something')",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "false"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "contains",
+   "name": "empty_empty",
+   "expr": "''.contains('')",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "bytes_concat",
+   "name": "concat",
+   "expr": "b'abc' + b'def'",
+   "fields": {
+    "value": [
+     {
+      "bytes_value": [
+       "abcdef"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "bytes_concat",
+   "name": "left_unit",
+   "expr": "b'' + b'\\xffoo'",
+   "fields": {
+    "value": [
+     {
+      "bytes_value": [
+       {
+        "__bytes__": "ff6f6f"
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "bytes_concat",
+   "name": "right_unit",
+   "expr": "b'zxy' + b''",
+   "fields": {
+    "value": [
+     {
+      "bytes_value": [
+       "zxy"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "bytes_concat",
+   "name": "empty_empty",
+   "expr": "b'' + b''",
+   "fields": {
+    "value": [
+     {
+      "bytes_value": [
+       ""
+      ]
+     }
+    ]
+   }
+  }
+ ]
+}

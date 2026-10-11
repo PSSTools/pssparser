@@ -277,6 +277,9 @@ message(STATUS "pssparser-wasm: ${_hash_out}")
 file(GLOB_RECURSE ANTLR_RUNTIME_SRC "${ANTLR_RUNTIME}/*.cpp")
 file(GLOB AST_SRC "${AST_GEN_DIR}/*.cpp")
 file(GLOB PSSPARSER_SRC "${PSSPARSER_ROOT}/src/*.cpp")
+# The lint engine and rapidyaml: the same file set as the native build.
+set(PSSPARSER_LINT_DIR "${PSSPARSER_ROOT}/src/lint")
+include("${PSSPARSER_LINT_DIR}/lint.cmake")
 file(GLOB ANTLR_FRONTEND_SRC "${ANTLR_OUT_DIR}/*.cpp")
 
 list(LENGTH AST_SRC _n_ast)
@@ -291,6 +294,7 @@ add_executable(pssparser
   ${ANTLR_FRONTEND_SRC}
   ${AST_SRC}
   ${PSSPARSER_SRC}
+  ${PSSPARSER_LINT_SRC}
   "${SERIALIZER_DIR}/AstSerializer.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/bindings.cpp")
 
@@ -302,6 +306,7 @@ target_include_directories(pssparser PRIVATE
   "${GEN_DIR}"
   "${PSSPARSER_ROOT}/src"
   "${PSSPARSER_ROOT}/src/include"
+  ${PSSPARSER_LINT_INCLUDE}
   ${DMGR_INCLUDE})
 
 # ANTLR4CPP_STATIC turns off the dllimport/dllexport decorations. There is no
@@ -339,6 +344,13 @@ set(PSSPARSER_LINK_FLAGS
   # Embind marshals std::string by value across the boundary; without this the
   # module refuses to accept a JS string longer than the initial heap.
   "-sDYNAMIC_EXECUTION=0"
+  # 1 MiB of stack instead of Emscripten's 64 KiB default. A release build has
+  # no stack-overflow check, so an overrun corrupts the heap silently. The lint
+  # engine bounds every recursion it has by a limit set from measured frame
+  # sizes (lint-core-plan.md §9, F-5: CEL parse ~290 B/level x 64, YAML
+  # 160 B/level x 64, regex ~600 B/group x 32); this is the margin above
+  # those, and above the AST walks that have no such limit.
+  "-sSTACK_SIZE=1048576"
   # A C++ exception escaping into JS is a binding bug, but it must surface as
   # an Error with the what() text rather than as an unreachable trap
   # (ts-api-design.md §3.3).
@@ -352,7 +364,7 @@ if (ENABLE_ASAN)
   # its shadow memory against the initial heap, and a growing heap invalidates
   # it. INITIAL_MEMORY replaces it with a fixed, large heap -- workable for a
   # diagnostic run over one file, which is all this build is for.
-  list(REMOVE_ITEM PSSPARSER_LINK_FLAGS "-sALLOW_MEMORY_GROWTH=1")
+  list(REMOVE_ITEM PSSPARSER_LINK_FLAGS "-sALLOW_MEMORY_GROWTH=1" "-sSTACK_SIZE=1048576")
   list(APPEND PSSPARSER_LINK_FLAGS
     "-fsanitize=address"
     "-sINITIAL_MEMORY=1073741824"

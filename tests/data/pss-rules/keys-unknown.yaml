@@ -1,0 +1,49 @@
+pss-rules:
+  x-owner: team-a             # x- keys are the author's
+  defualts: {}
+  rules:
+    - id: ACME001
+      name: typo-in-where
+      tier: style
+      summary: A misspelt key disables the rule
+      message: "m"
+      match: { kind: ExprBin }
+      wher: node.op == ExprBinOp.BinOp_Eq
+    - id: ACME002
+      name: typo-in-match
+      tier: style
+      summary: In match
+      message: "m"
+      match: { kind: ExprBin, insde: { kind: Action } }
+    - id: ACME003
+      name: typo-in-option
+      tier: style
+      summary: In an option spec
+      message: "m"
+      options:
+        limit: { type: int, defualt: 3 }
+      match: { kind: ExprBin }
+    - id: ACME004
+      name: typo-in-example
+      tier: style
+      summary: In an example
+      message: "m"
+      match: { kind: ExprBin }
+      examples:
+        - nmae: first
+          code: "component pss_top { }"
+    - id: ACME005
+      name: annotated
+      tier: style
+      summary: x- keys are allowed in a rule too
+      message: "m"
+      x-ticket: ACME-123
+      match: { kind: ExprBin }
+
+# expect: PSSP211 error @ 3:3 unknown key 'defualts' under 'pss-rules'; did you mean 'defaults'?
+# expect: PSSP211 error @ 11:7 unknown key 'wher' in rule 'ACME001'; did you mean 'where'?
+# expect: PSSP211 error @ 17:31 unknown key 'insde' in 'match'; did you mean 'inside'?
+# expect: PSSP211 error @ 24:29 unknown key 'defualt' in option 'limit'; did you mean 'default'?
+# expect: PSSP212 error @ 24:16 option 'limit' has no 'default'; a rule's expressions need a value for every option
+# expect: PSSP211 error @ 33:11 unknown key 'nmae' in an example; did you mean 'name'?
+# loads: ACME005

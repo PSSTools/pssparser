@@ -20,12 +20,16 @@ from __future__ import annotations
 import re
 from typing import Dict, Optional, Tuple
 
-#: ``namespace ::= [A-Z]{2,5}``, ``number ::= [0-9]{3}``.  Letters only in the
-#: namespace, so a code splits without a lookup table.
-CODE_RE = re.compile(r"^([A-Z]{2,5})([0-9]{3})$")
+#: ``namespace ::= segment ("-" segment)?``, ``segment ::= [A-Z]{2,5}``,
+#: ``number ::= [0-9]{3}`` (pss-rules-format §5.1): ``ACME001`` or, for one
+#: team of an organisation, ``ACME-NET001``.  Letters only in the namespace,
+#: so a code splits without a lookup table.
+NAMESPACE_PATTERN = r"[A-Z]{2,5}(?:-[A-Z]{2,5})?"
+CODE_RE = re.compile(r"^(" + NAMESPACE_PATTERN + r")([0-9]{3})$")
 
-#: Namespaces no third-party checker may declare.  ``PSSX`` is held for a
-#: future core split.
+#: Namespaces no third-party checker may declare, with or without a team
+#: qualifier (``PSS-ACME`` is refused too).  ``PSSX`` is held for a future
+#: core split.
 RESERVED_NAMESPACES = ("PSS", "PSSP", "PSSX", "LINT")
 
 #: Lifecycle states (marker-id-namespaces §2.5).
@@ -104,6 +108,8 @@ def split_code(code: str) -> Optional[Tuple[str, int]]:
 
     >>> split_code("LINT104")
     ('LINT', 104)
+    >>> split_code("ACME-NET001")
+    ('ACME-NET', 1)
     """
     m = CODE_RE.match(code or "")
     if m is None:
@@ -115,6 +121,30 @@ def namespace_of(code: str) -> str:
     """The namespace of *code*, or ``""`` when it does not parse."""
     parts = split_code(code)
     return parts[0] if parts else ""
+
+
+def organisation_of(namespace: str) -> str:
+    """The first segment of *namespace*: ``ACME`` for ``ACME-NET``."""
+    return namespace.split("-", 1)[0]
+
+
+def is_reserved(namespace: str) -> bool:
+    """True when *namespace*, or the organisation it qualifies, is pssparser's.
+
+    >>> is_reserved("PSS-ACME"), is_reserved("PSSAC")
+    (True, False)
+    """
+    return organisation_of(namespace) in RESERVED_NAMESPACES
+
+
+def namespace_selects(selector: str, namespace: str) -> bool:
+    """Whether the namespace selector *selector* covers *namespace*.
+
+    Selection is hierarchical (pss-rules-format §5.1): ``ACME`` covers
+    ``ACME`` and every ``ACME-*`` team namespace; ``ACME-NET`` only itself.
+    """
+    return namespace == selector or (
+        "-" not in selector and namespace.startswith(selector + "-"))
 
 
 def is_kebab(name: str) -> bool:

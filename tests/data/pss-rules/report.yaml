@@ -1,0 +1,12 @@
+pss-rules:
+  defaults:
+    tier: style
+  rules:
+    - id: ACME001
+      name: report-operands
+      summary: s
+      message: "operand ${finding} of ${node}"
+      match: { kind: ExprBin }
+      report: "[node.lhs, node.rhs]"
+
+# loads: ACME001

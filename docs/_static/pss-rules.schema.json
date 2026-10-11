@@ -1,0 +1,803 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "pss-rules file, version 1",
+  "description": "A pssparser declarative lint rule file (pss-rules-format.md). Generated from the rule loader's field table by scripts/gen_rules_schema.py; do not edit. It checks the file's shape only: CEL, and what a built-in rule file must also have, are checked by `pssparser --check-rules`.",
+  "type": "object",
+  "required": [
+    "pss-rules"
+  ],
+  "properties": {
+    "pss-rules": {
+      "type": "object",
+      "required": [
+        "rules"
+      ],
+      "properties": {
+        "version": {
+          "description": "Format major version; this schema is version 1",
+          "const": 1
+        },
+        "defaults": {
+          "$ref": "#/$defs/defaults"
+        },
+        "define": {
+          "$ref": "#/$defs/define"
+        },
+        "rules": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/rule"
+          }
+        }
+      },
+      "patternProperties": {
+        "^x-": {}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "rule": {
+      "type": "object",
+      "required": [
+        "id",
+        "name",
+        "summary",
+        "message",
+        "match"
+      ],
+      "properties": {
+        "id": {
+          "description": "Stable ID, as LINT201 or ACME001",
+          "$ref": "#/$defs/code"
+        },
+        "name": {
+          "description": "Unique kebab-case name, usable wherever the ID is",
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
+        },
+        "tier": {
+          "description": "Lint tier, which decides the default severity and profile",
+          "enum": [
+            "correctness",
+            "suspicious",
+            "portability",
+            "simplify",
+            "style",
+            "pedantic",
+            "restriction",
+            "nursery"
+          ]
+        },
+        "family": {
+          "description": "What the rule is about",
+          "enum": [
+            "constraint",
+            "activity",
+            "exec",
+            "decl",
+            "import",
+            "register",
+            "evolution",
+            "naming",
+            "metric"
+          ]
+        },
+        "summary": {
+          "description": "One line, not interpolated",
+          "type": "string",
+          "pattern": "^[^\\n\\r]*$",
+          "not": {
+            "pattern": "\\$\\{"
+          }
+        },
+        "message": {
+          "description": "The diagnostic text, with ${CEL} interpolation",
+          "type": "string"
+        },
+        "doc": {
+          "description": "Rationale, escape hatch and references (Markdown)",
+          "type": "string"
+        },
+        "lrm": {
+          "description": "LRM clauses, as \"11.3.1.2\"",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "since": {
+          "description": "The rules version the rule entered in, YYYY.N",
+          "type": "string",
+          "pattern": "^[0-9]{4}\\.[0-9]+$"
+        },
+        "status": {
+          "description": "Lifecycle state; default active",
+          "enum": [
+            "active",
+            "deprecated",
+            "retired"
+          ]
+        },
+        "aliases": {
+          "description": "Former IDs",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/code"
+          }
+        },
+        "replaced_by": {
+          "description": "IDs that replace this rule",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/code"
+          }
+        },
+        "severity": {
+          "description": "Override of the tier's default severity",
+          "enum": [
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ]
+        },
+        "default_enabled": {
+          "description": "Whether the rule is in its tier's profile; default true",
+          "type": "boolean"
+        },
+        "options": {
+          "description": "Declared options, read as options.<name>",
+          "$ref": "#/$defs/options"
+        },
+        "match": {
+          "description": "The node kinds the rule runs on, and ancestor tests",
+          "$ref": "#/$defs/match"
+        },
+        "define": {
+          "description": "Rule-local helpers",
+          "$ref": "#/$defs/define"
+        },
+        "let": {
+          "description": "Named sub-expressions, in order",
+          "$ref": "#/$defs/let"
+        },
+        "where": {
+          "description": "Filter on the matched node (bool); default true",
+          "type": "string"
+        },
+        "report": {
+          "description": "The nodes to report (list of nodes); default [node]",
+          "type": "string"
+        },
+        "examples": {
+          "description": "Executable examples",
+          "$ref": "#/$defs/examples"
+        },
+        "fix": {
+          "description": "Reserved for rule fixes; not allowed in version 1",
+          "not": {}
+        }
+      },
+      "patternProperties": {
+        "^x-": {}
+      },
+      "additionalProperties": false
+    },
+    "defaults": {
+      "type": "object",
+      "properties": {
+        "tier": {
+          "description": "Lint tier, which decides the default severity and profile",
+          "enum": [
+            "correctness",
+            "suspicious",
+            "portability",
+            "simplify",
+            "style",
+            "pedantic",
+            "restriction",
+            "nursery"
+          ]
+        },
+        "family": {
+          "description": "What the rule is about",
+          "enum": [
+            "constraint",
+            "activity",
+            "exec",
+            "decl",
+            "import",
+            "register",
+            "evolution",
+            "naming",
+            "metric"
+          ]
+        },
+        "since": {
+          "description": "The rules version the rule entered in, YYYY.N",
+          "type": "string",
+          "pattern": "^[0-9]{4}\\.[0-9]+$"
+        },
+        "status": {
+          "description": "Lifecycle state; default active",
+          "enum": [
+            "active",
+            "deprecated",
+            "retired"
+          ]
+        },
+        "severity": {
+          "description": "Override of the tier's default severity",
+          "enum": [
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ]
+        },
+        "default_enabled": {
+          "description": "Whether the rule is in its tier's profile; default true",
+          "type": "boolean"
+        }
+      },
+      "patternProperties": {
+        "^x-": {}
+      },
+      "additionalProperties": false
+    },
+    "code": {
+      "description": "A marker ID: a namespace of 2-5 capitals, optionally qualified by a team (ACME-NET), then three digits",
+      "type": "string",
+      "pattern": "^[A-Z]{2,5}(-[A-Z]{2,5})?[0-9]{3}$"
+    },
+    "kind": {
+      "description": "An AST node kind; subclasses match too",
+      "enum": [
+        "ExprAggrStructElem",
+        "AssocData",
+        "SymbolExtMember",
+        "CompileCond",
+        "SymbolImportSpec",
+        "SymbolRefPath",
+        "TemplateParamValue",
+        "ActivityMatchChoice",
+        "TemplateParamDeclList",
+        "Expr",
+        "TemplateParamValueList",
+        "ActivitySelectBranch",
+        "ScopeChild",
+        "ExprAggrMapElem",
+        "ActionFieldInitializer",
+        "FunctionDefinition",
+        "FunctionImport",
+        "FunctionParamDecl",
+        "ActivityJoinSpec",
+        "GenericConstraintDeclValue",
+        "GenericConstraintParam",
+        "MethodParameterList",
+        "ActivitySchedulingConstraint",
+        "ActivityStmt",
+        "MonitorActivityStmt",
+        "Annotation",
+        "NamedScopeChild",
+        "AnnotationParam",
+        "OverrideStmt",
+        "Comment",
+        "PackageImportStmt",
+        "ComponentBind",
+        "ComponentBindTarget",
+        "ComponentPathElem",
+        "ConstraintStmt",
+        "ProceduralStmtIfClause",
+        "PyImportFromStmt",
+        "PyImportStmt",
+        "CoverStmtReference",
+        "Scope",
+        "ScopeChildRef",
+        "SymbolChild",
+        "CovergroupOption",
+        "CovergroupPortmap",
+        "DataType",
+        "TargetTemplateFunction",
+        "DistItem",
+        "DistWeight",
+        "ExecBlockTag",
+        "ExecStmt",
+        "ExecTargetTemplateBlock",
+        "ExportAction",
+        "ExportFunction",
+        "TemplateParamDecl",
+        "TemplateParamExprValue",
+        "TemplateParamTypeValue",
+        "ExprAggrLiteral",
+        "TypeIdentifier",
+        "ExprBin",
+        "ExprBitSlice",
+        "ExprBool",
+        "ExprCast",
+        "ExprCompileHas",
+        "ExprCond",
+        "ExprDomainOpenRangeList",
+        "ExprDomainOpenRangeValue",
+        "ExprFloatLiteral",
+        "ExprHierarchicalId",
+        "ExprId",
+        "ExprIn",
+        "ExprMemberCall",
+        "ExprMemberPathElem",
+        "ExprNull",
+        "ExprNumber",
+        "ExprOpenRangeList",
+        "ExprOpenRangeValue",
+        "ExprRefName",
+        "ExprRefPath",
+        "TypeIdentifierElem",
+        "ExprSliceRange",
+        "ExprString",
+        "TypedefDeclaration",
+        "ExprUnary",
+        "ExtendEnum",
+        "ActionHandleField",
+        "ActivityBindStmt",
+        "ActivityConstraint",
+        "ActivityJoinSpecBranch",
+        "ActivityJoinSpecFirst",
+        "ActivityJoinSpecNone",
+        "ActivityJoinSpecSelect",
+        "ActivityLabeledStmt",
+        "ActivitySymbolCall",
+        "ConstraintScope",
+        "ConstraintStmtDefault",
+        "ConstraintStmtDefaultDisable",
+        "ConstraintStmtDist",
+        "ConstraintStmtExpr",
+        "ConstraintStmtField",
+        "ConstraintStmtIf",
+        "ConstraintStmtSoft",
+        "ConstraintStmtUnique",
+        "CoverStmtInline",
+        "Covergroup",
+        "CovergroupCoverpoint",
+        "CovergroupCross",
+        "CovergroupCrossBins",
+        "CovergroupInstantiation",
+        "CoverpointBins",
+        "DataTypeBool",
+        "DataTypeChandle",
+        "DataTypeEnum",
+        "DataTypeFloat",
+        "DataTypeInt",
+        "DataTypePyObj",
+        "DataTypeRef",
+        "DataTypeString",
+        "DataTypeUserDefined",
+        "EnumDecl",
+        "EnumItem",
+        "ExprAggrEmpty",
+        "ExprAggrList",
+        "ExprAggrMap",
+        "ExprAggrStruct",
+        "ExprRefPathContext",
+        "ExprRefPathStatic",
+        "ExprRefPathStaticRooted",
+        "ExprSignedNumber",
+        "ExprTemplateString",
+        "ExprUnsignedNumber",
+        "ExtendType",
+        "Field",
+        "FieldClaim",
+        "FieldCompRef",
+        "FieldPool",
+        "FieldRef",
+        "FunctionImportProto",
+        "FunctionImportType",
+        "FunctionPrototype",
+        "GlobalScope",
+        "InstanceOverride",
+        "MonitorActivityLabeledStmt",
+        "MonitorConstraint",
+        "NamedScope",
+        "OverrideDecl",
+        "PackageScope",
+        "ProceduralStmtAssignment",
+        "ProceduralStmtBody",
+        "ProceduralStmtBreak",
+        "ProceduralStmtContinue",
+        "ProceduralStmtDataDeclaration",
+        "ProceduralStmtExpr",
+        "ProceduralStmtIfElse",
+        "ProceduralStmtMatch",
+        "ProceduralStmtMatchChoice",
+        "ProceduralStmtRandomize",
+        "ProceduralStmtReturn",
+        "ProceduralStmtSuper",
+        "ProceduralStmtYield",
+        "SymbolChildrenScope",
+        "TemplateCategoryTypeParamDecl",
+        "TemplateGenericTypeParamDecl",
+        "TemplateValueParamDecl",
+        "TypeOverride",
+        "ActivityActionHandleTraversal",
+        "ActivityActionTypeTraversal",
+        "TypeScope",
+        "SymbolScope",
+        "ConstraintBlock",
+        "ConstraintStmtForall",
+        "ConstraintStmtForeach",
+        "ProceduralStmtRepeatWhile",
+        "ConstraintStmtImplication",
+        "ProceduralStmtWhile",
+        "ExprRefPathSuper",
+        "ActivitySuper",
+        "Action",
+        "ActivityDecl",
+        "GenericConstraintDeclBool",
+        "ActivityLabeledScope",
+        "ImportClass",
+        "Monitor",
+        "MonitorActivityDecl",
+        "MonitorActivityLabeledScope",
+        "AnnotationDecl",
+        "Component",
+        "ProceduralStmtSymbolBodyScope",
+        "ConstraintSymbolScope",
+        "RootSymbolScope",
+        "Struct",
+        "SymbolDeclaration",
+        "CovergroupType",
+        "SymbolEnumScope",
+        "SymbolExtendScope",
+        "SymbolFunctionScope",
+        "SymbolTypeScope",
+        "TemplateElem",
+        "ExecScope",
+        "TemplateString",
+        "ActivityAtomicBlock",
+        "ActivityForeach",
+        "ActivityIfElse",
+        "ActivityMatch",
+        "ActivityParallel",
+        "ActivityRepeatCount",
+        "ActivityRepeatWhile",
+        "ActivityReplicate",
+        "ActivitySchedule",
+        "MonitorActivityOverlap",
+        "MonitorActivitySchedule",
+        "MonitorActivitySelect",
+        "MonitorActivitySequence",
+        "MonitorActivityConcat",
+        "ActivitySelect",
+        "MonitorActivityEventually",
+        "ActivitySequence",
+        "ProceduralStmtForeach",
+        "ProceduralStmtRepeat",
+        "TemplateAssign",
+        "TemplateBlock",
+        "TemplateComment",
+        "TemplateExpr",
+        "ExecBlock",
+        "TemplateIf",
+        "TemplateText",
+        "TemplateVarDecl",
+        "TemplateForeach",
+        "TemplateRepeat",
+        "TemplateIfClause"
+      ]
+    },
+    "match": {
+      "type": "object",
+      "required": [
+        "kind"
+      ],
+      "properties": {
+        "kind": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/kind"
+            },
+            {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/kind"
+              }
+            }
+          ]
+        },
+        "inside": {
+          "description": "Some ancestor, nearest first, is of this kind (searched up to 'stop')",
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/kind"
+                },
+                {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "$ref": "#/$defs/kind"
+                  }
+                }
+              ]
+            },
+            "stop": {
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/kind"
+                },
+                {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "$ref": "#/$defs/kind"
+                  }
+                }
+              ]
+            }
+          },
+          "patternProperties": {
+            "^x-": {}
+          },
+          "additionalProperties": false
+        },
+        "not_inside": {
+          "description": "No ancestor, up to 'stop', is of this kind",
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/kind"
+                },
+                {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "$ref": "#/$defs/kind"
+                  }
+                }
+              ]
+            },
+            "stop": {
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/kind"
+                },
+                {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "$ref": "#/$defs/kind"
+                  }
+                }
+              ]
+            }
+          },
+          "patternProperties": {
+            "^x-": {}
+          },
+          "additionalProperties": false
+        }
+      },
+      "patternProperties": {
+        "^x-": {}
+      },
+      "additionalProperties": false
+    },
+    "options": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/option"
+      }
+    },
+    "option": {
+      "type": "object",
+      "required": [
+        "default"
+      ],
+      "properties": {
+        "type": {
+          "description": "Default string",
+          "enum": [
+            "string",
+            "int",
+            "bool",
+            "string-list"
+          ]
+        },
+        "default": {
+          "description": "Required: expressions need a value"
+        },
+        "help": {
+          "type": "string"
+        },
+        "choices": {
+          "type": "array"
+        }
+      },
+      "patternProperties": {
+        "^x-": {}
+      },
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "not": {
+              "required": [
+                "type"
+              ]
+            }
+          },
+          "then": {
+            "properties": {
+              "default": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "string"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "default": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "int"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "default": {
+                "type": "integer"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "bool"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "default": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "string-list"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "default": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "define": {
+      "description": "Helpers: 'name' or 'name(param, ...)' to one CEL expression",
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[A-Za-z_][A-Za-z0-9_]* *(\\( *([A-Za-z_][A-Za-z0-9_]*( *, *[A-Za-z_][A-Za-z0-9_]*)*)? *\\))?$"
+      },
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "let": {
+      "description": "Named CEL sub-expressions, in order",
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[A-Za-z_][A-Za-z0-9_]*$",
+        "not": {
+          "enum": [
+            "node",
+            "options",
+            "finding"
+          ]
+        }
+      },
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "examples": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/example"
+      }
+    },
+    "example": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "code": {
+          "description": "A complete model; '// expect: ID' marks a finding",
+          "type": "string"
+        },
+        "files": {
+          "description": "File name to text, in place of 'code'",
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      },
+      "patternProperties": {
+        "^x-": {}
+      },
+      "additionalProperties": false,
+      "oneOf": [
+        {
+          "required": [
+            "code"
+          ]
+        },
+        {
+          "required": [
+            "files"
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,37 @@
+pss-rules:
+  rules:
+    - name: no-id
+      tier: style
+      summary: s
+      message: m
+      match: { kind: ExprBin }
+    - id: ACME002
+      tier: style
+      message: m
+      match: { kind: ExprBin }
+    - id: ACME003
+      name: nursery-without-since
+      tier: nursery
+      summary: s
+      message: m
+      match: { kind: ExprBin }
+    - id: ACME004
+      name: no-match
+      tier: style
+      summary: s
+      message: m
+    - id: ACME005
+      name: complete
+      tier: style
+      summary: s
+      message: m
+      match: { kind: ExprBin }
+    - just a string
+
+# expect: PSSP212 error @ 3:7 rule 1 has no 'id'
+# expect: PSSP212 error @ 8:7 rule 'ACME002' has no 'name'
+# expect: PSSP212 error @ 8:7 rule 'ACME002' has no 'summary'
+# expect: PSSP212 error @ 12:7 rule 'ACME003' is in the nursery tier and has no 'since' (the rules version it entered in, "2026.1")
+# expect: PSSP212 error @ 18:7 rule 'ACME004' has no 'match'
+# expect: PSSP212 error @ 29:7 rule 6 must be a mapping of rule fields, not a string
+# loads: ACME005

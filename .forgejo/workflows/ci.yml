@@ -339,7 +339,7 @@ jobs:
         for py in cp312-cp312 cp313-cp313; do
           echo "=== $py ==="
           /opt/python/${py}/bin/python -m venv /tmp/venv-${py}
-          /tmp/venv-${py}/bin/pip install -q pytest pyyaml toposort jsonschema dist/*${py%%-*}-*.whl
+          /tmp/venv-${py}/bin/pip install -q pytest pyyaml toposort jsonschema cel-python dist/*${py%%-*}-*.whl
           PYTHONPATH="$PWD/packages/pyastbuilder/src" \
             /tmp/venv-${py}/bin/python -m pytest tests/python -q --tb=short
         done

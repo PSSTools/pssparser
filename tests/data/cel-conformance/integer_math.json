@@ -1,0 +1,1023 @@
+{
+ "source": "integer_math.textproto",
+ "cel_spec": "v0.25.3",
+ "tests": [
+  {
+   "section": "int64_math",
+   "name": "add_positive_positive",
+   "expr": "40 + 2",
+   "fields": {
+    "value": [
+     {
+      "int64_value": [
+       "42"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "int64_math",
+   "name": "add_positive_negative",
+   "expr": "42 + (-7)",
+   "fields": {
+    "value": [
+     {
+      "int64_value": [
+       "35"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "int64_math",
+   "name": "add_negative_negative",
+   "expr": "-4 + (-2)",
+   "fields": {
+    "value": [
+     {
+      "int64_value": [
+       "-6"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "int64_math",
+   "name": "sub_positive_positive",
+   "expr": "42 - 12",
+   "fields": {
+    "value": [
+     {
+      "int64_value": [
+       "30"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "int64_math",
+   "name": "sub_positive_negative",
+   "expr": "42 - (-22)",
+   "fields": {
+    "value": [
+     {
+      "int64_value": [
+       "64"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "int64_math",
+   "name": "sub_negative_negative",
+   "expr": "-42 - (-12)",
+   "fields": {
+    "value": [
+     {
+      "int64_value": [
+       "-30"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "int64_math",
+   "name": "multiply_positive_positive",
+   "expr": "42 * 2",
+   "fields": {
+    "value": [
+     {
+      "int64_value": [
+       "84"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "int64_math",
+   "name": "multiply_positive_negative",
+   "expr": "40 * (-2)",
+   "fields": {
+    "value": [
+     {
+      "int64_value": [
+       "-80"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "int64_math",
+   "name": "multiply_negative_negative",
+   "expr": "-30 * (-2)",
+   "fields": {
+    "value": [
+     {
+      "int64_value": [
+       "60"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "int64_math",
+   "name": "divide_positive_positive",
+   "expr": "42 / 2",
+   "fields": {
+    "value": [
+     {
+      "int64_value": [
+       "21"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "int64_math",
+   "name": "divide_positive_negative",
+   "expr": "-20 / 2",
+   "fields": {
+    "value": [
+     {
+      "int64_value": [
+       "-10"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "int64_math",
+   "name": "divide_negative_negative",
+   "expr": "-80 / (-2)",
+   "fields": {
+    "value": [
+     {
+      "int64_value": [
+       "40"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "int64_math",
+   "name": "mod_positive_positive",
+   "expr": "47 % 5",
+   "fields": {
+    "value": [
+     {
+      "int64_value": [
+       "2"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "int64_math",
+   "name": "mod_positive_negative",
+   "expr": "43 % (-5)",
+   "fields": {
+    "value": [
+     {
+      "int64_value": [
+       "3"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "int64_math",
+   "name": "mod_negative_negative",
+   "expr": "-42 % (-5)",
+   "fields": {
+    "value": [
+     {
+      "int64_value": [
+       "-2"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "int64_math",
+   "name": "mod_negative_positive",
+   "expr": "-3 % 5",
+   "fields": {
+    "value": [
+     {
+      "int64_value": [
+       "-3"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "int64_math",
+   "name": "unary_minus_pos",
+   "expr": "-(42)",
+   "fields": {
+    "value": [
+     {
+      "int64_value": [
+       "-42"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "int64_math",
+   "name": "unary_minus_neg",
+   "expr": "-(-42)",
+   "fields": {
+    "value": [
+     {
+      "int64_value": [
+       "42"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "int64_math",
+   "name": "unary_minus_no_overload",
+   "expr": "-(42u)",
+   "fields": {
+    "disable_check": [
+     "true"
+    ],
+    "eval_error": [
+     {
+      "errors": [
+       {
+        "message": [
+         "no_such_overload"
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "int64_math",
+   "name": "unary_minus_not_bool",
+   "expr": "-false",
+   "fields": {
+    "disable_check": [
+     "true"
+    ],
+    "eval_error": [
+     {
+      "errors": [
+       {
+        "message": [
+         "no_such_overload"
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "int64_math",
+   "name": "mod_zero",
+   "expr": "34 % 0",
+   "fields": {
+    "eval_error": [
+     {
+      "errors": [
+       {
+        "message": [
+         "modulus by zero"
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "int64_math",
+   "name": "negative_zero",
+   "expr": "-(0)",
+   "fields": {
+    "value": [
+     {
+      "int64_value": [
+       "0"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "int64_math",
+   "name": "double_negative",
+   "expr": "-(-42)",
+   "fields": {
+    "value": [
+     {
+      "int64_value": [
+       "42"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "int64_math",
+   "name": "divide_zero",
+   "expr": "15 / 0",
+   "fields": {
+    "eval_error": [
+     {
+      "errors": [
+       {
+        "message": [
+         "divide by zero"
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "int64_math",
+   "name": "multiply_zero",
+   "expr": "15 * 0",
+   "fields": {
+    "value": [
+     {
+      "int64_value": [
+       "0"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "int64_math",
+   "name": "add_left_identity",
+   "expr": "0 + 17",
+   "fields": {
+    "value": [
+     {
+      "int64_value": [
+       "17"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "int64_math",
+   "name": "add_right_identity",
+   "expr": " 29 + 0",
+   "fields": {
+    "value": [
+     {
+      "int64_value": [
+       "29"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "int64_math",
+   "name": "add_commutative",
+   "expr": "75 + 15 == 15 + 75",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "int64_math",
+   "name": "add_associative",
+   "expr": "5 + (15 + 20) == (5 + 15) + 20",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "int64_math",
+   "name": "mul_left_identity",
+   "expr": "1 * 45",
+   "fields": {
+    "value": [
+     {
+      "int64_value": [
+       "45"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "int64_math",
+   "name": "mul_right_identity",
+   "expr": "-25 * 1",
+   "fields": {
+    "value": [
+     {
+      "int64_value": [
+       "-25"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "int64_math",
+   "name": "mul_commutative",
+   "expr": "15 * 25 == 25 * 15",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "int64_math",
+   "name": "mul_associative",
+   "expr": "15 * (23 * 88) == (15 * 23) * 88",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "int64_math",
+   "name": "add_mul_distribute",
+   "expr": "5 * (15 + 25)  == 5 * 15 + 5 * 25",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "int64_math",
+   "name": "int64_overflow_positive",
+   "expr": "9223372036854775807 + 1",
+   "fields": {
+    "description": [
+     "LLONG_MAX plus one."
+    ],
+    "eval_error": [
+     {
+      "errors": [
+       {
+        "message": [
+         "return error for overflow"
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "int64_math",
+   "name": "int64_overflow_negative",
+   "expr": "-9223372036854775808 - 1",
+   "fields": {
+    "description": [
+     "LLONG_MIN minus one."
+    ],
+    "eval_error": [
+     {
+      "errors": [
+       {
+        "message": [
+         "return error for overflow"
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "int64_math",
+   "name": "int64_overflow_add_negative",
+   "expr": "-9223372036854775808 + (-1)",
+   "fields": {
+    "description": [
+     "negative overflow via addition"
+    ],
+    "eval_error": [
+     {
+      "errors": [
+       {
+        "message": [
+         "return error for overflow"
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "int64_math",
+   "name": "int64_overflow_sub_positive",
+   "expr": "1 - (-9223372036854775807)",
+   "fields": {
+    "description": [
+     "positive overflow via subtraction"
+    ],
+    "eval_error": [
+     {
+      "errors": [
+       {
+        "message": [
+         "return error for overflow"
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "int64_math",
+   "name": "int64_min_negate",
+   "expr": "-(-9223372036854775808)",
+   "fields": {
+    "description": [
+     "Negated LLONG_MIN is not representable."
+    ],
+    "eval_error": [
+     {
+      "errors": [
+       {
+        "message": [
+         "return error for overflow"
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "int64_math",
+   "name": "int64_min_negate_mul",
+   "expr": "(-9223372036854775808) * -1",
+   "fields": {
+    "description": [
+     "Negate LLONG_MIN via multiplication"
+    ],
+    "eval_error": [
+     {
+      "errors": [
+       {
+        "message": [
+         "return error for overflow"
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "int64_math",
+   "name": "int64_min_negate_div",
+   "expr": "(-9223372036854775808)/-1",
+   "fields": {
+    "description": [
+     "Negate LLONG_MIN via division."
+    ],
+    "eval_error": [
+     {
+      "errors": [
+       {
+        "message": [
+         "return error for overflow"
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "int64_math",
+   "name": "int64_overflow_mul_positive",
+   "expr": "5000000000 * 5000000000",
+   "fields": {
+    "description": [
+     "Overflow via multiplication."
+    ],
+    "eval_error": [
+     {
+      "errors": [
+       {
+        "message": [
+         "return error for overflow"
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "int64_math",
+   "name": "int64_overflow_mul_negative",
+   "expr": "(-5000000000) * 5000000000",
+   "fields": {
+    "description": [
+     "Overflow via multiplication."
+    ],
+    "eval_error": [
+     {
+      "errors": [
+       {
+        "message": [
+         "return error for overflow"
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "int64_math",
+   "name": "uint64_overflow_positive",
+   "expr": "18446744073709551615u + 1u",
+   "fields": {
+    "description": [
+     "ULLONG_MAX plus one."
+    ],
+    "eval_error": [
+     {
+      "errors": [
+       {
+        "message": [
+         "return error for overflow"
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "int64_math",
+   "name": "uint64_overflow_negative",
+   "expr": "0u - 1u",
+   "fields": {
+    "description": [
+     "zero minus one."
+    ],
+    "eval_error": [
+     {
+      "errors": [
+       {
+        "message": [
+         "return error for overflow"
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "int64_math",
+   "name": "uint64_overflow_mul_positive",
+   "expr": "5000000000u * 5000000000u",
+   "fields": {
+    "description": [
+     "Overflow via multiplication."
+    ],
+    "eval_error": [
+     {
+      "errors": [
+       {
+        "message": [
+         "return error for overflow"
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "uint64_math",
+   "name": "add",
+   "expr": "42u + 2u",
+   "fields": {
+    "value": [
+     {
+      "uint64_value": [
+       "44"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "uint64_math",
+   "name": "sub",
+   "expr": "42u - 12u",
+   "fields": {
+    "value": [
+     {
+      "uint64_value": [
+       "30"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "uint64_math",
+   "name": "multiply",
+   "expr": "40u * 2u",
+   "fields": {
+    "value": [
+     {
+      "uint64_value": [
+       "80"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "uint64_math",
+   "name": "divide",
+   "expr": "60u / 2u",
+   "fields": {
+    "value": [
+     {
+      "uint64_value": [
+       "30"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "uint64_math",
+   "name": "mod",
+   "expr": "42u % 5u",
+   "fields": {
+    "value": [
+     {
+      "uint64_value": [
+       "2"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "uint64_math",
+   "name": "negative_no_overload",
+   "expr": "-(5u)",
+   "fields": {
+    "disable_check": [
+     "true"
+    ],
+    "eval_error": [
+     {
+      "errors": [
+       {
+        "message": [
+         "no such overload"
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "uint64_math",
+   "name": "mod_zero",
+   "expr": "34u % 0u",
+   "fields": {
+    "eval_error": [
+     {
+      "errors": [
+       {
+        "message": [
+         "modulus by zero"
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "uint64_math",
+   "name": "divide_zero",
+   "expr": "15u / 0u",
+   "fields": {
+    "eval_error": [
+     {
+      "errors": [
+       {
+        "message": [
+         "divide by zero"
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "uint64_math",
+   "name": "multiply_zero",
+   "expr": "15u * 0u",
+   "fields": {
+    "value": [
+     {
+      "uint64_value": [
+       "0"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "uint64_math",
+   "name": "add_left_identity",
+   "expr": "0u + 17u",
+   "fields": {
+    "value": [
+     {
+      "uint64_value": [
+       "17"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "uint64_math",
+   "name": "add_right_identity",
+   "expr": " 29u + 0u",
+   "fields": {
+    "value": [
+     {
+      "uint64_value": [
+       "29"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "uint64_math",
+   "name": "add_commutative",
+   "expr": "75u + 15u == 15u + 75u",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "uint64_math",
+   "name": "add_associative",
+   "expr": "5u + (15u + 20u) == (5u + 15u) + 20u",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "uint64_math",
+   "name": "mul_left_identity",
+   "expr": "1u * 45u",
+   "fields": {
+    "value": [
+     {
+      "uint64_value": [
+       "45"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "uint64_math",
+   "name": "mul_right_identity",
+   "expr": "25u * 1u",
+   "fields": {
+    "value": [
+     {
+      "uint64_value": [
+       "25"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "uint64_math",
+   "name": "mul_commutative",
+   "expr": "15u * 25u == 25u * 15u",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "uint64_math",
+   "name": "mul_associative",
+   "expr": "15u * (23u * 88u) == (15u * 23u) * 88u",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "uint64_math",
+   "name": "add_mul_distribute",
+   "expr": "5u * (15u + 25u)  == 5u * 15u + 5u * 25u",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  }
+ ]
+}

@@ -1,0 +1,57 @@
+# Site files may not use a reserved namespace, with or without a team
+# qualifier (format §5, §5.1). A namespace that merely starts with one
+# (PSSAC) is not reserved.
+pss-rules:
+  defaults:
+    tier: style
+  rules:
+    - id: PSS001
+      name: lrm-namespace
+      summary: s
+      message: m
+      match: { kind: ExprBin }
+    - id: LINT201
+      name: lint-namespace
+      summary: s
+      message: m
+      match: { kind: ExprBin }
+    - id: PSSP300
+      name: tool-namespace
+      summary: s
+      message: m
+      match: { kind: ExprBin }
+    - id: PSSX001
+      name: held-namespace
+      summary: s
+      message: m
+      match: { kind: ExprBin }
+    - id: PSS-ACME001
+      name: qualified-lrm-namespace
+      summary: s
+      message: m
+      match: { kind: ExprBin }
+    - id: LINT-NET001
+      name: qualified-lint-namespace
+      summary: s
+      message: m
+      match: { kind: ExprBin }
+    - id: ACME001
+      name: reserved-alias
+      aliases: [LINT104]
+      summary: s
+      message: m
+      match: { kind: ExprBin }
+    - id: PSSAC001
+      name: reserved-prefix-only
+      summary: s
+      message: m
+      match: { kind: ExprBin }
+
+# expect: PSSP217 error @ 8:11 'PSS001' is in the reserved namespace 'PSS': PSS, PSSP, PSSX and LINT belong to pssparser, with or without a team qualifier; choose a namespace of your own, as ACME001
+# expect: PSSP217 error @ 13:11 'LINT201' is in the reserved namespace 'LINT': PSS, PSSP, PSSX and LINT belong to pssparser, with or without a team qualifier; choose a namespace of your own, as ACME001
+# expect: PSSP217 error @ 18:11 'PSSP300' is in the reserved namespace 'PSSP': PSS, PSSP, PSSX and LINT belong to pssparser, with or without a team qualifier; choose a namespace of your own, as ACME001
+# expect: PSSP217 error @ 23:11 'PSSX001' is in the reserved namespace 'PSSX': PSS, PSSP, PSSX and LINT belong to pssparser, with or without a team qualifier; choose a namespace of your own, as ACME001
+# expect: PSSP217 error @ 28:11 'PSS-ACME001' is in the reserved namespace 'PSS-ACME': PSS, PSSP, PSSX and LINT belong to pssparser, with or without a team qualifier; choose a namespace of your own, as ACME001
+# expect: PSSP217 error @ 33:11 'LINT-NET001' is in the reserved namespace 'LINT-NET': PSS, PSSP, PSSX and LINT belong to pssparser, with or without a team qualifier; choose a namespace of your own, as ACME001
+# expect: PSSP217 error @ 40:17 'LINT104' is in the reserved namespace 'LINT': PSS, PSSP, PSSX and LINT belong to pssparser, with or without a team qualifier; choose a namespace of your own, as ACME001
+# loads: PSSAC001

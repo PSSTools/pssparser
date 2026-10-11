@@ -1,0 +1,40 @@
+# builtin
+pss-rules:
+  defaults:
+    tier: style
+  rules:
+    - id: LINT901
+      name: missing-builtin-fields
+      summary: s
+      message: m
+      match: { kind: ExprBin }
+    - id: LINT902
+      name: only-firing-examples
+      family: exec
+      summary: s
+      message: m
+      doc: d
+      match: { kind: ExprBin }
+      examples:
+        - code: |
+            component pss_top { }   // expect: LINT902
+    - id: LINT903
+      name: complete-builtin
+      family: exec
+      summary: s
+      message: m
+      doc: d
+      match: { kind: ExprBin }
+      examples:
+        - name: fires
+          code: |
+            component pss_top { }   // expect: LINT903
+        - name: near miss
+          code: |
+            component pss_top { }
+
+# expect: PSSP212 error @ 6:7 rule 'LINT901' has no 'family', which a built-in rule must have
+# expect: PSSP212 error @ 6:7 rule 'LINT901' has no 'doc', which a built-in rule must have
+# expect: PSSP212 error @ 6:7 rule 'LINT901' has no 'examples', which a built-in rule must have
+# expect: PSSP212 error @ 19:9 a built-in rule needs at least one example that fires and one that does not; this one has none that does not
+# loads: LINT903

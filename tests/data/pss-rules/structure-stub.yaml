@@ -1,0 +1,5 @@
+# An empty rule set is allowed, so a file can be stubbed.
+pss-rules:
+  rules: []
+
+# loads: none

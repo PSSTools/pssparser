@@ -1,0 +1,5 @@
+pss-rules:
+  version: 1
+
+# expect: PSSP210 error @ 2:3 'pss-rules' has no 'rules' list (write 'rules: []' for a file with no rules yet)
+# refused

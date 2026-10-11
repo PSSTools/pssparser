@@ -1,0 +1,68 @@
+# The marker ID grammar (format §5.1): NS000 or ORG-TEAM000, letters-only
+# segments of 2-5 capitals, then exactly 3 digits.
+pss-rules:
+  defaults:
+    tier: style
+  rules:
+    - id: ACME-NET001
+      name: team-qualified
+      summary: s
+      message: m
+      match: { kind: ExprBin }
+    - id: ACME-DMA104
+      name: another-team
+      summary: s
+      message: m
+      match: { kind: ExprBin }
+    - id: ACME-TEAM1001
+      name: digit-in-team
+      summary: s
+      message: m
+      match: { kind: ExprBin }
+    - id: acme002
+      name: lower-case
+      summary: s
+      message: m
+      match: { kind: ExprBin }
+    - id: ACME02
+      name: two-digits
+      summary: s
+      message: m
+      match: { kind: ExprBin }
+    - id: ACMEINC001
+      name: long-org
+      summary: s
+      message: m
+      match: { kind: ExprBin }
+    - id: ACME-NET-RX001
+      name: two-qualifiers
+      summary: s
+      message: m
+      match: { kind: ExprBin }
+    - id: 1001
+      name: a-number
+      summary: s
+      message: m
+      match: { kind: ExprBin }
+    - id: ACME003
+      name: bad-alias
+      aliases: [ACME-NET1]
+      summary: s
+      message: m
+      match: { kind: ExprBin }
+    - id: ACME004
+      name: replaced-by-a-reserved-id
+      status: deprecated
+      replaced_by: [LINT201]
+      summary: s
+      message: m
+      match: { kind: ExprBin }
+
+# expect: PSSP212 error @ 17:11 'ACME-TEAM1001' is not a marker ID: 'id' must be a namespace of 2-5 capital letters, optionally followed by '-' and a team of 2-5 more, then 3 digits, as ACME001 or ACME-NET001; a namespace is letters only, so 'ACME-TEAM1' is not one (name a team with letters, as ACME-NET)
+# expect: PSSP212 error @ 22:11 'acme002' is not a marker ID: 'id' must be a namespace of 2-5 capital letters, optionally followed by '-' and a team of 2-5 more, then 3 digits, as ACME001 or ACME-NET001; IDs are upper case
+# expect: PSSP212 error @ 27:11 'ACME02' is not a marker ID: 'id' must be a namespace of 2-5 capital letters, optionally followed by '-' and a team of 2-5 more, then 3 digits, as ACME001 or ACME-NET001
+# expect: PSSP212 error @ 32:11 'ACMEINC001' is not a marker ID: 'id' must be a namespace of 2-5 capital letters, optionally followed by '-' and a team of 2-5 more, then 3 digits, as ACME001 or ACME-NET001
+# expect: PSSP212 error @ 37:11 'ACME-NET-RX001' is not a marker ID: 'id' must be a namespace of 2-5 capital letters, optionally followed by '-' and a team of 2-5 more, then 3 digits, as ACME001 or ACME-NET001
+# expect: PSSP212 error @ 42:11 'id' must be a marker ID, as ACME001, not an integer
+# expect: PSSP212 error @ 49:17 'ACME-NET1' is not a marker ID: 'aliases' must be a namespace of 2-5 capital letters, optionally followed by '-' and a team of 2-5 more, then 3 digits, as ACME001 or ACME-NET001
+# loads: ACME-NET001, ACME-DMA104, ACME004

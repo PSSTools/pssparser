@@ -1,0 +1,619 @@
+{
+ "source": "lists.textproto",
+ "cel_spec": "v0.25.3",
+ "tests": [
+  {
+   "section": "concatenation",
+   "name": "list_append",
+   "expr": "[0, 1, 2] + [3, 4, 5] == [0, 1, 2, 3, 4, 5]",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "concatenation",
+   "name": "list_not_commutative",
+   "expr": "[0, 1, 2] + [3, 4, 5] == [3, 4, 5, 0, 1, 2]",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "false"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "concatenation",
+   "name": "list_repeat",
+   "expr": "[2] + [2]",
+   "fields": {
+    "value": [
+     {
+      "list_value": [
+       {
+        "values": [
+         {
+          "int64_value": [
+           "2"
+          ]
+         },
+         {
+          "int64_value": [
+           "2"
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "concatenation",
+   "name": "empty_empty",
+   "expr": "[] + []",
+   "fields": {
+    "value": [
+     {
+      "list_value": [
+       {}
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "concatenation",
+   "name": "left_unit",
+   "expr": "[] + [3, 4]",
+   "fields": {
+    "value": [
+     {
+      "list_value": [
+       {
+        "values": [
+         {
+          "int64_value": [
+           "3"
+          ]
+         },
+         {
+          "int64_value": [
+           "4"
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "concatenation",
+   "name": "right_unit",
+   "expr": "[1, 2] + []",
+   "fields": {
+    "value": [
+     {
+      "list_value": [
+       {
+        "values": [
+         {
+          "int64_value": [
+           "1"
+          ]
+         },
+         {
+          "int64_value": [
+           "2"
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "index",
+   "name": "zero_based",
+   "expr": "[7, 8, 9][0]",
+   "fields": {
+    "value": [
+     {
+      "int64_value": [
+       "7"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "index",
+   "name": "zero_based_double",
+   "expr": "[7, 8, 9][dyn(0.0)]",
+   "fields": {
+    "value": [
+     {
+      "int64_value": [
+       "7"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "index",
+   "name": "zero_based_double_error",
+   "expr": "[7, 8, 9][dyn(0.1)]",
+   "fields": {
+    "eval_error": [
+     {
+      "errors": [
+       {
+        "message": [
+         "invalid_argument"
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "index",
+   "name": "zero_based_uint",
+   "expr": "[7, 8, 9][dyn(0u)]",
+   "fields": {
+    "value": [
+     {
+      "int64_value": [
+       "7"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "index",
+   "name": "singleton",
+   "expr": "['foo'][0]",
+   "fields": {
+    "value": [
+     {
+      "string_value": [
+       "foo"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "index",
+   "name": "middle",
+   "expr": "[0, 1, 1, 2, 3, 5, 8, 13][4]",
+   "fields": {
+    "value": [
+     {
+      "int64_value": [
+       "3"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "index",
+   "name": "last",
+   "expr": "['George', 'John', 'Paul', 'Ringo'][3]",
+   "fields": {
+    "value": [
+     {
+      "string_value": [
+       "Ringo"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "index",
+   "name": "index_out_of_bounds",
+   "expr": "[1, 2, 3][3]",
+   "fields": {
+    "eval_error": [
+     {
+      "errors": [
+       {
+        "message": [
+         "invalid_argument"
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "index",
+   "name": "index_out_of_bounds_or_false",
+   "expr": "dyn([1, 2, 3][3]) || false",
+   "fields": {
+    "eval_error": [
+     {
+      "errors": [
+       {
+        "message": [
+         "invalid_argument"
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "index",
+   "name": "index_out_of_bounds_or_true",
+   "expr": "dyn([1, 2, 3][3]) || true",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "index",
+   "name": "index_out_of_bounds_and_false",
+   "expr": "dyn([1, 2, 3][3]) && false",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "false"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "index",
+   "name": "index_out_of_bounds_and_true",
+   "expr": "dyn([1, 2, 3][3]) && true",
+   "fields": {
+    "eval_error": [
+     {
+      "errors": [
+       {
+        "message": [
+         "invalid_argument"
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "index",
+   "name": "bad_index_type",
+   "expr": "[1, 2, 3][dyn('')]",
+   "fields": {
+    "eval_error": [
+     {
+      "errors": [
+       {
+        "message": [
+         "invalid_argument"
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "index",
+   "name": "bad_index_type_or_false",
+   "expr": "dyn([1, 2, 3][dyn('')]) || false",
+   "fields": {
+    "eval_error": [
+     {
+      "errors": [
+       {
+        "message": [
+         "invalid_argument"
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "index",
+   "name": "bad_index_type_or_true",
+   "expr": "dyn([1, 2, 3][dyn('')]) || true",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "index",
+   "name": "bad_index_type_and_false",
+   "expr": "dyn([1, 2, 3][dyn('')]) && false",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "false"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "index",
+   "name": "bad_index_type_and_true",
+   "expr": "dyn([1, 2, 3][dyn('')]) && true",
+   "fields": {
+    "eval_error": [
+     {
+      "errors": [
+       {
+        "message": [
+         "invalid_argument"
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "in",
+   "name": "empty",
+   "expr": "7 in []",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "false"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "in",
+   "name": "singleton",
+   "expr": "4u in [4u]",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "in",
+   "name": "first",
+   "expr": "'alpha' in ['alpha', 'beta', 'gamma']",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "in",
+   "name": "middle",
+   "expr": "3 in [5, 4, 3, 2, 1]",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "in",
+   "name": "last",
+   "expr": "20u in [4u, 6u, 8u, 12u, 20u]",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "in",
+   "name": "double_in_ints",
+   "expr": "dyn(3.0) in [5, 4, 3, 2, 1]",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "in",
+   "name": "uint_in_ints",
+   "expr": "dyn(3u) in [5, 4, 3, 2, 1]",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "in",
+   "name": "int_in_doubles",
+   "expr": "dyn(3) in [5.0, 4.0, 3.0, 2.0, 1.0]",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "in",
+   "name": "uint_in_doubles",
+   "expr": "dyn(3u) in [5.0, 4.0, 3.0, 2.0, 1.0]",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "in",
+   "name": "int_in_uints",
+   "expr": "dyn(3) in [5u, 4u, 3u, 2u, 1u]",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "in",
+   "name": "double_in_uints",
+   "expr": "dyn(3.0) in [5u, 4u, 3u, 2u, 1u]",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "in",
+   "name": "missing",
+   "expr": "'hawaiian' in ['meat', 'veggie', 'margarita', 'cheese']",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "false"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "size",
+   "name": "list_empty",
+   "expr": "size([])",
+   "fields": {
+    "value": [
+     {
+      "int64_value": [
+       "0"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "size",
+   "name": "list",
+   "expr": "size([1, 2, 3])",
+   "fields": {
+    "value": [
+     {
+      "int64_value": [
+       "3"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "size",
+   "name": "map_empty",
+   "expr": "size({})",
+   "fields": {
+    "value": [
+     {
+      "int64_value": [
+       "0"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "size",
+   "name": "map",
+   "expr": "size({1: 'one', 2: 'two', 3: 'three'})",
+   "fields": {
+    "value": [
+     {
+      "int64_value": [
+       "3"
+      ]
+     }
+    ]
+   }
+  }
+ ]
+}

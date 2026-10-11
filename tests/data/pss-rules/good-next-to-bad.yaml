@@ -1,0 +1,23 @@
+pss-rules:
+  defaults:
+    tier: style
+  rules:
+    - id: ACME001
+      name: good-before
+      summary: s
+      message: m
+      match: { kind: ExprBin }
+    - id: ACME002
+      name: bad
+      summary: s
+      message: m
+      match: { kind: ExprBin }
+      where: node.op == "x"
+    - id: ACME003
+      name: good-after
+      summary: s
+      message: m
+      match: { kind: ExprBin }
+
+# expect: PSSP215 error @ 15:14 no matching overload for '==' applied to (int, string); it takes A == A -> bool
+# loads: ACME001, ACME003

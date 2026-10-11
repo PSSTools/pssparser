@@ -1997,11 +1997,12 @@ class CoreChecker(CheckerBase):
             summary="A checker declares a marker ID in a reserved namespace",
             detail=(
                 "The ``PSS``, ``LINT``, ``PSSP`` and ``PSSX`` namespaces "
-                "belong to pssparser.  A checker from an installed extension "
-                "that declares an ID in one of them is not registered; the "
-                "rest of its extension still loads.  Choose a namespace of "
-                "your own -- two to five capital letters, then three digits "
-                "(``PRC001``)."
+                "belong to pssparser, with or without a team qualifier "
+                "(``PSS-ACME001`` is refused too).  A checker from an "
+                "installed extension that declares an ID in one of them is "
+                "not registered; the rest of its extension still loads.  "
+                "Choose a namespace of your own -- two to five capital "
+                "letters, then three digits (``PRC001``)."
             ),
         ),
 
@@ -2012,9 +2013,10 @@ class CoreChecker(CheckerBase):
             severity="warning",
             summary="A checker declares a marker ID that does not fit the ID grammar",
             detail=(
-                "Marker IDs are a namespace of two to five capital letters "
-                "followed by three digits (``PRC001``).  An ID that does not "
-                "fit still loads, for now, but cannot be selected by "
+                "Marker IDs are a namespace of two to five capital letters, "
+                "optionally followed by ``-`` and a team of two to five more, "
+                "then three digits (``PRC001``, ``ACME-NET001``).  An ID that "
+                "does not fit still loads, for now, but cannot be selected by "
                 "namespace or band and will be refused in a later release.  "
                 "Rename it."
             ),
@@ -2192,6 +2194,210 @@ class CoreChecker(CheckerBase):
                 "unnoticed.  It is reported only for an entry whose file was "
                 "checked and whose rule ran, so checking a subset of the "
                 "files, or turning a rule off, does not make entries stale."
+            ),
+        ),
+
+        # -- Rule files (pss-rules-format.md §6.3; lint-core-plan.md §6).
+        # Reported by the C++ rule loader, located in the rule file.  A bad
+        # rule is left out; the rest of its file loads.
+        MarkerDef(
+            id="PSSP210",
+            name="rule-file-structure",
+            tier="tool",
+            severity="error",
+            summary="A rule file is not a pss-rules file",
+            detail=(
+                "The file is refused as a whole: it is empty, its top level "
+                "is not a mapping with the single key ``pss-rules``, "
+                "``pss-rules`` is not a mapping or has no ``rules`` list, or "
+                "it declares a ``version`` this pssparser does not read.  A "
+                "file of a later version is never partly loaded; the message "
+                "names both versions."
+            ),
+        ),
+        MarkerDef(
+            id="PSSP211",
+            name="rule-unknown-key",
+            tier="tool",
+            severity="error",
+            summary="A rule file has a key the format does not define",
+            detail=(
+                "Rule files are strict: an unknown key is an error, never "
+                "ignored, so a misspelt ``wher:`` cannot leave a rule "
+                "firing on every node.  The message suggests the nearest "
+                "key.  A key in a rule disables that rule.  Keys starting "
+                "with ``x-`` are the author's own and are ignored.  Settings "
+                "beside ``pss-rules`` at the top level belong under it."
+            ),
+        ),
+        MarkerDef(
+            id="PSSP212",
+            name="rule-field-invalid",
+            tier="tool",
+            severity="error",
+            summary="A rule field is missing or has a wrong value",
+            detail=(
+                "A required field is missing (``id``, ``name``, ``tier``, "
+                "``summary``, ``message``, ``match``; ``since`` in the "
+                "nursery tier; ``family``, ``doc`` and examples that fire "
+                "and do not fire in a built-in rule), or a field has the "
+                "wrong type or a value outside its set.  This includes "
+                "``options`` specs, ``let`` names, example expectations, a "
+                "field under ``defaults`` that cannot be defaulted, and "
+                "``fix``, which is reserved.  The rule is not loaded."
+            ),
+        ),
+        MarkerDef(
+            id="PSSP213",
+            name="rule-unknown-kind",
+            tier="tool",
+            severity="error",
+            summary="A rule's match names an unknown node kind",
+            detail=(
+                "``match.kind``, ``inside`` and ``not_inside`` name AST "
+                "classes from the schema (``ast/*.yaml``), as ``ExprBin`` "
+                "or ``Action``.  The message suggests the nearest class.  "
+                "The rule is not loaded."
+            ),
+        ),
+        MarkerDef(
+            id="PSSP214",
+            name="rule-expression-syntax",
+            tier="tool",
+            severity="error",
+            summary="A rule expression is not valid CEL",
+            detail=(
+                "A ``where``, ``report``, ``let``, ``define`` or message "
+                "``${...}`` expression does not parse, or uses a part of "
+                "CEL that pss-rules leaves out (see "
+                "``docs/lint-functions.rst``).  The position is mapped back "
+                "to the line and column in the rule file.  Write CEL in a "
+                "block scalar (``>-``) or a quoted string, since ``:``, "
+                "``#`` and ``?`` would otherwise trip YAML.  In a message, "
+                "``$${`` is a literal ``${``."
+            ),
+        ),
+        MarkerDef(
+            id="PSSP215",
+            name="rule-expression-type",
+            tier="tool",
+            severity="error",
+            summary="A rule expression does not type-check",
+            detail=(
+                "Every expression has a static type, checked when the rule "
+                "loads: an unknown name, field, function or option, a wrong "
+                "argument type, ``where`` that is not a bool, ``report`` that "
+                "is not a list of nodes, or a message interpolation that is "
+                "not a string, number, bool or node.  The rule is not loaded."
+            ),
+        ),
+        MarkerDef(
+            id="PSSP216",
+            name="rule-expression-limit",
+            tier="tool",
+            severity="error",
+            summary="A rule expression exceeds a limit",
+            detail=(
+                "Comprehensions nest more than two deep in one expression "
+                "or helper (move the inner part into a ``define:`` helper), "
+                "``define:`` helpers call each other in a cycle (the message "
+                "gives the path), or a regular expression is outside the "
+                "supported RE2 syntax.  These limits keep every rule's run "
+                "time bounded.  The rule is not loaded."
+            ),
+        ),
+        MarkerDef(
+            id="PSSP217",
+            name="rule-id-conflict",
+            tier="tool",
+            severity="error",
+            summary="A rule's ID or name is reserved or already taken",
+            detail=(
+                "A site rule file may not use the ``PSS``, ``PSSP``, "
+                "``PSSX`` or ``LINT`` namespaces, with or without a team "
+                "qualifier (``LINT-NET001`` is refused too); a built-in rule "
+                "file uses ``LINT`` only.  Across every loaded rule file and "
+                "extension, a rule's ID and aliases are unique among IDs and "
+                "aliases, and its name among names; the message names the "
+                "other rule's file and line.  Team namespaces are separate: "
+                "``ACME-NET001`` and ``ACME-DMA001`` do not clash.  The rule "
+                "is not loaded."
+            ),
+        ),
+        MarkerDef(
+            id="PSSP218",
+            name="rule-file-yaml",
+            tier="tool",
+            severity="error",
+            summary="A rule file is not valid YAML for pss-rules",
+            detail=(
+                "A YAML syntax error, a duplicate key, a tag (``!!str``), or "
+                "more than one document in the file.  The file is refused as "
+                "a whole.  Rule files use YAML 1.2 core-schema scalars: "
+                "``yes``, ``no``, ``on`` and ``off`` are strings."
+            ),
+        ),
+        MarkerDef(
+            id="PSSP219",
+            name="rule-helper-shadowed",
+            tier="tool",
+            severity="info",
+            summary="A rule's helper shadows the file's helper of the same name",
+            detail=(
+                "A ``define:`` helper of a rule has the name of a file-level "
+                "helper, so within that rule it replaces the file's.  That "
+                "may be intended; rename one of them if it is not."
+            ),
+        ),
+
+        # -- Rule runs (lint-core-plan.md C5.3; lint-rule-expressions.md §5).
+        # Reported by the C++ lint runner, located in the model.
+        MarkerDef(
+            id="PSSP220",
+            name="rule-evaluation-error",
+            tier="tool",
+            severity="warning",
+            summary="A lint rule failed while evaluating",
+            detail=(
+                "A rule's ``where``, ``report`` or message expression "
+                "evaluated to an error on a node: most often a field read "
+                "through an unset one (``node.super_t.elems`` on a type "
+                "with no base), which a rule guards with ``has()`` or "
+                "``.?``.  The message names the rule, the expression and "
+                "the node.  The rule is skipped for the rest of that file, "
+                "once; the other rules still run.  A finding whose message "
+                "failed is kept, with ``?`` in place of the failed part.  "
+                "The model is not at fault: fix the rule, or turn it off."
+            ),
+        ),
+        MarkerDef(
+            id="PSSP221",
+            name="rule-budget-exceeded",
+            tier="tool",
+            severity="warning",
+            summary="A lint rule used up its evaluation budget for a file",
+            detail=(
+                "Each rule may spend a fixed number of evaluation steps on "
+                "each file, counted across every node it matches, so a "
+                "costly rule cannot stall the editor.  A rule that runs out "
+                "is skipped for the rest of that file; the findings it "
+                "already made stand, and the other rules still run.  The "
+                "message names the rule and the node it was evaluating.  "
+                "Make the rule cheaper: a narrower ``match``, or a "
+                "``where`` that rejects early."
+            ),
+        ),
+        MarkerDef(
+            id="PSSP230",
+            name="lint-skipped",
+            tier="tool",
+            severity="info",
+            summary="Lint did not run because the model has errors",
+            detail=(
+                "Lint rules run only on a model that parsed, linked and "
+                "passed the semantic checks without an error, since a rule "
+                "on a broken model would report noise.  The message gives "
+                "the number of errors.  Fix them, and lint runs."
             ),
         ),
     ] + list(_CORE_EMITTED_LINT)

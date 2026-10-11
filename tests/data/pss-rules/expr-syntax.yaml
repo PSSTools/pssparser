@@ -1,0 +1,48 @@
+pss-rules:
+  defaults:
+    tier: style
+  rules:
+    - id: ACME001
+      name: where-syntax
+      summary: s
+      message: m
+      match: { kind: ExprBin }
+      where: >-
+        node.op == ExprBinOp.BinOp_Eq &&
+        node.lhs ==
+    - id: ACME002
+      name: message-unterminated
+      summary: s
+      message: "the value ${node.op is wrong"
+      match: { kind: ExprBin }
+    - id: ACME003
+      name: message-syntax
+      summary: s
+      message: "the value ${node.op +} is wrong"
+      match: { kind: ExprBin }
+    - id: ACME004
+      name: outside-profile
+      summary: s
+      message: m
+      match: { kind: ExprBin }
+      where: node.op == uint(1)
+    - id: ACME005
+      name: let-syntax
+      summary: s
+      message: m
+      match: { kind: ExprBin }
+      let:
+        a: "[1, 2"
+    - id: ACME006
+      name: message-empty
+      summary: s
+      message: "nothing ${ } here"
+      match: { kind: ExprBin }
+
+# expect: PSSP214 error @ 12:20 expected an expression, found the end of the input
+# expect: PSSP214 error @ 16:27 unterminated '${' in the message (write '$${' for a literal '${')
+# expect: PSSP214 error @ 21:38 expected an expression, found the end of the input
+# expect: PSSP215 error @ 28:25 undeclared reference to function 'uint'
+# expect: PSSP214 error @ 35:18 expected ',' or ']' in a list, found end of expression
+# expect: PSSP214 error @ 39:25 empty '${}' in the message
+# loads: none

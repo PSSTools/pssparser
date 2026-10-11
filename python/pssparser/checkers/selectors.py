@@ -9,15 +9,17 @@ Form            Example               Matches
 ID              ``LINT104``           one rule
 name            ``unknown-annotation``  one rule
 prefix          ``LINT1``             an ID band
-namespace       ``PRC``               every code in the namespace
+namespace       ``PRC``               every code in the namespace and,
+                                      for an organisation, its teams
+                                      (``ACME`` covers ``ACME-NET001``)
 family          ``family:constraint`` every rule in the family
 tier            ``correctness``       every rule in the tier
 profile         ``recommended``       every rule the profile enables
 ==============  ====================  ======================================
 
 When several selectors match one rule, the most specific wins: ID or name,
-then prefix (a longer prefix is more specific), then namespace, family, tier,
-and profile last.  A tie between ``select`` and ``ignore`` goes to
+then prefix (a longer prefix is more specific), then namespace (a team's
+before its organisation's), family, tier, and profile last.  A tie between ``select`` and ``ignore`` goes to
 ``ignore``.  This is Ruff's model; it lets ``select = ["recommended",
 "pedantic"]`` with ``ignore = ["LINT203"]`` mean what it says.
 
@@ -32,7 +34,8 @@ from typing import Dict, Iterable, List, Optional, Sequence, Set, Tuple
 
 from . import taxonomy
 
-_PREFIX_RE = re.compile(r"^([A-Z]{2,5})([0-9]{0,2})$")
+#: A namespace (``ACME``, ``ACME-NET``) and 0-2 digits of band.
+_PREFIX_RE = re.compile(r"^(" + taxonomy.NAMESPACE_PATTERN + r")([0-9]{0,2})$")
 
 #: Specificity by selector kind; a prefix adds its digit count.
 _SPECIFICITY = {
@@ -59,9 +62,12 @@ class Selector:
     @property
     def specificity(self) -> int:
         base = _SPECIFICITY[self.kind]
-        if self.kind == "prefix":
+        if self.kind in ("prefix", "namespace"):
+            # A team namespace is narrower than its organisation, and each
+            # digit of band narrower again: ACME < ACME-NET < ACME-NET1.
             m = _PREFIX_RE.match(self.value)
-            base += len(m.group(2)) if m else 0
+            if m:
+                base += ("-" in m.group(1)) + 2 * len(m.group(2))
         return base
 
     def matches(self, md, profile_members: Optional[Set[str]] = None) -> bool:
@@ -72,7 +78,7 @@ class Selector:
         if self.kind == "prefix":
             return md.id.startswith(self.value)
         if self.kind == "namespace":
-            return taxonomy.namespace_of(md.id) == self.value
+            return taxonomy.namespace_selects(self.value, taxonomy.namespace_of(md.id))
         if self.kind == "family":
             return md.family == self.value
         if self.kind == "tier":
@@ -147,8 +153,9 @@ class RuleSet:
         m = _PREFIX_RE.match(text)
         if m is not None:
             ns, digits = m.groups()
-            if any(md.id.startswith(text) for md in self.mdefs):
-                return Selector(text, "prefix" if digits else "namespace", text)
+            sel = Selector(text, "prefix" if digits else "namespace", text)
+            if any(sel.matches(md) for md in self.mdefs):
+                return sel
         raise SelectorError(self._unknown(text))
 
     def _unknown(self, text: str, what: str = "") -> str:

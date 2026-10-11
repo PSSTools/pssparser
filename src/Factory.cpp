@@ -34,6 +34,8 @@
 #include "TaskLoadStandardLibrary.h"
 #include "TaskLookupLocation.h"
 #include "ValInt.h"
+#include "lint/LintEngine.h"
+#include "lint/LintTestHooks.h"
 
 
 namespace pssp {
@@ -118,6 +120,14 @@ ITaskFindElementByLocation *Factory::mkTaskFindElementByLocation() {
 
 IOccurrenceCollector *Factory::mkOccurrenceCollector() {
     return new OccurrenceCollector(m_dmgr);
+}
+
+lint::ILintEngine *Factory::mkLintEngine() {
+    return new lint::LintEngine();
+}
+
+lint::ILintTestHooks *Factory::mkLintTestHooks() {
+    return new lint::LintTestHooks();
 }
 
 IFmtTokenStream *Factory::mkTokenizer(std::istream *in) {

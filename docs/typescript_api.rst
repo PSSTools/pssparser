@@ -335,6 +335,40 @@ nothing a grammar author can edit.
      .sort((a, b) => b.sllLookaheadOps - a.sllLookaheadOps)
      .slice(0, 5);
 
+``loadRules(files)``, ``ruleDiagnostics`` and ``probeRules(text)``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: typescript
+
+   loadRules(files: RuleFile[]): RuleDiagnostic[];
+   get ruleDiagnostics(): readonly RuleDiagnostic[];
+   probeRules(text: string): RuleProbe;
+
+   interface RuleFile { name: string; text: string; }
+   interface RuleDiagnostic {
+     code: string;                 // 'PSSP210' .. 'PSSP219'
+     severity: 'error' | 'warning' | 'info';
+     message: string;
+     file: string; line: number; col: number;
+     rule: string;                 // the rule's ID, or ''
+     related?: { file: string; line: number; col: number };
+   }
+   type RuleProbe = 'rule-file' | 'empty' | 'not-yaml' | 'not-mapping' | 'no-key';
+
+Loads ``pss-rules`` files (:doc:`lint-rule-authoring`) into the parser's lint
+engine, in order, with the same loader as the CLI. The built-in rules are
+loaded first, once. ``loadRules`` returns the diagnostics its files produced;
+``ruleDiagnostics`` has every one so far. A bad rule is left out and the rest
+of its file loads; an ID or name an earlier file already has is refused
+(``PSSP217``).
+
+``probeRules`` says whether a text is a rule file without loading it, for a
+host that lists a rules directory: files that are not rule files are skipped
+there. Text that is not valid YAML counts as a rule file when a line starts
+``pss-rules:``, so that loading it reports the YAML error.
+
+Rules are loaded and checked, but not yet run over a model.
+
 ``dispose()``
 ^^^^^^^^^^^^^
 
@@ -389,6 +423,7 @@ Markers
      extent: number;    // characters in the primary span; -1 if unknown
      related: MarkerRelation[];
      code?: string;     // "PSS020"
+     fix?: MarkerFix;   // a repair the parser can offer, when it has one
    }
 
    interface MarkerRelation {
@@ -396,6 +431,16 @@ Markers
      line: number;
      col: number;
      label: string;
+   }
+
+   // Replace `extent` characters at line:col with `replacement`. The span is
+   // the fix's own: an insertion has extent 0.
+   interface MarkerFix {
+     file: string;
+     line: number;
+     col: number;
+     extent: number;
+     replacement: string;
    }
 
 Field for field this is what the Python API returns; see :doc:`markers` for the

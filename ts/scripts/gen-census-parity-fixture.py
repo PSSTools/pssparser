@@ -49,7 +49,8 @@ import json
 import os
 import sys
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "generated"))
+#: Where `npm run gen:census` writes census_gen.py. --census-dir overrides it.
+CENSUS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "generated")
 
 # Deep expression trees and the standard library's nesting both exceed the
 # default 1000. The census recurses once per level of ownership, not once per
@@ -274,7 +275,10 @@ def main(argv=None):
     ap.add_argument("-o", "--output", required=True)
     ap.add_argument("--corpus", help="directory of .pss files to include")
     ap.add_argument("--no-corpus", action="store_true")
+    ap.add_argument("--census-dir", default=CENSUS_DIR,
+                    help="directory holding census_gen.py (default: %(default)s)")
     args = ap.parse_args(argv)
+    sys.path.insert(0, os.path.abspath(args.census_dir))
 
     try:
         import pssparser.parser  # noqa: F401

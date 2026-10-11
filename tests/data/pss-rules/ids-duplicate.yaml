@@ -1,0 +1,71 @@
+# IDs (with aliases) and names are each unique across everything loaded
+# (format §5). A team namespace is its own namespace (§5.1): ACME-NET001 and
+# ACME-DMA001 do not clash, and neither clashes with ACME001. A rule that
+# clashes claims nothing, so ACME006 may use the name ACME001's twin wanted.
+pss-rules:
+  defaults:
+    tier: style
+  rules:
+    - id: ACME001
+      name: first
+      aliases: [ACME901]
+      summary: s
+      message: m
+      match: { kind: ExprBin }
+    - id: ACME-NET001
+      name: net-first
+      summary: s
+      message: m
+      match: { kind: ExprBin }
+    - id: ACME-DMA001
+      name: dma-first
+      summary: s
+      message: m
+      match: { kind: ExprBin }
+    - id: ACME001
+      name: same-id
+      summary: s
+      message: m
+      match: { kind: ExprBin }
+    - id: ACME002
+      name: first
+      summary: s
+      message: m
+      match: { kind: ExprBin }
+    - id: ACME003
+      name: alias-is-an-id
+      aliases: [ACME-NET001]
+      summary: s
+      message: m
+      match: { kind: ExprBin }
+    - id: ACME901
+      name: id-is-an-alias
+      summary: s
+      message: m
+      match: { kind: ExprBin }
+    - id: ACME004
+      name: alias-is-own-id
+      aliases: [ACME004]
+      summary: s
+      message: m
+      match: { kind: ExprBin }
+    - id: ACME005
+      name: net-first
+      aliases: [ACME-DMA001]
+      summary: s
+      message: m
+      match: { kind: ExprBin }
+    - id: ACME006
+      name: same-id
+      summary: s
+      message: m
+      match: { kind: ExprBin }
+
+# expect: PSSP217 error @ 25:11 rule ID 'ACME001' is already the ID of a rule, at ids-duplicate.yaml:9:11
+# expect: PSSP217 error @ 31:13 rule name 'first' is already the name of rule 'ACME001', at ids-duplicate.yaml:10:13
+# expect: PSSP217 error @ 37:17 rule alias 'ACME-NET001' is already the ID of a rule, at ids-duplicate.yaml:15:11
+# expect: PSSP217 error @ 41:11 rule ID 'ACME901' is already an alias of rule 'ACME001', at ids-duplicate.yaml:11:17
+# expect: PSSP217 error @ 48:17 rule alias 'ACME004' repeats one of this rule's own IDs
+# expect: PSSP217 error @ 53:13 rule name 'net-first' is already the name of rule 'ACME-NET001', at ids-duplicate.yaml:16:13
+# expect: PSSP217 error @ 54:17 rule alias 'ACME-DMA001' is already the ID of a rule, at ids-duplicate.yaml:20:11
+# loads: ACME001, ACME-NET001, ACME-DMA001, ACME006

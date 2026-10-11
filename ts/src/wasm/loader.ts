@@ -50,6 +50,18 @@ export interface ParserSessionHandle {
   /** Profiling data from the last parse as JSON, or `''` when there is none
    *  -- profiling off, no parse yet, or `link()` has dropped the builder. */
   profileInfoJson(): string;
+  /** PRIVATE until the lint API lands (lint-core-plan.md C5.4): the
+   *  session's lint engine as JSON, `{rule_format_version, rule_sets}`. */
+  lintEngineInfoJson(): string;
+  /** Load one pss-rules file into the session's engine; false when the file
+   *  as a whole was refused. The engine loads the built-in rules first. */
+  loadRuleFile(name: string, text: string): boolean;
+  /** `"rule-file"`, `"empty"`, `"not-yaml"`, `"not-mapping"` or `"no-key"`. */
+  probeRules(text: string): string;
+  /** Every rule-file diagnostic of the session, as JSON. */
+  ruleDiagnosticsJson(): string;
+  /** Every loaded rule, as JSON. */
+  rulesJson(): string;
   /** Embind's destructor. Frees the C++ object; the handle is dead after. */
   delete(): void;
 }

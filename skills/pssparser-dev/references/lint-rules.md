@@ -152,6 +152,13 @@ Renaming a published ID breaks downstream users: record it in
 
 ## Checklist for a new rule
 
+> **Direction change (2026-10-10).** New `LINT` rules will be declarative
+> `pss-rules` YAML files (`rules/<family>.yaml`) with CEL predicates, run by a
+> lint engine in the C++ core, so the CLI and the editor give the same answers.
+> See `docs/design/pss-rules-format.md` and plan F3. Until F3.1–F3.3 land there
+> is no engine, so don't add Python rule classes in `lint/rules/`: steps 2–3
+> below describe the interim Python path and will change.
+
 1. Decide `PSS` vs `LINT` (above). An LRM "shall" is never `LINT`.
 2. `MarkerDef` in `lint/catalog.py` with every field, reachable from `ALL`
    (and in the lockfile if core-emitted).

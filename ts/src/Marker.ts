@@ -31,13 +31,28 @@ export interface MarkerRelation {
   label: string;
 }
 
+/**
+ * A machine-applicable repair: replace `extent` characters at `line`:`col`
+ * with `replacement`. An insertion has extent 0; an empty `replacement`
+ * deletes the span. The span is the fix's own, not the marker's.
+ */
+export interface MarkerFix {
+  file: string;
+  /** 1-based. */
+  line: number;
+  /** 1-based. */
+  col: number;
+  extent: number;
+  replacement: string;
+}
+
 export interface Marker {
   severity: MarkerSeverity;
   message: string;
   file: string;
   /** 1-based. */
   line: number;
-  /** 1-based; the core's 0-based `Location.linepos` plus one. */
+  /** 1-based, as the core's `Location.linepos` is. */
   col: number;
   /**
    * Length in characters of the primary span.
@@ -61,6 +76,11 @@ export interface Marker {
    * rather than after (`ts-api-design.md` §5).
    */
   code?: string;
+  /**
+   * A repair the parser can offer for this marker, when it has a complete
+   * one (an unclosed `{`, for example). Absent otherwise.
+   */
+  fix?: MarkerFix;
 }
 
 /**
@@ -80,6 +100,7 @@ export interface RawMarker {
   extent: number;
   related: Array<{ fileid: number; line: number; col: number; label: string }>;
   code?: string;
+  fix?: { fileid: number; line: number; col: number; extent: number; replacement: string };
 }
 
 /**
@@ -127,6 +148,15 @@ export function resolveMarker(raw: RawMarker, files: ReadonlyMap<number, string>
   // and parser.py:343-344 makes the same distinction.
   if (raw.code !== undefined) {
     m.code = raw.code;
+  }
+  if (raw.fix !== undefined) {
+    m.fix = {
+      file: pathOf(raw.fix.fileid, files),
+      line: raw.fix.line,
+      col: raw.fix.col,
+      extent: raw.fix.extent,
+      replacement: raw.fix.replacement,
+    };
   }
   return m;
 }

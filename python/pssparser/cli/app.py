@@ -200,6 +200,13 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     top.add_argument("-q", "--quiet", action="store_true", default=False)
     top.add_argument(
+        "-v", "--verbose",
+        action="store_true",
+        default=False,
+        help="Also say what was skipped: files in a rules directory that "
+             "are not rule files",
+    )
+    top.add_argument(
         "--color",
         action="store_true",
         default=None,
@@ -240,6 +247,22 @@ def _build_parser() -> argparse.ArgumentParser:
         default=False,
         help="Report no lint findings (same as --lint-profile none); "
              "LRM errors and the tool's own diagnostics are unaffected",
+    )
+    lint_grp.add_argument(
+        "--rules",
+        action="append",
+        metavar="PATH",
+        dest="rule_paths",
+        default=None,
+        help="Load pss-rules files from PATH, a file or a directory, after "
+             "those in [lint] rules (may be repeated)",
+    )
+    lint_grp.add_argument(
+        "--check-rules",
+        action="store_true",
+        default=False,
+        help="Load and validate rule files and exit: the FILE arguments, "
+             "or else [lint] rules and --rules. Exit 0 clean, 1 rule errors",
     )
     lint_grp.add_argument(
         "--show-hints",
@@ -368,6 +391,29 @@ def main(argv: list[str] | None = None) -> int:
             sys.stderr.write(f"error: {where}{exc}\n")
             return 2
 
+    # -- Rule files ------------------------------------------------------
+    #
+    # The built-in ones, then [lint] rules, then --rules (pss-rules-format
+    # §6.2); for --check-rules PATH..., the PATHs instead of the configured
+    # ones.  Loaded before the configuration is checked against the
+    # registry, since their rules join it (lint-core-plan C4.4): a selector,
+    # a [severity] key, --describe and --explain may all name them.  A path
+    # that does not exist is a usage error, like a missing FILE; problems
+    # inside a rule file are diagnostics, reported with the run's.
+    from . import rule_cmds
+    from pssparser.lint import ruleview
+    from pssparser.lint.rulefiles import RulePathError
+    rule_entries = rule_cmds.configured_paths(cfg)
+    if args.check_rules and args.files:
+        rule_entries = rule_cmds.named_paths(args.files)
+    try:
+        rule_load = rule_cmds.load_rules(rule_entries, manager)
+    except RulePathError as exc:
+        sys.stderr.write(f"error: {exc}\n")
+        return 2
+    manager.add_rule_view(
+        ruleview.marker_defs(rule_load.engine.rules(), rule_load.refused))
+
     try:
         config_mod.validate_against_registry(cfg, manager)
     except config_mod.ConfigError as exc:
@@ -395,6 +441,7 @@ def main(argv: list[str] | None = None) -> int:
             or args.describe is not None or args.explain is not None
             or args.describe_checker is not None):
         _report_load_issues(manager, sys.stderr)
+        rule_cmds.report_problems(rule_load, sys.stderr)
 
     if args.list_checkers:
         return cmd_list_checkers(manager)
@@ -413,6 +460,20 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.describe_checker is not None:
         return cmd_describe_checker(manager, args.describe_checker)
+
+    output_format = args.output_format
+    if args.json:
+        if output_format not in (None, "json"):
+            sys.stderr.write(
+                f"error: --json conflicts with --format {output_format}\n")
+            return 2
+        output_format = "json"
+
+    if args.check_rules:
+        return rule_cmds.cmd_check_rules(
+            args.files, cfg=cfg, manager=manager,
+            output_format=output_format or "text", quiet=args.quiet,
+            color=args.color, verbose=args.verbose, load=rule_load)
 
     # -- Require source files when no query flag is active ----------------
     if not args.files:
@@ -448,13 +509,8 @@ def main(argv: list[str] | None = None) -> int:
             "--no-baseline\n")
         return 2
 
-    output_format = args.output_format
-    if args.json:
-        if output_format not in (None, "json"):
-            sys.stderr.write(
-                f"error: --json conflicts with --format {output_format}\n")
-            return 2
-        output_format = "json"
+    if args.verbose:
+        rule_cmds.report_skipped(rule_load, sys.stderr)
 
     # The config layer already resolved CLI-versus-file precedence for every
     # warning setting, so the policy is written from `cfg`, not from `args`.
@@ -479,6 +535,7 @@ def main(argv: list[str] | None = None) -> int:
             no_checkers=cfg.disable,
             warning_policy=policy,
             config=cfg,
+            rule_load=rule_load,
             # --stats-no-timing implies --stats; it is a variant of it, not
             # a modifier that needs both flags spelled out.
             show_stats=args.stats or args.stats_no_timing,

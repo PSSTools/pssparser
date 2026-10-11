@@ -1,0 +1,3415 @@
+{
+ "generator": "ts/scripts/gen-lintcore-parity-fixture.py",
+ "cases": [
+  {
+   "id": "yaml:typing",
+   "fn": "YamlLoad",
+   "args": [
+    "typing.yaml",
+    "on: off\nyes: no\nn: ~\nb: True\ni: 0x10\no: 0o17\nf: 1e3\ng: -.Inf\nh: .nan\nq: '1'\nv: 1.2.3\nz: -0\nbig: 9223372036854775808\n"
+   ],
+   "out": "{\"ok\":false,\"error\":{\"message\":\"integer '9223372036854775808' is out of the 64-bit range\",\"line\":13,\"col\":6,\"offset\":96}}"
+  },
+  {
+   "id": "yaml:marks",
+   "fn": "YamlLoad",
+   "args": [
+    "marks.yaml",
+    "a: 1\nbb: [x, 'y']\nc:\n  - {k: v}\n  - \"dq\"\n"
+   ],
+   "sha256": "78f873eb6abc46db445808bb55c065d2789cfaa2b8d046ae6f091a4df203ef2a",
+   "len": 932
+  },
+  {
+   "id": "yaml:block-scalars",
+   "fn": "YamlLoad",
+   "args": [
+    "block-scalars.yaml",
+    "lit: |\n  line 1\n   line 2\nfold: >-\n  a\n  b\n\nkeep: |+\n  x\n\n"
+   ],
+   "sha256": "b1ea0126f7c29c19ee6f247a6efa1a3980ff2bb9330bcaa5439c40c744cba934",
+   "len": 533
+  },
+  {
+   "id": "yaml:anchors",
+   "fn": "YamlLoad",
+   "args": [
+    "anchors.yaml",
+    "b: &x {k: 1}\nu: *x\nm:\n  <<: *x\n  j: 2\n"
+   ],
+   "sha256": "81ed0027b7c4af3c97ca7f5976ceeca47dd16e30587e35e644cb81b1a3d47799",
+   "len": 1013
+  },
+  {
+   "id": "yaml:json",
+   "fn": "YamlLoad",
+   "args": [
+    "json.yaml",
+    "{\"pss-rules\": 1, \"rules\": [{\"id\": \"A\", \"where\": \"true\"}]}"
+   ],
+   "sha256": "8b80449fcd4b0a7afc35cc85c7d0fa37f5197725717163675867ebf1377ab89b",
+   "len": 739
+  },
+  {
+   "id": "yaml:empty",
+   "fn": "YamlLoad",
+   "args": [
+    "empty.yaml",
+    ""
+   ],
+   "out": "{\"ok\":true,\"root\":{\"kind\":\"null\",\"style\":\"plain\",\"line\":1,\"col\":1,\"offset\":0}}"
+  },
+  {
+   "id": "yaml:comment-only",
+   "fn": "YamlLoad",
+   "args": [
+    "comment-only.yaml",
+    "# nothing\n"
+   ],
+   "out": "{\"ok\":true,\"root\":{\"kind\":\"null\",\"style\":\"plain\",\"line\":1,\"col\":1,\"offset\":0}}"
+  },
+  {
+   "id": "yaml:dup-key",
+   "fn": "YamlLoad",
+   "args": [
+    "dup-key.yaml",
+    "rules:\n  - id: A\n    id: B\n"
+   ],
+   "out": "{\"ok\":false,\"error\":{\"message\":\"duplicate key 'id' (first defined on line 2)\",\"line\":3,\"col\":5,\"offset\":21,\"related\":{\"line\":2,\"col\":5,\"offset\":11}}}"
+  },
+  {
+   "id": "yaml:tag",
+   "fn": "YamlLoad",
+   "args": [
+    "tag.yaml",
+    "x: !!str 1\n"
+   ],
+   "out": "{\"ok\":false,\"error\":{\"message\":\"YAML tags ('!...') are not supported in rule files\",\"line\":1,\"col\":10,\"offset\":9}}"
+  },
+  {
+   "id": "yaml:multi-doc",
+   "fn": "YamlLoad",
+   "args": [
+    "multi-doc.yaml",
+    "a: 1\n---\nb: 2\n"
+   ],
+   "out": "{\"ok\":false,\"error\":{\"message\":\"a rule file holds one YAML document; found 2 ('---' separates documents)\",\"line\":3,\"col\":1,\"offset\":9}}"
+  },
+  {
+   "id": "yaml:two-colons",
+   "fn": "YamlLoad",
+   "args": [
+    "two-colons.yaml",
+    "a: b: c\n"
+   ],
+   "out": "{\"ok\":false,\"error\":{\"message\":\"YAML syntax error: two colons on same line\",\"line\":1,\"col\":7,\"offset\":6}}"
+  },
+  {
+   "id": "yaml:bad-indent",
+   "fn": "YamlLoad",
+   "args": [
+    "bad-indent.yaml",
+    "a:\n  - x\n - y\n"
+   ],
+   "out": "{\"ok\":false,\"error\":{\"message\":\"YAML syntax error: parse error: incorrect indentation?\",\"line\":3,\"col\":1,\"offset\":9}}"
+  },
+  {
+   "id": "yaml:too-deep",
+   "fn": "YamlLoad",
+   "args": [
+    "too-deep.yaml",
+    "[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]"
+   ],
+   "out": "{\"ok\":false,\"error\":{\"message\":\"YAML nests too deeply (more than 64 levels)\",\"line\":1,\"col\":65,\"offset\":64}}"
+  },
+  {
+   "id": "yaml:unicode",
+   "fn": "YamlLoad",
+   "args": [
+    "unicode.yaml",
+    "k: 'héllo ☃'\n\"ключ\": 1\n"
+   ],
+   "out": "{\"ok\":true,\"root\":{\"kind\":\"map\",\"style\":\"block\",\"line\":1,\"col\":1,\"offset\":0,\"members\":[{\"key\":\"k\",\"key_mark\":{\"line\":1,\"col\":1,\"offset\":0},\"value\":{\"kind\":\"string\",\"style\":\"single-quoted\",\"line\":1,\"col\":5,\"offset\":4,\"value\":\"héllo ☃\"}},{\"key\":\"ключ\",\"key_mark\":{\"line\":2,\"col\":2,\"offset\":17},\"value\":{\"kind\":\"int\",\"style\":\"plain\",\"line\":2,\"col\":13,\"offset\":28,\"value\":1}}]}}"
+  },
+  {
+   "id": "yaml-file:ast/activity.yaml",
+   "fn": "YamlLoad",
+   "args": [
+    "ast/activity.yaml",
+    null
+   ],
+   "file": "ast/activity.yaml",
+   "sha256": "4603c5988e8188fcc82f13ace30d5e2878fe83be22dda95fd828bcbfbbf4cf8f",
+   "len": 68000
+  },
+  {
+   "id": "yaml-map:ast/activity.yaml",
+   "fn": "YamlSourceMaps",
+   "args": [
+    "ast/activity.yaml",
+    null
+   ],
+   "file": "ast/activity.yaml",
+   "sha256": "5472ea18d7f99766bfc65efd2bdc42f4eb782c31ae8cad42482153ec13ecd868",
+   "len": 223570
+  },
+  {
+   "id": "yaml-file:ast/annotation.yaml",
+   "fn": "YamlLoad",
+   "args": [
+    "ast/annotation.yaml",
+    null
+   ],
+   "file": "ast/annotation.yaml",
+   "sha256": "83285cd722f46b4891d4a79a0594a6a1ab9eb194ef10646fe9f5f1f002ced928",
+   "len": 5370
+  },
+  {
+   "id": "yaml-map:ast/annotation.yaml",
+   "fn": "YamlSourceMaps",
+   "args": [
+    "ast/annotation.yaml",
+    null
+   ],
+   "file": "ast/annotation.yaml",
+   "sha256": "c7d5fb1d1961e9711ebef347d54144bfd8f335e238afbc807b6df2b7a5fc1a14",
+   "len": 6525
+  },
+  {
+   "id": "yaml-file:ast/constraint.yaml",
+   "fn": "YamlLoad",
+   "args": [
+    "ast/constraint.yaml",
+    null
+   ],
+   "file": "ast/constraint.yaml",
+   "sha256": "8e581e4f033a63b9fc2499f786a1524c936d9f386d784a863a5e8692720d5b99",
+   "len": 51979
+  },
+  {
+   "id": "yaml-map:ast/constraint.yaml",
+   "fn": "YamlSourceMaps",
+   "args": [
+    "ast/constraint.yaml",
+    null
+   ],
+   "file": "ast/constraint.yaml",
+   "sha256": "21b4b8f4664324a28bd910375d09863d4a0fc52098b91fce85746bb8868a8f57",
+   "len": 118189
+  },
+  {
+   "id": "yaml-file:ast/coretypes.yaml",
+   "fn": "YamlLoad",
+   "args": [
+    "ast/coretypes.yaml",
+    null
+   ],
+   "file": "ast/coretypes.yaml",
+   "sha256": "a802ad7ff1ac0c0ac44d68b8132ed91573d193a4b6311114b295512f0b0b85fb",
+   "len": 50359
+  },
+  {
+   "id": "yaml-map:ast/coretypes.yaml",
+   "fn": "YamlSourceMaps",
+   "args": [
+    "ast/coretypes.yaml",
+    null
+   ],
+   "file": "ast/coretypes.yaml",
+   "sha256": "22bf4bcee186a62b1737975812c6e134754ca695158be58d763e309536264a68",
+   "len": 73545
+  },
+  {
+   "id": "yaml-file:ast/coverage.yaml",
+   "fn": "YamlLoad",
+   "args": [
+    "ast/coverage.yaml",
+    null
+   ],
+   "file": "ast/coverage.yaml",
+   "sha256": "3456d0d124ba604bf66c369091e5e8a6989c6b6ead87e4012b6fa9daa0dfe198",
+   "len": 32894
+  },
+  {
+   "id": "yaml-map:ast/coverage.yaml",
+   "fn": "YamlSourceMaps",
+   "args": [
+    "ast/coverage.yaml",
+    null
+   ],
+   "file": "ast/coverage.yaml",
+   "sha256": "049dc35f0341b78bf953361d6141eec08be66ebb058a07c3cf94a32e2a549956",
+   "len": 62457
+  },
+  {
+   "id": "yaml-file:ast/datatype.yaml",
+   "fn": "YamlLoad",
+   "args": [
+    "ast/datatype.yaml",
+    null
+   ],
+   "file": "ast/datatype.yaml",
+   "sha256": "fa64cc91d7579ba854c12f00f5ff531c94d460cb7b4e7e07ea056efc74ac645c",
+   "len": 18986
+  },
+  {
+   "id": "yaml-map:ast/datatype.yaml",
+   "fn": "YamlSourceMaps",
+   "args": [
+    "ast/datatype.yaml",
+    null
+   ],
+   "file": "ast/datatype.yaml",
+   "sha256": "4885d78e383ce7660fea820f0906b14c63e6ef440ef9dc65e02c56e364c94244",
+   "len": 37931
+  },
+  {
+   "id": "yaml-file:ast/exec.yaml",
+   "fn": "YamlLoad",
+   "args": [
+    "ast/exec.yaml",
+    null
+   ],
+   "file": "ast/exec.yaml",
+   "sha256": "8a37debef43f5ab0c183478fad91ee8011d452c64717dcd3dec8d3adec76a4b2",
+   "len": 52718
+  },
+  {
+   "id": "yaml-map:ast/exec.yaml",
+   "fn": "YamlSourceMaps",
+   "args": [
+    "ast/exec.yaml",
+    null
+   ],
+   "file": "ast/exec.yaml",
+   "sha256": "72729cafc6f07c4e3d1858ef65fc1bf5ea1895e0644350eb209917341829fd7f",
+   "len": 153963
+  },
+  {
+   "id": "yaml-file:ast/expr.yaml",
+   "fn": "YamlLoad",
+   "args": [
+    "ast/expr.yaml",
+    null
+   ],
+   "file": "ast/expr.yaml",
+   "sha256": "784ea0cd0572d48afa4bfbc3843eb7ea6bf5bd8d2265c77b46f60ac3eda1ffa8",
+   "len": 82991
+  },
+  {
+   "id": "yaml-map:ast/expr.yaml",
+   "fn": "YamlSourceMaps",
+   "args": [
+    "ast/expr.yaml",
+    null
+   ],
+   "file": "ast/expr.yaml",
+   "sha256": "4c9b3950ca5b127d94ae4b124233de02d1bfc15bcaede95b63e33e4c343049ae",
+   "len": 186773
+  },
+  {
+   "id": "yaml-file:ast/extension.yaml",
+   "fn": "YamlLoad",
+   "args": [
+    "ast/extension.yaml",
+    null
+   ],
+   "file": "ast/extension.yaml",
+   "sha256": "65d1622962a11ea899d99e1b615b20f86e5e0b50d31fdcb2bfc9b3b9964c7fc4",
+   "len": 6911
+  },
+  {
+   "id": "yaml-map:ast/extension.yaml",
+   "fn": "YamlSourceMaps",
+   "args": [
+    "ast/extension.yaml",
+    null
+   ],
+   "file": "ast/extension.yaml",
+   "sha256": "3381719db9482623f51d2eee94942bd5401ff236b374ec77c9d9d1129b1e2a08",
+   "len": 11967
+  },
+  {
+   "id": "yaml-file:ast/field.yaml",
+   "fn": "YamlLoad",
+   "args": [
+    "ast/field.yaml",
+    null
+   ],
+   "file": "ast/field.yaml",
+   "sha256": "727ba536061c5d9fed75fe7fff017db720070e2350c0a82d952f1f522339a3b4",
+   "len": 23725
+  },
+  {
+   "id": "yaml-map:ast/field.yaml",
+   "fn": "YamlSourceMaps",
+   "args": [
+    "ast/field.yaml",
+    null
+   ],
+   "file": "ast/field.yaml",
+   "sha256": "53fad2891ba15755c8f5a29f571e2ee2af816ac105485bd1c4402bc37644cb34",
+   "len": 51209
+  },
+  {
+   "id": "yaml-file:ast/functions.yaml",
+   "fn": "YamlLoad",
+   "args": [
+    "ast/functions.yaml",
+    null
+   ],
+   "file": "ast/functions.yaml",
+   "sha256": "7560f50122d9e0be10fe9f2cd09f9d7f6d2ae649963d8e56a6afbae3e0330639",
+   "len": 31978
+  },
+  {
+   "id": "yaml-map:ast/functions.yaml",
+   "fn": "YamlSourceMaps",
+   "args": [
+    "ast/functions.yaml",
+    null
+   ],
+   "file": "ast/functions.yaml",
+   "sha256": "d3cf9041f5cbd5cb5a071a1faeace65a5b6f6b8fc824eff3b21a1dacf12f9358",
+   "len": 73221
+  },
+  {
+   "id": "yaml-file:ast/linking.yaml",
+   "fn": "YamlLoad",
+   "args": [
+    "ast/linking.yaml",
+    null
+   ],
+   "file": "ast/linking.yaml",
+   "sha256": "b860ebdb78165658f5d486804d431639f28c01a9e2ca720629a595a7f1da5e13",
+   "len": 42722
+  },
+  {
+   "id": "yaml-map:ast/linking.yaml",
+   "fn": "YamlSourceMaps",
+   "args": [
+    "ast/linking.yaml",
+    null
+   ],
+   "file": "ast/linking.yaml",
+   "sha256": "260c2cc0eb60762cfd602ed869da265740fe50322e2d3a7c3e7539210b2db861",
+   "len": 68683
+  },
+  {
+   "id": "yaml-file:ast/monitor.yaml",
+   "fn": "YamlLoad",
+   "args": [
+    "ast/monitor.yaml",
+    null
+   ],
+   "file": "ast/monitor.yaml",
+   "sha256": "90cc74144693aa1c47614f5069c84f461a17d641c55e2ae731a33c73e6283eab",
+   "len": 26079
+  },
+  {
+   "id": "yaml-map:ast/monitor.yaml",
+   "fn": "YamlSourceMaps",
+   "args": [
+    "ast/monitor.yaml",
+    null
+   ],
+   "file": "ast/monitor.yaml",
+   "sha256": "03ceefd3e48987f2b79ced4d61fe33481d135ee45a9ad7884ca7fbe06ce0263d",
+   "len": 90941
+  },
+  {
+   "id": "yaml-file:ast/override.yaml",
+   "fn": "YamlLoad",
+   "args": [
+    "ast/override.yaml",
+    null
+   ],
+   "file": "ast/override.yaml",
+   "sha256": "3a8e82df5b72785817e3938fe6f955f4b420b2a6bf46a636391773bb7a0719c2",
+   "len": 5430
+  },
+  {
+   "id": "yaml-map:ast/override.yaml",
+   "fn": "YamlSourceMaps",
+   "args": [
+    "ast/override.yaml",
+    null
+   ],
+   "file": "ast/override.yaml",
+   "sha256": "60100283c4359901a895fe794323f529fd64a62d92888d7261504f63f37fbc7e",
+   "len": 11890
+  },
+  {
+   "id": "yaml-file:ast/struct.yaml",
+   "fn": "YamlLoad",
+   "args": [
+    "ast/struct.yaml",
+    null
+   ],
+   "file": "ast/struct.yaml",
+   "sha256": "d7ca5e32a73c8687969e6babbcd7094fde563339ff1c8df95d5c37210298a5b9",
+   "len": 2777
+  },
+  {
+   "id": "yaml-map:ast/struct.yaml",
+   "fn": "YamlSourceMaps",
+   "args": [
+    "ast/struct.yaml",
+    null
+   ],
+   "file": "ast/struct.yaml",
+   "sha256": "40cdf24ac7ec479c1e3afe1e40db5991a22c1703594108385c12924296641e30",
+   "len": 5676
+  },
+  {
+   "id": "yaml-file:ast/template.yaml",
+   "fn": "YamlLoad",
+   "args": [
+    "ast/template.yaml",
+    null
+   ],
+   "file": "ast/template.yaml",
+   "sha256": "bdc35f0485d87da66be1e58196a27fae1f7f8f59a5de943e8827e85a2026eb5c",
+   "len": 24118
+  },
+  {
+   "id": "yaml-map:ast/template.yaml",
+   "fn": "YamlSourceMaps",
+   "args": [
+    "ast/template.yaml",
+    null
+   ],
+   "file": "ast/template.yaml",
+   "sha256": "4d0b1c5cda133acd8c63c45615391b9374e7200cfbd227c36b86a63af9f3e1d0",
+   "len": 47143
+  },
+  {
+   "id": "yaml-file:ast/template_types.yaml",
+   "fn": "YamlLoad",
+   "args": [
+    "ast/template_types.yaml",
+    null
+   ],
+   "file": "ast/template_types.yaml",
+   "sha256": "36c084efec40e13edfae4456db8115af5a5dc60d4c00d2b9ec54b5304b503f81",
+   "len": 19673
+  },
+  {
+   "id": "yaml-map:ast/template_types.yaml",
+   "fn": "YamlSourceMaps",
+   "args": [
+    "ast/template_types.yaml",
+    null
+   ],
+   "file": "ast/template_types.yaml",
+   "sha256": "3a4b14fff70fa1bddda9b26b42f12511f365072db79a8e6455f92116c9aa0d13",
+   "len": 62355
+  },
+  {
+   "id": "yaml-file:ast/typescope.yaml",
+   "fn": "YamlLoad",
+   "args": [
+    "ast/typescope.yaml",
+    null
+   ],
+   "file": "ast/typescope.yaml",
+   "sha256": "41d6ad21b298d0816c346c5c5595c8c6243708dc9718efe017ef35f809d28463",
+   "len": 3744
+  },
+  {
+   "id": "yaml-map:ast/typescope.yaml",
+   "fn": "YamlSourceMaps",
+   "args": [
+    "ast/typescope.yaml",
+    null
+   ],
+   "file": "ast/typescope.yaml",
+   "sha256": "a5538039f91353a9285b42186babb61561acd41ee26241dfbea425aef99cfb20",
+   "len": 4467
+  },
+  {
+   "id": "yaml-file:.github/workflows/ci.yml",
+   "fn": "YamlLoad",
+   "args": [
+    ".github/workflows/ci.yml",
+    null
+   ],
+   "file": ".github/workflows/ci.yml",
+   "sha256": "d3323dc5da097ea3ebe4414ca9f8efe8387aae2ec65b7f1b4a3bb1b03b20c931",
+   "len": 77811
+  },
+  {
+   "id": "yaml-map:.github/workflows/ci.yml",
+   "fn": "YamlSourceMaps",
+   "args": [
+    ".github/workflows/ci.yml",
+    null
+   ],
+   "file": ".github/workflows/ci.yml",
+   "sha256": "73cd09783c6f0164e35c0c02b7323adaea147a83a3a39f20dae0ce3a9e38f830",
+   "len": 233307
+  },
+  {
+   "id": "yaml-file:.github/workflows/dco.yml",
+   "fn": "YamlLoad",
+   "args": [
+    ".github/workflows/dco.yml",
+    null
+   ],
+   "file": ".github/workflows/dco.yml",
+   "sha256": "12de9a49f5aa0216e8912f1fbf2498430a2a8f1a4b64964fac20f4e2e4ceed65",
+   "len": 1403
+  },
+  {
+   "id": "yaml-map:.github/workflows/dco.yml",
+   "fn": "YamlSourceMaps",
+   "args": [
+    ".github/workflows/dco.yml",
+    null
+   ],
+   "file": ".github/workflows/dco.yml",
+   "sha256": "0d1982dca7df3ff41c57e70150ff3524480a3251b8264a34a34c30133af20bff",
+   "len": 872
+  },
+  {
+   "id": "yaml-file:.github/workflows/icla-significance.yml",
+   "fn": "YamlLoad",
+   "args": [
+    ".github/workflows/icla-significance.yml",
+    null
+   ],
+   "file": ".github/workflows/icla-significance.yml",
+   "sha256": "b787130b161f6b2d8faf267f852b297d9cd35c72c5e222ef334541984a5199f9",
+   "len": 1442
+  },
+  {
+   "id": "yaml-map:.github/workflows/icla-significance.yml",
+   "fn": "YamlSourceMaps",
+   "args": [
+    ".github/workflows/icla-significance.yml",
+    null
+   ],
+   "file": ".github/workflows/icla-significance.yml",
+   "sha256": "348f6f8bd826ce0edf270d3bc758bdc7330ca7f9680d199e536a0e33b1b00321",
+   "len": 987
+  },
+  {
+   "id": "yaml-file:.forgejo/workflows/ci.yml",
+   "fn": "YamlLoad",
+   "args": [
+    ".forgejo/workflows/ci.yml",
+    null
+   ],
+   "file": ".forgejo/workflows/ci.yml",
+   "sha256": "c340bfe3c8ea5ded1a9e17b286b9f0b30e52d1ace988c263e05d16624fd6f96e",
+   "len": 26292
+  },
+  {
+   "id": "yaml-map:.forgejo/workflows/ci.yml",
+   "fn": "YamlSourceMaps",
+   "args": [
+    ".forgejo/workflows/ci.yml",
+    null
+   ],
+   "file": ".forgejo/workflows/ci.yml",
+   "sha256": "7c40c3ccded4d539f48af2fcf05bda895b49330f1e55f0a2424e5caf7bba280d",
+   "len": 76373
+  },
+  {
+   "id": "yaml-file:.forgejo/workflows/conformance.yml",
+   "fn": "YamlLoad",
+   "args": [
+    ".forgejo/workflows/conformance.yml",
+    null
+   ],
+   "file": ".forgejo/workflows/conformance.yml",
+   "sha256": "48f56b47c0bcef74e9bdb1ce081613e0bd37e8041d9647d7246b667b68998677",
+   "len": 12647
+  },
+  {
+   "id": "yaml-map:.forgejo/workflows/conformance.yml",
+   "fn": "YamlSourceMaps",
+   "args": [
+    ".forgejo/workflows/conformance.yml",
+    null
+   ],
+   "file": ".forgejo/workflows/conformance.yml",
+   "sha256": "1cad91307cb6dc196588f0deb902e74c83c00a554bf959f605c78f6d04afbc7f",
+   "len": 59502
+  },
+  {
+   "id": "yaml-file:ivpm.yaml",
+   "fn": "YamlLoad",
+   "args": [
+    "ivpm.yaml",
+    null
+   ],
+   "file": "ivpm.yaml",
+   "sha256": "90fa86dd37453a388f1dc64feb0e9466353d6b21d999bb86f56ec3225fc51e78",
+   "len": 13629
+  },
+  {
+   "id": "yaml-map:ivpm.yaml",
+   "fn": "YamlSourceMaps",
+   "args": [
+    "ivpm.yaml",
+    null
+   ],
+   "file": "ivpm.yaml",
+   "sha256": "13b5f455fe294afb330827f1ccaf55c4b92ac3aa666b11c2c69e5baaf73b18a0",
+   "len": 12018
+  },
+  {
+   "id": "yaml-cel:0",
+   "fn": "YamlCelParse",
+   "args": [
+    "plain.yaml",
+    "where: a = b\n",
+    "where"
+   ],
+   "out": "{\"ok\":true,\"results\":[{\"ok\":false,\"message\":\"unexpected '='; use '==' to compare\",\"offset\":2,\"line\":1,\"col\":10,\"exact\":true}]}"
+  },
+  {
+   "id": "yaml-cel:1",
+   "fn": "YamlCelParse",
+   "args": [
+    "squo.yaml",
+    "where: 'x == ''a'' &&\n  b = c'\n",
+    "where"
+   ],
+   "out": "{\"ok\":true,\"results\":[{\"ok\":false,\"message\":\"unexpected '='; use '==' to compare\",\"offset\":14,\"line\":2,\"col\":5,\"exact\":true}]}"
+  },
+  {
+   "id": "yaml-cel:2",
+   "fn": "YamlCelParse",
+   "args": [
+    "dquo.yaml",
+    "where: \"'\\t\\u00e9' == x &&\\\n    b = c\"\n",
+    "where"
+   ],
+   "out": "{\"ok\":true,\"results\":[{\"ok\":false,\"message\":\"unexpected '='; use '==' to compare\",\"offset\":15,\"line\":2,\"col\":7,\"exact\":true}]}"
+  },
+  {
+   "id": "yaml-cel:3",
+   "fn": "YamlCelParse",
+   "args": [
+    "literal.yaml",
+    "where: |\n\n  a &&\n    b +\n",
+    "where"
+   ],
+   "out": "{\"ok\":true,\"results\":[{\"ok\":false,\"message\":\"expected an expression, found the end of the input\",\"offset\":12,\"line\":4,\"col\":8,\"exact\":true}]}"
+  },
+  {
+   "id": "yaml-cel:4",
+   "fn": "YamlCelParse",
+   "args": [
+    "folded.yaml",
+    "rules:\n  - where: >-\n      a &&\n      b &&\n      c = d\n",
+    "where"
+   ],
+   "out": "{\"ok\":true,\"results\":[{\"ok\":false,\"message\":\"unexpected '='; use '==' to compare\",\"offset\":12,\"line\":5,\"col\":9,\"exact\":true}]}"
+  },
+  {
+   "id": "yaml-cel:5",
+   "fn": "YamlCelParse",
+   "args": [
+    "flow.yaml",
+    "rules:\n- {id: X, where: \"a = b\"}\n- {id: Y, where: ok}\n",
+    "where"
+   ],
+   "out": "{\"ok\":true,\"results\":[{\"ok\":false,\"message\":\"unexpected '='; use '==' to compare\",\"offset\":2,\"line\":2,\"col\":21,\"exact\":true},{\"ok\":true}]}"
+  },
+  {
+   "id": "yaml-map:typing",
+   "fn": "YamlSourceMaps",
+   "args": [
+    "typing.yaml",
+    "on: off\nyes: no\nn: ~\nb: True\ni: 0x10\no: 0o17\nf: 1e3\ng: -.Inf\nh: .nan\nq: '1'\nv: 1.2.3\nz: -0\nbig: 9223372036854775808\n"
+   ],
+   "out": "{\"ok\":false,\"error\":{\"message\":\"integer '9223372036854775808' is out of the 64-bit range\",\"line\":13,\"col\":6,\"offset\":96}}"
+  },
+  {
+   "id": "yaml-map:marks",
+   "fn": "YamlSourceMaps",
+   "args": [
+    "marks.yaml",
+    "a: 1\nbb: [x, 'y']\nc:\n  - {k: v}\n  - \"dq\"\n"
+   ],
+   "out": "{\"ok\":true,\"scalars\":[{\"line\":2,\"col\":6,\"offset\":10,\"style\":\"plain\",\"value\":\"x\",\"exact\":true,\"map\":[10,11]},{\"line\":2,\"col\":10,\"offset\":14,\"style\":\"single-quoted\",\"value\":\"y\",\"exact\":true,\"map\":[14,15]},{\"line\":4,\"col\":9,\"offset\":29,\"style\":\"plain\",\"value\":\"v\",\"exact\":true,\"map\":[29,30]},{\"line\":5,\"col\":6,\"offset\":37,\"style\":\"double-quoted\",\"value\":\"dq\",\"exact\":true,\"map\":[37,38,39]}]}"
+  },
+  {
+   "id": "yaml-map:block-scalars",
+   "fn": "YamlSourceMaps",
+   "args": [
+    "block-scalars.yaml",
+    "lit: |\n  line 1\n   line 2\nfold: >-\n  a\n  b\n\nkeep: |+\n  x\n\n"
+   ],
+   "out": "{\"ok\":true,\"scalars\":[{\"line\":2,\"col\":3,\"offset\":9,\"style\":\"literal\",\"value\":\"line 1\\n line 2\\n\",\"exact\":true,\"map\":[9,10,11,12,13,14,15,18,19,20,21,22,23,24,25,26]},{\"line\":5,\"col\":3,\"offset\":37,\"style\":\"folded\",\"value\":\"a b\",\"exact\":true,\"map\":[37,38,41,42]},{\"line\":9,\"col\":3,\"offset\":55,\"style\":\"literal\",\"value\":\"x\\n\\n\",\"exact\":true,\"map\":[55,56,57,58]}]}"
+  },
+  {
+   "id": "yaml-map:anchors",
+   "fn": "YamlSourceMaps",
+   "args": [
+    "anchors.yaml",
+    "b: &x {k: 1}\nu: *x\nm:\n  <<: *x\n  j: 2\n"
+   ],
+   "out": "{\"ok\":true,\"scalars\":[]}"
+  },
+  {
+   "id": "yaml-map:json",
+   "fn": "YamlSourceMaps",
+   "args": [
+    "json.yaml",
+    "{\"pss-rules\": 1, \"rules\": [{\"id\": \"A\", \"where\": \"true\"}]}"
+   ],
+   "out": "{\"ok\":true,\"scalars\":[{\"line\":1,\"col\":36,\"offset\":35,\"style\":\"double-quoted\",\"value\":\"A\",\"exact\":true,\"map\":[35,36]},{\"line\":1,\"col\":50,\"offset\":49,\"style\":\"double-quoted\",\"value\":\"true\",\"exact\":true,\"map\":[49,50,51,52,53]}]}"
+  },
+  {
+   "id": "yaml-map:empty",
+   "fn": "YamlSourceMaps",
+   "args": [
+    "empty.yaml",
+    ""
+   ],
+   "out": "{\"ok\":true,\"scalars\":[]}"
+  },
+  {
+   "id": "yaml-map:comment-only",
+   "fn": "YamlSourceMaps",
+   "args": [
+    "comment-only.yaml",
+    "# nothing\n"
+   ],
+   "out": "{\"ok\":true,\"scalars\":[]}"
+  },
+  {
+   "id": "yaml-map:dup-key",
+   "fn": "YamlSourceMaps",
+   "args": [
+    "dup-key.yaml",
+    "rules:\n  - id: A\n    id: B\n"
+   ],
+   "out": "{\"ok\":false,\"error\":{\"message\":\"duplicate key 'id' (first defined on line 2)\",\"line\":3,\"col\":5,\"offset\":21,\"related\":{\"line\":2,\"col\":5,\"offset\":11}}}"
+  },
+  {
+   "id": "yaml-map:tag",
+   "fn": "YamlSourceMaps",
+   "args": [
+    "tag.yaml",
+    "x: !!str 1\n"
+   ],
+   "out": "{\"ok\":false,\"error\":{\"message\":\"YAML tags ('!...') are not supported in rule files\",\"line\":1,\"col\":10,\"offset\":9}}"
+  },
+  {
+   "id": "yaml-map:multi-doc",
+   "fn": "YamlSourceMaps",
+   "args": [
+    "multi-doc.yaml",
+    "a: 1\n---\nb: 2\n"
+   ],
+   "out": "{\"ok\":false,\"error\":{\"message\":\"a rule file holds one YAML document; found 2 ('---' separates documents)\",\"line\":3,\"col\":1,\"offset\":9}}"
+  },
+  {
+   "id": "yaml-map:two-colons",
+   "fn": "YamlSourceMaps",
+   "args": [
+    "two-colons.yaml",
+    "a: b: c\n"
+   ],
+   "out": "{\"ok\":false,\"error\":{\"message\":\"YAML syntax error: two colons on same line\",\"line\":1,\"col\":7,\"offset\":6}}"
+  },
+  {
+   "id": "yaml-map:bad-indent",
+   "fn": "YamlSourceMaps",
+   "args": [
+    "bad-indent.yaml",
+    "a:\n  - x\n - y\n"
+   ],
+   "out": "{\"ok\":false,\"error\":{\"message\":\"YAML syntax error: parse error: incorrect indentation?\",\"line\":3,\"col\":1,\"offset\":9}}"
+  },
+  {
+   "id": "yaml-map:too-deep",
+   "fn": "YamlSourceMaps",
+   "args": [
+    "too-deep.yaml",
+    "[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]"
+   ],
+   "out": "{\"ok\":false,\"error\":{\"message\":\"YAML nests too deeply (more than 64 levels)\",\"line\":1,\"col\":65,\"offset\":64}}"
+  },
+  {
+   "id": "yaml-map:unicode",
+   "fn": "YamlSourceMaps",
+   "args": [
+    "unicode.yaml",
+    "k: 'héllo ☃'\n\"ключ\": 1\n"
+   ],
+   "out": "{\"ok\":true,\"scalars\":[{\"line\":1,\"col\":5,\"offset\":4,\"style\":\"single-quoted\",\"value\":\"héllo ☃\",\"exact\":true,\"map\":[4,5,6,7,8,9,10,11,12,13,14]}]}"
+  },
+  {
+   "id": "cel-parse:0",
+   "fn": "CelParse",
+   "args": [
+    "1 + 2 * 3"
+   ],
+   "out": "{\"ok\":true,\"ast\":{\"id\":5,\"begin\":0,\"end\":9,\"k\":\"call\",\"fn\":\"_+_\",\"args\":[{\"id\":1,\"begin\":0,\"end\":1,\"k\":\"const\",\"type\":\"int\",\"value\":1},{\"id\":4,\"begin\":4,\"end\":9,\"k\":\"call\",\"fn\":\"_*_\",\"args\":[{\"id\":2,\"begin\":4,\"end\":5,\"k\":\"const\",\"type\":\"int\",\"value\":2},{\"id\":3,\"begin\":8,\"end\":9,\"k\":\"const\",\"type\":\"int\",\"value\":3}]}]},\"profile_errors\":[]}"
+  },
+  {
+   "id": "cel-parse:1",
+   "fn": "CelParse",
+   "args": [
+    "a || b && c"
+   ],
+   "out": "{\"ok\":true,\"ast\":{\"id\":5,\"begin\":0,\"end\":11,\"k\":\"call\",\"fn\":\"_||_\",\"args\":[{\"id\":1,\"begin\":0,\"end\":1,\"k\":\"ident\",\"name\":\"a\"},{\"id\":4,\"begin\":5,\"end\":11,\"k\":\"call\",\"fn\":\"_&&_\",\"args\":[{\"id\":2,\"begin\":5,\"end\":6,\"k\":\"ident\",\"name\":\"b\"},{\"id\":3,\"begin\":10,\"end\":11,\"k\":\"ident\",\"name\":\"c\"}]}]},\"profile_errors\":[]}"
+  },
+  {
+   "id": "cel-parse:2",
+   "fn": "CelParse",
+   "args": [
+    "a ? b : c ? d : e"
+   ],
+   "out": "{\"ok\":true,\"ast\":{\"id\":7,\"begin\":0,\"end\":17,\"k\":\"call\",\"fn\":\"_?_:_\",\"args\":[{\"id\":1,\"begin\":0,\"end\":1,\"k\":\"ident\",\"name\":\"a\"},{\"id\":2,\"begin\":4,\"end\":5,\"k\":\"ident\",\"name\":\"b\"},{\"id\":6,\"begin\":8,\"end\":17,\"k\":\"call\",\"fn\":\"_?_:_\",\"args\":[{\"id\":3,\"begin\":8,\"end\":9,\"k\":\"ident\",\"name\":\"c\"},{\"id\":4,\"begin\":12,\"end\":13,\"k\":\"ident\",\"name\":\"d\"},{\"id\":5,\"begin\":16,\"end\":17,\"k\":\"ident\",\"name\":\"e\"}]}]},\"profile_errors\":[]}"
+  },
+  {
+   "id": "cel-parse:3",
+   "fn": "CelParse",
+   "args": [
+    "!!a"
+   ],
+   "out": "{\"ok\":true,\"ast\":{\"id\":3,\"begin\":0,\"end\":3,\"k\":\"call\",\"fn\":\"!_\",\"args\":[{\"id\":2,\"begin\":1,\"end\":3,\"k\":\"call\",\"fn\":\"!_\",\"args\":[{\"id\":1,\"begin\":2,\"end\":3,\"k\":\"ident\",\"name\":\"a\"}]}]},\"profile_errors\":[]}"
+  },
+  {
+   "id": "cel-parse:4",
+   "fn": "CelParse",
+   "args": [
+    "-1"
+   ],
+   "out": "{\"ok\":true,\"ast\":{\"id\":1,\"begin\":0,\"end\":2,\"k\":\"const\",\"type\":\"int\",\"value\":-1},\"profile_errors\":[]}"
+  },
+  {
+   "id": "cel-parse:5",
+   "fn": "CelParse",
+   "args": [
+    "--1"
+   ],
+   "out": "{\"ok\":true,\"ast\":{\"id\":2,\"begin\":0,\"end\":3,\"k\":\"call\",\"fn\":\"-_\",\"args\":[{\"id\":1,\"begin\":1,\"end\":3,\"k\":\"const\",\"type\":\"int\",\"value\":-1}]},\"profile_errors\":[]}"
+  },
+  {
+   "id": "cel-parse:6",
+   "fn": "CelParse",
+   "args": [
+    "-x.y"
+   ],
+   "out": "{\"ok\":true,\"ast\":{\"id\":3,\"begin\":0,\"end\":4,\"k\":\"call\",\"fn\":\"-_\",\"args\":[{\"id\":2,\"begin\":1,\"end\":4,\"k\":\"select\",\"field\":\"y\",\"test_only\":false,\"operand\":{\"id\":1,\"begin\":1,\"end\":2,\"k\":\"ident\",\"name\":\"x\"}}]},\"profile_errors\":[]}"
+  },
+  {
+   "id": "cel-parse:7",
+   "fn": "CelParse",
+   "args": [
+    "a.b[1].c(d)"
+   ],
+   "out": "{\"ok\":true,\"ast\":{\"id\":6,\"begin\":0,\"end\":11,\"k\":\"call\",\"fn\":\"c\",\"target\":{\"id\":4,\"begin\":0,\"end\":6,\"k\":\"call\",\"fn\":\"_[_]\",\"args\":[{\"id\":2,\"begin\":0,\"end\":3,\"k\":\"select\",\"field\":\"b\",\"test_only\":false,\"operand\":{\"id\":1,\"begin\":0,\"end\":1,\"k\":\"ident\",\"name\":\"a\"}},{\"id\":3,\"begin\":4,\"end\":5,\"k\":\"const\",\"type\":\"int\",\"value\":1}]},\"args\":[{\"id\":5,\"begin\":9,\"end\":10,\"k\":\"ident\",\"name\":\"d\"}]},\"profile_errors\":[]}"
+  },
+  {
+   "id": "cel-parse:8",
+   "fn": "CelParse",
+   "args": [
+    "x in [1, 2,]"
+   ],
+   "out": "{\"ok\":true,\"ast\":{\"id\":5,\"begin\":0,\"end\":12,\"k\":\"call\",\"fn\":\"@in\",\"args\":[{\"id\":1,\"begin\":0,\"end\":1,\"k\":\"ident\",\"name\":\"x\"},{\"id\":2,\"begin\":5,\"end\":12,\"k\":\"list\",\"elems\":[{\"id\":3,\"begin\":6,\"end\":7,\"k\":\"const\",\"type\":\"int\",\"value\":1},{\"id\":4,\"begin\":9,\"end\":10,\"k\":\"const\",\"type\":\"int\",\"value\":2}],\"optional\":[]}]},\"profile_errors\":[]}"
+  },
+  {
+   "id": "cel-parse:9",
+   "fn": "CelParse",
+   "args": [
+    "has(n.rhs)"
+   ],
+   "out": "{\"ok\":true,\"ast\":{\"id\":2,\"begin\":0,\"end\":10,\"k\":\"select\",\"field\":\"rhs\",\"test_only\":true,\"operand\":{\"id\":1,\"begin\":4,\"end\":5,\"k\":\"ident\",\"name\":\"n\"}},\"profile_errors\":[]}"
+  },
+  {
+   "id": "cel-parse:10",
+   "fn": "CelParse",
+   "args": [
+    "l.all(x, x > 0)"
+   ],
+   "sha256": "2cd36f5a1e538e2c69ceb3d7bf576aa7cc676a40d86e671ee3df91e3a2873e57",
+   "len": 780
+  },
+  {
+   "id": "cel-parse:11",
+   "fn": "CelParse",
+   "args": [
+    "a.?b"
+   ],
+   "out": "{\"ok\":true,\"ast\":{\"id\":3,\"begin\":0,\"end\":4,\"k\":\"call\",\"fn\":\"_?._\",\"args\":[{\"id\":1,\"begin\":0,\"end\":1,\"k\":\"ident\",\"name\":\"a\"},{\"id\":2,\"begin\":3,\"end\":4,\"k\":\"const\",\"type\":\"string\",\"value\":\"b\"}]},\"profile_errors\":[]}"
+  },
+  {
+   "id": "cel-parse:12",
+   "fn": "CelParse",
+   "args": [
+    "a[?0]"
+   ],
+   "out": "{\"ok\":true,\"ast\":{\"id\":3,\"begin\":0,\"end\":5,\"k\":\"call\",\"fn\":\"_[?_]\",\"args\":[{\"id\":1,\"begin\":0,\"end\":1,\"k\":\"ident\",\"name\":\"a\"},{\"id\":2,\"begin\":3,\"end\":4,\"k\":\"const\",\"type\":\"int\",\"value\":0}]},\"profile_errors\":[]}"
+  },
+  {
+   "id": "cel-parse:13",
+   "fn": "CelParse",
+   "args": [
+    "{?'k': v}"
+   ],
+   "out": "{\"ok\":true,\"ast\":{\"id\":1,\"begin\":0,\"end\":9,\"k\":\"map\",\"entries\":[{\"optional\":true,\"key\":{\"id\":3,\"begin\":2,\"end\":5,\"k\":\"const\",\"type\":\"string\",\"value\":\"k\"},\"value\":{\"id\":4,\"begin\":7,\"end\":8,\"k\":\"ident\",\"name\":\"v\"}}]},\"profile_errors\":[]}"
+  },
+  {
+   "id": "cel-parse:14",
+   "fn": "CelParse",
+   "args": [
+    "-9223372036854775808"
+   ],
+   "out": "{\"ok\":true,\"ast\":{\"id\":1,\"begin\":0,\"end\":20,\"k\":\"const\",\"type\":\"int\",\"value\":-9223372036854775808},\"profile_errors\":[]}"
+  },
+  {
+   "id": "cel-parse:15",
+   "fn": "CelParse",
+   "args": [
+    "r'\\d' + \"\"\"x\ny\"\"\""
+   ],
+   "out": "{\"ok\":true,\"ast\":{\"id\":3,\"begin\":0,\"end\":17,\"k\":\"call\",\"fn\":\"_+_\",\"args\":[{\"id\":1,\"begin\":0,\"end\":5,\"k\":\"const\",\"type\":\"string\",\"value\":\"\\\\d\"},{\"id\":2,\"begin\":8,\"end\":17,\"k\":\"const\",\"type\":\"string\",\"value\":\"x\\ny\"}]},\"profile_errors\":[]}"
+  },
+  {
+   "id": "cel-parse:16",
+   "fn": "CelParse",
+   "args": [
+    "b'\\xff'"
+   ],
+   "out": "{\"ok\":true,\"ast\":{\"id\":1,\"begin\":0,\"end\":7,\"k\":\"const\",\"type\":\"bytes\",\"value\":\"ff\"},\"profile_errors\":[{\"offset\":0,\"message\":\"bytes literals are not supported in pss-rules\"}]}"
+  },
+  {
+   "id": "cel-parse:17",
+   "fn": "CelParse",
+   "args": [
+    "1u"
+   ],
+   "out": "{\"ok\":true,\"ast\":{\"id\":1,\"begin\":0,\"end\":2,\"k\":\"const\",\"type\":\"uint\",\"value\":1},\"profile_errors\":[{\"offset\":0,\"message\":\"unsigned integer literals are not supported in pss-rules; use an int\"}]}"
+  },
+  {
+   "id": "cel-parse:18",
+   "fn": "CelParse",
+   "args": [
+    "pkg.Msg{f: 1}"
+   ],
+   "out": "{\"ok\":true,\"ast\":{\"id\":1,\"begin\":0,\"end\":13,\"k\":\"struct\",\"name\":\"pkg.Msg\",\"entries\":[{\"optional\":false,\"field\":\"f\",\"value\":{\"id\":3,\"begin\":11,\"end\":12,\"k\":\"const\",\"type\":\"int\",\"value\":1}}]},\"profile_errors\":[{\"offset\":0,\"message\":\"message construction ('pkg.Msg{...}') is not supported in pss-rules\"}]}"
+  },
+  {
+   "id": "cel-parse:19",
+   "fn": "CelParse",
+   "args": [
+    "m.all(k, v, true)"
+   ],
+   "out": "{\"ok\":true,\"ast\":{\"id\":5,\"begin\":0,\"end\":17,\"k\":\"call\",\"fn\":\"all\",\"target\":{\"id\":1,\"begin\":0,\"end\":1,\"k\":\"ident\",\"name\":\"m\"},\"args\":[{\"id\":2,\"begin\":6,\"end\":7,\"k\":\"ident\",\"name\":\"k\"},{\"id\":3,\"begin\":9,\"end\":10,\"k\":\"ident\",\"name\":\"v\"},{\"id\":4,\"begin\":12,\"end\":16,\"k\":\"const\",\"type\":\"bool\",\"value\":true}]},\"profile_errors\":[{\"offset\":0,\"message\":\"two-variable comprehensions ('all(k, v, ...)') are not supported in pss-rules\"}]}"
+  },
+  {
+   "id": "cel-parse:20",
+   "fn": "CelParse",
+   "args": [
+    ".a.b"
+   ],
+   "out": "{\"ok\":true,\"ast\":{\"id\":2,\"begin\":0,\"end\":4,\"k\":\"select\",\"field\":\"b\",\"test_only\":false,\"operand\":{\"id\":1,\"begin\":0,\"end\":2,\"k\":\"ident\",\"name\":\".a\"}},\"profile_errors\":[{\"offset\":0,\"message\":\"absolute names ('.a') are not supported in pss-rules\"}]}"
+  },
+  {
+   "id": "cel-parse:21",
+   "fn": "CelParse",
+   "args": [
+    "[1, 2].map(x, x > 1, x * 2)"
+   ],
+   "sha256": "1f31f6f67b105231fdca4813283246494a3a6d4bd3e118a149ce4720a4f1fb09",
+   "len": 1213
+  },
+  {
+   "id": "cel-parse:22",
+   "fn": "CelParse",
+   "args": [
+    "cel.bind(v, 1, v + 1)"
+   ],
+   "sha256": "5e03aab34bb9dd096d9a4ead17f90be2657623858ae5220e0757c6f61af54503",
+   "len": 602
+  },
+  {
+   "id": "cel-parse:23",
+   "fn": "CelParse",
+   "args": [
+    "l.exists_one(x, x)"
+   ],
+   "sha256": "9d489bd3c60f136b78c672114237ef405bcc07348298be78141d4e9b230cd338",
+   "len": 894
+  },
+  {
+   "id": "cel-parse:24",
+   "fn": "CelParse",
+   "args": [
+    "l.existsOne(x, x)"
+   ],
+   "sha256": "5e74ad12ad0ffc40e0c9f88ad4dd7cf5ab260203334405472613de093befb23d",
+   "len": 894
+  },
+  {
+   "id": "cel-parse:25",
+   "fn": "CelParse",
+   "args": [
+    "`a-b`"
+   ],
+   "out": "{\"ok\":false,\"error\":{\"offset\":0,\"message\":\"a quoted identifier is only allowed as a field name after '.'\"}}"
+  },
+  {
+   "id": "cel-parse:26",
+   "fn": "CelParse",
+   "args": [
+    "x.`y.z`"
+   ],
+   "out": "{\"ok\":true,\"ast\":{\"id\":2,\"begin\":0,\"end\":7,\"k\":\"select\",\"field\":\"y.z\",\"test_only\":false,\"operand\":{\"id\":1,\"begin\":0,\"end\":1,\"k\":\"ident\",\"name\":\"x\"}},\"profile_errors\":[]}"
+  },
+  {
+   "id": "cel-parse:27",
+   "fn": "CelParse",
+   "args": [
+    "1.5e-3"
+   ],
+   "out": "{\"ok\":true,\"ast\":{\"id\":1,\"begin\":0,\"end\":6,\"k\":\"const\",\"type\":\"double\",\"value\":0.0015},\"profile_errors\":[]}"
+  },
+  {
+   "id": "cel-parse:28",
+   "fn": "CelParse",
+   "args": [
+    "0x7fffffffffffffff"
+   ],
+   "out": "{\"ok\":true,\"ast\":{\"id\":1,\"begin\":0,\"end\":18,\"k\":\"const\",\"type\":\"int\",\"value\":9223372036854775807},\"profile_errors\":[]}"
+  },
+  {
+   "id": "cel-parse:29",
+   "fn": "CelParse",
+   "args": [
+    "'\\u00e9\\U0001F600\\x41\\101'"
+   ],
+   "out": "{\"ok\":true,\"ast\":{\"id\":1,\"begin\":0,\"end\":26,\"k\":\"const\",\"type\":\"string\",\"value\":\"é😀AA\"},\"profile_errors\":[]}"
+  },
+  {
+   "id": "cel-parse:30",
+   "fn": "CelParse",
+   "args": [
+    "// comment\n1"
+   ],
+   "out": "{\"ok\":true,\"ast\":{\"id\":1,\"begin\":11,\"end\":12,\"k\":\"const\",\"type\":\"int\",\"value\":1},\"profile_errors\":[]}"
+  },
+  {
+   "id": "cel-parse:31",
+   "fn": "CelParse",
+   "args": [
+    "1 +"
+   ],
+   "out": "{\"ok\":false,\"error\":{\"offset\":3,\"message\":\"expected an expression, found the end of the input\"}}"
+  },
+  {
+   "id": "cel-parse:32",
+   "fn": "CelParse",
+   "args": [
+    "a = b"
+   ],
+   "out": "{\"ok\":false,\"error\":{\"offset\":2,\"message\":\"unexpected '='; use '==' to compare\"}}"
+  },
+  {
+   "id": "cel-parse:33",
+   "fn": "CelParse",
+   "args": [
+    "f(1,)"
+   ],
+   "out": "{\"ok\":false,\"error\":{\"offset\":4,\"message\":\"trailing ',' in an argument list\"}}"
+  },
+  {
+   "id": "cel-parse:34",
+   "fn": "CelParse",
+   "args": [
+    "if"
+   ],
+   "out": "{\"ok\":false,\"error\":{\"offset\":0,\"message\":\"'if' is a reserved word and cannot be used as a name\"}}"
+  },
+  {
+   "id": "cel-parse:35",
+   "fn": "CelParse",
+   "args": [
+    "x.all(1, true)"
+   ],
+   "out": "{\"ok\":false,\"error\":{\"offset\":6,\"message\":\"all() needs a simple name as its first argument\"}}"
+  },
+  {
+   "id": "cel-parse:36",
+   "fn": "CelParse",
+   "args": [
+    "9223372036854775808"
+   ],
+   "out": "{\"ok\":false,\"error\":{\"offset\":0,\"message\":\"integer literal is out of range for a 64-bit signed integer\"}}"
+  },
+  {
+   "id": "cel-parse:37",
+   "fn": "CelParse",
+   "args": [
+    "'abc"
+   ],
+   "out": "{\"ok\":false,\"error\":{\"offset\":0,\"message\":\"unterminated string literal\"}}"
+  },
+  {
+   "id": "cel-parse:38",
+   "fn": "CelParse",
+   "args": [
+    "'\\q'"
+   ],
+   "out": "{\"ok\":false,\"error\":{\"offset\":1,\"message\":\"invalid escape sequence '\\\\q'\"}}"
+  },
+  {
+   "id": "cel-parse:39",
+   "fn": "CelParse",
+   "args": [
+    "((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((1))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))"
+   ],
+   "out": "{\"ok\":false,\"error\":{\"offset\":64,\"message\":\"expression nests too deeply (limit 64)\"}}"
+  },
+  {
+   "id": "cel-parse:40",
+   "fn": "CelParse",
+   "args": [
+    "a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a"
+   ],
+   "out": "{\"ok\":false,\"error\":{\"offset\":511,\"message\":\"expression is too deeply nested (more than 256 levels); split it with let: or define:\"}}"
+  },
+  {
+   "id": "cel-parse:41",
+   "fn": "CelParse",
+   "args": [
+    "a.b."
+   ],
+   "out": "{\"ok\":false,\"error\":{\"offset\":4,\"message\":\"expected a field or method name after '.', found end of expression\"}}"
+  },
+  {
+   "id": "cel-parse:42",
+   "fn": "CelParse",
+   "args": [
+    "{1:}"
+   ],
+   "out": "{\"ok\":false,\"error\":{\"offset\":3,\"message\":\"expected an expression, found '}'\"}}"
+  },
+  {
+   "id": "cel-eval:0",
+   "fn": "CelEval",
+   "args": [
+    "false && (1/0 == 1)",
+    "",
+    0
+   ],
+   "out": "{\"ok\":true,\"result\":{\"type\":\"bool\",\"value\":false},\"steps\":2,\"budget_exceeded\":false,\"calls\":[]}"
+  },
+  {
+   "id": "cel-eval:1",
+   "fn": "CelEval",
+   "args": [
+    "(1/0 == 1) && false",
+    "",
+    0
+   ],
+   "out": "{\"ok\":true,\"result\":{\"type\":\"bool\",\"value\":false},\"steps\":6,\"budget_exceeded\":false,\"calls\":[\"divide_int64\"]}"
+  },
+  {
+   "id": "cel-eval:2",
+   "fn": "CelEval",
+   "args": [
+    "true || {}['x']",
+    "",
+    0
+   ],
+   "out": "{\"ok\":true,\"result\":{\"type\":\"bool\",\"value\":true},\"steps\":2,\"budget_exceeded\":false,\"calls\":[]}"
+  },
+  {
+   "id": "cel-eval:3",
+   "fn": "CelEval",
+   "args": [
+    "{}['x'] || true",
+    "",
+    0
+   ],
+   "out": "{\"ok\":true,\"result\":{\"type\":\"bool\",\"value\":true},\"steps\":5,\"budget_exceeded\":false,\"calls\":[\"index_map\"]}"
+  },
+  {
+   "id": "cel-eval:4",
+   "fn": "CelEval",
+   "args": [
+    "1 == 1.0",
+    "",
+    0
+   ],
+   "out": "{\"ok\":true,\"result\":{\"type\":\"bool\",\"value\":true},\"steps\":3,\"budget_exceeded\":false,\"calls\":[\"equals\"]}"
+  },
+  {
+   "id": "cel-eval:5",
+   "fn": "CelEval",
+   "args": [
+    "1 < 1.5",
+    "",
+    0
+   ],
+   "out": "{\"ok\":true,\"result\":{\"type\":\"bool\",\"value\":true},\"steps\":3,\"budget_exceeded\":false,\"calls\":[\"less_int64_double\"]}"
+  },
+  {
+   "id": "cel-eval:6",
+   "fn": "CelEval",
+   "args": [
+    "[1, 2].map(x, x * 2)",
+    "",
+    0
+   ],
+   "out": "{\"ok\":true,\"result\":{\"type\":\"list\",\"value\":[{\"type\":\"int\",\"value\":2},{\"type\":\"int\",\"value\":4}]},\"steps\":25,\"budget_exceeded\":false,\"calls\":[\"multiply_int64\",\"add_list\",\"multiply_int64\",\"add_list\"]}"
+  },
+  {
+   "id": "cel-eval:7",
+   "fn": "CelEval",
+   "args": [
+    "[1, 2, 3].exists_one(x, x > 2)",
+    "",
+    0
+   ],
+   "out": "{\"ok\":true,\"result\":{\"type\":\"bool\",\"value\":true},\"steps\":32,\"budget_exceeded\":false,\"calls\":[\"greater_int64\",\"greater_int64\",\"greater_int64\",\"add_int64\",\"equals\"]}"
+  },
+  {
+   "id": "cel-eval:8",
+   "fn": "CelEval",
+   "args": [
+    "[1, 2, 3].filter(x, x > 1).size()",
+    "",
+    0
+   ],
+   "out": "{\"ok\":true,\"result\":{\"type\":\"int\",\"value\":2},\"steps\":38,\"budget_exceeded\":false,\"calls\":[\"greater_int64\",\"greater_int64\",\"add_list\",\"greater_int64\",\"add_list\",\"list_size\"]}"
+  },
+  {
+   "id": "cel-eval:9",
+   "fn": "CelEval",
+   "args": [
+    "size('héllo')",
+    "",
+    0
+   ],
+   "out": "{\"ok\":true,\"result\":{\"type\":\"int\",\"value\":5},\"steps\":2,\"budget_exceeded\":false,\"calls\":[\"size_string\"]}"
+  },
+  {
+   "id": "cel-eval:10",
+   "fn": "CelEval",
+   "args": [
+    "'abc'.matches('^a.c$')",
+    "",
+    0
+   ],
+   "out": "{\"ok\":true,\"result\":{\"type\":\"bool\",\"value\":true},\"steps\":3,\"budget_exceeded\":false,\"calls\":[\"matches_string\"]}"
+  },
+  {
+   "id": "cel-eval:11",
+   "fn": "CelEval",
+   "args": [
+    "1.0 / 0.0",
+    "",
+    0
+   ],
+   "out": "{\"ok\":true,\"result\":{\"type\":\"double\",\"value\":\"Infinity\"},\"steps\":3,\"budget_exceeded\":false,\"calls\":[\"divide_double\"]}"
+  },
+  {
+   "id": "cel-eval:12",
+   "fn": "CelEval",
+   "args": [
+    "-1.0 / 0.0",
+    "",
+    0
+   ],
+   "out": "{\"ok\":true,\"result\":{\"type\":\"double\",\"value\":\"-Infinity\"},\"steps\":3,\"budget_exceeded\":false,\"calls\":[\"divide_double\"]}"
+  },
+  {
+   "id": "cel-eval:13",
+   "fn": "CelEval",
+   "args": [
+    "0.0 / 0.0",
+    "",
+    0
+   ],
+   "out": "{\"ok\":true,\"result\":{\"type\":\"double\",\"value\":\"NaN\"},\"steps\":3,\"budget_exceeded\":false,\"calls\":[\"divide_double\"]}"
+  },
+  {
+   "id": "cel-eval:14",
+   "fn": "CelEval",
+   "args": [
+    "2.0",
+    "",
+    0
+   ],
+   "out": "{\"ok\":true,\"result\":{\"type\":\"double\",\"value\":2.0},\"steps\":1,\"budget_exceeded\":false,\"calls\":[]}"
+  },
+  {
+   "id": "cel-eval:15",
+   "fn": "CelEval",
+   "args": [
+    "1e300 * 1e300",
+    "",
+    0
+   ],
+   "out": "{\"ok\":true,\"result\":{\"type\":\"double\",\"value\":\"Infinity\"},\"steps\":3,\"budget_exceeded\":false,\"calls\":[\"multiply_double\"]}"
+  },
+  {
+   "id": "cel-eval:16",
+   "fn": "CelEval",
+   "args": [
+    "-0.0",
+    "",
+    0
+   ],
+   "out": "{\"ok\":true,\"result\":{\"type\":\"double\",\"value\":-0.0},\"steps\":1,\"budget_exceeded\":false,\"calls\":[]}"
+  },
+  {
+   "id": "cel-eval:17",
+   "fn": "CelEval",
+   "args": [
+    "9223372036854775807 + 1",
+    "",
+    0
+   ],
+   "out": "{\"ok\":true,\"result\":{\"type\":\"error\",\"value\":\"integer overflow\"},\"steps\":3,\"budget_exceeded\":false,\"calls\":[\"add_int64\"]}"
+  },
+  {
+   "id": "cel-eval:18",
+   "fn": "CelEval",
+   "args": [
+    "-9223372036854775807 - 2",
+    "",
+    0
+   ],
+   "out": "{\"ok\":true,\"result\":{\"type\":\"error\",\"value\":\"integer overflow\"},\"steps\":3,\"budget_exceeded\":false,\"calls\":[\"subtract_int64\"]}"
+  },
+  {
+   "id": "cel-eval:19",
+   "fn": "CelEval",
+   "args": [
+    "1 / 0",
+    "",
+    0
+   ],
+   "out": "{\"ok\":true,\"result\":{\"type\":\"error\",\"value\":\"division by zero\"},\"steps\":3,\"budget_exceeded\":false,\"calls\":[\"divide_int64\"]}"
+  },
+  {
+   "id": "cel-eval:20",
+   "fn": "CelEval",
+   "args": [
+    "[1][1]",
+    "",
+    0
+   ],
+   "out": "{\"ok\":true,\"result\":{\"type\":\"error\",\"value\":\"index 1 out of range for a list of size 1\"},\"steps\":4,\"budget_exceeded\":false,\"calls\":[\"index_list\"]}"
+  },
+  {
+   "id": "cel-eval:21",
+   "fn": "CelEval",
+   "args": [
+    "[1][-1]",
+    "",
+    0
+   ],
+   "out": "{\"ok\":true,\"result\":{\"type\":\"error\",\"value\":\"index -1 out of range for a list of size 1\"},\"steps\":4,\"budget_exceeded\":false,\"calls\":[\"index_list\"]}"
+  },
+  {
+   "id": "cel-eval:22",
+   "fn": "CelEval",
+   "args": [
+    "{'a': 1/0}",
+    "",
+    0
+   ],
+   "out": "{\"ok\":true,\"result\":{\"type\":\"error\",\"value\":\"division by zero\"},\"steps\":5,\"budget_exceeded\":false,\"calls\":[\"divide_int64\"]}"
+  },
+  {
+   "id": "cel-eval:23",
+   "fn": "CelEval",
+   "args": [
+    "1 + 1.0",
+    "",
+    0
+   ],
+   "out": "{\"ok\":true,\"result\":{\"type\":\"error\",\"value\":\"no matching overload for '_+_' applied to (int, double)\"},\"steps\":3,\"budget_exceeded\":false,\"calls\":[]}"
+  },
+  {
+   "id": "cel-eval:24",
+   "fn": "CelEval",
+   "args": [
+    "x",
+    "",
+    0
+   ],
+   "out": "{\"ok\":true,\"result\":{\"type\":\"error\",\"value\":\"undeclared reference to 'x'\"},\"steps\":1,\"budget_exceeded\":false,\"calls\":[]}"
+  },
+  {
+   "id": "cel-eval:25",
+   "fn": "CelEval",
+   "args": [
+    "{'a': 1, 'b': [true, null]}",
+    "",
+    0
+   ],
+   "out": "{\"ok\":true,\"result\":{\"type\":\"map\",\"value\":[[{\"type\":\"string\",\"value\":\"a\"},{\"type\":\"int\",\"value\":1}],[{\"type\":\"string\",\"value\":\"b\"},{\"type\":\"list\",\"value\":[{\"type\":\"bool\",\"value\":true},{\"type\":\"null_type\",\"value\":null}]}]]},\"steps\":7,\"budget_exceeded\":false,\"calls\":[]}"
+  },
+  {
+   "id": "cel-eval:26",
+   "fn": "CelEval",
+   "args": [
+    "string(1.5)",
+    "",
+    0
+   ],
+   "out": "{\"ok\":true,\"result\":{\"type\":\"string\",\"value\":\"1.5\"},\"steps\":2,\"budget_exceeded\":false,\"calls\":[\"double_to_string\"]}"
+  },
+  {
+   "id": "cel-eval:27",
+   "fn": "CelEval",
+   "args": [
+    "int('12')",
+    "",
+    0
+   ],
+   "out": "{\"ok\":true,\"result\":{\"type\":\"int\",\"value\":12},\"steps\":2,\"budget_exceeded\":false,\"calls\":[\"string_to_int64\"]}"
+  },
+  {
+   "id": "cel-eval:28",
+   "fn": "CelEval",
+   "args": [
+    "int(2.9)",
+    "",
+    0
+   ],
+   "out": "{\"ok\":true,\"result\":{\"type\":\"int\",\"value\":2},\"steps\":2,\"budget_exceeded\":false,\"calls\":[\"double_to_int64\"]}"
+  },
+  {
+   "id": "cel-eval:29",
+   "fn": "CelEval",
+   "args": [
+    "double('1e3')",
+    "",
+    0
+   ],
+   "out": "{\"ok\":true,\"result\":{\"type\":\"double\",\"value\":1000.0},\"steps\":2,\"budget_exceeded\":false,\"calls\":[\"string_to_double\"]}"
+  },
+  {
+   "id": "cel-eval:30",
+   "fn": "CelEval",
+   "args": [
+    "dyn(1) == 1.0",
+    "",
+    0
+   ],
+   "out": "{\"ok\":true,\"result\":{\"type\":\"bool\",\"value\":true},\"steps\":4,\"budget_exceeded\":false,\"calls\":[\"to_dyn\",\"equals\"]}"
+  },
+  {
+   "id": "cel-eval:31",
+   "fn": "CelEval",
+   "args": [
+    "'a' < 'b'",
+    "",
+    0
+   ],
+   "out": "{\"ok\":true,\"result\":{\"type\":\"bool\",\"value\":true},\"steps\":3,\"budget_exceeded\":false,\"calls\":[\"less_string\"]}"
+  },
+  {
+   "id": "cel-eval:32",
+   "fn": "CelEval",
+   "args": [
+    "[1, 2] == [1, 2]",
+    "",
+    0
+   ],
+   "out": "{\"ok\":true,\"result\":{\"type\":\"bool\",\"value\":true},\"steps\":11,\"budget_exceeded\":false,\"calls\":[\"equals\"]}"
+  },
+  {
+   "id": "cel-eval:33",
+   "fn": "CelEval",
+   "args": [
+    "{'a': 1} == {'a': 1.0}",
+    "",
+    0
+   ],
+   "out": "{\"ok\":true,\"result\":{\"type\":\"bool\",\"value\":true},\"steps\":9,\"budget_exceeded\":false,\"calls\":[\"equals\"]}"
+  },
+  {
+   "id": "cel-eval:34",
+   "fn": "CelEval",
+   "args": [
+    "-9223372036854775808 / -1",
+    "",
+    0
+   ],
+   "out": "{\"ok\":true,\"result\":{\"type\":\"error\",\"value\":\"integer overflow\"},\"steps\":3,\"budget_exceeded\":false,\"calls\":[\"divide_int64\"]}"
+  },
+  {
+   "id": "cel-eval:35",
+   "fn": "CelEval",
+   "args": [
+    "-9223372036854775808 % -1",
+    "",
+    0
+   ],
+   "out": "{\"ok\":true,\"result\":{\"type\":\"error\",\"value\":\"integer overflow\"},\"steps\":3,\"budget_exceeded\":false,\"calls\":[\"modulo_int64\"]}"
+  },
+  {
+   "id": "cel-eval:36",
+   "fn": "CelEval",
+   "args": [
+    "cel.bind(v, [1, 2], v + v)",
+    "",
+    0
+   ],
+   "out": "{\"ok\":true,\"result\":{\"type\":\"list\",\"value\":[{\"type\":\"int\",\"value\":1},{\"type\":\"int\",\"value\":2},{\"type\":\"int\",\"value\":1},{\"type\":\"int\",\"value\":2}]},\"steps\":12,\"budget_exceeded\":false,\"calls\":[\"add_list\"]}"
+  },
+  {
+   "id": "cel-eval:37",
+   "fn": "CelEval",
+   "args": [
+    "{'a': 1}.?a",
+    "",
+    0
+   ],
+   "out": "{\"ok\":true,\"result\":{\"type\":\"optional_type\",\"value\":{\"type\":\"int\",\"value\":1}},\"steps\":4,\"budget_exceeded\":false,\"calls\":[]}"
+  },
+  {
+   "id": "cel-eval:38",
+   "fn": "CelEval",
+   "args": [
+    "{}.?a.b",
+    "",
+    0
+   ],
+   "out": "{\"ok\":true,\"result\":{\"type\":\"optional_type\",\"value\":null},\"steps\":3,\"budget_exceeded\":false,\"calls\":[]}"
+  },
+  {
+   "id": "cel-eval:39",
+   "fn": "CelEval",
+   "args": [
+    "[?optional.none(), ?optional.of(2)]",
+    "",
+    0
+   ],
+   "out": "{\"ok\":true,\"result\":{\"type\":\"list\",\"value\":[{\"type\":\"int\",\"value\":2}]},\"steps\":4,\"budget_exceeded\":false,\"calls\":[\"optional_none\",\"optional_of\"]}"
+  },
+  {
+   "id": "cel-eval:40",
+   "fn": "CelEval",
+   "args": [
+    "{?'k': optional.none()}",
+    "",
+    0
+   ],
+   "out": "{\"ok\":true,\"result\":{\"type\":\"map\",\"value\":[]},\"steps\":3,\"budget_exceeded\":false,\"calls\":[\"optional_none\"]}"
+  },
+  {
+   "id": "cel-eval:41",
+   "fn": "CelEval",
+   "args": [
+    "optional.of({'c': {}}).c.missing.orValue('d')",
+    "",
+    0
+   ],
+   "out": "{\"ok\":true,\"result\":{\"type\":\"string\",\"value\":\"d\"},\"steps\":8,\"budget_exceeded\":false,\"calls\":[\"optional_of\"]}"
+  },
+  {
+   "id": "cel-eval:42",
+   "fn": "CelEval",
+   "args": [
+    "optional.none().value()",
+    "",
+    0
+   ],
+   "out": "{\"ok\":true,\"result\":{\"type\":\"error\",\"value\":\"optional.none() dereference\"},\"steps\":2,\"budget_exceeded\":false,\"calls\":[\"optional_none\",\"optional_value\"]}"
+  },
+  {
+   "id": "cel-eval:43",
+   "fn": "CelEval",
+   "args": [
+    "[1][?3].hasValue()",
+    "",
+    0
+   ],
+   "out": "{\"ok\":true,\"result\":{\"type\":\"bool\",\"value\":false},\"steps\":5,\"budget_exceeded\":false,\"calls\":[\"list_optindex_optional_int\",\"optional_hasValue\"]}"
+  },
+  {
+   "id": "cel-eval:44",
+   "fn": "CelEval",
+   "args": [
+    "type(1) == int",
+    "",
+    0
+   ],
+   "out": "{\"ok\":true,\"result\":{\"type\":\"bool\",\"value\":true},\"steps\":4,\"budget_exceeded\":false,\"calls\":[\"type\",\"equals\"]}"
+  },
+  {
+   "id": "cel-eval:45",
+   "fn": "CelEval",
+   "args": [
+    "type(optional.none())",
+    "",
+    0
+   ],
+   "out": "{\"ok\":true,\"result\":{\"type\":\"type\",\"value\":\"optional_type\"},\"steps\":2,\"budget_exceeded\":false,\"calls\":[\"optional_none\",\"type\"]}"
+  },
+  {
+   "id": "cel-eval:46",
+   "fn": "CelEval",
+   "args": [
+    "type(type)",
+    "",
+    0
+   ],
+   "out": "{\"ok\":true,\"result\":{\"type\":\"type\",\"value\":\"type\"},\"steps\":2,\"budget_exceeded\":false,\"calls\":[\"type\"]}"
+  },
+  {
+   "id": "cel-eval:47",
+   "fn": "CelEval",
+   "args": [
+    "ExprBinOp.BinOp_Eq",
+    "",
+    0
+   ],
+   "out": "{\"ok\":true,\"result\":{\"type\":\"int\",\"value\":17},\"steps\":2,\"budget_exceeded\":false,\"calls\":[]}"
+  },
+  {
+   "id": "cel-eval:48",
+   "fn": "CelEval",
+   "args": [
+    "FieldAttr.Rand",
+    "",
+    0
+   ],
+   "out": "{\"ok\":true,\"result\":{\"type\":\"int\",\"value\":4},\"steps\":2,\"budget_exceeded\":false,\"calls\":[]}"
+  },
+  {
+   "id": "cel-eval:49",
+   "fn": "CelEval",
+   "args": [
+    "ExprBinOp.Nope",
+    "",
+    0
+   ],
+   "out": "{\"ok\":true,\"result\":{\"type\":\"error\",\"value\":\"type 'ExprBinOp' has no member 'Nope'\"},\"steps\":2,\"budget_exceeded\":false,\"calls\":[]}"
+  },
+  {
+   "id": "cel-eval:50",
+   "fn": "CelEval",
+   "args": [
+    "type(null) == null_type",
+    "",
+    0
+   ],
+   "out": "{\"ok\":true,\"result\":{\"type\":\"bool\",\"value\":true},\"steps\":4,\"budget_exceeded\":false,\"calls\":[\"type\",\"equals\"]}"
+  },
+  {
+   "id": "cel-eval-bound:0",
+   "fn": "CelEval",
+   "args": [
+    "x + y",
+    "{\"x\": 1, \"y\": 2}",
+    0
+   ],
+   "out": "{\"ok\":true,\"result\":{\"type\":\"int\",\"value\":3},\"steps\":3,\"budget_exceeded\":false,\"calls\":[\"add_int64\"]}"
+  },
+  {
+   "id": "cel-eval-bound:1",
+   "fn": "CelEval",
+   "args": [
+    "m.a.exists(v, v > 1)",
+    "{\"m\": {\"a\": [1, 2]}}",
+    0
+   ],
+   "out": "{\"ok\":true,\"result\":{\"type\":\"bool\",\"value\":true},\"steps\":23,\"budget_exceeded\":false,\"calls\":[\"logical_not\",\"greater_int64\",\"logical_not\",\"greater_int64\"]}"
+  },
+  {
+   "id": "cel-eval-bound:2",
+   "fn": "CelEval",
+   "args": [
+    "int",
+    "{\"int\": 3}",
+    0
+   ],
+   "out": "{\"ok\":true,\"result\":{\"type\":\"int\",\"value\":3},\"steps\":1,\"budget_exceeded\":false,\"calls\":[]}"
+  },
+  {
+   "id": "cel-eval-bound:3",
+   "fn": "CelEval",
+   "args": [
+    "s.size()",
+    "{\"s\": \"héllo\"}",
+    0
+   ],
+   "out": "{\"ok\":true,\"result\":{\"type\":\"int\",\"value\":5},\"steps\":2,\"budget_exceeded\":false,\"calls\":[\"string_size\"]}"
+  },
+  {
+   "id": "cel-eval:budget",
+   "fn": "CelEval",
+   "args": [
+    "[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1].map(x, x + 1)",
+    "",
+    50
+   ],
+   "out": "{\"ok\":true,\"result\":{\"type\":\"error\",\"value\":\"evaluation budget of 50 steps exceeded\"},\"steps\":51,\"budget_exceeded\":true,\"calls\":[]}"
+  },
+  {
+   "id": "reflect-schema",
+   "fn": "ReflectSchema",
+   "args": [],
+   "sha256": "454976531623ed0611f357ea98c0eca04ea5aacc81162a23f54053d1abafdd6d",
+   "len": 42022
+  },
+  {
+   "id": "cel-functions",
+   "fn": "CelFunctions",
+   "args": [],
+   "sha256": "65802599f970ad5f7d8dfa1e1815d1c9d68f747c3c4a4045f97ee1a145ecd80d",
+   "len": 33665
+  },
+  {
+   "id": "cel-check:ok.yaml",
+   "fn": "CelCheck",
+   "args": [
+    "ok.yaml",
+    "expr: \"[1, 2].map(x, x * 2)\"\n"
+   ],
+   "out": "{\"ok\":true,\"errors\":[],\"types\":{\"expr\":\"list(int)\"},\"overloads\":{\"expr\":[\"multiply_int64\",\"add_list\"]},\"values\":{\"expr\":{\"type\":\"list\",\"value\":[{\"type\":\"int\",\"value\":2},{\"type\":\"int\",\"value\":4}]}},\"calls\":{\"expr\":[\"multiply_int64\",\"add_list\",\"multiply_int64\",\"add_list\"]},\"steps\":{\"expr\":25}}"
+  },
+  {
+   "id": "cel-check:types.json",
+   "fn": "CelCheck",
+   "args": [
+    "types.json",
+    "{\"vars\": {\"n\": \"ExprBin\", \"l\": \"list(ScopeChild)\"}, \"run\": false, \"expr\": \"[n.lhs, n.rhs, null].size() + l.filter(c, type(c) == Action).size()\"}"
+   ],
+   "out": "{\"ok\":true,\"errors\":[],\"types\":{\"expr\":\"int\"},\"overloads\":{\"expr\":[\"conditional\",\"equals\",\"add_int64\",\"add_list\",\"list_size\",\"type\"]}}"
+  },
+  {
+   "id": "cel-check:error.yaml",
+   "fn": "CelCheck",
+   "args": [
+    "error.yaml",
+    "expr: |\n  1 +\n    'a'\n"
+   ],
+   "out": "{\"ok\":true,\"errors\":[{\"at\":\"expr\",\"offset\":0,\"line\":2,\"col\":3,\"message\":\"no matching overload for '+' applied to (int, string); it takes int + int -> int, double + double -> double, string + string -> string or list(A) + list(A) -> list(A)\"}],\"types\":{\"expr\":\"error\"},\"overloads\":{\"expr\":[]}}"
+  },
+  {
+   "id": "cel-check:where.yaml",
+   "fn": "CelCheck",
+   "args": [
+    "where.yaml",
+    "where: >-\n  [1,\n   2]\n"
+   ],
+   "out": "{\"ok\":true,\"errors\":[{\"at\":\"where\",\"offset\":0,\"line\":2,\"col\":3,\"message\":\"where: must be bool, but this expression is 'list(int)'\"}],\"types\":{\"where\":\"list(int)\"},\"overloads\":{\"where\":[]}}"
+  },
+  {
+   "id": "cel-check:report.yaml",
+   "fn": "CelCheck",
+   "args": [
+    "report.yaml",
+    "vars: {node: ExprBin}\nreport: '[node.op]'\n"
+   ],
+   "out": "{\"ok\":true,\"errors\":[{\"at\":\"report\",\"offset\":0,\"line\":2,\"col\":10,\"message\":\"report: must be list(node), but this expression is 'list(int)'\"}],\"types\":{\"report\":\"list(int)\"},\"overloads\":{\"report\":[]}}"
+  },
+  {
+   "id": "cel-check:nesting.yaml",
+   "fn": "CelCheck",
+   "args": [
+    "nesting.yaml",
+    "expr: '[[[1]]].all(a, a.all(b, b.all(c, c > 0)))'\n"
+   ],
+   "out": "{\"ok\":true,\"errors\":[{\"at\":\"expr\",\"offset\":24,\"line\":1,\"col\":32,\"message\":\"all() nests comprehensions 3 deep, and at most 2 are allowed in one expression or helper; move the inner part into a define: helper\"}],\"types\":{\"expr\":\"bool\"},\"overloads\":{\"expr\":[\"logical_and\",\"greater_int64\"]}}"
+  },
+  {
+   "id": "cel-check:helpers.yaml",
+   "fn": "CelCheck",
+   "args": [
+    "helpers.yaml",
+    "define:\n  twice(x): x * 2\n  k: twice(21)\nlet:\n  d: k + 1\nexpr: twice(d)\n"
+   ],
+   "out": "{\"ok\":true,\"errors\":[],\"types\":{\"let:d\":\"int\",\"expr\":\"int\"},\"overloads\":{\"let:d\":[\"add_int64\",\"multiply_int64\"],\"expr\":[\"multiply_int64\"]},\"values\":{\"let:d\":{\"type\":\"int\",\"value\":43},\"expr\":{\"type\":\"int\",\"value\":86}},\"calls\":{\"let:d\":[\"multiply_int64\",\"add_int64\"],\"expr\":[\"multiply_int64\"]},\"steps\":{\"let:d\":8,\"expr\":6}}"
+  },
+  {
+   "id": "cel-check:cycle.yaml",
+   "fn": "CelCheck",
+   "args": [
+    "cycle.yaml",
+    "define:\n  a(x): b(x)\n  b(y): >-\n    1 +\n    a(y)\nexpr: a(1)\n"
+   ],
+   "out": "{\"ok\":true,\"errors\":[{\"at\":\"define:b(y)\",\"offset\":4,\"line\":5,\"col\":5,\"message\":\"helpers call each other in a cycle: a -> b -> a\"}],\"types\":{\"expr\":\"error\"},\"overloads\":{\"expr\":[]}}"
+  },
+  {
+   "id": "cel-check:capture.yaml",
+   "fn": "CelCheck",
+   "args": [
+    "capture.yaml",
+    "bindings: {n: 1}\ndefine:\n  f(a): a + n\nexpr: '[2].map(n, f(n))'\n"
+   ],
+   "out": "{\"ok\":true,\"errors\":[{\"at\":\"define:f(a)\",\"offset\":4,\"line\":3,\"col\":13,\"message\":\"helper 'f' uses 'n', which a variable of the same name hides where the helper is used; rename that variable\"}],\"types\":{\"expr\":\"list(error)\"},\"overloads\":{\"expr\":[\"add_list\"]}}"
+  },
+  {
+   "id": "cel-check:no-dyn.yaml",
+   "fn": "CelCheck",
+   "args": [
+    "no-dyn.yaml",
+    "expr: \"[1, 'a'] == dyn(1)\"\n"
+   ],
+   "out": "{\"ok\":true,\"errors\":[{\"at\":\"expr\",\"offset\":4,\"line\":1,\"col\":12,\"message\":\"list elements must all have one type, but this one is 'string' and the ones before are 'int' (pss-rules has no dyn)\"},{\"at\":\"expr\",\"offset\":12,\"line\":1,\"col\":20,\"message\":\"'dyn(A) -> A' is not supported in pss-rules\"}],\"types\":{\"expr\":\"error\"},\"overloads\":{\"expr\":[]}}"
+  },
+  {
+   "id": "cel-check:surrogates.json",
+   "fn": "CelCheck",
+   "args": [
+    "surrogates.json",
+    "{\"expr\": \"'\\ud83d\\udc31' + x\"}"
+   ],
+   "out": "{\"ok\":true,\"errors\":[{\"at\":\"expr\",\"offset\":9,\"line\":1,\"col\":28,\"message\":\"undeclared reference to 'x'\"}],\"types\":{\"expr\":\"error\"},\"overloads\":{\"expr\":[]}}"
+  },
+  {
+   "id": "regex:0",
+   "fn": "RegexSearch",
+   "args": [
+    "b+",
+    "abbc"
+   ],
+   "out": "{\"ok\":true,\"match\":true,\"steps\":7,\"size\":5}"
+  },
+  {
+   "id": "regex:1",
+   "fn": "RegexSearch",
+   "args": [
+    "^b",
+    "abc"
+   ],
+   "out": "{\"ok\":true,\"match\":false,\"steps\":9,\"size\":3}"
+  },
+  {
+   "id": "regex:2",
+   "fn": "RegexSearch",
+   "args": [
+    "(?i)HELLO",
+    "say hello"
+   ],
+   "out": "{\"ok\":true,\"match\":true,\"steps\":27,\"size\":6}"
+  },
+  {
+   "id": "regex:3",
+   "fn": "RegexSearch",
+   "args": [
+    "[[:digit:]]{2,3}$",
+    "ab123"
+   ],
+   "out": "{\"ok\":true,\"match\":true,\"steps\":22,\"size\":6}"
+  },
+  {
+   "id": "regex:4",
+   "fn": "RegexSearch",
+   "args": [
+    "\\bfoo\\b",
+    "a foo b"
+   ],
+   "out": "{\"ok\":true,\"match\":true,\"steps\":22,\"size\":6}"
+  },
+  {
+   "id": "regex:5",
+   "fn": "RegexSearch",
+   "args": [
+    "\\bfoo\\b",
+    "afoob"
+   ],
+   "out": "{\"ok\":true,\"match\":false,\"steps\":14,\"size\":6}"
+  },
+  {
+   "id": "regex:6",
+   "fn": "RegexSearch",
+   "args": [
+    "é+",
+    "xééy"
+   ],
+   "out": "{\"ok\":true,\"match\":true,\"steps\":7,\"size\":5}"
+  },
+  {
+   "id": "regex:7",
+   "fn": "RegexSearch",
+   "args": [
+    "a.c",
+    "a\nc"
+   ],
+   "out": "{\"ok\":true,\"match\":false,\"steps\":9,\"size\":4}"
+  },
+  {
+   "id": "regex:8",
+   "fn": "RegexSearch",
+   "args": [
+    "(?s)a.c",
+    "a\nc"
+   ],
+   "out": "{\"ok\":true,\"match\":true,\"steps\":11,\"size\":4}"
+  },
+  {
+   "id": "regex:9",
+   "fn": "RegexSearch",
+   "args": [
+    "x{",
+    "x{"
+   ],
+   "out": "{\"ok\":true,\"match\":true,\"steps\":7,\"size\":3}"
+  },
+  {
+   "id": "regex:10",
+   "fn": "RegexSearch",
+   "args": [
+    "[^a-z]",
+    "abc1"
+   ],
+   "out": "{\"ok\":true,\"match\":true,\"steps\":9,\"size\":2}"
+  },
+  {
+   "id": "regex:11",
+   "fn": "RegexSearch",
+   "args": [
+    "(?m)^b$",
+    "a\nb\nc"
+   ],
+   "out": "{\"ok\":true,\"match\":true,\"steps\":12,\"size\":4}"
+  },
+  {
+   "id": "regex:12",
+   "fn": "RegexSearch",
+   "args": [
+    "a|bc|",
+    "zzz"
+   ],
+   "out": "{\"ok\":true,\"match\":true,\"steps\":5,\"size\":8}"
+  },
+  {
+   "id": "regex:13",
+   "fn": "RegexSearch",
+   "args": [
+    "\\d+\\.\\d*",
+    "v1.25"
+   ],
+   "out": "{\"ok\":true,\"match\":true,\"steps\":15,\"size\":9}"
+  },
+  {
+   "id": "regex:14",
+   "fn": "RegexSearch",
+   "args": [
+    "[\\w-]+@",
+    "a-b@c"
+   ],
+   "out": "{\"ok\":true,\"match\":true,\"steps\":31,\"size\":6}"
+  },
+  {
+   "id": "regex:15",
+   "fn": "RegexSearch",
+   "args": [
+    "\\x41\\u00e9",
+    "Aé"
+   ],
+   "out": "{\"ok\":false,\"error\":{\"offset\":4,\"message\":\"invalid escape sequence '\\\\u'\"}}"
+  },
+  {
+   "id": "regex:16",
+   "fn": "RegexSearch",
+   "args": [
+    "(a)(b)?c",
+    "ac"
+   ],
+   "out": "{\"ok\":true,\"match\":true,\"steps\":11,\"size\":5}"
+  },
+  {
+   "id": "regex:17",
+   "fn": "RegexSearch",
+   "args": [
+    "a(?=b)",
+    ""
+   ],
+   "out": "{\"ok\":false,\"error\":{\"offset\":1,\"message\":\"lookahead is not supported (RE2 syntax)\"}}"
+  },
+  {
+   "id": "regex:18",
+   "fn": "RegexSearch",
+   "args": [
+    "(a)\\1",
+    ""
+   ],
+   "out": "{\"ok\":false,\"error\":{\"offset\":3,\"message\":\"backreferences are not supported (RE2 syntax)\"}}"
+  },
+  {
+   "id": "regex:19",
+   "fn": "RegexSearch",
+   "args": [
+    "\\pL",
+    ""
+   ],
+   "out": "{\"ok\":false,\"error\":{\"offset\":0,\"message\":\"Unicode character classes (\\\\p, \\\\P) are not supported\"}}"
+  },
+  {
+   "id": "regex:20",
+   "fn": "RegexSearch",
+   "args": [
+    "a**",
+    ""
+   ],
+   "out": "{\"ok\":false,\"error\":{\"offset\":2,\"message\":\"bad repetition operator: a quantifier cannot follow a quantifier\"}}"
+  },
+  {
+   "id": "regex:21",
+   "fn": "RegexSearch",
+   "args": [
+    "a{2000}",
+    ""
+   ],
+   "out": "{\"ok\":false,\"error\":{\"offset\":1,\"message\":\"bad repetition: counts above 1000 are not allowed\"}}"
+  },
+  {
+   "id": "regex:22",
+   "fn": "RegexSearch",
+   "args": [
+    "(a",
+    ""
+   ],
+   "out": "{\"ok\":false,\"error\":{\"offset\":0,\"message\":\"missing closing ')'\"}}"
+  },
+  {
+   "id": "regex:23",
+   "fn": "RegexSearch",
+   "args": [
+    "[a",
+    ""
+   ],
+   "out": "{\"ok\":false,\"error\":{\"offset\":0,\"message\":\"missing closing ']'\"}}"
+  },
+  {
+   "id": "regex:24",
+   "fn": "RegexSearch",
+   "args": [
+    "((((((((((((((((((((((((((((((((((((((((a))))))))))))))))))))))))))))))))))))))))",
+    ""
+   ],
+   "out": "{\"ok\":false,\"error\":{\"offset\":32,\"message\":\"groups nest too deeply\"}}"
+  },
+  {
+   "id": "regex:25",
+   "fn": "RegexSearch",
+   "args": [
+    "[z-a]",
+    ""
+   ],
+   "out": "{\"ok\":false,\"error\":{\"offset\":1,\"message\":\"bad character class range: the end is before the start\"}}"
+  },
+  {
+   "id": "regex:26",
+   "fn": "RegexSearch",
+   "args": [
+    "(?P<n>a)",
+    ""
+   ],
+   "out": "{\"ok\":true,\"match\":false,\"steps\":1,\"size\":2}"
+  },
+  {
+   "id": "regex:27",
+   "fn": "RegexSearch",
+   "args": [
+    "(a*)*b",
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+   ],
+   "out": "{\"ok\":true,\"match\":false,\"steps\":6004,\"size\":7}"
+  },
+  {
+   "id": "regex:28",
+   "fn": "RegexSearch",
+   "args": [
+    "(x+x+)+y",
+    "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+   ],
+   "out": "{\"ok\":true,\"match\":false,\"steps\":18923,\"size\":20}"
+  },
+  {
+   "id": "rule-load:builtin-requirements.yaml",
+   "fn": "RuleLoad",
+   "args": [
+    "builtin-requirements.yaml",
+    null,
+    1
+   ],
+   "file": "tests/data/pss-rules/builtin-requirements.yaml",
+   "fileArg": 1,
+   "sha256": "a91b584f521eabac42080069ba4cb8dfd310201a5be686eae0f063e3e1dfe2b3",
+   "len": 1578
+  },
+  {
+   "id": "rule-load:defaults-bad.yaml",
+   "fn": "RuleLoad",
+   "args": [
+    "defaults-bad.yaml",
+    null,
+    0
+   ],
+   "file": "tests/data/pss-rules/defaults-bad.yaml",
+   "fileArg": 1,
+   "sha256": "b7a8755ddf8dd515c15e09c76c90b1f90d9b72a2845185be9625e153a2ee1ebe",
+   "len": 804
+  },
+  {
+   "id": "rule-load:defaults.yaml",
+   "fn": "RuleLoad",
+   "args": [
+    "defaults.yaml",
+    null,
+    0
+   ],
+   "file": "tests/data/pss-rules/defaults.yaml",
+   "fileArg": 1,
+   "sha256": "702cab30493194f59125e3cbc4e13e0d10031f43866554931eb5d8b07abc6d10",
+   "len": 1413
+  },
+  {
+   "id": "rule-load:examples.yaml",
+   "fn": "RuleLoad",
+   "args": [
+    "examples.yaml",
+    null,
+    0
+   ],
+   "file": "tests/data/pss-rules/examples.yaml",
+   "fileArg": 1,
+   "sha256": "d1aea73117fddb4d91f4ae824f5c033391f00ebe1e96d72e65f0a744920c67dc",
+   "len": 2061
+  },
+  {
+   "id": "rule-load:expr-limit.yaml",
+   "fn": "RuleLoad",
+   "args": [
+    "expr-limit.yaml",
+    null,
+    0
+   ],
+   "file": "tests/data/pss-rules/expr-limit.yaml",
+   "fileArg": 1,
+   "sha256": "9250923ec331671ace1ae6c223166fe1701abe68d5209e1e491279dc0b41a61a",
+   "len": 630
+  },
+  {
+   "id": "rule-load:expr-syntax.yaml",
+   "fn": "RuleLoad",
+   "args": [
+    "expr-syntax.yaml",
+    null,
+    0
+   ],
+   "file": "tests/data/pss-rules/expr-syntax.yaml",
+   "fileArg": 1,
+   "sha256": "ec98496979e45ce07492c88fcb694fe9ebd2842018a9cce9b8c19423e54d63e6",
+   "len": 1004
+  },
+  {
+   "id": "rule-load:expr-type.yaml",
+   "fn": "RuleLoad",
+   "args": [
+    "expr-type.yaml",
+    null,
+    0
+   ],
+   "file": "tests/data/pss-rules/expr-type.yaml",
+   "fileArg": 1,
+   "sha256": "00a5a40933e1519d8cd39d4423b05c1f4fb4e0313ca38a87e2e3d989771004dd",
+   "len": 1112
+  },
+  {
+   "id": "rule-load:fields-missing.yaml",
+   "fn": "RuleLoad",
+   "args": [
+    "fields-missing.yaml",
+    null,
+    0
+   ],
+   "file": "tests/data/pss-rules/fields-missing.yaml",
+   "fileArg": 1,
+   "sha256": "dd7b0b93ab60a029aed26be2c2beab9df8245fb354b8f1b99eae02e8817b6f64",
+   "len": 1469
+  },
+  {
+   "id": "rule-load:fields-types.yaml",
+   "fn": "RuleLoad",
+   "args": [
+    "fields-types.yaml",
+    null,
+    0
+   ],
+   "file": "tests/data/pss-rules/fields-types.yaml",
+   "fileArg": 1,
+   "sha256": "cd12ab95a0222824411dfd763465322b003b2ea7b5a403cfc1002513a50ad9aa",
+   "len": 1798
+  },
+  {
+   "id": "rule-load:good-next-to-bad.yaml",
+   "fn": "RuleLoad",
+   "args": [
+    "good-next-to-bad.yaml",
+    null,
+    0
+   ],
+   "file": "tests/data/pss-rules/good-next-to-bad.yaml",
+   "fileArg": 1,
+   "sha256": "3f3b65dd25a37e33301322e2e6a2d52c051698ee3efb4edaffce11293f0434d2",
+   "len": 1234
+  },
+  {
+   "id": "rule-load:helpers.yaml",
+   "fn": "RuleLoad",
+   "args": [
+    "helpers.yaml",
+    null,
+    0
+   ],
+   "file": "tests/data/pss-rules/helpers.yaml",
+   "fileArg": 1,
+   "sha256": "019e75b2d1e525f614a3c80e39871298872ae6d497bfe0dcb282bade7913de8b",
+   "len": 1748
+  },
+  {
+   "id": "rule-load:ids-builtin.yaml",
+   "fn": "RuleLoad",
+   "args": [
+    "ids-builtin.yaml",
+    null,
+    1
+   ],
+   "file": "tests/data/pss-rules/ids-builtin.yaml",
+   "fileArg": 1,
+   "sha256": "80cdf850891aa3dcd9850b69bca5dc51b3a735da27b280d0855ff348a993aeae",
+   "len": 1189
+  },
+  {
+   "id": "rule-load:ids-duplicate.yaml",
+   "fn": "RuleLoad",
+   "args": [
+    "ids-duplicate.yaml",
+    null,
+    0
+   ],
+   "file": "tests/data/pss-rules/ids-duplicate.yaml",
+   "fileArg": 1,
+   "sha256": "264510d44255cfba052f3a62dd517fbd94b483aaca2efa3496a390b7de4f2ba0",
+   "len": 3735
+  },
+  {
+   "id": "rule-load:ids-grammar.yaml",
+   "fn": "RuleLoad",
+   "args": [
+    "ids-grammar.yaml",
+    null,
+    0
+   ],
+   "file": "tests/data/pss-rules/ids-grammar.yaml",
+   "fileArg": 1,
+   "sha256": "53afc2962174a948f92148c70cfd41a2263a56affa8fb65b1d957a757eb12d1d",
+   "len": 3571
+  },
+  {
+   "id": "rule-load:ids-reserved.yaml",
+   "fn": "RuleLoad",
+   "args": [
+    "ids-reserved.yaml",
+    null,
+    0
+   ],
+   "file": "tests/data/pss-rules/ids-reserved.yaml",
+   "fileArg": 1,
+   "sha256": "b4e15fac6d6bc7702cdc6604dcc2ed80589a718fba333d30ba88053e66988676",
+   "len": 2547
+  },
+  {
+   "id": "rule-load:keys-beside-root.yaml",
+   "fn": "RuleLoad",
+   "args": [
+    "keys-beside-root.yaml",
+    null,
+    0
+   ],
+   "file": "tests/data/pss-rules/keys-beside-root.yaml",
+   "fileArg": 1,
+   "sha256": "5c58ab18202e669c03f6fe0af58fb1b1967639f9c3300253c733f891bfb296d5",
+   "len": 773
+  },
+  {
+   "id": "rule-load:keys-unknown.yaml",
+   "fn": "RuleLoad",
+   "args": [
+    "keys-unknown.yaml",
+    null,
+    0
+   ],
+   "file": "tests/data/pss-rules/keys-unknown.yaml",
+   "fileArg": 1,
+   "sha256": "6330381e2db0f6f124303754a56e4045de762ee4b6880310f070c67c538993b1",
+   "len": 1620
+  },
+  {
+   "id": "rule-load:kinds-unknown.yaml",
+   "fn": "RuleLoad",
+   "args": [
+    "kinds-unknown.yaml",
+    null,
+    0
+   ],
+   "file": "tests/data/pss-rules/kinds-unknown.yaml",
+   "fileArg": 1,
+   "sha256": "68e340db7f9a7b1e90dcc4cfeeb4fda304bfbff0551bad2c160038895d9de3ec",
+   "len": 1496
+  },
+  {
+   "id": "rule-load:let.yaml",
+   "fn": "RuleLoad",
+   "args": [
+    "let.yaml",
+    null,
+    0
+   ],
+   "file": "tests/data/pss-rules/let.yaml",
+   "fileArg": 1,
+   "sha256": "bfd28d72c87986b97e31e5fb98b90e86b6ee198bacd92a5c2163bc4acddc06e6",
+   "len": 1305
+  },
+  {
+   "id": "rule-load:options.yaml",
+   "fn": "RuleLoad",
+   "args": [
+    "options.yaml",
+    null,
+    0
+   ],
+   "file": "tests/data/pss-rules/options.yaml",
+   "fileArg": 1,
+   "sha256": "de149d495fd8d4c01aa8c6d4f893e84722693c92481842a6943051ec5fc09766",
+   "len": 2280
+  },
+  {
+   "id": "rule-load:report.yaml",
+   "fn": "RuleLoad",
+   "args": [
+    "report.yaml",
+    null,
+    0
+   ],
+   "file": "tests/data/pss-rules/report.yaml",
+   "fileArg": 1,
+   "sha256": "1fd799ca9fcb2dfde9a5f8e849d436763d28c36f782efb7fce77c23cdbfc57e0",
+   "len": 647
+  },
+  {
+   "id": "rule-load:rules.json",
+   "fn": "RuleLoad",
+   "args": [
+    "rules.json",
+    null,
+    0
+   ],
+   "file": "tests/data/pss-rules/rules.json",
+   "fileArg": 1,
+   "out": "{\"loaded\":true,\"rules\":[],\"diagnostics\":[{\"code\":\"PSSP214\",\"severity\":\"error\",\"message\":\"expected an expression, found the end of the input\",\"file\":\"rules.json\",\"line\":4,\"col\":58,\"rule\":\"ACME001\"}]}"
+  },
+  {
+   "id": "rule-load:structure-empty.yaml",
+   "fn": "RuleLoad",
+   "args": [
+    "structure-empty.yaml",
+    null,
+    0
+   ],
+   "file": "tests/data/pss-rules/structure-empty.yaml",
+   "fileArg": 1,
+   "out": "{\"loaded\":false,\"rules\":[],\"diagnostics\":[{\"code\":\"PSSP210\",\"severity\":\"error\",\"message\":\"the file is empty; a rule file is a mapping with the single key 'pss-rules'\",\"file\":\"structure-empty.yaml\",\"line\":1,\"col\":1,\"rule\":\"\"}]}"
+  },
+  {
+   "id": "rule-load:structure-no-root.yaml",
+   "fn": "RuleLoad",
+   "args": [
+    "structure-no-root.yaml",
+    null,
+    0
+   ],
+   "file": "tests/data/pss-rules/structure-no-root.yaml",
+   "fileArg": 1,
+   "out": "{\"loaded\":false,\"rules\":[],\"diagnostics\":[{\"code\":\"PSSP210\",\"severity\":\"error\",\"message\":\"not a rule file: there is no top-level 'pss-rules' key; did you mean 'pss-rules'?\",\"file\":\"structure-no-root.yaml\",\"line\":1,\"col\":1,\"rule\":\"\"}]}"
+  },
+  {
+   "id": "rule-load:structure-no-rules.yaml",
+   "fn": "RuleLoad",
+   "args": [
+    "structure-no-rules.yaml",
+    null,
+    0
+   ],
+   "file": "tests/data/pss-rules/structure-no-rules.yaml",
+   "fileArg": 1,
+   "out": "{\"loaded\":false,\"rules\":[],\"diagnostics\":[{\"code\":\"PSSP210\",\"severity\":\"error\",\"message\":\"'pss-rules' has no 'rules' list (write 'rules: []' for a file with no rules yet)\",\"file\":\"structure-no-rules.yaml\",\"line\":2,\"col\":3,\"rule\":\"\"}]}"
+  },
+  {
+   "id": "rule-load:structure-not-mapping.yaml",
+   "fn": "RuleLoad",
+   "args": [
+    "structure-not-mapping.yaml",
+    null,
+    0
+   ],
+   "file": "tests/data/pss-rules/structure-not-mapping.yaml",
+   "fileArg": 1,
+   "out": "{\"loaded\":false,\"rules\":[],\"diagnostics\":[{\"code\":\"PSSP210\",\"severity\":\"error\",\"message\":\"not a rule file: the top level is a list, not a mapping with the single key 'pss-rules'\",\"file\":\"structure-not-mapping.yaml\",\"line\":1,\"col\":1,\"rule\":\"\"}]}"
+  },
+  {
+   "id": "rule-load:structure-root-not-mapping.yaml",
+   "fn": "RuleLoad",
+   "args": [
+    "structure-root-not-mapping.yaml",
+    null,
+    0
+   ],
+   "file": "tests/data/pss-rules/structure-root-not-mapping.yaml",
+   "fileArg": 1,
+   "out": "{\"loaded\":false,\"rules\":[],\"diagnostics\":[{\"code\":\"PSSP210\",\"severity\":\"error\",\"message\":\"'pss-rules' must be a mapping (version, defaults, define, rules), not a list\",\"file\":\"structure-root-not-mapping.yaml\",\"line\":2,\"col\":3,\"rule\":\"\"}]}"
+  },
+  {
+   "id": "rule-load:structure-rules-not-list.yaml",
+   "fn": "RuleLoad",
+   "args": [
+    "structure-rules-not-list.yaml",
+    null,
+    0
+   ],
+   "file": "tests/data/pss-rules/structure-rules-not-list.yaml",
+   "fileArg": 1,
+   "out": "{\"loaded\":false,\"rules\":[],\"diagnostics\":[{\"code\":\"PSSP210\",\"severity\":\"error\",\"message\":\"'rules' must be a list of rules, not a mapping\",\"file\":\"structure-rules-not-list.yaml\",\"line\":3,\"col\":5,\"rule\":\"\"}]}"
+  },
+  {
+   "id": "rule-load:structure-stub.yaml",
+   "fn": "RuleLoad",
+   "args": [
+    "structure-stub.yaml",
+    null,
+    0
+   ],
+   "file": "tests/data/pss-rules/structure-stub.yaml",
+   "fileArg": 1,
+   "out": "{\"loaded\":true,\"rules\":[],\"diagnostics\":[]}"
+  },
+  {
+   "id": "rule-load:structure-version-2.yaml",
+   "fn": "RuleLoad",
+   "args": [
+    "structure-version-2.yaml",
+    null,
+    0
+   ],
+   "file": "tests/data/pss-rules/structure-version-2.yaml",
+   "fileArg": 1,
+   "out": "{\"loaded\":false,\"rules\":[],\"diagnostics\":[{\"code\":\"PSSP210\",\"severity\":\"error\",\"message\":\"this file is pss-rules version 2, but this pssparser reads version 1; upgrade pssparser to load it\",\"file\":\"structure-version-2.yaml\",\"line\":2,\"col\":12,\"rule\":\"\"}]}"
+  },
+  {
+   "id": "rule-load:structure-version-not-int.yaml",
+   "fn": "RuleLoad",
+   "args": [
+    "structure-version-not-int.yaml",
+    null,
+    0
+   ],
+   "file": "tests/data/pss-rules/structure-version-not-int.yaml",
+   "fileArg": 1,
+   "out": "{\"loaded\":false,\"rules\":[],\"diagnostics\":[{\"code\":\"PSSP210\",\"severity\":\"error\",\"message\":\"'version' must be an integer, not a string\",\"file\":\"structure-version-not-int.yaml\",\"line\":2,\"col\":13,\"rule\":\"\"}]}"
+  },
+  {
+   "id": "rule-load:yaml-duplicate-key.yaml",
+   "fn": "RuleLoad",
+   "args": [
+    "yaml-duplicate-key.yaml",
+    null,
+    0
+   ],
+   "file": "tests/data/pss-rules/yaml-duplicate-key.yaml",
+   "fileArg": 1,
+   "out": "{\"loaded\":false,\"rules\":[],\"diagnostics\":[{\"code\":\"PSSP218\",\"severity\":\"error\",\"message\":\"duplicate key 'id' (first defined on line 3)\",\"file\":\"yaml-duplicate-key.yaml\",\"line\":5,\"col\":7,\"rule\":\"\",\"related\":{\"file\":\"yaml-duplicate-key.yaml\",\"line\":3,\"col\":7}}]}"
+  },
+  {
+   "id": "rule-load:yaml-multi-document.yaml",
+   "fn": "RuleLoad",
+   "args": [
+    "yaml-multi-document.yaml",
+    null,
+    0
+   ],
+   "file": "tests/data/pss-rules/yaml-multi-document.yaml",
+   "fileArg": 1,
+   "out": "{\"loaded\":false,\"rules\":[],\"diagnostics\":[{\"code\":\"PSSP218\",\"severity\":\"error\",\"message\":\"a rule file holds one YAML document; found 2 ('---' separates documents)\",\"file\":\"yaml-multi-document.yaml\",\"line\":4,\"col\":1,\"rule\":\"\"}]}"
+  },
+  {
+   "id": "rule-load:yaml-syntax.yaml",
+   "fn": "RuleLoad",
+   "args": [
+    "yaml-syntax.yaml",
+    null,
+    0
+   ],
+   "file": "tests/data/pss-rules/yaml-syntax.yaml",
+   "fileArg": 1,
+   "out": "{\"loaded\":false,\"rules\":[],\"diagnostics\":[{\"code\":\"PSSP218\",\"severity\":\"error\",\"message\":\"YAML syntax error: missing terminating ]\",\"file\":\"yaml-syntax.yaml\",\"line\":3,\"col\":1,\"rule\":\"\"}]}"
+  },
+  {
+   "id": "rule-load:yaml-tag.yaml",
+   "fn": "RuleLoad",
+   "args": [
+    "yaml-tag.yaml",
+    null,
+    0
+   ],
+   "file": "tests/data/pss-rules/yaml-tag.yaml",
+   "fileArg": 1,
+   "out": "{\"loaded\":false,\"rules\":[],\"diagnostics\":[{\"code\":\"PSSP218\",\"severity\":\"error\",\"message\":\"YAML tags ('!...') are not supported in rule files\",\"file\":\"yaml-tag.yaml\",\"line\":2,\"col\":16,\"rule\":\"\"}]}"
+  }
+ ],
+ "batches": [
+  {
+   "id": "generated-parse",
+   "fn": "CelParse",
+   "extra": [],
+   "sha256": "b31bb3eed6caab82226c8d09ca8c98eb59b69a82e25dbda4e93db84e3a93404d",
+   "inputs": [
+    "(double(([-20, -3] + [4611686018427387904, -19, -20, 3037000500].map(v1, 7))[1]) == double(size(((true > true) ? string(1) : (true ? 'b' : 'b')))))",
+    "double({}['b'])",
+    "('b' in {'c': 12, 'b': -10})",
+    "((1e3 - (0.5 * ([16, -3, 18].all(v1, true) ? (true ? 0.25 : 1e3) : double(-9223372036854775807)))) / 1e3)",
+    "[19, [15].filter(v1, ((double(-3) + 2.0) == (2.0 + (0.0 / -1.5)))).size()]",
+    "([-19, 5, -10, 12].map(v1, 20).filter(v2, [-19].exists(v3, false)).map(v4, [-7, 4611686018427387904][0]).filter(v5, !(!(('c' in {'a': -18, 'c': -7})))) + [[(7 % 11)].filter(v6, false).size()])",
+    "((((('b' + 'a') + string(3037000500)) != ('' + 'ab')) ? 'abc' : string(-(size('b')))) + \"q\")",
+    "(double(([-6].filter(v1, !(false)).size() - ([9223372036854775807, -1, -20] + []).filter(v2, ('x y' != 'ab')).size())) == 2.0)",
+    "{}",
+    "[-((((-1 == -1) || ('a' in {})) ? ([19, 7] + [-4, -7, -5]).filter(v1, !(true)).size() : (false ? [-9, 17][2] : 19))), [-5].filter(v2, !((size([-9223372036854775807, 0, -9]) == -1))).size(), {'a': -18, 'c': 7}['c']]",
+    "((true ? (double({'c': 1, 'b': 11, 'a': 6}['c']) * 3.0) : (false ? (double(-15) / 2.0) : (double(-9223372036854775807) * 0.0))) + ((!((true && false)) ? 0.25 : ((2.0 / 1e3) / 0.5)) * ([16, 0].exists(v1, ('c' in {'b': -18, 'a': -15})) ? ((1.0 + 0.0) - (1e3 - 1e3)) : 3.0)))",
+    "[9223372036854775807, 14, -13]",
+    "{'b': 0}",
+    "[-4, -2, -8, 17].all(v1, 'héllo'.contains(((true ? ('a' + '') : ('a' + 'héllo')) + string(size('a')))))",
+    "[[-3, {'b': 13}['b']].filter(v1, !('abc'.endsWith('héllo'))).size(), [[].filter(v2, false).size(), (6 * 1)][3]].filter(v3, (([v3, -18, 2].filter(v4, true) + ([5] + [13, 1, -16, 13].filter(v5, false))) != ([19, 2, -9, -4] + [0, 3037000500, 7, -9223372036854775807].filter(v6, false).filter(v7, true))))",
+    "(double(((('a' in {}) ? -(-6) : (true ? 9223372036854775807 : 18)) - 0)) * ([5].filter(v1, false).exists(v2, ([17, 8] != ([9223372036854775807] + []))) ? double([-11].filter(v3, true)[0]) : (false ? ((0.5 / 0.5) - (true ? 0.5 : -1.5)) : double(20))))",
+    "(('b' in {'c': 17, 'a': -9223372036854775807}) || ([3037000500, (0 * -14), 3037000500] + ([0, 14, -12] + [-1])).exists_one(v1, false))",
+    "[-12, 4][0]",
+    "{'a': 3037000500, 'c': 3037000500, 'b': 8}",
+    "([].filter(v1, false).map(v2, v2).filter(v3, [13, 13].filter(v4, true).exists(v5, false)).all(v6, [0, 9223372036854775807, 13].filter(v7, false).filter(v8, !(true)).all(v9, ((false ? v6 : -13) in [9223372036854775807, 7, -14]))) ? 1.0 : (((false ? (false ? 'abc' : 'abc') : ('x y' + \"q\")) >= (('b' + 'x y') + 'x y')) ? double(12) : (((true ? -1 : -20) in [4611686018427387904, 4611686018427387904, 14, 3037000500].filter(v10, false)) ? ((2.0 * -1.5) * double(7)) : 1e3)))",
+    "(([size([2, 6]), 4611686018427387904] + [4611686018427387904, -1].filter(v1, \"q\".contains('x y')).map(v2, v2)) + [-19])",
+    "((((-17 % (-13 % 4611686018427387904)) <= 0) >= (!('a'.startsWith(\"q\")) == false)) ? ([11, 2, 4611686018427387904, 20].map(v1, v1).filter(v2, ('b' > 'b'))[1] - (18 * ({'b': 10}['c'] % (true ? 18 : 1)))) : 7)",
+    "{'a': 13}",
+    "{'b': 10}",
+    "'ab'",
+    "{}",
+    "{}",
+    "1.0",
+    "([].map(v1, v1).filter(v2, (-19 in [])) + [-18].map(v3, (v3 * 5))).filter(v4, (false || false)).exists_one(v5, ((((false ? 1e3 : 1e3) / -1.5) * ((1.0 * 2.0) / 2.0)) >= 1e3))",
+    "string({'b': -1}['a'])",
+    "{'c': 8, 'a': -11}",
+    "(size([2, 18, -2].map(v1, ([-3, 3037000500, 9, 10][0] - (7 % 2)))) - (2 % (size([-17, 6].filter(v2, false)) + size([-17, -13, -9223372036854775807, 20].map(v3, 0)))))",
+    "0.25",
+    "[4611686018427387904, 9].map(v1, (-(v1) / ((5 % -20) / (14 - v1)))).map(v2, (v2 % (13 / v2)))",
+    "(true ? string((('c' in {'c': -3, 'b': -11, 'a': -3}) ? [-11, -4].filter(v1, !(false)).size() : 4611686018427387904)) : 'a')",
+    "((0.0 * (((1e3 + 1e3) + (2.0 * 1.0)) + double(5))) * (((-1.5 / 2.0) - ((true ? 3.0 : 0.0) - (3.0 + 2.0))) + ((true ? double(-7) : double(13)) + -1.5)))",
+    "{}",
+    "[11, -12, -19].filter(v1, false).map(v2, v2).map(v3, ((true ? 12 : 3) + (-11 / -16))).map(v4, v4).exists(v5, [(v5 % [-3, 18, -1, 13].filter(v6, true).size()), v5].exists_one(v7, ((false ? double(12) : (true ? 2.0 : 3.0)) < (1.0 * (false ? 3.0 : 3.0)))))",
+    "((string(([] + [4611686018427387904])[3]) + 'b') + string(10))",
+    "-((-2 % (size('héllo') + (20 % [-9223372036854775807][1]))))",
+    "([[20, 11].filter(v1, true).size(), 9223372036854775807] + []).filter(v2, ([12, 5].map(v3, v2) == [17, 10, 11, -14])).filter(v4, [v4, [-3, 7, v4].filter(v5, true).size(), ((v4 / 0) % (9223372036854775807 * -16))].exists_one(v6, false)).size()",
+    "[7].map(v1, [[-5].filter(v2, ('a' in {'c': 4611686018427387904})).size()][0])",
+    "{'b': -11, 'c': 3}",
+    "[({'a': -13, 'b': 18, 'c': -1}['b'] % (12 + -17)), (-19 - 14)]",
+    "((string({'a': -17}['a']) + (false ? (('ab' + 'abc') + 'b') : ('héllo' + ('a' + \"q\")))) + '')",
+    "{'a': -6, 'c': -13}",
+    "0",
+    "({'c': -4}['a'] * size([[9223372036854775807, 7][2], size([10, 3].filter(v1, true)), -({'a': 20}['a'])]))",
+    "false",
+    "(4611686018427387904 in [8])",
+    "size(((string(size([-9, 9223372036854775807])) >= ('b' + (true ? 'héllo' : ''))) ? 'b' : ('ab' + 'b')))",
+    "true",
+    "(\"q\".endsWith('héllo') ? 'a' : ((('héllo' + 'héllo') + 'abc') + ('abc' + (('abc' + 'héllo') + ('' + 'héllo')))))",
+    "([0] + [-9223372036854775807]).filter(v1, !(''.startsWith('b'))).filter(v2, false).map(v3, -3)",
+    "([].filter(v1, [-9223372036854775807, 1, 20].map(v2, v1).exists_one(v3, false)).exists(v4, ((('c' in {'a': -1, 'b': 2, 'c': 14}) ? size('ab') : -9) in [(9223372036854775807 % v4)])) ? string(7) : (([1, -11, 1, 4].filter(v5, true).exists_one(v6, \"q\".startsWith('héllo')) ? ('a' + 'x y') : 'x y') + \"q\"))",
+    "(0.0 * (((1.0 * (true ? 0.0 : 3.0)) * (0.0 - double(12))) / 0.5))",
+    "('c' in {'c': -12, 'a': -6, 'b': 1})",
+    "[].map(v1, v1)",
+    "string([-([-1, 11][1]), (true ? size([4611686018427387904, -1, 9, 5]) : (-8 - -9223372036854775807))][0])",
+    "((string([4611686018427387904, 4][1]) + 'héllo') + ('héllo' + string(2)))",
+    "((14 * {'a': 14}['a']) + ({'b': 0}['c'] + -9))",
+    "false",
+    "(((({'a': 13, 'b': -8} == {}) || true) ? 1.0 : (double([2, -11, 2, 3037000500].filter(v1, false).size()) - ((true && true) ? 0.25 : double(2)))) + ((false ? ((3.0 * 1e3) / -1.5) : ((false ? 0.5 : 3.0) * 0.25)) + ((-1.5 - 0.5) - ('a'.endsWith('ab') ? double(14) : (1e3 * 0.0)))))",
+    "{}",
+    "3",
+    "-8",
+    "[-5, 11, 16, -1].filter(v1, (-(((2.0 > 0.0) ? [3037000500, 20, -19][0] : (14 * v1))) < (((v1 / -19) + v1) / v1))).size()",
+    "([] + ([-8, -11, -7, 2] + [-((4611686018427387904 + -19)), -([0, -18, 3037000500][3])]))",
+    "(('' + ((true || true) ? string(-(-9223372036854775807)) : (('b' in {}) ? \"q\" : string(2)))) + 'héllo')",
+    "-13",
+    "[([-2, 7, -8].map(v1, 12) + ([1, 14] + [9223372036854775807, -14]))[2], (4 * -12)].exists_one(v2, [v2].map(v3, v3).exists(v4, (v2 in [-15, 19])))",
+    "(string(((-(-1) - [].filter(v1, false).size()) * ((-8 + 15) - [].filter(v2, false).size()))) + (\"q\" + 'a'))",
+    "{'c': 12}",
+    "{}",
+    "13",
+    "[((13 - -(size([-20, 8]))) / 8)]",
+    "{'c': -9223372036854775807}",
+    "9223372036854775807",
+    "([(-12 - [5, -3, 14, 5].filter(v1, [10, -12].exists(v2, true)).size())] + ([6, 7, 12].map(v3, ([].filter(v4, true).size() - 9223372036854775807)) + [1, -7, -17, 5].filter(v5, (('x y' + \"q\") == (\"q\" + 'a')))))",
+    "{'a': 12}",
+    "[size([9223372036854775807, 18, 2].map(v1, v1)), (false ? (-15 / 9223372036854775807) : [-1, -10, -1, 1].filter(v2, false).size())].map(v3, -(v3)).filter(v4, true)",
+    "(('a'.endsWith((('' + '') + string(14))) ? string(-9223372036854775807) : (('abc' + ('abc' + 'a')) + ((true ? '' : 'x y') + 'b'))) <= (true ? ([9223372036854775807, 6, 7, 14].filter(v1, true).exists(v2, ('c' in {'b': 3037000500, 'c': 2, 'a': 13})) ? '' : ((true ? 'b' : 'b') + (\"q\" + 'a'))) : 'a'))",
+    "[]",
+    "((((double(3037000500) - (0.0 * 3.0)) - double([-11, 4611686018427387904, 3037000500, 17][2])) == ((0.25 * (true ? 0.25 : -1.5)) + 2.0)) ? (([3037000500].map(v1, 3037000500) + ([-12, 3037000500, 9223372036854775807, -19] + [9])) + [-14, 2, 0, 18].filter(v2, true).filter(v3, ('c' in {})))[2] : ([5, -17, 8, 9223372036854775807].filter(v4, (size('x y') == -(16))).size() % -(([17, -11, 9] + [15, -9223372036854775807, -15]).filter(v5, [-18, -1].exists(v6, true)).size())))",
+    "{'b': 9223372036854775807, 'a': 0, 'c': -11}",
+    "[-15]",
+    "(((2 * [11].map(v1, 12).filter(v2, [-16].exists_one(v3, true)).size()) + [-3].filter(v4, [-6, -12, -19].filter(v5, false).exists_one(v6, 'x y'.contains('ab'))).size()) + size(([2] + [6, 7]).map(v7, v7).map(v8, -7)))",
+    "(!('ab'.endsWith((false ? 'a' : ('a' + \"q\")))) && false)",
+    "string(-((9223372036854775807 + ((3 + 3) - (3037000500 + 1)))))",
+    "{'c': 4611686018427387904, 'b': 7}",
+    "[4611686018427387904, 0, -17][1]",
+    "(!([1].all(v1, 'x y'.endsWith((true ? \"q\" : 'abc')))) ? (!(({'b': 13, 'a': -3} == {'b': -2, 'c': 1})) ? (double((true ? 3037000500 : 17)) / 2.0) : (-1.5 / 0.5)) : ((0.5 / -1.5) * 3.0))",
+    "(3.0 * 0.0)",
+    "-1",
+    "{'b': -10}",
+    "14",
+    "{}",
+    "([-15, [11].map(v1, 5)[1], (1 * (false ? -1 : 2))].filter(v2, false) + [16, -20, -1].map(v3, -9))",
+    "{'c': 9223372036854775807, 'a': 13, 'b': 19}",
+    "false",
+    "{'a': 8}",
+    "(-1.5 / 1e3)",
+    "[-19].map(v1, v1).filter(v2, false).filter(v3, true).map(v4, v4).exists(v5, false)",
+    "[]",
+    "('b' in {'b': -2, 'c': 4611686018427387904})",
+    "[].filter(v1, true)",
+    "[1, 7]",
+    "[[(-1 - 4), 9223372036854775807].map(v1, v1).filter(v2, false).size(), (size([9223372036854775807, -5, 0].map(v3, v3)) - ((6 - (-9223372036854775807 + -7)) + {'c': 11}['a']))]",
+    "true",
+    "([16, 15, -9223372036854775807, 9223372036854775807].filter(v1, false).filter(v2, (5 in [-9, -17])) + [(false ? 9 : 10)]).map(v3, v3).exists_one(v4, true)",
+    "{'b': -1}",
+    "[([].filter(v1, 'x y'.startsWith('a')).size() * 4)]",
+    "(('a' in {'b': -18, 'a': -9223372036854775807, 'c': 0}) <= true)",
+    "[4, size('x y'), -8].map(v1, -1).map(v2, (-15 * (((5 / v2) * 9223372036854775807) / -6)))",
+    "{'a': -19, 'c': 7}",
+    "(([11, -13, 6] + [16, -20, 2, 1].map(v1, v1)).map(v2, {'b': 1}['a']).filter(v3, true) + [])",
+    "(((double(-(5)) - ((-1.5 / 1e3) / 2.0)) * (0.5 - (double(20) + 1e3))) / 1e3)",
+    "[1].exists(v1, (-15 > (('abc'.startsWith('a') ? 7 : v1) - ([12][0] / v1))))",
+    "{}",
+    "[-1].map(v1, ([-1, -9, -7, 2] + [13]).map(v2, (v1 - 9223372036854775807)).filter(v3, ({'c': 6, 'a': -18} == {'a': 3037000500, 'b': 4, 'c': -13})).size()).exists(v4, (-16 <= v4))",
+    "([(7 * -2)].map(v1, [v1, v1].filter(v2, 'a'.startsWith('a')).size()).exists_one(v3, false) ? (true ? ([].map(v4, 9).all(v5, !(false)) ? ((false ? 'x y' : 'héllo') + string(9)) : ([8, 0].exists(v6, false) ? string(-6) : string(-10))) : (((true ? 'ab' : 'a') + \"q\") + ((false || false) ? 'ab' : 'x y'))) : string({'a': -9223372036854775807}['c']))",
+    "([0, 15].filter(v1, !(!(true))).filter(v2, (([3037000500] + [10, -19]) + [].filter(v3, true)).exists(v4, 'x y'.contains(''))) + (([-20, 10, 20] + [-2, 0]).map(v5, v5) + [18, -14].map(v6, (v6 - (false ? 7 : 1)))))",
+    "20",
+    "true",
+    "{'a': 4, 'c': 20, 'b': 7}",
+    "{'b': -8, 'c': -3, 'a': -12}",
+    "[-17, -6, -2]",
+    "('ab'.startsWith((((9223372036854775807 == 1) ? ('abc' + 'x y') : string(2)) + 'ab')) ? (0.0 / -1.5) : ((((true && false) ? (true ? 3.0 : -1.5) : (0.5 - 0.5)) + ((1.0 - 0.25) * (false ? 0.0 : 0.25))) + (((0.0 + 1.0) + 0.25) - ((0.25 - 1e3) - (2.0 / -1.5)))))",
+    "(([-20, 3037000500, -9] + [-9223372036854775807, 14, -12, -8]).map(v1, v1) + []).all(v2, (([v2, v2].exists_one(v3, (false != true)) ? v2 : v2) != size((string(0) + ('x y' + \"q\")))))",
+    "([7].filter(v1, false) + ([16, 3, -1, 4611686018427387904] + (([-3, 12, -17] + [7, 7, -9223372036854775807]) + [])).filter(v2, ((string(v2) <= 'b') && ('a' in {'a': 9}))))",
+    "double({}['b'])",
+    "-(([-2, 12][0] % 0))",
+    "{'c': -11, 'b': 13}",
+    "([-({}['c']), -7, size([-18].map(v1, -1))].map(v2, -(size([-1]))) + [11, (10 / (-16 - 16)), size((false ? 'b' : 'abc'))].filter(v3, 'a'.startsWith(('x y'.contains('b') ? ('héllo' + 'ab') : 'x y'))))",
+    "4611686018427387904",
+    "[-18, -7].filter(v1, true).map(v2, -(8)).map(v3, v3).map(v4, v4).exists(v5, ((0.0 / -1.5) == (0.5 / 0.5)))",
+    "[-7, (([2, 3, -16].filter(v1, true).size() % (4 * 11)) * (11 - (true ? -3 : 0))), (4 / -9223372036854775807)].filter(v2, (v2 == [7, 3037000500, 18][1]))",
+    "[(((-18 + -19) + [-5].filter(v1, [-9223372036854775807, -12, -12].exists(v2, true)).size()) * [-9223372036854775807].filter(v3, \"q\".startsWith(('x y' + 'abc'))).size())]",
+    "{'c': -1, 'a': 12}",
+    "({'b': 9223372036854775807, 'a': 2} != {'b': 2, 'c': 1, 'a': 2})",
+    "(true ? (((8 in [-5, 10, -8]) ? -10 : [5].filter(v1, true).filter(v2, (v2 in [-10, -12, 3037000500, 4611686018427387904])).size()) - (-20 - 9223372036854775807)) : -(0))",
+    "{'a': 9223372036854775807}",
+    "[9223372036854775807, 12, -2]",
+    "0.5",
+    "false",
+    "(double(({'a': -4, 'c': -2}['b'] + [-8, -15].filter(v1, ({'b': 2} == {'a': -15})).size())) != ((((1e3 + 0.25) / 1e3) != (double(-5) + (0.0 / 1e3))) ? 3.0 : double([20, 18].map(v2, 0).filter(v3, ([0, -17] != [12])).size())))",
+    "!(({'a': -13, 'b': -9223372036854775807} != {}))",
+    "[19]",
+    "((true ? double(size(([-1, 4, 2, 19] + [-13, 2]))) : double(9223372036854775807)) * 3.0)",
+    "[-6, 5, -18].filter(v1, true).filter(v2, ([7, 4611686018427387904].filter(v3, false).filter(v4, false).map(v5, v5) != [-4, 0, 7].filter(v6, (\"q\".startsWith('') && (true && false)))))",
+    "'ab'",
+    "([(true ? 15 : -1), (-8 / -15)].filter(v1, [v1].exists(v2, true)).map(v3, ([8, -18] + ([-17, -12, 7] + [18, 20, -15])).filter(v4, [].filter(v5, true).exists_one(v6, [].all(v7, false))).size()) + [15, 0])",
+    "(double((-((-6 + 4)) / 17)) / 0.5)",
+    "false",
+    "(({'a': 14, 'c': 2} != {'b': 18, 'c': 4611686018427387904}) ? double(([2] + ([] + [])).filter(v1, (12 in [17, 4611686018427387904])).size()) : ((double((-19 / -7)) + ((true ? 1e3 : 1e3) + 0.5)) / 2.0))",
+    "5",
+    "((([8, -18].map(v1, 4611686018427387904) + [-1, 1, 11]).map(v2, {}['a']) == [[-8, -7, -7][3]]) ? (([-2, 3, -9] + [14, -8, -6]).filter(v3, false).exists_one(v4, 'b'.endsWith((false ? 'x y' : \"q\"))) ? (((false ? 0.0 : 1e3) + (3.0 / -1.5)) - 1e3) : (0.25 / 0.5)) : ((double(-(3037000500)) * (1e3 - 1.0)) + double(([][3] - [10].filter(v5, true).size()))))",
+    "([7, -3].filter(v1, [-16].exists(v2, true)).size() in [12, -17, 4].filter(v3, false).map(v4, [][1]).map(v5, (size('ab') + -1)).map(v6, (\"q\".endsWith(('x y' + 'x y')) ? v6 : (-(13) - v6))))",
+    "((('abc'.startsWith(('abc' + 'b')) ? ('x y' + string(4611686018427387904)) : string(-3)) + string({}['b'])) + \"q\")",
+    "(true ? double(-4) : -1.5)",
+    "((true < ({} != {})) ? ((([18, -5, 14, 2] != [3, -9, 11, -1].filter(v1, false)) ? ('b' + ('b' + \"q\")) : (('' + 'héllo') + ('ab' + 'ab'))) + (((3037000500 % -9) in [].map(v2, v2)) ? (true ? 'x y' : '') : (('x y' + 'a') + (true ? \"q\" : 'abc')))) : ((false ? \"q\" : string(18)) + (string(6) + (string(9223372036854775807) + (true ? '' : 'ab')))))",
+    "-((-7 - (false ? 1 : [].filter(v1, true).size())))",
+    "[].map(v1, ('a'.endsWith((('' + 'abc') + 'ab')) ? [-9223372036854775807, 20, 2].map(v2, 18).map(v3, (v3 % v3))[2] : -1))",
+    "{}",
+    "'ab'",
+    "(10 == 9223372036854775807)",
+    "([(([3037000500].filter(v1, true).size() % (true ? 7 : -9)) - -(19))] + [16, -1])",
+    "[((-9223372036854775807 * size([4, -16, -12].filter(v1, false))) * -5), -((size(([-18, 5, -4, -12] + [3037000500])) - ((8 * -9) + (-7 / 4)))), (({} != {'a': 8}) ? (size(([-15, 4611686018427387904, -1] + [])) + [8][0]) : -({}['c']))]",
+    "((((({} != {'c': -5, 'b': -16, 'a': -7}) ? 2 : 7) / -18) + [-8, -2, 9223372036854775807, 6][1]) * (-2 * -2))",
+    "(('x y'.contains('') ? size('a') : (([].exists(v1, false) ? [1][0] : [9223372036854775807][2]) - [-9].map(v2, -1)[1])) % ([12, 19].map(v3, v3).filter(v4, ([19, -18, 11] == [3037000500])).all(v5, 'héllo'.endsWith(('héllo' + 'héllo'))) ? [-16, 14].filter(v6, !(true))[2] : {}['a']))",
+    "(false ? -9 : [1, -11].filter(v1, ([9223372036854775807] == [20].map(v2, -(4)))).size())",
+    "[1, -4, -15].filter(v1, true).filter(v2, (([-14, -12, 3037000500].map(v3, v2) + [1, 20, 7].map(v4, v2)).exists(v5, true) || (([0, -7, 8, 2] + [-8, 2, 20]).filter(v6, true) != [-8, -3, -7].filter(v7, [12, -17, -2].all(v8, false))))).size()",
+    "\"q\".endsWith(('b' + ((({'c': 4611686018427387904, 'b': 7} != {'a': 8, 'c': 9, 'b': -15}) || ('b' in {'c': 16})) ? string([-13, -5, -4, -3][0]) : 'a')))",
+    "-9",
+    "!(((true < [19, 0, 7].all(v1, false)) && false))",
+    "[14, -16, -12, -3].filter(v1, ({'a': -4, 'b': 3037000500, 'c': -1} == {'c': -9223372036854775807})).filter(v2, ([1, 8, 9223372036854775807, 9223372036854775807].map(v3, v2).exists_one(v4, ('abc' >= ('' + 'x y'))) != ((string(v2) + (false ? 'héllo' : '')) > string((-4 / v2))))).size()",
+    "('c' in {'a': 1, 'c': 17, 'b': -20})",
+    "false",
+    "{'a': 5}['b']",
+    "false",
+    "'a'",
+    "([].map(v1, 2).map(v2, v2).filter(v3, 'ab'.endsWith((true ? 'b' : 'héllo')))[0] in ([([] + [9223372036854775807, 8, -1])[3]] + [-13, 0]))",
+    "{'b': 17, 'a': 16, 'c': 18}",
+    "double((([2, -9223372036854775807].all(v1, false) && true) ? ((size('abc') / size('abc')) - -13) : 7))",
+    "0.5",
+    "[(({'a': 20, 'b': -17}['b'] % -13) * ((4611686018427387904 > -9223372036854775807) ? (false ? 0 : 4) : [-6, 12, 12].filter(v1, false).size())), (9 % size(('héllo' + 'b'))), 7].all(v2, (([-20, -9, -13, -9223372036854775807].filter(v3, true).filter(v4, true).size() * v2) in [([] + [4]).filter(v5, (false || false)).size(), 3, 3]))",
+    "string({'b': 4611686018427387904, 'c': 14, 'a': -11}['c'])",
+    "[7].filter(v1, !(([-20, -13, 12] + [-13]).filter(v2, false).exists_one(v3, !(true)))).size()",
+    "{'b': -13, 'a': 9, 'c': -15}",
+    "[-20]",
+    "{'c': 1}",
+    "[].map(v1, (-((-13 - v1)) / v1)).exists_one(v2, (v2 >= ((-(-9223372036854775807) + {'b': 0, 'c': -14, 'a': 1}['b']) % 19)))",
+    "([-(([] + [4611686018427387904, -10]).filter(v1, ('c' in {'a': -9223372036854775807, 'c': 18, 'b': 7})).size()), (-(-3) - (-7 / 11)), ([].filter(v2, false)[0] - -19)] + [3])",
+    "{'b': -9223372036854775807, 'a': 0, 'c': -5}",
+    "-(((-5 * {'b': 9223372036854775807}['c']) / {'c': 12, 'b': -8, 'a': 14}['c']))",
+    "(string((9223372036854775807 + [5].map(v1, 7).filter(v2, ('c' in {'a': 9223372036854775807, 'b': -1})).size())) + string(((false ? -17 : (9 / -6)) - (4611686018427387904 / (-8 - -10)))))",
+    "false",
+    "{'c': -11, 'b': 14, 'a': 20}",
+    "(((([18, 13, 9, 15] + [1, 17]) + [8].filter(v1, [15, -9223372036854775807, 2].exists_one(v2, true))) == ([].map(v3, [][3]) + [-7].map(v4, -7).map(v5, 4611686018427387904))) ? (2 - -9) : {'a': -9223372036854775807, 'b': -13}['b'])",
+    "{'a': 4611686018427387904, 'b': 0}",
+    "double(-16)",
+    "((({'c': -4, 'b': -1, 'a': -9}['a'] - 2) in [-1, 0, -13]) ? \"q\" : ((((\"q\" + 'abc') + string(-17)) + 'x y') + string((9223372036854775807 * (2 + -4)))))",
+    "false",
+    "0.25",
+    "[4611686018427387904, -10, 0, 4611686018427387904]",
+    "(false && true)",
+    "[3037000500, -10, 4611686018427387904]",
+    "{}",
+    "{'a': 18, 'b': -17}",
+    "[((-7 + (15 + (-1 % -12))) + (2 * (false ? 16 : size([-9223372036854775807, 0, 0])))), ({'b': -1}['a'] + (18 % ({}['c'] + (20 + 20)))), ([-17, 4611686018427387904, -14][3] - 18)]",
+    "[-17, 9, 1]",
+    "[{}['a']].filter(v1, false).filter(v2, false).map(v3, v3)",
+    "{'a': 13, 'b': 8}",
+    "(\"q\".endsWith((('a' in {}) ? \"q\" : ('x y' + string(-19)))) ? ((false ? ((3.0 - 0.0) * double(-19)) : (('ab' <= 'b') ? 2.0 : (true ? 2.0 : 0.0))) - -1.5) : 1.0)",
+    "(string(size([9223372036854775807, -4, -18, -12])) + ([-10, -20, -9223372036854775807].map(v1, -18).all(v2, ('c' in {'c': -2})) ? (true ? ((true ? '' : 'a') + ('' + \"q\")) : (string(4) + ('b' + 'x y'))) : ('ab' + 'b')))",
+    "(3.0 < ((1.0 - 3.0) + double(9223372036854775807)))",
+    "(([] + ([-9223372036854775807, 3037000500, 9223372036854775807] + [].map(v1, v1))) + [-1, 0]).filter(v2, false)",
+    "(((('c' in {}) || ''.startsWith((false ? 'b' : ''))) || false) != ({'c': 5} == {'a': -1, 'b': 4, 'c': 15}))",
+    "{'c': -7}",
+    "[-([4, -8, -9223372036854775807, -18].map(v1, v1)[1]), {'b': 9223372036854775807}['c'], -11]",
+    "((5 * (size('a') + (({} != {'c': -14, 'a': -1}) ? -(13) : -7))) % ((([-4, -17] + []).exists(v1, ('ab' > '')) ? (size('a') + (18 - -17)) : ([8, 20][0] + -16)) % 5))",
+    "((double(-7) / 0.5) / 0.5)",
+    "([15, -9].filter(v1, false).size() <= -20)",
+    "[7, {}['b']].map(v1, v1).map(v2, v2).filter(v3, [6, -8].all(v4, (-(v3) != -9223372036854775807)))",
+    "([7].filter(v1, (-13 in [-7, -1])).filter(v2, false).map(v3, size('ab')) + [{'c': 8, 'a': -3}['a'], (true ? ((11 - -7) % -1) : ([0, -15][3] - 17)), 17])",
+    "{'c': -4, 'b': -9223372036854775807}",
+    "[[-7, -1, 0, -16][1]].filter(v1, false).all(v2, ({} == {'b': -2}))",
+    "true",
+    "{'c': 7, 'b': -2}",
+    "[].map(v1, 19).filter(v2, true).map(v3, (v3 % -4)).map(v4, v4).all(v5, false)",
+    "[7, 2]",
+    "true",
+    "((9 + 5) in [-((3 / 2)), 19, 7].filter(v1, false))",
+    "{'b': -9223372036854775807, 'a': 4611686018427387904, 'c': -1}['b']",
+    "(-14 / (([16, 3, -6] + [-3]).filter(v1, ([-16, -6][2] in [4611686018427387904].filter(v2, false))).size() + ({'b': 8, 'a': 1}['a'] * (true ? {'a': 4, 'b': 20, 'c': -11}['b'] : 16))))",
+    "(string((([][1] + [4, 11][1]) - (3 - 17))) + string(-6))",
+    "(('x y' + ((('héllo' + 'ab') + (true ? 'héllo' : 'abc')) + (('' + 'a') + string(-1)))) + \"q\")",
+    "{}",
+    "[([9223372036854775807, 2, 10] + [1].map(v1, v1))[0], (-((7 - 1)) / -((-1 + 3037000500))), [1, 14].map(v2, -1).map(v3, 0).filter(v4, [1, -15, -11, 3].filter(v5, true).exists_one(v6, false)).size()].filter(v7, (true || (false || \"q\".endsWith((\"q\" + \"q\")))))",
+    "[([9][2] % (((true ? -14 : 3) * -12) - -5)), [-1, 11].filter(v1, !(true)).size(), ([16, -1, 8].exists(v2, (1 in [-12, -10].filter(v3, false))) ? (15 + [-14, -11].map(v4, v4)[1]) : -11)]",
+    "(((((true ? 'abc' : '') > ('a' + 'b')) ? ((true ? -1.5 : 2.0) - (0.25 * 0.25)) : 1.0) * ((2.0 / 2.0) * 0.25)) / 2.0)",
+    "[2, (([3, 11, 1].filter(v1, true).size() in [-9, 15]) ? 1 : ({'b': -3, 'c': 4}['a'] % (4611686018427387904 * 16)))].map(v2, (-10 / ((v2 in [13, -10].map(v3, 7)) ? 9 : (-13 - v2))))",
+    "[]",
+    "0.5",
+    "[3037000500, 7, 20].filter(v1, !(false))",
+    "[-19].filter(v1, true)[3]",
+    "[13, -13][3]",
+    "'a'",
+    "('a' in {'b': 19, 'c': 1})",
+    "(\"q\".startsWith('') && true)",
+    "-14",
+    "([].filter(v1, false).map(v2, [-17].filter(v3, false).size()).filter(v4, false).filter(v5, ('' == (('ab' + 'abc') + ('abc' + 'abc')))) + [[17, 1, 12, -13].filter(v6, ([10] == [3037000500, -11])).size()].filter(v7, (([-9223372036854775807] + [-3, 10]) + ([3037000500, 19, -3] + [])).exists(v8, true)))",
+    "{'c': -8, 'a': 4}",
+    "double({'a': -8, 'b': 2}['c'])",
+    "[(-([8][1]) % ((true ? 9223372036854775807 : 7) - -17)), (((17 * -8) % (11 * 0)) - [].filter(v1, false).size())].all(v2, ('abc'.startsWith((false ? (\"q\" + 'x y') : ('' + 'a'))) == ('abc' <= (('' + '') + (\"q\" + 'ab')))))",
+    "(8 - -11)",
+    "'héllo'",
+    "[-(4611686018427387904)].map(v1, {'c': -1, 'a': 3, 'b': -2}['a']).filter(v2, (true == ({'a': 0} == {'b': -9223372036854775807, 'a': 19})))",
+    "{'a': -9, 'c': 9223372036854775807}",
+    "[-18]",
+    "('a'.endsWith(('x y' + string((false ? 5 : 1)))) ? ((('' + string(-5)) + ('héllo' + 'héllo')) + 'x y') : (string(-(4611686018427387904)) + 'ab'))",
+    "{'a': -6, 'b': -7}",
+    "{'c': -10, 'b': 4611686018427387904}",
+    "{'b': 9223372036854775807, 'c': 16, 'a': -14}['a']",
+    "(string((size([20]) % -13)) < string((([2, 0, 13, 20].filter(v1, true) == [2, 1, 0].filter(v2, false)) ? (8 + 18) : ({}['c'] * size([-1, 7])))))",
+    "([(20 + 4), 14] + ([4611686018427387904] + [7, 4611686018427387904, 11].filter(v1, true))).map(v2, v2).filter(v3, [-19, 7, 13].map(v4, v4).filter(v5, (10 in [-4, 4611686018427387904])).exists(v6, !(\"q\".startsWith(\"q\")))).size()",
+    "[].map(v1, -(v1)).filter(v2, true)",
+    "[].filter(v1, ({'a': -20, 'b': -9, 'c': 7} != {'c': 3037000500, 'b': 4611686018427387904})).map(v2, (((size([-3, 4, 4, 7]) - {'b': 3037000500}['c']) * v2) * v2))",
+    "(([4611686018427387904, 3037000500, (true ? 2 : 17)].exists(v1, (v1 in [15])) || ({} != {'c': 8, 'b': 3037000500, 'a': 9223372036854775807})) ? 3.0 : (double(2) / 2.0))",
+    "('b' in {'c': -7, 'a': -9223372036854775807, 'b': 4})",
+    "{'b': -18, 'c': 17}",
+    "9223372036854775807",
+    "[8, -17, -1].map(v1, -4).map(v2, v2).filter(v3, ('a' in {'c': -20}))[2]",
+    "[{'a': -4, 'c': 2, 'b': -9223372036854775807}['c'], ([-7, -9223372036854775807].filter(v1, (true || true)) + [-11, 4, -16, -11].filter(v2, false)).filter(v3, (v3 in [1, 9, 0, 9].map(v4, 2))).size(), (('héllo'.startsWith((true ? 'b' : 'abc')) ? ([1] + [-20, 10])[2] : -5) * (-1 + 7))]",
+    "(size((((true ? 'héllo' : 'x y') + ('ab' + 'b')) + ([2, -10, -17].exists_one(v1, true) ? \"q\" : (\"q\" + '')))) * ([-6, -7, -9, -9223372036854775807].map(v2, 3037000500).filter(v3, (false && false)).exists_one(v4, false) ? {}['c'] : {}['a']))",
+    "[[[7, -12, 9223372036854775807][3], 1].filter(v1, ('abc'.endsWith(('a' + 'b')) || ('c' in {'a': -1}))).size(), ((((false ? -16 : -6) % -(-1)) * -1) + -6)]",
+    "[((size([-16, -9223372036854775807]) * ((-4 in [13]) ? size([-9, 1, 6]) : 8)) % (-15 + 18)), ((true ? (-13 / -18) : size(('ab' + 'x y'))) / -4)]",
+    "{'c': -9}",
+    "(string({'a': 2}['a']) + string(18))",
+    "({'b': 12, 'a': 19} != {'b': 0, 'a': -8})",
+    "{'a': 16}",
+    "(-13 - 1)",
+    "(size(('abc' + ((true ? 'abc' : 'ab') + ('x y' + 'héllo')))) % (([-7] + [-17, 2]).all(v1, false) ? (-(8) * 9223372036854775807) : (size([-18, -7, -18]) / (size('b') + [1, -16, 7].filter(v2, true).size()))))",
+    "{'c': -9, 'a': -1}",
+    "{}",
+    "('b' in {'b': -1, 'a': 0})",
+    "([-13, -9].map(v1, {}['c']).map(v2, {}['c']).exists(v3, ('b' in {})) == [-1].all(v4, !((true && [-18].exists_one(v5, true)))))",
+    "(3.0 - ((((true ? -1.5 : 1e3) + -1.5) * ((false ? 0.0 : -1.5) + double(-1))) + 3.0))",
+    "(([-13].map(v1, size([])).all(v2, [v2].exists(v3, false)) ? (((false >= true) ? string(-17) : ('b' + 'héllo')) + 'b') : ('' + '')) + (string(-4) + (('b' in {'b': -8}) ? (('abc' + \"q\") + (\"q\" + 'abc')) : (true ? string(-16) : ('' + '')))))",
+    "(3.0 / 2.0)",
+    "(2.0 != (double(((13 + 6) / size('héllo'))) + double(-12)))",
+    "2",
+    "((17 in []) && [([][3] / -18), ([-1, 20, 16] + [-20, 11])[2]].exists(v1, !(([12] == [20]))))",
+    "([].map(v1, (-10 % v1)).filter(v2, ({'b': -3, 'c': 7, 'a': 3037000500} == {'b': 0})) + [].map(v3, 20).filter(v4, true).map(v5, (v5 / v5))).all(v6, true)",
+    "{'b': 0, 'a': -7}",
+    "[-12, size(('ab'.endsWith((true ? 'b' : 'x y')) ? (([-10] != [-15]) ? ('' + 'b') : ('abc' + 'héllo')) : (true ? ('a' + 'b') : ('b' + 'a')))), -1]",
+    "([7, 12, 2].filter(v1, ''.endsWith('b')).size() - ([-16, 3037000500, 1].exists_one(v2, true) ? size('ab') : 4611686018427387904))",
+    "{'a': 4611686018427387904, 'b': 5, 'c': -9223372036854775807}",
+    "string(((size(('b' + '')) / {'c': -14}['c']) - (-19 / ([-11, 9223372036854775807][0] / [].filter(v1, true).size()))))",
+    "0",
+    "'abc'",
+    "{'b': 3037000500, 'c': -8}",
+    "(((((3 in []) ? 'héllo' : (true ? '' : 'ab')) + string(-10)) + 'x y') + string(11))",
+    "(!([-14, 1, -20].filter(v1, false).filter(v2, ([20, 9223372036854775807, 2, 5] != [-6, -19])).exists_one(v3, false)) ? (0.0 / -1.5) : (double(({'b': -19, 'c': -13, 'a': 1}['c'] / {'a': -9223372036854775807, 'c': 13}['c'])) / 1e3))",
+    "{'b': 4611686018427387904}",
+    "(((((false ? 0.0 : 0.5) + (0.5 * 3.0)) + ((3.0 / 1e3) / 0.5)) / 2.0) + 0.25)",
+    "{}",
+    "2",
+    "[15, -12, -12].map(v1, -([].filter(v2, true).size())).map(v3, [v3, -9].filter(v4, ([-7, -9223372036854775807, 2].filter(v5, false) != [4, 9, 19].filter(v6, true))).size()).map(v7, v7)",
+    "size([4611686018427387904, 0, 18, -9].map(v1, v1))",
+    "(([[7][2]] + ([-6, -7, -7, 11].map(v1, -13) + [3037000500, 2, 3037000500]))[2] + (20 * 9223372036854775807))",
+    "([10, -2, 4611686018427387904] + ((([] + []) + [-17, -8]) + [-9223372036854775807]).map(v1, (v1 - v1)))",
+    "[3, -17]",
+    "(-7 > -18)",
+    "{'a': 18, 'c': -14, 'b': -1}",
+    "((([-17, -16, -11].filter(v1, ('c' in {'c': -15, 'a': 19})).size() % -((false ? 7 : -19))) % (((true ? 18 : 4) % (false ? -20 : -12)) % ((0 + -12) / (-12 * 9223372036854775807)))) > [15, 3037000500, 1].map(v2, -((4611686018427387904 / 19)))[0])",
+    "[[13][2], 2, -(-7)]",
+    "double(({'b': -5, 'c': -6}['b'] - ((size([]) / 5) * 4611686018427387904)))",
+    "'b'",
+    "('b' in {'b': 12, 'c': 2})",
+    "([{}['b'], 8] + (([-20, 20, 4, -19] + [9223372036854775807]) + [-8, 10, 17, 4].map(v1, 4611686018427387904))).filter(v2, [].filter(v3, false).map(v4, v4).exists_one(v5, ({} == {})))[1]",
+    "'abc'",
+    "{'a': 0, 'c': -3, 'b': 10}",
+    "[size([15, 9223372036854775807, -16, 5].filter(v1, false).filter(v2, !(false))), -8][2]",
+    "[-7, 4].map(v1, -(9223372036854775807)).map(v2, v2)",
+    "((0.25 * 3.0) * (0.5 / 1e3))",
+    "string(11)",
+    "((2 * -11) * 20)",
+    "(([9223372036854775807, 7, -9223372036854775807] + [[7].filter(v1, true).size(), (-6 + 6)]).map(v2, (v2 % 9223372036854775807)) + [-14].map(v3, v3).filter(v4, (false || 'abc'.contains(''))).filter(v5, ('b' in {'c': -17, 'a': 18, 'b': -9})))",
+    "!((([-8, -1, -12].map(v1, 19) + [2, 3037000500, 4, -20]).exists(v2, ((\"q\" + 'x y') == string(18))) <= (('c' in {'a': 3037000500}) >= false)))",
+    "-20",
+    "([4611686018427387904, [].map(v1, v1).filter(v2, (true || true)).size(), ((false ? 1 : -2) - [-20, -9223372036854775807, -4][3])].map(v3, (([13] + [1, 8, 18, 9223372036854775807]) + [10, -5])[2]) + [7, -13, 1, 10])",
+    "([-16][0] / size([('b'.contains('héllo') ? (-17 / -18) : -14)]))",
+    "!(([18].map(v1, v1) + [(10 + 4611686018427387904), 19, {'b': 7}['c']]).exists_one(v2, [18, 5, 13, 15].all(v3, (true || (-1.5 < 0.5)))))",
+    "'x y'",
+    "[-7, -8, 1, -17]",
+    "(('ab' + (('b' + 'a') + string([-2, 11, 7, 3037000500][1]))) + string({}['a']))",
+    "((([3, -4] + [(-10 % 5)]) == [13, -7]) < (([0] + []) + [3, 0]).map(v1, ((9223372036854775807 in [-11, 7, 0, 0]) ? 3 : v1)).exists_one(v2, !(('a' in {}))))",
+    "'b'",
+    "(((3037000500 - -11) + {'c': -3, 'a': -9223372036854775807}['a']) * ((([-17].filter(v1, false).size() / -1) - {'c': 1, 'b': -17}['a']) % [14].filter(v2, true).filter(v3, [7, 4, -6, 3].exists_one(v4, true)).filter(v5, !(false)).size()))",
+    "[-8].map(v1, v1).filter(v2, (('b' in {'c': -4}) || (true || true))).filter(v3, ('b' in {'a': 8, 'c': -8, 'b': -3})).filter(v4, true)",
+    "((((-1.5 + 0.25) + 0.5) / 1e3) / 0.5)",
+    "{'a': 18, 'b': -7}",
+    "double(-4)",
+    "size(\"q\")",
+    "{}",
+    "[{'a': 14, 'b': 1}['a'], -2, (!((-(20) in [16, 0])) ? size((string(-9223372036854775807) + ('a' + \"q\"))) : [4611686018427387904, 2][0])]",
+    "('héllo' + 'héllo')",
+    "((false ? string({}['b']) : string(-((0 / 9)))) + 'x y')",
+    "[-14].filter(v1, ((13 in [v1, v1, (-9223372036854775807 / -10)]) && false)).size()",
+    "(0.25 == 3.0)",
+    "((((0.0 - double(0)) - (1.0 / 1e3)) / -1.5) + 1.0)",
+    "[16].map(v1, v1)",
+    "(((([-12, -13, -5] == [12].map(v1, 4611686018427387904)) ? 2.0 : (double(4611686018427387904) / 0.5)) / 2.0) * 3.0)",
+    "(double(19) - ((3.0 <= 1.0) ? ((('b' + 'x y') <= '') ? ([1, -17, 9223372036854775807].all(v1, true) ? 3.0 : (0.0 - 0.5)) : (2.0 + (0.5 * 0.5))) : 1.0))",
+    "('a'.contains('') ? (0.0 / -1.5) : (!(([20, 17] + []).exists_one(v1, true)) ? 0.0 : ((0.5 + (1e3 * 1.0)) / 1e3)))",
+    "'a'",
+    "false",
+    "(string({}['b']) + (!(((true ? -1 : 3) in [-20, -14].map(v1, 3037000500))) ? (string({'a': -12, 'b': -5, 'c': -3}['a']) + (('x y' + '') + '')) : (string((true ? -5 : -16)) + string((15 / -14)))))",
+    "((([-5, -15, 0] + [8, 13, 7, 7]) + ([10, -19, 0, 0] + [10, 7, -13, -9223372036854775807])).filter(v1, (([-1, 20, 2, 20].filter(v2, true) != [-3, -9223372036854775807].filter(v3, true)) && false)) + [11, -16].filter(v4, (3037000500 in [5, -1])).filter(v5, 'abc'.startsWith(string(v5))).filter(v6, ''.startsWith(string(v6))))",
+    "(double({}['c']) / 0.5)",
+    "(1.0 * 0.25)",
+    "{'c': 20}",
+    "!((false && false))",
+    "{'a': -13, 'b': 0, 'c': -1}",
+    "((double(size(('abc' + \"q\"))) > ((3.0 / -1.5) - ((0.25 * -1.5) - (0.25 / 0.5)))) ? ((({} != {}) ? size(('abc' + 'a')) : {}['c']) - [-12, -1, 1].filter(v1, !(true))[1]) : (([][2] % {'a': 3037000500, 'c': -7}['b']) + ([-17, 3037000500, 17, -9223372036854775807].map(v2, v2) + [7, -10, 5])[2]))",
+    "0.0",
+    "[size([-9, -1]), (20 + -9223372036854775807), 3037000500].map(v1, [-9223372036854775807, 20, 0][3]).map(v2, (v2 % v2)).filter(v3, (-17 in [-11, -2, -2, 11].map(v4, (13 * 10)).filter(v5, ((false <= true) == !(true))))).size()",
+    "string((false ? (false ? -(-5) : 3037000500) : [3, 10, 4611686018427387904, 15].map(v1, -9223372036854775807).map(v2, -(0))[1]))",
+    "(('a'.contains(((true ? 'a' : 'a') + (false ? \"q\" : 'x y'))) ? (((false ? '' : 'héllo') + ('héllo' + 'héllo')) + (('x y' + 'ab') + string(13))) : (((true ? '' : '') + (true ? 'b' : \"q\")) + (('a' + \"q\") + ''))) + \"q\")",
+    "true",
+    "8",
+    "[0, -6, size(string([3037000500, 2, -9223372036854775807].filter(v1, true)[1]))]",
+    "{'b': 4611686018427387904}",
+    "{'c': 17}",
+    "[size([-1, -17].filter(v1, true).filter(v2, (17 in [1, -4, 18])))].exists_one(v3, ([0, -17, -7, -9223372036854775807].filter(v4, ('a' in {'c': -7, 'b': 0, 'a': 16})) == (([-16] + [-9, 20]).filter(v5, (v5 in [10])) + [v3])))",
+    "[12].filter(v1, 'x y'.contains((true ? 'abc' : 'b'))).map(v2, ([v2, v2, v2] + [].filter(v3, true))[0]).exists_one(v4, [6, -2].exists(v5, ({'c': 9, 'a': 4611686018427387904} != {'a': -9})))",
+    "(((({'c': -7} == {'a': -6}) && false) ? ((('a' + 'ab') + (false ? 'a' : 'héllo')) + string(16)) : ((string(14) + (false ? 'x y' : 'ab')) + string([-11, 18][1]))) + 'abc')",
+    "string(0)",
+    "0.5",
+    "[[0].filter(v1, ([-19, 0, 17, -10].filter(v2, false).filter(v3, (3.0 != 3.0)).size() != v1)).size()]",
+    "[9223372036854775807, 7]",
+    "string(size([-1, 0].map(v1, (v1 / v1)).filter(v2, ((false && false) || !(true)))))",
+    "8",
+    "(((double((19 * 9223372036854775807)) + 1.0) != 3.0) ? 'abc' : string(([9223372036854775807, -13].map(v1, v1) + [13, 16]).filter(v2, true).size()))",
+    "((true ? string(-((4611686018427387904 + 18))) : string(-8)) + ((({} == {'c': 4}) ? 'héllo' : string(-12)) + string(((17 / 14) - 15))))",
+    "[(-13 + [][3]), [-17].filter(v1, false).size()].map(v2, v2).map(v3, (true ? -3 : -1))",
+    "{'a': 7}",
+    "[19, 13, 17, 3]",
+    "[[][1], -11, 2].map(v1, v1)",
+    "{'c': 5, 'b': 16, 'a': -5}",
+    "\"q\"",
+    "'x y'",
+    "((('c' in {'a': 4611686018427387904, 'c': -7, 'b': -14}) && false) || !((((-17 in []) ? ('abc' + 'x y') : \"q\") > (string(17) + ('' + 'ab')))))",
+    "{}",
+    "-1.5",
+    "{'c': -4, 'b': 2}",
+    "'x y'",
+    "(-3 - ((((-1 * 19) in [1, -9223372036854775807, 17].map(v1, v1)) ? (-9223372036854775807 + 6) : -(0)) % -1))",
+    "(string(12) + 'héllo')",
+    "(((((true ? 1.0 : 2.0) / -1.5) + ((false ? 1e3 : 3.0) + (1e3 * 0.25))) * (((0.0 - 0.25) * (2.0 - 3.0)) / 0.5)) / 0.5)",
+    "[4611686018427387904]",
+    "{}",
+    "0.25",
+    "{}",
+    "{'c': -14, 'a': 19, 'b': 0}",
+    "0.25",
+    "11",
+    "[([-1, -19, 4, 9].map(v1, v1).filter(v2, (false && true)) + []).filter(v3, 'ab'.contains('héllo')).size(), 9223372036854775807, -9]",
+    "(false ? double((size([-5, 15].map(v1, 4611686018427387904)) % -6)) : ((((2.0 + 0.25) * (1.0 - 0.5)) + ([].all(v2, true) ? (true ? 1e3 : 0.25) : double(4611686018427387904))) + (false ? double({'c': 4611686018427387904, 'a': 3037000500}['a']) : (2.0 / -1.5))))",
+    "-6",
+    "size('héllo')",
+    "7",
+    "-((((string(-9) == ('ab' + 'héllo')) ? 6 : ((9223372036854775807 + 1) % (true ? -1 : 7))) + (1 % {}['a'])))",
+    "(((((13 in [8, 9]) ? double(-18) : (true ? -1.5 : 0.25)) / 2.0) - 0.0) / 0.5)",
+    "{'a': -4, 'b': 2, 'c': 9}",
+    "[(([-7, 4, 9223372036854775807] + [1, 0, 7]) + [-15, 20, -12]).filter(v1, true).size(), ('héllo'.endsWith((\"q\" + 'x y')) ? ([] + [0, 8, -3])[1] : 3037000500)][0]",
+    "{'a': 9, 'b': -10, 'c': 4611686018427387904}",
+    "(string({'b': 1}['b']) + (('a' + ((false ? 'a' : '') + 'abc')) + string([].filter(v1, false).filter(v2, true).size())))",
+    "{'a': 1}['b']",
+    "([([5, 3037000500, -12, 3037000500].map(v1, 8)[0] / [-11, -2, -20, 6].filter(v2, (2.0 < 1.0)).size()), 5] + [([4, -4][1] + [-6, 4][2])].map(v3, 4611686018427387904))",
+    "(([20, 10, -1, 18] + [16, 2]) + [[].map(v1, v1).map(v2, -11).filter(v3, !(([-15, -1, -9223372036854775807, -6] == []))).size(), 20])",
+    "true",
+    "(double([0, -2].filter(v1, true).map(v2, v2).filter(v3, ('a' in {})).size()) <= double(-1))",
+    "([0].filter(v1, true).size() + size(((string(-14) + ('x y' + 'b')) + ((false ? 'abc' : 'abc') + string(9223372036854775807)))))",
+    "!(false)",
+    "'héllo'",
+    "(0 % (false ? ([-17, -9, -8, 8].map(v1, 4).filter(v2, true).size() - ([20][1] * (3037000500 + 7))) : -6))",
+    "(0.25 + ((((-1.5 + 1.0) / 0.5) / 0.5) - (double((-14 - 5)) - 1.0)))",
+    "('ab'.contains('b') ? ('x y' + (((\"q\" + 'héllo') + string(2)) + (('héllo' + \"q\") + ''))) : (!(((-10 != 11) || (-7 in []))) ? ((false ? '' : 'abc') + ((true ? 'x y' : 'héllo') + string(1))) : (string(-20) + ((\"q\" + '') + ('héllo' + 'héllo')))))",
+    "true",
+    "(false ? (string(([9, 1, 9223372036854775807][0] + (false ? 13 : 0))) + string((19 % size([])))) : ((string(size('a')) + (!(true) ? string(-7) : ('b' + \"q\"))) + ((([] == [-6, -19, 14]) ? (\"q\" + '') : ('héllo' + \"q\")) + (('abc' >= 'ab') ? string(-2) : string(0)))))",
+    "((([[7].filter(v1, true).size(), 4611686018427387904] + ([-9, 10, -6, -5].filter(v2, true) + [3037000500, 15, 7, -9223372036854775807].filter(v3, false))) + []) + [11])",
+    "[4611686018427387904]",
+    "(((((0.0 + 3.0) / 2.0) + double([][3])) <= 2.0) ? (double([1, 19][2]) - (-1.5 / 2.0)) : 1e3)",
+    "([(true ? 10 : 9223372036854775807)] + ([4, 12, -17].map(v1, 9223372036854775807) + [9223372036854775807])).map(v2, {'a': 9, 'b': -18}['b']).filter(v3, [0, -9223372036854775807].filter(v4, false).filter(v5, false).filter(v6, 'abc'.contains((false ? \"q\" : 'héllo'))).exists_one(v7, false)).size()",
+    "([-9, -7, -12].map(v1, (7 + -11)).filter(v2, ('a' in {'a': 4611686018427387904})).map(v3, (false ? size('x y') : -((v3 % v3)))) + [3, 19])",
+    "\"q\"",
+    "double(((([-12, 9] + [-4, 9223372036854775807, -2, 3])[2] - -17) * size('b')))",
+    "false",
+    "([-1, 15].filter(v1, (v1 in [4611686018427387904, 19])) + [(7 * 13), (0 - 13)]).map(v2, [-10, -9223372036854775807, -15][1]).filter(v3, ((v3 + (-10 * [9223372036854775807, 0, -14, 13][3])) != (((-8 / v3) in [11, 7, -9, 13].map(v4, v4)) ? -7 : v3))).size()",
+    "({'c': 1, 'b': -9223372036854775807} != {'c': -9223372036854775807, 'a': -3, 'b': -1})",
+    "(true ? (('x y'.contains((false ? 'b' : \"q\")) ? (('b' + 'a') + (false ? \"q\" : 'b')) : ((false ? 'ab' : 'héllo') + string(3037000500))) + (true ? ((false ? 'x y' : '') + (true ? 'b' : '')) : string(0))) : ((string((12 / -18)) + string(0)) + (\"q\" + (('abc' + 'abc') + ('ab' + 'a')))))",
+    "-9",
+    "-(-(1))",
+    "[[10, -10, 4, -11].map(v1, v1)[0], ((18 % 16) - [17, -14, 17].filter(v2, true).size()), [-9223372036854775807, 4].filter(v3, false).size()].map(v4, [v4, v4, (7 % v4)].filter(v5, ([14, -2, 5] + [20, 15, -5, 8]).exists(v6, false)).size()).map(v7, v7)",
+    "[2].filter(v1, ([14, 6].map(v2, 6).exists(v3, [].all(v4, [].exists(v5, false))) && (((v1 in []) ? (v1 % 0) : [3, -9223372036854775807, -1, 3037000500].filter(v6, false).size()) in ([7, -15, 11].filter(v7, true) + [-18]))))",
+    "3037000500",
+    "(2.0 / 1e3)",
+    "([([-17, -13, 13] + [-3, 14, 8])[0], {}['b']][0] / [([-1, -14] + [18, 6, -4, 11])[0], -2].filter(v1, 'b'.endsWith((('x y' + 'abc') + string(8)))).size())",
+    "[15].map(v1, (((true ? v1 : v1) * -(-15)) * -1)).filter(v2, true)",
+    "{'a': -13}",
+    "{'a': 9}",
+    "((((string(-17) + ('héllo' + 'x y')) + (false ? (false ? 'ab' : 'x y') : ('b' + 'héllo'))) + ((('x y' + 'b') + (false ? 'x y' : 'x y')) + (([4611686018427387904] == [-20, 20]) ? string(-16) : 'x y'))) + string(9223372036854775807))",
+    "19",
+    "(double((0 * ({'a': 10, 'c': -1}['b'] - (6 + -2)))) + 1e3)",
+    "double([].filter(v1, 'b'.startsWith(((false ? 'héllo' : 'ab') + 'a'))).size())",
+    "([-14, (0 * (0 * -10)), -20][2] / -(-(2)))",
+    "{}",
+    "0.25",
+    "(((false ? 'b' : (('b' + 'héllo') + ('x y' + 'ab'))) + string(-10)) + 'a')",
+    "-((({} != {'a': 4611686018427387904, 'c': -7, 'b': -1}) ? ((('a' in {'a': 3037000500, 'c': -15, 'b': 17}) ? -19 : (14 + -13)) + 2) : (size([-8, 9, -17]) * ((-20 * -1) - (false ? -14 : -8)))))",
+    "string((0 * ([7, 1].map(v1, 0).exists(v2, (true && true)) ? size(([19, 2, -8] + [-20, -16])) : -1)))",
+    "2.0",
+    "((true ? string([].map(v1, v1).filter(v2, false).size()) : (('ab' + ('héllo' + '')) + ((\"q\" + 'b') + ('abc' + 'abc')))) + string(-9223372036854775807))",
+    "[].map(v1, -19).filter(v2, false).filter(v3, (('b' in {}) || 'héllo'.contains('ab'))).filter(v4, ('héllo'.contains('a') || false)).filter(v5, (((3.0 > (1.0 * 0.5)) ? 9223372036854775807 : size(([7, 19] + [-8, 3037000500, 0, -9]))) in [v5]))",
+    "'héllo'.contains((string(((-11 + -3) + 17)) + ((string(-20) + ('héllo' + 'ab')) + 'a')))",
+    "(((12 + {'a': 5, 'c': -18, 'b': -9223372036854775807}['a']) / -18) + [].filter(v1, [].all(v2, false)).size())",
+    "{'b': -9223372036854775807, 'a': 5}",
+    "string((!(!([3, 0, 14, 5].all(v1, false))) ? (size([].filter(v2, false)) / (1 - -(4))) : (-([-15, 20].filter(v3, true).size()) / (-17 - 9223372036854775807))))",
+    "('abc' + ((((true || false) ? (\"q\" + 'a') : ('abc' + 'a')) + string((19 - -16))) + (string(13) + (string(3037000500) + (false ? 'héllo' : 'héllo')))))",
+    "([-4].filter(v1, false) + [([-3, 5, -16, 2].all(v2, true) ? size('ab') : size([7, 7, 0, -4])), (-11 % [13, -6][3])].map(v3, (([6, 0, 17].all(v4, false) || ('b' in {'c': 2, 'b': -14, 'a': 1})) ? ((-14 / 13) / -(v3)) : -15)))",
+    "double(-20)",
+    "(([2, -6, -12] + [17, 0, -3].map(v1, v1)).map(v2, v2).exists(v3, ({'a': 16, 'c': -14, 'b': 3} != {'c': -20, 'a': 19, 'b': 9})) ? 2 : -11)",
+    "(-(([-4, -7, -9] + [-15]).map(v1, (-18 - -9223372036854775807)).filter(v2, (-(v2) in [10, 3, -14].map(v3, v2))).size()) * (-(-((13 / -7))) - [1, 5].filter(v4, true).size()))",
+    "[-16, 8]",
+    "(double((([1, 8] + [11])[3] / ((false ? 9 : -2) / (19 * -8)))) - -1.5)",
+    "5",
+    "[-9223372036854775807, 0, 4, 7].filter(v1, !(((('a' + 'ab') + \"q\") <= string(v1))))",
+    "5",
+    "string(((18 * ((-11 - 0) + (5 - 2))) - -14))",
+    "[(false ? [].filter(v1, false).size() : 6), ((false || false) ? (-12 - 12) : {'b': -11, 'a': 18}['b']), -9223372036854775807].filter(v2, true).map(v3, -10)",
+    "-9223372036854775807",
+    "[-11, (([-9223372036854775807, -6, 14, 7].map(v1, -9223372036854775807) + [-5]).exists_one(v2, ''.startsWith('abc')) ? (-(size([20])) - -((0 / -10))) : (size(string(0)) - [7, 0].filter(v3, (false != false)).size())), size(((string(17) + (true ? 'héllo' : 'x y')) + ((true || true) ? string(4611686018427387904) : string(17))))]",
+    "(((((3.0 * 1e3) + (0.5 - 0.5)) / -1.5) + ((!(false) ? (1e3 * 0.25) : double(-9223372036854775807)) / 0.5)) - 2.0)",
+    "true",
+    "'abc'",
+    "{'b': 9223372036854775807}",
+    "{'c': -4, 'b': -1}",
+    "-1",
+    "false",
+    "7",
+    "(((\"q\" + (('a' in {'c': 12, 'b': 3}) ? string(3037000500) : ('' + \"q\"))) + ('x y' + (string(-4) + 'abc'))) + 'ab')",
+    "[20]",
+    "(((((9223372036854775807 <= 1) && (false && false)) ? ({'a': 19, 'c': -5}['b'] * [-16][1]) : ((true ? -12 : 8) % 20)) / {}['c']) == -6)",
+    "([([-8, -7, 1].exists_one(v1, false) ? [].filter(v2, false).size() : (14 + -2)), {'b': -3, 'c': 6}['b']].exists(v3, ([v3, v3, v3].map(v4, size([3, -1, 11])) != [9])) ? (string(([20, 7, 8][3] - (-4 - 0))) + string(7)) : (('x y' + ((true ? \"q\" : 'abc') + (true ? 'abc' : 'abc'))) + string(-1)))",
+    "([-9223372036854775807] + [(((-19 * 13) - size('')) % ({}['c'] + {}['b'])), (size([4, 17]) + {'a': -3, 'c': 19}['a'])])",
+    "string(([0][0] + -8))",
+    "{}",
+    "-14"
+   ]
+  },
+  {
+   "id": "generated-eval",
+   "fn": "CelEval",
+   "extra": [
+    "",
+    0
+   ],
+   "sha256": "17e404ebca40d10582824761fc258da9e6cd0ebddff66a056125de569908c5e3",
+   "inputsOf": "generated-parse"
+  },
+  {
+   "id": "generated-check",
+   "fn": "CelCheck",
+   "extra": [],
+   "sha256": "a6318ba8d73f2d551dccc970bd5ea5c6df582a523963b8bed545b3e3d412073e",
+   "lead": [
+    "check.json"
+   ],
+   "wrap": "expr",
+   "wrapWith": {
+    "max_nesting": 99
+   },
+   "inputsOf": "generated-parse"
+  },
+  {
+   "id": "conformance-parse:basic",
+   "fn": "CelParse",
+   "extra": [],
+   "sha256": "7e803a3ed878d43f6c3544f3f26ad716d20c57b9a8bdf1cd1f184b5813b04d4a",
+   "source": "tests/data/cel-conformance/basic.json"
+  },
+  {
+   "id": "conformance-eval:basic",
+   "fn": "CelEval",
+   "extra": [
+    "",
+    0
+   ],
+   "sha256": "4c3fa75f5d158a88f3be39bcc4d34ab004d4b260033c68cce231a7c81b9b8e25",
+   "source": "tests/data/cel-conformance/basic.json"
+  },
+  {
+   "id": "conformance-check:basic",
+   "fn": "CelCheck",
+   "extra": [],
+   "sha256": "62f1b4e2fb1b6465b81991d283ba7b253c9ae87930b4ab8df01dac6f7373717c",
+   "lead": [
+    "check.json"
+   ],
+   "wrap": "expr",
+   "source": "tests/data/cel-conformance/basic.json"
+  },
+  {
+   "id": "conformance-parse:comparisons",
+   "fn": "CelParse",
+   "extra": [],
+   "sha256": "45ade84fccf2b48e070e980935f134afa433c81ebbe1a2618d2c977e834955c1",
+   "source": "tests/data/cel-conformance/comparisons.json"
+  },
+  {
+   "id": "conformance-eval:comparisons",
+   "fn": "CelEval",
+   "extra": [
+    "",
+    0
+   ],
+   "sha256": "b6a1fa4b9a197372334bc0dbbddc7ea7ba0fbc091bc9ba4e8f16ca6575ea693f",
+   "source": "tests/data/cel-conformance/comparisons.json"
+  },
+  {
+   "id": "conformance-check:comparisons",
+   "fn": "CelCheck",
+   "extra": [],
+   "sha256": "3c2952aeb64c8aff04c49834aab5964a3cd5a756c0a22460182c4f59f9a88edc",
+   "lead": [
+    "check.json"
+   ],
+   "wrap": "expr",
+   "source": "tests/data/cel-conformance/comparisons.json"
+  },
+  {
+   "id": "conformance-parse:conversions",
+   "fn": "CelParse",
+   "extra": [],
+   "sha256": "903c0564ffcfa86c62e9e6a23c527ef188099d52d611eb1547e1b46f316a90b4",
+   "source": "tests/data/cel-conformance/conversions.json"
+  },
+  {
+   "id": "conformance-eval:conversions",
+   "fn": "CelEval",
+   "extra": [
+    "",
+    0
+   ],
+   "sha256": "c72d59c2782f9ec7263762949936a95e53ac9d18b5d3fd9ff0936dbe84b4bfbd",
+   "source": "tests/data/cel-conformance/conversions.json"
+  },
+  {
+   "id": "conformance-check:conversions",
+   "fn": "CelCheck",
+   "extra": [],
+   "sha256": "bc1ebbbce192062e669890a97abe3f97c88c9470d012140b7a8f3c4dc8a5384c",
+   "lead": [
+    "check.json"
+   ],
+   "wrap": "expr",
+   "source": "tests/data/cel-conformance/conversions.json"
+  },
+  {
+   "id": "conformance-parse:fp_math",
+   "fn": "CelParse",
+   "extra": [],
+   "sha256": "6159b70b0dac857f1335f2928fbe932929fca3d52646ee6c853e545135142150",
+   "source": "tests/data/cel-conformance/fp_math.json"
+  },
+  {
+   "id": "conformance-eval:fp_math",
+   "fn": "CelEval",
+   "extra": [
+    "",
+    0
+   ],
+   "sha256": "6130966f6e1c125e97343b4edb3943d3aaf6b2c4ad3ee8532142e57cd6a7b1da",
+   "source": "tests/data/cel-conformance/fp_math.json"
+  },
+  {
+   "id": "conformance-check:fp_math",
+   "fn": "CelCheck",
+   "extra": [],
+   "sha256": "e3a153dc066bf3ff1dc6773a1c4f6a22ff115a46ab211d95fb69f630c1117c89",
+   "lead": [
+    "check.json"
+   ],
+   "wrap": "expr",
+   "source": "tests/data/cel-conformance/fp_math.json"
+  },
+  {
+   "id": "conformance-parse:integer_math",
+   "fn": "CelParse",
+   "extra": [],
+   "sha256": "dec59b96cafa2822df5548b258f8014384caea0620d24b93794ef199b537c936",
+   "source": "tests/data/cel-conformance/integer_math.json"
+  },
+  {
+   "id": "conformance-eval:integer_math",
+   "fn": "CelEval",
+   "extra": [
+    "",
+    0
+   ],
+   "sha256": "705c1c9b3c208fdc822f9838858e7cede31bfdf7e0c6f44e148ce643cebd969e",
+   "source": "tests/data/cel-conformance/integer_math.json"
+  },
+  {
+   "id": "conformance-check:integer_math",
+   "fn": "CelCheck",
+   "extra": [],
+   "sha256": "62a5e0015cd8037129f8abc629ebc36b710321faea849ad3044625ac6e89c4cc",
+   "lead": [
+    "check.json"
+   ],
+   "wrap": "expr",
+   "source": "tests/data/cel-conformance/integer_math.json"
+  },
+  {
+   "id": "conformance-parse:lists",
+   "fn": "CelParse",
+   "extra": [],
+   "sha256": "62db9a2d4d12771534818d2114207b1e575a7676355307deda2b5b375a60b5b6",
+   "source": "tests/data/cel-conformance/lists.json"
+  },
+  {
+   "id": "conformance-eval:lists",
+   "fn": "CelEval",
+   "extra": [
+    "",
+    0
+   ],
+   "sha256": "1e3e0deb9cfe08067adc2041533c29a066868e1a93eb46626c05e273d1d04f0e",
+   "source": "tests/data/cel-conformance/lists.json"
+  },
+  {
+   "id": "conformance-check:lists",
+   "fn": "CelCheck",
+   "extra": [],
+   "sha256": "64c3b43bd3f22e75232a81f662d8de245488b26173f3381c2ea7cfae0e29255b",
+   "lead": [
+    "check.json"
+   ],
+   "wrap": "expr",
+   "source": "tests/data/cel-conformance/lists.json"
+  },
+  {
+   "id": "conformance-parse:logic",
+   "fn": "CelParse",
+   "extra": [],
+   "sha256": "eb0c0f0e3ec369196e8a2af9cc2a27312491b5e0681dccece95dab170d5a5b72",
+   "source": "tests/data/cel-conformance/logic.json"
+  },
+  {
+   "id": "conformance-eval:logic",
+   "fn": "CelEval",
+   "extra": [
+    "",
+    0
+   ],
+   "sha256": "9d2a56022d09bbad1d78e5833ad980d013c8edfecfff0377524b1de4e116e698",
+   "source": "tests/data/cel-conformance/logic.json"
+  },
+  {
+   "id": "conformance-check:logic",
+   "fn": "CelCheck",
+   "extra": [],
+   "sha256": "ca1b296433047af5a89c1d124c9a0046f3de31df3cb4328ca7d193ef086d247f",
+   "lead": [
+    "check.json"
+   ],
+   "wrap": "expr",
+   "source": "tests/data/cel-conformance/logic.json"
+  },
+  {
+   "id": "conformance-parse:macros",
+   "fn": "CelParse",
+   "extra": [],
+   "sha256": "32ec94ca25e371008c12ac8bed4100d42915127d8cb0d73f1012ac63dafd63ec",
+   "source": "tests/data/cel-conformance/macros.json"
+  },
+  {
+   "id": "conformance-eval:macros",
+   "fn": "CelEval",
+   "extra": [
+    "",
+    0
+   ],
+   "sha256": "4cc280530c3ca5173a7ead6047c79c326648dbf8fb8552b33bf5f015216d2bdc",
+   "source": "tests/data/cel-conformance/macros.json"
+  },
+  {
+   "id": "conformance-check:macros",
+   "fn": "CelCheck",
+   "extra": [],
+   "sha256": "05e191c33b53fc8ea7594ce416cd134abdaf837fa99f467b8c9af8bfbcd80f0e",
+   "lead": [
+    "check.json"
+   ],
+   "wrap": "expr",
+   "source": "tests/data/cel-conformance/macros.json"
+  },
+  {
+   "id": "conformance-parse:optionals",
+   "fn": "CelParse",
+   "extra": [],
+   "sha256": "1f8109394bdf14e1bf9fe97088b76763da05096278b455ed6a89a6efbd1980d7",
+   "source": "tests/data/cel-conformance/optionals.json"
+  },
+  {
+   "id": "conformance-eval:optionals",
+   "fn": "CelEval",
+   "extra": [
+    "",
+    0
+   ],
+   "sha256": "16527188a7b2fac16a20a831cb9885772c33140b92a496eb4b70357feb81f5a6",
+   "source": "tests/data/cel-conformance/optionals.json"
+  },
+  {
+   "id": "conformance-check:optionals",
+   "fn": "CelCheck",
+   "extra": [],
+   "sha256": "5611c77540f8ec1b486887e30a1ce8a2bdc2b779668c25655bf4338e9358421a",
+   "lead": [
+    "check.json"
+   ],
+   "wrap": "expr",
+   "source": "tests/data/cel-conformance/optionals.json"
+  },
+  {
+   "id": "conformance-parse:parse",
+   "fn": "CelParse",
+   "extra": [],
+   "sha256": "b6c973b71a93cad517890c6c1ecc085e8e0b472bc86992e382dc7f47b08fa0ef",
+   "source": "tests/data/cel-conformance/parse.json"
+  },
+  {
+   "id": "conformance-eval:parse",
+   "fn": "CelEval",
+   "extra": [
+    "",
+    0
+   ],
+   "sha256": "5845e4d535134085fabc5ee6d4f6be11aba22daa0f3b79171e28b6c3488547ae",
+   "source": "tests/data/cel-conformance/parse.json"
+  },
+  {
+   "id": "conformance-check:parse",
+   "fn": "CelCheck",
+   "extra": [],
+   "sha256": "eaac907cc817314fa31a82b2aab27a9353c81774eb9c92ab2a777a7fca4cf913",
+   "lead": [
+    "check.json"
+   ],
+   "wrap": "expr",
+   "source": "tests/data/cel-conformance/parse.json"
+  },
+  {
+   "id": "conformance-parse:string",
+   "fn": "CelParse",
+   "extra": [],
+   "sha256": "e5d626bafd0000519604280840667ec485ba5f89a4102b9b5be46c4bf2667cb8",
+   "source": "tests/data/cel-conformance/string.json"
+  },
+  {
+   "id": "conformance-eval:string",
+   "fn": "CelEval",
+   "extra": [
+    "",
+    0
+   ],
+   "sha256": "feacaa50d489194224f53006bec0639117d48236599933431a8eaf8e9f3704e4",
+   "source": "tests/data/cel-conformance/string.json"
+  },
+  {
+   "id": "conformance-check:string",
+   "fn": "CelCheck",
+   "extra": [],
+   "sha256": "83af494a0bea771f61daad3d1bbd844796144b0a5e7f8f53409f15494150f548",
+   "lead": [
+    "check.json"
+   ],
+   "wrap": "expr",
+   "source": "tests/data/cel-conformance/string.json"
+  }
+ ]
+}

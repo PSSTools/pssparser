@@ -1,0 +1,734 @@
+{
+ "source": "macros.textproto",
+ "cel_spec": "v0.25.3",
+ "tests": [
+  {
+   "section": "exists",
+   "name": "list_elem_all_true",
+   "expr": "[1, 2, 3].exists(e, e > 0)",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "exists",
+   "name": "list_elem_some_true",
+   "expr": "[1, 2, 3].exists(e, e == 2)",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "exists",
+   "name": "list_elem_none_true",
+   "expr": "[1, 2, 3].exists(e, e > 3)",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "false"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "exists",
+   "name": "list_elem_type_shortcircuit",
+   "expr": "[1, 'foo', 3].exists(e, e != '1')",
+   "fields": {
+    "description": [
+     "Exists filter is true for the last element."
+    ],
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "exists",
+   "name": "list_elem_type_exhaustive",
+   "expr": "[1, 'foo', 3].exists(e, e == '10')",
+   "fields": {
+    "description": [
+     "Exists filter is never true, but heterogenous equality ensure the result is false."
+    ],
+    "value": [
+     {
+      "bool_value": [
+       "false"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "exists",
+   "name": "list_elem_exists_error",
+   "expr": "[1, 2, 3].exists(e, e / 0 == 17)",
+   "fields": {
+    "eval_error": [
+     {
+      "errors": [
+       {
+        "message": [
+         "divide by zero"
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "exists",
+   "name": "list_empty",
+   "expr": "[].exists(e, e == 2)",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "false"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "exists",
+   "name": "map_key",
+   "expr": "{'key1':1, 'key2':2}.exists(k, k == 'key2')",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "exists",
+   "name": "not_map_key",
+   "expr": "!{'key1':1, 'key2':2}.exists(k, k == 'key3')",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "exists",
+   "name": "map_key_type_shortcircuit",
+   "expr": "{'key':1, 1:21}.exists(k, k != 2)",
+   "fields": {
+    "description": [
+     "Exists filter is true for the second key"
+    ],
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "exists",
+   "name": "map_key_type_exhaustive",
+   "expr": "!{'key':1, 1:42}.exists(k, k == 2)",
+   "fields": {
+    "description": [
+     "Exists filter is never true, but heterogeneous equality ensures the result is false."
+    ],
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "all",
+   "name": "list_elem_all_true",
+   "expr": "[1, 2, 3].all(e, e > 0)",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "all",
+   "name": "list_elem_some_true",
+   "expr": "[1, 2, 3].all(e, e == 2)",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "false"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "all",
+   "name": "list_elem_none_true",
+   "expr": "[1, 2, 3].all(e, e == 17)",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "false"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "all",
+   "name": "list_elem_type_shortcircuit",
+   "expr": "[1, 'foo', 3].all(e, e == 1)",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "false"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "all",
+   "name": "list_elem_type_exhaustive",
+   "expr": "[1, 'foo', 3].all(e, e % 2 == 1)",
+   "fields": {
+    "eval_error": [
+     {
+      "errors": [
+       {
+        "message": [
+         "no_such_overload"
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "all",
+   "name": "list_elem_error_shortcircuit",
+   "expr": "[1, 2, 3].all(e, 6 / (2 - e) == 6)",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "false"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "all",
+   "name": "list_elem_error_exhaustive",
+   "expr": "[1, 2, 3].all(e, e / 0 != 17)",
+   "fields": {
+    "eval_error": [
+     {
+      "errors": [
+       {
+        "message": [
+         "divide by zero"
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "all",
+   "name": "list_empty",
+   "expr": "[].all(e, e > 0)",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "all",
+   "name": "map_key",
+   "expr": "{'key1':1, 'key2':2}.all(k, k == 'key2')",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "false"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "exists_one",
+   "name": "list_empty",
+   "expr": "[].exists_one(a, a == 7)",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "false"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "exists_one",
+   "name": "list_one_true",
+   "expr": "[7].exists_one(a, a == 7)",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "exists_one",
+   "name": "list_one_false",
+   "expr": "[8].exists_one(a, a == 7)",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "false"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "exists_one",
+   "name": "list_none",
+   "expr": "[1, 2, 3].exists_one(x, x > 20)",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "false"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "exists_one",
+   "name": "list_one",
+   "expr": "[6, 7, 8].exists_one(foo, foo % 5 == 2)",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "exists_one",
+   "name": "list_many",
+   "expr": "[0, 1, 2, 3, 4].exists_one(n, n % 2 == 1)",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "false"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "exists_one",
+   "name": "list_all",
+   "expr": "['foal', 'foo', 'four'].exists_one(n, n.startsWith('fo'))",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "false"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "exists_one",
+   "name": "list_no_shortcircuit",
+   "expr": "[3, 2, 1, 0].exists_one(n, 12 / n > 1)",
+   "fields": {
+    "description": [
+     "Errors invalidate everything, even if already false."
+    ],
+    "eval_error": [
+     {
+      "errors": [
+       {
+        "message": [
+         "divide by zero"
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "exists_one",
+   "name": "map_one",
+   "expr": "{6: 'six', 7: 'seven', 8: 'eight'}.exists_one(foo, foo % 5 == 2)",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "map",
+   "name": "list_empty",
+   "expr": "[].map(n, n / 2)",
+   "fields": {
+    "value": [
+     {
+      "list_value": [
+       {}
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "map",
+   "name": "list_one",
+   "expr": "[3].map(n, n * n)",
+   "fields": {
+    "value": [
+     {
+      "list_value": [
+       {
+        "values": [
+         {
+          "int64_value": [
+           "9"
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "map",
+   "name": "list_many",
+   "expr": "[2, 4, 6].map(n, n / 2)",
+   "fields": {
+    "value": [
+     {
+      "list_value": [
+       {
+        "values": [
+         {
+          "int64_value": [
+           "1"
+          ]
+         },
+         {
+          "int64_value": [
+           "2"
+          ]
+         },
+         {
+          "int64_value": [
+           "3"
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "map",
+   "name": "list_error",
+   "expr": "[2, 1, 0].map(n, 4 / n)",
+   "fields": {
+    "eval_error": [
+     {
+      "errors": [
+       {
+        "message": [
+         "divide by zero"
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "map",
+   "name": "map_extract_keys",
+   "expr": "{'John': 'smart'}.map(key, key) == ['John']",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "filter",
+   "name": "list_empty",
+   "expr": "[].filter(n, n % 2 == 0)",
+   "fields": {
+    "value": [
+     {
+      "list_value": [
+       {}
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "filter",
+   "name": "list_one_true",
+   "expr": "[2].filter(n, n == 2)",
+   "fields": {
+    "value": [
+     {
+      "list_value": [
+       {
+        "values": [
+         {
+          "int64_value": [
+           "2"
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "filter",
+   "name": "list_one_false",
+   "expr": "[1].filter(n, n > 3)",
+   "fields": {
+    "value": [
+     {
+      "list_value": [
+       {}
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "filter",
+   "name": "list_none",
+   "expr": "[1, 2, 3].filter(e, e > 3)",
+   "fields": {
+    "value": [
+     {
+      "list_value": [
+       {}
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "filter",
+   "name": "list_some",
+   "expr": "[0, 1, 2, 3, 4].filter(x, x % 2 == 1)",
+   "fields": {
+    "value": [
+     {
+      "list_value": [
+       {
+        "values": [
+         {
+          "int64_value": [
+           "1"
+          ]
+         },
+         {
+          "int64_value": [
+           "3"
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "filter",
+   "name": "list_all",
+   "expr": "[1, 2, 3].filter(n, n > 0)",
+   "fields": {
+    "value": [
+     {
+      "list_value": [
+       {
+        "values": [
+         {
+          "int64_value": [
+           "1"
+          ]
+         },
+         {
+          "int64_value": [
+           "2"
+          ]
+         },
+         {
+          "int64_value": [
+           "3"
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "filter",
+   "name": "list_no_shortcircuit",
+   "expr": "[3, 2, 1, 0].filter(n, 12 / n > 4)",
+   "fields": {
+    "eval_error": [
+     {
+      "errors": [
+       {
+        "message": [
+         "divide by zero"
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "filter",
+   "name": "map_filter_keys",
+   "expr": "{'John': 'smart', 'Paul': 'cute', 'George': 'quiet', 'Ringo': 'funny'}.filter(key, key == 'Ringo') == ['Ringo']",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "nested",
+   "name": "filter_all",
+   "expr": "['signer'].filter(signer, ['artifact'].all(artifact, true))",
+   "fields": {
+    "value": [
+     {
+      "list_value": [
+       {
+        "values": [
+         {
+          "string_value": [
+           "signer"
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "nested",
+   "name": "all_all",
+   "expr": "['signer'].all(signer, ['artifact'].all(artifact, true))",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  }
+ ]
+}

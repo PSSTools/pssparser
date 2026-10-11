@@ -16,7 +16,8 @@ def cmd_list_checkers(
     checkers = manager.list_checkers()
     out.write(f"Registered checkers ({len(checkers)}):\n")
     for info in checkers:
-        builtin_tag = " [built-in]" if info["is_builtin"] else ""
+        builtin_tag = (" [rule files]" if info.get("is_declarative")
+                       else " [built-in]" if info["is_builtin"] else "")
         ids_str = " ".join(info["marker_ids"]) if info["marker_ids"] else "(none)"
         out.write(f"  {info['name']:<20} {info['description']}{builtin_tag}\n")
         out.write(f"    markers: {ids_str}\n")
@@ -211,6 +212,8 @@ def cmd_describe(
         facts.append("formerly: " + ", ".join(info["aliases"]))
     if facts:
         out.write("  ".join(facts) + "\n")
+    if info.get("source"):
+        out.write(f"defined in {info['source']}\n")
     if info.get("detail"):
         out.write(f"\n{info['detail']}\n")
     return 0
@@ -261,6 +264,13 @@ def cmd_explain(
         rows.append(("family", md.family))
     if md.level:
         rows.append(("analysis level", md.level))
+    if md.scope:
+        # Declarative rules: computed by the loader from what they call.
+        rows.append(("scope", md.scope))
+    if md.match:
+        rows.append(("matches", ", ".join(md.match)))
+    if md.source:
+        rows.append(("defined in", md.source))
     rows.append(("default severity", md.severity))
     if md.since:
         rows.append(("since", md.since))

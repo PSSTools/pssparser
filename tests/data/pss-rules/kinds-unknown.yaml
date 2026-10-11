@@ -1,0 +1,38 @@
+pss-rules:
+  defaults:
+    tier: style
+  rules:
+    - id: ACME001
+      name: unknown-match-kind
+      summary: s
+      message: m
+      match: { kind: [ExprBin, ExprBinn] }
+    - id: ACME002
+      name: unknown-inside-kind
+      summary: s
+      message: m
+      match:
+        kind: ExprBin
+        inside: { kind: Actoin, stop: Componentt }
+    - id: ACME003
+      name: no-inside-kind
+      summary: s
+      message: m
+      match: { kind: ExprBin, not_inside: { stop: Component } }
+    - id: ACME004
+      name: empty-kind-list
+      summary: s
+      message: m
+      match: { kind: [] }
+    - id: ACME005
+      name: two-kinds
+      summary: The node type is their nearest common base
+      message: m
+      match: { kind: [ExprBin, ExprUnary], not_inside: { kind: Struct } }
+
+# expect: PSSP213 error @ 9:32 unknown node kind 'ExprBinn' in 'match.kind'; did you mean 'ExprBin'?
+# expect: PSSP213 error @ 16:25 unknown node kind 'Actoin' in 'inside.kind'; did you mean 'Action'?
+# expect: PSSP213 error @ 16:39 unknown node kind 'Componentt' in 'inside.stop'; did you mean 'Component'?
+# expect: PSSP212 error @ 21:43 'not_inside' has no 'kind'
+# expect: PSSP212 error @ 26:22 'match.kind' must be a node kind or a non-empty list of them, not an empty list
+# loads: ACME005

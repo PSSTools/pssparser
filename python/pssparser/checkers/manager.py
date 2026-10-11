@@ -546,11 +546,11 @@ class CheckerManager:
     def _check_namespaces(self, mdefs, owner: str, *, bundled: bool) -> bool:
         """Refuse reserved namespaces; warn about IDs outside the grammar.
 
-        The ``PSS``/``LINT``/``PSSP``/``PSSX`` namespaces belong to pssparser
-        (``PSSP005``, an error: the checker is not registered).  An ID that
-        does not parse as ``[A-Z]{2,5}[0-9]{3}`` still loads, with
-        ``PSSP006``, so an extension written before the grammar existed keeps
-        working while it is renamed.
+        The ``PSS``/``LINT``/``PSSP``/``PSSX`` namespaces belong to pssparser,
+        with or without a team qualifier (``PSSP005``, an error: the checker
+        is not registered).  An ID that does not parse as ``ACME001`` or
+        ``ACME-NET001`` still loads, with ``PSSP006``, so an extension written
+        before the grammar existed keeps working while it is renamed.
         """
         for md in mdefs:
             ns = taxonomy.namespace_of(md.id)
@@ -559,18 +559,20 @@ class CheckerManager:
                     "PSSP006",
                     "warning",
                     f"{owner} declares marker ID {md.id!r}, which is not a "
-                    f"namespace of 2-5 capital letters followed by 3 digits "
-                    f"(e.g. 'PRC001'); rename it",
+                    f"namespace of 2-5 capital letters, optionally followed by "
+                    f"'-' and a team of 2-5 more, then 3 digits (e.g. 'PRC001' "
+                    f"or 'ACME-NET001'); rename it",
                 )
                 continue
-            if ns in taxonomy.RESERVED_NAMESPACES and not bundled:
+            if taxonomy.is_reserved(ns) and not bundled:
                 self._issue(
                     "PSSP005",
                     "error",
                     f"{owner} declares marker ID {md.id!r} in the reserved "
                     f"namespace {ns!r}; {owner.split(' from ')[0]} was not "
                     f"registered. The {', '.join(taxonomy.RESERVED_NAMESPACES)} "
-                    f"namespaces belong to pssparser; choose one of your own",
+                    f"namespaces belong to pssparser, with or without a team "
+                    f"qualifier; choose one of your own",
                 )
                 return False
         return True
@@ -768,7 +770,7 @@ class CheckerManager:
             )
         for md in instance.marker_defs:
             ns = taxonomy.namespace_of(md.id)
-            if ns in taxonomy.RESERVED_NAMESPACES:
+            if taxonomy.is_reserved(ns):
                 raise ValueError(
                     f"Checker {instance.name!r} loaded from {spec!r} declares "
                     f"{md.id!r} in the reserved namespace {ns!r}; the "
@@ -796,6 +798,28 @@ class CheckerManager:
             raise
         for md in instance.marker_defs:
             self._marker_owner.setdefault(md.id, f"checker {instance.name!r}")
+
+    def add_rule_view(self, mdefs: List) -> None:
+        """Register the rules loaded from ``pss-rules`` files (lint-core-plan
+        C4.4), as one metadata-only checker named
+        :data:`pssparser.lint.ruleview.CHECKER_NAME`, so every registry
+        reader sees them.  Replaces an earlier view; with no rules, removes it.
+
+        *mdefs* must already exclude the rules that clash with a Python
+        checker (:func:`pssparser.lint.rulefiles.conflicts` refused them), so
+        no ID here is claimed twice.
+        """
+        from pssparser.lint import ruleview
+
+        old = self._registered.pop(ruleview.CHECKER_NAME, None)
+        if old is not None:
+            for md in old.marker_defs:
+                self._marker_owner.pop(md.id, None)
+        if not mdefs:
+            return
+        self._registered[ruleview.CHECKER_NAME] = ruleview.checker_class(mdefs)
+        for md in mdefs:
+            self._marker_owner.setdefault(md.id, f"rule file '{md.source.rsplit(':', 2)[0]}'")
 
     # ------------------------------------------------------------------
     # Active-checker selection
@@ -880,6 +904,7 @@ class CheckerManager:
                 "description": inst.description or "(no description)",
                 "marker_ids": [md.id for md in inst.marker_defs],
                 "is_builtin": getattr(inst, "is_builtin", False),
+                "is_declarative": getattr(inst, "is_declarative", False),
                 "extension": self._provenance.get(name),
             })
         return result
@@ -936,8 +961,25 @@ class CheckerManager:
                         "name": md.name,
                         "tier": md.tier,
                         "family": md.family,
+                        "source": md.source,
                     }
         return None
+
+    def owner_of(self, marker_id: str) -> str:
+        """Who declares *marker_id*: ``"checker 'x' from extension 'y'"``,
+        or ``"checker 'x'"`` for one not from an extension; ``""`` if no
+        registered checker does."""
+        for name, cls in self._registered.items():
+            if getattr(cls, "is_declarative", False):
+                for md in cls().marker_defs:
+                    if md.id == marker_id:
+                        return f"rule file '{md.source.rsplit(':', 2)[0]}'"
+                continue
+            if any(md.id == marker_id for md in cls().marker_defs):
+                ext = self.extension_of(name)
+                return (f"checker '{name}' from extension '{ext}'" if ext
+                        else f"checker '{name}'")
+        return ""
 
     def all_marker_defs(self) -> List:
         """Every ``MarkerDef`` of every registered checker, core first."""

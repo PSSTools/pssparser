@@ -119,6 +119,7 @@ _LINT_SCHEMA: Dict[str, Tuple[tuple, str]] = {
     "rules-version": ((str,), "'YYYY.N': rules newer than this stay out of profiles"),
     "rule": ((dict,), "table of per-rule option tables"),
     "baseline": ((str,), "path to a baseline file, relative to this file"),
+    "rules": ((list,), "array of pss-rules files and directories, relative to this file"),
 }
 
 _OUTPUT_SCHEMA: Dict[str, Tuple[tuple, str]] = {
@@ -203,6 +204,11 @@ class ResolvedConfig:
     #: ``lint.baseline`` / ``--baseline``: the baseline file, resolved
     #: against the config file's directory; ``None`` for no baseline.
     baseline: Optional[str] = None
+
+    #: ``lint.rules`` then ``--rules``: rule files and directories to load,
+    #: in order, as ``(path, origin)``; a config entry is resolved against
+    #: its file's directory, and *origin* names the file.
+    lint_rules: List[Tuple[str, str]] = field(default_factory=list)
 
     #: Resolved by :func:`validate_against_registry`: the enabled lint rule
     #: IDs, and every lint rule ID (so a disabled one can be recognised).
@@ -430,7 +436,7 @@ def _validate_lint(table: Any, source: str) -> None:
     from pssparser.checkers import taxonomy
 
     _validate_flat("lint", table, _LINT_SCHEMA, source)
-    for key in ("select", "ignore"):
+    for key in ("select", "ignore", "rules"):
         if key in table:
             _require_str_list(table[key], f"lint.{key}", source)
     profile = table.get("profile")
@@ -641,6 +647,16 @@ def _merge(cfg: ResolvedConfig, table: Dict[str, Any], source: str,
             path = base / path
         cfg.baseline = _display_path(path)
         cfg.provenance["lint.baseline"] = source
+    if "rules" in lint:
+        # Each entry relative to the file that names it, as the baseline is;
+        # the array replaces a lower layer's, like every other array.
+        cfg.lint_rules = []
+        for entry in lint["rules"]:
+            path = Path(entry).expanduser()
+            if base is not None and not path.is_absolute():
+                path = base / path
+            cfg.lint_rules.append((str(path), f"{source}: lint.rules"))
+        cfg.provenance["lint.rules"] = source
     for name, options in (lint.get("rule") or {}).items():
         bucket = cfg.lint_rule_options.setdefault(name, {})
         for opt, value in options.items():
@@ -720,6 +736,14 @@ def _apply_cli_overrides(cfg: ResolvedConfig, args) -> None:
         profile = "none"
     take("lint.profile", profile, "lint_profile")
     take("lint.baseline", getattr(args, "baseline", None), "baseline")
+    rule_paths = getattr(args, "rule_paths", None)
+    if rule_paths:
+        # Added after the configured entries, not instead of them: load
+        # order is built-in, config, then --rules (pss-rules-format §6.2).
+        cfg.lint_rules = cfg.lint_rules + [(p, "--rules") for p in rule_paths]
+        prior = cfg.provenance.get("lint.rules")
+        cfg.provenance["lint.rules"] = (
+            f"{prior} + command line" if prior else "command line")
     if getattr(args, "no_baseline", False):
         if "lint.baseline" in cfg.provenance:
             overridden.append("lint.baseline")
@@ -1087,6 +1111,8 @@ def format_show_config(cfg: ResolvedConfig) -> str:
     row("lint.ignore", ", ".join(cfg.lint_ignore) or "(none)")
     row("lint.rules-version", cfg.rules_version or "(unpinned)")
     row("lint.baseline", cfg.baseline or "(none)")
+    row("lint.rules", ", ".join(_display_path(Path(p)) for p, _ in cfg.lint_rules)
+        or "(none)")
     row("output.show-hints", "true" if cfg.show_hints else "false")
     row("waivers.source", "true" if cfg.source_waivers else "false")
     if cfg.lint_enabled is not None:

@@ -1,0 +1,517 @@
+# CEL conformance tests the lint engine does not run, and why
+# (tests/python/lintcore/test_cel_conformance.py). Generated: run
+#   CEL_CONFORMANCE_BLESS=1 pytest tests/python/lintcore/test_cel_conformance.py
+# after a change that is meant to run more or fewer tests.
+#
+# count <file> <tests> unchecked: <passed> <excluded> checked: <passed> <excluded>
+count basic 43 unchecked: 34 9 checked: 32 2
+count comparisons 406 unchecked: 209 197 checked: 141 68
+count conversions 109 unchecked: 74 35 checked: 73 1
+count fp_math 30 unchecked: 30 0 checked: 30 0
+count integer_math 64 unchecked: 42 22 checked: 42 0
+count lists 39 unchecked: 32 7 checked: 25 7
+count logic 30 unchecked: 30 0 checked: 25 5
+count macros 44 unchecked: 44 0 checked: 39 5
+count optionals 70 unchecked: 55 15 checked: 46 9
+count parse 219 unchecked: 128 91 checked: 111 17
+count string 51 unchecked: 45 6 checked: 45 0
+
+# unchecked: <file>/<section>/<test>  <reason>
+unchecked basic/self_eval_zeroish/self_eval_uint_zero  unsigned integer literals are not supported in pss-rules; use an int
+unchecked basic/self_eval_zeroish/self_eval_uint_alias_zero  unsigned integer literals are not supported in pss-rules; use an int
+unchecked basic/self_eval_zeroish/self_eval_bytes_empty  bytes literals are not supported in pss-rules
+unchecked basic/self_eval_nonzeroish/self_eval_uint_nonzero  unsigned integer literals are not supported in pss-rules; use an int
+unchecked basic/self_eval_nonzeroish/self_eval_uint_alias_nonzero  unsigned integer literals are not supported in pss-rules; use an int
+unchecked basic/self_eval_nonzeroish/self_eval_bytes_escape  bytes literals are not supported in pss-rules
+unchecked basic/self_eval_nonzeroish/self_eval_bytes_invalid_utf8  bytes literals are not supported in pss-rules
+unchecked basic/self_eval_nonzeroish/self_eval_uint_hex  unsigned integer literals are not supported in pss-rules; use an int
+unchecked basic/self_eval_nonzeroish/self_eval_uint_alias_hex  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/eq_literal/eq_int_uint  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/eq_literal/not_eq_int_uint  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/eq_literal/eq_uint  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/eq_literal/not_eq_uint  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/eq_literal/eq_uint_int  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/eq_literal/not_eq_uint_int  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/eq_literal/eq_uint_double  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/eq_literal/not_eq_uint_double  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/eq_literal/not_eq_uint_double_nan  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/eq_literal/eq_double_uint  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/eq_literal/not_eq_double_uint  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/eq_literal/eq_bytes  bytes literals are not supported in pss-rules
+unchecked comparisons/eq_literal/not_eq_bytes  bytes literals are not supported in pss-rules
+unchecked comparisons/eq_literal/eq_list_mixed_type_numbers  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/eq_literal/not_eq_list_mixed_type_numbers  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/eq_literal/eq_map_mixed_type_numbers  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/eq_literal/eq_dyn_json_null  message construction ('google.protobuf.Value{...}') is not supported in pss-rules
+unchecked comparisons/eq_literal/not_eq_dyn_bytes_null  bytes literals are not supported in pss-rules
+unchecked comparisons/eq_literal/not_eq_dyn_duration_null  undeclared reference to function 'duration'
+unchecked comparisons/eq_literal/not_eq_dyn_proto2_msg_null  message construction ('TestAllTypes{...}') is not supported in pss-rules
+unchecked comparisons/eq_literal/not_eq_dyn_proto3_msg_null  message construction ('TestAllTypes{...}') is not supported in pss-rules
+unchecked comparisons/eq_literal/not_eq_dyn_timestamp_null  undeclared reference to function 'timestamp'
+unchecked comparisons/eq_literal/eq_dyn_int_uint  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/eq_literal/eq_dyn_uint_int  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/eq_literal/eq_dyn_uint_double  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/eq_literal/eq_dyn_double_uint  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/eq_literal/not_eq_dyn_int_uint  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/eq_literal/not_eq_dyn_uint_int  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/eq_literal/not_eq_dyn_uint_double  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/eq_literal/not_eq_dyn_double_uint  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/eq_wrapper/eq_bool  message construction ('google.protobuf.BoolValue{...}') is not supported in pss-rules
+unchecked comparisons/eq_wrapper/eq_bool_empty  message construction ('google.protobuf.BoolValue{...}') is not supported in pss-rules
+unchecked comparisons/eq_wrapper/eq_bool_not_null  message construction ('google.protobuf.BoolValue{...}') is not supported in pss-rules
+unchecked comparisons/eq_wrapper/eq_bool_proto2_null  message construction ('TestAllTypes{...}') is not supported in pss-rules
+unchecked comparisons/eq_wrapper/eq_bool_proto3_null  message construction ('TestAllTypes{...}') is not supported in pss-rules
+unchecked comparisons/eq_wrapper/eq_bytes  message construction ('google.protobuf.BytesValue{...}') is not supported in pss-rules
+unchecked comparisons/eq_wrapper/eq_bytes_empty  message construction ('google.protobuf.BytesValue{...}') is not supported in pss-rules
+unchecked comparisons/eq_wrapper/eq_bytes_not_null  message construction ('google.protobuf.BytesValue{...}') is not supported in pss-rules
+unchecked comparisons/eq_wrapper/eq_bytes_proto2_null  message construction ('TestAllTypes{...}') is not supported in pss-rules
+unchecked comparisons/eq_wrapper/eq_bytes_proto3_null  message construction ('TestAllTypes{...}') is not supported in pss-rules
+unchecked comparisons/eq_wrapper/eq_double  message construction ('google.protobuf.DoubleValue{...}') is not supported in pss-rules
+unchecked comparisons/eq_wrapper/eq_double_empty  message construction ('google.protobuf.DoubleValue{...}') is not supported in pss-rules
+unchecked comparisons/eq_wrapper/eq_double_not_null  message construction ('google.protobuf.DoubleValue{...}') is not supported in pss-rules
+unchecked comparisons/eq_wrapper/eq_double_proto2_null  message construction ('TestAllTypes{...}') is not supported in pss-rules
+unchecked comparisons/eq_wrapper/eq_double_proto3_null  message construction ('TestAllTypes{...}') is not supported in pss-rules
+unchecked comparisons/eq_wrapper/eq_float  message construction ('google.protobuf.FloatValue{...}') is not supported in pss-rules
+unchecked comparisons/eq_wrapper/eq_float_empty  message construction ('google.protobuf.FloatValue{...}') is not supported in pss-rules
+unchecked comparisons/eq_wrapper/eq_float_not_null  message construction ('google.protobuf.FloatValue{...}') is not supported in pss-rules
+unchecked comparisons/eq_wrapper/eq_float_proto2_null  message construction ('TestAllTypes{...}') is not supported in pss-rules
+unchecked comparisons/eq_wrapper/eq_float_proto3_null  message construction ('TestAllTypes{...}') is not supported in pss-rules
+unchecked comparisons/eq_wrapper/eq_int32  message construction ('google.protobuf.Int32Value{...}') is not supported in pss-rules
+unchecked comparisons/eq_wrapper/eq_int32_empty  message construction ('google.protobuf.Int32Value{...}') is not supported in pss-rules
+unchecked comparisons/eq_wrapper/eq_int32_not_null  message construction ('google.protobuf.Int32Value{...}') is not supported in pss-rules
+unchecked comparisons/eq_wrapper/eq_int32_proto2_null  message construction ('TestAllTypes{...}') is not supported in pss-rules
+unchecked comparisons/eq_wrapper/eq_int32_proto3_null  message construction ('TestAllTypes{...}') is not supported in pss-rules
+unchecked comparisons/eq_wrapper/eq_int64  message construction ('google.protobuf.Int64Value{...}') is not supported in pss-rules
+unchecked comparisons/eq_wrapper/eq_int64_empty  message construction ('google.protobuf.Int64Value{...}') is not supported in pss-rules
+unchecked comparisons/eq_wrapper/eq_int64_not_null  message construction ('google.protobuf.Int64Value{...}') is not supported in pss-rules
+unchecked comparisons/eq_wrapper/eq_int64_proto2_null  message construction ('TestAllTypes{...}') is not supported in pss-rules
+unchecked comparisons/eq_wrapper/eq_int64_proto3_null  message construction ('TestAllTypes{...}') is not supported in pss-rules
+unchecked comparisons/eq_wrapper/eq_string  message construction ('google.protobuf.StringValue{...}') is not supported in pss-rules
+unchecked comparisons/eq_wrapper/eq_string_empty  message construction ('google.protobuf.StringValue{...}') is not supported in pss-rules
+unchecked comparisons/eq_wrapper/eq_string_not_null  message construction ('google.protobuf.StringValue{...}') is not supported in pss-rules
+unchecked comparisons/eq_wrapper/eq_string_proto2_null  message construction ('TestAllTypes{...}') is not supported in pss-rules
+unchecked comparisons/eq_wrapper/eq_string_proto3_null  message construction ('TestAllTypes{...}') is not supported in pss-rules
+unchecked comparisons/eq_wrapper/eq_uint32  message construction ('google.protobuf.UInt32Value{...}') is not supported in pss-rules
+unchecked comparisons/eq_wrapper/eq_uint32_empty  message construction ('google.protobuf.UInt32Value{...}') is not supported in pss-rules
+unchecked comparisons/eq_wrapper/eq_uint32_not_null  message construction ('google.protobuf.UInt32Value{...}') is not supported in pss-rules
+unchecked comparisons/eq_wrapper/eq_uint32_proto2_null  message construction ('TestAllTypes{...}') is not supported in pss-rules
+unchecked comparisons/eq_wrapper/eq_uint32_proto3_null  message construction ('TestAllTypes{...}') is not supported in pss-rules
+unchecked comparisons/eq_wrapper/eq_uint64  message construction ('google.protobuf.UInt64Value{...}') is not supported in pss-rules
+unchecked comparisons/eq_wrapper/eq_uint64_empty  message construction ('google.protobuf.UInt64Value{...}') is not supported in pss-rules
+unchecked comparisons/eq_wrapper/eq_uint64_not_null  message construction ('google.protobuf.UInt64Value{...}') is not supported in pss-rules
+unchecked comparisons/eq_wrapper/eq_uint64_proto2_null  message construction ('TestAllTypes{...}') is not supported in pss-rules
+unchecked comparisons/eq_wrapper/eq_uint64_proto3_null  message construction ('TestAllTypes{...}') is not supported in pss-rules
+unchecked comparisons/eq_wrapper/eq_proto2  message construction ('TestAllTypes{...}') is not supported in pss-rules
+unchecked comparisons/eq_wrapper/eq_proto3  message construction ('TestAllTypes{...}') is not supported in pss-rules
+unchecked comparisons/eq_wrapper/eq_proto2_missing_fields_neq  message construction ('TestAllTypes{...}') is not supported in pss-rules
+unchecked comparisons/eq_wrapper/eq_proto3_missing_fields_neq  message construction ('TestAllTypes{...}') is not supported in pss-rules
+unchecked comparisons/eq_wrapper/eq_proto_nan_equal  message construction ('TestAllTypes{...}') is not supported in pss-rules
+unchecked comparisons/eq_wrapper/eq_proto_different_types  message construction ('TestAllTypes{...}') is not supported in pss-rules
+unchecked comparisons/eq_wrapper/eq_proto2_any_unpack_equal  message construction ('TestAllTypes{...}') is not supported in pss-rules
+unchecked comparisons/eq_wrapper/eq_proto2_any_unpack_not_equal  message construction ('TestAllTypes{...}') is not supported in pss-rules
+unchecked comparisons/eq_wrapper/eq_proto2_any_unpack_bytewise_fallback_not_equal  message construction ('TestAllTypes{...}') is not supported in pss-rules
+unchecked comparisons/eq_wrapper/eq_proto2_any_unpack_bytewise_fallback_equal  message construction ('TestAllTypes{...}') is not supported in pss-rules
+unchecked comparisons/eq_wrapper/eq_proto3_any_unpack_equal  message construction ('TestAllTypes{...}') is not supported in pss-rules
+unchecked comparisons/eq_wrapper/eq_proto3_any_unpack_not_equal  message construction ('TestAllTypes{...}') is not supported in pss-rules
+unchecked comparisons/eq_wrapper/eq_proto3_any_unpack_bytewise_fallback_not_equal  message construction ('TestAllTypes{...}') is not supported in pss-rules
+unchecked comparisons/eq_wrapper/eq_proto3_any_unpack_bytewise_fallback_equal  message construction ('TestAllTypes{...}') is not supported in pss-rules
+unchecked comparisons/ne_literal/ne_int_uint  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/ne_literal/not_ne_int_uint  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/ne_literal/ne_uint  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/ne_literal/not_ne_uint  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/ne_literal/ne_uint_double  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/ne_literal/not_ne_uint_double  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/ne_literal/not_ne_uint_double_nan  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/ne_literal/ne_double_uint  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/ne_literal/not_ne_double_uint  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/ne_literal/ne_bytes  bytes literals are not supported in pss-rules
+unchecked comparisons/ne_literal/not_ne_bytes  bytes literals are not supported in pss-rules
+unchecked comparisons/ne_literal/ne_mixed_types  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/ne_literal/ne_proto2  message construction ('TestAllTypes{...}') is not supported in pss-rules
+unchecked comparisons/ne_literal/ne_proto3  message construction ('TestAllTypes{...}') is not supported in pss-rules
+unchecked comparisons/ne_literal/ne_proto2_missing_fields_neq  message construction ('TestAllTypes{...}') is not supported in pss-rules
+unchecked comparisons/ne_literal/ne_proto3_missing_fields_neq  message construction ('TestAllTypes{...}') is not supported in pss-rules
+unchecked comparisons/ne_literal/ne_proto_nan_not_equal  message construction ('TestAllTypes{...}') is not supported in pss-rules
+unchecked comparisons/ne_literal/ne_proto_different_types  message construction ('TestAllTypes{...}') is not supported in pss-rules
+unchecked comparisons/ne_literal/ne_proto2_any_unpack  message construction ('TestAllTypes{...}') is not supported in pss-rules
+unchecked comparisons/ne_literal/ne_proto2_any_unpack_bytewise_fallback  message construction ('TestAllTypes{...}') is not supported in pss-rules
+unchecked comparisons/ne_literal/ne_proto3_any_unpack  message construction ('TestAllTypes{...}') is not supported in pss-rules
+unchecked comparisons/ne_literal/ne_proto3_any_unpack_bytewise_fallback  message construction ('TestAllTypes{...}') is not supported in pss-rules
+unchecked comparisons/lt_literal/lt_uint  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/lt_literal/not_lt_uint  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/lt_literal/lt_bytes  bytes literals are not supported in pss-rules
+unchecked comparisons/lt_literal/not_lt_bytes_same  bytes literals are not supported in pss-rules
+unchecked comparisons/lt_literal/not_lt_bytes_width  bytes literals are not supported in pss-rules
+unchecked comparisons/lt_literal/lt_dyn_int_uint  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/lt_literal/lt_dyn_uint_int  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/lt_literal/lt_dyn_uint_double  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/lt_literal/lt_dyn_double_uint  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/lt_literal/not_lt_dyn_int_uint  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/lt_literal/not_lt_dyn_uint_int  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/lt_literal/not_lt_dyn_uint_double  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/lt_literal/not_lt_dyn_double_uint  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/lt_literal/lt_dyn_int_big_uint  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/lt_literal/lt_dyn_small_int_uint  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/lt_literal/not_lt_dyn_uint_small_int  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/lt_literal/not_lt_dyn_big_uint_int  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/lt_literal/not_lt_dyn_uint_small_double  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/lt_literal/lt_dyn_uint_big_double  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/lt_literal/not_lt_dyn_big_double_uint  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/gt_literal/gt_uint  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/gt_literal/not_gt_uint  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/gt_literal/gt_bytes_one  bytes literals are not supported in pss-rules
+unchecked comparisons/gt_literal/gt_bytes_one_to_empty  bytes literals are not supported in pss-rules
+unchecked comparisons/gt_literal/not_gt_bytes_sorting  bytes literals are not supported in pss-rules
+unchecked comparisons/gt_literal/gt_dyn_int_uint  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/gt_literal/gt_dyn_uint_int  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/gt_literal/gt_dyn_uint_double  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/gt_literal/gt_dyn_double_uint  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/gt_literal/not_gt_dyn_int_uint  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/gt_literal/not_gt_dyn_uint_int  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/gt_literal/not_gt_dyn_uint_double  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/gt_literal/not_gt_dyn_double_uint  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/gt_literal/not_gt_dyn_int_big_uint  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/gt_literal/not_gt_dyn_small_int_uint  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/gt_literal/gt_dyn_uint_small_int  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/gt_literal/gt_dyn_big_uint_int  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/gt_literal/gt_dyn_uint_small_double  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/gt_literal/not_gt_dyn_uint_big_double  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/gt_literal/gt_dyn_big_double_uint  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/lte_literal/lte_uint_lt  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/lte_literal/lte_uint_eq  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/lte_literal/not_lte_uint_gt  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/lte_literal/lte_bytes_empty  bytes literals are not supported in pss-rules
+unchecked comparisons/lte_literal/not_lte_bytes_length  bytes literals are not supported in pss-rules
+unchecked comparisons/lte_literal/lte_dyn_int_uint  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/lte_literal/lte_dyn_uint_int  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/lte_literal/lte_dyn_uint_double  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/lte_literal/lte_dyn_double_uint  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/lte_literal/not_lte_dyn_int_uint  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/lte_literal/not_lte_dyn_uint_int  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/lte_literal/not_lte_dyn_uint_double  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/lte_literal/not_lte_dyn_double_uint  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/lte_literal/lte_dyn_int_big_uint  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/lte_literal/lte_dyn_small_int_uint  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/lte_literal/not_lte_dyn_uint_small_int  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/lte_literal/not_lte_dyn_big_uint_int  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/lte_literal/not_lte_dyn_uint_small_double  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/lte_literal/lte_dyn_uint_big_double  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/lte_literal/not_lte_dyn_big_double_uint  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/gte_literal/gte_uint_gt  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/gte_literal/gte_uint_eq  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/gte_literal/not_gte_uint_lt  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/gte_literal/gte_bytes_to_empty  bytes literals are not supported in pss-rules
+unchecked comparisons/gte_literal/not_gte_bytes_empty_to_nonempty  bytes literals are not supported in pss-rules
+unchecked comparisons/gte_literal/gte_bytes_samelength  bytes literals are not supported in pss-rules
+unchecked comparisons/gte_literal/gte_dyn_int_uint  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/gte_literal/gte_dyn_uint_int  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/gte_literal/gte_dyn_uint_double  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/gte_literal/gte_dyn_double_uint  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/gte_literal/not_gte_dyn_int_uint  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/gte_literal/not_gte_dyn_uint_int  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/gte_literal/not_gte_dyn_uint_double  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/gte_literal/not_gte_dyn_double_uint  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/gte_literal/not_gte_dyn_int_big_uint  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/gte_literal/not_gte_dyn_small_int_uint  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/gte_literal/gte_dyn_uint_small_int  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/gte_literal/gte_dyn_big_uint_int  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/gte_literal/gte_dyn_uint_small_double  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/gte_literal/not_gte_dyn_uint_big_double  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/gte_literal/gte_dyn_big_double_uint  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/in_list_literal/elem_in_mixed_type_list_cross_type  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/in_map_literal/key_in_mixed_key_type_map  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/in_map_literal/key_in_mixed_key_type_map_cross_type  unsigned integer literals are not supported in pss-rules; use an int
+unchecked comparisons/bound/bytes_gt_left_false  bytes literals are not supported in pss-rules
+unchecked comparisons/bound/uint_eq_right_false  unsigned integer literals are not supported in pss-rules; use an int
+unchecked conversions/bytes/string_empty  expects a bytes
+unchecked conversions/bytes/string  expects a bytes
+unchecked conversions/bytes/string_unicode  expects a bytes
+unchecked conversions/bytes/string_unicode_vs_literal  bytes literals are not supported in pss-rules
+unchecked conversions/double/uint_zero  unsigned integer literals are not supported in pss-rules; use an int
+unchecked conversions/double/uint_pos  unsigned integer literals are not supported in pss-rules; use an int
+unchecked conversions/double/uint_max_exact  unsigned integer literals are not supported in pss-rules; use an int
+unchecked conversions/double/uint_range  unsigned integer literals are not supported in pss-rules; use an int
+unchecked conversions/int/uint  unsigned integer literals are not supported in pss-rules; use an int
+unchecked conversions/int/uint_zero  unsigned integer literals are not supported in pss-rules; use an int
+unchecked conversions/int/uint_max_exact  unsigned integer literals are not supported in pss-rules; use an int
+unchecked conversions/int/uint_range  unsigned integer literals are not supported in pss-rules; use an int
+unchecked conversions/int/timestamp  undeclared reference to function 'timestamp'
+unchecked conversions/string/uint  unsigned integer literals are not supported in pss-rules; use an int
+unchecked conversions/string/bytes  bytes literals are not supported in pss-rules
+unchecked conversions/string/bytes_unicode  bytes literals are not supported in pss-rules
+unchecked conversions/string/bytes_invalid  bytes literals are not supported in pss-rules
+unchecked conversions/type/uint  unsigned integer literals are not supported in pss-rules; use an int
+unchecked conversions/type/uint_denotation  undeclared reference to 'uint'
+unchecked conversions/type/bytes  bytes literals are not supported in pss-rules
+unchecked conversions/type/bytes_denotation  undeclared reference to 'bytes'
+unchecked conversions/type/eq_diff  unsigned integer literals are not supported in pss-rules; use an int
+unchecked conversions/type/meta  unsigned integer literals are not supported in pss-rules; use an int
+unchecked conversions/uint/int  expects a uint64
+unchecked conversions/uint/int_max  expects a uint64
+unchecked conversions/uint/double  expects a uint64
+unchecked conversions/uint/double_truncate  expects a uint64
+unchecked conversions/uint/double_half  expects a uint64
+unchecked conversions/uint/double_big_exact  unsigned integer literals are not supported in pss-rules; use an int
+unchecked conversions/uint/double_big_precision  unsigned integer literals are not supported in pss-rules; use an int
+unchecked conversions/uint/string  expects a uint64
+unchecked conversions/identity/uint  unsigned integer literals are not supported in pss-rules; use an int
+unchecked conversions/identity/bytes  bytes literals are not supported in pss-rules
+unchecked conversions/identity/duration  undeclared reference to function 'duration'
+unchecked conversions/identity/timestamp  undeclared reference to function 'timestamp'
+unchecked integer_math/int64_math/unary_minus_no_overload  unsigned integer literals are not supported in pss-rules; use an int
+unchecked integer_math/int64_math/uint64_overflow_positive  unsigned integer literals are not supported in pss-rules; use an int
+unchecked integer_math/int64_math/uint64_overflow_negative  unsigned integer literals are not supported in pss-rules; use an int
+unchecked integer_math/int64_math/uint64_overflow_mul_positive  unsigned integer literals are not supported in pss-rules; use an int
+unchecked integer_math/uint64_math/add  unsigned integer literals are not supported in pss-rules; use an int
+unchecked integer_math/uint64_math/sub  unsigned integer literals are not supported in pss-rules; use an int
+unchecked integer_math/uint64_math/multiply  unsigned integer literals are not supported in pss-rules; use an int
+unchecked integer_math/uint64_math/divide  unsigned integer literals are not supported in pss-rules; use an int
+unchecked integer_math/uint64_math/mod  unsigned integer literals are not supported in pss-rules; use an int
+unchecked integer_math/uint64_math/negative_no_overload  unsigned integer literals are not supported in pss-rules; use an int
+unchecked integer_math/uint64_math/mod_zero  unsigned integer literals are not supported in pss-rules; use an int
+unchecked integer_math/uint64_math/divide_zero  unsigned integer literals are not supported in pss-rules; use an int
+unchecked integer_math/uint64_math/multiply_zero  unsigned integer literals are not supported in pss-rules; use an int
+unchecked integer_math/uint64_math/add_left_identity  unsigned integer literals are not supported in pss-rules; use an int
+unchecked integer_math/uint64_math/add_right_identity  unsigned integer literals are not supported in pss-rules; use an int
+unchecked integer_math/uint64_math/add_commutative  unsigned integer literals are not supported in pss-rules; use an int
+unchecked integer_math/uint64_math/add_associative  unsigned integer literals are not supported in pss-rules; use an int
+unchecked integer_math/uint64_math/mul_left_identity  unsigned integer literals are not supported in pss-rules; use an int
+unchecked integer_math/uint64_math/mul_right_identity  unsigned integer literals are not supported in pss-rules; use an int
+unchecked integer_math/uint64_math/mul_commutative  unsigned integer literals are not supported in pss-rules; use an int
+unchecked integer_math/uint64_math/mul_associative  unsigned integer literals are not supported in pss-rules; use an int
+unchecked integer_math/uint64_math/add_mul_distribute  unsigned integer literals are not supported in pss-rules; use an int
+unchecked lists/index/zero_based_uint  unsigned integer literals are not supported in pss-rules; use an int
+unchecked lists/in/singleton  unsigned integer literals are not supported in pss-rules; use an int
+unchecked lists/in/last  unsigned integer literals are not supported in pss-rules; use an int
+unchecked lists/in/uint_in_ints  unsigned integer literals are not supported in pss-rules; use an int
+unchecked lists/in/uint_in_doubles  unsigned integer literals are not supported in pss-rules; use an int
+unchecked lists/in/int_in_uints  unsigned integer literals are not supported in pss-rules; use an int
+unchecked lists/in/double_in_uints  unsigned integer literals are not supported in pss-rules; use an int
+unchecked optionals/optionals/has_optional_ofNonZeroValue_struct_optional_ofNonZeroValue_map_optindex_field  message construction ('TestAllTypes{...}') is not supported in pss-rules
+unchecked optionals/optionals/optional_ofNonZeroValue_struct_optional_ofNonZeroValue_map_optindex_field  message construction ('TestAllTypes{...}') is not supported in pss-rules
+unchecked optionals/optionals/struct_map_optindex_field  message construction ('TestAllTypes{...}') is not supported in pss-rules
+unchecked optionals/optionals/struct_optional_ofNonZeroValue_map_optindex_field  message construction ('TestAllTypes{...}') is not supported in pss-rules
+unchecked optionals/optionals/struct_map_optindex_field_nested  message construction ('TestAllTypes{...}') is not supported in pss-rules
+unchecked optionals/optionals/struct_list_optindex_field  message construction ('TestAllTypes{...}') is not supported in pss-rules
+unchecked optionals/optionals/empty_struct_optindex_hasValue  message construction ('TestAllTypes{...}') is not supported in pss-rules
+unchecked optionals/optionals/optional_empty_struct_optindex_hasValue  message construction ('TestAllTypes{...}') is not supported in pss-rules
+unchecked optionals/optionals/struct_optindex_value  message construction ('TestAllTypes{...}') is not supported in pss-rules
+unchecked optionals/optionals/optional_struct_optindex_value  message construction ('TestAllTypes{...}') is not supported in pss-rules
+unchecked optionals/optionals/optional_struct_optindex_index_value  message construction ('TestAllTypes{...}') is not supported in pss-rules
+unchecked optionals/optionals/map_key_mixed_type_optindex_value  unsigned integer literals are not supported in pss-rules; use an int
+unchecked optionals/optionals/map_key_mixed_numbers_double_key_optindex_value  unsigned integer literals are not supported in pss-rules; use an int
+unchecked optionals/optionals/map_key_mixed_numbers_uint_key_optindex_value  unsigned integer literals are not supported in pss-rules; use an int
+unchecked optionals/optionals/map_key_mixed_numbers_int_key_optindex_value  unsigned integer literals are not supported in pss-rules; use an int
+unchecked parse/nest/message_literal  message construction ('NestedTestAllTypes{...}') is not supported in pss-rules
+unchecked parse/nest/funcall  undeclared reference to function 'uint'
+unchecked parse/repeat/select  message construction ('NestedTestAllTypes{...}') is not supported in pss-rules
+unchecked parse/repeat/message_literal  message construction ('TestAllTypes{...}') is not supported in pss-rules
+unchecked parse/bytes_literals/single_quoted  bytes literals are not supported in pss-rules
+unchecked parse/bytes_literals/double_quoted  bytes literals are not supported in pss-rules
+unchecked parse/bytes_literals/triple_single_quoted  bytes literals are not supported in pss-rules
+unchecked parse/bytes_literals/triple_double_quoted  bytes literals are not supported in pss-rules
+unchecked parse/bytes_literals/single_quoted_escaped_punctuation  bytes literals are not supported in pss-rules
+unchecked parse/bytes_literals/double_quoted_escaped_punctuation  bytes literals are not supported in pss-rules
+unchecked parse/bytes_literals/triple_single_quoted_escaped_punctuation  bytes literals are not supported in pss-rules
+unchecked parse/bytes_literals/triple_double_quoted_escaped_punctuation  bytes literals are not supported in pss-rules
+unchecked parse/bytes_literals/triple_single_quoted_unescaped_punctuation  bytes literals are not supported in pss-rules
+unchecked parse/bytes_literals/triple_double_quoted_unescaped_punctuation  bytes literals are not supported in pss-rules
+unchecked parse/bytes_literals/single_quoted_escaped_special_control_characters  bytes literals are not supported in pss-rules
+unchecked parse/bytes_literals/double_quoted_escaped_special_control_characters  bytes literals are not supported in pss-rules
+unchecked parse/bytes_literals/single_quoted_unescaped_special_control_characters  bytes literals are not supported in pss-rules
+unchecked parse/bytes_literals/double_quoted_unescaped_special_control_characters  bytes literals are not supported in pss-rules
+unchecked parse/bytes_literals/triple_single_quoted_escaped_special_control_characters  bytes literals are not supported in pss-rules
+unchecked parse/bytes_literals/triple_double_quoted_escaped_special_control_characters  bytes literals are not supported in pss-rules
+unchecked parse/bytes_literals/triple_single_quoted_unescaped_special_control_characters  bytes literals are not supported in pss-rules
+unchecked parse/bytes_literals/triple_double_quoted_unescaped_special_control_characters  bytes literals are not supported in pss-rules
+unchecked parse/bytes_literals/single_quoted_escaped_line_feed  bytes literals are not supported in pss-rules
+unchecked parse/bytes_literals/double_quoted_escaped_line_feed  bytes literals are not supported in pss-rules
+unchecked parse/bytes_literals/triple_single_quoted_escaped_line_feed  bytes literals are not supported in pss-rules
+unchecked parse/bytes_literals/triple_double_quoted_escaped_line_feed  bytes literals are not supported in pss-rules
+unchecked parse/bytes_literals/triple_single_quoted_unescaped_line_feed  bytes literals are not supported in pss-rules
+unchecked parse/bytes_literals/triple_double_quoted_unescaped_line_feed  bytes literals are not supported in pss-rules
+unchecked parse/bytes_literals/single_quoted_escaped_carriage_return  bytes literals are not supported in pss-rules
+unchecked parse/bytes_literals/double_quoted_escaped_carriage_return  bytes literals are not supported in pss-rules
+unchecked parse/bytes_literals/triple_single_quoted_escaped_carriage_return  bytes literals are not supported in pss-rules
+unchecked parse/bytes_literals/triple_double_quoted_escaped_carriage_return  bytes literals are not supported in pss-rules
+unchecked parse/bytes_literals/single_quoted_escaped_windows_line_end  bytes literals are not supported in pss-rules
+unchecked parse/bytes_literals/double_quoted_escaped_windows_line_end  bytes literals are not supported in pss-rules
+unchecked parse/bytes_literals/triple_single_quoted_escaped_windows_line_end  bytes literals are not supported in pss-rules
+unchecked parse/bytes_literals/triple_double_quoted_escaped_windows_line_end  bytes literals are not supported in pss-rules
+unchecked parse/bytes_literals/single_quoted_escaped_all_control_characters  bytes literals are not supported in pss-rules
+unchecked parse/bytes_literals/double_quoted_escaped_all_control_characters  bytes literals are not supported in pss-rules
+unchecked parse/bytes_literals/single_quoted_unescaped_all_control_characters  bytes literals are not supported in pss-rules
+unchecked parse/bytes_literals/double_quoted_unescaped_all_control_characters  bytes literals are not supported in pss-rules
+unchecked parse/bytes_literals/triple_single_quoted_escaped_all_control_characters  bytes literals are not supported in pss-rules
+unchecked parse/bytes_literals/triple_double_quoted_escaped_all_control_characters  bytes literals are not supported in pss-rules
+unchecked parse/bytes_literals/triple_single_quoted_unescaped_all_control_characters  bytes literals are not supported in pss-rules
+unchecked parse/bytes_literals/triple_double_quoted_unescaped_all_control_characters  bytes literals are not supported in pss-rules
+unchecked parse/bytes_literals/single_quoted_octal_escapes  bytes literals are not supported in pss-rules
+unchecked parse/bytes_literals/double_quoted_octal_escapes  bytes literals are not supported in pss-rules
+unchecked parse/bytes_literals/triple_single_quoted_octal_escapes  bytes literals are not supported in pss-rules
+unchecked parse/bytes_literals/triple_double_quoted_octal_escapes  bytes literals are not supported in pss-rules
+unchecked parse/bytes_literals/single_quoted_lower_x_escapes  bytes literals are not supported in pss-rules
+unchecked parse/bytes_literals/double_quoted_lower_x_escapes  bytes literals are not supported in pss-rules
+unchecked parse/bytes_literals/triple_single_quoted_lower_x_escapes  bytes literals are not supported in pss-rules
+unchecked parse/bytes_literals/triple_double_quoted_lower_x_escapes  bytes literals are not supported in pss-rules
+unchecked parse/bytes_literals/single_quoted_upper_x_escapes  bytes literals are not supported in pss-rules
+unchecked parse/bytes_literals/double_quoted_upper_x_escapes  bytes literals are not supported in pss-rules
+unchecked parse/bytes_literals/triple_single_quoted_upper_x_escapes  bytes literals are not supported in pss-rules
+unchecked parse/bytes_literals/triple_double_quoted_upper_x_escapes  bytes literals are not supported in pss-rules
+unchecked parse/bytes_literals/mixed_case_hex_single_quoted_escapes  bytes literals are not supported in pss-rules
+unchecked parse/bytes_literals/mixed_case_hex_double_quoted_escapes  bytes literals are not supported in pss-rules
+unchecked parse/bytes_literals/mixed_case_hex_triple_single_quoted_escapes  bytes literals are not supported in pss-rules
+unchecked parse/bytes_literals/mixed_case_hex_triple_double_quoted_escapes  bytes literals are not supported in pss-rules
+unchecked parse/bytes_literals/raw_single_quoted_escapes  bytes literals are not supported in pss-rules
+unchecked parse/bytes_literals/raw_double_quoted_escapes  bytes literals are not supported in pss-rules
+unchecked parse/bytes_literals/raw_triple_single_quoted_escapes  bytes literals are not supported in pss-rules
+unchecked parse/bytes_literals/raw_triple_double_quoted_escapes  bytes literals are not supported in pss-rules
+unchecked parse/bytes_literals/upper_raw_single_quoted_escapes  bytes literals are not supported in pss-rules
+unchecked parse/bytes_literals/upper_raw_double_quoted_escapes  bytes literals are not supported in pss-rules
+unchecked parse/bytes_literals/upper_raw_triple_single_quoted_escapes  bytes literals are not supported in pss-rules
+unchecked parse/bytes_literals/upper_raw_triple_double_quoted_escapes  bytes literals are not supported in pss-rules
+unchecked parse/whitespace/spaces  message construction ('.cel.expr.conformance.proto3.TestAllTypes{...}') is not supported in pss-rules
+unchecked parse/whitespace/tabs  message construction ('.cel.expr.conformance.proto3.TestAllTypes{...}') is not supported in pss-rules
+unchecked parse/whitespace/new_lines  message construction ('.cel.expr.conformance.proto3.TestAllTypes{...}') is not supported in pss-rules
+unchecked parse/whitespace/new_pages  message construction ('.cel.expr.conformance.proto3.TestAllTypes{...}') is not supported in pss-rules
+unchecked parse/whitespace/carriage_returns  message construction ('.cel.expr.conformance.proto3.TestAllTypes{...}') is not supported in pss-rules
+unchecked parse/comments/new_line_terminated  message construction ('.cel.expr.conformance.proto3.TestAllTypes{...}') is not supported in pss-rules
+unchecked parse/struct_field_names/as  message construction ('TestAllTypes{...}') is not supported in pss-rules
+unchecked parse/struct_field_names/break  message construction ('TestAllTypes{...}') is not supported in pss-rules
+unchecked parse/struct_field_names/const  message construction ('TestAllTypes{...}') is not supported in pss-rules
+unchecked parse/struct_field_names/continue  message construction ('TestAllTypes{...}') is not supported in pss-rules
+unchecked parse/struct_field_names/else  message construction ('TestAllTypes{...}') is not supported in pss-rules
+unchecked parse/struct_field_names/for  message construction ('TestAllTypes{...}') is not supported in pss-rules
+unchecked parse/struct_field_names/function  message construction ('TestAllTypes{...}') is not supported in pss-rules
+unchecked parse/struct_field_names/if  message construction ('TestAllTypes{...}') is not supported in pss-rules
+unchecked parse/struct_field_names/import  message construction ('TestAllTypes{...}') is not supported in pss-rules
+unchecked parse/struct_field_names/let  message construction ('TestAllTypes{...}') is not supported in pss-rules
+unchecked parse/struct_field_names/loop  message construction ('TestAllTypes{...}') is not supported in pss-rules
+unchecked parse/struct_field_names/package  message construction ('TestAllTypes{...}') is not supported in pss-rules
+unchecked parse/struct_field_names/namespace  message construction ('TestAllTypes{...}') is not supported in pss-rules
+unchecked parse/struct_field_names/return  message construction ('TestAllTypes{...}') is not supported in pss-rules
+unchecked parse/struct_field_names/var  message construction ('TestAllTypes{...}') is not supported in pss-rules
+unchecked parse/struct_field_names/void  message construction ('TestAllTypes{...}') is not supported in pss-rules
+unchecked parse/struct_field_names/while  message construction ('TestAllTypes{...}') is not supported in pss-rules
+unchecked string/size/bytes_empty  bytes literals are not supported in pss-rules
+unchecked string/size/bytes  bytes literals are not supported in pss-rules
+unchecked string/bytes_concat/concat  bytes literals are not supported in pss-rules
+unchecked string/bytes_concat/left_unit  bytes literals are not supported in pss-rules
+unchecked string/bytes_concat/right_unit  bytes literals are not supported in pss-rules
+unchecked string/bytes_concat/empty_empty  bytes literals are not supported in pss-rules
+
+# checked: <file>/<section>/<test>  <reason>
+checked basic/variables/unbound_is_runtime_error  cel-spec: disable_check
+checked basic/functions/unbound_is_runtime_error  cel-spec: disable_check
+checked comparisons/eq_literal/eq_int_double  'dyn(A) -> A' is not supported in pss-rules
+checked comparisons/eq_literal/not_eq_int_double  'dyn(A) -> A' is not supported in pss-rules
+checked comparisons/eq_literal/not_eq_int_double_nan  'dyn(A) -> A' is not supported in pss-rules
+checked comparisons/eq_literal/eq_double_int  'dyn(A) -> A' is not supported in pss-rules
+checked comparisons/eq_literal/not_eq_double_int  'dyn(A) -> A' is not supported in pss-rules
+checked comparisons/eq_literal/not_eq_list_null  list elements must all have one type, but this one is 'null_type' and the ones before are 'string' (pss-rules has no dyn)
+checked comparisons/eq_literal/not_eq_list_length  cel-spec: disable_check
+checked comparisons/eq_literal/not_eq_list_false_vs_types  list elements must all have one type, but this one is 'string' and the ones before are 'int' (pss-rules has no dyn)
+checked comparisons/eq_literal/not_eq_map_null  map values must all have one type, but this one is 'null_type' and the ones before are 'int' (pss-rules has no dyn)
+checked comparisons/eq_literal/not_eq_map_false_vs_types  map values must all have one type, but this one is 'string' and the ones before are 'int' (pss-rules has no dyn)
+checked comparisons/eq_literal/eq_list_elem_mixed_types  cel-spec: disable_check
+checked comparisons/eq_literal/eq_map_value_mixed_types  map keys must all have one type, but this one is 'int' and the ones before are 'string' (pss-rules has no dyn)
+checked comparisons/eq_literal/not_eq_dyn_bool_null  'dyn(A) -> A' is not supported in pss-rules
+checked comparisons/eq_literal/not_eq_dyn_double_null  'dyn(A) -> A' is not supported in pss-rules
+checked comparisons/eq_literal/not_eq_dyn_int_null  'dyn(A) -> A' is not supported in pss-rules
+checked comparisons/eq_literal/not_eq_dyn_list_null  'dyn(A) -> A' is not supported in pss-rules
+checked comparisons/eq_literal/not_eq_dyn_map_null  'dyn(A) -> A' is not supported in pss-rules
+checked comparisons/eq_literal/not_eq_dyn_string_null  'dyn(A) -> A' is not supported in pss-rules
+checked comparisons/eq_literal/not_eq_list_elem_null  list elements must all have one type, but this one is 'null_type' and the ones before are 'int' (pss-rules has no dyn)
+checked comparisons/eq_literal/not_eq_map_value_null  map values must all have one type, but this one is 'null_type' and the ones before are 'string' (pss-rules has no dyn)
+checked comparisons/eq_literal/eq_dyn_int_double  'dyn(A) -> A' is not supported in pss-rules
+checked comparisons/eq_literal/eq_dyn_double_int  'dyn(A) -> A' is not supported in pss-rules
+checked comparisons/eq_literal/not_eq_dyn_int_double  'dyn(A) -> A' is not supported in pss-rules
+checked comparisons/eq_literal/not_eq_dyn_double_int  'dyn(A) -> A' is not supported in pss-rules
+checked comparisons/ne_literal/ne_int_double  'dyn(A) -> A' is not supported in pss-rules
+checked comparisons/ne_literal/not_ne_int_double  'dyn(A) -> A' is not supported in pss-rules
+checked comparisons/ne_literal/not_ne_int_double_nan  'dyn(A) -> A' is not supported in pss-rules
+checked comparisons/ne_literal/ne_double_int  'dyn(A) -> A' is not supported in pss-rules
+checked comparisons/ne_literal/not_ne_double_int  'dyn(A) -> A' is not supported in pss-rules
+checked comparisons/lt_literal/lt_dyn_int_double  'dyn(A) -> A' is not supported in pss-rules
+checked comparisons/lt_literal/lt_dyn_double_int  'dyn(A) -> A' is not supported in pss-rules
+checked comparisons/lt_literal/not_lt_dyn_int_double  'dyn(A) -> A' is not supported in pss-rules
+checked comparisons/lt_literal/not_lt_dyn_double_int  'dyn(A) -> A' is not supported in pss-rules
+checked comparisons/lt_literal/not_lt_dyn_int_big_lossy_double  'dyn(A) -> A' is not supported in pss-rules
+checked comparisons/lt_literal/lt_dyn_int_big_lossy_double  'dyn(A) -> A' is not supported in pss-rules
+checked comparisons/lt_literal/not_lt_dyn_int_small_double  'dyn(A) -> A' is not supported in pss-rules
+checked comparisons/lt_literal/not_lt_dyn_int_small_lossy_double  'dyn(A) -> A' is not supported in pss-rules
+checked comparisons/lt_literal/not_lt_dyn_big_double_int  'dyn(A) -> A' is not supported in pss-rules
+checked comparisons/lt_literal/not_lt_dyn_small_double_int  'dyn(A) -> A' is not supported in pss-rules
+checked comparisons/gt_literal/gt_dyn_int_double  'dyn(A) -> A' is not supported in pss-rules
+checked comparisons/gt_literal/gt_dyn_double_int  'dyn(A) -> A' is not supported in pss-rules
+checked comparisons/gt_literal/not_gt_dyn_int_double  'dyn(A) -> A' is not supported in pss-rules
+checked comparisons/gt_literal/not_gt_dyn_double_int  'dyn(A) -> A' is not supported in pss-rules
+checked comparisons/gt_literal/not_gt_dyn_int_big_double  'dyn(A) -> A' is not supported in pss-rules
+checked comparisons/gt_literal/not_gt_dyn_int_small_lossy_double  'dyn(A) -> A' is not supported in pss-rules
+checked comparisons/gt_literal/gt_dyn_int_small_lossy_double_greater  'dyn(A) -> A' is not supported in pss-rules
+checked comparisons/gt_literal/not_gt_dyn_big_double_int  'dyn(A) -> A' is not supported in pss-rules
+checked comparisons/gt_literal/not_gt_dyn_small_double_int  'dyn(A) -> A' is not supported in pss-rules
+checked comparisons/lte_literal/lte_dyn_int_double  'dyn(A) -> A' is not supported in pss-rules
+checked comparisons/lte_literal/lte_dyn_double_int  'dyn(A) -> A' is not supported in pss-rules
+checked comparisons/lte_literal/not_lte_dyn_int_double  'dyn(A) -> A' is not supported in pss-rules
+checked comparisons/lte_literal/not_lte_dyn_double_int  'dyn(A) -> A' is not supported in pss-rules
+checked comparisons/lte_literal/lte_dyn_int_big_double  'dyn(A) -> A' is not supported in pss-rules
+checked comparisons/lte_literal/lte_dyn_int_small_lossy_double  'dyn(A) -> A' is not supported in pss-rules
+checked comparisons/lte_literal/not_lte_dyn_int_small_lossy_double_less  'dyn(A) -> A' is not supported in pss-rules
+checked comparisons/lte_literal/lte_dyn_big_double_int  'dyn(A) -> A' is not supported in pss-rules
+checked comparisons/lte_literal/lte_dyn_small_double_int  'dyn(A) -> A' is not supported in pss-rules
+checked comparisons/gte_literal/gte_dyn_int_double  'dyn(A) -> A' is not supported in pss-rules
+checked comparisons/gte_literal/gte_dyn_double_int  'dyn(A) -> A' is not supported in pss-rules
+checked comparisons/gte_literal/not_gte_dyn_int_double  'dyn(A) -> A' is not supported in pss-rules
+checked comparisons/gte_literal/not_gte_dyn_double_int  'dyn(A) -> A' is not supported in pss-rules
+checked comparisons/gte_literal/gte_dyn_int_big_lossy_double  'dyn(A) -> A' is not supported in pss-rules
+checked comparisons/gte_literal/not_gte_dyn_int_big_double  'dyn(A) -> A' is not supported in pss-rules
+checked comparisons/gte_literal/gte_dyn_int_small_lossy_double_equal  'dyn(A) -> A' is not supported in pss-rules
+checked comparisons/gte_literal/gte_dyn_int_small_lossy_double_greater  'dyn(A) -> A' is not supported in pss-rules
+checked comparisons/gte_literal/gte_dyn_big_double_int  'dyn(A) -> A' is not supported in pss-rules
+checked comparisons/gte_literal/gte_dyn_small_double_int  'dyn(A) -> A' is not supported in pss-rules
+checked comparisons/in_list_literal/elem_in_mixed_type_list  list elements must all have one type, but this one is 'string' and the ones before are 'int' (pss-rules has no dyn)
+checked conversions/dyn/dyn_heterogeneous_list  list elements must all have one type, but this one is 'string' and the ones before are 'int' (pss-rules has no dyn)
+checked lists/index/zero_based_double  'dyn(A) -> A' is not supported in pss-rules
+checked lists/index/index_out_of_bounds_or_true  'dyn(A) -> A' is not supported in pss-rules
+checked lists/index/index_out_of_bounds_and_false  'dyn(A) -> A' is not supported in pss-rules
+checked lists/index/bad_index_type_or_true  'dyn(A) -> A' is not supported in pss-rules
+checked lists/index/bad_index_type_and_false  'dyn(A) -> A' is not supported in pss-rules
+checked lists/in/double_in_ints  'dyn(A) -> A' is not supported in pss-rules
+checked lists/in/int_in_doubles  'dyn(A) -> A' is not supported in pss-rules
+checked logic/conditional/mixed_type  cel-spec: disable_check
+checked logic/AND/short_circuit_type_left  cel-spec: disable_check
+checked logic/AND/short_circuit_type_right  cel-spec: disable_check
+checked logic/OR/short_circuit_type_left  cel-spec: disable_check
+checked logic/OR/short_circuit_type_right  cel-spec: disable_check
+checked macros/exists/list_elem_type_shortcircuit  list elements must all have one type, but this one is 'string' and the ones before are 'int' (pss-rules has no dyn)
+checked macros/exists/list_elem_type_exhaustive  list elements must all have one type, but this one is 'string' and the ones before are 'int' (pss-rules has no dyn)
+checked macros/exists/map_key_type_shortcircuit  map keys must all have one type, but this one is 'int' and the ones before are 'string' (pss-rules has no dyn)
+checked macros/exists/map_key_type_exhaustive  map keys must all have one type, but this one is 'int' and the ones before are 'string' (pss-rules has no dyn)
+checked macros/all/list_elem_type_shortcircuit  list elements must all have one type, but this one is 'string' and the ones before are 'int' (pss-rules has no dyn)
+checked optionals/optionals/empty_map_optFlatMap_hasValue  cannot select 'subkey' from a value whose type is not known
+checked optionals/optionals/map_null_entry_hasValue  'dyn(A) -> A' is not supported in pss-rules
+checked optionals/optionals/map_absent_key_absent_field_none  'dyn(A) -> A' is not supported in pss-rules
+checked optionals/optionals/map_undefined_entry_hasValue  cannot select 'invalid' from a value whose type is not known
+checked optionals/optionals/has_map_optindex  cannot select 'y' from a value whose type is not known
+checked optionals/optionals/optional_chaining_13  map values must all have one type, but this one is 'bool' and the ones before are 'map(string, ?)' (pss-rules has no dyn)
+checked optionals/optionals/optional_chaining_15  'dyn(A) -> A' is not supported in pss-rules
+checked optionals/optionals/optional_none_optselect_hasValue  cannot select 'repeated_string' from a value whose type is not known
+checked optionals/optionals/map_optional_select_has  cannot select 'bar' from a value whose type is not known
+checked parse/receiver_function_names/as  cel-spec: disable_check
+checked parse/receiver_function_names/break  cel-spec: disable_check
+checked parse/receiver_function_names/const  cel-spec: disable_check
+checked parse/receiver_function_names/continue  cel-spec: disable_check
+checked parse/receiver_function_names/else  cel-spec: disable_check
+checked parse/receiver_function_names/for  cel-spec: disable_check
+checked parse/receiver_function_names/function  cel-spec: disable_check
+checked parse/receiver_function_names/if  cel-spec: disable_check
+checked parse/receiver_function_names/import  cel-spec: disable_check
+checked parse/receiver_function_names/let  cel-spec: disable_check
+checked parse/receiver_function_names/loop  cel-spec: disable_check
+checked parse/receiver_function_names/package  cel-spec: disable_check
+checked parse/receiver_function_names/namespace  cel-spec: disable_check
+checked parse/receiver_function_names/return  cel-spec: disable_check
+checked parse/receiver_function_names/var  cel-spec: disable_check
+checked parse/receiver_function_names/void  cel-spec: disable_check
+checked parse/receiver_function_names/while  cel-spec: disable_check

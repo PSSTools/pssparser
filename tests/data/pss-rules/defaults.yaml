@@ -1,0 +1,24 @@
+pss-rules:
+  defaults:
+    tier: nursery
+    since: "2026.1"
+    severity: hint
+    id: ACME000
+    famly: decl
+  rules:
+    - id: ACME001
+      name: takes-the-defaults
+      summary: s
+      message: m
+      match: { kind: ExprBin }
+    - id: ACME002
+      name: own-value-wins
+      tier: style
+      severity: warning
+      summary: s
+      message: m
+      match: { kind: ExprBin }
+
+# expect: PSSP212 error @ 6:5 'id' cannot be set in 'defaults'; only tier, family, since, status, severity, default_enabled can
+# expect: PSSP211 error @ 7:5 unknown key 'famly' in 'defaults'; did you mean 'family'?
+# loads: ACME001, ACME002

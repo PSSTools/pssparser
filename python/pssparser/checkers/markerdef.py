@@ -93,6 +93,20 @@ class MarkerDef:
         :class:`Example` records; drive the docs and the rule harness.
     options_schema:
         Per-rule options, in the ``CheckerBase.options_schema`` format.
+
+    Declarative rules (lint-core-plan C4.4)
+    ---------------------------------------
+    Set only on the view of a rule loaded from a ``pss-rules`` file
+    (:mod:`pssparser.lint.ruleview`); empty on a Python checker's rules.
+
+    scope:
+        ``"file"`` or ``"model"``, computed by the loader from the functions
+        the rule calls (as ``level`` is).
+    source:
+        Where the rule is defined, as ``file:line:col``; a rule compiled
+        into pssparser has a ``pssparser:rules/...`` file.
+    match:
+        The node kinds the rule runs on.
     """
 
     id: str
@@ -117,6 +131,10 @@ class MarkerDef:
     options_schema: Dict[str, Any] = field(
         default_factory=dict, hash=False, compare=False
     )
+    # -- declarative rules --
+    scope: str = ""
+    source: str = ""
+    match: Tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         # A tiered rule may leave severity empty and take the tier's default

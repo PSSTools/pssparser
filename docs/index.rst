@@ -77,5 +77,7 @@ Key Features
    reference_api_docs
    markers
    lint-rules
+   lint-rule-authoring
+   lint-functions
    diagnostics-json
 

@@ -252,7 +252,7 @@ describe('markers', () => {
 
     const errs = (p: Parser) => p.markers.filter((m) => m.severity === 'error');
     expect(errs(capped).length).toBeLessThan(errs(uncapped).length);
-    expect(capped.markers.some((m) => m.code === 'PSS029')).toBe(true);
+    expect(capped.markers.some((m) => m.code === 'PSSP007')).toBe(true);
   });
 });
 

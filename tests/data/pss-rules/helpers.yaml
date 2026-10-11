@@ -1,0 +1,47 @@
+pss-rules:
+  defaults:
+    tier: style
+  define:
+    is_eq(n): n.op == ExprBinOp.BinOp_Eq
+    broken(n): n.op +
+    same: 1
+  rules:
+    - id: ACME001
+      name: uses-a-file-helper
+      summary: s
+      message: m
+      match: { kind: ExprBin }
+      where: is_eq(node)
+    - id: ACME002
+      name: shadows-a-file-helper
+      summary: s
+      message: m
+      match: { kind: ExprBin }
+      define:
+        is_eq(n): n.op == ExprBinOp.BinOp_Ne
+      where: is_eq(node)
+    - id: ACME003
+      name: uses-the-broken-helper
+      summary: s
+      message: m
+      match: { kind: ExprBin }
+      where: broken(node) > 0
+    - id: ACME004
+      name: also-uses-it
+      summary: s
+      message: m
+      match: { kind: ExprBin }
+      where: broken(node) > 1
+    - id: ACME005
+      name: bad-helper-head
+      summary: s
+      message: m
+      match: { kind: ExprBin }
+      define:
+        "f(": 1
+
+# expect: PSSP214 error @ 6:22 expected an expression, found the end of the input
+# expect: PSSP212 error @ 7:11 'define: same' must be a CEL expression written as a string, not an integer; quote it, or use a block scalar (>-)
+# expect: PSSP219 info @ 21:9 helper 'is_eq' shadows the file's helper of the same name (line 5)
+# expect: PSSP212 error @ 41:10 a helper is 'name' or 'name(param, ...)', not 'f('
+# loads: ACME001, ACME002

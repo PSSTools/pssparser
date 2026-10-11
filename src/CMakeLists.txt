@@ -49,8 +49,16 @@ antlr_target(PSSParser PSSParser.g4 PARSER
 file(GLOB pssparser_SRC
 	"*.h"
 	"*.cpp")
+
+# The lint engine (src/lint/) and its rapidyaml dependency; shared with the
+# WASM build through lint.cmake.
+set(PSSPARSER_LINT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/lint)
+include(${PSSPARSER_LINT_DIR}/lint.cmake)
+include_directories(${PSSPARSER_LINT_INCLUDE})
+
 add_library(pssparser SHARED
 	${pssparser_SRC}
+	${PSSPARSER_LINT_SRC}
     pss_stdlib.h
 	${ANTLR_PSSParser_OUTPUTS}
 	${ANTLR_PSSLexer_OUTPUTS})
@@ -80,6 +88,14 @@ else()
 endif()
 
 target_link_libraries(pssparser ${PSSPARSER_LIBS})
+
+# A shared library links with undefined symbols by default on ELF; the
+# failure then shows up only when Python imports the extension (a missing
+# inline definition did exactly that in lint-core-plan.md C0, F-9). Make it a
+# link error instead.
+if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  target_link_options(pssparser PRIVATE "-Wl,--no-undefined")
+endif()
 
 # Selects the dllexport side of PSSPARSER_API in pssp/FactoryExt.h.  PRIVATE:
 # consumers of the installed headers must see the dllimport side.

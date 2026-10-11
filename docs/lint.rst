@@ -290,6 +290,17 @@ LRM errors and pssparser's own diagnostics (``PSSP``) are never recorded and
 never matched.  ``--write-baseline`` refuses to write anything, and exits 1,
 when the model has errors.
 
+Site rules
+==========
+
+A project can add rules of its own, in YAML rule files, without writing
+Python: name the files or directories in ``[lint] rules`` (or with
+``--rules``), and check them with ``pssparser --check-rules``.  A site rule
+uses the site's own namespace (``ACME001``, or ``ACME-NET001`` for one team)
+and is selected, waived and baselined like any other rule; ``--explain``
+describes it, and the profile enables it by tier.  :doc:`lint-rule-authoring`
+describes the format, and the JSON Schema that gives editors completion.
+
 CI integration
 ==============
 

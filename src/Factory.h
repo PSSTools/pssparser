@@ -83,6 +83,10 @@ public:
 
     virtual IOccurrenceCollector *mkOccurrenceCollector() override;
 
+    virtual lint::ILintEngine *mkLintEngine() override;
+
+    virtual lint::ILintTestHooks *mkLintTestHooks() override;
+
     virtual IFmtTokenStream *mkTokenizer(std::istream *in) override;
 
     virtual IFmtCst *mkCstParser(std::istream *in) override;

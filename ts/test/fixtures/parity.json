@@ -167,7 +167,7 @@
      "severity": "error"
     },
     {
-     "code": "PSS029",
+     "code": "PSSP007",
      "col": 31,
      "extent": 1,
      "file": "many.pss",
@@ -179,7 +179,7 @@
    ],
    "maxErrors": 1,
    "raised": "ParseException",
-   "why": "setMaxErrors(1) caps error markers and adds the PSS029 notice"
+   "why": "setMaxErrors(1) caps error markers and adds the PSSP007 notice"
   },
   {
    "calls": [
@@ -806,17 +806,7 @@
     ]
    ],
    "id": "corpus:language-ref/constraints.pss",
-   "markers": [
-    {
-     "col": 13,
-     "extent": 9,
-     "file": "language-ref/constraints.pss",
-     "line": 110,
-     "message": "`randomize` is accepted but not represented in the AST: only the first of several randomization targets is kept",
-     "related": [],
-     "severity": "warning"
-    }
-   ],
+   "markers": [],
    "maxErrors": 0,
    "raised": null,
    "why": "corpus parity"
@@ -1112,6 +1102,21 @@
    "calls": [
     [
      {
+      "content": "// ex036_037_contextual_typing.pss\n//\n// Contextual typing of structure literals and enum items (LRM 8.4.2, 8.4.3),\n// modelled on PSS 3.1 Examples 36 and 37 and completed to a whole model.\n//\n// Demonstrates:\n//   - one struct literal interpreted as two different types, by the type of\n//     the other operand of `==` (Example 36)\n//   - an unqualified enum item resolved by its expected type: an\n//     initializer and a call argument (Example 37)\n//   - an enum item qualified by its type where no enum type is expected\n//     (Example 37); the LRM's illegal unqualified `(int)ORANGE` is left out\n//\n// Completed from the LRM: the two function prototypes of Example 37 are\n// given bodies, and both examples share one pss_top.\n\nenum color_e {RED, GREEN, ORANGE};\n\nfunction void print_color(color_e c) { }\nfunction void print_num(int n) { }\n\ncomponent my_ip_c {\n  struct my_struct { rand int a; };\n  action my_op {\n    rand my_struct s;\n  }\n}\n\ncomponent pss_top {\n  my_ip_c my_ip;\n  struct your_struct { rand int a; };\n  enum fruit_e {APPLE, ORANGE};\n\n  action test {\n    rand your_struct s;\n    constraint s == {.a = 2};          // pss_top::your_struct literal\n\n    my_ip_c::my_op op;\n    constraint op.s == {.a = 3};       // my_ip_c::my_struct literal\n\n    activity {\n      op;\n    }\n  }\n\n  exec init_down {\n    color_e c = ORANGE;                // expected type is color_e\n    print_color(RED);                  // likewise\n    print_num((int)fruit_e::ORANGE);   // qualified: no enum type expected\n  }\n}\n",
+      "name": "lrm31/ex036_037_contextual_typing.pss"
+     }
+    ]
+   ],
+   "id": "corpus:lrm31/ex036_037_contextual_typing.pss",
+   "markers": [],
+   "maxErrors": 0,
+   "raised": null,
+   "why": "corpus parity"
+  },
+  {
+   "calls": [
+    [
+     {
       "content": "// ex143_with_name_resolution.pss\n//\n// Name resolution inside an inline `with` constraint block (LRM 13.1.4),\n// modelled on PSS 3.1 Example 143 and completed to a whole model.\n//\n// Demonstrates:\n//   - unqualified names search the traversed sub-action first, then the\n//     containing action\n//   - `this` is the containing action, reaching a field the sub-action's\n//     field of the same name shadows\n//   - `this.comp` is the containing action's component\n\ncomponent subc {\n    action A {\n        rand int f;\n        rand int g;\n    }\n}\n\ncomponent pss_top {\n    subc sub1, sub2;\n\n    action B {\n        rand int f;\n        rand int h;\n        subc::A a;\n\n        activity {\n            a with {\n                f < h;                  // sub-action's f, containing action's h\n                g == this.f;            // sub-action's g, containing action's f\n                comp == this.comp.sub1; // sub-action runs in sub1\n            };\n        }\n    }\n}\n",
       "name": "lrm31/ex143_with_name_resolution.pss"
      }
@@ -1172,12 +1177,57 @@
    "calls": [
     [
      {
+      "content": "// ex254_type_and_instance_overrides.pss\n//\n// Type and instance overrides with type inheritance (LRM 17.5), modelled on\n// PSS 3.1 Example 254 and completed to a whole model.\n//\n// Demonstrates:\n//   - a type override and an instance override in one `override` block\n//   - an instance override whose path starts at a field of the enclosing\n//     action and ends at a field of that field's type (`xlator.axi_action`)\n//   - a derived action overriding again, through a field it inherits\n//\n// Completed from the LRM: the actions are declared in pss_top, and the\n// `{ ... }` bodies are empty.\n\ncomponent pss_top {\n  action axi_write_action { }\n\n  action xlator_action {\n    axi_write_action axi_action;\n    axi_write_action other_axi_action;\n    activity {\n      axi_action;        // overridden by instance\n      other_axi_action;  // overridden by type\n    }\n  }\n\n  action axi_write_action_x : axi_write_action { }\n  action axi_write_action_x2 : axi_write_action_x { }\n  action axi_write_action_x3 : axi_write_action_x { }\n  action axi_write_action_x4 : axi_write_action_x { }\n\n  action reg2axi_top {\n    override {\n      type axi_write_action with axi_write_action_x;\n      instance xlator.axi_action with axi_write_action_x2;\n    }\n\n    xlator_action xlator;\n    activity {\n      repeat (10) {\n        xlator;          // the override applies to all 10 traversals\n      }\n    }\n  }\n\n  action reg2axi_top_x : reg2axi_top {\n    override {\n      type axi_write_action with axi_write_action_x4;\n      instance xlator.axi_action with axi_write_action_x3;\n    }\n  }\n}\n",
+      "name": "lrm31/ex254_type_and_instance_overrides.pss"
+     }
+    ]
+   ],
+   "id": "corpus:lrm31/ex254_type_and_instance_overrides.pss",
+   "markers": [],
+   "maxErrors": 0,
+   "raised": null,
+   "why": "corpus parity"
+  },
+  {
+   "calls": [
+    [
+     {
+      "content": "// ex259_273_package_aliases.pss\n//\n// Package aliases (LRM 18.1.4, 18.3), modelled on PSS 3.1 Examples 259 and\n// 273 and completed to a whole model.\n//\n// Demonstrates:\n//   - an alias for a nested package, used to qualify a type; the alias and\n//     the full name denote the same type (Example 259)\n//   - two aliases that disambiguate same-named types (Example 259)\n//   - an alias taking precedence over a wildcard import that makes a\n//     package of the same name visible: `P2::s` is P3::P4::s, not\n//     P1::P2::s (Example 273)\n//\n// Completed from the LRM: a pss_top that uses both examples' types.\n\npackage pkg1::a::b::c {\n  struct my_s {}\n}\n\npackage pkg2::d::e::f {\n  struct my_s {}\n}\n\npackage consumer_pkg {\n  import pkg1::a::b::c as p1;\n  import pkg2::d::e::f as p2;\n  struct s {\n    p1::my_s            v1_1;   // pkg1::a::b::c::my_s\n    pkg1::a::b::c::my_s v1_2;   // the same type as v1_1\n    p2::my_s            v2;     // pkg2::d::e::f::my_s\n  }\n}\n\npackage P1 {\n  package P2 {\n    struct s {}\n  }\n}\n\npackage P3 {\n  package P4 {\n    struct s {}\n  }\n}\n\ncomponent pss_top {\n  import P1::*;\n  import P3::P4 as P2;\n\n  action test {\n    P2::s f;                    // P3::P4::s\n    consumer_pkg::s cs;\n  }\n}\n",
+      "name": "lrm31/ex259_273_package_aliases.pss"
+     }
+    ]
+   ],
+   "id": "corpus:lrm31/ex259_273_package_aliases.pss",
+   "markers": [],
+   "maxErrors": 0,
+   "raised": null,
+   "why": "corpus parity"
+  },
+  {
+   "calls": [
+    [
+     {
       "content": "// ex262_263_declaration_order.pss\n//\n// Declaration order (LRM 18.2), modelled on PSS 3.1 Examples 262 and 263 and\n// completed to a whole model.\n//\n// Demonstrates:\n//   - a type member referenced before its declaration: legal, because order\n//     does not matter in a type scope (Example 262, 18.2)\n//   - a local variable referenced after its declaration in an exec block\n//     (Example 263, 18.2a)\n//   - an action handle referenced after its declaration in an activity block\n//     (18.2b)\n//   - a use of `val` in an exec block before a local `val` is declared there:\n//     the local is not yet in scope, so the use is the action's field\n\nfunction int get_val();\n\ncomponent pss_top {\n    action entry {\n        constraint val_c {\n            val < 10;\n        }\n\n        rand bit[4] val;\n\n        exec post_solve {\n            int last;\n            last = val;\n            val = 1;\n            int val;\n            val = last + get_val();\n        }\n    }\n\n    action run_twice {\n        activity {\n            entry e1;\n            e1;\n            sequence {\n                entry e2;\n                e2 with { val == e1.val; };\n            }\n        }\n    }\n\n    exec init_up {\n        int val;\n        val = get_val();\n    }\n}\n",
       "name": "lrm31/ex262_263_declaration_order.pss"
      }
     ]
    ],
    "id": "corpus:lrm31/ex262_263_declaration_order.pss",
+   "markers": [],
+   "maxErrors": 0,
+   "raised": null,
+   "why": "corpus parity"
+  },
+  {
+   "calls": [
+    [
+     {
+      "content": "// ex272_enum_item_references.pss\n//\n// Qualified and unqualified enum item references (LRM 18.3), modelled on\n// PSS 3.1 Example 272 and completed to a whole model.\n//\n// Demonstrates:\n//   - an enum item qualified by its type's full path\n//   - an unqualified item resolved by the type of the other operand of `==`\n//   - unqualified items in an `in` range list, resolved by the type of the\n//     left-hand side\n//\n// Taken from the LRM as written: Example 272 is already a whole model.\n\ncomponent my_ip_c {\n  enum mode_e {A, B, C, D};\n  action my_op {\n    rand mode_e mode;\n  }\n}\n\ncomponent pss_top {\n  my_ip_c my_ip;\n  action test {\n    my_ip_c::my_op op;\n    constraint op.mode == my_ip_c::mode_e::A;\n    constraint op.mode == A;\n    constraint op.mode in [A, C, D];\n\n    activity {\n      op;\n    }\n  }\n}\n",
+      "name": "lrm31/ex272_enum_item_references.pss"
+     }
+    ]
+   ],
+   "id": "corpus:lrm31/ex272_enum_item_references.pss",
    "markers": [],
    "maxErrors": 0,
    "raised": null,
@@ -1264,6 +1314,23 @@
      "line": 3,
      "message": "unexpected input ''sq'",
      "related": [],
+     "severity": "error"
+    },
+    {
+     "code": "PSS026",
+     "col": 17,
+     "extent": 2,
+     "file": "pathological/invalid_tokens.pss",
+     "line": 3,
+     "message": "unexpected '99' in component 'c'",
+     "related": [
+      {
+       "col": 13,
+       "file": "pathological/invalid_tokens.pss",
+       "label": "component 'c' begins here",
+       "line": 1
+      }
+     ],
      "severity": "error"
     },
     {

@@ -1,0 +1,43 @@
+pss-rules:
+  defaults:
+    tier: style
+  rules:
+    - id: ACME001
+      name: let-in-order
+      summary: s
+      message: "${a} and ${b}"
+      match: { kind: ExprBin }
+      let:
+        a: node.op
+        b: a + 1
+      where: b > a
+    - id: ACME002
+      name: let-out-of-order
+      summary: s
+      message: m
+      match: { kind: ExprBin }
+      let:
+        a: b + 1
+        b: "1"
+    - id: ACME003
+      name: let-reserved
+      summary: s
+      message: m
+      match: { kind: ExprBin }
+      let:
+        node: "1"
+        finding: "2"
+    - id: ACME004
+      name: let-bad-type-later-use
+      summary: s
+      message: m
+      match: { kind: ExprBin }
+      let:
+        a: node.nothere
+        b: a + 1
+
+# expect: PSSP215 error @ 20:12 undeclared reference to 'b'
+# expect: PSSP212 error @ 28:9 'let' cannot define 'node', which every rule already has
+# expect: PSSP212 error @ 29:9 'let' cannot define 'finding', which every rule already has
+# expect: PSSP215 error @ 36:17 type 'ExprBin' has no field 'nothere', nor does any class derived from it
+# loads: ACME001

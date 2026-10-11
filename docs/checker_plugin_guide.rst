@@ -180,15 +180,21 @@ list:
    )
 
 **ID grammar**: a *namespace* of two to five capital letters, then a
-three-digit number -- ``PSC001``, ``PRC042``.  Digits never appear in the
+three-digit number -- ``PSC001``, ``PRC042``.  An organisation with several
+teams may qualify its namespace with one team segment, also two to five
+letters: ``ACME-NET001``, ``ACME-DMA104``.  Digits never appear in the
 namespace, so an ID splits unambiguously, and a user can select every rule
-of yours with the namespace alone (``-Werror=PSC``).  An ID that does not
-fit still loads, with a ``PSSP006`` warning; it will be refused in a later
-release.
+of yours with the namespace alone (``-Werror=PSC``).  Selection is
+hierarchical: ``ACME`` selects ``ACME001`` and every ``ACME-*`` team's
+rules, ``ACME-NET`` only that team's.  Because team segments are letters
+only, ``ACME-TEAM1001`` is not an ID; name teams with letters
+(``ACME-TEAMA``).  An ID that does not fit still loads, with a ``PSSP006``
+warning; it will be refused in a later release.
 
 **Reserved namespaces**: ``PSS`` (LRM violations), ``LINT`` (pssparser's
 lint rules), ``PSSP`` (the tool's own diagnostics) and ``PSSX`` belong to
-pssparser.  A checker that declares an ID in one of them is not registered,
+pssparser, with or without a team qualifier (``PSS-ACME001`` is refused
+too).  A checker that declares an ID in one of them is not registered,
 with a ``PSSP005`` error.  Choose a namespace of your own and keep it.
 
 The :class:`~pssparser.checkers.CheckerManager` enforces globally unique IDs

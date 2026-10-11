@@ -1,0 +1,4 @@
+# nothing but a comment
+
+# expect: PSSP210 error @ 1:1 the file is empty; a rule file is a mapping with the single key 'pss-rules'
+# refused

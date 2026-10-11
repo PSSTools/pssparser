@@ -129,19 +129,36 @@ test/link-parity.test.ts the *linked* tree must equal the native bindings'.
                        the cross-unit reference counts
 test/census-parity.test.ts every node, every field: the same comparison past
                        the declaration spine, 132k nodes per run
+test/lint.test.ts      the lint engine: Parser.loadRules, ruleDiagnostics,
+                       probeRules
+test/lintcore-parity.test.ts the lint engine's YAML, CEL and rule loader must
+                       equal the native bindings', case by case
 ```
 
-All four sets of parity expectations are generated, not written:
+All five sets of parity expectations are generated, not written:
 
 ```bash
-npm run gen:parity-fixture         # markers
-npm run gen:ast-parity-fixture     # the AST, per unit
-npm run gen:link-parity-fixture    # the linked tree
-npm run gen:census-parity-fixture  # every node, every field
+npm run gen:parity-fixture           # markers
+npm run gen:ast-parity-fixture       # the AST, per unit
+npm run gen:link-parity-fixture      # the linked tree
+npm run gen:census-parity-fixture    # every node, every field
+npm run gen:lintcore-parity-fixture  # the lint engine
 ```
 
 The output is committed, so the suite needs no Python, no native build and no
 corpus checkout.
+
+Both halves of the parity contract are gated. The Python suite's
+`tests/python/test_ts_fixtures_current.py` regenerates every fixture from the
+parser under test and fails if one differs from the committed copy, naming the
+script to run. So a change to the native parser, or to a file a fixture reads
+(the lintcore fixture hashes the repository's YAML files, CI workflows
+included), must come with its regenerated fixture. The `ts` job in
+`.github/workflows/ci.yml` then builds the wasm and runs `npm test` against
+those fixtures, and a release cannot publish without it. Until 2026-10-11
+neither check existed. The fixtures went three weeks stale, and the 246
+failures that built up hid a real bug: every marker column was one character
+late (known-issues TS-1).
 
 The parity tests are the ones that matter for the wire format. Round-tripping
 proves only that the writer and the reader agree with each other, which they do

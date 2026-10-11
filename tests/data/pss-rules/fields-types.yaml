@@ -1,0 +1,74 @@
+pss-rules:
+  rules:
+    - id: ACME001
+      name: Not_Kebab
+      tier: style
+      summary: s
+      message: m
+      match: { kind: ExprBin }
+    - id: ACME002
+      name: lrm-not-a-list
+      tier: style
+      summary: s
+      message: m
+      lrm: "11.3"
+      match: { kind: ExprBin }
+    - id: ACME003
+      name: yes-is-a-string
+      tier: style
+      summary: s
+      message: m
+      default_enabled: yes      # YAML 1.2: a string, not a bool
+      match: { kind: ExprBin }
+    - id: ACME004
+      name: since-unquoted
+      tier: nursery
+      since: 2026.10
+      summary: s
+      message: m
+      match: { kind: ExprBin }
+    - id: ACME005
+      name: summary-interpolated
+      tier: style
+      summary: "names ${node}"
+      message: m
+      match: { kind: ExprBin }
+    - id: ACME006
+      name: bad-status
+      tier: style
+      status: retierd
+      summary: s
+      message: m
+      match: { kind: ExprBin }
+    - id: ACME007
+      name: since-malformed
+      tier: nursery
+      since: "26.1"
+      summary: s
+      message: m
+      match: { kind: ExprBin }
+    - id: ACME008
+      name: where-not-a-string
+      tier: style
+      summary: s
+      message: m
+      match: { kind: ExprBin }
+      where: true
+    - id: ACME009
+      name: fix-is-reserved
+      tier: style
+      summary: s
+      message: m
+      match: { kind: ExprBin }
+      fix: { replace: "x" }
+
+# expect: PSSP212 error @ 4:13 'name' must be a kebab-case name (lower-case words joined by '-', as 'init-list-duplicate-target'), not 'Not_Kebab'
+# expect: PSSP212 error @ 14:13 'lrm' must be a list of strings, not a string
+# expect: PSSP212 error @ 21:24 'default_enabled' must be true or false, not the string 'yes'
+# expect: PSSP212 error @ 26:14 'since' must be a string: quote it, as "2026.10" (unquoted, it is a number, and 2026.10 would read as 2026.1)
+# expect: PSSP212 error @ 33:23 'summary' is not interpolated; '${' belongs in 'message'
+# expect: PSSP212 error @ 39:15 'retierd' is not a valid 'status'; it must be one of active, deprecated, retired; did you mean 'retired'?
+# expect: PSSP212 error @ 46:15 'since' must be a rules version, YYYY.N ("2026.1"), not '26.1'
+# expect: PSSP212 error @ 56:14 'where' must be a CEL expression written as a string, not a bool; quote it, or use a block scalar (>-)
+# expect: PSSP212 error @ 63:7 'fix' is reserved for rule fixes, which pss-rules version 1 does not have
+# loads: none

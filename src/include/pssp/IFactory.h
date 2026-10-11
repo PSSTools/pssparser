@@ -33,6 +33,8 @@
 #include "pssp/ITaskFindElementByLocation.h"
 #include "pssp/IOccurrenceCollector.h"
 #include "pssp/IValFactory.h"
+#include "pssp/lint/ILintEngine.h"
+#include "pssp/lint/ILintTestHooks.h"
 
 namespace pssp {
 
@@ -116,6 +118,19 @@ public:
      * tree.
      */
     virtual IFmtCst *mkCstParser(std::istream *in) = 0;
+
+    /**
+     * A lint engine with no rules loaded (lint-core-plan.md). The caller
+     * owns the returned object.
+     */
+    virtual lint::ILintEngine *mkLintEngine() = 0;
+
+    /**
+     * PRIVATE: test entry points into the lint engine's internals
+     * (lint-core-plan.md §5). Not a supported API. The caller owns the
+     * returned object.
+     */
+    virtual lint::ILintTestHooks *mkLintTestHooks() = 0;
 
 };
 

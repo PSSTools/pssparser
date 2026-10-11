@@ -1,0 +1,5 @@
+pss-rules:
+  rules: !!seq []
+
+# expect: PSSP218 error @ 2:16 YAML tags ('!...') are not supported in rule files
+# refused

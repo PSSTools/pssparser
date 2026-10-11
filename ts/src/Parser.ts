@@ -56,6 +56,36 @@ export interface SourceFile {
   content: string;
 }
 
+/** A `pss-rules` file to load (`pss-rules-format.md`), held in memory. */
+export interface RuleFile {
+  /** The name reported in rule diagnostics; need not be a real path. */
+  name: string;
+  text: string;
+}
+
+/**
+ * A problem in a rule file (`PSSP210`-`PSSP219`), located in that file. A bad
+ * rule is left out and the rest of its file loads.
+ */
+export interface RuleDiagnostic {
+  code: string;
+  severity: 'error' | 'warning' | 'info';
+  message: string;
+  file: string;
+  line: number;
+  col: number;
+  /** The rule's ID, when the diagnostic is about one rule; else `''`. */
+  rule: string;
+  /** The other location, for a clash between two rules. */
+  related?: { file: string; line: number; col: number };
+}
+
+/**
+ * Whether a text is a rule file, as `Parser.probeRules()` decides it:
+ * `no-key` is a YAML mapping without `pss-rules`.
+ */
+export type RuleProbe = 'rule-file' | 'empty' | 'not-yaml' | 'not-mapping' | 'no-key';
+
 /**
  * Thrown when a parse or link produces any error-severity marker.
  *
@@ -264,6 +294,39 @@ export class Parser {
    */
   fileMap(): ReadonlyMap<number, string> {
     return new Map(this.#fileMap);
+  }
+
+  /**
+   * Load `pss-rules` files, in order, after the built-in rules (which the
+   * session loads first, once). Returns the diagnostics these files produced;
+   * `ruleDiagnostics` has every one so far.
+   *
+   * The same loader as the CLI's `--rules`: an ID or name already taken by
+   * an earlier file, built-in or not, is refused (`PSSP217`). Loading rules
+   * does not run them yet (lint-core-plan.md C5).
+   */
+  loadRules(files: RuleFile[]): RuleDiagnostic[] {
+    const session = this.#require();
+    const before = this.ruleDiagnostics.length;
+    for (const f of files) {
+      session.loadRuleFile(f.name, f.text);
+    }
+    return this.ruleDiagnostics.slice(before);
+  }
+
+  /** Every rule-file diagnostic of this Parser, built-in files included. */
+  get ruleDiagnostics(): readonly RuleDiagnostic[] {
+    return JSON.parse(this.#require().ruleDiagnosticsJson()) as RuleDiagnostic[];
+  }
+
+  /**
+   * Whether `text` is a rule file, without loading it: what a host listing a
+   * directory uses to skip other YAML (`pss-rules-format.md` §6.2). Text that
+   * is not valid YAML is a `rule-file` when a line starts `pss-rules:`, so
+   * that loading it reports the YAML errors.
+   */
+  probeRules(text: string): RuleProbe {
+    return this.#require().probeRules(text) as RuleProbe;
   }
 
   /** Enable ANTLR profiling for subsequent parse operations. */

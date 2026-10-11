@@ -1,0 +1,5 @@
+{"pss-rules": {"rules": [
+  {"id": "ACME001", "name": "from-json", "tier": "style", "summary": "s",
+   "message": "m", "match": {"kind": "ExprBin"},
+   "where": "node.op == ExprBinOp.BinOp_Eq && node.lhs =="}
+]}}

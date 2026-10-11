@@ -1,0 +1,6 @@
+pss-rules:
+  rules:
+    ACME001: {}
+
+# expect: PSSP210 error @ 3:5 'rules' must be a list of rules, not a mapping
+# refused

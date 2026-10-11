@@ -1,0 +1,1618 @@
+{
+ "source": "conversions.textproto",
+ "cel_spec": "v0.25.3",
+ "tests": [
+  {
+   "section": "bytes",
+   "name": "string_empty",
+   "expr": "bytes('')",
+   "fields": {
+    "value": [
+     {
+      "bytes_value": [
+       ""
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "bytes",
+   "name": "string",
+   "expr": "bytes('abc')",
+   "fields": {
+    "value": [
+     {
+      "bytes_value": [
+       "abc"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "bytes",
+   "name": "string_unicode",
+   "expr": "bytes('ÿ')",
+   "fields": {
+    "value": [
+     {
+      "bytes_value": [
+       "ÿ"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "bytes",
+   "name": "string_unicode_vs_literal",
+   "expr": "bytes('\\377') == b'\\377'",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "false"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "double",
+   "name": "int_zero",
+   "expr": "double(0)",
+   "fields": {
+    "value": [
+     {
+      "double_value": [
+       "0.0"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "double",
+   "name": "int_pos",
+   "expr": "double(1000000000000)",
+   "fields": {
+    "value": [
+     {
+      "double_value": [
+       "1e12"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "double",
+   "name": "int_neg",
+   "expr": "double(-1000000000000000)",
+   "fields": {
+    "value": [
+     {
+      "double_value": [
+       "-1e15"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "double",
+   "name": "int_min_exact",
+   "expr": "double(-9007199254740992)",
+   "fields": {
+    "description": [
+     "Smallest contiguous representable int (-2^53)."
+    ],
+    "value": [
+     {
+      "double_value": [
+       "-9.007199254740992e15"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "double",
+   "name": "int_max_exact",
+   "expr": "double(9007199254740992)",
+   "fields": {
+    "description": [
+     "Largest contiguous representable int (2^53)."
+    ],
+    "value": [
+     {
+      "double_value": [
+       "9.007199254740992e15"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "double",
+   "name": "int_range",
+   "expr": "double(9223372036854775807)",
+   "fields": {
+    "description": [
+     "Largest signed 64-bit. Rounds to nearest double."
+    ],
+    "value": [
+     {
+      "double_value": [
+       "9.223372036854775807e18"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "double",
+   "name": "uint_zero",
+   "expr": "double(0u)",
+   "fields": {
+    "value": [
+     {
+      "double_value": [
+       "0.0"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "double",
+   "name": "uint_pos",
+   "expr": "double(123u)",
+   "fields": {
+    "value": [
+     {
+      "double_value": [
+       "123.0"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "double",
+   "name": "uint_max_exact",
+   "expr": "double(9007199254740992u)",
+   "fields": {
+    "description": [
+     "Largest contiguous representable int (2^53)."
+    ],
+    "value": [
+     {
+      "double_value": [
+       "9.007199254740992e15"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "double",
+   "name": "uint_range",
+   "expr": "double(18446744073709551615u)",
+   "fields": {
+    "description": [
+     "Largest unsigned 64-bit."
+    ],
+    "value": [
+     {
+      "double_value": [
+       "1.8446744073709551615e19"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "double",
+   "name": "string_zero",
+   "expr": "double('0')",
+   "fields": {
+    "value": [
+     {
+      "double_value": [
+       "0.0"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "double",
+   "name": "string_zero_dec",
+   "expr": "double('0.0')",
+   "fields": {
+    "value": [
+     {
+      "double_value": [
+       "0.0"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "double",
+   "name": "string_neg_zero",
+   "expr": "double('-0.0')",
+   "fields": {
+    "value": [
+     {
+      "double_value": [
+       "-0.0"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "double",
+   "name": "string_no_dec",
+   "expr": "double('123')",
+   "fields": {
+    "value": [
+     {
+      "double_value": [
+       "123.0"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "double",
+   "name": "string_pos",
+   "expr": "double('123.456')",
+   "fields": {
+    "value": [
+     {
+      "double_value": [
+       "123.456"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "double",
+   "name": "string_neg",
+   "expr": "double('-987.654')",
+   "fields": {
+    "value": [
+     {
+      "double_value": [
+       "-987.654"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "double",
+   "name": "string_exp_pos_pos",
+   "expr": "double('6.02214e23')",
+   "fields": {
+    "value": [
+     {
+      "double_value": [
+       "6.02214e23"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "double",
+   "name": "string_exp_pos_neg",
+   "expr": "double('1.38e-23')",
+   "fields": {
+    "value": [
+     {
+      "double_value": [
+       "1.38e-23"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "double",
+   "name": "string_exp_neg_pos",
+   "expr": "double('-84.32e7')",
+   "fields": {
+    "value": [
+     {
+      "double_value": [
+       "-8.432e8"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "double",
+   "name": "string_exp_neg_neg",
+   "expr": "double('-5.43e-21')",
+   "fields": {
+    "value": [
+     {
+      "double_value": [
+       "-5.43e-21"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "dyn",
+   "name": "dyn_heterogeneous_list",
+   "expr": "type(dyn([1, 'one']))",
+   "fields": {
+    "description": [
+     "No need to disable type checking."
+    ],
+    "value": [
+     {
+      "type_value": [
+       "list"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "int",
+   "name": "uint",
+   "expr": "int(42u)",
+   "fields": {
+    "value": [
+     {
+      "int64_value": [
+       "42"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "int",
+   "name": "uint_zero",
+   "expr": "int(0u)",
+   "fields": {
+    "value": [
+     {
+      "int64_value": [
+       "0"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "int",
+   "name": "uint_max_exact",
+   "expr": "int(9223372036854775807u)",
+   "fields": {
+    "value": [
+     {
+      "int64_value": [
+       "9223372036854775807"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "int",
+   "name": "uint_range",
+   "expr": "int(18446744073709551615u)",
+   "fields": {
+    "eval_error": [
+     {
+      "errors": [
+       {
+        "message": [
+         "range error"
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "int",
+   "name": "double_round_neg",
+   "expr": "int(-123.456)",
+   "fields": {
+    "value": [
+     {
+      "int64_value": [
+       "-123"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "int",
+   "name": "double_truncate",
+   "expr": "int(1.9)",
+   "fields": {
+    "value": [
+     {
+      "int64_value": [
+       "1"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "int",
+   "name": "double_truncate_neg",
+   "expr": "int(-7.9)",
+   "fields": {
+    "value": [
+     {
+      "int64_value": [
+       "-7"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "int",
+   "name": "double_half_pos",
+   "expr": "int(11.5)",
+   "fields": {
+    "value": [
+     {
+      "int64_value": [
+       "11"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "int",
+   "name": "double_half_neg",
+   "expr": "int(-3.5)",
+   "fields": {
+    "value": [
+     {
+      "int64_value": [
+       "-3"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "int",
+   "name": "double_big_exact",
+   "expr": "int(double(36028797018963968))",
+   "fields": {
+    "description": [
+     "Beyond exact range (2^53), but no loss of precision (2^55)."
+    ],
+    "value": [
+     {
+      "int64_value": [
+       "36028797018963968"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "int",
+   "name": "double_big_precision",
+   "expr": "int(double(36028797018963969))",
+   "fields": {
+    "description": [
+     "Beyond exact range (2^53), but loses precision (2^55 + 1)."
+    ],
+    "value": [
+     {
+      "int64_value": [
+       "36028797018963968"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "int",
+   "name": "double_int_max_range",
+   "expr": "int(9223372036854775807.0)",
+   "fields": {
+    "description": [
+     "The double(2^63-1) cast produces a floating point value outside the int range"
+    ],
+    "eval_error": [
+     {
+      "errors": [
+       {
+        "message": [
+         "range"
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "int",
+   "name": "double_int_min_range",
+   "expr": "int(-9223372036854775808.0)",
+   "fields": {
+    "description": [
+     "The double(-2^63) cast produces a floating point value outside the int range"
+    ],
+    "eval_error": [
+     {
+      "errors": [
+       {
+        "message": [
+         "range"
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "int",
+   "name": "double_range",
+   "expr": "int(1e99)",
+   "fields": {
+    "eval_error": [
+     {
+      "errors": [
+       {
+        "message": [
+         "range"
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "int",
+   "name": "string",
+   "expr": "int('987')",
+   "fields": {
+    "value": [
+     {
+      "int64_value": [
+       "987"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "int",
+   "name": "timestamp",
+   "expr": "int(timestamp('2004-09-16T23:59:59Z'))",
+   "fields": {
+    "value": [
+     {
+      "int64_value": [
+       "1095379199"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "string",
+   "name": "int",
+   "expr": "string(123)",
+   "fields": {
+    "value": [
+     {
+      "string_value": [
+       "123"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "string",
+   "name": "int_neg",
+   "expr": "string(-456)",
+   "fields": {
+    "value": [
+     {
+      "string_value": [
+       "-456"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "string",
+   "name": "uint",
+   "expr": "string(9876u)",
+   "fields": {
+    "value": [
+     {
+      "string_value": [
+       "9876"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "string",
+   "name": "double",
+   "expr": "string(123.456)",
+   "fields": {
+    "value": [
+     {
+      "string_value": [
+       "123.456"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "string",
+   "name": "double_hard",
+   "expr": "string(-4.5e-3)",
+   "fields": {
+    "value": [
+     {
+      "string_value": [
+       "-0.0045"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "string",
+   "name": "bytes",
+   "expr": "string(b'abc')",
+   "fields": {
+    "value": [
+     {
+      "string_value": [
+       "abc"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "string",
+   "name": "bytes_unicode",
+   "expr": "string(b'\\303\\277')",
+   "fields": {
+    "value": [
+     {
+      "string_value": [
+       "ÿ"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "string",
+   "name": "bytes_invalid",
+   "expr": "string(b'\\000\\xff')",
+   "fields": {
+    "eval_error": [
+     {
+      "errors": [
+       {
+        "message": [
+         "invalid UTF-8"
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "type",
+   "name": "bool",
+   "expr": "type(true)",
+   "fields": {
+    "value": [
+     {
+      "type_value": [
+       "bool"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "type",
+   "name": "bool_denotation",
+   "expr": "bool",
+   "fields": {
+    "value": [
+     {
+      "type_value": [
+       "bool"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "type",
+   "name": "dyn_no_denotation",
+   "expr": "dyn",
+   "fields": {
+    "disable_check": [
+     "true"
+    ],
+    "eval_error": [
+     {
+      "errors": [
+       {
+        "message": [
+         "unknown variable"
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "type",
+   "name": "int",
+   "expr": "type(0)",
+   "fields": {
+    "value": [
+     {
+      "type_value": [
+       "int"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "type",
+   "name": "int_denotation",
+   "expr": "int",
+   "fields": {
+    "value": [
+     {
+      "type_value": [
+       "int"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "type",
+   "name": "eq_same",
+   "expr": "type(true) == type(false)",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "type",
+   "name": "uint",
+   "expr": "type(64u)",
+   "fields": {
+    "value": [
+     {
+      "type_value": [
+       "uint"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "type",
+   "name": "uint_denotation",
+   "expr": "uint",
+   "fields": {
+    "value": [
+     {
+      "type_value": [
+       "uint"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "type",
+   "name": "double",
+   "expr": "type(3.14)",
+   "fields": {
+    "value": [
+     {
+      "type_value": [
+       "double"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "type",
+   "name": "double_denotation",
+   "expr": "double",
+   "fields": {
+    "value": [
+     {
+      "type_value": [
+       "double"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "type",
+   "name": "null_type",
+   "expr": "type(null)",
+   "fields": {
+    "value": [
+     {
+      "type_value": [
+       "null_type"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "type",
+   "name": "null_type_denotation",
+   "expr": "null_type",
+   "fields": {
+    "value": [
+     {
+      "type_value": [
+       "null_type"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "type",
+   "name": "string",
+   "expr": "type('foo')",
+   "fields": {
+    "value": [
+     {
+      "type_value": [
+       "string"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "type",
+   "name": "string_denotation",
+   "expr": "string",
+   "fields": {
+    "value": [
+     {
+      "type_value": [
+       "string"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "type",
+   "name": "bytes",
+   "expr": "type(b'\\xff')",
+   "fields": {
+    "value": [
+     {
+      "type_value": [
+       "bytes"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "type",
+   "name": "bytes_denotation",
+   "expr": "bytes",
+   "fields": {
+    "value": [
+     {
+      "type_value": [
+       "bytes"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "type",
+   "name": "list",
+   "expr": "type([1, 2, 3])",
+   "fields": {
+    "value": [
+     {
+      "type_value": [
+       "list"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "type",
+   "name": "list_denotation",
+   "expr": "list",
+   "fields": {
+    "value": [
+     {
+      "type_value": [
+       "list"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "type",
+   "name": "lists_monomorphic",
+   "expr": "type([1, 2, 3]) == type(['one', 'two', 'three'])",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "type",
+   "name": "map",
+   "expr": "type({4: 16})",
+   "fields": {
+    "value": [
+     {
+      "type_value": [
+       "map"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "type",
+   "name": "map_denotation",
+   "expr": "map",
+   "fields": {
+    "value": [
+     {
+      "type_value": [
+       "map"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "type",
+   "name": "map_monomorphic",
+   "expr": "type({'one': 1}) == type({1: 'one'})",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "type",
+   "name": "eq_diff",
+   "expr": "type(7) == type(7u)",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "false"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "type",
+   "name": "neq_same",
+   "expr": "type(0.0) != type(-0.0)",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "false"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "type",
+   "name": "neq_diff",
+   "expr": "type(0.0) != type(0)",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "type",
+   "name": "meta",
+   "expr": "type(type(7)) == type(type(7u))",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "type",
+   "name": "type",
+   "expr": "type(int)",
+   "fields": {
+    "value": [
+     {
+      "type_value": [
+       "type"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "type",
+   "name": "type_denotation",
+   "expr": "type",
+   "fields": {
+    "value": [
+     {
+      "type_value": [
+       "type"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "type",
+   "name": "type_type",
+   "expr": "type(type)",
+   "fields": {
+    "value": [
+     {
+      "type_value": [
+       "type"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "uint",
+   "name": "int",
+   "expr": "uint(1729)",
+   "fields": {
+    "value": [
+     {
+      "uint64_value": [
+       "1729"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "uint",
+   "name": "int_max",
+   "expr": "uint(9223372036854775807)",
+   "fields": {
+    "value": [
+     {
+      "uint64_value": [
+       "9223372036854775807"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "uint",
+   "name": "int_neg",
+   "expr": "uint(-1)",
+   "fields": {
+    "eval_error": [
+     {
+      "errors": [
+       {
+        "message": [
+         "range"
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "uint",
+   "name": "double",
+   "expr": "uint(3.14159265)",
+   "fields": {
+    "value": [
+     {
+      "uint64_value": [
+       "3"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "uint",
+   "name": "double_truncate",
+   "expr": "uint(1.9)",
+   "fields": {
+    "value": [
+     {
+      "uint64_value": [
+       "1"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "uint",
+   "name": "double_half",
+   "expr": "uint(25.5)",
+   "fields": {
+    "value": [
+     {
+      "uint64_value": [
+       "25"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "uint",
+   "name": "double_big_exact",
+   "expr": "uint(double(36028797018963968u))",
+   "fields": {
+    "description": [
+     "Beyond exact range (2^53), but no loss of precision (2^55)."
+    ],
+    "value": [
+     {
+      "uint64_value": [
+       "36028797018963968"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "uint",
+   "name": "double_big_precision",
+   "expr": "uint(double(36028797018963969u))",
+   "fields": {
+    "description": [
+     "Beyond exact range (2^53), but loses precision (2^55 + 1)."
+    ],
+    "value": [
+     {
+      "uint64_value": [
+       "36028797018963968"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "uint",
+   "name": "double_uint_max_range",
+   "expr": "int(18446744073709551615.0)",
+   "fields": {
+    "description": [
+     "The exact conversion of uint max as a double does not round trip."
+    ],
+    "eval_error": [
+     {
+      "errors": [
+       {
+        "message": [
+         "range"
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "uint",
+   "name": "double_range_beyond_uint",
+   "expr": "uint(6.022e23)",
+   "fields": {
+    "eval_error": [
+     {
+      "errors": [
+       {
+        "message": [
+         "range"
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "uint",
+   "name": "string",
+   "expr": "uint('300')",
+   "fields": {
+    "value": [
+     {
+      "uint64_value": [
+       "300"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "bool",
+   "name": "string_1",
+   "expr": "bool('1')",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "bool",
+   "name": "string_t",
+   "expr": "bool('t')",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "bool",
+   "name": "string_true_lowercase",
+   "expr": "bool('true')",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "bool",
+   "name": "string_true_uppercase",
+   "expr": "bool('TRUE')",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "bool",
+   "name": "string_true_pascalcase",
+   "expr": "bool('True')",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "bool",
+   "name": "string_0",
+   "expr": "bool('0')",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "false"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "bool",
+   "name": "string_f",
+   "expr": "bool('f')",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "false"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "bool",
+   "name": "string_false_lowercase",
+   "expr": "bool('false')",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "false"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "bool",
+   "name": "string_false_uppercase",
+   "expr": "bool('FALSE')",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "false"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "bool",
+   "name": "string_false_pascalcase",
+   "expr": "bool('False')",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "false"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "bool",
+   "name": "string_true_badcase",
+   "expr": "bool('TrUe')",
+   "fields": {
+    "eval_error": [
+     {
+      "errors": [
+       {
+        "message": [
+         "Type conversion error"
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "bool",
+   "name": "string_false_badcase",
+   "expr": "bool('FaLsE')",
+   "fields": {
+    "eval_error": [
+     {
+      "errors": [
+       {
+        "message": [
+         "Type conversion error"
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "identity",
+   "name": "bool",
+   "expr": "bool(true)",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "identity",
+   "name": "int",
+   "expr": "int(1)",
+   "fields": {
+    "value": [
+     {
+      "int64_value": [
+       "1"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "identity",
+   "name": "uint",
+   "expr": "uint(1u)",
+   "fields": {
+    "value": [
+     {
+      "uint64_value": [
+       "1"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "identity",
+   "name": "double",
+   "expr": "double(5.5)",
+   "fields": {
+    "value": [
+     {
+      "double_value": [
+       "5.5"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "identity",
+   "name": "string",
+   "expr": "string('hello')",
+   "fields": {
+    "value": [
+     {
+      "string_value": [
+       "hello"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "identity",
+   "name": "bytes",
+   "expr": "bytes(b'abc')",
+   "fields": {
+    "value": [
+     {
+      "bytes_value": [
+       "abc"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "identity",
+   "name": "duration",
+   "expr": "duration(duration('100s')) == duration('100s')",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "identity",
+   "name": "timestamp",
+   "expr": "timestamp(timestamp(1000000000)) == timestamp(1000000000)",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  }
+ ]
+}

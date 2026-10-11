@@ -1,0 +1,18 @@
+pss-rules:
+  defaults:
+    tier: nursary
+  rules:
+    - id: ACME001
+      name: relies-on-the-bad-default
+      summary: s
+      message: m
+      match: { kind: ExprBin }
+    - id: ACME002
+      name: sets-its-own
+      tier: style
+      summary: s
+      message: m
+      match: { kind: ExprBin }
+
+# expect: PSSP212 error @ 3:11 'nursary' is not a valid 'tier'; it must be one of correctness, suspicious, portability, simplify, style, pedantic, restriction, nursery; did you mean 'nursery'?
+# loads: ACME002

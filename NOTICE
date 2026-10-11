@@ -6,3 +6,23 @@ This product includes software developed as part of the psstools project
 
 Licensed under the Apache License, Version 2.0. See the LICENSE file for the
 full terms.
+
+Third-party software compiled into this product
+-----------------------------------------------
+
+rapidyaml (https://github.com/biojppm/rapidyaml), v0.16.0
+Copyright (c) 2018, Joao Paulo Magalhaes. MIT License.
+It bundles c4core (https://github.com/biojppm/c4core), Copyright (c) 2018,
+Joao Paulo Magalhaes, MIT License; which in turn bundles fast_float
+(https://github.com/fastfloat/fast_float), Copyright (c) 2021 The fast_float
+authors, MIT License, and debugbreak (https://github.com/scottt/debugbreak),
+Copyright (c) 2011-2021, Scott Tsai, BSD 2-Clause License.
+The license texts are distributed with the rapidyaml source release.
+
+Test data
+---------
+
+tests/data/cel-conformance/ is converted from the cel-spec conformance suite
+(https://github.com/google/cel-spec), Copyright Google LLC, Apache
+License 2.0. It is used by the test suite only and is not part of any built
+artifact.

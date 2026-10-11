@@ -1,0 +1,8 @@
+pss-rules:
+  rules: []
+---
+pss-rules:
+  rules: []
+
+# expect: PSSP218 error @ 4:1 a rule file holds one YAML document; found 2 ('---' separates documents)
+# refused

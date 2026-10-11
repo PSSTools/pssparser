@@ -40,6 +40,7 @@ def cmd_parse(
     show_waived: bool = False,
     baseline: Optional[str] = None,
     write_baseline: Optional[str] = None,
+    rule_load=None,
 ) -> int:
     """Run the parse (and optionally link) pipeline, report diagnostics.
 
@@ -90,6 +91,11 @@ def cmd_parse(
         Record this run's lint findings in this file (``--write-baseline``)
         instead.  Exits 0, unless the model has errors, which a baseline
         cannot record: then nothing is written and the exit code is 1.
+    rule_load:
+        The rule files loaded for this run
+        (:class:`pssparser.lint.rulefiles.RuleLoad`), or ``None``.  Their
+        diagnostics are reported with the run's; an error in a rule file
+        makes the exit code 1.
     """
     from pssparser.parser import Parser, ParseException
 
@@ -111,6 +117,9 @@ def cmd_parse(
         manager.discover()
     for load_marker in manager.load_diagnostics:
         coll.add(Diagnostic.from_marker(load_marker))
+    if rule_load is not None:
+        for marker in rule_load.diagnostics:
+            coll.add(Diagnostic.from_marker(marker))
     if config is not None:
         from .config import alias_note_markers
         for note in alias_note_markers(config):

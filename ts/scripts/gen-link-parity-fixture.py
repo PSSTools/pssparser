@@ -92,12 +92,16 @@ def refs(root, ast):
         "importSpecs": 0, "imports": 0,
         "functionScopes": 0, "prototypes": 0,
     }
+    # Keyed on the C++ node, not the Python wrapper: each access returns a
+    # new wrapper, so `id(node)` never matches twice. A merged extension's
+    # functions are children of both the `extend` and the extended type, and
+    # an id()-keyed set counted them twice (known-issues TS-1).
     seen = set()
 
     def visit(node):
-        if node is None or id(node) in seen:
+        if node is None or hash(node) in seen:
             return
-        seen.add(id(node))
+        seen.add(hash(node))
 
         if isinstance(node, ast.SymbolScope):
             spec = node.getImports()

@@ -1,0 +1,9 @@
+pss-rules:
+  version: 2
+  uses: [other.yaml]          # a v2 key: not judged by v1's rules
+  rules:
+    - id: ACME001
+      name: from-the-future
+
+# expect: PSSP210 error @ 2:12 this file is pss-rules version 2, but this pssparser reads version 1; upgrade pssparser to load it
+# refused

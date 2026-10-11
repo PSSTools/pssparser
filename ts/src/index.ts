@@ -28,6 +28,9 @@ export {
   createParser,
   type ParserOptions,
   type ProfileInfo,
+  type RuleDiagnostic,
+  type RuleFile,
+  type RuleProbe,
   type SourceFile,
 } from './Parser.js';
 
@@ -35,6 +38,7 @@ export {
   FILEID_BUILTIN,
   FILEID_STDLIB,
   type Marker,
+  type MarkerFix,
   type MarkerRelation,
   type MarkerSeverity,
 } from './Marker.js';

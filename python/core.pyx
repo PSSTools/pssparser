@@ -14,6 +14,7 @@ from libc.stdint cimport intptr_t
 from libc.stdint cimport int32_t
 from libc.stdint cimport uint32_t
 from libcpp.vector cimport vector as std_vector
+from libcpp.string cimport string as cpp_string
 from libcpp.cast cimport dynamic_cast
 
 # Import the C++ resolveSymbolPathRef function
@@ -97,6 +98,15 @@ cdef class Factory(object):
                 occs[i].is_decl,
                 int(occs[i].resolution)))
         return ret
+
+    def mkLintEngine(self):
+        """A lint engine with no rules loaded (lint-core-plan.md)."""
+        return LintEngine.mk(self._hndl.mkLintEngine())
+
+    def _lintTestHooks(self):
+        """PRIVATE: the lint engine's test entry points (lint-core-plan.md
+        §5). Not a supported API."""
+        return LintTestHooks.mk(self._hndl.mkLintTestHooks())
 
     cpdef TokenStream mkTokenizer(self, in_s):
         cdef cistream c_in_s
@@ -1045,3 +1055,232 @@ cdef class Cst(object):
     def text(self):
         """The source, reassembled from the tokens."""
         return self.tokens.text
+
+
+cdef class LintEngine(object):
+    """The C++ lint engine (lint-core-plan.md). Owns the rule sets loaded
+    into it."""
+    cdef decl.ILintEngine *_hndl
+
+    def __dealloc__(self):
+        if self._hndl != NULL:
+            del self._hndl
+
+    @staticmethod
+    cdef LintEngine mk(decl.ILintEngine *hndl):
+        ret = LintEngine()
+        ret._hndl = hndl
+        return ret
+
+    @property
+    def rule_format_version(self):
+        """The pss-rules format version this engine reads."""
+        return self._hndl.ruleFormatVersion()
+
+    def num_rule_sets(self):
+        return self._hndl.numRuleSets()
+
+    def load_rules(self, str name, str text, builtin=False):
+        """Loads one rule file (pss-rules-format.md) from its text; `name` is
+        shown in diagnostics. Returns False if the file as a whole was
+        refused. Problems are in rule_diagnostics(); a bad rule is left out
+        and the rest of the file loads."""
+        cdef decl.LintSource src
+        src.name = name.encode("utf-8")
+        src.text = text.encode("utf-8")
+        return self._hndl.loadRules(src, builtin) != NULL
+
+    def load_builtin_rules(self):
+        """Loads the built-in rule files embedded in the core, once; a second
+        call does nothing. Returns the number of files this call loaded."""
+        return self._hndl.loadBuiltinRules()
+
+    @property
+    def num_builtin_rule_files(self):
+        """The number of built-in rule files embedded in the core."""
+        return self._hndl.numBuiltinRuleFiles()
+
+    def probe_rules(self, str text):
+        """Whether `text` is a rule file, without loading it: "rule-file",
+        "empty", "not-yaml", "not-mapping" or "no-key" (no top-level
+        `pss-rules`). Text that is not valid YAML is a "rule-file" when a
+        line starts `pss-rules:`, so loading it reports the YAML errors."""
+        cdef decl.RuleProbeE p = self._hndl.probeRules(text.encode("utf-8"))
+        if p == decl.RuleProbe_RuleFile:
+            return "rule-file"
+        if p == decl.RuleProbe_Empty:
+            return "empty"
+        if p == decl.RuleProbe_NotYaml:
+            return "not-yaml"
+        if p == decl.RuleProbe_NotMapping:
+            return "not-mapping"
+        return "no-key"
+
+    def rule_diagnostics(self):
+        """Every rule-file diagnostic so far: a list of dicts with `code`,
+        `severity`, `message`, `file`, `line`, `col`, `rule`, and `related`
+        when there is a second location."""
+        import json
+        return json.loads(self._hndl.diagnosticsJson().decode("utf-8"))
+
+    def rules(self):
+        """Every loaded rule, with its metadata, match, options, examples,
+        and computed level and scope, as a list of dicts."""
+        import json
+        return json.loads(self._hndl.rulesJson().decode("utf-8"))
+
+
+cdef class LintTestHooks(object):
+    """PRIVATE test entry points into the C++ lint engine's internals (YAML
+    layer, regex engine, CEL parser and evaluator). Each returns the decoded
+    JSON the core produced; the WASM build produces the same text. Not a
+    supported API (lint-core-plan.md §5)."""
+    cdef decl.ILintTestHooks *_hndl
+
+    def __dealloc__(self):
+        if self._hndl != NULL:
+            del self._hndl
+
+    @staticmethod
+    cdef LintTestHooks mk(decl.ILintTestHooks *hndl):
+        ret = LintTestHooks()
+        ret._hndl = hndl
+        return ret
+
+    @staticmethod
+    def _decode(bytes b):
+        import json
+        return json.loads(b.decode("utf-8", "surrogateescape"))
+
+    def yaml_load(self, str name, str text):
+        return LintTestHooks._decode(self._hndl.yamlLoad(
+            name.encode("utf-8"), text.encode("utf-8")))
+
+    def yaml_source_maps(self, str name, str text):
+        return LintTestHooks._decode(self._hndl.yamlSourceMaps(
+            name.encode("utf-8"), text.encode("utf-8")))
+
+    def yaml_cel_parse(self, str name, str text, str key):
+        return LintTestHooks._decode(self._hndl.yamlCelParse(
+            name.encode("utf-8"), text.encode("utf-8"), key.encode("utf-8")))
+
+    def cel_parse(self, str text):
+        return LintTestHooks._decode(self._hndl.celParse(text.encode("utf-8")))
+
+    def cel_eval(self, str text, max_steps=0, bindings=None):
+        """`bindings`: a dict of variables, passed as JSON."""
+        return LintTestHooks._decode(self._hndl.celEval(
+            text.encode("utf-8"), LintTestHooks._bindings(bindings), max_steps))
+
+    def cel_functions(self):
+        """The function registry: every overload, in registration order."""
+        return LintTestHooks._decode(self._hndl.celFunctions())
+
+    def cel_check(self, doc, str name="check.yaml"):
+        """Type-checks (and runs) a rule-shaped document: a dict, passed as
+        JSON, or YAML text. See ILintTestHooks::celCheck for the keys."""
+        return LintTestHooks._decode(self._hndl.celCheck(
+            name.encode("utf-8"), LintTestHooks._doc(doc)))
+
+    def cel_check_node(self, doc, ast.ScopeChild root, str name="check.yaml"):
+        """cel_check with `node` bound to `root` (native only)."""
+        return LintTestHooks._decode(self._hndl.celCheckNode(
+            name.encode("utf-8"), LintTestHooks._doc(doc), root.asScopeChild()))
+
+    @staticmethod
+    def _doc(doc):
+        import json
+        return (doc if isinstance(doc, str) else json.dumps(doc)).encode("utf-8")
+
+    def cel_eval_node(self, str text, ast.ScopeChild root, max_steps=0, bindings=None):
+        """cel_eval with `node` bound to `root` (native only)."""
+        return LintTestHooks._decode(self._hndl.celEvalNode(
+            text.encode("utf-8"), root.asScopeChild(), LintTestHooks._bindings(bindings),
+            max_steps))
+
+    @staticmethod
+    def _bindings(bindings):
+        import json
+        return json.dumps(bindings).encode("utf-8") if bindings else b""
+
+    def rule_load(self, str name, str text, builtin=False):
+        """Loads one rule file into a fresh engine: {"loaded", "rules",
+        "diagnostics"}."""
+        return LintTestHooks._decode(self._hndl.ruleLoad(
+            name.encode("utf-8"), text.encode("utf-8"), builtin))
+
+    def rules_schema(self):
+        """The JSON Schema of a rule file, written from the loader's field
+        table (C4.4); scripts/gen_rules_schema.py publishes it."""
+        return LintTestHooks._decode(self._hndl.rulesSchema())
+
+    def regex_search(self, str pattern, str text):
+        return LintTestHooks._decode(self._hndl.regexSearch(
+            pattern.encode("utf-8"), text.encode("utf-8")))
+
+    def reflect_schema(self):
+        return LintTestHooks._decode(self._hndl.reflectSchema())
+
+    def reflect_census(self, ast.ScopeChild root):
+        return LintTestHooks._decode(self._hndl.reflectCensus(root.asScopeChild()))
+
+    def lint_walk(self, str name, str text, roots):
+        """Loads one rule file and walks `roots` (GlobalScope nodes) with its
+        rules (C5.1): every (rule, node) match, `where:` not evaluated."""
+        cdef std_vector[ast_decl.IScopeChildP] v
+        cdef ast.ScopeChild r
+        for r in roots:
+            v.push_back(r.asScopeChild())
+        return LintTestHooks._decode(self._hndl.lintWalk(
+            name.encode("utf-8"), text.encode("utf-8"), v))
+
+    def lint_run(self, str name, str text, roots, enabled=None, int max_steps=0,
+                 int gate_errors=0):
+        """Loads one rule file and runs its rules over `roots` (GlobalScope
+        nodes, one per file) (C5.2, C5.3): the findings, the rule failures,
+        and per-rule counts and first error. `enabled` lists the IDs that
+        run (None: all); `max_steps` is the budget per rule per file (0: the
+        default); `gate_errors` > 0 runs nothing and returns the PSSP230
+        marker as "skipped"."""
+        cdef std_vector[ast_decl.IScopeChildP] v
+        cdef std_vector[cpp_string] ids
+        cdef ast.ScopeChild r
+        for r in roots:
+            v.push_back(r.asScopeChild())
+        for i in (enabled or ()):
+            ids.push_back(i.encode("utf-8"))
+        return LintTestHooks._decode(self._hndl.lintRun(
+            name.encode("utf-8"), text.encode("utf-8"), v, enabled is None, ids,
+            max_steps, gate_errors))
+
+    def raw(self, str fn, *args):
+        """The undecoded JSON text of one call, for the native/WASM parity
+        fixture: `fn` is the WASM binding's name less `_lint`
+        (`YamlLoad`, `YamlSourceMaps`, `YamlCelParse`, `CelParse`, `CelEval`,
+        `CelFunctions`, `CelCheck`, `ReflectSchema`, `RegexSearch`, `RuleLoad`)."""
+        cdef bytes out
+        if fn == "YamlLoad":
+            out = self._hndl.yamlLoad(args[0].encode("utf-8"), args[1].encode("utf-8"))
+        elif fn == "YamlSourceMaps":
+            out = self._hndl.yamlSourceMaps(args[0].encode("utf-8"), args[1].encode("utf-8"))
+        elif fn == "YamlCelParse":
+            out = self._hndl.yamlCelParse(args[0].encode("utf-8"), args[1].encode("utf-8"),
+                                          args[2].encode("utf-8"))
+        elif fn == "CelParse":
+            out = self._hndl.celParse(args[0].encode("utf-8"))
+        elif fn == "CelEval":
+            out = self._hndl.celEval(args[0].encode("utf-8"), args[1].encode("utf-8"), args[2])
+        elif fn == "CelFunctions":
+            out = self._hndl.celFunctions()
+        elif fn == "CelCheck":
+            out = self._hndl.celCheck(args[0].encode("utf-8"), args[1].encode("utf-8"))
+        elif fn == "ReflectSchema":
+            out = self._hndl.reflectSchema()
+        elif fn == "RegexSearch":
+            out = self._hndl.regexSearch(args[0].encode("utf-8"), args[1].encode("utf-8"))
+        elif fn == "RuleLoad":
+            out = self._hndl.ruleLoad(args[0].encode("utf-8"), args[1].encode("utf-8"),
+                                      True if args[2] else False)
+        else:
+            raise ValueError("unknown lint test hook %r" % fn)
+        return out.decode("utf-8", "surrogateescape")

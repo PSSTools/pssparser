@@ -1,0 +1,49 @@
+pss-rules:
+  defaults:
+    tier: style
+  rules:
+    - id: ACME001
+      name: example-forms
+      summary: s
+      message: m
+      match: { kind: ExprBin }
+      examples:
+        - name: line comment, block comment, positions
+          code: |
+            component pss_top {
+              // expect: ACME001 @ 3:5, ACME001
+              /* expect: ACME001 */ int x;
+            }
+        - name: two files
+          files:
+            a.pss: |
+              import b::*;   // expect: ACME001
+            b.pss: |
+              package b { }
+        - name: none
+          code: "component pss_top { } // expect: none"
+    - id: ACME002
+      name: example-errors
+      summary: s
+      message: m
+      match: { kind: ExprBin }
+      examples:
+        - name: malformed
+          code: |
+            component pss_top { }  // expect: ACME002 @ x:1
+        - name: other rule
+          code: |
+            component pss_top { }  // expect: ACME001
+        - name: both
+          code: "x"
+          files: { a.pss: "x" }
+        - name: neither
+        - name: none and a finding
+          code: "component pss_top { } // expect: none, ACME002"
+
+# expect: PSSP212 error @ 33:47 malformed expectation 'ACME002 @ x:1' in example 'malformed'; write '// expect: ACME002', optionally with '@ line:col'
+# expect: PSSP212 error @ 36:47 example 'other rule' expects ACME001, but an example runs only its own rule, ACME002
+# expect: PSSP212 error @ 37:11 example 'both' has both 'code' and 'files'; use one
+# expect: PSSP212 error @ 40:11 example 'neither' has neither 'code' nor 'files'
+# expect: PSSP212 error @ 42:50 'expect: none' together with expected findings, in example 'none and a finding'
+# loads: ACME001

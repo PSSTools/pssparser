@@ -1,0 +1,52 @@
+pss-rules:
+  defaults:
+    tier: style
+  rules:
+    - id: ACME001
+      name: where-not-bool
+      summary: s
+      message: m
+      match: { kind: ExprBin }
+      where: node.op
+    - id: ACME002
+      name: report-not-nodes
+      summary: s
+      message: m
+      match: { kind: ExprBin }
+      report: "[1, 2]"
+    - id: ACME003
+      name: unknown-field
+      summary: s
+      message: m
+      match: { kind: ExprBin }
+      where: |-
+        node.opp == 1
+    - id: ACME004
+      name: message-list
+      summary: s
+      message: "items ${[1, 2]}"
+      match: { kind: ExprBin }
+    - id: ACME005
+      name: unknown-option
+      summary: s
+      message: m
+      options:
+        limit: { type: int, default: 3 }
+      match: { kind: ExprBin }
+      where: options.limt > 0
+    - id: ACME006
+      name: option-typed
+      summary: s
+      message: m
+      options:
+        limit: { type: int, default: 3 }
+      match: { kind: ExprBin }
+      where: options.limit == "3"
+
+# expect: PSSP215 error @ 10:14 where: must be bool, but this expression is 'int'
+# expect: PSSP215 error @ 16:16 report: must be list(node), but this expression is 'list(int)'
+# expect: PSSP215 error @ 23:14 type 'ExprBin' has no field 'opp', nor does any class derived from it
+# expect: PSSP215 error @ 27:25 a message can interpolate a string, a number, a bool or a node, not 'list(int)'
+# expect: PSSP215 error @ 36:14 undeclared reference to 'options.limt' (declared: 'options.limit')
+# expect: PSSP215 error @ 44:14 no matching overload for '==' applied to (int, string); it takes A == A -> bool
+# loads: none

@@ -30,6 +30,17 @@ Common options
   cannot be read is a usage error (exit 2).  ``--write-baseline`` refuses a
   path ending in ``.pss``, and writes nothing (exit 1) when the model has
   errors
+- ``--rules PATH`` loads ``pss-rules`` files from PATH, a file or a
+  directory, after those named by ``[lint] rules`` (repeatable);
+  ``--check-rules [PATH...]`` loads and validates rule files and exits: 0
+  clean, 1 a rule file has an error, 2 a usage error (see
+  :doc:`lint-rule-authoring`).  A rule path that does not exist is a usage
+  error (exit 2) in any run.  Rule files load before the configuration is
+  checked, so their rules may be named by selectors, ``[severity]`` and
+  ``[lint.rule.<name>]``, and are shown by ``--explain``, ``--describe``
+  and ``--list-markers`` (under the checker ``pss-rules``)
+- ``-v`` / ``--verbose`` also lists the files in a rules directory that were
+  skipped because they are not rule files, with the reason
 - ``--statistics`` prints a per-code count of the diagnostics reported
 - ``--dump-ast OUT`` writes a JSON dump of the linked AST
 - ``--quiet`` suppresses normal diagnostic output
@@ -531,8 +542,9 @@ accepted too:
      - ``LINT4``
      - an ID band
    * - namespace
-     - ``PRC``
-     - every code an extension declares
+     - ``PRC``, ``ACME-NET``
+     - every code in the namespace; an organisation's (``ACME``) includes
+       its teams' (``ACME-NET001``)
    * - family
      - ``family:constraint``
      - every rule in the family
@@ -544,7 +556,8 @@ accepted too:
      - every rule the profile enables
 
 When several selectors match one rule, the most specific wins: ID or name,
-then prefix (longer is more specific), namespace, family, tier, profile.  A
+then prefix (longer is more specific), namespace (a team's before its
+organisation's), family, tier, profile.  A
 tie between ``select`` and ``ignore`` goes to ``ignore``.  A broad selector
 never reaches a core error: ``[severity] PSS = "warning"`` leaves every LRM
 error an error.
@@ -563,6 +576,7 @@ Lint and output settings
    ignore  = ["LINT402"]          # removed from it
    rules-version = "2026.1"       # rules newer than this stay out of profiles
    baseline = "lint-baseline.json"  # relative to this file; like --baseline
+   rules   = ["lint/rules/"]      # pss-rules files and directories, relative to this file
 
    [lint.rule.some-rule]          # options for one rule, if it declares any
    threshold = 3
@@ -574,7 +588,9 @@ Lint and output settings
    source = false                 # ignore waivers written in the source (docs: waivers)
 
 ``--lint-profile`` and ``--no-lint`` override ``lint.profile``;
-``--baseline`` and ``--no-baseline`` override ``lint.baseline``.  :doc:`lint`
+``--baseline`` and ``--no-baseline`` override ``lint.baseline``.
+``--rules`` adds to ``lint.rules`` rather than replacing it: the configured
+entries load first, then each ``--rules`` in order.  :doc:`lint`
 describes the profiles, pinning, baselines, and which files are linted.
 
 Warning policy

@@ -1,0 +1,489 @@
+{
+ "source": "logic.textproto",
+ "cel_spec": "v0.25.3",
+ "tests": [
+  {
+   "section": "conditional",
+   "name": "true_case",
+   "expr": "true ? 1 : 2",
+   "fields": {
+    "value": [
+     {
+      "int64_value": [
+       "1"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "conditional",
+   "name": "false_case",
+   "expr": "false ? 'foo' : 'bar'",
+   "fields": {
+    "value": [
+     {
+      "string_value": [
+       "bar"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "conditional",
+   "name": "error_case",
+   "expr": "2 / 0 > 4 ? 'baz' : 'quux'",
+   "fields": {
+    "eval_error": [
+     {
+      "errors": [
+       {
+        "message": [
+         "division by zero"
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "conditional",
+   "name": "mixed_type",
+   "expr": "true ? 'cows' : 17",
+   "fields": {
+    "disable_check": [
+     "true"
+    ],
+    "value": [
+     {
+      "string_value": [
+       "cows"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "conditional",
+   "name": "bad_type",
+   "expr": "'cows' ? false : 17",
+   "fields": {
+    "disable_check": [
+     "true"
+    ],
+    "eval_error": [
+     {
+      "errors": [
+       {
+        "message": [
+         "no matching overload"
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "AND",
+   "name": "all_true",
+   "expr": "true && true",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "AND",
+   "name": "all_false",
+   "expr": "false && false",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "false"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "AND",
+   "name": "false_left",
+   "expr": "false && true",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "false"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "AND",
+   "name": "false_right",
+   "expr": "true && false",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "false"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "AND",
+   "name": "short_circuit_type_left",
+   "expr": "false && 32",
+   "fields": {
+    "disable_check": [
+     "true"
+    ],
+    "value": [
+     {
+      "bool_value": [
+       "false"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "AND",
+   "name": "short_circuit_type_right",
+   "expr": "'horses' && false",
+   "fields": {
+    "disable_check": [
+     "true"
+    ],
+    "value": [
+     {
+      "bool_value": [
+       "false"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "AND",
+   "name": "short_circuit_error_left",
+   "expr": "false && (2 / 0 > 3 ? false : true)",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "false"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "AND",
+   "name": "short_circuit_error_right",
+   "expr": "(2 / 0 > 3 ? false : true) && false",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "false"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "AND",
+   "name": "error_right",
+   "expr": "true && 1/0 != 0",
+   "fields": {
+    "eval_error": [
+     {
+      "errors": [
+       {
+        "message": [
+         "no matching overload"
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "AND",
+   "name": "error_left",
+   "expr": "1/0 != 0 && true",
+   "fields": {
+    "eval_error": [
+     {
+      "errors": [
+       {
+        "message": [
+         "no matching overload"
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "AND",
+   "name": "no_overload",
+   "expr": "'less filling' && 'tastes great'",
+   "fields": {
+    "disable_check": [
+     "true"
+    ],
+    "eval_error": [
+     {
+      "errors": [
+       {
+        "message": [
+         "no matching overload"
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "OR",
+   "name": "all_true",
+   "expr": "true || true",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "OR",
+   "name": "all_false",
+   "expr": "false || false",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "false"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "OR",
+   "name": "false_left",
+   "expr": "false || true",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "OR",
+   "name": "false_right",
+   "expr": "true || false",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "OR",
+   "name": "short_circuit_type_left",
+   "expr": "true || 32",
+   "fields": {
+    "disable_check": [
+     "true"
+    ],
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "OR",
+   "name": "short_circuit_type_right",
+   "expr": "'horses' || true",
+   "fields": {
+    "disable_check": [
+     "true"
+    ],
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "OR",
+   "name": "short_circuit_error_left",
+   "expr": "true || (2 / 0 > 3 ? false : true)",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "OR",
+   "name": "short_circuit_error_right",
+   "expr": "(2 / 0 > 3 ? false : true) || true",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "OR",
+   "name": "error_right",
+   "expr": "false || 1/0 != 0",
+   "fields": {
+    "eval_error": [
+     {
+      "errors": [
+       {
+        "message": [
+         "no matching overload"
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "OR",
+   "name": "error_left",
+   "expr": "1/0 != 0 || false",
+   "fields": {
+    "eval_error": [
+     {
+      "errors": [
+       {
+        "message": [
+         "no matching overload"
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "OR",
+   "name": "no_overload",
+   "expr": "'less filling' || 'tastes great'",
+   "fields": {
+    "disable_check": [
+     "true"
+    ],
+    "eval_error": [
+     {
+      "errors": [
+       {
+        "message": [
+         "no matching overload"
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "NOT",
+   "name": "not_true",
+   "expr": "!true",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "false"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "NOT",
+   "name": "not_false",
+   "expr": "!false",
+   "fields": {
+    "value": [
+     {
+      "bool_value": [
+       "true"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "section": "NOT",
+   "name": "no_overload",
+   "expr": "!0",
+   "fields": {
+    "disable_check": [
+     "true"
+    ],
+    "eval_error": [
+     {
+      "errors": [
+       {
+        "message": [
+         "no matching overload"
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  }
+ ]
+}

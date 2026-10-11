@@ -381,6 +381,26 @@ def test_a_core_id_is_refused_as_a_reserved_namespace(eps):
     assert "squatter" not in m._registered
 
 
+@pytest.mark.parametrize("marker_id,expected", [
+    ("PSS-ACME001", ["PSSP005"]),       # reserved with any qualifier (C4.2)
+    ("LINT-NET001", ["PSSP005"]),
+    ("ACME-NET001", []),                # a team namespace is well formed
+    ("ACME-TEAM1001", ["PSSP006"]),     # segments are letters only
+])
+def test_qualified_namespaces(eps, marker_id, expected):
+    def register(reg):
+        reg.add_checker(make_checker("team-checker", marker_id))
+
+    eps[EXTENSION_GROUP] = [
+        FakeEP("acme-rules", make_module("acme_rules", register=register))
+    ]
+    m = CheckerManager()
+    m.discover()
+
+    assert codes(m) == expected
+    assert ("team-checker" in m._registered) == (expected != ["PSSP005"])
+
+
 def test_a_collision_costs_only_the_colliding_checker(eps):
     def first(reg):
         reg.add_checker(make_checker("first-checker", "DUP001"))

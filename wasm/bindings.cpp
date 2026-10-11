@@ -54,6 +54,7 @@
 #include "pssp/ast/IFactory.h"
 #include "pssp/ast/IGlobalScope.h"
 #include "pssp/ast/IRootSymbolScope.h"
+#include "pssp/lint/ILintEngine.h"
 #include "AstSerializer.h"
 
 namespace {
@@ -109,13 +110,15 @@ const char *severityName(pssp::MarkerSeverityE s) {
 }
 
 void emitLocation(std::ostream &os, const pssp::ast::Location &loc) {
-    // `col` is 1-based and `linepos` is 0-based, exactly as parser.py:305,331.
+    // `linepos` is already 1-based (the invariant in ast/coretypes.yaml), so
+    // it passes through unchanged, as Parser._collectMarkers does. Adding 1
+    // here put every column one character late (known-issues TS-1).
     // `extent` is passed through raw, including the -1 that Location.h
     // defaults it to; the Python API does the same (core.pyx:371-373) and
     // clamping here would invent information the core did not supply.
     os << "\"fileid\":" << loc.fileid
        << ",\"line\":" << loc.lineno
-       << ",\"col\":" << (loc.linepos + 1)
+       << ",\"col\":" << loc.linepos
        << ",\"extent\":" << loc.extent;
 }
 
@@ -375,6 +378,18 @@ public:
                     os << ",\"code\":";
                     jsonEscape(os, m->id());
                 }
+
+                // The first machine-applicable repair, as parser.py emits it.
+                // Its span is its own (an insertion has extent 0), so it is a
+                // separate location rather than derived from the marker's.
+                const std::vector<pssp::MarkerFix> &fixes = m->fixes();
+                if (!fixes.empty()) {
+                    os << ",\"fix\":{";
+                    emitLocation(os, fixes[0].span);
+                    os << ",\"replacement\":";
+                    jsonEscape(os, fixes[0].replacement);
+                    os << '}';
+                }
                 os << '}';
             }
         }
@@ -504,7 +519,69 @@ public:
         return profileJson(info.get());
     }
 
+    /*
+     * The session's lint engine, as JSON: {"rule_format_version":N,
+     * "rule_sets":N}. Created on first use and kept for the session's life,
+     * so rules loaded once (C4.3) serve every later runLint (C5.4).
+     */
+    std::string lintEngineInfoJson() {
+        pssp::lint::ILintEngine *e = ensureLintEngine();
+        std::ostringstream out;
+        out << "{\"rule_format_version\":" << e->ruleFormatVersion()
+            << ",\"rule_sets\":" << e->numRuleSets() << "}";
+        return out.str();
+    }
+
+    /*
+     * Loads one rule file into the session's engine (lint-core-plan.md C4.3).
+     * Returns false when the file as a whole was refused; the reasons, and
+     * any bad rules left out, are in ruleDiagnosticsJson().
+     */
+    bool loadRuleFile(const std::string &name, const std::string &text) {
+        pssp::lint::LintSource src;
+        src.name = name;
+        src.text = text;
+        return ensureLintEngine()->loadRules(src, false) != nullptr;
+    }
+
+    /*
+     * Whether `text` is a rule file, for a host listing a directory:
+     * "rule-file", "empty", "not-yaml", "not-mapping" or "no-key".
+     */
+    std::string probeRules(const std::string &text) {
+        switch (ensureLintEngine()->probeRules(text)) {
+        case pssp::lint::RuleProbe::RuleFile:   return "rule-file";
+        case pssp::lint::RuleProbe::Empty:      return "empty";
+        case pssp::lint::RuleProbe::NotYaml:    return "not-yaml";
+        case pssp::lint::RuleProbe::NotMapping: return "not-mapping";
+        case pssp::lint::RuleProbe::NoKey:      break;
+        }
+        return "no-key";
+    }
+
+    /* Every rule-file diagnostic of the session, built-in files included. */
+    std::string ruleDiagnosticsJson() {
+        return ensureLintEngine()->diagnosticsJson();
+    }
+
+    /* Every rule loaded in the session, built-in rules first. */
+    std::string rulesJson() {
+        return ensureLintEngine()->rulesJson();
+    }
+
 private:
+    /*
+     * The engine is created on first use, with the built-in rules loaded
+     * first (format §6.2: built-in, then site files, in order).
+     */
+    pssp::lint::ILintEngine *ensureLintEngine() {
+        if (!m_lint) {
+            m_lint.reset(m_factory->mkLintEngine());
+            m_lint->loadBuiltinRules();
+        }
+        return m_lint.get();
+    }
+
     /*
      * One builder per session, created once and reused.
      *
@@ -554,6 +631,7 @@ private:
     std::vector<pssp::ast::IGlobalScope *> m_units;
     /** The linked root, owned here and owning the units after link(). */
     pssp::ast::IRootSymbolScope         *m_root = 0;
+    pssp::lint::ILintEngineUP           m_lint;
     /** Backing store for the view returned by serializeUnit(). */
     std::string                         m_buf;
     int32_t                             m_max_errors;
@@ -584,8 +662,72 @@ std::string schemaHash() { return PSSPARSER_AST_SCHEMA_HASH; }
  * have to know to disregard. wasm/spike.mjs times all three parts instead.
  */
 
+/****************************************************************************
+ * Lint engine test hooks -- PRIVATE (lint-core-plan.md §5)
+ *
+ * The same entry points the Cython module exposes as LintTestHooks, so the
+ * parity tests can feed both builds the same input and compare the JSON text.
+ * Underscore-prefixed: not part of the TypeScript API.
+ ****************************************************************************/
+static pssp::lint::ILintTestHooks *lintTestHooks() {
+    static std::unique_ptr<pssp::lint::ILintTestHooks> hooks(
+        pssparser_getFactory()->mkLintTestHooks());
+    return hooks.get();
+}
+
+std::string lintYamlLoad(const std::string &name, const std::string &text) {
+    return lintTestHooks()->yamlLoad(name, text);
+}
+
+std::string lintYamlSourceMaps(const std::string &name, const std::string &text) {
+    return lintTestHooks()->yamlSourceMaps(name, text);
+}
+
+std::string lintYamlCelParse(const std::string &name, const std::string &text,
+                             const std::string &key) {
+    return lintTestHooks()->yamlCelParse(name, text, key);
+}
+
+std::string lintReflectSchema() {
+    return lintTestHooks()->reflectSchema();
+}
+
+std::string lintCelParse(const std::string &text) {
+    return lintTestHooks()->celParse(text);
+}
+
+std::string lintCelEval(const std::string &text, const std::string &bindings, double max_steps) {
+    return lintTestHooks()->celEval(text, bindings, static_cast<uint64_t>(max_steps));
+}
+
+std::string lintCelFunctions() {
+    return lintTestHooks()->celFunctions();
+}
+
+std::string lintCelCheck(const std::string &name, const std::string &text) {
+    return lintTestHooks()->celCheck(name, text);
+}
+
+std::string lintRegexSearch(const std::string &pattern, const std::string &text) {
+    return lintTestHooks()->regexSearch(pattern, text);
+}
+
+std::string lintRuleLoad(const std::string &name, const std::string &text, int builtin) {
+    return lintTestHooks()->ruleLoad(name, text, builtin != 0);
+}
+
 EMSCRIPTEN_BINDINGS(pssparser) {
     emscripten::function("schemaHash", &schemaHash);
+    emscripten::function("_lintYamlLoad", &lintYamlLoad);
+    emscripten::function("_lintYamlSourceMaps", &lintYamlSourceMaps);
+    emscripten::function("_lintYamlCelParse", &lintYamlCelParse);
+    emscripten::function("_lintReflectSchema", &lintReflectSchema);
+    emscripten::function("_lintCelParse", &lintCelParse);
+    emscripten::function("_lintCelEval", &lintCelEval);
+    emscripten::function("_lintCelFunctions", &lintCelFunctions);
+    emscripten::function("_lintCelCheck", &lintCelCheck);
+    emscripten::function("_lintRegexSearch", &lintRegexSearch);
+    emscripten::function("_lintRuleLoad", &lintRuleLoad);
 
     emscripten::class_<ParserSession>("ParserSession")
         .constructor<>()
@@ -604,5 +746,10 @@ EMSCRIPTEN_BINDINGS(pssparser) {
         .function("link", &ParserSession::link)
         .function("hasRoot", &ParserSession::hasRoot)
         .function("serializeRoot", &ParserSession::serializeRoot)
-        .function("profileInfoJson", &ParserSession::profileInfoJson);
+        .function("profileInfoJson", &ParserSession::profileInfoJson)
+        .function("lintEngineInfoJson", &ParserSession::lintEngineInfoJson)
+        .function("loadRuleFile", &ParserSession::loadRuleFile)
+        .function("probeRules", &ParserSession::probeRules)
+        .function("ruleDiagnosticsJson", &ParserSession::ruleDiagnosticsJson)
+        .function("rulesJson", &ParserSession::rulesJson);
 }

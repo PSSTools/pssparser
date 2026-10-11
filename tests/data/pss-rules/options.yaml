@@ -1,0 +1,38 @@
+pss-rules:
+  defaults:
+    tier: style
+  rules:
+    - id: ACME001
+      name: all-option-types
+      summary: s
+      message: "limit ${options.limit}, ${options.pattern}"
+      options:
+        limit: { type: int, default: 3, help: "The limit" }
+        pattern: { default: "^[a-z]+$" }
+        strict: { type: bool, default: false }
+        names: { type: string-list, default: [a, b] }
+        mode: { type: string, default: fast, choices: [fast, slow] }
+      match: { kind: ExprBin }
+      where: >-
+        options.limit > 0 && !options.strict && options.names.size() == 2 &&
+        options.mode == "fast" && "abc".matches(options.pattern)
+    - id: ACME002
+      name: option-errors
+      summary: s
+      message: m
+      options:
+        bad-name: { default: 1 }
+        badtype: { type: float, default: 1.0 }
+        nodefault: { type: int }
+        wrongdefault: { type: int, default: "3" }
+        notinchoices: { default: c, choices: [a, b] }
+        notamap: 3
+      match: { kind: ExprBin }
+
+# expect: PSSP212 error @ 24:9 option name 'bad-name' must be an identifier (letters, digits and '_'), since expressions read it as options.bad-name
+# expect: PSSP212 error @ 25:26 option type must be one of string, int, bool, string-list, not 'float'
+# expect: PSSP212 error @ 26:20 option 'nodefault' has no 'default'; a rule's expressions need a value for every option
+# expect: PSSP212 error @ 27:46 option 'wrongdefault' is of type int, but its default is a string
+# expect: PSSP212 error @ 28:34 the default of option 'notinchoices' is not one of its choices
+# expect: PSSP212 error @ 29:18 option 'notamap' must be a mapping (type, default, help, choices), not an integer
+# loads: ACME001

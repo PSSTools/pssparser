@@ -1,0 +1,44 @@
+# builtin
+# A built-in rule file uses the LINT namespace only (format §5).
+pss-rules:
+  defaults:
+    tier: style
+    family: exec
+  rules:
+    - id: ACME001
+      name: site-namespace
+      summary: s
+      message: m
+      doc: d
+      match: { kind: ExprBin }
+      examples:
+        - code: |
+            component pss_top { }   // expect: ACME001
+        - code: |
+            component pss_top { }
+    - id: LINT-NET001
+      name: qualified-lint
+      summary: s
+      message: m
+      doc: d
+      match: { kind: ExprBin }
+      examples:
+        - code: |
+            component pss_top { }   // expect: LINT-NET001
+        - code: |
+            component pss_top { }
+    - id: LINT950
+      name: plain-lint
+      summary: s
+      message: m
+      doc: d
+      match: { kind: ExprBin }
+      examples:
+        - code: |
+            component pss_top { }   // expect: LINT950
+        - code: |
+            component pss_top { }
+
+# expect: PSSP217 error @ 8:11 'ACME001' is in namespace 'ACME'; a built-in rule's IDs are in the LINT namespace
+# expect: PSSP217 error @ 19:11 'LINT-NET001' is in namespace 'LINT-NET'; a built-in rule's IDs are in the LINT namespace
+# loads: LINT950

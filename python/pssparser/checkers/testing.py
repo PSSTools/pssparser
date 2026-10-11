@@ -46,9 +46,12 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterable, List, Optional, Sequence, Tuple
 
+from . import taxonomy
+
 _EXPECT_RE = re.compile(r"//\s*expect:\s*(.*?)\s*$")
 _EXPECT_FIX_RE = re.compile(r"//\s*expect-fix:\s*(\S+)")
-_ITEM_RE = re.compile(r"^([A-Z]{2,5}[0-9]{3})\s*@\s*(\d+)\s*:\s*(\d+)$")
+_ITEM_RE = re.compile(
+    r"^(" + taxonomy.NAMESPACE_PATTERN + r"[0-9]{3})\s*@\s*(\d+)\s*:\s*(\d+)$")
 
 #: Fixture file-name patterns.
 _FIXTURE_GLOBS = ("l*.pss", "ok_*.pss", "fix_*.pss")
@@ -273,7 +276,7 @@ def check_messages(diags: Iterable) -> List[str]:
     for d in diags:
         message = d["message"] if isinstance(d, dict) else d.message
         code = d.get("code") if isinstance(d, dict) else d.code
-        text = re.sub(r"^\[[A-Z]{2,5}[0-9]{3}\]\s*", "", message)
+        text = re.sub(r"^\[" + taxonomy.NAMESPACE_PATTERN + r"[0-9]{3}\]\s*", "", message)
         if lint_message is not None:
             found = lint_message(text, has_code=bool(code))
         else:

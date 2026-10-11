@@ -15,6 +15,13 @@ package:
       url: https://www.antlr.org/download/antlr-4.13.2-complete.jar
     - name: antlr4-cpp-runtime
       url: https://www.antlr.org/download/antlr4-cpp-runtime-4.13.2-source.zip
+    # YAML parser for the lint engine's pss-rules loader (lint-core-plan.md
+    # D-C2/D-C5). Compiled into the core, so it is in `default` too, beside
+    # the ANTLR runtime. The source release bundles c4core; the CMake builds
+    # reference it as ${PACKAGES_DIR}/rapidyaml/... Pinned to a release, never
+    # a branch. MIT; listed in NOTICE.
+    - name: rapidyaml
+      url: https://github.com/biojppm/rapidyaml/releases/download/v0.16.0/rapidyaml.v0.16.0.src.zip
     # No gtest. The C++ test executable was retired on 2026-08-31 (see the note
     # at the foot of CMakeLists.txt): the suite is pytest, and gtest was a
     # source dependency that had to be fetched and built by every developer and
@@ -59,6 +66,21 @@ package:
       url: https://github.com/psstools/pss-corpus.git
       type: raw
 
+    # CEL conformance tests, for the lint engine's CEL parser and evaluator
+    # (lint-core-plan.md C3.4). Test data only, so `default-dev` only, like
+    # pss-corpus. Pinned to a release. scripts/import_cel_conformance.py
+    # converts the textproto files to JSON in tests/data/cel-conformance/,
+    # which is committed: the test job needs neither this nor protobuf.
+    # Apache-2.0.
+    - name: cel-spec
+      url: https://github.com/google/cel-spec/archive/refs/tags/v0.25.3.zip
+      type: raw
+    # The differential oracle for the lint engine's CEL evaluator
+    # (tests/python/lintcore/test_cel_differential.py, lint-core-plan.md C3.4;
+    # skipped when absent). Test-only. Apache-2.0.
+    - name: cel-python
+      src: pypi
+
   - name: default
     deps:
     - name: ciostream
@@ -69,6 +91,8 @@ package:
       url: https://www.antlr.org/download/antlr-4.13.2-complete.jar
     - name: antlr4-cpp-runtime
       url: https://www.antlr.org/download/antlr4-cpp-runtime-4.13.2-source.zip
+    - name: rapidyaml
+      url: https://github.com/biojppm/rapidyaml/releases/download/v0.16.0/rapidyaml.v0.16.0.src.zip
     - name: debug-mgr
       src: pypi
     - name: ivpm-build

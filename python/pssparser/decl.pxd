@@ -59,6 +59,58 @@ cdef extern from "pssp/IFactory.h" namespace "pssp":
 
         IFmtCst *mkCstParser(istream *in_s)
 
+        ILintEngine *mkLintEngine()
+
+        ILintTestHooks *mkLintTestHooks()
+
+cdef extern from "pssp/lint/LintRequest.h" namespace "pssp::lint":
+    cdef cppclass LintSource:
+        cpp_string name
+        cpp_string text
+
+cdef extern from "pssp/lint/IRuleSet.h" namespace "pssp::lint":
+    cdef cppclass IRuleSet:
+        const cpp_string &name()
+        uint32_t numRules()
+
+cdef extern from "pssp/lint/ILintEngine.h" namespace "pssp::lint":
+    cdef enum RuleProbeE "pssp::lint::RuleProbe":
+        RuleProbe_RuleFile "pssp::lint::RuleProbe::RuleFile"
+        RuleProbe_Empty "pssp::lint::RuleProbe::Empty"
+        RuleProbe_NotYaml "pssp::lint::RuleProbe::NotYaml"
+        RuleProbe_NotMapping "pssp::lint::RuleProbe::NotMapping"
+        RuleProbe_NoKey "pssp::lint::RuleProbe::NoKey"
+
+    cdef cppclass ILintEngine:
+        int32_t ruleFormatVersion()
+        uint32_t numRuleSets()
+        const IRuleSet *getRuleSet(uint32_t idx)
+        const IRuleSet *loadRules(const LintSource &src, bool builtin)
+        uint32_t loadBuiltinRules()
+        uint32_t numBuiltinRuleFiles()
+        RuleProbeE probeRules(const cpp_string &text)
+        cpp_string diagnosticsJson()
+        cpp_string rulesJson()
+
+cdef extern from "pssp/lint/ILintTestHooks.h" namespace "pssp::lint":
+    cdef cppclass ILintTestHooks:
+        cpp_string yamlLoad(const cpp_string &name, const cpp_string &text)
+        cpp_string yamlSourceMaps(const cpp_string &name, const cpp_string &text)
+        cpp_string yamlCelParse(const cpp_string &name, const cpp_string &text, const cpp_string &key)
+        cpp_string celParse(const cpp_string &text)
+        cpp_string celEval(const cpp_string &text, const cpp_string &bindings, uint64_t max_steps)
+        cpp_string celFunctions()
+        cpp_string celCheck(const cpp_string &name, const cpp_string &text)
+        cpp_string celCheckNode(const cpp_string &name, const cpp_string &text, ast.IScopeChild *root)
+        cpp_string celEvalNode(const cpp_string &text, ast.IScopeChild *root, const cpp_string &bindings, uint64_t max_steps)
+        cpp_string ruleLoad(const cpp_string &name, const cpp_string &text, bool builtin)
+        cpp_string rulesSchema()
+        cpp_string regexSearch(const cpp_string &pattern, const cpp_string &text)
+        cpp_string reflectSchema()
+        cpp_string reflectCensus(ast.IScopeChild *root)
+        cpp_string lintWalk(const cpp_string &name, const cpp_string &text, const cpp_vector[ast.IScopeChildP] &roots)
+        cpp_string lintRun(const cpp_string &name, const cpp_string &text, const cpp_vector[ast.IScopeChildP] &roots, bool allEnabled, const cpp_vector[cpp_string] &enabled, uint64_t maxSteps, uint32_t gateErrors)
+
 cdef extern from "pssp/IFmtTokenStream.h" namespace "pssp":
     cdef enum FmtTokenChannelE:
         FmtTokenChannel_Default "pssp::FmtTokenChannel_Default"

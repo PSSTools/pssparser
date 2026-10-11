@@ -1,0 +1,6 @@
+pss-rules:
+  version: "1"
+  rules: []
+
+# expect: PSSP210 error @ 2:13 'version' must be an integer, not a string
+# refused

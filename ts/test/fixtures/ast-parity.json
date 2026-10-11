@@ -255,7 +255,7 @@
        0,
        51,
        9,
-       -1
+       39
       ],
       [
        "Field",
@@ -273,7 +273,7 @@
        0,
        53,
        9,
-       -1
+       37
       ],
       [
        "Field",
@@ -291,7 +291,7 @@
        0,
        55,
        9,
-       -1
+       41
       ],
       [
        "Field",
@@ -309,7 +309,7 @@
        0,
        57,
        9,
-       -1
+       29
       ],
       [
        "Struct",
@@ -345,7 +345,7 @@
        0,
        64,
        9,
-       -1
+       38
       ],
       [
        "Struct",
@@ -1156,6 +1156,42 @@
        50,
        5,
        -1
+      ],
+      [
+       "PackageScope",
+       null,
+       0,
+       0,
+       12,
+       1,
+       369
+      ],
+      [
+       "AnnotationDecl",
+       "waive",
+       1,
+       0,
+       19,
+       5,
+       158
+      ],
+      [
+       "Field",
+       "id",
+       2,
+       0,
+       21,
+       16,
+       2
+      ],
+      [
+       "Field",
+       "reason",
+       2,
+       0,
+       23,
+       16,
+       6
       ],
       [
        "PackageScope",
@@ -2330,7 +2366,7 @@
        1,
        21,
        9,
-       -1
+       82
       ],
       [
        "ExecBlock",
@@ -2474,7 +2510,7 @@
        1,
        37,
        13,
-       -1
+       29
       ],
       [
        "ActivityBindStmt",
@@ -2483,7 +2519,7 @@
        1,
        38,
        13,
-       -1
+       28
       ],
       [
        "ActivityBindStmt",
@@ -2492,7 +2528,7 @@
        1,
        39,
        13,
-       -1
+       33
       ],
       [
        "ActivityBindStmt",
@@ -2501,7 +2537,7 @@
        1,
        40,
        13,
-       -1
+       34
       ],
       [
        "ActivitySchedule",
@@ -2717,7 +2753,7 @@
        1,
        21,
        9,
-       -1
+       62
       ],
       [
        "ExecBlock",
@@ -2987,7 +3023,7 @@
        1,
        15,
        9,
-       -1
+       84
       ],
       [
        "ExecBlock",
@@ -3590,7 +3626,7 @@
        1,
        25,
        9,
-       -1
+       136
       ],
       [
        "ExecBlock",
@@ -3788,7 +3824,7 @@
        1,
        16,
        9,
-       -1
+       80
       ],
       [
        "ExecBlock",
@@ -3914,7 +3950,7 @@
        1,
        25,
        9,
-       -1
+       76
       ],
       [
        "ConstraintBlock",
@@ -3923,7 +3959,7 @@
        1,
        30,
        9,
-       -1
+       150
       ],
       [
        "ExecBlock",
@@ -4103,7 +4139,7 @@
        1,
        31,
        9,
-       -1
+       77
       ],
       [
        "ConstraintBlock",
@@ -4112,7 +4148,7 @@
        1,
        37,
        9,
-       -1
+       70
       ],
       [
        "ExecBlock",
@@ -4292,7 +4328,7 @@
        1,
        22,
        13,
-       -1
+       23
       ],
       [
        "ActivityBindStmt",
@@ -4301,7 +4337,7 @@
        1,
        23,
        13,
-       -1
+       22
       ],
       [
        "ActivityActionHandleTraversal",
@@ -4418,7 +4454,7 @@
        1,
        65,
        9,
-       -1
+       148
       ],
       [
        "ConstraintBlock",
@@ -4427,7 +4463,7 @@
        1,
        72,
        9,
-       -1
+       62
       ]
      ]
     }
@@ -4580,7 +4616,7 @@
        1,
        16,
        9,
-       -1
+       134
       ],
       [
        "ConstraintBlock",
@@ -4589,7 +4625,7 @@
        1,
        24,
        9,
-       -1
+       80
       ],
       [
        "ExecBlock",
@@ -4715,7 +4751,7 @@
        1,
        17,
        9,
-       -1
+       134
       ],
       [
        "ExecBlock",
@@ -5300,7 +5336,7 @@
        1,
        23,
        9,
-       -1
+       77
       ],
       [
        "ConstraintBlock",
@@ -5309,7 +5345,7 @@
        1,
        27,
        9,
-       -1
+       70
       ],
       [
        "ConstraintBlock",
@@ -5318,7 +5354,7 @@
        1,
        34,
        9,
-       -1
+       80
       ],
       [
        "ExecBlock",
@@ -5579,7 +5615,7 @@
        1,
        15,
        13,
-       -1
+       33
       ],
       [
        "ActivityActionHandleTraversal",
@@ -5714,7 +5750,7 @@
        1,
        22,
        13,
-       -1
+       33
       ],
       [
        "ActivityBindStmt",
@@ -5723,7 +5759,7 @@
        1,
        23,
        13,
-       -1
+       34
       ],
       [
        "ActivityActionHandleTraversal",
@@ -5948,7 +5984,7 @@
        1,
        20,
        13,
-       -1
+       23
       ],
       [
        "ActivityActionHandleTraversal",
@@ -6524,7 +6560,7 @@
        1,
        66,
        9,
-       -1
+       105
       ],
       [
        "Field",
@@ -6560,7 +6596,7 @@
        1,
        94,
        9,
-       -1
+       91
       ],
       [
        "Struct",
@@ -7226,7 +7262,7 @@
        1,
        122,
        13,
-       -1
+       82
       ],
       [
        "ActivitySchedulingConstraint",
@@ -7496,7 +7532,7 @@
        1,
        54,
        9,
-       -1
+       28
       ],
       [
        "Monitor",
@@ -7568,7 +7604,7 @@
        1,
        69,
        9,
-       -1
+       28
       ],
       [
        "Monitor",
@@ -7640,7 +7676,7 @@
        1,
        84,
        9,
-       -1
+       33
       ],
       [
        "Monitor",
@@ -7712,7 +7748,7 @@
        1,
        101,
        9,
-       -1
+       30
       ],
       [
        "Monitor",
@@ -8054,7 +8090,7 @@
        1,
        34,
        9,
-       -1
+       93
       ],
       [
        "ConstraintBlock",
@@ -8063,7 +8099,7 @@
        1,
        41,
        9,
-       -1
+       69
       ],
       [
        "ConstraintBlock",
@@ -8072,7 +8108,7 @@
        1,
        46,
        9,
-       -1
+       158
       ],
       [
        "ConstraintBlock",
@@ -8081,7 +8117,7 @@
        1,
        55,
        9,
-       -1
+       61
       ],
       [
        "ConstraintBlock",
@@ -8090,7 +8126,7 @@
        1,
        60,
        9,
-       -1
+       106
       ],
       [
        "ConstraintBlock",
@@ -8099,7 +8135,7 @@
        1,
        68,
        9,
-       -1
+       60
       ],
       [
        "Component",
@@ -8297,7 +8333,7 @@
        1,
        125,
        9,
-       -1
+       68
       ],
       [
        "Component",
@@ -8459,7 +8495,7 @@
        1,
        52,
        9,
-       -1
+       28
       ],
       [
        "CovergroupInstantiation",
@@ -8648,7 +8684,7 @@
        1,
        35,
        9,
-       -1
+       37
       ],
       [
        "Component",
@@ -8783,7 +8819,7 @@
        1,
        74,
        13,
-       -1
+       23
       ],
       [
        "Action",
@@ -8873,7 +8909,7 @@
        1,
        93,
        9,
-       -1
+       38
       ],
       [
        "PackageScope",
@@ -8900,7 +8936,7 @@
        1,
        101,
        9,
-       -1
+       21
       ],
       [
        "PackageScope",
@@ -9116,7 +9152,7 @@
        1,
        21,
        9,
-       -1
+       29
       ],
       [
        "ConstraintBlock",
@@ -9125,7 +9161,7 @@
        1,
        22,
        9,
-       -1
+       25
       ],
       [
        "Struct",
@@ -9197,7 +9233,7 @@
        1,
        43,
        9,
-       -1
+       38
       ],
       [
        "Field",
@@ -9269,7 +9305,7 @@
        1,
        61,
        9,
-       -1
+       36
       ],
       [
        "Component",
@@ -9332,7 +9368,7 @@
        1,
        71,
        9,
-       -1
+       29
       ],
       [
        "Component",
@@ -9467,7 +9503,7 @@
        1,
        94,
        9,
-       -1
+       25
       ],
       [
        "Action",
@@ -9611,7 +9647,7 @@
        1,
        112,
        9,
-       -1
+       26
       ],
       [
        "ConstraintBlock",
@@ -9620,7 +9656,7 @@
        1,
        113,
        9,
-       -1
+       53
       ],
       [
        "Action",
@@ -9998,7 +10034,7 @@
        1,
        132,
        9,
-       -1
+       29
       ],
       [
        "ExecBlock",
@@ -10529,7 +10565,7 @@
        1,
        101,
        9,
-       -1
+       19
       ],
       [
        "ExecBlock",
@@ -10628,7 +10664,7 @@
        1,
        133,
        9,
-       -1
+       27
       ],
       [
        "ConstraintBlock",
@@ -10637,7 +10673,7 @@
        1,
        134,
        9,
-       -1
+       31
       ],
       [
        "ExecBlock",
@@ -10907,7 +10943,7 @@
        1,
        52,
        9,
-       -1
+       29
       ],
       [
        "ConstraintBlock",
@@ -10916,7 +10952,7 @@
        1,
        53,
        9,
-       -1
+       27
       ],
       [
        "ExecBlock",
@@ -11465,7 +11501,7 @@
        1,
        20,
        13,
-       -1
+       36
       ]
      ]
     }
@@ -11757,6 +11793,258 @@
   {
    "files": [
     {
+     "content": "// ex036_037_contextual_typing.pss\n//\n// Contextual typing of structure literals and enum items (LRM 8.4.2, 8.4.3),\n// modelled on PSS 3.1 Examples 36 and 37 and completed to a whole model.\n//\n// Demonstrates:\n//   - one struct literal interpreted as two different types, by the type of\n//     the other operand of `==` (Example 36)\n//   - an unqualified enum item resolved by its expected type: an\n//     initializer and a call argument (Example 37)\n//   - an enum item qualified by its type where no enum type is expected\n//     (Example 37); the LRM's illegal unqualified `(int)ORANGE` is left out\n//\n// Completed from the LRM: the two function prototypes of Example 37 are\n// given bodies, and both examples share one pss_top.\n\nenum color_e {RED, GREEN, ORANGE};\n\nfunction void print_color(color_e c) { }\nfunction void print_num(int n) { }\n\ncomponent my_ip_c {\n  struct my_struct { rand int a; };\n  action my_op {\n    rand my_struct s;\n  }\n}\n\ncomponent pss_top {\n  my_ip_c my_ip;\n  struct your_struct { rand int a; };\n  enum fruit_e {APPLE, ORANGE};\n\n  action test {\n    rand your_struct s;\n    constraint s == {.a = 2};          // pss_top::your_struct literal\n\n    my_ip_c::my_op op;\n    constraint op.s == {.a = 3};       // my_ip_c::my_struct literal\n\n    activity {\n      op;\n    }\n  }\n\n  exec init_down {\n    color_e c = ORANGE;                // expected type is color_e\n    print_color(RED);                  // likewise\n    print_num((int)fruit_e::ORANGE);   // qualified: no enum type expected\n  }\n}\n",
+     "name": "lrm31/ex036_037_contextual_typing.pss"
+    }
+   ],
+   "id": "corpus:lrm31/ex036_037_contextual_typing.pss",
+   "raised": null,
+   "units": [
+    {
+     "fileid": 1,
+     "spine": [
+      [
+       "EnumDecl",
+       "color_e",
+       0,
+       1,
+       17,
+       1,
+       -1
+      ],
+      [
+       "FunctionDefinition",
+       null,
+       0,
+       1,
+       19,
+       1,
+       -1
+      ],
+      [
+       "FunctionDefinition",
+       null,
+       0,
+       1,
+       20,
+       1,
+       -1
+      ],
+      [
+       "Component",
+       "my_ip_c",
+       0,
+       1,
+       22,
+       1,
+       100
+      ],
+      [
+       "Struct",
+       "my_struct",
+       1,
+       1,
+       23,
+       3,
+       32
+      ],
+      [
+       "Field",
+       "a",
+       2,
+       1,
+       23,
+       31,
+       1
+      ],
+      [
+       "Action",
+       "my_op",
+       1,
+       1,
+       24,
+       3,
+       40
+      ],
+      [
+       "FieldCompRef",
+       "comp",
+       2,
+       -1,
+       -1,
+       -1,
+       -1
+      ],
+      [
+       "Field",
+       "s",
+       2,
+       1,
+       25,
+       20,
+       1
+      ],
+      [
+       "Component",
+       "pss_top",
+       0,
+       1,
+       29,
+       1,
+       566
+      ],
+      [
+       "Field",
+       "my_ip",
+       1,
+       1,
+       30,
+       11,
+       5
+      ],
+      [
+       "Struct",
+       "your_struct",
+       1,
+       1,
+       31,
+       3,
+       34
+      ],
+      [
+       "Field",
+       "a",
+       2,
+       1,
+       31,
+       33,
+       1
+      ],
+      [
+       "EnumDecl",
+       "fruit_e",
+       1,
+       1,
+       32,
+       3,
+       -1
+      ],
+      [
+       "Action",
+       "test",
+       1,
+       1,
+       34,
+       3,
+       237
+      ],
+      [
+       "FieldCompRef",
+       "comp",
+       2,
+       -1,
+       -1,
+       -1,
+       -1
+      ],
+      [
+       "Field",
+       "s",
+       2,
+       1,
+       35,
+       22,
+       1
+      ],
+      [
+       "ConstraintBlock",
+       null,
+       2,
+       1,
+       36,
+       5,
+       25
+      ],
+      [
+       "Field",
+       "op",
+       2,
+       1,
+       38,
+       20,
+       2
+      ],
+      [
+       "ConstraintBlock",
+       null,
+       2,
+       1,
+       39,
+       5,
+       28
+      ],
+      [
+       "ActivityDecl",
+       null,
+       2,
+       1,
+       41,
+       5,
+       26
+      ],
+      [
+       "ActivityActionHandleTraversal",
+       null,
+       3,
+       1,
+       42,
+       7,
+       3
+      ],
+      [
+       "ExecBlock",
+       null,
+       1,
+       1,
+       46,
+       3,
+       213
+      ],
+      [
+       "ProceduralStmtDataDeclaration",
+       null,
+       2,
+       1,
+       47,
+       5,
+       -1
+      ],
+      [
+       "ProceduralStmtExpr",
+       null,
+       2,
+       1,
+       48,
+       5,
+       -1
+      ],
+      [
+       "ProceduralStmtExpr",
+       null,
+       2,
+       1,
+       49,
+       5,
+       -1
+      ]
+     ]
+    }
+   ],
+   "why": "corpus AST parity"
+  },
+  {
+   "files": [
+    {
      "content": "// ex143_with_name_resolution.pss\n//\n// Name resolution inside an inline `with` constraint block (LRM 13.1.4),\n// modelled on PSS 3.1 Example 143 and completed to a whole model.\n//\n// Demonstrates:\n//   - unqualified names search the traversed sub-action first, then the\n//     containing action\n//   - `this` is the containing action, reaching a field the sub-action's\n//     field of the same name shadows\n//   - `this.comp` is the containing action's component\n\ncomponent subc {\n    action A {\n        rand int f;\n        rand int g;\n    }\n}\n\ncomponent pss_top {\n    subc sub1, sub2;\n\n    action B {\n        rand int f;\n        rand int h;\n        subc::A a;\n\n        activity {\n            a with {\n                f < h;                  // sub-action's f, containing action's h\n                g == this.f;            // sub-action's g, containing action's f\n                comp == this.comp.sub1; // sub-action runs in sub1\n            };\n        }\n    }\n}\n",
      "name": "lrm31/ex143_with_name_resolution.pss"
     }
@@ -11963,7 +12251,7 @@
        1,
        17,
        5,
-       -1
+       137
       ],
       [
        "ConstraintBlock",
@@ -11972,7 +12260,7 @@
        1,
        21,
        5,
-       -1
+       69
       ],
       [
        "Field",
@@ -11999,7 +12287,7 @@
        1,
        25,
        5,
-       -1
+       66
       ],
       [
        "Component",
@@ -12089,7 +12377,7 @@
        1,
        38,
        9,
-       -1
+       36
       ],
       [
        "Component",
@@ -12161,7 +12449,7 @@
        1,
        50,
        9,
-       -1
+       25
       ],
       [
        "ConstraintBlock",
@@ -12170,7 +12458,7 @@
        1,
        51,
        9,
-       -1
+       27
       ],
       [
        "ActivityDecl",
@@ -12530,7 +12818,7 @@
        1,
        43,
        9,
-       -1
+       227
       ],
       [
        "PackageScope",
@@ -12890,7 +13178,7 @@
        1,
        117,
        9,
-       -1
+       42
       ],
       [
        "ConstraintBlock",
@@ -12899,7 +13187,7 @@
        1,
        119,
        9,
-       -1
+       36
       ],
       [
        "ActivityDecl",
@@ -12945,6 +13233,537 @@
        129,
        9,
        -1
+      ]
+     ]
+    }
+   ],
+   "why": "corpus AST parity"
+  },
+  {
+   "files": [
+    {
+     "content": "// ex254_type_and_instance_overrides.pss\n//\n// Type and instance overrides with type inheritance (LRM 17.5), modelled on\n// PSS 3.1 Example 254 and completed to a whole model.\n//\n// Demonstrates:\n//   - a type override and an instance override in one `override` block\n//   - an instance override whose path starts at a field of the enclosing\n//     action and ends at a field of that field's type (`xlator.axi_action`)\n//   - a derived action overriding again, through a field it inherits\n//\n// Completed from the LRM: the actions are declared in pss_top, and the\n// `{ ... }` bodies are empty.\n\ncomponent pss_top {\n  action axi_write_action { }\n\n  action xlator_action {\n    axi_write_action axi_action;\n    axi_write_action other_axi_action;\n    activity {\n      axi_action;        // overridden by instance\n      other_axi_action;  // overridden by type\n    }\n  }\n\n  action axi_write_action_x : axi_write_action { }\n  action axi_write_action_x2 : axi_write_action_x { }\n  action axi_write_action_x3 : axi_write_action_x { }\n  action axi_write_action_x4 : axi_write_action_x { }\n\n  action reg2axi_top {\n    override {\n      type axi_write_action with axi_write_action_x;\n      instance xlator.axi_action with axi_write_action_x2;\n    }\n\n    xlator_action xlator;\n    activity {\n      repeat (10) {\n        xlator;          // the override applies to all 10 traversals\n      }\n    }\n  }\n\n  action reg2axi_top_x : reg2axi_top {\n    override {\n      type axi_write_action with axi_write_action_x4;\n      instance xlator.axi_action with axi_write_action_x3;\n    }\n  }\n}\n",
+     "name": "lrm31/ex254_type_and_instance_overrides.pss"
+    }
+   ],
+   "id": "corpus:lrm31/ex254_type_and_instance_overrides.pss",
+   "raised": null,
+   "units": [
+    {
+     "fileid": 1,
+     "spine": [
+      [
+       "Component",
+       "pss_top",
+       0,
+       1,
+       15,
+       1,
+       971
+      ],
+      [
+       "Action",
+       "axi_write_action",
+       1,
+       1,
+       16,
+       3,
+       27
+      ],
+      [
+       "FieldCompRef",
+       "comp",
+       2,
+       -1,
+       -1,
+       -1,
+       -1
+      ],
+      [
+       "Action",
+       "xlator_action",
+       1,
+       1,
+       18,
+       3,
+       217
+      ],
+      [
+       "FieldCompRef",
+       "comp",
+       2,
+       -1,
+       -1,
+       -1,
+       -1
+      ],
+      [
+       "Field",
+       "axi_action",
+       2,
+       1,
+       19,
+       22,
+       10
+      ],
+      [
+       "Field",
+       "other_axi_action",
+       2,
+       1,
+       20,
+       22,
+       16
+      ],
+      [
+       "ActivityDecl",
+       null,
+       2,
+       1,
+       21,
+       5,
+       114
+      ],
+      [
+       "ActivityActionHandleTraversal",
+       null,
+       3,
+       1,
+       22,
+       7,
+       11
+      ],
+      [
+       "ActivityActionHandleTraversal",
+       null,
+       3,
+       1,
+       23,
+       7,
+       17
+      ],
+      [
+       "Action",
+       "axi_write_action_x",
+       1,
+       1,
+       27,
+       3,
+       48
+      ],
+      [
+       "FieldCompRef",
+       "comp",
+       2,
+       -1,
+       -1,
+       -1,
+       -1
+      ],
+      [
+       "Action",
+       "axi_write_action_x2",
+       1,
+       1,
+       28,
+       3,
+       51
+      ],
+      [
+       "FieldCompRef",
+       "comp",
+       2,
+       -1,
+       -1,
+       -1,
+       -1
+      ],
+      [
+       "Action",
+       "axi_write_action_x3",
+       1,
+       1,
+       29,
+       3,
+       51
+      ],
+      [
+       "FieldCompRef",
+       "comp",
+       2,
+       -1,
+       -1,
+       -1,
+       -1
+      ],
+      [
+       "Action",
+       "axi_write_action_x4",
+       1,
+       1,
+       30,
+       3,
+       51
+      ],
+      [
+       "FieldCompRef",
+       "comp",
+       2,
+       -1,
+       -1,
+       -1,
+       -1
+      ],
+      [
+       "Action",
+       "reg2axi_top",
+       1,
+       1,
+       32,
+       3,
+       303
+      ],
+      [
+       "FieldCompRef",
+       "comp",
+       2,
+       -1,
+       -1,
+       -1,
+       -1
+      ],
+      [
+       "OverrideDecl",
+       null,
+       2,
+       1,
+       33,
+       5,
+       128
+      ],
+      [
+       "TypeOverride",
+       null,
+       3,
+       1,
+       34,
+       7,
+       46
+      ],
+      [
+       "InstanceOverride",
+       null,
+       3,
+       1,
+       35,
+       7,
+       52
+      ],
+      [
+       "Field",
+       "xlator",
+       2,
+       1,
+       38,
+       19,
+       6
+      ],
+      [
+       "ActivityDecl",
+       null,
+       2,
+       1,
+       39,
+       5,
+       114
+      ],
+      [
+       "ActivityRepeatCount",
+       null,
+       3,
+       1,
+       40,
+       7,
+       91
+      ],
+      [
+       "Action",
+       "reg2axi_top_x",
+       1,
+       1,
+       46,
+       3,
+       174
+      ],
+      [
+       "FieldCompRef",
+       "comp",
+       2,
+       -1,
+       -1,
+       -1,
+       -1
+      ],
+      [
+       "OverrideDecl",
+       null,
+       2,
+       1,
+       47,
+       5,
+       129
+      ],
+      [
+       "TypeOverride",
+       null,
+       3,
+       1,
+       48,
+       7,
+       47
+      ],
+      [
+       "InstanceOverride",
+       null,
+       3,
+       1,
+       49,
+       7,
+       52
+      ]
+     ]
+    }
+   ],
+   "why": "corpus AST parity"
+  },
+  {
+   "files": [
+    {
+     "content": "// ex259_273_package_aliases.pss\n//\n// Package aliases (LRM 18.1.4, 18.3), modelled on PSS 3.1 Examples 259 and\n// 273 and completed to a whole model.\n//\n// Demonstrates:\n//   - an alias for a nested package, used to qualify a type; the alias and\n//     the full name denote the same type (Example 259)\n//   - two aliases that disambiguate same-named types (Example 259)\n//   - an alias taking precedence over a wildcard import that makes a\n//     package of the same name visible: `P2::s` is P3::P4::s, not\n//     P1::P2::s (Example 273)\n//\n// Completed from the LRM: a pss_top that uses both examples' types.\n\npackage pkg1::a::b::c {\n  struct my_s {}\n}\n\npackage pkg2::d::e::f {\n  struct my_s {}\n}\n\npackage consumer_pkg {\n  import pkg1::a::b::c as p1;\n  import pkg2::d::e::f as p2;\n  struct s {\n    p1::my_s            v1_1;   // pkg1::a::b::c::my_s\n    pkg1::a::b::c::my_s v1_2;   // the same type as v1_1\n    p2::my_s            v2;     // pkg2::d::e::f::my_s\n  }\n}\n\npackage P1 {\n  package P2 {\n    struct s {}\n  }\n}\n\npackage P3 {\n  package P4 {\n    struct s {}\n  }\n}\n\ncomponent pss_top {\n  import P1::*;\n  import P3::P4 as P2;\n\n  action test {\n    P2::s f;                    // P3::P4::s\n    consumer_pkg::s cs;\n  }\n}\n",
+     "name": "lrm31/ex259_273_package_aliases.pss"
+    }
+   ],
+   "id": "corpus:lrm31/ex259_273_package_aliases.pss",
+   "raised": null,
+   "units": [
+    {
+     "fileid": 1,
+     "spine": [
+      [
+       "PackageScope",
+       null,
+       0,
+       1,
+       16,
+       1,
+       42
+      ],
+      [
+       "Struct",
+       "my_s",
+       1,
+       1,
+       17,
+       3,
+       14
+      ],
+      [
+       "PackageScope",
+       null,
+       0,
+       1,
+       20,
+       1,
+       42
+      ],
+      [
+       "Struct",
+       "my_s",
+       1,
+       1,
+       21,
+       3,
+       14
+      ],
+      [
+       "PackageScope",
+       null,
+       0,
+       1,
+       24,
+       1,
+       268
+      ],
+      [
+       "PackageImportStmt",
+       null,
+       1,
+       1,
+       25,
+       3,
+       -1
+      ],
+      [
+       "PackageImportStmt",
+       null,
+       1,
+       1,
+       26,
+       3,
+       -1
+      ],
+      [
+       "Struct",
+       "s",
+       1,
+       1,
+       27,
+       3,
+       181
+      ],
+      [
+       "Field",
+       "v1_1",
+       2,
+       1,
+       28,
+       25,
+       4
+      ],
+      [
+       "Field",
+       "v1_2",
+       2,
+       1,
+       29,
+       25,
+       4
+      ],
+      [
+       "Field",
+       "v2",
+       2,
+       1,
+       30,
+       25,
+       2
+      ],
+      [
+       "PackageScope",
+       null,
+       0,
+       1,
+       34,
+       1,
+       49
+      ],
+      [
+       "PackageScope",
+       null,
+       1,
+       1,
+       35,
+       3,
+       32
+      ],
+      [
+       "Struct",
+       "s",
+       2,
+       1,
+       36,
+       5,
+       11
+      ],
+      [
+       "PackageScope",
+       null,
+       0,
+       1,
+       40,
+       1,
+       49
+      ],
+      [
+       "PackageScope",
+       null,
+       1,
+       1,
+       41,
+       3,
+       32
+      ],
+      [
+       "Struct",
+       "s",
+       2,
+       1,
+       42,
+       5,
+       11
+      ],
+      [
+       "Component",
+       "pss_top",
+       0,
+       1,
+       46,
+       1,
+       150
+      ],
+      [
+       "PackageImportStmt",
+       null,
+       1,
+       1,
+       47,
+       3,
+       -1
+      ],
+      [
+       "PackageImportStmt",
+       null,
+       1,
+       1,
+       48,
+       3,
+       -1
+      ],
+      [
+       "Action",
+       "test",
+       1,
+       1,
+       50,
+       3,
+       86
+      ],
+      [
+       "FieldCompRef",
+       "comp",
+       2,
+       -1,
+       -1,
+       -1,
+       -1
+      ],
+      [
+       "Field",
+       "f",
+       2,
+       1,
+       51,
+       11,
+       1
+      ],
+      [
+       "Field",
+       "cs",
+       2,
+       1,
+       52,
+       21,
+       2
       ]
      ]
     }
@@ -13007,7 +13826,7 @@
        1,
        20,
        9,
-       -1
+       50
       ],
       [
        "Field",
@@ -13170,6 +13989,159 @@
        48,
        9,
        -1
+      ]
+     ]
+    }
+   ],
+   "why": "corpus AST parity"
+  },
+  {
+   "files": [
+    {
+     "content": "// ex272_enum_item_references.pss\n//\n// Qualified and unqualified enum item references (LRM 18.3), modelled on\n// PSS 3.1 Example 272 and completed to a whole model.\n//\n// Demonstrates:\n//   - an enum item qualified by its type's full path\n//   - an unqualified item resolved by the type of the other operand of `==`\n//   - unqualified items in an `in` range list, resolved by the type of the\n//     left-hand side\n//\n// Taken from the LRM as written: Example 272 is already a whole model.\n\ncomponent my_ip_c {\n  enum mode_e {A, B, C, D};\n  action my_op {\n    rand mode_e mode;\n  }\n}\n\ncomponent pss_top {\n  my_ip_c my_ip;\n  action test {\n    my_ip_c::my_op op;\n    constraint op.mode == my_ip_c::mode_e::A;\n    constraint op.mode == A;\n    constraint op.mode in [A, C, D];\n\n    activity {\n      op;\n    }\n  }\n}\n",
+     "name": "lrm31/ex272_enum_item_references.pss"
+    }
+   ],
+   "id": "corpus:lrm31/ex272_enum_item_references.pss",
+   "raised": null,
+   "units": [
+    {
+     "fileid": 1,
+     "spine": [
+      [
+       "Component",
+       "my_ip_c",
+       0,
+       1,
+       14,
+       1,
+       92
+      ],
+      [
+       "EnumDecl",
+       "mode_e",
+       1,
+       1,
+       15,
+       3,
+       -1
+      ],
+      [
+       "Action",
+       "my_op",
+       1,
+       1,
+       16,
+       3,
+       40
+      ],
+      [
+       "FieldCompRef",
+       "comp",
+       2,
+       -1,
+       -1,
+       -1,
+       -1
+      ],
+      [
+       "Field",
+       "mode",
+       2,
+       1,
+       17,
+       17,
+       4
+      ],
+      [
+       "Component",
+       "pss_top",
+       0,
+       1,
+       21,
+       1,
+       225
+      ],
+      [
+       "Field",
+       "my_ip",
+       1,
+       1,
+       22,
+       11,
+       5
+      ],
+      [
+       "Action",
+       "test",
+       1,
+       1,
+       23,
+       3,
+       184
+      ],
+      [
+       "FieldCompRef",
+       "comp",
+       2,
+       -1,
+       -1,
+       -1,
+       -1
+      ],
+      [
+       "Field",
+       "op",
+       2,
+       1,
+       24,
+       20,
+       2
+      ],
+      [
+       "ConstraintBlock",
+       null,
+       2,
+       1,
+       25,
+       5,
+       41
+      ],
+      [
+       "ConstraintBlock",
+       null,
+       2,
+       1,
+       26,
+       5,
+       24
+      ],
+      [
+       "ConstraintBlock",
+       null,
+       2,
+       1,
+       27,
+       5,
+       32
+      ],
+      [
+       "ActivityDecl",
+       null,
+       2,
+       1,
+       29,
+       5,
+       26
+      ],
+      [
+       "ActivityActionHandleTraversal",
+       null,
+       3,
+       1,
+       30,
+       7,
+       3
       ]
      ]
     }
@@ -13376,7 +14348,7 @@
        1,
        43,
        9,
-       -1
+       23
       ],
       [
        "ExecBlock",
@@ -19445,7 +20417,7 @@
        1,
        22,
        13,
-       -1
+       42
       ],
       [
        "MonitorActivityDecl",
@@ -20228,7 +21200,7 @@
        1,
        47,
        9,
-       -1
+       38
       ],
       [
        "Struct",

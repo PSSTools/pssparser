@@ -1,0 +1,31 @@
+pss-rules:
+  defaults:
+    tier: style
+  rules:
+    - id: ACME001
+      name: too-deep
+      summary: s
+      message: m
+      match: { kind: ExprBin }
+      where: >-
+        [[[1]]].all(a, a.all(b, b.all(c, c > 0)))
+    - id: ACME002
+      name: helper-cycle
+      summary: s
+      message: m
+      match: { kind: ExprBin }
+      define:
+        f(x): g(x)
+        g(x): f(x)
+      where: f(node)
+    - id: ACME003
+      name: bad-regex
+      summary: s
+      message: m
+      match: { kind: ExprBin }
+      where: "'a'.matches('(a')"
+
+# expect: PSSP216 error @ 11:33 all() nests comprehensions 3 deep, and at most 2 are allowed in one expression or helper; move the inner part into a define: helper
+# expect: PSSP216 error @ 19:15 helpers call each other in a cycle: f -> g -> f
+# expect: PSSP216 error @ 26:27 invalid regular expression: missing closing ')' (at byte 0 of the pattern)
+# loads: none
