@@ -1,9 +1,29 @@
 ---
 name: pssparser-checkers
-description: Write custom lint checks for PSS as pssparser checker plug-ins (`CheckerBase`, `MarkerDef`, `CheckContext`) and package them as a `pssparser.extensions` entry point. Use when the user wants a new PSS lint rule, house naming or style rules, a rule collection, configurable checker options, or tests for a checker. For only *running* checks, use the `pssparser` skill.
+description: Write custom lint rules for PSS. First choice is a declarative rule file (`pss-rules` YAML with CEL expressions, checked by `pssparser --check-rules`), which runs wherever pssparser's core does, including the TypeScript/WASM build editors use; fall back to a Python checker plug-in (`CheckerBase`, `MarkerDef`, `CheckContext`, a `pssparser.extensions` entry point) only for what a rule file cannot express. Use when the user wants a new PSS lint rule, house naming or style rules, a rule collection, configurable rule options, or tests for a rule. For only *running* checks, use the `pssparser` skill.
 ---
 
-# Writing pssparser checkers
+# Writing pssparser lint rules
+
+There are two ways to add a lint rule. Pick in this order:
+
+1. **A rule file** (`pss-rules`): YAML, with each condition a CEL
+   expression over the syntax tree. pssparser's C++ core loads it, so the
+   rule runs in the command line, in CI and in the TypeScript/WASM build
+   that editor integrations use, and the file carries its own tests
+   (`examples:`). Use it for naming, style, structure, and
+   anything over types, references, constants and branches.
+   **Read `references/pss-rules.md`**, and follow its loop:
+   write, `pssparser --check-rules FILE`, fix, repeat.
+2. **A Python checker**: a class run after the model links. Use it only
+   for what a rule file cannot express: walking data a rule cannot reach,
+   calling other Python code, or state across files beyond `refs()`.
+   A Python checker is **batch-only**: it never runs in the WASM build, so
+   an editor can never show its findings.
+
+The rest of this file covers Python checkers.
+
+# Python checkers
 
 A checker is a Python class that pssparser runs after a model parses and links
 cleanly. It walks the AST and emits diagnostics with IDs you own. A package of
@@ -156,3 +176,5 @@ the `PSSPARSER_NO_EXTENSIONS` trap: `references/testing.md`.
   model in depth: the `pssparser-api` skill (`pssparser.refs`, the full AST).
 - Running checks, selecting checkers, severities, and CI gating for users:
   the `pssparser` skill.
+- Every syntax-tree class and field a rule file can read:
+  <https://psstools.github.io/pssparser/lint-nodes.html>.

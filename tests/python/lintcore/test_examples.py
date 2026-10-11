@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import io
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -316,14 +317,32 @@ def test_check_rules_skips_a_refused_rule(tmp_path):
     assert "PSSP217" in codes and "PSSP222" not in codes
 
 
-def test_the_authoring_guide_rule_passes(tmp_path):
-    # docs/lint-rule-authoring.rst, "A first rule file": its examples pass.
-    text = (ROOT / "docs" / "lint-rule-authoring.rst").read_text()
-    block = text.split("# lint/rules/acme-naming.yaml\n", 1)[1].split("\nName it", 1)[0]
-    f = tmp_path / "acme-naming.yaml"
-    f.write_text("\n".join(l[3:] for l in block.splitlines()) + "\n")
+def _doc_rule_files(name):
+    """Every ``.. code-block:: yaml`` in docs/<name> that is a whole rule file."""
+    text = (ROOT / "docs" / name).read_text()
+    out = []
+    for m in re.finditer(r"^\.\. code-block:: yaml\n\n((?:   .*\n|\n)+)", text, re.M):
+        body = "\n".join(l[3:] for l in m.group(1).splitlines()).strip("\n") + "\n"
+        body = "\n".join(l for l in body.splitlines() if not l.startswith("# ")) + "\n"
+        if body.lstrip().startswith("pss-rules:"):
+            out.append(pytest.param(body, id="%s:%d" % (name, text.count("\n", 0, m.start()) + 1)))
+    return out
+
+
+_DOC_RULE_FILES = _doc_rule_files("lint-rule-authoring.rst")
+
+
+@pytest.mark.parametrize("body", _DOC_RULE_FILES)
+def test_the_authoring_guide_rule_files_pass(body, tmp_path):
+    # B6: every rule file in the user doc loads, and its examples pass.
+    f = tmp_path / "rules.yaml"
+    f.write_text(body)
     rc, out, err = _main(["--check-rules", str(f)])
-    assert rc == 0, err
+    assert rc == 0, out + err
+
+
+def test_the_authoring_guide_has_rule_files():
+    assert len(_DOC_RULE_FILES) >= 2
 
 
 def test_pssp222_is_defined():

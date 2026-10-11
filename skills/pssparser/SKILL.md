@@ -127,11 +127,17 @@ Select and tune rules on the command line:
 | Skip a checker | `--no-checker NAME` (repeatable) |
 | Built-in checks only | `--no-extensions` |
 | Try a checker without installing it | `--load-checker MODULE:CLASS` |
+| Load a rule file (`pss-rules` YAML) | `--rules PATH` (repeatable; file or directory) |
+| Enable / disable lint rules | `--select SEL`, `--ignore SEL` (an ID, name, namespace, tier or `family:NAME`) |
+| See `style` findings (hints) | `--show-hints` |
 | All warnings are errors | `-Werror` |
 | One warning is an error | `-Werror=ID` |
 | Exempt one ID from `-Werror` | `-Wno-error=ID` |
 | Drop all warnings | `--no-warnings` |
 
+A site's rule files run only when selected: `pssparser --rules lint/rules/
+--select ACME --show-hints model.pss`. `--check-rules` checks rule files
+themselves.
 `--checker` with a name that is not installed is a usage error (exit 2).
 `-Werror=ID` does not check that the ID exists, so copy the ID from
 `--list-markers` or `--json` output rather than typing it from memory.
@@ -150,7 +156,7 @@ warnings fail the build, and pin the pssparser version. Read
 
 ## Going further
 
-- Write a new lint rule, or package a rule collection: use the
-  `pssparser-checkers` skill.
+- Write a new lint rule (a rule file, or a Python checker), or package a
+  rule collection: use the `pssparser-checkers` skill.
 - Read a PSS model from Python (generators, analyzers, documentation tools):
   use the `pssparser-api` skill.

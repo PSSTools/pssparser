@@ -79,5 +79,6 @@ Key Features
    lint-rules
    lint-rule-authoring
    lint-functions
+   lint-nodes
    diagnostics-json
 

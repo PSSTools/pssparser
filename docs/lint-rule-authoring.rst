@@ -187,6 +187,10 @@ reported at its line and column in the YAML file. pssparser works out each
 rule's analysis level and scope from the functions it calls; a rule does not
 declare them.
 
+Every node kind, its base and its fields, with their types, are in
+:doc:`lint-nodes`. A field declared on a base class is read on every
+subclass: a ``Field``'s ``name`` comes from ``NamedScopeChild``.
+
 Besides a node's own fields, the library's navigation functions move around
 the tree: ``parent(n)``, ``ancestors(n)``, ``children(n)``,
 ``descendants(n)``, ``siblings(n)``, ``index_of(n)``, and
@@ -245,13 +249,32 @@ claim that is not ``rand``:
 
 .. code-block:: yaml
 
-   match: { kind: Field, inside: { kind: Action } }
-   let:
-     t: type_decl(node.type)
-   where: >-
-     !has_flag(node.attr, FieldAttr.Rand) && t.hasValue() &&
-     (derives_from(t.value(), "addr_reg_pkg::addr_claim_base_s") ||
-      derives_from(t.value(), "executor_pkg::executor_claim_s"))
+   pss-rules:
+     rules:
+       - id: ACME002
+         name: claim-not-rand
+         tier: suspicious
+         summary: An address or executor claim is not declared 'rand'.
+         message: "claim '${node.name.id}' is not 'rand', so it is not allocated as written"
+         match: { kind: Field, inside: { kind: Action } }
+         let:
+           t: type_decl(node.type)
+         where: >-
+           !has_flag(node.attr, FieldAttr.Rand) && t.hasValue() &&
+           (derives_from(t.value(), "addr_reg_pkg::addr_claim_base_s") ||
+            derives_from(t.value(), "executor_pkg::executor_claim_s"))
+         examples:
+           - code: |
+               import addr_reg_pkg::*;
+               component pss_top {
+                 transparent_addr_space_c<> mem;
+                 struct my_claim_s : addr_claim_s<> { }
+                 action my_action {
+                   transparent_addr_claim_s<> c1;   // expect: ACME002
+                   my_claim_s c2;                   // expect: ACME002
+                   rand my_claim_s c3;
+                 }
+               }
 
 The ``where`` is a block scalar (``>-``) because it starts with ``!``, which
 YAML reads as a tag. A type name is written without template arguments, and
@@ -365,6 +388,26 @@ For larger sets of cases, write fixture files and run them from pytest with
 ``pssparser.lint.examples.check_examples(engine)`` runs the examples of the
 rules loaded in a :class:`~pssparser.core.LintEngine` and raises
 ``AssertionError`` listing every failure.
+
+Writing a rule, step by step
+============================
+
+1. Write the rule and its ``examples:``: at least one model that must report
+   and one near miss that must not.
+2. Run ``pssparser --check-rules FILE``. Every diagnostic gives its line and
+   column in the rule file: a misspelt field (``type 'Field' has no field
+   'nme'``), an expression that needs quoting, an example that reported too
+   much or too little.
+3. Fix, and repeat until it exits 0.
+4. Run the rule on a real model with ``--rules FILE --select ID
+   --show-hints``, and look at what it reports there.
+
+pssparser ships an agent skill, ``pssparser-checkers``, that teaches a coding
+agent this loop and the rule format, so "write a rule that flags ..." gives
+a rule file with examples rather than a Python checker. It is registered
+in the ``agent.skills`` entry-point group, so ``ivpm update`` installs it
+into ``.claude/skills/`` and the other agent directories; its source is
+``skills/pssparser-checkers/`` in the repository.
 
 Checking rule files
 ===================

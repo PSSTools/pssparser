@@ -101,6 +101,12 @@ See `docs/lint-rule-authoring.rst` and `docs/lint-functions.rst`.
   FieldAttr.Rand)`, and library types with `type_decl`, `type_named` and
   `derives_from`. A flags value is not a number: `int()`, `string()`,
   arithmetic and ordering on one are errors when the rule loads.
+- `docs/lint-nodes.rst`, generated: every syntax-tree class a rule reads,
+  with its base, subclasses and fields (as the rule checker types them), and
+  the enums.
+- The `pssparser-checkers` agent skill now teaches rule files first, with a
+  `pss-rules` reference (the write / `--check-rules` / fix loop); Python
+  checkers are for what a rule file cannot express.
 - TypeScript: `Parser.loadRules()`, `ruleDiagnostics`, `probeRules()` and
   `runLint()`.
 - `pssparser.checkers.testing`: `run_rules`, `check_fixture` and

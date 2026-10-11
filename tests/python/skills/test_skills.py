@@ -8,8 +8,8 @@ skill text to the tool:
 * T2  the ``agent.skills`` entry points, and that discovering them does not
       load the native libraries;
 * T3  every ``pssparser`` flag and every ``PSS`` marker ID the text names;
-* T4  every fenced ``pss`` / ``python`` block runs, and the extension
-      template installs;
+* T4  every fenced ``pss`` / ``python`` block runs, every ``yaml`` rule
+      file passes ``--check-rules``, and the extension template installs;
 * T5  an installed wheel carries exactly the shipped skills;
 * T6  size limits.
 
@@ -299,7 +299,27 @@ def test_python_example_runs(block, tmp_path):
 
 def test_python_blocks_are_checked():
     """Guard the guard: an empty parametrization would pass vacuously."""
-    assert _PSS and _PY
+    assert _PSS and _PY and _RULES
+
+
+#: Every fenced ``yaml`` block that is a whole rule file (B6: the skill's rule
+#: files load cleanly and their examples pass).
+_RULES = [b for b in _blocks("yaml")
+          if "no-check" not in b[2] and b[3].startswith("pss-rules:")]
+
+
+@pytest.mark.parametrize("block", _RULES, ids=_block_id)
+def test_rule_file_example_checks_clean(block, tmp_path):
+    f = tmp_path / "rules.yaml"
+    f.write_text(block[3])
+    env = dict(os.environ)
+    env["PYTHONPATH"] = _parent_package_root()
+    env["PSSPARSER_NO_EXTENSIONS"] = "1"
+    r = subprocess.run(
+        [sys.executable, "-m", "pssparser", "--no-config", "--check-rules", str(f)],
+        capture_output=True, text=True, env=env, cwd=str(tmp_path), timeout=300)
+    assert r.returncode == 0, f"{_block_id(block)}\n{r.stdout}{r.stderr}"
+    assert "0 rules loaded" not in r.stderr + r.stdout, _block_id(block)
 
 
 _TEMPLATE = os.path.join(_SKILLS, "pssparser-checkers", "assets",
