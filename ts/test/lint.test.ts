@@ -158,4 +158,24 @@ describe('Parser.runLint (C5.4)', () => {
     const [m] = parser.runLint().markers;
     expect([m.code, m.line, m.severity]).toEqual(['PSSP220', 2, 'warning']);
   });
+
+  it("gives the parser's file names to file_of (C6.9)", async () => {
+    using parser = await createParser();
+    parser.loadRules([
+      {
+        name: 'where.yaml',
+        text:
+          'pss-rules:\n  rules:\n    - id: ACME004\n      name: where-is-it\n' +
+          '      tier: suspicious\n      summary: s\n' +
+          "      message: '${file_of(node).path} ${file_of(node).stem}'\n" +
+          '      match: { kind: Component }\n',
+      },
+    ]);
+    parser.parseSources([{ name: '/proj/ip/m.pss', content: MODEL }]);
+    parser.link();
+    expect(parser.runLint().markers.map((m) => m.message)).toEqual(['/proj/ip/m.pss m']);
+    expect(parser.runLint({ baseDir: '/proj' }).markers.map((m) => m.message)).toEqual([
+      'ip/m.pss m',
+    ]);
+  });
 });

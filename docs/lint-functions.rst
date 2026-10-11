@@ -1580,6 +1580,91 @@ The type a PSS name names, in the model being checked: ``type_named("addr_reg_pk
 
 Whether a type is the type named (``type_named``'s name) or inherits from it, through its base types (``super_t``), transitively: ``derives_from(t, "addr_reg_pkg::addr_claim_base_s")``. A type derives from itself. A **generic template's name matches every specialization** of it, and every type deriving from one: ``derives_from(t, "addr_reg_pkg::addr_claim_s")`` is true for ``transparent_addr_claim_s<>``. ``extend`` does not change a type's base. ``false`` for ``null``, for a node that is not a type, and for an unknown name (which is reported, PSSP223). One step per type visited.
 
+Lists
+-----
+
+.. _lint-fn-dups-list:
+
+``dups``
+~~~~~~~~
+
+**Level:** L0; **Scope:** file
+
+.. list-table::
+   :header-rows: 1
+
+   * - Signature
+     - Cost
+     - Overload
+   * - ``dups(list(A)) -> list(int)``
+     - custom
+     - ``dups_list``
+
+The indexes of the elements equal (``==``) to an earlier one, in order: ``dups([a, b, a, a])`` is ``[2, 3]``. With ``map``, it finds repeats of any key: ``dups(node.initializers.map(i, resolves_to(i.path)))`` gives the initializers that name a field an earlier one did, and ``.map(k, node.initializers[k])`` turns them back into nodes to report. Nodes are equal when they are the same node. A ``null`` element is never a duplicate, so unset fields and unresolved names do not pair up. One step per element; a list, map, optional, record or double element also one per distinct earlier element it is compared with.
+
+Locations
+---------
+
+.. _lint-fn-file-of-node:
+
+``file_of``
+~~~~~~~~~~~
+
+**Level:** L0; **Scope:** file
+
+.. list-table::
+   :header-rows: 1
+
+   * - Signature
+     - Cost
+     - Overload
+   * - ``file_of(node) -> FileInfo``
+     - constant
+     - ``file_of_node``
+
+The file a node is in, as a ``FileInfo`` record: ``file_of(node).path.matches("^ip/")`` for a node under ``ip/``, ``file_of(node).stem == node.name.id`` for a type named after its file. Records compare member by member, so ``file_of(a) == file_of(b)`` says two nodes share a file. ``null`` for ``null``, for a node in no file (a template specialization the linker made), and for a file the host gave no name.
+
+.. _lint-fn-decls-in-fileinfo:
+
+``decls_in``
+~~~~~~~~~~~~
+
+**Level:** L0; **Scope:** file
+
+.. list-table::
+   :header-rows: 1
+
+   * - Signature
+     - Cost
+     - Overload
+   * - ``decls_in(FileInfo) -> list(ScopeChild)``
+     - custom
+     - ``decls_in_FileInfo``
+
+The declarations at the top level of a file, in source order: ``decls_in(file_of(node))``. A package counts as one (its members are its ``children``); imports and other statements that declare nothing are left out. ``[]`` for a file the run does not know. Meant for the node's own file: a rule that names another may not be re-run when that file changes. One step per top-level statement.
+
+Functions
+---------
+
+.. _lint-fn-is-pure-node:
+
+``is_pure``
+~~~~~~~~~~~
+
+**Level:** L1; **Scope:** file
+
+.. list-table::
+   :header-rows: 1
+
+   * - Signature
+     - Cost
+     - Overload
+   * - ``is_pure(node) -> bool``
+     - constant
+     - ``is_pure_node``
+
+Whether a function is pure, as the template-string check (PSS114) decides it: ``is_pure(call)`` for the function a call resolves to, or ``is_pure(d)`` for a function declaration (a ``FunctionPrototype``, ``FunctionDefinition``, ``FunctionImportProto`` or ``TargetTemplateFunction``). Pure when **any** declaration of the function says ``pure``, or when it is declared directly in a ``pure component``, which makes every function of that component pure (not those of a type declared inside it, nor of a component deriving from it). A call is any reference that resolves to a function: the ``ExprMemberPathElem`` with the arguments, or the whole path (``a.b.f(1)``, ``p::f(1)``). ``false`` for ``null``, for anything that is not a function, and for an unresolved name.
+
 Records
 -------
 
@@ -1636,3 +1721,32 @@ A closed range of integer values, both ends included, as ``ranges`` folds it: ``
    * - ``hi``
      - ``int``
      - The high end.
+
+.. _lint-record-fileinfo:
+
+``FileInfo``
+~~~~~~~~~~~~
+
+The file a node is in, as ``file_of`` gives it: its path as the host named it, normalized (``/`` separators, no ``.`` or ``..`` steps) and, when the host gives a base directory (the CLI: the configuration file's), relative to it, so a rule reads the same path in every checkout.
+
+.. list-table::
+   :header-rows: 1
+
+   * - Member
+     - Type
+     - Description
+   * - ``path``
+     - ``string``
+     - The whole path: ``ip/dma/dma_c.pss``.
+   * - ``dir``
+     - ``string``
+     - The path up to the last ``/``: ``ip/dma``; ``""`` for a file in the base directory itself.
+   * - ``name``
+     - ``string``
+     - The last step: ``dma_c.pss``.
+   * - ``stem``
+     - ``string``
+     - The name without its extension: ``dma_c``.
+   * - ``ext``
+     - ``string``
+     - The extension, with its dot: ``.pss``; ``""`` for none. As Python's ``pathlib``: the last dot, not a leading one.

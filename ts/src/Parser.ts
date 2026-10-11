@@ -329,7 +329,8 @@ export class Parser {
   runLint(request: LintRequest = {}): LintResult {
     const session = this.#require();
     const errors = this.#markers.filter((m) => m.severity === 'error').length;
-    return parseLintResult(session.runLint(lintRequestJson(request, errors)), this.#fileMap);
+    return parseLintResult(session.runLint(lintRequestJson(request, errors, this.#fileMap)),
+      this.#fileMap);
   }
 
   /** Every rule-file diagnostic of this Parser, built-in files included. */

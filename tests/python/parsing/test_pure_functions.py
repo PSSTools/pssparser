@@ -404,6 +404,21 @@ def test_call_to_a_plain_component_function_is_still_reported():
     assert "non-pure" in errs[0]["message"]
 
 
+def test_definition_without_pure_keeps_the_prototypes_pure():
+    """§20.2.6 b: "The pure keyword may be omitted in a function definition if
+    its original declaration contains the pure keyword; it is still considered
+    pure."  The two declarations have one arity, and the call-arity check
+    collapses them to the first -- here the definition -- which used to make
+    PSS114 miss the prototype's `pure` (found by lint-core C6.6)."""
+    assert _tmpl_markers("""
+    component C {
+        pure function int k(int a);
+        function int k(int a) { return a; }
+        action A { exec body T = \"\"\"{{k(1)}}\"\"\"; }
+    }
+    """) == []
+
+
 def test_function_inherited_from_a_pure_component_is_pure():
     """Purity follows the type the function is declared in, not the one the
     call is written against."""

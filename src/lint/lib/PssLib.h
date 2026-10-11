@@ -177,6 +177,36 @@ public:
      */
     bool derivesFrom(const rf::Node &t, const rf::Node &base, uint64_t &steps) const;
 
+    /**
+     * Whether a function is pure (C6.6), as PSS114 decides it
+     * (FunctionPurity.h): `n` is a function declaration (a prototype, a
+     * definition, an import or a target-template function) or a reference
+     * to one, such as a call. False for anything else, and for a function
+     * the model does not link. False when there is no model.
+     */
+    bool isPure(const rf::Node &n, bool &linked) const;
+
+    /**
+     * The host's name for each file, by fileid, and the directory those
+     * names are made relative to (C6.9; "" for none). file_of() gives the
+     * name normalized ('/' separators, no '.' or '..' steps) and, under a
+     * base directory, relative to it.
+     */
+    void setFiles(const std::unordered_map<int32_t, std::string> &names,
+        const std::string &baseDir);
+
+    /** The path file_of() gives for fileid `f`; false when the host did not name it. */
+    bool filePath(int32_t f, std::string &path) const;
+
+    /** The fileid whose filePath() is `path`; -2 when none is. */
+    int32_t fileidOfPath(const std::string &path) const;
+
+    /**
+     * The file (GlobalScope) with fileid `f`: an indexed root, else one of
+     * the model's units; null when there is none.
+     */
+    rf::Node unitOf(int32_t f) const;
+
     /** A type name typeNamed() did not find, with the rule and node it was asked for. */
     struct UnknownType {
         const void      *rule;
@@ -205,7 +235,9 @@ private:
     // What a type name names, unwrapped no further: its target path, else
     // (a generic's base) its identifier's binding.
     ast::IScopeChild *resolveTypeId(ast::ITypeIdentifier *tid) const;
-    void mapGenerics() const;
+    // Walks the symbol tree once: each specialization's generic, and each
+    // function declaration's function scope.
+    void indexSymbolTree() const;
     int32_t segmentNumber(const rf::Node &scope, const rf::Node &seg) const;
     // The path, and whether the walk down to `n` reached it as a segment.
     std::string buildPath(const rf::Node &n, uint64_t &steps, bool &reached) const;
@@ -228,8 +260,12 @@ private:
     // C6.8: type_named() results by path, a specialization's generic, and
     // the unknown names asked for, by rule.
     mutable std::unordered_map<std::string, rf::Node>           m_named;
-    mutable bool                                                m_genericsMapped = false;
+    mutable bool                                                m_symbolTreeIndexed = false;
     mutable std::unordered_map<const void *, rf::Node>          m_generic;
+    mutable std::unordered_map<const void *, ast::IScopeChild *> m_funcScope; // proto -> scope
+    std::unordered_map<int32_t, std::string>                    m_filePath;  // fileid -> path
+    std::unordered_map<std::string, int32_t>                    m_pathFile;  // path -> fileid
+    mutable std::vector<rf::Node>                               m_roots;     // owned, in order
     mutable const void                                          *m_curRule = nullptr;
     mutable rf::Node                                            m_curNode;
     mutable std::vector<UnknownType>                            m_unknown;

@@ -66,6 +66,7 @@ Runner::Runner(const std::vector<const rules::Rule *> &rules, const RunOptions &
         m_opts(opts), m_dispatch(rules), m_walker(m_dispatch), m_stats(rules.size()),
         m_file(rules.size()) {
     m_ctx.setModel(opts.model);
+    m_ctx.setFiles(opts.fileNames, opts.baseDir);
     for (size_t i=0; i<rules.size(); i++) {
         m_index.emplace(rules[i], i);
     }

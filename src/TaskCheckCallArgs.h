@@ -64,10 +64,16 @@ public:
      * checking: PSS114 asks the same question of the same declaration forms,
      * and a second copy of the ISymbolFunctionScope/definition/import walk
      * would drift.
+     *
+     * With `unique`, declarations of the same arity are collapsed to the
+     * first, so a function declared once and defined once is one signature.
+     * Without it every declaration is kept: purity needs them all, because
+     * a definition may omit the `pure` its prototype has (§20.2.6 b).
      */
     static void collectPrototypes(
         ast::IScopeChild                            *target,
-        std::vector<ast::IFunctionPrototype *>      &protos);
+        std::vector<ast::IFunctionPrototype *>      &protos,
+        bool                                        unique=true);
 
     /**
      * LRM 20.2.3: an aggregate literal is a constant in the context of the

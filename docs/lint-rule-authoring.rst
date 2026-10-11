@@ -218,6 +218,25 @@ never hold. Like every
 rule, one that calls them runs only on a model that parsed and linked
 without errors.
 
+``is_pure(f)`` says whether a function is pure, as the template-string check
+decides it: ``f`` is a call (``is_pure(node)`` on the ``ExprMemberPathElem``
+with the arguments, or on the whole path) or a function declaration. A
+function is pure when any of its declarations says ``pure``, or when a
+``pure component`` declares it.
+
+``file_of(n)`` is the file a node is in, as a ``FileInfo`` record:
+``path``, ``dir``, ``name``, ``stem`` and ``ext`` (``.pss``). The path is
+relative to the configuration file's directory, so a rule reads the same
+path in every checkout (``file_of(node).path.matches("^ip/")``); with no
+configuration it is the path as given on the command line.
+``decls_in(file_of(node))`` lists the file's top-level declarations, in
+source order: "one component per file" is
+``decls_in(file_of(node)).filter(d, type(d) == Component)``.
+
+``dups(l)`` gives the indexes of a list's elements that equal an earlier
+one, so ``dups(inits.map(i, resolves_to(i.path)))`` finds a field initialised
+twice in one list, and ``.map(k, inits[k])`` gives the nodes to report.
+
 ``branches(n)`` lists the alternatives of a ``select``, ``match``,
 ``if``/``else``, ``parallel`` or ``schedule`` the same way for each:
 a ``Branch`` record with the branch's ``node``, ``index``, ``guard``,

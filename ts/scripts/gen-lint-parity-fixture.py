@@ -99,6 +99,18 @@ function void fn_a() { }
 package a::bb { }
 """
 
+#: file_of() with the host's names and a base directory (C6.9).
+WHERE = """\
+pss-rules:
+  rules:
+    - id: ACME009
+      name: where-is-it
+      tier: suspicious
+      summary: s
+      message: "${file_of(node).path} ${file_of(node).dir} ${file_of(node).stem}"
+      match: { kind: Component }
+"""
+
 #: (id, rule files by path, inline rule files, sources, request)
 RUNS = [
     ("all-rules", EXAMPLE_FILES, [], [("m.pss", MODEL)], {}),
@@ -117,6 +129,10 @@ RUNS = [
      {"enabled": ["ACME002"], "maxSteps": 5}),
     ("failure", [], [("failing.yaml", FAILING)], [("m.pss", MODEL)], {}),
     ("name-span", [], [("name-span.yaml", NAME_SPAN)], [("named.pss", NAMED)], {}),
+    ("base-dir", [], [("where.yaml", WHERE)],
+     [("/proj/ip/./a_c.pss", "component a_c { }\n"),
+      ("/elsewhere/b_c.pss", "component b_c { }\n")],
+     {"baseDir": "/proj"}),
     ("gate", EXAMPLE_FILES, [],
      [("bad.pss", "component pss_top { action b : Missing { } }\n")], {}),
     ("gate-nothing-enabled", EXAMPLE_FILES, [],
@@ -147,9 +163,12 @@ def normal(markers):
     return out
 
 
-def native_request(req, errors):
-    out = {"gate_errors": req.get("gateErrors", errors)}
-    for ts, py in (("enabled", "enabled"), ("options", "options"), ("maxSteps", "max_steps")):
+def native_request(req, errors, file_map):
+    # As Parser.runLint() builds it: the parser's file names always go.
+    out = {"gate_errors": req.get("gateErrors", errors),
+           "files": {str(i): n for i, n in file_map.items()}}
+    for ts, py in (("enabled", "enabled"), ("options", "options"), ("maxSteps", "max_steps"),
+                   ("baseDir", "base_dir")):
         if ts in req:
             out[py] = req[ts]
     return out
@@ -180,7 +199,7 @@ def run_case(cid, paths, inline, sources, req):
     except ParseException:
         pass
     errors = sum(1 for m in p.markers if m["severity"] == "error")
-    r = e.run(p.user_units(), native_request(req, errors), model=p._root)
+    r = e.run(p.user_units(), native_request(req, errors, p.file_map), model=p._root)
     assert r["ok"], r
     return {
         "id": "run:" + cid,

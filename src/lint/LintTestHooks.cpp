@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 #include <algorithm>
+#include <cstdlib>
 #include <cstring>
 #include <memory>
 #include <unordered_map>
@@ -1015,6 +1016,28 @@ std::string LintTestHooks::celCheck(const std::string &name, const std::string &
     return checkDoc(name, text, nullptr);
 }
 
+// A check document's `files` ({"<fileid>": "<path>"}) and `base_dir`, as
+// a lint request carries them, for file_of (C6.9).
+static void hookFiles(const std::string &name, const std::string &text, lib::Context &ctx) {
+    yaml::NodeUP doc;
+    try {
+        doc = yaml::parse(name, text);
+    } catch (const yaml::YamlError &) {
+        return;
+    }
+    if (!doc || doc->kind != yaml::Node::Kind::Map) {
+        return;
+    }
+    std::unordered_map<int32_t, std::string> names;
+    if (const yaml::Node *fs = doc->get("files")) {
+        for (const yaml::Node::Member &m : fs->members) {
+            names[static_cast<int32_t>(std::atoi(m.key.c_str()))] = m.value->s;
+        }
+    }
+    const yaml::Node *bd = doc->get("base_dir");
+    ctx.setFiles(names, bd ? bd->s : std::string());
+}
+
 std::string LintTestHooks::celCheckNode(const std::string &name, const std::string &text,
         ast::IScopeChild *root, ast::IRootSymbolScope *model) {
     rf::Node n = rf::classify(root);
@@ -1025,6 +1048,7 @@ std::string LintTestHooks::celCheckNode(const std::string &name, const std::stri
     lib::Context ctx;
     ctx.setModel(model);
     ctx.index(n);
+    hookFiles(name, text, ctx);
     return checkDoc(name, text, &v, &ctx);
 }
 

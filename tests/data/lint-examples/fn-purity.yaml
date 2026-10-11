@@ -1,0 +1,42 @@
+# The purity function (lint-core-plan.md C6.6), used by a rule whose examples
+# pin its behaviour, so the WebAssembly build is checked against the native
+# one through the lint-parity fixture. TEST-PURE001 is lint-criteria E21:
+# message()'s arguments may not be evaluated at all (21.1.3), so a call with
+# side effects there is suspect.
+pss-rules:
+  defaults:
+    family: exec
+    tier: suspicious
+
+  rules:
+    - id: TEST-PURE001
+      name: impure-call-in-message
+      summary: A message() argument calls a function that is not pure
+      message: "'${node.id.id}' is not pure, and message() may not evaluate its arguments"
+      match: { kind: ExprMemberPathElem }
+      where: >-
+        has(node.params) && !is_pure(node) &&
+        ancestors(node).exists(a, type(a) == ExprMemberPathElem && a.id.id == "message")
+      examples:
+        - code: |
+            import std_pkg::*;
+            component pss_top {
+              function int alloc_id() { return 1; }
+              pure function int scaled(int x) { return x * 2; }
+              exec post_solve {
+                message(LOW, "id ", alloc_id());              // expect: TEST-PURE001
+                message(LOW, "x ", scaled(2));
+              }
+            }
+        - name: a pure component's function, and a definition that drops 'pure'
+          code: |
+            import std_pkg::*;
+            pure component util_c { function int f(int a) { return a; } }
+            component pss_top {
+              util_c u;
+              pure function int k(int a);
+              function int k(int a) { return a; }
+              exec post_solve {
+                message(LOW, "f ", u.f(1), " k ", k(2));
+              }
+            }

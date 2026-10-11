@@ -20,7 +20,9 @@
  * library's groups.
  */
 #include <algorithm>
+#include <cctype>
 #include <string>
+#include <unordered_set>
 #include "PssLib.h"
 #include "pssp/ast/IGlobalScope.h"
 #include "pssp/ast/IRootSymbolScope.h"
@@ -29,7 +31,9 @@
 #include "pssp/ast/ITemplateValueParamDecl.h"
 #include "pssp/ast/IDataTypeUserDefined.h"
 #include "pssp/ast/IEnumDecl.h"
+#include "pssp/ast/IFunctionPrototype.h"
 #include "pssp/ast/ISymbolEnumScope.h"
+#include "pssp/ast/ISymbolFunctionScope.h"
 #include "pssp/ast/ISymbolTypeScope.h"
 #include "pssp/ast/ITemplateCategoryTypeParamDecl.h"
 #include "pssp/ast/ITemplateGenericTypeParamDecl.h"
@@ -39,8 +43,11 @@
 #include "pssp/impl/NodeKind.h"
 #include "pssp/impl/TaskResolveSymbolPathRef.h"
 #include "../../Factory.h"
+#include "../../FunctionPurity.h"
 #include "../../OccurrenceCollector.h"
+#include "../../TaskCheckCallArgs.h"
 #include "ConstEval.h"
+#include "../cel/CelEval.h"
 #include "../cel/CelNode.h"
 #include "../run/Walker.h"
 
@@ -278,8 +285,8 @@ void Context::indexTree(const rf::Node &root, bool owned) const {
     if (!root) {
         return;
     }
-    if (owned) {
-        m_owned.insert(root.ptr);
+    if (owned && m_owned.insert(root.ptr).second) {
+        m_roots.push_back(root);
     }
     if (m_parent.count(root.ptr)) {
         return;
@@ -334,6 +341,124 @@ rf::Node Context::rootOf(const rf::Node &n) const {
 bool Context::owned(const rf::Node &n) const {
     rf::Node r = rootOf(n);
     return r && m_owned.count(r.ptr);
+}
+
+namespace {
+
+// A path's steps, '/' or '\\' separated, with '.' and empty steps dropped
+// and '..' folded into the step before it where there is one. `root` is the
+// leading "/" or "C:/" of an absolute path, "" for a relative one.
+std::vector<std::string> pathSteps(const std::string &path, std::string &root) {
+    std::string p = path;
+    std::replace(p.begin(), p.end(), '\\', '/');
+    root.clear();
+    size_t at = 0;
+    if (p.size() >= 2 && std::isalpha(static_cast<unsigned char>(p[0])) && p[1] == ':') {
+        root = p.substr(0, 2) + "/";
+        at = 2;
+    }
+    if (at < p.size() && p[at] == '/') {
+        root = root.empty() ? "/" : root;
+        at++;
+    }
+    std::vector<std::string> steps;
+    while (at <= p.size()) {
+        size_t end = p.find('/', at);
+        std::string step = p.substr(at, (end == std::string::npos) ? std::string::npos : end - at);
+        if (step == "..") {
+            if (!steps.empty() && steps.back() != "..") {
+                steps.pop_back();
+            } else if (root.empty()) {
+                steps.push_back(step);      // above a relative start: kept
+            }
+        } else if (!step.empty() && step != ".") {
+            steps.push_back(step);
+        }
+        if (end == std::string::npos) {
+            break;
+        }
+        at = end + 1;
+    }
+    return steps;
+}
+
+std::string joinSteps(const std::string &root, const std::vector<std::string> &steps,
+        size_t from=0) {
+    std::string out = root;
+    for (size_t i=from; i<steps.size(); i++) {
+        if (i > from) {
+            out += "/";
+        }
+        out += steps[i];
+    }
+    return out;
+}
+
+// `path` normalized and, when it and `base` are both absolute or both
+// relative, relative to `base` ("../" for a path outside it).
+std::string normalPath(const std::string &path, const std::string &base) {
+    std::string root, broot;
+    std::vector<std::string> steps = pathSteps(path, root);
+    if (base.empty()) {
+        return joinSteps(root, steps);
+    }
+    std::vector<std::string> bsteps = pathSteps(base, broot);
+    if (root != broot) {
+        return joinSteps(root, steps);
+    }
+    size_t common = 0;
+    while (common < steps.size() && common < bsteps.size()
+            && steps[common] == bsteps[common]) {
+        common++;
+    }
+    std::vector<std::string> rel(bsteps.size() - common, "..");
+    rel.insert(rel.end(), steps.begin() + common, steps.end());
+    return joinSteps("", rel);
+}
+
+}
+
+void Context::setFiles(const std::unordered_map<int32_t, std::string> &names,
+        const std::string &baseDir) {
+    m_filePath.clear();
+    m_pathFile.clear();
+    for (const auto &e : names) {
+        std::string p = normalPath(e.second, baseDir);
+        m_filePath[e.first] = p;
+        m_pathFile.emplace(p, e.first);
+    }
+}
+
+bool Context::filePath(int32_t f, std::string &path) const {
+    auto it = m_filePath.find(f);
+    if (it == m_filePath.end()) {
+        return false;
+    }
+    path = it->second;
+    return true;
+}
+
+int32_t Context::fileidOfPath(const std::string &path) const {
+    auto it = m_pathFile.find(path);
+    return (it == m_pathFile.end()) ? -2 : it->second;
+}
+
+rf::Node Context::unitOf(int32_t f) const {
+    static const uint16_t gs = classId("GlobalScope");
+    for (const rf::Node &r : m_roots) {
+        if (r.kind == gs && static_cast<ast::IGlobalScope *>(r.ptr)->getFileid() == f) {
+            return r;
+        }
+    }
+    if (m_model) {
+        for (const ast::IGlobalScopeUP &u : m_model->getUnits()) {
+            if (u->getFileid() == f) {
+                ast::IScopeChild *c = u.get();
+                return rf::classify(c);
+            }
+        }
+    }
+    return rf::Node();
 }
 
 int32_t Context::fileidOf(const rf::Node &n) const {
@@ -663,16 +788,24 @@ bool Context::typeNamed(const std::string &path, rf::Node &decl) const {
     return true;
 }
 
-void Context::mapGenerics() const {
-    if (m_genericsMapped || !m_model) {
+void Context::indexSymbolTree() const {
+    if (m_symbolTreeIndexed || !m_model) {
         return;
     }
-    m_genericsMapped = true;
-    // Every type scope's specializations, through the whole symbol tree.
+    m_symbolTreeIndexed = true;
+    // Every type scope's specializations, and every function scope's
+    // declarations, through the whole symbol tree.
     std::vector<ast::IScopeChild *> work{m_model};
     while (!work.empty()) {
         ast::IScopeChild *c = work.back();
         work.pop_back();
+        if (ast::ISymbolFunctionScope *fs = NodeKind::cast<ast::ISymbolFunctionScope>(c)) {
+            std::vector<ast::IFunctionPrototype *> protos;
+            TaskCheckCallArgs::collectPrototypes(fs, protos, false);
+            for (ast::IFunctionPrototype *p : protos) {
+                m_funcScope.emplace(p, fs);
+            }
+        }
         if (ast::ISymbolTypeScope *ts = NodeKind::cast<ast::ISymbolTypeScope>(c)) {
             for (const ast::ISymbolTypeScopeUP &sp : ts->getSpec_types()) {
                 if (sp && sp->getTarget() && ts->getTarget()) {
@@ -691,11 +824,42 @@ void Context::mapGenerics() const {
     }
 }
 
+bool Context::isPure(const rf::Node &n, bool &linked) const {
+    static const uint16_t proto = classId("FunctionPrototype"),
+        def = classId("FunctionDefinition"), imp = classId("FunctionImportProto"),
+        tmpl = classId("TargetTemplateFunction");
+    linked = false;
+    if (!m_model || !n) {
+        return false;
+    }
+    // A reference stands for the declaration it resolves to (a call's callee
+    // resolves to a prototype); a declaration holding a prototype, for it.
+    rf::Node d = n;
+    if (rf::Node id = refIdent(n)) {
+        if (!declOf(id, d) || !d) {
+            return false;
+        }
+    }
+    if (d.kind == def || d.kind == imp || d.kind == tmpl) {
+        d = asNode(field(d, "proto"));
+    }
+    if (!d || d.kind != proto) {
+        return false;
+    }
+    indexSymbolTree();
+    auto it = m_funcScope.find(d.ptr);
+    if (it == m_funcScope.end()) {
+        return false;
+    }
+    linked = true;
+    return functionPurity(it->second) == FunctionPurity::Pure;
+}
+
 bool Context::derivesFrom(const rf::Node &t, const rf::Node &base, uint64_t &steps) const {
     if (!m_model || !t || !base) {
         return false;
     }
-    mapGenerics();
+    indexSymbolTree();
     ast::IScopeChild *c = rf::asScopeChild(t);
     std::unordered_set<const void *> seen;
     // `extend`s do not change a type's base: super_t is the linker's.
@@ -910,6 +1074,119 @@ Value inLibraryImpl(CallArgs &c) {
 }
 }
 
+
+//* Functions
+
+Value isPureImpl(CallArgs &c) {
+    const Context *ctx = context(c);
+    if (!ctx) {
+        return noContext("is_pure");
+    }
+    bool linked = false;
+    return Value::boolean(c[0].kind == Value::Kind::Node && ctx->isPure(toNode(c[0]), linked));
+}
+
+//* Locations
+
+uint16_t fileInfoRecord = 0;
+
+Value fileOfImpl(CallArgs &c) {
+    const Context *ctx = context(c);
+    if (!ctx) {
+        return noContext("file_of");
+    }
+    std::string path;
+    if (c[0].kind != Value::Kind::Node || !ctx->filePath(ctx->fileidOf(toNode(c[0])), path)) {
+        return Value::null();
+    }
+    size_t slash = path.rfind('/');
+    std::string dir = (slash == std::string::npos) ? "" : path.substr(0, slash);
+    std::string name = (slash == std::string::npos) ? path : path.substr(slash + 1);
+    // As Python's pathlib: the last '.' not at the start of the name.
+    size_t dot = name.rfind('.');
+    if (dot == 0 || dot == std::string::npos) {
+        dot = name.size();
+    }
+    return Value::mkRecord(fileInfoRecord, {Value::string(path), Value::string(dir),
+        Value::string(name), Value::string(name.substr(0, dot)),
+        Value::string(name.substr(dot))});
+}
+
+Value declsInImpl(CallArgs &c) {
+    const Context *ctx = context(c);
+    if (!ctx) {
+        return noContext("decls_in");
+    }
+    cel::ValueList out;
+    if (c[0].kind != Value::Kind::Struct || !c[0].list || c[0].list->empty()) {
+        return Value::mkList(std::move(out));
+    }
+    rf::Node unit = ctx->unitOf(ctx->fileidOfPath((*c[0].list)[0].s));
+    if (!unit) {
+        return Value::mkList(std::move(out));
+    }
+    std::vector<rf::Node> kids;
+    Walker::children(unit, kids);
+    for (const rf::Node &k : kids) {
+        c.steps++;
+        if (ctx->declares(k)) {
+            out.push_back(nodeValue(k));
+        }
+    }
+    return Value::mkList(std::move(out));
+}
+
+//* Lists
+
+// A key that equal elements share, for the kinds CEL compares by value
+// alone; false for the rest (doubles, for NaN and -0.0; lists, maps,
+// optionals and structs), which are compared pairwise.
+bool dupKey(const Value &v, std::string &key) {
+    switch (v.kind) {
+        case Value::Kind::Bool:   key = v.b ? "b1" : "b0"; return true;
+        case Value::Kind::Int:    key = "i" + std::to_string(v.i); return true;
+        case Value::Kind::String: key = "s" + v.s; return true;
+        case Value::Kind::Type:   key = "t" + v.s; return true;
+        case Value::Kind::Node:
+            key = "n" + std::to_string(reinterpret_cast<uintptr_t>(v.node.ptr));
+            return true;
+        default: return false;
+    }
+}
+
+Value dupsImpl(CallArgs &c) {
+    cel::ValueList out;
+    std::unordered_set<std::string> seen;
+    std::vector<const Value *> others;
+    const cel::ValueList &l = *c[0].list;
+    for (size_t i=0; i<l.size(); i++) {
+        const Value &v = l[i];
+        c.steps++;
+        if (v.kind == Value::Kind::Null) {
+            continue;       // nothing is not a duplicate of nothing
+        }
+        std::string key;
+        bool dup = false;
+        if (dupKey(v, key)) {
+            dup = !seen.insert(key).second;
+        } else {
+            for (const Value *o : others) {
+                c.steps++;
+                if (cel::celEquals(*o, v)) {
+                    dup = true;
+                    break;
+                }
+            }
+            if (!dup) {
+                others.push_back(&v);
+            }
+        }
+        if (dup) {
+            out.push_back(Value::integer(static_cast<int64_t>(i)));
+        }
+    }
+    return Value::mkList(std::move(out));
+}
 
 //* References
 
@@ -1488,6 +1765,62 @@ void registerPssLib(FunctionRegistry &r) {
         "`transparent_addr_claim_s<>`. `extend` does not change a type's base. `false` for "
         "`null`, for a node that is not a type, and for an unknown name (which is reported, "
         "PSSP223). One step per type visited.")
+        .nullable = true;
+
+    r.group("Lists");
+    r.level(Level::L0, Scope::File);
+    r.add("dups_list", "dups(list(A)) -> list(int)", &dupsImpl, C::Custom,
+        "The indexes of the elements equal (`==`) to an earlier one, in order: "
+        "`dups([a, b, a, a])` is `[2, 3]`. With `map`, it finds repeats of any key: "
+        "`dups(node.initializers.map(i, resolves_to(i.path)))` gives the initializers that "
+        "name a field an earlier one did, and `.map(k, node.initializers[k])` turns them back "
+        "into nodes to report. Nodes are equal when they are the same node. A `null` element "
+        "is never a duplicate, so unset fields and unresolved names do not pair up. One step "
+        "per element; a list, map, optional, record or double element also one per "
+        "distinct earlier element it is compared with.");
+    r.group("Locations");
+    fileInfoRecord = cel::defineRecord("FileInfo",
+        "The file a node is in, as `file_of` gives it: its path as the host named it, "
+        "normalized (`/` separators, no `.` or `..` steps) and, when the host gives a base "
+        "directory (the CLI: the configuration file's), relative to it, so a rule reads the "
+        "same path in every checkout.", {
+            {"path", cel::Type::parse("string"), "The whole path: `ip/dma/dma_c.pss`."},
+            {"dir", cel::Type::parse("string"), "The path up to the last `/`: `ip/dma`; "
+                "`\"\"` for a file in the base directory itself."},
+            {"name", cel::Type::parse("string"), "The last step: `dma_c.pss`."},
+            {"stem", cel::Type::parse("string"), "The name without its extension: `dma_c`."},
+            {"ext", cel::Type::parse("string"), "The extension, with its dot: `.pss`; `\"\"` "
+                "for none. As Python's `pathlib`: the last dot, not a leading one."}});
+    r.level(Level::L0, Scope::File);
+    r.add("file_of_node", "file_of(node) -> FileInfo", &fileOfImpl, C::Constant,
+        "The file a node is in, as a `FileInfo` record: `file_of(node).path.matches(\"^ip/\")` "
+        "for a node under `ip/`, `file_of(node).stem == node.name.id` for a type named "
+        "after its file. Records compare member by member, so `file_of(a) == file_of(b)` "
+        "says two nodes share a file. `null` for `null`, for a node in no file (a template "
+        "specialization the linker made), and for a file the host gave no name.")
+        .nullable = true;
+    r.add("decls_in_FileInfo", "decls_in(FileInfo) -> list(ScopeChild)", &declsInImpl,
+        C::Custom,
+        "The declarations at the top level of a file, in source order: "
+        "`decls_in(file_of(node))`. A package counts as one (its members are its "
+        "`children`); imports and other statements that declare nothing are left out. `[]` "
+        "for a file the run does not know. Meant for the node's own file: a rule that "
+        "names another may not be re-run when that file changes. One step per top-level "
+        "statement.")
+        .nullable = true;
+    r.group("Functions");
+    r.level(Level::L1, Scope::File);
+    r.add("is_pure_node", "is_pure(node) -> bool", &isPureImpl, C::Constant,
+        "Whether a function is pure, as the template-string check (PSS114) decides it: "
+        "`is_pure(call)` for the function a call resolves to, or `is_pure(d)` for a "
+        "function declaration (a `FunctionPrototype`, `FunctionDefinition`, "
+        "`FunctionImportProto` or `TargetTemplateFunction`). Pure when **any** declaration "
+        "of the function says `pure`, or when it is declared directly in a `pure "
+        "component`, which makes every function of that component pure (not those of a "
+        "type declared inside it, nor of a component deriving from it). A call is any "
+        "reference that resolves to a function: the `ExprMemberPathElem` with the "
+        "arguments, or the whole path (`a.b.f(1)`, `p::f(1)`). `false` for `null`, for "
+        "anything that is not a function, and for an unresolved name.")
         .nullable = true;
 }
 

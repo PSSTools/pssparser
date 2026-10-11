@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include <cstdlib>
 #include <memory>
 #include <unordered_map>
 #include "LintEngine.h"
@@ -223,6 +224,29 @@ std::string LintEngine::run(const std::vector<ast::IScopeChild *> &roots,
                     opts.options[r].emplace_back(om.key, std::move(v));
                 }
             }
+        }
+    }
+    // The host's file names, as {"<fileid>": "<path>"}, for file_of (C6.9).
+    if (const yaml::Node *fs = req->get("files")) {
+        if (fs->kind != NK::Map) {
+            problems.push_back("files: not an object of fileid to path");
+        } else {
+            for (const yaml::Node::Member &m : fs->members) {
+                char *end = nullptr;
+                long id = std::strtol(m.key.c_str(), &end, 10);
+                if (m.key.empty() || *end || m.value->kind != NK::String) {
+                    problems.push_back("files: '" + m.key + "' is not a fileid with a path");
+                } else {
+                    opts.fileNames[static_cast<int32_t>(id)] = m.value->s;
+                }
+            }
+        }
+    }
+    if (const yaml::Node *bd = req->get("base_dir")) {
+        if (bd->kind == NK::String) {
+            opts.baseDir = bd->s;
+        } else if (bd->kind != NK::Null) {
+            problems.push_back("base_dir: not a string");
         }
     }
     uint32_t gateErrors = 0;

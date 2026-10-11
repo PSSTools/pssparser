@@ -226,6 +226,9 @@ class ResolvedConfig:
 
     #: Files that contributed, lowest-precedence first, as display paths.
     sources: List[str] = field(default_factory=list)
+    #: The directory of the configuration file(s), absolute; ``None`` with
+    #: none.  Rule expressions read file paths relative to it (``file_of``).
+    base_dir: Optional[str] = None
     provenance: Dict[str, str] = field(default_factory=dict)
 
     #: Keys a config file set that a CLI flag then overrode -- the PSS034
@@ -704,11 +707,13 @@ def resolve(
         if explicit:
             table, display = load_config_file(Path(explicit), required=True)
             _merge(cfg, table, display, Path(explicit).parent)
+            cfg.base_dir = str(Path(explicit).resolve().parent)
         else:
             for path in discover_config_files(start):
                 table, display = load_config_file(path)
                 if table:
                     _merge(cfg, table, display, path.parent)
+                    cfg.base_dir = str(path.resolve().parent)
 
     _apply_cli_overrides(cfg, args)
     return cfg

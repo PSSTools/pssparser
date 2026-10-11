@@ -34,8 +34,8 @@ pss-rules:
         resolves_to(node.super_t) != null
         && other_file(node, resolves_to(node.super_t))
       define:
-        file_of(n): ancestors(n)[size(ancestors(n)) - 1]
-        other_file(a, b): file_of(a) != file_of(b)
+        unit_of(n): ancestors(n)[size(ancestors(n)) - 1]
+        other_file(a, b): unit_of(a) != unit_of(b)
       examples:
         - files:
             base.pss: |

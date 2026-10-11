@@ -119,7 +119,8 @@ void TaskCheckCallArgs::check(
 
 void TaskCheckCallArgs::collectPrototypes(
     ast::IScopeChild                            *target,
-    std::vector<ast::IFunctionPrototype *>      &protos) {
+    std::vector<ast::IFunctionPrototype *>      &protos,
+    bool                                        unique) {
     ast::ISymbolFunctionScope *fs =
         NodeKind::cast<ast::ISymbolFunctionScope>(target);
 
@@ -157,16 +158,20 @@ void TaskCheckCallArgs::collectPrototypes(
         protos.push_back(fp);
     }
 
+    if (!unique) {
+        return;
+    }
+
     // Collapse signatures that are arity-equivalent, so that a function
     // declared once and defined once is not reported as an overload set.
-    std::vector<ast::IFunctionPrototype *> unique;
+    std::vector<ast::IFunctionPrototype *> uniq;
     for (std::vector<ast::IFunctionPrototype *>::const_iterator
         it=protos.begin(); it!=protos.end(); it++) {
         int32_t min, max;
         arity(*it, min, max);
         bool dup = false;
         for (std::vector<ast::IFunctionPrototype *>::const_iterator
-            uit=unique.begin(); uit!=unique.end(); uit++) {
+            uit=uniq.begin(); uit!=uniq.end(); uit++) {
             int32_t u_min, u_max;
             arity(*uit, u_min, u_max);
             if (u_min == min && u_max == max) {
@@ -175,10 +180,10 @@ void TaskCheckCallArgs::collectPrototypes(
             }
         }
         if (!dup) {
-            unique.push_back(*it);
+            uniq.push_back(*it);
         }
     }
-    protos = unique;
+    protos = uniq;
 }
 
 void TaskCheckCallArgs::arity(

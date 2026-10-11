@@ -145,8 +145,8 @@ bool Overload::admits(const Value *target, const Value *args, size_t n) const {
         return false;
     }
     auto fits = [this](const Type &t, const Value &v) {
-        return t.admits(v) || (nullable && t.kind == Type::Kind::Node
-            && v.kind == Value::Kind::Null);
+        return t.admits(v) || (nullable && v.kind == Value::Kind::Null
+            && (t.kind == Type::Kind::Node || t.kind == Type::Kind::Struct));
     };
     if (receiver && !fits(params[0], *target)) {
         return false;

@@ -100,7 +100,11 @@ def run_example(engine, rule: dict, example: dict) -> ExampleResult:
         return out
 
     names = parser.file_map
-    result = engine.run(parser.user_units(), {"enabled": [rid]}, model=parser._root)
+    # The example's own file names, so file_of() sees them as written.
+    result = engine.run(parser.user_units(),
+                        {"enabled": [rid],
+                         "files": {str(i): n for i, n in names.items()}},
+                        model=parser._root)
     for m in result["markers"]:
         m = dict(m)
         m["file"] = names.get(m.pop("fileid"), "")

@@ -26,6 +26,13 @@ export interface LintRequest {
    * error markers this `Parser` holds.
    */
   gateErrors?: number;
+  /**
+   * The directory `file_of()` gives paths relative to: the configuration's,
+   * as the CLI uses. Give it and the file names in the same form (both
+   * absolute paths, or both URIs' paths). Omitted: paths as the files were
+   * named to `parse()`.
+   */
+  baseDir?: string;
 }
 
 /** What one rule did in the run. */
@@ -64,8 +71,17 @@ interface RawLintResult {
 }
 
 /** The core's request JSON. */
-export function lintRequestJson(req: LintRequest, gateErrors: number): string {
+export function lintRequestJson(
+  req: LintRequest,
+  gateErrors: number,
+  files: ReadonlyMap<number, string> = new Map(),
+): string {
   const out: Record<string, unknown> = { gate_errors: req.gateErrors ?? gateErrors };
+  // The parser's names for its files, for file_of() (C6.9).
+  out.files = Object.fromEntries([...files].map(([id, name]) => [String(id), name]));
+  if (req.baseDir !== undefined) {
+    out.base_dir = req.baseDir;
+  }
   if (req.enabled !== undefined) {
     out.enabled = req.enabled;
   }

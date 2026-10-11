@@ -150,6 +150,13 @@ def run(engine, mdefs: List[MarkerDef], context) -> None:
                if i in enabled and o}
     request = {"enabled": enabled, "options": options,
                "gate_errors": context._gate_errors}
+    # file_of() paths: relative to the configuration's directory when there
+    # is one (both sides absolute), else as given.
+    base = context._lint_base_dir
+    request["files"] = {str(i): os.path.abspath(p) if base else p
+                        for i, p in context.file_map.items()}
+    if base:
+        request["base_dir"] = base
     result = engine.run([] if context._gate_errors else context.global_scopes, request,
                         model=context.root)
     for m in result.get("markers", ()):

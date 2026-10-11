@@ -53,6 +53,11 @@ class CheckContext:
     #: Internal – ``[lint.rule.<name>]`` option values, by rule ID.
     _lint_options: Dict[str, dict] = field(default_factory=dict, repr=False)
 
+    #: Internal – the configuration file's directory, which the declarative
+    #: rules read file paths relative to (``file_of``); ``None`` with no
+    #: configuration, when paths are as given.
+    _lint_base_dir: Optional[str] = field(default=None, repr=False)
+
     #: Per-rule counts from the declarative rules' run, for ``--stats``:
     #: ``[{"id", "matches", "findings", "steps", "ns", "errors"}]``.
     lint_stats: List[dict] = field(default_factory=list, repr=False)

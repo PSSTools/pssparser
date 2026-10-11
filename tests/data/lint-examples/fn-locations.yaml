@@ -1,0 +1,54 @@
+# The location functions (lint-core-plan.md C6.9;
+# rule-authoring-requests-2026-10-10.md B9), used by rules whose examples pin
+# their behaviour, so the WebAssembly build is checked against the native one
+# through the lint-parity fixture. An example's files are named as written
+# (`code:` is example.pss).
+pss-rules:
+  defaults:
+    family: decl
+    tier: style
+
+  rules:
+    - id: TEST-LOC001
+      name: one-component-per-file
+      summary: A file declares more than one component
+      message: "'${node.name.id}' is the second component in ${file_of(node).name}; give it a file of its own"
+      match: { kind: Component }
+      let:
+        comps: decls_in(file_of(node)).filter(d, type(d) == Component)
+      where: size(comps) > 1 && comps[0] != node
+      examples:
+        - files:
+            dma_c.pss: |
+              component dma_c { }
+              component helper_c { }      // expect: TEST-LOC001
+            top.pss: |
+              component pss_top { dma_c d; }
+        - name: one each
+          files:
+            a_c.pss: |
+              package a_pkg { }
+              component a_c { }
+            top.pss: |
+              component pss_top { a_c a; }
+
+    - id: TEST-LOC002
+      name: component-named-after-file
+      summary: A component is not named after its file
+      message: "component '${node.name.id}' is in ${file_of(node).name}; name the file ${node.name.id}.pss"
+      match: { kind: Component }
+      where: >-
+        node.name.id != "pss_top" && file_of(node) != null &&
+        file_of(node).stem != node.name.id
+      examples:
+        - files:
+            ip/dma.pss: |
+              component dma_c { }         // expect: TEST-LOC002
+            top.pss: |
+              component pss_top { dma_c d; }
+        - name: named after its file
+          files:
+            ip/dma_c.pss: |
+              component dma_c { }
+            top.pss: |
+              component pss_top { dma_c d; }

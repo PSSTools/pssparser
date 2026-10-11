@@ -3,7 +3,10 @@
  "ruleFiles": [
   "tests/data/lint-examples/fn-branches.yaml",
   "tests/data/lint-examples/fn-const.yaml",
+  "tests/data/lint-examples/fn-lists.yaml",
+  "tests/data/lint-examples/fn-locations.yaml",
   "tests/data/lint-examples/fn-navigation.yaml",
+  "tests/data/lint-examples/fn-purity.yaml",
   "tests/data/lint-examples/fn-refs.yaml",
   "tests/data/lint-examples/fn-symbols.yaml",
   "tests/data/lint-examples/fn-types.yaml",
@@ -153,6 +156,120 @@
    ]
   },
   {
+   "id": "example:TEST-DUPS001:example 1",
+   "kind": "example",
+   "rule": "TEST-DUPS001",
+   "name": "example 1",
+   "file": "tests/data/lint-examples/fn-lists.yaml",
+   "line": 28,
+   "col": 11,
+   "ok": true,
+   "markers": [
+    {
+     "code": "TEST-DUPS001",
+     "severity": "warning",
+     "message": "'pss_top::A::a' is initialised twice in one list; the evaluation order is unspecified (11.3.1.2)",
+     "file": "example.pss",
+     "line": 6,
+     "col": 28,
+     "extent": 1
+    },
+    {
+     "code": "TEST-DUPS001",
+     "severity": "warning",
+     "message": "'pss_top::A::b' is initialised twice in one list; the evaluation order is unspecified (11.3.1.2)",
+     "file": "example.pss",
+     "line": 7,
+     "col": 23,
+     "extent": 1
+    },
+    {
+     "code": "TEST-DUPS001",
+     "severity": "warning",
+     "message": "'pss_top::A::b' is initialised twice in one list; the evaluation order is unspecified (11.3.1.2)",
+     "file": "example.pss",
+     "line": 7,
+     "col": 31,
+     "extent": 1
+    }
+   ]
+  },
+  {
+   "id": "example:TEST-DUPS001:each field once",
+   "kind": "example",
+   "rule": "TEST-DUPS001",
+   "name": "each field once",
+   "file": "tests/data/lint-examples/fn-lists.yaml",
+   "line": 39,
+   "col": 11,
+   "ok": true,
+   "markers": []
+  },
+  {
+   "id": "example:TEST-LOC001:example 1",
+   "kind": "example",
+   "rule": "TEST-LOC001",
+   "name": "example 1",
+   "file": "tests/data/lint-examples/fn-locations.yaml",
+   "line": 21,
+   "col": 11,
+   "ok": true,
+   "markers": [
+    {
+     "code": "TEST-LOC001",
+     "severity": "hint",
+     "message": "'helper_c' is the second component in dma_c.pss; give it a file of its own",
+     "file": "dma_c.pss",
+     "line": 2,
+     "col": 11,
+     "extent": 8
+    }
+   ]
+  },
+  {
+   "id": "example:TEST-LOC001:one each",
+   "kind": "example",
+   "rule": "TEST-LOC001",
+   "name": "one each",
+   "file": "tests/data/lint-examples/fn-locations.yaml",
+   "line": 27,
+   "col": 11,
+   "ok": true,
+   "markers": []
+  },
+  {
+   "id": "example:TEST-LOC002:example 1",
+   "kind": "example",
+   "rule": "TEST-LOC002",
+   "name": "example 1",
+   "file": "tests/data/lint-examples/fn-locations.yaml",
+   "line": 44,
+   "col": 11,
+   "ok": true,
+   "markers": [
+    {
+     "code": "TEST-LOC002",
+     "severity": "hint",
+     "message": "component 'dma_c' is in dma.pss; name the file dma_c.pss",
+     "file": "ip/dma.pss",
+     "line": 1,
+     "col": 11,
+     "extent": 5
+    }
+   ]
+  },
+  {
+   "id": "example:TEST-LOC002:named after its file",
+   "kind": "example",
+   "rule": "TEST-LOC002",
+   "name": "named after its file",
+   "file": "tests/data/lint-examples/fn-locations.yaml",
+   "line": 49,
+   "col": 11,
+   "ok": true,
+   "markers": []
+  },
+  {
    "id": "example:TEST-NAV001:example 1",
    "kind": "example",
    "rule": "TEST-NAV001",
@@ -256,6 +373,38 @@
      "extent": 1
     }
    ]
+  },
+  {
+   "id": "example:TEST-PURE001:example 1",
+   "kind": "example",
+   "rule": "TEST-PURE001",
+   "name": "example 1",
+   "file": "tests/data/lint-examples/fn-purity.yaml",
+   "line": 21,
+   "col": 11,
+   "ok": true,
+   "markers": [
+    {
+     "code": "TEST-PURE001",
+     "severity": "warning",
+     "message": "'alloc_id' is not pure, and message() may not evaluate its arguments",
+     "file": "example.pss",
+     "line": 6,
+     "col": 25,
+     "extent": 8
+    }
+   ]
+  },
+  {
+   "id": "example:TEST-PURE001:a pure component's function, and a definition that drops 'pure'",
+   "kind": "example",
+   "rule": "TEST-PURE001",
+   "name": "a pure component's function, and a definition that drops 'pure'",
+   "file": "tests/data/lint-examples/fn-purity.yaml",
+   "line": 31,
+   "col": 11,
+   "ok": true,
+   "markers": []
   },
   {
    "id": "example:TEST-REF001:example 1",
@@ -678,7 +827,10 @@
    "ruleFiles": [
     "tests/data/lint-examples/fn-branches.yaml",
     "tests/data/lint-examples/fn-const.yaml",
+    "tests/data/lint-examples/fn-lists.yaml",
+    "tests/data/lint-examples/fn-locations.yaml",
     "tests/data/lint-examples/fn-navigation.yaml",
+    "tests/data/lint-examples/fn-purity.yaml",
     "tests/data/lint-examples/fn-refs.yaml",
     "tests/data/lint-examples/fn-symbols.yaml",
     "tests/data/lint-examples/fn-types.yaml",
@@ -894,6 +1046,27 @@
      "errors": 0
     },
     {
+     "id": "TEST-DUPS001",
+     "matches": 0,
+     "findings": 0,
+     "steps": 0,
+     "errors": 0
+    },
+    {
+     "id": "TEST-LOC001",
+     "matches": 1,
+     "findings": 0,
+     "steps": 24,
+     "errors": 0
+    },
+    {
+     "id": "TEST-LOC002",
+     "matches": 1,
+     "findings": 0,
+     "steps": 6,
+     "errors": 0
+    },
+    {
      "id": "TEST-NAV001",
      "matches": 1,
      "findings": 1,
@@ -926,6 +1099,13 @@
      "matches": 3,
      "findings": 1,
      "steps": 40,
+     "errors": 0
+    },
+    {
+     "id": "TEST-PURE001",
+     "matches": 2,
+     "findings": 0,
+     "steps": 6,
      "errors": 0
     },
     {
@@ -1028,7 +1208,10 @@
    "ruleFiles": [
     "tests/data/lint-examples/fn-branches.yaml",
     "tests/data/lint-examples/fn-const.yaml",
+    "tests/data/lint-examples/fn-lists.yaml",
+    "tests/data/lint-examples/fn-locations.yaml",
     "tests/data/lint-examples/fn-navigation.yaml",
+    "tests/data/lint-examples/fn-purity.yaml",
     "tests/data/lint-examples/fn-refs.yaml",
     "tests/data/lint-examples/fn-symbols.yaml",
     "tests/data/lint-examples/fn-types.yaml",
@@ -1118,7 +1301,10 @@
    "ruleFiles": [
     "tests/data/lint-examples/fn-branches.yaml",
     "tests/data/lint-examples/fn-const.yaml",
+    "tests/data/lint-examples/fn-lists.yaml",
+    "tests/data/lint-examples/fn-locations.yaml",
     "tests/data/lint-examples/fn-navigation.yaml",
+    "tests/data/lint-examples/fn-purity.yaml",
     "tests/data/lint-examples/fn-refs.yaml",
     "tests/data/lint-examples/fn-symbols.yaml",
     "tests/data/lint-examples/fn-types.yaml",
@@ -1178,7 +1364,10 @@
    "ruleFiles": [
     "tests/data/lint-examples/fn-branches.yaml",
     "tests/data/lint-examples/fn-const.yaml",
+    "tests/data/lint-examples/fn-lists.yaml",
+    "tests/data/lint-examples/fn-locations.yaml",
     "tests/data/lint-examples/fn-navigation.yaml",
+    "tests/data/lint-examples/fn-purity.yaml",
     "tests/data/lint-examples/fn-refs.yaml",
     "tests/data/lint-examples/fn-symbols.yaml",
     "tests/data/lint-examples/fn-types.yaml",
@@ -1317,6 +1506,27 @@
      "errors": 0
     },
     {
+     "id": "TEST-DUPS001",
+     "matches": 0,
+     "findings": 0,
+     "steps": 0,
+     "errors": 0
+    },
+    {
+     "id": "TEST-LOC001",
+     "matches": 1,
+     "findings": 0,
+     "steps": 25,
+     "errors": 0
+    },
+    {
+     "id": "TEST-LOC002",
+     "matches": 1,
+     "findings": 0,
+     "steps": 6,
+     "errors": 0
+    },
+    {
      "id": "TEST-NAV001",
      "matches": 0,
      "findings": 0,
@@ -1349,6 +1559,13 @@
      "matches": 1,
      "findings": 0,
      "steps": 5,
+     "errors": 0
+    },
+    {
+     "id": "TEST-PURE001",
+     "matches": 0,
+     "findings": 0,
+     "steps": 0,
      "errors": 0
     },
     {
@@ -1451,7 +1668,10 @@
    "ruleFiles": [
     "tests/data/lint-examples/fn-branches.yaml",
     "tests/data/lint-examples/fn-const.yaml",
+    "tests/data/lint-examples/fn-lists.yaml",
+    "tests/data/lint-examples/fn-locations.yaml",
     "tests/data/lint-examples/fn-navigation.yaml",
+    "tests/data/lint-examples/fn-purity.yaml",
     "tests/data/lint-examples/fn-refs.yaml",
     "tests/data/lint-examples/fn-symbols.yaml",
     "tests/data/lint-examples/fn-types.yaml",
@@ -1678,12 +1898,69 @@
    "problems": []
   },
   {
+   "id": "run:base-dir",
+   "kind": "run",
+   "ruleFiles": [],
+   "ruleTexts": [
+    {
+     "name": "where.yaml",
+     "text": "pss-rules:\n  rules:\n    - id: ACME009\n      name: where-is-it\n      tier: suspicious\n      summary: s\n      message: \"${file_of(node).path} ${file_of(node).dir} ${file_of(node).stem}\"\n      match: { kind: Component }\n"
+    }
+   ],
+   "sources": [
+    {
+     "name": "/proj/ip/./a_c.pss",
+     "text": "component a_c { }\n"
+    },
+    {
+     "name": "/elsewhere/b_c.pss",
+     "text": "component b_c { }\n"
+    }
+   ],
+   "request": {
+    "baseDir": "/proj"
+   },
+   "markers": [
+    {
+     "code": "ACME009",
+     "severity": "warning",
+     "message": "../elsewhere/b_c.pss ../elsewhere b_c",
+     "file": "/elsewhere/b_c.pss",
+     "line": 1,
+     "col": 11,
+     "extent": 3
+    },
+    {
+     "code": "ACME009",
+     "severity": "warning",
+     "message": "ip/a_c.pss ip a_c",
+     "file": "/proj/ip/./a_c.pss",
+     "line": 1,
+     "col": 11,
+     "extent": 3
+    }
+   ],
+   "stats": [
+    {
+     "id": "ACME009",
+     "matches": 2,
+     "findings": 2,
+     "steps": 18,
+     "errors": 0
+    }
+   ],
+   "problems": []
+  },
+  {
    "id": "run:gate",
    "kind": "run",
    "ruleFiles": [
     "tests/data/lint-examples/fn-branches.yaml",
     "tests/data/lint-examples/fn-const.yaml",
+    "tests/data/lint-examples/fn-lists.yaml",
+    "tests/data/lint-examples/fn-locations.yaml",
     "tests/data/lint-examples/fn-navigation.yaml",
+    "tests/data/lint-examples/fn-purity.yaml",
     "tests/data/lint-examples/fn-refs.yaml",
     "tests/data/lint-examples/fn-symbols.yaml",
     "tests/data/lint-examples/fn-types.yaml",
@@ -1746,6 +2023,27 @@
      "errors": 0
     },
     {
+     "id": "TEST-DUPS001",
+     "matches": 0,
+     "findings": 0,
+     "steps": 0,
+     "errors": 0
+    },
+    {
+     "id": "TEST-LOC001",
+     "matches": 0,
+     "findings": 0,
+     "steps": 0,
+     "errors": 0
+    },
+    {
+     "id": "TEST-LOC002",
+     "matches": 0,
+     "findings": 0,
+     "steps": 0,
+     "errors": 0
+    },
+    {
      "id": "TEST-NAV001",
      "matches": 0,
      "findings": 0,
@@ -1775,6 +2073,13 @@
     },
     {
      "id": "TEST-NAV005",
+     "matches": 0,
+     "findings": 0,
+     "steps": 0,
+     "errors": 0
+    },
+    {
+     "id": "TEST-PURE001",
      "matches": 0,
      "findings": 0,
      "steps": 0,
@@ -1880,7 +2185,10 @@
    "ruleFiles": [
     "tests/data/lint-examples/fn-branches.yaml",
     "tests/data/lint-examples/fn-const.yaml",
+    "tests/data/lint-examples/fn-lists.yaml",
+    "tests/data/lint-examples/fn-locations.yaml",
     "tests/data/lint-examples/fn-navigation.yaml",
+    "tests/data/lint-examples/fn-purity.yaml",
     "tests/data/lint-examples/fn-refs.yaml",
     "tests/data/lint-examples/fn-symbols.yaml",
     "tests/data/lint-examples/fn-types.yaml",

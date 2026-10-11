@@ -118,6 +118,10 @@ struct RunOptions {
     // not listed takes its `default:`.
     std::unordered_map<const rules::Rule *,
         std::vector<std::pair<std::string, cel::Value>>>    options;
+    // The host's name for each file, by fileid, and the directory file_of()
+    // makes them relative to; "" for none (C6.9).
+    std::unordered_map<int32_t, std::string>                fileNames;
+    std::string                                             baseDir;
 };
 
 /** The severity a rule's findings get: its `severity:`, else its tier's. */

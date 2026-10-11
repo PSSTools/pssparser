@@ -101,6 +101,13 @@ See `docs/lint-rule-authoring.rst` and `docs/lint-functions.rst`.
   FieldAttr.Rand)`, and library types with `type_decl`, `type_named` and
   `derives_from`. A flags value is not a number: `int()`, `string()`,
   arithmetic and ordering on one are errors when the rule loads.
+- Rule expressions test a function or call with `is_pure`, the predicate PSS114
+  uses, and find repeated list elements with `dups`.
+- Rule expressions read a node's file with `file_of` (path, dir, name, stem,
+  ext; the path relative to the configuration's directory) and a file's
+  top-level declarations with `decls_in`. A lint request (`ILintEngine.run`,
+  TypeScript `Parser.runLint`) carries the host's file names, and
+  optionally `baseDir`.
 - `docs/lint-nodes.rst`, generated: every syntax-tree class a rule reads,
   with its base, subclasses and fields (as the rule checker types them), and
   the enums.
@@ -177,6 +184,13 @@ import other::*;   // pssparser waive LINT402: vendor header order
 - Library: `pssparser.waivers.collect()` / `apply()`.
 - Function definitions, procedural statements, `import`s and action handles
   now have an end location (`getEndLocation()`).
+
+### Fixed — a definition without `pure` keeps its prototype's (PSS114, LRM 20.2.6 b)
+
+`pure function int k(int a);` followed by `function int k(int a) { ... }` is a
+pure function: the LRM lets a definition omit the keyword. A call to it in a
+template string was reported as PSS114 (non-pure function), because only one
+of the two same-arity declarations was looked at.
 
 ### Fixed (behaviour change) — annotations attach to the statement they precede
 

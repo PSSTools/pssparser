@@ -1,0 +1,44 @@
+# The list functions (lint-core-plan.md C6.7), used by a rule whose examples
+# pin their behaviour, so the WebAssembly build is checked against the native
+# one through the lint-parity fixture. TEST-DUPS001 is pss-rules-format.md
+# §7's LINT201: a field initialised twice in one traversal's list, whose
+# assignment order is unspecified (11.3.1.2). As §7 writes it, it does not
+# type-check: a two-kind `match` types `node` as their common base.
+pss-rules:
+  defaults:
+    family: activity
+    tier: suspicious
+
+  rules:
+    - id: TEST-DUPS001
+      name: init-list-duplicate-target
+      summary: A field is initialised twice in one traversal initialiser list
+      message: >-
+        '${decl_path(resolves_to(finding.path))}' is initialised twice in one list;
+        the evaluation order is unspecified (11.3.1.2)
+      match: { kind: [ActivityActionHandleTraversal, ActivityActionTypeTraversal] }
+      let:
+        # The two kinds share no base with `initializers`: narrow first.
+        inits: >-
+          node.isa(ActivityActionHandleTraversal) ? node.initializers
+          : node.isa(ActivityActionTypeTraversal) ? node.initializers : []
+        d: dups(inits.map(i, resolves_to(i.path)))
+      report: d.map(k, inits[k])
+      examples:
+        - code: |
+            component pss_top {
+              action A { int a; int b; }
+              action T {
+                A h;
+                activity {
+                  h { .a = 1, .b = 2, .a = 3 };       // expect: TEST-DUPS001
+                  do A { .b = 1, .b = 2, .b = 3 };    // expect: TEST-DUPS001, TEST-DUPS001
+                }
+              }
+            }
+        - name: each field once
+          code: |
+            component pss_top {
+              action A { int a; int b; }
+              action T { A h; activity { h { .a = 1, .b = 2 }; } }
+            }

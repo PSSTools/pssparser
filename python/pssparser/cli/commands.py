@@ -291,6 +291,7 @@ def cmd_parse(
         syntax_only=syntax_only,
         gate_errors=sum(1 for m in parser.markers if m.get("severity") == "error"),
         lint_run=lint_run,
+        lint_base_dir=getattr(config, "base_dir", None),
         **lint_args,
     )
     extra_timings["checkers"] = time.perf_counter_ns() - t0
@@ -537,13 +538,15 @@ def _run_checkers(
     gate_errors: int = 0,
     lint_options: Optional[dict] = None,
     lint_run: Optional[dict] = None,
+    lint_base_dir: Optional[str] = None,
 ) -> None:
     """Run the checker phase and merge results into *coll*.
 
     *gate_errors* is the number of errors parse, link and the semantic
     checks reported: the declarative rules do not run when it is non-zero
     (they report PSSP230 instead).  *lint_run*, when given, receives their
-    per-rule ``stats`` and the ``ns`` they took.
+    per-rule ``stats`` and the ``ns`` they took.  *lint_base_dir* is the
+    configuration's directory, which their ``file_of`` paths are relative to.
     """
     from pssparser.checkers import CheckContext, CheckerManager
 
@@ -577,6 +580,7 @@ def _run_checkers(
         _disabled=disabled,
         _gate_errors=gate_errors,
         _lint_options=dict(lint_options or {}),
+        _lint_base_dir=lint_base_dir,
     )
 
     from pssparser.lint import ruleview
