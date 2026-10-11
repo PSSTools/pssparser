@@ -1,16 +1,16 @@
 
 enums:
   - ExtendTargetE:
-    - Action     # Extend action type
-    - Annotation # Extend annotation type
-    - Buffer     # Extend buffer type
-    - Component  # Extend component type
-    - Enum       # Extend enum type
-    - Resource   # Extend resource type
-    - State      # Extend state type
-    - Stream     # Extend stream type
-    - Struct     # Extend struct type
-    - Monitor    # Extend monitor type (Syntax 85; absent from Annex B)
+    - Action: "Extend action type"
+    - Annotation: "Extend annotation type"
+    - Buffer: "Extend buffer type"
+    - Component: "Extend component type"
+    - Enum: "Extend enum type"
+    - Resource: "Extend resource type"
+    - State: "Extend state type"
+    - Stream: "Extend stream type"
+    - Struct: "Extend struct type"
+    - Monitor: "Extend monitor type (Syntax 85; absent from Annex B)"
 
 classes:
   - ExtendType:

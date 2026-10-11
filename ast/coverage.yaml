@@ -11,14 +11,14 @@
 
 enums:
   - CovergroupBinsKindE:
-    - Bins         # bins
-    - IllegalBins  # illegal_bins
-    - IgnoreBins   # ignore_bins
+    - Bins: "bins"
+    - IllegalBins: "illegal_bins"
+    - IgnoreBins: "ignore_bins"
 
   - CoverpointBinsFormE:
-    - Ranges       # bins b = [1..3, 7];
-    - Coverpoint   # bins b = cp with (expr);
-    - Default      # bins b = default;
+    - Ranges: "bins b = [1..3, 7];"
+    - Coverpoint: "bins b = cp with (expr);"
+    - Default: "bins b = default;"
 
 classes:
   - CovergroupOption:

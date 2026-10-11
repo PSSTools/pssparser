@@ -5,26 +5,26 @@
 #****************************************************************************
 enums:
   - AssignOp:
-      - AssignOp_Eq         # =  - Simple assignment
-      - AssignOp_PlusEq     # += - Add and assign
-      - AssignOp_MinusEq    # -= - Subtract and assign
-      - AssignOp_ShlEq      # <<= - Shift left and assign
-      - AssignOp_ShrEq      # >>= - Shift right and assign
-      - AssignOp_OrEq       # |= - Bitwise OR and assign
-      - AssignOp_AndEq      # &= - Bitwise AND and assign
+      - AssignOp_Eq: "`=` -- Simple assignment"
+      - AssignOp_PlusEq: "`+=` -- Add and assign"
+      - AssignOp_MinusEq: "`-=` -- Subtract and assign"
+      - AssignOp_ShlEq: "`<<=` -- Shift left and assign"
+      - AssignOp_ShrEq: "`>>=` -- Shift right and assign"
+      - AssignOp_OrEq: "`|=` -- Bitwise OR and assign"
+      - AssignOp_AndEq: "`&=` -- Bitwise AND and assign"
 
   - ExecKind:
-      - ExecKind_Body        # Main execution body
-      - ExecKind_Header      # Header initialization code
-      - ExecKind_Declaration # Declaration-time execution
-      - ExecKind_RunStart    # Code executed at start of action
-      - ExecKind_RunEnd      # Code executed at end of action
-      - ExecKind_InitDown    # Down-traversal initialization
-      - ExecKind_InitUp      # Up-traversal initialization
-      - ExecKind_PreSolve    # Pre-randomization execution
-      - ExecKind_PostSolve   # Post-randomization execution
-      - ExecKind_PreBody     # PSS 3.1 (B.4): runs before the body exec
-      - ExecKind_File        # `exec file <name> = ...`; has no exec_kind of its own
+      - ExecKind_Body: "Main execution body"
+      - ExecKind_Header: "Header initialization code"
+      - ExecKind_Declaration: "Declaration-time execution"
+      - ExecKind_RunStart: "Code executed at start of action"
+      - ExecKind_RunEnd: "Code executed at end of action"
+      - ExecKind_InitDown: "Down-traversal initialization"
+      - ExecKind_InitUp: "Up-traversal initialization"
+      - ExecKind_PreSolve: "Pre-randomization execution"
+      - ExecKind_PostSolve: "Post-randomization execution"
+      - ExecKind_PreBody: "PSS 3.1 (B.4): runs before the body exec"
+      - ExecKind_File: "`exec file <name> = ...`; has no exec_kind of its own"
 
 classes:
   - ExecStmt:
@@ -57,6 +57,7 @@ classes:
       data: 
       - upper:
           type: P<SymbolScope>
+          rel: parent
           is_ctor: false
           init: 0
           visit: false
@@ -233,7 +234,7 @@ classes:
           
           ProceduralStmtAssignment represents variable assignment operations in
           exec blocks. Supports simple assignment (=) and compound assignments
-          (+=, -=, <<=, >>=, |=, &=) for modifying variable values.
+          (`+=`, `-=`, `<<=`, `>>=`, `|=`, `&=`) for modifying variable values.
           
           PSS Example::
           

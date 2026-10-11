@@ -1,32 +1,32 @@
 enums: 
     - ExprBinOp:
-        - BinOp_LogOr    # Logical OR (||)
-        - BinOp_LogAnd   # Logical AND (&&)
-        - BinOp_BitOr    # Bitwise OR (|)
-        - BinOp_BitXor   # Bitwise XOR (^)
-        - BinOp_BitAnd   # Bitwise AND (&)
-        - BinOp_Lt       # Less than (<)
-        - BinOp_Le       # Less or equal (<=)
-        - BinOp_Gt       # Greater than (>)
-        - BinOp_Ge       # Greater or equal (>=)
-        - BinOp_Exp      # Exponentiation (**)
-        - BinOp_Mul      # Multiplication (*)
-        - BinOp_Div      # Division (/)
-        - BinOp_Mod      # Modulo (%)
-        - BinOp_Add      # Addition (+)
-        - BinOp_Sub      # Subtraction (-)
-        - BinOp_Shl      # Left shift (<<)
-        - BinOp_Shr      # Right shift (>>)
-        - BinOp_Eq       # Equality (==)
-        - BinOp_Ne       # Not equal (!=)
+        - BinOp_LogOr: "Logical OR (||)"
+        - BinOp_LogAnd: "Logical AND (&&)"
+        - BinOp_BitOr: "Bitwise OR (|)"
+        - BinOp_BitXor: "Bitwise XOR (^)"
+        - BinOp_BitAnd: "Bitwise AND (&)"
+        - BinOp_Lt: "Less than (<)"
+        - BinOp_Le: "Less or equal (<=)"
+        - BinOp_Gt: "Greater than (>)"
+        - BinOp_Ge: "Greater or equal (>=)"
+        - BinOp_Exp: "Exponentiation (**)"
+        - BinOp_Mul: "Multiplication (*)"
+        - BinOp_Div: "Division (/)"
+        - BinOp_Mod: "Modulo (%)"
+        - BinOp_Add: "Addition (+)"
+        - BinOp_Sub: "Subtraction (-)"
+        - BinOp_Shl: "Left shift (<<)"
+        - BinOp_Shr: "Right shift (>>)"
+        - BinOp_Eq: "Equality (==)"
+        - BinOp_Ne: "Not equal (!=)"
     - ExprUnaryOp:
-        - UnaryOp_Plus   # Unary plus (+)
-        - UnaryOp_Minus  # Unary minus (-)
-        - UnaryOp_LogNot # Logical NOT (!)
-        - UnaryOp_BitNeg # Bitwise negation (~)
-        - UnaryOp_BitAnd # Bitwise reduction AND (&)
-        - UnaryOp_BitOr  # Bitwise reduction OR (|)
-        - UnaryOp_BitXor # Bitwise reduction XOR (^)
+        - UnaryOp_Plus: "Unary plus (+)"
+        - UnaryOp_Minus: "Unary minus (-)"
+        - UnaryOp_LogNot: "Logical NOT (!)"
+        - UnaryOp_BitNeg: "Bitwise negation (~)"
+        - UnaryOp_BitAnd: "Bitwise reduction AND (&)"
+        - UnaryOp_BitOr: "Bitwise reduction OR (|)"
+        - UnaryOp_BitXor: "Bitwise reduction XOR (^)"
     - StringMethodId:
         - StringMethod_None
         - StringMethod_Size
@@ -470,6 +470,8 @@ classes:
                 is_ctor: false
             - decl:
                 type: P<ScopeChild>
+                rel: ref
+                set_by: linker
                 is_ctor: false
                 init: 0
                 visit: false

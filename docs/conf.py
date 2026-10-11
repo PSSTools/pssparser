@@ -39,6 +39,62 @@ extensions = [
     'sphinx.ext.autodoc',
 ]
 
+# -- AST model reference (docs/ast/) -----------------------------------------
+# Rendered from ast/*.yaml at docs-build time by pyastbuilder's Sphinx support
+# (`pip install pyastbuilder[sphinx]`; diagrams also need Graphviz's `dot`).
+# Without it, docs/_ext/astb_fallback.py keeps the build working and each AST
+# reference page says what is missing. See docs/design/astbuilder-sphinx-plan.md.
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "_ext"))
+try:
+    import astbuilder.sphinx  # noqa: F401
+    import pss_rule_projection  # noqa: F401  (imports astbuilder.projection)
+    extensions.append('astbuilder.sphinx')
+except ImportError:
+    extensions.append('astb_fallback')
+
+astbuilder_models = {
+    "pss": {
+        "yaml": ["../ast/*.yaml"],
+        "projections": [
+            {"projection": "cpp", "namespace": "pssp::ast"},
+            {"projection": "python", "module": "pssparser.ast"},
+            "ts",
+            "pss_rule_projection:RuleProjection",
+        ],
+        # Page order and titles; one page per ast/<group>.yaml (docs/ast/<group>.rst).
+        "groups": [
+            ("coretypes", "Scopes and core classes"),
+            ("typescope", "Type declarations"),
+            ("struct", "Structs and objects"),
+            ("field", "Fields"),
+            ("datatype", "Data types"),
+            ("template", "Templates"),
+            ("template_types", "Template parameters"),
+            ("expr", "Expressions"),
+            ("constraint", "Constraints"),
+            ("activity", "Activities"),
+            ("exec", "Exec blocks and procedural statements"),
+            ("functions", "Functions"),
+            ("coverage", "Coverage"),
+            ("monitor", "Monitors"),
+            ("extension", "Extensions"),
+            ("override", "Overrides"),
+            ("annotation", "Annotations"),
+            ("linking", "Linker classes"),
+        ],
+        "roots": ["GlobalScope", "RootSymbolScope"],
+        "phases": [
+            ("parser", "set when the source is parsed"),
+            ("linker", "set when the linker resolves names"),
+        ],
+        "doc_backticks": "literal",
+        # Containment paths say little here: every scope holds
+        # list<UP<ScopeChild>>, so the schema puts almost any class one step
+        # below GlobalScope (finding F3 in docs/design/astbuilder-sphinx-plan.md).
+        "paths": False,
+    },
+}
+
 templates_path = ['_templates']
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 

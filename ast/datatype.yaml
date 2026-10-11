@@ -121,6 +121,7 @@ classes:
     - value: UP<Expr>
     - upper:
         type: P<SymbolEnumScope>
+        rel: parent
         is_ctor: false
         init: 0
         visit: false

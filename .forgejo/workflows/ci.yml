@@ -375,7 +375,12 @@ jobs:
       run: |
         P=/opt/python/cp312-cp312/bin/python
         $P -m venv /tmp/docsenv
-        /tmp/docsenv/bin/pip install -q sphinx alabaster
+        /tmp/docsenv/bin/pip install -q sphinx alabaster "pyastbuilder[sphinx]>=0.0.7"
+        # The AST reference's diagrams need Graphviz's `dot`. Best effort: without
+        # it Sphinx warns and each diagram's text form still renders. A
+        # pyastbuilder without Sphinx support makes docs/conf.py fall back to
+        # docs/_ext/astb_fallback.py (see docs/design/astbuilder-sphinx-plan.md).
+        command -v dot >/dev/null || dnf install -y -q graphviz || yum install -y -q graphviz || true
         # Install the wheel so autodoc can import the compiled extensions.
         /tmp/docsenv/bin/pip install -q dist/*cp312*.whl
         /tmp/docsenv/bin/python -c "import pssparser.ast, pssparser.core; print('compiled extensions importable')"
@@ -394,6 +399,16 @@ jobs:
         fi
         echo "OK: no autodoc import failures"
         echo "documented symbols: $(grep -c "sig-name descname" _site/reference_api_docs.html || echo 0)"
+
+    - name: Fail if the AST reference did not render
+      # docs/conf.py falls back to a stand-in (docs/_ext/astb_fallback.py) when
+      # pyastbuilder's Sphinx support is missing, so a local build without it
+      # still succeeds. Here the stand-in would publish note-only pages, so
+      # assert a class entry is really there.
+      run: |
+        grep -q 'id="astb-class-ExprBin"' _site/ast/expr.html \
+          || { echo "::error::docs/ast/ rendered without pyastbuilder's Sphinx support"; exit 1; }
+        echo "OK: AST reference rendered ($(grep -o 'id="astb-class-' _site/ast/*.html | wc -l) class entries)"
 
     - name: Upload docs
       uses: forgejo/upload-artifact@v4

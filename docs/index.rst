@@ -75,6 +75,7 @@ Key Features
    :caption: Reference:
 
    reference_api_docs
+   ast/index
    markers
    lint-rules
    lint-rule-authoring

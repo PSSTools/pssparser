@@ -1412,7 +1412,7 @@ class PackageImportStmt(ScopeChild):
         import other_pkg as op;           // Aliased import
     
     Attributes:
-        wildcard: True if using wildcard (::*)
+        wildcard: True if using wildcard (`::*`)
         alias: Optional alias name for the import
         path: Type identifier for the imported package/symbol
     
@@ -4719,7 +4719,39 @@ class ExprUnsignedNumber(ExprNumber):
     
 class ExtendType(Scope):
     """
-    Maps between local item identifier and item child index
+    Type extension declaration for adding members to existing types.
+    
+    Represents an 'extend' statement that adds new fields, constraints,
+    or methods to an existing type (action, component, struct, etc.).
+    Extensions are merged with the base type during linking, allowing
+    modular enhancement of types without modifying their original definition.
+    
+    PSS Example::
+    
+        component my_comp {
+            action base_action { }
+        }
+        
+        extend component my_comp {
+            action extended_action { }
+        }
+        
+        extend action base_action {
+            rand int new_field;
+            constraint new_constraint {
+                new_field > 0;
+            }
+        }
+    
+    Attributes:
+        kind: Type being extended (Action, Component, Struct, etc.)
+        target: Type identifier of the type to extend
+        symtab: Symbol table for extended members
+        imports: Import specifications for this extension
+        children: New members being added (inherited from Scope)
+    
+    See Also:
+        ExtendEnum, ExtendTargetE, TypeIdentifier
     
     """
     pass
@@ -5255,7 +5287,7 @@ class ProceduralStmtAssignment(ExecStmt):
     
     ProceduralStmtAssignment represents variable assignment operations in
     exec blocks. Supports simple assignment (=) and compound assignments
-    (+=, -=, <<=, >>=, |=, &=) for modifying variable values.
+    (`+=`, `-=`, `<<=`, `>>=`, `|=`, `&=`) for modifying variable values.
     
     PSS Example::
     
@@ -6100,7 +6132,24 @@ class TypeScope(NamedScope):
     
 class SymbolScope(SymbolChildrenScope):
     """
-    Maps between local item identifier and item child index
+    Base class for a node in the fully-linked tree.
+    
+    Core infrastructure for the linked symbol tree, providing symbol table
+    management, import resolution, and scope hierarchy. Extends SymbolChildrenScope
+    with linking-specific features including name-to-index mappings and import chains.
+    
+    The symbol tree is constructed during the linking phase to merge declarations
+    across compilation units, resolve imports, and create a unified namespace view.
+    This is distinct from the physical AST which preserves source file structure.
+    
+    Attributes:
+        symtab: Maps local identifiers to child indices for fast name lookup
+        imports: Import specification linking this scope to other packages/symbols
+        synthetic: True if this scope was compiler-generated (not in source)
+        opaque: True if scope contents should be hidden from external access
+    
+    See Also:
+        SymbolChildrenScope, RootSymbolScope, SymbolTypeScope, SymbolImportSpec
     
     """
     pass
@@ -6826,7 +6875,27 @@ class ConstraintSymbolScope(SymbolScope):
     
 class RootSymbolScope(SymbolScope):
     """
-    List of inbound refs to each unit
+    Root of a resolved symbol tree. Holds references to 
+    the physical linked-together files in addition to the
+    merged contents within the symbol tree.
+    
+    Serves as the top-level entry point for the fully-linked symbol database,
+    managing the collection of compilation units and their cross-file dependencies.
+    Maintains bidirectional reference tracking between files for incremental
+    compilation and dependency analysis.
+    
+    The root scope bridges the physical file-based AST representation with the
+    logical merged symbol namespace, enabling efficient multi-file symbol resolution.
+    
+    Attributes:
+        units: List of compilation units (GlobalScope) linked into this tree
+        filenames: Maps file IDs to their filesystem paths
+        id2idx: Maps file IDs to their index in the units list
+        fileOutRef: Outbound references from each unit (dependencies)
+        fileInRef: Inbound references to each unit (dependents)
+    
+    See Also:
+        SymbolScope, GlobalScope, SymbolImportSpec
     
     """
     pass
@@ -7108,12 +7177,23 @@ class SymbolFunctionScope(SymbolScope):
     
 class SymbolTypeScope(SymbolScope):
     """
-    Every named member an extension contributed to this type, in merge
-    order, with the package of its extension (LRM 17.2, 17.2.3).
-    Two packages may each add a field or type of one name, so the
-    single-valued symtab cannot hold them all: it keeps the initial
-    definition's members and the first extension member of each
-    name. Empty for a type no extension added a named member to.
+    Symbol scope for type declarations (actions, components, structs).
+    
+    Represents a user-defined type in the linked symbol tree, managing its
+    members, methods, and constraints. Supports template specialization by
+    tracking parameter lists and specialized type instantiations.
+    
+    During linking, type declarations from multiple files can be merged
+    (for extend statements) and specialized instances are tracked separately.
+    The plist holds template parameters, while spec_types contains any
+    specialized/instantiated versions of this generic type.
+    
+    Attributes:
+        plist: Template parameter list scope (if this is a generic type)
+        spec_types: List of specialized/instantiated versions of this type
+    
+    See Also:
+        SymbolScope, Action, Component, Struct, SymbolExtendScope
     
     """
     pass

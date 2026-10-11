@@ -122,11 +122,14 @@ pss-rules:
 
 ## Finding the right kinds, fields and functions
 
-- **Node kinds and their fields:**
-  <https://psstools.github.io/pssparser/lint-nodes.html> (`docs/lint-nodes.rst`
-  in the source). Every class, its base, its fields with their types, and the
-  enums. A field declared on a base is readable on every subclass:
-  `Field.name` comes from `NamedScopeChild`.
+- **Node kinds and their fields:** the AST model reference,
+  <https://psstools.github.io/pssparser/ast/index.html>, generated from
+  `ast/*.yaml` (`docs/ast/` in the source; start from
+  <https://psstools.github.io/pssparser/lint-nodes.html>). Every class, its
+  base and subclasses, its fields with what they mean, and the enums; the
+  "Lint rule" column of each class's "In each API" table gives the rule's
+  spelling and type of each field. A field declared on a base is readable on
+  every subclass: `Field.name` comes from `NamedScopeChild`.
 - **Functions and operators:**
   <https://psstools.github.io/pssparser/lint-functions.html>
   (`docs/lint-functions.rst`).

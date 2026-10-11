@@ -11,6 +11,28 @@ pyastbuilder (`packages/pyastbuilder`) over it and writes, under
 The generated files under `python/` are checked in. Commit them with the yaml
 change.
 
+## Documentation comes from the same yaml
+
+`docs/ast/` (the AST model reference) is rendered from `ast/*.yaml` at
+docs-build time by pyastbuilder's Sphinx support (`astbuilder.sphinx`;
+`docs/conf.py`, `astbuilder_models`). Nothing is generated into the tree, so
+there is nothing to regenerate; but the yaml's text is now documentation:
+
+- `doc:` text is reStructuredText; single backticks are code (`` `x` ``).
+  Quote PSS operators as code (`` `|=` ``, `` `::*` ``): bare `*` and `|`
+  are reST markup and the docs build warns, at the yaml line.
+- A field is described by its own `doc:` or, failing that, by its class's
+  `Attributes:` section (`name: what it is`). `See Also:` names become links.
+- Enum and flags values take a doc as `- Name: "what it means"`.
+- `rel: parent` on a `P<T>` back-pointer and `set_by: linker` on a field or
+  class the linker fills are read by the docs only.
+
+Check a change with `python -m sphinx -b html docs /tmp/out` and look for
+warnings naming `ast/`. A change to pyastbuilder itself is gated by
+`scripts/astbuilder_snapshot.py`: snapshot every backend's output before and
+after the change, then compare the two snapshots with the same script; it
+must show no difference you did not intend.
+
 ## Adding or changing a class or field
 
 ```bash

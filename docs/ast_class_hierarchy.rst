@@ -23,15 +23,16 @@ Key Base Classes
     Base class for most AST nodes. Provides:
     
     - ``parent`` pointer to containing scope
-    - ``location`` information for error reporting
+    - ``location`` and ``endLocation`` for error reporting
     - ``index`` within parent's children list
     - ``assocData`` for user-defined metadata
+    - ``annotations``, ``comments`` and the doc-comment fields
 
 **Scope** (extends ScopeChild)
     Container for child nodes. Provides:
     
     - ``children`` list of contained ScopeChild nodes
-    - ``endLocation`` for closing brace position
+    - ``compile_conds``, the ``compile if`` conditions that guard them
     
 **NamedScope** (extends Scope)
     Scope with an identifier name:
@@ -45,133 +46,83 @@ Key Base Classes
     - ``name`` (ExprId) for the identifier
     - Used for fields, parameters, enum items, etc.
 
+Each one's complete fields, in every API, are in the :doc:`ast/index`:
+:astb:class:`ScopeChild`, :astb:class:`Scope`, :astb:class:`NamedScope`,
+:astb:class:`NamedScopeChild`.
+
 ************************
 Complete Class Hierarchy
 ************************
 
+The trees below are generated from ``ast/*.yaml`` when the documentation is
+built, so they are always the current schema. Each name links to its entry
+in the :doc:`ast/index`.
+
 Core Structure
 ==============
 
-::
+.. astb:inheritance-tree:: Scope
+   :model: pss
 
-    ScopeChild (base for all AST nodes)
-    ├── Scope (container for children)
-    │   ├── GlobalScope (file root)
-    │   ├── NamedScope (named container)
-    │   │   ├── PackageScope (package)
-    │   │   └── TypeScope (named type)
-    │   │       ├── Action (action declaration)
-    │   │       ├── Component (component declaration)
-    │   │       └── Struct (struct/buffer/resource/stream/state)
-    │   ├── ConstraintScope (constraint container)
-    │   │   └── ConstraintBlock (named constraint)
-    │   ├── ExecScope (exec block scope)
-    │   └── ExtendType (type extension)
-    ├── NamedScopeChild (named node, not a scope)
-    │   ├── Field (data field)
-    │   ├── FieldRef (reference field)
-    │   ├── FieldClaim (resource claim)
-    │   ├── FieldCompRef (component reference)
-    │   ├── EnumDecl (enum declaration)
-    │   ├── EnumItem (enum value)
-    │   ├── FunctionParamDecl (function parameter)
-    │   └── ExtendEnum (enum extension)
-    ├── ScopeChildRef (reference to another node)
-    ├── PackageImportStmt (import statement)
-    ├── PyImportStmt (Python import)
-    └── PyImportFromStmt (Python from..import)
+.. astb:inheritance-tree:: NamedScopeChild
+   :model: pss
+
+.. astb:inheritance-tree:: ScopeChildRef
+   :model: pss
+
+.. astb:inheritance-tree:: PackageImportStmt
+   :model: pss
+
+.. astb:inheritance-tree:: PyImportStmt
+   :model: pss
+
+.. astb:inheritance-tree:: PyImportFromStmt
+   :model: pss
 
 Type System Hierarchy
 =====================
 
-::
-
-    ScopeChild
-    └── DataType (base type)
-        ├── DataTypeBool (boolean)
-        ├── DataTypeInt (integer/bit)
-        ├── DataTypeString (string)
-        ├── DataTypeEnum (enum reference)
-        ├── DataTypeUserDefined (user type reference)
-        ├── DataTypeRef (reference type)
-        ├── DataTypeChandle (C handle)
-        └── DataTypePyObj (Python object)
+.. astb:inheritance-tree:: DataType
+   :model: pss
 
 Expression Hierarchy
 ====================
 
-::
-
-    Expr (base expression)
-    ├── ExprBool (boolean literal)
-    ├── ExprNumber (numeric literal)
-    │   ├── ExprSignedNumber
-    │   └── ExprUnsignedNumber
-    ├── ExprString (string literal)
-    ├── ExprNull (null literal)
-    ├── ExprId (identifier)
-    ├── ExprHierarchicalId (qualified identifier)
-    ├── ExprBin (binary operation)
-    ├── ExprUnary (unary operation)
-    ├── ExprCond (ternary ? :)
-    ├── ExprCast (type cast)
-    ├── ExprIn (in operator)
-    ├── ExprCompileHas (compile-time has)
-    ├── ExprBitSlice (bit slice)
-    ├── ExprRefPath (reference path)
-    │   ├── ExprRefPathContext
-    │   ├── ExprRefPathStatic
-    │   │   └── ExprRefPathStaticRooted
-    │   └── ExprRefPathSuper
-    ├── ExprAggrLiteral (aggregate literal)
-    │   ├── ExprAggrEmpty ({ })
-    │   ├── ExprAggrList ({ a, b, c })
-    │   ├── ExprAggrMap ({ key: val })
-    │   └── ExprAggrStruct ({ .field = val })
-    ├── ExprDomainOpenRangeList (domain range)
-    ├── ExprDomainOpenRangeValue
-    ├── ExprOpenRangeList (open range)
-    └── ExprOpenRangeValue
+.. astb:inheritance-tree:: Expr
+   :model: pss
 
 Activity Hierarchy
 ==================
 
-::
+.. astb:inheritance-tree:: ActivityStmt
+   :model: pss
 
-    ScopeChild
-    ├── ActivityStmt (base activity)
-    │   ├── ActivityDecl (activity declaration)
-    │   ├── ActivityLabeledStmt (labeled statement)
-    │   │   ├── ActivityActionHandleTraversal (action invoke)
-    │   │   ├── ActivityActionTypeTraversal (type traverse)
-    │   │   ├── ActivityAtomicBlock (atomic)
-    │   │   └── ActivitySuper (super call)
-    │   └── ActivityLabeledScope (labeled scope)
-    │       ├── ActivitySequence (sequential)
-    │       ├── ActivityParallel (parallel)
-    │       ├── ActivitySchedule (scheduled)
-    │       ├── ActivitySelect (select)
-    │       ├── ActivityRepeatCount (repeat N)
-    │       ├── ActivityRepeatWhile (repeat while)
-    │       ├── ActivityForeach (foreach)
-    │       ├── ActivityReplicate (replicate)
-    │       ├── ActivityIfElse (if-else)
-    │       └── ActivityMatch (match)
-    ├── ActivitySelectBranch (select branch)
-    ├── ActivityMatchChoice (match case)
-    ├── ActivityBindStmt (bind)
-    ├── ActivitySymbolCall (symbol call: s(1);)
-    ├── ActivityConstraint (constraint)
-    ├── ActivitySchedulingConstraint (scheduling constraint)
-    └── ActivityJoinSpec (join specification)
-        ├── ActivityJoinSpecNone
-        ├── ActivityJoinSpecFirst
-        ├── ActivityJoinSpecBranch
-        └── ActivityJoinSpecSelect
+.. astb:inheritance-tree:: ActivitySelectBranch
+   :model: pss
 
-    SymbolScope
-    ├── ActivityDecl (also here -- an activity is a symbol scope)
-    └── SymbolDeclaration (symbol s(params) { ... })
+.. astb:inheritance-tree:: ActivityMatchChoice
+   :model: pss
+
+.. astb:inheritance-tree:: ActivityBindStmt
+   :model: pss
+
+.. astb:inheritance-tree:: ActivitySymbolCall
+   :model: pss
+
+.. astb:inheritance-tree:: ActivityConstraint
+   :model: pss
+
+.. astb:inheritance-tree:: ActivitySchedulingConstraint
+   :model: pss
+
+.. astb:inheritance-tree:: ActivityJoinSpec
+   :model: pss
+
+.. astb:inheritance-tree:: ActivityDecl
+   :model: pss
+
+.. astb:inheritance-tree:: SymbolDeclaration
+   :model: pss
 
 ``SymbolDeclaration`` is a scope and is named in the symbol table, because a
 ``symbol_call`` names it. Its body statements are the ordinary activity
@@ -181,92 +132,66 @@ parallel set.
 Constraint Hierarchy
 ====================
 
-::
+.. astb:inheritance-tree:: ConstraintScope
+   :model: pss
 
-    ScopeChild
-    ├── ConstraintScope (constraint container)
-    │   └── ConstraintBlock (named constraint block)
-    ├── ConstraintStmt (base constraint)
-    │   ├── ConstraintScope (also extends here)
-    │   ├── ConstraintStmtExpr (expression constraint)
-    │   ├── ConstraintStmtField (field in loop)
-    │   ├── ConstraintStmtForeach (foreach loop)
-    │   ├── ConstraintStmtForall (forall quantifier)
-    │   ├── ConstraintStmtIf (conditional)
-    │   ├── ConstraintStmtImplication (implication)
-    │   ├── ConstraintStmtUnique (uniqueness)
-    │   ├── ConstraintStmtDefault (default value)
-    │   └── ConstraintStmtDefaultDisable (disable default)
-    └── ConstraintSymbolScope (symbol scope)
+.. astb:inheritance-tree:: ConstraintStmt
+   :model: pss
+
+.. astb:inheritance-tree:: ConstraintSymbolScope
+   :model: pss
 
 Procedural Code Hierarchy
 ==========================
 
-::
+.. astb:inheritance-tree:: ExecBlock
+   :model: pss
 
-    ScopeChild
-    ├── ExecBlock (exec block)
-    ├── ExecScope (exec scope)
-    ├── ExecStmt (base exec statement)
-    │   ├── ProceduralStmtAssignment
-    │   ├── ProceduralStmtExpr
-    │   ├── ProceduralStmtReturn
-    │   ├── ProceduralStmtDataDeclaration
-    │   ├── ProceduralStmtBody
-    │   ├── ProceduralStmtSymbolBodyScope
-    │   ├── ProceduralStmtIfElse
-    │   ├── ProceduralStmtIfClause
-    │   ├── ProceduralStmtWhile
-    │   ├── ProceduralStmtRepeat
-    │   ├── ProceduralStmtRepeatWhile
-    │   ├── ProceduralStmtForeach
-    │   ├── ProceduralStmtMatch
-    │   ├── ProceduralStmtMatchChoice
-    │   ├── ProceduralStmtBreak
-    │   ├── ProceduralStmtContinue
-    │   ├── ProceduralStmtYield
-    │   └── ProceduralStmtRandomize
-    └── ExecTargetTemplateBlock
+.. astb:inheritance-tree:: ExecScope
+   :model: pss
+
+.. astb:inheritance-tree:: ExecStmt
+   :model: pss
+
+.. astb:inheritance-tree:: ExecTargetTemplateBlock
+   :model: pss
 
 Function Hierarchy
 ==================
 
-::
+.. astb:inheritance-tree:: FunctionDefinition
+   :model: pss
 
-    ScopeChild
-    ├── FunctionDefinition (function with body)
-    ├── FunctionPrototype (function signature)
-    ├── FunctionImport (base import)
-    │   ├── FunctionImportType
-    │   └── FunctionImportProto
-    ├── NamedScopeChild
-    │   └── FunctionParamDecl (parameter)
-    └── MethodParameterList (parameter list)
+.. astb:inheritance-tree:: FunctionPrototype
+   :model: pss
+
+.. astb:inheritance-tree:: FunctionImport
+   :model: pss
+
+.. astb:inheritance-tree:: NamedScopeChild
+   :model: pss
+
+.. astb:inheritance-tree:: MethodParameterList
+   :model: pss
 
 Monitor Hierarchy (PSS 3.0)
 ============================
 
-::
+.. astb:inheritance-tree:: Monitor
+   :model: pss
 
-    TypeScope
-    └── Monitor (monitor declaration)
+.. astb:inheritance-tree:: SymbolScope
+   :model: pss
+   :depth: 2
 
-    ScopeChild
-    ├── SymbolScope
-    │   ├── MonitorActivityDecl (activity declaration)
-    │   └── MonitorActivityLabeledScope (braced forms; body in getChildren())
-    │       ├── MonitorActivitySequence
-    │       ├── MonitorActivityConcat
-    │       ├── MonitorActivityOverlap
-    │       ├── MonitorActivitySchedule
-    │       └── MonitorActivitySelect
-    ├── MonitorActivityStmt (non-scope monitor activity statements)
-    │   ├── MonitorActivityLabeledStmt
-    │   │   └── MonitorActivityEventually
-    │   └── MonitorConstraint
-    ├── Scope
-    │   └── CoverStmtInline (cover { ... }; body in getChildren())
-    └── CoverStmtReference (cover T;)
+.. astb:inheritance-tree:: MonitorActivityStmt
+   :model: pss
+
+.. astb:inheritance-tree:: Scope
+   :model: pss
+
+.. astb:inheritance-tree:: CoverStmtReference
+   :model: pss
 
 The five braced forms split from MonitorActivityStmt because they introduce a
 scope; the two branches meet at ScopeChild. A field holding an arbitrary
@@ -289,21 +214,17 @@ braced activity forms -- are ``SymbolScope``\ s.
 Covergroup Hierarchy
 ====================
 
-::
+.. astb:inheritance-tree:: NamedScopeChild
+   :model: pss
 
-    ScopeChild
-    ├── NamedScopeChild
-    │   ├── Covergroup (inline instance: covergroup { ... } name;)
-    │   ├── CovergroupInstantiation (cg_t name(...);)
-    │   ├── CovergroupCoverpoint
-    │   ├── CovergroupCross
-    │   ├── CoverpointBins (bins / illegal_bins / ignore_bins in a coverpoint)
-    │   └── CovergroupCrossBins (the same, in a cross)
-    ├── CovergroupOption (option.x = y;)
-    └── CovergroupPortmap (.port(actual) in an instantiation)
+.. astb:inheritance-tree:: CovergroupOption
+   :model: pss
 
-    TypeScope
-    └── CovergroupType (covergroup cg_t(ports) { ... })
+.. astb:inheritance-tree:: CovergroupPortmap
+   :model: pss
+
+.. astb:inheritance-tree:: CovergroupType
+   :model: pss
 
 A covergroup body is not a scope, and a coverpoint name is not resolved through
 the symbol table -- so the coverpoint target, the ``iff`` guards and the bin
@@ -314,14 +235,11 @@ scope, because a port's *type* is an ordinary type reference that has to bind.
 Override Hierarchy
 ==================
 
-::
+.. astb:inheritance-tree:: Scope
+   :model: pss
 
-    ScopeChild
-    ├── Scope
-    │   └── OverrideDecl (override { ... }; statements in getChildren())
-    └── OverrideStmt
-        ├── TypeOverride (type T with U;)
-        └── InstanceOverride (instance p.q with U;)
+.. astb:inheritance-tree:: OverrideStmt
+   :model: pss
 
 The two statements differ in what they select -- a type identifier, or a
 hierarchical instance path -- which is why they are separate classes rather
@@ -340,21 +258,11 @@ symbol table -- a ``foreach`` iterator has to be visible inside its own block --
 but the resolution machinery erases anything that is not an ``ISymbolScope``
 from its scope stack, so one hierarchy is cheaper than two parallel ones.
 
-::
+.. astb:inheritance-tree:: TemplateString
+   :model: pss
 
-    SymbolScope
-    ├── TemplateString (one scanned triple-quoted string)
-    └── TemplateElem (base element; carries offset/extent)
-        ├── TemplateText (literal run)
-        ├── TemplateExpr ({{ expr }})
-        ├── TemplateComment ({# ... #} and {#})
-        ├── TemplateIf (flat if/else-if/else chain)
-        ├── TemplateVarDecl ({% int x; %})
-        ├── TemplateAssign ({% x = expr; %})
-        └── TemplateBlock (base for block-opening directives)
-            ├── TemplateIfClause (one arm of a TemplateIf)
-            ├── TemplateForeach
-            └── TemplateRepeat
+.. astb:inheritance-tree:: TemplateElem
+   :model: pss
 
 ``ExprTemplateString`` subclasses ``ExprString``, so every existing consumer
 that casts to ``ExprString`` or calls ``getValue()`` keeps working and sees the
@@ -364,37 +272,30 @@ raw text.  A triple-quoted string with *no* special elements stays a plain
 Type Template Hierarchy
 =======================
 
-::
+.. astb:inheritance-tree:: TemplateParamDeclList
+   :model: pss
 
-    ScopeChild
-    ├── TemplateParamDeclList
-    ├── TemplateParamDecl (base parameter)
-    │   ├── TemplateValueParamDecl (value param)
-    │   ├── TemplateGenericTypeParamDecl (type param)
-    │   └── TemplateCategoryTypeParamDecl (constrained type)
-    ├── TemplateParamValueList
-    └── TemplateParamValue (base value)
-        ├── TemplateParamExprValue (expression value)
-        └── TemplateParamTypeValue (type value)
+.. astb:inheritance-tree:: TemplateParamDecl
+   :model: pss
+
+.. astb:inheritance-tree:: TemplateParamValueList
+   :model: pss
+
+.. astb:inheritance-tree:: TemplateParamValue
+   :model: pss
 
 Symbol Resolution Hierarchy
 ============================
 
-::
+.. astb:inheritance-tree:: SymbolChild
+   :model: pss
+   :depth: 2
 
-    ScopeChild
-    ├── SymbolChild (symbol tree base)
-    │   └── SymbolChildrenScope (with children)
-    │       └── SymbolScope (symbol scope)
-    │           ├── RootSymbolScope (root)
-    │           ├── SymbolTypeScope (type scope)
-    │           ├── SymbolEnumScope (enum scope)
-    │           ├── SymbolFunctionScope (function scope)
-    │           └── SymbolExtendScope (extension scope)
-    └── SymbolImportSpec (import specification)
+.. astb:inheritance-tree:: SymbolImportSpec
+   :model: pss
 
-    (Internal classes)
-    SymbolRefPath (reference path)
+.. astb:inheritance-tree:: SymbolRefPath
+   :model: pss
 
 ***********************
 When to Use Which Class
@@ -469,17 +370,17 @@ Implement ``visit()`` methods for each node type:
             return method(node)
         
         def generic_visit(self, node):
-            # Default: visit children
-            if hasattr(node, 'children'):
-                for child in node.children:
+            # Default: visit children (every Scope has getChildren())
+            if hasattr(node, 'getChildren'):
+                for child in node.getChildren():
                     self.visit(child)
         
         def visit_Action(self, node):
-            print(f"Visiting action: {node.name.id}")
+            print(f"Visiting action: {node.getName().getId()}")
             self.generic_visit(node)
         
         def visit_Field(self, node):
-            print(f"  Field: {node.name.id}")
+            print(f"  Field: {node.getName().getId()}")
 
 Accumulator Pattern
 ===================
@@ -502,8 +403,8 @@ Collect information while traversing:
             elif isinstance(node, ast.Field):
                 self.field_count += 1
             
-            if hasattr(node, 'children'):
-                for child in node.children:
+            if hasattr(node, 'getChildren'):
+                for child in node.getChildren():
                     self.collect(child)
         
         def report(self):
@@ -513,27 +414,29 @@ Collect information while traversing:
                 'fields': self.field_count
             }
 
-Transformer Pattern
-===================
+Finder Pattern
+==============
 
-Modify the AST while traversing:
+Look for a shape in an expression tree -- here, ``x + 0``:
 
 .. code-block:: python
 
-    class ExpressionSimplifier:
-        def transform(self, expr):
-            if isinstance(expr, ast.ExprBin):
-                # Simplify: x + 0 => x
-                if (expr.op == ast.ExprBinOp.BinOp_Add and
-                    isinstance(expr.rhs, ast.ExprNumber) and
-                    expr.rhs.val == 0):
-                    return expr.lhs
-                
-                # Recursively simplify operands
-                expr.lhs = self.transform(expr.lhs)
-                expr.rhs = self.transform(expr.rhs)
-            
-            return expr
+    def find_add_zero(expr, found):
+        if isinstance(expr, ast.ExprBin):
+            rhs = expr.getRhs()
+            if (ast.ExprBinOp(expr.getOp()) == ast.ExprBinOp.BinOp_Add and
+                    isinstance(rhs, ast.ExprUnsignedNumber) and
+                    rhs.getValue() == 0):
+                found.append(expr)
+            find_add_zero(expr.getLhs(), found)
+            find_add_zero(rhs, found)
+        return found
+
+Rewriting the tree (replacing ``x + 0`` by ``x``) is done in C++:
+``IExprBin::setLhs()``/``setRhs()`` replace an operand. The Python binding
+reads node-valued fields but has no setters for them; the **In each API**
+table of each class in the :doc:`ast/index` shows what each binding
+provides.
 
 ***********
 Next Steps

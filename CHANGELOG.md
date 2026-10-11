@@ -7,6 +7,26 @@ revision advances only the patch component.
 
 ## Unreleased
 
+### Added — the AST model reference
+
+`docs/ast/` documents every AST class from `ast/*.yaml` when the documentation
+is built: its place in the inheritance tree, a diagram of its neighbours, its
+fields and what each one means, every field that can hold it, and how each
+field is spelled in C++, Python, TypeScript and a lint rule. A model map and
+the class hierarchy are the entry points. It needs `pyastbuilder[sphinx]` and
+Graphviz; without them the pages say what is missing.
+
+- `docs/lint-nodes.rst` is now a short guide into the reference (its
+  "Lint rule" column); `scripts/gen_lint_nodes.py` is gone.
+- The Python examples in `ast_usage_guide.rst`, `ast_class_hierarchy.rst` and
+  `pss30_api.rst` were rewritten against the real API (they used attribute
+  access such as `expr.lhs`, and fields that never existed), and a test now
+  runs them. Building or changing a tree from Python crashes in this release
+  (known issue AB-2); the guide says so instead of showing it.
+- `ast/*.yaml`: enum and flags values carry their descriptions as docs, and
+  back-pointers and linker-filled fields are marked (`rel:`, `set_by:`).
+  Generated code is unchanged.
+
 ### Changed (breaking) — warning IDs move to `LINT` and `PSSP`; lint profiles
 
 A `PSS` ID now always means an LRM violation, and every active `PSS` marker is

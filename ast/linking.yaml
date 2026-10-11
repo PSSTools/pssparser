@@ -5,14 +5,14 @@
 #  - BottomUp
 enums:
 - SymbolRefPathElemKind:
-  - ElemKind_ChildIdx    # Direct child by index in children list
-  - ElemKind_ArgIdx      # Template/function argument by index
-  - ElemKind_Inline      # Inline element (embedded definition)
-  - ElemKind_ParamIdx    # Parameter by index
-  - ElemKind_Super       # Reference to super/parent scope
-  - ElemKind_TypeSpec    # Type specialization/instantiation
-  - ElemKind_TemplateScope # Template scope (4.7.1) by index within the enclosing scope
-  - ElemKind_This        # `this` (13.1.4): the type scope the path has reached, as a handle, not a type name. Last element only; idx unused
+  - ElemKind_ChildIdx: "Direct child by index in children list"
+  - ElemKind_ArgIdx: "Template/function argument by index"
+  - ElemKind_Inline: "Inline element (embedded definition)"
+  - ElemKind_ParamIdx: "Parameter by index"
+  - ElemKind_Super: "Reference to super/parent scope"
+  - ElemKind_TypeSpec: "Type specialization/instantiation"
+  - ElemKind_TemplateScope: "Template scope (4.7.1) by index within the enclosing scope"
+  - ElemKind_This: "`this` (13.1.4): the type scope the path has reached, as a handle, not a type name. Last element only; idx unused"
 structs:
 - SymbolRefPathElem:
     doc: |
@@ -58,6 +58,7 @@ classes:
       - init: -1
     - upper:
       - type: P<SymbolScope>
+      - rel: parent
       - is_ctor: false
       - init: 0
       - visit: false
@@ -90,6 +91,7 @@ classes:
       - is_ctor: false
     - target: 
       - type: P<ScopeChild>
+      - rel: ref
       - is_ctor: false
       - init: 0
       - visit: true
@@ -135,6 +137,7 @@ classes:
       - init: false
 
 - RootSymbolScope:
+    set_by: linker   # constructed only by the linker (TaskBuildSymbolTree et al.)
     doc: |
         Root of a resolved symbol tree. Holds references to 
         the physical linked-together files in addition to the
@@ -187,6 +190,7 @@ classes:
         - is_ctor: false
 
 - SymbolEnumScope:
+    set_by: linker   # constructed only by the linker (TaskBuildSymbolTree et al.)
     doc: |
         Symbol scope for enumeration type declarations.
         
@@ -209,6 +213,7 @@ classes:
     data:
     - decl:
         type: P<EnumDecl>
+        rel: ref
         is_ctor: false
         init: 0
         visit: false
@@ -225,6 +230,7 @@ classes:
 #     data: {}
 
 - SymbolExtendScope:
+    set_by: linker   # constructed only by the linker (TaskBuildSymbolTree et al.)
     doc: |
         Symbol scope for PSS extend statements.
         
@@ -257,6 +263,7 @@ classes:
 #     - body: UP<ScopeChild>
 
 - SymbolImportSpec:
+    set_by: linker   # constructed only by the linker (TaskBuildSymbolTree et al.)
     doc: |
         Import specification with fully resolved symbol references.
         
@@ -278,6 +285,7 @@ classes:
     data:
     - imports:
       - type: list<P<PackageImportStmt>>
+      - rel: ref
     - symtab:
       - type: map<string,UP<SymbolRefPath>>
       - is_ctor: false
@@ -287,6 +295,7 @@ classes:
 #    data:
 
 - SymbolTypeScope:
+    set_by: linker   # constructed only by the linker (TaskBuildSymbolTree et al.)
     doc: |
         Symbol scope for type declarations (actions, components, structs).
         
@@ -323,6 +332,7 @@ classes:
         - visit: false
 
 - SymbolExtMember:
+    set_by: linker   # constructed only by the linker (TaskBuildSymbolTree et al.)
     doc: |
         A member an extension contributed to a type (SymbolTypeScope.ext_members).
 
@@ -338,9 +348,11 @@ classes:
       - type: int32_t
     - pkg:
       - type: P<SymbolScope>
+      - rel: ref
       - visit: false
 
 - SymbolFunctionScope:
+    set_by: linker   # constructed only by the linker (TaskBuildSymbolTree et al.)
     doc: |
         Symbol scope for functions with overload resolution support.
         
@@ -366,12 +378,14 @@ classes:
     data:
       - prototypes: 
         - type: list<P<FunctionPrototype>>
+        - rel: ref
         - is_ctor: false
       - import_specs:
         - type: list<UP<FunctionImport>>
         - is_ctor: false
       - definition:
         - type: P<FunctionDefinition>
+        - rel: ref
         - is_ctor: false
         - init: 0
       - plist:
@@ -379,10 +393,12 @@ classes:
         - is_ctor: false
       - body:
         - type: P<ExecScope>
+        - rel: ref
         - is_ctor: false
         - init: 0
 
 - SymbolRefPath: 
+    set_by: linker   # constructed only by the linker (TaskBuildSymbolTree et al.)
     doc: |
         Structured path for navigating between symbols during linking.
         

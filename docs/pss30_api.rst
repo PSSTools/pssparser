@@ -105,29 +105,15 @@ String Enhancement AST Nodes
 StringMethodId
 ^^^^^^^^^^^^^^
 
-Enumeration of string methods (Section 7.6 of PSS 3.0 spec).
+Enumeration of string methods (Section 7.6 of PSS 3.0 spec); its values are
+listed at :astb:enum:`StringMethodId`.
 
-**Values**:
+.. note::
 
-* ``NoMethod`` - No method
-* ``Size`` - size() method
-* ``Find`` - find() method
-* ``FindLast`` - find_last() method
-* ``FindAll`` - find_all() method
-* ``Lower`` - lower() method
-* ``Upper`` - upper() method
-* ``Split`` - split() method
-* ``Chars`` - chars() method
-
-**Usage**:
-
-.. code-block:: python
-
-    from pssparser.ast import StringMethodId
-    
-    method = StringMethodId.Size
-    if method == StringMethodId.Find:
-        print("Using find method")
+   ``ExprMemberPathElem.string_method_id`` is never set: the parser and the
+   linker leave it ``StringMethod_None`` (known issue AB-1 in
+   ``docs/design/known-issues.md``). Recognise a string method by the path
+   element's name, as below.
 
 Substrings
 ^^^^^^^^^^
@@ -152,7 +138,7 @@ sets both, ``[a..]`` sets only ``lower``, and ``[..b]`` sets only ``upper``.
 .. code-block:: python
 
     # s[0..4], reached through the member-path element for `s`
-    for sub in elem.getSubscript():
+    for sub in elem.getSubscriptList():
         if isinstance(sub, ast.ExprSliceRange):
             lower = sub.getLower()      # None for `s[..4]`
             upper = sub.getUpper()      # None for `s[0..]`
@@ -160,29 +146,21 @@ sets both, ``[a..]`` sets only ``lower``, and ``[..b]`` sets only ``upper``.
 ExprMemberPathElem
 ^^^^^^^^^^^^^^^^^^
 
-Enhanced to support string methods.
+A string-method call such as ``s.size()`` or ``s.find("world")`` is two
+path elements: one for ``s``, then one named ``size`` (or ``find``) whose
+``params`` holds the arguments; a plain member has no ``params``. Its fields
+are listed at :astb:class:`ExprMemberPathElem`; in each API:
 
-**Properties**:
-
-* ``identifier`` (Identifier) - The member name
-* ``parameters`` (list<IExpr>) - Method parameters (if method call)
-* ``subscript`` (list<IExpr>) - Subscript expressions
-* ``string_method_id`` (StringMethodId) - String method identifier
+.. astb:projection-table:: ExprMemberPathElem
+   :model: pss
 
 **Usage**:
 
 .. code-block:: python
 
-    # s.size()
-    member = ast.ExprMemberPathElem()
-    member.identifier = "size"
-    member.string_method_id = ast.StringMethodId.Size
-    
-    # s.find("world")
-    member = ast.ExprMemberPathElem()
-    member.identifier = "find"
-    member.string_method_id = ast.StringMethodId.Find
-    member.parameters.append(substring_expr)
+    # s.find("world"): the element named `find`, after the one for `s`
+    if elem.getId().getId() == "find" and elem.getParams() is not None:
+        params = elem.getParams()           # a MethodParameterList
 
 Procedural Randomization AST Nodes
 -----------------------------------
@@ -190,32 +168,22 @@ Procedural Randomization AST Nodes
 ProceduralStmtRandomize
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-Represents a procedural randomization statement (Section 16.6.6 of PSS 3.0 spec).
+Represents a procedural randomization statement, ``randomize a, b with {
+...}`` (Section 16.6.6 of PSS 3.0 spec): the variables in ``targets``, in
+source order, and any inline constraints in ``constraints``. Its fields are
+listed at :astb:class:`ProceduralStmtRandomize`; in each API:
 
-**Properties**:
-
-* ``target`` (ITemplateParamDeclValue) - The variable to randomize
-* ``constraint`` (IConstraint) - Optional inline constraint block
+.. astb:projection-table:: ProceduralStmtRandomize
+   :model: pss
 
 **Usage**:
 
 .. code-block:: python
 
-    randomize = ast.ProceduralStmtRandomize()
-    randomize.target = variable_ref
-    
-    # With constraint
-    randomize.constraint = constraint_block
-
-**C++ API**:
-
-.. code-block:: cpp
-
-    #include "pssp/ast/IProceduralStmtRandomize.h"
-    
-    pssp::ast::IProceduralStmtRandomize *stmt = /* ... */;
-    ast::ITemplateParamDeclValue *target = stmt->getTarget();
-    ast::IConstraint *constraint = stmt->getConstraint();
+    for target in stmt.getTargets():        # the variables, as expressions
+        ...
+    for c in stmt.getConstraints():         # inline `with { ... }` constraints
+        ...
 
 Activity Atomic Block AST Nodes
 --------------------------------
@@ -223,27 +191,15 @@ Activity Atomic Block AST Nodes
 ActivityAtomicBlock
 ^^^^^^^^^^^^^^^^^^^
 
-Represents an atomic activity block (Section 22.6.7 of PSS 3.0 spec).
-
-**Properties**:
-
-* ``activity`` (IActivityStmt) - The activity statement to execute atomically
-
-**Usage**:
+Represents an atomic activity block (Section 22.6.7 of PSS 3.0 spec). The
+braced block it runs atomically is its ``body``, an ``ActivitySequence``
+whose ``getChildren()`` are the statements. See
+:astb:class:`ActivityAtomicBlock`.
 
 .. code-block:: python
 
-    atomic = ast.ActivityAtomicBlock()
-    atomic.activity = activity_sequence
-
-**C++ API**:
-
-.. code-block:: cpp
-
-    #include "pssp/ast/IActivityAtomicBlock.h"
-    
-    pssp::ast::IActivityAtomicBlock *atomic = /* ... */;
-    ast::IActivityStmt *activity = atomic->getActivity();
+    for stmt in atomic.getBody().getChildren():
+        ...
 
 Visitor API
 ===========
@@ -325,20 +281,20 @@ The ``Parser`` class handles PSS 3.0 constructs transparently:
     # Parse PSS 3.0 code
     parser.parses([
         ("monitor.pss", """
-            monitor MyMonitor {
-                activity {
-                    concat {
-                        A;
-                        B;
-                    }
-                }
-            }
-            
             component pss_top {
                 action A { }
                 action B { }
-                
-                cover MyMonitor;
+
+                monitor MyMonitor {
+                    A a;
+                    B b;
+                    activity {
+                        concat {
+                            a;
+                            b;
+                        }
+                    }
+                }
             }
         """)
     ])
@@ -362,18 +318,21 @@ PSS 3.0 nodes can be traversed like any AST nodes:
         if isinstance(node, ast.Monitor):
             monitors.append(node)
         
-        # Traverse children
-        for child in node.children:
-            monitors.extend(find_monitors(child))
+        # Traverse children (every scope has getChildren())
+        if hasattr(node, "getChildren"):
+            for child in node.getChildren():
+                monitors.extend(find_monitors(child))
         
         return monitors
     
-    # Use with parsed AST
-    root = parser.link()
-    monitors = find_monitors(root)
+    # Walk the user's files, not the linked root (which also holds the
+    # standard library)
+    monitors = []
+    for unit in parser.user_units():
+        monitors.extend(find_monitors(unit))
     
     for monitor in monitors:
-        print(f"Found monitor: {monitor.name}")
+        print(f"Found monitor: {monitor.getName().getId()}")
 
 Type Introspection
 ------------------
@@ -480,8 +439,10 @@ AST Validation
         if not isinstance(monitor, ast.Monitor):
             raise ValueError("Not a monitor")
         
-        if monitor.is_abstract and len(monitor.activities) == 0:
-            print("Warning: Abstract monitor with no activities")
+        has_activity = any(isinstance(c, ast.MonitorActivityDecl)
+                           for c in monitor.getChildren())
+        if monitor.getIs_abstract() and not has_activity:
+            print("Warning: Abstract monitor with no activity")
         
         # Additional validation...
 

@@ -1,11 +1,11 @@
 
 enums:
 - StructKind:
-  - Buffer     # Memory buffer (PSS 2.1+)
-  - Struct     # Data structure
-  - Resource   # Shared resource
-  - Stream     # Data stream (PSS 2.1+)
-  - State      # State object (PSS 2.1+)
+  - Buffer: "Memory buffer (PSS 2.1+)"
+  - Struct: "Data structure"
+  - Resource: "Shared resource"
+  - Stream: "Data stream (PSS 2.1+)"
+  - State: "State object (PSS 2.1+)"
 
 classes:
 - Struct:

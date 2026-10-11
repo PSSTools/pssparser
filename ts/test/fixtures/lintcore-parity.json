@@ -183,8 +183,8 @@
     null
    ],
    "file": "ast/constraint.yaml",
-   "sha256": "8e581e4f033a63b9fc2499f786a1524c936d9f386d784a863a5e8692720d5b99",
-   "len": 51979
+   "sha256": "7765232d178738c1dc3489367ce8347af1b60862314ecbaf5b20f661f562262f",
+   "len": 52592
   },
   {
    "id": "yaml-map:ast/constraint.yaml",
@@ -194,8 +194,8 @@
     null
    ],
    "file": "ast/constraint.yaml",
-   "sha256": "21b4b8f4664324a28bd910375d09863d4a0fc52098b91fce85746bb8868a8f57",
-   "len": 118189
+   "sha256": "cc739b75e624e214ff3f93fc173ead40bf04a0c37807a1731d49b70411b4378e",
+   "len": 118543
   },
   {
    "id": "yaml-file:ast/coretypes.yaml",
@@ -205,8 +205,8 @@
     null
    ],
    "file": "ast/coretypes.yaml",
-   "sha256": "a802ad7ff1ac0c0ac44d68b8132ed91573d193a4b6311114b295512f0b0b85fb",
-   "len": 50359
+   "sha256": "9fb3aeff13a07c85fd9dbeae5d4f74871adfe988437c63c6a31e5ead050ff0a6",
+   "len": 52685
   },
   {
    "id": "yaml-map:ast/coretypes.yaml",
@@ -216,8 +216,8 @@
     null
    ],
    "file": "ast/coretypes.yaml",
-   "sha256": "22bf4bcee186a62b1737975812c6e134754ca695158be58d763e309536264a68",
-   "len": 73545
+   "sha256": "682eb9fce5521070050c43e83b804784169ec0443aada6afdc5fea56c012d0d2",
+   "len": 74362
   },
   {
    "id": "yaml-file:ast/coverage.yaml",
@@ -227,8 +227,8 @@
     null
    ],
    "file": "ast/coverage.yaml",
-   "sha256": "3456d0d124ba604bf66c369091e5e8a6989c6b6ead87e4012b6fa9daa0dfe198",
-   "len": 32894
+   "sha256": "88bcd1a10d2b3599d12eae757ebfbf86c2d0c960b572bc501d1087b360afb467",
+   "len": 33857
   },
   {
    "id": "yaml-map:ast/coverage.yaml",
@@ -238,8 +238,8 @@
     null
    ],
    "file": "ast/coverage.yaml",
-   "sha256": "049dc35f0341b78bf953361d6141eec08be66ebb058a07c3cf94a32e2a549956",
-   "len": 62457
+   "sha256": "6fa06674b0ab8911ca9fec46f30227864c90c2b5a5176b0e9716e080e3d12d1a",
+   "len": 62680
   },
   {
    "id": "yaml-file:ast/datatype.yaml",
@@ -249,8 +249,8 @@
     null
    ],
    "file": "ast/datatype.yaml",
-   "sha256": "fa64cc91d7579ba854c12f00f5ff531c94d460cb7b4e7e07ea056efc74ac645c",
-   "len": 18986
+   "sha256": "46bdee0df353e0478e94a5847b5a5a358cdccef5109fad3be2eeb7ef1bcadc0c",
+   "len": 19139
   },
   {
    "id": "yaml-map:ast/datatype.yaml",
@@ -260,8 +260,8 @@
     null
    ],
    "file": "ast/datatype.yaml",
-   "sha256": "4885d78e383ce7660fea820f0906b14c63e6ef440ef9dc65e02c56e364c94244",
-   "len": 37931
+   "sha256": "54bc7d920ddd2a67b5e86fe0a66b71d08a5df2a18792e42f3d95e233b8a5dc1e",
+   "len": 38056
   },
   {
    "id": "yaml-file:ast/exec.yaml",
@@ -271,8 +271,8 @@
     null
    ],
    "file": "ast/exec.yaml",
-   "sha256": "8a37debef43f5ab0c183478fad91ee8011d452c64717dcd3dec8d3adec76a4b2",
-   "len": 52718
+   "sha256": "51d018020914839e82c53ef5be05c48ce028a26b49da6ba6caef9fd48fd104fe",
+   "len": 56044
   },
   {
    "id": "yaml-map:ast/exec.yaml",
@@ -282,8 +282,8 @@
     null
    ],
    "file": "ast/exec.yaml",
-   "sha256": "72729cafc6f07c4e3d1858ef65fc1bf5ea1895e0644350eb209917341829fd7f",
-   "len": 153963
+   "sha256": "3c182daecf1b58c0852eadfc061c47895268a6ffe5a8e26c424b3796b6734241",
+   "len": 155694
   },
   {
    "id": "yaml-file:ast/expr.yaml",
@@ -293,8 +293,8 @@
     null
    ],
    "file": "ast/expr.yaml",
-   "sha256": "784ea0cd0572d48afa4bfbc3843eb7ea6bf5bd8d2265c77b46f60ac3eda1ffa8",
-   "len": 82991
+   "sha256": "d3f6924b8fdccc25ddd4dc90fb7b7f080937a21561d35e2e4da95afe38041992",
+   "len": 87536
   },
   {
    "id": "yaml-map:ast/expr.yaml",
@@ -304,8 +304,8 @@
     null
    ],
    "file": "ast/expr.yaml",
-   "sha256": "4c9b3950ca5b127d94ae4b124233de02d1bfc15bcaede95b63e33e4c343049ae",
-   "len": 186773
+   "sha256": "09bd7c2809d17cf391f9986262ff2d5c94792704743e90426e845d3ceaa2fbd6",
+   "len": 187964
   },
   {
    "id": "yaml-file:ast/extension.yaml",
@@ -315,8 +315,8 @@
     null
    ],
    "file": "ast/extension.yaml",
-   "sha256": "65d1622962a11ea899d99e1b615b20f86e5e0b50d31fdcb2bfc9b3b9964c7fc4",
-   "len": 6911
+   "sha256": "212d9b304461734fa146e784c5b09245b493b652c0816cfcdcae6512e163b4f9",
+   "len": 8575
   },
   {
    "id": "yaml-map:ast/extension.yaml",
@@ -326,8 +326,8 @@
     null
    ],
    "file": "ast/extension.yaml",
-   "sha256": "3381719db9482623f51d2eee94942bd5401ff236b374ec77c9d9d1129b1e2a08",
-   "len": 11967
+   "sha256": "e52e287aebe32ebd4944b0d450e0728e4537ca262a2cd7b21007e0290fa602e7",
+   "len": 12779
   },
   {
    "id": "yaml-file:ast/field.yaml",
@@ -337,8 +337,8 @@
     null
    ],
    "file": "ast/field.yaml",
-   "sha256": "727ba536061c5d9fed75fe7fff017db720070e2350c0a82d952f1f522339a3b4",
-   "len": 23725
+   "sha256": "f1738efab47854501f6b445bdc2f70896f7270f77ea5eccd27d2bd244f7dd47e",
+   "len": 25314
   },
   {
    "id": "yaml-map:ast/field.yaml",
@@ -348,8 +348,8 @@
     null
    ],
    "file": "ast/field.yaml",
-   "sha256": "53fad2891ba15755c8f5a29f571e2ee2af816ac105485bd1c4402bc37644cb34",
-   "len": 51209
+   "sha256": "7e84bfe6ee2fa69dca6d80aae30985f90dbc962c713612850de1f414d1346464",
+   "len": 52394
   },
   {
    "id": "yaml-file:ast/functions.yaml",
@@ -359,8 +359,8 @@
     null
    ],
    "file": "ast/functions.yaml",
-   "sha256": "7560f50122d9e0be10fe9f2cd09f9d7f6d2ae649963d8e56a6afbae3e0330639",
-   "len": 31978
+   "sha256": "46f1013e952a76197c99308125e8d8b00c065af9958f9663820c3d4b1fd0c423",
+   "len": 35297
   },
   {
    "id": "yaml-map:ast/functions.yaml",
@@ -370,8 +370,8 @@
     null
    ],
    "file": "ast/functions.yaml",
-   "sha256": "d3cf9041f5cbd5cb5a071a1faeace65a5b6f6b8fc824eff3b21a1dacf12f9358",
-   "len": 73221
+   "sha256": "a90ea9b576818115995f2587ace8b5fb03862f833253c6257d06e9e21c1664ba",
+   "len": 74534
   },
   {
    "id": "yaml-file:ast/linking.yaml",
@@ -381,8 +381,8 @@
     null
    ],
    "file": "ast/linking.yaml",
-   "sha256": "b860ebdb78165658f5d486804d431639f28c01a9e2ca720629a595a7f1da5e13",
-   "len": 42722
+   "sha256": "a416c1657ac2d300657844d51dc080fa17bef0a7bb4068b238ad51470ba228dc",
+   "len": 47261
   },
   {
    "id": "yaml-map:ast/linking.yaml",
@@ -392,8 +392,8 @@
     null
    ],
    "file": "ast/linking.yaml",
-   "sha256": "260c2cc0eb60762cfd602ed869da265740fe50322e2d3a7c3e7539210b2db861",
-   "len": 68683
+   "sha256": "e4814d3ff8460f5b33b7d3d42e2098d03fadbc5c1a1db0864ade2529e85f0ff4",
+   "len": 72119
   },
   {
    "id": "yaml-file:ast/monitor.yaml",
@@ -447,8 +447,8 @@
     null
    ],
    "file": "ast/struct.yaml",
-   "sha256": "d7ca5e32a73c8687969e6babbcd7094fde563339ff1c8df95d5c37210298a5b9",
-   "len": 2777
+   "sha256": "cd8748e21d1bc9de9fc13e3780f681bbfeba89a9f042ca345dc85b2ec7a3b83d",
+   "len": 3589
   },
   {
    "id": "yaml-map:ast/struct.yaml",
@@ -458,8 +458,8 @@
     null
    ],
    "file": "ast/struct.yaml",
-   "sha256": "40cdf24ac7ec479c1e3afe1e40db5991a22c1703594108385c12924296641e30",
-   "len": 5676
+   "sha256": "c86af28403494834e6a403b1340f0a554c2209f9fc4cc54f6fece2d94190f59d",
+   "len": 6022
   },
   {
    "id": "yaml-file:ast/template.yaml",
@@ -491,8 +491,8 @@
     null
    ],
    "file": "ast/template_types.yaml",
-   "sha256": "36c084efec40e13edfae4456db8115af5a5dc60d4c00d2b9ec54b5304b503f81",
-   "len": 19673
+   "sha256": "4626fe7e1cf29d331910ce1ed1df5038bdb23cf84b02591a219c13788610ebc3",
+   "len": 21417
   },
   {
    "id": "yaml-map:ast/template_types.yaml",
@@ -502,8 +502,8 @@
     null
    ],
    "file": "ast/template_types.yaml",
-   "sha256": "3a4b14fff70fa1bddda9b26b42f12511f365072db79a8e6455f92116c9aa0d13",
-   "len": 62355
+   "sha256": "c24726b376512de009e095872d408935876f5ba84e4a89b4b1cb6214d353944c",
+   "len": 64265
   },
   {
    "id": "yaml-file:ast/typescope.yaml",
@@ -535,8 +535,8 @@
     null
    ],
    "file": ".github/workflows/ci.yml",
-   "sha256": "d3323dc5da097ea3ebe4414ca9f8efe8387aae2ec65b7f1b4a3bb1b03b20c931",
-   "len": 77811
+   "sha256": "ea8a3641a0d3a2a87c6c657f67398aea3e47e1a4e21744074b669abfc22668fa",
+   "len": 78112
   },
   {
    "id": "yaml-map:.github/workflows/ci.yml",
@@ -546,8 +546,8 @@
     null
    ],
    "file": ".github/workflows/ci.yml",
-   "sha256": "73cd09783c6f0164e35c0c02b7323adaea147a83a3a39f20dae0ce3a9e38f830",
-   "len": 233307
+   "sha256": "e054400f2e2c69a409380ef6e0472087d86c146e025d48a6cf6929d0f12864ae",
+   "len": 235348
   },
   {
    "id": "yaml-file:.github/workflows/dco.yml",
@@ -601,8 +601,8 @@
     null
    ],
    "file": ".forgejo/workflows/ci.yml",
-   "sha256": "c340bfe3c8ea5ded1a9e17b286b9f0b30e52d1ace988c263e05d16624fd6f96e",
-   "len": 26292
+   "sha256": "8dc7b21479cbb8d976081e9b9bbc41ba8ac6827c778f5c27e2ff8d2d184ea3b9",
+   "len": 27385
   },
   {
    "id": "yaml-map:.forgejo/workflows/ci.yml",
@@ -612,8 +612,8 @@
     null
    ],
    "file": ".forgejo/workflows/ci.yml",
-   "sha256": "7c40c3ccded4d539f48af2fcf05bda895b49330f1e55f0a2424e5caf7bba280d",
-   "len": 76373
+   "sha256": "894f1472b0ca5bffc7193292870f1b7b85eb344a67d80638a8a4f03d4c904d46",
+   "len": 81460
   },
   {
    "id": "yaml-file:.forgejo/workflows/conformance.yml",

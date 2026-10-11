@@ -1,27 +1,27 @@
 
 enums:
   - ParamDir:
-      - ParamDir_Default   # No explicit direction (typically input)
-      - ParamDir_In        # Input parameter (read-only)
-      - ParamDir_Out       # Output parameter (write-only)
-      - ParamDir_InOut     # Input/output parameter (read-write)
+      - ParamDir_Default: "No explicit direction (typically input)"
+      - ParamDir_In: "Input parameter (read-only)"
+      - ParamDir_Out: "Output parameter (write-only)"
+      - ParamDir_InOut: "Input/output parameter (read-write)"
   - PlatQual:
-      - PlatQual_None      # No platform qualification
-      - PlatQual_Target    # Target platform execution
-      - PlatQual_Solve     # Solve-time platform execution
+      - PlatQual_None: "No platform qualification"
+      - PlatQual_Target: "Target platform execution"
+      - PlatQual_Solve: "Solve-time platform execution"
   - FunctionParamDeclKind:
-      - ParamKind_DataType      # Regular data type parameter (int, bool, etc.)
-      - ParamKind_Type          # Type parameter (generic type)
-      - ParamKind_RefAction     # Reference to action type
-      - ParamKind_RefComponent  # Reference to component type
-      - ParamKind_RefBuffer     # Reference to buffer type
-      - ParamKind_RefResource   # Reference to resource type
-      - ParamKind_RefState      # Reference to state type
-      - ParamKind_RefStream     # Reference to stream type
-      - ParamKind_RefStruct     # Reference to struct type
-      - ParamKind_Struct        # Struct value parameter
-      - ParamKind_RefMonitor    # PSS 3.1: reference to monitor type
-      - ParamKind_Numeric       # PSS 3.1: `numeric` category value parameter
+      - ParamKind_DataType: "Regular data type parameter (int, bool, etc.)"
+      - ParamKind_Type: "Type parameter (generic type)"
+      - ParamKind_RefAction: "Reference to action type"
+      - ParamKind_RefComponent: "Reference to component type"
+      - ParamKind_RefBuffer: "Reference to buffer type"
+      - ParamKind_RefResource: "Reference to resource type"
+      - ParamKind_RefState: "Reference to state type"
+      - ParamKind_RefStream: "Reference to stream type"
+      - ParamKind_RefStruct: "Reference to struct type"
+      - ParamKind_Struct: "Struct value parameter"
+      - ParamKind_RefMonitor: "PSS 3.1: reference to monitor type"
+      - ParamKind_Numeric: "PSS 3.1: `numeric` category value parameter"
 
 classes:
   - FunctionDefinition:

@@ -176,5 +176,7 @@ the `PSSPARSER_NO_EXTENSIONS` trap: `references/testing.md`.
   model in depth: the `pssparser-api` skill (`pssparser.refs`, the full AST).
 - Running checks, selecting checkers, severities, and CI gating for users:
   the `pssparser` skill.
-- Every syntax-tree class and field a rule file can read:
-  <https://psstools.github.io/pssparser/lint-nodes.html>.
+- Every syntax-tree class and field a rule file can read: the AST model
+  reference, <https://psstools.github.io/pssparser/ast/index.html> (the
+  "Lint rule" column of each class's "In each API" table; how to use it is on
+  <https://psstools.github.io/pssparser/lint-nodes.html>).

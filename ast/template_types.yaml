@@ -1,15 +1,15 @@
 
 enums:
   - TypeCategory:
-    - Action      # Action type category for action-related templates
-    - Component   # Component type category for component-related templates
-    - Buffer      # Buffer type category for buffer-related templates
-    - Resource    # Resource type category for resource-related templates
-    - State       # State type category for state-related templates
-    - Stream      # Stream type category for stream-related templates
-    - Struct      # Struct type category for struct-related templates
-    - Monitor     # PSS 3.1: monitor type category (a *ref* category)
-    - Numeric     # PSS 3.1: any numeric type (a *plain* category)
+    - Action: "Action type category for action-related templates"
+    - Component: "Component type category for component-related templates"
+    - Buffer: "Buffer type category for buffer-related templates"
+    - Resource: "Resource type category for resource-related templates"
+    - State: "State type category for state-related templates"
+    - Stream: "Stream type category for stream-related templates"
+    - Struct: "Struct type category for struct-related templates"
+    - Monitor: "PSS 3.1: monitor type category (a *ref* category)"
+    - Numeric: "PSS 3.1: any numeric type (a *plain* category)"
 
 classes:
 

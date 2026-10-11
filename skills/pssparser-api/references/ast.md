@@ -1,9 +1,13 @@
 # The AST
 
 `pssparser.ast` is a generated Cython binding with about 250 node classes.
-This file is a map of them. The `ast.pyi` stub installed next to the package
-has the exact getters for each class, and its docstrings show the PSS each
-node comes from. Search the stub before you guess a method name:
+This file is a map of them. The AST model reference in the documentation
+(`docs/ast/`, built from `ast/*.yaml`) has every class with its fields, what
+each means, where it can appear, and the exact Python spelling of each field
+(the "In each API" table). The `ast.pyi` stub installed next to the package
+has the getters for each class, and its docstrings show the PSS each node
+comes from; scalar fields (`int`, `bool`) have no stub entry but do have a
+`get<Field>()` method. Search the stub before you guess a method name:
 
 ```python
 import os, pssparser

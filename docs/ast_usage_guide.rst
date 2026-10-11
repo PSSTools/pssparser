@@ -177,7 +177,7 @@ Find all actions in the AST:
     print(f"Found {len(all_actions)} actions")
     
     for action in all_actions:
-        print(f"  Action: {action.name.id}")
+        print(f"  Action: {action.getName().getId()}")
 
 Collecting Specific Information
 ================================
@@ -193,16 +193,16 @@ Extract all random fields from actions:
         for child in action.getChildren():
             if isinstance(child, ast.Field):
                 # Check if field has Rand attribute
-                if child.attr & ast.FieldAttr.Rand:
+                if child.getAttr() & ast.FieldAttr.Rand:
                     rand_fields.append(child)
         return rand_fields
     
     # For each action, show random fields
     for action in all_actions:
         rand_fields = collect_rand_fields(action)
-        print(f"Action {action.name.id} has {len(rand_fields)} random fields:")
+        print(f"Action {action.getName().getId()} has {len(rand_fields)} random fields:")
         for field in rand_fields:
-            print(f"  - {field.name.id}")
+            print(f"  - {field.getName().getId()}")
 
 ************************
 Working with Expressions
@@ -217,8 +217,13 @@ PSS expressions follow a class hierarchy:
 * **ExprBin** - Binary operations (a + b, x > y)
 * **ExprUnary** - Unary operations (!flag, -value)
 * **ExprId** - Simple identifiers
-* **ExprNumber** - Numeric literals
+* **ExprRefPathContext** - A reference such as ``value`` or ``a.b`` (a list
+  of path elements)
+* **ExprNumber** - Numeric literals: **ExprUnsignedNumber** and
+  **ExprSignedNumber**
 * **ExprBool**, **ExprString**, **ExprNull** - Other literals
+
+Every class and its fields are in the :doc:`ast/expr` reference.
 
 Evaluating Simple Expressions
 ==============================
@@ -228,45 +233,41 @@ Evaluating Simple Expressions
     import pssparser.ast as ast
     
     def describe_expr(expr):
-        if isinstance(expr, ast.ExprNumber):
-            return f"Number({expr.val})"
+        if isinstance(expr, (ast.ExprUnsignedNumber, ast.ExprSignedNumber)):
+            return f"Number({expr.getValue()})"
         elif isinstance(expr, ast.ExprBool):
-            return f"Bool({expr.value})"
+            return f"Bool({expr.getValue()})"
         elif isinstance(expr, ast.ExprId):
-            return f"Identifier({expr.id})"
+            return f"Identifier({expr.getId()})"
+        elif isinstance(expr, ast.ExprRefPathContext):
+            names = [e.getId().getId() for e in expr.getHier_id().getElems()]
+            return f"Ref({'.'.join(names)})"
         elif isinstance(expr, ast.ExprBin):
-            lhs = describe_expr(expr.lhs)
-            rhs = describe_expr(expr.rhs)
-            op = expr.op.name  # ExprBinOp enum
+            lhs = describe_expr(expr.getLhs())
+            rhs = describe_expr(expr.getRhs())
+            op = ast.ExprBinOp(expr.getOp()).name  # an int; wrap to name it
             return f"({lhs} {op} {rhs})"
         else:
             return f"{type(expr).__name__}"
     
     # Example: Describe constraint expressions
-    for constraint_block in find_constraints(action):
-        for stmt in constraint_block.getChildren():
-            if isinstance(stmt, ast.ConstraintStmtExpr):
-                print(describe_expr(stmt.expr))
+    for child in action.getChildren():
+        if isinstance(child, ast.ConstraintBlock):
+            for stmt in child.getConstraints():
+                if isinstance(stmt, ast.ConstraintStmtExpr):
+                    print(describe_expr(stmt.getExpr()))
 
 Building Expressions Programmatically
 ======================================
 
-Create a new constraint expression:
-
-.. code-block:: python
-
-    import pssparser.ast as ast
-    from pssparser import Parser
-    
-    factory = ast.Factory.inst()
-    
-    # Create: value > 10
-    lhs = factory.mkExprId("value")
-    rhs = factory.mkExprNumber(10)
-    comparison = factory.mkExprBin(lhs, ast.ExprBinOp.BinOp_Gt, rhs)
-    
-    # Wrap in constraint statement
-    constraint_stmt = factory.mkConstraintStmtExpr(comparison)
+``pssparser.ast.Factory.inst()`` has a ``mk<Class>()`` method for every
+class (``mkExprBin(lhs, op, rhs)``, ``mkExprId(id, is_escaped)``, ...), but
+building a tree with them from Python is **not safe** in this release: a node
+passed into a factory method stays owned by its Python object as well as by
+its new parent, so it is freed twice, and passing ``None`` for an optional
+node argument crashes. Both are known issue AB-2 in
+``docs/design/known-issues.md``. Build trees in C++ (``IFactory``), or
+generate PSS text and parse it.
 
 *************************
 Working with Activities
@@ -298,26 +299,28 @@ Analyzing Activity Flow
                 analyze_activity(child, depth + 1)
         
         elif isinstance(activity, ast.ActivityParallel):
-            join_type = type(activity.join_spec).__name__
+            join_type = type(activity.getJoin_spec()).__name__
             print(f"{indent}Parallel ({join_type}):")
             for child in activity.getChildren():
                 analyze_activity(child, depth + 1)
         
         elif isinstance(activity, ast.ActivityActionHandleTraversal):
             # Action invocation
-            target = activity.target  # ExprRefPath
+            target = activity.getTarget()  # ExprRefPathContext
             print(f"{indent}Invoke action: {describe_expr(target)}")
         
         elif isinstance(activity, ast.ActivityRepeatCount):
-            count = describe_expr(activity.count)
+            count = describe_expr(activity.getCount())
             print(f"{indent}Repeat {count} times:")
-            analyze_activity(activity.body, depth + 1)
+            analyze_activity(activity.getBody(), depth + 1)
     
-    # Analyze the activity block of an action
+    # Analyze the activity block of an action: an ActivityDecl is a scope
+    # whose children are the activity's statements
     for child in action.getChildren():
         if isinstance(child, ast.ActivityDecl):
-            print(f"Activity for {action.name.id}:")
-            analyze_activity(child.activity)
+            print(f"Activity for {action.getName().getId()}:")
+            for stmt in child.getChildren():
+                analyze_activity(stmt, 1)
 
 *************************
 Working with Constraints
@@ -340,24 +343,27 @@ Analyzing Constraints
 .. code-block:: python
 
     def analyze_constraints(action):
-        print(f"Constraints in {action.name.id}:")
+        print(f"Constraints in {action.getName().getId()}:")
         
         for child in action.getChildren():
             if isinstance(child, ast.ConstraintBlock):
-                print(f"  Block: {child.name if hasattr(child, 'name') else 'anonymous'}")
+                name = child.getName()
+                print(f"  Block: {name.getId() if name is not None else 'anonymous'}")
                 
-                for stmt in child.getChildren():
+                # A constraint block holds its statements in `constraints`,
+                # not `children`
+                for stmt in child.getConstraints():
                     if isinstance(stmt, ast.ConstraintStmtExpr):
-                        print(f"    Expression: {describe_expr(stmt.expr)}")
+                        print(f"    Expression: {describe_expr(stmt.getExpr())}")
                     
                     elif isinstance(stmt, ast.ConstraintStmtForeach):
                         print(f"    Foreach constraint over array")
-                        for inner in stmt.constraints:
+                        for inner in stmt.getConstraints():
                             if isinstance(inner, ast.ConstraintStmtExpr):
-                                print(f"      {describe_expr(inner.expr)}")
+                                print(f"      {describe_expr(inner.getExpr())}")
                     
                     elif isinstance(stmt, ast.ConstraintStmtIf):
-                        cond = describe_expr(stmt.cond)
+                        cond = describe_expr(stmt.getCond())
                         print(f"    If ({cond}):")
                         # Analyze true/false branches...
 
@@ -465,13 +471,14 @@ After parsing, the AST can be "linked" to resolve symbol references:
 
     from pssparser import Parser
     
-    # Create a linker
-    pss_linker = linker.Factory.inst().mkLinker()
+    p = Parser()
+    p.parses([("m.pss", "component pss_top { action a { } }")])
     
-    # Link the AST (resolves all references)
-    symbol_root = pss_linker.link([ast_root])
+    # Link every parsed file (resolves all references)
+    symbol_root = p.link()
     
-    # symbol_root is a RootSymbolScope with resolved references
+    # symbol_root is a RootSymbolScope with resolved references;
+    # p.user_units() are the per-file GlobalScopes
 
 The linked tree uses **SymbolScope** classes instead of regular scopes,
 with efficient symbol lookup tables.
@@ -479,27 +486,9 @@ with efficient symbol lookup tables.
 Modifying the AST
 =================
 
-You can programmatically modify the AST:
-
-.. code-block:: python
-
-    import pssparser.ast as ast
-    from pssparser import Parser
-    
-    factory = ast.Factory.inst()
-    
-    # Add a new field to an action
-    new_field = factory.mkField(
-        factory.mkExprId("new_value"),
-        factory.mkDataTypeInt(True, None, None),  # signed int
-        ast.FieldAttr.Rand,
-        None  # no initializer
-    )
-    
-    action.addChild(new_field)
-
-Note: After modification, you may need to re-run the linker to update
-symbol references.
+The same applies to modifying a parsed tree from Python: adding a node made
+with the factory (``scope.addChild(node)``) leaves it with two owners (known
+issue AB-2). Modify the tree in C++, or edit the source and parse again.
 
 Custom Visitors
 ===============
@@ -515,16 +504,17 @@ For complex traversals, implement a visitor class:
         def visit(self, node):
             # Collect constraint expressions
             if isinstance(node, ast.ConstraintStmtExpr):
-                self.constraints.append(node.expr)
+                self.constraints.append(node.getExpr())
             
             # Continue traversal
             if hasattr(node, 'getChildren'):
                 for child in node.getChildren():
                     self.visit(child)
             
-            # Handle other node types with children
-            if isinstance(node, ast.ConstraintStmtForeach):
-                for constraint in node.constraints:
+            # Constraint blocks and foreach hold their statements in
+            # `constraints`, not `children`
+            if isinstance(node, ast.ConstraintScope):
+                for constraint in node.getConstraints():
                     self.visit(constraint)
         
         def collect(self, root):
@@ -586,9 +576,9 @@ Get Qualified Name of a Node
         
         while current is not None:
             if isinstance(current, (ast.NamedScope, ast.NamedScopeChild)):
-                if hasattr(current, 'name') and current.name:
-                    parts.append(current.name.id)
-            current = current.parent
+                if current.getName() is not None:
+                    parts.append(current.getName().getId())
+            current = current.getParent()
         
         return "::".join(reversed(parts))
     
@@ -600,36 +590,22 @@ Get Qualified Name of a Node
 Error Handling
 **************
 
-The parser reports errors through a marker listener:
+The parser reports errors as markers: ``p.markers`` is a list of dicts
+(``severity``, ``message``, ``file``, ``line``, ``col``, and ``code`` when
+the message has an ID). A parse or link with errors raises
+``ParseException``, which carries the same list:
 
 .. code-block:: python
 
-    from pssparser import Parser
+    from pssparser import Parser, ParseException
     
-    class ErrorCollector(parser.IMarkerListener):
-        def __init__(self):
-            self.errors = []
-        
-        def marker(self, m):
-            self.errors.append({
-                'severity': m.severity(),
-                'message': m.msg(),
-                'location': (m.location().lineno, m.location().linepos)
-            })
-    
-    # Use custom error handler
-    pss_parser = parser.Factory.inst().getParser()
-    error_collector = ErrorCollector()
-    pss_parser.getMarkerListener().addListener(error_collector)
-    
-    # Parse (errors will be collected)
-    ast_root = pss_parser.parse(pss_code, filename)
-    
-    # Check for errors
-    if error_collector.errors:
-        print(f"Found {len(error_collector.errors)} errors:")
-        for error in error_collector.errors:
-            print(f"  Line {error['location'][0]}: {error['message']}")
+    p = Parser()
+    try:
+        p.parses([("bad.pss", "component pss_top { action a { rand bit[8] x } }")])
+    except ParseException as e:
+        print(f"Found {len(e.markers)} errors:")
+        for m in e.markers:
+            print(f"  Line {m['line']}: {m['message']}")
 
 *****************************
 Coverage Gaps and ``PSSP101``

@@ -148,6 +148,7 @@ classes:
         - data: 
           - constraint:
               type: P<ConstraintStmt>
+              rel: ref
               is_ctor: false
               init: 0
     - ConstraintStmt:
@@ -284,10 +285,12 @@ classes:
         - data:
             - it:
                 - type: P<ConstraintStmtField>
+                - rel: ref
                 - is_ctor: false
                 - init: 0;
             - idx:
                 - type: P<ConstraintStmtField>
+                - rel: ref
                 - is_ctor: false
                 - init: 0;
             - expr: UP<Expr>
