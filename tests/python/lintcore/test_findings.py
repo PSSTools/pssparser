@@ -212,3 +212,69 @@ def test_deep_chain_every_link_reported(hooks):
     assert len(r["findings"]) == 2999
     # Every link starts at the chain's first `x`.
     assert {(f["line"], f["col"]) for f in r["findings"]} == {(1, 36)}
+
+
+_NAMED = (
+    "component dma { action Xfer { rand S_t f_one; } }\n"   # 1
+    "struct S_t { int x; }\n"                                 # 2
+    "enum E_t { A, B }\n"                                     # 3
+    "function void fn_a() { }\n"                              # 4
+    "package a::bb { }\n")                                    # 5
+
+
+@pytest.fixture(scope="module")
+def named_unit():
+    from pssparser.parser import Parser
+    p = Parser()
+    p.parses([("named.pss", _NAMED)])
+    root = p.link()
+    return root, p.user_units()[-1]
+
+
+def _run_named(hooks, named_unit, *rules):
+    root, unit = named_unit
+    r = hooks.lint_run("r.yaml", _file(*rules), [unit], model=root)
+    assert r["loaded"] and r["diagnostics"] == [], r["diagnostics"]
+    return r
+
+
+def _spans(r):
+    return [(f["kind"], f["line"], f["col"], f["extent"]) for f in r["findings"]]
+
+
+def test_a_named_declaration_is_reported_at_its_name(hooks, named_unit):
+    # linter-post-readiness E1: the name's span, not the declaration's body.
+    r = _run_named(hooks, named_unit, _rule(
+        match="{ kind: [Component, Action, Struct, Field, EnumDecl, EnumItem,"
+              " FunctionPrototype, PackageScope] }"))
+    assert _spans(r) == [
+        ("Component", 1, 11, 3),
+        ("Action", 1, 24, 4),
+        ("Field", 1, 40, 5),
+        ("Struct", 2, 8, 3),
+        ("Field", 2, 18, 1),
+        ("EnumDecl", 3, 6, 3),
+        ("EnumItem", 3, 12, 1),
+        ("EnumItem", 3, 15, 1),
+        ("FunctionPrototype", 4, 15, 4),
+        ("PackageScope", 5, 9, 5),      # a::bb, first segment to last
+    ]
+
+
+def test_explicit_report_of_the_node_is_its_name_too(hooks, named_unit):
+    r = _run_named(hooks, named_unit, _rule(match="{ kind: Action }", extra=['report: "[node]"']))
+    assert _spans(r) == [("Action", 1, 24, 4)]
+
+
+def test_a_reported_declaration_lands_on_its_name(hooks, named_unit):
+    r = _run_named(hooks, named_unit, _rule(match="{ kind: Field }", extra=[
+        "report: >-",
+        "  type(node.type) == DataTypeUserDefined",
+        "    ? [resolves_to(node.type.type_id)] : []"]))
+    assert _spans(r) == [("Struct", 2, 8, 3)]
+
+
+def test_a_node_without_a_name_keeps_its_own_extent(hooks, named_unit):
+    # FunctionDefinition holds its name in its prototype: reported where it starts.
+    r = _run_named(hooks, named_unit, _rule(match="{ kind: FunctionDefinition }"))
+    assert [(f["line"], f["col"]) for f in r["findings"]] == [(4, 1)]

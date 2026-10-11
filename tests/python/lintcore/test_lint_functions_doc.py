@@ -14,8 +14,8 @@ from gen_lint_functions import OUTPUT_PATH, render  # noqa: E402
 
 
 def test_lint_functions_rst_is_up_to_date(factory):
-    functions = factory._lintTestHooks().cel_functions()["functions"]
-    assert OUTPUT_PATH.read_text() == render(functions), (
+    reg = factory._lintTestHooks().cel_functions()
+    assert OUTPUT_PATH.read_text() == render(reg["functions"], reg["records"]), (
         "docs/lint-functions.rst is stale -- run "
         "`python3 scripts/gen_lint_functions.py` and commit the result")
 

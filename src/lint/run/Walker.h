@@ -155,6 +155,13 @@ public:
     /** location() with the extent too: the whole Location, unset if false. */
     static bool location(const rf::Node &n, ast::Location &loc);
 
+    /**
+     * For a named declaration -- a class whose `name` field is an ExprId,
+     * declared or inherited -- the name's location; false for any other
+     * node, or a name with none.
+     */
+    static bool nameLocation(const rf::Node &n, ast::Location &loc);
+
 private:
     const Dispatch                                  &m_dispatch;
     std::vector<rf::Node>                           m_stack;

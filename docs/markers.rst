@@ -617,7 +617,7 @@ A member an extension adds to a type is accessible in the package the extension 
 * ``'b' is declared by an extension of 'S' in package 'p', which is not visible here (17.2.3); add 'import p::*;'``
 * ``'B' is an item an extension of 'E' in package 'p' adds, which is not visible here (17.2.3); add 'import p::*;'``
 
-The use still binds to the member, so later diagnostics are measured against it.  A warning in 3.1.7; an error since (symbol-resolution plan §8).  Where two imported packages each add the name, the use is ambiguous: PSS017.
+The use still binds to the member, so later diagnostics are measured against it.  A warning in pssparser 3.1.7; an error since (symbol-resolution plan §8).  Where two imported packages each add the name, the use is ambiguous: PSS017.
 
 PSS052
 ~~~~~~
@@ -631,7 +631,7 @@ Explicit import conflicts with a declaration or import
 * ``'import lib::s;' names 's', which package 'p' already declares; an explicit import shall not name a declaration of the importing namespace (18.1.3)``
 * ``'s' is already imported explicitly in this scope, by 'import lib1::s;'; the same name shall not be imported explicitly from two packages (18.1.3)``
 
-The namespace is every statement of a package, or a component and its extensions; two imports conflict only within one statement.  A warning in 3.1.7; an error since (plan §8).  A use of a name two explicit imports provide is PSS017.
+The namespace is every statement of a package, or a component and its extensions; two imports conflict only within one statement.  A warning in pssparser 3.1.7; an error since (plan §8).  A use of a name two explicit imports provide is PSS017.
 
 PSS054
 ~~~~~~
@@ -1461,6 +1461,17 @@ PSSP222
 A lint rule's example does not give the findings it expects
 
 ``pssparser --check-rules`` runs each rule's ``examples:``: every example is parsed and linked on its own, and only its rule runs.  The rule must report exactly where the example's ``// expect:`` comments say, and nowhere else; an example with no ``expect`` must report nothing.  An example that does not parse or link, or on which the rule fails, fails too.  The marker is at the example in the rule file, and its message gives the position in the example's text.  Fix the rule or the example: an example is the rule's documentation, so the two must agree.
+
+PSSP223
+~~~~~~~
+
+**Severity:** info
+
+**Name:** ``rule-unknown-type``; **Tier:** tool
+
+A lint rule names a type the model does not have
+
+A rule's ``type_named`` or ``derives_from`` names a PSS type (``acme::claim_s``) that is not in the model being checked: a typo, or a package that was not compiled in.  The rule still runs, with ``type_named`` giving ``optional.none()`` and ``derives_from`` false for that name, so it may report nothing.  The note is given once per rule and name, at the node the rule was evaluating when it first asked.  Fix the name, or add the package's files to the run.
 
 PSSP230
 ~~~~~~~

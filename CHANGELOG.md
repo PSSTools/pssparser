@@ -93,7 +93,14 @@ See `docs/lint-rule-authoring.rst` and `docs/lint-functions.rst`.
   evaluation budget for a file, is a `PSSP220`/`PSSP221` warning and is
   skipped for the rest of that file. `--stats` lists what each rule did.
 - New `PSSP` codes: `PSSP210`–`PSSP219` (problems in a rule file),
-  `PSSP220`, `PSSP221`, `PSSP222` (a failing example) and `PSSP230`.
+  `PSSP220`, `PSSP221`, `PSSP222` (a failing example), `PSSP223` (a rule
+  names a type the model does not have) and `PSSP230`.
+- `--select` and `--ignore` choose lint rules on the command line, over the
+  configuration's `[lint] select`/`ignore`.
+- Rule expressions test field attributes with `has_flag(node.attr,
+  FieldAttr.Rand)`, and library types with `type_decl`, `type_named` and
+  `derives_from`. A flags value is not a number: `int()`, `string()`,
+  arithmetic and ordering on one are errors when the rule loads.
 - TypeScript: `Parser.loadRules()`, `ruleDiagnostics`, `probeRules()` and
   `runLint()`.
 - `pssparser.checkers.testing`: `run_rules`, `check_fixture` and

@@ -1,0 +1,12 @@
+pss-rules:
+  rules:
+    - id: ACME001
+      name: a
+      tier: style
+      summary: s
+      message: m
+      match: { kind: Action }
+      where: !node.name.id.endsWith("_a")
+
+# expect: PSSP218 error @ 9:14 YAML reads a leading '!' as a tag, which rule files do not use; if this is a CEL expression, quote it, or use a block scalar (>-)
+# refused

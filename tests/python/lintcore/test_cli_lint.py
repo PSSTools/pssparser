@@ -90,7 +90,7 @@ def test_a_rule_given_with_rules_fires(lint_enabled, files):
     cfg.write_text('[lint]\nselect = ["ACME001"]\n')
     rc, out, err = _main(["--config", str(cfg), "--rules", rules, model])
     assert rc == 0
-    assert "m.pss:3:3: warning: [ACME001] action 'b' should start with A" in err
+    assert "m.pss:3:10: warning: [ACME001] action 'b' should start with A" in err
 
 
 def test_not_enabled_by_the_default_profile(lint_enabled, files):

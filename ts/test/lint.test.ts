@@ -89,7 +89,7 @@ describe('Parser.runLint (C5.4)', () => {
     parser.link();
     const r = parser.runLint();
     expect(r.markers.map((m) => [m.code, m.file, m.line, m.col, m.severity, m.message])).toEqual([
-      ['ACME001', 'm.pss', 3, 3, 'warning', "action 'b' should start with A"],
+      ['ACME001', 'm.pss', 3, 10, 'warning', "action 'b' should start with A"],
       ['ACME002', 'm.pss', 3, 18, 'hint', 'field pss_top::b::x'],
     ]);
     expect(r.stats.map((s) => [s.id, s.matches, s.findings, s.errors])).toEqual([

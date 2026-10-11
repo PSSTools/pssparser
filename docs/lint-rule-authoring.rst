@@ -75,14 +75,24 @@ profile, ``minimal``, enables none of a site's rules, so select them:
 .. code-block:: console
 
    $ pssparser --show-hints top.pss
-   top.pss:2:3: hint: [ACME001] action 'write_burst' is not UpperCamelCase; the ACME style guide names action types like 'WriteBurst'
+   top.pss:2:10: hint: [ACME001] action 'write_burst' is not UpperCamelCase; the ACME style guide names action types like 'WriteBurst'
     2 |   action write_burst { }
-      |   ^~~~~~~~~~~~~~~~~~~~~~
+      |          ^~~~~~~~~~~
 
    0 errors in 1 file
 
-A ``style`` rule reports hints, which the terminal output hides unless
-asked (``--show-hints``, or ``show-hints = true`` under ``[output]``). A rule
+To try the rules without a configuration file, give the same things on the
+command line. ``--select`` and ``--ignore`` take the selectors that
+``[lint] select`` and ``ignore`` do, and are applied on top of the
+configuration:
+
+.. code-block:: console
+
+   $ pssparser --rules lint/rules/ --select ACME --show-hints top.pss
+
+A ``style`` rule reports hints, which the output hides unless asked
+(``--show-hints``, or ``show-hints = true`` under ``[output]``); without it,
+the run above prints only ``0 errors in 1 file (1 hint hidden)``. A rule
 left out of the selection is never evaluated. Rules run only on a model that
 parsed and linked without errors. ``--stats`` lists what each rule did (see
 :doc:`cli`).
@@ -119,7 +129,8 @@ A rule
 
 ``id``, ``name``
    The rule's ID (see `IDs`_) and a unique kebab-case name. Either one works
-   wherever pssparser takes a rule: ``-W``, ``[lint] select``, waivers,
+   wherever pssparser takes a rule: ``--select``, ``-Werror=``,
+   ``[lint] select``, waivers,
    baselines.
 ``tier``
    ``correctness``, ``suspicious``, ``portability``, ``simplify``,
@@ -150,6 +161,13 @@ A rule
    message, ``finding`` is the reported node. An unset field in the list
    (``[node.super_t]`` on a type with no base) reports nothing, and a rule
    reports one node only once, however many matches name it.
+
+   A named declaration -- an action, component, struct, field, enum, enum
+   item, function prototype, package, anything whose ``name`` is an
+   identifier -- is reported at its name, not across its body, whether it is
+   the matched node or one ``report`` gives. ``component dma { ... }`` is
+   underlined under ``dma``; a package ``a::bb`` from ``a`` to ``bb``. Other
+   nodes are reported at where they start.
 ``options``
    Settings a user can change, each with a ``type`` (``string``, ``int``,
    ``bool`` or ``string-list``), a ``default`` and ``help``. Expressions
@@ -195,6 +213,51 @@ a constant, and ``optional.none()`` otherwise; so
 never hold. Like every
 rule, one that calls them runs only on a model that parsed and linked
 without errors.
+
+``branches(n)`` lists the alternatives of a ``select``, ``match``,
+``if``/``else``, ``parallel`` or ``schedule`` the same way for each:
+a ``Branch`` record with the branch's ``node``, ``index``, ``guard``,
+``weight``, ``body`` and ``is_default``. ``ranges(n)`` folds the values a
+match choice covers into ``Range`` records (``lo``, ``hi``), or gives
+``optional.none()`` when one does not fold. Together they find a branch that
+can never be taken, and a match choice that overlaps an earlier one:
+
+.. code-block:: yaml
+
+   match: { kind: ActivitySelect }
+   report: >-
+     branches(node).filter(b, !const_bool(b.guard).orValue(true)
+       || const_int(b.weight).orValue(1) == 0).map(b, b.body)
+
+A field's attributes are flags: ``has_flag(node.attr, FieldAttr.Rand)`` is
+true for a ``rand`` field. A flags value is not a number. ``int()``,
+``string()``, arithmetic and ordering on one are errors when the file loads,
+because its bit values belong to the syntax tree, not to the rule format.
+
+``type_decl(node.type)`` is the declaration a field's type names. It follows
+typedefs, and for a template use it gives the specialization (``S<4>``, with
+its arguments bound), where ``resolves_to`` gives the generic ``S``.
+``type_named("pkg::name")`` is the type a PSS name names in the model, and
+``derives_from(t, "pkg::name")`` tests inheritance, ``t`` itself included. A
+generic template's name matches every specialization of it. Together they
+let a rule talk about library types. This rule finds an address or executor
+claim that is not ``rand``:
+
+.. code-block:: yaml
+
+   match: { kind: Field, inside: { kind: Action } }
+   let:
+     t: type_decl(node.type)
+   where: >-
+     !has_flag(node.attr, FieldAttr.Rand) && t.hasValue() &&
+     (derives_from(t.value(), "addr_reg_pkg::addr_claim_base_s") ||
+      derives_from(t.value(), "executor_pkg::executor_claim_s"))
+
+The ``where`` is a block scalar (``>-``) because it starts with ``!``, which
+YAML reads as a tag. A type name is written without template arguments, and
+a literal one is checked when the file loads. A name the model does not have
+(a typo, or a package that is not compiled in) gives ``optional.none()`` and
+``false``, and the run reports it once per rule as a ``PSSP223`` note.
 
 The tree is the source as written. An ``extend``'s members belong to the
 ``extend``, not to the type it extends, and nodes that pssparser adds itself,
@@ -337,7 +400,8 @@ the built-in and installed ones, so:
   the file and line it is defined in, the node kinds it matches, and the
   analysis level and scope pssparser computed for it;
 * ``--list-markers`` lists it, under the checker ``pss-rules``;
-* selectors (``-W``, ``[lint] select`` and ``ignore``, ``[severity]``) may
+* selectors (``--select`` and ``--ignore``, ``-Werror=``, ``[lint] select``
+  and ``ignore``, ``[severity]``) may
   name its ID, name, namespace (``ACME``, ``ACME-NET``), tier or family;
 * the lint profile enables it by tier, as for any rule (``default_enabled:
   false`` keeps it out);
@@ -435,6 +499,9 @@ What is reported
      - A warning: a rule used up its evaluation budget for a file.
    * - ``PSSP222``
      - An example does not give the findings it expects (see `Examples`_).
+   * - ``PSSP223``
+     - A note: a rule names a type (``type_named``, ``derives_from``) that
+       the model does not have.
    * - ``PSSP230``
      - A note: lint did not run, because the model has errors.
 

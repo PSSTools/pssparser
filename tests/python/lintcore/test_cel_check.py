@@ -81,7 +81,7 @@ def _value(hooks, text, **doc):
     ("optional.of(1).optMap(x, x + 1)", "optional(int)"),
     ("optional.of(1).optFlatMap(x, optional.of('s'))", "optional(string)"),
     ("has({'a': 1}.a)", "bool"),
-    ("ExprBinOp.BinOp_Eq", "int"), ("FieldAttr.Rand + 1", "int"),
+    ("ExprBinOp.BinOp_Eq", "int"), ("ExprBinOp.BinOp_Eq + 1", "int"),
     ("ExprBin", "type"), ("Location", "type"),
 ])
 def test_types(hooks, text, typ):
@@ -118,6 +118,12 @@ def test_binding_types_come_from_values(hooks):
     ("timestamp(0)", 0, "undeclared reference to function 'timestamp'"),
     ("'a'.nope()", 0, "undeclared reference to function 'nope'"),
     ("ExprBinOp.Nope", 0, "enum 'ExprBinOp' has no member 'Nope'"),
+    # A flags value is not a number (C6.8, E4).
+    ("FieldAttr.Rand + 1", 0, "FieldAttr.Rand is a 'FieldAttr' flag, not a number: test a "
+     "flag with has_flag(x, FieldAttr.Rand)"),
+    ("int(FieldAttr.Rand)", 4, "FieldAttr.Rand is a 'FieldAttr' flag, not a number"),
+    ("has_flag(4, ExprBinOp.BinOp_Eq)", 12, "ExprBinOp.BinOp_Eq is a member of enum "
+     "'ExprBinOp', which is not a set of flags"),
     ("int.x", 0, "type 'int' has no member 'x'"),
     ("1 + 'a'", 0, "no matching overload for '+' applied to (int, string); it takes "
      "int + int -> int, double + double -> double, string + string -> string or "

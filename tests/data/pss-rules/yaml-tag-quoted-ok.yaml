@@ -1,0 +1,15 @@
+pss-rules:
+  rules:
+    - id: ACME001
+      name: a
+      tier: style
+      summary: s
+      message: m
+      match: { kind: Action }
+      where: "!node.name.id.endsWith('_a')"
+      let:
+        quoted: '!node.name.id.startsWith("x")'
+        block: >-
+          !node.name.id.startsWith("y")
+
+# loads: ACME001

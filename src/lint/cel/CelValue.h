@@ -59,7 +59,9 @@ struct Value {
     std::shared_ptr<const ValueMap>     map;
     std::shared_ptr<const Value>        opt;        // Optional: null for none
     NodeRef                             node;       // Node
-    const void                          *st = nullptr;  // Struct: owned by its node
+    // Struct: owned by its node. Null for a record (CelNode.h), whose
+    // members are `list`, in declaration order.
+    const void                          *st = nullptr;
 
     static Value null() { return Value(); }
     static Value unset(std::string field) { Value r; r.s = std::move(field); return r; }
@@ -91,6 +93,11 @@ struct Value {
     static Value mkNode(NodeRef n) { Value r; r.kind = Kind::Node; r.node = n; return r; }
     static Value mkStruct(const void *st, uint16_t type) {
         Value r; r.kind = Kind::Struct; r.st = st; r.i = type; return r;
+    }
+    static Value mkRecord(uint16_t type, ValueList members) {
+        Value r; r.kind = Kind::Struct; r.i = type;
+        r.list = std::make_shared<const ValueList>(std::move(members));
+        return r;
     }
     static Value type(std::string name) {
         Value r; r.kind = Kind::Type; r.s = std::move(name); return r;

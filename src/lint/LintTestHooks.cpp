@@ -244,6 +244,16 @@ void writeValue(JsonWriter &w, const cel::Value &v) {
             writeNode(w, v);
             break;
         case K::Struct: {
+            if (const cel::RecordInfo *ri = cel::recordInfo(static_cast<uint16_t>(v.i))) {
+                w.beginObject();
+                w.kv("struct", ri->name);
+                for (size_t i=0; i<ri->members.size() && v.list && i<v.list->size(); i++) {
+                    w.key(ri->members[i].name);
+                    writeValue(w, (*v.list)[i]);
+                }
+                w.endObject();
+                break;
+            }
             const pssp::ast::reflect::StructInfo &si =
                 pssp::ast::reflect::structs[static_cast<uint16_t>(v.i)];
             w.beginObject();
@@ -719,6 +729,18 @@ std::string LintTestHooks::celFunctions() {
         // Implemented by the evaluator itself (non-strict or lazy), so it
         // never appears in an eval's "calls".
         w.kv("evaluator", o->kind != cel::FnKind::Macro && !o->impl);
+        w.endObject();
+    }
+    w.endArray();
+    w.key("records").beginArray();
+    for (const cel::RecordInfo &ri : cel::records()) {
+        w.beginObject();
+        w.kv("name", ri.name).kv("doc", ri.doc);
+        w.key("members").beginArray();
+        for (const cel::RecordMember &m : ri.members) {
+            w.beginObject().kv("name", m.name).kv("type", m.type.str()).kv("doc", m.doc).endObject();
+        }
+        w.endArray();
         w.endObject();
     }
     w.endArray();
@@ -1202,6 +1224,17 @@ std::string LintTestHooks::lintRun(const std::string &name, const std::string &t
         std::unique_ptr<IMarker> m(run::Runner::toMarker(f));
         w.beginObject();
         w.kv("id", m->id()).kv("rule", f.rule->m_id).kv("in", f.in).kv("error", f.error);
+        w.kv("msg", m->msg()).kv("severity", sevNames[static_cast<int>(m->severity())]);
+        w.kv("line", static_cast<int64_t>(m->loc().lineno));
+        w.kv("col", static_cast<int64_t>(m->loc().linepos));
+        w.endObject();
+    }
+    w.endArray();
+    w.key("notes").beginArray();
+    for (const run::RuleNote &n : runner.notes()) {
+        std::unique_ptr<IMarker> m(run::Runner::toMarker(n));
+        w.beginObject();
+        w.kv("id", m->id()).kv("rule", n.rule ? n.rule->m_id : std::string()).kv("path", n.path);
         w.kv("msg", m->msg()).kv("severity", sevNames[static_cast<int>(m->severity())]);
         w.kv("line", static_cast<int64_t>(m->loc().lineno));
         w.kv("col", static_cast<int64_t>(m->loc().linepos));

@@ -104,7 +104,7 @@ def test_a_passing_example():
     assert r.ok and r.problems == []
     assert (r.rule, r.name, r.file, r.line, r.col) == ("ACME001", "fires", "acme.yaml", 11, 11)
     assert [(m["code"], m["file"], m["line"], m["col"]) for m in r.markers] == [
-        ("ACME001", "example.pss", 2, 3)]
+        ("ACME001", "example.pss", 2, 10)]
 
 
 def test_missing_and_unexpected():
@@ -118,11 +118,11 @@ def test_missing_and_unexpected():
 """)
     assert r.problems == [
         "expected ACME001 at line 3, but it was not reported",
-        "ACME001 was reported at 2:3, which the example does not expect"]
+        "ACME001 was reported at 2:10, which the example does not expect"]
     assert r.describe() == (
         "acme.yaml:11:11: ACME001 example 'wrong line'\n"
         "  expected ACME001 at line 3, but it was not reported\n"
-        "  ACME001 was reported at 2:3, which the example does not expect")
+        "  ACME001 was reported at 2:10, which the example does not expect")
 
 
 def test_a_near_miss_must_report_nothing():
@@ -133,7 +133,7 @@ def test_a_near_miss_must_report_nothing():
             }
 """)
     assert r.name == "example 1"
-    assert r.problems == ["ACME001 was reported at 2:3, which the example does not expect"]
+    assert r.problems == ["ACME001 was reported at 2:10, which the example does not expect"]
 
 
 def test_column_must_match_when_given():
@@ -145,7 +145,7 @@ def test_column_must_match_when_given():
 """)
     assert r.problems == [
         "expected ACME001 at 2:4, but it was not reported",
-        "ACME001 was reported at 2:3, which the example does not expect"]
+        "ACME001 was reported at 2:10, which the example does not expect"]
 
 
 def test_exact_expectations_are_matched_first():
@@ -203,7 +203,7 @@ def test_several_files_name_the_file():
               }
 """)
     assert r.problems == [
-        "ACME001 was reported at b.pss:2:3, which the example does not expect"]
+        "ACME001 was reported at b.pss:2:10, which the example does not expect"]
 
 
 def test_options_are_at_their_defaults():
@@ -340,7 +340,7 @@ def test_run_rules_runs_a_declarative_rule(tmp_path):
     model.write_text("component pss_top {\n  action write_burst { }\n}\n")
     diags = run_rules([model], ["action-name-upper-camel"],
                       rule_files=[EXAMPLES / "naming.yaml"])
-    assert [(d["code"], d["line"], d["col"]) for d in diags] == [("ACME001", 2, 3)]
+    assert [(d["code"], d["line"], d["col"]) for d in diags] == [("ACME001", 2, 10)]
 
 
 def test_run_rules_runs_only_the_selected_rules(tmp_path):

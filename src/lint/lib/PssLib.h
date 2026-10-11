@@ -27,7 +27,9 @@
  */
 #pragma once
 #include <cstdint>
+#include <set>
 #include <string>
+#include <utility>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -37,6 +39,8 @@
 namespace pssp {
 namespace ast {
 class IRootSymbolScope;
+class IScopeChild;
+class ITypeIdentifier;
 }
 namespace lint {
 namespace lib {
@@ -150,12 +154,58 @@ public:
      */
     bool namedPath(const rf::Node &n, std::string &path) const;
 
+    /**
+     * The declaration a type reference names (C6.8): a DataTypeUserDefined
+     * or a TypeIdentifier, through typedefs, to a type (TypeScope) or an
+     * enum. A template use gives its specialization. Null for a built-in
+     * type, an unresolved reference, a template parameter of a generic,
+     * and any other node. False when there is no model.
+     */
+    bool typeDecl(const rf::Node &n, rf::Node &decl) const;
+
+    /**
+     * The type a PSS name (`p::S`, `::S`; cel::splitTypePath) names,
+     * typedefs followed; null when the model has none (and the name is
+     * recorded, see unknownTypes()). Memoised. False when there is no model.
+     */
+    bool typeNamed(const std::string &path, rf::Node &decl) const;
+
+    /**
+     * Whether type `t` is `base` or inherits from it, following `super_t`
+     * from `t` itself. A specialization matches its generic, so a generic
+     * `base` matches every specialization. `steps`: one per type visited.
+     */
+    bool derivesFrom(const rf::Node &t, const rf::Node &base, uint64_t &steps) const;
+
+    /** A type name typeNamed() did not find, with the rule and node it was asked for. */
+    struct UnknownType {
+        const void      *rule;
+        rf::Node        node;
+        std::string     path;
+    };
+
+    /** What the runner is evaluating, recorded with an unknown type name. */
+    void setCurrent(const void *rule, const rf::Node &node) const {
+        m_curRule = rule;
+        m_curNode = node;
+    }
+
+    /** Each (rule, unknown type name), once, in the order first asked. */
+    const std::vector<UnknownType> &unknownTypes() const { return m_unknown; }
+
     uint64_t numIndexed() const { return m_parent.size(); }
 
 private:
     void indexTree(const rf::Node &root, bool owned) const;
     void indexModel() const;
     void collectSymbols() const;
+    // The type or enum `sc` stands for: a symbol-tree node unwrapped,
+    // typedefs and bound template parameters followed; null for another.
+    ast::IScopeChild *typeOf(ast::IScopeChild *sc) const;
+    // What a type name names, unwrapped no further: its target path, else
+    // (a generic's base) its identifier's binding.
+    ast::IScopeChild *resolveTypeId(ast::ITypeIdentifier *tid) const;
+    void mapGenerics() const;
     int32_t segmentNumber(const rf::Node &scope, const rf::Node &seg) const;
     // The path, and whether the walk down to `n` reached it as a segment.
     std::string buildPath(const rf::Node &n, uint64_t &steps, bool &reached) const;
@@ -175,6 +225,15 @@ private:
     // numbered segment of each scope numbered so far.
     mutable std::unordered_map<const void *, int32_t>           m_segNum;
     mutable std::unordered_set<const void *>                    m_numbered;  // scopes done
+    // C6.8: type_named() results by path, a specialization's generic, and
+    // the unknown names asked for, by rule.
+    mutable std::unordered_map<std::string, rf::Node>           m_named;
+    mutable bool                                                m_genericsMapped = false;
+    mutable std::unordered_map<const void *, rf::Node>          m_generic;
+    mutable const void                                          *m_curRule = nullptr;
+    mutable rf::Node                                            m_curNode;
+    mutable std::vector<UnknownType>                            m_unknown;
+    mutable std::set<std::pair<const void *, std::string>>      m_unknownSeen;
 };
 
 }

@@ -312,6 +312,10 @@ private:
             case K::TypeType:
                 out = (a.param == b.param) ? a : Type(K::TypeType);
                 return true;
+            case K::Int:
+                // Values of one enum stay tagged; anything else is an int.
+                out = (a.param == b.param) ? a : Type(K::Int);
+                return true;
             case K::Param:
                 // An uninstantiated signature parameter; never reaches here.
                 out = a;
@@ -636,6 +640,7 @@ private:
                 c->cval.i = v;
                 c->name.clear();
                 t = Type(Type::Kind::Int);
+                t.param = r.param;
                 return c;
             }
             error(e->begin, isEnum(r.param) ?
@@ -1077,7 +1082,96 @@ private:
         if (name == "matches" && t.kind != Type::Kind::Error) {
             literalPattern(target ? e->args[0].get() : e->args[1].get(), *c, t);
         }
+        if (t.kind != Type::Kind::Error) {
+            flagsOperands(e, name, types, t);
+        }
+        if ((name == "type_named" || name == "derives_from") && !target
+                && t.kind != Type::Kind::Error) {
+            literalTypePath(e->args[name == "type_named" ? 0 : 1].get(), t);
+        }
         return c;
+    }
+
+    // The enum an int is a value of, or "".
+    std::string enumOf(const Type &t) {
+        Type r = resolve(t);
+        return (r.kind == Type::Kind::Int) ? r.param : std::string();
+    }
+
+    // An argument as written, for a message: `FieldAttr.Rand`, `node.attr`.
+    static std::string spelled(const Expr *e) {
+        std::string path, root;
+        if (pathOf(e, path, root)) {
+            return path;
+        }
+        return "the argument";
+    }
+
+    // Flags words (C6.8; E4 of linter-post-readiness-2026-10-11.md). A
+    // flags value is tested with has_flag(); used as a number (int(), string(),
+    // arithmetic, ordering) it would depend on the bit values, which are the
+    // AST's, not the rule format's. has_flag() takes ints, but a constant of
+    // the wrong enum, or of one that is not flags, is an error.
+    void flagsOperands(const Expr *e, const std::string &name, const std::vector<Type> &types,
+            Type &t) {
+        static const std::unordered_set<std::string> numeric = {
+            "int", "double", "string", "_+_", "_-_", "_*_", "_/_", "_%_", "-_",
+            "_<_", "_<=_", "_>_", "_>=_"};
+        std::vector<const Expr *> args;
+        if (e->operand) {
+            args.push_back(e->operand.get());
+        }
+        for (const ExprUP &a : e->args) {
+            args.push_back(a.get());
+        }
+        if (name == "has_flag" && types.size() == 2) {
+            std::string word = enumOf(types[0]), flag = enumOf(types[1]);
+            if (!word.empty() && !isFlagsEnum(word)) {
+                error(args[0]->begin, "has_flag() tests a set of flags, and " + spelled(args[0])
+                    + " is a '" + word + "' value, which is not one; compare it with == instead");
+                t = Type(Type::Kind::Error);
+            } else if (!flag.empty() && !isFlagsEnum(flag)) {
+                error(args[1]->begin, spelled(args[1]) + " is a member of enum '" + flag
+                    + "', which is not a set of flags");
+                t = Type(Type::Kind::Error);
+            } else if (!word.empty() && !flag.empty() && word != flag) {
+                error(args[1]->begin, spelled(args[1]) + " is not a '" + word + "' flag, and "
+                    + spelled(args[0]) + " is a set of '" + word + "' flags");
+                t = Type(Type::Kind::Error);
+            }
+            return;
+        }
+        if (!numeric.count(name)) {
+            return;
+        }
+        for (size_t i=0; i<types.size() && i<args.size(); i++) {
+            std::string en = enumOf(types[i]);
+            if (en.empty() || !isFlagsEnum(en)) {
+                continue;
+            }
+            const Expr *a = args[i];
+            bool constant = a->kind == ExprKind::Select && a->operand
+                && a->operand->kind == ExprKind::Ident && a->operand->name == en;
+            std::string word = (constant || spelled(a) == "the argument") ? "x" : spelled(a);
+            error(a->begin, spelled(a) + (constant ? " is a '" + en + "' flag" :
+                " is a set of '" + en + "' flags") + ", not a number: test a flag with has_flag("
+                + word + ", " + en + "." + (constant ? a->name : std::string("<flag>")) + ")");
+            t = Type(Type::Kind::Error);
+            return;
+        }
+    }
+
+    // type_named() and derives_from() with a literal path: it must be a PSS
+    // type name, `p::S` or `::S`, with no template arguments.
+    void literalTypePath(const Expr *path, Type &t) {
+        if (path->kind != ExprKind::Const || path->cval.kind != Const::Kind::String) {
+            return;
+        }
+        std::string why;
+        if (!typePathValid(path->cval.s, why)) {
+            error(path->begin, "'" + path->cval.s + "' is not a PSS type name: " + why);
+            t = Type(Type::Kind::Error);
+        }
     }
 
     // `n.isa(Action)`, `enclosing(n, Action)`: the operand must be a node

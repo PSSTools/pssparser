@@ -84,7 +84,7 @@
     "tag.yaml",
     "x: !!str 1\n"
    ],
-   "out": "{\"ok\":false,\"error\":{\"message\":\"YAML tags ('!...') are not supported in rule files\",\"line\":1,\"col\":10,\"offset\":9}}"
+   "out": "{\"ok\":false,\"error\":{\"message\":\"YAML reads a leading '!' as a tag, which rule files do not use; if this is a CEL expression, quote it, or use a block scalar (>-)\",\"line\":1,\"col\":4,\"offset\":3}}"
   },
   {
    "id": "yaml:multi-doc",
@@ -798,7 +798,7 @@
     "tag.yaml",
     "x: !!str 1\n"
    ],
-   "out": "{\"ok\":false,\"error\":{\"message\":\"YAML tags ('!...') are not supported in rule files\",\"line\":1,\"col\":10,\"offset\":9}}"
+   "out": "{\"ok\":false,\"error\":{\"message\":\"YAML reads a leading '!' as a tag, which rule files do not use; if this is a CEL expression, quote it, or use a block scalar (>-)\",\"line\":1,\"col\":4,\"offset\":3}}"
   },
   {
    "id": "yaml-map:multi-doc",
@@ -1765,8 +1765,8 @@
    "id": "cel-functions",
    "fn": "CelFunctions",
    "args": [],
-   "sha256": "f9854e63fddcb471083f6a69821d0f2371a799d1f9b8d871046a015783ab08f7",
-   "len": 46000
+   "sha256": "2e114bfaa8040fcded2bdfc35cc1fba607f273d48381bc9bcd2b09b9326fb9d2",
+   "len": 53020
   },
   {
    "id": "cel-check:ok.yaml",
@@ -2558,6 +2558,55 @@
    "out": "{\"loaded\":false,\"rules\":[],\"diagnostics\":[{\"code\":\"PSSP218\",\"severity\":\"error\",\"message\":\"YAML syntax error: missing terminating ]\",\"file\":\"yaml-syntax.yaml\",\"line\":3,\"col\":1,\"rule\":\"\"}]}"
   },
   {
+   "id": "rule-load:yaml-tag-define.yaml",
+   "fn": "RuleLoad",
+   "args": [
+    "yaml-tag-define.yaml",
+    null,
+    0
+   ],
+   "file": "tests/data/pss-rules/yaml-tag-define.yaml",
+   "fileArg": 1,
+   "out": "{\"loaded\":false,\"rules\":[],\"diagnostics\":[{\"code\":\"PSSP218\",\"severity\":\"error\",\"message\":\"YAML reads a leading '!' as a tag, which rule files do not use; if this is a CEL expression, quote it, or use a block scalar (>-)\",\"file\":\"yaml-tag-define.yaml\",\"line\":3,\"col\":13,\"rule\":\"\"}]}"
+  },
+  {
+   "id": "rule-load:yaml-tag-let.yaml",
+   "fn": "RuleLoad",
+   "args": [
+    "yaml-tag-let.yaml",
+    null,
+    0
+   ],
+   "file": "tests/data/pss-rules/yaml-tag-let.yaml",
+   "fileArg": 1,
+   "out": "{\"loaded\":false,\"rules\":[],\"diagnostics\":[{\"code\":\"PSSP218\",\"severity\":\"error\",\"message\":\"YAML reads a leading '!' as a tag, which rule files do not use; if this is a CEL expression, quote it, or use a block scalar (>-)\",\"file\":\"yaml-tag-let.yaml\",\"line\":10,\"col\":14,\"rule\":\"\"}]}"
+  },
+  {
+   "id": "rule-load:yaml-tag-quoted-ok.yaml",
+   "fn": "RuleLoad",
+   "args": [
+    "yaml-tag-quoted-ok.yaml",
+    null,
+    0
+   ],
+   "file": "tests/data/pss-rules/yaml-tag-quoted-ok.yaml",
+   "fileArg": 1,
+   "sha256": "4a0522759d93f1d1a227c2ac7c8f3c3a7ad929e0c141833848983127f54037f5",
+   "len": 643
+  },
+  {
+   "id": "rule-load:yaml-tag-where.yaml",
+   "fn": "RuleLoad",
+   "args": [
+    "yaml-tag-where.yaml",
+    null,
+    0
+   ],
+   "file": "tests/data/pss-rules/yaml-tag-where.yaml",
+   "fileArg": 1,
+   "out": "{\"loaded\":false,\"rules\":[],\"diagnostics\":[{\"code\":\"PSSP218\",\"severity\":\"error\",\"message\":\"YAML reads a leading '!' as a tag, which rule files do not use; if this is a CEL expression, quote it, or use a block scalar (>-)\",\"file\":\"yaml-tag-where.yaml\",\"line\":9,\"col\":14,\"rule\":\"\"}]}"
+  },
+  {
    "id": "rule-load:yaml-tag.yaml",
    "fn": "RuleLoad",
    "args": [
@@ -2567,7 +2616,7 @@
    ],
    "file": "tests/data/pss-rules/yaml-tag.yaml",
    "fileArg": 1,
-   "out": "{\"loaded\":false,\"rules\":[],\"diagnostics\":[{\"code\":\"PSSP218\",\"severity\":\"error\",\"message\":\"YAML tags ('!...') are not supported in rule files\",\"file\":\"yaml-tag.yaml\",\"line\":2,\"col\":16,\"rule\":\"\"}]}"
+   "out": "{\"loaded\":false,\"rules\":[],\"diagnostics\":[{\"code\":\"PSSP218\",\"severity\":\"error\",\"message\":\"YAML tags ('!...') are not supported in rule files\",\"file\":\"yaml-tag.yaml\",\"line\":2,\"col\":10,\"rule\":\"\"}]}"
   }
  ],
  "batches": [

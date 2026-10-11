@@ -1452,3 +1452,187 @@ The value of a constant integer expression, as the linker folds it: literals, ar
      - ``const_bool_node``
 
 ``const_int`` for a boolean expression: ``true``, ``false``, a comparison, ``!``, ``&&``, ``||``, ``in``, or a ``const bool``. ``optional.none()`` when it does not fold or is not boolean (a 1-bit unsigned value counts as one).
+
+Branches
+--------
+
+.. _lint-fn-branches-node:
+
+``branches``
+~~~~~~~~~~~~
+
+**Level:** L0; **Scope:** file
+
+.. list-table::
+   :header-rows: 1
+
+   * - Signature
+     - Cost
+     - Overload
+   * - ``branches(node) -> list(Branch)``
+     - custom
+     - ``branches_node``
+
+The alternatives of a choice or concurrency statement, in source order, as ``Branch`` records: an activity ``select`` (with each branch's guard and weight), an activity or procedural ``match`` (``is_default`` for ``default``), an activity or procedural ``if``/``else`` (the ``else`` is ``is_default``; an activity ``else if`` is one ``else`` branch holding the inner ``if``, which has branches of its own), and the statements of a ``parallel`` or ``schedule`` (not a schedule's ordering constraints or a ``bind``). ``[]`` for any other node, and for ``null``. Guards and weights are expressions: fold them with ``const_bool`` and ``const_int``. One step per branch.
+
+.. _lint-fn-ranges-node:
+
+``ranges``
+~~~~~~~~~~
+
+**Level:** L3; **Scope:** file
+
+.. list-table::
+   :header-rows: 1
+
+   * - Signature
+     - Cost
+     - Overload
+   * - ``ranges(node) -> optional(list(Range))``
+     - custom
+     - ``ranges_node``
+
+The values a match choice, a range list or one range covers, folded as ``const_int`` folds: a match choice (``ActivityMatchChoice``, ``ProceduralStmtMatchChoice``, or a ``Branch``'s ``node``), an ``ExprOpenRangeList`` (a match choice's ``cond``), an ``in`` range list (``ExprDomainOpenRangeList``), or one range of either, or a ``dist`` item's ``range``. ``optional.none()`` when any bound does not fold, for an open range (``..5``), for a coverpoint bin's range, and for any other node. A ``default`` choice lists no values: ``[]``. An error without a linked model. One step per range.
+
+Fields and types
+----------------
+
+.. _lint-fn-has-flag-int-int:
+
+``has_flag``
+~~~~~~~~~~~~
+
+**Level:** L0; **Scope:** file
+
+.. list-table::
+   :header-rows: 1
+
+   * - Signature
+     - Cost
+     - Overload
+   * - ``has_flag(int, int) -> bool``
+     - constant
+     - ``has_flag_int_int``
+
+Whether a flags word has every bit of a flag set: ``has_flag(node.attr, FieldAttr.Rand)`` for a ``rand`` field. The way to test a flag: a flags value is not a number, so ``int()``, arithmetic and ordering on one are check errors (its bit values belong to the AST, not the rule format). A constant of another enum is an error (``has_flag(node.attr, ExprBinOp.BinOp_Eq)``), and so is a first argument of a plain enum (compare those with ``==``).
+
+.. _lint-fn-type-decl-datatype:
+
+``type_decl``
+~~~~~~~~~~~~~
+
+**Level:** L1; **Scope:** file
+
+.. list-table::
+   :header-rows: 1
+
+   * - Signature
+     - Cost
+     - Overload
+   * - ``type_decl(DataType) -> optional(ScopeChild)``
+     - constant
+     - ``type_decl_DataType``
+   * - ``type_decl(TypeIdentifier) -> optional(ScopeChild)``
+     - constant
+     - ``type_decl_TypeIdentifier``
+
+``type_decl(DataType) -> optional(ScopeChild)``
+   The declaration a field's type names: ``type_decl(node.type)`` for a ``Field``. Typedefs are followed to the type or enum underneath. A template use gives its **specialization** (``S<4>`` and ``S<8>`` are two), whose base types and template parameters are bound, so ``derives_from`` and ``const_int`` see the arguments; ``resolves_to`` gives the generic instead. A specialization is in no file: it has no ``decl_path``, and ``is_owned`` is false. ``optional.none()`` for a built-in type (``int``, ``bit[8]``, ``string``), a template parameter of a generic, an unresolved name, and ``null``. Never an error, except without a linked model.
+
+``type_decl(TypeIdentifier) -> optional(ScopeChild)``
+   ``type_decl`` for a type as a name: a base type (``node.super_t``), an applied annotation's ``type``, a template type argument.
+
+.. _lint-fn-type-named-string:
+
+``type_named``
+~~~~~~~~~~~~~~
+
+**Level:** L1; **Scope:** file
+
+.. list-table::
+   :header-rows: 1
+
+   * - Signature
+     - Cost
+     - Overload
+   * - ``type_named(string) -> optional(ScopeChild)``
+     - constant
+     - ``type_named_string``
+
+The type a PSS name names, in the model being checked: ``type_named("addr_reg_pkg::addr_claim_base_s")``, ``type_named("::top_s")`` (the global package). Any type declaration: a struct, action, component, ..., an enum, an annotation; typedefs are followed, as ``type_decl`` does, so ``type_decl(node.type) == type_named("p::s")`` compares types. A generic template's name gives the generic, which no specialization equals: use ``derives_from`` to match any of them. The name is written without template arguments, and a literal one is checked when the rule loads. ``optional.none()`` when the model has no such type (a typo, or a package not compiled in), and the run reports that once per rule (PSSP223). Looked up once per run.
+
+.. _lint-fn-derives-from-node-string:
+
+``derives_from``
+~~~~~~~~~~~~~~~~
+
+**Level:** L1; **Scope:** file
+
+.. list-table::
+   :header-rows: 1
+
+   * - Signature
+     - Cost
+     - Overload
+   * - ``derives_from(node, string) -> bool``
+     - custom
+     - ``derives_from_node_string``
+
+Whether a type is the type named (``type_named``'s name) or inherits from it, through its base types (``super_t``), transitively: ``derives_from(t, "addr_reg_pkg::addr_claim_base_s")``. A type derives from itself. A **generic template's name matches every specialization** of it, and every type deriving from one: ``derives_from(t, "addr_reg_pkg::addr_claim_s")`` is true for ``transparent_addr_claim_s<>``. ``extend`` does not change a type's base. ``false`` for ``null``, for a node that is not a type, and for an unknown name (which is reported, PSSP223). One step per type visited.
+
+Records
+-------
+
+The struct types some PSS functions return. A member is read as a field (``b.guard``), and a record's name is a type (``type(b) == Branch``). Records compare member by member.
+
+.. _lint-record-branch:
+
+``Branch``
+~~~~~~~~~~
+
+One alternative of a ``select``, ``match``, ``if``/``else``, ``parallel`` or ``schedule``, as ``branches`` lists it.
+
+.. list-table::
+   :header-rows: 1
+
+   * - Member
+     - Type
+     - Description
+   * - ``node``
+     - ``node``
+     - What to report at: the branch's own node (``ActivitySelectBranch``, a match choice, a procedural ``if`` clause), or its body where it has none (an activity ``if``'s branches, any ``else``, a ``parallel``'s statements).
+   * - ``index``
+     - ``int``
+     - Its position among the branches, from 0.
+   * - ``guard``
+     - ``Expr``
+     - The condition that selects it: a ``select`` branch's guard, an ``if``'s condition; ``null`` when there is none.
+   * - ``weight``
+     - ``Expr``
+     - A ``select`` branch's weight, or ``null``.
+   * - ``body``
+     - ``ScopeChild``
+     - The statement it runs.
+   * - ``is_default``
+     - ``bool``
+     - Whether it is taken when no other is: a match's ``default``, or an ``else``.
+
+.. _lint-record-range:
+
+``Range``
+~~~~~~~~~
+
+A closed range of integer values, both ends included, as ``ranges`` folds it: ``lo == hi`` for a single value. Kept as written, so ``lo > hi`` is possible.
+
+.. list-table::
+   :header-rows: 1
+
+   * - Member
+     - Type
+     - Description
+   * - ``lo``
+     - ``int``
+     - The low end.
+   * - ``hi``
+     - ``int``
+     - The high end.

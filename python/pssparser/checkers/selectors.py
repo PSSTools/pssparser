@@ -238,6 +238,35 @@ class RuleSet:
                 enabled.add(md.id)
         return enabled
 
+    def overlay(
+        self,
+        enabled: Set[str],
+        select: Sequence[str] = (),
+        ignore: Sequence[str] = (),
+    ) -> Set[str]:
+        """Apply a later layer's *select* and *ignore* on top of *enabled*.
+
+        A rule that a selector of this layer matches is decided by this
+        layer alone (most specific wins, ties to *ignore*), whatever the
+        lower layers said; the others keep their state.  The command line's
+        ``--select`` / ``--ignore`` is such a layer over the configuration.
+        """
+        if not select and not ignore:
+            return set(enabled)
+        on = [self.parse(t) for t in select]
+        off = [self.parse(t) for t in ignore]
+        result = set(enabled)
+        for md in self.lint:
+            best_on = self._best(on, md)
+            best_off = self._best(off, md)
+            if best_on < 0 and best_off < 0:
+                continue
+            if best_on > best_off:
+                result.add(md.id)
+            else:
+                result.discard(md.id)
+        return result
+
     def expand(self, texts: Iterable[str], *, include_core_errors: bool = False
                ) -> Dict[str, Tuple[str, int]]:
         """Map each matching ID to ``(selector text, specificity)``, most

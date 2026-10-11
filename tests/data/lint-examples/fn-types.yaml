@@ -1,0 +1,74 @@
+# The field and type functions (lint-core-plan.md C6.8), each used by a rule
+# whose examples pin its behaviour, so the WebAssembly build is checked
+# against the native one through the lint-parity fixture. TEST-TYPES001 is
+# the claim rule of rule-authoring-requests-2026-10-10.md §1.2, the
+# acceptance target for C6.8.
+pss-rules:
+  defaults:
+    family: decl
+    tier: suspicious
+
+  rules:
+    - id: TEST-TYPES001
+      name: claim-not-rand
+      summary: An address or executor claim is not declared 'rand'
+      message: "claim '${node.name.id}' is not 'rand', so it is not allocated as written"
+      match: { kind: Field, inside: { kind: Action } }
+      let:
+        t: type_decl(node.type)
+      where: >-
+        !has_flag(node.attr, FieldAttr.Rand) && t.hasValue() &&
+        (derives_from(t.value(), "addr_reg_pkg::addr_claim_base_s") ||
+         derives_from(t.value(), "executor_pkg::executor_claim_s"))
+      examples:
+        - code: |
+            import addr_reg_pkg::*;
+            component pss_top {
+              transparent_addr_space_c<> mem;
+              action my_action {
+                transparent_addr_claim_s<> claim;     // expect: TEST-TYPES001
+              }
+            }
+        - name: rand claim
+          code: |
+            import addr_reg_pkg::*;
+            component pss_top {
+              transparent_addr_space_c<> mem;
+              action my_action { rand transparent_addr_claim_s<> claim; }
+            }
+        - name: a struct that merely contains a claim-like field name
+          code: |
+            component pss_top {
+              struct claim_s { rand bit[8] size; }
+              action my_action { claim_s claim; }
+            }
+        - name: through a typedef, a user-derived claim, and an executor claim
+          code: |
+            import addr_reg_pkg::*;
+            import executor_pkg::*;
+            component pss_top {
+              struct my_claim_s : addr_claim_s<> { }
+              typedef my_claim_s claim_t;
+              action my_action {
+                claim_t c1;                           // expect: TEST-TYPES001
+                executor_claim_s<> c2;                // expect: TEST-TYPES001
+                rand claim_t c3;
+              }
+            }
+
+    - id: TEST-TYPES002
+      name: legacy-type-field
+      summary: A field of the house's retired type
+      message: "field '${node.name.id}' is a legacy_s; use current_s"
+      match: { kind: Field }
+      where: type_decl(node.type) == type_named("::legacy_s")
+      examples:
+        - code: |
+            struct legacy_s { rand bit[8] v; }
+            struct current_s { rand bit[8] v; }
+            typedef legacy_s old_t;
+            component pss_top {
+              legacy_s a;                             // expect: TEST-TYPES002
+              old_t b;                                // expect: TEST-TYPES002
+              current_s c;
+            }

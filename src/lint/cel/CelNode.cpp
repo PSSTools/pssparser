@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include <cctype>
 #include <unordered_map>
 #include <vector>
 #include "Reflect.h"
@@ -106,6 +107,35 @@ private:
     std::unordered_map<std::string, uint16_t>               m_classes;
     std::unordered_map<std::string, uint16_t>               m_structs;
 };
+
+struct RecordTable {
+    std::vector<RecordInfo>                     infos;
+    std::unordered_map<std::string, uint16_t>   byName;
+};
+
+RecordTable &recordTable() {
+    static RecordTable t;
+    return t;
+}
+
+// The index of member `name` of a record, or -1.
+int32_t recordMember(const RecordInfo &ri, const std::string &name) {
+    for (size_t i=0; i<ri.members.size(); i++) {
+        if (ri.members[i].name == name) {
+            return static_cast<int32_t>(i);
+        }
+    }
+    return -1;
+}
+
+// A record value's member `index`, if the value is a record holding it.
+const Value *recordAt(const Value &obj, int32_t index) {
+    const RecordInfo *ri = recordInfo(static_cast<uint16_t>(obj.i));
+    if (!ri || !obj.list || index < 0 || static_cast<size_t>(index) >= obj.list->size()) {
+        return nullptr;
+    }
+    return &(*obj.list)[index];
+}
 
 const rf::StructFieldInfo *structMember(uint16_t type, const std::string &name) {
     if (type >= rf::numStructs) {
@@ -234,8 +264,14 @@ bool celType(rf::FieldType t, uint16_t target, Type &out) {
     switch (t) {
         case F::Bool: out = Type(Type::Kind::Bool); return true;
         case F::I8: case F::U8: case F::I16: case F::U16: case F::I32: case F::U32:
-        case F::I64: case F::U64: case F::Enum: case F::Flags:
+        case F::I64: case F::U64:
             out = Type(Type::Kind::Int); return true;
+        case F::Enum: case F::Flags:
+            // An int, tagged with its enum (CelType.h), so the checker can
+            // tell a flags word from a number (has_flag, C6.8).
+            out = Type(Type::Kind::Int);
+            out.param = (target < rf::numEnums) ? rf::enums[target].name : "";
+            return true;
         case F::F32: case F::F64: out = Type(Type::Kind::Double); return true;
         case F::String: out = Type(Type::Kind::String); return true;
         case F::Struct: out = Type::structType(target); return true;
@@ -249,6 +285,15 @@ bool celType(rf::FieldType t, uint16_t target, Type &out) {
 
 bool readField(const Value &obj, const std::string &name, Value &out, uint64_t &elems) {
     elems = 0;
+    if (const RecordInfo *ri = (obj.kind == Value::Kind::Struct) ?
+            recordInfo(static_cast<uint16_t>(obj.i)) : nullptr) {
+        const Value *m = recordAt(obj, recordMember(*ri, name));
+        if (!m) {
+            return false;
+        }
+        out = *m;
+        return true;
+    }
     if (obj.kind == Value::Kind::Struct) {
         const rf::StructFieldInfo *m = structMember(static_cast<uint16_t>(obj.i), name);
         if (!m) {
@@ -269,6 +314,15 @@ bool readField(const Value &obj, const std::string &name, Value &out, uint64_t &
 }
 
 bool hasField(const Value &obj, const std::string &name, bool &isSet) {
+    if (const RecordInfo *ri = (obj.kind == Value::Kind::Struct) ?
+            recordInfo(static_cast<uint16_t>(obj.i)) : nullptr) {
+        const Value *m = recordAt(obj, recordMember(*ri, name));
+        if (!m) {
+            return false;
+        }
+        isSet = (m->kind != Value::Kind::Null);
+        return true;
+    }
     if (obj.kind == Value::Kind::Struct) {
         const rf::StructFieldInfo *m = structMember(static_cast<uint16_t>(obj.i), name);
         if (!m) {
@@ -295,6 +349,9 @@ namespace {
 // right side when the left is an error, so `type(x) == K && x.f` can read f
 // of an x that is not a K: never trust the index without this.
 bool fieldAtValid(const Value &obj, int32_t index) {
+    if (obj.kind == Value::Kind::Struct && recordInfo(static_cast<uint16_t>(obj.i))) {
+        return recordAt(obj, index) != nullptr;
+    }
     if (obj.kind == Value::Kind::Struct) {
         return obj.i >= 0 && obj.i < rf::numStructs
             && index < rf::structs[obj.i].numFields;
@@ -310,7 +367,9 @@ bool readFieldAt(const Value &obj, int32_t index, Value &out, uint64_t &elems) {
     if (!fieldAtValid(obj, index)) {
         return false;
     }
-    if (obj.kind == Value::Kind::Struct) {
+    if (const Value *m = (obj.kind == Value::Kind::Struct) ? recordAt(obj, index) : nullptr) {
+        out = *m;
+    } else if (obj.kind == Value::Kind::Struct) {
         const rf::StructFieldInfo &m = rf::structs[obj.i].fields[index];
         out = convert(m.get(obj.st), m.name, elems);
     } else {
@@ -323,7 +382,9 @@ bool hasFieldAt(const Value &obj, int32_t index, bool &isSet) {
     if (!fieldAtValid(obj, index)) {
         return false;
     }
-    if (obj.kind == Value::Kind::Struct) {
+    if (const Value *m = (obj.kind == Value::Kind::Struct) ? recordAt(obj, index) : nullptr) {
+        isSet = (m->kind != Value::Kind::Null);
+    } else if (obj.kind == Value::Kind::Struct) {
         isSet = present(rf::structs[obj.i].fields[index].get(obj.st));
     } else {
         isSet = nodeFieldSet(rf::fields[index], obj.node);
@@ -370,6 +431,16 @@ std::vector<std::string> derivedFieldClasses(uint16_t cls, const std::string &na
 }
 
 bool structFieldType(uint16_t st, const std::string &name, FieldRef &out) {
+    if (const RecordInfo *ri = recordInfo(st)) {
+        int32_t i = recordMember(*ri, name);
+        if (i < 0) {
+            return false;
+        }
+        out.index = i;
+        out.type = ri->members[i].type;
+        out.error.clear();
+        return true;
+    }
     if (st >= rf::numStructs) {
         return false;
     }
@@ -392,11 +463,54 @@ bool lookupClass(const std::string &name, uint16_t &cls) {
 }
 
 bool lookupStruct(const std::string &name, uint16_t &st) {
-    return FieldIndex::get().st(name, st);
+    if (FieldIndex::get().st(name, st)) {
+        return true;
+    }
+    const RecordTable &t = recordTable();
+    auto it = t.byName.find(name);
+    if (it == t.byName.end()) {
+        return false;
+    }
+    st = it->second;
+    return true;
 }
 
 bool isEnum(const std::string &name) {
     return FieldIndex::get().enumInfo(name) != nullptr;
+}
+
+bool isFlagsEnum(const std::string &name) {
+    const rf::EnumInfo *ei = FieldIndex::get().enumInfo(name);
+    return ei && ei->flags;
+}
+
+bool splitTypePath(const std::string &path, std::vector<std::string> &segs, bool &global,
+        std::string &why) {
+    segs.clear();
+    global = (path.compare(0, 2, "::") == 0);
+    size_t i = global ? 2 : 0;
+    while (true) {
+        size_t b = i;
+        while (i < path.size() && (std::isalnum(static_cast<unsigned char>(path[i]))
+                || path[i] == '_')) {
+            i++;
+        }
+        bool ident = (i > b && !std::isdigit(static_cast<unsigned char>(path[b])));
+        if (ident) {
+            segs.push_back(path.substr(b, i - b));
+            if (i == path.size()) {
+                return true;
+            }
+        }
+        if (!ident || path.compare(i, 2, "::") != 0) {
+            why = (i < path.size() && path[i] == '<') ?
+                "write the generic's name without template arguments; it matches every "
+                "specialization" :
+                "write it as 'pkg::name', or '::name' for the global package";
+            return false;
+        }
+        i += 2;
+    }
 }
 
 bool isSubclass(uint16_t k, uint16_t base) {
@@ -425,16 +539,23 @@ const char *nodeClassName(uint16_t kind) {
 }
 
 const char *structName(uint16_t type) {
+    if (const RecordInfo *ri = recordInfo(type)) {
+        return ri->name.c_str();
+    }
     return (type < rf::numStructs) ? rf::structs[type].name : "struct";
 }
 
 bool lookupType(const std::string &name, Value &out) {
     const Value *t = FieldIndex::get().type(name);
-    if (!t) {
-        return false;
+    if (t) {
+        out = *t;
+        return true;
     }
-    out = *t;
-    return true;
+    if (recordTable().byName.count(name)) {
+        out = Value::type(name);
+        return true;
+    }
+    return false;
 }
 
 bool enumConstant(const std::string &type, const std::string &member, int64_t &out) {
@@ -479,6 +600,36 @@ bool structEquals(const Value &a, const Value &b) {
     }
     return true;
 }
+
+uint16_t defineRecord(const std::string &name, const std::string &doc,
+        std::vector<RecordMember> members) {
+    RecordTable &t = recordTable();
+    auto it = t.byName.find(name);
+    if (it != t.byName.end()) {
+        return it->second;      // a second registry (tests) defines it again
+    }
+    RecordInfo ri;
+    ri.id = static_cast<uint16_t>(rf::numStructs + t.infos.size());
+    ri.name = name;
+    ri.doc = doc;
+    ri.members = std::move(members);
+    t.byName.emplace(name, ri.id);
+    t.infos.push_back(std::move(ri));
+    return t.infos.back().id;
+}
+
+const RecordInfo *recordInfo(uint16_t type) {
+    const RecordTable &t = recordTable();
+    if (type < rf::numStructs || type - rf::numStructs >= t.infos.size()) {
+        return nullptr;
+    }
+    return &t.infos[type - rf::numStructs];
+}
+
+const std::vector<RecordInfo> &records() {
+    return recordTable().infos;
+}
+
 
 }
 }

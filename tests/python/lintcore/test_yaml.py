@@ -174,8 +174,9 @@ def test_multiline_plain_scalar_folds(load):
 # ------------------------------------------------------------ refusals ----
 
 @pytest.mark.parametrize("text,line,col,msg", [
-    ("x: !!str 1\n", 1, 10, "tags"),
-    ("x: !custom 1\n", 1, 12, "tags"),
+    ("x: !!str 1\n", 1, 4, "as a tag"),     # at the tag (B4)
+    ("x: !custom 1\n", 1, 4, "as a tag"),
+    ("where: !a && b\n", 1, 8, "quote it, or use a block scalar (>-)"),
     ("!!str k: 1\n", 1, 7, "tags"),          # at the key
     ("a: 1\n---\nb: 2\n", 3, 1, "one YAML document"),
     ("a: b: c\n", 1, 7, "two colons"),

@@ -196,6 +196,10 @@ class ResolvedConfig:
     lint_profile: Optional[str] = None
     lint_select: List[str] = field(default_factory=list)
     lint_ignore: List[str] = field(default_factory=list)
+    #: ``--select`` / ``--ignore``: a layer over ``lint_select`` /
+    #: ``lint_ignore``, so a command-line selector beats the configuration.
+    cli_lint_select: List[str] = field(default_factory=list)
+    cli_lint_ignore: List[str] = field(default_factory=list)
     rules_version: str = ""
     lint_rule_options: Dict[str, Dict[str, Any]] = field(default_factory=dict)
     show_hints: bool = False
@@ -744,6 +748,17 @@ def _apply_cli_overrides(cfg: ResolvedConfig, args) -> None:
         prior = cfg.provenance.get("lint.rules")
         cfg.provenance["lint.rules"] = (
             f"{prior} + command line" if prior else "command line")
+    for key, dest, attr in (("lint.select", "cli_select", "cli_lint_select"),
+                            ("lint.ignore", "cli_ignore", "cli_lint_ignore")):
+        texts = getattr(args, dest, None)
+        if texts:
+            # A layer over the configured list, not a replacement for it:
+            # '--select ACME' adds a rule file's rules to whatever the
+            # configuration already runs (E2).
+            setattr(cfg, attr, list(texts))
+            prior = cfg.provenance.get(key)
+            cfg.provenance[key] = (
+                f"{prior} + command line" if prior else "command line")
     if getattr(args, "no_baseline", False):
         if "lint.baseline" in cfg.provenance:
             overridden.append("lint.baseline")
@@ -1023,9 +1038,19 @@ def validate_against_registry(cfg: ResolvedConfig, manager) -> None:
                        ("lint.ignore", cfg.lint_ignore)):
         for text in texts:
             parse_or_fail(text, key, f"'{key}' names an")
+    for flag, texts in (("--select", cfg.cli_lint_select),
+                        ("--ignore", cfg.cli_lint_ignore)):
+        for text in texts:
+            try:
+                rules.parse(text)
+            except SelectorError as exc:
+                raise ConfigError(
+                    f"command line: '{flag}' names an {exc}") from None
     profile = cfg.lint_profile or taxonomy.DEFAULT_PROFILE
     cfg.lint_ids = {md.id for md in rules.lint}
-    cfg.lint_enabled = rules.resolve(profile, cfg.lint_select, cfg.lint_ignore)
+    cfg.lint_enabled = rules.overlay(
+        rules.resolve(profile, cfg.lint_select, cfg.lint_ignore),
+        cfg.cli_lint_select, cfg.cli_lint_ignore)
     cfg.lint_held_back = rules.held_back(profile)
 
     for name, options in cfg.lint_rule_options.items():
@@ -1107,8 +1132,10 @@ def format_show_config(cfg: ResolvedConfig) -> str:
     lines.append("")
     lines.append("Lint:")
     row("lint.profile", cfg.lint_profile or f"{taxonomy.DEFAULT_PROFILE}")
-    row("lint.select", ", ".join(cfg.lint_select) or "(none)")
-    row("lint.ignore", ", ".join(cfg.lint_ignore) or "(none)")
+    row("lint.select",
+        ", ".join(cfg.lint_select + cfg.cli_lint_select) or "(none)")
+    row("lint.ignore",
+        ", ".join(cfg.lint_ignore + cfg.cli_lint_ignore) or "(none)")
     row("lint.rules-version", cfg.rules_version or "(unpinned)")
     row("lint.baseline", cfg.baseline or "(none)")
     row("lint.rules", ", ".join(_display_path(Path(p)) for p, _ in cfg.lint_rules)

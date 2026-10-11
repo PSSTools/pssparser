@@ -1,0 +1,91 @@
+# The branch functions (lint-core-plan.md C6.5), each used by a rule whose
+# examples pin its behaviour, so the WebAssembly build is checked against the
+# native one through the lint-parity fixture. They are first drafts of R-2,
+# R-4 and R-5 (lint-framework-plan.md).
+pss-rules:
+  defaults:
+    family: activity
+    tier: suspicious
+
+  rules:
+    - id: TEST-BR001
+      name: overlapping-match
+      summary: A match choice whose values overlap an earlier choice's.
+      message: "this choice overlaps an earlier one"
+      match: { kind: [ActivityMatch, ProceduralStmtMatch] }
+      define:
+        overlap(a, b): >
+          ranges(a.node).value().exists(x,
+            ranges(b.node).value().exists(y, x.lo <= y.hi && y.lo <= x.hi))
+      let:
+        known: branches(node).filter(b, ranges(b.node).hasValue())
+      report: >
+        known.filter(b, known.exists(a, a.index < b.index && overlap(a, b))).map(b, b.node)
+      examples:
+        - code: |
+            component pss_top {
+              static const int K = 4;
+              action Sub { }
+              action A {
+                rand int m;
+                activity {
+                  match (m) {
+                    [1, 3..5]: do Sub;
+                    [K..K+2]: do Sub;   // expect: TEST-BR001
+                    [m]: do Sub;
+                    [7]: do Sub;
+                    default: do Sub;
+                  }
+                }
+                exec post_solve {
+                  match (m) {
+                    [0..2]: m = 1;
+                    [2]: m = 2;         // expect: TEST-BR001
+                  }
+                }
+              }
+            }
+
+    - id: TEST-BR002
+      name: unreachable-select-branch
+      summary: A select branch that can never be chosen.
+      message: "this branch is never selected"
+      match: { kind: ActivitySelect }
+      report: >
+        branches(node).filter(b, !const_bool(b.guard).orValue(true)
+          || const_int(b.weight).orValue(1) == 0).map(b, b.body)
+      examples:
+        - code: |
+            component pss_top {
+              action Sub { }
+              action A {
+                rand int m;
+                activity {
+                  select {
+                    (m > 0): do Sub;
+                    (false): do Sub;    // expect: TEST-BR002
+                    [0]: do Sub;        // expect: TEST-BR002
+                    [2]: do Sub;
+                  }
+                }
+              }
+            }
+
+    - id: TEST-BR003
+      name: one-branch
+      summary: A select or parallel with one branch.
+      message: "this ${node.isa(ActivitySelect) ? 'select' : 'parallel'} has one branch"
+      match: { kind: [ActivitySelect, ActivityParallel] }
+      where: size(branches(node)) == 1
+      examples:
+        - code: |
+            component pss_top {
+              action Sub { }
+              action A {
+                activity {
+                  select { do Sub; }        // expect: TEST-BR003
+                  parallel { do Sub; }      // expect: TEST-BR003
+                  parallel { do Sub; do Sub; }
+                }
+              }
+            }

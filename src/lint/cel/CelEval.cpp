@@ -101,6 +101,18 @@ bool celEquals(const Value &a, const Value &b) {
             // Identity: the same node, not an equal-looking one.
             return a.node.ptr == b.node.ptr;
         case Value::Kind::Struct:
+            if (a.list || b.list) {
+                // Records: member-wise.
+                if (!a.list || !b.list || a.i != b.i || a.list->size() != b.list->size()) {
+                    return false;
+                }
+                for (size_t i=0; i<a.list->size(); i++) {
+                    if (!celEquals((*a.list)[i], (*b.list)[i])) {
+                        return false;
+                    }
+                }
+                return true;
+            }
             return structEquals(a, b);
         case Value::Kind::Type:
             return a.s == b.s;

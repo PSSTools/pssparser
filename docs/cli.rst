@@ -20,7 +20,10 @@ Common options
 - ``--format {text,json,sarif,github}`` chooses the output format (see
   `Output formats`_); ``--json`` is the same as ``--format json``
 - ``--lint-profile NAME`` / ``--no-lint`` choose which lint rules report
-  (see :doc:`lint`); ``--show-hints`` prints ``hint`` diagnostics;
+  (see :doc:`lint`); ``--select SEL`` / ``--ignore SEL`` (repeatable)
+  enable or disable the rules a selector matches (see `Selecting rules`_),
+  on top of ``[lint] select`` and ``ignore``; ``--show-hints`` prints
+  ``hint`` diagnostics;
   ``--show-waived`` prints the findings a source waiver covered (see
   :doc:`waivers`)
 - ``--write-baseline PATH`` records the run's lint findings in a baseline
@@ -524,8 +527,8 @@ Selecting rules
 ===============
 
 Everywhere an ID is accepted -- ``[severity]`` keys, ``-Werror=``,
-``-Wno-error=``, ``[lint] select`` and ``ignore`` -- a **selector** is
-accepted too:
+``-Wno-error=``, ``--select``, ``--ignore``, ``[lint] select`` and
+``ignore`` -- a **selector** is accepted too:
 
 .. list-table::
    :header-rows: 1
@@ -594,7 +597,13 @@ Lint and output settings
 ``--lint-profile`` and ``--no-lint`` override ``lint.profile``;
 ``--baseline`` and ``--no-baseline`` override ``lint.baseline``.
 ``--rules`` adds to ``lint.rules`` rather than replacing it: the configured
-entries load first, then each ``--rules`` in order.  :doc:`lint`
+entries load first, then each ``--rules`` in order.  ``--select`` and
+``--ignore`` are a layer over ``lint.select`` and ``lint.ignore``: a rule
+that one of them matches is decided by the command line alone (most
+specific selector, ties to ``--ignore``), so ``--select ACME001`` turns on a
+rule the configuration ignores.  They work with ``--no-config``, and
+``--show-config`` lists them with the configured values, attributed to
+``command line``.  :doc:`lint`
 describes the profiles, pinning, baselines, and which files are linted.
 
 Warning policy

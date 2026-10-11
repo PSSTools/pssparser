@@ -69,6 +69,36 @@ pss-rules:
       where: size(node.super_t.elems) > 0
 """
 
+#: Every named-declaration kind, and a reported declaration: each finding is
+#: at the declaration's name, not across its body (linter-post-readiness E1).
+NAME_SPAN = """\
+pss-rules:
+  rules:
+    - id: ACME010
+      name: named
+      tier: suspicious
+      summary: s
+      message: m
+      match: { kind: [Component, Action, Struct, Field, EnumDecl, EnumItem, FunctionPrototype, PackageScope, FunctionDefinition] }
+    - id: ACME011
+      name: field-type
+      tier: suspicious
+      summary: s
+      message: m
+      match: { kind: Field }
+      report: >-
+        type(node.type) == DataTypeUserDefined
+          ? [resolves_to(node.type.type_id)] : []
+"""
+
+NAMED = """\
+component dma { action Xfer { rand S_t f_one; } }
+struct S_t { int x; }
+enum E_t { A, B }
+function void fn_a() { }
+package a::bb { }
+"""
+
 #: (id, rule files by path, inline rule files, sources, request)
 RUNS = [
     ("all-rules", EXAMPLE_FILES, [], [("m.pss", MODEL)], {}),
@@ -86,6 +116,7 @@ RUNS = [
     ("budget", EXAMPLE_FILES, [], [("m.pss", MODEL)],
      {"enabled": ["ACME002"], "maxSteps": 5}),
     ("failure", [], [("failing.yaml", FAILING)], [("m.pss", MODEL)], {}),
+    ("name-span", [], [("name-span.yaml", NAME_SPAN)], [("named.pss", NAMED)], {}),
     ("gate", EXAMPLE_FILES, [],
      [("bad.pss", "component pss_top { action b : Missing { } }\n")], {}),
     ("gate-nothing-enabled", EXAMPLE_FILES, [],

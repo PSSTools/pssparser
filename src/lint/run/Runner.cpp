@@ -88,6 +88,7 @@ void Runner::match(const rules::Rule &r, const rf::Node &n) {
         return;
     }
     auto t0 = std::chrono::steady_clock::now();
+    m_ctx.setCurrent(&r, n);
     evaluate(idx, r, n);
     m_stats[idx].ns += static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(
         std::chrono::steady_clock::now() - t0).count());
@@ -162,7 +163,11 @@ void Runner::evaluate(size_t idx, const rules::Rule &r, const rf::Node &n) {
         fd.rule = &r;
         fd.node = f;
         fd.severity = ruleSeverity(r);
-        fd.loc = locate(f);
+        // A named declaration is reported at its name, not across its
+        // body: a squiggle over a whole component is no use in an editor.
+        if (!Walker::nameLocation(f, fd.loc)) {
+            fd.loc = locate(f);
+        }
         vars.emplace_back("finding", nodeValue(f));
         fd.message = renderMessage(idx, r, f, vars);
         vars.pop_back();
@@ -370,6 +375,26 @@ IMarker *Runner::toMarker(const Finding &f) {
 
 IMarker *Runner::toMarker(const RuleFailure &f) {
     return new Marker(f.message, MarkerSeverityE::Warn, f.loc, f.code);
+}
+
+std::vector<RuleNote> Runner::notes() {
+    std::vector<RuleNote> out;
+    for (const lib::Context::UnknownType &u : m_ctx.unknownTypes()) {
+        RuleNote n;
+        n.rule = static_cast<const rules::Rule *>(u.rule);
+        n.path = u.path;
+        n.node = u.node;
+        n.loc = u.node ? locate(u.node) : ast::Location();
+        std::string rule = n.rule ? n.rule->m_id + " (" + n.rule->m_name + ")" : "a rule";
+        n.message = "rule " + rule + " names the type '" + u.path + "', which the model "
+            "does not have: type_named() gives none for it, and derives_from() false";
+        out.push_back(std::move(n));
+    }
+    return out;
+}
+
+IMarker *Runner::toMarker(const RuleNote &n) {
+    return new Marker(n.message, MarkerSeverityE::Info, n.loc, n.code);
 }
 
 IMarker *Runner::skippedMarker(uint32_t nErrors) {

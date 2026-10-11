@@ -249,6 +249,26 @@ def _build_parser() -> argparse.ArgumentParser:
              "LRM errors and the tool's own diagnostics are unaffected",
     )
     lint_grp.add_argument(
+        "--select",
+        action="append",
+        metavar="SEL",
+        dest="cli_select",
+        default=None,
+        help="Enable the lint rules matching SEL -- an ID, rule name, tier, "
+             "family:NAME or ID prefix such as a rule file's namespace -- on "
+             "top of the configuration (may be repeated)",
+    )
+    lint_grp.add_argument(
+        "--ignore",
+        action="append",
+        metavar="SEL",
+        dest="cli_ignore",
+        default=None,
+        help="Disable the lint rules matching SEL, on top of the "
+             "configuration; beats a --select of the same specificity "
+             "(may be repeated)",
+    )
+    lint_grp.add_argument(
         "--rules",
         action="append",
         metavar="PATH",

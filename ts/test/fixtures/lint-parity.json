@@ -1,14 +1,106 @@
 {
  "generator": "ts/scripts/gen-lint-parity-fixture.py",
  "ruleFiles": [
+  "tests/data/lint-examples/fn-branches.yaml",
   "tests/data/lint-examples/fn-const.yaml",
   "tests/data/lint-examples/fn-navigation.yaml",
   "tests/data/lint-examples/fn-refs.yaml",
   "tests/data/lint-examples/fn-symbols.yaml",
+  "tests/data/lint-examples/fn-types.yaml",
   "tests/data/lint-examples/naming.yaml",
   "tests/data/lint-examples/structure.yaml"
  ],
  "cases": [
+  {
+   "id": "example:TEST-BR001:example 1",
+   "kind": "example",
+   "rule": "TEST-BR001",
+   "name": "example 1",
+   "file": "tests/data/lint-examples/fn-branches.yaml",
+   "line": 25,
+   "col": 11,
+   "ok": true,
+   "markers": [
+    {
+     "code": "TEST-BR001",
+     "severity": "warning",
+     "message": "this choice overlaps an earlier one",
+     "file": "example.pss",
+     "line": 9,
+     "col": 10,
+     "extent": 1
+    },
+    {
+     "code": "TEST-BR001",
+     "severity": "warning",
+     "message": "this choice overlaps an earlier one",
+     "file": "example.pss",
+     "line": 18,
+     "col": 14,
+     "extent": -1
+    }
+   ]
+  },
+  {
+   "id": "example:TEST-BR002:example 1",
+   "kind": "example",
+   "rule": "TEST-BR002",
+   "name": "example 1",
+   "file": "tests/data/lint-examples/fn-branches.yaml",
+   "line": 58,
+   "col": 11,
+   "ok": true,
+   "markers": [
+    {
+     "code": "TEST-BR002",
+     "severity": "warning",
+     "message": "this branch is never selected",
+     "file": "example.pss",
+     "line": 8,
+     "col": 18,
+     "extent": 7
+    },
+    {
+     "code": "TEST-BR002",
+     "severity": "warning",
+     "message": "this branch is never selected",
+     "file": "example.pss",
+     "line": 9,
+     "col": 14,
+     "extent": 7
+    }
+   ]
+  },
+  {
+   "id": "example:TEST-BR003:example 1",
+   "kind": "example",
+   "rule": "TEST-BR003",
+   "name": "example 1",
+   "file": "tests/data/lint-examples/fn-branches.yaml",
+   "line": 81,
+   "col": 11,
+   "ok": true,
+   "markers": [
+    {
+     "code": "TEST-BR003",
+     "severity": "warning",
+     "message": "this select has one branch",
+     "file": "example.pss",
+     "line": 5,
+     "col": 7,
+     "extent": 18
+    },
+    {
+     "code": "TEST-BR003",
+     "severity": "warning",
+     "message": "this parallel has one branch",
+     "file": "example.pss",
+     "line": 6,
+     "col": 7,
+     "extent": 20
+    }
+   ]
+  },
   {
    "id": "example:TEST-CONST001:example 1",
    "kind": "example",
@@ -139,8 +231,8 @@
      "message": "A: 3 children, 14 descendants",
      "file": "example.pss",
      "line": 2,
-     "col": 3,
-     "extent": 81
+     "col": 10,
+     "extent": 1
     }
    ]
   },
@@ -265,8 +357,8 @@
      "message": "pss_top::a2 derives from base_c::base_a, declared elsewhere",
      "file": "top.pss",
      "line": 4,
-     "col": 3,
-     "extent": 30
+     "col": 10,
+     "extent": 2
     }
    ]
   },
@@ -292,6 +384,109 @@
    ]
   },
   {
+   "id": "example:TEST-TYPES001:example 1",
+   "kind": "example",
+   "rule": "TEST-TYPES001",
+   "name": "example 1",
+   "file": "tests/data/lint-examples/fn-types.yaml",
+   "line": 24,
+   "col": 11,
+   "ok": true,
+   "markers": [
+    {
+     "code": "TEST-TYPES001",
+     "severity": "warning",
+     "message": "claim 'claim' is not 'rand', so it is not allocated as written",
+     "file": "example.pss",
+     "line": 5,
+     "col": 32,
+     "extent": 5
+    }
+   ]
+  },
+  {
+   "id": "example:TEST-TYPES001:rand claim",
+   "kind": "example",
+   "rule": "TEST-TYPES001",
+   "name": "rand claim",
+   "file": "tests/data/lint-examples/fn-types.yaml",
+   "line": 32,
+   "col": 11,
+   "ok": true,
+   "markers": []
+  },
+  {
+   "id": "example:TEST-TYPES001:a struct that merely contains a claim-like field name",
+   "kind": "example",
+   "rule": "TEST-TYPES001",
+   "name": "a struct that merely contains a claim-like field name",
+   "file": "tests/data/lint-examples/fn-types.yaml",
+   "line": 39,
+   "col": 11,
+   "ok": true,
+   "markers": []
+  },
+  {
+   "id": "example:TEST-TYPES001:through a typedef, a user-derived claim, and an executor claim",
+   "kind": "example",
+   "rule": "TEST-TYPES001",
+   "name": "through a typedef, a user-derived claim, and an executor claim",
+   "file": "tests/data/lint-examples/fn-types.yaml",
+   "line": 45,
+   "col": 11,
+   "ok": true,
+   "markers": [
+    {
+     "code": "TEST-TYPES001",
+     "severity": "warning",
+     "message": "claim 'c1' is not 'rand', so it is not allocated as written",
+     "file": "example.pss",
+     "line": 7,
+     "col": 13,
+     "extent": 2
+    },
+    {
+     "code": "TEST-TYPES001",
+     "severity": "warning",
+     "message": "claim 'c2' is not 'rand', so it is not allocated as written",
+     "file": "example.pss",
+     "line": 8,
+     "col": 24,
+     "extent": 2
+    }
+   ]
+  },
+  {
+   "id": "example:TEST-TYPES002:example 1",
+   "kind": "example",
+   "rule": "TEST-TYPES002",
+   "name": "example 1",
+   "file": "tests/data/lint-examples/fn-types.yaml",
+   "line": 66,
+   "col": 11,
+   "ok": true,
+   "markers": [
+    {
+     "code": "TEST-TYPES002",
+     "severity": "warning",
+     "message": "field 'a' is a legacy_s; use current_s",
+     "file": "example.pss",
+     "line": 5,
+     "col": 12,
+     "extent": 1
+    },
+    {
+     "code": "TEST-TYPES002",
+     "severity": "warning",
+     "message": "field 'b' is a legacy_s; use current_s",
+     "file": "example.pss",
+     "line": 6,
+     "col": 9,
+     "extent": 1
+    }
+   ]
+  },
+  {
    "id": "example:ACME001:lower-case name",
    "kind": "example",
    "rule": "ACME001",
@@ -307,8 +502,8 @@
      "message": "action 'write_burst' is not UpperCamelCase",
      "file": "example.pss",
      "line": 2,
-     "col": 3,
-     "extent": 22
+     "col": 10,
+     "extent": 11
     }
    ]
   },
@@ -389,8 +584,8 @@
      "message": "action 'Ab' is shorter than 3 characters",
      "file": "example.pss",
      "line": 2,
-     "col": 3,
-     "extent": 13
+     "col": 10,
+     "extent": 2
     },
     {
      "code": "ACME003",
@@ -398,8 +593,8 @@
      "message": "struct 'Xy' is shorter than 3 characters",
      "file": "example.pss",
      "line": 2,
-     "col": 40,
-     "extent": 13
+     "col": 47,
+     "extent": 2
     }
    ]
   },
@@ -419,8 +614,8 @@
      "message": "struct 'Pq' is shorter than 3 characters",
      "file": "types.pss",
      "line": 2,
-     "col": 3,
-     "extent": 13
+     "col": 10,
+     "extent": 2
     }
    ]
   },
@@ -481,10 +676,12 @@
    "id": "run:all-rules",
    "kind": "run",
    "ruleFiles": [
+    "tests/data/lint-examples/fn-branches.yaml",
     "tests/data/lint-examples/fn-const.yaml",
     "tests/data/lint-examples/fn-navigation.yaml",
     "tests/data/lint-examples/fn-refs.yaml",
     "tests/data/lint-examples/fn-symbols.yaml",
+    "tests/data/lint-examples/fn-types.yaml",
     "tests/data/lint-examples/naming.yaml",
     "tests/data/lint-examples/structure.yaml"
    ],
@@ -498,9 +695,27 @@
    "request": {},
    "markers": [
     {
+     "code": "PSSP223",
+     "severity": "info",
+     "message": "rule TEST-TYPES002 (legacy-type-field) names the type '::legacy_s', which the model does not have: type_named() gives none for it, and derives_from() false",
+     "file": "m.pss",
+     "line": 2,
+     "col": 7,
+     "extent": 5
+    },
+    {
      "code": "TEST-REF001",
      "severity": "warning",
      "message": "pss_top::count is never used",
+     "file": "m.pss",
+     "line": 2,
+     "col": 7,
+     "extent": 5
+    },
+    {
+     "code": "TEST-TYPES002",
+     "severity": "warning",
+     "message": "field 'count' is a legacy_s; use current_s",
      "file": "m.pss",
      "line": 2,
      "col": 7,
@@ -512,8 +727,8 @@
      "message": "action 'write_burst' is not UpperCamelCase",
      "file": "m.pss",
      "line": 3,
-     "col": 3,
-     "extent": 149
+     "col": 10,
+     "extent": 11
     },
     {
      "code": "TEST-NAV004",
@@ -521,8 +736,8 @@
      "message": "write_burst: 5 children, 29 descendants",
      "file": "m.pss",
      "line": 3,
-     "col": 3,
-     "extent": 149
+     "col": 10,
+     "extent": 11
     },
     {
      "code": "TEST-NAV003",
@@ -537,6 +752,15 @@
      "code": "TEST-REF001",
      "severity": "warning",
      "message": "pss_top::write_burst::m_len is never used",
+     "file": "m.pss",
+     "line": 4,
+     "col": 17,
+     "extent": 5
+    },
+    {
+     "code": "TEST-TYPES002",
+     "severity": "warning",
+     "message": "field 'm_len' is a legacy_s; use current_s",
      "file": "m.pss",
      "line": 4,
      "col": 17,
@@ -564,6 +788,15 @@
      "code": "TEST-NAV005",
      "severity": "hint",
      "message": "len at 1 after pss_top::write_burst::m_len",
+     "file": "m.pss",
+     "line": 5,
+     "col": 17,
+     "extent": 3
+    },
+    {
+     "code": "TEST-TYPES002",
+     "severity": "warning",
+     "message": "field 'len' is a legacy_s; use current_s",
      "file": "m.pss",
      "line": 5,
      "col": 17,
@@ -602,8 +835,8 @@
      "message": "action 'Ab' is shorter than 3 characters",
      "file": "m.pss",
      "line": 11,
-     "col": 3,
-     "extent": 27
+     "col": 10,
+     "extent": 2
     },
     {
      "code": "ACME-NET001",
@@ -620,11 +853,32 @@
      "message": "struct 'Xy' is shorter than 3 characters",
      "file": "m.pss",
      "line": 12,
-     "col": 3,
-     "extent": 13
+     "col": 10,
+     "extent": 2
     }
    ],
    "stats": [
+    {
+     "id": "TEST-BR001",
+     "matches": 0,
+     "findings": 0,
+     "steps": 0,
+     "errors": 0
+    },
+    {
+     "id": "TEST-BR002",
+     "matches": 0,
+     "findings": 0,
+     "steps": 0,
+     "errors": 0
+    },
+    {
+     "id": "TEST-BR003",
+     "matches": 0,
+     "findings": 0,
+     "steps": 0,
+     "errors": 0
+    },
     {
      "id": "TEST-CONST001",
      "matches": 1,
@@ -717,6 +971,20 @@
      "errors": 0
     },
     {
+     "id": "TEST-TYPES001",
+     "matches": 2,
+     "findings": 0,
+     "steps": 18,
+     "errors": 0
+    },
+    {
+     "id": "TEST-TYPES002",
+     "matches": 3,
+     "findings": 3,
+     "steps": 27,
+     "errors": 0
+    },
+    {
      "id": "ACME001",
      "matches": 2,
      "findings": 1,
@@ -758,10 +1026,12 @@
    "id": "run:enabled-and-options",
    "kind": "run",
    "ruleFiles": [
+    "tests/data/lint-examples/fn-branches.yaml",
     "tests/data/lint-examples/fn-const.yaml",
     "tests/data/lint-examples/fn-navigation.yaml",
     "tests/data/lint-examples/fn-refs.yaml",
     "tests/data/lint-examples/fn-symbols.yaml",
+    "tests/data/lint-examples/fn-types.yaml",
     "tests/data/lint-examples/naming.yaml",
     "tests/data/lint-examples/structure.yaml"
    ],
@@ -793,8 +1063,8 @@
      "message": "action 'write_burst' is shorter than 12 characters",
      "file": "m.pss",
      "line": 3,
-     "col": 3,
-     "extent": 149
+     "col": 10,
+     "extent": 11
     },
     {
      "code": "ACME002",
@@ -811,8 +1081,8 @@
      "message": "action 'Ab' is shorter than 12 characters",
      "file": "m.pss",
      "line": 11,
-     "col": 3,
-     "extent": 27
+     "col": 10,
+     "extent": 2
     },
     {
      "code": "ACME003",
@@ -820,8 +1090,8 @@
      "message": "struct 'Xy' is shorter than 12 characters",
      "file": "m.pss",
      "line": 12,
-     "col": 3,
-     "extent": 13
+     "col": 10,
+     "extent": 2
     }
    ],
    "stats": [
@@ -846,10 +1116,12 @@
    "id": "run:request-problems",
    "kind": "run",
    "ruleFiles": [
+    "tests/data/lint-examples/fn-branches.yaml",
     "tests/data/lint-examples/fn-const.yaml",
     "tests/data/lint-examples/fn-navigation.yaml",
     "tests/data/lint-examples/fn-refs.yaml",
     "tests/data/lint-examples/fn-symbols.yaml",
+    "tests/data/lint-examples/fn-types.yaml",
     "tests/data/lint-examples/naming.yaml",
     "tests/data/lint-examples/structure.yaml"
    ],
@@ -881,8 +1153,8 @@
      "message": "action 'write_burst' is not UpperCamelCase",
      "file": "m.pss",
      "line": 3,
-     "col": 3,
-     "extent": 149
+     "col": 10,
+     "extent": 11
     }
    ],
    "stats": [
@@ -904,10 +1176,12 @@
    "id": "run:two-files",
    "kind": "run",
    "ruleFiles": [
+    "tests/data/lint-examples/fn-branches.yaml",
     "tests/data/lint-examples/fn-const.yaml",
     "tests/data/lint-examples/fn-navigation.yaml",
     "tests/data/lint-examples/fn-refs.yaml",
     "tests/data/lint-examples/fn-symbols.yaml",
+    "tests/data/lint-examples/fn-types.yaml",
     "tests/data/lint-examples/naming.yaml",
     "tests/data/lint-examples/structure.yaml"
    ],
@@ -930,8 +1204,8 @@
      "message": "action 'q_a' is not UpperCamelCase",
      "file": "top.pss",
      "line": 3,
-     "col": 3,
-     "extent": -1
+     "col": 19,
+     "extent": 3
     },
     {
      "code": "ACME001",
@@ -939,8 +1213,8 @@
      "message": "action 'b' is not UpperCamelCase",
      "file": "top.pss",
      "line": 4,
-     "col": 3,
-     "extent": 24
+     "col": 10,
+     "extent": 1
     },
     {
      "code": "ACME003",
@@ -948,8 +1222,8 @@
      "message": "action 'b' is shorter than 3 characters",
      "file": "top.pss",
      "line": 4,
-     "col": 3,
-     "extent": 24
+     "col": 10,
+     "extent": 1
     },
     {
      "code": "ACME-NET001",
@@ -964,6 +1238,15 @@
      "code": "ACME002",
      "severity": "hint",
      "message": "field 's' does not start with 'm_'",
+     "file": "top.pss",
+     "line": 4,
+     "col": 23,
+     "extent": 1
+    },
+    {
+     "code": "PSSP223",
+     "severity": "info",
+     "message": "rule TEST-TYPES002 (legacy-type-field) names the type '::legacy_s', which the model does not have: type_named() gives none for it, and derives_from() false",
      "file": "top.pss",
      "line": 4,
      "col": 23,
@@ -993,11 +1276,32 @@
      "message": "struct 'Pq' is shorter than 3 characters",
      "file": "types.pss",
      "line": 2,
-     "col": 3,
-     "extent": 13
+     "col": 10,
+     "extent": 2
     }
    ],
    "stats": [
+    {
+     "id": "TEST-BR001",
+     "matches": 0,
+     "findings": 0,
+     "steps": 0,
+     "errors": 0
+    },
+    {
+     "id": "TEST-BR002",
+     "matches": 0,
+     "findings": 0,
+     "steps": 0,
+     "errors": 0
+    },
+    {
+     "id": "TEST-BR003",
+     "matches": 0,
+     "findings": 0,
+     "steps": 0,
+     "errors": 0
+    },
     {
      "id": "TEST-CONST001",
      "matches": 0,
@@ -1090,6 +1394,20 @@
      "errors": 0
     },
     {
+     "id": "TEST-TYPES001",
+     "matches": 1,
+     "findings": 0,
+     "steps": 23,
+     "errors": 0
+    },
+    {
+     "id": "TEST-TYPES002",
+     "matches": 1,
+     "findings": 0,
+     "steps": 6,
+     "errors": 0
+    },
+    {
      "id": "ACME001",
      "matches": 2,
      "findings": 2,
@@ -1131,10 +1449,12 @@
    "id": "run:budget",
    "kind": "run",
    "ruleFiles": [
+    "tests/data/lint-examples/fn-branches.yaml",
     "tests/data/lint-examples/fn-const.yaml",
     "tests/data/lint-examples/fn-navigation.yaml",
     "tests/data/lint-examples/fn-refs.yaml",
     "tests/data/lint-examples/fn-symbols.yaml",
+    "tests/data/lint-examples/fn-types.yaml",
     "tests/data/lint-examples/naming.yaml",
     "tests/data/lint-examples/structure.yaml"
    ],
@@ -1213,13 +1533,160 @@
    "problems": []
   },
   {
+   "id": "run:name-span",
+   "kind": "run",
+   "ruleFiles": [],
+   "ruleTexts": [
+    {
+     "name": "name-span.yaml",
+     "text": "pss-rules:\n  rules:\n    - id: ACME010\n      name: named\n      tier: suspicious\n      summary: s\n      message: m\n      match: { kind: [Component, Action, Struct, Field, EnumDecl, EnumItem, FunctionPrototype, PackageScope, FunctionDefinition] }\n    - id: ACME011\n      name: field-type\n      tier: suspicious\n      summary: s\n      message: m\n      match: { kind: Field }\n      report: >-\n        type(node.type) == DataTypeUserDefined\n          ? [resolves_to(node.type.type_id)] : []\n"
+    }
+   ],
+   "sources": [
+    {
+     "name": "named.pss",
+     "text": "component dma { action Xfer { rand S_t f_one; } }\nstruct S_t { int x; }\nenum E_t { A, B }\nfunction void fn_a() { }\npackage a::bb { }\n"
+    }
+   ],
+   "request": {},
+   "markers": [
+    {
+     "code": "ACME010",
+     "severity": "warning",
+     "message": "m",
+     "file": "named.pss",
+     "line": 1,
+     "col": 11,
+     "extent": 3
+    },
+    {
+     "code": "ACME010",
+     "severity": "warning",
+     "message": "m",
+     "file": "named.pss",
+     "line": 1,
+     "col": 24,
+     "extent": 4
+    },
+    {
+     "code": "ACME010",
+     "severity": "warning",
+     "message": "m",
+     "file": "named.pss",
+     "line": 1,
+     "col": 40,
+     "extent": 5
+    },
+    {
+     "code": "ACME010",
+     "severity": "warning",
+     "message": "m",
+     "file": "named.pss",
+     "line": 2,
+     "col": 8,
+     "extent": 3
+    },
+    {
+     "code": "ACME011",
+     "severity": "warning",
+     "message": "m",
+     "file": "named.pss",
+     "line": 2,
+     "col": 8,
+     "extent": 3
+    },
+    {
+     "code": "ACME010",
+     "severity": "warning",
+     "message": "m",
+     "file": "named.pss",
+     "line": 2,
+     "col": 18,
+     "extent": 1
+    },
+    {
+     "code": "ACME010",
+     "severity": "warning",
+     "message": "m",
+     "file": "named.pss",
+     "line": 3,
+     "col": 6,
+     "extent": 3
+    },
+    {
+     "code": "ACME010",
+     "severity": "warning",
+     "message": "m",
+     "file": "named.pss",
+     "line": 3,
+     "col": 12,
+     "extent": 1
+    },
+    {
+     "code": "ACME010",
+     "severity": "warning",
+     "message": "m",
+     "file": "named.pss",
+     "line": 3,
+     "col": 15,
+     "extent": 1
+    },
+    {
+     "code": "ACME010",
+     "severity": "warning",
+     "message": "m",
+     "file": "named.pss",
+     "line": 4,
+     "col": 1,
+     "extent": -1
+    },
+    {
+     "code": "ACME010",
+     "severity": "warning",
+     "message": "m",
+     "file": "named.pss",
+     "line": 4,
+     "col": 15,
+     "extent": 4
+    },
+    {
+     "code": "ACME010",
+     "severity": "warning",
+     "message": "m",
+     "file": "named.pss",
+     "line": 5,
+     "col": 9,
+     "extent": 5
+    }
+   ],
+   "stats": [
+    {
+     "id": "ACME010",
+     "matches": 11,
+     "findings": 11,
+     "steps": 0,
+     "errors": 0
+    },
+    {
+     "id": "ACME011",
+     "matches": 2,
+     "findings": 1,
+     "steps": 18,
+     "errors": 0
+    }
+   ],
+   "problems": []
+  },
+  {
    "id": "run:gate",
    "kind": "run",
    "ruleFiles": [
+    "tests/data/lint-examples/fn-branches.yaml",
     "tests/data/lint-examples/fn-const.yaml",
     "tests/data/lint-examples/fn-navigation.yaml",
     "tests/data/lint-examples/fn-refs.yaml",
     "tests/data/lint-examples/fn-symbols.yaml",
+    "tests/data/lint-examples/fn-types.yaml",
     "tests/data/lint-examples/naming.yaml",
     "tests/data/lint-examples/structure.yaml"
    ],
@@ -1243,6 +1710,27 @@
     }
    ],
    "stats": [
+    {
+     "id": "TEST-BR001",
+     "matches": 0,
+     "findings": 0,
+     "steps": 0,
+     "errors": 0
+    },
+    {
+     "id": "TEST-BR002",
+     "matches": 0,
+     "findings": 0,
+     "steps": 0,
+     "errors": 0
+    },
+    {
+     "id": "TEST-BR003",
+     "matches": 0,
+     "findings": 0,
+     "steps": 0,
+     "errors": 0
+    },
     {
      "id": "TEST-CONST001",
      "matches": 0,
@@ -1335,6 +1823,20 @@
      "errors": 0
     },
     {
+     "id": "TEST-TYPES001",
+     "matches": 0,
+     "findings": 0,
+     "steps": 0,
+     "errors": 0
+    },
+    {
+     "id": "TEST-TYPES002",
+     "matches": 0,
+     "findings": 0,
+     "steps": 0,
+     "errors": 0
+    },
+    {
      "id": "ACME001",
      "matches": 0,
      "findings": 0,
@@ -1376,10 +1878,12 @@
    "id": "run:gate-nothing-enabled",
    "kind": "run",
    "ruleFiles": [
+    "tests/data/lint-examples/fn-branches.yaml",
     "tests/data/lint-examples/fn-const.yaml",
     "tests/data/lint-examples/fn-navigation.yaml",
     "tests/data/lint-examples/fn-refs.yaml",
     "tests/data/lint-examples/fn-symbols.yaml",
+    "tests/data/lint-examples/fn-types.yaml",
     "tests/data/lint-examples/naming.yaml",
     "tests/data/lint-examples/structure.yaml"
    ],

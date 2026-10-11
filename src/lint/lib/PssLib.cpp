@@ -27,6 +27,17 @@
 #include "pssp/IValInt.h"
 #include "pssp/ast/IField.h"
 #include "pssp/ast/ITemplateValueParamDecl.h"
+#include "pssp/ast/IDataTypeUserDefined.h"
+#include "pssp/ast/IEnumDecl.h"
+#include "pssp/ast/ISymbolEnumScope.h"
+#include "pssp/ast/ISymbolTypeScope.h"
+#include "pssp/ast/ITemplateCategoryTypeParamDecl.h"
+#include "pssp/ast/ITemplateGenericTypeParamDecl.h"
+#include "pssp/ast/ITypeIdentifier.h"
+#include "pssp/ast/ITypeScope.h"
+#include "pssp/ast/ITypedefDeclaration.h"
+#include "pssp/impl/NodeKind.h"
+#include "pssp/impl/TaskResolveSymbolPathRef.h"
 #include "../../Factory.h"
 #include "../../OccurrenceCollector.h"
 #include "ConstEval.h"
@@ -523,6 +534,191 @@ std::string Context::buildPath(const rf::Node &n, uint64_t &steps, bool &reached
     return path;
 }
 
+//* Types (C6.8)
+
+namespace {
+
+// A symbol-tree node as the AST declaration it wraps: an enum scope's
+// EnumDecl, a type scope's TypeScope (for a specialization, its copy).
+ast::IScopeChild *unwrapSymbol(ast::IScopeChild *c) {
+    for (int32_t depth=0; c && depth<16; depth++) {
+        if (ast::ISymbolEnumScope *es = NodeKind::cast<ast::ISymbolEnumScope>(c)) {
+            if (es->getDecl()) {
+                return es->getDecl();
+            }
+        }
+        ast::ISymbolChildrenScope *sc = NodeKind::cast<ast::ISymbolChildrenScope>(c);
+        if (sc && sc->getTarget() && sc->getTarget() != c) {
+            c = sc->getTarget();
+            continue;
+        }
+        break;
+    }
+    return c;
+}
+
+ast::ITypeIdentifier *typeIdOf(ast::IDataType *dt) {
+    ast::IDataTypeUserDefined *ud = NodeKind::cast<ast::IDataTypeUserDefined>(dt);
+    return ud ? ud->getType_id() : nullptr;
+}
+
+}
+
+ast::IScopeChild *Context::resolveTypeId(ast::ITypeIdentifier *tid) const {
+    if (!tid) {
+        return nullptr;
+    }
+    if (tid->getTarget()) {
+        return TaskResolveSymbolPathRef(Factory::inst()->getDebugMgr(), m_model)
+            .resolve(tid->getTarget());
+    }
+    // A generic template's base has no target path (only its
+    // specializations' are resolved), but its name is bound: the generic
+    // declaration, as resolves_to() gives it.
+    rf::Node decl;
+    rf::Node id = refIdent(rf::classify(static_cast<ast::IExpr *>(tid)));
+    return (id && declOf(id, decl) && decl) ? rf::asScopeChild(decl) : nullptr;
+}
+
+ast::IScopeChild *Context::typeOf(ast::IScopeChild *sc) const {
+    // Bounded: a typedef cycle is a link error, and must not spin here.
+    for (int32_t hops=0; sc && hops<32; hops++) {
+        sc = unwrapSymbol(sc);
+        ast::IDataType *next = nullptr;
+        if (NodeKind::cast<ast::ITypeScope>(sc) || NodeKind::cast<ast::IEnumDecl>(sc)) {
+            return sc;
+        } else if (ast::ITypedefDeclaration *td = NodeKind::cast<ast::ITypedefDeclaration>(sc)) {
+            next = td->getType();
+        } else if (NodeKind::cast<ast::ITemplateGenericTypeParamDecl>(sc)
+                || NodeKind::cast<ast::ITemplateCategoryTypeParamDecl>(sc)) {
+            // Bound in a specialization, which is in no file; in a file it
+            // is the generic's, and its default is not its value.
+            if (rootOf(rf::classify(sc))) {
+                return nullptr;
+            }
+            ast::ITemplateGenericTypeParamDecl *g =
+                NodeKind::cast<ast::ITemplateGenericTypeParamDecl>(sc);
+            next = g ? g->getDflt()
+                : NodeKind::cast<ast::ITemplateCategoryTypeParamDecl>(sc)->getDflt();
+        } else {
+            return nullptr;
+        }
+        sc = resolveTypeId(typeIdOf(next));
+    }
+    return nullptr;
+}
+
+bool Context::typeDecl(const rf::Node &n, rf::Node &decl) const {
+    decl = rf::Node();
+    if (!m_model) {
+        return false;
+    }
+    ast::ITypeIdentifier *tid = nullptr;
+    if (ast::IExpr *e = rf::asExpr(n)) {
+        tid = NodeKind::cast<ast::ITypeIdentifier>(e);
+    } else if (ast::IScopeChild *c = rf::asScopeChild(n)) {
+        tid = typeIdOf(NodeKind::cast<ast::IDataType>(c));
+    }
+    if (ast::IScopeChild *t = typeOf(resolveTypeId(tid))) {
+        decl = rf::classify(t);
+    }
+    return true;
+}
+
+bool Context::typeNamed(const std::string &path, rf::Node &decl) const {
+    decl = rf::Node();
+    if (!m_model) {
+        return false;
+    }
+    auto memo = m_named.find(path);
+    if (memo != m_named.end()) {
+        decl = memo->second;
+    } else {
+        std::vector<std::string> segs;
+        bool global;
+        std::string why;
+        ast::IScopeChild *found = nullptr;
+        if (cel::splitTypePath(path, segs, global, why)) {
+            // From the root: a package, then what it declares. `::S` and
+            // `S` both name the unnamed global package's S.
+            ast::ISymbolScope *scope = m_model;
+            for (size_t i=0; scope && i<segs.size(); i++) {
+                auto it = scope->getSymtab().find(segs[i]);
+                if (it == scope->getSymtab().end() || it->second < 0
+                        || it->second >= static_cast<int32_t>(scope->getChildren().size())) {
+                    found = nullptr;
+                    break;
+                }
+                found = scope->getChildren().at(it->second).get();
+                scope = NodeKind::cast<ast::ISymbolScope>(found);
+            }
+        }
+        ast::IScopeChild *t = typeOf(found);
+        decl = t ? rf::classify(t) : rf::Node();
+        m_named.emplace(path, decl);
+    }
+    if (!decl && m_unknownSeen.emplace(m_curRule, path).second) {
+        m_unknown.push_back({m_curRule, m_curNode, path});
+    }
+    return true;
+}
+
+void Context::mapGenerics() const {
+    if (m_genericsMapped || !m_model) {
+        return;
+    }
+    m_genericsMapped = true;
+    // Every type scope's specializations, through the whole symbol tree.
+    std::vector<ast::IScopeChild *> work{m_model};
+    while (!work.empty()) {
+        ast::IScopeChild *c = work.back();
+        work.pop_back();
+        if (ast::ISymbolTypeScope *ts = NodeKind::cast<ast::ISymbolTypeScope>(c)) {
+            for (const ast::ISymbolTypeScopeUP &sp : ts->getSpec_types()) {
+                if (sp && sp->getTarget() && ts->getTarget()) {
+                    m_generic.emplace(sp->getTarget(), rf::classify(ts->getTarget()));
+                }
+                work.push_back(sp.get());
+            }
+        }
+        if (ast::ISymbolChildrenScope *cs = NodeKind::cast<ast::ISymbolChildrenScope>(c)) {
+            for (const ast::IScopeChildUP &k : cs->getChildren()) {
+                if (NodeKind::cast<ast::ISymbolChildrenScope>(k.get())) {
+                    work.push_back(k.get());
+                }
+            }
+        }
+    }
+}
+
+bool Context::derivesFrom(const rf::Node &t, const rf::Node &base, uint64_t &steps) const {
+    if (!m_model || !t || !base) {
+        return false;
+    }
+    mapGenerics();
+    ast::IScopeChild *c = rf::asScopeChild(t);
+    std::unordered_set<const void *> seen;
+    // `extend`s do not change a type's base: super_t is the linker's.
+    for (; c && seen.insert(c).second; ) {
+        steps++;
+        if (c == base.ptr) {
+            return true;
+        }
+        auto g = m_generic.find(c);
+        if (g != m_generic.end() && g->second.ptr == base.ptr) {
+            return true;
+        }
+        ast::ITypeScope *ts = NodeKind::cast<ast::ITypeScope>(c);
+        if (!ts) {
+            break;
+        }
+        // A base on an inheritance ring is reported already; `seen` ends
+        // the walk round it.
+        c = typeOf(resolveTypeId(ts->getSuper_t()));
+    }
+    return false;
+}
+
 namespace {
 
 rf::Node toNode(const Value &v) {
@@ -867,6 +1063,207 @@ Value constBoolImpl(CallArgs &c) {
     }
     return Value::none();
 }
+
+//* Branches
+
+// Struct ids of the library's records, set when they are defined.
+uint16_t branchRecord = 0;
+uint16_t rangeRecord = 0;
+
+bool isa(const rf::Node &n, const char *cls) {
+    uint16_t k = classId(cls);
+    return n && k && cel::isSubclass(n.kind, k);
+}
+
+Value nodeOrNull(const Value &v) {
+    return (v.kind == Value::Kind::Node) ? v : Value::null();
+}
+
+void addBranch(cel::ValueList &out, const Value &node, const Value &guard, const Value &weight,
+        const Value &body, bool isDefault) {
+    out.push_back(Value::mkRecord(branchRecord, {node,
+        Value::integer(static_cast<int64_t>(out.size())), nodeOrNull(guard),
+        nodeOrNull(weight), nodeOrNull(body), Value::boolean(isDefault)}));
+}
+
+const cel::ValueList &elems(const Value &list) {
+    static const cel::ValueList empty;
+    return (list.kind == Value::Kind::List && list.list) ? *list.list : empty;
+}
+
+Value branchesImpl(CallArgs &c) {
+    cel::ValueList out;
+    rf::Node n = toNode(c[0]);
+    if (c[0].kind != Value::Kind::Node) {
+        // null: no branches
+    } else if (isa(n, "ActivitySelect")) {
+        Value list = field(n, "branches");
+        for (const Value &b : elems(list)) {
+            rf::Node bn = toNode(b);
+            addBranch(out, b, field(bn, "guard"), field(bn, "weight"), field(bn, "body"), false);
+        }
+    } else if (isa(n, "ActivityMatch") || isa(n, "ProceduralStmtMatch")) {
+        Value list = field(n, "choices");
+        for (const Value &ch : elems(list)) {
+            rf::Node cn = toNode(ch);
+            Value dflt = field(cn, "is_default");
+            addBranch(out, ch, Value::null(), Value::null(), field(cn, "body"),
+                dflt.kind == Value::Kind::Bool && dflt.b);
+        }
+    } else if (isa(n, "ActivityIfElse")) {
+        Value t = field(n, "true_s"), f = field(n, "false_s");
+        addBranch(out, nodeOrNull(t), field(n, "cond"), Value::null(), t, false);
+        if (f.kind == Value::Kind::Node) {
+            addBranch(out, f, Value::null(), Value::null(), f, true);
+        }
+    } else if (isa(n, "ProceduralStmtIfElse")) {
+        Value list = field(n, "if_then");
+        for (const Value &cl : elems(list)) {
+            rf::Node cn = toNode(cl);
+            addBranch(out, cl, field(cn, "cond"), Value::null(), field(cn, "body"), false);
+        }
+        Value f = field(n, "else_then");
+        if (f.kind == Value::Kind::Node) {
+            addBranch(out, f, Value::null(), Value::null(), f, true);
+        }
+    } else if (isa(n, "ActivityParallel") || isa(n, "ActivitySchedule")) {
+        // Each activity statement is a branch; a schedule's ordering
+        // constraints and a bind are not.
+        Value list = field(n, "children");
+        for (const Value &st : elems(list)) {
+            rf::Node sn = toNode(st);
+            if (st.kind == Value::Kind::Node && !isa(sn, "ActivitySchedulingConstraint")
+                    && !isa(sn, "ActivityBindStmt")) {
+                addBranch(out, st, Value::null(), Value::null(), st, false);
+            }
+        }
+    }
+    c.steps = out.size();
+    return Value::mkList(std::move(out));
+}
+
+// One range, folded; false when a bound does not fold or is open.
+bool foldRange(const Context &ctx, const Value &lhs, const Value &rhs, cel::ValueList &out) {
+    int64_t lo, hi;
+    bool isBool;
+    if (lhs.kind != Value::Kind::Node || !ctx.constFold(toNode(lhs), lo, isBool)) {
+        return false;
+    }
+    hi = lo;
+    if (rhs.kind == Value::Kind::Node && !ctx.constFold(toNode(rhs), hi, isBool)) {
+        return false;
+    }
+    out.push_back(Value::mkRecord(rangeRecord, {Value::integer(lo), Value::integer(hi)}));
+    return true;
+}
+
+bool foldRanges(const Context &ctx, const rf::Node &n, cel::ValueList &out, uint64_t &steps) {
+    if (isa(n, "ActivityMatchChoice") || isa(n, "ProceduralStmtMatchChoice")) {
+        Value dflt = field(n, "is_default");
+        if (dflt.kind == Value::Kind::Bool && dflt.b) {
+            return true;            // lists no values
+        }
+        Value cond = field(n, "cond");
+        return cond.kind == Value::Kind::Node && foldRanges(ctx, toNode(cond), out, steps);
+    }
+    if (isa(n, "ExprOpenRangeList") || isa(n, "ExprDomainOpenRangeList")) {
+        Value list = field(n, "values");
+        for (const Value &v : elems(list)) {
+            if (v.kind != Value::Kind::Node || !foldRanges(ctx, toNode(v), out, steps)) {
+                return false;
+            }
+        }
+        return true;
+    }
+    steps++;
+    if (isa(n, "ExprOpenRangeValue")) {
+        // A coverpoint bin's range is an ExprOpenRangeValue too, but there
+        // `5..` and `5` are written alike (no upper bound either way).
+        rf::Node p = ctx.parentOf(n);
+        if (!isa(p, "ExprOpenRangeList") && !isa(p, "DistItem")) {
+            return false;
+        }
+        return foldRange(ctx, field(n, "lhs"), field(n, "rhs"), out);
+    }
+    if (isa(n, "ExprDomainOpenRangeValue")) {
+        Value single = field(n, "single");
+        if (single.kind == Value::Kind::Bool && single.b) {
+            return foldRange(ctx, field(n, "lhs"), Value::null(), out);
+        }
+        Value lhs = field(n, "lhs"), rhs = field(n, "rhs");
+        if (lhs.kind != Value::Kind::Node || rhs.kind != Value::Kind::Node) {
+            return false;           // open: `..5`, `5..`
+        }
+        return foldRange(ctx, lhs, rhs, out);
+    }
+    return false;
+}
+
+Value rangesImpl(CallArgs &c) {
+    const Context *ctx = context(c);
+    if (!ctx) {
+        return noContext("ranges");
+    }
+    if (!ctx->model()) {
+        return Value::error("ranges() needs a linked model, and this run has none");
+    }
+    cel::ValueList out;
+    if (c[0].kind != Value::Kind::Node || !foldRanges(*ctx, toNode(c[0]), out, c.steps)) {
+        return Value::none();
+    }
+    return Value::some(Value::mkList(std::move(out)));
+}
+
+//* Fields and types
+
+Value hasFlagImpl(CallArgs &c) {
+    return Value::boolean((c[0].i & c[1].i) == c[1].i);
+}
+
+Value typeDeclImpl(CallArgs &c) {
+    const Context *ctx = context(c);
+    if (!ctx) {
+        return noContext("type_decl");
+    }
+    rf::Node decl;
+    if (!ctx->typeDecl(c[0].kind == Value::Kind::Node ? toNode(c[0]) : rf::Node(), decl)) {
+        return Value::error("type_decl() needs a linked model, and this run has none");
+    }
+    return decl ? Value::some(nodeValue(decl)) : Value::none();
+}
+
+Value typeNamedImpl(CallArgs &c) {
+    const Context *ctx = context(c);
+    if (!ctx) {
+        return noContext("type_named");
+    }
+    std::string why;
+    if (!cel::typePathValid(c[0].s, why)) {
+        return Value::error("type_named(): '" + c[0].s + "' is not a PSS type name: " + why);
+    }
+    rf::Node decl;
+    if (!ctx->typeNamed(c[0].s, decl)) {
+        return Value::error("type_named() needs a linked model, and this run has none");
+    }
+    return decl ? Value::some(nodeValue(decl)) : Value::none();
+}
+
+Value derivesFromImpl(CallArgs &c) {
+    const Context *ctx = context(c);
+    if (!ctx) {
+        return noContext("derives_from");
+    }
+    std::string why;
+    if (!cel::typePathValid(c[1].s, why)) {
+        return Value::error("derives_from(): '" + c[1].s + "' is not a PSS type name: " + why);
+    }
+    rf::Node base;
+    if (!ctx->typeNamed(c[1].s, base)) {
+        return Value::error("derives_from() needs a linked model, and this run has none");
+    }
+    return Value::boolean(c[0].kind == Value::Kind::Node
+        && ctx->derivesFrom(toNode(c[0]), base, c.steps));
+}
 }
 
 namespace cel {
@@ -998,6 +1395,99 @@ void registerPssLib(FunctionRegistry &r) {
         "`const_int` for a boolean expression: `true`, `false`, a comparison, `!`, `&&`, "
         "`||`, `in`, or a `const bool`. `optional.none()` when it does not fold or is not "
         "boolean (a 1-bit unsigned value counts as one).")
+        .nullable = true;
+
+
+    r.group("Branches");
+    branchRecord = cel::defineRecord("Branch",
+        "One alternative of a `select`, `match`, `if`/`else`, `parallel` or `schedule`, as "
+        "`branches` lists it.", {
+            {"node", cel::Type::parse("node"), "What to report at: the branch's own node "
+                "(`ActivitySelectBranch`, a match choice, a procedural `if` clause), or its "
+                "body where it has none (an activity `if`'s branches, any `else`, a "
+                "`parallel`'s statements)."},
+            {"index", cel::Type::parse("int"), "Its position among the branches, from 0."},
+            {"guard", cel::Type::parse("Expr"), "The condition that selects it: a `select` "
+                "branch's guard, an `if`'s condition; `null` when there is none."},
+            {"weight", cel::Type::parse("Expr"), "A `select` branch's weight, or `null`."},
+            {"body", cel::Type::parse("ScopeChild"), "The statement it runs."},
+            {"is_default", cel::Type::parse("bool"), "Whether it is taken when no other "
+                "is: a match's `default`, or an `else`."}});
+    rangeRecord = cel::defineRecord("Range",
+        "A closed range of integer values, both ends included, as `ranges` folds it: "
+        "`lo == hi` for a single value. Kept as written, so `lo > hi` is possible.", {
+            {"lo", cel::Type::parse("int"), "The low end."},
+            {"hi", cel::Type::parse("int"), "The high end."}});
+    r.level(Level::L0, Scope::File);
+    r.add("branches_node", "branches(node) -> list(Branch)", &branchesImpl, C::Custom,
+        "The alternatives of a choice or concurrency statement, in source order, as `Branch` "
+        "records: an activity `select` (with each branch's guard and weight), an activity or "
+        "procedural `match` (`is_default` for `default`), an activity or procedural "
+        "`if`/`else` (the `else` is `is_default`; an activity `else if` is one `else` "
+        "branch holding the inner `if`, which has branches of its own), and the statements "
+        "of a `parallel` or `schedule` (not a schedule's ordering constraints or a `bind`). "
+        "`[]` for any other node, and for `null`. Guards and weights are expressions: fold "
+        "them with `const_bool` and `const_int`. One step per branch.")
+        .nullable = true;
+    r.level(Level::L3, Scope::File);
+    r.add("ranges_node", "ranges(node) -> optional(list(Range))", &rangesImpl, C::Custom,
+        "The values a match choice, a range list or one range covers, folded as `const_int` "
+        "folds: a match choice (`ActivityMatchChoice`, `ProceduralStmtMatchChoice`, or a "
+        "`Branch`'s `node`), an `ExprOpenRangeList` (a match choice's `cond`), an `in` "
+        "range list (`ExprDomainOpenRangeList`), or one range of either, or a `dist` item's "
+        "`range`. `optional.none()` when any bound does not fold, for an open range "
+        "(`..5`), for a coverpoint bin's range, and for any other node. A `default` choice "
+        "lists no values: `[]`. An error without a linked model. One step per range.")
+        .nullable = true;
+
+    r.group("Fields and types");
+    r.level(Level::L0, Scope::File);
+    r.add("has_flag_int_int", "has_flag(int, int) -> bool", &hasFlagImpl, C::Constant,
+        "Whether a flags word has every bit of a flag set: `has_flag(node.attr, FieldAttr.Rand)` "
+        "for a `rand` field. The way to test a flag: a flags value is not a number, so "
+        "`int()`, arithmetic and ordering on one are check errors (its bit values belong to "
+        "the AST, not the rule format). A constant of another enum is an error "
+        "(`has_flag(node.attr, ExprBinOp.BinOp_Eq)`), and so is a first argument of a plain "
+        "enum (compare those with `==`).");
+    r.level(Level::L1, Scope::File);
+    r.add("type_decl_DataType", "type_decl(DataType) -> optional(ScopeChild)", &typeDeclImpl,
+        C::Constant,
+        "The declaration a field's type names: `type_decl(node.type)` for a `Field`. Typedefs "
+        "are followed to the type or enum underneath. A template use gives its "
+        "**specialization** (`S<4>` and `S<8>` are two), whose base types and template "
+        "parameters are bound, so `derives_from` and `const_int` see the arguments; "
+        "`resolves_to` gives the generic instead. A specialization is in no file: it has no "
+        "`decl_path`, and `is_owned` is false. `optional.none()` for a built-in type (`int`, "
+        "`bit[8]`, `string`), a template parameter of a generic, an unresolved name, and "
+        "`null`. Never an error, except without a linked model.")
+        .nullable = true;
+    r.add("type_decl_TypeIdentifier", "type_decl(TypeIdentifier) -> optional(ScopeChild)",
+        &typeDeclImpl, C::Constant,
+        "`type_decl` for a type as a name: a base type (`node.super_t`), an applied "
+        "annotation's `type`, a template type argument.")
+        .nullable = true;
+    r.add("type_named_string", "type_named(string) -> optional(ScopeChild)", &typeNamedImpl,
+        C::Constant,
+        "The type a PSS name names, in the model being checked: `type_named(\"addr_reg_pkg::"
+        "addr_claim_base_s\")`, `type_named(\"::top_s\")` (the global package). Any type "
+        "declaration: a struct, action, component, ..., an enum, an annotation; typedefs "
+        "are followed, as `type_decl` does, so `type_decl(node.type) == type_named(\"p::s\")` "
+        "compares types. A generic template's name gives the generic, which no "
+        "specialization equals: use `derives_from` to match any of them. The name is "
+        "written without template arguments, and a literal one is checked when the rule "
+        "loads. `optional.none()` when the model has no such type (a typo, or a package not "
+        "compiled in), and the run reports that once per rule (PSSP223). Looked up once per "
+        "run.");
+    r.add("derives_from_node_string", "derives_from(node, string) -> bool", &derivesFromImpl,
+        C::Custom,
+        "Whether a type is the type named (`type_named`'s name) or inherits from it, through "
+        "its base types (`super_t`), transitively: `derives_from(t, \"addr_reg_pkg::"
+        "addr_claim_base_s\")`. A type derives from itself. A **generic template's name "
+        "matches every specialization** of it, and every type deriving from one: "
+        "`derives_from(t, \"addr_reg_pkg::addr_claim_s\")` is true for "
+        "`transparent_addr_claim_s<>`. `extend` does not change a type's base. `false` for "
+        "`null`, for a node that is not a type, and for an unknown name (which is reported, "
+        "PSSP223). One step per type visited.")
         .nullable = true;
 }
 

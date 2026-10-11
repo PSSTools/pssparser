@@ -89,6 +89,43 @@ const std::vector<int32_t> &locationFields() {
     return table;
 }
 
+// Per class: the index of its name field (inherited or declared), or -1:
+// `name` when it is an ExprId node, or `id` when it is a list of them (a
+// package's `a::b`). Other `name` fields -- a string, an annotation's
+// ExprRefName -- don't make a node a named declaration.
+const std::vector<int32_t> &nameFields() {
+    static const std::vector<int32_t> table = [] {
+        std::vector<int32_t> t(rf::NumClasses + 1, -1);
+        uint16_t exprId = 0;
+        for (uint16_t k=1; k<=rf::NumClasses; k++) {
+            if (std::string(rf::classes[k].name) == "ExprId") {
+                exprId = k;
+            }
+        }
+        for (uint16_t k=1; exprId && k<=rf::NumClasses; k++) {
+            for (uint16_t c=k; c && t[k] < 0; c=rf::classes[c].super) {
+                const rf::ClassInfo &ci = rf::classes[c];
+                for (uint16_t f=ci.firstField; f<ci.firstField+ci.numFields; f++) {
+                    const rf::FieldInfo &fi = rf::fields[f];
+                    if (fi.target != exprId) {
+                        continue;
+                    }
+                    if ((fi.type == rf::FieldType::Node
+                                && std::string(fi.name) == "name")
+                            || (fi.type == rf::FieldType::List
+                                && fi.elem == rf::FieldType::Node
+                                && std::string(fi.name) == "id")) {
+                        t[k] = f;
+                        break;
+                    }
+                }
+            }
+        }
+        return t;
+    }();
+    return table;
+}
+
 int32_t structMember(const rf::Value &st, const char *name) {
     const rf::StructInfo &si = rf::structs[st.type];
     for (uint16_t i=0; i<si.numFields; i++) {
@@ -280,6 +317,36 @@ bool Walker::location(const rf::Node &n, ast::Location &loc) {
     loc.linepos = structMember(v, "linepos");
     loc.extent = structMember(v, "extent");
     return loc.lineno > 0;
+}
+
+bool Walker::nameLocation(const rf::Node &n, ast::Location &loc) {
+    loc = ast::Location();
+    if (!n || n.kind > rf::NumClasses || nameFields()[n.kind] < 0) {
+        return false;
+    }
+    const rf::FieldInfo &f = rf::fields[nameFields()[n.kind]];
+    if (f.type == rf::FieldType::Node) {
+        rf::Value v = f.get(n.ptr, n.kind);
+        return v.kind == rf::Value::Kind::Node && location(v.n, loc);
+    }
+    // A qualified name: from its first segment to its last, when both are
+    // on one line; else just the first.
+    uint32_t sz = f.size(n.ptr, n.kind);
+    if (sz == 0) {
+        return false;
+    }
+    rf::Value first = f.at(n.ptr, n.kind, 0);
+    if (first.kind != rf::Value::Kind::Node || !location(first.n, loc)) {
+        return false;
+    }
+    ast::Location last;
+    rf::Value lv = f.at(n.ptr, n.kind, sz - 1);
+    if (sz > 1 && lv.kind == rf::Value::Kind::Node && location(lv.n, last)
+            && last.fileid == loc.fileid && last.lineno == loc.lineno
+            && last.extent > 0) {
+        loc.extent = last.linepos + last.extent - loc.linepos;
+    }
+    return true;
 }
 
 rf::Node Walker::parentOf(const rf::Node &n) const {

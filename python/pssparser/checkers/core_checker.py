@@ -1199,7 +1199,7 @@ class CoreChecker(CheckerBase):
                 "* ``'B' is an item an extension of 'E' in package 'p' adds, "
                 "which is not visible here (17.2.3); add 'import p::*;'``\n\n"
                 "The use still binds to the member, so later diagnostics "
-                "are measured against it.  A warning in 3.1.7; an error "
+                "are measured against it.  A warning in pssparser 3.1.7; an error "
                 "since (symbol-resolution plan §8).  Where two imported "
                 "packages each add the name, the use is ambiguous: PSS017."
             ),
@@ -1226,7 +1226,7 @@ class CoreChecker(CheckerBase):
                 "explicitly from two packages (18.1.3)``\n\n"
                 "The namespace is every statement of a package, or a "
                 "component and its extensions; two imports conflict only "
-                "within one statement.  A warning in 3.1.7; an error since "
+                "within one statement.  A warning in pssparser 3.1.7; an error since "
                 "(plan §8).  A use of a name two explicit imports provide is "
                 "PSS017."
             ),
@@ -2404,6 +2404,23 @@ class CoreChecker(CheckerBase):
                 "and its message gives the position in the example's text.  "
                 "Fix the rule or the example: an example is the rule's "
                 "documentation, so the two must agree."
+            ),
+        ),
+        MarkerDef(
+            id="PSSP223",
+            name="rule-unknown-type",
+            tier="tool",
+            severity="info",
+            summary="A lint rule names a type the model does not have",
+            detail=(
+                "A rule's ``type_named`` or ``derives_from`` names a PSS type "
+                "(``acme::claim_s``) that is not in the model being checked: "
+                "a typo, or a package that was not compiled in.  The rule "
+                "still runs, with ``type_named`` giving ``optional.none()`` "
+                "and ``derives_from`` false for that name, so it may report "
+                "nothing.  The note is given once per rule and name, at the "
+                "node the rule was evaluating when it first asked.  Fix the "
+                "name, or add the package's files to the run."
             ),
         ),
         MarkerDef(

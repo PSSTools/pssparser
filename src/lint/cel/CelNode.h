@@ -31,6 +31,11 @@
  *   non-empty, a scalar when not its zero value; a struct always.
  * - Class, struct and enum names are type values; an enum type's members are
  *   its constants: ExprBinOp.BinOp_Eq.
+ * - A record is a struct the function library defines for its results
+ *   (Branch, Range), not the schema: its members have CEL types, and its
+ *   value holds them (Value::mkRecord). It is a struct in every other way:
+ *   its name is a type, `r.member` reads it, has() is true for every member
+ *   but a null node.
  */
 #pragma once
 #include <cstdint>
@@ -64,6 +69,23 @@ bool lookupType(const std::string &name, Value &out);
 bool lookupClass(const std::string &name, uint16_t &cls);
 bool lookupStruct(const std::string &name, uint16_t &st);
 bool isEnum(const std::string &name);
+
+/** Whether `name` is an enum whose members are bit flags (FieldAttr). */
+bool isFlagsEnum(const std::string &name);
+
+/**
+ * Splits a PSS type name as type_named() takes it (C6.8): `p::q::S`, or
+ * `::S` for the unnamed global package; identifiers only, no template
+ * arguments, no spaces. False, with `why` set, for anything else.
+ */
+bool splitTypePath(const std::string &path, std::vector<std::string> &segs, bool &global,
+    std::string &why);
+
+inline bool typePathValid(const std::string &path, std::string &why) {
+    std::vector<std::string> segs;
+    bool global;
+    return splitTypePath(path, segs, global, why);
+}
 
 /** Whether class `k` is `base` or derives from it. */
 bool isSubclass(uint16_t k, uint16_t base);
@@ -105,6 +127,33 @@ bool enumConstant(const std::string &type, const std::string &member, int64_t &o
 
 /** Member-wise equality of two struct values of the same struct type. */
 bool structEquals(const Value &a, const Value &b);
+
+struct RecordMember {
+    std::string     name;
+    Type            type;
+    std::string     doc;
+};
+
+struct RecordInfo {
+    uint16_t                    id = 0;
+    std::string                 name;
+    std::string                 doc;
+    std::vector<RecordMember>   members;
+};
+
+/**
+ * Defines a record type and returns its struct id; the ids follow the
+ * schema's structs. Called while the function registry is built (before
+ * the signatures that name it), and only then: the table is not locked.
+ */
+uint16_t defineRecord(const std::string &name, const std::string &doc,
+    std::vector<RecordMember> members);
+
+/** The record with struct id `type`, or null for a schema struct. */
+const RecordInfo *recordInfo(uint16_t type);
+
+/** Every record, in definition order. */
+const std::vector<RecordInfo> &records();
 
 }
 }

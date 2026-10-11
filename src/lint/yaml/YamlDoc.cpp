@@ -387,7 +387,22 @@ public:
         }
 
         if (m_t.has_val_tag(id)) {
-            throw YamlError(n->mark, "YAML tags ('!...') are not supported in rule files");
+            // Most often a CEL negation, `where: !x`, which YAML reads as a
+            // tag on the rest of the text (rule-authoring-requests B4).
+            // At the tag itself: a tagged scalar's mark is otherwise its key's.
+            Mark at = n->mark;
+            ryml::csubstr tag = m_t.val_tag(id);
+            ryml::csubstr src = m_p.source();
+            if (tag.str && tag.str >= src.str && tag.str <= src.str + src.len) {
+                ryml::Location l = m_p.val_location(tag.str);
+                if (l) {
+                    at = toMark(l);
+                }
+            }
+            throw YamlError(at, m_t.is_val(id) || m_t.is_keyval(id)
+                ? "YAML reads a leading '!' as a tag, which rule files do not use; "
+                  "if this is a CEL expression, quote it, or use a block scalar (>-)"
+                : "YAML tags ('!...') are not supported in rule files");
         }
 
         if (m_t.is_map(id)) {

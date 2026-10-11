@@ -36,9 +36,11 @@
  * kept, with `?` for the failed part. An erroring `let:` fails only through
  * what uses it.
  *
- * A finding's location is the reported node's own; most expressions have
- * none, so then the first located node under it (pre-order: where the
- * expression starts), else its nearest located ancestor.
+ * A finding's location is the name's, for a named declaration (a node
+ * whose `name` is an ExprId); else the reported node's own; most
+ * expressions have none, so then the first located node under it
+ * (pre-order: where the expression starts), else its nearest located
+ * ancestor.
  */
 #pragma once
 #include <cstdint>
@@ -76,6 +78,20 @@ struct RuleFailure {
     rf::Node            node;               // the match being evaluated
     ast::Location       loc;
     std::string         message;            // the marker's text
+};
+
+/**
+ * A type name a rule asked for that the model does not have (C6.8:
+ * type_named, derives_from): PSSP223, info, once per rule and name, at the
+ * node the rule was evaluating when it first asked.
+ */
+struct RuleNote {
+    const rules::Rule   *rule = nullptr;
+    const char          *code = "PSSP223";
+    std::string         path;
+    rf::Node            node;
+    ast::Location       loc;
+    std::string         message;
 };
 
 /** What one rule did in a run: counts, steps, time, and its first error. */
@@ -137,6 +153,9 @@ public:
     /** The rule failures so far, at most one per rule per file. */
     const std::vector<RuleFailure> &failures() const { return m_failures; }
 
+    /** The notes so far (unknown type names), in the order first asked. */
+    std::vector<RuleNote> notes();
+
     /** The findings so far: walk order, then rule order, then report order. */
     const std::vector<Finding> &findings() const { return m_findings; }
 
@@ -150,6 +169,9 @@ public:
 
     /** A failure as a PSSP220/PSSP221 marker at the node. The caller owns it. */
     static IMarker *toMarker(const RuleFailure &f);
+
+    /** A note as a PSSP223 info marker. The caller owns it. */
+    static IMarker *toMarker(const RuleNote &n);
 
     /**
      * The gate (design L8.1): lint runs only when parse, link and the

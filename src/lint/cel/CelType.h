@@ -44,6 +44,9 @@ struct Type {
     Kind                kind = Kind::Null;
     // Param: its name. TypeType: the name of the type it denotes, when known
     // (the type of the expression `ExprBinOp` is the type named ExprBinOp).
+    // Int: the schema enum an enum or flags field, or an enum constant, is a
+    // value of ("FieldAttr"), else empty. Still an int everywhere; the
+    // checker reads it to keep flags words out of arithmetic (C6.8).
     std::string         param;
     uint16_t            cls = 0;    // Node: the schema class, 0 for any; Struct: the struct
     std::vector<Type>   args;       // List: [elem]; Map: [key, value]; Optional: [value]

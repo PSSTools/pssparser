@@ -56,7 +56,7 @@ Each entry gives:
 
 def _registry():
     from pssparser.core import Factory
-    return Factory.inst()._lintTestHooks().cel_functions()["functions"]
+    return Factory.inst()._lintTestHooks().cel_functions()
 
 
 def _title(fn: str) -> str:
@@ -117,9 +117,28 @@ def _section(overloads) -> str:
     return "".join(out)
 
 
-def render(functions=None) -> str:
+def _records(records) -> str:
+    out = ["Records\n-------\n\n"
+           "The struct types some PSS functions return. A member is read as a field "
+           "(``b.guard``), and a record's name is a type (``type(b) == Branch``). Records "
+           "compare member by member.\n\n"]
+    for r in records:
+        title = f"``{r['name']}``"
+        out.append(f".. _lint-record-{r['name'].lower()}:\n\n{title}\n{'~' * len(title)}\n\n"
+                   f"{_rst(r['doc'])}\n\n"
+                   ".. list-table::\n   :header-rows: 1\n\n"
+                   "   * - Member\n     - Type\n     - Description\n")
+        for m in r["members"]:
+            out.append(f"   * - ``{m['name']}``\n     - ``{m['type']}``\n"
+                       f"     - {_rst(m['doc'])}\n")
+        out.append("\n")
+    return "".join(out)
+
+
+def render(functions=None, records=None) -> str:
     if functions is None:
-        functions = _registry()
+        reg = _registry()
+        functions, records = reg["functions"], reg["records"]
     functions = [f for f in functions if f["in_profile"]]
     parts = [_HEADER]
     groups = []
@@ -134,6 +153,8 @@ def render(functions=None) -> str:
                 names.append(f["function"])
         for n in names:
             parts.append(_section([f for f in functions if f["group"] == g and f["function"] == n]))
+    if records:
+        parts.append(_records(records))
     return "".join(parts).rstrip("\n") + "\n"
 
 

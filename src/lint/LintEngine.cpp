@@ -262,6 +262,10 @@ std::string LintEngine::run(const std::vector<ast::IScopeChild *> &roots,
         std::unique_ptr<IMarker> m(run::Runner::toMarker(f));
         markerJson(w, *m);
     }
+    for (const run::RuleNote &n : runner.notes()) {
+        std::unique_ptr<IMarker> m(run::Runner::toMarker(n));
+        markerJson(w, *m);
+    }
     w.endArray();
     w.key("stats").beginArray();
     for (size_t i=0; i<on.size(); i++) {
