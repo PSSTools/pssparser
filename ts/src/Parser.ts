@@ -448,6 +448,7 @@ export class Parser {
       waived: sortMarkers(r.waived.map(out)),
       waivers: r.waivers,
       stats: run.stats,
+      indexNs: run.indexNs,
       problems: [...run.problems, ...r.problems],
     };
   }

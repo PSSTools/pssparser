@@ -202,6 +202,16 @@ def test_model_scope_and_findings(factory, model):
         ("ACME002", 5, "pss_top::Sub::y is written but never read")]
 
 
+def test_index_time_is_the_runs(factory, model):
+    # C8: the model's symbol index is built once, by whichever rule asks
+    # first, and timed apart from every rule's own time.
+    p, root, a, b = model
+    e = factory.mkLintEngine()
+    assert e.load_rules("r.yaml", _RULES)
+    r = e.run([a], {}, model=root)
+    assert isinstance(r["index_ns"], int) and r["index_ns"] > 0
+
+
 def test_registered(hooks):
     fns = {f["id"]: f for f in hooks.cel_functions()["functions"]}
     expect = {

@@ -241,6 +241,7 @@ def cmd_parse(
             )
             stats.lint_dropped = lint_dropped
             stats.lint_rules = lint_run.get("stats", []) if lint_run else []
+            stats.lint_index_ns = lint_run.get("index_ns", 0) if lint_run else 0
             stats.waived_by_code = _by_code(coll.waived)
             stats.baselined_by_code = _by_code(coll.baselined)
         driver.finish(coll, quiet, stats)
@@ -621,6 +622,7 @@ def _run_checkers(
                 if checker.name == ruleview.CHECKER_NAME and lint_run is not None:
                     lint_run["ns"] = time.perf_counter_ns() - t0
                     lint_run["stats"] = context.lint_stats
+                    lint_run["index_ns"] = context.lint_index_ns
             except Exception as exc:
                 import sys
                 sys.stderr.write(
@@ -716,9 +718,15 @@ def _finish_in_core(coll: DiagnosticCollection, engine, config, selection: dict,
         return os.path.abspath(path) if base else path
 
     spelled = {os.path.realpath(f): spell(f) for f in files}
+    keys = {}
 
     def key(path: str) -> str:
-        return spelled.get(os.path.realpath(path), spell(path)) if path else path
+        # realpath stats every component: once per file, not per diagnostic.
+        k = keys.get(path)
+        if k is None:
+            k = keys[path] = (spelled.get(os.path.realpath(path), spell(path))
+                              if path else path)
+        return k
 
     found = []
     if getattr(config, "source_waivers", True):

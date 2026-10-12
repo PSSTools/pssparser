@@ -750,6 +750,13 @@ Run statistics
     ``matches``, ``findings``, ``steps``, ``errors``, and ``ms`` with
     timing.
 
+    Part of the ``lint`` phase is building the indexes the rules' library
+    functions read: parent links, and for ``refs()`` or ``resolves_to()``
+    the model's symbol occurrences. That time is the run's, shown once as
+    ``lint 30.0ms (indexes 6.8ms)`` (``"lint_index_ms"`` under ``--json``),
+    and is in no rule's time, so a rule is not charged for an index another
+    rule would have built anyway.
+
 ``--stats-no-timing``
     As ``--stats``, but omit the timing row.  Wall times are not
     reproducible, so this is the form to use in a golden file, a regression

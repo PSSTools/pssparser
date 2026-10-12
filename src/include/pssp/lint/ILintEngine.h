@@ -119,7 +119,9 @@ public:
      * The result is JSON:
      *   {"ok":true,"markers":[{"severity","message","fileid","line","col",
      *    "extent","related":[],"code"}],"stats":[{"id","matches","findings",
-     *    "steps","ns","errors"}],"problems":["..."]}
+     *    "steps","ns","errors"}],"index_ns":N,"problems":["..."]}
+     * `index_ns` is the time spent building the library's indexes (parent
+     * links, symbol occurrences): the run's, in no rule's `ns` (C8).
      * Markers are the findings (walk order) then the rule failures
      * (PSSP220, PSSP221); with `gate_errors` > 0 and a rule enabled, the one
      * PSSP230 marker (no location: fileid -1). Messages carry no "[ID]"

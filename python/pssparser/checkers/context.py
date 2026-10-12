@@ -65,6 +65,10 @@ class CheckContext:
     #: ``[{"id", "matches", "findings", "steps", "ns", "errors"}]``.
     lint_stats: List[dict] = field(default_factory=list, repr=False)
 
+    #: Nanoseconds the run spent building the library's indexes, in no
+    #: rule's ``ns`` (lint-core-plan C8).
+    lint_index_ns: int = field(default=0, repr=False)
+
     #: Internal – built on first use of :attr:`facts`.
     _facts: Optional["Facts"] = field(default=None, repr=False)
 

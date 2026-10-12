@@ -146,6 +146,24 @@ See `docs/lint-rule-authoring.rst` and `docs/lint-functions.rst`.
   declarative rules; `pssparser.lint.examples` runs rules' examples.
 - pssparser ships no built-in YAML rules yet.
 
+### Changed — lint rules run faster; index time is reported apart
+
+Building the indexes the library functions read (parent links, and the model's
+symbol occurrences for `refs()` and `resolves_to()`) is now timed as the run's
+cost, not charged to the first rule that needed it. Per-rule times in
+`--stats` are each rule's own.
+
+- `--stats` shows it inside the lint phase: `lint 30.0ms (indexes 6.8ms)`;
+  the JSON stats add `lint_index_ms`.
+- `ILintEngine::run` and Python `LintEngine.run` return `index_ns`;
+  TypeScript `LintResult` and `LintReport` have `indexNs`.
+- The run itself is cheaper: about a third fewer instructions with trivial
+  rules on a 440 KB model, from flat pointer maps for the per-node indexes
+  and no allocation per node in the walk. A CLI run with thousands of
+  diagnostics no longer resolves each one's path again.
+- `scripts/bench_lint.py` measures lint against parse and link, natively and
+  (`--wasm`) in the WebAssembly build.
+
 ### Added — `Parser.lint()`: the CLI's diagnostics in the editor
 
 The steps between a lint run and the CLI's output now run in the core: lint

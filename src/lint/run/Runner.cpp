@@ -94,10 +94,14 @@ void Runner::match(const rules::Rule &r, const rf::Node &n) {
         return;
     }
     auto t0 = std::chrono::steady_clock::now();
+    uint64_t index0 = m_ctx.indexNs();
     m_ctx.setCurrent(&r, n);
     evaluate(idx, r, n);
-    m_stats[idx].ns += static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(
+    uint64_t ns = static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(
         std::chrono::steady_clock::now() - t0).count());
+    // An index this rule was the first to need is the run's cost (C8).
+    uint64_t index = m_ctx.indexNs() - index0;
+    m_stats[idx].ns += (ns > index) ? ns - index : 0;
 }
 
 void Runner::evaluate(size_t idx, const rules::Rule &r, const rf::Node &n) {

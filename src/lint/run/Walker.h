@@ -36,6 +36,7 @@
 #include <functional>
 #include <unordered_map>
 #include <vector>
+#include "../util/PtrMap.h"
 #include "Reflect.h"
 #include "pssp/ast/Location.h"
 
@@ -165,7 +166,7 @@ public:
 private:
     const Dispatch                                  &m_dispatch;
     std::vector<rf::Node>                           m_stack;
-    std::unordered_map<const void *, rf::Node>      m_parent;
+    util::PtrMap<rf::Node>                          m_parent;
 };
 
 }

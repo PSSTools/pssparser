@@ -383,6 +383,7 @@ there. Text that is not valid YAML counts as a rule file when a line starts
    interface LintResult {
      markers: Marker[];        // findings, PSSP220/221 failures, or PSSP230
      stats: LintRuleStats[];   // { id, matches, findings, steps, ns, errors }
+     indexNs: number;          // building indexes: the run's, in no rule's ns
      problems: string[];       // request entries that were ignored
    }
 
@@ -418,6 +419,7 @@ markers are returned, not added to ``markers``. Their messages carry no
      waived: LintDiagnostic[];       // each with its `waiver`
      waivers: (Waiver & { ids: string[]; used: number })[];
      stats: LintRuleStats[];
+     indexNs: number;
      problems: string[];
    }
    interface LintDiagnostic extends Marker {

@@ -928,6 +928,7 @@ std::string LintEngine::run(const std::vector<ast::IScopeChild *> &roots,
         w.endObject();
     }
     w.endArray();
+    w.kv("index_ns", runner.indexNs());
     w.key("problems").beginArray();
     for (const std::string &p : problems) {
         w.value(p);

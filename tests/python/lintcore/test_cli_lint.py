@@ -251,3 +251,15 @@ def test_stats_timing_has_a_lint_phase(lint_enabled, files):
     _, doc = _json(["--stats", model])
     assert "lint" in doc["stats"]["timing_ms"]
     assert "ms" in doc["stats"]["lint_rules"][0]
+
+
+def test_stats_timing_reports_index_time_apart(lint_enabled, files):
+    # C8: building the library's indexes is the run's cost, reported once,
+    # not charged to the first rule that needed one.
+    _, rules, model = files
+    _, doc = _json(["--stats", model])
+    assert doc["stats"]["lint_index_ms"] > 0
+    rc, out, err = _run(["--stats", model])
+    assert "lint " in err and " (indexes " in err
+    _, doc = _json(["--stats-no-timing", model])
+    assert "lint_index_ms" not in doc["stats"]

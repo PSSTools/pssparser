@@ -278,6 +278,11 @@ export interface LintResult {
   markers: Marker[];
   /** The enabled rules, in load order. */
   stats: LintRuleStats[];
+  /**
+   * Nanoseconds spent building the library's indexes (parent links, symbol
+   * occurrences): the run's cost, in no rule's `ns`.
+   */
+  indexNs: number;
   /** Request entries that were ignored: an unknown ID or option, a value of
    *  the wrong type. */
   problems: string[];
@@ -288,6 +293,7 @@ interface RawLintResult {
   error?: string;
   markers?: RawMarker[];
   stats?: LintRuleStats[];
+  index_ns?: number;
   problems?: string[];
 }
 
@@ -342,6 +348,7 @@ export function parseLintResult(json: string, files: ReadonlyMap<number, string>
   return {
     markers: sortMarkers((raw.markers ?? []).map((m) => resolve(m, files))),
     stats: raw.stats ?? [],
+    indexNs: raw.index_ns ?? 0,
     problems: raw.problems ?? [],
   };
 }
@@ -393,6 +400,8 @@ export interface LintReport {
   waivers: Array<Waiver & { ids: string[]; used: number }>;
   /** What each enabled rule did. */
   stats: LintRuleStats[];
+  /** Nanoseconds spent building indexes, in no rule's `ns` (`LintResult.indexNs`). */
+  indexNs: number;
   /** Request or configuration entries that were ignored. */
   problems: string[];
 }

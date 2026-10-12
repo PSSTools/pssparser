@@ -103,6 +103,8 @@ class RunStats:
     # The declarative rules that ran, in load order: {"id", "matches",
     # "findings", "steps", "ns", "errors"} (lint-core-plan C5.4).
     lint_rules: List[dict] = field(default_factory=list)
+    # Of the lint time, the part spent building indexes (C8): in no rule's.
+    lint_index_ns: int = 0
 
 
 def make_visitor():
@@ -286,6 +288,9 @@ def render_human(stats: RunStats) -> str:
 
     if stats.timings_ns:
         items = [f"{name} {_fmt_ns(ns)}" for name, ns in stats.timings_ns.items()]
+        if stats.lint_index_ns and "lint" in stats.timings_ns:
+            i = list(stats.timings_ns).index("lint")
+            items[i] += f" (indexes {_fmt_ns(stats.lint_index_ns)})"
         lines.append("  timing:       " + ", ".join(items))
 
     return "\n".join(lines) + "\n"
@@ -318,4 +323,6 @@ def to_json(stats: RunStats) -> dict:
             name: round(ns / 1_000_000.0, 3)
             for name, ns in stats.timings_ns.items()
         }
+        if stats.lint_index_ns and "lint" in stats.timings_ns:
+            doc["lint_index_ms"] = round(stats.lint_index_ns / 1_000_000.0, 3)
     return doc

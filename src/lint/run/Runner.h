@@ -174,6 +174,12 @@ public:
     /** The findings so far: walk order, then rule order, then report order. */
     const std::vector<Finding> &findings() const { return m_findings; }
 
+    /**
+     * Time spent building the library's indexes (lib::Context::indexNs):
+     * not in any rule's `ns`.
+     */
+    uint64_t indexNs() const { return m_ctx.indexNs(); }
+
     /** Per rule, in the order the rules were given. */
     const std::vector<RuleStats> &stats() const { return m_stats; }
 

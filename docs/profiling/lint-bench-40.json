@@ -1,0 +1,317 @@
+{
+ "bytes": 111486,
+ "native": {
+  "diagnostics": {
+   "ACME-NET002": 120,
+   "ACME001": 121,
+   "ACME002": 320,
+   "PSSP223": 1,
+   "TEST-LOC002": 40,
+   "TEST-NAV001": 320,
+   "TEST-NAV002": 40,
+   "TEST-NAV003": 640,
+   "TEST-NAV004": 120,
+   "TEST-NAV005": 519,
+   "TEST-REF001": 160,
+   "TEST-TYPES002": 440
+  },
+  "index_ms": 5.296,
+  "link_ms": 9.434,
+  "lint_ms": 24.297,
+  "parse_ms": 47.943,
+  "rules": {
+   "ACME-NET001": {
+    "findings": 0,
+    "ms": 0.011,
+    "steps": 242
+   },
+   "ACME-NET002": {
+    "findings": 120,
+    "ms": 0.188,
+    "steps": 1600
+   },
+   "ACME001": {
+    "findings": 121,
+    "ms": 0.13,
+    "steps": 1452
+   },
+   "ACME002": {
+    "findings": 320,
+    "ms": 0.256,
+    "steps": 3200
+   },
+   "ACME003": {
+    "findings": 0,
+    "ms": 0.102,
+    "steps": 1407
+   },
+   "TEST-BR001": {
+    "findings": 0,
+    "ms": 1.256,
+    "steps": 32000
+   },
+   "TEST-BR002": {
+    "findings": 0,
+    "ms": 0.118,
+    "steps": 2560
+   },
+   "TEST-BR003": {
+    "findings": 0,
+    "ms": 0.084,
+    "steps": 600
+   },
+   "TEST-CONST001": {
+    "findings": 0,
+    "ms": 0.265,
+    "steps": 2080
+   },
+   "TEST-CONST002": {
+    "findings": 0,
+    "ms": 0.297,
+    "steps": 6120
+   },
+   "TEST-DUPS001": {
+    "findings": 0,
+    "ms": 0.402,
+    "steps": 10320
+   },
+   "TEST-LOC001": {
+    "findings": 0,
+    "ms": 0.074,
+    "steps": 864
+   },
+   "TEST-LOC002": {
+    "findings": 40,
+    "ms": 0.092,
+    "steps": 1086
+   },
+   "TEST-NAV001": {
+    "findings": 320,
+    "ms": 0.352,
+    "steps": 6600
+   },
+   "TEST-NAV002": {
+    "findings": 40,
+    "ms": 0.078,
+    "steps": 400
+   },
+   "TEST-NAV003": {
+    "findings": 640,
+    "ms": 0.726,
+    "steps": 11800
+   },
+   "TEST-NAV004": {
+    "findings": 120,
+    "ms": 1.677,
+    "steps": 42117
+   },
+   "TEST-NAV005": {
+    "findings": 519,
+    "ms": 1.358,
+    "steps": 21110
+   },
+   "TEST-PURE001": {
+    "findings": 0,
+    "ms": 0.55,
+    "steps": 20400
+   },
+   "TEST-REF001": {
+    "findings": 160,
+    "ms": 0.522,
+    "steps": 6920
+   },
+   "TEST-REF002": {
+    "findings": 0,
+    "ms": 0.597,
+    "steps": 20200
+   },
+   "TEST-REF003": {
+    "findings": 0,
+    "ms": 0.055,
+    "steps": 280
+   },
+   "TEST-SYM001": {
+    "findings": 0,
+    "ms": 0.247,
+    "steps": 2720
+   },
+   "TEST-SYM002": {
+    "findings": 0,
+    "ms": 0.038,
+    "steps": 726
+   },
+   "TEST-SYM003": {
+    "findings": 0,
+    "ms": 0.224,
+    "steps": 680
+   },
+   "TEST-TYPES001": {
+    "findings": 0,
+    "ms": 0.202,
+    "steps": 4000
+   },
+   "TEST-TYPES002": {
+    "findings": 440,
+    "ms": 0.518,
+    "steps": 5400
+   }
+  }
+ },
+ "rules": [
+  "tests/data/lint-examples/fn-branches.yaml",
+  "tests/data/lint-examples/fn-const.yaml",
+  "tests/data/lint-examples/fn-lists.yaml",
+  "tests/data/lint-examples/fn-locations.yaml",
+  "tests/data/lint-examples/fn-navigation.yaml",
+  "tests/data/lint-examples/fn-purity.yaml",
+  "tests/data/lint-examples/fn-refs.yaml",
+  "tests/data/lint-examples/fn-symbols.yaml",
+  "tests/data/lint-examples/fn-types.yaml",
+  "tests/data/lint-examples/naming.yaml",
+  "tests/data/lint-examples/structure.yaml"
+ ],
+ "units": 40,
+ "wasm": {
+  "index_ms": 10.762938,
+  "link_ms": 42.195045999999934,
+  "lint_ms": 46.22608500000001,
+  "parse_ms": 88.91961200000003,
+  "rules": {
+   "ACME-NET001": {
+    "findings": 0,
+    "ms": 0.043484,
+    "steps": 242
+   },
+   "ACME-NET002": {
+    "findings": 120,
+    "ms": 0.454997,
+    "steps": 1600
+   },
+   "ACME001": {
+    "findings": 121,
+    "ms": 0.32529,
+    "steps": 1452
+   },
+   "ACME002": {
+    "findings": 320,
+    "ms": 0.644811,
+    "steps": 3200
+   },
+   "ACME003": {
+    "findings": 0,
+    "ms": 0.280237,
+    "steps": 1407
+   },
+   "TEST-BR001": {
+    "findings": 0,
+    "ms": 2.967198,
+    "steps": 32000
+   },
+   "TEST-BR002": {
+    "findings": 0,
+    "ms": 0.349277,
+    "steps": 2560
+   },
+   "TEST-BR003": {
+    "findings": 0,
+    "ms": 0.223659,
+    "steps": 600
+   },
+   "TEST-CONST001": {
+    "findings": 0,
+    "ms": 0.931682,
+    "steps": 2080
+   },
+   "TEST-CONST002": {
+    "findings": 0,
+    "ms": 0.789834,
+    "steps": 6120
+   },
+   "TEST-DUPS001": {
+    "findings": 0,
+    "ms": 0.956687,
+    "steps": 10320
+   },
+   "TEST-LOC001": {
+    "findings": 0,
+    "ms": 0.170748,
+    "steps": 864
+   },
+   "TEST-LOC002": {
+    "findings": 40,
+    "ms": 0.200441,
+    "steps": 1086
+   },
+   "TEST-NAV001": {
+    "findings": 320,
+    "ms": 0.803874,
+    "steps": 6600
+   },
+   "TEST-NAV002": {
+    "findings": 40,
+    "ms": 0.180896,
+    "steps": 400
+   },
+   "TEST-NAV003": {
+    "findings": 640,
+    "ms": 1.657609,
+    "steps": 11800
+   },
+   "TEST-NAV004": {
+    "findings": 120,
+    "ms": 4.179839,
+    "steps": 42117
+   },
+   "TEST-NAV005": {
+    "findings": 519,
+    "ms": 3.707198,
+    "steps": 21110
+   },
+   "TEST-PURE001": {
+    "findings": 0,
+    "ms": 1.520854,
+    "steps": 20400
+   },
+   "TEST-REF001": {
+    "findings": 160,
+    "ms": 1.089835,
+    "steps": 6920
+   },
+   "TEST-REF002": {
+    "findings": 0,
+    "ms": 1.376183,
+    "steps": 20200
+   },
+   "TEST-REF003": {
+    "findings": 0,
+    "ms": 0.096783,
+    "steps": 280
+   },
+   "TEST-SYM001": {
+    "findings": 0,
+    "ms": 0.586053,
+    "steps": 2720
+   },
+   "TEST-SYM002": {
+    "findings": 0,
+    "ms": 0.08708,
+    "steps": 726
+   },
+   "TEST-SYM003": {
+    "findings": 0,
+    "ms": 0.519149,
+    "steps": 680
+   },
+   "TEST-TYPES001": {
+    "findings": 0,
+    "ms": 0.623262,
+    "steps": 4000
+   },
+   "TEST-TYPES002": {
+    "findings": 440,
+    "ms": 1.266097,
+    "steps": 5400
+   }
+  }
+ }
+}

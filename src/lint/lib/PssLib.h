@@ -31,6 +31,7 @@
 #include <string>
 #include <utility>
 #include <unordered_map>
+#include "../util/PtrMap.h"
 #include <unordered_set>
 #include <vector>
 #include "Reflect.h"
@@ -225,7 +226,25 @@ public:
 
     uint64_t numIndexed() const { return m_parent.size(); }
 
+    /**
+     * Time spent building indexes (C8): the owned files' parent links and,
+     * on demand, the model's, its symbol occurrences and its symbol tree.
+     * The runner charges it to the run, not to the rule that first asked.
+     */
+    uint64_t indexNs() const { return m_indexNs; }
+
 private:
+    // Times an index build into m_indexNs; a nested one counts once.
+    class IndexTimer {
+    public:
+        IndexTimer(const Context &c);
+        ~IndexTimer();
+    private:
+        const Context   &m_c;
+        bool            m_outer;
+        uint64_t        m_t0;
+    };
+
     void indexTree(const rf::Node &root, bool owned) const;
     void indexModel() const;
     void collectSymbols() const;
@@ -246,11 +265,11 @@ private:
     ast::IRootSymbolScope                                       *m_model = nullptr;
     // Filled on demand from const queries: the context is the evaluator's
     // read-only Host, but what it knows grows as rules ask.
-    mutable std::unordered_map<const void *, rf::Node>          m_parent;
+    mutable util::PtrMap<rf::Node>                              m_parent;
     mutable std::unordered_set<const void *>                    m_owned;     // roots
     mutable bool                                                m_modelIndexed = false;
     mutable bool                                                m_symbols = false;
-    mutable std::unordered_map<const void *, rf::Node>          m_decl;      // ExprId -> decl
+    mutable util::PtrMap<rf::Node>                              m_decl;      // ExprId -> decl
     mutable std::unordered_map<const void *, std::vector<rf::Node>> m_uses; // decl -> ExprIds
     mutable std::unordered_map<const void *, std::string>       m_path;
     // A numbered segment ("constraint", "exec", ...) -> its #n, for every
@@ -270,6 +289,8 @@ private:
     mutable rf::Node                                            m_curNode;
     mutable std::vector<UnknownType>                            m_unknown;
     mutable std::set<std::pair<const void *, std::string>>      m_unknownSeen;
+    mutable uint64_t                                            m_indexNs = 0;
+    mutable bool                                                m_timing = false;
 };
 
 }

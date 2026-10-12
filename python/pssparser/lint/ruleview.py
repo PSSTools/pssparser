@@ -178,3 +178,4 @@ def run(engine, mdefs: List[MarkerDef], context) -> None:
             extent=max(m["extent"], 0),
         )
     context.lint_stats = list(result.get("stats", ()))
+    context.lint_index_ns = result.get("index_ns", 0)

@@ -255,14 +255,16 @@ void Walker::walk(const rf::Node &root, const MatchFn &fn) {
         std::vector<rf::Node>   kids;
         size_t                  next = 0;
     };
+    // Frames above `depth` are kept, not freed: their `kids` keep their
+    // capacity, so the walk does not allocate per node (C8).
     std::vector<Frame> frames;
+    size_t depth = 0;
     m_stack.clear();
 
     auto visit = [&](const rf::Node &n, const rf::Node &parent) {
-        if (!n || n.kind > rf::NumClasses || m_parent.count(n.ptr)) {
+        if (!n || n.kind > rf::NumClasses || !m_parent.emplace(n.ptr, parent)) {
             return;
         }
-        m_parent.emplace(n.ptr, parent);
         for (const Dispatch::Entry *e : m_dispatch.forKind(n.kind)) {
             if (e->inside.present && !e->inside.found(m_stack)) {
                 continue;
@@ -272,22 +274,27 @@ void Walker::walk(const rf::Node &root, const MatchFn &fn) {
             }
             fn(*e->rule, n);
         }
-        frames.emplace_back();
-        frames.back().n = n;
-        children(n, frames.back().kids);
+        if (depth == frames.size()) {
+            frames.emplace_back();
+        }
+        Frame &f = frames[depth++];
+        f.n = n;
+        f.next = 0;
+        f.kids.clear();
+        children(n, f.kids);
         m_stack.push_back(n);
     };
 
     visit(root, rf::Node());
-    while (!frames.empty()) {
-        Frame &f = frames.back();
+    while (depth) {
+        Frame &f = frames[depth - 1];
         if (f.next < f.kids.size()) {
             // Copies: visit() may grow `frames`, which moves `f`.
             rf::Node kid = f.kids[f.next++];
             rf::Node parent = f.n;
             visit(kid, parent);
         } else {
-            frames.pop_back();
+            depth--;
             m_stack.pop_back();
         }
     }
@@ -350,8 +357,8 @@ bool Walker::nameLocation(const rf::Node &n, ast::Location &loc) {
 }
 
 rf::Node Walker::parentOf(const rf::Node &n) const {
-    auto it = m_parent.find(n.ptr);
-    return (it != m_parent.end()) ? it->second : rf::Node();
+    const rf::Node *p = m_parent.find(n.ptr);
+    return p ? *p : rf::Node();
 }
 
 std::vector<rf::Node> Walker::ancestorsOf(const rf::Node &n) const {

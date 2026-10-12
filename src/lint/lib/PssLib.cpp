@@ -19,6 +19,7 @@
  * documentation order (docs/lint-functions.rst), after the standard
  * library's groups.
  */
+#include <chrono>
 #include <algorithm>
 #include <cctype>
 #include <string>
@@ -282,10 +283,28 @@ Context::Context() { }
 
 Context::~Context() { }
 
+Context::IndexTimer::IndexTimer(const Context &c) : m_c(c), m_outer(!c.m_timing), m_t0(0) {
+    if (m_outer) {
+        m_c.m_timing = true;
+        m_t0 = static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(
+            std::chrono::steady_clock::now().time_since_epoch()).count());
+    }
+}
+
+Context::IndexTimer::~IndexTimer() {
+    if (m_outer) {
+        uint64_t t1 = static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(
+            std::chrono::steady_clock::now().time_since_epoch()).count());
+        m_c.m_indexNs += t1 - m_t0;
+        m_c.m_timing = false;
+    }
+}
+
 void Context::indexTree(const rf::Node &root, bool owned) const {
     if (!root) {
         return;
     }
+    IndexTimer timer(*this);
     if (owned && m_owned.insert(root.ptr).second) {
         m_roots.push_back(root);
     }
@@ -301,7 +320,7 @@ void Context::indexTree(const rf::Node &root, bool owned) const {
         kids.clear();
         Walker::children(n, kids);
         for (const rf::Node &k : kids) {
-            if (k.kind <= rf::NumClasses && m_parent.emplace(k.ptr, n).second) {
+            if (k.kind <= rf::NumClasses && m_parent.emplace(k.ptr, n)) {
                 work.push_back(k);
             }
         }
@@ -313,6 +332,7 @@ void Context::indexModel() const {
         return;
     }
     m_modelIndexed = true;
+    IndexTimer timer(*this);
     for (const ast::IGlobalScopeUP &u : m_model->getUnits()) {
         ast::IScopeChild *c = u.get();      // a GlobalScope is a ScopeChild
         indexTree(rf::classify(c), false);
@@ -320,12 +340,12 @@ void Context::indexModel() const {
 }
 
 rf::Node Context::parentOf(const rf::Node &n) const {
-    auto it = m_parent.find(n.ptr);
-    if (it == m_parent.end() && m_model && !m_modelIndexed) {
+    const rf::Node *p = m_parent.find(n.ptr);
+    if (!p && m_model && !m_modelIndexed) {
         indexModel();
-        it = m_parent.find(n.ptr);
+        p = m_parent.find(n.ptr);
     }
-    return (it == m_parent.end()) ? rf::Node() : it->second;
+    return p ? *p : rf::Node();
 }
 
 rf::Node Context::rootOf(const rf::Node &n) const {
@@ -397,6 +417,7 @@ void Context::collectSymbols() const {
         return;
     }
     m_symbols = true;
+    IndexTimer timer(*this);
     OccurrenceCollector oc(nullptr);
     std::vector<Occurrence> occs;
     oc.collect(m_model, occs);
@@ -471,8 +492,8 @@ bool Context::declOf(const rf::Node &id, rf::Node &decl) const {
         return false;
     }
     collectSymbols();
-    auto it = m_decl.find(id.ptr);
-    decl = (it == m_decl.end()) ? rf::Node() : it->second;
+    const rf::Node *d = m_decl.find(id.ptr);
+    decl = d ? *d : rf::Node();
     return true;
 }
 
@@ -719,6 +740,7 @@ void Context::indexSymbolTree() const {
         return;
     }
     m_symbolTreeIndexed = true;
+    IndexTimer timer(*this);
     // Every type scope's specializations, and every function scope's
     // declarations, through the whole symbol tree.
     std::vector<ast::IScopeChild *> work{m_model};
