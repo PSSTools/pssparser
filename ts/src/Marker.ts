@@ -65,15 +65,13 @@ export interface Marker {
   extent: number;
   related: MarkerRelation[];
   /**
-   * Stable marker id, e.g. `"PSS020"`.
+   * Stable marker id, e.g. `"PSS020"`; `Parser.catalog()` documents it.
    *
-   * Optional because core C++ markers do not all carry one today: `IMarker`
-   * has `setId()`, but the Python side recovers ids for the rest by regex
-   * matching message text against `MarkerDef.patterns`, which is a second
-   * source of truth. When the marker-catalog work lands
-   * (`wasm-core-plan.md` §6 step 1) every marker carries an id and this field
-   * becomes required -- a breaking change, and the reason to do it before 1.0
-   * rather than after (`ts-api-design.md` §5).
+   * The core gives every marker one: its emitter sets it, or the marker
+   * collector takes it from the catalogue's message patterns, the same table
+   * the CLI uses (lint-core-plan.md C7.3). Optional because a message no
+   * pattern claims -- a new core diagnostic whose pattern is missing -- has
+   * none; `tests/python/test_marker_ids.py` keeps that from shipping.
    */
   code?: string;
   /**

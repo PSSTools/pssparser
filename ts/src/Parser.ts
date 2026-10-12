@@ -23,6 +23,7 @@ import {
   type LintRequest,
   type LintResult,
   type HostMarker,
+  type Catalog,
   type LintSelection,
   type SelectionResult,
   type Waiver,
@@ -346,14 +347,27 @@ export class Parser {
 
   /**
    * The host's own markers (lint-core-plan.md C7.1): what a selector,
-   * `[severity]` key or waiver may name besides the loaded rules -- the
-   * LRM, tool and core lint markers the CLI knows. `refused` lists loaded
-   * rules to leave out. Replaces an earlier call's. Returns the problems.
+   * `[severity]` key or waiver may name besides the loaded rules and the
+   * core's markers, which the engine knows without being told (C7.3; see
+   * `catalog()`). An entry with a core marker's ID replaces it; others are
+   * added. `refused` lists loaded rules to leave out. Replaces an earlier
+   * call's. Returns the problems.
    */
   setHostMarkers(markers: readonly HostMarker[], refused: readonly string[] = []): string[] {
     return JSON.parse(
       this.#require().setHostMarkers(JSON.stringify({ markers, refused })),
     ) as string[];
+  }
+
+  /**
+   * The marker catalogue (lint-core-plan.md C7.3), for hover,
+   * `codeDescription` and quick-info: every marker the engine knows -- the
+   * core's (`PSS`, `PSSP` and the core-emitted `LINT`, with their
+   * documentation), `setHostMarkers()`'s, and the loaded rules' -- and the
+   * lint taxonomy. The same catalogue the CLI's `--explain` reads.
+   */
+  catalog(): Catalog {
+    return JSON.parse(this.#require().catalogJson()) as Catalog;
   }
 
   /**

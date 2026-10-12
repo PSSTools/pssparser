@@ -35,13 +35,28 @@ def host_marker(md, minimal: bool = False) -> dict:
     }
 
 
+def with_core(mdefs: Iterable) -> list:
+    """The markers an engine holds after :func:`tell_engine` with *mdefs*
+    (lint-core-plan C7.3): the core's own (``CoreChecker.marker_defs``, which
+    the engine has built in) in order, each replaced by the entry of *mdefs*
+    with its ID, then the rest of *mdefs*.  For the registry, which starts
+    with the core, that is the registry itself."""
+    from pssparser.checkers.core_checker import CoreChecker
+    mdefs = list(mdefs)
+    by_id = {md.id: md for md in mdefs}
+    core = [by_id.get(md.id, md) for md in CoreChecker.marker_defs]
+    core_ids = {md.id for md in core}
+    return core + [md for md in mdefs if md.id not in core_ids]
+
+
 def tell_engine(engine, mdefs: Iterable, refused: Iterable[str] = (),
                 minimal: Optional[Sequence[str]] = None) -> None:
     """Give *engine* every registry entry it did not load itself.
 
     *mdefs* is the whole registry (``CheckerManager.all_marker_defs``),
     loaded rules included: the engine keeps the registry's order, which
-    ``-Werror`` group expansion follows.  *minimal* defaults to the
+    ``-Werror`` group expansion follows.  The engine already holds the core's
+    markers; an entry with a core ID replaces that one (:func:`with_core`).  *minimal* defaults to the
     core-emitted lint (:data:`pssparser.lint.catalog.MINIMAL_IDS`).
     """
     if minimal is None:

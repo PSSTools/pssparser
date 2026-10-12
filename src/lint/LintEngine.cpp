@@ -29,6 +29,7 @@
 #include "run/Runner.h"
 #include "yaml/YamlDoc.h"
 #include "pipeline/Waivers.h"
+#include "catalog/Catalog.h"
 #include "rules/BuiltinRules.h"
 #include "rules/RuleLoader.h"
 #include "util/JsonWriter.h"
@@ -36,7 +37,20 @@
 namespace pssp {
 namespace lint {
 
-LintEngine::LintEngine() { }
+LintEngine::LintEngine() {
+    resetHostMarkers();
+}
+
+void LintEngine::resetHostMarkers() {
+    // The embedded catalogue (C7.3): every core marker, in the registry's order.
+    m_hostMarkers.clear();
+    m_hostIndex.clear();
+    for (const catalog::Entry &e : catalog::get().markers) {
+        m_hostIndex[e.meta.id] = m_hostMarkers.size();
+        m_hostMarkers.push_back(e.meta);
+    }
+    m_fromHost.assign(m_hostMarkers.size(), false);
+}
 
 LintEngine::~LintEngine() { }
 
@@ -133,7 +147,7 @@ void markerJson(JsonWriter &w, const IMarker &m) {
 std::string LintEngine::setHostMarkers(const std::string &json) {
     using NK = yaml::Node::Kind;
     std::vector<std::string> problems;
-    m_hostMarkers.clear();
+    resetHostMarkers();
     m_refused.clear();
     yaml::NodeUP doc;
     try {
@@ -141,62 +155,42 @@ std::string LintEngine::setHostMarkers(const std::string &json) {
     } catch (const yaml::YamlError &e) {
         problems.push_back(e.what());
     }
-    auto strings = [&](const yaml::Node *n, const std::string &what,
-            std::vector<std::string> &out) {
-        if (!n || n->kind == NK::Null) {
-            return;
-        }
-        if (n->kind != NK::Seq) {
-            problems.push_back(what + ": not a list of strings");
-            return;
-        }
-        for (const yaml::NodeUP &i : n->items) {
-            if (i->kind == NK::String) {
-                out.push_back(i->s);
-            } else {
-                problems.push_back(what + ": not a list of strings");
-            }
-        }
-    };
     const yaml::Node *ms = doc ? doc->get("markers") : nullptr;
     if (ms && ms->kind == NK::Seq) {
         for (const yaml::NodeUP &m : ms->items) {
-            const yaml::Node *id = m->get("id");
-            if (!id || id->kind != NK::String) {
-                problems.push_back("markers: an entry without an \"id\"");
+            pipeline::MarkerMeta mm;
+            if (!catalog::readMarker(*m, mm, problems)) {
                 continue;
             }
-            pipeline::MarkerMeta mm;
-            mm.id = id->s;
-            for (auto f : std::vector<std::pair<const char *, std::string *>>{
-                    {"name", &mm.name}, {"tier", &mm.tier}, {"family", &mm.family},
-                    {"since", &mm.since}, {"status", &mm.status},
-                    {"severity", &mm.severity}}) {
-                const yaml::Node *v = m->get(f.first);
-                if (v && v->kind == NK::String) {
-                    *f.second = v->s;
-                } else if (v && v->kind != NK::Null) {
-                    problems.push_back("markers: " + mm.id + "." + f.first + ": not a string");
-                }
+            // A core marker's entry is replaced where it stands, so the
+            // order stays the registry's; a new one is appended.
+            auto at = m_hostIndex.find(mm.id);
+            if (at != m_hostIndex.end()) {
+                m_hostMarkers[at->second] = mm;
+                m_fromHost[at->second] = true;
+                continue;
             }
-            strings(m->get("aliases"), "markers: " + mm.id + ".aliases", mm.aliases);
-            strings(m->get("replaced_by"), "markers: " + mm.id + ".replaced_by", mm.replacedBy);
-            for (auto f : std::vector<std::pair<const char *, bool *>>{
-                    {"default_enabled", &mm.defaultEnabled}, {"minimal", &mm.minimal}}) {
-                const yaml::Node *v = m->get(f.first);
-                if (v && v->kind == NK::Bool) {
-                    *f.second = v->b;
-                } else if (v && v->kind != NK::Null) {
-                    problems.push_back("markers: " + mm.id + "." + f.first + ": not a boolean");
-                }
-            }
+            m_hostIndex[mm.id] = m_hostMarkers.size();
+            m_fromHost.push_back(true);
             m_hostMarkers.push_back(mm);
         }
     } else if (ms && ms->kind != NK::Null) {
         problems.push_back("markers: not a list");
     }
     std::vector<std::string> refused;
-    strings(doc ? doc->get("refused") : nullptr, "refused", refused);
+    if (const yaml::Node *r = doc ? doc->get("refused") : nullptr; r && r->kind != NK::Null) {
+        if (r->kind != NK::Seq) {
+            problems.push_back("refused: not a list of strings");
+        } else {
+            for (const yaml::NodeUP &i : r->items) {
+                if (i->kind == NK::String) {
+                    refused.push_back(i->s);
+                } else {
+                    problems.push_back("refused: not a list of strings");
+                }
+            }
+        }
+    }
     m_refused.insert(refused.begin(), refused.end());
 
     JsonWriter w;
@@ -205,6 +199,107 @@ std::string LintEngine::setHostMarkers(const std::string &json) {
         w.value(p);
     }
     w.endArray();
+    return w.str();
+}
+
+std::string LintEngine::coreCode(const std::string &message) const {
+    return catalog::codeFor(message);
+}
+
+std::string LintEngine::catalogJson() const {
+    const catalog::Catalog &cat = catalog::get();
+    std::unordered_map<std::string, const catalog::Entry *> core;
+    for (const catalog::Entry &e : cat.markers) {
+        core[e.meta.id] = &e;
+    }
+    std::unordered_map<std::string, const rules::Rule *> loaded;
+    std::vector<const rules::Rule *> rules = ruleList();
+    for (const rules::Rule *r : rules) {
+        if (!m_refused.count(r->m_id)) {
+            loaded.emplace(r->m_id, r);
+        }
+    }
+    auto strings = [](JsonWriter &w, const char *key, const std::vector<std::string> &v) {
+        w.key(key).beginArray();
+        for (const std::string &s : v) {
+            w.value(s);
+        }
+        w.endArray();
+    };
+
+    JsonWriter w;
+    w.beginObject().kv("schema", "pssparser-catalog/1");
+    const catalog::Taxonomy &t = cat.taxonomy;
+    w.key("taxonomy").beginObject();
+    w.key("tiers").beginArray();
+    for (const auto &p : t.tiers) {
+        w.beginArray().value(p.first).value(p.second).endArray();
+    }
+    w.endArray();
+    strings(w, "families", t.families);
+    strings(w, "profiles", t.profiles);
+    w.kv("default_profile", t.defaultProfile);
+    w.key("profile_tiers").beginObject();
+    for (const std::string &p : t.profiles) {
+        auto it = t.profileTiers.find(p);
+        strings(w, p.c_str(), it == t.profileTiers.end() ? std::vector<std::string>() : it->second);
+    }
+    w.endObject();
+    w.kv("doc_url", t.docUrl);
+    w.endObject();
+
+    auto entry = [&](const pipeline::MarkerMeta &m) {
+        auto c = core.find(m.id);
+        auto r = loaded.find(m.id);
+        const rules::Rule *rule = (r == loaded.end()) ? nullptr : r->second;
+        std::string sev = m.severity.empty() ? pipeline::tierSeverity(m.tier) : m.severity;
+        w.beginObject();
+        w.kv("id", m.id).kv("name", m.name).kv("tier", m.tier).kv("family", m.family);
+        w.kv("since", m.since).kv("status", m.status).kv("severity", sev);
+        strings(w, "aliases", m.aliases);
+        strings(w, "replaced_by", m.replacedBy);
+        w.kv("default_enabled", m.defaultEnabled).kv("minimal", m.minimal);
+        if (c != core.end()) {
+            w.kv("summary", c->second->summary).kv("detail", c->second->detail);
+            strings(w, "lrm", c->second->lrm);
+        } else if (rule) {
+            w.kv("summary", rule->m_summary).kv("detail", rule->m_doc);
+            strings(w, "lrm", rule->m_lrm);
+        } else {
+            w.kv("summary", "").kv("detail", "");
+            strings(w, "lrm", {});
+        }
+        w.kv("doc_url", catalog::docUrl(m.id));
+        w.kv("source", (c != core.end()) ? "core" : rule ? "rules" : "host");
+        w.endObject();
+    };
+
+    w.key("markers").beginArray();
+    std::set<std::string> seen;
+    for (const pipeline::MarkerMeta &m : m_hostMarkers) {
+        seen.insert(m.id);
+        entry(m);
+    }
+    for (const rules::Rule *r : rules) {
+        if (seen.count(r->m_id) || m_refused.count(r->m_id)) {
+            continue;
+        }
+        seen.insert(r->m_id);
+        pipeline::MarkerMeta m;
+        m.id = r->m_id;
+        m.name = r->m_name;
+        m.tier = r->m_tier;
+        m.family = r->m_family;
+        m.since = r->m_since;
+        m.status = r->m_status;
+        m.severity = r->m_severity;
+        m.aliases = r->m_aliases;
+        m.replacedBy = r->m_replacedBy;
+        m.defaultEnabled = r->m_defaultEnabled;
+        entry(m);
+    }
+    w.endArray();
+    w.endObject();
     return w.str();
 }
 

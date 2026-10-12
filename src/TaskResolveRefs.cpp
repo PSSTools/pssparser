@@ -643,9 +643,9 @@ ast::ISymbolScope *TaskResolveRefs::traversedType(
             m_ctxt->addMarker(
                 MarkerSeverityE::Warn,
                 loc,
-                "traversal of dynamic constraint '%s' is deprecated (13.1.1); "
-                "declare it as a generic constraint, 'constraint %s() { ... }'",
-                name.c_str(), name.c_str());
+                "traversal of dynamic constraint '" + name + "' is deprecated (13.1.1); "
+                "declare it as a generic constraint, 'constraint " + name + "() { ... }'",
+                {}, "LINT602");
         } else {
             m_ctxt->addMarker(
                 MarkerSeverityE::Error,
@@ -1948,7 +1948,8 @@ ast::ISymbolRefPath *TaskResolveRefs::expectedItem(
                 + declDescription(lex, id->getId())
                 + " (18.3 a); qualify one of them",
             {{NameLookup::declLocation(lex), declDescription(lex, id->getId())
-                + " is declared here"}});
+                + " is declared here"}},
+            "LINT401");
     }
     return ref;
 }
@@ -2258,7 +2259,7 @@ void TaskResolveRefs::warnEnumItemFallback(
         "enum item '" + id->getId() + "' is used where " + where
             + " (7.5 i, 8.4.3); qualify it as '" + e->getName() + "::"
             + id->getId() + "'",
-        {});
+        {}, "LINT101");
 }
 
 void TaskResolveRefs::reportEnumItemFallback(
@@ -3895,7 +3896,8 @@ void TaskResolveRefs::visitDataTypeInt(ast::IDataTypeInt *i) {
                     + " '" + it->first->getId()
                     + "' is used in a type width before its declaration "
                     + declSite(t, use) + "; declare it first (18.2)",
-                {{TaskResolveRootRef::declLocation(t), "declared here"}});
+                {{TaskResolveRootRef::declLocation(t), "declared here"}},
+                "LINT404");
         }
     }
 }
@@ -5125,9 +5127,9 @@ void TaskResolveRefs::visitExportFunction(ast::IExportFunction *i) {
             NodeKind::cast<ast::ISymbolFunctionScope>(target_c);
         if (componentScopeOf(fs->getUpper()) && isInstanceMember(fs)) {
             m_ctxt->addMarker(MarkerSeverityE::Warn, id->getLocation(),
-                "exported function '%s' is not static; exporting a "
+                "exported function '" + id->getId() + "' is not static; exporting a "
                 "component's instance function is an extension to 20.4.2",
-                id->getId().c_str());
+                {}, "LINT301");
         }
         rn->setTarget(target.release());
     }
@@ -5950,17 +5952,16 @@ void TaskResolveRefs::visitAnnotation(ast::IAnnotation *i) {
             m_ctxt->addMarker(
                 MarkerSeverityE::Warn,
                 i->getLocation(),
-                "unknown annotation type '%s'; declared in %s -- add "
-                "'import %s::*;'. Annotation disregarded",
-                type_name.c_str(),
-                core_pkg.c_str(),
-                core_pkg.c_str());
+                "unknown annotation type '" + type_name + "'; declared in "
+                    + core_pkg + " -- add 'import " + core_pkg
+                    + "::*;'. Annotation disregarded",
+                {}, "LINT403");
         } else {
             m_ctxt->addMarker(
                 MarkerSeverityE::Warn,
                 i->getLocation(),
-                "unknown annotation type '%s'; annotation disregarded",
-                type_name.c_str());
+                "unknown annotation type '" + type_name + "'; annotation disregarded",
+                {}, "LINT403");
         }
         DEBUG_LEAVE("visitAnnotation (unresolved)");
         return;

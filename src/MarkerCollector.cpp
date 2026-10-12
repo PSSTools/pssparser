@@ -7,6 +7,7 @@
 
 #include "Marker.h"
 #include "MarkerCollector.h"
+#include "lint/catalog/Catalog.h"
 
 namespace pssp {
 
@@ -45,7 +46,14 @@ void MarkerCollector::marker(const IMarker *m) {
 		}
 	}
 
-	m_markers.push_back(IMarkerUP(m->clone()));
+	IMarkerUP c(m->clone());
+	if (c->id().empty()) {
+		// A core marker whose code its emitter did not set: the catalogue's
+		// message patterns give it (lint-core-plan.md C7.3), so every host --
+		// the WASM build too -- sees the code the CLI reports.
+		c->setId(lint::catalog::codeFor(c->msg()));
+	}
+	m_markers.push_back(std::move(c));
 	m_count[static_cast<uint32_t>(m->severity())]++;
 }
 

@@ -162,7 +162,8 @@ void TaskCheckImports::checkFirst(ast::IPackageImportStmt *imp) {
             "'import " + NameLookup::importText(imp) + ";' follows a "
                 "declaration; imports shall come first in a package, a "
                 "component, an extension or a file (18.1.3)",
-            {{NameLookup::declLocation(c), "first declaration here"}});
+            {{NameLookup::declLocation(c), "first declaration here"}},
+            "LINT402");
         return;
     }
 }

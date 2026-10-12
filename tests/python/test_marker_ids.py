@@ -1,10 +1,13 @@
 """
 Pins the core marker-ID catalogue and the message-to-ID mapping.
 
-Core markers originate in C++ and carry no ID on the marker object; the ID is
-recovered in Python by matching the message text against the ``patterns``
-declared on each ``MarkerDef``.  That makes the C++ message strings part of the
-contract, with nothing in the build to enforce it -- hence this file.
+Most core markers originate in C++ without an ID; the ID comes from matching
+the message text against the ``patterns`` declared on each ``MarkerDef`` --
+in C++, by the marker collector, from the generated catalogue
+(lint-core-plan C7.3), and in Python by ``_assign_core_code``, the same table.
+That makes the C++ message strings part of the contract, with nothing in the
+build to enforce it -- hence this file.  The core-emitted lint carries its ID
+from where C++ emits it, and no pattern may claim its messages.
 
 Two kinds of coverage here:
 
@@ -22,6 +25,7 @@ import pytest
 
 from pssparser.checkers.core_checker import CoreChecker
 from pssparser.cli.commands import _assign_core_code
+from pssparser.lint.catalog import CORE_EMITTED
 
 
 # Representative message text for each core ID. For PSS100+ these are the
@@ -94,15 +98,8 @@ REPRESENTATIVE_MESSAGES = [
                "aliases in one scope shall not share a name (18.1.4)"),
     ("PSS043", "package alias 'foo' has the same name as a package declared "
                "in package 'P'; rename the alias (18.1.4)"),
-    ("LINT401", "'A' is read as the enum item mode_e::A, which hides the "
-               "field 'A' (18.3 a); qualify one of them"),
     ("PSS045", "ambiguous comparison of 'A' and 'B': either 'A' is e2::A or "
                "'B' is e1::B; qualify the enum item (8.4.3, 18.3 a)"),
-    ("LINT101", "enum item 'ORANGE' is used where no enumeration type is "
-               "expected (7.5 i, 8.4.3); qualify it as 'color_e::ORANGE'"),
-    ("LINT101", "enum item 'RED' is used where 'mode_e' is expected, but it is "
-               "an item of 'color_e' (7.5 i, 8.4.3); qualify it as "
-               "'color_e::RED'"),
     ("PSS047", "template parameter 'N' expects a value, but 'my_s' is a type"),
     ("PSS047", "template parameter 'N' expects a value, but the argument "
                "supplied is a type"),
@@ -136,9 +133,6 @@ REPRESENTATIVE_MESSAGES = [
     ("PSS052", "'s' is already imported explicitly in this scope, by 'import "
                "lib1::s;'; the same name shall not be imported explicitly "
                "from two packages (18.1.3)"),
-    ("LINT402", "'import lib::*;' follows a declaration; imports shall come "
-               "first in a package, a component, an extension or a file "
-               "(18.1.3)"),
     ("PSS054", "compile assert failed: too wide"),
     ("PSS054", "compile assert failed for 'S<64>': too wide"),
     ("PSS055", "compile if condition cannot be evaluated at compile time: "
@@ -219,8 +213,6 @@ REPRESENTATIVE_MESSAGES = [
     ("PSS014", "reg_c width SZ = 32 is smaller than its value type 'd_s' "
                "(40 bits)"),
     ("PSS015", "sizeof_s argument is a string, which has no packed size"),
-    ("LINT501", "reg_c width SZ = 96 has no primitive access function; use 8, "
-               "16, 32 or 64 bits"),
     ("PSS017", "ambiguous reference to 's': more than one wildcard import "
                "provides it, so none does (18.1.3); qualify the name"),
     ("PSS018", "'x' is not an action handle, and cannot be traversed; only "
@@ -243,9 +235,7 @@ REPRESENTATIVE_MESSAGES = [
     ("PSS002", "'super' is only valid inside a type: an action, component, "
                "struct or other type body"),
     ("PSS100", "annotation is not attached to a model element"),
-    ("LINT403", "unknown annotation type 'desc_s'; annotation disregarded"),
     ("PSS102", "annotation initializer for 'owner' is not a constant expression"),
-    ("LINT601", "'compile if' branch without enclosing braces is deprecated"),
     ("PSS105", "illegal 'mutable' qualifier: not permitted on a rand field"),
     ("PSS106", "exec block tag is not permitted on 'body' exec blocks"),
     ("PSS107", "member selection is not permitted on a slice of 'arr'"),
@@ -274,8 +264,6 @@ REPRESENTATIVE_MESSAGES = [
     ("PSSP101",
      "`randomize` is accepted but not represented in the AST: "
      "the `with` constraints are dropped"),
-    ("LINT602", "traversal of dynamic constraint 'dc' is deprecated (13.1.1); "
-               "declare it as a generic constraint, 'constraint dc() { ... }'"),
     ("PSS002", "'x' is used before its declaration on line 4; in a block, a "
                "name is visible only after it is declared"),
     ("PSS118", "constant 'C' is used in the initializer of 'A' before its "
@@ -286,6 +274,29 @@ REPRESENTATIVE_MESSAGES = [
                "itself (18.2)"),
     ("PSS118", "package-level constant 'A' may reference only package-level "
                "constants; 'K' is declared in type 'C' (18.2)"),
+]
+
+
+#: The core-emitted lint (lint/catalog.py), whose code C++ sets where it emits
+#: them (lint-core-plan C7.3): no pattern may claim their messages.
+#: tests/python/lintcore/test_catalog.py checks the codes on the markers.
+CORE_LINT_MESSAGES = [
+    ("LINT401", "'A' is read as the enum item mode_e::A, which hides the "
+               "field 'A' (18.3 a); qualify one of them"),
+    ("LINT101", "enum item 'ORANGE' is used where no enumeration type is "
+               "expected (7.5 i, 8.4.3); qualify it as 'color_e::ORANGE'"),
+    ("LINT101", "enum item 'RED' is used where 'mode_e' is expected, but it is "
+               "an item of 'color_e' (7.5 i, 8.4.3); qualify it as "
+               "'color_e::RED'"),
+    ("LINT402", "'import lib::*;' follows a declaration; imports shall come "
+               "first in a package, a component, an extension or a file "
+               "(18.1.3)"),
+    ("LINT501", "reg_c width SZ = 96 has no primitive access function; use 8, "
+               "16, 32 or 64 bits"),
+    ("LINT403", "unknown annotation type 'desc_s'; annotation disregarded"),
+    ("LINT601", "'compile if' branch without enclosing braces is deprecated"),
+    ("LINT602", "traversal of dynamic constraint 'dc' is deprecated (13.1.1); "
+               "declare it as a generic constraint, 'constraint dc() { ... }'"),
     ("LINT404", "constant 'W' is used in a type width before its declaration "
                "on line 5; declare it first (18.2)"),
     ("LINT301", "exported function 'bump' is not static; exporting a "
@@ -299,6 +310,22 @@ def test_message_maps_to_expected_id(expected_id, message):
     assert assigned.get("code") == expected_id, \
         "message %r mapped to %r, expected %r" % (
             message, assigned.get("code"), expected_id)
+
+
+@pytest.mark.parametrize("message", [m for _, m in CORE_LINT_MESSAGES])
+def test_no_pattern_claims_core_lint(message):
+    assert "code" not in _assign_core_code({"message": message})
+
+
+def test_the_core_assigns_the_same_codes(factory):
+    """The core's marker collector gives a marker without a code the code of
+    the catalogue's patterns (C7.3): the same table, so the same answers."""
+    engine = factory.mkLintEngine()
+    messages = [m for _, m in REPRESENTATIVE_MESSAGES + CORE_LINT_MESSAGES]
+    messages += ["some entirely novel diagnostic", ""]
+    got = {m: engine.core_code(m) for m in messages}
+    want = {m: _assign_core_code({"message": m}).get("code", "") for m in messages}
+    assert got == want
 
 
 def test_unmatched_message_gets_no_code():
@@ -373,7 +400,8 @@ _NOT_EMITTED = {m.id for m in CoreChecker.marker_defs if not m.emittable}
 #: IDs whose code is set at construction rather than recovered from the
 #: message text, or that are never emitted. Neither `patterns` nor a
 #: REPRESENTATIVE_MESSAGES entry applies to them.
-_DIRECT_CODE_BANDS = _SYNTAX_BAND | _TOOLING_BAND | _NOT_EMITTED
+_DIRECT_CODE_BANDS = _SYNTAX_BAND | _TOOLING_BAND | _NOT_EMITTED | {
+    md.id for md in CORE_EMITTED}
 
 
 def test_every_core_marker_declares_patterns():
@@ -387,7 +415,7 @@ def test_every_core_marker_declares_patterns():
 
 def test_every_marker_has_a_representative_message():
     """Every declared ID must be exercised by the mapping test above."""
-    covered = {mid for mid, _ in REPRESENTATIVE_MESSAGES} | _DIRECT_CODE_BANDS
+    covered = {mid for mid, _ in REPRESENTATIVE_MESSAGES + CORE_LINT_MESSAGES}         | _DIRECT_CODE_BANDS
     declared = {m.id for m in CoreChecker.marker_defs}
     assert declared - covered == set(), \
         "IDs with no representative message: %s" % sorted(declared - covered)

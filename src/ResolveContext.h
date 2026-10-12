@@ -266,13 +266,16 @@ public:
 
     /**
      * A marker with related locations -- (location, label) pairs pointing at
-     * the declarations the message is about.
+     * the declarations the message is about. `id` is the marker's code, for
+     * one whose code the catalogue's message patterns do not assign (the
+     * core-emitted lint, lint-core-plan C7.3).
      */
     void addMarker(
         MarkerSeverityE     severity,
         const ast::Location &loc,
         const std::string   &msg,
-        const std::vector<std::pair<ast::Location, std::string>> &related);
+        const std::vector<std::pair<ast::Location, std::string>> &related,
+        const std::string   &id=std::string());
 
     /**
      * Set by NameLookup after each unqualified lookup: the later

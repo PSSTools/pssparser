@@ -2,11 +2,16 @@
 
 ## Adding or changing a diagnostic
 
-Core diagnostics are emitted by C++ (builder, linker) as plain messages. The
-**ID is assigned in Python** by matching the message against the `patterns` of
-the `MarkerDef`s in `python/pssparser/checkers/core_checker.py`
-(`CoreChecker.marker_defs`). The C++ message text is therefore part of the
-contract, and nothing in the build checks it: the tests below do.
+Core diagnostics are emitted by C++ (builder, linker), mostly as plain
+messages. Their **ID comes from the message**: the marker collector matches it
+against the `patterns` of the `MarkerDef`s in
+`python/pssparser/checkers/core_checker.py` (`CoreChecker.marker_defs`), which
+`scripts/gen_catalog.py` copies into the core's catalogue,
+`src/lint/catalog/catalog.json` (Python's `_assign_core_code` reads the same
+table). The C++ message text is therefore part of the contract, and nothing in
+the build checks it: the tests below do. The syntax band and the core-emitted
+`LINT` rules set their ID where C++ emits them instead, and declare no
+patterns.
 
 To add a diagnostic:
 
@@ -29,10 +34,14 @@ To add a diagnostic:
    Append the new code to `tests/data/core-codes.lock`.
 3. Add a representative message to `REPRESENTATIVE_MESSAGES` in
    `tests/python/test_marker_ids.py`: it proves the message maps to the ID and
-   that no other pattern shadows it.
-4. Regenerate the reference page:
-   `PYTHONPATH=python python scripts/gen_marker_docs.py`
-   (`tests/python/cli/test_marker_docs.py` fails if `docs/markers.rst` is stale).
+   that no other pattern shadows it (a core-emitted `LINT` rule's goes in
+   `CORE_LINT_MESSAGES`, which proves no pattern claims it).
+4. Regenerate the reference page and the core's catalogue, then rebuild:
+   `PYTHONPATH=python python scripts/gen_marker_docs.py` and
+   `PYTHONPATH=python python scripts/gen_catalog.py`
+   (`tests/python/cli/test_marker_docs.py` and
+   `tests/python/lintcore/test_catalog.py` fail when they are stale). Until
+   the rebuild, the core does not know the new code: markers lack it in WASM.
 5. Add a test that triggers it from a real model and asserts the code, line and
    column. Then add a CHANGELOG entry naming the code.
 

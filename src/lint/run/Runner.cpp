@@ -22,6 +22,7 @@
 #include "../cel/CelEval.h"
 #include "../cel/CelFunctions.h"
 #include "../cel/CelNode.h"
+#include "../pipeline/Selection.h"
 #include "../rules/Rule.h"
 
 namespace pssp {
@@ -47,11 +48,9 @@ rf::Node toNode(const cel::Value &v) {
 }
 
 MarkerSeverityE ruleSeverity(const rules::Rule &r) {
-    // taxonomy.TIER_SEVERITY (lint-framework L2).
-    const std::string &s = r.m_severity.empty()
-        ? ((r.m_tier == "simplify") ? std::string("info")
-            : (r.m_tier == "style") ? std::string("hint") : std::string("warning"))
-        : r.m_severity;
+    // taxonomy.TIER_SEVERITY (lint-framework L2), from the catalogue (C7.3).
+    const std::string s = r.m_severity.empty()
+        ? std::string(pipeline::tierSeverity(r.m_tier)) : r.m_severity;
     if (s == "error") {
         return MarkerSeverityE::Error;
     } else if (s == "info") {

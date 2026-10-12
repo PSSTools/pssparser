@@ -95,3 +95,23 @@ list(APPEND PSSPARSER_LINT_SRC "${PSSPARSER_BUILTIN_RULES_DIR}/BuiltinRules.cpp"
 # The generated file includes "rules/BuiltinRules.h", from beside this file.
 set_source_files_properties("${PSSPARSER_BUILTIN_RULES_DIR}/BuiltinRules.cpp"
   PROPERTIES INCLUDE_DIRECTORIES "${PSSPARSER_LINT_DIR}")
+
+#****************************************************************************
+#* The marker catalogue (lint-core-plan.md C7.3): catalog/catalog.json, which
+#* scripts/gen_catalog.py generates from the Python MarkerDefs and which is
+#* checked in, embedded as bytes as the built-in rules are.
+#****************************************************************************
+set(PSSPARSER_CATALOG_DIR "${CMAKE_CURRENT_BINARY_DIR}/lint-catalog")
+add_custom_command(
+  OUTPUT "${PSSPARSER_CATALOG_DIR}/CatalogData.cpp"
+  COMMAND "${PYTHON}" "${PSSPARSER_LINT_DIR}/catalog/mk_catalog.py"
+          "${PSSPARSER_LINT_DIR}/catalog/catalog.json"
+          "${PSSPARSER_CATALOG_DIR}/CatalogData.cpp"
+  DEPENDS "${PSSPARSER_LINT_DIR}/catalog/catalog.json"
+          "${PSSPARSER_LINT_DIR}/catalog/mk_catalog.py"
+  COMMENT "Embedding the marker catalogue"
+  VERBATIM)
+
+list(APPEND PSSPARSER_LINT_SRC "${PSSPARSER_CATALOG_DIR}/CatalogData.cpp")
+set_source_files_properties("${PSSPARSER_CATALOG_DIR}/CatalogData.cpp"
+  PROPERTIES INCLUDE_DIRECTORIES "${PSSPARSER_LINT_DIR}")

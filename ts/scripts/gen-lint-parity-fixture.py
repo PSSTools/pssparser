@@ -4,7 +4,7 @@
     cd .. && PYTHONPATH=python packages/python/bin/python \\
         ts/scripts/gen-lint-parity-fixture.py -o ts/test/fixtures/lint-parity.json
 
-Four kinds of case (lint-core-plan.md C5.5, C7.1, C7.2):
+Five kinds of case (lint-core-plan.md C5.5, C7.1, C7.2, C7.3):
 
 * ``example``: every example of every built-in rule and of the rule files in
   tests/data/lint-examples/, run by ``pssparser.lint.examples`` (each example
@@ -21,6 +21,10 @@ Four kinds of case (lint-core-plan.md C5.5, C7.1, C7.2):
   apply them to (``LintEngine.collect_waivers`` and ``apply_waivers``;
   ``Parser.collectWaivers`` and ``applyWaivers``). The case records the
   waivers collected and the whole answer.
+* ``catalog``: the marker catalogue (``LintEngine.catalog``,
+  ``Parser.catalog``) with the example rule files loaded, with and without
+  host markers; and the markers of a model with core errors and warnings,
+  whose codes the core gives them (``code`` on every marker).
 
 `ts/test/lint-parity.test.ts` runs the same inputs through the WebAssembly
 build and must get the same results. Rule files are named by repository
@@ -346,6 +350,45 @@ def waiver_cases():
     return out
 
 
+#: Core markers of several kinds, none of which has its code set where it is
+#: emitted but LINT402: the collector gives them theirs.
+CODES_MODEL = """\
+package p { struct s {} import std_pkg::*; }
+component pss_top {
+  nosuch_t f;
+  int a;
+  int a;
+  action A { activity { undefined_action b; } }
+}
+"""
+
+
+def catalog_cases():
+    from pssparser.parser import ParseException, Parser
+    out = []
+    e = engine_for(EXAMPLE_FILES, [])
+    out.append({"id": "catalog:engine", "kind": "catalog", "hostMarkers": None,
+                "result": e.catalog()})
+    assert e.set_host_markers(WAIVER_HOST) == []
+    # With host markers only the entries' metadata changes; record that much.
+    keys = ("id", "name", "tier", "severity", "status", "aliases", "minimal", "source")
+    out.append({"id": "catalog:host", "kind": "catalog", "hostMarkers": WAIVER_HOST,
+                "keys": list(keys),
+                "result": [{k: m[k] for k in keys} for m in e.catalog()["markers"]]})
+    p = Parser()
+    sources = [("m.pss", CODES_MODEL)]
+    try:
+        p.parses(sources)
+        p.link()
+    except ParseException:
+        pass
+    markers = normal([dict(m, code=m.get("code") or "") for m in p.markers])
+    assert markers and all(m["code"] for m in markers), markers
+    out.append({"id": "catalog:marker-codes", "kind": "marker-codes",
+                "sources": [{"name": n, "text": t} for n, t in sources], "markers": markers})
+    return out
+
+
 def example_cases():
     from pssparser.lint.examples import run_examples
     e = engine_for(EXAMPLE_FILES, [])
@@ -374,6 +417,7 @@ def main():
     cases += [run_case(*r) for r in RUNS]
     cases += selection_cases()
     cases += waiver_cases()
+    cases += catalog_cases()
     doc = {
         "generator": "ts/scripts/gen-lint-parity-fixture.py",
         "ruleFiles": EXAMPLE_FILES,

@@ -604,6 +604,14 @@ public:
         return ensureLintEngine()->setHostMarkers(json);
     }
 
+    /*
+     * The marker catalogue (lint-core-plan.md C7.3): ILintEngine::catalogJson(),
+     * for hover, `codeDescription` and quick-info.
+     */
+    std::string catalogJson() {
+        return ensureLintEngine()->catalogJson();
+    }
+
     /* Resolves a rule selection: ILintEngine::resolveSelection()'s JSON (C7.1). */
     std::string resolveSelection(const std::string &json) {
         return ensureLintEngine()->resolveSelection(json);
@@ -813,5 +821,6 @@ EMSCRIPTEN_BINDINGS(pssparser) {
         .function("setHostMarkers", &ParserSession::setHostMarkers)
         .function("resolveSelection", &ParserSession::resolveSelection)
         .function("collectWaivers", &ParserSession::collectWaivers)
-        .function("applyWaivers", &ParserSession::applyWaivers);
+        .function("applyWaivers", &ParserSession::applyWaivers)
+        .function("catalogJson", &ParserSession::catalogJson);
 }

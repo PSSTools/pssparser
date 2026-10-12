@@ -19,6 +19,7 @@
 #include <vector>
 #include "pssp/lint/ILintEngine.h"
 #include <set>
+#include <unordered_map>
 #include "pipeline/Selection.h"
 #include "rules/Rule.h"
 #include "run/Runner.h"
@@ -72,10 +73,17 @@ public:
 
     virtual std::string applyWaivers(const std::string &requestJson) override;
 
+    virtual std::string catalogJson() const override;
+
+    virtual std::string coreCode(const std::string &message) const override;
+
     /** Every loaded rule, in load order: what the runner (C5) dispatches. */
     std::vector<const rules::Rule *> ruleList() const;
 
 private:
+    // m_hostMarkers back to the embedded catalogue's markers.
+    void resetHostMarkers();
+
     // A run's "selection" (C7.1): the rules some owned file enables, in load
     // order, with each file's set and options put in `opts`.
     std::vector<const rules::Rule *> select(const yaml::Node &selection,
@@ -87,7 +95,11 @@ private:
     std::vector<RuleDiagnostic>     m_diagnostics;
     rules::RuleClaims               m_claims;          // IDs and names, across files
     bool                            m_builtinLoaded = false;
-    std::vector<pipeline::MarkerMeta>   m_hostMarkers;  // setHostMarkers()
+    // The embedded catalogue's markers, then setHostMarkers()'s: a host
+    // entry replaces a core one where it stands. m_fromHost marks the host's.
+    std::vector<pipeline::MarkerMeta>   m_hostMarkers;
+    std::unordered_map<std::string, size_t> m_hostIndex;
+    std::vector<bool>               m_fromHost;
     std::set<std::string>           m_refused;
 };
 

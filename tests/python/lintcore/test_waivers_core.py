@@ -10,7 +10,7 @@ from pssparser import Parser
 from pssparser import waivers as W
 from pssparser.checkers import MarkerDef
 from pssparser.checkers.selectors import RuleSet, _is_core_error
-from pssparser.lint.selection import tell_engine
+from pssparser.lint.selection import tell_engine, with_core
 
 
 def _same(a, b):
@@ -214,6 +214,10 @@ RULES = [
 
 CODES = [md.id for md in RULES] + ["", "XYZ999", None]
 
+#: What the engine holds after tell_engine(RULES): the core's markers too,
+#: RULES' replacing theirs (C7.3). The oracle resolves against the same.
+ALL = with_core(RULES)
+
 SELECTORS = ["LINT402", "LINT401", "import-after-declaration", "family:import", "LINT4",
              "LINT", "style", "ACME", "acme-suffix", "ACME900", "PSS053", "LINT099", "PSS002",
              "PSS", "PSSP", "PSSP202", "PSS010", "error", "nosuch", "LINT40X", "family:nope",
@@ -238,9 +242,9 @@ def _aliases(mdefs):
 
 
 def _oracle_apply(diags, waivers, ran):
-    catalog = {md.id: md for md in RULES}
-    aliases = _aliases(RULES)
-    return W.apply(diags, waivers, rules=RuleSet(RULES),
+    catalog = {md.id: md for md in ALL}
+    aliases = _aliases(ALL)
+    return W.apply(diags, waivers, rules=RuleSet(ALL),
                    is_core_error=lambda c: c in catalog and _is_core_error(catalog[c]),
                    ran=ran, aliases=aliases)
 

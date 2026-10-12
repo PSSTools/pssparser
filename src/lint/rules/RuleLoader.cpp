@@ -23,6 +23,7 @@
 #include <unordered_set>
 #include "Reflect.h"
 #include "RuleLoader.h"
+#include "../catalog/Catalog.h"
 #include "../cel/CelCheck.h"
 #include "../cel/CelNode.h"
 #include "../cel/CelParser.h"
@@ -104,12 +105,6 @@ using yaml::Node;
 using NK = Node::Kind;
 namespace rf = pssp::ast::reflect;
 
-const std::vector<std::string> Tiers = {
-    "correctness", "suspicious", "portability", "simplify", "style", "pedantic",
-    "restriction", "nursery"};
-const std::vector<std::string> Families = {
-    "constraint", "activity", "exec", "decl", "import", "register", "evolution", "naming",
-    "metric"};
 const std::vector<std::string> Statuses = {"active", "deprecated", "retired"};
 const std::vector<std::string> Severities = {"error", "warning", "info", "hint"};
 
@@ -1522,9 +1517,9 @@ const std::vector<FieldSpec> &ruleFields() {
             "Stable ID, as LINT201 or ACME001"},
         {"name", FieldType::Kebab, Need::Required, false, {},
             "Unique kebab-case name, usable wherever the ID is"},
-        {"tier", FieldType::Enum, Need::Required, true, Tiers,
+        {"tier", FieldType::Enum, Need::Required, true, catalog::taxonomy().lintTiers,
             "Lint tier, which decides the default severity and profile"},
-        {"family", FieldType::Enum, Need::Builtin, true, Families,
+        {"family", FieldType::Enum, Need::Builtin, true, catalog::taxonomy().families,
             "What the rule is about"},
         {"summary", FieldType::Line, Need::Required, false, {},
             "One line, not interpolated"},

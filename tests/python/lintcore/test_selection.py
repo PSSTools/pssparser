@@ -7,7 +7,7 @@ import pytest
 
 from pssparser.checkers import MarkerDef
 from pssparser.checkers.selectors import RuleSet, SelectorError
-from pssparser.lint.selection import host_marker
+from pssparser.lint.selection import host_marker, with_core
 
 
 def _rule(id, tier, *, name="", family="", since="", default_enabled=True, **kw):
@@ -44,6 +44,21 @@ RULES = [
 MINIMAL = ("LINT601",)
 
 
+def merged_minimal(mdefs, minimal):
+    """`minimal` for the host's entries; the core's own for the rest."""
+    from pssparser.lint.catalog import MINIMAL_IDS
+    host = {md.id for md in mdefs}
+    return tuple(minimal) + tuple(i for i in MINIMAL_IDS if i not in host)
+
+
+#: What the engine holds after the `engine` fixture's set_host_markers(): the
+#: core's markers too (C7.3).
+ALL = with_core(RULES)
+ALL_MINIMAL = merged_minimal(RULES, MINIMAL)
+#: The core's `minimal` rules that RULES does not replace: always there.
+CORE_MIN = set(ALL_MINIMAL) - set(MINIMAL)
+
+
 def _aliases(mdefs):
     out = {}
     for md in mdefs:
@@ -55,7 +70,7 @@ def _aliases(mdefs):
     return out
 
 
-def _oracle(mdefs=RULES, minimal=MINIMAL, pin=""):
+def _oracle(mdefs=ALL, minimal=ALL_MINIMAL, pin=""):
     rs = RuleSet(mdefs, rules_version=pin, minimal=minimal)
     rs.aliases = _aliases(mdefs)
     return rs
@@ -102,7 +117,7 @@ def test_profiles(engine, profile):
 
 
 def test_the_default_profile_is_minimal(engine):
-    assert _enabled(engine) == {"LINT601"}
+    assert _enabled(engine) == {"LINT601"} | CORE_MIN
 
 
 @pytest.mark.parametrize("profile,select,ignore", [
@@ -300,8 +315,8 @@ def _groups(engine, paths, overrides, base="/w", **kw):
 def test_an_override_turns_a_rule_off_in_one_directory(engine):
     got, r = _groups(engine, ["/w/ip/a.pss", "/w/tests/t.pss", "/w/tests/sub/u.pss"],
                      [{"files": ["tests/**"], "ignore": ["LINT601"]}])
-    assert got == {"/w/ip/a.pss": {"LINT601"}, "/w/tests/t.pss": set(),
-                   "/w/tests/sub/u.pss": set()}
+    assert got == {"/w/ip/a.pss": {"LINT601"} | CORE_MIN, "/w/tests/t.pss": CORE_MIN,
+                   "/w/tests/sub/u.pss": CORE_MIN}
     assert [g["overrides"] for g in r["groups"]] == [[], [0]]
 
 
@@ -310,9 +325,10 @@ def test_overrides_apply_in_order(engine):
            {"files": ["ip/legacy/**"], "ignore": ["style"]},
            {"files": ["ip/legacy/keep.pss"], "select": ["style-rule"]}]
     got, _ = _groups(engine, ["/w/ip/a.pss", "/w/ip/legacy/b.pss", "/w/ip/legacy/keep.pss"], ovs)
-    assert got["/w/ip/a.pss"] == {"LINT601", "LINT301"}
-    assert got["/w/ip/legacy/b.pss"] == set()
-    assert got["/w/ip/legacy/keep.pss"] == {"LINT301"}
+    # The core's minimal rules are portability, so "style" leaves them on.
+    assert got["/w/ip/a.pss"] == {"LINT601", "LINT301"} | CORE_MIN
+    assert got["/w/ip/legacy/b.pss"] == CORE_MIN
+    assert got["/w/ip/legacy/keep.pss"] == {"LINT301"} | CORE_MIN
 
 
 def test_an_override_profile_replaces_the_base_profile(engine):
@@ -330,7 +346,7 @@ def test_the_command_line_beats_an_override(engine):
     got, _ = _groups(engine, ["/w/tests/t.pss"],
                      [{"files": ["tests"], "ignore": ["LINT601", "LINT301"]}],
                      cli_select=["LINT301"])
-    assert got["/w/tests/t.pss"] == {"LINT301"}
+    assert got["/w/tests/t.pss"] == {"LINT301"} | CORE_MIN
 
 
 def test_override_options_merge(engine):

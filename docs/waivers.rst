@@ -183,19 +183,21 @@ waivers:
 
 ``rules`` is a ``pssparser.checkers.selectors.RuleSet`` over the marker
 catalogue, and ``ran`` is the set of codes whose rule ran (``None`` turns
-the unused-waiver check off).  Markers need a ``code``; the CLI assigns
-codes to the linker's markers before it applies waivers.
+the unused-waiver check off).  Markers need a ``code``; the core gives each
+of its markers one.
 
 The CLI collects and applies waivers in the core lint engine, which the
 WebAssembly build shares, so an editor applies the same ones.  With an
 engine that knows the marker catalogue
 (``pssparser.lint.selection.tell_engine``), ``waivers.collect_in(engine, p,
 files)`` and ``waivers.apply_in(engine, p.markers, found, ran=None)`` do the
-same as the two calls above.  From TypeScript (``@psstools/pssparser``):
+same as the two calls above.  The engine knows the core's markers (``PSS``,
+``PSSP`` and the core-emitted ``LINT``) and the rules it loaded; a host tells
+it of any others.  From TypeScript (``@psstools/pssparser``):
 
 .. code-block:: typescript
 
-   parser.setHostMarkers(catalogue);       // the markers the CLI knows
+   parser.setHostMarkers(extensionMarkers); // only markers the core lacks
    parser.parseSources(sources);
    parser.link();
    const found = parser.collectWaivers(sources);

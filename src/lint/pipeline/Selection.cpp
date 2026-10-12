@@ -22,6 +22,7 @@
 #include "../rules/Rule.h"
 #include "../util/JsonWriter.h"
 #include "../util/Paths.h"
+#include "../catalog/Catalog.h"
 
 namespace pssp {
 namespace lint {
@@ -29,41 +30,25 @@ namespace pipeline {
 
 namespace {
 
-// taxonomy.py: tiers (documentation order) with their default severity,
-// families, profiles, and the tiers each profile enables.
+// taxonomy.py, from the embedded catalogue (C7.3): tiers (documentation
+// order) with their default severity, families, profiles, and the tiers each
+// profile enables.
 const std::vector<std::pair<std::string, std::string>> &tierTable() {
-    static const std::vector<std::pair<std::string, std::string>> t = {
-        {"correctness", "warning"}, {"suspicious", "warning"}, {"portability", "warning"},
-        {"simplify", "info"}, {"style", "hint"}, {"pedantic", "warning"},
-        {"restriction", "warning"}, {"nursery", "warning"}, {"tool", "warning"}};
-    return t;
+    return catalog::taxonomy().tiers;
 }
 
-const std::vector<std::string> Families = {
-    "constraint", "activity", "exec", "decl", "import", "register", "evolution", "naming",
-    "metric"};
+const std::vector<std::string> &families() {
+    return catalog::taxonomy().families;
+}
 
-const std::vector<std::string> Profiles = {
-    "minimal", "recommended", "library", "strict", "all", "none"};
-
-const char *DefaultProfile = "minimal";
+const std::vector<std::string> &profiles() {
+    return catalog::taxonomy().profiles;
+}
 
 std::vector<std::string> profileTiers(const std::string &profile) {
-    static const std::vector<std::string> recommended = {
-        "correctness", "suspicious", "portability", "simplify"};
-    if (profile == "recommended" || profile == "library") {
-        return recommended;
-    }
-    if (profile == "strict") {
-        std::vector<std::string> t = recommended;
-        t.push_back("pedantic");
-        return t;
-    }
-    if (profile == "all") {
-        return {"correctness", "suspicious", "portability", "simplify", "style", "pedantic",
-            "restriction"};
-    }
-    return {};
+    const auto &pt = catalog::taxonomy().profileTiers;
+    auto it = pt.find(profile);
+    return (it == pt.end()) ? std::vector<std::string>() : it->second;
 }
 
 bool contains(const std::vector<std::string> &v, const std::string &s) {
@@ -383,10 +368,10 @@ std::vector<std::string> Catalogue::candidates() const {
     for (const auto &t : tierTable()) {
         c.insert(t.first);
     }
-    for (const std::string &f : Families) {
+    for (const std::string &f : families()) {
         c.insert("family:" + f);
     }
-    for (const std::string &p : Profiles) {
+    for (const std::string &p : profiles()) {
         c.insert(p);
     }
     return std::vector<std::string>(c.begin(), c.end());
@@ -416,7 +401,7 @@ bool Catalogue::parse(const std::string &raw, Selector &sel, std::string &err) c
         sel.value = canonical;
         return true;
     }
-    if (contains(Profiles, text)) {
+    if (contains(profiles(), text)) {
         sel.kind = Selector::Kind::Profile;
         sel.value = text;
         return true;
@@ -428,7 +413,7 @@ bool Catalogue::parse(const std::string &raw, Selector &sel, std::string &err) c
     }
     if (text.compare(0, 7, "family:") == 0) {
         std::string fam = text.substr(7);
-        if (contains(Families, fam)) {
+        if (contains(families(), fam)) {
             sel.kind = Selector::Kind::Family;
             sel.value = fam;
             return true;
@@ -670,7 +655,7 @@ void Selection::readLayer(const yaml::Node *n, const std::string &key, Layer &l,
         }
     }
     if (const yaml::Node *p = n->get("profile")) {
-        if (p->kind == NK::String && contains(Profiles, p->s)) {
+        if (p->kind == NK::String && contains(profiles(), p->s)) {
             l.hasProfile = true;
             l.profile = p->s;
         } else if (p->kind != NK::Null) {
@@ -836,7 +821,7 @@ void Selection::overlay(const Layer &l, std::set<std::string> &on,
 }
 
 void Selection::build(SelectionGroup &g) {
-    g.profile = m_base.hasProfile ? m_base.profile : DefaultProfile;
+    g.profile = m_base.hasProfile ? m_base.profile : catalog::taxonomy().defaultProfile;
     for (uint32_t i : g.overrides) {
         if (m_overrides[i].hasProfile) {
             g.profile = m_overrides[i].profile;

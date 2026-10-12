@@ -89,8 +89,8 @@ export interface SelectionResult {
 
 /**
  * One of the host's own markers, for selection and waivers (C7.1): what a
- * selector may name besides the loaded rules (the LRM, tool and core lint
- * markers). Only `id` is required.
+ * selector may name besides the loaded rules and the core's markers, which
+ * the engine knows already (C7.3). Only `id` is required.
  */
 export interface HostMarker {
   id: string;
@@ -108,6 +108,61 @@ export interface HostMarker {
   default_enabled?: boolean;
   /** In the `minimal` profile. */
   minimal?: boolean;
+}
+
+/** One entry of the marker catalogue (`Parser.catalog()`, C7.3). */
+export interface CatalogMarker {
+  id: string;
+  name: string;
+  /** A lint tier, `tool`, or empty for an LRM marker. */
+  tier: string;
+  family: string;
+  /** `YYYY.N`, the rule-set version the rule entered; may be empty. */
+  since: string;
+  /** `active`, `deprecated`, `retired` or `reserved`. */
+  status: string;
+  /** The effective default severity: the marker's, else its tier's. */
+  severity: string;
+  /** Former IDs, still accepted by selectors and waivers. */
+  aliases: string[];
+  replaced_by: string[];
+  default_enabled: boolean;
+  /** In the `minimal` profile. */
+  minimal: boolean;
+  /** One line. Empty for a host marker. */
+  summary: string;
+  /** The documentation (reStructuredText for a core marker, Markdown for a
+   *  rule's `doc`). Empty for a host marker. */
+  detail: string;
+  /** LRM references. */
+  lrm: string[];
+  /** The documentation page for the ID, for an editor's `codeDescription`. */
+  doc_url: string;
+  /** Where the entry comes from: the core's embedded catalogue, a loaded
+   *  rule file, or `setHostMarkers()` alone. */
+  source: 'core' | 'rules' | 'host';
+}
+
+/** The lint taxonomy, as `checkers/taxonomy.py` defines it. */
+export interface CatalogTaxonomy {
+  /** Each tier with its default severity, in documentation order. */
+  tiers: [string, string][];
+  families: string[];
+  profiles: string[];
+  default_profile: string;
+  /** The tiers each profile enables (`minimal` lists rules, not tiers). */
+  profile_tiers: Record<string, string[]>;
+  /** The documentation URL template; `{id}` is the lower-cased ID. */
+  doc_url: string;
+}
+
+/** The marker catalogue (`Parser.catalog()`, lint-core-plan.md C7.3). */
+export interface Catalog {
+  schema: 'pssparser-catalog/1';
+  taxonomy: CatalogTaxonomy;
+  /** The core's markers in registry order, then the host's, then the loaded
+   *  rules'. */
+  markers: CatalogMarker[];
 }
 
 /**

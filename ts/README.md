@@ -33,7 +33,10 @@ The API is complete: `createParser`, `parseSources`, `markers`,
 AST traversal helpers. Nothing throws `not implemented`.
 
 Not published to npm yet, and `Marker.code` is expected to become required
-before 1.0 (`ts-wasm-impl-plan.md` Phase 5).
+before 1.0 (`ts-wasm-impl-plan.md` Phase 5). The core already gives every
+marker the code the CLI reports, and `Parser.catalog()` documents each code
+(summary, detail, severity, documentation URL) for hover and
+`codeDescription`.
 
 ## Building
 
@@ -134,8 +137,9 @@ test/lint.test.ts      the lint engine: Parser.loadRules, ruleDiagnostics,
 test/lintcore-parity.test.ts the lint engine's YAML, CEL and rule loader must
                        equal the native bindings', case by case
 test/lint-parity.test.ts rules run in WASM as natively: every rule example,
-                       runs, selection and source waivers (collectWaivers,
-                       applyWaivers)
+                       runs, selection, source waivers (collectWaivers,
+                       applyWaivers), the marker catalogue (catalog) and
+                       the codes on core markers
 ```
 
 All six sets of parity expectations are generated, not written:
@@ -146,7 +150,7 @@ npm run gen:ast-parity-fixture       # the AST, per unit
 npm run gen:link-parity-fixture      # the linked tree
 npm run gen:census-parity-fixture    # every node, every field
 npm run gen:lintcore-parity-fixture  # the lint engine's pieces
-npm run gen:lint-parity-fixture      # lint rules run: rule examples, findings, selection, waivers
+npm run gen:lint-parity-fixture      # lint rules run: rule examples, findings, selection, waivers, catalogue
 ```
 
 The output is committed, so the suite needs no Python, no native build and no

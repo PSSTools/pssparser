@@ -7,9 +7,9 @@ when the bundled lint runner is disabled (``PSSPARSER_NO_LINT``).
 ``CORE_EMITTED`` are the nine warnings that the C++ linker has always emitted
 and that moved here from the ``PSS`` namespace (lint-framework-plan F1.3):
 legal PSS that is probably a mistake is lint, not an LRM violation.  The
-linker still raises them; their ID is assigned in Python by ``patterns``, at
-the position of the retired ``PSS`` row they replace, so the order in which
-core patterns are tried is unchanged.
+linker still raises them, and sets their ID where it does (lint-core-plan
+C7.3), so they declare no message ``patterns``; ``aliases`` keep the retired
+``PSS`` IDs.
 
 ID bands follow the rule families: ``LINT1xx`` constraint, ``2xx`` activity,
 ``3xx`` exec, ``4xx`` declarations and imports, ``5xx`` registers, ``6xx``
@@ -31,9 +31,6 @@ CORE_EMITTED: List[MarkerDef] = [
         aliases=("PSS046",),
         severity="warning",
         summary="Enum item used where its enumeration type is not expected",
-        patterns=(
-            r"^enum item '[^']*' is used where\b",
-        ),
         detail=(
             "An enum item belongs to its enumeration type's scope, not "
             "to the scope that declares the enum (7.5 g).  Unqualified, "
@@ -79,7 +76,6 @@ CORE_EMITTED: List[MarkerDef] = [
             "so a tool that implements the extension can use it.  A "
             "strictly conforming model declares the function ``static``."
         ),
-        patterns=(r"^exported function '[^']*' is not static\b",),
     ),
     MarkerDef(
         id="LINT401",
@@ -90,9 +86,6 @@ CORE_EMITTED: List[MarkerDef] = [
         aliases=("PSS044",),
         severity="warning",
         summary="Enum item hides a declaration of the same name",
-        patterns=(
-            r"^'[^']*' is read as the enum item\b",
-        ),
         detail=(
             "Where an expression's expected type is an enumeration type "
             "(8.4.3), an unqualified name is looked up among that "
@@ -113,9 +106,6 @@ CORE_EMITTED: List[MarkerDef] = [
         aliases=("PSS053",),
         severity="warning",
         summary="Import after a declaration",
-        patterns=(
-            r"^'import [^']*;' follows a declaration\b",
-        ),
         detail=(
             "18.1.3: import specifications shall appear first in their "
             "lexical scope -- a file's global scope, a ``package`` "
@@ -151,7 +141,6 @@ CORE_EMITTED: List[MarkerDef] = [
             "``annotation`` declaration is visible -- annotation types must "
             "be declared at package scope."
         ),
-        patterns=(r"^unknown annotation type\b",),
     ),
     MarkerDef(
         id="LINT404",
@@ -171,8 +160,6 @@ CORE_EMITTED: List[MarkerDef] = [
             "stated only in prose and existing models write it.  Move the "
             "constant's declaration above its first use."
         ),
-        patterns=(r"^(constant|enum item) '[^']*' is used in a type width "
-                  r"before its declaration\b",),
     ),
     MarkerDef(
         id="LINT501",
@@ -197,9 +184,6 @@ CORE_EMITTED: List[MarkerDef] = [
             "For a register whose "
             "value type is narrower than a primitive, give ``SZ`` "
             "explicitly (``reg_c<my12_s, READWRITE, 16>``)."
-        ),
-        patterns=(
-            r"^reg_c width SZ = -?\d+ has no primitive access function",
         ),
     ),
     MarkerDef(
@@ -231,7 +215,6 @@ CORE_EMITTED: List[MarkerDef] = [
             "taken branch would make the diagnostic appear and disappear "
             "as unrelated configuration changed."
         ),
-        patterns=(r"\bwithout enclosing braces is deprecated\b",),
     ),
     MarkerDef(
         id="LINT602",
@@ -257,7 +240,6 @@ CORE_EMITTED: List[MarkerDef] = [
             "Reported where the constraint is traversed.  Traversing a "
             "*fixed* named constraint is an error (PSS018)."
         ),
-        patterns=(r"^traversal of dynamic constraint '[^']*' is deprecated\b",),
     ),
 ]
 

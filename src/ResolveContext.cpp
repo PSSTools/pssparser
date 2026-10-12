@@ -84,7 +84,8 @@ void ResolveContext::addMarker(
         MarkerSeverityE     severity,
         const ast::Location &loc,
         const std::string   &msg,
-        const std::vector<std::pair<ast::Location, std::string>> &related) {
+        const std::vector<std::pair<ast::Location, std::string>> &related,
+        const std::string   &id) {
     if (m_quiet) {
         return;
     }
@@ -95,6 +96,9 @@ void ResolveContext::addMarker(
         msg,
         severity,
         loc));
+    if (!id.empty()) {
+        marker->setId(id);
+    }
     for (std::vector<std::pair<ast::Location, std::string>>::const_iterator
         it=related.begin(); it!=related.end(); it++) {
         marker->addRelated(it->first, it->second);

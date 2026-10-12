@@ -144,8 +144,10 @@ public:
      * "severity", "aliases", "replaced_by", "default_enabled", "minimal"}],
      * "refused": ["ID", ...]}. Only "id" is required. A loaded rule with a
      * host marker's ID, or listed in "refused", is left out of selection.
-     * Replaces an earlier call's markers. Returns the problems, as a JSON
-     * list of strings.
+     * The markers are added to the embedded catalogue's (C7.3; see
+     * catalogJson()): an entry with a core marker's ID replaces it where it
+     * stands, others are appended. Replaces an earlier call's markers.
+     * Returns the problems, as a JSON list of strings.
      */
     virtual std::string setHostMarkers(const std::string &json) = 0;
 
@@ -203,6 +205,34 @@ public:
      * `i` indexes "diagnostics" and `w` "waivers".
      */
     virtual std::string applyWaivers(const std::string &requestJson) = 0;
+
+    /**
+     * The marker catalogue (lint-core-plan.md C7.3), for an editor's hover,
+     * `codeDescription` and quick-info: every marker the engine knows, the
+     * embedded core catalogue's (PSS, PSSP and core LINT, generated from the
+     * Python MarkerDefs), then the host's (setHostMarkers()), then the loaded
+     * rules'. JSON:
+     *   {"schema": "pssparser-catalog/1",
+     *    "taxonomy": {"tiers": [[tier, severity]], "families", "profiles",
+     *                 "default_profile", "profile_tiers": {profile: [tier]},
+     *                 "doc_url"},
+     *    "markers": [{"id", "name", "tier", "family", "since", "status",
+     *                 "severity" (the effective one), "aliases",
+     *                 "replaced_by", "default_enabled", "minimal",
+     *                 "summary", "detail", "lrm", "doc_url",
+     *                 "source": "core" | "rules" | "host"}]}
+     * A loaded rule's summary and detail are its `summary` and `doc`; a
+     * host-only marker has none. Retired and reserved codes are included.
+     */
+    virtual std::string catalogJson() const = 0;
+
+    /**
+     * The code the catalogue's message patterns give a core marker's
+     * message (C7.3); "" when none matches. The core's marker collector
+     * already sets it on every marker that carries none; this is for a
+     * message that reached the host some other way.
+     */
+    virtual std::string coreCode(const std::string &message) const = 0;
 };
 
 }

@@ -45,6 +45,9 @@ export {
 
 export {
   NO_FILE,
+  type Catalog,
+  type CatalogMarker,
+  type CatalogTaxonomy,
   type HostMarker,
   type LintOverride,
   type LintRequest,

@@ -154,6 +154,7 @@ regenerate them (see `linker.md`, `grammar.md`).
 | grammar profiling | `tests/python/profiling/test_baseline.py` | `scripts/profile_grammar.py --write-baseline docs/profiling/baseline.json` |
 | NodeKind | `tests/python/test_node_kind_generated.py` | `scripts/gen_node_kind.py` |
 | marker docs | `tests/python/cli/test_marker_docs.py` | `scripts/gen_marker_docs.py` |
+| core marker catalogue | `tests/python/lintcore/test_catalog.py` | `scripts/gen_catalog.py`, then rebuild |
 | error goldens | `tests/python/errors/test_golden.py` | `pytest tests/python/errors/test_golden.py --bless-errors` |
 
 Run each script as `PYTHONPATH=python python scripts/<name>.py ...`. Every gate

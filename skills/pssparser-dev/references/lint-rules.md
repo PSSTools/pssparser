@@ -74,7 +74,9 @@ Choosing an ID:
 - Take the next free number in the family band.
 - A core-emitted rule is also a core marker (`CoreChecker.marker_defs` appends
   `CORE_EMITTED`), so its ID goes in `tests/data/core-codes.lock` in the same
-  change. `tests/python/test_core_codes_lock.py` fails otherwise, and it also
+  change. The C++ sets the ID where it emits the marker (the `id` argument of
+  `ResolveContext::addMarker`), and the `MarkerDef` has no `patterns`;
+  regenerate the core's catalogue (`scripts/gen_catalog.py`). `tests/python/test_core_codes_lock.py` fails otherwise, and it also
   fails if a published code disappears or goes from `retired` back to
   `active`. Runner rules are not locked yet; plan F3.1 decides that.
 - Add a runner rule's `MarkerDef` to `catalog.ALL`, which feeds `--explain`,

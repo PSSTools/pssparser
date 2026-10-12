@@ -225,7 +225,7 @@ void TaskCheckPackedUses::checkReg(
             "reg_c width SZ = %lld has no primitive access function; use 8, 16, "
             "32 or 64 bits",
             (long long)sz);
-        report(MarkerSeverityE::Warn, loc, tmp, 0);
+        report(MarkerSeverityE::Warn, loc, tmp, 0, "LINT501");
     }
 }
 
@@ -248,7 +248,8 @@ void TaskCheckPackedUses::report(
         MarkerSeverityE         severity,
         const ast::Location     &loc,
         const std::string       &msg,
-        ast::IScopeChild        *related) {
+        ast::IScopeChild        *related,
+        const std::string       &id) {
     if (!m_reported.insert(std::make_tuple(
             loc.fileid, loc.lineno, loc.linepos, msg)).second) {
         return;
@@ -258,7 +259,7 @@ void TaskCheckPackedUses::report(
             && related->getLocation().fileid > 0) {
         rel.push_back(std::make_pair(related->getLocation(), "declared here"));
     }
-    m_ctxt->addMarker(severity, loc, msg, rel);
+    m_ctxt->addMarker(severity, loc, msg, rel, id);
 }
 
 std::string TaskCheckPackedUses::typeDesc(ast::IDataType *t) {

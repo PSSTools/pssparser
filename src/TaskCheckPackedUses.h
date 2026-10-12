@@ -83,7 +83,8 @@ private:
         MarkerSeverityE         severity,
         const ast::Location     &loc,
         const std::string       &msg,
-        ast::IScopeChild        *related);
+        ast::IScopeChild        *related,
+        const std::string       &id=std::string());
 
     static std::string typeDesc(ast::IDataType *t);
 

@@ -1184,6 +1184,20 @@ cdef class LintEngine(object):
         text = json.dumps(req, ensure_ascii=False).encode("utf-8", "surrogatepass")
         return json.loads(self._hndl.applyWaivers(text).decode("utf-8"))
 
+    def catalog(self):
+        """The marker catalogue (lint-core-plan.md C7.3): every marker the
+        engine knows -- the embedded core catalogue's, the host's
+        (set_host_markers()) and the loaded rules' -- with its metadata and
+        documentation, and the lint taxonomy. ``{"schema", "taxonomy",
+        "markers"}``; see ILintEngine::catalogJson."""
+        import json
+        return json.loads(self._hndl.catalogJson().decode("utf-8"))
+
+    def core_code(self, message):
+        """The code the catalogue's message patterns give a core marker's
+        `message`, or "" (C7.3)."""
+        return self._hndl.coreCode(message.encode("utf-8", "surrogatepass")).decode("utf-8")
+
     def run(self, roots, request=None, model=None):
         """Runs the loaded rules over `roots` (the GlobalScope of each file
         the caller owns) (lint-core-plan.md C5.4). `request` is a dict:

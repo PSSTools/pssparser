@@ -141,6 +141,28 @@ See `docs/lint-rule-authoring.rst` and `docs/lint-functions.rst`.
   declarative rules; `pssparser.lint.examples` runs rules' examples.
 - pssparser ships no built-in YAML rules yet.
 
+### Added — the marker catalogue in the core; every core marker carries its code
+
+The core now holds a catalogue of every `PSS`, `PSSP` and core-emitted `LINT`
+marker, with its metadata and documentation, generated from the Python
+`MarkerDef`s (`scripts/gen_catalog.py`, which writes
+`src/lint/catalog/catalog.json`) and built in.
+
+- The core gives each of its markers its code, as the CLI always reported
+  it, so the WebAssembly build's markers now carry `code` too. The nine
+  core-emitted `LINT` warnings get theirs where the C++ emits them, and no
+  longer declare message `patterns`. No code changes.
+- The lint engine knows the core's markers without being told: a WebAssembly
+  host can select, waive or set the severity of `PSS…`, `PSSP…` and `LINT…`
+  codes, and the default profile is `minimal` there too. Markers a host
+  passes to `setHostMarkers` are added to these; one with a core ID replaces
+  that entry.
+- New API: `ILintEngine::catalogJson` and `coreCode`; Python
+  `LintEngine.catalog` and `core_code`; TypeScript `Parser.catalog()` and the
+  `Catalog`, `CatalogMarker` and `CatalogTaxonomy` types. A catalogue entry
+  gives the effective severity, summary, detail, LRM references and
+  documentation URL, for an editor's hover and `codeDescription`.
+
 ### Changed — source waivers are applied in the core
 
 Source waivers (`// pssparser waive` comments and `@lint_pkg::waive`
