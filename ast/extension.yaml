@@ -1,93 +1,116 @@
 
 enums:
   - ExtendTargetE:
-    - Action: "Extend action type"
-    - Annotation: "Extend annotation type"
-    - Buffer: "Extend buffer type"
-    - Component: "Extend component type"
-    - Enum: "Extend enum type"
-    - Resource: "Extend resource type"
-    - State: "Extend state type"
-    - Stream: "Extend stream type"
-    - Struct: "Extend struct type"
-    - Monitor: "Extend monitor type (Syntax 85; absent from Annex B)"
+      doc: |
+          The keyword after `extend` in an `extend_stmt` (LRM 17.2.1,
+          Syntax 85): which kind of type the statement extends
+          (ExtendType.kind). The linker reports an extension whose kind
+          does not match the type it names. An `extend enum` is built as
+          an ExtendEnum, so an ExtendType never carries `Enum`.
+      values:
+        - Action: "`extend action`"
+        - Annotation: "`extend annotation`: extends an annotation type (LRM 7.13)"
+        - Buffer: "`extend buffer`: a buffer flow-object type (a `struct_kind`)"
+        - Component: "`extend component`"
+        - Enum: "`extend enum`; such a statement is built as an ExtendEnum, so no ExtendType carries this value"
+        - Resource: "`extend resource`: a resource type (a `struct_kind`)"
+        - State: "`extend state`: a state flow-object type (a `struct_kind`)"
+        - Stream: "`extend stream`: a stream flow-object type (a `struct_kind`)"
+        - Struct: "`extend struct`"
+        - Monitor: "`extend monitor` (Syntax 85; absent from Annex B)"
 
 classes:
   - ExtendType:
       super: Scope
       doc: |
-          Type extension declaration for adding members to existing types.
-          
+          Type extension declaration for adding members to existing types
+          (`extend_stmt`, LRM 17.2).
+
           Represents an 'extend' statement that adds new fields, constraints,
           or methods to an existing type (action, component, struct, etc.).
           Extensions are merged with the base type during linking, allowing
-          modular enhancement of types without modifying their original definition.
-          
+          modular enhancement of types without modifying their original
+          definition: TaskBuildSymbolTree collects the members in a
+          SymbolExtendScope, and TaskApplyTypeExtensions resolves `target`
+          and merges them into the type's SymbolTypeScope. Extending a
+          template instance (`extend struct s<8>`, LRM 17.2.6) is applied to
+          that specialization only.
+
           PSS Example::
-          
+
               component my_comp {
                   action base_action { }
               }
-              
+
               extend component my_comp {
                   action extended_action { }
               }
-              
-              extend action base_action {
+
+              extend action my_comp::base_action {
                   rand int new_field;
                   constraint new_constraint {
                       new_field > 0;
                   }
               }
-          
+
           Attributes:
-              kind: Type being extended (Action, Component, Struct, etc.)
-              target: Type identifier of the type to extend
-              symtab: Symbol table for extended members
-              imports: Import specifications for this extension
-              children: New members being added (inherited from Scope)
-          
+              kind: The kind of type being extended: the keyword after
+                  `extend` (never `Enum`; see ExtendEnum)
+              target: The type named after the keyword (`type_identifier`).
+                  Its target is set by the linker (TaskApplyTypeExtensions)
+              imports: Not set by the parser or the linker; always null.
+                  The extension's imports are recorded on its
+                  SymbolExtendScope
+              children: New members being added, in source order
+                  (inherited from Scope)
+
           See Also:
-              ExtendEnum, ExtendTargetE, TypeIdentifier
+              ExtendEnum, ExtendTargetE, TypeIdentifier, SymbolExtendScope
       data:
       - kind: ExtendTargetE
       - target: UP<TypeIdentifier>
-      - symtab: 
+      - symtab:
         - doc: |
-            Maps between local item identifier and item child index
+            Not set by the parser or the linker, so always empty; the
+            extension's symbol table is that of its SymbolExtendScope.
         - type: map<string,int32_t>
         - is_ctor: false
-      - imports: 
+      - imports:
         - type: UP<SymbolImportSpec>
         - is_ctor: false
 
   - ExtendEnum:
       super: ScopeChild
       doc: |
-          Enum extension declaration for adding values to existing enums.
-          
+          Enum extension declaration for adding values to existing enums
+          (`extend enum`, LRM 17.2.4).
+
           Represents an 'extend' statement that adds new enumerator values
           to an existing enum type. Enum extensions allow adding values
-          without modifying the original enum definition.
-          
+          without modifying the original enum definition. The linker
+          (TaskApplyTypeExtensions) resolves `target` and adds the items to
+          the enum's SymbolEnumScope.
+
           PSS Example::
-          
+
               enum status {
                   OK,
                   ERROR
-              };
-              
+              }
+
               extend enum status {
                   WARNING,
                   INFO
-              };
-          
+              }
+
           Attributes:
-              target: Type identifier of the enum to extend
-              items: List of new enumerator values to add
-          
+              target: The enum type named (`type_identifier`). Its target is
+                  set by the linker (TaskApplyTypeExtensions)
+              items: The enumerators added, in source order; each one's
+                  location is in the extension, not in the enum declaration
+
           See Also:
-              ExtendType, EnumDecl, EnumItem
+              ExtendType, EnumDecl, EnumItem, SymbolEnumScope
       data:
       - target: UP<TypeIdentifier>
       - items: list<UP<EnumItem>>

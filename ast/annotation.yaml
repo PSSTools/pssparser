@@ -2,7 +2,8 @@ classes:
   - Annotation:
       super: ScopeChild
       doc: |
-          Applied annotation attached to a model element.
+          Applied annotation attached to a model element (LRM 7.13,
+          `annotation`).
 
           Represents an annotation use such as ``@desc_s {.desc = "hello"}``.
           The annotation type is referenced by name; every parameter is
@@ -11,44 +12,103 @@ classes:
           ``is_standalone`` distinguishes the two application forms of §7.13: a
           standalone annotation is terminated with ``;`` and is anchored to the
           enclosing scope, while an element annotation has no terminator and
-          attaches to the model element that follows it.
+          attaches to the model element that follows it. The builder places a
+          standalone annotation among the enclosing scope's children, and an
+          element annotation in the ``annotations`` list of the element it
+          precedes (inherited from ScopeChild); an element annotation with no
+          following element in its scope is reported as an error. Annotations
+          written in an ``override`` block or a covergroup body are accepted
+          but not kept.
+
+          Annotations are advisory: an annotation whose type does not resolve
+          is disregarded with a warning (LINT403), and its parameters are not
+          checked.
+
+          PSS Example::
+
+              @desc_s {.desc = "Configures the IP"}     // element annotation
+              action config {
+                  @desc_s {.desc = "Scope annotation"};  // standalone annotation
+              }
 
           See Also:
               AnnotationDecl, AnnotationParam
       data:
       - type:
           type: UP<TypeIdentifier>
+          doc: |
+              The annotation type named after ``@``. Its target is set by the
+              linker (TaskResolveRefs); it stays unresolved, without an error,
+              when no such annotation type is visible.
       - parameters:
           type: list<UP<AnnotationParam>>
           is_ctor: false
+          doc: |
+              The ``.name = value`` parameters, in source order; empty when no
+              parameter list (or an empty ``{}``) was written.
       - is_standalone:
           type: bool
           is_ctor: false
+          doc: |
+              True when the annotation was terminated with ``;`` (a standalone
+              annotation); false for an element annotation.
 
   - AnnotationParam:
       super: ScopeChild
       doc: |
-          Parameter to an applied annotation.
+          Parameter to an applied annotation (LRM 7.13,
+          `annotation_param_item`).
 
           ``name`` is the annotation-type field the value is mapped onto. It is
           always set: PSS 3.1 annotation parameters are name-mapped only.
 
+          PSS Example::
+
+              @desc_s {.desc = "hello", .level = 2}
+
           See Also:
-              Annotation
+              Annotation, AnnotationDecl
       data:
       - name:
           type: UP<ExprRefName>
+          doc: |
+              The annotation-type field being set, written after the ``.``.
+              Its target is set by the linker (TaskResolveRefs) to that
+              field, including one inherited from a base annotation type or
+              added by an extension; an unknown name is reported as an error.
+              Left unresolved when the annotation type itself does not
+              resolve.
       - value:
           type: UP<Expr>
+          doc: |
+              The value assigned to the field. The LRM requires a constant
+              expression; the linker (TaskResolveRefs) reports one that is
+              not.
 
   - AnnotationDecl:
       super: TypeScope
       doc: |
-          Annotation type declaration.
+          Annotation type declaration (LRM 7.13, `annotation_declaration`).
 
           Represents a PSS 3.1 ``annotation`` declaration, including optional
-          template parameters, inheritance, and body fields.
+          template parameters, inheritance, and body fields. The name,
+          template parameters (``params``) and base type (``super_t``, from
+          ``: type_identifier``) are inherited from TypeScope. Each
+          attribute is a Field in ``getChildren()``; one declared
+          ``static const`` carries both attributes. Annotation types may be
+          extended with ``extend annotation``.
+
+          PSS Example::
+
+              annotation desc_s {
+                  string desc;
+              }
+
+              annotation tagged_desc_s : desc_s {
+                  static const int version = 1;
+                  string tag;
+              }
 
           See Also:
-              Annotation, ExtendType
+              Annotation, ExtendType, Field
       data: []

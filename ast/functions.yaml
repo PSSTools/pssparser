@@ -1,64 +1,94 @@
-
 enums:
   - ParamDir:
-      - ParamDir_Default: "No explicit direction (typically input)"
-      - ParamDir_In: "Input parameter (read-only)"
-      - ParamDir_Out: "Output parameter (write-only)"
-      - ParamDir_InOut: "Input/output parameter (read-write)"
+      doc: |
+          Direction of a function parameter -- LRM 20.2.2,
+          `function_parameter_dir`. A direction may be written only on a
+          function that is imported (20.4) or built into the implementation
+          (such as a core-library function); a native or target-template
+          function takes none.
+      values:
+        - ParamDir_Default: "No direction written; where a direction matters it is treated as `input`"
+        - ParamDir_In: "`input` -- the value is passed in; a change made by a foreign implementation is not passed back. Also the direction of the built-in method parameters the linker synthesizes"
+        - ParamDir_Out: "`output` -- the callee sets the value, which is unknown on entry"
+        - ParamDir_InOut: "`inout` -- the value is passed in, and the callee's updated value is passed back"
   - PlatQual:
-      - PlatQual_None: "No platform qualification"
-      - PlatQual_Target: "Target platform execution"
-      - PlatQual_Solve: "Solve-time platform execution"
+      doc: |
+          Platform qualifier of a function, import or export -- LRM 20.2.1,
+          `platform_qualifier`. It restricts where the function is
+          available: solve-platform functions shall not be called from target
+          execs (`body`, `run_start`, `run_end`), and target-platform functions
+          shall not be called from solve execs (`init_down`, `init_up`,
+          `pre_solve`, `post_solve`, `pre_body`). The parser also accepts
+          `target solve`; this enum cannot express both, so it records
+          PlatQual_Target, and FunctionPrototype carries both flags.
+      values:
+        - PlatQual_None: "No qualifier written: available during all phases of test generation and execution"
+        - PlatQual_Target: "`target` (or `target solve`) -- available on the target platform, during test execution"
+        - PlatQual_Solve: "`solve` -- available on the solve platform, during test generation"
   - FunctionParamDeclKind:
-      - ParamKind_DataType: "Regular data type parameter (int, bool, etc.)"
-      - ParamKind_Type: "Type parameter (generic type)"
-      - ParamKind_RefAction: "Reference to action type"
-      - ParamKind_RefComponent: "Reference to component type"
-      - ParamKind_RefBuffer: "Reference to buffer type"
-      - ParamKind_RefResource: "Reference to resource type"
-      - ParamKind_RefState: "Reference to state type"
-      - ParamKind_RefStream: "Reference to stream type"
-      - ParamKind_RefStruct: "Reference to struct type"
-      - ParamKind_Struct: "Struct value parameter"
-      - ParamKind_RefMonitor: "PSS 3.1: reference to monitor type"
-      - ParamKind_Numeric: "PSS 3.1: `numeric` category value parameter"
+      doc: |
+          Which form of `function_parameter` (LRM 20.2.1, 20.2.5) a
+          FunctionParamDecl was written in: a parameter of a stated data type,
+          or a generic parameter that names only a type category. Only
+          ParamKind_DataType parameters have a `type`.
+      values:
+        - ParamKind_DataType: "`[dir] [const] data_type name [= default]` -- a parameter of a stated data type, held in `type`; also a varargs parameter written with a data type"
+        - ParamKind_Type: "`type name` -- a generic type parameter"
+        - ParamKind_RefAction: "`ref action name` -- a reference to any action type"
+        - ParamKind_RefComponent: "`ref component name` -- a reference to any component type"
+        - ParamKind_RefBuffer: "`ref buffer name` -- a reference to any buffer type"
+        - ParamKind_RefResource: "`ref resource name` -- a reference to any resource type"
+        - ParamKind_RefState: "`ref state name` -- a reference to any state type"
+        - ParamKind_RefStream: "`ref stream name` -- a reference to any stream type"
+        - ParamKind_RefStruct: "Not produced: `ref struct` is not legal PSS 3.1 (`struct` is a plain category, ParamKind_Struct). Only the unreachable fallback for an unknown `ref` category; reserved"
+        - ParamKind_Struct: "`struct name` -- a value of any struct type"
+        - ParamKind_RefMonitor: "PSS 3.1: `ref monitor name` -- a reference to any monitor type"
+        - ParamKind_Numeric: "PSS 3.1: `numeric name` -- a value of any numeric type"
 
 classes:
   - FunctionDefinition:
       super: ScopeChild
       doc: |
-          Complete function definition with implementation body.
-          
-          Represents a function declaration with a complete implementation,
-          including prototype (signature) and execution body. Functions can
-          be qualified for target or solve-time execution using platform
-          qualifiers.
-          
+          A native PSS function: a prototype with a body of procedural
+          statements -- LRM 20.3, `function_decl` ending in
+          `{ procedural_stmt ... }`.
+
+          Declares and defines a function in one place, in a package or
+          component (20.2.1, 20.3). Its parameters take no direction
+          qualifiers (20.2.2). A prototype without a body
+          (`function ... ;`) is a bare FunctionPrototype instead.
+
           PSS Example::
-          
-              // Simple function
-              function int add(int a, int b) {
-                  return a + b;
+
+              package p {
+                  function int add(int a, int b) {
+                      return a + b;
+                  }
+
+                  // Target-only function
+                  target function void program(bit[32] addr) {
+                      return;
+                  }
+
+                  // Solve-only function
+                  solve function int calculate(int value) {
+                      return value + 100;
+                  }
               }
-              
-              // Target function with output parameter
-              function void process(input int x, output int result) = target {
-                  result = x * 2;
-              }
-              
-              // Solve-time function
-              function int calculate(int value) = solve {
-                  return value + 100;
-              }
-          
+
           Attributes:
-              endLocation: Location of function closing brace
-              proto: Function prototype (signature)
-              body: Execution scope containing statements
-              plat: Platform qualifier (None, Target, or Solve)
-          
+              endLocation: Location of the function's closing brace
+                  (inherited from ScopeChild)
+              proto: The function's prototype -- return type, name,
+                  parameters, and the `pure`, `static` and platform flags
+              body: The function body: an ExecScope named `<func-body>`
+                  holding the statements in source order
+              plat: The `platform_qualifier`: PlatQual_None when none is
+                  written; PlatQual_Target for `target`, and also for
+                  `target solve` (the prototype records both flags)
+
           See Also:
-              FunctionPrototype, ExecScope, PlatQual, FunctionImport
+              FunctionPrototype, ExecScope, PlatQual, FunctionImportProto, TargetTemplateFunction
       data:
         # endLocation is inherited from ScopeChild.
         - proto: UP<FunctionPrototype>
@@ -67,43 +97,55 @@ classes:
   - FunctionParamDecl:
       super: ScopeChild
       doc: |
-          Function parameter declaration with type and direction.
-          
-          Represents a single parameter in a function signature. Parameters
-          can have direction qualifiers (input, output, inout), default values,
-          and various kinds (data types, type parameters, or references).
-          Supports variadic parameters for variable-length argument lists.
-          
+          One parameter of a function prototype -- LRM 20.2.1,
+          `function_parameter` and `varargs_parameter`.
+
+          A parameter either states a data type (with an optional direction
+          or `const`, and an optional default value), or is generic and names
+          only a kind: `type`, `ref` with a reference category, or a plain
+          category (`struct`, `numeric`). The last parameter may be a varargs
+          parameter (`int ... rest`), which collects any number of trailing
+          arguments (20.2.5).
+
+          The same class holds the parameters of an ExportAction and of an
+          activity symbol (SymbolDeclaration), and of the built-in methods
+          the linker synthesizes.
+
           PSS Example::
-          
-              // Function with multiple parameter types
-              function void my_func(
-                  input int x,              // Input parameter
-                  output int result,        // Output parameter
-                  inout int counter,        // Input/output parameter
-                  int default_val = 10      // Parameter with default value
-              );
-              
-              // Type parameter
-              function void generic<type T>(T value);
-              
-              // Reference parameters
-              function void process_action(ref my_action act);
-              
-              // Variadic function
-              function void log(string fmt, ...);
-          
+
+              package p {
+                  // Imported: directions are allowed
+                  import function void transfer(input int src, output int dst,
+                                                inout int count);
+
+                  // Default value and const parameter
+                  function int scale(const int factor, int x = 10);
+
+                  // Generic parameters
+                  function void inspect(type T, ref action a, struct s,
+                                        numeric n);
+
+                  // Varargs
+                  function void log_all(string fmt, int ... rest);
+              }
+
           Attributes:
-              kind: Parameter kind (data type, type, reference, etc.)
-              name: Parameter identifier
-              type: Parameter data type
-              dir: Parameter direction (Default, In, Out, InOut)
-              dflt: Optional default value expression
-              is_varargs: True if this is a variadic parameter (...)
+              kind: Which parameter form was written (data type, `type`,
+                  `ref` category, plain category)
+              name: The parameter's name. Always set.
+              type: The parameter's data type; null for the generic forms
+                  (any kind but ParamKind_DataType)
+              dir: The direction qualifier, or ParamDir_Default when none is
+                  written. Always ParamDir_Default for a varargs parameter.
+              dflt: The default value (`= constant_expression`), or null when
+                  none is written. Only the data-type form can have one.
+              is_varargs: True for the varargs parameter (`... name`), which
+                  is always the last
               is_const: True if declared `const` (LRM 20.2.3): read-only in
                 the function, and the only kind of parameter an aggregate
-                constant or literal may be passed to
-          
+                constant or literal may be passed to. Never set on a varargs
+                parameter, whose syntax has no `const`.
+
           See Also:
               FunctionPrototype, FunctionParamDeclKind, ParamDir, DataType
       data:
@@ -112,7 +154,7 @@ classes:
         - type: UP<DataType>
         - dir: ParamDir
         - dflt: UP<Expr>
-        - is_varargs: 
+        - is_varargs:
             - type: bool
             - is_ctor: false
             - init: false
@@ -123,47 +165,63 @@ classes:
   - FunctionPrototype:
       super: NamedScopeChild
       doc: |
-          Function signature without implementation.
-          
-          Represents a function's interface: return type, name, and parameter
-          list. Used both in complete function definitions and standalone
-          prototypes. Can be marked 'pure', and qualified for target or
-          solve-time execution. Core functions are built-in library
-          functions.
-          
+          A function signature: return type, name and parameter list -- LRM
+          20.2.1, `function_prototype`.
+
+          On its own, as a direct child of a package or component, it is a
+          function declaration whose definition is given elsewhere
+          (`[platform_qualifier] [pure] [static] function prototype ;`).
+          It is also the signature inside a FunctionDefinition,
+          FunctionImportProto and TargetTemplateFunction, each method of an
+          ImportClass, and each built-in method the linker synthesizes for
+          the standard types (list, string, ...).
+
           PSS Example::
-          
-              // Pure function -- callable from a template string
+
               package p {
+                  // Declaration, defined elsewhere
+                  function int multiply(int a, int b);
+
+                  // Pure function -- callable from a template string
                   pure function int addr_of(int idx);
+
+                  // Platform-qualified declarations
+                  target function void hw_write(bit[32] addr, bit[32] data);
+                  solve function int compute_size();
               }
-              
-              // Function prototype with parameters
-              function int multiply(int a, int b);
-              
-              // Target function prototype
-              function void hw_write(int addr, int data) = target;
-              
-              // Solve-time function prototype
-              function int compute_size() = solve;
-          
+
+              component pss_top {
+                  static function void reset_all();
+              }
+
           Attributes:
               name: Function name (inherited from NamedScopeChild)
-              rtype: Return type (void if no return)
-              parameters: List of parameter declarations
-              is_pure: True if declared with the 'pure' qualifier
-                  (B.5) -- a function with no side effects, which is what a
-                  template string may call (4.7.1.1).  Not 'pure virtual',
-                  which this grammar does not have.
-              is_target: True if qualified with '= target'
-              is_solve: True if qualified with '= solve'
-              is_core: True for built-in library functions
-          
+              rtype: The return type, or null for `void`
+              parameters: The parameter declarations, in source order; a
+                  varargs parameter is last
+              is_pure: True if declared with the `pure` qualifier
+                  (20.2.6) -- a non-void function whose result depends only
+                  on its arguments and that has no side effects, which is
+                  what a template string may call (4.7.1.1)
+              is_target: True if the function is restricted to the target
+                  platform: written `target` (or `target solve`) on the
+                  declaration or import, or set by the linker when an import
+                  of the function says `target` (TaskBuildSymbolTree for the
+                  prototype form, TaskResolveRefs for `import ... function
+                  name;`). False for a target-template function's prototype.
+              is_solve: True if the function is restricted to the solve
+                  platform, set the same ways as `is_target` from `solve`
+              is_core: Meant to mark a function built into the
+                  implementation (such as the core library), which 20.2.2
+                  lets declare `output`/`inout` parameters and still be
+                  defined. Not set by the parser or the linker, so it is
+                  always false; TaskBuildSymbolTree reads it.
+
           See Also:
-              FunctionDefinition, FunctionParamDecl, FunctionImportProto
+              FunctionDefinition, FunctionParamDecl, FunctionImportProto, TargetTemplateFunction
       data:
         - rtype: UP<DataType>
-        - parameters: 
+        - parameters:
             type: list<UP<FunctionParamDecl>>
             is_ctor: false
         - is_pure:
@@ -182,32 +240,50 @@ classes:
             type: bool
             is_ctor: false
             init: false
+            doc: |
+                True if the `static` keyword is written on the declaration
+                (`function_decl`) or on a prototype-form import. Only the
+                keyword is recorded: a function in a package is static
+                whether or not it says so (20.2.1). A target-template
+                function records `static` on TargetTemplateFunction instead.
 
   - FunctionImport:
       super: ScopeChild
       doc: |
-          Base class for importing external functions.
-          
-          Represents an import statement that brings external functions into
-          PSS scope. External functions can be qualified for target or
-          solve-time execution and can specify the implementation language.
-          This is an abstract base; concrete imports use FunctionImportType
-          or FunctionImportProto.
-          
+          Base class of the foreign-function imports -- LRM 20.4.1,
+          `import_function` -- and the record of one import of a function.
+
+          An import says that a function is implemented in a foreign
+          language, optionally restricting it to the solve or target
+          platform and naming the language. The parser builds one of the two
+          subclasses: FunctionImportProto for the one-step form that also
+          declares the function, FunctionImportType for the two-step form
+          that names a function declared elsewhere. The linker builds bare
+          FunctionImport nodes as the import records of a
+          SymbolFunctionScope (its `import_specs`).
+
           PSS Example::
-          
-              // Import by type name
-              import class my_pkg::util_funcs = target "cpp";
-              
-              // Import function prototype
-              import function int extern_func(int x) = solve "python";
-          
+
+              package p {
+                  function int ext_func(int x);
+
+                  // Two-step: FunctionImportType
+                  import solve C function ext_func;
+
+                  // One-step: FunctionImportProto
+                  import target C function void write_reg(bit[32] addr,
+                                                          bit[32] data);
+              }
+
           Attributes:
-              plat: Platform qualifier (None, Target, or Solve)
-              lang: Implementation language identifier (e.g., "cpp", "python")
-          
+              plat: The `platform_qualifier`, or PlatQual_None when none is
+                  written
+              lang: The `language_identifier` (e.g. `C`, `CPP`), or empty
+                  when none is written. A record built by TaskBuildSymbolTree
+                  for a one-step import always has it empty.
+
           See Also:
-              FunctionImportType, FunctionImportProto, PlatQual
+              FunctionImportType, FunctionImportProto, PlatQual, SymbolFunctionScope
       data:
         - plat: PlatQual
         - lang: string
@@ -215,80 +291,77 @@ classes:
   - FunctionImportType:
       super: FunctionImport
       doc: |
-          Import all functions from an external type/class.
-          
-          Imports all methods from a specified external type by referencing
-          its type identifier. Used when importing entire classes or packages
-          of utility functions from foreign implementations.
-          
+          Two-step function import -- LRM 20.4.1,
+          `import [ platform_qualifier ] [ language_identifier ] function type_identifier ;`.
+
+          Names a function declared separately (by a FunctionPrototype) and
+          states that it is implemented in a foreign language. It declares
+          nothing itself. The linker (TaskResolveRefs) binds the name, checks
+          the import is legal (a component function may be imported only in
+          its own component type, only if static, and not from a template
+          component), adds an import record to the function's
+          SymbolFunctionScope, and applies the platform qualifier to the
+          function's prototypes.
+
           PSS Example::
-          
-              // Import all methods from a C++ class
-              import class my_pkg::MathUtils = target "cpp";
-              
-              // Import Python utility package for solve-time
-              import class algorithms::Optimizer = solve "python";
-              
-              component my_comp {
-                  // Can now use imported functions
-                  exec init {
-                      int result = MathUtils::square(5);
-                  }
+
+              package p {
+                  function void write_reg(bit[32] addr, bit[32] data);
+                  import target C function write_reg;
               }
-          
+
           Attributes:
               plat: Platform qualifier (inherited from FunctionImport)
               lang: Implementation language (inherited from FunctionImport)
-              type: Type identifier of the class/package to import
-          
+              type: The name of the imported function, as a type identifier
+                  (possibly package-qualified). Bound to the function by the
+                  linker (TaskResolveRefs).
+
           See Also:
-              FunctionImport, FunctionImportProto, TypeIdentifier
+              FunctionImport, FunctionImportProto, FunctionPrototype, TypeIdentifier
       data:
         - type: UP<TypeIdentifier>
 
   - FunctionImportProto:
       super: FunctionImport
       doc: |
-          Import a single external function by prototype.
-          
-          Imports a specific external function by declaring its complete
-          prototype (signature). The function is implemented externally in
-          the specified language and platform. Used for integrating individual
-          foreign functions into PSS.
-          
+          One-step function import -- LRM 20.4.1,
+          `import [ platform_qualifier ] [ language_identifier ] [ static ] function function_prototype ;`.
+
+          Declares a function by its prototype and states that it is
+          implemented in a foreign language. In a component the import must
+          be `static` (20.4). The linker (TaskBuildSymbolTree)
+          enters the function in the scope's symbol table, or merges with an
+          existing declaration, and records the import on its
+          SymbolFunctionScope.
+
           PSS Example::
-          
-              // Import C++ target function
-              import function void write_reg(
-                  int addr, 
-                  int data
-              ) = target "cpp";
-              
-              // Import Python solve-time function
-              import function int optimize(
-                  input int constraints[], 
-                  output int solution[]
-              ) = solve "python";
-              
-              // Import with various parameter types
-              import function string format_message(
-                  string fmt,
-                  input int value,
-                  ...
-              ) = target;
-              
-              action my_action {
-                  exec body {
-                      write_reg(0x1000, 0x42);
-                      string msg = format_message("Value: %d", 42);
+
+              package p {
+                  import target C function void write_reg(bit[32] addr,
+                                                          bit[32] data);
+
+                  import solve function int optimize(input int limit,
+                                                     output int best);
+              }
+
+              component pss_top {
+                  import static function void dev_init();
+
+                  action my_action {
+                      exec body {
+                          p::write_reg(0x1000, 0x42);
+                      }
                   }
               }
-          
+
           Attributes:
               plat: Platform qualifier (inherited from FunctionImport)
               lang: Implementation language (inherited from FunctionImport)
-              proto: Complete function prototype with signature
-          
+              proto: The function's prototype. Its `is_target`/`is_solve`
+                  come from the platform qualifier and its `is_static` from
+                  `static`.
+
           See Also:
               FunctionImport, FunctionImportType, FunctionPrototype
       data:
@@ -297,44 +370,88 @@ classes:
   - ExportFunction:
       super: ScopeChild
       doc: |
-          Exported target function declaration.
+          Exported function declaration -- LRM 20.4.2, `export_function`:
+          `export target function name ;`.
 
-          Represents a PSS 3.1 ``export target function name;`` declaration.
+          Makes a function callable from the target environment, so that
+          foreign code can call back into the PSS model. The function must be
+          a static function with a native implementation (a
+          FunctionDefinition), declared in a package or component. The
+          function itself is declared elsewhere; this node only names it.
+
+          PSS Example::
+
+              package p {
+                  function int checksum(int a, int b) {
+                      return a ^ b;
+                  }
+
+                  export target function checksum;
+              }
+
+          See Also:
+              ExportAction, FunctionDefinition, ExprRefName
       data:
-        - plat: PlatQual
-        - name: UP<ExprRefName>
+        - plat:
+            type: PlatQual
+            doc: |
+                The platform the function is exported to. Always
+                PlatQual_Target: the grammar requires `target`.
+        - name:
+            type: UP<ExprRefName>
+            doc: |
+                The exported function's name, a single identifier (the LRM's
+                `type_identifier` would also allow a qualified name; this
+                grammar does not). Bound to the function's
+                SymbolFunctionScope by the linker (TaskResolveRefs); left
+                unbound, with an error, when no function of that name is
+                visible.
 
   - ExportAction:
       super: ScopeChild
       doc: |
-          Exported action declaration -- LRM B.5, ``export_action``.
+          Exported action declaration -- LRM 20.10, ``export_action``:
+          ``export [ platform_qualifier ] action_type_identifier function_parameter_list_prototype ;``.
 
-          ``export A(int x);`` makes action type ``A`` callable from the target
-          environment with the given parameter signature. This is the action
-          counterpart of ``ExportFunction``, and is modelled on it: the same
-          platform qualifier, a type rather than a bare name, and the parameter
-          list the export declares.
+          ``export A(int x);`` makes action type ``A`` callable from a foreign
+          language with the given parameter signature; each call infers an
+          independent tree of actions, components and resources. This is the
+          action counterpart of ``ExportFunction``, and is modelled on it: the
+          same platform qualifier, a type rather than a bare name, and the
+          parameter list the export declares.
 
           The parameter list belongs to the export, not to the action: an
-          action has fields, and the export names which of them appear in the
-          exported signature and in what order.
+          action has fields, and the export names (by matching name) which of
+          them the foreign caller supplies, and in what order. The linker
+          (TaskBuildSymbolTree) adds the export to its scope without
+          visiting the parameters, so they are not mistaken for members of
+          the enclosing scope.
 
           PSS Example::
 
-              component pss_top {
-                  action A { rand int x; }
+              component comp {
+                  action A1 {
+                      rand bit mode;
+                      rand bit[32] val;
+                  }
+              }
 
-                  export A(int x);
-                  export target A(int x);
+              package pkg {
+                  // Export A1, providing a mapping to field 'mode'
+                  export target comp::A1(bit mode);
               }
 
           Attributes:
-              plat: Platform qualifier (``target`` / ``solve``), if any
-              target: The action type being exported
-              parameters: The exported parameter signature
+              plat: The `platform_qualifier`, or PlatQual_None when none is
+                  written (the action is then available in all phases)
+              target: The exported action type. Bound by the linker
+                  (TaskResolveRefs).
+              parameters: The exported parameter signature, in source
+                  order. A varargs parameter, which the grammar accepts here,
+                  is not recorded.
 
           See Also:
-              ExportFunction, Action
+              ExportFunction, Action, FunctionParamDecl
       data:
         - plat: PlatQual
         - target: UP<TypeIdentifier>
@@ -345,19 +462,21 @@ classes:
   - ImportClass:
       super: TypeScope
       doc: |
-          Foreign class declaration -- LRM B.5, ``import_class_decl``.
+          Foreign class declaration -- LRM 20.4.3, ``import_class_decl``.
 
           ``import class C : B { void f(); }`` declares a class implemented in
           the target language, with the method prototypes PSS may call. The
           body admits prototypes only -- no fields, no bodies -- so the
-          children of this scope are all ``FunctionPrototype``.
+          children of this scope are all ``FunctionPrototype``, built without
+          platform qualifiers.
 
           It is a ``TypeScope`` because it declares a type others name: a field
-          may be declared of an imported class type. ``super_t`` holds the
-          first entry of the extends list, which is where a consumer expecting
-          single inheritance will look; ``extends`` holds the whole list,
-          because ``import_class_extends`` accepts several and the target
-          language may allow it.
+          of an imported class type may be declared in a package (a global
+          instance) or a component (one instance per component instance).
+          ``super_t`` holds the first entry of the extends list, which is
+          where a consumer expecting single inheritance will look; ``extends``
+          holds the whole list, because ``import_class_extends`` accepts
+          several and the target language may allow it.
 
           PSS Example::
 
@@ -371,10 +490,16 @@ classes:
               }
 
           Attributes:
-              extends: Every type named after ``:``, in source order
+              name: The class name, `import_class_identifier` (inherited)
+              super_t: The first type named after ``:``, or null when there
+                  is no extends list (inherited). It is the same node as
+                  the first entry of ``extends``.
+              extends: Every type named after ``:``, in source order; empty
+                  when there is no extends list. The list does not own its
+                  first entry, which ``super_t`` owns.
 
           See Also:
-              FunctionPrototype, TypeScope
+              FunctionPrototype, TypeScope, FunctionImportProto
       data:
         - extends:
             type: list<UP<TypeIdentifier>>
@@ -383,35 +508,45 @@ classes:
   - TargetTemplateFunction:
       super: ScopeChild
       doc: |
-          Function whose body is target-language template text -- PSS 3.1 §20.6.
+          Function whose body is target-language template text -- PSS 3.1
+          §20.6, ``target_template_function ::= target language_identifier [ static ] function function_prototype = string_literal ;``.
 
           A target-template function declares a PSS prototype but supplies its
           implementation as a string of target-language code rather than as a
-          PSS body.  The string is a template: inside a triple-quoted string it
-          may contain mustache expressions and control-flow directives, and
-          those resolve against the function's own parameter list.
+          PSS body. It is always a target implementation, and only `void`
+          functions are supported. Inside a triple-quoted string the text may
+          contain mustache expressions and control-flow directives, which
+          resolve against the function's own parameter list (and, for an
+          instance function, the instance's attributes). Parameters take no
+          direction qualifiers.
 
           PSS Example::
 
               package my_pkg {
-                  // Single-line form
-                  target C function void set_reg(int addr, int val) =
-                      """ *(volatile int *)addr = val; """;
+                  // Parameters are referenced with mustache expressions
+                  target ASM function void do_stw(bit[32] val, bit[32] vaddr) = """
+                      loadi RA {{val}}
+                      store RA {{vaddr}}
+                  """;
 
-                  // Parameters are referenceable from mustache expressions
-                  target C function void store(int a) = """ stw {{a}}, 0 """;
+                  // Plain text: no template is built
+                  target C function void barrier() = "__sync_synchronize();";
+              }
 
-                  // Static form
-                  target C static function int read() = """ return *p; """;
+              component pss_top {
+                  target C static function void hello() = """ puts("hi"); """;
               }
 
           Attributes:
-              proto: Function prototype (return type, name, parameters)
-              language: Target language identifier (e.g. "C", "SV")
+              proto: Function prototype (return type, name, parameters). Built
+                  without a platform qualifier, so its `is_target` is false
+                  and its `is_static` is false even when `static` is written.
+              language: The `language_identifier` (e.g. `C`, `ASM`, `SV`)
               data: Raw template text, with the enclosing quotes stripped
               is_static: True if declared ``static``
-              template: Scanned template body, present only when the text
-                  contains special elements (§4.7.1)
+              template: Scanned template body, present only when the string
+                  is triple-quoted and contains special elements (§4.7.1);
+                  null otherwise
 
           See Also:
               FunctionPrototype, ExecTargetTemplateBlock, TemplateString
@@ -426,6 +561,3 @@ classes:
         - template:
             type: UP<TemplateString>
             is_ctor: false
-
-
-

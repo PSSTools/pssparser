@@ -12,13 +12,21 @@ classes:
           elements -- PSS 3.1 §4.7.1.
 
           A triple-quoted string stops being a leaf and becomes a *scope* when
-          it contains mustache expressions or control-flow directives: the
-          expressions resolve against the enclosing model, and the directives
-          declare variables of their own.
+          it contains mustache expressions, control-flow directives or
+          embedded comments: the expressions resolve against the enclosing
+          model, and the directives declare variables of their own.
 
           A triple-quoted string containing **no** special elements does not
           get a TemplateString at all -- it stays a plain ExprString.  "Has
           specials" is therefore a type test rather than a list-length test.
+          A plain `"..."` string never gets one either.
+
+          The parser builds it for a triple-quoted string used as an
+          expression (held by ExprTemplateString), as the body or file name of
+          a target-template exec block (ExecTargetTemplateBlock), and as the
+          body of a target-template function (TargetTemplateFunction). Its
+          `name` is the fixed tag `<template>`, and its location is that of
+          the first content byte after the opening quotes.
 
           PSS Example::
 
@@ -35,16 +43,26 @@ classes:
           Attributes:
               raw: Verbatim content with the enclosing quotes stripped.  Kept
                   lossless so a formatter that cannot render a template
-                  structurally can still copy it byte for byte.
-              elems: The scanned elements, in source order
-              is_const: True when every special element references only
-                  constant expressions (§4.7).  Computed after resolution,
-                  not during scanning.
-              symtab: Variables declared at the top level of this template
-                  (inherited from SymbolScope)
+                  structurally can still copy it byte for byte.  Every
+                  element's `offset` is relative to it.
+              elems: The top-level elements, in source order.  Elements
+                  inside a block are in that block's `body`, not here.
+              is_const: True when every expression in the template --
+                  mustache expressions and the expressions in directives --
+                  references only constants: constant fields, enum items,
+                  template value parameters, and template locals that hold
+                  constant values (§4.7).  A function call is never
+                  constant.  Set by the linker (TaskTemplateCheck, run from
+                  TaskResolveRefs once the template is resolved); false
+                  until then.
+              symtab: Names of the variables declared by top-level
+                  `{% data_type ...; %}` directives (inherited from
+                  SymbolScope).  The declarations themselves are this
+                  node's children.
 
           See Also:
-              TemplateElem, ExprTemplateString, ExecTargetTemplateBlock
+              TemplateElem, ExprTemplateString, ExecTargetTemplateBlock,
+              TargetTemplateFunction
       data:
         - raw: string
         - elems:
@@ -63,6 +81,7 @@ classes:
           Every element records where it came from in the owning
           TemplateString's ``raw`` text.  A ``Location`` is not enough for a
           renderer that wants to splice, so byte offsets are carried as well.
+          The element's location is that of its first byte in the file.
 
           Note this derives from SymbolScope rather than plain ScopeChild.
           Only the block elements actually need a symbol table, but the name
@@ -74,17 +93,27 @@ classes:
           fixed kind tag (``<template-text>``, ``<template-if>``, ...), which
           also makes the resolver's debug output readable.
 
+          A closing `{%%}` directive produces no element of its own; it ends
+          the `body` of the innermost open TemplateBlock.
+
           Attributes:
-              offset: Byte offset into the owning TemplateString's raw text
-              extent: Length in bytes, including the delimiters
+              offset: Byte offset of the element's first byte (its opening
+                  delimiter, for a special element) into the owning
+                  TemplateString's raw text
+              extent: Length in bytes, including the delimiters.  A line
+                  comment's extent includes the newline that ends it.
               is_own_line: True when this element's line holds directives and
                   whitespace only.  §4.7.1.2 excludes that whitespace and the
                   terminating newline from the expansion; deciding it needs the
                   raw text, so the scanner computes it once and records it here
-                  rather than making every renderer re-scan.
+                  rather than making every renderer re-scan.  Computed only for
+                  directives and comments; always false for TemplateText and
+                  TemplateExpr, and a line holding a mustache expression is
+                  never own-line.
 
           See Also:
-              TemplateString, TemplateBlock
+              TemplateString, TemplateBlock, TemplateText, TemplateExpr,
+              TemplateComment
       data:
         - offset: int32_t
         - extent: int32_t
@@ -96,13 +125,27 @@ classes:
   - TemplateText:
       super: TemplateElem
       doc: |
-          A run of literal text between special elements.
+          A run of literal text between special elements of a triple-quoted
+          string (§4.7.1).
+
+          Everything that is not a mustache expression, a control-flow
+          directive or an embedded comment is literal text, including a lone
+          `{` (so `{ {` spells a literal double brace).  The text is kept
+          exactly as written: removing the whitespace and newline of a line
+          that holds only directives (§4.7.1.2) is left to the renderer, which
+          uses the neighbouring elements' `is_own_line`.
+
+          PSS Example::
+
+              exec body C = """ stw {{addr}}, {{value}} """;
+              // TemplateText elements: " stw ", ", ", " "
 
           Attributes:
-              text: The literal text, verbatim
+              text: The literal text, verbatim -- the bytes
+                  `raw[offset, offset+extent)` of the owning TemplateString
 
           See Also:
-              TemplateElem
+              TemplateElem, TemplateExpr, TemplateString
       data:
         - text: string
 
@@ -113,15 +156,19 @@ classes:
 
           The expression is parsed by the ordinary PSS expression grammar and
           resolves against whatever is referenceable at that point in the
-          source.  §4.7.1.1 additionally requires the type to be scalar and any
-          function called to be ``pure``.
+          source, including template-local variables of enclosing blocks.
+          §4.7.1.1 additionally requires the type to be scalar and any
+          function called to be ``pure``; the linker checks both
+          (TaskResolveRefs, TaskTemplateCheck).  A mustache whose content does
+          not parse as an expression is reported and produces no element.
 
           PSS Example::
 
               exec body C = """ stw {{addr}}, {{value}} """;
 
           Attributes:
-              expr: The parsed expression
+              expr: The parsed expression between the braces.  Its locations
+                  are file positions inside the string.
 
           See Also:
               TemplateElem, TemplateString
@@ -141,8 +188,16 @@ classes:
           but *parsing* must not, or a formatter loses the user's comments.
           Dropping is the renderer's job.
 
+          PSS Example::
+
+              exec body C = """
+                  {# not expanded: {{size}} #}
+                  nop; {#} rest of the line is a comment
+              """;
+
           Attributes:
-              text: Comment content, excluding the delimiters
+              text: Comment content, excluding the delimiters (and, for the
+                  line form, excluding the terminating newline)
               is_line: True for the ``{#}`` line form, false for ``{# ... #}``
 
           See Also:
@@ -169,13 +224,21 @@ classes:
           and registered in this node's own symtab, exactly as
           ProceduralStmtForeach does for a procedural loop -- which means
           ``{% int x; %}`` and a procedural ``int x;`` resolve through one path.
+          The declarations are this node's children (``getChildren()``),
+          separate from ``body``.  The block's `offset`, `extent` and location
+          are those of its opening directive only.
 
           Attributes:
-              body: Elements between this directive and its ``{%%}``
-              symtab: Variables this block introduces (inherited)
+              body: Elements between this directive and the directive that
+                  ends it -- its ``{%%}``, or for an if/else-if arm the next
+                  ``{% else ... %}``.  Empty for an empty block.
+              symtab: Names of the variables this block introduces: a foreach
+                  iterator and index, a repeat index, and variables declared
+                  directly in the body (inherited from SymbolScope)
 
           See Also:
-              TemplateIf, TemplateForeach, TemplateRepeat
+              TemplateIfClause, TemplateIf, TemplateForeach, TemplateRepeat,
+              TemplateVarDecl
       data:
         - body:
             type: list<UP<TemplateElem>>
@@ -184,17 +247,28 @@ classes:
   - TemplateIfClause:
       super: TemplateBlock
       doc: |
-          One arm of a template if/else-if/else chain.
+          One arm of a template if/else-if/else chain (§4.7.1.2, Table 5).
+
+          Built for each ``{% if (...) %}``, ``{% else if (...) %}`` and
+          ``{% else %}`` directive and held in the owning TemplateIf's
+          ``clauses``.  Its `offset`, `extent`, location and `is_own_line`
+          are those of the directive that opens the arm; its body runs to the
+          next arm's directive or to the chain's ``{%%}``.  Each arm is a
+          separate scope.
 
           PSS Example::
 
-              {% if (a) %}   one   {% else if (b) %}   two   {% else %}   three   {%%}
+              exec body C = """
+                  {% if (a) %} one {% else if (b) %} two {% else %} three {%%}
+              """;
 
           Attributes:
-              cond: The guard expression; null for the ``else`` arm
+              cond: The guard expression inside the parentheses; null for the
+                  ``else`` arm.  Resolved in the enclosing scope, not the
+                  arm's own.
 
           See Also:
-              TemplateIf
+              TemplateIf, TemplateBlock
       data:
         - cond:
             type: UP<Expr>
@@ -207,10 +281,19 @@ classes:
 
           The clauses are held **flat**, not as a tree of nested ifs.  The
           source is a flat directive sequence, so nesting would be an invention
-          a formatter would then have to undo.
+          a formatter would then have to undo.  The node itself declares no
+          variables; each arm is its own scope.  Its `offset`, `extent` and
+          location are those of the opening ``{% if (...) %}`` directive.
+
+          PSS Example::
+
+              exec body C = """
+                  {% if (size == 0) %} empty {% else if (size < 4) %} small {% else %} large {%%}
+              """;
 
           Attributes:
-              clauses: if / else-if / else arms, in source order
+              clauses: if / else-if / else arms, in source order.  The first
+                  is always the ``if`` arm.
 
           See Also:
               TemplateIfClause, TemplateBlock
@@ -226,13 +309,30 @@ classes:
 
           ``{% foreach ( [ iterator_identifier : ] expression [ [ index_identifier ] ] ) %}``
 
+          Iterates over a collection, emitting its body once per element.  The
+          iterator and index, when written, are declared as variables of this
+          block: the parser synthesizes an untyped ProceduralStmtDataDeclaration
+          for each and adds it to the block's children and symtab.
+
+          PSS Example::
+
+              exec body C = """
+                  {% foreach (v : vals[i]) %}
+                  buf[{{i}}] = {{v}};
+                  {%%}
+              """;
+
           Attributes:
-              expr: The collection expression being iterated
-              it: Iterator variable identifier, if written
-              idx: Index variable identifier, if written
+              expr: The collection expression being iterated, without the
+                  trailing index.  Resolved in the enclosing scope, so it
+                  cannot see the loop variables.
+              it: Iterator variable identifier, or null if not written
+              idx: Index variable identifier, or null if not written.  A
+                  trailing ``[ i ]`` that the expression grammar parsed as a
+                  subscript is lifted out of ``expr`` into this field.
 
           See Also:
-              TemplateBlock, TemplateRepeat
+              TemplateBlock, TemplateRepeat, ProceduralStmtForeach
       data:
         - expr: UP<Expr>
         - it:
@@ -249,12 +349,25 @@ classes:
 
           ``{% repeat ( [ index_identifier : ] expression ) %}``
 
+          Emits its body the given number of times.  The index, when written,
+          is declared as a variable of this block (an untyped, synthesized
+          ProceduralStmtDataDeclaration in the block's children and symtab).
+
+          PSS Example::
+
+              exec body C = """
+                  {% repeat (j : 4) %}
+                  nop; // iteration {{j}}
+                  {%%}
+              """;
+
           Attributes:
-              expr: The repeat-count expression
-              idx: Index variable identifier, if written
+              expr: The repeat-count expression.  Resolved in the enclosing
+                  scope.
+              idx: Index variable identifier, or null if not written
 
           See Also:
-              TemplateBlock, TemplateForeach
+              TemplateBlock, TemplateForeach, ProceduralStmtRepeat
       data:
         - expr: UP<Expr>
         - idx:
@@ -271,13 +384,26 @@ classes:
           The declarations are ProceduralStmtDataDeclaration nodes, the same
           node a procedural ``int x;`` produces, so both resolve through one
           path.  They are registered in the enclosing TemplateBlock's (or
-          TemplateString's) symtab.
+          TemplateString's) symtab, which makes each variable visible to the
+          later elements of that block and invisible after its ``{%%}``.  A
+          name already declared in the same scope is reported as a duplicate.
+
+          PSS Example::
+
+              exec body C = """
+                  {% int total = 0, n; %}
+                  r = {{total}};
+              """;
 
           Attributes:
-              decls: The declared variables
+              decls: The declared variables, one per
+                  ``procedural_data_instantiation``, in source order.  The
+                  entries do not own their nodes: each declaration is owned
+                  by the children list of the enclosing TemplateBlock or
+                  TemplateString.
 
           See Also:
-              TemplateAssign, TemplateBlock
+              TemplateAssign, TemplateBlock, ProceduralStmtDataDeclaration
       data:
         - decls:
             type: list<UP<ProceduralStmtDataDeclaration>>
@@ -297,8 +423,19 @@ classes:
           ask which symtab the name resolved through.  That is why template
           locals must be real symbols in a real scope rather than a side table.
 
+          PSS Example::
+
+              exec body C = """
+                  {% int total = 0; %}
+                  {% total = size + 1; %}
+                  r = {{total}};
+              """;
+
           Attributes:
-              lhs: The assignment target
+              lhs: The assignment target: a bare identifier.  The linker
+                  (TaskResolveRefs) sets the ExprId's ``decl`` to the
+                  declaration it names -- even when the assignment is illegal
+                  -- and reports a target not declared in this template.
               rhs: The assigned expression
 
           See Also:

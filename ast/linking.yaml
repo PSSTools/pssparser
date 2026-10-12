@@ -5,27 +5,38 @@
 #  - BottomUp
 enums:
 - SymbolRefPathElemKind:
-  - ElemKind_ChildIdx: "Direct child by index in children list"
-  - ElemKind_ArgIdx: "Template/function argument by index"
-  - ElemKind_Inline: "Inline element (embedded definition)"
-  - ElemKind_ParamIdx: "Parameter by index"
-  - ElemKind_Super: "Reference to super/parent scope"
-  - ElemKind_TypeSpec: "Type specialization/instantiation"
-  - ElemKind_TemplateScope: "Template scope (4.7.1) by index within the enclosing scope"
-  - ElemKind_This: "`this` (13.1.4): the type scope the path has reached, as a handle, not a type name. Last element only; idx unused"
+    doc: |
+        The kind of one step in a SymbolRefPath (SymbolRefPathElem.kind):
+        how to get from the scope the path has reached to the next symbol.
+        Paths start at the RootSymbolScope, except one whose first step is
+        `ElemKind_Inline`. Interpreted by TaskResolveSymbolPathRef.
+    values:
+      - ElemKind_ChildIdx: "Child `idx` of the current scope (its `children`, or the physical children a non-synthetic scope's symtab indexes); for a function scope, `idx` equal to the number of children selects the function body"
+      - ElemKind_ArgIdx: "Parameter `idx` of the current function (its `plist`), symbol (LRM 11.7), or generic constraint (LRM 13.1.2)"
+      - ElemKind_Inline: "The in-line context the resolver is given instead of the root: the type of a traversed action handle, for a reference in its `with` constraint or initializer. First element only; `idx` unused"
+      - ElemKind_ParamIdx: "Template parameter `idx` of the current type (its `plist`, LRM 10.2)"
+      - ElemKind_Super: "One step up the inheritance chain: the current type's base type (`super_t`). Repeated for each level; `idx` unused"
+      - ElemKind_TypeSpec: "Specialization `idx` of the current template type (its `spec_types`)"
+      - ElemKind_TemplateScope: "Template scope (LRM 4.7.1) by index within the enclosing scope"
+      - ElemKind_This: "`this` (13.1.4): the type scope the path has reached, as a handle, not a type name. Last element only; idx unused"
 structs:
 - SymbolRefPathElem:
     doc: |
         Single element in a symbol reference path.
-        
+
         Represents one step in navigating from a symbol to another through
         the linked symbol tree structure. Used during name resolution to
         encode resolved references as structured paths.
-        
+
         Attributes:
             kind: Type of path element (child, argument, parameter, etc.)
-            idx: Index value specific to the kind (e.g., child index, arg position)
-        
+            idx: Index value specific to the kind (child index, parameter
+                position, specialization index); unused, and conventionally
+                -1, for `ElemKind_Super`, `ElemKind_Inline` and
+                `ElemKind_This`. A negative `ElemKind_ChildIdx` marks a scope
+                the linker could not address, and makes the path resolve to
+                nothing
+
         See Also:
             SymbolRefPath, SymbolRefPathElemKind
     data:
@@ -35,23 +46,32 @@ structs:
 classes:
 - SymbolChild:
     doc: |
-        Base class for all symbols in the fully-linked symbol tree.
-        
-        Represents a node in the post-linking symbol resolution tree, distinct from
-        the physical AST. Extends ScopeChild with linking-specific metadata including
-        a unique identifier and parent scope reference.
-        
-        The symbol tree is constructed during the linking phase after parsing, providing
-        a logical view of declarations with resolved imports and type references.
-        
+        Base class for nodes that the linker places in a symbol scope and
+        addresses by id.
+
+        Extends ScopeChild with the two links the linked symbol tree needs:
+        the node's position in the symbol scope that holds it, and that
+        scope. Every symbol scope derives from it (through
+        SymbolChildrenScope), both the scopes the linker builds as a logical
+        view of the declarations (RootSymbolScope, SymbolTypeScope,
+        SymbolFunctionScope, the merged package scopes, ...) and the parsed
+        nodes that are scopes in their own right (ExecScope, ActivityDecl,
+        ...).
+
+        The fields are filled during linking (TaskBuildSymbolTree, and
+        TaskApplyTypeExtensions when an extension's members are merged into
+        their type); they are unset on a freshly parsed AST.
+
         Attributes:
-            id: Unique identifier for this symbol within the tree (-1 if unassigned)
-            upper: Parent symbol scope in the linked tree hierarchy
-        
+            id: Position of this symbol in its `upper` scope: the
+                `ElemKind_ChildIdx` step that reaches it. -1 if unassigned
+            upper: The symbol scope that holds this one in the linked tree;
+                null until linked, and for the root
+
         See Also:
             SymbolScope, SymbolChildrenScope, ScopeChild
     super: ScopeChild
-    data: 
+    data:
     - id:
       - type: int32_t
       - is_ctor: false
@@ -66,19 +86,26 @@ classes:
 - SymbolChildrenScope:
     doc: |
         Symbol node that contains child scopes and declarations.
-        
+
         Extends SymbolChild to support hierarchical symbol structures with named
         scopes containing child elements. Forms the basis for namespaces, types,
         and other container-like constructs in the linked symbol tree.
-        
+
         During linking, this class manages the collection of child declarations
         and provides the structure for symbol table lookups within a named scope.
-        
+
         Attributes:
-            name: Identifier for this scope (package, type, function name)
-            children: List of child declarations and sub-scopes
-            target: Reference to the original physical AST node being wrapped
-        
+            name: Name of this scope (package, type or function name). The
+                linker uses placeholders for unnamed scopes, such as
+                `<extend>`, `<plist>`, `<root>`; empty for the root scope
+            children: The members of the scope. In a linker-built
+                (synthetic) scope, pointers to the member declarations and
+                nested symbol scopes, mostly not owned (the AST owns them);
+                in a parsed scope (an ExecScope, say), its own statements
+            target: The AST node this scope stands for (a type, function,
+                extension or labeled activity statement); null for a
+                package and the root. A traversal edge (visit: true)
+
         See Also:
             SymbolChild, SymbolScope, ScopeChild
     super: SymbolChild
@@ -86,10 +113,10 @@ classes:
     - name:
       - type: string
       - is_ctor: true
-    - children: 
+    - children:
       - type: list<UP<ScopeChild>>
       - is_ctor: false
-    - target: 
+    - target:
       - type: P<ScopeChild>
       - rel: ref
       - is_ctor: false
@@ -100,31 +127,46 @@ classes:
 - SymbolScope:
     doc: |
         Base class for a node in the fully-linked tree.
-        
+
         Core infrastructure for the linked symbol tree, providing symbol table
         management, import resolution, and scope hierarchy. Extends SymbolChildrenScope
         with linking-specific features including name-to-index mappings and import chains.
-        
-        The symbol tree is constructed during the linking phase to merge declarations
-        across compilation units, resolve imports, and create a unified namespace view.
-        This is distinct from the physical AST which preserves source file structure.
-        
+
+        The linker builds SymbolScope instances (TaskBuildSymbolTree) to merge
+        declarations across compilation units, resolve imports, and create a
+        unified namespace view; a package, for instance, is one SymbolScope
+        however many `package` declarations contribute to it. Parsed nodes
+        that open a scope of their own (ExecScope, ActivityDecl,
+        TemplateString, ...) also derive from SymbolScope; their symtab is
+        filled during linking.
+
         Attributes:
             symtab: Maps local identifiers to child indices for fast name lookup
-            imports: Import specification linking this scope to other packages/symbols
-            synthetic: True if this scope was compiler-generated (not in source)
-            opaque: True if scope contents should be hidden from external access
-        
+            imports: The `import` statements written directly in this scope
+                (and, for a type, those of its extensions), in source order;
+                null when there are none. Filled by TaskBuildSymbolTree
+            synthetic: True for a scope the linker built, which owns its own
+                `children` list (a package, the root, a type's, enum's or
+                function's symbol scope). False for a parsed scope, whose
+                symtab indexes its physical children by their `index`
+            opaque: True if names reached through this scope are not
+                resolved or checked: reference resolution stops here. Set
+                only for the builtin `pyobj` type, whose members are dynamic
+
         See Also:
             SymbolChildrenScope, RootSymbolScope, SymbolTypeScope, SymbolImportSpec
     super: SymbolChildrenScope
     data:
-    - symtab: 
+    - symtab:
       - doc: |
-          Maps between local item identifier and item child index
+          Maps each name declared in this scope to the index of its
+          declaration: a position in `children` for a synthetic scope, the
+          child's `index` among the physical children otherwise. Filled by
+          the linker (TaskBuildSymbolTree); a duplicate name keeps its first
+          declaration and is reported.
       - type: map<string,int32_t>
       - is_ctor: false
-    - imports: 
+    - imports:
       - type: UP<SymbolImportSpec>
       - is_ctor: false
     - synthetic:
@@ -139,53 +181,65 @@ classes:
 - RootSymbolScope:
     set_by: linker   # constructed only by the linker (TaskBuildSymbolTree et al.)
     doc: |
-        Root of a resolved symbol tree. Holds references to 
+        Root of a resolved symbol tree. Holds references to
         the physical linked-together files in addition to the
         merged contents within the symbol tree.
-        
+
         Serves as the top-level entry point for the fully-linked symbol database,
-        managing the collection of compilation units and their cross-file dependencies.
-        Maintains bidirectional reference tracking between files for incremental
-        compilation and dependency analysis.
-        
+        managing the collection of compilation units. It is what
+        `Parser.link()` returns. Built by TaskBuildSymbolTree::build, with an
+        empty name and `synthetic` set; its children are the global names of
+        every unit, merged, starting with the linker's builtin types.
+
         The root scope bridges the physical file-based AST representation with the
         logical merged symbol namespace, enabling efficient multi-file symbol resolution.
-        
+
         Attributes:
             units: List of compilation units (GlobalScope) linked into this tree
             filenames: Maps file IDs to their filesystem paths
             id2idx: Maps file IDs to their index in the units list
             fileOutRef: Outbound references from each unit (dependencies)
             fileInRef: Inbound references to each unit (dependents)
-        
+
         See Also:
             SymbolScope, GlobalScope, SymbolImportSpec
     super: SymbolScope
     data:
       - units:
         - doc: |
-            List of compilation units linked together in this symbol tree.
+            The compilation units linked together in this symbol tree, in
+            link order: first the linker's builtins unit (BuiltinsFactory,
+            fileid -1: `pyobj`, `array`, `list`, `set`, `map`, `string`),
+            then the GlobalScope of each parsed file (the standard library
+            first, when the Python Parser loaded it).
         - type: list<UP<GlobalScope>>
         - is_ctor: false
       - filenames:
         - doc: |
-            Map of fileId (as specified by the file) to corresponding file path
-            to the 
+            Map of fileid to the file's path, taken from each unit's
+            GlobalScope.filename. Only units with a non-empty filename are
+            entered; the Python and TypeScript Parser classes do not set it
+            (they keep file names themselves), so the map is usually empty.
         - type: map<int32_t,string>
         - is_ctor: false
       - id2idx:
         - doc: |
-            Map from fileId (as specified by the file) to index in the units list
+            Map from a unit's fileid to its index in `units`. The builtins
+            unit (fileid -1) is not entered.
         - type: map<int32_t,int32_t>
         - is_ctor: false
       - fileOutRef:
         - doc: |
-            List of outbound refs from each unit
+            Intended to list, per unit, the fileids of the units it
+            references. Not filled: the resolver keeps these sets internally
+            (ResolveContext::addRef) and never copies them here, so the list
+            is empty.
         - type: list<list<int32_t>>
         - is_ctor: false
       - fileInRef:
         - doc: |
-            List of inbound refs to each unit
+            Intended to list, per unit, the fileids of the units that
+            reference it. Not filled, like `fileOutRef`; always empty.
         - type: list<list<int32_t>>
         - is_ctor: false
 
@@ -193,16 +247,22 @@ classes:
     set_by: linker   # constructed only by the linker (TaskBuildSymbolTree et al.)
     doc: |
         Symbol scope for enumeration type declarations.
-        
+
         Represents an enum definition in the linked symbol tree, managing the
         namespace for enum items and their associated values. Provides symbol
         resolution for enum member access during type checking.
-        
+
         The scope contains the enum's items as children, enabling qualified
-        name lookup (e.g., MyEnum::ItemName) during compilation.
-        
+        name lookup (e.g., MyEnum::ItemName) during compilation. Built by
+        TaskBuildSymbolTree::visitEnumDecl; items added by `extend enum`
+        are merged in by TaskApplyTypeExtensions.
+
+        PSS Example::
+
+            enum color_e { RED, GREEN = 4, BLUE }   // one SymbolEnumScope
+
         See Also:
-            SymbolScope, EnumDecl, EnumItem
+            SymbolScope, EnumDecl, EnumItem, ExtendEnum
 
         Attributes:
             decl: The EnumDecl this scope was built from. A back-pointer
@@ -220,8 +280,8 @@ classes:
 
 # - SymbolExecScope:
 #     super: SymbolScope
-#     data: 
-#     - locals: 
+#     data:
+#     - locals:
 #       - type: list<UP<ScopeChild>>
 #       - is_ctor: false
 
@@ -233,20 +293,27 @@ classes:
     set_by: linker   # constructed only by the linker (TaskBuildSymbolTree et al.)
     doc: |
         Symbol scope for PSS extend statements.
-        
-        Represents an extend declaration in the linked symbol tree, which adds
-        new members to an existing type. Manages the namespace for extension
-        members and links them back to the base type being extended.
-        
-        During linking, multiple extend declarations targeting the same type
-        are merged into the type's symbol scope, allowing type augmentation
-        across compilation units.
-        
-        Attributes:
-            (inherits from SymbolScope - children contain extension members)
-        
+
+        Represents one `extend` statement (an ExtendType, its `target`) in
+        the linked symbol tree. TaskBuildSymbolTree::visitExtendType builds
+        it, named `<extend>` and synthetic, and collects the extension's
+        members and imports in it. TaskApplyTypeExtensions then merges those
+        members, and the imports, into the extended type's symbol scope, so
+        that one type can be augmented from several places, across
+        compilation units.
+
+        PSS Example::
+
+            extend component pss_top {   // one SymbolExtendScope
+                int extra;
+            }
+
+        Has no fields of its own: `children` holds the extension's members
+        and `target` the ExtendType (both inherited from
+        SymbolChildrenScope).
+
         See Also:
-            SymbolScope, ExtendType, ExtendEnum
+            SymbolScope, ExtendType, ExtendEnum, SymbolTypeScope
     super: SymbolScope
     data: {}
 
@@ -265,21 +332,20 @@ classes:
 - SymbolImportSpec:
     set_by: linker   # constructed only by the linker (TaskBuildSymbolTree et al.)
     doc: |
-        Import specification with fully resolved symbol references.
-        
-        Manages import statements and their resolved symbol paths for a scope.
-        During linking, import statements are analyzed and their target symbols
-        are resolved into structured paths, enabling efficient name lookup.
-        
-        Each imported identifier is mapped to its SymbolRefPath, which encodes
-        the navigation steps from the current scope to the imported symbol.
-        This allows the compiler to quickly resolve qualified names without
-        repeated symbol searches.
-        
+        The package imports that apply in a symbol scope (SymbolScope.imports).
+
+        Created by TaskBuildSymbolTree the first time it meets an `import`
+        statement in a scope. Every import is kept, a repeated one too. The
+        imports themselves are resolved in place: TaskResolveImports sets the
+        target of each statement's `path`, and name lookup searches the
+        imported scopes (LRM 18.3).
+
         Attributes:
-            imports: List of import statements from the source (physical AST)
-            symtab: Maps imported names to their resolved symbol paths
-        
+            imports: The PackageImportStmt nodes, in source order; not owned
+            symtab: Meant to map imported names to their resolved symbol
+                paths. Not filled by the linker (only copied when a scope
+                is cloned); always empty
+
         See Also:
             SymbolRefPath, PackageImportStmt, SymbolScope
     data:
@@ -298,22 +364,31 @@ classes:
     set_by: linker   # constructed only by the linker (TaskBuildSymbolTree et al.)
     doc: |
         Symbol scope for type declarations (actions, components, structs).
-        
+
         Represents a user-defined type in the linked symbol tree, managing its
         members, methods, and constraints. Supports template specialization by
-        tracking parameter lists and specialized type instantiations.
-        
+        tracking parameter lists and specialized type instantiations. Built
+        for each TypeScope by TaskBuildSymbolTree::visitTypeScope (synthetic,
+        `target` the declaration); the builtin types `array`, `list`, `map`,
+        `set`, `string` and `pyobj` have one too.
+
         During linking, type declarations from multiple files can be merged
         (for extend statements) and specialized instances are tracked separately.
         The plist holds template parameters, while spec_types contains any
         specialized/instantiated versions of this generic type.
-        
+
         Attributes:
-            plist: Template parameter list scope (if this is a generic type)
-            spec_types: List of specialized/instantiated versions of this type
-        
+            plist: Template parameter list scope, named `<plist>`, holding the
+                TemplateParamDecl nodes of a generic type (`ElemKind_ParamIdx`
+                indexes it); null for a non-template type
+            spec_types: The specializations of this generic type, one per
+                distinct argument list used, in the order they were first
+                needed (`ElemKind_TypeSpec` indexes it). Built by the linker
+                (TaskGetSpecializedTemplateType); empty for a non-template
+                type
+
         See Also:
-            SymbolScope, Action, Component, Struct, SymbolExtendScope
+            SymbolScope, Action, Component, Struct, SymbolExtendScope, SymbolExtMember
     super: SymbolScope
     data:
       - plist:
@@ -336,11 +411,24 @@ classes:
     doc: |
         A member an extension contributed to a type (SymbolTypeScope.ext_members).
 
+        Recorded by TaskApplyTypeExtensions when it merges an `extend`
+        statement's named member into the type's symbol scope, so that name
+        lookup can tell members of one name apart by the package of the
+        extension that declared them (LRM 17.2.3).
+
+        PSS Example::
+
+            package p1 { extend component pss_top { int x; } }
+            package p2 { extend component pss_top { int x; } }  // a second `x`
+
         Attributes:
             name: The member's name
             idx: Its index in the type's children
             pkg: The nearest package enclosing the extension statement (17.2);
                 the root scope for an extension outside any package
+
+        See Also:
+            SymbolTypeScope, SymbolExtendScope, ExtendType
     data:
     - name:
       - type: string
@@ -355,28 +443,48 @@ classes:
     set_by: linker   # constructed only by the linker (TaskBuildSymbolTree et al.)
     doc: |
         Symbol scope for functions with overload resolution support.
-        
-        Represents a function in the linked symbol tree, managing multiple
-        declarations (prototypes, imports, definition) for the same function name.
-        Supports function overloading by tracking all signatures and selecting
-        the appropriate one during call resolution.
-        
+
+        Represents a function in the linked symbol tree, collecting every
+        declaration of one function name: prototypes, `import` declarations,
+        and the definition. There is one such scope per function name, not
+        one per signature: later declarations must agree with the first,
+        which the linker checks (TaskBuildSymbolTree).
+
         During linking, function prototypes from different files are collected,
-        import specifications are resolved, and the definition (if present) is
-        linked. The plist handles template parameters for generic functions.
-        
+        import specifications are recorded, and the body (if present) is
+        linked. The plist holds the function's parameters. Built by
+        TaskBuildSymbolTree (visitFunctionDefinition, visitFunctionPrototype,
+        visitFunctionImportProto, visitTargetTemplateFunction).
+
+        PSS Example::
+
+            function int add(int a, int b);                 // a prototype
+            function int add(int a, int b) { return a+b; }  // the definition
+
         Attributes:
-            prototypes: All declared function signatures (forward declarations)
-            import_specs: Imported function specifications (DPI/foreign functions)
-            definition: The function implementation (null if only prototype/import)
-            plist: Template parameter list scope (if this is a generic function)
-            body: Function body scope containing local variables and statements
-        
+            prototypes: Every FunctionPrototype declared for the name; a
+                definition's prototype is put first
+            import_specs: One FunctionImport per `import ... function`
+                declaration of the function, recording its platform
+                qualifier (`solve` or `target`); owned copies made by the
+                linker, with an empty language
+            definition: Meant to point to the FunctionDefinition. Not set
+                by the linker: it is always null; the definition is
+                `target`, and its body is `body`
+            plist: The function's parameters: a scope named `<plist>`
+                holding the FunctionParamDecl nodes of the first prototype
+                seen, re-bound to a definition's own parameter names
+                (`ElemKind_ArgIdx` indexes it)
+            body: The ExecScope of the function's definition; null for a
+                function that is only declared, imported, or a target
+                template. Reached by an `ElemKind_ChildIdx` step equal to
+                the number of children
+
         See Also:
             SymbolScope, FunctionPrototype, FunctionDefinition, FunctionImport
     super: SymbolScope
     data:
-      - prototypes: 
+      - prototypes:
         - type: list<P<FunctionPrototype>>
         - rel: ref
         - is_ctor: false
@@ -397,30 +505,37 @@ classes:
         - is_ctor: false
         - init: 0
 
-- SymbolRefPath: 
+- SymbolRefPath:
     set_by: linker   # constructed only by the linker (TaskBuildSymbolTree et al.)
     doc: |
         Structured path for navigating between symbols during linking.
-        
+
         Encodes a resolved reference as a sequence of navigation steps through
-        the linked symbol tree. Used to represent imports, type references, and
-        cross-scope identifiers after name resolution is complete.
-        
+        the linked symbol tree. It is what the linker stores in a resolved
+        reference (a TypeIdentifier's `target`, a reference path's
+        `target`); TaskResolveSymbolPathRef turns it back into the node it
+        names.
+
         Rather than storing string-based qualified names, SymbolRefPath provides
         an efficient index-based navigation structure. This enables fast symbol
         lookup during compilation without repeated name searches.
-        
-        The path elements specify how to navigate from a starting scope to the
+
+        The path elements specify how to navigate from the root scope to the
         target symbol (e.g., "child 0, child 2, type specialization 1").
-        
+
         Attributes:
-            path: Sequence of navigation steps to reach the target symbol
-            pyref_idx: Python reference index for language bindings (-1 if unused)
-        
+            path: Sequence of navigation steps to reach the target symbol,
+                starting at the RootSymbolScope (or, after an
+                `ElemKind_Inline` first step, at the in-line context)
+            pyref_idx: -1 for an ordinary reference. Set to 0 by the linker
+                (TaskResolveRefs) when an element of the path is a value of
+                the Python object type `pyobj` (TaskIsPyRef): the rest of the
+                reference is dynamic and is not resolved
+
         See Also:
-            SymbolRefPathElem, SymbolImportSpec, SymbolScope
+            SymbolRefPathElem, SymbolScope, TypeIdentifier
     data:
-    - path: 
+    - path:
       - type: list<SymbolRefPathElem>
       - is_ctor: false
       - visit: false
@@ -432,5 +547,5 @@ classes:
 #- AggregateTypeScope:
 #    super: ScopeChild
 #    data:
-#    - 
+#    -
 

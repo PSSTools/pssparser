@@ -1,47 +1,72 @@
 
 flags:
   - FieldAttr:
-    - Action: "Action instance field"
-    - Builtin: "Built-in field"
-    - Rand: "Random field (subject to constraints)"
-    - Const: "Constant field"
-    - Static: "Static field (shared across instances)"
-    - Instance: "Component instance-qualified field"
-    - Private: "Private field (not visible outside)"
-    - Protected: "Protected field (visible in subclasses)"
-    - Mutable: "PSS 3.1 §9.1.6: component data modifiable after construction"
+      doc: |
+          Qualifiers of a Field declaration, as bit flags (`NoFlags` when none
+          apply). The parser stamps them from the declaration's prefix:
+          `attr_field` (`rand`, `static const`, access modifier),
+          `component_data_declaration` (`static const`, `mutable`,
+          `instance`, access modifier), `const_field_declaration`,
+          `annotation_attr_field` and `activity_data_field` (`action`). The
+          linker adds `Builtin` fields itself.
+      values:
+        - Action: "Action-qualified field: declared `action data_declaration` (`activity_data_field`, LRM 13.4.1); assigned when the action is traversed"
+        - Builtin: "Built-in field the tool injects rather than the source declares: `uid`, a state object's `initial` and `prev`, a resource's `instance_id`"
+        - Rand: "Declared `rand` (`attr_field`): randomized, subject to constraints"
+        - Const: "Constant: declared `static const`, or `const` in a package or monitor (`const_field_declaration`)"
+        - Static: "Static, one value shared across instances: declared `static const`. Not set for a `const_field_declaration` written without `static`"
+        - Instance: "Declared with the `instance` qualifier (`component_data_decl_qualifier`, LRM 9.1.5.3): an instance-qualified component reference field"
+        - Private: "Declared `private` (`access_modifier`, LRM 17.4)"
+        - Protected: "Declared `protected` (`access_modifier`, LRM 17.4)"
+        - Mutable: "Declared `mutable` (LRM 9.1.6): component data that may be modified after the component tree is constructed"
 
 classes:
   - Field:
       super: NamedScopeChild
       doc: |
-          Data field declaration within actions, components, or structs.
-          
-          Represents variable declarations with optional type, attributes,
-          and initialization. Fields can be randomized ('rand'), constant
-          ('const'), static ('static'), or have visibility modifiers.
-          
+          Data field declaration (`data_declaration`, LRM 7.1).
+
+          One Field is built per `data_instantiation` of an `attr_field` (action,
+          struct, flow/resource object), a `component_data_declaration`, a
+          package or monitor `const_field_declaration`, an annotation's
+          `annotation_attr_field` or an `activity_data_field`; so
+          `rand bit[8] a, b;` gives two Fields. A covergroup port is also a
+          Field. Qualifiers are recorded in `attr`. An action handle declared in
+          an action body (`A a;`) parses as a data declaration and is built as
+          a Field too; only the linker can tell it is a handle. The tool also
+          adds `Builtin` Fields (`uid`, `initial`, `prev`, `instance_id`).
+          A local variable in exec or function code is a
+          ProceduralStmtDataDeclaration, not a Field.
+
           PSS Example::
-          
-              action my_action {
-                  rand int<32> addr;           // Random field
-                  const int timeout = 100;     // Constant field
-                  static int counter;          // Static field
-                  private bool flag;           // Private field
+
+              struct S {
+                  rand bit[32] addr;          // attr = Rand
+                  static const int MAX = 100; // attr = Static | Const
+                  private bool flag;          // attr = Private
+                  int arr[4];                 // type is array<int,4>
               }
-          
+              component pss_top {
+                  mutable int count;          // attr = Mutable
+              }
+
           Attributes:
               name: Field identifier (inherited from NamedScopeChild)
-              type: Data type of the field
-              attr: Attribute flags (FieldAttr)
-              init: Optional initializer expression
-              initializers: An action handle's `{.x = v, ...}` list (11.3.1).
-                  Set only on a handle declared in an action body, which
-                  is built as a Field; in an activity it is an
-                  ActionHandleField
-          
+              type: Declared data type. Array dimensions (`x[4]`) wrap it in
+                  a DataTypeUserDefined naming `array<T,N>`, one per dimension
+              attr: Qualifier flags (FieldAttr); `NoFlags` when the declaration
+                  has none
+              init: The `= constant_expression` initializer; null when absent
+              initializers: An action handle's `{.x = v, ...}` list (LRM
+                  11.3.1). Set only on a handle declared in an action body,
+                  which is built as a Field; in an activity it is an
+                  ActionHandleField. Empty otherwise. Resolved against the
+                  handle's action type by the linker (TaskResolveRefs)
+
           See Also:
-              FieldAttr, DataType, NamedScopeChild, ActionFieldInitializer
+              FieldAttr, DataType, DataTypeUserDefined, NamedScopeChild,
+              ActionFieldInitializer, ActionHandleField,
+              ProceduralStmtDataDeclaration
       data:
       - type : UP<DataType>
       - attr : FieldAttr
@@ -52,53 +77,65 @@ classes:
   - FieldCompRef:
       super: NamedScopeChild
       doc: |
-          Component reference field for hierarchical composition.
-          
-          Declares a reference to a component instance. Used for building
-          the structural hierarchy of components within other components.
-          
+          The implicit `comp` field of an action (LRM 9.1.5).
+
+          Every action -- including an `override` action -- gets this field as
+          its first child, inserted by the parser with the name `comp` and no
+          type. It refers to the component instance the action executes in.
+          It is not the node for a component instance field written in source:
+          `sub_c sc1;` in a component is an ordinary Field.
+
           PSS Example::
-          
-              component sub_comp { }
-              
-              component top_comp {
-                  sub_comp sc1;    // Component reference field
-                  sub_comp sc2;
+
+              component pss_top {
+                  int base;
+                  action A {
+                      rand int x;
+                      constraint { x > comp.base; }  // `comp` is a FieldCompRef
+                  }
               }
-          
+
           Attributes:
-              name: Field name (inherited from NamedScopeChild)
-              type: User-defined component type
-          
+              name: Always `comp` (inherited from NamedScopeChild)
+              type: The enclosing component type. Null after parsing; set by
+                  the linker (TaskLinkActionCompRefFields) when the action is
+                  declared in a component, and left null for an action
+                  declared in a package
+
           See Also:
-              FieldRef, Component, DataTypeUserDefined
+              Action, Component, DataTypeUserDefined, Field
       data:
       - type: UP<DataTypeUserDefined>
   - FieldRef:
       super: NamedScopeChild
       doc: |
-          Reference field pointing to action/component instances.
-          
-          Declares a reference (pointer) to an action or component instance.
-          References can be inputs (passed in) or outputs (assigned internally).
-          Used for action composition and resource sharing.
-          
+          Flow-object reference field of an action: an `input` or `output`
+          (`flow_ref_field_declaration`, LRM 9.3.4).
+
+          One FieldRef is built per `object_ref_field` in the declaration. The
+          referenced object is a buffer, stream or state object that the
+          action consumes or produces; it is bound to a pool (`bind`) or
+          supplied by another action's matching reference.
+
           PSS Example::
-          
-              action producer { }
-              
-              action consumer {
-                  input producer p_ref;    // Input reference
-                  ref producer p_local;    // Local reference
+
+              buffer data_buf { rand bit[32] addr; }
+
+              action producer {
+                  output data_buf out_b;
               }
-          
+              action consumer {
+                  input data_buf in_b;
+              }
+
           Attributes:
               name: Reference name (inherited from NamedScopeChild)
-              type: User-defined type being referenced
-              is_input: True if declared as 'input'
-          
+              type: The flow-object type (`flow_object_type`). Array
+                  dimensions wrap it in an `array<T,N>` DataTypeUserDefined
+              is_input: True for `input`, false for `output`
+
           See Also:
-              FieldCompRef, FieldClaim, DataTypeRef
+              FieldClaim, FieldPool, ComponentBind, Struct
       data:
       - type: UP<DataTypeUserDefined>
       - is_input: bool
@@ -106,39 +143,42 @@ classes:
   - FieldClaim:
       super: NamedScopeChild
       doc: |
-          Claim or lock on a resource instance.
-          
-          Declares exclusive access to a resource for the duration of an
-          action. Claims can be locks (exclusive) or shares (non-exclusive).
-          Used for resource management and synchronization.
-          
+          Resource claim field of an action: a `lock` or `share`
+          (`resource_ref_field_declaration`, LRM 9.4.2).
+
+          Claims a resource object from a pool for the duration of the action.
+          A `lock` is exclusive; a `share` permits other sharers but no
+          locker. One FieldClaim is built per `object_ref_field`.
+
           PSS Example::
-          
-              resource bus_t { }
-              
+
+              resource bus_r { }
+
               action my_action {
-                  lock bus_t my_bus;     // Exclusive lock
-                  share bus_t my_bus2;   // Shared access
+                  lock bus_r my_bus;     // Exclusive
+                  share bus_r my_bus2;   // Shared
               }
-          
+
           Attributes:
               name: Claim identifier (inherited from NamedScopeChild)
-              type: Resource type to claim
-              is_lock: True for 'lock', false for 'share'
-          
+              type: The resource type (`resource_object_type`). Array
+                  dimensions wrap it in an `array<T,N>` DataTypeUserDefined
+              is_lock: True for `lock`, false for `share`
+
           See Also:
-              Struct (with kind=Resource), FieldRef
+              Struct, FieldRef, FieldPool
       data:
       - type: UP<DataTypeUserDefined>
       - is_lock: bool
   - FieldPool:
       super: NamedScopeChild
       doc: |
-          Pool declaration within a component.
+          Pool declaration within a component (`component_pool_declaration`,
+          LRM 12.1).
 
-          Declares a pool of flow- or resource-objects of a given type, with an
-          optional size (capacity). Actions bind their object references to pools
-          via ``bind`` statements.
+          Declares a pool of flow or resource objects of a given type, with an
+          optional size. Actions' object references are associated with pools
+          by `bind` directives.
 
           PSS Example::
 
@@ -149,18 +189,22 @@ classes:
 
           Attributes:
               name: Pool identifier (inherited from NamedScopeChild)
-              type: Element type held by the pool
-              size: Optional capacity expression (null if unsized)
+              type: Element type held by the pool: a buffer, stream, state or
+                  resource type
+              size: The `[expression]` size; null when absent. The LRM gives
+                  it meaning only for a resource pool, whose size then
+                  defaults to 1
 
           See Also:
-              FieldClaim, FieldRef
+              FieldClaim, FieldRef, ComponentBind
       data:
       - type: UP<DataTypeUserDefined>
       - size: UP<Expr>
   - ComponentBind:
       super: ScopeChild
       doc: |
-          Component-level object/pool bind directive (``bind pool targets;``).
+          Component-level static pool-binding directive (`object_bind_stmt`,
+          LRM 12.3).
 
           Binds a pool to a set of action object-reference fields, or to all
           compatible references via the wildcard form. Every target -- including
@@ -169,9 +213,10 @@ classes:
 
           The pool is an ordinary reference from the binding component. A
           target's path elements, action type and field are resolved along
-          the component path (LRM 12.3): each element in the component the
-          previous one reaches, the action type in the last component
-          reached, the field in that action type.
+          the component path by the linker (TaskResolveRefs, after the rest
+          of the walk): each element in the component the previous one
+          reaches, the action type in the last component reached, the field
+          in that action type.
 
           PSS Example::
 
@@ -183,7 +228,9 @@ classes:
               }
 
           Attributes:
-              pool_path: Path to the bound pool (e.g. ``p``, ``gfx0.pool``).
+              pool_path: Path to the bound pool (e.g. ``p``, ``sub0.p``).
+                  Resolved by the linker (TaskResolveRefs), which reports an
+                  error when it names something other than a FieldPool.
               is_wildcard: True if *any* target is a wildcard -- for the bare
                   ``bind p *;`` form, and for a mixed list containing ``*``.
                   Equivalent to ``any(t.is_wildcard for t in targets)``, and
@@ -191,6 +238,9 @@ classes:
                   form.
               targets: The bind targets in source order, one
                   ``ComponentBindTarget`` per entry.
+
+          See Also:
+              ComponentBindTarget, ComponentPathElem, FieldPool
       data:
       - pool_path: UP<ExprRefPathContext>
       - is_wildcard: bool
@@ -219,9 +269,15 @@ classes:
               }
 
           Attributes:
-              id: The component instance name.
+              id: The component instance name. Its target is set by the
+                  linker (TaskResolveRefs) to the instance field in the
+                  component reached by the previous element.
               range: Optional index / index-range selection; null when the
-                  element carries no ``[...]``.
+                  element carries no ``[...]``. Only one bracketed selection
+                  is accepted.
+
+          See Also:
+              ComponentBindTarget, ComponentBind, ExprDomainOpenRangeList
       data:
       - id: UP<ExprRefName>
       - range:
@@ -256,9 +312,16 @@ classes:
                   target names an action in the enclosing component).
               is_wildcard: True for the ``*`` form.
               type_id: Action type of the bind item; null when wildcard.
-              field: Object-reference field on that action; null when wildcard.
+                  Resolved by the linker (TaskResolveRefs) among the action
+                  types of the last component the path reaches.
+              field: Object-reference field on that action; null when
+                  wildcard. Its target is set by the linker (TaskResolveRefs)
+                  to a FieldRef or FieldClaim of the action type.
               range: Optional index / index-range selection on the field; null
                   when absent or wildcard.
+
+          See Also:
+              ComponentBind, ComponentPathElem, FieldRef, FieldClaim
       data:
       - is_wildcard: bool
       - path:
@@ -276,19 +339,49 @@ classes:
   - ActionHandleField:
       super: NamedScopeChild
       doc: |
-          Action or monitor handle field declaration.
+          Action or monitor handle declared in an activity or a monitor body
+          (`action_handle_declaration`, LRM 11.3.1).
 
-          Represents an action instance field declared in an action or monitor
-          body, including optional PSS 3.1 initializer assignments and support
-          for array-typed handles.
+          Built for each `action_instantiation` of a handle declaration in an
+          action activity, a monitor body (`monitor_field_declaration`) or a
+          monitor activity, including the PSS 3.1 initializer list and array
+          handles. A handle declared directly in an *action* body
+          (`A a;`) parses as a data declaration and is a Field instead.
 
-          A *monitor* handle declared in a monitor body (``m1 h1;``) also builds
-          this class, despite the name. The two declarations are syntactically
-          identical -- ``type_identifier identifier ;`` -- so the parser cannot
+          A *monitor* handle (``m1 h1;``) also builds this class, despite the
+          name. The two declarations are syntactically identical --
+          ``type_identifier identifier ;`` -- so the parser cannot
           distinguish them; which kind of handle it is follows from resolving
           ``type``, and is known only after linking.
+
+          PSS Example::
+
+              action top {
+                  activity {
+                      sub_a a1 {.size = 4};   // single handle, initializer
+                      sub_a arr[2];           // handle array
+                      a1;
+                      arr[0];
+                  }
+              }
+
+          See Also:
+              Field, ActionFieldInitializer, ActivityActionHandleTraversal,
+              DataTypeUserDefined
       data:
-      - type: UP<DataType>
+      - type:
+          type: UP<DataType>
+          doc: |
+              The action (or monitor) type, a DataTypeUserDefined naming the
+              `action_type_identifier`. For an array handle
+              (`action_handle_array_instance`) it is wrapped in an
+              `array<T,N>` DataTypeUserDefined per dimension.
       - initializers:
           type: list<UP<ActionFieldInitializer>>
           is_ctor: false
+          doc: |
+              The `{.field = value, ...}` initializer list
+              (`action_initializer_list`, LRM 11.3.1) of a single handle;
+              empty when absent and always empty for an array handle.
+              Resolved against the handle's type by the linker
+              (TaskResolveRefs).

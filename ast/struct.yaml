@@ -1,52 +1,62 @@
 
 enums:
 - StructKind:
-  - Buffer: "Memory buffer (PSS 2.1+)"
-  - Struct: "Data structure"
-  - Resource: "Shared resource"
-  - Stream: "Data stream (PSS 2.1+)"
-  - State: "State object (PSS 2.1+)"
+    doc: |
+        The keyword a `struct_declaration` starts with (LRM 7.8, `struct_kind`):
+        `struct`, or one of the `object_kind` keywords that declare a flow
+        object (LRM 9.3) or a resource object (LRM 9.4).
+    values:
+    - Buffer: "`buffer` -- a buffer flow object (LRM 9.3.1)"
+    - Struct: "`struct` -- a plain data structure (LRM 7.8)"
+    - Resource: "`resource` -- a resource object (LRM 9.4)"
+    - Stream: "`stream` -- a stream flow object (LRM 9.3.2)"
+    - State: "`state` -- a state flow object (LRM 9.3.3)"
 
 classes:
 - Struct:
     super: TypeScope
     doc: |
-        Structured data type declaration (struct/buffer/stream/state/resource).
-        
-        Represents various structured data containers in PSS. The 'kind' field
-        determines the specific semantics: plain data struct, memory buffer,
-        data stream, state object, or shared resource.
-        
+        A struct-like type declaration: `struct`, `buffer`, `stream`, `state`
+        or `resource` (LRM 7.8, `struct_declaration`).
+
+        All five share one syntax; `kind` records which keyword was used,
+        and so whether the type is plain data, a flow object (LRM 9.3) or a
+        resource object (LRM 9.4). Body items (attribute fields,
+        constraints, exec blocks, covergroups, ...) are the children.
+
         PSS Example::
-        
+
             struct packet_s {
-                int<8> header;
-                int<32> payload;
+                bit[8] header;
+                bit[32] payload;
             }
-            
+
             buffer dma_buf_t {
-                int<8> data[1024];
+                rand int in [1..64] size;
             }
-            
+
             resource bus_t {
                 int bandwidth;
             }
-            
+
             stream data_stream_t {
-                int<16> samples;
+                bit[16] samples;
             }
-            
+
             state session_state_t {
                 bool connected;
             }
-        
+
         Attributes:
             name: Type name (inherited from NamedScope via TypeScope)
-            kind: Structure kind (StructKind enum)
             super_t: Optional base type (inherited from TypeScope)
-            children: Field declarations (inherited from Scope)
-        
+            children: Body items (inherited from Scope)
+
         See Also:
             StructKind, TypeScope, Field
     data:
-    - kind: StructKind
+    - kind:
+        type: StructKind
+        doc: |
+            Which keyword declared the type (`struct`, `buffer`, `stream`,
+            `state` or `resource`). Always set by the parser.

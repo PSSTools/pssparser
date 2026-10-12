@@ -1578,7 +1578,7 @@ jobs:
         python-version: '3.11'
     - name: Install Sphinx dependencies
       run: |
-        python -m pip install sphinx sphinx-rtd-theme "pyastbuilder[sphinx]>=0.0.7"
+        python -m pip install sphinx sphinx-rtd-theme "pyastbuilder[sphinx]>=0.0.8"
         # The AST reference's diagrams (docs/ast/) need Graphviz's `dot`.
         sudo apt-get install -y -q graphviz
     - name: Build Sphinx docs

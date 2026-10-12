@@ -8,38 +8,47 @@ classes:
   - OverrideDecl:
       super: Scope
       doc: |
-          An ``override { ... }`` block.
+          An ``override { ... }`` block (LRM 17.5, `override_declaration`).
 
-          Overrides retarget type selection during elaboration: every place the
-          model would have used the target type or instance, it uses the
-          replacement instead. The block's statements are held in
-          ``getChildren()`` and are in source order, which matters -- a later
-          statement overriding the same target wins.
+          Overrides replace the declared type of fields with a subtype: a
+          type override applies to every field of the target type within the
+          subtree of the block's containing type, and an instance override
+          to one field.
+          They apply to action, monitor, struct attribute and component
+          instance fields, not to reference fields (``input``, ``output``,
+          ``lock``, ``share``). The block's statements are held in
+          ``getChildren()`` in source order, which matters: within one
+          container an instance override takes precedence over a type
+          override, and among overrides of the same kind a later one wins.
 
-          The block declares no names, so it introduces no scope in the linked
-          tree even though it is a ``Scope`` in the AST.
+          The block declares no names. The linker (TaskBuildSymbolTree) adds
+          it to the enclosing symbol scope as a leaf and does not enter its
+          statements; TaskResolveRefs resolves the types and paths they name.
 
           PSS Example::
 
-              component pss_top {
-                  action A { }
-                  action B : A { }
+              action A { }
+              action B : A { }
+              action C : A { }
 
-                  sub s1, s2;
+              action top {
+                  A a1, a2;
+                  activity { a1; a2; }
 
                   override {
-                      type A with B;
-                      instance s1.a with B;
+                      type A with B;       // a1 becomes a B
+                      instance a2 with C;  // a2 becomes a C
                   }
               }
 
           See Also:
-              TypeOverride, InstanceOverride
+              TypeOverride, InstanceOverride, OverrideStmt
 
   - OverrideStmt:
       super: ScopeChild
       doc: |
-          Base class for the two statements an ``override`` block admits.
+          Base class for the two statements an ``override`` block admits
+          (LRM 17.5, `override_stmt`).
 
           The two differ in what they select -- a type, or one instance -- and
           share the replacement type. They are separate classes rather than one
@@ -52,7 +61,9 @@ classes:
   - TypeOverride:
       super: OverrideStmt
       doc: |
-          ``type T with U;`` -- every use of type ``T`` is replaced by ``U``.
+          ``type T with U;`` -- every field of type ``T`` under the block's
+          containing type is instantiated as ``U`` instead (LRM 17.5,
+          `type_override`).
 
           PSS Example::
 
@@ -61,11 +72,13 @@ classes:
               }
 
           Attributes:
-              target: The type being overridden
-              with_t: The replacement type
+              target: The type being overridden; resolved by the linker
+                  (TaskResolveRefs)
+              with_t: The replacement type, a subtype of ``target``; resolved
+                  by the linker (TaskResolveRefs)
 
           See Also:
-              InstanceOverride
+              InstanceOverride, OverrideDecl
       data:
       - target: UP<TypeIdentifier>
       - with_t: UP<TypeIdentifier>
@@ -73,7 +86,8 @@ classes:
   - InstanceOverride:
       super: OverrideStmt
       doc: |
-          ``instance p.q with U;`` -- one instance is replaced by ``U``.
+          ``instance p.q with U;`` -- one instance is replaced by ``U``
+          (LRM 17.5, `instance_override`).
 
           The target is a hierarchical path to a field, so the override applies
           at that one site rather than to every use of the field's type.
@@ -85,11 +99,15 @@ classes:
               }
 
           Attributes:
-              target: Hierarchical path naming the instance to override
-              with_t: The replacement type
+              target: Hierarchical path naming the instance to override,
+                  starting from the block's containing type. Resolved by the
+                  linker (TaskResolveRefs) like any other field path written
+                  there
+              with_t: The replacement type; resolved by the linker
+                  (TaskResolveRefs)
 
           See Also:
-              TypeOverride
+              TypeOverride, OverrideDecl
       data:
       - target: UP<ExprRefPathContext>
       - with_t: UP<TypeIdentifier>

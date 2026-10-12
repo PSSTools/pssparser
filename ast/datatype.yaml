@@ -3,42 +3,47 @@ classes:
 - DataType:
     super: ScopeChild
     doc: |
-        Base class for all PSS data types.
-        
-        Represents the type system in PSS. All type expressions (int, bool,
-        user-defined types, etc.) derive from this base class. Used in field
-        declarations, expressions, and function signatures.
-        
+        Base class for all PSS data types (`data_type`, LRM 7.1).
+
+        The parser builds one DataType node for each type written in source:
+        a scalar type (`int`, `bit`, `bool`, `string`, `chandle`, `float32`,
+        `float64`, an enum with a domain), a `ref` reference type, or a
+        `type_identifier` naming a user-defined, collection or array type.
+        Used in field declarations, typedefs, function signatures and
+        template parameters.
+
         See Also:
-            DataTypeInt, DataTypeBool, DataTypeUserDefined, Field
+            DataTypeInt, DataTypeBool, DataTypeString, DataTypeFloat,
+            DataTypeChandle, DataTypeEnum, DataTypeRef, DataTypeUserDefined,
+            Field
     
 - DataTypeBool:
     super: DataType
     doc: |
-        Boolean data type.
-        
-        Represents the 'bool' type in PSS. Boolean values are true or false.
-        
+        Boolean data type: `bool` (`bool_type`, LRM 7.4).
+
+        Values are `true` and `false`.
+
         PSS Example::
-        
+
             bool flag;
             rand bool enable;
-            
+
             constraint {
                 enable == true;
             }
-        
+
         See Also:
             DataType, DataTypeInt
 
 - DataTypeFloat:
     super: DataType
     doc: |
-        Floating-point data type.
+        Floating-point data type (`float_type`, LRM 7.3).
 
-        Represents the PSS 3.1 ``float32`` and ``float64`` types (§4.6).
-        ``is_float64`` distinguishes the two widths; they differ only in
-        precision, so a single node carries both.
+        Represents the PSS 3.1 ``float32`` and ``float64`` types (IEEE 754
+        binary32 and binary64). ``is_float64`` distinguishes the two widths;
+        they differ only in precision, so a single node carries both.
 
         PSS Example::
 
@@ -56,38 +61,42 @@ classes:
 - DataTypeChandle:
     super: DataType
     doc: |
-        Opaque handle type for referencing external objects.
-        
-        Represents the 'chandle' type - an opaque pointer to data managed
-        outside PSS (typically C/C++ objects). Used for interfacing with
-        external code and APIs.
-        
+        Opaque handle type: `chandle` (`chandle_type`, LRM 7.7).
+
+        An opaque pointer to data managed outside PSS (typically C/C++
+        objects), passed through the foreign procedural interface.
+
         PSS Example::
-        
+
             function void use_object(chandle obj);
-        
+
         See Also:
             DataType, DataTypePyObj
 
 - DataTypeEnum:
     super: DataType
     doc: |
-        Enum type reference with optional range restriction.
-        
-        Represents a reference to an enum type, optionally restricted to
-        a subset of enum values using an 'in' range expression.
-        
+        Enum type with a value domain (`enum_type`, LRM 7.5.1).
+
+        Built only for the `enum_type_identifier in [ ... ]` form, which
+        restricts the enum to a subset of its items. A plain use of an enum
+        type (`my_enum e;`) is a DataTypeUserDefined, not a DataTypeEnum.
+
         PSS Example::
-        
+
             enum my_enum { A, B, C, D };
-            
-            rand my_enum value in [A, B];    // Only A or B allowed
-        
+
+            rand my_enum in [A, B] value;    // Only A or B allowed
+
         Attributes:
-            tid: Reference to the user-defined enum type
-            in_rangelist: Optional domain restriction. A domain, like an
-                integer type's, may have open ranges (7.5.2: `in [..B]`)
-        
+            tid: Reference to the enum type, as a DataTypeUserDefined; its
+                target is set by the linker (TaskResolveRefs)
+            in_rangelist: The `in [...]` domain. A domain, like an integer
+                type's, may have open ranges (7.5.2: `in [..B]`). A bare name
+                in it is resolved first as an item of this enum, by the
+                linker (TaskResolveRefs). Always set by the parser, since the
+                grammar requires the domain for this form
+
         See Also:
             EnumDecl, DataTypeUserDefined, ExprDomainOpenRangeList
     data: 
@@ -97,26 +106,33 @@ classes:
 - EnumItem:
     super: NamedScopeChild
     doc: |
-        Single enumerator value within an enum declaration.
-        
-        Represents one named value in an enum. Can have an explicit value
-        expression or be auto-assigned sequentially.
-        
+        One enumerator in an enum declaration or an `extend enum`
+        (`enum_item`, LRM 7.5.1).
+
+        An item may have an explicit value; otherwise it takes the previous
+        item's value + 1 (0 for the first). The parser precomputes each
+        item's value into the inherited `index` where it can evaluate it.
+        Items are static constant members of their enum.
+
         PSS Example::
-        
+
             enum status {
                 OK = 0,          // Explicit value
                 ERROR,           // Auto-assigned value (1)
                 PENDING = 100    // Explicit value
             };
-        
+
         Attributes:
             name: Enumerator identifier (inherited from NamedScopeChild)
-            value: Optional value expression
-            upper: Back-reference to containing enum scope
-        
+            value: The `= constant_expression` value; null when absent
+            upper: The SymbolEnumScope of the enum that declares the item.
+                Not set by the parser; set by the linker (TaskBuildSymbolTree)
+                for an item of an EnumDecl. An item contributed by
+                `extend enum` is merged into the target enum's scope by
+                TaskApplyTypeExtensions, which does not set it
+
         See Also:
-            EnumDecl, NamedScopeChild
+            EnumDecl, ExtendEnum, SymbolEnumScope, NamedScopeChild
     data:
     - value: UP<Expr>
     - upper:
@@ -129,25 +145,26 @@ classes:
 - EnumDecl:
     super: NamedScopeChild
     doc: |
-        Enum type declaration with named values.
-        
-        Declares an enumerated type with a set of named constant values.
-        Enums can be used as field types and in constraints.
-        
+        Enum type declaration (`enum_declaration`, LRM 7.5.1).
+
+        Declares an enumerated type: a distinct type whose values are a set
+        of named integral constants. Enums can be used as field types and in
+        constraints.
+
         PSS Example::
-        
+
             enum direction {
                 NORTH, SOUTH, EAST, WEST
             };
-            
+
             enum error_code {
                 SUCCESS = 0,
                 ERR_INVALID = 1,
                 ERR_TIMEOUT = 2
             };
 
-        PSS 3.1 (§3.1, Annex B B.13) adds an optional base type, which fixes
-        the representation of the enumerators::
+        An optional base type, which must be an integer type, fixes the
+        width and signedness of the enumerators::
 
             enum mode_e : bit[4] {          // With an explicit base type
                 IDLE = 0, RUN = 1
@@ -155,13 +172,14 @@ classes:
 
         Attributes:
             name: Enum type name (inherited from NamedScopeChild)
-            items: List of enumerator values
-            base_type: Declared integral base type, or null when none was
-                written. Only an enum that has one may be a member of a
+            items: The enumerators in source order; empty for `enum e { }`.
+                Items added by `extend enum` stay on the ExtendEnum
+            base_type: Declared base type (`: data_type`), or null when none
+                was written. Only an enum that has one may be a member of a
                 packed struct (21.13.1).
 
         See Also:
-            EnumItem, DataTypeEnum
+            EnumItem, DataTypeEnum, ExtendEnum
     data:
     - items: list<UP<EnumItem>>
     - base_type:
@@ -171,23 +189,28 @@ classes:
 - DataTypeInt:
     super: DataType
     doc: |
-        Integer data type with signedness, width, and optional range.
-        
-        Represents integer types in PSS. Can be signed/unsigned, have
-        explicit or inferred bit-width, and include value constraints.
-        
+        Integer data type: `int` or `bit` (`integer_type`, LRM 7.2).
+
+        Carries signedness, width and an optional value domain. With no
+        width written, the parser fills in the default: 32 for `int`, 1 for
+        `bit`. The non-standard `[msb:0]` form is accepted and stored as the
+        width `msb+1`.
+
         PSS Example::
-        
-            int[8] byte_val;                    // 8-bit signed
-            bit[16] word_val;                   // 16-bit unsigned
-            rand int addr in [0x1000..0x2000];  // With range constraint
-            int value;                          // Implementation-defined width
-        
+
+            int[8] byte_val;                     // 8-bit signed
+            bit[16] word_val;                    // 16-bit unsigned
+            bit[7:0] b;                          // same as bit[8]
+            rand int in [0x1000..0x2000] addr;   // With a value domain
+            int value;                           // 32 bits by default
+
         Attributes:
-            is_signed: True for 'int', false for 'bit'
-            width: Bit-width expression (optional)
-            in_range: Optional domain range constraint
-        
+            is_signed: True for `int`, false for `bit`
+            width: Bit-width expression; the default width when none was
+                written. Null only on types the tool builds itself (the
+                built-in function signatures' `int`)
+            in_range: The `in [...]` value domain; null when absent
+
         See Also:
             DataType, ExprDomainOpenRangeList
     data:
@@ -198,11 +221,16 @@ classes:
 - DataTypePyObj:
     super: DataType
     doc: |
-        Python object type for embedded Python integration.
-        
-        Represents Python objects accessible within PSS. Used for
-        interfacing with embedded Python code and libraries.
-        
+        Python object type, `pyobj` (a zuspec extension, not in the LRM).
+
+        An opaque reference to a Python object, for models that call into
+        Python through `pyimport`. It has no attributes.
+
+        PSS Example::
+
+            pyimport numpy;
+            function pyobj make_array(int n);
+
         See Also:
             DataTypeChandle, PyImportStmt
     data: {}
@@ -210,44 +238,49 @@ classes:
 - DataTypeRef:
     super: DataType
     doc: |
-        Reference type to another type instance.
-        
-        Represents a reference (pointer) to an instance of a user-defined
-        type. Used for creating references to action or component instances.
-        
+        Reference type: `ref entity_type_identifier` (`reference_type`,
+        LRM 7.10).
+
+        A reference to an action, monitor, component, flow-object or
+        resource instance. Usable for local variables, function parameters
+        and return values; only component references may declare fields (in
+        components, actions and monitors).
+
         PSS Example::
-        
-            action A { }
-            
-            action B {
-                ref A a_ref;    // Reference to action A instance
+
+            component sub_c { }
+
+            component pss_top {
+                ref sub_c peer;                     // component ref field
+                function void use(ref sub_c c);     // ref parameter
             }
-        
+
         Attributes:
-            type: The user-defined type being referenced
-        
+            type: The referenced entity type. Null only when the
+                `entity_type_identifier` did not build a user-defined type,
+                which the parser reports as an internal error
+
         See Also:
-            DataTypeUserDefined, FieldRef
+            DataTypeUserDefined, FieldCompRef
     data:
       - type : UP<DataTypeUserDefined>
 
 - DataTypeString:
     super: DataType
     doc: |
-        String data type with optional value constraint.
-        
-        Represents string literals and variables in PSS. Can be constrained
-        to a specific set of allowed string values.
-        
+        String data type, with an optional value domain (`string_type`,
+        LRM 7.6).
+
         PSS Example::
-        
+
             string message;
-            rand string mode in ["read", "write", "execute"];
-        
+            rand string in ["read", "write", "execute"] mode;
+
         Attributes:
-            has_range: True if 'in' constraint is present
-            in_range: List of allowed string values
-        
+            has_range: True when the `in [...]` domain is present
+            in_range: The domain's string literals in source order, with
+                their quotes stripped; empty when there is no domain
+
         See Also:
             DataType, ExprString
     data:
@@ -257,29 +290,58 @@ classes:
 - DataTypeUserDefined:
     super: DataType
     doc: |
-        Reference to a user-defined type (action, component, struct, enum).
-        
-        Represents a type reference using a type identifier. The identifier
-        may be simple or hierarchical (package-qualified). Resolution to the
-        actual type occurs during linking phase.
-        
+        A type named by a `type_identifier` (LRM 7.1, 7.11).
+
+        Names an action, component, struct, flow or resource object, enum,
+        typedef, or a template type such as `list<int>`. The identifier may
+        be simple or package-qualified, with template arguments. The parser
+        also builds one for each array dimension of a declaration
+        (`int a[4]` names `array<int,4>`) and for the type inside `ref`, an
+        enum domain and object-reference fields. Resolution to the declared
+        type is recorded on `type_id`.
+
         PSS Example::
-        
+
             my_pkg::my_action a1;        // Qualified type reference
             my_struct s1;                // Simple type reference
-        
+            list<int> values;            // Template type
+
         Attributes:
-            is_global: True if type reference starts with '::'
-            type_id: Hierarchical type identifier
-        
+            is_global: True if the type reference starts with `::`
+            type_id: The type identifier. Its target is set by the linker
+                (TaskResolveRefs) to the declaration it names
+
         See Also:
-            TypeIdentifier, DataType, Action, Component, Struct
+            TypeIdentifier, DataType, Action, Component, Struct,
+            TypedefDeclaration
     data: 
     - is_global: bool
     - type_id: UP<TypeIdentifier>
 
 - TypedefDeclaration:
     super: ScopeChild
+    doc: |
+        Type alias declaration (`typedef_declaration`, LRM 7.11).
+
+        Declares a new name for an existing data type. A typedef of a scalar
+        or aggregate type is itself a scalar or aggregate type. The name is
+        registered in the enclosing scope by the linker
+        (TaskBuildSymbolTree), so uses resolve to this node.
+
+        PSS Example::
+
+            typedef bit[8] byte_t;
+            typedef list<byte_t> bytes_t;
+
+        See Also:
+            DataType, DataTypeUserDefined
     data:
-    - name: UP<ExprId>
-    - type: UP<DataType>
+    - name:
+        type: UP<ExprId>
+        doc: |
+            The declared name (an `identifier`, never a qualified name).
+    - type:
+        type: UP<DataType>
+        doc: |
+            The aliased type (`data_type`). Null only when the grammar
+            recovered from a syntax error without one.

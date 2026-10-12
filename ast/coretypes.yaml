@@ -5,56 +5,97 @@
 #****************************************************************************
 enums:
   - DocCommentForm:
-    - DocForm_None: "No doc comment is attached"
-    - DocForm_Line: "`//`"
-    - DocForm_DocLine: "`///` or `//!`"
-    - DocForm_Block: "Ordinary block comment"
-    - DocForm_DocBlock: "`/**` or the `/*!` form"
+      doc: |
+          The lexical form of the comment a declaration's doc comment was
+          taken from (ScopeChild.docForm). PSS itself has only `//` and
+          `/* */` comments (LRM 4.1); the marked forms are a pssparser
+          convention borrowed from Doxygen. When a doc comment is a run of
+          several comments, this is the form of the first one.
+      values:
+        - DocForm_None: "No doc comment is attached"
+        - DocForm_Line: "An ordinary `//` line comment"
+        - DocForm_DocLine: "A marked line comment: `///` or `//!`"
+        - DocForm_Block: "An ordinary `/* ... */` block comment"
+        - DocForm_DocBlock: "A marked block comment: `/** ... */` or `/*! ... */`"
 
   - CommentPlacement:
-    - CommentPlacement_Leading: "Immediately above the construct"
-    - CommentPlacement_Trailing: "Same line, after the construct"
-    - CommentPlacement_Orphan: "Attached to neither -- recorded on the scope"
+      doc: |
+          Where a captured Comment sits relative to the node that holds it
+          (Comment.placement). Comments are captured only when the builder
+          collects comments (`Parser(collect_comments=True)`).
+      values:
+        - CommentPlacement_Leading: "In the contiguous run of comment lines directly above the construct, with no blank line between"
+        - CommentPlacement_Trailing: "On the same line as the construct, after it (after its `;` for a statement)"
+        - CommentPlacement_Orphan: "Attached to no construct: above the construct but cut off from it by a blank line (kept in its `comments`), or after a scope's last member before the closing `}` (kept in the scope's `trailing_comments`)"
 
   - CompileCondKind:
-    - CompileCondKind_If: "compile if (cond) ... [else ...]"
-    - CompileCondKind_Assert: "compile assert (cond [, \"msg\"])"
+      doc: |
+          Which conditional-compilation statement a CompileCond records
+          (LRM 19.2, 19.4).
+      values:
+        - CompileCondKind_If: "`compile if (cond) ... [else ...]` (LRM 19.2)"
+        - CompileCondKind_Assert: "`compile assert (cond [, \"msg\"]);` (LRM 19.4)"
 
 structs:
 - SourceRange:
     doc: |
         A span of source text, both ends inclusive. Lines and columns are
         1-based, like Location; `end_col` is the column of the span's last
-        character.
+        character. All fields are -1 when the range is not set.
+
+        Used by CompileCond.inactive to record where a branch the builder
+        did not elaborate lies in the source.
+
+        See Also:
+            Location, CompileCond
     data:
     - fileid:
         type: int32_t
         init: -1
+        doc: |
+            Id of the source file (the GlobalScope `fileid` the builder was
+            given), as in Location.fileid.
     - start_line:
         type: int32_t
         init: -1
+        doc: |
+            Line of the span's first character (1-based).
     - start_col:
         type: int32_t
         init: -1
+        doc: |
+            Column of the span's first character (1-based).
     - end_line:
         type: int32_t
         init: -1
+        doc: |
+            Line of the span's last character (1-based).
     - end_col:
         type: int32_t
         init: -1
+        doc: |
+            Column of the span's last character (1-based, inclusive).
 
 - Location:
     doc: |
         Source code location information for AST nodes.
-        
+
         Stores file position data for error reporting and debugging.
         Each AST node can track where it was defined in the source code.
-        
+
         Attributes:
-            fileid: Unique identifier for the source file (-1 if unknown)
+            fileid: Id of the source file: the `fileid` of the GlobalScope
+                the builder was filling (the Python Parser numbers the
+                standard library 0 and the user files after it in parse
+                order); -1 if unknown, and on the linker's builtin types
             lineno: Line number in source file (1-indexed, -1 if unknown)
             linepos: Character position within line (1-indexed, -1 if unknown)
-            extent: Length of the source construct in characters
+            extent: Length of the source construct in characters, from its
+                first character through the last character of its final
+                token. Recorded only for nodes whose whole extent the
+                builder knows (declarations and statements added with both
+                a start and an end token, and comments); -1 otherwise,
+                including on every `endLocation`
 
         Both `lineno` and `linepos` are 1-based, and `linepos` counts
         characters, not bytes.  ANTLR's `Token::getCharPositionInLine()` is
@@ -65,14 +106,17 @@ structs:
         `Parser._collectMarkers` pass `linepos` through unchanged, and
         `tests/python/errors/test_caret_alignment.py` pins the invariant across
         the whole error corpus.
+
+        See Also:
+            SourceRange, ScopeChild
     data:
-    - fileid: 
+    - fileid:
         type: int32_t
         init: -1
-    - lineno: 
+    - lineno:
         type: int32_t
         init: -1
-    - linepos: 
+    - linepos:
         type: int32_t
         init: -1
     - extent:
@@ -88,26 +132,48 @@ classes:
             The builder still decides which branch to elaborate, from the
             parse tree, exactly as before; this record only keeps what that
             decision dropped: the condition, with its references, and where
-            each branch that was not elaborated is in the source.
+            each branch that was not elaborated is in the source. It is held
+            in the `compile_conds` list of the enclosing Scope, not among its
+            children.
 
             The linker resolves the condition's references in the enclosing
             scope without reporting anything -- `compile has(X)` names things
             that may legitimately not exist.
 
+            PSS Example::
+
+                package p {
+                    compile if (compile has(q::T)) {
+                        import q::*;
+                    } else {
+                        struct T { }
+                    }
+                    compile assert (W > 0, "W must be positive");
+                }
+
             Attributes:
-                kind: if or assert
-                cond: The condition, as an ordinary expression
+                kind: Whether this is a `compile if` or a `compile assert`
+                cond: The condition (the `constant_expression`), as an
+                    ordinary expression
                 taken: Index of the elaborated branch (0: the `if` branch,
                     1: the `else` branch), or -1 if neither was (the condition
-                    was false with no `else`, or could not be evaluated)
+                    was false with no `else`, or could not be evaluated).
+                    Always -1 for a `compile assert`
                 eval_failed: The condition could not be evaluated
-                inactive: The branches not elaborated, in source order
-                location: Where the statement starts
-                msg: An assert's message, unquoted; empty if none
+                inactive: The branches not elaborated, in source order (both
+                    when the condition could not be evaluated); empty for a
+                    `compile assert`
+                location: Where a `compile assert` starts. Not set for a
+                    `compile if`, whose location stays -1
+                msg: An assert's message, with its quotes removed; empty if
+                    none, and for a `compile if`
                 deferred: An assert on a template parameter, in a generic
                     type's body. The builder leaves it alone; each
                     specialization evaluates its own copy after linking
                     (symbol-resolution plan 8.5)
+
+            See Also:
+                CompileCondKind, SourceRange, Scope
         data:
         - kind:
             type: CompileCondKind
@@ -142,20 +208,35 @@ classes:
         doc: |
             A source comment captured verbatim and in normalized form.
 
-            Collected only when the builder has ``setCollectComments(true)``.
-            Leading and trailing comments hang off the ``comments`` list of the
-            ``ScopeChild`` they document; orphans -- comments a blank line has
-            detached from any construct -- collect in the enclosing
-            ``Scope.trailing_comments``.
+            Collected only when the builder has ``setCollectComments(true)``
+            (`Parser(collect_comments=True)`). Leading and trailing comments,
+            and orphans a blank line has detached from the construct below
+            them, hang off the ``comments`` list of that ``ScopeChild``;
+            comments after a scope's last member, before its closing ``}``,
+            collect in that scope's ``trailing_comments``. The comment's own
+            ``location`` (with ``extent`` set to the raw text's length) is
+            recorded too.
+
+            PSS Example::
+
+                // A leading comment of C
+                component C {   // a trailing comment of C
+                    int a;
+                    // an orphan, in C's trailing_comments
+                }
 
             Attributes:
-                text: normalized content, comment markers and the ``*`` gutter removed
+                text: normalized content. For a line comment the `//` and
+                    at most one following space are removed, so a `///` or
+                    `//!` comment keeps its third character; for a block
+                    comment the delimiters and the ``*`` gutter are removed
+                    and the lines re-flushed left
                 raw: the untouched source text, delimiters included
                 is_block: true for ``/* */``, false for ``//``
                 placement: how the comment relates to its owner
 
             See Also:
-                ScopeChild.comments, Scope.trailing_comments
+                CommentPlacement, ScopeChild.comments, ScopeChild.trailing_comments
         data:
         - text:
             type: string
@@ -172,38 +253,54 @@ classes:
     - AssocData:
         doc: |
             Base class for user-defined associated data attached to AST nodes.
-            
+
             Allows users to attach custom metadata to any AST node without
             modifying the core AST structure. Used for annotations, analysis
-            results, or custom transformations.
-            
+            results, or custom transformations. Has no fields; a tool
+            subclasses it and stores an instance in a node's `assocData`.
+
+            pssparser itself uses it once: TaskLoadStandardLibrary attaches
+            an AssocDataTypeScopeSizeof to the standard library's `sizeof_s`
+            struct, and the linker calls its `postSpecialize` hook after
+            each specialization of that type (TaskGetSpecializedTemplateType).
+
             See Also:
-                ScopeChild.assocData attribute
+                ScopeChild.assocData
         data: []
 
     - Scope:
         super: ScopeChild
         doc: |
             Container for child AST nodes forming a hierarchical scope.
-            
+
             Base class for all AST nodes that can contain other nodes. Provides
             the fundamental tree structure of the AST. Most PSS constructs that
             use braces create a Scope.
-            
+
             PSS Example::
-            
+
                 component my_comp {      // Creates Scope
                     action a1 { }        // Nested Scope
                     struct s1 { }        // Nested Scope
                 }
-            
+
             Attributes:
-                endLocation: Source location of closing brace
-                children: List of child nodes in this scope
+                endLocation: Source position just past the construct's last
+                    token, usually its closing brace (inherited from
+                    ScopeChild)
+                children: The declarations and statements written in the
+                    scope, in source order. Each child's `parent` is this
+                    scope and its `index` its position here. An element
+                    annotation is not a child (it is held by the element it
+                    precedes), but a standalone annotation (`@a;`) is. The
+                    builder also inserts an implicit `comp` FieldCompRef as
+                    child 0 of every Action. Declarations in an elaborated
+                    `compile if` branch appear here directly; those in a
+                    branch not elaborated do not appear at all
                 parent: Parent scope (inherited from ScopeChild)
-            
+
             See Also:
-                ScopeChild, NamedScope, GlobalScope
+                ScopeChild, NamedScope, GlobalScope, CompileCond
         data:
         # endLocation is inherited from ScopeChild.
         - children: list<UP<ScopeChild>>
@@ -214,16 +311,54 @@ classes:
             type: list<UP<CompileCond>>
             is_ctor: false
             visit: false
+            doc: |
+                Every `compile if` and `compile assert` (LRM 19.2, 19.4)
+                written directly in this scope, or in a constraint or exec
+                body inside it, in source order, kept after the builder
+                evaluated it. Not walked by the generated visitors, so no
+                pass sees a condition as ordinary code. Empty when the scope
+                has none.
 
     - ScopeChild:
         doc: |
-            Base class for most of the AST classes related to types
-            and structture. 
+            Base class of every node that can sit in a Scope's `children`:
+            declarations, statements, scopes, and the linker's symbol scopes.
+
+            Holds what all of them share: the source position and extent,
+            the parent pointer and position within the parent, element
+            annotations, the doc comment, and (when the builder collects
+            comments) the comments written around the construct. Expressions
+            are not ScopeChild nodes; an ExprId carries its own location.
+
+            Doc comments are attached only when the builder collects them
+            (`Parser(collect_docstrings=True)`, or `collect_comments=True`,
+            which implies it). A leading comment block above the declaration
+            is preferred; a same-line trailing comment is used only when there
+            is no leading one. With the strict-markers option only the marked
+            forms (`///`, `//!`, `/**`, `/*!`) count.
+
+            PSS Example::
+
+                /// A doc comment, kept in docstring
+                @desc_s {.desc = "x"}  // an annotation, kept in annotations
+                component C {          // location is the `c` of `component`
+                }                      // endLocation is just past the `}`
+
+            See Also:
+                Scope, Location, Comment, Annotation, AssocData, DocCommentForm
 
         data:
         - docstring:
           - type: string
           - is_ctor: false
+          - doc: |
+              The doc comment of this declaration, normalized: comment
+              markers, the `*` gutter and common indentation removed. Empty
+              when no doc comment is attached or doc comments are not being
+              collected. The linker copies it onto the symbol scope it builds
+              for the declaration (TaskBuildSymbolTree::copyDocInfo); when a
+              package or function is declared more than once, the first
+              non-empty one wins.
         # The doc comment as it was written, plus where and in what form.
         # Retaining the raw text lets a consumer implement another dialect
         # (Doxygen, say) without re-lexing the source, and docLocation lets a
@@ -232,85 +367,165 @@ classes:
         - docRaw:
           - type: string
           - is_ctor: false
+          - doc: |
+              The doc comment exactly as written, comment markers included,
+              so a consumer can apply another dialect (Doxygen, say) without
+              re-lexing the source. Empty when there is no doc comment.
         - docForm:
             type: DocCommentForm
             is_ctor: false
             init: DocCommentForm::DocForm_None
+            doc: |
+                The lexical form of the doc comment (of its first comment, for
+                a run of several); `DocForm_None` when there is none.
         - docLocation:
             type: Location
             is_ctor: false
+            doc: |
+                Where the doc comment's first character is, so a malformed doc
+                comment can be reported at its own line rather than at the
+                declaration's. -1 fields when there is no doc comment.
         - location:
             type: Location
             is_ctor: false
+            doc: |
+                Where the construct starts: the first token of the
+                declaration or statement (for an annotated element, the
+                element itself, not its annotation). `extent` is set when the
+                builder knows the construct's last token. Fields are -1 on
+                nodes the builder or linker never placed.
         # Source extent of the construct.  Declared here rather than on Scope
         # so a plain field can report a range too, which is what a [source]
         # link needs.
         - endLocation:
             type: Location
             is_ctor: false
+            doc: |
+                Where the construct ends: the line of its last token (usually
+                the closing `}` or `;`) and the column just past that token's
+                last character. `extent` is not used (-1). All fields -1 when
+                the builder did not record an end. The linker copies both
+                `location` and `endLocation` onto the symbol scope it builds
+                for a declaration.
         - parent:
             type: P<Scope>
             rel: parent
             is_ctor: false
             init: 0
             visit: false
+            doc: |
+                The Scope whose `children` list holds this node, set when the
+                builder adds it there. Null for the GlobalScope, and for a
+                node held only in a field of another node rather than in a
+                `children` list (an enum item, a function parameter, a
+                function's prototype or body).
         - index:
             type: int32_t
             is_ctor: false
             init: -1
+            doc: |
+                Position of this node in the list that holds it: usually its
+                parent's `children`, but for a constraint its position in the
+                enclosing constraint list, and for a function parameter (after
+                linking) its position in the function's parameter scope. The
+                linker uses it as the `ElemKind_ChildIdx` step that reaches
+                the node (TaskGetItemIndex). -1 when not placed. On an
+                EnumItem the builder stores the item's computed integer value
+                here instead.
         - assocData:
             type: UP<AssocData>
             is_ctor: false
+            doc: |
+                Tool-defined data attached to this node, owned by it. Null
+                unless a tool sets it; pssparser sets it only on the standard
+                library's `sizeof_s` (TaskLoadStandardLibrary).
         - annotations:
             type: list<UP<Annotation>>
             is_ctor: false
+            doc: |
+                The element annotations (LRM 7.13) written immediately before
+                this element, in source order, e.g. the `@desc_s(...)` before
+                a declaration. Empty when there are none. A standalone
+                annotation (one ending in `;`) is not here: it is a child of
+                the enclosing scope.
         - comments:
             type: list<UP<Comment>>
             is_ctor: false
             visit: false
+            doc: |
+                The comments written around this construct, when the builder
+                collects comments (`collect_comments=True`): the trailing
+                comment on its line, then the comments above it (leading, and
+                orphans a blank line detached from it) in source order. The
+                doc comment, if any, also appears here as a plain Comment.
+                Empty otherwise.
         - trailing_comments:
             type: list<UP<Comment>>
             is_ctor: false
             visit: false
+            doc: |
+                For a construct with a body (a type, package, exec or
+                function body, or an activity or procedural block): the
+                comments after its last member and before its closing `}`,
+                all with `CommentPlacement_Orphan`. Filled only when the
+                builder collects comments; empty otherwise and on nodes
+                without a body.
 
     - ScopeChildRef:
         super: ScopeChild
         doc: |
             Reference to another AST node, used for type aliases and forwards.
-            
+
             Represents a symbolic reference that will be resolved during linking.
             Used when one AST node needs to reference another without creating
             a direct pointer.
-            
+
+            Not built by the parser or the linker: the only use is in
+            commented-out code in AstMerger. Reserved.
+
             Attributes:
                 target: The referenced AST node
-            
+
             See Also:
                 ScopeChild, FieldRef
         data:
         - target:
             type: P<ScopeChild>
             rel: ref
-            
+
     - GlobalScope:
         super: Scope
         doc: |
             Root scope representing a single source file.
-            
+
             The top-level container for all PSS declarations in one compilation
             unit. Each source file parsed creates one GlobalScope containing all
-            package declarations, imports, and top-level definitions.
-            
+            package declarations, imports, and top-level definitions. The
+            caller creates it (`mkGlobalScope(fileid)`) and the builder fills
+            it; the linker gathers every unit into a RootSymbolScope.
+
+            PSS Example::
+
+                // one file: everything below is a child of its GlobalScope
+                import std_pkg::*;
+                package p { }
+                component pss_top { }
+
             Attributes:
-                fileid: Unique identifier for this source file
-                filename: Path to the source file
+                fileid: Id of this source file, given by the caller; it is
+                    the `fileid` of every Location in the file. The Python
+                    Parser numbers the standard library 0 and the user files
+                    after it, in parse order; the linker's builtins unit is -1
+                filename: Path to the source file. Not set by the builder or
+                    by the Python and TypeScript Parser classes, which keep
+                    file names themselves; empty unless the caller sets it
                 children: All top-level declarations (inherited from Scope)
-            
+
             See Also:
-                Scope, PackageScope
+                Scope, PackageScope, RootSymbolScope
         data:
         - fileid: int32_t
-        - filename: 
+        - filename:
           - type: string
           - is_ctor: false
 
@@ -318,20 +533,20 @@ classes:
         super: Scope
         doc: |
             A scope with an identifier name.
-            
+
             Base class for scopes that have a name, such as components, actions,
             structs, and other named type declarations. The name is used for
             symbol resolution and type references.
-            
+
             PSS Example::
-            
+
                 component pss_top {    // NamedScope with name="pss_top"
                     // ...
                 }
-            
+
             Attributes:
-                name: Identifier expression containing the name
-            
+                name: The declared name, as an identifier with its own location
+
             See Also:
                 Scope, NamedScopeChild, TypeScope
         data:
@@ -341,55 +556,64 @@ classes:
         super: ScopeChild
         doc: |
             An AST node with an identifier name that is a child of a scope.
-            
+
             Base class for named declarations that aren't scopes themselves,
-            such as fields, enum items, and function parameters. The name is
+            such as fields, enum items, and function prototypes. The name is
             used for symbol lookup within the parent scope.
-            
+
             PSS Example::
-            
+
                 struct my_struct {
                     int field1;        // NamedScopeChild with name="field1"
                     bool field2;       // NamedScopeChild with name="field2"
                 }
-            
+
             Attributes:
-                name: Identifier expression containing the name
-            
+                name: The declared name, as an identifier with its own location
+
             See Also:
-                ScopeChild, NamedScope, Field
+                ScopeChild, NamedScope, Field, EnumItem, FunctionPrototype
         data:
         - name: UP<ExprId>
 
     - PackageScope:
         super: Scope
         doc: |
-            PSS package scope for organizing and namespacing declarations.
-            
+            PSS package scope for organizing and namespacing declarations
+            (`package_declaration`, LRM 18.1).
+
             Represents a package declaration in PSS. Packages provide namespace
-            management and can be split across multiple files. Multiple package
-            declarations with the same name are merged together.
-            
+            management and can be split across multiple files. Each
+            declaration is a separate PackageScope in the AST; the linker
+            merges declarations with the same name into one SymbolScope
+            (TaskBuildSymbolTree::visitPackageScope).
+
             PSS Example::
-            
+
                 package my_pkg {
                     component C1 { }
                     action A1 { }
                 }
-                
+
                 package my_pkg {       // Same package, merged with above
                     action A2 { }
                 }
-            
+
+                package outer::inner { }   // id = ["outer", "inner"]
+
             Attributes:
-                id: Hierarchical package identifier (e.g., ["my", "pkg"])
-                sibling: Next package scope with the same name (for merging)
+                id: The package name as written (`package_id_path`), one
+                    identifier per `::`-separated element (e.g. ["outer",
+                    "inner"])
+                sibling: Next package scope with the same name. Not set by
+                    the parser or the linker, which merges same-named
+                    packages in the symbol tree instead; always null
                 children: Package members (inherited from Scope)
-            
+
             See Also:
-                Scope, PackageImportStmt
+                Scope, PackageImportStmt, SymbolScope
         data:
-        - id: 
+        - id:
             type: list<UP<ExprId>>
             is_ctor: false
         - sibling:
@@ -401,52 +625,63 @@ classes:
     - PackageImportStmt:
         super: ScopeChild
         doc: |
-            Import statement bringing package symbols into current scope.
-            
+            Import statement bringing package symbols into current scope
+            (`import_stmt`, LRM 18.1.3, 18.1.4).
+
             Imports types and declarations from another package. Can import
             all symbols with wildcard or create an alias for qualified access.
-            
+            The linker records each import on the enclosing symbol scope
+            (SymbolImportSpec) and resolves its path (TaskResolveImports).
+
             PSS Example::
-            
+
                 import other_pkg::*;              // Wildcard import
                 import other_pkg::MyAction;       // Single import
                 import other_pkg as op;           // Aliased import
-            
+
             Attributes:
-                wildcard: True if using wildcard (`::*`)
-                alias: Optional alias name for the import
-                path: Type identifier for the imported package/symbol
-            
+                wildcard: True if the pattern ends in `::*`
+                alias: The `as` name (`package_import_alias`); null when there
+                    is none
+                path: The package or member named (the `type_identifier` of
+                    `package_import_pattern`, without the `::*`). Its target is
+                    set by the linker (TaskResolveImports)
+
             See Also:
-                PackageScope, TypeIdentifier
+                PackageScope, TypeIdentifier, SymbolImportSpec
         data:
         - wildcard: bool
         - alias: UP<ExprId>
-        - path: 
+        - path:
           - type: UP<TypeIdentifier>
           - is_ctor: false
 
     - PyImportStmt:
         super: ScopeChild
         doc: |
-            Python import statement for embedded Python integration.
-            
-            Imports Python modules into PSS context. Allows PSS code to
-            access Python libraries and functions.
-            
+            Python import statement for embedded Python integration (a
+            zuspec extension, not part of the LRM).
+
+            Imports a Python module into PSS context, so PSS code can refer
+            to the module's members. The linker registers the alias, or the
+            first element of the module path, as a symbol of the enclosing
+            scope; references through it are not checked (Python objects
+            are dynamically typed).
+
             PSS Example::
-            
-                python import os;
-                python import numpy as np;
-            
+
+                pyimport os;
+                pyimport os::path as osp;
+
             Attributes:
-                path: List of identifiers forming module path (e.g., ["os", "path"])
-                alias: Optional alias for the import
-            
+                path: The module path (`pyimport_mod_path`), one identifier per
+                    `::`-separated element (e.g. ["os", "path"])
+                alias: The `as` name; null when there is none
+
             See Also:
                 PyImportFromStmt
         data:
-        - path: 
+        - path:
             type: list<UP<ExprId>>
             is_ctor: false
         - alias:
@@ -455,23 +690,25 @@ classes:
     - PyImportFromStmt:
         super: ScopeChild
         doc: |
-            Python 'from...import' statement for selective imports.
-            
+            Python 'from...import' statement for selective imports (a
+            zuspec extension, not part of the LRM).
+
             Imports specific symbols from a Python module into PSS context.
-            
+            The grammar accepts the statement, but the builder currently
+            discards it: no PyImportFromStmt is ever added to the AST.
+
             PSS Example::
-            
-                python from os import path, environ;
-                python from numpy import array, matrix;
-            
+
+                from os pyimport path, environ;
+
             Attributes:
                 path: Module path (e.g., ["os"])
                 targets: List of symbols to import (e.g., ["path", "environ"])
-            
+
             See Also:
                 PyImportStmt
         data:
-        - path: 
+        - path:
             type: list<UP<ExprId>>
             is_ctor: false
         - targets:
@@ -481,62 +718,77 @@ classes:
     - Action:
         super: TypeScope
         doc: |
-            Action declaration defining reusable behavior blocks.
-            
+            Action declaration defining reusable behavior blocks
+            (`action_declaration`, `abstract_action_declaration`,
+            `override_action_declaration`, LRM 9.2).
+
             Actions are the fundamental unit of behavior in PSS. They encapsulate
             data (fields), constraints, and activities (control flow). Actions can
             be composed hierarchically and randomized according to constraints.
-            
+            The builder inserts an implicit `comp` field (a FieldCompRef whose
+            type the linker fills in) as the first child of every action.
+
             PSS Example::
-            
+
                 action my_action {
-                    rand int addr;
-                    
+                    rand bit[32] addr;
+
                     constraint {
                         addr >= 0x1000;
                         addr < 0x2000;
                     }
-                    
+
                     activity {
-                        do_read(addr);
+                        do read_a;
                     }
                 }
-            
+
             Attributes:
                 is_abstract: True if declared as 'abstract action'
                 name: Action name (inherited from NamedScope)
-                super_t: Optional base action type (inherited from TypeScope)
+                super_t: Optional base action type (inherited from TypeScope).
+                    For an override action the builder sets it to the
+                    action's own name, and the linker resolves it in the
+                    enclosing component's base chain
+                    (TaskResolveOverrideActions)
                 children: Fields, constraints, activities (inherited from Scope)
-            
+
             See Also:
-                Component, TypeScope, ActivityStmt
+                Component, TypeScope, ActivityDecl, FieldCompRef
         data:
         - is_abstract: bool
         - is_override:
             type: bool
             is_ctor: false
             init: false
+            doc: |
+                True for an `override action` declaration (LRM 9.2), a new
+                action in the declaring component that implicitly inherits
+                the same-named action of the component's base type. False for
+                an ordinary or abstract action.
 
     - Component:
         super: TypeScope
         doc: |
-            Component declaration defining test environment structure.
-            
+            Component declaration defining test environment structure
+            (`component_declaration`, LRM 9.1).
+
             Components represent the static structure of the test environment.
             They contain actions, pools of resources, constraints, and other
             components. Components form the containment hierarchy for actions.
-            
+
             PSS Example::
-            
+
                 component pss_top {
-                    action my_action { }
-                    pool [16] my_action actions;
-                    
-                    bind actions *;
+                    resource r_s { }
+                    action my_action { lock r_s r; }
+                    pool [4] r_s r_pool;
+
+                    bind r_pool *;
                 }
-            
+
             Attributes:
-                is_pure: True if declared as 'pure component'
+                is_pure: True if declared as 'pure component' (LRM 9.1.7)
                 name: Component name (inherited from NamedScope)
                 super_t: Optional base component type (inherited from TypeScope)
                 children: Actions, resources, pools, etc (inherited from Scope)
@@ -552,4 +804,4 @@ classes:
             init: false
 
 
-            
+

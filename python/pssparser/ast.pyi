@@ -932,10 +932,25 @@ class ExprAggrMapElem(object):
     
 class ActionFieldInitializer(ScopeChild):
     """
-    Single field assignment in a PSS 3.1 action initializer list.
+    One assignment `.x = value` of an action initializer list -- LRM
+    11.3.1.2, `action_initializer`.
     
-    Represents entries such as ``.x = 1`` or ``.cfg.mode = FAST`` used in
-    action-handle declarations and action traversal statements.
+    An initializer list gives initial values to attributes of an action as
+    it is traversed (or declared), passing data from the activity to the
+    sub-action. Entries appear on action traversals
+    (ActivityActionHandleTraversal, ActivityActionTypeTraversal), on
+    action-handle declarations (ActionHandleField) and on a handle
+    declaration in an action body that parses as data (Field).
+    
+    PSS Example::
+    
+        activity {
+            do A {.x = 1, .cfg.mode = FAST};
+            a1 {.x = n + 1};
+        }
+    
+    See Also:
+        ActivityActionHandleTraversal, ActivityActionTypeTraversal, ActionHandleField, Field
     
     """
     pass
@@ -946,38 +961,46 @@ class ActionFieldInitializer(ScopeChild):
     
 class FunctionDefinition(ScopeChild):
     """
-    Complete function definition with implementation body.
+    A native PSS function: a prototype with a body of procedural
+    statements -- LRM 20.3, `function_decl` ending in
+    `{ procedural_stmt ... }`.
     
-    Represents a function declaration with a complete implementation,
-    including prototype (signature) and execution body. Functions can
-    be qualified for target or solve-time execution using platform
-    qualifiers.
+    Declares and defines a function in one place, in a package or
+    component (20.2.1, 20.3). Its parameters take no direction
+    qualifiers (20.2.2). A prototype without a body
+    (`function ... ;`) is a bare FunctionPrototype instead.
     
     PSS Example::
     
-        // Simple function
-        function int add(int a, int b) {
-            return a + b;
-        }
-        
-        // Target function with output parameter
-        function void process(input int x, output int result) = target {
-            result = x * 2;
-        }
-        
-        // Solve-time function
-        function int calculate(int value) = solve {
-            return value + 100;
+        package p {
+            function int add(int a, int b) {
+                return a + b;
+            }
+    
+            // Target-only function
+            target function void program(bit[32] addr) {
+                return;
+            }
+    
+            // Solve-only function
+            solve function int calculate(int value) {
+                return value + 100;
+            }
         }
     
     Attributes:
-        endLocation: Location of function closing brace
-        proto: Function prototype (signature)
-        body: Execution scope containing statements
-        plat: Platform qualifier (None, Target, or Solve)
+        endLocation: Location of the function's closing brace
+            (inherited from ScopeChild)
+        proto: The function's prototype -- return type, name,
+            parameters, and the `pure`, `static` and platform flags
+        body: The function body: an ExecScope named `<func-body>`
+            holding the statements in source order
+        plat: The `platform_qualifier`: PlatQual_None when none is
+            written; PlatQual_Target for `target`, and also for
+            `target solve` (the prototype records both flags)
     
     See Also:
-        FunctionPrototype, ExecScope, PlatQual, FunctionImport
+        FunctionPrototype, ExecScope, PlatQual, FunctionImportProto, TargetTemplateFunction
     
     """
     pass
@@ -991,28 +1014,40 @@ class FunctionDefinition(ScopeChild):
     
 class FunctionImport(ScopeChild):
     """
-    Base class for importing external functions.
+    Base class of the foreign-function imports -- LRM 20.4.1,
+    `import_function` -- and the record of one import of a function.
     
-    Represents an import statement that brings external functions into
-    PSS scope. External functions can be qualified for target or
-    solve-time execution and can specify the implementation language.
-    This is an abstract base; concrete imports use FunctionImportType
-    or FunctionImportProto.
+    An import says that a function is implemented in a foreign
+    language, optionally restricting it to the solve or target
+    platform and naming the language. The parser builds one of the two
+    subclasses: FunctionImportProto for the one-step form that also
+    declares the function, FunctionImportType for the two-step form
+    that names a function declared elsewhere. The linker builds bare
+    FunctionImport nodes as the import records of a
+    SymbolFunctionScope (its `import_specs`).
     
     PSS Example::
     
-        // Import by type name
-        import class my_pkg::util_funcs = target "cpp";
-        
-        // Import function prototype
-        import function int extern_func(int x) = solve "python";
+        package p {
+            function int ext_func(int x);
+    
+            // Two-step: FunctionImportType
+            import solve C function ext_func;
+    
+            // One-step: FunctionImportProto
+            import target C function void write_reg(bit[32] addr,
+                                                    bit[32] data);
+        }
     
     Attributes:
-        plat: Platform qualifier (None, Target, or Solve)
-        lang: Implementation language identifier (e.g., "cpp", "python")
+        plat: The `platform_qualifier`, or PlatQual_None when none is
+            written
+        lang: The `language_identifier` (e.g. `C`, `CPP`), or empty
+            when none is written. A record built by TaskBuildSymbolTree
+            for a one-step import always has it empty.
     
     See Also:
-        FunctionImportType, FunctionImportProto, PlatQual
+        FunctionImportType, FunctionImportProto, PlatQual, SymbolFunctionScope
     
     """
     pass
@@ -1026,42 +1061,54 @@ class FunctionImport(ScopeChild):
     
 class FunctionParamDecl(ScopeChild):
     """
-    Function parameter declaration with type and direction.
+    One parameter of a function prototype -- LRM 20.2.1,
+    `function_parameter` and `varargs_parameter`.
     
-    Represents a single parameter in a function signature. Parameters
-    can have direction qualifiers (input, output, inout), default values,
-    and various kinds (data types, type parameters, or references).
-    Supports variadic parameters for variable-length argument lists.
+    A parameter either states a data type (with an optional direction
+    or `const`, and an optional default value), or is generic and names
+    only a kind: `type`, `ref` with a reference category, or a plain
+    category (`struct`, `numeric`). The last parameter may be a varargs
+    parameter (`int ... rest`), which collects any number of trailing
+    arguments (20.2.5).
+    
+    The same class holds the parameters of an ExportAction and of an
+    activity symbol (SymbolDeclaration), and of the built-in methods
+    the linker synthesizes.
     
     PSS Example::
     
-        // Function with multiple parameter types
-        function void my_func(
-            input int x,              // Input parameter
-            output int result,        // Output parameter
-            inout int counter,        // Input/output parameter
-            int default_val = 10      // Parameter with default value
-        );
-        
-        // Type parameter
-        function void generic<type T>(T value);
-        
-        // Reference parameters
-        function void process_action(ref my_action act);
-        
-        // Variadic function
-        function void log(string fmt, ...);
+        package p {
+            // Imported: directions are allowed
+            import function void transfer(input int src, output int dst,
+                                          inout int count);
+    
+            // Default value and const parameter
+            function int scale(const int factor, int x = 10);
+    
+            // Generic parameters
+            function void inspect(type T, ref action a, struct s,
+                                  numeric n);
+    
+            // Varargs
+            function void log_all(string fmt, int ... rest);
+        }
     
     Attributes:
-        kind: Parameter kind (data type, type, reference, etc.)
-        name: Parameter identifier
-        type: Parameter data type
-        dir: Parameter direction (Default, In, Out, InOut)
-        dflt: Optional default value expression
-        is_varargs: True if this is a variadic parameter (...)
+        kind: Which parameter form was written (data type, `type`,
+            `ref` category, plain category)
+        name: The parameter's name. Always set.
+        type: The parameter's data type; null for the generic forms
+            (any kind but ParamKind_DataType)
+        dir: The direction qualifier, or ParamDir_Default when none is
+            written. Always ParamDir_Default for a varargs parameter.
+        dflt: The default value (`= constant_expression`), or null when
+            none is written. Only the data-type form can have one.
+        is_varargs: True for the varargs parameter (`... name`), which
+            is always the last
         is_const: True if declared `const` (LRM 20.2.3): read-only in
           the function, and the only kind of parameter an aggregate
-          constant or literal may be passed to
+          constant or literal may be passed to. Never set on a varargs
+          parameter, whose syntax has no `const`.
     
     See Also:
         FunctionPrototype, FunctionParamDeclKind, ParamDir, DataType
@@ -1083,39 +1130,51 @@ class FunctionParamDecl(ScopeChild):
     
 class ActivityJoinSpec(ScopeChild):
     """
-    Base class for specifying join semantics in parallel and schedule blocks.
+    Base class of the join specifications of a `parallel` or `schedule`
+    block -- LRM 11.3.6, `activity_join_spec`.
     
-    ActivityJoinSpec defines how parallel or scheduled activities synchronize
-    and when the containing block completes. Different join specifications
-    provide flexibility in modeling concurrent execution patterns.
+    A join specification relaxes the default, under which the statement
+    following the block is scheduled after every statement in the block
+    has completed: it says which of the block's top-level statements that
+    following statement depends on.
     
     PSS Example::
     
-        action my_action {
-            activity {
-                // Various join specifications
-                parallel join_none { }      // No synchronization
-                parallel join_first(2) { }  // Wait for first 2
-                parallel join_select(1) { } // Select 1 to complete
-                parallel join_branch { }    // Explicit branches
-            }
+        activity {
+            parallel join_none { do A; do B; }
+            parallel join_first(1) { do A; do B; }
+            parallel join_select(1) { do A; do B; }
+            parallel join_branch(L1) { L1: do A; do B; }
         }
     
-    Attributes:
-        (base class - no specific attributes)
-    
     See Also:
-        ActivityJoinSpecNone, ActivityJoinSpecFirst, ActivityJoinSpecSelect, ActivityJoinSpecBranch
+        ActivityJoinSpecNone, ActivityJoinSpecFirst, ActivityJoinSpecSelect, ActivityJoinSpecBranch, ActivityParallel, ActivitySchedule
     
     """
     pass
     
 class GenericConstraintDeclValue(ScopeChild):
     """
-    Value-returning generic constraint declaration.
+    Value-returning generic constraint declaration (LRM 13.1.2,
+    `generic_constraint_value`).
     
     Represents a declaration of the form
-    ``[static] constraint <type> name(params) expr;``.
+    ``[static] constraint <type> name(params) expr;``. The constraint
+    yields the value of a single expression and may be used wherever
+    an expression of its result type is legal within a constraint.
+    
+    PSS Example::
+    
+        constraint numeric max(numeric a, numeric b)
+            (a < b) ? b : a;
+    
+        struct S {
+            rand bit[8] j, k, l;
+            constraint j == max(k, l);
+        }
+    
+    See Also:
+        GenericConstraintDeclBool, GenericConstraintParam
     
     """
     pass
@@ -1134,11 +1193,31 @@ class GenericConstraintDeclValue(ScopeChild):
     
 class GenericConstraintParam(ScopeChild):
     """
-    Parameter declaration for a PSS 3.1 generic constraint.
+    One formal parameter of a PSS 3.1 generic constraint
+    (LRM 13.1.2, `generic_constraint_param`).
     
-    Generic constraint parameters may be typed with either a concrete
-    PSS data type or the `numeric` category and may optionally be
-    declared `const`.
+    A parameter is typed either with a concrete PSS data type or with
+    the `numeric` category, which accepts any integer or
+    floating-point expression, and may be marked `const`. Inside the
+    constraint's body a parameter is referenced by name like any other
+    variable; the linker's name lookup (NameLookup) finds it in the
+    enclosing generic constraint's parameter list.
+    
+    PSS Example::
+    
+        constraint numeric max(numeric a, numeric b)
+            (a < b) ? b : a;
+    
+        struct S {
+            rand bit[8] x;
+            constraint in_range(const int lo, int hi) {
+                x >= lo;
+                x <= hi;
+            }
+        }
+    
+    See Also:
+        GenericConstraintDeclBool, GenericConstraintDeclValue, DataType
     
     """
     pass
@@ -1149,21 +1228,21 @@ class GenericConstraintParam(ScopeChild):
     
 class MethodParameterList(Expr):
     """
-    Represents a method or function parameter list.
+    The arguments of a call (Annex B, `function_parameter_list`).
     
-    Contains the list of argument expressions passed to a method or function call.
-    Used within method call expressions to specify the actual parameters.
+    Attached to the called ExprMemberPathElem as its `params`.
     
     PSS Example::
     
         my_function(arg1, arg2, arg3)
         obj.method(x, y)
+        f()                 // an empty list
     
     Attributes:
-        parameters: List of argument expressions
+        parameters: The argument expressions, in order; empty for `()`
     
     See Also:
-        ExprMemberPathElem, ExprRefPathStatic
+        ExprMemberPathElem, ExprMemberCall
     
     """
     pass
@@ -1176,36 +1255,43 @@ class MethodParameterList(Expr):
     
 class ActivitySchedulingConstraint(ScopeChild):
     """
-    Defines ordering constraints between scheduled activities.
+    A scheduling constraint: `constraint parallel { a, b };` or
+    `constraint sequence { a, b, c };` -- LRM 13.2,
+    `activity_scheduling_constraint`.
     
-    ActivitySchedulingConstraint specifies sequential or parallel execution
-    ordering relationships between activities in a schedule block. It allows
-    explicit control over the relative timing of activities.
+    Relates two or more action handles or named sub-activities from a
+    scheduling point of view, without traversing anything: `sequence`
+    orders them so that each completes before the next starts; `parallel`
+    starts them in a synchronized way. It may appear among the activity
+    statements, where it is a child of the enclosing activity block, or
+    directly in the action body, where it is a child of the action.
     
     PSS Example::
     
-        action my_action {
+        action top {
+            A a1;
+            B b1;
+            C c1;
             activity {
                 schedule {
-                    do comp1.action_a;
-                    do comp2.action_b;
-                    do comp3.action_c;
-                    
-                    // Sequential ordering
-                    action_a before action_b;
-                    
-                    // Parallel execution
-                    parallel(action_a, action_b);
+                    a1;
+                    b1;
+                    c1;
                 }
+                constraint sequence { a1, b1 };
+                constraint parallel { b1, c1 };
             }
         }
     
     Attributes:
-        is_parallel: True if this is a parallel constraint, False for sequential
-        targets: List of hierarchical IDs identifying the constrained activities
+        is_parallel: True for `constraint parallel`, false for `constraint sequence`.
+        targets: The constrained items, one reference path per
+            `hierarchical_id` in source order (at least two). Each is a path
+            through the named sub-activity tree (`L1.a`) to an action handle
+            or label; resolved by the linker (TaskResolveRefs).
     
     See Also:
-        ActivitySchedule
+        ActivitySchedule, ActivityParallel, ActivitySequence
     
     """
     pass
@@ -1218,30 +1304,30 @@ class ActivitySchedulingConstraint(ScopeChild):
     
 class ActivityStmt(ScopeChild):
     """
-    Base class for all activity statements.
+    Base class of the activity statements that are not blocks or compound
+    statements -- part of LRM 11.2, `activity_stmt`.
     
-    ActivityStmt is the abstract base class for all statements that can appear
-    within an activity block. Activity statements define the execution behavior
-    of actions, including action traversals, control flow, parallelism, and
-    scheduling constraints.
+    Its subclasses are the traversals and `super` (through
+    ActivityLabeledStmt), `bind` (ActivityBindStmt), an in-activity
+    `constraint` (ActivityConstraint) and a symbol call
+    (ActivitySymbolCall). Blocks and compound statements (`sequence`,
+    `parallel`, `schedule`, `repeat`, `foreach`, `select`, `if`, `match`,
+    `replicate`, `atomic`) introduce a scope and so derive from
+    ActivityLabeledScope instead; the two hierarchies share only
+    ScopeChild. A scheduling constraint (ActivitySchedulingConstraint) and
+    a join specification (ActivityJoinSpec) are ScopeChild directly.
     
     PSS Example::
     
-        action my_action {
-            activity {
-                // Various ActivityStmt subclasses
-                do comp.sub_action;        // Traversal
-                sequence { }                // Sequence
-                parallel { }                // Parallel
-                if (condition) { }          // IfElse
-            }
+        activity {
+            a1;                     // ActivityActionHandleTraversal
+            do B;                   // ActivityActionTypeTraversal
+            bind a1.out_b b1.in_b;  // ActivityBindStmt
+            constraint { a1.x < 4; } // ActivityConstraint
         }
     
-    Attributes:
-        (base class - no specific attributes)
-    
     See Also:
-        ActivityDecl, ActivitySequence, ActivityParallel, ActivityActionHandleTraversal
+        ActivityLabeledStmt, ActivityLabeledScope, ActivityDecl
     
     """
     pass
@@ -1253,20 +1339,33 @@ class MonitorActivityStmt(ScopeChild):
     MonitorActivityStmt is the abstract base class for the non-scope
     statements that can appear within a monitor's activity block. The
     block-shaped forms (``sequence``, ``concat``, ``overlap``,
-    ``schedule``, ``select``) descend from MonitorActivityLabeledScope
-    instead, because they introduce a scope; the two branches meet at
-    ScopeChild. Any field holding an arbitrary monitor activity statement
-    must therefore be typed ``ScopeChild``, not ``MonitorActivityStmt`` --
-    typing it narrowly silently discards every block-shaped body.
+    ``schedule``, ``select``) and ``eventually`` descend from
+    MonitorActivityLabeledScope instead, because they introduce a scope;
+    the two branches meet at ScopeChild. Any field holding an arbitrary
+    monitor activity statement must therefore be typed ``ScopeChild``,
+    not ``MonitorActivityStmt`` -- typing it narrowly silently discards
+    every block-shaped body.
+    
+    Not every monitor activity statement is one of these: a traversal
+    builds the same ActivityActionHandleTraversal or
+    ActivityActionTypeTraversal an action activity does, and a handle
+    declaration builds an ActionHandleField. Of the classes in this
+    hierarchy, only MonitorConstraint is currently built.
     
     PSS Example::
     
-        monitor protocol_monitor {
-            action_t req, ack, grant;
-            activity {
-                req;                          // action traversal
-                eventually grant;             // MonitorActivityEventually
-                constraint { req.len > 0; }   // MonitorConstraint
+        component pss_top {
+            action req_a { rand bit[8] len; }
+            action ack_a { }
+    
+            monitor protocol_monitor {
+                req_a r;
+                ack_a a;
+                activity {
+                    r;                            // ActivityActionHandleTraversal
+                    constraint { r.len > 0; }     // MonitorConstraint
+                    eventually a;                 // MonitorActivityEventually
+                }
             }
         }
     
@@ -1274,15 +1373,16 @@ class MonitorActivityStmt(ScopeChild):
         (base class - no specific attributes)
     
     See Also:
-        MonitorActivityLabeledStmt, MonitorActivityLabeledScope,
-        MonitorActivityDecl
+        MonitorConstraint, MonitorActivityLabeledStmt,
+        MonitorActivityLabeledScope, MonitorActivityDecl
     
     """
     pass
     
 class Annotation(ScopeChild):
     """
-    Applied annotation attached to a model element.
+    Applied annotation attached to a model element (LRM 7.13,
+    `annotation`).
     
     Represents an annotation use such as ``@desc_s {.desc = "hello"}``.
     The annotation type is referenced by name; every parameter is
@@ -1291,7 +1391,24 @@ class Annotation(ScopeChild):
     ``is_standalone`` distinguishes the two application forms of §7.13: a
     standalone annotation is terminated with ``;`` and is anchored to the
     enclosing scope, while an element annotation has no terminator and
-    attaches to the model element that follows it.
+    attaches to the model element that follows it. The builder places a
+    standalone annotation among the enclosing scope's children, and an
+    element annotation in the ``annotations`` list of the element it
+    precedes (inherited from ScopeChild); an element annotation with no
+    following element in its scope is reported as an error. Annotations
+    written in an ``override`` block or a covergroup body are accepted
+    but not kept.
+    
+    Annotations are advisory: an annotation whose type does not resolve
+    is disregarded with a warning (LINT403), and its parameters are not
+    checked.
+    
+    PSS Example::
+    
+        @desc_s {.desc = "Configures the IP"}     // element annotation
+        action config {
+            @desc_s {.desc = "Scope annotation"};  // standalone annotation
+        }
     
     See Also:
         AnnotationDecl, AnnotationParam
@@ -1312,7 +1429,7 @@ class NamedScopeChild(ScopeChild):
     An AST node with an identifier name that is a child of a scope.
     
     Base class for named declarations that aren't scopes themselves,
-    such as fields, enum items, and function parameters. The name is
+    such as fields, enum items, and function prototypes. The name is
     used for symbol lookup within the parent scope.
     
     PSS Example::
@@ -1323,10 +1440,10 @@ class NamedScopeChild(ScopeChild):
         }
     
     Attributes:
-        name: Identifier expression containing the name
+        name: The declared name, as an identifier with its own location
     
     See Also:
-        ScopeChild, NamedScope, Field
+        ScopeChild, NamedScope, Field, EnumItem, FunctionPrototype
     
     """
     pass
@@ -1335,13 +1452,18 @@ class NamedScopeChild(ScopeChild):
     
 class AnnotationParam(ScopeChild):
     """
-    Parameter to an applied annotation.
+    Parameter to an applied annotation (LRM 7.13,
+    `annotation_param_item`).
     
     ``name`` is the annotation-type field the value is mapped onto. It is
     always set: PSS 3.1 annotation parameters are name-mapped only.
     
+    PSS Example::
+    
+        @desc_s {.desc = "hello", .level = 2}
+    
     See Also:
-        Annotation
+        Annotation, AnnotationDecl
     
     """
     pass
@@ -1352,7 +1474,8 @@ class AnnotationParam(ScopeChild):
     
 class OverrideStmt(ScopeChild):
     """
-    Base class for the two statements an ``override`` block admits.
+    Base class for the two statements an ``override`` block admits
+    (LRM 17.5, `override_stmt`).
     
     The two differ in what they select -- a type, or one instance -- and
     share the replacement type. They are separate classes rather than one
@@ -1369,20 +1492,35 @@ class Comment(ScopeChild):
     """
     A source comment captured verbatim and in normalized form.
     
-    Collected only when the builder has ``setCollectComments(true)``.
-    Leading and trailing comments hang off the ``comments`` list of the
-    ``ScopeChild`` they document; orphans -- comments a blank line has
-    detached from any construct -- collect in the enclosing
-    ``Scope.trailing_comments``.
+    Collected only when the builder has ``setCollectComments(true)``
+    (`Parser(collect_comments=True)`). Leading and trailing comments,
+    and orphans a blank line has detached from the construct below
+    them, hang off the ``comments`` list of that ``ScopeChild``;
+    comments after a scope's last member, before its closing ``}``,
+    collect in that scope's ``trailing_comments``. The comment's own
+    ``location`` (with ``extent`` set to the raw text's length) is
+    recorded too.
+    
+    PSS Example::
+    
+        // A leading comment of C
+        component C {   // a trailing comment of C
+            int a;
+            // an orphan, in C's trailing_comments
+        }
     
     Attributes:
-        text: normalized content, comment markers and the ``*`` gutter removed
+        text: normalized content. For a line comment the `//` and
+            at most one following space are removed, so a `///` or
+            `//!` comment keeps its third character; for a block
+            comment the delimiters and the ``*`` gutter are removed
+            and the lines re-flushed left
         raw: the untouched source text, delimiters included
         is_block: true for ``/* */``, false for ``//``
         placement: how the comment relates to its owner
     
     See Also:
-        ScopeChild.comments, Scope.trailing_comments
+        CommentPlacement, ScopeChild.comments, ScopeChild.trailing_comments
     
     """
     pass
@@ -1400,10 +1538,13 @@ class Comment(ScopeChild):
     
 class PackageImportStmt(ScopeChild):
     """
-    Import statement bringing package symbols into current scope.
+    Import statement bringing package symbols into current scope
+    (`import_stmt`, LRM 18.1.3, 18.1.4).
     
     Imports types and declarations from another package. Can import
     all symbols with wildcard or create an alias for qualified access.
+    The linker records each import on the enclosing symbol scope
+    (SymbolImportSpec) and resolves its path (TaskResolveImports).
     
     PSS Example::
     
@@ -1412,12 +1553,15 @@ class PackageImportStmt(ScopeChild):
         import other_pkg as op;           // Aliased import
     
     Attributes:
-        wildcard: True if using wildcard (`::*`)
-        alias: Optional alias name for the import
-        path: Type identifier for the imported package/symbol
+        wildcard: True if the pattern ends in `::*`
+        alias: The `as` name (`package_import_alias`); null when there
+            is none
+        path: The package or member named (the `type_identifier` of
+            `package_import_pattern`, without the `::*`). Its target is
+            set by the linker (TaskResolveImports)
     
     See Also:
-        PackageScope, TypeIdentifier
+        PackageScope, TypeIdentifier, SymbolImportSpec
     
     """
     pass
@@ -1428,7 +1572,8 @@ class PackageImportStmt(ScopeChild):
     
 class ComponentBind(ScopeChild):
     """
-    Component-level object/pool bind directive (``bind pool targets;``).
+    Component-level static pool-binding directive (`object_bind_stmt`,
+    LRM 12.3).
     
     Binds a pool to a set of action object-reference fields, or to all
     compatible references via the wildcard form. Every target -- including
@@ -1437,9 +1582,10 @@ class ComponentBind(ScopeChild):
     
     The pool is an ordinary reference from the binding component. A
     target's path elements, action type and field are resolved along
-    the component path (LRM 12.3): each element in the component the
-    previous one reaches, the action type in the last component
-    reached, the field in that action type.
+    the component path by the linker (TaskResolveRefs, after the rest
+    of the walk): each element in the component the previous one
+    reaches, the action type in the last component reached, the field
+    in that action type.
     
     PSS Example::
     
@@ -1451,7 +1597,9 @@ class ComponentBind(ScopeChild):
         }
     
     Attributes:
-        pool_path: Path to the bound pool (e.g. ``p``, ``gfx0.pool``).
+        pool_path: Path to the bound pool (e.g. ``p``, ``sub0.p``).
+            Resolved by the linker (TaskResolveRefs), which reports an
+            error when it names something other than a FieldPool.
         is_wildcard: True if *any* target is a wildcard -- for the bare
             ``bind p *;`` form, and for a mixed list containing ``*``.
             Equivalent to ``any(t.is_wildcard for t in targets)``, and
@@ -1459,6 +1607,9 @@ class ComponentBind(ScopeChild):
             form.
         targets: The bind targets in source order, one
             ``ComponentBindTarget`` per entry.
+    
+    See Also:
+        ComponentBindTarget, ComponentPathElem, FieldPool
     
     """
     pass
@@ -1499,9 +1650,16 @@ class ComponentBindTarget(ScopeChild):
             target names an action in the enclosing component).
         is_wildcard: True for the ``*`` form.
         type_id: Action type of the bind item; null when wildcard.
-        field: Object-reference field on that action; null when wildcard.
+            Resolved by the linker (TaskResolveRefs) among the action
+            types of the last component the path reaches.
+        field: Object-reference field on that action; null when
+            wildcard. Its target is set by the linker (TaskResolveRefs)
+            to a FieldRef or FieldClaim of the action type.
         range: Optional index / index-range selection on the field; null
             when absent or wildcard.
+    
+    See Also:
+        ComponentBind, ComponentPathElem, FieldRef, FieldClaim
     
     """
     pass
@@ -1539,9 +1697,15 @@ class ComponentPathElem(ScopeChild):
         }
     
     Attributes:
-        id: The component instance name.
+        id: The component instance name. Its target is set by the
+            linker (TaskResolveRefs) to the instance field in the
+            component reached by the previous element.
         range: Optional index / index-range selection; null when the
-            element carries no ``[...]``.
+            element carries no ``[...]``. Only one bracketed selection
+            is accepted.
+    
+    See Also:
+        ComponentBindTarget, ComponentBind, ExprDomainOpenRangeList
     
     """
     pass
@@ -1554,9 +1718,10 @@ class ConstraintStmt(ScopeChild):
     """
     Base class for all constraint statement types.
     
-    Represents any statement that can appear within a constraint block, including
-    expressions, loops, conditionals, implications, and other constraint constructs.
-    All specific constraint statement types derive from this base class.
+    Represents any statement that can appear within a constraint body
+    (LRM 13.1.1, `constraint_body_item`). The statement's position in
+    its enclosing ConstraintScope is recorded in `index` (inherited
+    from ScopeChild); soft-constraint priority depends on it.
     
     PSS Example::
     
@@ -1570,37 +1735,43 @@ class ConstraintStmt(ScopeChild):
         }
     
     See Also:
-        ConstraintStmtExpr, ConstraintStmtIf, ConstraintStmtForeach, ConstraintStmtForall
+        ConstraintStmtExpr, ConstraintStmtIf, ConstraintStmtForeach
+        ConstraintStmtForall, ConstraintScope
     
     """
     pass
     
 class ProceduralStmtIfClause(ScopeChild):
     """
-    Single if or else-if clause with condition and body.
+    One condition-and-body branch of a ProceduralStmtIfElse: the `if`
+    or one `else if`.
     
-    ProceduralStmtIfClause represents one conditional branch in an if-else-if
-    chain. Each clause has a condition expression and a body that executes
-    if the condition is true. Multiple clauses are chained together in
-    ProceduralStmtIfElse.
+    The grammar (LRM 20.7.9) nests `else if` as an `if` statement in
+    the `else` branch; the parser flattens that chain into one
+    ProceduralStmtIfElse with one clause per condition, in source order.
+    This class is not itself a statement.
     
     PSS Example::
     
-        action my_action {
-            exec body {
-                int x = 10;
-                
-                if (x > 15) {          // First ProceduralStmtIfClause
-                    console.log("Big");
-                } else if (x > 5) {    // Second ProceduralStmtIfClause
-                    console.log("Medium");
+        component pss_top {
+            action my_action {
+                int x;
+                int size;
+                exec post_solve {
+                    if (x > 15) {          // first clause
+                        size = 2;
+                    } else if (x > 5) {    // second clause
+                        size = 1;
+                    }
                 }
             }
         }
     
     Attributes:
-        cond: Condition expression to evaluate
-        body: Statement(s) to execute if condition is true
+        cond: The `bool` condition. Always set.
+        body: The statement run when the condition is true, given its
+            clause's position as its index. Null if it is an empty
+            statement (`;`).
     
     See Also:
         ProceduralStmtIfElse
@@ -1614,14 +1785,16 @@ class ProceduralStmtIfClause(ScopeChild):
     
 class PyImportFromStmt(ScopeChild):
     """
-    Python 'from...import' statement for selective imports.
+    Python 'from...import' statement for selective imports (a
+    zuspec extension, not part of the LRM).
     
     Imports specific symbols from a Python module into PSS context.
+    The grammar accepts the statement, but the builder currently
+    discards it: no PyImportFromStmt is ever added to the AST.
     
     PSS Example::
     
-        python from os import path, environ;
-        python from numpy import array, matrix;
+        from os pyimport path, environ;
     
     Attributes:
         path: Module path (e.g., ["os"])
@@ -1647,19 +1820,24 @@ class PyImportFromStmt(ScopeChild):
     
 class PyImportStmt(ScopeChild):
     """
-    Python import statement for embedded Python integration.
+    Python import statement for embedded Python integration (a
+    zuspec extension, not part of the LRM).
     
-    Imports Python modules into PSS context. Allows PSS code to
-    access Python libraries and functions.
+    Imports a Python module into PSS context, so PSS code can refer
+    to the module's members. The linker registers the alias, or the
+    first element of the module path, as a symbol of the enclosing
+    scope; references through it are not checked (Python objects
+    are dynamically typed).
     
     PSS Example::
     
-        python import os;
-        python import numpy as np;
+        pyimport os;
+        pyimport os::path as osp;
     
     Attributes:
-        path: List of identifiers forming module path (e.g., ["os", "path"])
-        alias: Optional alias for the import
+        path: The module path (`pyimport_mod_path`), one identifier per
+            `::`-separated element (e.g. ["os", "path"])
+        alias: The `as` name; null when there is none
     
     See Also:
         PyImportFromStmt
@@ -1677,10 +1855,12 @@ class PyImportStmt(ScopeChild):
     
 class CoverStmtReference(ScopeChild):
     """
-    Instantiates a named monitor type for behavioral coverage.
+    Instantiates a named monitor type for behavioral coverage
+    (LRM 16.1, the first form of `cover_stmt`).
     
     ``cover M;`` requests that the behavior described by monitor type
-    ``M`` be covered. ``target`` is the *type* named -- a monitor type
+    ``M`` be covered. Like the inline form, it is a
+    ``component_body_item``. ``target`` is the *type* named -- a monitor type
     identifier, resolved at link -- not a reference to an existing
     instance; there is no syntax for covering an instance.
     
@@ -1688,24 +1868,31 @@ class CoverStmtReference(ScopeChild):
     
     PSS Example::
     
-        monitor handshake_mon {
-            action req_a, ack_a;
-            activity {
-                concat {
-                    req_a;
-                    ack_a;
+        component pss_top {
+            action req_a { }
+            action ack_a { }
+    
+            monitor handshake_mon {
+                req_a r;
+                ack_a a;
+                activity {
+                    concat {
+                        r;
+                        a;
+                    }
                 }
             }
-        }
     
-        component pss_top {
             cover handshake_mon;
             hs: cover handshake_mon;
         }
     
     Attributes:
-        target: The monitor type being covered
-        label: Label identifier, or null if the statement is unlabeled
+        target: The ``type_identifier`` naming the monitor type being
+            covered. Its ``target`` is set by the linker
+            (TaskResolveRefs).
+        label: Label identifier (``hs`` above), or null if the
+            statement is unlabeled. Set by the parser.
     
     See Also:
         CoverStmtInline, Monitor
@@ -1733,12 +1920,22 @@ class Scope(ScopeChild):
         }
     
     Attributes:
-        endLocation: Source location of closing brace
-        children: List of child nodes in this scope
+        endLocation: Source position just past the construct's last
+            token, usually its closing brace (inherited from
+            ScopeChild)
+        children: The declarations and statements written in the
+            scope, in source order. Each child's `parent` is this
+            scope and its `index` its position here. An element
+            annotation is not a child (it is held by the element it
+            precedes), but a standalone annotation (`@a;`) is. The
+            builder also inserts an implicit `comp` FieldCompRef as
+            child 0 of every Action. Declarations in an elaborated
+            `compile if` branch appear here directly; those in a
+            branch not elaborated do not appear at all
         parent: Parent scope (inherited from ScopeChild)
     
     See Also:
-        ScopeChild, NamedScope, GlobalScope
+        ScopeChild, NamedScope, GlobalScope, CompileCond
     
     """
     pass
@@ -1763,6 +1960,9 @@ class ScopeChildRef(ScopeChild):
     Used when one AST node needs to reference another without creating
     a direct pointer.
     
+    Not built by the parser or the linker: the only use is in
+    commented-out code in AstMerger. Reserved.
+    
     Attributes:
         target: The referenced AST node
     
@@ -1776,18 +1976,27 @@ class ScopeChildRef(ScopeChild):
     
 class SymbolChild(ScopeChild):
     """
-    Base class for all symbols in the fully-linked symbol tree.
+    Base class for nodes that the linker places in a symbol scope and
+    addresses by id.
     
-    Represents a node in the post-linking symbol resolution tree, distinct from
-    the physical AST. Extends ScopeChild with linking-specific metadata including
-    a unique identifier and parent scope reference.
+    Extends ScopeChild with the two links the linked symbol tree needs:
+    the node's position in the symbol scope that holds it, and that
+    scope. Every symbol scope derives from it (through
+    SymbolChildrenScope), both the scopes the linker builds as a logical
+    view of the declarations (RootSymbolScope, SymbolTypeScope,
+    SymbolFunctionScope, the merged package scopes, ...) and the parsed
+    nodes that are scopes in their own right (ExecScope, ActivityDecl,
+    ...).
     
-    The symbol tree is constructed during the linking phase after parsing, providing
-    a logical view of declarations with resolved imports and type references.
+    The fields are filled during linking (TaskBuildSymbolTree, and
+    TaskApplyTypeExtensions when an extension's members are merged into
+    their type); they are unset on a freshly parsed AST.
     
     Attributes:
-        id: Unique identifier for this symbol within the tree (-1 if unassigned)
-        upper: Parent symbol scope in the linked tree hierarchy
+        id: Position of this symbol in its `upper` scope: the
+            `ElemKind_ChildIdx` step that reaches it. -1 if unassigned
+        upper: The symbol scope that holds this one in the linked tree;
+            null until linked, and for the root
     
     See Also:
         SymbolScope, SymbolChildrenScope, ScopeChild
@@ -1799,12 +2008,15 @@ class SymbolChild(ScopeChild):
     
 class CovergroupOption(ScopeChild):
     """
-    An ``option.<name> = <value>;`` setting.
+    An ``option.<name> = <value>;`` setting (LRM 15.5,
+    `covergroup_option`).
     
-    Options appear in three places -- a covergroup body, a coverpoint
-    body, and a cross body -- and mean the same thing in each, so one
-    class serves all three. The name is left as written; the set of legal
-    option names is a semantic question, not a syntactic one.
+    Options appear in four places -- a covergroup body, a coverpoint
+    body, a cross body, and the ``with { ... }`` of a covergroup
+    instantiation -- and mean the same thing in each, so one class
+    serves all four. The name is left as written and is not resolved;
+    the set of legal option names (LRM Table 25) is a semantic
+    question, not a syntactic one.
     
     PSS Example::
     
@@ -1817,10 +2029,12 @@ class CovergroupOption(ScopeChild):
     
     Attributes:
         name: The option being set, without the ``option.`` prefix
-        value: The value assigned
+        value: The value assigned, a constant expression; its
+            references are resolved by the linker (TaskResolveRefs)
     
     See Also:
         Covergroup, CovergroupCoverpoint, CovergroupCross
+        CovergroupInstantiation
     
     """
     pass
@@ -1831,18 +2045,22 @@ class CovergroupOption(ScopeChild):
     
 class CovergroupPortmap(ScopeChild):
     """
-    One ``.port(actual)`` binding in a covergroup instantiation.
+    One ``.port(actual)`` binding in a covergroup instantiation
+    (LRM 15.2, `covergroup_portmap`).
     
     PSS Example::
     
         cg_t cg(.a(x), .b(y));
     
     Attributes:
-        name: The formal port being bound
-        target: The actual bound to it
+        name: The formal port being bound. Its target is set by the
+            linker (TaskResolveRefs) to the port's Field in the
+            covergroup type; an unknown port is reported as an error
+        target: The actual bound to it, a ``hierarchical_id`` in the
+            instantiating scope
     
     See Also:
-        CovergroupInstantiation
+        CovergroupInstantiation, CovergroupType
     
     """
     pass
@@ -1853,49 +2071,64 @@ class CovergroupPortmap(ScopeChild):
     
 class DataType(ScopeChild):
     """
-    Base class for all PSS data types.
+    Base class for all PSS data types (`data_type`, LRM 7.1).
     
-    Represents the type system in PSS. All type expressions (int, bool,
-    user-defined types, etc.) derive from this base class. Used in field
-    declarations, expressions, and function signatures.
+    The parser builds one DataType node for each type written in source:
+    a scalar type (`int`, `bit`, `bool`, `string`, `chandle`, `float32`,
+    `float64`, an enum with a domain), a `ref` reference type, or a
+    `type_identifier` naming a user-defined, collection or array type.
+    Used in field declarations, typedefs, function signatures and
+    template parameters.
     
     See Also:
-        DataTypeInt, DataTypeBool, DataTypeUserDefined, Field
+        DataTypeInt, DataTypeBool, DataTypeString, DataTypeFloat,
+        DataTypeChandle, DataTypeEnum, DataTypeRef, DataTypeUserDefined,
+        Field
     
     """
     pass
     
 class TargetTemplateFunction(ScopeChild):
     """
-    Function whose body is target-language template text -- PSS 3.1 §20.6.
+    Function whose body is target-language template text -- PSS 3.1
+    §20.6, ``target_template_function ::= target language_identifier [ static ] function function_prototype = string_literal ;``.
     
     A target-template function declares a PSS prototype but supplies its
     implementation as a string of target-language code rather than as a
-    PSS body.  The string is a template: inside a triple-quoted string it
-    may contain mustache expressions and control-flow directives, and
-    those resolve against the function's own parameter list.
+    PSS body. It is always a target implementation, and only `void`
+    functions are supported. Inside a triple-quoted string the text may
+    contain mustache expressions and control-flow directives, which
+    resolve against the function's own parameter list (and, for an
+    instance function, the instance's attributes). Parameters take no
+    direction qualifiers.
     
     PSS Example::
     
         package my_pkg {
-            // Single-line form
-            target C function void set_reg(int addr, int val) =
-                \"\"\" *(volatile int *)addr = val; \"\"\";
+            // Parameters are referenced with mustache expressions
+            target ASM function void do_stw(bit[32] val, bit[32] vaddr) = \"\"\"
+                loadi RA {{val}}
+                store RA {{vaddr}}
+            \"\"\";
     
-            // Parameters are referenceable from mustache expressions
-            target C function void store(int a) = \"\"\" stw {{a}}, 0 \"\"\";
+            // Plain text: no template is built
+            target C function void barrier() = "__sync_synchronize();";
+        }
     
-            // Static form
-            target C static function int read() = \"\"\" return *p; \"\"\";
+        component pss_top {
+            target C static function void hello() = \"\"\" puts("hi"); \"\"\";
         }
     
     Attributes:
-        proto: Function prototype (return type, name, parameters)
-        language: Target language identifier (e.g. "C", "SV")
+        proto: Function prototype (return type, name, parameters). Built
+            without a platform qualifier, so its `is_target` is false
+            and its `is_static` is false even when `static` is written.
+        language: The `language_identifier` (e.g. `C`, `ASM`, `SV`)
         data: Raw template text, with the enclosing quotes stripped
         is_static: True if declared ``static``
-        template: Scanned template body, present only when the text
-            contains special elements (§4.7.1)
+        template: Scanned template body, present only when the string
+            is triple-quoted and contains special elements (§4.7.1);
+            null otherwise
     
     See Also:
         FunctionPrototype, ExecTargetTemplateBlock, TemplateString
@@ -1917,7 +2150,8 @@ class TargetTemplateFunction(ScopeChild):
     
 class DistItem(ScopeChild):
     """
-    One value-or-range entry in a `dist` directive's distribution list.
+    One value-or-range entry in a `dist` directive's distribution list
+    (LRM 13.1.13, `dist_item`).
     
     The weight is optional; an item written without one carries the
     default weight (`:= 1`).
@@ -1932,6 +2166,7 @@ class DistItem(ScopeChild):
     
     Attributes:
         range: The value or value range this weight applies to
+            (`open_range_value`)
         weight: The weight, or null when none was written
     
     See Also:
@@ -1946,7 +2181,8 @@ class DistItem(ScopeChild):
     
 class DistWeight(ScopeChild):
     """
-    Weight applied to one item of a `dist` directive.
+    Weight applied to one item of a `dist` directive
+    (LRM 13.1.13, `dist_weight`).
     
     PSS spells the weight two ways, which mean different things when the
     item covers a range of values:
@@ -1954,8 +2190,9 @@ class DistWeight(ScopeChild):
     * ``:=`` gives the stated weight to *each* value in the range
     * ``:/`` divides the stated weight *across* the values in the range
     
-    The distinction is not recoverable from the expression alone, so it
-    is carried here rather than left to the consumer to infer.
+    For a single value the two are the same. The distinction is not
+    recoverable from the expression alone, so it is carried here
+    rather than left to the consumer to infer.
     
     PSS Example::
     
@@ -1992,20 +2229,28 @@ class ExecBlockTag(ScopeChild):
     nothing, not even another untagged block.
     
     Tags are permitted only on ``header``, ``declaration``,
-    ``run_start``, ``run_end`` and ``exec file`` blocks -- not on native
-    exec blocks, not on ``body``, and not on the solve execs. That
-    restriction is a semantic rule, not a grammatical one, and is
-    reported as PSS106.
+    ``run_start``, ``run_end`` and ``exec file`` blocks -- not on
+    ``body`` and not on the solve execs. (The grammar admits a tag only
+    on the target-template forms, so a native exec block cannot carry
+    one.) The kind restriction is a semantic rule, not a grammatical
+    one; the parser reports it as PSS106.
     
     PSS Example::
     
-        exec header C = tag_s {.name = "hdr"}: \"\"\"
-            #include <stdio.h>
-        \"\"\";
+        struct tag_s { string name; }
+    
+        component pss_top {
+            exec header C = tag_s {.name = "hdr"}: \"\"\"
+                #include <stdio.h>
+            \"\"\";
+        }
     
     Attributes:
-        type: The struct type naming the tag
-        literal: Field initializers, or null when none were written
+        type: The struct type naming the tag. Its reference is bound by
+            the linker (TaskResolveRefs).
+        literal: The struct literal of field initializers, or null when
+            none was written. The linker (TaskResolveRefs) types it from
+            `type`.
     
     See Also:
         ExecTargetTemplateBlock, ExprAggrStruct
@@ -2019,27 +2264,39 @@ class ExecBlockTag(ScopeChild):
     
 class ExecStmt(ScopeChild):
     """
-    Base class for all procedural statements in exec blocks.
+    Base class of the procedural statements -- LRM 20.7,
+    `procedural_stmt`.
     
-    ExecStmt is the abstract base class for all statements that can appear
-    within exec blocks (body, pre_solve, post_solve, etc.). These statements
-    define imperative/procedural execution semantics including assignments,
-    function calls, control flow, and data declarations.
+    Every statement that can appear in a procedural exec block or a
+    native function body derives from this class: assignments, void
+    function calls, `return`, control flow, `randomize`, `yield`,
+    `break`/`continue` and `super;`. A local variable declaration
+    (ProceduralStmtDataDeclaration) is also an ExecStmt. The loop
+    statements that declare variables (ProceduralStmtRepeat,
+    ProceduralStmtForeach) and a nested `{ ... }` block (ExecScope) are
+    symbol scopes instead, and so do not derive from it. The class itself
+    is abstract: the parser never builds a bare ExecStmt.
     
     PSS Example::
     
-        action my_action {
-            exec body {
-                // Various ExecStmt subclasses
-                int x = 10;              // ProceduralStmtDataDeclaration
-                x += 5;                  // ProceduralStmtAssignment
-                if (x > 10) { }          // ProceduralStmtIfElse
-                my_func();               // ProceduralStmtExpr
+        component pss_top {
+            function void my_func();
+    
+            action my_action {
+                int x;
+                exec post_solve {
+                    int y = 10;          // ProceduralStmtDataDeclaration
+                    x += y;              // ProceduralStmtAssignment
+                    if (x > 10) { }      // ProceduralStmtIfElse
+                    my_func();           // ProceduralStmtExpr
+                }
             }
         }
     
     Attributes:
-        upper: Pointer to enclosing symbol scope (not visited during traversal)
+        upper: Intended back-pointer to the enclosing symbol scope. Not
+            set by the parser or by any linker task, so it is always
+            null; reserved. It is not visited during traversal.
     
     See Also:
         ExecScope, ExecBlock, ProceduralStmtAssignment
@@ -2051,42 +2308,55 @@ class ExecStmt(ScopeChild):
     
 class ExecTargetTemplateBlock(ScopeChild):
     """
-    Target-specific template code with parameterized substitution.
+    An exec block written as target-language template text -- LRM
+    20.5, `target_code_exec_block` and `target_file_exec_block`.
     
-    ExecTargetTemplateBlock represents target-language-specific exec code
-    using a template string with parameter substitutions. This allows native
-    code generation for specific execution targets while maintaining PSS
-    portability through parameterization.
+    `exec kind Lang = "...";` supplies the block's implementation as a
+    string of code in the named target language rather than as PSS
+    statements; `exec file "name" = "...";` instead contributes the text
+    to the named output file. In either form a triple-quoted string may
+    hold mustache references (`{{expr}}`) to PSS attributes, which are
+    substituted when code is generated (4.7.1, 20.5.2). An optional exec
+    block tag (20.5.4) precedes the string.
     
     PSS Example::
     
-        action my_action {
-            int value;
-            
-            exec body {
-                // Target template example (conceptual)
-                target cpp '''
-                    std::cout << "Value = " << {{value}} << std::endl;
-                ''';
+        component pss_top {
+            action my_action {
+                rand bit[32] value;
+    
+                exec body C = \"\"\"
+                    printf("value = %d\\n", {{value}});
+                \"\"\";
             }
+    
+            exec file "out.txt" = \"\"\" generated text \"\"\";
         }
     
     Attributes:
-        kind: Type of exec block this template belongs to
-        data: Raw template text, verbatim, with quotes stripped
-        template: Scanned template body, present only when the text
-            contains special elements (§4.7.1)
-        language: Target language identifier
-        filename: For ``exec file``, the destination filename as raw
-            text with quotes stripped
-        filename_template: Scanned template for the filename, present
-            only when it is triple-quoted and holds special elements.
-            §20.5.3 wants mustache expressions here so a per-instance
-            file can be generated
-        tag: Optional exec block tag (§20.5.4)
+        kind: The `exec_kind` written, or ExecKind_File for
+            `exec file`. An unrecognized kind name is built as
+            ExecKind_Body without a diagnostic.
+        data: The template text, verbatim, with the enclosing quotes
+            (`"` or `\"\"\"`) stripped
+        template: The scanned template body, present only when the
+            string is triple-quoted and contains special elements
+            (mustache expressions or directives, 4.7.1); null otherwise
+        language: The `language_identifier` (e.g. `C`, `ASM`). Empty
+            for `exec file`, which names no language.
+        filename: For `exec file`, the destination file name from
+            `filename_string`, as raw text with the quotes stripped;
+            empty otherwise
+        filename_template: Scanned template for the file name, present
+            only for `exec file` when the name is triple-quoted and
+            holds special elements
+            (20.5.3 allows mustache expressions there so that a
+            per-instance file can be generated); null otherwise
+        tag: The exec block tag written before the string (20.5.4), or
+            null when there is none
     
     See Also:
-        TemplateString, ExecBlock
+        TemplateString, ExecBlock, ExecBlockTag, ExecKind
     
     """
     pass
@@ -2114,34 +2384,48 @@ class ExecTargetTemplateBlock(ScopeChild):
     
 class ExportAction(ScopeChild):
     """
-    Exported action declaration -- LRM B.5, ``export_action``.
+    Exported action declaration -- LRM 20.10, ``export_action``:
+    ``export [ platform_qualifier ] action_type_identifier function_parameter_list_prototype ;``.
     
-    ``export A(int x);`` makes action type ``A`` callable from the target
-    environment with the given parameter signature. This is the action
-    counterpart of ``ExportFunction``, and is modelled on it: the same
-    platform qualifier, a type rather than a bare name, and the parameter
-    list the export declares.
+    ``export A(int x);`` makes action type ``A`` callable from a foreign
+    language with the given parameter signature; each call infers an
+    independent tree of actions, components and resources. This is the
+    action counterpart of ``ExportFunction``, and is modelled on it: the
+    same platform qualifier, a type rather than a bare name, and the
+    parameter list the export declares.
     
     The parameter list belongs to the export, not to the action: an
-    action has fields, and the export names which of them appear in the
-    exported signature and in what order.
+    action has fields, and the export names (by matching name) which of
+    them the foreign caller supplies, and in what order. The linker
+    (TaskBuildSymbolTree) adds the export to its scope without
+    visiting the parameters, so they are not mistaken for members of
+    the enclosing scope.
     
     PSS Example::
     
-        component pss_top {
-            action A { rand int x; }
+        component comp {
+            action A1 {
+                rand bit mode;
+                rand bit[32] val;
+            }
+        }
     
-            export A(int x);
-            export target A(int x);
+        package pkg {
+            // Export A1, providing a mapping to field 'mode'
+            export target comp::A1(bit mode);
         }
     
     Attributes:
-        plat: Platform qualifier (``target`` / ``solve``), if any
-        target: The action type being exported
-        parameters: The exported parameter signature
+        plat: The `platform_qualifier`, or PlatQual_None when none is
+            written (the action is then available in all phases)
+        target: The exported action type. Bound by the linker
+            (TaskResolveRefs).
+        parameters: The exported parameter signature, in source
+            order. A varargs parameter, which the grammar accepts here,
+            is not recorded.
     
     See Also:
-        ExportFunction, Action
+        ExportFunction, Action, FunctionParamDecl
     
     """
     pass
@@ -2159,9 +2443,27 @@ class ExportAction(ScopeChild):
     
 class ExportFunction(ScopeChild):
     """
-    Exported target function declaration.
+    Exported function declaration -- LRM 20.4.2, `export_function`:
+    `export target function name ;`.
     
-    Represents a PSS 3.1 ``export target function name;`` declaration.
+    Makes a function callable from the target environment, so that
+    foreign code can call back into the PSS model. The function must be
+    a static function with a native implementation (a
+    FunctionDefinition), declared in a package or component. The
+    function itself is declared elsewhere; this node only names it.
+    
+    PSS Example::
+    
+        package p {
+            function int checksum(int a, int b) {
+                return a ^ b;
+            }
+    
+            export target function checksum;
+        }
+    
+    See Also:
+        ExportAction, FunctionDefinition, ExprRefName
     
     """
     pass
@@ -2173,32 +2475,30 @@ class ExportFunction(ScopeChild):
     
 class TemplateParamDecl(ScopeChild):
     """
-    Base class for template parameter declarations.
+    Base class for one template parameter declaration (LRM 10.3,
+    `template_param_decl`).
     
-    Template parameters allow types and functions to be parameterized, enabling
-    generic programming in PSS. This abstract base class provides the common name
-    field shared by all template parameter types (generic type, category-constrained
-    type, and value parameters).
+    A template parameter is either a type parameter -- generic (`type T`)
+    or restricted to a type category (`action A`, `struct S : base_s`) --
+    or a value parameter (`int N`). Every parameter has a name and an
+    optional default. The parser sets the node's location to that of the
+    name, and attaches a preceding doc comment to it.
     
     PSS Example::
     
-        // Generic type parameter T
-        action generic<T> {
-            rand T value;
+        struct my_s <type T, int N = 4> {
+            T vals[N];
         }
-        
-        // Value parameter N
-        action sized<int N> {
-            int array[N];
-        }
-        
-        // Category-constrained parameter T
-        component container<T: action> {
-            T inst;
+    
+        component pss_top {
+            action container <action A> {
+                activity { do A; }
+            }
         }
     
     Attributes:
-        name: Identifier for the template parameter
+        name: The parameter's identifier. In a specialized list built by
+            the linker it is a copy of the declaration's name.
     
     See Also:
         TemplateGenericTypeParamDecl, TemplateCategoryTypeParamDecl,
@@ -2211,41 +2511,27 @@ class TemplateParamDecl(ScopeChild):
     
 class TemplateParamExprValue(TemplateParamValue):
     """
-    Expression value for template instantiation.
+    A template argument parsed as a constant expression (the
+    `constant_expression` alternative of `template_param_value`).
     
-    Represents a compile-time constant expression provided when instantiating a
-    template. This is used to fill in value parameters with concrete values. The
-    expression must be evaluable at compile time and must match the type specified
-    in the corresponding value parameter declaration.
+    Supplies a value parameter. The parser builds it for anything that is
+    not also a data type -- a literal or a compound expression; a bare
+    name is parsed as a TemplateParamTypeValue instead. The linker resolves
+    the expression at the use site and copies it into the specialization.
     
     PSS Example::
     
-        // Template with value parameters
-        action sized<int N, int WIDTH> {
-            bit<WIDTH> array[N];
+        struct my_s <type T, int N = 4> {
+            T vals[N];
         }
-        
-        // Instantiation with expression values
-        sized<16, 8> inst1;  // Literal expressions
-        
-        // Using constants as expression values
-        const int BUFFER_SIZE = 32;
-        const int DATA_WIDTH = 64;
-        sized<BUFFER_SIZE, DATA_WIDTH> inst2;
-        
-        // Expressions can be computed
-        sized<8*4, 2+6> inst3;  // 32 elements, 8 bits wide
-        
-        // Mixed type and expression values
-        action mixed<T, int COUNT> {
-            T values[COUNT];
+    
+        component pss_top {
+            my_s<bit[8], 16>  s1;   // a literal
+            my_s<int, 2+3>    s2;   // an expression
         }
-        mixed<bit<32>, 10> mixed_inst;
-        // First value: bit<32> (TemplateParamTypeValue)
-        // Second value: 10 (TemplateParamExprValue)
     
     Attributes:
-        value: The compile-time constant expression
+        value: The argument expression
     
     See Also:
         TemplateParamValue, TemplateParamTypeValue, Expr, TemplateValueParamDecl
@@ -2257,34 +2543,28 @@ class TemplateParamExprValue(TemplateParamValue):
     
 class TemplateParamTypeValue(TemplateParamValue):
     """
-    Type value for template instantiation.
+    A template argument parsed as a data type (the `data_type`
+    alternative of `template_param_value`).
     
-    Represents a type argument provided when instantiating a template. This is used
-    to fill in type parameters (both generic and category-constrained) with concrete
-    types. The value must be a valid data type expression that satisfies any
-    constraints specified in the template parameter declaration.
+    Supplies a type parameter, generic or category-restricted. Because a
+    bare identifier parses as a type, it is also what the parser builds for
+    a named constant or enum item given to a value parameter; the linker
+    treats it as a value when the name resolves to one.
     
     PSS Example::
     
-        // Template with type parameters
-        action generic<T, U: action> {
-            rand T data;
-            U action_inst;
+        struct my_s <type T, int N = 4> {
+            T vals[N];
         }
-        
-        // Instantiation with type values
-        generic<bit<16>, my_action_t> inst;
-        // First parameter value: bit<16> (built-in type)
-        // Second parameter value: my_action_t (user-defined action type)
-        
-        // Complex type as parameter value
-        struct nested_struct<T> {
-            T value;
+        struct inner_s <type T> { T value; }
+    
+        component pss_top {
+            my_s<bit[16]>         s1;   // bit[16]: built-in type
+            my_s<inner_s<int>, 2> s2;   // inner_s<int>: user-defined type
         }
-        generic<nested_struct<int<32>>, other_action_t> complex_inst;
     
     Attributes:
-        value: The type being provided as the template argument
+        value: The argument's data type
     
     See Also:
         TemplateParamValue, TemplateParamExprValue, DataType,
@@ -2297,17 +2577,18 @@ class TemplateParamTypeValue(TemplateParamValue):
     
 class ExprAggrLiteral(Expr):
     """
-    Base class for aggregate literal expressions.
+    Base class for aggregate literals (LRM 4.8, `aggregate_literal`).
     
-    Represents the common structure for all aggregate literals including arrays,
-    maps, and struct initializers. Aggregate literals are used to initialize
-    composite data structures with specific values.
+    An aggregate literal gives the content of a collection or struct
+    value. Which subclass is built follows the syntax alone; the type
+    the literal initializes comes from its context.
     
     PSS Example::
     
-        {1, 2, 3}              // Array literal (ExprAggrList)
-        {name: value, ...}     // Struct literal (ExprAggrStruct)
-        {[key]: value, ...}    // Map literal (ExprAggrMap)
+        {}                     // ExprAggrEmpty
+        {1, 2, 3}              // ExprAggrList
+        {1: true, 2: false}    // ExprAggrMap
+        {.a = 1, .b = 2}       // ExprAggrStruct
     
     See Also:
         ExprAggrList, ExprAggrMap, ExprAggrStruct, ExprAggrEmpty
@@ -2317,25 +2598,32 @@ class ExprAggrLiteral(Expr):
     
 class TypeIdentifier(Expr):
     """
-    Represents a type identifier expression.
+    A type name, possibly `::`-qualified and with template arguments
+    (LRM 10.4.1, `type_identifier`).
     
-    Used to reference type names, possibly with template parameters. The type
-    identifier can be simple or qualified with package/scope names. The target
-    field is resolved during semantic analysis.
+    Used wherever a type is named: a base type, a field's
+    user-defined type, an `extend` target, an import path, and so
+    on.
     
     PSS Example::
     
         my_type_t
-        pkg::my_component
-        std::addr_handle_t
-        container<int>          // With template parameters
+        my_pkg::my_component
+        addr_reg_pkg::addr_handle_t
+        ::global_t                  // is_global
+        my_container<int, 4>        // with template arguments
     
     Attributes:
-        elems: List of identifier elements forming the type path
-        target: Resolved symbol reference (null before resolution)
+        elems: The `::`-separated elements (at least one)
+        is_global: True if the name starts with `::`, meaning the
+            unnamed global package only (LRM 18.1.3)
+        target: Set by the linker (TaskResolveRefs): the declaration
+            of the named type; for a template type with arguments,
+            its specialization. Null before linking and when
+            resolution fails
     
     See Also:
-        TypeIdentifierElem, ExprHierarchicalId
+        TypeIdentifierElem, DataTypeUserDefined, SymbolRefPath
     
     """
     pass
@@ -2350,23 +2638,24 @@ class TypeIdentifier(Expr):
     
 class ExprBin(Expr):
     """
-    Represents a binary expression with an operator.
+    A binary operator expression (LRM 8.1, `expression binary_operator
+    expression`).
     
-    Binary expressions combine two operands (left and right) with an operator such as
-    arithmetic, logical, bitwise, comparison, or shift operators. The operator determines
-    how the operands are combined to produce a result value.
+    Covers the arithmetic, relational, equality, logical, bitwise,
+    shift and exponentiation operators (LRM 8.5). Operator precedence
+    is resolved by the grammar, so the tree shape reflects it.
     
     PSS Example::
     
-        a + b           // Arithmetic addition
-        x && y          // Logical AND
-        value << 2      // Left shift
-        count == 5      // Equality comparison
+        a + b           // BinOp_Add
+        x && y          // BinOp_LogAnd
+        value << 2      // BinOp_Shl
+        count == 5      // BinOp_Eq
     
     Attributes:
-        lhs: Left-hand side operand expression
-        op: Binary operator (ExprBinOp enum value)
-        rhs: Right-hand side operand expression
+        lhs: Left-hand operand
+        op: The operator (ExprBinOp)
+        rhs: Right-hand operand
     
     See Also:
         ExprBinOp, ExprUnary, Expr
@@ -2383,24 +2672,25 @@ class ExprBin(Expr):
     
 class ExprBitSlice(Expr):
     """
-    Represents a bit-slice or bit-range selection expression.
+    A bit-select or part-select `[msb : lsb]` (LRM 8.6.1, `bit_slice`).
     
-    Extracts a contiguous range of bits from an integer value. The lhs specifies
-    the high bit index and rhs specifies the low bit index of the range. Both
-    indices are inclusive. Single bit selection uses the same index for both.
+    Appears only as the `slice` of a reference path, never on its own.
+    Both bounds are inclusive; a single bit is written with equal
+    bounds. A plain `[i]` index is not a bit slice: it is a subscript
+    of an ExprMemberPathElem.
     
     PSS Example::
     
-        value[7:0]      // Extract bits 7 through 0
-        data[15:8]      // Extract bits 15 through 8
-        flags[3:3]      // Extract single bit 3
+        value[7:0]      // bits 7 down to 0
+        data[15:8]      // bits 15 down to 8
+        flags[3:3]      // bit 3 only
     
     Attributes:
-        lhs: Upper bit index expression
-        rhs: Lower bit index expression
+        lhs: The upper (msb) bound, before the `:`
+        rhs: The lower (lsb) bound, after the `:`
     
     See Also:
-        ExprSliceRange, ExprRefPath
+        ExprSliceRange, ExprRefPathContext, ExprRefPathStatic, ExprRefPathStaticRooted
     
     """
     pass
@@ -2411,10 +2701,7 @@ class ExprBitSlice(Expr):
     
 class ExprBool(Expr):
     """
-    Represents a boolean literal value.
-    
-    Contains either the value true or false. Boolean literals are used in
-    conditional expressions, constraints, and logical operations.
+    A Boolean literal, `true` or `false` (`bool_literal`).
     
     PSS Example::
     
@@ -2422,7 +2709,7 @@ class ExprBool(Expr):
         constraint c { enabled == false; }
     
     Attributes:
-        value: The boolean value (true or false)
+        value: True for `true`, false for `false`
     
     See Also:
         ExprNumber, ExprString
@@ -2432,21 +2719,20 @@ class ExprBool(Expr):
     
 class ExprCast(Expr):
     """
-    Represents an explicit type cast expression.
+    An explicit type conversion `( casting_type ) expression`
+    (LRM 7.12, `cast_expression`).
     
-    Converts an expression from one type to another. The casting_type specifies
-    the target type, and expr is the value being converted. Used for numeric
-    conversions, widening/narrowing operations, and explicit type coercion.
+    The target may be an integer, `bool`, enum, floating-point or
+    reference type, or a named type.
     
     PSS Example::
     
-        bit[16] x = 16'h1234;
-        bit[8] y = (bit[8])x;           // Cast to narrower type
-        int z = (int)some_expression;   // Cast to int
+        bit[8] y = (bit[8])x;           // narrow to 8 bits
+        int z = (int)some_enum_value;   // enum to int
     
     Attributes:
-        casting_type: Target type for the cast
-        expr: Expression being cast
+        casting_type: The type in parentheses
+        expr: The expression being converted
     
     See Also:
         DataType, Expr
@@ -2460,22 +2746,23 @@ class ExprCast(Expr):
     
 class ExprCompileHas(Expr):
     """
-    Represents a compile-time existence check expression.
+    A `compile has ( ... )` expression (LRM 19.3, `compile_has_expr`).
     
-    Used in compile-time conditional compilation to test whether a symbol or
-    path exists in the current scope. Returns a compile-time boolean value
-    indicating whether the referenced element is available.
+    A compile-time Boolean that is true when the referenced name
+    exists. The LRM allows a `static_ref_path` here; pssparser accepts
+    any `ref_path`.
     
     PSS Example::
     
-        if (compile.has(some_package::some_type)) {
-            // Code for when type exists
+        compile if (compile has(config_pkg::PROTOCOL_VER_1_2)) {
+            // ...
         }
     
     Attributes:
-        ref: The reference path to check for existence. Not walked
-            by the generated visitors: the name need not exist, so
-            no pass may report it.
+        ref: The reference path whose existence is tested. Null only
+            after a syntax error. Not walked by the generated
+            visitors: the name need not exist, so no pass may report
+            it.
     
     See Also:
         ExprRefPathStatic, CompileCond
@@ -2487,21 +2774,21 @@ class ExprCompileHas(Expr):
     
 class ExprCond(Expr):
     """
-    Represents a ternary conditional expression (? :).
+    The conditional operator `cond ? a : b` (LRM 8.5.8,
+    `conditional_expression`).
     
-    Evaluates a condition expression and returns one of two values depending on
-    whether the condition is true or false. This is the PSS equivalent of the
-    ternary operator found in C-like languages.
+    Evaluates to `true_e` when the condition is true, else to
+    `false_e`.
     
     PSS Example::
     
-        int result = (x > 10) ? x : 10;  // Use x if > 10, else 10
+        int result = (x > 10) ? x : 10;
         bit[8] value = flag ? 8'hFF : 8'h00;
     
     Attributes:
-        cond_e: Boolean condition expression
-        true_e: Expression evaluated if condition is true
-        false_e: Expression evaluated if condition is false
+        cond_e: The condition (`cond_predicate`), before the `?`
+        true_e: The expression after the `?`
+        false_e: The expression after the `:`
     
     See Also:
         ExprBin, ExprBool
@@ -2517,21 +2804,24 @@ class ExprCond(Expr):
     
 class ExprDomainOpenRangeList(Expr):
     """
-    Represents a domain constraint range list expression.
+    A value domain `in [ ... ]` in a type or path declaration
+    (LRM 7.2.1, `domain_open_range_list`).
     
-    Contains a list of range values that define valid domains for random variables
-    in constraint blocks. Each range can be a single value or a range interval.
+    Restricts the values of an integer or enum type (`int in [...]`,
+    `my_enum in [...]`), and also gives the index range of a
+    component path element or bind target. It is not used by the
+    `in` operator in expressions, which builds an ExprOpenRangeList.
     
     PSS Example::
     
-        rand bit[8] value;
-        constraint c { value in [1..10, 20, 30..40]; }
+        rand bit[8] in [1..10, 20, 30..40] value;
+        rand int in [..0, 100..] limit;
     
     Attributes:
-        values: List of range value specifications
+        values: The ranges and single values, in source order
     
     See Also:
-        ExprDomainOpenRangeValue, ExprIn
+        ExprDomainOpenRangeValue, ExprOpenRangeList, DataTypeInt, DataTypeUserDefined
     
     """
     pass
@@ -2544,26 +2834,24 @@ class ExprDomainOpenRangeList(Expr):
     
 class ExprDomainOpenRangeValue(Expr):
     """
-    Represents a single range value in a domain constraint.
-    
-    Can represent either a single value or a range interval. If single is true,
-    only lhs is used. For ranges, lhs is the lower bound and rhs is the upper bound.
+    One item of a value domain (LRM 7.2.1, `domain_open_range_value`):
+    a single value, a closed range `a..b`, or a range open at one end
+    (`a..` or `..b`).
     
     PSS Example::
     
-        rand int x;
-        constraint c { 
-            x in [1..10];      // Range: lhs=1, rhs=10, single=false
-            x in [42];         // Single: lhs=42, single=true
-        }
+        int in [1..10] a;    // lhs=1, rhs=10, single=false
+        int in [42] b;       // lhs=42, rhs=null, single=true
+        int in [5..] c;      // lhs=5, rhs=null, single=false
+        int in [..5] d;      // lhs=null, rhs=5, single=false
     
     Attributes:
-        single: True if single value, false if range
-        lhs: Lower bound or single value
-        rhs: Upper bound (only used if single is false)
+        single: True for a single value (no `..`), false for any range
+        lhs: The single value, or the lower bound; null for `..b`
+        rhs: The upper bound; null for a single value and for `a..`
     
     See Also:
-        ExprDomainOpenRangeList, ExprIn
+        ExprDomainOpenRangeList, ExprOpenRangeValue
     
     """
     pass
@@ -2612,23 +2900,27 @@ class ExprFloatLiteral(Expr):
     
 class ExprHierarchicalId(Expr):
     """
-    Represents a qualified identifier with scope resolution.
+    A dotted path of member elements (Annex B, `hierarchical_id`:
+    `member_path_elem { . member_path_elem }`).
     
-    A hierarchical identifier consists of multiple name elements separated by
-    scope resolution operators (::). Used to reference types, packages, or
-    members through nested scopes.
+    Each element is a name with optional call arguments and
+    subscripts. It is the path part of a context reference
+    (ExprRefPathContext.hier_id) and the member part of a
+    statically-rooted one (ExprRefPathStaticRooted.leaf). Package and
+    type qualification with `::` is not part of it; see
+    ExprRefPathStatic and TypeIdentifier.
     
     PSS Example::
     
-        my_pkg::my_component::my_field
-        std::addr_handle_t
-        parent_comp::child_comp
+        comp.sub_c.field
+        regs.ctrl.write_val(1)
+        arr[i].data
     
     Attributes:
-        elems: List of path elements forming the hierarchical identifier
+        elems: The path elements, in source order (at least one)
     
     See Also:
-        ExprId, ExprMemberPathElem, ExprRefPath
+        ExprMemberPathElem, ExprRefPathContext, ExprRefPathStaticRooted
     
     """
     pass
@@ -2641,22 +2933,28 @@ class ExprHierarchicalId(Expr):
     
 class ExprId(Expr):
     """
-    Represents a simple identifier expression.
+    An identifier (LRM 4.2 and 4.3, `identifier`): one name as written in
+    the source.
     
-    The most basic form of identifier, representing a variable name, field name,
-    type name, or other named entity. Can be escaped (prefixed with backslash)
-    to allow use of keywords or special characters as identifiers.
+    An escaped identifier (`\\` followed by any non-whitespace
+    characters) names the same thing as the unescaped spelling (LRM
+    4.3), so the backslash is not kept in `id`; `is_escaped` records
+    that it was there.
     
     PSS Example::
     
         my_variable
         field_name
-        \\begin          // Escaped identifier
+        \\begin          // id is "begin", is_escaped is true
     
     Attributes:
-        id: The identifier string
-        is_escaped: True if identifier is escaped with backslash
-        location: Source location of the identifier
+        id: The name, without the leading backslash of an escaped
+            identifier
+        is_escaped: True if the identifier was written escaped
+        location: Source location of the identifier; the extent
+            covers the source text, backslash included. Unset (zero)
+            for an identifier the builder or linker synthesizes
+            rather than reads from the source
         decl: The declaration this identifier was bound to by the
             linker, where the linker records one: every element of
             a member path, and every element of a qualified type
@@ -2666,7 +2964,7 @@ class ExprId(Expr):
             specialization. pssparser.refs normalizes it.
     
     See Also:
-        ExprHierarchicalId, ExprRefPath, ExprMemberPathElem
+        ExprHierarchicalId, ExprRefPath, ExprMemberPathElem, ExprRefName
     
     """
     pass
@@ -2681,19 +2979,30 @@ class ExprId(Expr):
     
 class ExprIn(Expr):
     """
-    Represents a set membership test expression (in operator).
+    The set membership operator `in` (LRM 8.5.9, `in_expression`).
     
-    Two forms exist in PSS:
-      Range-list form:  x in [1..10, 20, 30..40]  -- rhs is populated
-      Collection form:  x in comp.some_list        -- collection is populated
+    True when the left-hand value is in the right-hand side. Two forms
+    exist:
+    
+    * Range-list form, `x in [1..10, 20]`: `rhs` holds the ranges and
+      `collection` is null.
+    * Collection form, `x in comp.some_list`: `collection` holds the
+      collection expression and `rhs` is an empty list.
+    
+    PSS Example::
+    
+        constraint c { x in [1..10, 20, 30..40]; }
+        constraint d { y in allowed_values; }
     
     Attributes:
-        lhs:        Expression to test for membership
-        rhs:        Range list (range-list form; empty for collection form)
-        collection: Collection expression (collection form; null for range-list form)
+        lhs: The value tested for membership
+        rhs: The `open_range_list` in brackets; present but empty in
+            the collection form
+        collection: The `collection_expression`; null in the
+            range-list form
     
     See Also:
-        ExprOpenRangeList, ExprDomainOpenRangeList
+        ExprOpenRangeList, ExprOpenRangeValue
     
     """
     pass
@@ -2716,7 +3025,7 @@ class ExprMemberCall(Expr):
         "a,b".split(",").size()     // two members, chained
     
     Attributes:
-        receiver: The expression the first member is applied to
+        receiver: The literal the first member is applied to
         members: The members applied in order, each with its params
     
     See Also:
@@ -2735,29 +3044,37 @@ class ExprMemberCall(Expr):
     
 class ExprMemberPathElem(Expr):
     """
-    Represents a single element in a member access path.
-    
-    Building block for hierarchical identifiers and reference paths. Can represent
-    a field access, method call, or array subscript. Multiple elements are chained
-    together to form complex access expressions.
+    One element of a member path (Annex B, `member_path_elem`): a
+    name, optionally called with arguments, optionally followed by
+    index or slice subscripts.
     
     PSS Example::
     
-        obj.field               // Simple member access
-        comp.method(args)       // Method call with parameters
-        arr[i]                  // Array subscript
-        str.upper()             // String method call
+        field                   // name only
+        method(a, b)            // params set
+        arr[i]                  // one subscript
+        mem[0][1..3]            // an index and an ExprSliceRange
     
     Attributes:
-        id: The identifier name
-        params: Method parameters if this is a function call
-        subscript: Array subscript expressions if applicable
-        target: Resolved target index (-1 if unresolved)
-        super: Super class reference index
-        string_method_id: Identifier for string methods
+        id: The element's name
+        params: The call arguments (`function_parameter_list`); null
+            when the element is not a call, an empty list for `f()`
+        subscript: One entry per bracketed subscript, in order: the
+            index expression, or an ExprSliceRange for a `..` slice.
+            Empty when there is none
+        target: Set by the linker (TaskResolveRefs): the index of
+            the member in the scope it was found in; -2 when it
+            resolved to a built-in method rather than a member; -1
+            when unresolved, and for the first element of a context
+            path, which is resolved by ExprRefPath.target instead
+        super: Set by the linker with target: how many base types
+            were crossed to find the member (0 for the type itself);
+            -1 when unresolved
+        string_method_id: Not set by the parser or the linker;
+            always StringMethod_None
     
     See Also:
-        ExprHierarchicalId, ExprId, MethodParameterList
+        ExprHierarchicalId, ExprId, MethodParameterList, ExprSliceRange
     
     """
     pass
@@ -2777,16 +3094,15 @@ class ExprMemberPathElem(Expr):
     
 class ExprNull(Expr):
     """
-    Represents a null literal value.
+    The `null` literal (LRM 7.10, `null_ref`).
     
-    Used to represent the absence of a value for reference types. Null is
-    commonly used with handle types to indicate an uninitialized or invalid
-    reference.
+    The value of a reference that refers to nothing; it may be
+    assigned to or compared with a reference-typed attribute.
     
     PSS Example::
     
-        addr_handle_t h = null;
-        if (handle == null) { ... }
+        ref my_action_t r = null;
+        if (r == null) { ... }
     
     See Also:
         ExprBool, ExprNumber
@@ -2796,39 +3112,43 @@ class ExprNull(Expr):
     
 class ExprNumber(Expr):
     """
-    Abstract base class for numeric literal expressions.
+    Base class for integer literals (LRM 4.6.1, `integer_number`).
     
-    Represents constant numeric values in PSS source code. Concrete subclasses
-    handle signed and unsigned integers with various representations and bit widths.
+    Never built itself: a literal is an ExprUnsignedNumber, or an
+    ExprSignedNumber when written with the `s` base modifier. A
+    leading `-` is not part of the literal; `-10` is an ExprUnary
+    applied to an ExprUnsignedNumber. Floating-point literals are
+    ExprFloatLiteral, which does not derive from this class.
     
     PSS Example::
     
-        42              // Decimal number
-        0x2A            // Hexadecimal
-        8'hFF           // Sized hexadecimal (8 bits)
-        -10             // Negative number
+        42              // decimal
+        0x2A            // hexadecimal
+        8'hFF           // sized, based
+        4'sb1010        // signed based (ExprSignedNumber)
     
     See Also:
-        ExprSignedNumber, ExprUnsignedNumber
+        ExprSignedNumber, ExprUnsignedNumber, ExprFloatLiteral
     
     """
     pass
     
 class ExprOpenRangeList(Expr):
     """
-    Represents a list of value ranges for set membership tests.
+    The bracketed list on the right of the `in` operator (LRM 8.5.9,
+    `open_range_list`).
     
-    Contains a collection of range specifications used with the 'in' operator.
-    Each range can be a single value or an interval. Used primarily in
-    constraint expressions.
+    Each item is a single value or a range. The same item class is
+    also used, outside this list, for `dist` items and covergroup
+    bins ranges.
     
     PSS Example::
     
-        rand int x;
         constraint c { x in [1..10, 20, 30..40]; }
     
     Attributes:
-        values: List of range value specifications
+        values: The items, in source order; empty for the collection
+            form of ExprIn
     
     See Also:
         ExprOpenRangeValue, ExprIn, ExprDomainOpenRangeList
@@ -2844,23 +3164,28 @@ class ExprOpenRangeList(Expr):
     
 class ExprOpenRangeValue(Expr):
     """
-    Represents a single value or range in a range list.
+    A single value or a `lo .. hi` range (LRM 8.5.9,
+    `open_range_value`).
     
-    Specifies either a single value (when rhs is null) or a range interval
-    (when both lhs and rhs are present). Used within ExprOpenRangeList for
-    set membership constraints.
+    Used in an ExprOpenRangeList, in a `dist` item
+    (ConstraintStmtDist), and for the value ranges of covergroup bins
+    (CoverpointBins), where a range may also be open at one end.
     
     PSS Example::
     
-        x in [5];           // Single value: lhs=5, rhs=null
-        x in [1..10];       // Range: lhs=1, rhs=10
+        x in [5];           // lhs=5, rhs=null
+        x in [1..10];       // lhs=1, rhs=10
+        bins hi = [200..];  // lhs=200, rhs=null (bins only)
+        bins lo = [..10];   // lhs=null, rhs=10 (bins only)
     
     Attributes:
-        lhs: Lower bound or single value
-        rhs: Upper bound (null for single value)
+        lhs: The single value or lower bound; null only for a bins
+            range written `..hi`
+        rhs: The upper bound; null for a single value and for a
+            bins range written `lo..`
     
     See Also:
-        ExprOpenRangeList, ExprIn
+        ExprOpenRangeList, ExprIn, ExprDomainOpenRangeValue
     
     """
     pass
@@ -2873,23 +3198,32 @@ class ExprRefName(Expr):
     """
     A reference written as a single name, where the grammar has no
     path: a symbol call, a function export, a struct-literal field,
-    a coverpoint or bins target, a bind field, a template assignment.
+    a coverpoint or bins target, a covergroup port map, a bind field
+    or component path element, an annotation parameter, a template
+    assignment.
     
     It exists to hold a binding (symbol-resolution plan WS3.2): those
     names used to be bare ExprIds, which have nowhere to record what
     they resolve to, so nothing could check that they had been
     resolved at all.
     
+    PSS Example::
+    
+        s s1 = {.a = 1};    // `a` is an ExprRefName
+        export target function do_it;   // so is `do_it`
+    
     Attributes:
         id: The name as written
-        target: What it resolves to; null until resolved, or when
-            its resolution belongs to a later pass
+        target: What it resolves to, set by the linker
+            (TaskResolveRefs); null until resolved, or when its
+            resolution belongs to a later pass
         ctx_unknown: The name is resolved in a context the linker
             cannot yet compute (a struct literal whose type is not
-            known from its syntax, WS8.9)
+            known from its syntax, WS8.9). Set by TaskResolveRefs;
+            false otherwise
     
     See Also:
-        ExprId, ExprRefPathContext
+        ExprId, ExprRefPathContext, SymbolRefPath
     
     """
     pass
@@ -2900,23 +3234,33 @@ class ExprRefName(Expr):
     
 class ExprRefPath(Expr):
     """
-    Base class for reference path expressions.
+    Base class for references to named things in expressions
+    (Annex B, `ref_path`).
     
-    Reference paths represent access to fields, variables, or components through
-    a navigation path. The target field points to the resolved symbol path after
-    semantic analysis. Concrete subclasses handle different forms of paths.
+    Never built itself. The subclass follows the syntax: a path that
+    starts with a plain name or `super.` is an ExprRefPathContext
+    (ExprRefPathSuper for `super.`); one that starts with a `::`
+    qualified name is an ExprRefPathStatic, or an
+    ExprRefPathStaticRooted when a member path follows the qualified
+    name or its last element is called or subscripted.
     
     PSS Example::
     
-        component.field         // Reference to component field
-        super.parent_field      // Reference to parent field
-        ::pkg::type             // Static reference path
+        comp.field              // ExprRefPathContext
+        super.parent_field      // ExprRefPathSuper
+        my_pkg::MAX_SIZE        // ExprRefPathStatic
+        my_pkg::f(1).x          // ExprRefPathStaticRooted
     
     Attributes:
-        target: Resolved symbol reference path (null before resolution)
+        target: Set by the linker (TaskResolveRefs). For a context
+            path, the declaration the first element names; for a
+            static path, the declaration the whole path names. Not
+            set on an ExprRefPathStaticRooted, whose root carries
+            it. Null before linking and when resolution fails
     
     See Also:
-        ExprRefPathContext, ExprRefPathStatic, ExprRefPathSuper
+        ExprRefPathContext, ExprRefPathStatic, ExprRefPathStaticRooted
+        ExprRefPathSuper, SymbolRefPath
     
     """
     pass
@@ -2925,22 +3269,22 @@ class ExprRefPath(Expr):
     
 class TypeIdentifierElem(Expr):
     """
-    Represents a single element in a type identifier path.
-    
-    Building block for type identifiers. Contains an identifier and optional
-    template parameters. Multiple elements are chained for qualified type names.
+    One element of a qualified type name (LRM 10.4.1,
+    `type_identifier_elem`): an identifier with optional template
+    arguments.
     
     PSS Example::
     
-        my_pkg          // Simple element
-        container<int>  // Element with template parameters
+        my_pkg              // id only
+        my_container<int>   // id with params
     
     Attributes:
-        id: The identifier name
-        params: Template parameter value list if present
+        id: The element's name
+        params: The template arguments (`template_param_value_list`);
+            null when none are written
     
     See Also:
-        TypeIdentifier, ExprId, TemplateParamValueList
+        TypeIdentifier, ExprRefPathStatic, ExprId, TemplateParamValueList
     
     """
     pass
@@ -2962,8 +3306,9 @@ class ExprSliceRange(Expr):
     Which one a given range is cannot be decided while parsing -- it
     depends on the type of the operand being sliced, which is only
     known after name resolution. A single neutral node is therefore the
-    only shape the builder can honestly produce; the linker classifies
-    it. (Contrast ``ExprBitSlice``, which is spelled ``[msb : lsb]``
+    only shape the builder can honestly produce; consumers decide
+    from the operand's type (the linker records no classification).
+    (Contrast ``ExprBitSlice``, which is spelled ``[msb : lsb]``
     and *is* syntactically distinct.)
     
     Either endpoint may be absent, but not both -- ``[..]`` is not a
@@ -2997,20 +3342,24 @@ class ExprSliceRange(Expr):
     
 class ExprString(Expr):
     """
-    Represents a string literal expression.
+    A string literal (LRM 4.7, `string_literal`), double-quoted or
+    triple-quoted.
     
-    Contains a string constant value. Can be a regular string (with escape
-    sequences processed) or a raw string (escape sequences preserved). Used
-    for string data, messages, and identifiers.
+    `value` is the source text between the quotes; escape sequences
+    are kept as written, not interpreted. A triple-quoted string that
+    contains template special elements is built as the subclass
+    ExprTemplateString instead.
     
     PSS Example::
     
-        string msg = "Hello, World!";
-        string path = r"C:\\path\\to\\file";  // Raw string
+        string msg = "Hello, World!\\n";        // is_raw = false
+        string doc = \"\"\"Line one
+        Line two\"\"\";                           // is_raw = true
     
     Attributes:
-        value: The string content
-        is_raw: True if this is a raw string literal
+        value: The text between the quotes, unprocessed
+        is_raw: True for a triple-quoted (`\"\"\"`) string, false for a
+            double-quoted one
     
     See Also:
         ExprBool, ExprNumber, ExprTemplateString
@@ -3023,6 +3372,23 @@ class ExprString(Expr):
     def setValue(self, v : str): ...
     
 class TypedefDeclaration(ScopeChild):
+    """
+    Type alias declaration (`typedef_declaration`, LRM 7.11).
+    
+    Declares a new name for an existing data type. A typedef of a scalar
+    or aggregate type is itself a scalar or aggregate type. The name is
+    registered in the enclosing scope by the linker
+    (TaskBuildSymbolTree), so uses resolve to this node.
+    
+    PSS Example::
+    
+        typedef bit[8] byte_t;
+        typedef list<byte_t> bytes_t;
+    
+    See Also:
+        DataType, DataTypeUserDefined
+    
+    """
     pass
     
     def getName(self) -> ExprId: ...
@@ -3031,21 +3397,22 @@ class TypedefDeclaration(ScopeChild):
     
 class ExprUnary(Expr):
     """
-    Represents a unary expression with an operator.
+    A unary operator applied to one operand (LRM 8.1,
+    `unary_operator expression`).
     
-    Applies a unary operator to a single operand. Unary operators include
-    arithmetic negation, logical NOT, bitwise negation, and reduction operators.
+    Covers negation, logical and bitwise NOT, and the reduction
+    operators `&`, `|` and `^` (LRM 8.5.6).
     
     PSS Example::
     
-        -x              // Unary minus
-        !flag           // Logical NOT
-        ~bits           // Bitwise negation
-        &vector         // Reduction AND
+        -x              // UnaryOp_Minus
+        !flag           // UnaryOp_LogNot
+        ~bits           // UnaryOp_BitNeg
+        &vector         // UnaryOp_BitAnd (reduction)
     
     Attributes:
-        op: Unary operator (ExprUnaryOp enum value)
-        rhs: Operand expression
+        op: The operator (ExprUnaryOp)
+        rhs: The operand
     
     See Also:
         ExprUnaryOp, ExprBin, Expr
@@ -3060,30 +3427,35 @@ class ExprUnary(Expr):
     
 class ExtendEnum(ScopeChild):
     """
-    Enum extension declaration for adding values to existing enums.
+    Enum extension declaration for adding values to existing enums
+    (`extend enum`, LRM 17.2.4).
     
     Represents an 'extend' statement that adds new enumerator values
     to an existing enum type. Enum extensions allow adding values
-    without modifying the original enum definition.
+    without modifying the original enum definition. The linker
+    (TaskApplyTypeExtensions) resolves `target` and adds the items to
+    the enum's SymbolEnumScope.
     
     PSS Example::
     
         enum status {
             OK,
             ERROR
-        };
-        
+        }
+    
         extend enum status {
             WARNING,
             INFO
-        };
+        }
     
     Attributes:
-        target: Type identifier of the enum to extend
-        items: List of new enumerator values to add
+        target: The enum type named (`type_identifier`). Its target is
+            set by the linker (TaskApplyTypeExtensions)
+        items: The enumerators added, in source order; each one's
+            location is in the extension, not in the enum declaration
     
     See Also:
-        ExtendType, EnumDecl, EnumItem
+        ExtendType, EnumDecl, EnumItem, SymbolEnumScope
     
     """
     pass
@@ -3098,17 +3470,35 @@ class ExtendEnum(ScopeChild):
     
 class ActionHandleField(NamedScopeChild):
     """
-    Action or monitor handle field declaration.
+    Action or monitor handle declared in an activity or a monitor body
+    (`action_handle_declaration`, LRM 11.3.1).
     
-    Represents an action instance field declared in an action or monitor
-    body, including optional PSS 3.1 initializer assignments and support
-    for array-typed handles.
+    Built for each `action_instantiation` of a handle declaration in an
+    action activity, a monitor body (`monitor_field_declaration`) or a
+    monitor activity, including the PSS 3.1 initializer list and array
+    handles. A handle declared directly in an *action* body
+    (`A a;`) parses as a data declaration and is a Field instead.
     
-    A *monitor* handle declared in a monitor body (``m1 h1;``) also builds
-    this class, despite the name. The two declarations are syntactically
-    identical -- ``type_identifier identifier ;`` -- so the parser cannot
+    A *monitor* handle (``m1 h1;``) also builds this class, despite the
+    name. The two declarations are syntactically identical --
+    ``type_identifier identifier ;`` -- so the parser cannot
     distinguish them; which kind of handle it is follows from resolving
     ``type``, and is known only after linking.
+    
+    PSS Example::
+    
+        action top {
+            activity {
+                sub_a a1 {.size = 4};   // single handle, initializer
+                sub_a arr[2];           // handle array
+                a1;
+                arr[0];
+            }
+        }
+    
+    See Also:
+        Field, ActionFieldInitializer, ActivityActionHandleTraversal,
+        DataTypeUserDefined
     
     """
     pass
@@ -3123,41 +3513,44 @@ class ActionHandleField(NamedScopeChild):
     
 class ActivityBindStmt(ActivityStmt):
     """
-    Binds resource references between actions.
+    Explicitly binds flow-object reference fields -- LRM 11.9,
+    `activity_bind_stmt`.
     
-    ActivityBindStmt creates a binding between resource references, allowing
-    an action to use resources from another action's scope. This enables
-    resource sharing and coordination between actions in a behavior tree.
+    `bind x y;` or `bind x { y, z };` states that the input and output
+    fields named reference the same flow object: the output of one action
+    is the input of another. The bound fields must be of the same object
+    type and statically bound to the same pool; the order in which they
+    are listed does not matter.
     
     PSS Example::
     
-        action producer {
-            output mydata_s data_out;
-            activity { }
-        }
-        
-        action consumer {
-            input mydata_s data_in;
-            activity { }
-        }
-        
-        action top {
-            producer prod;
-            consumer cons;
-            
-            activity {
-                do prod;
-                do cons;
-                bind cons.data_in prod.data_out;
+        component pss_top {
+            buffer data_buf { }
+            pool data_buf data_p;
+            bind data_p *;
+    
+            action producer { output data_buf out_d; }
+            action consumer { input data_buf in_d; }
+    
+            action top {
+                producer prod;
+                consumer cons;
+                activity {
+                    prod;
+                    cons;
+                    bind prod.out_d cons.in_d;
+                }
             }
         }
     
     Attributes:
-        lhs: Left-hand side hierarchical ID (the reference being bound)
-        rhs: List of right-hand side hierarchical IDs (source references)
+        lhs: The first `hierarchical_id`, as a reference path to a flow-object
+            reference field (`prod.out_d`).
+        rhs: The remaining reference paths: one element for the single form,
+            one per item of the braced `hierarchical_id_list` otherwise.
     
     See Also:
-        FieldRef, FieldCompRef
+        FieldRef, ExprRefPathContext
     
     """
     pass
@@ -3172,34 +3565,34 @@ class ActivityBindStmt(ActivityStmt):
     
 class ActivityConstraint(ActivityStmt):
     """
-    Adds constraints within an activity block.
+    A constraint written among the activity statements --
+    `constraint constraint_set`, `activity_constraint_stmt` (LRM 11.2).
     
-    ActivityConstraint allows constraint statements to be embedded within
-    activity blocks to further constrain the behavior or data of actions
-    being executed. These constraints are evaluated during scenario generation.
+    Its position in the statement order is what distinguishes it from a
+    constraint in the action body, so it is a statement node rather than a
+    ConstraintBlock. It constrains the action's fields and the handles
+    traversed in the activity; names in it are resolved by the linker
+    (TaskResolveRefs) in the enclosing activity scope.
     
     PSS Example::
     
-        action my_action {
-            rand bit[16] addr;
-            rand bit[8] data;
-            
+        action top {
+            rand bit[8] limit;
+            A a1;
             activity {
-                do comp.sub_action with {
-                    addr == 0x1000;
-                }
-                
-                constraint {
-                    data inside [0..100];
-                }
+                a1;
+                constraint { a1.x < limit; }
+                constraint a1.y == 2;
             }
         }
     
     Attributes:
-        constraint: The constraint statement to be applied
+        constraint: The `constraint_set`: a ConstraintScope holding the
+            statements of a braced block, or the single constraint statement
+            of the unbraced form.
     
     See Also:
-        ConstraintStmt, ConstraintBlock
+        ConstraintStmt, ConstraintScope, ConstraintBlock, MonitorConstraint
     
     """
     pass
@@ -3208,28 +3601,29 @@ class ActivityConstraint(ActivityStmt):
     
 class ActivityJoinSpecBranch(ActivityJoinSpec):
     """
-    Join specification with explicit branch identification.
+    `join_branch(L1, L2, ...)` -- LRM 11.3.6, `activity_join_branch`.
     
-    ActivityJoinSpecBranch allows explicit specification of which branches
-    must complete for the parallel or schedule block to complete. This provides
-    fine-grained control over synchronization points.
+    The statement following the block is scheduled after the listed
+    statements have completed; the others are not waited for. Each label
+    must be that of a top-level statement of the block the specification
+    applies to. A label on an action-array traversal waits for every
+    element.
     
     PSS Example::
     
-        action my_action {
-            activity {
-                parallel join_branch (branch1, branch2) {
-                    branch1: do comp.action1;
-                    branch2: do comp.action2;
-                    branch3: do comp.action3;
-                    // Block completes when branch1 and branch2 complete
-                    // branch3 may still be running
-                }
+        activity {
+            parallel join_branch(L1, L2) {
+                L1: do A;
+                L2: do B;
+                do C;           // not waited for
             }
+            do D;               // after L1 and L2
         }
     
     Attributes:
-        branches: List of reference paths identifying branches that must complete
+        branches: One single-element reference path per `label_identifier`,
+            in source order. Resolved by the linker (TaskResolveRefs) to the
+            labeled statements.
     
     See Also:
         ActivityJoinSpec, ActivityParallel, ActivitySchedule
@@ -3245,36 +3639,26 @@ class ActivityJoinSpecBranch(ActivityJoinSpec):
     
 class ActivityJoinSpecFirst(ActivityJoinSpec):
     """
-    Join specification that waits for the first N branches to complete.
+    `join_first(N)` -- LRM 11.3.6, `activity_join_first`.
     
-    ActivityJoinSpecFirst causes the parallel or schedule block to complete
-    when the first specified number of branches have completed. Unlike join_select,
-    this waits for the actual first branches to finish rather than randomly
-    selecting which ones complete.
+    The statement following the block has a run-time dependency on the
+    first N of the block's statements to complete execution, and no
+    scheduling dependency on them. Unlike `join_select`, which statements
+    count is decided by which finish first, not chosen at solve time. N is
+    an integer known at solve time; 0 is equivalent to `join_none`.
     
     PSS Example::
     
-        action my_action {
-            activity {
-                // Wait for first 2 to complete
-                parallel join_first(2) {
-                    do comp.action1;
-                    do comp.action2;
-                    do comp.action3;
-                    do comp.action4;
-                }
-                // Block completes as soon as any 2 finish
-                
-                // Wait for first one
-                parallel join_first(1) {
-                    do comp.option_a;
-                    do comp.option_b;
-                }
+        activity {
+            parallel join_first(1) {
+                do A;
+                do B;
             }
+            do C;               // after whichever of A, B completes first
         }
     
     Attributes:
-        count: Expression specifying how many branches to wait for
+        count: The `expression` N: how many statements to wait for.
     
     See Also:
         ActivityJoinSpec, ActivityJoinSpecSelect, ActivityParallel
@@ -3286,30 +3670,20 @@ class ActivityJoinSpecFirst(ActivityJoinSpec):
     
 class ActivityJoinSpecNone(ActivityJoinSpec):
     """
-    Join specification with no synchronization.
+    `join_none` -- LRM 11.3.6, `activity_join_none`.
     
-    ActivityJoinSpecNone indicates that the parallel or schedule block completes
-    immediately without waiting for any branches to complete. The branches continue
-    executing asynchronously in the background. This is useful for fire-and-forget
-    concurrent operations.
+    The statement following the block has no scheduling dependency on the
+    statements in the block: it may start without waiting for any of them.
     
     PSS Example::
     
-        action my_action {
-            activity {
-                // No waiting for completion
-                parallel join_none {
-                    do comp.background_task1;
-                    do comp.background_task2;
-                    do comp.background_task3;
-                }
-                // Execution continues immediately
-                do comp.foreground_task;
+        activity {
+            parallel join_none {
+                do A;
+                do B;
             }
+            do C;               // need not wait for A or B
         }
-    
-    Attributes:
-        (no specific attributes)
     
     See Also:
         ActivityJoinSpec, ActivityJoinSpecFirst, ActivityParallel
@@ -3319,35 +3693,25 @@ class ActivityJoinSpecNone(ActivityJoinSpec):
     
 class ActivityJoinSpecSelect(ActivityJoinSpec):
     """
-    Join specification that randomly selects branches to complete.
+    `join_select(N)` -- LRM 11.3.6, `activity_join_select`.
     
-    ActivityJoinSpecSelect causes the parallel or schedule block to complete
-    when a specified number of branches have completed. The selection of which
-    branches complete is typically random and can be constrained.
+    The statement following the block is scheduled after N of the block's
+    top-level statements, selected randomly, have completed. Each element
+    of a traversed action array counts as a separate statement. N is an
+    integer known at solve time; 0 is equivalent to `join_none`.
     
     PSS Example::
     
-        action my_action {
-            activity {
-                // Select 2 branches to complete
-                parallel join_select(2) {
-                    do comp.action1;
-                    do comp.action2;
-                    do comp.action3;
-                    do comp.action4;
-                }
-                // Block completes when any 2 actions complete
-                
-                // Select 1 (like a race condition)
-                parallel join_select(1) {
-                    do comp.fast_path;
-                    do comp.slow_path;
-                }
+        activity {
+            parallel join_select(1) {
+                do A;
+                do B;
             }
+            do C;               // after one of A, B (chosen randomly)
         }
     
     Attributes:
-        count: Expression specifying how many branches must complete
+        count: The `expression` N: how many statements are selected.
     
     See Also:
         ActivityJoinSpec, ActivityJoinSpecFirst, ActivityParallel
@@ -3359,30 +3723,27 @@ class ActivityJoinSpecSelect(ActivityJoinSpec):
     
 class ActivityLabeledStmt(ActivityStmt):
     """
-    Base class for activity statements that can have a label.
+    Base class of the activity statements that take an optional
+    `label :` prefix but do not introduce a scope.
     
-    ActivityLabeledStmt provides the ability to attach an optional label to
-    an activity statement. Labels can be used to reference activities in
-    scheduling constraints or for identification purposes.
+    Its subclasses are the two traversals and `super`. Blocks and compound
+    statements carry their label on ActivityLabeledScope instead. A label
+    names the statement for scheduling constraints, `join_branch` and
+    hierarchical references (LRM 11.8); the linker (TaskBuildSymbolTree)
+    registers it in the enclosing named sub-activity.
     
     PSS Example::
     
-        action my_action {
-            activity {
-                my_label: do comp.sub_action;
-                
-                another_label: sequence {
-                    do comp.action1;
-                    do comp.action2;
-                }
-            }
+        activity {
+            L1: do A;
+            L2: a1;
         }
     
     Attributes:
-        label: Optional identifier expression for the label
+        label: The label identifier, or null when the statement has no label.
     
     See Also:
-        ActivityActionHandleTraversal, ActivitySequence, ActivityRepeatCount
+        ActivityActionHandleTraversal, ActivityActionTypeTraversal, ActivitySuper, ActivityLabeledScope
     
     """
     pass
@@ -3399,6 +3760,8 @@ class ActivitySymbolCall(ActivityStmt):
     
     ``target`` names the symbol. It is not resolved here -- the symbol may
     be declared after the call -- so the reference is left to the linker.
+    A symbol activated without an argument list (`s;`) is not a call: it
+    parses as an ActivityActionHandleTraversal.
     
     PSS Example::
     
@@ -3407,11 +3770,14 @@ class ActivitySymbolCall(ActivityStmt):
         }
     
     Attributes:
-        target: The symbol being called
-        params: The call arguments, in order
+        target: The `symbol_identifier` being called. Its target is set by
+            the linker (TaskResolveRefs) to the SymbolDeclaration. A name that
+            is unknown or not a symbol is reported and left unresolved; a call
+            with the wrong number of arguments is reported but still resolved.
+        params: The call arguments, in order; empty for `s()`.
     
     See Also:
-        SymbolDeclaration
+        SymbolDeclaration, ExprRefName, ActivityActionHandleTraversal
     
     """
     pass
@@ -3426,27 +3792,40 @@ class ActivitySymbolCall(ActivityStmt):
     
 class ConstraintScope(ConstraintStmt):
     """
-    Container for a sequence of constraint statements.
+    A sequence of constraint statements.
     
-    A constraint scope groups multiple constraint statements together, forming the body
-    of constraint blocks, conditional constraints, loops, and implications. It maintains
-    the source location information for the entire scope.
+    The base of every construct with a constraint body:
+    ConstraintBlock and the `foreach`, `forall` and implication
+    statements. Used on its own for each branch of a ConstraintStmtIf
+    and for a brace block that is the whole body of a node outside a
+    type's constraint declarations: an in-line `with { ... }` on an
+    action traversal, an activity `constraint { ... }` statement, or
+    a `randomize ... with { ... }`. The statements are kept in source
+    order; each one's `index` is its position in `constraints`.
     
     PSS Example::
     
-        constraint my_constraints {
-            // This entire block is a ConstraintScope
-            value1 > 0;
-            value2 < 100;
-            value1 + value2 == 50;
+        action sub {
+            rand bit[8] value1, value2;
+        }
+    
+        action top {
+            activity {
+                do sub with {       // the with-body is a ConstraintScope
+                    value1 > 0;
+                    value1 + value2 == 50;
+                };
+            }
         }
     
     Attributes:
-        endLocation: Source location of the closing brace
-        constraints: Ordered list of constraint statements within this scope
+        endLocation: Source location of the end of the scope
+            (inherited from ScopeChild)
+        constraints: Ordered list of constraint statements within
+            this scope
     
     See Also:
-        ConstraintBlock, ConstraintStmt
+        ConstraintBlock, ConstraintStmt, ConstraintStmtIf
     
     """
     pass
@@ -3459,35 +3838,45 @@ class ConstraintScope(ConstraintStmt):
     
 class ConstraintStmtDefault(ConstraintStmt):
     """
-    Default value constraint for random fields.
+    Default value constraint, `default hid == constant_expression;`
+    (LRM 13.1.11).
     
-    Specifies a default value for a random field that will be used if no other constraints
-    determine its value. Default constraints have lower priority than regular constraints
-    and can be disabled using 'default disable' statements. This provides a fallback value
-    while allowing overrides.
+    Fixes a random attribute to a constant value unless the default
+    is disabled for that attribute by a `default disable` constraint.
+    While active, a default value constraint has the same meaning as
+    the corresponding equality: it shall hold, and a conflict with
+    another constraint is a contradiction (unlike a soft constraint,
+    which would be discarded). When several defaults apply to one
+    attribute, one from a higher-level containing context overrides
+    one from a lower level, a derived type overrides its base, and
+    within one type a later default overrides an earlier one.
     
     PSS Example::
     
         action network_packet {
             rand bit[16] packet_size;
             rand bit[8] priority;
-            
+    
             constraint defaults_c {
-                default packet_size == 64;      // Minimum Ethernet frame
-                default priority == 0;           // Normal priority
+                default packet_size == 64;
+                default priority == 0;
             }
-            
-            constraint size_limits_c {
-                packet_size <= 1500;             // This overrides default
+        }
+    
+        action jumbo_packet : network_packet {
+            constraint jumbo_c {
+                default disable packet_size;
+                packet_size > 1500;
             }
         }
     
     Attributes:
-        hid: Hierarchical identifier of the field receiving the default value
-        expr: The default value expression
+        hid: The attribute receiving the default value (a
+            `hierarchical_id`)
+        expr: The default value, a constant expression
     
     See Also:
-        ConstraintStmtDefaultDisable, ConstraintStmtExpr, ExprHierarchicalId
+        ConstraintStmtDefaultDisable, ConstraintStmtSoft, ExprRefPathContext
     
     """
     pass
@@ -3498,36 +3887,39 @@ class ConstraintStmtDefault(ConstraintStmt):
     
 class ConstraintStmtDefaultDisable(ConstraintStmt):
     """
-    Disables inherited default value constraints.
+    Default disable constraint, `default disable hid;`
+    (LRM 13.1.11).
     
-    Explicitly disables default constraints that would otherwise be inherited from a base
-    type or applied from enclosing scopes. This allows derived types to override parent
-    defaults or clear unwanted default values, giving full control to other constraints.
+    Removes the default value constraints on the designated
+    attribute, wherever they were declared. Applied to an attribute
+    of an aggregate type, it disables the defaults on every random
+    attribute under it.
     
     PSS Example::
     
         action base_transfer {
             rand bit[16] addr;
             rand bit[8] data;
-            
+    
             constraint defaults_c {
                 default addr == 0x1000;
                 default data == 0;
             }
         }
-        
+    
         action special_transfer : base_transfer {
             constraint override_defaults_c {
-                default disable addr;    // Don't use parent's default
-                addr inside [0x2000..0x2FFF];  // Use this range instead
+                default disable addr;          // Drop the base default
+                addr in [0x2000..0x2FFF];      // Use this range instead
             }
         }
     
     Attributes:
-        hid: Hierarchical identifier of the field whose default is being disabled
+        hid: The attribute whose default is being disabled (a
+            `hierarchical_id`)
     
     See Also:
-        ConstraintStmtDefault, ExprHierarchicalId
+        ConstraintStmtDefault, ExprRefPathContext
     
     """
     pass
@@ -3536,12 +3928,17 @@ class ConstraintStmtDefaultDisable(ConstraintStmt):
     
 class ConstraintStmtDist(ConstraintStmt):
     """
-    Distribution directive: a weighted set of values for an expression.
+    Distribution directive: a weighted set of values for an expression
+    (LRM 13.1.13, `dist_directive`).
     
-    A `dist` directive constrains its target expression to the values
-    covered by the distribution list, and biases the solver toward
-    values in proportion to their weights. Unlike `inside`, the weights
-    make it a distribution rather than a plain set-membership test.
+    A `dist` directive guides the solver: in the absence of
+    conflicting constraints, the target expression takes a value in
+    the distribution list, with probability proportional to each
+    value's weight. It is a kind of soft constraint, with lower
+    priority than every other soft constraint, so other constraints
+    may force the target outside the list. It is a statement, not an
+    expression -- unlike `in` (ExprIn), it does not itself require
+    membership.
     
     PSS Example::
     
@@ -3555,10 +3952,10 @@ class ConstraintStmtDist(ConstraintStmt):
     
     Attributes:
         lhs: The expression being distributed
-        items: The weighted values and ranges
+        items: The weighted values and ranges, in source order
     
     See Also:
-        DistItem, DistWeight, ExprIn
+        DistItem, DistWeight, ExprIn, ConstraintStmtSoft
     
     """
     pass
@@ -3573,28 +3970,28 @@ class ConstraintStmtDist(ConstraintStmt):
     
 class ConstraintStmtExpr(ConstraintStmt):
     """
-    Expression-based constraint statement.
+    Expression constraint (LRM 13.1.5, `expression_constraint_item`).
     
-    Represents a constraint expressed as a Boolean expression that must evaluate to true
-    during randomization. This is the most common form of constraint, supporting arithmetic
-    relations, logical operations, and complex expressions involving random variables.
+    A Boolean expression that shall hold. This is the most common
+    form of constraint: relations, logical operations, set membership
+    (`in`) and calls to generic constraints.
     
     PSS Example::
     
         action transfer {
             rand bit[16] addr;
             rand bit[8] size;
-            
+    
             constraint valid_transfer_c {
                 addr >= 0x1000;                    // Simple relational
                 addr + size <= 0xFFFF;             // Arithmetic expression
-                size inside [1, 2, 4, 8];          // Set membership
+                size in [1, 2, 4, 8];              // Set membership
                 (addr & 0x3) == 0;                 // Address alignment
             }
         }
     
     Attributes:
-        expr: The Boolean expression that must be satisfied
+        expr: The Boolean expression that must hold (without its `;`)
     
     See Also:
         Expr, ConstraintStmt, ConstraintBlock
@@ -3606,25 +4003,35 @@ class ConstraintStmtExpr(ConstraintStmt):
     
 class ConstraintStmtField(ConstraintStmt):
     """
-    Iterator variable declaration within constraint loops.
+    A variable declared by a `foreach` or `forall` constraint.
     
-    Represents a temporary variable introduced by foreach or forall statements. These
-    variables are scoped to the constraint loop body and provide access to collection
-    elements or type instances during constraint evaluation.
+    Represents the iterator or index variable of a
+    ConstraintStmtForeach, or the iterator of a ConstraintStmtForall.
+    The variable is visible only within the statement's body, where it
+    is found through the statement's ConstraintSymbolScope.
+    
+    Where the node lives differs between the two statements. A
+    `foreach` references its variables from `it` and `idx`. A
+    `forall` owns its iterator as entry 0 of its own `constraints`,
+    ahead of the body, so a consumer walking a forall's constraints
+    meets the iterator first.
     
     PSS Example::
     
         constraint iteration_c {
-            foreach (items[idx]) {
-                // 'idx' is a ConstraintStmtField
-                // 'items[idx]' references the element
-                items[idx] != 0;
+            foreach (e : items[idx]) {
+                // 'e' and 'idx' are ConstraintStmtFields
+                e != idx;
             }
         }
     
     Attributes:
-        name: The name of the iterator variable
-        type: The data type of the iterator variable
+        name: The name of the variable, with its source location
+        type: The variable's data type. For a `forall` iterator,
+            the quantified type as written. For a `foreach`
+            iterator, null after parsing and set by the linker
+            (TaskResolveRefs) to the collection's element type,
+            when known. Always null for a `foreach` index.
     
     See Also:
         ConstraintStmtForeach, ConstraintStmtForall, ConstraintSymbolScope
@@ -3638,12 +4045,17 @@ class ConstraintStmtField(ConstraintStmt):
     
 class ConstraintStmtIf(ConstraintStmt):
     """
-    Conditional constraint statement with optional else clause.
+    Conditional constraint (LRM 13.1.7, `if_constraint_item`).
     
-    Applies different constraints based on the evaluation of a Boolean condition. If the
-    condition is true, constraints in the true branch are active; otherwise, constraints
-    in the optional else branch are active. The condition is evaluated after randomization
-    of variables it depends on.
+    When the condition is true, the constraints of the first branch
+    shall hold; otherwise those of the `else` branch, if one was
+    written. Like every constraint, the relation is bidirectional:
+    the solver may choose the condition's variables to satisfy a
+    branch.
+    
+    Each branch is a ConstraintScope, even when written as a single
+    unbraced constraint; the true branch has `index` 0 and the false
+    branch `index` 1.
     
     PSS Example::
     
@@ -3651,21 +4063,22 @@ class ConstraintStmtIf(ConstraintStmt):
             rand bit is_read;
             rand bit[32] addr;
             rand bit[8] data;
-            
+    
             constraint access_type_c {
                 if (is_read) {
-                    addr inside [0x0000..0x0FFF];  // ROM region
+                    addr in [0x0000..0x0FFF];  // ROM region
                 } else {
-                    addr inside [0x1000..0x1FFF];  // RAM region
-                    data != 0;                      // Write non-zero
+                    addr in [0x1000..0x1FFF];  // RAM region
+                    data != 0;                 // Write non-zero
                 }
             }
         }
     
     Attributes:
         cond: The Boolean condition expression
-        true_c: Constraints applied when condition is true
-        false_c: Constraints applied when condition is false (may be empty)
+        true_c: Constraints that hold when the condition is true
+        false_c: Constraints that hold when the condition is false;
+            null when no `else` was written
     
     See Also:
         ConstraintScope, ConstraintStmtExpr, ConstraintStmtImplication
@@ -3693,10 +4106,11 @@ class ConstraintStmtSoft(ConstraintStmt):
     outranks one declared earlier in the same scope, a derived type
     outranks its base, and a type extension outranks the initial
     declaration. The parser's obligation is therefore to preserve
-    declaration order faithfully -- `ConstraintStmt::index` records the
-    position within the enclosing scope, and priority is derived from
-    it downstream. Reordering constraint-scope children would silently
-    change what the model means.
+    declaration order faithfully -- `index` (inherited from
+    ScopeChild) records the position within the enclosing scope, and
+    priority is derived from it downstream. Reordering
+    constraint-scope children would silently change what the model
+    means.
     
     PSS Example::
     
@@ -3723,29 +4137,22 @@ class ConstraintStmtSoft(ConstraintStmt):
     
 class ConstraintStmtUnique(ConstraintStmt):
     """
-    Uniqueness constraint ensuring distinct values.
+    Uniqueness constraint (LRM 13.1.10, `unique_constraint_item`).
     
-    Constrains a set of expressions to have mutually distinct values during randomization.
-    All expressions in the list must evaluate to different values, preventing duplicates
-    within the specified set.
+    Constrains a set of values to be mutually distinct.
     
     PSS Example::
     
         action transaction_set {
             rand bit[8] id1, id2, id3, id4;
             rand bit[16] addr[4];
-            
+    
             constraint unique_ids_c {
                 unique { id1, id2, id3, id4 };
             }
-            
+    
             constraint unique_addresses_c {
-                unique { addr[0], addr[1], addr[2], addr[3] };
-            }
-            
-            constraint mixed_unique_c {
-                unique { id1, id2, id3 };  // First three must differ
-                // id4 is not constrained by this
+                unique addr;
             }
         }
     
@@ -3767,8 +4174,11 @@ class ConstraintStmtUnique(ConstraintStmt):
     last `ExprMemberPathElem` (an `ExprSliceRange`).
     
     Attributes:
-        list: Expressions that must have unique values
-        is_braced: True for the `unique { ... }` form
+        list: The attributes whose values must be unique, one per
+            `hierarchical_id` written; a single entry, the
+            collection, for the unbraced form
+        is_braced: True for the `unique { ... }` form, false for the
+            single-argument form
     
     See Also:
         ConstraintStmtExpr, ExprHierarchicalId, ExprSliceRange
@@ -3784,7 +4194,8 @@ class ConstraintStmtUnique(ConstraintStmt):
     
 class CoverStmtInline(Scope):
     """
-    Anonymous monitor body instantiated for behavioral coverage.
+    Anonymous monitor body instantiated for behavioral coverage
+    (LRM 16.1, the second form of `cover_stmt`).
     
     ``cover { ... }`` writes a monitor body in place instead of naming a
     previously declared monitor type. The braces admit exactly what a
@@ -3795,6 +4206,11 @@ class CoverStmtInline(Scope):
     other braced declaration body, the linked-tree scope its members
     resolve against is a synthetic mirror the linker builds, not this
     node.
+    
+    The linker (TaskBuildSymbolTree) gives it an unnamed synthetic
+    SymbolScope, so its members are visible inside the braces and not
+    in the enclosing component. A cover statement is a
+    ``component_body_item``; it is never an activity statement.
     
     The optional ``label`` comes from the ``label_identifier ':'`` prefix.
     
@@ -3816,7 +4232,8 @@ class CoverStmtInline(Scope):
         }
     
     Attributes:
-        label: Label identifier, or null if the statement is unlabeled
+        label: Label identifier (``inline_cov`` above), or null if the
+            statement is unlabeled. Set by the parser.
     
     See Also:
         CoverStmtReference, Monitor, MonitorActivityDecl
@@ -3828,10 +4245,15 @@ class CoverStmtInline(Scope):
     
 class Covergroup(NamedScopeChild):
     """
-    An inline covergroup instance declared in an action/struct/component.
+    An in-line covergroup: an anonymous covergroup type and its single
+    instance, declared in an action, monitor or struct (LRM 15.2,
+    `inline_covergroup`).
     
     Corresponds to the PSS ``covergroup { ... } name;`` form. Carries the
     instance name (inherited) plus its coverpoints, crosses and options.
+    An in-line covergroup may reference the fields of the scope it is
+    declared in. Annotations written in the body are accepted but not
+    kept.
     
     PSS Example::
     
@@ -3847,16 +4269,17 @@ class Covergroup(NamedScopeChild):
     
     Attributes:
         name: Covergroup instance name (inherited from NamedScopeChild)
-        coverpoints: The covergroup's coverpoints
-        crosses: The covergroup's crosses
+        coverpoints: The covergroup's coverpoints, in source order
+        crosses: The covergroup's crosses, in source order
         options: ``option.x = y;`` settings from the covergroup body
-        body: Set by the linker: the scope of the coverpoint and cross
-            names (LRM 15.3 a, 15.4), a synthetic symbol scope whose
-            target is this covergroup and whose members are the
-            coverpoints and crosses, not owned. Cross items, bin
-            targets and ``with`` expressions are resolved with it in
-            view; coverpoint targets, ``iff`` guards and bin ranges
-            are not. Not walked by the generated visitors.
+        body: Set by the linker (TaskBuildSymbolTree): the scope of the
+            coverpoint and cross names (LRM 15.3 a, 15.4), a synthetic
+            symbol scope whose target is this covergroup and whose
+            members are the coverpoints and crosses, not owned. Cross
+            items, bin targets and ``with`` expressions are resolved
+            (TaskResolveRefs) with it in view; coverpoint targets,
+            ``iff`` guards and bin ranges are not. Null before
+            linking. Not walked by the generated visitors.
     
     See Also:
         CovergroupType, CovergroupCoverpoint, CovergroupCross
@@ -3886,11 +4309,15 @@ class Covergroup(NamedScopeChild):
     
 class CovergroupCoverpoint(NamedScopeChild):
     """
-    A coverpoint within a covergroup.
+    A coverpoint within a covergroup (LRM 15.3,
+    `covergroup_coverpoint`).
     
-    Samples the value of ``target`` (an expression, typically a field
-    reference). The coverpoint name is the optional label, or the target
-    identifier when unlabeled.
+    Samples the value of ``target`` (an integer or enum expression,
+    typically a field reference) when the covergroup is sampled. The
+    coverpoint name is the label, when one is written. Without a label
+    the builder names the coverpoint with the target's source text,
+    which is the variable name in the only unlabeled form the LRM
+    allows (a coverpoint on a single variable).
     
     PSS Example::
     
@@ -3905,11 +4332,14 @@ class CovergroupCoverpoint(NamedScopeChild):
         } cg;
     
     Attributes:
-        name: Coverpoint name (inherited from NamedScopeChild)
+        name: Coverpoint name (inherited from NamedScopeChild): the
+            label, or the target's text when unlabeled
         target: Expression being sampled
-        data_type: Explicit sample type, if one was written
-        iff: Guard expression -- the sample is taken only when it holds
-        bins: Bin specifications from the coverpoint body
+        data_type: Explicit sample type; null when none was written
+        iff: Guard expression -- the sample is taken only when it
+            holds; null when no ``iff`` was written
+        bins: Bin specifications from the coverpoint body, in source
+            order; empty when there are none (automatic bins)
         options: ``option.x = y;`` settings from the coverpoint body
     
     See Also:
@@ -3938,7 +4368,11 @@ class CovergroupCoverpoint(NamedScopeChild):
     
 class CovergroupCross(NamedScopeChild):
     """
-    A cross of named coverpoints within a covergroup.
+    A cross of coverpoints within a covergroup (LRM 15.4,
+    `covergroup_cross`).
+    
+    Each crossed item is a coverpoint of the same covergroup or a
+    variable, which then acts as an implicit coverpoint.
     
     PSS Example::
     
@@ -3953,8 +4387,12 @@ class CovergroupCross(NamedScopeChild):
     
     Attributes:
         name: Cross name (inherited from NamedScopeChild)
-        coverpoint_names: Names of the coverpoints being crossed
-        iff: Guard expression -- the sample is taken only when it holds
+        coverpoint_names: The items being crossed, in source order.
+            Each target is set by the linker (TaskResolveRefs) to a
+            coverpoint of the covergroup or, failing that, a data
+            field
+        iff: Guard expression -- the sample is taken only when it
+            holds; null when no ``iff`` was written
         bins: Bin specifications from the cross body
         options: ``option.x = y;`` settings from the cross body
     
@@ -3986,13 +4424,15 @@ class CovergroupCross(NamedScopeChild):
     
 class CovergroupCrossBins(NamedScopeChild):
     """
-    A bins specification in a ``cross`` body.
+    A bins specification in a ``cross`` body (LRM 15.4.3,
+    `covergroup_cross_binspec`).
     
     The cross form is narrower than the coverpoint form -- LRM B.15 gives
     it exactly one shape, ``<kind> name = <cross> with ( expr );`` -- so
     it is a separate class rather than another ``form`` on
     ``CoverpointBins``, whose optional fields would then all be
-    inapplicable.
+    inapplicable. In the ``with`` expression, the names of the crossed
+    coverpoints stand for their values.
     
     PSS Example::
     
@@ -4005,13 +4445,15 @@ class CovergroupCrossBins(NamedScopeChild):
         } cg;
     
     Attributes:
-        name: The bin name
+        name: The bin name (inherited from NamedScopeChild)
         kind: bins / illegal_bins / ignore_bins
-        target: The cross the bins are derived from
+        target: The cross the bins are derived from; its target is set
+            by the linker (TaskResolveRefs), which reports an error if
+            it names any cross but the bin's own
         with_expr: The filter expression
     
     See Also:
-        CovergroupCross, CoverpointBins
+        CovergroupCross, CoverpointBins, CovergroupBinsKindE
     
     """
     pass
@@ -4025,7 +4467,8 @@ class CovergroupCrossBins(NamedScopeChild):
     
 class CovergroupInstantiation(NamedScopeChild):
     """
-    An instance of a named covergroup type -- ``cg_t cg(.a(x));``.
+    An instance of a named covergroup type -- ``cg_t cg(.a(x));``
+    (LRM 15.2, `covergroup_type_instantiation`).
     
     The grammar offers two ways to supply actuals and they are mutually
     exclusive, so exactly one of ``portmap`` and ``targets`` is populated:
@@ -4035,19 +4478,23 @@ class CovergroupInstantiation(NamedScopeChild):
     
         struct s {
             rand int x, y;
-            cg_t cg1(.a(x), .b(y));           // named
-            cg_t cg2(x, y) with { option.weight = 2; };   // positional
+            cg_t cg1(.a(x), .b(y));                      // named
+            cg_t cg2(x, y) with { option.weight = 2; }   // positional
         }
     
     Attributes:
-        name: The instance name
-        type: The covergroup type being instantiated
-        portmap: Named actuals, for the ``.port(actual)`` form
-        targets: Positional actuals, for the bare-list form
-        options: ``with { option.x = y; }`` settings
+        name: The instance name (inherited from NamedScopeChild)
+        type: The covergroup type being instantiated; resolved by the
+            linker (TaskResolveRefs)
+        portmap: Named actuals, for the ``.port(actual)`` form; empty
+            for the positional form
+        targets: Positional actuals, for the bare-list form; empty for
+            the named form
+        options: ``with { option.x = y; }`` settings; empty when the
+            instantiation ends in ``;``
     
     See Also:
-        CovergroupType, CovergroupPortmap
+        CovergroupType, CovergroupPortmap, CovergroupOption
     
     """
     pass
@@ -4074,7 +4521,8 @@ class CovergroupInstantiation(NamedScopeChild):
     
 class CoverpointBins(NamedScopeChild):
     """
-    A ``bins`` / ``illegal_bins`` / ``ignore_bins`` specification.
+    A ``bins`` / ``illegal_bins`` / ``ignore_bins`` specification in a
+    coverpoint body (LRM 15.3.3, `covergroup_coverpoint_binspec`).
     
     The three keywords differ only in what the tool does with the bin, so
     they are one class with a ``kind`` rather than three classes.
@@ -4092,29 +4540,40 @@ class CoverpointBins(NamedScopeChild):
     ``is_array`` records the brackets and ``array_size`` the optional
     expression inside them.
     
+    In a ``with`` filter the coverpoint's own name stands for the
+    candidate value (LRM 15.3.3.3).
+    
     PSS Example::
     
         covergroup {
             cp : coverpoint x {
                 bins low     = [0..3];
-                bins high[4] = [8..15] with (x % 2 == 0);
-                bins mirror  = cp with (x > 0);
+                bins high[4] = [8..15] with (cp % 2 == 0);
+                bins odd[]   = cp with (cp % 2 == 1);
                 ignore_bins  rest = default;
             }
         } cg;
     
     Attributes:
-        name: The bin name
+        name: The bin name (inherited from NamedScopeChild)
         kind: bins / illegal_bins / ignore_bins
         form: Which right-hand side was written
         is_array: True if the name was followed by brackets
-        array_size: The expression inside the brackets, if any
-        ranges: The value list, for the ``Ranges`` form
-        target: The coverpoint named, for the ``Coverpoint`` form
-        with_expr: The ``with (...)`` filter, where one is present
+        array_size: The expression inside the brackets; null for
+            ``[]`` and for a bin that is not an array
+        ranges: The value list, for the ``Ranges`` form; each entry is
+            a value, ``lo..hi``, ``lo..`` or ``..hi``. Empty for the
+            other forms
+        target: The coverpoint named, for the ``Coverpoint`` form;
+            null otherwise. Its target is set by the linker
+            (TaskResolveRefs), which reports an error if it names any
+            coverpoint but the bin's own
+        with_expr: The ``with (...)`` filter; null when none was
+            written (always present for the ``Coverpoint`` form)
     
     See Also:
-        CovergroupCoverpoint, CovergroupCrossBins
+        CovergroupCoverpoint, CovergroupCrossBins, CovergroupBinsKindE
+        CoverpointBinsFormE
     
     """
     pass
@@ -4139,15 +4598,15 @@ class CoverpointBins(NamedScopeChild):
     
 class DataTypeBool(DataType):
     """
-    Boolean data type.
+    Boolean data type: `bool` (`bool_type`, LRM 7.4).
     
-    Represents the 'bool' type in PSS. Boolean values are true or false.
+    Values are `true` and `false`.
     
     PSS Example::
     
         bool flag;
         rand bool enable;
-        
+    
         constraint {
             enable == true;
         }
@@ -4160,11 +4619,10 @@ class DataTypeBool(DataType):
     
 class DataTypeChandle(DataType):
     """
-    Opaque handle type for referencing external objects.
+    Opaque handle type: `chandle` (`chandle_type`, LRM 7.7).
     
-    Represents the 'chandle' type - an opaque pointer to data managed
-    outside PSS (typically C/C++ objects). Used for interfacing with
-    external code and APIs.
+    An opaque pointer to data managed outside PSS (typically C/C++
+    objects), passed through the foreign procedural interface.
     
     PSS Example::
     
@@ -4178,21 +4636,26 @@ class DataTypeChandle(DataType):
     
 class DataTypeEnum(DataType):
     """
-    Enum type reference with optional range restriction.
+    Enum type with a value domain (`enum_type`, LRM 7.5.1).
     
-    Represents a reference to an enum type, optionally restricted to
-    a subset of enum values using an 'in' range expression.
+    Built only for the `enum_type_identifier in [ ... ]` form, which
+    restricts the enum to a subset of its items. A plain use of an enum
+    type (`my_enum e;`) is a DataTypeUserDefined, not a DataTypeEnum.
     
     PSS Example::
     
         enum my_enum { A, B, C, D };
-        
-        rand my_enum value in [A, B];    // Only A or B allowed
+    
+        rand my_enum in [A, B] value;    // Only A or B allowed
     
     Attributes:
-        tid: Reference to the user-defined enum type
-        in_rangelist: Optional domain restriction. A domain, like an
-            integer type's, may have open ranges (7.5.2: `in [..B]`)
+        tid: Reference to the enum type, as a DataTypeUserDefined; its
+            target is set by the linker (TaskResolveRefs)
+        in_rangelist: The `in [...]` domain. A domain, like an integer
+            type's, may have open ranges (7.5.2: `in [..B]`). A bare name
+            in it is resolved first as an item of this enum, by the
+            linker (TaskResolveRefs). Always set by the parser, since the
+            grammar requires the domain for this form
     
     See Also:
         EnumDecl, DataTypeUserDefined, ExprDomainOpenRangeList
@@ -4206,11 +4669,11 @@ class DataTypeEnum(DataType):
     
 class DataTypeFloat(DataType):
     """
-    Floating-point data type.
+    Floating-point data type (`float_type`, LRM 7.3).
     
-    Represents the PSS 3.1 ``float32`` and ``float64`` types (§4.6).
-    ``is_float64`` distinguishes the two widths; they differ only in
-    precision, so a single node carries both.
+    Represents the PSS 3.1 ``float32`` and ``float64`` types (IEEE 754
+    binary32 and binary64). ``is_float64`` distinguishes the two widths;
+    they differ only in precision, so a single node carries both.
     
     PSS Example::
     
@@ -4228,22 +4691,27 @@ class DataTypeFloat(DataType):
     
 class DataTypeInt(DataType):
     """
-    Integer data type with signedness, width, and optional range.
+    Integer data type: `int` or `bit` (`integer_type`, LRM 7.2).
     
-    Represents integer types in PSS. Can be signed/unsigned, have
-    explicit or inferred bit-width, and include value constraints.
+    Carries signedness, width and an optional value domain. With no
+    width written, the parser fills in the default: 32 for `int`, 1 for
+    `bit`. The non-standard `[msb:0]` form is accepted and stored as the
+    width `msb+1`.
     
     PSS Example::
     
-        int[8] byte_val;                    // 8-bit signed
-        bit[16] word_val;                   // 16-bit unsigned
-        rand int addr in [0x1000..0x2000];  // With range constraint
-        int value;                          // Implementation-defined width
+        int[8] byte_val;                     // 8-bit signed
+        bit[16] word_val;                    // 16-bit unsigned
+        bit[7:0] b;                          // same as bit[8]
+        rand int in [0x1000..0x2000] addr;   // With a value domain
+        int value;                           // 32 bits by default
     
     Attributes:
-        is_signed: True for 'int', false for 'bit'
-        width: Bit-width expression (optional)
-        in_range: Optional domain range constraint
+        is_signed: True for `int`, false for `bit`
+        width: Bit-width expression; the default width when none was
+            written. Null only on types the tool builds itself (the
+            built-in function signatures' `int`)
+        in_range: The `in [...]` value domain; null when absent
     
     See Also:
         DataType, ExprDomainOpenRangeList
@@ -4257,10 +4725,15 @@ class DataTypeInt(DataType):
     
 class DataTypePyObj(DataType):
     """
-    Python object type for embedded Python integration.
+    Python object type, `pyobj` (a zuspec extension, not in the LRM).
     
-    Represents Python objects accessible within PSS. Used for
-    interfacing with embedded Python code and libraries.
+    An opaque reference to a Python object, for models that call into
+    Python through `pyimport`. It has no attributes.
+    
+    PSS Example::
+    
+        pyimport numpy;
+        function pyobj make_array(int n);
     
     See Also:
         DataTypeChandle, PyImportStmt
@@ -4270,24 +4743,30 @@ class DataTypePyObj(DataType):
     
 class DataTypeRef(DataType):
     """
-    Reference type to another type instance.
+    Reference type: `ref entity_type_identifier` (`reference_type`,
+    LRM 7.10).
     
-    Represents a reference (pointer) to an instance of a user-defined
-    type. Used for creating references to action or component instances.
+    A reference to an action, monitor, component, flow-object or
+    resource instance. Usable for local variables, function parameters
+    and return values; only component references may declare fields (in
+    components, actions and monitors).
     
     PSS Example::
     
-        action A { }
-        
-        action B {
-            ref A a_ref;    // Reference to action A instance
+        component sub_c { }
+    
+        component pss_top {
+            ref sub_c peer;                     // component ref field
+            function void use(ref sub_c c);     // ref parameter
         }
     
     Attributes:
-        type: The user-defined type being referenced
+        type: The referenced entity type. Null only when the
+            `entity_type_identifier` did not build a user-defined type,
+            which the parser reports as an internal error
     
     See Also:
-        DataTypeUserDefined, FieldRef
+        DataTypeUserDefined, FieldCompRef
     
     """
     pass
@@ -4296,19 +4775,18 @@ class DataTypeRef(DataType):
     
 class DataTypeString(DataType):
     """
-    String data type with optional value constraint.
-    
-    Represents string literals and variables in PSS. Can be constrained
-    to a specific set of allowed string values.
+    String data type, with an optional value domain (`string_type`,
+    LRM 7.6).
     
     PSS Example::
     
         string message;
-        rand string mode in ["read", "write", "execute"];
+        rand string in ["read", "write", "execute"] mode;
     
     Attributes:
-        has_range: True if 'in' constraint is present
-        in_range: List of allowed string values
+        has_range: True when the `in [...]` domain is present
+        in_range: The domain's string literals in source order, with
+            their quotes stripped; empty when there is no domain
     
     See Also:
         DataType, ExprString
@@ -4324,23 +4802,30 @@ class DataTypeString(DataType):
     
 class DataTypeUserDefined(DataType):
     """
-    Reference to a user-defined type (action, component, struct, enum).
+    A type named by a `type_identifier` (LRM 7.1, 7.11).
     
-    Represents a type reference using a type identifier. The identifier
-    may be simple or hierarchical (package-qualified). Resolution to the
-    actual type occurs during linking phase.
+    Names an action, component, struct, flow or resource object, enum,
+    typedef, or a template type such as `list<int>`. The identifier may
+    be simple or package-qualified, with template arguments. The parser
+    also builds one for each array dimension of a declaration
+    (`int a[4]` names `array<int,4>`) and for the type inside `ref`, an
+    enum domain and object-reference fields. Resolution to the declared
+    type is recorded on `type_id`.
     
     PSS Example::
     
         my_pkg::my_action a1;        // Qualified type reference
         my_struct s1;                // Simple type reference
+        list<int> values;            // Template type
     
     Attributes:
-        is_global: True if type reference starts with '::'
-        type_id: Hierarchical type identifier
+        is_global: True if the type reference starts with `::`
+        type_id: The type identifier. Its target is set by the linker
+            (TaskResolveRefs) to the declaration it names
     
     See Also:
-        TypeIdentifier, DataType, Action, Component, Struct
+        TypeIdentifier, DataType, Action, Component, Struct,
+        TypedefDeclaration
     
     """
     pass
@@ -4349,25 +4834,26 @@ class DataTypeUserDefined(DataType):
     
 class EnumDecl(NamedScopeChild):
     """
-    Enum type declaration with named values.
+    Enum type declaration (`enum_declaration`, LRM 7.5.1).
     
-    Declares an enumerated type with a set of named constant values.
-    Enums can be used as field types and in constraints.
+    Declares an enumerated type: a distinct type whose values are a set
+    of named integral constants. Enums can be used as field types and in
+    constraints.
     
     PSS Example::
     
         enum direction {
             NORTH, SOUTH, EAST, WEST
         };
-        
+    
         enum error_code {
             SUCCESS = 0,
             ERR_INVALID = 1,
             ERR_TIMEOUT = 2
         };
     
-    PSS 3.1 (§3.1, Annex B B.13) adds an optional base type, which fixes
-    the representation of the enumerators::
+    An optional base type, which must be an integer type, fixes the
+    width and signedness of the enumerators::
     
         enum mode_e : bit[4] {          // With an explicit base type
             IDLE = 0, RUN = 1
@@ -4375,13 +4861,14 @@ class EnumDecl(NamedScopeChild):
     
     Attributes:
         name: Enum type name (inherited from NamedScopeChild)
-        items: List of enumerator values
-        base_type: Declared integral base type, or null when none was
-            written. Only an enum that has one may be a member of a
+        items: The enumerators in source order; empty for `enum e { }`.
+            Items added by `extend enum` stay on the ExtendEnum
+        base_type: Declared base type (`: data_type`), or null when none
+            was written. Only an enum that has one may be a member of a
             packed struct (21.13.1).
     
     See Also:
-        EnumItem, DataTypeEnum
+        EnumItem, DataTypeEnum, ExtendEnum
     
     """
     pass
@@ -4396,10 +4883,13 @@ class EnumDecl(NamedScopeChild):
     
 class EnumItem(NamedScopeChild):
     """
-    Single enumerator value within an enum declaration.
+    One enumerator in an enum declaration or an `extend enum`
+    (`enum_item`, LRM 7.5.1).
     
-    Represents one named value in an enum. Can have an explicit value
-    expression or be auto-assigned sequentially.
+    An item may have an explicit value; otherwise it takes the previous
+    item's value + 1 (0 for the first). The parser precomputes each
+    item's value into the inherited `index` where it can evaluate it.
+    Items are static constant members of their enum.
     
     PSS Example::
     
@@ -4411,11 +4901,15 @@ class EnumItem(NamedScopeChild):
     
     Attributes:
         name: Enumerator identifier (inherited from NamedScopeChild)
-        value: Optional value expression
-        upper: Back-reference to containing enum scope
+        value: The `= constant_expression` value; null when absent
+        upper: The SymbolEnumScope of the enum that declares the item.
+            Not set by the parser; set by the linker (TaskBuildSymbolTree)
+            for an item of an EnumDecl. An item contributed by
+            `extend enum` is merged into the target enum's scope by
+            TaskApplyTypeExtensions, which does not set it
     
     See Also:
-        EnumDecl, NamedScopeChild
+        EnumDecl, ExtendEnum, SymbolEnumScope, NamedScopeChild
     
     """
     pass
@@ -4426,16 +4920,16 @@ class EnumItem(NamedScopeChild):
     
 class ExprAggrEmpty(ExprAggrLiteral):
     """
-    Represents an empty aggregate literal.
+    The empty aggregate literal `{}` (LRM 4.8.1,
+    `empty_aggregate_literal`).
     
-    Used to initialize arrays, maps, or structs with no elements. This is the
-    literal form `{}` that creates an empty collection or default-initialized
-    composite structure.
+    Denotes an empty collection when used for a variable-sized
+    collection type (list, set, map).
     
     PSS Example::
     
-        array<int, 10> arr = {};  // Empty array literal
-        map<string, int> m = {};  // Empty map literal
+        list<int> l = {};
+        map<string, int> m = {};
     
     See Also:
         ExprAggrLiteral, ExprAggrList, ExprAggrMap
@@ -4445,19 +4939,19 @@ class ExprAggrEmpty(ExprAggrLiteral):
     
 class ExprAggrList(ExprAggrLiteral):
     """
-    Represents an array or list literal expression.
+    A value list literal (LRM 4.8.2, `value_list_literal`): a
+    brace-enclosed, comma-separated list of expressions.
     
-    Contains a comma-separated list of expressions enclosed in braces. Used to
-    initialize arrays with explicit element values. Each element expression is
-    evaluated and assigned to the corresponding array position.
+    Used for arrays, lists and sets; for an array or list the elements
+    are in order from element 0. Elements need not be constant.
     
     PSS Example::
     
-        array<int, 5> values = {1, 2, 3, 4, 5};
-        array<bit[8], 3> bytes = {8'hFF, 8'h00, 8'hAA};
+        int c1[4] = {1, 2, 3, 4};
+        list<bit[8]> bytes = {8'hFF, 8'h00, 8'hAA};
     
     Attributes:
-        elems: List of expression elements in the array literal
+        elems: The element expressions, in source order (at least one)
     
     See Also:
         ExprAggrLiteral, ExprAggrEmpty
@@ -4473,21 +4967,20 @@ class ExprAggrList(ExprAggrLiteral):
     
 class ExprAggrMap(ExprAggrLiteral):
     """
-    Represents a map literal expression.
+    A map literal (LRM 4.8.3, `map_literal`): brace-enclosed
+    `key : value` pairs.
     
-    Contains key-value pairs for initializing map data structures. Each element
-    is an ExprAggrMapElem with a key in square brackets followed by a colon and value.
+    If a key appears more than once, the last value applies. Keys and
+    values need not be constant.
     
     PSS Example::
     
-        map<string, int> ages = {
-            ["Alice"]: 30,
-            ["Bob"]: 25,
-            ["Charlie"]: 35
-        };
+        struct t {
+            map<int, bool> m = {1: true, 2: false, 4: true};
+        }
     
     Attributes:
-        elems: List of key-value pair elements
+        elems: The key-value items, in source order
     
     See Also:
         ExprAggrMapElem, ExprAggrLiteral
@@ -4503,23 +4996,24 @@ class ExprAggrMap(ExprAggrLiteral):
     
 class ExprAggrStruct(ExprAggrLiteral):
     """
-    Represents a struct literal expression.
+    A structure literal (LRM 4.8.4, `struct_literal`): named attribute
+    values in braces.
     
-    Initializes a struct with named field values. Each element specifies a field name
-    and its corresponding value expression. Fields can be initialized in any order,
-    and unspecified fields receive default values.
+    Attributes may be given in any order; one that is not given takes
+    the default value of its type, and naming one twice is an error.
     
     PSS Example::
     
-        struct Point {
-            int x;
-            int y;
+        struct s {
+            int a, b, c, d;
         }
-        
-        Point p = {x: 100, y: 200};
+        struct t {
+            s s1 = {.a=1, .b=2, .c=0, .d=0};
+            s s2 = {.b=2, .a=1};
+        }
     
     Attributes:
-        elems: List of field initialization elements
+        elems: The `.name = value` items, in source order
     
     See Also:
         ExprAggrStructElem, ExprAggrLiteral
@@ -4535,21 +5029,27 @@ class ExprAggrStruct(ExprAggrLiteral):
     
 class ExprRefPathContext(ExprRefPath):
     """
-    Represents a context-relative reference path.
+    A reference resolved from the current context: a dotted path that
+    starts with a plain name, or with `super.` (Annex B, the second
+    form of `ref_path`).
     
-    A reference that navigates relative to the current context, optionally
-    starting with a super reference to access parent scope. The hier_id
-    specifies the path to follow.
+    The first element is looked up in the enclosing scopes; each later
+    element is a member of the one before. Also used by the builder
+    wherever a construct names a hierarchical path (bind targets,
+    covergroup port maps, and so on).
     
     PSS Example::
     
-        super.parent_field      // Access parent's field
-        comp.sub.field          // Navigate through context
+        field
+        comp.sub.field
+        regs.ctrl.write_val(1)
+        data[7:0]               // with a bit slice
     
     Attributes:
-        is_super: True if path starts with super keyword
-        hier_id: Hierarchical identifier path
-        slice: Optional bit slice
+        is_super: True only on an ExprRefPathSuper (the path was
+            written with a leading `super.`); false otherwise
+        hier_id: The path elements
+        slice: The trailing `[msb : lsb]` bit slice; null when absent
     
     See Also:
         ExprRefPath, ExprHierarchicalId, ExprRefPathSuper
@@ -4563,22 +5063,31 @@ class ExprRefPathContext(ExprRefPath):
     
 class ExprRefPathStatic(ExprRefPath):
     """
-    Represents a static reference path to types or symbols.
+    A reference through `::`-qualified names (Annex B,
+    `static_ref_path`): a package, type or enum-qualified constant,
+    function, or enum item.
     
-    Used to reference types, packages, or compile-time constants through
-    qualified names. Can be global (starting with ::) or relative. The base
-    contains the type identifier path elements.
+    Built on its own when the last element is a plain name (no call
+    arguments or subscripts) and no member path follows; then `base`
+    holds every element, the last included. As the root of an
+    ExprRefPathStaticRooted it holds only the qualifying elements.
     
     PSS Example::
     
-        ::my_pkg::my_type           // Global static reference
-        pkg::type_name              // Package-qualified type
-        std::addr_handle_t          // Standard library type
+        my_pkg::MAX_SIZE            // base = [my_pkg, MAX_SIZE]
+        ::top_pkg::config_t::VAL    // is_global, base = [top_pkg, config_t, VAL]
+        color_e::RED                // an enum item
     
     Attributes:
-        is_global: True if path starts with :: (global scope)
-        base: List of type identifier elements forming the path
-        slice: Optional bit slice
+        is_global: True if the path starts with `::` (the unnamed
+            global package)
+        base: The `::`-separated elements, each with optional
+            template arguments. Empty only for the root of a
+            path written `::name` followed by a call or member
+            path, such as `::f()`
+        slice: The trailing `[msb : lsb]` bit slice; null when absent
+        target: (inherited) Set by the linker (TaskResolveRefs) to the
+            declaration the whole path names
     
     See Also:
         ExprRefPath, TypeIdentifierElem, ExprRefPathStaticRooted
@@ -4596,22 +5105,30 @@ class ExprRefPathStatic(ExprRefPath):
     
 class ExprRefPathStaticRooted(ExprRefPath):
     """
-    Represents a reference path with static root and dynamic leaf.
+    A reference with a static root and a member path (Annex B,
+    `static_ref_path` followed by `. hierarchical_id`, or a static
+    path whose last element is called or subscripted).
     
-    Combines a static reference path (root) with a hierarchical identifier
-    (leaf) for mixed static/dynamic references. The root is resolved statically,
-    then the leaf is navigated dynamically from that point.
+    The root names a package or type scope and is resolved first;
+    the leaf is then resolved as members of it. The last element of
+    the static path is the first element of the leaf. Also built for
+    a qualified void function call statement (`p::f(1);`).
     
     PSS Example::
     
         my_pkg::my_type::field.subfield
         // root: my_pkg::my_type
         // leaf: field.subfield
+        my_pkg::f(1)
+        // root: my_pkg, leaf: f(1)
     
     Attributes:
-        root: Static reference path to the base
-        leaf: Hierarchical identifier for dynamic navigation
-        slice: Optional bit slice
+        root: The qualifying part, as an ExprRefPathStatic whose
+            target the linker sets
+        leaf: The member path, starting with the static path's last
+            element
+        slice: The trailing `[msb : lsb]` bit slice, applied to the
+            leaf's value; null when absent
     
     See Also:
         ExprRefPathStatic, ExprHierarchicalId
@@ -4627,22 +5144,25 @@ class ExprRefPathStaticRooted(ExprRefPath):
     
 class ExprSignedNumber(ExprNumber):
     """
-    Represents a signed integer literal value.
+    An integer literal written with the signed base modifier `s`
+    (LRM 4.6.1), such as `8'sd10` or `'sh7F`.
     
-    Stores a signed numeric constant with its textual representation, bit width,
-    and numeric value. Can represent negative numbers and is used for signed
-    arithmetic expressions.
+    A literal without `s` is an ExprUnsignedNumber, whatever its
+    value; a leading `-` is a separate ExprUnary.
     
     PSS Example::
     
-        -42
-        -8'sd10         // Signed decimal with specified width
-        -100
+        8'sd10
+        4'sb1010
+        'sh7F
     
     Attributes:
-        image: Original text representation from source
-        width: Bit width of the value (0 for unsized)
-        value: The signed integer value
+        image: The literal as written in the source, digit separators
+            included
+        width: The size prefix (8 in `8'sd10`); 32 when the literal
+            has none; -1 if the text could not be read
+        value: The digits' value. It is not sign-extended from
+            `width`: `4'sb1111` has value 15
     
     See Also:
         ExprNumber, ExprUnsignedNumber
@@ -4677,8 +5197,9 @@ class ExprTemplateString(ExprString):
         static const string greeting = \"\"\"Hello, {{name}}!\"\"\";
     
     Attributes:
-        template: The scanned template body
+        template: The scanned template body, set by the parser
         value: Raw text with quotes stripped (inherited from ExprString)
+        is_raw: Always true (inherited from ExprString)
     
     See Also:
         ExprString, TemplateString
@@ -4690,22 +5211,27 @@ class ExprTemplateString(ExprString):
     
 class ExprUnsignedNumber(ExprNumber):
     """
-    Represents an unsigned integer literal value.
+    An integer literal without the signed modifier (LRM 4.6.1): any
+    unbased decimal, `0x`, `0b` or `0`-octal number, and any based
+    literal written without `s`.
     
-    Stores an unsigned numeric constant with its textual representation, bit width,
-    and numeric value. Used for positive integers and unsigned arithmetic.
+    The builder also synthesizes these for implied values (for
+    example the default width of a bare `int` or `bit`), with an
+    image such as "32".
     
     PSS Example::
     
         42
-        8'hFF           // Hexadecimal with specified width
-        32'hDEADBEEF    // 32-bit hex value
-        1000
+        8'hFF
+        32'hDEAD_BEEF
+        0b1010
     
     Attributes:
-        image: Original text representation from source
-        width: Bit width of the value (0 for unsized)
-        value: The unsigned integer value
+        image: The literal as written in the source, digit separators
+            included
+        width: The size prefix (8 in `8'hFF`); 32 when the literal
+            has none; -1 if the text could not be read
+        value: The literal's value
     
     See Also:
         ExprNumber, ExprSignedNumber
@@ -4719,24 +5245,30 @@ class ExprUnsignedNumber(ExprNumber):
     
 class ExtendType(Scope):
     """
-    Type extension declaration for adding members to existing types.
+    Type extension declaration for adding members to existing types
+    (`extend_stmt`, LRM 17.2).
     
     Represents an 'extend' statement that adds new fields, constraints,
     or methods to an existing type (action, component, struct, etc.).
     Extensions are merged with the base type during linking, allowing
-    modular enhancement of types without modifying their original definition.
+    modular enhancement of types without modifying their original
+    definition: TaskBuildSymbolTree collects the members in a
+    SymbolExtendScope, and TaskApplyTypeExtensions resolves `target`
+    and merges them into the type's SymbolTypeScope. Extending a
+    template instance (`extend struct s<8>`, LRM 17.2.6) is applied to
+    that specialization only.
     
     PSS Example::
     
         component my_comp {
             action base_action { }
         }
-        
+    
         extend component my_comp {
             action extended_action { }
         }
-        
-        extend action base_action {
+    
+        extend action my_comp::base_action {
             rand int new_field;
             constraint new_constraint {
                 new_field > 0;
@@ -4744,14 +5276,18 @@ class ExtendType(Scope):
         }
     
     Attributes:
-        kind: Type being extended (Action, Component, Struct, etc.)
-        target: Type identifier of the type to extend
-        symtab: Symbol table for extended members
-        imports: Import specifications for this extension
-        children: New members being added (inherited from Scope)
+        kind: The kind of type being extended: the keyword after
+            `extend` (never `Enum`; see ExtendEnum)
+        target: The type named after the keyword (`type_identifier`).
+            Its target is set by the linker (TaskApplyTypeExtensions)
+        imports: Not set by the parser or the linker; always null.
+            The extension's imports are recorded on its
+            SymbolExtendScope
+        children: New members being added, in source order
+            (inherited from Scope)
     
     See Also:
-        ExtendEnum, ExtendTargetE, TypeIdentifier
+        ExtendEnum, ExtendTargetE, TypeIdentifier, SymbolExtendScope
     
     """
     pass
@@ -4765,33 +5301,49 @@ class ExtendType(Scope):
     
 class Field(NamedScopeChild):
     """
-    Data field declaration within actions, components, or structs.
+    Data field declaration (`data_declaration`, LRM 7.1).
     
-    Represents variable declarations with optional type, attributes,
-    and initialization. Fields can be randomized ('rand'), constant
-    ('const'), static ('static'), or have visibility modifiers.
+    One Field is built per `data_instantiation` of an `attr_field` (action,
+    struct, flow/resource object), a `component_data_declaration`, a
+    package or monitor `const_field_declaration`, an annotation's
+    `annotation_attr_field` or an `activity_data_field`; so
+    `rand bit[8] a, b;` gives two Fields. A covergroup port is also a
+    Field. Qualifiers are recorded in `attr`. An action handle declared in
+    an action body (`A a;`) parses as a data declaration and is built as
+    a Field too; only the linker can tell it is a handle. The tool also
+    adds `Builtin` Fields (`uid`, `initial`, `prev`, `instance_id`).
+    A local variable in exec or function code is a
+    ProceduralStmtDataDeclaration, not a Field.
     
     PSS Example::
     
-        action my_action {
-            rand int<32> addr;           // Random field
-            const int timeout = 100;     // Constant field
-            static int counter;          // Static field
-            private bool flag;           // Private field
+        struct S {
+            rand bit[32] addr;          // attr = Rand
+            static const int MAX = 100; // attr = Static | Const
+            private bool flag;          // attr = Private
+            int arr[4];                 // type is array<int,4>
+        }
+        component pss_top {
+            mutable int count;          // attr = Mutable
         }
     
     Attributes:
         name: Field identifier (inherited from NamedScopeChild)
-        type: Data type of the field
-        attr: Attribute flags (FieldAttr)
-        init: Optional initializer expression
-        initializers: An action handle's `{.x = v, ...}` list (11.3.1).
-            Set only on a handle declared in an action body, which
-            is built as a Field; in an activity it is an
-            ActionHandleField
+        type: Declared data type. Array dimensions (`x[4]`) wrap it in
+            a DataTypeUserDefined naming `array<T,N>`, one per dimension
+        attr: Qualifier flags (FieldAttr); `NoFlags` when the declaration
+            has none
+        init: The `= constant_expression` initializer; null when absent
+        initializers: An action handle's `{.x = v, ...}` list (LRM
+            11.3.1). Set only on a handle declared in an action body,
+            which is built as a Field; in an activity it is an
+            ActionHandleField. Empty otherwise. Resolved against the
+            handle's action type by the linker (TaskResolveRefs)
     
     See Also:
-        FieldAttr, DataType, NamedScopeChild, ActionFieldInitializer
+        FieldAttr, DataType, DataTypeUserDefined, NamedScopeChild,
+        ActionFieldInitializer, ActionHandleField,
+        ProceduralStmtDataDeclaration
     
     """
     pass
@@ -4811,28 +5363,30 @@ class Field(NamedScopeChild):
     
 class FieldClaim(NamedScopeChild):
     """
-    Claim or lock on a resource instance.
+    Resource claim field of an action: a `lock` or `share`
+    (`resource_ref_field_declaration`, LRM 9.4.2).
     
-    Declares exclusive access to a resource for the duration of an
-    action. Claims can be locks (exclusive) or shares (non-exclusive).
-    Used for resource management and synchronization.
+    Claims a resource object from a pool for the duration of the action.
+    A `lock` is exclusive; a `share` permits other sharers but no
+    locker. One FieldClaim is built per `object_ref_field`.
     
     PSS Example::
     
-        resource bus_t { }
-        
+        resource bus_r { }
+    
         action my_action {
-            lock bus_t my_bus;     // Exclusive lock
-            share bus_t my_bus2;   // Shared access
+            lock bus_r my_bus;     // Exclusive
+            share bus_r my_bus2;   // Shared
         }
     
     Attributes:
         name: Claim identifier (inherited from NamedScopeChild)
-        type: Resource type to claim
-        is_lock: True for 'lock', false for 'share'
+        type: The resource type (`resource_object_type`). Array
+            dimensions wrap it in an `array<T,N>` DataTypeUserDefined
+        is_lock: True for `lock`, false for `share`
     
     See Also:
-        Struct (with kind=Resource), FieldRef
+        Struct, FieldRef, FieldPool
     
     """
     pass
@@ -4841,26 +5395,33 @@ class FieldClaim(NamedScopeChild):
     
 class FieldCompRef(NamedScopeChild):
     """
-    Component reference field for hierarchical composition.
+    The implicit `comp` field of an action (LRM 9.1.5).
     
-    Declares a reference to a component instance. Used for building
-    the structural hierarchy of components within other components.
+    Every action -- including an `override` action -- gets this field as
+    its first child, inserted by the parser with the name `comp` and no
+    type. It refers to the component instance the action executes in.
+    It is not the node for a component instance field written in source:
+    `sub_c sc1;` in a component is an ordinary Field.
     
     PSS Example::
     
-        component sub_comp { }
-        
-        component top_comp {
-            sub_comp sc1;    // Component reference field
-            sub_comp sc2;
+        component pss_top {
+            int base;
+            action A {
+                rand int x;
+                constraint { x > comp.base; }  // `comp` is a FieldCompRef
+            }
         }
     
     Attributes:
-        name: Field name (inherited from NamedScopeChild)
-        type: User-defined component type
+        name: Always `comp` (inherited from NamedScopeChild)
+        type: The enclosing component type. Null after parsing; set by
+            the linker (TaskLinkActionCompRefFields) when the action is
+            declared in a component, and left null for an action
+            declared in a package
     
     See Also:
-        FieldRef, Component, DataTypeUserDefined
+        Action, Component, DataTypeUserDefined, Field
     
     """
     pass
@@ -4869,11 +5430,12 @@ class FieldCompRef(NamedScopeChild):
     
 class FieldPool(NamedScopeChild):
     """
-    Pool declaration within a component.
+    Pool declaration within a component (`component_pool_declaration`,
+    LRM 12.1).
     
-    Declares a pool of flow- or resource-objects of a given type, with an
-    optional size (capacity). Actions bind their object references to pools
-    via ``bind`` statements.
+    Declares a pool of flow or resource objects of a given type, with an
+    optional size. Actions' object references are associated with pools
+    by `bind` directives.
     
     PSS Example::
     
@@ -4884,11 +5446,14 @@ class FieldPool(NamedScopeChild):
     
     Attributes:
         name: Pool identifier (inherited from NamedScopeChild)
-        type: Element type held by the pool
-        size: Optional capacity expression (null if unsized)
+        type: Element type held by the pool: a buffer, stream, state or
+            resource type
+        size: The `[expression]` size; null when absent. The LRM gives
+            it meaning only for a resource pool, whose size then
+            defaults to 1
     
     See Also:
-        FieldClaim, FieldRef
+        FieldClaim, FieldRef, ComponentBind
     
     """
     pass
@@ -4899,28 +5464,33 @@ class FieldPool(NamedScopeChild):
     
 class FieldRef(NamedScopeChild):
     """
-    Reference field pointing to action/component instances.
+    Flow-object reference field of an action: an `input` or `output`
+    (`flow_ref_field_declaration`, LRM 9.3.4).
     
-    Declares a reference (pointer) to an action or component instance.
-    References can be inputs (passed in) or outputs (assigned internally).
-    Used for action composition and resource sharing.
+    One FieldRef is built per `object_ref_field` in the declaration. The
+    referenced object is a buffer, stream or state object that the
+    action consumes or produces; it is bound to a pool (`bind`) or
+    supplied by another action's matching reference.
     
     PSS Example::
     
-        action producer { }
-        
+        buffer data_buf { rand bit[32] addr; }
+    
+        action producer {
+            output data_buf out_b;
+        }
         action consumer {
-            input producer p_ref;    // Input reference
-            ref producer p_local;    // Local reference
+            input data_buf in_b;
         }
     
     Attributes:
         name: Reference name (inherited from NamedScopeChild)
-        type: User-defined type being referenced
-        is_input: True if declared as 'input'
+        type: The flow-object type (`flow_object_type`). Array
+            dimensions wrap it in an `array<T,N>` DataTypeUserDefined
+        is_input: True for `input`, false for `output`
     
     See Also:
-        FieldCompRef, FieldClaim, DataTypeRef
+        FieldClaim, FieldPool, ComponentBind, Struct
     
     """
     pass
@@ -4929,45 +5499,42 @@ class FieldRef(NamedScopeChild):
     
 class FunctionImportProto(FunctionImport):
     """
-    Import a single external function by prototype.
+    One-step function import -- LRM 20.4.1,
+    `import [ platform_qualifier ] [ language_identifier ] [ static ] function function_prototype ;`.
     
-    Imports a specific external function by declaring its complete
-    prototype (signature). The function is implemented externally in
-    the specified language and platform. Used for integrating individual
-    foreign functions into PSS.
+    Declares a function by its prototype and states that it is
+    implemented in a foreign language. In a component the import must
+    be `static` (20.4). The linker (TaskBuildSymbolTree)
+    enters the function in the scope's symbol table, or merges with an
+    existing declaration, and records the import on its
+    SymbolFunctionScope.
     
     PSS Example::
     
-        // Import C++ target function
-        import function void write_reg(
-            int addr, 
-            int data
-        ) = target "cpp";
-        
-        // Import Python solve-time function
-        import function int optimize(
-            input int constraints[], 
-            output int solution[]
-        ) = solve "python";
-        
-        // Import with various parameter types
-        import function string format_message(
-            string fmt,
-            input int value,
-            ...
-        ) = target;
-        
-        action my_action {
-            exec body {
-                write_reg(0x1000, 0x42);
-                string msg = format_message("Value: %d", 42);
+        package p {
+            import target C function void write_reg(bit[32] addr,
+                                                    bit[32] data);
+    
+            import solve function int optimize(input int limit,
+                                               output int best);
+        }
+    
+        component pss_top {
+            import static function void dev_init();
+    
+            action my_action {
+                exec body {
+                    p::write_reg(0x1000, 0x42);
+                }
             }
         }
     
     Attributes:
         plat: Platform qualifier (inherited from FunctionImport)
         lang: Implementation language (inherited from FunctionImport)
-        proto: Complete function prototype with signature
+        proto: The function's prototype. Its `is_target`/`is_solve`
+            come from the platform qualifier and its `is_static` from
+            `static`.
     
     See Also:
         FunctionImport, FunctionImportType, FunctionPrototype
@@ -4979,34 +5546,34 @@ class FunctionImportProto(FunctionImport):
     
 class FunctionImportType(FunctionImport):
     """
-    Import all functions from an external type/class.
+    Two-step function import -- LRM 20.4.1,
+    `import [ platform_qualifier ] [ language_identifier ] function type_identifier ;`.
     
-    Imports all methods from a specified external type by referencing
-    its type identifier. Used when importing entire classes or packages
-    of utility functions from foreign implementations.
+    Names a function declared separately (by a FunctionPrototype) and
+    states that it is implemented in a foreign language. It declares
+    nothing itself. The linker (TaskResolveRefs) binds the name, checks
+    the import is legal (a component function may be imported only in
+    its own component type, only if static, and not from a template
+    component), adds an import record to the function's
+    SymbolFunctionScope, and applies the platform qualifier to the
+    function's prototypes.
     
     PSS Example::
     
-        // Import all methods from a C++ class
-        import class my_pkg::MathUtils = target "cpp";
-        
-        // Import Python utility package for solve-time
-        import class algorithms::Optimizer = solve "python";
-        
-        component my_comp {
-            // Can now use imported functions
-            exec init {
-                int result = MathUtils::square(5);
-            }
+        package p {
+            function void write_reg(bit[32] addr, bit[32] data);
+            import target C function write_reg;
         }
     
     Attributes:
         plat: Platform qualifier (inherited from FunctionImport)
         lang: Implementation language (inherited from FunctionImport)
-        type: Type identifier of the class/package to import
+        type: The name of the imported function, as a type identifier
+            (possibly package-qualified). Bound to the function by the
+            linker (TaskResolveRefs).
     
     See Also:
-        FunctionImport, FunctionImportProto, TypeIdentifier
+        FunctionImport, FunctionImportProto, FunctionPrototype, TypeIdentifier
     
     """
     pass
@@ -5015,44 +5582,60 @@ class FunctionImportType(FunctionImport):
     
 class FunctionPrototype(NamedScopeChild):
     """
-    Function signature without implementation.
+    A function signature: return type, name and parameter list -- LRM
+    20.2.1, `function_prototype`.
     
-    Represents a function's interface: return type, name, and parameter
-    list. Used both in complete function definitions and standalone
-    prototypes. Can be marked 'pure', and qualified for target or
-    solve-time execution. Core functions are built-in library
-    functions.
+    On its own, as a direct child of a package or component, it is a
+    function declaration whose definition is given elsewhere
+    (`[platform_qualifier] [pure] [static] function prototype ;`).
+    It is also the signature inside a FunctionDefinition,
+    FunctionImportProto and TargetTemplateFunction, each method of an
+    ImportClass, and each built-in method the linker synthesizes for
+    the standard types (list, string, ...).
     
     PSS Example::
     
-        // Pure function -- callable from a template string
         package p {
+            // Declaration, defined elsewhere
+            function int multiply(int a, int b);
+    
+            // Pure function -- callable from a template string
             pure function int addr_of(int idx);
+    
+            // Platform-qualified declarations
+            target function void hw_write(bit[32] addr, bit[32] data);
+            solve function int compute_size();
         }
-        
-        // Function prototype with parameters
-        function int multiply(int a, int b);
-        
-        // Target function prototype
-        function void hw_write(int addr, int data) = target;
-        
-        // Solve-time function prototype
-        function int compute_size() = solve;
+    
+        component pss_top {
+            static function void reset_all();
+        }
     
     Attributes:
         name: Function name (inherited from NamedScopeChild)
-        rtype: Return type (void if no return)
-        parameters: List of parameter declarations
-        is_pure: True if declared with the 'pure' qualifier
-            (B.5) -- a function with no side effects, which is what a
-            template string may call (4.7.1.1).  Not 'pure virtual',
-            which this grammar does not have.
-        is_target: True if qualified with '= target'
-        is_solve: True if qualified with '= solve'
-        is_core: True for built-in library functions
+        rtype: The return type, or null for `void`
+        parameters: The parameter declarations, in source order; a
+            varargs parameter is last
+        is_pure: True if declared with the `pure` qualifier
+            (20.2.6) -- a non-void function whose result depends only
+            on its arguments and that has no side effects, which is
+            what a template string may call (4.7.1.1)
+        is_target: True if the function is restricted to the target
+            platform: written `target` (or `target solve`) on the
+            declaration or import, or set by the linker when an import
+            of the function says `target` (TaskBuildSymbolTree for the
+            prototype form, TaskResolveRefs for `import ... function
+            name;`). False for a target-template function's prototype.
+        is_solve: True if the function is restricted to the solve
+            platform, set the same ways as `is_target` from `solve`
+        is_core: Meant to mark a function built into the
+            implementation (such as the core library), which 20.2.2
+            lets declare `output`/`inout` parameters and still be
+            defined. Not set by the parser or the linker, so it is
+            always false; TaskBuildSymbolTree reads it.
     
     See Also:
-        FunctionDefinition, FunctionParamDecl, FunctionImportProto
+        FunctionDefinition, FunctionParamDecl, FunctionImportProto, TargetTemplateFunction
     
     """
     pass
@@ -5071,15 +5654,29 @@ class GlobalScope(Scope):
     
     The top-level container for all PSS declarations in one compilation
     unit. Each source file parsed creates one GlobalScope containing all
-    package declarations, imports, and top-level definitions.
+    package declarations, imports, and top-level definitions. The
+    caller creates it (`mkGlobalScope(fileid)`) and the builder fills
+    it; the linker gathers every unit into a RootSymbolScope.
+    
+    PSS Example::
+    
+        // one file: everything below is a child of its GlobalScope
+        import std_pkg::*;
+        package p { }
+        component pss_top { }
     
     Attributes:
-        fileid: Unique identifier for this source file
-        filename: Path to the source file
+        fileid: Id of this source file, given by the caller; it is
+            the `fileid` of every Location in the file. The Python
+            Parser numbers the standard library 0 and the user files
+            after it, in parse order; the linker's builtins unit is -1
+        filename: Path to the source file. Not set by the builder or
+            by the Python and TypeScript Parser classes, which keep
+            file names themselves; empty unless the caller sets it
         children: All top-level declarations (inherited from Scope)
     
     See Also:
-        Scope, PackageScope
+        Scope, PackageScope, RootSymbolScope
     
     """
     pass
@@ -5090,7 +5687,8 @@ class GlobalScope(Scope):
     
 class InstanceOverride(OverrideStmt):
     """
-    ``instance p.q with U;`` -- one instance is replaced by ``U``.
+    ``instance p.q with U;`` -- one instance is replaced by ``U``
+    (LRM 17.5, `instance_override`).
     
     The target is a hierarchical path to a field, so the override applies
     at that one site rather than to every use of the field's type.
@@ -5102,11 +5700,15 @@ class InstanceOverride(OverrideStmt):
         }
     
     Attributes:
-        target: Hierarchical path naming the instance to override
-        with_t: The replacement type
+        target: Hierarchical path naming the instance to override,
+            starting from the block's containing type. Resolved by the
+            linker (TaskResolveRefs) like any other field path written
+            there
+        with_t: The replacement type; resolved by the linker
+            (TaskResolveRefs)
     
     See Also:
-        TypeOverride
+        TypeOverride, OverrideDecl
     
     """
     pass
@@ -5117,24 +5719,25 @@ class InstanceOverride(OverrideStmt):
     
 class MonitorActivityLabeledStmt(MonitorActivityStmt):
     """
-    Base class for monitor activity statements that can have a label.
+    Base class for non-scope monitor activity statements that can have
+    a label.
     
-    Mirrors ActivityLabeledStmt on the action side. The label comes from
-    the ``label_identifier :`` prefix on ``monitor_activity_stmt``.
-    
-    PSS Example::
-    
-        monitor m {
-            activity {
-                wait_for_grant: eventually grant;
-            }
-        }
+    Mirrors ActivityLabeledStmt on the action side; the label would come
+    from the ``label_identifier :`` prefix on ``monitor_activity_stmt``.
+    The class currently has no subclasses, so no node of it is ever
+    built: every labelable monitor activity statement is either a scope
+    (MonitorActivityLabeledScope, which carries its own ``label``) or a
+    traversal (whose label is on the ActivityActionTypeTraversal or
+    ActivityActionHandleTraversal). A labeled ``eventually`` such as
+    ``wait_ack: eventually a;`` builds a MonitorActivityEventually.
     
     Attributes:
-        label: Optional identifier expression for the label
+        label: The statement label, or null when unlabeled. Never set,
+            since the class is never built.
     
     See Also:
-        MonitorActivityEventually, ActivityLabeledStmt
+        MonitorActivityLabeledScope, MonitorActivityEventually,
+        ActivityLabeledStmt
     
     """
     pass
@@ -5145,7 +5748,7 @@ class MonitorConstraint(MonitorActivityStmt):
     """
     A ``constraint`` statement inside a monitor's activity block.
     
-    This covers ``monitor_activity_constraint_stmt`` only -- a
+    This covers ``monitor_activity_constraint_stmt`` only (LRM 16.4) -- a
     ``constraint`` appearing among the *statements* of a monitor activity,
     where its position in the statement order is meaningful. A
     ``constraint`` in the monitor *body* is a
@@ -5168,17 +5771,21 @@ class MonitorConstraint(MonitorActivityStmt):
                 constraint c1 { r.priority > 0; }
     
                 activity {
-                    constraint { r.priority inside [1..8]; }
+                    constraint { r.priority in [1..8]; }
                     r;
                 }
             }
         }
     
     Attributes:
-        constraint: The constraint statement
+        constraint: The `monitor_constraint_set` after the keyword: a
+            ConstraintScope holding the statements of a braced block,
+            or the single constraint statement when no braces are
+            written. References in it are resolved by the linker
+            (TaskResolveRefs).
     
     See Also:
-        ConstraintStmt, ActivityConstraint
+        ConstraintStmt, ConstraintScope, ConstraintBlock, ActivityConstraint
     
     """
     pass
@@ -5200,7 +5807,7 @@ class NamedScope(Scope):
         }
     
     Attributes:
-        name: Identifier expression containing the name
+        name: The declared name, as an identifier with its own location
     
     See Also:
         Scope, NamedScopeChild, TypeScope
@@ -5212,44 +5819,55 @@ class NamedScope(Scope):
     
 class OverrideDecl(Scope):
     """
-    An ``override { ... }`` block.
+    An ``override { ... }`` block (LRM 17.5, `override_declaration`).
     
-    Overrides retarget type selection during elaboration: every place the
-    model would have used the target type or instance, it uses the
-    replacement instead. The block's statements are held in
-    ``getChildren()`` and are in source order, which matters -- a later
-    statement overriding the same target wins.
+    Overrides replace the declared type of fields with a subtype: a
+    type override applies to every field of the target type within the
+    subtree of the block's containing type, and an instance override
+    to one field.
+    They apply to action, monitor, struct attribute and component
+    instance fields, not to reference fields (``input``, ``output``,
+    ``lock``, ``share``). The block's statements are held in
+    ``getChildren()`` in source order, which matters: within one
+    container an instance override takes precedence over a type
+    override, and among overrides of the same kind a later one wins.
     
-    The block declares no names, so it introduces no scope in the linked
-    tree even though it is a ``Scope`` in the AST.
+    The block declares no names. The linker (TaskBuildSymbolTree) adds
+    it to the enclosing symbol scope as a leaf and does not enter its
+    statements; TaskResolveRefs resolves the types and paths they name.
     
     PSS Example::
     
-        component pss_top {
-            action A { }
-            action B : A { }
+        action A { }
+        action B : A { }
+        action C : A { }
     
-            sub s1, s2;
+        action top {
+            A a1, a2;
+            activity { a1; a2; }
     
             override {
-                type A with B;
-                instance s1.a with B;
+                type A with B;       // a1 becomes a B
+                instance a2 with C;  // a2 becomes a C
             }
         }
     
     See Also:
-        TypeOverride, InstanceOverride
+        TypeOverride, InstanceOverride, OverrideStmt
     
     """
     pass
     
 class PackageScope(Scope):
     """
-    PSS package scope for organizing and namespacing declarations.
+    PSS package scope for organizing and namespacing declarations
+    (`package_declaration`, LRM 18.1).
     
     Represents a package declaration in PSS. Packages provide namespace
-    management and can be split across multiple files. Multiple package
-    declarations with the same name are merged together.
+    management and can be split across multiple files. Each
+    declaration is a separate PackageScope in the AST; the linker
+    merges declarations with the same name into one SymbolScope
+    (TaskBuildSymbolTree::visitPackageScope).
     
     PSS Example::
     
@@ -5257,18 +5875,24 @@ class PackageScope(Scope):
             component C1 { }
             action A1 { }
         }
-        
+    
         package my_pkg {       // Same package, merged with above
             action A2 { }
         }
     
+        package outer::inner { }   // id = ["outer", "inner"]
+    
     Attributes:
-        id: Hierarchical package identifier (e.g., ["my", "pkg"])
-        sibling: Next package scope with the same name (for merging)
+        id: The package name as written (`package_id_path`), one
+            identifier per `::`-separated element (e.g. ["outer",
+            "inner"])
+        sibling: Next package scope with the same name. Not set by
+            the parser or the linker, which merges same-named
+            packages in the symbol tree instead; always null
         children: Package members (inherited from Scope)
     
     See Also:
-        Scope, PackageImportStmt
+        Scope, PackageImportStmt, SymbolScope
     
     """
     pass
@@ -5283,31 +5907,36 @@ class PackageScope(Scope):
     
 class ProceduralStmtAssignment(ExecStmt):
     """
-    Assignment statement with compound assignment operators.
+    Assignment statement -- LRM 20.7.3,
+    `procedural_assignment_stmt ::= ref_path assign_op expression ;`.
     
-    ProceduralStmtAssignment represents variable assignment operations in
-    exec blocks. Supports simple assignment (=) and compound assignments
-    (`+=`, `-=`, `<<=`, `>>=`, `|=`, `&=`) for modifying variable values.
+    Assigns the value of an expression to a variable or attribute,
+    either plainly (`=`) or combined with the target's current value
+    (`+=`, `-=`, `<<=`, `>>=`, `|=`, `&=`).
     
     PSS Example::
     
-        action my_action {
-            exec body {
-                int x = 10;
-                int y = 20;
-                
-                x = y + 5;      // Simple assignment
-                x += 10;        // Add and assign
-                x -= 3;         // Subtract and assign
-                x <<= 2;        // Shift left and assign
-                x |= 0xFF;      // Bitwise OR and assign
+        component pss_top {
+            action my_action {
+                int x;
+                exec post_solve {
+                    int y = 20;
+    
+                    x = y + 5;      // AssignOp_Eq
+                    x += 10;        // AssignOp_PlusEq
+                    x <<= 2;        // AssignOp_ShlEq
+                    x |= 0xFF;      // AssignOp_OrEq
+                }
             }
         }
     
     Attributes:
-        lhs: Left-hand side expression (target variable)
-        op: Assignment operator (=, +=, -=, etc.)
-        rhs: Right-hand side expression (value to assign)
+        lhs: The assignment target, from `ref_path`: an
+            ExprRefPathContext, an ExprRefPathStaticRooted for a
+            `::`-qualified path, or an ExprRefPathSuper for a
+            `super.`-prefixed one. Always set.
+        op: The assignment operator
+        rhs: The value expression. Always set.
     
     See Also:
         AssignOp, ProceduralStmtExpr, ProceduralStmtDataDeclaration
@@ -5324,30 +5953,31 @@ class ProceduralStmtAssignment(ExecStmt):
     
 class ProceduralStmtBody(ExecStmt):
     """
-    Statement block containing a single statement or compound statement.
+    Base class of the procedural loops that hold a single body
+    statement and declare no variables: ProceduralStmtWhile and
+    ProceduralStmtRepeatWhile (LRM 20.7.7).
     
-    ProceduralStmtBody wraps a statement or block of statements, providing
-    a common base for control flow constructs that contain a body (while,
-    repeat-while, etc.). The body can be a single statement or a scope
-    containing multiple statements.
+    The parser never builds a bare ProceduralStmtBody. The body is one
+    statement; a `{ ... }` body is an ExecScope holding several.
     
     PSS Example::
     
-        action my_action {
-            exec body {
-                // Single statement body
-                while (x > 0) x--;
-                
-                // Compound statement body
-                while (y > 0) {
-                    y--;
-                    console.log(y);
+        component pss_top {
+            action my_action {
+                int x;
+                exec post_solve {
+                    while (x > 0) x -= 1;       // single-statement body
+    
+                    while (x < 4) {             // ExecScope body
+                        x += 1;
+                    }
                 }
             }
         }
     
     Attributes:
-        body: Statement or scope contained in this body
+        body: The loop body statement, given index 0 within this node.
+            Null if the body is an empty statement (`;`).
     
     See Also:
         ProceduralStmtWhile, ProceduralStmtRepeatWhile, ExecScope
@@ -5359,31 +5989,29 @@ class ProceduralStmtBody(ExecStmt):
     
 class ProceduralStmtBreak(ExecStmt):
     """
-    Break statement to exit from innermost loop.
+    Break statement -- LRM 20.7.11, `break ;`.
     
-    ProceduralStmtBreak represents a break statement that immediately exits
-    the innermost enclosing loop (while, repeat, repeat-while, foreach) or
-    match statement. Execution continues with the statement following the loop.
+    Ends the innermost enclosing loop (repeat-count, repeat-while,
+    while or foreach); execution continues with the statement after
+    the loop. It may appear only inside a loop, possibly nested in an
+    if-else or match statement within it; it does not end a match
+    statement.
     
     PSS Example::
     
-        action my_action {
-            exec body {
-                int i = 0;
-                
-                while (true) {
-                    console.log("i = ", i);
-                    i++;
-                    if (i >= 10) {
-                        break;  // Exit the while loop
+        component pss_top {
+            action my_action {
+                int i;
+                exec post_solve {
+                    while (true) {
+                        i += 1;
+                        if (i >= 10) {
+                            break;  // leave the while loop
+                        }
                     }
                 }
-                console.log("Loop exited");
             }
         }
-    
-    Attributes:
-        (no attributes)
     
     See Also:
         ProceduralStmtContinue, ProceduralStmtWhile, ProceduralStmtForeach
@@ -5393,27 +6021,28 @@ class ProceduralStmtBreak(ExecStmt):
     
 class ProceduralStmtContinue(ExecStmt):
     """
-    Continue statement to skip to next loop iteration.
+    Continue statement -- LRM 20.7.11, `continue ;`.
     
-    ProceduralStmtContinue represents a continue statement that skips the
-    remainder of the current iteration and jumps to the next iteration of
-    the innermost enclosing loop (while, repeat, repeat-while, foreach).
+    Skips the rest of the current iteration of the innermost enclosing
+    loop (repeat-count, repeat-while, while or foreach) and proceeds to
+    the next iteration. It may appear only inside a loop, possibly
+    nested in an if-else or match statement within it.
     
     PSS Example::
     
-        action my_action {
-            exec body {
-                repeat (i : 10) {
-                    if (i % 2 == 0) {
-                        continue;  // Skip even numbers
+        component pss_top {
+            action my_action {
+                int odd_sum;
+                exec post_solve {
+                    repeat (i : 10) {
+                        if (i % 2 == 0) {
+                            continue;  // skip even numbers
+                        }
+                        odd_sum += i;
                     }
-                    console.log("Odd: ", i);
                 }
             }
         }
-    
-    Attributes:
-        (no attributes)
     
     See Also:
         ProceduralStmtBreak, ProceduralStmtWhile, ProceduralStmtForeach
@@ -5423,37 +6052,46 @@ class ProceduralStmtContinue(ExecStmt):
     
 class ProceduralStmtDataDeclaration(ExecStmt):
     """
-    Local variable declaration with optional initialization.
+    Local variable declaration -- LRM 20.7.2,
+    `procedural_data_declaration ::= data_type procedural_data_instantiation { , procedural_data_instantiation } ;`.
     
-    ProceduralStmtDataDeclaration represents the declaration of a local
-    variable within an exec block. Variables are scoped to the block in
-    which they are declared and can optionally be initialized with an
-    expression.
+    Declares a variable local to the enclosing procedural scope, with
+    an optional initial value. A declaration of several variables
+    (`int a, b = 2;`) builds one node per variable, each with its own
+    copy of the type; array dimensions written after a name
+    (`int a[4];`) are folded into that variable's type. The parser
+    enters each variable in the enclosing scope's symbol table and
+    reports a duplicate name.
+    
+    The same class is used, with a null `datatype`, for the variables a
+    loop declares: the index of ProceduralStmtRepeat, the iterator and
+    index of ProceduralStmtForeach, the loop variables of activity
+    loops, and the variables of a template string's foreach directive.
     
     PSS Example::
     
-        action my_action {
-            exec body {
-                // Declaration without initialization
-                int x;
-                
-                // Declaration with initialization
-                int y = 10;
-                string msg = "Hello";
-                bool flag = true;
-                
-                // Complex initialization
-                int sum = x + y * 2;
+        component pss_top {
+            action my_action {
+                exec post_solve {
+                    int x;                  // no initializer
+                    int y = 10, z = 2;      // two declarations
+                    string msg = "Hello";
+                    bit[8] buf[4];          // array type
+                }
             }
         }
     
     Attributes:
-        name: Identifier for the variable being declared
-        datatype: Type of the variable
-        init: Optional initialization expression
+        name: The variable's name
+        datatype: The variable's type, including any array dimensions
+            written after the name. Null for a loop variable; a
+            foreach iterator's is filled with the collection's element
+            type by the linker (TaskResolveRefs).
+        init: The initializer expression after `=`, or null when none
+            is written
     
     See Also:
-        ProceduralStmtAssignment, DataType, Field
+        ProceduralStmtAssignment, ProceduralStmtRepeat, ProceduralStmtForeach, DataType, Field
     
     """
     pass
@@ -5466,30 +6104,36 @@ class ProceduralStmtDataDeclaration(ExecStmt):
     
 class ProceduralStmtExpr(ExecStmt):
     """
-    Expression statement for side-effect expressions.
+    Void function call statement -- LRM 20.7.4,
+    `procedural_void_function_call_stmt ::= [ ( void ) ] function_call ;`.
     
-    ProceduralStmtExpr represents an expression evaluated for its side effects
-    rather than its value. Commonly used for function calls, increment/decrement
-    operations, and other expressions that modify state.
+    A function called for its effect, with any return value discarded.
+    This is the only expression statement procedural code has: `x++;`
+    and other bare expressions are not statements in PSS. The optional
+    `(void)` cast is not recorded.
     
     PSS Example::
     
-        action my_action {
-            exec body {
-                int x = 0;
-                
-                x++;                    // Increment expression
-                x--;                    // Decrement expression
-                my_func();              // Function call
-                (x > 5) ? x++ : x--;    // Conditional expression with side effects
+        function void log_value(int v);
+        function int compute(int v);
+    
+        component pss_top {
+            int x;
+            exec init_up {
+                log_value(x);           // plain call
+                (void) compute(x);      // result explicitly discarded
             }
         }
     
     Attributes:
-        expr: Expression to evaluate
+        expr: The call, as a reference path whose last element carries
+            the argument list: an ExprRefPathContext for `f(...)` or
+            `a.b.f(...)`, an ExprRefPathStaticRooted for a
+            type-qualified call such as `pkg::f(...)` or `::f(...)`,
+            or an ExprRefPathSuper for `super.f(...)`. Always set.
     
     See Also:
-        ProceduralStmtAssignment, Expr
+        ProceduralStmtAssignment, ExprRefPathContext, ExprRefPathStaticRooted
     
     """
     pass
@@ -5498,34 +6142,37 @@ class ProceduralStmtExpr(ExecStmt):
     
 class ProceduralStmtIfElse(ExecStmt):
     """
-    If-else-if-else conditional statement.
+    If / else-if / else statement -- LRM 20.7.9,
+    `if ( expression ) procedural_stmt [ else procedural_stmt ]`.
     
-    ProceduralStmtIfElse represents a complete conditional statement with
-    multiple if/else-if clauses and an optional else clause. Evaluates
-    conditions in order and executes the first matching branch, or the
-    else branch if no conditions match.
+    Evaluates the clause conditions in order and runs the body of the
+    first that is true; if none is, runs the final `else` body when
+    there is one. A chain of `else if` is held as a list of clauses
+    rather than as nested statements.
     
     PSS Example::
     
-        action my_action {
-            exec body {
-                int x = 10;
-                
-                if (x > 20) {
-                    console.log("Large");
-                } else if (x > 10) {
-                    console.log("Medium");
-                } else if (x > 0) {
-                    console.log("Small");
-                } else {
-                    console.log("Zero or negative");
+        component pss_top {
+            action my_action {
+                int x;
+                int size;
+                exec post_solve {
+                    if (x > 20) {
+                        size = 3;
+                    } else if (x > 10) {
+                        size = 2;
+                    } else {
+                        size = 0;
+                    }
                 }
             }
         }
     
     Attributes:
-        if_then: List of if/else-if clauses evaluated in order
-        else_then: Optional else body executed if no clause matches
+        if_then: The `if` clause followed by each `else if` clause, in
+            source order; never empty
+        else_then: The final `else` statement, or null when there is no
+            plain `else`. Its index is the number of clauses.
     
     See Also:
         ProceduralStmtIfClause, ProceduralStmtMatch
@@ -5543,36 +6190,35 @@ class ProceduralStmtIfElse(ExecStmt):
     
 class ProceduralStmtMatch(ExecStmt):
     """
-    Pattern matching statement for value-based branching.
+    Match statement -- LRM 20.7.10,
+    `match ( match_expression ) { procedural_match_choice ... }`.
     
-    ProceduralStmtMatch represents a match statement that evaluates an
-    expression and executes the body of the first matching choice. Similar
-    to switch-case in other languages but supports range patterns and
-    more complex matching.
+    Evaluates the match expression and compares it against each
+    choice's open-range list. Exactly one choice may match, and its
+    statement runs; more than one match is an error. With no match the
+    `default` choice runs; with no match and no `default` it is an
+    error. At most one `default` is allowed.
     
     PSS Example::
     
-        action my_action {
-            exec body {
-                int status = get_status();
-                
-                match (status) {
-                    [0..9]: {
-                        console.log("Single digit");
-                    }
-                    [10, 20, 30]: {
-                        console.log("Multiple values");
-                    }
-                    default: {
-                        console.log("Other value");
+        component pss_top {
+            action my_action {
+                rand int status;
+                int bucket;
+                exec post_solve {
+                    match (status) {
+                        [0..9]:       bucket = 1;
+                        [10, 20, 30]: bucket = 2;
+                        default:      bucket = 0;
                     }
                 }
             }
         }
     
     Attributes:
-        expr: Expression to match against choice patterns
-        choices: List of match choices with patterns and bodies
+        expr: The match expression. Always set.
+        choices: The choices, in source order; the grammar requires at
+            least one
     
     See Also:
         ProceduralStmtMatchChoice, ProceduralStmtIfElse, ExprOpenRangeList
@@ -5590,37 +6236,35 @@ class ProceduralStmtMatch(ExecStmt):
     
 class ProceduralStmtMatchChoice(ExecStmt):
     """
-    Single choice in a match statement with pattern and body.
+    One choice of a ProceduralStmtMatch -- LRM 20.7.10,
+    `procedural_match_choice ::= [ open_range_list ] : procedural_stmt | default : procedural_stmt`.
     
-    ProceduralStmtMatchChoice represents one branch in a match statement.
-    Each choice specifies a pattern (value, range, or list) to match against,
-    or serves as the default case. The body executes if the match expression
-    matches this choice's pattern.
+    Either a bracketed open-range list of values and ranges to compare
+    with the match expression, or the `default` choice.
     
     PSS Example::
     
-        action my_action {
-            exec body {
-                int x = 10;
-                
-                match (x) {
-                    [0..9]: {              // Range pattern
-                        console.log("0-9");
-                    }
-                    [10, 20, 30]: {        // Value list pattern
-                        console.log("Special values");
-                    }
-                    default: {             // Default case (is_default=true)
-                        console.log("Other");
+        component pss_top {
+            action my_action {
+                rand int x;
+                int r;
+                exec post_solve {
+                    match (x) {
+                        [0..9]:       r = 1;    // range
+                        [10, 20, 30]: r = 2;    // value list
+                        default:      r = 0;    // is_default = true
                     }
                 }
             }
         }
     
     Attributes:
-        is_default: True if this is the default case
-        cond: Pattern to match (range list), null for default
-        body: Statement(s) to execute if pattern matches
+        is_default: True for the `default` choice
+        cond: The open-range list between the brackets; null for the
+            `default` choice
+        body: The statement run when this choice matches, given the
+            choice's position as its index. Null if it is an empty
+            statement (`;`).
     
     See Also:
         ProceduralStmtMatch, ExprOpenRangeList, ExprOpenRangeValue
@@ -5634,38 +6278,46 @@ class ProceduralStmtMatchChoice(ExecStmt):
     
 class ProceduralStmtRandomize(ExecStmt):
     """
-    Inline randomization with optional constraints.
+    Procedural randomize statement -- LRM 20.7.12 and 13.4.6,
+    `randomize hierarchical_id { , hierarchical_id } ( with constraint_set | ; )`.
     
-    ProceduralStmtRandomize represents an inline randomization statement
-    that randomizes a variable or object with optional additional constraints.
-    This allows procedural code to trigger randomization at specific points
-    with customized constraint sets.
+    Randomizes the named variables together, at this point in the
+    procedural code. Each target is treated as random whether or not
+    it is declared `rand`; for a struct-typed target its `rand`
+    sub-fields are randomized. The constraints declared in the targets'
+    types apply, plus any written inline after `with`.
     
     PSS Example::
     
-        action my_action {
-            rand int x;
-            rand int y;
-            
-            exec body {
-                // Randomize with inline constraints
-                randomize x, y with {
-                    x > 0;
-                    y < 100;
-                    x + y < 50;
-                };
-                
-                console.log("x=", x, " y=", y);
+        component pss_top {
+            struct pair_s {
+                rand bit[8] a, b;
+            }
+    
+            action my_action {
+                exec post_solve {
+                    int x;
+                    pair_s p;
+    
+                    randomize x;                    // no inline constraints
+                    randomize x, p with {
+                        x > 0;
+                        p.a < x;
+                    }
+                }
             }
         }
     
     Attributes:
         targets: The variables to randomize, in source order (13.4.6:
-            "one or more variables of plain-data type")
-        constraints: List of inline constraint statements
+            "one or more variables of plain-data type"), each an
+            ExprRefPathContext built from its `hierarchical_id`
+        constraints: The inline constraint set after `with`: one entry
+            (a ConstraintScope for a `{ ... }` block), or empty for
+            `randomize ...;`
     
     See Also:
-        ConstraintStmt, ConstraintBlock, Field
+        ConstraintStmt, ConstraintScope, Field
     
     """
     pass
@@ -5684,32 +6336,31 @@ class ProceduralStmtRandomize(ExecStmt):
     
 class ProceduralStmtReturn(ExecStmt):
     """
-    Return statement from function or method.
+    Return statement -- LRM 20.7.5,
+    `procedural_return_stmt ::= return [ expression ] ;`.
     
-    ProceduralStmtReturn represents a return statement that exits the current
-    function or method, optionally returning a value. For void functions, the
-    expr field is null.
+    Ends execution of the enclosing native function, returning the
+    value of the expression to the caller; a function returning `void`
+    uses `return;`. `return;` may also be used in an exec block, where
+    it ends the block (no further statements run).
     
     PSS Example::
     
         function int add(int a, int b) {
-            exec body {
-                return a + b;  // Return with value
-            }
+            return a + b;      // with a value
         }
-        
-        function void log_message(string msg) {
-            exec body {
-                console.log(msg);
-                return;  // Return without value
+    
+        function void check(int v) {
+            if (v == 0) {
+                return;        // without a value
             }
         }
     
     Attributes:
-        expr: Expression to return (null for void functions)
+        expr: The returned value, or null for `return;`
     
     See Also:
-        ProceduralStmtExpr, FunctionDefinition, FunctionPrototype
+        FunctionDefinition, FunctionPrototype, ProceduralStmtExpr
     
     """
     pass
@@ -5718,33 +6369,36 @@ class ProceduralStmtReturn(ExecStmt):
     
 class ProceduralStmtSuper(ExecStmt):
     """
-    Invokes the base type's implementation of the enclosing exec block.
+    `super;` in a procedural exec block -- LRM 20.1, `exec_super_stmt`.
     
-    ProceduralStmtSuper represents the `super;` statement inside an exec
-    block. Without it, a derived type's exec silently *replaces* the
-    base's rather than extending it, so this is the correct form of the
-    most damaging inheritance mistake in PSS.
+    Runs the contents of the base type's exec block(s) of the same kind
+    at this point (20.1.4.1). Exec blocks are virtual: without `super;`
+    a derived type's exec block *replaces* the base type's rather than
+    extending it, which silently drops the base behavior.
     
     The statement carries no operands: which exec block it refers to is
-    fixed by where it appears -- the same kind, on the base type.
+    fixed by where it appears -- the same kind, on the base type. The
+    parser builds it only as a direct statement of an ExecBlock, which
+    is where the grammar admits it.
     
     PSS Example::
     
-        action base_a {
-            exec body {
-                console.log("base");
+        component pss_top {
+            action base_a {
+                int a;
+                exec post_solve {
+                    a = 1;
+                }
+            }
+    
+            action derived_a : base_a {
+                int b;
+                exec post_solve {
+                    super;                  // run base_a's post_solve first
+                    b = a + 1;
+                }
             }
         }
-    
-        action derived_a : base_a {
-            exec body {
-                super;                  // run base_a's exec body first
-                console.log("derived");
-            }
-        }
-    
-    Attributes:
-        (no attributes)
     
     See Also:
         ActivitySuper, ExecBlock, ExprRefPathSuper
@@ -5754,27 +6408,27 @@ class ProceduralStmtSuper(ExecStmt):
     
 class ProceduralStmtYield(ExecStmt):
     """
-    Yield control back to scheduler or runtime.
+    Yield statement -- LRM 20.7.14, `yield ;`.
     
-    ProceduralStmtYield represents a yield statement that temporarily suspends
-    execution and returns control to the scheduler or runtime system. This
-    allows cooperative multitasking and time-slicing in execution models.
+    The target exec blocks of all actions assigned to one executor run
+    cooperatively. `yield;` temporarily suspends the running exec block
+    so that other exec code running in parallel on the same executor
+    can run.
     
     PSS Example::
     
-        action my_action {
-            exec body {
-                console.log("Starting work");
-                
-                // Yield control to allow other actions to run
-                yield;
-                
-                console.log("Resuming work");
+        component pss_top {
+            function void start_work();
+            function void finish_work();
+    
+            action my_action {
+                exec body {
+                    start_work();
+                    yield;          // let other actions on this executor run
+                    finish_work();
+                }
             }
         }
-    
-    Attributes:
-        (no attributes)
     
     See Also:
         ProceduralStmtReturn, ExecBlock
@@ -5794,9 +6448,16 @@ class SymbolChildrenScope(SymbolChild):
     and provides the structure for symbol table lookups within a named scope.
     
     Attributes:
-        name: Identifier for this scope (package, type, function name)
-        children: List of child declarations and sub-scopes
-        target: Reference to the original physical AST node being wrapped
+        name: Name of this scope (package, type or function name). The
+            linker uses placeholders for unnamed scopes, such as
+            `<extend>`, `<plist>`, `<root>`; empty for the root scope
+        children: The members of the scope. In a linker-built
+            (synthetic) scope, pointers to the member declarations and
+            nested symbol scopes, mostly not owned (the AST owns them);
+            in a parsed scope (an ExecScope, say), its own statements
+        target: The AST node this scope stands for (a type, function,
+            extension or labeled activity statement); null for a
+            package and the root. A traversal edge (visit: true)
     
     See Also:
         SymbolChild, SymbolScope, ScopeChild
@@ -5818,45 +6479,39 @@ class SymbolChildrenScope(SymbolChild):
     
 class TemplateCategoryTypeParamDecl(TemplateParamDecl):
     """
-    Category-constrained type template parameter declaration.
+    A type parameter restricted to a type category (LRM 10.3.2,
+    `category_type_param_decl`).
     
-    Declares a template type parameter constrained to a specific type category
-    (action, component, buffer, resource, state, stream, or struct). This ensures
-    type safety by restricting template instantiation to compatible types. An
-    optional restriction can further narrow the accepted types to a specific base
-    type or interface, and a default type can be provided.
+    The keyword before the name -- `action`, `monitor`, `component`,
+    `buffer`, `resource`, `state`, `stream`, `struct` or `numeric` -- is
+    the category: an argument must be a type of that category. An optional
+    `type_restriction` (`: type_identifier`) further requires the argument
+    to be that type or derive from it. The linker checks both when it
+    specializes the generic (TaskBuildParamValList); the argument check
+    only applies to arguments that resolve to a declared type.
     
     PSS Example::
     
-        // Action category constraint
-        component action_container<T: action> {
-            T action_inst;
-            
-            activity {
-                do action_inst;
+        buffer base_buff { rand int x; }
+        buffer data_buff : base_buff { }
+    
+        component pss_top {
+            action consumer <buffer B : base_buff = data_buff> {
+                input B in_b;
             }
         }
-        
-        // Resource category constraint with default
-        action resource_user<R: resource = my_resource_t> {
-            lock R resource_lock;
-        }
-        
-        // Component category constraint
-        component comp_wrapper<C: component> {
-            C wrapped_comp;
-        }
-        
-        // Instantiation examples
-        action_container<my_action_t> container;
-        resource_user<custom_resource_t> user;
-        resource_user<> default_user;  // Uses my_resource_t
+    
+        component wrap_c <struct cfg_s, bool full_duplex = true> { }
     
     Attributes:
         name: Identifier for the type parameter (inherited)
-        category: Required type category (Action, Component, etc.)
-        restriction: Optional base type or interface that must be satisfied
-        dflt: Optional default type if not specified during instantiation
+        category: The type category keyword. A keyword the builder's
+            table does not know falls back to Struct.
+        restriction: The type after `:`, or null when the parameter has no
+            `type_restriction`. Its target is set by the linker.
+        dflt: The default type after `=`, or null when none is written.
+            The grammar takes a `type_identifier` here, which the parser
+            wraps in a DataTypeUserDefined.
     
     See Also:
         TemplateGenericTypeParamDecl, TypeCategory, TypeIdentifier
@@ -5873,37 +6528,33 @@ class TemplateCategoryTypeParamDecl(TemplateParamDecl):
     
 class TemplateGenericTypeParamDecl(TemplateParamDecl):
     """
-    Generic type template parameter declaration.
+    A generic type parameter, declared with the `type` keyword (LRM 10.3.2,
+    `generic_type_param_decl`).
     
-    Declares a template type parameter without category constraints. The parameter
-    can be instantiated with any data type (built-in types, user-defined types,
-    etc.). An optional default type can be specified for cases where the template
-    is instantiated without explicit type arguments.
+    The parameter can be bound to any type. The LRM allows a
+    `type_identifier` as the default; the grammar accepts any `data_type`,
+    so built-in types such as `bit[32]` are also accepted as defaults.
+    
+    In a specialized TemplateParamDeclList the linker uses this class for
+    *every* type parameter, including one declared with a type category:
+    once the argument has been checked against the category, only the
+    binding is kept.
     
     PSS Example::
     
-        // Generic type parameter without default
-        action generic_action<T> {
-            rand T value;
-            
-            exec body {
-                // T can be any type
-            }
-        }
-        
-        // Generic type parameter with default
-        struct generic_struct<T = bit<32>> {
+        struct gen_s <type T = bit[32]> {
             T data;
         }
-        
-        // Instantiation examples
-        generic_action<bit<8>> byte_action;
-        generic_action<int<32>> int_action;
-        generic_struct<> default_struct;  // Uses bit<32>
+    
+        component pss_top {
+            gen_s<bit[8]> g8;
+            gen_s<>       g32;   // T takes its default, bit[32]
+        }
     
     Attributes:
         name: Identifier for the type parameter (inherited)
-        dflt: Optional default type if not specified during instantiation
+        dflt: The default type after `=`, or null when none is written. In
+            a specialized list, the type argument bound to the parameter.
     
     See Also:
         TemplateCategoryTypeParamDecl, TemplateParamDecl, DataType
@@ -5915,46 +6566,34 @@ class TemplateGenericTypeParamDecl(TemplateParamDecl):
     
 class TemplateValueParamDecl(TemplateParamDecl):
     """
-    Value template parameter declaration.
+    A value template parameter (LRM 10.3.1, `value_param_decl`).
     
-    Declares a template parameter that accepts a compile-time constant value rather
-    than a type. Value parameters must have a specific data type (typically integer
-    types) and can have optional default values. These are commonly used for array
-    sizes, repetition counts, and other compile-time configuration values.
+    The parameter takes a constant value rather than a type. Its data type
+    must be a scalar type other than `chandle`, and it can be referenced
+    anywhere a constant expression is allowed in the template type's body
+    and super-type specification. A default may refer to earlier
+    parameters; a default that is a `<` or `>` comparison must be
+    parenthesized.
     
     PSS Example::
     
-        // Value parameter for array size
-        struct fixed_array<int N> {
-            bit<8> data[N];
+        struct my_s <type T, int N = 4> {
+            T vals[N];
         }
-        
-        // Multiple value parameters with defaults
-        action repeated<int COUNT = 10, int WIDTH = 32> {
-            bit<WIDTH> values[COUNT];
-            
-            exec body {
-                repeat (COUNT) {
-                    // Process each value
-                }
-            }
+    
+        component pss_top {
+            action my_a <int width, bool is_wide = (width > 10)> { }
+    
+            my_s<bit[8], 8> s1;
+            my_s<int>       s2;      // N takes its default, 4
         }
-        
-        // Mixed type and value parameters
-        action generic_sized<T, int SIZE> {
-            T array[SIZE];
-        }
-        
-        // Instantiation examples
-        fixed_array<16> arr16;
-        repeated<5, 64> custom;
-        repeated<> default_repeated;  // Uses COUNT=10, WIDTH=32
-        generic_sized<bit<8>, 32> byte_array;
     
     Attributes:
         name: Identifier for the value parameter (inherited)
-        type: Data type of the parameter (e.g., int, bool)
-        dflt: Optional default value expression
+        type: The parameter's declared data type
+        dflt: The default `constant_expression` after `=`, or null when
+            none is written. In a specialized list, the value argument
+            bound to the parameter.
     
     See Also:
         TemplateGenericTypeParamDecl, TemplateParamExprValue, DataType
@@ -5968,7 +6607,9 @@ class TemplateValueParamDecl(TemplateParamDecl):
     
 class TypeOverride(OverrideStmt):
     """
-    ``type T with U;`` -- every use of type ``T`` is replaced by ``U``.
+    ``type T with U;`` -- every field of type ``T`` under the block's
+    containing type is instantiated as ``U`` instead (LRM 17.5,
+    `type_override`).
     
     PSS Example::
     
@@ -5977,11 +6618,13 @@ class TypeOverride(OverrideStmt):
         }
     
     Attributes:
-        target: The type being overridden
-        with_t: The replacement type
+        target: The type being overridden; resolved by the linker
+            (TaskResolveRefs)
+        with_t: The replacement type, a subtype of ``target``; resolved
+            by the linker (TaskResolveRefs)
     
     See Also:
-        InstanceOverride
+        InstanceOverride, OverrideDecl
     
     """
     pass
@@ -5992,43 +6635,47 @@ class TypeOverride(OverrideStmt):
     
 class ActivityActionHandleTraversal(ActivityLabeledStmt):
     """
-    Traverses a specific action instance (handle).
+    Traverses an action handle: `a1;`, `b[2] with { ... }` -- LRM 11.3.1
+    and 11.3.2, `action_handle_traversal_stmt`.
     
-    ActivityActionHandleTraversal represents the execution of a specific action
-    instance referenced by a handle (component field). It can include inline
-    constraints to further refine the action's random variables.
+    The handle is a field of the action (or of the activity block) whose
+    type is an action; traversing it executes that sub-action. Element
+    subscripts select one element of an action-handle array; without a
+    subscript an array traversal traverses every element. An optional
+    initializer list sets attributes of the traversed action, and an
+    optional `with` block adds in-line constraints. Also built for
+    traversals in a monitor activity.
+    
+    A parameterless symbol activated by name (`s;`, LRM Example 120)
+    parses as this statement too; the linker (TaskResolveRefs) recognizes
+    the symbol and rejects a `with` block or initializer list on it.
     
     PSS Example::
     
-        component my_comp {
-            action sub_action {
-                rand bit[16] addr;
-            }
-        }
-        
-        action top_action {
-            my_comp comp;
-            
-            activity {
-                // Basic traversal
-                do comp.sub_action;
-                
-                // Traversal with inline constraint
-                do comp.sub_action with {
-                    addr == 0x1000;
+        component pss_top {
+            action A { rand bit[16] addr; bit[8] id; }
+            action top {
+                A a1;
+                A arr[4];
+                activity {
+                    a1;
+                    a1 with { addr == 0x1000; }
+                    arr[1] {.id = 3} with { addr < 16; }
+                    L: arr;
                 }
-                
-                // Labeled traversal
-                label1: do comp.sub_action;
             }
         }
     
     Attributes:
-        target: Reference path to the action instance
-        with_c: Optional constraint statement applied to the traversal
+        target: Reference path to the handle: a single path element holding
+            the `identifier` and any `[ expression ]` subscripts. Resolved by
+            the linker (TaskResolveRefs).
+        with_c: The `with constraint_set` in-line constraints, or null when
+            the statement ends with `;`. Resolved in the traversed action's
+            type.
     
     See Also:
-        ActivityActionTypeTraversal, ExprRefPathContext
+        ActivityActionTypeTraversal, ActionFieldInitializer, ActionHandleField, ExprRefPathContext
     
     """
     pass
@@ -6045,43 +6692,38 @@ class ActivityActionHandleTraversal(ActivityLabeledStmt):
     
 class ActivityActionTypeTraversal(ActivityLabeledStmt):
     """
-    Traverses an action by type rather than specific instance.
+    Traverses an anonymous action of a given type: `do A;` -- LRM 11.3.1,
+    `action_type_traversal_stmt`.
     
-    ActivityActionTypeTraversal allows execution of any action of a given type,
-    with the specific instance selected at elaboration or runtime. This provides
-    flexibility in action selection and can include inline constraints.
+    Equivalent to traversing a fresh, implicitly declared handle of the
+    named action type. An optional initializer list sets attributes of the
+    traversed action, and an optional `with` block adds in-line
+    constraints. Also built for `do` traversals in a monitor activity. A
+    type that resolves but is not an action is reported by the linker
+    (TaskResolveRefs).
     
     PSS Example::
     
-        action base_action {
-            rand bit[16] addr;
-        }
-        
-        action derived_action : base_action {
-            rand bit[8] data;
-        }
-        
-        action top_action {
-            activity {
-                // Traverse by type
-                do base_action;
-                
-                // Traverse with constraint
-                do base_action with {
-                    addr inside [0..255];
+        component pss_top {
+            action A { rand bit[16] addr; bit[8] id; }
+            action top {
+                activity {
+                    do A;
+                    do A with { addr in [0..255]; }
+                    L1: do A {.id = 1};
                 }
-                
-                // Labeled type traversal
-                my_label: do derived_action;
             }
         }
     
     Attributes:
-        target: User-defined data type specifying the action type
-        with_c: Optional constraint statement applied to the traversal
+        target: The `type_identifier` naming the action type (possibly
+            qualified, `pkg::A`); its type reference is resolved by the
+            linker (TaskResolveRefs).
+        with_c: The `with constraint_set` in-line constraints, or null when
+            the statement ends with `;`. Resolved in the traversed action type.
     
     See Also:
-        ActivityActionHandleTraversal, DataTypeUserDefined
+        ActivityActionHandleTraversal, ActionFieldInitializer, DataTypeUserDefined
     
     """
     pass
@@ -6098,30 +6740,34 @@ class ActivityActionTypeTraversal(ActivityLabeledStmt):
     
 class TypeScope(NamedScope):
     """
-    Base class for named type declarations (actions, components, structs).
+    Base class for a named, user-defined type declaration that has a body.
     
-    Represents PSS types that can be parameterized with templates,
-    extended through inheritance, and used in type references. Provides
-    common infrastructure for type system features.
+    Holds what every such declaration shares: the optional base type
+    (`struct_super_spec`, `action_super_spec`, `component_super_spec`
+    -- the `: base` after the name), the optional template parameter
+    list (LRM 10.2, `template_param_decl_list`), and the inheritance
+    state the linker records. Concrete subclasses are the declaration
+    forms: Action, Component, Struct (struct and the flow/resource
+    object kinds), Monitor, CovergroupType, AnnotationDecl and
+    ImportClass. The builtin `pyobj` type is a bare TypeScope built by
+    the builtins factory, not by the parser.
     
     PSS Example::
     
-        component my_comp : base_comp {     // TypeScope with super_t
+        component my_comp : base_comp {     // super_t = base_comp
             // ...
         }
-        
-        action my_action<T> {               // TypeScope with params
-            // ...
+    
+        struct my_s<int W = 8> {            // params = <int W = 8>
+            bit[W] data;
         }
     
     Attributes:
         name: Type name (inherited from NamedScope)
-        super_t: Optional base type for inheritance
-        params: Template parameter declarations
-        opaque: True if type body is hidden (forward declaration)
     
     See Also:
-        Action, Component, Struct, NamedScope
+        Action, Component, Struct, Monitor, CovergroupType, AnnotationDecl
+        ImportClass, NamedScope, TypeIdentifier, TemplateParamDeclList
     
     """
     pass
@@ -6138,15 +6784,26 @@ class SymbolScope(SymbolChildrenScope):
     management, import resolution, and scope hierarchy. Extends SymbolChildrenScope
     with linking-specific features including name-to-index mappings and import chains.
     
-    The symbol tree is constructed during the linking phase to merge declarations
-    across compilation units, resolve imports, and create a unified namespace view.
-    This is distinct from the physical AST which preserves source file structure.
+    The linker builds SymbolScope instances (TaskBuildSymbolTree) to merge
+    declarations across compilation units, resolve imports, and create a
+    unified namespace view; a package, for instance, is one SymbolScope
+    however many `package` declarations contribute to it. Parsed nodes
+    that open a scope of their own (ExecScope, ActivityDecl,
+    TemplateString, ...) also derive from SymbolScope; their symtab is
+    filled during linking.
     
     Attributes:
         symtab: Maps local identifiers to child indices for fast name lookup
-        imports: Import specification linking this scope to other packages/symbols
-        synthetic: True if this scope was compiler-generated (not in source)
-        opaque: True if scope contents should be hidden from external access
+        imports: The `import` statements written directly in this scope
+            (and, for a type, those of its extensions), in source order;
+            null when there are none. Filled by TaskBuildSymbolTree
+        synthetic: True for a scope the linker built, which owns its own
+            `children` list (a package, the root, a type's, enum's or
+            function's symbol scope). False for a parsed scope, whose
+            symtab indexes its physical children by their `index`
+        opaque: True if names reached through this scope are not
+            resolved or checked: reference resolution stops here. Set
+            only for the builtin `pyobj` type, whose members are dynamic
     
     See Also:
         SymbolChildrenScope, RootSymbolScope, SymbolTypeScope, SymbolImportSpec
@@ -6158,36 +6815,46 @@ class SymbolScope(SymbolChildrenScope):
     
 class ConstraintBlock(ConstraintScope):
     """
-    Named constraint block declaration within a type.
+    Constraint declaration within a type (LRM 13.1.1,
+    `constraint_declaration`).
     
-    A constraint block is a reusable, named collection of constraints that can be
-    declared within a component, action, or struct type. Constraint blocks can be
-    dynamically enabled or disabled during randomization, providing flexible control
-    over constraint application.
+    Covers all three non-generic forms: a named block
+    `constraint name { ... }`, a deprecated
+    `dynamic constraint name { ... }` (replaced in PSS 3.1 by a
+    generic constraint with no parameters), and an unnamed
+    `constraint { ... }` or
+    `constraint expr;`. The body's statements are held directly in
+    `constraints`; a brace block does not add a nested
+    ConstraintScope. A fixed (non-dynamic) constraint block always
+    holds.
     
     PSS Example::
     
         action my_action {
             rand bit[8] value;
-            
+    
             constraint valid_range_c {
                 value >= 10;
                 value <= 100;
             }
-            
-            constraint dynamic_limit_c is_dynamic {
+    
+            dynamic constraint small_c {
                 value < 50;
             }
+    
+            constraint value != 42;
         }
     
     Attributes:
         name: The name of the constraint block, with its source
             location; null for an unnamed block
-        is_dynamic: Whether the constraint block can be dynamically enabled/disabled
-        constraints: List of constraint statements in this block (inherited)
+        is_dynamic: True when the declaration was written with the
+            `dynamic` modifier
+        constraints: The constraint statements in this block, in
+            source order (inherited from ConstraintScope)
     
     See Also:
-        ConstraintScope, ConstraintStmt
+        ConstraintScope, ConstraintStmt, GenericConstraintDeclBool
     
     """
     pass
@@ -6196,38 +6863,53 @@ class ConstraintBlock(ConstraintScope):
     
 class ConstraintStmtForall(ConstraintScope):
     """
-    Universal quantification constraint over typed instances.
+    Universal quantification over instances of a type
+    (LRM 13.1.9, `forall_constraint_item`).
     
-    Expresses constraints that must hold for all instances of a specified type that are
-    accessible through a reference path. This is similar to foreach but operates on type
-    instances rather than array elements, enabling relationship constraints across object
-    collections.
+    The body's constraints shall hold for every instance of the named
+    type (an action, struct, stream, buffer, state or resource type)
+    within the application scope. With `in ref_path`, the scope is the
+    subtree under the entity the path designates; without it, the
+    subtree of the constraint's enclosing scope.
+    
+    The iterator variable is a ConstraintStmtField held as entry 0 of
+    `constraints`; the body's statements follow it, from index 1.
     
     PSS Example::
     
-        component pss_top {
-            pool [4] resource_p;
-            
-            action use_resources {
-                lock resource_p r1, r2;
-                
-                constraint different_resources_c {
-                    forall (resource_p rp : this.comp.resource_p) {
-                        (rp != r1) && (rp != r2);
-                    }
+        action A {
+            rand int in [0..9] x;
+        }
+    
+        action entry {
+            A a1, a2;
+            activity { a1; a2; }
+    
+            constraint {
+                forall (a_it : A) {
+                    a_it.x > 2;
+                }
+            }
+            constraint {
+                forall (a_it : A in a1) {
+                    a_it.x < 8;
                 }
             }
         }
     
     Attributes:
-        iterator_id: Iterator variable name for the type instance
-        type_id: The type being iterated over
-        ref_path: Path expression to the collection of instances
-        symtab: Symbol table for the iterator variable
-        constraints: Constraint statements for all instances (inherited)
+        iterator_id: The iterator variable's name as written
+        type_id: The quantified type
+        ref_path: The path after `in` that limits the application
+            scope; null when no `in` clause was written
+        symtab: The name scope holding the iterator variable (not
+            walked by the generated visitors)
+        constraints: The iterator variable (entry 0), then the body's
+            constraint statements (inherited)
     
     See Also:
         ConstraintStmtForeach, ConstraintScope, ConstraintStmtField
+        ConstraintSymbolScope
     
     """
     pass
@@ -6242,42 +6924,54 @@ class ConstraintStmtForall(ConstraintScope):
     
 class ConstraintStmtForeach(ConstraintScope):
     """
-    Iterative constraint over array or collection elements.
+    Iterative constraint over the elements of a collection
+    (LRM 13.1.8, `foreach_constraint_item`).
     
-    Applies constraints to each element of an array or collection. The foreach statement
-    introduces iterator variables for the element and optionally its index, making them
-    available within the constraint scope for expressing element-wise constraints.
+    The body's constraints shall hold for every element of the
+    collection. The statement may introduce an iterator variable (an
+    alias for the current element) and an index variable (the current
+    index, or key for a map); at least one is required. Both forms of
+    the index are accepted: `foreach (a[i])` and
+    `foreach (e : a[i])`. In both, the parser lifts the trailing `[i]`
+    off the collection expression, so `expr` names the collection
+    and `idx` holds `i`.
+    
+    The iterator and index variables are ConstraintStmtField nodes
+    registered in `symtab`; they are not entries in `constraints`.
     
     PSS Example::
     
         action packet_sequence {
             rand bit[8] lengths[10];
-            
+    
             constraint valid_lengths_c {
                 foreach (lengths[i]) {
                     lengths[i] > 0;
-                    lengths[i] <= 255;
                 }
             }
-            
+    
             constraint increasing_c {
-                foreach (lengths[i]) {
+                foreach (len : lengths[i]) {
                     if (i > 0) {
-                        lengths[i] >= lengths[i-1];
+                        len >= lengths[i-1];
                     }
                 }
             }
         }
     
     Attributes:
-        it: Iterator variable for the current element
-        idx: Iterator variable for the current index (optional)
-        expr: The collection expression being iterated
-        symtab: Symbol table for iterator variables
-        constraints: Constraint statements applied to each element (inherited)
+        it: The iterator variable, or null when none was written
+        idx: The index variable, or null when none was written
+        expr: The collection expression being iterated, without the
+            index subscript
+        symtab: The name scope holding the iterator and index
+            variables (not walked by the generated visitors)
+        constraints: Constraint statements applied to each element
+            (inherited)
     
     See Also:
         ConstraintStmtForall, ConstraintScope, ConstraintStmtField
+        ConstraintSymbolScope
     
     """
     pass
@@ -6292,30 +6986,29 @@ class ConstraintStmtForeach(ConstraintScope):
     
 class ProceduralStmtRepeatWhile(ProceduralStmtBody):
     """
-    Post-test loop that executes at least once.
+    Repeat-while loop -- LRM 20.7.7,
+    `repeat procedural_stmt while ( expression ) ;`.
     
-    ProceduralStmtRepeatWhile represents a repeat-while loop (do-while style)
-    that executes the body at least once, then continues while the condition
-    is true. The condition is evaluated after each iteration.
+    Runs the body, then evaluates the condition after each iteration
+    and repeats while it is true, so the body runs at least once.
     
     PSS Example::
     
-        action my_action {
-            exec body {
-                int x = 0;
-                
-                // Executes body first, then checks condition
-                repeat {
-                    x++;
-                    console.log("x = ", x);
-                } while (x < 5);
-                // Executes at least once even if x >= 5 initially
+        component pss_top {
+            action my_action {
+                int x;
+                exec post_solve {
+                    repeat {
+                        x += 1;
+                    } while (x < 5);
+                }
             }
         }
     
     Attributes:
-        expr: Condition evaluated after each iteration
-        body: Statement(s) to execute (inherited from ProceduralStmtBody)
+        expr: The `bool` loop condition, evaluated after each
+            iteration. Always set.
+        body: The loop body (inherited from ProceduralStmtBody)
     
     See Also:
         ProceduralStmtWhile, ProceduralStmtRepeat, ProceduralStmtBody
@@ -6327,37 +7020,37 @@ class ProceduralStmtRepeatWhile(ProceduralStmtBody):
     
 class ConstraintStmtImplication(ConstraintScope):
     """
-    Implication constraint using the -> operator.
+    Implication constraint, `expression -> constraint_set`
+    (LRM 13.1.6, `implication_constraint_item`).
     
-    Expresses an implication relationship where the constraints in the scope are only
-    active when the condition evaluates to true. Unlike if-else, implication does not
-    constrain the condition itself - if the antecedent is false, the consequent constraints
-    are simply ignored. This is useful for soft constraints and conditional relationships.
+    When the antecedent is true, the constraints in the body shall
+    hold; when it is false, they do not apply. `a -> b` is equivalent
+    to `!a || b`, and, like every constraint, it is bidirectional: a
+    body that cannot hold forces the antecedent false.
     
     PSS Example::
     
         action bus_transaction {
             rand bit burst_mode;
-            rand bit[4] burst_length;
+            rand bit[5] burst_length;
             rand bit[32] addr;
-            
+    
             constraint burst_constraints_c {
                 burst_mode -> {
-                    burst_length inside [2, 4, 8, 16];
+                    burst_length in [2, 4, 8, 16];
                     (addr & 0xF) == 0;  // 16-byte aligned
                 }
             }
-            
+    
             constraint normal_mode_c {
-                !burst_mode -> {
-                    burst_length == 1;
-                }
+                !burst_mode -> burst_length == 1;
             }
         }
     
     Attributes:
-        cond: The antecedent condition expression
-        constraints: Consequent constraints active when condition is true (inherited)
+        cond: The antecedent expression
+        constraints: The consequent constraints (inherited); a single
+            unbraced constraint is held here directly
     
     See Also:
         ConstraintStmtIf, ConstraintScope, ConstraintStmtExpr
@@ -6369,34 +7062,28 @@ class ConstraintStmtImplication(ConstraintScope):
     
 class ProceduralStmtWhile(ProceduralStmtBody):
     """
-    Pre-test loop with condition evaluated before each iteration.
+    While loop -- LRM 20.7.7, `while ( expression ) procedural_stmt`.
     
-    ProceduralStmtWhile represents a standard while loop that evaluates the
-    condition before executing the body. The body may never execute if the
-    condition is initially false.
+    Evaluates the condition before each iteration and runs the body
+    while it is true, so the body may not run at all.
     
     PSS Example::
     
-        action my_action {
-            exec body {
-                int x = 10;
-                
-                // Standard while loop
-                while (x > 0) {
-                    console.log("x = ", x);
-                    x--;
-                }
-                
-                // Condition checked first - may not execute
-                while (false) {
-                    console.log("Never executed");
+        component pss_top {
+            action my_action {
+                int x;
+                exec post_solve {
+                    while (x > 0) {
+                        x -= 1;
+                    }
                 }
             }
         }
     
     Attributes:
-        expr: Condition evaluated before each iteration
-        body: Statement(s) to execute (inherited from ProceduralStmtBody)
+        expr: The `bool` loop condition, evaluated before each
+            iteration. Always set.
+        body: The loop body (inherited from ProceduralStmtBody)
     
     See Also:
         ProceduralStmtRepeatWhile, ProceduralStmtRepeat, ProceduralStmtForeach
@@ -6408,16 +7095,17 @@ class ProceduralStmtWhile(ProceduralStmtBody):
     
 class ExprRefPathSuper(ExprRefPathContext):
     """
-    Represents a super reference to parent scope.
+    A context reference written with a leading `super.`.
     
-    Specialization of ExprRefPathContext specifically for super references.
-    Used to access fields, methods, or constraints defined in a parent
-    component or action.
+    Built instead of a plain ExprRefPathContext so that `super.f()`
+    binds to the base type's member rather than to an override in
+    the derived type. `is_super` is always true. Also built for a
+    `super.f();` call statement.
     
     PSS Example::
     
         super.parent_field
-        super.parent_method()
+        super.pre_solve()
     
     See Also:
         ExprRefPathContext, ExprRefPath
@@ -6427,37 +7115,27 @@ class ExprRefPathSuper(ExprRefPathContext):
     
 class ActivitySuper(ActivityLabeledStmt):
     """
-    Invokes the super-class activity implementation.
+    `super;` in an activity -- LRM 11.6, `activity_super_stmt`.
     
-    ActivitySuper allows a derived action to call the activity block defined
-    in its parent action class. This enables activity inheritance and extension
-    similar to method overriding in object-oriented programming.
+    In an action that inherits from another, traverses the base action's
+    activity at this point, so a derived activity can extend the one it
+    overrides. Checked by the linker (TaskResolveRefs).
     
     PSS Example::
     
-        action base_action {
+        action base_a {
             activity {
-                do comp.init;
-                do comp.process;
-            }
-        }
-        
-        action derived_action : base_action {
-            activity {
-                do comp.setup;
-                super;              // Execute base_action's activity
-                do comp.cleanup;
-            }
-        }
-        
-        action extended_action : base_action {
-            activity {
-                super;              // Just execute parent activity
+                do A;
             }
         }
     
-    Attributes:
-        (inherits from ActivityLabeledStmt)
+        action derived_a : base_a {
+            activity {
+                do B;
+                super;
+                do C;
+            }
+        }
     
     See Also:
         ActivityDecl, Action
@@ -6467,72 +7145,111 @@ class ActivitySuper(ActivityLabeledStmt):
     
 class Action(TypeScope):
     """
-    Action declaration defining reusable behavior blocks.
+    Action declaration defining reusable behavior blocks
+    (`action_declaration`, `abstract_action_declaration`,
+    `override_action_declaration`, LRM 9.2).
     
     Actions are the fundamental unit of behavior in PSS. They encapsulate
     data (fields), constraints, and activities (control flow). Actions can
     be composed hierarchically and randomized according to constraints.
+    The builder inserts an implicit `comp` field (a FieldCompRef whose
+    type the linker fills in) as the first child of every action.
     
     PSS Example::
     
         action my_action {
-            rand int addr;
-            
+            rand bit[32] addr;
+    
             constraint {
                 addr >= 0x1000;
                 addr < 0x2000;
             }
-            
+    
             activity {
-                do_read(addr);
+                do read_a;
             }
         }
     
     Attributes:
         is_abstract: True if declared as 'abstract action'
         name: Action name (inherited from NamedScope)
-        super_t: Optional base action type (inherited from TypeScope)
+        super_t: Optional base action type (inherited from TypeScope).
+            For an override action the builder sets it to the
+            action's own name, and the linker resolves it in the
+            enclosing component's base chain
+            (TaskResolveOverrideActions)
         children: Fields, constraints, activities (inherited from Scope)
     
     See Also:
-        Component, TypeScope, ActivityStmt
+        Component, TypeScope, ActivityDecl, FieldCompRef
     
     """
     pass
     
 class ActivityDecl(SymbolScope):
     """
-    Declares an activity block within an action.
+    An action's `activity { ... }` block -- LRM 11.1, `activity_declaration`.
     
-    ActivityDecl represents the declaration of an activity block that defines
-    the behavioral execution flow of an action. It serves as a symbol scope
-    containing activity statements that specify sequences, parallelism, 
-    scheduling, and control flow.
+    ActivityDecl is the root of an action's activity: the behavioral
+    description of a compound action, as a set of scheduling statements
+    (traversals, blocks, control flow). It is a scope with an empty name.
+    Its `children` are, in source order, the top-level activity statements
+    and the action handles and `action` data fields declared directly in
+    the block (LRM 11.8.2: every activity block is a variable scope, so
+    those declarations belong to the block, not to the action).
+    
+    The top-level activity scope is unnamed (LRM 11.8.3). Its labeled
+    statements are made members of the enclosing action by the linker
+    (TaskBuildSymbolTree), so `b1.my_seq` resolves from the action.
     
     PSS Example::
     
-        action my_action {
-            activity {
-                do comp1.child_action;
-                do comp2.child_action;
+        component pss_top {
+            action A { }
+            action B { }
+            action top {
+                A a1;
+                activity {
+                    a1;
+                    do B;
+                }
             }
         }
     
-    Attributes:
-        (inherits symbol scope capabilities)
-    
     See Also:
-        ActivityStmt, Action, SymbolScope
+        ActivityStmt, ActivityLabeledScope, SymbolDeclaration, Action
     
     """
     pass
     
 class GenericConstraintDeclBool(ConstraintBlock):
     """
-    Boolean generic constraint declaration.
+    Boolean generic constraint declaration (LRM 13.1.2,
+    `generic_constraint_bool`).
     
     Represents a declaration of the form
-    ``[static] constraint name(params) constraint_set``.
+    ``[static] constraint name(params) constraint_set``. Unlike a fixed
+    constraint block, a generic constraint holds only where it is
+    referenced -- from another constraint, by a call such as
+    `small_c()`, or from an activity. Its name and body come from
+    ConstraintBlock: `name` is always set, `constraints` holds the
+    body (the items of a brace block are added directly, with no
+    wrapping ConstraintScope), and `is_dynamic` is always false.
+    
+    PSS Example::
+    
+        action send_pkt {
+            rand bit[16] pkt_sz;
+            constraint small_c() { pkt_sz <= 100; }
+            constraint sized_c(int lo, int hi) {
+                pkt_sz >= lo;
+                pkt_sz <= hi;
+            }
+            constraint pick_c { small_c() || sized_c(1500, 9000); }
+        }
+    
+    See Also:
+        GenericConstraintDeclValue, GenericConstraintParam, ConstraintBlock
     
     """
     pass
@@ -6550,8 +7267,9 @@ class ActivityLabeledScope(SymbolScope):
     ActivityLabeledScope represents activity constructs that introduce a new
     scope and can be labeled: sequence, parallel and schedule blocks, and
     every compound statement (repeat, repeat-while, foreach, replicate,
-    if-else, select, match, atomic). The label can be used for referencing
-    in scheduling constraints.
+    if-else, select, match, atomic). The label names the statement as a
+    named sub-activity (LRM 11.8) for scheduling constraints, `join_branch`
+    and hierarchical references.
     
     Every activity block is a variable scope (LRM 11.8.2): action handles
     and ``action`` data fields declared in a block are children of that
@@ -6570,19 +7288,19 @@ class ActivityLabeledScope(SymbolScope):
         action my_action {
             activity {
                 my_seq: sequence {
-                    do comp.action1;
-                    do comp.action2;
+                    do A;
+                    do B;
                 }
-                
+    
                 my_par: parallel {
-                    do comp.action3;
-                    do comp.action4;
+                    do A;
+                    do B;
                 }
             }
         }
     
     Attributes:
-        label: Optional identifier expression for the label
+        label: The label identifier, or null when the statement has no label.
         sub_activity: The named sub-activity this statement introduces
             (LRM 11.8), built by the linker: a synthetic scope whose
             target is this statement. Its members are non-owned: the
@@ -6594,7 +7312,7 @@ class ActivityLabeledScope(SymbolScope):
             array. Not walked by the generated visitors.
     
     See Also:
-        ActivitySequence, ActivityParallel, ActivitySchedule
+        ActivitySequence, ActivityParallel, ActivitySchedule, ActivityLabeledStmt
     
     """
     pass
@@ -6605,19 +7323,21 @@ class ActivityLabeledScope(SymbolScope):
     
 class ImportClass(TypeScope):
     """
-    Foreign class declaration -- LRM B.5, ``import_class_decl``.
+    Foreign class declaration -- LRM 20.4.3, ``import_class_decl``.
     
     ``import class C : B { void f(); }`` declares a class implemented in
     the target language, with the method prototypes PSS may call. The
     body admits prototypes only -- no fields, no bodies -- so the
-    children of this scope are all ``FunctionPrototype``.
+    children of this scope are all ``FunctionPrototype``, built without
+    platform qualifiers.
     
     It is a ``TypeScope`` because it declares a type others name: a field
-    may be declared of an imported class type. ``super_t`` holds the
-    first entry of the extends list, which is where a consumer expecting
-    single inheritance will look; ``extends`` holds the whole list,
-    because ``import_class_extends`` accepts several and the target
-    language may allow it.
+    of an imported class type may be declared in a package (a global
+    instance) or a component (one instance per component instance).
+    ``super_t`` holds the first entry of the extends list, which is
+    where a consumer expecting single inheritance will look; ``extends``
+    holds the whole list, because ``import_class_extends`` accepts
+    several and the target language may allow it.
     
     PSS Example::
     
@@ -6631,10 +7351,16 @@ class ImportClass(TypeScope):
         }
     
     Attributes:
-        extends: Every type named after ``:``, in source order
+        name: The class name, `import_class_identifier` (inherited)
+        super_t: The first type named after ``:``, or null when there
+            is no extends list (inherited). It is the same node as
+            the first entry of ``extends``.
+        extends: Every type named after ``:``, in source order; empty
+            when there is no extends list. The list does not own its
+            first entry, which ``super_t`` owns.
     
     See Also:
-        FunctionPrototype, TypeScope
+        FunctionPrototype, TypeScope, FunctionImportProto
     
     """
     pass
@@ -6647,41 +7373,51 @@ class ImportClass(TypeScope):
     
 class Monitor(TypeScope):
     """
-    Declares a PSS 3.0 monitor type for temporal property verification.
+    A monitor type declaration (LRM 16.1, `monitor_declaration`; PSS 3.0).
     
-    Monitor represents a PSS 3.0 monitor type declaration that defines temporal
-    properties and sequences to be verified during execution. Monitors contain
-    activity blocks that specify sequences of events, temporal operators, and
-    coverage collection. Unlike actions, monitors observe behavior without
-    affecting execution flow. Note these are PSS 3.0 features.
+    A monitor describes a scenario -- an order of action executions,
+    with their data -- to be *observed* for behavioral coverage, where an
+    action describes one to be generated. Its body admits action and
+    monitor handles, constraints, covergroups and one or more
+    `activity` blocks (MonitorActivityDecl); several activities combine
+    as if in a `schedule`. A monitor is checked only when a `cover`
+    statement instantiates it (CoverStmtReference).
+    
+    The monitor's name, `super_t` (from the `monitor_super_spec`) and
+    template `params` are the inherited TypeScope fields; the body
+    items are its children.
     
     PSS Example::
     
-        monitor protocol_check {
-            activity {
-                req ##1 ack;              // Request followed by ack
-                eventually gnt;           // Grant must occur
-            }
-        }
-        
-        monitor bus_monitor {
-            activity {
-                sequence {
-                    addr_phase;
-                    data_phase;
+        component pss_top {
+            action req_a { }
+            action ack_a { }
+    
+            monitor handshake {
+                req_a r;
+                ack_a a;
+                activity {
+                    r;
+                    eventually a;
                 }
             }
-        }
-        
-        abstract monitor base_monitor {
-            // Can be extended
+    
+            abstract monitor base_mon { }
+    
+            monitor derived_mon : base_mon {
+                activity { do req_a; }
+            }
+    
+            cover handshake;
         }
     
     Attributes:
-        is_abstract: True if this is an abstract monitor declaration
+        is_abstract: True for an `abstract monitor` declaration
+            (`abstract_monitor_declaration`), false otherwise. Set by
+            the parser.
     
     See Also:
-        MonitorActivityDecl, MonitorActivityStmt, Action
+        MonitorActivityDecl, CoverStmtReference, CoverStmtInline, Action
     
     """
     pass
@@ -6690,11 +7426,16 @@ class MonitorActivityDecl(SymbolScope):
     """
     Declares an activity block within a monitor.
     
-    MonitorActivityDecl represents the declaration of an activity block
-    that defines the temporal behavior to be monitored. It serves as a
-    symbol scope whose ``getChildren()`` are the monitor activity
-    statements. Unlike action activities, monitor activities observe
-    execution patterns rather than causing them.
+    MonitorActivityDecl represents a monitor's ``activity { ... }``
+    block (LRM 16.3, `monitor_activity_declaration`), which specifies the
+    scenario to be observed. It is a symbol scope with an empty name
+    whose ``getChildren()`` are the monitor activity statements, in
+    source order, together with any handles declared in the activity.
+    Unlike action activities, monitor activities observe execution
+    patterns rather than causing them. A monitor with more than one
+    activity block observes them as if combined in a ``schedule``
+    (LRM 16.1). It appears in a Monitor or in an inline ``cover { }``
+    body (CoverStmtInline).
     
     PSS Example::
     
@@ -6719,7 +7460,8 @@ class MonitorActivityDecl(SymbolScope):
         (inherits symbol scope capabilities)
     
     See Also:
-        MonitorActivityStmt, Monitor, ActivityDecl
+        MonitorActivityStmt, MonitorActivityLabeledScope, Monitor,
+        CoverStmtInline, ActivityDecl
     
     """
     pass
@@ -6733,7 +7475,7 @@ class MonitorActivityLabeledScope(SymbolScope):
     ``select`` -- introduces a scope and holds its body statements in
     ``getChildren()``. The subclass identity, not a field, is what
     distinguishes the five: they differ in temporal semantics, not in
-    shape.
+    shape. The scope's ``name`` is empty.
     
     ``eventually`` is a scope too, with its body addressed after its
     (empty) children -- the ActivityLabeledScope convention -- so that a
@@ -6742,20 +7484,29 @@ class MonitorActivityLabeledScope(SymbolScope):
     
     PSS Example::
     
-        monitor m {
-            activity {
-                setup: sequence {
-                    config_valid;
-                    config_ack;
+        component pss_top {
+            action config_valid { }
+            action config_ack { }
+    
+            monitor m {
+                config_valid v;
+                config_ack a;
+                activity {
+                    setup: sequence {
+                        v;
+                        a;
+                    }
                 }
             }
         }
     
     Attributes:
-        label: Optional identifier expression for the label
+        label: The ``label_identifier`` written before the statement
+            (``setup`` above), or null when unlabeled. Set by the
+            parser.
     
     See Also:
-        MonitorActivitySequence, MonitorActivityConcat,
+        MonitorActivityEventually, MonitorActivitySequence, MonitorActivityConcat,
         MonitorActivityOverlap, MonitorActivitySchedule,
         MonitorActivitySelect, ActivityLabeledScope
     
@@ -6766,20 +7517,37 @@ class MonitorActivityLabeledScope(SymbolScope):
     
 class AnnotationDecl(TypeScope):
     """
-    Annotation type declaration.
+    Annotation type declaration (LRM 7.13, `annotation_declaration`).
     
     Represents a PSS 3.1 ``annotation`` declaration, including optional
-    template parameters, inheritance, and body fields.
+    template parameters, inheritance, and body fields. The name,
+    template parameters (``params``) and base type (``super_t``, from
+    ``: type_identifier``) are inherited from TypeScope. Each
+    attribute is a Field in ``getChildren()``; one declared
+    ``static const`` carries both attributes. Annotation types may be
+    extended with ``extend annotation``.
+    
+    PSS Example::
+    
+        annotation desc_s {
+            string desc;
+        }
+    
+        annotation tagged_desc_s : desc_s {
+            static const int version = 1;
+            string tag;
+        }
     
     See Also:
-        Annotation, ExtendType
+        Annotation, ExtendType, Field
     
     """
     pass
     
 class Component(TypeScope):
     """
-    Component declaration defining test environment structure.
+    Component declaration defining test environment structure
+    (`component_declaration`, LRM 9.1).
     
     Components represent the static structure of the test environment.
     They contain actions, pools of resources, constraints, and other
@@ -6788,14 +7556,15 @@ class Component(TypeScope):
     PSS Example::
     
         component pss_top {
-            action my_action { }
-            pool [16] my_action actions;
-            
-            bind actions *;
+            resource r_s { }
+            action my_action { lock r_s r; }
+            pool [4] r_s r_pool;
+    
+            bind r_pool *;
         }
     
     Attributes:
-        is_pure: True if declared as 'pure component'
+        is_pure: True if declared as 'pure component' (LRM 9.1.7)
         name: Component name (inherited from NamedScope)
         super_t: Optional base component type (inherited from TypeScope)
         children: Actions, resources, pools, etc (inherited from Scope)
@@ -6808,34 +7577,36 @@ class Component(TypeScope):
     
 class ProceduralStmtSymbolBodyScope(SymbolScope):
     """
-    Symbol scope with statement body for loop constructs.
+    Base class of the procedural loops that declare variables:
+    ProceduralStmtRepeat and ProceduralStmtForeach.
     
-    ProceduralStmtSymbolBodyScope combines symbol scope capabilities with
-    a statement body, providing a base class for loop constructs that need
-    to declare iterator variables (repeat, foreach). The symbol scope holds
-    the iterator variable declarations.
+    The loop is a symbol scope so that its index and iterator variables
+    are visible in the body and nowhere else. Those variables are the
+    scope's children (ProceduralStmtDataDeclaration nodes with a null
+    type, added by the parser); the body is held separately in `body`
+    and is indexed after them. The parser never builds a bare
+    ProceduralStmtSymbolBodyScope.
     
     PSS Example::
     
-        action my_action {
-            exec body {
-                // 'i' is declared in the symbol scope
+        component pss_top {
+            int arr[5];
+            int total;
+            exec init_up {
                 repeat (i : 10) {
-                    console.log("i = ", i);
-                    // 'i' is accessible here
+                    total += i;         // 'i' is visible here
                 }
-                // 'i' is not accessible here
-                
-                // Similar for foreach
-                int arr[5];
-                foreach (elem [idx] : arr) {
-                    // 'elem' and 'idx' in symbol scope
+                // 'i' is not visible here
+    
+                foreach (elem : arr[idx]) {
+                    total += elem * idx;    // 'elem' and 'idx' visible
                 }
             }
         }
     
     Attributes:
-        body: Statement(s) contained in this scope
+        body: The loop body statement, indexed after the loop
+            variables. Null if the body is an empty statement (`;`).
     
     See Also:
         ProceduralStmtRepeat, ProceduralStmtForeach, SymbolScope
@@ -6847,26 +7618,34 @@ class ProceduralStmtSymbolBodyScope(SymbolScope):
     
 class ConstraintSymbolScope(SymbolScope):
     """
-    Symbol table scope for constraint expressions.
+    Name scope of the iterator variables of a `foreach` or `forall`
+    constraint.
     
-    Provides a symbol resolution context for identifiers used within constraint statements.
-    This scope manages the visibility of iterator variables (from foreach/forall) and field
-    references within the constraint context.
+    Built by the AST builder, not the linker, together with the
+    ConstraintStmtForeach or ConstraintStmtForall it belongs to, and
+    named `<foreach>` or `<forall>`. Its symbol table maps each
+    iterator or index variable name to a ConstraintStmtField, which
+    the scope references without owning. The linker
+    (TaskResolveRefs) pushes this scope while it resolves the
+    statement's body, so names in the body find the iterator
+    variables before the enclosing scopes.
     
     PSS Example::
     
         constraint loop_constraint {
-            foreach (items[i]) {
-                // 'i' and 'items[i]' are resolved through ConstraintSymbolScope
-                items[i] > 0;
+            foreach (e : items[i]) {
+                // 'e' and 'i' are found in the ConstraintSymbolScope
+                e > i;
             }
         }
     
     Attributes:
-        constraint: The constraint statement this scope is associated with
+        constraint: The `foreach` or `forall` statement this scope
+            belongs to (a back-reference set by the AST builder)
     
     See Also:
         SymbolScope, ConstraintStmtForeach, ConstraintStmtForall
+        ConstraintStmtField
     
     """
     pass
@@ -6875,14 +7654,15 @@ class ConstraintSymbolScope(SymbolScope):
     
 class RootSymbolScope(SymbolScope):
     """
-    Root of a resolved symbol tree. Holds references to 
+    Root of a resolved symbol tree. Holds references to
     the physical linked-together files in addition to the
     merged contents within the symbol tree.
     
     Serves as the top-level entry point for the fully-linked symbol database,
-    managing the collection of compilation units and their cross-file dependencies.
-    Maintains bidirectional reference tracking between files for incremental
-    compilation and dependency analysis.
+    managing the collection of compilation units. It is what
+    `Parser.link()` returns. Built by TaskBuildSymbolTree::build, with an
+    empty name and `synthetic` set; its children are the global names of
+    every unit, merged, starting with the linker's builtin types.
     
     The root scope bridges the physical file-based AST representation with the
     logical merged symbol namespace, enabling efficient multi-file symbol resolution.
@@ -6920,40 +7700,41 @@ class RootSymbolScope(SymbolScope):
     
 class Struct(TypeScope):
     """
-    Structured data type declaration (struct/buffer/stream/state/resource).
+    A struct-like type declaration: `struct`, `buffer`, `stream`, `state`
+    or `resource` (LRM 7.8, `struct_declaration`).
     
-    Represents various structured data containers in PSS. The 'kind' field
-    determines the specific semantics: plain data struct, memory buffer,
-    data stream, state object, or shared resource.
+    All five share one syntax; `kind` records which keyword was used,
+    and so whether the type is plain data, a flow object (LRM 9.3) or a
+    resource object (LRM 9.4). Body items (attribute fields,
+    constraints, exec blocks, covergroups, ...) are the children.
     
     PSS Example::
     
         struct packet_s {
-            int<8> header;
-            int<32> payload;
+            bit[8] header;
+            bit[32] payload;
         }
-        
+    
         buffer dma_buf_t {
-            int<8> data[1024];
+            rand int in [1..64] size;
         }
-        
+    
         resource bus_t {
             int bandwidth;
         }
-        
+    
         stream data_stream_t {
-            int<16> samples;
+            bit[16] samples;
         }
-        
+    
         state session_state_t {
             bool connected;
         }
     
     Attributes:
         name: Type name (inherited from NamedScope via TypeScope)
-        kind: Structure kind (StructKind enum)
         super_t: Optional base type (inherited from TypeScope)
-        children: Field declarations (inherited from Scope)
+        children: Body items (inherited from Scope)
     
     See Also:
         StructKind, TypeScope, Field
@@ -6966,12 +7747,12 @@ class Struct(TypeScope):
     
 class SymbolDeclaration(SymbolScope):
     """
-    A named, reusable activity fragment -- LRM B.9, ``symbol_declaration``.
+    A named, reusable activity fragment -- LRM 11.7, ``symbol_declaration``.
     
     ``symbol s(int n) { do A; do B; }`` declares a fragment that a
     ``symbol_call`` inlines at its call site. It is a scope so its
     parameters and the labels of its body statements resolve, and so a call
-    can name it.
+    can name it. Its name is the scope name.
     
     Its body statements are ``getChildren()``, exactly as for
     ``ActivityDecl`` -- a symbol body is an activity body, and reuses the
@@ -6996,7 +7777,9 @@ class SymbolDeclaration(SymbolScope):
         }
     
     Attributes:
-        params: The declared parameters, in order
+        params: The declared parameters, in order: one FunctionParamDecl
+            per `symbol_param` (`data_type identifier`), with default
+            direction. Empty when the symbol has no parameter list.
         sub_activity: The labels of the body (LRM 11.8), built by the
             linker as for a labeled statement's: a synthetic scope whose
             target is this symbol, holding the labeled statements whose
@@ -7006,7 +7789,7 @@ class SymbolDeclaration(SymbolScope):
             visitors.
     
     See Also:
-        ActivitySymbolCall, ActivityDecl
+        ActivitySymbolCall, ActivityDecl, FunctionParamDecl
     
     """
     pass
@@ -7021,7 +7804,8 @@ class SymbolDeclaration(SymbolScope):
     
 class CovergroupType(TypeScope):
     """
-    A named covergroup *type* -- ``covergroup cg_t(int a) { ... }``.
+    A named covergroup *type* -- ``covergroup cg_t(int a) { ... }``
+    (LRM 15.1, `covergroup_declaration`).
     
     Declared once and instantiated by name, unlike the inline form, which
     is a single anonymous instance. It is a ``TypeScope`` because it
@@ -7048,19 +7832,22 @@ class CovergroupType(TypeScope):
         }
     
     Attributes:
-        coverpoints: The covergroup's coverpoints
-        crosses: The covergroup's crosses
+        name: The covergroup type name (inherited from TypeScope)
+        coverpoints: The covergroup's coverpoints, in source order
+        crosses: The covergroup's crosses, in source order
         options: ``option.x = y;`` settings from the covergroup body
-        body: Set by the linker: the scope of the coverpoint and cross
-            names (LRM 15.3 a, 15.4), a synthetic symbol scope whose
-            target is this covergroup and whose members are the
-            coverpoints and crosses, not owned. Cross items, bin
-            targets and ``with`` expressions are resolved with it in
-            view; coverpoint targets, ``iff`` guards and bin ranges
-            are not. Not walked by the generated visitors.
+        body: Set by the linker (TaskBuildSymbolTree): the scope of the
+            coverpoint and cross names (LRM 15.3 a, 15.4), a synthetic
+            symbol scope whose target is this covergroup and whose
+            members are the coverpoints and crosses, not owned. It sits
+            inside the type's own symbol scope, after the ports. Cross
+            items, bin targets and ``with`` expressions are resolved
+            (TaskResolveRefs) with it in view; coverpoint targets,
+            ``iff`` guards and bin ranges are not. Null before
+            linking. Not walked by the generated visitors.
     
     See Also:
-        Covergroup, CovergroupInstantiation
+        Covergroup, CovergroupInstantiation, Field
     
     """
     pass
@@ -7094,10 +7881,16 @@ class SymbolEnumScope(SymbolScope):
     resolution for enum member access during type checking.
     
     The scope contains the enum's items as children, enabling qualified
-    name lookup (e.g., MyEnum::ItemName) during compilation.
+    name lookup (e.g., MyEnum::ItemName) during compilation. Built by
+    TaskBuildSymbolTree::visitEnumDecl; items added by `extend enum`
+    are merged in by TaskApplyTypeExtensions.
+    
+    PSS Example::
+    
+        enum color_e { RED, GREEN = 4, BLUE }   // one SymbolEnumScope
     
     See Also:
-        SymbolScope, EnumDecl, EnumItem
+        SymbolScope, EnumDecl, EnumItem, ExtendEnum
     
     Attributes:
         decl: The EnumDecl this scope was built from. A back-pointer
@@ -7114,19 +7907,26 @@ class SymbolExtendScope(SymbolScope):
     """
     Symbol scope for PSS extend statements.
     
-    Represents an extend declaration in the linked symbol tree, which adds
-    new members to an existing type. Manages the namespace for extension
-    members and links them back to the base type being extended.
+    Represents one `extend` statement (an ExtendType, its `target`) in
+    the linked symbol tree. TaskBuildSymbolTree::visitExtendType builds
+    it, named `<extend>` and synthetic, and collects the extension's
+    members and imports in it. TaskApplyTypeExtensions then merges those
+    members, and the imports, into the extended type's symbol scope, so
+    that one type can be augmented from several places, across
+    compilation units.
     
-    During linking, multiple extend declarations targeting the same type
-    are merged into the type's symbol scope, allowing type augmentation
-    across compilation units.
+    PSS Example::
     
-    Attributes:
-        (inherits from SymbolScope - children contain extension members)
+        extend component pss_top {   // one SymbolExtendScope
+            int extra;
+        }
+    
+    Has no fields of its own: `children` holds the extension's members
+    and `target` the ExtendType (both inherited from
+    SymbolChildrenScope).
     
     See Also:
-        SymbolScope, ExtendType, ExtendEnum
+        SymbolScope, ExtendType, ExtendEnum, SymbolTypeScope
     
     """
     pass
@@ -7135,21 +7935,41 @@ class SymbolFunctionScope(SymbolScope):
     """
     Symbol scope for functions with overload resolution support.
     
-    Represents a function in the linked symbol tree, managing multiple
-    declarations (prototypes, imports, definition) for the same function name.
-    Supports function overloading by tracking all signatures and selecting
-    the appropriate one during call resolution.
+    Represents a function in the linked symbol tree, collecting every
+    declaration of one function name: prototypes, `import` declarations,
+    and the definition. There is one such scope per function name, not
+    one per signature: later declarations must agree with the first,
+    which the linker checks (TaskBuildSymbolTree).
     
     During linking, function prototypes from different files are collected,
-    import specifications are resolved, and the definition (if present) is
-    linked. The plist handles template parameters for generic functions.
+    import specifications are recorded, and the body (if present) is
+    linked. The plist holds the function's parameters. Built by
+    TaskBuildSymbolTree (visitFunctionDefinition, visitFunctionPrototype,
+    visitFunctionImportProto, visitTargetTemplateFunction).
+    
+    PSS Example::
+    
+        function int add(int a, int b);                 // a prototype
+        function int add(int a, int b) { return a+b; }  // the definition
     
     Attributes:
-        prototypes: All declared function signatures (forward declarations)
-        import_specs: Imported function specifications (DPI/foreign functions)
-        definition: The function implementation (null if only prototype/import)
-        plist: Template parameter list scope (if this is a generic function)
-        body: Function body scope containing local variables and statements
+        prototypes: Every FunctionPrototype declared for the name; a
+            definition's prototype is put first
+        import_specs: One FunctionImport per `import ... function`
+            declaration of the function, recording its platform
+            qualifier (`solve` or `target`); owned copies made by the
+            linker, with an empty language
+        definition: Meant to point to the FunctionDefinition. Not set
+            by the linker: it is always null; the definition is
+            `target`, and its body is `body`
+        plist: The function's parameters: a scope named `<plist>`
+            holding the FunctionParamDecl nodes of the first prototype
+            seen, re-bound to a definition's own parameter names
+            (`ElemKind_ArgIdx` indexes it)
+        body: The ExecScope of the function's definition; null for a
+            function that is only declared, imported, or a target
+            template. Reached by an `ElemKind_ChildIdx` step equal to
+            the number of children
     
     See Also:
         SymbolScope, FunctionPrototype, FunctionDefinition, FunctionImport
@@ -7181,7 +8001,10 @@ class SymbolTypeScope(SymbolScope):
     
     Represents a user-defined type in the linked symbol tree, managing its
     members, methods, and constraints. Supports template specialization by
-    tracking parameter lists and specialized type instantiations.
+    tracking parameter lists and specialized type instantiations. Built
+    for each TypeScope by TaskBuildSymbolTree::visitTypeScope (synthetic,
+    `target` the declaration); the builtin types `array`, `list`, `map`,
+    `set`, `string` and `pyobj` have one too.
     
     During linking, type declarations from multiple files can be merged
     (for extend statements) and specialized instances are tracked separately.
@@ -7189,11 +8012,17 @@ class SymbolTypeScope(SymbolScope):
     specialized/instantiated versions of this generic type.
     
     Attributes:
-        plist: Template parameter list scope (if this is a generic type)
-        spec_types: List of specialized/instantiated versions of this type
+        plist: Template parameter list scope, named `<plist>`, holding the
+            TemplateParamDecl nodes of a generic type (`ElemKind_ParamIdx`
+            indexes it); null for a non-template type
+        spec_types: The specializations of this generic type, one per
+            distinct argument list used, in the order they were first
+            needed (`ElemKind_TypeSpec` indexes it). Built by the linker
+            (TaskGetSpecializedTemplateType); empty for a non-template
+            type
     
     See Also:
-        SymbolScope, Action, Component, Struct, SymbolExtendScope
+        SymbolScope, Action, Component, Struct, SymbolExtendScope, SymbolExtMember
     
     """
     pass
@@ -7219,6 +8048,7 @@ class TemplateElem(SymbolScope):
     Every element records where it came from in the owning
     TemplateString's ``raw`` text.  A ``Location`` is not enough for a
     renderer that wants to splice, so byte offsets are carried as well.
+    The element's location is that of its first byte in the file.
     
     Note this derives from SymbolScope rather than plain ScopeChild.
     Only the block elements actually need a symbol table, but the name
@@ -7230,38 +8060,53 @@ class TemplateElem(SymbolScope):
     fixed kind tag (``<template-text>``, ``<template-if>``, ...), which
     also makes the resolver's debug output readable.
     
+    A closing `{%%}` directive produces no element of its own; it ends
+    the `body` of the innermost open TemplateBlock.
+    
     Attributes:
-        offset: Byte offset into the owning TemplateString's raw text
-        extent: Length in bytes, including the delimiters
+        offset: Byte offset of the element's first byte (its opening
+            delimiter, for a special element) into the owning
+            TemplateString's raw text
+        extent: Length in bytes, including the delimiters.  A line
+            comment's extent includes the newline that ends it.
         is_own_line: True when this element's line holds directives and
             whitespace only.  §4.7.1.2 excludes that whitespace and the
             terminating newline from the expansion; deciding it needs the
             raw text, so the scanner computes it once and records it here
-            rather than making every renderer re-scan.
+            rather than making every renderer re-scan.  Computed only for
+            directives and comments; always false for TemplateText and
+            TemplateExpr, and a line holding a mustache expression is
+            never own-line.
     
     See Also:
-        TemplateString, TemplateBlock
+        TemplateString, TemplateBlock, TemplateText, TemplateExpr,
+        TemplateComment
     
     """
     pass
     
 class ExecScope(SymbolScope):
     """
-    Scope containing procedural statements with symbol table capabilities.
+    A brace-delimited list of procedural statements with its own local
+    variables -- LRM 20.7.1, `procedural_sequence_block_stmt`.
     
-    ExecScope represents a scope that can contain procedural statements and
-    maintains a symbol table for local variables. It provides the scoping
-    infrastructure for exec blocks and statement bodies.
+    The parser builds an ExecScope for the body of a native function
+    (named `<func-body>`) and for every nested `{ ... }` or
+    `sequence { ... }` block inside procedural code (named
+    `<sequence>`); the `sequence` keyword is not recorded. ExecBlock
+    derives from it for the exec block itself. Its children are the
+    statements in source order; local variables declared in it are
+    entered in its symbol table by the parser.
     
     PSS Example::
     
-        action my_action {
-            exec body {
-                // This exec body is an ExecScope
-                int local_var = 5;  // Symbol in this scope
-                {
-                    // Nested scope (also ExecScope)
-                    int nested_var = 10;
+        component pss_top {
+            action my_action {
+                exec post_solve {          // ExecBlock (an ExecScope)
+                    int local_var = 5;
+                    {                      // nested ExecScope
+                        int nested_var = 10;
+                    }
                 }
             }
         }
@@ -7270,7 +8115,7 @@ class ExecScope(SymbolScope):
         endLocation: Source location of the closing brace
     
     See Also:
-        ExecBlock, SymbolScope, ProceduralStmtBody
+        ExecBlock, SymbolScope, FunctionDefinition, ProceduralStmtDataDeclaration
     
     """
     pass
@@ -7281,13 +8126,21 @@ class TemplateString(SymbolScope):
     elements -- PSS 3.1 §4.7.1.
     
     A triple-quoted string stops being a leaf and becomes a *scope* when
-    it contains mustache expressions or control-flow directives: the
-    expressions resolve against the enclosing model, and the directives
-    declare variables of their own.
+    it contains mustache expressions, control-flow directives or
+    embedded comments: the expressions resolve against the enclosing
+    model, and the directives declare variables of their own.
     
     A triple-quoted string containing **no** special elements does not
     get a TemplateString at all -- it stays a plain ExprString.  "Has
     specials" is therefore a type test rather than a list-length test.
+    A plain `"..."` string never gets one either.
+    
+    The parser builds it for a triple-quoted string used as an
+    expression (held by ExprTemplateString), as the body or file name of
+    a target-template exec block (ExecTargetTemplateBlock), and as the
+    body of a target-template function (TargetTemplateFunction). Its
+    `name` is the fixed tag `<template>`, and its location is that of
+    the first content byte after the opening quotes.
     
     PSS Example::
     
@@ -7304,16 +8157,26 @@ class TemplateString(SymbolScope):
     Attributes:
         raw: Verbatim content with the enclosing quotes stripped.  Kept
             lossless so a formatter that cannot render a template
-            structurally can still copy it byte for byte.
-        elems: The scanned elements, in source order
-        is_const: True when every special element references only
-            constant expressions (§4.7).  Computed after resolution,
-            not during scanning.
-        symtab: Variables declared at the top level of this template
-            (inherited from SymbolScope)
+            structurally can still copy it byte for byte.  Every
+            element's `offset` is relative to it.
+        elems: The top-level elements, in source order.  Elements
+            inside a block are in that block's `body`, not here.
+        is_const: True when every expression in the template --
+            mustache expressions and the expressions in directives --
+            references only constants: constant fields, enum items,
+            template value parameters, and template locals that hold
+            constant values (§4.7).  A function call is never
+            constant.  Set by the linker (TaskTemplateCheck, run from
+            TaskResolveRefs once the template is resolved); false
+            until then.
+        symtab: Names of the variables declared by top-level
+            `{% data_type ...; %}` directives (inherited from
+            SymbolScope).  The declarations themselves are this
+            node's children.
     
     See Also:
-        TemplateElem, ExprTemplateString, ExecTargetTemplateBlock
+        TemplateElem, ExprTemplateString, ExecTargetTemplateBlock,
+        TargetTemplateFunction
     
     """
     pass
@@ -7330,37 +8193,29 @@ class TemplateString(SymbolScope):
     
 class ActivityAtomicBlock(ActivityLabeledScope):
     """
-    Marks a block of activities as atomic for scheduling.
+    An atomic block: `atomic { ... }` -- LRM 11.3.7,
+    `activity_atomic_block_stmt`.
     
-    ActivityAtomicBlock ensures that the contained activities execute as an
-    indivisible unit with respect to other concurrent activities. This provides
-    atomicity guarantees for critical sections of activity execution.
+    Preserves the scheduling structure of its sub-activity against
+    interference from the rest of the scenario: all actions traversed in
+    the block form one scheduling cluster, which behaves like a single
+    atomic action. Dependencies of any action in the block on outside
+    actions become dependencies of the whole block, and an outside action
+    that depends on any action in the block depends on the whole block.
     
     PSS Example::
     
-        action my_action {
-            activity {
-                parallel {
-                    sequence {
-                        atomic {
-                            do comp.read_resource;
-                            do comp.modify_resource;
-                            do comp.write_resource;
-                        }
-                    }
-                    sequence {
-                        atomic {
-                            do comp.read_resource;
-                            do comp.modify_resource;
-                            do comp.write_resource;
-                        }
-                    }
-                }
+        activity {
+            do bring_up;
+            atomic {
+                do A;
+                do B;           // nothing inferred between A and B
             }
         }
     
     Attributes:
-        body: Activity statement body that executes atomically
+        body: The braced block, built as an ActivitySequence located at the
+            braces; never null.
     
     See Also:
         ActivitySequence, ActivityParallel
@@ -7372,45 +8227,50 @@ class ActivityAtomicBlock(ActivityLabeledScope):
     
 class ActivityForeach(ActivityLabeledScope):
     """
-    Iterates over elements in a collection.
+    Iterates over a collection: `foreach ( [it :] coll [ [idx] ] ) stmt`
+    -- LRM 11.4.3, `activity_foreach_stmt`.
     
-    ActivityForeach executes its body once for each element in a collection,
-    providing access to the current element through an iterator variable and
-    optionally the current index.
+    Traverses its body once per element of an array, list, map or set,
+    with an optional iterator variable bound to the current element and an
+    optional index variable bound to its index (key, for a map). The
+    builder declares the iterator and index as the loop's children
+    (ProceduralStmtDataDeclaration), in that order; the iterator is typed
+    from the collection's element type by the linker (TaskResolveRefs).
     
     PSS Example::
     
-        action my_action {
-            rand bit[8] data[10];
-            
+        action top {
+            A handles[4];
+            rand bit[8] vals[4];
             activity {
-                // Foreach with iterator
-                foreach (d : data) {
-                    do comp.process with {
-                        value == d;
-                    }
+                foreach (h : handles) {
+                    h;
                 }
-                
-                // Foreach with iterator and index
-                foreach (d[i] : data) {
-                    do comp.process with {
-                        value == d;
-                        index == i;
-                    }
+                foreach (v : vals[i]) {
+                    do A with { addr == v + i; }
+                }
+                foreach (vals[j]) {
+                    do A with { addr == vals[j]; }
                 }
             }
         }
     
     Attributes:
-        it_id: Iterator identifier for the current element
-        idx_id: Optional index identifier for the current position
+        it_id: The `iterator_identifier`, or null when absent.
+        idx_id: The `index_identifier`, or null when absent. Written as
+            `coll[j]`, the subscript first parses as part of the collection
+            expression; the builder lifts it out into this field.
         path: Reference path to the collection being iterated (named
             ``path``, as on ProceduralStmtForeach: ``target`` is the
-            SymbolScope field naming the scope's AST node)
-        body: Activity statement body executed for each element
+            SymbolScope field naming the scope's AST node). Null when the
+            collection expression is not a reference; the builder reports
+            an error then.
+        body: The statement traversed per element: an ActivitySequence for a
+            braced body, the statement itself otherwise, or an empty
+            ActivitySequence when the body built nothing.
     
     See Also:
-        ActivityRepeatCount, ActivityRepeatWhile
+        ActivityRepeatCount, ActivityRepeatWhile, ProceduralStmtForeach
     
     """
     pass
@@ -7425,46 +8285,36 @@ class ActivityForeach(ActivityLabeledScope):
     
 class ActivityIfElse(ActivityLabeledScope):
     """
-    Conditional execution of activity branches.
+    Conditional traversal: `if ( cond ) stmt [ else stmt ]` -- LRM 11.4.5,
+    `activity_if_else_stmt`.
     
-    ActivityIfElse provides conditional branching in activity blocks, executing
-    one of two branches based on a boolean condition. Unlike select, the choice
-    is deterministic based on the condition value.
+    Traverses the first statement when the condition is true, the `else`
+    statement (if any) otherwise. Unlike `select`, the choice is
+    determined by the condition. An `else if` is an ActivityIfElse as the
+    `false_s` statement.
     
     PSS Example::
     
-        action my_action {
+        action top {
             rand bit[8] mode;
-            rand bit enable;
-            
             activity {
-                // Simple if-else
-                if (enable) {
-                    do comp.enabled_action;
-                } else {
-                    do comp.disabled_action;
-                }
-                
-                // If without else
                 if (mode > 5) {
-                    do comp.high_mode_action;
-                }
-                
-                // Nested if-else
-                if (mode == 0) {
-                    do comp.mode0;
-                } else if (mode == 1) {
-                    do comp.mode1;
+                    do A;
+                } else if (mode == 0) {
+                    do B;
                 } else {
-                    do comp.default_mode;
+                    do C;
                 }
             }
         }
     
     Attributes:
-        cond: Boolean expression determining which branch executes
-        true_s: Statement executed when condition is true
-        false_s: Optional statement executed when condition is false
+        cond: The `( expression )` condition.
+        true_s: The statement traversed when the condition is true: an
+            ActivitySequence for a braced body, the statement itself
+            otherwise. Null when the statement built nothing (`if (c) ;`).
+        false_s: The `else` statement, or null when there is no `else` (or
+            it built nothing).
     
     Note:
         The branches are typed ScopeChild rather than ActivityStmt because a
@@ -7487,40 +8337,32 @@ class ActivityIfElse(ActivityLabeledScope):
     
 class ActivityMatch(ActivityLabeledScope):
     """
-    Pattern matching on expression values.
+    Multi-way branch on a value: `match ( expr ) { ... }` -- LRM 11.4.6,
+    `activity_match_stmt`.
     
-    ActivityMatch provides multi-way branching based on pattern matching against
-    an expression value. It's similar to a switch statement, allowing matching
-    against specific values, ranges, or a default case.
+    Traverses the statement of the choice whose open range list contains
+    the value of the match expression, or the `default` choice when none
+    does. The grammar requires at least one choice.
     
     PSS Example::
     
-        action my_action {
+        action top {
             rand bit[8] opcode;
-            
             activity {
                 match (opcode) {
-                    // Single value
-                    [0x00]: { do comp.nop_action; }
-                    
-                    // Multiple values
-                    [0x01, 0x02, 0x03]: { do comp.arithmetic; }
-                    
-                    // Range
-                    [0x10..0x1F]: { do comp.memory_ops; }
-                    
-                    // Multiple ranges
-                    [0x20..0x2F, 0x40..0x4F]: { do comp.control; }
-                    
-                    // Default case
-                    default: { do comp.illegal_opcode; }
+                    [0x00]: do A;
+                    [0x01, 0x02]: { do B; do C; }
+                    [0x10..0x1F]: do D;
+                    default: do E;
                 }
             }
         }
     
     Attributes:
-        cond: Expression whose value is matched against the choices
-        choices: List of match choices with patterns and bodies
+        cond: The `match_expression` whose value is matched.
+        choices: The `match_choice` alternatives, in source order. Their
+            bodies are this scope's bodies, addressed after its (empty)
+            children.
     
     See Also:
         ActivityMatchChoice, ActivitySelect, ActivityIfElse
@@ -7538,40 +8380,31 @@ class ActivityMatch(ActivityLabeledScope):
     
 class ActivityParallel(ActivityLabeledScope):
     """
-    Defines a parallel execution block with join semantics.
+    A parallel block: `parallel [join_spec] { ... }` -- LRM 11.3.4,
+    `activity_parallel_stmt`.
     
-    ActivityParallel specifies that its contained activities may execute
-    concurrently. The join specification determines when the parallel block
-    completes relative to its branches. By default, all branches must complete.
+    Its top-level statements are started together and then run without
+    further synchronization. By default the statement after the block
+    waits for all of them to complete; a join specification changes that.
+    The statements, and the handles and `action` fields declared in the
+    block, are its `children`.
     
     PSS Example::
     
-        action my_action {
-            activity {
-                // Default parallel (wait for all)
-                parallel {
-                    do comp.action1;
-                    do comp.action2;
-                    do comp.action3;
-                }
-                
-                // Parallel with join_first
-                parallel join_first(2) {
-                    do comp.fast_action;
-                    do comp.medium_action;
-                    do comp.slow_action;
-                }
-                
-                // Parallel with join_none (fire and forget)
-                parallel join_none {
-                    do comp.background1;
-                    do comp.background2;
-                }
+        activity {
+            parallel {
+                do A;
+                do B;
+            }
+            parallel join_first(1) {
+                do A;
+                do B;
             }
         }
     
     Attributes:
-        join_spec: Specification of join behavior for the parallel block
+        join_spec: The `activity_join_spec`, or null when there is none (wait
+            for all).
     
     See Also:
         ActivitySequence, ActivitySchedule, ActivityJoinSpec
@@ -7583,42 +8416,36 @@ class ActivityParallel(ActivityLabeledScope):
     
 class ActivityRepeatCount(ActivityLabeledScope):
     """
-    Repeats an activity body a fixed number of times.
+    A counted loop: `repeat ( [i :] count ) stmt` -- LRM 11.4.1,
+    `activity_repeat_stmt`.
     
-    ActivityRepeatCount executes its body a specified number of iterations,
-    with an optional loop variable that tracks the current iteration. Each
-    iteration executes sequentially.
+    Traverses its body `count` times, in sequence. The optional index
+    variable ranges from 0 to `count` - 1. The builder also declares it
+    as the loop's only child (an untyped ProceduralStmtDataDeclaration),
+    so that it is in scope in the body and not after the loop; it is not
+    in scope in `count`.
     
     PSS Example::
     
-        action my_action {
-            activity {
-                // Basic repeat
-                repeat (10) {
-                    do comp.sub_action;
-                }
-                
-                // Repeat with loop variable
-                repeat (i : 5) {
-                    do comp.sub_action with {
-                        index == i;
-                    }
-                }
-                
-                // Repeat with expression
-                repeat (num_iterations) {
-                    do comp.action;
-                }
+        activity {
+            repeat (4) {
+                do A;
+            }
+            repeat (i : 5) {
+                do A with { idx == i; }
             }
         }
     
     Attributes:
-        loop_var: Optional loop variable identifier
-        count: Expression specifying the number of iterations
-        body: Activity statement body to execute each iteration
+        loop_var: The `index_identifier`, or null when absent.
+        count: The iteration count `expression`.
+        body: The repeated statement: an ActivitySequence for a braced
+            body, the statement itself otherwise, or an empty
+            ActivitySequence when the body built nothing. Never null after
+            parsing.
     
     See Also:
-        ActivityRepeatWhile, ActivityForeach, ActivityReplicate
+        ActivityRepeatWhile, ActivityForeach, ActivityReplicate, ProceduralStmtDataDeclaration
     
     """
     pass
@@ -7631,41 +8458,34 @@ class ActivityRepeatCount(ActivityLabeledScope):
     
 class ActivityRepeatWhile(ActivityLabeledScope):
     """
-    Repeats an activity body while a condition is true.
+    A repeat-while loop: `repeat stmt while ( cond );` -- LRM 11.4.2,
+    `activity_repeat_stmt`.
     
-    ActivityRepeatWhile executes its body repeatedly as long as the specified
-    condition evaluates to true. The condition is checked before each iteration,
-    including the first one.
+    Traverses its body, then evaluates the condition, and repeats while it
+    is true: the condition is sampled after each iteration, so the body is
+    traversed at least once. The condition is of type `bool`.
     
     PSS Example::
     
-        action my_action {
-            rand bit[8] counter;
-            
+        action top {
+            int count;
             activity {
-                // Basic while loop
-                repeat while (counter < 10) {
-                    do comp.increment_action;
-                }
-                
-                // Conditional processing
-                repeat while (has_more_data()) {
-                    do comp.process_data;
-                }
-                
-                // Complex condition
-                repeat while (status == ACTIVE && count > 0) {
-                    do comp.work_action;
-                }
+                repeat {
+                    do A;
+                } while (count < 10);
             }
         }
     
     Attributes:
-        cond: Boolean expression evaluated before each iteration
-        body: Activity statement body to execute while condition is true
+        cond: The `while ( expression )` condition, evaluated after each
+            iteration.
+        body: The repeated statement: an ActivitySequence for a braced
+            body, the statement itself otherwise, or an empty
+            ActivitySequence when the body built nothing. Never null after
+            parsing.
     
     See Also:
-        ActivityRepeatCount, ActivityForeach
+        ActivityRepeatCount, ActivityForeach, ProceduralStmtRepeatWhile
     
     """
     pass
@@ -7676,44 +8496,39 @@ class ActivityRepeatWhile(ActivityLabeledScope):
     
 class ActivityReplicate(ActivityLabeledScope):
     """
-    Replicates an activity N times with concurrent execution.
+    In-place expansion: `replicate ( [i :] N ) [ L[] : ] stmt` -- LRM
+    11.5.1, `activity_replicate_stmt`.
     
-    ActivityReplicate creates N concurrent instances of the body activity,
-    potentially with different constraint values for each instance. Unlike
-    repeat, which executes sequentially, replicate creates parallel instances
-    that may execute concurrently.
+    Expands to N occurrences of its statement in the enclosing activity
+    scope. It adds no layer of scheduling or control flow of its own: the
+    occurrences are scheduled as the context dictates (in parallel under a
+    `parallel` block, in sequence under a sequence). N is a positive
+    integer known at solve time. The optional index variable ranges from 0
+    to N - 1; the builder declares it as the statement's only child
+    (ProceduralStmtDataDeclaration). An optional label array names each
+    occurrence `L[0]` ... `L[N-1]` as a named sub-activity.
     
     PSS Example::
     
-        action my_action {
-            activity {
-                // Replicate 4 times
-                replicate (4) {
-                    do comp.worker_action;
-                }
-                
-                // Replicate with index variable
-                replicate (i : 8) {
-                    do comp.indexed_action with {
-                        id == i;
-                    }
-                }
-                
-                // Replicate with iterator label
-                replicate (i : 3) it_label {
-                    do comp.action;
-                }
+        activity {
+            parallel {
+                replicate (4) do A;
+            }
+            replicate (i : 3) RL[]: {
+                do A with { idx == i; }
             }
         }
     
     Attributes:
-        idx_id: Optional index variable identifier (0 to count-1)
-        count: Expression giving the number of instances to create
-        it_label: Optional label for the iterator instance
-        body: Activity statement body replicated N times
+        idx_id: The `index_identifier`, or null when absent.
+        count: The `expression` giving the number of occurrences N.
+        it_label: The `label_identifier` of the label array (`RL` in
+            `RL[]:`), or null when absent.
+        body: The replicated `labeled_activity_stmt`, or an empty
+            ActivitySequence when it built nothing.
     
     See Also:
-        ActivityRepeatCount, ActivityParallel
+        ActivityRepeatCount, ActivityParallel, ActivityLabeledScope
     
     """
     pass
@@ -7728,38 +8543,38 @@ class ActivityReplicate(ActivityLabeledScope):
     
 class ActivitySchedule(ActivityLabeledScope):
     """
-    Defines a scheduled execution block with explicit ordering constraints.
+    A schedule block: `schedule [join_spec] { ... }` -- LRM 11.3.5,
+    `activity_schedule_stmt`.
     
-    ActivitySchedule allows activities to execute with explicit scheduling
-    constraints that define relative ordering. Unlike parallel blocks where
-    all actions start together, schedule blocks allow fine-grained control
-    over when each activity begins and ends relative to others.
+    Its top-level statements are all traversed, in any order or
+    concurrently, subject to the other scheduling constraints and the
+    flow-object and resource rules: the tool chooses a legal schedule.
+    Scheduling constraints (ActivitySchedulingConstraint) can impose
+    relative order on the statements. The statements, and the handles and
+    `action` fields declared in the block, are its `children`.
     
     PSS Example::
     
-        action my_action {
+        action top {
+            A a1;
+            B b1;
+            C c1;
             activity {
                 schedule {
-                    a: do comp.action_a;
-                    b: do comp.action_b;
-                    c: do comp.action_c;
-                    d: do comp.action_d;
-                    
-                    // Scheduling constraints
-                    a before b;           // Sequential
-                    a before c;           // Sequential
-                    parallel(b, c);       // Parallel
-                    b before d;
-                    c before d;
+                    a1;
+                    b1;
+                    c1;
                 }
+                constraint sequence { a1, b1 };
             }
         }
     
     Attributes:
-        join_spec: Specification of join behavior for the schedule block
+        join_spec: The `activity_join_spec`, or null when there is none (wait
+            for all).
     
     See Also:
-        ActivitySchedulingConstraint, ActivityParallel, ActivitySequence
+        ActivitySchedulingConstraint, ActivityParallel, ActivitySequence, ActivityJoinSpec
     
     """
     pass
@@ -7770,8 +8585,11 @@ class MonitorActivityOverlap(MonitorActivityLabeledScope):
     """
     Overlap block for concurrent sequence monitoring.
     
-    ``overlap { a; b; }`` requires its body statements to be observed with
-    overlapping lifetimes, rather than one after another.
+    The overlapping scenario (LRM 16.3.5,
+    `monitor_activity_overlap_stmt`): ``overlap { a; b; }`` matches its
+    body statements as ``schedule`` does -- in any order, without
+    sharing action executions -- and additionally requires an instant
+    at which all of them are active at once.
     
     Like ``concat``, this is an n-ary block and not a binary operator; the
     former ``lhs``/``rhs`` fields modelled an ``a overlap b`` syntax that
@@ -7810,8 +8628,11 @@ class MonitorActivitySchedule(MonitorActivityLabeledScope):
     """
     Defines a scheduled monitoring block with flexible ordering.
     
-    ``schedule { a; b; }`` permits its body statements to be observed in
-    any order, unlike ``sequence``, which fixes the order.
+    The scheduling scenario (LRM 16.3.8,
+    `monitor_activity_schedule_stmt`): ``schedule { a; b; }`` matches
+    its body statements in any order, with any overlaps or gaps, as long
+    as no action execution is shared between them -- unlike
+    ``sequence``, which fixes the order.
     
     PSS Example::
     
@@ -7837,7 +8658,7 @@ class MonitorActivitySchedule(MonitorActivityLabeledScope):
             (inherited from MonitorActivityLabeledScope)
     
     See Also:
-        MonitorActivitySequence, ActivitySchedule
+        MonitorActivitySequence, MonitorActivityOverlap, ActivitySchedule
     
     """
     pass
@@ -7846,7 +8667,8 @@ class MonitorActivitySelect(MonitorActivityLabeledScope):
     """
     Alternative monitoring paths.
     
-    ``select { a; b; }`` is satisfied by observing exactly one of its
+    The selection scenario (LRM 16.3.6, `monitor_activity_select_stmt`):
+    ``select { a; b; }`` is matched by a match of any one of its
     alternatives. The grammar requires at least two.
     
     The alternatives are the scope's children. The class previously held a
@@ -7888,10 +8710,12 @@ class MonitorActivitySequence(MonitorActivityLabeledScope):
     """
     Defines a sequential monitoring block.
     
-    MonitorActivitySequence specifies that its contained monitor
-    activities are observed in strict order: each must be observed before
-    the next is checked. The ``sequence`` keyword is optional -- a bare
-    braced block inside a monitor activity is a sequence.
+    The sequential scenario (LRM 16.3.2,
+    `monitor_activity_sequence_block_stmt`): its body statements are
+    matched in order, each at or after the match point of the previous
+    one, so arbitrary gaps are allowed between them. The ``sequence``
+    keyword is optional -- a bare braced block inside a monitor activity
+    is a sequence. An empty block is the empty scenario (LRM 16.3.7).
     
     PSS Example::
     
@@ -7935,9 +8759,11 @@ class MonitorActivityConcat(MonitorActivityLabeledScope):
     """
     Temporal concatenation block.
     
-    ``concat { a; b; c; }`` requires its body statements to be observed
-    back to back, with no gap between the end of one and the start of the
-    next -- the distinction from ``sequence``, which permits gaps.
+    The concatenation scenario (LRM 16.3.3,
+    `monitor_activity_concat_stmt`): ``concat { a; b; c; }`` matches
+    each body statement starting exactly at the match point of the
+    previous one, with no gap -- the distinction from ``sequence``,
+    which permits gaps.
     
     Note this is an n-ary block, not a binary operator: PSS has no ``##``
     concatenation operator, and the class previously modelled one with
@@ -7974,43 +8800,36 @@ class MonitorActivityConcat(MonitorActivityLabeledScope):
     
 class ActivitySelect(ActivityLabeledScope):
     """
-    Randomly selects and executes one branch from alternatives.
+    Traverses one of several branches: `select { ... }` -- LRM 11.4.4,
+    `activity_select_stmt`.
     
-    ActivitySelect provides a weighted random choice between multiple branches.
-    Each branch can have a guard condition and a weight expression to control
-    selection probability. Only one branch is executed per select statement.
+    Each evaluation traverses exactly one enabled branch. A branch is
+    enabled when it has no guard or its guard is true. When any branch has
+    a weight, a branch without one weighs 1, and the probability of a
+    branch is its weight over the sum of the enabled branches' weights.
+    The grammar requires at least two branches.
     
     PSS Example::
     
-        action my_action {
-            rand bit[8] mode;
-            
+        action top {
+            rand bit[2] mode;
             activity {
-                // Basic select (equal probability)
                 select {
-                    1: { do comp.option_a; }
-                    1: { do comp.option_b; }
-                    1: { do comp.option_c; }
+                    do A;
+                    do B;
                 }
-                
-                // Weighted select
                 select {
-                    70: { do comp.common_case; }
-                    20: { do comp.rare_case; }
-                    10: { do comp.very_rare_case; }
-                }
-                
-                // Select with guards
-                select {
-                    [mode == 0] 1: { do comp.mode0_action; }
-                    [mode == 1] 1: { do comp.mode1_action; }
-                    [mode == 2] 1: { do comp.mode2_action; }
+                    [70]: do A;
+                    (mode == 0)[20]: do B;
+                    (mode != 0): do C;
                 }
             }
         }
     
     Attributes:
-        branches: List of select branches with guards, weights, and bodies
+        branches: The `select_branch` alternatives, in source order. The
+            branch bodies are this scope's bodies, addressed after its
+            (empty) children.
     
     See Also:
         ActivitySelectBranch, ActivityMatch, ActivityIfElse
@@ -8026,12 +8845,14 @@ class ActivitySelect(ActivityLabeledScope):
     
 class MonitorActivityEventually(MonitorActivityLabeledScope):
     """
-    Eventually operator for liveness properties.
+    The eventuality scenario (LRM 16.3.4,
+    `monitor_activity_eventually_stmt`).
     
-    ``eventually <stmt>`` requires its operand to be observed at some
-    point in the future, with no bound on when. LRM 16.4.4 makes the
-    operand a full ``monitor_activity_stmt``, so it may be a traversal or
-    a whole block.
+    ``eventually <stmt>`` matches its operand starting at any checkpoint
+    at or after the current one, rather than only at the current one --
+    ``eventually r;`` matches some later ``r``, not just the next. The
+    LRM makes the operand a full ``monitor_activity_stmt``, so it may be
+    a traversal or a whole block.
     
     The class previously carried a ``condition`` expression as well as a
     body. There is no such expression in the grammar -- ``eventually``
@@ -8062,14 +8883,19 @@ class MonitorActivityEventually(MonitorActivityLabeledScope):
         }
     
     Attributes:
-        body: The monitor activity statement that must eventually be
-            observed. Typed ScopeChild because a braced operand is a
-            MonitorActivitySequence, which is a scope rather than a
-            MonitorActivityStmt.
-        label: Optional label (inherited from MonitorActivityLabeledStmt)
+        body: The operand statement, built as any monitor activity
+            statement is: a traversal, a constraint, or a block (a
+            braced operand is a MonitorActivitySequence). Typed
+            ScopeChild because a block is a scope rather than a
+            MonitorActivityStmt. Null when the operand builds no
+            statement node (a bare ``;``, or an annotation). Set by
+            the parser.
+        label: Optional label (inherited from
+            MonitorActivityLabeledScope)
     
     See Also:
-        MonitorActivityStmt, MonitorConstraint
+        MonitorActivityLabeledScope, MonitorActivitySequence,
+        MonitorActivityStmt
     
     """
     pass
@@ -8078,84 +8904,87 @@ class MonitorActivityEventually(MonitorActivityLabeledScope):
     
 class ActivitySequence(ActivityLabeledScope):
     """
-    Defines a sequential execution block.
+    A sequential block: `sequence { ... }` or a bare `{ ... }` -- LRM
+    11.3.3, `activity_sequence_block_stmt`.
     
-    ActivitySequence specifies that its contained activities execute in strict
-    sequential order, one after another. Each activity completes before the next
-    begins. This is the default execution model and can be explicitly specified
-    with the 'sequence' keyword.
+    Its statements are traversed in order, each completing before the next
+    starts. The statements, and the handles and `action` fields declared in
+    the block, are its `children`.
+    
+    The builder also makes an ActivitySequence for the braces of an
+    `atomic` block (ActivityAtomicBlock's `body`), and substitutes an empty,
+    unlocated one for a compound statement's body that built no statement
+    (`repeat (3) ;`), so such a body is never null.
     
     PSS Example::
     
-        action my_action {
-            activity {
-                // Explicit sequence
-                sequence {
-                    do comp.init_action;
-                    do comp.process_action;
-                    do comp.cleanup_action;
-                }
-                
-                // Labeled sequence
-                setup_phase: sequence {
-                    do comp.config;
-                    do comp.verify;
-                }
-                
-                // Nested sequences
-                sequence {
-                    sequence {
-                        do comp.step1;
-                        do comp.step2;
-                    }
-                    do comp.step3;
-                }
+        activity {
+            sequence {
+                do A;
+                do B;
+            }
+            setup: {
+                do C;
+                do D;
             }
         }
     
-    Attributes:
-        (inherits from ActivityLabeledScope)
-    
     See Also:
-        ActivityParallel, ActivitySchedule, ActivityLabeledScope
+        ActivityParallel, ActivitySchedule, ActivityAtomicBlock, ActivityLabeledScope
     
     """
     pass
     
 class ProceduralStmtForeach(ProceduralStmtSymbolBodyScope):
     """
-    Iteration over elements of a collection.
+    Foreach loop over a collection -- LRM 20.7.8,
+    `foreach ( [ iterator_identifier : ] expression [ [ index_identifier ] ] ) procedural_stmt`.
     
-    ProceduralStmtForeach represents a foreach loop that iterates over elements
-    of an array, list, or other collection. Provides both the element iterator
-    and an optional index iterator for tracking position.
+    Runs the body once per element of an array, list, map or set. The
+    iterator variable holds the current element; the index variable
+    holds the array/list position or the map key (a set takes no
+    index). At least one of the two must be written.
+    
+    The node is a symbol scope named `<foreach>`. For each variable
+    written, the parser adds a child ProceduralStmtDataDeclaration with
+    a null type and enters it in the symbol table: the iterator first,
+    then the index. The linker (TaskResolveRefs) later gives the
+    iterator's declaration the collection's element type. The body is
+    held in `body`, not among the children.
     
     PSS Example::
     
-        action my_action {
+        component pss_top {
             int values[10];
-            
-            exec body {
-                // Iterate over array elements
-                foreach (v : values) {
-                    console.log("Value: ", v);
+            int total;
+            exec init_up {
+                foreach (v : values) {          // iterator only
+                    total += v;
                 }
-                
-                // Iterate with index
-                foreach (v [i] : values) {
-                    console.log("values[", i, "] = ", v);
+                foreach (values[i]) {           // index only
+                    values[i] = i;
+                }
+                foreach (v : values[i]) {       // both
+                    total += v * i;
                 }
             }
         }
     
     Attributes:
-        path: Reference path to the collection to iterate
-        it_id: Iterator variable for current element
-        idx_id: Optional index variable for current position
-        body: Statement(s) to execute each iteration (inherited)
+        path: The collection expression. The grammar parses
+            `values[i]` as a subscripted path, so the parser lifts a
+            trailing single-name subscript back out as the index
+            variable. Null when the collection is not an
+            ExprRefPathContext (e.g. a type-qualified `pkg::arr`); the
+            expression is then dropped.
+        it_id: The iterator variable's name, or null when none is
+            written
+        idx_id: The index variable's name, or null when none is written
+        body: The loop body (inherited); null if the body is an empty
+            statement (`;`)
     
     See Also:
-        ProceduralStmtRepeat, ProceduralStmtWhile, ExprRefPath
+        ProceduralStmtRepeat, ProceduralStmtWhile, ExprRefPathContext, ActivityForeach
     
     """
     pass
@@ -8168,32 +8997,42 @@ class ProceduralStmtForeach(ProceduralStmtSymbolBodyScope):
     
 class ProceduralStmtRepeat(ProceduralStmtSymbolBodyScope):
     """
-    Fixed-count repeat loop with optional iterator variable.
+    Repeat-count loop -- LRM 20.7.6,
+    `repeat ( [ index_identifier : ] expression ) procedural_stmt`.
     
-    ProceduralStmtRepeat represents a loop that executes a fixed number of
-    times, specified by the count expression. An optional iterator variable
-    tracks the current iteration index (0-based).
+    Runs the body the number of times the count expression gives (not
+    at all if it is 0). The optional index variable ranges from 0 to one
+    less than the count.
+    
+    The node is a symbol scope named `<repeat>`. The parser always adds
+    one child, a ProceduralStmtDataDeclaration with a null type that
+    declares the index variable; when no index is written the child is
+    named `_` and is not entered in the symbol table. The body is held
+    in `body`, not among the children.
     
     PSS Example::
     
-        action my_action {
-            exec body {
-                // Repeat 10 times without iterator
-                repeat (10) {
-                    console.log("Iteration");
-                }
-                
-                // Repeat with iterator variable
-                repeat (i : 5) {
-                    console.log("Iteration ", i);  // i = 0, 1, 2, 3, 4
+        component pss_top {
+            action my_action {
+                int total;
+                exec post_solve {
+                    repeat (10) {
+                        total += 1;
+                    }
+    
+                    repeat (i : 5) {        // i = 0, 1, 2, 3, 4
+                        total += i;
+                    }
                 }
             }
         }
     
     Attributes:
-        it_id: Optional iterator variable identifier
-        count: Expression specifying number of iterations
-        body: Statement(s) to execute each iteration (inherited)
+        it_id: The index variable's name (the LRM's
+            `index_identifier`), or null when none is written
+        count: The iteration-count expression. Always set.
+        body: The loop body (inherited); null if the body is an empty
+            statement (`;`)
     
     See Also:
         ProceduralStmtRepeatWhile, ProceduralStmtWhile, ProceduralStmtForeach
@@ -8218,8 +9057,19 @@ class TemplateAssign(TemplateElem):
     ask which symtab the name resolved through.  That is why template
     locals must be real symbols in a real scope rather than a side table.
     
+    PSS Example::
+    
+        exec body C = \"\"\"
+            {% int total = 0; %}
+            {% total = size + 1; %}
+            r = {{total}};
+        \"\"\";
+    
     Attributes:
-        lhs: The assignment target
+        lhs: The assignment target: a bare identifier.  The linker
+            (TaskResolveRefs) sets the ExprId's ``decl`` to the
+            declaration it names -- even when the assignment is illegal
+            -- and reports a target not declared in this template.
         rhs: The assigned expression
     
     See Also:
@@ -8246,13 +9096,21 @@ class TemplateBlock(TemplateElem):
     and registered in this node's own symtab, exactly as
     ProceduralStmtForeach does for a procedural loop -- which means
     ``{% int x; %}`` and a procedural ``int x;`` resolve through one path.
+    The declarations are this node's children (``getChildren()``),
+    separate from ``body``.  The block's `offset`, `extent` and location
+    are those of its opening directive only.
     
     Attributes:
-        body: Elements between this directive and its ``{%%}``
-        symtab: Variables this block introduces (inherited)
+        body: Elements between this directive and the directive that
+            ends it -- its ``{%%}``, or for an if/else-if arm the next
+            ``{% else ... %}``.  Empty for an empty block.
+        symtab: Names of the variables this block introduces: a foreach
+            iterator and index, a repeat index, and variables declared
+            directly in the body (inherited from SymbolScope)
     
     See Also:
-        TemplateIf, TemplateForeach, TemplateRepeat
+        TemplateIfClause, TemplateIf, TemplateForeach, TemplateRepeat,
+        TemplateVarDecl
     
     """
     pass
@@ -8275,8 +9133,16 @@ class TemplateComment(TemplateElem):
     but *parsing* must not, or a formatter loses the user's comments.
     Dropping is the renderer's job.
     
+    PSS Example::
+    
+        exec body C = \"\"\"
+            {# not expanded: {{size}} #}
+            nop; {#} rest of the line is a comment
+        \"\"\";
+    
     Attributes:
-        text: Comment content, excluding the delimiters
+        text: Comment content, excluding the delimiters (and, for the
+            line form, excluding the terminating newline)
         is_line: True for the ``{#}`` line form, false for ``{# ... #}``
     
     See Also:
@@ -8295,15 +9161,19 @@ class TemplateExpr(TemplateElem):
     
     The expression is parsed by the ordinary PSS expression grammar and
     resolves against whatever is referenceable at that point in the
-    source.  §4.7.1.1 additionally requires the type to be scalar and any
-    function called to be ``pure``.
+    source, including template-local variables of enclosing blocks.
+    §4.7.1.1 additionally requires the type to be scalar and any
+    function called to be ``pure``; the linker checks both
+    (TaskResolveRefs, TaskTemplateCheck).  A mustache whose content does
+    not parse as an expression is reported and produces no element.
     
     PSS Example::
     
         exec body C = \"\"\" stw {{addr}}, {{value}} \"\"\";
     
     Attributes:
-        expr: The parsed expression
+        expr: The parsed expression between the braces.  Its locations
+            are file positions inside the string.
     
     See Also:
         TemplateElem, TemplateString
@@ -8315,39 +9185,42 @@ class TemplateExpr(TemplateElem):
     
 class ExecBlock(ExecScope):
     """
-    Complete exec block with specific execution phase.
+    A procedural exec block -- LRM 20.1, `exec_block`:
+    `exec exec_kind { exec_stmt ... }`.
     
-    ExecBlock represents a complete exec block declaration within an action or
-    component. The kind field specifies when this code executes (body, pre_solve,
-    post_solve, etc.). Each exec block is a symbol scope containing procedural
-    statements.
+    Declared in an action, component, flow/resource object or struct,
+    it holds PSS procedural statements to run at the point the kind
+    names (pre_solve, body, init_up, ...). Several blocks of one kind
+    in a scope act as one block, in source order (20.1.1 d). A derived
+    type's block replaces the base type's block of the same kind unless
+    it calls `super;` (20.1.4.1). The parser names every ExecBlock
+    `<exec>`. The target-template form (`exec kind Lang = "...";`) is
+    an ExecTargetTemplateBlock instead.
     
     PSS Example::
     
-        action my_action {
-            rand int x;
-            
-            exec pre_solve {
-                // Executes before randomization
-                console.log("About to solve");
-            }
-            
-            exec body {
-                // Main execution body
-                console.log("x = ", x);
-            }
-            
-            exec post_solve {
-                // Executes after randomization
-                console.log("Solved x = ", x);
+        component pss_top {
+            action my_action {
+                rand int x;
+                int y;
+    
+                exec pre_solve {
+                    y = 5;
+                }
+    
+                exec post_solve {
+                    y = x + 1;
+                }
             }
         }
     
     Attributes:
-        kind: Type of exec block (Body, PreSolve, PostSolve, etc.)
+        kind: Which exec block this is, from `exec_kind`. An unknown
+            kind name is reported as an error and built as
+            ExecKind_Body.
     
     See Also:
-        ExecKind, ExecScope, Action
+        ExecKind, ExecScope, ExecTargetTemplateBlock, ProceduralStmtSuper
     
     """
     pass
@@ -8361,10 +9234,19 @@ class TemplateIf(TemplateElem):
     
     The clauses are held **flat**, not as a tree of nested ifs.  The
     source is a flat directive sequence, so nesting would be an invention
-    a formatter would then have to undo.
+    a formatter would then have to undo.  The node itself declares no
+    variables; each arm is its own scope.  Its `offset`, `extent` and
+    location are those of the opening ``{% if (...) %}`` directive.
+    
+    PSS Example::
+    
+        exec body C = \"\"\"
+            {% if (size == 0) %} empty {% else if (size < 4) %} small {% else %} large {%%}
+        \"\"\";
     
     Attributes:
-        clauses: if / else-if / else arms, in source order
+        clauses: if / else-if / else arms, in source order.  The first
+            is always the ``if`` arm.
     
     See Also:
         TemplateIfClause, TemplateBlock
@@ -8380,13 +9262,27 @@ class TemplateIf(TemplateElem):
     
 class TemplateText(TemplateElem):
     """
-    A run of literal text between special elements.
+    A run of literal text between special elements of a triple-quoted
+    string (§4.7.1).
+    
+    Everything that is not a mustache expression, a control-flow
+    directive or an embedded comment is literal text, including a lone
+    `{` (so `{ {` spells a literal double brace).  The text is kept
+    exactly as written: removing the whitespace and newline of a line
+    that holds only directives (§4.7.1.2) is left to the renderer, which
+    uses the neighbouring elements' `is_own_line`.
+    
+    PSS Example::
+    
+        exec body C = \"\"\" stw {{addr}}, {{value}} \"\"\";
+        // TemplateText elements: " stw ", ", ", " "
     
     Attributes:
-        text: The literal text, verbatim
+        text: The literal text, verbatim -- the bytes
+            `raw[offset, offset+extent)` of the owning TemplateString
     
     See Also:
-        TemplateElem
+        TemplateElem, TemplateExpr, TemplateString
     
     """
     pass
@@ -8404,13 +9300,26 @@ class TemplateVarDecl(TemplateElem):
     The declarations are ProceduralStmtDataDeclaration nodes, the same
     node a procedural ``int x;`` produces, so both resolve through one
     path.  They are registered in the enclosing TemplateBlock's (or
-    TemplateString's) symtab.
+    TemplateString's) symtab, which makes each variable visible to the
+    later elements of that block and invisible after its ``{%%}``.  A
+    name already declared in the same scope is reported as a duplicate.
+    
+    PSS Example::
+    
+        exec body C = \"\"\"
+            {% int total = 0, n; %}
+            r = {{total}};
+        \"\"\";
     
     Attributes:
-        decls: The declared variables
+        decls: The declared variables, one per
+            ``procedural_data_instantiation``, in source order.  The
+            entries do not own their nodes: each declaration is owned
+            by the children list of the enclosing TemplateBlock or
+            TemplateString.
     
     See Also:
-        TemplateAssign, TemplateBlock
+        TemplateAssign, TemplateBlock, ProceduralStmtDataDeclaration
     
     """
     pass
@@ -8427,13 +9336,30 @@ class TemplateForeach(TemplateBlock):
     
     ``{% foreach ( [ iterator_identifier : ] expression [ [ index_identifier ] ] ) %}``
     
+    Iterates over a collection, emitting its body once per element.  The
+    iterator and index, when written, are declared as variables of this
+    block: the parser synthesizes an untyped ProceduralStmtDataDeclaration
+    for each and adds it to the block's children and symtab.
+    
+    PSS Example::
+    
+        exec body C = \"\"\"
+            {% foreach (v : vals[i]) %}
+            buf[{{i}}] = {{v}};
+            {%%}
+        \"\"\";
+    
     Attributes:
-        expr: The collection expression being iterated
-        it: Iterator variable identifier, if written
-        idx: Index variable identifier, if written
+        expr: The collection expression being iterated, without the
+            trailing index.  Resolved in the enclosing scope, so it
+            cannot see the loop variables.
+        it: Iterator variable identifier, or null if not written
+        idx: Index variable identifier, or null if not written.  A
+            trailing ``[ i ]`` that the expression grammar parsed as a
+            subscript is lifted out of ``expr`` into this field.
     
     See Also:
-        TemplateBlock, TemplateRepeat
+        TemplateBlock, TemplateRepeat, ProceduralStmtForeach
     
     """
     pass
@@ -8450,12 +9376,25 @@ class TemplateRepeat(TemplateBlock):
     
     ``{% repeat ( [ index_identifier : ] expression ) %}``
     
+    Emits its body the given number of times.  The index, when written,
+    is declared as a variable of this block (an untyped, synthesized
+    ProceduralStmtDataDeclaration in the block's children and symtab).
+    
+    PSS Example::
+    
+        exec body C = \"\"\"
+            {% repeat (j : 4) %}
+            nop; // iteration {{j}}
+            {%%}
+        \"\"\";
+    
     Attributes:
-        expr: The repeat-count expression
-        idx: Index variable identifier, if written
+        expr: The repeat-count expression.  Resolved in the enclosing
+            scope.
+        idx: Index variable identifier, or null if not written
     
     See Also:
-        TemplateBlock, TemplateForeach
+        TemplateBlock, TemplateForeach, ProceduralStmtRepeat
     
     """
     pass
@@ -8466,17 +9405,28 @@ class TemplateRepeat(TemplateBlock):
     
 class TemplateIfClause(TemplateBlock):
     """
-    One arm of a template if/else-if/else chain.
+    One arm of a template if/else-if/else chain (§4.7.1.2, Table 5).
+    
+    Built for each ``{% if (...) %}``, ``{% else if (...) %}`` and
+    ``{% else %}`` directive and held in the owning TemplateIf's
+    ``clauses``.  Its `offset`, `extent`, location and `is_own_line`
+    are those of the directive that opens the arm; its body runs to the
+    next arm's directive or to the chain's ``{%%}``.  Each arm is a
+    separate scope.
     
     PSS Example::
     
-        {% if (a) %}   one   {% else if (b) %}   two   {% else %}   three   {%%}
+        exec body C = \"\"\"
+            {% if (a) %} one {% else if (b) %} two {% else %} three {%%}
+        \"\"\";
     
     Attributes:
-        cond: The guard expression; null for the ``else`` arm
+        cond: The guard expression inside the parentheses; null for the
+            ``else`` arm.  Resolved in the enclosing scope, not the
+            arm's own.
     
     See Also:
-        TemplateIf
+        TemplateIf, TemplateBlock
     
     """
     pass

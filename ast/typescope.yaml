@@ -3,39 +3,60 @@ classes:
   - TypeScope:
       super: NamedScope
       doc: |
-          Base class for named type declarations (actions, components, structs).
-          
-          Represents PSS types that can be parameterized with templates,
-          extended through inheritance, and used in type references. Provides
-          common infrastructure for type system features.
-          
+          Base class for a named, user-defined type declaration that has a body.
+
+          Holds what every such declaration shares: the optional base type
+          (`struct_super_spec`, `action_super_spec`, `component_super_spec`
+          -- the `: base` after the name), the optional template parameter
+          list (LRM 10.2, `template_param_decl_list`), and the inheritance
+          state the linker records. Concrete subclasses are the declaration
+          forms: Action, Component, Struct (struct and the flow/resource
+          object kinds), Monitor, CovergroupType, AnnotationDecl and
+          ImportClass. The builtin `pyobj` type is a bare TypeScope built by
+          the builtins factory, not by the parser.
+
           PSS Example::
-          
-              component my_comp : base_comp {     // TypeScope with super_t
+
+              component my_comp : base_comp {     // super_t = base_comp
                   // ...
               }
-              
-              action my_action<T> {               // TypeScope with params
-                  // ...
+
+              struct my_s<int W = 8> {            // params = <int W = 8>
+                  bit[W] data;
               }
-          
+
           Attributes:
               name: Type name (inherited from NamedScope)
-              super_t: Optional base type for inheritance
-              params: Template parameter declarations
-              opaque: True if type body is hidden (forward declaration)
-          
+
           See Also:
-              Action, Component, Struct, NamedScope
+              Action, Component, Struct, Monitor, CovergroupType, AnnotationDecl
+              ImportClass, NamedScope, TypeIdentifier, TemplateParamDeclList
       data:
-      - super_t : UP<TypeIdentifier>
+      - super_t:
+          type: UP<TypeIdentifier>
+          doc: |
+              The base type written after the `:` in the declaration (the
+              `type_identifier` of the `..._super_spec`). Null when the
+              declaration names no base type.
       - params:
           type: UP<TemplateParamDeclList>
           is_ctor: false
+          doc: |
+              The template parameter declarations (`template_param_decl_list`,
+              LRM 10.2) of a template type; null for a non-template type. In a
+              specialization built by the linker
+              (TaskGetSpecializedTemplateType) it is replaced by the
+              parameter list bound to the specialization's arguments.
       - opaque:
           type: bool
           is_ctor: false
           init: false
+          doc: |
+              True when members reached through a value of this type are not
+              resolved or checked: reference resolution stops at an opaque
+              scope. Never set by the parser; only the builtin `pyobj` type
+              (BuiltinsFactory) is opaque, since Python objects are
+              dynamically typed.
       # Set by TaskCheckTypeCycles on every type that lies on an inheritance
       # ring, once the ring has been reported. Every super-chain walk stops at
       # a marked type, so the ring is broken in one place instead of by a
@@ -44,7 +65,15 @@ classes:
           type: bool
           is_ctor: false
           init: false
+          doc: |
+              True when this type lies on an inheritance cycle (for example
+              `struct a : b {}` with `struct b : a {}`). Set by the linker
+              (TaskCheckTypeCycles) on every type of the ring once the cycle
+              has been reported; walks up the `super_t` chain stop at a marked
+              type, so the ring is broken in one place. False otherwise and
+              before linking.
 
   
+
 
 

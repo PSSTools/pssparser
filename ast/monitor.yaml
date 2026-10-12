@@ -9,41 +9,51 @@ classes:
   - Monitor:
       super: TypeScope
       doc: |
-          Declares a PSS 3.0 monitor type for temporal property verification.
-          
-          Monitor represents a PSS 3.0 monitor type declaration that defines temporal
-          properties and sequences to be verified during execution. Monitors contain
-          activity blocks that specify sequences of events, temporal operators, and
-          coverage collection. Unlike actions, monitors observe behavior without
-          affecting execution flow. Note these are PSS 3.0 features.
-          
+          A monitor type declaration (LRM 16.1, `monitor_declaration`; PSS 3.0).
+
+          A monitor describes a scenario -- an order of action executions,
+          with their data -- to be *observed* for behavioral coverage, where an
+          action describes one to be generated. Its body admits action and
+          monitor handles, constraints, covergroups and one or more
+          `activity` blocks (MonitorActivityDecl); several activities combine
+          as if in a `schedule`. A monitor is checked only when a `cover`
+          statement instantiates it (CoverStmtReference).
+
+          The monitor's name, `super_t` (from the `monitor_super_spec`) and
+          template `params` are the inherited TypeScope fields; the body
+          items are its children.
+
           PSS Example::
-          
-              monitor protocol_check {
-                  activity {
-                      req ##1 ack;              // Request followed by ack
-                      eventually gnt;           // Grant must occur
-                  }
-              }
-              
-              monitor bus_monitor {
-                  activity {
-                      sequence {
-                          addr_phase;
-                          data_phase;
+
+              component pss_top {
+                  action req_a { }
+                  action ack_a { }
+
+                  monitor handshake {
+                      req_a r;
+                      ack_a a;
+                      activity {
+                          r;
+                          eventually a;
                       }
                   }
+
+                  abstract monitor base_mon { }
+
+                  monitor derived_mon : base_mon {
+                      activity { do req_a; }
+                  }
+
+                  cover handshake;
               }
-              
-              abstract monitor base_monitor {
-                  // Can be extended
-              }
-          
+
           Attributes:
-              is_abstract: True if this is an abstract monitor declaration
-          
+              is_abstract: True for an `abstract monitor` declaration
+                  (`abstract_monitor_declaration`), false otherwise. Set by
+                  the parser.
+
           See Also:
-              MonitorActivityDecl, MonitorActivityStmt, Action
+              MonitorActivityDecl, CoverStmtReference, CoverStmtInline, Action
       data:
       - is_abstract:
           type: bool
@@ -79,20 +89,33 @@ classes:
           MonitorActivityStmt is the abstract base class for the non-scope
           statements that can appear within a monitor's activity block. The
           block-shaped forms (``sequence``, ``concat``, ``overlap``,
-          ``schedule``, ``select``) descend from MonitorActivityLabeledScope
-          instead, because they introduce a scope; the two branches meet at
-          ScopeChild. Any field holding an arbitrary monitor activity statement
-          must therefore be typed ``ScopeChild``, not ``MonitorActivityStmt`` --
-          typing it narrowly silently discards every block-shaped body.
+          ``schedule``, ``select``) and ``eventually`` descend from
+          MonitorActivityLabeledScope instead, because they introduce a scope;
+          the two branches meet at ScopeChild. Any field holding an arbitrary
+          monitor activity statement must therefore be typed ``ScopeChild``,
+          not ``MonitorActivityStmt`` -- typing it narrowly silently discards
+          every block-shaped body.
+
+          Not every monitor activity statement is one of these: a traversal
+          builds the same ActivityActionHandleTraversal or
+          ActivityActionTypeTraversal an action activity does, and a handle
+          declaration builds an ActionHandleField. Of the classes in this
+          hierarchy, only MonitorConstraint is currently built.
 
           PSS Example::
 
-              monitor protocol_monitor {
-                  action_t req, ack, grant;
-                  activity {
-                      req;                          // action traversal
-                      eventually grant;             // MonitorActivityEventually
-                      constraint { req.len > 0; }   // MonitorConstraint
+              component pss_top {
+                  action req_a { rand bit[8] len; }
+                  action ack_a { }
+
+                  monitor protocol_monitor {
+                      req_a r;
+                      ack_a a;
+                      activity {
+                          r;                            // ActivityActionHandleTraversal
+                          constraint { r.len > 0; }     // MonitorConstraint
+                          eventually a;                 // MonitorActivityEventually
+                      }
                   }
               }
 
@@ -100,31 +123,32 @@ classes:
               (base class - no specific attributes)
 
           See Also:
-              MonitorActivityLabeledStmt, MonitorActivityLabeledScope,
-              MonitorActivityDecl
+              MonitorConstraint, MonitorActivityLabeledStmt,
+              MonitorActivityLabeledScope, MonitorActivityDecl
 
   # Base for the monitor activity statements that can carry a label
   - MonitorActivityLabeledStmt:
       super: MonitorActivityStmt
       doc: |
-          Base class for monitor activity statements that can have a label.
+          Base class for non-scope monitor activity statements that can have
+          a label.
 
-          Mirrors ActivityLabeledStmt on the action side. The label comes from
-          the ``label_identifier :`` prefix on ``monitor_activity_stmt``.
-
-          PSS Example::
-
-              monitor m {
-                  activity {
-                      wait_for_grant: eventually grant;
-                  }
-              }
+          Mirrors ActivityLabeledStmt on the action side; the label would come
+          from the ``label_identifier :`` prefix on ``monitor_activity_stmt``.
+          The class currently has no subclasses, so no node of it is ever
+          built: every labelable monitor activity statement is either a scope
+          (MonitorActivityLabeledScope, which carries its own ``label``) or a
+          traversal (whose label is on the ActivityActionTypeTraversal or
+          ActivityActionHandleTraversal). A labeled ``eventually`` such as
+          ``wait_ack: eventually a;`` builds a MonitorActivityEventually.
 
           Attributes:
-              label: Optional identifier expression for the label
+              label: The statement label, or null when unlabeled. Never set,
+                  since the class is never built.
 
           See Also:
-              MonitorActivityEventually, ActivityLabeledStmt
+              MonitorActivityLabeledScope, MonitorActivityEventually,
+              ActivityLabeledStmt
       data:
       - label:
           type: UP<ExprId>
@@ -141,7 +165,7 @@ classes:
           ``select`` -- introduces a scope and holds its body statements in
           ``getChildren()``. The subclass identity, not a field, is what
           distinguishes the five: they differ in temporal semantics, not in
-          shape.
+          shape. The scope's ``name`` is empty.
 
           ``eventually`` is a scope too, with its body addressed after its
           (empty) children -- the ActivityLabeledScope convention -- so that a
@@ -150,20 +174,29 @@ classes:
 
           PSS Example::
 
-              monitor m {
-                  activity {
-                      setup: sequence {
-                          config_valid;
-                          config_ack;
+              component pss_top {
+                  action config_valid { }
+                  action config_ack { }
+
+                  monitor m {
+                      config_valid v;
+                      config_ack a;
+                      activity {
+                          setup: sequence {
+                              v;
+                              a;
+                          }
                       }
                   }
               }
 
           Attributes:
-              label: Optional identifier expression for the label
+              label: The ``label_identifier`` written before the statement
+                  (``setup`` above), or null when unlabeled. Set by the
+                  parser.
 
           See Also:
-              MonitorActivitySequence, MonitorActivityConcat,
+              MonitorActivityEventually, MonitorActivitySequence, MonitorActivityConcat,
               MonitorActivityOverlap, MonitorActivitySchedule,
               MonitorActivitySelect, ActivityLabeledScope
       data:
@@ -177,11 +210,16 @@ classes:
       doc: |
           Declares an activity block within a monitor.
 
-          MonitorActivityDecl represents the declaration of an activity block
-          that defines the temporal behavior to be monitored. It serves as a
-          symbol scope whose ``getChildren()`` are the monitor activity
-          statements. Unlike action activities, monitor activities observe
-          execution patterns rather than causing them.
+          MonitorActivityDecl represents a monitor's ``activity { ... }``
+          block (LRM 16.3, `monitor_activity_declaration`), which specifies the
+          scenario to be observed. It is a symbol scope with an empty name
+          whose ``getChildren()`` are the monitor activity statements, in
+          source order, together with any handles declared in the activity.
+          Unlike action activities, monitor activities observe execution
+          patterns rather than causing them. A monitor with more than one
+          activity block observes them as if combined in a ``schedule``
+          (LRM 16.1). It appears in a Monitor or in an inline ``cover { }``
+          body (CoverStmtInline).
 
           PSS Example::
 
@@ -206,7 +244,8 @@ classes:
               (inherits symbol scope capabilities)
 
           See Also:
-              MonitorActivityStmt, Monitor, ActivityDecl
+              MonitorActivityStmt, MonitorActivityLabeledScope, Monitor,
+              CoverStmtInline, ActivityDecl
 
   # Sequence block for monitor activities
   - MonitorActivitySequence:
@@ -214,10 +253,12 @@ classes:
       doc: |
           Defines a sequential monitoring block.
 
-          MonitorActivitySequence specifies that its contained monitor
-          activities are observed in strict order: each must be observed before
-          the next is checked. The ``sequence`` keyword is optional -- a bare
-          braced block inside a monitor activity is a sequence.
+          The sequential scenario (LRM 16.3.2,
+          `monitor_activity_sequence_block_stmt`): its body statements are
+          matched in order, each at or after the match point of the previous
+          one, so arbitrary gaps are allowed between them. The ``sequence``
+          keyword is optional -- a bare braced block inside a monitor activity
+          is a sequence. An empty block is the empty scenario (LRM 16.3.7).
 
           PSS Example::
 
@@ -260,9 +301,11 @@ classes:
       doc: |
           Temporal concatenation block.
 
-          ``concat { a; b; c; }`` requires its body statements to be observed
-          back to back, with no gap between the end of one and the start of the
-          next -- the distinction from ``sequence``, which permits gaps.
+          The concatenation scenario (LRM 16.3.3,
+          `monitor_activity_concat_stmt`): ``concat { a; b; c; }`` matches
+          each body statement starting exactly at the match point of the
+          previous one, with no gap -- the distinction from ``sequence``,
+          which permits gaps.
 
           Note this is an n-ary block, not a binary operator: PSS has no ``##``
           concatenation operator, and the class previously modelled one with
@@ -298,12 +341,14 @@ classes:
   - MonitorActivityEventually:
       super: MonitorActivityLabeledScope
       doc: |
-          Eventually operator for liveness properties.
+          The eventuality scenario (LRM 16.3.4,
+          `monitor_activity_eventually_stmt`).
 
-          ``eventually <stmt>`` requires its operand to be observed at some
-          point in the future, with no bound on when. LRM 16.4.4 makes the
-          operand a full ``monitor_activity_stmt``, so it may be a traversal or
-          a whole block.
+          ``eventually <stmt>`` matches its operand starting at any checkpoint
+          at or after the current one, rather than only at the current one --
+          ``eventually r;`` matches some later ``r``, not just the next. The
+          LRM makes the operand a full ``monitor_activity_stmt``, so it may be
+          a traversal or a whole block.
 
           The class previously carried a ``condition`` expression as well as a
           body. There is no such expression in the grammar -- ``eventually``
@@ -334,14 +379,19 @@ classes:
               }
 
           Attributes:
-              body: The monitor activity statement that must eventually be
-                  observed. Typed ScopeChild because a braced operand is a
-                  MonitorActivitySequence, which is a scope rather than a
-                  MonitorActivityStmt.
-              label: Optional label (inherited from MonitorActivityLabeledStmt)
+              body: The operand statement, built as any monitor activity
+                  statement is: a traversal, a constraint, or a block (a
+                  braced operand is a MonitorActivitySequence). Typed
+                  ScopeChild because a block is a scope rather than a
+                  MonitorActivityStmt. Null when the operand builds no
+                  statement node (a bare ``;``, or an annotation). Set by
+                  the parser.
+              label: Optional label (inherited from
+                  MonitorActivityLabeledScope)
 
           See Also:
-              MonitorActivityStmt, MonitorConstraint
+              MonitorActivityLabeledScope, MonitorActivitySequence,
+              MonitorActivityStmt
       data:
       - body: UP<ScopeChild>
 
@@ -351,8 +401,11 @@ classes:
       doc: |
           Overlap block for concurrent sequence monitoring.
 
-          ``overlap { a; b; }`` requires its body statements to be observed with
-          overlapping lifetimes, rather than one after another.
+          The overlapping scenario (LRM 16.3.5,
+          `monitor_activity_overlap_stmt`): ``overlap { a; b; }`` matches its
+          body statements as ``schedule`` does -- in any order, without
+          sharing action executions -- and additionally requires an instant
+          at which all of them are active at once.
 
           Like ``concat``, this is an n-ary block and not a binary operator; the
           former ``lhs``/``rhs`` fields modelled an ``a overlap b`` syntax that
@@ -390,8 +443,11 @@ classes:
       doc: |
           Defines a scheduled monitoring block with flexible ordering.
 
-          ``schedule { a; b; }`` permits its body statements to be observed in
-          any order, unlike ``sequence``, which fixes the order.
+          The scheduling scenario (LRM 16.3.8,
+          `monitor_activity_schedule_stmt`): ``schedule { a; b; }`` matches
+          its body statements in any order, with any overlaps or gaps, as long
+          as no action execution is shared between them -- unlike
+          ``sequence``, which fixes the order.
 
           PSS Example::
 
@@ -417,7 +473,7 @@ classes:
                   (inherited from MonitorActivityLabeledScope)
 
           See Also:
-              MonitorActivitySequence, ActivitySchedule
+              MonitorActivitySequence, MonitorActivityOverlap, ActivitySchedule
 
   # Select construct (for monitors)
   - MonitorActivitySelect:
@@ -425,7 +481,8 @@ classes:
       doc: |
           Alternative monitoring paths.
 
-          ``select { a; b; }`` is satisfied by observing exactly one of its
+          The selection scenario (LRM 16.3.6, `monitor_activity_select_stmt`):
+          ``select { a; b; }`` is matched by a match of any one of its
           alternatives. The grammar requires at least two.
 
           The alternatives are the scope's children. The class previously held a
@@ -466,7 +523,7 @@ classes:
       doc: |
           A ``constraint`` statement inside a monitor's activity block.
 
-          This covers ``monitor_activity_constraint_stmt`` only -- a
+          This covers ``monitor_activity_constraint_stmt`` only (LRM 16.4) -- a
           ``constraint`` appearing among the *statements* of a monitor activity,
           where its position in the statement order is meaningful. A
           ``constraint`` in the monitor *body* is a
@@ -489,17 +546,21 @@ classes:
                       constraint c1 { r.priority > 0; }
 
                       activity {
-                          constraint { r.priority inside [1..8]; }
+                          constraint { r.priority in [1..8]; }
                           r;
                       }
                   }
               }
 
           Attributes:
-              constraint: The constraint statement
+              constraint: The `monitor_constraint_set` after the keyword: a
+                  ConstraintScope holding the statements of a braced block,
+                  or the single constraint statement when no braces are
+                  written. References in it are resolved by the linker
+                  (TaskResolveRefs).
 
           See Also:
-              ConstraintStmt, ActivityConstraint
+              ConstraintStmt, ConstraintScope, ConstraintBlock, ActivityConstraint
       data:
       - constraint: UP<ConstraintStmt>
 
@@ -523,7 +584,8 @@ classes:
   - CoverStmtInline:
       super: Scope
       doc: |
-          Anonymous monitor body instantiated for behavioral coverage.
+          Anonymous monitor body instantiated for behavioral coverage
+          (LRM 16.1, the second form of `cover_stmt`).
 
           ``cover { ... }`` writes a monitor body in place instead of naming a
           previously declared monitor type. The braces admit exactly what a
@@ -534,6 +596,11 @@ classes:
           other braced declaration body, the linked-tree scope its members
           resolve against is a synthetic mirror the linker builds, not this
           node.
+
+          The linker (TaskBuildSymbolTree) gives it an unnamed synthetic
+          SymbolScope, so its members are visible inside the braces and not
+          in the enclosing component. A cover statement is a
+          ``component_body_item``; it is never an activity statement.
 
           The optional ``label`` comes from the ``label_identifier ':'`` prefix.
 
@@ -555,7 +622,8 @@ classes:
               }
 
           Attributes:
-              label: Label identifier, or null if the statement is unlabeled
+              label: Label identifier (``inline_cov`` above), or null if the
+                  statement is unlabeled. Set by the parser.
 
           See Also:
               CoverStmtReference, Monitor, MonitorActivityDecl
@@ -568,10 +636,12 @@ classes:
   - CoverStmtReference:
       super: ScopeChild
       doc: |
-          Instantiates a named monitor type for behavioral coverage.
+          Instantiates a named monitor type for behavioral coverage
+          (LRM 16.1, the first form of `cover_stmt`).
 
           ``cover M;`` requests that the behavior described by monitor type
-          ``M`` be covered. ``target`` is the *type* named -- a monitor type
+          ``M`` be covered. Like the inline form, it is a
+          ``component_body_item``. ``target`` is the *type* named -- a monitor type
           identifier, resolved at link -- not a reference to an existing
           instance; there is no syntax for covering an instance.
 
@@ -579,24 +649,31 @@ classes:
 
           PSS Example::
 
-              monitor handshake_mon {
-                  action req_a, ack_a;
-                  activity {
-                      concat {
-                          req_a;
-                          ack_a;
+              component pss_top {
+                  action req_a { }
+                  action ack_a { }
+
+                  monitor handshake_mon {
+                      req_a r;
+                      ack_a a;
+                      activity {
+                          concat {
+                              r;
+                              a;
+                          }
                       }
                   }
-              }
 
-              component pss_top {
                   cover handshake_mon;
                   hs: cover handshake_mon;
               }
 
           Attributes:
-              target: The monitor type being covered
-              label: Label identifier, or null if the statement is unlabeled
+              target: The ``type_identifier`` naming the monitor type being
+                  covered. Its ``target`` is set by the linker
+                  (TaskResolveRefs).
+              label: Label identifier (``hs`` above), or null if the
+                  statement is unlabeled. Set by the parser.
 
           See Also:
               CoverStmtInline, Monitor

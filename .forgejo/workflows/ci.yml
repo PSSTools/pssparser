@@ -375,7 +375,7 @@ jobs:
       run: |
         P=/opt/python/cp312-cp312/bin/python
         $P -m venv /tmp/docsenv
-        /tmp/docsenv/bin/pip install -q sphinx alabaster "pyastbuilder[sphinx]>=0.0.7"
+        /tmp/docsenv/bin/pip install -q sphinx alabaster "pyastbuilder[sphinx]>=0.0.8"
         # The AST reference's diagrams need Graphviz's `dot`. Best effort: without
         # it Sphinx warns and each diagram's text form still renders. A
         # pyastbuilder without Sphinx support makes docs/conf.py fall back to

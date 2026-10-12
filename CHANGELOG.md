@@ -26,6 +26,11 @@ Graphviz; without them the pages say what is missing.
 - `ast/*.yaml`: enum and flags values carry their descriptions as docs, and
   back-pointers and linker-filled fields are marked (`rel:`, `set_by:`).
   Generated code is unchanged.
+- Every class, field, enum and value in `ast/*.yaml` is described, and the
+  existing descriptions were checked against the builder, the linker and the
+  LRM; many examples were not valid PSS and several described the wrong
+  semantics. `tests/python/test_ast_doc_coverage.py` keeps it complete. The
+  documentation build needs `pyastbuilder[sphinx]>=0.0.8`.
 
 ### Changed (breaking) — warning IDs move to `LINT` and `PSSP`; lint profiles
 

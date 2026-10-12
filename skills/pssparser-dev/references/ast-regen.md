@@ -23,7 +23,14 @@ there is nothing to regenerate; but the yaml's text is now documentation:
   are reST markup and the docs build warns, at the yaml line.
 - A field is described by its own `doc:` or, failing that, by its class's
   `Attributes:` section (`name: what it is`). `See Also:` names become links.
-- Enum and flags values take a doc as `- Name: "what it means"`.
+- Enum and flags values take a doc as `- Name: "what it means"`. The enum or
+  flags itself takes one in the mapping form (pyastbuilder 0.0.8 or later):
+  `- Name:` then `doc: |` and `values:` holding the value list.
+- Every definition is documented. `python scripts/ast_doc_coverage.py --check`
+  lists anything that is not (a class, field, enum, flags or value with no
+  description; an `Attributes:` entry naming no field). A new field gets its
+  own `doc:` saying what it holds, when it is empty, and which linker task
+  sets it if the parser does not.
 - `rel: parent` on a `P<T>` back-pointer and `set_by: linker` on a field or
   class the linker fills are read by the docs only.
 

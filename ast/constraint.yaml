@@ -3,149 +3,276 @@ classes:
     - GenericConstraintParam:
         - super: ScopeChild
         - doc: |
-            Parameter declaration for a PSS 3.1 generic constraint.
+            One formal parameter of a PSS 3.1 generic constraint
+            (LRM 13.1.2, `generic_constraint_param`).
 
-            Generic constraint parameters may be typed with either a concrete
-            PSS data type or the `numeric` category and may optionally be
-            declared `const`.
+            A parameter is typed either with a concrete PSS data type or with
+            the `numeric` category, which accepts any integer or
+            floating-point expression, and may be marked `const`. Inside the
+            constraint's body a parameter is referenced by name like any other
+            variable; the linker's name lookup (NameLookup) finds it in the
+            enclosing generic constraint's parameter list.
+
+            PSS Example::
+
+                constraint numeric max(numeric a, numeric b)
+                    (a < b) ? b : a;
+
+                struct S {
+                    rand bit[8] x;
+                    constraint in_range(const int lo, int hi) {
+                        x >= lo;
+                        x <= hi;
+                    }
+                }
+
+            See Also:
+                GenericConstraintDeclBool, GenericConstraintDeclValue, DataType
         - data:
-            - name: UP<ExprId>
-            - is_const: bool
-            - is_numeric: bool
-            - type: UP<DataType>
+            - name:
+                type: UP<ExprId>
+                doc: |
+                    The parameter name, with its source location.
+            - is_const:
+                type: bool
+                doc: |
+                    True when the parameter was declared `const`.
+            - is_numeric:
+                type: bool
+                doc: |
+                    True when the parameter's type was written as the
+                    `numeric` category rather than a data type; `type` is then
+                    null.
+            - type:
+                type: UP<DataType>
+                doc: |
+                    The parameter's declared data type (the `data_type`
+                    alternative of `generic_constraint_data_type`). Null when
+                    `is_numeric` is true.
 
     - GenericConstraintDeclBool:
         - super: ConstraintBlock
         - doc: |
-            Boolean generic constraint declaration.
+            Boolean generic constraint declaration (LRM 13.1.2,
+            `generic_constraint_bool`).
 
             Represents a declaration of the form
-            ``[static] constraint name(params) constraint_set``.
+            ``[static] constraint name(params) constraint_set``. Unlike a fixed
+            constraint block, a generic constraint holds only where it is
+            referenced -- from another constraint, by a call such as
+            `small_c()`, or from an activity. Its name and body come from
+            ConstraintBlock: `name` is always set, `constraints` holds the
+            body (the items of a brace block are added directly, with no
+            wrapping ConstraintScope), and `is_dynamic` is always false.
+
+            PSS Example::
+
+                action send_pkt {
+                    rand bit[16] pkt_sz;
+                    constraint small_c() { pkt_sz <= 100; }
+                    constraint sized_c(int lo, int hi) {
+                        pkt_sz >= lo;
+                        pkt_sz <= hi;
+                    }
+                    constraint pick_c { small_c() || sized_c(1500, 9000); }
+                }
+
+            See Also:
+                GenericConstraintDeclValue, GenericConstraintParam, ConstraintBlock
         - data:
             - is_static:
                 type: bool
                 is_ctor: false
                 init: false
+                doc: |
+                    True when `static` was written before `constraint`. (The
+                    LRM makes a package-scope generic constraint static
+                    whether or not the keyword is written; this flag records
+                    only the keyword.)
             - parameters:
                 type: list<UP<GenericConstraintParam>>
                 is_ctor: false
+                doc: |
+                    The formal parameters, in source order; empty for `()`.
 
     - GenericConstraintDeclValue:
         - super: ScopeChild
         - doc: |
-            Value-returning generic constraint declaration.
+            Value-returning generic constraint declaration (LRM 13.1.2,
+            `generic_constraint_value`).
 
             Represents a declaration of the form
-            ``[static] constraint <type> name(params) expr;``.
+            ``[static] constraint <type> name(params) expr;``. The constraint
+            yields the value of a single expression and may be used wherever
+            an expression of its result type is legal within a constraint.
+
+            PSS Example::
+
+                constraint numeric max(numeric a, numeric b)
+                    (a < b) ? b : a;
+
+                struct S {
+                    rand bit[8] j, k, l;
+                    constraint j == max(k, l);
+                }
+
+            See Also:
+                GenericConstraintDeclBool, GenericConstraintParam
         - data:
             - is_static:
                 type: bool
                 is_ctor: false
                 init: false
+                doc: |
+                    True when `static` was written before `constraint`.
             - is_return_numeric:
                 type: bool
                 is_ctor: false
                 init: false
+                doc: |
+                    True when the result type was written as the `numeric`
+                    category; `return_type` is then null.
             - return_type:
                 type: UP<DataType>
                 is_ctor: false
+                doc: |
+                    The declared result data type. Null when
+                    `is_return_numeric` is true.
             - name:
                 type: UP<ExprId>
                 is_ctor: false
+                doc: |
+                    The constraint's name, with its source location.
             - parameters:
                 type: list<UP<GenericConstraintParam>>
                 is_ctor: false
+                doc: |
+                    The formal parameters, in source order; empty for `()`.
             - expr:
                 type: UP<Expr>
                 is_ctor: false
+                doc: |
+                    The expression whose value the constraint yields (the
+                    `expression_constraint_item`, without its `;`).
 
     - ConstraintBlock:
         - super: ConstraintScope
         - doc: |
-            Named constraint block declaration within a type.
-            
-            A constraint block is a reusable, named collection of constraints that can be
-            declared within a component, action, or struct type. Constraint blocks can be
-            dynamically enabled or disabled during randomization, providing flexible control
-            over constraint application.
-            
+            Constraint declaration within a type (LRM 13.1.1,
+            `constraint_declaration`).
+
+            Covers all three non-generic forms: a named block
+            `constraint name { ... }`, a deprecated
+            `dynamic constraint name { ... }` (replaced in PSS 3.1 by a
+            generic constraint with no parameters), and an unnamed
+            `constraint { ... }` or
+            `constraint expr;`. The body's statements are held directly in
+            `constraints`; a brace block does not add a nested
+            ConstraintScope. A fixed (non-dynamic) constraint block always
+            holds.
+
             PSS Example::
-            
+
                 action my_action {
                     rand bit[8] value;
-                    
+
                     constraint valid_range_c {
                         value >= 10;
                         value <= 100;
                     }
-                    
-                    constraint dynamic_limit_c is_dynamic {
+
+                    dynamic constraint small_c {
                         value < 50;
                     }
+
+                    constraint value != 42;
                 }
-            
+
             Attributes:
                 name: The name of the constraint block, with its source
                     location; null for an unnamed block
-                is_dynamic: Whether the constraint block can be dynamically enabled/disabled
-                constraints: List of constraint statements in this block (inherited)
-            
+                is_dynamic: True when the declaration was written with the
+                    `dynamic` modifier
+                constraints: The constraint statements in this block, in
+                    source order (inherited from ConstraintScope)
+
             See Also:
-                ConstraintScope, ConstraintStmt
+                ConstraintScope, ConstraintStmt, GenericConstraintDeclBool
         - data:
             - name: UP<ExprId>
             - is_dynamic: bool
     - ConstraintScope:
         - super: ConstraintStmt
         - doc: |
-            Container for a sequence of constraint statements.
-            
-            A constraint scope groups multiple constraint statements together, forming the body
-            of constraint blocks, conditional constraints, loops, and implications. It maintains
-            the source location information for the entire scope.
-            
+            A sequence of constraint statements.
+
+            The base of every construct with a constraint body:
+            ConstraintBlock and the `foreach`, `forall` and implication
+            statements. Used on its own for each branch of a ConstraintStmtIf
+            and for a brace block that is the whole body of a node outside a
+            type's constraint declarations: an in-line `with { ... }` on an
+            action traversal, an activity `constraint { ... }` statement, or
+            a `randomize ... with { ... }`. The statements are kept in source
+            order; each one's `index` is its position in `constraints`.
+
             PSS Example::
-            
-                constraint my_constraints {
-                    // This entire block is a ConstraintScope
-                    value1 > 0;
-                    value2 < 100;
-                    value1 + value2 == 50;
+
+                action sub {
+                    rand bit[8] value1, value2;
                 }
-            
+
+                action top {
+                    activity {
+                        do sub with {       // the with-body is a ConstraintScope
+                            value1 > 0;
+                            value1 + value2 == 50;
+                        };
+                    }
+                }
+
             Attributes:
-                endLocation: Source location of the closing brace
-                constraints: Ordered list of constraint statements within this scope
-            
+                endLocation: Source location of the end of the scope
+                    (inherited from ScopeChild)
+                constraints: Ordered list of constraint statements within
+                    this scope
+
             See Also:
-                ConstraintBlock, ConstraintStmt
+                ConstraintBlock, ConstraintStmt, ConstraintStmtIf
         - data:
           # endLocation is inherited from ScopeChild.
           - constraints: list<UP<ConstraintStmt>>
     - ConstraintSymbolScope:
         - super: SymbolScope
         - doc: |
-            Symbol table scope for constraint expressions.
-            
-            Provides a symbol resolution context for identifiers used within constraint statements.
-            This scope manages the visibility of iterator variables (from foreach/forall) and field
-            references within the constraint context.
-            
+            Name scope of the iterator variables of a `foreach` or `forall`
+            constraint.
+
+            Built by the AST builder, not the linker, together with the
+            ConstraintStmtForeach or ConstraintStmtForall it belongs to, and
+            named `<foreach>` or `<forall>`. Its symbol table maps each
+            iterator or index variable name to a ConstraintStmtField, which
+            the scope references without owning. The linker
+            (TaskResolveRefs) pushes this scope while it resolves the
+            statement's body, so names in the body find the iterator
+            variables before the enclosing scopes.
+
             PSS Example::
-            
+
                 constraint loop_constraint {
-                    foreach (items[i]) {
-                        // 'i' and 'items[i]' are resolved through ConstraintSymbolScope
-                        items[i] > 0;
+                    foreach (e : items[i]) {
+                        // 'e' and 'i' are found in the ConstraintSymbolScope
+                        e > i;
                     }
                 }
-            
+
             Attributes:
-                constraint: The constraint statement this scope is associated with
-            
+                constraint: The `foreach` or `forall` statement this scope
+                    belongs to (a back-reference set by the AST builder)
+
             See Also:
                 SymbolScope, ConstraintStmtForeach, ConstraintStmtForall
-        - data: 
+                ConstraintStmtField
+        - data:
           - constraint:
               type: P<ConstraintStmt>
               rel: ref
@@ -155,13 +282,14 @@ classes:
         - super: ScopeChild
         - doc: |
             Base class for all constraint statement types.
-            
-            Represents any statement that can appear within a constraint block, including
-            expressions, loops, conditionals, implications, and other constraint constructs.
-            All specific constraint statement types derive from this base class.
-            
+
+            Represents any statement that can appear within a constraint body
+            (LRM 13.1.1, `constraint_body_item`). The statement's position in
+            its enclosing ConstraintScope is recorded in `index` (inherited
+            from ScopeChild); soft-constraint priority depends on it.
+
             PSS Example::
-            
+
                 constraint example_c {
                     // Each line below is a different ConstraintStmt subtype
                     value > 0;                    // ConstraintStmtExpr
@@ -170,35 +298,36 @@ classes:
                     }
                     unique { id1, id2, id3 };     // ConstraintStmtUnique
                 }
-            
+
             See Also:
-                ConstraintStmtExpr, ConstraintStmtIf, ConstraintStmtForeach, ConstraintStmtForall
+                ConstraintStmtExpr, ConstraintStmtIf, ConstraintStmtForeach
+                ConstraintStmtForall, ConstraintScope
     - ConstraintStmtExpr:
         - super: ConstraintStmt
         - doc: |
-            Expression-based constraint statement.
-            
-            Represents a constraint expressed as a Boolean expression that must evaluate to true
-            during randomization. This is the most common form of constraint, supporting arithmetic
-            relations, logical operations, and complex expressions involving random variables.
-            
+            Expression constraint (LRM 13.1.5, `expression_constraint_item`).
+
+            A Boolean expression that shall hold. This is the most common
+            form of constraint: relations, logical operations, set membership
+            (`in`) and calls to generic constraints.
+
             PSS Example::
-            
+
                 action transfer {
                     rand bit[16] addr;
                     rand bit[8] size;
-                    
+
                     constraint valid_transfer_c {
                         addr >= 0x1000;                    // Simple relational
                         addr + size <= 0xFFFF;             // Arithmetic expression
-                        size inside [1, 2, 4, 8];          // Set membership
+                        size in [1, 2, 4, 8];              // Set membership
                         (addr & 0x3) == 0;                 // Address alignment
                     }
                 }
-            
+
             Attributes:
-                expr: The Boolean expression that must be satisfied
-            
+                expr: The Boolean expression that must hold (without its `;`)
+
             See Also:
                 Expr, ConstraintStmt, ConstraintBlock
         - data:
@@ -218,10 +347,11 @@ classes:
             outranks one declared earlier in the same scope, a derived type
             outranks its base, and a type extension outranks the initial
             declaration. The parser's obligation is therefore to preserve
-            declaration order faithfully -- `ConstraintStmt::index` records the
-            position within the enclosing scope, and priority is derived from
-            it downstream. Reordering constraint-scope children would silently
-            change what the model means.
+            declaration order faithfully -- `index` (inherited from
+            ScopeChild) records the position within the enclosing scope, and
+            priority is derived from it downstream. Reordering
+            constraint-scope children would silently change what the model
+            means.
 
             PSS Example::
 
@@ -246,82 +376,118 @@ classes:
     - ConstraintStmtForeach:
         - super: ConstraintScope
         - doc: |
-            Iterative constraint over array or collection elements.
-            
-            Applies constraints to each element of an array or collection. The foreach statement
-            introduces iterator variables for the element and optionally its index, making them
-            available within the constraint scope for expressing element-wise constraints.
-            
+            Iterative constraint over the elements of a collection
+            (LRM 13.1.8, `foreach_constraint_item`).
+
+            The body's constraints shall hold for every element of the
+            collection. The statement may introduce an iterator variable (an
+            alias for the current element) and an index variable (the current
+            index, or key for a map); at least one is required. Both forms of
+            the index are accepted: `foreach (a[i])` and
+            `foreach (e : a[i])`. In both, the parser lifts the trailing `[i]`
+            off the collection expression, so `expr` names the collection
+            and `idx` holds `i`.
+
+            The iterator and index variables are ConstraintStmtField nodes
+            registered in `symtab`; they are not entries in `constraints`.
+
             PSS Example::
-            
+
                 action packet_sequence {
                     rand bit[8] lengths[10];
-                    
+
                     constraint valid_lengths_c {
                         foreach (lengths[i]) {
                             lengths[i] > 0;
-                            lengths[i] <= 255;
                         }
                     }
-                    
+
                     constraint increasing_c {
-                        foreach (lengths[i]) {
+                        foreach (len : lengths[i]) {
                             if (i > 0) {
-                                lengths[i] >= lengths[i-1];
+                                len >= lengths[i-1];
                             }
                         }
                     }
                 }
-            
+
             Attributes:
-                it: Iterator variable for the current element
-                idx: Iterator variable for the current index (optional)
-                expr: The collection expression being iterated
-                symtab: Symbol table for iterator variables
-                constraints: Constraint statements applied to each element (inherited)
-            
+                it: The iterator variable, or null when none was written
+                idx: The index variable, or null when none was written
+                expr: The collection expression being iterated, without the
+                    index subscript
+                symtab: The name scope holding the iterator and index
+                    variables (not walked by the generated visitors)
+                constraints: Constraint statements applied to each element
+                    (inherited)
+
             See Also:
                 ConstraintStmtForall, ConstraintScope, ConstraintStmtField
+                ConstraintSymbolScope
         - data:
             - it:
                 - type: P<ConstraintStmtField>
                 - rel: ref
                 - is_ctor: false
                 - init: 0;
+                - doc: |
+                    The iterator variable (`iterator_identifier`), an alias
+                    for the current element; null when only an index was
+                    written. Its `type` is null after parsing; the linker
+                    (TaskResolveRefs) sets it, non-owned, to the collection's
+                    element type when that can be determined.
             - idx:
                 - type: P<ConstraintStmtField>
                 - rel: ref
                 - is_ctor: false
                 - init: 0;
+                - doc: |
+                    The index variable (`index_identifier`, or the identifier
+                    lifted from a trailing `[i]` on the collection); null
+                    when no index was written. Its `type` is always null.
             - expr: UP<Expr>
-            - symtab: 
+            - symtab:
                  - type: UP<ConstraintSymbolScope>
                  - is_ctor: false
                  - visit: false
-                 
+                 - doc: |
+                     The scope in which the iterator and index variables are
+                     declared, built by the AST builder. Not walked by the
+                     generated visitors.
+
     - ConstraintStmtField:
         - super: ConstraintStmt
         - doc: |
-            Iterator variable declaration within constraint loops.
-            
-            Represents a temporary variable introduced by foreach or forall statements. These
-            variables are scoped to the constraint loop body and provide access to collection
-            elements or type instances during constraint evaluation.
-            
+            A variable declared by a `foreach` or `forall` constraint.
+
+            Represents the iterator or index variable of a
+            ConstraintStmtForeach, or the iterator of a ConstraintStmtForall.
+            The variable is visible only within the statement's body, where it
+            is found through the statement's ConstraintSymbolScope.
+
+            Where the node lives differs between the two statements. A
+            `foreach` references its variables from `it` and `idx`. A
+            `forall` owns its iterator as entry 0 of its own `constraints`,
+            ahead of the body, so a consumer walking a forall's constraints
+            meets the iterator first.
+
             PSS Example::
-            
+
                 constraint iteration_c {
-                    foreach (items[idx]) {
-                        // 'idx' is a ConstraintStmtField
-                        // 'items[idx]' references the element
-                        items[idx] != 0;
+                    foreach (e : items[idx]) {
+                        // 'e' and 'idx' are ConstraintStmtFields
+                        e != idx;
                     }
                 }
-            
+
             Attributes:
-                name: The name of the iterator variable
-                type: The data type of the iterator variable
-            
+                name: The name of the variable, with its source location
+                type: The variable's data type. For a `forall` iterator,
+                    the quantified type as written. For a `foreach`
+                    iterator, null after parsing and set by the linker
+                    (TaskResolveRefs) to the collection's element type,
+                    when known. Always null for a `foreach` index.
+
             See Also:
                 ConstraintStmtForeach, ConstraintStmtForall, ConstraintSymbolScope
         - data:
@@ -330,38 +496,53 @@ classes:
     - ConstraintStmtForall:
         - super: ConstraintScope
         - doc: |
-            Universal quantification constraint over typed instances.
-            
-            Expresses constraints that must hold for all instances of a specified type that are
-            accessible through a reference path. This is similar to foreach but operates on type
-            instances rather than array elements, enabling relationship constraints across object
-            collections.
-            
+            Universal quantification over instances of a type
+            (LRM 13.1.9, `forall_constraint_item`).
+
+            The body's constraints shall hold for every instance of the named
+            type (an action, struct, stream, buffer, state or resource type)
+            within the application scope. With `in ref_path`, the scope is the
+            subtree under the entity the path designates; without it, the
+            subtree of the constraint's enclosing scope.
+
+            The iterator variable is a ConstraintStmtField held as entry 0 of
+            `constraints`; the body's statements follow it, from index 1.
+
             PSS Example::
-            
-                component pss_top {
-                    pool [4] resource_p;
-                    
-                    action use_resources {
-                        lock resource_p r1, r2;
-                        
-                        constraint different_resources_c {
-                            forall (resource_p rp : this.comp.resource_p) {
-                                (rp != r1) && (rp != r2);
-                            }
+
+                action A {
+                    rand int in [0..9] x;
+                }
+
+                action entry {
+                    A a1, a2;
+                    activity { a1; a2; }
+
+                    constraint {
+                        forall (a_it : A) {
+                            a_it.x > 2;
+                        }
+                    }
+                    constraint {
+                        forall (a_it : A in a1) {
+                            a_it.x < 8;
                         }
                     }
                 }
-            
+
             Attributes:
-                iterator_id: Iterator variable name for the type instance
-                type_id: The type being iterated over
-                ref_path: Path expression to the collection of instances
-                symtab: Symbol table for the iterator variable
-                constraints: Constraint statements for all instances (inherited)
-            
+                iterator_id: The iterator variable's name as written
+                type_id: The quantified type
+                ref_path: The path after `in` that limits the application
+                    scope; null when no `in` clause was written
+                symtab: The name scope holding the iterator variable (not
+                    walked by the generated visitors)
+                constraints: The iterator variable (entry 0), then the body's
+                    constraint statements (inherited)
+
             See Also:
                 ConstraintStmtForeach, ConstraintScope, ConstraintStmtField
+                ConstraintSymbolScope
         - data:
             - iterator_id: UP<ExprId>
             - type_id: UP<DataTypeUserDefined>
@@ -370,38 +551,48 @@ classes:
                  - type: UP<ConstraintSymbolScope>
                  - is_ctor: false
                  - visit: false
+                 - doc: |
+                     The scope in which the iterator variable is declared,
+                     built by the AST builder. Not walked by the generated
+                     visitors.
     - ConstraintStmtIf:
         - super: ConstraintStmt
         - doc: |
-            Conditional constraint statement with optional else clause.
-            
-            Applies different constraints based on the evaluation of a Boolean condition. If the
-            condition is true, constraints in the true branch are active; otherwise, constraints
-            in the optional else branch are active. The condition is evaluated after randomization
-            of variables it depends on.
-            
+            Conditional constraint (LRM 13.1.7, `if_constraint_item`).
+
+            When the condition is true, the constraints of the first branch
+            shall hold; otherwise those of the `else` branch, if one was
+            written. Like every constraint, the relation is bidirectional:
+            the solver may choose the condition's variables to satisfy a
+            branch.
+
+            Each branch is a ConstraintScope, even when written as a single
+            unbraced constraint; the true branch has `index` 0 and the false
+            branch `index` 1.
+
             PSS Example::
-            
+
                 action memory_access {
                     rand bit is_read;
                     rand bit[32] addr;
                     rand bit[8] data;
-                    
+
                     constraint access_type_c {
                         if (is_read) {
-                            addr inside [0x0000..0x0FFF];  // ROM region
+                            addr in [0x0000..0x0FFF];  // ROM region
                         } else {
-                            addr inside [0x1000..0x1FFF];  // RAM region
-                            data != 0;                      // Write non-zero
+                            addr in [0x1000..0x1FFF];  // RAM region
+                            data != 0;                 // Write non-zero
                         }
                     }
                 }
-            
+
             Attributes:
                 cond: The Boolean condition expression
-                true_c: Constraints applied when condition is true
-                false_c: Constraints applied when condition is false (may be empty)
-            
+                true_c: Constraints that hold when the condition is true
+                false_c: Constraints that hold when the condition is false;
+                    null when no `else` was written
+
             See Also:
                 ConstraintScope, ConstraintStmtExpr, ConstraintStmtImplication
         - data:
@@ -411,38 +602,38 @@ classes:
     - ConstraintStmtImplication:
         - super: ConstraintScope
         - doc: |
-            Implication constraint using the -> operator.
-            
-            Expresses an implication relationship where the constraints in the scope are only
-            active when the condition evaluates to true. Unlike if-else, implication does not
-            constrain the condition itself - if the antecedent is false, the consequent constraints
-            are simply ignored. This is useful for soft constraints and conditional relationships.
-            
+            Implication constraint, `expression -> constraint_set`
+            (LRM 13.1.6, `implication_constraint_item`).
+
+            When the antecedent is true, the constraints in the body shall
+            hold; when it is false, they do not apply. `a -> b` is equivalent
+            to `!a || b`, and, like every constraint, it is bidirectional: a
+            body that cannot hold forces the antecedent false.
+
             PSS Example::
-            
+
                 action bus_transaction {
                     rand bit burst_mode;
-                    rand bit[4] burst_length;
+                    rand bit[5] burst_length;
                     rand bit[32] addr;
-                    
+
                     constraint burst_constraints_c {
                         burst_mode -> {
-                            burst_length inside [2, 4, 8, 16];
+                            burst_length in [2, 4, 8, 16];
                             (addr & 0xF) == 0;  // 16-byte aligned
                         }
                     }
-                    
+
                     constraint normal_mode_c {
-                        !burst_mode -> {
-                            burst_length == 1;
-                        }
+                        !burst_mode -> burst_length == 1;
                     }
                 }
-            
+
             Attributes:
-                cond: The antecedent condition expression
-                constraints: Consequent constraints active when condition is true (inherited)
-            
+                cond: The antecedent expression
+                constraints: The consequent constraints (inherited); a single
+                    unbraced constraint is held here directly
+
             See Also:
                 ConstraintStmtIf, ConstraintScope, ConstraintStmtExpr
         - data:
@@ -450,32 +641,25 @@ classes:
     - ConstraintStmtUnique:
         - super: ConstraintStmt
         - doc: |
-            Uniqueness constraint ensuring distinct values.
-            
-            Constrains a set of expressions to have mutually distinct values during randomization.
-            All expressions in the list must evaluate to different values, preventing duplicates
-            within the specified set.
-            
+            Uniqueness constraint (LRM 13.1.10, `unique_constraint_item`).
+
+            Constrains a set of values to be mutually distinct.
+
             PSS Example::
-            
+
                 action transaction_set {
                     rand bit[8] id1, id2, id3, id4;
                     rand bit[16] addr[4];
-                    
+
                     constraint unique_ids_c {
                         unique { id1, id2, id3, id4 };
                     }
-                    
+
                     constraint unique_addresses_c {
-                        unique { addr[0], addr[1], addr[2], addr[3] };
-                    }
-                    
-                    constraint mixed_unique_c {
-                        unique { id1, id2, id3 };  // First three must differ
-                        // id4 is not constrained by this
+                        unique addr;
                     }
                 }
-            
+
             PSS 3.1 (§13.1.10) admits a second, single-argument form whose
             meaning is *different*::
 
@@ -494,8 +678,11 @@ classes:
             last `ExprMemberPathElem` (an `ExprSliceRange`).
 
             Attributes:
-                list: Expressions that must have unique values
-                is_braced: True for the `unique { ... }` form
+                list: The attributes whose values must be unique, one per
+                    `hierarchical_id` written; a single entry, the
+                    collection, for the unbraced form
+                is_braced: True for the `unique { ... }` form, false for the
+                    single-argument form
 
             See Also:
                 ConstraintStmtExpr, ExprHierarchicalId, ExprSliceRange
@@ -510,80 +697,94 @@ classes:
     - ConstraintStmtDefault:
         - super: ConstraintStmt
         - doc: |
-            Default value constraint for random fields.
-            
-            Specifies a default value for a random field that will be used if no other constraints
-            determine its value. Default constraints have lower priority than regular constraints
-            and can be disabled using 'default disable' statements. This provides a fallback value
-            while allowing overrides.
-            
+            Default value constraint, `default hid == constant_expression;`
+            (LRM 13.1.11).
+
+            Fixes a random attribute to a constant value unless the default
+            is disabled for that attribute by a `default disable` constraint.
+            While active, a default value constraint has the same meaning as
+            the corresponding equality: it shall hold, and a conflict with
+            another constraint is a contradiction (unlike a soft constraint,
+            which would be discarded). When several defaults apply to one
+            attribute, one from a higher-level containing context overrides
+            one from a lower level, a derived type overrides its base, and
+            within one type a later default overrides an earlier one.
+
             PSS Example::
-            
+
                 action network_packet {
                     rand bit[16] packet_size;
                     rand bit[8] priority;
-                    
+
                     constraint defaults_c {
-                        default packet_size == 64;      // Minimum Ethernet frame
-                        default priority == 0;           // Normal priority
-                    }
-                    
-                    constraint size_limits_c {
-                        packet_size <= 1500;             // This overrides default
+                        default packet_size == 64;
+                        default priority == 0;
                     }
                 }
-            
+
+                action jumbo_packet : network_packet {
+                    constraint jumbo_c {
+                        default disable packet_size;
+                        packet_size > 1500;
+                    }
+                }
+
             Attributes:
-                hid: Hierarchical identifier of the field receiving the default value
-                expr: The default value expression
-            
+                hid: The attribute receiving the default value (a
+                    `hierarchical_id`)
+                expr: The default value, a constant expression
+
             See Also:
-                ConstraintStmtDefaultDisable, ConstraintStmtExpr, ExprHierarchicalId
+                ConstraintStmtDefaultDisable, ConstraintStmtSoft, ExprRefPathContext
         - data:
             - hid: UP<ExprRefPathContext>
             - expr: UP<Expr>
     - ConstraintStmtDefaultDisable:
         - super: ConstraintStmt
         - doc: |
-            Disables inherited default value constraints.
-            
-            Explicitly disables default constraints that would otherwise be inherited from a base
-            type or applied from enclosing scopes. This allows derived types to override parent
-            defaults or clear unwanted default values, giving full control to other constraints.
-            
+            Default disable constraint, `default disable hid;`
+            (LRM 13.1.11).
+
+            Removes the default value constraints on the designated
+            attribute, wherever they were declared. Applied to an attribute
+            of an aggregate type, it disables the defaults on every random
+            attribute under it.
+
             PSS Example::
-            
+
                 action base_transfer {
                     rand bit[16] addr;
                     rand bit[8] data;
-                    
+
                     constraint defaults_c {
                         default addr == 0x1000;
                         default data == 0;
                     }
                 }
-                
+
                 action special_transfer : base_transfer {
                     constraint override_defaults_c {
-                        default disable addr;    // Don't use parent's default
-                        addr inside [0x2000..0x2FFF];  // Use this range instead
+                        default disable addr;          // Drop the base default
+                        addr in [0x2000..0x2FFF];      // Use this range instead
                     }
                 }
-            
+
             Attributes:
-                hid: Hierarchical identifier of the field whose default is being disabled
-            
+                hid: The attribute whose default is being disabled (a
+                    `hierarchical_id`)
+
             See Also:
-                ConstraintStmtDefault, ExprHierarchicalId
+                ConstraintStmtDefault, ExprRefPathContext
         - data:
             - hid: UP<ExprRefPathContext>
-            
-            
+
+
 
     - DistWeight:
         - super: ScopeChild
         - doc: |
-            Weight applied to one item of a `dist` directive.
+            Weight applied to one item of a `dist` directive
+            (LRM 13.1.13, `dist_weight`).
 
             PSS spells the weight two ways, which mean different things when the
             item covers a range of values:
@@ -591,8 +792,9 @@ classes:
             * ``:=`` gives the stated weight to *each* value in the range
             * ``:/`` divides the stated weight *across* the values in the range
 
-            The distinction is not recoverable from the expression alone, so it
-            is carried here rather than left to the consumer to infer.
+            For a single value the two are the same. The distinction is not
+            recoverable from the expression alone, so it is carried here
+            rather than left to the consumer to infer.
 
             PSS Example::
 
@@ -613,7 +815,8 @@ classes:
     - DistItem:
         - super: ScopeChild
         - doc: |
-            One value-or-range entry in a `dist` directive's distribution list.
+            One value-or-range entry in a `dist` directive's distribution list
+            (LRM 13.1.13, `dist_item`).
 
             The weight is optional; an item written without one carries the
             default weight (`:= 1`).
@@ -628,6 +831,7 @@ classes:
 
             Attributes:
                 range: The value or value range this weight applies to
+                    (`open_range_value`)
                 weight: The weight, or null when none was written
 
             See Also:
@@ -639,12 +843,17 @@ classes:
     - ConstraintStmtDist:
         - super: ConstraintStmt
         - doc: |
-            Distribution directive: a weighted set of values for an expression.
+            Distribution directive: a weighted set of values for an expression
+            (LRM 13.1.13, `dist_directive`).
 
-            A `dist` directive constrains its target expression to the values
-            covered by the distribution list, and biases the solver toward
-            values in proportion to their weights. Unlike `inside`, the weights
-            make it a distribution rather than a plain set-membership test.
+            A `dist` directive guides the solver: in the absence of
+            conflicting constraints, the target expression takes a value in
+            the distribution list, with probability proportional to each
+            value's weight. It is a kind of soft constraint, with lower
+            priority than every other soft constraint, so other constraints
+            may force the target outside the list. It is a statement, not an
+            expression -- unlike `in` (ExprIn), it does not itself require
+            membership.
 
             PSS Example::
 
@@ -658,10 +867,10 @@ classes:
 
             Attributes:
                 lhs: The expression being distributed
-                items: The weighted values and ranges
+                items: The weighted values and ranges, in source order
 
             See Also:
-                DistItem, DistWeight, ExprIn
+                DistItem, DistWeight, ExprIn, ConstraintStmtSoft
         - data:
             - lhs: UP<Expr>
             - items:

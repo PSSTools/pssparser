@@ -4,89 +4,105 @@ classes:
 - ActivityDecl:
     super: SymbolScope
     doc: |
-        Declares an activity block within an action.
-        
-        ActivityDecl represents the declaration of an activity block that defines
-        the behavioral execution flow of an action. It serves as a symbol scope
-        containing activity statements that specify sequences, parallelism, 
-        scheduling, and control flow.
-        
+        An action's `activity { ... }` block -- LRM 11.1, `activity_declaration`.
+
+        ActivityDecl is the root of an action's activity: the behavioral
+        description of a compound action, as a set of scheduling statements
+        (traversals, blocks, control flow). It is a scope with an empty name.
+        Its `children` are, in source order, the top-level activity statements
+        and the action handles and `action` data fields declared directly in
+        the block (LRM 11.8.2: every activity block is a variable scope, so
+        those declarations belong to the block, not to the action).
+
+        The top-level activity scope is unnamed (LRM 11.8.3). Its labeled
+        statements are made members of the enclosing action by the linker
+        (TaskBuildSymbolTree), so `b1.my_seq` resolves from the action.
+
         PSS Example::
-        
-            action my_action {
-                activity {
-                    do comp1.child_action;
-                    do comp2.child_action;
+
+            component pss_top {
+                action A { }
+                action B { }
+                action top {
+                    A a1;
+                    activity {
+                        a1;
+                        do B;
+                    }
                 }
             }
-        
-        Attributes:
-            (inherits symbol scope capabilities)
-        
+
         See Also:
-            ActivityStmt, Action, SymbolScope
+            ActivityStmt, ActivityLabeledScope, SymbolDeclaration, Action
 
 - ActivityStmt:
     super: ScopeChild
     doc: |
-        Base class for all activity statements.
-        
-        ActivityStmt is the abstract base class for all statements that can appear
-        within an activity block. Activity statements define the execution behavior
-        of actions, including action traversals, control flow, parallelism, and
-        scheduling constraints.
-        
+        Base class of the activity statements that are not blocks or compound
+        statements -- part of LRM 11.2, `activity_stmt`.
+
+        Its subclasses are the traversals and `super` (through
+        ActivityLabeledStmt), `bind` (ActivityBindStmt), an in-activity
+        `constraint` (ActivityConstraint) and a symbol call
+        (ActivitySymbolCall). Blocks and compound statements (`sequence`,
+        `parallel`, `schedule`, `repeat`, `foreach`, `select`, `if`, `match`,
+        `replicate`, `atomic`) introduce a scope and so derive from
+        ActivityLabeledScope instead; the two hierarchies share only
+        ScopeChild. A scheduling constraint (ActivitySchedulingConstraint) and
+        a join specification (ActivityJoinSpec) are ScopeChild directly.
+
         PSS Example::
-        
-            action my_action {
-                activity {
-                    // Various ActivityStmt subclasses
-                    do comp.sub_action;        // Traversal
-                    sequence { }                // Sequence
-                    parallel { }                // Parallel
-                    if (condition) { }          // IfElse
-                }
+
+            activity {
+                a1;                     // ActivityActionHandleTraversal
+                do B;                   // ActivityActionTypeTraversal
+                bind a1.out_b b1.in_b;  // ActivityBindStmt
+                constraint { a1.x < 4; } // ActivityConstraint
             }
-        
-        Attributes:
-            (base class - no specific attributes)
-        
+
         See Also:
-            ActivityDecl, ActivitySequence, ActivityParallel, ActivityActionHandleTraversal
+            ActivityLabeledStmt, ActivityLabeledScope, ActivityDecl
 
 - ActivitySchedulingConstraint:
     super: ScopeChild
     doc: |
-        Defines ordering constraints between scheduled activities.
-        
-        ActivitySchedulingConstraint specifies sequential or parallel execution
-        ordering relationships between activities in a schedule block. It allows
-        explicit control over the relative timing of activities.
-        
+        A scheduling constraint: `constraint parallel { a, b };` or
+        `constraint sequence { a, b, c };` -- LRM 13.2,
+        `activity_scheduling_constraint`.
+
+        Relates two or more action handles or named sub-activities from a
+        scheduling point of view, without traversing anything: `sequence`
+        orders them so that each completes before the next starts; `parallel`
+        starts them in a synchronized way. It may appear among the activity
+        statements, where it is a child of the enclosing activity block, or
+        directly in the action body, where it is a child of the action.
+
         PSS Example::
-        
-            action my_action {
+
+            action top {
+                A a1;
+                B b1;
+                C c1;
                 activity {
                     schedule {
-                        do comp1.action_a;
-                        do comp2.action_b;
-                        do comp3.action_c;
-                        
-                        // Sequential ordering
-                        action_a before action_b;
-                        
-                        // Parallel execution
-                        parallel(action_a, action_b);
+                        a1;
+                        b1;
+                        c1;
                     }
+                    constraint sequence { a1, b1 };
+                    constraint parallel { b1, c1 };
                 }
             }
-        
+
         Attributes:
-            is_parallel: True if this is a parallel constraint, False for sequential
-            targets: List of hierarchical IDs identifying the constrained activities
-        
+            is_parallel: True for `constraint parallel`, false for `constraint sequence`.
+            targets: The constrained items, one reference path per
+                `hierarchical_id` in source order (at least two). Each is a path
+                through the named sub-activity tree (`L1.a`) to an action handle
+                or label; resolved by the linker (TaskResolveRefs).
+
         See Also:
-            ActivitySchedule
+            ActivitySchedule, ActivityParallel, ActivitySequence
     data:
     - is_parallel: bool
     - targets: list<UP<ExprRefPathContext>>
@@ -94,226 +110,257 @@ classes:
 - ActivityBindStmt:
     super: ActivityStmt
     doc: |
-        Binds resource references between actions.
-        
-        ActivityBindStmt creates a binding between resource references, allowing
-        an action to use resources from another action's scope. This enables
-        resource sharing and coordination between actions in a behavior tree.
-        
+        Explicitly binds flow-object reference fields -- LRM 11.9,
+        `activity_bind_stmt`.
+
+        `bind x y;` or `bind x { y, z };` states that the input and output
+        fields named reference the same flow object: the output of one action
+        is the input of another. The bound fields must be of the same object
+        type and statically bound to the same pool; the order in which they
+        are listed does not matter.
+
         PSS Example::
-        
-            action producer {
-                output mydata_s data_out;
-                activity { }
-            }
-            
-            action consumer {
-                input mydata_s data_in;
-                activity { }
-            }
-            
-            action top {
-                producer prod;
-                consumer cons;
-                
-                activity {
-                    do prod;
-                    do cons;
-                    bind cons.data_in prod.data_out;
+
+            component pss_top {
+                buffer data_buf { }
+                pool data_buf data_p;
+                bind data_p *;
+
+                action producer { output data_buf out_d; }
+                action consumer { input data_buf in_d; }
+
+                action top {
+                    producer prod;
+                    consumer cons;
+                    activity {
+                        prod;
+                        cons;
+                        bind prod.out_d cons.in_d;
+                    }
                 }
             }
-        
+
         Attributes:
-            lhs: Left-hand side hierarchical ID (the reference being bound)
-            rhs: List of right-hand side hierarchical IDs (source references)
-        
+            lhs: The first `hierarchical_id`, as a reference path to a flow-object
+                reference field (`prod.out_d`).
+            rhs: The remaining reference paths: one element for the single form,
+                one per item of the braced `hierarchical_id_list` otherwise.
+
         See Also:
-            FieldRef, FieldCompRef
-    data: 
+            FieldRef, ExprRefPathContext
+    data:
     - lhs: UP<ExprRefPathContext>
     - rhs: list<UP<ExprRefPathContext>>
 
 - ActivityConstraint:
     super: ActivityStmt
     doc: |
-        Adds constraints within an activity block.
-        
-        ActivityConstraint allows constraint statements to be embedded within
-        activity blocks to further constrain the behavior or data of actions
-        being executed. These constraints are evaluated during scenario generation.
-        
+        A constraint written among the activity statements --
+        `constraint constraint_set`, `activity_constraint_stmt` (LRM 11.2).
+
+        Its position in the statement order is what distinguishes it from a
+        constraint in the action body, so it is a statement node rather than a
+        ConstraintBlock. It constrains the action's fields and the handles
+        traversed in the activity; names in it are resolved by the linker
+        (TaskResolveRefs) in the enclosing activity scope.
+
         PSS Example::
-        
-            action my_action {
-                rand bit[16] addr;
-                rand bit[8] data;
-                
+
+            action top {
+                rand bit[8] limit;
+                A a1;
                 activity {
-                    do comp.sub_action with {
-                        addr == 0x1000;
-                    }
-                    
-                    constraint {
-                        data inside [0..100];
-                    }
+                    a1;
+                    constraint { a1.x < limit; }
+                    constraint a1.y == 2;
                 }
             }
-        
+
         Attributes:
-            constraint: The constraint statement to be applied
-        
+            constraint: The `constraint_set`: a ConstraintScope holding the
+                statements of a braced block, or the single constraint statement
+                of the unbraced form.
+
         See Also:
-            ConstraintStmt, ConstraintBlock
+            ConstraintStmt, ConstraintScope, ConstraintBlock, MonitorConstraint
     data:
     - constraint : UP<ConstraintStmt>
 
 - ActivityLabeledStmt:
     super: ActivityStmt
     doc: |
-        Base class for activity statements that can have a label.
-        
-        ActivityLabeledStmt provides the ability to attach an optional label to
-        an activity statement. Labels can be used to reference activities in
-        scheduling constraints or for identification purposes.
-        
+        Base class of the activity statements that take an optional
+        `label :` prefix but do not introduce a scope.
+
+        Its subclasses are the two traversals and `super`. Blocks and compound
+        statements carry their label on ActivityLabeledScope instead. A label
+        names the statement for scheduling constraints, `join_branch` and
+        hierarchical references (LRM 11.8); the linker (TaskBuildSymbolTree)
+        registers it in the enclosing named sub-activity.
+
         PSS Example::
-        
-            action my_action {
-                activity {
-                    my_label: do comp.sub_action;
-                    
-                    another_label: sequence {
-                        do comp.action1;
-                        do comp.action2;
-                    }
-                }
+
+            activity {
+                L1: do A;
+                L2: a1;
             }
-        
+
         Attributes:
-            label: Optional identifier expression for the label
-        
+            label: The label identifier, or null when the statement has no label.
+
         See Also:
-            ActivityActionHandleTraversal, ActivitySequence, ActivityRepeatCount
+            ActivityActionHandleTraversal, ActivityActionTypeTraversal, ActivitySuper, ActivityLabeledScope
     data:
-    - label: 
+    - label:
         - type: UP<ExprId>
         - is_ctor: false
 
 - ActivityActionHandleTraversal:
     super: ActivityLabeledStmt
     doc: |
-        Traverses a specific action instance (handle).
-        
-        ActivityActionHandleTraversal represents the execution of a specific action
-        instance referenced by a handle (component field). It can include inline
-        constraints to further refine the action's random variables.
-        
+        Traverses an action handle: `a1;`, `b[2] with { ... }` -- LRM 11.3.1
+        and 11.3.2, `action_handle_traversal_stmt`.
+
+        The handle is a field of the action (or of the activity block) whose
+        type is an action; traversing it executes that sub-action. Element
+        subscripts select one element of an action-handle array; without a
+        subscript an array traversal traverses every element. An optional
+        initializer list sets attributes of the traversed action, and an
+        optional `with` block adds in-line constraints. Also built for
+        traversals in a monitor activity.
+
+        A parameterless symbol activated by name (`s;`, LRM Example 120)
+        parses as this statement too; the linker (TaskResolveRefs) recognizes
+        the symbol and rejects a `with` block or initializer list on it.
+
         PSS Example::
-        
-            component my_comp {
-                action sub_action {
-                    rand bit[16] addr;
-                }
-            }
-            
-            action top_action {
-                my_comp comp;
-                
-                activity {
-                    // Basic traversal
-                    do comp.sub_action;
-                    
-                    // Traversal with inline constraint
-                    do comp.sub_action with {
-                        addr == 0x1000;
+
+            component pss_top {
+                action A { rand bit[16] addr; bit[8] id; }
+                action top {
+                    A a1;
+                    A arr[4];
+                    activity {
+                        a1;
+                        a1 with { addr == 0x1000; }
+                        arr[1] {.id = 3} with { addr < 16; }
+                        L: arr;
                     }
-                    
-                    // Labeled traversal
-                    label1: do comp.sub_action;
                 }
             }
-        
+
         Attributes:
-            target: Reference path to the action instance
-            with_c: Optional constraint statement applied to the traversal
-        
+            target: Reference path to the handle: a single path element holding
+                the `identifier` and any `[ expression ]` subscripts. Resolved by
+                the linker (TaskResolveRefs).
+            with_c: The `with constraint_set` in-line constraints, or null when
+                the statement ends with `;`. Resolved in the traversed action's
+                type.
+
         See Also:
-            ActivityActionTypeTraversal, ExprRefPathContext
+            ActivityActionTypeTraversal, ActionFieldInitializer, ActionHandleField, ExprRefPathContext
     data:
     - target: UP<ExprRefPathContext>
     - with_c: UP<ConstraintStmt>
     - initializers:
         type: list<UP<ActionFieldInitializer>>
         is_ctor: false
+        doc: |
+            The `action_initializer_list` (`{.x = 1, .y = 2}`, LRM 11.3.1.2),
+            in source order. Empty when the statement has no initializer list.
 
 - ActivityActionTypeTraversal:
     super: ActivityLabeledStmt
     doc: |
-        Traverses an action by type rather than specific instance.
-        
-        ActivityActionTypeTraversal allows execution of any action of a given type,
-        with the specific instance selected at elaboration or runtime. This provides
-        flexibility in action selection and can include inline constraints.
-        
+        Traverses an anonymous action of a given type: `do A;` -- LRM 11.3.1,
+        `action_type_traversal_stmt`.
+
+        Equivalent to traversing a fresh, implicitly declared handle of the
+        named action type. An optional initializer list sets attributes of the
+        traversed action, and an optional `with` block adds in-line
+        constraints. Also built for `do` traversals in a monitor activity. A
+        type that resolves but is not an action is reported by the linker
+        (TaskResolveRefs).
+
         PSS Example::
-        
-            action base_action {
-                rand bit[16] addr;
-            }
-            
-            action derived_action : base_action {
-                rand bit[8] data;
-            }
-            
-            action top_action {
-                activity {
-                    // Traverse by type
-                    do base_action;
-                    
-                    // Traverse with constraint
-                    do base_action with {
-                        addr inside [0..255];
+
+            component pss_top {
+                action A { rand bit[16] addr; bit[8] id; }
+                action top {
+                    activity {
+                        do A;
+                        do A with { addr in [0..255]; }
+                        L1: do A {.id = 1};
                     }
-                    
-                    // Labeled type traversal
-                    my_label: do derived_action;
                 }
             }
-        
+
         Attributes:
-            target: User-defined data type specifying the action type
-            with_c: Optional constraint statement applied to the traversal
-        
+            target: The `type_identifier` naming the action type (possibly
+                qualified, `pkg::A`); its type reference is resolved by the
+                linker (TaskResolveRefs).
+            with_c: The `with constraint_set` in-line constraints, or null when
+                the statement ends with `;`. Resolved in the traversed action type.
+
         See Also:
-            ActivityActionHandleTraversal, DataTypeUserDefined
+            ActivityActionHandleTraversal, ActionFieldInitializer, DataTypeUserDefined
     data:
     - target: UP<DataTypeUserDefined>
     - with_c: UP<ConstraintStmt>
     - initializers:
         type: list<UP<ActionFieldInitializer>>
         is_ctor: false
+        doc: |
+            The `action_initializer_list` (`{.x = 1, .y = 2}`, LRM 11.3.1.2),
+            in source order. Empty when the statement has no initializer list.
 
 - ActionFieldInitializer:
     super: ScopeChild
     doc: |
-        Single field assignment in a PSS 3.1 action initializer list.
+        One assignment `.x = value` of an action initializer list -- LRM
+        11.3.1.2, `action_initializer`.
 
-        Represents entries such as ``.x = 1`` or ``.cfg.mode = FAST`` used in
-        action-handle declarations and action traversal statements.
+        An initializer list gives initial values to attributes of an action as
+        it is traversed (or declared), passing data from the activity to the
+        sub-action. Entries appear on action traversals
+        (ActivityActionHandleTraversal, ActivityActionTypeTraversal), on
+        action-handle declarations (ActionHandleField) and on a handle
+        declaration in an action body that parses as data (Field).
+
+        PSS Example::
+
+            activity {
+                do A {.x = 1, .cfg.mode = FAST};
+                a1 {.x = n + 1};
+            }
+
+        See Also:
+            ActivityActionHandleTraversal, ActivityActionTypeTraversal, ActionHandleField, Field
     data:
-    - path: UP<ExprRefPathContext>
-    - value: UP<Expr>
+    - path:
+        type: UP<ExprRefPathContext>
+        doc: |
+            The `hierarchical_id` after the `.`: the attribute of the traversed
+            or declared action being initialized. Resolved by the linker
+            (TaskResolveRefs) in that action's type; left unresolved when the
+            type is not known.
+    - value:
+        type: UP<Expr>
+        doc: |
+            The `expression` after `=`: the initial value. Resolved in the
+            enclosing scope, with the attribute's type as the expected type.
 
 - ActivityLabeledScope:
     super: SymbolScope
     doc: |
         Base class for labeled activity scopes.
-        
+
         ActivityLabeledScope represents activity constructs that introduce a new
         scope and can be labeled: sequence, parallel and schedule blocks, and
         every compound statement (repeat, repeat-while, foreach, replicate,
-        if-else, select, match, atomic). The label can be used for referencing
-        in scheduling constraints.
+        if-else, select, match, atomic). The label names the statement as a
+        named sub-activity (LRM 11.8) for scheduling constraints, `join_branch`
+        and hierarchical references.
 
         Every activity block is a variable scope (LRM 11.8.2): action handles
         and ``action`` data fields declared in a block are children of that
@@ -326,25 +373,25 @@ classes:
         body ``k`` (``true_s`` then ``false_s``; each select branch's or match
         choice's body in turn), the same convention as
         ``ProceduralStmtSymbolBodyScope``.
-        
+
         PSS Example::
-        
+
             action my_action {
                 activity {
                     my_seq: sequence {
-                        do comp.action1;
-                        do comp.action2;
+                        do A;
+                        do B;
                     }
-                    
+
                     my_par: parallel {
-                        do comp.action3;
-                        do comp.action4;
+                        do A;
+                        do B;
                     }
                 }
             }
-        
+
         Attributes:
-            label: Optional identifier expression for the label
+            label: The label identifier, or null when the statement has no label.
             sub_activity: The named sub-activity this statement introduces
                 (LRM 11.8), built by the linker: a synthetic scope whose
                 target is this statement. Its members are non-owned: the
@@ -356,7 +403,7 @@ classes:
                 array. Not walked by the generated visitors.
 
         See Also:
-            ActivitySequence, ActivityParallel, ActivitySchedule
+            ActivitySequence, ActivityParallel, ActivitySchedule, ActivityLabeledStmt
     data:
     - label:
         - type: UP<ExprId>
@@ -369,101 +416,85 @@ classes:
 - ActivitySequence:
     super: ActivityLabeledScope
     doc: |
-        Defines a sequential execution block.
-        
-        ActivitySequence specifies that its contained activities execute in strict
-        sequential order, one after another. Each activity completes before the next
-        begins. This is the default execution model and can be explicitly specified
-        with the 'sequence' keyword.
-        
+        A sequential block: `sequence { ... }` or a bare `{ ... }` -- LRM
+        11.3.3, `activity_sequence_block_stmt`.
+
+        Its statements are traversed in order, each completing before the next
+        starts. The statements, and the handles and `action` fields declared in
+        the block, are its `children`.
+
+        The builder also makes an ActivitySequence for the braces of an
+        `atomic` block (ActivityAtomicBlock's `body`), and substitutes an empty,
+        unlocated one for a compound statement's body that built no statement
+        (`repeat (3) ;`), so such a body is never null.
+
         PSS Example::
-        
-            action my_action {
-                activity {
-                    // Explicit sequence
-                    sequence {
-                        do comp.init_action;
-                        do comp.process_action;
-                        do comp.cleanup_action;
-                    }
-                    
-                    // Labeled sequence
-                    setup_phase: sequence {
-                        do comp.config;
-                        do comp.verify;
-                    }
-                    
-                    // Nested sequences
-                    sequence {
-                        sequence {
-                            do comp.step1;
-                            do comp.step2;
-                        }
-                        do comp.step3;
-                    }
+
+            activity {
+                sequence {
+                    do A;
+                    do B;
+                }
+                setup: {
+                    do C;
+                    do D;
                 }
             }
-        
-        Attributes:
-            (inherits from ActivityLabeledScope)
-        
+
         See Also:
-            ActivityParallel, ActivitySchedule, ActivityLabeledScope
+            ActivityParallel, ActivitySchedule, ActivityAtomicBlock, ActivityLabeledScope
 
 - ActivityJoinSpec:
     super: ScopeChild
     doc: |
-        Base class for specifying join semantics in parallel and schedule blocks.
-        
-        ActivityJoinSpec defines how parallel or scheduled activities synchronize
-        and when the containing block completes. Different join specifications
-        provide flexibility in modeling concurrent execution patterns.
-        
+        Base class of the join specifications of a `parallel` or `schedule`
+        block -- LRM 11.3.6, `activity_join_spec`.
+
+        A join specification relaxes the default, under which the statement
+        following the block is scheduled after every statement in the block
+        has completed: it says which of the block's top-level statements that
+        following statement depends on.
+
         PSS Example::
-        
-            action my_action {
-                activity {
-                    // Various join specifications
-                    parallel join_none { }      // No synchronization
-                    parallel join_first(2) { }  // Wait for first 2
-                    parallel join_select(1) { } // Select 1 to complete
-                    parallel join_branch { }    // Explicit branches
-                }
+
+            activity {
+                parallel join_none { do A; do B; }
+                parallel join_first(1) { do A; do B; }
+                parallel join_select(1) { do A; do B; }
+                parallel join_branch(L1) { L1: do A; do B; }
             }
-        
-        Attributes:
-            (base class - no specific attributes)
-        
+
         See Also:
-            ActivityJoinSpecNone, ActivityJoinSpecFirst, ActivityJoinSpecSelect, ActivityJoinSpecBranch
+            ActivityJoinSpecNone, ActivityJoinSpecFirst, ActivityJoinSpecSelect, ActivityJoinSpecBranch, ActivityParallel, ActivitySchedule
     data: []
 
 - ActivityJoinSpecBranch:
     super: ActivityJoinSpec
     doc: |
-        Join specification with explicit branch identification.
-        
-        ActivityJoinSpecBranch allows explicit specification of which branches
-        must complete for the parallel or schedule block to complete. This provides
-        fine-grained control over synchronization points.
-        
+        `join_branch(L1, L2, ...)` -- LRM 11.3.6, `activity_join_branch`.
+
+        The statement following the block is scheduled after the listed
+        statements have completed; the others are not waited for. Each label
+        must be that of a top-level statement of the block the specification
+        applies to. A label on an action-array traversal waits for every
+        element.
+
         PSS Example::
-        
-            action my_action {
-                activity {
-                    parallel join_branch (branch1, branch2) {
-                        branch1: do comp.action1;
-                        branch2: do comp.action2;
-                        branch3: do comp.action3;
-                        // Block completes when branch1 and branch2 complete
-                        // branch3 may still be running
-                    }
+
+            activity {
+                parallel join_branch(L1, L2) {
+                    L1: do A;
+                    L2: do B;
+                    do C;           // not waited for
                 }
+                do D;               // after L1 and L2
             }
-        
+
         Attributes:
-            branches: List of reference paths identifying branches that must complete
-        
+            branches: One single-element reference path per `label_identifier`,
+                in source order. Resolved by the linker (TaskResolveRefs) to the
+                labeled statements.
+
         See Also:
             ActivityJoinSpec, ActivityParallel, ActivitySchedule
     data:
@@ -472,36 +503,26 @@ classes:
 - ActivityJoinSpecSelect:
     super: ActivityJoinSpec
     doc: |
-        Join specification that randomly selects branches to complete.
-        
-        ActivityJoinSpecSelect causes the parallel or schedule block to complete
-        when a specified number of branches have completed. The selection of which
-        branches complete is typically random and can be constrained.
-        
+        `join_select(N)` -- LRM 11.3.6, `activity_join_select`.
+
+        The statement following the block is scheduled after N of the block's
+        top-level statements, selected randomly, have completed. Each element
+        of a traversed action array counts as a separate statement. N is an
+        integer known at solve time; 0 is equivalent to `join_none`.
+
         PSS Example::
-        
-            action my_action {
-                activity {
-                    // Select 2 branches to complete
-                    parallel join_select(2) {
-                        do comp.action1;
-                        do comp.action2;
-                        do comp.action3;
-                        do comp.action4;
-                    }
-                    // Block completes when any 2 actions complete
-                    
-                    // Select 1 (like a race condition)
-                    parallel join_select(1) {
-                        do comp.fast_path;
-                        do comp.slow_path;
-                    }
+
+            activity {
+                parallel join_select(1) {
+                    do A;
+                    do B;
                 }
+                do C;               // after one of A, B (chosen randomly)
             }
-        
+
         Attributes:
-            count: Expression specifying how many branches must complete
-        
+            count: The `expression` N: how many statements are selected.
+
         See Also:
             ActivityJoinSpec, ActivityJoinSpecFirst, ActivityParallel
     data:
@@ -510,68 +531,48 @@ classes:
 - ActivityJoinSpecNone:
     super: ActivityJoinSpec
     doc: |
-        Join specification with no synchronization.
-        
-        ActivityJoinSpecNone indicates that the parallel or schedule block completes
-        immediately without waiting for any branches to complete. The branches continue
-        executing asynchronously in the background. This is useful for fire-and-forget
-        concurrent operations.
-        
+        `join_none` -- LRM 11.3.6, `activity_join_none`.
+
+        The statement following the block has no scheduling dependency on the
+        statements in the block: it may start without waiting for any of them.
+
         PSS Example::
-        
-            action my_action {
-                activity {
-                    // No waiting for completion
-                    parallel join_none {
-                        do comp.background_task1;
-                        do comp.background_task2;
-                        do comp.background_task3;
-                    }
-                    // Execution continues immediately
-                    do comp.foreground_task;
+
+            activity {
+                parallel join_none {
+                    do A;
+                    do B;
                 }
+                do C;               // need not wait for A or B
             }
-        
-        Attributes:
-            (no specific attributes)
-        
+
         See Also:
             ActivityJoinSpec, ActivityJoinSpecFirst, ActivityParallel
 
 - ActivityJoinSpecFirst:
     super: ActivityJoinSpec
     doc: |
-        Join specification that waits for the first N branches to complete.
-        
-        ActivityJoinSpecFirst causes the parallel or schedule block to complete
-        when the first specified number of branches have completed. Unlike join_select,
-        this waits for the actual first branches to finish rather than randomly
-        selecting which ones complete.
-        
+        `join_first(N)` -- LRM 11.3.6, `activity_join_first`.
+
+        The statement following the block has a run-time dependency on the
+        first N of the block's statements to complete execution, and no
+        scheduling dependency on them. Unlike `join_select`, which statements
+        count is decided by which finish first, not chosen at solve time. N is
+        an integer known at solve time; 0 is equivalent to `join_none`.
+
         PSS Example::
-        
-            action my_action {
-                activity {
-                    // Wait for first 2 to complete
-                    parallel join_first(2) {
-                        do comp.action1;
-                        do comp.action2;
-                        do comp.action3;
-                        do comp.action4;
-                    }
-                    // Block completes as soon as any 2 finish
-                    
-                    // Wait for first one
-                    parallel join_first(1) {
-                        do comp.option_a;
-                        do comp.option_b;
-                    }
+
+            activity {
+                parallel join_first(1) {
+                    do A;
+                    do B;
                 }
+                do C;               // after whichever of A, B completes first
             }
-        
+
         Attributes:
-            count: Expression specifying how many branches to wait for
-        
+            count: The `expression` N: how many statements to wait for.
+
         See Also:
             ActivityJoinSpec, ActivityJoinSpecSelect, ActivityParallel
     data:
@@ -580,41 +581,32 @@ classes:
 - ActivityParallel:
     super: ActivityLabeledScope
     doc: |
-        Defines a parallel execution block with join semantics.
-        
-        ActivityParallel specifies that its contained activities may execute
-        concurrently. The join specification determines when the parallel block
-        completes relative to its branches. By default, all branches must complete.
-        
+        A parallel block: `parallel [join_spec] { ... }` -- LRM 11.3.4,
+        `activity_parallel_stmt`.
+
+        Its top-level statements are started together and then run without
+        further synchronization. By default the statement after the block
+        waits for all of them to complete; a join specification changes that.
+        The statements, and the handles and `action` fields declared in the
+        block, are its `children`.
+
         PSS Example::
-        
-            action my_action {
-                activity {
-                    // Default parallel (wait for all)
-                    parallel {
-                        do comp.action1;
-                        do comp.action2;
-                        do comp.action3;
-                    }
-                    
-                    // Parallel with join_first
-                    parallel join_first(2) {
-                        do comp.fast_action;
-                        do comp.medium_action;
-                        do comp.slow_action;
-                    }
-                    
-                    // Parallel with join_none (fire and forget)
-                    parallel join_none {
-                        do comp.background1;
-                        do comp.background2;
-                    }
+
+            activity {
+                parallel {
+                    do A;
+                    do B;
+                }
+                parallel join_first(1) {
+                    do A;
+                    do B;
                 }
             }
-        
+
         Attributes:
-            join_spec: Specification of join behavior for the parallel block
-        
+            join_spec: The `activity_join_spec`, or null when there is none (wait
+                for all).
+
         See Also:
             ActivitySequence, ActivitySchedule, ActivityJoinSpec
     data:
@@ -623,80 +615,74 @@ classes:
 - ActivitySchedule:
     super: ActivityLabeledScope
     doc: |
-        Defines a scheduled execution block with explicit ordering constraints.
-        
-        ActivitySchedule allows activities to execute with explicit scheduling
-        constraints that define relative ordering. Unlike parallel blocks where
-        all actions start together, schedule blocks allow fine-grained control
-        over when each activity begins and ends relative to others.
-        
+        A schedule block: `schedule [join_spec] { ... }` -- LRM 11.3.5,
+        `activity_schedule_stmt`.
+
+        Its top-level statements are all traversed, in any order or
+        concurrently, subject to the other scheduling constraints and the
+        flow-object and resource rules: the tool chooses a legal schedule.
+        Scheduling constraints (ActivitySchedulingConstraint) can impose
+        relative order on the statements. The statements, and the handles and
+        `action` fields declared in the block, are its `children`.
+
         PSS Example::
-        
-            action my_action {
+
+            action top {
+                A a1;
+                B b1;
+                C c1;
                 activity {
                     schedule {
-                        a: do comp.action_a;
-                        b: do comp.action_b;
-                        c: do comp.action_c;
-                        d: do comp.action_d;
-                        
-                        // Scheduling constraints
-                        a before b;           // Sequential
-                        a before c;           // Sequential
-                        parallel(b, c);       // Parallel
-                        b before d;
-                        c before d;
+                        a1;
+                        b1;
+                        c1;
                     }
+                    constraint sequence { a1, b1 };
                 }
             }
-        
+
         Attributes:
-            join_spec: Specification of join behavior for the schedule block
-        
+            join_spec: The `activity_join_spec`, or null when there is none (wait
+                for all).
+
         See Also:
-            ActivitySchedulingConstraint, ActivityParallel, ActivitySequence
+            ActivitySchedulingConstraint, ActivityParallel, ActivitySequence, ActivityJoinSpec
     data:
     - join_spec: UP<ActivityJoinSpec>
 
 - ActivityRepeatCount:
     super: ActivityLabeledScope
     doc: |
-        Repeats an activity body a fixed number of times.
-        
-        ActivityRepeatCount executes its body a specified number of iterations,
-        with an optional loop variable that tracks the current iteration. Each
-        iteration executes sequentially.
-        
+        A counted loop: `repeat ( [i :] count ) stmt` -- LRM 11.4.1,
+        `activity_repeat_stmt`.
+
+        Traverses its body `count` times, in sequence. The optional index
+        variable ranges from 0 to `count` - 1. The builder also declares it
+        as the loop's only child (an untyped ProceduralStmtDataDeclaration),
+        so that it is in scope in the body and not after the loop; it is not
+        in scope in `count`.
+
         PSS Example::
-        
-            action my_action {
-                activity {
-                    // Basic repeat
-                    repeat (10) {
-                        do comp.sub_action;
-                    }
-                    
-                    // Repeat with loop variable
-                    repeat (i : 5) {
-                        do comp.sub_action with {
-                            index == i;
-                        }
-                    }
-                    
-                    // Repeat with expression
-                    repeat (num_iterations) {
-                        do comp.action;
-                    }
+
+            activity {
+                repeat (4) {
+                    do A;
+                }
+                repeat (i : 5) {
+                    do A with { idx == i; }
                 }
             }
-        
+
         Attributes:
-            loop_var: Optional loop variable identifier
-            count: Expression specifying the number of iterations
-            body: Activity statement body to execute each iteration
-        
+            loop_var: The `index_identifier`, or null when absent.
+            count: The iteration count `expression`.
+            body: The repeated statement: an ActivitySequence for a braced
+                body, the statement itself otherwise, or an empty
+                ActivitySequence when the body built nothing. Never null after
+                parsing.
+
         See Also:
-            ActivityRepeatWhile, ActivityForeach, ActivityReplicate
+            ActivityRepeatWhile, ActivityForeach, ActivityReplicate, ProceduralStmtDataDeclaration
     data:
     - loop_var: UP<ExprId>
     - count: UP<Expr>
@@ -705,41 +691,34 @@ classes:
 - ActivityRepeatWhile:
     super: ActivityLabeledScope
     doc: |
-        Repeats an activity body while a condition is true.
-        
-        ActivityRepeatWhile executes its body repeatedly as long as the specified
-        condition evaluates to true. The condition is checked before each iteration,
-        including the first one.
-        
+        A repeat-while loop: `repeat stmt while ( cond );` -- LRM 11.4.2,
+        `activity_repeat_stmt`.
+
+        Traverses its body, then evaluates the condition, and repeats while it
+        is true: the condition is sampled after each iteration, so the body is
+        traversed at least once. The condition is of type `bool`.
+
         PSS Example::
-        
-            action my_action {
-                rand bit[8] counter;
-                
+
+            action top {
+                int count;
                 activity {
-                    // Basic while loop
-                    repeat while (counter < 10) {
-                        do comp.increment_action;
-                    }
-                    
-                    // Conditional processing
-                    repeat while (has_more_data()) {
-                        do comp.process_data;
-                    }
-                    
-                    // Complex condition
-                    repeat while (status == ACTIVE && count > 0) {
-                        do comp.work_action;
-                    }
+                    repeat {
+                        do A;
+                    } while (count < 10);
                 }
             }
-        
+
         Attributes:
-            cond: Boolean expression evaluated before each iteration
-            body: Activity statement body to execute while condition is true
-        
+            cond: The `while ( expression )` condition, evaluated after each
+                iteration.
+            body: The repeated statement: an ActivitySequence for a braced
+                body, the statement itself otherwise, or an empty
+                ActivitySequence when the body built nothing. Never null after
+                parsing.
+
         See Also:
-            ActivityRepeatCount, ActivityForeach
+            ActivityRepeatCount, ActivityForeach, ProceduralStmtRepeatWhile
     data:
     - cond: UP<Expr>
     - body: UP<ScopeChild>
@@ -747,45 +726,50 @@ classes:
 - ActivityForeach:
     super: ActivityLabeledScope
     doc: |
-        Iterates over elements in a collection.
-        
-        ActivityForeach executes its body once for each element in a collection,
-        providing access to the current element through an iterator variable and
-        optionally the current index.
-        
+        Iterates over a collection: `foreach ( [it :] coll [ [idx] ] ) stmt`
+        -- LRM 11.4.3, `activity_foreach_stmt`.
+
+        Traverses its body once per element of an array, list, map or set,
+        with an optional iterator variable bound to the current element and an
+        optional index variable bound to its index (key, for a map). The
+        builder declares the iterator and index as the loop's children
+        (ProceduralStmtDataDeclaration), in that order; the iterator is typed
+        from the collection's element type by the linker (TaskResolveRefs).
+
         PSS Example::
-        
-            action my_action {
-                rand bit[8] data[10];
-                
+
+            action top {
+                A handles[4];
+                rand bit[8] vals[4];
                 activity {
-                    // Foreach with iterator
-                    foreach (d : data) {
-                        do comp.process with {
-                            value == d;
-                        }
+                    foreach (h : handles) {
+                        h;
                     }
-                    
-                    // Foreach with iterator and index
-                    foreach (d[i] : data) {
-                        do comp.process with {
-                            value == d;
-                            index == i;
-                        }
+                    foreach (v : vals[i]) {
+                        do A with { addr == v + i; }
+                    }
+                    foreach (vals[j]) {
+                        do A with { addr == vals[j]; }
                     }
                 }
             }
-        
+
         Attributes:
-            it_id: Iterator identifier for the current element
-            idx_id: Optional index identifier for the current position
+            it_id: The `iterator_identifier`, or null when absent.
+            idx_id: The `index_identifier`, or null when absent. Written as
+                `coll[j]`, the subscript first parses as part of the collection
+                expression; the builder lifts it out into this field.
             path: Reference path to the collection being iterated (named
                 ``path``, as on ProceduralStmtForeach: ``target`` is the
-                SymbolScope field naming the scope's AST node)
-            body: Activity statement body executed for each element
-        
+                SymbolScope field naming the scope's AST node). Null when the
+                collection expression is not a reference; the builder reports
+                an error then.
+            body: The statement traversed per element: an ActivitySequence for a
+                braced body, the statement itself otherwise, or an empty
+                ActivitySequence when the body built nothing.
+
         See Also:
-            ActivityRepeatCount, ActivityRepeatWhile
+            ActivityRepeatCount, ActivityRepeatWhile, ProceduralStmtForeach
     data:
     - it_id: UP<ExprId>
     - idx_id: UP<ExprId>
@@ -795,44 +779,37 @@ classes:
 - ActivitySelect:
     super: ActivityLabeledScope
     doc: |
-        Randomly selects and executes one branch from alternatives.
-        
-        ActivitySelect provides a weighted random choice between multiple branches.
-        Each branch can have a guard condition and a weight expression to control
-        selection probability. Only one branch is executed per select statement.
-        
+        Traverses one of several branches: `select { ... }` -- LRM 11.4.4,
+        `activity_select_stmt`.
+
+        Each evaluation traverses exactly one enabled branch. A branch is
+        enabled when it has no guard or its guard is true. When any branch has
+        a weight, a branch without one weighs 1, and the probability of a
+        branch is its weight over the sum of the enabled branches' weights.
+        The grammar requires at least two branches.
+
         PSS Example::
-        
-            action my_action {
-                rand bit[8] mode;
-                
+
+            action top {
+                rand bit[2] mode;
                 activity {
-                    // Basic select (equal probability)
                     select {
-                        1: { do comp.option_a; }
-                        1: { do comp.option_b; }
-                        1: { do comp.option_c; }
+                        do A;
+                        do B;
                     }
-                    
-                    // Weighted select
                     select {
-                        70: { do comp.common_case; }
-                        20: { do comp.rare_case; }
-                        10: { do comp.very_rare_case; }
-                    }
-                    
-                    // Select with guards
-                    select {
-                        [mode == 0] 1: { do comp.mode0_action; }
-                        [mode == 1] 1: { do comp.mode1_action; }
-                        [mode == 2] 1: { do comp.mode2_action; }
+                        [70]: do A;
+                        (mode == 0)[20]: do B;
+                        (mode != 0): do C;
                     }
                 }
             }
-        
+
         Attributes:
-            branches: List of select branches with guards, weights, and bodies
-        
+            branches: The `select_branch` alternatives, in source order. The
+                branch bodies are this scope's bodies, addressed after its
+                (empty) children.
+
         See Also:
             ActivitySelectBranch, ActivityMatch, ActivityIfElse
     data:
@@ -840,43 +817,33 @@ classes:
 
 - ActivitySelectBranch:
     doc: |
-        Represents one branch in an activity select statement.
-        
-        ActivitySelectBranch encapsulates a single alternative in a select statement,
-        including its optional guard condition, weight expression, and body. The
-        guard determines if the branch is eligible for selection, and the weight
-        influences the selection probability among eligible branches.
-        
+        One alternative of a `select` statement:
+        `[ (guard) ][ [weight] ] : stmt` -- LRM 11.4.4, `select_branch`.
+
+        Holds the optional guard condition, which enables the branch, the
+        optional weight, which sets its relative probability among the enabled
+        branches, and the statement traversed when the branch is chosen. It
+        has no base class (it is not a ScopeChild): it is owned by its
+        ActivitySelect.
+
         PSS Example::
-        
-            action my_action {
-                rand bit[8] value;
-                
-                activity {
-                    select {
-                        // Branch with guard and weight
-                        [value < 50] 70: {
-                            do comp.low_value_action;
-                        }
-                        
-                        // Branch with only weight
-                        20: {
-                            do comp.medium_value_action;
-                        }
-                        
-                        // Branch with guard only (implicit weight 1)
-                        [value > 200]: {
-                            do comp.high_value_action;
-                        }
-                    }
-                }
+
+            select {
+                (x < 50)[70]: do A;   // guard and weight
+                [20]: do B;           // weight only
+                (x > 200): do C;      // guard only (weight 1)
+                do D;                 // neither
             }
-        
+
         Attributes:
-            guard: Optional condition that must be true for branch to be eligible
-            weight: Expression determining relative selection probability
-            body: Activity statement executed if this branch is selected
-        
+            guard: The `( expression )` guard condition, of `bool` type, or null
+                when the branch has none (always enabled).
+            weight: The `[ expression ]` weight, a non-negative integer, or null
+                when the branch has none (weight 1 if any branch has a weight).
+            body: The branch's statement: an ActivitySequence for a braced
+                body, the statement itself otherwise, or an empty
+                ActivitySequence when the body built nothing.
+
         See Also:
             ActivitySelect, ActivityMatchChoice
     data:
@@ -887,46 +854,36 @@ classes:
 - ActivityIfElse:
     super: ActivityLabeledScope
     doc: |
-        Conditional execution of activity branches.
-        
-        ActivityIfElse provides conditional branching in activity blocks, executing
-        one of two branches based on a boolean condition. Unlike select, the choice
-        is deterministic based on the condition value.
-        
+        Conditional traversal: `if ( cond ) stmt [ else stmt ]` -- LRM 11.4.5,
+        `activity_if_else_stmt`.
+
+        Traverses the first statement when the condition is true, the `else`
+        statement (if any) otherwise. Unlike `select`, the choice is
+        determined by the condition. An `else if` is an ActivityIfElse as the
+        `false_s` statement.
+
         PSS Example::
-        
-            action my_action {
+
+            action top {
                 rand bit[8] mode;
-                rand bit enable;
-                
                 activity {
-                    // Simple if-else
-                    if (enable) {
-                        do comp.enabled_action;
-                    } else {
-                        do comp.disabled_action;
-                    }
-                    
-                    // If without else
                     if (mode > 5) {
-                        do comp.high_mode_action;
-                    }
-                    
-                    // Nested if-else
-                    if (mode == 0) {
-                        do comp.mode0;
-                    } else if (mode == 1) {
-                        do comp.mode1;
+                        do A;
+                    } else if (mode == 0) {
+                        do B;
                     } else {
-                        do comp.default_mode;
+                        do C;
                     }
                 }
             }
-        
+
         Attributes:
-            cond: Boolean expression determining which branch executes
-            true_s: Statement executed when condition is true
-            false_s: Optional statement executed when condition is false
+            cond: The `( expression )` condition.
+            true_s: The statement traversed when the condition is true: an
+                ActivitySequence for a braced body, the statement itself
+                otherwise. Null when the statement built nothing (`if (c) ;`).
+            false_s: The `else` statement, or null when there is no `else` (or
+                it built nothing).
 
         Note:
             The branches are typed ScopeChild rather than ActivityStmt because a
@@ -934,7 +891,7 @@ classes:
             ActivityLabeledScope/SymbolScope and shares only ScopeChild with the
             ActivityStmt branch of the hierarchy. Typing these as ActivityStmt
             silently discarded every block-shaped branch (gap A1).
-        
+
         See Also:
             ActivitySelect, ActivityMatch
     data:
@@ -945,41 +902,33 @@ classes:
 - ActivityMatch:
     super: ActivityLabeledScope
     doc: |
-        Pattern matching on expression values.
-        
-        ActivityMatch provides multi-way branching based on pattern matching against
-        an expression value. It's similar to a switch statement, allowing matching
-        against specific values, ranges, or a default case.
-        
+        Multi-way branch on a value: `match ( expr ) { ... }` -- LRM 11.4.6,
+        `activity_match_stmt`.
+
+        Traverses the statement of the choice whose open range list contains
+        the value of the match expression, or the `default` choice when none
+        does. The grammar requires at least one choice.
+
         PSS Example::
-        
-            action my_action {
+
+            action top {
                 rand bit[8] opcode;
-                
                 activity {
                     match (opcode) {
-                        // Single value
-                        [0x00]: { do comp.nop_action; }
-                        
-                        // Multiple values
-                        [0x01, 0x02, 0x03]: { do comp.arithmetic; }
-                        
-                        // Range
-                        [0x10..0x1F]: { do comp.memory_ops; }
-                        
-                        // Multiple ranges
-                        [0x20..0x2F, 0x40..0x4F]: { do comp.control; }
-                        
-                        // Default case
-                        default: { do comp.illegal_opcode; }
+                        [0x00]: do A;
+                        [0x01, 0x02]: { do B; do C; }
+                        [0x10..0x1F]: do D;
+                        default: do E;
                     }
                 }
             }
-        
+
         Attributes:
-            cond: Expression whose value is matched against the choices
-            choices: List of match choices with patterns and bodies
-        
+            cond: The `match_expression` whose value is matched.
+            choices: The `match_choice` alternatives, in source order. Their
+                bodies are this scope's bodies, addressed after its (empty)
+                children.
+
         See Also:
             ActivityMatchChoice, ActivitySelect, ActivityIfElse
     data:
@@ -988,49 +937,31 @@ classes:
 
 - ActivityMatchChoice:
     doc: |
-        Represents one case in an activity match statement.
-        
-        ActivityMatchChoice encapsulates a single pattern-matching case, including
-        the pattern (values or ranges to match), whether it's the default case,
-        and the body to execute when matched.
-        
+        One choice of a `match` statement: `[ open_range_list ] : stmt` or
+        `default : stmt` -- LRM 11.4.6, `match_choice`.
+
+        It has no base class (it is not a ScopeChild): it is owned by its
+        ActivityMatch.
+
         PSS Example::
-        
-            action my_action {
-                rand bit[4] cmd;
-                
-                activity {
-                    match (cmd) {
-                        // Single value choice
-                        [0]: {
-                            do comp.reset;
-                        }
-                        
-                        // Range choice
-                        [1..5]: {
-                            do comp.low_range;
-                        }
-                        
-                        // Multiple values and ranges
-                        [6, 8, 10..12]: {
-                            do comp.special_cases;
-                        }
-                        
-                        // Default choice
-                        default: {
-                            do comp.default_handler;
-                        }
-                    }
-                }
+
+            match (cmd) {
+                [0]: do A;
+                [1..5]: do B;
+                [6, 8, 10..12]: { do C; }
+                default: do D;
             }
-        
+
         Attributes:
-            is_default: True if this is the default case
-            cond: Open range list specifying values/ranges to match (null for default)
-            body: Activity statement executed when this case matches
-        
+            is_default: True for the `default` choice.
+            cond: The `open_range_list` of values and ranges the choice matches;
+                null for the `default` choice.
+            body: The choice's statement: an ActivitySequence for a braced
+                body, the statement itself otherwise, or an empty
+                ActivitySequence when the body built nothing.
+
         See Also:
-            ActivityMatch, ExprOpenRangeList
+            ActivityMatch, ActivitySelectBranch, ExprOpenRangeList
     data:
     - is_default: bool
     - cond: UP<ExprOpenRangeList>
@@ -1039,44 +970,39 @@ classes:
 - ActivityReplicate:
     super: ActivityLabeledScope
     doc: |
-        Replicates an activity N times with concurrent execution.
-        
-        ActivityReplicate creates N concurrent instances of the body activity,
-        potentially with different constraint values for each instance. Unlike
-        repeat, which executes sequentially, replicate creates parallel instances
-        that may execute concurrently.
-        
+        In-place expansion: `replicate ( [i :] N ) [ L[] : ] stmt` -- LRM
+        11.5.1, `activity_replicate_stmt`.
+
+        Expands to N occurrences of its statement in the enclosing activity
+        scope. It adds no layer of scheduling or control flow of its own: the
+        occurrences are scheduled as the context dictates (in parallel under a
+        `parallel` block, in sequence under a sequence). N is a positive
+        integer known at solve time. The optional index variable ranges from 0
+        to N - 1; the builder declares it as the statement's only child
+        (ProceduralStmtDataDeclaration). An optional label array names each
+        occurrence `L[0]` ... `L[N-1]` as a named sub-activity.
+
         PSS Example::
-        
-            action my_action {
-                activity {
-                    // Replicate 4 times
-                    replicate (4) {
-                        do comp.worker_action;
-                    }
-                    
-                    // Replicate with index variable
-                    replicate (i : 8) {
-                        do comp.indexed_action with {
-                            id == i;
-                        }
-                    }
-                    
-                    // Replicate with iterator label
-                    replicate (i : 3) it_label {
-                        do comp.action;
-                    }
+
+            activity {
+                parallel {
+                    replicate (4) do A;
+                }
+                replicate (i : 3) RL[]: {
+                    do A with { idx == i; }
                 }
             }
-        
+
         Attributes:
-            idx_id: Optional index variable identifier (0 to count-1)
-            count: Expression giving the number of instances to create
-            it_label: Optional label for the iterator instance
-            body: Activity statement body replicated N times
-        
+            idx_id: The `index_identifier`, or null when absent.
+            count: The `expression` giving the number of occurrences N.
+            it_label: The `label_identifier` of the label array (`RL` in
+                `RL[]:`), or null when absent.
+            body: The replicated `labeled_activity_stmt`, or an empty
+                ActivitySequence when it built nothing.
+
         See Also:
-            ActivityRepeatCount, ActivityParallel
+            ActivityRepeatCount, ActivityParallel, ActivityLabeledScope
     data:
     - idx_id : UP<ExprId>
     - count: UP<Expr>
@@ -1086,76 +1012,58 @@ classes:
 - ActivitySuper:
     super: ActivityLabeledStmt
     doc: |
-        Invokes the super-class activity implementation.
-        
-        ActivitySuper allows a derived action to call the activity block defined
-        in its parent action class. This enables activity inheritance and extension
-        similar to method overriding in object-oriented programming.
-        
+        `super;` in an activity -- LRM 11.6, `activity_super_stmt`.
+
+        In an action that inherits from another, traverses the base action's
+        activity at this point, so a derived activity can extend the one it
+        overrides. Checked by the linker (TaskResolveRefs).
+
         PSS Example::
-        
-            action base_action {
+
+            action base_a {
                 activity {
-                    do comp.init;
-                    do comp.process;
+                    do A;
                 }
             }
-            
-            action derived_action : base_action {
+
+            action derived_a : base_a {
                 activity {
-                    do comp.setup;
-                    super;              // Execute base_action's activity
-                    do comp.cleanup;
+                    do B;
+                    super;
+                    do C;
                 }
             }
-            
-            action extended_action : base_action {
-                activity {
-                    super;              // Just execute parent activity
-                }
-            }
-        
-        Attributes:
-            (inherits from ActivityLabeledStmt)
-        
+
         See Also:
             ActivityDecl, Action
 
 - ActivityAtomicBlock:
     super: ActivityLabeledScope
     doc: |
-        Marks a block of activities as atomic for scheduling.
-        
-        ActivityAtomicBlock ensures that the contained activities execute as an
-        indivisible unit with respect to other concurrent activities. This provides
-        atomicity guarantees for critical sections of activity execution.
-        
+        An atomic block: `atomic { ... }` -- LRM 11.3.7,
+        `activity_atomic_block_stmt`.
+
+        Preserves the scheduling structure of its sub-activity against
+        interference from the rest of the scenario: all actions traversed in
+        the block form one scheduling cluster, which behaves like a single
+        atomic action. Dependencies of any action in the block on outside
+        actions become dependencies of the whole block, and an outside action
+        that depends on any action in the block depends on the whole block.
+
         PSS Example::
-        
-            action my_action {
-                activity {
-                    parallel {
-                        sequence {
-                            atomic {
-                                do comp.read_resource;
-                                do comp.modify_resource;
-                                do comp.write_resource;
-                            }
-                        }
-                        sequence {
-                            atomic {
-                                do comp.read_resource;
-                                do comp.modify_resource;
-                                do comp.write_resource;
-                            }
-                        }
-                    }
+
+            activity {
+                do bring_up;
+                atomic {
+                    do A;
+                    do B;           // nothing inferred between A and B
                 }
             }
-        
+
         Attributes:
-            body: Activity statement body that executes atomically
-        
+            body: The braced block, built as an ActivitySequence located at the
+                braces; never null.
+
         See Also:
             ActivitySequence, ActivityParallel
     data:
@@ -1167,12 +1075,12 @@ classes:
 - SymbolDeclaration:
     super: SymbolScope
     doc: |
-        A named, reusable activity fragment -- LRM B.9, ``symbol_declaration``.
+        A named, reusable activity fragment -- LRM 11.7, ``symbol_declaration``.
 
         ``symbol s(int n) { do A; do B; }`` declares a fragment that a
         ``symbol_call`` inlines at its call site. It is a scope so its
         parameters and the labels of its body statements resolve, and so a call
-        can name it.
+        can name it. Its name is the scope name.
 
         Its body statements are ``getChildren()``, exactly as for
         ``ActivityDecl`` -- a symbol body is an activity body, and reuses the
@@ -1197,7 +1105,9 @@ classes:
             }
 
         Attributes:
-            params: The declared parameters, in order
+            params: The declared parameters, in order: one FunctionParamDecl
+                per `symbol_param` (`data_type identifier`), with default
+                direction. Empty when the symbol has no parameter list.
             sub_activity: The labels of the body (LRM 11.8), built by the
                 linker as for a labeled statement's: a synthetic scope whose
                 target is this symbol, holding the labeled statements whose
@@ -1207,7 +1117,7 @@ classes:
                 visitors.
 
         See Also:
-            ActivitySymbolCall, ActivityDecl
+            ActivitySymbolCall, ActivityDecl, FunctionParamDecl
     data:
     - params:
         type: list<UP<FunctionParamDecl>>
@@ -1228,6 +1138,8 @@ classes:
 
         ``target`` names the symbol. It is not resolved here -- the symbol may
         be declared after the call -- so the reference is left to the linker.
+        A symbol activated without an argument list (`s;`) is not a call: it
+        parses as an ActivityActionHandleTraversal.
 
         PSS Example::
 
@@ -1236,11 +1148,14 @@ classes:
             }
 
         Attributes:
-            target: The symbol being called
-            params: The call arguments, in order
+            target: The `symbol_identifier` being called. Its target is set by
+                the linker (TaskResolveRefs) to the SymbolDeclaration. A name that
+                is unknown or not a symbol is reported and left unresolved; a call
+                with the wrong number of arguments is reported but still resolved.
+            params: The call arguments, in order; empty for `s()`.
 
         See Also:
-            SymbolDeclaration
+            SymbolDeclaration, ExprRefName, ActivityActionHandleTraversal
     data:
     - target: UP<ExprRefName>
     - params:
