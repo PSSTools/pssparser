@@ -42,8 +42,12 @@ export interface LintSelection {
   command_line?: { select?: string[]; ignore?: string[] };
   /** `[severity]`: selector to `error`, `warning`, `info`, `hint` or `off`. */
   severity?: Record<string, string>;
-  /** `[warnings]`: `-Werror` and `-Wno-error` selectors. */
-  warnings?: { error?: string[]; 'no-error'?: string[] };
+  /**
+   * `[warnings]`: `error = true` is `-Werror`, a list is `-Werror=` each
+   * selector (`"info"` promotes `info` diagnostics); `no-error` exempts;
+   * `none = true` is `--no-warnings`. Applied by `Parser.lint()`.
+   */
+  warnings?: { error?: string[] | boolean; 'no-error'?: string[]; none?: boolean };
   /** The directory the override globs are relative to: the configuration's. */
   base_dir?: string;
 }
@@ -81,9 +85,13 @@ export interface SelectionResult {
   severity: Record<string, { severity: string; key: string }>;
   warnings: {
     error: string[];
+    /** `error = true`. */
+    error_all: boolean;
     error_info: boolean;
     spelling: Record<string, string>;
     no_error: string[];
+    /** `none = true`. */
+    none: boolean;
   };
 }
 
@@ -336,4 +344,55 @@ export function parseLintResult(json: string, files: ReadonlyMap<number, string>
     stats: raw.stats ?? [],
     problems: raw.problems ?? [],
   };
+}
+
+/** What `Parser.lint()` does. Every field is optional. */
+export interface LintOptions {
+  /**
+   * The configuration: `.pssparser.toml` as parsed, with its keys as written
+   * there (`[lint]`, `[severity]`, `[warnings]`). Omitted: the default
+   * profile, no severity changes, no `-W` policy.
+   */
+  selection?: LintSelection;
+  /**
+   * The sources whose `// pssparser waive` comments and `@lint_pkg::waive`
+   * annotations apply, by the names they were parsed under: usually the
+   * same list given to `parseSources()`. Omitted: no waivers.
+   */
+  sources?: readonly { name: string; content: string }[];
+  /** `false` turns source waivers off, as `[waivers] source = false` does. */
+  waivers?: boolean;
+  /** The evaluation-step budget per rule per file. Omitted: 10^6. */
+  maxSteps?: number;
+  /** The directory `file_of()` is relative to; see `LintRequest.baseDir`. */
+  baseDir?: string;
+}
+
+/** A diagnostic as `Parser.lint()` reports it: what the CLI prints. */
+export interface LintDiagnostic extends Marker {
+  /** Before `-Werror` promoted it to `error`. */
+  originalSeverity?: string;
+  /** The flag that promoted it, as written: `-Werror`, `-Werror=style`. */
+  werror?: string;
+  /** For a waived diagnostic, the waiver that covered it. */
+  waiver?: Waiver;
+}
+
+/** `Parser.lint()`'s answer. */
+export interface LintReport {
+  /**
+   * The parse and link markers and the rules' findings, after selection,
+   * `[severity]`, waivers and the `-W` policy, with the waiver hygiene
+   * markers (`PSSP202`-`PSSP205`, `PSSP004`); sorted by file, line and
+   * column. Rule messages carry no `[ID]` prefix.
+   */
+  diagnostics: LintDiagnostic[];
+  /** The diagnostics a waiver covered, each with its `waiver`. */
+  waived: LintDiagnostic[];
+  /** The waivers, with the IDs each resolved to and how many it waived. */
+  waivers: Array<Waiver & { ids: string[]; used: number }>;
+  /** What each enabled rule did. */
+  stats: LintRuleStats[];
+  /** Request or configuration entries that were ignored. */
+  problems: string[];
 }

@@ -193,13 +193,15 @@ engine that knows the marker catalogue
 files)`` and ``waivers.apply_in(engine, p.markers, found, ran=None)`` do the
 same as the two calls above.  The engine knows the core's markers (``PSS``,
 ``PSSP`` and the core-emitted ``LINT``) and the rules it loaded; a host tells
-it of any others.  From TypeScript (``@psstools/pssparser``):
+it of any others.  From TypeScript (``@psstools/pssparser``), ``lint()``
+applies the waivers along with the configuration, as the CLI does:
 
 .. code-block:: typescript
 
-   parser.setHostMarkers(extensionMarkers); // only markers the core lacks
    parser.parseSources(sources);
    parser.link();
-   const found = parser.collectWaivers(sources);
-   const result = parser.applyWaivers(found, parser.markers, ran);
-   // result.kept and result.waived index the diagnostics given
+   const report = parser.lint({ selection: toml, sources });
+   // report.diagnostics, report.waived (each with its waiver), report.waivers
+
+``collectWaivers(sources)`` and ``applyWaivers(found, diagnostics, ran)`` are
+the two steps on their own, for a host with diagnostics of its own.

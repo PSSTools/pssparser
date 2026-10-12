@@ -177,22 +177,33 @@ def cmd_parse(
         clean-but-warning run from 0 to 1.
         """
         nonlocal lint_dropped
-        # Lint selection first: a rule the profile does not enable, or a
-        # finding outside the user's own files, is not a diagnostic at all.
-        lint_dropped = coll.apply_lint_selection(
-            lint_sel.enabled_for, lint_ids, owned=_owned_files(files))
-        # Severity overrides next: they decide what a diagnostic *is*, and
-        # the warning policy then decides what to do with warnings.  Running
-        # them the other way round would let -Werror promote a diagnostic
-        # the config had already turned off.
-        if config is not None:
-            coll.apply_severity_map(config.severity)
-        # Waivers after the severity map, so a waiver covers a rule the
-        # config promoted, and before the warning policy, so -Werror never
-        # promotes a waived diagnostic (docs/waivers.rst).
-        if config is None or getattr(config, "source_waivers", True):
-            _apply_waivers(coll, parser, files, manager, config,
-                           ast=waiver_state["ast"], ran=waiver_state["ran"])
+        # The core finishes the diagnostics when the configuration was
+        # resolved against the registry (every CLI run), as the WASM build
+        # does (lint-core-plan C7.4); the steps below are its oracle.
+        engine = getattr(config, "lint_engine", None)
+        in_core = (_CORE_FINISH and engine is not None
+                   and lint_sel.request is not None)
+        if in_core:
+            lint_dropped = _finish_in_core(
+                coll, engine, config, lint_sel.request, parser, files,
+                ast=waiver_state["ast"], ran=waiver_state["ran"])
+        else:
+            # Lint selection first: a rule the profile does not enable, or
+            # a finding outside the user's own files, is not a diagnostic.
+            lint_dropped = coll.apply_lint_selection(
+                lint_sel.enabled_for, lint_ids, owned=_owned_files(files))
+            # Severity overrides next: they decide what a diagnostic *is*,
+            # and the warning policy then decides what to do with warnings.
+            # Running them the other way round would let -Werror promote a
+            # diagnostic the config had already turned off.
+            if config is not None:
+                coll.apply_severity_map(config.severity)
+            # Waivers after the severity map, so a waiver covers a rule the
+            # config promoted, and before the warning policy, so -Werror
+            # never promotes a waived diagnostic (docs/waivers.rst).
+            if config is None or getattr(config, "source_waivers", True):
+                _apply_waivers(coll, parser, files, manager, config,
+                               ast=waiver_state["ast"], ran=waiver_state["ran"])
         # The baseline after waivers (a waived finding is not recorded) and
         # before the warning policy, so -Werror never promotes a finding the
         # baseline accepted.
@@ -215,7 +226,10 @@ def cmd_parse(
         elif baseline_doc is not None:
             _apply_baseline(coll, baseline_doc, manager, config, files,
                             ran=waiver_state["ran"])
-        _apply_warning_policy(coll, policy)
+        if in_core:
+            _apply_warning_policy_in_core(coll, engine, policy)
+        else:
+            _apply_warning_policy(coll, policy)
         if output_format == "sarif" and index is not None:
             _assign_decl_paths(coll, index)
         _emit_all(driver, coll, quiet)
@@ -676,6 +690,117 @@ def _apply_waivers(coll: DiagnosticCollection, parser, files: List[str],
         if sev:
             diag.severity = sev
         coll.add(diag)
+
+
+#: Whether a run with a resolved configuration finishes its diagnostics in
+#: the core (C7.4). The tests turn it off to run the Python steps, the oracle.
+_CORE_FINISH = True
+
+
+def _finish_in_core(coll: DiagnosticCollection, engine, config, selection: dict,
+                    parser, files: List[str], *, ast: bool, ran) -> int:
+    """Lint selection, ``[severity]`` and source waivers, by the core's
+    ``finish`` (lint-core-plan C7.4); return the findings dropped for lying
+    outside the user's files.
+
+    The core compares paths as given, so every file is spelled as the
+    selection resolved it (absolute with a base directory, as
+    ``selection.for_run`` does) and mapped back afterwards.
+    """
+    import os
+    from pssparser import waivers as waivers_mod
+
+    base = selection.get("base_dir")
+
+    def spell(path: str) -> str:
+        return os.path.abspath(path) if base else path
+
+    spelled = {os.path.realpath(f): spell(f) for f in files}
+
+    def key(path: str) -> str:
+        return spelled.get(os.path.realpath(path), spell(path)) if path else path
+
+    found = []
+    if getattr(config, "source_waivers", True):
+        try:
+            found = waivers_mod.collect_in(engine, parser if ast else None, files)
+        except Exception as exc:  # pragma: no cover - defensive
+            sys.stderr.write(f"warning: could not read source waivers: {exc}\n")
+            found = []
+    original = {}
+    sent = []
+    for w in found:
+        doc = w.to_engine()
+        doc["file"] = key(w.file)
+        original[doc["file"]] = w.file
+        sent.append(doc)
+
+    diags = coll.diagnostics
+    request = {
+        "diagnostics": [{"code": d.code or "", "severity": d.severity,
+                         "file": key(d.file or ""), "line": d.line or 0,
+                         "col": d.col or 0} for d in diags],
+        "selection": selection,
+        "stages": ["select", "severity", "waive"],
+        "owned": sorted(spelled.values()),
+        "waivers": sent,
+        "ran": sorted(ran) if ran is not None else None,
+    }
+    r = engine.finish(request)
+    if not r.get("ok"):  # pragma: no cover - the request is built here
+        raise ValueError(r.get("error", "finish failed"))
+
+    kept = []
+    for out in r["diagnostics"]:
+        if out["index"] >= 0:
+            diag = diags[out["index"]]
+            diag.severity = out["severity"]
+        else:
+            marker = dict(out)
+            marker["file"] = original.get(marker["file"], marker["file"])
+            diag = Diagnostic.from_marker(marker)
+        kept.append(diag)
+    coll.replace_diagnostics(kept)
+    for w, out in zip(found, r["waivers"]):
+        w.ids = set(out["ids"])
+        w.used = out["used"]
+    waived = []
+    for out in r["waived"]:
+        diag = diags[out["index"]]
+        diag.severity = out["severity"]
+        diag.waiver = found[out["waiver"]].to_json()
+        waived.append(diag)
+    coll.waived = waived
+    return r["dropped"]["outside"]
+
+
+def _apply_warning_policy_in_core(coll: DiagnosticCollection, engine,
+                                  policy: WarningPolicy) -> None:
+    """:func:`_apply_warning_policy`, by the core's ``finish``."""
+    if policy.is_default:
+        return
+    diags = coll.diagnostics
+    r = engine.finish({
+        "diagnostics": [{"code": d.code or "", "severity": d.severity,
+                         "file": d.file or "", "line": d.line or 0,
+                         "col": d.col or 0} for d in diags],
+        "stages": ["policy"],
+        "policy": {"error_all": policy.error_all, "error_info": policy.error_info,
+                   "none": policy.no_warnings, "error": sorted(policy.error_codes),
+                   "no_error": sorted(policy.no_error_codes),
+                   "spelling": dict(policy.flag_spelling)},
+    })
+    if not r.get("ok"):  # pragma: no cover - the request is built here
+        raise ValueError(r.get("error", "finish failed"))
+    kept = []
+    for out in r["diagnostics"]:
+        diag = diags[out["index"]]
+        if "werror" in out:
+            diag.original_severity = out["original_severity"]
+            diag.severity = out["severity"]
+            diag.werror_flag = out["werror"]
+        kept.append(diag)
+    coll.replace_diagnostics(kept)
 
 
 def _apply_waivers_in_python(coll: DiagnosticCollection, found, manager, ran):

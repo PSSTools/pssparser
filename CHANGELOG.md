@@ -141,6 +141,25 @@ See `docs/lint-rule-authoring.rst` and `docs/lint-functions.rst`.
   declarative rules; `pssparser.lint.examples` runs rules' examples.
 - pssparser ships no built-in YAML rules yet.
 
+### Added — `Parser.lint()`: the CLI's diagnostics in the editor
+
+The steps between a lint run and the CLI's output now run in the core: lint
+selection per file (and dropping findings outside the user's files),
+`[severity]`, source waivers with their hygiene markers, and the `[warnings]`
+policy (`--no-warnings`, `-Wno-error`, `-Werror=...`, `-Werror`). The CLI
+calls them; the baseline stays between the waivers and the policy, as
+before. No change to the CLI's output.
+
+- TypeScript: `Parser.lint({ selection, sources })` returns what `pssparser
+  --format json` reports for the same model, `.pssparser.toml` (passed as
+  parsed) and rules: `diagnostics`, `waived` and `waivers`, with
+  `originalSeverity` and `werror` on promoted diagnostics. New types
+  `LintOptions`, `LintReport`, `LintDiagnostic`.
+- `ILintEngine::finish`, Python `LintEngine.finish`.
+- The selection input's `warnings` also takes the TOML's `error = true` and
+  `none = true`; `resolveSelection()`'s `warnings` reports them as
+  `error_all` and `none`.
+
 ### Added — the marker catalogue in the core; every core marker carries its code
 
 The core now holds a catalogue of every `PSS`, `PSSP` and core-emitted `LINT`

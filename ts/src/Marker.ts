@@ -178,7 +178,7 @@ export function resolveMarker(raw: RawMarker, files: ReadonlyMap<number, string>
  *
  * Sorts in place and returns the same array.
  */
-export function sortMarkers(markers: Marker[]): Marker[] {
+export function sortMarkers<T extends Marker>(markers: T[]): T[] {
   return markers.sort((a, b) => {
     if (a.file !== b.file) return a.file < b.file ? -1 : 1;
     if (a.line !== b.line) return a.line - b.line;

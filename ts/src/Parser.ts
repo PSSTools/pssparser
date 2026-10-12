@@ -22,6 +22,9 @@ import {
   parseLintResult,
   type LintRequest,
   type LintResult,
+  type LintOptions,
+  type LintDiagnostic,
+  type LintReport,
   type HostMarker,
   type Catalog,
   type LintSelection,
@@ -129,6 +132,29 @@ export async function createParser(opts: ParserOptions = {}): Promise<Parser> {
   return new Parser(new module.ParserSession(), opts);
 }
 
+/** One entry of `ILintEngine::finish`'s result. */
+interface RawFinished {
+  index: number;
+  severity: string;
+  original_severity?: string;
+  werror?: string;
+  waiver?: number;
+  code?: string;
+  message?: string;
+  file?: string;
+  line?: number;
+  col?: number;
+}
+
+interface RawFinish {
+  ok: boolean;
+  error?: string;
+  diagnostics: RawFinished[];
+  waived: RawFinished[];
+  waivers: LintReport['waivers'];
+  problems: string[];
+}
+
 /**
  * Warns about a `Parser` that reached garbage collection without `dispose()`.
  *
@@ -194,6 +220,10 @@ export class Parser {
   /** The linked root, materialised by `link()`. */
   #root: RootSymbolScope | null = null;
 
+  /** Whether the last `link()` succeeded with no parse since: the rules ran
+   *  (`lint()`'s unused-waiver report needs that). */
+  #linked = false;
+
   /** @internal Use `createParser()`. */
   constructor(session: ParserSessionHandle, opts: ParserOptions = {}) {
     this.#session = session;
@@ -238,6 +268,7 @@ export class Parser {
   parseSources(files: SourceFile[]): boolean {
     const session = this.#require();
     session.beginParse();
+    this.#linked = false;
 
     for (const file of files) {
       // Record the name *before* parsing. The fileid is assigned by the
@@ -343,6 +374,82 @@ export class Parser {
     const errors = this.#markers.filter((m) => m.severity === 'error').length;
     return parseLintResult(session.runLint(lintRequestJson(request, errors, this.#fileMap)),
       this.#fileMap);
+  }
+
+  /**
+   * Lint the model as the CLI does (lint-core-plan.md C7.4): the parse and
+   * link markers and the loaded rules' findings, then, in the core, the
+   * selection per file, `[severity]`, source waivers and the `-W` policy.
+   * The CLI runs the same steps, so the same model, configuration and rules
+   * give the same diagnostics (milestone M4). Call after `link()`, or after
+   * a failed parse or link, when the rules do not run and `PSSP230` says so.
+   *
+   * Not here: Python checker extensions (CLI only) and the baseline.
+   */
+  lint(options: LintOptions = {}): LintReport {
+    const session = this.#require();
+    const names = this.#names();
+    const run = this.runLint({
+      selection: options.selection ?? {},
+      maxSteps: options.maxSteps,
+      baseDir: options.baseDir,
+    });
+    const all: LintDiagnostic[] = [...this.#markers, ...run.markers];
+    const waivers =
+      options.sources && options.waivers !== false ? this.collectWaivers(options.sources) : [];
+    const files = [...names.values()];
+    const r = JSON.parse(
+      session.finishDiagnostics(
+        JSON.stringify({
+          diagnostics: all.map((d) => ({
+            code: d.code ?? '',
+            severity: d.severity,
+            file: d.file,
+            line: d.line,
+            col: d.col,
+          })),
+          selection: options.selection ?? {},
+          owned: files,
+          paths: files,
+          waivers,
+          ran: this.#linked ? 'auto' : null,
+        }),
+      ),
+    ) as RawFinish;
+    if (!r.ok) {
+      throw new Error(`lint: ${r.error ?? 'bad request'}`);
+    }
+    const out = (f: RawFinished): LintDiagnostic => {
+      const d: LintDiagnostic =
+        f.index >= 0
+          ? { ...(all[f.index] as LintDiagnostic) }
+          : {
+              severity: f.severity as LintDiagnostic['severity'],
+              message: f.message ?? '',
+              file: f.file ?? '',
+              line: f.line ?? 0,
+              col: f.col ?? 0,
+              extent: -1,
+              related: [],
+              code: f.code,
+            };
+      d.severity = f.severity as LintDiagnostic['severity'];
+      if (f.werror !== undefined) {
+        d.originalSeverity = f.original_severity;
+        d.werror = f.werror;
+      }
+      if (f.waiver !== undefined) {
+        d.waiver = waivers[f.waiver] as Waiver;
+      }
+      return d;
+    };
+    return {
+      diagnostics: sortMarkers(r.diagnostics.map(out)),
+      waived: sortMarkers(r.waived.map(out)),
+      waivers: r.waivers,
+      stats: run.stats,
+      problems: [...run.problems, ...r.problems],
+    };
   }
 
   /**
@@ -528,6 +635,7 @@ export class Parser {
     if (failed) {
       throw new ParseException(formatMarkers(this.#markers), this.#markers);
     }
+    this.#linked = true;
     return this.#root;
   }
 

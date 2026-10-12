@@ -207,6 +207,50 @@ public:
     virtual std::string applyWaivers(const std::string &requestJson) = 0;
 
     /**
+     * Finishes a run's diagnostics as the CLI does before printing them
+     * (lint-core-plan.md C7.4): the parse, link and rule markers in, what
+     * to report out. The stages, in order:
+     *   select    a lint code not enabled for its file's group, or (with
+     *             "owned") in a file not owned, is dropped; other codes
+     *             are never filtered
+     *   severity  `[severity]` by ID; "off" drops. No code, PSSP000 and a
+     *             core error are never changed
+     *   waive     applyWaivers(); its hygiene markers get the severity map
+     *             and join the diagnostics
+     *   policy    --no-warnings drops warnings; then -Wno-error,
+     *             -Werror=ID|group, -Werror=info, -Werror promote
+     * The request:
+     *   {"diagnostics": [{"code", "severity", "file", "line", "col"}],
+     *    "selection": {...},              resolveSelection()'s input; its
+     *                                     "warnings" may also hold
+     *                                     "error": true and "none": true
+     *    "stages": [...],                 absent: all four
+     *    "owned": [path...],              absent or null: no ownership check
+     *    "waivers": [...],                collectWaivers()'s
+     *    "ran": [ID...] | "auto" | null,  "auto": the core's active markers
+     *                                     and the loaded rules some file of
+     *                                     "paths" enables, less "off"
+     *    "paths": [path...],              the run's files, for "auto"
+     *    "policy": {"error_all", "error_info", "none", "error": [ID],
+     *               "no_error": [ID], "spelling": {ID: selector}}}
+     *                                     instead of the selection's
+     *                                     "warnings", already resolved
+     * Paths are compared as given. The result:
+     *   {"ok": true,
+     *    "diagnostics": [{"index", "severity", "original_severity"?,
+     *                     "werror"?}],    the kept ones, in order; then the
+     *                                     hygiene markers, with "index" -1
+     *                                     and "code", "message", "file",
+     *                                     "line", "col", "extent", "related"
+     *    "waived": [{"index", "severity", "waiver"}],
+     *    "waivers": [... with "ids" and "used"],
+     *    "dropped": {"outside": N},
+     *    "problems": ["..."]}
+     * `index` is into "diagnostics" and `waiver` into "waivers".
+     */
+    virtual std::string finish(const std::string &requestJson) = 0;
+
+    /**
      * The marker catalogue (lint-core-plan.md C7.3), for an editor's hover,
      * `codeDescription` and quick-info: every marker the engine knows, the
      * embedded core catalogue's (PSS, PSSP and core LINT, generated from the

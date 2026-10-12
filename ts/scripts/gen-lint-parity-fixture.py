@@ -4,7 +4,7 @@
     cd .. && PYTHONPATH=python packages/python/bin/python \\
         ts/scripts/gen-lint-parity-fixture.py -o ts/test/fixtures/lint-parity.json
 
-Five kinds of case (lint-core-plan.md C5.5, C7.1, C7.2, C7.3):
+Six kinds of case (lint-core-plan.md C5.5, C7.1, C7.2, C7.3, C7.4):
 
 * ``example``: every example of every built-in rule and of the rule files in
   tests/data/lint-examples/, run by ``pssparser.lint.examples`` (each example
@@ -25,6 +25,10 @@ Five kinds of case (lint-core-plan.md C5.5, C7.1, C7.2, C7.3):
   ``Parser.catalog``) with the example rule files loaded, with and without
   host markers; and the markers of a model with core errors and warnings,
   whose codes the core gives them (``code`` on every marker).
+* ``finish``: rules, a model with source waivers and a ``.pssparser.toml``,
+  run by the CLI (``pssparser --format json``, third-party extensions off);
+  ``Parser.lint`` with the same TOML as its selection must report the same
+  diagnostics and waived ones (milestone M4, "editor parity").
 
 `ts/test/lint-parity.test.ts` runs the same inputs through the WebAssembly
 build and must get the same results. Rule files are named by repository
@@ -389,6 +393,158 @@ def catalog_cases():
     return out
 
 
+#: The CLI against Parser.lint() (C7.4, milestone M4): rules, a model and a
+#: configuration; the case records what `pssparser --format json` prints.
+FINISH_RULES = """\
+pss-rules:
+  defaults:
+    family: naming
+  rules:
+    - id: ACME001
+      name: comp-suffix
+      tier: style
+      summary: Component names end in _c
+      message: "'${node.name.id}' should end in '_c'"
+      match: { kind: Component }
+      where: "!node.name.id.endsWith('_c')"
+    - id: ACME002
+      name: action-upper
+      tier: suspicious
+      summary: Action names are lower case
+      message: "action '${node.name.id}' is not lower case"
+      match: { kind: Action }
+      where: "!node.name.id.matches('^[a-z_0-9]+$')"
+    - id: ACME003
+      name: action-info
+      tier: pedantic
+      severity: info
+      summary: Every action
+      message: "action '${node.name.id}'"
+      match: { kind: Action }
+"""
+
+FINISH_A = """\
+component dma0 {
+  @desc_s  // pssparser waive LINT403: vendored
+  action Xfer0 { }
+  // pssparser waive ACME002
+  action Ok0 { }
+  // pssparser waive PSS002, nosuch: r
+}
+"""
+
+FINISH_B = """\
+component dma1_c {  // pssparser waive ACME001: unused
+  @desc_s
+  action Xfer1 { }  // pssparser waive action-upper, PSS053: renamed later
+}
+"""
+
+FINISH_T = """\
+component t {
+  @desc_s
+  action Bad { }
+}
+"""
+
+#: (id, sources, .pssparser.toml, command-line flags).
+FINISHES = [
+    ("defaults", [("ip/a.pss", FINISH_A), ("ip/legacy/b.pss", FINISH_B),
+                  ("tests/t.pss", FINISH_T)], "", []),
+    ("overrides-severity-werror",
+     [("ip/a.pss", FINISH_A), ("ip/legacy/b.pss", FINISH_B), ("tests/t.pss", FINISH_T)],
+     '[lint]\nprofile = "all"\nignore = ["ACME003"]\n'
+     '[[lint.overrides]]\nfiles = ["tests"]\nignore = ["ACME"]\n'
+     '[[lint.overrides]]\nfiles = ["ip/legacy/**"]\nselect = ["ACME003"]\n'
+     '[severity]\nstyle = "error"\nPSSP205 = "info"\nLINT403 = "hint"\n'
+     '[warnings]\nerror = ["suspicious", "info"]\n"no-error" = ["ACME002"]\n', []),
+    ("werror-and-none",
+     [("ip/a.pss", FINISH_A), ("tests/t.pss", FINISH_T)],
+     '[lint]\nprofile = "recommended"\n[severity]\nPSSP202 = "off"\n'
+     '[warnings]\nerror = true\n', []),
+    ("no-warnings",
+     [("ip/a.pss", FINISH_A), ("tests/t.pss", FINISH_T)],
+     '[lint]\nprofile = "strict"\n[warnings]\nnone = true\nerror = true\n', []),
+    ("parse-error",
+     [("ip/a.pss", FINISH_A), ("tests/t.pss", "component t {\n  action A { \n")],
+     '[lint]\nprofile = "all"\n', []),
+    ("link-error",
+     [("ip/a.pss", FINISH_A + "component u { nosuch_t x; }  // pssparser waive ACME001: r\n")],
+     '[lint]\nprofile = "all"\n', []),
+]
+
+
+def _cli_diag(d):
+    msg = d["message"]
+    prefix = "[%s] " % d["code"]
+    if msg.startswith(prefix):
+        msg = msg[len(prefix):]
+    out = {"code": d["code"], "severity": d["severity"], "message": msg, "file": d["file"],
+           "line": d["line"], "col": d["col"],
+           "original_severity": d.get("original_severity") or ""}
+    if "waiver" in d:
+        out["waiver"] = d["waiver"]
+    return out
+
+
+def _sorted(diags):
+    return sorted(diags, key=lambda m: (m["file"], m["line"], m["col"], m["code"], m["message"]))
+
+
+def finish_cases():
+    import io
+    import tempfile
+    import tomllib
+    from contextlib import redirect_stderr, redirect_stdout
+    from pssparser.cli.app import main as cli
+    out = []
+    # Third-party extensions off (WASM has none); the bundled lint, which
+    # runs the declarative rules, on, whatever the caller's environment says
+    # (the test suite sets PSSPARSER_NO_LINT).
+    old_env = {k: os.environ.get(k) for k in ("PSSPARSER_NO_EXTENSIONS", "PSSPARSER_NO_LINT")}
+    os.environ["PSSPARSER_NO_EXTENSIONS"] = "1"
+    os.environ.pop("PSSPARSER_NO_LINT", None)
+    cwd = os.getcwd()
+    try:
+        for cid, sources, toml, flags in FINISHES:
+            with tempfile.TemporaryDirectory() as tmp:
+                os.chdir(tmp)
+                for name, text in sources:
+                    os.makedirs(os.path.dirname(name) or ".", exist_ok=True)
+                    with open(name, "w", encoding="utf-8") as fh:
+                        fh.write(text)
+                with open("acme.yaml", "w", encoding="utf-8") as fh:
+                    fh.write(FINISH_RULES)
+                with open(".pssparser.toml", "w", encoding="utf-8") as fh:
+                    fh.write(toml.replace("[lint]\n", '[lint]\nrules = ["acme.yaml"]\n', 1)
+                             if "[lint]" in toml else '[lint]\nrules = ["acme.yaml"]\n' + toml)
+                so, se = io.StringIO(), io.StringIO()
+                with redirect_stdout(so), redirect_stderr(se):
+                    rc = cli(["--format", "json", "--show-hints", *flags,
+                              *[n for n, _ in sources]])
+                assert rc in (0, 1), (cid, rc, se.getvalue())
+                doc = json.loads(so.getvalue())
+                os.chdir(cwd)
+            selection = tomllib.loads(toml)
+            selection.get("lint", {}).pop("rules", None)
+            out.append({
+                "id": "finish:" + cid, "kind": "finish",
+                "ruleTexts": [{"name": "acme.yaml", "text": FINISH_RULES}],
+                "sources": [{"name": n, "text": t} for n, t in sources],
+                "toml": toml, "selection": selection, "rc": rc,
+                "diagnostics": _sorted([_cli_diag(d) for d in doc["diagnostics"]]),
+                "waived": _sorted([_cli_diag(d) for d in doc.get("waived", [])]),
+            })
+    finally:
+        os.chdir(cwd)
+        for k, v in old_env.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    return out
+
+
 def example_cases():
     from pssparser.lint.examples import run_examples
     e = engine_for(EXAMPLE_FILES, [])
@@ -418,6 +574,7 @@ def main():
     cases += selection_cases()
     cases += waiver_cases()
     cases += catalog_cases()
+    cases += finish_cases()
     doc = {
         "generator": "ts/scripts/gen-lint-parity-fixture.py",
         "ruleFiles": EXAMPLE_FILES,

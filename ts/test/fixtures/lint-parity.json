@@ -2618,6 +2618,7 @@
       "ACME-NET001",
       "ACME-NET002"
      ],
+     "error_all": false,
      "error_info": true,
      "spelling": {
       "ACME-NET001": "ACME",
@@ -2628,7 +2629,8 @@
      },
      "no_error": [
       "ACME003"
-     ]
+     ],
+     "none": false
     }
    }
   },
@@ -2835,9 +2837,11 @@
     "severity": {},
     "warnings": {
      "error": [],
+     "error_all": false,
      "error_info": false,
      "spelling": {},
-     "no_error": []
+     "no_error": [],
+     "none": false
     }
    }
   },
@@ -2969,9 +2973,11 @@
     "severity": {},
     "warnings": {
      "error": [],
+     "error_all": false,
      "error_info": false,
      "spelling": {},
-     "no_error": []
+     "no_error": [],
+     "none": false
     }
    }
   },
@@ -8296,6 +8302,713 @@
      "line": 6,
      "col": 25,
      "extent": 16
+    }
+   ]
+  },
+  {
+   "id": "finish:defaults",
+   "kind": "finish",
+   "ruleTexts": [
+    {
+     "name": "acme.yaml",
+     "text": "pss-rules:\n  defaults:\n    family: naming\n  rules:\n    - id: ACME001\n      name: comp-suffix\n      tier: style\n      summary: Component names end in _c\n      message: \"'${node.name.id}' should end in '_c'\"\n      match: { kind: Component }\n      where: \"!node.name.id.endsWith('_c')\"\n    - id: ACME002\n      name: action-upper\n      tier: suspicious\n      summary: Action names are lower case\n      message: \"action '${node.name.id}' is not lower case\"\n      match: { kind: Action }\n      where: \"!node.name.id.matches('^[a-z_0-9]+$')\"\n    - id: ACME003\n      name: action-info\n      tier: pedantic\n      severity: info\n      summary: Every action\n      message: \"action '${node.name.id}'\"\n      match: { kind: Action }\n"
+    }
+   ],
+   "sources": [
+    {
+     "name": "ip/a.pss",
+     "text": "component dma0 {\n  @desc_s  // pssparser waive LINT403: vendored\n  action Xfer0 { }\n  // pssparser waive ACME002\n  action Ok0 { }\n  // pssparser waive PSS002, nosuch: r\n}\n"
+    },
+    {
+     "name": "ip/legacy/b.pss",
+     "text": "component dma1_c {  // pssparser waive ACME001: unused\n  @desc_s\n  action Xfer1 { }  // pssparser waive action-upper, PSS053: renamed later\n}\n"
+    },
+    {
+     "name": "tests/t.pss",
+     "text": "component t {\n  @desc_s\n  action Bad { }\n}\n"
+    }
+   ],
+   "toml": "",
+   "selection": {},
+   "rc": 0,
+   "diagnostics": [
+    {
+     "code": "PSSP205",
+     "severity": "warning",
+     "message": "waiver comment gives no reason; say why the finding is intended after ':'",
+     "file": "ip/a.pss",
+     "line": 4,
+     "col": 3,
+     "original_severity": ""
+    },
+    {
+     "code": "PSSP203",
+     "severity": "warning",
+     "message": "waiver comment: unknown marker or selector 'nosuch'; run --list-markers to see the declared IDs and names",
+     "file": "ip/a.pss",
+     "line": 6,
+     "col": 3,
+     "original_severity": ""
+    },
+    {
+     "code": "PSSP204",
+     "severity": "warning",
+     "message": "'PSS002' is an error, which cannot be waived; fix it and delete the waiver",
+     "file": "ip/a.pss",
+     "line": 6,
+     "col": 3,
+     "original_severity": ""
+    },
+    {
+     "code": "LINT403",
+     "severity": "warning",
+     "message": "unknown annotation type 'desc_s'; annotation disregarded",
+     "file": "ip/legacy/b.pss",
+     "line": 2,
+     "col": 3,
+     "original_severity": ""
+    },
+    {
+     "code": "PSSP004",
+     "severity": "info",
+     "message": "'PSS053' is the old ID of LINT402; write 'LINT402' in the waiver",
+     "file": "ip/legacy/b.pss",
+     "line": 3,
+     "col": 21,
+     "original_severity": ""
+    },
+    {
+     "code": "PSSP202",
+     "severity": "warning",
+     "message": "waiver comment for 'action-upper, PSS053' matched no diagnostic; delete it if the finding was fixed",
+     "file": "ip/legacy/b.pss",
+     "line": 3,
+     "col": 21,
+     "original_severity": ""
+    },
+    {
+     "code": "LINT403",
+     "severity": "warning",
+     "message": "unknown annotation type 'desc_s'; annotation disregarded",
+     "file": "tests/t.pss",
+     "line": 2,
+     "col": 3,
+     "original_severity": ""
+    }
+   ],
+   "waived": [
+    {
+     "code": "LINT403",
+     "severity": "warning",
+     "message": "unknown annotation type 'desc_s'; annotation disregarded",
+     "file": "ip/a.pss",
+     "line": 2,
+     "col": 3,
+     "original_severity": "",
+     "waiver": {
+      "form": "pragma",
+      "id": "LINT403",
+      "file": "ip/a.pss",
+      "line": 2,
+      "col": 12,
+      "reason": "vendored"
+     }
+    }
+   ]
+  },
+  {
+   "id": "finish:overrides-severity-werror",
+   "kind": "finish",
+   "ruleTexts": [
+    {
+     "name": "acme.yaml",
+     "text": "pss-rules:\n  defaults:\n    family: naming\n  rules:\n    - id: ACME001\n      name: comp-suffix\n      tier: style\n      summary: Component names end in _c\n      message: \"'${node.name.id}' should end in '_c'\"\n      match: { kind: Component }\n      where: \"!node.name.id.endsWith('_c')\"\n    - id: ACME002\n      name: action-upper\n      tier: suspicious\n      summary: Action names are lower case\n      message: \"action '${node.name.id}' is not lower case\"\n      match: { kind: Action }\n      where: \"!node.name.id.matches('^[a-z_0-9]+$')\"\n    - id: ACME003\n      name: action-info\n      tier: pedantic\n      severity: info\n      summary: Every action\n      message: \"action '${node.name.id}'\"\n      match: { kind: Action }\n"
+    }
+   ],
+   "sources": [
+    {
+     "name": "ip/a.pss",
+     "text": "component dma0 {\n  @desc_s  // pssparser waive LINT403: vendored\n  action Xfer0 { }\n  // pssparser waive ACME002\n  action Ok0 { }\n  // pssparser waive PSS002, nosuch: r\n}\n"
+    },
+    {
+     "name": "ip/legacy/b.pss",
+     "text": "component dma1_c {  // pssparser waive ACME001: unused\n  @desc_s\n  action Xfer1 { }  // pssparser waive action-upper, PSS053: renamed later\n}\n"
+    },
+    {
+     "name": "tests/t.pss",
+     "text": "component t {\n  @desc_s\n  action Bad { }\n}\n"
+    }
+   ],
+   "toml": "[lint]\nprofile = \"all\"\nignore = [\"ACME003\"]\n[[lint.overrides]]\nfiles = [\"tests\"]\nignore = [\"ACME\"]\n[[lint.overrides]]\nfiles = [\"ip/legacy/**\"]\nselect = [\"ACME003\"]\n[severity]\nstyle = \"error\"\nPSSP205 = \"info\"\nLINT403 = \"hint\"\n[warnings]\nerror = [\"suspicious\", \"info\"]\n\"no-error\" = [\"ACME002\"]\n",
+   "selection": {
+    "lint": {
+     "profile": "all",
+     "ignore": [
+      "ACME003"
+     ],
+     "overrides": [
+      {
+       "files": [
+        "tests"
+       ],
+       "ignore": [
+        "ACME"
+       ]
+      },
+      {
+       "files": [
+        "ip/legacy/**"
+       ],
+       "select": [
+        "ACME003"
+       ]
+      }
+     ]
+    },
+    "severity": {
+     "style": "error",
+     "PSSP205": "info",
+     "LINT403": "hint"
+    },
+    "warnings": {
+     "error": [
+      "suspicious",
+      "info"
+     ],
+     "no-error": [
+      "ACME002"
+     ]
+    }
+   },
+   "rc": 1,
+   "diagnostics": [
+    {
+     "code": "ACME001",
+     "severity": "error",
+     "message": "'dma0' should end in '_c'",
+     "file": "ip/a.pss",
+     "line": 1,
+     "col": 11,
+     "original_severity": ""
+    },
+    {
+     "code": "ACME002",
+     "severity": "warning",
+     "message": "action 'Xfer0' is not lower case",
+     "file": "ip/a.pss",
+     "line": 3,
+     "col": 10,
+     "original_severity": ""
+    },
+    {
+     "code": "PSSP205",
+     "severity": "error",
+     "message": "waiver comment gives no reason; say why the finding is intended after ':'",
+     "file": "ip/a.pss",
+     "line": 4,
+     "col": 3,
+     "original_severity": "info"
+    },
+    {
+     "code": "PSSP203",
+     "severity": "warning",
+     "message": "waiver comment: unknown marker or selector 'nosuch'; run --list-markers to see the declared IDs and names",
+     "file": "ip/a.pss",
+     "line": 6,
+     "col": 3,
+     "original_severity": ""
+    },
+    {
+     "code": "PSSP204",
+     "severity": "warning",
+     "message": "'PSS002' is an error, which cannot be waived; fix it and delete the waiver",
+     "file": "ip/a.pss",
+     "line": 6,
+     "col": 3,
+     "original_severity": ""
+    },
+    {
+     "code": "PSSP202",
+     "severity": "warning",
+     "message": "waiver comment for 'ACME001' matched no diagnostic; delete it if the finding was fixed",
+     "file": "ip/legacy/b.pss",
+     "line": 1,
+     "col": 21,
+     "original_severity": ""
+    },
+    {
+     "code": "LINT403",
+     "severity": "hint",
+     "message": "unknown annotation type 'desc_s'; annotation disregarded",
+     "file": "ip/legacy/b.pss",
+     "line": 2,
+     "col": 3,
+     "original_severity": ""
+    },
+    {
+     "code": "ACME003",
+     "severity": "error",
+     "message": "action 'Xfer1'",
+     "file": "ip/legacy/b.pss",
+     "line": 3,
+     "col": 10,
+     "original_severity": "info"
+    },
+    {
+     "code": "PSSP004",
+     "severity": "error",
+     "message": "'PSS053' is the old ID of LINT402; write 'LINT402' in the waiver",
+     "file": "ip/legacy/b.pss",
+     "line": 3,
+     "col": 21,
+     "original_severity": "info"
+    },
+    {
+     "code": "LINT403",
+     "severity": "hint",
+     "message": "unknown annotation type 'desc_s'; annotation disregarded",
+     "file": "tests/t.pss",
+     "line": 2,
+     "col": 3,
+     "original_severity": ""
+    }
+   ],
+   "waived": [
+    {
+     "code": "LINT403",
+     "severity": "hint",
+     "message": "unknown annotation type 'desc_s'; annotation disregarded",
+     "file": "ip/a.pss",
+     "line": 2,
+     "col": 3,
+     "original_severity": "",
+     "waiver": {
+      "form": "pragma",
+      "id": "LINT403",
+      "file": "ip/a.pss",
+      "line": 2,
+      "col": 12,
+      "reason": "vendored"
+     }
+    },
+    {
+     "code": "ACME002",
+     "severity": "warning",
+     "message": "action 'Ok0' is not lower case",
+     "file": "ip/a.pss",
+     "line": 5,
+     "col": 10,
+     "original_severity": "",
+     "waiver": {
+      "form": "pragma",
+      "id": "ACME002",
+      "file": "ip/a.pss",
+      "line": 4,
+      "col": 3,
+      "reason": ""
+     }
+    },
+    {
+     "code": "ACME002",
+     "severity": "warning",
+     "message": "action 'Xfer1' is not lower case",
+     "file": "ip/legacy/b.pss",
+     "line": 3,
+     "col": 10,
+     "original_severity": "",
+     "waiver": {
+      "form": "pragma",
+      "id": "action-upper, PSS053",
+      "file": "ip/legacy/b.pss",
+      "line": 3,
+      "col": 21,
+      "reason": "renamed later"
+     }
+    }
+   ]
+  },
+  {
+   "id": "finish:werror-and-none",
+   "kind": "finish",
+   "ruleTexts": [
+    {
+     "name": "acme.yaml",
+     "text": "pss-rules:\n  defaults:\n    family: naming\n  rules:\n    - id: ACME001\n      name: comp-suffix\n      tier: style\n      summary: Component names end in _c\n      message: \"'${node.name.id}' should end in '_c'\"\n      match: { kind: Component }\n      where: \"!node.name.id.endsWith('_c')\"\n    - id: ACME002\n      name: action-upper\n      tier: suspicious\n      summary: Action names are lower case\n      message: \"action '${node.name.id}' is not lower case\"\n      match: { kind: Action }\n      where: \"!node.name.id.matches('^[a-z_0-9]+$')\"\n    - id: ACME003\n      name: action-info\n      tier: pedantic\n      severity: info\n      summary: Every action\n      message: \"action '${node.name.id}'\"\n      match: { kind: Action }\n"
+    }
+   ],
+   "sources": [
+    {
+     "name": "ip/a.pss",
+     "text": "component dma0 {\n  @desc_s  // pssparser waive LINT403: vendored\n  action Xfer0 { }\n  // pssparser waive ACME002\n  action Ok0 { }\n  // pssparser waive PSS002, nosuch: r\n}\n"
+    },
+    {
+     "name": "tests/t.pss",
+     "text": "component t {\n  @desc_s\n  action Bad { }\n}\n"
+    }
+   ],
+   "toml": "[lint]\nprofile = \"recommended\"\n[severity]\nPSSP202 = \"off\"\n[warnings]\nerror = true\n",
+   "selection": {
+    "lint": {
+     "profile": "recommended"
+    },
+    "severity": {
+     "PSSP202": "off"
+    },
+    "warnings": {
+     "error": true
+    }
+   },
+   "rc": 1,
+   "diagnostics": [
+    {
+     "code": "ACME002",
+     "severity": "error",
+     "message": "action 'Xfer0' is not lower case",
+     "file": "ip/a.pss",
+     "line": 3,
+     "col": 10,
+     "original_severity": "warning"
+    },
+    {
+     "code": "PSSP205",
+     "severity": "error",
+     "message": "waiver comment gives no reason; say why the finding is intended after ':'",
+     "file": "ip/a.pss",
+     "line": 4,
+     "col": 3,
+     "original_severity": "warning"
+    },
+    {
+     "code": "PSSP203",
+     "severity": "error",
+     "message": "waiver comment: unknown marker or selector 'nosuch'; run --list-markers to see the declared IDs and names",
+     "file": "ip/a.pss",
+     "line": 6,
+     "col": 3,
+     "original_severity": "warning"
+    },
+    {
+     "code": "PSSP204",
+     "severity": "error",
+     "message": "'PSS002' is an error, which cannot be waived; fix it and delete the waiver",
+     "file": "ip/a.pss",
+     "line": 6,
+     "col": 3,
+     "original_severity": "warning"
+    },
+    {
+     "code": "LINT403",
+     "severity": "error",
+     "message": "unknown annotation type 'desc_s'; annotation disregarded",
+     "file": "tests/t.pss",
+     "line": 2,
+     "col": 3,
+     "original_severity": "warning"
+    },
+    {
+     "code": "ACME002",
+     "severity": "error",
+     "message": "action 'Bad' is not lower case",
+     "file": "tests/t.pss",
+     "line": 3,
+     "col": 10,
+     "original_severity": "warning"
+    }
+   ],
+   "waived": [
+    {
+     "code": "LINT403",
+     "severity": "warning",
+     "message": "unknown annotation type 'desc_s'; annotation disregarded",
+     "file": "ip/a.pss",
+     "line": 2,
+     "col": 3,
+     "original_severity": "",
+     "waiver": {
+      "form": "pragma",
+      "id": "LINT403",
+      "file": "ip/a.pss",
+      "line": 2,
+      "col": 12,
+      "reason": "vendored"
+     }
+    },
+    {
+     "code": "ACME002",
+     "severity": "warning",
+     "message": "action 'Ok0' is not lower case",
+     "file": "ip/a.pss",
+     "line": 5,
+     "col": 10,
+     "original_severity": "",
+     "waiver": {
+      "form": "pragma",
+      "id": "ACME002",
+      "file": "ip/a.pss",
+      "line": 4,
+      "col": 3,
+      "reason": ""
+     }
+    }
+   ]
+  },
+  {
+   "id": "finish:no-warnings",
+   "kind": "finish",
+   "ruleTexts": [
+    {
+     "name": "acme.yaml",
+     "text": "pss-rules:\n  defaults:\n    family: naming\n  rules:\n    - id: ACME001\n      name: comp-suffix\n      tier: style\n      summary: Component names end in _c\n      message: \"'${node.name.id}' should end in '_c'\"\n      match: { kind: Component }\n      where: \"!node.name.id.endsWith('_c')\"\n    - id: ACME002\n      name: action-upper\n      tier: suspicious\n      summary: Action names are lower case\n      message: \"action '${node.name.id}' is not lower case\"\n      match: { kind: Action }\n      where: \"!node.name.id.matches('^[a-z_0-9]+$')\"\n    - id: ACME003\n      name: action-info\n      tier: pedantic\n      severity: info\n      summary: Every action\n      message: \"action '${node.name.id}'\"\n      match: { kind: Action }\n"
+    }
+   ],
+   "sources": [
+    {
+     "name": "ip/a.pss",
+     "text": "component dma0 {\n  @desc_s  // pssparser waive LINT403: vendored\n  action Xfer0 { }\n  // pssparser waive ACME002\n  action Ok0 { }\n  // pssparser waive PSS002, nosuch: r\n}\n"
+    },
+    {
+     "name": "tests/t.pss",
+     "text": "component t {\n  @desc_s\n  action Bad { }\n}\n"
+    }
+   ],
+   "toml": "[lint]\nprofile = \"strict\"\n[warnings]\nnone = true\nerror = true\n",
+   "selection": {
+    "lint": {
+     "profile": "strict"
+    },
+    "warnings": {
+     "none": true,
+     "error": true
+    }
+   },
+   "rc": 0,
+   "diagnostics": [
+    {
+     "code": "ACME003",
+     "severity": "info",
+     "message": "action 'Xfer0'",
+     "file": "ip/a.pss",
+     "line": 3,
+     "col": 10,
+     "original_severity": ""
+    },
+    {
+     "code": "ACME003",
+     "severity": "info",
+     "message": "action 'Ok0'",
+     "file": "ip/a.pss",
+     "line": 5,
+     "col": 10,
+     "original_severity": ""
+    },
+    {
+     "code": "ACME003",
+     "severity": "info",
+     "message": "action 'Bad'",
+     "file": "tests/t.pss",
+     "line": 3,
+     "col": 10,
+     "original_severity": ""
+    }
+   ],
+   "waived": [
+    {
+     "code": "LINT403",
+     "severity": "warning",
+     "message": "unknown annotation type 'desc_s'; annotation disregarded",
+     "file": "ip/a.pss",
+     "line": 2,
+     "col": 3,
+     "original_severity": "",
+     "waiver": {
+      "form": "pragma",
+      "id": "LINT403",
+      "file": "ip/a.pss",
+      "line": 2,
+      "col": 12,
+      "reason": "vendored"
+     }
+    },
+    {
+     "code": "ACME002",
+     "severity": "warning",
+     "message": "action 'Ok0' is not lower case",
+     "file": "ip/a.pss",
+     "line": 5,
+     "col": 10,
+     "original_severity": "",
+     "waiver": {
+      "form": "pragma",
+      "id": "ACME002",
+      "file": "ip/a.pss",
+      "line": 4,
+      "col": 3,
+      "reason": ""
+     }
+    }
+   ]
+  },
+  {
+   "id": "finish:parse-error",
+   "kind": "finish",
+   "ruleTexts": [
+    {
+     "name": "acme.yaml",
+     "text": "pss-rules:\n  defaults:\n    family: naming\n  rules:\n    - id: ACME001\n      name: comp-suffix\n      tier: style\n      summary: Component names end in _c\n      message: \"'${node.name.id}' should end in '_c'\"\n      match: { kind: Component }\n      where: \"!node.name.id.endsWith('_c')\"\n    - id: ACME002\n      name: action-upper\n      tier: suspicious\n      summary: Action names are lower case\n      message: \"action '${node.name.id}' is not lower case\"\n      match: { kind: Action }\n      where: \"!node.name.id.matches('^[a-z_0-9]+$')\"\n    - id: ACME003\n      name: action-info\n      tier: pedantic\n      severity: info\n      summary: Every action\n      message: \"action '${node.name.id}'\"\n      match: { kind: Action }\n"
+    }
+   ],
+   "sources": [
+    {
+     "name": "ip/a.pss",
+     "text": "component dma0 {\n  @desc_s  // pssparser waive LINT403: vendored\n  action Xfer0 { }\n  // pssparser waive ACME002\n  action Ok0 { }\n  // pssparser waive PSS002, nosuch: r\n}\n"
+    },
+    {
+     "name": "tests/t.pss",
+     "text": "component t {\n  action A { \n"
+    }
+   ],
+   "toml": "[lint]\nprofile = \"all\"\n",
+   "selection": {
+    "lint": {
+     "profile": "all"
+    }
+   },
+   "rc": 1,
+   "diagnostics": [
+    {
+     "code": "PSSP230",
+     "severity": "info",
+     "message": "lint skipped: 1 error",
+     "file": "<pssparser>",
+     "line": 0,
+     "col": 0,
+     "original_severity": ""
+    },
+    {
+     "code": "PSSP205",
+     "severity": "warning",
+     "message": "waiver comment gives no reason; say why the finding is intended after ':'",
+     "file": "ip/a.pss",
+     "line": 4,
+     "col": 3,
+     "original_severity": ""
+    },
+    {
+     "code": "PSSP203",
+     "severity": "warning",
+     "message": "waiver comment: unknown marker or selector 'nosuch'; run --list-markers to see the declared IDs and names",
+     "file": "ip/a.pss",
+     "line": 6,
+     "col": 3,
+     "original_severity": ""
+    },
+    {
+     "code": "PSSP204",
+     "severity": "warning",
+     "message": "'PSS002' is an error, which cannot be waived; fix it and delete the waiver",
+     "file": "ip/a.pss",
+     "line": 6,
+     "col": 3,
+     "original_severity": ""
+    },
+    {
+     "code": "PSS021",
+     "severity": "error",
+     "message": "unclosed '{' for action 'A'",
+     "file": "tests/t.pss",
+     "line": 2,
+     "col": 12,
+     "original_severity": ""
+    }
+   ],
+   "waived": []
+  },
+  {
+   "id": "finish:link-error",
+   "kind": "finish",
+   "ruleTexts": [
+    {
+     "name": "acme.yaml",
+     "text": "pss-rules:\n  defaults:\n    family: naming\n  rules:\n    - id: ACME001\n      name: comp-suffix\n      tier: style\n      summary: Component names end in _c\n      message: \"'${node.name.id}' should end in '_c'\"\n      match: { kind: Component }\n      where: \"!node.name.id.endsWith('_c')\"\n    - id: ACME002\n      name: action-upper\n      tier: suspicious\n      summary: Action names are lower case\n      message: \"action '${node.name.id}' is not lower case\"\n      match: { kind: Action }\n      where: \"!node.name.id.matches('^[a-z_0-9]+$')\"\n    - id: ACME003\n      name: action-info\n      tier: pedantic\n      severity: info\n      summary: Every action\n      message: \"action '${node.name.id}'\"\n      match: { kind: Action }\n"
+    }
+   ],
+   "sources": [
+    {
+     "name": "ip/a.pss",
+     "text": "component dma0 {\n  @desc_s  // pssparser waive LINT403: vendored\n  action Xfer0 { }\n  // pssparser waive ACME002\n  action Ok0 { }\n  // pssparser waive PSS002, nosuch: r\n}\ncomponent u { nosuch_t x; }  // pssparser waive ACME001: r\n"
+    }
+   ],
+   "toml": "[lint]\nprofile = \"all\"\n",
+   "selection": {
+    "lint": {
+     "profile": "all"
+    }
+   },
+   "rc": 1,
+   "diagnostics": [
+    {
+     "code": "PSSP230",
+     "severity": "info",
+     "message": "lint skipped: 1 error",
+     "file": "<pssparser>",
+     "line": 0,
+     "col": 0,
+     "original_severity": ""
+    },
+    {
+     "code": "PSSP205",
+     "severity": "warning",
+     "message": "waiver comment gives no reason; say why the finding is intended after ':'",
+     "file": "ip/a.pss",
+     "line": 4,
+     "col": 3,
+     "original_severity": ""
+    },
+    {
+     "code": "PSSP203",
+     "severity": "warning",
+     "message": "waiver comment: unknown marker or selector 'nosuch'; run --list-markers to see the declared IDs and names",
+     "file": "ip/a.pss",
+     "line": 6,
+     "col": 3,
+     "original_severity": ""
+    },
+    {
+     "code": "PSSP204",
+     "severity": "warning",
+     "message": "'PSS002' is an error, which cannot be waived; fix it and delete the waiver",
+     "file": "ip/a.pss",
+     "line": 6,
+     "col": 3,
+     "original_severity": ""
+    },
+    {
+     "code": "PSS002",
+     "severity": "error",
+     "message": "unknown type 'nosuch_t'",
+     "file": "ip/a.pss",
+     "line": 8,
+     "col": 15,
+     "original_severity": ""
+    }
+   ],
+   "waived": [
+    {
+     "code": "LINT403",
+     "severity": "warning",
+     "message": "unknown annotation type 'desc_s'; annotation disregarded",
+     "file": "ip/a.pss",
+     "line": 2,
+     "col": 3,
+     "original_severity": "",
+     "waiver": {
+      "form": "pragma",
+      "id": "LINT403",
+      "file": "ip/a.pss",
+      "line": 2,
+      "col": 12,
+      "reason": "vendored"
+     }
     }
    ]
   }

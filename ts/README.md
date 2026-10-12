@@ -32,6 +32,12 @@ The API is complete: `createParser`, `parseSources`, `markers`,
 `enableProfiling`/`getProfileInfo`, `dispose`, the schema-hash check, and the
 AST traversal helpers. Nothing throws `not implemented`.
 
+Lint: `Parser.lint()` gives what the CLI prints for the same model,
+`.pssparser.toml` (passed as parsed) and rule files: the rules run, then
+selection, `[severity]`, source waivers and `[warnings]` are applied in the
+core, the same code the CLI runs (`docs/typescript_api.rst`). Python checker
+extensions and baselines are CLI-only.
+
 Not published to npm yet, and `Marker.code` is expected to become required
 before 1.0 (`ts-wasm-impl-plan.md` Phase 5). The core already gives every
 marker the code the CLI reports, and `Parser.catalog()` documents each code
@@ -138,8 +144,9 @@ test/lintcore-parity.test.ts the lint engine's YAML, CEL and rule loader must
                        equal the native bindings', case by case
 test/lint-parity.test.ts rules run in WASM as natively: every rule example,
                        runs, selection, source waivers (collectWaivers,
-                       applyWaivers), the marker catalogue (catalog) and
-                       the codes on core markers
+                       applyWaivers), the marker catalogue (catalog),
+                       the codes on core markers, and lint() against the
+                       CLI's output (editor parity)
 ```
 
 All six sets of parity expectations are generated, not written:

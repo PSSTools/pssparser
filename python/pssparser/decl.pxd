@@ -97,6 +97,7 @@ cdef extern from "pssp/lint/ILintEngine.h" namespace "pssp::lint":
         cpp_string collectWaivers(const cpp_vector[ast.IScopeChildP] &roots,
                                   const cpp_string &requestJson)
         cpp_string applyWaivers(const cpp_string &requestJson)
+        cpp_string finish(const cpp_string &requestJson)
         cpp_string catalogJson()
         cpp_string coreCode(const cpp_string &message)
 

@@ -1184,6 +1184,18 @@ cdef class LintEngine(object):
         text = json.dumps(req, ensure_ascii=False).encode("utf-8", "surrogatepass")
         return json.loads(self._hndl.applyWaivers(text).decode("utf-8"))
 
+    def finish(self, request):
+        """Finishes a run's diagnostics as the CLI does before printing them
+        (lint-core-plan.md C7.4): lint selection per file and ownership,
+        ``[severity]``, source waivers and the ``-W`` policy. `request` is a
+        dict with ``diagnostics``, ``selection``, ``stages``, ``owned``,
+        ``waivers``, ``ran``, ``paths`` and ``policy``. Returns ``{"ok",
+        "diagnostics", "waived", "waivers", "dropped", "problems"}``; see
+        ILintEngine::finish."""
+        import json
+        text = json.dumps(request, ensure_ascii=False).encode("utf-8", "surrogatepass")
+        return json.loads(self._hndl.finish(text).decode("utf-8"))
+
     def catalog(self):
         """The marker catalogue (lint-core-plan.md C7.3): every marker the
         engine knows -- the embedded core catalogue's, the host's

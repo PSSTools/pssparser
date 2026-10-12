@@ -597,6 +597,14 @@ public:
     }
 
     /*
+     * Finishes diagnostics as the CLI does before printing them
+     * (lint-core-plan.md C7.4): ILintEngine::finish()'s JSON.
+     */
+    std::string finishDiagnostics(const std::string &requestJson) {
+        return ensureLintEngine()->finish(requestJson);
+    }
+
+    /*
      * The host's own markers for selection (lint-core-plan.md C7.1):
      * ILintEngine::setHostMarkers()'s JSON. Returns the problems.
      */
@@ -822,5 +830,6 @@ EMSCRIPTEN_BINDINGS(pssparser) {
         .function("resolveSelection", &ParserSession::resolveSelection)
         .function("collectWaivers", &ParserSession::collectWaivers)
         .function("applyWaivers", &ParserSession::applyWaivers)
+        .function("finishDiagnostics", &ParserSession::finishDiagnostics)
         .function("catalogJson", &ParserSession::catalogJson);
 }

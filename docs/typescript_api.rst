@@ -388,14 +388,59 @@ there. Text that is not valid YAML counts as a rule file when a line starts
 
 Runs the loaded rules over the linked user files, in the core, with the same
 engine as the CLI, so an editor and CI report the same findings. Call it after
-``link()``. Selection by profile, tier or namespace is the host's job:
-``enabled`` takes its result, and a rule not listed is never evaluated.
+``link()``. ``enabled`` lists the rules to run, and a rule not listed is never
+evaluated; or ``selection`` gives the configuration, and each file runs the
+rules its path enables. Most editors want ``lint()`` instead, which also
+applies severities, waivers and the ``-W`` policy.
 
 The gate: with any error marker from parse or link (or ``gateErrors`` above
 0), no rule runs, and the one marker is ``PSSP230``, "lint skipped: N errors",
 with ``file`` ``'<pssparser>'`` (exported as ``NO_FILE``) and line 0. The
 markers are returned, not added to ``markers``. Their messages carry no
 ``[ID]`` prefix; ``code`` is the rule's ID.
+
+``lint(options?)``
+^^^^^^^^^^^^^^^^^^
+
+.. code-block:: typescript
+
+   lint(options?: LintOptions): LintReport;
+
+   interface LintOptions {
+     selection?: LintSelection;  // .pssparser.toml as parsed: [lint], [severity], [warnings]
+     sources?: { name: string; content: string }[];  // for source waivers
+     waivers?: boolean;          // false: no source waivers
+     maxSteps?: number;
+     baseDir?: string;
+   }
+   interface LintReport {
+     diagnostics: LintDiagnostic[];  // what the CLI would print, sorted
+     waived: LintDiagnostic[];       // each with its `waiver`
+     waivers: (Waiver & { ids: string[]; used: number })[];
+     stats: LintRuleStats[];
+     problems: string[];
+   }
+   interface LintDiagnostic extends Marker {
+     originalSeverity?: string;  // before -Werror promoted it
+     werror?: string;            // the flag that did: '-Werror', '-Werror=style'
+     waiver?: Waiver;
+   }
+
+The editor's one call: the parse and link markers and the rules' findings,
+finished in the core as the CLI finishes them. In order: lint findings the
+selection does not enable for their file are dropped; ``[severity]`` applies
+(``off`` drops); source waivers from ``sources`` apply, and their hygiene
+markers (``PSSP202``-``PSSP205``, ``PSSP004``) join the diagnostics; then
+``[warnings]``: ``none = true`` drops warnings, and ``error`` promotes. The same
+model, configuration and rules give the same diagnostics as ``pssparser
+--format json`` (the ``finish`` cases of ``ts/test/lint-parity.test.ts`` check
+it). After a failed parse or link the rules do not run and ``PSSP230`` says
+so, as on the command line.
+
+``selection`` is the TOML as parsed, keys as written; the host reads the file
+(``[lint] rules = [...]`` names rule files, which the host loads with
+``loadRules``). Not here: Python checker extensions, which only the CLI runs,
+and the baseline.
 
 ``dispose()``
 ^^^^^^^^^^^^^

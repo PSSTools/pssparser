@@ -73,6 +73,8 @@ public:
 
     virtual std::string applyWaivers(const std::string &requestJson) override;
 
+    virtual std::string finish(const std::string &requestJson) override;
+
     virtual std::string catalogJson() const override;
 
     virtual std::string coreCode(const std::string &message) const override;

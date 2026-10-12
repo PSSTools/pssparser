@@ -546,6 +546,12 @@ Selection::Selection(Catalogue &cat, const yaml::Node &input) : m_cat(cat) {
         const yaml::Node *e = warnings->get("error");
         if (e && e->kind == NK::Seq) {
             expandCodes(e, "warnings.error", m_werror, &m_werrorSpelling);
+        } else if (e && e->kind == NK::Bool) {
+            m_werrorAll = e->b;     // `error = true`: -Werror
+        }
+        const yaml::Node *none = warnings->get("none");
+        if (none && none->kind == NK::Bool) {
+            m_noWarnings = none->b;
         }
         expandCodes(warnings->get("no-error"), "warnings.no-error", m_noError, nullptr);
     } else if (warnings && warnings->kind != NK::Null) {
@@ -880,6 +886,17 @@ std::string Selection::relPath(const std::string &path) const {
     return util::normalPath(path, m_baseDir);
 }
 
+Selection::Warnings Selection::warnings() const {
+    Warnings w;
+    w.errorAll = m_werrorAll;
+    w.errorInfo = m_werrorInfo;
+    w.none = m_noWarnings;
+    w.error.insert(m_werror.begin(), m_werror.end());
+    w.spelling = m_werrorSpelling;
+    w.noError.insert(m_noError.begin(), m_noError.end());
+    return w;
+}
+
 uint32_t Selection::groupOf(const std::string &path) {
     std::string rel = relPath(path);
     std::vector<uint32_t> hit;
@@ -960,6 +977,7 @@ void Selection::toJson(JsonWriter &w, const std::vector<std::string> &paths) {
     w.endObject();
     w.key("warnings").beginObject();
     stringArray(w, "error", m_werror);
+    w.kv("error_all", m_werrorAll);
     w.kv("error_info", m_werrorInfo);
     w.key("spelling").beginObject();
     for (const auto &s : m_werrorSpelling) {
@@ -967,6 +985,7 @@ void Selection::toJson(JsonWriter &w, const std::vector<std::string> &paths) {
     }
     w.endObject();
     stringArray(w, "no_error", m_noError);
+    w.kv("none", m_noWarnings);
     w.endObject();
     w.endObject();
 }

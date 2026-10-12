@@ -74,6 +74,8 @@ export interface ParserSessionHandle {
   collectWaivers(requestJson: string): string;
   /** Apply waivers: `ILintEngine::applyWaivers`'s JSON. */
   applyWaivers(requestJson: string): string;
+  /** Finish diagnostics: `ILintEngine::finish`'s JSON. */
+  finishDiagnostics(requestJson: string): string;
   /** The marker catalogue: `ILintEngine::catalogJson`'s JSON. */
   catalogJson(): string;
   /** Embind's destructor. Frees the C++ object; the handle is dead after. */

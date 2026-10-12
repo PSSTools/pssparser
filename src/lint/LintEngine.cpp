@@ -28,6 +28,7 @@
 #include "pssp/ast/IScopeChild.h"
 #include "run/Runner.h"
 #include "yaml/YamlDoc.h"
+#include "pipeline/Finish.h"
 #include "pipeline/Waivers.h"
 #include "catalog/Catalog.h"
 #include "rules/BuiltinRules.h"
@@ -467,6 +468,173 @@ std::string LintEngine::applyWaivers(const std::string &requestJson) {
             .kv("extent", -1);
         w.key("related").beginArray().endArray();
         w.endObject();
+    }
+    w.endArray().endObject();
+    return w.str();
+}
+
+std::string LintEngine::finish(const std::string &requestJson) {
+    using NK = yaml::Node::Kind;
+    JsonWriter w;
+    yaml::NodeUP doc = parseRequest("<finish>", requestJson, w);
+    if (!doc) {
+        return w.str();
+    }
+    std::vector<std::string> problems;
+    auto strings = [&](const yaml::Node *n, const char *key, std::vector<std::string> &out) {
+        if (!n || n->kind == NK::Null) {
+            return false;
+        }
+        if (n->kind != NK::Seq) {
+            problems.push_back(std::string(key) + ": not a list of strings");
+            return false;
+        }
+        for (const yaml::NodeUP &i : n->items) {
+            if (i->kind == NK::String) {
+                out.push_back(i->s);
+            } else {
+                problems.push_back(std::string(key) + ": not a list of strings");
+                return false;
+            }
+        }
+        return true;
+    };
+
+    pipeline::FinishRequest req;
+    std::vector<std::string> stages;
+    if (strings(doc->get("stages"), "stages", stages)) {
+        req.select = req.severity = req.waive = req.policy = false;
+        for (const std::string &st : stages) {
+            if (st == "select") req.select = true;
+            else if (st == "severity") req.severity = true;
+            else if (st == "waive") req.waive = true;
+            else if (st == "policy") req.policy = true;
+            else problems.push_back("stages: no stage '" + st + "'");
+        }
+    }
+    std::vector<std::string> owned;
+    req.haveOwned = strings(doc->get("owned"), "owned", owned);
+    req.owned.insert(owned.begin(), owned.end());
+    std::vector<std::string> paths;
+    strings(doc->get("paths"), "paths", paths);
+    if (const yaml::Node *ws = doc->get("waivers")) {
+        for (const yaml::NodeUP &n : ws->items) {
+            pipeline::Waiver x;
+            if (pipeline::Waiver::fromJson(*n, x)) {
+                req.waivers.push_back(x);
+            } else {
+                problems.push_back("waivers: an entry is not a waiver");
+            }
+        }
+    }
+
+    std::vector<pipeline::FinishDiag> diags;
+    if (const yaml::Node *ds = doc->get("diagnostics")) {
+        for (const yaml::NodeUP &n : ds->items) {
+            pipeline::FinishDiag d;
+            d.index = static_cast<int64_t>(diags.size());
+            if (n->kind == NK::Map) {
+                const yaml::Node *v;
+                if ((v = n->get("code")) && v->kind == NK::String) d.code = v->s;
+                if ((v = n->get("severity")) && v->kind == NK::String) d.severity = v->s;
+                if ((v = n->get("file")) && v->kind == NK::String) d.file = v->s;
+                if ((v = n->get("line")) && v->kind == NK::Int) d.line = static_cast<int32_t>(v->i);
+                if ((v = n->get("col")) && v->kind == NK::Int) d.col = static_cast<int32_t>(v->i);
+            }
+            diags.push_back(d);
+        }
+    }
+
+    pipeline::Catalogue cat(m_hostMarkers, m_refused, ruleList());
+    const yaml::Node *selNode = doc->get("selection");
+    yaml::Node empty;
+    if (selNode && selNode->kind != NK::Map && selNode->kind != NK::Null) {
+        problems.push_back("selection: not an object");
+        selNode = nullptr;
+    }
+    pipeline::Selection sel(cat, selNode && selNode->kind == NK::Map ? *selNode : empty);
+    for (const pipeline::SelectionError &e : sel.errors()) {
+        problems.push_back(e.key + ": " + e.message);
+    }
+    // A host that resolved its policy itself (the CLI, whose -W groups are
+    // already IDs) passes it; else the selection's.
+    pipeline::Selection::Warnings pol = sel.warnings();
+    if (const yaml::Node *pn = doc->get("policy")) {
+        if (pn->kind == NK::Map) {
+            pol = pipeline::Selection::Warnings();
+            const yaml::Node *v;
+            if ((v = pn->get("error_all")) && v->kind == NK::Bool) pol.errorAll = v->b;
+            if ((v = pn->get("error_info")) && v->kind == NK::Bool) pol.errorInfo = v->b;
+            if ((v = pn->get("none")) && v->kind == NK::Bool) pol.none = v->b;
+            std::vector<std::string> ids;
+            strings(pn->get("error"), "policy.error", ids);
+            pol.error.insert(ids.begin(), ids.end());
+            ids.clear();
+            strings(pn->get("no_error"), "policy.no_error", ids);
+            pol.noError.insert(ids.begin(), ids.end());
+            if ((v = pn->get("spelling")) && v->kind == NK::Map) {
+                for (const yaml::Node::Member &m : v->members) {
+                    if (m.value->kind == NK::String) {
+                        pol.spelling[m.key] = m.value->s;
+                    }
+                }
+            }
+        } else if (pn->kind != NK::Null) {
+            problems.push_back("policy: not an object");
+        }
+    }
+
+    std::set<std::string> ran;
+    const yaml::Node *rn = doc->get("ran");
+    if (rn && rn->kind == NK::String && rn->s == "auto") {
+        ran = pipeline::codesThatRan(cat, sel, paths);
+        req.ran = &ran;
+    } else if (rn && rn->kind == NK::Seq) {
+        std::vector<std::string> ids;
+        strings(rn, "ran", ids);
+        ran.insert(ids.begin(), ids.end());
+        req.ran = &ran;
+    } else if (rn && rn->kind != NK::Null) {
+        problems.push_back("ran: not a list of IDs or \"auto\"");
+    }
+
+    pipeline::FinishResult res = pipeline::finish(cat, sel, pol, std::move(diags), req);
+    problems.insert(problems.end(), res.problems.begin(), res.problems.end());
+
+    auto diag = [&](const pipeline::FinishDiag &d) {
+        w.beginObject().kv("index", d.index).kv("severity", d.severity);
+        if (!d.originalSeverity.empty()) {
+            w.kv("original_severity", d.originalSeverity).kv("werror", d.werror);
+        }
+        if (d.waiver >= 0) {
+            w.kv("waiver", d.waiver);
+        }
+        if (d.index < 0) {
+            // A hygiene marker: the rest of it.
+            w.kv("code", d.code).kv("message", d.message).kv("file", d.file)
+                .kv("line", d.line).kv("col", d.col).kv("extent", -1);
+            w.key("related").beginArray().endArray();
+        }
+        w.endObject();
+    };
+    w.beginObject().kv("ok", true);
+    w.key("diagnostics").beginArray();
+    for (const pipeline::FinishDiag &d : res.diagnostics) {
+        diag(d);
+    }
+    w.endArray().key("waived").beginArray();
+    for (const pipeline::FinishDiag &d : res.waived) {
+        diag(d);
+    }
+    w.endArray().key("waivers").beginArray();
+    for (const pipeline::Waiver &x : req.waivers) {
+        x.toJson(w, true);
+    }
+    w.endArray();
+    w.key("dropped").beginObject().kv("outside", res.outside).endObject();
+    w.key("problems").beginArray();
+    for (const std::string &p : problems) {
+        w.value(p);
     }
     w.endArray().endObject();
     return w.str();

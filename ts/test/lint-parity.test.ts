@@ -17,6 +17,9 @@
  *   the native one, exactly.
  * - `catalog`: the marker catalogue (C7.3), with and without host markers;
  *   and `marker-codes`, the codes the core gives a model's markers.
+ * - `finish`: what the CLI prints (`pssparser --format json`) for rules, a
+ *   model with source waivers and a `.pssparser.toml`; `Parser.lint()` with
+ *   that TOML as its selection must report the same (C7.4, milestone M4).
  *
  * Markers are compared in a normal form: file name, sorted.
  */
@@ -31,6 +34,7 @@ import {
   type Catalog,
   type CatalogMarker,
   type HostMarker,
+  type LintDiagnostic,
   type LintRequest,
   type LintSelection,
   type Marker,
@@ -110,6 +114,30 @@ interface SelectionCase {
   result: SelectionResult;
 }
 
+/** A diagnostic as the CLI's JSON prints it, without the `[ID] ` prefix. */
+interface CliDiagnostic {
+  code: string;
+  severity: string;
+  message: string;
+  file: string;
+  line: number;
+  col: number;
+  original_severity: string;
+  waiver?: { form: string; id: string; file: string; line: number; col: number; reason: string };
+}
+
+interface FinishCase {
+  id: string;
+  kind: 'finish';
+  ruleTexts: Array<{ name: string; text: string }>;
+  sources: Array<{ name: string; text: string }>;
+  toml: string;
+  selection: LintSelection;
+  rc: number;
+  diagnostics: CliDiagnostic[];
+  waived: CliDiagnostic[];
+}
+
 /** An example as the engine's `rulesJson` gives it. */
 interface RuleExample {
   name: string;
@@ -128,7 +156,9 @@ const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(here, '..', '..');
 const fixture = JSON.parse(readFileSync(join(here, 'fixtures', 'lint-parity.json'), 'utf8')) as {
   ruleFiles: string[];
-  cases: Array<ExampleCase | RunCase | SelectionCase | WaiverCase | CatalogCase | MarkerCodesCase>;
+  cases: Array<
+    ExampleCase | RunCase | SelectionCase | WaiverCase | CatalogCase | MarkerCodesCase | FinishCase
+  >;
 };
 const examples = fixture.cases.filter((c): c is ExampleCase => c.kind === 'example');
 const runs = fixture.cases.filter((c): c is RunCase => c.kind === 'run');
@@ -136,6 +166,7 @@ const selections = fixture.cases.filter((c): c is SelectionCase => c.kind === 's
 const waiverCases = fixture.cases.filter((c): c is WaiverCase => c.kind === 'waivers');
 const catalogCases = fixture.cases.filter((c): c is CatalogCase => c.kind === 'catalog');
 const markerCodeCases = fixture.cases.filter((c): c is MarkerCodesCase => c.kind === 'marker-codes');
+const finishCases = fixture.cases.filter((c): c is FinishCase => c.kind === 'finish');
 
 const ruleFile = (path: string) => ({ name: path, text: readFileSync(join(repoRoot, path), 'utf8') });
 
@@ -305,5 +336,56 @@ describe('marker catalogue (WASM)', () => {
     using parser = await createParser();
     parseAndLink(parser, c.sources);
     expect(normal(parser.markers)).toEqual(c.markers);
+  });
+});
+
+/** `Parser.lint()`'s diagnostics in the CLI's JSON form, sorted as the fixture is. */
+function asCli(diags: readonly LintDiagnostic[]): CliDiagnostic[] {
+  const out = diags.map((d) => {
+    const c: CliDiagnostic = {
+      code: d.code ?? '',
+      severity: d.severity,
+      message: d.message,
+      file: d.file,
+      line: d.line,
+      col: d.col,
+      original_severity: d.originalSeverity ?? '',
+    };
+    if (d.waiver) {
+      const w = d.waiver;
+      c.waiver = { form: w.form, id: w.selectors.join(', '), file: w.file, line: w.line,
+        col: w.col, reason: w.reason };
+    }
+    return c;
+  });
+  const key = (m: CliDiagnostic) => [m.file, m.line, m.col, m.code, m.message] as const;
+  return out.sort((a, b) => {
+    const [x, y] = [key(a), key(b)];
+    for (let i = 0; i < x.length; i++) {
+      if (x[i] !== y[i]) {
+        return x[i] < y[i] ? -1 : 1;
+      }
+    }
+    return 0;
+  });
+}
+
+describe('editor parity: Parser.lint() against the CLI (WASM)', () => {
+  it('has cases', () => {
+    expect(finishCases.length).toBeGreaterThan(0);
+  });
+
+  it.each(finishCases.map((c) => [c.id, c] as const))('%s', async (_id, c) => {
+    using parser = await createParser();
+    expect(parser.loadRules(c.ruleTexts)).toEqual([]);
+    parseAndLink(parser, c.sources);
+    const report = parser.lint({
+      selection: c.selection,
+      sources: c.sources.map((s) => ({ name: s.name, content: s.text })),
+    });
+    expect(asCli(report.diagnostics)).toEqual(c.diagnostics);
+    expect(asCli(report.waived)).toEqual(c.waived);
+    expect(report.diagnostics.some((d) => d.severity === 'error') ? 1 : 0).toBe(c.rc);
+    expect(report.problems).toEqual([]);
   });
 });

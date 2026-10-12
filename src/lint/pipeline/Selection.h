@@ -186,7 +186,8 @@ struct SelectionGroup {
  *                            "ignore", "rule"}]},
  *    "command_line": {"select", "ignore"},
  *    "severity": {selector: severity},
- *    "warnings": {"error": [selector...], "no-error": [selector...]},
+ *    "warnings": {"error": [selector...] | true, "no-error": [selector...],
+ *                 "none": true},
  *    "base_dir": "..."}
  * Every key is optional. Shapes are the host's to validate; a value of the
  * wrong shape here is an error with key "request".
@@ -217,6 +218,17 @@ public:
     const std::map<std::string, std::pair<std::string, std::string>> &severity() const {
         return m_severity;
     }
+
+    /** The `-W` policy: `[warnings]` expanded to IDs (C7.4). */
+    struct Warnings {
+        bool                                        errorAll = false;   // -Werror
+        bool                                        errorInfo = false;  // -Werror=info
+        bool                                        none = false;       // --no-warnings
+        std::set<std::string>                       error;              // -Werror=SEL
+        std::map<std::string, std::string>          spelling;           // ID -> SEL
+        std::set<std::string>                       noError;            // -Wno-error=SEL
+    };
+    Warnings warnings() const;
 
     /**
      * The whole resolution as JSON, with the group and relative path of
@@ -260,6 +272,8 @@ private:
     std::vector<std::string>                        m_werror;
     std::map<std::string, std::string>              m_werrorSpelling;
     bool                                            m_werrorInfo = false;
+    bool                                            m_werrorAll = false;
+    bool                                            m_noWarnings = false;
     std::vector<std::string>                        m_noError;
 };
 
