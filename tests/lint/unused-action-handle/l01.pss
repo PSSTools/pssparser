@@ -1,0 +1,13 @@
+// expect: LINT205 @ 6:9, LINT205 @ 7:9, LINT205 @ 9:11
+component pss_top {
+  action Sub { }
+  action A {
+    Sub used;
+    Sub spare;
+    Sub pool_of[2];
+    activity {
+      Sub local;
+      used;
+    }
+  }
+}

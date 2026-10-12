@@ -1,0 +1,22 @@
+// Handles declared in nested activity scopes and in a component's
+// package-level action; a use of another handle of the same name elsewhere
+// does not count.
+// expect: LINT205 @ 13:13, LINT205 @ 19:9
+component pss_top {
+  action Sub { }
+  action A {
+    Sub h;
+    rand bit[4] n;
+    activity {
+      h;
+      repeat (n) {
+        Sub inner;
+        do Sub;
+      }
+    }
+  }
+  action B {
+    Sub h;
+    activity { do Sub; }
+  }
+}

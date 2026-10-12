@@ -1,0 +1,17 @@
+// expect: LINT203 @ 10:17, LINT203 @ 12:18
+component pss_top {
+  static const int K = 4;
+  action Sub { }
+  action A {
+    rand bit[4] m;
+    activity {
+      match (m) {
+        [0..4]: do Sub;
+        [3..7]: do Sub;
+        [K + 4]: do Sub;
+        [8, 12]: do Sub;
+        default: do Sub;
+      }
+    }
+  }
+}

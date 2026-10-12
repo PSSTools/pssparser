@@ -1,0 +1,8 @@
+// expect: none
+// Names the library does not declare at its top level: enum items, fields,
+// a near-miss spelling.
+component pss_top {
+  enum level_e { LOW, HIGH, LITTLE_ENDIAN };
+  struct msg_s { int message; int size; }
+  function void log_message(int v) { }
+}

@@ -64,6 +64,7 @@ enum class ExprKind {
 struct Expr;
 using ExprUP = std::unique_ptr<Expr>;
 struct Overload;
+struct Value;
 
 /**
  * One entry of a map literal or a message (struct) literal. For a map, `key`
@@ -118,6 +119,10 @@ struct Expr {
     // matches() with a literal pattern: the pattern, compiled once, when the
     // expression was checked.
     std::shared_ptr<const regex::Regex>     regex;
+    // Ident naming a type (`ExprId` in `type(n) == ExprId`): the type value,
+    // found by name the first time the evaluator needs it. Only used after
+    // the variables and lets have been searched, so it never hides one.
+    mutable std::shared_ptr<const Value>    typeValue;
 };
 
 /**

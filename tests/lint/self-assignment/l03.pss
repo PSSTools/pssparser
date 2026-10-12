@@ -1,0 +1,14 @@
+// In an exec an extension adds.
+// expect: LINT305 @ 11:7
+component pss_top {
+  action A {
+    int n;
+  }
+}
+extend component pss_top {
+  extend action A {
+    exec post_solve {
+      n = n;
+    }
+  }
+}

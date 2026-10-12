@@ -1,0 +1,7 @@
+// expect: none
+// The escape hatch: a waiver on an extension kept as a placeholder.
+component pss_top {
+  action A { }
+}
+// pssparser waive empty-declaration: filled in by the generated layer
+extend action pss_top::A { }

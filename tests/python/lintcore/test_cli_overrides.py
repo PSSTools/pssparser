@@ -177,7 +177,9 @@ def test_show_config_for_a_file(ws):
     rc, out, err = _run("--show-config", "--for", "tests/t.pss", "--for", "ip/a.pss")
     assert rc == 0, err
     assert "lint.overrides[0]                  files = tests/**; ignore = ACME" in out
-    assert "Rule files (load order):\n  acme.yaml" in out
+    # The built-in rule files come first.
+    rules = out.split("Rule files (load order):\n")[1]
+    assert "\n  acme.yaml" in rules and rules.startswith("  pssparser:rules/")
     assert "2 rules" in out and ".pssparser.toml: lint.rules" in out
     tests, ip = out.split("For tests/t.pss (as tests/t.pss):")[1].split("For ip/a.pss")
     assert "overrides:     lint.overrides[0]" in tests and "ACME" not in tests

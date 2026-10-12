@@ -2653,6 +2653,9 @@ cdef extern from "pssp/ast/IProceduralStmtExpr.h" namespace "pssp::ast":
         IExpr *getExpr()
         
         void setExpr(IExpr *v)
+        bool getVoid_cast()
+        
+        void setVoid_cast(bool v)
 
 cdef extern from "pssp/ast/IProceduralStmtIfElse.h" namespace "pssp::ast":
     cpdef cppclass IProceduralStmtIfElse(IExecStmt):

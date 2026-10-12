@@ -1,0 +1,11 @@
+// expect: LINT305 @ 7:7, LINT305 @ 8:7
+component pss_top {
+  action A {
+    int size;
+    int arr[4];
+    exec post_solve {
+      size = size;
+      arr[1] = arr[1];
+    }
+  }
+}

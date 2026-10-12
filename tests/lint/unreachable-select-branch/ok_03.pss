@@ -1,0 +1,15 @@
+// expect: none
+// The escape hatch: a waiver on a branch disabled on purpose.
+component pss_top {
+  action Sub { }
+  action A {
+    activity {
+      select {
+        @lint_pkg::waive {.id = "unreachable-select-branch",
+                          .reason = "re-enable when the slow path is modelled"}
+        [0]: do Sub;
+        do Sub;
+      }
+    }
+  }
+}

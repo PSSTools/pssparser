@@ -158,8 +158,11 @@ A rule
 ``where``
    An expression on ``node`` that must be true for a finding.
 ``let``
-   Named expressions, evaluated in order, for use in ``where``, ``report``
-   and the message.
+   Named expressions for use in ``where``, ``report`` and the message. Each
+   may use the ones before it. A binding is evaluated the first time
+   something reads it, once per matched node: one only the message reads
+   costs nothing for a node that is not reported, so name a costly
+   sub-expression freely.
 ``report``
    The nodes to report at, when that is not the matched node itself. In the
    message, ``finding`` is the reported node. An unset field in the list
@@ -208,6 +211,11 @@ node's class, subclasses included. After ``n.isa(K) &&``, or
      enclosing(node, Action) != null
      && enclosing(node, Action).name.id.endsWith("_test")
 
+``descendants(n, K)`` keeps a subtree's nodes of class ``K``, already typed:
+``descendants(node, Field).map(f, f.name.id)``. Prefer it to
+``descendants(n).filter(d, d.isa(K))``, which pays for every node the
+comprehension looks at.
+
 The symbol functions read the linked model: ``resolves_to(r)`` is the
 declaration a reference names (``resolves_to(node.type)``,
 ``resolves_to(node.super_t)``), ``decl_path(n)`` a node's qualified path, and
@@ -240,6 +248,13 @@ source order: "one component per file" is
 ``dups(l)`` gives the indexes of a list's elements that equal an earlier
 one, so ``dups(inits.map(i, resolves_to(i.path)))`` finds a field initialised
 twice in one list, and ``.map(k, inits[k])`` gives the nodes to report.
+
+``same_tree(a, b)`` compares two pieces of code rather than two nodes: the
+same kinds, operators, names and literals, however they are laid out. So
+``same_tree(node.lhs, node.rhs)`` finds ``x == x`` and ``x = x``.
+``import_uses(i)`` lists the names an ``import`` provides in its scope, and
+``core_library_name(name)`` says whether ``std_pkg``, ``addr_reg_pkg`` or
+another core library package declares a name.
 
 ``branches(n)`` lists the alternatives of a ``select``, ``match``,
 ``if``/``else``, ``parallel`` or ``schedule`` the same way for each:

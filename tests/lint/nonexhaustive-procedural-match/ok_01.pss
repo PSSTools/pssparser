@@ -1,0 +1,20 @@
+// expect: none
+// Every item, including an extension's, and a default.
+component pss_top {
+  enum st_e { IDLE, RUN };
+  action A {
+    rand st_e st;
+    int r;
+    exec post_solve {
+      match (st) {
+        [IDLE]: r = 1;
+        [RUN, HALT]: r = 2;
+      }
+      match (st) {
+        [IDLE]: r = 1;
+        default: r = 2;
+      }
+    }
+  }
+}
+extend enum pss_top::st_e { HALT };

@@ -49,7 +49,8 @@ Lint runs with every parse.  Which rules report is chosen by a **profile**:
 
 Every profile except ``none`` includes ``minimal``, so moving to a larger
 profile never drops a warning you already saw.  ``nursery`` rules are new
-and not yet measured; select them by name to try one.
+and not yet measured; select them by name to try one, or all of them with
+``--select nursery``.
 
 Choose a profile on the command line or in the configuration file:
 

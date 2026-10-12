@@ -1,0 +1,34 @@
+// Subjects that are a function parameter, a local variable and a field of
+// a typedef'd enum type; nested in other statements; qualified items.
+// expect: LINT302 @ 9:5, LINT302 @ 22:11, LINT302 @ 27:9
+package defs_pkg {
+  enum mode_e { RD, WR, RDWR };
+  typedef mode_e mode_t;
+}
+function int code_of(defs_pkg::mode_e m) {
+    match (m) {
+      [defs_pkg::mode_e::RD]: return 1;
+      [defs_pkg::mode_e::WR]: return 2;
+    }
+    return 0;
+}
+component pss_top {
+  action A {
+    rand defs_pkg::mode_t md;
+    int r;
+    exec post_solve {
+      repeat (2) {
+        if (r == 0) {
+          match (md) {
+            [defs_pkg::RD, defs_pkg::WR]: r = 1;
+          }
+        }
+        defs_pkg::mode_e local = defs_pkg::RDWR;
+        match (local) {
+          [defs_pkg::RD]: r = 1;
+          [defs_pkg::RDWR]: r = 2;
+        }
+      }
+    }
+  }
+}

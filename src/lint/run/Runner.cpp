@@ -124,22 +124,35 @@ void Runner::evaluate(size_t idx, const rules::Rule &r, const rf::Node &n) {
         }
         vars.emplace_back("options." + o.name, *v);
     }
-    // Each let sees the ones before it. An error is kept as the value: it
-    // matters only if where: or report: depends on it.
-    for (const rules::LetBinding &b : r.m_lets) {
-        cel::Value v = b.expr ? eval(b.expr.get(), vars, idx, overrun)
-            : cel::Value::error("not loaded");
-        if (overrun) {
-            fail(idx, r, "let", v, true, n);
-            return;
+    // Each let sees the ones before it, and is evaluated the first time
+    // where:, report: or the message reads it: one only the message reads
+    // costs nothing for a node that is not reported. An error is kept as
+    // the value: it matters only if what reads it fails with it.
+    // One table per rule, reset for each node: rules that match common
+    // nodes would otherwise copy every binding's name at each match.
+    cel::LazyVars &lets = m_lets[&r];
+    if (lets.size() != r.m_lets.size()) {
+        lets.clear();
+        for (const rules::LetBinding &b : r.m_lets) {
+            cel::LazyVar l;
+            l.name = b.name;
+            l.expr = b.expr.get();
+            lets.push_back(std::move(l));
         }
-        vars.emplace_back(b.name, std::move(v));
+    } else {
+        for (cel::LazyVar &l : lets) {
+            if (l.state != cel::LazyVar::State::Pending) {
+                l.state = cel::LazyVar::State::Pending;
+                l.value = cel::Value();
+            }
+        }
     }
+    LazyScope lazyScope(m_lazy, &lets);
 
     if (r.m_where) {
         cel::Value w = eval(r.m_where.get(), vars, idx, overrun);
         if (w.isError()) {
-            fail(idx, r, "where", w, overrun, n);
+            fail(idx, r, m_lazyOverrun ? "let" : "where", w, overrun, n);
             return;
         }
         if (!w.isBool() || !w.b) {
@@ -151,7 +164,7 @@ void Runner::evaluate(size_t idx, const rules::Rule &r, const rf::Node &n) {
     if (r.m_report) {
         cel::Value rv = eval(r.m_report.get(), vars, idx, overrun);
         if (rv.isError()) {
-            fail(idx, r, "report", rv, overrun, n);
+            fail(idx, r, m_lazyOverrun ? "let" : "report", rv, overrun, n);
             return;
         }
         if (rv.kind == cel::Value::Kind::List && rv.list) {
@@ -209,12 +222,14 @@ cel::Value Runner::eval(const cel::Expr *e, const Vars &vars, size_t idx, bool &
     cel::EvalOptions opts;
     opts.maxSteps = (fs.steps < m_opts.maxSteps) ? m_opts.maxSteps - fs.steps : 0;
     opts.host = &m_ctx;
+    opts.lazy = m_lazy;
     cel::CelEval ev(opts);
     cel::Value v = ev.eval(e, vars);
     uint64_t used = std::min(ev.steps(), opts.maxSteps);
     fs.steps += used;
     m_stats[idx].steps += used;
     overrun = ev.budgetExceeded();
+    m_lazyOverrun = overrun && !ev.lazyOverrun().empty();
     return v;
 }
 
@@ -241,7 +256,7 @@ std::string Runner::renderMessage(size_t idx, const rules::Rule &r, const rf::No
             case cel::Value::Kind::Node: out += renderNode(toNode(v)); break;
             case cel::Value::Kind::Error:
                 // The finding stands; the rule's message is broken.
-                fail(idx, r, "message", v, overrun, finding);
+                fail(idx, r, m_lazyOverrun ? "let" : "message", v, overrun, finding);
                 out += "?";
                 break;
             default:

@@ -1,0 +1,14 @@
+// expect: none
+// Not tracked: an import with an alias, and a package that declares an
+// extension (its members are reached as members).
+package core_pkg { struct core_s { rand bit[4] v; } }
+package ext_pkg {
+  extend struct core_pkg::core_s { rand bit[4] extra; }
+}
+package a_pkg { struct s_t { } }
+component pss_top {
+  import ext_pkg::*;
+  import a_pkg as a;
+  core_pkg::core_s c;
+  a::s_t s;
+}

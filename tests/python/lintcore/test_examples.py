@@ -218,7 +218,7 @@ def test_options_are_at_their_defaults():
                           "      options:\n"
                           "        min: { type: int, default: 3, help: h }\n"
                           "      examples:\n")
-    (r,) = run_examples(_engine(("acme.yaml", rules)))
+    (r,) = run_examples(_engine(("acme.yaml", rules)), rules=["ACME001"])
     assert r.ok, r.describe()
 
 
@@ -229,7 +229,7 @@ def test_only_its_own_rule_runs():
               action b { }   // expect: ACME001
             }
 """) + _rule("", rid="ACME002").split("  rules:\n", 1)[1].rstrip() + " []\n"
-    results = run_examples(_engine(("acme.yaml", two)))
+    results = run_examples(_engine(("acme.yaml", two)), rules=["ACME001", "ACME002"])
     assert [r.rule for r in results] == ["ACME001"]
     assert results[0].ok and {m["code"] for m in results[0].markers} == {"ACME001"}
 
@@ -302,7 +302,9 @@ def test_check_rules_passes_good_examples():
     rc, out, err = _main(["--check-rules"] + [str(p) for p in RULE_FILES])
     assert rc == 0, err
     assert "0 errors" in err
-    n = len(_engine(*[(str(p), p.read_text()) for p in RULE_FILES]).rules())
+    # The built-in rules are not counted: they are not loaded from a file.
+    n = len([r for r in _engine(*[(str(p), p.read_text()) for p in RULE_FILES]).rules()
+             if not r["file"].startswith("pssparser:")])
     assert "%d rules loaded from %d files" % (n, len(RULE_FILES)) in err
 
 

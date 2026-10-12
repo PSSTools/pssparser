@@ -1,0 +1,12 @@
+// expect: none
+// Constraints and initializers are not assignments.
+component pss_top {
+  action Sub { rand int x; }
+  action A {
+    rand int x;
+    constraint x == x + 0;
+    activity {
+      do Sub with { x == this.x; }
+    }
+  }
+}

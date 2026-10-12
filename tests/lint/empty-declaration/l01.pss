@@ -1,0 +1,11 @@
+// expect: LINT405 @ 6:5, LINT405 @ 8:3, LINT405 @ 10:1, LINT405 @ 11:1
+component pss_top {
+  enum e_t { ONE, TWO };
+  action A {
+    rand int x;
+    constraint { }
+  }
+  override { }
+}
+extend action pss_top::A { }
+extend enum pss_top::e_t { }

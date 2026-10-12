@@ -1,0 +1,11 @@
+// expect: LINT603 @ 3:30, LINT603 @ 7:26, LINT603 @ 8:25, LINT603 @ 9:24
+component pss_top {
+  struct p_s : addr_reg_pkg::packed_s<> { rand bit[4] f; }
+  action A {
+    rand bit[4] data[4];
+    rand int n;
+    constraint n == data.size;
+    constraint n < data.sum;
+    dynamic constraint d { n > 2; }
+  }
+}

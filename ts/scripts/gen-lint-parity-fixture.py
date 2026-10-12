@@ -28,7 +28,9 @@ Six kinds of case (lint-core-plan.md C5.5, C7.1, C7.2, C7.3, C7.4):
 * ``finish``: rules, a model with source waivers and a ``.pssparser.toml``,
   run by the CLI (``pssparser --format json``, third-party extensions off);
   ``Parser.lint`` with the same TOML as its selection must report the same
-  diagnostics and waived ones (milestone M4, "editor parity").
+  diagnostics and waived ones (milestone M4, "editor parity"). Every
+  fixture file of a built-in rule (``tests/lint/<name>/``) is one, with
+  only that rule selected (F3.5).
 
 `ts/test/lint-parity.test.ts` runs the same inputs through the WebAssembly
 build and must get the same results. Rule files are named by repository
@@ -37,8 +39,8 @@ Markers are compared in a normal form: the file's name in place of its id,
 sorted by file, line, column, code and message.
 
 Re-run it when a rule file under tests/data/lint-examples/, a built-in rule
-file, or the runner's output changes; the diff is then a record of what
-changed.
+file or its fixtures, or the runner's output changes; the diff is then a
+record of what changed.
 """
 
 import argparse
@@ -491,6 +493,25 @@ def _sorted(diags):
     return sorted(diags, key=lambda m: (m["file"], m["line"], m["col"], m["code"], m["message"]))
 
 
+def fixture_finishes():
+    """Every fixture file of a built-in rule (tests/lint/<name>/), as a
+    finish case selecting that rule alone: the rule definition of done
+    (lint-framework-plan F3.5) has fixtures run natively and in WASM."""
+    from pssparser.core import Factory
+    e = Factory.inst().mkLintEngine()
+    e.load_builtin_rules()
+    names = sorted(r["name"] for r in e.rules() if r["file"].startswith("pssparser:rules/"))
+    out = []
+    for name in names:
+        for f in sorted(glob.glob(os.path.join(ROOT, "tests", "lint", name, "*.pss"))):
+            rel = os.path.relpath(f, ROOT).replace(os.sep, "/")
+            with open(f, encoding="utf-8") as fh:
+                text = fh.read()
+            out.append(("fixture:" + rel, [(os.path.basename(f), text)],
+                        '[lint]\nprofile = "none"\nselect = ["%s"]\n' % name, []))
+    return out
+
+
 def finish_cases():
     import io
     import tempfile
@@ -506,7 +527,7 @@ def finish_cases():
     os.environ.pop("PSSPARSER_NO_LINT", None)
     cwd = os.getcwd()
     try:
-        for cid, sources, toml, flags in FINISHES:
+        for cid, sources, toml, flags in FINISHES + fixture_finishes():
             with tempfile.TemporaryDirectory() as tmp:
                 os.chdir(tmp)
                 for name, text in sources:

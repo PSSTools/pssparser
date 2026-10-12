@@ -1,0 +1,12 @@
+// expect: none
+// The same package in two scopes, and a wildcard beside an explicit import.
+package a_pkg { struct s_t { } }
+package b_pkg {
+  import a_pkg::*;
+  struct t_t { s_t s; }
+}
+component pss_top {
+  import a_pkg::*;
+  import a_pkg::s_t;
+  s_t s;
+}

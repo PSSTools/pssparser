@@ -1,0 +1,14 @@
+// expect: none
+// A random choice stated with select and guards instead.
+component pss_top {
+  action Sub { }
+  action A {
+    rand bit[4] m;
+    activity {
+      select {
+        (m <= 4): do Sub;
+        (m >= 3 && m <= 7): do Sub;
+      }
+    }
+  }
+}

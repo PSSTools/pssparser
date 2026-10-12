@@ -1,0 +1,6 @@
+// expect: none
+// The escape hatch: a waiver on a declaration kept for compatibility.
+component pss_top {
+  @lint_pkg::waive {.id = "shadows-core-library-name", .reason = "legacy API, never imports std_pkg"}
+  function void message(int v) { }
+}

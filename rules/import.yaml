@@ -1,0 +1,141 @@
+# Import rules (lint-framework-plan.md F3.5): LINT4xx, shared with the
+# declaration family. LINT402 is the linker's (python/pssparser/lint/catalog.py).
+pss-rules:
+  version: 1
+
+  defaults:
+    family: import
+    tier: nursery
+    since: "2026.1"
+
+  define:
+    # The package or declaration an import names, and its declaration path.
+    imported(i): resolves_to(i.path)
+    imported_path(i): "imported(i) != null ? decl_path(imported(i)) : ''"
+    inside(p, base): "p == base || p.startsWith(base + '::')"
+    # The imports a scope holds, in order.
+    imports_of(s): children(s).filter(c, type(c) == PackageImportStmt)
+
+  rules:
+    - id: LINT407
+      name: unused-import
+      summary: An import that no name in its scope is found through
+      message: >-
+        nothing in this scope uses the import of '${imported_path(node)}${node.wildcard ? "::*"
+        : has(node.alias) ? "' as '" + node.alias.id : ""}', so it can be removed
+      doc: |
+        An `import` makes a package's names usable without the `p::`
+        qualifier in the scope that holds it -- the package or component
+        body, or the rest of the file (18.1.3). One that no unqualified name
+        in that scope needs only adds a place for a name to be found by
+        accident, and hides which packages the code depends on.
+
+        A name counts as found through the import when it is written
+        without a qualifier, is the first name of its path, and resolves to
+        a declaration in the imported package (or to the declaration an
+        explicit import names, or inside it); for `import a_pkg as a;`,
+        when `a` names the package (`import_uses`). A qualified use
+        (`a_pkg::s_t`) does not need the import.
+
+        A wildcard import of a package that declares an `extend` is not
+        reported: the import also makes the extension's members visible
+        (18.1.3), and those are reached as members, which this rule does
+        not track.
+
+        An annotation on an `import` is not resolved in this release, so
+        waive one with the comment form on its line:
+        `// pssparser waive unused-import: <reason>`.
+      lrm: ["18.1.3"]
+      match: { kind: PackageImportStmt }
+      let:
+        # A package that declares an `extend`: its members are reached as
+        # members, which import_uses does not count.
+        extends: >-
+          node.wildcard && imported(node) != null
+            && children(imported(node)).exists(c, c.isa(ExtendType) || c.isa(ExtendEnum))
+      where: >-
+        is_owned(node) && imported(node) != null && !extends && size(import_uses(node)) == 0
+      examples:
+        - name: an unused wildcard import, an unused explicit import, and a qualified use
+          code: |
+            package a_pkg { struct s_t { } }
+            package b_pkg { struct t_t { } struct u_t { } }
+            package c_pkg { struct w_t { } }
+            component pss_top {
+              import a_pkg::*;
+              import b_pkg::t_t;      // expect: LINT407
+              import c_pkg::*;        // expect: LINT407
+              s_t s;
+              c_pkg::w_t w;
+              b_pkg::u_t u;
+            }
+        - name: names found through imports, and an enum item
+          code: |
+            package a_pkg {
+              enum mode_e { RD, WR };
+              const int K = 3;
+            }
+            package b_pkg { struct t_t { rand bit[4] v; } }
+            component pss_top {
+              import a_pkg::*;
+              import b_pkg::t_t;
+              action A {
+                rand bit[4] n;
+                t_t t;
+                constraint n < K;
+                constraint t.v == 1;
+              }
+            }
+
+    - id: LINT408
+      name: duplicate-import
+      summary: An import that repeats an earlier import in the same scope
+      message: >-
+        '${imported_path(finding)}${cel.bind(f, finding, type(f) == PackageImportStmt && f.wildcard)
+        ? "::*" : ""}' is already imported on line ${string(first_line(finding))}, so this import
+        can be removed
+      doc: |
+        Importing the same package, or the same declaration, twice in one
+        scope changes nothing: the second import adds no name (18.1.3). It
+        is usually left over from merging two edits. Remove it.
+
+        Imports are the same when they name the same declaration and are
+        both wildcard imports or both explicit; `import a_pkg::*;` and
+        `import a_pkg::s_t;` are different imports.
+      lrm: ["18.1.3"]
+      match: { kind: [GlobalScope, PackageScope, Component] }
+      define:
+        # What makes two imports the same: the alias, the form and what
+        # they name.
+        key(i): >-
+          type(i) == PackageImportStmt
+            ? (has(i.alias) ? "as " + i.alias.id + " " : "") + (i.wildcard ? "*" : "=")
+              + imported_path(i)
+            : ""
+        first_line(f): >-
+          cel.bind(e, imports_of(node).filter(s, key(s) == key(f))[0],
+            type(e) == PackageImportStmt ? e.location.lineno : 0)
+      let:
+        imps: imports_of(node)
+      where: size(imps) > 1
+      report: "cel.bind(keys, imps.map(i, key(i)), dups(keys).map(k, imps[k]))"
+      examples:
+        - code: |
+            package a_pkg { struct s_t { } }
+            component pss_top {
+              import a_pkg::*;
+              import a_pkg::s_t;
+              import a_pkg::*;        // expect: LINT408
+              s_t s;
+            }
+        - name: the same package in two scopes
+          code: |
+            package a_pkg { struct s_t { } }
+            package b_pkg {
+              import a_pkg::*;
+              struct t_t { s_t s; }
+            }
+            component pss_top {
+              import a_pkg::*;
+              s_t s;
+            }

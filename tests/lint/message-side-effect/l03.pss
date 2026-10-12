@@ -1,0 +1,17 @@
+// In a function, and in an exec an extension adds.
+// expect: LINT304 @ 7:28, LINT304 @ 14:32
+import std_pkg::*;
+component pss_top {
+  function int alloc_id() { return 1; }
+  function void dump() {
+    message(FULL, "dump ", alloc_id());
+  }
+  action A { }
+}
+extend component pss_top {
+  extend action A {
+    exec body {
+      message(LOW, "id ", comp.alloc_id());
+    }
+  }
+}

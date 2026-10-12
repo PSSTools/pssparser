@@ -1,0 +1,12 @@
+// In an extension and a derived action.
+// expect: LINT603 @ 9:24, LINT603 @ 11:17
+component pss_top {
+  action A { rand bit[4] data[4]; rand int n; }
+  action B : A { }
+}
+extend component pss_top {
+  extend action B {
+    dynamic constraint big { n > 10; }
+  }
+  addr_reg_pkg::sizeof_s<int> sz;
+}

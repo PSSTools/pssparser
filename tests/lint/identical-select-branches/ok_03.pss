@@ -1,0 +1,13 @@
+// expect: none
+// The escape hatch: weight a branch with a weight instead of repeating it.
+component pss_top {
+  action Sub { rand bit[4] x; }
+  action A {
+    activity {
+      select {
+        [2]: do Sub with { x < 5; }
+        do Sub with { x > 9; }
+      }
+    }
+  }
+}

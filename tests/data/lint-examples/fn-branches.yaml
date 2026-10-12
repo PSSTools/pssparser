@@ -47,7 +47,7 @@ pss-rules:
             }
 
     - id: TEST-BR002
-      name: unreachable-select-branch
+      name: never-selected-branch
       summary: A select branch that can never be chosen.
       message: "this branch is never selected"
       match: { kind: ActivitySelect }

@@ -1,0 +1,16 @@
+// expect: none
+// Counts and conditions that are not constant, and real choices.
+component pss_top {
+  action Sub { }
+  action A {
+    rand bit[4] n;
+    activity {
+      repeat (n) { do Sub; }
+      repeat { do Sub; } while (n > 2);
+      repeat (2) { do Sub; }
+      select { do Sub; do Sub; }
+      parallel { do Sub; do Sub; }
+      schedule { do Sub; do Sub; }
+    }
+  }
+}

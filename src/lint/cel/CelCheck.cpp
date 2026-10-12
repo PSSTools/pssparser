@@ -1193,6 +1193,8 @@ private:
         }
         if (o.resultIsClass) {
             t = Type::node(cls);
+        } else if (o.resultIsClassList) {
+            t = Type::list(Type::node(cls));
         }
     }
 

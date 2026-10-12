@@ -1,0 +1,10 @@
+// expect: none
+// Extensions and overrides with something in them.
+component pss_top {
+  enum e_t { ONE };
+  action A { rand int x; }
+  action A2 : A { }
+  override { type A with A2; }
+}
+extend action pss_top::A { constraint x < 10; }
+extend enum pss_top::e_t { TWO };

@@ -1,0 +1,97 @@
+# Constraint rules (lint-framework-plan.md F3.5): LINT1xx. LINT101 is the
+# linker's (python/pssparser/lint/catalog.py).
+pss-rules:
+  version: 1
+
+  defaults:
+    family: constraint
+    tier: nursery
+    since: "2026.1"
+
+  rules:
+    - id: LINT102
+      name: self-comparison
+      summary: A comparison whose two sides are the same expression
+      message: >-
+        ${captured
+          ? "both sides of '" + op + "' name the traversed action's '" + nm + "', so it is always "
+            + always + "; write 'this." + nm + "' for this action's"
+          : "both sides of '" + op + "' are the same expression, so it is always " + always}
+      doc: |
+        `x == x`, `x <= x` and `x >= x` are always true; `x != x`, `x < x`
+        and `x > x` always false. As a constraint, the first kind constrains
+        nothing and the second makes the model unsolvable; in an `if` or a
+        guard, one branch is dead.
+
+        The common way to write one by accident is in a traversal's inline
+        constraint. Inside `with { ... }`, a name means the traversed
+        action's field first, and the enclosing action's only when the
+        traversed action has none (13.1.4). So in
+
+            action test {
+              rand bit[32] size;
+              activity { do write_a with { size == size; } }
+            }
+
+        both `size`s are `write_a`'s, and the constraint is a tautology.
+        The intent was `size == this.size`: `this` is the enclosing action.
+
+        Sides are compared as code (`same_tree`): `a.b[i] == a.b[i]` is
+        reported, `x == this.x` is not, and nor is a comparison of calls to
+        a function that is not `pure`, which may return a different value
+        each time.
+      lrm: ["13.1.4"]
+      match: { kind: ExprBin }
+      define:
+        impure_call(e): >-
+          descendants(e, ExprMemberPathElem).exists(d, has(d.params) && !is_pure(d))
+        # The identifiers of a simple reference, `size` or `a.b`.
+        ids(e): descendants(e, ExprId)
+      let:
+        ops: >-
+          {ExprBinOp.BinOp_Eq: ["==", "true"], ExprBinOp.BinOp_Le: ["<=", "true"],
+           ExprBinOp.BinOp_Ge: [">=", "true"], ExprBinOp.BinOp_Ne: ["!=", "false"],
+           ExprBinOp.BinOp_Lt: ["<", "false"], ExprBinOp.BinOp_Gt: [">", "false"]}
+        op: "node.op in ops ? ops[node.op][0] : ''"
+        always: "node.op in ops ? ops[node.op][1] : ''"
+        nm: "size(ids(node.lhs)) == 1 ? ids(node.lhs)[0].id : ''"
+        with_scope: >-
+          ancestors(node).exists(a, type(a) == ConstraintScope
+            && (parent(a).isa(ActivityActionTypeTraversal) || parent(a).isa(ActivityActionHandleTraversal)))
+        here: enclosing(node, Action)
+        captured: >-
+          with_scope && nm != '' && here != null
+            && children(here).exists(c, type(c) == Field && c.name.id == nm)
+      where: >-
+        node.op in ops && same_tree(node.lhs, node.rhs) && !impure_call(node.lhs)
+      examples:
+        - name: inline-constraint capture, and a plain self-comparison
+          code: |
+            component pss_top {
+              action write_a { rand bit[32] size; }
+              action test {
+                rand bit[32] size;
+                rand bit[8] arr[4];
+                rand bit[2] i;
+                constraint arr[i] != arr[i];          // expect: LINT102
+                activity {
+                  do write_a with { size == size; }   // expect: LINT102
+                }
+              }
+            }
+        - name: the intended comparison, and calls that need not repeat
+          code: |
+            component pss_top {
+              function bit[8] next_id();
+              action write_a { rand bit[32] size; }
+              action test {
+                rand bit[32] size;
+                rand bit[8] id;
+                activity {
+                  do write_a with { size == this.size; }
+                }
+                exec post_solve {
+                  if (next_id() == next_id()) { id = 1; }
+                }
+              }
+            }

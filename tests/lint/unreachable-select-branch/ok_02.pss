@@ -1,0 +1,14 @@
+// expect: none
+// A select inside a match is not affected by the match's choices.
+component pss_top {
+  action Sub { }
+  action A {
+    rand bit[4] m;
+    activity {
+      match (m) {
+        [0]: select { [1]: do Sub; [2]: do Sub; }
+        default: do Sub;
+      }
+    }
+  }
+}

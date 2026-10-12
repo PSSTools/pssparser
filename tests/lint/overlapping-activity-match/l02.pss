@@ -1,0 +1,32 @@
+// Nested in a select and in another match's choice; enum items overlap
+// by value, and a package constant folds.
+// expect: LINT203 @ 18:16, LINT203 @ 24:18
+package cfg_pkg {
+  const int LO = 2;
+}
+component pss_top {
+  import cfg_pkg::*;
+  enum mode_e { IDLE, RUN, DONE };
+  action Sub { }
+  action A {
+    rand bit[4] m;
+    rand mode_e md;
+    activity {
+      select {
+        match (m) {
+          [LO..5]: do Sub;
+          [5]: do Sub;
+          default: do Sub;
+        }
+        match (md) {
+          [IDLE]: match (m) {
+            [0..3]: do Sub;
+            [1]: do Sub;
+            default: do Sub;
+          }
+          default: do Sub;
+        }
+      }
+    }
+  }
+}

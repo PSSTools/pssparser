@@ -139,8 +139,8 @@
     null
    ],
    "file": "ast/activity.yaml",
-   "sha256": "45dcd8f7e224e3d6e1749781cf7ab7d6a74213c7a747c192df31b5d7b5df5c4d",
-   "len": 70196
+   "sha256": "6d600bbc71d88944f8686ef6dfb5b88ca69aebe449b78f2cacae0fcdb7b20542",
+   "len": 70371
   },
   {
    "id": "yaml-map:ast/activity.yaml",
@@ -150,8 +150,8 @@
     null
    ],
    "file": "ast/activity.yaml",
-   "sha256": "17f8ffed658006d52c7433f9219bb8ae022814729c01c1740bbd692219474c83",
-   "len": 232390
+   "sha256": "718dc204e7a4820cf42a31908189f60eb17aa9e176e5b905b11b7b543db15ee4",
+   "len": 233603
   },
   {
    "id": "yaml-file:ast/annotation.yaml",
@@ -271,8 +271,8 @@
     null
    ],
    "file": "ast/exec.yaml",
-   "sha256": "ae1d4f294122bab7dbf63c42263b4a2c841bd3478512f8a9dc77ec171b4ad164",
-   "len": 63777
+   "sha256": "a871813716f69719b3f2223bfc9bd148bebb4a0ff56f2bd7e72b9995cd06ce87",
+   "len": 64612
   },
   {
    "id": "yaml-map:ast/exec.yaml",
@@ -282,8 +282,8 @@
     null
    ],
    "file": "ast/exec.yaml",
-   "sha256": "60e7bf89bfda14a074fc26f76307acc0a1709de55e829cc50cbddfa8d863bca8",
-   "len": 203463
+   "sha256": "221519ca649365b7f50a8375b7c992062e9a15deb4d1c1dfe272abf446f3d7b7",
+   "len": 204537
   },
   {
    "id": "yaml-file:ast/expr.yaml",
@@ -1262,7 +1262,7 @@
     "",
     0
    ],
-   "out": "{\"ok\":true,\"result\":{\"type\":\"list\",\"value\":[{\"type\":\"int\",\"value\":2},{\"type\":\"int\",\"value\":4}]},\"steps\":25,\"budget_exceeded\":false,\"calls\":[\"multiply_int64\",\"add_list\",\"multiply_int64\",\"add_list\"]}"
+   "out": "{\"ok\":true,\"result\":{\"type\":\"list\",\"value\":[{\"type\":\"int\",\"value\":2},{\"type\":\"int\",\"value\":4}]},\"steps\":24,\"budget_exceeded\":false,\"calls\":[\"multiply_int64\",\"multiply_int64\"]}"
   },
   {
    "id": "cel-eval:7",
@@ -1282,7 +1282,7 @@
     "",
     0
    ],
-   "out": "{\"ok\":true,\"result\":{\"type\":\"int\",\"value\":2},\"steps\":38,\"budget_exceeded\":false,\"calls\":[\"greater_int64\",\"greater_int64\",\"add_list\",\"greater_int64\",\"add_list\",\"list_size\"]}"
+   "out": "{\"ok\":true,\"result\":{\"type\":\"int\",\"value\":2},\"steps\":37,\"budget_exceeded\":false,\"calls\":[\"greater_int64\",\"greater_int64\",\"greater_int64\",\"list_size\"]}"
   },
   {
    "id": "cel-eval:9",
@@ -1758,15 +1758,15 @@
    "id": "reflect-schema",
    "fn": "ReflectSchema",
    "args": [],
-   "sha256": "454976531623ed0611f357ea98c0eca04ea5aacc81162a23f54053d1abafdd6d",
-   "len": 42022
+   "sha256": "b1a6e2f76369756bf795d1c4d62b45fee67ca82697db995608cfb1f0ac2c0387",
+   "len": 42082
   },
   {
    "id": "cel-functions",
    "fn": "CelFunctions",
    "args": [],
-   "sha256": "3cafdc59199108966f3589a1c082f125e7a288dd4c08e89e3d2cee8f2fb1cee4",
-   "len": 57086
+   "sha256": "39ac5abe236e02459dcae5c639d36ed5ced6b766200e8b3d2afb19dcc233aace",
+   "len": 60483
   },
   {
    "id": "cel-check:ok.yaml",
@@ -1775,7 +1775,7 @@
     "ok.yaml",
     "expr: \"[1, 2].map(x, x * 2)\"\n"
    ],
-   "out": "{\"ok\":true,\"errors\":[],\"types\":{\"expr\":\"list(int)\"},\"overloads\":{\"expr\":[\"multiply_int64\",\"add_list\"]},\"values\":{\"expr\":{\"type\":\"list\",\"value\":[{\"type\":\"int\",\"value\":2},{\"type\":\"int\",\"value\":4}]}},\"calls\":{\"expr\":[\"multiply_int64\",\"add_list\",\"multiply_int64\",\"add_list\"]},\"steps\":{\"expr\":25}}"
+   "out": "{\"ok\":true,\"errors\":[],\"types\":{\"expr\":\"list(int)\"},\"overloads\":{\"expr\":[\"multiply_int64\",\"add_list\"]},\"values\":{\"expr\":{\"type\":\"list\",\"value\":[{\"type\":\"int\",\"value\":2},{\"type\":\"int\",\"value\":4}]}},\"calls\":{\"expr\":[\"multiply_int64\",\"multiply_int64\"]},\"steps\":{\"expr\":24}}"
   },
   {
    "id": "cel-check:types.json",
@@ -3135,14 +3135,14 @@
     "",
     0
    ],
-   "sha256": "17e404ebca40d10582824761fc258da9e6cd0ebddff66a056125de569908c5e3",
+   "sha256": "d84cde164e9b3fd0ed1792858dc1a8cfb0f53e368c8bd84a20cf3322bbecbe85",
    "inputsOf": "generated-parse"
   },
   {
    "id": "generated-check",
    "fn": "CelCheck",
    "extra": [],
-   "sha256": "a6318ba8d73f2d551dccc970bd5ea5c6df582a523963b8bed545b3e3d412073e",
+   "sha256": "11374e60711d6ed06b0527687a589eb7edb3167d596d922bc394ca75787d29f0",
    "lead": [
     "check.json"
    ],
@@ -3362,14 +3362,14 @@
     "",
     0
    ],
-   "sha256": "4cc280530c3ca5173a7ead6047c79c326648dbf8fb8552b33bf5f015216d2bdc",
+   "sha256": "33729ffc175172893b539cfc27dc2322f0b5a757251fccd58c291d799fd9165f",
    "source": "tests/data/cel-conformance/macros.json"
   },
   {
    "id": "conformance-check:macros",
    "fn": "CelCheck",
    "extra": [],
-   "sha256": "05e191c33b53fc8ea7594ce416cd134abdaf837fa99f467b8c9af8bfbcd80f0e",
+   "sha256": "ac62d8a280c706a7c4a845c3b838fb95e49d59dea27a4c56a48003151f5d361a",
    "lead": [
     "check.json"
    ],

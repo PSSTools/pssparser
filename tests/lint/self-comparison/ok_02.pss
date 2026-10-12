@@ -1,0 +1,18 @@
+// expect: none
+// Calls to a function that is not pure may return different values;
+// different operators and operands.
+component pss_top {
+  function bit[8] next_id();
+  pure function bit[8] width_of(bit[8] v) { return v; }
+  action test {
+    rand bit[8] a;
+    rand bit[8] b;
+    int r;
+    constraint a + b == b + a;
+    constraint a == b;
+    exec post_solve {
+      if (next_id() == next_id()) { r = 1; }
+      r = a - a;
+    }
+  }
+}

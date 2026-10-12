@@ -164,7 +164,9 @@ def test_budget_trips_in_a_let(hooks, units):
         "let:",
         "  n: node.name.id + node.name.id + node.name.id",
         "where: n.size() > 0"])
-    r = _run(hooks, [units[1]], rule, max_steps=2)
+    # Lets are evaluated when first read: where: spends 3 steps reaching n,
+    # and the let runs out of the rest.
+    r = _run(hooks, [units[1]], rule, max_steps=5)
     assert r["findings"] == []
     (f,) = r["failures"]
     assert (f["id"], f["in"], f["line"]) == ("PSSP221", "let", 2)

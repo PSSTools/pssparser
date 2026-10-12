@@ -92,7 +92,9 @@ describe('Parser.runLint (C5.4)', () => {
       ['ACME001', 'm.pss', 3, 10, 'warning', "action 'b' should start with A"],
       ['ACME002', 'm.pss', 3, 18, 'hint', 'field pss_top::b::x'],
     ]);
-    expect(r.stats.map((s) => [s.id, s.matches, s.findings, s.errors])).toEqual([
+    // The built-in rules are loaded too; these are the file's.
+    const acme = r.stats.filter((s) => s.id.startsWith('ACME'));
+    expect(acme.map((s) => [s.id, s.matches, s.findings, s.errors])).toEqual([
       ['ACME001', 2, 1, 0],
       ['ACME002', 1, 1, 0],
     ]);

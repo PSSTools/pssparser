@@ -1,0 +1,131 @@
+# Declaration rules (lint-framework-plan.md F3.5): LINT4xx. LINT401-404 are
+# the linker's (python/pssparser/lint/catalog.py).
+pss-rules:
+  version: 1
+
+  defaults:
+    family: decl
+    tier: nursery
+    since: "2026.1"
+
+  rules:
+    - id: LINT405
+      name: empty-declaration
+      summary: An extension, constraint block or override block with nothing in it
+      message: >-
+        ${node.isa(ExtendEnum) ? "this 'extend enum' adds no items, so it can be removed"
+          : node.isa(ExtendType) ? "this 'extend' is empty, so it can be removed"
+          : node.isa(OverrideDecl) ? "this 'override' block is empty, so it can be removed"
+          : "this constraint block is empty, so it can be removed"}
+      doc: |
+        A declaration with an empty body does nothing:
+
+        - `extend action A { }` and `extend enum e_t { }` add nothing to
+          their type;
+        - `constraint { }`, an unnamed constraint block, constrains
+          nothing;
+        - `override { }` replaces nothing.
+
+        They are usually left behind when the contents were moved or
+        deleted. Remove them.
+
+        A **named** empty constraint block, `constraint c { }`, is not
+        reported: a base type may declare one so that a derived type can
+        override it by name (13.1.3), and an extension may do the same.
+      lrm: ["13.1.1", "13.1.3", "17.2", "17.5"]
+      match: { kind: [ExtendType, ExtendEnum, ConstraintBlock, OverrideDecl] }
+      where: >-
+        node.isa(ExtendType) ? size(node.children) == 0 && size(node.compile_conds) == 0
+        : node.isa(ExtendEnum) ? size(node.items) == 0
+        : node.isa(OverrideDecl) ? size(node.children) == 0 && size(node.compile_conds) == 0
+        : node.isa(ConstraintBlock) ? !has(node.name) && size(node.constraints) == 0
+        : false
+      examples:
+        - name: empty bodies
+          code: |
+            component pss_top {
+              enum e_t { ONE, TWO };
+              action A {
+                rand int x;
+                constraint { }            // expect: LINT405
+              }
+              override { }                // expect: LINT405
+            }
+            extend action pss_top::A { }  // expect: LINT405
+            extend enum pss_top::e_t { }  // expect: LINT405
+        - name: a named constraint block kept as an override hook
+          code: |
+            component pss_top {
+              action A {
+                rand int x;
+                constraint c { }
+              }
+              action B : A {
+                constraint c { x > 0; }
+              }
+            }
+            extend action pss_top::A { constraint x < 10; }
+
+    - id: LINT406
+      name: shadows-core-library-name
+      summary: A declaration that reuses the name of a core library declaration
+      message: >-
+        this '${nm}' hides ${core_library_name(nm).value()} wherever that package is imported
+      doc: |
+        A local declaration takes precedence over a name a wildcard import
+        brings in (18.1.3). So in a scope that imports `std_pkg::*`, a
+        type or function the model declares with a core library name --
+        `message`, `packed_s`, `urandom`, `addr_handle_t` -- silently
+        replaces the library's, and code written against the LRM's
+        definition finds the model's instead. Even where the package is not
+        imported, the repeated name misleads a reader.
+
+        Rename the declaration. The core library is the packages of
+        Annex C: `std_pkg`, `addr_reg_pkg`, `executor_pkg` and `sync_pkg`
+        (`core_library_name`). Types, enums, typedefs and functions
+        declared in a package, a component (or an extension of one) or at
+        file scope are checked; fields and enum items are not. An executor
+        (a component deriving from `executor_base_c`) that declares
+        `read8`, `write32`, ... overrides the core library's access
+        functions (21.13.9.5), and is not reported.
+      lrm: ["18.1.3", "21.13.9.5"]
+      match: { kind: [TypeScope, EnumDecl, TypedefDeclaration, FunctionPrototype] }
+      let:
+        nm: >-
+          node.isa(TypeScope) ? node.name.id
+          : node.isa(EnumDecl) ? node.name.id
+          : node.isa(TypedefDeclaration) ? node.name.id
+          : node.isa(FunctionPrototype) ? node.name.id : ""
+        # Where the declaration lives: a function's prototype is inside its
+        # definition.
+        holder: >-
+          parent(node) != null && parent(node).isa(FunctionDefinition)
+            ? parent(parent(node)) : parent(node)
+        # The component a function is declared in, through an extension.
+        comp: >-
+          holder == null ? null
+          : holder.isa(ExtendType) ? type_decl(holder.target).orValue(null)
+          : holder
+        # An executor overrides the primitive access functions (21.13.9.5).
+        overrides: >-
+          node.isa(FunctionPrototype) && comp != null
+            && derives_from(comp, "executor_pkg::executor_base_c")
+      where: >-
+        is_owned(node) && nm != "" && holder != null
+          && (holder.isa(PackageScope) || holder.isa(GlobalScope) || holder.isa(Component)
+              || holder.isa(ExtendType))
+          && !overrides && core_library_name(nm).hasValue()
+      examples:
+        - code: |
+            component pss_top {
+              function void message(int v) { }     // expect: LINT406
+              struct packed_s { }                  // expect: LINT406
+              typedef int addr_handle_t;           // expect: LINT406
+            }
+        - name: other names, a field and an enum item
+          code: |
+            component pss_top {
+              enum level_e { LOW, HIGH };
+              struct msg_s { int message; }
+              function void log_message(int v) { }
+            }

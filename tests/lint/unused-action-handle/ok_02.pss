@@ -1,0 +1,15 @@
+// expect: none
+// Handle arrays traversed by element, by foreach and by select.
+component pss_top {
+  action Sub { }
+  action A {
+    Sub arr[2];
+    Sub many[4];
+    Sub some[2];
+    activity {
+      arr[0];
+      foreach (many[i]) { many[i]; }
+      select { some[0]; some[1]; }
+    }
+  }
+}

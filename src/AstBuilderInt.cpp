@@ -2009,6 +2009,7 @@ antlrcpp::Any AstBuilderInt::visitProcedural_void_function_call_stmt(PSSParser::
             m_factory->mkExprRefPathStaticRooted(
                 prefix,
                 hid));
+        stmt->setVoid_cast(ctx->TOK_VOID() != 0);
         m_exec_stmt = stmt;
         m_exec_stmt_cnt++;
     } else {
@@ -2024,6 +2025,7 @@ antlrcpp::Any AstBuilderInt::visitProcedural_void_function_call_stmt(PSSParser::
             ref = m_factory->mkExprRefPathContext(hid);
         }
         ast::IProceduralStmtExpr *stmt = m_factory->mkProceduralStmtExpr(ref);
+        stmt->setVoid_cast(ctx->TOK_VOID() != 0);
         m_exec_stmt = stmt;
         m_exec_stmt_cnt++;
     }
@@ -3083,6 +3085,16 @@ antlrcpp::Any AstBuilderInt::visitActivity_select_stmt(PSSParser::Activity_selec
 		// comments are looked up from the branch's start (AC3).
 		ast::IScopeChild *body = mkActivityStmt(b->activity_stmt_ann(), b->start);
 		if (!body) {
+			// `do A with { ... };` ends with a `;` the grammar reads as a
+			// statement of its own (stmt_terminator, Syntax 39), and so as a
+			// select branch that does nothing. Writing the `;` is common
+			// practice, so a bare one is a terminator, not a branch; an
+			// empty branch is written `{ }`. One with a guard or a weight
+			// was written as a branch, and stays one.
+			PSSParser::Activity_stmtContext *as = b->activity_stmt_ann()->activity_stmt();
+			if (!guard && !weight && as && as->TOK_SEMICOLON()) {
+				continue;
+			}
 			body = m_factory->mkActivitySequence("");
 		}
 		ast::IActivitySelectBranch *branch = m_factory->mkActivitySelectBranch(guard, weight, body);

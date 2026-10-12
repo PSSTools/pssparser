@@ -1,0 +1,12 @@
+// expect: LINT407 @ 7:3, LINT407 @ 8:3
+package a_pkg { struct s_t { } }
+package b_pkg { struct t_t { } struct u_t { } }
+package c_pkg { struct w_t { } }
+component pss_top {
+  import a_pkg::*;
+  import b_pkg::t_t;
+  import c_pkg::*;
+  s_t s;
+  c_pkg::w_t w;
+  b_pkg::u_t u;
+}

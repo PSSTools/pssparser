@@ -1,0 +1,19 @@
+// In an activity contributed by an extension and in a derived action.
+// expect: LINT201 @ 9:7, LINT201 @ 16:7
+component pss_top {
+  action Sub { }
+  action Base { }
+  action A : Base { }
+  extend action A {
+    activity {
+      schedule { do Sub; }
+    }
+  }
+}
+extend component pss_top {
+  action B : Base {
+    activity {
+      repeat (0) { do Sub; }
+    }
+  }
+}

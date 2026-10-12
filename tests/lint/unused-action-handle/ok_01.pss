@@ -1,0 +1,29 @@
+// expect: none
+// Uses in a constraint, a derived action, an extension and a bind.
+component pss_top {
+  buffer data_b { }
+  action Sub { rand bit[4] x; }
+  action Prod { output data_b out; }
+  action Cons { input data_b inp; }
+  action Base {
+    Sub a;
+    Sub b;
+    Sub c;
+    constraint a.x < 4;
+  }
+  action Derived : Base {
+    activity { a; b; }
+  }
+  extend action Base {
+    activity { c; }
+  }
+  action Flow {
+    Prod p;
+    Cons q;
+    activity {
+      p;
+      q;
+      bind p.out q.inp;
+    }
+  }
+}

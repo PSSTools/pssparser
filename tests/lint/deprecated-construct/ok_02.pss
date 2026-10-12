@@ -1,0 +1,11 @@
+// expect: none
+// Fields named size and sum, and addr_reg_pkg's own declarations.
+component pss_top {
+  struct s_s { rand int size; rand int sum; }
+  addr_reg_pkg::addr_handle_t h;
+  action A {
+    rand s_s s;
+    rand int n;
+    constraint n > s.size + s.sum;
+  }
+}

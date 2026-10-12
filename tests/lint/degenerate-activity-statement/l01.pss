@@ -1,0 +1,15 @@
+// expect: LINT201 @ 7:7, LINT201 @ 8:7, LINT201 @ 9:7, LINT201 @ 10:7, LINT201 @ 11:7, LINT201 @ 12:7
+component pss_top {
+  static const int N = 0;
+  action Sub { }
+  action A {
+    activity {
+      repeat (N) { do Sub; }
+      repeat { do Sub; } while (false);
+      repeat { do Sub; } while (true);
+      select { do Sub; }
+      parallel { do Sub; }
+      schedule { }
+    }
+  }
+}

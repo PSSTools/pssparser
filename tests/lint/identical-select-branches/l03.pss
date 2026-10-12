@@ -1,0 +1,25 @@
+// In an extension's activity, with handle traversals; and in a derived
+// action, with guards.
+// expect: LINT204 @ 11:9, LINT204 @ 21:18
+component pss_top {
+  action Sub { rand bit[4] x; }
+  action A { Sub s1; Sub s2; }
+  extend action A {
+    activity {
+      select {
+        s1;
+        s1;
+        s2;
+      }
+    }
+  }
+  action B : A {
+    rand bit[4] m;
+    activity {
+      select {
+        (m > 1): do Sub;
+        (m > 1): do Sub;
+      }
+    }
+  }
+}

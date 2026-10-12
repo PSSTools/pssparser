@@ -1,0 +1,7 @@
+// In an extension of a component, and an annotation declaration.
+// expect: LINT406 @ 5:16, LINT406 @ 7:12
+component pss_top { }
+extend component pss_top {
+  function int urandom_range(int lo, int hi) { return lo; }
+}
+annotation doc { }

@@ -1,0 +1,10 @@
+// expect: none
+// Different packages, and two declarations of one package.
+package a_pkg { struct s_t { } }
+package c_pkg { struct w_t { } }
+component pss_top {
+  import a_pkg::*;
+  import c_pkg::*;
+  s_t s;
+  w_t w;
+}

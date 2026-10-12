@@ -1,0 +1,16 @@
+// In a function body, and in an exec an extension adds.
+// expect: LINT303 @ 6:5, LINT303 @ 13:7
+component pss_top {
+  function int alloc(int n) { return n; }
+  function void reset() {
+    alloc(0);
+  }
+  action A { }
+}
+extend component pss_top {
+  extend action A {
+    exec pre_solve {
+      comp.alloc(1);
+    }
+  }
+}

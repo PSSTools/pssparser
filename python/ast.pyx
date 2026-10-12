@@ -6448,6 +6448,8 @@ cdef class ProceduralStmtExpr(ExecStmt):
             of = ObjFactory()
             self.asProceduralStmtExpr().getExpr().accept(of._hndl)
             return <Expr>(of._obj)
+    cpdef bool getVoid_cast(self):
+        return dynamic_cast[ast_decl.IProceduralStmtExprP](self._hndl).getVoid_cast()
 
 cdef class ProceduralStmtIfElse(ExecStmt):
     

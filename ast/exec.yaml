@@ -329,7 +329,7 @@ classes:
           A function called for its effect, with any return value discarded.
           This is the only expression statement procedural code has: `x++;`
           and other bare expressions are not statements in PSS. The optional
-          `(void)` cast is not recorded.
+          `(void)` cast is recorded in `void_cast`.
 
           PSS Example::
 
@@ -350,11 +350,17 @@ classes:
                   `a.b.f(...)`, an ExprRefPathStaticRooted for a
                   type-qualified call such as `pkg::f(...)` or `::f(...)`,
                   or an ExprRefPathSuper for `super.f(...)`. Always set.
+              void_cast: True when the call is written with the `(void)`
+                  cast that discards a return value explicitly (20.7.4)
 
           See Also:
               ProceduralStmtAssignment, ExprRefPathContext, ExprRefPathStaticRooted
       data:
       - expr: UP<Expr>
+      - void_cast:
+          type: bool
+          is_ctor: false
+          init: false
   - ProceduralStmtReturn:
       super: ExecStmt
       doc: |

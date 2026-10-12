@@ -1,0 +1,6 @@
+// expect: LINT406 @ 3:17, LINT406 @ 4:10, LINT406 @ 5:15
+component pss_top {
+  function void message(int v) { }
+  struct packed_s { }
+  typedef int addr_handle_t;
+}

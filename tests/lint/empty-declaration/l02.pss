@@ -1,0 +1,13 @@
+// Nested: an empty extension inside a package and a component, an empty
+// constraint block in a struct, and an extension of a struct.
+// expect: LINT405 @ 6:5, LINT405 @ 9:3, LINT405 @ 12:5
+package cfg_pkg {
+  struct cfg_s { rand bit[4] w;
+    constraint { }
+  }
+  enum mode_e { RD, WR };
+  extend enum mode_e { }
+}
+component pss_top {
+    extend struct cfg_pkg::cfg_s { }
+}

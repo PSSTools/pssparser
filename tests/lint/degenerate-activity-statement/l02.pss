@@ -1,0 +1,24 @@
+// Nested in other statements and in a labeled block; the count folds
+// through a package constant.
+// expect: LINT201 @ 15:11, LINT201 @ 17:13, LINT201 @ 21:7
+package cfg_pkg {
+  const int LOOPS = 2 - 2;
+}
+component pss_top {
+  import cfg_pkg::*;
+  action Sub { }
+  action A {
+    rand bit[4] n;
+    activity {
+      blk: sequence {
+        repeat (n) {
+          select { do Sub; }
+          if (n > 3) {
+            repeat (LOOPS) { do Sub; }
+          }
+        }
+      }
+      parallel { do Sub; }
+    }
+  }
+}

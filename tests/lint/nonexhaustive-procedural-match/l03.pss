@@ -1,0 +1,25 @@
+// An item an extension adds, and a match in an exec an extension adds.
+// expect: LINT302 @ 9:7, LINT302 @ 20:7
+component pss_top {
+  enum st_e { IDLE, RUN };
+  action A {
+    rand st_e st;
+    int r;
+    exec post_solve {
+      match (st) {
+        [IDLE]: r = 1;
+        [RUN]: r = 2;
+      }
+    }
+  }
+}
+extend enum pss_top::st_e { HALT };
+extend component pss_top {
+  extend action A {
+    exec pre_solve {
+      match (st) {
+        [IDLE, RUN]: r = 0;
+      }
+    }
+  }
+}

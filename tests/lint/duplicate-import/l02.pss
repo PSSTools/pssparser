@@ -1,0 +1,12 @@
+// In a package, an explicit import repeated, and at file scope.
+// expect: LINT408 @ 7:3, LINT408 @ 12:1
+package a_pkg { struct s_t { } struct u_t { } }
+package b_pkg {
+  import a_pkg::s_t;
+  import a_pkg::u_t;
+  import a_pkg::s_t;
+  struct t_t { s_t s; u_t u; }
+}
+import b_pkg::*;
+component pss_top { t_t t; }
+import b_pkg::*;

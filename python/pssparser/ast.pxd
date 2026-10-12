@@ -2130,6 +2130,7 @@ cdef class ProceduralStmtExpr(ExecStmt):
     @staticmethod
     cdef ProceduralStmtExpr mk(ast_decl.IProceduralStmtExpr *hndl, bool owned)
     cpdef Expr getExpr(self)
+    cpdef bool getVoid_cast(self)
 
 cdef class ProceduralStmtIfElse(ExecStmt):
     

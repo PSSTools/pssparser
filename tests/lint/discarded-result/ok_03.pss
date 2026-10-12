@@ -1,0 +1,11 @@
+// expect: none
+// The escape hatch: a waiver on the statement.
+component pss_top {
+  function int alloc(int n) { return n; }
+  action A {
+    exec post_solve {
+      @lint_pkg::waive {.id = "discarded-result", .reason = "ported from C, kept as written"}
+      alloc(1);
+    }
+  }
+}

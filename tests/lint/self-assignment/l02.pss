@@ -1,0 +1,18 @@
+// A parameter that shadows a field, a struct member path, nested blocks.
+// expect: LINT305 @ 8:5, LINT305 @ 14:11
+component pss_top {
+  struct cfg_s { int width; }
+  cfg_s cfg;
+  int size;
+  function void set_size(int size) {
+    size = size;
+  }
+  exec init_down {
+    int i;
+    repeat (2) {
+      if (i == 0) {
+          cfg.width = cfg.width;
+      }
+    }
+  }
+}

@@ -1,0 +1,23 @@
+// In an activity an extension adds, and in a derived action.
+// expect: LINT202 @ 9:14, LINT202 @ 18:18
+component pss_top {
+  action Sub { }
+  action A { }
+  extend action A {
+    activity {
+      select {
+        [0]: do Sub;
+        do Sub;
+      }
+    }
+  }
+  action B : A {
+    rand bit[4] m;
+    activity {
+      select {
+        (false): do Sub;
+        (m == 1): do Sub;
+      }
+    }
+  }
+}

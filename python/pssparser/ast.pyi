@@ -6110,7 +6110,7 @@ class ProceduralStmtExpr(ExecStmt):
     A function called for its effect, with any return value discarded.
     This is the only expression statement procedural code has: `x++;`
     and other bare expressions are not statements in PSS. The optional
-    `(void)` cast is not recorded.
+    `(void)` cast is recorded in `void_cast`.
     
     PSS Example::
     
@@ -6131,6 +6131,8 @@ class ProceduralStmtExpr(ExecStmt):
             `a.b.f(...)`, an ExprRefPathStaticRooted for a
             type-qualified call such as `pkg::f(...)` or `::f(...)`,
             or an ExprRefPathSuper for `super.f(...)`. Always set.
+        void_cast: True when the call is written with the `(void)`
+            cast that discards a return value explicitly (20.7.4)
     
     See Also:
         ProceduralStmtAssignment, ExprRefPathContext, ExprRefPathStaticRooted
@@ -8829,7 +8831,9 @@ class ActivitySelect(ActivityLabeledScope):
     Attributes:
         branches: The `select_branch` alternatives, in source order. The
             branch bodies are this scope's bodies, addressed after its
-            (empty) children.
+            (empty) children. A bare `;` with no guard or weight, as
+            after `do A with { ... };`, terminates the statement before
+            it and is not a branch; an empty branch is written `{ }`.
     
     See Also:
         ActivitySelectBranch, ActivityMatch, ActivityIfElse

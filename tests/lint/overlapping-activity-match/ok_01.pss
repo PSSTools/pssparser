@@ -1,0 +1,18 @@
+// expect: none
+// Disjoint choices, adjacent ranges, and a choice that does not fold.
+component pss_top {
+  action Sub { }
+  action A {
+    rand bit[4] m;
+    rand bit[4] n;
+    activity {
+      match (m) {
+        [0..3]: do Sub;
+        [4..7]: do Sub;
+        [n]: do Sub;
+        [n..15]: do Sub;
+        default: do Sub;
+      }
+    }
+  }
+}

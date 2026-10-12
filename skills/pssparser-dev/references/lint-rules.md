@@ -110,16 +110,25 @@ package p {
 - `// expect: none`: in every `ok_*` file.
 - Matching is exact both ways: a missing finding fails, and so does an extra
   one. Only the rule under test is compared, so an unrelated warning does not
-  break the fixture.
+  break the fixture. An *error* does: rules never run on a model with errors,
+  so a fixture that does not link would pass without testing anything.
 - The comment is part of the file, so it counts as line 1. Write the expect
   line last, or recount after editing the header.
 
 `tests/python/lint/test_rule_fixtures.py` runs every directory with
 `check_fixture_dir(dir, rules=[dir.name])`; a new directory is picked up with
 no test edit. Rule definition of done (plan F3.5): at least 3 `l*` cases (basic,
-nested, through `extend` or inheritance) and at least 3 `ok_*` near-misses. Seed
-them from the harvest probes in `docs/design/lint-candidates/probes/` where they
-exist.
+nested, through `extend` or inheritance) and at least 3 `ok_*` near-misses, one
+of them the escape hatch (a waiver). Seed them from the harvest probes in
+`docs/design/lint-candidates/probes/` where they exist.
+`tests/python/lint/test_builtin_rules.py` holds every built-in rule to that,
+and to `check_messages`; the fixtures of a built-in rule also run in WASM
+(`finish:fixture:` cases in `ts/test/fixtures/lint-parity.json`), so editing
+them needs `npm run gen:lint-parity-fixture`.
+
+A match choice and an `import` take no annotation, and an annotation before a
+file-level `extend` does not link (known-issues LE-4): waive those with the
+comment form, `// pssparser waive <name>: <reason>`.
 
 Other helpers in `pssparser.checkers.testing`, shipped in the wheel:
 
@@ -179,18 +188,28 @@ Renaming a published ID breaks downstream users: record it in
 
 ## Checklist for a new rule
 
-> **Direction change (2026-10-10).** New `LINT` rules will be declarative
-> `pss-rules` YAML files (`rules/<family>.yaml`) with CEL predicates, run by a
-> lint engine in the C++ core, so the CLI and the editor give the same answers.
-> See `docs/design/pss-rules-format.md` and plan F3. Until F3.1–F3.3 land there
-> is no engine, so don't add Python rule classes in `lint/rules/`: steps 2–3
-> below describe the interim Python path and will change.
+A built-in rule is a `pss-rules` entry in `rules/<family>.yaml`, run by the
+lint engine in the C++ core (`docs/design/pss-rules-format.md`). The core
+embeds the files at build time, so rebuild (`cmake --build build && cmake
+--install build`) after each edit before testing. To iterate faster, load the
+file yourself: `LintEngine.load_rules("pssparser:rules/x.yaml", text,
+builtin=True)` accepts `LINT` IDs.
 
 1. Decide `PSS` vs `LINT` (above). An LRM "shall" is never `LINT`.
-2. `MarkerDef` in `lint/catalog.py` with every field, reachable from `ALL`
-   (and in the lockfile if core-emitted).
-3. Checker class in `lint/rules/`, listed in `rules.CHECKERS`.
+2. Take the next ID in the family's band (`LINT1xx` constraint, `2xx`
+   activity, `3xx` exec, `4xx` declarations and imports, `5xx` registers,
+   `6xx` evolution); `catalog.py` holds the linker's.
+3. The rule: `tier: nursery`, `since`, `lrm` (clauses checked in the PDF),
+   `summary`, a `doc` stating the escape hatch, a message naming the
+   construct and the consequence in one line, and examples that fire and do
+   not. Keep `let:` cheap or let laziness work for you: a binding is
+   evaluated only when read. Scan subtrees with `descendants(n, Kind)`.
 4. Fixtures in `tests/lint/<name>/`.
-5. Regenerate `docs/lint-rules.rst`.
-6. Precision table in `docs/lint/precision/<name>.md` (plan F2.6).
-7. Full suite, then tick the rule's row in the plan's §11.
+5. Regenerate `docs/lint-rules.rst` (and `docs/lint-functions.rst` if the
+   library changed), and `npm run gen:lint-parity-fixture` in `ts/`.
+6. Measure: run the rule over `packages/pss-corpus` and the harvest probes and
+   triage every finding; time it with `scripts/bench_lint.py --rules
+   --select nursery` (each rule under 5 % of parse + link).
+7. Precision table in `docs/lint/precision/<name>.md` (plan F2.6, once the
+   harness exists).
+8. Full suite and the TS gate, then tick the rule's row in the plan's §11.

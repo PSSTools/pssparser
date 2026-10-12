@@ -1235,9 +1235,11 @@ public:
     }
 
     virtual void visitProceduralStmtExpr(ast::IProceduralStmtExpr *i) {
-        m_sc = fin(i, m_factory->mkProceduralStmtExpr(
+        ast::IProceduralStmtExpr *c = m_factory->mkProceduralStmtExpr(
             (i->getExpr())?copy(i->getExpr()):0
-        ));
+        );
+        c->setVoid_cast(i->getVoid_cast());
+        m_sc = fin(i, c);
     }
 
     virtual void visitProceduralStmtReturn(ast::IProceduralStmtReturn *i) {

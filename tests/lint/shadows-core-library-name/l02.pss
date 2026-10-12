@@ -1,0 +1,12 @@
+// In a package and at file scope; an enum, a function prototype, an
+// action and a component; the shadowing takes effect under an import.
+// expect: LINT406 @ 6:8, LINT406 @ 7:20, LINT406 @ 9:11, LINT406 @ 11:10
+import std_pkg::*;
+package my_pkg {
+  enum endianness_e { BIG, LITTLE };
+  function bit[32] urandom();
+}
+component executor_c { }
+component pss_top {
+  action transparent_addr_space_c { }
+}

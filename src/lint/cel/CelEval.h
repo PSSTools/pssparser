@@ -50,6 +50,22 @@ namespace cel {
 struct Overload;
 class Host;
 
+/**
+ * A rule's `let:` bindings for one node, evaluated on first use and kept
+ * (lint-core C8 follow-up). A binding no expression reads costs nothing; one
+ * read by the message alone is computed only for a finding. Owned by the
+ * caller, which keeps it across the evaluations of one node (`where:`,
+ * `report:`, each message part).
+ */
+struct LazyVar {
+    enum class State : uint8_t { Pending, Busy, Done };
+    std::string     name;
+    const Expr      *expr = nullptr;
+    Value           value;
+    State           state = State::Pending;
+};
+using LazyVars = std::vector<LazyVar>;
+
 struct EvalOptions {
     // Every node evaluated and every comprehension iteration costs one step
     // (lint-rule-expressions.md §5). Q-E5: the real number comes from C8.
@@ -57,6 +73,9 @@ struct EvalOptions {
     // Passed to every function call (CallArgs::host): the lint run, for the
     // PSS library's functions. Not owned.
     const Host      *host = nullptr;
+    // Names looked up after the variables passed to eval(), and evaluated
+    // the first time one is read. Not owned.
+    LazyVars        *lazy = nullptr;
 };
 
 class CelEval {
@@ -81,11 +100,16 @@ public:
 
     uint64_t steps() const { return m_steps; }
     bool budgetExceeded() const { return m_budget_exceeded; }
+    /** The lazy binding being evaluated when the budget ran out, or "". */
+    const std::string &lazyOverrun() const { return m_lazyOverrun; }
 
 private:
     Value evalExpr(const Expr *e);
     Value evalCall(const Expr *e);
     Value evalComprehension(const Expr *e);
+    // Whether `e` (a comprehension) appends one element an iteration, as
+    // map() and filter() expand: its predicate (null for none) and element.
+    static bool appendStep(const Expr *e, const Expr *&pred, const Expr *&elem);
     Value evalSelect(const Expr *e);
     Value evalIdent(const Expr *e);
     Value selectField(const Value &op, const std::string &name);
@@ -104,6 +128,8 @@ private:
         const Expr *call);
 
     const Value *lookup(const std::string &name) const;
+    /** A variable passed to eval(), or a lazy binding. */
+    bool isVar(const std::string &name) const;
     void step();
     void charge(uint64_t steps);
 
@@ -112,6 +138,10 @@ private:
     uint64_t                                    m_steps;
     bool                                        m_budget_exceeded;
     std::vector<std::pair<std::string, Value>>  m_vars;
+    // How many of m_vars eval() was given: a lazy binding is evaluated with
+    // those alone in scope, not a comprehension's variables.
+    size_t                                      m_base = 0;
+    std::string                                 m_lazyOverrun;
     std::vector<const Overload *>               *m_trace = nullptr;
 };
 

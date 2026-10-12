@@ -1,0 +1,23 @@
+// Nested: a guard, a constraint inside if and foreach, and exec code.
+// expect: LINT102 @ 10:20, LINT102 @ 11:27, LINT102 @ 15:10, LINT102 @ 20:11
+component pss_top {
+  action Sub { }
+  action A {
+    rand bit[4] m;
+    rand bit[4] vals[3];
+    int count;
+    constraint {
+      if (m > 1) { m < m; }
+      foreach (vals[k]) { vals[k] <= vals[k]; }
+    }
+    activity {
+      select {
+        (m == m): do Sub;
+        do Sub;
+      }
+    }
+    exec post_solve {
+      if (count > count) { count = 0; }
+    }
+  }
+}

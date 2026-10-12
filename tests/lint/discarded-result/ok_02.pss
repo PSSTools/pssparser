@@ -1,0 +1,15 @@
+// expect: none
+// Built-in methods that return nothing, and casts on qualified calls.
+package util_pkg {
+  function bit[32] next_addr() { return 0; }
+}
+component pss_top {
+  action A {
+    list<int> q;
+    exec post_solve {
+      q.push_back(1);
+      q.clear();
+      (void)util_pkg::next_addr();
+    }
+  }
+}

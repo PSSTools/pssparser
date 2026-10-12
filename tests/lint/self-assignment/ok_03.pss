@@ -1,0 +1,9 @@
+// expect: none
+// The escape hatch: a waiver on the statement.
+component pss_top {
+  int size;
+  exec init_down {
+    @lint_pkg::waive {.id = "self-assignment", .reason = "marks the field as written for a tool"}
+    size = size;
+  }
+}

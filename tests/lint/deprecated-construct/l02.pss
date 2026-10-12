@@ -1,0 +1,16 @@
+// Nested: properties in exec code and in a nested path; the moved types
+// as a field type, and in a template argument from the global package.
+// expect: LINT603 @ 10:22, LINT603 @ 11:18, LINT603 @ 14:17, LINT603 @ 15:37
+component pss_top {
+  struct holder_s { rand bit[4] vals[3]; }
+  action A {
+    rand holder_s h;
+    int total;
+    exec post_solve {
+      total = h.vals.sum + 1;
+      if (h.vals.size > 2) { total = 0; }
+    }
+  }
+  addr_reg_pkg::endianness_e e;
+  std_pkg::packed_s<::addr_reg_pkg::endianness_e::BIG_ENDIAN> pk;
+}

@@ -1,0 +1,6 @@
+// expect: none
+// The escape hatch: a waiver comment on the import's line.
+package a_pkg { struct s_t { } }
+component pss_top {
+  import a_pkg::*;   // pssparser waive unused-import: kept for the generated layer
+}

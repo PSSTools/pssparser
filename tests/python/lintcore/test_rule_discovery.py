@@ -134,7 +134,8 @@ def test_a_directory_is_listed_not_recursively_and_in_name_order(tmp_path):
     (d / "empty.yaml").write_text("")
     load = rulefiles.load([RulePath(str(d))])
     assert [os.path.basename(f) for f in load.files] == ["a.yml", "b.yaml", "c.json"]
-    assert [r["id"] for r in load.engine.rules()] == ["ACME001", "ACME002", "ACME003"]
+    assert [r["id"] for r in load.engine.rules()
+            if not r["file"].startswith("pssparser:")] == ["ACME001", "ACME002", "ACME003"]
     assert [(os.path.basename(p), why) for p, why in load.skipped] == [
         ("ci.yaml", "no top-level 'pss-rules' key"), ("empty.yaml", "the file is empty")]
     assert load.diagnostics == []

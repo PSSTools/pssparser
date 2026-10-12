@@ -1213,8 +1213,15 @@ The nodes this one owns, in source order: each node field and list element of th
    * - ``descendants(node) -> list(node)``
      - custom
      - ``descendants_node``
+   * - ``descendants(node, type) -> list(node)``
+     - custom
+     - ``descendants_node_type``
 
-Every node under this one, in pre-order (a node, then its children's subtrees), not including the node itself. One step per element.
+``descendants(node) -> list(node)``
+   Every node under this one, in pre-order (a node, then its children's subtrees), not including the node itself. One step per element.
+
+``descendants(node, type) -> list(node)``
+   The nodes under this one of the class named, or of a class deriving from it, in pre-order: ``descendants(node, ExprId)``. The same as ``descendants(node).filter(d, d.isa(ExprId))``, but the elements have that class, so their fields can be read directly (``descendants(node, Field).map(f, f.name.id)``), and the filtering costs one step per node visited rather than a comprehension's per-element cost.
 
 .. _lint-fn-siblings-node:
 
@@ -1332,6 +1339,25 @@ Whether the node is in one of the files being checked: false for the standard li
      - ``in_library_node``
 
 Whether the node is in the standard library (``std_pkg``, the core library) or in a unit the linker adds itself. Use it on what ``resolves_to`` returns: ``in_library(resolves_to(node.type))``. ``false`` for ``null`` (a type that is not a reference, such as ``int``).
+
+.. _lint-fn-import-uses-node:
+
+``import_uses``
+~~~~~~~~~~~~~~~
+
+**Level:** L1; **Scope:** file
+
+.. list-table::
+   :header-rows: 1
+
+   * - Signature
+     - Cost
+     - Overload
+   * - ``import_uses(node) -> list(ExprId)``
+     - custom
+     - ``import_uses_node``
+
+The names an ``import`` provides in its scope: the identifiers there that are the first name of their path and resolve to what it imports -- a declaration in the package, for ``import p::*;``; the declaration or something in it, for ``import p::x;``; the package itself, written with the alias, for ``import p as a;``. Not a declaration's own name, and not a use inside the package that declares what it names, which needs no import. ``[]`` when none does: ``size(import_uses(node)) == 0`` is an unused import. Members reached through a value (``s.extra``, from an ``extend`` the import brings in) are not counted. ``[]`` for another node. In source order. From the run's symbol index, built once: one step per use of what the import can provide.
 
 References
 ----------
@@ -1580,6 +1606,25 @@ The type a PSS name names, in the model being checked: ``type_named("addr_reg_pk
 
 Whether a type is the type named (``type_named``'s name) or inherits from it, through its base types (``super_t``), transitively: ``derives_from(t, "addr_reg_pkg::addr_claim_base_s")``. A type derives from itself. A **generic template's name matches every specialization** of it, and every type deriving from one: ``derives_from(t, "addr_reg_pkg::addr_claim_s")`` is true for ``transparent_addr_claim_s<>``. ``extend`` does not change a type's base. ``false`` for ``null``, for a node that is not a type, and for an unknown name (which is reported, PSSP223). One step per type visited.
 
+.. _lint-fn-core-library-name-string:
+
+``core_library_name``
+~~~~~~~~~~~~~~~~~~~~~
+
+**Level:** L1; **Scope:** file
+
+.. list-table::
+   :header-rows: 1
+
+   * - Signature
+     - Cost
+     - Overload
+   * - ``core_library_name(string) -> optional(string)``
+     - custom
+     - ``core_library_name_string``
+
+The core library's declaration of a name, qualified: ``core_library_name("message")`` is ``optional.of("std_pkg::message")``. Searches what the core library packages declare at their top level -- types, enums, typedefs, functions, annotations -- in ``std_pkg``, ``addr_reg_pkg``, ``executor_pkg`` and ``sync_pkg``, in that order. ``optional.none()`` for a name none of them declares, such as an enum item (``LOW`` is in ``message_verbosity_e``, not in ``std_pkg``). One step per package.
+
 Lists
 -----
 
@@ -1601,6 +1646,28 @@ Lists
      - ``dups_list``
 
 The indexes of the elements equal (``==``) to an earlier one, in order: ``dups([a, b, a, a])`` is ``[2, 3]``. With ``map``, it finds repeats of any key: ``dups(node.initializers.map(i, resolves_to(i.path)))`` gives the initializers that name a field an earlier one did, and ``.map(k, node.initializers[k])`` turns them back into nodes to report. Nodes are equal when they are the same node. A ``null`` element is never a duplicate, so unset fields and unresolved names do not pair up. One step per element; a list, map, optional, record or double element also one per distinct earlier element it is compared with.
+
+Comparison
+----------
+
+.. _lint-fn-same-tree-node-node:
+
+``same_tree``
+~~~~~~~~~~~~~
+
+**Level:** L0; **Scope:** file
+
+.. list-table::
+   :header-rows: 1
+
+   * - Signature
+     - Cost
+     - Overload
+   * - ``same_tree(node, node) -> bool``
+     - custom
+     - ``same_tree_node_node``
+
+Whether two nodes are the same code: the same kinds, operators, names and literal values, all the way down, wherever they are and however they are laid out. Locations, comments, annotations and what the linker records (what a name resolves to) are not compared, so ``same_tree(node.lhs, node.rhs)`` is true for ``x = x;`` and for ``a.b[i] = a.b[i];``, and two ``select`` branches written alike are the same tree. Spelling counts: ``x`` and ``this.x``, ``1`` and ``0x1``, ``(a)`` and ``a`` differ. ``true`` for two ``null``s, ``false`` for ``null`` and a node. One step per node compared.
 
 Locations
 ---------

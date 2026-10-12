@@ -1,0 +1,15 @@
+// expect: none
+// Pure functions, a pure component's function, a value computed first, and
+// a built-in string method.
+import std_pkg::*;
+pure component util_c { function int f(int a) { return a; } }
+component pss_top {
+  util_c u;
+  string path;
+  function int alloc_id() { return 1; }
+  pure function int scaled(int x) { return x * 2; }
+  exec post_solve {
+    int id = alloc_id();
+    message(LOW, "id ", id, " x ", scaled(2), " f ", u.f(1), " ", path.size());
+  }
+}

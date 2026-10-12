@@ -1,0 +1,21 @@
+// Calls nested in an argument expression, a package function and a
+// component function through `comp`, in nested statements.
+// expect: LINT304 @ 15:44, LINT304 @ 16:46
+import std_pkg::*;
+package ids_pkg {
+  function int next_tag() { return 0; }
+}
+component pss_top {
+  function int alloc_id() { return 1; }
+  action A {
+    rand bit[4] n;
+    exec post_solve {
+      repeat (n) {
+        if (n > 1) {
+          message(MEDIUM, "tag ", ids_pkg::next_tag() + 1);
+          message(HIGH, "ids ", n, " ", comp.alloc_id());
+        }
+      }
+    }
+  }
+}

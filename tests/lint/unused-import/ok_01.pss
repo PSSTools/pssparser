@@ -1,0 +1,21 @@
+// expect: none
+// Names found through imports: a type, a constant, an enum item, a
+// function, an explicitly imported struct.
+package a_pkg {
+  enum mode_e { RD, WR };
+  const int K = 3;
+  function int twice(int v) { return 2 * v; }
+}
+package b_pkg { struct t_t { rand bit[4] v; } }
+component pss_top {
+  import a_pkg::*;
+  import b_pkg::t_t;
+  action A {
+    rand bit[4] n;
+    rand bit[1] md;
+    t_t t;
+    constraint n < K;
+    constraint md == RD;
+    exec post_solve { n = twice(n); }
+  }
+}

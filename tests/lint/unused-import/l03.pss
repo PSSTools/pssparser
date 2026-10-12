@@ -1,0 +1,11 @@
+// An import in a component does not reach an extension of the component,
+// so the extension's use does not count; an alias nothing names.
+// expect: LINT407 @ 6:3, LINT407 @ 7:3
+package a_pkg { struct s_t { } }
+component pss_top {
+  import a_pkg::*;
+  import a_pkg as a;
+}
+extend component pss_top {
+  a_pkg::s_t s;
+}

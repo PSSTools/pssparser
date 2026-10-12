@@ -1,0 +1,14 @@
+// expect: none
+// The intended forms: `this.` for the field, other sources, compound ops.
+component pss_top {
+  int size;
+  int arr[4];
+  function void set_size(int size) {
+    this.size = size;
+  }
+  exec init_down {
+    size += size;
+    arr[1] = arr[2];
+    size = size + 0;
+  }
+}

@@ -1,0 +1,16 @@
+// expect: none
+// A join specification changes what the statement after waits for, and a
+// replicate expands into several branches.
+component pss_top {
+  action Sub { }
+  action A {
+    rand bit[4] n;
+    activity {
+      parallel join_none { do Sub; }
+      do Sub;
+      schedule join_first(1) { do Sub; }
+      parallel { replicate (4) { do Sub; } }
+      select { replicate (n) { do Sub; } }
+    }
+  }
+}

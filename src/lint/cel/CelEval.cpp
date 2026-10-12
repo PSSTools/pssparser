@@ -146,6 +146,8 @@ Value CelEval::eval(const Expr *e, const std::vector<std::pair<std::string, Valu
     m_steps = 0;
     m_budget_exceeded = false;
     m_vars = vars;
+    m_base = vars.size();
+    m_lazyOverrun.clear();
     try {
         return evalExpr(e);
     } catch (const BudgetExceeded &) {
@@ -175,6 +177,20 @@ const Value *CelEval::lookup(const std::string &name) const {
         }
     }
     return nullptr;
+}
+
+bool CelEval::isVar(const std::string &name) const {
+    if (lookup(name)) {
+        return true;
+    }
+    if (m_opts.lazy) {
+        for (const LazyVar &l : *m_opts.lazy) {
+            if (l.name == name) {
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 Value CelEval::evalExpr(const Expr *e) {
@@ -216,13 +232,53 @@ Value CelEval::evalIdent(const Expr *e) {
     if (const Value *v = lookup(e->name)) {
         return *v;
     }
+    if (m_opts.lazy) {
+        for (LazyVar &l : *m_opts.lazy) {
+            if (l.name != e->name) {
+                continue;
+            }
+            if (l.state == LazyVar::State::Done) {
+                return l.value;
+            }
+            if (l.state == LazyVar::State::Busy) {
+                return Value::error("'" + l.name + "' refers to itself");
+            }
+            if (!l.expr) {
+                return Value::error("'" + l.name + "' was not loaded");
+            }
+            // In the scope a let is written in: the variables eval() was
+            // given and the bindings before it, not the comprehension
+            // variables of the expression that first reads it.
+            std::vector<std::pair<std::string, Value>> inner(
+                m_vars.begin() + static_cast<std::ptrdiff_t>(m_base), m_vars.end());
+            m_vars.resize(m_base);
+            l.state = LazyVar::State::Busy;
+            try {
+                l.value = evalExpr(l.expr);
+            } catch (...) {
+                if (m_lazyOverrun.empty()) {
+                    m_lazyOverrun = l.name;     // the innermost: its catch runs first
+                }
+                l.state = LazyVar::State::Pending;
+                m_vars.insert(m_vars.end(), inner.begin(), inner.end());
+                throw;
+            }
+            l.state = LazyVar::State::Done;
+            m_vars.insert(m_vars.end(), inner.begin(), inner.end());
+            return l.value;
+        }
+    }
+    if (e->typeValue) {
+        return *e->typeValue;
+    }
     Value t;
     if (builtinType(e->name)) {
-        return Value::type(e->name);
-    } else if (lookupType(e->name, t)) {
-        return t;
+        t = Value::type(e->name);
+    } else if (!lookupType(e->name, t)) {
+        return Value::error("undeclared reference to '" + e->name + "'");
     }
-    return Value::error("undeclared reference to '" + e->name + "'");
+    e->typeValue = std::make_shared<const Value>(t);
+    return t;
 }
 
 Value CelEval::evalSelect(const Expr *e) {
@@ -460,6 +516,34 @@ Value CelEval::evalConditional(const Expr *e) {
     return evalExpr(e->args[c.b ? 1 : 2].get());
 }
 
+namespace {
+
+bool isIdent(const Expr *e, const std::string &name) {
+    return e && e->kind == ExprKind::Ident && e->name == name;
+}
+
+}
+
+bool CelEval::appendStep(const Expr *e, const Expr *&pred, const Expr *&elem) {
+    const Expr *step = e->loopStep.get();
+    pred = nullptr;
+    if (step && step->kind == ExprKind::Call && step->name == op::Conditional
+            && step->args.size() == 3 && isIdent(step->args[2].get(), e->accuVar)) {
+        pred = step->args[0].get();
+        step = step->args[1].get();
+    }
+    if (!step || step->kind != ExprKind::Call || step->name != op::Add || step->operand
+            || step->args.size() != 2 || !isIdent(step->args[0].get(), e->accuVar)) {
+        return false;
+    }
+    const Expr *one = step->args[1].get();
+    if (!one || one->kind != ExprKind::List || one->args.size() != 1) {
+        return false;
+    }
+    elem = one->args[0].get();
+    return true;
+}
+
 Value CelEval::evalComprehension(const Expr *e) {
     Value range = evalExpr(e->iterRange.get());
     if (range.isError()) {
@@ -474,7 +558,65 @@ Value CelEval::evalComprehension(const Expr *e) {
     size_t accu_slot = m_vars.size() - 1;
 
     size_t n = (range.kind == Value::Kind::List) ? range.list->size() : range.map->size();
-    for (size_t i=0; i<n; i++) {
+    size_t i = 0;
+
+    // map() and filter() append one element an iteration: their step is
+    // `accu + [x]`, or `p ? accu + [x] : accu`. Concatenating copies the
+    // list each time, so a filter over n elements would cost n^2; appending
+    // in place keeps it linear. Steps are charged as the expansion's would
+    // be, but for the copy. Anything else -- a predicate that is not a
+    // bool, an element that is an error -- leaves the rest to the general
+    // loop below, which gives CEL's result for it.
+    const Expr *pred = nullptr;
+    const Expr *elem = nullptr;
+    if (accu.kind == Value::Kind::List && appendStep(e, pred, elem)) {
+        ValueList out(*accu.list);
+        for (; i<n; i++) {
+            step();
+            const Value &it = (range.kind == Value::Kind::List) ?
+                (*range.list)[i] : (*range.map)[i].first;
+            m_vars.emplace_back(e->iterVar, it);
+            Value cond = evalExpr(e->loopCond.get());
+            if (cond.isBool() && !cond.b) {
+                m_vars.pop_back();
+                i = n;
+                break;
+            }
+            bool take = true;
+            if (pred) {
+                step();                         // the conditional
+                Value p = evalExpr(pred);
+                if (!p.isBool()) {
+                    m_vars.pop_back();
+                    break;
+                }
+                take = p.b;
+            }
+            if (take) {
+                step();                         // the concatenation
+                step();                         // accu
+                step();                         // [x]
+                Value x = evalExpr(elem);
+                if (x.isError()) {
+                    m_vars.pop_back();
+                    break;
+                }
+                charge(1);                      // [x]'s element
+                out.push_back(std::move(x));
+            } else {
+                step();                         // accu
+            }
+            m_vars.pop_back();
+        }
+        m_vars[accu_slot].second = Value::mkList(std::move(out));
+        if (i >= n) {
+            Value ret = evalExpr(e->result.get());
+            m_vars.pop_back();
+            return ret;
+        }
+    }
+
+    for (; i<n; i++) {
         step();
         const Value &elem = (range.kind == Value::Kind::List) ?
             (*range.list)[i] : (*range.map)[i].first;
@@ -520,7 +662,7 @@ Value CelEval::evalCall(const Expr *e) {
     // A namespaced global, `optional.of(x)`, unless `optional` is a variable.
     std::string qualified;
     const Expr *target_expr = e->operand.get();
-    if (target_expr && target_expr->kind == ExprKind::Ident && !lookup(target_expr->name)
+    if (target_expr && target_expr->kind == ExprKind::Ident && !isVar(target_expr->name)
             && reg.hasFunction(target_expr->name + "." + fn)) {
         qualified = target_expr->name + "." + fn;
         target_expr = nullptr;

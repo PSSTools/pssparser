@@ -1,0 +1,13 @@
+// expect: none
+// The replacements.
+component pss_top {
+  struct p_s : std_pkg::packed_s<> { rand bit[4] f; }
+  std_pkg::endianness_e e;
+  action A {
+    rand bit[4] data[4];
+    rand int n;
+    constraint n == data.size();
+    constraint n < data.sum();
+    constraint d() { n > 2; }
+  }
+}

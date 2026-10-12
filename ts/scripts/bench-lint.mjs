@@ -4,7 +4,7 @@
  * C8). Run by `scripts/bench_lint.py --wasm`, which generates the model;
  * needs `npm run build` first (it loads `dist/`).
  *
- *   node scripts/bench-lint.mjs [--repeat N] --rules FILE... -- MODEL.pss...
+ *   node scripts/bench-lint.mjs [--repeat N] --rules FILE... [--select SEL...] -- MODEL.pss...
  *
  * Prints a JSON list, one entry per run: {parse, link, lint, index: ms,
  * rules: [{id, ms, steps, findings}]}. Each run is a fresh parser, as an
@@ -20,6 +20,7 @@ const { createParser } = await import(join(here, '..', 'dist', 'index.js'));
 const argv = process.argv.slice(2);
 let repeat = 5;
 const rules = [];
+const select = [];
 const models = [];
 let into = null;
 for (let i = 0; i < argv.length; i++) {
@@ -28,6 +29,8 @@ for (let i = 0; i < argv.length; i++) {
     repeat = Number(argv[++i]);
   } else if (a === '--rules') {
     into = rules;
+  } else if (a === '--select') {
+    into = select;
   } else if (a === '--') {
     into = models;
   } else if (into) {
@@ -39,7 +42,7 @@ for (let i = 0; i < argv.length; i++) {
 
 const sources = models.map((name) => ({ name, content: readFileSync(name, 'utf8') }));
 const ruleFiles = rules.map((name) => ({ name, text: readFileSync(name, 'utf8') }));
-const selection = { lint: { profile: 'all' } };
+const selection = { lint: { profile: 'all', select } };
 const ms = (t0) => performance.now() - t0;
 
 const runs = [];

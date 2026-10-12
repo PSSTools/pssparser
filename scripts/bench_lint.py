@@ -10,13 +10,16 @@ The corpus has no single model large enough to time: its biggest file is
 6 KB, and a bucket is a set of separate models. So the model is generated:
 ``--units N`` packages of components, actions, activities, constraints and
 exec code, each importing the one before, all linking cleanly. The rules
-are the given files; by default every ``tests/data/lint-examples/*.yaml``,
-which use every library function, until ``rules/`` has the first tranche.
+are the built-in ones (``rules/*.yaml``, compiled into the core) and the
+given files; by default every ``tests/data/lint-examples/*.yaml``, which use
+every library function. The profile is ``all``; ``--select`` adds
+selectors on top of it, as the CLI's does: ``--rules --select nursery``
+times the built-in rules alone while they are all in the nursery tier.
 
 Usage::
 
     PYTHONPATH=python python3 scripts/bench_lint.py [--units N] [--repeat R]
-        [--rules FILE ...] [--wasm] [--json OUT]
+        [--rules FILE ...] [--select SEL ...] [--wasm] [--json OUT]
 """
 from __future__ import annotations
 
@@ -168,7 +171,7 @@ def default_rules() -> list:
     return sorted(glob.glob(os.path.join(ROOT, "tests", "data", "lint-examples", "*.yaml")))
 
 
-def _native_once(paths, rules):
+def _native_once(paths, rules, select=()):
     env = dict(os.environ)
     env.pop("PSSPARSER_NO_LINT", None)
     env["PSSPARSER_NO_EXTENSIONS"] = "1"
@@ -176,6 +179,8 @@ def _native_once(paths, rules):
             "--lint-profile", "all"]
     for r in rules:
         argv += ["--rules", r]
+    for sel in select:
+        argv += ["--select", sel]
     cp = subprocess.run(argv + paths, capture_output=True, text=True, env=env)
     if cp.returncode not in (0, 1):
         raise SystemExit(f"pssparser failed ({cp.returncode}):\n{cp.stderr}\n{cp.stdout[:2000]}")
@@ -200,10 +205,10 @@ def _summarise(runs):
     return out
 
 
-def native(paths, rules, repeat):
+def native(paths, rules, repeat, select=()):
     runs = []
     for _ in range(repeat):
-        st = _native_once(paths, rules)["stats"]
+        st = _native_once(paths, rules, select)["stats"]
         t = st["timing_ms"]
         runs.append({"parse": t["parse (incl. read)"], "link": t["link"],
                      "lint": t.get("lint", 0.0), "index": st.get("lint_index_ms", 0.0),
@@ -213,10 +218,10 @@ def native(paths, rules, repeat):
     return res
 
 
-def wasm(paths, rules, repeat):
+def wasm(paths, rules, repeat, select=()):
     script = os.path.join(ROOT, "ts", "scripts", "bench-lint.mjs")
     cp = subprocess.run(["node", script, "--repeat", str(repeat), "--rules", *rules,
-                         "--", *paths], capture_output=True, text=True)
+                         "--select", *select, "--", *paths], capture_output=True, text=True)
     if cp.returncode != 0:
         raise SystemExit(f"bench-lint.mjs failed:\n{cp.stderr}")
     runs = json.loads(cp.stdout)
@@ -241,6 +246,8 @@ def main(argv=None):
     ap.add_argument("--units", type=int, default=40)
     ap.add_argument("--repeat", type=int, default=5)
     ap.add_argument("--rules", nargs="*", default=None)
+    ap.add_argument("--select", nargs="*", default=[],
+                    help="rule selectors to add to the 'all' profile (e.g. nursery)")
     ap.add_argument("--wasm", action="store_true", help="also measure the WebAssembly build")
     ap.add_argument("--keep", metavar="DIR", help="write the model here and keep it")
     ap.add_argument("--json", metavar="OUT", help="write the results as JSON")
@@ -254,11 +261,11 @@ def main(argv=None):
         print(f"model: {a.units} units, {len(paths)} files, {size // 1024} KB; "
               f"{len(rules)} rule files")
         results = {"units": a.units, "bytes": size,
-                   "rules": [os.path.relpath(r, ROOT) for r in rules]}
-        results["native"] = native(paths, rules, a.repeat)
+                   "rules": [os.path.relpath(r, ROOT) for r in rules], "select": a.select}
+        results["native"] = native(paths, rules, a.repeat, a.select)
         report("native", results["native"])
         if a.wasm:
-            results["wasm"] = wasm(paths, rules, a.repeat)
+            results["wasm"] = wasm(paths, rules, a.repeat, a.select)
             report("wasm", results["wasm"])
     if a.json:
         with open(a.json, "w") as f:

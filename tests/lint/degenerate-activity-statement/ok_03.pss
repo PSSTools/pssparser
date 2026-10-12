@@ -1,0 +1,12 @@
+// expect: none
+// The escape hatch: a waiver keeps a disabled loop visible.
+component pss_top {
+  action Sub { }
+  action A {
+    activity {
+      @lint_pkg::waive {.id = "degenerate-activity-statement",
+                        .reason = "disabled until the DMA model lands"}
+      repeat (0) { do Sub; }
+    }
+  }
+}

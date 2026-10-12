@@ -1,0 +1,17 @@
+// The capture through a handle traversal, an inherited field, and an
+// extension's constraint.
+// expect: LINT102 @ 11:16, LINT102 @ 15:16
+component pss_top {
+  action write_a { rand bit[32] size; }
+  action base_t { rand bit[32] size; }
+  action test : base_t {
+    write_a w;
+    rand bit[32] size2;
+    activity {
+      w with { size >= size; };
+    }
+  }
+  extend action test {
+    constraint size2 == size2;
+  }
+}

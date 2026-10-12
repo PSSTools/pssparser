@@ -27,6 +27,8 @@
  */
 #pragma once
 #include <cstdint>
+#include <deque>
+#include <map>
 #include <set>
 #include <string>
 #include <utility>
@@ -138,6 +140,15 @@ public:
      * level. `steps` is set to the ancestors visited.
      */
     const std::string &declPath(const rf::Node &n, uint64_t &steps) const;
+
+    /**
+     * The declarations an import can provide that have uses, by the path
+     * of the package that declares them: `p` for `p::s_t`, for the items of
+     * `p::mode_e`, and for a package nested in `p` (F3.5 import_uses).
+     * Built once per run, as an index; `steps` is charged for the build.
+     */
+    const std::map<std::string, std::vector<rf::Node>> &declsByParentPath(
+        uint64_t &steps) const;
 
     /** Whether the node declares something, so has a path of its own. */
     bool declares(const rf::Node &n) const;
@@ -272,6 +283,9 @@ private:
     mutable util::PtrMap<rf::Node>                              m_decl;      // ExprId -> decl
     mutable std::unordered_map<const void *, std::vector<rf::Node>> m_uses; // decl -> ExprIds
     mutable std::unordered_map<const void *, std::string>       m_path;
+    mutable std::map<std::string, std::vector<rf::Node>>        m_byParent;
+    mutable bool                                                m_byParentBuilt = false;
+    mutable std::deque<std::string>                             m_libParent;  // keys, stable
     // A numbered segment ("constraint", "exec", ...) -> its #n, for every
     // numbered segment of each scope numbered so far.
     mutable std::unordered_map<const void *, int32_t>           m_segNum;

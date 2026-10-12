@@ -1,0 +1,19 @@
+// expect: none
+// Branches that differ in a weight, a guard, a constraint or the action.
+component pss_top {
+  action Sub { rand bit[4] x; }
+  action Other { rand bit[4] x; }
+  action A {
+    rand bit[4] m;
+    activity {
+      select {
+        [2]: do Sub with { x < 5; }
+        [1]: do Sub with { x < 5; }
+        (m > 1): do Sub;
+        (m > 2): do Sub;
+        do Sub with { x < 6; }
+        do Other with { x < 6; }
+      }
+    }
+  }
+}

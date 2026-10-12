@@ -1,0 +1,14 @@
+// expect: LINT302 @ 8:7
+component pss_top {
+  enum st_e { IDLE, RUN, DONE };
+  action A {
+    rand st_e st;
+    int r;
+    exec post_solve {
+      match (st) {
+        [IDLE]: r = 1;
+        [RUN]: r = 2;
+      }
+    }
+  }
+}

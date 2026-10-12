@@ -1,0 +1,16 @@
+// expect: none
+// The cast, a void function, a value that is used.
+component pss_top {
+  function int alloc(int n) { return n; }
+  function void note(int n) { }
+  action A {
+    int r;
+    exec post_solve {
+      (void)alloc(1);
+      note(2);
+      r = alloc(3);
+      if (alloc(4) > 0) { note(r); }
+      note(alloc(5));
+    }
+  }
+}

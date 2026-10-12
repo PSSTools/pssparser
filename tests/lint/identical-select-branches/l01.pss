@@ -1,0 +1,16 @@
+// expect: LINT204 @ 9:9, LINT204 @ 10:9
+component pss_top {
+  action Sub { rand bit[4] x; }
+  action A {
+    activity {
+      select {
+        do Sub with { x < 5; }
+        do Sub with { x > 9; }
+        do Sub with { x < 5; }
+        do Sub with {
+          x > 9;   // laid out differently, the same code
+        }
+      }
+    }
+  }
+}

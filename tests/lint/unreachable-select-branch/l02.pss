@@ -1,0 +1,28 @@
+// Nested selects, and guards and weights that fold through expressions
+// and package constants.
+// expect: LINT202 @ 15:25, LINT202 @ 21:20
+package cfg_pkg {
+  const int W_SLOW = 4 - 4;
+}
+component pss_top {
+  import cfg_pkg::*;
+  action Sub { }
+  action A {
+    rand bit[4] m;
+    activity {
+      repeat (2) {
+        select {
+          [W_SLOW + 0]: do Sub;
+          do Sub;
+        }
+      }
+      select {
+        (m > 2): select {
+          (1 > 2): do Sub;
+          do Sub;
+        }
+        do Sub;
+      }
+    }
+  }
+}

@@ -1,0 +1,11 @@
+// expect: none
+// The escape hatch: a waiver on a constraint kept on purpose.
+component pss_top {
+  action test {
+    rand bit[8] a;
+    constraint {
+      @lint_pkg::waive {.id = "self-comparison", .reason = "placeholder until the spec settles"}
+      a == a;
+    }
+  }
+}

@@ -1,0 +1,12 @@
+// expect: none
+// A user function named message is not the core library's; a NONE message
+// is always issued, so its arguments are always evaluated.
+import std_pkg::*;
+component pss_top {
+  function int alloc_id() { return 1; }
+  function void message(int v) { }
+  exec post_solve {
+    message(alloc_id());
+    std_pkg::message(NONE, "id ", alloc_id());
+  }
+}

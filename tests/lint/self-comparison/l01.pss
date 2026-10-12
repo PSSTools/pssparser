@@ -1,0 +1,13 @@
+// expect: LINT102 @ 8:16, LINT102 @ 10:25
+component pss_top {
+  action write_a { rand bit[32] size; }
+  action test {
+    rand bit[32] size;
+    rand bit[8] arr[4];
+    rand bit[2] i;
+    constraint arr[i] != arr[i];
+    activity {
+      do write_a with { size == size; }
+    }
+  }
+}

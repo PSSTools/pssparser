@@ -1,0 +1,20 @@
+// Nested: a select inside a repeat, whose branches are blocks.
+// expect: LINT204 @ 13:13
+component pss_top {
+  action Rd { }
+  action Wr { }
+  action A {
+    rand bit[4] n;
+    activity {
+      repeat (n) {
+        if (n > 2) {
+          select {
+            { do Rd; do Wr; }
+            { do Rd; do Wr; }
+            { do Wr; do Rd; }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,11 @@
+// expect: none
+// The escape hatch: a waiver on a handle kept on purpose.
+component pss_top {
+  action Sub { }
+  action A {
+    @lint_pkg::waive {.id = "unused-action-handle",
+                      .reason = "traversed by the generated test layer"}
+    Sub spare;
+    activity { do Sub; }
+  }
+}

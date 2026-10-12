@@ -1,0 +1,20 @@
+// Nested statements; a package function, a component's function through
+// `comp`.
+// expect: LINT303 @ 13:9, LINT303 @ 15:11
+package util_pkg {
+  function bit[32] next_addr() { return 0; }
+}
+component pss_top {
+  function int alloc(int n) { return n; }
+  action A {
+    list<int> q;
+    exec post_solve {
+      repeat (2) {
+        util_pkg::next_addr();
+        if (q.size() > 0) {
+          comp.alloc(2);
+        }
+      }
+    }
+  }
+}

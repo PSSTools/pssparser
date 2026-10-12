@@ -1,0 +1,188 @@
+{
+ "bytes": 449825,
+ "native": {
+  "diagnostics": {
+   "LINT305": 160,
+   "LINT407": 159
+  },
+  "index_ms": 30.684,
+  "link_ms": 58.741,
+  "lint_ms": 80.5,
+  "parse_ms": 130.412,
+  "rules": {
+   "LINT102": {
+    "findings": 0,
+    "ms": 4.467,
+    "steps": 140000
+   },
+   "LINT201": {
+    "findings": 0,
+    "ms": 0.953,
+    "steps": 9760
+   },
+   "LINT202": {
+    "findings": 0,
+    "ms": 0.633,
+    "steps": 12960
+   },
+   "LINT203": {
+    "findings": 0,
+    "ms": 1.377,
+    "steps": 26560
+   },
+   "LINT204": {
+    "findings": 0,
+    "ms": 0.78,
+    "steps": 36160
+   },
+   "LINT205": {
+    "findings": 0,
+    "ms": 3.988,
+    "steps": 80960
+   },
+   "LINT302": {
+    "findings": 0,
+    "ms": 0.27,
+    "steps": 4800
+   },
+   "LINT303": {
+    "findings": 0,
+    "ms": 0.0,
+    "steps": 0
+   },
+   "LINT304": {
+    "findings": 0,
+    "ms": 1.451,
+    "steps": 57120
+   },
+   "LINT305": {
+    "findings": 160,
+    "ms": 1.017,
+    "steps": 17760
+   },
+   "LINT306": {
+    "findings": 0,
+    "ms": 0.467,
+    "steps": 10240
+   },
+   "LINT405": {
+    "findings": 0,
+    "ms": 0.92,
+    "steps": 24960
+   },
+   "LINT406": {
+    "findings": 0,
+    "ms": 2.919,
+    "steps": 85710
+   },
+   "LINT407": {
+    "findings": 159,
+    "ms": 3.69,
+    "steps": 63465
+   },
+   "LINT408": {
+    "findings": 0,
+    "ms": 1.458,
+    "steps": 44369
+   },
+   "LINT603": {
+    "findings": 0,
+    "ms": 7.85,
+    "steps": 289732
+   }
+  }
+ },
+ "rules": [],
+ "select": [
+  "nursery"
+ ],
+ "units": 160,
+ "wasm": {
+  "index_ms": 49.038132,
+  "link_ms": 171.84482100000014,
+  "lint_ms": 142.9308149999997,
+  "parse_ms": 295.8154730000001,
+  "rules": {
+   "LINT102": {
+    "findings": 0,
+    "ms": 8.430124,
+    "steps": 140000
+   },
+   "LINT201": {
+    "findings": 0,
+    "ms": 2.160894,
+    "steps": 9760
+   },
+   "LINT202": {
+    "findings": 0,
+    "ms": 1.537454,
+    "steps": 12960
+   },
+   "LINT203": {
+    "findings": 0,
+    "ms": 2.806757,
+    "steps": 26560
+   },
+   "LINT204": {
+    "findings": 0,
+    "ms": 1.698325,
+    "steps": 36160
+   },
+   "LINT205": {
+    "findings": 0,
+    "ms": 8.176836,
+    "steps": 80960
+   },
+   "LINT302": {
+    "findings": 0,
+    "ms": 0.535552,
+    "steps": 4800
+   },
+   "LINT303": {
+    "findings": 0,
+    "ms": 0,
+    "steps": 0
+   },
+   "LINT304": {
+    "findings": 0,
+    "ms": 4.267865,
+    "steps": 57120
+   },
+   "LINT305": {
+    "findings": 160,
+    "ms": 2.017684,
+    "steps": 17760
+   },
+   "LINT306": {
+    "findings": 0,
+    "ms": 1.184977,
+    "steps": 10240
+   },
+   "LINT405": {
+    "findings": 0,
+    "ms": 1.9482,
+    "steps": 24960
+   },
+   "LINT406": {
+    "findings": 0,
+    "ms": 5.599677,
+    "steps": 85710
+   },
+   "LINT407": {
+    "findings": 159,
+    "ms": 6.071393,
+    "steps": 63465
+   },
+   "LINT408": {
+    "findings": 0,
+    "ms": 2.723824,
+    "steps": 44369
+   },
+   "LINT603": {
+    "findings": 0,
+    "ms": 16.506613,
+    "steps": 289732
+   }
+  }
+ }
+}

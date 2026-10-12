@@ -1,0 +1,20 @@
+// Imports in a package and at file scope; a nested package; a member
+// access whose member is declared in the package does not count.
+// expect: LINT407 @ 4:1, LINT407 @ 11:3
+import outer_pkg::inner_pkg::*;
+package outer_pkg {
+  package inner_pkg { struct n_t { } }
+}
+package a_pkg { struct s_t { rand bit[4] v; } }
+package b_pkg {
+  import a_pkg::*;
+  import outer_pkg::*;
+  struct t_t { s_t s; }
+}
+component pss_top {
+  b_pkg::t_t t;
+  action A {
+    rand bit[4] x;
+    constraint x == comp.t.s.v;
+  }
+}

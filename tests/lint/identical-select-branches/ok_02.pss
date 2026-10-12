@@ -1,0 +1,14 @@
+// expect: none
+// The `;` after `do A with { ... }` terminates the traversal: it is not a
+// branch of its own, so the two `;`s are not two identical empty branches.
+component pss_top {
+  action Sub { rand bit[4] x; }
+  action A {
+    activity {
+      select {
+        do Sub with { x < 5; };
+        do Sub with { x > 9; };
+      }
+    }
+  }
+}

@@ -1,0 +1,9 @@
+// expect: LINT303 @ 6:7
+component pss_top {
+  function int alloc(int n) { return n; }
+  action A {
+    exec post_solve {
+      alloc(1);
+    }
+  }
+}

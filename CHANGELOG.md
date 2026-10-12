@@ -110,6 +110,59 @@ With this come lint profiles and rule selection (`docs/lint.rst`):
   (`PSSP201`). `CheckContext.is_enabled()` lets a checker skip a disabled
   rule. `pssparser.checkers.testing` is a fixture harness for rule tests.
 
+### Fixed (behaviour change) — a `;` after a traversal is not a `select` branch
+
+In `select { do A with { x < 5; }; do B with { x > 9; }; }` each `;` after a
+`with { }` block was built as a branch of its own that does nothing, so the
+`select` had four branches and did nothing half the time. The grammar reads
+that `;` as a separate empty statement (LRM Syntax 39, 40), but writing it is
+common practice: a bare `;` is now a terminator, never a branch. Write an
+empty branch as `{ }`. A `;` with a guard or a weight (`(c): ;`) was written
+as a branch and stays one. `parallel` and `schedule` were not affected.
+
+### Added — the first built-in lint rules (nursery)
+
+pssparser now ships 16 declarative lint rules (`rules/*.yaml`, compiled into
+the core, so the CLI and the editor run the same ones). They are in the
+`nursery` tier: new and not yet measured, so no profile includes them. Select
+them by tier (`--select nursery`) or by name or ID. `docs/lint-rules.rst` and
+`pssparser --explain <ID>` describe each one, with its escape hatch.
+
+| ID | Name | Finds |
+|---|---|---|
+| LINT102 | `self-comparison` | `x == x`, including `size == size` in a traversal's `with`, where both name the traversed action's field (13.1.4) |
+| LINT201 | `degenerate-activity-statement` | `repeat (0)`, `repeat ... while (false)`/`(true)`, a `select`/`parallel`/`schedule` with one branch or none |
+| LINT202 | `unreachable-select-branch` | a `select` branch whose guard is always false or whose weight is zero; a `select` with none left |
+| LINT203 | `overlapping-activity-match` | an activity `match` choice overlapping an earlier one (a value both cover picks one at random, 11.4.6) |
+| LINT204 | `identical-select-branches` | a `select` branch written the same as an earlier one |
+| LINT205 | `unused-action-handle` | an action handle nothing traverses or names |
+| LINT302 | `nonexhaustive-procedural-match` | a procedural `match` on an enum that misses an item and has no `default` (a run-time error, 20.7.10) |
+| LINT303 | `discarded-result` | a call to a function that returns a value, without `(void)` (20.7.4) |
+| LINT304 | `message-side-effect` | a call to a function that is not pure in a `message()` argument (21.1.3) |
+| LINT305 | `self-assignment` | `x = x;` |
+| LINT306 | `unreachable-statement` | a statement after `return`, `break` or `continue` in the same block |
+| LINT405 | `empty-declaration` | an empty `extend`, `extend enum`, unnamed `constraint { }` or `override { }` |
+| LINT406 | `shadows-core-library-name` | a type or function declared with a core library name (`message`, `packed_s`, ...) |
+| LINT407 | `unused-import` | an import no name in its scope is found through |
+| LINT408 | `duplicate-import` | an import repeating an earlier one in the same scope |
+| LINT603 | `deprecated-construct` | array properties `size`/`sum` without `()`, `dynamic constraint`, `addr_reg_pkg::packed_s` and its kin |
+
+- New rule-library functions: `same_tree(a, b)` (two nodes are the same
+  code), `descendants(node, Kind)` (a subtree's nodes of one class, typed),
+  `import_uses(import)` (the names an import provides) and
+  `core_library_name(name)`.
+- `let:` bindings are evaluated when first read, not for every matched node:
+  a binding only the message uses costs nothing for a node that is not
+  reported. `map()` and `filter()` are linear in the list (they were
+  quadratic), so rules spend fewer of their evaluation steps.
+- The AST records the `(void)` cast on a call statement:
+  `ProceduralStmtExpr.void_cast`.
+- `pssparser.checkers.testing.check_fixture` fails a fixture with an error it
+  does not expect: rules never run on a model with errors, so such a fixture
+  passed without testing anything.
+- `scripts/bench_lint.py --select SEL` adds selectors to the `all` profile:
+  `--rules --select nursery` times the built-in rules alone.
+
 ### Added — site lint rules in YAML (`pss-rules` files)
 
 A site can write its own lint rules without Python: a `pss-rules` YAML file
@@ -159,7 +212,6 @@ See `docs/lint-rule-authoring.rst` and `docs/lint-functions.rst`.
 - `pssparser.checkers.testing`: `run_rules`, `check_fixture` and
   `check_fixture_dir` take `rule_files=`, so fixture directories test
   declarative rules; `pssparser.lint.examples` runs rules' examples.
-- pssparser ships no built-in YAML rules yet.
 
 ### Changed — lint rules run faster; index time is reported apart
 

@@ -1,0 +1,17 @@
+// In a function of an extension's component and an exec an extension adds.
+// expect: LINT306 @ 7:5, LINT306 @ 14:7
+component pss_top {
+  action A { int n; }
+  function int f() {
+    return 1;
+    return 2;
+  }
+}
+extend component pss_top {
+  extend action A {
+    exec post_solve {
+      return;
+      n = 1;
+    }
+  }
+}

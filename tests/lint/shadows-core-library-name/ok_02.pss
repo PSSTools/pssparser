@@ -1,0 +1,18 @@
+// expect: none
+// A local variable, a parameter and a field with a library name are not
+// type or function declarations; an executor overrides the access
+// functions on purpose.
+import addr_reg_pkg::*;
+import executor_pkg::*;
+component pss_top {
+  int urandom;
+  function int f(int message) { int packed_s = message; return packed_s; }
+}
+component tap_c : executor_c<> {
+  target function bit[8] read8(addr_handle_t hndl, mem_access_desc_s mem_access_desc = {}) {
+    return 0;
+  }
+}
+extend component tap_c {
+  target function void write8(addr_handle_t hndl, bit[8] data, mem_access_desc_s mem_access_desc = {}) { }
+}

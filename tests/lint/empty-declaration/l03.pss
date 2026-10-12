@@ -1,0 +1,8 @@
+// An empty extension of a derived action and of a component.
+// expect: LINT405 @ 7:1, LINT405 @ 8:1
+component pss_top {
+  action A { }
+  action B : A { }
+}
+extend action pss_top::B { }
+extend component pss_top { }

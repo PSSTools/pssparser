@@ -1,0 +1,17 @@
+// expect: none
+// Guards and weights that are not constant.
+component pss_top {
+  action Sub { }
+  action A {
+    rand bit[4] m;
+    bool en;
+    activity {
+      select {
+        (m > 0)[m]: do Sub;
+        (en): do Sub;
+        (true)[1]: do Sub;
+        do Sub;
+      }
+    }
+  }
+}

@@ -1,0 +1,21 @@
+// Nested in if, while and foreach; a break that ends an inner block.
+// expect: LINT306 @ 10:11, LINT306 @ 15:9, LINT306 @ 18:9
+component pss_top {
+  int arr[4];
+  exec init_down {
+    int i;
+    while (i < 10) {
+      if (i > 5) {
+        break;
+          i = 0;
+      }
+      i = i + 1;
+      foreach (arr[k]) {
+        continue;
+        arr[k] = 0;
+      }
+      { return;
+        i = 1; }
+    }
+  }
+}

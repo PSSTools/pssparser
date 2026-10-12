@@ -1,0 +1,22 @@
+// expect: none
+// Not checked: an integer subject, a range of items, and a computed subject.
+component pss_top {
+  enum st_e { IDLE, RUN, DONE };
+  function st_e next_st();
+  action A {
+    rand st_e st;
+    rand bit[4] n;
+    int r;
+    exec post_solve {
+      match (n) {
+        [0..3]: r = 1;
+      }
+      match (st) {
+        [IDLE..RUN]: r = 1;
+      }
+      match (next_st()) {
+        [IDLE]: r = 1;
+      }
+    }
+  }
+}

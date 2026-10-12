@@ -23,6 +23,7 @@
 #include <algorithm>
 #include <cctype>
 #include <string>
+#include <tuple>
 #include <unordered_set>
 #include "PssLib.h"
 #include "../util/Paths.h"
@@ -497,6 +498,58 @@ bool Context::declOf(const rf::Node &id, rf::Node &decl) const {
     return true;
 }
 
+const std::map<std::string, std::vector<rf::Node>> &Context::declsByParentPath(
+        uint64_t &steps) const {
+    if (m_byParentBuilt || !m_model) {
+        return m_byParent;
+    }
+    m_byParentBuilt = true;
+    collectSymbols();
+    // An index of the run, like the symbol index: its time is the run's,
+    // not the rule's that asked first (C8).
+    IndexTimer timer(*this);
+    // Only what a package declares can come in through an import: a
+    // declaration in a package, an item of an enum in one, a nested
+    // package. Keyed by the package's path, computed once per package;
+    // a declaration outside every indexed file (the core library) by its
+    // own path, less the last segment.
+    static const uint16_t pkg = classId("PackageScope"), enumDecl = classId("EnumDecl");
+    std::vector<std::pair<const std::string *, rf::Node>> decls;
+    std::string own;
+    decls.reserve(m_uses.size());
+    for (const auto &kv : m_uses) {
+        const rf::Node *dp = m_decl.find(kv.second.front().ptr);
+        if (!dp || !*dp) {
+            continue;
+        }
+        rf::Node d = *dp;
+        steps++;
+        uint64_t s = 0;
+        rf::Node up = parentOf(d);
+        if (up && up.kind == enumDecl) {
+            up = parentOf(up);
+        }
+        if (up && up.kind == pkg) {
+            decls.emplace_back(&declPath(up, s), d);
+        } else if (!up && !indexed(d)) {
+            const std::string &path = declPath(d, s);
+            size_t cut = path.rfind("::");
+            if (cut != std::string::npos) {
+                m_libParent.push_back(path.substr(0, cut));
+                decls.emplace_back(&m_libParent.back(), d);
+            }
+        }
+    }
+    // m_uses is in pointer order: sort for a stable answer.
+    std::sort(decls.begin(), decls.end(), [](const auto &a, const auto &b) {
+        return *a.first < *b.first || (*a.first == *b.first && a.second.ptr < b.second.ptr);
+    });
+    for (const auto &pd : decls) {
+        m_byParent[*pd.first].push_back(pd.second);
+    }
+    return m_byParent;
+}
+
 bool Context::declares(const rf::Node &n) const {
     if (segOf(n).seg != Seg::None) {
         return true;
@@ -947,6 +1000,30 @@ Value descendantsImpl(CallArgs &c) {
     return nodeList(out);
 }
 
+Value descendantsOfImpl(CallArgs &c) {
+    // descendants(), keeping the nodes of one class: the walk is the same,
+    // and costs one step per node visited, not the comprehension's dozen.
+    uint16_t cls;
+    if (!classOf(c[1], cls)) {
+        return Value::error("descendants(): '" + c[1].s + "' is not a node class");
+    }
+    std::vector<rf::Node> out, work, kids;
+    Walker::children(toNode(c[0]), kids);
+    work.assign(kids.rbegin(), kids.rend());
+    while (!work.empty()) {
+        rf::Node n = work.back();
+        work.pop_back();
+        c.steps++;
+        if (cel::isSubclass(n.kind, cls)) {
+            out.push_back(n);
+        }
+        kids.clear();
+        Walker::children(n, kids);
+        work.insert(work.end(), kids.rbegin(), kids.rend());
+    }
+    return nodeList(out);
+}
+
 Value siblingsImpl(CallArgs &c) {
     const Context *ctx = context(c);
     if (!ctx) {
@@ -1002,6 +1079,143 @@ Value declPathImpl(CallArgs &c) {
         return noContext("decl_path");
     }
     return Value::string(ctx->declPath(toNode(c[0]), c.steps));
+}
+
+// The nearest package a node is in; null for none, or for a node in no
+// indexed tree (a library declaration).
+rf::Node packageOf(const Context &ctx, rf::Node n, uint64_t &steps) {
+    static const uint16_t pkg = classId("PackageScope");
+    for (n=ctx.parentOf(n); n; n=ctx.parentOf(n)) {
+        steps++;
+        if (n.kind == pkg) {
+            return n;
+        }
+    }
+    return rf::Node();
+}
+
+// Whether an identifier is the first name of its path: not after `::` or `.`.
+bool leadingName(const Context &ctx, const rf::Node &id) {
+    static const uint16_t tie = classId("TypeIdentifierElem"), mpe = classId("ExprMemberPathElem");
+    rf::Node elem = ctx.parentOf(id);
+    if (!elem || (elem.kind != tie && elem.kind != mpe)) {
+        return true;
+    }
+    rf::Node holder = ctx.parentOf(elem);
+    if (!holder || holder.kind > rf::NumClasses) {
+        return true;
+    }
+    for (uint16_t c=holder.kind; c; c=rf::classes[c].super) {
+        const rf::ClassInfo &ci = rf::classes[c];
+        for (uint16_t f=ci.firstField; f<ci.firstField+ci.numFields; f++) {
+            const rf::FieldInfo &fi = rf::fields[f];
+            if (fi.type != rf::FieldType::List || fi.elem != rf::FieldType::Node || !fi.owned) {
+                continue;
+            }
+            uint32_t n = fi.size(holder.ptr, holder.kind);
+            for (uint32_t i=0; i<n; i++) {
+                if (fi.at(holder.ptr, holder.kind, i).n.ptr == elem.ptr) {
+                    return i == 0;
+                }
+            }
+        }
+    }
+    return true;
+}
+
+Value importUsesImpl(CallArgs &c) {
+    const Context *ctx = context(c);
+    if (!ctx) {
+        return noContext("import_uses");
+    }
+    static const uint16_t importStmt = classId("PackageImportStmt");
+    rf::Node imp = toNode(c[0]);
+    if (!imp || imp.kind != importStmt) {
+        return Value::mkList(cel::ValueList());
+    }
+    rf::Node target;
+    if (!ctx->declOf(refIdent(asNode(field(imp, "path"))), target)) {
+        return Value::error("import_uses() needs a linked model, and this run has none");
+    }
+    rf::Node scope = ctx->parentOf(imp);
+    if (!target || !scope) {
+        return Value::mkList(cel::ValueList());
+    }
+    uint64_t s = 0;
+    const std::string tpath = ctx->declPath(target, s);
+    Value wild = field(imp, "wildcard");
+    bool wildcard = wild.kind == Value::Kind::Bool && wild.b;
+    rf::Node alias = asNode(field(imp, "alias"));
+    std::string aliasName = alias ? text(asValue(alias)) : std::string();
+
+    // What the import can provide: the package itself for an alias; what
+    // the package declares for `p::*`; the declaration and what is in it
+    // for `p::x`.
+    std::vector<rf::Node> decls;
+    const auto &byParent = ctx->declsByParentPath(c.steps);
+    if (alias) {
+        decls.push_back(target);
+    } else if (wildcard) {
+        auto it = byParent.find(tpath);
+        if (it != byParent.end()) {
+            decls = it->second;
+        }
+    } else {
+        // The declaration, and its items when it is an enum (`import
+        // p::mode_e;` brings in `mode_e`, whose items are then in reach),
+        // and what a nested package declares.
+        decls.push_back(target);
+        static const uint16_t enumDecl = classId("EnumDecl");
+        if (target.kind == enumDecl) {
+            Value items = field(target, "items");
+            if (items.kind == Value::Kind::List) {
+                for (const Value &v : *items.list) {
+                    decls.push_back(asNode(v));
+                }
+            }
+        }
+        auto it = byParent.find(tpath);
+        if (it != byParent.end()) {
+            decls.insert(decls.end(), it->second.begin(), it->second.end());
+        }
+    }
+
+    std::vector<rf::Node> uses;
+    for (const rf::Node &d : decls) {
+        const std::vector<rf::Node> *of = ctx->usesOf(d);
+        if (!of) {
+            continue;
+        }
+        rf::Node dpkg;
+        bool dpkgKnown = false;
+        for (const rf::Node &u : *of) {
+            c.steps++;
+            if (!ctx->within(u, scope) || !leadingName(*ctx, u)) {
+                continue;
+            }
+            if (alias && text(asValue(u)) != aliasName) {
+                continue;
+            }
+            // A use inside the package that declares what it names needs no
+            // import.
+            if (!dpkgKnown) {
+                dpkg = packageOf(*ctx, d, c.steps);
+                dpkgKnown = true;
+            }
+            if (dpkg && packageOf(*ctx, u, c.steps) == dpkg) {
+                continue;
+            }
+            uses.push_back(u);
+        }
+    }
+    std::sort(uses.begin(), uses.end(), [](const rf::Node &a, const rf::Node &b) {
+        int32_t fa, la, ca, fb, lb, cb;
+        Walker::location(a, fa, la, ca);
+        Walker::location(b, fb, lb, cb);
+        return std::make_tuple(fa, la, ca) < std::make_tuple(fb, lb, cb);
+    });
+    uses.erase(std::unique(uses.begin(), uses.end()), uses.end());
+    return nodeList(uses);
 }
 
 Value isOwnedImpl(CallArgs &c) {
@@ -1134,6 +1348,129 @@ Value dupsImpl(CallArgs &c) {
         }
     }
     return Value::mkList(std::move(out));
+}
+
+//* Comparison
+
+// Per class: the fields same_tree compares, inherited ones first. Left out:
+// locations and other structs, maps, references (a node field that does not
+// own its node, such as a resolved `target`), what the linker records about
+// scopes and symbols (the fields of ScopeChild, SymbolChild, SymbolScope,
+// and SymbolChildrenScope's except its `children`), and the classes the
+// linker builds (SymbolRefPath, SymbolImportSpec, ...). What is left is the
+// code as written: kinds, operators, names, literal values and owned
+// subtrees.
+const std::vector<std::vector<uint16_t>> &sameTreeFields() {
+    static const std::vector<std::vector<uint16_t>> table = [] {
+        const std::unordered_set<std::string> meta = {
+            "ScopeChild", "SymbolChild", "SymbolScope", "SymbolChildrenScope"};
+        const std::unordered_set<std::string> linking = {
+            "SymbolRefPath", "SymbolImportSpec", "SymbolExtMember", "AssocData",
+            "SymbolScope"};
+        std::vector<std::vector<uint16_t>> t(rf::NumClasses + 1);
+        for (uint16_t k=1; k<=rf::NumClasses; k++) {
+            std::vector<uint16_t> chain;
+            for (uint16_t c=k; c; c=rf::classes[c].super) {
+                chain.push_back(c);
+            }
+            for (auto it=chain.rbegin(); it!=chain.rend(); it++) {
+                const rf::ClassInfo &ci = rf::classes[*it];
+                for (uint16_t f=ci.firstField; f<ci.firstField+ci.numFields; f++) {
+                    const rf::FieldInfo &fi = rf::fields[f];
+                    bool node = fi.type == rf::FieldType::Node
+                        || (fi.type == rf::FieldType::List && fi.elem == rf::FieldType::Node);
+                    if (meta.count(ci.name) && !(node && std::string(fi.name) == "children")) {
+                        continue;
+                    }
+                    if (fi.type == rf::FieldType::Struct || fi.type == rf::FieldType::Map
+                            || (fi.type == rf::FieldType::List && !node)) {
+                        continue;
+                    }
+                    if (node && (!fi.owned || linking.count(rf::classes[fi.target].name))) {
+                        continue;
+                    }
+                    t[k].push_back(f);
+                }
+            }
+        }
+        return t;
+    }();
+    return table;
+}
+
+bool sameScalar(const rf::Value &a, const rf::Value &b) {
+    if (a.kind != b.kind) {
+        return false;
+    }
+    switch (a.kind) {
+        case rf::Value::Kind::Absent: return true;
+        case rf::Value::Kind::Bool:   return a.b == b.b;
+        case rf::Value::Kind::Int:
+        case rf::Value::Kind::Enum:
+        case rf::Value::Kind::Flags:  return a.i == b.i;
+        case rf::Value::Kind::Uint:   return a.u == b.u;
+        case rf::Value::Kind::Float:  return a.d == b.d;
+        case rf::Value::Kind::String: return *a.s == *b.s;
+        default: return false;
+    }
+}
+
+// A list field's elements, as children() counts them: not borrowed, not
+// implicit.
+void ownedElems(const rf::FieldInfo &f, const rf::Node &n, std::vector<rf::Node> &out) {
+    uint32_t sz = f.size(n.ptr, n.kind);
+    for (uint32_t i=0; i<sz; i++) {
+        rf::Value v = f.at(n.ptr, n.kind, i);
+        if (v.n && !v.borrowed && !Walker::implicit(v.n)) {
+            out.push_back(v.n);
+        }
+    }
+}
+
+bool sameTree(const rf::Node &a, const rf::Node &b, int64_t &steps) {
+    steps++;
+    if (!a || !b) {
+        return !a && !b;
+    }
+    if (a.kind != b.kind) {
+        return false;
+    }
+    if (a.ptr == b.ptr) {
+        return true;
+    }
+    if (a.kind > rf::NumClasses) {
+        return false;
+    }
+    for (uint16_t fi : sameTreeFields()[a.kind]) {
+        const rf::FieldInfo &f = rf::fields[fi];
+        if (f.type == rf::FieldType::Node) {
+            if (!sameTree(f.get(a.ptr, a.kind).n, f.get(b.ptr, b.kind).n, steps)) {
+                return false;
+            }
+        } else if (f.type == rf::FieldType::List) {
+            std::vector<rf::Node> la, lb;
+            ownedElems(f, a, la);
+            ownedElems(f, b, lb);
+            if (la.size() != lb.size()) {
+                return false;
+            }
+            for (size_t i=0; i<la.size(); i++) {
+                if (!sameTree(la[i], lb[i], steps)) {
+                    return false;
+                }
+            }
+        } else if (!sameScalar(f.get(a.ptr, a.kind), f.get(b.ptr, b.kind))) {
+            return false;
+        }
+    }
+    return true;
+}
+
+Value sameTreeImpl(CallArgs &c) {
+    int64_t steps = 0;
+    bool r = sameTree(toNode(c[0]), toNode(c[1]), steps);
+    c.steps = steps;
+    return Value::boolean(r);
 }
 
 //* References
@@ -1473,6 +1810,36 @@ Value typeNamedImpl(CallArgs &c) {
     return decl ? Value::some(nodeValue(decl)) : Value::none();
 }
 
+// The packages of the core library (Annex C), in the order core_library_name
+// searches them.
+const char *const CoreLibraryPackages[] = {
+    "std_pkg", "addr_reg_pkg", "executor_pkg", "sync_pkg"};
+
+Value coreLibraryNameImpl(CallArgs &c) {
+    const Context *ctx = context(c);
+    if (!ctx) {
+        return noContext("core_library_name");
+    }
+    ast::IRootSymbolScope *model = ctx->model();
+    if (!model) {
+        return Value::error("core_library_name() needs a linked model, and this run has none");
+    }
+    for (const char *pkg : CoreLibraryPackages) {
+        c.steps++;
+        auto pit = model->getSymtab().find(pkg);
+        if (pit == model->getSymtab().end() || pit->second < 0
+                || pit->second >= static_cast<int32_t>(model->getChildren().size())) {
+            continue;
+        }
+        ast::ISymbolScope *scope = NodeKind::cast<ast::ISymbolScope>(
+            model->getChildren().at(pit->second).get());
+        if (scope && scope->getSymtab().find(c[0].s) != scope->getSymtab().end()) {
+            return Value::some(Value::string(std::string(pkg) + "::" + c[0].s));
+        }
+    }
+    return Value::none();
+}
+
 Value derivesFromImpl(CallArgs &c) {
     const Context *ctx = context(c);
     if (!ctx) {
@@ -1532,6 +1899,17 @@ void registerPssLib(FunctionRegistry &r) {
     r.add("descendants_node", "descendants(node) -> list(node)", &descendantsImpl, C::Custom,
         "Every node under this one, in pre-order (a node, then its children's subtrees), "
         "not including the node itself. One step per element.");
+    Overload &descendantsOf = r.add("descendants_node_type",
+        "descendants(node, type) -> list(node)", &descendantsOfImpl, C::Custom,
+        "The nodes under this one of the class named, or of a class deriving from it, in "
+        "pre-order: `descendants(node, ExprId)`. The same as "
+        "`descendants(node).filter(d, d.isa(ExprId))`, but the elements have that class, so "
+        "their fields can be read directly (`descendants(node, Field).map(f, f.name.id)`), "
+        "and the filtering costs one step per node visited rather than a comprehension's "
+        "per-element cost.");
+    descendantsOf.classArg = 1;
+    descendantsOf.resultIsClassList = true;
+    descendantsOf.nullable = true;
     r.add("siblings_node", "siblings(node) -> list(node)", &siblingsImpl, C::Custom,
         "The other elements of the list that holds the node (the statements of its block, "
         "the items of its scope), in order and without the node itself. Empty when the "
@@ -1574,6 +1952,21 @@ void registerPssLib(FunctionRegistry &r) {
         "reference, such as `int`).")
         .nullable = true;
 
+    r.level(Level::L1, Scope::File);
+    r.add("import_uses_node", "import_uses(node) -> list(ExprId)", &importUsesImpl, C::Custom,
+        "The names an `import` provides in its scope: the identifiers there that are the "
+        "first name of their path and resolve to what it imports -- a declaration in the "
+        "package, for `import p::*;`; the declaration or something in it, for `import "
+        "p::x;`; the package itself, written with the alias, for `import p as a;`. Not a "
+        "declaration's own name, and not a use inside the package that declares what it "
+        "names, which needs no import. `[]` when none does: `size(import_uses(node)) == 0` "
+        "is an unused import. Members reached through a value (`s.extra`, from an `extend` "
+        "the import brings in) are not counted. `[]` for another node. In source order. "
+        "From the run's symbol index, built once: one step per use of what the import can "
+        "provide.")
+        .nullable = true;
+
+    r.level(Level::L0, Scope::File);
     r.group("References");
     r.add("is_read_node", "is_read(node) -> bool", &isReadImpl, C::Custom,
         "Whether this use of a name reads it: every use except the target of a plain "
@@ -1714,6 +2107,14 @@ void registerPssLib(FunctionRegistry &r) {
         "`null`, for a node that is not a type, and for an unknown name (which is reported, "
         "PSSP223). One step per type visited.")
         .nullable = true;
+    r.add("core_library_name_string", "core_library_name(string) -> optional(string)",
+        &coreLibraryNameImpl, C::Custom,
+        "The core library's declaration of a name, qualified: `core_library_name(\"message\")` "
+        "is `optional.of(\"std_pkg::message\")`. Searches what the core library packages "
+        "declare at their top level -- types, enums, typedefs, functions, annotations -- in "
+        "`std_pkg`, `addr_reg_pkg`, `executor_pkg` and `sync_pkg`, in that order. "
+        "`optional.none()` for a name none of them declares, such as an enum item "
+        "(`LOW` is in `message_verbosity_e`, not in `std_pkg`). One step per package.");
 
     r.group("Lists");
     r.level(Level::L0, Scope::File);
@@ -1726,6 +2127,18 @@ void registerPssLib(FunctionRegistry &r) {
         "is never a duplicate, so unset fields and unresolved names do not pair up. One step "
         "per element; a list, map, optional, record or double element also one per "
         "distinct earlier element it is compared with.");
+    r.group("Comparison");
+    r.level(Level::L0, Scope::File);
+    r.add("same_tree_node_node", "same_tree(node, node) -> bool", &sameTreeImpl, C::Custom,
+        "Whether two nodes are the same code: the same kinds, operators, names and literal "
+        "values, all the way down, wherever they are and however they are laid out. "
+        "Locations, comments, annotations and what the linker records (what a name "
+        "resolves to) are not compared, so `same_tree(node.lhs, node.rhs)` is true for "
+        "`x = x;` and for `a.b[i] = a.b[i];`, and two `select` branches written alike are "
+        "the same tree. Spelling counts: `x` and `this.x`, `1` and `0x1`, `(a)` and `a` "
+        "differ. `true` for two `null`s, `false` for `null` and a node. One step per node "
+        "compared.")
+        .nullable = true;
     r.group("Locations");
     fileInfoRecord = cel::defineRecord("FileInfo",
         "The file a node is in, as `file_of` gives it: its path as the host named it, "

@@ -1,0 +1,86 @@
+# Language-evolution rules (lint-framework-plan.md F3.5): LINT6xx. LINT601
+# and LINT602 are the linker's (python/pssparser/lint/catalog.py).
+pss-rules:
+  version: 1
+
+  defaults:
+    family: evolution
+    tier: nursery
+    since: "2026.1"
+
+  rules:
+    - id: LINT603
+      name: deprecated-construct
+      summary: A construct the LRM deprecates in favour of a newer form
+      message: >-
+        ${node.isa(ConstraintBlock)
+          ? "dynamic constraints are deprecated; write 'constraint " + cname + "()', a generic constraint with no parameters"
+          : node.isa(TypeIdentifierElem)
+            ? "'addr_reg_pkg::" + elem_id + "' is deprecated; it is 'std_pkg::" + elem_id + "' since PSS 2.1"
+            : "the array property '" + elem_id + "' is deprecated; call '" + elem_id + "()' instead"}
+      doc: |
+        Forms the LRM keeps for compatibility, each with a replacement:
+
+        - **Array properties** `size` and `sum` without parentheses
+          (`data.size`) are deprecated; call the methods `data.size()` and
+          `data.sum()` (7.9.2.4).
+        - **Dynamic constraints**, `dynamic constraint c { ... }`, are
+          deprecated; a generic constraint with no parameters,
+          `constraint c() { ... }`, does the same (13.1.1). Traversing one
+          from an activity is reported separately, by
+          `deprecated-dynamic-constraint-traversal` (LINT602).
+        - **`packed_s`, `endianness_e` and `sizeof_s` through
+          `addr_reg_pkg`**: they moved to `std_pkg` in PSS 2.1, and naming
+          them through `addr_reg_pkg` is deprecated (Annex C).
+
+        A tool must still accept all three, so they are not errors; a later
+        revision of the LRM may drop them. The brace-less `compile if` body
+        is `deprecated-braceless-compile-if` (LINT601).
+      lrm: ["7.9.2.4", "13.1.1"]
+      match: { kind: [ExprMemberPathElem, ConstraintBlock, TypeIdentifierElem] }
+      let:
+        elem_id: >-
+          node.isa(ExprMemberPathElem) ? node.id.id
+          : node.isa(TypeIdentifierElem) ? node.id.id : ""
+        cname: >-
+          node.isa(ConstraintBlock) && has(node.name) ? node.name.id : "c"
+      # Path elements are everywhere: the cheapest test that rules one out
+      # comes first.
+      where: >-
+        type(node) == ExprMemberPathElem
+          ? (node.id.id == "size" || node.id.id == "sum") && !has(node.params)
+            && index_of(node) > 0 && resolves_to(node) == null
+        : type(node) == TypeIdentifierElem
+          ? (node.id.id == "packed_s" || node.id.id == "endianness_e" || node.id.id == "sizeof_s")
+            && index_of(node) == 1
+            && siblings(node).exists(s, type(s) == TypeIdentifierElem && s.id.id == "addr_reg_pkg"
+                 && index_of(s) == 0)
+        : node.isa(ConstraintBlock) && node.is_dynamic
+      examples:
+        - name: array properties, a dynamic constraint, and a moved type
+          code: |
+            component pss_top {
+              struct p_s : addr_reg_pkg::packed_s<> { rand bit[4] f; }   // expect: LINT603
+              action A {
+                rand bit[4] data[4];
+                rand int n;
+                constraint n == data.size;                  // expect: LINT603
+                constraint n < data.sum;                    // expect: LINT603
+                dynamic constraint d { n > 2; }             // expect: LINT603
+              }
+            }
+        - name: the replacements, and a struct field named size
+          code: |
+            component pss_top {
+              struct s_s { rand int size; }
+              struct p_s : std_pkg::packed_s<> { rand bit[4] f; }
+              action A {
+                rand bit[4] data[4];
+                rand s_s s;
+                rand int n;
+                constraint n == data.size();
+                constraint n < data.sum();
+                constraint n > s.size;
+                constraint d() { n > 2; }
+              }
+            }

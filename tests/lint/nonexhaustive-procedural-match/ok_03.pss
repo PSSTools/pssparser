@@ -1,0 +1,25 @@
+// expect: none
+// An activity match is not checked: the solver picks a value a choice
+// covers. And the escape hatch, a waiver on the statement.
+component pss_top {
+  enum st_e { IDLE, RUN, DONE };
+  action Sub { }
+  action A {
+    rand st_e st;
+    int r;
+    activity {
+      match (st) {
+        [IDLE]: do Sub;
+        [RUN]: do Sub;
+      }
+    }
+    exec post_solve {
+      @lint_pkg::waive {.id = "nonexhaustive-procedural-match",
+                        .reason = "DONE is excluded by the activity"}
+      match (st) {
+        [IDLE]: r = 1;
+        [RUN]: r = 2;
+      }
+    }
+  }
+}

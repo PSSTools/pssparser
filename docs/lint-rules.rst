@@ -64,6 +64,399 @@ An enum item belongs to its enumeration type's scope, not to the scope that decl
 
 Qualify the item.  LRM Example 37: ``print_num((int)ORANGE)`` is an error, because the cast's type is ``int``.
 
+.. _lint102:
+
+LINT102: ``self-comparison``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Tier:** nursery; **Default severity:** warning; **Since:** 2026.1; **LRM:** 13.1.4; **Level:** L1, file; **Defined in:** ``rules/constraint.yaml``
+
+A comparison whose two sides are the same expression
+
+``x == x``, ``x <= x`` and ``x >= x`` are always true; ``x != x``, ``x < x``
+and ``x > x`` always false. As a constraint, the first kind constrains
+nothing and the second makes the model unsolvable; in an ``if`` or a
+guard, one branch is dead.
+
+The common way to write one by accident is in a traversal's inline
+constraint. Inside ``with { ... }``, a name means the traversed
+action's field first, and the enclosing action's only when the
+traversed action has none (13.1.4). So in
+
+    action test {
+      rand bit[32] size;
+      activity { do write_a with { size == size; } }
+    }
+
+both ``size``s are ``write_a``'s, and the constraint is a tautology.
+The intent was ``size == this.size``: ``this`` is the enclosing action.
+
+Sides are compared as code (``same_tree``): ``a.b[i] == a.b[i]`` is
+reported, ``x == this.x`` is not, and nor is a comparison of calls to
+a function that is not ``pure``, which may return a different value
+each time.
+
+Flagged (inline-constraint capture, and a plain self-comparison):
+
+.. code-block:: pss
+
+   component pss_top {
+     action write_a { rand bit[32] size; }
+     action test {
+       rand bit[32] size;
+       rand bit[8] arr[4];
+       rand bit[2] i;
+       constraint arr[i] != arr[i];
+       activity {
+         do write_a with { size == size; }
+       }
+     }
+   }
+
+Not flagged (the intended comparison, and calls that need not repeat):
+
+.. code-block:: pss
+
+   component pss_top {
+     function bit[8] next_id();
+     action write_a { rand bit[32] size; }
+     action test {
+       rand bit[32] size;
+       rand bit[8] id;
+       activity {
+         do write_a with { size == this.size; }
+       }
+       exec post_solve {
+         if (next_id() == next_id()) { id = 1; }
+       }
+     }
+   }
+
+Activities
+----------
+
+.. _lint201:
+
+LINT201: ``degenerate-activity-statement``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Tier:** nursery; **Default severity:** warning; **Since:** 2026.1; **LRM:** 11.3.4, 11.3.5, 11.4.1, 11.4.2, 11.4.4, 11.5.1; **Level:** L3, file; **Defined in:** ``rules/activity.yaml``
+
+An activity statement that does nothing, or adds nothing over its body
+
+A statement whose control flow is decided by its own text:
+
+- ``repeat (0)`` never runs its body (11.4.1 b).
+- ``repeat { ... } while (false)`` runs its body exactly once; with
+  ``while (true)`` it never ends, since an activity has no ``break``
+  (11.4.2).
+- ``select``, ``parallel`` and ``schedule`` with one branch behave as that
+  branch alone (11.3.4, 11.3.5, 11.4.4); with none, they do nothing.
+  A one-branch ``parallel`` or ``schedule`` with a join specification
+  (``join_none``, ...) is not reported: it changes what follows the
+  statement waits for (11.3.6). Nor is one whose branch is a
+  ``replicate``, which expands into several branches (11.5.1).
+
+Each is usually left over from an edit: a branch was removed, or a
+count was set to zero to disable a loop. (The grammar gives ``select``
+at least two branches (11.4.4); pssparser accepts one today, and may
+make it an error later.) Write the
+branch on its own, or remove the statement. To keep a disabled loop
+visible, waive the finding at the statement:
+``@lint_pkg::waive {.id = "degenerate-activity-statement", .reason = "..."}``.
+
+Counts and conditions are judged only when they fold to a constant:
+``repeat (N)`` with ``N`` a constant that happens to be zero is reported,
+a count read from a field is not.
+
+Flagged (a disabled loop and single-branch statements):
+
+.. code-block:: pss
+
+   component pss_top {
+     static const int N = 0;
+     action Sub { }
+     action A {
+       activity {
+         repeat (N) { do Sub; }
+         repeat { do Sub; } while (false);
+         repeat { do Sub; } while (true);
+         select { do Sub; }
+         parallel { do Sub; }
+         schedule { }
+       }
+     }
+   }
+
+Not flagged (counts and conditions that are not constant, and two branches):
+
+.. code-block:: pss
+
+   component pss_top {
+     action Sub { }
+     action A {
+       rand bit[4] n;
+       activity {
+         repeat (n) { do Sub; }
+         repeat { do Sub; } while (n > 2);
+         repeat (2) { do Sub; }
+         select { do Sub; do Sub; }
+         parallel { do Sub; do Sub; }
+         parallel join_none { do Sub; }
+         parallel { replicate (n) { do Sub; } }
+       }
+     }
+   }
+
+.. _lint202:
+
+LINT202: ``unreachable-select-branch``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Tier:** nursery; **Default severity:** warning; **Since:** 2026.1; **LRM:** 11.4.4; **Level:** L3, file; **Defined in:** ``rules/activity.yaml``
+
+A select branch whose guard is always false or whose weight is zero
+
+A ``select`` branch is enabled only when its guard is true (11.4.4 b),
+and is chosen with probability weight / sum of the enabled weights
+(11.4.4 d), so a branch whose guard folds to ``false``, or whose weight
+folds to ``0``, is never selected. That is usually a branch disabled
+by hand and forgotten, or a constant that changed under it.
+
+When no branch can be selected the ``select`` is illegal (11.4.4 f):
+the finding is then reported once, at the ``select``.
+
+Only constant guards and weights are judged. To disable a branch
+on purpose, remove it, or waive the finding on the branch:
+``@lint_pkg::waive {.id = "unreachable-select-branch", .reason = "..."}``.
+
+Flagged (a false guard, a zero weight, and a select with nothing left):
+
+.. code-block:: pss
+
+   component pss_top {
+     static const bool ENABLE_B = false;
+     action Sub { }
+     action A {
+       rand bit[4] m;
+       activity {
+         select {
+           (m > 0): do Sub;
+           (ENABLE_B): do Sub;
+           [0]: do Sub;
+           [2]: do Sub;
+         }
+         select {
+           (false): do Sub;
+           [0]: do Sub;
+         }
+       }
+     }
+   }
+
+Not flagged (guards and weights that are not constant):
+
+.. code-block:: pss
+
+   component pss_top {
+     action Sub { }
+     action A {
+       rand bit[4] m;
+       activity {
+         select {
+           (m > 0)[m]: do Sub;
+           (true)[1]: do Sub;
+           do Sub;
+         }
+       }
+     }
+   }
+
+.. _lint203:
+
+LINT203: ``overlapping-activity-match``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Tier:** nursery; **Default severity:** warning; **Since:** 2026.1; **LRM:** 11.4.6; **Level:** L3, file; **Defined in:** ``rules/activity.yaml``
+
+An activity match choice whose values overlap an earlier choice's
+
+When more than one choice of an activity ``match`` covers the value of
+the match expression, one of the matching choices is traversed at
+random (11.4.6 d). The same overlap in a procedural ``match`` is an
+error (20.7.10), so in an activity it is easy to write by accident
+and read as "first match wins", which PSS does not do.
+
+Only choices whose ranges fold to constants are compared; a choice
+such as ``[m]`` that depends on the model is not.
+
+If a random choice between the overlapping branches is intended,
+say so with a ``select`` and guards, which states the choice
+directly, or waive the finding on the choice. A match choice takes
+no annotation, so use the comment form on the choice's line:
+``// pssparser waive overlapping-activity-match: <reason>``.
+
+Flagged (overlapping ranges, folded constants and a single value):
+
+.. code-block:: pss
+
+   component pss_top {
+     static const int K = 4;
+     action Sub { }
+     action A {
+       rand bit[4] m;
+       activity {
+         match (m) {
+           [0..4]: do Sub;
+           [3..7]: do Sub;
+           [K + 4]: do Sub;
+           [8, 12]: do Sub;
+           default: do Sub;
+         }
+       }
+     }
+   }
+
+Not flagged (disjoint choices, and one that does not fold):
+
+.. code-block:: pss
+
+   component pss_top {
+     action Sub { }
+     action A {
+       rand bit[4] m;
+       rand bit[4] n;
+       activity {
+         match (m) {
+           [0..3]: do Sub;
+           [4..7]: do Sub;
+           [n]: do Sub;
+           default: do Sub;
+         }
+       }
+     }
+   }
+
+.. _lint204:
+
+LINT204: ``identical-select-branches``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Tier:** nursery; **Default severity:** warning; **Since:** 2026.1; **LRM:** 11.4.4; **Level:** L0, file; **Defined in:** ``rules/activity.yaml``
+
+A select branch written the same as an earlier branch
+
+Two ``select`` branches with the same guard, weight and statement are
+one branch with twice the weight (11.4.4 d). That is usually a
+copy-and-paste slip: the copy was meant to traverse a different
+action, or to constrain it differently.
+
+Branches are compared as code, not as text: layout and comments do
+not matter, while any difference in a name, an operator or a
+literal does.
+
+To weight a branch on purpose, say so with a weight, ``[2]: do A;``,
+rather than by repeating it.
+
+Flagged (a repeated branch, across lines and comments):
+
+.. code-block:: pss
+
+   component pss_top {
+     action Sub { rand bit[4] x; }
+     action A {
+       activity {
+         select {
+           do Sub with { x < 5; }
+           do Sub with { x > 9; }
+           do Sub with {
+             x < 5;  // the same as the first
+           }
+         }
+       }
+     }
+   }
+
+Not flagged (different weights, guards or constraints, and an explicit weight):
+
+.. code-block:: pss
+
+   component pss_top {
+     action Sub { rand bit[4] x; }
+     action A {
+       rand bit[4] m;
+       activity {
+         select {
+           [2]: do Sub with { x < 5; }
+           [1]: do Sub with { x < 5; }
+           (m > 1): do Sub;
+           (m > 2): do Sub;
+           do Sub with { x < 6; }
+         }
+       }
+     }
+   }
+
+.. _lint205:
+
+LINT205: ``unused-action-handle``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Tier:** nursery; **Default severity:** warning; **Since:** 2026.1; **LRM:** 11.3.1, 11.3.2; **Level:** L4, model; **Defined in:** ``rules/activity.yaml``
+
+An action handle that is never traversed or referenced
+
+An action handle (a field of an action type, or an array of them)
+does nothing until an activity traverses it. One that nothing
+traverses, binds, constrains or otherwise names is usually a
+forgotten traversal, or left over after the activity changed.
+
+Uses are counted across the whole model: a traversal in a derived
+action's activity, in an ``extend``, or in another file counts.
+Handles declared in files that are not being checked (a library, an
+``--include`` path) are not reported.
+
+To keep a handle that is deliberately unused, remove it, or waive
+the finding on its declaration:
+``@lint_pkg::waive {.id = "unused-action-handle", .reason = "..."}``.
+
+Flagged (an untraversed handle, a handle array, and one declared in the activity):
+
+.. code-block:: pss
+
+   component pss_top {
+     action Sub { }
+     action A {
+       Sub used;
+       Sub spare;
+       Sub pool_of[2];
+       activity {
+         Sub local;
+         used;
+       }
+     }
+   }
+
+Not flagged (uses in a constraint, a derived action and an extension):
+
+.. code-block:: pss
+
+   component pss_top {
+     action Sub { rand bit[4] x; }
+     action Base {
+       Sub a;
+       Sub b;
+       Sub c;
+       constraint a.x < 4;
+     }
+     action Derived : Base {
+       activity { a; b; }
+     }
+     extend action Base {
+       activity { c; }
+     }
+   }
+
 Exec blocks and functions
 -------------------------
 
@@ -79,6 +472,283 @@ Exported function is a component instance function
 20.4.2 allows ``export target function f;`` to name only a static function: a package function or a component's ``static`` one.  Naming a component's INSTANCE function is an extension, meaning the function is run on the instance the environment calls it through.  pssc's operation models take their API from it.  Message: ``exported function 'f' is not static; exporting a component's instance function is an extension to 20.4.2``.
 
 A warning, not an error: the export is bound all the same, so a tool that implements the extension can use it.  A strictly conforming model declares the function ``static``.
+
+.. _lint302:
+
+LINT302: ``nonexhaustive-procedural-match``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Tier:** nursery; **Default severity:** warning; **Since:** 2026.1; **LRM:** 20.7.10; **Level:** L4, model; **Defined in:** ``rules/exec.yaml``
+
+A procedural match on an enum that misses an item and has no default
+
+A procedural ``match`` whose value no choice matches, and which has no
+``default``, is an error when it runs (20.7.10 g). When the value is an
+enum, the items it can take are known, so a missing one can be found
+before then. Items an ``extend enum`` adds count too, wherever the
+extension is.
+
+Add a choice for each missing item, or a ``default``.
+
+Only a ``match`` on a name whose declared type is an enum is checked,
+and only when every choice lists enum items: a range, or a value
+that is not an item, leaves the rule silent. An activity ``match`` is
+not checked: there the solver picks a value some choice covers
+(11.4.6 g).
+
+Flagged (a missing item, and one an extension adds):
+
+.. code-block:: pss
+
+   component pss_top {
+     enum st_e { IDLE, RUN, DONE };
+     action A {
+       rand st_e st;
+       int r;
+       exec post_solve {
+         match (st) {
+           [IDLE]: r = 1;
+           [RUN]: r = 2;
+         }
+       }
+     }
+   }
+
+Not flagged (every item, a default, and a subject that is not an enum):
+
+.. code-block:: pss
+
+   component pss_top {
+     enum st_e { IDLE, RUN };
+     action A {
+       rand st_e st;
+       rand bit[4] n;
+       int r;
+       exec post_solve {
+         match (st) {
+           [IDLE]: r = 1;
+           [RUN]: r = 2;
+         }
+         match (st) {
+           [IDLE]: r = 1;
+           default: r = 2;
+         }
+         match (n) {
+           [0..3]: r = 1;
+         }
+       }
+     }
+   }
+
+.. _lint303:
+
+LINT303: ``discarded-result``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Tier:** nursery; **Default severity:** warning; **Since:** 2026.1; **LRM:** 20.2.7, 20.7.4; **Level:** L1, file; **Defined in:** ``rules/exec.yaml``
+
+A call whose return value is discarded without a (void) cast
+
+A function that returns a value may be called as a statement, and
+the value is then thrown away. That is legal, but the LRM recommends
+casting the call to ``void`` to say so (20.2.7, 20.7.4):
+
+    (void)alloc_buffer(size);
+
+Without the cast, a reader cannot tell a value dropped on purpose
+from a forgotten assignment.
+
+Flagged (a value dropped without the cast):
+
+.. code-block:: pss
+
+   component pss_top {
+     function int alloc(int n) { return n; }
+     action A {
+       exec post_solve {
+         alloc(1);
+       }
+     }
+   }
+
+Not flagged (the cast, a void function, and a value used):
+
+.. code-block:: pss
+
+   component pss_top {
+     function int alloc(int n) { return n; }
+     function void note(int n) { }
+     action A {
+       int r;
+       exec post_solve {
+         (void)alloc(1);
+         note(2);
+         note(alloc(3));
+         r = alloc(4);
+       }
+     }
+   }
+
+.. _lint304:
+
+LINT304: ``message-side-effect``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Tier:** nursery; **Default severity:** warning; **Since:** 2026.1; **LRM:** 21.1.3; **Level:** L1, file; **Defined in:** ``rules/exec.yaml``
+
+A message() argument calls a function that is not pure
+
+Whether ``message()`` evaluates its arguments at all depends on the
+run's verbosity level: a message above it is not issued, and its
+arguments need not be evaluated. A call with side effects in an
+argument (allocating an ID, advancing a counter) then happens in one
+run and not in another (21.1.3).
+
+Call the function first, keep its result in a variable, and pass
+the variable:
+
+    int id = alloc_id();
+    message(LOW, "next id = ", id);
+
+A function counts as free of side effects when it is declared
+``pure``, or a ``pure component`` declares it (``is_pure``). A message of
+verbosity ``NONE`` is always issued, so its arguments are always
+evaluated, and it is not reported. Neither are the built-in string
+and collection methods (``s.split(":")``), nor a call that does not
+resolve.
+
+Flagged (example 1):
+
+.. code-block:: pss
+
+   import std_pkg::*;
+   component pss_top {
+     function int alloc_id() { return 1; }
+     pure function int scaled(int x) { return x * 2; }
+     exec post_solve {
+       message(LOW, "id ", alloc_id());
+       message(LOW, "x ", scaled(2));
+       message(NONE, "id ", alloc_id());
+     }
+   }
+
+Not flagged (a pure component's function, and a definition that drops 'pure'):
+
+.. code-block:: pss
+
+   import std_pkg::*;
+   pure component util_c { function int f(int a) { return a; } }
+   component pss_top {
+     util_c u;
+     pure function int k(int a);
+     function int k(int a) { return a; }
+     exec post_solve {
+       message(LOW, "f ", u.f(1), " k ", k(2));
+     }
+   }
+
+.. _lint305:
+
+LINT305: ``self-assignment``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Tier:** nursery; **Default severity:** warning; **Since:** 2026.1; **Level:** L0, file; **Defined in:** ``rules/exec.yaml``
+
+An assignment of a variable to itself
+
+``x = x;`` leaves ``x`` as it was. It is usually a slip for an assignment
+from something else with a similar name: a parameter that shadows a
+field (``size = size;`` where ``this.size = size;`` was meant), or a
+copy whose right-hand side was not edited.
+
+Both sides are compared as code (``same_tree``): ``a.b[i] = a.b[i];`` is
+reported, ``this.size = size;`` is not. Only plain ``=`` is checked;
+``x += x`` changes ``x``.
+
+Flagged (example 1):
+
+.. code-block:: pss
+
+   component pss_top {
+     action A {
+       int size;
+       int arr[4];
+       exec post_solve {
+         size = size;
+         arr[1] = arr[1];
+       }
+     }
+   }
+
+Not flagged (a different source, and a compound assignment):
+
+.. code-block:: pss
+
+   component pss_top {
+     int size;
+     function void set_size(int size) {
+       this.size = size;
+     }
+     exec init_down {
+       size += size;
+     }
+   }
+
+.. _lint306:
+
+LINT306: ``unreachable-statement``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Tier:** nursery; **Default severity:** warning; **Since:** 2026.1; **LRM:** 20.7.5, 20.7.11; **Level:** L0, file; **Defined in:** ``rules/exec.yaml``
+
+A statement after a return, break or continue in the same block
+
+A statement that follows ``return``, ``break`` or ``continue`` in the same
+block never runs (20.7.5, 20.7.11). The jump was usually added for
+debugging and left in, or the code after it was meant to come
+first.
+
+The first unreachable statement is reported once per jump. Remove
+the dead code, or the jump. A jump that ends one branch of an ``if``
+does not make the statements after the ``if`` unreachable, and is not
+reported.
+
+Flagged (example 1):
+
+.. code-block:: pss
+
+   component pss_top {
+     function int f(int n) {
+       return n;
+       n = n + 1;
+       return n;
+     }
+     exec init_down {
+       int i;
+       repeat (4) {
+         i = i + 1;
+         continue;
+         i = i * 2;
+       }
+     }
+   }
+
+Not flagged (a jump that ends a branch, and one at the end of its block):
+
+.. code-block:: pss
+
+   component pss_top {
+     function int f(int n) {
+       if (n > 0) {
+         return n;
+       }
+       repeat (4) {
+         if (n > 2) { break; }
+         n = n + 1;
+       }
+       return 0;
+     }
+   }
 
 Declarations
 ------------
@@ -126,6 +796,106 @@ The prose under LRM Example 264 extends 18.2c to type-width expressions: a const
 
 A warning rather than an error, because the rule is stated only in prose and existing models write it.  Move the constant's declaration above its first use.
 
+.. _lint405:
+
+LINT405: ``empty-declaration``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Tier:** nursery; **Default severity:** warning; **Since:** 2026.1; **LRM:** 13.1.1, 13.1.3, 17.2, 17.5; **Level:** L0, file; **Defined in:** ``rules/decl.yaml``
+
+An extension, constraint block or override block with nothing in it
+
+A declaration with an empty body does nothing:
+
+- ``extend action A { }`` and ``extend enum e_t { }`` add nothing to
+  their type;
+- ``constraint { }``, an unnamed constraint block, constrains
+  nothing;
+- ``override { }`` replaces nothing.
+
+They are usually left behind when the contents were moved or
+deleted. Remove them.
+
+A **named** empty constraint block, ``constraint c { }``, is not
+reported: a base type may declare one so that a derived type can
+override it by name (13.1.3), and an extension may do the same.
+
+Flagged (empty bodies):
+
+.. code-block:: pss
+
+   component pss_top {
+     enum e_t { ONE, TWO };
+     action A {
+       rand int x;
+       constraint { }
+     }
+     override { }
+   }
+   extend action pss_top::A { }
+   extend enum pss_top::e_t { }
+
+Not flagged (a named constraint block kept as an override hook):
+
+.. code-block:: pss
+
+   component pss_top {
+     action A {
+       rand int x;
+       constraint c { }
+     }
+     action B : A {
+       constraint c { x > 0; }
+     }
+   }
+   extend action pss_top::A { constraint x < 10; }
+
+.. _lint406:
+
+LINT406: ``shadows-core-library-name``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Tier:** nursery; **Default severity:** warning; **Since:** 2026.1; **LRM:** 18.1.3, 21.13.9.5; **Level:** L1, file; **Defined in:** ``rules/decl.yaml``
+
+A declaration that reuses the name of a core library declaration
+
+A local declaration takes precedence over a name a wildcard import
+brings in (18.1.3). So in a scope that imports ``std_pkg::*``, a
+type or function the model declares with a core library name --
+``message``, ``packed_s``, ``urandom``, ``addr_handle_t`` -- silently
+replaces the library's, and code written against the LRM's
+definition finds the model's instead. Even where the package is not
+imported, the repeated name misleads a reader.
+
+Rename the declaration. The core library is the packages of
+Annex C: ``std_pkg``, ``addr_reg_pkg``, ``executor_pkg`` and ``sync_pkg``
+(``core_library_name``). Types, enums, typedefs and functions
+declared in a package, a component (or an extension of one) or at
+file scope are checked; fields and enum items are not. An executor
+(a component deriving from ``executor_base_c``) that declares
+``read8``, ``write32``, ... overrides the core library's access
+functions (21.13.9.5), and is not reported.
+
+Flagged (example 1):
+
+.. code-block:: pss
+
+   component pss_top {
+     function void message(int v) { }
+     struct packed_s { }
+     typedef int addr_handle_t;
+   }
+
+Not flagged (other names, a field and an enum item):
+
+.. code-block:: pss
+
+   component pss_top {
+     enum level_e { LOW, HIGH };
+     struct msg_s { int message; }
+     function void log_message(int v) { }
+   }
+
 Imports and packages
 --------------------
 
@@ -145,6 +915,116 @@ Import after a declaration
 Not checked in a scope that holds a ``compile if``.
 
 Severity: ``warning``, although the ``style`` tier defaults to ``hint``.  This was a core warning before lint existed, and the ``minimal`` profile keeps the output it always had.
+
+.. _lint407:
+
+LINT407: ``unused-import``
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Tier:** nursery; **Default severity:** warning; **Since:** 2026.1; **LRM:** 18.1.3; **Level:** L1, file; **Defined in:** ``rules/import.yaml``
+
+An import that no name in its scope is found through
+
+An ``import`` makes a package's names usable without the ``p::``
+qualifier in the scope that holds it -- the package or component
+body, or the rest of the file (18.1.3). One that no unqualified name
+in that scope needs only adds a place for a name to be found by
+accident, and hides which packages the code depends on.
+
+A name counts as found through the import when it is written
+without a qualifier, is the first name of its path, and resolves to
+a declaration in the imported package (or to the declaration an
+explicit import names, or inside it); for ``import a_pkg as a;``,
+when ``a`` names the package (``import_uses``). A qualified use
+(``a_pkg::s_t``) does not need the import.
+
+A wildcard import of a package that declares an ``extend`` is not
+reported: the import also makes the extension's members visible
+(18.1.3), and those are reached as members, which this rule does
+not track.
+
+An annotation on an ``import`` is not resolved in this release, so
+waive one with the comment form on its line:
+``// pssparser waive unused-import: <reason>``.
+
+Flagged (an unused wildcard import, an unused explicit import, and a qualified use):
+
+.. code-block:: pss
+
+   package a_pkg { struct s_t { } }
+   package b_pkg { struct t_t { } struct u_t { } }
+   package c_pkg { struct w_t { } }
+   component pss_top {
+     import a_pkg::*;
+     import b_pkg::t_t;
+     import c_pkg::*;
+     s_t s;
+     c_pkg::w_t w;
+     b_pkg::u_t u;
+   }
+
+Not flagged (names found through imports, and an enum item):
+
+.. code-block:: pss
+
+   package a_pkg {
+     enum mode_e { RD, WR };
+     const int K = 3;
+   }
+   package b_pkg { struct t_t { rand bit[4] v; } }
+   component pss_top {
+     import a_pkg::*;
+     import b_pkg::t_t;
+     action A {
+       rand bit[4] n;
+       t_t t;
+       constraint n < K;
+       constraint t.v == 1;
+     }
+   }
+
+.. _lint408:
+
+LINT408: ``duplicate-import``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Tier:** nursery; **Default severity:** warning; **Since:** 2026.1; **LRM:** 18.1.3; **Level:** L1, file; **Defined in:** ``rules/import.yaml``
+
+An import that repeats an earlier import in the same scope
+
+Importing the same package, or the same declaration, twice in one
+scope changes nothing: the second import adds no name (18.1.3). It
+is usually left over from merging two edits. Remove it.
+
+Imports are the same when they name the same declaration and are
+both wildcard imports or both explicit; ``import a_pkg::*;`` and
+``import a_pkg::s_t;`` are different imports.
+
+Flagged (example 1):
+
+.. code-block:: pss
+
+   package a_pkg { struct s_t { } }
+   component pss_top {
+     import a_pkg::*;
+     import a_pkg::s_t;
+     import a_pkg::*;
+     s_t s;
+   }
+
+Not flagged (the same package in two scopes):
+
+.. code-block:: pss
+
+   package a_pkg { struct s_t { } }
+   package b_pkg {
+     import a_pkg::*;
+     struct t_t { s_t s; }
+   }
+   component pss_top {
+     import a_pkg::*;
+     s_t s;
+   }
 
 Registers
 ---------
@@ -208,4 +1088,64 @@ After::
     constraint dc() { x > 0; }
 
 Reported where the constraint is traversed.  Traversing a *fixed* named constraint is an error (PSS018).
+
+.. _lint603:
+
+LINT603: ``deprecated-construct``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Tier:** nursery; **Default severity:** warning; **Since:** 2026.1; **LRM:** 7.9.2.4, 13.1.1; **Level:** L1, file; **Defined in:** ``rules/evolution.yaml``
+
+A construct the LRM deprecates in favour of a newer form
+
+Forms the LRM keeps for compatibility, each with a replacement:
+
+- **Array properties** ``size`` and ``sum`` without parentheses
+  (``data.size``) are deprecated; call the methods ``data.size()`` and
+  ``data.sum()`` (7.9.2.4).
+- **Dynamic constraints**, ``dynamic constraint c { ... }``, are
+  deprecated; a generic constraint with no parameters,
+  ``constraint c() { ... }``, does the same (13.1.1). Traversing one
+  from an activity is reported separately, by
+  ``deprecated-dynamic-constraint-traversal`` (LINT602).
+- **``packed_s``, ``endianness_e`` and ``sizeof_s`` through
+  ``addr_reg_pkg``**: they moved to ``std_pkg`` in PSS 2.1, and naming
+  them through ``addr_reg_pkg`` is deprecated (Annex C).
+
+A tool must still accept all three, so they are not errors; a later
+revision of the LRM may drop them. The brace-less ``compile if`` body
+is ``deprecated-braceless-compile-if`` (LINT601).
+
+Flagged (array properties, a dynamic constraint, and a moved type):
+
+.. code-block:: pss
+
+   component pss_top {
+     struct p_s : addr_reg_pkg::packed_s<> { rand bit[4] f; }
+     action A {
+       rand bit[4] data[4];
+       rand int n;
+       constraint n == data.size;
+       constraint n < data.sum;
+       dynamic constraint d { n > 2; }
+     }
+   }
+
+Not flagged (the replacements, and a struct field named size):
+
+.. code-block:: pss
+
+   component pss_top {
+     struct s_s { rand int size; }
+     struct p_s : std_pkg::packed_s<> { rand bit[4] f; }
+     action A {
+       rand bit[4] data[4];
+       rand s_s s;
+       rand int n;
+       constraint n == data.size();
+       constraint n < data.sum();
+       constraint n > s.size;
+       constraint d() { n > 2; }
+     }
+   }
 

@@ -1,0 +1,8 @@
+// expect: none
+// The escape hatch: a waiver comment on the import's line.
+package a_pkg { struct s_t { } }
+component pss_top {
+  import a_pkg::*;
+  import a_pkg::*;   // pssparser waive duplicate-import: generated header
+  s_t s;
+}

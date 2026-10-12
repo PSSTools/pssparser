@@ -1,0 +1,20 @@
+// expect: LINT202 @ 10:21, LINT202 @ 11:14, LINT202 @ 14:7
+component pss_top {
+  static const bool ENABLE_B = false;
+  action Sub { }
+  action A {
+    rand bit[4] m;
+    activity {
+      select {
+        (m > 0): do Sub;
+        (ENABLE_B): do Sub;
+        [0]: do Sub;
+        [2]: do Sub;
+      }
+      select {
+        (false): do Sub;
+        [0]: do Sub;
+      }
+    }
+  }
+}

@@ -1,0 +1,15 @@
+// expect: LINT306 @ 5:5, LINT306 @ 12:7
+component pss_top {
+  function int f(int n) {
+    return n;
+    n = n + 1;
+    return n;
+  }
+  exec init_down {
+    int i;
+    repeat (4) {
+      continue;
+      i = i * 2;
+    }
+  }
+}

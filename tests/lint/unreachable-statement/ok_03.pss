@@ -1,0 +1,9 @@
+// expect: none
+// The escape hatch: a waiver on the dead statement.
+component pss_top {
+  function int f(int n) {
+    return n;
+    @lint_pkg::waive {.id = "unreachable-statement", .reason = "kept for the next revision"}
+    n = n + 1;
+  }
+}

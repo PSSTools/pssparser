@@ -1,0 +1,16 @@
+// expect: none
+// The escape hatch: a waiver on a choice that overlaps on purpose. A match
+// choice takes no annotation, so the waiver is a comment.
+component pss_top {
+  action Sub { }
+  action A {
+    rand bit[4] m;
+    activity {
+      match (m) {
+        [0..4]: do Sub;
+        [3..7]: do Sub;   // pssparser waive overlapping-activity-match: 3 and 4 may take either path
+        default: do Sub;
+      }
+    }
+  }
+}

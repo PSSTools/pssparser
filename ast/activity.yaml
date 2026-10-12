@@ -808,7 +808,9 @@ classes:
         Attributes:
             branches: The `select_branch` alternatives, in source order. The
                 branch bodies are this scope's bodies, addressed after its
-                (empty) children.
+                (empty) children. A bare `;` with no guard or weight, as
+                after `do A with { ... };`, terminates the statement before
+                it and is not a branch; an empty branch is written `{ }`.
 
         See Also:
             ActivitySelectBranch, ActivityMatch, ActivityIfElse

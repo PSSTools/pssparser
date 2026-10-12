@@ -1,0 +1,14 @@
+// A handle in a base action that neither it, a derived action nor an
+// extension uses; and one an extension adds and forgets.
+// expect: LINT205 @ 7:9, LINT205 @ 13:9
+component pss_top {
+  action Sub { }
+  action Base {
+    Sub forgotten;
+    Sub kept;
+  }
+  action Derived : Base { activity { kept; } }
+}
+extend action pss_top::Derived {
+    Sub added;
+}

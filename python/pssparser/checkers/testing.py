@@ -74,15 +74,19 @@ class FixtureResult:
     path: str
     missing: List[Tuple[str, int, int]]
     unexpected: List[Tuple[str, int, int]]
+    #: Errors the fixture does not expect. Rules never run on a model with
+    #: an error, so such a fixture would pass without testing anything.
+    errors: List[str] = field(default_factory=list)
 
     @property
     def ok(self) -> bool:
-        return not self.missing and not self.unexpected
+        return not self.missing and not self.unexpected and not self.errors
 
     def describe(self) -> str:
         lines = [f"{self.path}:"]
         lines += [f"  missing:    {c} @ {l}:{col}" for c, l, col in self.missing]
         lines += [f"  unexpected: {c} @ {l}:{col}" for c, l, col in self.unexpected]
+        lines += [f"  error:      {e}" for e in self.errors]
         return "\n".join(lines)
 
 
@@ -214,10 +218,14 @@ def check_fixture(path: str, rules: Sequence[str] = (), *,
         if d.get("code") in ids and os.path.realpath(d["file"]) == real
     )
     want = sorted(exp.findings)
+    expected_ids = {f[0] for f in exp.findings}
+    errors = [f"{d.get('line')}:{d.get('col')}: {d.get('message')}" for d in diags
+              if d.get("severity") == "error" and d.get("code") not in expected_ids]
     return FixtureResult(
         path=str(path),
         missing=[f for f in want if f not in got],
         unexpected=[f for f in got if f not in want],
+        errors=errors,
     )
 
 

@@ -1,0 +1,9 @@
+// expect: none
+// The escape hatch: a waiver on a constraint kept for an older tool.
+component pss_top {
+  action A {
+    rand int n;
+    @lint_pkg::waive {.id = "deprecated-construct", .reason = "the vendor tool predates 2.1"}
+    dynamic constraint d { n > 2; }
+  }
+}

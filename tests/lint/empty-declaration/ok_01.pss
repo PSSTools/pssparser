@@ -1,0 +1,11 @@
+// expect: none
+// A named empty constraint block is an override hook.
+component pss_top {
+  action A {
+    rand int x;
+    constraint c { }
+  }
+  action B : A {
+    constraint c { x > 0; }
+  }
+}

@@ -1,0 +1,324 @@
+# Exec-block and function rules (lint-framework-plan.md F3.5): LINT3xx.
+# LINT301 is the linker's (python/pssparser/lint/catalog.py).
+pss-rules:
+  version: 1
+
+  defaults:
+    family: exec
+    tier: nursery
+    since: "2026.1"
+
+  rules:
+    - id: LINT302
+      name: nonexhaustive-procedural-match
+      summary: A procedural match on an enum that misses an item and has no default
+      message: >-
+        this match has no choice for '${missing[0].name.id}'${size(missing) > 1 ? " or other items" : ""}
+        and no 'default', so such a value is an error when it runs
+      doc: |
+        A procedural `match` whose value no choice matches, and which has no
+        `default`, is an error when it runs (20.7.10 g). When the value is an
+        enum, the items it can take are known, so a missing one can be found
+        before then. Items an `extend enum` adds count too, wherever the
+        extension is.
+
+        Add a choice for each missing item, or a `default`.
+
+        Only a `match` on a name whose declared type is an enum is checked,
+        and only when every choice lists enum items: a range, or a value
+        that is not an item, leaves the rule silent. An activity `match` is
+        not checked: there the solver picks a value some choice covers
+        (11.4.6 g).
+      lrm: ["20.7.10"]
+      match: { kind: ProceduralStmtMatch }
+      define:
+        decl_type(d): >-
+          d == null ? null
+          : type(d) == Field ? d.type
+          : type(d) == ProceduralStmtDataDeclaration ? d.datatype
+          : type(d) == FunctionParamDecl ? d.type : null
+        covered(item): >-
+          node.choices.exists(c, has(c.cond)
+            && c.cond.values.exists(v, !has(v.rhs) && resolves_to(v.lhs) == item))
+      let:
+        t: decl_type(resolves_to(node.expr))
+        e: >-
+          t != null && type_decl(t).hasValue() && type_decl(t).value().isa(EnumDecl)
+            ? type_decl(t).value() : null
+        exts: >-
+          e == null ? [] : refs(e).map(r, enclosing(r, ExtendEnum)).filter(x, x != null)
+        # Every choice lists enum items only, and none is the default.
+        plain: >-
+          node.choices.all(c, !c.is_default && has(c.cond) && c.cond.values.all(v,
+            !has(v.rhs) && resolves_to(v.lhs) != null && resolves_to(v.lhs).isa(EnumItem)))
+        missing: >-
+          e == null ? []
+          : (type(e) == EnumDecl ? e.items : []).filter(i, !covered(i))
+            + exts.map(x, type(x) == ExtendEnum ? x.items.filter(i, !covered(i)) : [])
+                .filter(l, size(l) > 0).map(l, l[0])
+      where: e != null && plain && size(missing) > 0
+      examples:
+        - name: a missing item, and one an extension adds
+          code: |
+            component pss_top {
+              enum st_e { IDLE, RUN, DONE };
+              action A {
+                rand st_e st;
+                int r;
+                exec post_solve {
+                  match (st) {          // expect: LINT302
+                    [IDLE]: r = 1;
+                    [RUN]: r = 2;
+                  }
+                }
+              }
+            }
+        - name: every item, a default, and a subject that is not an enum
+          code: |
+            component pss_top {
+              enum st_e { IDLE, RUN };
+              action A {
+                rand st_e st;
+                rand bit[4] n;
+                int r;
+                exec post_solve {
+                  match (st) {
+                    [IDLE]: r = 1;
+                    [RUN]: r = 2;
+                  }
+                  match (st) {
+                    [IDLE]: r = 1;
+                    default: r = 2;
+                  }
+                  match (n) {
+                    [0..3]: r = 1;
+                  }
+                }
+              }
+            }
+
+    - id: LINT303
+      name: discarded-result
+      summary: A call whose return value is discarded without a (void) cast
+      message: >-
+        '${callee.name.id}' returns a value that is discarded; write '(void)' before the call
+        if that is intended
+      doc: |
+        A function that returns a value may be called as a statement, and
+        the value is then thrown away. That is legal, but the LRM recommends
+        casting the call to `void` to say so (20.2.7, 20.7.4):
+
+            (void)alloc_buffer(size);
+
+        Without the cast, a reader cannot tell a value dropped on purpose
+        from a forgotten assignment.
+      lrm: ["20.2.7", "20.7.4"]
+      match: { kind: ProceduralStmtExpr }
+      let:
+        # The call's own path (`a.b.f`), not the calls in its arguments.
+        hid: >-
+          node.expr.isa(ExprRefPathContext) ? node.expr.hier_id
+          : node.expr.isa(ExprRefPathStaticRooted) ? node.expr.leaf : null
+        elems: "hid != null && type(hid) == ExprHierarchicalId ? hid.elems : []"
+        target: "size(elems) > 0 ? resolves_to(elems[size(elems) - 1]) : null"
+        callee: >-
+          target != null && target.isa(FunctionPrototype) ? target : null
+      where: >-
+        !node.void_cast && callee != null
+          && (type(callee) == FunctionPrototype ? has(callee.rtype) : false)
+      examples:
+        - name: a value dropped without the cast
+          code: |
+            component pss_top {
+              function int alloc(int n) { return n; }
+              action A {
+                exec post_solve {
+                  alloc(1);              // expect: LINT303
+                }
+              }
+            }
+        - name: the cast, a void function, and a value used
+          code: |
+            component pss_top {
+              function int alloc(int n) { return n; }
+              function void note(int n) { }
+              action A {
+                int r;
+                exec post_solve {
+                  (void)alloc(1);
+                  note(2);
+                  note(alloc(3));
+                  r = alloc(4);
+                }
+              }
+            }
+
+    - id: LINT304
+      name: message-side-effect
+      summary: A message() argument calls a function that is not pure
+      message: >-
+        '${finding.id.id}' is not pure, and message() may skip calling it, depending on the
+        verbosity
+      doc: |
+        Whether `message()` evaluates its arguments at all depends on the
+        run's verbosity level: a message above it is not issued, and its
+        arguments need not be evaluated. A call with side effects in an
+        argument (allocating an ID, advancing a counter) then happens in one
+        run and not in another (21.1.3).
+
+        Call the function first, keep its result in a variable, and pass
+        the variable:
+
+            int id = alloc_id();
+            message(LOW, "next id = ", id);
+
+        A function counts as free of side effects when it is declared
+        `pure`, or a `pure component` declares it (`is_pure`). A message of
+        verbosity `NONE` is always issued, so its arguments are always
+        evaluated, and it is not reported. Neither are the built-in string
+        and collection methods (`s.split(":")`), nor a call that does not
+        resolve.
+      lrm: ["21.1.3"]
+      match: { kind: ExprMemberPathElem }
+      let:
+        msg: >-
+          has(node.params) && node.id.id == "message" && resolves_to(node) != null
+            && in_library(resolves_to(node))
+        # A NONE message is always issued, whatever the verbosity (21.1.3),
+        # so its arguments are always evaluated.
+        level: >-
+          msg && size(node.params.parameters) > 0
+            ? descendants(node.params.parameters[0], ExprId) : []
+        always: size(level) > 0 && level[size(level) - 1].id == "NONE"
+      where: msg && !always
+      define:
+        # A built-in method of a string or collection (`s.split(":")`): in
+        # the library, but in no package. Those have no side effects where a
+        # value is needed.
+        builtin(f): in_library(f) && decl_path(f) == ""
+      report: >-
+        descendants(node.params, ExprMemberPathElem).filter(d, has(d.params)
+          && resolves_to(d) != null && !builtin(resolves_to(d)) && !is_pure(d))
+      examples:
+        - code: |
+            import std_pkg::*;
+            component pss_top {
+              function int alloc_id() { return 1; }
+              pure function int scaled(int x) { return x * 2; }
+              exec post_solve {
+                message(LOW, "id ", alloc_id());              // expect: LINT304
+                message(LOW, "x ", scaled(2));
+                message(NONE, "id ", alloc_id());
+              }
+            }
+        - name: a pure component's function, and a definition that drops 'pure'
+          code: |
+            import std_pkg::*;
+            pure component util_c { function int f(int a) { return a; } }
+            component pss_top {
+              util_c u;
+              pure function int k(int a);
+              function int k(int a) { return a; }
+              exec post_solve {
+                message(LOW, "f ", u.f(1), " k ", k(2));
+              }
+            }
+
+    - id: LINT305
+      name: self-assignment
+      summary: An assignment of a variable to itself
+      message: "this assigns '${target}' to itself, which does nothing"
+      doc: |
+        `x = x;` leaves `x` as it was. It is usually a slip for an assignment
+        from something else with a similar name: a parameter that shadows a
+        field (`size = size;` where `this.size = size;` was meant), or a
+        copy whose right-hand side was not edited.
+
+        Both sides are compared as code (`same_tree`): `a.b[i] = a.b[i];` is
+        reported, `this.size = size;` is not. Only plain `=` is checked;
+        `x += x` changes `x`.
+      match: { kind: ProceduralStmtAssignment }
+      let:
+        ids: descendants(node.lhs, ExprId)
+        target: "size(ids) > 0 ? ids[size(ids) - 1].id : ''"
+      where: node.op == AssignOp.AssignOp_Eq && same_tree(node.lhs, node.rhs)
+      examples:
+        - code: |
+            component pss_top {
+              action A {
+                int size;
+                int arr[4];
+                exec post_solve {
+                  size = size;           // expect: LINT305
+                  arr[1] = arr[1];       // expect: LINT305
+                }
+              }
+            }
+        - name: a different source, and a compound assignment
+          code: |
+            component pss_top {
+              int size;
+              function void set_size(int size) {
+                this.size = size;
+              }
+              exec init_down {
+                size += size;
+              }
+            }
+
+    - id: LINT306
+      name: unreachable-statement
+      summary: A statement after a return, break or continue in the same block
+      message: >-
+        this statement never runs, because the '${kw}' on line ${string(node.location.lineno)}
+        comes before it
+      doc: |
+        A statement that follows `return`, `break` or `continue` in the same
+        block never runs (20.7.5, 20.7.11). The jump was usually added for
+        debugging and left in, or the code after it was meant to come
+        first.
+
+        The first unreachable statement is reported once per jump. Remove
+        the dead code, or the jump. A jump that ends one branch of an `if`
+        does not make the statements after the `if` unreachable, and is not
+        reported.
+      lrm: ["20.7.5", "20.7.11"]
+      match: { kind: [ProceduralStmtReturn, ProceduralStmtBreak, ProceduralStmtContinue] }
+      let:
+        kw: >-
+          node.isa(ProceduralStmtReturn) ? "return"
+          : node.isa(ProceduralStmtBreak) ? "break" : "continue"
+        rest: siblings(node)
+        at: index_of(node)
+      report: "at >= 0 && at < size(rest) ? [rest[at]] : []"
+      examples:
+        - code: |
+            component pss_top {
+              function int f(int n) {
+                return n;
+                n = n + 1;               // expect: LINT306
+                return n;
+              }
+              exec init_down {
+                int i;
+                repeat (4) {
+                  i = i + 1;
+                  continue;
+                  i = i * 2;             // expect: LINT306
+                }
+              }
+            }
+        - name: a jump that ends a branch, and one at the end of its block
+          code: |
+            component pss_top {
+              function int f(int n) {
+                if (n > 0) {
+                  return n;
+                }
+                repeat (4) {
+                  if (n > 2) { break; }
+                  n = n + 1;
+                }
+                return 0;
+              }
+            }

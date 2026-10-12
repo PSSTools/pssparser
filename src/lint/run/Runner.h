@@ -53,6 +53,7 @@
 #include "pssp/IMarker.h"
 #include "pssp/ast/Location.h"
 #include "../cel/CelAst.h"
+#include "../cel/CelEval.h"
 #include "../cel/CelValue.h"
 #include "../lib/PssLib.h"
 #include "Walker.h"
@@ -216,6 +217,13 @@ public:
 private:
     using Vars = std::vector<std::pair<std::string, cel::Value>>;
 
+    // Sets m_lazy for one node's evaluation, and clears it however that ends.
+    struct LazyScope {
+        LazyScope(cel::LazyVars *&slot, cel::LazyVars *lets) : m_slot(slot) { m_slot = lets; }
+        ~LazyScope() { m_slot = nullptr; }
+        cel::LazyVars *&m_slot;
+    };
+
     // A rule's state in the file being run.
     struct FileState {
         uint64_t        steps = 0;
@@ -247,6 +255,9 @@ private:
     std::vector<RuleFailure>                            m_failures;
     std::set<std::pair<const void *, const void *>>     m_reported;  // (rule, node)
     std::unordered_map<const void *, ast::Location>     m_located;   // firstLocated() memo
+    cel::LazyVars                                       *m_lazy = nullptr;  // evaluate()'s lets
+    std::unordered_map<const rules::Rule *, cel::LazyVars> m_lets;      // per rule, reused
+    bool                            m_lazyOverrun = false;  // eval()'s overrun was in a let
 };
 
 }

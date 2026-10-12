@@ -1,0 +1,12 @@
+// expect: none
+// A jump that is a branch's only statement, not in a block.
+component pss_top {
+  function int f(int n) {
+    if (n > 0) return n;
+    while (n < 5) {
+      if (n == 3) continue;
+      n = n + 1;
+    }
+    return 0;
+  }
+}

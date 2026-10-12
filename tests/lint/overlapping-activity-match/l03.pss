@@ -1,0 +1,24 @@
+// In an extension's activity and in a derived action's.
+// expect: LINT203 @ 10:14, LINT203 @ 20:17
+component pss_top {
+  action Sub { }
+  action A { rand bit[4] m; }
+  extend action A {
+    activity {
+      match (m) {
+        [0..9]: do Sub;
+        [9]: do Sub;
+        default: do Sub;
+      }
+    }
+  }
+  action B : A {
+    activity {
+      match (m) {
+        [1, 2]: do Sub;
+        [3]: do Sub;
+        [2..3]: do Sub;
+      }
+    }
+  }
+}
