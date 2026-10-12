@@ -83,8 +83,12 @@ class HumanOutput:
         statistics: bool = False,
         catalog=None,
         show_waived: bool = False,
+        shown_hint=None,
     ) -> None:
         self._statistics = statistics
+        #: A hint this says yes to is shown without ``--show-hints``: a rule
+        #: the user selected by name (E3(a); lint-core-plan C7.1).
+        self._shown_hint = shown_hint or (lambda _diag: False)
         #: ``--show-waived``: the audit view of what source waivers hid.
         self._show_waived = show_waived
         self._catalog = catalog or {}
@@ -134,8 +138,12 @@ class HumanOutput:
         w(f"{indent} {blank} | {_c(caret, caret_col, c)}\n")
         return True
 
+    def _hidden(self, diag: Diagnostic) -> bool:
+        return (diag.severity == "hint" and not self._show_hints
+                and not self._shown_hint(diag))
+
     def emit(self, diag: Diagnostic) -> None:
-        if diag.severity == "hint" and not self._show_hints:
+        if self._hidden(diag):
             return
         w = self._stream.write
         c = self._color
@@ -244,8 +252,8 @@ class HumanOutput:
             parts.append("0 errors")
         nf = len(coll.files)
         msg = ", ".join(parts) + f" in {nf} file{'s' if nf != 1 else ''}"
-        hc = coll.hint_count
-        if hc and not self._show_hints:
+        hc = sum(1 for d in coll.diagnostics if self._hidden(d))
+        if hc:
             msg += f" ({hc} hint{'s' if hc != 1 else ''} hidden)"
         wc = len(getattr(coll, "waived", []))
         if wc:

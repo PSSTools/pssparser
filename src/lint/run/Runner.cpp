@@ -78,6 +78,12 @@ void Runner::run(const rf::Node &root) {
     // A root is a file: each rule starts it with a fresh budget.
     std::fill(m_file.begin(), m_file.end(), FileState());
     m_ctx.index(root);
+    m_fileRules = nullptr;
+    if (!m_opts.perFile.empty()) {
+        auto it = m_opts.perFile.find(m_ctx.fileidOf(root));
+        static const FileRules none;
+        m_fileRules = (it == m_opts.perFile.end()) ? &none : it->second.get();
+    }
     m_walker.walk(root, [this](const rules::Rule &r, const rf::Node &n) {
         match(r, n);
     });
@@ -85,7 +91,7 @@ void Runner::run(const rf::Node &root) {
 
 void Runner::match(const rules::Rule &r, const rf::Node &n) {
     size_t idx = m_index.at(&r);
-    if (m_file[idx].failed) {
+    if (m_file[idx].failed || (m_fileRules && !m_fileRules->on.count(&r))) {
         return;
     }
     auto t0 = std::chrono::steady_clock::now();
@@ -102,10 +108,11 @@ void Runner::evaluate(size_t idx, const rules::Rule &r, const rf::Node &n) {
 
     Vars vars;
     vars.emplace_back("node", nodeValue(n));
-    auto set = m_opts.options.find(&r);
+    const auto &optsOf = m_fileRules ? m_fileRules->options : m_opts.options;
+    auto set = optsOf.find(&r);
     for (const rules::RuleOption &o : r.m_options) {
         const cel::Value *v = &o.def;
-        if (set != m_opts.options.end()) {
+        if (set != optsOf.end()) {
             for (const auto &kv : set->second) {
                 if (kv.first == o.name) {
                     v = &kv.second;
@@ -169,6 +176,10 @@ void Runner::evaluate(size_t idx, const rules::Rule &r, const rf::Node &n) {
         if (!Walker::nameLocation(f, fd.loc)) {
             fd.loc = locate(f);
         }
+        // A model-scope rule may report in a file whose overrides turn it off.
+        if (!reportsIn(r, fd.loc.fileid)) {
+            continue;
+        }
         vars.emplace_back("finding", nodeValue(f));
         fd.message = renderMessage(idx, r, f, vars);
         vars.pop_back();
@@ -179,6 +190,14 @@ void Runner::evaluate(size_t idx, const rules::Rule &r, const rf::Node &n) {
             return;
         }
     }
+}
+
+bool Runner::reportsIn(const rules::Rule &r, int32_t fileid) const {
+    if (m_opts.perFile.empty()) {
+        return true;
+    }
+    auto it = m_opts.perFile.find(fileid);
+    return it == m_opts.perFile.end() || it->second->on.count(&r);
 }
 
 cel::Value Runner::eval(const cel::Expr *e, const Vars &vars, size_t idx, bool &overrun) {

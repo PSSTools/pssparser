@@ -108,6 +108,13 @@ struct RuleStats {
     rf::Node            errorNode;
 };
 
+/** The rules a file runs and reports, and their options (C7.1: per-path overrides). */
+struct FileRules {
+    std::set<const rules::Rule *>                       on;
+    std::unordered_map<const rules::Rule *,
+        std::vector<std::pair<std::string, cel::Value>>>    options;
+};
+
 struct RunOptions {
     // Evaluation steps per rule per file. Q-E5: the real number comes from C8.
     uint64_t            maxSteps = 1000000;
@@ -122,6 +129,10 @@ struct RunOptions {
     // makes them relative to; "" for none (C6.9).
     std::unordered_map<int32_t, std::string>                fileNames;
     std::string                                             baseDir;
+    // Per file, by fileid (C7.1): a file runs only its `on` rules, with its
+    // options, and a finding in a file whose set leaves the rule out is
+    // dropped. Empty: every rule given runs everywhere, with `options`.
+    std::unordered_map<int32_t, std::shared_ptr<const FileRules>>   perFile;
 };
 
 /** The severity a rule's findings get: its `severity:`, else its tier's. */
@@ -213,10 +224,13 @@ private:
     void fail(size_t idx, const rules::Rule &r, const char *in, const cel::Value &v,
         bool overrun, const rf::Node &n);
     ast::Location locate(const rf::Node &n);
+    // Whether `r` may report in file `fileid` (perFile).
+    bool reportsIn(const rules::Rule &r, int32_t fileid) const;
     const ast::Location &firstLocated(const rf::Node &n);
 
 private:
     RunOptions                                          m_opts;
+    const FileRules                                     *m_fileRules = nullptr;  // run()'s file
     lib::Context                                        m_ctx;
     Dispatch                                            m_dispatch;
     Walker                                              m_walker;

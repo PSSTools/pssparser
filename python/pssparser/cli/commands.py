@@ -139,7 +139,8 @@ def cmd_parse(
         show_hints = bool(getattr(config, "show_hints", False))
     if output_format is None:
         output_format = "json" if use_json else "text"
-    lint_enabled, lint_ids = _lint_selection(config, manager)
+    lint_sel = _lint_selection(config, manager, files)
+    lint_enabled, lint_ids = lint_sel.union, lint_sel.lint_ids
     lint_dropped = 0
     catalog = {md.id: md for md in manager.all_marker_defs()}
     if output_format == "json":
@@ -155,7 +156,8 @@ def cmd_parse(
     else:
         driver = HumanOutput(source_cache, stream=_stderr, color=color,
                              show_hints=show_hints, statistics=statistics,
-                             catalog=catalog, show_waived=show_waived)
+                             catalog=catalog, show_waived=show_waived,
+                             shown_hint=lambda d: lint_sel.explicit(d.code, d.file))
 
     parser = Parser()
     parser.set_max_errors(max_errors)
@@ -178,7 +180,7 @@ def cmd_parse(
         # Lint selection first: a rule the profile does not enable, or a
         # finding outside the user's own files, is not a diagnostic at all.
         lint_dropped = coll.apply_lint_selection(
-            lint_enabled, lint_ids, owned=_owned_files(files))
+            lint_sel.enabled_for, lint_ids, owned=_owned_files(files))
         # Severity overrides next: they decide what a diagnostic *is*, and
         # the warning policy then decides what to do with warnings.  Running
         # them the other way round would let -Werror promote a diagnostic
@@ -253,6 +255,7 @@ def cmd_parse(
         options=None if config is None else config.checker_options,
         disabled=_disabled_codes(config, lint_enabled, lint_ids),
         lint_options=_lint_rule_options(config, manager),
+        lint_selection=lint_sel.request,
     )
     try:
         parser.parse(files)
@@ -315,21 +318,27 @@ def cmd_parse(
 
 # -- Lint selection -----------------------------------------------------------
 
-def _lint_selection(config, manager) -> tuple:
-    """``(enabled_ids, lint_ids)`` for this run.
+def _lint_selection(config, manager, files: List[str]):
+    """The run's :class:`~pssparser.lint.selection.RunSelection`.
 
-    The config layer resolves the selection once the registry is loaded;
-    a caller that passes no config (the library path, most tests) gets the
-    default profile.
+    The config layer hands the engine that resolved the selection once the
+    registry was loaded; it resolves it again for the run's files
+    (``[[lint.overrides]]``, lint-core-plan C7.1).  A caller that passes no
+    config (the library path, most tests) gets the default profile.
     """
+    from pssparser.lint.selection import RunSelection, for_run
+
+    sel = for_run(config, files) if config is not None else None
+    if sel is not None:
+        return sel
     enabled = getattr(config, "lint_enabled", None)
     if enabled is not None:
-        return set(enabled), set(config.lint_ids)
+        return RunSelection(config.lint_ids, enabled)
     from pssparser.checkers import taxonomy
     from pssparser.checkers.selectors import RuleSet
 
     rules = RuleSet(manager.all_marker_defs())
-    return rules.resolve(taxonomy.DEFAULT_PROFILE), {md.id for md in rules.lint}
+    return RunSelection({md.id for md in rules.lint}, rules.resolve(taxonomy.DEFAULT_PROFILE))
 
 
 def _disabled_codes(config, lint_enabled: set, lint_ids: set) -> frozenset:
@@ -374,7 +383,7 @@ def _error_count(exc) -> int:
 
 def _report_lint_skipped(coll: DiagnosticCollection, errors: int, *, manager,
                          checkers, no_checkers, options, disabled,
-                         lint_options) -> None:
+                         lint_options, lint_selection=None) -> None:
     """The lint gate (design L8.1) on a run that stopped at a parse or link
     error: the declarative rules do not run, and when any of them would
     have, the engine's PSSP230 note says so."""
@@ -395,7 +404,8 @@ def _report_lint_skipped(coll: DiagnosticCollection, errors: int, *, manager,
             root=None, files=[], global_scopes=[], file_map={},
             _marker_index=manager.build_marker_index([checker]),
             _disabled=disabled, _gate_errors=errors,
-            _lint_options=dict(lint_options or {}))
+            _lint_options=dict(lint_options or {}),
+            _lint_selection=lint_selection)
         checker.check(context)
         for m in context._markers:
             coll.add(Diagnostic.from_marker(m))
@@ -539,6 +549,7 @@ def _run_checkers(
     lint_options: Optional[dict] = None,
     lint_run: Optional[dict] = None,
     lint_base_dir: Optional[str] = None,
+    lint_selection: Optional[dict] = None,
 ) -> None:
     """Run the checker phase and merge results into *coll*.
 
@@ -547,6 +558,9 @@ def _run_checkers(
     (they report PSSP230 instead).  *lint_run*, when given, receives their
     per-rule ``stats`` and the ``ns`` they took.  *lint_base_dir* is the
     configuration's directory, which their ``file_of`` paths are relative to.
+    *lint_selection* is the configuration as the engine resolves it per file
+    (lint-core-plan C7.1); without it the declarative rules run the
+    context's enabled IDs everywhere.
     """
     from pssparser.checkers import CheckContext, CheckerManager
 
@@ -581,6 +595,7 @@ def _run_checkers(
         _gate_errors=gate_errors,
         _lint_options=dict(lint_options or {}),
         _lint_base_dir=lint_base_dir,
+        _lint_selection=lint_selection,
     )
 
     from pssparser.lint import ruleview
@@ -628,28 +643,25 @@ def _apply_waivers(coll: DiagnosticCollection, parser, files: List[str],
     """Remove waived diagnostics from *coll*, record them in ``coll.waived``,
     and add the waiver hygiene diagnostics."""
     from pssparser import waivers as waivers_mod
-    from pssparser.checkers.selectors import RuleSet, _is_core_error
 
+    # The core engine collects and applies them (lint-core-plan C7.2), as
+    # the WASM build does; without one (no registry resolved), the library.
+    engine = getattr(config, "lint_engine", None)
     try:
-        found = waivers_mod.collect(parser if ast else None, files)
+        if engine is not None:
+            found = waivers_mod.collect_in(engine, parser if ast else None, files)
+        else:
+            found = waivers_mod.collect(parser if ast else None, files)
     except Exception as exc:  # pragma: no cover - defensive
         sys.stderr.write(f"warning: could not read source waivers: {exc}\n")
         return
     if not found:
         return
 
-    mdefs = list(manager.all_marker_defs())
-    catalog = {md.id: md for md in mdefs}
-    aliases = {md.id: md.replaced_by[0] for md in mdefs
-               if md.status == "retired" and md.replaced_by}
-
-    def is_core_error(code: str) -> bool:
-        md = catalog.get(code)
-        return md is not None and _is_core_error(md)
-
-    result = waivers_mod.apply(
-        coll.diagnostics, found, rules=RuleSet(mdefs),
-        is_core_error=is_core_error, ran=ran, aliases=aliases)
+    if engine is not None:
+        result = waivers_mod.apply_in(engine, coll.diagnostics, found, ran=ran)
+    else:
+        result = _apply_waivers_in_python(coll, found, manager, ran)
     coll.replace_diagnostics(result.kept)
     for diag, waiver in result.waived:
         diag.waiver = waiver.to_json()
@@ -664,6 +676,23 @@ def _apply_waivers(coll: DiagnosticCollection, parser, files: List[str],
         if sev:
             diag.severity = sev
         coll.add(diag)
+
+
+def _apply_waivers_in_python(coll: DiagnosticCollection, found, manager, ran):
+    from pssparser import waivers as waivers_mod
+    from pssparser.checkers.selectors import RuleSet, _is_core_error
+
+    mdefs = list(manager.all_marker_defs())
+    catalog = {md.id: md for md in mdefs}
+
+    def is_core_error(code: str) -> bool:
+        md = catalog.get(code)
+        return md is not None and _is_core_error(md)
+
+    # Every old ID: a rule's aliases and retired codes' successors.
+    return waivers_mod.apply(
+        coll.diagnostics, found, rules=RuleSet(mdefs),
+        is_core_error=is_core_error, ran=ran, aliases=manager.alias_map())
 
 
 def _assign_decl_paths(coll: DiagnosticCollection, index) -> None:

@@ -120,6 +120,9 @@ class RuleLoad:
     #: IDs of rules left out because a Python ``MarkerDef`` holds their ID,
     #: an alias or name.  The engine still holds them; the runner skips them.
     refused: Set[str] = field(default_factory=set)
+    #: Where each loaded file came from, by display path: the origin of the
+    #: rule path that reached it (``"<file>: lint.rules"``, ``"--rules"``).
+    origins: Dict[str, str] = field(default_factory=dict)
 
     @property
     def has_errors(self) -> bool:
@@ -222,6 +225,16 @@ def to_marker(d: dict) -> dict:
     }
 
 
+def _origin_of(path: str, entries: Sequence[RulePath]) -> str:
+    """The origin of the first entry that names *path*, or its directory."""
+    real = os.path.realpath(path)
+    for entry in entries:
+        named = os.path.realpath(entry.path)
+        if named == real or named == os.path.dirname(real):
+            return entry.origin
+    return ""
+
+
 def load(entries: Sequence[RulePath], mdefs: Iterable = (),
          owner_of: Optional[Callable[[str], str]] = None,
          engine=None) -> RuleLoad:
@@ -241,6 +254,7 @@ def load(entries: Sequence[RulePath], mdefs: Iterable = (),
         shown = display_path(path)
         engine.load_rules(shown, text)
         out.files.append(shown)
+        out.origins[shown] = _origin_of(path, entries)
     out.diagnostics = [to_marker(d) for d in engine.rule_diagnostics()]
     clashes = conflicts(engine.rules(), mdefs, owner_of)
     out.diagnostics += [to_marker(d) for d in clashes]

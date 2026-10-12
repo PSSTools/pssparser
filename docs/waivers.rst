@@ -138,8 +138,9 @@ Waiver markers
 ``PSSP205`` -- no reason
    ``.reason`` is missing or empty, or the comment has no ``: text``.
 
-A waiver that names a retired ID (``PSS053``) still works and gets a
-``PSSP004`` note naming the current one.
+A waiver that names an old ID -- a retired one (``PSS053``), or a rule's
+former ID (its ``aliases``) -- still works and gets a ``PSSP004`` note
+naming the current one.
 
 Seeing what was waived
 ======================
@@ -184,3 +185,19 @@ waivers:
 catalogue, and ``ran`` is the set of codes whose rule ran (``None`` turns
 the unused-waiver check off).  Markers need a ``code``; the CLI assigns
 codes to the linker's markers before it applies waivers.
+
+The CLI collects and applies waivers in the core lint engine, which the
+WebAssembly build shares, so an editor applies the same ones.  With an
+engine that knows the marker catalogue
+(``pssparser.lint.selection.tell_engine``), ``waivers.collect_in(engine, p,
+files)`` and ``waivers.apply_in(engine, p.markers, found, ran=None)`` do the
+same as the two calls above.  From TypeScript (``@psstools/pssparser``):
+
+.. code-block:: typescript
+
+   parser.setHostMarkers(catalogue);       // the markers the CLI knows
+   parser.parseSources(sources);
+   parser.link();
+   const found = parser.collectWaivers(sources);
+   const result = parser.applyWaivers(found, parser.markers, ran);
+   // result.kept and result.waived index the diagnostics given

@@ -113,8 +113,26 @@ def _build_parser() -> argparse.ArgumentParser:
         "--show-config",
         action="store_true",
         default=False,
-        help="Print the resolved configuration with per-value provenance "
-             "and exit",
+        help="Print the resolved configuration with per-value provenance, "
+             "and the rule files loaded, and exit",
+    )
+    query_grp.add_argument(
+        "--for",
+        action="append",
+        metavar="FILE",
+        dest="show_config_for",
+        default=None,
+        help="With --show-config: also show the overrides that match FILE "
+             "and the lint rules it gets (may be repeated)",
+    )
+    query_grp.add_argument(
+        "--rules-for",
+        action="store_true",
+        default=False,
+        help="Print the lint rules that would run on each FILE, after the "
+             "configuration and its overrides, and exit; no model is parsed "
+             "and a FILE need not exist. --format json adds docs, options "
+             "and examples",
     )
 
     # -- configuration ----------------------------------------------------
@@ -436,7 +454,8 @@ def main(argv: list[str] | None = None) -> int:
         engine=rule_load.engine)
 
     try:
-        config_mod.validate_against_registry(cfg, manager)
+        config_mod.validate_against_registry(cfg, manager, engine=rule_load.engine,
+                                             refused=rule_load.refused)
     except config_mod.ConfigError as exc:
         sys.stderr.write(f"error: {exc}\n")
         return 2
@@ -447,10 +466,27 @@ def main(argv: list[str] | None = None) -> int:
         sys.stderr.write(f"error: {exc}\n")
         return 2
 
+    if args.show_config_for and not args.show_config:
+        sys.stderr.write("error: --for FILE goes with --show-config\n")
+        return 2
     if args.show_config:
         _report_load_issues(manager, sys.stderr)
-        sys.stdout.write(config_mod.format_show_config(cfg))
+        sys.stdout.write(config_mod.format_show_config(
+            cfg, rule_sources=rule_cmds.rule_sources(rule_load),
+            for_files=args.show_config_for or ()))
         return 0
+
+    if args.rules_for:
+        if not args.files:
+            sys.stderr.write("error: --rules-for needs at least one FILE\n")
+            return 2
+        fmt = args.output_format or ("json" if args.json else "text")
+        if fmt not in ("text", "json"):
+            sys.stderr.write(f"error: --rules-for prints text or json, not {fmt}\n")
+            return 2
+        rule_cmds.report_problems(rule_load, sys.stderr)
+        return rule_cmds.cmd_rules_for(args.files, cfg=cfg, manager=manager,
+                                       output_format=fmt)
 
     # -- Query-and-exit flags (no source files needed) --------------------
     #

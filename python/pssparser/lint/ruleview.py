@@ -131,7 +131,9 @@ def run(engine, mdefs: List[MarkerDef], context) -> None:
     files, and add their markers to *context*.
 
     A rule is enabled unless the context turned its ID off (lint selection,
-    ``[severity] = "off"``): a rule left out is never evaluated. When the
+    ``[severity] = "off"``): a rule left out is never evaluated. With the
+    configuration's selection (the CLI, C7.1), the engine decides that per
+    file, from ``[[lint.overrides]]`` too. When the
     context carries a gate count (errors from parse, link and the semantic
     checks), nothing runs and the engine's one PSSP230 marker is added,
     provided some rule was enabled. ``PSSPARSER_NO_LINT`` runs nothing.
@@ -143,13 +145,18 @@ def run(engine, mdefs: List[MarkerDef], context) -> None:
 
     if engine is None or os.environ.get(NO_LINT_ENV):
         return
-    enabled = [md.id for md in mdefs if context.is_enabled(md.id)]
-    if not enabled:
-        return
-    options = {i: o for i, o in (context._lint_options or {}).items()
-               if i in enabled and o}
-    request = {"enabled": enabled, "options": options,
-               "gate_errors": context._gate_errors}
+    selection = getattr(context, "_lint_selection", None)
+    if selection is not None:
+        # The engine resolves each file's rules and options (C7.1).
+        request = {"selection": selection, "gate_errors": context._gate_errors}
+    else:
+        enabled = [md.id for md in mdefs if context.is_enabled(md.id)]
+        if not enabled:
+            return
+        options = {i: o for i, o in (context._lint_options or {}).items()
+                   if i in enabled and o}
+        request = {"enabled": enabled, "options": options,
+                   "gate_errors": context._gate_errors}
     # file_of() paths: relative to the configuration's directory when there
     # is one (both sides absolute), else as given.
     base = context._lint_base_dir

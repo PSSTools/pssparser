@@ -78,7 +78,9 @@ Each rule's **tier** gives its default severity:
 * ``correctness``, ``suspicious``, ``portability``, ``pedantic``,
   ``restriction`` and ``nursery`` rules are ``warning``;
 * ``simplify`` rules are ``info`` (reported as *notes*);
-* ``style`` rules are ``hint`` (hidden unless ``--show-hints``).
+* ``style`` rules are ``hint``, hidden unless ``--show-hints`` -- or unless
+  the rule is selected by its ID, name, ID band or namespace (``select =
+  ["ACME"]``, ``--select LINT301``): naming a rule is a request to see it.
 
 Lint never defaults to ``error``: an error means the LRM says so.  To make
 lint fail a build, promote it -- for everything, a tier, or one rule:
@@ -110,6 +112,57 @@ Every rule records the rules version it was added in (``since``).  A rule
 newer than the pin is left out of the profile -- though it can still be
 selected by name -- and ``pssparser --show-config`` lists what the pin is
 holding back.  Bump the pin when you are ready to see the new rules.
+
+Per-directory settings
+======================
+
+Different parts of a project can lint differently: generated code, tests,
+vendored IP.  An ``[[lint.overrides]]`` table gives the files its ``files``
+globs match their own ``profile``, ``select``, ``ignore`` and rule options:
+
+.. code-block:: toml
+
+   [lint]
+   profile = "recommended"
+   select  = ["ACME"]
+
+   [[lint.overrides]]
+   files  = ["tests/**", "*_gen.pss"]
+   ignore = ["ACME", "style"]
+
+   [[lint.overrides]]
+   files   = ["lib/"]
+   profile = "library"
+   rule.comp-suffix = { suffix = "_lib" }
+
+For each file, the profile is the last matching override's ``profile`` (else
+the project's); the project's ``select`` and ``ignore`` apply to it; then
+each matching override's ``select`` and ``ignore``, in order, decide again
+the rules they match; then ``--select`` and ``--ignore``.  Options merge,
+the later value winning.
+
+Globs are relative to the configuration file's directory, wherever pssparser
+runs from.  ``*`` and ``?`` stay within one directory and ``**`` crosses
+them; ``[a-z]`` is a class.  A glob without ``/`` matches a file or
+directory name at any depth (``*_gen.pss``, ``vendor``); one with ``/`` is
+anchored at the configuration's directory.  A glob that matches a directory
+takes everything under it, so ``lib``, ``lib/`` and ``lib/**`` mean the
+same.  Matching is case-sensitive.
+
+A rule that is on for any of the files runs, and reports only in the files
+it is on for.  To see what a file gets:
+
+.. code-block:: console
+
+   $ pssparser --rules-for tests/dma_test.pss      # one line per rule
+   $ pssparser --rules-for --format json ip/dma/new_block.pss
+   $ pssparser --show-config --for tests/dma_test.pss
+
+``--rules-for`` parses nothing, so the file need not exist yet: ask before
+writing it.  Its JSON (``"schema": "pssparser-rules/1"``) adds each rule's
+documentation, effective options and examples.  ``--show-config`` lists the
+overrides and the rule files loaded, and with ``--for FILE``, which
+overrides match the file and the rules it gets.
 
 Which files are linted
 ======================

@@ -129,14 +129,16 @@ Select and tune rules on the command line:
 | Try a checker without installing it | `--load-checker MODULE:CLASS` |
 | Load a rule file (`pss-rules` YAML) | `--rules PATH` (repeatable; file or directory) |
 | Enable / disable lint rules | `--select SEL`, `--ignore SEL` (an ID, name, namespace, tier or `family:NAME`) |
-| See `style` findings (hints) | `--show-hints` |
+| See `style` findings (hints) | `--show-hints` (a rule selected by ID, name or namespace shows them anyway) |
+| Which rules a file gets (no parse; the file need not exist) | `--rules-for FILE…` (`--format json` for docs, options, examples) |
+| Why a file gets them | `--show-config --for FILE` |
 | All warnings are errors | `-Werror` |
 | One warning is an error | `-Werror=ID` |
 | Exempt one ID from `-Werror` | `-Wno-error=ID` |
 | Drop all warnings | `--no-warnings` |
 
 A site's rule files run only when selected: `pssparser --rules lint/rules/
---select ACME --show-hints model.pss`. `--check-rules` checks rule files
+--select ACME model.pss`. `--check-rules` checks rule files
 themselves.
 `--checker` with a name that is not installed is a usage error (exit 2).
 `-Werror=ID` does not check that the ID exists, so copy the ID from

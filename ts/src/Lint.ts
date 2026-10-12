@@ -7,14 +7,172 @@
 
 import { resolveMarker, sortMarkers, type Marker, type RawMarker } from './Marker.js';
 
+/** One `[[lint.overrides]]` table: settings for the files its globs match. */
+export interface LintOverride {
+  /**
+   * Globs relative to the base directory: `*` and `?` stay within a
+   * directory, `**` crosses them; a glob without `/` matches a file or
+   * directory name at any depth. A glob that matches a directory takes
+   * everything under it.
+   */
+  files: string[];
+  profile?: string;
+  select?: string[];
+  ignore?: string[];
+  /** Option values by rule name or ID. */
+  rule?: Record<string, Record<string, string | number | boolean | string[]>>;
+}
+
+/**
+ * A rule selection (lint-core-plan.md C7.1): the configuration's TOML as
+ * parsed, with its keys as written there. The core resolves it, the same
+ * code the CLI runs: profiles, selectors and their precedence, the
+ * overrides, the command line's layer, `[severity]` and `-W` groups.
+ */
+export interface LintSelection {
+  lint?: {
+    profile?: string;
+    select?: string[];
+    ignore?: string[];
+    'rules-version'?: string;
+    rule?: Record<string, Record<string, string | number | boolean | string[]>>;
+    overrides?: LintOverride[];
+  };
+  /** A layer over `lint.select` / `lint.ignore`: `--select` and `--ignore`. */
+  command_line?: { select?: string[]; ignore?: string[] };
+  /** `[severity]`: selector to `error`, `warning`, `info`, `hint` or `off`. */
+  severity?: Record<string, string>;
+  /** `[warnings]`: `-Werror` and `-Wno-error` selectors. */
+  warnings?: { error?: string[]; 'no-error'?: string[] };
+  /** The directory the override globs are relative to: the configuration's. */
+  base_dir?: string;
+}
+
+/** A selection problem: a selector or rule the catalogue does not know. */
+export interface SelectionError {
+  /** `lint.select`, `lint.overrides[0].ignore`, `--select`, `request`, ... */
+  key: string;
+  text: string;
+  message: string;
+}
+
+/** The rules of the files one combination of overrides matches. */
+export interface SelectionGroup {
+  /** Indexes into `lint.overrides`; group 0 has none. */
+  overrides: number[];
+  profile: string;
+  enabled: string[];
+  /** The enabled rules a selector names by ID, name, ID band or namespace. */
+  explicit: string[];
+  /** Rules the `rules-version` pin keeps out of the profile. */
+  held_back: string[];
+  options: Record<string, Record<string, unknown>>;
+}
+
+/** `Parser.resolveSelection()`'s answer. */
+export interface SelectionResult {
+  errors: SelectionError[];
+  lint_ids: string[];
+  /** Group 0 is the files no override matches. */
+  groups: SelectionGroup[];
+  /** Each requested path, as the globs saw it, and its group. */
+  paths: Array<{ path: string; rel: string; group: number }>;
+  /** `[severity]` expanded to IDs, with the key that set each. */
+  severity: Record<string, { severity: string; key: string }>;
+  warnings: {
+    error: string[];
+    error_info: boolean;
+    spelling: Record<string, string>;
+    no_error: string[];
+  };
+}
+
+/**
+ * One of the host's own markers, for selection and waivers (C7.1): what a
+ * selector may name besides the loaded rules (the LRM, tool and core lint
+ * markers). Only `id` is required.
+ */
+export interface HostMarker {
+  id: string;
+  name?: string;
+  /** A lint tier, `tool`, or empty for an LRM marker. */
+  tier?: string;
+  family?: string;
+  since?: string;
+  /** `active` (the default), `deprecated` or `retired`. */
+  status?: string;
+  /** Empty: the tier's. */
+  severity?: string;
+  aliases?: string[];
+  replaced_by?: string[];
+  default_enabled?: boolean;
+  /** In the `minimal` profile. */
+  minimal?: boolean;
+}
+
+/**
+ * A source waiver (lint-core-plan.md C7.2; `docs/waivers.rst`): a
+ * `// pssparser waive` comment or a `@lint_pkg::waive` annotation.
+ */
+export interface Waiver {
+  form: 'pragma' | 'annotation';
+  file: string;
+  /** Where the waiver is written, 1-based. */
+  line: number;
+  col: number;
+  /** As written: IDs, rule names or any selector. */
+  selectors: string[];
+  reason: string;
+  /** The span it covers, `[line, col]`, `end` exclusive; 2^30 is "to the end". */
+  start: [number, number];
+  end: [number, number];
+}
+
+/** A diagnostic as `Parser.applyWaivers()` reads it. */
+export interface WaiverDiagnostic {
+  code?: string | null;
+  file: string;
+  line: number;
+  col: number;
+}
+
+/** A waiver hygiene marker: `PSSP202`-`PSSP205`, or `PSSP004` for an old ID. */
+export interface WaiverMarker {
+  severity: string;
+  message: string;
+  file: string;
+  line: number;
+  col: number;
+  code: string;
+  extent: number;
+  related: unknown[];
+}
+
+/** `Parser.applyWaivers()`'s answer. */
+export interface WaiverResult {
+  /** Indexes of the diagnostics to report. */
+  kept: number[];
+  /** `[diagnostic, waiver]` index pairs. */
+  waived: Array<[number, number]>;
+  /** The waivers, with the IDs each resolved to and how many it waived. */
+  waivers: Array<Waiver & { ids: string[]; used: number }>;
+  /** Sorted by file, line, column and code. */
+  markers: WaiverMarker[];
+}
+
 /** What to run. Every field is optional. */
 export interface LintRequest {
   /**
    * The rule IDs to run, in any order; the rest are never evaluated.
-   * Omitted: every loaded rule. Selection by profile, tier or namespace is
-   * the host's job; this takes its result.
+   * Omitted: every loaded rule. Or give `selection` instead.
    */
   enabled?: string[];
+  /**
+   * The configuration to select by, in place of `enabled` and `options`
+   * (C7.1): each file runs, and reports, the rules its path gets, with its
+   * options. Its `base_dir` defaults to `baseDir`.
+   */
+  selection?: LintSelection;
   /** Option values by rule ID, overriding each option's `default:`. */
   options?: Record<string, Record<string, string | number | boolean | string[]>>;
   /** The evaluation-step budget per rule per file. Omitted: 10^6. */
@@ -84,6 +242,9 @@ export function lintRequestJson(
   }
   if (req.enabled !== undefined) {
     out.enabled = req.enabled;
+  }
+  if (req.selection !== undefined) {
+    out.selection = req.selection;
   }
   if (req.options !== undefined) {
     out.options = req.options;

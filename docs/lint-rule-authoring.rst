@@ -74,7 +74,7 @@ profile, ``minimal``, enables none of a site's rules, so select them:
 
 .. code-block:: console
 
-   $ pssparser --show-hints top.pss
+   $ pssparser top.pss
    top.pss:2:10: hint: [ACME001] action 'write_burst' is not UpperCamelCase; the ACME style guide names action types like 'WriteBurst'
     2 |   action write_burst { }
       |          ^~~~~~~~~~~
@@ -88,12 +88,16 @@ configuration:
 
 .. code-block:: console
 
-   $ pssparser --rules lint/rules/ --select ACME --show-hints top.pss
+   $ pssparser --rules lint/rules/ --select ACME top.pss
 
 A ``style`` rule reports hints, which the output hides unless asked
-(``--show-hints``, or ``show-hints = true`` under ``[output]``); without it,
-the run above prints only ``0 errors in 1 file (1 hint hidden)``. A rule
-left out of the selection is never evaluated. Rules run only on a model that
+(``--show-hints``, or ``show-hints = true`` under ``[output]``) -- except
+for a rule selected by its ID, name, ID band or namespace, as ``ACME`` is
+here: naming a rule is a request to see it. Selected only by a tier or a
+profile, its findings are counted (``0 errors in 1 file (1 hint hidden)``)
+but not shown. A rule left out of the selection is never evaluated.
+``pssparser --rules-for FILE`` lists the rules a file gets, with no model
+parsed (:doc:`lint`, *Per-directory settings*). Rules run only on a model that
 parsed and linked without errors. ``--stats`` lists what each rule did (see
 :doc:`cli`).
 

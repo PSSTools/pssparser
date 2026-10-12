@@ -92,6 +92,11 @@ cdef extern from "pssp/lint/ILintEngine.h" namespace "pssp::lint":
         cpp_string run(const cpp_vector[ast.IScopeChildP] &roots, const cpp_string &requestJson, ast.IRootSymbolScope *model)
         cpp_string diagnosticsJson()
         cpp_string rulesJson()
+        cpp_string setHostMarkers(const cpp_string &json)
+        cpp_string resolveSelection(const cpp_string &json)
+        cpp_string collectWaivers(const cpp_vector[ast.IScopeChildP] &roots,
+                                  const cpp_string &requestJson)
+        cpp_string applyWaivers(const cpp_string &requestJson)
 
 cdef extern from "pssp/lint/ILintTestHooks.h" namespace "pssp::lint":
     cdef cppclass ILintTestHooks:

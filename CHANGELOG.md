@@ -141,6 +141,55 @@ See `docs/lint-rule-authoring.rst` and `docs/lint-functions.rst`.
   declarative rules; `pssparser.lint.examples` runs rules' examples.
 - pssparser ships no built-in YAML rules yet.
 
+### Changed — source waivers are applied in the core
+
+Source waivers (`// pssparser waive` comments and `@lint_pkg::waive`
+annotations) are collected and applied in the core lint engine, which the CLI
+and the WebAssembly build share, so an editor waives the same findings as CI.
+The covered spans, the hygiene markers (PSSP202–PSSP205, PSSP004) and their
+messages are unchanged.
+
+- A waiver may name a rule by a former ID from its `aliases`, as it could a
+  retired ID: it works, with a `PSSP004` note naming the current ID. Before,
+  such an ID was reported as unknown (PSSP203).
+- New API: `ILintEngine::collectWaivers` and `applyWaivers`; Python
+  `LintEngine.collect_waivers`/`apply_waivers` and
+  `pssparser.waivers.collect_in`/`apply_in`; TypeScript
+  `Parser.setHostMarkers`, `Parser.collectWaivers` and `Parser.applyWaivers`.
+  `pssparser.waivers.collect`/`apply` remain.
+
+### Added — per-directory lint settings, `--rules-for`; named rules show their hints
+
+`[[lint.overrides]]` tables give the files their `files` globs match their own
+`profile`, `select`, `ignore` and `rule.<name>` options, applied in order
+after the project's settings and before `--select`/`--ignore`. Globs are
+relative to the configuration's directory. A rule on for any file runs, and
+reports only where it is on; this holds for the core's `LINT` warnings and
+Python checkers' rules too.
+
+```toml
+[[lint.overrides]]
+files  = ["tests/**", "*_gen.pss"]
+ignore = ["style"]
+```
+
+- `pssparser --rules-for FILE…` lists the rules each file would get, without
+  parsing anything (the file need not exist); `--format json` adds each
+  rule's doc, effective options and examples (`"schema":
+  "pssparser-rules/1"`).
+- `--show-config` lists the overrides and the rule files loaded (where each
+  came from, how many rules it holds); `--show-config --for FILE` shows the
+  overrides that match FILE and the rules it gets.
+- **Behaviour change:** a rule selected by its ID, name, ID band or namespace
+  (`select = ["ACME"]`, `--select LINT301`) shows its `hint` findings
+  without `--show-hints`. One enabled only by a tier or profile is hidden as
+  before.
+- Selection is now resolved in the core engine, which the CLI and the
+  WebAssembly build share: `ILintEngine::resolveSelection` and a `selection`
+  key in lint requests (Python `LintEngine.resolve_selection`; TypeScript
+  `Parser.resolveSelection` and `runLint({ selection })`). The answers and
+  messages are unchanged.
+
 ### Added — lint baselines (`--write-baseline`, `--baseline`)
 
 Switch lint on over an existing model and gate CI on new findings only:

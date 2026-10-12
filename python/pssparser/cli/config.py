@@ -120,6 +120,16 @@ _LINT_SCHEMA: Dict[str, Tuple[tuple, str]] = {
     "rule": ((dict,), "table of per-rule option tables"),
     "baseline": ((str,), "path to a baseline file, relative to this file"),
     "rules": ((list,), "array of pss-rules files and directories, relative to this file"),
+    "overrides": ((list,), "array of per-path tables: files, profile, select, ignore, rule"),
+}
+
+#: Keys of one ``[[lint.overrides]]`` table (lint-core-plan C7.1, F2.5).
+_OVERRIDE_SCHEMA: Dict[str, Tuple[tuple, str]] = {
+    "files": ((list,), "array of globs, relative to this file's directory"),
+    "profile": ((str,), "the profile for these files"),
+    "select": ((list,), "array of rule selectors added for these files"),
+    "ignore": ((list,), "array of rule selectors removed for these files"),
+    "rule": ((dict,), "table of per-rule option tables for these files"),
 }
 
 _OUTPUT_SCHEMA: Dict[str, Tuple[tuple, str]] = {
@@ -214,10 +224,22 @@ class ResolvedConfig:
     #: its file's directory, and *origin* names the file.
     lint_rules: List[Tuple[str, str]] = field(default_factory=list)
 
+    #: ``[[lint.overrides]]``: per-path tables (``files``, ``profile``,
+    #: ``select``, ``ignore``, ``rule``), in order; globs are relative to
+    #: :attr:`base_dir`.
+    lint_overrides: List[Dict[str, Any]] = field(default_factory=list)
+
     #: Resolved by :func:`validate_against_registry`: the enabled lint rule
-    #: IDs, and every lint rule ID (so a disabled one can be recognised).
+    #: IDs for a file no override matches, and every lint rule ID (so a
+    #: disabled one can be recognised).
     lint_enabled: Optional[set] = None
     lint_ids: set = field(default_factory=set)
+    #: The rules among :attr:`lint_enabled` that a selector names by ID,
+    #: name, ID band or namespace: their hints are shown (E3(a)).
+    lint_explicit: set = field(default_factory=set)
+    #: The lint engine that resolved the selection, and resolves it again
+    #: per file (lint-core-plan C7.1).
+    lint_engine: Any = field(default=None, repr=False)
     #: Rules the ``rules-version`` pin keeps out of the profile.
     lint_held_back: List[str] = field(default_factory=list)
     #: ``-Werror`` group spelling per promoted ID, e.g. ``LINT104 ->
@@ -466,6 +488,46 @@ def _validate_lint(table: Any, source: str) -> None:
                 f"{source}: '[lint.rule.{name}]' must be a table of options, "
                 f"got {_describe(options)}"
             )
+    for i, ov in enumerate(table.get("overrides") or []):
+        _validate_override(ov, f"lint.overrides[{i}]", source)
+
+
+def _validate_override(ov: Any, where: str, source: str) -> None:
+    """One ``[[lint.overrides]]`` table: ``files`` and the selection keys."""
+    from pssparser.checkers import taxonomy
+
+    if not isinstance(ov, dict):
+        raise ConfigError(
+            f"{source}: '{where}' must be a table ([[lint.overrides]]), "
+            f"got {_describe(ov)}")
+    for key, value in ov.items():
+        if key not in _OVERRIDE_SCHEMA:
+            raise _unknown_key(f"[[lint.overrides]] ({where})", key, _OVERRIDE_SCHEMA,
+                               source)
+        expected, _ = _OVERRIDE_SCHEMA[key]
+        if not isinstance(value, expected):
+            raise ConfigError(
+                f"{source}: '{where}.{key}' must be {_type_name(expected)}, "
+                f"got {_describe(value)}")
+    for key in ("files", "select", "ignore"):
+        if key in ov:
+            _require_str_list(ov[key], f"{where}.{key}", source)
+    if not ov.get("files"):
+        raise ConfigError(
+            f"{source}: '{where}' needs 'files', an array of globs relative to this "
+            "file's directory, e.g. files = [\"tests/**\"]")
+    profile = ov.get("profile")
+    if profile is not None and profile not in taxonomy.PROFILES:
+        hint = suggest(profile, list(taxonomy.PROFILES))
+        detail = f"did you mean '{hint}'?" if hint else (
+            "one of " + ", ".join(taxonomy.PROFILES))
+        raise ConfigError(
+            f"{source}: '{where}.profile' names unknown profile '{profile}'; {detail}")
+    for name, options in (ov.get("rule") or {}).items():
+        if not isinstance(options, dict):
+            raise ConfigError(
+                f"{source}: '{where}.rule.{name}' must be a table of options, "
+                f"got {_describe(options)}")
 
 
 def _validate_severity(table: Any, source: str) -> None:
@@ -664,6 +726,10 @@ def _merge(cfg: ResolvedConfig, table: Dict[str, Any], source: str,
                 path = base / path
             cfg.lint_rules.append((str(path), f"{source}: lint.rules"))
         cfg.provenance["lint.rules"] = source
+    if "overrides" in lint:
+        # An array: it replaces a lower layer's, like every other array.
+        cfg.lint_overrides = [dict(ov) for ov in lint["overrides"]]
+        cfg.provenance["lint.overrides"] = source
     for name, options in (lint.get("rule") or {}).items():
         bucket = cfg.lint_rule_options.setdefault(name, {})
         for opt, value in options.items():
@@ -895,7 +961,8 @@ def alias_note_markers(cfg: ResolvedConfig) -> List[dict]:
     return markers
 
 
-def validate_against_registry(cfg: ResolvedConfig, manager) -> None:
+def validate_against_registry(cfg: ResolvedConfig, manager, engine=None,
+                              refused=()) -> None:
     """Check names in *cfg* against the checkers and markers actually loaded.
 
     Split from :func:`_validate_table` because it needs a populated
@@ -906,6 +973,10 @@ def validate_against_registry(cfg: ResolvedConfig, manager) -> None:
     deliberate.  A rule silently not running is the failure mode this feature
     exists to prevent, and a hard stop names the missing checker where a
     warning gets lost in the diagnostic stream.
+
+    The selection is resolved in *engine*, the lint engine that loaded the
+    rule files (a new one when none is given); *refused* are the loaded rules
+    the registry refused (:func:`pssparser.lint.rulefiles.conflicts`).
     """
     _canonicalize_ids(cfg, manager)
 
@@ -965,22 +1036,38 @@ def validate_against_registry(cfg: ResolvedConfig, manager) -> None:
             f"not installed; {detail}"
         )
 
-    # -- selectors: [severity] keys and -W groups (lint-framework L3) -----
-    from pssparser.checkers.selectors import RuleSet, SelectorError
-    from pssparser.checkers import taxonomy
+    # -- selection: [severity] keys, -W groups, [lint] (lint-framework L3) --
+    #
+    # Resolved in the core engine (lint-core-plan C7.1), the same code the
+    # WASM build runs; the messages are the ones selectors.py gave.
+    from pssparser.lint.selection import Resolution, request, tell_engine
 
-    rules = RuleSet(manager.all_marker_defs(), rules_version=cfg.rules_version)
-    rules.aliases = manager.alias_map()
+    if engine is None:
+        from pssparser.core import Factory
+        engine = Factory.inst().mkLintEngine()
+    tell_engine(engine, manager.all_marker_defs(), refused)
+    cfg.lint_engine = engine
+    if "info" in cfg.warnings_error_codes:
+        cfg.warnings_error_info = True
+    res = Resolution.from_json(engine.resolve_selection(request(cfg)))
 
-    def parse_or_fail(text: str, key: str, where: str):
-        try:
-            return rules.parse(text)
-        except SelectorError as exc:
-            source = cfg.provenance.get(key, "configuration")
-            raise ConfigError(f"{source}: {where} {exc}") from None
+    def source_of(key: str) -> str:
+        if key in ("--select", "--ignore"):
+            return "command line"
+        if key.startswith("lint.overrides"):
+            return cfg.provenance.get("lint.overrides", "configuration")
+        if key.startswith("lint.rule."):
+            name = key[len("lint.rule."):]
+            first = next(iter(cfg.lint_rule_options.get(name) or {}), "")
+            return cfg.provenance.get(f"lint.rule.{name}.{first}", "configuration")
+        return cfg.provenance.get(key, "configuration")
 
-    for code in cfg.severity:
-        parse_or_fail(code, f"severity.{code}", "'[severity]' names an")
+    def fail(err: dict) -> None:
+        raise ConfigError(f"{source_of(err['key'])}: {err['message']}")
+
+    errors = list(res.errors)
+    if errors and errors[0]["key"].startswith("severity."):
+        fail(errors[0])
 
     # A core error is a statement that the model could not be built.  The
     # parse- and link-failure paths return a forced exit code of 1 with no
@@ -999,81 +1086,53 @@ def validate_against_registry(cfg: ResolvedConfig, manager) -> None:
                 f"produced nothing. Use --no-warnings or a narrower "
                 f"'select' if the goal is a quieter report"
             )
+    if errors:
+        fail(errors[0])
 
-    # Expand group keys ("correctness", "family:constraint", "LINT1") to
+    # Group keys ("correctness", "family:constraint", "LINT1") expanded to
     # concrete IDs, most specific key per ID, so apply_severity_map stays
     # an ID lookup.  Exact IDs keep their own entry.
-    expanded = rules.expand(cfg.severity)
     severity: Dict[str, str] = {}
-    for mid, (text, _) in expanded.items():
-        severity[mid] = cfg.severity[text]
+    for mid, entry in res.severity.items():
+        text = entry["key"]
+        severity[mid] = entry["severity"]
         if text != mid:
             cfg.provenance.setdefault(
                 f"severity.{mid}",
                 f"{cfg.provenance.get(f'severity.{text}', 'configuration')} "
                 f"(via '{text}')")
-    # Exact IDs not in the rule set (a plug-in that is not loaded is
-    # refused above, so this is only retired codes already rewritten).
+    # A key that names no marker today (a profile with no members) is kept.
     for code, sev in cfg.severity.items():
         severity.setdefault(code, sev)
     cfg.severity = severity
 
-    def expand_codes(codes, key):
-        out: List[str] = []
-        spelling: Dict[str, str] = {}
-        for text in codes:
-            if text == "info":
-                continue
-            parse_or_fail(text, key, f"'{key}' names an")
-            for mid in rules.expand([text]):
-                if mid not in out:
-                    out.append(mid)
-                    spelling.setdefault(mid, text)
-        return out, spelling
-
-    if "info" in cfg.warnings_error_codes:
-        cfg.warnings_error_info = True
-    cfg.warnings_error_codes, cfg.werror_spelling = expand_codes(
-        cfg.warnings_error_codes, "warnings.error")
-    cfg.warnings_no_error_codes, _ = expand_codes(
-        cfg.warnings_no_error_codes, "warnings.no-error")
+    cfg.warnings_error_codes = list(res.warnings["error"])
+    cfg.werror_spelling = dict(res.warnings["spelling"])
+    cfg.warnings_no_error_codes = list(res.warnings["no_error"])
 
     # -- lint selection ---------------------------------------------------
-    for key, texts in (("lint.select", cfg.lint_select),
-                       ("lint.ignore", cfg.lint_ignore)):
-        for text in texts:
-            parse_or_fail(text, key, f"'{key}' names an")
-    for flag, texts in (("--select", cfg.cli_lint_select),
-                        ("--ignore", cfg.cli_lint_ignore)):
-        for text in texts:
-            try:
-                rules.parse(text)
-            except SelectorError as exc:
-                raise ConfigError(
-                    f"command line: '{flag}' names an {exc}") from None
-    profile = cfg.lint_profile or taxonomy.DEFAULT_PROFILE
-    cfg.lint_ids = {md.id for md in rules.lint}
-    cfg.lint_enabled = rules.overlay(
-        rules.resolve(profile, cfg.lint_select, cfg.lint_ignore),
-        cfg.cli_lint_select, cfg.cli_lint_ignore)
-    cfg.lint_held_back = rules.held_back(profile)
+    project = res.groups[0]
+    cfg.lint_ids = set(res.lint_ids)
+    cfg.lint_enabled = set(project.enabled)
+    cfg.lint_explicit = set(project.explicit)
+    cfg.lint_held_back = list(project.held_back)
 
-    for name, options in cfg.lint_rule_options.items():
-        md = rules.by_name.get(name) or rules.by_id.get(name)
-        source = cfg.provenance.get(
-            f"lint.rule.{name}." + next(iter(options), ""), "configuration")
-        if md is None or not md.is_lint:
-            hint = suggest(name, sorted(n for n, m in rules.by_name.items()
-                                        if m.is_lint))
-            detail = f"did you mean '{hint}'?" if hint else (
-                "run --list-markers to see the rule names")
-            raise ConfigError(
-                f"{source}: '[lint.rule.{name}]' configures an unknown lint "
-                f"rule; {detail}")
-        try:
-            _check_rule_options(md, options)
-        except ValueError as exc:
-            raise ConfigError(f"{source}: {exc}") from None
+    from pssparser.checkers.selectors import RuleSet
+    rules = RuleSet(manager.all_marker_defs())
+    tables = [("lint.rule", cfg.lint_rule_options)] + [
+        (f"lint.overrides[{i}].rule", ov.get("rule") or {})
+        for i, ov in enumerate(cfg.lint_overrides)]
+    for where, table in tables:
+        for name, options in table.items():
+            md = rules.by_name.get(name) or rules.by_id.get(name)
+            if md is None:      # the engine reported it above
+                continue
+            source = (source_of(f"lint.rule.{name}") if where == "lint.rule"
+                      else source_of(where))
+            try:
+                _check_rule_options(md, options)
+            except ValueError as exc:
+                raise ConfigError(f"{source}: {exc}") from None
 
 
 def _check_rule_options(md, options: Dict[str, Any]) -> None:
@@ -1096,12 +1155,17 @@ def _check_rule_options(md, options: Dict[str, Any]) -> None:
 # ----------------------------------------------------------------------
 
 
-def format_show_config(cfg: ResolvedConfig) -> str:
+def format_show_config(cfg: ResolvedConfig, rule_sources=None,
+                       for_files=()) -> str:
     """Render the resolved configuration with per-value provenance.
 
     Every value that is in effect appears here with the layer that set it,
     including values nothing set -- ``(default)`` is an answer to "why did
     this rule run?" just as much as a file path is.
+
+    *rule_sources* lists the loaded rule files as ``(path, origin, rules)``
+    (B12).  For each of *for_files* (``--show-config --for FILE``), the
+    overrides that match it and the rules it gets (lint-core-plan C7.1).
     """
     lines: List[str] = []
 
@@ -1156,6 +1220,35 @@ def format_show_config(cfg: ResolvedConfig) -> str:
         for opt in sorted(cfg.lint_rule_options[name]):
             row(f"lint.rule.{name}.{opt}",
                 _render(cfg.lint_rule_options[name][opt]))
+    for i, ov in enumerate(cfg.lint_overrides):
+        lines.append(f"  {f'lint.overrides[{i}]':<34} {_render_override(ov):<24} "
+                     f"{prov('lint.overrides')}")
+
+    if rule_sources is not None:
+        lines.append("")
+        lines.append("Rule files (load order):")
+        if not rule_sources:
+            lines.append("  (none)")
+        for path, origin, count in rule_sources:
+            n = f"{count} rule{'s' if count != 1 else ''}"
+            lines.append(f"  {path:<34} {n:<24} {origin}")
+
+    if for_files and cfg.lint_engine is not None:
+        from pssparser.lint.selection import Resolution, request
+        res = Resolution.from_json(cfg.lint_engine.resolve_selection(
+            request(cfg, for_files)))
+        for f in for_files:
+            g = res.group_of(f)
+            lines.append("")
+            which = (", ".join(f"lint.overrides[{i}]" for i in g.overrides)
+                     or "(no override matches)")
+            lines.append(f"For {f} (as {res.rel_of(f)}):")
+            lines.append(f"  overrides:     {which}")
+            lines.append(f"  profile:       {g.profile}")
+            lines.append(f"  enabled rules: {_collapse(sorted(g.enabled))}")
+            for rid in sorted(g.options):
+                for opt in sorted(g.options[rid]):
+                    lines.append(f"  lint.rule.{rid}.{opt} = {_render(g.options[rid][opt])}")
 
     if cfg.severity:
         lines.append("")
@@ -1185,6 +1278,20 @@ def format_show_config(cfg: ResolvedConfig) -> str:
             lines.append(f"  {key}")
 
     return "\n".join(lines) + "\n"
+
+
+def _render_override(ov: Dict[str, Any]) -> str:
+    """One ``[[lint.overrides]]`` table on one line."""
+    parts = ["files = " + ", ".join(ov.get("files", []))]
+    if "profile" in ov:
+        parts.append(f"profile = {ov['profile']}")
+    for key in ("select", "ignore"):
+        if ov.get(key):
+            parts.append(f"{key} = " + ", ".join(ov[key]))
+    for name in sorted(ov.get("rule") or {}):
+        for opt in sorted(ov["rule"][name]):
+            parts.append(f"rule.{name}.{opt} = {_render(ov['rule'][name][opt])}")
+    return "; ".join(parts)
 
 
 def _collapse(ids: List[str]) -> str:

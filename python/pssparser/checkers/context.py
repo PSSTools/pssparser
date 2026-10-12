@@ -57,6 +57,9 @@ class CheckContext:
     #: rules read file paths relative to (``file_of``); ``None`` with no
     #: configuration, when paths are as given.
     _lint_base_dir: Optional[str] = field(default=None, repr=False)
+    #: Internal – the configuration's selection as the lint engine resolves
+    #: it per file (lint-core-plan C7.1); ``None``: run the enabled IDs.
+    _lint_selection: Optional[dict] = field(default=None, repr=False)
 
     #: Per-rule counts from the declarative rules' run, for ``--stats``:
     #: ``[{"id", "matches", "findings", "steps", "ns", "errors"}]``.

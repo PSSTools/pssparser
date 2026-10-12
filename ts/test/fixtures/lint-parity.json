@@ -1952,6 +1952,194 @@
    "problems": []
   },
   {
+   "id": "run:selection",
+   "kind": "run",
+   "ruleFiles": [
+    "tests/data/lint-examples/fn-branches.yaml",
+    "tests/data/lint-examples/fn-const.yaml",
+    "tests/data/lint-examples/fn-lists.yaml",
+    "tests/data/lint-examples/fn-locations.yaml",
+    "tests/data/lint-examples/fn-navigation.yaml",
+    "tests/data/lint-examples/fn-purity.yaml",
+    "tests/data/lint-examples/fn-refs.yaml",
+    "tests/data/lint-examples/fn-symbols.yaml",
+    "tests/data/lint-examples/fn-types.yaml",
+    "tests/data/lint-examples/naming.yaml",
+    "tests/data/lint-examples/structure.yaml"
+   ],
+   "ruleTexts": [],
+   "sources": [
+    {
+     "name": "/proj/ip/m.pss",
+     "text": "component pss_top {\n  int count;\n  action write_burst {\n    rand bit[8] m_len;\n    rand bit[8] len;\n    constraint { len == 2; }\n    exec post_solve {\n      if (len == 3) { }\n    }\n  }\n  action Ab : write_burst { }\n  struct Xy { }\n}\n"
+    },
+    {
+     "name": "/proj/tests/t.pss",
+     "text": "component t_top { action Long_name { rand bit[8] len; } }\n"
+    }
+   ],
+   "request": {
+    "baseDir": "/proj",
+    "selection": {
+     "lint": {
+      "profile": "none",
+      "select": [
+       "ACME"
+      ],
+      "overrides": [
+       {
+        "files": [
+         "tests/**"
+        ],
+        "ignore": [
+         "ACME001"
+        ]
+       },
+       {
+        "files": [
+         "ip"
+        ],
+        "rule": {
+         "ACME002": {
+          "prefix": "le"
+         }
+        }
+       }
+      ]
+     },
+     "severity": {
+      "ACME003": "off"
+     }
+    }
+   },
+   "markers": [
+    {
+     "code": "ACME001",
+     "severity": "hint",
+     "message": "action 'write_burst' is not UpperCamelCase",
+     "file": "/proj/ip/m.pss",
+     "line": 3,
+     "col": 10,
+     "extent": 11
+    },
+    {
+     "code": "ACME002",
+     "severity": "hint",
+     "message": "field 'm_len' does not start with 'le'",
+     "file": "/proj/ip/m.pss",
+     "line": 4,
+     "col": 17,
+     "extent": 5
+    },
+    {
+     "code": "ACME-NET002",
+     "severity": "warning",
+     "message": "'==' outside a constraint",
+     "file": "/proj/ip/m.pss",
+     "line": 8,
+     "col": 11,
+     "extent": 3
+    },
+    {
+     "code": "ACME-NET001",
+     "severity": "warning",
+     "message": "pss_top::Ab derives from a base type",
+     "file": "/proj/ip/m.pss",
+     "line": 11,
+     "col": 15,
+     "extent": 11
+    },
+    {
+     "code": "ACME002",
+     "severity": "hint",
+     "message": "field 'len' does not start with 'm_'",
+     "file": "/proj/tests/t.pss",
+     "line": 1,
+     "col": 50,
+     "extent": 3
+    }
+   ],
+   "stats": [
+    {
+     "id": "ACME001",
+     "matches": 2,
+     "findings": 1,
+     "steps": 21,
+     "errors": 0
+    },
+    {
+     "id": "ACME002",
+     "matches": 3,
+     "findings": 2,
+     "steps": 26,
+     "errors": 0
+    },
+    {
+     "id": "ACME-NET001",
+     "matches": 3,
+     "findings": 1,
+     "steps": 10,
+     "errors": 0
+    },
+    {
+     "id": "ACME-NET002",
+     "matches": 1,
+     "findings": 1,
+     "steps": 4,
+     "errors": 0
+    }
+   ],
+   "problems": []
+  },
+  {
+   "id": "run:selection-problems",
+   "kind": "run",
+   "ruleFiles": [
+    "tests/data/lint-examples/fn-branches.yaml",
+    "tests/data/lint-examples/fn-const.yaml",
+    "tests/data/lint-examples/fn-lists.yaml",
+    "tests/data/lint-examples/fn-locations.yaml",
+    "tests/data/lint-examples/fn-navigation.yaml",
+    "tests/data/lint-examples/fn-purity.yaml",
+    "tests/data/lint-examples/fn-refs.yaml",
+    "tests/data/lint-examples/fn-symbols.yaml",
+    "tests/data/lint-examples/fn-types.yaml",
+    "tests/data/lint-examples/naming.yaml",
+    "tests/data/lint-examples/structure.yaml"
+   ],
+   "ruleTexts": [],
+   "sources": [
+    {
+     "name": "m.pss",
+     "text": "component pss_top {\n  int count;\n  action write_burst {\n    rand bit[8] m_len;\n    rand bit[8] len;\n    constraint { len == 2; }\n    exec post_solve {\n      if (len == 3) { }\n    }\n  }\n  action Ab : write_burst { }\n  struct Xy { }\n}\n"
+    }
+   ],
+   "request": {
+    "enabled": [
+     "ACME001"
+    ],
+    "selection": {
+     "lint": {
+      "select": [
+       "ACME01"
+      ],
+      "rule": {
+       "ACME002": {
+        "nope": 1
+       }
+      }
+     }
+    }
+   },
+   "markers": [],
+   "stats": [],
+   "problems": [
+    "selection: given with enabled or options; those are ignored",
+    "selection: 'lint.select' names an unknown marker or selector 'ACME01'; did you mean 'ACME001'?",
+    "selection: options: rule ACME002 has no option 'nope'"
+   ]
+  },
+  {
    "id": "run:gate",
    "kind": "run",
    "ruleFiles": [
@@ -2208,6 +2396,1403 @@
    "markers": [],
    "stats": [],
    "problems": []
+  },
+  {
+   "id": "selection:profiles-and-selectors",
+   "kind": "selection",
+   "selection": {
+    "lint": {
+     "profile": "all",
+     "select": [
+      "ACME0",
+      "family:naming"
+     ],
+     "ignore": [
+      "ACME002"
+     ],
+     "rules-version": "2026.1"
+    },
+    "command_line": {
+     "select": [
+      "ACME002"
+     ]
+    },
+    "severity": {
+     "ACME": "error",
+     "suspicious": "info"
+    },
+    "warnings": {
+     "error": [
+      "info",
+      "ACME"
+     ],
+     "no-error": [
+      "ACME003"
+     ]
+    }
+   },
+   "paths": [],
+   "result": {
+    "errors": [],
+    "lint_ids": [
+     "ACME-NET001",
+     "ACME-NET002",
+     "ACME001",
+     "ACME002",
+     "ACME003",
+     "TEST-BR001",
+     "TEST-BR002",
+     "TEST-BR003",
+     "TEST-CONST001",
+     "TEST-CONST002",
+     "TEST-DUPS001",
+     "TEST-LOC001",
+     "TEST-LOC002",
+     "TEST-NAV001",
+     "TEST-NAV002",
+     "TEST-NAV003",
+     "TEST-NAV004",
+     "TEST-NAV005",
+     "TEST-PURE001",
+     "TEST-REF001",
+     "TEST-REF002",
+     "TEST-REF003",
+     "TEST-SYM001",
+     "TEST-SYM002",
+     "TEST-SYM003",
+     "TEST-TYPES001",
+     "TEST-TYPES002"
+    ],
+    "groups": [
+     {
+      "overrides": [],
+      "profile": "all",
+      "enabled": [
+       "ACME-NET001",
+       "ACME-NET002",
+       "ACME001",
+       "ACME002",
+       "ACME003",
+       "TEST-BR001",
+       "TEST-BR002",
+       "TEST-BR003",
+       "TEST-CONST001",
+       "TEST-CONST002",
+       "TEST-DUPS001",
+       "TEST-LOC001",
+       "TEST-LOC002",
+       "TEST-NAV001",
+       "TEST-NAV002",
+       "TEST-NAV003",
+       "TEST-NAV004",
+       "TEST-NAV005",
+       "TEST-PURE001",
+       "TEST-REF001",
+       "TEST-REF002",
+       "TEST-REF003",
+       "TEST-SYM001",
+       "TEST-SYM002",
+       "TEST-SYM003",
+       "TEST-TYPES001",
+       "TEST-TYPES002"
+      ],
+      "explicit": [
+       "ACME001",
+       "ACME002",
+       "ACME003"
+      ],
+      "held_back": [],
+      "options": {}
+     }
+    ],
+    "paths": [],
+    "severity": {
+     "ACME-NET001": {
+      "severity": "error",
+      "key": "ACME"
+     },
+     "ACME-NET002": {
+      "severity": "error",
+      "key": "ACME"
+     },
+     "ACME001": {
+      "severity": "error",
+      "key": "ACME"
+     },
+     "ACME002": {
+      "severity": "error",
+      "key": "ACME"
+     },
+     "ACME003": {
+      "severity": "error",
+      "key": "ACME"
+     },
+     "TEST-BR001": {
+      "severity": "info",
+      "key": "suspicious"
+     },
+     "TEST-BR002": {
+      "severity": "info",
+      "key": "suspicious"
+     },
+     "TEST-BR003": {
+      "severity": "info",
+      "key": "suspicious"
+     },
+     "TEST-CONST001": {
+      "severity": "info",
+      "key": "suspicious"
+     },
+     "TEST-CONST002": {
+      "severity": "info",
+      "key": "suspicious"
+     },
+     "TEST-DUPS001": {
+      "severity": "info",
+      "key": "suspicious"
+     },
+     "TEST-PURE001": {
+      "severity": "info",
+      "key": "suspicious"
+     },
+     "TEST-REF001": {
+      "severity": "info",
+      "key": "suspicious"
+     },
+     "TEST-REF002": {
+      "severity": "info",
+      "key": "suspicious"
+     },
+     "TEST-REF003": {
+      "severity": "info",
+      "key": "suspicious"
+     },
+     "TEST-TYPES001": {
+      "severity": "info",
+      "key": "suspicious"
+     },
+     "TEST-TYPES002": {
+      "severity": "info",
+      "key": "suspicious"
+     }
+    },
+    "warnings": {
+     "error": [
+      "ACME001",
+      "ACME002",
+      "ACME003",
+      "ACME-NET001",
+      "ACME-NET002"
+     ],
+     "error_info": true,
+     "spelling": {
+      "ACME-NET001": "ACME",
+      "ACME-NET002": "ACME",
+      "ACME001": "ACME",
+      "ACME002": "ACME",
+      "ACME003": "ACME"
+     },
+     "no_error": [
+      "ACME003"
+     ]
+    }
+   }
+  },
+  {
+   "id": "selection:overrides",
+   "kind": "selection",
+   "selection": {
+    "lint": {
+     "profile": "none",
+     "select": [
+      "ACME"
+     ],
+     "overrides": [
+      {
+       "files": [
+        "tests/**",
+        "*_gen.pss"
+       ],
+       "ignore": [
+        "ACME001"
+       ]
+      },
+      {
+       "files": [
+        "ip/legacy"
+       ],
+       "profile": "all",
+       "rule": {
+        "ACME002": {
+         "prefix": "x"
+        }
+       }
+      }
+     ]
+    },
+    "base_dir": "/proj"
+   },
+   "paths": [
+    "/proj/a.pss",
+    "/proj/tests/x/t.pss",
+    "/proj/ip/legacy/l_gen.pss",
+    "/other/z.pss"
+   ],
+   "result": {
+    "errors": [],
+    "lint_ids": [
+     "ACME-NET001",
+     "ACME-NET002",
+     "ACME001",
+     "ACME002",
+     "ACME003",
+     "TEST-BR001",
+     "TEST-BR002",
+     "TEST-BR003",
+     "TEST-CONST001",
+     "TEST-CONST002",
+     "TEST-DUPS001",
+     "TEST-LOC001",
+     "TEST-LOC002",
+     "TEST-NAV001",
+     "TEST-NAV002",
+     "TEST-NAV003",
+     "TEST-NAV004",
+     "TEST-NAV005",
+     "TEST-PURE001",
+     "TEST-REF001",
+     "TEST-REF002",
+     "TEST-REF003",
+     "TEST-SYM001",
+     "TEST-SYM002",
+     "TEST-SYM003",
+     "TEST-TYPES001",
+     "TEST-TYPES002"
+    ],
+    "groups": [
+     {
+      "overrides": [],
+      "profile": "none",
+      "enabled": [
+       "ACME-NET001",
+       "ACME-NET002",
+       "ACME001",
+       "ACME002",
+       "ACME003"
+      ],
+      "explicit": [
+       "ACME-NET001",
+       "ACME-NET002",
+       "ACME001",
+       "ACME002",
+       "ACME003"
+      ],
+      "held_back": [],
+      "options": {}
+     },
+     {
+      "overrides": [
+       0
+      ],
+      "profile": "none",
+      "enabled": [
+       "ACME-NET001",
+       "ACME-NET002",
+       "ACME002",
+       "ACME003"
+      ],
+      "explicit": [
+       "ACME-NET001",
+       "ACME-NET002",
+       "ACME002",
+       "ACME003"
+      ],
+      "held_back": [],
+      "options": {}
+     },
+     {
+      "overrides": [
+       0,
+       1
+      ],
+      "profile": "all",
+      "enabled": [
+       "ACME-NET001",
+       "ACME-NET002",
+       "ACME002",
+       "ACME003",
+       "TEST-BR001",
+       "TEST-BR002",
+       "TEST-BR003",
+       "TEST-CONST001",
+       "TEST-CONST002",
+       "TEST-DUPS001",
+       "TEST-LOC001",
+       "TEST-LOC002",
+       "TEST-NAV001",
+       "TEST-NAV002",
+       "TEST-NAV003",
+       "TEST-NAV004",
+       "TEST-NAV005",
+       "TEST-PURE001",
+       "TEST-REF001",
+       "TEST-REF002",
+       "TEST-REF003",
+       "TEST-SYM001",
+       "TEST-SYM002",
+       "TEST-SYM003",
+       "TEST-TYPES001",
+       "TEST-TYPES002"
+      ],
+      "explicit": [
+       "ACME-NET001",
+       "ACME-NET002",
+       "ACME002",
+       "ACME003"
+      ],
+      "held_back": [],
+      "options": {
+       "ACME002": {
+        "prefix": "x"
+       }
+      }
+     }
+    ],
+    "paths": [
+     {
+      "path": "/proj/a.pss",
+      "rel": "a.pss",
+      "group": 0
+     },
+     {
+      "path": "/proj/tests/x/t.pss",
+      "rel": "tests/x/t.pss",
+      "group": 1
+     },
+     {
+      "path": "/proj/ip/legacy/l_gen.pss",
+      "rel": "ip/legacy/l_gen.pss",
+      "group": 2
+     },
+     {
+      "path": "/other/z.pss",
+      "rel": "../other/z.pss",
+      "group": 0
+     }
+    ],
+    "severity": {},
+    "warnings": {
+     "error": [],
+     "error_info": false,
+     "spelling": {},
+     "no_error": []
+    }
+   }
+  },
+  {
+   "id": "selection:errors",
+   "kind": "selection",
+   "selection": {
+    "lint": {
+     "select": [
+      "ACME01",
+      "family:nope"
+     ],
+     "profile": "most",
+     "overrides": [
+      {
+       "select": [
+        "x"
+       ]
+      }
+     ],
+     "rule": {
+      "nope": {}
+     }
+    },
+    "command_line": {
+     "ignore": [
+      "acme"
+     ]
+    }
+   },
+   "paths": [],
+   "result": {
+    "errors": [
+     {
+      "key": "request",
+      "text": "lint.profile",
+      "message": "lint.profile: not a profile name"
+     },
+     {
+      "key": "lint.select",
+      "text": "ACME01",
+      "message": "'lint.select' names an unknown marker or selector 'ACME01'; did you mean 'ACME001'?"
+     },
+     {
+      "key": "lint.select",
+      "text": "family:nope",
+      "message": "'lint.select' names an unknown family selector 'family:nope'; run --list-markers to see the declared IDs and names"
+     },
+     {
+      "key": "--ignore",
+      "text": "acme",
+      "message": "'--ignore' names an unknown marker or selector 'acme'; run --list-markers to see the declared IDs and names"
+     },
+     {
+      "key": "lint.rule.nope",
+      "text": "nope",
+      "message": "'[lint.rule.nope]' configures an unknown lint rule; run --list-markers to see the rule names"
+     },
+     {
+      "key": "lint.overrides[0].select",
+      "text": "x",
+      "message": "'lint.overrides[0].select' names an unknown marker or selector 'x'; run --list-markers to see the declared IDs and names"
+     },
+     {
+      "key": "request",
+      "text": "lint.overrides[0].files",
+      "message": "lint.overrides[0]: 'files' must list at least one pattern"
+     }
+    ],
+    "lint_ids": [
+     "ACME-NET001",
+     "ACME-NET002",
+     "ACME001",
+     "ACME002",
+     "ACME003",
+     "TEST-BR001",
+     "TEST-BR002",
+     "TEST-BR003",
+     "TEST-CONST001",
+     "TEST-CONST002",
+     "TEST-DUPS001",
+     "TEST-LOC001",
+     "TEST-LOC002",
+     "TEST-NAV001",
+     "TEST-NAV002",
+     "TEST-NAV003",
+     "TEST-NAV004",
+     "TEST-NAV005",
+     "TEST-PURE001",
+     "TEST-REF001",
+     "TEST-REF002",
+     "TEST-REF003",
+     "TEST-SYM001",
+     "TEST-SYM002",
+     "TEST-SYM003",
+     "TEST-TYPES001",
+     "TEST-TYPES002"
+    ],
+    "groups": [
+     {
+      "overrides": [],
+      "profile": "minimal",
+      "enabled": [],
+      "explicit": [],
+      "held_back": [],
+      "options": {}
+     }
+    ],
+    "paths": [],
+    "severity": {},
+    "warnings": {
+     "error": [],
+     "error_info": false,
+     "spelling": {},
+     "no_error": []
+    }
+   }
+  },
+  {
+   "id": "waivers:collect-and-apply",
+   "kind": "waivers",
+   "hostMarkers": [
+    {
+     "id": "PSS002",
+     "severity": "error"
+    },
+    {
+     "id": "PSSP000",
+     "severity": "error",
+     "tier": "tool"
+    },
+    {
+     "id": "PSSP004",
+     "severity": "info",
+     "tier": "tool"
+    },
+    {
+     "id": "PSSP202",
+     "severity": "warning",
+     "tier": "tool"
+    },
+    {
+     "id": "PSSP203",
+     "severity": "warning",
+     "tier": "tool"
+    },
+    {
+     "id": "PSSP204",
+     "severity": "warning",
+     "tier": "tool"
+    },
+    {
+     "id": "PSSP205",
+     "severity": "warning",
+     "tier": "tool"
+    },
+    {
+     "id": "PSS053",
+     "status": "retired",
+     "replaced_by": [
+      "LINT402"
+     ]
+    },
+    {
+     "id": "LINT401",
+     "name": "import-shadow",
+     "tier": "suspicious",
+     "family": "import"
+    },
+    {
+     "id": "LINT402",
+     "name": "import-after-declaration",
+     "tier": "style",
+     "family": "import",
+     "aliases": [
+      "LINT499"
+     ],
+     "minimal": true
+    }
+   ],
+   "sources": [
+    {
+     "name": "m.pss",
+     "text": "package p {\n  struct t {}\n  import std_pkg::*;  // pssparser waive LINT402: vendored\n  @lint_pkg::waive {.id = \"PSS053\"}\n  struct u {}\n  @lint_pkg::waive {.id = \"LINT40X, PSS002\", .reason = \"r\"};\n}\n// pssparser waive import-after-declaration, LINT499: été\ncomponent C {\n  @lint_pkg::waive {.id = \"family:import\", .reason = \"r\"}\n  int a;\n  exec init_down {\n    @lint_pkg::waive {.id = \"ACME\", .reason = \"r\"}\n    a = 1;\n  }\n}\n"
+    },
+    {
+     "name": "n.pss",
+     "text": "// pssparser waive: x\n"
+    }
+   ],
+   "diagnostics": [
+    {
+     "code": "LINT402",
+     "file": "m.pss",
+     "line": 3,
+     "col": 3
+    },
+    {
+     "code": "LINT402",
+     "file": "m.pss",
+     "line": 5,
+     "col": 10
+    },
+    {
+     "code": "PSS002",
+     "file": "m.pss",
+     "line": 6,
+     "col": 1
+    },
+    {
+     "code": "LINT401",
+     "file": "m.pss",
+     "line": 9,
+     "col": 1
+    },
+    {
+     "code": "LINT401",
+     "file": "m.pss",
+     "line": 11,
+     "col": 7
+    },
+    {
+     "code": "ACME001",
+     "file": "m.pss",
+     "line": 14,
+     "col": 5
+    },
+    {
+     "code": "PSSP205",
+     "file": "m.pss",
+     "line": 4,
+     "col": 3
+    },
+    {
+     "code": null,
+     "file": "m.pss",
+     "line": 3,
+     "col": 3
+    }
+   ],
+   "ran": [
+    "LINT401",
+    "LINT402",
+    "ACME001",
+    "ACME002"
+   ],
+   "waivers": [
+    {
+     "form": "pragma",
+     "file": "m.pss",
+     "line": 3,
+     "col": 23,
+     "selectors": [
+      "LINT402"
+     ],
+     "reason": "vendored",
+     "start": [
+      3,
+      1
+     ],
+     "end": [
+      3,
+      1073741824
+     ]
+    },
+    {
+     "form": "annotation",
+     "file": "m.pss",
+     "line": 4,
+     "col": 3,
+     "selectors": [
+      "PSS053"
+     ],
+     "reason": "",
+     "start": [
+      4,
+      3
+     ],
+     "end": [
+      5,
+      14
+     ]
+    },
+    {
+     "form": "annotation",
+     "file": "m.pss",
+     "line": 6,
+     "col": 3,
+     "selectors": [
+      "LINT40X",
+      "PSS002"
+     ],
+     "reason": "r",
+     "start": [
+      6,
+      3
+     ],
+     "end": [
+      7,
+      2
+     ]
+    },
+    {
+     "form": "pragma",
+     "file": "m.pss",
+     "line": 8,
+     "col": 1,
+     "selectors": [
+      "import-after-declaration",
+      "LINT499"
+     ],
+     "reason": "été",
+     "start": [
+      9,
+      1
+     ],
+     "end": [
+      9,
+      1073741824
+     ]
+    },
+    {
+     "form": "annotation",
+     "file": "m.pss",
+     "line": 10,
+     "col": 3,
+     "selectors": [
+      "family:import"
+     ],
+     "reason": "r",
+     "start": [
+      10,
+      3
+     ],
+     "end": [
+      11,
+      8
+     ]
+    },
+    {
+     "form": "annotation",
+     "file": "m.pss",
+     "line": 13,
+     "col": 5,
+     "selectors": [
+      "ACME"
+     ],
+     "reason": "r",
+     "start": [
+      13,
+      5
+     ],
+     "end": [
+      14,
+      11
+     ]
+    },
+    {
+     "form": "pragma",
+     "file": "n.pss",
+     "line": 1,
+     "col": 1,
+     "selectors": [],
+     "reason": "x",
+     "start": [
+      1,
+      1
+     ],
+     "end": [
+      1,
+      1073741824
+     ]
+    }
+   ],
+   "result": {
+    "kept": [
+     2,
+     3,
+     6,
+     7
+    ],
+    "waived": [
+     [
+      0,
+      0
+     ],
+     [
+      1,
+      1
+     ],
+     [
+      4,
+      4
+     ],
+     [
+      5,
+      5
+     ]
+    ],
+    "waivers": [
+     {
+      "form": "pragma",
+      "file": "m.pss",
+      "line": 3,
+      "col": 23,
+      "selectors": [
+       "LINT402"
+      ],
+      "reason": "vendored",
+      "start": [
+       3,
+       1
+      ],
+      "end": [
+       3,
+       1073741824
+      ],
+      "ids": [
+       "LINT402"
+      ],
+      "used": 1
+     },
+     {
+      "form": "annotation",
+      "file": "m.pss",
+      "line": 4,
+      "col": 3,
+      "selectors": [
+       "PSS053"
+      ],
+      "reason": "",
+      "start": [
+       4,
+       3
+      ],
+      "end": [
+       5,
+       14
+      ],
+      "ids": [
+       "LINT402"
+      ],
+      "used": 1
+     },
+     {
+      "form": "annotation",
+      "file": "m.pss",
+      "line": 6,
+      "col": 3,
+      "selectors": [
+       "LINT40X",
+       "PSS002"
+      ],
+      "reason": "r",
+      "start": [
+       6,
+       3
+      ],
+      "end": [
+       7,
+       2
+      ],
+      "ids": [],
+      "used": 0
+     },
+     {
+      "form": "pragma",
+      "file": "m.pss",
+      "line": 8,
+      "col": 1,
+      "selectors": [
+       "import-after-declaration",
+       "LINT499"
+      ],
+      "reason": "été",
+      "start": [
+       9,
+       1
+      ],
+      "end": [
+       9,
+       1073741824
+      ],
+      "ids": [
+       "LINT402"
+      ],
+      "used": 0
+     },
+     {
+      "form": "annotation",
+      "file": "m.pss",
+      "line": 10,
+      "col": 3,
+      "selectors": [
+       "family:import"
+      ],
+      "reason": "r",
+      "start": [
+       10,
+       3
+      ],
+      "end": [
+       11,
+       8
+      ],
+      "ids": [
+       "LINT401",
+       "LINT402"
+      ],
+      "used": 1
+     },
+     {
+      "form": "annotation",
+      "file": "m.pss",
+      "line": 13,
+      "col": 5,
+      "selectors": [
+       "ACME"
+      ],
+      "reason": "r",
+      "start": [
+       13,
+       5
+      ],
+      "end": [
+       14,
+       11
+      ],
+      "ids": [
+       "ACME-NET001",
+       "ACME-NET002",
+       "ACME001",
+       "ACME002",
+       "ACME003"
+      ],
+      "used": 1
+     },
+     {
+      "form": "pragma",
+      "file": "n.pss",
+      "line": 1,
+      "col": 1,
+      "selectors": [],
+      "reason": "x",
+      "start": [
+       1,
+       1
+      ],
+      "end": [
+       1,
+       1073741824
+      ],
+      "ids": [],
+      "used": 0
+     }
+    ],
+    "markers": [
+     {
+      "severity": "info",
+      "message": "'PSS053' is the old ID of LINT402; write 'LINT402' in the waiver",
+      "file": "m.pss",
+      "line": 4,
+      "col": 3,
+      "code": "PSSP004",
+      "extent": -1,
+      "related": []
+     },
+     {
+      "severity": "warning",
+      "message": "waiver gives no reason; say why the finding is intended in '.reason'",
+      "file": "m.pss",
+      "line": 4,
+      "col": 3,
+      "code": "PSSP205",
+      "extent": -1,
+      "related": []
+     },
+     {
+      "severity": "warning",
+      "message": "waiver: unknown marker or selector 'LINT40X'; did you mean 'LINT401'?",
+      "file": "m.pss",
+      "line": 6,
+      "col": 3,
+      "code": "PSSP203",
+      "extent": -1,
+      "related": []
+     },
+     {
+      "severity": "warning",
+      "message": "'PSS002' is an error, which cannot be waived; fix it and delete the waiver",
+      "file": "m.pss",
+      "line": 6,
+      "col": 3,
+      "code": "PSSP204",
+      "extent": -1,
+      "related": []
+     },
+     {
+      "severity": "info",
+      "message": "'LINT499' is the old ID of LINT402; write 'LINT402' in the waiver",
+      "file": "m.pss",
+      "line": 8,
+      "col": 1,
+      "code": "PSSP004",
+      "extent": -1,
+      "related": []
+     },
+     {
+      "severity": "warning",
+      "message": "waiver comment for 'import-after-declaration, LINT499' matched no diagnostic; delete it if the finding was fixed",
+      "file": "m.pss",
+      "line": 8,
+      "col": 1,
+      "code": "PSSP202",
+      "extent": -1,
+      "related": []
+     },
+     {
+      "severity": "warning",
+      "message": "waiver comment names no rule; write the ID before ':'",
+      "file": "n.pss",
+      "line": 1,
+      "col": 1,
+      "code": "PSSP203",
+      "extent": -1,
+      "related": []
+     }
+    ]
+   }
+  },
+  {
+   "id": "waivers:ran-unknown",
+   "kind": "waivers",
+   "hostMarkers": [
+    {
+     "id": "PSS002",
+     "severity": "error"
+    },
+    {
+     "id": "PSSP000",
+     "severity": "error",
+     "tier": "tool"
+    },
+    {
+     "id": "PSSP004",
+     "severity": "info",
+     "tier": "tool"
+    },
+    {
+     "id": "PSSP202",
+     "severity": "warning",
+     "tier": "tool"
+    },
+    {
+     "id": "PSSP203",
+     "severity": "warning",
+     "tier": "tool"
+    },
+    {
+     "id": "PSSP204",
+     "severity": "warning",
+     "tier": "tool"
+    },
+    {
+     "id": "PSSP205",
+     "severity": "warning",
+     "tier": "tool"
+    },
+    {
+     "id": "PSS053",
+     "status": "retired",
+     "replaced_by": [
+      "LINT402"
+     ]
+    },
+    {
+     "id": "LINT401",
+     "name": "import-shadow",
+     "tier": "suspicious",
+     "family": "import"
+    },
+    {
+     "id": "LINT402",
+     "name": "import-after-declaration",
+     "tier": "style",
+     "family": "import",
+     "aliases": [
+      "LINT499"
+     ],
+     "minimal": true
+    }
+   ],
+   "sources": [
+    {
+     "name": "m.pss",
+     "text": "package p {\n  struct t {}\n  import std_pkg::*;  // pssparser waive LINT402: vendored\n  @lint_pkg::waive {.id = \"PSS053\"}\n  struct u {}\n  @lint_pkg::waive {.id = \"LINT40X, PSS002\", .reason = \"r\"};\n}\n// pssparser waive import-after-declaration, LINT499: été\ncomponent C {\n  @lint_pkg::waive {.id = \"family:import\", .reason = \"r\"}\n  int a;\n  exec init_down {\n    @lint_pkg::waive {.id = \"ACME\", .reason = \"r\"}\n    a = 1;\n  }\n}\n"
+    }
+   ],
+   "diagnostics": [],
+   "ran": null,
+   "waivers": [
+    {
+     "form": "pragma",
+     "file": "m.pss",
+     "line": 3,
+     "col": 23,
+     "selectors": [
+      "LINT402"
+     ],
+     "reason": "vendored",
+     "start": [
+      3,
+      1
+     ],
+     "end": [
+      3,
+      1073741824
+     ]
+    },
+    {
+     "form": "annotation",
+     "file": "m.pss",
+     "line": 4,
+     "col": 3,
+     "selectors": [
+      "PSS053"
+     ],
+     "reason": "",
+     "start": [
+      4,
+      3
+     ],
+     "end": [
+      5,
+      14
+     ]
+    },
+    {
+     "form": "annotation",
+     "file": "m.pss",
+     "line": 6,
+     "col": 3,
+     "selectors": [
+      "LINT40X",
+      "PSS002"
+     ],
+     "reason": "r",
+     "start": [
+      6,
+      3
+     ],
+     "end": [
+      7,
+      2
+     ]
+    },
+    {
+     "form": "pragma",
+     "file": "m.pss",
+     "line": 8,
+     "col": 1,
+     "selectors": [
+      "import-after-declaration",
+      "LINT499"
+     ],
+     "reason": "été",
+     "start": [
+      9,
+      1
+     ],
+     "end": [
+      9,
+      1073741824
+     ]
+    },
+    {
+     "form": "annotation",
+     "file": "m.pss",
+     "line": 10,
+     "col": 3,
+     "selectors": [
+      "family:import"
+     ],
+     "reason": "r",
+     "start": [
+      10,
+      3
+     ],
+     "end": [
+      11,
+      8
+     ]
+    },
+    {
+     "form": "annotation",
+     "file": "m.pss",
+     "line": 13,
+     "col": 5,
+     "selectors": [
+      "ACME"
+     ],
+     "reason": "r",
+     "start": [
+      13,
+      5
+     ],
+     "end": [
+      14,
+      11
+     ]
+    }
+   ],
+   "result": {
+    "kept": [],
+    "waived": [],
+    "waivers": [
+     {
+      "form": "pragma",
+      "file": "m.pss",
+      "line": 3,
+      "col": 23,
+      "selectors": [
+       "LINT402"
+      ],
+      "reason": "vendored",
+      "start": [
+       3,
+       1
+      ],
+      "end": [
+       3,
+       1073741824
+      ],
+      "ids": [
+       "LINT402"
+      ],
+      "used": 0
+     },
+     {
+      "form": "annotation",
+      "file": "m.pss",
+      "line": 4,
+      "col": 3,
+      "selectors": [
+       "PSS053"
+      ],
+      "reason": "",
+      "start": [
+       4,
+       3
+      ],
+      "end": [
+       5,
+       14
+      ],
+      "ids": [
+       "LINT402"
+      ],
+      "used": 0
+     },
+     {
+      "form": "annotation",
+      "file": "m.pss",
+      "line": 6,
+      "col": 3,
+      "selectors": [
+       "LINT40X",
+       "PSS002"
+      ],
+      "reason": "r",
+      "start": [
+       6,
+       3
+      ],
+      "end": [
+       7,
+       2
+      ],
+      "ids": [],
+      "used": 0
+     },
+     {
+      "form": "pragma",
+      "file": "m.pss",
+      "line": 8,
+      "col": 1,
+      "selectors": [
+       "import-after-declaration",
+       "LINT499"
+      ],
+      "reason": "été",
+      "start": [
+       9,
+       1
+      ],
+      "end": [
+       9,
+       1073741824
+      ],
+      "ids": [
+       "LINT402"
+      ],
+      "used": 0
+     },
+     {
+      "form": "annotation",
+      "file": "m.pss",
+      "line": 10,
+      "col": 3,
+      "selectors": [
+       "family:import"
+      ],
+      "reason": "r",
+      "start": [
+       10,
+       3
+      ],
+      "end": [
+       11,
+       8
+      ],
+      "ids": [
+       "LINT401",
+       "LINT402"
+      ],
+      "used": 0
+     },
+     {
+      "form": "annotation",
+      "file": "m.pss",
+      "line": 13,
+      "col": 5,
+      "selectors": [
+       "ACME"
+      ],
+      "reason": "r",
+      "start": [
+       13,
+       5
+      ],
+      "end": [
+       14,
+       11
+      ],
+      "ids": [
+       "ACME-NET001",
+       "ACME-NET002",
+       "ACME001",
+       "ACME002",
+       "ACME003"
+      ],
+      "used": 0
+     }
+    ],
+    "markers": [
+     {
+      "severity": "info",
+      "message": "'PSS053' is the old ID of LINT402; write 'LINT402' in the waiver",
+      "file": "m.pss",
+      "line": 4,
+      "col": 3,
+      "code": "PSSP004",
+      "extent": -1,
+      "related": []
+     },
+     {
+      "severity": "warning",
+      "message": "waiver gives no reason; say why the finding is intended in '.reason'",
+      "file": "m.pss",
+      "line": 4,
+      "col": 3,
+      "code": "PSSP205",
+      "extent": -1,
+      "related": []
+     },
+     {
+      "severity": "warning",
+      "message": "waiver: unknown marker or selector 'LINT40X'; did you mean 'LINT401'?",
+      "file": "m.pss",
+      "line": 6,
+      "col": 3,
+      "code": "PSSP203",
+      "extent": -1,
+      "related": []
+     },
+     {
+      "severity": "warning",
+      "message": "'PSS002' is an error, which cannot be waived; fix it and delete the waiver",
+      "file": "m.pss",
+      "line": 6,
+      "col": 3,
+      "code": "PSSP204",
+      "extent": -1,
+      "related": []
+     },
+     {
+      "severity": "info",
+      "message": "'LINT499' is the old ID of LINT402; write 'LINT402' in the waiver",
+      "file": "m.pss",
+      "line": 8,
+      "col": 1,
+      "code": "PSSP004",
+      "extent": -1,
+      "related": []
+     }
+    ]
+   }
   }
  ]
 }

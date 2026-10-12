@@ -59,6 +59,19 @@ source = false                    # ignore waivers written in the PSS source
 `[lint] baseline = "lint-baseline.json"` (relative to the config file) names
 a baseline; see "Adopting lint on an existing model" below.
 
+Per-directory lint settings are `[[lint.overrides]]` tables, applied in order
+to the files their globs match (globs relative to the config file; `**`
+crosses directories; a glob without `/` matches a name at any depth):
+
+```toml
+[[lint.overrides]]
+files  = ["tests/**", "*_gen.pss"]
+ignore = ["style"]                # also: profile, select, rule.<name> = {...}
+```
+
+`pssparser --rules-for FILE` shows the rules a file gets (it parses nothing,
+and the file need not exist); `--show-config --for FILE` shows why.
+
 The checker and extension names above are placeholders. Take real names from
 `pssparser --list-checkers` and `pssparser --list-extensions`, and a
 checker's options from `pssparser --describe-checker NAME`.

@@ -23,7 +23,8 @@ Common options
   (see :doc:`lint`); ``--select SEL`` / ``--ignore SEL`` (repeatable)
   enable or disable the rules a selector matches (see `Selecting rules`_),
   on top of ``[lint] select`` and ``ignore``; ``--show-hints`` prints
-  ``hint`` diagnostics;
+  ``hint`` diagnostics (a rule selected by ID, name, ID band or namespace
+  prints its hints anyway);
   ``--show-waived`` prints the findings a source waiver covered (see
   :doc:`waivers`)
 - ``--write-baseline PATH`` records the run's lint findings in a baseline
@@ -238,11 +239,30 @@ These flags do **not** require source files.
 
 ``--show-config``
     Print the fully resolved configuration — every value in effect and the
-    layer that set it — then exit with code 0.  See `Configuration`_.
+    layer that set it, the ``[[lint.overrides]]`` tables, and the rule files
+    loaded with where each came from and how many rules it holds — then exit
+    with code 0.  See `Configuration`_.  ``--for FILE`` (repeatable) adds,
+    for each FILE, the overrides that match it and the lint rules it gets.
 
     .. code-block:: bash
 
        pssparser --show-config
+       pssparser --show-config --for tests/dma_test.pss
+
+``--rules-for FILE...``
+    Print the lint rules that would run on each FILE, after the
+    configuration, its overrides and ``--select``/``--ignore``, and exit
+    with code 0: one line per rule, with its ID, name, effective severity,
+    summary and where it is defined.  With ``--format json`` the output is
+    ``{"schema": "pssparser-rules/1", "files": [...]}``, and each rule also
+    has its ``doc``, effective ``options``, ``examples`` and the node kinds
+    it ``match``\ es.  Nothing is parsed, and a FILE need not exist: an
+    agent can ask before it writes one (see :doc:`lint`, *Per-directory
+    settings*).
+
+    .. code-block:: bash
+
+       pssparser --rules-for ip/dma/new_block.pss
 
 Checker selection flags
 ------------------------

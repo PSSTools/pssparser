@@ -1138,11 +1138,59 @@ cdef class LintEngine(object):
         import json
         return json.loads(self._hndl.rulesJson().decode("utf-8"))
 
+    def set_host_markers(self, markers, refused=()):
+        """The host's own markers, for selection (lint-core-plan.md C7.1):
+        what a selector may name besides the loaded rules. `markers` is a
+        list of dicts with ``id`` and any of ``name``, ``tier``, ``family``,
+        ``since``, ``status``, ``severity``, ``aliases``, ``replaced_by``,
+        ``default_enabled``, ``minimal``; `refused` lists loaded rules to
+        leave out. Replaces an earlier call's. Returns the problems."""
+        import json
+        text = json.dumps({"markers": list(markers), "refused": list(refused)})
+        return json.loads(self._hndl.setHostMarkers(text.encode("utf-8")).decode("utf-8"))
+
+    def resolve_selection(self, selection):
+        """Resolves a rule selection (C7.1): profiles, select/ignore, the
+        per-path overrides, the command line's layer, ``[severity]`` and
+        ``-W`` groups, for the files in ``selection["paths"]``. See
+        ILintEngine::resolveSelection for the dict's keys and the result."""
+        import json
+        text = json.dumps(selection).encode("utf-8")
+        return json.loads(self._hndl.resolveSelection(text).decode("utf-8"))
+
+    def collect_waivers(self, roots, texts, files=None):
+        """The source waivers in `texts` (``{path: source}``) and, for the
+        annotation form, in `roots` (the GlobalScope of each file; empty
+        without an AST), whose paths `files` (``{fileid: path}``) gives
+        (lint-core-plan.md C7.2). Returns ``{"ok", "waivers"}``; see
+        ILintEngine::collectWaivers."""
+        import json
+        cdef std_vector[ast_decl.IScopeChildP] v
+        cdef ast.ScopeChild r
+        for r in roots:
+            v.push_back(r.asScopeChild())
+        req = {"texts": dict(texts), "files": {str(k): p for k, p in (files or {}).items()}}
+        text = json.dumps(req, ensure_ascii=False).encode("utf-8", "surrogatepass")
+        return json.loads(self._hndl.collectWaivers(v, text).decode("utf-8"))
+
+    def apply_waivers(self, waivers, diagnostics, ran=None):
+        """Applies `waivers` (collect_waivers()'s) to `diagnostics` (dicts
+        with ``code``, ``file``, ``line``, ``col``) (C7.2). `ran` is the
+        codes whose rule ran, or None when unknown. Returns ``{"ok", "kept",
+        "waived", "waivers", "markers"}``; see ILintEngine::applyWaivers."""
+        import json
+        req = {"waivers": list(waivers), "diagnostics": list(diagnostics),
+               "ran": sorted(ran) if ran is not None else None}
+        text = json.dumps(req, ensure_ascii=False).encode("utf-8", "surrogatepass")
+        return json.loads(self._hndl.applyWaivers(text).decode("utf-8"))
+
     def run(self, roots, request=None, model=None):
         """Runs the loaded rules over `roots` (the GlobalScope of each file
         the caller owns) (lint-core-plan.md C5.4). `request` is a dict:
         ``enabled`` (rule IDs; absent or None: all), ``options``
-        (``{id: {name: value}}``), ``max_steps``, ``gate_errors``. `model`
+        (``{id: {name: value}}``), ``max_steps``, ``gate_errors``, ``files``,
+        ``base_dir``, or ``selection`` (resolve_selection's dict, C7.1) in
+        place of ``enabled`` and ``options``. `model`
         is the linked ``RootSymbolScope`` (``Parser.link()``'s result) the
         files belong to; without it, rules that need symbols are not run
         (C6.2). Returns ``{"ok", "markers", "stats", "problems"}``; see

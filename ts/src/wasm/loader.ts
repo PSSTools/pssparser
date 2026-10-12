@@ -65,6 +65,15 @@ export interface ParserSessionHandle {
   /** Run the loaded rules over the linked user files: `ILintEngine::run`'s
    *  request and result JSON. */
   runLint(requestJson: string): string;
+  /** The host's markers for selection: `ILintEngine::setHostMarkers`'s JSON. */
+  setHostMarkers(json: string): string;
+  /** Resolve a rule selection: `ILintEngine::resolveSelection`'s JSON. */
+  resolveSelection(json: string): string;
+  /** Collect source waivers: `ILintEngine::collectWaivers`'s request and
+   *  result JSON, over the linked user files. */
+  collectWaivers(requestJson: string): string;
+  /** Apply waivers: `ILintEngine::applyWaivers`'s JSON. */
+  applyWaivers(requestJson: string): string;
   /** Embind's destructor. Frees the C++ object; the handle is dead after. */
   delete(): void;
 }

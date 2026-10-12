@@ -148,3 +148,103 @@ def cmd_check_rules(
         _stderr.write(f"pssparser: {n} rule{'s' if n != 1 else ''} loaded from "
                       f"{len(load.files)} file{'s' if len(load.files) != 1 else ''}\n")
     return 1 if coll.has_errors else 0
+
+
+def rule_sources(load: RuleLoad) -> List[tuple]:
+    """Every loaded rule file as ``(path, origin, rules)``, in load order:
+    the built-in ones, then ``[lint] rules`` and ``--rules`` (B12)."""
+    counts: dict = {}
+    order: List[str] = []
+    for r in load.engine.rules():
+        if r["id"] in load.refused:
+            continue
+        if r["file"] not in counts:
+            order.append(r["file"])
+        counts[r["file"]] = counts.get(r["file"], 0) + 1
+    for f in load.files:
+        if f not in counts:
+            order.append(f)
+    out = []
+    for f in order:
+        origin = ("built-in" if f.startswith("pssparser:")
+                  else load.origins.get(f, ""))
+        out.append((f, origin, counts.get(f, 0)))
+    return out
+
+
+#: The ``--rules-for --format json`` schema name (B14 versions it).
+RULES_FOR_SCHEMA = "pssparser-rules/1"
+
+
+def _effective_severity(md, cfg) -> str:
+    sev = (getattr(cfg, "severity", None) or {}).get(md.id)
+    return sev or md.severity
+
+
+def _rule_entry(md, cfg, options: dict, manager, detail: bool) -> dict:
+    entry = {
+        "id": md.id,
+        "name": md.name,
+        "severity": _effective_severity(md, cfg),
+        "tier": md.tier,
+        "family": md.family,
+        "summary": md.summary,
+        "source": md.source or manager.owner_of(md.id),
+        "match": list(md.match),
+    }
+    if detail:
+        entry["doc"] = md.detail
+        values = {name: spec.get("default") for name, spec in (md.options_schema or {}).items()}
+        values.update(options.get(md.id, {}))
+        entry["options"] = values
+        entry["examples"] = [{"code": ex.code, "fires": bool(ex.expect), "note": ex.note}
+                             for ex in md.examples]
+    return entry
+
+
+def cmd_rules_for(paths: Sequence[str], *, cfg, manager, output_format: str = "text",
+                  stdout: Optional[TextIO] = None) -> int:
+    """``--rules-for FILE...`` (B12): the lint rules that would run on each
+    FILE, after the configuration, its overrides and the command line.
+
+    Selection depends on the path only, so no model is parsed and a FILE
+    need not exist yet: an agent can ask before it writes one.  Text gives
+    one line per rule; ``--format json`` adds each rule's doc, effective
+    options and examples.
+    """
+    import json
+
+    from pssparser.lint.selection import Resolution, request
+
+    _stdout = stdout or sys.stdout
+    res = Resolution.from_json(cfg.lint_engine.resolve_selection(request(cfg, paths)))
+    by_id = {md.id: md for md in manager.all_marker_defs()}
+    detail = output_format == "json"
+    files = []
+    for p in paths:
+        g = res.group_of(p)
+        options = {rid: dict(o) for rid, o in g.options.items()}
+        # A Python checker's options come from the project table only.
+        for name, opts in (cfg.lint_rule_options or {}).items():
+            md = by_id.get(name) or next(
+                (m for m in by_id.values() if m.name == name), None)
+            if md is not None:
+                options.setdefault(md.id, dict(opts))
+        rules = [_rule_entry(by_id[i], cfg, options, manager, detail)
+                 for i in sorted(g.enabled) if i in by_id
+                 and (getattr(cfg, "severity", None) or {}).get(i) != "off"]
+        files.append({"path": p, "rel": res.rel_of(p), "profile": g.profile,
+                      "overrides": list(g.overrides), "rules": rules})
+    if detail:
+        _stdout.write(json.dumps({"schema": RULES_FOR_SCHEMA, "files": files}, indent=2)
+                      + "\n")
+        return 0
+    for f in files:
+        ovs = ", ".join(f"lint.overrides[{i}]" for i in f["overrides"]) or "no override"
+        _stdout.write(f"{f['path']}: profile {f['profile']}, {ovs}, "
+                      f"{len(f['rules'])} rule{'s' if len(f['rules']) != 1 else ''}\n")
+        for r in f["rules"]:
+            name = f" {r['name']}" if r["name"] else ""
+            _stdout.write(f"  {r['id']}{name} [{r['severity']}] {r['summary']}"
+                          f"  ({r['source']})\n")
+    return 0

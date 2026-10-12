@@ -578,9 +578,44 @@ public:
      * the result has no markers.
      */
     std::string runLint(const std::string &requestJson) {
-        // The user's files only, as Parser.user_units() natively: the
-        // standard library is fileid 0, and the built-in units the linker
-        // adds are -1 (lint-core-plan.md C5.5 found them walked here).
+        return ensureLintEngine()->run(userRoots(), requestJson, m_root);
+    }
+
+    /*
+     * Collects the source waivers (lint-core-plan.md C7.2): comments in the
+     * request's texts, annotations in the linked model's user files.
+     * ILintEngine::collectWaivers()'s JSON; before link() there are no
+     * annotations to read.
+     */
+    std::string collectWaivers(const std::string &requestJson) {
+        return ensureLintEngine()->collectWaivers(userRoots(), requestJson);
+    }
+
+    /* Applies waivers to diagnostics: ILintEngine::applyWaivers()'s JSON (C7.2). */
+    std::string applyWaivers(const std::string &requestJson) {
+        return ensureLintEngine()->applyWaivers(requestJson);
+    }
+
+    /*
+     * The host's own markers for selection (lint-core-plan.md C7.1):
+     * ILintEngine::setHostMarkers()'s JSON. Returns the problems.
+     */
+    std::string setHostMarkers(const std::string &json) {
+        return ensureLintEngine()->setHostMarkers(json);
+    }
+
+    /* Resolves a rule selection: ILintEngine::resolveSelection()'s JSON (C7.1). */
+    std::string resolveSelection(const std::string &json) {
+        return ensureLintEngine()->resolveSelection(json);
+    }
+
+private:
+    /*
+     * The user's files only, as Parser.user_units() natively: the standard
+     * library is fileid 0, and the built-in units the linker adds are -1
+     * (lint-core-plan.md C5.5 found them walked here).
+     */
+    std::vector<pssp::ast::IScopeChild *> userRoots() {
         std::vector<pssp::ast::IScopeChild *> roots;
         if (m_root) {
             for (const pssp::ast::IGlobalScopeUP &u : m_root->getUnits()) {
@@ -589,10 +624,9 @@ public:
                 }
             }
         }
-        return ensureLintEngine()->run(roots, requestJson, m_root);
+        return roots;
     }
 
-private:
     /*
      * The engine is created on first use, with the built-in rules loaded
      * first (format §6.2: built-in, then site files, in order).
@@ -775,5 +809,9 @@ EMSCRIPTEN_BINDINGS(pssparser) {
         .function("probeRules", &ParserSession::probeRules)
         .function("ruleDiagnosticsJson", &ParserSession::ruleDiagnosticsJson)
         .function("rulesJson", &ParserSession::rulesJson)
-        .function("runLint", &ParserSession::runLint);
+        .function("runLint", &ParserSession::runLint)
+        .function("setHostMarkers", &ParserSession::setHostMarkers)
+        .function("resolveSelection", &ParserSession::resolveSelection)
+        .function("collectWaivers", &ParserSession::collectWaivers)
+        .function("applyWaivers", &ParserSession::applyWaivers);
 }

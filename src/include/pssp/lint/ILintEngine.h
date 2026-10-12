@@ -109,7 +109,13 @@ public:
      *   {"enabled": ["ID", ...],          absent or null: every loaded rule
      *    "options": {"ID": {"name": value}},   overriding `default:`
      *    "max_steps": N,                  per rule per file; absent: 10^6
-     *    "gate_errors": N}                > 0: run nothing (the gate)
+     *    "gate_errors": N,                > 0: run nothing (the gate)
+     *    "files": {"<fileid>": "path"},   the host's file names (C6.9)
+     *    "base_dir": "dir",               file_of() paths relative to it
+     *    "selection": {...}}              instead of enabled and options:
+     *                                     resolveSelection()'s input; each
+     *                                     file runs and reports the rules
+     *                                     enabled for its path (C7.1)
      * The result is JSON:
      *   {"ok":true,"markers":[{"severity","message","fileid","line","col",
      *    "extent","related":[],"code"}],"stats":[{"id","matches","findings",
@@ -129,6 +135,74 @@ public:
      */
     virtual std::string run(const std::vector<ast::IScopeChild *> &roots,
         const std::string &requestJson, ast::IRootSymbolScope *model=nullptr) = 0;
+
+    /**
+     * The host's own markers, for selection (lint-core-plan.md C7.1): what a
+     * selector, `[severity]` key or `-W` group may name besides the loaded
+     * rules (the LRM, tool and core lint markers, a host's plug-in rules).
+     * JSON: {"markers": [{"id", "name", "tier", "family", "since", "status",
+     * "severity", "aliases", "replaced_by", "default_enabled", "minimal"}],
+     * "refused": ["ID", ...]}. Only "id" is required. A loaded rule with a
+     * host marker's ID, or listed in "refused", is left out of selection.
+     * Replaces an earlier call's markers. Returns the problems, as a JSON
+     * list of strings.
+     */
+    virtual std::string setHostMarkers(const std::string &json) = 0;
+
+    /**
+     * Resolves a rule selection (C7.1; lint-framework L3, F2.5): profile,
+     * select and ignore, the per-path overrides, the command line's layer,
+     * `[severity]` and `-W` groups. The input is the configuration as JSON
+     * (pipeline/Selection.h) plus "paths", the files to place. The result:
+     *   {"ok": true,
+     *    "errors": [{"key", "text", "message"}],    unknown selectors, rules
+     *    "lint_ids": [...],                          every lint rule
+     *    "groups": [{"overrides": [i...], "profile", "enabled": [...],
+     *                "explicit": [...], "held_back": [...],
+     *                "options": {ID: {name: value}}}],
+     *    "paths": [{"path", "rel", "group"}],
+     *    "severity": {ID: {"severity", "key"}},
+     *    "warnings": {"error": [...], "error_info", "spelling": {ID: key},
+     *                 "no_error": [...]}}
+     * Group 0 is the files no override matches. Input that is not JSON
+     * gives {"ok": false, "error": "..."}.
+     */
+    virtual std::string resolveSelection(const std::string &json) = 0;
+
+    /**
+     * Collects the source waivers in the host's files (lint-core-plan.md
+     * C7.2; docs/waivers.rst): `// pssparser waive` comments in each file's
+     * text, and `@lint_pkg::waive` annotations in `roots` (the GlobalScope
+     * of each file; none for a run without an AST). The request is JSON:
+     *   {"texts": {"path": "source", ...},     the files, with their text
+     *    "files": {"<fileid>": "path"}}        roots' paths; a root whose
+     *                                          path is not in "texts" is
+     *                                          skipped
+     * The result: {"ok": true, "waivers": [{"form", "file", "line", "col",
+     * "selectors", "reason", "start": [line, col], "end": [line, col]}]},
+     * sorted by (file, line, col); "end" is exclusive, and 2^30 stands for
+     * "the end of the line" or "the end of the file".
+     */
+    virtual std::string collectWaivers(const std::vector<ast::IScopeChild *> &roots,
+        const std::string &requestJson) = 0;
+
+    /**
+     * Applies waivers (C7.2): which diagnostics they waive, and the waiver
+     * hygiene markers (PSSP202-205, PSSP004). Selectors resolve against the
+     * host markers (setHostMarkers()) and the loaded rules. The request:
+     *   {"waivers": [...],                     collectWaivers()'s
+     *    "diagnostics": [{"code", "file", "line", "col"}],
+     *    "ran": ["ID", ...]}                   codes whose rule ran; absent
+     *                                          or null: unknown, and no
+     *                                          waiver is reported unused
+     * A diagnostic's file and a waiver's are compared as given. The result:
+     *   {"ok": true, "kept": [i, ...], "waived": [[i, w], ...],
+     *    "waivers": [... with "ids" and "used"],
+     *    "markers": [{"severity", "message", "file", "line", "col", "code",
+     *                 "extent": -1, "related": []}]}
+     * `i` indexes "diagnostics" and `w` "waivers".
+     */
+    virtual std::string applyWaivers(const std::string &requestJson) = 0;
 };
 
 }

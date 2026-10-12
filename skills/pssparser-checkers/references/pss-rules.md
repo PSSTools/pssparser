@@ -18,11 +18,16 @@ User documentation, which covers the same ground in more detail:
 3. Read each diagnostic: it gives the line and column *in the YAML file*.
    Fix, and repeat step 2.
 4. Run the rule on a real model:
-   `pssparser --rules acme.yaml --select ACME --show-hints model.pss`.
+   `pssparser --rules acme.yaml --select ACME model.pss`.
+5. Before writing a new PSS file, ask which rules it will get:
+   `pssparser --rules-for ip/dma/new_block.pss` (add `--format json` for
+   each rule's doc, options and examples). Nothing is parsed, and the file
+   need not exist. Then `--explain ID` for any rule you don't know.
 
 Without `--select`, a site's rules do not run: the default profile enables
-none of them. Without `--show-hints`, a `style` rule's findings are hidden,
-and the run prints only `(1 hint hidden)`.
+none of them. A rule selected by ID, name or namespace shows its `style`
+hints; one enabled only by a tier or profile has them hidden (the run says
+`(1 hint hidden)`) until `--show-hints`.
 
 ## The file
 

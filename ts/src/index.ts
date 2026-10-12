@@ -45,9 +45,19 @@ export {
 
 export {
   NO_FILE,
+  type HostMarker,
+  type LintOverride,
   type LintRequest,
   type LintResult,
   type LintRuleStats,
+  type LintSelection,
+  type SelectionError,
+  type SelectionGroup,
+  type SelectionResult,
+  type Waiver,
+  type WaiverDiagnostic,
+  type WaiverMarker,
+  type WaiverResult,
 } from './Lint.js';
 
 export { initPssParser, type InitOptions } from './wasm/loader.js';

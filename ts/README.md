@@ -130,9 +130,12 @@ test/link-parity.test.ts the *linked* tree must equal the native bindings'.
 test/census-parity.test.ts every node, every field: the same comparison past
                        the declaration spine, 132k nodes per run
 test/lint.test.ts      the lint engine: Parser.loadRules, ruleDiagnostics,
-                       probeRules, runLint
+                       probeRules, runLint, resolveSelection
 test/lintcore-parity.test.ts the lint engine's YAML, CEL and rule loader must
                        equal the native bindings', case by case
+test/lint-parity.test.ts rules run in WASM as natively: every rule example,
+                       runs, selection and source waivers (collectWaivers,
+                       applyWaivers)
 ```
 
 All six sets of parity expectations are generated, not written:
@@ -143,7 +146,7 @@ npm run gen:ast-parity-fixture       # the AST, per unit
 npm run gen:link-parity-fixture      # the linked tree
 npm run gen:census-parity-fixture    # every node, every field
 npm run gen:lintcore-parity-fixture  # the lint engine's pieces
-npm run gen:lint-parity-fixture      # lint rules run: rule examples, findings
+npm run gen:lint-parity-fixture      # lint rules run: rule examples, findings, selection, waivers
 ```
 
 The output is committed, so the suite needs no Python, no native build and no

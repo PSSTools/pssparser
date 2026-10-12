@@ -263,7 +263,7 @@ class DiagnosticCollection:
 
     def apply_lint_selection(
         self,
-        enabled: Set[str],
+        enabled,
         lint_ids: Set[str],
         owned: Optional[Set[str]] = None,
     ) -> int:
@@ -271,16 +271,19 @@ class DiagnosticCollection:
         the user's files; return how many were dropped for ownership.
 
         Only codes in *lint_ids* are touched: LRM errors and the tool's own
-        diagnostics are never filtered here (lint-framework L3).  *owned* is
-        a set of real paths; ``None`` disables the ownership check.
+        diagnostics are never filtered here (lint-framework L3).  *enabled*
+        is a set of IDs, or a function giving a file's set (per-path
+        overrides, lint-core-plan C7.1).  *owned* is a set of real paths;
+        ``None`` disables the ownership check.
         """
         import os
 
+        enabled_for = enabled if callable(enabled) else (lambda _file: enabled)
         kept: List[Diagnostic] = []
         outside = 0
         for diag in self._diags:
             if diag.code in lint_ids:
-                if diag.code not in enabled:
+                if diag.code not in enabled_for(diag.file):
                     continue
                 if owned is not None and os.path.realpath(diag.file) not in owned:
                     outside += 1

@@ -4,7 +4,7 @@
     cd .. && PYTHONPATH=python packages/python/bin/python \\
         ts/scripts/gen-lint-parity-fixture.py -o ts/test/fixtures/lint-parity.json
 
-Two kinds of case (lint-core-plan.md C5.5):
+Four kinds of case (lint-core-plan.md C5.5, C7.1, C7.2):
 
 * ``example``: every example of every built-in rule and of the rule files in
   tests/data/lint-examples/, run by ``pssparser.lint.examples`` (each example
@@ -13,7 +13,14 @@ Two kinds of case (lint-core-plan.md C5.5):
 * ``run``: rule files and a model, run with a request (enabled rules,
   options, a step budget), as ``LintEngine.run`` and ``Parser.runLint`` do.
   The case records the markers, the per-rule statistics (without the time)
-  and the request problems.
+  and the request problems. A request may carry a ``selection`` (C7.1).
+* ``selection``: a rule selection and paths, resolved over the example rule
+  files (``LintEngine.resolve_selection``, ``Parser.resolveSelection``). The
+  case records the whole answer.
+* ``waivers``: host markers, a model with source waivers and diagnostics to
+  apply them to (``LintEngine.collect_waivers`` and ``apply_waivers``;
+  ``Parser.collectWaivers`` and ``applyWaivers``). The case records the
+  waivers collected and the whole answer.
 
 `ts/test/lint-parity.test.ts` runs the same inputs through the WebAssembly
 build and must get the same results. Rule files are named by repository
@@ -133,6 +140,20 @@ RUNS = [
      [("/proj/ip/./a_c.pss", "component a_c { }\n"),
       ("/elsewhere/b_c.pss", "component b_c { }\n")],
      {"baseDir": "/proj"}),
+    # Per-path selection (C7.1): an override turns a rule off under tests/,
+    # another sets an option under ip/; the base directory is the request's.
+    ("selection", EXAMPLE_FILES, [],
+     [("/proj/ip/m.pss", MODEL),
+      ("/proj/tests/t.pss", "component t_top { action Long_name { rand bit[8] len; } }\n")],
+     {"baseDir": "/proj",
+      "selection": {"lint": {"profile": "none", "select": ["ACME"],
+                             "overrides": [{"files": ["tests/**"], "ignore": ["ACME001"]},
+                                           {"files": ["ip"],
+                                            "rule": {"ACME002": {"prefix": "le"}}}]},
+                    "severity": {"ACME003": "off"}}}),
+    ("selection-problems", EXAMPLE_FILES, [], [("m.pss", MODEL)],
+     {"enabled": ["ACME001"],
+      "selection": {"lint": {"select": ["ACME01"], "rule": {"ACME002": {"nope": 1}}}}}),
     ("gate", EXAMPLE_FILES, [],
      [("bad.pss", "component pss_top { action b : Missing { } }\n")], {}),
     ("gate-nothing-enabled", EXAMPLE_FILES, [],
@@ -168,7 +189,7 @@ def native_request(req, errors, file_map):
     out = {"gate_errors": req.get("gateErrors", errors),
            "files": {str(i): n for i, n in file_map.items()}}
     for ts, py in (("enabled", "enabled"), ("options", "options"), ("maxSteps", "max_steps"),
-                   ("baseDir", "base_dir")):
+                   ("baseDir", "base_dir"), ("selection", "selection")):
         if ts in req:
             out[py] = req[ts]
     return out
@@ -214,6 +235,117 @@ def run_case(cid, paths, inline, sources, req):
     }
 
 
+#: resolveSelection() over the example rules: (id, selection, paths).
+SELECTIONS = [
+    ("profiles-and-selectors",
+     {"lint": {"profile": "all", "select": ["ACME0", "family:naming"], "ignore": ["ACME002"],
+               "rules-version": "2026.1"},
+      "command_line": {"select": ["ACME002"]},
+      "severity": {"ACME": "error", "suspicious": "info"},
+      "warnings": {"error": ["info", "ACME"], "no-error": ["ACME003"]}},
+     []),
+    ("overrides",
+     {"lint": {"profile": "none", "select": ["ACME"],
+               "overrides": [{"files": ["tests/**", "*_gen.pss"], "ignore": ["ACME001"]},
+                             {"files": ["ip/legacy"], "profile": "all",
+                              "rule": {"ACME002": {"prefix": "x"}}}]},
+      "base_dir": "/proj"},
+     ["/proj/a.pss", "/proj/tests/x/t.pss", "/proj/ip/legacy/l_gen.pss", "/other/z.pss"]),
+    ("errors",
+     {"lint": {"select": ["ACME01", "family:nope"], "profile": "most",
+               "overrides": [{"select": ["x"]}], "rule": {"nope": {}}},
+      "command_line": {"ignore": ["acme"]}},
+     []),
+]
+
+
+def selection_cases():
+    e = engine_for(EXAMPLE_FILES, [])
+    out = []
+    for cid, sel, paths in SELECTIONS:
+        r = e.resolve_selection(dict(sel, paths=paths))
+        assert r["ok"], r
+        del r["ok"]
+        out.append({"id": "selection:" + cid, "kind": "selection", "selection": sel,
+                    "paths": paths, "result": r})
+    return out
+
+
+#: The host markers the waiver cases resolve against (as the CLI's registry
+#: would give them): core errors, the hygiene markers, a retired code, an
+#: alias, and lint rules. The example rule files are loaded too.
+WAIVER_HOST = [
+    {"id": "PSS002", "severity": "error"},
+    {"id": "PSSP000", "severity": "error", "tier": "tool"},
+    {"id": "PSSP004", "severity": "info", "tier": "tool"},
+    {"id": "PSSP202", "severity": "warning", "tier": "tool"},
+    {"id": "PSSP203", "severity": "warning", "tier": "tool"},
+    {"id": "PSSP204", "severity": "warning", "tier": "tool"},
+    {"id": "PSSP205", "severity": "warning", "tier": "tool"},
+    {"id": "PSS053", "status": "retired", "replaced_by": ["LINT402"]},
+    {"id": "LINT401", "name": "import-shadow", "tier": "suspicious", "family": "import"},
+    {"id": "LINT402", "name": "import-after-declaration", "tier": "style",
+     "family": "import", "aliases": ["LINT499"], "minimal": True},
+]
+
+WAIVER_MODEL = """\
+package p {
+  struct t {}
+  import std_pkg::*;  // pssparser waive LINT402: vendored
+  @lint_pkg::waive {.id = "PSS053"}
+  struct u {}
+  @lint_pkg::waive {.id = "LINT40X, PSS002", .reason = "r"};
+}
+// pssparser waive import-after-declaration, LINT499: \u00e9t\u00e9
+component C {
+  @lint_pkg::waive {.id = "family:import", .reason = "r"}
+  int a;
+  exec init_down {
+    @lint_pkg::waive {.id = "ACME", .reason = "r"}
+    a = 1;
+  }
+}
+"""
+
+#: (id, sources, diagnostics, ran).
+WAIVERS = [
+    ("collect-and-apply", [("m.pss", WAIVER_MODEL), ("n.pss", "// pssparser waive: x\n")],
+     [{"code": "LINT402", "file": "m.pss", "line": 3, "col": 3},
+      {"code": "LINT402", "file": "m.pss", "line": 5, "col": 10},
+      {"code": "PSS002", "file": "m.pss", "line": 6, "col": 1},
+      {"code": "LINT401", "file": "m.pss", "line": 9, "col": 1},
+      {"code": "LINT401", "file": "m.pss", "line": 11, "col": 7},
+      {"code": "ACME001", "file": "m.pss", "line": 14, "col": 5},
+      {"code": "PSSP205", "file": "m.pss", "line": 4, "col": 3},
+      {"code": None, "file": "m.pss", "line": 3, "col": 3}],
+     ["LINT401", "LINT402", "ACME001", "ACME002"]),
+    ("ran-unknown", [("m.pss", WAIVER_MODEL)], [], None),
+]
+
+
+def waiver_cases():
+    from pssparser.parser import ParseException, Parser
+    e = engine_for(EXAMPLE_FILES, [])
+    assert e.set_host_markers(WAIVER_HOST) == []
+    out = []
+    for cid, sources, diags, ran in WAIVERS:
+        p = Parser()
+        try:
+            p.parses(sources)
+            p.link()
+        except ParseException:
+            sys.exit("waiver case %s does not link: %s" % (cid, p.markers))
+        c = e.collect_waivers(p.user_units(), dict(sources), p.file_map)
+        assert c["ok"], c
+        r = e.apply_waivers(c["waivers"], [dict(d, code=d["code"] or "") for d in diags], ran)
+        assert r["ok"], r
+        del r["ok"]
+        out.append({"id": "waivers:" + cid, "kind": "waivers", "hostMarkers": WAIVER_HOST,
+                    "sources": [{"name": n, "text": t} for n, t in sources],
+                    "diagnostics": diags, "ran": ran, "waivers": c["waivers"], "result": r})
+    return out
+
+
 def example_cases():
     from pssparser.lint.examples import run_examples
     e = engine_for(EXAMPLE_FILES, [])
@@ -240,6 +372,8 @@ def main():
 
     cases = example_cases()
     cases += [run_case(*r) for r in RUNS]
+    cases += selection_cases()
+    cases += waiver_cases()
     doc = {
         "generator": "ts/scripts/gen-lint-parity-fixture.py",
         "ruleFiles": EXAMPLE_FILES,

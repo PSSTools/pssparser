@@ -27,6 +27,13 @@ apply the same waivers::
 ``result.kept`` are the diagnostics to report, ``result.waived`` pairs each
 waived diagnostic with its waiver, and ``result.markers`` are the hygiene
 diagnostics (PSSP202-PSSP205 and PSSP004) as marker dicts.
+
+The core lint engine collects and applies waivers too (lint-core-plan.md
+C7.2), so the WASM build and an editor apply the same ones:
+:func:`collect_in` and :func:`apply_in` take a
+:class:`pssparser.core.LintEngine` that knows the host's markers
+(:func:`pssparser.lint.selection.tell_engine`).  :func:`collect` and
+:func:`apply` stay, as the test oracle and for a host without an engine.
 """
 from __future__ import annotations
 
@@ -79,6 +86,20 @@ class Waiver:
         if _real(file) != _real(self.file):
             return False
         return self.start <= (line, col) < self.end
+
+    def to_engine(self) -> dict:
+        """The waiver as :meth:`LintEngine.apply_waivers` reads it."""
+        return {
+            "form": self.form, "file": self.file, "line": self.line, "col": self.col,
+            "selectors": list(self.selectors), "reason": self.reason,
+            "start": list(self.start), "end": list(self.end),
+        }
+
+    @classmethod
+    def from_engine(cls, d: dict) -> "Waiver":
+        return cls(form=d["form"], file=d["file"], line=d["line"], col=d["col"],
+                   selectors=list(d["selectors"]), reason=d["reason"],
+                   start=tuple(d["start"]), end=tuple(d["end"]))
 
     def to_json(self) -> dict:
         return {
@@ -366,8 +387,8 @@ def apply(
     *rules* is a :class:`~pssparser.checkers.selectors.RuleSet` over every
     known marker.  *is_core_error* says whether a code is a core error (never
     waived).  *ran* is the set of codes whose rule ran on this run; ``None``
-    means unknown, and no waiver is then reported unused.  *aliases* maps a
-    retired ID to its successor.
+    means unknown, and no waiver is then reported unused.  *aliases* maps an
+    old ID (a rule's alias, or a retired code) to the current one.
 
     Diagnostics may be marker dicts or objects with ``file``, ``line``,
     ``col`` and ``code`` attributes.
@@ -446,3 +467,56 @@ def apply(
 
     markers.sort(key=lambda m: (m["file"], m["line"], m["col"], m["code"]))
     return WaiverResult(kept=kept, waived=waived, markers=markers)
+
+
+# ---------------------------------------------------------------------------
+# In the core engine (lint-core-plan.md C7.2)
+# ---------------------------------------------------------------------------
+
+def collect_in(engine, parser, files: Sequence[str], *, annotations: bool = True,
+               read: Optional[Callable[[str], str]] = None) -> List[Waiver]:
+    """:func:`collect`, by the core *engine*."""
+    texts: Dict[str, str] = {}
+    for f in files:
+        if read is not None:
+            texts[f] = read(f)
+            continue
+        try:
+            with open(f, encoding="utf-8", errors="replace") as fp:
+                texts[f] = fp.read()
+        except OSError:
+            texts[f] = ""
+    roots: list = []
+    file_map: Dict[int, str] = {}
+    if annotations and parser is not None:
+        roots, file_map = _user_units(parser, files)
+    r = engine.collect_waivers(roots, texts, file_map)
+    if not r.get("ok"):  # pragma: no cover - the request is built here
+        raise ValueError(r.get("error", "collect_waivers failed"))
+    return [Waiver.from_engine(w) for w in r["waivers"]]
+
+
+def apply_in(engine, diagnostics: Sequence[Any], waivers: Sequence[Waiver], *,
+             ran: Optional[Set[str]] = None) -> WaiverResult:
+    """:func:`apply`, by the core *engine*: its catalogue (the host markers
+    and loaded rules) resolves the selectors and says which codes are core
+    errors.  Fills in each waiver's ``ids`` and ``used``."""
+    # The engine compares paths as given: spell each diagnostic's file as
+    # the waiver for the same real file does.
+    spelling = {_real(w.file): w.file for w in waivers}
+    diags = []
+    for d in diagnostics:
+        file = _attr(d, "file") or ""
+        diags.append({"code": _attr(d, "code") or "",
+                      "file": spelling.get(_real(file), file),
+                      "line": _attr(d, "line", 0) or 0, "col": _attr(d, "col", 0) or 0})
+    r = engine.apply_waivers([w.to_engine() for w in waivers], diags, ran)
+    if not r.get("ok"):  # pragma: no cover - the request is built here
+        raise ValueError(r.get("error", "apply_waivers failed"))
+    for w, out in zip(waivers, r["waivers"]):
+        w.ids = set(out["ids"])
+        w.used = out["used"]
+    return WaiverResult(
+        kept=[diagnostics[i] for i in r["kept"]],
+        waived=[(diagnostics[i], waivers[w]) for i, w in r["waived"]],
+        markers=list(r["markers"]))

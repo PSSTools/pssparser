@@ -17,7 +17,18 @@ import {
   type Marker,
   type RawMarker,
 } from './Marker.js';
-import { lintRequestJson, parseLintResult, type LintRequest, type LintResult } from './Lint.js';
+import {
+  lintRequestJson,
+  parseLintResult,
+  type LintRequest,
+  type LintResult,
+  type HostMarker,
+  type LintSelection,
+  type SelectionResult,
+  type Waiver,
+  type WaiverDiagnostic,
+  type WaiverResult,
+} from './Lint.js';
 import { deserialize } from './ast/generated/deserialize.js';
 import { GlobalScope, RootSymbolScope } from './ast/generated/index.js';
 import { initPssParser, type ParserSessionHandle, type InitOptions } from './wasm/loader.js';
@@ -331,6 +342,87 @@ export class Parser {
     const errors = this.#markers.filter((m) => m.severity === 'error').length;
     return parseLintResult(session.runLint(lintRequestJson(request, errors, this.#fileMap)),
       this.#fileMap);
+  }
+
+  /**
+   * The host's own markers (lint-core-plan.md C7.1): what a selector,
+   * `[severity]` key or waiver may name besides the loaded rules -- the
+   * LRM, tool and core lint markers the CLI knows. `refused` lists loaded
+   * rules to leave out. Replaces an earlier call's. Returns the problems.
+   */
+  setHostMarkers(markers: readonly HostMarker[], refused: readonly string[] = []): string[] {
+    return JSON.parse(
+      this.#require().setHostMarkers(JSON.stringify({ markers, refused })),
+    ) as string[];
+  }
+
+  /**
+   * Collect the source waivers in `sources` (lint-core-plan.md C7.2;
+   * `docs/waivers.rst`): `// pssparser waive` comments in their text, and,
+   * after `link()`, `@lint_pkg::waive` annotations in the linked files of
+   * the same names. Sorted by file, line and column. The same collector as
+   * the CLI.
+   */
+  collectWaivers(sources: readonly SourceFile[]): Waiver[] {
+    const texts: Record<string, string> = {};
+    for (const f of sources) {
+      texts[f.name] = f.content;
+    }
+    const files: Record<string, string> = {};
+    for (const [id, name] of this.#fileMap) {
+      files[String(id)] = name;
+    }
+    const r = JSON.parse(this.#require().collectWaivers(JSON.stringify({ texts, files }))) as {
+      ok: boolean;
+      error?: string;
+      waivers: Waiver[];
+    };
+    if (!r.ok) {
+      throw new Error(`collectWaivers: ${r.error ?? 'bad request'}`);
+    }
+    return r.waivers;
+  }
+
+  /**
+   * Apply `waivers` to `diagnostics` (C7.2): which are waived, and the
+   * waiver hygiene markers (`PSSP202`-`PSSP205`, `PSSP004`). Selectors
+   * resolve against `setHostMarkers()`'s markers and the loaded rules;
+   * errors from the core are never waived. `ran` is the codes whose rule
+   * ran; without it no waiver is reported unused. Files are compared as
+   * given.
+   */
+  applyWaivers(
+    waivers: readonly Waiver[],
+    diagnostics: readonly WaiverDiagnostic[],
+    ran?: readonly string[],
+  ): WaiverResult {
+    const diags = diagnostics.map((d) => ({ code: d.code ?? '', file: d.file, line: d.line, col: d.col }));
+    const r = JSON.parse(
+      this.#require().applyWaivers(JSON.stringify({ waivers, diagnostics: diags, ran: ran ?? null })),
+    ) as WaiverResult & { ok: boolean; error?: string };
+    if (!r.ok) {
+      throw new Error(`applyWaivers: ${r.error ?? 'bad request'}`);
+    }
+    const { ok: _ok, error: _error, ...result } = r;
+    return result;
+  }
+
+  /**
+   * Resolve a rule selection for `paths` (lint-core-plan.md C7.1): which
+   * rules each file gets after the profile, selectors, `[[lint.overrides]]`
+   * and the command line's layer, with `[severity]` and `-W` groups expanded
+   * to IDs. Reads the loaded rules; needs no model, and a path need not
+   * exist. The same resolution `runLint({ selection })` makes per file.
+   */
+  resolveSelection(selection: LintSelection, paths: readonly string[] = []): SelectionResult {
+    const r = JSON.parse(
+      this.#require().resolveSelection(JSON.stringify({ ...selection, paths })),
+    ) as SelectionResult & { ok: boolean; error?: string };
+    if (!r.ok) {
+      throw new Error(`resolveSelection: ${r.error ?? 'bad selection'}`);
+    }
+    const { ok: _ok, error: _error, ...result } = r;
+    return result;
   }
 
   /** Every rule-file diagnostic of this Parser, built-in files included. */

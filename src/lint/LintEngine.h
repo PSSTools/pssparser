@@ -18,7 +18,10 @@
 #pragma once
 #include <vector>
 #include "pssp/lint/ILintEngine.h"
+#include <set>
+#include "pipeline/Selection.h"
 #include "rules/Rule.h"
+#include "run/Runner.h"
 
 namespace pssp {
 namespace lint {
@@ -60,14 +63,32 @@ public:
     virtual std::string run(const std::vector<ast::IScopeChild *> &roots,
         const std::string &requestJson, ast::IRootSymbolScope *model=nullptr) override;
 
+    virtual std::string setHostMarkers(const std::string &json) override;
+
+    virtual std::string resolveSelection(const std::string &json) override;
+
+    virtual std::string collectWaivers(const std::vector<ast::IScopeChild *> &roots,
+        const std::string &requestJson) override;
+
+    virtual std::string applyWaivers(const std::string &requestJson) override;
+
     /** Every loaded rule, in load order: what the runner (C5) dispatches. */
     std::vector<const rules::Rule *> ruleList() const;
+
+private:
+    // A run's "selection" (C7.1): the rules some owned file enables, in load
+    // order, with each file's set and options put in `opts`.
+    std::vector<const rules::Rule *> select(const yaml::Node &selection,
+        const std::vector<ast::IScopeChild *> &roots, const std::vector<const rules::Rule *> &all,
+        run::RunOptions &opts, std::vector<std::string> &problems);
 
 private:
     std::vector<rules::RuleSetUP>   m_rulesets;
     std::vector<RuleDiagnostic>     m_diagnostics;
     rules::RuleClaims               m_claims;          // IDs and names, across files
     bool                            m_builtinLoaded = false;
+    std::vector<pipeline::MarkerMeta>   m_hostMarkers;  // setHostMarkers()
+    std::set<std::string>           m_refused;
 };
 
 }
