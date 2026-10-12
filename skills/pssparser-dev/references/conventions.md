@@ -61,9 +61,14 @@ another repository) without being asked. Record it here instead.
 User-visible changes get an entry under `## Unreleased`, headed
 `### Added|Fixed|Changed — <what>` with the plan item and LRM clause in
 parentheses. Name any new marker codes. Version numbers are
-`<PSS major>.<PSS minor>.<patch>`: the first two follow the LRM revision the
-parser targets, so a feature release within one LRM revision bumps only the
-patch.
+pssparser's own and do not encode the LRM revision: major for large changes,
+including support for a new LRM revision; minor for medium changes; patch for
+small changes and fixes. When the supported LRM revisions change, update
+`SUPPORTED_LRM` in `python/pssparser/__version__.py` and the statements that
+name it: the CHANGELOG preamble, `README.md`, `docs/index.rst`, and the shipped
+skills (`skills/pssparser/SKILL.md`, `skills/pssparser-api/SKILL.md`). Write
+a pssparser release as "pssparser 3.1.7", never a bare "3.1.7", so it cannot
+be read as an LRM revision.
 
 Releases are cut by pushing a `v*` tag; the tag is the version. The source
 carries `0.0.0` in `python/pssparser/__version__.py` and is not edited to

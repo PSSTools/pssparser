@@ -6,18 +6,30 @@
 pssparser Documentation
 ===========================
 pssparser provides a Portable Test and Stimulus Standard (PSS) language parser
-with C++ and Python APIs. The parser supports both PSS 2.x and PSS 3.0 specifications.
+with C++, Python and TypeScript APIs. It supports PSS 3.1 (the Public Review
+Draft of 2026-08-28).
+
+Supported Standard
+------------------
+pssparser accepts **PSS 3.1**. PSS 3.0 syntax that 3.1 removed is rejected; see
+:doc:`pss31_migration`.
+
+The pssparser version is pssparser's own and does not encode the LRM revision.
+Major releases are for large changes, including support for a new LRM revision;
+minor releases for medium changes; patch releases for small changes and fixes.
+A program can read the supported revisions from ``pssparser.SUPPORTED_LRM``;
+``pssparser --version`` prints them on its second line.
 
 Overview
 --------
 pssparser is a comprehensive PSS language parser that converts PSS source code
 into an Abstract Syntax Tree (AST) for further processing. It provides both C++ and
-Python APIs and includes full support for PSS 3.0 features including monitors,
-string enhancements, reference collections, and more.
+Python APIs and supports the PSS 3.1 language, including the 3.0 additions
+(monitors, string enhancements, reference collections) and the 3.1 ones.
 
 Key Features
 ------------
-* **PSS 3.0 Support** - Full grammar support for PSS 3.0 (August 2024)
+* **PSS 3.1 Support** - Grammar, linking and core library for PSS 3.1
 * **Monitors** - Behavioral coverage with temporal operators
 * **String Enhancements** - String methods and substring operator
 * **Reference Collections** - Collections of reference types

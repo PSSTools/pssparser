@@ -1,9 +1,14 @@
 # Changelog
 
-Version numbers are `<PSS major>.<PSS minor>.<patch>`: the first two components
-name the **revision of the PSS LRM this parser targets**, not the parser's own
-feature level. A release that adds parser capability without moving to a new LRM
-revision advances only the patch component.
+Version numbers are `<major>.<minor>.<patch>` and are pssparser's own; they do
+not encode the PSS LRM revision. **Major** is for large changes, including
+support for a new LRM revision; **minor** is for medium changes; **patch** is for
+small changes and fixes. Releases up to 3.1.7 followed an older rule, under which
+the first two components named the LRM revision.
+
+The LRM revisions this pssparser supports are listed in `README.md`, in
+`pssparser.SUPPORTED_LRM`, and on the second line of `pssparser --version`.
+Currently: **PSS 3.1** (Public Review Draft, 2026-08-28).
 
 ## Unreleased
 
@@ -31,6 +36,16 @@ Graphviz; without them the pages say what is missing.
   LRM; many examples were not valid PSS and several described the wrong
   semantics. `tests/python/test_ast_doc_coverage.py` keeps it complete. The
   documentation build needs `pyastbuilder[sphinx]>=0.0.8`.
+
+### Changed — the version no longer encodes the LRM revision
+
+The `<PSS major>.<PSS minor>` rule is retired: major, minor and patch now
+measure the size of a change to pssparser, and moving to a new LRM revision is
+a major release. The supported revisions are stated instead: the new
+`pssparser.SUPPORTED_LRM` tuple (`("3.1",)`), and a second line from
+`pssparser --version` (`PSS LRM: 3.1`); the first line is still the bare
+version. Release numbers in the docs that read like LRM revisions now say
+"pssparser 3.1.7".
 
 ### Changed (breaking) — warning IDs move to `LINT` and `PSSP`; lint profiles
 

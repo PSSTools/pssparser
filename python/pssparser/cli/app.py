@@ -379,8 +379,9 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     if argv and argv[0] in ("--version", "-V"):
-        from pssparser.__version__ import get_version
+        from pssparser.__version__ import SUPPORTED_LRM, get_version
         print(get_version())
+        print("PSS LRM: " + ", ".join(SUPPORTED_LRM))
         return 0
 
     try:

@@ -127,7 +127,7 @@ a *slice on a path element*: ``s[0..4]`` is an ``ExprMemberPathElem`` for
    Earlier versions of this document described an ``ExprSubstring`` class with
    ``target`` / ``start`` / ``end``. That class existed in the schema but the
    builder never constructed it -- a consumer that matched on it would never
-   have fired. It was removed in 3.1.1; see the migration note in
+   have fired. It was removed in pssparser 3.1.1; see the migration note in
    ``CHANGELOG.md``.
 
 Which endpoints are set records how the substring was written: ``[a..b]``

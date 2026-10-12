@@ -146,3 +146,20 @@ def test_this_checkout_reports_a_real_version():
                           capture_output=True, text=True).stdout.split()
     if tags:
         assert v != "0.0.0", v
+
+
+def test_supported_lrm_is_stated_apart_from_the_version():
+    import re
+    import pssparser
+    assert pssparser.SUPPORTED_LRM
+    for rev in pssparser.SUPPORTED_LRM:
+        assert re.fullmatch(r"\d+\.\d+", rev), rev
+
+
+def test_version_flag_prints_the_version_then_the_lrm(capsys):
+    import pssparser
+    from pssparser.cli.app import main
+    assert main(["--version"]) == 0
+    lines = capsys.readouterr().out.splitlines()
+    assert lines == [pssparser.get_version(),
+                     "PSS LRM: " + ", ".join(pssparser.SUPPORTED_LRM)]

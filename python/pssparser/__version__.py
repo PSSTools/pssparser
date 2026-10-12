@@ -19,6 +19,12 @@ import subprocess
 BASE = "0.0.0"
 SUFFIX = ""
 
+#: The PSS LRM revisions this pssparser accepts, oldest first. The package
+#: version does not encode the LRM revision: major is for large changes,
+#: including support for a new LRM revision; minor for medium changes; patch
+#: for small changes and fixes (see CHANGELOG.md).
+SUPPORTED_LRM = ("3.1",)
+
 #: The version when nothing better is known: no stamp, no git, no tag.
 FALLBACK = "0.0.0"
 

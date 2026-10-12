@@ -160,7 +160,7 @@ A doc comment sits above the whole declaration, which means above ``rand``,
 
 These qualifiers are parsed by a rule outside the declaration itself, and the
 comment is found relative to the outermost token, not to the type. Releases
-before 3.0.3 looked left of the type, found the qualifier beside it, and
+before pssparser 3.0.3 looked left of the type, found the qualifier beside it, and
 collected nothing.
 
 Enum items carry comments too::

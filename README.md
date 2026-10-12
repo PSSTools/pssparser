@@ -3,6 +3,18 @@
 This project provides a ANTLR4-based parser for the Accellera PSS language. 
 It also provides an AST (data model) for processing the result of the parser.
 
+## Supported standard
+
+pssparser supports **PSS 3.1** (the Public Review Draft of 2026-08-28). PSS 3.0
+syntax that 3.1 removed is rejected; see
+[docs/pss31_migration.rst](docs/pss31_migration.rst).
+
+The pssparser version is not the LRM revision. Major releases are for large
+changes, including support for a new LRM revision; minor releases for medium
+changes; patch releases for small changes and fixes. To check from a program,
+read `pssparser.SUPPORTED_LRM`; `pssparser --version` prints it on its second
+line.
+
 [![Build Status](https://dev.azure.com/mballance/psstools/_apis/build/status/PSSTools.pssparser?branchName=master)](https://dev.azure.com/mballance/psstools/_build/latest?definitionId=15&branchName=master)
 
 ## Agent skills

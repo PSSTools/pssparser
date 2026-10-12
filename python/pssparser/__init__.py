@@ -16,7 +16,7 @@ def _add_dll_search_path():
 
 _add_dll_search_path()
 
-from .__version__ import __version__, get_version
+from .__version__ import SUPPORTED_LRM, __version__, get_version
 
 # Parser, ParseException and InactiveRegion load the native libraries, so they
 # are resolved on first use (PEP 562) rather than at import.  Importing a
