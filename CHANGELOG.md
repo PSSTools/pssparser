@@ -12,6 +12,14 @@ Currently: **PSS 3.1** (Public Review Draft, 2026-08-28).
 
 ## Unreleased
 
+## 3.2.0 — lint in the core, and the first built-in rules
+
+The first release numbered by pssparser's own scale (see above). Lint moves into
+the core engine and gains site rules in YAML, baselines and waivers; warning IDs
+move to `LINT` and `PSSP` (breaking: update waivers and configuration that name
+the old `PSS` warning codes). The built-in rules are in the nursery tier and run
+only with `--select nursery`.
+
 ### Added — the AST model reference
 
 `docs/ast/` documents every AST class from `ast/*.yaml` when the documentation
@@ -594,6 +602,18 @@ of `C`, binding `C`'s parameters per instance (known issue SR-F3).
 package: the first such name declares a package that no `package`
 statement of its own declares.
 
+### Added — PSS120: exporting a component's instance function (LRM 20.4.2)
+
+`export target function f;` may name only a static function (20.4.2). When it
+names a component's instance function, declared in the component, a base or an
+extension, the export is now reported as PSS120, a warning: "exported function
+'f' is not static; exporting a component's instance function is an extension
+to 20.4.2". The export is still bound, so a tool that implements the extension
+(the function runs on the instance the environment calls it through) can use
+it. Before, such an export linked without a word.
+
+## 3.1.7 — symbol resolution follows the LRM
+
 ### Added — agent skills ship in the wheel
 
 The wheel now carries three agent skills under `pssparser/share/skills/`, each
@@ -852,16 +872,6 @@ whose type is not known from where it is written, such as an operand of
 
 `pssparser.refs` now binds each member name to its attribute; it used to
 report them as unresolved.
-
-### Added — PSS120: exporting a component's instance function (LRM 20.4.2)
-
-`export target function f;` may name only a static function (20.4.2). When it
-names a component's instance function, declared in the component, a base or an
-extension, the export is now reported as PSS120, a warning: "exported function
-'f' is not static; exporting a component's instance function is an extension
-to 20.4.2". The export is still bound, so a tool that implements the extension
-(the function runs on the instance the environment calls it through) can use
-it. Before, such an export linked without a word.
 
 ### Fixed — `randomize` keeps every target, and its `with` block sees the target's members (symbol-resolution 8.8, LRM 13.4.6)
 
@@ -1521,27 +1531,7 @@ Consumers that read these fields need updating; see
 - New codes: PSS017 (ambiguous import, which now resolves to nothing instead of
   to the first import).
 
-### Fixed
-
-- **A generic constraint (13.1.2) is now a symbol in its enclosing scope, so
-  references to it resolve.** The declaration linked clean, but every reference
-  failed — `lim_lt(20)` with `unknown identifier 'lim_lt'`, `p::gt_zero(x)` with
-  `'p' has no member named 'gt_zero'` — so the construct could be declared and
-  never used. `IGenericConstraintDeclBool` derives from `IConstraintBlock` and so
-  reached `TaskBuildSymbolTree::visitConstraintBlock`, which calls the *unnamed*
-  `addChild()`: correct for a fixed constraint block, which is not referenceable,
-  and wrong for a generic one, which is called by name. Both declaration forms
-  now register their name.
-
-  Two consequences worth noting. A generic constraint that shares a name with a
-  field in the same scope is now a duplicate declaration, where before the
-  collision was silent. And arity is now checked at the reference: a generic
-  constraint has no `IFunctionPrototype`, so it does not go through the ordinary
-  call path — without its own check every reference would be rejected as
-  "'lim_lt' is not a function". The message names the construct:
-  `too many arguments to constraint 'lim_lt': expected 1, got 2`.
-
-### Added
+### Added — configuration files, extensions, `-Werror` and `--stats`
 
 - **Configuration files: `.pssparser.toml` and `pyproject.toml`.** Everything
   that can be set with a flag can now be set in a file, so a project's rules
@@ -1660,6 +1650,62 @@ Consumers that read these fields need updating; see
   exit code.
 - `docs/cli.rst` now documents the exit codes (`0`/`1`/`2`/`130`) in a table.
   It previously described none of them.
+
+### Fixed — diagnostic columns and carets
+
+- **Diagnostic columns were reported one character past the token they name.**
+  `ast::Location.linepos` is documented as 1-based, but three sites in the AST
+  builder copied ANTLR's 0-based `getCharPositionInLine()` in unadjusted, and
+  the Python marker layer applied a compensating `+1` to *every* marker. The two
+  errors cancelled for syntax diagnostics and compounded for all the others, so
+  roughly half the tool's output pointed one character to the right: `'hGZ`
+  reported the invalid digit `G` at the column of `Z`, `bit[7:1]` reported the
+  low bound `1` at the column of `]`, and an unknown-type error underlined one
+  character past the type name. **This changes reported columns for non-syntax
+  diagnostics** — a consumer pinning them (including `--json` output) will see
+  the corrected values. Syntax-error columns are unchanged.
+- **`compile if` brace-deprecation warnings underlined too little, and did not
+  say which `compile if` they belonged to.** The span came from
+  `ParserRuleContext::getText()`, which concatenates token text and so drops
+  every space between them — the caret stopped several characters short of the
+  branch whenever it was written with ordinary spacing. The warning now spans
+  the whole branch, carries a `note:` pointing at the owning `compile if`
+  keyword (which disambiguates the pair raised for an `if`/`else`), and reports
+  its `PSS104` code directly rather than having it recovered by matching the
+  message text. The same measurement bug is fixed for `compile assert`, the
+  `foreach` traversal-target error, and the integer-width low-bound error.
+- **The caret no longer runs past the end of the source line.** A construct
+  spanning several lines has an extent longer than the line it starts on, and
+  the renderer drew tildes for the full extent regardless.
+
+## 3.1.3 — generic constraints can be referenced
+
+### Fixed
+
+- **A generic constraint (13.1.2) is now a symbol in its enclosing scope, so
+  references to it resolve.** The declaration linked clean, but every reference
+  failed — `lim_lt(20)` with `unknown identifier 'lim_lt'`, `p::gt_zero(x)` with
+  `'p' has no member named 'gt_zero'` — so the construct could be declared and
+  never used. `IGenericConstraintDeclBool` derives from `IConstraintBlock` and so
+  reached `TaskBuildSymbolTree::visitConstraintBlock`, which calls the *unnamed*
+  `addChild()`: correct for a fixed constraint block, which is not referenceable,
+  and wrong for a generic one, which is called by name. Both declaration forms
+  now register their name.
+
+  Two consequences worth noting. A generic constraint that shares a name with a
+  field in the same scope is now a duplicate declaration, where before the
+  collision was silent. And arity is now checked at the reference: a generic
+  constraint has no `IFunctionPrototype`, so it does not go through the ordinary
+  call path — without its own check every reference would be rejected as
+  "'lim_lt' is not a function". The message names the construct:
+  `too many arguments to constraint 'lim_lt': expected 1, got 2`.
+
+## 3.1.2 — constructs the AST does not represent are reported
+
+3.1.0, 3.1.1 and 3.1.4 to 3.1.6 have no entries of their own.
+
+### Added
+
 - **`PSS116` — "construct is accepted but not represented in the AST."**
   Constructs the grammar accepts but the AST builder discards were previously
   silent: source using them parsed with an empty marker list, and the consumer
@@ -1863,30 +1909,6 @@ Consumers that read these fields need updating; see
 
 ### Fixed
 
-- **Diagnostic columns were reported one character past the token they name.**
-  `ast::Location.linepos` is documented as 1-based, but three sites in the AST
-  builder copied ANTLR's 0-based `getCharPositionInLine()` in unadjusted, and
-  the Python marker layer applied a compensating `+1` to *every* marker. The two
-  errors cancelled for syntax diagnostics and compounded for all the others, so
-  roughly half the tool's output pointed one character to the right: `'hGZ`
-  reported the invalid digit `G` at the column of `Z`, `bit[7:1]` reported the
-  low bound `1` at the column of `]`, and an unknown-type error underlined one
-  character past the type name. **This changes reported columns for non-syntax
-  diagnostics** — a consumer pinning them (including `--json` output) will see
-  the corrected values. Syntax-error columns are unchanged.
-- **`compile if` brace-deprecation warnings underlined too little, and did not
-  say which `compile if` they belonged to.** The span came from
-  `ParserRuleContext::getText()`, which concatenates token text and so drops
-  every space between them — the caret stopped several characters short of the
-  branch whenever it was written with ordinary spacing. The warning now spans
-  the whole branch, carries a `note:` pointing at the owning `compile if`
-  keyword (which disambiguates the pair raised for an `if`/`else`), and reports
-  its `PSS104` code directly rather than having it recovered by matching the
-  message text. The same measurement bug is fixed for `compile assert`, the
-  `foreach` traversal-target error, and the integer-width low-bound error.
-- **The caret no longer runs past the end of the source line.** A construct
-  spanning several lines has an extent longer than the line it starts on, and
-  the renderer drew tildes for the full extent regardless.
 - **An `extend enum` no longer declares its items in the enclosing package.**
   `ExtendEnum` is a plain `ScopeChild`, so the generated symbol-tree visitor
   added the extension and then walked its item list with the *enclosing* scope
