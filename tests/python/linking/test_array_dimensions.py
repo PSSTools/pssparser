@@ -64,6 +64,22 @@ from ..isolation import assert_clean, assert_rejects
             }
         }
     """),
+    # GitHub #15 (reported against 3.1.3): a struct-typed element, sized by
+    # a package const, and the array walked by a `foreach`.
+    ("package-scope const sizing a struct-typed array", """
+        package p {
+            const bit[4] N_CH = 8;
+            struct r_s { rand bit[32] a; }
+            struct d_s {
+                rand r_s regs[N_CH];
+                rand bit[3] chan;
+                constraint c {
+                    chan < N_CH;
+                    foreach (regs[i]) { regs[i].a % 4 == 0; }
+                }
+            }
+        }
+    """),
     ("struct-scope static const", """
         package p {
             struct s_s {

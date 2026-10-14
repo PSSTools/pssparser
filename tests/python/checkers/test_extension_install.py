@@ -75,6 +75,31 @@ def _run_in_subprocess(target: str, code: str) -> str:
     return result.stdout
 
 
+# What discovery finds, restricted to the distributions installed into the
+# subprocess's ``--target`` directory.  Whatever else the interpreter running
+# the tests has installed (sphinx-pss registers an extension, for one) is real
+# too, but it is not what these tests are about.
+_DISCOVER = """
+    import json, os
+    from importlib.metadata import distributions
+    from pssparser.checkers import CheckerManager
+    target = os.environ["PYTHONPATH"].split(os.pathsep)[-1]
+    ours = {d.metadata["Name"] for d in distributions(path=[target])}
+    m = CheckerManager()
+    m.discover()
+    exts = [e for e in m.list_extensions() if e["dist"] in ours]
+    names = {e["name"] for e in exts}
+    print(json.dumps({
+        "issues": m.load_diagnostics,
+        "extensions": exts,
+        "checkers": sorted(
+            i["name"] for i in m.list_checkers()
+            if not i["is_builtin"] and i["extension"] in names
+        ),
+    }))
+"""
+
+
 def _write_broken_extension(path: str) -> str:
     """Create a distribution whose extension module fails to import."""
     src = os.path.join(path, "src", "broken_rules")
@@ -117,22 +142,9 @@ def installed(tmp_path_factory):
 
 
 def test_installed_extension_is_discovered_with_no_flags(installed):
-    out = _run_in_subprocess(installed, """
-        import json
-        from pssparser.checkers import CheckerManager
-        m = CheckerManager()
-        m.discover()
-        print(json.dumps({
-            "issues": [d["code"] for d in m.load_diagnostics],
-            "extensions": m.list_extensions(),
-            "checkers": sorted(
-                i["name"] for i in m.list_checkers() if not i["is_builtin"]
-            ),
-        }))
-    """)
-    data = json.loads(out)
+    data = json.loads(_run_in_subprocess(installed, _DISCOVER))
 
-    assert data["issues"] == []
+    assert [d["code"] for d in data["issues"]] == []
     assert data["checkers"] == ["component-naming", "package-naming"]
 
     ext = data["extensions"][0]
@@ -172,20 +184,7 @@ def test_a_broken_sibling_does_not_disturb_a_healthy_extension(
     broken_src = _write_broken_extension(str(tmp_path_factory.mktemp("broken")))
     _install(broken_src, target)
 
-    out = _run_in_subprocess(target, """
-        import json
-        from pssparser.checkers import CheckerManager
-        m = CheckerManager()
-        m.discover()
-        print(json.dumps({
-            "issues": m.load_diagnostics,
-            "extensions": [e["name"] for e in m.list_extensions()],
-            "checkers": sorted(
-                i["name"] for i in m.list_checkers() if not i["is_builtin"]
-            ),
-        }))
-    """)
-    data = json.loads(out)
+    data = json.loads(_run_in_subprocess(target, _DISCOVER))
 
     # The broken one is reported...
     assert [d["code"] for d in data["issues"]] == ["PSSP001"]
@@ -193,7 +192,7 @@ def test_a_broken_sibling_does_not_disturb_a_healthy_extension(
     assert "pss-broken-rules" in data["issues"][0]["message"]
 
     # ...and the healthy one still loaded completely.
-    assert data["extensions"] == ["example-rules"]
+    assert [e["name"] for e in data["extensions"]] == ["example-rules"]
     assert data["checkers"] == ["component-naming", "package-naming"]
 
 

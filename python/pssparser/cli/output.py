@@ -14,7 +14,8 @@ from typing import IO, List, Optional, TextIO
 
 from pssparser.checkers.extension import NO_FILE
 from .diagnostics import Diagnostic, DiagnosticCollection
-from .source_context import SourceCache, make_caret_line
+from .source_context import (SourceCache, display_col, expand_tabs,
+                             make_caret_line)
 
 #: Identifies the JSON document's shape.  Version 2 added this key, the
 #: ``notes``/``hints`` counts and the per-diagnostic rule metadata; every
@@ -123,7 +124,7 @@ class HumanOutput:
         gutter = f"{line:>{gutter_w}}"
         blank = " " * gutter_w
 
-        w(f"{indent} {_c(gutter, _DIM, c)} | {src_line}\n")
+        w(f"{indent} {_c(gutter, _DIM, c)} | {expand_tabs(src_line)}\n")
 
         span = 1
         if end_col and end_col > col:
@@ -134,7 +135,7 @@ class HumanOutput:
         # continuing below"; running the tildes out past it draws a caret
         # wider than the source it is pointing at.
         span = max(1, min(span, len(src_line) - col + 1))
-        caret = make_caret_line(col, span)
+        caret = make_caret_line(col, span, line=src_line)
         w(f"{indent} {blank} | {_c(caret, caret_col, c)}\n")
         return True
 
@@ -186,7 +187,8 @@ class HumanOutput:
                 col = diag.fix.col
             gutter_w = len(str(diag.line))
             blank = " " * gutter_w
-            pad = " " * (col - 1)
+            src_line = self._src.get_line(diag.file, diag.line)
+            pad = " " * (display_col(src_line, col) - 1)
             w(f" {blank} | {_c(pad + diag.suggestion, _GREEN, c)}\n")
 
         # related locations -- indented `note:` lines, each with its own

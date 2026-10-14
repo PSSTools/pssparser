@@ -115,6 +115,12 @@ fixture:
 monkeypatch.delenv("PSSPARSER_NO_EXTENSIONS", raising=False)
 ```
 
+A test that does turn discovery back on sees every extension installed in the
+interpreter running pytest, not just the one it installed (sphinx-pss's venv,
+for one, registers `sphinx-pss`). Assert only on what the test installed:
+`test_extension_install.py` filters to the distributions in its install target
+directory.
+
 ## The shared corpus (pss-corpus)
 
 `packages/pss-corpus` (fetched by `ivpm update`, or a sibling `../pss-corpus`,

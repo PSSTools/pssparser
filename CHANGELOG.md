@@ -12,6 +12,16 @@ Currently: **PSS 3.1** (Public Review Draft, 2026-08-28).
 
 ## Unreleased
 
+### Fixed — the caret lines up under a tab-indented line
+
+A diagnostic's column counts a tab as one character, but the terminal moves a
+tab to the next stop, so on a tab-indented line the `^~~~` sat to the left of
+what it pointed at. The source line is now shown with its tabs expanded (stop
+8), and the caret, its underline and a suggested fix are placed to match. Wide
+(CJK) characters count two columns. The line shown also ends only at `\n`, as
+the lexer counts lines; a form feed in a comment no longer shows the wrong
+line under the diagnostic.
+
 ## 3.2.0 — lint in the core, and the first built-in rules
 
 The first release numbered by pssparser's own scale (see above). Lint moves into
