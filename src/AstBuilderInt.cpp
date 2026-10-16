@@ -7168,11 +7168,64 @@ bool AstBuilderInt::evalExpression(PSSParser::ExpressionContext *ctx, int64_t &v
             val = evalCompileHas(ctx->primary()->compile_has_expr()->ref_path()) ? 1 : 0;
             return true;
         } else if (ctx->primary()->ref_path()) {
-            ast::IScopeChild *target = resolveRefPathTarget(ctx->primary()->ref_path());
-            return target ? evalScopeChildValue(target, val) : false;
+            PSSParser::Ref_pathContext *rp = ctx->primary()->ref_path();
+            ast::IScopeChild *target = resolveRefPathTarget(rp);
+            if (!target || !evalScopeChildValue(target, val)) {
+                return false;
+            }
+            return applyRefPathSelect(rp, val);
         }
     }
     return false;
+}
+
+/**
+ * Apply the bit or part select a constant reference carries (8.6.1) to its
+ * value: `C[3]` (an index on the last path element) and `C[7:4]` (the
+ * ref_path's bit_slice). Without this `C[7:4] == 0xA` compared the whole of
+ * `C`, and a `compile if` took the wrong branch without a word. Any other
+ * index (an element of an array constant, a `..` slice, an index part-way
+ * along the path) does not fold: false, which the caller reports.
+ */
+bool AstBuilderInt::applyRefPathSelect(PSSParser::Ref_pathContext *rp, int64_t &val) {
+    std::vector<PSSParser::Member_path_elemContext *> elems;
+    if (rp->static_ref_path()) {
+        elems.push_back(rp->static_ref_path()->member_path_elem());
+    }
+    if (rp->hierarchical_id()) {
+        std::vector<PSSParser::Member_path_elemContext *> h =
+            rp->hierarchical_id()->member_path_elem();
+        elems.insert(elems.end(), h.begin(), h.end());
+    }
+    uint64_t v = (uint64_t)val;
+    for (uint32_t e=0; e<elems.size(); e++) {
+        std::vector<PSSParser::Member_path_elem_indexContext *> idx =
+            elems.at(e)->member_path_elem_index();
+        if (idx.empty()) {
+            continue;
+        }
+        if (e+1 != elems.size() || idx.size() != 1
+                || idx.at(0)->TOK_ELIPSIS() || idx.at(0)->expression().size() != 1) {
+            return false;
+        }
+        int64_t bit = 0;
+        if (!evalExpression(idx.at(0)->expression(0), bit) || bit < 0 || bit > 63) {
+            return false;
+        }
+        v = (v >> bit) & 1;
+    }
+    if (rp->bit_slice()) {
+        int64_t hi = 0, lo = 0;
+        if (!evalConstantExpression(rp->bit_slice()->constant_expression(0), hi)
+                || !evalConstantExpression(rp->bit_slice()->constant_expression(1), lo)
+                || lo < 0 || hi < lo || hi > 63) {
+            return false;
+        }
+        uint32_t w = (uint32_t)(hi - lo + 1);
+        v = (v >> lo) & ((w >= 64) ? ~0ULL : ((1ULL << w) - 1));
+    }
+    val = (int64_t)v;
+    return true;
 }
 
 bool AstBuilderInt::evalAstExpression(ast::IScope *eval_scope, ast::IExpr *expr, int64_t &val) {

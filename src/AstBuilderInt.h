@@ -700,6 +700,8 @@ private:
 
     bool evalExpression(PSSParser::ExpressionContext *ctx, int64_t &val);
 
+    bool applyRefPathSelect(PSSParser::Ref_pathContext *rp, int64_t &val);
+
     bool evalAstExpression(ast::IScope *eval_scope, ast::IExpr *expr, int64_t &val);
 
     bool evalAstExpression(ast::IScope *eval_scope, ast::IExpr *expr, std::string &val);

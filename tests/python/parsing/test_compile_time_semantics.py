@@ -358,3 +358,47 @@ def test_compile_if_reads_a_literal_condition(cond):
     """ % cond
     comp = get_symbol(parse_pss(pss), "C")
     assert get_symbol(comp, "Yes") is not None, "%r took the else branch" % cond
+
+
+# A select of a constant (8.6.1) is a constant expression. The condition
+# evaluator read the whole constant and ignored the select, so `C[7:4] == 0xA`
+# with C = 0xA5 compared 0xA5 and took the else branch.
+@pytest.mark.parametrize("cond", [
+    "C[7:4] == 0xA",
+    "C[3:0] == 0xD",
+    "C[0] == 1",
+    "C[1] == 0",
+    "C[7] == 1",
+    "C[K:0] == 0xD",            # bounds are constant expressions
+    "k_pkg::D[7:4] == 0xA",
+    "k_pkg::D[1] == 0",
+    "::G[11:8] == 0x2",
+])
+def test_compile_if_reads_a_select_of_a_constant(cond):
+    pss = """
+    package k_pkg { static const bit[8] D = 0xA5; }
+    static const bit[16] G = 0x1234;
+    component C_c {
+        static const bit[8] C = 0xAD;
+        static const int K = 3;
+        compile if (%s) {
+            action Yes { }
+        } else {
+            action No { }
+        }
+    }
+    """ % cond
+    comp = get_symbol(parse_pss(pss), "C_c")
+    assert get_symbol(comp, "Yes") is not None, "%r took the else branch" % cond
+
+
+def test_compile_if_on_an_element_of_an_array_constant_does_not_fold():
+    """An index that is not a bit select is not folded as one: the
+    condition cannot be evaluated, and says so, rather than testing a bit
+    of whatever the array evaluates to."""
+    assert_parse_error("""
+    component C_c {
+        static const array<int, 2> A = {1, 2};
+        compile if (A[1] == 2) { action Yes { } }
+    }
+    """, "cannot be evaluated at compile time")
