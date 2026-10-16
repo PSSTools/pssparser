@@ -162,6 +162,27 @@ const std::set<std::string> &collectionMethods() {
     return s;
 }
 
+/**
+ * What a collection method returns, as far as a member chained on its result
+ * is concerned. Collection methods have no prototypes yet, so this is all
+ * that is known of one's result: another collection of the same elements
+ * (`to_list`, `values`), one of its elements (`pop_front`), or something with
+ * no members a chain can reach -- a scalar, or nothing.
+ */
+enum class CollectionResult { NoMembers, Collection, Keys, Element };
+
+CollectionResult collectionMethodResult(const std::string &m) {
+    if (m == "to_list" || m == "to_set" || m == "values") {
+        return CollectionResult::Collection;
+    } else if (m == "keys") {
+        return CollectionResult::Keys;
+    } else if (m == "front" || m == "back" || m == "pop_front"
+            || m == "pop_back" || m == "get") {
+        return CollectionResult::Element;
+    }
+    return CollectionResult::NoMembers;
+}
+
 //: The union, for the "is this a method on a built-in at all?" test.
 const std::set<std::string> &builtinMethods() {
     static const std::set<std::string> s = [] {
@@ -2673,6 +2694,85 @@ void TaskResolveRefs::resolveExprRefPathContext(ast::IExprRefPathContext *i) {
     // that is 1; the advance step below sets it when a *later* element does.
     int32_t builtin_method_ii = is_builtin_with_methods?1:-1;
 
+    // The collection whose elements a chained collection method's result
+    // holds -- `l` in `l.to_list().front().x` -- or null when that is not
+    // known (`m.keys()`: a map's subscript names its values, not its keys).
+    ast::ISymbolScope *chain_coll_s = 0;
+
+    // A member chained on collection method `mname` at element `ii`: set up
+    // the scope the next element is looked up in and return true, or report
+    // why there is none and return false.
+    auto chainOnCollectionMethod = [&](const std::string &mname, uint32_t ii) -> bool {
+        ast::IExprMemberPathElem *next = i->getHier_id()->getElems().at(ii+1).get();
+        switch (collectionMethodResult(mname)) {
+        case CollectionResult::Keys:
+            chain_coll_s = 0;
+            // fallthrough
+        case CollectionResult::Collection:
+            // Its methods are name-checked, as on any collection.
+            target_s = 0;
+            is_builtin_with_methods = true;
+            is_string_target = false;
+            builtin_method_ii = ii+1;
+            return true;
+        case CollectionResult::Element: {
+            // The element type is the collection's element parameter, as the
+            // specialization bound it (`list<T>`'s T, `map<K,V>`'s V).
+            ast::ITypeScope *ts = (chain_coll_s)
+                ? NodeKind::cast<ast::ITypeScope>(chain_coll_s->getTarget()) : 0;
+            CollectionKind kind = builtinCollectionKind(ts);
+            int32_t idx = (kind == CollectionKind::Set)
+                ? 0 : collectionElemParam(kind);
+            ast::ITemplateParamDecl *pd = (ts && ts->getParams() && idx >= 0
+                    && idx < (int32_t)ts->getParams()->getParams().size())
+                ? ts->getParams()->getParams().at(idx).get() : 0;
+            ast::ITemplateGenericTypeParamDecl *gd =
+                NodeKind::cast<ast::ITemplateGenericTypeParamDecl>(pd);
+            ast::IDataType *et = (gd) ? gd->getDflt() : 0;
+            if (NodeKind::cast<ast::IDataTypeString>(et)) {
+                target_s = 0;
+                is_builtin_with_methods = true;
+                is_string_target = true;
+                builtin_method_ii = ii+1;
+                return true;
+            }
+            ast::ISymbolScope *es = (pd)
+                ? TaskGetElemSymbolScope(
+                    m_ctxt->getDebugMgr(), m_ctxt->root()).resolve(pd)
+                : 0;
+            if (es) {
+                target_s = es;
+                is_builtin_with_methods = false;
+                chain_coll_s = (builtinCollectionKind(es) != CollectionKind::None)
+                    ? es : 0;
+                return true;
+            }
+            if (et && !NodeKind::cast<ast::IDataTypeUserDefined>(et)) {
+                // An int, a bool, ...: a known type with no members.
+                m_ctxt->addMarker(
+                    MarkerSeverityE::Error,
+                    next->getId()->getLocation(),
+                    "ref-path element %s is not a composite scope",
+                    mname.c_str());
+            } else {
+                m_ctxt->addErrorMarker(
+                    next->getId()->getLocation(),
+                    "cannot resolve '%s': the type of the element '%s()' "
+                    "returns is not known here",
+                    next->getId()->getId().c_str(), mname.c_str());
+            }
+            return false;
+        }
+        default:
+            m_ctxt->addMarker(
+                MarkerSeverityE::Error,
+                next->getId()->getLocation(),
+                "ref-path element %s is not a composite scope",
+                mname.c_str());
+            return false;
+        }
+    };
+
     if (!target_s && !is_builtin_with_methods && i->getHier_id()->getElems().size() > 1) {
         if (target_c && isVoidFunction(target_c)) {
             // checkVoidCallUse has the better message for this; see
@@ -2856,6 +2956,42 @@ void TaskResolveRefs::resolveExprRefPathContext(ast::IExprRefPathContext *i) {
                         }
                     }
                 }
+                if (ii+1 < i->getHier_id()->getElems().size()) {
+                    // A call on the method's result -- `s.lower().size()`,
+                    // `s.split(",").size()`. The next element is a method of
+                    // whatever this one returns; until now the path stopped
+                    // here and left it unbound (PSS042). Only a `string`
+                    // method has a prototype, so only its result is known.
+                    ast::IFunctionPrototype *fp =
+                        NodeKind::cast<ast::IFunctionPrototype>(proto);
+                    ast::IDataType *rt = (fp) ? fp->getRtype()
+                        : declaredTypeOf(proto);
+                    ast::IDataTypeUserDefined *udt =
+                        NodeKind::cast<ast::IDataTypeUserDefined>(rt);
+                    if (NodeKind::cast<ast::IDataTypeString>(rt)) {
+                        is_string_target = true;
+                        builtin_method_ii = ii+1;
+                        continue;
+                    } else if (udt && udt->getType_id()
+                            && udt->getType_id()->getElems().size() == 1
+                            && udt->getType_id()->getElems().at(0)
+                                ->getId()->getId() == "list") {
+                        // `list<T>` as BuiltinsFactory::mkList spells it:
+                        // its methods are name-checked, as on any list.
+                        is_string_target = false;
+                        builtin_method_ii = ii+1;
+                        continue;
+                    } else if (proto) {
+                        m_ctxt->addMarker(
+                            MarkerSeverityE::Error,
+                            i->getHier_id()->getElems().at(ii+1)
+                                ->getId()->getLocation(),
+                            "ref-path element %s is not a composite scope",
+                            method_name.c_str());
+                    } else if (chainOnCollectionMethod(method_name, ii)) {
+                        continue;
+                    }
+                }
                 break;
             } else {
                 m_ctxt->addErrorMarker(
@@ -2911,6 +3047,14 @@ void TaskResolveRefs::resolveExprRefPathContext(ast::IExprRefPathContext *i) {
                         for (auto pit=elem->getParams()->getParameters().begin();
                             pit!=elem->getParams()->getParameters().end(); pit++) {
                             (*pit)->accept(m_this);
+                        }
+                    }
+                    // `l.to_list().size()`: the path used to stop here and
+                    // leave the next element unbound (PSS042).
+                    if (ii+1 < i->getHier_id()->getElems().size()) {
+                        chain_coll_s = target_s;
+                        if (chainOnCollectionMethod(mname, ii)) {
+                            continue;
                         }
                     }
                     break;

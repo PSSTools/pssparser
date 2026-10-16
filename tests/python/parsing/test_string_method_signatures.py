@@ -151,3 +151,43 @@ def test_collection_method_is_not_affected():
     }
     """
     assert_no_marker(pss, marker_id="PSS006")
+
+
+# ---------------------------------------------------------------------------
+# A method called on a method's result
+# ---------------------------------------------------------------------------
+#
+# The path used to stop at the first built-in method, so the next element was
+# never resolved and the completeness check reported it as left unbound
+# (PSS042).
+
+@pytest.mark.parametrize("expr", [
+    'int n = s.lower().size();',
+    'int n = s.upper().lower().find("a", 1);',
+    'int n = s.split(",").size();',
+    'int n = "ab".upper().size();',
+])
+def test_a_method_of_a_method_result(expr):
+    assert_no_marker(_exec(expr), severity="error")
+
+
+def test_a_method_of_a_function_result():
+    pss = """
+    component pss_top {
+        function string f() { return "a"; }
+        exec init_up { int n = f().lower().size(); }
+    }
+    """
+    assert_no_marker(pss, severity="error")
+
+
+def test_a_chained_method_is_checked_against_the_result():
+    assert_marker(_exec('int n = s.lower().nosuch();'), marker_id="PSS002",
+                  text="unknown method 'nosuch'")
+    assert_marker(_exec('int n = s.lower().size(1);'), marker_id="PSS006",
+                  text="call to 'size' expects 0 arguments, got 1")
+
+
+def test_a_scalar_result_has_no_methods():
+    assert_marker(_exec('int n = s.size().size();'), marker_id="PSS004",
+                  text="ref-path element size is not a composite scope")
