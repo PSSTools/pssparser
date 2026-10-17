@@ -56,6 +56,32 @@
 #include "pssp/ast/IProceduralStmtDataDeclaration.h"
 #include "pssp/ast/ITypedefDeclaration.h"
 #include "pssp/impl/TaskResolveSymbolPathRef.h"
+#include "pssp/ast/IActionHandleField.h"
+#include "pssp/ast/IDataTypePyObj.h"
+#include "pssp/ast/IDataTypeRef.h"
+#include "pssp/ast/IExprMemberCall.h"
+#include "pssp/ast/IExprRefPathStatic.h"
+#include "pssp/ast/IExprRefPathStaticRooted.h"
+#include "pssp/ast/IExprSignedNumber.h"
+#include "pssp/ast/IExprUnsignedNumber.h"
+#include "pssp/ast/IExprSliceRange.h"
+#include "pssp/ast/IFieldClaim.h"
+#include "pssp/ast/IFieldCompRef.h"
+#include "pssp/ast/IFieldPool.h"
+#include "pssp/ast/IFieldRef.h"
+#include "pssp/ast/IFunctionDefinition.h"
+#include "pssp/ast/IFunctionImportProto.h"
+#include "pssp/ast/IFunctionPrototype.h"
+#include "pssp/ast/IMethodParameterList.h"
+#include "pssp/ast/ISymbolFunctionScope.h"
+#include "pssp/ast/ITargetTemplateFunction.h"
+#include "pssp/ast/ITemplateCategoryTypeParamDecl.h"
+#include "pssp/ast/ITemplateGenericTypeParamDecl.h"
+#include "pssp/ast/ITemplateParamDeclList.h"
+#include "pssp/ast/ITemplateValueParamDecl.h"
+#include "pssp/IValInt.h"
+#include "pssp/impl/TaskEvalExpr.h"
+#include "ExprTypeOf.h"
 #include "TaskExprTypeCat.h"
 #include "pssp/impl/NodeKind.h"
 
@@ -351,6 +377,556 @@ const char *TaskExprTypeCat::dataTypeName(ast::IDataType *dt, TypeCatE c) {
         }
     }
     return name(c);
+}
+
+
+// ---------------------------------------------------------------------------
+// ExprType: the type of an arbitrary operand (front-end checks, step 0)
+// ---------------------------------------------------------------------------
+
+TypeCatE ExprType::cat() const {
+    switch (kind) {
+        case TypeKindE::Int: return TypeCatE::Int;
+        case TypeKindE::Bool: return TypeCatE::Bool;
+        case TypeKindE::Float: return TypeCatE::Float;
+        case TypeKindE::String: return TypeCatE::String;
+        case TypeKindE::Enum: return TypeCatE::Enum;
+        case TypeKindE::Chandle: return TypeCatE::Chandle;
+        case TypeKindE::Null: return TypeCatE::Null;
+        case TypeKindE::Aggregate:
+        case TypeKindE::Struct:
+        case TypeKindE::Component:
+        case TypeKindE::Action: return TypeCatE::Aggregate;
+        default: return TypeCatE::Unknown;
+    }
+}
+
+static std::string scopeName(ast::ISymbolScope *s) {
+    return (s) ? s->getName() : std::string("?");
+}
+
+std::string ExprType::describe() const {
+    switch (kind) {
+        case TypeKindE::Void: return "void";
+        case TypeKindE::Int: return (is_signed) ? "int" : "bit";
+        case TypeKindE::Bool: return "bool";
+        case TypeKindE::Float: return "float";
+        case TypeKindE::String: return "string";
+        case TypeKindE::Chandle: return "chandle";
+        case TypeKindE::Null: return "null";
+        case TypeKindE::Aggregate: return "an aggregate literal";
+        case TypeKindE::Other: return "other";
+        case TypeKindE::Enum: return "enum " + scopeName(scope);
+        case TypeKindE::Struct: return "struct " + scopeName(scope);
+        case TypeKindE::Component: return "component " + scopeName(scope);
+        case TypeKindE::Action: return "action " + scopeName(scope);
+        case TypeKindE::Array:
+            return (size >= 0) ? "array[" + std::to_string(size) + "]" : "array";
+        case TypeKindE::List: return "list";
+        case TypeKindE::Map: return "map";
+        case TypeKindE::Set: return "set";
+        default: return "unknown";
+    }
+}
+
+/** `a` and `b` combined by an arithmetic or bitwise operator, or by `?:`. */
+static ExprType mergeTypes(const ExprType &a, const ExprType &b) {
+    if (!a.known() || !b.known()) {
+        return ExprType();
+    }
+    if (a.kind == b.kind && (a.kind == TypeKindE::Int || a.kind == TypeKindE::Bool
+            || a.kind == TypeKindE::Float || a.kind == TypeKindE::String)) {
+        ExprType ret(a.kind);
+        ret.is_signed = a.is_signed && b.is_signed;
+        return ret;
+    }
+    if (a.kind == b.kind && a.scope && a.scope == b.scope) {
+        return a;
+    }
+    bool a_num = (a.kind == TypeKindE::Int || a.kind == TypeKindE::Enum
+        || a.kind == TypeKindE::Bool);
+    bool b_num = (b.kind == TypeKindE::Int || b.kind == TypeKindE::Enum
+        || b.kind == TypeKindE::Bool);
+    if ((a.kind == TypeKindE::Float && (b_num || b.kind == TypeKindE::Float))
+            || (b.kind == TypeKindE::Float && a_num)) {
+        return ExprType(TypeKindE::Float);
+    }
+    if (a.kind == TypeKindE::Int && b.kind == TypeKindE::Int) {
+        return ExprType(TypeKindE::Int);
+    }
+    return ExprType();
+}
+
+ExprType TaskExprTypeCat::typeOf(ast::IExpr *e) {
+    if (!e || m_depth > 32) {
+        return ExprType();
+    }
+    ExprType ret;
+    m_depth++;
+
+    NodeKind nk(e);
+    if (nk.is<ast::IExprString>()) {
+        ret = ExprType(TypeKindE::String);
+    } else if (nk.is<ast::IExprBool>()) {
+        ret = ExprType(TypeKindE::Bool);
+    } else if (nk.is<ast::IExprFloatLiteral>()) {
+        ret = ExprType(TypeKindE::Float);
+    } else if (nk.is<ast::IExprNumber>()) {
+        // The type of a literal is read from its text (4.6.1); only the
+        // signedness is needed here: a based literal is unsigned.
+        // An unbased decimal literal is an `int`; a based one (`8'hFF`,
+        // `0x10`) is unsigned.
+        ret = ExprType(TypeKindE::Int);
+        const std::string *image = 0;
+        if (ast::IExprSignedNumber *n = nk.as<ast::IExprSignedNumber>()) {
+            image = &n->getImage();
+        } else if (ast::IExprUnsignedNumber *n = nk.as<ast::IExprUnsignedNumber>()) {
+            image = &n->getImage();
+        }
+        ret.is_signed = (image && image->find('\'') == std::string::npos
+            && image->find_first_of("xXbBoO") == std::string::npos);
+    } else if (nk.is<ast::IExprNull>()) {
+        ret = ExprType(TypeKindE::Null);
+    } else if (nk.is<ast::IExprAggrLiteral>()) {
+        ret = ExprType(TypeKindE::Aggregate);
+    } else if (ast::IExprCast *c = nk.as<ast::IExprCast>()) {
+        ret = typeOfDataType(c->getCasting_type());
+        ret.dt = 0;
+    } else if (nk.is<ast::IExprIn>()) {
+        ret = ExprType(TypeKindE::Bool);
+    } else if (ast::IExprUnary *u = nk.as<ast::IExprUnary>()) {
+        switch (u->getOp()) {
+            case ast::ExprUnaryOp::UnaryOp_LogNot:
+                ret = ExprType(TypeKindE::Bool);
+                break;
+            case ast::ExprUnaryOp::UnaryOp_BitAnd:
+            case ast::ExprUnaryOp::UnaryOp_BitOr:
+            case ast::ExprUnaryOp::UnaryOp_BitXor:
+                // A reduction is one bit (8.5.6).
+                ret = ExprType(TypeKindE::Int);
+                break;
+            default: {
+                ExprType r = typeOf(u->getRhs());
+                if (r.kind == TypeKindE::Int || r.kind == TypeKindE::Float
+                        || r.kind == TypeKindE::Bool) {
+                    ret = ExprType(r.kind);
+                    ret.is_signed = r.is_signed;
+                } else if (r.kind == TypeKindE::Enum) {
+                    ret = ExprType(TypeKindE::Int);
+                }
+            } break;
+        }
+    } else if (ast::IExprBin *b = nk.as<ast::IExprBin>()) {
+        switch (b->getOp()) {
+            case ast::ExprBinOp::BinOp_LogOr:
+            case ast::ExprBinOp::BinOp_LogAnd:
+            case ast::ExprBinOp::BinOp_Lt:
+            case ast::ExprBinOp::BinOp_Le:
+            case ast::ExprBinOp::BinOp_Gt:
+            case ast::ExprBinOp::BinOp_Ge:
+            case ast::ExprBinOp::BinOp_Eq:
+            case ast::ExprBinOp::BinOp_Ne:
+                ret = ExprType(TypeKindE::Bool);
+                break;
+            case ast::ExprBinOp::BinOp_Shl:
+            case ast::ExprBinOp::BinOp_Shr: {
+                // The shift amount says nothing about the result.
+                ExprType l = typeOf(b->getLhs());
+                if (l.kind == TypeKindE::Int) {
+                    ret = ExprType(TypeKindE::Int);
+                    ret.is_signed = l.is_signed;
+                }
+            } break;
+            default: {
+                ExprType l = typeOf(b->getLhs());
+                ExprType r = typeOf(b->getRhs());
+                ret = mergeTypes(l, r);
+                ret.dt = 0;
+                if (ret.kind == TypeKindE::Enum) {
+                    ret = ExprType(TypeKindE::Int);
+                }
+            } break;
+        }
+    } else if (ast::IExprCond *c = nk.as<ast::IExprCond>()) {
+        ret = mergeTypes(typeOf(c->getTrue_e()), typeOf(c->getFalse_e()));
+    } else if (ast::IExprRefPathStaticRooted *r = nk.as<ast::IExprRefPathStaticRooted>()) {
+        if (r->getLeaf()) {
+            ret = typeOfElems(ExprType(), r->getLeaf()->getElems(), 0, false);
+        }
+        if (r->getSlice()) {
+            ret = (ret.kind == TypeKindE::Int) ? ExprType(TypeKindE::Int) : ExprType();
+        }
+    } else if (ast::IExprRefPathContext *r = nk.as<ast::IExprRefPathContext>()) {
+        if (r->getTarget() && r->getHier_id() && r->getHier_id()->getElems().size()) {
+            const std::vector<ast::IExprMemberPathElemUP> &elems =
+                r->getHier_id()->getElems();
+            ast::IExprMemberPathElem *first = elems.at(0).get();
+            ExprType t;
+            if (first->getId()->getDecl()) {
+                t = typeOfElem(ExprType(), first, false);
+            } else {
+                // The first element is bound by the path's target.
+                ast::IScopeChild *decl = m_ctxt->resolveSymbolPathRef(r->getTarget());
+                if (NodeKind::cast<ast::IEnumItem>(decl)) {
+                    ast::ISymbolEnumScope *es = ExprTypeOf(m_ctxt).enumOfItemPath(
+                        r->getTarget());
+                    if (es) {
+                        t = ExprType(TypeKindE::Enum);
+                        t.scope = es;
+                    }
+                } else {
+                    t = typeOfDecl(decl);
+                }
+                if (first->getParams() || first->getSubscript().size()) {
+                    // A call or a subscript on a name with no decl recorded.
+                    if (first->getParams()) {
+                        t = ExprType();
+                    }
+                    for (std::vector<ast::IExprUP>::const_iterator
+                            it=first->getSubscript().begin();
+                            t.known() && it!=first->getSubscript().end(); it++) {
+                        t = subscript(t, it->get());
+                    }
+                }
+            }
+            ret = typeOfElems(t, elems, 1, false);
+        }
+        if (r->getSlice()) {
+            ret = (ret.kind == TypeKindE::Int) ? ExprType(TypeKindE::Int) : ExprType();
+        }
+    } else if (ast::IExprRefPathStatic *r = nk.as<ast::IExprRefPathStatic>()) {
+        if (r->getTarget()) {
+            ast::IScopeChild *decl = m_ctxt->resolveSymbolPathRef(r->getTarget());
+            if (NodeKind::cast<ast::IEnumItem>(decl)) {
+                ast::ISymbolEnumScope *es = ExprTypeOf(m_ctxt).enumOfItemPath(
+                    r->getTarget());
+                if (es) {
+                    ret = ExprType(TypeKindE::Enum);
+                    ret.scope = es;
+                }
+            } else {
+                ret = typeOfDecl(decl);
+            }
+        }
+        if (r->getSlice()) {
+            ret = (ret.kind == TypeKindE::Int) ? ExprType(TypeKindE::Int) : ExprType();
+        }
+    } else if (ast::IExprMemberCall *mc = nk.as<ast::IExprMemberCall>()) {
+        ret = typeOfElems(typeOf(mc->getReceiver()), mc->getMembers(), 0, true);
+    }
+
+    m_depth--;
+    return ret;
+}
+
+ExprType TaskExprTypeCat::typeOfElems(
+        ExprType                                            t,
+        const std::vector<ast::IExprMemberPathElemUP>       &elems,
+        uint32_t                                            first,
+        bool                                                has_recv) {
+    for (uint32_t ii=first; ii<elems.size(); ii++) {
+        bool recv = (ii > 0 || has_recv);
+        if (recv && !t.known()) {
+            return ExprType();
+        }
+        t = typeOfElem(t, elems.at(ii).get(), recv);
+    }
+    return t;
+}
+
+ExprType TaskExprTypeCat::typeOfElem(
+        const ExprType              &recv,
+        ast::IExprMemberPathElem    *elem,
+        bool                        has_recv) {
+    ast::IScopeChild *decl = elem->getId()->getDecl();
+    ExprType t;
+    if (decl) {
+        t = typeOfDecl(decl);
+        if (elem->getParams() && !NodeKind::cast<ast::ISymbolFunctionScope>(decl)
+                && !NodeKind::cast<ast::IFunctionPrototype>(decl)
+                && !NodeKind::cast<ast::IFunctionDefinition>(decl)) {
+            // A call of something that is not a function.
+            t = ExprType();
+        }
+        if (!t.known() && elem->getParams() && has_recv) {
+            // A built-in method declared generically: its return type is a
+            // parameter of the collection, which the receiver binds.
+            t = builtinMethod(recv, elem->getId()->getId());
+        }
+    } else if (has_recv && elem->getParams()) {
+        t = builtinMethod(recv, elem->getId()->getId());
+    } else {
+        return ExprType();
+    }
+    for (std::vector<ast::IExprUP>::const_iterator
+            it=elem->getSubscript().begin();
+            t.known() && it!=elem->getSubscript().end(); it++) {
+        t = subscript(t, it->get());
+    }
+    return t;
+}
+
+ExprType TaskExprTypeCat::builtinMethod(const ExprType &recv, const std::string &name) {
+    switch (recv.kind) {
+        case TypeKindE::String:
+            // 7.6.3
+            if (name == "size" || name == "find" || name == "find_last") {
+                ExprType r(TypeKindE::Int);
+                r.is_signed = true;
+                return r;
+            } else if (name == "lower" || name == "upper") {
+                return ExprType(TypeKindE::String);
+            } else if (name == "split" || name == "chars" || name == "find_all") {
+                return ExprType(TypeKindE::List);
+            }
+            break;
+        case TypeKindE::Array:
+        case TypeKindE::List:
+        case TypeKindE::Map:
+        case TypeKindE::Set:
+            if (name == "size") {
+                ExprType r(TypeKindE::Int);
+                r.is_signed = true;
+                return r;
+            } else if (recv.kind == TypeKindE::List
+                    && (name == "pop_front" || name == "pop_back")) {
+                return elemType(recv);
+            }
+            break;
+        default:
+            break;
+    }
+    return ExprType();
+}
+
+ExprType TaskExprTypeCat::typeOfDecl(ast::IScopeChild *decl) {
+    if (!decl || m_depth > 32) {
+        return ExprType();
+    }
+    ExprType ret;
+    m_depth++;
+    NodeKind nk(decl);
+    if (ast::IEnumItem *ei = nk.as<ast::IEnumItem>()) {
+        if (ei->getUpper()) {
+            ret = ExprType(TypeKindE::Enum);
+            ret.scope = ei->getUpper();
+        }
+    } else if (ast::IField *f = nk.as<ast::IField>()) {
+        ret = typeOfDataType(f->getType());
+    } else if (ast::IProceduralStmtDataDeclaration *d =
+            nk.as<ast::IProceduralStmtDataDeclaration>()) {
+        ret = typeOfDataType(d->getDatatype());
+    } else if (ast::IFunctionParamDecl *p = nk.as<ast::IFunctionParamDecl>()) {
+        if (p->getKind() == ast::FunctionParamDeclKind::ParamKind_DataType) {
+            ret = typeOfDataType(p->getType());
+        }
+    } else if (ast::IGenericConstraintParam *p = nk.as<ast::IGenericConstraintParam>()) {
+        ret = typeOfDataType(p->getType());
+    } else if (ast::ITemplateValueParamDecl *p = nk.as<ast::ITemplateValueParamDecl>()) {
+        ret = typeOfDataType(p->getType());
+    } else if (ast::IFieldRef *f = nk.as<ast::IFieldRef>()) {
+        ret = typeOfDataType(f->getType());
+        ret.is_ref = true;
+    } else if (ast::IFieldCompRef *f = nk.as<ast::IFieldCompRef>()) {
+        ret = typeOfDataType(f->getType());
+        ret.is_ref = true;
+    } else if (ast::IFieldClaim *f = nk.as<ast::IFieldClaim>()) {
+        ret = typeOfDataType(f->getType());
+        ret.is_ref = true;
+    } else if (ast::IActionHandleField *f = nk.as<ast::IActionHandleField>()) {
+        ret = typeOfDataType(f->getType());
+    } else {
+        // A function: the type of a call is its return type.
+        ast::IFunctionPrototype *proto = nk.as<ast::IFunctionPrototype>();
+        if (ast::ISymbolFunctionScope *fs = nk.as<ast::ISymbolFunctionScope>()) {
+            proto = (fs->getPrototypes().size()) ? fs->getPrototypes().front() : 0;
+        } else if (ast::IFunctionDefinition *fd = nk.as<ast::IFunctionDefinition>()) {
+            proto = fd->getProto();
+        }
+        if (proto) {
+            ret = (proto->getRtype())
+                ? typeOfDataType(proto->getRtype()) : ExprType(TypeKindE::Void);
+        }
+    }
+    m_depth--;
+    return ret;
+}
+
+ExprType TaskExprTypeCat::typeOfDataType(ast::IDataType *dt) {
+    if (!dt || m_depth > 32) {
+        return ExprType();
+    }
+    ExprType ret;
+    NodeKind nk(dt);
+    if (ast::IDataTypeInt *i = nk.as<ast::IDataTypeInt>()) {
+        ret = ExprType(TypeKindE::Int);
+        ret.is_signed = i->getIs_signed();
+    } else if (nk.is<ast::IDataTypeBool>()) {
+        ret = ExprType(TypeKindE::Bool);
+    } else if (nk.is<ast::IDataTypeFloat>()) {
+        ret = ExprType(TypeKindE::Float);
+    } else if (nk.is<ast::IDataTypeString>()) {
+        ret = ExprType(TypeKindE::String);
+    } else if (nk.is<ast::IDataTypeChandle>()) {
+        ret = ExprType(TypeKindE::Chandle);
+    } else if (nk.is<ast::IDataTypePyObj>()) {
+        ret = ExprType(TypeKindE::Other);
+    } else if (ast::IDataTypeEnum *e = nk.as<ast::IDataTypeEnum>()) {
+        ret = typeOfDataType(e->getTid());
+        if (ret.kind != TypeKindE::Enum) {
+            ret = ExprType();
+        }
+    } else if (ast::IDataTypeRef *r = nk.as<ast::IDataTypeRef>()) {
+        m_depth++;
+        ret = typeOfDataType(r->getType());
+        m_depth--;
+        ret.is_ref = true;
+        return ret;
+    } else if (ast::IDataTypeUserDefined *udt = nk.as<ast::IDataTypeUserDefined>()) {
+        if (!udt->getType_id() || !udt->getType_id()->getTarget()) {
+            return ExprType();
+        }
+        ast::IScopeChild *c = m_ctxt->resolveSymbolPathRef(udt->getType_id()->getTarget());
+        NodeKind ck(c);
+        if (ast::ISymbolEnumScope *es = ck.as<ast::ISymbolEnumScope>()) {
+            ret = ExprType(TypeKindE::Enum);
+            ret.scope = es;
+        } else if (ast::ISymbolTypeScope *sts = ck.as<ast::ISymbolTypeScope>()) {
+            ast::ITypeScope *ts = NodeKind::cast<ast::ITypeScope>(sts->getTarget());
+            switch (builtinCollectionKind(ts)) {
+                case CollectionKind::Array: ret = ExprType(TypeKindE::Array); break;
+                case CollectionKind::List: ret = ExprType(TypeKindE::List); break;
+                case CollectionKind::Map: ret = ExprType(TypeKindE::Map); break;
+                case CollectionKind::Set: ret = ExprType(TypeKindE::Set); break;
+                default:
+                    if (NodeKind::cast<ast::IStruct>(ts)) {
+                        ret = ExprType(TypeKindE::Struct);
+                    } else if (NodeKind::cast<ast::IComponent>(ts)) {
+                        ret = ExprType(TypeKindE::Component);
+                    } else if (NodeKind::cast<ast::IAction>(ts)) {
+                        ret = ExprType(TypeKindE::Action);
+                    } else if (ts) {
+                        ret = ExprType(TypeKindE::Other);
+                    }
+                    break;
+            }
+            if (ret.known()) {
+                ret.scope = sts;
+            }
+            if (ret.kind == TypeKindE::Array) {
+                // The size is the specialization's second parameter.
+                if (ts && ts->getParams() && ts->getParams()->getSpecialized()
+                        && ts->getParams()->getParams().size() > 1) {
+                    ast::ITemplateValueParamDecl *v = NodeKind::cast<ast::ITemplateValueParamDecl>(
+                        ts->getParams()->getParams().at(1).get());
+                    if (v && v->getDflt()) {
+                        std::unique_ptr<IVal> val(TaskEvalExpr(
+                            m_ctxt->getFactory(), m_ctxt->root()).eval(v->getDflt()));
+                        if (IValInt *iv = dynamic_cast<IValInt *>(val.get())) {
+                            ret.size = iv->getValS();
+                        }
+                    }
+                }
+            }
+        } else if (ast::ITypedefDeclaration *td = ck.as<ast::ITypedefDeclaration>()) {
+            m_depth++;
+            ret = typeOfDataType(td->getType());
+            m_depth--;
+            return ret;
+        } else if (ck.is<ast::ITemplateGenericTypeParamDecl>()
+                || ck.is<ast::ITemplateCategoryTypeParamDecl>()) {
+            m_depth++;
+            ret = boundTypeParam(c, udt->getType_id()->getTarget());
+            m_depth--;
+            return ret;
+        }
+    }
+    if (ret.known()) {
+        ret.dt = dt;
+    }
+    return ret;
+}
+
+ExprType TaskExprTypeCat::boundTypeParam(ast::IScopeChild *param, ast::ISymbolRefPath *path) {
+    // Only a specialization's parameter holds the bound argument in `dflt`;
+    // in the generic declaration it holds the declared default, which says
+    // nothing about the value. A parameter of a specialization is reached
+    // through it: its path ends in a TypeSpec step and then the ParamIdx.
+    const std::vector<ast::SymbolRefPathElem> &elems = path->getPath();
+    if (elems.size() < 2
+            || elems.at(elems.size()-1).kind != ast::SymbolRefPathElemKind::ElemKind_ParamIdx
+            || elems.at(elems.size()-2).kind != ast::SymbolRefPathElemKind::ElemKind_TypeSpec) {
+        return ExprType();
+    }
+    if (ast::ITemplateGenericTypeParamDecl *g =
+            NodeKind::cast<ast::ITemplateGenericTypeParamDecl>(param)) {
+        return typeOfDataType(g->getDflt());
+    } else if (ast::ITemplateCategoryTypeParamDecl *c =
+            NodeKind::cast<ast::ITemplateCategoryTypeParamDecl>(param)) {
+        return typeOfDataType(c->getDflt());
+    }
+    return ExprType();
+}
+
+ExprType TaskExprTypeCat::collectionParam(const ExprType &t, int32_t idx) {
+    ast::ISymbolTypeScope *sts = NodeKind::cast<ast::ISymbolTypeScope>(t.scope);
+    ast::ITypeScope *ts = (sts) ? NodeKind::cast<ast::ITypeScope>(sts->getTarget()) : 0;
+    if (!ts || idx < 0 || !ts->getParams() || !ts->getParams()->getSpecialized()
+            || idx >= (int32_t)ts->getParams()->getParams().size()) {
+        return ExprType();
+    }
+    ast::ITemplateParamDecl *p = ts->getParams()->getParams().at(idx).get();
+    ExprType ret;
+    m_depth++;
+    if (ast::ITemplateGenericTypeParamDecl *g =
+            NodeKind::cast<ast::ITemplateGenericTypeParamDecl>(p)) {
+        ret = typeOfDataType(g->getDflt());
+    } else if (ast::ITemplateCategoryTypeParamDecl *c =
+            NodeKind::cast<ast::ITemplateCategoryTypeParamDecl>(p)) {
+        ret = typeOfDataType(c->getDflt());
+    }
+    m_depth--;
+    return ret;
+}
+
+ExprType TaskExprTypeCat::elemType(const ExprType &t) {
+    switch (t.kind) {
+        case TypeKindE::Array:
+        case TypeKindE::List:
+        case TypeKindE::Set:
+            return collectionParam(t, 0);
+        case TypeKindE::Map:
+            return collectionParam(t, 1);
+        default:
+            return ExprType();
+    }
+}
+
+ExprType TaskExprTypeCat::subscript(const ExprType &t, ast::IExpr *sub) {
+    bool slice = (NodeKind::cast<ast::IExprSliceRange>(sub) != 0);
+    switch (t.kind) {
+        case TypeKindE::String:
+            // An index or a slice of a string is a sub-string (8.6.3).
+            return ExprType(TypeKindE::String);
+        case TypeKindE::Int: {
+            // A bit select (8.6.1).
+            return (slice) ? ExprType() : ExprType(TypeKindE::Int);
+        }
+        case TypeKindE::Array:
+        case TypeKindE::List: {
+            if (slice) {
+                ExprType ret(t);
+                ret.size = -1;
+                ret.dt = 0;
+                return ret;
+            }
+            return elemType(t);
+        }
+        case TypeKindE::Map:
+            return (slice) ? ExprType() : elemType(t);
+        default:
+            return ExprType();
+    }
 }
 
 }

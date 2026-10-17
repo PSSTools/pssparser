@@ -1294,6 +1294,13 @@ cdef class LintTestHooks(object):
         [{"path", "class", "line", "col"}] (C6.2)."""
         return LintTestHooks._decode(self._hndl.declPaths(root.asScopeChild()))
 
+    def expr_types(self, model, ast.ScopeChild root):
+        """The front-end expression typer on every procedural statement's
+        expressions under `root`: [{"line", "kind", "name", "type"}]
+        (ILintTestHooks::exprTypes). `model` is the linked RootSymbolScope."""
+        return LintTestHooks._decode(self._hndl.exprTypes(
+            _model(model), root.asScopeChild()))
+
     @staticmethod
     def _doc(doc):
         import json

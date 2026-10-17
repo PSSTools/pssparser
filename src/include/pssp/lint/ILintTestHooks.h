@@ -172,6 +172,15 @@ public:
      */
     virtual std::string declPaths(ast::IScopeChild *root) = 0;
 
+    /**
+     * The front-end expression typer (TaskExprTypeCat::typeOf) on every
+     * expression a procedural statement under `root` holds, `model` being
+     * the linked model: [{"line","kind","name","type"}] where `kind` is
+     * `init` (a declaration's initializer, `name` the variable), `lhs` or
+     * `rhs` (an assignment) or `expr` (an expression statement). Native only.
+     */
+    virtual std::string exprTypes(ast::IRootSymbolScope *model, ast::IScopeChild *root) = 0;
+
     /** {"ok":true,"match":b,"steps":N,"size":n} or {"ok":false,"error":{...}} */
     virtual std::string regexSearch(const std::string &pattern, const std::string &text) = 0;
 };

@@ -120,6 +120,7 @@ cdef extern from "pssp/lint/ILintTestHooks.h" namespace "pssp::lint":
         cpp_string lintWalk(const cpp_string &name, const cpp_string &text, const cpp_vector[ast.IScopeChildP] &roots)
         cpp_string lintRun(const cpp_string &name, const cpp_string &text, const cpp_vector[ast.IScopeChildP] &roots, bool allEnabled, const cpp_vector[cpp_string] &enabled, uint64_t maxSteps, uint32_t gateErrors, ast.IRootSymbolScope *model)
         cpp_string declPaths(ast.IScopeChild *root)
+        cpp_string exprTypes(ast.IRootSymbolScope *model, ast.IScopeChild *root)
 
 cdef extern from "pssp/IFmtTokenStream.h" namespace "pssp":
     cdef enum FmtTokenChannelE:

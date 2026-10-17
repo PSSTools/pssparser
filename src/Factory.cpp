@@ -127,7 +127,7 @@ lint::ILintEngine *Factory::mkLintEngine() {
 }
 
 lint::ILintTestHooks *Factory::mkLintTestHooks() {
-    return new lint::LintTestHooks();
+    return new lint::LintTestHooks(this);
 }
 
 IFmtTokenStream *Factory::mkTokenizer(std::istream *in) {

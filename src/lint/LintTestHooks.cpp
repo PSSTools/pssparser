@@ -24,6 +24,15 @@
 #include "Reflect.h"
 #include "pssp/ast/IScopeChild.h"
 #include "LintTestHooks.h"
+#include "pssp/ast/impl/VisitorBase.h"
+#include "pssp/ast/IExpr.h"
+#include "pssp/ast/IProceduralStmtAssignment.h"
+#include "pssp/ast/IProceduralStmtDataDeclaration.h"
+#include "pssp/ast/IProceduralStmtExpr.h"
+#include "pssp/ast/IRootSymbolScope.h"
+#include "pssp/IFactory.h"
+#include "../ResolveContext.h"
+#include "../TaskExprTypeCat.h"
 #include "LintEngine.h"
 #include "cel/CelCheck.h"
 #include "cel/CelEval.h"
@@ -565,7 +574,7 @@ std::string syntaxError(const cel::SyntaxError &e) {
 
 }
 
-LintTestHooks::LintTestHooks() { }
+LintTestHooks::LintTestHooks(IFactory *factory) : m_factory(factory) { }
 
 LintTestHooks::~LintTestHooks() { }
 
@@ -1300,6 +1309,61 @@ std::string LintTestHooks::regexSearch(const std::string &pattern, const std::st
         w.key("error").beginObject().kv("offset", e.offset()).kv("message", e.what()).endObject();
     }
     w.endObject();
+    return w.str();
+}
+
+
+namespace {
+
+/** Every expression a procedural statement holds, with the typer's answer. */
+class ExprTypesWalker : public virtual ast::VisitorBase {
+public:
+    ExprTypesWalker(TaskExprTypeCat *typer, JsonWriter *w) : m_typer(typer), m_w(w) { }
+
+    void emit(ast::IScopeChild *stmt, const char *kind, const std::string &name,
+            ast::IExpr *e) {
+        if (!e) {
+            return;
+        }
+        m_w->beginObject()
+            .kv("line", stmt->getLocation().lineno)
+            .kv("kind", kind)
+            .kv("name", name)
+            .kv("type", m_typer->typeOf(e).describe())
+            .endObject();
+    }
+
+    virtual void visitProceduralStmtDataDeclaration(
+            ast::IProceduralStmtDataDeclaration *i) override {
+        emit(i, "init", (i->getName()) ? i->getName()->getId() : "", i->getInit());
+    }
+
+    virtual void visitProceduralStmtAssignment(ast::IProceduralStmtAssignment *i) override {
+        emit(i, "lhs", "", i->getLhs());
+        emit(i, "rhs", "", i->getRhs());
+    }
+
+    virtual void visitProceduralStmtExpr(ast::IProceduralStmtExpr *i) override {
+        emit(i, "expr", "", i->getExpr());
+    }
+
+private:
+    TaskExprTypeCat     *m_typer;
+    JsonWriter          *m_w;
+};
+
+}
+
+std::string LintTestHooks::exprTypes(ast::IRootSymbolScope *model, ast::IScopeChild *root) {
+    JsonWriter w;
+    w.beginArray();
+    if (m_factory && model && root) {
+        ResolveContext ctxt(m_factory, 0, model);
+        TaskExprTypeCat typer(&ctxt);
+        ExprTypesWalker walker(&typer, &w);
+        root->accept(&walker);
+    }
+    w.endArray();
     return w.str();
 }
 

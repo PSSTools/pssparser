@@ -18,12 +18,14 @@
 #pragma once
 #include "pssp/lint/ILintTestHooks.h"
 
+namespace pssp { class IFactory; }
+
 namespace pssp {
 namespace lint {
 
 class LintTestHooks : public virtual ILintTestHooks {
 public:
-    LintTestHooks();
+    LintTestHooks(IFactory *factory=nullptr);
     virtual ~LintTestHooks();
 
     virtual std::string yamlLoad(const std::string &name, const std::string &text) override;
@@ -56,6 +58,12 @@ public:
         uint32_t gateErrors, ast::IRootSymbolScope *model) override;
 
     virtual std::string declPaths(ast::IScopeChild *root) override;
+
+    virtual std::string exprTypes(
+        ast::IRootSymbolScope *model, ast::IScopeChild *root) override;
+
+private:
+    IFactory        *m_factory;
 };
 
 }
