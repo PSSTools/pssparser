@@ -106,6 +106,33 @@ def test_check(body, want):
     assert codes(comp(body)) == want
 
 
+@pytest.mark.parametrize("body,want", [
+    # F23
+    ("target function void run() { map<int,int> m; int k; bool b = k in m; }",
+     ["PSS148"]),
+    ("target function void run() { map<int,int> m; int k; bool b = k in m.keys(); }",
+     []),
+    ("target function void run() { set<int> s; int a = s[0]; }", ["PSS148"]),
+    ("target function void run() { set<int> s; list<int> l; int a = l[0]; "
+     "bool b = 1 in s; }", []),
+    ("struct t_s { rand map<int,int> m; } t_s v;", ["PSS142"]),
+    ("struct t_s { rand set<int> s; } t_s v;", ["PSS142"]),
+    ("struct t_s { rand list<int> l; rand array<int, 2> a; } t_s v;", []),
+    ("action A { rand int x; list<int> l; constraint { x == l.pop_back(); } }",
+     ["PSS148"]),
+    ("action A { rand int x; list<int> l; constraint { x == l.size(); } }", []),
+    ("action A { list<int> l; exec post_solve { l.push_back(1); } }", []),
+    ("struct u_s { ref sub_c r; }", ["PSS149"]),
+    ("ref sub_c r;", []),
+    ("function void f(const ref sub_c c);", ["PSS149"]),
+    ("function void f(ref sub_c c);", []),
+    ("instance sub_c q;", ["PSS149"]),
+    ("instance ref sub_c q;", []),
+])
+def test_collection_and_reference_checks(body, want):
+    assert codes(comp(body, "component sub_c { }")) == want
+
+
 def test_a_private_member_of_another_component():
     assert codes(comp("sib_c s;\n  target function void run() "
                       "{ message(LOW, \"%d\", s.x); }",

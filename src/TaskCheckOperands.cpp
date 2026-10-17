@@ -40,6 +40,9 @@
 #include "pssp/ast/ITemplateParamDeclList.h"
 #include "pssp/ast/ITemplateValueParamDecl.h"
 #include "pssp/ast/IComponent.h"
+#include "pssp/ast/IActivityDecl.h"
+#include "pssp/ast/IConstraintBlock.h"
+#include "pssp/ast/IDataTypeRef.h"
 #include "pssp/ast/IExprCast.h"
 #include "pssp/ast/IExprCond.h"
 #include "pssp/ast/IExprNull.h"
@@ -185,6 +188,18 @@ void TaskCheckOperands::visitExprCast(ast::IExprCast *i) {
 
 void TaskCheckOperands::visitExprIn(ast::IExprIn *i) {
     ast::VisitorBase::visitExprIn(i);
+
+    if (i->getCollection()) {
+        ExprType ct = m_typer.typeOf(i->getCollection());
+        if (ct.kind == TypeKindE::Map) {
+            // 7.9.4 (and 8.5.9.1): "The set membership operator (in) cannot
+            // be applied directly to a map".
+            m_ctxt->addErrorMarker(locOf(i->getCollection()),
+                "'in' cannot be applied directly to a map: use its keys() or "
+                "values() (LRM 7.9.4)");
+            return;
+        }
+    }
 
     if (i->getCollection() || !i->getRhs() || !i->getRhs()->getValues().size()) {
         return;
@@ -556,6 +571,8 @@ void TaskCheckOperands::visitExprRefPathContext(ast::IExprRefPathContext *i) {
         checkCalls(i->getHier_id()->getElems(),
             m_ctxt->resolveSymbolPathRef(i->getTarget()));
         checkAccess(i->getHier_id()->getElems());
+        checkCollectionUse(i->getHier_id()->getElems(),
+            m_ctxt->resolveSymbolPathRef(i->getTarget()));
     }
     ast::VisitorBase::visitExprRefPathContext(i);
 }
@@ -662,6 +679,19 @@ void TaskCheckOperands::visitFunctionPrototype(ast::IFunctionPrototype *i) {
         ast::IFunctionParamDecl *p = it->get();
         bool varargs = p->getIs_varargs();
         bool generic = (p->getKind() != ast::FunctionParamDeclKind::ParamKind_DataType);
+        bool ref_kind = (p->getKind() != ast::FunctionParamDeclKind::ParamKind_DataType
+                && p->getKind() != ast::FunctionParamDeclKind::ParamKind_Type
+                && p->getKind() != ast::FunctionParamDeclKind::ParamKind_Struct)
+            || (p->getKind() == ast::FunctionParamDeclKind::ParamKind_DataType
+                && p->getType() && m_typer.typeOfDataType(p->getType()).is_ref);
+        if (p->getIs_const() && ref_kind && p->getName() && i->getName()) {
+            // 20.2.3 b: "It shall not be allowed to add the const qualifier
+            // on reference types or collections thereof."
+            m_ctxt->addErrorMarker(p->getName()->getLocation(),
+                "parameter '%s' of '%s' is a reference, which cannot be const "
+                "(LRM 20.2.3 b)",
+                p->getName()->getId().c_str(), i->getName()->getId().c_str());
+        }
         if ((varargs || generic) && p->getName() && i->getName()) {
             m_ctxt->addErrorMarker(p->getName()->getLocation(),
                 "parameter '%s' of '%s' is %s, which only a core-library function may "
@@ -1119,13 +1149,43 @@ void TaskCheckOperands::checkFieldType(ast::IField *i) {
 
     // PSS142 -- 7.1: "rand ... may be applied only to randomizable types".
     if ((i->getAttr() & ast::FieldAttr::Rand) != ast::FieldAttr::NoFlags) {
-        ExprType r = (t.kind == TypeKindE::List || t.kind == TypeKindE::Set
-            || t.kind == TypeKindE::Map) ? m_typer.elemType(t) : elem;
+        if (t.kind == TypeKindE::Map || t.kind == TypeKindE::Set) {
+            // 7.1: "the map and set collection types are not randomizable".
+            m_ctxt->addErrorMarker(i->getName()->getLocation(),
+                "rand field '%s' is a %s, which is not randomizable (LRM 7.1)",
+                fname, t.describe().c_str());
+            return;
+        }
+        ExprType r = (t.kind == TypeKindE::List) ? m_typer.elemType(t) : elem;
         if (r.kind == TypeKindE::Chandle || r.kind == TypeKindE::Float
                 || r.kind == TypeKindE::String) {
             m_ctxt->addErrorMarker(i->getName()->getLocation(),
                 "rand field '%s' is of type %s, which is not randomizable (LRM 7.1)",
                 fname, r.describe().c_str());
+            return;
+        }
+    }
+
+    // PSS149 -- 7.10 a: "Reference types shall not be used to declare
+    // fields in the scope of flow/resource objects or structs."
+    if (t.is_ref || elem.is_ref) {
+        ast::IStruct *st = NodeKind::cast<ast::IStruct>(i->getParent());
+        if (st) {
+            m_ctxt->addErrorMarker(i->getName()->getLocation(),
+                "'%s' is a reference field, which a struct or object cannot declare "
+                "(LRM 7.10 a)", fname);
+            return;
+        }
+    }
+    // PSS149 -- 9.1.5.3 a: "The instance qualifier may only be applied to
+    // component fields whose type is a component reference or a list or array
+    // of component references."
+    if ((i->getAttr() & ast::FieldAttr::Instance) != ast::FieldAttr::NoFlags) {
+        ExprType e2 = (t.isCollection()) ? m_typer.elemType(t) : t;
+        if (t.known() && !(e2.is_ref || !e2.known())) {
+            m_ctxt->addErrorMarker(i->getName()->getLocation(),
+                "'%s' is declared instance, but its type is not a component reference "
+                "(LRM 9.1.5.3 a)", fname);
             return;
         }
     }
@@ -1383,6 +1443,72 @@ void TaskCheckOperands::visitScope(ast::IScope *i) {
         // not judged.
         if ((*it)->getKind() == ast::CompileCondKind::CompileCondKind_If) {
             checkCompileCond((*it)->getCond());
+        }
+    }
+}
+
+
+// ---------------------------------------------------------------------------
+// Collections where an operator does not apply (F23)
+// ---------------------------------------------------------------------------
+
+void TaskCheckOperands::visitConstraintBlock(ast::IConstraintBlock *i) {
+    m_decl_ctx++;
+    ast::VisitorBase::visitConstraintBlock(i);
+    m_decl_ctx--;
+}
+
+void TaskCheckOperands::visitActivityDecl(ast::IActivityDecl *i) {
+    m_decl_ctx++;
+    ast::VisitorBase::visitActivityDecl(i);
+    m_decl_ctx--;
+}
+
+static bool changesCollectionM(const std::string &name) {
+    return name == "push_back" || name == "push_front" || name == "pop_back"
+        || name == "pop_front" || name == "insert" || name == "delete"
+        || name == "clear";
+}
+
+void TaskCheckOperands::checkCollectionUse(
+        const std::vector<ast::IExprMemberPathElemUP>   &elems,
+        ast::IScopeChild                                *first_decl) {
+    ExprType recv;
+    for (uint32_t k=0; k<elems.size(); k++) {
+        ast::IExprMemberPathElem *elem = elems.at(k).get();
+        ast::IScopeChild *decl = elem->getId()->getDecl();
+        if (!decl && k == 0) {
+            decl = first_decl;
+        }
+        if (elem->getParams()) {
+            if (k > 0 && m_decl_ctx && recv.isCollection()
+                    && changesCollectionM(elem->getId()->getId())) {
+                // 7.9: "Operators and methods that modify the contents of a
+                // collection shall not be used in activities, constraints,
+                // or covergroups."
+                m_ctxt->addErrorMarker(elem->getId()->getLocation(),
+                    "'%s' changes its collection, so it shall not be used in a "
+                    "constraint or activity (LRM 7.9)", elem->getId()->getId().c_str());
+            }
+            return;
+        }
+        ExprType t = m_typer.typeOfDecl(decl);
+        for (std::vector<ast::IExprUP>::const_iterator
+                it=elem->getSubscript().begin();
+                t.known() && it!=elem->getSubscript().end(); it++) {
+            if (t.kind == TypeKindE::Set) {
+                // Table 10: the index operator applies to an array, a list or
+                // a map; 8.5.9.1's array_slice to an array or a list.
+                m_ctxt->addErrorMarker(elem->getId()->getLocation(),
+                    "'%s' is a set, which cannot be indexed or sliced "
+                    "(LRM 8.4 Table 10, 7.9.5)", elem->getId()->getId().c_str());
+                return;
+            }
+            t = m_typer.subscript(t, it->get());
+        }
+        recv = t;
+        if (!decl) {
+            return;
         }
     }
 }

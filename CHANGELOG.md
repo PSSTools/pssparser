@@ -99,6 +99,16 @@ New errors, each at the construct it names:
 - **PSS146** a `compile if` condition referencing a type member (19.1.3 b).
 - **PSS147** a private or protected field reached from outside (17.4).
 
+### Added — collection and reference-type misuse
+
+- **PSS148** `in` directly on a map (7.9.4), a subscript or slice of a set
+  (Table 10), a collection-changing method in a constraint or activity
+  (7.9).
+- **PSS149** a reference field in a struct or object (7.10 a), `instance` on
+  a field that is not a component reference (9.1.5.3 a), `const` on a
+  reference parameter (20.2.3 b).
+- **PSS142** also reports a `rand` map or set (7.1).
+
 ### Fixed — a method of a string reached through a subscript
 
 `s[1].size()` with `s` an array of strings, and a sub-string's method

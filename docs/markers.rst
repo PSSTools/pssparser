@@ -1235,6 +1235,24 @@ A private or protected field reached from outside
 
 LRM 17.4 b: "A private attribute is accessible only from the element in which the attribute is declared"; c: a protected one also "from sub-elements that inherit from it, and from their extensions".  Only a member reached through another value (``v.b``) is judged.
 
+PSS148
+~~~~~~
+
+**Severity:** error
+
+A collection operator or method where it does not apply
+
+LRM 7.9.4: "The set membership operator (in) cannot be applied directly to a map" -- use ``keys()`` or ``values()``.  Table 10: the index operator applies to an array, a list or a map, not a set (and a slice to an array or a list).  7.9: "Operators and methods that modify the contents of a collection shall not be used in activities, constraints, or covergroups."
+
+PSS149
+~~~~~~
+
+**Severity:** error
+
+A reference type where it does not apply
+
+LRM 7.10 a: "Reference types shall not be used to declare fields in the scope of flow/resource objects or structs."  9.1.5.3 a: "The instance qualifier may only be applied to component fields whose type is a component reference or a list or array of component references."  20.2.3 b: "It shall not be allowed to add the const qualifier on reference types or collections thereof."
+
 LINT: core-emitted lint
 -----------------------
 

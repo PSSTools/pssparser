@@ -12,8 +12,10 @@ from pssparser import ast as pss_ast
 
 def test_component_instance_scalar_field():
     pss = """
+    component sub_c { }
     component C {
-        instance int value;
+        // 9.1.5.3 a: `instance` only on a component reference (PSS149).
+        instance ref sub_c value;
     }
     """
     root = assert_parse_ok(pss)
@@ -26,12 +28,12 @@ def test_component_instance_scalar_field():
 
 def test_component_instance_user_defined_field():
     pss = """
-    struct S {
+    component S {
         int x;
     }
 
     component C {
-        protected instance S cfg;
+        protected instance ref S cfg;
     }
     """
     root = assert_parse_ok(pss)

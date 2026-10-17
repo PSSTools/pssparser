@@ -62,7 +62,14 @@ namespace pssp {
  *   randomizable (7.1, 13.4.6, ruling R18) -- PSS142;
  * - a private or protected field reached from outside (17.4) -- PSS147;
  * - a `compile if` condition referencing a member of a type (19.1.3 b)
- *   -- PSS146.
+ *   -- PSS146;
+ * - collection operators where they do not apply: `in` directly on a map,
+ *   a subscript or slice of a set, a collection-changing method in a
+ *   constraint or activity (8.5.9.1, 7.9.4, Table 10, 7.9) -- PSS148;
+ * - reference types where they do not apply: a reference field of a struct
+ *   or object (7.10 a), `instance` on a field that is not a component
+ *   reference (9.1.5.3 a), `const` on a reference parameter (20.2.3 b)
+ *   -- PSS149.
  *
  * Enumeration operands are left alone by PSS131: 7.5.1 permits an enum in
  * assignment and equality ("may be used"), and says nothing stronger.
@@ -131,6 +138,10 @@ public:
 
     virtual void visitScope(ast::IScope *i) override;
 
+    virtual void visitConstraintBlock(ast::IConstraintBlock *i) override;
+
+    virtual void visitActivityDecl(ast::IActivityDecl *i) override;
+
 private:
     /** Where to report on `e`: its first located identifier, else the
      *  statement being checked. */
@@ -188,6 +199,10 @@ private:
     /** PSS140, PSS141, PSS142 on a field. */
     void checkFieldType(ast::IField *i);
 
+    /** PSS148: subscripts of a set, and changing methods in a constraint. */
+    void checkCollectionUse(const std::vector<ast::IExprMemberPathElemUP> &elems,
+        ast::IScopeChild *first_decl);
+
     /** PSS147 on the elements of a member path. */
     void checkAccess(const std::vector<ast::IExprMemberPathElemUP> &elems);
 
@@ -204,6 +219,8 @@ private:
     ast::Location                       m_stmt_loc;
     /** The types being walked, innermost last (17.4). */
     std::vector<ast::ITypeScope *>      m_type_s;
+    /** Inside a constraint block or an activity (7.9). */
+    int32_t                             m_decl_ctx = 0;
 };
 
 }

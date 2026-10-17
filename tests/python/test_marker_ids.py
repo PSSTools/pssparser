@@ -386,6 +386,19 @@ REPRESENTATIVE_MESSAGES = [
                "'pss_top' (LRM 19.1.3 b)"),
     ("PSS147", "'b' is private to 'p_s' and cannot be reached from here "
                "(LRM 17.4 b)"),
+    ("PSS142", "rand field 'm' is a map, which is not randomizable (LRM 7.1)"),
+    ("PSS148", "'in' cannot be applied directly to a map: use its keys() or "
+               "values() (LRM 7.9.4)"),
+    ("PSS148", "'s' is a set, which cannot be indexed or sliced (LRM 8.4 Table "
+               "10, 7.9.5)"),
+    ("PSS148", "'pop_back' changes its collection, so it shall not be used in a "
+               "constraint or activity (LRM 7.9)"),
+    ("PSS149", "'r' is a reference field, which a struct or object cannot "
+               "declare (LRM 7.10 a)"),
+    ("PSS149", "'q' is declared instance, but its type is not a component "
+               "reference (LRM 9.1.5.3 a)"),
+    ("PSS149", "parameter 'c' of 'f' is a reference, which cannot be const "
+               "(LRM 20.2.3 b)"),
 ]
 
 
@@ -688,7 +701,8 @@ def test_pss31_band_is_reserved_for_31_diagnostics():
                      "PSS128", "PSS129", "PSS130", "PSS131", "PSS132",
                      "PSS133", "PSS134", "PSS135", "PSS136", "PSS137",
                      "PSS138", "PSS139", "PSS140", "PSS141", "PSS142",
-                     "PSS143", "PSS144", "PSS145", "PSS146", "PSS147"]
+                     "PSS143", "PSS144", "PSS145", "PSS146", "PSS147",
+                     "PSS148", "PSS149"]
 
 
 def test_every_active_pss_marker_is_an_error():

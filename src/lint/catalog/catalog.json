@@ -1840,6 +1840,38 @@
    "lrm": []
   },
   {
+   "id": "PSS148",
+   "name": "",
+   "tier": "",
+   "family": "",
+   "since": "",
+   "status": "active",
+   "severity": "error",
+   "aliases": [],
+   "replaced_by": [],
+   "default_enabled": true,
+   "minimal": false,
+   "summary": "A collection operator or method where it does not apply",
+   "detail": "LRM 7.9.4: \"The set membership operator (in) cannot be applied directly to a map\" -- use ``keys()`` or ``values()``.  Table 10: the index operator applies to an array, a list or a map, not a set (and a slice to an array or a list).  7.9: \"Operators and methods that modify the contents of a collection shall not be used in activities, constraints, or covergroups.\"",
+   "lrm": []
+  },
+  {
+   "id": "PSS149",
+   "name": "",
+   "tier": "",
+   "family": "",
+   "since": "",
+   "status": "active",
+   "severity": "error",
+   "aliases": [],
+   "replaced_by": [],
+   "default_enabled": true,
+   "minimal": false,
+   "summary": "A reference type where it does not apply",
+   "detail": "LRM 7.10 a: \"Reference types shall not be used to declare fields in the scope of flow/resource objects or structs.\"  9.1.5.3 a: \"The instance qualifier may only be applied to component fields whose type is a component reference or a list or array of component references.\"  20.2.3 b: \"It shall not be allowed to add the const qualifier on reference types or collections thereof.\"",
+   "lrm": []
+  },
+  {
    "id": "PSSP000",
    "name": "internal-error",
    "tier": "tool",
@@ -3110,6 +3142,10 @@
    "PSS142"
   ],
   [
+   "(?i)^rand field '[^']*' is a (map|set), which is not randomizable\\b",
+   "PSS142"
+  ],
+  [
    "(?i)^a randomize target of type .*, which is not randomizable\\b",
    "PSS142"
   ],
@@ -3136,6 +3172,30 @@
   [
    "(?i)^'[^']*' is (private|protected) to '[^']*' and cannot be reached from here\\b",
    "PSS147"
+  ],
+  [
+   "(?i)^'in' cannot be applied directly to a map\\b",
+   "PSS148"
+  ],
+  [
+   "(?i)^'[^']*' is a set, which cannot be indexed or sliced\\b",
+   "PSS148"
+  ],
+  [
+   "(?i)^'[^']*' changes its collection, so it shall not be used in a constraint or activity\\b",
+   "PSS148"
+  ],
+  [
+   "(?i)^'[^']*' is a reference field, which a struct or object cannot declare\\b",
+   "PSS149"
+  ],
+  [
+   "(?i)^'[^']*' is declared instance, but its type is not a component reference\\b",
+   "PSS149"
+  ],
+  [
+   "(?i)^parameter '[^']*' of '[^']*' is a reference, which cannot be const\\b",
+   "PSS149"
   ]
  ]
 }

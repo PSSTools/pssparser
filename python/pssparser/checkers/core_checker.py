@@ -2316,6 +2316,7 @@ class CoreChecker(CheckerBase):
             ),
             patterns=(
                 r"^rand field '[^']*' is of type .*, which is not randomizable\b",
+                r"^rand field '[^']*' is a (map|set), which is not randomizable\b",
                 r"^a randomize target of type .*, which is not randomizable\b",
             ),
         ),
@@ -2397,6 +2398,45 @@ class CoreChecker(CheckerBase):
             ),
             patterns=(
                 r"^'[^']*' is (private|protected) to '[^']*' and cannot be reached from here\b",
+            ),
+        ),
+        MarkerDef(
+            id="PSS148",
+            severity="error",
+            summary="A collection operator or method where it does not apply",
+            detail=(
+                "LRM 7.9.4: \"The set membership operator (in) cannot be "
+                "applied directly to a map\" -- use ``keys()`` or ``values()``.  "
+                "Table 10: the index operator applies to an array, a list or a "
+                "map, not a set (and a slice to an array or a list).  7.9: "
+                "\"Operators and methods that modify the contents of a "
+                "collection shall not be used in activities, constraints, or "
+                "covergroups.\""
+            ),
+            patterns=(
+                r"^'in' cannot be applied directly to a map\b",
+                r"^'[^']*' is a set, which cannot be indexed or sliced\b",
+                r"^'[^']*' changes its collection, so it shall not be used in a "
+                r"constraint or activity\b",
+            ),
+        ),
+        MarkerDef(
+            id="PSS149",
+            severity="error",
+            summary="A reference type where it does not apply",
+            detail=(
+                "LRM 7.10 a: \"Reference types shall not be used to declare "
+                "fields in the scope of flow/resource objects or structs.\"  "
+                "9.1.5.3 a: \"The instance qualifier may only be applied to "
+                "component fields whose type is a component reference or a list "
+                "or array of component references.\"  20.2.3 b: \"It shall not "
+                "be allowed to add the const qualifier on reference types or "
+                "collections thereof.\""
+            ),
+            patterns=(
+                r"^'[^']*' is a reference field, which a struct or object cannot declare\b",
+                r"^'[^']*' is declared instance, but its type is not a component reference\b",
+                r"^parameter '[^']*' of '[^']*' is a reference, which cannot be const\b",
             ),
         ),
 

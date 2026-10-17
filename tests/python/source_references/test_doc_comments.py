@@ -162,7 +162,7 @@ def test_component_data_declaration_wrappers():
         component C { }
         component pss_top {
             /// doc inst
-            instance C inst;
+            instance ref C inst;
             /// doc k
             static const int k = 1;
         }
