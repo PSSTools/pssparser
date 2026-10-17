@@ -54,7 +54,7 @@ def bindings(code, name):
   struct D : B { rand int x; constraint super.x < x; }
 }""",
     # An instance function, statement and expression form (Table 27).
-    """component base_c { function int f(int x) { return x; } function void g(int x) { } }
+    """component base_c { static function int f(int x) { return x; } static function void g(int x) { } }
 component d_c : base_c {
   function int f() { return super.f(1) + 1; }
   function void g() { super.g(1); }
@@ -122,11 +122,11 @@ component pss_top {
 
 def test_super_call_binds_to_the_base_function():
     assert bindings("""\
-component base_c { function void g(int x) { } }
+component base_c { static function void g(int x) { } }
 component d_c : base_c {
   function void g() { super.g(1); }
 }
-""", "g") == [(3, 29, (1, 34))]
+""", "g") == [(3, 29, (1, 41))]
 
 
 def test_inherited_super_field_binds_through_the_chain():
@@ -190,7 +190,7 @@ component pss_top {
 
 def test_super_call_arity_is_checked_against_the_base():
     assert errors("""
-component base_c { function void g(int x) { } }
+component base_c { static function void g(int x) { } }
 component d_c : base_c { function void g(int x, int y) { super.g(x, y); } }
 """) == [("PSS006", "too many arguments to 'g': expected 1, got 2")]
 

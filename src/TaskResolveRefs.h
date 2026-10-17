@@ -696,7 +696,8 @@ protected:
     bool checkReturnTypeConsistency(
         ast::IFunctionPrototype     *base,
         ast::IFunctionPrototype     *p,
-        TaskCompareTypeRefs         &comp);
+        TaskCompareTypeRefs         &comp,
+        const std::string           &who="");
 
     /**
      * The parameter-list half of checkDeclarationConsistency(). True if it
@@ -719,7 +720,23 @@ protected:
     bool checkParamListConsistency(
         ast::IFunctionPrototype     *base,
         ast::IFunctionPrototype     *p,
-        TaskCompareTypeRefs         &comp);
+        TaskCompareTypeRefs         &comp,
+        const std::string           &who="");
+
+    /**
+     * A component function that shadows one of a base component (LRM 20.2,
+     * 20.2.3 c, 20.2.4 c, 20.2.6): an instance function shall keep its
+     * signature -- return type, parameters, const, defaults -- shall not be
+     * shadowed by a static one, and a non-pure one shall not become pure.
+     * A static function may be shadowed freely.
+     */
+    void checkOverride(ast::ISymbolFunctionScope *i);
+
+    /**
+     * `target` on one declaration of a function and `solve` on another
+     * (20.3.1, 20.4.1 b). True if it reported.
+     */
+    bool checkPlatformConsistency(ast::ISymbolFunctionScope *i);
 
 public:
     /**

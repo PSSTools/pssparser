@@ -24,6 +24,24 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from test_helpers import assert_parse_ok, assert_parse_error  # noqa: E402
 
+import pssparser  # noqa: E402
+from test_helpers import _assign_codes  # noqa: E402
+
+
+def assert_parses_r23(code):
+    """The syntax is accepted; the model is then refused only by ruling R23
+    (PSS136): a generic or varargs parameter is for core-library functions,
+    and these are user-written ones."""
+    p = pssparser.Parser()
+    p.parses([("t.pss", code)])
+    try:
+        p.link()
+        ms = p.markers
+    except pssparser.parser.ParseException as e:
+        ms = e.markers
+    found = {m.get("code") for m in _assign_codes(ms) if m["severity"] == "error"}
+    assert found == {"PSS136"}, found
+
 _REF_CATEGORIES = ["action", "monitor", "component",
                    "buffer", "stream", "state", "resource"]
 _PLAIN_CATEGORIES = ["struct", "numeric"]
@@ -71,12 +89,12 @@ def test_category_parameter_with_a_default():
 
 @pytest.mark.parametrize("category", _REF_CATEGORIES)
 def test_ref_accepts_every_ref_category(category):
-    assert_parse_ok("package p { function void f(ref %s x); }" % category)
+    assert_parses_r23("package p { function void f(ref %s x); }" % category)
 
 
 @pytest.mark.parametrize("category", _PLAIN_CATEGORIES)
 def test_plain_category_parameter_is_accepted(category):
-    assert_parse_ok("package p { function void f(%s x); }" % category)
+    assert_parses_r23("package p { function void f(%s x); }" % category)
 
 
 def test_numeric_parameter_was_previously_rejected():
@@ -84,7 +102,7 @@ def test_numeric_parameter_was_previously_rejected():
     The un-`ref`ed alternative used to be a bare `struct` token, so `numeric`
     had no way through the grammar.
     """
-    assert_parse_ok("package p { function void f(numeric n); }")
+    assert_parses_r23("package p { function void f(numeric n); }")
 
 
 @pytest.mark.parametrize("category", _PLAIN_CATEGORIES)
@@ -98,11 +116,11 @@ def test_ref_rejects_a_plain_category(category):
 
 
 def test_type_parameter_is_still_accepted():
-    assert_parse_ok("package p { function void f(type T); }")
+    assert_parses_r23("package p { function void f(type T); }")
 
 
 def test_const_qualified_category_parameter():
-    assert_parse_ok("package p { function void f(const struct s); }")
+    assert_parses_r23("package p { function void f(const struct s); }")
 
 
 # ===========================================================================
@@ -111,21 +129,21 @@ def test_const_qualified_category_parameter():
 
 def test_varargs_type_parameter():
     """`type... args`, which Annex C uses throughout for print/format/message."""
-    assert_parse_ok("package p { function void f(string fmt, type... args); }")
+    assert_parses_r23("package p { function void f(string fmt, type... args); }")
 
 
 @pytest.mark.parametrize("category", _REF_CATEGORIES)
 def test_varargs_ref_category(category):
-    assert_parse_ok("package p { function void f(ref %s... args); }" % category)
+    assert_parses_r23("package p { function void f(ref %s... args); }" % category)
 
 
 @pytest.mark.parametrize("category", _PLAIN_CATEGORIES)
 def test_varargs_plain_category(category):
-    assert_parse_ok("package p { function void f(%s... args); }" % category)
+    assert_parses_r23("package p { function void f(%s... args); }" % category)
 
 
 def test_varargs_data_type():
-    assert_parse_ok("package p { function void f(int... args); }")
+    assert_parses_r23("package p { function void f(int... args); }")
 
 
 def test_varargs_must_be_last():

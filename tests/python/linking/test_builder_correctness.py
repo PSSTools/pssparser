@@ -169,9 +169,11 @@ component d_c : base_c {
 
 
 def test_super_call_binds_to_the_base_function():
-    """It bound to the derived `g`, and was arity-checked against it (5.2)."""
+    """It bound to the derived `g`, and was arity-checked against it (5.2).
+    (The base's `g` is static: only a static function may be shadowed by one
+    of another signature, LRM 20.2.)"""
     assert_parse_ok("""
-component base_c { function void g(int x) { } }
+component base_c { static function void g(int x) { } }
 component d_c : base_c {
   function void g() { super.g(1); }
 }

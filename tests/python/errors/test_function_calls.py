@@ -133,18 +133,26 @@ def test_past_the_total_count_is_still_rejected():
 # Varargs
 # ---------------------------------------------------------------------------
 
+# A user-written varargs function is itself an error (PSS136, ruling R23);
+# what these pin is that its calls are not: the only diagnostic is the one
+# on the declaration.
+_R23 = "which only a core-library function may have"
+
+
 def test_a_varargs_function_accepts_no_extra_arguments():
-    assert_clean([("t.pss", """
+    res = assert_rejects([("t.pss", """
         package p { function void m(string f, type... args); }
         component C { action A { exec body { p::m("x"); } } }
-    """)])
+    """)], _R23)
+    assert "arguments to" not in res.output
 
 
 def test_a_varargs_function_accepts_many_extra_arguments():
-    assert_clean([("t.pss", """
+    res = assert_rejects([("t.pss", """
         package p { function void m(string f, type... args); }
         component C { action A { exec body { p::m("x",1,2,3,4,5); } } }
-    """)])
+    """)], _R23)
+    assert "arguments to" not in res.output
 
 
 def test_a_varargs_function_still_requires_its_fixed_parameters():
@@ -351,8 +359,9 @@ def test_trailing_defaults_still_link(proto):
 def test_a_varargs_parameter_after_a_default_still_links():
     """A varargs parameter is always last and carries no default, so it is not
     the mistake this rule is about."""
-    assert_clean([("t.pss",
-        "package p { function void m(string f, int n = 1, type... args); }")])
+    res = assert_rejects([("t.pss",
+        "package p { function void m(string f, int n = 1, type... args); }")], _R23)
+    assert "has no default" not in res.output
 
 
 def test_the_rule_reaches_a_definition_and_an_import_too():

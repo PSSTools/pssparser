@@ -157,12 +157,28 @@ def test_malformed_qualifier_rejected(decl):
 # P3-F2 -- `type...` varargs
 # ===========================================================================
 
+def assert_parses_r23(code):
+    """The syntax is accepted; the model is then refused only by ruling R23
+    (PSS136): varargs parameters are for core-library functions."""
+    import pssparser
+    from test_helpers import _assign_codes
+    p = pssparser.Parser()
+    p.parses([("t.pss", code)])
+    try:
+        p.link()
+        ms = p.markers
+    except pssparser.parser.ParseException as e:
+        ms = e.markers
+    found = {m.get("code") for m in _assign_codes(ms) if m["severity"] == "error"}
+    assert found == {"PSS136"}, found
+
+
 def test_varargs_type_parameter_parses():
-    assert_parse_ok("package p { function void f(string fmt, type... args); }")
+    assert_parses_r23("package p { function void f(string fmt, type... args); }")
 
 
 def test_varargs_is_the_only_parameter():
-    assert_parse_ok("package p { function void f(type... args); }")
+    assert_parses_r23("package p { function void f(type... args); }")
 
 
 def test_varargs_type_parameter_has_the_type_kind():
@@ -214,7 +230,7 @@ def test_varargs_data_type_parameter():
 
 def test_annex_c_style_signatures_parse():
     """The signatures P4-L1 depends on."""
-    assert_parse_ok("""
+    assert_parses_r23("""
     package annex_c_shapes_p {
         function string format(string fmt, type... args);
         target function void print(string fmt, type... args);

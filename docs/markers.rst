@@ -229,9 +229,13 @@ The last of these is LRM 3.1 20.2.4 c: a redeclaration may repeat a default, "bu
 
 Only a *certain* difference is reported.  A ``typedef`` alias, an integer width that will not fold to a constant, a default width against a written one, and a type name that did not resolve are all cases where the two declarations may well agree, and none of them is reported.
 
-Three things are deliberately **not** compared. Parameter *names*, because PSS calls are positional and nothing requires a redeclaration to reuse them.  A ``pure`` qualifier, because LRM 20.2.6 b permits omitting it in a definition whose declaration carries it.  The ``const`` qualifier, which LRM 20.2.3 c does make part of the signature -- but it is parsed and discarded, so there is nothing to compare.
+Two things are deliberately **not** compared. Parameter *names*, because PSS calls are positional and nothing requires a redeclaration to reuse them.  A ``pure`` qualifier, because LRM 20.2.6 b permits omitting it in a definition whose declaration carries it.  The ``const`` qualifier is compared: LRM 20.2.3 c makes it "an essential part of the function signature".  So is the platform qualifier: ``target`` on one declaration and ``solve`` on another (20.3.1, 20.4.1 b; an unqualified one may meet either).
 
-A *static* function shadowed in a derived component may differ freely (LRM 20.2) and is not reported.  An *instance* function shadowed in a derived component must match, and that is not checked.
+Overrides (LRM 20.2): a *static* function shadowed in a derived component may differ freely and is not reported.  An *instance* function shadowed in a derived component shall have "the same return type and arguments" -- const and defaults included (20.2.3 c, 20.2.4 c) -- shall not be shadowed by a static function, and a non-pure one shall not be declared pure (20.2.6):
+
+* ``'der_c::f' and the 'base_c::f' it overrides disagree about the number of parameters (1 and 3)``
+* ``static function 'der_c::f' cannot shadow the instance function 'base_c::f' (LRM 20.2)``
+* ``'der_c::f' is pure but overrides the non-pure 'base_c::f' (LRM 20.2.6)``
 
 PSS010
 ~~~~~~
@@ -1119,6 +1123,27 @@ PSS135
 A variable of an enum with no items
 
 LRM 7.5.1 j: an enum may be declared with no items and given them in extensions, but "It shall be illegal to declare an enumeration variable whose type contains no enum_items across its initial definition and extensions."
+
+PSS136
+~~~~~~
+
+**Severity:** error
+
+A generic or varargs parameter of a user-written function
+
+LRM 20.2.5: generic parameters (``type``, or a type category such as ``struct`` or ``ref action``) and varargs parameters (``...``) "are used for the declaration of functions whose definition is built into implementations", the core library among them.  Ruling R23: only a core-library function may have one -- not a function with a PSS body, not an imported one, not a bodiless declaration (so Examples 293 and 294, written in a user model, are errors).
+
+PSS137
+~~~~~~
+
+**Severity:** error
+
+An import or export signature type the foreign mapping does not take
+
+LRM 20.4.1 c restricts an imported function's parameters and result to bit/int of at most 64 bits, bool, enum, string, chandle, struct, an array of those (sub-arrays included) and a list of those but strings and chandles.  20.4.2.1 restricts an exported function's to bit/int of at most 64 bits, bool, enum, float32/float64, string, chandle and struct -- and g) a struct parameter shall be declared ``const``.  An exported component *instance* function is an extension (LINT301) that 20.4.2.1 does not govern, and is not judged.  Messages:
+
+* ``parameter 'v' of imported function 'put' has type bit[65], which an import cannot take (LRM 20.4.1 c)``
+* ``parameter 'p' of exported function 'sf' is a struct, so it shall be declared const (LRM 20.4.2.1 g)``
 
 LINT: core-emitted lint
 -----------------------

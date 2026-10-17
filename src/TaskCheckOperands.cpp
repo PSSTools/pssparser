@@ -26,6 +26,12 @@
 #include "pssp/ast/IEnumDecl.h"
 #include "pssp/ast/IEnumItem.h"
 #include "pssp/ast/ISymbolEnumScope.h"
+#include "pssp/ast/IExportFunction.h"
+#include "pssp/ast/IExprRefName.h"
+#include "pssp/ast/IFunctionImportProto.h"
+#include "pssp/ast/IFunctionImportType.h"
+#include "pssp/ast/ITypeIdentifier.h"
+#include "pssp/ast/ITypeIdentifierElem.h"
 #include "pssp/ast/IExprCast.h"
 #include "pssp/ast/IExprCond.h"
 #include "pssp/ast/IExprNull.h"
@@ -604,6 +610,24 @@ const char *TaskCheckOperands::needsRef(const ExprType &t) {
 void TaskCheckOperands::visitFunctionPrototype(ast::IFunctionPrototype *i) {
     ast::VisitorBase::visitFunctionPrototype(i);
 
+    // 20.2.5: generic and varargs parameters "are used for the declaration
+    // of functions whose definition is built into implementations"; ruling
+    // R23 reserves them for the core library. This walk sees only user
+    // files, so any one here is a user-written function's.
+    for (std::vector<ast::IFunctionParamDeclUP>::const_iterator
+            it=i->getParameters().begin(); it!=i->getParameters().end(); it++) {
+        ast::IFunctionParamDecl *p = it->get();
+        bool varargs = p->getIs_varargs();
+        bool generic = (p->getKind() != ast::FunctionParamDeclKind::ParamKind_DataType);
+        if ((varargs || generic) && p->getName() && i->getName()) {
+            m_ctxt->addErrorMarker(p->getName()->getLocation(),
+                "parameter '%s' of '%s' is %s, which only a core-library function may "
+                "have (LRM 20.2.5, ruling R23)",
+                p->getName()->getId().c_str(), i->getName()->getId().c_str(),
+                (varargs) ? "varargs" : "generic");
+        }
+    }
+
     if (i->getRtype()) {
         ExprType rt = m_typer.typeOfDataType(i->getRtype());
         if (const char *what = needsRef(rt)) {
@@ -750,6 +774,202 @@ void TaskCheckOperands::visitEnumDecl(ast::IEnumDecl *i) {
         }
         prev = v;
         have_prev = true;
+    }
+}
+
+
+// ---------------------------------------------------------------------------
+// Import and export types (20.4.1 c, 20.4.2.1)
+// ---------------------------------------------------------------------------
+
+int64_t TaskCheckOperands::intWidth(const ExprType &t) {
+    ast::IDataTypeInt *it = NodeKind::cast<ast::IDataTypeInt>(t.dt);
+    if (t.kind != TypeKindE::Int || !it) {
+        return -1;
+    }
+    if (!it->getWidth()) {
+        return (it->getIs_signed()) ? 32 : 1;
+    }
+    std::unique_ptr<IVal> w(TaskEvalExpr(
+        m_ctxt->getFactory(), m_ctxt->root()).eval(it->getWidth()));
+    IValInt *wi = dynamic_cast<IValInt *>(w.get());
+    return (wi) ? wi->getValS() : -1;
+}
+
+std::string TaskCheckOperands::typeName(const ExprType &t) {
+    int64_t w = intWidth(t);
+    if (w > 0) {
+        return t.describe() + "[" + std::to_string(w) + "]";
+    }
+    if (t.isCollection()) {
+        ExprType e = m_typer.elemType(t);
+        if (e.known()) {
+            return t.describe() + " of " + typeName(e);
+        }
+    }
+    return t.describe();
+}
+
+bool TaskCheckOperands::importTypeOk(const ExprType &t, int32_t depth) {
+    switch (t.kind) {
+        case TypeKindE::Unknown:
+        case TypeKindE::Other:
+        case TypeKindE::Void:
+            return true;
+        case TypeKindE::Int:
+            return intWidth(t) <= 64;
+        case TypeKindE::Bool:
+        case TypeKindE::Enum:
+        case TypeKindE::String:
+        case TypeKindE::Chandle:
+        case TypeKindE::Struct:
+            return !t.is_ref;
+        case TypeKindE::Array: {
+            // 7) an array of 1-6, a sub-array included
+            ExprType e = m_typer.elemType(t);
+            return (depth > 8) || (e.kind != TypeKindE::List && importTypeOk(e, depth+1)
+                && e.kind != TypeKindE::Map && e.kind != TypeKindE::Set);
+        }
+        case TypeKindE::List: {
+            // 8) a list of 1-6, but not of strings or chandles
+            ExprType e = m_typer.elemType(t);
+            if (!e.known()) {
+                return true;
+            }
+            return (e.kind == TypeKindE::Int || e.kind == TypeKindE::Bool
+                || e.kind == TypeKindE::Enum || e.kind == TypeKindE::Struct)
+                && importTypeOk(e, depth+1);
+        }
+        default:
+            return false;
+    }
+}
+
+bool TaskCheckOperands::exportTypeOk(const ExprType &t, int32_t depth) {
+    switch (t.kind) {
+        case TypeKindE::Unknown:
+        case TypeKindE::Other:
+        case TypeKindE::Void:
+            return true;
+        case TypeKindE::Int:
+            return intWidth(t) <= 64;
+        case TypeKindE::Bool:
+        case TypeKindE::Enum:
+        case TypeKindE::Float:
+        case TypeKindE::String:
+        case TypeKindE::Chandle:
+        case TypeKindE::Struct:
+            return !t.is_ref;
+        default:
+            return false;
+    }
+}
+
+void TaskCheckOperands::checkImport(
+        ast::IFunctionPrototype     *proto,
+        const ast::Location         &at,
+        bool                        use_at) {
+    if (!proto || !proto->getName()) {
+        return;
+    }
+    const char *fname = proto->getName()->getId().c_str();
+    if (proto->getRtype()) {
+        ExprType rt = m_typer.typeOfDataType(proto->getRtype());
+        if (!importTypeOk(rt)) {
+            m_ctxt->addErrorMarker((use_at) ? at : proto->getName()->getLocation(),
+                "imported function '%s' returns %s, which an import cannot "
+                "(LRM 20.4.1 c)", fname, typeName(rt).c_str());
+            return;
+        }
+    }
+    for (std::vector<ast::IFunctionParamDeclUP>::const_iterator
+            it=proto->getParameters().begin(); it!=proto->getParameters().end(); it++) {
+        ast::IFunctionParamDecl *p = it->get();
+        if (p->getKind() != ast::FunctionParamDeclKind::ParamKind_DataType
+                || p->getIs_varargs() || !p->getName()) {
+            continue;
+        }
+        ExprType pt = m_typer.typeOfDataType(p->getType());
+        if (!importTypeOk(pt)) {
+            m_ctxt->addErrorMarker((use_at) ? at : p->getName()->getLocation(),
+                "parameter '%s' of imported function '%s' has type %s, which an "
+                "import cannot take (LRM 20.4.1 c)",
+                p->getName()->getId().c_str(), fname, typeName(pt).c_str());
+            return;
+        }
+    }
+}
+
+void TaskCheckOperands::visitFunctionImportProto(ast::IFunctionImportProto *i) {
+    ast::VisitorBase::visitFunctionImportProto(i);
+    checkImport(i->getProto(), ast::Location(), false);
+}
+
+void TaskCheckOperands::visitFunctionImportType(ast::IFunctionImportType *i) {
+    ast::VisitorBase::visitFunctionImportType(i);
+    ast::ITypeIdentifier *tid = i->getType();
+    if (!tid || !tid->getTarget() || !tid->getElems().size()) {
+        return;
+    }
+    ast::ISymbolFunctionScope *fn = NodeKind::cast<ast::ISymbolFunctionScope>(
+        m_ctxt->resolveSymbolPathRef(tid->getTarget()));
+    if (!fn || !fn->getPrototypes().size()) {
+        return;
+    }
+    checkImport(fn->getPrototypes().front(),
+        tid->getElems().back()->getId()->getLocation(), true);
+}
+
+void TaskCheckOperands::visitExportFunction(ast::IExportFunction *i) {
+    ast::VisitorBase::visitExportFunction(i);
+    if (!i->getName() || !i->getName()->getTarget()) {
+        return;
+    }
+    ast::ISymbolFunctionScope *fn = NodeKind::cast<ast::ISymbolFunctionScope>(
+        m_ctxt->resolveSymbolPathRef(i->getName()->getTarget()));
+    if (!fn || !fn->getPrototypes().size()) {
+        return;
+    }
+    ast::IFunctionPrototype *proto = fn->getPrototypes().front();
+    // 20.4.2 exports a static function -- a package function or a
+    // component's `static` one. Exporting an instance function is an
+    // extension (LINT301), whose signature 20.4.2.1 does not govern.
+    if (NodeKind::cast<ast::ISymbolTypeScope>(fn->getUpper()) && !proto->getIs_static()) {
+        return;
+    }
+    const ast::Location &at = i->getName()->getId()->getLocation();
+    const char *fname = proto->getName()->getId().c_str();
+    if (proto->getRtype()) {
+        ExprType rt = m_typer.typeOfDataType(proto->getRtype());
+        if (!exportTypeOk(rt)) {
+            m_ctxt->addErrorMarker(at,
+                "exported function '%s' returns %s, which an export cannot "
+                "(LRM 20.4.2.1)", fname, typeName(rt).c_str());
+            return;
+        }
+    }
+    for (std::vector<ast::IFunctionParamDeclUP>::const_iterator
+            it=proto->getParameters().begin(); it!=proto->getParameters().end(); it++) {
+        ast::IFunctionParamDecl *p = it->get();
+        if (p->getKind() != ast::FunctionParamDeclKind::ParamKind_DataType
+                || p->getIs_varargs() || !p->getName()) {
+            continue;
+        }
+        ExprType pt = m_typer.typeOfDataType(p->getType());
+        if (!exportTypeOk(pt)) {
+            m_ctxt->addErrorMarker(at,
+                "parameter '%s' of exported function '%s' has type %s, which an "
+                "export cannot take (LRM 20.4.2.1)",
+                p->getName()->getId().c_str(), fname, typeName(pt).c_str());
+            return;
+        }
+        if (pt.kind == TypeKindE::Struct && !p->getIs_const()) {
+            m_ctxt->addErrorMarker(at,
+                "parameter '%s' of exported function '%s' is a struct, so it shall "
+                "be declared const (LRM 20.4.2.1 g)",
+                p->getName()->getId().c_str(), fname);
+            return;
+        }
     }
 }
 

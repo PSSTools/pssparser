@@ -63,6 +63,21 @@ New errors, each at the construct it names:
 - **PSS135** a variable of an enum with no items in its declaration or any
   extension (7.5.1 j).
 
+### Added — function declarations, overrides, generic parameters, imports
+
+- **PSS009** now also compares `const` between declarations (20.2.3 c) and
+  the platform qualifier (`target` on one, `solve` on another: 20.3.1,
+  20.4.1 b), and checks overrides: a component instance function shadowed
+  in a derived component keeps its return type, parameters, `const` and
+  defaults, is not shadowed by a static function (20.2), and a non-pure one
+  is not made pure (20.2.6).
+- **PSS136** a generic (`type`, a type category) or varargs parameter of a
+  user-written function (20.2.5; ruling R23: core-library functions only).
+- **PSS137** an import or export parameter or result of a type the foreign
+  mapping does not take (20.4.1 c, 20.4.2.1), and an export's non-const
+  struct parameter (20.4.2.1 g). An exported instance function (an
+  extension, LINT301) is not judged.
+
 ### Fixed — `a in l && b in m` is two membership tests
 
 The collection form of `in` took a whole expression as its collection, so

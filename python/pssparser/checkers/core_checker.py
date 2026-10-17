@@ -372,21 +372,35 @@ class CoreChecker(CheckerBase):
                 "default width against a written one, and a type name that "
                 "did not resolve are all cases where the two declarations may "
                 "well agree, and none of them is reported.\n\n"
-                "Three things are deliberately **not** compared. Parameter "
+                "Two things are deliberately **not** compared. Parameter "
                 "*names*, because PSS calls are positional and nothing "
                 "requires a redeclaration to reuse them.  A ``pure`` "
                 "qualifier, because LRM 20.2.6 b permits omitting it in a "
                 "definition whose declaration carries it.  The ``const`` "
-                "qualifier, which LRM 20.2.3 c does make part of the "
-                "signature -- but it is parsed and discarded, so there is "
-                "nothing to compare.\n\n"
-                "A *static* function shadowed in a derived component may "
-                "differ freely (LRM 20.2) and is not reported.  An "
-                "*instance* function shadowed in a derived component must "
-                "match, and that is not checked."
+                "qualifier is compared: LRM 20.2.3 c makes it \"an essential "
+                "part of the function signature\".  So is the platform "
+                "qualifier: ``target`` on one declaration and ``solve`` on "
+                "another (20.3.1, 20.4.1 b; an unqualified one may meet "
+                "either).\n\n"
+                "Overrides (LRM 20.2): a *static* function shadowed in a "
+                "derived component may differ freely and is not reported.  An "
+                "*instance* function shadowed in a derived component shall "
+                "have \"the same return type and arguments\" -- const and "
+                "defaults included (20.2.3 c, 20.2.4 c) -- shall not be "
+                "shadowed by a static function, and a non-pure one shall not "
+                "be declared pure (20.2.6):\n\n"
+                "* ``'der_c::f' and the 'base_c::f' it overrides disagree "
+                "about the number of parameters (1 and 3)``\n"
+                "* ``static function 'der_c::f' cannot shadow the instance "
+                "function 'base_c::f' (LRM 20.2)``\n"
+                "* ``'der_c::f' is pure but overrides the non-pure "
+                "'base_c::f' (LRM 20.2.6)``"
             ),
             patterns=(
                 r"^declarations of '.*' disagree\b",
+                r"^'[^']*' and the '[^']*' it overrides disagree\b",
+                r"^static function '[^']*' cannot shadow the instance function\b",
+                r"^'[^']*' is pure but overrides the non-pure\b",
             ),
         ),
         MarkerDef(
@@ -2182,6 +2196,54 @@ class CoreChecker(CheckerBase):
             ),
             patterns=(
                 r"^'[^']*' is a variable of enum '[^']*', which has no items\b",
+            ),
+        ),
+        MarkerDef(
+            id="PSS136",
+            severity="error",
+            summary="A generic or varargs parameter of a user-written function",
+            detail=(
+                "LRM 20.2.5: generic parameters (``type``, or a type category "
+                "such as ``struct`` or ``ref action``) and varargs parameters "
+                "(``...``) \"are used for the declaration of functions whose "
+                "definition is built into implementations\", the core library "
+                "among them.  Ruling R23: only a core-library function may "
+                "have one -- not a function with a PSS body, not an imported "
+                "one, not a bodiless declaration (so Examples 293 and 294, "
+                "written in a user model, are errors)."
+            ),
+            patterns=(
+                r"^parameter '[^']*' of '[^']*' is (varargs|generic), which only a "
+                r"core-library function may have\b",
+            ),
+        ),
+        MarkerDef(
+            id="PSS137",
+            severity="error",
+            summary="An import or export signature type the foreign mapping does not take",
+            detail=(
+                "LRM 20.4.1 c restricts an imported function's parameters and "
+                "result to bit/int of at most 64 bits, bool, enum, string, "
+                "chandle, struct, an array of those (sub-arrays included) and "
+                "a list of those but strings and chandles.  20.4.2.1 restricts "
+                "an exported function's to bit/int of at most 64 bits, bool, "
+                "enum, float32/float64, string, chandle and struct -- and g) a "
+                "struct parameter shall be declared ``const``.  An exported "
+                "component *instance* function is an extension (LINT301) "
+                "that 20.4.2.1 does not govern, and is not judged.  "
+                "Messages:\n\n"
+                "* ``parameter 'v' of imported function 'put' has type "
+                "bit[65], which an import cannot take (LRM 20.4.1 c)``\n"
+                "* ``parameter 'p' of exported function 'sf' is a struct, so "
+                "it shall be declared const (LRM 20.4.2.1 g)``"
+            ),
+            patterns=(
+                r"^parameter '[^']*' of (imported|exported) function '[^']*' has "
+                r"type .*, which an? (import|export) cannot take\b",
+                r"^(imported|exported) function '[^']*' returns .*, which an? "
+                r"(import|export) cannot\b",
+                r"^parameter '[^']*' of exported function '[^']*' is a struct, so "
+                r"it shall be declared const\b",
             ),
         ),
 

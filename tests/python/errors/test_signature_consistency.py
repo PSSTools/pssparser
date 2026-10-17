@@ -576,28 +576,21 @@ def test_a_static_function_may_be_shadowed_with_a_different_signature():
 # Recorded, not fixed
 # ---------------------------------------------------------------------------
 
-def test_the_const_qualifier_is_not_part_of_the_compared_signature():
+def test_the_const_qualifier_is_part_of_the_compared_signature():
     """LRM 20.2.3 c: "The const qualifier is an essential part of the function
     signature and must appear in redeclarations (and overrides) of a
-    function."
-
-    Not checkable yet: ``const`` is parsed and discarded, with no AST field to
-    compare.  Blocked on that, not on this check.
-    """
-    assert_clean([("t.pss",
-        "function void f(const int a); function void f(int a);")])
+    function." (It was parsed and discarded once; it is compared now.)"""
+    assert_rejects([("t.pss",
+        "function void f(const int a); function void f(int a);")],
+        "disagree about whether parameter 1 ('a') is const")
 
 
-def test_an_instance_function_shadow_may_differ_unchecked():
+def test_an_instance_function_shadow_must_match():
     """LRM 20.2: an *instance* function shadowing one in a base component
-    "must have the same return type and arguments as that in the base
-    component" -- the opposite of the static rule pinned above.
-
-    Unchecked.  It is not a redeclaration in this parser's sense (the two live
-    in different symbol scopes), so closing it means walking the inheritance
-    chain rather than one prototype list.
-    """
-    assert_clean([("t.pss",
+    "shall have the same return type and arguments as that in the base
+    component" -- the opposite of the static rule pinned above."""
+    assert_rejects([("t.pss",
         "component B { function int f(int a); }\n"
         "component D : B { function string f(string a); }\n"
-        "component pss_top { D d; }\n")])
+        "component pss_top { D d; }\n")],
+        "'D::f' and the 'B::f' it overrides disagree about the return type")

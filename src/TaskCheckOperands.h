@@ -45,7 +45,12 @@ namespace pssp {
  * - `null` assigned to what is not a reference (8.3) -- PSS133;
  * - enum item values: duplicates, outside the base type, an implicit value
  *   past its greatest, a base type with a domain (7.5.1 c, e) -- PSS134;
- * - a variable of an enum with no items (7.5.1 j) -- PSS135.
+ * - a variable of an enum with no items (7.5.1 j) -- PSS135;
+ * - a generic or varargs parameter of a user-written function (20.2.5,
+ *   ruling R23) -- PSS136;
+ * - an import or export parameter or result of a type the foreign mapping
+ *   does not take, and an export's non-const struct parameter (20.4.1 c,
+ *   20.4.2.1) -- PSS137.
  *
  * Enumeration operands are left alone by PSS131: 7.5.1 permits an enum in
  * assignment and equality ("may be used"), and says nothing stronger.
@@ -94,6 +99,12 @@ public:
 
     virtual void visitEnumDecl(ast::IEnumDecl *i) override;
 
+    virtual void visitFunctionImportProto(ast::IFunctionImportProto *i) override;
+
+    virtual void visitFunctionImportType(ast::IFunctionImportType *i) override;
+
+    virtual void visitExportFunction(ast::IExportFunction *i) override;
+
 private:
     /** Where to report on `e`: its first located identifier, else the
      *  statement being checked. */
@@ -123,6 +134,21 @@ private:
     void checkCondition(const char *what, const char *clause, ast::IExpr *cond);
 
     void checkNullInit(const ExprType &target, ast::IExpr *value);
+
+    /** An integer type's width, when it folds; -1 otherwise. */
+    int64_t intWidth(const ExprType &t);
+
+    /** `t` with its width, for a message: `bit[65]`. */
+    std::string typeName(const ExprType &t);
+
+    /** True unless `t` is known not to be an import type (20.4.1 c). */
+    bool importTypeOk(const ExprType &t, int32_t depth=0);
+
+    /** True unless `t` is known not to be an export type (20.4.2.1). */
+    bool exportTypeOk(const ExprType &t, int32_t depth=0);
+
+    /** PSS137 on an import's prototype; `at` is where the import is written. */
+    void checkImport(ast::IFunctionPrototype *proto, const ast::Location &at, bool use_at);
 
     /** PSS135: `name` declares a variable of type `dt`. */
     void checkItemlessEnum(ast::IExprId *name, ast::IDataType *dt);

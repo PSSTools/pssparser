@@ -26,6 +26,7 @@
 #include "TaskExprTypeCat.h"
 #include "TaskCompareTypeRefs.h"
 #include "TaskFindPathElem.h"
+#include "pssp/ast/IComponent.h"
 #include "TaskLinkActionCompRefFields.h"
 #include "pssp/ast/IFieldCompRef.h"
 #include "TaskResolveImports.h"
@@ -5376,6 +5377,10 @@ void TaskResolveRefs::checkDeclarationConsistency(ast::ISymbolFunctionScope *i) 
 
     TaskCompareTypeRefs comp(m_ctxt->getFactory(), m_ctxt->root());
 
+    if (checkPlatformConsistency(i)) {
+        return;
+    }
+
     for (uint32_t idx=1; idx<i->getPrototypes().size(); idx++) {
         ast::IFunctionPrototype *p = i->getPrototypes().at(idx);
 
@@ -5391,7 +5396,10 @@ void TaskResolveRefs::checkDeclarationConsistency(ast::ISymbolFunctionScope *i) 
 bool TaskResolveRefs::checkReturnTypeConsistency(
         ast::IFunctionPrototype     *base,
         ast::IFunctionPrototype     *p,
-        TaskCompareTypeRefs         &comp) {
+        TaskCompareTypeRefs         &comp,
+        const std::string           &who_in) {
+    const std::string who = (who_in.size()) ? who_in
+        : "declarations of '" + p->getName()->getId() + "'";
     // `void` is not a data type in this AST -- it is the absence of one --
     // so it needs its own comparison, and it gets its own message. It is
     // also the only disagreement that can be stated with certainty
@@ -5400,9 +5408,9 @@ bool TaskResolveRefs::checkReturnTypeConsistency(
         m_ctxt->addMarker(
             MarkerSeverityE::Error,
             p->getName()->getLocation(),
-            "declarations of '%s' disagree about the return type: "
+            "%s disagree about the return type: "
             "one returns void and the other does not",
-            p->getName()->getId().c_str());
+            who.c_str());
         return true;
     }
 
@@ -5421,8 +5429,8 @@ bool TaskResolveRefs::checkReturnTypeConsistency(
         m_ctxt->addMarker(
             MarkerSeverityE::Error,
             p->getName()->getLocation(),
-            "declarations of '%s' disagree about the return type",
-            p->getName()->getId().c_str());
+            "%s disagree about the return type",
+            who.c_str());
         return true;
     }
 
@@ -5464,17 +5472,19 @@ static std::string paramDesc(uint32_t idx, ast::IFunctionParamDecl *pd) {
 bool TaskResolveRefs::checkParamListConsistency(
         ast::IFunctionPrototype     *base,
         ast::IFunctionPrototype     *p,
-        TaskCompareTypeRefs         &comp) {
-    const std::string &fname = p->getName()->getId();
+        TaskCompareTypeRefs         &comp,
+        const std::string           &who_in) {
+    const std::string who = (who_in.size()) ? who_in
+        : "declarations of '" + p->getName()->getId() + "'";
     ast::Location loc = p->getName()->getLocation();
 
     if (base->getParameters().size() != p->getParameters().size()) {
         m_ctxt->addMarker(
             MarkerSeverityE::Error,
             loc,
-            "declarations of '%s' disagree about the number of parameters "
+            "%s disagree about the number of parameters "
             "(%u and %u)",
-            fname.c_str(),
+            who.c_str(),
             (uint32_t)base->getParameters().size(),
             (uint32_t)p->getParameters().size());
         return true;
@@ -5491,24 +5501,35 @@ bool TaskResolveRefs::checkParamListConsistency(
         if (b->getKind() != q->getKind()) {
             m_ctxt->addMarker(
                 MarkerSeverityE::Error, loc,
-                "declarations of '%s' disagree about what kind of %s is",
-                fname.c_str(), paramDesc(idx, b).c_str());
+                "%s disagree about what kind of %s is",
+                who.c_str(), paramDesc(idx, b).c_str());
             return true;
         }
 
         if (b->getIs_varargs() != q->getIs_varargs()) {
             m_ctxt->addMarker(
                 MarkerSeverityE::Error, loc,
-                "declarations of '%s' disagree about whether %s is varargs",
-                fname.c_str(), paramDesc(idx, b).c_str());
+                "%s disagree about whether %s is varargs",
+                who.c_str(), paramDesc(idx, b).c_str());
+            return true;
+        }
+
+        // 20.2.3 c: "The const qualifier is an essential part of the
+        // function signature and shall appear in redeclarations (and
+        // overrides) of a function."
+        if (b->getIs_const() != q->getIs_const()) {
+            m_ctxt->addMarker(
+                MarkerSeverityE::Error, loc,
+                "%s disagree about whether %s is const (LRM 20.2.3 c)",
+                who.c_str(), paramDesc(idx, b).c_str());
             return true;
         }
 
         if (effectiveDir(b) != effectiveDir(q)) {
             m_ctxt->addMarker(
                 MarkerSeverityE::Error, loc,
-                "declarations of '%s' disagree about the direction of %s",
-                fname.c_str(), paramDesc(idx, b).c_str());
+                "%s disagree about the direction of %s",
+                who.c_str(), paramDesc(idx, b).c_str());
             return true;
         }
 
@@ -5520,8 +5541,8 @@ bool TaskResolveRefs::checkParamListConsistency(
                 && defaultsDiffer(b->getDflt(), q->getDflt())) {
             m_ctxt->addMarker(
                 MarkerSeverityE::Error, loc,
-                "declarations of '%s' disagree about the default value of %s",
-                fname.c_str(), paramDesc(idx, b).c_str());
+                "%s disagree about the default value of %s",
+                who.c_str(), paramDesc(idx, b).c_str());
             return true;
         }
 
@@ -5529,8 +5550,8 @@ bool TaskResolveRefs::checkParamListConsistency(
             == TaskCompareTypeRefs::Rel::NotEqual) {
             m_ctxt->addMarker(
                 MarkerSeverityE::Error, loc,
-                "declarations of '%s' disagree about the type of %s",
-                fname.c_str(), paramDesc(idx, b).c_str());
+                "%s disagree about the type of %s",
+                who.c_str(), paramDesc(idx, b).c_str());
             return true;
         }
     }
@@ -5544,6 +5565,109 @@ bool TaskResolveRefs::checkParamListConsistency(
  * equal. Anything else -- an enum item, an expression that does not fold -- is
  * "not known to differ".
  */
+bool TaskResolveRefs::checkPlatformConsistency(ast::ISymbolFunctionScope *i) {
+    // 20.3.1 (after Syntax 94): "If the function declaration is provided
+    // separately and is qualified, platform_qualifier shall be the same, or
+    // it may be omitted"; 20.4.1 b says the same of an import. A declaration
+    // may be unqualified and a definition qualified (Example 297).
+    ast::IFunctionPrototype *tgt = 0, *slv = 0;
+    for (std::vector<ast::IFunctionPrototype *>::const_iterator
+            it=i->getPrototypes().begin(); it!=i->getPrototypes().end(); it++) {
+        if ((*it)->getIs_target() && !(*it)->getIs_solve() && !tgt) {
+            tgt = *it;
+        } else if ((*it)->getIs_solve() && !(*it)->getIs_target() && !slv) {
+            slv = *it;
+        }
+    }
+    if (!tgt || !slv) {
+        return false;
+    }
+    // Report at the later of the two, in source order.
+    ast::IFunctionPrototype *at = slv;
+    const ast::Location &lt = tgt->getName()->getLocation();
+    const ast::Location &ls = slv->getName()->getLocation();
+    if (lt.fileid == ls.fileid && (lt.lineno > ls.lineno
+            || (lt.lineno == ls.lineno && lt.linepos > ls.linepos))) {
+        at = tgt;
+    }
+    m_ctxt->addMarker(
+        MarkerSeverityE::Error,
+        at->getName()->getLocation(),
+        "declarations of '%s' disagree about the platform qualifier: one is "
+        "target, the other solve (LRM 20.3.1)",
+        at->getName()->getId().c_str());
+    return true;
+}
+
+void TaskResolveRefs::checkOverride(ast::ISymbolFunctionScope *i) {
+    if (!i->getPrototypes().size()) {
+        return;
+    }
+    ast::IFunctionPrototype *der = i->getPrototypes().front();
+    if (!der->getName() || der->getName()->getLocation().fileid < 1) {
+        return;
+    }
+    ast::ISymbolTypeScope *type_s = NodeKind::cast<ast::ISymbolTypeScope>(i->getUpper());
+    ast::IComponent *comp = (type_s)
+        ? NodeKind::cast<ast::IComponent>(type_s->getTarget()) : 0;
+    if (!comp || !comp->getSuper_t() || !comp->getSuper_t()->getTarget()
+            || comp->getSuper_cyclic()) {
+        return;
+    }
+    ast::ISymbolTypeScope *base_s = NodeKind::cast<ast::ISymbolTypeScope>(
+        m_ctxt->resolveSymbolPathRef(comp->getSuper_t()->getTarget()));
+    if (!base_s) {
+        return;
+    }
+    TaskFindPathElem::Result res = TaskFindPathElem(
+        m_ctxt->getDebugMgr(), m_ctxt->root()).find(base_s, der->getName());
+    ast::ISymbolFunctionScope *base_fn = NodeKind::cast<ast::ISymbolFunctionScope>(res.sym);
+    if (!base_fn || base_fn == i || !base_fn->getPrototypes().size()) {
+        return;
+    }
+    ast::IFunctionPrototype *base = base_fn->getPrototypes().front();
+    if (base->getIs_static()) {
+        // 20.2: a static function may be shadowed by anything.
+        return;
+    }
+    std::string base_name = base_fn->getUpper()
+        ? base_fn->getUpper()->getName() + "::" + base->getName()->getId()
+        : base->getName()->getId();
+    std::string der_name = type_s->getName() + "::" + der->getName()->getId();
+
+    if (der->getIs_static()) {
+        m_ctxt->addMarker(
+            MarkerSeverityE::Error,
+            der->getName()->getLocation(),
+            "static function '%s' cannot shadow the instance function '%s' "
+            "(LRM 20.2)",
+            der_name.c_str(), base_name.c_str());
+        return;
+    }
+
+    std::string who = "'" + der_name + "' and the '" + base_name + "' it overrides";
+    TaskCompareTypeRefs cmp(m_ctxt->getFactory(), m_ctxt->root());
+    if (checkReturnTypeConsistency(base, der, cmp, who)
+            || checkParamListConsistency(base, der, cmp, who)) {
+        return;
+    }
+
+    // 20.2.6: "A non-pure function shall not be declared as pure in derived
+    // types." Any of the base's declarations may carry `pure` (20.2.6 b).
+    bool base_pure = false;
+    for (std::vector<ast::IFunctionPrototype *>::const_iterator
+            it=base_fn->getPrototypes().begin(); it!=base_fn->getPrototypes().end(); it++) {
+        base_pure |= (*it)->getIs_pure();
+    }
+    if (der->getIs_pure() && !base_pure) {
+        m_ctxt->addMarker(
+            MarkerSeverityE::Error,
+            der->getName()->getLocation(),
+            "'%s' is pure but overrides the non-pure '%s' (LRM 20.2.6)",
+            der_name.c_str(), base_name.c_str());
+    }
+}
+
 bool TaskResolveRefs::defaultsDiffer(ast::IExpr *a, ast::IExpr *b) {
     ast::IExprBool *ba = NodeKind::cast<ast::IExprBool>(a);
     ast::IExprBool *bb = NodeKind::cast<ast::IExprBool>(b);
@@ -5636,6 +5760,7 @@ void TaskResolveRefs::visitSymbolFunctionScope(ast::ISymbolFunctionScope *i) {
     }
 
     checkDeclarationConsistency(i);
+    checkOverride(i);
 
 //    if (i->getBody()) {
         DEBUG("Push function scope %s", i->getName().c_str());

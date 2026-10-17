@@ -343,6 +343,24 @@ REPRESENTATIVE_MESSAGES = [
                "(LRM 7.5.1)"),
     ("PSS135", "'v' is a variable of enum 'n_e', which has no items in its "
                "declaration or any extension (LRM 7.5.1 j)"),
+    ("PSS009", "declarations of 'f' disagree about whether parameter 1 ('x') "
+               "is const (LRM 20.2.3 c)"),
+    ("PSS009", "declarations of 'f' disagree about the platform qualifier: one "
+               "is target, the other solve (LRM 20.3.1)"),
+    ("PSS009", "'der_c::f' and the 'base_c::f' it overrides disagree about the "
+               "number of parameters (1 and 3)"),
+    ("PSS009", "static function 'der_c::f' cannot shadow the instance function "
+               "'base_c::f' (LRM 20.2)"),
+    ("PSS009", "'der_c::f' is pure but overrides the non-pure 'base_c::f' "
+               "(LRM 20.2.6)"),
+    ("PSS136", "parameter 'rest' of 'f' is varargs, which only a core-library "
+               "function may have (LRM 20.2.5, ruling R23)"),
+    ("PSS137", "parameter 'v' of imported function 'put' has type bit[65], "
+               "which an import cannot take (LRM 20.4.1 c)"),
+    ("PSS137", "imported function 'f' returns float, which an import cannot "
+               "(LRM 20.4.1 c)"),
+    ("PSS137", "parameter 'p' of exported function 'sf' is a struct, so it "
+               "shall be declared const (LRM 20.4.2.1 g)"),
 ]
 
 
@@ -643,7 +661,7 @@ def test_pss31_band_is_reserved_for_31_diagnostics():
                      "PSS118", "PSS119", "PSS120", "PSS121", "PSS122",
                      "PSS123", "PSS124", "PSS125", "PSS126", "PSS127",
                      "PSS128", "PSS129", "PSS130", "PSS131", "PSS132",
-                     "PSS133", "PSS134", "PSS135"]
+                     "PSS133", "PSS134", "PSS135", "PSS136", "PSS137"]
 
 
 def test_every_active_pss_marker_is_an_error():
