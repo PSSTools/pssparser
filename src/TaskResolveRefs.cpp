@@ -2822,7 +2822,7 @@ void TaskResolveRefs::resolveExprRefPathContext(ast::IExprRefPathContext *i) {
 
 //        if (!ii) {
             if (ii+1 < i->getHier_id()->getElems().size() && elem->getSubscript().size()) {
-                if (hasSliceSubscript_rr(elem)) {
+                if (hasSliceSubscript_rr(elem) && !stringAfterSubscripts(target_c, elem)) {
                     m_ctxt->addErrorMarker(
                         elem->getId()->getLocation(),
                         "member selection is not permitted on a slice of '%s'",
@@ -2837,6 +2837,17 @@ void TaskResolveRefs::resolveExprRefPathContext(ast::IExprRefPathContext *i) {
                     elem->getSubscript().size()).resolve(
                         target_c
                     );
+                if (!target_s || stringAfterSubscripts(target_c, elem)) {
+                    // An element that is a string -- `s[1].size()` with `s`
+                    // an array of strings, or a sub-string -- has no scope
+                    // but has string methods (06-front-end-checks F24).
+                    if (stringAfterSubscripts(target_c, elem)) {
+                        target_s = 0;
+                        is_builtin_with_methods = true;
+                        is_string_target = true;
+                        builtin_method_ii = ii+1;
+                    }
+                }
             }
             if (!ii) {
                 // A call whose callee is the root of the path -- a plain
@@ -3132,6 +3143,15 @@ void TaskResolveRefs::resolveExprRefPathContext(ast::IExprRefPathContext *i) {
                     break;
                 }
 
+                if (elem->getSubscript().size() && stringAfterSubscripts(target_c, elem)) {
+                    // A string element or a sub-string: string methods follow
+                    // (06-front-end-checks F24).
+                    target_s = 0;
+                    is_builtin_with_methods = true;
+                    is_string_target = true;
+                    builtin_method_ii = ii+1;
+                    continue;
+                }
                 if (elem->getSubscript().size()) {
                     if (hasSliceSubscript_rr(elem)) {
                         m_ctxt->addErrorMarker(
@@ -3164,6 +3184,22 @@ void TaskResolveRefs::resolveExprRefPathContext(ast::IExprRefPathContext *i) {
     }
 
     DEBUG_LEAVE("visitExprRefPathContext");
+}
+
+/** True if `decl`'s value, subscripted as `elem` is, is a string (8.6.3). */
+bool TaskResolveRefs::stringAfterSubscripts(
+        ast::IScopeChild            *decl,
+        ast::IExprMemberPathElem    *elem) {
+    if (!decl || !elem->getSubscript().size()) {
+        return false;
+    }
+    TaskExprTypeCat typer(m_ctxt);
+    ExprType et = typer.typeOfDecl(decl);
+    for (auto it=elem->getSubscript().begin();
+            et.known() && it!=elem->getSubscript().end(); it++) {
+        et = typer.subscript(et, it->get());
+    }
+    return et.kind == TypeKindE::String;
 }
 
 void TaskResolveRefs::visitActivityDecl(ast::IActivityDecl *i) {

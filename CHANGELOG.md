@@ -99,6 +99,12 @@ New errors, each at the construct it names:
 - **PSS146** a `compile if` condition referencing a type member (19.1.3 b).
 - **PSS147** a private or protected field reached from outside (17.4).
 
+### Fixed — a method of a string reached through a subscript
+
+`s[1].size()` with `s` an array of strings, and a sub-string's method
+`u[0..1].size()` (8.6.3), reported "cannot resolve 'size': the enclosing
+scope is unknown". Both now resolve against the string methods.
+
 ### Fixed — `a in l && b in m` is two membership tests
 
 The collection form of `in` took a whole expression as its collection, so

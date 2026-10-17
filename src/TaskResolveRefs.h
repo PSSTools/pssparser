@@ -732,6 +732,9 @@ protected:
      */
     void checkOverride(ast::ISymbolFunctionScope *i);
 
+    /** True if `decl`'s value, subscripted as `elem` is, is a string. */
+    bool stringAfterSubscripts(ast::IScopeChild *decl, ast::IExprMemberPathElem *elem);
+
     /**
      * `target` on one declaration of a function and `solve` on another
      * (20.3.1, 20.4.1 b). True if it reported.
