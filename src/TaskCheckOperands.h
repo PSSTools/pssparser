@@ -42,7 +42,10 @@ namespace pssp {
  * - an operand of a type its operator does not take (8.4 Table 10, 8.3
  *   Table 9, 7.7 for a chandle) -- PSS131;
  * - a condition that is not Boolean (20.7.9, 20.7.7 a, 8.5.8) -- PSS132;
- * - `null` assigned to what is not a reference (8.3) -- PSS133.
+ * - `null` assigned to what is not a reference (8.3) -- PSS133;
+ * - enum item values: duplicates, outside the base type, an implicit value
+ *   past its greatest, a base type with a domain (7.5.1 c, e) -- PSS134;
+ * - a variable of an enum with no items (7.5.1 j) -- PSS135.
  *
  * Enumeration operands are left alone by PSS131: 7.5.1 permits an enum in
  * assignment and equality ("may be used"), and says nothing stronger.
@@ -89,6 +92,8 @@ public:
 
     virtual void visitField(ast::IField *i) override;
 
+    virtual void visitEnumDecl(ast::IEnumDecl *i) override;
+
 private:
     /** Where to report on `e`: its first located identifier, else the
      *  statement being checked. */
@@ -118,6 +123,9 @@ private:
     void checkCondition(const char *what, const char *clause, ast::IExpr *cond);
 
     void checkNullInit(const ExprType &target, ast::IExpr *value);
+
+    /** PSS135: `name` declares a variable of type `dt`. */
+    void checkItemlessEnum(ast::IExprId *name, ast::IDataType *dt);
 
 private:
     static dmgr::IDebug                 *m_dbg;

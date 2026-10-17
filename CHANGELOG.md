@@ -55,6 +55,14 @@ New errors, each at the construct it names:
 - **PSS133** `null` assigned to what is not a reference (8.3); a chandle is
   not judged.
 
+### Added — enum item values
+
+- **PSS134** two enum items with one value, across extensions too (7.5.1
+  e); an explicit value outside the base type, or an implicit one past its
+  greatest (7.5.1 c); a base type with a value domain (7.5.1).
+- **PSS135** a variable of an enum with no items in its declaration or any
+  extension (7.5.1 j).
+
 ### Fixed — `a in l && b in m` is two membership tests
 
 The collection form of `in` took a whole expression as its collection, so

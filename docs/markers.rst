@@ -1097,6 +1097,29 @@ null assigned to what is not a reference
 
 LRM 8.3: the right side of an assignment shall be assignment-compatible with the left; ``null`` is the value of a reference (7.10).  ``int y = null;`` is an error.  A chandle is not judged.
 
+PSS134
+~~~~~~
+
+**Severity:** error
+
+Enum item values: a duplicate, or outside the base type
+
+LRM 7.5.1 e: "Each enum_item shall have a distinct integer value" -- across the declaration and its extensions.  7.5.1 c: with a base type, "It shall be an error to explicitly assign a value which does not belong to the base type" (a negative value with an unsigned base, say), and to give an item no value when the previous one has the base type's greatest value.  7.5.1: the base type "shall not have a value domain".  An item whose value does not fold here (one defined by another item) ends the check for its enum.  Messages:
+
+* ``enum item 'B' has the value 1, as 'A' does: each enum item shall have a distinct value (LRM 7.5.1 e)``
+* ``enum item 'A' has the value -1, which is not a value of the base type bit[4] (LRM 7.5.1 c)``
+* ``enum item 'B' has no value of its own, and the item before it has the greatest value of the base type bit[2] (LRM 7.5.1 c)``
+* ``the base type of enum 'h_e' shall not have a value domain (LRM 7.5.1)``
+
+PSS135
+~~~~~~
+
+**Severity:** error
+
+A variable of an enum with no items
+
+LRM 7.5.1 j: an enum may be declared with no items and given them in extensions, but "It shall be illegal to declare an enumeration variable whose type contains no enum_items across its initial definition and extensions."
+
 LINT: core-emitted lint
 -----------------------
 

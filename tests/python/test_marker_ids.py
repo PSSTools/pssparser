@@ -333,6 +333,16 @@ REPRESENTATIVE_MESSAGES = [
                "(LRM 20.7.9)"),
     ("PSS133", "null cannot be assigned to int: only a reference takes null "
                "(LRM 8.3)"),
+    ("PSS134", "enum item 'B' has the value 1, as 'A' does: each enum item "
+               "shall have a distinct value (LRM 7.5.1 e)"),
+    ("PSS134", "enum item 'A' has the value -1, which is not a value of the "
+               "base type bit[4] (LRM 7.5.1 c)"),
+    ("PSS134", "enum item 'B' has no value of its own, and the item before it "
+               "has the greatest value of the base type bit[2] (LRM 7.5.1 c)"),
+    ("PSS134", "the base type of enum 'h_e' shall not have a value domain "
+               "(LRM 7.5.1)"),
+    ("PSS135", "'v' is a variable of enum 'n_e', which has no items in its "
+               "declaration or any extension (LRM 7.5.1 j)"),
 ]
 
 
@@ -633,7 +643,7 @@ def test_pss31_band_is_reserved_for_31_diagnostics():
                      "PSS118", "PSS119", "PSS120", "PSS121", "PSS122",
                      "PSS123", "PSS124", "PSS125", "PSS126", "PSS127",
                      "PSS128", "PSS129", "PSS130", "PSS131", "PSS132",
-                     "PSS133"]
+                     "PSS133", "PSS134", "PSS135"]
 
 
 def test_every_active_pss_marker_is_an_error():

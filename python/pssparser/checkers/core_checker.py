@@ -2139,6 +2139,51 @@ class CoreChecker(CheckerBase):
                 r"^null cannot be assigned to .*: only a reference takes null\b",
             ),
         ),
+        MarkerDef(
+            id="PSS134",
+            severity="error",
+            summary="Enum item values: a duplicate, or outside the base type",
+            detail=(
+                "LRM 7.5.1 e: \"Each enum_item shall have a distinct integer "
+                "value\" -- across the declaration and its extensions.  7.5.1 "
+                "c: with a base type, \"It shall be an error to explicitly "
+                "assign a value which does not belong to the base type\" (a "
+                "negative value with an unsigned base, say), and to give an item "
+                "no value when the previous one has the base type's greatest "
+                "value.  7.5.1: the base type \"shall not have a value "
+                "domain\".  An item whose value does not fold here (one defined "
+                "by another item) ends the check for its enum.  Messages:\n\n"
+                "* ``enum item 'B' has the value 1, as 'A' does: each enum item "
+                "shall have a distinct value (LRM 7.5.1 e)``\n"
+                "* ``enum item 'A' has the value -1, which is not a value of the "
+                "base type bit[4] (LRM 7.5.1 c)``\n"
+                "* ``enum item 'B' has no value of its own, and the item before "
+                "it has the greatest value of the base type bit[2] (LRM 7.5.1 "
+                "c)``\n"
+                "* ``the base type of enum 'h_e' shall not have a value domain "
+                "(LRM 7.5.1)``"
+            ),
+            patterns=(
+                r"^enum item '[^']*' has the value -?\d+, as '[^']*' does\b",
+                r"^enum item '[^']*' has the value -?\d+, which is not a value of the base type\b",
+                r"^enum item '[^']*' has no value of its own, and the item before it\b",
+                r"^the base type of enum '[^']*' shall not have a value domain\b",
+            ),
+        ),
+        MarkerDef(
+            id="PSS135",
+            severity="error",
+            summary="A variable of an enum with no items",
+            detail=(
+                "LRM 7.5.1 j: an enum may be declared with no items and given "
+                "them in extensions, but \"It shall be illegal to declare an "
+                "enumeration variable whose type contains no enum_items across "
+                "its initial definition and extensions.\""
+            ),
+            patterns=(
+                r"^'[^']*' is a variable of enum '[^']*', which has no items\b",
+            ),
+        ),
 
         # -- PSSP: the tool's own diagnostics (lint-framework D-6) ----------
         #

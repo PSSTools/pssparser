@@ -19,6 +19,13 @@
 #include "pssp/ast/IConstraintStmt.h"
 #include "pssp/ast/IExecStmt.h"
 #include "pssp/ast/IExprBin.h"
+#include <map>
+#include "pssp/IValInt.h"
+#include "pssp/impl/TaskEvalExpr.h"
+#include "pssp/ast/IDataTypeInt.h"
+#include "pssp/ast/IEnumDecl.h"
+#include "pssp/ast/IEnumItem.h"
+#include "pssp/ast/ISymbolEnumScope.h"
 #include "pssp/ast/IExprCast.h"
 #include "pssp/ast/IExprCond.h"
 #include "pssp/ast/IExprNull.h"
@@ -438,6 +445,7 @@ void TaskCheckOperands::checkNullInit(const ExprType &target, ast::IExpr *value)
 void TaskCheckOperands::visitProceduralStmtDataDeclaration(
         ast::IProceduralStmtDataDeclaration *i) {
     ast::VisitorBase::visitProceduralStmtDataDeclaration(i);
+    checkItemlessEnum(i->getName(), i->getDatatype());
     if (i->getName() && i->getName()->getLocation().lineno > 0) {
         m_stmt_loc = i->getName()->getLocation();
     }
@@ -446,6 +454,7 @@ void TaskCheckOperands::visitProceduralStmtDataDeclaration(
 
 void TaskCheckOperands::visitField(ast::IField *i) {
     ast::VisitorBase::visitField(i);
+    checkItemlessEnum(i->getName(), i->getType());
     if (i->getInit() && i->getName() && i->getName()->getLocation().lineno > 0) {
         m_stmt_loc = i->getName()->getLocation();
         checkNullInit(m_typer.typeOfDataType(i->getType()), i->getInit());
@@ -619,6 +628,128 @@ void TaskCheckOperands::visitFunctionPrototype(ast::IFunctionPrototype *i) {
                 p->getName()->getId().c_str(), i->getName()->getId().c_str(),
                 what, pt.scope->getName().c_str());
         }
+    }
+}
+
+
+// ---------------------------------------------------------------------------
+// Enum values (7.5.1)
+// ---------------------------------------------------------------------------
+
+void TaskCheckOperands::checkItemlessEnum(ast::IExprId *name, ast::IDataType *dt) {
+    if (!name || !dt || name->getLocation().lineno <= 0) {
+        return;
+    }
+    ExprType t = m_typer.typeOfDataType(dt);
+    ast::ISymbolEnumScope *es = NodeKind::cast<ast::ISymbolEnumScope>(t.scope);
+    if (t.kind != TypeKindE::Enum || !es || es->getChildren().size()) {
+        return;
+    }
+    // 7.5.1 j: "It shall be illegal to declare an enumeration variable whose
+    // type contains no enum_items across its initial definition and
+    // extensions." Extensions are merged into the scope by now.
+    m_ctxt->addErrorMarker(name->getLocation(),
+        "'%s' is a variable of enum '%s', which has no items in its declaration or "
+        "any extension (LRM 7.5.1 j)",
+        name->getId().c_str(), es->getName().c_str());
+}
+
+void TaskCheckOperands::visitEnumDecl(ast::IEnumDecl *i) {
+    ast::VisitorBase::visitEnumDecl(i);
+
+    const char *ename = (i->getName()) ? i->getName()->getId().c_str() : "?";
+
+    // The base type: an integer type with no domain (7.5.1).
+    bool bounded = false;
+    int64_t lo = 0, hi = 0;
+    std::string base_name;
+    if (i->getBase_type()) {
+        ExprType bt = m_typer.typeOfDataType(i->getBase_type());
+        ast::IDataTypeInt *it = NodeKind::cast<ast::IDataTypeInt>(bt.dt);
+        if (it && it->getIn_range()) {
+            m_ctxt->addErrorMarker(i->getName()->getLocation(),
+                "the base type of enum '%s' shall not have a value domain (LRM 7.5.1)",
+                ename);
+        }
+        if (it) {
+            int64_t width = (it->getIs_signed()) ? 32 : 1;
+            bool known = true;
+            if (it->getWidth()) {
+                std::unique_ptr<IVal> w(TaskEvalExpr(
+                    m_ctxt->getFactory(), m_ctxt->root()).eval(it->getWidth()));
+                IValInt *wi = dynamic_cast<IValInt *>(w.get());
+                known = (wi != 0);
+                width = (wi) ? wi->getValS() : 0;
+            }
+            if (known && width > 0 && width < 63) {
+                bounded = true;
+                if (it->getIs_signed()) {
+                    lo = -(int64_t(1) << (width-1));
+                    hi = (int64_t(1) << (width-1)) - 1;
+                } else {
+                    lo = 0;
+                    hi = (int64_t(1) << width) - 1;
+                }
+                base_name = std::string((it->getIs_signed()) ? "int" : "bit")
+                    + "[" + std::to_string(width) + "]";
+            }
+        }
+    }
+
+    // The items, the declaration's then each extension's, in merge order:
+    // the enum scope holds them all.
+    if (!i->getItems().size() || !i->getItems().front()->getUpper()) {
+        return;
+    }
+    ast::ISymbolEnumScope *es = i->getItems().front()->getUpper();
+    std::map<int64_t, ast::IEnumItem *> seen;
+    bool have_prev = false;
+    int64_t prev = 0;
+    for (std::vector<ast::IScopeChildUP>::const_iterator
+            it=es->getChildren().begin(); it!=es->getChildren().end(); it++) {
+        ast::IEnumItem *item = NodeKind::cast<ast::IEnumItem>(it->get());
+        if (!item) {
+            continue;
+        }
+        bool user = (item->getName()->getLocation().fileid >= 1);
+        int64_t v;
+        if (item->getValue()) {
+            std::unique_ptr<IVal> val(TaskEvalExpr(
+                m_ctxt->getFactory(), m_ctxt->root()).eval(item->getValue()));
+            IValInt *vi = dynamic_cast<IValInt *>(val.get());
+            if (!vi) {
+                // Not foldable here (an item defined by another, say): the
+                // values from here on are not known.
+                return;
+            }
+            v = vi->getValS();
+            if (bounded && user && (v < lo || v > hi)) {
+                m_ctxt->addErrorMarker(item->getName()->getLocation(),
+                    "enum item '%s' has the value %lld, which is not a value of the "
+                    "base type %s (LRM 7.5.1 c)",
+                    item->getName()->getId().c_str(), (long long)v, base_name.c_str());
+            }
+        } else {
+            if (have_prev && bounded && user && prev == hi) {
+                m_ctxt->addErrorMarker(item->getName()->getLocation(),
+                    "enum item '%s' has no value of its own, and the item before it "
+                    "has the greatest value of the base type %s (LRM 7.5.1 c)",
+                    item->getName()->getId().c_str(), base_name.c_str());
+            }
+            v = (have_prev) ? prev+1 : 0;
+        }
+        std::map<int64_t, ast::IEnumItem *>::const_iterator d = seen.find(v);
+        if (d != seen.end() && user) {
+            m_ctxt->addErrorMarker(item->getName()->getLocation(),
+                "enum item '%s' has the value %lld, as '%s' does: each enum item "
+                "shall have a distinct value (LRM 7.5.1 e)",
+                item->getName()->getId().c_str(), (long long)v,
+                d->second->getName()->getId().c_str());
+        } else if (d == seen.end()) {
+            seen.insert({v, item});
+        }
+        prev = v;
+        have_prev = true;
     }
 }
 

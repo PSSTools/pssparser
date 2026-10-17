@@ -44,7 +44,9 @@ def _enum_decl(code, name="e"):
     # (D7/P7-D1), accepted everywhere an integer type may be written rather than
     # only here (P3-X5). `test_integer_width_range` in test_data_types.py covers
     # what it builds and carries the full note.
-    "int", "bit", "bit[4]", "int[16]", "bit[7:0]", "int[15:0]",
+    # (`bit` alone is one bit: the three items below would overflow it, which
+    # is PSS134 -- see test_enum_value_checks.py.)
+    "int", "bit[4]", "int[16]", "bit[7:0]", "int[15:0]",
 ])
 def test_enum_with_base_type_parses(base):
     assert_parse_ok("enum e : %s { A, B, C }" % base)
