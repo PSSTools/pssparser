@@ -32,7 +32,7 @@ _A = ("a.pss",
       "  inner_pkg::n_t n;\n"                              # 21
       "  action A {\n"                                     # 22
       "    rand bit[4] x;\n"                               # 23
-      "    rand bit[1] m;\n"                               # 24
+      "    rand mode_e m;\n"                                # 24
       "    constraint x < K && x != s.v;\n"                # 25
       "    constraint m == RD;\n"                          # 26
       "    exec post_solve { message(LOW, \"x\"); }\n"     # 27
@@ -82,7 +82,7 @@ def _uses(hooks, model, line):
 def test_wildcard_import(hooks, model):
     # s_t (a type), K (a constant), RD (an item of an enum in the package);
     # not s.v (a member reached through a value).
-    assert _uses(hooks, model, 12) == ["18:s_t", "25:K", "26:RD"]
+    assert _uses(hooks, model, 12) == ["18:s_t", "24:mode_e", "25:K", "26:RD"]
 
 
 def test_explicit_import(hooks, model):
@@ -91,7 +91,7 @@ def test_explicit_import(hooks, model):
 
 
 def test_explicit_import_of_an_enum_brings_its_items(hooks, model):
-    assert _uses(hooks, model, 14) == ["26:RD"]
+    assert _uses(hooks, model, 14) == ["24:mode_e", "26:RD"]
 
 
 def test_alias(hooks, model):

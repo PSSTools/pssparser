@@ -12,7 +12,7 @@ component pss_top {
   import b_pkg::t_t;
   action A {
     rand bit[4] n;
-    rand bit[1] md;
+    rand mode_e md;
     t_t t;
     constraint n < K;
     constraint md == RD;

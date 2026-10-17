@@ -95,7 +95,7 @@ def test_show_config_reports_lint(workdir):
     rc, out, _ = _run(["--show-config"])
     assert rc == 0
     assert "lint.profile" in out and "strict" in out
-    assert "enabled rules: LINT101, LINT301, LINT501, LINT601-602" in out
+    assert "enabled rules: LINT301, LINT501, LINT601-602" in out
 
 
 # -- selectors in [severity] ----------------------------------------------------

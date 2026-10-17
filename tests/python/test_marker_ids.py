@@ -98,8 +98,6 @@ REPRESENTATIVE_MESSAGES = [
                "aliases in one scope shall not share a name (18.1.4)"),
     ("PSS043", "package alias 'foo' has the same name as a package declared "
                "in package 'P'; rename the alias (18.1.4)"),
-    ("PSS045", "ambiguous comparison of 'A' and 'B': either 'A' is e2::A or "
-               "'B' is e1::B; qualify the enum item (8.4.3, 18.3 a)"),
     ("PSS047", "template parameter 'N' expects a value, but 'my_s' is a type"),
     ("PSS047", "template parameter 'N' expects a value, but the argument "
                "supplied is a type"),
@@ -320,6 +318,12 @@ REPRESENTATIVE_MESSAGES = [
                "function shall not (LRM 20.2.2)"),
     ("PSS129", "parameter 'b' of 'f' has flow object type 'b_s' without 'ref': "
                "a function shall not (LRM 20.2.2)"),
+    ("PSS130", "enum item 'ORANGE' is used where no enumeration type is "
+               "expected (7.5.1 i, 8.4.3; ruling R22); qualify it as "
+               "'color_e::ORANGE'"),
+    ("PSS130", "enum item 'RED' is used where 'mode_e' is expected, but it is "
+               "an item of 'color_e' (7.5.1 i, 8.4.3; ruling R22); qualify it "
+               "as 'color_e::RED'"),
 ]
 
 
@@ -329,11 +333,6 @@ REPRESENTATIVE_MESSAGES = [
 CORE_LINT_MESSAGES = [
     ("LINT401", "'A' is read as the enum item mode_e::A, which hides the "
                "field 'A' (18.3 a); qualify one of them"),
-    ("LINT101", "enum item 'ORANGE' is used where no enumeration type is "
-               "expected (7.5 i, 8.4.3); qualify it as 'color_e::ORANGE'"),
-    ("LINT101", "enum item 'RED' is used where 'mode_e' is expected, but it is "
-               "an item of 'color_e' (7.5 i, 8.4.3); qualify it as "
-               "'color_e::RED'"),
     ("LINT402", "'import lib::*;' follows a declaration; imports shall come "
                "first in a package, a component, an extension or a file "
                "(18.1.3)"),
@@ -624,7 +623,7 @@ def test_pss31_band_is_reserved_for_31_diagnostics():
                      "PSS113", "PSS114", "PSS115", "PSS116", "PSS117",
                      "PSS118", "PSS119", "PSS120", "PSS121", "PSS122",
                      "PSS123", "PSS124", "PSS125", "PSS126", "PSS127",
-                     "PSS128", "PSS129"]
+                     "PSS128", "PSS129", "PSS130"]
 
 
 def test_every_active_pss_marker_is_an_error():

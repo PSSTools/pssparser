@@ -3822,7 +3822,6 @@
      "ACME001",
      "ACME002",
      "ACME003",
-     "LINT101",
      "LINT102",
      "LINT201",
      "LINT202",
@@ -3880,7 +3879,6 @@
        "ACME001",
        "ACME002",
        "ACME003",
-       "LINT101",
        "LINT301",
        "LINT401",
        "LINT402",
@@ -3942,10 +3940,6 @@
      "ACME003": {
       "severity": "error",
       "key": "ACME"
-     },
-     "LINT101": {
-      "severity": "info",
-      "key": "suspicious"
      },
      "LINT301": {
       "severity": "info",
@@ -4080,7 +4074,6 @@
      "ACME001",
      "ACME002",
      "ACME003",
-     "LINT101",
      "LINT102",
      "LINT201",
      "LINT202",
@@ -4180,7 +4173,6 @@
        "ACME-NET002",
        "ACME002",
        "ACME003",
-       "LINT101",
        "LINT301",
        "LINT401",
        "LINT402",
@@ -4331,7 +4323,6 @@
      "ACME001",
      "ACME002",
      "ACME003",
-     "LINT101",
      "LINT102",
      "LINT201",
      "LINT202",
@@ -4384,7 +4375,6 @@
       "overrides": [],
       "profile": "minimal",
       "enabled": [
-       "LINT101",
        "LINT301",
        "LINT401",
        "LINT402",
@@ -6129,14 +6119,14 @@
       "tier": "",
       "family": "",
       "since": "",
-      "status": "active",
+      "status": "retired",
       "severity": "error",
       "aliases": [],
       "replaced_by": [],
       "default_enabled": true,
       "minimal": false,
-      "summary": "Ambiguous enum item in a comparison",
-      "detail": "In ``a == b`` or ``a != b`` each side's type is the other side's expected type, so an unqualified name on either side may be an item of the other side's enum.  When both sides are bare names and each could be read that way, there is no telling which was meant.  Message:\n\n* ``ambiguous comparison of 'A' and 'B': either 'A' is e2::A or 'B' is e1::B; qualify the enum item (8.4.3, 18.3 a)``\n\nQualify the item, as ``e1::B``.",
+      "summary": "Ambiguous enum item in a comparison (withdrawn; see PSS130)",
+      "detail": "Read ``a == b`` both ways, each side's type being the other side's expected type, and reported a comparison of two bare names either of which could be an item of the other's enum.  Ruling R22 gives the left side no expected type (8.4.3), so the ambiguity cannot arise: an unqualified item on the left is PSS130.  ``PSS045`` is never reused.",
       "lrm": [],
       "doc_url": "https://psstools.github.io/pssparser/lint-rules.html#pss045",
       "source": "core"
@@ -7040,6 +7030,24 @@
       "source": "core"
      },
      {
+      "id": "PSS130",
+      "name": "",
+      "tier": "",
+      "family": "",
+      "since": "",
+      "status": "active",
+      "severity": "error",
+      "aliases": [],
+      "replaced_by": [],
+      "default_enabled": true,
+      "minimal": false,
+      "summary": "Unqualified enum item where its enumeration type is not expected",
+      "detail": "An enum item belongs to its enumeration type's scope, not to the scope that declares the enum (7.5.1 g).  Unqualified, it is found only where the expression's expected type is that enumeration type (7.5.1 i, 8.4.3, 18.3 a): an assignment or initializer, a call argument, a ``return``, the RIGHT side of ``==``/``!=``, the values of ``in``, a cast to the enum, and the arms of ``?:``.  The left side of ``==`` has no expected type, and 8.5.9.1: \"The left-hand side [of in] shall not be an unqualified enum_item\".  pssparser finds an item of an enclosing scope's enum anyway, when the name means nothing else, and reports it: an error by ruling R22 (it was the warning LINT101).  Messages:\n\n* ``enum item 'ORANGE' is used where no enumeration type is expected (7.5.1 i, 8.4.3; ruling R22); qualify it as 'color_e::ORANGE'``\n* ``enum item 'RED' is used where 'mode_e' is expected, but it is an item of 'color_e' (7.5.1 i, 8.4.3; ruling R22); qualify it as 'color_e::RED'``\n\nQualify the item.  LRM Example 37: ``print_num((int)ORANGE)`` is an error, because the cast's type is ``int``.",
+      "lrm": [],
+      "doc_url": "https://psstools.github.io/pssparser/lint-rules.html#pss130",
+      "source": "core"
+     },
+     {
       "id": "PSSP000",
       "name": "internal-error",
       "tier": "tool",
@@ -7617,16 +7625,16 @@
       "tier": "suspicious",
       "family": "constraint",
       "since": "2026.1",
-      "status": "active",
+      "status": "retired",
       "severity": "warning",
       "aliases": [
        "PSS046"
       ],
       "replaced_by": [],
       "default_enabled": true,
-      "minimal": true,
-      "summary": "Enum item used where its enumeration type is not expected",
-      "detail": "An enum item belongs to its enumeration type's scope, not to the scope that declares the enum (7.5 g).  Unqualified, it is found only where the expression's expected type is that enumeration type (7.5 i, 8.4.3, 18.3 a): an assignment or initializer, a call argument, a ``return``, the other side of ``==``/``!=``, the values of ``in``, a cast to the enum, and the arms of ``?:``.  pssparser still accepts an item declared in an enclosing scope, or in a package a wildcard import names, when the name means nothing else there, and warns; this becomes an error in a later release.  A declaration of the same name further out is what the name means, and no longer the item.  Messages:\n\n* ``enum item 'ORANGE' is used where no enumeration type is expected (7.5 i, 8.4.3); qualify it as 'color_e::ORANGE'``\n* ``enum item 'RED' is used where 'mode_e' is expected, but it is an item of 'color_e' (7.5 i, 8.4.3); qualify it as 'color_e::RED'``\n\nQualify the item.  LRM Example 37: ``print_num((int)ORANGE)`` is an error, because the cast's type is ``int``.",
+      "minimal": false,
+      "summary": "Enum item used where its enumeration type is not expected (now PSS130)",
+      "detail": "Retired: ruling R22 made this warning an error, reported as ``PSS130`` (it had moved here from ``PSS046``).  ``LINT101`` is still accepted wherever an ID is typed -- configuration, ``-W``, ``--describe`` -- and is never reused.",
       "lrm": [],
       "doc_url": "https://psstools.github.io/pssparser/lint-rules.html#lint101",
       "source": "core"
@@ -9079,7 +9087,7 @@
      "name": "",
      "tier": "",
      "severity": "error",
-     "status": "active",
+     "status": "retired",
      "aliases": [],
      "minimal": false,
      "source": "core"
@@ -9575,6 +9583,16 @@
      "source": "core"
     },
     {
+     "id": "PSS130",
+     "name": "",
+     "tier": "",
+     "severity": "error",
+     "status": "active",
+     "aliases": [],
+     "minimal": false,
+     "source": "core"
+    },
+    {
      "id": "PSSP000",
      "name": "",
      "tier": "tool",
@@ -9901,11 +9919,11 @@
      "name": "enum-item-type-mismatch",
      "tier": "suspicious",
      "severity": "warning",
-     "status": "active",
+     "status": "retired",
      "aliases": [
       "PSS046"
      ],
-     "minimal": true,
+     "minimal": false,
      "source": "core"
     },
     {
@@ -15095,7 +15113,7 @@
    "sources": [
     {
      "name": "ok_01.pss",
-     "text": "// expect: none\n// Names found through imports: a type, a constant, an enum item, a\n// function, an explicitly imported struct.\npackage a_pkg {\n  enum mode_e { RD, WR };\n  const int K = 3;\n  function int twice(int v) { return 2 * v; }\n}\npackage b_pkg { struct t_t { rand bit[4] v; } }\ncomponent pss_top {\n  import a_pkg::*;\n  import b_pkg::t_t;\n  action A {\n    rand bit[4] n;\n    rand bit[1] md;\n    t_t t;\n    constraint n < K;\n    constraint md == RD;\n    exec post_solve { n = twice(n); }\n  }\n}\n"
+     "text": "// expect: none\n// Names found through imports: a type, a constant, an enum item, a\n// function, an explicitly imported struct.\npackage a_pkg {\n  enum mode_e { RD, WR };\n  const int K = 3;\n  function int twice(int v) { return 2 * v; }\n}\npackage b_pkg { struct t_t { rand bit[4] v; } }\ncomponent pss_top {\n  import a_pkg::*;\n  import b_pkg::t_t;\n  action A {\n    rand bit[4] n;\n    rand mode_e md;\n    t_t t;\n    constraint n < K;\n    constraint md == RD;\n    exec post_solve { n = twice(n); }\n  }\n}\n"
     }
    ],
    "toml": "[lint]\nprofile = \"none\"\nselect = [\"unused-import\"]\n",

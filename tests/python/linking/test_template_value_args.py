@@ -7,7 +7,8 @@ it is given for. For a value parameter the name is looked up as a value:
 - the argument initializes the parameter, so the parameter's type is its
   expected type (8.4.3), and step a of 18.3 searches that enum's items first;
 - otherwise the ordinary lookup, where an enum item found only as the fallback
-  warns (LINT101), as in any other expression (8.2);
+  is an error (PSS130, ruling R22; was the warning LINT101), as in any other
+  expression (8.2);
 - a miss is an unknown *identifier* (PSS002), not an unknown type;
 - a type is reported (PSS047).
 
@@ -165,24 +166,24 @@ component pss_top {
     assert bindings(code, "B") == [(6, "EnumItem", 1)]
 
 
-def test_an_item_of_another_enum_warns():
+def test_an_item_of_another_enum_is_an_error():
     code = ENUM + "component pss_top { S<RED> a; }\n"
     assert markers(code) == [(
-        "warning",
+        "error",
         "enum item 'RED' is used where 'mode_e' is expected, but it is an "
-        "item of 'color_e' (7.5 i, 8.4.3); qualify it as 'color_e::RED'")]
+        "item of 'color_e' (7.5.1 i, 8.4.3; ruling R22); qualify it as 'color_e::RED'")]
 
 
-def test_an_item_for_an_int_parameter_warns():
+def test_an_item_for_an_int_parameter_is_an_error():
     code = """\
 enum mode_e {A, B};
 struct N <int W = 1> { rand bit[W] x; }
 component pss_top { N<B> a; }
 """
     assert markers(code) == [(
-        "warning",
+        "error",
         "enum item 'B' is used where no enumeration type is expected "
-        "(7.5 i, 8.4.3); qualify it as 'mode_e::B'")]
+        "(7.5.1 i, 8.4.3; ruling R22); qualify it as 'mode_e::B'")]
 
 
 def test_a_generic_declared_later():

@@ -278,9 +278,9 @@ component pss_top { }
 
 @pytest.mark.parametrize("decls,expect", [
     # Enum item declared later (CH17/p36b). An `int` initializer expects no
-    # enumeration type, so the bare item is also LINT101 (8.2).
-    ("const int A = E_X;\n enum e { E_X = 1 }", [(3, "LINT101"), (3, "PSS118")]),
-    ("enum e { E_X = 1 }\n const int A = E_X;", [(4, "LINT101")]),
+    # enumeration type, so the bare item is also PSS130 (8.2, ruling R22).
+    ("const int A = E_X;\n enum e { E_X = 1 }", [(3, "PSS130"), (3, "PSS118")]),
+    ("enum e { E_X = 1 }\n const int A = E_X;", [(4, "PSS130")]),
     # Qualified: the lexical walk is not involved.
     ("const int A = my::C;\n const int C = 3;", [(3, "PSS118")]),
     # Itself.

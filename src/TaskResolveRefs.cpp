@@ -1975,53 +1975,6 @@ ast::ISymbolRefPath *TaskResolveRefs::expectedItem(
     return ref;
 }
 
-void TaskResolveRefs::resolveBareComparison(
-        ast::IExprRefPathContext    *lhs,
-        ast::IExprRefPathContext    *rhs) {
-    ast::IExprId *l_id = lhs->getHier_id()->getElems().at(0)->getId();
-    ast::IExprId *r_id = rhs->getHier_id()->getElems().at(0)->getId();
-    ExprTypeOf type_of(m_ctxt);
-
-    // Each side's own type: the type of what it binds to lexically. A name
-    // that is only an enum item of an enclosing scope binds to nothing by
-    // 18.3 (8.2), so it has no type to offer the other side.
-    ast::IScopeChild *l_lex = peekLexical(m_ctxt, l_id);
-    ast::IScopeChild *r_lex = peekLexical(m_ctxt, r_id);
-    ast::ISymbolEnumScope *l_t = type_of.enumOfDecl(l_lex);
-    ast::ISymbolEnumScope *r_t = type_of.enumOfDecl(r_lex);
-
-    // A reading matters only where it changes what a name binds to: the
-    // item the other side's type offers, when that is not the name's lexical
-    // binding already.
-    auto itemOf = [](ast::ISymbolEnumScope *t, const std::string &name) -> ast::IScopeChild * {
-        if (!t) {
-            return 0;
-        }
-        std::unordered_map<std::string,int32_t>::const_iterator it =
-            t->getSymtab().find(name);
-        return (it != t->getSymtab().end())
-            ? t->getChildren().at(it->second).get() : 0;
-    };
-    ast::IScopeChild *r_item = itemOf(l_t, r_id->getId());
-    ast::IScopeChild *l_item = itemOf(r_t, l_id->getId());
-    bool r_changes = (r_item && r_item != r_lex);
-    bool l_changes = (l_item && l_item != l_lex);
-
-    if (r_changes && l_changes) {
-        m_ctxt->addErrorMarker(
-            l_id->getLocation(),
-            "ambiguous comparison of '%s' and '%s': either '%s' is %s::%s or "
-            "'%s' is %s::%s; qualify the enum item (8.4.3, 18.3 a)",
-            l_id->getId().c_str(), r_id->getId().c_str(),
-            l_id->getId().c_str(), r_t->getName().c_str(), l_id->getId().c_str(),
-            r_id->getId().c_str(), l_t->getName().c_str(), r_id->getId().c_str());
-        lhs->accept(m_this);
-        rhs->accept(m_this);
-        return;
-    }
-    visitExpecting(lhs, (l_item) ? r_t : 0);
-    visitExpecting(rhs, (r_item) ? l_t : 0);
-}
 
 void TaskResolveRefs::visitExprBin(ast::IExprBin *i) {
     if (i->getOp() != ast::ExprBinOp::BinOp_Eq
@@ -2045,22 +1998,13 @@ void TaskResolveRefs::visitExprBin(ast::IExprBin *i) {
         return;
     }
 
-    // 8.4.3 makes the left side's type the right side's expected type.
-    // Decision Q2 reads it both ways for an unqualified enum item, as
-    // Ex. 272's prose does ("the other side").
-    ast::IExprRefPathContext *l_bare = bareName(i->getLhs());
-    ast::IExprRefPathContext *r_bare = bareName(i->getRhs());
-
-    if (l_bare && r_bare) {
-        resolveBareComparison(l_bare, r_bare);
-    } else if (l_bare) {
-        i->getRhs()->accept(m_this);
-        visitExpecting(i->getLhs(), type_of.enumOf(i->getRhs()));
-    } else {
-        i->getLhs()->accept(m_this);
-        visitExpecting(i->getRhs(), (takesExpected(i->getRhs()))
-            ? type_of.enumOf(i->getLhs()) : 0);
-    }
+    // 8.4.3 makes the left side's type the right side's expected type, and
+    // gives the left side none: ruling R22 reads it so (it reverses decision
+    // Q2, which read `==` both ways after Ex. 272's prose). An unqualified
+    // item on the left is found only by the fallback, which reports it.
+    i->getLhs()->accept(m_this);
+    visitExpecting(i->getRhs(), (takesExpected(i->getRhs()))
+        ? type_of.enumOf(i->getLhs()) : 0);
 }
 
 void TaskResolveRefs::visitExprIn(ast::IExprIn *i) {
@@ -2274,13 +2218,15 @@ void TaskResolveRefs::warnEnumItemFallback(
         ? "'" + expected->getName() + "' is expected, but it is an item of '"
             + e->getName() + "'"
         : std::string("no enumeration type is expected");
+    // An error by ruling R22 (pssc 06-front-end-checks F3): 7.5.1 i, Ex 37,
+    // 8.5.9.1. It was LINT101, a warning (lint-framework D-1), before.
     ctxt->addMarker(
-        MarkerSeverityE::Warn,
+        MarkerSeverityE::Error,
         id->getLocation(),
         "enum item '" + id->getId() + "' is used where " + where
-            + " (7.5 i, 8.4.3); qualify it as '" + e->getName() + "::"
+            + " (7.5.1 i, 8.4.3; ruling R22); qualify it as '" + e->getName() + "::"
             + id->getId() + "'",
-        {}, "LINT101");
+        {});
 }
 
 void TaskResolveRefs::reportEnumItemFallback(
@@ -3675,21 +3621,35 @@ void TaskResolveRefs::resolveExprRefPathStaticRooted(ast::IExprRefPathStaticRoot
             return;
         }
 
-        i->getLeaf()->accept(m_this);
-
+        // The leaf's arguments and subscripts are resolved as each element
+        // is looked up against the root, so that a formal's type is its
+        // argument's expected type (8.4.3): `p::f(LOW)`. Whatever the lookup
+        // did not reach is resolved plainly after it.
+        uint32_t done = 0;
         if (i->getRoot()->getTarget()->getPyref_idx() != -1) {
             // The root ends in a Python-type reference
             DEBUG("Root (static) reference has a Python component");
         } else {
             DEBUG("Root (static) reference does not have a Python component");
-            resolveStaticRootedLeaf(i);
+            done = resolveStaticRootedLeaf(i);
+        }
+        for (uint32_t ii=done; ii<i->getLeaf()->getElems().size(); ii++) {
+            ast::IExprMemberPathElem *elem = i->getLeaf()->getElems().at(ii).get();
+            if (elem->getParams()) {
+                elem->getParams()->accept(m_this);
+            }
+            for (std::vector<ast::IExprUP>::const_iterator
+                it=elem->getSubscript().begin();
+                it!=elem->getSubscript().end(); it++) {
+                (*it)->accept(m_this);
+            }
         }
     }
 
     DEBUG_LEAVE("visitExprRefPathStaticRooted");
 }
 
-void TaskResolveRefs::resolveStaticRootedLeaf(ast::IExprRefPathStaticRooted *i) {
+uint32_t TaskResolveRefs::resolveStaticRootedLeaf(ast::IExprRefPathStaticRooted *i) {
     DEBUG_ENTER("resolveStaticRootedLeaf");
 
     // P3-X6e. The leaf of a qualified reference used to be visited but never
@@ -3699,7 +3659,7 @@ void TaskResolveRefs::resolveStaticRootedLeaf(ast::IExprRefPathStaticRooted *i) 
 
     if (!target_c) {
         DEBUG_LEAVE("resolveStaticRootedLeaf -- root path does not resolve");
-        return;
+        return 0;
     }
 
     // `tx::g()` for an instance `tx`: only a package or a type qualifies a
@@ -3715,7 +3675,7 @@ void TaskResolveRefs::resolveStaticRootedLeaf(ast::IExprRefPathStaticRooted *i) 
                     NameLookup::notNamespaceMessage(qual->getId(), nn).c_str());
             }
             DEBUG_LEAVE("resolveStaticRootedLeaf -- root is not a namespace");
-            return;
+            return 0;
         }
     }
 
@@ -3728,9 +3688,10 @@ void TaskResolveRefs::resolveStaticRootedLeaf(ast::IExprRefPathStaticRooted *i) 
         // by references the resolver models loosely, and guessing would turn
         // every one of them into a spurious error.
         DEBUG_LEAVE("resolveStaticRootedLeaf -- root is not a scope");
-        return;
+        return 0;
     }
 
+    uint32_t done = 0;
     for (uint32_t ii=0; ii<i->getLeaf()->getElems().size(); ii++) {
         ast::IExprMemberPathElem *elem = i->getLeaf()->getElems().at(ii).get();
 
@@ -3761,7 +3722,9 @@ void TaskResolveRefs::resolveStaticRootedLeaf(ast::IExprRefPathStaticRooted *i) 
         checkCallArity(elem, res.sym);
 
         if (elem->getParams()) {
-            elem->getParams()->accept(m_this);
+            // Each formal's type is its argument's expected type (8.4.3), as
+            // for an unqualified call: `p::f(LOW)` finds the item.
+            visitCallArgs(elem->getParams(), res.sym);
             if (m_template_depth) {
                 TaskTemplateCheck(m_ctxt).checkPure(res.sym, elem);
             }
@@ -3772,6 +3735,7 @@ void TaskResolveRefs::resolveStaticRootedLeaf(ast::IExprRefPathStaticRooted *i) 
             it!=elem->getSubscript().end(); it++) {
             (*it)->accept(m_this);
         }
+        done = ii+1;
 
         if (ii+1 < i->getLeaf()->getElems().size()) {
             target_c = res.sym;
@@ -3786,6 +3750,7 @@ void TaskResolveRefs::resolveStaticRootedLeaf(ast::IExprRefPathStaticRooted *i) 
     }
 
     DEBUG_LEAVE("resolveStaticRootedLeaf");
+    return done;
 }
 
 void TaskResolveRefs::visitExtendEnum(ast::IExtendEnum *i) {

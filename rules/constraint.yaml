@@ -1,5 +1,5 @@
-# Constraint rules (lint-framework-plan.md F3.5): LINT1xx. LINT101 is the
-# linker's (python/pssparser/lint/catalog.py).
+# Constraint rules (lint-framework-plan.md F3.5): LINT1xx. LINT101 was the
+# linker's; it is now the error PSS130 (ruling R22).
 pss-rules:
   version: 1
 

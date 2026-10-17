@@ -4,12 +4,13 @@ Data only: importing this module never runs a rule, so ``--describe``,
 ``--explain``, the generated rule reference and profile expansion work even
 when the bundled lint runner is disabled (``PSSPARSER_NO_LINT``).
 
-``CORE_EMITTED`` are the nine warnings that the C++ linker has always emitted
+``CORE_EMITTED`` are the warnings that the C++ linker has always emitted
 and that moved here from the ``PSS`` namespace (lint-framework-plan F1.3):
 legal PSS that is probably a mistake is lint, not an LRM violation.  The
 linker still raises them, and sets their ID where it does (lint-core-plan
 C7.3), so they declare no message ``patterns``; ``aliases`` keep the retired
-``PSS`` IDs.
+``PSS`` IDs.  (There were nine; ``LINT101`` became the error ``PSS130`` by
+ruling R22 and is a retired row in ``core_checker.py``.)
 
 ID bands follow the rule families: ``LINT1xx`` constraint, ``2xx`` activity,
 ``3xx`` exec, ``4xx`` declarations and imports, ``5xx`` registers, ``6xx``
@@ -22,38 +23,6 @@ from typing import List
 from pssparser.checkers.markerdef import MarkerDef
 
 CORE_EMITTED: List[MarkerDef] = [
-    MarkerDef(
-        id="LINT101",
-        name="enum-item-type-mismatch",
-        tier="suspicious",
-        family="constraint",
-        since="2026.1",
-        aliases=("PSS046",),
-        severity="warning",
-        summary="Enum item used where its enumeration type is not expected",
-        detail=(
-            "An enum item belongs to its enumeration type's scope, not "
-            "to the scope that declares the enum (7.5 g).  Unqualified, "
-            "it is found only where the expression's expected type is "
-            "that enumeration type (7.5 i, 8.4.3, 18.3 a): an "
-            "assignment or initializer, a call argument, a ``return``, "
-            "the other side of ``==``/``!=``, the values of ``in``, a "
-            "cast to the enum, and the arms of ``?:``.  pssparser still "
-            "accepts an item declared in an enclosing scope, or in a "
-            "package a wildcard import names, when the name means "
-            "nothing else there, and warns; this becomes an error in a "
-            "later release.  A declaration of the same name further out "
-            "is what the name means, and no longer the item.  "
-            "Messages:\n\n"
-            "* ``enum item 'ORANGE' is used where no enumeration type is "
-            "expected (7.5 i, 8.4.3); qualify it as 'color_e::ORANGE'``\n"
-            "* ``enum item 'RED' is used where 'mode_e' is expected, but "
-            "it is an item of 'color_e' (7.5 i, 8.4.3); qualify it as "
-            "'color_e::RED'``\n\n"
-            "Qualify the item.  LRM Example 37: ``print_num((int)ORANGE)`` "
-            "is an error, because the cast's type is ``int``."
-        ),
-    ),
     MarkerDef(
         id="LINT301",
         name="exported-instance-function",

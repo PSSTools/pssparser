@@ -1,4 +1,5 @@
-"""The nine core warnings that moved from PSS to LINT, and the four tool
+"""The core warnings that moved from PSS to LINT (nine; LINT101 has since
+become the error PSS130, ruling R22), and the four tool
 warnings and three tool errors that moved to PSSP (plan F1.3, F1.3a, F1.3b).
 
 Each moved warning is still raised by the C++ linker with the same message and
@@ -17,12 +18,6 @@ from pssparser.cli.app import main
 
 #: (new ID, old ID, source, (line, col)) -- one probe per moved warning.
 PROBES = [
-    ("LINT101", "PSS046",
-     "enum color_e { RED, ORANGE }\n"
-     "component pss_top {\n"
-     "  function void f(int x) { }\n"
-     "  exec init_down { f(ORANGE); }\n"
-     "}\n", (4, 22)),
     ("LINT301", "PSS120",
      "component pss_top {\n"
      "  function void bump();\n"

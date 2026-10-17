@@ -143,11 +143,11 @@ def test_selection_without_a_host_knows_core_codes(engine):
 
 
 def test_waivers_without_a_host_know_core_codes(engine):
-    w = {"form": "pragma", "file": "m.pss", "line": 1, "col": 1, "selectors": ["PSS046"],
+    w = {"form": "pragma", "file": "m.pss", "line": 1, "col": 1, "selectors": ["PSS120"],
          "reason": "r", "start": [1, 1], "end": [2, 1]}
-    r = engine.apply_waivers([w], [{"code": "LINT101", "file": "m.pss", "line": 1, "col": 5}])
+    r = engine.apply_waivers([w], [{"code": "LINT301", "file": "m.pss", "line": 1, "col": 5}])
     assert r["waived"] == [[0, 0]]
-    # PSS046 is LINT101's old ID.
+    # PSS120 is LINT301's old ID.
     assert [m["code"] for m in r["markers"]] == ["PSSP004"]
 
 

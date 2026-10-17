@@ -31,9 +31,9 @@ Lint runs with every parse.  Which rules report is chosen by a **profile**:
    * - Profile
      - Enables
    * - ``minimal`` (default)
-     - The warnings pssparser reported before lint existed (``LINT101``,
-       ``LINT301``, ``LINT401``-``404``, ``LINT501``, ``LINT601``-``602``).
-       The default output is what it always was.
+     - The warnings pssparser reported before lint existed (``LINT301``,
+       ``LINT401``-``404``, ``LINT501``, ``LINT601``-``602``; ``LINT101`` has
+       since become the error ``PSS130``, ruling R22).
    * - ``recommended``
      - ``minimal`` plus the ``correctness``, ``suspicious``,
        ``portability`` and ``simplify`` tiers.
@@ -188,7 +188,7 @@ means an LRM violation:
      - New
      - Name
    * - ``PSS046``
-     - ``LINT101``
+     - ``LINT101`` (retired: now the error ``PSS130``)
      - ``enum-item-type-mismatch``
    * - ``PSS120``
      - ``LINT301``

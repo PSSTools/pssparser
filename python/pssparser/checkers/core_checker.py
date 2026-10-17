@@ -1059,20 +1059,15 @@ class CoreChecker(CheckerBase):
         MarkerDef(
             id="PSS045",
             severity="error",
-            summary="Ambiguous enum item in a comparison",
-            patterns=(
-                r"^ambiguous comparison of '[^']*' and '[^']*'",
-            ),
+            summary="Ambiguous enum item in a comparison (withdrawn; see PSS130)",
+            status="retired",
             detail=(
-                "In ``a == b`` or ``a != b`` each side's type is the other "
-                "side's expected type, so an unqualified name on either side "
-                "may be an item of the other side's enum.  When both sides "
-                "are bare names and each could be read that way, there is "
-                "no telling which was meant.  Message:\n\n"
-                "* ``ambiguous comparison of 'A' and 'B': either 'A' is "
-                "e2::A or 'B' is e1::B; qualify the enum item (8.4.3, "
-                "18.3 a)``\n\n"
-                "Qualify the item, as ``e1::B``."
+                "Read ``a == b`` both ways, each side's type being the other "
+                "side's expected type, and reported a comparison of two bare "
+                "names either of which could be an item of the other's enum.  "
+                "Ruling R22 gives the left side no expected type (8.4.3), so "
+                "the ambiguity cannot arise: an unqualified item on the left "
+                "is PSS130.  ``PSS045`` is never reused."
             ),
         ),
         MarkerDef(
@@ -2056,6 +2051,37 @@ class CoreChecker(CheckerBase):
                 r"^parameter '[^']*' of '[^']*' has .* type '[^']*' without 'ref'",
             ),
         ),
+        MarkerDef(
+            id="PSS130",
+            severity="error",
+            summary="Unqualified enum item where its enumeration type is not expected",
+            detail=(
+                "An enum item belongs to its enumeration type's scope, not to "
+                "the scope that declares the enum (7.5.1 g).  Unqualified, it "
+                "is found only where the expression's expected type is that "
+                "enumeration type (7.5.1 i, 8.4.3, 18.3 a): an assignment or "
+                "initializer, a call argument, a ``return``, the RIGHT side "
+                "of ``==``/``!=``, the values of ``in``, a cast to the enum, "
+                "and the arms of ``?:``.  The left side of ``==`` has no "
+                "expected type, and 8.5.9.1: \"The left-hand side [of in] "
+                "shall not be an unqualified enum_item\".  pssparser finds "
+                "an item of an enclosing scope's enum anyway, when the name "
+                "means nothing else, and reports it: an error by ruling R22 "
+                "(it was the warning LINT101).  Messages:\n\n"
+                "* ``enum item 'ORANGE' is used where no enumeration type is "
+                "expected (7.5.1 i, 8.4.3; ruling R22); qualify it as "
+                "'color_e::ORANGE'``\n"
+                "* ``enum item 'RED' is used where 'mode_e' is expected, but "
+                "it is an item of 'color_e' (7.5.1 i, 8.4.3; ruling R22); "
+                "qualify it as 'color_e::RED'``\n\n"
+                "Qualify the item.  LRM Example 37: ``print_num((int)ORANGE)`` "
+                "is an error, because the cast's type is ``int``."
+            ),
+            patterns=(
+                r"^enum item '[^']*' is used where (no enumeration type is expected|"
+                r"'[^']*' is expected, but it is an item of)\b",
+            ),
+        ),
 
         # -- PSSP: the tool's own diagnostics (lint-framework D-6) ----------
         #
@@ -2628,6 +2654,23 @@ class CoreChecker(CheckerBase):
                 "passed the semantic checks without an error, since a rule "
                 "on a broken model would report noise.  The message gives "
                 "the number of errors.  Fix them, and lint runs."
+            ),
+        ),
+        MarkerDef(
+            id="LINT101",
+            name="enum-item-type-mismatch",
+            tier="suspicious",
+            family="constraint",
+            since="2026.1",
+            aliases=("PSS046",),
+            severity="warning",
+            status="retired",
+            summary="Enum item used where its enumeration type is not expected (now PSS130)",
+            detail=(
+                "Retired: ruling R22 made this warning an error, reported as "
+                "``PSS130`` (it had moved here from ``PSS046``).  ``LINT101`` "
+                "is still accepted wherever an ID is typed -- configuration, "
+                "``-W``, ``--describe`` -- and is never reused."
             ),
         ),
     ] + list(_CORE_EMITTED_LINT)

@@ -169,8 +169,9 @@ public:
         ast::ISymbolEnumScope       *e);
 
     /**
-     * LINT101: `id` bound to an item of `e` only because nothing else of the
-     * name is in scope, where `expected` (possibly null) did not have it.
+     * PSS130 (ruling R22; was LINT101): `id` bound to an item of `e` only
+     * because nothing else of the name is in scope, where `expected`
+     * (possibly null) did not have it.
      */
     static void warnEnumItemFallback(
         ResolveContext              *ctxt,
@@ -230,16 +231,6 @@ private:
     ast::ISymbolRefPath *lookupExpectedItem(
         ast::IExprRefPathContext    *i,
         ast::ISymbolEnumScope       *e);
-
-    /**
-     * `a == b` with both sides bare names (decision Q2): each side's own
-     * type -- the type of its lexical binding -- is the expected type of
-     * the other. Reported (PSS045) when both readings would change what a
-     * name binds to.
-     */
-    void resolveBareComparison(
-        ast::IExprRefPathContext    *lhs,
-        ast::IExprRefPathContext    *rhs);
 
     /**
      * What `id` binds to lexically, without step a and without reporting
@@ -566,7 +557,8 @@ protected:
      * Resolve the leaf of a package-qualified reference (`p::g(1,2,3)`)
      * against the scope its static root names. See known-issues P3-X6e.
      */
-    void resolveStaticRootedLeaf(ast::IExprRefPathStaticRooted *i);
+    /** Returns how many leaf elements it resolved, arguments included. */
+    uint32_t resolveStaticRootedLeaf(ast::IExprRefPathStaticRooted *i);
 
     /**
      * Reports why `super.<id>` did not resolve. Silent when the base type

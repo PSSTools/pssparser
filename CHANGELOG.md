@@ -42,6 +42,19 @@ New errors, each at the construct it names:
 - **PSS006** also reports an array argument of another size than its array
   parameter (8.3).
 
+### Changed — an unqualified enum item where its enum is not expected is an error
+
+- **PSS130** (ruling R22) replaces the warning **LINT101**: an enum item used
+  unqualified where the expected type (8.4.3) is not its enumeration type --
+  `(int)BLUE` (Example 37), `BLUE in [...]` (8.5.9.1) -- is an error.
+  `LINT101` is retired.
+- The left side of `==`/`!=` no longer takes the right side's type as its
+  expected type (8.4.3 gives only the right side one): `M1 == e` is now
+  PSS130. **PSS045** (an ambiguous comparison of two bare names), which only
+  that reading could raise, is retired.
+- An argument of a qualified call, `p::f(LOW)`, now has its formal's type as
+  its expected type, as an unqualified call's always had.
+
 ### Fixed — the caret lines up under a tab-indented line
 
 A diagnostic's column counts a tab as one character, but the terminal moves a

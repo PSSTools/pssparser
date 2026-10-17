@@ -167,4 +167,5 @@ def test_real_minimal_profile_is_the_nine_migrated_rules():
 
     rs = RuleSet(CoreChecker.marker_defs)
     assert rs.profile_members("minimal") == set(MINIMAL_IDS)
-    assert len(MINIMAL_IDS) == 9
+    # Nine moved from PSS (F1.3); LINT101 became the error PSS130 (R22).
+    assert len(MINIMAL_IDS) == 8

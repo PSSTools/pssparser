@@ -41,7 +41,7 @@ PSS041 active
 PSS042 active
 PSS043 active
 PSS044 retired
-PSS045 active
+PSS045 retired
 PSS046 retired
 PSS047 active
 PSS048 active
@@ -91,6 +91,7 @@ PSS126 active
 PSS127 active
 PSS128 active
 PSS129 active
+PSS130 active
 PSSP000 active
 PSSP001 active
 PSSP002 active
@@ -122,7 +123,7 @@ PSSP221 active
 PSSP222 active
 PSSP223 active
 PSSP230 active
-LINT101 active
+LINT101 retired
 LINT301 active
 LINT401 active
 LINT402 active

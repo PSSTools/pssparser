@@ -190,7 +190,7 @@ def _d(code, severity="warning", file="a.pss", line=1, col=1):
 
 
 def test_the_stages_in_order(engine):
-    diags = [_d("LINT403"), _d("PSS001", "error", line=2), _d("LINT101", "hint", line=3),
+    diags = [_d("LINT403"), _d("PSS001", "error", line=2), _d("LINT301", "hint", line=3),
              _d("LINT402", line=4), _d("", "warning", line=5)]
     r = engine.finish({
         "diagnostics": diags,

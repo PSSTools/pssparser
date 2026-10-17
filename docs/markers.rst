@@ -535,19 +535,6 @@ LRM 18.1.4 restricts the name of a package alias (``import pkg1::a::b as p1;``).
 
 Two aliases in one lexical scope -- one ``package`` statement, component declaration or extension, or one file's global scope -- shall not have the same name; the same name in two statements of one package is legal.  An alias shall not take the name of a package declared in the same namespace in this source unit or an earlier one (Example 260).  A package of that name added in a later source unit is legal, and from then on a reference finds the package rather than the alias (18.3 c.1 before c.2.i).
 
-PSS045
-~~~~~~
-
-**Severity:** error
-
-Ambiguous enum item in a comparison
-
-In ``a == b`` or ``a != b`` each side's type is the other side's expected type, so an unqualified name on either side may be an item of the other side's enum.  When both sides are bare names and each could be read that way, there is no telling which was meant.  Message:
-
-* ``ambiguous comparison of 'A' and 'B': either 'A' is e2::A or 'B' is e1::B; qualify the enum item (8.4.3, 18.3 a)``
-
-Qualify the item, as ``e1::B``.
-
 PSS047
 ~~~~~~
 
@@ -1066,24 +1053,22 @@ LRM 20.2.2: "Functions shall not return action types, component types, or flow/r
 * ``function 'g' returns component type 'sub_c' without 'ref': a function shall not (LRM 20.2.2)``
 * ``parameter 'b' of 'f' has flow object type 'b_s' without 'ref': a function shall not (LRM 20.2.2)``
 
-LINT: core-emitted lint
------------------------
+PSS130
+~~~~~~
 
-LINT101
-~~~~~~~
+**Severity:** error
 
-**Severity:** warning
+Unqualified enum item where its enumeration type is not expected
 
-**Name:** ``enum-item-type-mismatch``; **Tier:** suspicious; **Family:** constraint; **Formerly:** ``PSS046``
+An enum item belongs to its enumeration type's scope, not to the scope that declares the enum (7.5.1 g).  Unqualified, it is found only where the expression's expected type is that enumeration type (7.5.1 i, 8.4.3, 18.3 a): an assignment or initializer, a call argument, a ``return``, the RIGHT side of ``==``/``!=``, the values of ``in``, a cast to the enum, and the arms of ``?:``.  The left side of ``==`` has no expected type, and 8.5.9.1: "The left-hand side [of in] shall not be an unqualified enum_item".  pssparser finds an item of an enclosing scope's enum anyway, when the name means nothing else, and reports it: an error by ruling R22 (it was the warning LINT101).  Messages:
 
-Enum item used where its enumeration type is not expected
-
-An enum item belongs to its enumeration type's scope, not to the scope that declares the enum (7.5 g).  Unqualified, it is found only where the expression's expected type is that enumeration type (7.5 i, 8.4.3, 18.3 a): an assignment or initializer, a call argument, a ``return``, the other side of ``==``/``!=``, the values of ``in``, a cast to the enum, and the arms of ``?:``.  pssparser still accepts an item declared in an enclosing scope, or in a package a wildcard import names, when the name means nothing else there, and warns; this becomes an error in a later release.  A declaration of the same name further out is what the name means, and no longer the item.  Messages:
-
-* ``enum item 'ORANGE' is used where no enumeration type is expected (7.5 i, 8.4.3); qualify it as 'color_e::ORANGE'``
-* ``enum item 'RED' is used where 'mode_e' is expected, but it is an item of 'color_e' (7.5 i, 8.4.3); qualify it as 'color_e::RED'``
+* ``enum item 'ORANGE' is used where no enumeration type is expected (7.5.1 i, 8.4.3; ruling R22); qualify it as 'color_e::ORANGE'``
+* ``enum item 'RED' is used where 'mode_e' is expected, but it is an item of 'color_e' (7.5.1 i, 8.4.3; ruling R22); qualify it as 'color_e::RED'``
 
 Qualify the item.  LRM Example 37: ``print_num((int)ORANGE)`` is an error, because the cast's type is ``int``.
+
+LINT: core-emitted lint
+-----------------------
 
 LINT301
 ~~~~~~~
@@ -1671,6 +1656,15 @@ Enum item hides a declaration of the same name (moved to LINT401)
 
 A lint rule, not an LRM violation, so it moved to the ``LINT`` namespace as ``LINT401`` (``enum-item-hides-declaration``). ``PSS044`` is still accepted wherever an ID is typed -- configuration, ``-W``, ``--describe`` -- and is never reused.
 
+PSS045
+~~~~~~
+
+**Retired**
+
+Ambiguous enum item in a comparison (withdrawn; see PSS130)
+
+Read ``a == b`` both ways, each side's type being the other side's expected type, and reported a comparison of two bare names either of which could be an item of the other's enum.  Ruling R22 gives the left side no expected type (8.4.3), so the ambiguity cannot arise: an unqualified item on the left is PSS130.  ``PSS045`` is never reused.
+
 PSS046
 ~~~~~~
 
@@ -1751,4 +1745,13 @@ PSS120
 Exported function is a component instance function (moved to LINT301)
 
 A lint rule, not an LRM violation, so it moved to the ``LINT`` namespace as ``LINT301`` (``exported-instance-function``). ``PSS120`` is still accepted wherever an ID is typed -- configuration, ``-W``, ``--describe`` -- and is never reused.
+
+LINT101
+~~~~~~~
+
+**Retired**
+
+Enum item used where its enumeration type is not expected (now PSS130)
+
+Retired: ruling R22 made this warning an error, reported as ``PSS130`` (it had moved here from ``PSS046``).  ``LINT101`` is still accepted wherever an ID is typed -- configuration, ``-W``, ``--describe`` -- and is never reused.
 

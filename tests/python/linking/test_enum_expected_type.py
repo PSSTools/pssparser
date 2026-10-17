@@ -7,17 +7,16 @@ type, the left side of `==`/`!=` and of `in`, a cast's target type, and a
 `?:` (both arms). Plan 8.1 adds `match` choices and `dist` items, which test
 their values against the left side as `in` does.
 
-Decision Q2 reads `==`/`!=` both ways for an unqualified item, as Ex. 272's
-prose does: `A == op.mode` is legal. Where both sides are bare names and each
-would be read as an item of the other's type, the comparison is ambiguous
-(PSS045). Where the item hides a field or variable the name also has, that is
-a warning (LINT401).
+Ruling R22 gives only the RIGHT side of `==`/`!=` an expected type, as 8.4.3
+says; the left has none (this reverses decision Q2, which read it both ways
+after Ex. 272's prose, and with it PSS045's ambiguity). Where the item hides a
+field or variable the name also has, that is a warning (LINT401).
 
 An enum item is not in the scope that declares its enum (7.5 g), so with no
 expected type it has no binding by 18.3. The lookup still falls back to the
 item of an enum declared in a scope on the way out, when the name means nothing
-else, and warns (LINT101; plan 8.2, warn-first). A declaration further out is
-what the name means.
+else, and reports it: an error by ruling R22 (PSS130; it was the warning
+LINT101). A declaration further out is what the name means.
 """
 import pytest
 
@@ -41,7 +40,10 @@ def bindings(code, name):
     of `name`."""
     p = pssparser.Parser()
     p.parses([("t.pss", code)])
-    p.link()
+    try:
+        p.link()
+    except pssparser.parser.ParseException:
+        pass        # an error (PSS130, say) still leaves the model linked
     return [(o.line, type(o.decl).__name__.lstrip("I"),
              o.decl_location.line if o.decl_location else None)
             for o in refs.occurrences(p)
@@ -129,7 +131,6 @@ component c1 {
     "c1::mode_e m; m = B;",                 # an assignment
     "if (sub.get() == C) { }",              # == with a call on the left
     "if (sub.get() != C) { }",
-    "if (A == sub.get()) { }",              # the other way round (Q2)
     "if (sub.get() in [A, B..C]) { }",      # in, with a range
     "c1::mode_e m = (c1::mode_e)B;",        # a cast
     "c1::mode_e m = (sub.get() == A) ? B : C;",  # ?: arms
@@ -287,7 +288,9 @@ component pss_top {
     assert bindings(code, "A") == [(6, "EnumItem", 1), (7, "EnumItem", 2)]
 
 
-def test_a_bare_name_on_the_left_expects_the_rights_type():
+def test_a_bare_name_on_the_left_has_no_expected_type():
+    """Ruling R22: 8.4.3 gives the left of `==` no expected type, so `A`
+    there is found only by the fallback, which reports it."""
     code = """\
 enum e1 {A, B};
 enum e2 {A, C};
@@ -298,8 +301,21 @@ component pss_top {
   }
 }
 """
-    assert markers(code) == []
-    assert bindings(code, "A") == [(6, "EnumItem", 2)]
+    assert errors(code) == [
+        "enum item 'A' is used where no enumeration type is expected "
+        "(7.5.1 i, 8.4.3; ruling R22); qualify it as 'e1::A'"]
+
+
+def test_an_item_of_a_remote_enum_on_the_left_is_unknown():
+    """`A == sub.get()`: with no expected type, `A` -- an item of an enum in
+    another component -- is not found at all (it was legal under Q2)."""
+    errs = errors(REMOTE + """
+component pss_top {
+  c1 sub;
+  exec init_down { if (A == sub.get()) { } }
+}
+""")
+    assert len(errs) == 1 and errs[0].startswith("unknown identifier 'A'")
 
 
 def test_an_enum_in_the_base_component():
@@ -313,13 +329,14 @@ component pss_top : base_c {
 
 
 # ---------------------------------------------------------------------------
-# Ambiguity (decision Q2)
+# Two bare names (decision Q2, reversed by ruling R22)
 # ---------------------------------------------------------------------------
 
 
 def test_two_bare_names_each_an_item_of_the_others_type():
-    """`A == B`: either `B` is e1::B (compared with the field `A`), or `A`
-    is e2::A (compared with the field `B`)."""
+    """`A == B`: the field `A` is the left side; `B`, on the right, expects
+    `A`'s type, e1, whose item it then is. Under Q2 this was ambiguous
+    (PSS045); with no expected type on the left it is not."""
     assert errors("""
 enum e1 {X, B};
 enum e2 {A, Y};
@@ -330,9 +347,7 @@ component pss_top {
     constraint A == B;
   }
 }
-""") == [
-        "ambiguous comparison of 'A' and 'B': either 'A' is e2::A or 'B' is "
-        "e1::B; qualify the enum item (8.4.3, 18.3 a)"]
+""") == []
 
 
 def test_two_fields_of_one_enum_are_not_ambiguous():
@@ -344,25 +359,24 @@ component pss_top {
     rand e1 y;
     constraint x == y;
     constraint x == A;
-    constraint A == B;
   }
 }
 """) == []
 
 
 # ---------------------------------------------------------------------------
-# An item with no expected type (8.2): the lexical fallback, and LINT101
+# An item with no expected type (8.2): the lexical fallback, and PSS130
 # ---------------------------------------------------------------------------
 
 
 def _pss046(code):
     return [msg for sev, msg in markers(code)
-            if sev == "warning" and msg.startswith("enum item ")]
+            if sev == "error" and msg.startswith("enum item ")]
 
 
-def test_ex37_the_illegal_line_warns():
+def test_ex37_the_illegal_line_is_an_error():
     """Ex. 37 line 3: the cast's type is `int`, so `ORANGE` expects no enum.
-    Still bound to the item: the fallback is a warning for now."""
+    Still bound to the item, and an error (ruling R22)."""
     code = """\
 component pss_top {
   enum color_e {RED, GREEN, ORANGE};
@@ -371,9 +385,9 @@ component pss_top {
 }
 """
     assert markers(code) == [(
-        "warning",
+        "error",
         "enum item 'ORANGE' is used where no enumeration type is expected "
-        "(7.5 i, 8.4.3); qualify it as 'color_e::ORANGE'")]
+        "(7.5.1 i, 8.4.3; ruling R22); qualify it as 'color_e::ORANGE'")]
     assert bindings(code, "ORANGE") == [(4, "EnumItem", 2)]
 
 
@@ -383,7 +397,7 @@ component pss_top {
     "if (f < APPLE) { }",                   # relational: not an 8.4.3 context
     "if (APPLE == APPLE) { }",              # neither side has a known type
 ])
-def test_no_expected_type_warns(stmt):
+def test_no_expected_type_is_an_error(stmt):
     assert _pss046("""
 component pss_top {
   enum fruit_e {APPLE, ORANGE};
@@ -410,9 +424,9 @@ component pss_top {
   exec init_down { color_e c = APPLE; }
 }
 """) == [(
-        "warning",
+        "error",
         "enum item 'APPLE' is used where 'color_e' is expected, but it is an "
-        "item of 'fruit_e' (7.5 i, 8.4.3); qualify it as 'fruit_e::APPLE'")]
+        "item of 'fruit_e' (7.5.1 i, 8.4.3; ruling R22); qualify it as 'fruit_e::APPLE'")]
 
 
 def test_through_a_wildcard_import():
@@ -429,7 +443,7 @@ component pss_top {
 """
     assert _pss046(code) == [
         "enum item 'Z' is used where no enumeration type is expected "
-        "(7.5 i, 8.4.3); qualify it as 'e::Z'"]
+        "(7.5.1 i, 8.4.3; ruling R22); qualify it as 'e::Z'"]
 
 
 def test_a_declaration_further_out_is_the_names_meaning():
@@ -515,12 +529,12 @@ def _link(files):
 @pytest.mark.parametrize("formal,expect", [
     ("mode_e", []),
     ("other_e", ["enum item 'A' is used where 'other_e' is expected, but it "
-                 "is an item of 'mode_e' (7.5 i, 8.4.3); qualify it as "
+                 "is an item of 'mode_e' (7.5.1 i, 8.4.3; ruling R22); qualify it as "
                  "'mode_e::A'"]),
 ])
 def test_a_formal_whose_type_is_bound_in_a_later_file(formal, expect):
     """psstools example/2: the call is resolved before the file declaring the
-    callee, so the formal's type is not bound yet; LINT101 waits for it."""
+    callee, so the formal's type is not bound yet; PSS130 waits for it."""
     ms = _link([
         ("a.pss", """
 component pss_top {
@@ -534,4 +548,33 @@ extend component pss_top {
   function void f(%s m) { }
 }
 """ % formal)])
-    assert [msg for sev, msg in ms if sev == "warning"] == expect
+    assert [msg for sev, msg in ms if sev == "error"] == expect
+
+
+# ---------------------------------------------------------------------------
+# Ruling R22 (pssc 06-front-end-checks F3): the legal neighbours stay clean
+# ---------------------------------------------------------------------------
+
+
+def test_r22_legal_neighbours():
+    assert markers("""
+enum col_e { RED, GREEN, BLUE }
+component pss_top {
+  function void f(col_e a) { }
+  function col_e g() { return BLUE; }
+  target function void run() { col_e c = BLUE; col_e e; int y; bool b;
+    int k = (int)col_e::BLUE;
+    if (e == BLUE) { y = 1; } e = (col_e)BLUE; f(BLUE); e = b ? RED : GREEN; } }
+""") == []
+
+
+def test_an_argument_of_a_qualified_call_has_the_formals_type():
+    """`std_pkg::message(LOW, ...)`: a qualified callee's formal is its
+    argument's expected type, as an unqualified one's is (8.4.3). The
+    argument used to be resolved before the callee was looked up."""
+    assert markers("""
+import std_pkg::*;
+component pss_top {
+  exec init_down { std_pkg::message(LOW, "x"); message(LOW, "y"); }
+}
+""") == []
