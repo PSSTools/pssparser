@@ -540,9 +540,8 @@ def test_null_literal(parser):
     """Test null literal"""
     code = """
         component pss_top {
-            struct Data { int x; }
             action A {
-                Data d = null;
+                chandle d = null;
             }
         }
     """

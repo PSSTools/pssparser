@@ -20,6 +20,17 @@
 #include "pssp/ast/IExecStmt.h"
 #include "pssp/ast/IExprBin.h"
 #include "pssp/ast/IExprCast.h"
+#include "pssp/ast/IExprCond.h"
+#include "pssp/ast/IExprNull.h"
+#include "pssp/ast/IExprNumber.h"
+#include "pssp/ast/IExprSignedNumber.h"
+#include "pssp/ast/IExprUnsignedNumber.h"
+#include "pssp/ast/IExprUnary.h"
+#include "pssp/ast/IField.h"
+#include "pssp/ast/IProceduralStmtDataDeclaration.h"
+#include "pssp/ast/IProceduralStmtIfClause.h"
+#include "pssp/ast/IProceduralStmtRepeatWhile.h"
+#include "pssp/ast/IProceduralStmtWhile.h"
 #include "pssp/ast/IExprHierarchicalId.h"
 #include "pssp/ast/IExprId.h"
 #include "pssp/ast/IExprIn.h"
@@ -183,23 +194,294 @@ bool TaskCheckOperands::isModelingArray(const ExprType &t) {
     return (e.kind == TypeKindE::Component || e.kind == TypeKindE::Action);
 }
 
+static bool isZeroLiteral(ast::IExpr *e) {
+    if (ast::IExprSignedNumber *n = NodeKind::cast<ast::IExprSignedNumber>(e)) {
+        return n->getValue() == 0;
+    } else if (ast::IExprUnsignedNumber *n = NodeKind::cast<ast::IExprUnsignedNumber>(e)) {
+        return n->getValue() == 0;
+    }
+    return false;
+}
+
 void TaskCheckOperands::visitExprBin(ast::IExprBin *i) {
     ast::VisitorBase::visitExprBin(i);
 
-    if (i->getOp() != ast::ExprBinOp::BinOp_Eq && i->getOp() != ast::ExprBinOp::BinOp_Ne) {
-        return;
+    switch (i->getOp()) {
+        case ast::ExprBinOp::BinOp_Lt:
+            checkOperands("<", Opd::Numeric, "8.4 Table 10, 8.5.2", i->getLhs(), i->getRhs());
+            return;
+        case ast::ExprBinOp::BinOp_Le:
+            checkOperands("<=", Opd::Numeric, "8.4 Table 10, 8.5.2", i->getLhs(), i->getRhs());
+            return;
+        case ast::ExprBinOp::BinOp_Gt:
+            checkOperands(">", Opd::Numeric, "8.4 Table 10, 8.5.2", i->getLhs(), i->getRhs());
+            return;
+        case ast::ExprBinOp::BinOp_Ge:
+            checkOperands(">=", Opd::Numeric, "8.4 Table 10, 8.5.2", i->getLhs(), i->getRhs());
+            return;
+        case ast::ExprBinOp::BinOp_Add:
+            checkOperands("+", Opd::Numeric, "8.4 Table 10, 8.5.1", i->getLhs(), i->getRhs());
+            return;
+        case ast::ExprBinOp::BinOp_Sub:
+            checkOperands("-", Opd::Numeric, "8.4 Table 10, 8.5.1", i->getLhs(), i->getRhs());
+            return;
+        case ast::ExprBinOp::BinOp_Mul:
+            checkOperands("*", Opd::Numeric, "8.4 Table 10, 8.5.1", i->getLhs(), i->getRhs());
+            return;
+        case ast::ExprBinOp::BinOp_Div:
+            checkOperands("/", Opd::Numeric, "8.4 Table 10, 8.5.1", i->getLhs(), i->getRhs());
+            return;
+        case ast::ExprBinOp::BinOp_Exp:
+            checkOperands("**", Opd::Numeric, "8.4 Table 10, 8.5.1", i->getLhs(), i->getRhs());
+            return;
+        case ast::ExprBinOp::BinOp_Mod:
+            checkOperands("%", Opd::Integer, "8.4 Table 10, 8.5.1", i->getLhs(), i->getRhs());
+            return;
+        case ast::ExprBinOp::BinOp_BitAnd:
+            checkOperands("&", Opd::Integer, "8.4 Table 10, 8.5.5", i->getLhs(), i->getRhs());
+            return;
+        case ast::ExprBinOp::BinOp_BitOr:
+            checkOperands("|", Opd::Integer, "8.4 Table 10, 8.5.5", i->getLhs(), i->getRhs());
+            return;
+        case ast::ExprBinOp::BinOp_BitXor:
+            checkOperands("^", Opd::Integer, "8.4 Table 10, 8.5.5", i->getLhs(), i->getRhs());
+            return;
+        case ast::ExprBinOp::BinOp_Shl:
+            checkOperands("<<", Opd::Integer, "8.4 Table 10, 8.5.7", i->getLhs(), i->getRhs());
+            return;
+        case ast::ExprBinOp::BinOp_Shr:
+            checkOperands(">>", Opd::Integer, "8.4 Table 10, 8.5.7", i->getLhs(), i->getRhs());
+            return;
+        case ast::ExprBinOp::BinOp_LogAnd:
+            checkOperands("&&", Opd::Boolean, "8.4 Table 10, 8.5.4", i->getLhs(), i->getRhs());
+            return;
+        case ast::ExprBinOp::BinOp_LogOr:
+            checkOperands("||", Opd::Boolean, "8.4 Table 10, 8.5.4", i->getLhs(), i->getRhs());
+            return;
+        default:
+            break;
     }
-    if (isModelingArray(m_typer.typeOf(i->getLhs()))
-            || isModelingArray(m_typer.typeOf(i->getRhs()))) {
+
+    // == and !=
+    const char *op = (i->getOp() == ast::ExprBinOp::BinOp_Eq) ? "==" : "!=";
+    ExprType l = m_typer.typeOf(i->getLhs());
+    ExprType r = m_typer.typeOf(i->getRhs());
+    if (isModelingArray(l) || isModelingArray(r)) {
         m_ctxt->addErrorMarker(locOf(i),
             "'%s' does not apply to an array of components or actions: only [], "
-            "size(), foreach and 'in' do (LRM 7.9.2)",
-            (i->getOp() == ast::ExprBinOp::BinOp_Eq) ? "==" : "!=");
+            "size(), foreach and 'in' do (LRM 7.9.2)", op);
+        return;
+    }
+    // 7.7: a chandle is compared only with a chandle, and "the only literal
+    // value with which it may be compared is 0". (null is left alone: 7.10
+    // gives it to references, and whether a chandle is one is not settled.)
+    for (int side=0; side<2; side++) {
+        const ExprType &c = (side) ? r : l;
+        const ExprType &o = (side) ? l : r;
+        ast::IExpr *oe = (side) ? i->getLhs() : i->getRhs();
+        if (c.kind == TypeKindE::Chandle && o.known() && o.kind != TypeKindE::Chandle
+                && o.kind != TypeKindE::Null && o.kind != TypeKindE::Other
+                && !isZeroLiteral(oe)) {
+            m_ctxt->addErrorMarker(locOf(i),
+                "a chandle can be compared only with a chandle or the literal 0, "
+                "not %s (LRM 7.7)", o.describe().c_str());
+            return;
+        }
+    }
+}
+
+bool TaskCheckOperands::badOperand(const ExprType &t, Opd c) {
+    switch (t.kind) {
+        case TypeKindE::Unknown:
+        case TypeKindE::Other:
+        case TypeKindE::Void:       // a void call used as a value is PSS007
+            return false;
+        case TypeKindE::Enum:
+            // 7.5.1 permits an enum in assignment and equality ("may be
+            // used"), and forbids nothing in so many words: not judged as a
+            // number. It is not a Boolean, though.
+            return (c == Opd::Boolean);
+        case TypeKindE::Int:
+            return (c == Opd::Boolean);
+        case TypeKindE::Float:
+            return (c != Opd::Numeric);
+        case TypeKindE::Bool:
+            return (c != Opd::Boolean);
+        default:
+            return true;
+    }
+}
+
+bool TaskCheckOperands::checkOperands(
+        const char      *op,
+        Opd             c,
+        const char      *clause,
+        ast::IExpr      *a,
+        ast::IExpr      *b) {
+    ast::IExpr *opds[] = {a, b};
+    for (ast::IExpr *e : opds) {
+        if (!e) {
+            continue;
+        }
+        ExprType t = m_typer.typeOf(e);
+        if (!badOperand(t, c)) {
+            continue;
+        }
+        const char *want = (c == Opd::Numeric) ? "numeric"
+            : (c == Opd::Integer) ? "integer" : "Boolean";
+        m_ctxt->addErrorMarker(locOf(e),
+            "operator '%s' takes %s operands, not %s (LRM %s)",
+            op, want, t.describe().c_str(), clause);
+        return true;
+    }
+    return false;
+}
+
+void TaskCheckOperands::visitExprUnary(ast::IExprUnary *i) {
+    ast::VisitorBase::visitExprUnary(i);
+    switch (i->getOp()) {
+        case ast::ExprUnaryOp::UnaryOp_Minus:
+            checkOperands("-", Opd::Numeric, "8.4 Table 10, 8.5.1", i->getRhs());
+            break;
+        case ast::ExprUnaryOp::UnaryOp_BitNeg:
+            checkOperands("~", Opd::Integer, "8.4 Table 10, 8.5.5", i->getRhs());
+            break;
+        case ast::ExprUnaryOp::UnaryOp_BitAnd:
+            checkOperands("&", Opd::Integer, "8.4 Table 10, 8.5.6", i->getRhs());
+            break;
+        case ast::ExprUnaryOp::UnaryOp_BitOr:
+            checkOperands("|", Opd::Integer, "8.4 Table 10, 8.5.6", i->getRhs());
+            break;
+        case ast::ExprUnaryOp::UnaryOp_BitXor:
+            checkOperands("^", Opd::Integer, "8.4 Table 10, 8.5.6", i->getRhs());
+            break;
+        case ast::ExprUnaryOp::UnaryOp_LogNot:
+            checkOperands("!", Opd::Boolean, "8.4 Table 10, 8.5.4", i->getRhs());
+            break;
+        default:
+            break;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Conditions (20.7.9, 20.7.7 a, 8.5.8)
+// ---------------------------------------------------------------------------
+
+void TaskCheckOperands::checkCondition(
+        const char  *what,
+        const char  *clause,
+        ast::IExpr  *cond) {
+    ExprType t = m_typer.typeOf(cond);
+    if (!t.known() || t.kind == TypeKindE::Bool || t.kind == TypeKindE::Other
+            || t.kind == TypeKindE::Void) {
+        return;
+    }
+    m_ctxt->addErrorMarker(locOf(cond),
+        "the condition of %s shall be of Boolean type, not %s (LRM %s)",
+        what, t.describe().c_str(), clause);
+}
+
+void TaskCheckOperands::visitExprCond(ast::IExprCond *i) {
+    ast::VisitorBase::visitExprCond(i);
+    checkCondition("'?:'", "8.5.8", i->getCond_e());
+}
+
+void TaskCheckOperands::visitProceduralStmtIfClause(ast::IProceduralStmtIfClause *i) {
+    if (i->getLocation().lineno > 0) {
+        m_stmt_loc = i->getLocation();
+    }
+    ast::VisitorBase::visitProceduralStmtIfClause(i);
+    checkCondition("'if'", "20.7.9", i->getCond());
+}
+
+void TaskCheckOperands::visitProceduralStmtWhile(ast::IProceduralStmtWhile *i) {
+    ast::VisitorBase::visitProceduralStmtWhile(i);
+    checkCondition("'while'", "20.7.7 a", i->getExpr());
+}
+
+void TaskCheckOperands::visitProceduralStmtRepeatWhile(ast::IProceduralStmtRepeatWhile *i) {
+    ast::VisitorBase::visitProceduralStmtRepeatWhile(i);
+    checkCondition("'repeat ... while'", "20.7.7 a", i->getExpr());
+}
+
+// ---------------------------------------------------------------------------
+// null (8.3)
+// ---------------------------------------------------------------------------
+
+void TaskCheckOperands::checkNullInit(const ExprType &target, ast::IExpr *value) {
+    if (!value || !NodeKind::cast<ast::IExprNull>(value)) {
+        return;
+    }
+    switch (target.kind) {
+        case TypeKindE::Int:
+        case TypeKindE::Bool:
+        case TypeKindE::Float:
+        case TypeKindE::String:
+        case TypeKindE::Enum:
+        case TypeKindE::Struct:
+        case TypeKindE::Array:
+        case TypeKindE::List:
+        case TypeKindE::Map:
+        case TypeKindE::Set:
+            if (target.is_ref) {
+                return;
+            }
+            m_ctxt->addErrorMarker(m_stmt_loc,
+                "null cannot be assigned to %s: only a reference takes null "
+                "(LRM 8.3)", target.describe().c_str());
+            break;
+        default:
+            break;
+    }
+}
+
+void TaskCheckOperands::visitProceduralStmtDataDeclaration(
+        ast::IProceduralStmtDataDeclaration *i) {
+    ast::VisitorBase::visitProceduralStmtDataDeclaration(i);
+    if (i->getName() && i->getName()->getLocation().lineno > 0) {
+        m_stmt_loc = i->getName()->getLocation();
+    }
+    checkNullInit(m_typer.typeOfDataType(i->getDatatype()), i->getInit());
+}
+
+void TaskCheckOperands::visitField(ast::IField *i) {
+    ast::VisitorBase::visitField(i);
+    if (i->getInit() && i->getName() && i->getName()->getLocation().lineno > 0) {
+        m_stmt_loc = i->getName()->getLocation();
+        checkNullInit(m_typer.typeOfDataType(i->getType()), i->getInit());
     }
 }
 
 void TaskCheckOperands::visitProceduralStmtAssignment(ast::IProceduralStmtAssignment *i) {
     ast::VisitorBase::visitProceduralStmtAssignment(i);
+
+    // Table 9: the compound assignments' operand types.
+    switch (i->getOp()) {
+        case ast::AssignOp::AssignOp_PlusEq:
+            checkOperands("+=", Opd::Numeric, "8.3 Table 9", i->getLhs(), i->getRhs());
+            break;
+        case ast::AssignOp::AssignOp_MinusEq:
+            checkOperands("-=", Opd::Numeric, "8.3 Table 9", i->getLhs(), i->getRhs());
+            break;
+        case ast::AssignOp::AssignOp_ShlEq:
+            checkOperands("<<=", Opd::Integer, "8.3 Table 9", i->getLhs(), i->getRhs());
+            break;
+        case ast::AssignOp::AssignOp_ShrEq:
+            checkOperands(">>=", Opd::Integer, "8.3 Table 9", i->getLhs(), i->getRhs());
+            break;
+        case ast::AssignOp::AssignOp_OrEq:
+            checkOperands("|=", Opd::Integer, "8.3 Table 9", i->getLhs(), i->getRhs());
+            break;
+        case ast::AssignOp::AssignOp_AndEq:
+            checkOperands("&=", Opd::Integer, "8.3 Table 9", i->getLhs(), i->getRhs());
+            break;
+        default:
+            if (i->getLocation().lineno > 0) {
+                m_stmt_loc = i->getLocation();
+            }
+            checkNullInit(m_typer.typeOf(i->getLhs()), i->getRhs());
+            break;
+    }
 
     if (isModelingArray(m_typer.typeOf(i->getLhs()))) {
         m_ctxt->addErrorMarker(locOf(i->getLhs()),

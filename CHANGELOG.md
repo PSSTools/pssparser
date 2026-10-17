@@ -42,6 +42,19 @@ New errors, each at the construct it names:
 - **PSS006** also reports an array argument of another size than its array
   parameter (8.3).
 
+### Added — operand and condition types
+
+- **PSS131** an operand of a type its operator does not take (8.4 Table 10,
+  8.3 Table 9): a relational operator on bool or string (and so `a < b < c`),
+  a bitwise or reduction operator on bool, `%` on a float, `+` on strings,
+  `!`/`&&`/`||` on a non-Boolean, arithmetic on a chandle; a chandle compared
+  with anything but a chandle or the literal 0 (7.7). Enum operands are not
+  judged.
+- **PSS132** a condition that is not Boolean: `if`, `while`, `repeat ...
+  while` and `?:` (20.7.9, 20.7.7 a, 8.5.8).
+- **PSS133** `null` assigned to what is not a reference (8.3); a chandle is
+  not judged.
+
 ### Fixed — `a in l && b in m` is two membership tests
 
 The collection form of `in` took a whole expression as its collection, so

@@ -1067,6 +1067,36 @@ An enum item belongs to its enumeration type's scope, not to the scope that decl
 
 Qualify the item.  LRM Example 37: ``print_num((int)ORANGE)`` is an error, because the cast's type is ``int``.
 
+PSS131
+~~~~~~
+
+**Severity:** error
+
+An operand of a type its operator does not take
+
+LRM 8.4 Table 10 says which operand types each operator takes (Table 9 for the compound assignments): ``-``, ``+``, ``*``, ``/``, ``**`` and the relational operators take numeric operands (8.5.1, 8.5.2: "may be applied only to numeric operands"); ``%``, ``~``, the bitwise, reduction and shift operators, ``&=``, ``|=``, ``<<=`` and ``>>=`` take integer ones; ``!``, ``&&`` and ``||`` Boolean ones.  So a relational operator on bool or string, the chained ``a < b < c``, a bitwise operator on bool, ``%`` on a float and ``+`` on strings are errors.  7.7: a chandle is compared only with a chandle, and "the only literal value with which it may be compared is 0".  An enum operand is not judged here (7.5.1 permits it in assignment and equality).  Messages:
+
+* ``operator '<' takes numeric operands, not bool (LRM 8.4 Table 10, 8.5.2)``
+* ``a chandle can be compared only with a chandle or the literal 0, not int (LRM 7.7)``
+
+PSS132
+~~~~~~
+
+**Severity:** error
+
+A condition that is not Boolean
+
+The condition of ``if`` (20.7.9), ``while`` and ``repeat ... while`` (20.7.7 a: "expression shall be of type bool") and of ``?:`` (8.5.8: "cond_predicate shall be of Boolean type") is a Boolean.  ``if (x)`` with an integer ``x`` is an error; write ``if (x != 0)``.
+
+PSS133
+~~~~~~
+
+**Severity:** error
+
+null assigned to what is not a reference
+
+LRM 8.3: the right side of an assignment shall be assignment-compatible with the left; ``null`` is the value of a reference (7.10).  ``int y = null;`` is an error.  A chandle is not judged.
+
 LINT: core-emitted lint
 -----------------------
 

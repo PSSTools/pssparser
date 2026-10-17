@@ -324,6 +324,15 @@ REPRESENTATIVE_MESSAGES = [
     ("PSS130", "enum item 'RED' is used where 'mode_e' is expected, but it is "
                "an item of 'color_e' (7.5.1 i, 8.4.3; ruling R22); qualify it "
                "as 'color_e::RED'"),
+    ("PSS131", "operator '<' takes numeric operands, not bool (LRM 8.4 Table "
+               "10, 8.5.2)"),
+    ("PSS131", "operator '&=' takes integer operands, not bool (LRM 8.3 Table 9)"),
+    ("PSS131", "a chandle can be compared only with a chandle or the literal 0, "
+               "not int (LRM 7.7)"),
+    ("PSS132", "the condition of 'if' shall be of Boolean type, not int "
+               "(LRM 20.7.9)"),
+    ("PSS133", "null cannot be assigned to int: only a reference takes null "
+               "(LRM 8.3)"),
 ]
 
 
@@ -623,7 +632,8 @@ def test_pss31_band_is_reserved_for_31_diagnostics():
                      "PSS113", "PSS114", "PSS115", "PSS116", "PSS117",
                      "PSS118", "PSS119", "PSS120", "PSS121", "PSS122",
                      "PSS123", "PSS124", "PSS125", "PSS126", "PSS127",
-                     "PSS128", "PSS129", "PSS130"]
+                     "PSS128", "PSS129", "PSS130", "PSS131", "PSS132",
+                     "PSS133"]
 
 
 def test_every_active_pss_marker_is_an_error():

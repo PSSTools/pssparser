@@ -38,7 +38,14 @@ namespace pssp {
  * - an array argument of another size than its array parameter (8.3,
  *   20.3.2) -- PSS006;
  * - a function returning, or taking, a component, action, or flow or
- *   resource object type without `ref` (20.2.2) -- PSS129.
+ *   resource object type without `ref` (20.2.2) -- PSS129;
+ * - an operand of a type its operator does not take (8.4 Table 10, 8.3
+ *   Table 9, 7.7 for a chandle) -- PSS131;
+ * - a condition that is not Boolean (20.7.9, 20.7.7 a, 8.5.8) -- PSS132;
+ * - `null` assigned to what is not a reference (8.3) -- PSS133.
+ *
+ * Enumeration operands are left alone by PSS131: 7.5.1 permits an enum in
+ * assignment and equality ("may be used"), and says nothing stronger.
  *
  * Nothing is reported where an operand's type is not known.
  */
@@ -68,6 +75,20 @@ public:
 
     virtual void visitFunctionPrototype(ast::IFunctionPrototype *i) override;
 
+    virtual void visitExprUnary(ast::IExprUnary *i) override;
+
+    virtual void visitExprCond(ast::IExprCond *i) override;
+
+    virtual void visitProceduralStmtIfClause(ast::IProceduralStmtIfClause *i) override;
+
+    virtual void visitProceduralStmtWhile(ast::IProceduralStmtWhile *i) override;
+
+    virtual void visitProceduralStmtRepeatWhile(ast::IProceduralStmtRepeatWhile *i) override;
+
+    virtual void visitProceduralStmtDataDeclaration(ast::IProceduralStmtDataDeclaration *i) override;
+
+    virtual void visitField(ast::IField *i) override;
+
 private:
     /** Where to report on `e`: its first located identifier, else the
      *  statement being checked. */
@@ -83,6 +104,20 @@ private:
 
     /** The value type `t` is not allowed as without `ref` (20.2.2), or null. */
     const char *needsRef(const ExprType &t);
+
+    /** What an operator takes (Table 10). */
+    enum class Opd { Numeric, Integer, Boolean };
+
+    /** True when `t` is known not to be an operand of class `c`. */
+    static bool badOperand(const ExprType &t, Opd c);
+
+    /** Report the first operand of `op` that is not of class `c`. */
+    bool checkOperands(const char *op, Opd c, const char *clause,
+        ast::IExpr *a, ast::IExpr *b=0);
+
+    void checkCondition(const char *what, const char *clause, ast::IExpr *cond);
+
+    void checkNullInit(const ExprType &target, ast::IExpr *value);
 
 private:
     static dmgr::IDebug                 *m_dbg;

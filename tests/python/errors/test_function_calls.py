@@ -473,7 +473,7 @@ def test_numeric_kinds_are_interchangeable(src):
     'struct S { int a; } function void f(int a); component C { action A { S s; exec body { f(s.a); } } }',
     'function int g(); function void f(int a); component C { action A { exec body { f(g()); } } }',
     'function void f(chandle h); component C { action A { exec body { chandle h; f(h); } } }',
-    'function void f(string s); component C { action A { exec body { string a; string b; f(a+b); } } }',
+    # (`a+b` on strings was here; it is PSS131 now: Table 10 has no string +.)
 ])
 def test_expressions_the_classifier_does_not_type_are_left_alone(src):
     assert_clean([("t.pss", src)])

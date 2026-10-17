@@ -2082,6 +2082,63 @@ class CoreChecker(CheckerBase):
                 r"'[^']*' is expected, but it is an item of)\b",
             ),
         ),
+        MarkerDef(
+            id="PSS131",
+            severity="error",
+            summary="An operand of a type its operator does not take",
+            detail=(
+                "LRM 8.4 Table 10 says which operand types each operator takes "
+                "(Table 9 for the compound assignments): ``-``, ``+``, ``*``, "
+                "``/``, ``**`` and the relational operators take numeric "
+                "operands (8.5.1, 8.5.2: \"may be applied only to numeric "
+                "operands\"); ``%``, ``~``, the bitwise, reduction and shift "
+                "operators, ``&=``, ``|=``, ``<<=`` and ``>>=`` take integer "
+                "ones; ``!``, ``&&`` and ``||`` Boolean ones.  So a "
+                "relational operator on bool or string, the chained ``a < b < "
+                "c``, a bitwise operator on bool, ``%`` on a float and ``+`` "
+                "on strings are errors.  7.7: a chandle is compared only with "
+                "a chandle, and \"the only literal value with which it may be "
+                "compared is 0\".  An enum operand is not judged here (7.5.1 "
+                "permits it in assignment and equality).  Messages:\n\n"
+                "* ``operator '<' takes numeric operands, not bool (LRM 8.4 "
+                "Table 10, 8.5.2)``\n"
+                "* ``a chandle can be compared only with a chandle or the "
+                "literal 0, not int (LRM 7.7)``"
+            ),
+            patterns=(
+                r"^operator '[^']*' takes (numeric|integer|Boolean) operands, not\b",
+                r"^a chandle can be compared only with a chandle or the literal 0\b",
+            ),
+        ),
+        MarkerDef(
+            id="PSS132",
+            severity="error",
+            summary="A condition that is not Boolean",
+            detail=(
+                "The condition of ``if`` (20.7.9), ``while`` and ``repeat ... "
+                "while`` (20.7.7 a: \"expression shall be of type bool\") and "
+                "of ``?:`` (8.5.8: \"cond_predicate shall be of Boolean "
+                "type\") is a Boolean.  ``if (x)`` with an integer ``x`` is "
+                "an error; write ``if (x != 0)``."
+            ),
+            patterns=(
+                r"^the condition of .* shall be of Boolean type, not\b",
+            ),
+        ),
+        MarkerDef(
+            id="PSS133",
+            severity="error",
+            summary="null assigned to what is not a reference",
+            detail=(
+                "LRM 8.3: the right side of an assignment shall be "
+                "assignment-compatible with the left; ``null`` is the value of "
+                "a reference (7.10).  ``int y = null;`` is an error.  A chandle "
+                "is not judged."
+            ),
+            patterns=(
+                r"^null cannot be assigned to .*: only a reference takes null\b",
+            ),
+        ),
 
         # -- PSSP: the tool's own diagnostics (lint-framework D-6) ----------
         #

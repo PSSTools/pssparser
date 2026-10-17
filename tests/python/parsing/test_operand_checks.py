@@ -210,3 +210,108 @@ def test_a_signature_without_ref(decl):
 ])
 def test_a_signature_with_ref(decl):
     assert codes(SIG % decl) == []
+
+
+# ===========================================================================
+# PSS131 -- operand types (8.4 Table 10, 8.3 Table 9, 7.7)
+# ===========================================================================
+
+OPS = """\
+import std_pkg::*;
+enum e_e { A, B }
+component pss_top {
+  target function void run() {
+    int x, y; bit[8] b; bool p, q; chandle h, k; e_e e; float64 f;
+    string s, t;
+    %s
+  }
+}
+"""
+
+
+@pytest.mark.parametrize("stmt", [
+    "if (p < q) { }",                 # relational on bool (8.5.2)
+    "if (s < t) { }",                 # relational on string
+    "if (x < y < 3) { }",             # bool compared with an int
+    "p = ~p;",                        # bitwise on bool (8.5.5)
+    "p = p & q;",
+    "p &= false;",                    # Table 9
+    "x = &p;",                        # reduction on bool
+    "if (h == 1) { }",                # chandle with a non-zero literal (7.7)
+    "h = h + 1;",                     # chandle arithmetic
+    "x = f % 2;",                     # % on a float
+    's = s + "c";',                   # no string + (W38)
+    "q = !x;",                        # ! on an int
+    "q = x && p;",                    # && on an int
+    "x = x << p;",                    # a shift by a bool
+    "s += t;",
+])
+def test_illegal_operand_types(stmt):
+    assert [c for _, c in codes(OPS % stmt)] == ["PSS131"]
+
+
+@pytest.mark.parametrize("stmt", [
+    "if (x != 0) { }",
+    "if (p == q) { }",
+    "if (p && q) { }",
+    "if (!p) { }",
+    "if (h != 0) { }",
+    "if (h == 0) { }",
+    "if (h == k) { }",
+    "y = p ? 1 : 2;",
+    "if (e == A) { }",
+    "if (e != B) { }",
+    "x = b & 1; x = ~b; x = &b; x = x << 2; x = x % 3; x += 1;",
+    "f = f + 1; f = f * 2.0; if (f < 1.5) { }",
+    "if (s == t) { }",
+    "if (x < y && y < 3) { }",
+    'if (s in ["a"]) { }',
+    "x = -x; f = -f;",
+])
+def test_legal_operand_types(stmt):
+    assert codes(OPS % stmt) == []
+
+
+def test_operand_message():
+    [(_, _, msg)] = markers(OPS % "if (p < q) { }")
+    assert msg == ("operator '<' takes numeric operands, not bool "
+                   "(LRM 8.4 Table 10, 8.5.2)")
+
+
+# ===========================================================================
+# PSS132 -- conditions
+# ===========================================================================
+
+@pytest.mark.parametrize("stmt", [
+    "if (x) { }",
+    "if (p) { } else if (x) { }",
+    "while (x) { x -= 1; }",
+    "repeat { x -= 1; } while (x);",
+    "y = x ? 1 : 2;",
+    "if (e) { }",
+])
+def test_a_condition_that_is_not_boolean(stmt):
+    assert [c for _, c in codes(OPS % stmt)] == ["PSS132"]
+
+
+@pytest.mark.parametrize("stmt", [
+    "if (p) { }",
+    "while (x > 0) { x -= 1; }",
+    "repeat { x -= 1; } while (x != 0);",
+    "y = (x == 1) ? 1 : 2;",
+])
+def test_a_boolean_condition(stmt):
+    assert codes(OPS % stmt) == []
+
+
+# ===========================================================================
+# PSS133 -- null to a non-reference
+# ===========================================================================
+
+@pytest.mark.parametrize("stmt", ["int z = null;", "x = null;", "string u = null;"])
+def test_null_to_a_value(stmt):
+    assert [c for _, c in codes(OPS % stmt)] == ["PSS133"]
+
+
+def test_null_to_a_chandle_is_not_judged():
+    assert codes(OPS % "h = null; chandle z = null;") == []
