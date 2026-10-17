@@ -261,10 +261,28 @@ def test_compile_assert_static_const_identifier():
 
 
 def test_compile_if_static_const_expression_identifier():
+    """19.1.3: "only types and constants declared in package scopes may be
+    referenced" by a compile if; a component's own constant is one declared
+    in a type scope (PSS146)."""
     pss = """
     component C {
         static const int FIELD1 = 1;
         static const int FIELD2 = FIELD1 + 1;
+        compile if (FIELD2 == 2) {
+            action A { }
+        } else {
+            action NotA { }
+        }
+    }
+    """
+    assert_parse_error(pss, "a compile if condition may not reference 'FIELD2'")
+
+
+def test_compile_if_package_const_expression_identifier():
+    pss = """
+    static const int FIELD1 = 1;
+    static const int FIELD2 = FIELD1 + 1;
+    component C {
         compile if (FIELD2 == 2) {
             action A { }
         } else {
@@ -378,9 +396,11 @@ def test_compile_if_reads_a_select_of_a_constant(cond):
     pss = """
     package k_pkg { static const bit[8] D = 0xA5; }
     static const bit[16] G = 0x1234;
+    // Package-scope constants: a compile if may not reference one declared
+    // in a type (19.1.3 b, PSS146).
+    static const bit[8] C = 0xAD;
+    static const int K = 3;
     component C_c {
-        static const bit[8] C = 0xAD;
-        static const int K = 3;
         compile if (%s) {
             action Yes { }
         } else {

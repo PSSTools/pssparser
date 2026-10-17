@@ -2246,6 +2246,159 @@ class CoreChecker(CheckerBase):
                 r"it shall be declared const\b",
             ),
         ),
+        MarkerDef(
+            id="PSS138",
+            severity="error",
+            summary="An integer width that is not positive",
+            detail=(
+                "LRM 7.2.1 c says integer widths \"should\" be positive; ruling R19 "
+                "makes a width that folds to 0 or less -- ``bit[0]``, or ``bit[W]`` "
+                "with a constant ``W`` of 0 -- a static error."
+            ),
+            patterns=(
+                r"^integer width -?\d+ is not positive\b",
+            ),
+        ),
+        MarkerDef(
+            id="PSS139",
+            severity="error",
+            summary="Division or modulus by a constant zero, or a shift by a constant negative amount",
+            detail=(
+                "LRM 8.5.1: \"Division or modulus by zero shall be considered "
+                "illegal.\"  8.5.7: the right operand of a shift \"shall be a "
+                "non-negative number\".  Only a constant right operand is judged; "
+                "ruling R14 leaves the run-time forms undefined."
+            ),
+            patterns=(
+                r"^(division|modulus) by a constant zero is illegal\b",
+                r"^a shift by the constant -\d+: the right operand shall be non-negative\b",
+            ),
+        ),
+        MarkerDef(
+            id="PSS140",
+            severity="error",
+            summary="A channel of a type it cannot hold, or a DEPTH that is not positive",
+            detail=(
+                "LRM 21.9.1 a: \"Channels can only hold the following data types: "
+                "numeric types, Booleans, enumerated types that have a base type, "
+                "packed structs, and arrays thereof.\"  b: \"If DEPTH is specified, "
+                "it shall be positive.\"  A struct element type is not judged."
+            ),
+            patterns=(
+                r"^channel '[^']*' cannot hold\b",
+                r"^channel '[^']*' has DEPTH -?\d+: it shall be positive\b",
+            ),
+        ),
+        MarkerDef(
+            id="PSS141",
+            severity="error",
+            summary="A register outside a register group, or a register type extended",
+            detail=(
+                "LRM 21.14.1: an object of register type \"can be instantiated only "
+                "in a register group\", and \"It shall be illegal to extend the "
+                "reg_c component and its base components\"; 21.14.2: \"It shall be "
+                "illegal to extend the reg_group_c class.\""
+            ),
+            patterns=(
+                r"^register '[^']*' is in '[^']*', which is not a register group\b",
+                r"^'(reg_c|reg_sized_c|reg_base_c|reg_group_c)' cannot be extended\b",
+            ),
+        ),
+        MarkerDef(
+            id="PSS142",
+            severity="error",
+            summary="A rand field or randomize target that is not randomizable",
+            detail=(
+                "LRM 7.1: ``rand`` applies to randomizable types -- not ``chandle``, "
+                "``float32``/``float64`` or ``string``.  ``randomize`` of such a "
+                "variable: 13.4.6 asks only for plain data, which a chandle is; "
+                "ruling R18 reads it as randomizable."
+            ),
+            patterns=(
+                r"^rand field '[^']*' is of type .*, which is not randomizable\b",
+                r"^a randomize target of type .*, which is not randomizable\b",
+            ),
+        ),
+        MarkerDef(
+            id="PSS143",
+            severity="error",
+            summary="yield in solve code",
+            detail=(
+                "LRM 20.7.14 a: \"The yield statement may only be used in target exec "
+                "blocks and functions.\"  Ruling R20 makes it target-only: an error "
+                "in a ``solve`` function and in a solve exec (``init_down``, "
+                "``init_up``, ``pre_solve``, ``post_solve``, ``pre_body``).  An "
+                "unqualified function may contain one."
+            ),
+            patterns=(
+                r"^'yield' may only be used in target code\b",
+            ),
+        ),
+        MarkerDef(
+            id="PSS144",
+            severity="error",
+            summary="A call across the solve/target platform boundary",
+            detail=(
+                "LRM 20.2.1.3: \"Functions restricted to the solve platform shall not "
+                "be called directly or indirectly from target execs, namely body, "
+                "run_start, and run_end. Similarly, functions restricted to the "
+                "target platform shall not be called from solve execs, namely "
+                "init_down, init_up, pre_solve, post_solve, and pre_body.\"  A "
+                "``solve`` or ``target`` function is held to the same rule, and a "
+                "target-template function is target code (20.1.2: init_down and "
+                "init_up \"may not call target template functions\").  Only direct "
+                "calls are judged."
+            ),
+            patterns=(
+                r"^'[^']*' is a (target|solve|target-template) function and cannot be called from\b",
+            ),
+        ),
+        MarkerDef(
+            id="PSS145",
+            severity="error",
+            summary="An exec block of a kind its type does not have",
+            detail=(
+                "LRM 20.1.2 lists where each exec kind is valid: ``pre_solve``, "
+                "``post_solve`` and ``pre_body`` in actions, objects and structs; "
+                "``body`` in actions.  (It has no \"shall\"; init_down/init_up "
+                "outside a component is not judged yet.)  20.5: \"Target-template "
+                "implementations may not be used for solve execs\"."
+            ),
+            patterns=(
+                r"^exec \w+ is not valid in\b",
+                r"^a target-template exec block cannot be \w+, a solve exec kind\b",
+            ),
+        ),
+        MarkerDef(
+            id="PSS146",
+            severity="error",
+            summary="A compile if condition references a member of a type",
+            detail=(
+                "LRM 19.1.3: \"only types and constants declared in package scopes may "
+                "be referenced. Types and constants declared in type scopes ... may "
+                "not be referenced\"; b) \"Conditional compilation directives may "
+                "not reference inner members of types.\"  ``compile assert`` is not "
+                "judged."
+            ),
+            patterns=(
+                r"^a compile if condition may not reference '[^']*', a member of type\b",
+            ),
+        ),
+        MarkerDef(
+            id="PSS147",
+            severity="error",
+            summary="A private or protected field reached from outside",
+            detail=(
+                "LRM 17.4 b: \"A private attribute is accessible only from the element "
+                "in which the attribute is declared\"; c: a protected one also "
+                "\"from sub-elements that inherit from it, and from their "
+                "extensions\".  Only a member reached through another value "
+                "(``v.b``) is judged."
+            ),
+            patterns=(
+                r"^'[^']*' is (private|protected) to '[^']*' and cannot be reached from here\b",
+            ),
+        ),
 
         # -- PSSP: the tool's own diagnostics (lint-framework D-6) ----------
         #

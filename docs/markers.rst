@@ -1145,6 +1145,96 @@ LRM 20.4.1 c restricts an imported function's parameters and result to bit/int o
 * ``parameter 'v' of imported function 'put' has type bit[65], which an import cannot take (LRM 20.4.1 c)``
 * ``parameter 'p' of exported function 'sf' is a struct, so it shall be declared const (LRM 20.4.2.1 g)``
 
+PSS138
+~~~~~~
+
+**Severity:** error
+
+An integer width that is not positive
+
+LRM 7.2.1 c says integer widths "should" be positive; ruling R19 makes a width that folds to 0 or less -- ``bit[0]``, or ``bit[W]`` with a constant ``W`` of 0 -- a static error.
+
+PSS139
+~~~~~~
+
+**Severity:** error
+
+Division or modulus by a constant zero, or a shift by a constant negative amount
+
+LRM 8.5.1: "Division or modulus by zero shall be considered illegal."  8.5.7: the right operand of a shift "shall be a non-negative number".  Only a constant right operand is judged; ruling R14 leaves the run-time forms undefined.
+
+PSS140
+~~~~~~
+
+**Severity:** error
+
+A channel of a type it cannot hold, or a DEPTH that is not positive
+
+LRM 21.9.1 a: "Channels can only hold the following data types: numeric types, Booleans, enumerated types that have a base type, packed structs, and arrays thereof."  b: "If DEPTH is specified, it shall be positive."  A struct element type is not judged.
+
+PSS141
+~~~~~~
+
+**Severity:** error
+
+A register outside a register group, or a register type extended
+
+LRM 21.14.1: an object of register type "can be instantiated only in a register group", and "It shall be illegal to extend the reg_c component and its base components"; 21.14.2: "It shall be illegal to extend the reg_group_c class."
+
+PSS142
+~~~~~~
+
+**Severity:** error
+
+A rand field or randomize target that is not randomizable
+
+LRM 7.1: ``rand`` applies to randomizable types -- not ``chandle``, ``float32``/``float64`` or ``string``.  ``randomize`` of such a variable: 13.4.6 asks only for plain data, which a chandle is; ruling R18 reads it as randomizable.
+
+PSS143
+~~~~~~
+
+**Severity:** error
+
+yield in solve code
+
+LRM 20.7.14 a: "The yield statement may only be used in target exec blocks and functions."  Ruling R20 makes it target-only: an error in a ``solve`` function and in a solve exec (``init_down``, ``init_up``, ``pre_solve``, ``post_solve``, ``pre_body``).  An unqualified function may contain one.
+
+PSS144
+~~~~~~
+
+**Severity:** error
+
+A call across the solve/target platform boundary
+
+LRM 20.2.1.3: "Functions restricted to the solve platform shall not be called directly or indirectly from target execs, namely body, run_start, and run_end. Similarly, functions restricted to the target platform shall not be called from solve execs, namely init_down, init_up, pre_solve, post_solve, and pre_body."  A ``solve`` or ``target`` function is held to the same rule, and a target-template function is target code (20.1.2: init_down and init_up "may not call target template functions").  Only direct calls are judged.
+
+PSS145
+~~~~~~
+
+**Severity:** error
+
+An exec block of a kind its type does not have
+
+LRM 20.1.2 lists where each exec kind is valid: ``pre_solve``, ``post_solve`` and ``pre_body`` in actions, objects and structs; ``body`` in actions.  (It has no "shall"; init_down/init_up outside a component is not judged yet.)  20.5: "Target-template implementations may not be used for solve execs".
+
+PSS146
+~~~~~~
+
+**Severity:** error
+
+A compile if condition references a member of a type
+
+LRM 19.1.3: "only types and constants declared in package scopes may be referenced. Types and constants declared in type scopes ... may not be referenced"; b) "Conditional compilation directives may not reference inner members of types."  ``compile assert`` is not judged.
+
+PSS147
+~~~~~~
+
+**Severity:** error
+
+A private or protected field reached from outside
+
+LRM 17.4 b: "A private attribute is accessible only from the element in which the attribute is declared"; c: a protected one also "from sub-elements that inherit from it, and from their extensions".  Only a member reached through another value (``v.b``) is judged.
+
 LINT: core-emitted lint
 -----------------------
 

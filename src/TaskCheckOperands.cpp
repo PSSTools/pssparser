@@ -32,6 +32,14 @@
 #include "pssp/ast/IFunctionImportType.h"
 #include "pssp/ast/ITypeIdentifier.h"
 #include "pssp/ast/ITypeIdentifierElem.h"
+#include "pssp/ast/IAction.h"
+#include "pssp/ast/ICompileCond.h"
+#include "pssp/ast/IExtendType.h"
+#include "pssp/ast/IProceduralStmtRandomize.h"
+#include "pssp/ast/ITemplateGenericTypeParamDecl.h"
+#include "pssp/ast/ITemplateParamDeclList.h"
+#include "pssp/ast/ITemplateValueParamDecl.h"
+#include "pssp/ast/IComponent.h"
 #include "pssp/ast/IExprCast.h"
 #include "pssp/ast/IExprCond.h"
 #include "pssp/ast/IExprNull.h"
@@ -218,6 +226,33 @@ static bool isZeroLiteral(ast::IExpr *e) {
 
 void TaskCheckOperands::visitExprBin(ast::IExprBin *i) {
     ast::VisitorBase::visitExprBin(i);
+
+    // 8.5.1: "Division or modulus by zero shall be considered illegal";
+    // 8.5.7: "The right operand shall be a non-negative number". Only a
+    // constant right operand is judged here (ruling R14 leaves the run-time
+    // forms undefined).
+    {
+        ast::ExprBinOp op = i->getOp();
+        bool divmod = (op == ast::ExprBinOp::BinOp_Div || op == ast::ExprBinOp::BinOp_Mod);
+        bool shift = (op == ast::ExprBinOp::BinOp_Shl || op == ast::ExprBinOp::BinOp_Shr);
+        if ((divmod || shift) && isConstExpr(i->getRhs())) {
+            std::unique_ptr<IVal> v(TaskEvalExpr(
+                m_ctxt->getFactory(), m_ctxt->root()).eval(i->getRhs()));
+            IValInt *vi = dynamic_cast<IValInt *>(v.get());
+            if (vi && divmod && vi->getValU() == 0) {
+                m_ctxt->addErrorMarker(locOf(i),
+                    "%s by a constant zero is illegal (LRM 8.5.1)",
+                    (op == ast::ExprBinOp::BinOp_Div) ? "division" : "modulus");
+                return;
+            }
+            if (vi && shift && vi->isSigned() && vi->getValS() < 0) {
+                m_ctxt->addErrorMarker(locOf(i),
+                    "a shift by the constant %lld: the right operand shall be "
+                    "non-negative (LRM 8.5.7)", (long long)vi->getValS());
+                return;
+            }
+        }
+    }
 
     switch (i->getOp()) {
         case ast::ExprBinOp::BinOp_Lt:
@@ -450,6 +485,9 @@ void TaskCheckOperands::checkNullInit(const ExprType &target, ast::IExpr *value)
 
 void TaskCheckOperands::visitProceduralStmtDataDeclaration(
         ast::IProceduralStmtDataDeclaration *i) {
+    if (i->getName() && i->getName()->getLocation().lineno > 0) {
+        m_stmt_loc = i->getName()->getLocation();
+    }
     ast::VisitorBase::visitProceduralStmtDataDeclaration(i);
     checkItemlessEnum(i->getName(), i->getDatatype());
     if (i->getName() && i->getName()->getLocation().lineno > 0) {
@@ -459,8 +497,12 @@ void TaskCheckOperands::visitProceduralStmtDataDeclaration(
 }
 
 void TaskCheckOperands::visitField(ast::IField *i) {
+    if (i->getName() && i->getName()->getLocation().lineno > 0) {
+        m_stmt_loc = i->getName()->getLocation();
+    }
     ast::VisitorBase::visitField(i);
     checkItemlessEnum(i->getName(), i->getType());
+    checkFieldType(i);
     if (i->getInit() && i->getName() && i->getName()->getLocation().lineno > 0) {
         m_stmt_loc = i->getName()->getLocation();
         checkNullInit(m_typer.typeOfDataType(i->getType()), i->getInit());
@@ -513,6 +555,7 @@ void TaskCheckOperands::visitExprRefPathContext(ast::IExprRefPathContext *i) {
     if (i->getHier_id() && i->getTarget()) {
         checkCalls(i->getHier_id()->getElems(),
             m_ctxt->resolveSymbolPathRef(i->getTarget()));
+        checkAccess(i->getHier_id()->getElems());
     }
     ast::VisitorBase::visitExprRefPathContext(i);
 }
@@ -969,6 +1012,377 @@ void TaskCheckOperands::visitExportFunction(ast::IExportFunction *i) {
                 "be declared const (LRM 20.4.2.1 g)",
                 p->getName()->getId().c_str(), fname);
             return;
+        }
+    }
+}
+
+
+// ---------------------------------------------------------------------------
+// Group 6: widths, constants, channels, registers, rand, access, compile if
+// ---------------------------------------------------------------------------
+
+void TaskCheckOperands::visitDataTypeInt(ast::IDataTypeInt *i) {
+    ast::VisitorBase::visitDataTypeInt(i);
+    if (!i->getWidth() || !isConstExpr(i->getWidth())) {
+        return;
+    }
+    std::unique_ptr<IVal> w(TaskEvalExpr(
+        m_ctxt->getFactory(), m_ctxt->root()).eval(i->getWidth()));
+    IValInt *wi = dynamic_cast<IValInt *>(w.get());
+    if (wi && wi->getValS() <= 0) {
+        // 7.2.1 c says only "should"; ruling R19 makes it an error.
+        ast::Location loc = locOf(i->getWidth());
+        if (loc.lineno <= 0 && i->getLocation().lineno > 0) {
+            loc = i->getLocation();
+        }
+        m_ctxt->addErrorMarker(loc,
+            "integer width %lld is not positive (LRM 7.2.1 c, ruling R19)",
+            (long long)wi->getValS());
+    }
+}
+
+bool TaskCheckOperands::isConstExpr(ast::IExpr *e, int32_t depth) {
+    if (!e || depth > 16) {
+        return false;
+    }
+    NodeKind nk(e);
+    if (nk.is<ast::IExprNumber>() || nk.is<ast::IExprBool>()) {
+        return true;
+    } else if (ast::IExprUnary *u = nk.as<ast::IExprUnary>()) {
+        return isConstExpr(u->getRhs(), depth+1);
+    } else if (ast::IExprBin *b = nk.as<ast::IExprBin>()) {
+        return isConstExpr(b->getLhs(), depth+1) && isConstExpr(b->getRhs(), depth+1);
+    } else if (ast::IExprCond *c = nk.as<ast::IExprCond>()) {
+        return isConstExpr(c->getCond_e(), depth+1) && isConstExpr(c->getTrue_e(), depth+1)
+            && isConstExpr(c->getFalse_e(), depth+1);
+    }
+    ast::IScopeChild *decl = 0;
+    if (ast::IExprRefPathStatic *r = nk.as<ast::IExprRefPathStatic>()) {
+        decl = (r->getTarget() && !r->getSlice())
+            ? m_ctxt->resolveSymbolPathRef(r->getTarget()) : 0;
+    } else if (ast::IExprRefPathContext *r = nk.as<ast::IExprRefPathContext>()) {
+        if (r->getTarget() && !r->getSlice() && r->getHier_id()
+                && r->getHier_id()->getElems().size() == 1
+                && !r->getHier_id()->getElems().at(0)->getParams()
+                && !r->getHier_id()->getElems().at(0)->getSubscript().size()) {
+            decl = m_ctxt->resolveSymbolPathRef(r->getTarget());
+        }
+    }
+    if (NodeKind::cast<ast::IEnumItem>(decl)) {
+        return true;
+    }
+    if (ast::IField *f = NodeKind::cast<ast::IField>(decl)) {
+        return (f->getAttr() & ast::FieldAttr::Const) != ast::FieldAttr::NoFlags;
+    }
+    if (NodeKind::cast<ast::ITemplateValueParamDecl>(decl)) {
+        // Bound only in a specialization; the generic's default says nothing.
+        return false;
+    }
+    return false;
+}
+
+ast::ITypeScope *TaskCheckOperands::typeScopeOf(const ExprType &t) {
+    ast::ISymbolTypeScope *sts = NodeKind::cast<ast::ISymbolTypeScope>(t.scope);
+    return (sts) ? NodeKind::cast<ast::ITypeScope>(sts->getTarget()) : 0;
+}
+
+bool TaskCheckOperands::derivesFromCore(ast::ITypeScope *ts, const char *name) {
+    for (int32_t depth=0; ts && depth<64; depth++) {
+        if (ts->getName() && ts->getName()->getId() == name
+                && ts->getLocation().fileid < 1) {
+            return true;
+        }
+        if (!ts->getSuper_t() || !ts->getSuper_t()->getTarget() || ts->getSuper_cyclic()) {
+            return false;
+        }
+        ast::ISymbolTypeScope *b = NodeKind::cast<ast::ISymbolTypeScope>(
+            m_ctxt->resolveSymbolPathRef(ts->getSuper_t()->getTarget()));
+        ts = (b) ? NodeKind::cast<ast::ITypeScope>(b->getTarget()) : 0;
+    }
+    return false;
+}
+
+void TaskCheckOperands::checkFieldType(ast::IField *i) {
+    if (!i->getName() || i->getName()->getLocation().fileid < 1) {
+        return;
+    }
+    const char *fname = i->getName()->getId().c_str();
+    ExprType t = m_typer.typeOfDataType(i->getType());
+    ExprType elem = t;
+    while (elem.kind == TypeKindE::Array) {
+        ExprType e = m_typer.elemType(elem);
+        if (!e.known()) {
+            break;
+        }
+        elem = e;
+    }
+
+    // PSS142 -- 7.1: "rand ... may be applied only to randomizable types".
+    if ((i->getAttr() & ast::FieldAttr::Rand) != ast::FieldAttr::NoFlags) {
+        ExprType r = (t.kind == TypeKindE::List || t.kind == TypeKindE::Set
+            || t.kind == TypeKindE::Map) ? m_typer.elemType(t) : elem;
+        if (r.kind == TypeKindE::Chandle || r.kind == TypeKindE::Float
+                || r.kind == TypeKindE::String) {
+            m_ctxt->addErrorMarker(i->getName()->getLocation(),
+                "rand field '%s' is of type %s, which is not randomizable (LRM 7.1)",
+                fname, r.describe().c_str());
+            return;
+        }
+    }
+
+    ast::ITypeScope *ts = typeScopeOf(elem);
+    if (!ts || elem.kind != TypeKindE::Component) {
+        return;
+    }
+
+    // PSS141 -- 21.14.1: a register "can be instantiated only in a register
+    // group".
+    if (derivesFromCore(ts, "reg_base_c")) {
+        ast::ITypeScope *owner = NodeKind::cast<ast::ITypeScope>(i->getParent());
+        ast::IExtendType *ext = NodeKind::cast<ast::IExtendType>(i->getParent());
+        if (ext && ext->getTarget() && ext->getTarget()->getTarget()) {
+            ast::ISymbolTypeScope *es = NodeKind::cast<ast::ISymbolTypeScope>(
+                m_ctxt->resolveSymbolPathRef(ext->getTarget()->getTarget()));
+            owner = (es) ? NodeKind::cast<ast::ITypeScope>(es->getTarget()) : 0;
+        }
+        if (owner && !derivesFromCore(owner, "reg_group_c")) {
+            m_ctxt->addErrorMarker(i->getName()->getLocation(),
+                "register '%s' is in '%s', which is not a register group (LRM 21.14.1)",
+                fname, (owner->getName()) ? owner->getName()->getId().c_str() : "?");
+        }
+        return;
+    }
+
+    // PSS140 -- 21.9.1 a/b: what a channel holds, and its depth.
+    if (ts->getName() && ts->getName()->getId() == "channel_c"
+            && ts->getLocation().fileid < 1 && ts->getParams()
+            && ts->getParams()->getSpecialized() && ts->getParams()->getParams().size() > 0) {
+        ast::ITemplateGenericTypeParamDecl *tp = NodeKind::cast<ast::ITemplateGenericTypeParamDecl>(
+            ts->getParams()->getParams().at(0).get());
+        ExprType et = (tp) ? m_typer.typeOfDataType(tp->getDflt()) : ExprType();
+        while (et.kind == TypeKindE::Array) {
+            ExprType e = m_typer.elemType(et);
+            if (!e.known()) {
+                break;
+            }
+            et = e;
+        }
+        bool bad = false;
+        switch (et.kind) {
+            case TypeKindE::String:
+            case TypeKindE::Chandle:
+            case TypeKindE::List:
+            case TypeKindE::Map:
+            case TypeKindE::Set:
+            case TypeKindE::Component:
+            case TypeKindE::Action:
+                bad = true;
+                break;
+            case TypeKindE::Enum: {
+                // "enumerated types that have a base type"
+                ast::ISymbolEnumScope *es = NodeKind::cast<ast::ISymbolEnumScope>(et.scope);
+                bad = (es && es->getDecl() && !es->getDecl()->getBase_type());
+            } break;
+            default:
+                break;
+        }
+        if (bad) {
+            m_ctxt->addErrorMarker(i->getName()->getLocation(),
+                "channel '%s' cannot hold %s (LRM 21.9.1 a)",
+                fname, typeName(et).c_str());
+            return;
+        }
+        if (ts->getParams()->getParams().size() > 1) {
+            ast::ITemplateValueParamDecl *dp = NodeKind::cast<ast::ITemplateValueParamDecl>(
+                ts->getParams()->getParams().at(1).get());
+            if (dp && dp->getDflt()) {
+                std::unique_ptr<IVal> v(TaskEvalExpr(
+                    m_ctxt->getFactory(), m_ctxt->root()).eval(dp->getDflt()));
+                IValInt *vi = dynamic_cast<IValInt *>(v.get());
+                if (vi && vi->getValS() <= 0) {
+                    m_ctxt->addErrorMarker(i->getName()->getLocation(),
+                        "channel '%s' has DEPTH %lld: it shall be positive (LRM 21.9.1 b)",
+                        fname, (long long)vi->getValS());
+                }
+            }
+        }
+    }
+}
+
+void TaskCheckOperands::visitExtendType(ast::IExtendType *i) {
+    // 21.14.1: "It shall be illegal to extend the reg_c component and its
+    // base components"; 21.14.2: "It shall be illegal to extend the
+    // reg_group_c class."
+    ast::ITypeScope *ts = 0;
+    if (i->getTarget() && i->getTarget()->getTarget()) {
+        ast::ISymbolTypeScope *es = NodeKind::cast<ast::ISymbolTypeScope>(
+            m_ctxt->resolveSymbolPathRef(i->getTarget()->getTarget()));
+        ts = (es) ? NodeKind::cast<ast::ITypeScope>(es->getTarget()) : 0;
+    }
+    if (ts && ts->getName() && ts->getLocation().fileid < 1) {
+        const std::string &n = ts->getName()->getId();
+        if (n == "reg_c" || n == "reg_sized_c" || n == "reg_base_c" || n == "reg_group_c") {
+            const ast::Location &loc = i->getTarget()->getElems().back()->getId()->getLocation();
+            m_ctxt->addErrorMarker(loc,
+                "'%s' cannot be extended (LRM %s)", n.c_str(),
+                (n == "reg_group_c") ? "21.14.2" : "21.14.1");
+        }
+    }
+    m_type_s.push_back(ts);
+    ast::VisitorBase::visitExtendType(i);
+    m_type_s.pop_back();
+}
+
+void TaskCheckOperands::visitProceduralStmtRandomize(ast::IProceduralStmtRandomize *i) {
+    ast::VisitorBase::visitProceduralStmtRandomize(i);
+    // 7.1 and 13.4.6 ("plain-data"); ruling R18 reads it as randomizable.
+    for (std::vector<ast::IExprUP>::const_iterator
+            it=i->getTargets().begin(); it!=i->getTargets().end(); it++) {
+        ExprType t = m_typer.typeOf(it->get());
+        if (t.kind == TypeKindE::Chandle || t.kind == TypeKindE::Float
+                || t.kind == TypeKindE::String) {
+            m_ctxt->addErrorMarker(locOf(it->get()),
+                "a randomize target of type %s, which is not randomizable "
+                "(LRM 7.1, 13.4.6, ruling R18)", t.describe().c_str());
+        }
+    }
+}
+
+void TaskCheckOperands::visitComponent(ast::IComponent *i) {
+    m_type_s.push_back(i);
+    ast::VisitorBase::visitComponent(i);
+    m_type_s.pop_back();
+}
+
+void TaskCheckOperands::visitAction(ast::IAction *i) {
+    m_type_s.push_back(i);
+    ast::VisitorBase::visitAction(i);
+    m_type_s.pop_back();
+}
+
+void TaskCheckOperands::visitStruct(ast::IStruct *i) {
+    m_type_s.push_back(i);
+    ast::VisitorBase::visitStruct(i);
+    m_type_s.pop_back();
+}
+
+void TaskCheckOperands::checkAccess(const std::vector<ast::IExprMemberPathElemUP> &elems) {
+    // 17.4 b: a private attribute "is accessible only from the element in
+    // which the attribute is declared"; c: a protected one also from
+    // sub-elements that inherit from it, and their extensions. A member
+    // reached by a bare name is in scope by definition: only `x.m` is judged.
+    for (uint32_t k=1; k<elems.size(); k++) {
+        ast::IField *f = NodeKind::cast<ast::IField>(elems.at(k)->getId()->getDecl());
+        if (!f) {
+            continue;
+        }
+        bool priv = (f->getAttr() & ast::FieldAttr::Private) != ast::FieldAttr::NoFlags;
+        bool prot = (f->getAttr() & ast::FieldAttr::Protected) != ast::FieldAttr::NoFlags;
+        if (!priv && !prot) {
+            continue;
+        }
+        ast::ITypeScope *decl_t = NodeKind::cast<ast::ITypeScope>(f->getParent());
+        if (!decl_t || !decl_t->getName()) {
+            continue;
+        }
+        const std::string &dname = decl_t->getName()->getId();
+        bool ok = false;
+        for (std::vector<ast::ITypeScope *>::const_iterator
+                it=m_type_s.begin(); !ok && it!=m_type_s.end(); it++) {
+            ast::ITypeScope *t = *it;
+            if (!t) {
+                // An extension whose type is not known: say nothing.
+                ok = true;
+            } else if (t == decl_t || (t->getName() && t->getName()->getId() == dname
+                    && t->getLocation().fileid == decl_t->getLocation().fileid
+                    && t->getLocation().lineno == decl_t->getLocation().lineno)) {
+                // The element itself (a specialization is its copy), or a
+                // type nested in it.
+                ok = true;
+            } else if (prot) {
+                // A sub-element: walk its bases for the declaring type.
+                ast::ITypeScope *b = t;
+                for (int32_t d=0; !ok && b && d<64; d++) {
+                    if (b == decl_t || (b->getName() && b->getName()->getId() == dname
+                            && b->getLocation().lineno == decl_t->getLocation().lineno)) {
+                        ok = true;
+                        break;
+                    }
+                    if (!b->getSuper_t() || !b->getSuper_t()->getTarget() || b->getSuper_cyclic()) {
+                        break;
+                    }
+                    ast::ISymbolTypeScope *bs = NodeKind::cast<ast::ISymbolTypeScope>(
+                        m_ctxt->resolveSymbolPathRef(b->getSuper_t()->getTarget()));
+                    b = (bs) ? NodeKind::cast<ast::ITypeScope>(bs->getTarget()) : 0;
+                }
+            }
+        }
+        if (!ok) {
+            m_ctxt->addErrorMarker(elems.at(k)->getId()->getLocation(),
+                "'%s' is %s to '%s' and cannot be reached from here (LRM 17.4 %s)",
+                f->getName()->getId().c_str(), (priv) ? "private" : "protected",
+                dname.c_str(), (priv) ? "b" : "c");
+        }
+    }
+}
+
+namespace {
+
+/** Every reference in an expression. */
+class RefCollector : public virtual ast::VisitorBase {
+public:
+    std::vector<ast::IExpr *> refs;
+    virtual void visitExprRefPathStatic(ast::IExprRefPathStatic *i) override {
+        refs.push_back(i);
+    }
+    virtual void visitExprRefPathContext(ast::IExprRefPathContext *i) override {
+        refs.push_back(i);
+        ast::VisitorBase::visitExprRefPathContext(i);
+    }
+    virtual void visitExprRefPathStaticRooted(ast::IExprRefPathStaticRooted *i) override {
+        refs.push_back(i);
+    }
+};
+
+}
+
+void TaskCheckOperands::checkCompileCond(ast::IExpr *cond) {
+    if (!cond) {
+        return;
+    }
+    RefCollector rc;
+    cond->accept(&rc);
+    for (std::vector<ast::IExpr *>::const_iterator
+            it=rc.refs.begin(); it!=rc.refs.end(); it++) {
+        ast::IExprRefPath *r = NodeKind::cast<ast::IExprRefPath>(*it);
+        ast::IScopeChild *decl = (r && r->getTarget())
+            ? m_ctxt->resolveSymbolPathRef(r->getTarget()) : 0;
+        ast::IField *f = NodeKind::cast<ast::IField>(decl);
+        if (!f || !f->getName()) {
+            continue;
+        }
+        ast::ITypeScope *owner = NodeKind::cast<ast::ITypeScope>(f->getParent());
+        if (!owner || !owner->getName()) {
+            continue;
+        }
+        // 19.1.3 b: "Conditional compilation directives may not reference
+        // inner members of types."
+        m_ctxt->addErrorMarker(locOf(*it),
+            "a compile if condition may not reference '%s', a member of type '%s' "
+            "(LRM 19.1.3 b)",
+            f->getName()->getId().c_str(), owner->getName()->getId().c_str());
+        return;
+    }
+}
+
+void TaskCheckOperands::visitScope(ast::IScope *i) {
+    ast::VisitorBase::visitScope(i);
+    for (std::vector<ast::ICompileCondUP>::const_iterator
+            it=i->getCompile_conds().begin(); it!=i->getCompile_conds().end(); it++) {
+        // 19.1.3 speaks of compile if expressions; compile assert (19.4) is
+        // not judged.
+        if ((*it)->getKind() == ast::CompileCondKind::CompileCondKind_If) {
+            checkCompileCond((*it)->getCond());
         }
     }
 }

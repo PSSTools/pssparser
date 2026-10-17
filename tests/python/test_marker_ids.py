@@ -361,6 +361,31 @@ REPRESENTATIVE_MESSAGES = [
                "(LRM 20.4.1 c)"),
     ("PSS137", "parameter 'p' of exported function 'sf' is a struct, so it "
                "shall be declared const (LRM 20.4.2.1 g)"),
+    ("PSS138", "integer width 0 is not positive (LRM 7.2.1 c, ruling R19)"),
+    ("PSS139", "division by a constant zero is illegal (LRM 8.5.1)"),
+    ("PSS139", "a shift by the constant -1: the right operand shall be "
+               "non-negative (LRM 8.5.7)"),
+    ("PSS140", "channel 'ch' cannot hold string (LRM 21.9.1 a)"),
+    ("PSS140", "channel 'ch' has DEPTH 0: it shall be positive (LRM 21.9.1 b)"),
+    ("PSS141", "register 'X' is in 'pss_top', which is not a register group "
+               "(LRM 21.14.1)"),
+    ("PSS141", "'reg_group_c' cannot be extended (LRM 21.14.2)"),
+    ("PSS142", "rand field 'h' is of type chandle, which is not randomizable "
+               "(LRM 7.1)"),
+    ("PSS142", "a randomize target of type chandle, which is not randomizable "
+               "(LRM 7.1, 13.4.6, ruling R18)"),
+    ("PSS143", "'yield' may only be used in target code; solve function 'f' is "
+               "solve code (LRM 20.7.14 a, ruling R20)"),
+    ("PSS144", "'write32' is a target function and cannot be called from solve "
+               "function 'initialize', which is solve code (LRM 20.2.1.3)"),
+    ("PSS145", "exec body is not valid in a component: it is valid in actions "
+               "(LRM 20.1.2)"),
+    ("PSS145", "a target-template exec block cannot be init_down, a solve exec "
+               "kind (LRM 20.5)"),
+    ("PSS146", "a compile if condition may not reference 'LOC', a member of type "
+               "'pss_top' (LRM 19.1.3 b)"),
+    ("PSS147", "'b' is private to 'p_s' and cannot be reached from here "
+               "(LRM 17.4 b)"),
 ]
 
 
@@ -661,7 +686,9 @@ def test_pss31_band_is_reserved_for_31_diagnostics():
                      "PSS118", "PSS119", "PSS120", "PSS121", "PSS122",
                      "PSS123", "PSS124", "PSS125", "PSS126", "PSS127",
                      "PSS128", "PSS129", "PSS130", "PSS131", "PSS132",
-                     "PSS133", "PSS134", "PSS135", "PSS136", "PSS137"]
+                     "PSS133", "PSS134", "PSS135", "PSS136", "PSS137",
+                     "PSS138", "PSS139", "PSS140", "PSS141", "PSS142",
+                     "PSS143", "PSS144", "PSS145", "PSS146", "PSS147"]
 
 
 def test_every_active_pss_marker_is_an_error():

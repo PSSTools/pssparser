@@ -98,7 +98,7 @@ component pss_top {
   function void f() { this.x = 2; }
   function void t();
   target ASM function void t() = """ mov {{this.x}} """;
-  exec init_down { this.x = 1; f(); t(); }
+  exec run_start { this.x = 1; f(); t(); }
 }
 ''')
     for line in (3, 5, 6):

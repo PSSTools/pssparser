@@ -466,7 +466,7 @@ def test_call_into_the_standard_library_reg_c_is_allowed():
     import addr_reg_pkg::*;
     import std_pkg::*;
     struct my_r : packed_s<> { bit[32] v; }
-    component C {
+    component C : reg_group_c {
         reg_c<my_r> r;
         action A { exec body C = \"\"\"{{comp.r.read()}}\"\"\"; }
     }

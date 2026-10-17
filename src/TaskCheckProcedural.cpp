@@ -18,7 +18,13 @@
 #include "dmgr/impl/DebugMacros.h"
 #include "pssp/ast/IActivityMatch.h"
 #include "pssp/ast/IActivityMatchChoice.h"
+#include "pssp/ast/IAction.h"
+#include "pssp/ast/IComponent.h"
 #include "pssp/ast/IExecBlock.h"
+#include "pssp/ast/IExecTargetTemplateBlock.h"
+#include "pssp/ast/IProceduralStmtYield.h"
+#include "pssp/ast/IStruct.h"
+#include "FunctionScopeUtil.h"
 #include "pssp/ast/IExprHierarchicalId.h"
 #include "pssp/ast/IExprRefPathContext.h"
 #include "pssp/ast/IExprRefPathStatic.h"
@@ -49,7 +55,7 @@ namespace pssp {
 dmgr::IDebug *TaskCheckProcedural::m_dbg = 0;
 
 TaskCheckProcedural::TaskCheckProcedural(ResolveContext *ctxt) :
-        m_ctxt(ctxt), m_typer(ctxt), m_loop_depth(0) {
+        m_ctxt(ctxt), m_typer(ctxt), m_loop_depth(0), m_plat(Plat::Any) {
     DEBUG_INIT("pssp::TaskCheckProcedural", ctxt->getDebugMgr());
 }
 
@@ -81,19 +87,171 @@ void TaskCheckProcedural::visitFunctionDefinition(ast::IFunctionDefinition *i) {
     std::vector<Foreach> fe;
     fe.swap(m_foreach);
     m_loop_depth = 0;
+    Plat plat = m_plat;
+    std::string where = m_where;
+    ast::IFunctionPrototype *proto = i->getProto();
+    bool tgt = (proto && proto->getIs_target()) || i->getPlat() == ast::PlatQual::PlatQual_Target;
+    bool slv = (proto && proto->getIs_solve()) || i->getPlat() == ast::PlatQual::PlatQual_Solve;
+    m_plat = (tgt && !slv) ? Plat::Target : (slv && !tgt) ? Plat::Solve : Plat::Any;
+    m_where = std::string((m_plat == Plat::Target) ? "target" : "solve") + " function '"
+        + ((proto && proto->getName()) ? proto->getName()->getId() : "?") + "'";
     ast::VisitorBase::visitFunctionDefinition(i);
     m_loop_depth = depth;
     m_foreach.swap(fe);
+    m_plat = plat;
+    m_where = where;
+}
+
+static const char *execKindName(ast::ExecKind k) {
+    switch (k) {
+        case ast::ExecKind::ExecKind_Body: return "body";
+        case ast::ExecKind::ExecKind_Header: return "header";
+        case ast::ExecKind::ExecKind_Declaration: return "declaration";
+        case ast::ExecKind::ExecKind_RunStart: return "run_start";
+        case ast::ExecKind::ExecKind_RunEnd: return "run_end";
+        case ast::ExecKind::ExecKind_InitDown: return "init_down";
+        case ast::ExecKind::ExecKind_InitUp: return "init_up";
+        case ast::ExecKind::ExecKind_PreSolve: return "pre_solve";
+        case ast::ExecKind::ExecKind_PostSolve: return "post_solve";
+        case ast::ExecKind::ExecKind_PreBody: return "pre_body";
+        default: return "file";
+    }
+}
+
+static bool isSolveKind(ast::ExecKind k) {
+    return k == ast::ExecKind::ExecKind_InitDown || k == ast::ExecKind::ExecKind_InitUp
+        || k == ast::ExecKind::ExecKind_PreSolve || k == ast::ExecKind::ExecKind_PostSolve
+        || k == ast::ExecKind::ExecKind_PreBody;
+}
+
+static bool isTargetKind(ast::ExecKind k) {
+    return k == ast::ExecKind::ExecKind_Body || k == ast::ExecKind::ExecKind_RunStart
+        || k == ast::ExecKind::ExecKind_RunEnd;
 }
 
 void TaskCheckProcedural::visitExecBlock(ast::IExecBlock *i) {
+    // 20.1.2: where each exec kind is valid. The type is the block's
+    // parent as written (an extension's blocks are its own, and not judged).
+    ast::IScope *owner = i->getParent();
+    const char *kname = execKindName(i->getKind());
+    bool comp = NodeKind::cast<ast::IComponent>(owner) != 0;
+    bool action = NodeKind::cast<ast::IAction>(owner) != 0;
+    bool strct = NodeKind::cast<ast::IStruct>(owner) != 0;
+    if (comp || action || strct) {
+        const char *bad_in = 0, *valid_in = 0;
+        switch (i->getKind()) {
+            // (init_down/init_up outside a component is not judged yet.)
+            case ast::ExecKind::ExecKind_PreSolve:
+            case ast::ExecKind::ExecKind_PostSolve:
+            case ast::ExecKind::ExecKind_PreBody:
+                if (comp) {
+                    bad_in = "a component";
+                    valid_in = "actions, objects and structs";
+                }
+                break;
+            case ast::ExecKind::ExecKind_Body:
+                if (!action) {
+                    bad_in = (comp) ? "a component" : "a struct or object";
+                    valid_in = "actions";
+                }
+                break;
+            default:
+                break;
+        }
+        if (bad_in) {
+            m_ctxt->addErrorMarker(i->getLocation(),
+                "exec %s is not valid in %s: it is valid in %s (LRM 20.1.2)",
+                kname, bad_in, valid_in);
+        }
+    }
+
     int32_t depth = m_loop_depth;
     std::vector<Foreach> fe;
     fe.swap(m_foreach);
     m_loop_depth = 0;
+    Plat plat = m_plat;
+    std::string where = m_where;
+    m_plat = (isSolveKind(i->getKind())) ? Plat::Solve
+        : (isTargetKind(i->getKind())) ? Plat::Target : Plat::Any;
+    m_where = std::string("exec ") + kname;
     ast::VisitorBase::visitExecBlock(i);
     m_loop_depth = depth;
     m_foreach.swap(fe);
+    m_plat = plat;
+    m_where = where;
+}
+
+void TaskCheckProcedural::visitExecTargetTemplateBlock(ast::IExecTargetTemplateBlock *i) {
+    // 20.5: "Target-template implementations may not be used for solve
+    // execs (init_down, init_up, pre_solve, post_solve, and pre_body)."
+    if (isSolveKind(i->getKind())) {
+        m_ctxt->addErrorMarker(i->getLocation(),
+            "a target-template exec block cannot be %s, a solve exec kind (LRM 20.5)",
+            execKindName(i->getKind()));
+    }
+    ast::VisitorBase::visitExecTargetTemplateBlock(i);
+}
+
+void TaskCheckProcedural::visitProceduralStmtYield(ast::IProceduralStmtYield *i) {
+    // 20.7.14 a: "The yield statement may only be used in target exec blocks
+    // and functions"; ruling R20 makes it target-only. An unqualified
+    // function may hold one.
+    if (m_plat == Plat::Solve) {
+        m_ctxt->addErrorMarker(i->getLocation(),
+            "'yield' may only be used in target code; %s is solve code "
+            "(LRM 20.7.14 a, ruling R20)", m_where.c_str());
+    }
+}
+
+TaskCheckProcedural::Plat TaskCheckProcedural::calleePlat(
+        ast::ISymbolFunctionScope   *fn,
+        bool                        *templ) {
+    *templ = false;
+    bool tgt = false, slv = false;
+    for (std::vector<ast::IFunctionPrototype *>::const_iterator
+            it=fn->getPrototypes().begin(); it!=fn->getPrototypes().end(); it++) {
+        tgt |= (*it)->getIs_target();
+        slv |= (*it)->getIs_solve();
+    }
+    if (functionImplementation(fn) == FunctionImpl::TargetTemplate) {
+        *templ = true;
+        return Plat::Target;
+    }
+    return (tgt && !slv) ? Plat::Target : (slv && !tgt) ? Plat::Solve : Plat::Any;
+}
+
+void TaskCheckProcedural::checkCallPlatform(
+        ast::IExprMemberPathElem    *elem,
+        ast::ISymbolFunctionScope   *fn) {
+    if (m_plat == Plat::Any) {
+        return;
+    }
+    bool templ = false;
+    Plat p = calleePlat(fn, &templ);
+    if (p == Plat::Any || p == m_plat) {
+        return;
+    }
+    // Held back pending a ruling: the core library's `print` is declared
+    // `solve` (21.1.2), so a target exec may not call it by 20.2.1.3 -- but
+    // pssc's target-side backends lower it in `exec body`, and many models
+    // do. Not reported until that is decided (06-front-end-checks F22).
+    if (m_plat == Plat::Target && fn->getName() == "print"
+            && fn->getPrototypes().size()
+            && fn->getPrototypes().front()->getName()->getLocation().fileid < 1) {
+        return;
+    }
+    // 20.2.1.3: "Functions restricted to the solve platform shall not be
+    // called directly or indirectly from target execs ... Similarly,
+    // functions restricted to the target platform shall not be called from
+    // solve execs"; a function of either kind by the same token. 20.1.2:
+    // init_down and init_up "may not call target template functions".
+    m_ctxt->addErrorMarker(elem->getId()->getLocation(),
+        "'%s' is %s and cannot be called from %s, which is %s code (LRM 20.2.1.3)",
+        elem->getId()->getId().c_str(),
+        (templ) ? "a target-template function" :
+            (p == Plat::Target) ? "a target function" : "a solve function",
+        m_where.c_str(),
+        (m_plat == Plat::Target) ? "target" : "solve");
 }
 
 void TaskCheckProcedural::loopBody(ast::IScopeChild *body) {
@@ -477,6 +635,7 @@ void TaskCheckProcedural::checkCalls(
         }
         if (ast::ISymbolFunctionScope *fn = NodeKind::cast<ast::ISymbolFunctionScope>(decl)) {
             checkConstArgs(elem, fn);
+            checkCallPlatform(elem, fn);
         }
         if (k > 0 && m_foreach.size() && changesCollection(elem->getId()->getId())) {
             LValue recv = lvalueOfElems(elems, k, first_decl);

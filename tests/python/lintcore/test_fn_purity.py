@@ -52,7 +52,7 @@ def _pss114(decls, call):
 def _calls(hooks, decls, call):
     # [is_pure(element with the arguments), is_pure(whole path)]. The
     # component's own exec names its handles without `comp.`.
-    model = _link(decls + "component pss_top { %s exec post_solve { int v; v = %s; } }"
+    model = _link(decls + "component pss_top { %s exec init_down { int v; v = %s; } }"
                   % (_HANDLES, call.replace("comp.", "")))
     elem = _ev(hooks, model, "descendants(node).filter(d, type(d) == ExprMemberPathElem "
                "&& has(d.params)).map(d, is_pure(d))")
@@ -119,7 +119,7 @@ def test_any_declaration_saying_pure_is_enough(hooks):
 
 def test_a_library_function(hooks):
     model = _link("import std_pkg::*;\n"
-                  "component pss_top { exec post_solve { message(LOW, \"x\"); } }\n")
+                  "component pss_top { exec init_down { message(LOW, \"x\"); } }\n")
     assert _ev(hooks, model, "descendants(node).filter(d, type(d) == ExprMemberPathElem "
                "&& has(d.params)).map(d, d.id.id + '=' + string(is_pure(d)))") == ["message=false"]
 
@@ -132,7 +132,7 @@ def test_a_library_function(hooks):
     "descendants(node).filter(d, type(d) == Field).exists(d, is_pure(d))",
 ])
 def test_false_for_what_is_not_a_function(hooks, expr):
-    model = _link("component pss_top { int x; exec post_solve { int v; v = x; } }")
+    model = _link("component pss_top { int x; exec init_down { int v; v = x; } }")
     assert _ev(hooks, model, expr) is False
 
 

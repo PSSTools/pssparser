@@ -2,7 +2,7 @@
 import std_pkg::*;
 component pss_top {
   function int alloc_id() { return 1; }
-  exec post_solve {
+  exec init_down {
     message(LOW, "id ", alloc_id());
   }
 }

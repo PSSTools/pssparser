@@ -20,7 +20,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import pytest
-from test_helpers import assert_parse_ok, parse_pss, get_symbol, has_symbol, get_location
+from test_helpers import assert_parse_error, assert_parse_ok, parse_pss, get_symbol, has_symbol, get_location
 
 
 # ============================================================================
@@ -122,18 +122,11 @@ def test_yield_with_control_flow():
 
 
 def test_yield_in_exec_pre_post():
-    """Test yield in pre/post exec blocks."""
+    """Test yield in exec blocks: only target code may yield (20.7.14 a,
+    ruling R20), so pre_solve and post_solve are PSS143 and body is legal."""
     pss = """
     component MyComponent {
         action compute {
-            exec pre_solve {
-                yield;
-            }
-            
-            exec post_solve {
-                yield;
-            }
-            
             exec body {
                 yield;
             }
@@ -142,6 +135,9 @@ def test_yield_in_exec_pre_post():
     """
     ast = assert_parse_ok(pss)
     assert ast is not None
+    for kind in ("pre_solve", "post_solve"):
+        assert_parse_error(pss.replace("exec body", "exec " + kind),
+                           "'yield' may only be used in target code")
 
 
 # ============================================================================

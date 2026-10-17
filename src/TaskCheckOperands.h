@@ -50,7 +50,19 @@ namespace pssp {
  *   ruling R23) -- PSS136;
  * - an import or export parameter or result of a type the foreign mapping
  *   does not take, and an export's non-const struct parameter (20.4.1 c,
- *   20.4.2.1) -- PSS137.
+ *   20.4.2.1) -- PSS137;
+ * - an integer width that folds to 0 or less (7.2.1 c, ruling R19) -- PSS138;
+ * - a division or modulus by a constant zero, a shift by a constant negative
+ *   amount (8.5.1, 8.5.7) -- PSS139;
+ * - a channel of a type it cannot hold, or a DEPTH that is not positive
+ *   (21.9.1) -- PSS140;
+ * - a register outside a register group, an extension of a register or
+ *   register-group type (21.14.1, 21.14.2) -- PSS141;
+ * - a `rand` field, or a `randomize` target, of a type that is not
+ *   randomizable (7.1, 13.4.6, ruling R18) -- PSS142;
+ * - a private or protected field reached from outside (17.4) -- PSS147;
+ * - a `compile if` condition referencing a member of a type (19.1.3 b)
+ *   -- PSS146.
  *
  * Enumeration operands are left alone by PSS131: 7.5.1 permits an enum in
  * assignment and equality ("may be used"), and says nothing stronger.
@@ -105,6 +117,20 @@ public:
 
     virtual void visitExportFunction(ast::IExportFunction *i) override;
 
+    virtual void visitDataTypeInt(ast::IDataTypeInt *i) override;
+
+    virtual void visitExtendType(ast::IExtendType *i) override;
+
+    virtual void visitProceduralStmtRandomize(ast::IProceduralStmtRandomize *i) override;
+
+    virtual void visitComponent(ast::IComponent *i) override;
+
+    virtual void visitAction(ast::IAction *i) override;
+
+    virtual void visitStruct(ast::IStruct *i) override;
+
+    virtual void visitScope(ast::IScope *i) override;
+
 private:
     /** Where to report on `e`: its first located identifier, else the
      *  statement being checked. */
@@ -150,6 +176,24 @@ private:
     /** PSS137 on an import's prototype; `at` is where the import is written. */
     void checkImport(ast::IFunctionPrototype *proto, const ast::Location &at, bool use_at);
 
+    /** A constant expression: literals, constants and enum items only. */
+    bool isConstExpr(ast::IExpr *e, int32_t depth=0);
+
+    /** True if `ts` is, or derives from, the core library's `name`. */
+    bool derivesFromCore(ast::ITypeScope *ts, const char *name);
+
+    /** The ITypeScope a type's ExprType names, if any. */
+    static ast::ITypeScope *typeScopeOf(const ExprType &t);
+
+    /** PSS140, PSS141, PSS142 on a field. */
+    void checkFieldType(ast::IField *i);
+
+    /** PSS147 on the elements of a member path. */
+    void checkAccess(const std::vector<ast::IExprMemberPathElemUP> &elems);
+
+    /** PSS146 on one `compile if` condition. */
+    void checkCompileCond(ast::IExpr *cond);
+
     /** PSS135: `name` declares a variable of type `dt`. */
     void checkItemlessEnum(ast::IExprId *name, ast::IDataType *dt);
 
@@ -158,6 +202,8 @@ private:
     ResolveContext                      *m_ctxt;
     TaskExprTypeCat                     m_typer;
     ast::Location                       m_stmt_loc;
+    /** The types being walked, innermost last (17.4). */
+    std::vector<ast::ITypeScope *>      m_type_s;
 };
 
 }

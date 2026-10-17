@@ -62,7 +62,9 @@ component pss_top {
 
 
 def test_exec_init_c(parser):
-    """exec init with C language target"""
+    """exec init with C language target: `init` (init_up) is a solve exec
+    kind, and "Target-template implementations may not be used for solve
+    execs" (20.5) -- PSS145. The spelling still parses."""
     code = """
 component pss_top {
     action A {
@@ -70,9 +72,8 @@ component pss_top {
     }
 }
 """
-    root = parse_pss(code, parser=parser)
-    comp = get_symbol(root, "pss_top")
-    assert has_symbol(comp, "A")
+    from test_helpers import assert_parse_error
+    assert_parse_error(code, "a target-template exec block cannot be init_up")
 
 
 def test_exec_file(parser):

@@ -5,7 +5,7 @@ import std_pkg::*;
 component pss_top {
   function int alloc_id() { return 1; }
   function void message(int v) { }
-  exec post_solve {
+  exec init_down {
     message(alloc_id());
     std_pkg::message(NONE, "id ", alloc_id());
   }

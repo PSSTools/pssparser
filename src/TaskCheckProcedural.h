@@ -41,7 +41,13 @@ namespace pssp {
  *   its body (20.7.8 g) -- PSS123;
  * - `break`/`continue` outside a loop (20.7.11 b) -- PSS124;
  * - two `default` branches in one match (20.7.10 f; 11.4.6 f for an
- *   activity match) -- PSS125.
+ *   activity match) -- PSS125;
+ * - `yield` in solve code (20.7.14 a, ruling R20) -- PSS143;
+ * - a target function called from solve code, or a solve function from
+ *   target code (20.2.1.3; a target-template function is target code,
+ *   20.1.2) -- PSS144;
+ * - an exec block of a kind its type does not have (20.1.2), and a
+ *   target-template exec of a solve kind (20.5) -- PSS145.
  *
  * Walks the user units as written. A generic's body is checked once, in the
  * generic (its specializations are copies at the same locations); a
@@ -81,6 +87,10 @@ public:
     virtual void visitExprRefPathContext(ast::IExprRefPathContext *i) override;
 
     virtual void visitExprRefPathStaticRooted(ast::IExprRefPathStaticRooted *i) override;
+
+    virtual void visitProceduralStmtYield(ast::IProceduralStmtYield *i) override;
+
+    virtual void visitExecTargetTemplateBlock(ast::IExecTargetTemplateBlock *i) override;
 
 private:
     /** One step of a reference: the element and what it names. */
@@ -128,6 +138,14 @@ private:
 
     void loopBody(ast::IScopeChild *body);
 
+    /** Where code runs (20.2.1.3): the solve or target platform, or either. */
+    enum class Plat { Any, Target, Solve };
+
+    /** The platform a function is restricted to, if any. */
+    static Plat calleePlat(ast::ISymbolFunctionScope *fn, bool *templ);
+
+    void checkCallPlatform(ast::IExprMemberPathElem *elem, ast::ISymbolFunctionScope *fn);
+
     struct Foreach {
         ast::IProceduralStmtForeach *stmt;
         LValue                      coll;
@@ -140,6 +158,9 @@ private:
     ResolveContext                      *m_ctxt;
     TaskExprTypeCat                     m_typer;
     int32_t                             m_loop_depth;
+    Plat                                m_plat;
+    /** The code being walked, for a message: "exec init_down". */
+    std::string                         m_where;
     std::vector<Foreach>                m_foreach;
 };
 

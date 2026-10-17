@@ -78,6 +78,27 @@ New errors, each at the construct it names:
   struct parameter (20.4.2.1 g). An exported instance function (an
   extension, LINT301) is not judged.
 
+### Added — widths, constant division, channels, registers, rand, platforms, access
+
+- **PSS138** an integer width that folds to 0 or less (7.2.1 c, ruling R19).
+- **PSS139** division or modulus by a constant zero, a shift by a constant
+  negative amount (8.5.1, 8.5.7).
+- **PSS140** a channel of a type it cannot hold, a DEPTH that is not
+  positive (21.9.1).
+- **PSS141** a register outside a register group; an extension of
+  `reg_c`/`reg_group_c` and their bases (21.14.1, 21.14.2).
+- **PSS142** a `rand` field or `randomize` target that is not randomizable
+  (7.1, 13.4.6, ruling R18).
+- **PSS143** `yield` in solve code (20.7.14 a, ruling R20).
+- **PSS144** a target function called from solve code, a solve function
+  from target code, a target-template function from `init_down`/`init_up`
+  (20.2.1.3, 20.1.2). The core library's `print` (declared `solve`) in
+  target code is not reported yet, pending a ruling.
+- **PSS145** `pre_solve`/`post_solve`/`pre_body` in a component, `body`
+  outside an action (20.1.2); a target-template exec of a solve kind (20.5).
+- **PSS146** a `compile if` condition referencing a type member (19.1.3 b).
+- **PSS147** a private or protected field reached from outside (17.4).
+
 ### Fixed — `a in l && b in m` is two membership tests
 
 The collection form of `in` took a whole expression as its collection, so

@@ -3,7 +3,7 @@
 import std_pkg::*;
 component pss_top {
   function int alloc_id() { return 1; }
-  exec post_solve {
+  exec init_down {
     @lint_pkg::waive {.id = "message-side-effect", .reason = "debug-only counter"}
     message(FULL, "id ", alloc_id());
   }

@@ -8,7 +8,7 @@ component pss_top {
   string path;
   function int alloc_id() { return 1; }
   pure function int scaled(int x) { return x * 2; }
-  exec post_solve {
+  exec init_down {
     int id = alloc_id();
     message(LOW, "id ", id, " x ", scaled(2), " f ", u.f(1), " ", path.size());
   }

@@ -28,17 +28,19 @@ pss-rules:
             }
 
     - id: TEST-CONST002
-      name: const-zero-width
-      summary: A bit width that folds to zero or less.
+      # (A width of zero or less is the error PSS138 now -- ruling R19 -- so
+      # the folded width this exercises is a wide one.)
+      name: const-wide-width
+      summary: A bit width that folds to more than 64.
       message: "the width of ${node} is ${const_int(node.width).value()}"
       match: { kind: DataTypeInt }
-      where: has(node.width) && const_int(node.width).orValue(1) <= 0
+      where: has(node.width) && const_int(node.width).orValue(1) > 64
       examples:
         - code: |
             component pss_top {
               static const int N = 2;
               action A {
-                rand bit[N - 2] z;   // expect: TEST-CONST002
+                rand bit[N * 40] z;   // expect: TEST-CONST002
                 rand bit[N] ok;
               }
             }

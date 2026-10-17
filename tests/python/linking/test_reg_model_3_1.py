@@ -150,7 +150,7 @@ def test_struct_and_byte_granular_address_access():
             import std_pkg::*;
             struct D : packed_s<> { bit[32] a; }
             component c {
-                exec init_down {
+                exec run_start {
                     addr_handle_t h;
                     D d;
                     list<bit[8]> bytes;

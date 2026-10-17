@@ -377,18 +377,21 @@ def test_the_access_api_is_available_on_an_executor(call):
     Annex C's block deliberately excludes ``read_struct``/``write_struct``,
     so they are not listed here.
     """
+    # The two solve functions are called from pre_body, a solve exec (20.1.2
+    # names them as what it may call); a body may not (20.2.1.3).
+    kind = "pre_body" if ("_solve(" in call or "_abs(" in call) else "body"
     assert_clean(_uses("""
         component c {
             executor_c<> e;
             action a {
-                exec body {
+                exec %s {
                     addr_handle_t h;
                     list<bit[8]>  data;
                     %s
                 }
             }
         }
-    """ % call, imports="""
+    """ % (kind, call), imports="""
         import addr_reg_pkg::*;
         import executor_pkg::*;
     """))
@@ -552,7 +555,7 @@ def test_all_four_core_packages_import_together():
     """
     assert_clean(_uses("""
         struct r_s : packed_s<> { bit[32] f; }
-        component c {
+        component c : reg_group_c {
             reg_c<r_s> r;
         }
         const int n = sizeof_s<r_s>::nbytes;

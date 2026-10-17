@@ -39,7 +39,7 @@ reported per file (default 20; `0` means no limit); a capped file ends with
 
 ### Import the core library
 
-The PSS core library (`print`, `std_pkg` types, and so on) is **not**
+The PSS core library (`message`, `std_pkg` types, and so on) is **not**
 visible by default. Import it in every file or package that uses it:
 
 ```pss
@@ -48,14 +48,14 @@ import std_pkg::*;
 component pss_top {
     action hello {
         exec body {
-            print("hello");
+            message(LOW, "hello");
         }
     }
 }
 ```
 
 Without the import, pssparser reports
-`unknown identifier 'print'; declared in std_pkg -- add 'import std_pkg::*;'`.
+`unknown identifier 'message'; declared in std_pkg -- add 'import std_pkg::*;'`.
 This is the most common "unresolved symbol" surprise; fix it by adding the
 import, not by declaring the function yourself.
 

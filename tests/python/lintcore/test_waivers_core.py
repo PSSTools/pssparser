@@ -85,7 +85,7 @@ ANNOTATED = [
     '@lint_pkg::waive {.reason = "no id"}\ncomponent C { }\n',
     '@lint_pkg::waive\ncomponent C { }\n',
     "component C {\n  %s\n  %s\n  int a;\n}\n" % (ANN, ANN.replace("LINT402", "LINT401")),
-    "component C {\n  exec body {\n    %s\n    int x = 1;\n  }\n}\n" % ANN,
+    "component C {\n  exec run_start {\n    %s\n    int x = 1;\n  }\n}\n" % ANN,
     "struct s {\n  %s\n  rand int a;\n  constraint {\n    %s\n    a > 1;\n  }\n}\n"
     % (ANN, ANN),
     # An annotation on a top-level package fails link() (known-issues LE-4):

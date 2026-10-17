@@ -54,9 +54,16 @@ def hooks(factory):
 @pytest.fixture(scope="module")
 def model():
     from pssparser.parser import Parser
+    from pssparser.parser import ParseException
     p = Parser()
     p.parses([_A])
-    root = p.link()
+    try:
+        root = p.link()
+    except ParseException as e:
+        # Line 26's `7 / 0` is kept on purpose -- const_int must not fold it
+        # -- and is an error now (PSS139, LRM 8.5.1). Nothing else is.
+        assert [m["line"] for m in e.markers if m["severity"] == "error"] == [26]
+        root = p._root
     (a,) = p.user_units()
     return p, root, a
 

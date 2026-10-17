@@ -73,10 +73,11 @@ def link(src):
     [
         "exec init_down { w = 1; }",
         "exec init_up { w = 1; }",
-        "exec body { w = 1; }",
+        "exec post_solve { w = 1; }",
         "exec init_down { }",
     ],
-    ids=["init_down", "init_up", "body", "empty"],
+    # (`body` is valid only in an action, 20.1.2: post_solve stands in.)
+    ids=["init_down", "init_up", "post_solve", "empty"],
 )
 def test_generic_struct_with_exec_block_specializes(body):
     assert_clean([("t.pss", """

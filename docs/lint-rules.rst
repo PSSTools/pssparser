@@ -609,7 +609,7 @@ Flagged (example 1):
    component pss_top {
      function int alloc_id() { return 1; }
      pure function int scaled(int x) { return x * 2; }
-     exec post_solve {
+     exec init_down {
        message(LOW, "id ", alloc_id());
        message(LOW, "x ", scaled(2));
        message(NONE, "id ", alloc_id());
@@ -626,7 +626,7 @@ Not flagged (a pure component's function, and a definition that drops 'pure'):
      util_c u;
      pure function int k(int a);
      function int k(int a) { return a; }
-     exec post_solve {
+     exec init_down {
        message(LOW, "f ", u.f(1), " k ", k(2));
      }
    }
