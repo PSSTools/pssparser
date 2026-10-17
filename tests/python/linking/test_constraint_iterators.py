@@ -240,8 +240,8 @@ component pss_top {
     constraint { foreach (s : h.l) { s.f < v; } }
     constraint { foreach (s : bs) { s.f < v; } }
     exec post_solve {
-      foreach (e : xs) { int x = e.f; }
-      foreach (e : h.l) { int x = e.f; }
+      foreach (e : xs) { e.f = 1; }
+      foreach (e : h.l) { e.f = 1; }
     }
   }
 }

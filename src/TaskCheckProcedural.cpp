@@ -384,11 +384,11 @@ void TaskCheckProcedural::checkForeachWrite(const LValue &lv, const char *what) 
             return;
         }
         if (root.decl && root.decl == it->it) {
-            // A member of a component or action the iterator names is the
-            // component's, not the iterator's value.
-            ExprType t = m_typer.typeOfDecl(it->it);
-            if (lv.steps.size() > 1 && (t.kind == TypeKindE::Component
-                    || t.kind == TypeKindE::Action || t.is_ref)) {
+            // The iterator "is an alias to the collection element" (20.7.8 c):
+            // a member or element of it written is the collection's element
+            // written, which Example 291 shows is legal. Only the variable
+            // itself, written whole, is.
+            if (lv.steps.size() > 1 || hasSubscript(root.elem)) {
                 continue;
             }
             m_ctxt->addErrorMarker(root.id->getLocation(),

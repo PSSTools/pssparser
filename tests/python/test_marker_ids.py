@@ -302,6 +302,24 @@ REPRESENTATIVE_MESSAGES = [
                "is a second one (LRM 20.7.10 f)"),
     ("PSS007", "an exec block returns void, so 'return' cannot take a value "
                "(LRM 20.7.5, ruling R21)"),
+    ("PSS126", "a cast to struct p_s: a casting type shall be a numeric, "
+               "Boolean, enumeration or reference type (LRM 7.12.1)"),
+    ("PSS126", "a cast from chandle: only a numeric, Boolean or enumeration "
+               "value, or a reference, can be cast (LRM 7.12)"),
+    ("PSS127", "the left side of 'in' shall not be an aggregate literal "
+               "(LRM 8.5.9.1)"),
+    ("PSS127", "the left side of 'in' is struct p_s, not a scalar, so the right "
+               "side shall be a collection, not a range list (LRM 8.5.9.1)"),
+    ("PSS128", "'==' does not apply to an array of components or actions: only "
+               "[], size(), foreach and 'in' do (LRM 7.9.2)"),
+    ("PSS128", "an array of components or actions cannot be assigned: only [], "
+               "size(), foreach and 'in' apply to one (LRM 7.9.2)"),
+    ("PSS006", "argument 1 of 'sum' is an array of 3 elements, but parameter "
+               "'v' is an array of 2 (LRM 8.3)"),
+    ("PSS129", "function 'g' returns component type 'sub_c' without 'ref': a "
+               "function shall not (LRM 20.2.2)"),
+    ("PSS129", "parameter 'b' of 'f' has flow object type 'b_s' without 'ref': "
+               "a function shall not (LRM 20.2.2)"),
 ]
 
 
@@ -605,7 +623,8 @@ def test_pss31_band_is_reserved_for_31_diagnostics():
                      "PSS108", "PSS109", "PSS110", "PSS111", "PSS112",
                      "PSS113", "PSS114", "PSS115", "PSS116", "PSS117",
                      "PSS118", "PSS119", "PSS120", "PSS121", "PSS122",
-                     "PSS123", "PSS124", "PSS125"]
+                     "PSS123", "PSS124", "PSS125", "PSS126", "PSS127",
+                     "PSS128", "PSS129"]
 
 
 def test_every_active_pss_marker_is_an_error():

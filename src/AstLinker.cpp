@@ -41,6 +41,7 @@
 #include "TaskResolveImports.h"
 #include "TaskCheckPackedStructs.h"
 #include "TaskCheckPackedUses.h"
+#include "TaskCheckOperands.h"
 #include "TaskCheckProcedural.h"
 #include "TaskCheckImports.h"
 #include "TaskCheckRefsResolved.h"
@@ -248,6 +249,11 @@ void AstLinker::linkPasses(
     // TaskCheckProcedural.h.
     pass = "checking procedural statements";
     TaskCheckProcedural(&ctxt).check(symtree);
+
+    // Operand, argument and signature types, judged with the expression
+    // typer. See TaskCheckOperands.h.
+    pass = "checking operand types";
+    TaskCheckOperands(&ctxt).check(symtree);
 
     // The completeness gate. Resolution is finished, so a type reference that
     // is still unbound is unbound for good -- report it rather than hand a

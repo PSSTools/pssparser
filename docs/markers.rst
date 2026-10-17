@@ -159,6 +159,7 @@ A function call supplies more or fewer arguments than the callee declares, names
 * ``parameter 'b' has no default, but follows 'a' which does``
 * ``argument 1 of 'f' is a string, but parameter 'a' is numeric``
 * ``argument 1 of 'g' is an aggregate literal, so parameter 's' must be declared const (LRM 20.2.3)``, and ``argument 2 of 'g' is constant 'C', so parameter 'd' must be declared const (LRM 20.2.3)`` -- a constant of aggregate type passes only to a const parameter of a PSS function (Example 291)
+* ``argument 1 of 'sum' is an array of 3 elements, but parameter 'v' is an array of 2 (LRM 8.3)``
 * ``argument 1 of 's' is a value, but parameter 'h' is a handle of action 'A'`` -- a symbol's action-handle parameter takes a handle of that action type or a subtype, or an element of an array of them (11.7)
 
 Argument types are compared only by broad category -- numeric, string, composite.  Widths, signedness and struct subtyping are deliberately not judged, except that a symbol's handle argument must be of the parameter's action type or a subtype.
@@ -997,13 +998,11 @@ PSS123
 
 A foreach changes its index, iterator or collection
 
-LRM 20.7.8 g: "The index and iterator variables are read-only. Their values shall not be changed within the foreach body. It shall be an error to change the contents of the iterated collection variable with[in] the foreach body."  An assignment to the collection or to what holds it, and a call of a method that changes it (``push_back``, ``insert``, ``delete``, ``clear``, ...), are reported.  An assignment to an element is not: the LRM's own Example 291 assigns ``dst[i]`` in ``foreach (dst[i])``.  Messages:
+LRM 20.7.8 g: "The index and iterator variables are read-only. Their values shall not be changed within the foreach body. It shall be an error to change the contents of the iterated collection variable with[in] the foreach body."  An assignment to the collection or to what holds it, and a call of a method that changes it (``push_back``, ``insert``, ``delete``, ``clear``, ...), are reported.  An assignment to an element is not: the LRM's own Example 291 assigns ``dst[i]`` in ``foreach (dst[i])``; nor is a member of the iterator, which aliases the element (20.7.8 c), only the iterator written whole.  Messages:
 
 * ``foreach index variable 'i' is read-only and cannot be changed in the foreach body (LRM 20.7.8 g)``
 * ``foreach iterator variable 'e' is read-only ...``
 * ``'w' is the collection this foreach iterates, so it cannot be changed in the foreach body (LRM 20.7.8 g)``
-
-A field of a component or action an iterator names belongs to that component, not to the iterator, and is not reported.
 
 PSS124
 ~~~~~~
@@ -1022,6 +1021,50 @@ PSS125
 A match statement has more than one default branch
 
 LRM 20.7.10 f (procedural) and 11.4.6 f (activity): "The default branch is optional. There may be at most one default branch in the match statement."  The second and any later ``default`` is reported.
+
+PSS126
+~~~~~~
+
+**Severity:** error
+
+A cast from or to a type that cannot be cast
+
+LRM 7.12: "Expressions of types int, bit, bool, enum, or floating-point type can be changed to another type in this list by using a cast operator. In addition, an expression of a reference type can be changed to a compatible reference type."  7.12.1: "A type_identifier specified as a casting_type shall refer to a numeric, Boolean, enumeration, or reference type", and a) "A numeric, Boolean, or enumeration value can only be cast to another numeric, Boolean or enumeration type."  Messages:
+
+* ``a cast to struct p_s: a casting type shall be a numeric, Boolean, enumeration or reference type (LRM 7.12.1)``
+* ``a cast from chandle: only a numeric, Boolean or enumeration value, or a reference, can be cast (LRM 7.12)``
+
+A cast from a chandle, a string, a struct or a collection is illegal only because 7.12 does not list it.
+
+PSS127
+~~~~~~
+
+**Severity:** error
+
+'in' with a range list and a non-scalar left side
+
+LRM 8.5.9.1: "The left-hand side shall not be an unqualified enum_item (see 7.5) or an aggregate literal", and "If the expression on the left-hand side is of a scalar type, the right-hand side may be an open_range_list or a collection_expression. Otherwise, the right-hand side shall be a collection_expression."  ``p in [1]`` with ``p`` a struct is an error; ``p in list_of_p`` is legal.
+
+PSS128
+~~~~~~
+
+**Severity:** error
+
+An operator applied to an array of components or actions
+
+LRM 7.9.2: arrays of modeling elements may be indexed with ``[]``, "However, other operators and methods do not apply to these arrays, unless otherwise specified" -- ``size()``, ``foreach`` and ``in`` are.  ``s == t`` and ``s = t`` on arrays of components are reported.
+
+PSS129
+~~~~~~
+
+**Severity:** error
+
+A function signature uses a component, action or object type without ref
+
+LRM 20.2.2: "Functions shall not return action types, component types, or flow/resource object types without the ref modifier", and "Functions shall not have parameters of action types, component types, or flow/resource object types without the ref modifier."  Messages:
+
+* ``function 'g' returns component type 'sub_c' without 'ref': a function shall not (LRM 20.2.2)``
+* ``parameter 'b' of 'f' has flow object type 'b_s' without 'ref': a function shall not (LRM 20.2.2)``
 
 LINT: core-emitted lint
 -----------------------

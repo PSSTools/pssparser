@@ -237,6 +237,8 @@ class CoreChecker(CheckerBase):
                 "of 'g' is constant 'C', so parameter 'd' must be declared "
                 "const (LRM 20.2.3)`` -- a constant of aggregate type passes "
                 "only to a const parameter of a PSS function (Example 291)\n"
+                "* ``argument 1 of 'sum' is an array of 3 elements, but "
+                "parameter 'v' is an array of 2 (LRM 8.3)``\n"
                 "* ``argument 1 of 's' is a value, but parameter 'h' is a "
                 "handle of action 'A'`` -- a symbol's action-handle parameter "
                 "takes a handle of that action type or a subtype, or an "
@@ -1931,14 +1933,14 @@ class CoreChecker(CheckerBase):
                 "call of a method that changes it (``push_back``, ``insert``, "
                 "``delete``, ``clear``, ...), are reported.  An assignment to "
                 "an element is not: the LRM's own Example 291 assigns "
-                "``dst[i]`` in ``foreach (dst[i])``.  Messages:\n\n"
+                "``dst[i]`` in ``foreach (dst[i])``; nor is a member of the "
+                "iterator, which aliases the element (20.7.8 c), only the "
+                "iterator written whole.  Messages:\n\n"
                 "* ``foreach index variable 'i' is read-only and cannot be "
                 "changed in the foreach body (LRM 20.7.8 g)``\n"
                 "* ``foreach iterator variable 'e' is read-only ...``\n"
                 "* ``'w' is the collection this foreach iterates, so it cannot "
-                "be changed in the foreach body (LRM 20.7.8 g)``\n\n"
-                "A field of a component or action an iterator names belongs to "
-                "that component, not to the iterator, and is not reported."
+                "be changed in the foreach body (LRM 20.7.8 g)``"
             ),
             patterns=(
                 r"^foreach (index|iterator) variable '[^']*' is read-only\b",
@@ -1971,6 +1973,87 @@ class CoreChecker(CheckerBase):
             ),
             patterns=(
                 r"^a match statement may have at most one default branch\b",
+            ),
+        ),
+        MarkerDef(
+            id="PSS126",
+            severity="error",
+            summary="A cast from or to a type that cannot be cast",
+            detail=(
+                "LRM 7.12: \"Expressions of types int, bit, bool, enum, or "
+                "floating-point type can be changed to another type in this "
+                "list by using a cast operator. In addition, an expression of "
+                "a reference type can be changed to a compatible reference "
+                "type.\"  7.12.1: \"A type_identifier specified as a "
+                "casting_type shall refer to a numeric, Boolean, enumeration, "
+                "or reference type\", and a) \"A numeric, Boolean, or "
+                "enumeration value can only be cast to another numeric, "
+                "Boolean or enumeration type.\"  Messages:\n\n"
+                "* ``a cast to struct p_s: a casting type shall be a numeric, "
+                "Boolean, enumeration or reference type (LRM 7.12.1)``\n"
+                "* ``a cast from chandle: only a numeric, Boolean or "
+                "enumeration value, or a reference, can be cast (LRM "
+                "7.12)``\n\n"
+                "A cast from a chandle, a string, a struct or a collection is "
+                "illegal only because 7.12 does not list it."
+            ),
+            patterns=(
+                r"^a cast to .*: a casting type shall be\b",
+                r"^a cast from .*: only a numeric, Boolean or enumeration value\b",
+            ),
+        ),
+        MarkerDef(
+            id="PSS127",
+            severity="error",
+            summary="'in' with a range list and a non-scalar left side",
+            detail=(
+                "LRM 8.5.9.1: \"The left-hand side shall not be an "
+                "unqualified enum_item (see 7.5) or an aggregate literal\", "
+                "and \"If the expression on the left-hand side is of a scalar "
+                "type, the right-hand side may be an open_range_list or a "
+                "collection_expression. Otherwise, the right-hand side shall "
+                "be a collection_expression.\"  ``p in [1]`` with ``p`` a "
+                "struct is an error; ``p in list_of_p`` is legal."
+            ),
+            patterns=(
+                r"^the left side of 'in' shall not be an aggregate literal\b",
+                r"^the left side of 'in' is .*, not a scalar\b",
+            ),
+        ),
+        MarkerDef(
+            id="PSS128",
+            severity="error",
+            summary="An operator applied to an array of components or actions",
+            detail=(
+                "LRM 7.9.2: arrays of modeling elements may be indexed with "
+                "``[]``, \"However, other operators and methods do not apply "
+                "to these arrays, unless otherwise specified\" -- ``size()``, "
+                "``foreach`` and ``in`` are.  ``s == t`` and ``s = t`` on "
+                "arrays of components are reported."
+            ),
+            patterns=(
+                r"^'[!=]=' does not apply to an array of components or actions\b",
+                r"^an array of components or actions cannot be assigned\b",
+            ),
+        ),
+        MarkerDef(
+            id="PSS129",
+            severity="error",
+            summary="A function signature uses a component, action or object type without ref",
+            detail=(
+                "LRM 20.2.2: \"Functions shall not return action types, "
+                "component types, or flow/resource object types without the "
+                "ref modifier\", and \"Functions shall not have parameters "
+                "of action types, component types, or flow/resource object "
+                "types without the ref modifier.\"  Messages:\n\n"
+                "* ``function 'g' returns component type 'sub_c' without "
+                "'ref': a function shall not (LRM 20.2.2)``\n"
+                "* ``parameter 'b' of 'f' has flow object type 'b_s' without "
+                "'ref': a function shall not (LRM 20.2.2)``"
+            ),
+            patterns=(
+                r"^function '[^']*' returns .* type '[^']*' without 'ref'",
+                r"^parameter '[^']*' of '[^']*' has .* type '[^']*' without 'ref'",
             ),
         ),
 

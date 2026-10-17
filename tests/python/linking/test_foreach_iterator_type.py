@@ -15,7 +15,7 @@ def test_iterator_reaches_struct_members():
         """
         package t {
             struct S { int a; }
-            function void f(list<S> l) { foreach (e : l) { int x = e.a; } }
+            function void f(list<S> l) { foreach (e : l) { e.a = 1; } }
         }
         """
     )
@@ -27,7 +27,7 @@ def test_iterator_over_a_local_collection():
         """
         package t {
             struct S { int a; }
-            function void f() { list<S> l; foreach (e : l) { int x = e.a; } }
+            function void f() { list<S> l; foreach (e : l) { e.a = 1; } }
         }
         """
     )
@@ -52,16 +52,16 @@ def test_loop_position_in_the_block_does_not_matter():
         package t {
             struct S { int a; }
             function void first(list<S> l) {
-                foreach (e : l) { int x = e.a; }
+                foreach (e : l) { e.a = 1; }
             }
             function void second(list<S> l) {
                 int q;
-                foreach (e : l) { int x = e.a; }
+                foreach (e : l) { e.a = 1; }
             }
             function void third(list<S> l) {
                 int q;
                 int r;
-                foreach (e : l) { int x = e.a; }
+                foreach (e : l) { e.a = 1; }
             }
         }
         """
@@ -74,7 +74,7 @@ def test_iterator_over_an_array():
         """
         package t {
             struct S { int a; }
-            function void f(array<S, 4> l) { foreach (e : l) { int x = e.a; } }
+            function void f(array<S, 4> l) { foreach (e : l) { e.a = 1; } }
         }
         """
     )

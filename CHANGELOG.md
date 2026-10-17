@@ -22,13 +22,25 @@ New errors, each at the construct it names:
   parameter of a PSS function (20.2.3, Example 291), beside the
   aggregate-literal form it already reported.
 - **PSS122** the sub-string operator on the left of an assignment (7.6.2).
-- **PSS123** a foreach's index or iterator variable changed in its body, or
-  its collection replaced or changed by one of its methods (20.7.8 g).
+- **PSS123** a foreach's index variable changed in its body, its iterator
+  variable written whole, or its collection replaced or changed by one of
+  its methods (20.7.8 g). A member of the iterator, which aliases the
+  element (20.7.8 c), and an element of the collection may be written.
 - **PSS124** `break` or `continue` outside a loop (20.7.11 b).
 - **PSS125** a second `default` branch in a procedural or activity `match`
   (20.7.10 f, 11.4.6 f).
 - **PSS007** also reports `return <value>;` in an exec block (20.7.5; only
   the bare form is permitted there).
+- **PSS126** a cast from a chandle, string, struct or collection, or to a
+  struct or collection type (7.12, 7.12.1).
+- **PSS127** `in` with a range list whose left side is not a scalar, or is
+  an aggregate literal (8.5.9.1).
+- **PSS128** `==`, `!=` or assignment of an array of components or actions
+  (7.9.2).
+- **PSS129** a function returning, or taking, a component, action, or flow
+  or resource object type without `ref` (20.2.2).
+- **PSS006** also reports an array argument of another size than its array
+  parameter (8.3).
 
 ### Fixed — the caret lines up under a tab-indented line
 

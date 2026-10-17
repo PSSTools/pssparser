@@ -7,10 +7,11 @@ pssc's front-end checks F8, F9, F10, W40, F16, F17, F18 and F21).
 - PSS006: a constant of aggregate type passed to a non-const parameter of a
   PSS function (20.2.3, Example 291) -- beside the aggregate-literal form.
 - PSS122: the sub-string operator on the left of an assignment (7.6.2).
-- PSS123: a foreach's index or iterator changed in its body, or its
-  collection replaced or changed by a method (20.7.8 g). An element's value
-  is not the collection's "contents": Example 291 assigns `dst[i]` in
-  `foreach (dst[i])`.
+- PSS123: a foreach's index, or its iterator written whole, changed in its
+  body, or its collection replaced or changed by a method (20.7.8 g). An
+  element's value is not the collection's "contents": Example 291 assigns
+  `dst[i]` in `foreach (dst[i])`; a member of the iterator, which aliases
+  the element (20.7.8 c), is the element.
 - PSS124: `break`/`continue` outside a loop (20.7.11 b).
 - PSS125: a second `default` branch in a match (20.7.10 f, 11.4.6 f).
 - PSS007: `return <value>;` in an exec block (20.7.5, ruling R21).
@@ -224,7 +225,6 @@ FE_DECLS = """  target function void run() {
     "foreach (w[i]) { i = 2; }",
     "foreach (e : w[i]) { e = 2; }",
     "foreach (e : w[i]) { e += 2; }",
-    "foreach (e : es) { e.a = 2; }",
     "foreach (e : l) { l.push_back(1); }",
     "foreach (e : l) { l.clear(); }",
     "foreach (w[i]) { foreach (w2[j]) { i = 1; } }",
@@ -240,6 +240,9 @@ def test_changing_what_a_foreach_iterates(stmt):
     "foreach (w[i]) { w[i] = 5; }",
     "foreach (w[i]) { w[0] = 5; }",
     "foreach (e : es) { es[0].a = 2; }",
+    # The iterator aliases the element (20.7.8 c): a member of it written is
+    # the element written.
+    "foreach (e : es) { e.a = 2; }",
     "foreach (w[i]) { w2[i] = w[i]; }",
     "foreach (e : w[i]) { x = e + i; }",
     "foreach (e : es) { x = e.a; }",
