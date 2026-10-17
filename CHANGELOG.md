@@ -42,6 +42,12 @@ New errors, each at the construct it names:
 - **PSS006** also reports an array argument of another size than its array
   parameter (8.3).
 
+### Fixed — `a in l && b in m` is two membership tests
+
+The collection form of `in` took a whole expression as its collection, so
+`2 in l && 3 in m` parsed as `2 in (l && (3 in m))`. `in` is at relational
+precedence (Table 11); its collection now stops at `&&`, `||`, `==`, ....
+
 ### Changed — an unqualified enum item where its enum is not expected is an error
 
 - **PSS130** (ruling R22) replaces the warning **LINT101**: an enum item used

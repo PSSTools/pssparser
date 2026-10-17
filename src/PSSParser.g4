@@ -1805,7 +1805,12 @@ expression:
 	lhs=expression mul_div_mod_op rhs=expression 		|
 	lhs=expression add_sub_op rhs=expression			|
 	lhs=expression shift_op rhs=expression				|
-	lhs=expression in_expression						|
+	// `in` is at relational precedence (Table 11): its collection operand
+	// binds tighter than `&&`, so `a in l && b in m` is two tests. As a rule
+	// of its own the collection was a whole `expression`, which swallowed
+	// the `&& b in m`.
+	lhs=expression TOK_IN TOK_LSBRACE open_range_list TOK_RSBRACE	|
+	lhs=expression TOK_IN coll=expression				|
     lhs=expression logical_inequality_op rhs=expression	|
     lhs=expression eq_neq_op rhs=expression				|
     lhs=expression binary_and_op rhs=expression			|
@@ -1883,21 +1888,12 @@ eq_neq_op:
 	| TOK_NE
 	;
 
-in_expression:
-	(TOK_IN TOK_LSBRACE open_range_list TOK_RSBRACE)
-	| (TOK_IN collection_expression) 
-	;
-
 open_range_list:
 	open_range_value (TOK_COMMA open_range_value)*
 	;
 
 open_range_value:
 	lhs=expression (TOK_ELIPSIS rhs=expression)?
-	;
-
-collection_expression:
-	expression
 	;
 
 // A method may be called on a string or aggregate literal (7.6.3, 7.9; LRM

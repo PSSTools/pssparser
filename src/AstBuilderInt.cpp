@@ -4849,15 +4849,14 @@ antlrcpp::Any AstBuilderInt::visitExpression(PSSParser::ExpressionContext *ctx) 
 			rhs);
 	} else if (ctx->lhs) {
 		// It's either an 'in' or a conditional 
-		if (ctx->in_expression()) {
+		if (ctx->TOK_IN()) {
 			// Build ExprIn: lhs in [open_range_list | collection_expression]
 			ast::IExpr *lhs = mkExpr(ctx->lhs);
-			PSSParser::In_expressionContext *in_ctx = ctx->in_expression();
-			ast::IExprOpenRangeList *rhs = mkOpenRangeList(in_ctx->open_range_list());
+			ast::IExprOpenRangeList *rhs = mkOpenRangeList(ctx->open_range_list());
 			// Collection-expression form: x in comp.some_list
 			ast::IExpr *coll = nullptr;
-			if (in_ctx->collection_expression()) {
-				coll = mkExpr(in_ctx->collection_expression()->expression());
+			if (ctx->coll) {
+				coll = mkExpr(ctx->coll);
 			}
 			m_expr = m_factory->mkExprIn(lhs, rhs, coll);
 		} else {
