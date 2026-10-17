@@ -158,6 +158,7 @@ A function call supplies more or fewer arguments than the callee declares, names
 * ``'v' is not a symbol; only a symbol can be called in an activity``
 * ``parameter 'b' has no default, but follows 'a' which does``
 * ``argument 1 of 'f' is a string, but parameter 'a' is numeric``
+* ``argument 1 of 'g' is an aggregate literal, so parameter 's' must be declared const (LRM 20.2.3)``, and ``argument 2 of 'g' is constant 'C', so parameter 'd' must be declared const (LRM 20.2.3)`` -- a constant of aggregate type passes only to a const parameter of a PSS function (Example 291)
 * ``argument 1 of 's' is a value, but parameter 'h' is a handle of action 'A'`` -- a symbol's action-handle parameter takes a handle of that action type or a subtype, or an element of an array of them (11.7)
 
 Argument types are compared only by broad category -- numeric, string, composite.  Widths, signedness and struct subtyping are deliberately not judged, except that a symbol's handle argument must be of the parameter's action type or a subtype.
@@ -176,6 +177,7 @@ A ``return`` supplies a value from a ``void`` function, omits one where a return
 * ``'f' returns void, so 'return' cannot take a value``
 * ``'f' has a return type, so 'return' must supply a value``
 * ``'f' returns void, so its result cannot be used as a value``
+* ``an exec block returns void, so 'return' cannot take a value (LRM 20.7.5, ruling R21)`` -- 20.7.5 permits only the bare ``return;`` in an exec
 
 The last of these is LRM 20.5: a void function "may only be called as a standalone procedural statement".  The converse -- calling a non-void function as a statement and discarding the result -- is explicitly legal and is not reported.
 
@@ -962,6 +964,64 @@ After::
     }
 
 Across files, the order the files are given in applies, as it does for ``compile if``.  Elsewhere in a type or package, declaration order does not matter (Example 262).  A name used before its declaration in an exec or activity block is PSS002; in a type width, LINT404.
+
+PSS121
+~~~~~~
+
+**Severity:** error
+
+A constant or a const parameter is assigned
+
+LRM 7.1: "The value of constant fields can be read but not modified. A constant cannot appear on the left-hand side of the assignment operator", and "If the constant is of aggregate type, its elements are constants too."  LRM 20.2.3: a const parameter "cannot be changed in the function body".  Messages:
+
+* ``constant 'C' cannot be assigned: a constant cannot appear on the left of an assignment (LRM 7.1)``
+* ``an element or member of constant 'TBL' cannot be assigned: a constant's elements are constants too (LRM 7.1)``
+* ``parameter 'x' is const, so its value cannot be changed in the function body (LRM 20.2.3)``
+* ``an element or member of const parameter 's' cannot be changed in the function body (LRM 20.2.3)``
+
+A compound assignment (``C += 1``) is an assignment.  Passing a constant of aggregate type to a non-const parameter is PSS006.
+
+PSS122
+~~~~~~
+
+**Severity:** error
+
+Sub-string on the left of an assignment
+
+LRM 7.6.2: "The sub-string operator shall not be used on the left-hand side of an assignment operator."  An index or a slice of a string is a sub-string (8.6.3), so ``s[0] = "x"`` is an error; assign the whole string instead.  An element of an array of strings is not a sub-string: ``ss[1] = "x"`` is legal.
+
+PSS123
+~~~~~~
+
+**Severity:** error
+
+A foreach changes its index, iterator or collection
+
+LRM 20.7.8 g: "The index and iterator variables are read-only. Their values shall not be changed within the foreach body. It shall be an error to change the contents of the iterated collection variable with[in] the foreach body."  An assignment to the collection or to what holds it, and a call of a method that changes it (``push_back``, ``insert``, ``delete``, ``clear``, ...), are reported.  An assignment to an element is not: the LRM's own Example 291 assigns ``dst[i]`` in ``foreach (dst[i])``.  Messages:
+
+* ``foreach index variable 'i' is read-only and cannot be changed in the foreach body (LRM 20.7.8 g)``
+* ``foreach iterator variable 'e' is read-only ...``
+* ``'w' is the collection this foreach iterates, so it cannot be changed in the foreach body (LRM 20.7.8 g)``
+
+A field of a component or action an iterator names belongs to that component, not to the iterator, and is not reported.
+
+PSS124
+~~~~~~
+
+**Severity:** error
+
+break or continue outside a loop
+
+LRM 20.7.11 b: "break and continue may only appear within loop statements (repeat-count, repeat-while or foreach). Within a loop, break and continue may be nested in conditional branch or match statements."
+
+PSS125
+~~~~~~
+
+**Severity:** error
+
+A match statement has more than one default branch
+
+LRM 20.7.10 f (procedural) and 11.4.6 f (activity): "The default branch is optional. There may be at most one default branch in the match statement."  The second and any later ``default`` is reported.
 
 LINT: core-emitted lint
 -----------------------

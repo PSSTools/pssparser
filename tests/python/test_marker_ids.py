@@ -274,6 +274,34 @@ REPRESENTATIVE_MESSAGES = [
                "itself (18.2)"),
     ("PSS118", "package-level constant 'A' may reference only package-level "
                "constants; 'K' is declared in type 'C' (18.2)"),
+    ("PSS121", "constant 'C' cannot be assigned: a constant cannot appear on "
+               "the left of an assignment (LRM 7.1)"),
+    ("PSS121", "an element or member of constant 'TBL' cannot be assigned: a "
+               "constant's elements are constants too (LRM 7.1)"),
+    ("PSS121", "parameter 'x' is const, so its value cannot be changed in the "
+               "function body (LRM 20.2.3)"),
+    ("PSS121", "an element or member of const parameter 's' cannot be changed "
+               "in the function body (LRM 20.2.3)"),
+    ("PSS006", "argument 1 of 'g' is constant 'C', so parameter 's' must be "
+               "declared const (LRM 20.2.3)"),
+    ("PSS122", "a sub-string of 's' on the left of an assignment: the "
+               "sub-string operator shall not be used there (LRM 7.6.2)"),
+    ("PSS123", "foreach index variable 'i' is read-only and cannot be changed "
+               "in the foreach body (LRM 20.7.8 g)"),
+    ("PSS123", "foreach iterator variable 'e' is read-only and cannot be "
+               "changed in the foreach body (LRM 20.7.8 g)"),
+    ("PSS123", "'w' is the collection this foreach iterates, so it cannot be "
+               "changed in the foreach body (LRM 20.7.8 g)"),
+    ("PSS123", "'l' is the collection this foreach iterates, so 'push_back()' "
+               "cannot change it in the foreach body (LRM 20.7.8 g)"),
+    ("PSS124", "'break' may only appear within a loop statement: repeat, "
+               "while or foreach (LRM 20.7.11 b)"),
+    ("PSS124", "'continue' may only appear within a loop statement: repeat, "
+               "while or foreach (LRM 20.7.11 b)"),
+    ("PSS125", "a match statement may have at most one default branch; this "
+               "is a second one (LRM 20.7.10 f)"),
+    ("PSS007", "an exec block returns void, so 'return' cannot take a value "
+               "(LRM 20.7.5, ruling R21)"),
 ]
 
 
@@ -576,7 +604,8 @@ def test_pss31_band_is_reserved_for_31_diagnostics():
                      "PSS104", "PSS105", "PSS106", "PSS107",
                      "PSS108", "PSS109", "PSS110", "PSS111", "PSS112",
                      "PSS113", "PSS114", "PSS115", "PSS116", "PSS117",
-                     "PSS118", "PSS119", "PSS120"]
+                     "PSS118", "PSS119", "PSS120", "PSS121", "PSS122",
+                     "PSS123", "PSS124", "PSS125"]
 
 
 def test_every_active_pss_marker_is_an_error():

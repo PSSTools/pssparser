@@ -12,6 +12,24 @@ Currently: **PSS 3.1** (Public Review Draft, 2026-08-28).
 
 ## Unreleased
 
+### Added — writes the LRM forbids, and control-flow errors
+
+New errors, each at the construct it names:
+
+- **PSS121** a constant, or an element or member of one, on the left of an
+  assignment (7.1); a `const` parameter changed in its function (20.2.3).
+- **PSS006** also reports a constant of aggregate type passed to a non-const
+  parameter of a PSS function (20.2.3, Example 291), beside the
+  aggregate-literal form it already reported.
+- **PSS122** the sub-string operator on the left of an assignment (7.6.2).
+- **PSS123** a foreach's index or iterator variable changed in its body, or
+  its collection replaced or changed by one of its methods (20.7.8 g).
+- **PSS124** `break` or `continue` outside a loop (20.7.11 b).
+- **PSS125** a second `default` branch in a procedural or activity `match`
+  (20.7.10 f, 11.4.6 f).
+- **PSS007** also reports `return <value>;` in an exec block (20.7.5; only
+  the bare form is permitted there).
+
 ### Fixed — the caret lines up under a tab-indented line
 
 A diagnostic's column counts a tab as one character, but the terminal moves a

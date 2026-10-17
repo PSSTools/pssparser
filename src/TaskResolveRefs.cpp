@@ -5615,9 +5615,17 @@ void TaskResolveRefs::visitProceduralStmtReturn(ast::IProceduralStmtReturn *i) {
         : ExprTypeOf(m_ctxt).enumOfType(m_func_s.back()->getRtype()));
 
     if (m_func_s.empty()) {
-        // A `return` outside any function body. The grammar admits one in an
-        // action's exec block, where there is nothing to check it against.
-        DEBUG("Note: return outside a function body");
+        // A `return` outside any function body: in an exec block. 20.7.5
+        // permits only the bare form there ("The return statement without an
+        // argument can also be used in execs"); ruling R21 makes the valued
+        // form an error, as in a void function.
+        if (i->getExpr()) {
+            m_ctxt->addMarker(
+                MarkerSeverityE::Error,
+                i->getLocation(),
+                "an exec block returns void, so 'return' cannot take a value "
+                "(LRM 20.7.5, ruling R21)");
+        }
         return;
     }
 

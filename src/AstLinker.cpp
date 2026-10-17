@@ -41,6 +41,7 @@
 #include "TaskResolveImports.h"
 #include "TaskCheckPackedStructs.h"
 #include "TaskCheckPackedUses.h"
+#include "TaskCheckProcedural.h"
 #include "TaskCheckImports.h"
 #include "TaskCheckRefsResolved.h"
 #include "TaskCheckTypeCycles.h"
@@ -241,6 +242,12 @@ void AstLinker::linkPasses(
     pass = "checking packed structs";
     TaskCheckPackedStructs(&ctxt).check(symtree);
     TaskCheckPackedUses(&ctxt).check(symtree);
+
+    // Rules on procedural statements that need every reference bound: what
+    // may be written, where break/continue go, match defaults. See
+    // TaskCheckProcedural.h.
+    pass = "checking procedural statements";
+    TaskCheckProcedural(&ctxt).check(symtree);
 
     // The completeness gate. Resolution is finished, so a type reference that
     // is still unbound is unbound for good -- report it rather than hand a
