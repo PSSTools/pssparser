@@ -18,6 +18,7 @@ from ..isolation import run_isolated
 from ..test_helpers import parse_pss, parse_multi_file
 from ..template_helpers import (
     assert_binds_to,
+    assert_specialization_count,
     binding_decl,
     bindings,
     find_specialization,
@@ -493,3 +494,116 @@ component pss_top { action A { rand T<3> t; } }
     assert res.rc == 1, res.describe()
     assert "t.pss:3:28: error: unknown identifier 'M'" in res.output, res.describe()
     assert res.output.count("error:") == 1, res.describe()
+
+
+# ---------------------------------------------------------------------------
+# An expression inside a type argument resolves at the use site too. The `N`
+# of `g_s<bit[N]>` used to be resolved in the copy inside the specialization,
+# in the generic's declaring scope: a false "unknown identifier 'N'", or a
+# silent binding to a same-named symbol declared next to the generic.
+# ---------------------------------------------------------------------------
+
+_G_S = "package r { %s struct g_s<type T> { T f; } struct k_s<type T> { g_s<T> y; } }\n"
+
+
+def _width_bindings(root, qname="r::g_s"):
+    """For every specialization of ``qname`` whose argument is an integer
+    type: the declaration its width binds to, as (kind, name, init value)."""
+    from pssparser.core import resolveSymbolPathRef
+    from ..template_helpers import _param
+    out = []
+    for s in specializations(root, qname):
+        dflt = _param(s, 0).getDflt()
+        if type(dflt).__name__ != "DataTypeInt":
+            continue
+        w = dflt.getWidth()
+        assert w.getTarget() is not None, "width of %r is unbound" % s.getName()
+        decl = resolveSymbolPathRef(root, w.getTarget())
+        out.append((type(decl).__name__, decl.getName().getId(),
+                    decl.getInit().getValue()))
+    return out
+
+
+@pytest.mark.parametrize("r_decl", ["", "const int N = 2;"],
+                         ids=["plain", "shadowed-in-generic-package"])
+def test_width_in_type_argument_binds_at_use_site(r_decl):
+    root = parse_pss(_G_S % r_decl + """
+package p { import r::*; const int N = 8; struct u_s { g_s<bit[N]> x; } }
+""")
+    assert _width_bindings(root) == [("Field", "N", 8)]
+
+
+def test_width_in_type_argument_binds_in_the_generics_own_package():
+    root = parse_pss("""
+package p { struct g_s<type T> { T f; } const int N = 8; struct u_s { g_s<bit[N]> x; } }
+""")
+    assert _width_bindings(root, "p::g_s") == [("Field", "N", 8)]
+
+
+def test_width_in_nested_and_forwarded_type_arguments():
+    root = parse_pss(_G_S % "const int N = 2;" + """
+package p { import r::*; const int N = 8;
+  struct u_s { g_s<g_s<bit[N]>> a; k_s<bit[N]> b; } }
+""")
+    # Shared by the inner g_s<bit[N]> and k_s's forwarded g_s<T>.
+    assert _width_bindings(root) == [("Field", "N", 8)]
+    assert _width_bindings(root, "r::k_s") == [("Field", "N", 8)]
+
+
+@pytest.mark.parametrize("arg", [
+    "bit[q::M]",
+    "bit[e_t::B]",
+    "e_t in [e_t::A]",
+    "int in [0..N]",
+    "bit[N] in [1..N]",
+])
+def test_type_argument_expression_forms_link(arg):
+    from ..test_helpers import assert_parse_ok
+    assert_parse_ok(_G_S % "" + """
+package q { const int M = 3; enum e_t { A, B=5 } }
+package p { import r::*; import q::*; const int N = 8;
+  struct u_s { g_s<%s> x; } }
+""" % arg)
+
+
+@pytest.mark.parametrize("n,count", [(8, 1), (4, 2)])
+def test_symbolic_width_shares_a_specialization_with_its_value(n, count):
+    """`bit[N]` with N == 8 is `bit[8]`: one specialization, not two."""
+    root = parse_pss(_G_S % "" + """
+package p { import r::*; const int N = %d;
+  struct u_s { g_s<bit[N]> a; g_s<bit[8]> b; g_s<bool> c; } }
+""" % n)
+    assert_specialization_count(root, "r::g_s", count + 1)
+
+
+def test_enclosing_parameter_as_width_gives_one_specialization_per_value():
+    root = parse_pss(_G_S % "" + """
+package p { import r::*;
+  struct w_s<int W=1, type E=bool> { g_s<bit[W]> x; g_s<E> y; }
+  struct u_s { w_s<4> a; w_s<8, int> b; } }
+""")
+    descs = sorted(bindings(root, s)[0] for s in specializations(root, "r::g_s"))
+    assert descs == ["bit", "bit", "bool", "int"], descs
+
+
+@pytest.mark.parametrize("r_decl", ["", "const int M = 2;"],
+                         ids=["undeclared", "declared-only-in-generic-package"])
+def test_unknown_width_in_type_argument_is_reported_where_written(r_decl):
+    """`M` is not visible where it is written. An `M` next to the generic
+    must not capture it."""
+    res = run_isolated([("t.pss", _G_S % r_decl + """
+package p { struct u_s { r::g_s<bit[M]> x; } }
+""")])
+    assert res.rc == 1, res.describe()
+    assert "t.pss:3:37: error: unknown identifier 'M'" in res.output, res.describe()
+    assert res.output.count("error:") == 1, res.describe()
+
+
+def test_width_in_type_default_binds_in_the_declaring_package():
+    """The mirror image: a default means what it means where the generic
+    declares it, so the caller's `K` does not capture it."""
+    root = parse_pss("""
+package r { const int K = 4; struct g_s<type T = bit[K]> { T f; } }
+package p { const int K = 9; struct u_s { r::g_s<> x; r::g_s<bit[4]> y; } }
+""")
+    assert _width_bindings(root) == [("Field", "K", 4)]

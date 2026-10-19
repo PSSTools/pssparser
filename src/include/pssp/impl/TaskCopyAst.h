@@ -86,7 +86,9 @@ public:
      * specialization is resolved in the *generic's* declaring scope, which is
      * the wrong scope and, for the builtin ``array`` generic, is not even in
      * the user's symbol tree (CL-N2).  TaskBuildParamValList turns this on
-     * for exactly that one copy.
+     * for the argument copies only: a value argument, the expressions inside
+     * a type argument (the ``N`` of ``S<bit[N]>``), and a default that cannot
+     * depend on the parameter list.
      */
     void setPreserveExprTargets(bool v) { m_preserve_expr_targets = v; }
 

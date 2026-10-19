@@ -8,7 +8,7 @@ perf-2 fixes applied but not yet committed. All PSS examples here are self-writt
 
 | # | Issue | Severity | Status |
 |---|---|---|---|
-| 1 | Expression in a type argument resolved in the generic's scope | High: can bind to the wrong symbol without any error | Not started |
+| 1 | Expression in a type argument resolved in the generic's scope | High: can bind to the wrong symbol without any error | Done |
 | 2 | Enum extensions don't reach a generic's specializations | Medium: a false error | Not started |
 | 3 | Core-library diagnostics show `<unknown>`, and their lines are off by one | Low to medium: wrong locations | Not started |
 
@@ -125,6 +125,26 @@ Assert which declaration each name binds to (`resolveSymbolPathRef`, the way
 
 Expected gate movement: none. No symbolic-width type argument was found in the curated
 corpus.
+
+### Outcome
+
+- Steps 1–3 and 5 done as planned. Step 4 was not needed: a type default such as
+  `type T = bit[K]` already binds `K` in the declaring package (perf-2 bug 2's
+  `bindDefaults`), and shares a specialization with `bit[4]`. A test pins it.
+- The silent wrong binding is confirmed: before the fix, `r::g_s<bit[M]>` with `M`
+  declared only in `r` linked cleanly.
+- 13 new tests in `test_template_binding.py`; 12 of them fail without the fix.
+- Gates: refcov and occgate unchanged. `census-parity.json` gained one bound
+  `SymbolRefPath` in four cases: the core library's `list<bit[SZ]>`
+  (`addr_reg_pkg.pss`) now binds `SZ` at the use site.
+
+### Deferred
+
+- `TaskCompareTypeRefs` ignores value domains: `g_s<int in [0..8]>` and
+  `g_s<int in [0..9]>` share one specialization, so one of them gets the other's
+  domain. This predates this work, and the code says it is deliberate for enum
+  domains. It needs an LRM ruling on whether a domain makes a distinct template
+  argument.
 
 ---
 

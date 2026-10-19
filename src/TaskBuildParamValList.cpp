@@ -258,9 +258,20 @@ ast::ITemplateParamDeclList *TaskBuildParamValList::build(
                 type,
                 bound);
 
+            // The expressions inside a type argument -- the `N` of
+            // `S<bit[N]>` -- were bound where the argument is written
+            // (TaskResolveRef::visitTemplateParamTypeValue). Carry those
+            // targets into the specialization, as for a value argument above;
+            // re-resolved there, they were looked up in the generic's
+            // declaring scope. The arguments of a nested generic
+            // (`S<T<N+1>>`) were bound at the use site as well.
+            copier.setPreserveExprTargets(true);
+            ast::IDataType *type_c = copier.copy((bound)?bound:m_pval_type->getValue());
+            copier.setPreserveExprTargets(false);
+
             ast::ITemplateGenericTypeParamDecl *p = m_ctxt->getFactory()->getAstFactory()->mkTemplateGenericTypeParamDecl(
                 (name)?copier.copyT<ast::IExprId>(name):0,
-                copier.copy((bound)?bound:m_pval_type->getValue())
+                type_c
             );
             m_ret->getParams().push_back(ast::ITemplateParamDeclUP(p));
 

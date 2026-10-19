@@ -220,9 +220,88 @@ void TaskResolveRef::visitSymbolFunctionScope(ast::ISymbolFunctionScope *i) {
 
 }
 
+/**
+ * Binds the references in a template argument where the argument is
+ * written. Used for both argument forms: the expression form (`S<N+1>`) and
+ * the expression inside a type-form argument (`S<bit[N]>`, `S<int in [0..N]>`).
+ *
+ * The walk stops at a reference: its subscripts and arguments are part of it
+ * and are resolved with it, where they are resolved at all. It also stops at
+ * a named type: a nested generic's arguments (`S<S<bit[N]>>`) are bound by
+ * resolveArgs when that type is resolved.
+ */
+class TaskResolveRef::ArgRefs : public ast::VisitorBase {
+public:
+    ArgRefs(TaskResolveRef *r) : m_r(r) { }
+
+    virtual void visitDataTypeUserDefined(ast::IDataTypeUserDefined *t) override { }
+
+    virtual void visitTypeIdentifier(ast::ITypeIdentifier *t) override { }
+
+    virtual void visitExprRefPathStatic(ast::IExprRefPathStatic *rp) override {
+        if (!rp->getTarget()) {
+            ast::ISymbolRefPath *target = m_r->resolveStaticArgPath(rp);
+            if (target) {
+                rp->setTarget(target);
+            }
+        }
+    }
+
+    virtual void visitExprRefPathContext(ast::IExprRefPathContext *rp) override {
+        // Only the single-element form; a member path is resolved later,
+        // in the specialization, as before.
+        if (!rp->getTarget() && rp->getHier_id()->getElems().size() == 1) {
+            const ast::IExprId *id = rp->getHier_id()->getElems().at(0)->getId();
+            ast::ISymbolRefPath *target = m_r->findRoot(id);
+            if (target) {
+                rp->setTarget(target);
+            } else {
+                // A name that does not resolve where it is written does
+                // not resolve at all: an argument cannot refer to the
+                // callee's parameters. Report it here, and bind it to
+                // nothing so that resolving the copy inside the
+                // specialization cannot find the callee's own parameter
+                // of the same name -- `S<M+1>` with no `M` in scope used
+                // to bind S's `M` and link cleanly (plan 1.4 (d)).
+                m_r->m_ctxt->addErrorMarker(
+                    id->getLocation(),
+                    "unknown identifier '%s'",
+                    id->getId().c_str());
+                rp->setTarget(unresolvable(m_r->m_ctxt));
+            }
+        }
+    }
+
+    /**
+     * A target that resolves to nothing: an element no scope can have.
+     * Distinct from no target at all, which later passes read as "not
+     * yet resolved" and try again.
+     */
+    static ast::ISymbolRefPath *unresolvable(ResolveContext *ctxt) {
+        ast::ISymbolRefPath *ret =
+            ctxt->getFactory()->getAstFactory()->mkSymbolRefPath();
+        ret->getPath().push_back(
+            {ast::SymbolRefPathElemKind::ElemKind_ChildIdx, -1});
+        return ret;
+    }
+
+private:
+    TaskResolveRef      *m_r;
+};
+
 void TaskResolveRef::visitTemplateParamTypeValue(ast::ITemplateParamTypeValue *i) {
     DEBUG_ENTER("visitTemplateParamTypeValue");
     i->getValue()->accept(m_this);
+    // An expression inside a type argument -- the `N` of `S<bit[N]>` -- is
+    // written here and means what it means here, as for an expression-form
+    // argument. Left unbound, the copy in the specialization was resolved in
+    // the generic's declaring scope: a false "unknown identifier", or a
+    // silent binding to a same-named symbol there. A bare named type has no
+    // such expression; its own arguments were resolved by the accept above.
+    if (!NodeKind::cast<ast::IDataTypeUserDefined>(i->getValue())) {
+        ArgRefs v(this);
+        i->getValue()->accept(&v);
+    }
     DEBUG_LEAVE("visitTemplateParamTypeValue");
 }
 
@@ -322,62 +401,7 @@ void TaskResolveRef::visitTemplateParamExprValue(ast::ITemplateParamExprValue *i
     // and bound the wrong `N` whenever caller and callee share a parameter
     // name (F5). See docs/design/symbol-resolution/A-crashes.md.
     //
-    // The walk stops at a reference: its subscripts and arguments are part
-    // of it and are resolved with it, where they are resolved at all.
-    class ArgRefs : public ast::VisitorBase {
-    public:
-        ArgRefs(TaskResolveRef *r) : m_r(r) { }
-
-        virtual void visitExprRefPathStatic(ast::IExprRefPathStatic *rp) override {
-            if (!rp->getTarget()) {
-                ast::ISymbolRefPath *target = m_r->resolveStaticArgPath(rp);
-                if (target) {
-                    rp->setTarget(target);
-                }
-            }
-        }
-
-        virtual void visitExprRefPathContext(ast::IExprRefPathContext *rp) override {
-            // Only the single-element form; a member path is resolved later,
-            // in the specialization, as before.
-            if (!rp->getTarget() && rp->getHier_id()->getElems().size() == 1) {
-                const ast::IExprId *id = rp->getHier_id()->getElems().at(0)->getId();
-                ast::ISymbolRefPath *target = m_r->findRoot(id);
-                if (target) {
-                    rp->setTarget(target);
-                } else {
-                    // A name that does not resolve where it is written does
-                    // not resolve at all: an argument cannot refer to the
-                    // callee's parameters. Report it here, and bind it to
-                    // nothing so that resolving the copy inside the
-                    // specialization cannot find the callee's own parameter
-                    // of the same name -- `S<M+1>` with no `M` in scope used
-                    // to bind S's `M` and link cleanly (plan 1.4 (d)).
-                    m_r->m_ctxt->addErrorMarker(
-                        id->getLocation(),
-                        "unknown identifier '%s'",
-                        id->getId().c_str());
-                    rp->setTarget(unresolvable(m_r->m_ctxt));
-                }
-            }
-        }
-
-        /**
-         * A target that resolves to nothing: an element no scope can have.
-         * Distinct from no target at all, which later passes read as "not
-         * yet resolved" and try again.
-         */
-        static ast::ISymbolRefPath *unresolvable(ResolveContext *ctxt) {
-            ast::ISymbolRefPath *ret =
-                ctxt->getFactory()->getAstFactory()->mkSymbolRefPath();
-            ret->getPath().push_back(
-                {ast::SymbolRefPathElemKind::ElemKind_ChildIdx, -1});
-            return ret;
-        }
-
-    private:
-        TaskResolveRef      *m_r;
-    };
+    // The walk is ArgRefs, above.
 
     if (i->getValue()) {
         ArgRefs v(this);

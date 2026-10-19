@@ -88,6 +88,9 @@ public:
     virtual void visitTypeIdentifier(ast::ITypeIdentifier *i) override;
 
 private:
+    /// Binds the references in a template argument where it is written.
+    class ArgRefs;
+
     ast::ISymbolRefPath *findRoot(const ast::IExprId *sym);
 
     /// `::x`: the first element, looked up in the global package only.

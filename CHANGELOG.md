@@ -25,6 +25,12 @@ Currently: **PSS 3.1** (Public Review Draft, 2026-08-28).
   enclosing specialization's body, giving a false "unknown type ... an import
   applies only inside the statement" error, for example at `ALLOC_MODE`'s
   default in the core library's `transparent_addr_claim_s`.
+- An expression inside a template type argument -- the `N` of `g_s<bit[N]>`,
+  `g_s<int in [0..N]>` or `g_s<e_t in [e_t::A]>` -- is resolved where it is
+  written. It was looked up in the generic's declaring scope, which gave a false
+  "unknown identifier 'N'" or, when a same-named symbol was visible there,
+  silently bound to that one. A `bit[N]` argument with `N == 8` now shares its
+  specialization with `bit[8]`.
 
 ## 3.4.0 — semantic errors the LRM requires
 
