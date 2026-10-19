@@ -12,6 +12,8 @@ Currently: **PSS 3.1** (Public Review Draft, 2026-08-28).
 
 ## Unreleased
 
+## 3.4.0 — semantic errors the LRM requires
+
 ### Added — writes the LRM forbids, and control-flow errors
 
 New errors, each at the construct it names:
@@ -133,6 +135,8 @@ precedence (Table 11); its collection now stops at `&&`, `||`, `==`, ....
   that reading could raise, is retired.
 - An argument of a qualified call, `p::f(LOW)`, now has its formal's type as
   its expected type, as an unqualified call's always had.
+
+## 3.3.0 — the caret lines up under tabs
 
 ### Fixed — the caret lines up under a tab-indented line
 

@@ -14151,7 +14151,7 @@
   {
    "files": [
     {
-     "content": "// ex284_super.pss\n//\n// `super` in derived types (LRM 17.1 Table 27, 20.1.4), modelled on PSS 3.1\n// Example 284 and completed to a whole model.\n//\n// Demonstrates:\n//   - `super;` in a derived action's exec body, before and after the\n//     derived type's own statements\n//   - `super.<name>` reaching a base field the derived type shadows, in a\n//     constraint and in an exec block\n//   - `super.<name>(args)` calling a base component's instance function\n//     that the derived component shadows with a different signature\n\nimport std_pkg::*;\n\ncomponent base_c {\n    function int scale(int v) { return v * 2; }\n}\n\ncomponent der_c : base_c {\n    function int scale() { return super.scale(4) + 1; }\n\n    action A {\n        int a;\n\n        exec pre_solve {\n            a = 1;\n        }\n        exec body {\n            message(LOW, \"Hello from A %d\", a);\n        }\n    }\n\n    action A1 : A {\n        exec body {\n            super;\n            message(LOW, \"Hello from A1 %d\", a);\n        }\n    }\n\n    action A2 : A {\n        rand int a;                     // shadows A::a\n        constraint a > super.a;\n\n        exec body {\n            message(LOW, \"Hello from A2 %d %d\", a, super.a);\n            super;\n        }\n    }\n}\n\ncomponent pss_top {\n    der_c d;\n\n    action test_a {\n        activity {\n            do der_c::A1;\n            do der_c::A2;\n        }\n    }\n}\n",
+     "content": "// ex284_super.pss\n//\n// `super` in derived types (LRM 17.1 Table 27, 20.1.4), modelled on PSS 3.1\n// Example 284 and completed to a whole model.\n//\n// Demonstrates:\n//   - `super;` in a derived action's exec body, before and after the\n//     derived type's own statements\n//   - `super.<name>` reaching a base field the derived type shadows, in a\n//     constraint and in an exec block\n//   - `super.<name>(args)` calling a base component's instance function\n//     that the derived component shadows (LRM 20.2: the shadowing function\n//     has the same return type and arguments)\n\nimport std_pkg::*;\n\ncomponent base_c {\n    function int scale(int v) { return v * 2; }\n}\n\ncomponent der_c : base_c {\n    function int scale(int v) { return super.scale(v) + 1; }\n\n    action A {\n        int a;\n\n        exec pre_solve {\n            a = 1;\n        }\n        exec body {\n            message(LOW, \"Hello from A %d\", a);\n        }\n    }\n\n    action A1 : A {\n        exec body {\n            super;\n            message(LOW, \"Hello from A1 %d\", a);\n        }\n    }\n\n    action A2 : A {\n        rand int a;                     // shadows A::a\n        constraint a > super.a;\n\n        exec body {\n            message(LOW, \"Hello from A2 %d %d\", a, super.a);\n            super;\n        }\n    }\n}\n\ncomponent pss_top {\n    der_c d;\n\n    action test_a {\n        activity {\n            do der_c::A1;\n            do der_c::A2;\n        }\n    }\n}\n",
      "name": "lrm31/ex284_super.pss"
     }
    ],
@@ -14166,7 +14166,7 @@
        null,
        0,
        1,
-       14,
+       15,
        1,
        -1
       ],
@@ -14175,7 +14175,7 @@
        "base_c",
        0,
        1,
-       16,
+       17,
        1,
        68
       ],
@@ -14184,7 +14184,7 @@
        null,
        1,
        1,
-       17,
+       18,
        5,
        -1
       ],
@@ -14193,16 +14193,16 @@
        "der_c",
        0,
        1,
-       20,
+       21,
        1,
-       605
+       610
       ],
       [
        "FunctionDefinition",
        null,
        1,
        1,
-       21,
+       22,
        5,
        -1
       ],
@@ -14211,7 +14211,7 @@
        "A",
        1,
        1,
-       23,
+       24,
        5,
        164
       ],
@@ -14229,7 +14229,7 @@
        "a",
        2,
        1,
-       24,
+       25,
        13,
        1
       ],
@@ -14238,7 +14238,7 @@
        null,
        2,
        1,
-       26,
+       27,
        9,
        45
       ],
@@ -14247,7 +14247,7 @@
        null,
        3,
        1,
-       27,
+       28,
        13,
        -1
       ],
@@ -14256,7 +14256,7 @@
        null,
        2,
        1,
-       29,
+       30,
        9,
        69
       ],
@@ -14265,7 +14265,7 @@
        null,
        3,
        1,
-       30,
+       31,
        13,
        -1
       ],
@@ -14274,7 +14274,7 @@
        "A1",
        1,
        1,
-       34,
+       35,
        5,
        119
       ],
@@ -14292,7 +14292,7 @@
        null,
        2,
        1,
-       35,
+       36,
        9,
        89
       ],
@@ -14301,7 +14301,7 @@
        null,
        3,
        1,
-       36,
+       37,
        13,
        -1
       ],
@@ -14310,7 +14310,7 @@
        null,
        3,
        1,
-       37,
+       38,
        13,
        -1
       ],
@@ -14319,7 +14319,7 @@
        "A2",
        1,
        1,
-       41,
+       42,
        5,
        220
       ],
@@ -14337,7 +14337,7 @@
        "a",
        2,
        1,
-       42,
+       43,
        18,
        1
       ],
@@ -14346,7 +14346,7 @@
        null,
        2,
        1,
-       43,
+       44,
        9,
        23
       ],
@@ -14355,7 +14355,7 @@
        null,
        2,
        1,
-       45,
+       46,
        9,
        101
       ],
@@ -14364,7 +14364,7 @@
        null,
        3,
        1,
-       46,
+       47,
        13,
        -1
       ],
@@ -14373,7 +14373,7 @@
        null,
        3,
        1,
-       47,
+       48,
        13,
        -1
       ],
@@ -14382,7 +14382,7 @@
        "pss_top",
        0,
        1,
-       52,
+       53,
        1,
        142
       ],
@@ -14391,7 +14391,7 @@
        "d",
        1,
        1,
-       53,
+       54,
        11,
        1
       ],
@@ -14400,7 +14400,7 @@
        "test_a",
        1,
        1,
-       55,
+       56,
        5,
        102
       ],
@@ -14418,7 +14418,7 @@
        null,
        2,
        1,
-       56,
+       57,
        9,
        72
       ],
@@ -14427,7 +14427,7 @@
        null,
        3,
        1,
-       57,
+       58,
        13,
        13
       ],
@@ -14436,7 +14436,7 @@
        null,
        3,
        1,
-       58,
+       59,
        13,
        13
       ]
