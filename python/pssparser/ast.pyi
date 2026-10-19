@@ -4862,7 +4862,9 @@ class EnumDecl(NamedScopeChild):
     Attributes:
         name: Enum type name (inherited from NamedScopeChild)
         items: The enumerators in source order; empty for `enum e { }`.
-            Items added by `extend enum` stay on the ExtendEnum
+            Items added by `extend enum` stay on the ExtendEnum, except
+            for an enum inside a generic: the linker also appends them here
+            (non-owning) so that each specialization's copy has them.
         base_type: Declared base type (`: data_type`), or null when none
             was written. Only an enum that has one may be a member of a
             packed struct (21.13.1).

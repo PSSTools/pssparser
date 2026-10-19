@@ -9,7 +9,7 @@ perf-2 fixes applied but not yet committed. All PSS examples here are self-writt
 | # | Issue | Severity | Status |
 |---|---|---|---|
 | 1 | Expression in a type argument resolved in the generic's scope | High: can bind to the wrong symbol without any error | Done |
-| 2 | Enum extensions don't reach a generic's specializations | Medium: a false error | Not started |
+| 2 | Enum extensions don't reach a generic's specializations | Medium: a false error | Done |
 | 3 | Core-library diagnostics show `<unknown>`, and their lines are off by one | Low to medium: wrong locations | Not started |
 
 The order is by severity, and each step is independent of the others. Do one
@@ -239,7 +239,24 @@ Expected gate movement: none in `census-parity.json`, since no fixture combines 
 generic with `extend enum`. Refs and occurrences may bind references that were
 unbound before. Read any drift before regenerating.
 
+### Outcome
+
+- Steps 1, 2 and 4 done as planned (`enclosingGeneric()` is the helper).
+- Step 3 changed: the ordering hazard is reported as an internal error (PSSP000), not
+  as a new marker code. No model reaches it: an instance extension's specialization
+  is made after extensions are applied, so it already has the items (test 8 pins
+  this). A new public code for a state that cannot be reached was not worth it.
+- Test 3 changed: `B = N` links for `C<5>` and `C<7>`. Test 5 checks a literal
+  duplicate value instead, reported once at the extension. See "Deferred".
+- 12 new tests in `test_template_extensions.py`.
+- Gates: refcov, occgate and `census-parity.json` unchanged. `lintcore-parity.json`
+  was regenerated for the `ast/datatype.yaml` doc change only.
+
 ### Deferred
+
+- The distinct-value check (LRM 7.5.1 e, `TaskCheckOperands`) does not see a value
+  that depends on a template parameter: `enum e { A = 2, B = N }` in `C<2>` links
+  cleanly, with or without an extension. This predates this work.
 
 The names declared in an extension's own package (CL-N1) are not recorded for enum
 items, which is unchanged by this work. Add a test that pins the current behavior, and

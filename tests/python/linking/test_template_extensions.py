@@ -510,3 +510,116 @@ component C<int N=1> { struct s { rand int x; } }
 extend struct C::s { rand int x; }
 component pss_top { action A { rand C<2>::s v; } }
 """)], "duplicate declaration of 'x'")
+
+
+# ---------------------------------------------------------------------------
+# `extend enum` and a generic. The items were merged into the enum's symbol
+# scope only, and a specialization is built from a copy of the generic's AST,
+# so every specialization reported `'e' has no member named 'B'`.
+# ---------------------------------------------------------------------------
+
+_ENUM_EXT_FORMS = {
+    "in-body": ("component C<int N=1> { enum e { A } extend enum e { B } %s }", ""),
+    "in-extend-component": ("component C<int N=1> { enum e { A } %s }",
+                            "extend component C { extend enum e { B } }"),
+    "qualified-top-level": ("component C<int N=1> { enum e { A } %s }",
+                            "extend enum C::e { B }"),
+}
+
+_USE_B = "action a { rand e v; constraint v == e::B; }"
+
+
+@pytest.mark.parametrize("form", sorted(_ENUM_EXT_FORMS))
+def test_an_enum_extension_reaches_each_instance(form):
+    body, ext = _ENUM_EXT_FORMS[form]
+    assert_clean([("t.pss", (body % _USE_B) + "\n" + ext + """
+component pss_top { C<2> c2; C<4> c4; }
+""")])
+
+
+@pytest.mark.parametrize("form", sorted(_ENUM_EXT_FORMS))
+def test_an_enum_item_no_extension_adds_is_still_rejected(form):
+    body, ext = _ENUM_EXT_FORMS[form]
+    assert_rejects([("t.pss", (body % "action a { rand e v; constraint v == e::Z; }")
+                     + "\n" + ext + """
+component pss_top { C<2> c2; }
+""")], "has no member named 'Z'")
+
+
+def test_an_enum_extension_reaches_an_instance_of_another_element_type():
+    assert_clean([("t.pss", """
+component C<type T=int> {
+  enum e { A }
+  extend enum e { B }
+  action a { rand e v; rand T t; constraint v == e::B; }
+}
+component pss_top { C<int> ci; C<bit[4]> cb; }
+""")])
+
+
+@pytest.mark.parametrize("n", [5, 7])
+def test_an_extension_item_value_may_use_the_parameter(n):
+    # The item is copied into each instance and its value resolved there.
+    assert_clean([("t.pss", """
+component C<int N=1> {
+  enum e { A }
+  extend enum e { B = N }
+  action a { rand e v; constraint v == e::B; }
+}
+component pss_top { C<%d> c; }
+""" % n)])
+
+
+def test_a_duplicate_extension_item_value_is_reported_once():
+    # LRM 7.5.1 e, across the declaration and the extension: one report, at
+    # the extension, however many instances there are.
+    res = run_isolated([("t.pss", """
+component C<int N=1> {
+  enum e { A = 2 }
+  extend enum e { B = 2 }
+  action a { rand e v; constraint v == e::B; }
+}
+component pss_top { C<2> c; C<4> d; }
+""")])
+    assert res.rc == 1, res.describe()
+    assert res.output.count("error:") == 1, res.describe()
+    assert "t.pss:4:19: error: enum item 'B' has the value 2, as 'A' does" \
+        in res.output, res.describe()
+
+
+def test_a_duplicate_enum_extension_item_is_reported_once():
+    res = run_isolated([("t.pss", """
+component C<int N=1> {
+  enum e { A }
+  extend enum e { A }
+}
+component pss_top { C<2> c2; C<4> c4; }
+""")])
+    assert res.rc == 1, res.describe()
+    assert res.output.count("error:") == 1, res.describe()
+    assert "t.pss:4:19: error: duplicate declaration of enum item 'A'" in res.output, \
+        res.describe()
+
+
+def test_an_enum_extension_in_another_package_reaches_each_instance():
+    assert_clean([("t.pss", """
+package g { component C<int N=1> { enum e { A } action a { rand e v; constraint v == e::B; } } }
+package x { import g::*; extend enum C::e { B } }
+component pss_top { g::C<2> c; }
+""")])
+
+
+def test_an_enum_extension_after_an_early_specialization_is_not_silent():
+    # An instance extension specializes C<2> while extensions are applied. The
+    # enum extension written after it must still reach C<2>, or be reported.
+    res = run_isolated([("t.pss", """
+component C<int N=1> { enum e { A } action a { rand e v; } }
+extend component C<2> { action b { rand e w; constraint w == e::B; } }
+extend enum C::e { B }
+component pss_top { C<2> c; }
+""")])
+    # C<2> is made after extensions are applied, so it has the item. Were it
+    # made first, the result must be the internal error, never silence.
+    assert res.rc == 0, res.describe()
+    assert "was extended after its enclosing generic was specialized" \
+        not in res.output, res.describe()

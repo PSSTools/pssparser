@@ -266,8 +266,9 @@ private:
         for (std::vector<ast::IScopeChildUP>::const_iterator
             it=src.begin(); it!=src.end(); it++) {
             // An `extend` nested in a generic's body is not a member:
-            // TaskApplyTypeExtensions::mergeIntoGenericAst has already added
-            // its members to the target type's AST, so they are copied with
+            // TaskApplyTypeExtensions has already added its members to the
+            // target type's AST (mergeIntoGenericAst), or its items to the
+            // target EnumDecl (applyEnumExtension), so they are copied with
             // that type. Copying the statement too would duplicate them, and
             // the copier has no visitor for it -- the null it returned was
             // stored as a child and crashed TaskBuildSymbolTree.

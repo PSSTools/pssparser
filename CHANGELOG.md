@@ -31,6 +31,10 @@ Currently: **PSS 3.1** (Public Review Draft, 2026-08-28).
   "unknown identifier 'N'" or, when a same-named symbol was visible there,
   silently bound to that one. A `bit[N]` argument with `N == 8` now shares its
   specialization with `bit[8]`.
+- Items added by `extend enum` to an enum declared inside a template type now
+  reach every specialization, whether the extension is written in the generic's
+  body, in `extend component C { ... }`, or at top level as `extend enum C::e`.
+  Each specialization reported `'e' has no member named 'B'`.
 
 ## 3.4.0 — semantic errors the LRM requires
 

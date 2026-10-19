@@ -47,6 +47,7 @@
 #include "TaskResolveRootRef.h"
 #include "TaskSpecializeParameterizedRef.h"
 #include "pssp/impl/TaskGetName.h"
+#include "pssp/impl/InternalError.h"
 #include "pssp/impl/NodeKind.h"
 
 namespace pssp {
@@ -136,7 +137,7 @@ void TaskApplyTypeExtensions::visitExtendEnum(ast::IExtendEnum *i) {
         return;
     }
 
-    applyEnumExtension(i, target_s);
+    applyEnumExtension(i, target_s, i->getTarget()->getTarget());
 
     DEBUG_LEAVE("visitExtendEnum");
 }
@@ -511,13 +512,36 @@ void TaskApplyTypeExtensions::applyNestedExtension(
                 loc)).get());
             return;
         }
-        applyEnumExtension(ext_e, es);
+        applyEnumExtension(ext_e, es, path);
     }
 }
 
 void TaskApplyTypeExtensions::applyEnumExtension(
         ast::IExtendEnum        *i,
-        ast::ISymbolEnumScope   *target_s) {
+        ast::ISymbolEnumScope   *target_s,
+        const ast::ISymbolRefPath *target_p) {
+    // An enum declared inside a generic -- in its body, at any depth -- is
+    // copied into each specialization from its *AST* (see
+    // mergeIntoGenericAst), so the items have to reach the EnumDecl as well as
+    // the symbol scope. Otherwise every specialization reported `'e' has no
+    // member named 'B'` for an item added by `extend enum`.
+    ast::IEnumDecl *decl = target_s->getDecl();
+    ast::ITypeScope *generic = (decl)?enclosingGeneric(decl):0;
+
+    if (generic && hasSpecializations(generic, target_p)) {
+        // A specialization copied before this point does not have the items,
+        // and cannot be given them after the fact. Not reached by any known
+        // model -- extensions are applied before a generic body is resolved --
+        // so it is a defect in pssparser, reported rather than left silent.
+        IMarkerUP marker(m_factory->mkMarker(
+            "internal error: enum '" + target_s->getName() + "' was extended "
+                "after its enclosing generic was specialized; please report this",
+            MarkerSeverityE::Error,
+            i->getLocation()));
+        marker->setId(INTERNAL_ERROR_ID);
+        m_marker_l->marker(marker.get());
+    }
+
     for (std::vector<ast::IEnumItemUP>::const_iterator
         it=i->getItems().begin();
         it!=i->getItems().end(); it++) {
@@ -529,6 +553,13 @@ void TaskApplyTypeExtensions::applyEnumExtension(
             int32_t id = target_s->getChildren().size();
             target_s->getSymtab().insert({name, id});
             target_s->getChildren().push_back(ast::IScopeChildUP(it->get(), false));
+            if (generic) {
+                // Non-owning: the `extend enum` keeps the only owning
+                // reference, and each specialization owns its own copy. Only
+                // a new name is merged, so a duplicate is reported once, here,
+                // and never reaches a copy.
+                decl->getItems().push_back(ast::IEnumItemUP(it->get(), false));
+            }
         } else {
             // 7.5.1 g: an enum item is unique "across its initial definition
             // and extensions". No per-package exemption, unlike a field.
@@ -540,6 +571,37 @@ void TaskApplyTypeExtensions::applyEnumExtension(
                     "across the enum and all its extensions (7.5.1)");
         }
     }
+}
+
+ast::ITypeScope *TaskApplyTypeExtensions::enclosingGeneric(ast::IScopeChild *c) {
+    int32_t depth = 0;
+    for (; c && depth<64; c=c->getParent(), depth++) {
+        ast::ITypeScope *ts = NodeKind::cast<ast::ITypeScope>(c);
+        if (ts && ts->getParams() && !ts->getParams()->getSpecialized()) {
+            return ts;
+        }
+    }
+    return 0;
+}
+
+bool TaskApplyTypeExtensions::hasSpecializations(
+        ast::ITypeScope             *generic,
+        const ast::ISymbolRefPath   *target_p) {
+    if (!target_p) {
+        return false;
+    }
+    // The generic's symbol scope is on the path to the enum: try each prefix.
+    ast::ISymbolRefPathUP prefix(m_factory->getAstFactory()->mkSymbolRefPath());
+    for (std::vector<ast::SymbolRefPathElem>::const_iterator
+        it=target_p->getPath().begin(); it!=target_p->getPath().end(); it++) {
+        prefix->getPath().push_back(*it);
+        ast::ISymbolTypeScope *ts = NodeKind::cast<ast::ISymbolTypeScope>(
+            m_symtab_it->resolveAbsPath(prefix.get()));
+        if (ts && ts->getTarget() == generic) {
+            return ts->getSpec_types().size() > 0;
+        }
+    }
+    return false;
 }
 
 void TaskApplyTypeExtensions::visitSymbolFunctionScope(ast::ISymbolFunctionScope *i) {
@@ -648,14 +710,7 @@ void TaskApplyTypeExtensions::mergeIntoGenericAst(
     ast::ITypeScope *target_ast = NodeKind::cast<ast::ITypeScope>(
         target_s->getTarget());
 
-    bool in_generic = false;
-    int32_t depth = 0;
-    for (ast::IScopeChild *c=target_ast; c && !in_generic && depth<64;
-            c=c->getParent(), depth++) {
-        ast::ITypeScope *ts = NodeKind::cast<ast::ITypeScope>(c);
-        in_generic = (ts && ts->getParams() && !ts->getParams()->getSpecialized());
-    }
-    if (!target_ast || !in_generic) {
+    if (!target_ast || !enclosingGeneric(target_ast)) {
         return;
     }
 

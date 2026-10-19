@@ -130,9 +130,24 @@ protected:
         ast::ISymbolRefPath     *target_p,
         ast::ISymbolScope       *decl_s);
 
+    /**
+     * Merge an `extend enum` into the enum's symbol scope, and into its
+     * EnumDecl as well when the enum is inside a generic (see
+     * mergeIntoGenericAst). ``target_p`` is the path to the enum.
+     */
     void applyEnumExtension(
-        ast::IExtendEnum        *i,
-        ast::ISymbolEnumScope   *target_s);
+        ast::IExtendEnum            *i,
+        ast::ISymbolEnumScope       *target_s,
+        const ast::ISymbolRefPath   *target_p);
+
+    /// The nearest generic (unspecialized template type) enclosing ``c``,
+    /// ``c`` included, or null.
+    static ast::ITypeScope *enclosingGeneric(ast::IScopeChild *c);
+
+    /// Whether ``generic``, found along ``target_p``, has been specialized.
+    bool hasSpecializations(
+        ast::ITypeScope             *generic,
+        const ast::ISymbolRefPath   *target_p);
 
     /**
      * Contribute one member of an `extend` body to the extended type's

@@ -532,7 +532,8 @@ void TaskBuildSymbolTree::visitExtendEnum(ast::IExtendEnum *i) {
     //
     // The items belong to the enum being extended, and nothing here needs to
     // put them there: TaskApplyTypeExtensions::visitExtendEnum merges them
-    // into the target's symbol scope directly from this list.
+    // into the target's symbol scope directly from this list, and into the
+    // target's EnumDecl too when the enum is inside a generic.
     addChild(i, false);
     DEBUG_LEAVE("visitExtendEnum");
 }
