@@ -28,7 +28,7 @@ See docs/refs.rst.
 """
 import dataclasses
 import enum
-from typing import Any, List, NamedTuple, Optional
+from typing import Any, List, NamedTuple, Optional, Tuple
 
 __all__ = ["Location", "Occurrence", "Resolution", "occurrences"]
 
@@ -44,7 +44,8 @@ class Resolution(str, enum.Enum):
 
     #: Bound to a declaration in a user file (fileid >= 1).
     USER = "user"
-    #: Bound to a standard-library declaration (fileid 0).
+    #: Bound to a standard-library declaration (fileid 0). The library is
+    #: one unit: :func:`library_location` names the file and line within it.
     LIBRARY = "library"
     #: A built-in with no declaration in any source: ``comp``, ``this``, and
     #: collection methods such as ``push_back``. ``decl`` is None, or a
@@ -109,6 +110,17 @@ class Occurrence:
     @property
     def location(self) -> Location:
         return Location(self.fileid, self.line, self.col, self.extent)
+
+
+def library_location(loc: Location) -> Optional[Tuple[str, int]]:
+    """The core-library file and line of a fileid-0 location, such as a
+    ``decl_location`` that resolves to ``Resolution.LIBRARY``:
+    ``("<stdlib>/std_pkg.pss", 12)``. None for any other location.
+    """
+    if loc.fileid != 0:
+        return None
+    from .parser import core_library_location
+    return core_library_location(loc.line)
 
 
 def occurrences(parser_or_root) -> List[Occurrence]:

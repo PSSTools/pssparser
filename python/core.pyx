@@ -103,6 +103,25 @@ cdef class Factory(object):
         """A lint engine with no rules loaded (lint-core-plan.md)."""
         return LintEngine.mk(self._hndl.mkLintEngine())
 
+    def getCoreLibrarySources(self):
+        """The compiled-in core library's files, in the order they are built
+        into fileid 0: a list of ``(name, first_line, num_lines, text)``.
+
+        Each file occupies its own band of fileid-0 lines, from
+        ``first_line`` to ``first_line + num_lines - 1``.
+        """
+        cdef const decl.CoreLibrarySource *s = self._hndl.getCoreLibrarySources()
+        cdef int i = 0
+        ret = []
+        while s[i].name != NULL:
+            ret.append((
+                s[i].name.decode(),
+                s[i].first_line,
+                s[i].num_lines,
+                s[i].text.decode()))
+            i += 1
+        return ret
+
     def _lintTestHooks(self):
         """PRIVATE: the lint engine's test entry points (lint-core-plan.md
         §5). Not a supported API."""

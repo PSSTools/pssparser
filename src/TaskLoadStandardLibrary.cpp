@@ -50,11 +50,15 @@ void TaskLoadStandardLibrary::load(
     bool report_unrepresented = ast_builder->getReportUnrepresented();
     ast_builder->setReportUnrepresented(false);
 
-    for (uint32_t i=0; pss_stdlib[i]; i++) {
-        std::stringstream s(pss_stdlib[i]);
-
-        ast_builder->build(global, &s);
+    // One build of the files back to back, so that each file has its own band
+    // of lines in fileid 0 (see CoreLibrarySource). Built one at a time, every
+    // file started at line 1 and the locations of different files collided.
+    std::string text;
+    for (const CoreLibrarySource *f=pss_stdlib_files; f->name; f++) {
+        text += f->text;
     }
+    std::stringstream s(text);
+    ast_builder->build(global, &s);
 
     ast_builder->setReportUnrepresented(report_unrepresented);
 
@@ -80,6 +84,10 @@ void TaskLoadStandardLibrary::visitStruct(ast::IStruct *i) {
     }
 
     DEBUG_LEAVE("visitStruct %s", i->getName()->getId().c_str());
+}
+
+const CoreLibrarySource *TaskLoadStandardLibrary::sources() {
+    return pss_stdlib_files;
 }
 
 dmgr::IDebug *TaskLoadStandardLibrary::m_dbg = 0;

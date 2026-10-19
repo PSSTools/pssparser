@@ -69,10 +69,12 @@ skips a default only if that default may depend on the parameter list.
 - Side effect: `ts/test/fixtures/census-parity.json` was regenerated. The core
   library's `reg_c` default `ACC = READWRITE` is now bound too.
 
-## Open (not fixed)
+## Follow-up issues (fixed)
 
-Plan: [perf-2-open-issues-plan.md](perf-2-open-issues-plan.md). It also covers a second
-stdlib location bug found while planning: every core-library line number is one too high.
+All three are fixed, one commit each; see
+[perf-2-open-issues-plan.md](perf-2-open-issues-plan.md) for the outcome of each and
+what was deferred. The plan also covered a second stdlib location bug found while
+planning: every core-library line number was one too high.
 
 1. **Enum extensions don't reach a generic's specializations.** This affects
    `extend enum` inside the generic body, inside `extend component C {...}`, and

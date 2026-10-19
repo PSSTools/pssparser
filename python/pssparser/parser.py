@@ -28,6 +28,35 @@ def _internal_error_marker(phase: str, exc: BaseException,
     }
 
 
+#: The display path of the core library's files: ``<stdlib>/std_pkg.pss``.
+STDLIB_PREFIX = "<stdlib>/"
+
+_core_library_sources = None
+
+
+def core_library_sources() -> List[Tuple[str, int, int, str]]:
+    """The compiled-in core library's files, in the order they are built into
+    fileid 0: ``(name, first_line, num_lines, text)`` for each.
+
+    The core library is one source unit, fileid 0, and each file occupies its
+    own band of its lines; :func:`core_library_location` maps a line back.
+    """
+    global _core_library_sources
+    if _core_library_sources is None:
+        import pssparser.core as zspp
+        _core_library_sources = zspp.Factory.inst().getCoreLibrarySources()
+    return _core_library_sources
+
+
+def core_library_location(line: int) -> Optional[Tuple[str, int]]:
+    """``(path, line)`` within its own file for a fileid-0 ``line``, such as
+    ``("<stdlib>/addr_reg_pkg.pss", 12)``; None for a line in no file."""
+    for name, first, num, _ in core_library_sources():
+        if first <= line < first + num:
+            return (STDLIB_PREFIX + name, line - first + 1)
+    return None
+
+
 class InactiveRegion(NamedTuple):
     """A source region left out by `compile if`; see
     :meth:`Parser.inactive_regions`. Both ends inclusive, 1-based."""
@@ -336,6 +365,8 @@ class Parser(object):
 
         Populated by :meth:`link` and valid afterwards. Built-in and library
         units are excluded: they carry fileid 0 or -1 and have no user path.
+        Use :meth:`resolve_location` for a path and line that covers the core
+        library (fileid 0) too.
         """
         return dict(self._file_map)
 
@@ -394,6 +425,20 @@ class Parser(object):
         out.sort()
         return out
 
+    def resolve_location(self, fileid: int, line: int) -> Tuple[str, int]:
+        """The display ``(path, line)`` of a location, from its fileid and line.
+
+        A user file's line is its own. The core library is a single unit,
+        fileid 0, whose line is mapped to the library file it falls in:
+        ``("<stdlib>/addr_reg_pkg.pss", 12)``.
+        """
+        if fileid == 0:
+            loc = core_library_location(line)
+            if loc is not None:
+                return loc
+            return ("<stdlib>", line)
+        return (self._pathOf(fileid), line)
+
     def _pathOf(self, fileid: int) -> str:
         """Source path for *fileid*, from either the live map or the snapshot.
 
@@ -419,11 +464,12 @@ class Parser(object):
         for i in range(marker_l.numMarkers()):
             marker = marker_l.getMarker(i)
             loc = marker.loc()
+            path, line = self.resolve_location(loc.file, loc.line)
             marker_m = "%s%s %s:%d:%d" % (
                 prefix[int(marker.severity())],
                 marker.msg(),
-                self._pathOf(loc.file),
-                loc.line,
+                path,
+                line,
                 loc.pos)
             msg += marker_m + "\n"
 
@@ -442,7 +488,7 @@ class Parser(object):
         for i in range(marker_l.numMarkers()):
             m = marker_l.getMarker(i)
             loc = m.loc()
-            filename = self._pathOf(loc.file)
+            filename, line = self.resolve_location(loc.file, loc.line)
             code = m.id()
             if code == INTERNAL_ERROR_CODE and loc.file < 0:
                 # A C++ internal error with no source location: render it as
@@ -452,7 +498,7 @@ class Parser(object):
                 "severity": severity_names.get(int(m.severity()), "unknown"),
                 "message": m.msg(),
                 "file": filename,
-                "line": loc.line,
+                "line": line,
                 # `Location.linepos` is 1-based on the C++ side; see the
                 # invariant documented in ast/coretypes.yaml. No adjustment
                 # belongs here -- one used to, and it was wrong for every
@@ -460,12 +506,10 @@ class Parser(object):
                 "col": loc.pos,
                 "extent": m.extent(),
                 "related": [
-                    {
-                        "file": self._pathOf(rel["loc"].file),
-                        "line": rel["loc"].line,
-                        "col": rel["loc"].pos,
-                        "label": rel["label"],
-                    }
+                    dict(zip(("file", "line"), self.resolve_location(
+                            rel["loc"].file, rel["loc"].line)),
+                         col=rel["loc"].pos,
+                         label=rel["label"])
                     for rel in m.related()
                 ],
             }
@@ -478,9 +522,11 @@ class Parser(object):
             fixes = m.fixes()
             if fixes:
                 fix = fixes[0]
+                fix_file, fix_line = self.resolve_location(
+                    fix["span"].file, fix["span"].line)
                 entry["fix"] = {
-                    "file": self._pathOf(fix["span"].file),
-                    "line": fix["span"].line,
+                    "file": fix_file,
+                    "line": fix_line,
                     "col": fix["span"].pos,
                     "extent": fix["extent"],
                     "replacement": fix["replacement"],

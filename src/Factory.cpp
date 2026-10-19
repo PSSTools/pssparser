@@ -71,6 +71,10 @@ void Factory::loadStandardLibrary(
     TaskLoadStandardLibrary(m_dmgr).load(ast_builder, global);
 }
 
+const CoreLibrarySource *Factory::getCoreLibrarySources() {
+    return TaskLoadStandardLibrary::sources();
+}
+
 ILookupLocationResult *Factory::lookupLocation(
         ast::IRootSymbolScope   *root,
         ast::IScope             *scope,

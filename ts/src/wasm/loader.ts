@@ -78,6 +78,11 @@ export interface ParserSessionHandle {
   finishDiagnostics(requestJson: string): string;
   /** The marker catalogue: `ILintEngine::catalogJson`'s JSON. */
   catalogJson(): string;
+  /** The core library's files, `IFactory::getCoreLibrarySources`: a JSON
+   *  array of `{name, firstLine, numLines, text}`. Optional so that a core
+   *  built before it existed still loads; its stdlib markers then show a bare
+   *  `<stdlib>`. */
+  coreLibrarySourcesJson?(): string;
   /** Embind's destructor. Frees the C++ object; the handle is dead after. */
   delete(): void;
 }

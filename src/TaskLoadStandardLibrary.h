@@ -20,6 +20,7 @@
  */
 #pragma once
 #include "dmgr/IDebugMgr.h"
+#include "pssp/CoreLibrarySource.h"
 #include "pssp/IAstBuilder.h"
 #include "pssp/ast/IGlobalScope.h"
 #include "pssp/ast/impl/VisitorBase.h"
@@ -38,6 +39,9 @@ public:
     void load(
         IAstBuilder         *ast_builder,
         ast::IGlobalScope   *global);
+
+    /// The core library's files, ending with an entry whose name is null.
+    static const CoreLibrarySource *sources();
 
     virtual void visitComponent(ast::IComponent *i) override;
 

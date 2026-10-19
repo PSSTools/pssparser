@@ -246,7 +246,8 @@ struct c { k_s<h_s<d_s>> v; constraint v.y == 1; }
 def test_a_core_library_default_in_a_nested_specialization():
     """The same through the core library: ALLOC_MODE's default in
     transparent_addr_claim_s was reported as an unknown type (at
-    `<unknown>`, the core library having no file name)."""
+    `<unknown>`: core-library locations had no file name then; they are now
+    `<stdlib>/addr_reg_pkg.pss`)."""
     code = """\
 import addr_reg_pkg::*;
 struct tr_s : addr_trait_s { }

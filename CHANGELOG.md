@@ -35,6 +35,14 @@ Currently: **PSS 3.1** (Public Review Draft, 2026-08-28).
   reach every specialization, whether the extension is written in the generic's
   body, in `extend component C { ... }`, or at top level as `extend enum C::e`.
   Each specialization reported `'e' has no member named 'B'`.
+- A location in the core library names its file and line:
+  `<stdlib>/addr_reg_pkg.pss:12:5` in diagnostics, for example a duplicate's
+  "first declared here" note, where it was `<unknown>:13`. Every core-library
+  line was also one too high. The library's files are now built as one unit
+  (fileid 0), each in its own band of lines. New: `Parser.resolve_location()`,
+  `pssparser.parser.core_library_sources()` and `core_library_location()`,
+  `refs.library_location()`, `IFactory::getCoreLibrarySources()`, and in
+  TypeScript `resolveLocation()` and the session's `coreLibrarySourcesJson()`.
 
 ## 3.4.0 — semantic errors the LRM requires
 

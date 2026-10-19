@@ -125,18 +125,56 @@ export function pathOf(fileid: number, files: ReadonlyMap<number, string>): stri
   return files.get(fileid) ?? WELL_KNOWN.get(fileid) ?? UNKNOWN_FILE;
 }
 
+/**
+ * One file of the core library. The library is a single unit, fileid 0, and
+ * each file occupies its own band of that unit's lines, from `firstLine` to
+ * `firstLine + numLines - 1`.
+ */
+export interface CoreLibraryFile {
+  name: string;
+  firstLine: number;
+  numLines: number;
+  /** The file's text, as compiled into the core. */
+  text: string;
+}
+
+/**
+ * Resolve a (fileid, line) to a display path and line. A core-library line is
+ * mapped to its file -- `<stdlib>/addr_reg_pkg.pss` -- and the line within it,
+ * as `Parser.resolve_location` does in Python.
+ */
+export function resolveLocation(
+  fileid: number,
+  line: number,
+  files: ReadonlyMap<number, string>,
+  stdlib: readonly CoreLibraryFile[] = [],
+): { file: string; line: number } {
+  if (fileid === FILEID_STDLIB) {
+    for (const f of stdlib) {
+      if (line >= f.firstLine && line < f.firstLine + f.numLines) {
+        return { file: `<stdlib>/${f.name}`, line: line - f.firstLine + 1 };
+      }
+    }
+  }
+  return { file: pathOf(fileid, files), line };
+}
+
 /** Turn the boundary form into the public form. */
-export function resolveMarker(raw: RawMarker, files: ReadonlyMap<number, string>): Marker {
+export function resolveMarker(
+  raw: RawMarker,
+  files: ReadonlyMap<number, string>,
+  stdlib: readonly CoreLibraryFile[] = [],
+): Marker {
+  const at = resolveLocation(raw.fileid, raw.line, files, stdlib);
   const m: Marker = {
     severity: raw.severity,
     message: raw.message,
-    file: pathOf(raw.fileid, files),
-    line: raw.line,
+    file: at.file,
+    line: at.line,
     col: raw.col,
     extent: raw.extent,
     related: raw.related.map((r) => ({
-      file: pathOf(r.fileid, files),
-      line: r.line,
+      ...resolveLocation(r.fileid, r.line, files, stdlib),
       col: r.col,
       label: r.label,
     })),
@@ -149,8 +187,7 @@ export function resolveMarker(raw: RawMarker, files: ReadonlyMap<number, string>
   }
   if (raw.fix !== undefined) {
     m.fix = {
-      file: pathOf(raw.fix.fileid, files),
-      line: raw.fix.line,
+      ...resolveLocation(raw.fix.fileid, raw.fix.line, files, stdlib),
       col: raw.fix.col,
       extent: raw.fix.extent,
       replacement: raw.fix.replacement,

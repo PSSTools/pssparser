@@ -16,6 +16,7 @@ import {
   sortMarkers,
   type Marker,
   type RawMarker,
+  type CoreLibraryFile,
 } from './Marker.js';
 import {
   lintRequestJson,
@@ -219,6 +220,10 @@ export class Parser {
 
   /** The linked root, materialised by `link()`. */
   #root: RootSymbolScope | null = null;
+
+  /** The core library's files, for resolving its locations; see
+   *  `#coreLibrary()`. */
+  #stdlibFiles: readonly CoreLibraryFile[] | null = null;
 
   /** Whether the last `link()` succeeded with no parse since: the rules ran
    *  (`lint()`'s unused-waiver report needs that). */
@@ -706,10 +711,21 @@ export class Parser {
     const names = this.#names();
     // Markers from this call replace nothing; they are appended to whatever
     // earlier calls left, because `markers` spans the Parser's lifetime.
+    const stdlib = this.#coreLibrary(session);
     for (const r of raw) {
-      this.#markers.push(resolveMarker(r, names));
+      this.#markers.push(resolveMarker(r, names, stdlib));
     }
     sortMarkers(this.#markers);
+  }
+
+  /** The core library's files, read once from the core; empty for a core
+   *  that predates `coreLibrarySourcesJson`. */
+  #coreLibrary(session: ParserSessionHandle): readonly CoreLibraryFile[] {
+    if (this.#stdlibFiles === null) {
+      const json = session.coreLibrarySourcesJson?.();
+      this.#stdlibFiles = json ? (JSON.parse(json) as CoreLibraryFile[]) : [];
+    }
+    return this.#stdlibFiles;
   }
 
   /**

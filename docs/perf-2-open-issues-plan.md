@@ -10,7 +10,7 @@ perf-2 fixes applied but not yet committed. All PSS examples here are self-writt
 |---|---|---|---|
 | 1 | Expression in a type argument resolved in the generic's scope | High: can bind to the wrong symbol without any error | Done |
 | 2 | Enum extensions don't reach a generic's specializations | Medium: a false error | Done |
-| 3 | Core-library diagnostics show `<unknown>`, and their lines are off by one | Low to medium: wrong locations | Not started |
+| 3 | Core-library diagnostics show `<unknown>`, and their lines are off by one | Low to medium: wrong locations | Done; WASM/TS not built here |
 
 The order is by severity, and each step is independent of the others. Do one
 issue per commit. Every issue ends with the same gate:
@@ -345,3 +345,22 @@ Expected movement:
 
 No error-suite golden contains `<unknown>`. `references.json` and `occurrences.json`
 cover only user files.
+
+### Outcome
+
+- Steps 1–6 done. The generator emits the `pss_stdlib_files[]` table of
+  `pssp::CoreLibrarySource` (`src/include/pssp/CoreLibrarySource.h`); the bands are
+  computed there and the combined source is concatenated at load time.
+  `IFactory::getCoreLibrarySources()` is appended at the end of the interface.
+- Python: `Parser.resolve_location()`, `pssparser.parser.core_library_sources()` and
+  `core_library_location()`, `refs.library_location()`. 11 tests in
+  `tests/python/linking/test_stdlib_locations.py`.
+- WASM/TS: `ParserSession::coreLibrarySourcesJson()`, `resolveLocation()` in
+  `Marker.ts`, and `Parser.ts` reads the table once per parser. **Not compiled or
+  run here**: there is no emcc. `tsc` reports no error in the changed files (only
+  the missing generated modules), and the new `ts/test/marker.test.ts` (pure
+  functions, 4 tests) passes under vitest. The binding is optional in `loader.ts`,
+  so an older core still loads and shows a bare `<stdlib>`.
+- `appliesAt`: no regression test. The overlap is not observable with the current
+  library, since only `addr_reg_pkg` and `sync_pkg` have imports, each inside a single
+  `package` statement. The bands remove it structurally.

@@ -22,6 +22,13 @@ ctypedef IMarkerCollector *IMarkerCollectorP
 ctypedef unique_ptr[IMarker] IMarkerUP
 
 
+cdef extern from "pssp/CoreLibrarySource.h" namespace "pssp":
+    cdef struct CoreLibrarySource:
+        const char *name
+        int first_line
+        int num_lines
+        const char *text
+
 cdef extern from "pssp/IFactory.h" namespace "pssp":
     cdef cppclass IFactory:
 
@@ -62,6 +69,8 @@ cdef extern from "pssp/IFactory.h" namespace "pssp":
         ILintEngine *mkLintEngine()
 
         ILintTestHooks *mkLintTestHooks()
+
+        const CoreLibrarySource *getCoreLibrarySources()
 
 cdef extern from "pssp/lint/LintRequest.h" namespace "pssp::lint":
     cdef cppclass LintSource:

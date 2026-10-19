@@ -60,26 +60,37 @@ def main():
     out = io.StringIO()
 
     out.write(copyright)
+    out.write("#include \"pssp/CoreLibrarySource.h\"\n\n")
 
     # Sorted, because os.listdir order is filesystem-dependent. Without this
     # the file's *content* varies between runs, which is both a
     # reproducibility problem and enough to defeat the comparison below.
+    #
+    # The files are built as one unit (fileid 0), one after the other, so each
+    # occupies its own band of lines; pss_stdlib_files records the bands.
+    # The raw string starts directly with the file's text: a newline after
+    # `R"(` would shift every line by one.
     files = []
+    first_line = 1
     for f in sorted(os.listdir(pss_stdlib_dir)):
         base,ext = os.path.splitext(f)
         if ext == ".pss":
-            files.append(base)
-            out.write("static const char *%s = R\"(\n" % base)
             with open(os.path.join(pss_stdlib_dir, f), "r") as fp:
                 data = fp.read()
-                out.write(data)
+            if not data.endswith("\n"):
+                data += "\n"
+            num_lines = data.count("\n")
+            files.append((f, base, first_line, num_lines))
+            first_line += num_lines
+            out.write("static const char *%s = R\"(" % base)
+            out.write(data)
             out.write(")\";\n")
             out.write("\n")
 
-    out.write("static const char *pss_stdlib[] = {\n")
-    for file in files:
-        out.write("    %s,\n" % file)
-    out.write("    0\n")
+    out.write("static const pssp::CoreLibrarySource pss_stdlib_files[] = {\n")
+    for name, base, first, num in files:
+        out.write("    {\"%s\", %d, %d, %s},\n" % (name, first, num, base))
+    out.write("    {0, 0, 0, 0}\n")
     out.write("};\n")
     out.write("\n")
 

@@ -62,7 +62,9 @@ nothing are not occurrences: the kind in ``exec body``, and the language tag in
     by ``id()`` -- each access creates a new wrapper object.
 ``decl_location``
     ``refs.Location(fileid, line, col, extent)`` of the declaration's name, or
-    ``None``.
+    ``None``. The core library is a single unit, fileid 0, in which each of its
+    files has its own band of lines: ``refs.library_location(loc)`` gives the
+    file and the line within it, such as ``("<stdlib>/std_pkg.pss", 12)``.
 ``resolution``
     How the name was bound; see below.
 ``base_decl``

@@ -620,6 +620,29 @@ public:
         return ensureLintEngine()->catalogJson();
     }
 
+    /*
+     * The core library's files, as IFactory::getCoreLibrarySources(): a JSON
+     * array of {name, firstLine, numLines, text}. The library is unit 0, and
+     * each file has its own band of that unit's lines; Marker.ts maps a
+     * (0, line) location back to `<stdlib>/<name>` and the line in the file.
+     */
+    std::string coreLibrarySourcesJson() {
+        std::ostringstream os;
+        os << "[";
+        const pssp::CoreLibrarySource *f = m_factory->getCoreLibrarySources();
+        for (int32_t i=0; f[i].name; i++) {
+            os << ((i)?",":"") << "{\"name\":";
+            jsonEscape(os, f[i].name);
+            os << ",\"firstLine\":" << f[i].first_line
+               << ",\"numLines\":" << f[i].num_lines
+               << ",\"text\":";
+            jsonEscape(os, f[i].text);
+            os << "}";
+        }
+        os << "]";
+        return os.str();
+    }
+
     /* Resolves a rule selection: ILintEngine::resolveSelection()'s JSON (C7.1). */
     std::string resolveSelection(const std::string &json) {
         return ensureLintEngine()->resolveSelection(json);
@@ -831,5 +854,6 @@ EMSCRIPTEN_BINDINGS(pssparser) {
         .function("collectWaivers", &ParserSession::collectWaivers)
         .function("applyWaivers", &ParserSession::applyWaivers)
         .function("finishDiagnostics", &ParserSession::finishDiagnostics)
-        .function("catalogJson", &ParserSession::catalogJson);
+        .function("catalogJson", &ParserSession::catalogJson)
+        .function("coreLibrarySourcesJson", &ParserSession::coreLibrarySourcesJson);
 }

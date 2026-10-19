@@ -21,6 +21,7 @@
 #pragma once
 #include "dmgr/IDebugMgr.h"
 #include "pssp/ast/IFactory.h"
+#include "pssp/CoreLibrarySource.h"
 #include "pssp/IAstBuilder.h"
 #include "pssp/IFmtCst.h"
 #include "pssp/IFmtTokenStream.h"
@@ -131,6 +132,13 @@ public:
      * returned object.
      */
     virtual lint::ILintTestHooks *mkLintTestHooks() = 0;
+
+    /**
+     * The files of the compiled-in core library, in the order they are built
+     * into fileid 0, ending with an entry whose ``name`` is null. Use it to
+     * turn a fileid-0 location into a file and line (CoreLibrarySource).
+     */
+    virtual const CoreLibrarySource *getCoreLibrarySources() = 0;
 
 };
 

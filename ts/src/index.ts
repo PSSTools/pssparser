@@ -41,6 +41,7 @@ export {
   type MarkerFix,
   type MarkerRelation,
   type MarkerSeverity,
+  type CoreLibraryFile,
 } from './Marker.js';
 
 export {
