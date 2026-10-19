@@ -12,6 +12,20 @@ Currently: **PSS 3.1** (Public Review Draft, 2026-08-28).
 
 ## Unreleased
 
+### Fixed
+
+- Specializing a template type whose own body contains an `extend` statement
+  (`component C<int N=1> { action a {} extend action a {} }` then `C<2>`) no
+  longer segfaults the linker. The AST copier stored a null child for the
+  `extend`; it now skips the statement, whose members are already merged into
+  the target type.
+- A template parameter's default is bound where the generic is declared, even
+  when the first specialization comes from an instance extension
+  (`extend struct k_s<h_s<d_s>> { ... }`) and nests. It was looked up from the
+  enclosing specialization's body, giving a false "unknown type ... an import
+  applies only inside the statement" error, for example at `ALLOC_MODE`'s
+  default in the core library's `transparent_addr_claim_s`.
+
 ## 3.4.0 — semantic errors the LRM requires
 
 ### Added — writes the LRM forbids, and control-flow errors

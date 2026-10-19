@@ -443,6 +443,44 @@ component pss_top { action A { rand C<2>::s v; constraint v.x == 1; } }
 """)])
 
 
+def test_an_extension_in_the_generic_body_does_not_crash_specialization():
+    # The `extend` statement sits in the generic's own body, so specializing
+    # copies it. The copier had no visitor for it, stored the null result as
+    # a child of the copy, and building the copy's symbol tree segfaulted.
+    assert_clean([("t.pss", """
+component C<int N=1> {
+  action a { }
+  extend action a { }
+}
+component pss_top { C<2> c; }
+""")])
+
+
+def test_an_extension_in_the_generic_body_reaches_each_instance():
+    assert_clean([("t.pss", """
+component C<int N=1> {
+  struct s { }
+  extend struct s { rand bit[N] x; }
+}
+component pss_top {
+  action A {
+    rand C<2>::s v; rand C<4>::s u;
+    constraint v.x == 1; constraint u.x == 9;
+  }
+}
+""")])
+
+
+def test_a_member_an_extension_in_the_generic_body_lacks_is_reported():
+    assert_rejects([("t.pss", """
+component C<int N=1> {
+  struct s { }
+  extend struct s { rand int x; }
+}
+component pss_top { action A { rand C<2>::s v; constraint v.y == 1; } }
+""")], "'v' has no member named 'y'")
+
+
 def test_a_nested_extension_binds_the_parameter_per_instance():
     # N is 2 in one instance and 4 in the other: the member is copied into
     # each, not shared.

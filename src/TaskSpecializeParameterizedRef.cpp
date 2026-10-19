@@ -27,6 +27,9 @@
 #include "TaskResolveRef.h"
 #include "ExprTypeOf.h"
 #include "pssp/impl/NodeKind.h"
+#include "pssp/ast/ITemplateCategoryTypeParamDecl.h"
+#include "pssp/ast/ITemplateGenericTypeParamDecl.h"
+#include <set>
 
 
 namespace pssp {
@@ -114,18 +117,35 @@ ast::ITemplateParamDeclList *TaskSpecializeParameterizedRef::buildParams(
 
 namespace {
 
-/** Finds template or call arguments anywhere under a node. */
-class HasArgs : public virtual ast::VisitorBase {
+/**
+ * Finds whether a default may depend on the generic's own parameter list:
+ * an identifier under it spelled like one of its parameters, or template or
+ * call arguments anywhere under it. Conservative -- a member or a qualified
+ * name spelled like a parameter counts too -- which only leaves that default
+ * to be resolved in the specialization, as it always was.
+ *
+ * Arguments count whatever they name: binding `S<int>` in S's own default
+ * would specialize S from inside its own defaults binding, where the depth
+ * limit's diagnostic is quiet.
+ */
+class MayDependOnList : public virtual ast::VisitorBase {
 public:
-    HasArgs() : m_ret(false) { }
+    MayDependOnList(const std::set<std::string> &names) :
+        m_names(names), m_ret(false) { }
 
-    bool check(ast::IScopeChild *c) {
-        c->accept(m_this);
+    bool check(const std::function<void(ast::IVisitor *)> &piece) {
+        m_ret = false;
+        piece(m_this);
         return m_ret;
+    }
+
+    virtual void visitExprId(ast::IExprId *i) override {
+        m_ret |= (m_names.find(i->getId()) != m_names.end());
     }
 
     virtual void visitTypeIdentifierElem(ast::ITypeIdentifierElem *i) override {
         m_ret |= (i->getParams() != 0);
+        ast::VisitorBase::visitTypeIdentifierElem(i);
     }
 
     virtual void visitExprMemberPathElem(ast::IExprMemberPathElem *i) override {
@@ -134,52 +154,113 @@ public:
     }
 
 private:
-    bool                    m_ret;
+    const std::set<std::string>     &m_names;
+    bool                            m_ret;
 };
+
+typedef std::function<void(ast::IVisitor *)> VisitFn;
+
+template <class T> void addPiece(std::vector<VisitFn> &pieces, T *n) {
+    if (n) {
+        pieces.push_back([n](ast::IVisitor *v) { n->accept(v); });
+    }
+}
+
+/**
+ * What of a template parameter declaration names something in the generic's
+ * declaring scope: its default, and a value parameter's type, which the copy
+ * of a default carries along.
+ */
+void paramPieces(ast::IScopeChild *c, std::vector<VisitFn> &pieces) {
+    NodeKind nk(c);
+    if (ast::ITemplateValueParamDecl *v = nk.as<ast::ITemplateValueParamDecl>()) {
+        addPiece(pieces, v->getType());
+        addPiece(pieces, v->getDflt());
+    } else if (ast::ITemplateCategoryTypeParamDecl *ct =
+            nk.as<ast::ITemplateCategoryTypeParamDecl>()) {
+        // Not the restriction: checkCategoryArg skips one still unbound, and
+        // an instance extension specializes before super types are resolved,
+        // when no argument can yet be shown to derive from it.
+        addPiece(pieces, ct->getDflt());
+    } else if (ast::ITemplateGenericTypeParamDecl *gt =
+            nk.as<ast::ITemplateGenericTypeParamDecl>()) {
+        addPiece(pieces, gt->getDflt());
+    }
+}
+
+bool hasDflt(ast::IScopeChild *c) {
+    NodeKind nk(c);
+    if (ast::ITemplateValueParamDecl *v = nk.as<ast::ITemplateValueParamDecl>()) {
+        return v->getDflt();
+    } else if (ast::ITemplateCategoryTypeParamDecl *ct =
+            nk.as<ast::ITemplateCategoryTypeParamDecl>()) {
+        return ct->getDflt();
+    } else if (ast::ITemplateGenericTypeParamDecl *gt =
+            nk.as<ast::ITemplateGenericTypeParamDecl>()) {
+        return gt->getDflt();
+    }
+    return false;
+}
 
 }
 
 /**
- * Bind the references in the generic's value-parameter defaults, in its
- * declaring scope, before the first use that falls back on one. The copy
- * TaskBuildParamValList makes of a default then carries its targets, so
- * `packed_s<>` is found to be the same specialization as
- * `packed_s<LITTLE_ENDIAN>` (8.3), and never resolves the default at the use
- * site. A generic declared after its first use -- the core library is linked
- * after the user's files -- has not been visited yet at that point.
+ * Bind the references in the generic's parameter defaults (and in the value
+ * parameters' types their copies carry), in its declaring scope, before
+ * the first use that falls back on one. A default means what
+ * it means where the generic is written. The copy TaskBuildParamValList makes
+ * of a default then carries its targets: `packed_s<>` is found to be the same
+ * specialization as `packed_s<LITTLE_ENDIAN>` (8.3), and a type default is
+ * never looked up from the use site.
+ *
+ * A generic not visited yet has unbound defaults: the core library is linked
+ * after the user's files, and an instance extension specializes while
+ * extensions are applied, before any body is visited. Left unbound, a default
+ * was resolved with the specialization's parameter list, in whatever scope
+ * the caller had on top -- for a nested specialization, the enclosing
+ * specialization's body, where `struct g_s<struct T, struct A=d_s>`'s d_s
+ * may be invisible (an import of the enclosing package does not reach it) or
+ * mean something else.
  *
  * Quiet: the generic's own visit reports anything wrong with a default.
  *
- * Only a generic whose defaults hold no template or call arguments: a type
+ * Not a default that may depend on the list (MayDependOnList): a type
  * identifier keeps its target when copied, so binding `sizeof_s<R>` here
- * would tie every specialization to the generic's own R.
+ * would tie every specialization to the generic's own R. Such a default is
+ * resolved in the specialization, where R is bound. Each default is judged
+ * on its own; one that depends no longer keeps the others unbound.
  */
 void TaskSpecializeParameterizedRef::bindDefaults(
         ast::ISymbolRefPath                 *target,
         ast::ISymbolTypeScope               *target_c) {
+    std::set<std::string> names;
+    std::vector<VisitFn> pieces;
     bool any = false;
     for (std::vector<ast::IScopeChildUP>::const_iterator
             it=target_c->getPlist()->getChildren().begin();
-            it!=target_c->getPlist()->getChildren().end() && !any; it++) {
-        ast::ITemplateValueParamDecl *v =
-            NodeKind::cast<ast::ITemplateValueParamDecl>(it->get());
-        any = (v && v->getDflt());
+            it!=target_c->getPlist()->getChildren().end(); it++) {
+        ast::ITemplateParamDecl *pd =
+            NodeKind::cast<ast::ITemplateParamDecl>(it->get());
+        if (pd && pd->getName()) {
+            names.insert(pd->getName()->getId());
+        }
+        any |= hasDflt(it->get());
+        paramPieces(it->get(), pieces);
     }
     if (!any || !m_ctxt->firstDefaultsBinding(target_c)) {
         return;
     }
-    for (std::vector<ast::IScopeChildUP>::const_iterator
-            it=target_c->getPlist()->getChildren().begin();
-            it!=target_c->getPlist()->getChildren().end(); it++) {
-        if (HasArgs().check(it->get())) {
-            return;
-        }
-    }
     DEBUG_ENTER("bindDefaults %s", target_c->getName().c_str());
 
+    MayDependOnList may_depend(names);
     inDeclScope(target, [&]() {
         TaskResolveRefs resolver(m_ctxt);
-        target_c->getPlist()->accept(&resolver);
+        for (std::vector<VisitFn>::const_iterator
+                it=pieces.begin(); it!=pieces.end(); it++) {
+            if (!may_depend.check(*it)) {
+                (*it)(&resolver);
+            }
+        }
     });
 
     DEBUG_LEAVE("bindDefaults");

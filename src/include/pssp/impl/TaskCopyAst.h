@@ -263,7 +263,20 @@ private:
         std::vector<ast::IScopeChildUP>         &dst) {
         for (std::vector<ast::IScopeChildUP>::const_iterator
             it=src.begin(); it!=src.end(); it++) {
-            dst.push_back(ast::IScopeChildUP(copy(it->get())));
+            // An `extend` nested in a generic's body is not a member:
+            // TaskApplyTypeExtensions::mergeIntoGenericAst has already added
+            // its members to the target type's AST, so they are copied with
+            // that type. Copying the statement too would duplicate them, and
+            // the copier has no visitor for it -- the null it returned was
+            // stored as a child and crashed TaskBuildSymbolTree.
+            if (NodeKind::cast<ast::IExtendType>(it->get())
+                    || NodeKind::cast<ast::IExtendEnum>(it->get())) {
+                continue;
+            }
+            ast::IScopeChild *c = copy(it->get());
+            if (c) {
+                dst.push_back(ast::IScopeChildUP(c));
+            }
         }
     }
 

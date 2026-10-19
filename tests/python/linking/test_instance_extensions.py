@@ -200,3 +200,58 @@ extend struct C<2>::s { rand int x; }
 extend component C<3> { extend struct s { rand int y; } }
 """
     assert markers(code) == [("PSS057", 2), ("PSS057", 3)]
+
+
+def files_markers(files):
+    """(file, code, line) per marker for a multi-file model."""
+    from ..test_helpers import _assign_codes
+    p = pssparser.Parser()
+    try:
+        p.parses(files)
+        p.link()
+        ms = p.markers
+    except Exception as e:
+        ms = getattr(e, "markers", None)
+        if ms is None:
+            raise
+    return [(m.get("file"), m.get("code"), m["line"]) for m in _assign_codes(ms)]
+
+
+GENERICS = """\
+package r { struct d_s { } struct g_s<struct T, struct A=d_s> { } }
+package p2 {
+  import r::*;
+  struct h_s<struct T=d_s> { g_s<T> x; }
+  struct k_s<struct T=h_s<d_s>> { T t; }
+}
+"""
+
+
+def test_a_default_in_a_nested_specialization_binds_where_it_is_written():
+    """The instance extension specializes k_s, then h_s<d_s>, then g_s<d_s>
+    while extensions are applied, before the generic g_s has been visited, so
+    the default `A=d_s` is still unbound in the copy. It was resolved in the
+    enclosing specialization's body (h_s in p2), where p2's `import r::*`
+    does not reach a name written in package r: a false PSS import-leak error
+    at the default. A use as a field, made after g_s was visited, was fine."""
+    ext = """\
+import p2::*;
+import r::*;
+extend struct k_s<h_s<d_s>> { int y; }
+struct c { k_s<h_s<d_s>> v; constraint v.y == 1; }
+"""
+    assert files_markers([("q7.pss", GENERICS), ("q8.pss", ext)]) == []
+
+
+def test_a_core_library_default_in_a_nested_specialization():
+    """The same through the core library: ALLOC_MODE's default in
+    transparent_addr_claim_s was reported as an unknown type (at
+    `<unknown>`, the core library having no file name)."""
+    code = """\
+import addr_reg_pkg::*;
+struct tr_s : addr_trait_s { }
+struct seg_s<struct T : addr_trait_s> : transparent_addr_claim_s<T> { }
+buffer buf_b<struct S> { S s; }
+extend buffer buf_b<seg_s<tr_s>> { int y; }
+"""
+    assert markers(code) == []
