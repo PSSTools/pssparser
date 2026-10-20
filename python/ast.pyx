@@ -1558,7 +1558,14 @@ cdef class ExprAggrStructElem(object):
             del self._hndl
             self._hndl = NULL
     
+    cdef object _keeper(self):
+        """What a wrapper reached from this one keeps alive"""
+        if self._owner is not None:
+            return self._owner
+        return self if self._owned else None
+    
     cpdef void accept(self, VisitorBase v):
+        v._owner = self._keeper()
         self._hndl.accept(v._hndl)
     
     cpdef int id(self):
@@ -1585,6 +1592,7 @@ cdef class ExprAggrStructElem(object):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asExprAggrStructElem().getName().accept(of._hndl)
             return <ExprRefName>(of._obj)
     cpdef int32_t getTarget(self):
@@ -1594,6 +1602,7 @@ cdef class ExprAggrStructElem(object):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asExprAggrStructElem().getValue().accept(of._hndl)
             return <Expr>(of._obj)
 
@@ -1604,7 +1613,14 @@ cdef class AssocData(object):
             del self._hndl
             self._hndl = NULL
     
+    cdef object _keeper(self):
+        """What a wrapper reached from this one keeps alive"""
+        if self._owner is not None:
+            return self._owner
+        return self if self._owned else None
+    
     cpdef void accept(self, VisitorBase v):
+        v._owner = self._keeper()
         self._hndl.accept(v._hndl)
     
     cpdef int id(self):
@@ -1634,7 +1650,14 @@ cdef class SymbolExtMember(object):
             del self._hndl
             self._hndl = NULL
     
+    cdef object _keeper(self):
+        """What a wrapper reached from this one keeps alive"""
+        if self._owner is not None:
+            return self._owner
+        return self if self._owned else None
+    
     cpdef void accept(self, VisitorBase v):
+        v._owner = self._keeper()
         self._hndl.accept(v._hndl)
     
     cpdef int id(self):
@@ -1667,6 +1690,7 @@ cdef class SymbolExtMember(object):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asSymbolExtMember().getPkg().accept(of._hndl)
             return <SymbolScope>(of._obj)
 
@@ -1677,7 +1701,14 @@ cdef class CompileCond(object):
             del self._hndl
             self._hndl = NULL
     
+    cdef object _keeper(self):
+        """What a wrapper reached from this one keeps alive"""
+        if self._owner is not None:
+            return self._owner
+        return self if self._owned else None
+    
     cpdef void accept(self, VisitorBase v):
+        v._owner = self._keeper()
         self._hndl.accept(v._hndl)
     
     cpdef int id(self):
@@ -1708,6 +1739,7 @@ cdef class CompileCond(object):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asCompileCond().getCond().accept(of._hndl)
             return <Expr>(of._obj)
     cpdef int32_t getTaken(self):
@@ -1741,7 +1773,14 @@ cdef class SymbolImportSpec(object):
             del self._hndl
             self._hndl = NULL
     
+    cdef object _keeper(self):
+        """What a wrapper reached from this one keeps alive"""
+        if self._owner is not None:
+            return self._owner
+        return self if self._owned else None
+    
     cpdef void accept(self, VisitorBase v):
+        v._owner = self._keeper()
         self._hndl.accept(v._hndl)
     
     cpdef int id(self):
@@ -1773,12 +1812,14 @@ cdef class SymbolImportSpec(object):
         for __i in range(__lp.size()):
             __ep = __lp.at(__i)
             of = ObjFactory()
+            of._owner = self._keeper()
             __ep.accept(of._hndl)
             ret.append(of._obj)
         return ret
     cpdef getImport(self, i):
         cdef ast_decl.IPackageImportStmt *__ep = self.asSymbolImportSpec().getImports().at(i);
         of = ObjFactory()
+        of._owner = self._keeper()
         __ep.accept(of._hndl)
         return of._obj
     cpdef void addImport(self, PackageImportStmt i):
@@ -1791,6 +1832,7 @@ cdef class SymbolImportSpec(object):
     cpdef SymbolRefPath symtabAt(self, str i):
         cdef std_unordered_map[std_string,ast_decl.UP[ast_decl.ISymbolRefPath]].const_iterator it = self.asSymbolImportSpec().getSymtab().find(i.encode())
         _obj_f = ObjFactory()
+        _obj_f._owner = self._keeper()
         dereference(it).second.get().accept(_obj_f._hndl)
         return _obj_f._obj
 
@@ -1801,7 +1843,14 @@ cdef class SymbolRefPath(object):
             del self._hndl
             self._hndl = NULL
     
+    cdef object _keeper(self):
+        """What a wrapper reached from this one keeps alive"""
+        if self._owner is not None:
+            return self._owner
+        return self if self._owned else None
+    
     cpdef void accept(self, VisitorBase v):
+        v._owner = self._keeper()
         self._hndl.accept(v._hndl)
     
     cpdef int id(self):
@@ -1844,7 +1893,14 @@ cdef class TemplateParamValue(object):
             del self._hndl
             self._hndl = NULL
     
+    cdef object _keeper(self):
+        """What a wrapper reached from this one keeps alive"""
+        if self._owner is not None:
+            return self._owner
+        return self if self._owned else None
+    
     cpdef void accept(self, VisitorBase v):
+        v._owner = self._keeper()
         self._hndl.accept(v._hndl)
     
     cpdef int id(self):
@@ -1874,7 +1930,14 @@ cdef class ActivityMatchChoice(object):
             del self._hndl
             self._hndl = NULL
     
+    cdef object _keeper(self):
+        """What a wrapper reached from this one keeps alive"""
+        if self._owner is not None:
+            return self._owner
+        return self if self._owned else None
+    
     cpdef void accept(self, VisitorBase v):
+        v._owner = self._keeper()
         self._hndl.accept(v._hndl)
     
     cpdef int id(self):
@@ -1903,6 +1966,7 @@ cdef class ActivityMatchChoice(object):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asActivityMatchChoice().getCond().accept(of._hndl)
             return <ExprOpenRangeList>(of._obj)
     cpdef ScopeChild getBody(self):
@@ -1910,6 +1974,7 @@ cdef class ActivityMatchChoice(object):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asActivityMatchChoice().getBody().accept(of._hndl)
             return <ScopeChild>(of._obj)
 
@@ -1920,7 +1985,14 @@ cdef class TemplateParamDeclList(object):
             del self._hndl
             self._hndl = NULL
     
+    cdef object _keeper(self):
+        """What a wrapper reached from this one keeps alive"""
+        if self._owner is not None:
+            return self._owner
+        return self if self._owned else None
+    
     cpdef void accept(self, VisitorBase v):
+        v._owner = self._keeper()
         self._hndl.accept(v._hndl)
     
     cpdef int id(self):
@@ -1952,12 +2024,14 @@ cdef class TemplateParamDeclList(object):
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
             of = ObjFactory()
+            of._owner = self._keeper()
             __ep.accept(of._hndl)
             ret.append(of._obj)
         return ret
     cpdef getParam(self, i):
         cdef ast_decl.ITemplateParamDecl *__ep = self.asTemplateParamDeclList().getParams().at(i).get();
         of = ObjFactory()
+        of._owner = self._keeper()
         __ep.accept(of._hndl)
         return of._obj
     cpdef void addParam(self, TemplateParamDecl i):
@@ -1975,7 +2049,14 @@ cdef class Expr(object):
             del self._hndl
             self._hndl = NULL
     
+    cdef object _keeper(self):
+        """What a wrapper reached from this one keeps alive"""
+        if self._owner is not None:
+            return self._owner
+        return self if self._owned else None
+    
     cpdef void accept(self, VisitorBase v):
+        v._owner = self._keeper()
         self._hndl.accept(v._hndl)
     
     cpdef int id(self):
@@ -2005,7 +2086,14 @@ cdef class TemplateParamValueList(object):
             del self._hndl
             self._hndl = NULL
     
+    cdef object _keeper(self):
+        """What a wrapper reached from this one keeps alive"""
+        if self._owner is not None:
+            return self._owner
+        return self if self._owned else None
+    
     cpdef void accept(self, VisitorBase v):
+        v._owner = self._keeper()
         self._hndl.accept(v._hndl)
     
     cpdef int id(self):
@@ -2037,12 +2125,14 @@ cdef class TemplateParamValueList(object):
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
             of = ObjFactory()
+            of._owner = self._keeper()
             __ep.accept(of._hndl)
             ret.append(of._obj)
         return ret
     cpdef getValue(self, i):
         cdef ast_decl.ITemplateParamValue *__ep = self.asTemplateParamValueList().getValues().at(i).get();
         of = ObjFactory()
+        of._owner = self._keeper()
         __ep.accept(of._hndl)
         return of._obj
     cpdef void addValue(self, TemplateParamValue i):
@@ -2058,7 +2148,14 @@ cdef class ActivitySelectBranch(object):
             del self._hndl
             self._hndl = NULL
     
+    cdef object _keeper(self):
+        """What a wrapper reached from this one keeps alive"""
+        if self._owner is not None:
+            return self._owner
+        return self if self._owned else None
+    
     cpdef void accept(self, VisitorBase v):
+        v._owner = self._keeper()
         self._hndl.accept(v._hndl)
     
     cpdef int id(self):
@@ -2085,6 +2182,7 @@ cdef class ActivitySelectBranch(object):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asActivitySelectBranch().getGuard().accept(of._hndl)
             return <Expr>(of._obj)
     cpdef Expr getWeight(self):
@@ -2092,6 +2190,7 @@ cdef class ActivitySelectBranch(object):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asActivitySelectBranch().getWeight().accept(of._hndl)
             return <Expr>(of._obj)
     cpdef ScopeChild getBody(self):
@@ -2099,6 +2198,7 @@ cdef class ActivitySelectBranch(object):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asActivitySelectBranch().getBody().accept(of._hndl)
             return <ScopeChild>(of._obj)
 
@@ -2109,7 +2209,14 @@ cdef class ScopeChild(object):
             del self._hndl
             self._hndl = NULL
     
+    cdef object _keeper(self):
+        """What a wrapper reached from this one keeps alive"""
+        if self._owner is not None:
+            return self._owner
+        return self if self._owned else None
+    
     cpdef void accept(self, VisitorBase v):
+        v._owner = self._keeper()
         self._hndl.accept(v._hndl)
     
     cpdef int id(self):
@@ -2154,6 +2261,7 @@ cdef class ScopeChild(object):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asScopeChild().getParent().accept(of._hndl)
             return <Scope>(of._obj)
     cpdef int32_t getIndex(self):
@@ -2163,6 +2271,7 @@ cdef class ScopeChild(object):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asScopeChild().getAssocData().accept(of._hndl)
             return <AssocData>(of._obj)
     def annotations(self) -> ListUtil:
@@ -2175,12 +2284,14 @@ cdef class ScopeChild(object):
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
             of = ObjFactory()
+            of._owner = self._keeper()
             __ep.accept(of._hndl)
             ret.append(of._obj)
         return ret
     cpdef getAnnotation(self, i):
         cdef ast_decl.IAnnotation *__ep = self.asScopeChild().getAnnotations().at(i).get();
         of = ObjFactory()
+        of._owner = self._keeper()
         __ep.accept(of._hndl)
         return of._obj
     cpdef void addAnnotation(self, Annotation i):
@@ -2198,12 +2309,14 @@ cdef class ScopeChild(object):
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
             of = ObjFactory()
+            of._owner = self._keeper()
             __ep.accept(of._hndl)
             ret.append(of._obj)
         return ret
     cpdef getComment(self, i):
         cdef ast_decl.IComment *__ep = self.asScopeChild().getComments().at(i).get();
         of = ObjFactory()
+        of._owner = self._keeper()
         __ep.accept(of._hndl)
         return of._obj
     cpdef void addComment(self, Comment i):
@@ -2221,12 +2334,14 @@ cdef class ScopeChild(object):
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
             of = ObjFactory()
+            of._owner = self._keeper()
             __ep.accept(of._hndl)
             ret.append(of._obj)
         return ret
     cpdef getTrailing_comment(self, i):
         cdef ast_decl.IComment *__ep = self.asScopeChild().getTrailing_comments().at(i).get();
         of = ObjFactory()
+        of._owner = self._keeper()
         __ep.accept(of._hndl)
         return of._obj
     cpdef void addTrailing_comment(self, Comment i):
@@ -2242,7 +2357,14 @@ cdef class ExprAggrMapElem(object):
             del self._hndl
             self._hndl = NULL
     
+    cdef object _keeper(self):
+        """What a wrapper reached from this one keeps alive"""
+        if self._owner is not None:
+            return self._owner
+        return self if self._owned else None
+    
     cpdef void accept(self, VisitorBase v):
+        v._owner = self._keeper()
         self._hndl.accept(v._hndl)
     
     cpdef int id(self):
@@ -2269,6 +2391,7 @@ cdef class ExprAggrMapElem(object):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asExprAggrMapElem().getLhs().accept(of._hndl)
             return <Expr>(of._obj)
     cpdef Expr getRhs(self):
@@ -2276,6 +2399,7 @@ cdef class ExprAggrMapElem(object):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asExprAggrMapElem().getRhs().accept(of._hndl)
             return <Expr>(of._obj)
 
@@ -2296,6 +2420,7 @@ cdef class ActionFieldInitializer(ScopeChild):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asActionFieldInitializer().getPath().accept(of._hndl)
             return <ExprRefPathContext>(of._obj)
     cpdef Expr getValue(self):
@@ -2303,6 +2428,7 @@ cdef class ActionFieldInitializer(ScopeChild):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asActionFieldInitializer().getValue().accept(of._hndl)
             return <Expr>(of._obj)
 
@@ -2323,6 +2449,7 @@ cdef class FunctionDefinition(ScopeChild):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asFunctionDefinition().getProto().accept(of._hndl)
             return <FunctionPrototype>(of._obj)
     cpdef ExecScope getBody(self):
@@ -2330,6 +2457,7 @@ cdef class FunctionDefinition(ScopeChild):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asFunctionDefinition().getBody().accept(of._hndl)
             return <ExecScope>(of._obj)
     cpdef  getPlat(self):
@@ -2379,6 +2507,7 @@ cdef class FunctionParamDecl(ScopeChild):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asFunctionParamDecl().getName().accept(of._hndl)
             return <ExprId>(of._obj)
     cpdef DataType getType(self):
@@ -2386,6 +2515,7 @@ cdef class FunctionParamDecl(ScopeChild):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asFunctionParamDecl().getType().accept(of._hndl)
             return <DataType>(of._obj)
     cpdef  getDir(self):
@@ -2397,6 +2527,7 @@ cdef class FunctionParamDecl(ScopeChild):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asFunctionParamDecl().getDflt().accept(of._hndl)
             return <Expr>(of._obj)
     cpdef bool getIs_varargs(self):
@@ -2438,6 +2569,7 @@ cdef class GenericConstraintDeclValue(ScopeChild):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asGenericConstraintDeclValue().getReturn_type().accept(of._hndl)
             return <DataType>(of._obj)
     cpdef ExprId getName(self):
@@ -2445,6 +2577,7 @@ cdef class GenericConstraintDeclValue(ScopeChild):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asGenericConstraintDeclValue().getName().accept(of._hndl)
             return <ExprId>(of._obj)
     def parameters(self) -> ListUtil:
@@ -2457,12 +2590,14 @@ cdef class GenericConstraintDeclValue(ScopeChild):
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
             of = ObjFactory()
+            of._owner = self._keeper()
             __ep.accept(of._hndl)
             ret.append(of._obj)
         return ret
     cpdef getParameter(self, i):
         cdef ast_decl.IGenericConstraintParam *__ep = self.asGenericConstraintDeclValue().getParameters().at(i).get();
         of = ObjFactory()
+        of._owner = self._keeper()
         __ep.accept(of._hndl)
         return of._obj
     cpdef void addParameter(self, GenericConstraintParam i):
@@ -2475,6 +2610,7 @@ cdef class GenericConstraintDeclValue(ScopeChild):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asGenericConstraintDeclValue().getExpr().accept(of._hndl)
             return <Expr>(of._obj)
 
@@ -2495,6 +2631,7 @@ cdef class GenericConstraintParam(ScopeChild):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asGenericConstraintParam().getName().accept(of._hndl)
             return <ExprId>(of._obj)
     cpdef bool getIs_const(self):
@@ -2506,6 +2643,7 @@ cdef class GenericConstraintParam(ScopeChild):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asGenericConstraintParam().getType().accept(of._hndl)
             return <DataType>(of._obj)
 
@@ -2531,12 +2669,14 @@ cdef class MethodParameterList(Expr):
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
             of = ObjFactory()
+            of._owner = self._keeper()
             __ep.accept(of._hndl)
             ret.append(of._obj)
         return ret
     cpdef getParameter(self, i):
         cdef ast_decl.IExpr *__ep = self.asMethodParameterList().getParameters().at(i).get();
         of = ObjFactory()
+        of._owner = self._keeper()
         __ep.accept(of._hndl)
         return of._obj
     cpdef void addParameter(self, Expr i):
@@ -2569,12 +2709,14 @@ cdef class ActivitySchedulingConstraint(ScopeChild):
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
             of = ObjFactory()
+            of._owner = self._keeper()
             __ep.accept(of._hndl)
             ret.append(of._obj)
         return ret
     cpdef getTarget(self, i):
         cdef ast_decl.IExprRefPathContext *__ep = self.asActivitySchedulingConstraint().getTargets().at(i).get();
         of = ObjFactory()
+        of._owner = self._keeper()
         __ep.accept(of._hndl)
         return of._obj
     cpdef void addTarget(self, ExprRefPathContext i):
@@ -2626,6 +2768,7 @@ cdef class Annotation(ScopeChild):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asAnnotation().getType().accept(of._hndl)
             return <TypeIdentifier>(of._obj)
     def parameters(self) -> ListUtil:
@@ -2638,12 +2781,14 @@ cdef class Annotation(ScopeChild):
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
             of = ObjFactory()
+            of._owner = self._keeper()
             __ep.accept(of._hndl)
             ret.append(of._obj)
         return ret
     cpdef getParameter(self, i):
         cdef ast_decl.IAnnotationParam *__ep = self.asAnnotation().getParameters().at(i).get();
         of = ObjFactory()
+        of._owner = self._keeper()
         __ep.accept(of._hndl)
         return of._obj
     cpdef void addParameter(self, AnnotationParam i):
@@ -2671,6 +2816,7 @@ cdef class NamedScopeChild(ScopeChild):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asNamedScopeChild().getName().accept(of._hndl)
             return <ExprId>(of._obj)
 
@@ -2691,6 +2837,7 @@ cdef class AnnotationParam(ScopeChild):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asAnnotationParam().getName().accept(of._hndl)
             return <ExprRefName>(of._obj)
     cpdef Expr getValue(self):
@@ -2698,6 +2845,7 @@ cdef class AnnotationParam(ScopeChild):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asAnnotationParam().getValue().accept(of._hndl)
             return <Expr>(of._obj)
 
@@ -2760,6 +2908,7 @@ cdef class PackageImportStmt(ScopeChild):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asPackageImportStmt().getAlias().accept(of._hndl)
             return <ExprId>(of._obj)
     cpdef TypeIdentifier getPath(self):
@@ -2767,6 +2916,7 @@ cdef class PackageImportStmt(ScopeChild):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asPackageImportStmt().getPath().accept(of._hndl)
             return <TypeIdentifier>(of._obj)
 
@@ -2787,6 +2937,7 @@ cdef class ComponentBind(ScopeChild):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asComponentBind().getPool_path().accept(of._hndl)
             return <ExprRefPathContext>(of._obj)
     cpdef bool getIs_wildcard(self):
@@ -2801,12 +2952,14 @@ cdef class ComponentBind(ScopeChild):
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
             of = ObjFactory()
+            of._owner = self._keeper()
             __ep.accept(of._hndl)
             ret.append(of._obj)
         return ret
     cpdef getTarget(self, i):
         cdef ast_decl.IComponentBindTarget *__ep = self.asComponentBind().getTargets().at(i).get();
         of = ObjFactory()
+        of._owner = self._keeper()
         __ep.accept(of._hndl)
         return of._obj
     cpdef void addTarget(self, ComponentBindTarget i):
@@ -2839,12 +2992,14 @@ cdef class ComponentBindTarget(ScopeChild):
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
             of = ObjFactory()
+            of._owner = self._keeper()
             __ep.accept(of._hndl)
             ret.append(of._obj)
         return ret
     cpdef getPath(self, i):
         cdef ast_decl.IComponentPathElem *__ep = self.asComponentBindTarget().getPath().at(i).get();
         of = ObjFactory()
+        of._owner = self._keeper()
         __ep.accept(of._hndl)
         return of._obj
     cpdef void addPath(self, ComponentPathElem i):
@@ -2857,6 +3012,7 @@ cdef class ComponentBindTarget(ScopeChild):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asComponentBindTarget().getType_id().accept(of._hndl)
             return <TypeIdentifier>(of._obj)
     cpdef ExprRefName getField(self):
@@ -2864,6 +3020,7 @@ cdef class ComponentBindTarget(ScopeChild):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asComponentBindTarget().getField().accept(of._hndl)
             return <ExprRefName>(of._obj)
     cpdef ExprDomainOpenRangeList getRange(self):
@@ -2871,6 +3028,7 @@ cdef class ComponentBindTarget(ScopeChild):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asComponentBindTarget().getRange().accept(of._hndl)
             return <ExprDomainOpenRangeList>(of._obj)
 
@@ -2891,6 +3049,7 @@ cdef class ComponentPathElem(ScopeChild):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asComponentPathElem().getId().accept(of._hndl)
             return <ExprRefName>(of._obj)
     cpdef ExprDomainOpenRangeList getRange(self):
@@ -2898,6 +3057,7 @@ cdef class ComponentPathElem(ScopeChild):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asComponentPathElem().getRange().accept(of._hndl)
             return <ExprDomainOpenRangeList>(of._obj)
 
@@ -2931,6 +3091,7 @@ cdef class ProceduralStmtIfClause(ScopeChild):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asProceduralStmtIfClause().getCond().accept(of._hndl)
             return <Expr>(of._obj)
     cpdef ScopeChild getBody(self):
@@ -2938,6 +3099,7 @@ cdef class ProceduralStmtIfClause(ScopeChild):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asProceduralStmtIfClause().getBody().accept(of._hndl)
             return <ScopeChild>(of._obj)
 
@@ -2963,12 +3125,14 @@ cdef class PyImportFromStmt(ScopeChild):
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
             of = ObjFactory()
+            of._owner = self._keeper()
             __ep.accept(of._hndl)
             ret.append(of._obj)
         return ret
     cpdef getPath(self, i):
         cdef ast_decl.IExprId *__ep = self.asPyImportFromStmt().getPath().at(i).get();
         of = ObjFactory()
+        of._owner = self._keeper()
         __ep.accept(of._hndl)
         return of._obj
     cpdef void addPath(self, ExprId i):
@@ -2986,12 +3150,14 @@ cdef class PyImportFromStmt(ScopeChild):
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
             of = ObjFactory()
+            of._owner = self._keeper()
             __ep.accept(of._hndl)
             ret.append(of._obj)
         return ret
     cpdef getTarget(self, i):
         cdef ast_decl.IExprId *__ep = self.asPyImportFromStmt().getTargets().at(i).get();
         of = ObjFactory()
+        of._owner = self._keeper()
         __ep.accept(of._hndl)
         return of._obj
     cpdef void addTarget(self, ExprId i):
@@ -3022,12 +3188,14 @@ cdef class PyImportStmt(ScopeChild):
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
             of = ObjFactory()
+            of._owner = self._keeper()
             __ep.accept(of._hndl)
             ret.append(of._obj)
         return ret
     cpdef getPath(self, i):
         cdef ast_decl.IExprId *__ep = self.asPyImportStmt().getPath().at(i).get();
         of = ObjFactory()
+        of._owner = self._keeper()
         __ep.accept(of._hndl)
         return of._obj
     cpdef void addPath(self, ExprId i):
@@ -3040,6 +3208,7 @@ cdef class PyImportStmt(ScopeChild):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asPyImportStmt().getAlias().accept(of._hndl)
             return <ExprId>(of._obj)
 
@@ -3060,6 +3229,7 @@ cdef class CoverStmtReference(ScopeChild):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asCoverStmtReference().getTarget().accept(of._hndl)
             return <TypeIdentifier>(of._obj)
     cpdef ExprId getLabel(self):
@@ -3067,6 +3237,7 @@ cdef class CoverStmtReference(ScopeChild):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asCoverStmtReference().getLabel().accept(of._hndl)
             return <ExprId>(of._obj)
 
@@ -3092,12 +3263,14 @@ cdef class Scope(ScopeChild):
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
             of = ObjFactory()
+            of._owner = self._keeper()
             __ep.accept(of._hndl)
             ret.append(of._obj)
         return ret
     cpdef getChild(self, i):
         cdef ast_decl.IScopeChild *__ep = self.asScope().getChildren().at(i).get();
         of = ObjFactory()
+        of._owner = self._keeper()
         __ep.accept(of._hndl)
         return of._obj
     cpdef void addChild(self, ScopeChild i):
@@ -3115,12 +3288,14 @@ cdef class Scope(ScopeChild):
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
             of = ObjFactory()
+            of._owner = self._keeper()
             __ep.accept(of._hndl)
             ret.append(of._obj)
         return ret
     cpdef getCompile_cond(self, i):
         cdef ast_decl.ICompileCond *__ep = self.asScope().getCompile_conds().at(i).get();
         of = ObjFactory()
+        of._owner = self._keeper()
         __ep.accept(of._hndl)
         return of._obj
     cpdef void addCompile_cond(self, CompileCond i):
@@ -3146,6 +3321,7 @@ cdef class ScopeChildRef(ScopeChild):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asScopeChildRef().getTarget().accept(of._hndl)
             return <ScopeChild>(of._obj)
 
@@ -3168,6 +3344,7 @@ cdef class SymbolChild(ScopeChild):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asSymbolChild().getUpper().accept(of._hndl)
             return <SymbolScope>(of._obj)
 
@@ -3188,6 +3365,7 @@ cdef class CovergroupOption(ScopeChild):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asCovergroupOption().getName().accept(of._hndl)
             return <ExprId>(of._obj)
     cpdef Expr getValue(self):
@@ -3195,6 +3373,7 @@ cdef class CovergroupOption(ScopeChild):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asCovergroupOption().getValue().accept(of._hndl)
             return <Expr>(of._obj)
 
@@ -3215,6 +3394,7 @@ cdef class CovergroupPortmap(ScopeChild):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asCovergroupPortmap().getName().accept(of._hndl)
             return <ExprRefName>(of._obj)
     cpdef ExprRefPathContext getTarget(self):
@@ -3222,6 +3402,7 @@ cdef class CovergroupPortmap(ScopeChild):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asCovergroupPortmap().getTarget().accept(of._hndl)
             return <ExprRefPathContext>(of._obj)
 
@@ -3255,6 +3436,7 @@ cdef class TargetTemplateFunction(ScopeChild):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asTargetTemplateFunction().getProto().accept(of._hndl)
             return <FunctionPrototype>(of._obj)
     cpdef str getLanguage(self):
@@ -3272,6 +3454,7 @@ cdef class TargetTemplateFunction(ScopeChild):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asTargetTemplateFunction().getTemplate().accept(of._hndl)
             return <TemplateString>(of._obj)
 
@@ -3292,6 +3475,7 @@ cdef class DistItem(ScopeChild):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asDistItem().getRange().accept(of._hndl)
             return <ExprOpenRangeValue>(of._obj)
     cpdef DistWeight getWeight(self):
@@ -3299,6 +3483,7 @@ cdef class DistItem(ScopeChild):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asDistItem().getWeight().accept(of._hndl)
             return <DistWeight>(of._obj)
 
@@ -3321,6 +3506,7 @@ cdef class DistWeight(ScopeChild):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asDistWeight().getExpr().accept(of._hndl)
             return <Expr>(of._obj)
 
@@ -3341,6 +3527,7 @@ cdef class ExecBlockTag(ScopeChild):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asExecBlockTag().getType().accept(of._hndl)
             return <TypeIdentifier>(of._obj)
     cpdef ExprAggrStruct getLiteral(self):
@@ -3348,6 +3535,7 @@ cdef class ExecBlockTag(ScopeChild):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asExecBlockTag().getLiteral().accept(of._hndl)
             return <ExprAggrStruct>(of._obj)
 
@@ -3368,6 +3556,7 @@ cdef class ExecStmt(ScopeChild):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asExecStmt().getUpper().accept(of._hndl)
             return <SymbolScope>(of._obj)
 
@@ -3396,6 +3585,7 @@ cdef class ExecTargetTemplateBlock(ScopeChild):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asExecTargetTemplateBlock().getTemplate().accept(of._hndl)
             return <TemplateString>(of._obj)
     cpdef str getLanguage(self):
@@ -3411,6 +3601,7 @@ cdef class ExecTargetTemplateBlock(ScopeChild):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asExecTargetTemplateBlock().getFilename_template().accept(of._hndl)
             return <TemplateString>(of._obj)
     cpdef ExecBlockTag getTag(self):
@@ -3418,6 +3609,7 @@ cdef class ExecTargetTemplateBlock(ScopeChild):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asExecTargetTemplateBlock().getTag().accept(of._hndl)
             return <ExecBlockTag>(of._obj)
 
@@ -3442,6 +3634,7 @@ cdef class ExportAction(ScopeChild):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asExportAction().getTarget().accept(of._hndl)
             return <TypeIdentifier>(of._obj)
     def parameters(self) -> ListUtil:
@@ -3454,12 +3647,14 @@ cdef class ExportAction(ScopeChild):
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
             of = ObjFactory()
+            of._owner = self._keeper()
             __ep.accept(of._hndl)
             ret.append(of._obj)
         return ret
     cpdef getParameter(self, i):
         cdef ast_decl.IFunctionParamDecl *__ep = self.asExportAction().getParameters().at(i).get();
         of = ObjFactory()
+        of._owner = self._keeper()
         __ep.accept(of._hndl)
         return of._obj
     cpdef void addParameter(self, FunctionParamDecl i):
@@ -3489,6 +3684,7 @@ cdef class ExportFunction(ScopeChild):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asExportFunction().getName().accept(of._hndl)
             return <ExprRefName>(of._obj)
 
@@ -3509,6 +3705,7 @@ cdef class TemplateParamDecl(ScopeChild):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asTemplateParamDecl().getName().accept(of._hndl)
             return <ExprId>(of._obj)
 
@@ -3529,6 +3726,7 @@ cdef class TemplateParamExprValue(TemplateParamValue):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asTemplateParamExprValue().getValue().accept(of._hndl)
             return <Expr>(of._obj)
 
@@ -3549,6 +3747,7 @@ cdef class TemplateParamTypeValue(TemplateParamValue):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asTemplateParamTypeValue().getValue().accept(of._hndl)
             return <DataType>(of._obj)
 
@@ -3587,12 +3786,14 @@ cdef class TypeIdentifier(Expr):
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
             of = ObjFactory()
+            of._owner = self._keeper()
             __ep.accept(of._hndl)
             ret.append(of._obj)
         return ret
     cpdef getElem(self, i):
         cdef ast_decl.ITypeIdentifierElem *__ep = self.asTypeIdentifier().getElems().at(i).get();
         of = ObjFactory()
+        of._owner = self._keeper()
         __ep.accept(of._hndl)
         return of._obj
     cpdef void addElem(self, TypeIdentifierElem i):
@@ -3607,6 +3808,7 @@ cdef class TypeIdentifier(Expr):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asTypeIdentifier().getTarget().accept(of._hndl)
             return <SymbolRefPath>(of._obj)
 
@@ -3627,6 +3829,7 @@ cdef class ExprBin(Expr):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asExprBin().getLhs().accept(of._hndl)
             return <Expr>(of._obj)
     cpdef  getOp(self):
@@ -3638,6 +3841,7 @@ cdef class ExprBin(Expr):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asExprBin().getRhs().accept(of._hndl)
             return <Expr>(of._obj)
 
@@ -3658,6 +3862,7 @@ cdef class ExprBitSlice(Expr):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asExprBitSlice().getLhs().accept(of._hndl)
             return <Expr>(of._obj)
     cpdef Expr getRhs(self):
@@ -3665,6 +3870,7 @@ cdef class ExprBitSlice(Expr):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asExprBitSlice().getRhs().accept(of._hndl)
             return <Expr>(of._obj)
 
@@ -3700,6 +3906,7 @@ cdef class ExprCast(Expr):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asExprCast().getCasting_type().accept(of._hndl)
             return <DataType>(of._obj)
     cpdef Expr getExpr(self):
@@ -3707,6 +3914,7 @@ cdef class ExprCast(Expr):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asExprCast().getExpr().accept(of._hndl)
             return <Expr>(of._obj)
 
@@ -3727,6 +3935,7 @@ cdef class ExprCompileHas(Expr):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asExprCompileHas().getRef().accept(of._hndl)
             return <ExprRefPath>(of._obj)
 
@@ -3747,6 +3956,7 @@ cdef class ExprCond(Expr):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asExprCond().getCond_e().accept(of._hndl)
             return <Expr>(of._obj)
     cpdef Expr getTrue_e(self):
@@ -3754,6 +3964,7 @@ cdef class ExprCond(Expr):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asExprCond().getTrue_e().accept(of._hndl)
             return <Expr>(of._obj)
     cpdef Expr getFalse_e(self):
@@ -3761,6 +3972,7 @@ cdef class ExprCond(Expr):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asExprCond().getFalse_e().accept(of._hndl)
             return <Expr>(of._obj)
 
@@ -3786,12 +3998,14 @@ cdef class ExprDomainOpenRangeList(Expr):
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
             of = ObjFactory()
+            of._owner = self._keeper()
             __ep.accept(of._hndl)
             ret.append(of._obj)
         return ret
     cpdef getValue(self, i):
         cdef ast_decl.IExprDomainOpenRangeValue *__ep = self.asExprDomainOpenRangeList().getValues().at(i).get();
         of = ObjFactory()
+        of._owner = self._keeper()
         __ep.accept(of._hndl)
         return of._obj
     cpdef void addValue(self, ExprDomainOpenRangeValue i):
@@ -3819,6 +4033,7 @@ cdef class ExprDomainOpenRangeValue(Expr):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asExprDomainOpenRangeValue().getLhs().accept(of._hndl)
             return <Expr>(of._obj)
     cpdef Expr getRhs(self):
@@ -3826,6 +4041,7 @@ cdef class ExprDomainOpenRangeValue(Expr):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asExprDomainOpenRangeValue().getRhs().accept(of._hndl)
             return <Expr>(of._obj)
 
@@ -3872,12 +4088,14 @@ cdef class ExprHierarchicalId(Expr):
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
             of = ObjFactory()
+            of._owner = self._keeper()
             __ep.accept(of._hndl)
             ret.append(of._obj)
         return ret
     cpdef getElem(self, i):
         cdef ast_decl.IExprMemberPathElem *__ep = self.asExprHierarchicalId().getElems().at(i).get();
         of = ObjFactory()
+        of._owner = self._keeper()
         __ep.accept(of._hndl)
         return of._obj
     cpdef void addElem(self, ExprMemberPathElem i):
@@ -3911,6 +4129,7 @@ cdef class ExprId(Expr):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asExprId().getDecl().accept(of._hndl)
             return <ScopeChild>(of._obj)
 
@@ -3931,6 +4150,7 @@ cdef class ExprIn(Expr):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asExprIn().getLhs().accept(of._hndl)
             return <Expr>(of._obj)
     cpdef ExprOpenRangeList getRhs(self):
@@ -3938,6 +4158,7 @@ cdef class ExprIn(Expr):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asExprIn().getRhs().accept(of._hndl)
             return <ExprOpenRangeList>(of._obj)
     cpdef Expr getCollection(self):
@@ -3945,6 +4166,7 @@ cdef class ExprIn(Expr):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asExprIn().getCollection().accept(of._hndl)
             return <Expr>(of._obj)
 
@@ -3965,6 +4187,7 @@ cdef class ExprMemberCall(Expr):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asExprMemberCall().getReceiver().accept(of._hndl)
             return <Expr>(of._obj)
     def members(self) -> ListUtil:
@@ -3977,12 +4200,14 @@ cdef class ExprMemberCall(Expr):
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
             of = ObjFactory()
+            of._owner = self._keeper()
             __ep.accept(of._hndl)
             ret.append(of._obj)
         return ret
     cpdef getMember(self, i):
         cdef ast_decl.IExprMemberPathElem *__ep = self.asExprMemberCall().getMembers().at(i).get();
         of = ObjFactory()
+        of._owner = self._keeper()
         __ep.accept(of._hndl)
         return of._obj
     cpdef void addMember(self, ExprMemberPathElem i):
@@ -4008,6 +4233,7 @@ cdef class ExprMemberPathElem(Expr):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asExprMemberPathElem().getId().accept(of._hndl)
             return <ExprId>(of._obj)
     cpdef MethodParameterList getParams(self):
@@ -4015,6 +4241,7 @@ cdef class ExprMemberPathElem(Expr):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asExprMemberPathElem().getParams().accept(of._hndl)
             return <MethodParameterList>(of._obj)
     def subscript(self) -> ListUtil:
@@ -4027,12 +4254,14 @@ cdef class ExprMemberPathElem(Expr):
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
             of = ObjFactory()
+            of._owner = self._keeper()
             __ep.accept(of._hndl)
             ret.append(of._obj)
         return ret
     cpdef getSubscript(self, i):
         cdef ast_decl.IExpr *__ep = self.asExprMemberPathElem().getSubscript().at(i).get();
         of = ObjFactory()
+        of._owner = self._keeper()
         __ep.accept(of._hndl)
         return of._obj
     cpdef void addSubscript(self, Expr i):
@@ -4097,12 +4326,14 @@ cdef class ExprOpenRangeList(Expr):
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
             of = ObjFactory()
+            of._owner = self._keeper()
             __ep.accept(of._hndl)
             ret.append(of._obj)
         return ret
     cpdef getValue(self, i):
         cdef ast_decl.IExprOpenRangeValue *__ep = self.asExprOpenRangeList().getValues().at(i).get();
         of = ObjFactory()
+        of._owner = self._keeper()
         __ep.accept(of._hndl)
         return of._obj
     cpdef void addValue(self, ExprOpenRangeValue i):
@@ -4128,6 +4359,7 @@ cdef class ExprOpenRangeValue(Expr):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asExprOpenRangeValue().getLhs().accept(of._hndl)
             return <Expr>(of._obj)
     cpdef Expr getRhs(self):
@@ -4135,6 +4367,7 @@ cdef class ExprOpenRangeValue(Expr):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asExprOpenRangeValue().getRhs().accept(of._hndl)
             return <Expr>(of._obj)
 
@@ -4155,6 +4388,7 @@ cdef class ExprRefName(Expr):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asExprRefName().getId().accept(of._hndl)
             return <ExprId>(of._obj)
     cpdef SymbolRefPath getTarget(self):
@@ -4162,6 +4396,7 @@ cdef class ExprRefName(Expr):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asExprRefName().getTarget().accept(of._hndl)
             return <SymbolRefPath>(of._obj)
     cpdef bool getCtx_unknown(self):
@@ -4184,6 +4419,7 @@ cdef class ExprRefPath(Expr):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asExprRefPath().getTarget().accept(of._hndl)
             return <SymbolRefPath>(of._obj)
 
@@ -4204,6 +4440,7 @@ cdef class TypeIdentifierElem(Expr):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asTypeIdentifierElem().getId().accept(of._hndl)
             return <ExprId>(of._obj)
     cpdef TemplateParamValueList getParams(self):
@@ -4211,6 +4448,7 @@ cdef class TypeIdentifierElem(Expr):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asTypeIdentifierElem().getParams().accept(of._hndl)
             return <TemplateParamValueList>(of._obj)
 
@@ -4231,6 +4469,7 @@ cdef class ExprSliceRange(Expr):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asExprSliceRange().getLower().accept(of._hndl)
             return <Expr>(of._obj)
     cpdef Expr getUpper(self):
@@ -4238,6 +4477,7 @@ cdef class ExprSliceRange(Expr):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asExprSliceRange().getUpper().accept(of._hndl)
             return <Expr>(of._obj)
 
@@ -4277,6 +4517,7 @@ cdef class TypedefDeclaration(ScopeChild):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asTypedefDeclaration().getName().accept(of._hndl)
             return <ExprId>(of._obj)
     cpdef DataType getType(self):
@@ -4284,6 +4525,7 @@ cdef class TypedefDeclaration(ScopeChild):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asTypedefDeclaration().getType().accept(of._hndl)
             return <DataType>(of._obj)
 
@@ -4308,6 +4550,7 @@ cdef class ExprUnary(Expr):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asExprUnary().getRhs().accept(of._hndl)
             return <Expr>(of._obj)
 
@@ -4328,6 +4571,7 @@ cdef class ExtendEnum(ScopeChild):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asExtendEnum().getTarget().accept(of._hndl)
             return <TypeIdentifier>(of._obj)
     def items(self) -> ListUtil:
@@ -4340,12 +4584,14 @@ cdef class ExtendEnum(ScopeChild):
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
             of = ObjFactory()
+            of._owner = self._keeper()
             __ep.accept(of._hndl)
             ret.append(of._obj)
         return ret
     cpdef getItem(self, i):
         cdef ast_decl.IEnumItem *__ep = self.asExtendEnum().getItems().at(i).get();
         of = ObjFactory()
+        of._owner = self._keeper()
         __ep.accept(of._hndl)
         return of._obj
     cpdef void addItem(self, EnumItem i):
@@ -4371,6 +4617,7 @@ cdef class ActionHandleField(NamedScopeChild):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asActionHandleField().getType().accept(of._hndl)
             return <DataType>(of._obj)
     def initializers(self) -> ListUtil:
@@ -4383,12 +4630,14 @@ cdef class ActionHandleField(NamedScopeChild):
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
             of = ObjFactory()
+            of._owner = self._keeper()
             __ep.accept(of._hndl)
             ret.append(of._obj)
         return ret
     cpdef getInitializer(self, i):
         cdef ast_decl.IActionFieldInitializer *__ep = self.asActionHandleField().getInitializers().at(i).get();
         of = ObjFactory()
+        of._owner = self._keeper()
         __ep.accept(of._hndl)
         return of._obj
     cpdef void addInitializer(self, ActionFieldInitializer i):
@@ -4414,6 +4663,7 @@ cdef class ActivityBindStmt(ActivityStmt):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asActivityBindStmt().getLhs().accept(of._hndl)
             return <ExprRefPathContext>(of._obj)
     def rhs(self) -> ListUtil:
@@ -4426,12 +4676,14 @@ cdef class ActivityBindStmt(ActivityStmt):
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
             of = ObjFactory()
+            of._owner = self._keeper()
             __ep.accept(of._hndl)
             ret.append(of._obj)
         return ret
     cpdef getRh(self, i):
         cdef ast_decl.IExprRefPathContext *__ep = self.asActivityBindStmt().getRhs().at(i).get();
         of = ObjFactory()
+        of._owner = self._keeper()
         __ep.accept(of._hndl)
         return of._obj
     cpdef void addRh(self, ExprRefPathContext i):
@@ -4457,6 +4709,7 @@ cdef class ActivityConstraint(ActivityStmt):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asActivityConstraint().getConstraint().accept(of._hndl)
             return <ConstraintStmt>(of._obj)
 
@@ -4482,12 +4735,14 @@ cdef class ActivityJoinSpecBranch(ActivityJoinSpec):
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
             of = ObjFactory()
+            of._owner = self._keeper()
             __ep.accept(of._hndl)
             ret.append(of._obj)
         return ret
     cpdef getBranche(self, i):
         cdef ast_decl.IExprRefPathContext *__ep = self.asActivityJoinSpecBranch().getBranches().at(i).get();
         of = ObjFactory()
+        of._owner = self._keeper()
         __ep.accept(of._hndl)
         return of._obj
     cpdef void addBranche(self, ExprRefPathContext i):
@@ -4513,6 +4768,7 @@ cdef class ActivityJoinSpecFirst(ActivityJoinSpec):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asActivityJoinSpecFirst().getCount().accept(of._hndl)
             return <Expr>(of._obj)
 
@@ -4546,6 +4802,7 @@ cdef class ActivityJoinSpecSelect(ActivityJoinSpec):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asActivityJoinSpecSelect().getCount().accept(of._hndl)
             return <Expr>(of._obj)
 
@@ -4566,6 +4823,7 @@ cdef class ActivityLabeledStmt(ActivityStmt):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asActivityLabeledStmt().getLabel().accept(of._hndl)
             return <ExprId>(of._obj)
 
@@ -4586,6 +4844,7 @@ cdef class ActivitySymbolCall(ActivityStmt):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asActivitySymbolCall().getTarget().accept(of._hndl)
             return <ExprRefName>(of._obj)
     def params(self) -> ListUtil:
@@ -4598,12 +4857,14 @@ cdef class ActivitySymbolCall(ActivityStmt):
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
             of = ObjFactory()
+            of._owner = self._keeper()
             __ep.accept(of._hndl)
             ret.append(of._obj)
         return ret
     cpdef getParam(self, i):
         cdef ast_decl.IExpr *__ep = self.asActivitySymbolCall().getParams().at(i).get();
         of = ObjFactory()
+        of._owner = self._keeper()
         __ep.accept(of._hndl)
         return of._obj
     cpdef void addParam(self, Expr i):
@@ -4634,12 +4895,14 @@ cdef class ConstraintScope(ConstraintStmt):
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
             of = ObjFactory()
+            of._owner = self._keeper()
             __ep.accept(of._hndl)
             ret.append(of._obj)
         return ret
     cpdef getConstraint(self, i):
         cdef ast_decl.IConstraintStmt *__ep = self.asConstraintScope().getConstraints().at(i).get();
         of = ObjFactory()
+        of._owner = self._keeper()
         __ep.accept(of._hndl)
         return of._obj
     cpdef void addConstraint(self, ConstraintStmt i):
@@ -4665,6 +4928,7 @@ cdef class ConstraintStmtDefault(ConstraintStmt):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asConstraintStmtDefault().getHid().accept(of._hndl)
             return <ExprRefPathContext>(of._obj)
     cpdef Expr getExpr(self):
@@ -4672,6 +4936,7 @@ cdef class ConstraintStmtDefault(ConstraintStmt):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asConstraintStmtDefault().getExpr().accept(of._hndl)
             return <Expr>(of._obj)
 
@@ -4692,6 +4957,7 @@ cdef class ConstraintStmtDefaultDisable(ConstraintStmt):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asConstraintStmtDefaultDisable().getHid().accept(of._hndl)
             return <ExprRefPathContext>(of._obj)
 
@@ -4712,6 +4978,7 @@ cdef class ConstraintStmtDist(ConstraintStmt):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asConstraintStmtDist().getLhs().accept(of._hndl)
             return <Expr>(of._obj)
     def items(self) -> ListUtil:
@@ -4724,12 +4991,14 @@ cdef class ConstraintStmtDist(ConstraintStmt):
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
             of = ObjFactory()
+            of._owner = self._keeper()
             __ep.accept(of._hndl)
             ret.append(of._obj)
         return ret
     cpdef getItem(self, i):
         cdef ast_decl.IDistItem *__ep = self.asConstraintStmtDist().getItems().at(i).get();
         of = ObjFactory()
+        of._owner = self._keeper()
         __ep.accept(of._hndl)
         return of._obj
     cpdef void addItem(self, DistItem i):
@@ -4755,6 +5024,7 @@ cdef class ConstraintStmtExpr(ConstraintStmt):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asConstraintStmtExpr().getExpr().accept(of._hndl)
             return <Expr>(of._obj)
 
@@ -4775,6 +5045,7 @@ cdef class ConstraintStmtField(ConstraintStmt):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asConstraintStmtField().getName().accept(of._hndl)
             return <ExprId>(of._obj)
     cpdef DataType getType(self):
@@ -4782,6 +5053,7 @@ cdef class ConstraintStmtField(ConstraintStmt):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asConstraintStmtField().getType().accept(of._hndl)
             return <DataType>(of._obj)
 
@@ -4802,6 +5074,7 @@ cdef class ConstraintStmtIf(ConstraintStmt):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asConstraintStmtIf().getCond().accept(of._hndl)
             return <Expr>(of._obj)
     cpdef ConstraintScope getTrue_c(self):
@@ -4809,6 +5082,7 @@ cdef class ConstraintStmtIf(ConstraintStmt):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asConstraintStmtIf().getTrue_c().accept(of._hndl)
             return <ConstraintScope>(of._obj)
     cpdef ConstraintScope getFalse_c(self):
@@ -4816,6 +5090,7 @@ cdef class ConstraintStmtIf(ConstraintStmt):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asConstraintStmtIf().getFalse_c().accept(of._hndl)
             return <ConstraintScope>(of._obj)
 
@@ -4836,6 +5111,7 @@ cdef class ConstraintStmtSoft(ConstraintStmt):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asConstraintStmtSoft().getExpr().accept(of._hndl)
             return <Expr>(of._obj)
 
@@ -4861,12 +5137,14 @@ cdef class ConstraintStmtUnique(ConstraintStmt):
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
             of = ObjFactory()
+            of._owner = self._keeper()
             __ep.accept(of._hndl)
             ret.append(of._obj)
         return ret
     cpdef getList(self, i):
         cdef ast_decl.IExprRefPathContext *__ep = self.asConstraintStmtUnique().getList().at(i).get();
         of = ObjFactory()
+        of._owner = self._keeper()
         __ep.accept(of._hndl)
         return of._obj
     cpdef void addList(self, ExprRefPathContext i):
@@ -4894,6 +5172,7 @@ cdef class CoverStmtInline(Scope):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asCoverStmtInline().getLabel().accept(of._hndl)
             return <ExprId>(of._obj)
 
@@ -4919,12 +5198,14 @@ cdef class Covergroup(NamedScopeChild):
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
             of = ObjFactory()
+            of._owner = self._keeper()
             __ep.accept(of._hndl)
             ret.append(of._obj)
         return ret
     cpdef getCoverpoint(self, i):
         cdef ast_decl.ICovergroupCoverpoint *__ep = self.asCovergroup().getCoverpoints().at(i).get();
         of = ObjFactory()
+        of._owner = self._keeper()
         __ep.accept(of._hndl)
         return of._obj
     cpdef void addCoverpoint(self, CovergroupCoverpoint i):
@@ -4942,12 +5223,14 @@ cdef class Covergroup(NamedScopeChild):
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
             of = ObjFactory()
+            of._owner = self._keeper()
             __ep.accept(of._hndl)
             ret.append(of._obj)
         return ret
     cpdef getCrosse(self, i):
         cdef ast_decl.ICovergroupCross *__ep = self.asCovergroup().getCrosses().at(i).get();
         of = ObjFactory()
+        of._owner = self._keeper()
         __ep.accept(of._hndl)
         return of._obj
     cpdef void addCrosse(self, CovergroupCross i):
@@ -4965,12 +5248,14 @@ cdef class Covergroup(NamedScopeChild):
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
             of = ObjFactory()
+            of._owner = self._keeper()
             __ep.accept(of._hndl)
             ret.append(of._obj)
         return ret
     cpdef getOption(self, i):
         cdef ast_decl.ICovergroupOption *__ep = self.asCovergroup().getOptions().at(i).get();
         of = ObjFactory()
+        of._owner = self._keeper()
         __ep.accept(of._hndl)
         return of._obj
     cpdef void addOption(self, CovergroupOption i):
@@ -4983,6 +5268,7 @@ cdef class Covergroup(NamedScopeChild):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asCovergroup().getBody().accept(of._hndl)
             return <SymbolScope>(of._obj)
 
@@ -5003,6 +5289,7 @@ cdef class CovergroupCoverpoint(NamedScopeChild):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asCovergroupCoverpoint().getTarget().accept(of._hndl)
             return <Expr>(of._obj)
     cpdef DataType getData_type(self):
@@ -5010,6 +5297,7 @@ cdef class CovergroupCoverpoint(NamedScopeChild):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asCovergroupCoverpoint().getData_type().accept(of._hndl)
             return <DataType>(of._obj)
     cpdef Expr getIff(self):
@@ -5017,6 +5305,7 @@ cdef class CovergroupCoverpoint(NamedScopeChild):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asCovergroupCoverpoint().getIff().accept(of._hndl)
             return <Expr>(of._obj)
     def bins(self) -> ListUtil:
@@ -5029,12 +5318,14 @@ cdef class CovergroupCoverpoint(NamedScopeChild):
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
             of = ObjFactory()
+            of._owner = self._keeper()
             __ep.accept(of._hndl)
             ret.append(of._obj)
         return ret
     cpdef getBin(self, i):
         cdef ast_decl.ICoverpointBins *__ep = self.asCovergroupCoverpoint().getBins().at(i).get();
         of = ObjFactory()
+        of._owner = self._keeper()
         __ep.accept(of._hndl)
         return of._obj
     cpdef void addBin(self, CoverpointBins i):
@@ -5052,12 +5343,14 @@ cdef class CovergroupCoverpoint(NamedScopeChild):
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
             of = ObjFactory()
+            of._owner = self._keeper()
             __ep.accept(of._hndl)
             ret.append(of._obj)
         return ret
     cpdef getOption(self, i):
         cdef ast_decl.ICovergroupOption *__ep = self.asCovergroupCoverpoint().getOptions().at(i).get();
         of = ObjFactory()
+        of._owner = self._keeper()
         __ep.accept(of._hndl)
         return of._obj
     cpdef void addOption(self, CovergroupOption i):
@@ -5088,12 +5381,14 @@ cdef class CovergroupCross(NamedScopeChild):
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
             of = ObjFactory()
+            of._owner = self._keeper()
             __ep.accept(of._hndl)
             ret.append(of._obj)
         return ret
     cpdef getCoverpoint_name(self, i):
         cdef ast_decl.IExprRefName *__ep = self.asCovergroupCross().getCoverpoint_names().at(i).get();
         of = ObjFactory()
+        of._owner = self._keeper()
         __ep.accept(of._hndl)
         return of._obj
     cpdef void addCoverpoint_name(self, ExprRefName i):
@@ -5106,6 +5401,7 @@ cdef class CovergroupCross(NamedScopeChild):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asCovergroupCross().getIff().accept(of._hndl)
             return <Expr>(of._obj)
     def bins(self) -> ListUtil:
@@ -5118,12 +5414,14 @@ cdef class CovergroupCross(NamedScopeChild):
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
             of = ObjFactory()
+            of._owner = self._keeper()
             __ep.accept(of._hndl)
             ret.append(of._obj)
         return ret
     cpdef getBin(self, i):
         cdef ast_decl.ICovergroupCrossBins *__ep = self.asCovergroupCross().getBins().at(i).get();
         of = ObjFactory()
+        of._owner = self._keeper()
         __ep.accept(of._hndl)
         return of._obj
     cpdef void addBin(self, CovergroupCrossBins i):
@@ -5141,12 +5439,14 @@ cdef class CovergroupCross(NamedScopeChild):
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
             of = ObjFactory()
+            of._owner = self._keeper()
             __ep.accept(of._hndl)
             ret.append(of._obj)
         return ret
     cpdef getOption(self, i):
         cdef ast_decl.ICovergroupOption *__ep = self.asCovergroupCross().getOptions().at(i).get();
         of = ObjFactory()
+        of._owner = self._keeper()
         __ep.accept(of._hndl)
         return of._obj
     cpdef void addOption(self, CovergroupOption i):
@@ -5176,6 +5476,7 @@ cdef class CovergroupCrossBins(NamedScopeChild):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asCovergroupCrossBins().getTarget().accept(of._hndl)
             return <ExprRefName>(of._obj)
     cpdef Expr getWith_expr(self):
@@ -5183,6 +5484,7 @@ cdef class CovergroupCrossBins(NamedScopeChild):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asCovergroupCrossBins().getWith_expr().accept(of._hndl)
             return <Expr>(of._obj)
 
@@ -5203,6 +5505,7 @@ cdef class CovergroupInstantiation(NamedScopeChild):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asCovergroupInstantiation().getType().accept(of._hndl)
             return <TypeIdentifier>(of._obj)
     def portmap(self) -> ListUtil:
@@ -5215,12 +5518,14 @@ cdef class CovergroupInstantiation(NamedScopeChild):
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
             of = ObjFactory()
+            of._owner = self._keeper()
             __ep.accept(of._hndl)
             ret.append(of._obj)
         return ret
     cpdef getPortmap(self, i):
         cdef ast_decl.ICovergroupPortmap *__ep = self.asCovergroupInstantiation().getPortmap().at(i).get();
         of = ObjFactory()
+        of._owner = self._keeper()
         __ep.accept(of._hndl)
         return of._obj
     cpdef void addPortmap(self, CovergroupPortmap i):
@@ -5238,12 +5543,14 @@ cdef class CovergroupInstantiation(NamedScopeChild):
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
             of = ObjFactory()
+            of._owner = self._keeper()
             __ep.accept(of._hndl)
             ret.append(of._obj)
         return ret
     cpdef getTarget(self, i):
         cdef ast_decl.IExprRefPathContext *__ep = self.asCovergroupInstantiation().getTargets().at(i).get();
         of = ObjFactory()
+        of._owner = self._keeper()
         __ep.accept(of._hndl)
         return of._obj
     cpdef void addTarget(self, ExprRefPathContext i):
@@ -5261,12 +5568,14 @@ cdef class CovergroupInstantiation(NamedScopeChild):
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
             of = ObjFactory()
+            of._owner = self._keeper()
             __ep.accept(of._hndl)
             ret.append(of._obj)
         return ret
     cpdef getOption(self, i):
         cdef ast_decl.ICovergroupOption *__ep = self.asCovergroupInstantiation().getOptions().at(i).get();
         of = ObjFactory()
+        of._owner = self._keeper()
         __ep.accept(of._hndl)
         return of._obj
     cpdef void addOption(self, CovergroupOption i):
@@ -5302,6 +5611,7 @@ cdef class CoverpointBins(NamedScopeChild):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asCoverpointBins().getArray_size().accept(of._hndl)
             return <Expr>(of._obj)
     def ranges(self) -> ListUtil:
@@ -5314,12 +5624,14 @@ cdef class CoverpointBins(NamedScopeChild):
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
             of = ObjFactory()
+            of._owner = self._keeper()
             __ep.accept(of._hndl)
             ret.append(of._obj)
         return ret
     cpdef getRange(self, i):
         cdef ast_decl.IExprOpenRangeValue *__ep = self.asCoverpointBins().getRanges().at(i).get();
         of = ObjFactory()
+        of._owner = self._keeper()
         __ep.accept(of._hndl)
         return of._obj
     cpdef void addRange(self, ExprOpenRangeValue i):
@@ -5332,6 +5644,7 @@ cdef class CoverpointBins(NamedScopeChild):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asCoverpointBins().getTarget().accept(of._hndl)
             return <ExprRefName>(of._obj)
     cpdef Expr getWith_expr(self):
@@ -5339,6 +5652,7 @@ cdef class CoverpointBins(NamedScopeChild):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asCoverpointBins().getWith_expr().accept(of._hndl)
             return <Expr>(of._obj)
 
@@ -5385,6 +5699,7 @@ cdef class DataTypeEnum(DataType):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asDataTypeEnum().getTid().accept(of._hndl)
             return <DataTypeUserDefined>(of._obj)
     cpdef ExprDomainOpenRangeList getIn_rangelist(self):
@@ -5392,6 +5707,7 @@ cdef class DataTypeEnum(DataType):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asDataTypeEnum().getIn_rangelist().accept(of._hndl)
             return <ExprDomainOpenRangeList>(of._obj)
 
@@ -5429,6 +5745,7 @@ cdef class DataTypeInt(DataType):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asDataTypeInt().getWidth().accept(of._hndl)
             return <Expr>(of._obj)
     cpdef ExprDomainOpenRangeList getIn_range(self):
@@ -5436,6 +5753,7 @@ cdef class DataTypeInt(DataType):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asDataTypeInt().getIn_range().accept(of._hndl)
             return <ExprDomainOpenRangeList>(of._obj)
 
@@ -5469,6 +5787,7 @@ cdef class DataTypeRef(DataType):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asDataTypeRef().getType().accept(of._hndl)
             return <DataTypeUserDefined>(of._obj)
 
@@ -5517,6 +5836,7 @@ cdef class DataTypeUserDefined(DataType):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asDataTypeUserDefined().getType_id().accept(of._hndl)
             return <TypeIdentifier>(of._obj)
 
@@ -5542,12 +5862,14 @@ cdef class EnumDecl(NamedScopeChild):
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
             of = ObjFactory()
+            of._owner = self._keeper()
             __ep.accept(of._hndl)
             ret.append(of._obj)
         return ret
     cpdef getItem(self, i):
         cdef ast_decl.IEnumItem *__ep = self.asEnumDecl().getItems().at(i).get();
         of = ObjFactory()
+        of._owner = self._keeper()
         __ep.accept(of._hndl)
         return of._obj
     cpdef void addItem(self, EnumItem i):
@@ -5560,6 +5882,7 @@ cdef class EnumDecl(NamedScopeChild):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asEnumDecl().getBase_type().accept(of._hndl)
             return <DataType>(of._obj)
 
@@ -5580,6 +5903,7 @@ cdef class EnumItem(NamedScopeChild):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asEnumItem().getValue().accept(of._hndl)
             return <Expr>(of._obj)
     cpdef SymbolEnumScope getUpper(self):
@@ -5587,6 +5911,7 @@ cdef class EnumItem(NamedScopeChild):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asEnumItem().getUpper().accept(of._hndl)
             return <SymbolEnumScope>(of._obj)
 
@@ -5625,12 +5950,14 @@ cdef class ExprAggrList(ExprAggrLiteral):
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
             of = ObjFactory()
+            of._owner = self._keeper()
             __ep.accept(of._hndl)
             ret.append(of._obj)
         return ret
     cpdef getElem(self, i):
         cdef ast_decl.IExpr *__ep = self.asExprAggrList().getElems().at(i).get();
         of = ObjFactory()
+        of._owner = self._keeper()
         __ep.accept(of._hndl)
         return of._obj
     cpdef void addElem(self, Expr i):
@@ -5661,12 +5988,14 @@ cdef class ExprAggrMap(ExprAggrLiteral):
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
             of = ObjFactory()
+            of._owner = self._keeper()
             __ep.accept(of._hndl)
             ret.append(of._obj)
         return ret
     cpdef getElem(self, i):
         cdef ast_decl.IExprAggrMapElem *__ep = self.asExprAggrMap().getElems().at(i).get();
         of = ObjFactory()
+        of._owner = self._keeper()
         __ep.accept(of._hndl)
         return of._obj
     cpdef void addElem(self, ExprAggrMapElem i):
@@ -5697,12 +6026,14 @@ cdef class ExprAggrStruct(ExprAggrLiteral):
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
             of = ObjFactory()
+            of._owner = self._keeper()
             __ep.accept(of._hndl)
             ret.append(of._obj)
         return ret
     cpdef getElem(self, i):
         cdef ast_decl.IExprAggrStructElem *__ep = self.asExprAggrStruct().getElems().at(i).get();
         of = ObjFactory()
+        of._owner = self._keeper()
         __ep.accept(of._hndl)
         return of._obj
     cpdef void addElem(self, ExprAggrStructElem i):
@@ -5730,6 +6061,7 @@ cdef class ExprRefPathContext(ExprRefPath):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asExprRefPathContext().getHier_id().accept(of._hndl)
             return <ExprHierarchicalId>(of._obj)
     cpdef ExprBitSlice getSlice(self):
@@ -5737,6 +6069,7 @@ cdef class ExprRefPathContext(ExprRefPath):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asExprRefPathContext().getSlice().accept(of._hndl)
             return <ExprBitSlice>(of._obj)
 
@@ -5764,12 +6097,14 @@ cdef class ExprRefPathStatic(ExprRefPath):
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
             of = ObjFactory()
+            of._owner = self._keeper()
             __ep.accept(of._hndl)
             ret.append(of._obj)
         return ret
     cpdef getBase(self, i):
         cdef ast_decl.ITypeIdentifierElem *__ep = self.asExprRefPathStatic().getBase().at(i).get();
         of = ObjFactory()
+        of._owner = self._keeper()
         __ep.accept(of._hndl)
         return of._obj
     cpdef void addBase(self, TypeIdentifierElem i):
@@ -5782,6 +6117,7 @@ cdef class ExprRefPathStatic(ExprRefPath):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asExprRefPathStatic().getSlice().accept(of._hndl)
             return <ExprBitSlice>(of._obj)
 
@@ -5802,6 +6138,7 @@ cdef class ExprRefPathStaticRooted(ExprRefPath):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asExprRefPathStaticRooted().getRoot().accept(of._hndl)
             return <ExprRefPathStatic>(of._obj)
     cpdef ExprHierarchicalId getLeaf(self):
@@ -5809,6 +6146,7 @@ cdef class ExprRefPathStaticRooted(ExprRefPath):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asExprRefPathStaticRooted().getLeaf().accept(of._hndl)
             return <ExprHierarchicalId>(of._obj)
     cpdef ExprBitSlice getSlice(self):
@@ -5816,6 +6154,7 @@ cdef class ExprRefPathStaticRooted(ExprRefPath):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asExprRefPathStaticRooted().getSlice().accept(of._hndl)
             return <ExprBitSlice>(of._obj)
 
@@ -5857,6 +6196,7 @@ cdef class ExprTemplateString(ExprString):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asExprTemplateString().getTemplate().accept(of._hndl)
             return <TemplateString>(of._obj)
 
@@ -5902,6 +6242,7 @@ cdef class ExtendType(Scope):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asExtendType().getTarget().accept(of._hndl)
             return <TypeIdentifier>(of._obj)
     cpdef bool symtabHas(self, str i):
@@ -5915,6 +6256,7 @@ cdef class ExtendType(Scope):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asExtendType().getImports().accept(of._hndl)
             return <SymbolImportSpec>(of._obj)
 
@@ -5935,6 +6277,7 @@ cdef class Field(NamedScopeChild):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asField().getType().accept(of._hndl)
             return <DataType>(of._obj)
     cpdef  getAttr(self):
@@ -5946,6 +6289,7 @@ cdef class Field(NamedScopeChild):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asField().getInit().accept(of._hndl)
             return <Expr>(of._obj)
     def initializers(self) -> ListUtil:
@@ -5958,12 +6302,14 @@ cdef class Field(NamedScopeChild):
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
             of = ObjFactory()
+            of._owner = self._keeper()
             __ep.accept(of._hndl)
             ret.append(of._obj)
         return ret
     cpdef getInitializer(self, i):
         cdef ast_decl.IActionFieldInitializer *__ep = self.asField().getInitializers().at(i).get();
         of = ObjFactory()
+        of._owner = self._keeper()
         __ep.accept(of._hndl)
         return of._obj
     cpdef void addInitializer(self, ActionFieldInitializer i):
@@ -5989,6 +6335,7 @@ cdef class FieldClaim(NamedScopeChild):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asFieldClaim().getType().accept(of._hndl)
             return <DataTypeUserDefined>(of._obj)
     cpdef bool getIs_lock(self):
@@ -6011,6 +6358,7 @@ cdef class FieldCompRef(NamedScopeChild):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asFieldCompRef().getType().accept(of._hndl)
             return <DataTypeUserDefined>(of._obj)
 
@@ -6031,6 +6379,7 @@ cdef class FieldPool(NamedScopeChild):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asFieldPool().getType().accept(of._hndl)
             return <DataTypeUserDefined>(of._obj)
     cpdef Expr getSize(self):
@@ -6038,6 +6387,7 @@ cdef class FieldPool(NamedScopeChild):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asFieldPool().getSize().accept(of._hndl)
             return <Expr>(of._obj)
 
@@ -6058,6 +6408,7 @@ cdef class FieldRef(NamedScopeChild):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asFieldRef().getType().accept(of._hndl)
             return <DataTypeUserDefined>(of._obj)
     cpdef bool getIs_input(self):
@@ -6080,6 +6431,7 @@ cdef class FunctionImportProto(FunctionImport):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asFunctionImportProto().getProto().accept(of._hndl)
             return <FunctionPrototype>(of._obj)
 
@@ -6100,6 +6452,7 @@ cdef class FunctionImportType(FunctionImport):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asFunctionImportType().getType().accept(of._hndl)
             return <TypeIdentifier>(of._obj)
 
@@ -6120,6 +6473,7 @@ cdef class FunctionPrototype(NamedScopeChild):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asFunctionPrototype().getRtype().accept(of._hndl)
             return <DataType>(of._obj)
     def parameters(self) -> ListUtil:
@@ -6132,12 +6486,14 @@ cdef class FunctionPrototype(NamedScopeChild):
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
             of = ObjFactory()
+            of._owner = self._keeper()
             __ep.accept(of._hndl)
             ret.append(of._obj)
         return ret
     cpdef getParameter(self, i):
         cdef ast_decl.IFunctionParamDecl *__ep = self.asFunctionPrototype().getParameters().at(i).get();
         of = ObjFactory()
+        of._owner = self._keeper()
         __ep.accept(of._hndl)
         return of._obj
     cpdef void addParameter(self, FunctionParamDecl i):
@@ -6192,6 +6548,7 @@ cdef class InstanceOverride(OverrideStmt):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asInstanceOverride().getTarget().accept(of._hndl)
             return <ExprRefPathContext>(of._obj)
     cpdef TypeIdentifier getWith_t(self):
@@ -6199,6 +6556,7 @@ cdef class InstanceOverride(OverrideStmt):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asInstanceOverride().getWith_t().accept(of._hndl)
             return <TypeIdentifier>(of._obj)
 
@@ -6219,6 +6577,7 @@ cdef class MonitorActivityLabeledStmt(MonitorActivityStmt):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asMonitorActivityLabeledStmt().getLabel().accept(of._hndl)
             return <ExprId>(of._obj)
 
@@ -6239,6 +6598,7 @@ cdef class MonitorConstraint(MonitorActivityStmt):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asMonitorConstraint().getConstraint().accept(of._hndl)
             return <ConstraintStmt>(of._obj)
 
@@ -6259,6 +6619,7 @@ cdef class NamedScope(Scope):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asNamedScope().getName().accept(of._hndl)
             return <ExprId>(of._obj)
 
@@ -6297,12 +6658,14 @@ cdef class PackageScope(Scope):
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
             of = ObjFactory()
+            of._owner = self._keeper()
             __ep.accept(of._hndl)
             ret.append(of._obj)
         return ret
     cpdef getId(self, i):
         cdef ast_decl.IExprId *__ep = self.asPackageScope().getId().at(i).get();
         of = ObjFactory()
+        of._owner = self._keeper()
         __ep.accept(of._hndl)
         return of._obj
     cpdef void addId(self, ExprId i):
@@ -6315,6 +6678,7 @@ cdef class PackageScope(Scope):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asPackageScope().getSibling().accept(of._hndl)
             return <PackageScope>(of._obj)
 
@@ -6335,6 +6699,7 @@ cdef class ProceduralStmtAssignment(ExecStmt):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asProceduralStmtAssignment().getLhs().accept(of._hndl)
             return <Expr>(of._obj)
     cpdef  getOp(self):
@@ -6346,6 +6711,7 @@ cdef class ProceduralStmtAssignment(ExecStmt):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asProceduralStmtAssignment().getRhs().accept(of._hndl)
             return <Expr>(of._obj)
 
@@ -6366,6 +6732,7 @@ cdef class ProceduralStmtBody(ExecStmt):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asProceduralStmtBody().getBody().accept(of._hndl)
             return <ScopeChild>(of._obj)
 
@@ -6412,6 +6779,7 @@ cdef class ProceduralStmtDataDeclaration(ExecStmt):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asProceduralStmtDataDeclaration().getName().accept(of._hndl)
             return <ExprId>(of._obj)
     cpdef DataType getDatatype(self):
@@ -6419,6 +6787,7 @@ cdef class ProceduralStmtDataDeclaration(ExecStmt):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asProceduralStmtDataDeclaration().getDatatype().accept(of._hndl)
             return <DataType>(of._obj)
     cpdef Expr getInit(self):
@@ -6426,6 +6795,7 @@ cdef class ProceduralStmtDataDeclaration(ExecStmt):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asProceduralStmtDataDeclaration().getInit().accept(of._hndl)
             return <Expr>(of._obj)
 
@@ -6446,6 +6816,7 @@ cdef class ProceduralStmtExpr(ExecStmt):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asProceduralStmtExpr().getExpr().accept(of._hndl)
             return <Expr>(of._obj)
     cpdef bool getVoid_cast(self):
@@ -6473,12 +6844,14 @@ cdef class ProceduralStmtIfElse(ExecStmt):
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
             of = ObjFactory()
+            of._owner = self._keeper()
             __ep.accept(of._hndl)
             ret.append(of._obj)
         return ret
     cpdef getIf_then(self, i):
         cdef ast_decl.IProceduralStmtIfClause *__ep = self.asProceduralStmtIfElse().getIf_then().at(i).get();
         of = ObjFactory()
+        of._owner = self._keeper()
         __ep.accept(of._hndl)
         return of._obj
     cpdef void addIf_then(self, ProceduralStmtIfClause i):
@@ -6491,6 +6864,7 @@ cdef class ProceduralStmtIfElse(ExecStmt):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asProceduralStmtIfElse().getElse_then().accept(of._hndl)
             return <ScopeChild>(of._obj)
 
@@ -6511,6 +6885,7 @@ cdef class ProceduralStmtMatch(ExecStmt):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asProceduralStmtMatch().getExpr().accept(of._hndl)
             return <Expr>(of._obj)
     def choices(self) -> ListUtil:
@@ -6523,12 +6898,14 @@ cdef class ProceduralStmtMatch(ExecStmt):
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
             of = ObjFactory()
+            of._owner = self._keeper()
             __ep.accept(of._hndl)
             ret.append(of._obj)
         return ret
     cpdef getChoice(self, i):
         cdef ast_decl.IProceduralStmtMatchChoice *__ep = self.asProceduralStmtMatch().getChoices().at(i).get();
         of = ObjFactory()
+        of._owner = self._keeper()
         __ep.accept(of._hndl)
         return of._obj
     cpdef void addChoice(self, ProceduralStmtMatchChoice i):
@@ -6556,6 +6933,7 @@ cdef class ProceduralStmtMatchChoice(ExecStmt):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asProceduralStmtMatchChoice().getCond().accept(of._hndl)
             return <ExprOpenRangeList>(of._obj)
     cpdef ScopeChild getBody(self):
@@ -6563,6 +6941,7 @@ cdef class ProceduralStmtMatchChoice(ExecStmt):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asProceduralStmtMatchChoice().getBody().accept(of._hndl)
             return <ScopeChild>(of._obj)
 
@@ -6588,12 +6967,14 @@ cdef class ProceduralStmtRandomize(ExecStmt):
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
             of = ObjFactory()
+            of._owner = self._keeper()
             __ep.accept(of._hndl)
             ret.append(of._obj)
         return ret
     cpdef getTarget(self, i):
         cdef ast_decl.IExpr *__ep = self.asProceduralStmtRandomize().getTargets().at(i).get();
         of = ObjFactory()
+        of._owner = self._keeper()
         __ep.accept(of._hndl)
         return of._obj
     cpdef void addTarget(self, Expr i):
@@ -6611,12 +6992,14 @@ cdef class ProceduralStmtRandomize(ExecStmt):
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
             of = ObjFactory()
+            of._owner = self._keeper()
             __ep.accept(of._hndl)
             ret.append(of._obj)
         return ret
     cpdef getConstraint(self, i):
         cdef ast_decl.IConstraintStmt *__ep = self.asProceduralStmtRandomize().getConstraints().at(i).get();
         of = ObjFactory()
+        of._owner = self._keeper()
         __ep.accept(of._hndl)
         return of._obj
     cpdef void addConstraint(self, ConstraintStmt i):
@@ -6642,6 +7025,7 @@ cdef class ProceduralStmtReturn(ExecStmt):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asProceduralStmtReturn().getExpr().accept(of._hndl)
             return <Expr>(of._obj)
 
@@ -6697,12 +7081,14 @@ cdef class SymbolChildrenScope(SymbolChild):
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
             of = ObjFactory()
+            of._owner = self._keeper()
             __ep.accept(of._hndl)
             ret.append(of._obj)
         return ret
     cpdef getChild(self, i):
         cdef ast_decl.IScopeChild *__ep = self.asSymbolChildrenScope().getChildren().at(i).get();
         of = ObjFactory()
+        of._owner = self._keeper()
         __ep.accept(of._hndl)
         return of._obj
     cpdef void addChild(self, ScopeChild i):
@@ -6715,6 +7101,7 @@ cdef class SymbolChildrenScope(SymbolChild):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asSymbolChildrenScope().getTarget().accept(of._hndl)
             return <ScopeChild>(of._obj)
 
@@ -6739,6 +7126,7 @@ cdef class TemplateCategoryTypeParamDecl(TemplateParamDecl):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asTemplateCategoryTypeParamDecl().getRestriction().accept(of._hndl)
             return <TypeIdentifier>(of._obj)
     cpdef DataType getDflt(self):
@@ -6746,6 +7134,7 @@ cdef class TemplateCategoryTypeParamDecl(TemplateParamDecl):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asTemplateCategoryTypeParamDecl().getDflt().accept(of._hndl)
             return <DataType>(of._obj)
 
@@ -6766,6 +7155,7 @@ cdef class TemplateGenericTypeParamDecl(TemplateParamDecl):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asTemplateGenericTypeParamDecl().getDflt().accept(of._hndl)
             return <DataType>(of._obj)
 
@@ -6786,6 +7176,7 @@ cdef class TemplateValueParamDecl(TemplateParamDecl):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asTemplateValueParamDecl().getType().accept(of._hndl)
             return <DataType>(of._obj)
     cpdef Expr getDflt(self):
@@ -6793,6 +7184,7 @@ cdef class TemplateValueParamDecl(TemplateParamDecl):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asTemplateValueParamDecl().getDflt().accept(of._hndl)
             return <Expr>(of._obj)
 
@@ -6813,6 +7205,7 @@ cdef class TypeOverride(OverrideStmt):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asTypeOverride().getTarget().accept(of._hndl)
             return <TypeIdentifier>(of._obj)
     cpdef TypeIdentifier getWith_t(self):
@@ -6820,6 +7213,7 @@ cdef class TypeOverride(OverrideStmt):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asTypeOverride().getWith_t().accept(of._hndl)
             return <TypeIdentifier>(of._obj)
 
@@ -6840,6 +7234,7 @@ cdef class ActivityActionHandleTraversal(ActivityLabeledStmt):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asActivityActionHandleTraversal().getTarget().accept(of._hndl)
             return <ExprRefPathContext>(of._obj)
     cpdef ConstraintStmt getWith_c(self):
@@ -6847,6 +7242,7 @@ cdef class ActivityActionHandleTraversal(ActivityLabeledStmt):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asActivityActionHandleTraversal().getWith_c().accept(of._hndl)
             return <ConstraintStmt>(of._obj)
     def initializers(self) -> ListUtil:
@@ -6859,12 +7255,14 @@ cdef class ActivityActionHandleTraversal(ActivityLabeledStmt):
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
             of = ObjFactory()
+            of._owner = self._keeper()
             __ep.accept(of._hndl)
             ret.append(of._obj)
         return ret
     cpdef getInitializer(self, i):
         cdef ast_decl.IActionFieldInitializer *__ep = self.asActivityActionHandleTraversal().getInitializers().at(i).get();
         of = ObjFactory()
+        of._owner = self._keeper()
         __ep.accept(of._hndl)
         return of._obj
     cpdef void addInitializer(self, ActionFieldInitializer i):
@@ -6890,6 +7288,7 @@ cdef class ActivityActionTypeTraversal(ActivityLabeledStmt):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asActivityActionTypeTraversal().getTarget().accept(of._hndl)
             return <DataTypeUserDefined>(of._obj)
     cpdef ConstraintStmt getWith_c(self):
@@ -6897,6 +7296,7 @@ cdef class ActivityActionTypeTraversal(ActivityLabeledStmt):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asActivityActionTypeTraversal().getWith_c().accept(of._hndl)
             return <ConstraintStmt>(of._obj)
     def initializers(self) -> ListUtil:
@@ -6909,12 +7309,14 @@ cdef class ActivityActionTypeTraversal(ActivityLabeledStmt):
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
             of = ObjFactory()
+            of._owner = self._keeper()
             __ep.accept(of._hndl)
             ret.append(of._obj)
         return ret
     cpdef getInitializer(self, i):
         cdef ast_decl.IActionFieldInitializer *__ep = self.asActivityActionTypeTraversal().getInitializers().at(i).get();
         of = ObjFactory()
+        of._owner = self._keeper()
         __ep.accept(of._hndl)
         return of._obj
     cpdef void addInitializer(self, ActionFieldInitializer i):
@@ -6940,6 +7342,7 @@ cdef class TypeScope(NamedScope):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asTypeScope().getSuper_t().accept(of._hndl)
             return <TypeIdentifier>(of._obj)
     cpdef TemplateParamDeclList getParams(self):
@@ -6947,6 +7350,7 @@ cdef class TypeScope(NamedScope):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asTypeScope().getParams().accept(of._hndl)
             return <TemplateParamDeclList>(of._obj)
     cpdef bool getOpaque(self):
@@ -6977,6 +7381,7 @@ cdef class SymbolScope(SymbolChildrenScope):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asSymbolScope().getImports().accept(of._hndl)
             return <SymbolImportSpec>(of._obj)
     cpdef bool getSynthetic(self):
@@ -7001,6 +7406,7 @@ cdef class ConstraintBlock(ConstraintScope):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asConstraintBlock().getName().accept(of._hndl)
             return <ExprId>(of._obj)
     cpdef bool getIs_dynamic(self):
@@ -7023,6 +7429,7 @@ cdef class ConstraintStmtForall(ConstraintScope):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asConstraintStmtForall().getIterator_id().accept(of._hndl)
             return <ExprId>(of._obj)
     cpdef DataTypeUserDefined getType_id(self):
@@ -7030,6 +7437,7 @@ cdef class ConstraintStmtForall(ConstraintScope):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asConstraintStmtForall().getType_id().accept(of._hndl)
             return <DataTypeUserDefined>(of._obj)
     cpdef ExprRefPath getRef_path(self):
@@ -7037,6 +7445,7 @@ cdef class ConstraintStmtForall(ConstraintScope):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asConstraintStmtForall().getRef_path().accept(of._hndl)
             return <ExprRefPath>(of._obj)
     cpdef ConstraintSymbolScope getSymtab(self):
@@ -7044,6 +7453,7 @@ cdef class ConstraintStmtForall(ConstraintScope):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asConstraintStmtForall().getSymtab().accept(of._hndl)
             return <ConstraintSymbolScope>(of._obj)
 
@@ -7064,6 +7474,7 @@ cdef class ConstraintStmtForeach(ConstraintScope):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asConstraintStmtForeach().getIt().accept(of._hndl)
             return <ConstraintStmtField>(of._obj)
     cpdef ConstraintStmtField getIdx(self):
@@ -7071,6 +7482,7 @@ cdef class ConstraintStmtForeach(ConstraintScope):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asConstraintStmtForeach().getIdx().accept(of._hndl)
             return <ConstraintStmtField>(of._obj)
     cpdef Expr getExpr(self):
@@ -7078,6 +7490,7 @@ cdef class ConstraintStmtForeach(ConstraintScope):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asConstraintStmtForeach().getExpr().accept(of._hndl)
             return <Expr>(of._obj)
     cpdef ConstraintSymbolScope getSymtab(self):
@@ -7085,6 +7498,7 @@ cdef class ConstraintStmtForeach(ConstraintScope):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asConstraintStmtForeach().getSymtab().accept(of._hndl)
             return <ConstraintSymbolScope>(of._obj)
 
@@ -7105,6 +7519,7 @@ cdef class ProceduralStmtRepeatWhile(ProceduralStmtBody):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asProceduralStmtRepeatWhile().getExpr().accept(of._hndl)
             return <Expr>(of._obj)
 
@@ -7125,6 +7540,7 @@ cdef class ConstraintStmtImplication(ConstraintScope):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asConstraintStmtImplication().getCond().accept(of._hndl)
             return <Expr>(of._obj)
 
@@ -7145,6 +7561,7 @@ cdef class ProceduralStmtWhile(ProceduralStmtBody):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asProceduralStmtWhile().getExpr().accept(of._hndl)
             return <Expr>(of._obj)
 
@@ -7228,12 +7645,14 @@ cdef class GenericConstraintDeclBool(ConstraintBlock):
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
             of = ObjFactory()
+            of._owner = self._keeper()
             __ep.accept(of._hndl)
             ret.append(of._obj)
         return ret
     cpdef getParameter(self, i):
         cdef ast_decl.IGenericConstraintParam *__ep = self.asGenericConstraintDeclBool().getParameters().at(i).get();
         of = ObjFactory()
+        of._owner = self._keeper()
         __ep.accept(of._hndl)
         return of._obj
     cpdef void addParameter(self, GenericConstraintParam i):
@@ -7259,6 +7678,7 @@ cdef class ActivityLabeledScope(SymbolScope):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asActivityLabeledScope().getLabel().accept(of._hndl)
             return <ExprId>(of._obj)
     cpdef SymbolScope getSub_activity(self):
@@ -7266,6 +7686,7 @@ cdef class ActivityLabeledScope(SymbolScope):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asActivityLabeledScope().getSub_activity().accept(of._hndl)
             return <SymbolScope>(of._obj)
 
@@ -7291,12 +7712,14 @@ cdef class ImportClass(TypeScope):
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
             of = ObjFactory()
+            of._owner = self._keeper()
             __ep.accept(of._hndl)
             ret.append(of._obj)
         return ret
     cpdef getExtend(self, i):
         cdef ast_decl.ITypeIdentifier *__ep = self.asImportClass().getExtends().at(i).get();
         of = ObjFactory()
+        of._owner = self._keeper()
         __ep.accept(of._hndl)
         return of._obj
     cpdef void addExtend(self, TypeIdentifier i):
@@ -7350,6 +7773,7 @@ cdef class MonitorActivityLabeledScope(SymbolScope):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asMonitorActivityLabeledScope().getLabel().accept(of._hndl)
             return <ExprId>(of._obj)
 
@@ -7398,6 +7822,7 @@ cdef class ProceduralStmtSymbolBodyScope(SymbolScope):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asProceduralStmtSymbolBodyScope().getBody().accept(of._hndl)
             return <ScopeChild>(of._obj)
 
@@ -7418,6 +7843,7 @@ cdef class ConstraintSymbolScope(SymbolScope):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asConstraintSymbolScope().getConstraint().accept(of._hndl)
             return <ConstraintStmt>(of._obj)
 
@@ -7443,12 +7869,14 @@ cdef class RootSymbolScope(SymbolScope):
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
             of = ObjFactory()
+            of._owner = self._keeper()
             __ep.accept(of._hndl)
             ret.append(of._obj)
         return ret
     cpdef getUnit(self, i):
         cdef ast_decl.IGlobalScope *__ep = self.asRootSymbolScope().getUnits().at(i).get();
         of = ObjFactory()
+        of._owner = self._keeper()
         __ep.accept(of._hndl)
         return of._obj
     cpdef void addUnit(self, GlobalScope i):
@@ -7530,12 +7958,14 @@ cdef class SymbolDeclaration(SymbolScope):
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
             of = ObjFactory()
+            of._owner = self._keeper()
             __ep.accept(of._hndl)
             ret.append(of._obj)
         return ret
     cpdef getParam(self, i):
         cdef ast_decl.IFunctionParamDecl *__ep = self.asSymbolDeclaration().getParams().at(i).get();
         of = ObjFactory()
+        of._owner = self._keeper()
         __ep.accept(of._hndl)
         return of._obj
     cpdef void addParam(self, FunctionParamDecl i):
@@ -7548,6 +7978,7 @@ cdef class SymbolDeclaration(SymbolScope):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asSymbolDeclaration().getSub_activity().accept(of._hndl)
             return <SymbolScope>(of._obj)
 
@@ -7573,12 +8004,14 @@ cdef class CovergroupType(TypeScope):
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
             of = ObjFactory()
+            of._owner = self._keeper()
             __ep.accept(of._hndl)
             ret.append(of._obj)
         return ret
     cpdef getCoverpoint(self, i):
         cdef ast_decl.ICovergroupCoverpoint *__ep = self.asCovergroupType().getCoverpoints().at(i).get();
         of = ObjFactory()
+        of._owner = self._keeper()
         __ep.accept(of._hndl)
         return of._obj
     cpdef void addCoverpoint(self, CovergroupCoverpoint i):
@@ -7596,12 +8029,14 @@ cdef class CovergroupType(TypeScope):
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
             of = ObjFactory()
+            of._owner = self._keeper()
             __ep.accept(of._hndl)
             ret.append(of._obj)
         return ret
     cpdef getCrosse(self, i):
         cdef ast_decl.ICovergroupCross *__ep = self.asCovergroupType().getCrosses().at(i).get();
         of = ObjFactory()
+        of._owner = self._keeper()
         __ep.accept(of._hndl)
         return of._obj
     cpdef void addCrosse(self, CovergroupCross i):
@@ -7619,12 +8054,14 @@ cdef class CovergroupType(TypeScope):
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
             of = ObjFactory()
+            of._owner = self._keeper()
             __ep.accept(of._hndl)
             ret.append(of._obj)
         return ret
     cpdef getOption(self, i):
         cdef ast_decl.ICovergroupOption *__ep = self.asCovergroupType().getOptions().at(i).get();
         of = ObjFactory()
+        of._owner = self._keeper()
         __ep.accept(of._hndl)
         return of._obj
     cpdef void addOption(self, CovergroupOption i):
@@ -7637,6 +8074,7 @@ cdef class CovergroupType(TypeScope):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asCovergroupType().getBody().accept(of._hndl)
             return <SymbolScope>(of._obj)
 
@@ -7657,6 +8095,7 @@ cdef class SymbolEnumScope(SymbolScope):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asSymbolEnumScope().getDecl().accept(of._hndl)
             return <EnumDecl>(of._obj)
 
@@ -7695,12 +8134,14 @@ cdef class SymbolFunctionScope(SymbolScope):
         for __i in range(__lp.size()):
             __ep = __lp.at(__i)
             of = ObjFactory()
+            of._owner = self._keeper()
             __ep.accept(of._hndl)
             ret.append(of._obj)
         return ret
     cpdef getPrototype(self, i):
         cdef ast_decl.IFunctionPrototype *__ep = self.asSymbolFunctionScope().getPrototypes().at(i);
         of = ObjFactory()
+        of._owner = self._keeper()
         __ep.accept(of._hndl)
         return of._obj
     cpdef void addPrototype(self, FunctionPrototype i):
@@ -7717,12 +8158,14 @@ cdef class SymbolFunctionScope(SymbolScope):
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
             of = ObjFactory()
+            of._owner = self._keeper()
             __ep.accept(of._hndl)
             ret.append(of._obj)
         return ret
     cpdef getImport_spec(self, i):
         cdef ast_decl.IFunctionImport *__ep = self.asSymbolFunctionScope().getImport_specs().at(i).get();
         of = ObjFactory()
+        of._owner = self._keeper()
         __ep.accept(of._hndl)
         return of._obj
     cpdef void addImport_spec(self, FunctionImport i):
@@ -7735,6 +8178,7 @@ cdef class SymbolFunctionScope(SymbolScope):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asSymbolFunctionScope().getDefinition().accept(of._hndl)
             return <FunctionDefinition>(of._obj)
     cpdef SymbolScope getPlist(self):
@@ -7742,6 +8186,7 @@ cdef class SymbolFunctionScope(SymbolScope):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asSymbolFunctionScope().getPlist().accept(of._hndl)
             return <SymbolScope>(of._obj)
     cpdef ExecScope getBody(self):
@@ -7749,6 +8194,7 @@ cdef class SymbolFunctionScope(SymbolScope):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asSymbolFunctionScope().getBody().accept(of._hndl)
             return <ExecScope>(of._obj)
 
@@ -7769,6 +8215,7 @@ cdef class SymbolTypeScope(SymbolScope):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asSymbolTypeScope().getPlist().accept(of._hndl)
             return <SymbolScope>(of._obj)
     def spec_types(self) -> ListUtil:
@@ -7781,12 +8228,14 @@ cdef class SymbolTypeScope(SymbolScope):
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
             of = ObjFactory()
+            of._owner = self._keeper()
             __ep.accept(of._hndl)
             ret.append(of._obj)
         return ret
     cpdef getSpec_type(self, i):
         cdef ast_decl.ISymbolTypeScope *__ep = self.asSymbolTypeScope().getSpec_types().at(i).get();
         of = ObjFactory()
+        of._owner = self._keeper()
         __ep.accept(of._hndl)
         return of._obj
     cpdef void addSpec_type(self, SymbolTypeScope i):
@@ -7804,12 +8253,14 @@ cdef class SymbolTypeScope(SymbolScope):
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
             of = ObjFactory()
+            of._owner = self._keeper()
             __ep.accept(of._hndl)
             ret.append(of._obj)
         return ret
     cpdef getExt_member(self, i):
         cdef ast_decl.ISymbolExtMember *__ep = self.asSymbolTypeScope().getExt_members().at(i).get();
         of = ObjFactory()
+        of._owner = self._keeper()
         __ep.accept(of._hndl)
         return of._obj
     cpdef void addExt_member(self, SymbolExtMember i):
@@ -7876,12 +8327,14 @@ cdef class TemplateString(SymbolScope):
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
             of = ObjFactory()
+            of._owner = self._keeper()
             __ep.accept(of._hndl)
             ret.append(of._obj)
         return ret
     cpdef getElem(self, i):
         cdef ast_decl.ITemplateElem *__ep = self.asTemplateString().getElems().at(i).get();
         of = ObjFactory()
+        of._owner = self._keeper()
         __ep.accept(of._hndl)
         return of._obj
     cpdef void addElem(self, TemplateElem i):
@@ -7909,6 +8362,7 @@ cdef class ActivityAtomicBlock(ActivityLabeledScope):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asActivityAtomicBlock().getBody().accept(of._hndl)
             return <ScopeChild>(of._obj)
 
@@ -7929,6 +8383,7 @@ cdef class ActivityForeach(ActivityLabeledScope):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asActivityForeach().getIt_id().accept(of._hndl)
             return <ExprId>(of._obj)
     cpdef ExprId getIdx_id(self):
@@ -7936,6 +8391,7 @@ cdef class ActivityForeach(ActivityLabeledScope):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asActivityForeach().getIdx_id().accept(of._hndl)
             return <ExprId>(of._obj)
     cpdef ExprRefPathContext getPath(self):
@@ -7943,6 +8399,7 @@ cdef class ActivityForeach(ActivityLabeledScope):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asActivityForeach().getPath().accept(of._hndl)
             return <ExprRefPathContext>(of._obj)
     cpdef ScopeChild getBody(self):
@@ -7950,6 +8407,7 @@ cdef class ActivityForeach(ActivityLabeledScope):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asActivityForeach().getBody().accept(of._hndl)
             return <ScopeChild>(of._obj)
 
@@ -7970,6 +8428,7 @@ cdef class ActivityIfElse(ActivityLabeledScope):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asActivityIfElse().getCond().accept(of._hndl)
             return <Expr>(of._obj)
     cpdef ScopeChild getTrue_s(self):
@@ -7977,6 +8436,7 @@ cdef class ActivityIfElse(ActivityLabeledScope):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asActivityIfElse().getTrue_s().accept(of._hndl)
             return <ScopeChild>(of._obj)
     cpdef ScopeChild getFalse_s(self):
@@ -7984,6 +8444,7 @@ cdef class ActivityIfElse(ActivityLabeledScope):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asActivityIfElse().getFalse_s().accept(of._hndl)
             return <ScopeChild>(of._obj)
 
@@ -8004,6 +8465,7 @@ cdef class ActivityMatch(ActivityLabeledScope):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asActivityMatch().getCond().accept(of._hndl)
             return <Expr>(of._obj)
     def choices(self) -> ListUtil:
@@ -8016,12 +8478,14 @@ cdef class ActivityMatch(ActivityLabeledScope):
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
             of = ObjFactory()
+            of._owner = self._keeper()
             __ep.accept(of._hndl)
             ret.append(of._obj)
         return ret
     cpdef getChoice(self, i):
         cdef ast_decl.IActivityMatchChoice *__ep = self.asActivityMatch().getChoices().at(i).get();
         of = ObjFactory()
+        of._owner = self._keeper()
         __ep.accept(of._hndl)
         return of._obj
     cpdef void addChoice(self, ActivityMatchChoice i):
@@ -8047,6 +8511,7 @@ cdef class ActivityParallel(ActivityLabeledScope):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asActivityParallel().getJoin_spec().accept(of._hndl)
             return <ActivityJoinSpec>(of._obj)
 
@@ -8067,6 +8532,7 @@ cdef class ActivityRepeatCount(ActivityLabeledScope):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asActivityRepeatCount().getLoop_var().accept(of._hndl)
             return <ExprId>(of._obj)
     cpdef Expr getCount(self):
@@ -8074,6 +8540,7 @@ cdef class ActivityRepeatCount(ActivityLabeledScope):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asActivityRepeatCount().getCount().accept(of._hndl)
             return <Expr>(of._obj)
     cpdef ScopeChild getBody(self):
@@ -8081,6 +8548,7 @@ cdef class ActivityRepeatCount(ActivityLabeledScope):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asActivityRepeatCount().getBody().accept(of._hndl)
             return <ScopeChild>(of._obj)
 
@@ -8101,6 +8569,7 @@ cdef class ActivityRepeatWhile(ActivityLabeledScope):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asActivityRepeatWhile().getCond().accept(of._hndl)
             return <Expr>(of._obj)
     cpdef ScopeChild getBody(self):
@@ -8108,6 +8577,7 @@ cdef class ActivityRepeatWhile(ActivityLabeledScope):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asActivityRepeatWhile().getBody().accept(of._hndl)
             return <ScopeChild>(of._obj)
 
@@ -8128,6 +8598,7 @@ cdef class ActivityReplicate(ActivityLabeledScope):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asActivityReplicate().getIdx_id().accept(of._hndl)
             return <ExprId>(of._obj)
     cpdef Expr getCount(self):
@@ -8135,6 +8606,7 @@ cdef class ActivityReplicate(ActivityLabeledScope):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asActivityReplicate().getCount().accept(of._hndl)
             return <Expr>(of._obj)
     cpdef ExprId getIt_label(self):
@@ -8142,6 +8614,7 @@ cdef class ActivityReplicate(ActivityLabeledScope):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asActivityReplicate().getIt_label().accept(of._hndl)
             return <ExprId>(of._obj)
     cpdef ScopeChild getBody(self):
@@ -8149,6 +8622,7 @@ cdef class ActivityReplicate(ActivityLabeledScope):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asActivityReplicate().getBody().accept(of._hndl)
             return <ScopeChild>(of._obj)
 
@@ -8169,6 +8643,7 @@ cdef class ActivitySchedule(ActivityLabeledScope):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asActivitySchedule().getJoin_spec().accept(of._hndl)
             return <ActivityJoinSpec>(of._obj)
 
@@ -8259,12 +8734,14 @@ cdef class ActivitySelect(ActivityLabeledScope):
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
             of = ObjFactory()
+            of._owner = self._keeper()
             __ep.accept(of._hndl)
             ret.append(of._obj)
         return ret
     cpdef getBranche(self, i):
         cdef ast_decl.IActivitySelectBranch *__ep = self.asActivitySelect().getBranches().at(i).get();
         of = ObjFactory()
+        of._owner = self._keeper()
         __ep.accept(of._hndl)
         return of._obj
     cpdef void addBranche(self, ActivitySelectBranch i):
@@ -8290,6 +8767,7 @@ cdef class MonitorActivityEventually(MonitorActivityLabeledScope):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asMonitorActivityEventually().getBody().accept(of._hndl)
             return <ScopeChild>(of._obj)
 
@@ -8323,6 +8801,7 @@ cdef class ProceduralStmtForeach(ProceduralStmtSymbolBodyScope):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asProceduralStmtForeach().getPath().accept(of._hndl)
             return <ExprRefPath>(of._obj)
     cpdef ExprId getIt_id(self):
@@ -8330,6 +8809,7 @@ cdef class ProceduralStmtForeach(ProceduralStmtSymbolBodyScope):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asProceduralStmtForeach().getIt_id().accept(of._hndl)
             return <ExprId>(of._obj)
     cpdef ExprId getIdx_id(self):
@@ -8337,6 +8817,7 @@ cdef class ProceduralStmtForeach(ProceduralStmtSymbolBodyScope):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asProceduralStmtForeach().getIdx_id().accept(of._hndl)
             return <ExprId>(of._obj)
 
@@ -8357,6 +8838,7 @@ cdef class ProceduralStmtRepeat(ProceduralStmtSymbolBodyScope):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asProceduralStmtRepeat().getIt_id().accept(of._hndl)
             return <ExprId>(of._obj)
     cpdef Expr getCount(self):
@@ -8364,6 +8846,7 @@ cdef class ProceduralStmtRepeat(ProceduralStmtSymbolBodyScope):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asProceduralStmtRepeat().getCount().accept(of._hndl)
             return <Expr>(of._obj)
 
@@ -8384,6 +8867,7 @@ cdef class TemplateAssign(TemplateElem):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asTemplateAssign().getLhs().accept(of._hndl)
             return <ExprRefName>(of._obj)
     cpdef Expr getRhs(self):
@@ -8391,6 +8875,7 @@ cdef class TemplateAssign(TemplateElem):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asTemplateAssign().getRhs().accept(of._hndl)
             return <Expr>(of._obj)
 
@@ -8416,12 +8901,14 @@ cdef class TemplateBlock(TemplateElem):
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
             of = ObjFactory()
+            of._owner = self._keeper()
             __ep.accept(of._hndl)
             ret.append(of._obj)
         return ret
     cpdef getBody(self, i):
         cdef ast_decl.ITemplateElem *__ep = self.asTemplateBlock().getBody().at(i).get();
         of = ObjFactory()
+        of._owner = self._keeper()
         __ep.accept(of._hndl)
         return of._obj
     cpdef void addBody(self, TemplateElem i):
@@ -8466,6 +8953,7 @@ cdef class TemplateExpr(TemplateElem):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asTemplateExpr().getExpr().accept(of._hndl)
             return <Expr>(of._obj)
 
@@ -8508,12 +8996,14 @@ cdef class TemplateIf(TemplateElem):
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
             of = ObjFactory()
+            of._owner = self._keeper()
             __ep.accept(of._hndl)
             ret.append(of._obj)
         return ret
     cpdef getClause(self, i):
         cdef ast_decl.ITemplateIfClause *__ep = self.asTemplateIf().getClauses().at(i).get();
         of = ObjFactory()
+        of._owner = self._keeper()
         __ep.accept(of._hndl)
         return of._obj
     cpdef void addClause(self, TemplateIfClause i):
@@ -8561,12 +9051,14 @@ cdef class TemplateVarDecl(TemplateElem):
         for __i in range(__lp.size()):
             __ep = __lp.at(__i).get()
             of = ObjFactory()
+            of._owner = self._keeper()
             __ep.accept(of._hndl)
             ret.append(of._obj)
         return ret
     cpdef getDecl(self, i):
         cdef ast_decl.IProceduralStmtDataDeclaration *__ep = self.asTemplateVarDecl().getDecls().at(i).get();
         of = ObjFactory()
+        of._owner = self._keeper()
         __ep.accept(of._hndl)
         return of._obj
     cpdef void addDecl(self, ProceduralStmtDataDeclaration i):
@@ -8592,6 +9084,7 @@ cdef class TemplateForeach(TemplateBlock):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asTemplateForeach().getExpr().accept(of._hndl)
             return <Expr>(of._obj)
     cpdef ExprId getIt(self):
@@ -8599,6 +9092,7 @@ cdef class TemplateForeach(TemplateBlock):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asTemplateForeach().getIt().accept(of._hndl)
             return <ExprId>(of._obj)
     cpdef ExprId getIdx(self):
@@ -8606,6 +9100,7 @@ cdef class TemplateForeach(TemplateBlock):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asTemplateForeach().getIdx().accept(of._hndl)
             return <ExprId>(of._obj)
 
@@ -8626,6 +9121,7 @@ cdef class TemplateRepeat(TemplateBlock):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asTemplateRepeat().getExpr().accept(of._hndl)
             return <Expr>(of._obj)
     cpdef ExprId getIdx(self):
@@ -8633,6 +9129,7 @@ cdef class TemplateRepeat(TemplateBlock):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asTemplateRepeat().getIdx().accept(of._hndl)
             return <ExprId>(of._obj)
 
@@ -8653,6 +9150,7 @@ cdef class TemplateIfClause(TemplateBlock):
             return None
         else:
             of = ObjFactory()
+            of._owner = self._keeper()
             self.asTemplateIfClause().getCond().accept(of._hndl)
             return <Expr>(of._obj)
 
@@ -9119,463 +9617,921 @@ cdef class VisitorBase(object):
     cpdef void visitTemplateIfClause(self, TemplateIfClause i):
         self._hndl.py_visitTemplateIfClauseBase(dynamic_cast[ast_decl.ITemplateIfClauseP](i._hndl));
 cdef public api ast_call_visitExprAggrStructElem(object self, ast_decl.IExprAggrStructElem *i) with gil:
-    self.visitExprAggrStructElem(ExprAggrStructElem.mk(i, False))
+    cdef ExprAggrStructElem n = ExprAggrStructElem.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitExprAggrStructElem(n)
 cdef public api ast_call_visitAssocData(object self, ast_decl.IAssocData *i) with gil:
-    self.visitAssocData(AssocData.mk(i, False))
+    cdef AssocData n = AssocData.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitAssocData(n)
 cdef public api ast_call_visitSymbolExtMember(object self, ast_decl.ISymbolExtMember *i) with gil:
-    self.visitSymbolExtMember(SymbolExtMember.mk(i, False))
+    cdef SymbolExtMember n = SymbolExtMember.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitSymbolExtMember(n)
 cdef public api ast_call_visitCompileCond(object self, ast_decl.ICompileCond *i) with gil:
-    self.visitCompileCond(CompileCond.mk(i, False))
+    cdef CompileCond n = CompileCond.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitCompileCond(n)
 cdef public api ast_call_visitSymbolImportSpec(object self, ast_decl.ISymbolImportSpec *i) with gil:
-    self.visitSymbolImportSpec(SymbolImportSpec.mk(i, False))
+    cdef SymbolImportSpec n = SymbolImportSpec.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitSymbolImportSpec(n)
 cdef public api ast_call_visitSymbolRefPath(object self, ast_decl.ISymbolRefPath *i) with gil:
-    self.visitSymbolRefPath(SymbolRefPath.mk(i, False))
+    cdef SymbolRefPath n = SymbolRefPath.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitSymbolRefPath(n)
 cdef public api ast_call_visitTemplateParamValue(object self, ast_decl.ITemplateParamValue *i) with gil:
-    self.visitTemplateParamValue(TemplateParamValue.mk(i, False))
+    cdef TemplateParamValue n = TemplateParamValue.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitTemplateParamValue(n)
 cdef public api ast_call_visitActivityMatchChoice(object self, ast_decl.IActivityMatchChoice *i) with gil:
-    self.visitActivityMatchChoice(ActivityMatchChoice.mk(i, False))
+    cdef ActivityMatchChoice n = ActivityMatchChoice.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitActivityMatchChoice(n)
 cdef public api ast_call_visitTemplateParamDeclList(object self, ast_decl.ITemplateParamDeclList *i) with gil:
-    self.visitTemplateParamDeclList(TemplateParamDeclList.mk(i, False))
+    cdef TemplateParamDeclList n = TemplateParamDeclList.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitTemplateParamDeclList(n)
 cdef public api ast_call_visitExpr(object self, ast_decl.IExpr *i) with gil:
-    self.visitExpr(Expr.mk(i, False))
+    cdef Expr n = Expr.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitExpr(n)
 cdef public api ast_call_visitTemplateParamValueList(object self, ast_decl.ITemplateParamValueList *i) with gil:
-    self.visitTemplateParamValueList(TemplateParamValueList.mk(i, False))
+    cdef TemplateParamValueList n = TemplateParamValueList.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitTemplateParamValueList(n)
 cdef public api ast_call_visitActivitySelectBranch(object self, ast_decl.IActivitySelectBranch *i) with gil:
-    self.visitActivitySelectBranch(ActivitySelectBranch.mk(i, False))
+    cdef ActivitySelectBranch n = ActivitySelectBranch.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitActivitySelectBranch(n)
 cdef public api ast_call_visitScopeChild(object self, ast_decl.IScopeChild *i) with gil:
-    self.visitScopeChild(ScopeChild.mk(i, False))
+    cdef ScopeChild n = ScopeChild.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitScopeChild(n)
 cdef public api ast_call_visitExprAggrMapElem(object self, ast_decl.IExprAggrMapElem *i) with gil:
-    self.visitExprAggrMapElem(ExprAggrMapElem.mk(i, False))
+    cdef ExprAggrMapElem n = ExprAggrMapElem.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitExprAggrMapElem(n)
 cdef public api ast_call_visitActionFieldInitializer(object self, ast_decl.IActionFieldInitializer *i) with gil:
-    self.visitActionFieldInitializer(ActionFieldInitializer.mk(i, False))
+    cdef ActionFieldInitializer n = ActionFieldInitializer.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitActionFieldInitializer(n)
 cdef public api ast_call_visitFunctionDefinition(object self, ast_decl.IFunctionDefinition *i) with gil:
-    self.visitFunctionDefinition(FunctionDefinition.mk(i, False))
+    cdef FunctionDefinition n = FunctionDefinition.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitFunctionDefinition(n)
 cdef public api ast_call_visitFunctionImport(object self, ast_decl.IFunctionImport *i) with gil:
-    self.visitFunctionImport(FunctionImport.mk(i, False))
+    cdef FunctionImport n = FunctionImport.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitFunctionImport(n)
 cdef public api ast_call_visitFunctionParamDecl(object self, ast_decl.IFunctionParamDecl *i) with gil:
-    self.visitFunctionParamDecl(FunctionParamDecl.mk(i, False))
+    cdef FunctionParamDecl n = FunctionParamDecl.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitFunctionParamDecl(n)
 cdef public api ast_call_visitActivityJoinSpec(object self, ast_decl.IActivityJoinSpec *i) with gil:
-    self.visitActivityJoinSpec(ActivityJoinSpec.mk(i, False))
+    cdef ActivityJoinSpec n = ActivityJoinSpec.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitActivityJoinSpec(n)
 cdef public api ast_call_visitGenericConstraintDeclValue(object self, ast_decl.IGenericConstraintDeclValue *i) with gil:
-    self.visitGenericConstraintDeclValue(GenericConstraintDeclValue.mk(i, False))
+    cdef GenericConstraintDeclValue n = GenericConstraintDeclValue.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitGenericConstraintDeclValue(n)
 cdef public api ast_call_visitGenericConstraintParam(object self, ast_decl.IGenericConstraintParam *i) with gil:
-    self.visitGenericConstraintParam(GenericConstraintParam.mk(i, False))
+    cdef GenericConstraintParam n = GenericConstraintParam.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitGenericConstraintParam(n)
 cdef public api ast_call_visitMethodParameterList(object self, ast_decl.IMethodParameterList *i) with gil:
-    self.visitMethodParameterList(MethodParameterList.mk(i, False))
+    cdef MethodParameterList n = MethodParameterList.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitMethodParameterList(n)
 cdef public api ast_call_visitActivitySchedulingConstraint(object self, ast_decl.IActivitySchedulingConstraint *i) with gil:
-    self.visitActivitySchedulingConstraint(ActivitySchedulingConstraint.mk(i, False))
+    cdef ActivitySchedulingConstraint n = ActivitySchedulingConstraint.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitActivitySchedulingConstraint(n)
 cdef public api ast_call_visitActivityStmt(object self, ast_decl.IActivityStmt *i) with gil:
-    self.visitActivityStmt(ActivityStmt.mk(i, False))
+    cdef ActivityStmt n = ActivityStmt.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitActivityStmt(n)
 cdef public api ast_call_visitMonitorActivityStmt(object self, ast_decl.IMonitorActivityStmt *i) with gil:
-    self.visitMonitorActivityStmt(MonitorActivityStmt.mk(i, False))
+    cdef MonitorActivityStmt n = MonitorActivityStmt.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitMonitorActivityStmt(n)
 cdef public api ast_call_visitAnnotation(object self, ast_decl.IAnnotation *i) with gil:
-    self.visitAnnotation(Annotation.mk(i, False))
+    cdef Annotation n = Annotation.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitAnnotation(n)
 cdef public api ast_call_visitNamedScopeChild(object self, ast_decl.INamedScopeChild *i) with gil:
-    self.visitNamedScopeChild(NamedScopeChild.mk(i, False))
+    cdef NamedScopeChild n = NamedScopeChild.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitNamedScopeChild(n)
 cdef public api ast_call_visitAnnotationParam(object self, ast_decl.IAnnotationParam *i) with gil:
-    self.visitAnnotationParam(AnnotationParam.mk(i, False))
+    cdef AnnotationParam n = AnnotationParam.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitAnnotationParam(n)
 cdef public api ast_call_visitOverrideStmt(object self, ast_decl.IOverrideStmt *i) with gil:
-    self.visitOverrideStmt(OverrideStmt.mk(i, False))
+    cdef OverrideStmt n = OverrideStmt.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitOverrideStmt(n)
 cdef public api ast_call_visitComment(object self, ast_decl.IComment *i) with gil:
-    self.visitComment(Comment.mk(i, False))
+    cdef Comment n = Comment.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitComment(n)
 cdef public api ast_call_visitPackageImportStmt(object self, ast_decl.IPackageImportStmt *i) with gil:
-    self.visitPackageImportStmt(PackageImportStmt.mk(i, False))
+    cdef PackageImportStmt n = PackageImportStmt.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitPackageImportStmt(n)
 cdef public api ast_call_visitComponentBind(object self, ast_decl.IComponentBind *i) with gil:
-    self.visitComponentBind(ComponentBind.mk(i, False))
+    cdef ComponentBind n = ComponentBind.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitComponentBind(n)
 cdef public api ast_call_visitComponentBindTarget(object self, ast_decl.IComponentBindTarget *i) with gil:
-    self.visitComponentBindTarget(ComponentBindTarget.mk(i, False))
+    cdef ComponentBindTarget n = ComponentBindTarget.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitComponentBindTarget(n)
 cdef public api ast_call_visitComponentPathElem(object self, ast_decl.IComponentPathElem *i) with gil:
-    self.visitComponentPathElem(ComponentPathElem.mk(i, False))
+    cdef ComponentPathElem n = ComponentPathElem.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitComponentPathElem(n)
 cdef public api ast_call_visitConstraintStmt(object self, ast_decl.IConstraintStmt *i) with gil:
-    self.visitConstraintStmt(ConstraintStmt.mk(i, False))
+    cdef ConstraintStmt n = ConstraintStmt.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitConstraintStmt(n)
 cdef public api ast_call_visitProceduralStmtIfClause(object self, ast_decl.IProceduralStmtIfClause *i) with gil:
-    self.visitProceduralStmtIfClause(ProceduralStmtIfClause.mk(i, False))
+    cdef ProceduralStmtIfClause n = ProceduralStmtIfClause.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitProceduralStmtIfClause(n)
 cdef public api ast_call_visitPyImportFromStmt(object self, ast_decl.IPyImportFromStmt *i) with gil:
-    self.visitPyImportFromStmt(PyImportFromStmt.mk(i, False))
+    cdef PyImportFromStmt n = PyImportFromStmt.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitPyImportFromStmt(n)
 cdef public api ast_call_visitPyImportStmt(object self, ast_decl.IPyImportStmt *i) with gil:
-    self.visitPyImportStmt(PyImportStmt.mk(i, False))
+    cdef PyImportStmt n = PyImportStmt.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitPyImportStmt(n)
 cdef public api ast_call_visitCoverStmtReference(object self, ast_decl.ICoverStmtReference *i) with gil:
-    self.visitCoverStmtReference(CoverStmtReference.mk(i, False))
+    cdef CoverStmtReference n = CoverStmtReference.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitCoverStmtReference(n)
 cdef public api ast_call_visitScope(object self, ast_decl.IScope *i) with gil:
-    self.visitScope(Scope.mk(i, False))
+    cdef Scope n = Scope.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitScope(n)
 cdef public api ast_call_visitScopeChildRef(object self, ast_decl.IScopeChildRef *i) with gil:
-    self.visitScopeChildRef(ScopeChildRef.mk(i, False))
+    cdef ScopeChildRef n = ScopeChildRef.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitScopeChildRef(n)
 cdef public api ast_call_visitSymbolChild(object self, ast_decl.ISymbolChild *i) with gil:
-    self.visitSymbolChild(SymbolChild.mk(i, False))
+    cdef SymbolChild n = SymbolChild.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitSymbolChild(n)
 cdef public api ast_call_visitCovergroupOption(object self, ast_decl.ICovergroupOption *i) with gil:
-    self.visitCovergroupOption(CovergroupOption.mk(i, False))
+    cdef CovergroupOption n = CovergroupOption.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitCovergroupOption(n)
 cdef public api ast_call_visitCovergroupPortmap(object self, ast_decl.ICovergroupPortmap *i) with gil:
-    self.visitCovergroupPortmap(CovergroupPortmap.mk(i, False))
+    cdef CovergroupPortmap n = CovergroupPortmap.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitCovergroupPortmap(n)
 cdef public api ast_call_visitDataType(object self, ast_decl.IDataType *i) with gil:
-    self.visitDataType(DataType.mk(i, False))
+    cdef DataType n = DataType.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitDataType(n)
 cdef public api ast_call_visitTargetTemplateFunction(object self, ast_decl.ITargetTemplateFunction *i) with gil:
-    self.visitTargetTemplateFunction(TargetTemplateFunction.mk(i, False))
+    cdef TargetTemplateFunction n = TargetTemplateFunction.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitTargetTemplateFunction(n)
 cdef public api ast_call_visitDistItem(object self, ast_decl.IDistItem *i) with gil:
-    self.visitDistItem(DistItem.mk(i, False))
+    cdef DistItem n = DistItem.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitDistItem(n)
 cdef public api ast_call_visitDistWeight(object self, ast_decl.IDistWeight *i) with gil:
-    self.visitDistWeight(DistWeight.mk(i, False))
+    cdef DistWeight n = DistWeight.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitDistWeight(n)
 cdef public api ast_call_visitExecBlockTag(object self, ast_decl.IExecBlockTag *i) with gil:
-    self.visitExecBlockTag(ExecBlockTag.mk(i, False))
+    cdef ExecBlockTag n = ExecBlockTag.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitExecBlockTag(n)
 cdef public api ast_call_visitExecStmt(object self, ast_decl.IExecStmt *i) with gil:
-    self.visitExecStmt(ExecStmt.mk(i, False))
+    cdef ExecStmt n = ExecStmt.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitExecStmt(n)
 cdef public api ast_call_visitExecTargetTemplateBlock(object self, ast_decl.IExecTargetTemplateBlock *i) with gil:
-    self.visitExecTargetTemplateBlock(ExecTargetTemplateBlock.mk(i, False))
+    cdef ExecTargetTemplateBlock n = ExecTargetTemplateBlock.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitExecTargetTemplateBlock(n)
 cdef public api ast_call_visitExportAction(object self, ast_decl.IExportAction *i) with gil:
-    self.visitExportAction(ExportAction.mk(i, False))
+    cdef ExportAction n = ExportAction.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitExportAction(n)
 cdef public api ast_call_visitExportFunction(object self, ast_decl.IExportFunction *i) with gil:
-    self.visitExportFunction(ExportFunction.mk(i, False))
+    cdef ExportFunction n = ExportFunction.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitExportFunction(n)
 cdef public api ast_call_visitTemplateParamDecl(object self, ast_decl.ITemplateParamDecl *i) with gil:
-    self.visitTemplateParamDecl(TemplateParamDecl.mk(i, False))
+    cdef TemplateParamDecl n = TemplateParamDecl.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitTemplateParamDecl(n)
 cdef public api ast_call_visitTemplateParamExprValue(object self, ast_decl.ITemplateParamExprValue *i) with gil:
-    self.visitTemplateParamExprValue(TemplateParamExprValue.mk(i, False))
+    cdef TemplateParamExprValue n = TemplateParamExprValue.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitTemplateParamExprValue(n)
 cdef public api ast_call_visitTemplateParamTypeValue(object self, ast_decl.ITemplateParamTypeValue *i) with gil:
-    self.visitTemplateParamTypeValue(TemplateParamTypeValue.mk(i, False))
+    cdef TemplateParamTypeValue n = TemplateParamTypeValue.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitTemplateParamTypeValue(n)
 cdef public api ast_call_visitExprAggrLiteral(object self, ast_decl.IExprAggrLiteral *i) with gil:
-    self.visitExprAggrLiteral(ExprAggrLiteral.mk(i, False))
+    cdef ExprAggrLiteral n = ExprAggrLiteral.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitExprAggrLiteral(n)
 cdef public api ast_call_visitTypeIdentifier(object self, ast_decl.ITypeIdentifier *i) with gil:
-    self.visitTypeIdentifier(TypeIdentifier.mk(i, False))
+    cdef TypeIdentifier n = TypeIdentifier.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitTypeIdentifier(n)
 cdef public api ast_call_visitExprBin(object self, ast_decl.IExprBin *i) with gil:
-    self.visitExprBin(ExprBin.mk(i, False))
+    cdef ExprBin n = ExprBin.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitExprBin(n)
 cdef public api ast_call_visitExprBitSlice(object self, ast_decl.IExprBitSlice *i) with gil:
-    self.visitExprBitSlice(ExprBitSlice.mk(i, False))
+    cdef ExprBitSlice n = ExprBitSlice.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitExprBitSlice(n)
 cdef public api ast_call_visitExprBool(object self, ast_decl.IExprBool *i) with gil:
-    self.visitExprBool(ExprBool.mk(i, False))
+    cdef ExprBool n = ExprBool.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitExprBool(n)
 cdef public api ast_call_visitExprCast(object self, ast_decl.IExprCast *i) with gil:
-    self.visitExprCast(ExprCast.mk(i, False))
+    cdef ExprCast n = ExprCast.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitExprCast(n)
 cdef public api ast_call_visitExprCompileHas(object self, ast_decl.IExprCompileHas *i) with gil:
-    self.visitExprCompileHas(ExprCompileHas.mk(i, False))
+    cdef ExprCompileHas n = ExprCompileHas.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitExprCompileHas(n)
 cdef public api ast_call_visitExprCond(object self, ast_decl.IExprCond *i) with gil:
-    self.visitExprCond(ExprCond.mk(i, False))
+    cdef ExprCond n = ExprCond.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitExprCond(n)
 cdef public api ast_call_visitExprDomainOpenRangeList(object self, ast_decl.IExprDomainOpenRangeList *i) with gil:
-    self.visitExprDomainOpenRangeList(ExprDomainOpenRangeList.mk(i, False))
+    cdef ExprDomainOpenRangeList n = ExprDomainOpenRangeList.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitExprDomainOpenRangeList(n)
 cdef public api ast_call_visitExprDomainOpenRangeValue(object self, ast_decl.IExprDomainOpenRangeValue *i) with gil:
-    self.visitExprDomainOpenRangeValue(ExprDomainOpenRangeValue.mk(i, False))
+    cdef ExprDomainOpenRangeValue n = ExprDomainOpenRangeValue.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitExprDomainOpenRangeValue(n)
 cdef public api ast_call_visitExprFloatLiteral(object self, ast_decl.IExprFloatLiteral *i) with gil:
-    self.visitExprFloatLiteral(ExprFloatLiteral.mk(i, False))
+    cdef ExprFloatLiteral n = ExprFloatLiteral.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitExprFloatLiteral(n)
 cdef public api ast_call_visitExprHierarchicalId(object self, ast_decl.IExprHierarchicalId *i) with gil:
-    self.visitExprHierarchicalId(ExprHierarchicalId.mk(i, False))
+    cdef ExprHierarchicalId n = ExprHierarchicalId.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitExprHierarchicalId(n)
 cdef public api ast_call_visitExprId(object self, ast_decl.IExprId *i) with gil:
-    self.visitExprId(ExprId.mk(i, False))
+    cdef ExprId n = ExprId.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitExprId(n)
 cdef public api ast_call_visitExprIn(object self, ast_decl.IExprIn *i) with gil:
-    self.visitExprIn(ExprIn.mk(i, False))
+    cdef ExprIn n = ExprIn.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitExprIn(n)
 cdef public api ast_call_visitExprMemberCall(object self, ast_decl.IExprMemberCall *i) with gil:
-    self.visitExprMemberCall(ExprMemberCall.mk(i, False))
+    cdef ExprMemberCall n = ExprMemberCall.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitExprMemberCall(n)
 cdef public api ast_call_visitExprMemberPathElem(object self, ast_decl.IExprMemberPathElem *i) with gil:
-    self.visitExprMemberPathElem(ExprMemberPathElem.mk(i, False))
+    cdef ExprMemberPathElem n = ExprMemberPathElem.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitExprMemberPathElem(n)
 cdef public api ast_call_visitExprNull(object self, ast_decl.IExprNull *i) with gil:
-    self.visitExprNull(ExprNull.mk(i, False))
+    cdef ExprNull n = ExprNull.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitExprNull(n)
 cdef public api ast_call_visitExprNumber(object self, ast_decl.IExprNumber *i) with gil:
-    self.visitExprNumber(ExprNumber.mk(i, False))
+    cdef ExprNumber n = ExprNumber.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitExprNumber(n)
 cdef public api ast_call_visitExprOpenRangeList(object self, ast_decl.IExprOpenRangeList *i) with gil:
-    self.visitExprOpenRangeList(ExprOpenRangeList.mk(i, False))
+    cdef ExprOpenRangeList n = ExprOpenRangeList.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitExprOpenRangeList(n)
 cdef public api ast_call_visitExprOpenRangeValue(object self, ast_decl.IExprOpenRangeValue *i) with gil:
-    self.visitExprOpenRangeValue(ExprOpenRangeValue.mk(i, False))
+    cdef ExprOpenRangeValue n = ExprOpenRangeValue.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitExprOpenRangeValue(n)
 cdef public api ast_call_visitExprRefName(object self, ast_decl.IExprRefName *i) with gil:
-    self.visitExprRefName(ExprRefName.mk(i, False))
+    cdef ExprRefName n = ExprRefName.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitExprRefName(n)
 cdef public api ast_call_visitExprRefPath(object self, ast_decl.IExprRefPath *i) with gil:
-    self.visitExprRefPath(ExprRefPath.mk(i, False))
+    cdef ExprRefPath n = ExprRefPath.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitExprRefPath(n)
 cdef public api ast_call_visitTypeIdentifierElem(object self, ast_decl.ITypeIdentifierElem *i) with gil:
-    self.visitTypeIdentifierElem(TypeIdentifierElem.mk(i, False))
+    cdef TypeIdentifierElem n = TypeIdentifierElem.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitTypeIdentifierElem(n)
 cdef public api ast_call_visitExprSliceRange(object self, ast_decl.IExprSliceRange *i) with gil:
-    self.visitExprSliceRange(ExprSliceRange.mk(i, False))
+    cdef ExprSliceRange n = ExprSliceRange.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitExprSliceRange(n)
 cdef public api ast_call_visitExprString(object self, ast_decl.IExprString *i) with gil:
-    self.visitExprString(ExprString.mk(i, False))
+    cdef ExprString n = ExprString.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitExprString(n)
 cdef public api ast_call_visitTypedefDeclaration(object self, ast_decl.ITypedefDeclaration *i) with gil:
-    self.visitTypedefDeclaration(TypedefDeclaration.mk(i, False))
+    cdef TypedefDeclaration n = TypedefDeclaration.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitTypedefDeclaration(n)
 cdef public api ast_call_visitExprUnary(object self, ast_decl.IExprUnary *i) with gil:
-    self.visitExprUnary(ExprUnary.mk(i, False))
+    cdef ExprUnary n = ExprUnary.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitExprUnary(n)
 cdef public api ast_call_visitExtendEnum(object self, ast_decl.IExtendEnum *i) with gil:
-    self.visitExtendEnum(ExtendEnum.mk(i, False))
+    cdef ExtendEnum n = ExtendEnum.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitExtendEnum(n)
 cdef public api ast_call_visitActionHandleField(object self, ast_decl.IActionHandleField *i) with gil:
-    self.visitActionHandleField(ActionHandleField.mk(i, False))
+    cdef ActionHandleField n = ActionHandleField.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitActionHandleField(n)
 cdef public api ast_call_visitActivityBindStmt(object self, ast_decl.IActivityBindStmt *i) with gil:
-    self.visitActivityBindStmt(ActivityBindStmt.mk(i, False))
+    cdef ActivityBindStmt n = ActivityBindStmt.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitActivityBindStmt(n)
 cdef public api ast_call_visitActivityConstraint(object self, ast_decl.IActivityConstraint *i) with gil:
-    self.visitActivityConstraint(ActivityConstraint.mk(i, False))
+    cdef ActivityConstraint n = ActivityConstraint.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitActivityConstraint(n)
 cdef public api ast_call_visitActivityJoinSpecBranch(object self, ast_decl.IActivityJoinSpecBranch *i) with gil:
-    self.visitActivityJoinSpecBranch(ActivityJoinSpecBranch.mk(i, False))
+    cdef ActivityJoinSpecBranch n = ActivityJoinSpecBranch.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitActivityJoinSpecBranch(n)
 cdef public api ast_call_visitActivityJoinSpecFirst(object self, ast_decl.IActivityJoinSpecFirst *i) with gil:
-    self.visitActivityJoinSpecFirst(ActivityJoinSpecFirst.mk(i, False))
+    cdef ActivityJoinSpecFirst n = ActivityJoinSpecFirst.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitActivityJoinSpecFirst(n)
 cdef public api ast_call_visitActivityJoinSpecNone(object self, ast_decl.IActivityJoinSpecNone *i) with gil:
-    self.visitActivityJoinSpecNone(ActivityJoinSpecNone.mk(i, False))
+    cdef ActivityJoinSpecNone n = ActivityJoinSpecNone.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitActivityJoinSpecNone(n)
 cdef public api ast_call_visitActivityJoinSpecSelect(object self, ast_decl.IActivityJoinSpecSelect *i) with gil:
-    self.visitActivityJoinSpecSelect(ActivityJoinSpecSelect.mk(i, False))
+    cdef ActivityJoinSpecSelect n = ActivityJoinSpecSelect.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitActivityJoinSpecSelect(n)
 cdef public api ast_call_visitActivityLabeledStmt(object self, ast_decl.IActivityLabeledStmt *i) with gil:
-    self.visitActivityLabeledStmt(ActivityLabeledStmt.mk(i, False))
+    cdef ActivityLabeledStmt n = ActivityLabeledStmt.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitActivityLabeledStmt(n)
 cdef public api ast_call_visitActivitySymbolCall(object self, ast_decl.IActivitySymbolCall *i) with gil:
-    self.visitActivitySymbolCall(ActivitySymbolCall.mk(i, False))
+    cdef ActivitySymbolCall n = ActivitySymbolCall.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitActivitySymbolCall(n)
 cdef public api ast_call_visitConstraintScope(object self, ast_decl.IConstraintScope *i) with gil:
-    self.visitConstraintScope(ConstraintScope.mk(i, False))
+    cdef ConstraintScope n = ConstraintScope.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitConstraintScope(n)
 cdef public api ast_call_visitConstraintStmtDefault(object self, ast_decl.IConstraintStmtDefault *i) with gil:
-    self.visitConstraintStmtDefault(ConstraintStmtDefault.mk(i, False))
+    cdef ConstraintStmtDefault n = ConstraintStmtDefault.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitConstraintStmtDefault(n)
 cdef public api ast_call_visitConstraintStmtDefaultDisable(object self, ast_decl.IConstraintStmtDefaultDisable *i) with gil:
-    self.visitConstraintStmtDefaultDisable(ConstraintStmtDefaultDisable.mk(i, False))
+    cdef ConstraintStmtDefaultDisable n = ConstraintStmtDefaultDisable.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitConstraintStmtDefaultDisable(n)
 cdef public api ast_call_visitConstraintStmtDist(object self, ast_decl.IConstraintStmtDist *i) with gil:
-    self.visitConstraintStmtDist(ConstraintStmtDist.mk(i, False))
+    cdef ConstraintStmtDist n = ConstraintStmtDist.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitConstraintStmtDist(n)
 cdef public api ast_call_visitConstraintStmtExpr(object self, ast_decl.IConstraintStmtExpr *i) with gil:
-    self.visitConstraintStmtExpr(ConstraintStmtExpr.mk(i, False))
+    cdef ConstraintStmtExpr n = ConstraintStmtExpr.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitConstraintStmtExpr(n)
 cdef public api ast_call_visitConstraintStmtField(object self, ast_decl.IConstraintStmtField *i) with gil:
-    self.visitConstraintStmtField(ConstraintStmtField.mk(i, False))
+    cdef ConstraintStmtField n = ConstraintStmtField.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitConstraintStmtField(n)
 cdef public api ast_call_visitConstraintStmtIf(object self, ast_decl.IConstraintStmtIf *i) with gil:
-    self.visitConstraintStmtIf(ConstraintStmtIf.mk(i, False))
+    cdef ConstraintStmtIf n = ConstraintStmtIf.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitConstraintStmtIf(n)
 cdef public api ast_call_visitConstraintStmtSoft(object self, ast_decl.IConstraintStmtSoft *i) with gil:
-    self.visitConstraintStmtSoft(ConstraintStmtSoft.mk(i, False))
+    cdef ConstraintStmtSoft n = ConstraintStmtSoft.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitConstraintStmtSoft(n)
 cdef public api ast_call_visitConstraintStmtUnique(object self, ast_decl.IConstraintStmtUnique *i) with gil:
-    self.visitConstraintStmtUnique(ConstraintStmtUnique.mk(i, False))
+    cdef ConstraintStmtUnique n = ConstraintStmtUnique.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitConstraintStmtUnique(n)
 cdef public api ast_call_visitCoverStmtInline(object self, ast_decl.ICoverStmtInline *i) with gil:
-    self.visitCoverStmtInline(CoverStmtInline.mk(i, False))
+    cdef CoverStmtInline n = CoverStmtInline.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitCoverStmtInline(n)
 cdef public api ast_call_visitCovergroup(object self, ast_decl.ICovergroup *i) with gil:
-    self.visitCovergroup(Covergroup.mk(i, False))
+    cdef Covergroup n = Covergroup.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitCovergroup(n)
 cdef public api ast_call_visitCovergroupCoverpoint(object self, ast_decl.ICovergroupCoverpoint *i) with gil:
-    self.visitCovergroupCoverpoint(CovergroupCoverpoint.mk(i, False))
+    cdef CovergroupCoverpoint n = CovergroupCoverpoint.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitCovergroupCoverpoint(n)
 cdef public api ast_call_visitCovergroupCross(object self, ast_decl.ICovergroupCross *i) with gil:
-    self.visitCovergroupCross(CovergroupCross.mk(i, False))
+    cdef CovergroupCross n = CovergroupCross.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitCovergroupCross(n)
 cdef public api ast_call_visitCovergroupCrossBins(object self, ast_decl.ICovergroupCrossBins *i) with gil:
-    self.visitCovergroupCrossBins(CovergroupCrossBins.mk(i, False))
+    cdef CovergroupCrossBins n = CovergroupCrossBins.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitCovergroupCrossBins(n)
 cdef public api ast_call_visitCovergroupInstantiation(object self, ast_decl.ICovergroupInstantiation *i) with gil:
-    self.visitCovergroupInstantiation(CovergroupInstantiation.mk(i, False))
+    cdef CovergroupInstantiation n = CovergroupInstantiation.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitCovergroupInstantiation(n)
 cdef public api ast_call_visitCoverpointBins(object self, ast_decl.ICoverpointBins *i) with gil:
-    self.visitCoverpointBins(CoverpointBins.mk(i, False))
+    cdef CoverpointBins n = CoverpointBins.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitCoverpointBins(n)
 cdef public api ast_call_visitDataTypeBool(object self, ast_decl.IDataTypeBool *i) with gil:
-    self.visitDataTypeBool(DataTypeBool.mk(i, False))
+    cdef DataTypeBool n = DataTypeBool.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitDataTypeBool(n)
 cdef public api ast_call_visitDataTypeChandle(object self, ast_decl.IDataTypeChandle *i) with gil:
-    self.visitDataTypeChandle(DataTypeChandle.mk(i, False))
+    cdef DataTypeChandle n = DataTypeChandle.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitDataTypeChandle(n)
 cdef public api ast_call_visitDataTypeEnum(object self, ast_decl.IDataTypeEnum *i) with gil:
-    self.visitDataTypeEnum(DataTypeEnum.mk(i, False))
+    cdef DataTypeEnum n = DataTypeEnum.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitDataTypeEnum(n)
 cdef public api ast_call_visitDataTypeFloat(object self, ast_decl.IDataTypeFloat *i) with gil:
-    self.visitDataTypeFloat(DataTypeFloat.mk(i, False))
+    cdef DataTypeFloat n = DataTypeFloat.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitDataTypeFloat(n)
 cdef public api ast_call_visitDataTypeInt(object self, ast_decl.IDataTypeInt *i) with gil:
-    self.visitDataTypeInt(DataTypeInt.mk(i, False))
+    cdef DataTypeInt n = DataTypeInt.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitDataTypeInt(n)
 cdef public api ast_call_visitDataTypePyObj(object self, ast_decl.IDataTypePyObj *i) with gil:
-    self.visitDataTypePyObj(DataTypePyObj.mk(i, False))
+    cdef DataTypePyObj n = DataTypePyObj.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitDataTypePyObj(n)
 cdef public api ast_call_visitDataTypeRef(object self, ast_decl.IDataTypeRef *i) with gil:
-    self.visitDataTypeRef(DataTypeRef.mk(i, False))
+    cdef DataTypeRef n = DataTypeRef.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitDataTypeRef(n)
 cdef public api ast_call_visitDataTypeString(object self, ast_decl.IDataTypeString *i) with gil:
-    self.visitDataTypeString(DataTypeString.mk(i, False))
+    cdef DataTypeString n = DataTypeString.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitDataTypeString(n)
 cdef public api ast_call_visitDataTypeUserDefined(object self, ast_decl.IDataTypeUserDefined *i) with gil:
-    self.visitDataTypeUserDefined(DataTypeUserDefined.mk(i, False))
+    cdef DataTypeUserDefined n = DataTypeUserDefined.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitDataTypeUserDefined(n)
 cdef public api ast_call_visitEnumDecl(object self, ast_decl.IEnumDecl *i) with gil:
-    self.visitEnumDecl(EnumDecl.mk(i, False))
+    cdef EnumDecl n = EnumDecl.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitEnumDecl(n)
 cdef public api ast_call_visitEnumItem(object self, ast_decl.IEnumItem *i) with gil:
-    self.visitEnumItem(EnumItem.mk(i, False))
+    cdef EnumItem n = EnumItem.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitEnumItem(n)
 cdef public api ast_call_visitExprAggrEmpty(object self, ast_decl.IExprAggrEmpty *i) with gil:
-    self.visitExprAggrEmpty(ExprAggrEmpty.mk(i, False))
+    cdef ExprAggrEmpty n = ExprAggrEmpty.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitExprAggrEmpty(n)
 cdef public api ast_call_visitExprAggrList(object self, ast_decl.IExprAggrList *i) with gil:
-    self.visitExprAggrList(ExprAggrList.mk(i, False))
+    cdef ExprAggrList n = ExprAggrList.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitExprAggrList(n)
 cdef public api ast_call_visitExprAggrMap(object self, ast_decl.IExprAggrMap *i) with gil:
-    self.visitExprAggrMap(ExprAggrMap.mk(i, False))
+    cdef ExprAggrMap n = ExprAggrMap.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitExprAggrMap(n)
 cdef public api ast_call_visitExprAggrStruct(object self, ast_decl.IExprAggrStruct *i) with gil:
-    self.visitExprAggrStruct(ExprAggrStruct.mk(i, False))
+    cdef ExprAggrStruct n = ExprAggrStruct.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitExprAggrStruct(n)
 cdef public api ast_call_visitExprRefPathContext(object self, ast_decl.IExprRefPathContext *i) with gil:
-    self.visitExprRefPathContext(ExprRefPathContext.mk(i, False))
+    cdef ExprRefPathContext n = ExprRefPathContext.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitExprRefPathContext(n)
 cdef public api ast_call_visitExprRefPathStatic(object self, ast_decl.IExprRefPathStatic *i) with gil:
-    self.visitExprRefPathStatic(ExprRefPathStatic.mk(i, False))
+    cdef ExprRefPathStatic n = ExprRefPathStatic.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitExprRefPathStatic(n)
 cdef public api ast_call_visitExprRefPathStaticRooted(object self, ast_decl.IExprRefPathStaticRooted *i) with gil:
-    self.visitExprRefPathStaticRooted(ExprRefPathStaticRooted.mk(i, False))
+    cdef ExprRefPathStaticRooted n = ExprRefPathStaticRooted.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitExprRefPathStaticRooted(n)
 cdef public api ast_call_visitExprSignedNumber(object self, ast_decl.IExprSignedNumber *i) with gil:
-    self.visitExprSignedNumber(ExprSignedNumber.mk(i, False))
+    cdef ExprSignedNumber n = ExprSignedNumber.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitExprSignedNumber(n)
 cdef public api ast_call_visitExprTemplateString(object self, ast_decl.IExprTemplateString *i) with gil:
-    self.visitExprTemplateString(ExprTemplateString.mk(i, False))
+    cdef ExprTemplateString n = ExprTemplateString.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitExprTemplateString(n)
 cdef public api ast_call_visitExprUnsignedNumber(object self, ast_decl.IExprUnsignedNumber *i) with gil:
-    self.visitExprUnsignedNumber(ExprUnsignedNumber.mk(i, False))
+    cdef ExprUnsignedNumber n = ExprUnsignedNumber.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitExprUnsignedNumber(n)
 cdef public api ast_call_visitExtendType(object self, ast_decl.IExtendType *i) with gil:
-    self.visitExtendType(ExtendType.mk(i, False))
+    cdef ExtendType n = ExtendType.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitExtendType(n)
 cdef public api ast_call_visitField(object self, ast_decl.IField *i) with gil:
-    self.visitField(Field.mk(i, False))
+    cdef Field n = Field.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitField(n)
 cdef public api ast_call_visitFieldClaim(object self, ast_decl.IFieldClaim *i) with gil:
-    self.visitFieldClaim(FieldClaim.mk(i, False))
+    cdef FieldClaim n = FieldClaim.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitFieldClaim(n)
 cdef public api ast_call_visitFieldCompRef(object self, ast_decl.IFieldCompRef *i) with gil:
-    self.visitFieldCompRef(FieldCompRef.mk(i, False))
+    cdef FieldCompRef n = FieldCompRef.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitFieldCompRef(n)
 cdef public api ast_call_visitFieldPool(object self, ast_decl.IFieldPool *i) with gil:
-    self.visitFieldPool(FieldPool.mk(i, False))
+    cdef FieldPool n = FieldPool.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitFieldPool(n)
 cdef public api ast_call_visitFieldRef(object self, ast_decl.IFieldRef *i) with gil:
-    self.visitFieldRef(FieldRef.mk(i, False))
+    cdef FieldRef n = FieldRef.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitFieldRef(n)
 cdef public api ast_call_visitFunctionImportProto(object self, ast_decl.IFunctionImportProto *i) with gil:
-    self.visitFunctionImportProto(FunctionImportProto.mk(i, False))
+    cdef FunctionImportProto n = FunctionImportProto.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitFunctionImportProto(n)
 cdef public api ast_call_visitFunctionImportType(object self, ast_decl.IFunctionImportType *i) with gil:
-    self.visitFunctionImportType(FunctionImportType.mk(i, False))
+    cdef FunctionImportType n = FunctionImportType.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitFunctionImportType(n)
 cdef public api ast_call_visitFunctionPrototype(object self, ast_decl.IFunctionPrototype *i) with gil:
-    self.visitFunctionPrototype(FunctionPrototype.mk(i, False))
+    cdef FunctionPrototype n = FunctionPrototype.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitFunctionPrototype(n)
 cdef public api ast_call_visitGlobalScope(object self, ast_decl.IGlobalScope *i) with gil:
-    self.visitGlobalScope(GlobalScope.mk(i, False))
+    cdef GlobalScope n = GlobalScope.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitGlobalScope(n)
 cdef public api ast_call_visitInstanceOverride(object self, ast_decl.IInstanceOverride *i) with gil:
-    self.visitInstanceOverride(InstanceOverride.mk(i, False))
+    cdef InstanceOverride n = InstanceOverride.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitInstanceOverride(n)
 cdef public api ast_call_visitMonitorActivityLabeledStmt(object self, ast_decl.IMonitorActivityLabeledStmt *i) with gil:
-    self.visitMonitorActivityLabeledStmt(MonitorActivityLabeledStmt.mk(i, False))
+    cdef MonitorActivityLabeledStmt n = MonitorActivityLabeledStmt.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitMonitorActivityLabeledStmt(n)
 cdef public api ast_call_visitMonitorConstraint(object self, ast_decl.IMonitorConstraint *i) with gil:
-    self.visitMonitorConstraint(MonitorConstraint.mk(i, False))
+    cdef MonitorConstraint n = MonitorConstraint.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitMonitorConstraint(n)
 cdef public api ast_call_visitNamedScope(object self, ast_decl.INamedScope *i) with gil:
-    self.visitNamedScope(NamedScope.mk(i, False))
+    cdef NamedScope n = NamedScope.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitNamedScope(n)
 cdef public api ast_call_visitOverrideDecl(object self, ast_decl.IOverrideDecl *i) with gil:
-    self.visitOverrideDecl(OverrideDecl.mk(i, False))
+    cdef OverrideDecl n = OverrideDecl.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitOverrideDecl(n)
 cdef public api ast_call_visitPackageScope(object self, ast_decl.IPackageScope *i) with gil:
-    self.visitPackageScope(PackageScope.mk(i, False))
+    cdef PackageScope n = PackageScope.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitPackageScope(n)
 cdef public api ast_call_visitProceduralStmtAssignment(object self, ast_decl.IProceduralStmtAssignment *i) with gil:
-    self.visitProceduralStmtAssignment(ProceduralStmtAssignment.mk(i, False))
+    cdef ProceduralStmtAssignment n = ProceduralStmtAssignment.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitProceduralStmtAssignment(n)
 cdef public api ast_call_visitProceduralStmtBody(object self, ast_decl.IProceduralStmtBody *i) with gil:
-    self.visitProceduralStmtBody(ProceduralStmtBody.mk(i, False))
+    cdef ProceduralStmtBody n = ProceduralStmtBody.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitProceduralStmtBody(n)
 cdef public api ast_call_visitProceduralStmtBreak(object self, ast_decl.IProceduralStmtBreak *i) with gil:
-    self.visitProceduralStmtBreak(ProceduralStmtBreak.mk(i, False))
+    cdef ProceduralStmtBreak n = ProceduralStmtBreak.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitProceduralStmtBreak(n)
 cdef public api ast_call_visitProceduralStmtContinue(object self, ast_decl.IProceduralStmtContinue *i) with gil:
-    self.visitProceduralStmtContinue(ProceduralStmtContinue.mk(i, False))
+    cdef ProceduralStmtContinue n = ProceduralStmtContinue.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitProceduralStmtContinue(n)
 cdef public api ast_call_visitProceduralStmtDataDeclaration(object self, ast_decl.IProceduralStmtDataDeclaration *i) with gil:
-    self.visitProceduralStmtDataDeclaration(ProceduralStmtDataDeclaration.mk(i, False))
+    cdef ProceduralStmtDataDeclaration n = ProceduralStmtDataDeclaration.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitProceduralStmtDataDeclaration(n)
 cdef public api ast_call_visitProceduralStmtExpr(object self, ast_decl.IProceduralStmtExpr *i) with gil:
-    self.visitProceduralStmtExpr(ProceduralStmtExpr.mk(i, False))
+    cdef ProceduralStmtExpr n = ProceduralStmtExpr.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitProceduralStmtExpr(n)
 cdef public api ast_call_visitProceduralStmtIfElse(object self, ast_decl.IProceduralStmtIfElse *i) with gil:
-    self.visitProceduralStmtIfElse(ProceduralStmtIfElse.mk(i, False))
+    cdef ProceduralStmtIfElse n = ProceduralStmtIfElse.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitProceduralStmtIfElse(n)
 cdef public api ast_call_visitProceduralStmtMatch(object self, ast_decl.IProceduralStmtMatch *i) with gil:
-    self.visitProceduralStmtMatch(ProceduralStmtMatch.mk(i, False))
+    cdef ProceduralStmtMatch n = ProceduralStmtMatch.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitProceduralStmtMatch(n)
 cdef public api ast_call_visitProceduralStmtMatchChoice(object self, ast_decl.IProceduralStmtMatchChoice *i) with gil:
-    self.visitProceduralStmtMatchChoice(ProceduralStmtMatchChoice.mk(i, False))
+    cdef ProceduralStmtMatchChoice n = ProceduralStmtMatchChoice.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitProceduralStmtMatchChoice(n)
 cdef public api ast_call_visitProceduralStmtRandomize(object self, ast_decl.IProceduralStmtRandomize *i) with gil:
-    self.visitProceduralStmtRandomize(ProceduralStmtRandomize.mk(i, False))
+    cdef ProceduralStmtRandomize n = ProceduralStmtRandomize.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitProceduralStmtRandomize(n)
 cdef public api ast_call_visitProceduralStmtReturn(object self, ast_decl.IProceduralStmtReturn *i) with gil:
-    self.visitProceduralStmtReturn(ProceduralStmtReturn.mk(i, False))
+    cdef ProceduralStmtReturn n = ProceduralStmtReturn.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitProceduralStmtReturn(n)
 cdef public api ast_call_visitProceduralStmtSuper(object self, ast_decl.IProceduralStmtSuper *i) with gil:
-    self.visitProceduralStmtSuper(ProceduralStmtSuper.mk(i, False))
+    cdef ProceduralStmtSuper n = ProceduralStmtSuper.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitProceduralStmtSuper(n)
 cdef public api ast_call_visitProceduralStmtYield(object self, ast_decl.IProceduralStmtYield *i) with gil:
-    self.visitProceduralStmtYield(ProceduralStmtYield.mk(i, False))
+    cdef ProceduralStmtYield n = ProceduralStmtYield.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitProceduralStmtYield(n)
 cdef public api ast_call_visitSymbolChildrenScope(object self, ast_decl.ISymbolChildrenScope *i) with gil:
-    self.visitSymbolChildrenScope(SymbolChildrenScope.mk(i, False))
+    cdef SymbolChildrenScope n = SymbolChildrenScope.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitSymbolChildrenScope(n)
 cdef public api ast_call_visitTemplateCategoryTypeParamDecl(object self, ast_decl.ITemplateCategoryTypeParamDecl *i) with gil:
-    self.visitTemplateCategoryTypeParamDecl(TemplateCategoryTypeParamDecl.mk(i, False))
+    cdef TemplateCategoryTypeParamDecl n = TemplateCategoryTypeParamDecl.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitTemplateCategoryTypeParamDecl(n)
 cdef public api ast_call_visitTemplateGenericTypeParamDecl(object self, ast_decl.ITemplateGenericTypeParamDecl *i) with gil:
-    self.visitTemplateGenericTypeParamDecl(TemplateGenericTypeParamDecl.mk(i, False))
+    cdef TemplateGenericTypeParamDecl n = TemplateGenericTypeParamDecl.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitTemplateGenericTypeParamDecl(n)
 cdef public api ast_call_visitTemplateValueParamDecl(object self, ast_decl.ITemplateValueParamDecl *i) with gil:
-    self.visitTemplateValueParamDecl(TemplateValueParamDecl.mk(i, False))
+    cdef TemplateValueParamDecl n = TemplateValueParamDecl.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitTemplateValueParamDecl(n)
 cdef public api ast_call_visitTypeOverride(object self, ast_decl.ITypeOverride *i) with gil:
-    self.visitTypeOverride(TypeOverride.mk(i, False))
+    cdef TypeOverride n = TypeOverride.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitTypeOverride(n)
 cdef public api ast_call_visitActivityActionHandleTraversal(object self, ast_decl.IActivityActionHandleTraversal *i) with gil:
-    self.visitActivityActionHandleTraversal(ActivityActionHandleTraversal.mk(i, False))
+    cdef ActivityActionHandleTraversal n = ActivityActionHandleTraversal.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitActivityActionHandleTraversal(n)
 cdef public api ast_call_visitActivityActionTypeTraversal(object self, ast_decl.IActivityActionTypeTraversal *i) with gil:
-    self.visitActivityActionTypeTraversal(ActivityActionTypeTraversal.mk(i, False))
+    cdef ActivityActionTypeTraversal n = ActivityActionTypeTraversal.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitActivityActionTypeTraversal(n)
 cdef public api ast_call_visitTypeScope(object self, ast_decl.ITypeScope *i) with gil:
-    self.visitTypeScope(TypeScope.mk(i, False))
+    cdef TypeScope n = TypeScope.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitTypeScope(n)
 cdef public api ast_call_visitSymbolScope(object self, ast_decl.ISymbolScope *i) with gil:
-    self.visitSymbolScope(SymbolScope.mk(i, False))
+    cdef SymbolScope n = SymbolScope.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitSymbolScope(n)
 cdef public api ast_call_visitConstraintBlock(object self, ast_decl.IConstraintBlock *i) with gil:
-    self.visitConstraintBlock(ConstraintBlock.mk(i, False))
+    cdef ConstraintBlock n = ConstraintBlock.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitConstraintBlock(n)
 cdef public api ast_call_visitConstraintStmtForall(object self, ast_decl.IConstraintStmtForall *i) with gil:
-    self.visitConstraintStmtForall(ConstraintStmtForall.mk(i, False))
+    cdef ConstraintStmtForall n = ConstraintStmtForall.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitConstraintStmtForall(n)
 cdef public api ast_call_visitConstraintStmtForeach(object self, ast_decl.IConstraintStmtForeach *i) with gil:
-    self.visitConstraintStmtForeach(ConstraintStmtForeach.mk(i, False))
+    cdef ConstraintStmtForeach n = ConstraintStmtForeach.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitConstraintStmtForeach(n)
 cdef public api ast_call_visitProceduralStmtRepeatWhile(object self, ast_decl.IProceduralStmtRepeatWhile *i) with gil:
-    self.visitProceduralStmtRepeatWhile(ProceduralStmtRepeatWhile.mk(i, False))
+    cdef ProceduralStmtRepeatWhile n = ProceduralStmtRepeatWhile.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitProceduralStmtRepeatWhile(n)
 cdef public api ast_call_visitConstraintStmtImplication(object self, ast_decl.IConstraintStmtImplication *i) with gil:
-    self.visitConstraintStmtImplication(ConstraintStmtImplication.mk(i, False))
+    cdef ConstraintStmtImplication n = ConstraintStmtImplication.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitConstraintStmtImplication(n)
 cdef public api ast_call_visitProceduralStmtWhile(object self, ast_decl.IProceduralStmtWhile *i) with gil:
-    self.visitProceduralStmtWhile(ProceduralStmtWhile.mk(i, False))
+    cdef ProceduralStmtWhile n = ProceduralStmtWhile.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitProceduralStmtWhile(n)
 cdef public api ast_call_visitExprRefPathSuper(object self, ast_decl.IExprRefPathSuper *i) with gil:
-    self.visitExprRefPathSuper(ExprRefPathSuper.mk(i, False))
+    cdef ExprRefPathSuper n = ExprRefPathSuper.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitExprRefPathSuper(n)
 cdef public api ast_call_visitActivitySuper(object self, ast_decl.IActivitySuper *i) with gil:
-    self.visitActivitySuper(ActivitySuper.mk(i, False))
+    cdef ActivitySuper n = ActivitySuper.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitActivitySuper(n)
 cdef public api ast_call_visitAction(object self, ast_decl.IAction *i) with gil:
-    self.visitAction(Action.mk(i, False))
+    cdef Action n = Action.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitAction(n)
 cdef public api ast_call_visitActivityDecl(object self, ast_decl.IActivityDecl *i) with gil:
-    self.visitActivityDecl(ActivityDecl.mk(i, False))
+    cdef ActivityDecl n = ActivityDecl.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitActivityDecl(n)
 cdef public api ast_call_visitGenericConstraintDeclBool(object self, ast_decl.IGenericConstraintDeclBool *i) with gil:
-    self.visitGenericConstraintDeclBool(GenericConstraintDeclBool.mk(i, False))
+    cdef GenericConstraintDeclBool n = GenericConstraintDeclBool.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitGenericConstraintDeclBool(n)
 cdef public api ast_call_visitActivityLabeledScope(object self, ast_decl.IActivityLabeledScope *i) with gil:
-    self.visitActivityLabeledScope(ActivityLabeledScope.mk(i, False))
+    cdef ActivityLabeledScope n = ActivityLabeledScope.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitActivityLabeledScope(n)
 cdef public api ast_call_visitImportClass(object self, ast_decl.IImportClass *i) with gil:
-    self.visitImportClass(ImportClass.mk(i, False))
+    cdef ImportClass n = ImportClass.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitImportClass(n)
 cdef public api ast_call_visitMonitor(object self, ast_decl.IMonitor *i) with gil:
-    self.visitMonitor(Monitor.mk(i, False))
+    cdef Monitor n = Monitor.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitMonitor(n)
 cdef public api ast_call_visitMonitorActivityDecl(object self, ast_decl.IMonitorActivityDecl *i) with gil:
-    self.visitMonitorActivityDecl(MonitorActivityDecl.mk(i, False))
+    cdef MonitorActivityDecl n = MonitorActivityDecl.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitMonitorActivityDecl(n)
 cdef public api ast_call_visitMonitorActivityLabeledScope(object self, ast_decl.IMonitorActivityLabeledScope *i) with gil:
-    self.visitMonitorActivityLabeledScope(MonitorActivityLabeledScope.mk(i, False))
+    cdef MonitorActivityLabeledScope n = MonitorActivityLabeledScope.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitMonitorActivityLabeledScope(n)
 cdef public api ast_call_visitAnnotationDecl(object self, ast_decl.IAnnotationDecl *i) with gil:
-    self.visitAnnotationDecl(AnnotationDecl.mk(i, False))
+    cdef AnnotationDecl n = AnnotationDecl.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitAnnotationDecl(n)
 cdef public api ast_call_visitComponent(object self, ast_decl.IComponent *i) with gil:
-    self.visitComponent(Component.mk(i, False))
+    cdef Component n = Component.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitComponent(n)
 cdef public api ast_call_visitProceduralStmtSymbolBodyScope(object self, ast_decl.IProceduralStmtSymbolBodyScope *i) with gil:
-    self.visitProceduralStmtSymbolBodyScope(ProceduralStmtSymbolBodyScope.mk(i, False))
+    cdef ProceduralStmtSymbolBodyScope n = ProceduralStmtSymbolBodyScope.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitProceduralStmtSymbolBodyScope(n)
 cdef public api ast_call_visitConstraintSymbolScope(object self, ast_decl.IConstraintSymbolScope *i) with gil:
-    self.visitConstraintSymbolScope(ConstraintSymbolScope.mk(i, False))
+    cdef ConstraintSymbolScope n = ConstraintSymbolScope.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitConstraintSymbolScope(n)
 cdef public api ast_call_visitRootSymbolScope(object self, ast_decl.IRootSymbolScope *i) with gil:
-    self.visitRootSymbolScope(RootSymbolScope.mk(i, False))
+    cdef RootSymbolScope n = RootSymbolScope.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitRootSymbolScope(n)
 cdef public api ast_call_visitStruct(object self, ast_decl.IStruct *i) with gil:
-    self.visitStruct(Struct.mk(i, False))
+    cdef Struct n = Struct.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitStruct(n)
 cdef public api ast_call_visitSymbolDeclaration(object self, ast_decl.ISymbolDeclaration *i) with gil:
-    self.visitSymbolDeclaration(SymbolDeclaration.mk(i, False))
+    cdef SymbolDeclaration n = SymbolDeclaration.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitSymbolDeclaration(n)
 cdef public api ast_call_visitCovergroupType(object self, ast_decl.ICovergroupType *i) with gil:
-    self.visitCovergroupType(CovergroupType.mk(i, False))
+    cdef CovergroupType n = CovergroupType.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitCovergroupType(n)
 cdef public api ast_call_visitSymbolEnumScope(object self, ast_decl.ISymbolEnumScope *i) with gil:
-    self.visitSymbolEnumScope(SymbolEnumScope.mk(i, False))
+    cdef SymbolEnumScope n = SymbolEnumScope.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitSymbolEnumScope(n)
 cdef public api ast_call_visitSymbolExtendScope(object self, ast_decl.ISymbolExtendScope *i) with gil:
-    self.visitSymbolExtendScope(SymbolExtendScope.mk(i, False))
+    cdef SymbolExtendScope n = SymbolExtendScope.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitSymbolExtendScope(n)
 cdef public api ast_call_visitSymbolFunctionScope(object self, ast_decl.ISymbolFunctionScope *i) with gil:
-    self.visitSymbolFunctionScope(SymbolFunctionScope.mk(i, False))
+    cdef SymbolFunctionScope n = SymbolFunctionScope.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitSymbolFunctionScope(n)
 cdef public api ast_call_visitSymbolTypeScope(object self, ast_decl.ISymbolTypeScope *i) with gil:
-    self.visitSymbolTypeScope(SymbolTypeScope.mk(i, False))
+    cdef SymbolTypeScope n = SymbolTypeScope.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitSymbolTypeScope(n)
 cdef public api ast_call_visitTemplateElem(object self, ast_decl.ITemplateElem *i) with gil:
-    self.visitTemplateElem(TemplateElem.mk(i, False))
+    cdef TemplateElem n = TemplateElem.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitTemplateElem(n)
 cdef public api ast_call_visitExecScope(object self, ast_decl.IExecScope *i) with gil:
-    self.visitExecScope(ExecScope.mk(i, False))
+    cdef ExecScope n = ExecScope.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitExecScope(n)
 cdef public api ast_call_visitTemplateString(object self, ast_decl.ITemplateString *i) with gil:
-    self.visitTemplateString(TemplateString.mk(i, False))
+    cdef TemplateString n = TemplateString.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitTemplateString(n)
 cdef public api ast_call_visitActivityAtomicBlock(object self, ast_decl.IActivityAtomicBlock *i) with gil:
-    self.visitActivityAtomicBlock(ActivityAtomicBlock.mk(i, False))
+    cdef ActivityAtomicBlock n = ActivityAtomicBlock.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitActivityAtomicBlock(n)
 cdef public api ast_call_visitActivityForeach(object self, ast_decl.IActivityForeach *i) with gil:
-    self.visitActivityForeach(ActivityForeach.mk(i, False))
+    cdef ActivityForeach n = ActivityForeach.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitActivityForeach(n)
 cdef public api ast_call_visitActivityIfElse(object self, ast_decl.IActivityIfElse *i) with gil:
-    self.visitActivityIfElse(ActivityIfElse.mk(i, False))
+    cdef ActivityIfElse n = ActivityIfElse.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitActivityIfElse(n)
 cdef public api ast_call_visitActivityMatch(object self, ast_decl.IActivityMatch *i) with gil:
-    self.visitActivityMatch(ActivityMatch.mk(i, False))
+    cdef ActivityMatch n = ActivityMatch.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitActivityMatch(n)
 cdef public api ast_call_visitActivityParallel(object self, ast_decl.IActivityParallel *i) with gil:
-    self.visitActivityParallel(ActivityParallel.mk(i, False))
+    cdef ActivityParallel n = ActivityParallel.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitActivityParallel(n)
 cdef public api ast_call_visitActivityRepeatCount(object self, ast_decl.IActivityRepeatCount *i) with gil:
-    self.visitActivityRepeatCount(ActivityRepeatCount.mk(i, False))
+    cdef ActivityRepeatCount n = ActivityRepeatCount.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitActivityRepeatCount(n)
 cdef public api ast_call_visitActivityRepeatWhile(object self, ast_decl.IActivityRepeatWhile *i) with gil:
-    self.visitActivityRepeatWhile(ActivityRepeatWhile.mk(i, False))
+    cdef ActivityRepeatWhile n = ActivityRepeatWhile.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitActivityRepeatWhile(n)
 cdef public api ast_call_visitActivityReplicate(object self, ast_decl.IActivityReplicate *i) with gil:
-    self.visitActivityReplicate(ActivityReplicate.mk(i, False))
+    cdef ActivityReplicate n = ActivityReplicate.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitActivityReplicate(n)
 cdef public api ast_call_visitActivitySchedule(object self, ast_decl.IActivitySchedule *i) with gil:
-    self.visitActivitySchedule(ActivitySchedule.mk(i, False))
+    cdef ActivitySchedule n = ActivitySchedule.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitActivitySchedule(n)
 cdef public api ast_call_visitMonitorActivityOverlap(object self, ast_decl.IMonitorActivityOverlap *i) with gil:
-    self.visitMonitorActivityOverlap(MonitorActivityOverlap.mk(i, False))
+    cdef MonitorActivityOverlap n = MonitorActivityOverlap.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitMonitorActivityOverlap(n)
 cdef public api ast_call_visitMonitorActivitySchedule(object self, ast_decl.IMonitorActivitySchedule *i) with gil:
-    self.visitMonitorActivitySchedule(MonitorActivitySchedule.mk(i, False))
+    cdef MonitorActivitySchedule n = MonitorActivitySchedule.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitMonitorActivitySchedule(n)
 cdef public api ast_call_visitMonitorActivitySelect(object self, ast_decl.IMonitorActivitySelect *i) with gil:
-    self.visitMonitorActivitySelect(MonitorActivitySelect.mk(i, False))
+    cdef MonitorActivitySelect n = MonitorActivitySelect.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitMonitorActivitySelect(n)
 cdef public api ast_call_visitMonitorActivitySequence(object self, ast_decl.IMonitorActivitySequence *i) with gil:
-    self.visitMonitorActivitySequence(MonitorActivitySequence.mk(i, False))
+    cdef MonitorActivitySequence n = MonitorActivitySequence.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitMonitorActivitySequence(n)
 cdef public api ast_call_visitMonitorActivityConcat(object self, ast_decl.IMonitorActivityConcat *i) with gil:
-    self.visitMonitorActivityConcat(MonitorActivityConcat.mk(i, False))
+    cdef MonitorActivityConcat n = MonitorActivityConcat.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitMonitorActivityConcat(n)
 cdef public api ast_call_visitActivitySelect(object self, ast_decl.IActivitySelect *i) with gil:
-    self.visitActivitySelect(ActivitySelect.mk(i, False))
+    cdef ActivitySelect n = ActivitySelect.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitActivitySelect(n)
 cdef public api ast_call_visitMonitorActivityEventually(object self, ast_decl.IMonitorActivityEventually *i) with gil:
-    self.visitMonitorActivityEventually(MonitorActivityEventually.mk(i, False))
+    cdef MonitorActivityEventually n = MonitorActivityEventually.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitMonitorActivityEventually(n)
 cdef public api ast_call_visitActivitySequence(object self, ast_decl.IActivitySequence *i) with gil:
-    self.visitActivitySequence(ActivitySequence.mk(i, False))
+    cdef ActivitySequence n = ActivitySequence.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitActivitySequence(n)
 cdef public api ast_call_visitProceduralStmtForeach(object self, ast_decl.IProceduralStmtForeach *i) with gil:
-    self.visitProceduralStmtForeach(ProceduralStmtForeach.mk(i, False))
+    cdef ProceduralStmtForeach n = ProceduralStmtForeach.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitProceduralStmtForeach(n)
 cdef public api ast_call_visitProceduralStmtRepeat(object self, ast_decl.IProceduralStmtRepeat *i) with gil:
-    self.visitProceduralStmtRepeat(ProceduralStmtRepeat.mk(i, False))
+    cdef ProceduralStmtRepeat n = ProceduralStmtRepeat.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitProceduralStmtRepeat(n)
 cdef public api ast_call_visitTemplateAssign(object self, ast_decl.ITemplateAssign *i) with gil:
-    self.visitTemplateAssign(TemplateAssign.mk(i, False))
+    cdef TemplateAssign n = TemplateAssign.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitTemplateAssign(n)
 cdef public api ast_call_visitTemplateBlock(object self, ast_decl.ITemplateBlock *i) with gil:
-    self.visitTemplateBlock(TemplateBlock.mk(i, False))
+    cdef TemplateBlock n = TemplateBlock.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitTemplateBlock(n)
 cdef public api ast_call_visitTemplateComment(object self, ast_decl.ITemplateComment *i) with gil:
-    self.visitTemplateComment(TemplateComment.mk(i, False))
+    cdef TemplateComment n = TemplateComment.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitTemplateComment(n)
 cdef public api ast_call_visitTemplateExpr(object self, ast_decl.ITemplateExpr *i) with gil:
-    self.visitTemplateExpr(TemplateExpr.mk(i, False))
+    cdef TemplateExpr n = TemplateExpr.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitTemplateExpr(n)
 cdef public api ast_call_visitExecBlock(object self, ast_decl.IExecBlock *i) with gil:
-    self.visitExecBlock(ExecBlock.mk(i, False))
+    cdef ExecBlock n = ExecBlock.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitExecBlock(n)
 cdef public api ast_call_visitTemplateIf(object self, ast_decl.ITemplateIf *i) with gil:
-    self.visitTemplateIf(TemplateIf.mk(i, False))
+    cdef TemplateIf n = TemplateIf.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitTemplateIf(n)
 cdef public api ast_call_visitTemplateText(object self, ast_decl.ITemplateText *i) with gil:
-    self.visitTemplateText(TemplateText.mk(i, False))
+    cdef TemplateText n = TemplateText.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitTemplateText(n)
 cdef public api ast_call_visitTemplateVarDecl(object self, ast_decl.ITemplateVarDecl *i) with gil:
-    self.visitTemplateVarDecl(TemplateVarDecl.mk(i, False))
+    cdef TemplateVarDecl n = TemplateVarDecl.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitTemplateVarDecl(n)
 cdef public api ast_call_visitTemplateForeach(object self, ast_decl.ITemplateForeach *i) with gil:
-    self.visitTemplateForeach(TemplateForeach.mk(i, False))
+    cdef TemplateForeach n = TemplateForeach.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitTemplateForeach(n)
 cdef public api ast_call_visitTemplateRepeat(object self, ast_decl.ITemplateRepeat *i) with gil:
-    self.visitTemplateRepeat(TemplateRepeat.mk(i, False))
+    cdef TemplateRepeat n = TemplateRepeat.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitTemplateRepeat(n)
 cdef public api ast_call_visitTemplateIfClause(object self, ast_decl.ITemplateIfClause *i) with gil:
-    self.visitTemplateIfClause(TemplateIfClause.mk(i, False))
+    cdef TemplateIfClause n = TemplateIfClause.mk(i, False)
+    n._owner = (<VisitorBase>self)._owner
+    self.visitTemplateIfClause(n)
 cdef class ObjFactory(VisitorBase):
     def __init__(self):
         super().__init__()

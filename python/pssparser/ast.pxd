@@ -641,7 +641,9 @@ cdef class Factory(object):
 cdef class ExprAggrStructElem(object):
     cdef ast_decl.IExprAggrStructElem    *_hndl
     cdef bool           _owned
+    cdef object         _owner
     
+    cdef object _keeper(self)
     cpdef void accept(self, VisitorBase v)
     cpdef int id(self)
     cdef ast_decl.IExprAggrStructElem *asExprAggrStructElem(self)
@@ -654,7 +656,9 @@ cdef class ExprAggrStructElem(object):
 cdef class AssocData(object):
     cdef ast_decl.IAssocData    *_hndl
     cdef bool           _owned
+    cdef object         _owner
     
+    cdef object _keeper(self)
     cpdef void accept(self, VisitorBase v)
     cpdef int id(self)
     cdef ast_decl.IAssocData *asAssocData(self)
@@ -664,7 +668,9 @@ cdef class AssocData(object):
 cdef class SymbolExtMember(object):
     cdef ast_decl.ISymbolExtMember    *_hndl
     cdef bool           _owned
+    cdef object         _owner
     
+    cdef object _keeper(self)
     cpdef void accept(self, VisitorBase v)
     cpdef int id(self)
     cdef ast_decl.ISymbolExtMember *asSymbolExtMember(self)
@@ -678,7 +684,9 @@ cdef class SymbolExtMember(object):
 cdef class CompileCond(object):
     cdef ast_decl.ICompileCond    *_hndl
     cdef bool           _owned
+    cdef object         _owner
     
+    cdef object _keeper(self)
     cpdef void accept(self, VisitorBase v)
     cpdef int id(self)
     cdef ast_decl.ICompileCond *asCompileCond(self)
@@ -701,7 +709,9 @@ cdef class CompileCond(object):
 cdef class SymbolImportSpec(object):
     cdef ast_decl.ISymbolImportSpec    *_hndl
     cdef bool           _owned
+    cdef object         _owner
     
+    cdef object _keeper(self)
     cpdef void accept(self, VisitorBase v)
     cpdef int id(self)
     cdef ast_decl.ISymbolImportSpec *asSymbolImportSpec(self)
@@ -717,7 +727,9 @@ cdef class SymbolImportSpec(object):
 cdef class SymbolRefPath(object):
     cdef ast_decl.ISymbolRefPath    *_hndl
     cdef bool           _owned
+    cdef object         _owner
     
+    cdef object _keeper(self)
     cpdef void accept(self, VisitorBase v)
     cpdef int id(self)
     cdef ast_decl.ISymbolRefPath *asSymbolRefPath(self)
@@ -732,7 +744,9 @@ cdef class SymbolRefPath(object):
 cdef class TemplateParamValue(object):
     cdef ast_decl.ITemplateParamValue    *_hndl
     cdef bool           _owned
+    cdef object         _owner
     
+    cdef object _keeper(self)
     cpdef void accept(self, VisitorBase v)
     cpdef int id(self)
     cdef ast_decl.ITemplateParamValue *asTemplateParamValue(self)
@@ -742,7 +756,9 @@ cdef class TemplateParamValue(object):
 cdef class ActivityMatchChoice(object):
     cdef ast_decl.IActivityMatchChoice    *_hndl
     cdef bool           _owned
+    cdef object         _owner
     
+    cdef object _keeper(self)
     cpdef void accept(self, VisitorBase v)
     cpdef int id(self)
     cdef ast_decl.IActivityMatchChoice *asActivityMatchChoice(self)
@@ -755,7 +771,9 @@ cdef class ActivityMatchChoice(object):
 cdef class TemplateParamDeclList(object):
     cdef ast_decl.ITemplateParamDeclList    *_hndl
     cdef bool           _owned
+    cdef object         _owner
     
+    cdef object _keeper(self)
     cpdef void accept(self, VisitorBase v)
     cpdef int id(self)
     cdef ast_decl.ITemplateParamDeclList *asTemplateParamDeclList(self)
@@ -770,7 +788,9 @@ cdef class TemplateParamDeclList(object):
 cdef class Expr(object):
     cdef ast_decl.IExpr    *_hndl
     cdef bool           _owned
+    cdef object         _owner
     
+    cdef object _keeper(self)
     cpdef void accept(self, VisitorBase v)
     cpdef int id(self)
     cdef ast_decl.IExpr *asExpr(self)
@@ -780,7 +800,9 @@ cdef class Expr(object):
 cdef class TemplateParamValueList(object):
     cdef ast_decl.ITemplateParamValueList    *_hndl
     cdef bool           _owned
+    cdef object         _owner
     
+    cdef object _keeper(self)
     cpdef void accept(self, VisitorBase v)
     cpdef int id(self)
     cdef ast_decl.ITemplateParamValueList *asTemplateParamValueList(self)
@@ -794,7 +816,9 @@ cdef class TemplateParamValueList(object):
 cdef class ActivitySelectBranch(object):
     cdef ast_decl.IActivitySelectBranch    *_hndl
     cdef bool           _owned
+    cdef object         _owner
     
+    cdef object _keeper(self)
     cpdef void accept(self, VisitorBase v)
     cpdef int id(self)
     cdef ast_decl.IActivitySelectBranch *asActivitySelectBranch(self)
@@ -807,7 +831,9 @@ cdef class ActivitySelectBranch(object):
 cdef class ScopeChild(object):
     cdef ast_decl.IScopeChild    *_hndl
     cdef bool           _owned
+    cdef object         _owner
     
+    cdef object _keeper(self)
     cpdef void accept(self, VisitorBase v)
     cpdef int id(self)
     cdef ast_decl.IScopeChild *asScopeChild(self)
@@ -841,7 +867,9 @@ cdef class ScopeChild(object):
 cdef class ExprAggrMapElem(object):
     cdef ast_decl.IExprAggrMapElem    *_hndl
     cdef bool           _owned
+    cdef object         _owner
     
+    cdef object _keeper(self)
     cpdef void accept(self, VisitorBase v)
     cpdef int id(self)
     cdef ast_decl.IExprAggrMapElem *asExprAggrMapElem(self)
@@ -2816,6 +2844,7 @@ cdef class TemplateIfClause(TemplateBlock):
 cdef class VisitorBase(object):
     cdef ast_decl.PyBaseVisitor *_hndl
     cdef bool                  _owned
+    cdef object                _owner
     cpdef void visitExprAggrStructElem(self, ExprAggrStructElem i)
     cpdef void visitAssocData(self, AssocData i)
     cpdef void visitSymbolExtMember(self, SymbolExtMember i)
