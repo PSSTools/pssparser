@@ -10,10 +10,18 @@ The LRM revisions this pssparser supports are listed in `README.md`, in
 `pssparser.SUPPORTED_LRM`, and on the second line of `pssparser --version`.
 Currently: **PSS 3.1** (Public Review Draft, 2026-08-28).
 
-## Unreleased
+## 3.4.0 — semantic errors the LRM requires
 
 ### Fixed
 
+- An `if` / `else if` chain parses in time linear in its length, and a long
+  one no longer crashes the parser. The rule was the LRM's
+  `if (e) stmt (else stmt)?`, nested once per link: one level of parse tree
+  and of native stack per `else if`, a parse quadratic in the length (4.7 s at
+  5000 links), and a segmentation fault at about 10000. The links are now a
+  loop of the rule (`procedural_else_if_clause`), and an `else` still belongs
+  to the nearest `if`; 20000 links parse in about half a second. The AST is
+  unchanged: one `ProceduralStmtIfElse` with its clauses in a list.
 - Specializing a template type whose own body contains an `extend` statement
   (`component C<int N=1> { action a {} extend action a {} }` then `C<2>`) no
   longer segfaults the linker. The AST copier stored a null child for the
@@ -43,8 +51,6 @@ Currently: **PSS 3.1** (Public Review Draft, 2026-08-28).
   `pssparser.parser.core_library_sources()` and `core_library_location()`,
   `refs.library_location()`, `IFactory::getCoreLibrarySources()`, and in
   TypeScript `resolveLocation()` and the session's `coreLibrarySourcesJson()`.
-
-## 3.4.0 — semantic errors the LRM requires
 
 ### Added — writes the LRM forbids, and control-flow errors
 

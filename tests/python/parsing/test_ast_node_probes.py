@@ -1482,3 +1482,58 @@ component pss_top {
     exts = _find_nodes(parser, "ExtendType")
     assert [e.getKind() for e in exts] == [ast.ExtendTargetE.Monitor]
     assert exts[0].getTarget().getElem(0).getId().getId() == "m"
+
+
+# ---------------------------------------------------------------------------
+# `if` / `else if` chains: one node, its links in a list
+# ---------------------------------------------------------------------------
+#
+# The rule was the LRM's `if (e) stmt (else stmt)?`, nested once per link:
+# one level of parse tree and of native stack per `else if`, and a
+# prediction that looked back through every level -- quadratic, and a crash
+# at about 10000 links. The links are now a loop of the rule.
+
+def _if_else_nodes(src, parser):
+    p = _parse_only("component c { function int f(int a, int b) { int x;"
+                    + src + " return x; } }", parser)
+    return _find_nodes_deep(p, "ProceduralStmtIfElse")
+
+
+def test_an_else_if_chain_is_one_node(parser):
+    (n,) = _if_else_nodes(
+        "if (a == 0) x = 1; else if (a == 1) x = 2;"
+        " else if (a == 2) { x = 3; } else x = 4;", parser)
+    assert n.numIf_then() == 3
+    assert n.getElse_then() is not None
+
+
+def test_an_else_belongs_to_the_nearest_if(parser):
+    nodes = _if_else_nodes(
+        "if (a == 1) if (b == 1) x = 1; else if (b == 2) x = 3; else x = 2;",
+        parser)
+    shapes = sorted((n.numIf_then(), n.getElse_then() is not None)
+                    for n in nodes)
+    assert shapes == [(1, False), (2, True)]
+
+
+def test_a_braced_if_in_an_else_is_a_body_not_a_link(parser):
+    nodes = _if_else_nodes(
+        "if (a == 1) x = 1; else { if (b == 1) x = 2; else x = 3; }", parser)
+    assert sorted((n.numIf_then(), n.getElse_then() is not None)
+                  for n in nodes) == [(1, True), (1, True)]
+
+
+def test_a_20000_link_chain_parses():
+    """In a child process, which the old rule crashed; and in time that a
+    quadratic parse (over a minute at this length) would not make."""
+    import subprocess
+    links = "\n else ".join(f"if (a == {i}) x = {i};" for i in range(20000))
+    src = ("component c { function int f(int a) { int x = 0;\n"
+           + links + "\n return x; } }")
+    code = ("import sys\nfrom pssparser import Parser\n"
+            "p = Parser()\np.parses([('m.pss', sys.stdin.read())])\n"
+            "p.link()\nprint('ok')\n")
+    r = subprocess.run([sys.executable, "-c", code], input=src,
+                       capture_output=True, text=True, timeout=30)
+    assert r.returncode == 0, r.stderr[-2000:]
+    assert r.stdout.split() == ["ok"]

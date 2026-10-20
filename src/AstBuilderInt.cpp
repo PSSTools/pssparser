@@ -2221,18 +2221,42 @@ antlrcpp::Any AstBuilderInt::visitProcedural_if_else_stmt(PSSParser::Procedural_
     DEBUG("Add initial if clause");
     stmt->getIf_then().push_back(ast::IProceduralStmtIfClauseUP(clause));
 
-    PSSParser::Procedural_stmtContext *else_ctx = ctx->procedural_stmt(1);
-
-    // Process else-if stmts
-    while (else_ctx && else_ctx->procedural_if_else_stmt()) {
-        cond = mkExpr(else_ctx->procedural_if_else_stmt()->expression());
-        if_s = mkExecStmt(else_ctx->procedural_if_else_stmt()->procedural_stmt(0));
+    // The grammar keeps the `else if` links in a list (see the rule).
+    std::vector<PSSParser::Procedural_else_if_clauseContext *> links =
+        ctx->procedural_else_if_clause();
+    for (PSSParser::Procedural_else_if_clauseContext *link : links) {
+        cond = mkExpr(link->expression());
+        if_s = mkExecStmt(link->procedural_stmt());
         clause = m_factory->mkProceduralStmtIfClause(
             cond,
             if_s);
         DEBUG("Add if-then clause");
         stmt->getIf_then().push_back(ast::IProceduralStmtIfClauseUP(clause));
-        else_ctx = else_ctx->procedural_if_else_stmt()->procedural_stmt(1);
+    }
+
+    PSSParser::Procedural_stmtContext *else_ctx = ctx->procedural_stmt(1);
+
+    // The loop is greedy, so an `else if` is a link above. Should a parse
+    // ever leave one as the final `else`, it is still flattened here, as
+    // the nested rule always was. (`else { if ... }` is a body, not a link.)
+    while (else_ctx && else_ctx->procedural_if_else_stmt()) {
+        PSSParser::Procedural_if_else_stmtContext *nested =
+            else_ctx->procedural_if_else_stmt();
+        cond = mkExpr(nested->expression());
+        if_s = mkExecStmt(nested->procedural_stmt(0));
+        clause = m_factory->mkProceduralStmtIfClause(
+            cond,
+            if_s);
+        stmt->getIf_then().push_back(ast::IProceduralStmtIfClauseUP(clause));
+        std::vector<PSSParser::Procedural_else_if_clauseContext *> more =
+            nested->procedural_else_if_clause();
+        for (PSSParser::Procedural_else_if_clauseContext *link : more) {
+            cond = mkExpr(link->expression());
+            if_s = mkExecStmt(link->procedural_stmt());
+            clause = m_factory->mkProceduralStmtIfClause(cond, if_s);
+            stmt->getIf_then().push_back(ast::IProceduralStmtIfClauseUP(clause));
+        }
+        else_ctx = nested->procedural_stmt(1);
     }
 
     // Now, add final 'else' if present

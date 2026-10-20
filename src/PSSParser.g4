@@ -647,8 +647,23 @@ procedural_foreach_stmt:
 		(TOK_LSBRACE index_identifier TOK_RSBRACE)? TOK_RPAREN procedural_stmt
 	;
 
+// An `else if` chain is one rule with its links in a loop, not an `if`
+// nested in each `else`: the nested form is one level of parse tree, and of
+// native stack, per link, and its prediction looked back through every
+// level (quadratic, and a crash at about 10000 links). Same language: an
+// `else` is still taken by the nearest `if`.
+//
+// The predicate keeps the final `else` from starting with `if`, which is
+// always a link. Without it both readings of `else if` stay viable to the
+// end of the chain, and prediction scans that far at every link.
 procedural_if_else_stmt:
-	TOK_IF TOK_LPAREN expression TOK_RPAREN procedural_stmt ( TOK_ELSE procedural_stmt )?
+	TOK_IF TOK_LPAREN expression TOK_RPAREN procedural_stmt
+	procedural_else_if_clause*
+	( {_input->LA(2) != PSSParser::TOK_IF}? TOK_ELSE procedural_stmt )?
+	;
+
+procedural_else_if_clause:
+	TOK_ELSE TOK_IF TOK_LPAREN expression TOK_RPAREN procedural_stmt
 	;
 	
 procedural_match_stmt:
