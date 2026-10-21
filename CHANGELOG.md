@@ -10,7 +10,7 @@ The LRM revisions this pssparser supports are listed in `README.md`, in
 `pssparser.SUPPORTED_LRM`, and on the second line of `pssparser --version`.
 Currently: **PSS 3.1** (Public Review Draft, 2026-08-28).
 
-## Unreleased
+## 3.5.0 — annotation values
 
 ### Added
 
