@@ -1,6 +1,6 @@
 ---
 name: pssparser-api
-description: Use the pssparser Python API to build tools that read PSS (Portable Test and Stimulus Standard) models - `Parser.parse`/`parses`/`link`, walking the linked AST with `pssparser.ast` visitors, resolving references (`pssparser.refs`), tokens and CST, comments and doc comments, and the standard-library sources. Use when writing Python that consumes a PSS model (generators, documentation tools, analyzers, formatters). For lint rules, use `pssparser-checkers`.
+description: Use the pssparser Python API to build tools that read PSS (Portable Test and Stimulus Standard) models - `Parser.parse`/`parses`/`link`, walking the linked AST with `pssparser.ast` visitors, resolving references (`pssparser.refs`), tokens and CST, comments and doc comments, annotation values, and the standard-library sources. Use when writing Python that consumes a PSS model (generators, documentation tools, analyzers, formatters). For lint rules, use `pssparser-checkers`.
 ---
 
 # pssparser Python API

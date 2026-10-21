@@ -98,6 +98,9 @@ print(repr(root.getChild(root.symtabAt("cfg_s")).getDocstring()))  # same text
   it was (compare against `pssparser.ast.DocCommentForm`).
 - A doc comment above `rand`, `static const` and similar qualifiers documents
   the field.
+- On an annotated declaration the doc comment may be above the annotations or
+  between them and the declaration. If both hold a doc comment (`///` or
+  `/** */`), the nearer one documents it and LINT410 warns about the other.
 
 ## All comments
 
@@ -146,11 +149,11 @@ from pssparser import Parser, annotations
 
 p = Parser()
 p.parses([("m.pss", """
-package hal_pkg {
-    annotation hal_s { string name; string header; string prefix = ""; }
+package gen_pkg {
+    annotation block_s { string name; string header; string prefix = ""; }
 }
 component pss_top {
-    @hal_pkg::hal_s {.name = "UART", .header = "uart.h"}
+    @gen_pkg::block_s {.name = "DEV", .header = "dev.h"}
     function void f() { }
 }
 """)])
@@ -159,9 +162,9 @@ comp = [root.getChild(i) for i in range(root.numChildren())
         if root.getChild(i).getName() == "pss_top"][0]
 f = [comp.getChild(i) for i in range(comp.numChildren())
      if comp.getChild(i).getName() == "f"][0]
-ann = annotations.find(root, f, "hal_pkg::hal_s")[0]
+ann = annotations.find(root, f, "gen_pkg::block_s")[0]
 vals = annotations.effective(root, ann)
-assert vals["name"].value == "UART" and not vals["name"].is_default
+assert vals["name"].value == "DEV" and not vals["name"].is_default
 assert vals["prefix"].value == "" and vals["prefix"].is_default
 ```
 
@@ -170,6 +173,11 @@ and a qualified name or the annotation declaration. Each `Value` has `expr`,
 `value`, `field`, `is_default` and `location`. The linker checks values against
 their fields (PSS150), and warns about a field left unset with no default
 (LINT411) and about one annotation type applied twice (LINT409).
+`on(root, node)` returns every resolved annotation on an element,
+`standalone(root, scope)` the standalone ones (`@a_s {...};`) written in a
+scope, and `qualified_name(type_of(root, ann))` names an annotation's type.
+`fields(root, type_scope)` lists a type's fields in `effective`'s order, and
+`fold(root, expr)` folds one expression, before any field width is applied.
 
 The raw AST is there too. Every `ScopeChild` has `getAnnotations()`. An
 `Annotation` has `getType()` (a `TypeIdentifier`), `getParameters()`, and

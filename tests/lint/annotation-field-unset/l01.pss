@@ -1,8 +1,8 @@
 // expect: LINT411 @ 6:3
-package hal_pkg {
-  annotation hal_s { string name; string header = ""; }
+package gen_pkg {
+  annotation block_s { string name; string header = ""; }
 }
 component pss_top {
-  @hal_pkg::hal_s {.header = "h.h"}
+  @gen_pkg::block_s {.header = "h.h"}
   function void f() { }
 }

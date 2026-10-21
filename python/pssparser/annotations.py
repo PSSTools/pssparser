@@ -8,17 +8,17 @@ annotation``; a generator reading an annotation wants all of them, folded::
     from pssparser import annotations
 
     p = pssparser.Parser()
-    p.parses([("hal.pss", text)])
+    p.parses([("gen.pss", text)])
     root = p.link()
 
-    for ann in annotations.find(root, comp, "hal_pkg::hal_s"):
+    for ann in annotations.find(root, comp, "gen_pkg::block_s"):
         vals = annotations.effective(root, ann)
         vals["name"].value          # "UART", a str
         vals["prefix"].is_default   # True: the field's initializer was used
 
 An annotation is matched on the type the linker resolved, never on its
-spelling: ``@hal_s`` under an import and ``@hal_pkg::hal_s`` are the same
-annotation, and a model's own ``hal_s`` in another package is not.
+spelling: ``@block_s`` under an import and ``@gen_pkg::block_s`` are the same
+annotation, and a model's own ``block_s`` in another package is not.
 
 Values are folded here, once, so that every consumer gets the same answer.
 A value that does not fold (it names something that is not a constant, or
@@ -133,7 +133,7 @@ def _own_annotations(node) -> Iterator[Any]:
 def find(parser_or_root, node, type: Union[str, Any]) -> List[Any]:
     """The annotations of type ``type`` on ``node``, in source order.
 
-    ``type`` is a qualified name (``"hal_pkg::hal_s"``; a type in the global
+    ``type`` is a qualified name (``"gen_pkg::block_s"``; a type in the global
     scope is just its name) or the declaration itself, as its symbol scope or
     its ``AnnotationDecl``. An annotation whose type did not resolve (LINT403)
     matches nothing.

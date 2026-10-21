@@ -23,7 +23,8 @@ Currently: **PSS 3.1** (Public Review Draft, 2026-08-28).
   take their defaults. Values are folded to `str`, `int` (at the field's
   width), `bool` or `EnumValue`. `on(root, node)` lists every resolved
   annotation on an element, and `standalone(root, scope)` the standalone ones
-  in a scope. See `docs/annotations.rst`.
+  in a scope; `type_of`, `qualified_name`, `fields` and `fold` are the parts
+  `effective` is built from. See `docs/annotations.rst`.
 - `pssparser.refs.export_of(root, fn)` and `refs.exports(root)`: the
   `export` statements that name a function, from the linker's binding of each.
 - PSS150, an error: an annotation parameter that does not suit its field. A
@@ -63,6 +64,8 @@ Currently: **PSS 3.1** (Public Review Draft, 2026-08-28).
 
 - `docs/annotations.rst` no longer describes the PSS 3.0 paren form as
   accepted. It is rejected.
+- The API reference documents the annotation classes, `ExportFunction` and
+  `pssparser.annotations`.
 
 ## 3.4.0 — semantic errors the LRM requires
 

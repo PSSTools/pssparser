@@ -12,11 +12,11 @@ from pssparser.annotations import EnumValue
 _LIVE = []
 
 HAL = """
-package hal_pkg {
+package gen_pkg {
     enum mode_e { M0, M1 = 5, M2 };
     static const int K = 3;
     annotation base_s { string name; int n = K + 1; }
-    annotation hal_s : base_s {
+    annotation block_s : base_s {
         string header;
         string prefix = "";
         mode_e mode = mode_e::M1;
@@ -27,7 +27,7 @@ package hal_pkg {
     }
     annotation other_s { string name; }
 }
-extend annotation hal_pkg::hal_s { int extra = hal_pkg::K * 2; }
+extend annotation gen_pkg::block_s { int extra = gen_pkg::K * 2; }
 """
 
 
@@ -69,9 +69,9 @@ def _fn(comp, name):
 
 def test_explicit_default_inherited_and_extended_values():
     p, root, c = _comp(
-        '@hal_pkg::hal_s {.name = "UART", .header = "uart.h"} '
+        '@gen_pkg::block_s {.name = "UART", .header = "uart.h"} '
         'function void f() {}')
-    anns = annotations.find(root, _fn(c, "f"), "hal_pkg::hal_s")
+    anns = annotations.find(root, _fn(c, "f"), "gen_pkg::block_s")
     assert len(anns) == 1
     v = annotations.effective(root, anns[0])
     # Declaration order: the base's fields, the type's own, then the extension's.
@@ -81,7 +81,7 @@ def test_explicit_default_inherited_and_extended_values():
     assert (v["header"].value, v["header"].is_default) == ("uart.h", False)
     assert (v["prefix"].value, v["prefix"].is_default) == ("", True)
     assert v["n"].value == 4                      # K + 1, through a static const
-    assert v["mode"].value == EnumValue("hal_pkg::mode_e", "M1", 5)
+    assert v["mode"].value == EnumValue("gen_pkg::mode_e", "M1", 5)
     assert v["en"].value is True
     assert v["mask"].value == 0xFF                # ~0 in a bit[8]
     assert v["neg"].value == -3                   # truncates toward zero
@@ -91,9 +91,9 @@ def test_explicit_default_inherited_and_extended_values():
 
 def test_value_carries_expression_field_and_location():
     p, root, c = _comp(
-        '@hal_pkg::hal_s {.name = "X", .header = "h"} function void f() {}')
+        '@gen_pkg::block_s {.name = "X", .header = "h"} function void f() {}')
     v = annotations.effective(
-        root, annotations.find(root, _fn(c, "f"), "hal_pkg::hal_s")[0])
+        root, annotations.find(root, _fn(c, "f"), "gen_pkg::block_s")[0])
     name, prefix = v["name"], v["prefix"]
     assert type(name.expr).__name__ == "ExprString"
     assert name.field.getName().getId() == "name"
@@ -104,55 +104,55 @@ def test_value_carries_expression_field_and_location():
 
 def test_enum_item_value_follows_the_previous_item():
     p, root, c = _comp(
-        '@hal_pkg::hal_s {.name = "X", .header = "h", .mode = hal_pkg::mode_e::M2} '
+        '@gen_pkg::block_s {.name = "X", .header = "h", .mode = gen_pkg::mode_e::M2} '
         'function void f() {}')
     v = annotations.effective(
-        root, annotations.find(root, _fn(c, "f"), "hal_pkg::hal_s")[0])
-    assert v["mode"].value == EnumValue("hal_pkg::mode_e", "M2", 6)
+        root, annotations.find(root, _fn(c, "f"), "gen_pkg::block_s")[0])
+    assert v["mode"].value == EnumValue("gen_pkg::mode_e", "M2", 6)
     assert v["mode"].value.item is not None
 
 
 def test_unset_field_without_default_is_present_with_no_value():
-    p, root, c = _comp('@hal_pkg::hal_s {.name = "X"} function void f() {}')
+    p, root, c = _comp('@gen_pkg::block_s {.name = "X"} function void f() {}')
     v = annotations.effective(
-        root, annotations.find(root, _fn(c, "f"), "hal_pkg::hal_s")[0])
+        root, annotations.find(root, _fn(c, "f"), "gen_pkg::block_s")[0])
     h = v["header"]
     assert (h.expr, h.value, h.is_default, h.location) == (None, None, True, None)
 
 
 def test_find_by_name_and_by_declaration_and_not_by_spelling():
     p, root, c = _comp(
-        'import hal_pkg::*; '
-        '@hal_s {.name = "a", .header = "h"} '
+        'import gen_pkg::*; '
+        '@block_s {.name = "a", .header = "h"} '
         '@other_s {.name = "b"} '
-        '@hal_pkg::hal_s {.name = "c", .header = "h"} '
+        '@gen_pkg::block_s {.name = "c", .header = "h"} '
         'function void f() {}')
     f = _fn(c, "f")
-    by_name = annotations.find(root, f, "hal_pkg::hal_s")
-    # `@hal_s` under an import is the same annotation as `@hal_pkg::hal_s`.
+    by_name = annotations.find(root, f, "gen_pkg::block_s")
+    # `@block_s` under an import is the same annotation as `@gen_pkg::block_s`.
     assert [annotations.effective(root, a)["name"].value
             for a in by_name] == ["a", "c"]
-    decl = _find_scope(root, "hal_s", "SymbolTypeScope")
+    decl = _find_scope(root, "block_s", "SymbolTypeScope")
     assert len(annotations.find(root, f, decl)) == 2
     assert len(annotations.find(root, f, decl.getTarget())) == 2
-    assert len(annotations.find(p, f, "::hal_pkg::hal_s")) == 2
-    assert annotations.find(root, f, "hal_s") == []
-    assert len(annotations.find(root, f, "hal_pkg::other_s")) == 1
+    assert len(annotations.find(p, f, "::gen_pkg::block_s")) == 2
+    assert annotations.find(root, f, "block_s") == []
+    assert len(annotations.find(root, f, "gen_pkg::other_s")) == 1
 
 
 def test_find_on_component_struct_field_and_enum():
     src = HAL + """
-    @hal_pkg::other_s {.name = "comp"}
+    @gen_pkg::other_s {.name = "comp"}
     component c {
-        @hal_pkg::other_s {.name = "fld"} int a;
+        @gen_pkg::other_s {.name = "fld"} int a;
     }
-    @hal_pkg::other_s {.name = "st"} struct s { }
-    @hal_pkg::other_s {.name = "en"} enum e { A };
+    @gen_pkg::other_s {.name = "st"} struct s { }
+    @gen_pkg::other_s {.name = "en"} enum e { A };
     """
     p, root = _link(src)
 
     def name_of(node):
-        anns = annotations.find(root, node, "hal_pkg::other_s")
+        anns = annotations.find(root, node, "gen_pkg::other_s")
         assert len(anns) == 1
         return annotations.effective(root, anns[0])["name"].value
 
@@ -213,9 +213,9 @@ def test_integer_folding(expr, value):
 def test_on_lists_every_resolved_annotation_and_standalone_the_scope_s():
     src = HAL + """
     component c {
-        @hal_pkg::other_s {.name = "a"} @nosuch_s @hal_pkg::other_s {.name = "b"}
+        @gen_pkg::other_s {.name = "a"} @nosuch_s @gen_pkg::other_s {.name = "b"}
         function void f() {}
-        @hal_pkg::other_s {.name = "scope"};
+        @gen_pkg::other_s {.name = "scope"};
     }
     """
     p, root = _link(src)
@@ -223,7 +223,7 @@ def test_on_lists_every_resolved_annotation_and_standalone_the_scope_s():
     on = annotations.on(root, _fn(c, "f"))
     assert [annotations.effective(root, a)["name"].value for a in on] == ["a", "b"]
     assert annotations.qualified_name(annotations.type_of(root, on[0])) \
-        == "hal_pkg::other_s"
+        == "gen_pkg::other_s"
     st = annotations.standalone(root, c)
     assert [annotations.effective(root, a)["name"].value for a in st] == ["scope"]
     assert annotations.standalone(root, c.getTarget())[0].getIs_standalone()

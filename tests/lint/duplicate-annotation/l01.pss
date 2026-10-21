@@ -1,8 +1,8 @@
-// expect: LINT409 @ 6:33
-package hal_pkg {
-  annotation hal_s { string name = ""; }
+// expect: LINT409 @ 6:35
+package gen_pkg {
+  annotation block_s { string name = ""; }
 }
 component pss_top {
-  @hal_pkg::hal_s {.name = "a"} @hal_pkg::hal_s {.name = "b"}
+  @gen_pkg::block_s {.name = "a"} @gen_pkg::block_s {.name = "b"}
   function void f() { }
 }

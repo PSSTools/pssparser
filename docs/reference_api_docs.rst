@@ -931,6 +931,17 @@ Function Imports
     :undoc-members:
     :show-inheritance:
 
+Function Exports
+================
+
+An ``export`` statement (20.4.2). ``pssparser.refs.export_of`` finds the
+ones that name a function (see :doc:`refs`).
+
+.. autoclass:: pssparser.ast.ExportFunction
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 ********
 Monitors
 ********
@@ -1254,6 +1265,31 @@ Symbol References
     :members:
     :undoc-members:
     :show-inheritance:
+
+***********
+Annotations
+***********
+
+Annotation types, and their applications to elements (7.13). Read an
+annotation's values with ``pssparser.annotations`` (see :doc:`annotations`).
+
+.. autoclass:: pssparser.ast.AnnotationDecl
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+.. autoclass:: pssparser.ast.Annotation
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+.. autoclass:: pssparser.ast.AnnotationParam
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+.. automodule:: pssparser.annotations
+    :members:
 
 **********
 Extensions

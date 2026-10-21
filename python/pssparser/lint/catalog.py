@@ -143,10 +143,10 @@ CORE_EMITTED: List[MarkerDef] = [
             "7.13 does not forbid applying one annotation type to an "
             "element more than once, but a generator that reads the "
             "annotation finds two answers where it expects one.  Message: "
-            "``annotation 'hal_s' is applied to this element more than "
+            "``annotation 'block_s' is applied to this element more than "
             "once``, with the first application as a related location.  "
-            "The type is the one the linker resolved: ``@hal_s`` under an "
-            "import and ``@pkg::hal_s`` are the same annotation."
+            "The type is the one the linker resolved: ``@block_s`` under an "
+            "import and ``@pkg::block_s`` are the same annotation."
         ),
     ),
     MarkerDef(
@@ -183,7 +183,7 @@ CORE_EMITTED: List[MarkerDef] = [
             "no initializer, its base's and those ``extend annotation`` "
             "adds included.  7.13 is silent, and an unset data field takes "
             "its type's default value, so this is a warning rather than an "
-            "error.  Message: ``annotation 'hal_s' leaves field 'header' "
+            "error.  Message: ``annotation 'block_s' leaves field 'header' "
             "unset, and it has no default value``, with the field's "
             "declaration as a related location.  Give the field a value, or "
             "give it a default in the annotation's declaration."

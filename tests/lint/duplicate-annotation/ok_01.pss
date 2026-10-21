@@ -1,9 +1,9 @@
 // expect: none
-package hal_pkg {
-  annotation hal_s { string name = ""; }
+package gen_pkg {
+  annotation block_s { string name = ""; }
   annotation other_s { string name = ""; }
 }
 component pss_top {
-  @hal_pkg::hal_s {.name = "a"} @hal_pkg::other_s {.name = "b"}
+  @gen_pkg::block_s {.name = "a"} @gen_pkg::other_s {.name = "b"}
   function void f() { }
 }

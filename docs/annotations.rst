@@ -62,7 +62,7 @@ whatever is declared after it:
 .. code-block:: pss
 
    action config {
-       @desc_c {.desc = "Scope annotation"};   // standalone
+       @desc_s {.desc = "Scope annotation"};   // standalone
        int f1;                                 // NOT annotated
    }
 
@@ -73,7 +73,7 @@ scope:
 
    action config {
        int f1;
-       @desc_c {.desc = "..."}   // Error: nothing follows in this scope
+       @desc_s {.desc = "..."}   // Error: nothing follows in this scope
    }
 
 Depending on where it appears this is reported either as a syntax error (in a
@@ -134,8 +134,8 @@ parameter against the field it names:
   field that has no initializer unset. 7.13 is silent, and the field takes its
   type's default value, so this is a warning.
 * **LINT409** ``duplicate-annotation`` (warning). The same annotation type is
-  applied to one element twice. ``@hal_s`` under an import and
-  ``@pkg::hal_s`` are the same type.
+  applied to one element twice. ``@block_s`` under an import and
+  ``@pkg::block_s`` are the same type.
 
 LINT409 and LINT411 entered the rule set in 2026.2. They are not in the
 ``minimal`` profile, and a ``rules-version`` pin of 2026.1 holds them back
@@ -156,10 +156,10 @@ annotation gives it, folded to a Python value:
    from pssparser import Parser, annotations
 
    p = Parser()
-   p.parses([("hal.pss", text)])
+   p.parses([("dev.pss", text)])
    root = p.link()
 
-   for ann in annotations.find(root, comp, "hal_pkg::hal_s"):
+   for ann in annotations.find(root, comp, "gen_pkg::block_s"):
        vals = annotations.effective(root, ann)
        vals["name"].value          # "UART": written in the annotation
        vals["prefix"].is_default   # True: the field's initializer was used
@@ -187,12 +187,15 @@ declaration order (base fields first, then the type's own, then those added by
     True when the value comes from the field's initializer.
 ``location``
     The parameter's location, or the field declaration's for a default.
+    ``None`` when ``expr`` is.
 
 ``on(parser_or_root, node)`` returns every annotation on an element whose
 type resolved, whatever its type, and ``standalone(parser_or_root, scope)``
 the standalone annotations written directly in a scope.
 ``qualified_name(type_of(parser_or_root, annotation))`` names an
-annotation's type.
+annotation's type. ``fields(parser_or_root, type_scope)`` lists a type's
+data fields in the order ``effective`` uses, and ``fold(parser_or_root,
+expr)`` folds one expression, before any field width is applied.
 
 All of these take the parser or the linked root first, because an AST node
 does not lead back to the root it was linked under.

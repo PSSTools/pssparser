@@ -130,7 +130,7 @@ are not reported by ``occurrences()``; a tool that must treat them can find
 them by position.
 
 Exports
-=======
+-------
 
 ``refs.export_of(parser_or_root, fn)`` lists the ``export`` statements
 (20.4.2) that name a function, in source order, or ``[]``. ``fn`` is the

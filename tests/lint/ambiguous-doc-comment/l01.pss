@@ -1,10 +1,10 @@
 // expect: LINT410 @ 6:3
-package hal_pkg {
-  annotation hal_s { string name = ""; }
+package gen_pkg {
+  annotation block_s { string name = ""; }
 }
 component pss_top {
   /** Above the annotation: not used. */
-  @hal_pkg::hal_s {.name = "f"}
+  @gen_pkg::block_s {.name = "f"}
   /** Below the annotation: documents f. */
   function void f() { }
 }
