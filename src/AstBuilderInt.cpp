@@ -682,6 +682,7 @@ antlrcpp::Any AstBuilderInt::visitAnnotation(PSSParser::AnnotationContext *ctx) 
     ast::IAnnotation *annotation = m_factory->mkAnnotation(
         mkTypeId(ctx->type_identifier()));
     setLoc(annotation, ctx->start);
+    setEndLoc(annotation, ctx->stop);
 
     if (ctx->annotation_params_list()) {
         for (auto *item : ctx->annotation_params_list()->annotation_param_item()) {
@@ -689,6 +690,7 @@ antlrcpp::Any AstBuilderInt::visitAnnotation(PSSParser::AnnotationContext *ctx) 
                 mkRefName(item->identifier()),
                 mkExpr(item->constant_expression()->expression()));
             setLoc(param, item->start);
+            setEndLoc(param, item->stop);
             annotation->getParameters().push_back(ast::IAnnotationParamUP(param));
         }
     }
@@ -709,6 +711,7 @@ antlrcpp::Any AstBuilderInt::visitAnnotation(PSSParser::AnnotationContext *ctx) 
         if (m_pending_annotations.empty()) {
             m_pending_annotation_tok = ctx->start;
         }
+        m_pending_annotation_stop = ctx->stop;
         m_pending_annotations.push_back(annotation);
     }
 
@@ -6569,9 +6572,24 @@ void AstBuilderInt::addDocstring(ast::IScopeChild *c, Token *t, Token *stop) {
 	// constructing visitor happens to hold, so the visitor's token is only a
 	// fallback (see DocAnchorScope).
 	Token *anchor = docAnchor(t);
+	// Set only when `t` came through docstringAnchor for an annotated
+	// declaration; a later addDocstring must not see it.
+	Token *after_ann = m_doc_after_annotation_tok;
+	m_doc_after_annotation_tok = 0;
+	if (after_ann == anchor) {
+		after_ann = 0;
+	}
 
-	DocComment dc;
-	if (m_doc_extractor && m_doc_extractor->extractLeading(anchor, dc)) {
+	DocComment dc, dc_after;
+	bool has_after = m_doc_extractor && after_ann
+		&& m_doc_extractor->extractAfterAnnotation(after_ann, dc_after);
+	if (has_after) {
+		// PP-3: `@a /** doc */ function ...`. The comment nearer the
+		// declaration documents it (ruling R-H3); one above the annotations
+		// as well is reported and not used.
+		DEBUG("docstring (after annotations)=%s", dc_after.text.c_str());
+		applyDocComment(c, dc_after);
+	} else if (m_doc_extractor && m_doc_extractor->extractLeading(anchor, dc)) {
 		DEBUG("docstring=%s", dc.text.c_str());
 		applyDocComment(c, dc);
 	} else if (m_doc_extractor && stop &&
@@ -6586,6 +6604,10 @@ void AstBuilderInt::addDocstring(ast::IScopeChild *c, Token *t, Token *stop) {
 	// extracted independently -- the extractor decides what documents `c`,
 	// this records what was written around it.
 	attachComments(c, anchor);
+	if (after_ann) {
+		// And those between the annotations and the declaration.
+		attachLeadingComments(c, after_ann);
+	}
 
 	DEBUG_LEAVE("addDocstring");
 }
@@ -6731,6 +6753,78 @@ void AstBuilderInt::attachComments(ast::IScopeChild *c, Token *t, Token *stop) {
 	DEBUG_LEAVE("attachComments");
 }
 
+void AstBuilderInt::attachLeadingComments(ast::IScopeChild *c, Token *t) {
+	if (!m_collectComments || !t || !c || t->getTokenIndex() == 0) {
+		return;
+	}
+	std::vector<Token *> cmts = m_tokens->getHiddenTokensToLeft(t->getTokenIndex(), 11);
+	std::vector<Token *> mlc = m_tokens->getHiddenTokensToLeft(t->getTokenIndex(), 12);
+	cmts.insert(cmts.end(), mlc.begin(), mlc.end());
+	std::sort(cmts.begin(), cmts.end(), [](Token *a, Token *b) {
+		return a->getTokenIndex() < b->getTokenIndex();
+	});
+	for (std::vector<Token *>::const_iterator
+		it=cmts.begin(); it!=cmts.end(); it++) {
+		// Already taken as the trailing comment of the annotations' line.
+		bool dup = false;
+		for (std::vector<ast::ICommentUP>::const_iterator
+			ct=c->getComments().begin(); ct!=c->getComments().end(); ct++) {
+			const ast::Location &l = (*ct)->getLocation();
+			if (l.lineno == (int32_t)(*it)->getLine()
+					&& l.linepos == (int32_t)(*it)->getCharPositionInLine()+1) {
+				dup = true;
+				break;
+			}
+		}
+		if (!dup) {
+			c->getComments().push_back(ast::ICommentUP(mkCommentFor(
+				*it, ast::CommentPlacement::CommentPlacement_Leading)));
+		}
+	}
+}
+
+void AstBuilderInt::checkDocCommentPositions(Token *first, Token *stop) {
+	if (!m_marker_l || !m_doc_extractor || !first || !stop || !m_tokens) {
+		return;
+	}
+	Token *decl = 0;
+	for (size_t i=stop->getTokenIndex()+1; i<m_tokens->size(); i++) {
+		Token *n = m_tokens->get(i);
+		if (n->getChannel() == Token::DEFAULT_CHANNEL) {
+			decl = n;
+			break;
+		}
+	}
+	DocComment before, after;
+	// Doc-marked comments only (`///`, `/** */`): a plain `//` note above an
+	// annotation is common, and is not a second doc comment.
+	if (decl && m_doc_extractor->extractAfterAnnotation(decl, after)
+			&& m_doc_extractor->extractLeading(first, before)
+			&& isDocMarked(before.form) && isDocMarked(after.form)) {
+		reportAmbiguousDocComment(before, after);
+	}
+}
+
+bool AstBuilderInt::isDocMarked(pssp::DocCommentForm f) {
+	return f == pssp::DocCommentForm::DocLine || f == pssp::DocCommentForm::DocBlock;
+}
+
+void AstBuilderInt::reportAmbiguousDocComment(
+		const DocComment &unused,
+		const DocComment &used) {
+	if (!m_marker_l) {
+		return;
+	}
+	Marker m(
+		"this doc comment is not used: the one between the annotations and "
+		"the declaration documents it",
+		MarkerSeverityE::Warn,
+		unused.location,
+		"LINT410");
+	m.addRelated(used.location, "documents the declaration");
+	m_marker_l->marker(&m);
+}
+
 std::string AstBuilderInt::attachTrailingComment(ast::IScopeChild *c, Token *t) {
 	std::string text;
 
@@ -6872,7 +6966,11 @@ void AstBuilderInt::discardPendingAnnotations(size_t mark) {
 void AstBuilderInt::attachPendingAnnotations(ast::IScopeChild *c) {
     if (!m_pending_annotations.empty()) {
         m_attached_annotation_tok = m_pending_annotation_tok;
+        m_attached_annotation_stop = m_pending_annotation_stop;
+        checkDocCommentPositions(
+            m_pending_annotation_tok, m_pending_annotation_stop);
         m_pending_annotation_tok = 0;
+        m_pending_annotation_stop = 0;
         for (std::vector<ast::IAnnotation *>::const_iterator
             it=m_pending_annotations.begin();
             it!=m_pending_annotations.end(); it++) {
@@ -6907,7 +7005,9 @@ AstBuilderInt::PendingAnnotations AstBuilderInt::takePendingAnnotations() {
     PendingAnnotations p;
     p.anns.swap(m_pending_annotations);
     p.tok = m_pending_annotation_tok;
+    p.stop = m_pending_annotation_stop;
     m_pending_annotation_tok = 0;
+    m_pending_annotation_stop = 0;
     return p;
 }
 
@@ -6934,13 +7034,30 @@ void AstBuilderInt::attachStmtAnnotations(
         if (p.tok) {
             m_pending_annotation_tok = p.tok;
         }
+        if (p.stop && !m_pending_annotation_stop) {
+            m_pending_annotation_stop = p.stop;
+        }
     }
     p.anns.clear();
 }
 
 Token *AstBuilderInt::docstringAnchor(Token *t) {
     Token *anchor = m_attached_annotation_tok;
+    Token *stop = m_attached_annotation_stop;
     m_attached_annotation_tok = 0;
+    m_attached_annotation_stop = 0;
+    m_doc_after_annotation_tok = 0;
+    if (anchor && stop && m_tokens) {
+        // The first on-channel token after the annotations: a doc comment
+        // between them and the declaration leads it.
+        for (size_t i=stop->getTokenIndex()+1; i<m_tokens->size(); i++) {
+            Token *n = m_tokens->get(i);
+            if (n->getChannel() == Token::DEFAULT_CHANNEL) {
+                m_doc_after_annotation_tok = n;
+                break;
+            }
+        }
+    }
     return anchor ? anchor : t;
 }
 

@@ -110,6 +110,13 @@ public:
     bool extractLeading(antlr4::Token *anchor, DocComment &out) const;
 
     /**
+     * As extractLeading, for the comment between a declaration's annotations
+     * and the declaration: the annotation before it cannot own a comment, so
+     * one starting on the annotation's line still leads the declaration.
+     */
+    bool extractAfterAnnotation(antlr4::Token *anchor, DocComment &out) const;
+
+    /**
      * Find a trailing comment beginning on the same line as *stop*, the last
      * token of a declaration.  Returns false when there is none.
      */
@@ -148,6 +155,14 @@ private:
                 f == pssp::DocCommentForm::DocLine ||
                 f == pssp::DocCommentForm::DocBlock);
     }
+
+    /**
+     * *prev_owns_same_line*: a comment starting on the line of the token
+     * before it trails that token (see extractAfterAnnotation for the case
+     * where it cannot).
+     */
+    bool extractLeading(antlr4::Token *anchor, DocComment &out,
+            bool prev_owns_same_line) const;
 
     /** Build the result from *run*, which is in reverse source order. */
     bool finish(const std::vector<antlr4::Token *> &run, DocComment &out) const;

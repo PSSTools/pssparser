@@ -1253,6 +1253,21 @@ A reference type where it does not apply
 
 LRM 7.10 a: "Reference types shall not be used to declare fields in the scope of flow/resource objects or structs."  9.1.5.3 a: "The instance qualifier may only be applied to component fields whose type is a component reference or a list or array of component references."  20.2.3 b: "It shall not be allowed to add the const qualifier on reference types or collections thereof."
 
+PSS150
+~~~~~~
+
+**Severity:** error
+
+Annotation parameter does not suit its field
+
+LRM 7.13: an annotation's parameter list initializes the fields of the annotation type, each at most once, as an aggregate literal does (8.5.4), and each value must be assignable to its field.  An annotation is configuration read by a generator, with nothing in between to convert a value, so the check is strict: a string is not a number, a bool is not an integer, and an enum field takes an item of its own enum (an integer converts to one only by a cast, 7.5.1).  Messages:
+
+* ``annotation parameter 'name' is int, but its field is string``
+* ``annotation parameter 'm' is 256, which does not fit in bit[8]``
+* ``annotation parameter 'name' is given more than once``
+
+The width check applies to an integer literal, negated or not; one that fits the field as either signed or unsigned (``bit[8] m = -1``) is accepted.  A field the annotation leaves unset is LINT411, a warning.
+
 LINT: core-emitted lint
 -----------------------
 
@@ -1328,6 +1343,39 @@ Type width references a constant declared later
 The prose under LRM Example 264 extends 18.2c to type-width expressions: a constant used in ``bit[W]`` must be declared before it.  Message: ``constant 'W' is used in a type width before its declaration on line 5; declare it first (18.2)``.
 
 A warning rather than an error, because the rule is stated only in prose and existing models write it.  Move the constant's declaration above its first use.
+
+LINT409
+~~~~~~~
+
+**Severity:** warning
+
+**Name:** ``duplicate-annotation``; **Tier:** suspicious; **Family:** decl
+
+The same annotation type is applied twice to one element
+
+7.13 does not forbid applying one annotation type to an element more than once, but a generator that reads the annotation finds two answers where it expects one.  Message: ``annotation 'hal_s' is applied to this element more than once``, with the first application as a related location.  The type is the one the linker resolved: ``@hal_s`` under an import and ``@pkg::hal_s`` are the same annotation.
+
+LINT410
+~~~~~~~
+
+**Severity:** warning
+
+**Name:** ``ambiguous-doc-comment``; **Tier:** suspicious; **Family:** decl
+
+Doc comments both above and below a declaration's annotations
+
+A declaration's doc comment may be written above its annotations or between them and the declaration.  When both are there, the one nearer the declaration documents it, and the one above the annotations is not used.  Message: ``this doc comment is not used: the one between the annotations and the declaration documents it``, with the comment used as a related location.  Only doc-marked comments (``///``, ``/** */``) count: a plain ``//`` note above an annotation is not a second doc comment.  Reported whether or not the parser collects doc comments.
+
+LINT411
+~~~~~~~
+
+**Severity:** warning
+
+**Name:** ``annotation-field-unset``; **Tier:** suspicious; **Family:** decl
+
+An annotation leaves a field with no default unset
+
+The annotation gives no value to a field of its type that has no initializer, its base's and those ``extend annotation`` adds included.  7.13 is silent, and an unset data field takes its type's default value, so this is a warning rather than an error.  Message: ``annotation 'hal_s' leaves field 'header' unset, and it has no default value``, with the field's declaration as a related location.  Give the field a value, or give it a default in the annotation's declaration.
 
 LINT501
 ~~~~~~~

@@ -10,6 +10,60 @@ The LRM revisions this pssparser supports are listed in `README.md`, in
 `pssparser.SUPPORTED_LRM`, and on the second line of `pssparser --version`.
 Currently: **PSS 3.1** (Public Review Draft, 2026-08-28).
 
+## Unreleased
+
+### Added
+
+- `pssparser.annotations`: the values an annotation gives its fields.
+  `find(root, node, "pkg::ann_s")` returns the annotations of one type on an
+  element, matched on the type the linker resolved, not on its spelling.
+  `effective(root, ann)` maps every field to a `Value` (`expr`, `value`,
+  `field`, `is_default`, `location`). The fields include those inherited from
+  a base annotation and those added by `extend annotation`, and unset fields
+  take their defaults. Values are folded to `str`, `int` (at the field's
+  width), `bool` or `EnumValue`. `on(root, node)` lists every resolved
+  annotation on an element, and `standalone(root, scope)` the standalone ones
+  in a scope. See `docs/annotations.rst`.
+- `pssparser.refs.export_of(root, fn)` and `refs.exports(root)`: the
+  `export` statements that name a function, from the linker's binding of each.
+- PSS150, an error: an annotation parameter that does not suit its field. A
+  string where the field is a number, or the reverse, an integer for a `bool`
+  or an enum, an item of another enum, an integer literal wider than the
+  field, and a field named twice in one parameter list were all accepted.
+- LINT409 `duplicate-annotation`: one annotation type applied twice to an
+  element.
+- LINT410 `ambiguous-doc-comment`: doc comments both above a declaration's
+  annotations and between them and the declaration.
+- LINT411 `annotation-field-unset`: an annotation leaves a field with no
+  default unset.
+- LINT409, LINT410 and LINT411 are rules-version 2026.2. They are selected by
+  tier (`recommended` and up), not by `minimal`, which stays the warnings that
+  moved from `PSS`.
+
+### Fixed
+
+- An annotation on an `enum`, an `extend` (of any kind) or an `import` in the
+  global scope, on an `enum` or an `extend struct`/`component`/`action` in a
+  package, and on an `import function` outside a type was reported as "left
+  unbound by pssparser" (PSS042). The global scope had no annotation pass,
+  nothing collected the annotations in front of an `extend` or reached an
+  enum's through its symbol scope, and the symbol tree keeps an imported
+  function's scope rather than the `import` statement that carries them.
+- A doc comment between a declaration's annotations and the declaration
+  (`@a /** doc */ function ...`) documents the declaration; it was dropped.
+  With `collect_comments`, it is in `getComments()` too.
+- `Annotation` and `AnnotationParam` have an end location.
+- The `ast.pyi` stub gives each enum and flag member the value the runtime
+  has. It said `auto()`, which starts at 1 and counts flags 1, 2, 3.
+  (pyastbuilder's stub generator.)
+- `lint_pkg::waive`'s `reason` defaults to `""`, so a waiver without one is
+  reported once, as PSSP205, and not also as LINT411.
+
+### Documentation
+
+- `docs/annotations.rst` no longer describes the PSS 3.0 paren form as
+  accepted. It is rejected.
+
 ## 3.4.0 — semantic errors the LRM requires
 
 ### Fixed

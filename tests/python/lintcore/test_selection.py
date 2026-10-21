@@ -146,7 +146,10 @@ def test_the_pin(engine):
     rs = _oracle(pin="2026.1")
     r = _resolve(engine, "strict", pin="2026.1")
     assert set(r["groups"][0]["enabled"]) == rs.resolve("strict")
-    assert r["groups"][0]["held_back"] == rs.held_back("strict") == ["ACME-DMA001", "LINT501"]
+    # LINT409-LINT411 are core-emitted, but since 2026.2: a pin holds
+    # them back like any other rule.
+    assert r["groups"][0]["held_back"] == rs.held_back("strict") == [
+        "ACME-DMA001", "LINT409", "LINT410", "LINT411", "LINT501"]
     # An explicit select beats the pin.
     assert "LINT501" in _enabled(engine, "recommended", ["new-rule"], pin="2026.1")
 
@@ -358,12 +361,13 @@ def test_override_options_merge(engine):
 
 
 def test_override_errors_name_the_override(engine):
-    r = _resolve(engine, overrides=[{"files": ["x"], "select": ["LINT999"]},
+    # Nothing near enough to suggest (`LINT999` would be "did you mean LINT409").
+    r = _resolve(engine, overrides=[{"files": ["x"], "select": ["XYZ999"]},
                                     {"select": ["LINT101"]},
                                     {"files": ["y"], "rule": {"nope": {}}, "severity": {}}])
     assert [(e["key"], e["message"]) for e in r["errors"]] == [
         ("lint.overrides[0].select", "'lint.overrides[0].select' names an unknown marker or "
-         "selector 'LINT999'; run --list-markers to see the declared IDs and names"),
+         "selector 'XYZ999'; run --list-markers to see the declared IDs and names"),
         ("request", "lint.overrides[1]: 'files' must list at least one pattern"),
         ("request", "lint.overrides[2]: unknown key 'severity'"),
         ("lint.overrides[2].rule.nope", "'lint.overrides[2].rule.nope' configures an unknown "

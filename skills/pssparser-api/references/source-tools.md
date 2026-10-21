@@ -136,10 +136,45 @@ block, after the last statement, go on the enclosing scope's
 
 ## Annotations
 
-Every `ScopeChild` has `getAnnotations()`. An `Annotation` has `getType()` (a
-`TypeIdentifier`), `getParameters()`, and `getIs_standalone()`. Each
-`AnnotationParam` has `getName()` (an `ExprRefName`, or `None` for a positional
-parameter in pssparser's paren form) and `getValue()` (an `Expr`).
+To read what an annotation says, use `pssparser.annotations`. It matches the
+annotation's type as the linker resolved it, includes fields inherited from a
+base annotation and added by `extend annotation`, fills in defaults, and folds
+each value to a Python `str`, `int`, `bool` or `EnumValue`:
+
+```python
+from pssparser import Parser, annotations
+
+p = Parser()
+p.parses([("m.pss", """
+package hal_pkg {
+    annotation hal_s { string name; string header; string prefix = ""; }
+}
+component pss_top {
+    @hal_pkg::hal_s {.name = "UART", .header = "uart.h"}
+    function void f() { }
+}
+""")])
+root = p.link()
+comp = [root.getChild(i) for i in range(root.numChildren())
+        if root.getChild(i).getName() == "pss_top"][0]
+f = [comp.getChild(i) for i in range(comp.numChildren())
+     if comp.getChild(i).getName() == "f"][0]
+ann = annotations.find(root, f, "hal_pkg::hal_s")[0]
+vals = annotations.effective(root, ann)
+assert vals["name"].value == "UART" and not vals["name"].is_default
+assert vals["prefix"].value == "" and vals["prefix"].is_default
+```
+
+`find(root, node, type)` takes the declaration or the symbol scope wrapping it,
+and a qualified name or the annotation declaration. Each `Value` has `expr`,
+`value`, `field`, `is_default` and `location`. The linker checks values against
+their fields (PSS150), and warns about a field left unset with no default
+(LINT411) and about one annotation type applied twice (LINT409).
+
+The raw AST is there too. Every `ScopeChild` has `getAnnotations()`. An
+`Annotation` has `getType()` (a `TypeIdentifier`), `getParameters()`, and
+`getIs_standalone()`. Each `AnnotationParam` has `getName()` (an
+`ExprRefName`) and `getValue()` (an `Expr`).
 
 ```python
 from pssparser import Parser

@@ -601,6 +601,24 @@ private:
     void attachComments(ast::IScopeChild *c, Token *t, Token *stop=0);
 
     /**
+     * Every comment between the on-channel token before *t* and *t*, as a
+     * leading comment of *c*: those written between a declaration's
+     * annotations and the declaration itself.
+     */
+    void attachLeadingComments(ast::IScopeChild *c, Token *t);
+
+    /**
+     * LINT410, for the declaration whose annotations run from *first* to
+     * *stop*: a doc comment both above and below them. Checked whether or not
+     * doc comments are collected, so that the CLI reports it.
+     */
+    void checkDocCommentPositions(Token *first, Token *stop);
+    static bool isDocMarked(pssp::DocCommentForm f);
+
+    /** LINT410: doc comments both above and below a declaration's annotations. */
+    void reportAmbiguousDocComment(const DocComment &unused, const DocComment &used);
+
+    /**
      * Claim a comment that starts on *t*'s line, after it, as *c*'s trailing
      * comment -- the `x = 1; // note` case. Returns its normalized text.
      */
@@ -639,6 +657,7 @@ private:
     struct PendingAnnotations {
         std::vector<ast::IAnnotation *> anns;
         Token                          *tok = 0;
+        Token                          *stop = 0;
     };
     PendingAnnotations takePendingAnnotations();
     /** Report every pending annotation as having nothing to attach to (7.13). */
@@ -1265,6 +1284,14 @@ private:
     // start from the annotation, not from the declaration's own first token.
     Token                                     *m_pending_annotation_tok = 0;
     Token                                     *m_attached_annotation_tok = 0;
+    // The last token of the last pending (and of the attached) annotation. A
+    // doc comment may also be written between the annotations and the
+    // declaration (PP-3); the scan for it starts from the token after this.
+    Token                                     *m_pending_annotation_stop = 0;
+    Token                                     *m_attached_annotation_stop = 0;
+    // Set by docstringAnchor when the declaration is annotated: the first
+    // token after its annotations. Consumed by addDocstring.
+    Token                                     *m_doc_after_annotation_tok = 0;
 
 };
 

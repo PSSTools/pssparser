@@ -40,25 +40,8 @@ The outer braces are literal; the inner braces are BNF repetition. So:
 
 The standard defines no positional form: every parameter is named.
 
-The paren form (a ``pssparser`` extension)
-------------------------------------------
-
-``pssparser`` also accepts a parenthesized form with positional, named, or
-mixed parameters:
-
-.. code-block:: pss
-
-   @desc_s("Configures the IP")             // positional
-   @desc_s(desc = "Configures the IP")      // named
-   @desc_s("Configures the IP", weight = 3) // mixed
-
-This is an extension, not standard PSS. It predates the LRM syntax and covers
-ground the standard does not — the LRM has no positional form at all — so it is
-retained without a deprecation warning. **Prefer the brace form** in code that
-must be portable between tools.
-
-Both forms produce the same ``AnnotationParam`` structure; a named parameter
-carries its name, a positional one does not.
+The PSS 3.0 parenthesized form (``@desc_s("x")``, positional parameters
+included) was removed from the language in 3.1, and ``pssparser`` rejects it.
 
 
 Element and standalone annotations
@@ -130,6 +113,98 @@ statement body is an error, as at the end of any scope.
 
 pssparser's own ``@lint_pkg::waive`` annotation waives a diagnostic within
 the element it is applied to: see :doc:`waivers`.
+
+
+Checks on an annotation's parameters
+====================================
+
+An annotation whose type is not declared is disregarded, as 7.13 requires,
+with a warning (LINT403). For one whose type is known, the linker checks each
+parameter against the field it names:
+
+* **PSS150** (error). The value must suit its field. The check is stricter
+  than for a function argument, because nothing converts an annotation value
+  on its way to the generator that reads it: a string is not a number, a
+  ``bool`` field takes a ``bool``, and an enum field takes an item of its own
+  enum (an integer converts to an enum only by a cast, 7.5.1). An integer
+  literal must fit the field's width, read as either signed or unsigned, so
+  ``bit[8] m = -1`` is accepted and ``.m = 256`` is not. A field may be named
+  only once in one parameter list.
+* **LINT411** ``annotation-field-unset`` (warning). The annotation leaves a
+  field that has no initializer unset. 7.13 is silent, and the field takes its
+  type's default value, so this is a warning.
+* **LINT409** ``duplicate-annotation`` (warning). The same annotation type is
+  applied to one element twice. ``@hal_s`` under an import and
+  ``@pkg::hal_s`` are the same type.
+
+LINT409 and LINT411 entered the rule set in 2026.2. They are not in the
+``minimal`` profile, and a ``rules-version`` pin of 2026.1 holds them back
+(see :doc:`lint`).
+
+The fields include those inherited from a base annotation and those added by
+``extend annotation``.
+
+
+Reading annotation values
+=========================
+
+``pssparser.annotations`` gives each field of an annotation the value the
+annotation gives it, folded to a Python value:
+
+.. code-block:: python
+
+   from pssparser import Parser, annotations
+
+   p = Parser()
+   p.parses([("hal.pss", text)])
+   root = p.link()
+
+   for ann in annotations.find(root, comp, "hal_pkg::hal_s"):
+       vals = annotations.effective(root, ann)
+       vals["name"].value          # "UART": written in the annotation
+       vals["prefix"].is_default   # True: the field's initializer was used
+
+``find(parser_or_root, node, type)`` returns the annotations of one type on
+an element, in source order. ``node`` is the declaration or the symbol scope
+that wraps it (a component's, an enum's or a function's). ``type`` is a
+qualified name or the declaration itself, and is matched against the type the
+linker resolved, never against how the annotation spelled it.
+
+``effective(parser_or_root, annotation)`` maps each field name, in
+declaration order (base fields first, then the type's own, then those added by
+``extend annotation``), to a ``Value``:
+
+``expr``
+    The parameter's expression, or the field's initializer when the
+    annotation leaves the field unset. ``None`` if there is neither.
+``value``
+    ``expr`` folded: a ``str``, an ``int`` (at the field's width, so ``~0``
+    in a ``bit[8]`` is 255), a ``bool``, or an ``EnumValue(enum, name,
+    value)``. ``None`` if it does not fold; a cast does not fold yet.
+``field``
+    The annotation type's ``Field``.
+``is_default``
+    True when the value comes from the field's initializer.
+``location``
+    The parameter's location, or the field declaration's for a default.
+
+``on(parser_or_root, node)`` returns every annotation on an element whose
+type resolved, whatever its type, and ``standalone(parser_or_root, scope)``
+the standalone annotations written directly in a scope.
+``qualified_name(type_of(parser_or_root, annotation))`` names an
+annotation's type.
+
+All of these take the parser or the linked root first, because an AST node
+does not lead back to the root it was linked under.
+
+
+Doc comments and annotations
+============================
+
+A declaration's doc comment may be written above its annotations or between
+them and the declaration. If both positions hold a doc comment, the nearer one
+documents the declaration and LINT410 warns about the other. See
+:doc:`doc_comments`.
 
 
 Not supported: ``//@``

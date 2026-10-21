@@ -256,3 +256,48 @@ def test_standalone_annotation_before_an_import_is_not_a_declaration():
 def test_a_declaration_before_an_import_still_warns():
     assert _warnings("package lib { struct s {} }\n"
                      "package p { @A; struct t {} import lib::*; }") == ["LINT402"]
+
+
+# ---------------------------------------------------------------------------
+# PP-6: an annotation and each of its parameters have an end location
+# ---------------------------------------------------------------------------
+
+def _span(src, node):
+    b, e = node.getLocation(), node.getEndLocation()
+    assert b.lineno >= 1 and e.lineno >= 1, "no location"
+    lines = src.split("\n")
+    if b.lineno == e.lineno:
+        return lines[b.lineno - 1][b.linepos - 1:e.linepos - 1]
+    return "\n".join(
+        [lines[b.lineno - 1][b.linepos - 1:]]
+        + lines[b.lineno:e.lineno - 1]
+        + [lines[e.lineno - 1][:e.linepos - 1]])
+
+
+@pytest.mark.parametrize("text, params", [
+    ('@note_s {.text = "x"}', ['.text = "x"']),
+    ('@note_s {.text = "x", .n = 1 + 2}', ['.text = "x"', '.n = 1 + 2']),
+    ('@note_s', []),
+    ('@note_s {\n  .text = "x",\n  .n = 3 }', ['.text = "x"', '.n = 3']),
+], ids=["one", "two", "bare", "multiline"])
+def test_annotation_and_parameters_have_an_end_location(text, params):
+    src = PRE.replace("string text;", "string text; int n;") + (
+        "component C { %s int a; }" % text)
+    p = Parser()
+    p.parses([("t.pss", src)])
+    p.link()
+    import pssparser.ast as A
+    found = []
+
+    class V(A.VisitorBase):
+        def visitField(self, i):
+            for k in range(i.numAnnotations()):
+                found.append(i.getAnnotation(k))
+
+    for unit in p.user_units():
+        unit.accept(V())
+    assert len(found) == 1
+    ann = found[0]
+    assert _span(src, ann) == text
+    assert [_span(src, ann.getParameter(k))
+            for k in range(ann.numParameters())] == params

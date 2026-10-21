@@ -24,13 +24,17 @@ Grouping: every occurrence of one declaration carries the same ``decl``.
 Compare with ``==`` or use ``hash`` -- AST wrappers compare by the underlying
 node -- but not with ``id()``: each access creates a new wrapper object.
 
+``exports`` and ``export_of`` answer "which ``export`` statements name this
+function" (20.4.2) from the same bindings.
+
 See docs/refs.rst.
 """
 import dataclasses
 import enum
 from typing import Any, List, NamedTuple, Optional, Tuple
 
-__all__ = ["Location", "Occurrence", "Resolution", "occurrences"]
+__all__ = ["Location", "Occurrence", "Resolution", "occurrences",
+           "exports", "export_of"]
 
 
 class Resolution(str, enum.Enum):
@@ -165,3 +169,61 @@ def occurrences(parser_or_root) -> List[Occurrence]:
             node=node,
             _root=root))
     return ret
+
+
+def _linked_root(parser_or_root, what):
+    from pssparser.parser import Parser
+
+    root = parser_or_root
+    if isinstance(parser_or_root, Parser):
+        root = parser_or_root.root
+    if root is None:
+        raise ValueError("%s() needs a linked Parser; call link() first" % what)
+    return root
+
+
+def exports(parser_or_root) -> dict:
+    """Every ``export`` statement of the model, by the function it names:
+    ``{SymbolFunctionScope: [ExportFunction, ...]}``, each list in source
+    order. The function is the one the linker bound; an export it did not
+    bind is left out. A function may be exported more than once (an
+    ``export target`` and an ``export solve``, say), so the values are lists.
+    """
+    import pssparser.core as core
+
+    root = _linked_root(parser_or_root, "exports")
+    out: dict = {}
+    stack = [root]
+    while stack:
+        s = stack.pop()
+        for i in range(s.numChildren()):
+            c = s.getChild(i)
+            if type(c).__name__ == "ExportFunction":
+                name = c.getName()
+                ref = name.getTarget() if name is not None else None
+                fn = core.resolveSymbolPathRef(root, ref) if ref is not None else None
+                # An extension's members are also merged into the type they
+                # extend, so the same export is reachable twice.
+                if fn is not None and c not in out.setdefault(fn, []):
+                    out[fn].append(c)
+            elif hasattr(c, "numChildren") and hasattr(c, "getUpper"):
+                stack.append(c)
+    for v in out.values():
+        v.sort(key=lambda e: (e.getLocation().fileid, e.getLocation().lineno,
+                              e.getLocation().linepos))
+    return out
+
+
+def export_of(parser_or_root, fn) -> list:
+    """The ``export`` statements that name *fn*, in source order; ``[]`` if
+    none. *fn* is the function's ``SymbolFunctionScope``, its
+    ``FunctionDefinition`` or one of its ``FunctionPrototype``\ s. To ask
+    of many functions, build :func:`exports` once instead.
+    """
+    table = exports(parser_or_root)
+    for scope, exps in table.items():
+        if scope == fn or scope.getTarget() == fn or scope.getDefinition() == fn:
+            return exps
+        if any(scope.getPrototype(i) == fn for i in range(scope.numPrototypes())):
+            return exps
+    return []

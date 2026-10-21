@@ -399,6 +399,10 @@ REPRESENTATIVE_MESSAGES = [
                "reference (LRM 9.1.5.3 a)"),
     ("PSS149", "parameter 'c' of 'f' is a reference, which cannot be const "
                "(LRM 20.2.3 b)"),
+    ("PSS150", "annotation parameter 'name' is int, but its field is string"),
+    ("PSS150", "annotation parameter 'm' is 256, which does not fit in bit[8]"),
+    ("PSS150", "annotation parameter 'm' is -129, which does not fit in bit[8]"),
+    ("PSS150", "annotation parameter 'name' is given more than once"),
 ]
 
 
@@ -702,7 +706,7 @@ def test_pss31_band_is_reserved_for_31_diagnostics():
                      "PSS133", "PSS134", "PSS135", "PSS136", "PSS137",
                      "PSS138", "PSS139", "PSS140", "PSS141", "PSS142",
                      "PSS143", "PSS144", "PSS145", "PSS146", "PSS147",
-                     "PSS148", "PSS149"]
+                     "PSS148", "PSS149", "PSS150"]
 
 
 def test_every_active_pss_marker_is_an_error():

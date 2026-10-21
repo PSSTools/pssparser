@@ -168,6 +168,25 @@ qualifier or annotation that precedes the type:
    @my_annotation
    action B { }
 
+A doc comment may also be written between the annotations and the declaration,
+on its own line or on the annotation's:
+
+.. code-block:: pss
+
+   @my_annotation
+   /// documents C
+   action C { }
+
+   @my_annotation /** documents D */
+   action D { }
+
+If both positions hold one, the comment nearer the declaration documents it,
+and **LINT410** (``ambiguous-doc-comment``) warns about the one above the
+annotations. Only doc-marked comments (``///``, ``/** */``) count for the
+warning: a plain ``//`` note above an annotation is not a second doc comment.
+The warning is reported whether or not doc comments are collected. With
+``collect_comments``, both comments are in the declaration's ``getComments()``.
+
 
 Trailing comments
 -----------------

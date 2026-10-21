@@ -1,4 +1,4 @@
-from enum import IntEnum, auto
+from enum import IntEnum
 from typing import Dict, Generic, Iterator, List, Tuple, TypeVar
 
 _T = TypeVar("_T")
@@ -9,158 +9,158 @@ class ListUtil(Generic[_T]):
     def __getitem__(self, i: int) -> _T: ...
 
 class AssignOp(IntEnum):
-    AssignOp_Eq = auto()
-    AssignOp_PlusEq = auto()
-    AssignOp_MinusEq = auto()
-    AssignOp_ShlEq = auto()
-    AssignOp_ShrEq = auto()
-    AssignOp_OrEq = auto()
-    AssignOp_AndEq = auto()
+    AssignOp_Eq = 0
+    AssignOp_PlusEq = 1
+    AssignOp_MinusEq = 2
+    AssignOp_ShlEq = 3
+    AssignOp_ShrEq = 4
+    AssignOp_OrEq = 5
+    AssignOp_AndEq = 6
     
 class CommentPlacement(IntEnum):
-    CommentPlacement_Leading = auto()
-    CommentPlacement_Trailing = auto()
-    CommentPlacement_Orphan = auto()
+    CommentPlacement_Leading = 0
+    CommentPlacement_Trailing = 1
+    CommentPlacement_Orphan = 2
     
 class CompileCondKind(IntEnum):
-    CompileCondKind_If = auto()
-    CompileCondKind_Assert = auto()
+    CompileCondKind_If = 0
+    CompileCondKind_Assert = 1
     
 class CovergroupBinsKindE(IntEnum):
-    Bins = auto()
-    IllegalBins = auto()
-    IgnoreBins = auto()
+    Bins = 0
+    IllegalBins = 1
+    IgnoreBins = 2
     
 class CoverpointBinsFormE(IntEnum):
-    Ranges = auto()
-    Coverpoint = auto()
-    Default = auto()
+    Ranges = 0
+    Coverpoint = 1
+    Default = 2
     
 class DocCommentForm(IntEnum):
-    DocForm_None = auto()
-    DocForm_Line = auto()
-    DocForm_DocLine = auto()
-    DocForm_Block = auto()
-    DocForm_DocBlock = auto()
+    DocForm_None = 0
+    DocForm_Line = 1
+    DocForm_DocLine = 2
+    DocForm_Block = 3
+    DocForm_DocBlock = 4
     
 class ExecKind(IntEnum):
-    ExecKind_Body = auto()
-    ExecKind_Header = auto()
-    ExecKind_Declaration = auto()
-    ExecKind_RunStart = auto()
-    ExecKind_RunEnd = auto()
-    ExecKind_InitDown = auto()
-    ExecKind_InitUp = auto()
-    ExecKind_PreSolve = auto()
-    ExecKind_PostSolve = auto()
-    ExecKind_PreBody = auto()
-    ExecKind_File = auto()
+    ExecKind_Body = 0
+    ExecKind_Header = 1
+    ExecKind_Declaration = 2
+    ExecKind_RunStart = 3
+    ExecKind_RunEnd = 4
+    ExecKind_InitDown = 5
+    ExecKind_InitUp = 6
+    ExecKind_PreSolve = 7
+    ExecKind_PostSolve = 8
+    ExecKind_PreBody = 9
+    ExecKind_File = 10
     
 class ExprBinOp(IntEnum):
-    BinOp_LogOr = auto()
-    BinOp_LogAnd = auto()
-    BinOp_BitOr = auto()
-    BinOp_BitXor = auto()
-    BinOp_BitAnd = auto()
-    BinOp_Lt = auto()
-    BinOp_Le = auto()
-    BinOp_Gt = auto()
-    BinOp_Ge = auto()
-    BinOp_Exp = auto()
-    BinOp_Mul = auto()
-    BinOp_Div = auto()
-    BinOp_Mod = auto()
-    BinOp_Add = auto()
-    BinOp_Sub = auto()
-    BinOp_Shl = auto()
-    BinOp_Shr = auto()
-    BinOp_Eq = auto()
-    BinOp_Ne = auto()
+    BinOp_LogOr = 0
+    BinOp_LogAnd = 1
+    BinOp_BitOr = 2
+    BinOp_BitXor = 3
+    BinOp_BitAnd = 4
+    BinOp_Lt = 5
+    BinOp_Le = 6
+    BinOp_Gt = 7
+    BinOp_Ge = 8
+    BinOp_Exp = 9
+    BinOp_Mul = 10
+    BinOp_Div = 11
+    BinOp_Mod = 12
+    BinOp_Add = 13
+    BinOp_Sub = 14
+    BinOp_Shl = 15
+    BinOp_Shr = 16
+    BinOp_Eq = 17
+    BinOp_Ne = 18
     
 class ExprUnaryOp(IntEnum):
-    UnaryOp_Plus = auto()
-    UnaryOp_Minus = auto()
-    UnaryOp_LogNot = auto()
-    UnaryOp_BitNeg = auto()
-    UnaryOp_BitAnd = auto()
-    UnaryOp_BitOr = auto()
-    UnaryOp_BitXor = auto()
+    UnaryOp_Plus = 0
+    UnaryOp_Minus = 1
+    UnaryOp_LogNot = 2
+    UnaryOp_BitNeg = 3
+    UnaryOp_BitAnd = 4
+    UnaryOp_BitOr = 5
+    UnaryOp_BitXor = 6
     
 class ExtendTargetE(IntEnum):
-    Action = auto()
-    Annotation = auto()
-    Buffer = auto()
-    Component = auto()
-    Enum = auto()
-    Resource = auto()
-    State = auto()
-    Stream = auto()
-    Struct = auto()
-    Monitor = auto()
+    Action = 0
+    Annotation = 1
+    Buffer = 2
+    Component = 3
+    Enum = 4
+    Resource = 5
+    State = 6
+    Stream = 7
+    Struct = 8
+    Monitor = 9
     
 class FunctionParamDeclKind(IntEnum):
-    ParamKind_DataType = auto()
-    ParamKind_Type = auto()
-    ParamKind_RefAction = auto()
-    ParamKind_RefComponent = auto()
-    ParamKind_RefBuffer = auto()
-    ParamKind_RefResource = auto()
-    ParamKind_RefState = auto()
-    ParamKind_RefStream = auto()
-    ParamKind_RefStruct = auto()
-    ParamKind_Struct = auto()
-    ParamKind_RefMonitor = auto()
-    ParamKind_Numeric = auto()
+    ParamKind_DataType = 0
+    ParamKind_Type = 1
+    ParamKind_RefAction = 2
+    ParamKind_RefComponent = 3
+    ParamKind_RefBuffer = 4
+    ParamKind_RefResource = 5
+    ParamKind_RefState = 6
+    ParamKind_RefStream = 7
+    ParamKind_RefStruct = 8
+    ParamKind_Struct = 9
+    ParamKind_RefMonitor = 10
+    ParamKind_Numeric = 11
     
 class ParamDir(IntEnum):
-    ParamDir_Default = auto()
-    ParamDir_In = auto()
-    ParamDir_Out = auto()
-    ParamDir_InOut = auto()
+    ParamDir_Default = 0
+    ParamDir_In = 1
+    ParamDir_Out = 2
+    ParamDir_InOut = 3
     
 class PlatQual(IntEnum):
-    PlatQual_None = auto()
-    PlatQual_Target = auto()
-    PlatQual_Solve = auto()
+    PlatQual_None = 0
+    PlatQual_Target = 1
+    PlatQual_Solve = 2
     
 class StringMethodId(IntEnum):
-    StringMethod_None = auto()
-    StringMethod_Size = auto()
-    StringMethod_Find = auto()
-    StringMethod_FindLast = auto()
-    StringMethod_FindAll = auto()
-    StringMethod_Lower = auto()
-    StringMethod_Upper = auto()
-    StringMethod_Split = auto()
-    StringMethod_Chars = auto()
+    StringMethod_None = 0
+    StringMethod_Size = 1
+    StringMethod_Find = 2
+    StringMethod_FindLast = 3
+    StringMethod_FindAll = 4
+    StringMethod_Lower = 5
+    StringMethod_Upper = 6
+    StringMethod_Split = 7
+    StringMethod_Chars = 8
     
 class StructKind(IntEnum):
-    Buffer = auto()
-    Struct = auto()
-    Resource = auto()
-    Stream = auto()
-    State = auto()
+    Buffer = 0
+    Struct = 1
+    Resource = 2
+    Stream = 3
+    State = 4
     
 class SymbolRefPathElemKind(IntEnum):
-    ElemKind_ChildIdx = auto()
-    ElemKind_ArgIdx = auto()
-    ElemKind_Inline = auto()
-    ElemKind_ParamIdx = auto()
-    ElemKind_Super = auto()
-    ElemKind_TypeSpec = auto()
-    ElemKind_TemplateScope = auto()
-    ElemKind_This = auto()
+    ElemKind_ChildIdx = 0
+    ElemKind_ArgIdx = 1
+    ElemKind_Inline = 2
+    ElemKind_ParamIdx = 3
+    ElemKind_Super = 4
+    ElemKind_TypeSpec = 5
+    ElemKind_TemplateScope = 6
+    ElemKind_This = 7
     
 class TypeCategory(IntEnum):
-    Action = auto()
-    Component = auto()
-    Buffer = auto()
-    Resource = auto()
-    State = auto()
-    Stream = auto()
-    Struct = auto()
-    Monitor = auto()
-    Numeric = auto()
+    Action = 0
+    Component = 1
+    Buffer = 2
+    Resource = 3
+    State = 4
+    Stream = 5
+    Struct = 6
+    Monitor = 7
+    Numeric = 8
     
 class Location:
     fileid: int
@@ -180,15 +180,15 @@ class SymbolRefPathElem:
     idx: int
 
 class FieldAttr(IntEnum):
-    Action = auto()
-    Builtin = auto()
-    Rand = auto()
-    Const = auto()
-    Static = auto()
-    Instance = auto()
-    Private = auto()
-    Protected = auto()
-    Mutable = auto()
+    Action = 1
+    Builtin = 2
+    Rand = 4
+    Const = 8
+    Static = 16
+    Instance = 32
+    Private = 64
+    Protected = 128
+    Mutable = 256
     
 class Factory(object):
     def mkExprAggrStructElem(self,

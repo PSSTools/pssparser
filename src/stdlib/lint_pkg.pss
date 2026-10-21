@@ -18,8 +18,9 @@ package lint_pkg {
     annotation waive {
         // A marker ID, rule name or rule selector.
         string id;
-        // Why the finding is intended.
-        string reason;
+        // Why the finding is intended. A waiver with none still applies,
+        // and is reported as PSSP205; the default keeps that the one report.
+        string reason = "";
     }
 
 }

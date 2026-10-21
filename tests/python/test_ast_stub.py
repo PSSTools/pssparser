@@ -88,3 +88,25 @@ def test_enum_setter_round_trips():
     e.setOp(A.ExprBinOp.BinOp_Sub)
     assert e.getOp() == A.ExprBinOp.BinOp_Sub
     del root
+
+
+def test_stub_enum_and_flag_values_match_the_runtime():
+    """PP-6: the stub said ``auto()``, which counts from 1 (1, 2, 3 for flags
+    too); the runtime counts enums from 0 and gives flags one bit each."""
+    tree = pyast.parse(STUB.read_text(), filename=str(STUB))
+    wrong, n = [], 0
+    for cls in tree.body:
+        if not (isinstance(cls, pyast.ClassDef)
+                and any(getattr(b, "id", None) == "IntEnum" for b in cls.bases)):
+            continue
+        rt = getattr(A, cls.name)
+        for st in cls.body:
+            if isinstance(st, pyast.Assign):
+                name = st.targets[0].id
+                stub_v = pyast.literal_eval(st.value)
+                n += 1
+                if int(getattr(rt, name)) != stub_v:
+                    wrong.append("%s.%s: stub %r, runtime %d" % (
+                        cls.name, name, stub_v, int(getattr(rt, name))))
+    assert n > 50
+    assert wrong == []

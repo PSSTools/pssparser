@@ -880,6 +880,39 @@ Not flagged (other names, a field and an enum item):
      function void log_message(int v) { }
    }
 
+.. _lint409:
+
+LINT409: ``duplicate-annotation``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Tier:** suspicious; **Default severity:** warning; **Since:** 2026.2
+
+The same annotation type is applied twice to one element
+
+7.13 does not forbid applying one annotation type to an element more than once, but a generator that reads the annotation finds two answers where it expects one.  Message: ``annotation 'hal_s' is applied to this element more than once``, with the first application as a related location.  The type is the one the linker resolved: ``@hal_s`` under an import and ``@pkg::hal_s`` are the same annotation.
+
+.. _lint410:
+
+LINT410: ``ambiguous-doc-comment``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Tier:** suspicious; **Default severity:** warning; **Since:** 2026.2
+
+Doc comments both above and below a declaration's annotations
+
+A declaration's doc comment may be written above its annotations or between them and the declaration.  When both are there, the one nearer the declaration documents it, and the one above the annotations is not used.  Message: ``this doc comment is not used: the one between the annotations and the declaration documents it``, with the comment used as a related location.  Only doc-marked comments (``///``, ``/** */``) count: a plain ``//`` note above an annotation is not a second doc comment.  Reported whether or not the parser collects doc comments.
+
+.. _lint411:
+
+LINT411: ``annotation-field-unset``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Tier:** suspicious; **Default severity:** warning; **Since:** 2026.2
+
+An annotation leaves a field with no default unset
+
+The annotation gives no value to a field of its type that has no initializer, its base's and those ``extend annotation`` adds included.  7.13 is silent, and an unset data field takes its type's default value, so this is a warning rather than an error.  Message: ``annotation 'hal_s' leaves field 'header' unset, and it has no default value``, with the field's declaration as a related location.  Give the field a value, or give it a default in the annotation's declaration.
+
 Imports and packages
 --------------------
 

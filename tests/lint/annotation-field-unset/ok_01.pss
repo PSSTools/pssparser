@@ -1,0 +1,8 @@
+// expect: none
+package hal_pkg {
+  annotation hal_s { string name; string header = ""; }
+}
+component pss_top {
+  @hal_pkg::hal_s {.name = "f"}
+  function void f() { }
+}

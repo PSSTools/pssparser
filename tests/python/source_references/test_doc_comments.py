@@ -895,3 +895,89 @@ def test_line_comment_run_keeps_relative_indent():
 }
 """)
     assert doc(root, "p", "C") == "Intro.\n    indented code\nOutro."
+
+
+# ---------------------------------------------------------------------------
+# PP-3 -- a doc comment between a declaration's annotations and the
+# declaration documents it; one above the annotations as well is LINT410
+# ---------------------------------------------------------------------------
+
+ANN_PRE = "annotation a_s { int n = 0; }\n"
+
+AFTER_ANNOTATION = {
+    "function_inline": ("component c { @a_s /** doc */ function void f() {} }",
+                        ("c", "f")),
+    "function_same_line_as_annotation": (
+        "component c {\n  @a_s {.n = 1} /** doc */\n  function void f() {}\n}",
+        ("c", "f")),
+    "function_next_line": (
+        "component c {\n  @a_s\n  /// doc\n  function void f() {}\n}", ("c", "f")),
+    "field": ("component c {\n  @a_s\n  /** doc */\n  int x;\n}", ("c", "x")),
+    "action": ("component c {\n  @a_s\n  /** doc */\n  action A {}\n}", ("c", "A")),
+    "two_annotations": (
+        "component c {\n  @a_s {.n = 1}\n  @a_s {.n = 2}\n  /** doc */\n  int x;\n}",
+        ("c", "x")),
+    "struct": ("@a_s\n/** doc */\nstruct s {}\n", ("s",)),
+    "component": ("@a_s\n/** doc */\ncomponent k {}\n", ("k",)),
+}
+
+
+@pytest.mark.parametrize("case", sorted(AFTER_ANNOTATION))
+def test_doc_comment_after_the_annotations(case):
+    body, path = AFTER_ANNOTATION[case]
+    root = link(ANN_PRE + body)
+    assert doc(root, *path) == "doc"
+
+
+def test_doc_comment_above_the_annotations_still_documents():
+    root = link(ANN_PRE + "component c {\n  /** doc */\n  @a_s\n  int x;\n}")
+    assert doc(root, "c", "x") == "doc"
+
+
+def _link_markers(code, **kw):
+    p = Parser(**kw)
+    p.parses([("test.pss", code)])
+    root = p.link()
+    return p, root
+
+
+BOTH = ANN_PRE + ("component c {\n  /** above */\n  @a_s\n"
+                  "  /** below */\n  function void f() {}\n}")
+
+
+def test_doc_comment_in_both_positions_the_nearer_wins_and_warns():
+    p, root = _link_markers(BOTH, collect_docstrings=True)
+    assert doc(root, "c", "f") == "below"
+    lint = [m for m in p.markers if m.get("code") == "LINT410"]
+    assert len(lint) == 1
+    assert lint[0]["line"] == 3
+    assert lint[0]["related"][0]["line"] == 5
+
+
+def test_doc_comment_in_both_positions_warns_without_collecting():
+    # The CLI does not collect doc comments; the warning must not depend on it.
+    p, _ = _link_markers(BOTH)
+    assert [m["line"] for m in p.markers if m.get("code") == "LINT410"] == [3]
+
+
+def test_plain_comment_above_the_annotations_does_not_warn():
+    p, root = _link_markers(
+        ANN_PRE + "component c {\n  // note\n  @a_s\n  /** doc */\n  int x;\n}",
+        collect_docstrings=True)
+    assert doc(root, "c", "x") == "doc"
+    assert not [m for m in p.markers if m.get("code") == "LINT410"]
+
+
+def test_comment_after_the_annotations_is_kept_in_comments():
+    p = Parser(collect_comments=True)
+    p.parses([("test.pss", ANN_PRE + BOTH[len(ANN_PRE):])])
+    root = p.link()
+    fn = find(root, "c", "f")
+    defn = fn.getTarget() if fn.getTarget() is not None else fn.getDefinition()
+    texts = [defn.getComment(i).getText() for i in range(defn.numComments())]
+    assert texts == ["above", "below"]
+
+
+def test_standalone_annotation_does_not_take_the_next_doc_comment():
+    root = link(ANN_PRE + "component c {\n  @a_s;\n  /** doc */\n  int x;\n}")
+    assert doc(root, "c", "x") == "doc"

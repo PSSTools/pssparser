@@ -136,3 +136,29 @@ model.
 - Names inside the inactive branch of a `compile if` are not in the AST and are
   not reported. `p.inactive_regions()` gives those branches
   (`source-tools.md`).
+
+## Which `export` statements name a function
+
+`refs.export_of(p, fn)` returns the `ExportFunction` statements (20.4.2) that
+name `fn`, in source order, or `[]`. `fn` may be the `SymbolFunctionScope`,
+the `FunctionDefinition` or a `FunctionPrototype`. For many functions, build
+`refs.exports(p)` once: a dict from each exported `SymbolFunctionScope` to its
+statements.
+
+```python
+from pssparser import Parser, refs
+
+p = Parser()
+p.parses([("m.pss", """
+component pss_top {
+    static function void f() { }
+    export target function f;
+}
+""")])
+root = p.link()
+comp = [root.getChild(i) for i in range(root.numChildren())
+        if root.getChild(i).getName() == "pss_top"][0]
+f = [comp.getChild(i) for i in range(comp.numChildren())
+     if comp.getChild(i).getName() == "f"][0]
+assert len(refs.export_of(p, f)) == 1
+```

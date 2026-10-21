@@ -2439,6 +2439,36 @@ class CoreChecker(CheckerBase):
                 r"^parameter '[^']*' of '[^']*' is a reference, which cannot be const\b",
             ),
         ),
+        MarkerDef(
+            id="PSS150",
+            severity="error",
+            summary="Annotation parameter does not suit its field",
+            detail=(
+                "LRM 7.13: an annotation's parameter list initializes the "
+                "fields of the annotation type, each at most once, as an "
+                "aggregate literal does (8.5.4), and each value must be "
+                "assignable to its field.  An annotation is configuration "
+                "read by a generator, with nothing in between to convert a "
+                "value, so the check is strict: a string is not a number, a "
+                "bool is not an integer, and an enum field takes an item of "
+                "its own enum (an integer converts to one only by a cast, "
+                "7.5.1).  Messages:\n\n"
+                "* ``annotation parameter 'name' is int, but its field is "
+                "string``\n"
+                "* ``annotation parameter 'm' is 256, which does not fit in "
+                "bit[8]``\n"
+                "* ``annotation parameter 'name' is given more than once``\n\n"
+                "The width check applies to an integer literal, negated or "
+                "not; one that fits the field as either signed or unsigned "
+                "(``bit[8] m = -1``) is accepted.  A field the annotation "
+                "leaves unset is LINT411, a warning."
+            ),
+            patterns=(
+                r"^annotation parameter '[^']*' is .*, but its field is\b",
+                r"^annotation parameter '[^']*' is -?\d+, which does not fit in\b",
+                r"^annotation parameter '[^']*' is given more than once\b",
+            ),
+        ),
 
         # -- PSSP: the tool's own diagnostics (lint-framework D-6) ----------
         #

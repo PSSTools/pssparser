@@ -1,0 +1,14 @@
+// expect: none
+package hal_pkg {
+  annotation hal_s { string name = ""; }
+}
+component pss_top {
+  // A plain note above the annotation.
+  @hal_pkg::hal_s {.name = "f"}
+  /** Documents f. */
+  function void f() { }
+
+  /** Documents g. */
+  @hal_pkg::hal_s {.name = "g"}
+  function void g() { }
+}

@@ -128,3 +128,29 @@ out, as ``pssparser.InactiveRegion(fileid, start_line, start_col, end_line,
 end_col)``, both ends inclusive. Names inside a region are not in the AST and
 are not reported by ``occurrences()``; a tool that must treat them can find
 them by position.
+
+Exports
+=======
+
+``refs.export_of(parser_or_root, fn)`` lists the ``export`` statements
+(20.4.2) that name a function, in source order, or ``[]``. ``fn`` is the
+function's ``SymbolFunctionScope``, its ``FunctionDefinition`` or one of its
+``FunctionPrototype`` objects. The answer comes from the linker's binding of
+each export's name, so an export in an ``extend component`` counts, and a
+function exported twice has both statements.
+
+.. code-block:: python
+
+    from pssparser import refs
+
+    for e in refs.export_of(p, fn):
+        print(e.getPlat(), e.getLocation().lineno)
+
+To ask about many functions, build the table once:
+``refs.exports(parser_or_root)`` maps each exported ``SymbolFunctionScope``
+to its list of ``ExportFunction`` statements.
+
+Exporting a component's instance function is an extension to 20.4.2, and the
+linker reports it as LINT301 ``exported-instance-function``. A project that
+relies on the extension waives it in ``.pssparser.toml``, for example
+``ignore = ["exported-instance-function"]``.

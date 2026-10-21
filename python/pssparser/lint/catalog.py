@@ -4,13 +4,14 @@ Data only: importing this module never runs a rule, so ``--describe``,
 ``--explain``, the generated rule reference and profile expansion work even
 when the bundled lint runner is disabled (``PSSPARSER_NO_LINT``).
 
-``CORE_EMITTED`` are the warnings that the C++ linker has always emitted
-and that moved here from the ``PSS`` namespace (lint-framework-plan F1.3):
-legal PSS that is probably a mistake is lint, not an LRM violation.  The
-linker still raises them, and sets their ID where it does (lint-core-plan
-C7.3), so they declare no message ``patterns``; ``aliases`` keep the retired
-``PSS`` IDs.  (There were nine; ``LINT101`` became the error ``PSS130`` by
-ruling R22 and is a retired row in ``core_checker.py``.)
+``CORE_EMITTED`` are the warnings the C++ linker raises.  Most are those it
+has always emitted, which moved here from the ``PSS`` namespace
+(lint-framework-plan F1.3): legal PSS that is probably a mistake is lint, not
+an LRM violation.  The core sets their ID where it raises them
+(lint-core-plan C7.3), so they declare no message ``patterns``; ``aliases``
+keep the retired ``PSS`` IDs.  (There were nine; ``LINT101`` became the error
+``PSS130`` by ruling R22 and is a retired row in ``core_checker.py``.)  Those
+added since (LINT409-LINT411) have no alias and are not in ``minimal``.
 
 ID bands follow the rule families: ``LINT1xx`` constraint, ``2xx`` activity,
 ``3xx`` exec, ``4xx`` declarations and imports, ``5xx`` registers, ``6xx``
@@ -131,6 +132,64 @@ CORE_EMITTED: List[MarkerDef] = [
         ),
     ),
     MarkerDef(
+        id="LINT409",
+        name="duplicate-annotation",
+        tier="suspicious",
+        family="decl",
+        since="2026.2",
+        severity="warning",
+        summary="The same annotation type is applied twice to one element",
+        detail=(
+            "7.13 does not forbid applying one annotation type to an "
+            "element more than once, but a generator that reads the "
+            "annotation finds two answers where it expects one.  Message: "
+            "``annotation 'hal_s' is applied to this element more than "
+            "once``, with the first application as a related location.  "
+            "The type is the one the linker resolved: ``@hal_s`` under an "
+            "import and ``@pkg::hal_s`` are the same annotation."
+        ),
+    ),
+    MarkerDef(
+        id="LINT410",
+        name="ambiguous-doc-comment",
+        tier="suspicious",
+        family="decl",
+        since="2026.2",
+        severity="warning",
+        summary="Doc comments both above and below a declaration's annotations",
+        detail=(
+            "A declaration's doc comment may be written above its "
+            "annotations or between them and the declaration.  When both "
+            "are there, the one nearer the declaration documents it, and "
+            "the one above the annotations is not used.  Message: ``this "
+            "doc comment is not used: the one between the annotations and "
+            "the declaration documents it``, with the comment used as a "
+            "related location.  Only doc-marked comments (``///``, "
+            "``/** */``) count: a plain ``//`` note above an annotation "
+            "is not a second doc comment.  Reported whether or not the "
+            "parser collects doc comments."
+        ),
+    ),
+    MarkerDef(
+        id="LINT411",
+        name="annotation-field-unset",
+        tier="suspicious",
+        family="decl",
+        since="2026.2",
+        severity="warning",
+        summary="An annotation leaves a field with no default unset",
+        detail=(
+            "The annotation gives no value to a field of its type that has "
+            "no initializer, its base's and those ``extend annotation`` "
+            "adds included.  7.13 is silent, and an unset data field takes "
+            "its type's default value, so this is a warning rather than an "
+            "error.  Message: ``annotation 'hal_s' leaves field 'header' "
+            "unset, and it has no default value``, with the field's "
+            "declaration as a related location.  Give the field a value, or "
+            "give it a default in the annotation's declaration."
+        ),
+    ),
+    MarkerDef(
         id="LINT501",
         name="reg-width-no-access-function",
         tier="suspicious",
@@ -212,8 +271,12 @@ CORE_EMITTED: List[MarkerDef] = [
     ),
 ]
 
-#: The IDs of :data:`CORE_EMITTED`: the ``minimal`` profile.
-MINIMAL_IDS = tuple(md.id for md in CORE_EMITTED)
+#: The ``minimal`` profile: the core warnings that moved from ``PSS`` (each
+#: keeps its old ID as an alias), so the default output is what it was before
+#: lint existed.  A warning the core raises that never had a ``PSS`` ID
+#: (LINT409-LINT411) is selected by its tier like any other rule, and held
+#: back by a ``rules-version`` pin older than its ``since``.
+MINIMAL_IDS = tuple(md.id for md in CORE_EMITTED if md.aliases)
 
 #: Every ``LINT`` rule definition, core-emitted or run by the lint runner.
 ALL: List[MarkerDef] = list(CORE_EMITTED)

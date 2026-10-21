@@ -358,6 +358,17 @@ bool DocCommentExtractor::finish(
 }
 
 bool DocCommentExtractor::extractLeading(Token *anchor, DocComment &out) const {
+    return extractLeading(anchor, out, true);
+}
+
+bool DocCommentExtractor::extractAfterAnnotation(Token *anchor, DocComment &out) const {
+    return extractLeading(anchor, out, false);
+}
+
+bool DocCommentExtractor::extractLeading(
+        Token       *anchor,
+        DocComment  &out,
+        bool        prev_owns_same_line) const {
     out.clear();
     if (!anchor || !m_tokens) {
         return false;
@@ -414,7 +425,7 @@ bool DocCommentExtractor::extractLeading(Token *anchor, DocComment &out) const {
     // written in the usual one-line form.  A line comment can never satisfy
     // this, since it consumes the newline that ends its line.
     size_t first_hidden = hidden.front()->getTokenIndex();
-    if (!run.empty() && first_hidden > 0) {
+    if (prev_owns_same_line && !run.empty() && first_hidden > 0) {
         Token *prev = m_tokens->get(first_hidden-1);
         bool same_line_as_prev =
             prev && (int32_t)prev->getLine() == (int32_t)run.back()->getLine();

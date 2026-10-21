@@ -188,7 +188,7 @@ def test_standalone_annotation_anchors_to_enclosing_scope():
     """
     root, markers = _parse(pss)
     assert root is not None
-    assert not [m for m in markers if m.severity == "error"]
+    assert not [m for m in markers if m["severity"] == "error"]
 
     ann = _find_standalone_annotation(root)
     assert ann is not None, "standalone annotation is not a child of the scope"
@@ -273,12 +273,46 @@ SCOPE_CASES = {
         "component C { action A {} monitor N { activity { %s A a; } } }" % ANN),
     "monitor_constraint_body_item": PREAMBLE + (
         "component C { action A {} monitor M { A a; constraint c { %s 1 == 1; } } }" % ANN),
+    # PP-4: neither an enum's symbol scope nor an `extend`'s wraps its
+    # declaration as `target`, and the global scope had no annotation pass, so
+    # each of these was reported as left unbound (PSS042).
+    "file_enum": PREAMBLE + "%s enum e { A, B };" % ANN,
+    "package_enum": PREAMBLE + "package p { %s enum e { A, B }; }" % ANN,
+    "file_extend_enum": PREAMBLE + "enum e { A }; %s extend enum e { B };" % ANN,
+    "package_extend_enum": PREAMBLE + (
+        "package p { enum e { A }; %s extend enum e { B }; }" % ANN),
+    "file_extend_struct": PREAMBLE + "struct S {} %s extend struct S { }" % ANN,
+    "package_extend_struct": PREAMBLE + (
+        "package p { struct S {} %s extend struct S { } }" % ANN),
+    "file_import": PREAMBLE + "package q {} %s import q::*;" % ANN,
+    # The symbol tree holds an imported function's scope, not the import
+    # statement, so nothing reached the annotation on one outside a type.
+    "file_import_function": PREAMBLE + "%s import target function void f();" % ANN,
+    "package_import_function": PREAMBLE + (
+        "package q { %s import target function void f(); }" % ANN),
+    "package_import_function_via_import": PREAMBLE.replace(
+        "annotation note_s", "package a_pkg { annotation note_s") + "}" + (
+        " package q { import a_pkg::*; %s import target function void f(); }"
+        % ANN),
 }
+
+# Each of these was resolved, not merely accepted: a field the annotation
+# does not declare is an error only once its type is known.
+UNBOUND_BEFORE_PP4 = sorted(
+    k for k in SCOPE_CASES if k.startswith(("file_", "package_e", "package_i")))
 
 
 @pytest.mark.parametrize("scope", sorted(SCOPE_CASES))
 def test_annotation_in_each_scope(scope):
     assert_parse_ok(SCOPE_CASES[scope])
+
+
+@pytest.mark.parametrize("scope", UNBOUND_BEFORE_PP4)
+def test_annotation_type_resolves_in_each_scope(scope):
+    """PP-4: the annotation's type is bound, so its fields are checked."""
+    src = SCOPE_CASES[scope].replace(".text", ".nosuchfield")
+    assert_marker(src, marker_id="PSS002", text="nosuchfield")
+    assert_no_marker(src, marker_id="PSS042")
 
 
 # ---------------------------------------------------------------------------
@@ -469,3 +503,106 @@ def _find_standalone_annotation(scope):
         if hasattr(c, "getIs_standalone"):
             return c
     return None
+
+
+# ---------------------------------------------------------------------------
+# PP-2: parameter values against their fields (PSS150), repeated and unset
+# annotations (LINT409, LINT411)
+# ---------------------------------------------------------------------------
+
+TYPED = """
+    package p {
+        enum e { A, B };
+        enum f { C };
+        annotation a_s {
+            string name = "";
+            int    n = 0;
+            bool   b = false;
+            bit[8] m = 0;
+            e      en = e::A;
+            int[4] s4 = 0;
+        }
+        annotation req_s { string name; string header; }
+        annotation d_s : req_s { int x = 1; }
+    }
+    component c {
+        import p::*;
+        %s int z;
+    }
+"""
+
+GOOD_VALUES = {
+    "all": '@a_s {.name = "x", .n = 3, .b = true, .m = 255, .en = e::B, .s4 = -8}',
+    "comparison_to_bool": '@a_s {.b = (3 > 2)}',
+    "minus_one_in_bit8": '@a_s {.m = -1}',
+    "bitneg_in_bit8": '@a_s {.m = ~0}',
+    "int4_as_unsigned": '@a_s {.s4 = 15}',
+    "qualified_item": '@a_s {.en = p::e::B}',
+}
+
+
+@pytest.mark.parametrize("case", sorted(GOOD_VALUES))
+def test_annotation_parameter_values_that_suit_their_field(case):
+    src = TYPED % GOOD_VALUES[case]
+    assert_no_marker(src, marker_id="PSS150")
+    assert_no_marker(src, severity="error")
+
+
+BAD_VALUES = {
+    "int_for_string": ('@a_s {.name = 5}', "'name' is int, but its field is string"),
+    "string_for_int": ('@a_s {.n = "s"}', "'n' is string, but its field is int"),
+    "int_for_bool": ('@a_s {.b = 3}', "'b' is int, but its field is bool"),
+    "int_for_enum": ('@a_s {.en = 1}', "'en' is int, but its field is enum e"),
+    "other_enum": ('@a_s {.en = f::C}', "'en' is enum f, but its field is enum e"),
+    "too_wide": ('@a_s {.m = 256}', "'m' is 256, which does not fit in bit[8]"),
+    "too_negative": ('@a_s {.m = -129}', "'m' is -129, which does not fit in bit[8]"),
+    "int4_too_wide": ('@a_s {.s4 = 16}', "'s4' is 16, which does not fit in int[4]"),
+    "duplicate": ('@a_s {.name = "x", .name = "y"}',
+                  "'name' is given more than once"),
+}
+
+
+@pytest.mark.parametrize("case", sorted(BAD_VALUES))
+def test_annotation_parameter_values_that_do_not_suit_their_field(case):
+    ann, text = BAD_VALUES[case]
+    assert_marker(TYPED % ann, marker_id="PSS150", severity="error",
+                  text=text, count=1)
+
+
+def test_unset_field_without_default_warns_per_field():
+    m = assert_marker(TYPED % '@req_s {.name = "x"}', marker_id="LINT411",
+                      severity="warning", text="leaves field 'header' unset",
+                      count=1)
+    assert m["related"], m
+
+
+def test_unset_field_of_a_base_annotation_warns():
+    src = TYPED % '@d_s {.header = "h"}'
+    assert_marker(src, marker_id="LINT411", text="field 'name'", count=1)
+    assert_no_marker(src, marker_id="LINT411", text="field 'x'")
+
+
+def test_field_with_a_default_may_be_left_unset():
+    assert_no_marker(TYPED % '@a_s', marker_id="LINT411")
+
+
+def test_same_annotation_type_twice_warns_once():
+    # `a_s` under the import and `p::a_s` are one type.
+    m = assert_marker(TYPED % '@a_s {.n = 1} @p::a_s {.n = 2}',
+                      marker_id="LINT409", severity="warning", count=1)
+    assert m["related"], m
+
+
+def test_different_annotation_types_do_not_warn():
+    assert_no_marker(TYPED % '@a_s @d_s {.name = "a", .header = "h"}',
+                     marker_id="LINT409")
+
+
+@pytest.mark.parametrize("decl", [
+    "function void f() {}",
+    "struct s {}",
+    "enum e2 { X };",
+])
+def test_same_annotation_type_twice_warns_on_each_kind(decl):
+    src = TYPED.replace("%s int z;", "@a_s @a_s " + decl)
+    assert_marker(src, marker_id="LINT409", count=1)

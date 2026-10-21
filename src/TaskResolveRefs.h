@@ -550,8 +550,41 @@ protected:
      */
     void checkBlockAnnotations(ast::IScopeChild *scope);
 
+    /**
+     * The annotations on each `import function` in a package or the global
+     * scope, which no symbol-scope pass reaches (PP-4's family).
+     */
+    void checkImportFunctionAnnotations(ast::ISymbolScope *root);
+    void checkImportFunctionAnnotations(
+        ast::IScope *s, ast::ISymbolScope *sym, ast::ISymbolScope *root);
+
     /** Resolve each of `anns` not already resolved. */
     void checkAnnotations(const std::vector<ast::IAnnotationUP> &anns);
+
+    /**
+     * One element's annotations, once resolved: the same annotation type
+     * applied twice is LINT409. Checked once per list.
+     */
+    void checkRepeatedAnnotations(const std::vector<ast::IAnnotationUP> &anns);
+
+    /**
+     * An annotation parameter's value against its field (7.13, PSS150): the
+     * value's type, and a literal's width.
+     */
+    void checkAnnotationParamValue(
+        ast::IAnnotationParam   *param,
+        ast::IField             *field,
+        const std::string       &name);
+
+    /**
+     * The fields of `decl`, its bases' included, that `ann` leaves unset and
+     * that have no initializer (LINT411).
+     */
+    void checkAnnotationUnset(
+        ast::IAnnotation                *ann,
+        ast::ISymbolScope               *decl,
+        const std::set<std::string>     &given,
+        const std::string               &type_name);
 
     /**
      * Resolve the leaf of a package-qualified reference (`p::g(1,2,3)`)
@@ -838,6 +871,7 @@ private:
 
     static dmgr::IDebug                 *m_dbg;
     std::set<ast::IAnnotation *>        m_checked_annotations;
+    std::set<const std::vector<ast::IAnnotationUP> *> m_checked_annotation_lists;
 
     // Same reason as m_checked_annotations: a declaration is reachable both
     // through its symbol scope and through the scope's target, so a node with

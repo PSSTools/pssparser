@@ -338,6 +338,15 @@ void TaskResolveRefs::resolve(ast::ISymbolScope *root) {
     // Phases:
     // - 
 
+    // The annotations written directly in the global scope. A package or a
+    // type checks its own members' (checkScopeAnnotations), and a type
+    // wrapping its declaration as `target` checks that one's too; the root
+    // had no such pass, so an annotation in front of a global `enum` or
+    // `extend` -- neither wraps its declaration as `target` -- was never
+    // resolved, and was reported as left unbound (PP-4).
+    checkScopeAnnotations(root);
+    checkImportFunctionAnnotations(root);
+
     DEBUG("resolve ==> process children");
     for (std::vector<ast::IScopeChildUP>::const_iterator
         it=root->getChildren().begin();
@@ -6015,6 +6024,19 @@ namespace {
 class AnnotationCollector : public ast::VisitorBase {
 public:
     std::vector<ast::IAnnotation *> annotations;
+    /** Each element's own list, for the repeated-type check (LINT409). */
+    std::vector<const std::vector<ast::IAnnotationUP> *> lists;
+
+    void ownList(const std::vector<ast::IAnnotationUP> &anns) {
+        if (anns.empty()) {
+            return;
+        }
+        lists.push_back(&anns);
+        for (std::vector<ast::IAnnotationUP>::const_iterator
+            it=anns.begin(); it!=anns.end(); it++) {
+            annotations.push_back(it->get());
+        }
+    }
 
     void collect(ast::IScope *s) {
         if (!s) {
@@ -6061,18 +6083,30 @@ public:
     // (7.13 b), so resolving it from here finds the same declaration.
     virtual void visitSymbolScope(ast::ISymbolScope *i) override { own(i); }
     virtual void visitSymbolTypeScope(ast::ISymbolTypeScope *i) override { own(i); }
-    virtual void visitSymbolEnumScope(ast::ISymbolEnumScope *i) override { own(i); }
-    virtual void visitSymbolExtendScope(ast::ISymbolExtendScope *i) override { own(i); }
+    // An enum's scope does not wrap its declaration as `target` (see
+    // TaskBuildSymbolTree::visitEnumDecl), so the annotations written in front
+    // of `enum e` are reached only through the `decl` back-pointer.
+    virtual void visitSymbolEnumScope(ast::ISymbolEnumScope *i) override {
+        own(i);
+        if (i->getDecl()) {
+            own(i->getDecl());
+        }
+    }
+    // An `extend` is resolved nowhere else (visitSymbolExtendScope skips it;
+    // its members are checked where they are merged), so the annotations in
+    // front of the `extend` itself, on its `target`, are taken here.
+    virtual void visitSymbolExtendScope(ast::ISymbolExtendScope *i) override {
+        own(i);
+        if (i->getTarget()) {
+            own(i->getTarget());
+        }
+    }
     virtual void visitSymbolFunctionScope(ast::ISymbolFunctionScope *i) override { own(i); }
     virtual void visitSymbolChildrenScope(ast::ISymbolChildrenScope *i) override { own(i); }
 
 private:
     void own(ast::IScopeChild *i) {
-        for (std::vector<ast::IAnnotationUP>::const_iterator
-            it=i->getAnnotations().begin();
-            it!=i->getAnnotations().end(); it++) {
-            annotations.push_back(it->get());
-        }
+        ownList(i->getAnnotations());
     }
 };
 
@@ -6112,10 +6146,99 @@ std::string typeIdName(ast::ITypeIdentifier *type_id) {
 
 }
 
+void TaskResolveRefs::checkImportFunctionAnnotations(ast::ISymbolScope *root) {
+    ast::IRootSymbolScope *r = NodeKind::cast<ast::IRootSymbolScope>(root);
+    if (!r) {
+        return;
+    }
+    for (std::vector<ast::IGlobalScopeUP>::const_iterator
+        it=r->getUnits().begin(); it!=r->getUnits().end(); it++) {
+        checkImportFunctionAnnotations(it->get(), root, root);
+    }
+}
+
+void TaskResolveRefs::checkImportFunctionAnnotations(
+        ast::IScope         *s,
+        ast::ISymbolScope   *sym,
+        ast::ISymbolScope   *root) {
+    // `import target function void f();` in a package or the global scope:
+    // the symbol tree holds the function's scope, not the import statement
+    // (TaskBuildSymbolTree::visitFunctionImportProto), so no annotation
+    // collector reaches the annotations written in front of it. Inside a
+    // component the type's own pass walks its AST body and does.
+    for (std::vector<ast::IScopeChildUP>::const_iterator
+        it=s->getChildren().begin(); it!=s->getChildren().end(); it++) {
+        if (ast::IFunctionImportProto *imp =
+                NodeKind::cast<ast::IFunctionImportProto>(it->get())) {
+            if (imp->getAnnotations().empty()) {
+                continue;
+            }
+            if (sym != root) {
+                m_ctxt->symtab()->pushScope(sym);
+            }
+            checkAnnotations(imp->getAnnotations());
+            if (sym != root) {
+                m_ctxt->symtab()->popScope();
+            }
+        } else if (ast::IPackageScope *pkg =
+                NodeKind::cast<ast::IPackageScope>(it->get())) {
+            // `package a::b { }` is nested scopes, one per name.
+            ast::ISymbolScope *ps = sym;
+            for (std::vector<ast::IExprIdUP>::const_iterator
+                id_it=pkg->getId().begin();
+                ps && id_it!=pkg->getId().end(); id_it++) {
+                std::unordered_map<std::string,int32_t>::const_iterator f =
+                    ps->getSymtab().find((*id_it)->getId());
+                ps = (f != ps->getSymtab().end()
+                        && f->second >= 0
+                        && f->second < (int32_t)ps->getChildren().size())
+                    ? NodeKind::cast<ast::ISymbolScope>(
+                        ps->getChildren().at(f->second).get())
+                    : 0;
+            }
+            if (ps) {
+                checkImportFunctionAnnotations(pkg, ps, root);
+            }
+        }
+    }
+}
+
 void TaskResolveRefs::checkAnnotations(const std::vector<ast::IAnnotationUP> &anns) {
     for (std::vector<ast::IAnnotationUP>::const_iterator
         it=anns.begin(); it!=anns.end(); it++) {
         (*it)->accept(m_this);
+    }
+    checkRepeatedAnnotations(anns);
+}
+
+void TaskResolveRefs::checkRepeatedAnnotations(
+        const std::vector<ast::IAnnotationUP> &anns) {
+    if (anns.size() < 2 || !m_checked_annotation_lists.insert(&anns).second) {
+        return;
+    }
+    // Each annotation's type as the linker resolved it: `@a_s` under an
+    // import and `@p::a_s` are the same type, and an unknown type (LINT403)
+    // is disregarded here as everywhere.
+    std::vector<ast::IScopeChild *> types;
+    for (std::vector<ast::IAnnotationUP>::const_iterator
+        it=anns.begin(); it!=anns.end(); it++) {
+        ast::ITypeIdentifier *t = (*it)->getType();
+        ast::IScopeChild *decl = (t && t->getTarget())
+            ? m_ctxt->resolveSymbolPathRef(t->getTarget()) : 0;
+        for (uint32_t k=0; decl && k<types.size(); k++) {
+            if (types.at(k) == decl) {
+                ast::IAnnotation *first = anns.at(k).get();
+                m_ctxt->addMarker(
+                    MarkerSeverityE::Warn,
+                    (*it)->getLocation(),
+                    "annotation '" + typeIdName(t)
+                        + "' is applied to this element more than once",
+                    {{first->getLocation(), "first applied here"}},
+                    "LINT409");
+                break;
+            }
+        }
+        types.push_back(decl);
     }
 }
 
@@ -6137,6 +6260,10 @@ void TaskResolveRefs::checkBlockAnnotations(ast::IScopeChild *scope) {
         it!=collector.annotations.end(); it++) {
         (*it)->accept(m_this);
     }
+    for (std::vector<const std::vector<ast::IAnnotationUP> *>::const_iterator
+        it=collector.lists.begin(); it!=collector.lists.end(); it++) {
+        checkRepeatedAnnotations(**it);
+    }
 }
 
 void TaskResolveRefs::checkScopeAnnotations(ast::ISymbolScope *scope) {
@@ -6153,11 +6280,7 @@ void TaskResolveRefs::checkScopeAnnotations(ast::ISymbolScope *scope) {
     // outward lookup reaches the same declaration either way.
     if (scope->getTarget()) {
         collector.collect(NodeKind::cast<ast::IScope>(scope->getTarget()));
-        for (std::vector<ast::IAnnotationUP>::const_iterator
-            it=scope->getTarget()->getAnnotations().begin();
-            it!=scope->getTarget()->getAnnotations().end(); it++) {
-            collector.annotations.push_back(it->get());
-        }
+        collector.ownList(scope->getTarget()->getAnnotations());
     }
 
     // An import is not a symbol child: the symbol tree keeps it in the
@@ -6167,27 +6290,23 @@ void TaskResolveRefs::checkScopeAnnotations(ast::ISymbolScope *scope) {
         for (std::vector<ast::IPackageImportStmt *>::const_iterator
             it=scope->getImports()->getImports().begin();
             it!=scope->getImports()->getImports().end(); it++) {
-            for (std::vector<ast::IAnnotationUP>::const_iterator
-                at=(*it)->getAnnotations().begin();
-                at!=(*it)->getAnnotations().end(); at++) {
-                collector.annotations.push_back(at->get());
-            }
+            collector.ownList((*it)->getAnnotations());
         }
     }
 
     // And one on the scope itself, when it is an AST node rather than a
     // symbol-tree wrapper: an ActivityDecl. (The builder used to put an
     // activity statement's annotation there; it now goes on the statement.)
-    for (std::vector<ast::IAnnotationUP>::const_iterator
-        it=scope->getAnnotations().begin();
-        it!=scope->getAnnotations().end(); it++) {
-        collector.annotations.push_back(it->get());
-    }
+    collector.ownList(scope->getAnnotations());
 
     for (std::vector<ast::IAnnotation *>::const_iterator
         it=collector.annotations.begin();
         it!=collector.annotations.end(); it++) {
         (*it)->accept(m_this);
+    }
+    for (std::vector<const std::vector<ast::IAnnotationUP> *>::const_iterator
+        it=collector.lists.begin(); it!=collector.lists.end(); it++) {
+        checkRepeatedAnnotations(**it);
     }
 }
 
@@ -6252,6 +6371,7 @@ void TaskResolveRefs::visitAnnotation(ast::IAnnotation *i) {
 
     ast::IScopeChild *target_c = m_ctxt->resolveSymbolPathRef(type_id->getTarget());
     ast::ISymbolScope *decl_s = NodeKind::cast<ast::ISymbolScope>(target_c);
+    std::set<std::string> given;
 
     for (std::vector<ast::IAnnotationParamUP>::const_iterator
         it=i->getParameters().begin();
@@ -6262,6 +6382,16 @@ void TaskResolveRefs::visitAnnotation(ast::IAnnotation *i) {
             continue;
         }
         const std::string &name = param->getName()->getId()->getId();
+
+        // 7.13: a parameter list names each field at most once, as an
+        // aggregate literal does (8.5.4). The first value stands.
+        if (!given.insert(name).second) {
+            m_ctxt->addErrorMarker(
+                param->getLocation(),
+                "annotation parameter '%s' is given more than once",
+                name.c_str());
+            continue;
+        }
 
         // Use TaskFindPathElem rather than the scope's own symtab: fields
         // contributed by `extend annotation` are not merged into the symbol
@@ -6314,11 +6444,179 @@ void TaskResolveRefs::visitAnnotation(ast::IAnnotation *i) {
                     param->getLocation(),
                     "annotation initializer for '%s' is not a constant expression",
                     name.c_str());
+            } else if (ast::IField *field = NodeKind::cast<ast::IField>(res.sym)) {
+                checkAnnotationParamValue(param, field, name);
             }
         }
     }
 
+    if (decl_s) {
+        checkAnnotationUnset(i, decl_s, given, type_name);
+    }
+
     DEBUG_LEAVE("visitAnnotation");
+}
+
+namespace {
+
+/**
+ * A literal integer, negated or not: the only values whose width is checked.
+ * A folded expression is assigned at the field's width (8.7.2), so `~0` in a
+ * `bit[8]` is 0xFF and fits; a literal that needs more bits than the field
+ * has is a typo, which is what the check is for.
+ */
+bool literalValue(ast::IExpr *e, int64_t &v, bool &neg) {
+    neg = false;
+    if (ast::IExprUnary *u = NodeKind::cast<ast::IExprUnary>(e)) {
+        if (u->getOp() != ast::ExprUnaryOp::UnaryOp_Minus) {
+            return false;
+        }
+        neg = true;
+        e = u->getRhs();
+    }
+    if (ast::IExprUnsignedNumber *n = NodeKind::cast<ast::IExprUnsignedNumber>(e)) {
+        v = (int64_t)n->getValue();
+        return v >= 0;
+    }
+    if (ast::IExprSignedNumber *n = NodeKind::cast<ast::IExprSignedNumber>(e)) {
+        v = n->getValue();
+        return v >= 0;
+    }
+    return false;
+}
+
+}
+
+void TaskResolveRefs::checkAnnotationParamValue(
+        ast::IAnnotationParam   *param,
+        ast::IField             *field,
+        const std::string       &name) {
+    ast::IExpr *value = param->getValue();
+    if (!value || !field->getType()
+            || NodeKind::cast<ast::IExprTemplateString>(value)) {
+        return;
+    }
+    TaskExprTypeCat typer(m_ctxt);
+    ExprType want = typer.typeOfDataType(field->getType());
+    ExprType got = typer.typeOf(value);
+    if (!want.known() || !got.known()) {
+        return;
+    }
+
+    // Stricter than an argument's check (TaskExprTypeCat::compatible): an
+    // annotation is configuration, read by a generator, and nothing between
+    // the value and the generator converts it. A string is not a number
+    // (7.6), a bool is not an integer, and an enum takes an item of its own
+    // type; an integer converts to one only by a cast (7.5.1).
+    bool ok;
+    switch (want.kind) {
+        case TypeKindE::String: ok = (got.kind == TypeKindE::String); break;
+        case TypeKindE::Bool:   ok = (got.kind == TypeKindE::Bool); break;
+        case TypeKindE::Int:    ok = (got.kind == TypeKindE::Int); break;
+        case TypeKindE::Enum:
+            ok = (got.kind == TypeKindE::Enum)
+                && (!want.scope || !got.scope || want.scope == got.scope);
+            break;
+        default:
+            ok = TaskExprTypeCat::compatible(want.cat(), got.cat());
+            break;
+    }
+    if (!ok) {
+        m_ctxt->addErrorMarker(
+            param->getLocation(),
+            "annotation parameter '%s' is %s, but its field is %s",
+            name.c_str(), got.describe().c_str(), want.describe().c_str());
+        return;
+    }
+
+    if (want.kind != TypeKindE::Int) {
+        return;
+    }
+    int64_t v;
+    bool neg;
+    ast::IDataTypeInt *dt = NodeKind::cast<ast::IDataTypeInt>(want.dt);
+    if (!dt || !literalValue(value, v, neg)) {
+        return;
+    }
+    int64_t width = dt->getIs_signed() ? 32 : 1;
+    if (dt->getWidth()) {
+        std::unique_ptr<IVal> w(TaskEvalExpr(
+            m_ctxt->getFactory(), m_ctxt->root()).eval(dt->getWidth()));
+        IValInt *wi = dynamic_cast<IValInt *>(w.get());
+        if (!wi) {
+            return;
+        }
+        width = wi->getValS();
+    }
+    if (width <= 0 || width >= 64) {
+        return;
+    }
+    // Fits as the field's own type, or as the same bits read the other way:
+    // `bit[8] m = -1` and `int[8] s = 255` are both 0xFF.
+    int64_t lo = -(((int64_t)1) << (width - 1));
+    int64_t hi = (((int64_t)1) << width) - 1;
+    int64_t sv = neg ? -v : v;
+    if (sv < lo || sv > hi) {
+        m_ctxt->addErrorMarker(
+            param->getLocation(),
+            "annotation parameter '%s' is %s%lld, which does not fit in %s[%lld]",
+            name.c_str(), neg ? "-" : "", (long long)v,
+            dt->getIs_signed() ? "int" : "bit", (long long)width);
+    }
+}
+
+void TaskResolveRefs::checkAnnotationUnset(
+        ast::IAnnotation                *ann,
+        ast::ISymbolScope               *decl,
+        const std::set<std::string>     &given,
+        const std::string               &type_name) {
+    // The type's own fields, and those `extend annotation` adds (merged into
+    // its scope), then each base's (7.13: an annotation may derive from one).
+    std::vector<ast::ISymbolScope *> chain;
+    for (ast::ISymbolScope *s=decl; s && chain.size() < 64; ) {
+        if (std::find(chain.begin(), chain.end(), s) != chain.end()) {
+            break;
+        }
+        chain.push_back(s);
+        ast::ISymbolTypeScope *ts_s = NodeKind::cast<ast::ISymbolTypeScope>(s);
+        ast::ITypeScope *ts = (ts_s)
+            ? NodeKind::cast<ast::ITypeScope>(ts_s->getTarget()) : 0;
+        s = (ts && ts->getSuper_t() && ts->getSuper_t()->getTarget())
+            ? NodeKind::cast<ast::ISymbolScope>(TaskResolveSuperTypeRef(
+                m_ctxt->getDebugMgr(), m_ctxt->root()).resolve(ts))
+            : 0;
+    }
+
+    std::set<std::string> seen;
+    for (std::vector<ast::ISymbolScope *>::const_iterator
+        sit=chain.begin(); sit!=chain.end(); sit++) {
+        for (std::vector<ast::IScopeChildUP>::const_iterator
+            it=(*sit)->getChildren().begin();
+            it!=(*sit)->getChildren().end(); it++) {
+            ast::IField *f = NodeKind::cast<ast::IField>(it->get());
+            if (!f || !f->getName()) {
+                continue;
+            }
+            if ((f->getAttr() & (ast::FieldAttr::Static|ast::FieldAttr::Const))
+                    != ast::FieldAttr::NoFlags) {
+                continue;
+            }
+            const std::string &fname = f->getName()->getId();
+            if (!seen.insert(fname).second || given.count(fname)
+                    || f->getInit()) {
+                continue;
+            }
+            // A warning, not an error (ruling R-H2): 7.13 is silent, and an
+            // unset data field takes its type's default value.
+            m_ctxt->addMarker(
+                MarkerSeverityE::Warn,
+                ann->getLocation(),
+                "annotation '" + type_name + "' leaves field '" + fname
+                    + "' unset, and it has no default value",
+                {{f->getLocation(), "declared here"}},
+                "LINT411");
+        }
+    }
 }
 
 void TaskResolveRefs::visitDataTypeUserDefined(ast::IDataTypeUserDefined *i) {
