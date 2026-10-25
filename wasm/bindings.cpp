@@ -100,115 +100,6 @@ void jsonEscape(std::ostream &os, const std::string &s) {
     os << '"';
 }
 
-const char *severityName(pssp::MarkerSeverityE s) {
-    switch (s) {
-        case pssp::MarkerSeverityE::Error: return "error";
-        case pssp::MarkerSeverityE::Warn:  return "warning";
-        case pssp::MarkerSeverityE::Info:  return "info";
-        case pssp::MarkerSeverityE::Hint:  return "hint";
-        default: break;
-    }
-    // Python maps an unrecognised enum to "unknown" and hands it to the
-    // caller. TypeScript does not: `MarkerSeverity` has no 'unknown' member,
-    // because a consumer forced to handle that case is handling a core bug
-    // rather than a source condition (ts-api-design.md §5). Throwing turns it
-    // into one clear failure at the boundary instead.
-    throw std::runtime_error("unrecognised MarkerSeverityE crossing the WASM boundary");
-}
-
-
-/****************************************************************************
- * Profiling
- *
- * `IParseProfileInfo` is a diagnostic aid, not part of the AST, so it crosses
- * as JSON rather than through the serialiser: the shape is small, it is read
- * once by a human or a report script, and `ts-api-design.md` §9 Q4 keeps it
- * deliberately untyped on the TypeScript side so that changing what the
- * profiler reports is not a breaking API change.
- *
- * Decisions with no invocations are omitted. ANTLR reports every decision in
- * the ATN -- some 800 for this grammar -- and the ones never reached during a
- * parse carry nothing but zeroes. The *totals* are computed by
- * `ParseProfileInfo` over the full set, so dropping the empty entries here
- * costs no information.
- ****************************************************************************/
-void emitEvent(std::ostream &os, pssp::IDecisionEventInfo *ev) {
-    os << "{\"kind\":";
-    jsonEscape(os, ev->getKindName());
-    os << ",\"startLine\":" << ev->getStartLine()
-       << ",\"startColumn\":" << ev->getStartColumn()
-       << ",\"stopLine\":" << ev->getStopLine()
-       << ",\"stopColumn\":" << ev->getStopColumn()
-       << ",\"tokenCount\":" << ev->getTokenCount()
-       << ",\"text\":";
-    jsonEscape(os, ev->getText());
-    os << '}';
-}
-
-void emitDecision(std::ostream &os, pssp::IDecisionProfileInfo *d) {
-    os << "{\"decision\":" << d->getDecision()
-       << ",\"ruleIndex\":" << d->getRuleIndex()
-       << ",\"ruleName\":";
-    jsonEscape(os, d->getRuleName());
-    os << ",\"invocations\":" << d->getInvocations()
-       << ",\"timeInPrediction\":" << d->getTimeInPrediction()
-       << ",\"sllLookaheadOps\":" << d->getSLLLookaheadOps()
-       << ",\"llLookaheadOps\":" << d->getLLLookaheadOps()
-       << ",\"sllATNTransitions\":" << d->getSLLATNTransitions()
-       << ",\"llATNTransitions\":" << d->getLLATNTransitions()
-       << ",\"llFallback\":" << d->getLLFallback()
-       << ",\"ambiguityCount\":" << d->getAmbiguityCount()
-       << ",\"contextSensitivityCount\":" << d->getContextSensitivityCount()
-       << ",\"errorCount\":" << d->getErrorCount()
-       << ",\"predicateEvalCount\":" << d->getPredicateEvalCount()
-       << ",\"sllMinLookahead\":" << d->getSLLMinLookahead()
-       << ",\"sllMaxLookahead\":" << d->getSLLMaxLookahead()
-       << ",\"llMinLookahead\":" << d->getLLMinLookahead()
-       << ",\"llMaxLookahead\":" << d->getLLMaxLookahead()
-       << ",\"events\":[";
-    for (size_t i = 0; i < d->getNumEvents(); i++) {
-        if (i) {
-            os << ',';
-        }
-        emitEvent(os, d->getEvent(i));
-    }
-    os << "]}";
-}
-
-std::string profileJson(pssp::IParseProfileInfo *info) {
-    std::ostringstream os;
-    os << "{\"totalTimeInPrediction\":" << info->getTotalTimeInPrediction()
-       << ",\"totalSLLLookaheadOps\":" << info->getTotalSLLLookaheadOps()
-       << ",\"totalLLLookaheadOps\":" << info->getTotalLLLookaheadOps()
-       << ",\"totalSLLATNLookaheadOps\":" << info->getTotalSLLATNLookaheadOps()
-       << ",\"totalLLATNLookaheadOps\":" << info->getTotalLLATNLookaheadOps()
-       << ",\"totalATNLookaheadOps\":" << info->getTotalATNLookaheadOps()
-       << ",\"dfaSize\":" << info->getDFASize()
-       << ",\"tokenCount\":" << info->getTokenCount()
-       << ",\"llDecisions\":[";
-    const std::vector<size_t> ll = info->getLLDecisions();
-    for (size_t i = 0; i < ll.size(); i++) {
-        if (i) {
-            os << ',';
-        }
-        os << ll[i];
-    }
-    os << "],\"decisions\":[";
-    bool first = true;
-    for (pssp::IDecisionProfileInfo *d : info->getDecisionInfo()) {
-        if (!d->getInvocations()) {
-            continue;
-        }
-        if (!first) {
-            os << ',';
-        }
-        first = false;
-        emitDecision(os, d);
-    }
-    os << "]}";
-    return os.str();
-}
-
 } // namespace
 
 /****************************************************************************
@@ -235,7 +126,9 @@ public:
 
     void setMaxErrors(int32_t n) { m_session->setMaxErrors(n); }
     void setCollectDocstrings(bool c) { m_session->setCollectDocstrings(c); }
+    bool getCollectDocstrings() const { return m_session->getCollectDocstrings(); }
     void setCollectComments(bool c) { m_session->setCollectComments(c); }
+    bool getCollectComments() const { return m_session->getCollectComments(); }
     void setEnableProfiling(bool e) { m_session->setEnableProfiling(e); }
     void beginParse() { m_session->beginParse(); }
 
@@ -250,66 +143,12 @@ public:
 
     int32_t nextFileid() const { return m_session->nextFileid(); }
 
-    /*
-     * Every marker since clearMarkers(), resolved and sorted by the core, as
-     * JSON in the shape of Marker.ts's `Marker`.
-     */
-    std::string markersJson() const {
-        std::ostringstream os;
-        os << '[';
-        const std::vector<pssp::SessionMarker> &markers = m_session->markers();
-        for (size_t i = 0; i < markers.size(); i++) {
-            const pssp::SessionMarker &m = markers[i];
-            if (i) {
-                os << ',';
-            }
-            os << "{\"severity\":";
-            jsonEscape(os, severityName(m.severity));
-            os << ",\"message\":";
-            jsonEscape(os, m.message);
-            os << ",\"file\":";
-            jsonEscape(os, m.file);
-            // `extent` is passed through raw, including the -1 that
-            // Location.h defaults it to: clamping it would invent information
-            // the core did not supply.
-            os << ",\"line\":" << m.line
-               << ",\"col\":" << m.col
-               << ",\"extent\":" << m.extent;
+    /* Every marker since clearMarkers(), resolved and sorted by the core:
+     * IParserSession::markersJson(), the shape of Marker.ts's `Marker`. */
+    std::string markersJson() const { return m_session->markersJson(); }
 
-            os << ",\"related\":[";
-            for (size_t j = 0; j < m.related.size(); j++) {
-                const pssp::SessionMarkerRelation &r = m.related[j];
-                if (j) {
-                    os << ',';
-                }
-                os << "{\"file\":";
-                jsonEscape(os, r.file);
-                os << ",\"line\":" << r.line << ",\"col\":" << r.col
-                   << ",\"label\":";
-                jsonEscape(os, r.label);
-                os << '}';
-            }
-            os << ']';
-
-            // `code` is omitted rather than emitted empty when the core
-            // assigned none, so the TypeScript `Marker.code?` is absent.
-            if (!m.code.empty()) {
-                os << ",\"code\":";
-                jsonEscape(os, m.code);
-            }
-            if (m.has_fix) {
-                os << ",\"fix\":{\"file\":";
-                jsonEscape(os, m.fix.file);
-                os << ",\"line\":" << m.fix.line << ",\"col\":" << m.fix.col
-                   << ",\"extent\":" << m.fix.extent << ",\"replacement\":";
-                jsonEscape(os, m.fix.replacement);
-                os << '}';
-            }
-            os << '}';
-        }
-        os << ']';
-        return os.str();
-    }
+    /* The last parse or link call's markers, in markersJson()'s shape. */
+    std::string callMarkersJson() const { return m_session->callMarkersJson(); }
 
     void clearMarkers() { m_session->clearMarkers(); }
 
@@ -351,43 +190,11 @@ public:
 
     bool hasRoot() const { return m_session->root() != 0; }
 
-    /* fileid -> name of the files the last link() took, as a JSON object. */
-    std::string fileMapJson() const { return namesJson(m_session->fileMap()); }
+    std::string fileMapJson() const { return m_session->fileMapJson(); }
 
-    /* fileid -> name of the sources parsed since the last link(), as JSON. */
-    std::string sourceNamesJson() const { return namesJson(m_session->sourceNames()); }
+    std::string sourceNamesJson() const { return m_session->sourceNamesJson(); }
 
-    static std::string namesJson(const std::map<int32_t, std::string> &names) {
-        std::ostringstream os;
-        os << '{';
-        bool first = true;
-        for (const std::pair<const int32_t, std::string> &e : names) {
-            os << (first ? "" : ",") << '"' << e.first << "\":";
-            jsonEscape(os, e.second);
-            first = false;
-        }
-        os << '}';
-        return os.str();
-    }
-
-    /* IParserSession::inactiveRegions(), as a JSON array of
-     * {fileid, startLine, startCol, endLine, endCol}. */
-    std::string inactiveRegionsJson() const {
-        std::ostringstream os;
-        os << '[';
-        const std::vector<pssp::ast::SourceRange> regions = m_session->inactiveRegions();
-        for (size_t i = 0; i < regions.size(); i++) {
-            const pssp::ast::SourceRange &r = regions[i];
-            os << (i ? "," : "")
-               << "{\"fileid\":" << r.fileid
-               << ",\"startLine\":" << r.start_line
-               << ",\"startCol\":" << r.start_col
-               << ",\"endLine\":" << r.end_line
-               << ",\"endCol\":" << r.end_col << '}';
-        }
-        os << ']';
-        return os.str();
-    }
+    std::string inactiveRegionsJson() const { return m_session->inactiveRegionsJson(); }
 
     /*
      * Serialise the linked root. Same view-not-copy contract as
@@ -463,13 +270,7 @@ public:
      * "" rather than "null" so the TypeScript side has one cheap test. There
      * is none after link(), which drops the builder that holds it.
      */
-    std::string profileInfoJson() {
-        pssp::IParseProfileInfoUP info(m_session->profileInfo());
-        if (!info) {
-            return "";
-        }
-        return profileJson(info.get());
-    }
+    std::string profileInfoJson() { return m_session->profileInfoJson(); }
 
     /*
      * The session's lint engine, as JSON: {"rule_format_version":N,
@@ -697,12 +498,15 @@ EMSCRIPTEN_BINDINGS(pssparser) {
         .constructor<>()
         .function("setMaxErrors", &ParserSession::setMaxErrors)
         .function("setCollectDocstrings", &ParserSession::setCollectDocstrings)
+        .function("getCollectDocstrings", &ParserSession::getCollectDocstrings)
         .function("setCollectComments", &ParserSession::setCollectComments)
+        .function("getCollectComments", &ParserSession::getCollectComments)
         .function("setEnableProfiling", &ParserSession::setEnableProfiling)
         .function("beginParse", &ParserSession::beginParse)
         .function("parseSource", &ParserSession::parseSource)
         .function("nextFileid", &ParserSession::nextFileid)
         .function("markersJson", &ParserSession::markersJson)
+        .function("callMarkersJson", &ParserSession::callMarkersJson)
         .function("clearMarkers", &ParserSession::clearMarkers)
         .function("hasErrors", &ParserSession::hasErrors)
         .function("maxErrorsExceeded", &ParserSession::maxErrorsExceeded)

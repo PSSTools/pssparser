@@ -226,6 +226,30 @@ public:
     virtual IParseProfileInfo *profileInfo() = 0;
 
     /**
+     * markers() as JSON, for a binding that crosses as text: an array of
+     * {severity, message, file, line, col, extent, related: [{file, line,
+     * col, label}], code?, fix?: {file, line, col, extent, replacement}}.
+     * Severity is "error", "warning", "info" or "hint".
+     */
+    virtual std::string markersJson() const = 0;
+
+    /** callMarkers() as JSON, in markersJson()'s shape. */
+    virtual std::string callMarkersJson() const = 0;
+
+    /** fileMap() as a JSON object, fileid -> name. */
+    virtual std::string fileMapJson() const = 0;
+
+    /** sourceNames() as a JSON object, fileid -> name. */
+    virtual std::string sourceNamesJson() const = 0;
+
+    /** inactiveRegions() as a JSON array of
+     *  {fileid, startLine, startCol, endLine, endCol}. */
+    virtual std::string inactiveRegionsJson() const = 0;
+
+    /** profileInfo() as JSON; "" when there is none. */
+    virtual std::string profileInfoJson() = 0;
+
+    /**
      * The session's lint engine, created on first use with the built-in rules
      * loaded. Rules loaded into it serve every later run.
      */

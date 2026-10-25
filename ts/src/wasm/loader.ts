@@ -15,7 +15,9 @@ import { AST_SCHEMA_HASH } from './schemaHash.js';
 export interface ParserSessionHandle {
   setMaxErrors(n: number): void;
   setCollectDocstrings(c: boolean): void;
+  getCollectDocstrings(): boolean;
   setCollectComments(c: boolean): void;
+  getCollectComments(): boolean;
   setEnableProfiling(e: boolean): void;
   beginParse(): void;
   /** Parse one source, recording `name` for its fileid. Returns true when the
@@ -25,6 +27,8 @@ export interface ParserSessionHandle {
   /** Every marker since `clearMarkers()`, resolved to file names and sorted
    *  by the core: a JSON array of `Marker`. */
   markersJson(): string;
+  /** The last parse or link call's markers, in `markersJson()`'s shape. */
+  callMarkersJson(): string;
   clearMarkers(): void;
   hasErrors(): boolean;
   maxErrorsExceeded(): boolean;

@@ -411,6 +411,12 @@ cdef extern from "pssp/IParserSession.h" namespace "pssp":
         cpp_vector[ast.SourceRange] inactiveRegions() const
         IParseProfileInfo *profileInfo()
         ILintEngine *lintEngine()
+        cpp_string markersJson() const
+        cpp_string callMarkersJson() const
+        cpp_string fileMapJson() const
+        cpp_string sourceNamesJson() const
+        cpp_string inactiveRegionsJson() const
+        cpp_string profileInfoJson()
 
 cdef extern from "pssp/ISymbolTableIterator.h" namespace "pssp":
     cdef cppclass ISymbolTableIterator:

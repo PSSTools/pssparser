@@ -1500,8 +1500,14 @@ cdef class ParserSession(object):
     def setCollectDocstrings(self, bool c):
         self._hndl.setCollectDocstrings(c)
 
+    def getCollectDocstrings(self):
+        return self._hndl.getCollectDocstrings()
+
     def setCollectComments(self, bool c):
         self._hndl.setCollectComments(c)
+
+    def getCollectComments(self):
+        return self._hndl.getCollectComments()
 
     def setEnableProfiling(self, bool e):
         self._hndl.setEnableProfiling(e)
@@ -1592,3 +1598,23 @@ cdef class ParserSession(object):
         if info == NULL:
             return None
         return ParseProfileInfo.mk(info, True)
+
+    # The JSON forms the WASM and C bindings cross with; here for parity
+    # tests, which compare them across bindings.
+    def markersJson(self):
+        return self._hndl.markersJson().decode()
+
+    def callMarkersJson(self):
+        return self._hndl.callMarkersJson().decode()
+
+    def fileMapJson(self):
+        return self._hndl.fileMapJson().decode()
+
+    def sourceNamesJson(self):
+        return self._hndl.sourceNamesJson().decode()
+
+    def inactiveRegionsJson(self):
+        return self._hndl.inactiveRegionsJson().decode()
+
+    def profileInfoJson(self):
+        return self._hndl.profileInfoJson().decode()

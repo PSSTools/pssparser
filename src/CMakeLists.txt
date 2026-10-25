@@ -102,6 +102,30 @@ endif()
 target_compile_definitions(pssparser PRIVATE PSSPARSER_BUILD_DLL)
 set_target_properties(pssparser PROPERTIES SKIP_BUILD_RPATH TRUE)
 
+#********************************************************************
+#* pssparser_c: the flat C interface (pssp/pssparser_c.h)
+#*
+#* Its own library, because it is the one consumer of libpssparser that
+#* needs the AST library's factory too: a C host has no other way to reach
+#* it. capi/ is outside the glob above, so libpssparser does not take it.
+#********************************************************************
+add_library(pssparser_c SHARED capi/pssparser_c.cpp)
+target_link_libraries(pssparser_c pssparser ast)
+add_dependencies(pssparser_c pssparser AST)
+target_compile_definitions(pssparser_c PRIVATE PSSPARSER_C_BUILD_DLL)
+if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  target_link_options(pssparser_c PRIVATE "-Wl,--no-undefined")
+endif()
+# It finds libpssparser and libast beside itself. $ORIGIN (the directory-wide
+# INSTALL_RPATH) means nothing to macOS's dyld.
+if (APPLE)
+  set_target_properties(pssparser_c PROPERTIES INSTALL_RPATH "@loader_path")
+endif()
+install(TARGETS pssparser_c
+    RUNTIME DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
+
 file(GLOB pss_stdlib_SRC "stdlib/*.pss")
 
 # The generator script is a dependency too. Without it, editing

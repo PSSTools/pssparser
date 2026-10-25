@@ -300,6 +300,8 @@ if isSrcBuild:
         ("build/include", "share"),
         ("build/{libdir}/{libpref}ast{dllext}", ""),
         ("build/{libdir}/{libpref}pssparser{dllext}", ""),
+        # The C interface (pssp/pssparser_c.h), for the Rust binding.
+        ("build/{libdir}/{libpref}pssparser_c{dllext}", ""),
         ("python/PyBaseVisitor.h", "share/include"),
         ("python/PyParserUtils.h", "share/include"),
     ] + _skills_data

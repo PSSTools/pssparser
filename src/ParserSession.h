@@ -96,6 +96,18 @@ public:
 
     virtual lint::ILintEngine *lintEngine() override;
 
+    virtual std::string markersJson() const override;
+
+    virtual std::string callMarkersJson() const override;
+
+    virtual std::string fileMapJson() const override;
+
+    virtual std::string sourceNamesJson() const override;
+
+    virtual std::string inactiveRegionsJson() const override;
+
+    virtual std::string profileInfoJson() override;
+
 private:
     /** Open a call: a fresh collector, and no call markers yet. */
     void beginCall();

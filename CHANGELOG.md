@@ -27,6 +27,9 @@ Currently: **PSS 3.1** (Public Review Draft, 2026-08-28).
   lifecycle that the Python and TypeScript `Parser` now both wrap. It loads the core
   library, keeps the file names, resolves and sorts markers, and turns an escaped C++
   exception into a `PSSP000` marker.
+- C: `libpssparser_c` and `pssp/pssparser_c.h`, a flat C interface to the session
+  (`pssp_session_*`) for hosts that cannot call C++, the Rust binding first. Markers,
+  file names and inactive regions cross as JSON, in the shapes the WASM build uses.
 
 ### Changed
 
